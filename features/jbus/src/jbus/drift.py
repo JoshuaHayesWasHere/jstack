@@ -151,24 +151,13 @@ def _notes(ground: Ground) -> int:
 
 def _default_branch(checkout: Path) -> str:
     """The branch `origin/HEAD` names in the checkout, or `main` where git names none."""
-    try:
-        done = subprocess.run(
-            [
-                "git",
-                "-C",
-                str(checkout),
-                "symbolic-ref",
-                "-q",
-                "--short",
-                "refs/remotes/origin/HEAD",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=10,
-            check=False,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return "main"
+    done = subprocess.run(
+        ["git", "-C", str(checkout), "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD"],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
     return done.stdout.strip().removeprefix("origin/") or "main"
 
 

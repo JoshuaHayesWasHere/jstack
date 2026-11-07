@@ -164,10 +164,11 @@ def test_d6_names_each_merge_of_the_last_week_into_a_merged_base_that_jmerge_did
         },
     ]
     monkeypatch.setattr(drift, "_ground", lambda config, now: ground(machine, now))
+    (machine.home_dir / "alpha" / "standing.md").write_text("1. Always do the thing.\n")
     said = []
     drift._chore(jbus.load(), None, NOW + timedelta(days=1), said.append)
     (told,) = said
-    assert "D6" in told
+    assert "D2, D6 (" in told
     assert all(f"alpha #{number}" in told for number in (11, 12, 13, 14))
     assert not any(f"#{number}" in told for number in (9, 10, 15))
 
