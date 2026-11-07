@@ -1,0 +1,206 @@
+From 82191bc085e750daca7467f678b09140af02f2ec Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
+Date: Sat, 7 Nov 2026 18:17:08 -0500
+Subject: [PATCH 29/29] fix(web): a jstack home row says its age, and no count
+ of crews, scouts, reviews or queued tasks
+
+The home row summed up its open tasks by stage, such as "2 scouts, 5 review, 1 queued", in place
+of its age. The user asked for the wording gone. homeSummary, its tally and the tally's group on
+each worker go with it, and a home row says its age whether or not tasks are open under it.
+---
+ .../src/components/sidebar/JstackTreeRows.tsx | 18 ++----
+ .../sidebar/jstackTree.logic.test.ts          |  2 +-
+ .../components/sidebar/jstackTree.logic.ts    | 58 +++----------------
+ 3 files changed, 13 insertions(+), 65 deletions(-)
+
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+index 626eb390d1..616af5efee 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+@@ -18,7 +18,6 @@ import { ProjectFavicon } from "../ProjectFavicon";
+ import { Button } from "../ui/button";
+ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
+ import {
+-  homeSummary,
+   jstackStageText,
+   waitedText,
+   scopeNameProblem,
+@@ -30,8 +29,8 @@ import { RelativeTimeLabel, threadTimeTimestamp } from "./SidebarThreadRow";
+ 
+ // jstack fork: the tree sidebar's rows. Sky marks live work and amber what asks you; text is
+ // neutral. Names 13/400, words 11/400; root 32px at full ink, 24px above, home 28px at 80%,
+-// worker 26px at 60%. A home with no live work is one line; what merged leaves the tree. A home's
+-// row sums up its tasks by stage, so a task's row shows only what asks you or waits.
++// worker 26px at 60%. A home with no live work is one line; what merged leaves the tree. A task's
++// row shows only what asks you or waits; where it stands is in its tooltip and menu.
+ 
+ type TreeRow = Exclude<JstackTreeRow, { kind: "loose" }>;
+ type NewHomeRow = Extract<JstackTreeRow, { kind: "new-home" }>;
+@@ -669,7 +668,6 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+       );
+     }
+     case "domain": {
+-      const work = row.work;
+       const pin = row.pinned ? "Unpin" : "Pin open";
+       const onContextMenu = rowMenu([
+         { label: "Open home", run: () => actions.onOpenThread(row.threadId) },
+@@ -690,7 +688,7 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+                 type="button"
+                 data-sidebar-row={row.key}
+                 data-sidebar-parent={row.parentKey}
+-                aria-expanded={work.kind === "live" ? row.open : undefined}
++                aria-expanded={row.live ? row.open : undefined}
+                 aria-current={row.selected ? "page" : undefined}
+                 onClick={() => actions.onOpenThread(row.threadId)}
+                 onContextMenu={onContextMenu}
+@@ -705,17 +703,11 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+                   {row.scope}
+                 </span>{" "}
+                 {row.asksYou ? <AsksYou /> : row.dot ? <GateDot /> : null}{" "}
+-                {work.kind === "live" ? (
+-                  <span className="shrink-0 text-2xs tabular-nums text-sidebar-muted-foreground">
+-                    {homeSummary(work.tally)}
+-                  </span>
+-                ) : (
+-                  <TimeLabel thread={row.thread} />
+-                )}
++                <TimeLabel thread={row.thread} />
+                 <SaidLast
+                   parts={[
+                     "home",
+-                    work.kind === "idle" && "idle",
++                    !row.live && "idle",
+                     row.pinned && "pinned open",
+                     row.dot && "something inside asks you",
+                   ]}
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+index 2028b10de1..1ddfe588d3 100644
+--- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
++++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+@@ -164,7 +164,7 @@ describe("buildJstackTree", () => {
+     const idle = build({ landed: [merged("fl-done", 60), merged("fl-pump", 5)] }, opened);
+     expect(under(idle)).toEqual([]);
+     expect(idle.rows.find((row) => row.kind === "domain")).toMatchObject({
+-      work: { kind: "idle" },
++      live: false,
+     });
+     expect(idle.rows[0]).toMatchObject({ kind: "project", landed: 2 });
+   });
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
+index 51381eea7c..86d92696e3 100644
+--- a/apps/web/src/components/sidebar/jstackTree.logic.ts
++++ b/apps/web/src/components/sidebar/jstackTree.logic.ts
+@@ -116,33 +116,6 @@ export interface JstackWaited {
+ export const waitedText = (waited: JstackWaited): string =>
+   `${waited.kind} ${waited.age}${waited.reason === null ? "" : `: ${waited.reason}`}`;
+ 
+-/** A home's open tasks by where they stand: a scout out of the queue is counted apart from crew. */
+-export interface JstackTally {
+-  readonly crew: number;
+-  readonly scout: number;
+-  readonly review: number;
+-  readonly queue: number;
+-}
+-
+-/** A tally in words, as its home's row says it: `1 crew, 2 scouts, 5 review, 1 queued`. */
+-export const homeSummary = (tally: JstackTally): string =>
+-  [
+-    tally.crew > 0 && `${tally.crew} crew`,
+-    tally.scout > 0 && `${tally.scout} scout${tally.scout === 1 ? "" : "s"}`,
+-    tally.review > 0 && `${tally.review} review`,
+-    tally.queue > 0 && `${tally.queue} queued`,
+-  ]
+-    .filter(Boolean)
+-    .join(", ");
+-
+-/**
+- * What a child home has under it: live work, which its row sums up in place of its age, or none,
+- * when the home is one line. What merged leaves the tree; the root counts it.
+- */
+-export type JstackHomeWork =
+-  | { readonly kind: "live"; readonly tally: JstackTally }
+-  | { readonly kind: "idle" };
+-
+ export type JstackTreeRow =
+   | {
+       readonly kind: "project";
+@@ -178,7 +151,8 @@ export type JstackTreeRow =
+       readonly pinned: boolean;
+       readonly asksYou: boolean;
+       readonly dot: boolean;
+-      readonly work: JstackHomeWork;
++      /** It has open tasks under it; a home with none is one line. What merged leaves the tree. */
++      readonly live: boolean;
+       readonly faded: boolean;
+       readonly selected: boolean;
+     }
+@@ -340,10 +314,9 @@ const waitsOnUser = (thread: EnvironmentThreadShell | null) =>
+ interface Worker {
+   readonly row: Extract<JstackTreeRow, { kind: "worker" }>;
+   readonly rank: number;
+-  readonly stage: "queue" | "crew" | "review";
+ }
+ 
+-type JstackGroup = Worker["stage"];
++type JstackGroup = "queue" | "crew" | "review";
+ 
+ interface Stage {
+   readonly word: string;
+@@ -464,7 +437,6 @@ const toWorker = (
+     gate !== undefined && gate.question !== "" ? gate.question : (waits ?? "waits on you");
+   return {
+     rank,
+-    stage: stage.group,
+     row: {
+       kind: "worker",
+       key: jstackTaskRowKey(task.repo, task.slug),
+@@ -528,17 +500,6 @@ const ordered = (
+   return [...kept, ...ranked.filter((worker) => !position.has(worker.row.key))];
+ };
+ 
+-const tallyOf = (workers: ReadonlyArray<Worker>): JstackTally => {
+-  const out = (kind: "crew" | "scout") =>
+-    workers.filter((worker) => worker.stage === "crew" && worker.row.taskKind === kind).length;
+-  return {
+-    crew: out("crew"),
+-    scout: out("scout"),
+-    review: workers.filter((worker) => worker.stage === "review").length,
+-    queue: workers.filter((worker) => worker.stage === "queue").length,
+-  };
+-};
+-
+ const isMember = (input: JstackTreeInput, thread: EnvironmentThreadShell) =>
+   input.memberProjectRefs.some(
+     (ref) => ref.environmentId === input.environmentId && ref.projectId === thread.projectId,
+@@ -695,8 +656,7 @@ export function buildJstackTree(input: JstackTreeInput): JstackTree {
+     const selected = selectsThread(input, home.threadId);
+     const pinned = input.pinnedHomes.has(home.threadId);
+     const open = pinned || selected || workers.some((worker) => worker.row.selected);
+-    const work: JstackHomeWork =
+-      workers.length > 0 ? { kind: "live", tally: tallyOf(workers) } : { kind: "idle" };
++    const live = workers.length > 0;
+     domainRows.push({
+       kind: "domain",
+       key,
+@@ -708,15 +668,11 @@ export function buildJstackTree(input: JstackTreeInput): JstackTree {
+       pinned,
+       asksYou,
+       dot: !open && workerAsks,
+-      work,
+-      faded:
+-        !pinned &&
+-        workers.length === 0 &&
+-        !asksYou &&
+-        (thread === null || !isThreadWorking(thread)),
++      live,
++      faded: !pinned && !live && !asksYou && (thread === null || !isThreadWorking(thread)),
+       selected,
+     });
+-    if (work.kind === "live" && open) domainRows.push(...capped(workers, home.threadId, key, 2));
++    if (live && open) domainRows.push(...capped(workers, home.threadId, key, 2));
+   }
+ 
+   const lastVisitedAt = input.lastVisitedAt(rootThread);
+-- 
+2.56.0
+
