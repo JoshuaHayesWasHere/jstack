@@ -6,6 +6,7 @@ does not break jbus. A checkout jbus does not watch installs from itself, as bef
 import json
 import os
 import subprocess
+from types import SimpleNamespace
 
 import pytest
 
@@ -149,3 +150,83 @@ def test_the_copy_of_another_checkout_is_not_written_over(small, tmp_path):
     found = GreenCopy(machine.green).probe(machine)
     assert (found.detail, found.replaceable) == (f"the green copy of {other}", False)
     assert GreenCopy(machine.green).drop(machine).removed == ()
+
+
+@pytest.fixture
+def installed(tmp_path, monkeypatch):
+    """An install into a tmp HOME from a clone that jbus watches, and a tip of main landed after
+    it that adds features/crew/templates/new.sh and drops features/home/templates/check.yml.
+    `move()` moves the green copy to that tip, as a jbus pass does, and returns the conditions
+    it raised."""
+    checkout = tmp_path / "checkout"
+    subprocess.run(["git", "clone", "-q", "--shared", str(REPO), str(checkout)], check=True)
+    user = User(tmp_path)
+    watched(user, checkout)
+    done = user.start(checkout=checkout)
+    out, err = done.communicate()
+    user.copy = user.home / ".local" / "share" / "jstack" / "green"
+    user.templates = laid(user.home) / "templates"
+    assert (user.templates / "check.yml").is_file(), out + err
+
+    (checkout / "features/crew/templates/new.sh").write_text("echo new\n")
+    (checkout / "features/home/templates/check.yml").unlink()
+    catalog = json.loads((checkout / "skills.json").read_text())
+    catalog["items"] = [one for one in catalog["items"] if one["name"] != "check.yml"] + [
+        {"name": "new.sh", "kind": "template", "path": "features/crew/templates/new.sh"}
+    ]
+    (checkout / "skills.json").write_text(json.dumps(catalog, indent=2) + "\n")
+    subprocess.run(["git", "-C", str(checkout), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(checkout), *COMMIT, "-m", "a merge"], check=True)
+    user.new = head(checkout)
+    state = tmp_path / "state" / "jstack"
+    state.mkdir(parents=True)
+    green_tip = {"main": user.new, "check": "green", "green": user.new}
+    (state / "main.json").write_text(json.dumps(green_tip))
+
+    for name, value in {"HOME": user.home, "JBUS_CONFIG_DIR": user.jbus}.items():
+        monkeypatch.setenv(name, str(value))
+    for name in [one for one in os.environ if one.startswith("XDG_")]:
+        monkeypatch.delenv(name)
+    monkeypatch.setattr(copies, "_reinstall", lambda tree: "")
+
+    def move():
+        raised = []
+        run = SimpleNamespace(
+            project=SimpleNamespace(name="jstack", checkout=checkout),
+            state=state,
+            say=lambda line: None,
+            condition=lambda *args, **kwargs: raised.append(args),
+        )
+        copies.move(run, user.copy)
+        return raised
+
+    user.move = move
+    return user
+
+
+def test_a_file_main_adds_or_drops_after_the_install_reaches_the_harness_when_green_moves(
+    installed,
+):
+    """The layouts link each file of the green copy that the last install saw. jbus moves the
+    copy on every green merge, so the move relinks them: a template main adds is there with no
+    install, and one main drops leaves no link behind (#1212's proved.sh, 2026-11-07)."""
+    assert (installed.move(), head(installed.copy)) == ([], installed.new)
+    templates = installed.templates
+    assert (templates / "new.sh").read_text() == "echo new\n"
+    assert not (templates / "check.yml").is_symlink()
+    dangling = [one for one in templates.rglob("*") if one.is_symlink() and not one.exists()]
+    assert dangling == []
+
+
+def test_a_layout_the_move_cannot_put_raises_a_condition_and_the_copy_still_moves(installed):
+    """A folder of the user's own where the layout keeps a link is one the put cannot write
+    over: the move keeps it, still moves the copy, and says which layout it could not put."""
+    mine = installed.templates / "brief.md"
+    mine.unlink()
+    mine.mkdir()
+    (mine / "notes").write_text("my own notes\n")
+    raised = installed.move()
+    assert head(installed.copy) == installed.new
+    assert [(area, title) for area, title, _ in raised] == [("green", copies.UNLINKED)]
+    assert "layout claude-code" in raised[0][2]
+    assert (mine / "notes").read_text() == "my own notes\n"
