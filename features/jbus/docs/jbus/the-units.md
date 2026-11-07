@@ -5,11 +5,13 @@ On macOS it makes one launchd agent from each unit that systemd would enable, as
 In a release the links point into the tool's own copy, `<tool venv>/share/jstack/features/jbus/units/`, and in a checkout they point into the checkout.
 Each unit runs `~/.local/bin/jbus`.
 Where the checkout has a green copy (`jbus.green`), the links point through it, so each move of the copy to main's next green tip changes the files systemd runs.
-systemd keeps running the units it loaded until it reads them again, so a move whose tip changed, added or dropped a unit file of `features/*/units/` runs `systemctl --user daemon-reload`, then `systemctl --user try-restart` on each changed timer, and the pass's log names them: `green <project>: systemd reloaded <units>, and restarted <timers>`.
-A timer that was not running stays stopped, and a service is not restarted: its next start runs the new file.
-The move writes the units it owes systemd in the project's `green.json` before it points the copy, and clears them only once systemctl took every call.
-A reload systemctl refuses raises a condition, and each later pass tries it again, with no new green tip, until it holds, so neither a refusal nor a pass that died before its reload leaves systemd on the old units.
-A move that changes no unit calls systemctl not at all, and on macOS a move reloads no agent.
+The links do not change on a move: the copy's path stays the same and names whichever tree is green, so the install sets each link up once.
+systemd judges a unit loaded through a link by the file behind it, and each green tip is a tree of its own, `green.d/<sha>`, whose files are all new, so after any move every unit would show `NeedDaemonReload=yes` and "changed on disk" in `systemctl --user cat`, even where its content is the same.
+So a move runs `systemctl --user daemon-reload` wherever `~/.config/systemd/user` links a unit into the tree it leaves, or the tip changed, added or dropped a unit file, then `systemctl --user try-restart` on each timer whose content the tip changed, and the pass's log names them: `green <project>: systemd reloaded <units>, and restarted <timers>`, or `systemd reloaded the units of <sha>` where no unit's content changed.
+A timer that was not running stays stopped, a timer whose content is the same keeps its schedule, and a service is not restarted: its next start runs the new file.
+The move writes the reload it owes systemd in the project's `green.json` before it points the copy, and clears it only once systemctl took every call.
+A reload systemctl refuses raises a condition, and each later pass tries it again, with no new green tip, until it holds, so neither a refusal nor a pass that died before its reload leaves systemd on the old units or a unit owing a reload.
+On macOS a move reloads no agent.
 
 | Unit | Runs | When | Enabled by the install |
 |---|---|---|---|

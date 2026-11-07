@@ -33,22 +33,37 @@ root and the entries of its hooks file, so a skill or hook main adds is live and
 gone.
 
 The units of `features/*/units/` link through the copy, so a move changes the files systemd
-runs, and systemd keeps running the ones it loaded until it is told to read them again. So a move
-whose new tip changed, added or dropped a unit file, by content against the tree it leaves
-(`units`), runs `systemctl --user daemon-reload`, then `try-restart` on each timer the new tip
-has among them, so a timer whose interval changed runs on the new one at once (`reload`). A
-service is not restarted: the pass that moves the copy runs in jbus.service, and a oneshot runs
-the new file on its next start. `try-restart` starts no timer that was not running, so a reload
-run twice ends the same. Before it points the link, the move writes the units it owes systemd in
-`green.json`, as `reload` and `at`, the tip that changed them, and only a reload that systemd took
-every call of clears them. A reload systemd refuses raises a condition for the tip, and each pass
-asks again, with no new tip, until systemd takes it, so neither a refusal nor a pass that died
-before its reload leaves systemd on the old units. A move that changes no unit owes nothing and
-calls systemctl not at all, and on launchd nothing is reloaded.
+runs, and systemd keeps running the ones it loaded until it is told to read them again. systemd
+judges a unit loaded from a link by the file behind it, and a unit owes a reload
+(`NeedDaemonReload`, "changed on disk" in `systemctl cat`) while that file is newer than the one
+it loaded. Each tip's tree is a checkout of its own, so after any move every unit's file is a
+new one, though its content may be the same, and systemd's units name a tree the next move
+removes. So a move runs `systemctl --user daemon-reload` where systemd's unit folder links a unit
+into the tree it leaves (`linked`), or where the new tip changed, added or dropped a unit file, by
+content against that tree (`units`), and then `try-restart` on each timer among the changed ones,
+so a timer whose interval changed runs on the new one at once (`reload`). A
+timer whose content is the same is not restarted, so its schedule runs on. A service is not
+restarted: the pass that moves the copy runs in jbus.service, and a oneshot runs the new file on
+its next start. `try-restart` starts no timer that was not running, so a reload run twice ends
+the same. Before it points the link, the move writes the reload it owes systemd in `green.json`:
+`at`, the tip whose units systemd must read, and `reload`, the unit files whose content changed,
+and only a reload that systemd took every call of clears them. A reload systemd refuses raises a
+condition for the tip, and each pass asks again, with no new tip, until systemd takes it, so
+neither a refusal nor a pass that died before its reload leaves systemd on the old units, nor
+any unit owing a reload. A move on a machine that links no unit through the copy and changes
+none, and one on launchd, reloads nothing. Nor does one whose user manager does not read this
+HOME (`ours`), as a test's or a sandbox's HOME is not the one the account's manager reads: the
+move owes it nothing, as `jinstall.machine.Machine.systemctl` asks it nothing.
+
+The links themselves do not move: the install links each unit to its file under the copy's path,
+which names whichever tree is green, so a move leaves every link as the install made it. That path
+never moves, and yet it spares no reload: systemd judges the file behind it, which each move
+makes new.
 
 Each move prints one line, `green <project>: the commands now run from <new 12>, in place of
 <old 12>`, which the pass's log keeps, and one that reloaded units a second, `green <project>:
-systemd reloaded <units>, and restarted <timers>`. A crew's worktree is not the copy: `uv run`
+systemd reloaded <units>, and restarted <timers>`, whose units are the files that
+changed or else `the units of <new 12>`. A crew's worktree is not the copy: `uv run`
 there runs that tree's own code, and the copy moves no file of it.
 """
 
@@ -81,8 +96,9 @@ BUILT = ("pyproject.toml", "uv.lock")
 """The files whose change makes `move` import the new tip in an environment uv makes for it."""
 
 FILE = "green.json"
-"""The project's record of the copy: `refused`, the tip it would not import, and `reload`, the unit
-files whose reload a move owes systemd, with `at`, the tip that changed them."""
+"""The project's record of the copy: `refused`, the tip it would not import, and the reload a move
+owes systemd: `at`, the tip whose units systemd must read, and `reload`, the unit files whose
+content changed since systemd read them, whose timers the reload restarts."""
 
 OWED = ("reload", "at")
 
@@ -243,14 +259,33 @@ def units(before: Path, after: Path) -> list[str]:
     return sorted(name for name in old.keys() | new.keys() if old.get(name) != new.get(name))
 
 
+def linked(tree: Path, env: Mapping[str, str] | None = None) -> bool:
+    """Whether systemd's user unit folder, `${XDG_CONFIG_HOME:-~/.config}/systemd/user`, holds a
+    link that resolves into `tree`, so that systemd loaded a unit from it."""
+    env = os.environ if env is None else env
+    folder = Path(env.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "systemd" / "user"
+    if not folder.is_dir():
+        return False
+    return any(one.is_symlink() and one.resolve().is_relative_to(tree) for one in folder.iterdir())
+
+
+def ours(env: Mapping[str, str] | None = None) -> bool:
+    """Whether the user manager that `systemctl --user` reaches reads this HOME: it answers
+    `show-environment` with `HOME=` this HOME. One that does not answer is not ours either."""
+    env = os.environ if env is None else env
+    said = proc.run("systemctl", "--user", "show-environment", timeout=60)
+    home = env.get("HOME") or str(Path.home())
+    return said.returncode == 0 and f"HOME={home}" in said.stdout.splitlines()
+
+
 def reload(run: Pass, copy: Path) -> None:
-    """Have systemd read again the units a move owes it, as `green.json` keeps them, and restart
-    each of them that is a timer of the tree the copy names. Clear the debt only once systemd took
-    every call, so a pass that finds it refused, or never asked, asks again."""
+    """Have systemd read again the units of the tip a move owes it, as `green.json` keeps it, and
+    restart each changed unit that is a timer of the tree the copy names. Clear the debt only once
+    systemd took every call, so a pass that finds it refused, or never asked, asks again."""
     record = read_json(run.state / FILE, {})
-    owed = record.get("reload") or []
-    if not owed:
+    if not any(record.get(key) for key in OWED):
         return
+    owed = record.get("reload") or []
     green = str(record.get("at", ""))
     tree = copy.resolve()
     timers = [one for one in owed if one.endswith(".timer") and any(tree.glob(UNITS[:-1] + one))]
@@ -263,7 +298,8 @@ def reload(run: Pass, copy: Path) -> None:
             return
     write_json(run.state / FILE, {key: value for key, value in record.items() if key not in OWED})
     restarted = f", and restarted {', '.join(timers)}" if timers else ""
-    run.say(f"green {run.project.name}: systemd reloaded {', '.join(owed)}{restarted}")
+    what = ", ".join(owed) if owed else f"the units of {green[:12]}"
+    run.say(f"green {run.project.name}: systemd reloaded {what}{restarted}")
 
 
 def move(run: Pass, copy: Path | None = None) -> None:
@@ -299,7 +335,7 @@ def _advance(run: Pass, copy: Path) -> None:
         return
     before = copy.resolve()
     changed = units(before, tree)
-    if changed and launchd.manager() == "systemd":
+    if (changed or linked(before)) and launchd.manager() == "systemd" and ours():
         owed = sorted({*record.get("reload", []), *changed})
         write_json(run.state / FILE, {**record, "reload": owed, "at": green})
     _point(copy, tree)
