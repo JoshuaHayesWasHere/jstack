@@ -194,8 +194,10 @@ class T3(Server):
 
     def says(self, thread, message, text, **more):
         """Store a message of a thread as T3 Code returns it when jbus asks for that message by
-        its id. It is the user's own message, typed in the app, unless `more` says otherwise."""
+        its id, or reads the thread's messages in order. It is the user's own message, typed in
+        the app, unless `more` says otherwise, and comes after every message stored before it."""
         self.said[thread, message] = {
+            "position": 10 * len(self.said),
             "itemId": f"turn-item:message:{urllib.parse.quote(message, safe='')}",
             "messageId": message,
             "createdBy": "user",
@@ -322,6 +324,27 @@ class T3(Server):
                 )
                 made = {"thread": {"threadId": given["threadId"], "title": title}, "items": items}
                 return {"structuredContent": made, "content": []}
+            if given.get("view") == "messages":
+                after = given.get("afterPosition", -1)
+                listed = sorted(
+                    (one for (t, _), one in self.said.items() if t == given["threadId"]),
+                    key=lambda one: one["position"],
+                )
+                later = [one for one in listed if one["position"] > after]
+                page = [
+                    {
+                        **{k: v for k, v in one.items() if k != "title"},
+                        "text": one["text"][: given["maxCharsPerItem"]],
+                    }
+                    for one in later[: given["limit"]]
+                ]
+                made = {
+                    "thread": {"threadId": given["threadId"]},
+                    "items": page,
+                    "nextPosition": page[-1]["position"] if page else None,
+                    "hasMore": len(later) > len(page),
+                }
+                return {"structuredContent": made, "content": []}
             found = [t for t in self.threads if t["threadId"] == given["threadId"]]
             if not found:
                 return gone(given["threadId"], "is no longer available")
@@ -352,6 +375,27 @@ class T3(Server):
                     thread["updatedAt"] = iso(datetime.now(UTC))
             made = {"threadId": given["threadId"], "status": "queued"}
         elif tool == "t3_thread_configure":
+            if given.get("view") == "messages":
+                after = given.get("afterPosition", -1)
+                listed = sorted(
+                    (one for (t, _), one in self.said.items() if t == given["threadId"]),
+                    key=lambda one: one["position"],
+                )
+                later = [one for one in listed if one["position"] > after]
+                page = [
+                    {
+                        **{k: v for k, v in one.items() if k != "title"},
+                        "text": one["text"][: given["maxCharsPerItem"]],
+                    }
+                    for one in later[: given["limit"]]
+                ]
+                made = {
+                    "thread": {"threadId": given["threadId"]},
+                    "items": page,
+                    "nextPosition": page[-1]["position"] if page else None,
+                    "hasMore": len(later) > len(page),
+                }
+                return {"structuredContent": made, "content": []}
             found = [t for t in self.threads if t["threadId"] == given["threadId"]]
             if not found:
                 return gone(given["threadId"], "is no longer available")

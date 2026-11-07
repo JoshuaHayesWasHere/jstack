@@ -10,6 +10,7 @@ from datetime import timedelta
 
 import pytest
 
+from jbriefs import meets
 from jbriefs.meets import Waiver
 from jbus import acts, party, port
 from test_jbus_kitchen import NOW, iso
@@ -86,3 +87,93 @@ def test_the_bots_word_over_post_act_waives_and_one_a_home_typed_for_it_does_not
     typed = "joshbot/voice:call-2"
     keep(kitchen, "home", "cli", typed, "alpha: waive the docs say it")
     assert heard(kitchen, typed).startswith(f"refused: T3 Code gave no message {typed}")
+
+
+# `jbus waive`: the home binds the user's plain reply to the rows and lines it asked about.
+
+ASKER = "mcp:" + "-".join("a" * size for size in (8, 4, 4, 4, 12))
+LINES = ("the command runs", "the docs say it", "the tests pass")
+BRIEF = "Done when:\n" + "".join(f"- {one}\n" for one in LINES) + "Size: S\n"
+ASK = "alpha's review says lines 2 and 3 are not met. Waive them?"
+
+
+@pytest.fixture
+def home(kitchen):
+    (kitchen.home / "home-id").write_text(f"{ASKER}\n")
+    kitchen.brief("alpha", BRIEF)
+    return kitchen
+
+
+def asks(kitchen, message, text, thread=ASKER):
+    kitchen.t3.says(
+        thread, message, text, type="assistant_message", createdBy="agent", creationSource="provider"
+    )
+
+
+def waive(kitchen, message, *lines, thread=ASKER):
+    return kitchen.main("waive", "alpha", *lines, "--to", "demo", "--message", f"{thread}/{message}")
+
+
+def brief(kitchen):
+    return (kitchen.home / "tasks" / "alpha.md").read_text()
+
+
+def test_the_users_plain_reply_to_the_homes_ask_waives_the_lines_it_named(home):
+    asks(home, "ask", ASK)
+    home.t3.says(ASKER, "yes", "yes clear them")
+    code, out = waive(home, "yes", "2", "3")
+    assert (code, out) == (0, f"waived alpha: lines 2, 3, on {ASKER}/yes\n")
+    text = brief(home)
+    assert f"Waived: the docs say it, {ASKER}/yes\n" in text
+    assert f"Waived: the tests pass, {ASKER}/yes\n" in text
+    found = meets.waivers(text)
+    assert [one.number for one in found] == [2, 3]
+    assert [port.Port().heard(home.checkout, one, "alpha") for one in found] == ["", ""]
+    assert port.Port().heard(home.checkout, Waiver(1, f"{ASKER}/yes", LINES[0]), "alpha") != ""
+    assert waive(home, "yes", "2", "3")[0] == 0
+    assert brief(home) == text
+
+
+def test_a_message_that_is_not_the_users_own_waives_nothing_by_waive(home):
+    asks(home, "ask", ASK)
+    home.t3.says(ASKER, "yes", "yes clear them", createdBy="agent", creationSource="mcp")
+    code, out = waive(home, "yes", "2")
+    assert (code, out.startswith(f"refused: message {ASKER}/yes is not user's own")) == (1, True)
+    assert "Waived:" not in brief(home)
+
+
+def test_a_message_said_before_the_homes_ask_waives_nothing(home):
+    home.t3.says(ASKER, "yes", "yes clear them")
+    asks(home, "ask", ASK)
+    code, out = waive(home, "yes", "2")
+    assert code == 1
+    assert out.startswith(f"refused: no message of the home comes before {ASKER}/yes")
+    assert "Waived:" not in brief(home)
+
+
+@pytest.mark.parametrize(
+    ("ask", "lines", "missing"),
+    [
+        ("beta's review says lines 2 and 3 are not met. Waive them?", ("2",), "alpha"),
+        (ASK, ("1", "2"), "line 1"),
+    ],
+    ids=["another row", "another line"],
+)
+def test_a_home_ask_that_did_not_name_the_row_and_its_lines_waives_nothing(
+    home, ask, lines, missing
+):
+    asks(home, "ask", ask)
+    home.t3.says(ASKER, "yes", "yes clear them")
+    code, out = waive(home, "yes", *lines)
+    assert code == 1
+    assert out.startswith(f"refused: the home's message before {ASKER}/yes does not name {missing}")
+    assert "Waived:" not in brief(home)
+
+
+def test_a_reply_in_a_thread_that_is_no_homes_waives_nothing(home):
+    other = "mcp:" + "-".join("b" * size for size in (8, 4, 4, 4, 12))
+    asks(home, "ask", ASK, thread=other)
+    home.t3.says(other, "yes", "yes clear them")
+    code, out = waive(home, "yes", "2", thread=other)
+    assert (code, out.startswith(f"refused: {other} is no home's thread of demo")) == (1, True)
+    assert "Waived:" not in brief(home)
