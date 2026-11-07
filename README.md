@@ -59,7 +59,7 @@ jstack runs without it.
 | Need | What you lose without it |
 |---|---|
 | `jbus` and its config | Nothing runs between your threads, so the work moves only while a home is open, and you run `jmerge` yourself. |
-| systemd `--user`, or launchd on macOS | No background jobs. The install enables these timers: the `jbus` pass each minute, `jbus-merge` every 5 seconds, the check for a missing pass, `jgauge-limits` and `jgauge-sample`, and `jroles-mirror`. It enables the week's and the day's CI reports (`jbus-ci.timer`, `jbus-ci-day.timer`), the relay and the backup only once their config is there. |
+| systemd `--user`, or launchd on macOS | No background jobs. The install enables these timers: the `jbus` pass each minute, `jbus-merge` every 2 seconds, the check for a missing pass, `jgauge-limits` and `jgauge-sample`, and `jroles-mirror`. It enables the week's and the day's CI reports (`jbus-ci.timer`, `jbus-ci-day.timer`), the relay and the backup only once their config is there. |
 | The limits file, `~/.local/state/claude/limits` | `jgauge room` cannot see the plan's five-hour and weekly limits, so only the machine's readings hold a launch back. `jinstall` sets a status line that writes the file, unless you have a status line of your own. |
 | The backup: a private remote and `gitleaks` | The homes' state directory is not pushed anywhere. With an `origin` on `~/.local/state/home` and `gitleaks` on the machine, a timer commits and pushes it twice a day ([Back up the homes' state](features/jbus/docs/jbus/back-up-the-homes-state.md)). |
 
@@ -146,7 +146,7 @@ In this tutorial we install jstack, point it at a repo of yours, and watch it me
 	Then it fixes what the review found, and says the pull request is fixed and green.
 
 8. Watch it merge.
-	Step 5 put the repo in the `jbus` config, so `jbus` runs `jmerge` within about 15 seconds of the last check ending.
+	Step 5 put the repo in the `jbus` config, so `jbus` runs `jmerge` within seconds of the last check ending.
 	`jmerge` merges each pull request that is reviewed, fixed and green, then removes its worktree and its branch.
 	The reviewer thread's review is the approval, so no person approves on GitHub.
 	`jmerge --check` in the main checkout prints why each open pull request waits.

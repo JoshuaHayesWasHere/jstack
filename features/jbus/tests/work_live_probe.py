@@ -14,7 +14,7 @@ what the change means:
   when its checks end.
 
 The clock starts just before the writer runs: the CLI verb for `queue`, and the tick for the
-other two, so a tick's own call to GitHub and its run of `jmerge` count. The 5 s between ticks
+other two, so a tick's own call to GitHub and its run of `jmerge` count. The 2 s between ticks
 (`jbus-merge.timer`) does not. A round whose line does not change within `PROBE_WAIT` seconds
 counts as none. `PROBE_ROWS` rows more stand in the queue beside the one timed, unapproved, as
 a long-lived queue holds hundreds. `PROBE_ROUNDS` rounds of each kind run; the probe prints each

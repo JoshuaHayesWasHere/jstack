@@ -10,7 +10,9 @@ of `gh` calls, with `--wait` to wait in its turn, and refuses while it ends 75 (
 skills name each loop.
 
 `jbus budget --callers` prints the calls to `gh` of the last hour by caller, from the line each
-writes (`jsettings.proc.CALLS`), with how many of them failed.
+writes (`jsettings.proc.CALLS`), with how many of them failed. A call GitHub answered 304, to a
+conditional request such as the merge tick's (`jbus.tick`), spends none of the allowance, and gh
+exits 1 on it: it is counted apart, as free, and neither as a call nor as a failure (`free`).
 """
 
 from __future__ import annotations
@@ -96,14 +98,25 @@ def calls(state: Path, since: datetime) -> list[dict]:
     return found
 
 
+def free(call: dict) -> bool:
+    """Whether GitHub answered the call 304, Not Modified, which spends none of its allowance."""
+    return str(call.get("http", "")).split()[1:2] == ["304"]
+
+
 def callers(state: Path, since: datetime) -> str:
-    """The gh calls since `since` by caller, the most first, each with how many failed."""
+    """The gh calls since `since` by caller, the most first, each with how many failed, and the
+    304s apart, which spent nothing and did not fail."""
     found = calls(state, since)
-    count = Counter(call.get("caller", "?") for call in found)
-    failed = Counter(call.get("caller", "?") for call in found if call.get("status"))
-    lines = [f"{len(found)} gh calls since {since:%Y-%m-%d %H:%M} UTC, by caller:"]
+    spent = [call for call in found if not free(call)]
+    count = Counter(call.get("caller", "?") for call in spent)
+    failed = Counter(call.get("caller", "?") for call in spent if call.get("status"))
+    unchanged = Counter(call.get("caller", "?") for call in found if free(call))
+    lines = [f"{len(spent)} gh calls since {since:%Y-%m-%d %H:%M} UTC, by caller:"]
     for name, n in count.most_common():
         lines.append(f"{n:6}  {name} ({failed[name]} failed)")
+    if unchanged:
+        lines.append(f"and {unchanged.total()} answered 304, which spend nothing:")
+        lines.extend(f"{n:6}  {name}" for name, n in unchanged.most_common())
     return "\n".join(lines)
 
 
