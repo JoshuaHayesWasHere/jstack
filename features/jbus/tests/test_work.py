@@ -13,11 +13,12 @@ import jbus
 from jbus import passes, queue, states, waiting, work
 from jmerge import ready
 from test_jbus_kitchen import ASK, NOW, SAID_AT, Kitchen, iso
-from test_jbus_queue import add, go, rows
+from test_jbus_queue import add, adds, approves, batch, brief, go, rows, sha12
 from test_jbus_row_ends import branched
 
 PULL = "https://example.test/pull/9"
 AT = "2026-10-12 10:00 ET"
+TYPED_AT = "2026-10-12 10:58 ET"
 
 
 def result(left="none", status="done", branch="alpha   Pull request: none"):
@@ -472,6 +473,63 @@ def test_an_answer_takes_its_question_off_the_list_before_any_pass(kitchen):
     said = ("--by", "user", "--at", SAID_AT, "--default", "the", "first")
     assert kitchen.main("answer", "1", *said)[0] == 0
     assert "gate:q1" not in waits(kitchen)
+
+
+def test_a_queue_apply_go_and_remove_show_before_any_pass_and_the_next_pass_keeps_them(
+    kitchen,
+):
+    add(kitchen, "beta", approve=False)
+    add(kitchen, "alpha", depends="beta", approve=False)
+    add(kitchen, "gamma", approve=False)
+    kitchen.poll()
+    assert (judged(kitchen)["who"], "approve:alpha" in waits(kitchen)) == ("user", True)
+    kitchen.word()
+    text = batch(
+        approves("alpha", sha12(brief("alpha", "Builds on: beta\n"))),
+        f'remove gamma --by user --at "{TYPED_AT}"\n',
+    )
+    code, said = kitchen.main("--project", "demo", "queue", "apply", stdin=text)
+    assert code == 0, said
+    shown = judged(kitchen)
+    assert (shown["value"], shown["who"]) == ("behind", "dep")
+    assert waits(kitchen) == {"approve:beta"}
+    kept = json.loads((kitchen.state / work.NAME).read_text())["work"]
+    assert "gamma" not in [one["key"] for one in kept]
+    kitchen.poll()
+    assert judged(kitchen) == shown
+    assert waits(kitchen) == {"approve:beta"}
+
+
+HOLDS = "Holds: rewrites history\n"
+FIX = "Fix of: ci:check\n"
+
+
+@pytest.mark.parametrize(
+    "refused",
+    [
+        lambda: (
+            adds("delta", "--priority 1", brief("delta", HOLDS))
+            + approves("delta", sha12(brief("delta", HOLDS)))
+        ),
+        lambda: adds("delta", "--priority 1", brief("delta", FIX)),
+    ],
+    ids=["a door", "a fix with no when green"],
+)
+def test_a_queue_apply_that_is_refused_rewrites_nothing(kitchen, refused):
+    add(kitchen, "alpha", approve=False)
+    add(kitchen, "gamma", approve=False)
+    kitchen.poll()
+    kitchen.word()
+    before = [(kitchen.state / name).read_text() for name in (work.NAME, waiting.NAME)]
+    text = batch(
+        approves("alpha", sha12(brief("alpha"))),
+        f'remove gamma --by user --at "{TYPED_AT}"\n',
+        refused(),
+    )
+    code, said = kitchen.main("--project", "demo", "queue", "apply", stdin=text)
+    assert (code, said.startswith("refused: ")) == (1, True), said
+    after = [(kitchen.state / name).read_text() for name in (work.NAME, waiting.NAME)]
+    assert after == before
 
 
 def test_an_act_leaves_a_line_it_cannot_read_as_it_is_and_an_asking_row_still_asking():
