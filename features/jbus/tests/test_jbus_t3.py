@@ -1,4 +1,4 @@
-"""`jbus.t3` is the one way jbus reaches T3 Code: the sign-in, its eight tools, and nothing else. It
+"""`jbus.t3` is the one way jbus reaches T3 Code: the sign-in, its ten tools, and nothing else. It
 refuses any call that changes a thread unless the call has the one form jbus makes, and it refuses
 the call before it goes out. When the sign-in is about to run out, it says so on the first pass of
 each day.
@@ -52,17 +52,19 @@ def test_the_test_launch_prints_the_thread_it_made(kitchen):
     assert given["message"] == "say hello and stop"
 
 
-def test_the_fixture_is_the_servers_mcp_url_its_seven_tools_and_a_token_with_no_secret():
+def test_the_fixture_is_the_servers_mcp_url_its_tools_and_a_token_with_no_secret():
     assert FIXTURE["mcp_url"].endswith("/mcp")
     assert [tool["name"] for tool in FIXTURE["tools"]] == sorted(t3.TOOLS)
     assert all(tool["inputSchema"]["type"] == "object" for tool in FIXTURE["tools"])
     assert FIXTURE["token_response"]["access_token"] == "str"
 
 
-def test_a_tool_that_is_not_one_of_the_eight_is_never_called(kitchen):
+def test_a_tool_that_is_not_one_of_the_ten_is_never_called(kitchen):
     assert sorted(t3.TOOLS) == [
         "link_pull_request",
+        "list_scheduled_tasks",
         "orchestrator_capabilities",
+        "schedule_task",
         "t3_thread_configure",
         "t3_thread_launch",
         "t3_thread_list",
@@ -97,8 +99,8 @@ SEND = {"threadId": "mcp:crew", "message": "a", "mode": "queue", "clientRequestI
     [
         (
             "t3_thread_organize",
-            {"action": "unarchive", "threadId": "mcp:crew"},
-            "only called to settle or archive",
+            {"action": "pin", "threadId": "mcp:crew"},
+            "only called to settle, archive or unarchive",
         ),
         (
             "t3_thread_organize",
@@ -108,8 +110,19 @@ SEND = {"threadId": "mcp:crew", "message": "a", "mode": "queue", "clientRequestI
         (
             "t3_thread_organize",
             {"action": "settle"},
-            "only called to settle or archive a thread it names",
+            "only called to settle, archive or unarchive a thread it names",
         ),
+        (
+            "schedule_task",
+            {"scheduledTaskId": "task-1", "enabled": False, "prompt": "something else"},
+            "only called to switch a task it names off or on",
+        ),
+        (
+            "schedule_task",
+            {"prompt": "a new task", "schedule": {"type": "webhook"}},
+            "only called to switch a task it names off or on",
+        ),
+        ("schedule_task", {"scheduledTaskId": "", "enabled": True}, "names no task"),
         ("t3_thread_organize", {"action": "settle", "threadId": ""}, "names no thread"),
         (
             "t3_thread_organize",

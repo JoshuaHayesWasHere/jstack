@@ -27,6 +27,24 @@ write that would change any other key or table. `jbus project bases <name>` prin
 table names, one a line, and nothing where it names none: the one way to read the key without
 opening the file.
 
+`jbus project close <name>` puts a project away until `jbus project open <name>` brings it back.
+It writes `closed = "<day>"` into that project's table alone, as `bases --add` writes, and `load`
+then keeps the project out of `Config.projects`: no pass, `word --all`, needs line or chore
+reaches it. T3 Code has no archive of a project, so `close` also archives each thread of the
+project that is not archived yet, the home's among them, and switches off each of its scheduled
+tasks that is on. It refuses while a row of the project is out or one of its crews, reviewers or
+scouts is in a turn, and names each. It holds the pass's lock, so no pass launches between its
+check and its write. Queued, held and finished rows, questions, gates, plans, worktrees,
+branches and `home-id` stay as they are.
+
+`closed.json`, in the project's state, is what `close` changed in T3 Code, by id: the threads,
+the home threads among them, and the tasks. `close` writes it before it changes anything, adds
+the day just before the config write, and writes the config last. `open` switches those tasks
+back on, unarchives the home threads only (a crew's thread stays put away), takes the line out
+of the config, and deletes `closed.json` last. So a run cut off at any step is finished by the
+next run, and a run with nothing left to do says so and changes nothing. The view reads the day
+in `closed.json`, since it reads no config.
+
 Each pass is a new `jbus poll` that loads the config, so the pass after `add` covers the new
 project, and nobody restarts a unit.
 
@@ -51,7 +69,8 @@ from datetime import datetime
 from pathlib import Path
 
 import jbus
-from jbus import verbs
+from jbriefs.home import ids, scopes
+from jbus import live, queue, roles, t3, verbs
 
 HAS = "refused: the config already has this project"
 NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
@@ -68,9 +87,13 @@ BASE_ADDED = (
 BASE_HAS = "refused: the project already names that merge base"
 NO_PROJECT = "refused: the config has no project of that name"
 BASES = "merge_bases"
+CLOSED = "closed"
+RECORD = "closed.json"
+OUT = ("launched", "running", "waiting", "pr")
+"""The rows `close` waits on: each has a crew at work, or a pull request jbus still merges."""
+AT_WORK = ("crew", "reviewer", "scout")
 _HEADER = re.compile(r"\[")
 _PROJECT = re.compile(r"\[\[\s*project\s*\]\]\s*(#.*)?$")
-_BASES = re.compile(rf"{BASES}\s*=")
 
 
 def _same(one: Path, other: Path) -> bool:
@@ -105,7 +128,7 @@ def add(config_path: Path, name: str, checkout: str | None, project_id: str) -> 
     if config_path.name != "config.toml":
         raise jbus.Refused(f"refused: {config_path} is not a config.toml")
     config = jbus.load(config_path.parent)
-    have, scratch = config.projects, config.scratch
+    have, scratch = (*config.projects, *config.closed), config.scratch
     was = config_path.read_text()
     if not NAME.fullmatch(name):
         raise jbus.Refused(
@@ -139,30 +162,58 @@ def add(config_path: Path, name: str, checkout: str | None, project_id: str) -> 
 
 
 def _project(config: jbus.Config, name: str) -> jbus.Project:
-    found = next((one for one in config.projects if one.name == name), None)
+    found = next((one for one in (*config.projects, *config.closed) if one.name == name), None)
     if found is None:
         raise jbus.Refused(NO_PROJECT)
     return found
 
 
-def _with_bases(text: str, index: int, bases: tuple[str, ...]) -> str:
-    """Return `text` with the `merge_bases` line of its `index`-th `[[project]]` table, put in
-    place of the one it has, or after the table's last line that is not blank or a comment."""
+def _with_key(text: str, index: int, key: str, value: object) -> str:
+    """Return `text` with the `key` line of its `index`-th `[[project]]` table put in place of
+    the one it has, or after the table's last line that is not blank or a comment. A `value` of
+    None takes the line out."""
     lines = text.splitlines(keepends=True)
     heads = [at for at, line in enumerate(lines) if _HEADER.match(line)]
     tables = [at for at in heads if _PROJECT.match(lines[at].rstrip("\n"))]
     start = tables[index]
     end = next((at for at in heads if at > start), len(lines))
-    line = f"{BASES} = {json.dumps(list(bases))}\n"
+    line = [] if value is None else [f"{key} = {json.dumps(value)}\n"]
     for at in range(start + 1, end):
-        if _BASES.match(lines[at]):
-            return "".join([*lines[:at], line, *lines[at + 1 :]])
+        if re.match(rf"{re.escape(key)}\s*=", lines[at]):
+            return "".join([*lines[:at], *line, *lines[at + 1 :]])
     last = max(
         (at for at in range(start, end) if lines[at].strip() and not lines[at].startswith("#")),
     )
     if not lines[last].endswith("\n"):
         lines[last] += "\n"
-    return "".join([*lines[: last + 1], line, *lines[last + 1 :]])
+    return "".join([*lines[: last + 1], *line, *lines[last + 1 :]])
+
+
+def _set(config_path: Path, name: str, key: str, value: object) -> Path:
+    """Write `value` as the `key` of the project `name`'s table, or take the key out where
+    `value` is None, and change nothing else. Save the file as it was beside it first, and
+    return where. Refuse a write that would change any other key or table."""
+    was = config_path.read_text()
+    before = tomllib.loads(was)
+    index = next(at for at, table in enumerate(before["project"]) if table["name"] == name)
+    want = copy.deepcopy(before)
+    if value is None:
+        want["project"][index].pop(key, None)
+    else:
+        want["project"][index][key] = value
+    try:
+        now = _with_key(was, index, key, value)
+        written = tomllib.loads(now)
+    except (IndexError, ValueError, tomllib.TOMLDecodeError):
+        now, written = "", None
+    if written != want:
+        raise jbus.Refused(
+            "refused: the project's table could not be written with that one key changed"
+        )
+    backup = config_path.with_name(f"{config_path.name}.{datetime.now():%Y%m%d-%H%M%S-%f}.bak")
+    _private(backup, was)
+    _private(config_path, now)
+    return backup
 
 
 def add_base(config_path: Path, name: str, branch: str) -> str:
@@ -175,24 +226,7 @@ def add_base(config_path: Path, name: str, branch: str) -> str:
         raise jbus.Refused("refused: a merge base is a branch name, with no space and no ..")
     if branch in one.merge_bases:
         raise jbus.Refused(BASE_HAS)
-    was = config_path.read_text()
-    before = tomllib.loads(was)
-    index = next(at for at, table in enumerate(before["project"]) if table["name"] == name)
-    bases = (*one.merge_bases, branch)
-    want = copy.deepcopy(before)
-    want["project"][index][BASES] = list(bases)
-    try:
-        now = _with_bases(was, index, bases)
-        written = tomllib.loads(now)
-    except (IndexError, ValueError, tomllib.TOMLDecodeError):
-        now, written = "", None
-    if written != want:
-        raise jbus.Refused(
-            "refused: the project's table could not be written with that one key changed"
-        )
-    backup = config_path.with_name(f"{config_path.name}.{datetime.now():%Y%m%d-%H%M%S-%f}.bak")
-    _private(backup, was)
-    _private(config_path, now)
+    backup = _set(config_path, name, BASES, [*one.merge_bases, branch])
     return BASE_ADDED.format(backup=backup)
 
 
@@ -204,7 +238,7 @@ def bases(config: jbus.Config, name: str) -> tuple[str, ...]:
 def missing(config: jbus.Config) -> list[str]:
     """Return the folders under the homes' state root that have a `home-id` and no project,
     by name."""
-    homes = {config.home(one).resolve() for one in config.projects}
+    homes = {config.home(one).resolve() for one in (*config.projects, *config.closed)}
     homes |= {config.home(one.addressee()).resolve() for one in config.scratch}
     try:
         found = list(config.home_dir.iterdir())
@@ -223,9 +257,116 @@ def missing(config: jbus.Config) -> list[str]:
     return sorted(named, key=str.lower)
 
 
+def _client(config: jbus.Config, client: t3.Client | None) -> t3.Client:
+    return client if client is not None else t3.Client(config.server, config.token_path)
+
+
+def _homes(config: jbus.Config, one: jbus.Project) -> set[str]:
+    """The thread in each `home-id` of the project's home, the root's and every scope's."""
+    home = config.home(one)
+    return {ids(home)[0], *(now for _, now, _ in scopes(home))} - {""}
+
+
+def _at_work(state: Path, listed: list[dict]) -> list[str]:
+    """Each row of the project that is out, and each crew, reviewer or scout thread in a turn."""
+    rows = queue.load(state)
+    found = [f"row {row['slug']} is {row['status']}" for row in rows if row.get("status") in OUT]
+    for thread in listed:
+        role, _ = roles.role_of(str(thread.get("title") or ""))
+        if role in AT_WORK and thread.get("status") in live.TURNING:
+            found.append(f"{role} thread {thread['threadId']} is {thread['status']}")
+    return found
+
+
+def close(
+    config_path: Path, name: str, client: t3.Client | None = None, now: datetime | None = None
+) -> str:
+    """Close the project `name`: put its threads and scheduled tasks away in T3 Code, record
+    which in `closed.json`, and write the day into its table. Return the answer, one line."""
+    config = jbus.load(config_path.parent)
+    with jbus.locked(config.state_dir, config.lock_path.name):
+        config = jbus.load(config_path.parent)
+        one = _project(config, name)
+        if one.closed:
+            return f"already closed: {name} has been closed since {one.closed}, nothing changed"
+        state, client = config.state(one), _client(config, client)
+        listed = t3.listed(client, one.project_id)
+        if busy := _at_work(state, listed):
+            raise jbus.Refused(f"refused: {name} still has work out: {'; '.join(busy)}")
+        threads = {thread["threadId"] for thread in listed}
+        tasks = {
+            task["scheduledTaskId"]
+            for task in client.call("list_scheduled_tasks", {"projectId": one.project_id}).get(
+                "tasks", []
+            )
+            if task.get("enabled") and task.get("projectId") == one.project_id
+        }
+        path = state / RECORD
+        kept = jbus.read_json(path, {})
+        record = {
+            "threads": sorted({*kept.get("threads", []), *threads}),
+            "homes": sorted({*kept.get("homes", []), *(_homes(config, one) & threads)}),
+            "tasks": sorted({*kept.get("tasks", []), *tasks}),
+        }
+        jbus.write_json(path, record, mode=0o600)
+        for thread in sorted(threads):
+            client.call("t3_thread_organize", {"action": "archive", "threadId": thread})
+        for task in sorted(tasks):
+            client.call("schedule_task", {"scheduledTaskId": task, "enabled": False})
+        day = config.user.local(now or datetime.now().astimezone()).date().isoformat()
+        jbus.write_json(path, {**record, CLOSED: day}, mode=0o600)
+        backup = _set(config_path, name, CLOSED, day)
+    return (
+        f"closed: {name}, {len(record['threads'])} threads archived and "
+        f"{len(record['tasks'])} scheduled tasks off, the file as it was is {backup}: "
+        f"jbus project open {name} brings it back"
+    )
+
+
+def reopen(config_path: Path, name: str, client: t3.Client | None = None) -> str:
+    """Open the closed project `name` again: switch back on the tasks `close` switched off,
+    unarchive the home threads it archived, take the day out of its table, and delete
+    `closed.json`. Return the answer, one line."""
+    config = jbus.load(config_path.parent)
+    with jbus.locked(config.state_dir, config.lock_path.name):
+        config = jbus.load(config_path.parent)
+        one = _project(config, name)
+        path = config.state(one) / RECORD
+        if not one.closed and not path.exists():
+            return f"already open: {name} is open, nothing changed"
+        record, client = jbus.read_json(path, {}), _client(config, client)
+        for task in record.get("tasks", []):
+            _unless_gone(client, "schedule_task", {"scheduledTaskId": task, "enabled": True})
+        for home in record.get("homes", []):
+            read = _unless_gone(client, "t3_thread_read", {"threadId": home, "limit": 1})
+            if read and (read.get("thread") or {}).get("archived"):
+                client.call("t3_thread_organize", {"action": "unarchive", "threadId": home})
+        if one.closed:
+            _set(config_path, name, CLOSED, None)
+        path.unlink(missing_ok=True)
+    return (
+        f"opened: {name}, {len(record.get('tasks', []))} scheduled tasks on and its home threads "
+        "back: the next pass works it, restart no unit"
+    )
+
+
+def _unless_gone(client: t3.Client, tool: str, arguments: dict) -> dict | None:
+    """Call the tool, and return None where T3 Code no longer has what it names."""
+    try:
+        return client.call(tool, arguments)
+    except t3.T3Refused as error:
+        if t3.GONE.search(str(error)):
+            return None
+        raise
+
+
 def _add(args: argparse.Namespace, _: jbus.Config) -> int:
     path = jbus.config_dir() / "config.toml"
-    if args.verb == "bases" and args.add is not None:
+    if args.verb == "close":
+        print(close(path, args.name))
+    elif args.verb == "open":
+        print(reopen(path, args.name))
+    elif args.verb == "bases" and args.add is not None:
         print(add_base(path, args.name, args.add))
     elif args.verb == "bases":
         for one in bases(jbus.load(path.parent), args.name):
@@ -260,6 +401,13 @@ def _listed(listed: argparse.ArgumentParser) -> None:
     )
     based.add_argument("name", help="the project's name in the config")
     based.add_argument("--add", metavar="BRANCH", help="name one more branch, beside the others")
+    for verb, said in (
+        ("close", "put the project away: no pass, word or task reaches it until open"),
+        ("open", "bring a closed project back as it was"),
+    ):
+        listed_verbs.add_parser(verb, help=said, allow_abbrev=False).add_argument(
+            "name", help="the project's name in the config"
+        )
 
 
 VERBS = (verbs.Verb("project", "the projects of the config", _listed, _add, config=False),)

@@ -122,8 +122,12 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
     return queue.Asks(out, launched, told, said, goes)
 
 
+READS = ("show", "verify", "check")
+"""The verbs of `jbus queue` that change nothing, and so work on a closed project too."""
+
+
 def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
-    project = verbs.project(config, args.project)
+    project = verbs.project(config, args.project, closed=args.verb in READS)
     state = config.state(project)
     if args.verb == "apply":
         asks = _asks(config, project)

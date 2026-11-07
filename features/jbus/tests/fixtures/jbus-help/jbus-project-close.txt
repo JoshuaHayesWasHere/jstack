@@ -1,0 +1,7 @@
+usage: jbus project close [-h] name
+
+positional arguments:
+  name        the project's name in the config
+
+options:
+  -h, --help  show this help message and exit

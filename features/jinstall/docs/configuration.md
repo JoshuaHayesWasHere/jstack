@@ -159,9 +159,15 @@ Each `[[project]]` table is one repo:
 | `migration_names` | Numbered | How the repo names a migration: `numbered`, as `0004_insulin`, or `timestamped`, whose names cannot collide. `jmerge` checks the number of a `numbered` migration and skips the check for a `timestamped` one. `jbus` refuses any other value. |
 | `merge_bases` | Empty | Each branch besides the default one that `jmerge` merges a pull request into, on the rules of a pull request into the default branch. `jbus project bases <name> --add <branch>` writes it, and you do not edit it by hand ([Merge bases](../../jbus/docs/jbus/add-a-project.md#merge-bases)). `jbus` refuses a value that is not a list of branch names, each named once. |
 | `generated` | None: `jmerge` makes `uv.lock` by `uv lock` | Each file of the repo a command writes, as `"<file> -> <command>"`, such as `generated = ["uv.lock -> uv lock", "schema.json -> make schema"]`. While a rebase is stopped, `jmerge --remake` takes the base's version of such a file and runs its command, and every other file it stopped on is resolved by hand ([jmerge](../../jmerge/docs/jmerge.md)). `jbus` refuses a value that is not a list of such lines. |
+| `closed` | Open | The day the project was closed, as `"2026-11-07"`. `jbus project close <name>` writes it and `jbus project open <name>` takes it out, and you do not edit it by hand. A closed project gets no pass, no `jbus word --all` and no needs line, its threads are archived and its scheduled tasks are off in T3 Code, and `jbus status` lists it under `closed`. `jbus` refuses a value that is not a day, `YYYY-MM-DD`. |
 
 To add a repo, run `jbus project add <name> --checkout <path> --project-id <id>` instead of editing the file by hand.
 [jbus](../../jbus/docs/jbus/add-a-project.md) says what the command writes.
+
+To put a project away while you work on others, run `jbus project close <name>`, and `jbus project open <name>` when it is time again.
+`close` refuses while a row of the project is out or one of its crews, reviewers or scouts is in a turn, and names each.
+It keeps the queue, the questions, the plan, the worktrees and the branches as they are, and records what it changed in T3 Code in `~/.local/state/jbus/<name>/closed.json`, so `open` brings back the home threads and the scheduled tasks it put away, and nothing else.
+A run of either that was cut off is finished by running it again.
 
 `jbus t3 login` writes the sign-in beside the config, as `t3.json`.
 You do not write that file.

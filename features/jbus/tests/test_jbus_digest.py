@@ -431,7 +431,13 @@ def test_the_digest_of_a_project_no_pass_has_run_for_is_empty_and_makes_no_state
         "sweep": "",
         "waiting": [],
     }
-    assert said["status"] == {"pass": {}, "streaks": {}, "homes_off_bus": [], "held_pools": []}
+    assert said["status"] == {
+        "pass": {},
+        "streaks": {},
+        "homes_off_bus": [],
+        "closed": {},
+        "held_pools": [],
+    }
     assert said["token_expires"] == "2026-11-11 10:00 ET"
     assert not kitchen.state_dir.exists()
     kitchen.write(kitchen.config_dir / "t3.json", '{"token": "not a table"}')

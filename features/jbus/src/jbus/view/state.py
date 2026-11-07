@@ -123,6 +123,7 @@ from jbus import (
     work,
 )
 from jbus.live import LIVENESS, OUT
+from jbus.project import CLOSED, RECORD
 from jbus.roles import OTHER, ROLES
 from jbus.roles import shown as shown_roles
 from jbus.threads import REPORT
@@ -391,6 +392,15 @@ def projects(sources: Sources) -> list[str]:
     except OSError:
         return []
     return sorted(found)
+
+
+def closed(sources: Sources, name: str) -> str | None:
+    """The day the project closed, from the `closed.json` `jbus project close` left in its state,
+    or None while it is open. `close` writes the day just before the config, and `open` deletes
+    the file, so a close or an open that was cut off shows as the config has it."""
+    day = read_json(sources.state(name) / RECORD, {})
+    found = day.get(CLOSED) if isinstance(day, dict) else None
+    return found if isinstance(found, str) and found else None
 
 
 def repo(sources: Sources, name: str) -> str:
@@ -1593,6 +1603,7 @@ def build(
 KEPT_BY_JBUS = ("last_pass", "token_expires", "streaks", "homes_off_bus", "scratch")
 SUMMARY = {
     "name": None,
+    "closed": None,
     "repo": None,
     "waits": None,
     "open": None,
@@ -2022,6 +2033,7 @@ def summary(read: Read) -> dict[str, Any]:
     failed = {key: len(at) for key, at in checks["now"].items()} | {"error": checks["error"]}
     return {
         "name": read.name,
+        "closed": closed(read.sources, read.name),
         "repo": read.where,
         "broken": broken(users(read), bus),
         "unplaced": [task["slug"] for task in read.tasks if task["step"] == UNKNOWN.key],
@@ -2072,7 +2084,8 @@ def stack(
     first, and `proceeds`, the soonest to go ahead first. It has `wrong`, what is wrong across
     the projects that is the user's (`users`), with the machine's sources that are not ok, and
     one cause that several projects share as one entry (`merged`). What an agent owns is on its
-    row (`fixing`), never here.
+    row (`fixing`), never here. A closed project (`closed`) has its summary, with the day it
+    closed, and nothing in the queues, in `wrong` or in what a panel adds.
 
     The machine is what one jbus and one room provide for every project: the pass and the
     timer, the room and the plan's use, and the runner units. A `Read` of its own reads each
@@ -2110,6 +2123,7 @@ def stack(
         for name in (projects(sources) if names is None else names)
     ]
     every = [keep(summary(read), SUMMARY) for read in reads]
+    reads = [read for one, read in zip(every, reads, strict=True) if not one["closed"]]
     queues = [read.panel("you") for read in reads]
     shape = shapes["you"]
     needs = oldest([one for each in queues for one in keep(each["needs"], shape["needs"])])

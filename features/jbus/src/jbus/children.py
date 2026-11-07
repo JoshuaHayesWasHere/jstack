@@ -153,7 +153,7 @@ def _stale(config: Config, name: str, now: datetime) -> str:
 def _out(args: argparse.Namespace, config: Config) -> int:
     """`jbus out --scope <scope>`: say what the scoped home still has out, and nothing when
     nothing is."""
-    project = verbs.here(config, args.project)
+    project = verbs.here(config, args.project, closed=True)
     root = config.home(project)
     scope = root / args.scope
     if not (scope / "plan.md").exists():

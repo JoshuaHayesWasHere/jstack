@@ -148,7 +148,7 @@ class Wakes:
 
 
 class T3(Server):
-    """`T3` fakes T3 Code's MCP endpoint and its sign-in, with the nine tools that jbus calls.
+    """`T3` fakes T3 Code's MCP endpoint and its sign-in, with the tools that jbus calls.
     A thread not in `threads` is gone to a read, and one in `forgot` is gone to a send. Each
     `initialize` opens a session of `sessions`, and a `DELETE` ends one into `ended`.
     `constraints` holds why T3 Code cannot run a provider instance, by its id: an instance it
@@ -162,6 +162,7 @@ class T3(Server):
         self.challenges, self.registered, self.at_work = {}, [], set()
         self.sessions, self.ended = [], []
         self.said, self.forgot, self.wakes = {}, set(), {}
+        self.tasks = []
         self.constraints = {"claudeAgent": [], "claudeAgent_claude_prime": []}
         super().__init__()
 
@@ -372,10 +373,16 @@ class T3(Server):
                     for at, why in self.constraints.items()
                 ]
             }
+        elif tool == "list_scheduled_tasks":
+            made = {"tasks": [t for t in self.tasks if t["projectId"] == given["projectId"]]}
+        elif tool == "schedule_task":
+            (task,) = [t for t in self.tasks if t["scheduledTaskId"] == given["scheduledTaskId"]]
+            task["enabled"] = given["enabled"]
+            made = task
         elif tool == "t3_thread_organize":
             (thread,) = [t for t in self.threads if t["threadId"] == given["threadId"]]
-            if given["action"] == "archive":
-                thread["archived"] = True
+            if given["action"] in ("archive", "unarchive"):
+                thread["archived"] = given["action"] == "archive"
             else:
                 thread["settled"] = given["action"] == "settle"
             made = {}

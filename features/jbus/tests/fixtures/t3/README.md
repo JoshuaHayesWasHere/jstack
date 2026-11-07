@@ -21,9 +21,9 @@ CI has no T3 Code, which is why the schemas are copies.
 Taken on 2026-10-10 from T3 Code `0.0.46_nightly.20261010.2935` (`yay -Q t3code-nightly-bin`), in a Claude Code thread started by that build. The two for a scheduled task, and `t3_thread_send.json`, were taken on 2026-10-11 from the same build. `update_scheduled_task.json` was taken on 2026-10-12, also from that build. The two for a project were taken on 2026-10-13 from `0.0.46_nightly.20261013.3066`.
 
 `jbus-mcp.json` is not one tool's schema: it is what the server gives an outside client, which is what `jbus` is.
-It holds the sign-in's metadata and the whole definition, as `tools/list` at `<server>/mcp` returns it, of each of the eight tools in `features/jbus/src/jbus/t3.py` `TOOLS`.
+It holds the sign-in's metadata and the whole definition, as `tools/list` at `<server>/mcp` returns it, of each of the ten tools in `features/jbus/src/jbus/t3.py` `TOOLS`.
 `features/jbus/tests/test_jbus.py` fails when the two lists differ.
-Refresh it from a signed-in `jbus` (`jbus t3 login`), not from a thread: the `tools` list is that reply's entries for the eight names, sorted by name.
+Refresh it from a signed-in `jbus` (`jbus t3 login`), not from a thread: the `tools` list is that reply's entries for the ten names, sorted by name.
 
 The key order is the tool's own. The files are indented, nothing else is changed: the schemas say `additionalProperties: true`, and it is the test that turns that off, not the fixture.
 
@@ -38,3 +38,4 @@ In a T3 Code thread, after an update of T3 Code or when a skill gains a JSON cal
 
 `t3_thread_configure` was added to `jbus-mcp.json` by hand on 2026-10-17, from its definition in a T3 Code thread (its `description` and `parameters`, with a `title` and `annotations` written to match the other entries), and its `description` was taken again on 2026-10-30, when T3 Code folded its old read tool into it: refresh it from a signed-in `jbus` as above the next time one is.
 `orchestrator_capabilities` was added to `jbus-mcp.json` on 2026-11-02, from a signed-in `jbus`, as above.
+`list_scheduled_tasks` and `schedule_task` were added to `jbus-mcp.json` by hand on 2026-11-07, from their definitions in a T3 Code thread (`schedule_task`'s `schedule` cut to its `type`), for `jbus project close` and `open`: refresh them from a signed-in `jbus` as above the next time one is.

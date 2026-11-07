@@ -1,14 +1,17 @@
-"""jbus talks to the T3 Code server as an outside MCP client, with the sign-in and eight tools.
+"""jbus talks to the T3 Code server as an outside MCP client, with the sign-in and ten tools.
 
 `login` registers jbus with the server, sends the user to the server's approval page, keeps the
 token that the server issues, and records when the server issued it (`jsettings.t3.expiry` says
 when that token runs out). `Client` then calls the tools in `TOOLS` at `<server>/mcp`, and no
 other tool: a test scans this package for any other tool name.
 
-Three of the eight tools can change a thread, and `Client.call` allows each of them only in
-the forms below (`_held`):
+Four of the ten tools can change a thread or a task, and `Client.call` allows each of them only
+in the forms below (`_held`):
 
-- `t3_thread_organize`, to settle or archive a thread that the call names.
+- `t3_thread_organize`, to settle or archive a thread that the call names, and to unarchive one
+  (`jbus project open`, for the home threads `jbus project close` archived).
+- `schedule_task`, only to switch a scheduled task that the call names off or on, with
+  `enabled` and nothing else (`jbus project close` and `open`). `list_scheduled_tasks` only reads.
 - `t3_thread_configure`, to move a thread that a brief or a home names to another instance of
   its role's pool, with its model and options as they were (`jbus.failover`). With only a
   `threadId` it changes nothing and reads the thread's selection, which any thread may have.
@@ -70,6 +73,8 @@ TOOLS = (
     "link_pull_request",
     "t3_thread_organize",
     "orchestrator_capabilities",
+    "list_scheduled_tasks",
+    "schedule_task",
 )
 MISSING = "t3-tool "
 SCOPE = "orchestration:read orchestration:operate"
@@ -214,10 +219,18 @@ class Client(Session):
             if set(arguments) != {"action", "threadId"} or arguments["action"] not in (
                 "settle",
                 "archive",
+                "unarchive",
             ):
-                return "is only called to settle or archive a thread it names"
+                return "is only called to settle, archive or unarchive a thread it names"
             if not arguments["threadId"]:
-                return "names no thread to settle or archive"
+                return "names no thread to settle, archive or unarchive"
+        if tool == "schedule_task":
+            if set(arguments) != {"scheduledTaskId", "enabled"} or not isinstance(
+                arguments["enabled"], bool
+            ):
+                return "is only called to switch a task it names off or on"
+            if not arguments["scheduledTaskId"]:
+                return "names no task to switch off or on"
         if tool == "t3_thread_configure":
             if set(arguments) == {"threadId"}:
                 return "" if arguments["threadId"] else "names no thread to read"

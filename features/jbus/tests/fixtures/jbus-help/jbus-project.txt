@@ -1,10 +1,13 @@
-usage: jbus project [-h] {add,bases} ...
+usage: jbus project [-h] {add,bases,close,open} ...
 
 positional arguments:
-  {add,bases}
-    add        add a project's table to the config
-    bases      print each branch besides the default one that jmerge merges
-               the project into, or name one more with --add
+  {add,bases,close,open}
+    add                 add a project's table to the config
+    bases               print each branch besides the default one that jmerge
+                        merges the project into, or name one more with --add
+    close               put the project away: no pass, word or task reaches it
+                        until open
+    open                bring a closed project back as it was
 
 options:
-  -h, --help   show this help message and exit
+  -h, --help            show this help message and exit

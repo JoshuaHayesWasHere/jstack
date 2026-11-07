@@ -590,11 +590,11 @@ def _word(args: argparse.Namespace, config: Config) -> int:
     records a word about another home's work forwards it there, and a word that names no home's
     work stays with the home it was said in or recorded by.
 
-    `--to` names a project or a scratch home (`jbus.Scratch`). `--all` means every project
-    and no scratch home, since a scratch home takes no word about the repos. When a project
-    refuses the word, for example because its `word-sends.json` does not parse, the command says
-    so and skips that project. The other projects still get the word, and the command then
-    exits 1.
+    `--to` names a project or a scratch home (`jbus.Scratch`), and refuses a closed project.
+    `--all` means every open project, and no closed project or scratch home, since a scratch home
+    takes no word about the repos. When a project refuses the word, for example because its
+    `word-sends.json` does not parse, the command says so and skips that project. The other
+    projects still get the word, and the command then exits 1.
     """
     projects = config.projects if args.all else (config.addressee(args.to),)
     now = datetime.now(UTC)
