@@ -460,7 +460,7 @@ def fake_gh(stub, args, cwd):
     request out of the open ones, or fails and says what `gh-no-close` holds where it is there.
     With `-i` it prints the status and an ETag of what it gives before it, and with `-H
     If-None-Match:` that ETag it gives 304 and nothing more, and exits 1, as gh does; on stderr it
-    writes gh's debug log of the request (`debug`).
+    writes gh's debug log of the request, which `GH_DEBUG=api` gives.
     `api rate_limit` gives GitHub's API budget from `rate-limit.json`, or a full one.
     `api` picks its answer by the end of the path. It gives a commit's check runs, its runs for a
     push, who owns the repo (with no `repo.json`, GitHub does not say), the commits, and a pull
@@ -630,21 +630,13 @@ def fake_gh(stub, args, cwd):
     if "-i" in args:
         etag = f'W/"{hashlib.sha256(said.encode()).hexdigest()}"'
         asked = args[args.index("-H") + 1] if "-H" in args else ""
+        log = f"* Request at 2026-11-07 12:00:00\n* Request to https://api.github.com/{args[1]}\n"
         if asked == f"If-None-Match: {etag}":
-            return 1, "HTTP/2.0 304 Not Modified\r\n\r\n", debug(args[1], "304 Not Modified")
-        return 0, f"HTTP/2.0 200 OK\r\nEtag: {etag}\r\n\r\n{said}\n", debug(args[1], "200 OK")
+            log += "< HTTP/2.0 304 Not Modified\n* Request took 1ms\n"
+            return 1, "HTTP/2.0 304 Not Modified\r\n\r\n", log + "gh: HTTP 304\n"
+        log += "< HTTP/2.0 200 OK\n* Request took 1ms\n"
+        return 0, f"HTTP/2.0 200 OK\r\nEtag: {etag}\r\n\r\n{said}\n", log
     return 0, said + "\n", ""
-
-
-def debug(path, status):
-    """What gh says on stderr of a call with `-i`, under the `GH_DEBUG=api` that `jsettings.proc`
-    sets: its debug log of the request, with the response's status, and for a 304 the line gh
-    ends with."""
-    log = (
-        f"* Request at 2026-11-07 12:00:00\n* Request to https://api.github.com/{path}\n"
-        f"< HTTP/2.0 {status}\n* Request took 1ms\n"
-    )
-    return log + ("gh: HTTP 304\n" if status.startswith("304") else "")
 
 
 def fake_jmerge(stub, args, cwd):
