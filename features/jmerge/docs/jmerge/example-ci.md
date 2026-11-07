@@ -18,8 +18,9 @@ A lookup that fails adds no test, and the job `check` warns of it.
 The same job fails a pull request whose title, body or commits credit an AI tool as a co-author (`scripts/no_ai_trailers.py`).
 
 Without a reuse, the same job `reuse` selects once for the whole check.
-It runs `python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD` in the runner's own Python, with no `uv sync` and no pytest: it selects the tests the change needs and deals their files out whole to eight parts by each file's time in `testing/shard-file-times.tsv` (`testing/split.py`), with no collection.
-It gives each part its files as the job's output `part1` to `part8`, or `none` for a part the selection left empty.
+It runs `python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD` in the runner's own Python, with no `uv sync` and no pytest: it selects the tests the change needs and deals their files out to eight parts by each file's time in `testing/shard-file-times.tsv` (`testing/split.py`), with no collection.
+A file whose tests sum past a part's share is cut by test, from its rows in `testing/shard-times.tsv`, and each part that holds a piece gets a word that picks its tests, `--shard-tests=<file>:<keys>` or `--shard-skip=<file>:<keys>` (`testing/shard.py`).
+It gives each part its words as the job's output `part1` to `part8`, or `none` for a part the selection left empty.
 The job `lint` runs the lint, `python3 features/writing/scripts/prose_lint.py HEAD^1` and `make lint BASE=HEAD^1`, beside `reuse`, from the start of the run.
 The tests run as eight jobs side by side, `check 1 of 8` to `check 8 of 8`, which start once `reuse` ends.
 Each one runs `make test TESTS="$PART"` on only the files `reuse` gave it, and collects no other part's files.

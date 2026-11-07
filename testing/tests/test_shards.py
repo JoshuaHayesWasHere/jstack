@@ -357,6 +357,25 @@ def test_a_part_with_none_of_the_selected_tests_passes_and_one_part_runs_each():
 
 
 @pytest.mark.parametrize("workers", [[], ["-n", "2", "--dist", "worksteal"]], ids=["one", "xdist"])
+def test_a_part_whose_picks_leave_it_no_test_passes(workers):
+    """A part dealt a piece of a file cut by test runs only the tests its word picks. Where the
+    table named a test since renamed, the word can pick none, and the part passes as a part with
+    none of the selected tests does, also on xdist's workers, whose controller sets the exit
+    status."""
+    run = [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", *workers, SOME[0]]
+    code, out = ended(
+        subprocess.Popen(
+            [*run, f"--shard-tests={SOME[0]}:{key('gone')}"],
+            cwd=REPO,
+            stdout=subprocess.PIPE,
+            text=True,
+        )
+    )
+    assert code == 0, out[-2000:]
+    assert " passed" not in out
+
+
+@pytest.mark.parametrize("workers", [[], ["-n", "2", "--dist", "worksteal"]], ids=["one", "xdist"])
 def test_a_selection_with_no_tests_at_all_fails_in_every_part_as_it_does_whole(workers):
     run = [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", *workers, SOME[0]]
     nothing = ["-k", "no_test_is_named_this"]
