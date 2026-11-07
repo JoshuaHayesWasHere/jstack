@@ -998,9 +998,7 @@ def short_on_proved(
     return ""
 
 
-def proves(
-    text: str, one: PullRequest, carries: Callable[[str], bool] = lambda at: False
-) -> bool:
+def proves(text: str, one: PullRequest, carries: Callable[[str], bool] = lambda at: False) -> bool:
     """Whether the brief has a `Proved:` line and it holds at the pull request's head
     (`short_on_proved`): a fix whose line holds merges with no scoped review of it."""
     return proved.proved(text) is not None and not short_on_proved(text, one, carries)
