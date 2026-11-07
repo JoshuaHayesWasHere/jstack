@@ -36,7 +36,7 @@ import struct
 import sys
 import threading
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -191,10 +191,11 @@ class Waker:
         libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
         fd = libc.inotify_init1(os.O_NONBLOCK | os.O_CLOEXEC)
         mask = self.IN_MODIFY | self.IN_CLOSE_WRITE | self.IN_MOVED_TO | self.IN_CREATE
-        if fd >= 0 and libc.inotify_add_watch(fd, str(folder).encode(), mask) >= 0:
-            self.fd = fd
-        elif fd >= 0:
-            os.close(fd)
+        if libc.inotify_add_watch(fd, str(folder).encode(), mask) < 0:
+            with contextlib.suppress(OSError):
+                os.close(fd)
+            return
+        self.fd = fd
 
     def wait(self, name: str, timeout: float = TICK) -> bool:
         """Return True once a file whose name starts with `name` was written, and False once
@@ -203,23 +204,19 @@ class Waker:
             time.sleep(min(self.poll, timeout))
             return False
         until = time.monotonic() + timeout
-        while (left := until - time.monotonic()) > 0:
-            if not select.select([self.fd], [], [], left)[0]:
-                return False
+        while (left := until - time.monotonic()) > 0 and select.select([self.fd], [], [], left)[0]:
             if any(one.startswith(name) for one in self._names()):
                 return True
         return False
 
-    def _names(self) -> Iterator[str]:
-        try:
-            data = os.read(self.fd, 65536)
-        except BlockingIOError:
-            return
-        at = 0
+    def _names(self) -> list[str]:
+        """Return the name of each file the events waiting on the watch name, once read."""
+        data, at, names = os.read(self.fd, 65536), 0, []
         while at + 16 <= len(data):
             size = struct.unpack_from("iIII", data, at)[3]
-            yield data[at + 16 : at + 16 + size].rstrip(b"\0").decode(errors="replace")
+            names.append(data[at + 16 : at + 16 + size].rstrip(b"\0").decode(errors="replace"))
             at += 16 + size
+        return names
 
     def close(self) -> None:
         if self.fd >= 0:
@@ -277,18 +274,11 @@ def follow(
     return 0
 
 
-def _follow(_: object, config: Config) -> int:
-    try:
-        return follow(config)
-    except KeyboardInterrupt:
-        return 0
-
-
 VERBS = (
     verbs.Verb(
         "follow",
         "restate a thread's line of work.json as T3 Code's events say it started or ended",
         verbs.nothing,
-        _follow,
+        lambda _, config: follow(config),
     ),
 )

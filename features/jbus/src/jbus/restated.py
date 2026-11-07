@@ -227,7 +227,7 @@ def drift(before: list[Any], after: list[Any], following: bool = False) -> list[
     return found
 
 
-_PHASE = {
+_PHASE: dict[str, str] = {
     **dict.fromkeys(
         (Thread.STARTING, Thread.MOVING, Thread.QUIET, Thread.HUNG, Thread.WAITING), "under way"
     ),
@@ -241,10 +241,7 @@ one, and a thread that left T3 Code's list are the pass's to see."""
 def phase(facet: str) -> str:
     """Return where a thread is as `jbus follow` sees it: under way, ended, settled, archived,
     or the facet itself for one it never writes."""
-    try:
-        return _PHASE.get(Thread(facet), facet)
-    except ValueError:
-        return facet
+    return _PHASE.get(facet, facet)
 
 
 def _unheard(old: dict[str, Any], new: dict[str, Any]) -> list[str]:

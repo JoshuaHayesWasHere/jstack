@@ -298,3 +298,59 @@ def test_a_store_that_opens_and_cannot_be_read_is_opened_again_only_backoff_apar
     opens = sum("from event" in one for one in said)
     assert 1 <= opens <= 4, said[:6]
     assert jbus.read_json(kitchen.state_dir / restated.FOLLOW, {})["lost"] == opens
+
+
+def test_a_store_whose_events_start_over_is_lost(events):
+    events.emit("mcp:t", "run.updated", "running")
+    store = follow.Store(events.where)
+    store.sequence += 5
+    with pytest.raises(follow.Lost, match="started its events over"):
+        store.read()
+    store.close()
+
+
+def test_the_waker_wakes_on_the_store_s_write_and_not_on_another_file_s(tmp_path):
+    waker = follow.Waker(tmp_path)
+    (tmp_path / "other").write_text("x")
+    assert waker.wait("statev2.sqlite", timeout=0.2) is False
+    (tmp_path / "other").write_text("y")
+    (tmp_path / "statev2.sqlite-wal").write_text("x")
+    assert waker.wait("statev2.sqlite", timeout=2) is True
+    waker.close()
+
+
+def test_with_no_inotify_the_waker_sleeps_its_poll(tmp_path, monkeypatch):
+    missing = follow.Waker(tmp_path / "missing")
+    monkeypatch.setattr(follow.sys, "platform", "darwin")
+    elsewhere = follow.Waker(tmp_path, poll=0.05)
+    for waker in (missing, elsewhere):
+        began = time.monotonic()
+        assert waker.wait("statev2.sqlite", timeout=1) is False
+        assert time.monotonic() - began < 0.9
+        waker.close()
+
+
+def test_a_launch_is_no_drift_while_a_follower_runs(kitchen):
+    jbus.write_json(kitchen.state_dir / restated.FOLLOW, {"since": "", "lost": 0, "why": ""})
+    add(kitchen, "alpha")
+    kitchen.poll()
+    (thread,) = kitchen.t3.threads
+    thread.update(status="running")
+    kitchen.poll(NOW + timedelta(minutes=1))
+    assert line(kitchen)["value"] == "working"
+    assert kitchen.events(states.DRIFT) == []
+
+
+def test_a_thread_back_in_t3_code_s_list_is_no_drift_and_a_missed_end_is():
+    def row(value, thread):
+        return {
+            "key": "alpha",
+            "kind": "row",
+            "thread": "mcp:t",
+            "value": value,
+            "facts": {"row": "approved and free", "thread": thread, "pull": "none"},
+        }
+
+    back = restated.drift([row("lost", "missing")], [row("working", "moving")], following=True)
+    missed = restated.drift([row("working", "moving")], [row("done", "completed")], following=True)
+    assert (back, missed) == ([], [("alpha", "thread 'moving' for 'completed'")])
