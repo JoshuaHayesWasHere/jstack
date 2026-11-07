@@ -231,7 +231,8 @@ CHECK = "make check-fast BASE=" + "0" * 40 + " PART=touched"
 
 class Crew:
     """A crew's worktree of `pushed`'s repo on the branch `CREW`, and its brief in the homes'
-    state, `JBUS_HOME_DIR/<repo>/tasks/<branch>.md`, with a `Thread:` line as a launch writes."""
+    state, `JBUS_HOME_DIR/<repo>/tasks/<branch>.md`, with a `Thread:` line as a launch writes.
+    Its pushes run the hook's `jleak.crewpush`."""
 
     def __init__(self, pushed, homes):
         self.pushed, self.tree = pushed, pushed.repo.parent / "crew"
