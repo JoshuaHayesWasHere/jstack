@@ -94,6 +94,15 @@ commit 1a2b3c4 handoff.md:12: home-path
 jleak: 3 findings, so the push is refused
 ```
 
+Where no pattern matches and git pushes from a linked worktree, `jleak` asks `jmerge`'s rule (`ready.short_on_checked`) of each head pushed to a branch whose brief, `<homes>/<repo>/tasks/<branch>.md`, has a `Thread:` line: a crew's push.
+It refuses a head the brief's last `Checked:` line does not bind:
+
+```text
+crew-push: refused: its brief has no Checked: line: ...: run the check block of "Do the task" at 1a2b3c4d5e6f, then push again
+```
+
+A push from the main checkout, as jbus's restack of a link is, a deletion, and a branch with no such brief push as before.
+
 Once `jleak` passes, the hook runs `features/jleak/hooks/pre-push-lint.sh`, which runs `make lint` in the work tree git pushes from.
 It runs only when that work tree's `GNUmakefile`, `makefile` or `Makefile` has a `lint:` target, and it runs no tests.
 A repo with no lint target, and a push that only deletes branches, push as before.
