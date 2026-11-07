@@ -189,6 +189,25 @@ def _with_key(text: str, index: int, key: str, value: object) -> str:
     return "".join([*lines[: last + 1], *line, *lines[last + 1 :]])
 
 
+def add_base(config_path: Path, name: str, branch: str) -> str:
+    """Name `branch` as one more merge base of the project `name`, in that project's table of
+    the config at `config_path`. Return the answer, which is one line."""
+    if config_path.name != "config.toml":
+        raise jbus.Refused(f"refused: {config_path} is not a config.toml")
+    one = _project(jbus.load(config_path.parent), name)
+    if not jbus.branch(branch):
+        raise jbus.Refused("refused: a merge base is a branch name, with no space and no ..")
+    if branch in one.merge_bases:
+        raise jbus.Refused(BASE_HAS)
+    backup = _set(config_path, name, BASES, [*one.merge_bases, branch])
+    return BASE_ADDED.format(backup=backup)
+
+
+def bases(config: jbus.Config, name: str) -> tuple[str, ...]:
+    """The merge bases the project `name` names, besides the default branch."""
+    return _project(config, name).merge_bases
+
+
 def _rewritten(was: str, name: str, key: str, value: object) -> str:
     """Return the config text `was` with `value` as the `key` of the project `name`'s table, or
     the key taken out where `value` is None, and nothing else changed. Refuse a text in which
@@ -221,25 +240,6 @@ def _set(config_path: Path, name: str, key: str, value: object) -> Path:
     _private(backup, was)
     _private(config_path, now)
     return backup
-
-
-def add_base(config_path: Path, name: str, branch: str) -> str:
-    """Name `branch` as one more merge base of the project `name`, in that project's table of
-    the config at `config_path`. Return the answer, which is one line."""
-    if config_path.name != "config.toml":
-        raise jbus.Refused(f"refused: {config_path} is not a config.toml")
-    one = _project(jbus.load(config_path.parent), name)
-    if not jbus.branch(branch):
-        raise jbus.Refused("refused: a merge base is a branch name, with no space and no ..")
-    if branch in one.merge_bases:
-        raise jbus.Refused(BASE_HAS)
-    backup = _set(config_path, name, BASES, [*one.merge_bases, branch])
-    return BASE_ADDED.format(backup=backup)
-
-
-def bases(config: jbus.Config, name: str) -> tuple[str, ...]:
-    """The merge bases the project `name` names, besides the default branch."""
-    return _project(config, name).merge_bases
 
 
 def missing(config: jbus.Config) -> list[str]:
