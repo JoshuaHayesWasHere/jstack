@@ -106,8 +106,6 @@ from jbus import (
     read_json,
     redact,
     verbs,
-    watch,
-    work,
     write_json,
 )
 from jbus.passes import CONDITION, Pass, Slot
@@ -445,18 +443,11 @@ def keep(
     return listed
 
 
-def row_facet(run: Pass, row: queue.Row, rows: list[queue.Row]) -> work.Row:
-    """Return the `Row` facet of a row as the queue has it now. Which of its depends are final
-    comes from the rows' own status, since no world is asked (`watch.final`)."""
-    return watch.row_of(run, row, watch.unmet(run, None, row, watch.final(run, None, rows)))
-
-
 def acted(run: Pass, verb: str, subject: str) -> None:
-    """Show an act that was done in `work.json` and `waiting-on-user.json` at once, so the view
-    does not wait for the next pass. A go, an answer that closed a question, and a remove are the
-    acts that do it. The row's line is judged again from the facts the last pass kept with the
-    row's go as it is now, or goes with the row; the list drops what the act settled. Each step
-    reads the queue as it is when it runs, so running it twice, or after the next pass, writes
+    """Show an act that was done in `waiting-on-user.json` at once, so the view does not wait for
+    the next pass. A go, an answer that closed a question, and a remove are the acts that do it:
+    the list drops what the act settled. The act's write of the queue restated the row's line of
+    `work.json` already (`queue._changing`). Running it twice, or after the next pass, writes
     nothing new."""
     closed: list[str] = []
     if verb == "answer":
@@ -468,17 +459,6 @@ def acted(run: Pass, verb: str, subject: str) -> None:
         slug = subject
     else:
         return
-    try:
-        rows = queue.load(run.state)
-    except queue.Unparsable:
-        rows = None
-    if rows is not None and slug:
-        row = next((one for one in rows if one["slug"] == slug), None)
-
-        def change(one: dict[str, Any]) -> Any:
-            return work.GONE if row is None else work.restate(one, row_facet(run, row, rows))
-
-        work.update(run.state, slug, change)
     settle(run, slug, closed)
 
 

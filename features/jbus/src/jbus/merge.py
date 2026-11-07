@@ -38,7 +38,7 @@ import re
 import subprocess
 from typing import TYPE_CHECKING
 
-from jbus import alert, outbox, verbs
+from jbus import alert, outbox, verbs, work
 from jbus.judged import Said, parse
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
@@ -141,7 +141,26 @@ def _sent(run: Pass, ran: subprocess.CompletedProcess[str]) -> Said:
         if slug and (unfollowed := lines_of.unfollowed(text)):
             alert.deliver(run, f"alert: {run.project.name}: {unfollowed}")
     lines.failed = bool(ran.returncode)
+    work.pulled(run.state, verdicts(lines), work.moment(run.now))
     return lines
+
+
+def verdicts(lines: Said) -> dict[int, work.Pull]:
+    """Return the `Pull` facet each line of a run of `jmerge` gives its pull request, by number,
+    the last line of a number winning: `merged` for a merge, and for a `wait` or a `hold` the step
+    of `word: reason` (`step`), as the pass reads it (`jbus.watch.waits`), or `other` where no
+    rule names the reason."""
+    found = {}
+    for text in lines:
+        line = parse(text)
+        if line is None:
+            continue
+        if line.word == "merged":
+            found[line.number] = work.Pull.MERGED
+        elif line.word in ("wait", "hold") and line.reason:
+            said = step(f"{line.word}: {line.reason}")
+            found[line.number] = work.Pull(said) if said else work.Pull.OTHER
+    return found
 
 
 def tick(run: Pass) -> Said:

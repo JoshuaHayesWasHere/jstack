@@ -150,7 +150,7 @@ from jbriefs import chains, findings, meaning, skills
 from jbriefs import home as homes
 from jbriefs import parse as briefs
 from jbriefs.home import thread_of
-from jbus import Refused, history, party, verbs, write_json
+from jbus import Refused, history, party, verbs, work, write_json
 from jmerge import judgement
 from jmerge import stacked as stacks
 from jmerge.judgement import bound
@@ -607,6 +607,36 @@ def _changing(state: Path) -> Iterator[list[Row]]:
         rows.sort(key=order)
         if json.dumps(rows, sort_keys=True) != before:
             write_json(path(state), rows)
+        _restate_work(state)
+
+
+def _restate_work(state: Path) -> None:
+    """Restate each row's line of `work.json` from the table as it is now (`work.queued`), so the
+    view shows a write of the queue at once and not at the next pass. A write's caller holds the
+    queue's lock, so the table and the briefs read here are of one moment."""
+    try:
+        rows = load(state)
+    except Unparsable:
+        return
+    work.queued(state, rows, lambda row: standing(state, row, rows), lambda row: role(row) == SCOUT)
+
+
+def facet(state: Path, row: Row, unmet: list[str]) -> work.Row:
+    """Return a row's `Row` facet: its go, and whether that go holds for its brief as it is
+    stored, and with a go, whether depends that are not final (`unmet`) hold it back."""
+    if not row.get("approved"):
+        return work.Row.UNAPPROVED
+    text = brief(state, row["slug"])
+    if text is None or not judgement.approved_text(row, text):
+        return work.Row.CHANGED
+    return work.Row.BEHIND if unmet else work.Row.FREE
+
+
+def standing(state: Path, row: Row, rows: list[Row]) -> work.Row:
+    """Return a row's `Row` facet as the table has it now, with no world asked: a depend is final
+    when its own row's status is (`FINAL`), as `jbus.watch.final` judges with no world."""
+    final = {one["slug"] for one in rows if one.get("status") in FINAL}
+    return facet(state, row, [one for one in row.get("depends", []) if one not in final])
 
 
 def over(row: Row) -> bool:

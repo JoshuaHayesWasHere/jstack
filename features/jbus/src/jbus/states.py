@@ -2,6 +2,11 @@
 (`judged`). Three steps then read that state. `derive` rewrites the table's derived columns,
 `unplaced` tells the home of each open pull request that is on no step, and `keep_work` writes
 `work.json`.
+
+Each writer of a row's inputs restates that row's line of `work.json` as it writes
+(`work.queued`, `work.pulled`), so the pass is no longer how a change reaches the view. The pass
+still judges every row from all it saw, and `keep_work` logs each row's line it finds otherwise
+in the file as a quiet `work-drift` event, which tells nobody.
 """
 
 from __future__ import annotations
@@ -20,7 +25,6 @@ from jbus import (
     stall,
     threads,
     verbs,
-    waiting,
     watch,
     work,
 )
@@ -28,6 +32,9 @@ from jbus import (
 if TYPE_CHECKING:
     from jbus.passes import Pass
     from jbus.poll import Half
+
+DRIFT = "work-drift"
+EVENTS = {"work-drift": "quiet"}
 
 
 def judged(half: Half) -> None:
@@ -130,7 +137,23 @@ def keep_work(half: Half) -> None:
     listed += watch.judged(run, half.out, mine, half.answered())
     at = jsettings.stamp(run.now)
     with locked(run.state, work.LOCK):
-        work.write(run.state, at, half.answered(), _since(run, listed))
+        was = work.read(run.state)
+        before = was["work"] if was else []
+        written = _since(run, _pulled(run, listed, before))
+        work.write(run.state, at, half.answered(), written)
+    for key, what in work.drift(before, written) if was else []:
+        run.box.send(key, DRIFT, f"{DRIFT} {key}: {what}")
+
+
+def _pulled(run: Pass, listed: list[dict[str, Any]], before: list[Any]) -> list[dict[str, Any]]:
+    """Return the pass's lines, each row's with the `Pull` facet a run of `jmerge` that began
+    after the pass restated in the file (`work.kept`), such as a merge tick's."""
+    was = {one.get("key"): one for one in before if isinstance(one, dict)}
+    began = work.moment(run.now)
+    return [
+        work.kept(one, was.get(one["key"]), began) if one.get("kind") == "row" else one
+        for one in listed
+    ]
 
 
 def _since(run: Pass, listed: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -148,7 +171,7 @@ def _since(run: Pass, listed: list[dict[str, Any]]) -> list[dict[str, Any]]:
             row = now.get(one["slug"])
             if row is None:
                 continue
-            one = work.restate(one, waiting.row_facet(run, row, rows))
+            one = work.restate(one, row=queue.standing(run.state, row, rows))
         kept.append(one)
     return kept
 

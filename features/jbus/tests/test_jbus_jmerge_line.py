@@ -33,6 +33,8 @@ def a_pass(tmp_path, printed, sent=None):
     sent = [] if sent is None else sent
     return SimpleNamespace(
         home=tmp_path,
+        state=tmp_path,
+        now=NOW,
         config=SimpleNamespace(state_dir=tmp_path),
         user=jsettings.DEFAULTS,
         project=SimpleNamespace(name="demo"),
