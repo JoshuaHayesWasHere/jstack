@@ -10,6 +10,7 @@ tests pass, fail or are cut off, and each that ends leaves no copy of the base i
 directory, whether its tests pass, fail or hit the lane's time limit."""
 
 import os
+import re
 import shlex
 import signal
 import subprocess
@@ -20,6 +21,7 @@ import pytest
 
 from crew_helpers import block, git
 from jbriefs import proved
+from testing.layouts import assembled
 from test_blocks_command_grep import UGREP
 from test_portable_shell import bsd_tools
 
@@ -118,7 +120,7 @@ def environ(tree, **more):
         "PATH": f"{tree.parent / 'stub'}:{bsd_tools(tree.parent / 'bsd')}",
         "HOME": str(tree.parent),
         "H": str(tree.parent / "home"),
-        "T": str(tree.parent / "templates"),
+        "T": str(assembled() / "templates"),
         "TMPDIR": str(tree.parent),
         "PYTEST_XDIST_AUTO_NUM_WORKERS": "2",
         **more,
@@ -147,6 +149,17 @@ def proof(tree, shell="", **more):
     assert copies(tree) == []
     home = tree.parent / "home"
     return ran.stdout, proved.proved((home / "tasks" / "a-task.md").read_text())
+
+
+def test_the_proof_block_is_one_command_that_runs_a_script_and_holds_no_rm():
+    """Claude Code asks before it runs a command that removes files, even in full access, and it
+    asked on the block's `trap 'rm -rf "$tree"' EXIT` ("This shell -c script runs rm and could not
+    be checked"): on 2026-11-07 five crews waited on it for hours, with nothing to wake them. The
+    block the crew sends is one command that runs the script by its path, and holds no `rm`."""
+    lines = [line for line in script().splitlines() if line.strip()]
+    assert len(lines) == 1, lines
+    assert re.fullmatch(r'bash "\$T/[\w.-]+\.sh"( \S+)*', lines[0]), lines[0]
+    assert not re.search(r"\brm\b", script())
 
 
 def test_a_test_that_fails_without_the_fix_is_proved(repo):
@@ -279,7 +292,7 @@ def test_a_change_to_source_and_tests_runs_at_the_base_where_grep_is_claude_code
     a change to `calc.py`. `UGREP` stands in for it."""
     base = git(repo, "rev-parse", "HEAD")
     head = commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
-    said, line = proof(repo, shell=UGREP)
+    said, line = proof(repo, shell=UGREP + "export -f grep\n")
     assert "tests only" not in said
     assert "base exit 1: 1 failed, 1 passed" in said
     assert line == proved.Proved(("tests/test_calc.py",), 1, base, 0, head)
