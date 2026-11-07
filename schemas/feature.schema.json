@@ -47,7 +47,7 @@
         "required": ["event", "script", "harnesses"],
         "additionalProperties": false,
         "properties": {
-          "event": {"enum": ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse"]},
+          "event": {"enum": ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop"]},
           "matcher": {"type": "string", "minLength": 1},
           "script": {"type": "string", "pattern": "^hooks/[a-z0-9-]+\\.sh$"},
           "harnesses": {"type": "array", "items": {"enum": ["claude-code", "codex"]}},

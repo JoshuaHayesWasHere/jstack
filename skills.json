@@ -931,6 +931,24 @@
           "refuses": true
         }
       ]
+    },
+    {
+      "name": "turn-end.sh",
+      "path": "features/jbus/hooks/turn-end.sh",
+      "harnesses": [
+        "claude-code",
+        "codex"
+      ],
+      "events": [
+        {
+          "harness": "claude-code",
+          "event": "Stop"
+        },
+        {
+          "harness": "codex",
+          "event": "Stop"
+        }
+      ]
     }
   ],
   "statusLine": {

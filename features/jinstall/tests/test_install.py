@@ -233,6 +233,7 @@ class User:
         self.layout = laid(self.home)
         self.START = group("home-start.sh", self.home)
         self.CODEX_START = group("home-start.sh", self.home, harness="codex")
+        self.CODEX_TURN_END = group("turn-end.sh", self.home, matcher=None, harness="codex")
         self.OUTBOUND = group("outbound-command.sh", self.home, matcher="Bash", refuses=True)
         self.TRAILER = group("ai-trailer.sh", self.home, matcher="Bash", refuses=True)
         self.SENDS = group(
@@ -505,7 +506,7 @@ def test_a_hook_already_in_a_hooks_file_is_kept(user):
     assert json.loads(user.codex.read_text()) == {
         "hooks": {
             "SessionStart": [other, user.CODEX_START],
-            "Stop": stop,
+            "Stop": [*stop, user.CODEX_TURN_END],
             "PreToolUse": [
                 user.CODEX_SENDS,
                 user.CODEX_TRAILER,
@@ -540,6 +541,7 @@ def test_an_entry_for_another_checkout_is_old_and_replaced(user):
                 user.CODEX_INFRA,
                 user.CODEX_OUTBOUND,
             ],
+            "Stop": [user.CODEX_TURN_END],
         }
     }
 
@@ -645,8 +647,9 @@ def test_a_settings_file_that_is_a_link_is_written_where_it_points(user, tmp_pat
     user.settings.symlink_to(kept)
     assert user.run() == (0, user.every("ok"))
     assert os.readlink(user.settings) == str(kept)
+    hooks = user.written()
     assert json.loads(kept.read_text()) == {
-        "hooks": {"Stop": stop, **user.written()},
+        "hooks": {"Stop": [*stop, *hooks.pop("Stop", [])], **hooks},
         "statusLine": user.STATUS,
         **SET,
     }
