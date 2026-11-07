@@ -4,12 +4,16 @@ user's own message in T3 Code, read by the check `jbus queue approve --message` 
 or a word the bot gave over `POST /act`. A crew's or a home's own message, and a word of the
 bot's that a home typed, waive nothing, and neither does a word that does not name the row, or
 names it and does not say it waives the line the `Waived:` line quotes. The
-tests run the real port against the faked T3 Code server of `test_jbus_kitchen`."""
+tests run the real port against the faked T3 Code server of `test_jbus_kitchen`.
+
+`jbus waive` (`jbus.waive`) binds the user's plain reply to the home's ask that named the row
+and its lines, so such a reply waives those lines and no others."""
 
 from datetime import timedelta
 
 import pytest
 
+from jbriefs import meets
 from jbriefs.meets import Waiver
 from jbus import acts, party, port
 from test_jbus_kitchen import NOW, iso
@@ -86,3 +90,144 @@ def test_the_bots_word_over_post_act_waives_and_one_a_home_typed_for_it_does_not
     typed = "joshbot/voice:call-2"
     keep(kitchen, "home", "cli", typed, "alpha: waive the docs say it")
     assert heard(kitchen, typed).startswith(f"refused: T3 Code gave no message {typed}")
+
+
+ASKER = "mcp:" + "-".join("a" * size for size in (8, 4, 4, 4, 12))
+LINES = ("the command runs", "the docs say it", "the tests pass")
+BRIEF = "Done when:\n" + "".join(f"- {one}\n" for one in LINES) + "Size: S\n"
+ASK = "alpha's review says lines 2 and 3 are not met. Waive them?"
+
+
+@pytest.fixture
+def home(kitchen):
+    (kitchen.home / "home-id").write_text(f"{ASKER}\n")
+    kitchen.brief("alpha", BRIEF)
+    return kitchen
+
+
+def asks(kitchen, message, text, thread=ASKER):
+    kitchen.t3.says(
+        thread,
+        message,
+        text,
+        type="assistant_message",
+        createdBy="agent",
+        creationSource="provider",
+    )
+
+
+def waive(kitchen, message, *lines, thread=ASKER):
+    return kitchen.main(
+        "waive", "alpha", *lines, "--to", "demo", "--message", f"{thread}/{message}"
+    )
+
+
+def brief(kitchen):
+    return (kitchen.home / "tasks" / "alpha.md").read_text()
+
+
+def test_the_users_plain_reply_to_the_homes_ask_waives_the_lines_it_named(home):
+    asks(home, "ask", ASK)
+    home.t3.says(ASKER, "yes", "yes clear them")
+    code, out = waive(home, "yes", "2", "3")
+    assert (code, out) == (0, f"waived alpha: lines 2, 3, on {ASKER}/yes\n")
+    text = brief(home)
+    assert f"Waived: the docs say it, {ASKER}/yes\n" in text
+    assert f"Waived: the tests pass, {ASKER}/yes\n" in text
+    found = meets.waivers(text)
+    assert [one.number for one in found] == [2, 3]
+    assert [port.Port().heard(home.checkout, one, "alpha") for one in found] == ["", ""]
+    assert port.Port().heard(home.checkout, Waiver(1, f"{ASKER}/yes", LINES[0]), "alpha") != ""
+    assert waive(home, "yes", "2", "3")[0] == 0
+    assert brief(home) == text
+
+
+def test_a_message_that_is_not_the_users_own_waives_nothing_by_waive(home):
+    asks(home, "ask", ASK)
+    home.t3.says(ASKER, "yes", "yes clear them", createdBy="agent", creationSource="mcp")
+    code, out = waive(home, "yes", "2")
+    assert (code, out.startswith(f"refused: message {ASKER}/yes is not user's own")) == (1, True)
+    assert "Waived:" not in brief(home)
+
+
+def test_a_message_said_before_the_homes_ask_waives_nothing(home):
+    home.t3.says(ASKER, "yes", "yes clear them")
+    asks(home, "ask", ASK)
+    code, out = waive(home, "yes", "2")
+    assert code == 1
+    assert out.startswith(f"refused: no message of the home comes before {ASKER}/yes")
+    assert "Waived:" not in brief(home)
+
+
+@pytest.mark.parametrize(
+    ("ask", "lines", "missing"),
+    [
+        ("beta's review says lines 2 and 3 are not met. Waive them?", ("2",), "alpha"),
+        (ASK, ("1", "2"), "line 1"),
+    ],
+    ids=["another row", "another line"],
+)
+def test_a_home_ask_that_did_not_name_the_row_and_its_lines_waives_nothing(
+    home, ask, lines, missing
+):
+    asks(home, "ask", ask)
+    home.t3.says(ASKER, "yes", "yes clear them")
+    code, out = waive(home, "yes", *lines)
+    assert code == 1
+    assert out.startswith(f"refused: the home's message before {ASKER}/yes does not name {missing}")
+    assert "Waived:" not in brief(home)
+
+
+def test_a_reply_in_a_thread_that_is_no_homes_waives_nothing(home):
+    other = "mcp:" + "-".join("b" * size for size in (8, 4, 4, 4, 12))
+    asks(home, "ask", ASK, thread=other)
+    home.t3.says(other, "yes", "yes clear them")
+    code, out = waive(home, "yes", "2", thread=other)
+    assert (code, out.startswith(f"refused: {other} is no home's thread of demo")) == (1, True)
+    assert "Waived:" not in brief(home)
+
+
+def test_an_ask_far_back_in_a_long_thread_is_still_the_homes_last_message_before_the_reply(home):
+    asks(home, "ask", ASK)
+    for number in range(130):
+        home.t3.says(ASKER, f"chat-{number}", "thinking out loud", createdBy="agent")
+    home.t3.says(ASKER, "yes", "yes clear them")
+    assert waive(home, "yes", "2", "3") == (0, f"waived alpha: lines 2, 3, on {ASKER}/yes\n")
+
+
+def test_an_ask_about_two_rows_binds_each_row_to_its_own_lines(home):
+    home.brief("beta", BRIEF)
+    asks(home, "ask", "beta: line 1 is not met. alpha: lines 2 and 3 are not met. Waive them?")
+    home.t3.says(ASKER, "yes", "yes clear them")
+    code, out = waive(home, "yes", "1")
+    assert (
+        code,
+        out.startswith(f"refused: the home's message before {ASKER}/yes does not name line 1"),
+    ) == (1, True)
+    assert waive(home, "yes", "2", "3")[0] == 0
+
+
+def test_an_ask_t3_code_gives_no_time_waives_nothing(home):
+    asks(home, "ask", ASK)
+    home.t3.said[ASKER, "ask"]["updatedAt"] = "not a time"
+    home.t3.says(ASKER, "yes", "yes clear them")
+    code, out = waive(home, "yes", "2")
+    assert (code, out.startswith(f"refused: T3 Code gave no message before {ASKER}/yes")) == (
+        1,
+        True,
+    )
+
+
+@pytest.mark.parametrize(
+    ("slug", "line", "said"),
+    [
+        ("gamma", "2", "refused: demo's home has no brief gamma"),
+        ("alpha", "4", "refused: alpha's brief has no Done when line 4"),
+    ],
+    ids=["a row with no brief", "a line the brief does not have"],
+)
+def test_a_waiver_of_a_row_or_line_the_home_does_not_have_waives_nothing(home, slug, line, said):
+    asks(home, "ask", ASK)
+    home.t3.says(ASKER, "yes", "yes clear them")
+    code, out = home.main("waive", slug, line, "--to", "demo", "--message", f"{ASKER}/yes")
+    assert (code, out.startswith(said)) == (1, True)

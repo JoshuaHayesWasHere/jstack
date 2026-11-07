@@ -48,7 +48,7 @@ Source = Literal[
     "plan-entry",
     "view",
 ]
-Verb = Literal["go", "answer", "hold", "remove", "withdraw", "accept", "word", "item"]
+Verb = Literal["go", "answer", "hold", "remove", "withdraw", "accept", "word", "item", "waive"]
 Outcome = Literal["done", "gated", "refused", "noop"]
 RECORDED = "lavish-page"
 """The source of an old approval's words, which `acts.jsonl` keeps and no verb is given now."""
@@ -222,9 +222,11 @@ class Action:
     """One verb on its subject: a go for the row `subject` whose brief's sha starts with `pre`,
     the answer to the question numbered `subject`, a hold, remove or withdraw of the row
     `subject`, the accept of the pull request of the row `subject` at the head `pre`, a word for
-    the home whose scope is `subject` (empty for the root home), or the go of the work item
-    `subject`. `seen` is the event the party last saw, or nothing. `doors` are the cases the
-    action holds for: the brief's or the gate's, and for an accept a protected path's."""
+    the home whose scope is `subject` (empty for the root home), the go of the work item
+    `subject`, or the waiver of the row `subject`'s `Done when` lines whose numbers `pre` holds,
+    split by spaces (`jbus.waive`). `seen` is the event the party last saw, or nothing. `doors`
+    are the cases the action holds for: the brief's or the gate's, and for an accept a protected
+    path's."""
 
     verb: Verb
     subject: str

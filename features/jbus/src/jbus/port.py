@@ -28,7 +28,7 @@ import jbus
 import jsettings
 from jbriefs import meets
 from jbriefs.meets import Waiver
-from jbus import Refused, acts, party, queue, t3
+from jbus import Refused, acts, party, queue, t3, waive
 from jbus.passes import Pass
 from jmerge import bus
 
@@ -93,7 +93,8 @@ class Port:
         `t3.heard` reads, as `jbus queue approve --message` does. Either names the slug
         (`queue.names`), as a go that opens a door does (`acts._unbound`), and says it waives the
         line the `Waived:` line names, quoting it (`meets.quotes`): an earlier word about the row,
-        such as its go, waives nothing."""
+        such as its go, waives nothing. A user's plain reply to a home's ask waives the lines a
+        `waive` act binds it to (`jbus.waive`), which checked it when the home recorded it."""
         ref = waiver.ref
         try:
             found = project(checkout)
@@ -102,6 +103,8 @@ class Port:
         if found is None:
             return f"refused: jbus has no project of {checkout}, so no word of {ref} is read"
         config, one = found
+        if waiver.number in waive.held(config.state(one), slug, ref):
+            return ""
         bot = [
             act["evidence"]["words"]
             for act in acts.read(config.state(one))
