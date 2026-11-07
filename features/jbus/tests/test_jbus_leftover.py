@@ -13,7 +13,7 @@ import pytest
 
 import jbus
 import jsettings
-from jbus import leftover, threads, view
+from jbus import leftover, prereview, threads, view
 from test_jbus_kitchen import NOW
 from test_jbus_queue import add
 from test_jbus_row_ends import PULL, column, listed, result, sends
@@ -377,6 +377,13 @@ def test_a_row_whose_review_is_written_is_left_only_once_its_crew_ended_past_the
     kitchen.poll(later(leftover.OPENING_MINUTES + 1))
     (sent,) = lefts(kitchen)
     assert "It ended with no pull request.\nLeft: the docs\n" in sent["message"]
+
+
+def test_a_project_with_no_outbox_or_a_torn_last_line_reads_its_last_prereviewed_send(tmp_path):
+    assert prereview.told_at(tmp_path, "alpha") is None
+    sent = {"at": NOW.isoformat(), "row": "alpha", "template": "prereviewed", "went": "sent"}
+    (tmp_path / "outbox.jsonl").write_text(json.dumps(sent) + '\n{"at": "2026-')
+    assert prereview.told_at(tmp_path, "alpha") == NOW
 
 
 def test_a_row_whose_pull_request_is_open_is_never_told_it_ended_with_none(kitchen):

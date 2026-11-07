@@ -183,14 +183,12 @@ def reviewing(run: Pass, world: World, slug: str) -> bool:
 
 def opening(run: Pass, world: World, slug: str, brief: str, result: str) -> bool:
     """Say whether a crew whose Result opens its pull request after its review, and whose review
-    has run, is opening that pull request now: the pull request of its branch is open, its thread
-    is at work or was told this pass, or jbus sent it `prereviewed` less than `OPENING_MINUTES`
-    ago, the time T3 Code takes to start its turn and the crew to open it. A crew that ended past
-    that with no pull request has left its row."""
+    has run, is opening that pull request now: its thread is at work or was told this pass, or
+    jbus sent it `prereviewed` less than `OPENING_MINUTES` ago, the time T3 Code takes to start
+    its turn and the crew to open it. A crew that ended past that with no pull request has left
+    its row. A row whose pull request is open is `pr`, not `left`, and is never asked."""
     if not review.before_pull(result) or not review.ran(brief):
         return False
-    if slug in world.open:
-        return True
     thread = world.thread(slug)
     if thread and (
         at_work([thread], settled_too=True)
