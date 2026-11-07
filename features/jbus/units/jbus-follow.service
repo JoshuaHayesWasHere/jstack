@@ -4,6 +4,7 @@ Documentation=file:%Y/../docs/jbus/the-units.md#the-units
 
 [Service]
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PYTHONUNBUFFERED=1
 ExecStart=%h/.local/bin/jbus follow
 Restart=on-failure
 RestartSec=5
