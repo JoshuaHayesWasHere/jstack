@@ -53,6 +53,7 @@ from functools import cached_property
 from typing import Any
 
 import jsettings
+from jbus.ci import macjobs
 from jbus.watch import mac_job
 
 LOOKBACK = timedelta(hours=2)
@@ -688,12 +689,13 @@ def shas_per_pr(facts: Facts, start: datetime, end: datetime) -> Number:
 
 
 def _wait(key: str, facts: Facts, start: datetime, end: datetime, jobs: str) -> Number:
+    mac = macjobs.on_mac(facts.jobs)
     waited = [
         j
         for j in facts.jobs
         if j["event"] == "pull_request"
         and j.get("started")
-        and (SHARD.fullmatch(j["name"]) if key == "wait_p90_shard" else j["name"] == "macos")
+        and (SHARD.fullmatch(j["name"]) if key == "wait_p90_shard" else mac(j))
         and _in(j["created"], start, end)
     ]
     how = (
@@ -714,7 +716,7 @@ def wait_p90_shard(facts: Facts, start: datetime, end: datetime) -> Number:
 
 
 def wait_p90_macos(facts: Facts, start: datetime, end: datetime) -> Number:
-    return _wait("wait_p90_macos", facts, start, end, "`macos`")
+    return _wait("wait_p90_macos", facts, start, end, macjobs.NAMED)
 
 
 def open_to_merge(facts: Facts, start: datetime, end: datetime) -> Number:

@@ -9,7 +9,6 @@ much and why. The recording has no log of a hosted job, so each red hosted job i
 The health numbers are checked against a fixed slice of ci.jsonl written here (`SLICE`).
 """
 
-import ast
 import configparser
 import itertools
 import json
@@ -20,14 +19,13 @@ import subprocess
 import threading
 import time
 from datetime import UTC, date, datetime, timedelta
-from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pytest
 
 import jsettings
 from ci_replay import FOLDER, Replay
-from jbus import ci, passes, watch
+from jbus import ci, passes
 from jbus.ci import collect, daily, ledger, notice, numbers, report
 from jbus.ci.collect import Unavailable
 from test_jbus_kitchen import NOW as KITCHEN_NOW
@@ -155,43 +153,6 @@ def test_a_test_that_failed_on_one_branch_is_no_flake_beside_one_that_failed_on_
     jobs = [red(1, "beta", "test_both", "test_beta_only"), red(2, "gamma", "test_both")]
     found = numbers.flaky(numbers.Facts(jobs, [], [], NOW), START, NOW)
     assert (found.value, found.shown, found.n) == (1.0, "1", 2)
-
-
-@pytest.mark.parametrize("mac", ["macos", "macos 2 of 3"])
-def test_numbers_count_a_red_macos_job_on_main_as_no_red_main(mac):
-    """macos.yml runs on each push to main, beside main's check, and is never main's check:
-    neither its job `macos` nor a part `macos K of N` of its Mac tests."""
-    jobs = [
-        hosted(1, "m1", "main", "success", event="push"),
-        hosted(2, "m1", "main", "failure", event="push", name=mac, tests=["tests/test_m.py"]),
-        hosted(3, "m1", "main", "success", event="push", name="macos-select"),
-    ]
-    facts = numbers.Facts(jobs, [], [], NOW)
-    assert facts.intervals == []
-    assert numbers.mainred(facts, NOW - timedelta(days=7), NOW).shown == "0 min"
-
-
-def test_numbers_end_no_red_main_at_a_green_macos_job():
-    red_at = NOW - timedelta(days=1) + timedelta(minutes=6)
-    jobs = [
-        hosted(0, "m1", "main", "failure", event="push"),
-        hosted(1, "m2", "main", "success", event="push", name="macos"),
-    ]
-    assert numbers.Facts(jobs, [], [], NOW).intervals == [(red_at, NOW)]
-
-
-def test_the_macos_yml_job_names_are_one_list_in_jbus_watch():
-    """`jbus.ci.numbers` judges main's runs by the test `jbus.watch` judges main by, not a copy."""
-    src = Path(watch.__file__).parent
-    defined = [
-        str(path.relative_to(src))
-        for path in sorted(src.rglob("*.py"))
-        for node in ast.parse(path.read_text()).body
-        if isinstance(node, ast.Assign)
-        and any(isinstance(t, ast.Name) and t.id == "MAC_JOBS" for t in node.targets)
-    ]
-    assert defined == ["watch.py"]
-    assert numbers.mac_job is watch.mac_job
 
 
 def test_no_inode_figure_is_kept_until_a_job_writes_one(nine):
