@@ -191,7 +191,7 @@ def test_the_macos_yml_job_names_are_one_list_in_jbus_watch():
         and any(isinstance(t, ast.Name) and t.id == "MAC_JOBS" for t in node.targets)
     ]
     assert defined == ["watch.py"]
-    assert numbers.mac_job is watch.mac_job
+    assert numbers.mac_job is watch.mac_job and numbers.MAC_PART is watch.MAC_PART
 
 
 def test_no_inode_figure_is_kept_until_a_job_writes_one(nine):
@@ -1210,7 +1210,7 @@ OWN_TEST, SHARED_TEST = "tests/test_a.py::test_own", "tests/test_a.py::test_shar
 SLICE = [
     row(1, 101, "check", 10, "a1", 1, conclusion="failure"),
     row(2, 101, "check 1 of 8", 10, "a1", 1, wait=10, conclusion="failure", tests=[OWN_TEST]),
-    row(3, 101, "macos", 10, "a1", 1, wait=100),
+    row(3, 101, "macos 1 of 2", 10, "a1", 1, wait=100),
     row(4, 102, "check", 10, "a2", 30),
     row(5, 102, "check 1 of 8", 10, "a2", 30, wait=20),
     row(6, 103, "check", 10, "a3", 60),
@@ -1227,7 +1227,7 @@ SLICE = [
     row(17, 302, "check 1 of 8", 30, "c2", 90, conclusion="cancelled", queued=True),
     row(18, 401, "check", 40, "d1", 31),
     row(19, 401, "check 1 of 8", 40, "d1", 31, wait=1000),
-    row(20, 401, "macos", 40, "d1", 31, wait=300),
+    row(20, 401, "macos 2 of 2", 40, "d1", 31, wait=300),
     row(21, 501, "check 1 of 8", None, "m1", 5, wait=5000, event="push", branch="main"),
     row(22, 601, "check", None, "e1", 100, conclusion="failure", branch="dependabot"),
 ]
@@ -1308,6 +1308,20 @@ def test_the_slice_gives_each_health_number_its_value_its_n_and_how_it_counts(sl
     }
     for key in HEALTH:
         assert found[key].how and found[key].met is None, key
+
+
+def test_the_macos_wait_counts_the_mac_parts_and_not_the_linux_gate_macos():
+    """macos.yml's Mac runs are its parts, `macos K of N`; the required `macos` is a Linux job
+    that waits for them, so its wait is no Mac's queue."""
+    jobs = [
+        row(1, 101, "macos 1 of 3", 10, "a1", 1, wait=40),
+        row(2, 101, "macos 2 of 3", 10, "a1", 1, wait=60),
+        row(3, 101, "macos 3 of 3", 10, "a1", 1, wait=80),
+        row(4, 101, "macos", 10, "a1", 1, wait=900),
+        row(5, 101, "macos-select", 10, "a1", 1, wait=700),
+    ]
+    found = numbers.wait_p90_macos(numbers.Facts(jobs, [], [], SLICE_NOW), SLICE_START, SLICE_NOW)
+    assert (found.value, found.shown, found.n) == (76.0, "76 s (p50 60 s)", 3)
 
 
 def test_the_health_numbers_have_no_data_in_a_window_with_nothing_in_it(sliced):

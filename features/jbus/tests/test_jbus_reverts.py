@@ -561,6 +561,33 @@ def test_two_overlapping_macos_reds_revert_nothing_and_file_one_macos_red_row(ki
     assert mainjson.read(kitchen.state).red == "" and main_red(kitchen) == []
 
 
+def test_a_macos_red_row_lists_the_failed_mac_parts_and_not_the_linux_gate_macos(kitchen):
+    """macos.yml's Mac tests run in parts, `macos K of N`, and the gate `macos`, on Linux, fails
+    whenever a part did and names no test: the `macos-red-` row lists the failed parts and their
+    tests, and not the gate."""
+    first, second = mac_red_merges(kitchen, ("alpha", 7, None), ("beta", 8, None))
+    runs = json.loads((kitchen.stub / "check-runs.json").read_text())
+    for n, red in enumerate((first, second)):
+        suite = {"check_suite": {"id": 71 + n}}
+        runs[red] = [
+            {**DONE, "conclusion": "success", "name": "check", "id": 91 + n},
+            {**DONE, "conclusion": "failure", "name": "macos 1 of 2", "id": 191 + n} | suite,
+            {**DONE, "conclusion": "success", "name": "macos 2 of 2", "id": 291 + n} | suite,
+            {**DONE, "conclusion": "failure", "name": "macos", "id": 391 + n} | suite,
+        ]
+    kitchen.set("check-runs.json", runs)
+    kitchen.set(
+        "logs.json",
+        {"191": LOG, "192": f"FAILED {TEST}\nFAILED {OTHER}\n= 2 failed =\n", "392": "gate\n"},
+    )
+    passes(kitchen)
+    (row,) = mac_rows(kitchen)
+    text = (kitchen.home / "tasks" / f"{row['slug']}.md").read_text()
+    assert "macos 1 of 2" in text and f"`{OTHER}`" in text
+    assert "2 tests named" in text
+    assert "/392" not in text and "`macos`" not in text
+
+
 def test_a_macos_revert_stays_open_until_macos_is_green_at_a_later_commit(kitchen):
     """main's check is green all along, so the revert of a Mac red is closed only once
     macos.yml's run passed at a later commit."""

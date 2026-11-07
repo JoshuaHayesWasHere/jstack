@@ -1215,14 +1215,16 @@ def _judged(run: Pass, sha: str) -> tuple[list[dict], list[dict]]:
 MAC_FLOW = ".github/workflows/macos.yml"
 MAC_JOBS = ("macos-select", "macos")
 """macos.yml, and its jobs' names: its run on each push to main judges that merge commit on a
-Mac, apart from main's check. Its parts, `macos K of N`, are matched by `mac_job`."""
-_MAC_PART = re.compile(r"macos \d+ of \d+")
+Mac, apart from main's check. `macos-select` and the gate `macos` run on Linux; the Mac runs
+are the parts (`MAC_PART`), and `macos` passes only when every part did."""
+MAC_PART = re.compile(r"macos \d+ of \d+")
+"""The name of each part of macos.yml's Mac tests, `macos K of N`, each on its own Mac."""
 
 
 def mac_job(name: object) -> bool:
     """Return whether a job's name is one of macos.yml's: `macos-select`, `macos`, or a part
     `macos K of N`."""
-    return isinstance(name, str) and (name in MAC_JOBS or bool(_MAC_PART.fullmatch(name)))
+    return isinstance(name, str) and (name in MAC_JOBS or bool(MAC_PART.fullmatch(name)))
 
 
 def _of_mac(one: dict) -> bool:
@@ -1283,18 +1285,24 @@ def mac_check(run: Pass, known: dict[str, str], sha: str) -> str:
 
 def mac_jobs(run: Pass, sha: str) -> list[tuple[str, str, Failed]] | None:
     """Each failed job of macos.yml's push run at a commit, with its URL and the tests its log
-    names, or None where GitHub gives no answer or a log could not be read."""
+    names, or None where GitHub gives no answer or a log could not be read. The gate `macos`
+    fails whenever a part did and names no test, so it is left out where a part failed."""
     runs = mac_runs(run, sha)
     said = _api(run, f"repos/{{owner}}/{{repo}}/commits/{sha}/check-runs")
     if runs is None or not isinstance(said, dict):
         return None
     suites = {r.get("check_suite_id") for r in runs} - {None}
+    failed = [
+        one
+        for one in said.get("check_runs") or []
+        if (one.get("check_suite") or {}).get("id") in suites
+        and one.get("status") == "completed"
+        and one.get("conclusion") not in NOT_RED
+    ]
+    if any(MAC_PART.fullmatch(str(one.get("name") or "")) for one in failed):
+        failed = [one for one in failed if one.get("name") != MAC_JOBS[-1]]
     jobs = []
-    for one in said.get("check_runs") or []:
-        if (one.get("check_suite") or {}).get("id") not in suites:
-            continue
-        if one.get("status") != "completed" or one.get("conclusion") in NOT_RED:
-            continue
+    for one in failed:
         found = _log_failed(run, one.get("id"))
         if found is None:
             return None
