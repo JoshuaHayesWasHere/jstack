@@ -70,7 +70,10 @@ echo $! >"$S/t3/pid"
 tries=0
 until [ -s "$S/t3/port" ]; do
   tries=$((tries + 1))
-  if [ "$tries" -gt 50 ]; then
+  # A stand-in that has exited writes no port: say so now, not at the end of the wait. Its
+  # pid stays a zombie until this shell reaps it, so a state of Z counts as gone too.
+  state=$(ps -p "$(cat "$S/t3/pid")" -o stat= 2>/dev/null | tr -d " " || true)
+  if [ "$tries" -gt 50 ] || [ -z "$state" ] || [ "${state#Z}" != "$state" ]; then
     # The trap at the top removes the log with the sandbox, so what it holds is said here.
     echo "launch.sh: the stand-in for T3 Code did not start, and its log said:" >&2
     cat "$S/t3/log" >&2
