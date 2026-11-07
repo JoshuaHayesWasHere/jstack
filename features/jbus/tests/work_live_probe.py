@@ -147,7 +147,7 @@ def test_a_change_of_each_kind_reaches_work_json(kitchen):
     kitchen.set("jmerge.txt", f"wait 9 {PULL}: {ready.NO_REVIEW}\n")
     kitchen.poll()
     assert value(kitchen) == "review"
-    assert json.loads((kitchen.state / tick.PENDING).read_text()) == [9]
+    assert [one["number"] for one in json.loads((kitchen.state / tick.PENDING).read_text())] == [9]
     config, run_id = jbus.load(), 0
 
     def ticks():

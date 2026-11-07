@@ -129,7 +129,8 @@ def _failed(run: Pass, why: str) -> None:
 
 def _sent(run: Pass, ran: subprocess.CompletedProcess[str]) -> Said:
     """Send each line a run of `jmerge` printed about a pull request, once for its key, and
-    return them."""
+    return them. The run restates each line it judged, and logs as a quiet `work-drift` each one
+    the merge tick restated otherwise (`restated.pulled`)."""
     lines = Said()
     for text in map(str.strip, ran.stdout.splitlines()):
         line = parse(text)
@@ -142,7 +143,8 @@ def _sent(run: Pass, ran: subprocess.CompletedProcess[str]) -> Said:
             alert.deliver(run, f"alert: {run.project.name}: {unfollowed}")
     lines.failed = bool(ran.returncode)
     lines.at = restated.moment(verbs.clock())
-    restated.pulled(run.state, verdicts(lines), lines.at)
+    for key, what in restated.pulled(run.state, verdicts(lines), lines.at):
+        run.box.send(key, "work-drift", f"work-drift {key}: {what}")
     return lines
 
 

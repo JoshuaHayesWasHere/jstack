@@ -4,7 +4,11 @@ the view shows a change within milliseconds and not at the next pass (`jbus.work
 A write of the queue restates the `Row` facet of each row it reaches (`queued`, from
 `queue._changing`), and a run of `jmerge`, the tick's or the pass's, restates the `Pull` facet
 and the `why` of each pull request it judged (`pulled`, from `merge._sent`), each judged again
-from the facts the last pass kept (`work.restate`). The pass still judges every row: it keeps a
+from the facts the last pass kept (`work.restate`). Before its run of `jmerge`, and also where
+`jmerge` is busy, the merge tick restates the `why` of each pull request on the check step whose
+required checks ended at its head, from GitHub's list of runs (`checked`, from `jbus.tick`). The
+next run of `jmerge` restates that line again, and where it judges otherwise its verdict stands
+and the line is logged as drift (`pulled`, `corrects`). The pass still judges every row: it keeps a
 `Pull` facet that a later run of `jmerge` restated (`kept`), and logs each line it corrects as
 drift (`drift`, from `states.keep_work`). Every writer holds `work.LOCK`.
 
@@ -50,6 +54,11 @@ PULLED = "pulled"
 FOLLOWED = "followed"
 """The field of a line that says when the T3 Code event that `jbus follow` last restated its
 `Thread` facet from happened."""
+CHECKED = "checked"
+"""The field of a line that says the merge tick restated it from a run that ended, before any run
+of `jmerge` judged that run: `failed` or `passed` (`checked`). The next run of `jmerge` that
+judges the pull request takes it off (`pulled`)."""
+FAILED, PASSED = "failed", "passed"
 PASS_ONLY = frozenset({"lost", "unknown"})
 """The values that only the pass judges: a thread that ended with nothing written is lost only
 once the pass finds no wait of jbus's behind it and no pull request owed (`watch.facts`), and a
@@ -121,14 +130,17 @@ def fresh(row: dict[str, Any], facet: Row, scout: bool) -> dict[str, Any]:
     return entry(state, holder(state, role="scout" if scout else ""), **about, **said)
 
 
-def pulled(state_dir: Path, said: dict[int, tuple[Pull, str]], at: str) -> None:
+def pulled(state_dir: Path, said: dict[int, tuple[Pull, str]], at: str) -> list[tuple[str, str]]:
     """Restate the `Pull` facet of the line of each pull request that a run of `jmerge` judged,
     by its number, as `jmerge` judged it, with its reason as the line's `why`, and mark the line
     `PULLED` at `at`, when the run ended (`Said.at`). The pass and the merge tick both call this
     as their run of `jmerge` ends (`merge._sent`), so a verdict reaches the view at once. The
-    pass keeps a facet that a run after its own restated (`kept`)."""
-    if not said:
-        return
+    pass keeps a facet that a run after its own restated (`kept`).
+
+    A line the merge tick restated (`CHECKED`) loses the mark, and where the run judged it
+    otherwise than the tick (`corrects`), the run's verdict stands and the line is returned by key
+    with what was wrong in it, for the caller to log as drift."""
+    drifted: list[tuple[str, str]] = []
 
     def change(lines: list[Any]) -> list[Any]:
         work = []
@@ -136,13 +148,64 @@ def pulled(state_dir: Path, said: dict[int, tuple[Pull, str]], at: str) -> None:
             number = str(one.get("pr", "")).removeprefix("#") if _is_row(one) else ""
             if number.isdigit() and int(number) in said:
                 pull, why = said[int(number)]
+                tick = str(one.get(CHECKED, ""))
+                if wrong := corrects(one, tick, pull, why):
+                    drifted.append((str(one["key"]), wrong))
                 made = restate(one, pull=pull, why=why)
-                if made is not one:
-                    one = {**made, PULLED: at}
+                if made is not one or tick:
+                    one = {**{k: v for k, v in made.items() if k != CHECKED}, PULLED: at}
+            work.append(one)
+        return work
+
+    if said:
+        _rewrite(state_dir, change)
+    return drifted
+
+
+def corrects(one: dict[str, Any], tick: str, pull: Pull, why: str) -> str:
+    """Return what a run of `jmerge` that judged `pull` for `why` found wrong in the line the
+    merge tick restated as `tick`, or nothing where it agrees or the tick did not restate it. A
+    check that failed keeps the pull
+    request on the check step for the reason the tick gave it. A pass moves it on from the check
+    step, to any step `jmerge` judges, so only a verdict that keeps it on the check step says
+    otherwise."""
+    had = str(one.get("why", ""))
+    if not tick:
+        return ""
+    if tick == FAILED and (pull, why) == (Pull.CHECK, had):
+        return ""
+    if tick == PASSED and pull != Pull.CHECK:
+        return ""
+    return f"the tick's check {tick} ({had!r}) for {str(pull)!r} ({why!r})"
+
+
+def checked(state_dir: Path, said: dict[int, tuple[str, str, str]], at: str) -> list[str]:
+    """Restate the line of each pull request in `said`, by its number, that is on the check step:
+    the `why` a run of `jmerge` would give it now that its required checks ended at its head, with
+    `failed` or `passed` (`CHECKED`), and `ended`, when the last of them ended on GitHub. Mark it
+    `PULLED` at `at`, so the pass keeps it as a later word than its own run's (`kept`). A line that
+    a run of `jmerge` judged after `ended` is left as it is, since that run saw the end, so the
+    tick that asks again after a busy `jmerge` writes nothing twice. Return the keys of the lines
+    it changed. The merge tick calls this as soon as GitHub lists the runs (`jbus.tick`)."""
+    changed: list[str] = []
+
+    def change(lines: list[Any]) -> list[Any]:
+        work = []
+        for one in lines:
+            number = str(one.get("pr", "")).removeprefix("#") if _is_row(one) else ""
+            facts = stored(one) if number.isdigit() and int(number) in said else None
+            if facts is not None and facts.pull == Pull.CHECK:
+                tick, why, ended = said[int(number)]
+                if str(one.get(PULLED, "")) <= ended:
+                    made = restate(one, pull=Pull.CHECK, why=why)
+                    if made is not one:
+                        one = {**made, PULLED: at, CHECKED: tick}
+                        changed.append(str(one["key"]))
             work.append(one)
         return work
 
     _rewrite(state_dir, change)
+    return changed
 
 
 def kept(one: dict[str, Any], was: dict[str, Any] | None, ran: str) -> dict[str, Any]:

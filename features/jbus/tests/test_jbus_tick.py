@@ -13,9 +13,11 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import alert, budget, merge, tick, verbs
+from jbus import alert, budget, merge, restated, states, tick, verbs, work
+from jmerge import ready
 from test_jbus_kitchen import NOW, Kitchen, rate_limit
-from test_jbus_merge import LOCKING
+from test_jbus_merge import LOCKING, held
+from test_jbus_queue import add
 from test_jbus_row_ends import sends
 
 
@@ -28,6 +30,10 @@ def kitchen(tmp_path, monkeypatch):
 
 
 MERGED = "merged 7 alpha abc1234"
+HEAD = "c" * 40
+PULL = "https://example.test/pull/7"
+RUNNING = f"wait 7 {PULL}: {ready.LIVE_RUN.format(check='check', head=HEAD[:12], state='running')}"
+FAILED = f"wait: {ready.CHECK_FAILED.format(check='check')}"
 
 
 def ticks(kitchen):
@@ -60,7 +66,7 @@ def ended(kitchen, run_id):
 @pytest.fixture
 def watched(kitchen):
     going(kitchen)
-    assert json.loads((kitchen.state / tick.PENDING).read_text()) == [7]
+    assert json.loads((kitchen.state / tick.PENDING).read_text()) == [{"number": 7, "head": HEAD}]
     ended(kitchen, 1)
     ticks(kitchen)
     kitchen.set("jmerge.txt", f"{MERGED}\n")
@@ -220,3 +226,114 @@ def test_a_skill_the_tick_merged_is_told_to_each_thread_out_on_the_next_pass(wat
     watched.poll(NOW + timedelta(minutes=1))
     told = [one for one in sends(watched) if one["threadId"] == crew["threadId"]]
     assert len(told) == 1 and "skills: crew." in told[0]["message"]
+
+
+@pytest.fixture
+def on_check(kitchen):
+    """The row `alpha`, whose pull request #7 is on the check step while its check runs, as the
+    pass judged it."""
+    add(kitchen, "alpha")
+    kitchen.brief("alpha", f"\n## Result\nStatus: done\nBranch: alpha   Pull request: {PULL}\n")
+    kitchen.t3.thread("alpha", "completed")
+    going(kitchen)
+    kitchen.set("jmerge.txt", f"{RUNNING}\n")
+    kitchen.poll()
+    assert line(kitchen)["value"] == "check"
+    return kitchen
+
+
+def line(kitchen):
+    kept = json.loads((kitchen.state / work.NAME).read_text())
+    return {one["key"]: one for one in kept["work"]}["alpha"]
+
+
+def check_ended(kitchen, run_id, conclusion):
+    """GitHub lists the run of the required check `check` at #7's head as ended."""
+    one = {"id": run_id, "status": "completed", "name": "check", "head_sha": HEAD}
+    one |= {"conclusion": conclusion, "updated_at": "2026-01-01T00:00:00Z"}
+    kitchen.set("runs.json", {"workflow_runs": [one]})
+
+
+def before_jmerge(monkeypatch, kitchen):
+    """Keep #7's line of `work.json` as it is when the tick starts `jmerge`."""
+    seen, ran = [], merge.tick
+
+    def tick_of(run):
+        seen.append(line(kitchen))
+        return ran(run)
+
+    monkeypatch.setattr(merge, "tick", tick_of)
+    return seen
+
+
+def test_a_changed_runs_list_restates_the_rows_line_before_jmerge_runs(on_check, monkeypatch):
+    """A check that failed reaches #7's line as soon as GitHub lists its run, before the tick's
+    `jmerge` runs, with the reason `jmerge` gives it, which `jmerge` then agrees with."""
+    seen = before_jmerge(monkeypatch, on_check)
+    check_ended(on_check, 1, "failure")
+    on_check.set("jmerge.txt", f"wait 7 {PULL}: {ready.CHECK_FAILED.format(check='check')}\n")
+    assert ticks(on_check) == [
+        "tick demo: a run ended, and alpha's line says its check ended",
+        "tick demo: a run ended, and jmerge ran",
+    ]
+    (first,) = seen
+    assert (first["value"], first["why"], first[restated.CHECKED]) == ("check", FAILED, "failed")
+    assert (line(on_check)["why"], restated.CHECKED in line(on_check)) == (FAILED, False)
+    assert on_check.events(states.DRIFT) == []
+
+
+def test_a_check_that_ends_while_jmerge_lock_is_held_reaches_the_line(on_check):
+    """With another run of `jmerge` holding its run lock, the tick's `jmerge` does not run, and
+    the line says the check passed all the same. The next tick, still held, writes nothing again,
+    and the tick's `jmerge` once free moves the pull request on."""
+    script = on_check.stub / "jmerge"
+    script.write_text(LOCKING.format(python=sys.executable, stub=str(on_check.stub)))
+    check_ended(on_check, 1, "success")
+    on_check.set("jmerge.txt", f"{MERGED}\n")
+    with held(on_check):
+        assert ticks(on_check)[-1] == "tick demo: a run ended, and jmerge did not run to its end"
+        said = line(on_check)
+        assert said["why"] == "wait: check passed, and jmerge has not judged it yet"
+        assert said[restated.CHECKED] == "passed"
+        assert ticks(on_check) == ["tick demo: a run ended, and jmerge did not run to its end"]
+        assert line(on_check) == said
+    assert ticks(on_check) == ["tick demo: a run ended, and jmerge ran"]
+    assert line(on_check)["facts"]["pull"] == "merged"
+    assert on_check.events(states.DRIFT) == []
+
+
+def test_a_304_restates_nothing(on_check):
+    check_ended(on_check, 1, "failure")
+    on_check.set("jmerge.txt", f"wait 7 {PULL}: {ready.CHECK_FAILED.format(check='check')}\n")
+    assert ticks(on_check)[0] == "tick demo: a run ended, and alpha's line says its check ended"
+    assert line(on_check)["why"] == FAILED
+    before = (on_check.state / work.NAME).read_bytes()
+    assert ticks(on_check) == []
+    assert (on_check.state / work.NAME).read_bytes() == before
+
+
+def test_jmerge_that_judges_the_check_otherwise_corrects_the_line_and_logs_drift(on_check):
+    """The tick's word is the list of runs; `jmerge`'s is the pull request's checks. Where
+    `jmerge`, run after the tick restated the line, still finds the check running, its verdict
+    stands, and the line is logged as drift, quietly."""
+    check_ended(on_check, 1, "failure")
+    ticks(on_check)
+    assert line(on_check)["why"] != FAILED
+    (drift,) = [one["line"] for one in on_check.events(states.DRIFT)]
+    assert drift.startswith("work-drift alpha: the tick's check failed (")
+
+
+@pytest.mark.parametrize(
+    "given",
+    [
+        "a page that is no JSON",
+        {"workflow_runs": [{"name": "check", "head_sha": HEAD, "conclusion": "failure"}]},
+    ],
+)
+def test_a_list_of_runs_the_tick_cannot_read_leaves_the_line_to_jmerge(on_check, given):
+    """An answer that is no JSON, or a run with no time it ended, restates nothing: the tick's
+    `jmerge` runs as before and judges the line."""
+    on_check.set("runs.json", given)
+    before = line(on_check)
+    assert ticks(on_check) == ["tick demo: a run ended, and jmerge ran"]
+    assert line(on_check)["why"] == before["why"]
