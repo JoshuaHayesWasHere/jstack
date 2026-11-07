@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from jbus import watch
-from jbus.ci import numbers
+from jbus.ci import macjobs, numbers
 from test_jbus_ci import NOW, SLICE_NOW, SLICE_START, hosted, row
 
 
@@ -47,7 +47,7 @@ def test_the_macos_yml_job_names_are_one_list_in_jbus_watch():
         and any(isinstance(t, ast.Name) and t.id == "MAC_JOBS" for t in node.targets)
     ]
     assert defined == ["watch.py"]
-    assert numbers.mac_job is watch.mac_job and numbers.MAC_PART is watch.MAC_PART
+    assert numbers.mac_job is watch.mac_job and macjobs.MAC_PART is watch.MAC_PART
 
 
 def test_the_macos_wait_counts_the_mac_parts_and_not_the_linux_gate_macos():
