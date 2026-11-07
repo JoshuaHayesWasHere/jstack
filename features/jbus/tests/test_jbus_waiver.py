@@ -89,8 +89,6 @@ def test_the_bots_word_over_post_act_waives_and_one_a_home_typed_for_it_does_not
     assert heard(kitchen, typed).startswith(f"refused: T3 Code gave no message {typed}")
 
 
-# `jbus waive`: the home binds the user's plain reply to the rows and lines it asked about.
-
 ASKER = "mcp:" + "-".join("a" * size for size in (8, 4, 4, 4, 12))
 LINES = ("the command runs", "the docs say it", "the tests pass")
 BRIEF = "Done when:\n" + "".join(f"- {one}\n" for one in LINES) + "Size: S\n"
