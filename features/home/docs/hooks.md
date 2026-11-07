@@ -1,7 +1,7 @@
 # Hooks
 
 `install.sh` writes home's two hook entries, each with the path of the layout it assembled for that harness ([The layouts](../../jinstall/docs/jinstall.md#the-layouts)).
-This page says what home's two scripts do and shows each entry as the install writes it, with `<layout>` for Claude Code's layout, `~/.local/share/jstack/harness/claude-code`.
+This page says what home's two scripts do, and jbus's merge hook, which keeps a home's merge in `jmerge`, and shows each entry as the install writes it, with `<layout>` for Claude Code's layout, `~/.local/share/jstack/harness/claude-code`.
 The entry in `~/.codex/hooks.json` names Codex's layout, `~/.local/share/jstack/harness/codex`, in its place.
 [The catalog](../../../CATALOG.md#hooks) lists the hooks of every feature, and [jinstall](../../jinstall/docs/jinstall.md#hook-entries) says which file of each harness they go in.
 
@@ -99,3 +99,48 @@ Each refusal is a quiet `hook` event in the repo's jbus log, with the hook, the 
   }
 }
 ```
+
+## The merge hook
+
+`features/jbus/hooks/merge-command.sh` is jbus's `PreToolUse` hook on `Bash`, for Claude Code and Codex.
+`jmerge` is the one merger of a repo jbus's config names as a project: its merge reads the review, the checks over today's base and the line, and writes a `merged` line to `merge.log` that ends on its revert command.
+From 2026-10-15 to 2026-11-05 homes merged 26 pull requests with their own `gh pr merge`, most on the user's word, which skipped all of that, and #164, merged on a check from before main moved, broke main.
+The hook refuses such a merge, exit 2 with the reason on stderr, and prints the line that merges the same pull request on the user's word and logs it:
+
+```text
+merge-command: refused: `gh pr merge 1046 --squash` merges a pull request of jstack outside jmerge, its one merger, ...
+  cd ~/repos/jstack && jmerge --accept 1046 --as user --message <thread id>/<message id>
+```
+
+The decision is `jbus.mergecall`.
+It refuses `gh pr merge` with any flags, `gh api` on `repos/<owner>/<repo>/pulls/<number>/merge` with any method, and `gh api graphql` naming `mergePullRequest` or `enablePullRequestAutoMerge`, also inside `bash -c`, `eval`, a `for` loop (one line per number) or after `env`, `command` or `xargs`.
+A word that only names a merge, a commit message or a search, is not one.
+The repo is the one `--repo`, `GH_REPO`, a pull request's URL or the endpoint names, matched to a project by its `origin`, or else the one the command is in: the call's `cwd`, moved by each `cd` to a path the command names.
+It lets the merge through in a repo jbus's config does not name, and after the command sources the `env.sh` of a verify-jstack sandbox, whose `gh` is a stand-in.
+The thread on the line is the session's, from T3 Code's store, where it has it.
+A config that is there and does not load refuses the merge.
+
+It judges through `features/jbus/hooks/judge.sh`, as `door-command` does: one that cannot judge refuses, and each refusal is a quiet `hook` event in the repo's jbus log.
+`install.sh` merges this group into `~/.claude/settings.json`, and the same into `~/.codex/hooks.json`:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh '<layout>/hooks/merge-command.sh'",
+            "timeout": 30,
+            "onFailure": "block"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+The user's own terminal has no hook: the user merges as they like there.

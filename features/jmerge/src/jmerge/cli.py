@@ -141,6 +141,7 @@ class Repo:
         self.protected = protected
         self.accepted: tuple[int, str] | None = None
         self.lifts: list[str] = []
+        self.word = ""
         self.fetched = False
         self.through: int | None = None
         self.order: list[int] = []
@@ -909,7 +910,7 @@ class Repo:
 
             proven = ready.proves(text, one, carries)
             short = self.lift(ready.short_of(text, one.head, heard, proven), lifted)
-            short = short or ready.short_on_proved(text, one, carries)
+            short = short or self.lift(ready.short_on_proved(text, one, carries), lifted)
             short = short or ready.short_on_checked(text, one.head, carries)
         rebase: ready.Rebase | None = None
         unreviewed = ready.said_of(text).mode == ready.NONE
@@ -1119,8 +1120,9 @@ class Repo:
         return ready.codes() if self.accepted == (one.number, one.head) else frozenset()
 
     def lift(self, why: str, lifted: frozenset[str]) -> str:
-        """`why`, or nothing where it is a hold `--accept` lifts and the accept lifted its code."""
-        if judgement.verb(why) == judgement.HOLD and ready.code_of(why) in lifted:
+        """`why`, or nothing where `--accept` lifts it (`judgement.accepted`) and the accept
+        lifted its code."""
+        if judgement.accepted(why) and ready.code_of(why) in lifted:
             self.lifts.append(why)
             return ""
         return why
@@ -1159,21 +1161,26 @@ class Repo:
         acting: bus.Acting | None = None,
         message: str | None = None,
     ) -> int:
-        """Lift the hold of `one` and merge it, the user's hand-merge. A draft is not merged:
-        the accept says what it waits on (`HAND_DRAFT`) and marks nothing ready. One that waits
-        only on its turn in line takes the head of the line instead (`take_line`). With `acting`,
+        """Lift the hold of `one` and merge it, the user's hand-merge. A wait the accept lifts
+        (`judgement.WAIVED`) is lifted as a hold is, at the head GitHub gives now, since no run
+        keeps a record of it; one it does not is refused with why (`judgement.UNLIFTED`). One
+        that waits only on its turn in line takes the head of the line instead (`take_line`). A
+        draft is not merged: the accept says what it waits on (`HAND_DRAFT`) and marks nothing
+        ready. The `merged` line names the word it was accepted on. With `acting`,
         the accept is an act of the bus's (`jmerge.bus`): a door the party may not open parks a
         gate and merges nothing. `check` says what it would do, and is no act."""
         about = f"{one.number} {one.url}"
         first = self.waits(one, default)
         if first.verb == "wait" and ready.code_of(first.why) == ready.IN_LINE.code:
             return self.take_line(one, default, first.slug, (by, when, message), say, check, acting)
-        if first.verb != "hold":
+        waived = first.verb == "wait" and judgement.accepted(first.why)
+        if first.verb != "hold" and not waived:
             state = f"it waits: {first.why}" if first.verb else "jmerge merges it by itself"
-            say(f"refused {about}: it is not held, {state}")
+            unlifted = judgement.UNLIFTED.get(ready.code_of(first.why)) if first.verb else None
+            say(f"refused {about}: it is not held, {state}" + (f": {unlifted}" if unlifted else ""))
             return 1
         was = self.holds().get(str(one.number), "")
-        if was != one.head:
+        if not waived and was != one.head:
             held = f"was at {was[:12]}" if was else "is not on record, run jmerge first"
             say(f"refused {about}: its hold {held}, and its head is {one.head[:12]}")
             return 1
@@ -1199,9 +1206,12 @@ class Repo:
             return 0
         ran: list[str] = []
 
+        word = f"accepted by {by} at {when}" + (f" on {message}" if message else "")
+
         def does() -> str:
             ran.append(one.head)
             say(f"accepted {about}: {why}, lifted at {one.head[:12]} by {by} at {when}, {safe}")
+            self.word = word
             said = self.merge(one, found.slug, found.note, found.judged)
             say(said)
             if not said.startswith("merged "):
@@ -1415,7 +1425,8 @@ class Repo:
             return lines.waits("wait", number, one.url, f"{ready.MERGE_FAILED}: {lines.said(ran)}")
         if self.line.get(one.base) == one.number:
             del self.line[one.base]
-        notes = [note for note in (rebase, passed, self.base_merge.accepted(one.number)) if note]
+        word = self.word or self.base_merge.accepted(one.number)
+        notes = [note for note in (rebase, passed, word) if note]
         asked = _run(
             self.main,
             "gh",

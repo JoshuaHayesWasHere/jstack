@@ -30,7 +30,7 @@ is text a command reads, but where it feeds a shell or `ssh`, whose commands it 
 that runs dry walks through nothing (`party.DRY`). A home can still wrap a door in a script of
 its own, which is why the go path is the main check.
 
-Every refusing hook of jstack (this one, `agent-sends` and jleak's three) judges through
+Every refusing hook of jstack (this one, `agent-sends`, `merge-command` and jleak's three) judges through
 `features/jbus/hooks/judge.sh`. The hook sets `hook` (its name), `input` (what the harness gave it
 on stdin) and `source` (jstack's source tree), sources the file, and calls `judge <module>
 [<argument>...]`, which ends the hook. The module reads the call on stdin and ends 0 to let it
