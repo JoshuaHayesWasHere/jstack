@@ -10,6 +10,7 @@ import string
 import pytest
 
 from jbus import cancelled
+from jbus.view import state
 from jmerge import lines, ready
 from view.scene import PULL, ago, et, row, tasks
 
@@ -63,7 +64,7 @@ def test_each_wait_in_merge_log_has_its_code_and_the_view_reads_its_step_from_it
         code: [(one["step"], one["code"]) for one in found[f"r-{code}"]["history"]]
         for code in waits
     }
-    placed = {code: step or "unknown" for code, (step, _) in waits.items()}
+    placed = {code: state.LANE.get(step, step) or "unknown" for code, (step, _) in waits.items()}
     assert read == {code: [(step, ""), (step, code)] for code, step in placed.items()}
 
 

@@ -113,14 +113,16 @@ def keep_work(half: Half) -> None:
         busy = bool(record and record.busy)
         role = "scout" if queue.role(row) == queue.SCOUT else ""
         scout = {"scout": str(work.scouting(state))} if role else {}
+        why = str(row.get("why", ""))
         line = work.entry(
             state,
-            work.holder(state, role=role, home=home, busy=busy),
+            work.holder(state, role=role, home=home, busy=busy, why=why),
             key=slug,
             kind="row",
             slug=slug,
             thread=row.get("thread", ""),
             pr=row.get("pr", ""),
+            why=why,
             **scout,
         )
         listed.append(line)

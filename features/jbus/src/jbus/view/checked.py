@@ -1,9 +1,10 @@
 """What the check of a row in check did: it failed, it runs or waits for a runner, it passed and
 the row waits for `jmerge`, or the row is stacked and merges after another.
 
-A row is in check where the last pass put it on the step `check`. `jmerge` puts a stacked pull
-request on that step too, one that merges after its parent row (`jmerge.ready`'s `STACKED_ON`,
-`STACKED_UNMOVED`, `MERGES_AFTER` and `CARRIES_AFTER`), so `stacked` comes first, whatever its own
+A row is in check where the last pass put it on the step `check`. A stacked pull request, one
+that merges after its parent row, is drawn there too: `jmerge` puts `STACKED_UNMOVED`,
+`MERGES_AFTER` and `CARRIES_AFTER` on that step, and `STACKED_ON` on a step of its own whose
+pattern the view draws in check (`state.LANE`). So `stacked` comes first, whatever its own
 checks say: it is the last line `jmerge` logged of the row, by that line's code, or, for a line
 logged before the codes, by the code its text gives (`ready.code_of`), one of `STACKED_CODES`. A
 row with no line is read by its reason, and a reason that says `STACKED_ON`, as jbus words a

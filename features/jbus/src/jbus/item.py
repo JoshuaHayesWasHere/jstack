@@ -160,6 +160,7 @@ AIM: dict[str, State | None] = {
     "findings": S.RUNNING,
     "second": S.RUNNING,
     "check": S.RUNNING,
+    "stacked": S.RUNNING,
     "rebase": S.RUNNING,
     "hold": S.WAITING_ON_YOU,
     "launching": S.RUNNING,

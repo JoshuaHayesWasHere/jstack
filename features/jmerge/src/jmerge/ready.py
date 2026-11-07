@@ -57,6 +57,20 @@ class Reason(str):
             for literal, name, _, _ in string.Formatter().parse(self)
         )
 
+    def fields(self, text: str) -> dict[str, str] | None:
+        """The value of each field of the reason in `text`, a reason it made, or None for text
+        it did not make."""
+        parts = list(string.Formatter().parse(self))
+        found = re.fullmatch(
+            "".join(
+                re.escape(literal) + ("(.+)" if name is not None else "")
+                for literal, name, _, _ in parts
+            ),
+            text,
+        )
+        names = [name for _, name, _, _ in parts if name is not None]
+        return dict(zip(names, found.groups(), strict=True)) if found else None
+
 
 def reasons() -> dict[str, Reason]:
     return {name: value for name, value in globals().items() if isinstance(value, Reason)}
@@ -266,7 +280,7 @@ NO_GO = Reason(
 )
 MERGES_AFTER = Reason("check", "merges after {slug} ({open}), not merged yet")
 STACKED_ON = Reason(
-    "check",
+    "stacked",
     "it is stacked on {branch}, and merges after {slug} merged and jbus moved it onto {default}",
 )
 STACKED_UNMOVED = Reason(

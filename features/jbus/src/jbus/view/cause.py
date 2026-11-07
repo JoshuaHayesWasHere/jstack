@@ -170,6 +170,7 @@ def _hold(task: dict[str, Any], now: datetime) -> Cause:
 
 WORDS: dict[str, Callable[[dict[str, Any], datetime], Cause]] = {
     "check": _check,
+    "stacked": _check,
     "working": _working,
     "launching": _launching,
     "quiet": _quiet,
