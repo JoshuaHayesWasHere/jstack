@@ -264,6 +264,7 @@ def test_every_mac_keeps_the_follower_alive_and_restarts_it_after_a_failure(mac)
     follow = plistlib.loads(mac.plist("jbus-follow.service").read_bytes())
     assert (follow["RunAtLoad"], follow["KeepAlive"]) == (True, {"SuccessfulExit": False})
     assert follow["ProgramArguments"][-1].endswith("/.local/bin/jbus follow")
+    assert follow["EnvironmentVariables"]["PYTHONUNBUFFERED"] == "1"
 
 
 def test_the_view_gets_no_agent_as_systemd_enables_no_view(mac):
