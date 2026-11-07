@@ -39,13 +39,13 @@ from jgauge import slot
 
 NO_RESULT = (
     "jbus: your brief, {brief}, has no `## Result` yet, so this turn does not end here. Carry on "
-    "with the task from where you are, and end the turn with the Result the crew skill's \"End\" "
+    'with the task from where you are, and end the turn with the Result the crew skill\'s "End" '
     "has you write, or on a wait that jbus wakes you from: a test slot or your run that holds one."
 )
 OWES_PULL = (
     "jbus: every review of {brief} is written, and its last Result says the pull request opens "
     "after the review, so this turn does not end here. Handle the review as the crew skill's "
-    "\"The review\" says, open the pull request, and write the follow-up Result that names it."
+    '"The review" says, open the pull request, and write the follow-up Result that names it.'
 )
 
 
@@ -97,7 +97,7 @@ def main() -> int:
     and end 0 either way."""
     try:
         reason = answer(json.load(sys.stdin))
-    except Exception:  # noqa: BLE001: a Stop hook fails open, whatever broke
+    except Exception:  # a Stop hook fails open, whatever broke
         return 0
     if reason:
         print(json.dumps({"decision": "block", "reason": reason}))
