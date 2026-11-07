@@ -146,7 +146,8 @@ def test_a_crew_waiting_on_its_review_is_told_once_when_it_is_written_and_not_nu
 
 def test_a_crew_whose_brief_header_says_after_the_review_is_not_over_before_its_review(kitchen):
     """A brief whose header says `Pull request: after the review`, not `open one ...`, still
-    owes its pull request once its Result says the pull request opens after the review. A pass
+    owes its pull request once its Result says the pull request opens after the review
+    (`jbus.watch.owes_pull`). A pass
     that sees that Result while the crew is still at work neither settles the crew nor marks the
     row done, and the pass after it, with the crew idle, launches the reviewer."""
     thread, _, _ = proved_crew(kitchen, pull="after the review")
@@ -168,7 +169,8 @@ def test_a_crew_whose_brief_header_says_after_the_review_is_told_when_its_review
     kitchen,
 ):
     """The pass that launches the reviewer of an idle crew also ties up threads: the crew is not
-    settled there, so the pass after its reviewer writes tells it."""
+    settled there, since its Result owes its pull request (`jbus.watch.owes_pull`), so the pass
+    after its reviewer writes tells it."""
     thread, path, head = proved_crew(kitchen, pull="after the review")
     kitchen.poll()
     assert len(reviewers(kitchen)) == 1
