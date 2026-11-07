@@ -55,6 +55,7 @@ The doctor never reads the switch, so it stays quiet whatever you choose.
 |---|---|
 | `packaging/PKGBUILD` | The package: upstream's tag in `_tag`, the patches in `_patches`, and the version in `pkgver`. |
 | `packaging/*.patch` | The patch series, in the order of its names. |
+| `packaging/probe/` | `frames.mjs`, which times a jbus write to the tree's websocket frame ([How fresh the tree is](#how-fresh-the-tree-is)). |
 
 `pkgver` is the release's version with `.jstack.<series>` added, where the series is the first 10 hex digits of the sha256 of the patches, read in name order.
 The app's version carries it as `+jstack.<series>`, and the doctor compares that with the patches in the folder.
@@ -92,3 +93,22 @@ Every other T3 project is a root row of the same size over its threads, and "No 
 A project added to T3 is a root row at once, before it has a thread, and asks once whether to start a jstack home for it.
 Root rows sort into an active group and an idle one below a divider, on their own, and within each group a root row keeps the place you drag it to, or move it to with Alt+ArrowUp and Alt+ArrowDown.
 A row's menu, by right-click, the ContextMenu key or Shift+F10, holds what the row can do, and a home's actions go to the home as your own message: New crew task and New scout fill its composer, New child home asks the root home for a scope, Archive home sends `/handoff`, and Start a home starts a root home in a project with none.
+
+## How fresh the tree is
+
+The server sends the tree a change to a file it reads from jbus or a home within a tenth of a second.
+It refreshes on the first write to such a file, and folds the writes that come in the next 50 ms into one more refresh, so a write never waits longer than 50 ms and two refreshes.
+It wakes only on the files it reads, `work.json`, `merged.json`, `questions.json`, `waiting-on-user.json` and `held.json` of jbus, a home's `home-id`, a scope's `home-id`, `prefix`, `plan.md` and `handoff.md`, a task's or a scout's brief, and a folder made or removed, and never on jbus's locks and logs beside them.
+Each refresh is a span, `JbusWork.refresh`, and logs its duration at the debug level.
+
+The tree is as fresh as jbus's files, and jbus writes `work.json` at each pass.
+
+To time it, run the probe against a T3 Code checkout with its packages installed:
+
+```sh
+node features/t3code-jstack/packaging/probe/frames.mjs <checkout> 60
+```
+
+It runs the checkout's own `JbusWork` behind the websocket protocol of the server's `subscribeJbusWork`, on a copy of the state in a temp folder, and makes every write jbus and the homes make in the live folders again in the copy while it runs.
+Then it writes `work.json` the way jbus does, with one more row, 60 times, and prints the delay from each write to the frame that carries it.
+It only reads the live state.

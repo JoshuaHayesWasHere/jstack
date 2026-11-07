@@ -1,0 +1,218 @@
+From 0facf91eb138781da5223de69cea12eb68a21cab Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
+Date: Sat, 7 Nov 2026 13:50:03 -0500
+Subject: [PATCH] fix(server): the jstack tree hears a jbus file change within
+ 50 ms
+
+JbusWork woke on any write in the folders it watches and refreshed 250 ms after the last one.
+jbus's outbox.lock alone is written about 15 times a second beside work.json, so a refresh came
+a half second late at best and not for seconds at worst. It now wakes only on a name a refresh
+reads, or a folder come or gone, refreshes on the first write at once, and folds what follows
+into one more refresh 50 ms later. Each refresh is a span and logs its duration at debug.
+---
+ apps/server/src/jstack/JbusWork.test.ts | 34 ++++++++++
+ apps/server/src/jstack/JbusWork.ts      | 88 ++++++++++++++++++++-----
+ 2 files changed, 104 insertions(+), 18 deletions(-)
+
+diff --git a/apps/server/src/jstack/JbusWork.test.ts b/apps/server/src/jstack/JbusWork.test.ts
+index 7e6d7b45ca..c30e8437c6 100644
+--- a/apps/server/src/jstack/JbusWork.test.ts
++++ b/apps/server/src/jstack/JbusWork.test.ts
+@@ -1,5 +1,6 @@
+ import * as NodeServices from "@effect/platform-node/NodeServices";
+ import { assert, it } from "@effect/vitest";
++import * as Deferred from "effect/Deferred";
+ import * as Effect from "effect/Effect";
+ import * as FileSystem from "effect/FileSystem";
+ import * as Option from "effect/Option";
+@@ -72,3 +73,36 @@ it.live(
+       );
+     }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+ );
++
++it.live("shows a work.json write while jbus writes its outbox.lock beside it without a pause", () =>
++  Effect.gen(function* () {
++    const fs = yield* FileSystem.FileSystem;
++    const path = yield* Path.Path;
++    const { roots, workPath } = yield* seed;
++    const service = yield* JbusWork.make(roots);
++    const { latest, changes } = yield* service.subscribe;
++    assert.deepEqual(
++      latest.tasks.map((task) => (task.kind === "crew" ? task.stage : null)),
++      ["crew"],
++    );
++
++    // jbus's outbox.lock, which it writes beside work.json about 15 times a second, here without a
++    // pause, so a refresh that waited for the folder to go quiet never comes.
++    const lock = path.join(roots.jbus, "jstack", "outbox.lock");
++    const writing = yield* Deferred.make<void>();
++    let writes = 0;
++    yield* Effect.suspend(() => fs.writeFileString(lock, String(++writes))).pipe(
++      Effect.andThen(
++        Effect.suspend(() => (writes === 5 ? Deferred.succeed(writing, undefined) : Effect.void)),
++      ),
++      Effect.forever,
++      Effect.forkScoped,
++    );
++    yield* Deferred.await(writing);
++    yield* fs.writeFileString(workPath, workFile("quiet"));
++    const quiet = yield* nextWhere(changes, (next) =>
++      next.tasks.some((task) => task.kind === "crew" && task.stage === "quiet"),
++    );
++    assert.isTrue(Option.isSome(quiet));
++  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
++);
+diff --git a/apps/server/src/jstack/JbusWork.ts b/apps/server/src/jstack/JbusWork.ts
+index 241f727c63..62a9fd63c9 100644
+--- a/apps/server/src/jstack/JbusWork.ts
++++ b/apps/server/src/jstack/JbusWork.ts
+@@ -23,7 +23,6 @@ import * as Ref from "effect/Ref";
+ import * as Schema from "effect/Schema";
+ import * as Scope from "effect/Scope";
+ import * as Semaphore from "effect/Semaphore";
+-import * as Stream from "effect/Stream";
+ 
+ import {
+   type SnapshotSubscription,
+@@ -62,14 +61,36 @@ const defaultJbusWorkRoots = (): JbusWorkRoots => {
+ };
+ 
+ /** A watch on one directory, or null when it is gone since it was listed. */
+-const openWatcher = (directory: string, onChange: () => void): NodeFS.FSWatcher | null => {
++const openWatcher = (
++  directory: string,
++  onChange: (name: string | null) => void,
++): NodeFS.FSWatcher | null => {
+   try {
+-    return NodeFS.watch(directory, onChange);
++    return NodeFS.watch(directory, (_event, name) => onChange(name));
+   } catch {
+     return null;
+   }
+ };
+ 
++/** The files of `jbus/<repo>` a refresh reads. */
++const BUS_FILES = new Set([
++  "work.json",
++  "merged.json",
++  "questions.json",
++  "waiting-on-user.json",
++  "held.json",
++]);
++/** The files of a scope's directory, `home/<repo>/<scope>`, a refresh reads. */
++const SCOPE_FILES = new Set(["home-id", "prefix", "plan.md", "handoff.md"]);
++/** The folders of `home/<repo>` whose `<slug>.md` briefs a refresh reads. */
++const BRIEF_FOLDERS = new Set(["tasks", "scouts"]);
++/**
++ * How long a refresh waits after another before it runs again: a write with no refresh in the
++ * last window refreshes at once, and one that lands during a refresh or this window waits at most
++ * the window and one more refresh.
++ */
++const COALESCE = Duration.millis(50);
++
+ export const make = Effect.fn("JbusWork.make")(function* (roots: JbusWorkRoots) {
+   const fs = yield* FileSystem.FileSystem;
+   const path = yield* Path.Path;
+@@ -152,9 +173,9 @@ export const make = Effect.fn("JbusWork.make")(function* (roots: JbusWorkRoots)
+     );
+   });
+ 
+-  // Every directory whose entries a refresh reads, so a write in any of them refreshes: the
+-  // roots, each candidate repo's two directories, and every directory of a tracked repo's home,
+-  // a scope made after the server started included. Each refresh re-derives the set first.
++  // Every directory whose entries a refresh reads, re-derived by each refresh. jbus renames a temp
++  // file over each file, which a watch on the file would miss, so the watch is on its directory and
++  // wakes only on a name a refresh reads or a directory come or gone, never on jbus's locks.
+   const touched = yield* Queue.sliding<void>(1);
+   const watchers = new Map<string, NodeFS.FSWatcher>();
+   yield* Effect.addFinalizer(() =>
+@@ -185,6 +206,29 @@ export const make = Effect.fn("JbusWork.make")(function* (roots: JbusWorkRoots)
+     }
+     return wanted;
+   });
++  // A directory made or removed changes which repos and scopes there are. The callback runs on
++  // node's event loop, so it asks node's own stat; it does so only in the roots and a repo's home.
++  const directoryCameOrWent = (entry: string) => {
++    if (watchers.has(entry)) return true;
++    try {
++      return NodeFS.statSync(entry).isDirectory();
++    } catch {
++      return false;
++    }
++  };
++  const readsName = (directory: string, name: string | null) => {
++    if (name === null) return true;
++    if (directory === roots.jbus || directory === roots.home) {
++      return directoryCameOrWent(path.join(directory, name));
++    }
++    const parent = path.dirname(directory);
++    if (parent === roots.jbus) return BUS_FILES.has(name);
++    if (parent === roots.home) {
++      return name === "home-id" || directoryCameOrWent(path.join(directory, name));
++    }
++    if (SCOPE_FILES.has(name)) return true;
++    return BRIEF_FOLDERS.has(path.basename(directory)) && name.endsWith(".md");
++  };
+   // node's watch registers synchronously, so a write after this and before the read is not lost;
+   // FileSystem.watch registers only once its stream is first pulled.
+   const syncWatchers = Effect.fnUntraced(function* () {
+@@ -196,7 +240,9 @@ export const make = Effect.fn("JbusWork.make")(function* (roots: JbusWorkRoots)
+     }
+     for (const directory of wanted) {
+       if (watchers.has(directory)) continue;
+-      const watcher = openWatcher(directory, () => Queue.offerUnsafe(touched, undefined));
++      const watcher = openWatcher(directory, (name) => {
++        if (readsName(directory, name)) Queue.offerUnsafe(touched, undefined);
++      });
+       if (watcher === null) continue;
+       watcher.on("error", () => {
+         watcher.close();
+@@ -206,18 +252,21 @@ export const make = Effect.fn("JbusWork.make")(function* (roots: JbusWorkRoots)
+     }
+   });
+ 
+-  // Refreshes run on every debounced file event; tracing each would flood spans.
+-  const refresh = Effect.fnUntraced(function* () {
++  const refresh = Effect.fn("JbusWork.refresh")(function* () {
++    const startedMs = yield* Clock.currentTimeMillis;
+     yield* syncWatchers();
+-    const nowMs = yield* Clock.currentTimeMillis;
+     const snapshots: Array<JbusWorkSnapshot> = [];
+-    for (const repo of yield* repos) snapshots.push(yield* readRepo(repo, nowMs));
++    for (const repo of yield* repos) snapshots.push(yield* readRepo(repo, startedMs));
+     const next = mergeSnapshots(snapshots);
+     const json = encodeSnapshot(next);
+-    if (json === (yield* Ref.get(lastJson))) return;
+-    yield* Ref.set(lastJson, json);
+-    yield* Ref.set(state, next);
+-    yield* PubSub.publish(changes, next);
++    const published = json !== (yield* Ref.get(lastJson));
++    if (published) {
++      yield* Ref.set(lastJson, json);
++      yield* Ref.set(state, next);
++      yield* PubSub.publish(changes, next);
++    }
++    const durationMs = (yield* Clock.currentTimeMillis) - startedMs;
++    yield* Effect.logDebug("jbus work refreshed", { durationMs, published });
+   });
+   const refreshLocked = mutex
+     .withPermits(1)(refresh())
+@@ -225,9 +274,12 @@ export const make = Effect.fn("JbusWork.make")(function* (roots: JbusWorkRoots)
+ 
+   yield* refreshLocked;
+ 
+-  yield* Stream.fromQueue(touched).pipe(
+-    Stream.debounce(Duration.millis(250)),
+-    Stream.runForEach(() => refreshLocked),
++  // Leading edge: the first write refreshes at once. Writes during the refresh or the window
++  // after it collapse into the one slot of `touched`, and refresh once when the window ends.
++  yield* Queue.take(touched).pipe(
++    Effect.andThen(refreshLocked),
++    Effect.andThen(Effect.sleep(COALESCE)),
++    Effect.forever,
+     Effect.forkScoped,
+   );
+ 
+-- 
+2.56.0
+
