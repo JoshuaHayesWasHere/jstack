@@ -2,7 +2,8 @@
 
 A green pull request merges on the first run of `jmerge` after its last check ended, and the
 pass runs it once a pass, which is a minute or more apart. `jbus-merge.timer` runs a tick every
-2 seconds. A tick asks GitHub nothing unless the last pass saw a pull request whose checks were
+2 seconds while the last pass saw a check going, and the pass stops it while none is (`_timer`).
+A tick asks GitHub nothing unless the last pass saw a pull request whose checks were
 still going (`PENDING`, written by the pass's step `tick.pending`). For each such project it asks
 GitHub for the repo's last completed workflow runs, with the ETag it kept (`SEEN`). GitHub answers
 304, which spends none of the API allowance, until a run ends, and then the tick runs `jmerge
@@ -28,12 +29,13 @@ floor is kept for.
 
 from __future__ import annotations
 
+import os
 from datetime import datetime
 from typing import TYPE_CHECKING
 
 import jbus
-from jbus import merge, passes, reload, verbs, watch
-from jsettings import budget, store
+from jbus import launchd, merge, passes, reload, verbs, watch
+from jsettings import budget, proc, store
 
 if TYPE_CHECKING:
     from jbus.poll import Half
@@ -51,6 +53,10 @@ HELD = 5
 BACKOFF = "tick-held.json"
 """When a tick last asked GitHub while its budget was held, in jbus's own state directory. Only
 the tick writes it, and a stamp it cannot read is one from long ago."""
+TIMER = "JBUS_TICK_TIMER"
+"""The variable that names the timer the pass runs the tick by, `jbus-merge.timer`. Only
+`jbus.service` sets it, so a pass that a test, a sandbox or a hand starts leaves the machine's
+timer as it is."""
 
 
 def _pending(half: Half) -> None:
@@ -62,6 +68,30 @@ def _pending(half: Half) -> None:
     )
     if store.read_json(half.run.state / PENDING, None) != going:
         store.write_json(half.run.state / PENDING, going)
+
+
+def _timer(half: Half) -> None:
+    """Start the tick's timer while some project's pull request has its checks going, and stop it
+    while none has, so no tick runs while there is nothing for it to watch. The pass is the only
+    writer of `PENDING`, so the timer changes only here. Each pass sets it from the files as they
+    are, whatever started or stopped it before (a boot, an install, a pass that died), and the
+    timer's `OnActiveSec=` gives a check the pass just saw going its first tick within 2 s."""
+    unit = os.environ.get(TIMER)
+    if not unit or launchd.manager() != "systemd":
+        return
+    config = half.run.config
+    going = sum(len(store.read_json(config.state(p) / PENDING, [])) for p in config.projects)
+    active = proc.run("systemctl", "--user", "is-active", unit).stdout.strip() == "active"
+    if bool(going) == active:
+        return
+    verb = "start" if going else "stop"
+    done = proc.run("systemctl", "--user", verb, unit)
+    if done.returncode != 0:
+        half.run.say(f"tick: systemctl --user {verb} {unit} failed: {done.stderr.strip()}")
+    elif going:
+        half.run.say(f"tick: checks are going on {going} pull request(s), so {unit} runs")
+    else:
+        half.run.say(f"tick: no pull request has checks going, so {unit} stops")
 
 
 def _ended(run: passes.Pass) -> str | None:
@@ -117,7 +147,10 @@ def _due(config: jbus.Config, now: datetime) -> bool:
     return True
 
 
-STEPS = (verbs.Step("tellers", 15, "tick.pending", _pending, ("world",)),)
+STEPS = (
+    verbs.Step("tellers", 15, "tick.pending", _pending, ("world",)),
+    verbs.Step("tellers", 17, "tick.timer", _timer, (), shared=True),
+)
 VERBS = (
     verbs.Verb(
         "tick",

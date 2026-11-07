@@ -248,3 +248,25 @@ def test_a_crew_s_tests_import_their_own_tree_and_not_the_green_copy():
 def _pass(kitchen):
     config = jbus.load()
     return Pass(config, config.project("demo"), NOW)
+
+
+def test_a_move_that_changes_a_linked_unit_has_systemd_read_it_again(copied, tmp_path, monkeypatch):
+    """The install links each unit through the copy, and systemd reads a unit's file only on a
+    reload, so a move that changed one reloads the user manager, and one that changed none
+    does not."""
+    units = tmp_path / "config" / "systemd" / "user"
+    units.mkdir(parents=True)
+    (units / "demo.timer").symlink_to(f"{copied.copy}/units/demo.timer")
+    (units / "other.timer").symlink_to(tmp_path / "elsewhere.timer")
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    manager = copied.stub / "systemctl"
+    manager.write_text(f'#!/bin/sh\necho "$*" >> "{copied.stub}/systemctl.log"\n')
+    manager.chmod(0o755)
+    land(copied, "success", {"units/demo.timer": "[Timer]\nOnActiveSec=2s\n"})
+    assert "green demo: systemd read demo.timer again" in copied.poll()
+    land(copied, "success", {"src/other.txt": "other\n"})
+    copied.poll()
+    land(copied, "success", {"units/demo.timer": "[Timer]\nOnActiveSec=5s\n"})
+    copied.poll()
+    reloads = [call for call in copied.log("systemctl") if call == "--user daemon-reload"]
+    assert len(reloads) == 2

@@ -30,7 +30,8 @@ command that still runs in it. Last, it puts each harness's layout again from th
 so a file main added would otherwise reach no harness, and one it dropped would leave a link that
 dangles, until the next install. With each layout it puts the links under the harness's skills
 root and the entries of its hooks file, so a skill or hook main adds is live and one it drops is
-gone.
+gone. Where the move changed a systemd unit the install linked through the copy, it has the user
+manager read the units again (`_reload`), since systemd reads a unit's file only on a reload.
 
 Each move prints one line, `green <project>: the commands now run from <new 12>, in place of
 <old 12>`, which the pass's log keeps. A crew's worktree is not the copy: `uv run` there runs that
@@ -47,7 +48,7 @@ import sys
 from collections.abc import Mapping
 from pathlib import Path
 
-from jbus import read_json, verbs, write_json
+from jbus import launchd, read_json, verbs, write_json
 from jbus.passes import Pass
 from jmerge import mainjson
 from jsettings import proc
@@ -211,6 +212,32 @@ def _reinstall(copy: Path) -> str:
     return "" if said.returncode == 0 else _said(said)
 
 
+def _reload(copy: Path, before: Path, after: Path) -> str:
+    """Have systemd read again each unit the install linked through the copy whose file the move
+    changed, since systemd reads a unit's file only on a reload: a timer main changed runs as
+    main has it from this pass on, and not from the next install. Return "" where there was
+    nothing to reload or it reloaded, or what went wrong."""
+    if launchd.manager() != "systemd":
+        return ""
+    config = os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config"
+    units, through = Path(config) / "systemd" / "user", str(copy) + os.sep
+    changed = []
+    for link in sorted(units.glob("*")) if units.is_dir() else ():
+        target = os.readlink(link) if link.is_symlink() else ""
+        if not target.startswith(through):
+            continue
+        inside = target.removeprefix(through)
+        old, new = before / inside, after / inside
+        if not (old.is_file() and new.is_file() and old.read_bytes() == new.read_bytes()):
+            changed.append(link.name)
+    if not changed:
+        return ""
+    said = proc.run("systemctl", "--user", "daemon-reload", timeout=60)
+    if said.returncode != 0:
+        return f"systemctl --user daemon-reload, for {' '.join(changed)}: {_said(said)}"
+    return f"systemd read {' '.join(changed)} again"
+
+
 def move(run: Pass, copy: Path | None = None) -> None:
     """Move the green copy of the project's checkout to main's green tip, when there is such a
     copy and the tip is newer than the one it holds."""
@@ -250,6 +277,8 @@ def move(run: Pass, copy: Path | None = None) -> None:
 
     for why in relink(copy):
         run.condition("green", UNLINKED, f"at {green[:12]}: {why}", key=green[:12])
+    if why := _reload(copy, before, tree):
+        run.say(f"green {run.project.name}: {why}")
     run.say(
         f"green {run.project.name}: the commands now run from {green[:12]}, in place of {held[:12]}"
     )

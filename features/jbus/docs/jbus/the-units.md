@@ -8,7 +8,7 @@ Each unit runs `~/.local/bin/jbus`.
 | Unit | Runs | When | Enabled by the install |
 |---|---|---|---|
 | `jbus.timer`, `jbus.service` | `jbus poll`, one pass | Every minute (`OnUnitActiveSec=1min`), from 2 minutes after boot | Always |
-| `jbus-merge.timer`, `jbus-merge.service` | `jbus tick`, `jmerge` where a check ended | Every 2 seconds (`OnUnitActiveSec=2s`, `AccuracySec=200ms`), from 2 minutes after boot | Always |
+| `jbus-merge.timer`, `jbus-merge.service` | `jbus tick`, `jmerge` where a check ended | Every 2 seconds (`OnUnitActiveSec=2s`, `AccuracySec=200ms`) while the last pass saw a pull request's checks going, and 2 seconds after it starts (`OnActiveSec=2s`) | Always, and the pass starts and stops it |
 | `jbus-failed.service` | `jbus alarm` | When a pass fails (`OnFailure=` of `jbus.service`) | Started by `jbus.service` |
 | `jbus-stale.timer`, `jbus-stale.service` | `jbus alarm --stale 2h` | Every 15 minutes | Always |
 | `jbus-snapshot.timer`, `jbus-snapshot.service` | `jbus snapshot` | At 08:30 and 17:30 local time | Once the homes' state tree has a remote and gitleaks is on the machine |
@@ -19,15 +19,21 @@ Each unit runs `~/.local/bin/jbus`.
 
 `jbus.service` stops a pass after 20 minutes (`TimeoutStartSec=20min`).
 `jbus-merge.timer` is the bound on how soon a check that ends on GitHub reaches jbus: a tick every 2 seconds, where the pass alone would take a minute or more.
+The tick runs only while some project's `checks-pending.json` names a pull request whose checks are going.
+The pass is that file's only writer, and each pass sets the timer from every project's file as it finds them (the step `tick.timer`): it starts `jbus-merge.timer` while one names a pull request and stops it while all are `[]`, so no tick starts while no check is going, and a stopped timer costs nothing.
+A check the pass first sees going gets its first tick within 2 seconds of that pass, by the timer's `OnActiveSec=2s`.
+The pass acts on the timer that `jbus.service` names in `JBUS_TICK_TIMER`, so a pass that a test, a sandbox or you start by hand leaves the machine's timer as it is.
+The install enables the timer, so a boot or an install starts it, and the first pass after stops it again where no check is going.
+A pass that starts or stops it says so in its log, `tick: ... so jbus-merge.timer runs` or `... stops`.
 A tick asks GitHub nothing while the last pass saw no check going, and asks only with an ETag otherwise, which GitHub answers with a 304 that spends no API allowance until a workflow run ends.
 So the 2 seconds cost no allowance: only the one read after a run ended is counted, and `jbus budget --callers` counts the 304s apart, as free.
 While `jbus budget` says `held`, a tick asks GitHub only once in 5 seconds, the interval it had before, and its line in the journal says so.
 GitHub pushes a check's end only to a webhook, which needs an endpoint GitHub can reach and a secret to sign with; jbus has none by design, so the 2 second poll was chosen and a webhook was not.
-The poll costs a start of `jbus tick` every 2 seconds, about 0.14 seconds of one core while no check is going.
+The poll costs a start of `jbus tick` every 2 seconds, about 0.14 seconds of one core, only while a check is going.
 It runs `jmerge --if-free`, which does nothing while another run of `jmerge` is under way, since `jmerge` holds its run lock for the whole of a run that may merge.
 What a tick misses, the next pass does: the pass runs `jmerge --if-free` too, so a pass that finds a tick's run under way does nothing, and the next one with the lock free runs it.
 `jbus-merge.service` logs at `notice` and above (`LogLevelMax=notice`), so its start and end every 2 seconds stay out of the journal, and its own lines, which are `notice`, stay in.
-On macOS its agent runs every 2 seconds too (`StartInterval`).
+On macOS its agent runs every 2 seconds too (`StartInterval`), whether or not a check is going: the pass starts and stops only a systemd timer.
 `work.json`, the state of each row that the view and T3 Code's sidebar draw, waits for neither timer.
 Each writer of a row's inputs restates that row's line under `work.lock` as it writes:
 each write of the queue (`jbus queue add`, `approve`, `hold`, `remove` and the pass's own rewrite of the table) restates each row's go, adds the line of a new row and takes out the line of a row that went;
@@ -52,6 +58,7 @@ A stopped timer starts no pass, so no failed pass reports it ([When jbus fails](
 [Back up the homes' state](back-up-the-homes-state.md) covers `jbus-snapshot.timer`, [Measure the CI](measure-the-ci.md) covers `jbus-ci.timer` and `jbus-ci-day.timer`, [The relay](the-relay.md) covers `jbus-relay.service`, and [The view](the-view.md) covers `jbus-view.service`.
 
 Once the config that asked for an optional unit is gone, the next install turns the unit off again.
+systemd reads a unit's file only on a reload, so each move of the green copy that changes a unit linked through it runs `systemctl --user daemon-reload` (`jbus.green`), and the pass runs that unit as main has it from then on, not from the next install.
 `jinstall --check` and `jinstall --doctor` print one `units` line, and [The jbus units](../troubleshooting/the-jbus-units.md) says what each form of it means.
 
 Each unit's `Documentation=` names the page of these docs for what it runs, such as [Set up jbus](set-up-jbus.md) for `jbus.timer`.
