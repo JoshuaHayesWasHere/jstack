@@ -473,7 +473,9 @@ def fake_gh(stub, args, cwd):
     changed, from `commit-files.json`, and its parents and committer, from `commit-made.json`.
     The runs of the browser workflow are in `browser-runs.json`, and the runs of each other
     workflow in `workflow-runs.json` by its file. The files of `.github/workflows/` at the default
-    branch, asked for in GraphQL, are `workflows.json`, each file's name to its text. A run's jobs
+    branch, asked for in GraphQL, are `workflows.json`, each file's name to its text, or with no
+    `workflows.json` the two nightlies, browser.yml and macos-nightly.yml; one that holds null
+    is a repo GitHub gives no list for, an `object` of null. A run's jobs
     come from `run-jobs.json` by the run's id, and the call fails where that entry is null. A
     compare of two commits gives the status of its head against its base from `compare.json` by
     `<base>...<head>`, or `ahead`, a head that holds its base.
@@ -542,9 +544,11 @@ def fake_gh(stub, args, cwd):
         said = ""
     elif args[:2] == ["api", "graphql"] and ".github/workflows" in args[-1]:
         kept = stub / "workflows.json"
-        files = json.loads(kept.read_text()) if kept.exists() else {}
-        entries = [{"name": name, "object": {"text": text}} for name, text in files.items()]
-        said = json.dumps({"data": {"repository": {"object": {"entries": entries}}}})
+        nightlies = {"browser.yml": "", "macos-nightly.yml": ""}
+        files = json.loads(kept.read_text()) if kept.exists() else nightlies
+        entries = [{"name": name, "object": {"text": text}} for name, text in (files or {}).items()]
+        tree = {"entries": entries} if files is not None else None
+        said = json.dumps({"data": {"repository": {"object": tree}}})
     elif args[0] == "api" and "/compare/" in args[1]:
         kept = stub / "compare.json"
         said = (json.loads(kept.read_text()) if kept.exists() else {}).get(
