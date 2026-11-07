@@ -38,7 +38,7 @@ import re
 import subprocess
 from typing import TYPE_CHECKING
 
-from jbus import alert, outbox, verbs, work
+from jbus import alert, outbox, restated, verbs, work
 from jbus.judged import Said, parse
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
@@ -141,8 +141,8 @@ def _sent(run: Pass, ran: subprocess.CompletedProcess[str]) -> Said:
         if slug and (unfollowed := lines_of.unfollowed(text)):
             alert.deliver(run, f"alert: {run.project.name}: {unfollowed}")
     lines.failed = bool(ran.returncode)
-    lines.at = work.moment(verbs.clock())
-    work.pulled(run.state, verdicts(lines), lines.at)
+    lines.at = restated.moment(verbs.clock())
+    restated.pulled(run.state, verdicts(lines), lines.at)
     return lines
 
 

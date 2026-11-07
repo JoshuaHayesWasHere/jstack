@@ -10,7 +10,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import passes, queue, states, tick, verbs, waiting, work
+from jbus import passes, queue, restated, states, tick, verbs, waiting, work
 from jmerge import ready
 from test_jbus_kitchen import ASK, NOW, SAID_AT, Kitchen, iso
 from test_jbus_queue import add, adds, approves, batch, brief, go, rows, sha12
@@ -629,7 +629,7 @@ def test_a_ticks_stacked_verdict_shows_its_parent_as_the_holder_before_any_pass(
 
 def test_a_ticks_verdict_given_while_a_pass_runs_is_not_written_back(kitchen, monkeypatch):
     """The pass judged from its own run of `jmerge`, and a tick that ran after it began judged
-    later: the pass keeps the tick's facet (`work.kept`)."""
+    later: the pass keeps the tick's facet (`restated.kept`)."""
     on_review(kitchen)
 
     def later():
@@ -677,6 +677,49 @@ def test_the_pass_corrects_a_line_broken_by_hand_and_logs_it_as_drift_quietly(ki
     ]
     kitchen.poll()
     assert len(kitchen.events(states.DRIFT)) == 1
+
+
+def line_of(key, row=work.Row.FREE, pull=work.Pull.NONE, answered=work.Answered.BOTH, **more):
+    facts = work.Facts(
+        row,
+        work.Thread.NONE,
+        work.Launch.NONE,
+        work.Written.NONE,
+        pull,
+        work.Question.NONE,
+        answered,
+    )
+    return work.entry(work.judge(facts), key=key, kind="row", slug=key, **more)
+
+
+def test_drift_is_what_a_writer_should_have_kept_right_and_not_what_the_pass_alone_sees():
+    review, check = work.Pull.REVIEW, work.Pull.CHECK
+    pulled = {"pr": "#9", restated.PULLED: "2026-11-07T00:00:00.000000+00:00"}
+    before = [
+        line_of("gone"),
+        line_of("go", row=work.Row.UNAPPROVED),
+        line_of("moved", row=work.Row.BEHIND),
+        line_of("pushed", pull=review, **pulled),
+        line_of("unasked", pull=review, **pulled),
+        line_of("opened", pull=work.Pull.NONE),
+        {**line_of("valued"), "value": "unapproved"},
+    ]
+    after = [
+        line_of("go"),
+        line_of("moved"),
+        line_of("pushed", pull=check, pr="#9"),
+        line_of("unasked", pull=check, pr="#9", answered=work.Answered.T3),
+        line_of("opened", pull=review, pr="#9"),
+        line_of("valued"),
+        line_of("new"),
+    ]
+    assert restated.drift(before, after) == [
+        ("go", "row 'unapproved' for 'approved and free'"),
+        ("gone", "a line for a row the queue does not have"),
+        ("new", "no line"),
+        ("pushed", "pull 'review' for 'check'"),
+        ("valued", "value 'unapproved' for 'ready'"),
+    ]
 
 
 def test_an_act_leaves_a_line_it_cannot_read_as_it_is_and_an_asking_row_still_asking():

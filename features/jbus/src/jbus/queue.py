@@ -150,7 +150,7 @@ from jbriefs import chains, findings, meaning, skills
 from jbriefs import home as homes
 from jbriefs import parse as briefs
 from jbriefs.home import thread_of
-from jbus import Refused, history, party, verbs, work, write_json
+from jbus import Refused, history, party, restated, verbs, work, write_json
 from jmerge import judgement
 from jmerge import stacked as stacks
 from jmerge.judgement import bound
@@ -614,15 +614,13 @@ def _changing(state: Path, briefed: set[str] | None = None) -> Iterator[list[Row
 
 
 def _restate_work(state: Path, was: list[Row], briefed: set[str]) -> None:
-    """Restate the lines of `work.json` that a write of the queue reaches (`work.queued`), so the
-    view shows the write at once and not at the next pass: each row the write changed or stored a
-    brief for, and each row that depends on one whose status changed. A write's caller holds the
-    queue's lock, so the table and the briefs read here are of one moment. The rest of the rows,
-    over a thousand in a long-lived queue, keep their lines and cost nothing."""
-    try:
-        rows = load(state)
-    except Unparsable:
-        return
+    """Restate the lines of `work.json` that a write of the queue reaches (`restated.queued`), so
+    the view shows the write at once and not at the next pass: each row the write changed or
+    stored a brief for, and each row that depends on one whose status changed. A write's caller
+    holds the queue's lock, so the table and the briefs read here are of one moment. The rest of
+    the rows, over a thousand in a long-lived queue, keep their lines and cost nothing. The
+    caller loaded the table and wrote it under that lock, so it reads back here."""
+    rows = load(state)
     then = {row["slug"]: row for row in was}
     now = {row["slug"]: row for row in rows}
     moved = {slug for slug, row in now.items() if then.get(slug) != row} | briefed
@@ -633,7 +631,7 @@ def _restate_work(state: Path, was: list[Row], briefed: set[str]) -> None:
     }
     moved |= {row["slug"] for row in rows if ended.intersection(row.get("depends", []))}
     done = final(rows)
-    work.queued(
+    restated.queued(
         state,
         rows,
         lambda row: standing(state, row, done),
