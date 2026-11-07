@@ -65,6 +65,7 @@ FLOOR = 0.1
 WORKERS = 4
 RUNS = 5
 REPO = Path(__file__).resolve().parent.parent
+CHECK = REPO / ".github/workflows/check.yml"
 
 
 def pytest_addoption(parser):
@@ -309,10 +310,21 @@ def collected() -> list[str]:
     return [line for line in ran.stdout.splitlines() if "::" in line]
 
 
+def full_parts(workflow: Path) -> int:
+    """How many parts the job `full-shard` of this workflow runs: its matrix's `shard` list."""
+    job = re.search(r"^  full-shard:\n((?:(?:    .*)?\n)*)", workflow.read_text(), re.M)
+    shards = job and re.search(r"^ +shard: \[(.*)\]$", job[1], re.M)
+    if not shards:
+        sys.exit(f"shard.py: {workflow} has no job full-shard with a matrix of shards")
+    return len(shards[1].split(","))
+
+
 def downloaded(count: int, branch: str, into: Path) -> list[list[Path]]:
     """The junit reports of the last `count` green runs of the check on `branch` that are not a
-    pull request's and kept one from each of `full`'s 4 parts, each part's latest attempt: a run
-    that skipped the suite on a green tree's marker keeps none."""
+    pull request's and kept one from each of `full`'s parts, as many as check.yml's matrix gives
+    it, each part's latest attempt: a run that skipped the suite on a green tree's marker keeps
+    none, and a run of a full with another count of parts does not count."""
+    want = full_parts(CHECK)
     listed = subprocess.run(
         ["gh", "run", "list", "--workflow", "check.yml", "--branch", branch, "--status"]
         + ["success", "--limit", "100", "--json", "databaseId,event"],
@@ -338,7 +350,7 @@ def downloaded(count: int, branch: str, into: Path) -> list[list[Path]]:
             attempt, _, part = report.parent.name.removeprefix("junit-").partition("-")
             latest[part] = max(latest.get(part, (0, report)), (int(attempt), report))
         parts = [report for _, report in sorted(latest.values())]
-        if len(parts) == WORKERS:
+        if len(parts) == want:
             print(f"run {run['databaseId']}: {len(parts)} parts", file=sys.stderr)
             runs.append(parts)
         if len(runs) == count:
