@@ -376,7 +376,12 @@ class T3(Server):
         elif tool == "list_scheduled_tasks":
             made = {"tasks": [t for t in self.tasks if t["projectId"] == given["projectId"]]}
         elif tool == "schedule_task":
-            (task,) = [t for t in self.tasks if t["scheduledTaskId"] == given["scheduledTaskId"]]
+            found = [t for t in self.tasks if t["scheduledTaskId"] == given["scheduledTaskId"]]
+            if not found:
+                return gone(given["scheduledTaskId"], "was not found")
+            (task,) = found
+            if task.get("refused"):
+                return {"isError": True, "content": [{"type": "text", "text": task["refused"]}]}
             task["enabled"] = given["enabled"]
             made = task
         elif tool == "t3_thread_organize":

@@ -189,11 +189,10 @@ def _with_key(text: str, index: int, key: str, value: object) -> str:
     return "".join([*lines[: last + 1], *line, *lines[last + 1 :]])
 
 
-def _set(config_path: Path, name: str, key: str, value: object) -> Path:
-    """Write `value` as the `key` of the project `name`'s table, or take the key out where
-    `value` is None, and change nothing else. Save the file as it was beside it first, and
-    return where. Refuse a write that would change any other key or table."""
-    was = config_path.read_text()
+def _rewritten(was: str, name: str, key: str, value: object) -> str:
+    """Return the config text `was` with `value` as the `key` of the project `name`'s table, or
+    the key taken out where `value` is None, and nothing else changed. Refuse a text in which
+    that one change cannot be written."""
     before = tomllib.loads(was)
     index = next(at for at, table in enumerate(before["project"]) if table["name"] == name)
     want = copy.deepcopy(before)
@@ -210,6 +209,14 @@ def _set(config_path: Path, name: str, key: str, value: object) -> Path:
         raise jbus.Refused(
             "refused: the project's table could not be written with that one key changed"
         )
+    return now
+
+
+def _set(config_path: Path, name: str, key: str, value: object) -> Path:
+    """Write `value` as the `key` of the project `name`'s table (`_rewritten`). Save the file as
+    it was beside it first, and return where."""
+    was = config_path.read_text()
+    now = _rewritten(was, name, key, value)
     backup = config_path.with_name(f"{config_path.name}.{datetime.now():%Y%m%d-%H%M%S-%f}.bak")
     _private(backup, was)
     _private(config_path, now)
@@ -289,6 +296,8 @@ def close(
         one = _project(config, name)
         if one.closed:
             return f"already closed: {name} has been closed since {one.closed}, nothing changed"
+        day = config.user.local(now or datetime.now().astimezone()).date().isoformat()
+        _rewritten(config_path.read_text(), name, CLOSED, day)
         state, client = config.state(one), _client(config, client)
         listed = t3.listed(client, one.project_id)
         if busy := _at_work(state, listed):
@@ -313,7 +322,6 @@ def close(
             client.call("schedule_task", {"scheduledTaskId": task, "enabled": False})
         for thread in sorted(threads):
             client.call("t3_thread_organize", {"action": "archive", "threadId": thread})
-        day = config.user.local(now or datetime.now().astimezone()).date().isoformat()
         jbus.write_json(path, {**record, CLOSED: day}, mode=0o600)
         backup = _set(config_path, name, CLOSED, day)
     return (
@@ -334,6 +342,8 @@ def reopen(config_path: Path, name: str, client: t3.Client | None = None) -> str
         path = config.state(one) / RECORD
         if not one.closed and not path.exists():
             return f"already open: {name} is open, nothing changed"
+        if one.closed:
+            _rewritten(config_path.read_text(), name, CLOSED, None)
         record, client = jbus.read_json(path, {}), _client(config, client)
         for task in record.get("tasks", []):
             _unless_gone(client, "schedule_task", {"scheduledTaskId": task, "enabled": True})

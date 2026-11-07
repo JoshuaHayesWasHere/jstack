@@ -240,3 +240,77 @@ def test_the_view_shows_a_closed_project_as_closed_and_keeps_its_questions_out(k
         "other": today(),
     }
     assert all(one["project"] != "other" for one in shown["needs"])
+
+
+def test_a_closed_projects_own_checkout_is_never_taken_for_the_open_one(kitchen, two):
+    """Review finding F1: with one project open and one closed, a verb run with no `--project`
+    from the closed project's checkout went to the open project's queue."""
+    assert kitchen.main("project", "close", "other")[0] == 0
+    kitchen.monkeypatch.chdir(two.checkout)
+    add = ["queue", "add", "delta", "--priority", "1"]
+    assert kitchen.main(*add, stdin=complete("delta")) == (1, REFUSED + "\n")
+    code, out = kitchen.main("queue", "show")
+    assert code == 0 and "beta" in out and "alpha" not in out
+
+
+def test_a_closed_that_is_not_a_day_is_refused_as_the_config_loads(kitchen, two):
+    assert kitchen.main("project", "close", "other")[0] == 0
+    path = kitchen.config_dir / "config.toml"
+    kitchen.write(path, path.read_text().replace(f'closed = "{today()}"', 'closed = "soon"'))
+    assert kitchen.main("status") == (
+        1,
+        "refused: project other has a closed that is not a day, YYYY-MM-DD\n",
+    )
+
+
+def test_a_task_t3_code_refuses_to_switch_stops_close_and_open_where_they_are(kitchen, two):
+    """Review finding F2: close switches the tasks off before it archives a thread, so a task
+    T3 Code refuses leaves nothing put away."""
+    (task,) = [one for one in kitchen.t3.tasks if one["scheduledTaskId"] == "task-on"]
+    task["refused"] = "runtime_mode_escalation_denied"
+    code, said = kitchen.main("project", "close", "other")
+    assert code != 0 and "runtime_mode_escalation_denied" in said
+    assert not any(one.get("archived") for one in kitchen.t3.threads)
+    assert "closed" not in table(kitchen, "other")
+    del task["refused"]
+    assert kitchen.main("project", "close", "other")[0] == 0
+    task["refused"] = "runtime_mode_escalation_denied"
+    code, said = kitchen.main("project", "open", "other")
+    assert code != 0 and "runtime_mode_escalation_denied" in said
+    assert table(kitchen, "other")["closed"] == today()
+    assert (two.state / project.RECORD).exists()
+    del task["refused"]
+    assert kitchen.main("project", "open", "other")[0] == 0
+    assert "closed" not in table(kitchen, "other")
+    assert tasks(kitchen)["task-on"]
+
+
+def test_open_brings_back_what_t3_code_still_has_and_passes_over_what_it_lost(kitchen, two):
+    assert kitchen.main("project", "close", "other")[0] == 0
+    kitchen.t3.tasks = [one for one in kitchen.t3.tasks if one["scheduledTaskId"] != "task-on"]
+    kitchen.t3.threads = [one for one in kitchen.t3.threads if one["threadId"] != HOME_2]
+    code, said = kitchen.main("project", "open", "other")
+    assert code == 0 and said.startswith("opened: other")
+    assert "closed" not in table(kitchen, "other")
+    assert not (two.state / project.RECORD).exists()
+
+
+UNWRITABLE = "refused: the project's table could not be written with that one key changed"
+
+
+def test_a_config_whose_table_cannot_be_written_stops_close_and_open_before_t3_code(kitchen, two):
+    path = kitchen.config_dir / "config.toml"
+    text = path.read_text()
+    at = text.rindex("[[project]]")
+    kitchen.write(path, text[:at] + '[["project"]]' + text[at + len("[[project]]") :])
+    kitchen.t3.calls.clear()
+    assert kitchen.main("project", "close", "other") == (1, UNWRITABLE + "\n")
+    assert kitchen.t3.calls == []
+    kitchen.write(path, text)
+    assert kitchen.main("project", "close", "other")[0] == 0
+    closed = path.read_text()
+    at = closed.rindex("[[project]]")
+    kitchen.write(path, closed[:at] + '[["project"]]' + closed[at + len("[[project]]") :])
+    kitchen.t3.calls.clear()
+    assert kitchen.main("project", "open", "other") == (1, UNWRITABLE + "\n")
+    assert kitchen.t3.calls == []
