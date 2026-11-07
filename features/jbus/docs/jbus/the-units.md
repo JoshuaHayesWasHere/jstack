@@ -34,7 +34,7 @@ each write of the queue (`jbus queue add`, `approve`, `hold`, `remove` and the p
 the merge tick, as soon as GitHub's list of runs changes and before it runs `jmerge`, also while `jmerge` is busy and does not run, restates the line of each pull request on the check step whose required checks ended at its head: failed, with the reason `jmerge` gives a failed check, or passed, for `jmerge` to judge next;
 each run of `jmerge`, the tick's and the pass's, restates the step of each pull request it judged, with its reason as the line's `why`.
 So a check that ends reaches its line without waiting on `jmerge`'s own run of seconds.
-Where a run of `jmerge` that began after the tick's restate judges the line otherwise, its verdict stands and the line is logged as drift (`work-drift`); a run that began before the tick restated leaves the line to the next one.
+Where the next run of `jmerge` judges the line otherwise than the tick, its verdict stands and the line is logged as drift (`work-drift`), quietly.
 What is left of the wait from GitHub ending a check to its line is the tick's own part, 2 seconds at most and about 1 on average, and GitHub's list, which shows a run about 2.5 seconds after its end, which only a webhook would take away.
 `features/jbus/tests/checks_bound_probe.py` times it live, and no figure here claims the total.
 So a change reaches `work.json` within milliseconds of its write: `features/jbus/tests/work_live_probe.py` times it.

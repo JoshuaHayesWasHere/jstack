@@ -321,3 +321,19 @@ def test_jmerge_that_judges_the_check_otherwise_corrects_the_line_and_logs_drift
     assert line(on_check)["why"] != FAILED
     (drift,) = [one["line"] for one in on_check.events(states.DRIFT)]
     assert drift.startswith("work-drift alpha: the tick's check failed (")
+
+
+@pytest.mark.parametrize(
+    "given",
+    [
+        "a page that is no JSON",
+        {"workflow_runs": [{"name": "check", "head_sha": HEAD, "conclusion": "failure"}]},
+    ],
+)
+def test_a_list_of_runs_the_tick_cannot_read_leaves_the_line_to_jmerge(on_check, given):
+    """An answer that is no JSON, or a run with no time it ended, restates nothing: the tick's
+    `jmerge` runs as before and judges the line."""
+    on_check.set("runs.json", given)
+    before = line(on_check)
+    assert ticks(on_check) == ["tick demo: a run ended, and jmerge ran"]
+    assert line(on_check)["why"] == before["why"]

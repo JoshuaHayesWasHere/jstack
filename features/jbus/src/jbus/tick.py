@@ -104,7 +104,8 @@ def _restate(run: passes.Pass, given: dict[str, Any]) -> None:
     GitHub's list of runs (`given`) shows them: the first required check, in the order `jmerge`
     reads them, whose run failed gives `failed` and `jmerge`'s reason, and all of them passed give
     `passed`. A required check is a workflow of its name, as `jmerge` reads one. One with no ended
-    run in the list, or one that ended otherwise, leaves the pull request to `jmerge`."""
+    run in the list, one that ended otherwise, or a run with no time it ended, leaves the pull
+    request to `jmerge`."""
     heads = {
         one["number"]: one["head"]
         for one in store.read_json(run.state / PENDING, [])
@@ -112,8 +113,8 @@ def _restate(run: passes.Pass, given: dict[str, Any]) -> None:
     }
     ends: dict[tuple[str, str], dict[str, Any]] = {}
     for one in given.get("workflow_runs") or []:
-        if isinstance(one, dict):
-            ends.setdefault((str(one.get("head_sha")), str(one.get("name"))), one)
+        if isinstance(one, dict) and (at := _at(one.get("updated_at"))):
+            ends.setdefault((str(one.get("head_sha")), str(one.get("name"))), {**one, "at": at})
     names, said = cancelled.required(run), {}
     for number, head in heads.items():
         found = [ends.get((head, name)) for name in names]
@@ -121,10 +122,7 @@ def _restate(run: passes.Pass, given: dict[str, Any]) -> None:
         stop = next((n for n, tick in enumerate(outcomes) if tick != restated.PASSED), len(names))
         if stop < len(names) and outcomes[stop] != restated.FAILED:
             continue
-        times = [_at((one or {}).get("updated_at")) for one in found[: stop + 1]]
-        if None in times:
-            continue
-        ended = restated.moment(max(at for at in times if at is not None))
+        ended = restated.moment(max(one["at"] for one in found[: stop + 1] if one))
         if stop < len(names):
             why = f"wait: {ready.CHECK_FAILED.format(check=names[stop])}"
             said[number] = (restated.FAILED, why, ended)
