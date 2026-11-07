@@ -214,7 +214,7 @@ def test_every_job_of_every_workflow_runs_on_githubs_hosted_runner():
             "full": HOSTED,
         },
         "macos-nightly.yml": {"macos": MACOS},
-        "macos.yml": {"macos-select": HOSTED, "macos": MACOS},
+        "macos.yml": {"macos-select": HOSTED, "macos-part": MACOS, "macos": HOSTED},
         "pstack-drift.yml": {"drift": HOSTED},
         "release.yml": {"release": HOSTED},
     }
@@ -513,7 +513,8 @@ CAPS = {
     ("check.yml", "full"): "5",
     ("macos-nightly.yml", "macos"): "90",
     ("macos.yml", "macos-select"): "5",
-    ("macos.yml", "macos"): "25",
+    ("macos.yml", "macos-part"): "25",
+    ("macos.yml", "macos"): "5",
     ("pstack-drift.yml", "drift"): "5",
     ("release.yml", "release"): "15",
 }
@@ -608,10 +609,10 @@ def test_a_draft_runs_the_check_as_any_pull_request_does():
     assert [ran_on(job, draft=False) for job in named] == [pull, pull, pull, pull, push, push]
 
 
-def job_section(job, key):
+def job_section(job, key, path=CHECK):
     """One mapping key of a job, `strategy` or `outputs`, as a mapping."""
     lines, inside, at = [], False, None
-    for line in CHECK.read_text().splitlines():
+    for line in path.read_text().splitlines():
         indent = len(line) - len(line.lstrip())
         if not line.strip() or line.lstrip().startswith("#"):
             continue
@@ -782,7 +783,11 @@ def test_every_context_the_ruleset_requires_posts_on_every_pull_request_into_mai
     assert unreported("macos", changed("macos.yml", pr, pr + "    branches: [main]\n"))
     assert unreported(
         "macos",
-        changed("macos.yml", 'if: "!cancelled() && needs.macos-select', 'if: "needs.macos-select'),
+        changed(
+            "macos.yml",
+            'macos-part]\n    if: "!cancelled() && needs.macos-select',
+            'macos-part]\n    if: "needs.macos-select',
+        ),
     )
     assert unreported("borders", changed("borders.yml", "\n  borders:\n", "\n  lint:\n"))
     assert unreported("borders", changed("borders.yml", "opened, synchronize, ", "opened, "))
@@ -792,12 +797,12 @@ def test_every_context_the_ruleset_requires_posts_on_every_pull_request_into_mai
 def test_the_macos_job_fails_its_check_when_the_suite_fails_so_a_merge_can_wait_on_it():
     """macOS on Apple Silicon is supported, so `macos` is a required check: the home's
     `required-checks` names it beside `check` and `borders`, and jmerge waits on it. A job's or a
-    step's `continue-on-error` reports the check as passed whatever the suite did, so neither the
-    job nor any step that sets up or runs the tests carries it. Only the step that lists the
-    failed tests does, and the upload of the marker of a passed suite, which run after the tests
-    and change nothing they decided. Its tests' step cap is then a failure of the check too, so
-    it leaves the slowest run twice its time: the step took 423 to 639 s on the last twelve runs,
-    and the list grows with each mac- fix."""
+    step's `continue-on-error` reports the check as passed whatever the suite did, so neither a
+    part nor `macos` nor any step that sets up or runs the tests carries it. Only the part's step
+    that lists the failed tests does, and the upload of the marker of passed parts, which run
+    after the tests and change nothing they decided. A part's tests' step cap is then a failure
+    of the check too, so it leaves the slowest run of the whole list on one Mac twice its time:
+    the step took 423 to 639 s on twelve runs, and the list grows with each mac- fix."""
     from jmerge import ready
 
     rollup = [
@@ -807,21 +812,26 @@ def test_the_macos_job_fails_its_check_when_the_suite_fails_so_a_merge_can_wait_
     assert ready.waiting(rollup, ready.required_of("check\nborders\nmacos\n")) == ("macos",)
     text = MAC.read_text()
     assert job_value(text, "macos", "continue-on-error") is None
-    found, _ = steps(text, "macos")
+    assert job_value(text, "macos-part", "continue-on-error") is None
+    found, _ = steps(text, "macos-part")
     held = [step.get("name", step.get("uses")) for step in found if "continue-on-error" in step]
-    assert held == ["failed tests", found[-1]["uses"]]
-    assert found[-1]["uses"].startswith("actions/upload-artifact@")
+    assert held == ["failed tests"]
+    gate, _ = steps(text, "macos")
+    held = [step.get("name", step.get("uses")) for step in gate if "continue-on-error" in step]
+    assert held == [gate[-1]["uses"]]
+    assert gate[-1]["uses"].startswith("actions/upload-artifact@")
     (suite,) = [step for step in found if step.get("id") == "suite"]
-    assert 2 * 639 <= 60 * int(suite["timeout-minutes"]) < 60 * int(cap(text, "macos")) - 120
+    assert 2 * 639 <= 60 * int(suite["timeout-minutes"]) < 60 * int(cap(text, "macos-part")) - 120
 
 
-def test_the_macos_job_runs_the_reached_tests_on_three_workers_into_the_report_its_summary_reads(
+def test_a_macos_part_runs_its_share_of_the_reached_tests_on_three_workers_into_its_report(
     tmp_path,
 ):
     """The step runs pytest itself and not `make check`: this runs its shell against a `uv` that
     writes down what it was given. pytest reads the arguments of `@<file>` from that file, one a
-    line, so the paths the selection step wrote there are the tests the job runs."""
-    found, _ = steps(MAC.read_text(), "macos")
+    line, so the paths the selection step wrote there are the tests the parts run, and
+    `--shard K/N` keeps the part's share of them (testing/shard.py)."""
+    found, _ = steps(MAC.read_text(), "macos-part")
     (suite,) = [step for step in found if step.get("id") == "suite"]
     (listed,) = [step for step in found if step.get("name") == "failed tests"]
     bin, said = tmp_path / "bin", tmp_path / "said"
@@ -831,12 +841,14 @@ def test_the_macos_job_runs_the_reached_tests_on_three_workers_into_the_report_i
     subprocess.run(
         ["bash", "-e", "-c", suite["run"]],
         cwd=REPO,
-        env={"PATH": f"{bin}:/usr/bin:/bin", "RUNNER_TEMP": str(tmp_path)},
+        env={"PATH": f"{bin}:/usr/bin:/bin", "RUNNER_TEMP": str(tmp_path), "PART": "2/3"},
         check=True,
     )
+    assert suite["env"] == {"PART": "${{ matrix.part }}/${{ strategy.job-total }}"}
     given = said.read_text().splitlines()
     assert given[:2] == ["run", "pytest"]
     assert given[given.index("-n") + 1] == "3"
+    assert given[given.index("--shard") + 1] == "2/3"
     report = listed["env"]["JUNIT"].replace("${{ runner.temp }}", str(tmp_path))
     assert f"--junitxml={report}" in given
     (read,) = [arg for arg in given if arg.startswith("@")]
@@ -916,6 +928,11 @@ def merged(tmp_path_factory):
     return run
 
 
+def dealt(reached):
+    """The parts `macos-select` hands on for these test files: one a file, at most three."""
+    return "[" + ",".join(str(k) for k in range(1, min(3, len(reached)) + 1)) + "]"
+
+
 def test_the_macos_job_starts_no_mac_for_a_change_to_a_jbus_queue_module(merged):
     """A change to code that names no Darwin, as most of flow's pull requests make to jbus's
     queue, reaches no test of the list on a Mac: the selection hands on no test and `run` false,
@@ -923,7 +940,7 @@ def test_the_macos_job_starts_no_mac_for_a_change_to_a_jbus_queue_module(merged)
     assert merged(QUEUE) == (
         [],
         "macOS: the change reaches no test of testing/macos-quick.txt, so no Mac starts\n",
-        {"run": "false", "tests": ""},
+        {"run": "false", "parts": "[1]", "tests": ""},
     )
 
 
@@ -954,7 +971,7 @@ def test_the_macos_job_runs_the_tests_of_the_list_a_change_to_darwin_code_reache
         f"macOS: the change reaches {len(reached)} test files of testing/macos-quick.txt:",
         *(f"- `{one}`" for one in reached),
     ]
-    assert output == {"run": "true", "tests": "\n".join(reached)}
+    assert output == {"run": "true", "parts": dealt(reached), "tests": "\n".join(reached)}
 
 
 @pytest.mark.parametrize("event", ["pull_request", "push"], ids=["its pull request", "its push"])
@@ -974,7 +991,11 @@ def test_a_pull_requests_macos_selects_strictly_and_the_push_of_its_merge_runs_t
         assert (reached, output["run"]) == ([], "false")
         assert summary.startswith("macOS: the change reaches no test")
     else:
-        assert reached and output == {"run": "true", "tests": "\n".join(reached)}
+        assert reached and output == {
+            "run": "true",
+            "parts": dealt(reached),
+            "tests": "\n".join(reached),
+        }
         assert summary.startswith(f"macOS: the change reaches {len(reached)} test files")
 
 
@@ -1023,19 +1044,21 @@ def test_the_macos_job_runs_the_whole_list_where_the_selection_is_all(merged, pa
     reached, summary, output = merged(path, text)
     assert reached == MAC_QUICK.read_text().splitlines() + listed
     assert summary == "macOS: the selection is all, so every test of testing/macos-quick.txt runs\n"
-    assert output == {"run": "true", "tests": "\n".join(reached)}
+    assert output == {"run": "true", "parts": dealt(reached), "tests": "\n".join(reached)}
 
 
 def test_the_macos_job_runs_only_where_the_selection_handed_on_a_test_or_failed():
-    """The `macos` job waits on `macos-select`, and its `if:` skips it, with no Mac started, only
-    where the selection ended with no test or reused a passed macos job of the same two trees: a
-    skip passes the required check. A failed or cancelled selection gives no `run` and no
-    `reused`, so the job runs then, unless the run was cancelled, and its first step fails it.
-    Every step of the job that sets up or runs the tests runs once it starts."""
+    """The parts and `macos` wait on `macos-select`, and their `if:` skips them, with no Mac
+    started, only where the selection ended with no test or reused a passed macos job of the same
+    two trees: a skip passes the required check. A failed or cancelled selection gives no `run`
+    and no `reused`, so they run then, unless the run was cancelled, and a part's first step
+    fails it. Every step of a part that sets up or runs the tests runs once it starts."""
     text = MAC.read_text()
-    assert job_value(text, "macos", "needs") == "macos-select"
+    assert job_value(text, "macos-part", "needs") == "macos-select"
+    assert job_value(text, "macos", "needs") == ["macos-select", "macos-part"]
     assert job_value(text, "macos-select", "runs-on") == HOSTED
-    when = job_value(text, "macos", "if")
+    when = job_value(text, "macos-part", "if")
+    assert job_value(text, "macos", "if") == when
     for run, reused, cancelled, runs in (
         ("true", "false", False, True),
         ("false", "false", False, False),
@@ -1048,14 +1071,59 @@ def test_the_macos_job_runs_only_where_the_selection_handed_on_a_test_or_failed(
         values = {"!cancelled()": not cancelled, "needs.macos-select.outputs.run": run}
         values["needs.macos-select.outputs.reused"] = reused
         assert worked(when, values) is runs, (run, reused, cancelled)
-    found, _ = steps(text, "macos")
+    found, _ = steps(text, "macos-part")
     assert found[0]["name"] == "handed tests"
-    named = [step.get("name", step.get("uses", "").partition("@")[0]) for step in found]
-    assert [one for one, step in zip(named, found, strict=True) if "if" in step] == [
-        "failed tests",
-        "checked trees marker",
-        "actions/upload-artifact",
-    ]
+    assert [step["name"] for step in found if "if" in step] == ["failed tests"]
+
+
+@pytest.mark.parametrize("files", [0, 1, 2, 3, 31])
+def test_macos_deals_the_selection_into_up_to_three_parts_and_fails_when_one_part_fails(
+    tmp_path, files
+):
+    """The tests `macos-select` hands on run on a Mac for each part it names, one a test file
+    and at most three, side by side: each part keeps its share with `--shard K/N`, dealt by
+    testing/shard.py from the recorded times, so the parts end together. The required check
+    `macos` is one job on Linux that waits on the parts whatever they did, and this runs its
+    first step on each result GitHub gives the matrix: it passes only when every part passed,
+    so one part that fails, is cancelled or never ran fails the check."""
+    shell = summary_step("reached tests", MAC)
+    bin = tmp_path / "bin"
+    bin.mkdir()
+    listed = MAC_QUICK.read_text().splitlines()[:files]
+    said = "\n".join(listed)
+    (bin / "uv").write_text(f"#!/bin/sh\nprintf '%s' '{said}'\n")
+    (bin / "uv").chmod(0o755)
+    out = {name: tmp_path / name for name in ("summary", "output")}
+    for one in out.values():
+        one.write_text("")
+    subprocess.run(
+        ["bash", "-e", "-c", shell],
+        cwd=REPO,
+        env={"PATH": f"{bin}:/usr/bin:/bin", "RUNNER_TEMP": str(tmp_path)}
+        | {"GITHUB_STEP_SUMMARY": str(out["summary"]), "GITHUB_OUTPUT": str(out["output"])}
+        | {"GITHUB_EVENT_NAME": "pull_request"},
+        check=True,
+    )
+    handed = outputs(out["output"].read_text())
+    assert json.loads(handed["parts"]) == list(range(1, max(1, min(3, files)) + 1))
+    assert handed["run"] == ("true" if files else "false")
+    assert job_section("macos-part", "strategy", MAC) == {
+        "fail-fast": False,
+        "matrix": {"part": "${{ fromJSON(needs.macos-select.outputs.parts || '[1]') }}"},
+    }
+    assert job_value(MAC.read_text(), "macos-part", "name") == (
+        "macos ${{ matrix.part }} of ${{ strategy.job-total }}"
+    )
+    (every, *_), _ = steps(MAC.read_text(), "macos")
+    assert every["env"] == {"PARTS": "${{ needs.macos-part.result }}"}
+    ran = {
+        result: subprocess.run(
+            ["sh", "-c", every["run"]], env={"PARTS": result}, capture_output=True, text=True
+        )
+        for result in RESULTS
+    }
+    assert [result for result in RESULTS if ran[result].returncode == 0] == ["success"]
+    assert all("::error::" in ran[result].stdout for result in RESULTS[1:])
 
 
 MAC_WORKFLOW = ".github/workflows/macos.yml"
@@ -1157,6 +1225,7 @@ def test_the_macos_reuse_skips_the_mac_for_the_two_trees_a_passed_macos_job_ran(
         assert [r for r in reused if worked(step["if"], reused[r])] == ["false", ""]
     assert step_outputs(MAC, "macos-select") == {
         "run": "${{ steps.reached.outputs.run }}",
+        "parts": "${{ steps.reached.outputs.parts }}",
         "tests": "${{ steps.reached.outputs.tests }}",
         "name": "${{ steps.reuse.outputs.name }}",
         "reused": "${{ steps.reuse.outputs.reused }}",
@@ -1260,19 +1329,19 @@ def test_a_macos_lookup_that_cannot_ask_runs_the_mac_and_warns(tmp_path):
 
 
 def test_a_passed_macos_job_leaves_the_marker_of_its_two_trees():
-    """Only a suite that passed leaves `macos-checked-<base tree>-<merge tree>`, the name the
-    selection's lookup gave, for a later run of the pair to reuse. A marker that cannot be kept
-    costs that reuse and nothing else."""
+    """Only parts that all passed leave `macos-checked-<base tree>-<merge tree>`, the name the
+    selection's lookup gave, for a later run of the pair to reuse: `macos` leaves it, on the
+    parts' result. A marker that cannot be kept costs that reuse and nothing else."""
     found, _ = steps(MAC.read_text(), "macos")
     mark, upload = found[-2:]
     assert mark["name"] == "checked trees marker"
     assert [
-        (outcome, name)
-        for outcome in OUTCOMES
+        (result, name)
+        for result in RESULTS
         for name in ("macos-checked-a-b", "")
         if worked(
             mark["if"],
-            {"steps.suite.outcome": outcome, "needs.macos-select.outputs.name": name},
+            {"needs.macos-part.result": result, "needs.macos-select.outputs.name": name},
         )
     ] == [("success", "macos-checked-a-b")]
     assert mark["env"] == {"NAME": "${{ needs.macos-select.outputs.name }}"}
@@ -1295,7 +1364,7 @@ def test_the_macos_job_writes_the_tests_handed_on_for_pytest_and_fails_on_a_fail
     required check."""
     reached, _, handed = merged(DARWIN_SOURCE)
     (step,) = [
-        one for one in steps(MAC.read_text(), "macos")[0] if one.get("name") == "handed tests"
+        one for one in steps(MAC.read_text(), "macos-part")[0] if one.get("name") == "handed tests"
     ]
     assert step["env"] == {
         "SELECTED": "${{ needs.macos-select.result }}",
@@ -1860,7 +1929,7 @@ FAILED = """<?xml version="1.0" encoding="utf-8"?>
 
 
 def test_the_macos_job_lists_each_failed_test_in_its_summary_and_warns_with_the_count(tmp_path):
-    found, _ = steps(MAC.read_text(), "macos")
+    found, _ = steps(MAC.read_text(), "macos-part")
     (listed,) = [step for step in found if step.get("name") == "failed tests"]
     assert found.index(listed) > [step.get("id") for step in found].index("suite")
     for outcome in OUTCOMES:
