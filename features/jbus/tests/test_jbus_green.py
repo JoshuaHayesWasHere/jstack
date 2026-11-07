@@ -137,7 +137,7 @@ def calls(log):
     return [one for one in kept if one.split()[1] not in READS]
 
 
-def test_a_move_that_changes_a_timer_restarts_it_and_one_that_changes_no_unit_calls_nothing(
+def test_a_move_that_changes_a_timer_restarts_it_and_one_that_changes_no_unit_restarts_none(
     copied, systemctl
 ):
     """The day of #1240: main set jbus-merge.timer to 2 s and the copy moved, but systemd kept
@@ -165,8 +165,8 @@ def test_a_move_that_changes_a_timer_restarts_it_and_one_that_changes_no_unit_ca
     unchanged = land(copied, "success", {"features/new.txt": "new\n"})
     said = copied.poll()
     assert at(copied.copy) == unchanged
-    assert calls(systemctl) == []
-    assert not [line for line in said if "systemd" in line]
+    assert calls(systemctl) == ["--user daemon-reload"]
+    assert f"green demo: systemd reloaded the units of {unchanged[:12]}" in said
 
 
 @pytest.fixture
@@ -206,6 +206,7 @@ def test_a_move_that_changes_no_unit_leaves_no_unit_owing_systemd_a_reload(copie
     land(copied, "success", {units + "jbus-merge.service": SERVICE})
     copied.poll()
     assert systemd() == []
+    (copied.stub / "systemctl.log").unlink()
 
     unchanged = land(copied, "success", {"features/new.txt": "new\n"})
     copied.poll()
