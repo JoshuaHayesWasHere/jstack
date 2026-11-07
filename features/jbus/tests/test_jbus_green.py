@@ -8,6 +8,7 @@ kitchen's own origin as the remote whose main moves."""
 
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -166,6 +167,51 @@ def test_a_move_that_changes_a_timer_restarts_it_and_one_that_changes_no_unit_ca
     assert at(copied.copy) == unchanged
     assert calls(systemctl) == []
     assert not [line for line in said if "systemd" in line]
+
+
+@pytest.fixture
+def systemd(copied, systemctl):
+    """A systemctl that loads units as systemd does: a daemon-reload keeps the mtime of each unit
+    file the copy links, through the link, and a unit owes a reload while the file behind its link
+    is newer than the one systemd loaded, as `NeedDaemonReload` says."""
+    loaded = copied.stub / "systemd.loaded"
+    copied.stub.joinpath("systemctl").write_text(
+        f"#!{sys.executable}\nimport json, pathlib, sys\n"
+        f"open({str(systemctl)!r}, 'a').write(' '.join(sys.argv[1:]) + '\\n')\n"
+        "if sys.argv[1:] == ['--user', 'daemon-reload']:\n"
+        f"    units = pathlib.Path({str(copied.copy)!r}).glob({green.UNITS!r})\n"
+        "    mtimes = {one.name: one.stat().st_mtime_ns for one in units}\n"
+        f"    pathlib.Path({str(loaded)!r}).write_text(json.dumps(mtimes))\n"
+    )
+    subprocess.run(["systemctl", "--user", "daemon-reload"], check=True)
+
+    def owing():
+        kept = json.loads(loaded.read_text())
+        return sorted(
+            one.name
+            for one in copied.copy.glob(green.UNITS)
+            if one.stat().st_mtime_ns > kept.get(one.name, 0)
+        )
+
+    return owing
+
+
+def test_a_move_that_changes_no_unit_leaves_no_unit_owing_systemd_a_reload(copied, systemd):
+    """sa-checks-bound-measure-3: each move left jbus.service and jbus-merge.{service,timer} owing a
+    reload, with "changed on disk" in `systemctl cat`, though no unit's content changed. systemd
+    reads the file behind the link, and each tip's tree is a checkout of its own whose files are
+    newer than the ones systemd loaded, so a reload truly owed looked like every other."""
+    units = "features/jbus/units/"
+    land(copied, "success", {units + "jbus-merge.timer": TIMER.format("2s")})
+    land(copied, "success", {units + "jbus-merge.service": SERVICE})
+    copied.poll()
+    assert systemd() == []
+
+    unchanged = land(copied, "success", {"features/new.txt": "new\n"})
+    copied.poll()
+    assert at(copied.copy) == unchanged
+    assert systemd() == []
+    assert not [one for one in calls(copied.stub / "systemctl.log") if "try-restart" in one]
 
 
 def test_a_reload_systemd_refuses_raises_a_condition_and_restarts_no_timer(copied, systemctl):
