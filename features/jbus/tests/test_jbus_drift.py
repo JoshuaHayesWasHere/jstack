@@ -85,32 +85,91 @@ def test_d4_breaks_on_a_dated_line_in_a_homes_notes_or_a_scopes(machine):
     assert status("D4", ground(machine)) == "broken"
 
 
-def merged(machine, project, slug, number, at, logged):
-    """A row of `project` whose pull request merged at `at`, with jmerge's line where `logged`."""
-    state = machine.state(project)
-    rows = json.loads((state / "queue.json").read_text()) if (state / "queue.json").exists() else []
-    pulls = (
-        json.loads((state / "merged.json").read_text()) if (state / "merged.json").exists() else {}
+def pull(number, at, head, base="main"):
+    """A pull request as GitHub lists it merged, and `merged.json` keeps it."""
+    return {
+        "number": number,
+        "mergedAt": at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "headRefOid": head,
+        "baseRefName": base,
+        "mergeCommit": {"oid": f"{number:040d}"},
+    }
+
+
+def test_d6_names_each_merge_of_the_last_week_into_a_merged_base_that_jmerge_did_not_log(
+    machine, monkeypatch
+):
+    config = machine.root / "c" / "config.toml"
+    config.write_text(
+        config.read_text().replace(
+            'projectId = "alpha-id"', 'projectId = "alpha-id"\nmerge_bases = ["train"]'
+        )
     )
-    rows.append({"slug": slug, "status": "merged"})
-    pulls[slug] = {"number": number, "mergedAt": at.strftime("%Y-%m-%dT%H:%M:%SZ")}
-    machine.write(project, "queue.json", rows)
-    machine.write(project, "merged.json", pulls)
-    if logged:
-        line = f'{at:%Y-%m-%d %H:%M} merged {number} {slug} {number:040d} "{SECRET}"'
-        machine.append(project, "merge.log", line, home=True)
-
-
-def test_d6_breaks_on_a_rows_merge_in_the_last_week_that_jmerge_did_not_log(machine):
-    merged(machine, "alpha", "alpha-one", 10, NOW - timedelta(days=1), logged=True)
-    merged(machine, "alpha", "alpha-old", 9, NOW - timedelta(days=9), logged=False)
+    at = NOW - timedelta(hours=2)
     machine.write(
-        "beta", "merged.json", {"dependabot/x": {"number": 3, "mergedAt": "2026-10-28T00:00:00Z"}}
+        "alpha", "queue.json", [{"slug": one} for one in ("by-jmerge", "by-hand", "another-era")]
     )
-    machine.write("beta", "queue.json", [])
-    assert status("D6", ground(machine)) == "held"
-    merged(machine, "beta", "beta-one", 11, NOW - timedelta(hours=2), logged=False)
-    assert status("D6", ground(machine)) == "broken"
+    machine.write(
+        "alpha",
+        "merged.json",
+        {
+            "by-jmerge": pull(10, at, "a" * 40),
+            "by-hand": pull(11, at, "b" * 40),
+            "dependabot/uv/x": pull(12, at - timedelta(days=2), "c" * 40),
+            "another-era": pull(13, at, "d" * 40),
+            "into-train": pull(14, at, "e" * 40, base="train"),
+            "into-a-branch": pull(15, at, "f" * 40, base="someones-branch"),
+            "last-month": pull(9, NOW - timedelta(days=9), "9" * 40),
+        },
+    )
+    machine.append(
+        "alpha",
+        "merge.log",
+        f'{at:%Y-%m-%d %H:%M} merged 10 by-jmerge {10:040d} "a title", revert: gh pr revert x',
+        f"2026-10-10 21:34 merged 13 ps-lessons {'0' * 40}",
+        home=True,
+    )
+    d6 = next(probe for probe in drift.PROBES if probe.name == "D6")
+    (found,) = drift.run(ground(machine), [d6])
+    assert (found.status, found.found) == ("broken", 4)
+    (line,) = [json.loads(one) for one in (machine.state_dir / drift.FILE).read_text().splitlines()]
+    assert sorted(line["breaches"], key=lambda one: one["number"]) == [
+        {
+            "project": "alpha",
+            "number": 11,
+            "base": "main",
+            "mergedAt": "2026-10-28T13:00:00Z",
+            "head": "b" * 40,
+        },
+        {
+            "project": "alpha",
+            "number": 12,
+            "base": "main",
+            "mergedAt": "2026-10-26T13:00:00Z",
+            "head": "c" * 40,
+        },
+        {
+            "project": "alpha",
+            "number": 13,
+            "base": "main",
+            "mergedAt": "2026-10-28T13:00:00Z",
+            "head": "d" * 40,
+        },
+        {
+            "project": "alpha",
+            "number": 14,
+            "base": "train",
+            "mergedAt": "2026-10-28T13:00:00Z",
+            "head": "e" * 40,
+        },
+    ]
+    monkeypatch.setattr(drift, "_ground", lambda config, now: ground(machine, now))
+    said = []
+    drift._chore(jbus.load(), None, NOW + timedelta(days=1), said.append)
+    (told,) = said
+    assert "D6" in told
+    assert all(f"alpha #{number}" in told for number in (11, 12, 13, 14))
+    assert not any(f"#{number}" in told for number in (9, 10, 15))
 
 
 def test_a_probe_that_cannot_run_is_unrun_never_held_and_keeps_no_word_of_why(machine):
