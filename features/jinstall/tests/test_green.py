@@ -230,3 +230,95 @@ def test_a_layout_the_move_cannot_put_raises_a_condition_and_the_copy_still_move
     assert [(area, title) for area, title, _ in raised] == [("green", copies.UNLINKED)]
     assert "layout claude-code" in raised[0][2]
     assert (mine / "notes").read_text() == "my own notes\n"
+
+
+def install_watched(tmp_path):
+    """A tmp HOME that install.sh ran into from a shared clone of the repo that jbus watches, and
+    what the install printed."""
+    checkout = tmp_path / "checkout"
+    subprocess.run(["git", "clone", "-q", "--shared", str(REPO), str(checkout)], check=True)
+    user = User(tmp_path)
+    watched(user, checkout)
+    out, err = user.start(checkout=checkout).communicate()
+    user.checkout = checkout
+    user.copy = user.home / ".local" / "share" / "jstack" / "green"
+    return user, out + err
+
+
+def merged_and_moved(user, monkeypatch):
+    """Commit what the checkout holds as main's new green tip and move the copy to it, as a jbus
+    pass does. Return the conditions the move raised and the tip."""
+    checkout = user.checkout
+    subprocess.run(["git", "-C", str(checkout), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(checkout), *COMMIT, "-m", "a merge"], check=True)
+    new = head(checkout)
+    state = user.home.parent / "state" / "jstack"
+    state.mkdir(parents=True, exist_ok=True)
+    (state / "main.json").write_text(json.dumps({"main": new, "check": "green", "green": new}))
+    for name, value in {"HOME": user.home, "JBUS_CONFIG_DIR": user.jbus}.items():
+        monkeypatch.setenv(name, str(value))
+    for name in [one for one in os.environ if one.startswith("XDG_")]:
+        monkeypatch.delenv(name)
+    monkeypatch.setattr(copies, "_reinstall", lambda tree: "")
+    raised = []
+    run = SimpleNamespace(
+        project=SimpleNamespace(name="jstack", checkout=checkout),
+        state=state,
+        say=lambda line: None,
+        condition=lambda *args, **kwargs: raised.append(args),
+    )
+    copies.move(run, user.copy)
+    return raised, new
+
+
+def catalogued(checkout, change):
+    """Rewrite the checkout's skills.json with `change`, a function that edits its object."""
+    catalog = json.loads((checkout / "skills.json").read_text())
+    change(catalog)
+    (checkout / "skills.json").write_text(json.dumps(catalog, indent=2) + "\n")
+
+
+def test_a_skill_main_adds_or_drops_after_the_install_reaches_the_skills_roots_when_green_moves(
+    tmp_path, monkeypatch
+):
+    """A harness reads a skill through its link under the skills root (~/.claude/skills/<name>),
+    which only the install made. jbus moves the green copy on every green merge, so the move puts
+    those links too: a skill main adds is there with no install, and one main drops leaves no
+    link that dangles under any skills root. A hook main drops leaves no entry in a hooks file,
+    which would run a script the layout no longer holds."""
+    user, said = install_watched(tmp_path)
+    roots = [user.home / root for root in (".claude/skills", ".codex/skills", ".agents/skills")]
+    assert all((root / "bro" / "SKILL.md").is_file() for root in roots), said
+    hooked = [user.home / ".claude/settings.json", user.home / ".codex/hooks.json"]
+    assert all("agent-sends.sh" in file.read_text() for file in hooked), said
+
+    checkout = user.checkout
+    skill = checkout / "features/fresh/SKILL.md"
+    skill.parent.mkdir()
+    skill.write_text("---\nname: fresh\ndescription: a skill main adds.\n---\n\n# fresh\n")
+    subprocess.run(["git", "-C", str(checkout), "rm", "-q", "-r", "features/bro"], check=True)
+    subprocess.run(
+        ["git", "-C", str(checkout), "rm", "-q", "features/home/hooks/agent-sends.sh"], check=True
+    )
+
+    def change(catalog):
+        catalog["hooks"] = [one for one in catalog["hooks"] if one["name"] != "agent-sends.sh"]
+        catalog["items"] = [one for one in catalog["items"] if one["name"] != "bro"] + [
+            {
+                "name": "fresh",
+                "kind": "skill",
+                "path": "features/fresh/SKILL.md",
+                "source": "pstack",
+                "description": "a skill main adds.",
+            }
+        ]
+
+    catalogued(checkout, change)
+    raised, new = merged_and_moved(user, monkeypatch)
+
+    assert (raised, head(user.copy)) == ([], new)
+    for root in roots:
+        assert (root / "fresh" / "SKILL.md").read_text().startswith("---\nname: fresh\n"), root
+        assert not (root / "bro").is_symlink(), root
+        assert [one for one in root.iterdir() if one.is_symlink() and not one.exists()] == []
+    assert [file for file in hooked if "agent-sends.sh" in file.read_text()] == []
