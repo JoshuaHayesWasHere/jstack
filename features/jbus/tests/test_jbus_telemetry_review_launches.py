@@ -1,6 +1,6 @@
-"""`review_launches` gives one row per reviewer thread, with the state of `check` at its head
-when it launched, so how many reviews launched on a passed head, and the lag from push to launch,
-is one query.
+"""`review_launches` (`jbus.telemetry.views.review_launches`) gives one row per reviewer thread,
+with the state of `check` at its head when it launched, so how many reviews launched on a passed
+head, and the lag from push to launch, is one query.
 
 The test writes what the agents and jbus write: a reviewer's transcript under a T3 thread titled
 `review: <slug>`, and jbus's `ci-prs.jsonl`, `row-pulls.jsonl` and `runs.jsonl`. It runs the real
