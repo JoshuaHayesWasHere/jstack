@@ -2,6 +2,7 @@
 and run each ending that a pass can meet as `features/jbus/tests/test_jbus_queue.py` runs,
 against a faked T3 Code, `gh` and `jmerge`, with `work.json` read back."""
 
+import configparser
 import json
 import time
 from dataclasses import replace
@@ -12,7 +13,7 @@ import pytest
 import jbus
 from jbus import passes, queue, restated, states, tick, verbs, waiting, work
 from jmerge import ready
-from test_jbus_kitchen import ASK, NOW, SAID_AT, Kitchen, iso
+from test_jbus_kitchen import ASK, NOW, REPO, SAID_AT, Kitchen, iso
 from test_jbus_queue import add, adds, approves, batch, brief, go, rows, sha12
 from test_jbus_row_ends import branched
 
@@ -609,6 +610,25 @@ def test_a_ticks_verdict_shows_before_any_pass_and_the_next_pass_keeps_it(kitche
     assert (line["value"], line["who"], line["facts"]["pull"]) == ("rebase", "crew", "rebase")
     a_tick_says(kitchen, "merged 9 alpha abc1234", run_id=2)
     assert said(kitchen) == ("merged", True)
+
+
+def test_a_check_that_ends_on_github_reaches_its_rows_line_on_the_next_2_s_tick(kitchen):
+    """The pass saw #9's check going, and `jmerge` waited on it. GitHub's check then passes: its
+    run is among the repo's completed runs, and `jmerge` moves #9 on to review. The next tick, at
+    most 2 s later (`jbus-merge.timer`), restates the row's line, with no pass between."""
+    on_review(kitchen)
+    going = ready.NOT_PASSED.format(check="check")
+    kitchen.set("jmerge.txt", f"wait 9 {PULL}: {going}\n")
+    kitchen.poll()
+    assert (judged(kitchen)["value"], judged(kitchen)["why"]) == ("check", f"wait: {going}")
+    kitchen.set("open.json", [kitchen.opened("alpha", 9, "SUCCESS")])
+    a_tick_says(kitchen, f"wait 9 {PULL}: {ready.NO_REVIEW}", run_id=2)
+    line = judged(kitchen)
+    assert (line["value"], line["why"]) == ("review", f"wait: {ready.NO_REVIEW}")
+    timer = configparser.ConfigParser(interpolation=None)
+    timer.optionxform = str
+    timer.read(REPO / "features" / "jbus" / "units" / "jbus-merge.timer")
+    assert timer["Timer"]["OnUnitActiveSec"] == "2s"
 
 
 def test_a_ticks_stacked_verdict_shows_its_parent_as_the_holder_before_any_pass(kitchen):

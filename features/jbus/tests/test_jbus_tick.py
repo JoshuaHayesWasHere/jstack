@@ -13,7 +13,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import alert, merge, tick
+from jbus import alert, budget, merge, tick, verbs
 from test_jbus_kitchen import NOW, Kitchen, rate_limit
 from test_jbus_merge import LOCKING
 from test_jbus_row_ends import sends
@@ -91,13 +91,50 @@ def test_with_no_check_going_a_tick_asks_github_nothing(kitchen):
     assert len(kitchen.log("gh")) == before and runs(kitchen) == 0
 
 
-def test_with_the_budget_held_a_tick_asks_github_nothing_more_and_runs_no_jmerge(kitchen):
+def test_with_the_budget_held_a_tick_backs_off_to_asking_once_in_5_s_and_says_so(
+    kitchen, monkeypatch
+):
+    """A held budget slows the tick to the 5 s it ran at before, not to nothing: a 304 still
+    spends nothing, and a run that ended still gets its `jmerge`, which the floor is kept for."""
     going(kitchen)
     kitchen.set("rate-limit.json", rate_limit(10))
+    now = [NOW]
+    monkeypatch.setattr(verbs, "clock", lambda: now[0])
     ended(kitchen, 1)
+    (said, ran) = ticks(kitchen)
+    assert said.startswith(
+        "tick: the budget is held, so the tick asks GitHub once in 5 s, not 2 s: "
+    )
+    assert ran == "tick demo: a run ended, and jmerge ran"
+    assert (len(asked(kitchen)), runs(kitchen)) == (1, 1)
+    for seconds in (2, 4):
+        now[0] = NOW + timedelta(seconds=seconds)
+        assert ticks(kitchen) == []
+    assert len(asked(kitchen)) == 1
+    now[0] = NOW + timedelta(seconds=5)
     (said,) = ticks(kitchen)
-    assert said.startswith("tick: GitHub not asked: ")
-    assert asked(kitchen) == [] and runs(kitchen) == 0
+    assert said.startswith("tick: the budget is held")
+    assert len(asked(kitchen)) == 2 and runs(kitchen) == 1
+
+
+def test_a_304_to_the_ticks_conditional_read_is_not_counted_against_the_budget(watched):
+    """gh exits 1 on a 304, and GitHub counts none of it against the allowance: `jbus budget
+    --callers` counts the tick's one read that changed, and its 304s apart, as free."""
+    for _ in range(3):
+        assert ticks(watched) == []
+    since = NOW - timedelta(days=3650)
+    lines = budget.callers(watched.state_dir, since).splitlines()
+    tick_lines = [line for line in lines if "jbus.tick._ended" in line]
+    assert tick_lines[0].split() == [
+        "1",
+        "jbus.tick._ended",
+        "<",
+        "jbus.tick.tick",
+        "(0",
+        "failed)",
+    ]
+    assert "and 3 answered 304, which spend nothing:" in lines
+    assert tick_lines[1].split() == ["3", "jbus.tick._ended", "<", "jbus.tick.tick"]
 
 
 def test_a_busy_jmerge_leaves_the_ended_run_to_the_next_tick(watched):
