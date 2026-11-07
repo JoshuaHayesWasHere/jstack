@@ -53,7 +53,7 @@ from functools import cached_property
 from typing import Any
 
 import jsettings
-from jbus.watch import MAC_PART, mac_job
+from jbus.watch import MAC_JOBS, MAC_PART, mac_job
 
 LOOKBACK = timedelta(hours=2)
 FALLBACK = timedelta(hours=24)
@@ -687,14 +687,31 @@ def shas_per_pr(facts: Facts, start: datetime, end: datetime) -> Number:
     return _number("shas_per_pr", crew, shown, None, len(merged), how, PULLS)
 
 
-def _wait(key: str, facts: Facts, start: datetime, end: datetime, jobs: str) -> Number:
-    named = SHARD if key == "wait_p90_shard" else MAC_PART
+def _on_mac(jobs: list[dict[str, Any]]) -> Callable[[dict[str, Any]], bool]:
+    """Return whether a job of macos.yml ran on a Mac: a part, `macos K of N`, or the job `macos`
+    of a run with no part, which ran the Mac tests itself before they were split. In a run with
+    parts, `macos` is the gate over them, on Linux."""
+    parted = {j["run"] for j in jobs if MAC_PART.fullmatch(j["name"])}
+    return lambda j: (
+        bool(MAC_PART.fullmatch(j["name"]))
+        or (j["name"] == MAC_JOBS[-1] and j["run"] not in parted)
+    )
+
+
+def _wait(
+    key: str,
+    facts: Facts,
+    start: datetime,
+    end: datetime,
+    jobs: str,
+    counted: Callable[[dict[str, Any]], bool],
+) -> Number:
     waited = [
         j
         for j in facts.jobs
         if j["event"] == "pull_request"
         and j.get("started")
-        and named.fullmatch(j["name"])
+        and counted(j)
         and _in(j["created"], start, end)
     ]
     how = (
@@ -711,11 +728,15 @@ def _wait(key: str, facts: Facts, start: datetime, end: datetime, jobs: str) -> 
 
 
 def wait_p90_shard(facts: Facts, start: datetime, end: datetime) -> Number:
-    return _wait("wait_p90_shard", facts, start, end, "`check N of M`")
+    shard = "`check N of M`"
+    return _wait(
+        "wait_p90_shard", facts, start, end, shard, lambda j: bool(SHARD.fullmatch(j["name"]))
+    )
 
 
 def wait_p90_macos(facts: Facts, start: datetime, end: datetime) -> Number:
-    return _wait("wait_p90_macos", facts, start, end, "`macos N of M`")
+    mac = "`macos N of M` (or, in a run with no part, `macos`)"
+    return _wait("wait_p90_macos", facts, start, end, mac, _on_mac(facts.jobs))
 
 
 def open_to_merge(facts: Facts, start: datetime, end: datetime) -> Number:
