@@ -25,7 +25,10 @@ here. Then it installs the tool again, as `install.sh` does: the editable instal
 the tree itself and not the link, so the tool runs the new tip only once it is installed from
 it. Where uv cannot install it, the link goes back to the tree the tool runs, the new tree goes,
 and the next pass tries again. The tree the link named before stays until the next move, for a
-command that still runs in it.
+command that still runs in it. Last, it puts each harness's layout again from the new tip
+(`jinstall.green.relink`), as `install.sh` would: the layouts link the copy's files one by one,
+so a file main added would otherwise reach no harness, and one it dropped would leave a link that
+dangles, until the next install.
 
 Each move prints one line, `green <project>: the commands now run from <new 12>, in place of
 <old 12>`, which the pass's log keeps. A crew's worktree is not the copy: `uv run` there runs that
@@ -65,6 +68,7 @@ FILE = "green.json"
 
 NO_IMPORT = "the green copy does not import"
 MOVE_FAILED = "the green copy could not move"
+UNLINKED = "the harness does not link the green copy's files"
 
 
 def path(env: Mapping[str, str] | None = None, home: Path | None = None) -> Path:
@@ -240,6 +244,10 @@ def move(run: Pass, copy: Path | None = None) -> None:
     for old in trees(copy).iterdir():
         if old.is_dir() and old.resolve() not in (before, tree.resolve()):
             shutil.rmtree(old)
+    from jinstall.green import relink  # jinstall imports this module
+
+    for why in relink(copy):
+        run.condition("green", UNLINKED, f"at {green[:12]}: {why}", key=green[:12])
     run.say(
         f"green {run.project.name}: the commands now run from {green[:12]}, in place of {held[:12]}"
     )
