@@ -15,7 +15,6 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from jleak.sources import NO_COMMIT, git
-from jmerge import ready
 from jsettings.paths import homes_dir
 
 THREAD = re.compile(r"^Thread: \S", re.MULTILINE)
@@ -26,19 +25,22 @@ REFUSED = (
 
 def refused(refs: Iterable[str]) -> list[str]:
     """Why each crew head among `refs`, what git writes to a `pre-push` hook, may not be pushed."""
-    lines = [ref.split() for ref in refs if len(ref.split()) == 4]
-    if not lines:
+    heads = [
+        (local, remote.removeprefix("refs/heads/"))
+        for _, local, remote, _ in (ref.split() for ref in refs if len(ref.split()) == 4)
+        if not NO_COMMIT.fullmatch(local) and remote.startswith("refs/heads/")
+    ]
+    if not heads:
         return []
     asked = ("rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir")
     own, common = git(*asked).splitlines()
     if own == common:
         return []
+    from jmerge import ready  # here, so `jleak` alone imports no other command's feature
+
     tasks = homes_dir() / Path(common).parent.name / "tasks"
     found = []
-    for _, local, remote_ref, _ in lines:
-        branch = remote_ref.removeprefix("refs/heads/")
-        if NO_COMMIT.fullmatch(local) or branch == remote_ref:
-            continue
+    for local, branch in heads:
         try:
             text = (tasks / f"{branch}.md").read_text()
         except OSError:
