@@ -113,7 +113,7 @@ def before_pull(run: Pass, world: World) -> None:
             continue
         moved = replace(stacked, branch=onto, at=merge)
         if _rewrite(run, slug, moved, was=stacked):
-            line = f"{KIND} {slug}: moved its Stacked on: line onto {onto} once {stacked.slug} merged"
+            line = f"{KIND} {slug}: moved its Stacked on: line onto {onto}, {stacked.slug} merged"
             run.find(slug, KIND, line, stacks.line(moved), key=f"before pull {merge[:12]}")
             run.say(line)
 
