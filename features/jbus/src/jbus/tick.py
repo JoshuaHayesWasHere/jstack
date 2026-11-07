@@ -7,9 +7,11 @@ still going (`PENDING`, written by the pass's step `tick.pending`). For each suc
 GitHub for the repo's last completed workflow runs, with the ETag it kept (`SEEN`). GitHub answers
 304, which spends none of the API allowance, until a run ends, and then the tick runs `jmerge
 --if-free` (`jbus.merge.tick`), whose verdicts restate each pull request's line of `work.json` as
-the run ends (`jbus.restated.pulled`). A check that ends thus reaches the view in about the 2
-seconds between ticks and the run of `jmerge`; GitHub tells no one of it sooner without a webhook,
-which jbus does not have.
+the run ends (`jbus.restated.pulled`). The tick bounds only its own part: it sees a run that
+GitHub lists as ended within 2 seconds. GitHub's list can show a run late, and a `jmerge` the pass
+holds makes the tick try again, so the end-to-end delay is what
+`features/jbus/tests/checks_bound_probe.py` measures live. GitHub tells no one of a run that ended
+sooner without a webhook, which jbus does not have.
 
 The tick keeps the ETag only once `jmerge` ran to its end, so a tick that dies, a `jmerge` that
 was busy with the pass's own run, or one that failed leaves the change to the next tick. The pass

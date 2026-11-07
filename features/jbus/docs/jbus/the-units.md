@@ -31,7 +31,8 @@ On macOS its agent runs every 2 seconds too (`StartInterval`).
 `work.json`, the state of each row that the view and T3 Code's sidebar draw, waits for neither timer.
 Each writer of a row's inputs restates that row's line under `work.lock` as it writes:
 each write of the queue (`jbus queue add`, `approve`, `hold`, `remove` and the pass's own rewrite of the table) restates each row's go, adds the line of a new row and takes out the line of a row that went;
-each run of `jmerge`, the tick's and the pass's, restates the step of each pull request it judged, with its reason as the line's `why`, so a check that ends reaches its row's line on the next tick's run, about 2 to 5 seconds after GitHub ends it: `features/jbus/tests/checks_bound_probe.py` times it live.
+each run of `jmerge`, the tick's and the pass's, restates the step of each pull request it judged, with its reason as the line's `why`, so a check that ends reaches its row's line on the first tick's run of `jmerge` after GitHub lists the run as ended.
+The tick bounds its own part, 2 seconds; GitHub's list can show a run late, and a tick that finds the pass's `jmerge` under way tries again, so the delay from GitHub ending a check to its line is what `features/jbus/tests/checks_bound_probe.py` times live, and no figure here claims it.
 So a change reaches `work.json` within milliseconds of its write: `features/jbus/tests/work_live_probe.py` times it.
 A thread's state has a writer too: `jbus follow` follows T3 Code's events and restates the line of each thread whose turn started, ended or waits on you, or that was settled or archived.
 T3 Code takes jbus's sign-in only at its MCP endpoint, which pushes nothing, so the follower reads the events where T3 Code keeps them, the table `orchestration_events` of `$T3CODE_HOME/userdata/statev2.sqlite`, read only, woken by inotify on Linux and every quarter second elsewhere.
