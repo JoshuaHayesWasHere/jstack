@@ -152,14 +152,18 @@ def proof(tree, shell="", **more):
     return ran.stdout, proved.proved((home / "tasks" / "a-task.md").read_text())
 
 
-def test_the_proof_block_is_one_command_that_runs_a_script_and_holds_no_rm():
-    """Claude Code asks before it runs a command that removes files, even in full access, and it
-    asked on the block's `trap 'rm -rf "$tree"' EXIT` ("This shell -c script runs rm and could not
-    be checked"): on 2026-11-07 five crews waited on it for hours, with nothing to wake them. The
-    block the crew sends is one command that runs the script by its path, and holds no `rm`."""
-    lines = [line for line in script().splitlines() if line.strip()]
-    assert len(lines) == 1, lines
-    assert re.fullmatch(r'bash "\$T/[\w.-]+\.sh"( \S+)*', lines[0]), lines[0]
+def test_the_proof_block_runs_the_script_by_its_path_and_holds_no_rm(repo):
+    """Claude Code holds a command that has `rm` in it for an approval, even in full access, and
+    it held the block's `trap 'rm -rf "$tree"' EXIT` ("This shell -c script runs rm and could not
+    be checked"): on 2026-11-07 five crews stalled on it for hours, with nothing to wake them. The
+    block the crew sends runs `$T/proved.sh` with the brief and the thread, and holds no `rm`."""
+    stub = repo.parent / "stub"
+    (stub / "bash").write_text('#!/bin/sh\nprintf \'%s\\n\' "$@" > "$TMPDIR/bash-args"\n')
+    (stub / "bash").chmod(0o755)
+    env = environ(repo)
+    subprocess.run(["sh", "-c", script()], cwd=repo, env=env, check=True, timeout=60)
+    ran = (repo.parent / "bash-args").read_text().splitlines()
+    assert ran == [f"{env['T']}/proved.sh", f"{env['H']}/tasks/a-task.md", "mcp:thread-1"]
     assert not re.search(r"\brm\b", script())
 
 

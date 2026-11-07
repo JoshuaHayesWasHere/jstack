@@ -119,7 +119,7 @@
   ```
 
   The block is one command that runs `$T/proved.sh` by its path, and the script holds the proof's steps.
-  Claude Code stops a command that holds `rm`, a trap's or an inner shell's too, to ask the user, even in full access ("This shell -c script runs rm and could not be checked"), and a crew cannot answer its own ask: on 2026-11-07 five crews waited on the trap that removed the copy, for hours.
+  Claude Code holds a command that has `rm` in it, in a trap or an inner shell too, for an approval, even in full access ("This shell -c script runs rm and could not be checked"), and no crew can give its own: on 2026-11-07 five crews stalled for hours on the trap that removed the copy.
   Run the script as the block does, never its steps pasted into a call.
   The head's tests run at the head, then laid over a copy of the base's files with a venv of its own, so the base run imports the base's code and not the head's.
   The head run and the base run each take a short slot of their own, so each has the lane's whole time limit, and each runs on pytest's workers (`-n auto --dist worksteal`) where the tree's venv has pytest-xdist, on one process where it has not.
