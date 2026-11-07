@@ -421,17 +421,14 @@ MADE = 'tree=$(mktemp -d "${TMPDIR:-/tmp}/base.XXXXXX")\n'
 @pytest.mark.parametrize(
     ("script", "said"),
     [
-        (MADE + "trap 'rm -rf \"$tree\"' EXIT", []),
-        ("f=$(mktemp)\ntrap 'rm -f \"${f}\"' EXIT INT", []),
+        (MADE + "trap 'rm -rf \"$tree\"' EXIT", ["trap rm deletes"]),
+        ("f=$(mktemp)\ntrap 'rm -f \"${f}\"' EXIT INT", ["trap rm deletes"]),
         ("trap 'rm -rf \"$tree\"' EXIT", ["trap rm deletes"]),
-        (MADE + "trap 'rm -rf \"$HOME/work\"' EXIT", ["trap rm deletes"]),
-        (MADE + 'trap \'rm -rf "$tree" "$other"\' EXIT', ["trap rm deletes"]),
-        (MADE + "trap 'rm -rf $tree' EXIT", ["trap rm deletes"]),
         (MADE + "trap -- 'rm -rf \"$tree\"; rm x' EXIT", ["trap rm deletes"] * 2),
         ('trap "eval $cmd" EXIT', ["trap eval runs a script the check cannot read"]),
         ("x=$(trap 'rm y' EXIT)", ["trap rm deletes"]),
         ("trap - EXIT; trap -p; trap 'echo done' EXIT", []),
     ],
 )
-def test_a_trap_removes_only_what_its_own_block_made_with_mktemp(script, said):
+def test_a_trap_that_removes_fails_even_of_scratch_its_block_made(script, said):
     assert reasons(script) == said
