@@ -7,7 +7,8 @@ The tests run the block in a real repo whose `origin/main` is the base, on macOS
 (`bsd_tools`), with a `uv` on PATH that runs pytest on this interpreter, takes the slot by running
 the command, and syncs nothing. Each run leaves `git worktree list` as it found it, whether its
 tests pass, fail or are cut off, and each that ends leaves no copy of the base in its temp
-directory, whether its tests pass, fail or hit the lane's time limit."""
+directory, whether its tests pass, fail, hit the lane's time limit or are stopped with TERM. The
+block is one command that runs `$T/proved.sh`, so the command a crew sends holds no `rm`."""
 
 import os
 import re
@@ -21,9 +22,9 @@ import pytest
 
 from crew_helpers import block, git
 from jbriefs import proved
-from testing.layouts import assembled
 from test_blocks_command_grep import UGREP
 from test_portable_shell import bsd_tools
+from testing.layouts import assembled
 
 TIMEOUT = """import os, signal, subprocess, sys
 run = subprocess.Popen(sys.argv[2:], process_group=0)
