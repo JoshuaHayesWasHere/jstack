@@ -210,6 +210,7 @@ def test_every_job_of_every_workflow_runs_on_githubs_hosted_runner():
             "select": HOSTED,
             "check-shard": HOSTED,
             "check": HOSTED,
+            "select-facts": HOSTED,
             "full-shard": HOSTED,
             "full": HOSTED,
         },
@@ -509,6 +510,7 @@ CAPS = {
     ("check.yml", "select"): "10",
     ("check.yml", "check-shard"): "30",
     ("check.yml", "check"): "5",
+    ("check.yml", "select-facts"): "5",
     ("check.yml", "full-shard"): "30",
     ("check.yml", "full"): "5",
     ("macos-nightly.yml", "macos"): "90",
@@ -583,19 +585,13 @@ def test_a_pull_request_runs_check_and_a_push_to_main_and_a_manual_run_run_full(
         "select": HOSTED,
         "check-shard": HOSTED,
         "check": HOSTED,
+        "select-facts": HOSTED,
         "full-shard": HOSTED,
         "full": HOSTED,
     }
     pull, push = ["pull_request"], ["push", "workflow_dispatch"]
-    named = ("reuse", "select", "check-shard", "check", "full-shard", "full")
-    assert [ran_on(job) for job in named] == [
-        pull,
-        pull,
-        pull,
-        pull,
-        push,
-        push,
-    ]
+    named = ("reuse", "select", "check-shard", "check", "select-facts", "full-shard", "full")
+    assert [ran_on(job) for job in named] == [pull, pull, pull, pull, push, push, push]
 
 
 def test_a_draft_runs_the_check_as_any_pull_request_does():
@@ -603,9 +599,10 @@ def test_a_draft_runs_the_check_as_any_pull_request_does():
     someone opened by hand is checked on each push too, so jmerge reads its checks as any
     pull request's."""
     pull, push = ["pull_request"], ["push", "workflow_dispatch"]
-    named = ("reuse", "select", "check-shard", "check", "full-shard", "full")
-    assert [ran_on(job, draft=True) for job in named] == [pull, pull, pull, pull, push, push]
-    assert [ran_on(job, draft=False) for job in named] == [pull, pull, pull, pull, push, push]
+    named = ("reuse", "select", "check-shard", "check", "select-facts", "full-shard", "full")
+    ran = [pull, pull, pull, pull, push, push, push]
+    assert [ran_on(job, draft=True) for job in named] == ran
+    assert [ran_on(job, draft=False) for job in named] == ran
 
 
 def job_section(job, key):
@@ -1400,6 +1397,26 @@ def test_the_select_step_starts_from_the_facts_a_run_of_the_same_selector_kept()
         "key": selector + "${{ github.run_id }}-${{ github.run_attempt }}",
         "restore-keys": selector,
     }
+
+
+def test_a_run_on_main_saves_the_facts_under_the_key_a_pull_requests_select_restores():
+    """A cache saved on a pull request's ref is seen by that pull request only, and one saved on
+    main by every pull request. So a run on main, and only there, builds the facts on main's
+    tree and saves them as `select` does: the same file, under the same key, so the restore-keys
+    of a pull request's first run find main's entry."""
+    assert ran_on("select-facts") == ["push", "workflow_dispatch"]
+    select, _ = steps(CHECK.read_text(), "select")
+    found, _ = steps(CHECK.read_text(), "select-facts")
+    names = [step.get("uses", step.get("run")).partition("@")[0] for step in found]
+    assert names[:3] == ["actions/checkout", "astral-sh/setup-uv", "uv sync --locked"]
+    assert found[0]["with"] == {"persist-credentials": False}
+    at = names.index("actions/cache")
+    restores = next(step for step in select if step.get("uses", "").startswith("actions/cache@"))
+    assert {key: found[at][key] for key in ("uses", "with")} == {
+        key: restores[key] for key in ("uses", "with")
+    }
+    assert "if" not in found[at]
+    assert "select_tests.facts()" in found[at + 1]["run"]
 
 
 PART = "${{ needs.select.outputs[format('part{0}', matrix.shard)] }}"
@@ -2438,7 +2455,7 @@ def test_every_setup_uv_step_installs_one_exact_uv_named_once_in_each_workflow()
     found = {name: versions for name, versions in found.items() if versions}
     assert {name: len(versions) for name, versions in found.items()} == {
         "browser.yml": 1,
-        "check.yml": 3,
+        "check.yml": 4,
         "macos-nightly.yml": 1,
         "macos.yml": 2,
         "pstack-drift.yml": 1,

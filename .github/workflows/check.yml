@@ -346,6 +346,32 @@ jobs:
           path: ${{ runner.temp }}/green-tree/${{ needs.select.outputs.tree }}
           retention-days: 7
           if-no-files-found: error
+  # The facts `select` restores, built on main's tree and saved under the same key: a cache
+  # saved on a pull request's ref is seen by that pull request only, and one saved on main by
+  # every pull request, so a pull request's first run starts from main's facts and parses only
+  # the modules it changed. A job of its own, beside the parts, so that it saves within a minute
+  # of the push and a failure here never fails `full`. It runs the selector's Python, after
+  # `uv sync`, since the facts are kept under a salt that holds the Python's version.
+  select-facts:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: ${{ env.UV_VERSION }}
+      - run: uv sync --locked
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .git/select_tests.facts
+          key: select-facts-${{ hashFiles('scripts/select_tests.py') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: select-facts-${{ hashFiles('scripts/select_tests.py') }}-
+      # Only the facts, not a selection: a selection would write its list into the run's summary.
+      - name: facts
+        run: uv run python3 -c 'import sys; sys.path[0] = "scripts"; import select_tests; select_tests.facts()'
   # The full suite, on each push to main, after the merge, and by hand. The tests that open a
   # real browser are not in it: browser.yml runs them, nightly and on a release. It runs as
   # four jobs side by side, split by time as the check's eight are, and the job `full` below
