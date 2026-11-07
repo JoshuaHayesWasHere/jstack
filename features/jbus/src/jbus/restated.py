@@ -7,6 +7,11 @@ and the `why` of each pull request it judged (`pulled`, from `merge._sent`), eac
 from the facts the last pass kept (`work.restate`). The pass still judges every row: it keeps a
 `Pull` facet that a later run of `jmerge` restated (`kept`), and logs each line it corrects as
 drift (`drift`, from `states.keep_work`). Every writer holds `work.LOCK`.
+
+`jbus follow` restates the `Thread` facet of each line whose thread T3 Code says started, ended,
+was settled or was archived (`followed`, from `jbus.follow`). The pass keeps a `Thread` facet an
+event after the pass began gave (`heard`), and while the follower has run (`following`) counts a
+thread's facet as drift too.
 """
 
 from __future__ import annotations
@@ -16,7 +21,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from jbus import locked, write_json
+from jbus import locked, read_json, write_json
 from jbus.work import (
     APPROVED,
     LOCK,
@@ -42,6 +47,16 @@ SEEN = ("thread", "pr")
 """The columns of a row of the queue that a new row's line carries as they are (`fresh`)."""
 PULLED = "pulled"
 """The field of a line that says when a run of `jmerge` last restated its `Pull` facet."""
+FOLLOWED = "followed"
+"""The field of a line that says when the T3 Code event that `jbus follow` last restated its
+`Thread` facet from happened."""
+PASS_ONLY = frozenset({"lost", "unknown"})
+"""The values that only the pass judges: a thread that ended with nothing written is lost only
+once the pass finds no wait of jbus's behind it and no pull request owed (`watch.facts`), and a
+case no pattern covers is the pass's to report."""
+FOLLOW = "follow.json"
+"""The record of `jbus follow` in jbus's own state directory: since when it follows T3 Code's
+events, how often it found its stream lost, and why it last did."""
 
 
 def _rewrite(state_dir: Path, change: Callable[[list[Any]], list[Any]]) -> None:
@@ -140,16 +155,62 @@ def kept(one: dict[str, Any], was: dict[str, Any] | None, ran: str) -> dict[str,
     return {**restate(one, pull=facts.pull), PULLED: was[PULLED]}
 
 
-def drift(before: list[Any], after: list[Any]) -> list[tuple[str, str]]:
+def followed(state_dir: Path, thread: str, facet: Thread, at: str) -> list[str]:
+    """Restate the `Thread` facet of each line of `work.json` whose thread is `thread`, a row's or
+    a thread's that belongs to no row, as T3 Code's event at `at` gives it (`jbus.follow`), and
+    mark the line `FOLLOWED` at `at`. A line that would turn a value only the pass judges
+    (`PASS_ONLY`) is left for the pass, and so is a line marked after `at`, which a later event
+    restated. Return the keys of the lines it changed."""
+    changed: list[str] = []
+
+    def change(lines: list[Any]) -> list[Any]:
+        work = []
+        for one in lines:
+            if isinstance(one, dict) and one.get("thread") == thread:
+                made = restate(one, thread=facet)
+                later = str(one.get(FOLLOWED, "")) > at
+                if made is not one and made["value"] not in PASS_ONLY and not later:
+                    one = {**made, FOLLOWED: at}
+                    changed.append(str(one.get("key", "")))
+            work.append(one)
+        return work
+
+    _rewrite(state_dir, change)
+    return changed
+
+
+def heard(one: dict[str, Any], was: dict[str, Any] | None, began: str) -> dict[str, Any]:
+    """Return the pass's line `one`, with the `Thread` facet of the file's line `was` where `jbus
+    follow` restated it from a T3 Code event that happened after `began`, when the pass began: the
+    pass may have read T3 Code before that event, and the event is the later word. A value only
+    the pass judges stays the pass's."""
+    facts = stored(was) if was is not None and str(was.get(FOLLOWED, "")) > began else None
+    if facts is None or was is None or one.get("thread") != was.get("thread"):
+        return one
+    made = restate(one, thread=facts.thread)
+    return one if made["value"] in PASS_ONLY else {**made, FOLLOWED: was[FOLLOWED]}
+
+
+def following(top: Path) -> bool:
+    """Say whether `jbus follow` follows T3 Code's events for the machine whose jbus state
+    directory is `top`: it wrote its record (`FOLLOW`)."""
+    return isinstance(read_json(top / FOLLOW, None), dict)
+
+
+def drift(before: list[Any], after: list[Any], following: bool = False) -> list[tuple[str, str]]:
     """Return each row's line that the pass corrects and that a writer should have kept right, by
     key, with what was wrong in it: a line for a row the queue no longer has, no line for a row it
     has, a `Row` facet the queue gave otherwise (a move between `APPROVED` facets is the pass's to
     judge, as `restate` says), a `Pull` facet that a run of `jmerge` restated (`PULLED`) and that
     the pass, with GitHub's answer, judges otherwise for the same pull request, or a value that does
     not follow from the line's own facts, which no writer restates since its facts are right.
+    While `jbus follow` follows T3 Code (`following`), a thread's facet is drift too where it put
+    the line in another value than the pass's, and its thread under way, ended, settled or archived
+    otherwise than the pass: an event the follower missed, as when its stream was lost. A thread's
+    liveness, which only the pass reads, and a value only the pass judges (`PASS_ONLY`) are not.
 
-    The facets the pass alone sees, a thread's and what was written, and a pull request no run of
-    `jmerge` restated on the line yet, are no drift. The writers run in the pass too, before it
+    What was written, and a pull request no run of `jmerge` restated on the line yet, are no
+    drift. The writers run in the pass too, before it
     writes, so a facet broken in the file is most often put right by one of them first, and the
     pass then finds nothing of it to correct."""
     was = {one["key"]: one for one in before if _is_row(one)}
@@ -161,9 +222,41 @@ def drift(before: list[Any], after: list[Any]) -> list[tuple[str, str]]:
             found.append((key, "no line"))
         elif new is None:
             found.append((key, "a line for a row the queue does not have"))
-        elif off := _off(old, new):
+        elif off := _off(old, new) + (_unheard(old, new) if following else []):
             found.append((key, ", ".join(off)))
     return found
+
+
+_PHASE = {
+    **dict.fromkeys(
+        (Thread.STARTING, Thread.MOVING, Thread.QUIET, Thread.HUNG, Thread.WAITING), "under way"
+    ),
+    **dict.fromkeys((Thread.COMPLETED, Thread.FAILED), "ended"),
+}
+FOLLOWS = frozenset({"under way", "ended", str(Thread.SETTLED), str(Thread.ARCHIVED)})
+"""The phases a thread's events move it between. A launch, which moves a line from no thread to
+one, and a thread that left T3 Code's list are the pass's to see."""
+
+
+def phase(facet: str) -> str:
+    """Return where a thread is as `jbus follow` sees it: under way, ended, settled, archived,
+    or the facet itself for one it never writes."""
+    try:
+        return _PHASE.get(Thread(facet), facet)
+    except ValueError:
+        return facet
+
+
+def _unheard(old: dict[str, Any], new: dict[str, Any]) -> list[str]:
+    threads = ((old.get("facts") or {}).get("thread"), (new.get("facts") or {}).get("thread"))
+    if old.get("thread") != new.get("thread") or new.get("value") in PASS_ONLY:
+        return []
+    phases = (phase(threads[0] or ""), phase(threads[1] or ""))
+    if old.get("value") == new.get("value") or phases[0] == phases[1]:
+        return []
+    if not set(phases) <= FOLLOWS:
+        return []
+    return [f"thread {threads[0]!r} for {threads[1]!r}"]
 
 
 def _off(old: dict[str, Any], new: dict[str, Any]) -> list[str]:
