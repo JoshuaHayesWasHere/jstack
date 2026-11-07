@@ -114,10 +114,14 @@ The key names a decision or a stop so the same one has the same key on every tur
 - `jbus`: an event jbus's wake carried, and the rest of the line is its line as jbus sent it, word for word.
 - `local <slug>`: one jbus does not hold, by the slug it is about: a gate jbus could not take, or a stop this home found, such as a launch this session has no tool for.
 
-A `decision` is only what the user alone can decide, so three things are never one.
+A `decision` is only what the user alone can decide, so four things are never one.
 A command for the user to paste is none: offer to run it, as an option the user picks, and hand over only a step no agent can take, such as a sudo password, saying why.
 A finished or superseded row is none: once its pull request merged or was replaced and nothing of it is left to land, remove it with `jbus queue remove` on a message of the user's that covers it.
 A go the user already gave is none: record that message with `jbus word --from "$ME"` and approve the row on it, and never pass on jbus's `approve` line for work they approved.
+A row this home would advise against is none: never pass on jbus's `approve` line for it.
+Remove it with `jbus queue remove <slug> --message <thread id>/<message id>` on the user's standing word for such rows (Josh, 2026-11-07: "just drop it in the future").
+That word is a message in a home's thread: `t3_thread_search` for its words gives the thread, and `t3_thread_read` of that thread gives the message's id.
+Then write `handled: dropped <slug>: <why>`, and say the same where you list what waits on the user.
 A blocker `jbus clear` prints as `decision` is raised by jbus itself, and its wake brings it: write no line for it until then.
 A wait, a hold and a stalled thread are no stop while jbus or a thread is at work on them: jbus lists each on what waits on the user ("Needs you").
 Rows held by one reason that no thread works on for 30 minutes are a stop: jbus wakes their home once, with the reason, the rows and how long they have been held, and lists the hold on "Needs you" until it clears or a thread takes it up.
