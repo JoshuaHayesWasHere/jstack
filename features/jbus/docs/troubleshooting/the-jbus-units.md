@@ -1,7 +1,7 @@
 # The jbus units
 
 `jinstall --doctor` and `jinstall --check` print one `units` line once `jbus` has a config.
-Each fix below runs `jinstall`, which links the units again and enables the timers.
+Each fix below runs `jinstall`, which links the units again and enables the timers and the follower.
 In a checkout of jstack, run `sh install.sh` in its place.
 
 | Line | Meaning | Do this |

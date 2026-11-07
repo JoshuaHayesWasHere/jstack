@@ -7,10 +7,10 @@ import re
 import pytest
 
 from test_install import (
+    ALWAYS,
     OPTED,
     RELAY_KEYS,
     REPO,
-    TIMERS,
     UNITS,
     User,
     line_for,
@@ -33,12 +33,13 @@ def test_the_units_are_linked_and_the_timer_enabled_once_jbus_has_a_config(user)
     assert user.run() == (0, user.every("ok", units))
     for name in UNITS:
         assert os.readlink(user.units / name) == str(template(name))
-    for timer in TIMERS:
-        wanted = user.units / "timers.target.wants" / timer
-        assert os.readlink(wanted) == str(template(timer))
+    for name in ALWAYS:
+        target = "timers" if name.endswith(".timer") else "default"
+        wanted = user.units / f"{target}.target.wants" / name
+        assert os.readlink(wanted) == str(template(name))
     ran = [line for line in user.said(user.systemctl_log) if not re.search("show|is-enabled", line)]
-    enabled = [f"--user enable --now {timer}" for timer in TIMERS]
-    assert ran[: 1 + len(TIMERS)] == ["--user daemon-reload", *enabled]
+    enabled = [f"--user enable --now {name}" for name in ALWAYS]
+    assert ran[: 1 + len(ALWAYS)] == ["--user daemon-reload", *enabled]
     before = user.snapshot()
     assert user.run() == (0, user.every("ok", units))
     assert user.snapshot() == before
@@ -50,7 +51,7 @@ def test_the_units_are_linked_and_the_timer_enabled_once_jbus_has_a_config(user)
 def test_a_strangers_machine_enables_no_ci_relay_or_snapshot_unit_and_nothing_fails(user):
     units = user.with_jbus()
     assert user.run() == (0, user.every("ok", units))
-    assert [name for name in [*TIMERS, *OPTED] if user.enabled(name)] == TIMERS
+    assert [name for name in [*ALWAYS, *OPTED] if user.enabled(name)] == ALWAYS
     ran = user.said(user.systemctl_log)
     assert not [line for line in ran if "able --now" in line and line.split()[-1] in OPTED]
     assert all((user.units / name).is_symlink() for name in OPTED)
@@ -62,7 +63,7 @@ def test_a_strangers_machine_enables_no_ci_relay_or_snapshot_unit_and_nothing_fa
 def test_the_owners_machine_enables_the_ci_relay_and_snapshot_units(user):
     units = user.as_owner()
     assert user.run() == (0, user.every("ok", units))
-    assert all(user.enabled(name) for name in [*TIMERS, *OPTED])
+    assert all(user.enabled(name) for name in [*ALWAYS, *OPTED])
     relay = user.units / "default.target.wants" / "jbus-relay.service"
     assert os.readlink(relay) == str(template("jbus-relay.service"))
     before = user.snapshot()
