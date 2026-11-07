@@ -1,11 +1,12 @@
 # <slug>: <one line>
 Task: "<the request, in the user's words>"
 Done when:
-- <a check>
+- <a check> (in `<the file it lands in, under Where>`)
 Proves it: <what outside the agent shows it holds: a test or a command, a metric, a dataset, an external judge or the user, never the crew's own review>
 Size: S | M | L
 Where: <files or areas it concerns>
 Do not touch: <what is out of bounds>
+<Each Done when item ends with (in `<path>`), the file the goal needs changed, or (in none) where it changes none: `jbus queue add` refuses a file outside `Where:` or under `Do not touch:`, so that goal goes to a follow-up brief with a `Follows: <slug>` line, and warns of an item with neither.>
 Decisions: <any the user already made, in their words>
 Holds: <a case of gates.md the task walks through, word for word, several split by commas>
 <The line above is left out when the task walks through no door.>

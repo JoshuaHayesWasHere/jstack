@@ -102,9 +102,9 @@ The head must have the eight lines of `jbriefs.parse.REQUIRED`, `Task:`, `Done w
 Each must be filled in, not left as the template's own text.
 A line is not filled in while it, or an item of a list under it, is still the template's `<...>`, bare or quoted.
 A `Pull request:` or `Review:` line that still offers its choices (`review | none`) is not filled in either.
-`add` then runs the thirteen checks of `jbriefs.parse.CHECKS` and the three of `jbus.queue.conduct`.
-The two checks of `jbriefs.parse.WARNED`, that `Done when:` is runnable and that `Proves it:` runs, only warn.
-The other eleven and the three of `conduct` are these:
+`add` then runs the fifteen checks of `jbriefs.parse.CHECKS` and the three of `jbus.queue.conduct`.
+The three checks of `jbriefs.parse.WARNED`, that `Done when:` is runnable, that each `Done when:` item ends with the file it lands in, and that `Proves it:` runs, only warn.
+The other twelve and the three of `conduct` are these:
 
 - `Task:` is 2,000 characters or fewer.
 - `Design:` names a file, or says `none, <why>`.
@@ -114,6 +114,10 @@ The other eleven and the three of `conduct` are these:
 - `Where:` names at least one path under the repo.
   A path is in backticks, or is a word that has a `/`, a glob character or a file extension.
   Prose and a flag are not paths.
+- A `Done when:` item that ends with ``(in `<path>`)``, the file the goal lands in, names a file that `Where:` covers and `Do not touch:` does not.
+  `(in none)` says the goal changes no file, and an item with neither only warns.
+  The fault names the item and the file, and says to widen `Where:` or to move the item to a follow-up brief with a `Follows: <slug>` line, which is approved on this row's go by the follow-up rule ([The bases](#the-bases)).
+  Move it before the go: an edit of `Done when:` or `Where:` after the go voids it.
 - `Review:` is one word, `twice`, `review` or `none`, and nothing more: the crew reads any other word as `review`, so `Review: standard` would launch a reviewer nobody asked for.
 - `Playbook:` names a crewmate's file of `playbooks/`, or `none`.
 - A brief for research, perf, analysis or outcome work has a filled-in `Read:` line and `Instruments:` line, as the home skill's deeper step writes them.
