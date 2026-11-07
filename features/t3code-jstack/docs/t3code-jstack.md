@@ -75,7 +75,7 @@ When the doctor says a release does not take the patches, rebase the checkout's 
 ## What the tree shows
 
 The tree draws one row for the project and its root home, the domain homes under it, and each scout, crew and review as a quiet row with its stage.
-A domain home with no live work is one line, its name and its age, with nothing to unfold.
+A domain home's row says its name and its age, open work under it or not; one with no live work is one line, with nothing to unfold.
 A home lists only its open rows: a task leaves the tree once it merges or is done, and the project row counts what merged since you last opened its root home.
 A task in review says which part it is in, "review 1", "fixing", "review 2", "checks" or "rebase".
 A crew task's row draws its stage as one ring filled by thirds, crew, review and merge, empty while it is queued.

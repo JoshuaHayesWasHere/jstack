@@ -1,0 +1,40 @@
+From 242bbe57e5d748145b6191cc13958152fb0d1416 Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
+Date: Sat, 7 Nov 2026 18:15:43 -0500
+Subject: [PATCH 28/29] test(web): a jstack project row and its home rows draw
+ no count of crews, scouts, reviews or queued tasks
+
+Fails here: the flow home's row says "2 scouts, 5 review, 1 queued".
+---
+ .../sidebar/JstackTreeRows.browser.test.tsx       | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+index 08429a82ca..0744dce92a 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+@@ -727,6 +727,21 @@ async function noPins(): Promise<AsyncDisposable> {
+ const pinOf = (screen: Screen, scope: string) =>
+   homeLine(screen, scope).querySelector<HTMLElement>("[data-jstack-pin]")!;
+ 
++describe("JstackTreeRowView counts", () => {
++  it("draws no count of crews, scouts, reviews or queued tasks on a project row or a home row", async () => {
++    await using _pins = await noPins();
++    await using screen = await summaryTree(actions());
++    await expect.element(homeItem(screen, "flow")).toBeVisible();
++    const lines = [...screen.container.querySelectorAll<HTMLElement>("[data-sidebar-row]")].map(
++      (row) => row.textContent ?? "",
++    );
++    expect(lines.length).toBeGreaterThan(3);
++    for (const line of lines) {
++      expect(line).not.toMatch(/\b\d+ (crew|scouts?|review|queued)\b/);
++    }
++  });
++});
++
+ describe("JstackTreeRowView pinned homes", () => {
+   it("hands focus to the home's row once its pin is clicked, so the arrow keys go on at once", async () => {
+     await using _pins = await noPins();
+-- 
+2.56.0
+
