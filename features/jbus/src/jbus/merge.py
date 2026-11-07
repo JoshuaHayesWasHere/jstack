@@ -100,8 +100,9 @@ def merge(run: Pass) -> Said:
     stopped. The `Said` that this function returns is then `failed`, so jbus keeps what it knew of
     the rows that `jmerge` did not reach, as it does for a busy run.
     """
+    began = restated.moment(verbs.clock())
     ran = run.run(*RUN, timeout=JMERGE_TIMEOUT)
-    lines = _sent(run, ran)
+    lines = _sent(run, ran, began)
     name, streak = run.project.name, alert.jmerge(run.project.name)
     if ran.returncode == lock.BUSY:
         run.say(f"wait {name}: jmerge is busy: another run holds its run lock")
@@ -127,9 +128,10 @@ def _failed(run: Pass, why: str) -> None:
     )
 
 
-def _sent(run: Pass, ran: subprocess.CompletedProcess[str]) -> Said:
+def _sent(run: Pass, ran: subprocess.CompletedProcess[str], began: str) -> Said:
     """Send each line a run of `jmerge` printed about a pull request, once for its key, and
-    return them."""
+    return them. A run that began at `began` restates each line it judged, and logs as drift each
+    one the merge tick restated otherwise (`restated.pulled`)."""
     lines = Said()
     for text in map(str.strip, ran.stdout.splitlines()):
         line = parse(text)
@@ -142,7 +144,8 @@ def _sent(run: Pass, ran: subprocess.CompletedProcess[str]) -> Said:
             alert.deliver(run, f"alert: {run.project.name}: {unfollowed}")
     lines.failed = bool(ran.returncode)
     lines.at = restated.moment(verbs.clock())
-    restated.pulled(run.state, verdicts(lines), lines.at)
+    for key, what in restated.pulled(run.state, verdicts(lines), lines.at, began):
+        run.box.send(key, restated.DRIFT, f"{restated.DRIFT} {key}: {what}")
     return lines
 
 
@@ -177,10 +180,11 @@ def tick(run: Pass) -> Said:
     counts itself, since the pass, which does not wait on the lock, cannot see it. A run that did
     not end, busy or failed, is the tick's to try again.
     """
+    began = restated.moment(verbs.clock())
     ran = run.run(*RUN, timeout=JMERGE_TIMEOUT)
     if isinstance(ran, proc.TimedOut):
         _failed(run, lines_of.said(ran))
-    return _sent(run, ran)
+    return _sent(run, ran, began)
 
 
 def _shown(half: Half) -> None:

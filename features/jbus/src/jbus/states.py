@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from jbus.passes import Pass
     from jbus.poll import Half
 
-DRIFT = "work-drift"
+DRIFT = restated.DRIFT
 EVENTS = {"work-drift": "quiet"}
 
 

@@ -5,13 +5,19 @@ pass runs it once a pass, which is a minute or more apart. `jbus-merge.timer` ru
 2 seconds. A tick asks GitHub nothing unless the last pass saw a pull request whose checks were
 still going (`PENDING`, written by the pass's step `tick.pending`). For each such project it asks
 GitHub for the repo's last completed workflow runs, with the ETag it kept (`SEEN`). GitHub answers
-304, which spends none of the API allowance, until a run ends, and then the tick runs `jmerge
---if-free` (`jbus.merge.tick`), whose verdicts restate each pull request's line of `work.json` as
-the run ends (`jbus.restated.pulled`). The tick bounds only its own part: it sees a run that
-GitHub lists as ended within 2 seconds. GitHub's list can show a run late, and a `jmerge` the pass
-holds makes the tick try again, so the end-to-end delay is what
-`features/jbus/tests/checks_bound_probe.py` measures live. GitHub tells no one of a run that ended
-sooner without a webhook, which jbus does not have.
+304, which spends none of the API allowance, until a run ends.
+
+On a 200 the tick first restates, from that answer, the line of `work.json` of each pending pull
+request on the check step whose required checks ended at its head (`_restate`,
+`jbus.restated.checked`): failed, with the reason `jmerge` gives a failed check, or passed, for
+`jmerge` to judge next. It does so before it runs `jmerge`, and also where `jmerge` is busy and
+does not run, so the line changes in the milliseconds after GitHub lists the run, not after
+`jmerge`'s own run of seconds. Then it runs `jmerge --if-free` (`jbus.merge.tick`), whose verdicts
+restate each pull request's line again (`jbus.restated.pulled`), and log each one that says
+otherwise than the tick as drift. The tick bounds only its own part: it sees a run that GitHub
+lists as ended within 2 seconds. GitHub's list shows a run about 2.5 seconds late, so the
+end-to-end delay is what `features/jbus/tests/checks_bound_probe.py` measures live. GitHub tells
+no one of a run that ended sooner without a webhook, which jbus does not have.
 
 The tick keeps the ETag only once `jmerge` ran to its end, so a tick that dies, a `jmerge` that
 was busy with the pass's own run, or one that failed leaves the change to the next tick. The pass
@@ -28,19 +34,21 @@ floor is kept for.
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import jbus
-from jbus import merge, passes, reload, verbs, watch
+from jbus import cancelled, merge, passes, reload, restated, verbs, watch
+from jmerge import ready
 from jsettings import budget, store
 
 if TYPE_CHECKING:
     from jbus.poll import Half
 
 PENDING = "checks-pending.json"
-"""The open pull requests whose checks the last pass saw still going, by number. Only the pass
-writes it."""
+"""The open pull requests whose checks the last pass saw still going, each by its `number` with
+the `head` it saw. Only the pass writes it."""
 SEEN = "tick.json"
 """The ETag of the repo's completed runs when `jmerge` last ran to its end for a tick. Only the
 tick writes it."""
@@ -58,22 +66,81 @@ def _pending(half: Half) -> None:
     world = half.seen.world
     assert world is not None
     going = sorted(
-        pull["number"] for pull in world.open.values() if watch.checks(pull) == "pending"
+        (
+            {"number": pull["number"], "head": pull.get("headRefOid", "")}
+            for pull in world.open.values()
+            if watch.checks(pull) == "pending"
+        ),
+        key=lambda one: one["number"],
     )
     if store.read_json(half.run.state / PENDING, None) != going:
         store.write_json(half.run.state / PENDING, going)
 
 
-def _ended(run: passes.Pass) -> str | None:
+def _ended(run: passes.Pass) -> tuple[str, dict[str, Any]] | None:
     """Return the ETag of the repo's completed runs where they changed since the tick last ran
-    `jmerge`, and None where they did not, or GitHub did not answer."""
+    `jmerge`, with GitHub's answer, and None where they did not, or GitHub did not answer."""
     seen = store.read_json(run.state / SEEN, {}).get("etag", "")
     asked = run.run("gh", "api", RUNS, "-i", *(("-H", f"If-None-Match: {seen}") if seen else ()))
-    status, *headers = asked.stdout.replace("\r", "").split("\n\n", 1)[0].splitlines() or [""]
+    head, _, body = asked.stdout.replace("\r", "").partition("\n\n")
+    status, *headers = head.splitlines() or [""]
     if status.split()[1:2] != [OK]:
         return None
     tags = [line.split(":", 1)[1].strip() for line in headers if line.lower().startswith("etag:")]
-    return tags[0] if tags else ""
+    try:
+        given = json.loads(body)
+    except ValueError:
+        given = {}
+    return (tags[0] if tags else ""), given if isinstance(given, dict) else {}
+
+
+OUTCOMES = {"success": restated.PASSED, "failure": restated.FAILED}
+"""The conclusions of a run that say how its check ended. Any other, such as `cancelled` or
+`skipped`, is `jmerge`'s to read."""
+
+
+def _restate(run: passes.Pass, given: dict[str, Any]) -> None:
+    """Restate the line of each pending pull request whose required checks ended at its head, as
+    GitHub's list of runs (`given`) shows them: the first required check, in the order `jmerge`
+    reads them, whose run failed gives `failed` and `jmerge`'s reason, and all of them passed give
+    `passed`. A required check is a workflow of its name, as `jmerge` reads one. One with no ended
+    run in the list, or one that ended otherwise, leaves the pull request to `jmerge`."""
+    heads = {
+        one["number"]: one["head"]
+        for one in store.read_json(run.state / PENDING, [])
+        if isinstance(one, dict) and one.get("head")
+    }
+    ends: dict[tuple[str, str], dict[str, Any]] = {}
+    for one in given.get("workflow_runs") or []:
+        if isinstance(one, dict):
+            ends.setdefault((str(one.get("head_sha")), str(one.get("name"))), one)
+    names, said = cancelled.required(run), {}
+    for number, head in heads.items():
+        found = [ends.get((head, name)) for name in names]
+        outcomes = [OUTCOMES.get(str((one or {}).get("conclusion"))) for one in found]
+        stop = next((n for n, tick in enumerate(outcomes) if tick != restated.PASSED), len(names))
+        if stop < len(names) and outcomes[stop] != restated.FAILED:
+            continue
+        times = [_at((one or {}).get("updated_at")) for one in found[: stop + 1]]
+        if None in times:
+            continue
+        ended = restated.moment(max(at for at in times if at is not None))
+        if stop < len(names):
+            why = f"wait: {ready.CHECK_FAILED.format(check=names[stop])}"
+            said[number] = (restated.FAILED, why, ended)
+        else:
+            why = f"wait: {' and '.join(names)} passed, and jmerge has not judged it yet"
+            said[number] = (restated.PASSED, why, ended)
+    at = restated.moment(verbs.clock())
+    for key in restated.checked(run.state, said, at):
+        run.say(f"tick {run.project.name}: a run ended, and {key}'s line says its check ended")
+
+
+def _at(text: Any) -> datetime | None:
+    try:
+        return datetime.fromisoformat(str(text))
+    except ValueError:
+        return None
 
 
 def tick(config: jbus.Config, say=print) -> int:
@@ -89,9 +156,11 @@ def tick(config: jbus.Config, say=print) -> int:
         say(f"tick: the budget is held, so the tick asks GitHub once in {HELD} s, not 2 s: {held}")
     for project in watched:
         run = passes.Pass(config, project, verbs.clock(), say)
-        etag = _ended(run)
-        if etag is None:
+        ended = _ended(run)
+        if ended is None:
             continue
+        etag, given = ended
+        _restate(run, given)
         said = merge.tick(run)
         reload.keep(run, said)
         if not said.failed:
