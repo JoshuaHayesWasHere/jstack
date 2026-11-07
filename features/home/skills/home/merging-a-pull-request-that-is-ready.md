@@ -3,11 +3,14 @@
 A pull request that is reviewed, fixed and green is merged, and the user is told of it when they ask for status, as "How a turn ends" says.
 Nobody has to give the word for that one.
 A pull request that is anything short of ready is never merged without the user's word.
+On that word, the one way a home merges it is `jmerge --accept <number> --as user --message <thread id>/<message id>`, run from the main checkout with the id of the user's own message in T3 Code: it lifts the hold, merges, and writes the `merged` line with that message to `$H/merge.log`.
+A home's own `gh pr merge`, `gh api .../pulls/<number>/merge` or GraphQL `mergePullRequest` is refused by the `merge-command` hook, which prints that line in its place ([The merge hook](../../docs/hooks.md#the-merge-hook)).
+Where the accept refuses, its line says why and what to do; relay it to the user, and merge nothing by hand.
 A pull request whose last review round says `Meets the brief: no` is short of ready, and so is one whose round has no such typed line or a count that is not its brief's: `jmerge` holds it by its own reason (`meets-no`, `meets-unread`, `meets-miscounted`), on every path that merges, a follow-up row's included.
 Its way out is its crew's fix and a scoped review whose own line says `yes`, or the user's `Waived: <the Done when line>, <thread>/<message>` line in the brief, which jbus checks is the user's own message, or the bot's word, naming the row, saying it waives and quoting that line: a home writes that line only from such a message, and its own word waives nothing.
 Neither is one that changes a protected path (a secret, or the list of protected paths itself), nor any pull request of a repo whose merge is switched off: those are the user's to merge, ready or not.
 
-The home merges nothing itself, and runs no command that merges.
+The home merges nothing itself, and runs no command that merges but `jmerge --accept` on the user's word.
 One command does all of it, with no model: `jmerge`, from the repo this skill lives in, and jbus alone runs it to merge, on each pass, for every home of the repo, whatever `$H/home-thread` says.
 That is the user's rule that jbus is the only merger, and child homes never merge their own pull requests (`features/home/spec/HomeTree.tla`, `OneMerger`).
 A run of `jmerge` that names a home, `jmerge --home <id>`, merges nothing: it says what it would do of that home's pull requests, as `--check` does.
@@ -81,7 +84,7 @@ The skills in `~/.claude/skills` may be symlinks into the main checkout, and sta
 | `merged <number> <slug> <commit> "<title>", the rebase changed the patch in <files>, revert: <command>` | it is merged, and a rebase changed its patch in those files after the last head a review saw: the review stands, and no review saw that change. Name the files on the line's `merged:` line |
 | `merged <number> <slug> <commit> "<title>", kept: <what and why>, revert: <command>` | it is merged, and something was left: a worktree with uncommitted work, a branch that is not at the merged head, a worktree or a branch git would not remove. Do nothing more about it. The same line says so if the pull failed |
 | `wait <number> <url>: <reason>` | it is not merged. The reason is the first thing it is short of |
-| `hold <number> <url>: needs <the user's name>, touches <path>` | it is not merged and `jmerge` never merges it: it is short of nothing else, and it changes a protected path: a secret, or `jmerge`'s list of them. The path is the first one that matches. Tell the user, once: it is theirs to merge |
+| `hold <number> <url>: needs <the user's name>, touches <path>` | it is not merged and `jmerge` never merges it: it is short of nothing else, and it changes a protected path: a secret, or `jmerge`'s list of them. The path is the first one that matches. Tell the user, once: it is theirs to merge, and on their word `jmerge --accept` merges it |
 | `wait <number> <url>: auto-merge is off for this repo` | it is not merged: it is short of nothing else, and the repo has a `merge-off` file. It is the user's to merge |
 | `wait <number> <url>: another home's` | to a run of `jmerge --home` alone: its brief's `Home:` line names another home of this repo. jbus's own run judges every home's |
 | `wait: could not ask GitHub` | nothing was looked at |
@@ -103,7 +106,7 @@ Two more things keep a ready pull request from the command, and only the user li
   To protect another path, a pull request adds a line to `protected.txt`, and since it changes the list the user merges it;
 - the repo's merge is on. Every repo is on until `$H/merge-off` is there: `/nohome merge` makes the file and `/nohome merge on` removes it. With it, the line is `wait <number> <url>: auto-merge is off for this repo`, whoever runs the command, a home or `jbus`.
 
-A pull request that is held (`hold`) is merged by the user, by hand, and so is any pull request of a repo whose merge is off. The sweep below then removes what its thread left.
+A pull request that is held (`hold`) is merged on the user's word, through `jmerge --accept <number> --as user --message <thread id>/<message id>`. A pull request of a repo whose merge is off is the user's to merge themselves: the accept waits on `merge-off` too. The sweep below then removes what its thread left.
 
 A head that moved between the check and the merge fails the merge, and that is the wanted result: the line is `wait <number> <url>: the merge failed`, with what GitHub said, and the next run looks again. A worktree is removed only when it is clean and its branch is at the merged head, so nothing unpushed is lost.
 
