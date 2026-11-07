@@ -55,10 +55,13 @@ KINDS = ("run.created", "run.updated", "thread.settled", "thread.archived")
 _TAIL = f"""
 select sequence, stream_id, event_type, occurred_at, json_extract(payload_json, '$.status')
 from orchestration_events
-where sequence > ? and aggregate_kind = 'thread'
-and event_type in ({", ".join("?" for _ in KINDS)})
+where sequence > ? and +aggregate_kind = 'thread'
+and +event_type in ({", ".join("?" for _ in KINDS)})
 order by sequence
 """
+"""The events after the last one read that may move a thread. The `+` keeps SQLite off T3 Code's
+index on `aggregate_kind`, which walks every event of every thread, 100 ms in a store of millions:
+the search is the range of sequences after the last one read, the table's own key."""
 _LAST = "select coalesce(max(sequence), 0) from orchestration_events"
 _RUNS = {
     "running": work.Thread.MOVING,
@@ -108,7 +111,9 @@ class Store:
         self.where = where
         try:
             self.inode = where.stat().st_ino
-            self.db = sqlite3.connect(f"file:{where}?mode=ro", uri=True, timeout=1)
+            self.db = sqlite3.connect(
+                f"file:{where}?mode=ro", uri=True, timeout=1, isolation_level=None
+            )
             self.sequence = int(self.db.execute(_LAST).fetchone()[0])
         except (OSError, sqlite3.Error) as error:
             raise Lost(f"T3 Code's store at {where} cannot be read ({error})") from None
@@ -116,12 +121,18 @@ class Store:
 
     def read(self) -> list[Event]:
         """Return the events after the last one read that move a thread, oldest first, and say in
-        `moved` whether the store had any event after the last one read, of any kind."""
+        `moved` whether the store had any event after the last one read, of any kind. Both reads
+        are of one snapshot, one transaction: an event committed between two would be past the
+        last one read and never read."""
         try:
             if self.where.stat().st_ino != self.inode:
                 raise Lost(f"T3 Code's store at {self.where} is another file now")
-            rows = self.db.execute(_TAIL, (self.sequence, *KINDS)).fetchall()
-            last = int(self.db.execute(_LAST).fetchone()[0])
+            self.db.execute("begin")
+            try:
+                rows = self.db.execute(_TAIL, (self.sequence, *KINDS)).fetchall()
+                last = int(self.db.execute(_LAST).fetchone()[0])
+            finally:
+                self.db.execute("commit")
         except (OSError, sqlite3.Error) as error:
             raise Lost(f"T3 Code's store at {self.where} cannot be read ({error})") from None
         if last < self.sequence:

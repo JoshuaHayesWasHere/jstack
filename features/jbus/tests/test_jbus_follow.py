@@ -253,3 +253,29 @@ def test_each_event_gives_the_facet_the_pass_gives_the_status_it_leaves():
         ("thread.archived", None): work.Thread.ARCHIVED,
     }
     assert {key: follow.facet(*key) for key in said} == said
+
+
+class Between:
+    """The follower's connection to the store, which runs `between` once after its first query,
+    as T3 Code commits an event while the follower reads."""
+
+    def __init__(self, db, between):
+        self.db, self.between = db, between
+
+    def execute(self, sql, *args):
+        made = self.db.execute(sql, *args)
+        if "order by sequence" in sql and self.between:
+            self.between, run = None, self.between
+            run()
+        return made
+
+    def close(self):
+        self.db.close()
+
+
+def test_an_event_committed_while_the_follower_reads_is_read_and_not_passed_over(events):
+    store = follow.Store(events.where)
+    store.db = Between(store.db, lambda: events.emit("mcp:t", "run.updated", "running"))
+    assert store.read() == []
+    assert [(one.thread, one.facet) for one in store.read()] == [("mcp:t", work.Thread.MOVING)]
+    store.close()
