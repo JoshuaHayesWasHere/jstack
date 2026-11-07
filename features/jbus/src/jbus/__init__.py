@@ -27,6 +27,11 @@ readers, the snapshot) ever gets one. A name belongs to one home across both lis
 scratch table whose name is a project's name, or the name a project keeps its state under. It also
 refuses a repo table that comes after a scratch home of the same name.
 
+A repo table with a `closed` date is a closed project (`jbus project close`). `load` sorts it into
+`Config.closed` and never into `Config.projects`, as it sorts a scratch table, so the pass, `word
+--all`, the needs and every chore leave it be. `Config.project` refuses a closed project's name
+with the line that names `jbus project open`, except to a read verb, which asks with `closed`.
+
 `END_TURN` is the ending of every message to a crew, and of the message that continues or
 wakes a reviewer. When a turn ends while its own check or a reviewer's proof still runs,
 nothing wakes the thread once that run ends. Then the push, the Result, the pull request or
@@ -89,7 +94,9 @@ class Project:
 
     `merge_bases` names each branch besides the default one that `jmerge` merges a pull request
     into, on the rules of a pull request into the default branch. It is empty where the table
-    names none, and `jbus project bases --add` is the one writer of it."""
+    names none, and `jbus project bases --add` is the one writer of it.
+
+    `closed` is the day `jbus project close` closed the project, and empty while it is open."""
 
     name: str
     checkout: Path
@@ -100,6 +107,7 @@ class Project:
     ci_report: bool = False
     generated: tuple[str, ...] = ()
     merge_bases: tuple[str, ...] = ()
+    closed: str = ""
 
 
 @dataclass(frozen=True)
@@ -196,6 +204,7 @@ class Config:
     home_thread: str = ""
     infra: str = INFRA
     view: View = View()
+    closed: tuple[Project, ...] = ()
 
     @property
     def token_path(self) -> Path:
@@ -217,12 +226,23 @@ class Config:
     def stop_path(self) -> Path:
         return self.state_dir / "stop"
 
-    def project(self, name: str | None) -> Project:
+    def project(self, name: str | None, closed: bool = False) -> Project:
+        """Return the open project of that name, or the only one. With `closed`, a closed
+        project is found too. Without it, a closed project's name is refused with the line that
+        names `jbus project open`."""
         if name is None and len(self.projects) == 1:
             return self.projects[0]
         for project in self.projects:
             if project.name == name:
                 return project
+        for project in self.closed:
+            if name and project.name.casefold() == name.casefold():
+                if closed:
+                    return project
+                raise Refused(
+                    f"refused: project {project.name} is closed: "
+                    f"jbus project open {project.name} first"
+                )
         alike = [p for p in self.projects if name and p.name.casefold() == name.casefold()]
         if len(alike) == 1:
             return alike[0]
@@ -325,6 +345,7 @@ def branch(name: str) -> bool:
 
 
 BLOCKING = ("blocking_url", "blocking_key")
+DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
 def _missing(table: dict[str, Any], pair: tuple[str, str]) -> str | None:
@@ -368,7 +389,7 @@ def load(directory: Path | None = None) -> Config:
     blocking = _pair(raw, BLOCKING)
     view = _view(raw, path)
     try:
-        projects, scratch = [], []
+        projects, scratch, closed = [], [], []
         for entry in raw.get("project", []):
             kind = entry.get("kind", REPO)
             if kind not in (REPO, SCRATCH):
@@ -379,7 +400,7 @@ def load(directory: Path | None = None) -> Config:
             name, state = str(entry["name"]), str(entry.get("state") or entry["name"])
             homes = {one.name for one in scratch}
             if kind == SCRATCH:
-                homes |= {held for one in projects for held in (one.name, one.state)}
+                homes |= {held for one in projects + closed for held in (one.name, one.state)}
             if homes & {name, state}:
                 raise Refused(
                     f"refused: {path} has a scratch home and another project named {name}"
@@ -400,7 +421,12 @@ def load(directory: Path | None = None) -> Config:
                     f"refused: project {entry['name']} has a generated that is not a list of "
                     '"<file> -> <command>"'
                 )
-            projects.append(
+            day = entry.get("closed", "")
+            if not isinstance(day, str) or (day and not DAY.fullmatch(day)):
+                raise Refused(
+                    f"refused: project {entry['name']} has a closed that is not a day, YYYY-MM-DD"
+                )
+            (closed if day else projects).append(
                 Project(
                     name=str(entry["name"]),
                     checkout=Path(str(entry["checkout"])).expanduser(),
@@ -411,6 +437,7 @@ def load(directory: Path | None = None) -> Config:
                     ci_report=entry.get("ci_report", False),
                     generated=tuple(generated),
                     merge_bases=merge_bases(name, entry.get("merge_bases")),
+                    closed=day,
                 )
             )
         server = str(raw["server"]).rstrip("/")
@@ -443,6 +470,7 @@ def load(directory: Path | None = None) -> Config:
         home_thread=str(raw.get("home_thread") or ""),
         infra=str(raw.get("infra") or INFRA),
         view=view,
+        closed=tuple(closed),
     )
 
 

@@ -236,6 +236,7 @@ DIGEST = {
         "projects": {ANY: _HOOK},
         "streaks": {ANY: {"key": None, "count": None, "since": None, "alerted": None}},
         "homes_off_bus": [None],
+        "closed": {ANY: None},
         "held_pools": [{"roles": [None], "instances": [None], "until": None, "why": None}],
         "pass": {
             "started": None,

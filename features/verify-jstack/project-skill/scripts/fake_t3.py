@@ -13,6 +13,9 @@ keeps everything it is told under the directory it is given:
                   one by its item id, as `jbus word --message` asks, or all of them, as a pass
                   asks when it looks for a usage limit or a login lapse in a failed thread's
                   last run
+    tasks.json    the scheduled tasks a drive gives T3 Code, each with its `scheduledTaskId`,
+                  `projectId` and `enabled`, which `list_scheduled_tasks` lists by project and
+                  `schedule_task` switches off or on
     calls.jsonl   one line for each tool call jbus made, with its arguments
     wake.jsonl    one line for each wake jbus sent a home thread, with the lines it carried
 
@@ -21,7 +24,9 @@ is the JSON-RPC error T3 Code gives, `t3_thread_configuration` included, which T
 into `t3_thread_configure`. That one reads a thread's selection with `threadId` alone and sets
 it with `modelSelection`, and a thread keeps its selection under that key in threads.json. A
 wake is a `t3_thread_send` whose request id starts `wakes|`, the one list's message
-(`jbus.wakes`), and its lines are the items the message names.
+(`jbus.wakes`), and its lines are the items the message names. A thread with a `projectId` is
+listed only for that project, as a launch's thread is, and one with none for every project. An
+archived thread is listed for none, and `t3_thread_read` still reads it, as T3 Code does.
 """
 
 from __future__ import annotations
@@ -103,7 +108,13 @@ class Fake:
         threads = self.threads()
         by_id = {thread["threadId"]: thread for thread in threads}
         if name == "t3_thread_list":
-            found = [t for t in threads if given.get("titleContains", "") in t["title"]]
+            found = [
+                t
+                for t in threads
+                if given.get("titleContains", "") in t["title"]
+                and not t.get("archived")
+                and t.get("projectId", given.get("projectId")) == given.get("projectId")
+            ]
             if given.get("settled") is not None:
                 found = [t for t in found if t["settled"] == given["settled"]]
             hidden = ("branch", "modelSelection", "recentRuns")
@@ -150,14 +161,27 @@ class Fake:
         if name == "link_pull_request":
             return {"url": given["url"], "alreadyLinked": False}
         if name == "t3_thread_organize":
-            by_id[given["threadId"]]["settled"] = given["action"] == "settle"
+            if given["action"] in ("archive", "unarchive"):
+                by_id[given["threadId"]]["archived"] = given["action"] == "archive"
+            else:
+                by_id[given["threadId"]]["settled"] = given["action"] == "settle"
             self.keep(threads)
             return {}
+        if name in ("list_scheduled_tasks", "schedule_task"):
+            path = self.directory / "tasks.json"
+            tasks = json.loads(path.read_text()) if path.exists() else []
+            if name == "list_scheduled_tasks":
+                return {"tasks": [t for t in tasks if t["projectId"] == given.get("projectId")]}
+            (task,) = [t for t in tasks if t["scheduledTaskId"] == given["scheduledTaskId"]]
+            task["enabled"] = given["enabled"]
+            path.write_text(json.dumps(tasks, indent=2) + "\n")
+            return task
         if name != "t3_thread_launch":
             raise Unknown(name)
         made = {
             "threadId": f"mcp:sandbox-thread-{len(threads) + 1}",
             "title": given["title"],
+            "projectId": given["projectId"],
             "status": "running",
             "settled": False,
             "branch": given["workspaceStrategy"].get("branch"),

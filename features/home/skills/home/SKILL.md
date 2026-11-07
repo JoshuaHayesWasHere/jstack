@@ -151,6 +151,8 @@ At every home's start, whether the user typed `/home` or the session-start hook 
 
 When `/home` is typed in a thread that runs in no git repo, as T3 Code's "No project" at `~/.t3/scratch`, it is a scratch home: read `$T/../skills/home/a-scratch-home.md` now, in place of the file above and the rest of this skill.
 
+A project that `jbus project close` closed (its name under `closed` in `jbus status`) has no home to start until `jbus project open <name>`: tell the user so, and start nothing.
+
 ## Planning
 
 Planning is a conversation with the user. Its result goes in `plan.md`, not in this thread's memory.

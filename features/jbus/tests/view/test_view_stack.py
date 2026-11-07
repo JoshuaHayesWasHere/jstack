@@ -38,6 +38,7 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
     assert by["larder"]["health"]["blind"] == 1
     assert by["larder"] == {
         "name": "larder",
+        "closed": None,
         "repo": "",
         "broken": [
             {"what": "CI not read", "open": "checks", "since": None},
