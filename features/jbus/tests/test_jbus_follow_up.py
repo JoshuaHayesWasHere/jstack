@@ -239,7 +239,8 @@ def test_a_follow_up_whose_brief_changed_meaning_is_approved_by_rule_again(kitch
     assert go(kitchen, "alpha")[0] == 0
     unit(kitchen, "alpha-2", "alpha")
     wider = brief("alpha-2", follows("alpha")).replace(
-        "- `make check` passes\n", "- `make check` passes\n- `make more` passes\n"
+        "- `make check` passes (in none)\n",
+        "- `make check` passes (in none)\n- `make more` passes (in none)\n",
     )
     said = add(kitchen, "alpha-2", "--entry", "alpha", text=wider)
     line = BY_RULE.format(parent="alpha", ran=RAN)

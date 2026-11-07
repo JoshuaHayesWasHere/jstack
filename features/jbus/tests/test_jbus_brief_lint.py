@@ -73,8 +73,8 @@ def test_a_brief_that_quotes_the_words_or_routes_through_a_gate_is_queued(kitche
     "old, new, label",
     [
         (
-            "- `make check` passes\n",
-            "- `make check` passes\n- the README names the new verb\n",
+            "- `make check` passes (in none)\n",
+            "- `make check` passes (in none)\n- the README names the new verb\n",
             "Done when",
         ),
         ("Where: `src/alpha/`", "Where: `src/alpha/`, `CONTRIBUTING.md`", "Where"),
@@ -91,10 +91,10 @@ def test_a_brief_that_claims_a_shared_doc_is_refused(kitchen, old, new, label):
 
 def test_a_docs_sweep_row_and_a_features_own_docs_are_queued(kitchen):
     sweep = brief("alpha").replace("# alpha: a task", "# alpha: docs sweep for the queue verbs")
-    sweep = sweep.replace("- `make check` passes\n", "- the README names the new verb\n")
+    sweep = sweep.replace("- `make check` passes (in none)\n", "- the README names the new verb\n")
     assert add(kitchen, sweep)[0] == 0
     nested = brief("gamma").replace(
-        "- `make check` passes\n", "- `features/gamma/README.md` names it\n"
+        "- `make check` passes (in none)\n", "- `features/gamma/README.md` names it\n"
     )
     assert kitchen.main("queue", "add", "gamma", "--priority", "1", stdin=nested)[0] == 0
     own = brief("beta").replace(
@@ -105,7 +105,9 @@ def test_a_docs_sweep_row_and_a_features_own_docs_are_queued(kitchen):
 
 def test_a_brief_whose_test_copies_the_task_lines_quote_is_refused(kitchen):
     text = brief("alpha").replace('Task: "do alpha"', f'Task: Josh said "{INCIDENT}"')
-    text = text.replace("- `make check` passes\n", f"- a test feeds jbus the line {INCIDENT}\n")
+    text = text.replace(
+        "- `make check` passes (in none)\n", f"- a test feeds jbus the line {INCIDENT}\n"
+    )
     [fault] = refused(kitchen, text)
     assert fault.startswith(
         "- brief's Done when: line copies the Task line's quote word for word ("
@@ -116,7 +118,7 @@ def test_a_brief_whose_test_copies_the_task_lines_quote_is_refused(kitchen):
 def test_a_small_made_up_row_and_a_short_quote_are_queued(kitchen):
     text = brief("alpha").replace('Task: "do alpha"', f'Task: Josh said "{INCIDENT}"')
     text = text.replace(
-        "- `make check` passes\n",
+        "- `make check` passes (in none)\n",
         "- a test feeds jbus a made-up row, release branch red at 12:00 for beta\n"
         "- a test checks the fix row never launched\n",
     )
