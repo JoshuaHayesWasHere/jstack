@@ -1,7 +1,7 @@
 # Hooks
 
-`install.sh` writes home's two hook entries, each with the path of the layout it assembled for that harness ([The layouts](../../jinstall/docs/jinstall.md#the-layouts)).
-This page says what home's two scripts do and shows each entry as the install writes it, with `<layout>` for Claude Code's layout, `~/.local/share/jstack/harness/claude-code`.
+`install.sh` writes home's two hook entries and jbus's turn-end entry, each with the path of the layout it assembled for that harness ([The layouts](../../jinstall/docs/jinstall.md#the-layouts)).
+This page says what those three scripts do and shows each entry as the install writes it, with `<layout>` for Claude Code's layout, `~/.local/share/jstack/harness/claude-code`.
 The entry in `~/.codex/hooks.json` names Codex's layout, `~/.local/share/jstack/harness/codex`, in its place.
 [The catalog](../../../CATALOG.md#hooks) lists the hooks of every feature, and [jinstall](../../jinstall/docs/jinstall.md#hook-entries) says which file of each harness they go in.
 
@@ -92,6 +92,48 @@ Each refusal is a quiet `hook` event in the repo's jbus log, with the hook, the 
             "command": "sh '<layout>/hooks/agent-sends.sh'",
             "timeout": 30,
             "onFailure": "block"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+## The turn-end hook
+
+`features/jbus/hooks/turn-end.sh` is a `Stop` hook of jbus, for Claude Code and Codex.
+It sends a crew back to finish when its turn ends before its task's end is on record, in place of `jbus poll` finding the thread over a pass later and telling it to carry on.
+The decision is `jbus.crewend`.
+
+It acts only for a crew: the session's thread, from T3 Code's store as the sends hook reads it, is the `Thread:` of `~/.local/state/home/<repo>/tasks/<branch>.md`, the brief named for the checkout's branch, since a crew's branch is its slug.
+It reads that one brief and no other.
+It sends the turn back in two cases:
+
+| The brief | What the crew is told |
+| --- | --- |
+| has no `## Result`, and the thread neither waits on a test slot nor has a run that holds one | carry on, and end the turn with the Result or on such a wait |
+| its last Result says `Pull request: after the review`, every reviewer jbus launched has written a review that ran, and no Result names a pull request | handle the review, open the pull request, and write the follow-up Result that names it |
+
+Every other turn ends: another thread's, a session the store does not know, a turn the hook already sent back once (`stop_hook_active`), and a crew whose Result is on record or that waits on jbus.
+A turn can still end on a wait the hook cannot see, such as a gate jbus holds or a background command, and is then sent back once: the second end passes.
+The hook does not fire on an interrupt in Claude Code, and `threads.resume` stays the fallback for a thread that ended with no Result.
+
+The hook fails open: what it cannot judge ends the turn.
+It prints its answer, `{"decision": "block", "reason": "<what to do>"}`, on stdout, and only when `jbus.crewend` ended 0: a crash, or a run past 4 seconds, prints nothing. The entry discards stderr and any exit code.
+It needs `git` and Python 3.12 or newer, or the release's own Python, which it finds as the sends hook does, through `features/jbus/hooks/judge.sh`.
+`install.sh` merges this group into `~/.claude/settings.json` and `~/.codex/hooks.json`:
+
+```json
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh '<layout>/hooks/turn-end.sh' 2>/dev/null || true",
+            "timeout": 5
           }
         ]
       }
