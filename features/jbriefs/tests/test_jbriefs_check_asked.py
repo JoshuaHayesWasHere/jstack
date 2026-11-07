@@ -26,7 +26,7 @@ def kitchen(tmp_path, monkeypatch):
 def added(kitchen, done, check):
     if check is not None:
         (kitchen.home / "fresh-check").write_text(check)
-    text = brief("alpha").replace("- `make check` passes\n", f"- {done}\n")
+    text = brief("alpha").replace("- `make check` passes (in none)\n", f"- {done} (in none)\n")
     code, said = kitchen.main(
         "--project", "demo", "queue", "add", "alpha", "--priority", "1", stdin=text
     )
