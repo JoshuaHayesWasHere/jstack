@@ -1,4 +1,4 @@
-From 777ed07fc4e97ad6ac00bceb54d9146c700cdc95 Mon Sep 17 00:00:00 2001
+From f85eb4f7baecb1f1b32b842c61bed927740cbbfd Mon Sep 17 00:00:00 2001
 From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
 Date: Sat, 7 Nov 2026 13:45:28 -0500
 Subject: [PATCH] fix(web): a jstack task reads stalled only where jbus says
@@ -11,14 +11,14 @@ the task carries it from work.json to the tree, and idleOf says stalled only whe
 The row's tooltip and the head of its menu say what jbus says it waits on, such as waits on the
 check runner.
 ---
- apps/server/src/jstack/jbusWork.logic.test.ts | 14 +++++++++++
+ apps/server/src/jstack/jbusWork.logic.test.ts | 14 +++++++++
  apps/server/src/jstack/jbusWork.logic.ts      |  1 +
- .../sidebar/JstackTreeRows.browser.test.tsx   |  7 ++++--
- .../src/components/sidebar/JstackTreeRows.tsx |  7 +++++-
- .../sidebar/jstackTree.logic.test.ts          |  1 +
- .../components/sidebar/jstackTree.logic.ts    | 24 ++++++++++++-------
- packages/contracts/src/jbusWork.ts            |  6 +++++
- 7 files changed, 49 insertions(+), 11 deletions(-)
+ .../sidebar/JstackTreeRows.browser.test.tsx   |  7 +++--
+ .../src/components/sidebar/JstackTreeRows.tsx |  7 ++++-
+ .../sidebar/jstackTree.logic.test.ts          | 22 +++++++++++++
+ .../components/sidebar/jstackTree.logic.ts    | 31 ++++++++++++++-----
+ packages/contracts/src/jbusWork.ts            |  7 +++++
+ 7 files changed, 78 insertions(+), 11 deletions(-)
 
 diff --git a/apps/server/src/jstack/jbusWork.logic.test.ts b/apps/server/src/jstack/jbusWork.logic.test.ts
 index 85c3b36eb2..8c42ae7d0f 100644
@@ -58,7 +58,7 @@ index 06dc05ffd2..aad82b709f 100644
        brief: files.briefTitles.get(slug) ?? null,
      };
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-index f1e4045655..e47e4de01f 100644
+index f1e4045655..08429a82ca 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
 +++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
 @@ -122,6 +122,7 @@ const crewTask = (slug: string, home: string) => ({
@@ -73,7 +73,7 @@ index f1e4045655..e47e4de01f 100644
    threadId: scouting === "queued" ? null : ThreadId.make(`scout-${slug}`),
    homeThreadId: ThreadId.make("root"),
    waitsOn: null,
-+  who: "crew",
++  who: "scout",
    waits: "",
    brief: null,
    held: null,
@@ -123,7 +123,7 @@ index 74463dee1d..626eb390d1 100644
                    row.waited && waitedText(row.waited),
                  ]
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-index 722a624144..bce1c38a70 100644
+index 722a624144..2028b10de1 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
 +++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
 @@ -36,6 +36,7 @@ const task = (slug: string, overrides: Partial<JbusCrewTask> = {}): JbusCrewTask
@@ -134,8 +134,35 @@ index 722a624144..bce1c38a70 100644
    waits: "",
    brief: null,
    held: null,
+@@ -227,5 +228,26 @@ describe("buildJstackTree", () => {
+       { threads: [threads[3]!], nowMs: at },
+     ).rows.find((row) => row.kind === "worker");
+     expect(owed).toMatchObject({ waited: { kind: "stalled", age: "2h" } });
++
++    // jbus holds a scout's row by its own thread's role, scout, so one idle with no report in
++    // is stalled too.
++    const scout = {
++      repo: "jstack",
++      slug: "sa-why-stale",
++      kind: "scout",
++      scouting: "scouting",
++      threadId: ThreadId.make("crew-sa-why-stale"),
++      homeThreadId: ThreadId.make("root"),
++      waitsOn: null,
++      who: "scout",
++      waits: "its thread",
++      brief: null,
++      held: null,
++    } as const;
++    const idleScout = build(
++      { tasks: [scout] },
++      { threads: [ended("sa-why-stale", "2026-11-07T17:40:00Z")], nowMs: at },
++    ).rows.find((row) => row.kind === "worker");
++    expect(idleScout).toMatchObject({ waited: { kind: "stalled", age: "45m" } });
+   });
+ });
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
-index 456d69a52a..c45aef589b 100644
+index 456d69a52a..51381eea7c 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.ts
 +++ b/apps/web/src/components/sidebar/jstackTree.logic.ts
 @@ -101,8 +101,8 @@ export type JstackMark =
@@ -161,8 +188,13 @@ index 456d69a52a..c45aef589b 100644
        readonly mark: JstackMark;
        /** null until jbus launches the task. */
        readonly threadId: ThreadId | null;
-@@ -378,8 +383,9 @@ const PULL_STAGES: ReadonlySet<JbusWorkStage> = new Set([
+@@ -376,10 +381,14 @@ const PULL_STAGES: ReadonlySet<JbusWorkStage> = new Set([
+   "rebase",
+ ]);
  
++// The `who` jbus gives a task whose own thread holds its next move (jbus work.holder).
++const OWN_THREAD: Record<JbusTask["kind"], string> = { crew: "crew", scout: "scout" };
++
  /**
   * How long a task has sat idle past the quiet threshold, if it has: a crew that stopped writing
 - * before its pull request is quiet, and one idle while its pull request waits, or a scout idle
@@ -173,18 +205,22 @@ index 456d69a52a..c45aef589b 100644
   */
  const idleOf = (
    input: JstackTreeInput,
-@@ -394,7 +400,9 @@ const idleOf = (
+@@ -394,7 +403,13 @@ const idleOf = (
        : { kind: "quiet", age: formatAge(minutes), reason: null };
    }
    const waits = task.kind === "crew" ? PULL_STAGES.has(task.stage) : task.scouting === "scouting";
 -  if (!waits || resolveSidebarThreadStatus(thread) === "working") return null;
-+  if (!waits || task.who !== "crew" || resolveSidebarThreadStatus(thread) === "working") {
++  if (
++    !waits ||
++    task.who !== OWN_THREAD[task.kind] ||
++    resolveSidebarThreadStatus(thread) === "working"
++  ) {
 +    return null;
 +  }
    // Its last turn's end, since a rename or a linked pull request also moves `updatedAt`.
    const minutes = minutesSince(input.nowMs, thread.latestRun?.completedAt ?? thread.updatedAt);
    return minutes < input.options.quietMinutes
-@@ -444,10 +452,9 @@ const toWorker = (
+@@ -444,10 +459,9 @@ const toWorker = (
        ? home.prefix
        : null;
    const openThreadId = task.threadId ?? gate?.threadId ?? home.threadId;
@@ -197,7 +233,7 @@ index 456d69a52a..c45aef589b 100644
    return {
      rank,
      stage: stage.group,
-@@ -463,6 +470,7 @@ const toWorker = (
+@@ -463,6 +477,7 @@ const toWorker = (
        stage: stage.word,
        tone: asks ? "asks" : "plain",
        waited,
@@ -206,15 +242,16 @@ index 456d69a52a..c45aef589b 100644
          task.kind === "crew"
            ? { kind: "ring", thirds: STAGES[task.stage].thirds, tone }
 diff --git a/packages/contracts/src/jbusWork.ts b/packages/contracts/src/jbusWork.ts
-index d3407fdf1b..d5181c439f 100644
+index d3407fdf1b..a31b59c66c 100644
 --- a/packages/contracts/src/jbusWork.ts
 +++ b/packages/contracts/src/jbusWork.ts
-@@ -63,6 +63,12 @@ const JbusTaskFields = {
+@@ -63,6 +63,13 @@ const JbusTaskFields = {
     * hung or lost thread is owed by a home or a thread first, so it is null.
     */
    waitsOn: Schema.NullOr(JbusWaitsOn),
 +  /**
-+   * Who jbus says holds the task's next move: `crew` for its crewmate, else another holder, such
++   * Who jbus says holds the task's next move: `crew` for its crewmate, `scout` for a scout's own
++   * thread, else another holder, such
 +   * as `ci` for its checks, `rev` for its reviewer, `dep` for the rows in front of it, `bus` for
 +   * jbus or `user` for you (features/jbus/src/jbus/work.py). Empty when its row names none.
 +   */

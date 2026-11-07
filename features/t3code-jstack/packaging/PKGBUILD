@@ -11,7 +11,7 @@ pkgname=t3code-jstack
 _tag="${T3CODE_JSTACK_TAG:-v0.1.7}"
 _release="${_tag#v}"
 # A nightly picked by hand has a hyphen, which pkgver cannot hold.
-pkgver="${_release/-nightly./_nightly.}.jstack.a55983e8dd"
+pkgver="${_release/-nightly./_nightly.}.jstack.2f6633fcfd"
 pkgrel=1
 pkgdesc='T3 Code with the jstack tree sidebar'
 arch=('x86_64')
