@@ -205,6 +205,24 @@ def test_a_quiet_thread_and_a_closed_pull_request_are_drawn_as_the_pass_judged_t
     assert (shut["state"]["waits"], shut["who"]) == ("its home", "home")
 
 
+def test_a_left_row_its_review_or_a_gate_of_the_users_holds_says_so_and_not_how_its_home_closes_it(
+    scene, served
+):
+    """A row whose Result waits on its review, and one a gate of the user's holds, are drawn by
+    what holds them: neither gives the home's way of closing a leftover."""
+    noted = "left: the docs page"
+    scene.queue(
+        [
+            row("fig-proof", "left", why=noted, thread="mcp:16", value="leftover", who="rev"),
+            row("fig-asked", "left", why=noted, thread="mcp:17", value="leftover", who="user"),
+        ]
+    )
+    found = tasks(served.json("/state.json?project=demo"))
+    proof, asked = found["fig-proof"], found["fig-asked"]
+    assert (proof["who"], proof["state"]["say"]) == ("rev", built.AWAITS_REVIEW)
+    assert (asked["who"], asked["state"]["say"]) == ("user", noted)
+
+
 def test_a_row_work_json_does_not_have_is_unknown_and_says_what_its_row_says(scene, served):
     scene.queue([row("oat-bowl", "running", thread="mcp:0000")], judged=False)
     scene.write("work.json", {"at": iso(NOW), "answered": "both", "work": []})

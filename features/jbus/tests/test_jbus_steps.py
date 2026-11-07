@@ -18,7 +18,10 @@ gate's words may name with no door meant. So is the `queue.load` and `questions.
 Over a queue that does not parse, it stops at its `queue.load` (`UNREAD`).
 It needs no world, so it runs too where T3 Code is down and `wakes.tell` does not (`UNSEEN`).
 The `queue.load` before `work.write` is a step added since: `states.keep_work` reads each row's go
-again, so a go given while the pass ran is not written back. The list's event for the question the
+again, so a go given while the pass ran is not written back. So are the reads before it
+(`HOLDING`): `states.keep_work` reads the gates `jbus needs` lists (`blockers.holding`), so a row
+such a gate holds is the user's in `work.json`. A project's first pass, and a `questions.json` that
+does not parse, stop at the first read (`UNHELD`). The list's event for the question the
 `question` fixture answers is no longer the pass's: the answer takes its gate off the list and
 logs that itself (`waiting.settle`). Each write of the queue reads the table once more as it ends,
 to restate the rows' lines of `work.json` (`queue._restate_work`), a step added since: the
@@ -261,6 +264,15 @@ EVENING = (
     f"{DERIVED} merge.unplaced {OWNED} Box.began Box.snapshot_due Box.snapshot_sent "
     "Box.prune Box.forget Box.sweep_owed merge.sweep Box.swept alert.flush"
 )
+
+HOLDING = "questions.read questions.read queue.load"
+UNHELD = {"word": "questions.read", "questions.json": "questions.read"}
+WRITE = "queue.load work.write"
+AFTER = {
+    fixture: said.replace(WRITE, f"{UNHELD.get(fixture, HOLDING)} {WRITE}")
+    for fixture, said in AFTER.items()
+}
+EVENING = EVENING.replace(WRITE, f"{HOLDING} {WRITE}")
 
 CALLED = (
     (word, "deliver"),

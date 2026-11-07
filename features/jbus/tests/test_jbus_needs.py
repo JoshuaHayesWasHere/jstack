@@ -131,11 +131,11 @@ AWAITS_REVIEW = (
 
 @pytest.mark.parametrize("homed", [True, False], ids=["a home", "no home"])
 def test_a_row_work_json_says_is_the_users_is_one_jbus_needs_lists(kitchen, homed):
-    """The sidebar draws `work.json`'s `who`: a row it says waits on the user is one `jbus needs`
-    lists, and no other. A row that ended with something left is its home's to close, even
-    while no home thread is there to tell; a row whose Result opens its pull request after a
-    review not written yet waits on that review, whatever its `Left:` line says; a gate of the
-    user's that holds its row is the user's."""
+    """The sidebar draws `work.json`'s `who`, which `jbus.states.keep_work` writes: a row it says
+    waits on the user is one `jbus needs` lists, and no other. A row that ended with something
+    left is its home's to close, even while no home thread is there to tell; a row whose Result
+    opens its pull request after a review not written yet waits on that review, whatever its
+    `Left:` line says; a gate of the user's that holds its row is the user's."""
     if homed:
         at = kitchen.t3.thread("demo", "completed", title="home: demo")
         (kitchen.home / "home-id").write_text(at["threadId"] + "\n")
