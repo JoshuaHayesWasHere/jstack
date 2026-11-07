@@ -3,9 +3,10 @@ with no `## Result`, or with a Result whose pull request opens after its review 
 written and no Result names the pull request.
 
 Each test feeds `features/jbus/hooks/turn-end.sh`, which judges with `jbus.crewend`, what Claude
-Code and Codex give a `Stop` hook, in a home of the test's own: `HOME` holds T3 Code's store, which maps each session to its thread,
-the homes' state of a repo named `Winnifred` with the brief of `a-task`, the test slots' files and
-a checkout of the repo on the branch `a-task`. No test touches the machine's own files.
+Code and Codex give a `Stop` hook, in a home of the test's own: `HOME` holds T3 Code's store, which
+maps each session to its thread, the homes' state of a repo named `Winnifred` with the brief of
+`a-task`, the test slots' files and a checkout of the repo on the branch `a-task`. No test touches
+the machine's own files.
 """
 
 import json
@@ -70,7 +71,7 @@ def write(home, text):
     (home / ".local" / "state" / "home" / "Winnifred" / "tasks" / f"{SLUG}.md").write_text(text)
 
 
-def run(home, thread=CREW, *, harness="claude-code", known=True, active=False, hook=HOOK):
+def run(home, thread=CREW, *, harness="claude-code", known=True, active=False, hook=HOOK, raw=None):
     """What the hook prints on stdout, after checking that it ended 0 with a JSON object or
     nothing there, as both harnesses read a `Stop` hook's answer."""
     call = {
@@ -84,7 +85,11 @@ def run(home, thread=CREW, *, harness="claude-code", known=True, active=False, h
     gone = ("JBUS_HOME_DIR", "JBUS_STATE_DIR", "JGAUGE_LOCKS_DIR", "XDG_CONFIG_HOME", "PYTHONPATH")
     env = {k: v for k, v in os.environ.items() if k not in gone} | {"HOME": str(home)}
     done = subprocess.run(
-        ["sh", str(hook)], input=json.dumps(call), capture_output=True, text=True, env=env
+        ["sh", str(hook)],
+        input=json.dumps(call) if raw is None else raw,
+        capture_output=True,
+        text=True,
+        env=env,
     )
     assert done.returncode == 0, done.stderr
     return json.loads(done.stdout) if done.stdout.strip() else None
@@ -110,6 +115,9 @@ def test_turn_end_owing_its_pull_request_after_a_written_review_is_sent_back_to_
         pytest.param(BRIEF + DESK, id="no reviewer launched yet"),
         pytest.param(BRIEF + DESK + LAUNCHED, id="the reviewer has not written"),
         pytest.param(BRIEF + DESK + LAUNCHED + REVIEW + OPENED, id="the pull request is open"),
+        pytest.param(
+            BRIEF + OPENED + DESK + LAUNCHED + REVIEW, id="an earlier Result names the pull request"
+        ),
     ],
 )
 def test_turn_end_of_a_crew_with_its_result_on_record_ends(home, text):
@@ -151,3 +159,12 @@ def test_turn_end_ends_when_the_hook_crashes(home, tmp_path):
     (found / "__init__.py").write_text("")
     (found / "crewend.py").write_text("print('{\"decision\": ')\nraise RuntimeError('broke')\n")
     assert run(home, hook=root / "features" / "jbus" / "hooks" / "turn-end.sh") is None
+
+
+def test_turn_end_in_a_checkout_whose_branch_names_no_brief_ends(home):
+    git("checkout", "-q", "main", cwd=home / "repos" / "Winnifred")
+    assert run(home) is None
+
+
+def test_turn_end_of_a_call_that_is_no_json_ends(home):
+    assert run(home, raw="not json") is None
