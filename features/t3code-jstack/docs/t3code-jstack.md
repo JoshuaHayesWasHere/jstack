@@ -85,7 +85,9 @@ Amber marks what asks you, and every other mark and badge is neutral.
 The tree keeps to two type sizes and one weight: every name is 13px and every word beside it 11px, all at 400, and its levels step by ink and row height.
 A row's "Open brief" draws the brief as what it says: its one line, chips for Size, Review, Playbook, Pull request and Home, what it must not touch, then its lines in its order, with the rest under "More" and the Markdown one click away.
 A Builds on or Follows link in it selects that row in the tree.
-A task whose crew sits idle past the quiet threshold while its pull request waits says "stalled" and for how long, beside its stage, and one jmerge or jbus holds is shown with "held" and for how long, its reason on hover and at the head of its menu.
+A task says "stalled" and for how long, beside its stage, only when its crew sits idle past the quiet threshold while jbus's `work.json` says the crew owes its pull request's next move (`who` is `crew`), and a crew idle while CI, jmerge or another row holds its pull request is not stalled.
+A row's hover and the head of its menu say what jbus says it waits on, such as "waits on the check runner".
+A task jmerge or jbus holds is shown with "held" and for how long, its reason on hover and at the head of its menu.
 Every other T3 project is a root row of the same size over its threads, and "No project" is pinned last.
 A project added to T3 is a root row at once, before it has a thread, and asks once whether to start a jstack home for it.
 Root rows sort into an active group and an idle one below a divider, on their own, and within each group a root row keeps the place you drag it to, or move it to with Alt+ArrowUp and Alt+ArrowDown.
