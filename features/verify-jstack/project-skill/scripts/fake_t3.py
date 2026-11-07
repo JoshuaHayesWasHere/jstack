@@ -16,6 +16,9 @@ keeps everything it is told under the directory it is given:
     tasks.json    the scheduled tasks a drive gives T3 Code, each with its `scheduledTaskId`,
                   `projectId` and `enabled`, which `list_scheduled_tasks` lists by project and
                   `schedule_task` switches off or on
+    projects.json the T3 Code projects a drive gives it, each with its `id`, `workspaceRoot` and
+                  `archivedAt`, which `t3_project_list` lists and `t3_project_update` archives
+                  (`archivedAt` set) or unarchives (`archivedAt` null)
     calls.jsonl   one line for each tool call jbus made, with its arguments
     wake.jsonl    one line for each wake jbus sent a home thread, with the lines it carried
 
@@ -176,6 +179,15 @@ class Fake:
             task["enabled"] = given["enabled"]
             path.write_text(json.dumps(tasks, indent=2) + "\n")
             return task
+        if name in ("t3_project_list", "t3_project_update"):
+            path = self.directory / "projects.json"
+            projects = json.loads(path.read_text()) if path.exists() else []
+            if name == "t3_project_list":
+                return {"projects": projects, "nextCursor": None}
+            (project,) = [p for p in projects if p["id"] == given["projectId"]]
+            project["archivedAt"] = now() if given["archived"] else None
+            path.write_text(json.dumps(projects, indent=2) + "\n")
+            return project
         if name != "t3_thread_launch":
             raise Unknown(name)
         made = {

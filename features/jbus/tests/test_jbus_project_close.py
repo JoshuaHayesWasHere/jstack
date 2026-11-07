@@ -1,6 +1,6 @@
-"""`jbus project close <name>` puts a project away: no pass, word or scheduled task reaches it, and
-T3 Code lists none of its threads. `jbus project open <name>` brings it back as it was, and the next
-pass works what it left queued.
+"""`jbus project close <name>` puts a project away: no pass, word or scheduled task reaches it, T3
+Code lists none of its threads, and its T3 Code project leaves the sidebar. `jbus project open
+<name>` brings it back as it was, and the next pass works what it left queued.
 
 Like `test_jbus_kitchen.py`, the tests run the real commands and the real pass against a faked T3
 Code server, `gh` and `jmerge`. Nothing reaches the network.
@@ -27,13 +27,19 @@ REFUSED = "refused: project other is closed: jbus project open other first"
 def two(kitchen):
     """`demo` and `other`, each with a home thread, a queued row with the user's go, and room for
     both to launch. `other` also has an unanswered question, a finished crew's thread, a
-    scheduled task that is on and one that is off."""
+    scheduled task that is on and one that is off. T3 Code has a project at each checkout, and a
+    second at `other`'s with another id, listed first."""
     side = kitchen.second()
     kitchen.config(max_running=4)
     for home, thread, at in ((kitchen.home, HOME_1, PROJECT), (side.home, HOME_2, side.project)):
         (home / "home-id").write_text(f"{thread}\n")
         kitchen.t3.thread("home", "completed", threadId=thread, title="home: x", project=at)
     kitchen.t3.thread("old", "completed", threadId=CREW_2, project=side.project)
+    kitchen.t3.projects += [
+        t3_project("demo-t3", kitchen.checkout),
+        t3_project("other-copy", side.checkout),
+        t3_project(side.project, side.checkout),
+    ]
     kitchen.t3.tasks += [
         {"scheduledTaskId": "task-on", "projectId": side.project, "enabled": True},
         {"scheduledTaskId": "task-off", "projectId": side.project, "enabled": False},
@@ -44,6 +50,21 @@ def two(kitchen):
     (side.home / "tasks" / "gamma.md").write_text("# gamma: a task\nWhere: `src/gamma/`\n")
     assert kitchen.main("--project", "other", "gate", "gamma", stdin=held())[0] == 0
     return side
+
+
+def t3_project(at, root, archived=None):
+    """A project as `t3_project_list` gives it."""
+    return {"id": at, "workspaceRoot": str(root), "archivedAt": archived, "deletedAt": None}
+
+
+def archived(kitchen, at):
+    """When T3 Code's project `at` was archived, or None while it is not."""
+    (found,) = [one for one in kitchen.t3.projects if one["id"] == at]
+    return found["archivedAt"]
+
+
+def updates(kitchen):
+    return [given for tool, given in kitchen.t3.calls if tool == "t3_project_update"]
 
 
 def queued(kitchen, name, slug):
@@ -77,7 +98,12 @@ def test_a_pass_reaches_only_the_open_project_and_after_open_it_works_the_closed
 ):
     code, said = kitchen.main("project", "close", "other")
     assert code == 0 and said.startswith("closed: other, 2 threads archived and 1 scheduled tasks")
+    assert "its T3 Code project archived" in said
     assert table(kitchen, "other")["closed"] == today()
+    assert archived(kitchen, two.project) is not None
+    assert archived(kitchen, "demo-t3") is None
+    assert archived(kitchen, "other-copy") is None
+    assert updates(kitchen) == [{"projectId": two.project, "archived": True}]
     assert "closed" not in table(kitchen, "demo")
     assert [thread(kitchen, one).get("archived") for one in (HOME_2, CREW_2)] == [True, True]
     assert not thread(kitchen, HOME_1).get("archived")
@@ -114,10 +140,15 @@ def test_a_pass_reaches_only_the_open_project_and_after_open_it_works_the_closed
         0,
         f"already closed: other has been closed since {today()}, nothing changed\n",
     )
+    assert updates(kitchen) == [], "a second close changed the T3 Code project"
 
+    kitchen.t3.calls.clear()
     code, said = kitchen.main("project", "open", "other")
     assert code == 0 and said.startswith("opened: other")
+    assert "its T3 Code project and its home threads back" in said
     assert "closed" not in table(kitchen, "other")
+    assert archived(kitchen, two.project) is None
+    assert updates(kitchen) == [{"projectId": two.project, "archived": False}]
     assert not thread(kitchen, HOME_2).get("archived")
     assert thread(kitchen, CREW_2)["archived"]
     assert tasks(kitchen) == {"task-on": True, "task-off": False, "task-demo": True}
@@ -171,7 +202,7 @@ def cut_after(monkeypatch, steps):
     real_call = t3.Client.call
 
     def call(self, tool, arguments):
-        if tool in ("t3_thread_organize", "schedule_task"):
+        if tool in ("t3_thread_organize", "schedule_task", "t3_project_update"):
             return after(real_call)(self, tool, arguments)
         return real_call(self, tool, arguments)
 
@@ -191,10 +222,11 @@ def run(kitchen, verb, steps):
     return kitchen.main("project", verb, "other")
 
 
-CLOSE_STEPS, OPEN_STEPS = 7, 4
-"""`close` of `other` makes seven changes: its record, one task off, two threads archived, the
-record with its day, the copy of the config and the config. `open` makes four before the record's
-delete: one task on, one home back, the copy and the config."""
+CLOSE_STEPS, OPEN_STEPS = 8, 5
+"""`close` of `other` makes eight changes: its record, one task off, two threads archived, its T3
+Code project archived, the record with its day, the copy of the config and the config. `open`
+makes five before the record's delete: one task on, its T3 Code project back, one home back, the
+copy and the config."""
 
 
 @pytest.mark.parametrize("steps", range(1, CLOSE_STEPS + 1))
@@ -204,10 +236,12 @@ def test_a_close_cut_off_after_any_step_is_finished_by_the_next_run(kitchen, two
     assert table(kitchen, "other")["closed"] == today()
     assert [thread(kitchen, one)["archived"] for one in (HOME_2, CREW_2)] == [True, True]
     assert tasks(kitchen) == {"task-on": False, "task-off": False, "task-demo": True}
+    assert archived(kitchen, two.project) is not None
     record = jbus.read_json(two.state / project.RECORD, {})
     assert record == {
         "closed": today(),
         "homes": [HOME_2],
+        "project": two.project,
         "tasks": ["task-on"],
         "threads": sorted([HOME_2, CREW_2]),
     }
@@ -221,7 +255,32 @@ def test_an_open_cut_off_after_any_step_is_finished_by_the_next_run(kitchen, two
     assert "closed" not in table(kitchen, "other")
     assert [thread(kitchen, one)["archived"] for one in (HOME_2, CREW_2)] == [False, True]
     assert tasks(kitchen) == {"task-on": True, "task-off": False, "task-demo": True}
+    assert archived(kitchen, two.project) is None
     assert not (two.state / project.RECORD).exists()
+
+
+def test_a_t3_code_project_archived_before_close_stays_archived_after_open(kitchen, two):
+    """The user archived `other`'s T3 Code project by hand: `close` leaves it, records nothing of
+    it, and `open` does not bring back what `close` did not put away."""
+    by_hand = "2026-11-01T00:00:00Z"
+    for one in kitchen.t3.projects:
+        if one["id"] == two.project:
+            one["archivedAt"] = by_hand
+    code, said = kitchen.main("project", "close", "other")
+    assert code == 0 and "its T3 Code project was archived already" in said
+    assert "project" not in jbus.read_json(two.state / project.RECORD, {})
+    assert kitchen.main("project", "open", "other")[0] == 0
+    assert updates(kitchen) == []
+    assert archived(kitchen, two.project) == by_hand
+
+
+def test_close_and_open_go_on_where_t3_code_has_no_project_at_the_checkout(kitchen, two):
+    kitchen.t3.projects.clear()
+    code, said = kitchen.main("project", "close", "other")
+    assert code == 0 and "T3 Code has no project at its checkout" in said
+    code, said = kitchen.main("project", "open", "other")
+    assert code == 0 and "its T3 Code project" not in said
+    assert updates(kitchen) == []
 
 
 def test_the_view_shows_a_closed_project_as_closed_and_keeps_its_questions_out(kitchen, two):

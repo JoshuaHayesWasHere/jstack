@@ -1,17 +1,20 @@
-"""jbus talks to the T3 Code server as an outside MCP client, with the sign-in and ten tools.
+"""jbus talks to the T3 Code server as an outside MCP client, with the sign-in and twelve tools.
 
 `login` registers jbus with the server, sends the user to the server's approval page, keeps the
 token that the server issues, and records when the server issued it (`jsettings.t3.expiry` says
 when that token runs out). `Client` then calls the tools in `TOOLS` at `<server>/mcp`, and no
 other tool: a test scans this package for any other tool name.
 
-Four of the ten tools can change a thread or a task, and `Client.call` allows each of them only
-in the forms below (`_held`):
+Five of the twelve tools can change a thread, a task or a project, and `Client.call` allows each of
+them only in the forms below (`_held`):
 
 - `t3_thread_organize`, to settle or archive a thread that the call names, and to unarchive one
   (`jbus project open`, for the home threads `jbus project close` archived).
 - `schedule_task`, only to switch a scheduled task that the call names off or on, with
   `enabled` and nothing else (`jbus project close` and `open`). `list_scheduled_tasks` only reads.
+- `t3_project_update`, only to archive or unarchive a project that the call names, with
+  `archived` and nothing else (`jbus project close` and `open`, so a closed project leaves T3
+  Code's sidebar). `t3_project_list` only reads.
 - `t3_thread_configure`, to move a thread that a brief or a home names to another instance of
   its role's pool, with its model and options as they were (`jbus.failover`). With only a
   `threadId` it changes nothing and reads the thread's selection, which any thread may have.
@@ -75,6 +78,8 @@ TOOLS = (
     "orchestrator_capabilities",
     "list_scheduled_tasks",
     "schedule_task",
+    "t3_project_list",
+    "t3_project_update",
 )
 MISSING = "t3-tool "
 SCOPE = "orchestration:read orchestration:operate"
@@ -214,8 +219,8 @@ class Client(Session):
         return [tool for tool in self._rpc("tools/list", {})["tools"] if tool["name"] in TOOLS]
 
     def _held(self, tool: str, arguments: dict[str, Any]) -> str:
-        """For a call to a tool that can change a thread, return why jbus does not make it, or
-        nothing when jbus does make it."""
+        """For a call to a tool that can change a thread, a task or a project, return why jbus does
+        not make it, or nothing when jbus does make it."""
         if tool == "t3_thread_organize":
             if set(arguments) != {"action", "threadId"} or arguments["action"] not in (
                 "settle",
@@ -232,6 +237,13 @@ class Client(Session):
                 return "is only called to switch a task it names off or on"
             if not arguments["scheduledTaskId"]:
                 return "names no task to switch off or on"
+        if tool == "t3_project_update":
+            if set(arguments) != {"projectId", "archived"} or not isinstance(
+                arguments["archived"], bool
+            ):
+                return "is only called to archive or unarchive a project it names"
+            if not arguments["projectId"]:
+                return "names no project to archive or unarchive"
         if tool == "t3_thread_configure":
             if set(arguments) == {"threadId"}:
                 return "" if arguments["threadId"] else "names no thread to read"

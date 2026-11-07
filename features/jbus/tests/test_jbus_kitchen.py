@@ -152,7 +152,9 @@ class T3(Server):
     A thread not in `threads` is gone to a read, and one in `forgot` is gone to a send. Each
     `initialize` opens a session of `sessions`, and a `DELETE` ends one into `ended`.
     `constraints` holds why T3 Code cannot run a provider instance, by its id: an instance it
-    names with none can run, and one it does not name is not listed."""
+    names with none can run, and one it does not name is not listed. `projects` holds T3 Code's
+    projects, each with its `id`, `workspaceRoot` and `archivedAt`, which `t3_project_list` lists
+    and `t3_project_update` archives or unarchives."""
 
     def __init__(self):
         self.threads, self.launches, self.calls, self.lose, self.refuse = [], [], [], None, ""
@@ -162,7 +164,7 @@ class T3(Server):
         self.challenges, self.registered, self.at_work = {}, [], set()
         self.sessions, self.ended = [], []
         self.said, self.forgot, self.wakes = {}, set(), {}
-        self.tasks = []
+        self.tasks, self.projects = [], []
         self.constraints = {"claudeAgent": [], "claudeAgent_claude_prime": []}
         super().__init__()
 
@@ -407,6 +409,18 @@ class T3(Server):
                 return {"isError": True, "content": [{"type": "text", "text": task["refused"]}]}
             task["enabled"] = given["enabled"]
             made = task
+        elif tool == "t3_project_list":
+            start, size = given.get("cursor") or 0, given.get("limit") or 50
+            page = self.projects[start : start + size]
+            further = start + size if start + size < len(self.projects) else None
+            made = {"projects": page, "nextCursor": further}
+        elif tool == "t3_project_update":
+            found = [p for p in self.projects if p["id"] == given["projectId"]]
+            if not found:
+                return gone(given["projectId"], "was not found")
+            (found,) = found
+            found["archivedAt"] = iso(datetime.now(UTC)) if given["archived"] else None
+            made = found
         elif tool == "t3_thread_organize":
             (thread,) = [t for t in self.threads if t["threadId"] == given["threadId"]]
             if given["action"] in ("archive", "unarchive"):

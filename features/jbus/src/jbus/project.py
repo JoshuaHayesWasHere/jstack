@@ -27,23 +27,25 @@ write that would change any other key or table. `jbus project bases <name>` prin
 table names, one a line, and nothing where it names none: the one way to read the key without
 opening the file.
 
-`jbus project close <name>` puts a project away until `jbus project open <name>` brings it back.
-It writes `closed = "<day>"` into that project's table alone, as `bases --add` writes, and `load`
-then keeps the project out of `Config.projects`: no pass, `word --all`, needs line or chore
-reaches it. T3 Code has no archive of a project, so `close` also archives each thread of the
-project that is not archived yet, the home's among them, and switches off each of its scheduled
-tasks that is on. It refuses while a row of the project is out or one of its crews, reviewers or
-scouts is in a turn, and names each. It holds the pass's lock, so no pass launches between its
-check and its write. Queued, held and finished rows, questions, gates, plans, worktrees,
-branches and `home-id` stay as they are.
+`jbus project close <name>` puts a project away until `jbus project open <name>` brings it back. It
+writes `closed = "<day>"` into that project's table alone, as `bases --add` writes, and `load` then
+keeps the project out of `Config.projects`: no pass, `word --all`, needs line or chore reaches it.
+`close` also puts it away in T3 Code: it archives each thread of the project that is not archived
+yet, the home's among them, switches off each of its scheduled tasks that is on, and archives the T3
+Code project whose workspace root is the project's checkout, so the project leaves T3 Code's
+sidebar. A T3 Code project archived already stays as it is. It refuses while a row of the project is
+out or one of its crews, reviewers or scouts is in a turn, and names each. It holds the pass's lock,
+so no pass launches between its check and its write. Queued, held and finished rows, questions,
+gates, plans, worktrees, branches and `home-id` stay as they are.
 
-`closed.json`, in the project's state, is what `close` changed in T3 Code, by id: the threads,
-the home threads among them, and the tasks. `close` writes it before it changes anything, adds
-the day just before the config write, and writes the config last. `open` switches those tasks
-back on, unarchives the home threads only (a crew's thread stays put away), takes the line out
-of the config, and deletes `closed.json` last. So a run cut off at any step is finished by the
-next run, and a run with nothing left to do says so and changes nothing. The view reads the day
-in `closed.json`, since it reads no config.
+`closed.json`, in the project's state, is what `close` changed in T3 Code, by id: the threads, the
+home threads among them, the tasks, and the T3 Code `project` where `close` archived it. `close`
+writes it before it changes anything, adds the day just before the config write, and writes the
+config last. `open` switches those tasks back on, unarchives the T3 Code project (only the one
+`close` archived), then the home threads only (a crew's thread stays put away), takes the line out
+of the config, and deletes `closed.json` last. So a run cut off at any step is finished by the next
+run, and a run with nothing left to do says so and changes nothing. The view reads the day in
+`closed.json`, since it reads no config.
 
 Each pass is a new `jbus poll` that loads the config, so the pass after `add` covers the new
 project, and nobody restarts a unit.
@@ -274,6 +276,27 @@ def _homes(config: jbus.Config, one: jbus.Project) -> set[str]:
     return {ids(home)[0], *(now for _, now, _ in scopes(home))} - {""}
 
 
+def _t3_project(client: t3.Client, one: jbus.Project) -> dict | None:
+    """The T3 Code project whose workspace root is the project's checkout, the one with the
+    project's id where several are, or None where T3 Code has none."""
+    found, cursor = [], 0
+    for _ in range(20):
+        said = client.call("t3_project_list", {"limit": 100, "cursor": cursor})
+        found += said.get("projects", [])
+        cursor = said.get("nextCursor")
+        if not isinstance(cursor, int) or not cursor:
+            break
+    home = one.checkout.resolve()
+    mine = [
+        each
+        for each in found
+        if each.get("workspaceRoot")
+        and not each.get("deletedAt")
+        and Path(each["workspaceRoot"]).resolve() == home
+    ]
+    return next((each for each in mine if each.get("id") == one.project_id), next(iter(mine), None))
+
+
 def _at_work(state: Path, listed: list[dict]) -> list[str]:
     """Each row of the project that is out, and each crew, reviewer or scout thread in a turn."""
     rows = queue.load(state)
@@ -312,29 +335,42 @@ def close(
         }
         path = state / RECORD
         kept = jbus.read_json(path, {})
+        found = _t3_project(client, one)
+        shown = found if found and not found.get("archivedAt") else None
+        mine = kept.get("project") or (shown or {}).get("id")
         record = {
             "threads": sorted({*kept.get("threads", []), *threads}),
             "homes": sorted({*kept.get("homes", []), *(_homes(config, one) & threads)}),
             "tasks": sorted({*kept.get("tasks", []), *tasks}),
+            **({"project": mine} if mine else {}),
         }
         jbus.write_json(path, record, mode=0o600)
         for task in sorted(tasks):
             client.call("schedule_task", {"scheduledTaskId": task, "enabled": False})
         for thread in sorted(threads):
             client.call("t3_thread_organize", {"action": "archive", "threadId": thread})
+        if mine and shown and shown["id"] == mine:
+            client.call("t3_project_update", {"projectId": mine, "archived": True})
         jbus.write_json(path, {**record, CLOSED: day}, mode=0o600)
         backup = _set(config_path, name, CLOSED, day)
+    sidebar = (
+        "its T3 Code project archived"
+        if mine
+        else "its T3 Code project was archived already"
+        if found
+        else "T3 Code has no project at its checkout"
+    )
     return (
         f"closed: {name}, {len(record['threads'])} threads archived and "
-        f"{len(record['tasks'])} scheduled tasks off, the file as it was is {backup}: "
-        f"jbus project open {name} brings it back"
+        f"{len(record['tasks'])} scheduled tasks off, {sidebar}, the file as it was is "
+        f"{backup}: jbus project open {name} brings it back"
     )
 
 
 def reopen(config_path: Path, name: str, client: t3.Client | None = None) -> str:
     """Open the closed project `name` again: switch back on the tasks `close` switched off,
-    unarchive the home threads it archived, take the day out of its table, and delete
-    `closed.json`. Return the answer, one line."""
+    unarchive the T3 Code project and the home threads it archived, take the day out of its table,
+    and delete `closed.json`. Return the answer, one line."""
     config = jbus.load(config_path.parent)
     with jbus.locked(config.state_dir, config.lock_path.name):
         config = jbus.load(config_path.parent)
@@ -347,6 +383,9 @@ def reopen(config_path: Path, name: str, client: t3.Client | None = None) -> str
         record, client = jbus.read_json(path, {}), _client(config, client)
         for task in record.get("tasks", []):
             _unless_gone(client, "schedule_task", {"scheduledTaskId": task, "enabled": True})
+        if record.get("project"):
+            asked = {"projectId": record["project"], "archived": False}
+            _unless_gone(client, "t3_project_update", asked)
         for home in record.get("homes", []):
             read = _unless_gone(client, "t3_thread_read", {"threadId": home, "limit": 1})
             if read and (read.get("thread") or {}).get("archived"):
@@ -355,8 +394,9 @@ def reopen(config_path: Path, name: str, client: t3.Client | None = None) -> str
             _set(config_path, name, CLOSED, None)
         path.unlink(missing_ok=True)
     return (
-        f"opened: {name}, {len(record.get('tasks', []))} scheduled tasks on and its home threads "
-        "back: the next pass works it, restart no unit"
+        f"opened: {name}, {len(record.get('tasks', []))} scheduled tasks on and "
+        f"{'its T3 Code project and ' if record.get('project') else ''}its home threads back: "
+        "the next pass works it, restart no unit"
     )
 
 
