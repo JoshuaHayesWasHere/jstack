@@ -632,13 +632,13 @@ def test_the_pass_corrects_a_line_broken_by_hand_and_logs_it_as_drift_quietly(ki
     kept = json.loads((kitchen.state / work.NAME).read_text())
     for one in kept["work"]:
         if one["key"] == "alpha":
-            one.update(value="review", who="rev", facts={**one["facts"], "pull": "review"})
+            one.update(value="ready", who="bus")
     (kitchen.state / work.NAME).write_text(json.dumps(kept))
     kitchen.poll()
     assert (judged(kitchen)["value"], judged(kitchen)["who"]) == ("unapproved", "user")
     drifted = kitchen.events(states.DRIFT)
     assert [(one["line"], one["loud"]) for one in drifted] == [
-        ("work-drift alpha: pull 'review' for 'none'", "quiet")
+        ("work-drift alpha: value 'ready' for 'unapproved'", "quiet")
     ]
     kitchen.poll()
     assert len(kitchen.events(states.DRIFT)) == 1

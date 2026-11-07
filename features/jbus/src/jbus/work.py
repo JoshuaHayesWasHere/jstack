@@ -648,9 +648,6 @@ SEEN = ("thread", "pr")
 """The columns of a row of the queue that its line of `work.json` carries as they are."""
 PULLED = "pulled"
 """The field of a line that says when a run of `jmerge` last restated its `Pull` facet."""
-DRIFT = ("row", "pull")
-"""The facets of a row's line that a writer restates as it writes its input. The pass judges
-every facet, and a line whose facets here it finds otherwise had drifted."""
 
 
 def _rewrite(state_dir: Path, change: Callable[[list[Any]], list[Any]]) -> None:
@@ -747,9 +744,17 @@ def kept(one: dict[str, Any], was: dict[str, Any] | None, began: str) -> dict[st
 
 
 def drift(before: list[Any], after: list[Any]) -> list[tuple[str, str]]:
-    """Return each row's line that the pass corrects, by key, with what was wrong in it: a facet
-    of `DRIFT` that the file had otherwise, a line for a row the queue no longer has, or no line
-    for a row it has."""
+    """Return each row's line that the pass corrects and that a writer should have kept right, by
+    key, with what was wrong in it: a line for a row the queue no longer has, no line for a row it
+    has, a `Row` facet the queue gave otherwise (a move between `APPROVED` facets is the pass's to
+    judge, as `restate` says), a `Pull` facet that a run of `jmerge` restated (`PULLED`) and that
+    the pass, with GitHub's answer, judges otherwise for the same pull request, or a value that does
+    not follow from the line's own facts, which no writer restates since its facts are right.
+
+    The facets the pass alone sees, a thread's and what was written, and a pull request no run of
+    `jmerge` restated on the line yet, are no drift. The writers run in the pass too, before it
+    writes, so a facet broken in the file is most often put right by one of them first, and the
+    pass then finds nothing of it to correct."""
     was = {one["key"]: one for one in before if _is_row(one)}
     now = {one["key"]: one for one in after if _is_row(one)}
     found = []
@@ -759,16 +764,24 @@ def drift(before: list[Any], after: list[Any]) -> list[tuple[str, str]]:
             found.append((key, "no line"))
         elif new is None:
             found.append((key, "a line for a row the queue does not have"))
-        else:
-            facts = (old.get("facts") or {}, new.get("facts") or {})
-            off = [
-                f"{name} {facts[0].get(name)!r} for {facts[1].get(name)!r}"
-                for name in DRIFT
-                if facts[0].get(name) != facts[1].get(name)
-            ]
-            if off:
-                found.append((key, ", ".join(off)))
+        elif off := _off(old, new):
+            found.append((key, ", ".join(off)))
     return found
+
+
+def _off(old: dict[str, Any], new: dict[str, Any]) -> list[str]:
+    facts = (old.get("facts") or {}, new.get("facts") or {})
+    rows = (facts[0].get("row"), facts[1].get("row"))
+    pulls = (facts[0].get("pull"), facts[1].get("pull"))
+    off = []
+    if rows[0] != rows[1] and not set(rows) <= set(APPROVED):
+        off.append(f"row {rows[0]!r} for {rows[1]!r}")
+    heard = facts[1].get("answered") in (Answered.BOTH, Answered.GITHUB)
+    if pulls[0] != pulls[1] and PULLED in old and old.get("pr") == new.get("pr") and heard:
+        off.append(f"pull {pulls[0]!r} for {pulls[1]!r}")
+    if facts[0] == facts[1] and old.get("value") != new.get("value"):
+        off.append(f"value {old.get('value')!r} for {new.get('value')!r}")
+    return off
 
 
 def moment(at: datetime) -> str:

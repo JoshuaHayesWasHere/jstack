@@ -31,7 +31,8 @@ each run of `jmerge`, the tick's and the pass's, restates the step of each pull 
 So a change reaches `work.json` within milliseconds of its write: `features/jbus/tests/work_live_probe.py` times it.
 The pass still judges every row from all it saw and writes the whole file.
 It keeps a pull request's step that a tick's run restated after the pass began, since that run judged later than the pass's own.
-Each row's line it finds otherwise in the file, by its go or its pull request's step, or a line missing or left over, it corrects and logs as a `work-drift` event, which is quiet and tells nobody.
+Where it finds a row's line otherwise than a writer should have left it, it corrects the line and logs a `work-drift` event, which is quiet and tells nobody: a go, or a pull request's step that `jmerge` restated, that the pass judges otherwise, a value that does not follow from the line's own facts, or a line missing or left over.
+What the pass alone sees, such as a thread's state, is no drift.
 `held.json` and `checks.json` are no input of a line: the sidebar reads `held.json` itself, and main's checks reach a row through `jmerge`'s next verdict.
 `jbus-stale.timer` catches a timer that stopped.
 A stopped timer starts no pass, so no failed pass reports it ([When jbus fails](when-jbus-fails.md)).
