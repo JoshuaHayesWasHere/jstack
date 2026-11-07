@@ -53,7 +53,7 @@ from functools import cached_property
 from typing import Any
 
 import jsettings
-from jbus.watch import MAC_JOBS
+from jbus.watch import mac_job
 
 LOOKBACK = timedelta(hours=2)
 FALLBACK = timedelta(hours=24)
@@ -157,7 +157,7 @@ def _number(
 def _of_main(job: dict[str, Any]) -> bool:
     """Return whether a job is one of main's check: a push to main, not one of macos.yml, which
     `jbus.watch` never judges as main's check."""
-    return job["event"] == "push" and job["branch"] == "main" and job.get("name") not in MAC_JOBS
+    return job["event"] == "push" and job["branch"] == "main" and not mac_job(job.get("name"))
 
 
 def _ran(job: dict[str, Any]) -> bool:

@@ -1208,14 +1208,21 @@ def _judged(run: Pass, sha: str) -> tuple[list[dict], list[dict]]:
     return [
         r
         for r in runs
-        if (r.get("check_suite") or {}).get("id") not in other and r.get("name") not in MAC_JOBS
+        if (r.get("check_suite") or {}).get("id") not in other and not mac_job(r.get("name"))
     ], pushed
 
 
 MAC_FLOW = ".github/workflows/macos.yml"
 MAC_JOBS = ("macos-select", "macos")
 """macos.yml, and its jobs' names: its run on each push to main judges that merge commit on a
-Mac, apart from main's check."""
+Mac, apart from main's check. Its parts, `macos K of N`, are matched by `mac_job`."""
+_MAC_PART = re.compile(r"macos \d+ of \d+")
+
+
+def mac_job(name: object) -> bool:
+    """Return whether a job's name is one of macos.yml's: `macos-select`, `macos`, or a part
+    `macos K of N`."""
+    return isinstance(name, str) and (name in MAC_JOBS or bool(_MAC_PART.fullmatch(name)))
 
 
 def _of_mac(one: dict) -> bool:
