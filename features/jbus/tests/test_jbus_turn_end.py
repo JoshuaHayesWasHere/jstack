@@ -2,8 +2,8 @@
 with no `## Result`, or with a Result whose pull request opens after its review once that review is
 written and no Result names the pull request.
 
-Each test feeds `features/jbus/hooks/turn-end.sh` what Claude Code and Codex give a `Stop` hook,
-in a home of the test's own: `HOME` holds T3 Code's store, which maps each session to its thread,
+Each test feeds `features/jbus/hooks/turn-end.sh`, which judges with `jbus.crewend`, what Claude
+Code and Codex give a `Stop` hook, in a home of the test's own: `HOME` holds T3 Code's store, which maps each session to its thread,
 the homes' state of a repo named `Winnifred` with the brief of `a-task`, the test slots' files and
 a checkout of the repo on the branch `a-task`. No test touches the machine's own files.
 """
