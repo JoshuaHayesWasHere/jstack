@@ -16,4 +16,8 @@ hook=merge-command
   exit 2
 }
 . "$source/features/jbus/hooks/judge.sh"
+case $(field command) in
+*gh*merge* | *gh*Merge*) ;;
+*) exit 0 ;;
+esac
 judge jbus.mergecall
