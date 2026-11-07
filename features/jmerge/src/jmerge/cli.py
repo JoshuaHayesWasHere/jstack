@@ -1009,10 +1009,8 @@ class Repo:
             return Judgement("", judgement.verb(short), short, "", None)
         left = self.left(one)
         needs = ready.needs_the_user(one, self.protected, left, user=self.user)
-        if hold := self.lift(needs, self.lifted(one)):
-            return Judgement("", "hold", hold, "", None)
-        if red:
-            return Judgement("", "wait", red, "", None)
+        if short := self.lift(needs, self.lifted(one)) or red:
+            return Judgement("", judgement.verb(short), short, "", None)
         short, judged = self.over_main(one, left)
         short = (
             short or self.guards.kept(one, judged.tip) or self.short_on_migrations(one, one.base)
