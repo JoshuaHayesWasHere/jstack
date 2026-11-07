@@ -1,0 +1,328 @@
+From 8273c96facc511403a59b52599c43b97e31e3346 Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
+Date: Fri, 6 Nov 2026 13:48:00 -0500
+Subject: [PATCH] fix(web): jstack tree rows follow v0.1.7's sidebar, buttons
+ in the Tab order and no ARIA tree
+
+Upstream's sidebar stopped being an ARIA tree (#26690): its rows are buttons in the Tab
+order, the list holds no roving tab stop, and the active row says aria-current. The jstack
+rows were still treeitems at tabIndex -1, which Tab now skips, so they take upstream's
+shape: native buttons or role="button" rows in the Tab order, aria-current for the open
+row. Their tests drop SIDEBAR_TREE_PROPS, which upstream removed, give the project
+fixtures upstream's new pinned and archived fields, and find rows by role button.
+chatRouteCommands.test.ts, new upstream, pins the tree off for its cases and adds the
+tree's own, which starts in the current project.
+---
+ .../sidebar/JstackTreeRows.browser.test.tsx   | 41 ++++++++-----------
+ .../src/components/sidebar/JstackTreeRows.tsx | 33 +++++----------
+ .../sidebar/jstackAskOnAdd.browser.test.tsx   |  8 ++--
+ .../src/shortcuts/chatRouteCommands.test.ts   |  2 +
+ 4 files changed, 34 insertions(+), 50 deletions(-)
+
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+index b8af7f0a03..f1e4045655 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+@@ -14,7 +14,7 @@ import { page, userEvent } from "vite-plus/test/browser";
+ import "~/index.css";
+ import { render } from "../../../test/render";
+ import { persistClientSettingsUpdate } from "../../hooks/useSettings";
+-import { attachSidebarTree, SIDEBAR_TREE_PROPS } from "../../lib/sidebarTree";
++import { attachSidebarTree } from "../../lib/sidebarTree";
+ import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
+ import { makeThreadFixture } from "../../test-fixtures";
+ import { buildJstackTree, childHomeMessage, type JstackAnswering } from "./jstackTree.logic";
+@@ -50,6 +50,8 @@ const group = (displayName: string): SidebarProjectSnapshot => ({
+   allRemoteMembersAreDesktopLocal: false,
+   allRemoteMembersAreWsl: false,
+   remoteEnvironmentLabels: [],
++  pinned: false,
++  archived: false,
+ });
+ 
+ const rootThread = makeThreadFixture({ environmentId, projectId, id: ThreadId.make("root") });
+@@ -98,7 +100,7 @@ describe("JstackTreeRowView root rows", () => {
+     expect(spies.onToggleProject).toHaveBeenCalledTimes(1);
+     await expect.element(rootItem(screen)).toHaveFocus();
+     await userEvent.keyboard("{ArrowDown}");
+-    await expect.element(screen.getByRole("treeitem", { name: /^tidy / })).toHaveFocus();
++    await expect.element(screen.getByRole("button", { name: /^tidy / })).toHaveFocus();
+   });
+ });
+ 
+@@ -232,11 +234,7 @@ function LiveTree(props: {
+     },
+   };
+   return (
+-    <ul
+-      {...SIDEBAR_TREE_PROPS}
+-      ref={attachSidebarTree}
+-      className="flex w-[300px] flex-col gap-px bg-sidebar"
+-    >
++    <ul ref={attachSidebarTree} className="flex w-[300px] flex-col gap-px bg-sidebar">
+       {tree.rows.map((row) =>
+         row.kind === "loose" ? null : (
+           <JstackTreeRowView key={row.key} row={row} group={jstack} actions={live} />
+@@ -246,8 +244,7 @@ function LiveTree(props: {
+   );
+ }
+ 
+-const rootItem = (screen: Screen) =>
+-  screen.getByRole("treeitem", { name: /^jstack .*main thread$/ });
++const rootItem = (screen: Screen) => screen.getByRole("button", { name: /^jstack .*main thread$/ });
+ 
+ type Screen = Awaited<ReturnType<typeof render>>;
+ 
+@@ -343,11 +340,7 @@ function AskingTree(props: { spies: JstackTreeRowActions }) {
+     options: { attention: "gates", landedCount: false, quietMinutes: 20, rowCap: 8 },
+   });
+   return (
+-    <ul
+-      {...SIDEBAR_TREE_PROPS}
+-      ref={attachSidebarTree}
+-      className="flex w-[300px] flex-col gap-px bg-sidebar"
+-    >
++    <ul ref={attachSidebarTree} className="flex w-[300px] flex-col gap-px bg-sidebar">
+       {tree.rows.map((row) =>
+         row.kind === "loose" ? null : (
+           <JstackTreeRowView
+@@ -372,8 +365,8 @@ describe("JstackTreeRowView asks you", () => {
+     for (const how of ["click", "Enter"] as const) {
+       const spies = actions();
+       await using screen = await render(<AskingTree spies={spies} />, { router: false });
+-      const approval = screen.getByRole("treeitem", { name: /^sb-menus-own-actions asks you/ });
+-      const gated = screen.getByRole("treeitem", { name: /^sb-valve asks you/ });
++      const approval = screen.getByRole("button", { name: /^sb-menus-own-actions asks you/ });
++      const gated = screen.getByRole("button", { name: /^sb-valve asks you/ });
+       for (const row of [approval, gated]) {
+         if (how === "click") await userEvent.click(row);
+         else await press(row, "{Enter}");
+@@ -395,8 +388,8 @@ describe("JstackTreeRowView asks you", () => {
+       const spies = actions();
+       await using screen = await render(<AskingTree spies={spies} />, { router: false });
+       const cases = [
+-        [screen.getByRole("treeitem", { name: /^sb-gated asks you/ }), "crew-sb-gated"],
+-        [screen.getByRole("treeitem", { name: /^flow asks you/ }), "flow"],
++        [screen.getByRole("button", { name: /^sb-gated asks you/ }), "crew-sb-gated"],
++        [screen.getByRole("button", { name: /^flow asks you/ }), "flow"],
+       ] as const;
+       for (const [row, opens] of cases) {
+         if (how === "click") await userEvent.click(row);
+@@ -410,7 +403,7 @@ describe("JstackTreeRowView asks you", () => {
+     for (const how of ["click", "Enter"] as const) {
+       const spies = actions();
+       await using screen = await render(<AskingTree spies={spies} />, { router: false });
+-      const launched = screen.getByRole("treeitem", { name: /^sb-launched / });
++      const launched = screen.getByRole("button", { name: /^sb-launched / });
+       expect(launched.element().textContent).not.toContain("asks you");
+       if (how === "click") await userEvent.click(launched);
+       else await press(launched, "{Enter}");
+@@ -422,7 +415,7 @@ describe("JstackTreeRowView asks you", () => {
+     for (const how of ["click", "Enter"] as const) {
+       const spies = actions();
+       await using screen = await render(<AskingTree spies={spies} />, { router: false });
+-      const left = screen.getByRole("treeitem", { name: /^sb-home-actions-build / });
++      const left = screen.getByRole("button", { name: /^sb-home-actions-build / });
+       expect(left.element().textContent).not.toContain("asks you");
+       if (how === "click") await userEvent.click(left);
+       else await press(left, "{Enter}");
+@@ -459,7 +452,7 @@ const auditIdle = async () =>
+   (await audit()).filter((violation) => !violation.startsWith("color-contrast:"));
+ 
+ const homeItem = (screen: Screen, scope: string) =>
+-  screen.getByRole("treeitem", { name: new RegExp(`^${scope} .*home`) });
++  screen.getByRole("button", { name: new RegExp(`^${scope} .*home`) });
+ 
+ /** The home's own list item, which holds its line and its pin. */
+ const homeLine = (screen: Screen, scope: string) =>
+@@ -586,7 +579,7 @@ describe("JstackTreeRowView marks", () => {
+           <LiveTree snapshot={MARK_SNAPSHOT} spies={actions()} sent={[]} threads={MARK_THREADS} />,
+           { router: false },
+         );
+-        await expect.element(screen.getByRole("treeitem", { name: /^tidy / })).toBeVisible();
++        await expect.element(screen.getByRole("button", { name: /^tidy / })).toBeVisible();
+         const tree = screen.container.querySelector("ul")!;
+         const background = getComputedStyle(tree).backgroundColor;
+         // The theme took: a near-black sidebar in dark, a near-white one in light.
+@@ -596,7 +589,7 @@ describe("JstackTreeRowView marks", () => {
+         const inks = [
+           ...tree.querySelectorAll<Element>("svg[data-jstack-mark]"),
+           tree.querySelector('[data-testid="jstack-tree-project"] > span svg')!,
+-          ...[...tree.querySelectorAll<HTMLElement>('[role="treeitem"] span')].filter(
++          ...[...tree.querySelectorAll<HTMLElement>("[data-sidebar-row] span")].filter(
+             (span) =>
+               span.childElementCount === 0 &&
+               !span.classList.contains("sr-only") &&
+@@ -742,7 +735,7 @@ describe("JstackTreeRowView pinned homes", () => {
+     await expect.element(ops).toHaveFocus();
+     // Pinned open: the next row is its first task.
+     await userEvent.keyboard("{ArrowDown}");
+-    await expect.element(screen.getByRole("treeitem", { name: /^ops-trim / })).toHaveFocus();
++    await expect.element(screen.getByRole("button", { name: /^ops-trim / })).toHaveFocus();
+     await userEvent.keyboard("{ArrowUp}");
+     await expect.element(ops).toHaveFocus();
+ 
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+index b41eee9b1a..74463dee1d 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+@@ -274,9 +274,8 @@ function NewChildHomeRow(props: {
+     <li className="list-none">
+       <Nest depth={1}>
+         <div
+-          role="treeitem"
+-          tabIndex={-1}
+-          aria-selected={false}
++          role="button"
++          tabIndex={0}
+           data-sidebar-row={row.key}
+           data-sidebar-parent={row.parentKey}
+           onContextMenu={(event) => {
+@@ -431,9 +430,8 @@ function AnswerRowView(props: {
+     <li className="list-none">
+       <Nest depth={row.depth}>
+         <div
+-          role="treeitem"
+-          tabIndex={-1}
+-          aria-selected={false}
++          role="button"
++          tabIndex={0}
+           data-sidebar-row={row.key}
+           data-sidebar-parent={row.parentKey}
+           onContextMenu={(event) => {
+@@ -560,11 +558,9 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+         >
+           <button
+             type="button"
+-            role="treeitem"
+-            tabIndex={-1}
+             data-sidebar-row={row.key}
+             aria-expanded={!row.collapsed}
+-            aria-selected={row.selected}
++            aria-current={row.selected ? "page" : undefined}
+             // Alt+Arrow moves the row in its group, as a line moves in an editor.
+             aria-keyshortcuts={
+               place !== null && place.count > 1 ? "Alt+ArrowUp Alt+ArrowDown" : undefined
+@@ -634,9 +630,9 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+               row.live ? "[&_svg]:!text-jstack-live" : "[&_svg]:!text-sidebar-foreground/60",
+             )}
+           />
+-          {/* For the pointer only: the row's menu and its arrow keys reach both, so the tree
+-              holds treeitems alone and Tab stays one stop. The chevron hands focus back to
+-              the row, where the tree's keys act. */}
++          {/* For the pointer only: the row's menu and its arrow keys reach both, so Tab
++              stops at the row alone. The chevron hands focus back to the row, where the
++              tree's keys act. */}
+           <span aria-hidden className="absolute inset-y-0 right-1 flex items-center gap-0.5">
+             {main === null ? (
+               <span className="opacity-0 group-hover/project-folder:opacity-100 pointer-coarse:opacity-100">
+@@ -692,12 +688,10 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+             <div className="group/home relative">
+               <button
+                 type="button"
+-                role="treeitem"
+-                tabIndex={-1}
+                 data-sidebar-row={row.key}
+                 data-sidebar-parent={row.parentKey}
+                 aria-expanded={work.kind === "live" ? row.open : undefined}
+-                aria-selected={row.selected}
++                aria-current={row.selected ? "page" : undefined}
+                 onClick={() => actions.onOpenThread(row.threadId)}
+                 onContextMenu={onContextMenu}
+                 className={cn(
+@@ -818,11 +812,9 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+                 render={
+                   <button
+                     type="button"
+-                    role="treeitem"
+-                    tabIndex={-1}
+                     data-sidebar-row={row.key}
+                     data-sidebar-parent={row.parentKey}
+-                    aria-selected={row.selected}
++                    aria-current={row.selected ? "page" : undefined}
+                     aria-expanded={row.answering ? true : row.ask === null ? undefined : unfolded}
+                     onClick={
+                       row.ask === null ? open(row.openThreadId) : () => setUnfolded(!unfolded)
+@@ -938,11 +930,8 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+           <Nest depth={1}>
+             <button
+               type="button"
+-              role="treeitem"
+-              tabIndex={-1}
+               data-sidebar-row={row.key}
+               data-sidebar-parent={row.parentKey}
+-              aria-selected={false}
+               onClick={() => actions.onOpenThread(row.rootThreadId)}
+               onContextMenu={onContextMenu}
+               className={cn(ROW_BUTTON, "h-7")}
+@@ -994,8 +983,6 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+           <Nest depth={row.depth}>
+             <button
+               type="button"
+-              role="treeitem"
+-              tabIndex={-1}
+               data-sidebar-row={row.key}
+               data-sidebar-parent={row.parentKey}
+               onClick={() => actions.onExpandHome(row.homeKey)}
+diff --git a/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx b/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
+index 26da018471..6fb9ff45f6 100644
+--- a/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
++++ b/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
+@@ -4,7 +4,7 @@ import { page, userEvent } from "vite-plus/test/browser";
+ 
+ import "~/index.css";
+ import { render } from "../../../test/render";
+-import { attachSidebarTree, SIDEBAR_TREE_PROPS } from "../../lib/sidebarTree";
++import { attachSidebarTree } from "../../lib/sidebarTree";
+ import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
+ import { makeThreadFixture } from "../../test-fixtures";
+ import { groupSidebarThreadsByProject } from "../Sidebar.logic";
+@@ -42,6 +42,8 @@ function project(name: string): SidebarProjectSnapshot {
+     allRemoteMembersAreDesktopLocal: false,
+     allRemoteMembersAreWsl: false,
+     remoteEnvironmentLabels: [],
++    pinned: false,
++    archived: false,
+   };
+ }
+ 
+@@ -167,7 +169,7 @@ it("asks at once about a project added with no thread, and draws it as a root ro
+     ].map((name) => [name, vi.fn()]),
+   ) as unknown as JstackTreeRowActions;
+   await using rows = await render(
+-    <ul {...SIDEBAR_TREE_PROPS} ref={attachSidebarTree} className="flex w-[300px] flex-col">
++    <ul ref={attachSidebarTree} className="flex w-[300px] flex-col">
+       <JstackTreeRowView
+         row={winnifredRoot.tree.root}
+         group={winnifredRoot.group}
+@@ -177,7 +179,7 @@ it("asks at once about a project added with no thread, and draws it as a root ro
+     </ul>,
+     { router: false },
+   );
+-  await userEvent.click(rows.getByRole("treeitem", { name: "Winnifred" }), { button: "right" });
++  await userEvent.click(rows.getByRole("button", { name: "Winnifred" }), { button: "right" });
+   await userEvent.click(page.getByRole("menuitem", { name: "Start a home" }));
+   expect(actions.onStartHome).toHaveBeenCalledWith(winnifredGroup);
+ });
+diff --git a/apps/web/src/shortcuts/chatRouteCommands.test.ts b/apps/web/src/shortcuts/chatRouteCommands.test.ts
+index 6c9ff18690..a5f38f6e48 100644
+--- a/apps/web/src/shortcuts/chatRouteCommands.test.ts
++++ b/apps/web/src/shortcuts/chatRouteCommands.test.ts
+@@ -30,12 +30,14 @@ describe("new thread commands", () => {
+     { mode: "boring", count: 2, command: "chat.new", picker: true },
+     { mode: "boring", count: 1, command: "chat.new", picker: false },
+     { mode: "legacy", count: 2, command: "chat.new", picker: false },
++    { mode: "jstack", count: 2, command: "chat.new", picker: false },
+     { mode: "boring", count: 2, command: "chat.newLocal", picker: false },
+   ] as const)("$mode sidebar, $count projects, $command: picker=$picker", (scenario) => {
+     using _settings = vi.spyOn(settings, "getClientSettings").mockReturnValue({
+       ...DEFAULT_CLIENT_SETTINGS,
+       boringSidebarEnabled: scenario.mode === "boring",
+       legacySidebarEnabled: scenario.mode === "legacy",
++      jstackTreeSidebarEnabled: scenario.mode === "jstack",
+     });
+     using _projects = vi
+       .spyOn(entities, "readProjects")
+-- 
+2.56.0
+

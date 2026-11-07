@@ -30,6 +30,10 @@ Acts are taken one at a time, under `acts.lock`: `queue.lock` and `questions.loc
 the verbs themselves, and an act holds them only through those verbs. A `does` runs outside
 `acts.lock`, so a merge does not hold every other act back, and it never takes an act itself:
 `locked` takes a lock a second time in one process by waiting on it forever.
+
+A go, an answer and a remove that are `done` show at once in `work.json` and
+`waiting-on-user.json` (`waiting.acted`), once `acts.lock` is let go, so the view does not wait
+for the next pass to drop what the act settled.
 """
 
 from __future__ import annotations
@@ -59,6 +63,7 @@ from jbus import (
     queue,
     read_json,
     verbs,
+    waiting,
     wake,
     write_json,
 )
@@ -155,15 +160,18 @@ def act(
     names the gate it parks, `parked`. `id` is the act's own id where the verb keeps one (a
     word's), else the hash of the act."""
     if action.verb not in ("go", "answer"):
-        return _done(run, who, action, said, does, parked, id)
-    with locked(run.state, LOCK):
-        if action.verb == "go":
-            action, outcome, line, gate = _go(run, asks, who, action, said, follows, ran_by)
-        else:
-            action, outcome, line, gate = _answer(run, who, action, said, keeps, where)
-        made = logged(run, who, action, said, outcome, line, gate)
-    if outcome == "refused":
-        raise Refused(line)
+        made = _done(run, who, action, said, does, parked, id)
+    else:
+        with locked(run.state, LOCK):
+            if action.verb == "go":
+                action, outcome, line, gate = _go(run, asks, who, action, said, follows, ran_by)
+            else:
+                action, outcome, line, gate = _answer(run, who, action, said, keeps, where)
+            made = logged(run, who, action, said, outcome, line, gate)
+        if outcome == "refused":
+            raise Refused(line)
+    if made.outcome == "done":
+        waiting.acted(run, made.action.verb, made.action.subject)
     return made
 
 

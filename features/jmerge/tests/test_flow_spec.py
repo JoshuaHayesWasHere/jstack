@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from testing import shard
 from testing.paths import REPO
 
 SPEC = REPO / "features" / "jmerge" / "spec"
@@ -24,9 +25,11 @@ find_java = tools.find_java
 
 
 @pytest.mark.skipif(not find_java(), reason="no Java to run TLC")
-@pytest.mark.timeout(1200)
-@pytest.mark.shard_seconds(653.60)
+@pytest.mark.timeout(1800)
+@pytest.mark.shard_seconds(0.59)
 def test_today_and_the_design_hold_their_rules_and_each_canary_breaks_its_own():
+    """About 650s on a Linux runner and 1073s on a macOS one (2026-11-05), whose speed varies by a
+    fifth from run to run: the limit sits well above the slow end of that."""
     ran = subprocess.run(
         [sys.executable, str(SPEC / "flow_canaries.py")], capture_output=True, text=True, cwd=REPO
     )
@@ -45,6 +48,19 @@ def test_today_and_the_design_hold_their_rules_and_each_canary_breaks_its_own():
     assert "FixAfterARedCheckWaitsOnlyOnYou" in flow.PROBES
     for probe in flow.PROBES:
         assert any(line.startswith(f"ok    today: {probe} holds") for line in lines)
+
+
+def test_a_desk_record_writes_the_tlc_test_at_the_table_s_warm_time():
+    """CI's parts restore main's TLC cache, so the TLC test takes under a second there, and a
+    desk's `--shard-record` writes the seconds its `shard_seconds` pin gives in place of the
+    minutes a cold desk takes. The pin is the figure the table, recorded from main's full runs,
+    holds for it, so the two records agree: #1173's pin stayed at the cold 653.60 s once the
+    table held the warm time."""
+    test = test_today_and_the_design_hold_their_rules_and_each_canary_breaks_its_own
+    (pin,) = [mark.args[0] for mark in test.pytestmark if mark.name == shard.PINNED]
+    nodeid = f"features/jmerge/tests/test_flow_spec.py::{test.__name__}"
+    table = shard.seconds(shard.read_times(shard.TIMES), nodeid)
+    assert pin == table, f"pin the TLC test at the table's figure: shard_seconds({table:.2f})"
 
 
 def test_each_run_takes_two_workers_and_a_test_slot(tmp_path, monkeypatch):

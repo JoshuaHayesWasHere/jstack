@@ -1,4 +1,4 @@
-From 14e880d788d690660c5ee823f175ee10441b13b2 Mon Sep 17 00:00:00 2001
+From ec5ffe7f3ef3dcf170b7b979127d2502fa61e96d Mon Sep 17 00:00:00 2001
 From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
 Date: Mon, 2 Nov 2026 01:12:38 -0500
 Subject: [PATCH] fix(cursor): a Cursor instance's agent runs its commands in
@@ -11,18 +11,18 @@ instance's SHELL, and leaves that scope for callbacks into T3, so T3's terminals
 other providers keep the server's shell. An instance with no SHELL is unchanged.
 ---
  .../src/server/CursorAgentSdk.test.ts         | 68 +++++++++++++++++-
- .../src/server/CursorAgentSdk.ts              | 65 ++++++++++-------
+ .../src/server/CursorAgentSdk.ts              | 69 ++++++++++--------
  .../provider-cursor/src/server/driver.test.ts | 72 +++++++++++++++++++
  packages/provider-cursor/src/server/driver.ts | 10 ++-
  .../src/server/instanceShell.ts               | 44 ++++++++++++
- 5 files changed, 230 insertions(+), 29 deletions(-)
+ 5 files changed, 232 insertions(+), 31 deletions(-)
  create mode 100644 packages/provider-cursor/src/server/instanceShell.ts
 
 diff --git a/packages/provider-cursor/src/server/CursorAgentSdk.test.ts b/packages/provider-cursor/src/server/CursorAgentSdk.test.ts
-index d715766a30..0abda4e75a 100644
+index 431b4489df..e47bb7702a 100644
 --- a/packages/provider-cursor/src/server/CursorAgentSdk.test.ts
 +++ b/packages/provider-cursor/src/server/CursorAgentSdk.test.ts
-@@ -14,6 +14,11 @@ const cursorSdkMock = vi.hoisted(() => {
+@@ -16,6 +16,11 @@ const cursorSdkMock = vi.hoisted(() => {
    const runOperations: Array<string> = [];
    let agentCloseFailure: unknown;
    let staleRunActive = false;
@@ -34,7 +34,7 @@ index d715766a30..0abda4e75a 100644
    const runWait = vi.fn(async () => ({
      id: "run-cursor-agent-sdk-test",
      requestId: "request-cursor-agent-sdk-test",
-@@ -44,10 +49,20 @@ const cursorSdkMock = vi.hoisted(() => {
+@@ -46,10 +51,20 @@ const cursorSdkMock = vi.hoisted(() => {
            text: "hello",
          },
        });
@@ -56,7 +56,7 @@ index d715766a30..0abda4e75a 100644
          cancel: runCancel,
        };
      },
-@@ -90,6 +105,7 @@ const cursorSdkMock = vi.hoisted(() => {
+@@ -92,6 +107,7 @@ const cursorSdkMock = vi.hoisted(() => {
      setStaleRunActive: (active: boolean) => {
        staleRunActive = active;
      },
@@ -64,7 +64,7 @@ index d715766a30..0abda4e75a 100644
    };
  });
  
-@@ -172,4 +188,54 @@ describe("CursorAgentSdkRunner", () => {
+@@ -211,4 +227,54 @@ describe("CursorAgentSdkRunner", () => {
        ]);
      }).pipe(Effect.provide(layerTest)),
    );
@@ -120,7 +120,7 @@ index d715766a30..0abda4e75a 100644
 +  );
  });
 diff --git a/packages/provider-cursor/src/server/CursorAgentSdk.ts b/packages/provider-cursor/src/server/CursorAgentSdk.ts
-index 5986d09506..3af9a7d808 100644
+index f48d7baf1b..0158d60d17 100644
 --- a/packages/provider-cursor/src/server/CursorAgentSdk.ts
 +++ b/packages/provider-cursor/src/server/CursorAgentSdk.ts
 @@ -19,6 +19,7 @@ import * as Ref from "effect/Ref";
@@ -140,17 +140,17 @@ index 5986d09506..3af9a7d808 100644
    readonly threadId: ThreadId;
    readonly providerSessionId: OrchestrationV2ProviderSession["id"];
  }
-@@ -386,11 +389,14 @@ export const makeCursorAgentSdkRunner = Effect.fn("makeCursorAgentSdkRunner")(fu
+@@ -399,11 +402,14 @@ export const makeCursorAgentSdkRunner = Effect.fn("makeCursorAgentSdkRunner")(fu
          },
        });
  
-+      const sdk = <A>(call: () => Promise<A>) => withInstanceShell(input.shell, call);
++      const inShell = <A>(call: () => Promise<A>) => withInstanceShell(input.shell, call);
        const agent = yield* Effect.tryPromise({
          try: () =>
 -          input.operation === "create"
 -            ? Agent.create(input.options)
 -            : Agent.resume(input.agentId!, input.options),
-+          sdk(() =>
++          inShell(() =>
 +            input.operation === "create"
 +              ? Agent.create(input.options)
 +              : Agent.resume(input.agentId!, input.options),
@@ -158,7 +158,7 @@ index 5986d09506..3af9a7d808 100644
          catch: (cause) => runnerError(cause, `agent.${input.operation}`),
        });
  
-@@ -439,16 +445,18 @@ export const makeCursorAgentSdkRunner = Effect.fn("makeCursorAgentSdkRunner")(fu
+@@ -452,16 +458,18 @@ export const makeCursorAgentSdkRunner = Effect.fn("makeCursorAgentSdkRunner")(fu
                  if (callbackFailure !== undefined) {
                    return;
                  }
@@ -187,77 +187,81 @@ index 5986d09506..3af9a7d808 100644
                  );
                })
                .catch((cause) => {
-@@ -460,16 +468,18 @@ export const makeCursorAgentSdkRunner = Effect.fn("makeCursorAgentSdkRunner")(fu
+@@ -473,18 +481,20 @@ export const makeCursorAgentSdkRunner = Effect.fn("makeCursorAgentSdkRunner")(fu
            const startRun = () =>
              Effect.tryPromise({
                try: () =>
--                agent.send(sendInput.message, {
--                  ...sendInput.options,
--                  onDelta: async ({ update }) => {
--                    if (!callbacksReady) {
--                      pendingUpdates.push(update);
--                      return;
--                    }
--                    await dispatchUpdate(update);
--                  },
--                }),
-+                sdk(() =>
-+                  agent.send(sendInput.message, {
-+                    ...sendInput.options,
-+                    onDelta: async ({ update }) => {
-+                      if (!callbacksReady) {
-+                        pendingUpdates.push(update);
-+                        return;
-+                      }
-+                      await dispatchUpdate(update);
-+                    },
-+                  }),
+-                sendInput.summarize === true
+-                  ? agent.summarize()
+-                  : agent.send(sendInput.message, {
+-                      ...sendInput.options,
+-                      onDelta: async ({ update }) => {
+-                        if (!callbacksReady) {
+-                          pendingUpdates.push(update);
+-                          return;
+-                        }
+-                        await dispatchUpdate(update);
+-                      },
+-                    }),
++                inShell(() =>
++                  sendInput.summarize === true
++                    ? agent.summarize()
++                    : agent.send(sendInput.message, {
++                        ...sendInput.options,
++                        onDelta: async ({ update }) => {
++                          if (!callbacksReady) {
++                            pendingUpdates.push(update);
++                            return;
++                          }
++                          await dispatchUpdate(update);
++                        },
++                      }),
 +                ),
                catch: (cause) => runnerError(cause, "run.start"),
              });
            const run = yield* startRun().pipe(
-@@ -479,7 +489,8 @@ export const makeCursorAgentSdkRunner = Effect.fn("makeCursorAgentSdkRunner")(fu
+@@ -494,7 +504,8 @@ export const makeCursorAgentSdkRunner = Effect.fn("makeCursorAgentSdkRunner")(fu
                  Effect.gen(function* () {
                    abandonedRunRecoveryAvailable = false;
                    const latestRun = yield* Effect.tryPromise({
 -                    try: () => Agent.listRuns(agent.agentId, { ...runOptions, limit: 1 }),
 +                    try: () =>
-+                      sdk(() => Agent.listRuns(agent.agentId, { ...runOptions, limit: 1 })),
++                      inShell(() => Agent.listRuns(agent.agentId, { ...runOptions, limit: 1 })),
                      catch: (cause) => runnerError(cause, "agent.listRuns"),
                    });
                    const activeRun = latestRun.items.find(
-@@ -494,7 +505,7 @@ export const makeCursorAgentSdkRunner = Effect.fn("makeCursorAgentSdkRunner")(fu
+@@ -509,7 +520,7 @@ export const makeCursorAgentSdkRunner = Effect.fn("makeCursorAgentSdkRunner")(fu
                      payload: { type: "run.cancel", runId: activeRun.id },
                    });
                    yield* Effect.tryPromise({
 -                    try: () => Agent.cancelRun(activeRun.id, runOptions),
-+                    try: () => sdk(() => Agent.cancelRun(activeRun.id, runOptions)),
++                    try: () => inShell(() => Agent.cancelRun(activeRun.id, runOptions)),
                      catch: (cause) => runnerError(cause, "agent.cancelRun"),
                    });
                    return yield* startRun();
-@@ -525,7 +536,7 @@ export const makeCursorAgentSdkRunner = Effect.fn("makeCursorAgentSdkRunner")(fu
+@@ -540,7 +551,7 @@ export const makeCursorAgentSdkRunner = Effect.fn("makeCursorAgentSdkRunner")(fu
              agentId: run.agentId,
              wait: Effect.tryPromise({
                try: async () => {
 -                const result = await run.wait();
-+                const result = await sdk(() => run.wait());
++                const result = await inShell(() => run.wait());
                  await callbackChain;
                  if (callbackFailure !== undefined) {
                    throw callbackFailure.cause;
-@@ -557,7 +568,7 @@ export const makeCursorAgentSdkRunner = Effect.fn("makeCursorAgentSdkRunner")(fu
+@@ -572,7 +583,7 @@ export const makeCursorAgentSdkRunner = Effect.fn("makeCursorAgentSdkRunner")(fu
                  Effect.tryPromise({
                    try: async () => {
                      try {
 -                      await run.cancel();
-+                      await sdk(() => run.cancel());
++                      await inShell(() => run.cancel());
                      } catch (cause) {
                        if (!isCursorCancellationError(cause)) {
                          throw cause;
 diff --git a/packages/provider-cursor/src/server/driver.test.ts b/packages/provider-cursor/src/server/driver.test.ts
-index 5a3202fd20..25f77270b5 100644
+index d273e4b278..5a460b24ce 100644
 --- a/packages/provider-cursor/src/server/driver.test.ts
 +++ b/packages/provider-cursor/src/server/driver.test.ts
-@@ -173,6 +173,78 @@ it.layer(layerTest)("CursorDriver", (it) => {
+@@ -192,6 +192,78 @@ it.layer(layerTest)("CursorDriver", (it) => {
        }).pipe(Effect.scoped),
    );
  
@@ -337,10 +341,10 @@ index 5a3202fd20..25f77270b5 100644
      Effect.gen(function* () {
        const fileSystem = yield* FileSystem.FileSystem;
 diff --git a/packages/provider-cursor/src/server/driver.ts b/packages/provider-cursor/src/server/driver.ts
-index de7251fb56..caef9036b3 100644
+index 088c97c685..a1cc9730e8 100644
 --- a/packages/provider-cursor/src/server/driver.ts
 +++ b/packages/provider-cursor/src/server/driver.ts
-@@ -101,6 +101,10 @@ export const CursorDriver: ProviderDriver<
+@@ -102,6 +102,10 @@ export const CursorDriver: ProviderDriver<
      const keychain = yield* CursorKeychain.CursorKeychain;
      const sdkRunner = yield* CursorAgentSdk.CursorAgentSdkRunner;
      const processEnv = yield* mergeProviderInstanceEnvironment(environment);
@@ -351,7 +355,7 @@ index de7251fb56..caef9036b3 100644
      const continuationIdentity = defaultProviderContinuationIdentity({
        driverKind: DRIVER_KIND,
        instanceId,
-@@ -177,7 +181,11 @@ export const CursorDriver: ProviderDriver<
+@@ -178,7 +182,11 @@ export const CursorDriver: ProviderDriver<
              Effect.flatMap((apiKey) =>
                Effect.acquireRelease(
                  sdkRunner

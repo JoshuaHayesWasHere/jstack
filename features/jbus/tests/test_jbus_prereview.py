@@ -15,7 +15,7 @@ from jbus import clock, prereview
 from jgauge import slot, waiters
 from jroles import ledger
 from test_jbus_kitchen import NOW
-from test_jbus_queue import add
+from test_jbus_queue import add, rows
 
 DESK = "make check-fast BASE=" + "e" * 40 + " PART=touched"
 
@@ -55,9 +55,10 @@ def proof(head, ran=0, proved="Proved: none, docs\n"):
     )
 
 
-def proved_crew(kitchen, ran=0, push=True, review="review"):
+def proved_crew(kitchen, ran=0, push=True, review="review", pull="open one when done"):
     """A row jbus launched, whose crew committed a doc, wrote its desk proof's Result and
-    ended its turn. Returns its thread, the brief's path and the head."""
+    ended its turn. The brief's header says `Pull request: <pull>`. Returns its thread, the
+    brief's path and the head."""
     add(kitchen, "alpha")
     kitchen.poll(NOW - timedelta(minutes=3))
     (thread,) = kitchen.t3.threads
@@ -66,6 +67,7 @@ def proved_crew(kitchen, ran=0, push=True, review="review"):
     kitchen.t3.at_work.discard(thread["threadId"])
     path = kitchen.home / "tasks" / "alpha.md"
     text = path.read_text().replace("Review: review\n", f"Review: {review}\n")
+    text = text.replace("Pull request: open one when done\n", f"Pull request: {pull}\n", 1)
     path.write_text(text + proof(head, ran))
     return thread, path, head
 
@@ -142,6 +144,43 @@ def test_a_crew_waiting_on_its_review_is_told_once_when_it_is_written_and_not_nu
     assert len(reviewers(kitchen)) == 1
 
 
+def test_a_crew_whose_brief_header_says_after_the_review_is_not_over_before_its_review(kitchen):
+    """A brief whose header says `Pull request: after the review`, not `open one ...`, still
+    owes its pull request once its Result says the pull request opens after the review
+    (`jbus.watch.owes_pull`). A pass
+    that sees that Result while the crew is still at work neither settles the crew nor marks the
+    row done, and the pass after it, with the crew idle, launches the reviewer."""
+    thread, _, _ = proved_crew(kitchen, pull="after the review")
+    thread.update(status="running")
+    kitchen.t3.at_work.add(thread["threadId"])
+    kitchen.poll()
+    assert not thread.get("settled")
+    assert rows(kitchen)["alpha"]["status"] != "done"
+    assert reviewers(kitchen) == []
+    thread.update(status="completed")
+    kitchen.t3.at_work.discard(thread["threadId"])
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert [one["title"] for one in reviewers(kitchen)] == ["review: alpha, 1"]
+    assert not thread.get("settled")
+    assert rows(kitchen)["alpha"]["status"] != "done"
+
+
+def test_a_crew_whose_brief_header_says_after_the_review_is_told_when_its_review_is_written(
+    kitchen,
+):
+    """The pass that launches the reviewer of an idle crew also ties up threads: the crew is not
+    settled there, since its Result owes its pull request (`jbus.watch.owes_pull`), so the pass
+    after its reviewer writes tells it."""
+    thread, path, head = proved_crew(kitchen, pull="after the review")
+    kitchen.poll()
+    assert len(reviewers(kitchen)) == 1
+    assert not thread.get("settled")
+    path.write_text(path.read_text() + section(head))
+    kitchen.poll(NOW + timedelta(minutes=3))
+    (told,) = [one for one in sends(kitchen) if one["threadId"] == thread["threadId"]]
+    assert told["clientRequestId"] == f"prereviewed|alpha|{head[:12]}"
+
+
 def test_a_review_before_the_pull_request_that_never_comes_is_asked_again_by_the_clock(kitchen):
     """The crew waits on jbus while its review is out, so a reviewer that ended its turn writing
     nothing is the clock's, as on an open pull request: after `clock.PASSES` passes it is sent
@@ -153,6 +192,23 @@ def test_a_review_before_the_pull_request_that_never_comes_is_asked_again_by_the
     kitchen.t3.at_work.discard(made["threadId"])
     for minutes in range(3, 3 * (clock.PASSES + 2), 3):
         kitchen.poll(NOW + timedelta(minutes=minutes))
+    asked = [one for one in sends(kitchen) if one["threadId"] == made["threadId"]]
+    assert [one["message"] for one in asked] == ["/pr-review run alpha again"]
+
+
+def test_a_review_before_the_pull_request_that_did_not_run_tells_the_crew_nothing(kitchen):
+    """A reviewer with no room writes a section that says `Verdict: not run` and ends its turn.
+    That is no review: the crew is not told its review is written, and the clock asks the
+    reviewer again, as for a reviewer that wrote nothing."""
+    thread, path, head = proved_crew(kitchen)
+    kitchen.poll()
+    made = kitchen.t3.threads[-1]
+    made["status"] = "completed"
+    kitchen.t3.at_work.discard(made["threadId"])
+    path.write_text(path.read_text() + section(head, "not run", "- none, no room\n"))
+    for minutes in range(3, 3 * (clock.PASSES + 2), 3):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    assert [one for one in sends(kitchen) if one["threadId"] == thread["threadId"]] == []
     asked = [one for one in sends(kitchen) if one["threadId"] == made["threadId"]]
     assert [one["message"] for one in asked] == ["/pr-review run alpha again"]
 
@@ -239,3 +295,34 @@ def test_the_review_message_t3_code_does_not_take_is_tried_again_or_is_a_gate(ki
         ]
     else:
         assert not marked
+
+
+def test_a_crew_stacked_on_a_row_that_merged_gets_its_review_on_the_branch_it_merged_into(kitchen):
+    """A row before its pull request whose `Stacked on:` row merged and deleted its branch: jbus
+    moves the line, in the brief's head and in its Result, onto the branch that row merged into
+    before it launches the reviewer, whose start block reads the base from that line and fetches
+    it from origin."""
+    thread, path, head = proved_crew(kitchen)
+    first, _, rest = path.read_text().partition("\n")
+    after = "Pull request: after the review\n"
+    rest = rest.replace(after, f"{after}Stacked on: base base\n", 1)
+    path.write_text(f"{first}\nStacked on: base base\n{rest}")
+    merge = kitchen.started(
+        ["git", "rev-parse", "main"], cwd=kitchen.checkout, capture_output=True, text=True
+    ).stdout.strip()
+    kitchen.set("merged.json", [{**kitchen.merged("base", 10, merge), "baseRefName": "main"}])
+    for minutes in (0, 3):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    text = path.read_text()
+    moved = f"Stacked on: base main at {merge}"
+    assert [line for line in text.splitlines() if line.startswith("Stacked on:")] == [moved] * 2
+    assert len(reviewers(kitchen)) == 1
+    (line,) = [one for one in text.split("\n## ")[0].splitlines() if one.startswith("Stacked on:")]
+    on = line.split()[3]
+    fetched = kitchen.started(
+        ["git", "fetch", "-q", "origin", "alpha", on],
+        cwd=thread["worktreePath"],
+        capture_output=True,
+        text=True,
+    )
+    assert fetched.returncode == 0, fetched.stderr

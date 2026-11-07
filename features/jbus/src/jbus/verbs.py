@@ -413,27 +413,33 @@ def ranked(paths: Iterable[str]) -> dict[str, tuple[Step, ...]]:
     return {slot: tuple(found[at][0] for at in sorted(found) if at[0] == slot) for slot in SLOTS}
 
 
-def project(config: jbus.Config, name: str | None) -> jbus.Project:
+def project(config: jbus.Config, name: str | None, closed: bool = False) -> jbus.Project:
     """Return the named project, the only project, or the one whose repo contains this
-    directory."""
+    directory. With `closed`, for a verb that only reads, a closed project is found too. A closed
+    project whose repo this is is never taken for another: it is refused, or found with `closed`."""
+    if name is None:
+        repo = paths.repo_name()
+        for one in config.closed:
+            if one.state == repo:
+                return config.project(one.name, closed)
     if name is None and len(config.projects) > 1:
         repo = paths.repo_name()
         for one in config.projects:
             if one.state == repo:
                 return one
-    return config.project(name)
+    return config.project(name, closed)
 
 
-def here(config: jbus.Config, name: str | None) -> jbus.Project:
+def here(config: jbus.Config, name: str | None, closed: bool = False) -> jbus.Project:
     """Return the project a thread acts for: the named one, or the one whose repo this is.
 
     Every repo uses the crew and scout skills, so `here` refuses a gate from a repo that the config
     does not name, rather than send it as another project's gate.
     """
     if name is not None:
-        return config.project(name)
+        return config.project(name, closed)
     repo = paths.repo_name()
-    for one in config.projects:
+    for one in (*config.projects, *(config.closed if closed else ())):
         if one.state == repo:
             return one
     raise jbus.Refused(f"refused: no project for this repo ({repo or 'not a repo'})")

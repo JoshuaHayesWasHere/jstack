@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import jsettings
 from jbriefs.home import home_of, thread_of
@@ -14,16 +14,19 @@ from jbus import (
     cancelled,
     dispatch,
     leftover,
+    locked,
     merge,
     queue,
     stall,
     threads,
     verbs,
+    waiting,
     watch,
     work,
 )
 
 if TYPE_CHECKING:
+    from jbus.passes import Pass
     from jbus.poll import Half
 
 
@@ -124,7 +127,28 @@ def keep_work(half: Half) -> None:
     mine = {(queue.role(row), row["slug"]) for row in rows}
     listed += watch.judged(run, half.out, mine, half.answered())
     at = jsettings.stamp(run.now)
-    work.write(run.state, at, half.answered(), listed)
+    with locked(run.state, work.LOCK):
+        work.write(run.state, at, half.answered(), _since(run, listed))
+
+
+def _since(run: Pass, listed: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return the pass's lines with each row's go as the queue has it now. An act between the
+    pass's read of the table and this write (`acted`) changed a row's go or took the row out, and
+    the act's own line already says so: the pass keeps it, and does not write the row as it was."""
+    try:
+        rows = queue.load(run.state)
+    except queue.Unparsable:
+        return listed
+    now = {row["slug"]: row for row in rows}
+    kept = []
+    for one in listed:
+        if one.get("kind") == "row":
+            row = now.get(one["slug"])
+            if row is None:
+                continue
+            one = work.restate(one, waiting.row_facet(run, row, rows))
+        kept.append(one)
+    return kept
 
 
 STEPS = (

@@ -4,8 +4,7 @@ checkout=$(cd "$(dirname "$0")/.." 2>/dev/null && pwd)
 template=$checkout/templates/hook-message.md
 
 input=$(cat)
-[ "$(printf '%s' "$input" | jq -r '.source // empty')" = startup ] || exit 0
-[ -n "$T3_CODE_MCP_AUTHORIZATION$T3_MCP_BEARER_TOKEN" ] || exit 0
+[ -n "$T3CODE_THREAD_ID" ] || [ "$CODEX_INTERNAL_ORIGINATOR_OVERRIDE" = "T3 Code" ] || exit 0
 
 cwd=$(printf '%s' "$input" | jq -r '.cwd // empty')
 [ -n "$cwd" ] && cd "$cwd" 2>/dev/null || exit 0
@@ -15,6 +14,8 @@ if [ -n "$CLAUDE_ENV_FILE" ] && common=$(git rev-parse --path-format=absolute --
   folder=${JSTACK_SCRATCH_DIR:-$HOME/.cache/jstack/scratch}/$(basename "$(dirname "$common")")/$branch
   [ -d "$folder" ] && printf "export TMPDIR='%s'\n" "$folder" >>"$CLAUDE_ENV_FILE"
 fi
+
+[ "$(printf '%s' "$input" | jq -r '.source // empty')" = startup ] || exit 0
 
 scratch=$(cd "$HOME/.t3/scratch" 2>/dev/null && pwd -P)
 case $(pwd -P)/ in

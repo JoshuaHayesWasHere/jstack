@@ -31,6 +31,16 @@
         "codex"
       ],
       "refuses": true
+    },
+    {
+      "event": "PreToolUse",
+      "matcher": "Bash",
+      "script": "hooks/merge-command.sh",
+      "harnesses": [
+        "claude-code",
+        "codex"
+      ],
+      "refuses": true
     }
   ],
   "projectSkills": [

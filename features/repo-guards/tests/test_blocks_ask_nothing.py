@@ -14,7 +14,14 @@ quotes, `$(...)`, backticks, here-documents, `case` patterns and wrappers such a
 `xargs` and `env`, so a word in quotes or a `case` pattern is no command. It fails too on a quote
 inside a `${...}` inside double quotes, as in `"${boot:-$P's home}"`, which the check reads
 otherwise than bash does and asks on (2.1.310: "the shell may read it differently than it was
-parsed"). No block is let off:
+parsed").
+
+A `trap`'s action is a script the shell runs later, so the lint reads it as one: a trap that
+removes, runs `eval` or starts an inner shell fails like the same command in the block, even
+`rm -rf "$tree"` of scratch the block made with `mktemp`: on 2026-11-07 Claude Code asked on
+that very trap ("This shell -c script runs rm and could not be checked"). A block that needs to
+clear scratch on any exit moves the work into a script of its own, as the crew's proof block
+does with `templates/proved.sh`. No block is let off:
 one that fails is fixed by moving its delete or its background run into a jstack command, as
 `jbus forget`, `jmerge --remake` and `jgauge check` do, and never by a comment or a list.
 """
@@ -298,8 +305,19 @@ def why(words):
     return ""
 
 
+def trapped(words):
+    """Why the action of `trap [--] action signal...` asks, read as a script of its own."""
+    words = words[1:]
+    if words[:1] == ["--"]:
+        words = words[1:]
+    if not words or words[0] in ("-", "-l", "-p"):
+        return []
+    return [f"trap {said}" for said in reasons(words[0])]
+
+
 def reasons(script):
-    """Each reason a script asks, for every command in it and in its substitutions."""
+    """Each reason a script asks, for every command in it, in its substitutions and in the
+    action of each `trap` it sets."""
     reader = Reader(script)
     lists = [reader.tokens()]
     found = []
@@ -307,6 +325,10 @@ def reasons(script):
         lists.extend(reader.inner)
         reader.inner = []
         for words in commands(lists.pop()):
+            words = unwrapped(words)
+            if words[:1] == ["trap"]:
+                found.extend(trapped(words))
+                continue
             said = why(words)
             if said:
                 found.append(said)
@@ -379,4 +401,23 @@ def test_no_block_a_thread_runs_deletes_or_starts_an_inner_shell():
     ],
 )
 def test_the_reader_finds_a_delete_or_an_inner_shell_only_in_command_position(script, said):
+    assert reasons(script) == said
+
+
+MADE = 'tree=$(mktemp -d "${TMPDIR:-/tmp}/base.XXXXXX")\n'
+
+
+@pytest.mark.parametrize(
+    ("script", "said"),
+    [
+        (MADE + "trap 'rm -rf \"$tree\"' EXIT", ["trap rm deletes"]),
+        ("f=$(mktemp)\ntrap 'rm -f \"${f}\"' EXIT INT", ["trap rm deletes"]),
+        ("trap 'rm -rf \"$tree\"' EXIT", ["trap rm deletes"]),
+        (MADE + "trap -- 'rm -rf \"$tree\"; rm x' EXIT", ["trap rm deletes"] * 2),
+        ('trap "eval $cmd" EXIT', ["trap eval runs a script the check cannot read"]),
+        ("x=$(trap 'rm y' EXIT)", ["trap rm deletes"]),
+        ("trap - EXIT; trap -p; trap 'echo done' EXIT", []),
+    ],
+)
+def test_a_trap_that_removes_fails_even_of_scratch_its_block_made(script, said):
     assert reasons(script) == said

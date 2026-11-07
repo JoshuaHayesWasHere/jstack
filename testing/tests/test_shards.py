@@ -17,6 +17,7 @@ from xml.sax.saxutils import quoteattr
 
 import pytest
 
+from testing import shard
 from testing.paths import REPO
 from testing.shard import FLOOR, TIMES, WORKERS, key, mangled, read_times, recorded, seconds, split
 
@@ -225,6 +226,49 @@ def test_the_table_is_each_test_s_median_over_ci_s_junit_reports(tmp_path):
     assert [seconds(times, test) for test in tests] == [0.6, 4, 3]
     assert len(times) == 3
     assert (read, unknown) == (15, 3)
+
+
+GH = """#!{python}
+import json, pathlib, sys
+args = sys.argv[1:]
+if args[:2] == ["run", "list"]:
+    print(json.dumps([{{"databaseId": run, "event": "push"}} for run in (11, 12)]))
+elif args[:2] == ["run", "download"]:
+    at = pathlib.Path(args[args.index("--dir") + 1])
+    for part in range(1, {{"11": 4, "12": 3}}[args[2]] + 1):
+        (at / f"junit-1-{{part}}").mkdir(parents=True)
+        (at / f"junit-1-{{part}}" / "junit.xml").write_text("<testsuites/>")
+"""
+
+
+def test_the_table_reads_the_runs_that_kept_a_report_from_each_of_full_s_parts(
+    tmp_path, monkeypatch
+):
+    """A full run counts when it kept one junit report from each part of the job `full-shard`,
+    as many as check.yml's matrix gives it, whatever the workers of a part are: here a full of
+    three parts, whose runs keep three reports, and an older run of four that this full did not
+    make."""
+    assert WORKERS != 3
+    check = tmp_path / "check.yml"
+    check.write_text(
+        "jobs:\n  full-shard:\n    strategy:\n      matrix:\n        shard: [1, 2, 3]\n"
+        "  check-shard:\n    strategy:\n      matrix:\n        shard: [1, 2, 3, 4]\n"
+    )
+    fake = tmp_path / "bin"
+    fake.mkdir()
+    (fake / "gh").write_text(GH.format(python=sys.executable))
+    (fake / "gh").chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setattr(shard, "CHECK", check, raising=False)
+    runs = shard.downloaded(5, "main", tmp_path / "into")
+    assert [[report.parent.name for report in run] for run in runs] == [
+        ["junit-1-1", "junit-1-2", "junit-1-3"]
+    ]
+    assert all(report.parent.parent.name == "12" for report in runs[0])
+
+
+def test_full_s_part_count_is_check_yml_s():
+    assert shard.full_parts(REPO / ".github/workflows/check.yml") == 4
 
 
 def ended(run):

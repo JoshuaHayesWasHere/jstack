@@ -104,11 +104,13 @@ def since(given: str | None, user: jsettings.Settings) -> datetime | None:
 
 def status(config: Config, now: datetime | None = None) -> dict[str, Any]:
     """Return what `jbus status` prints: the status file, the record of the pass, the streaks
-    as they are now, the homes that are not on the bus now, and the pools that hold the bus now,
-    with every instance capped (`jroles.pool.held`)."""
+    as they are now, the homes that are not on the bus now, the projects closed now with the day
+    each closed (`jbus project close`), and the pools that hold the bus now, with every instance
+    capped (`jroles.pool.held`)."""
     return read_json(config.status_path, {}) | {
         "streaks": alert.streaks(config.state_dir),
         "homes_off_bus": project.missing(config),
+        "closed": {one.name: one.closed for one in config.closed},
         "held_pools": [one.as_json() for one in pool.held(now or datetime.now(UTC))],
         "pass": record.read(config),
     }

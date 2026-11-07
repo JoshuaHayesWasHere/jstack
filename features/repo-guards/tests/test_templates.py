@@ -71,7 +71,7 @@ def a_home(tmp_path, repo):
 def start_hook(user, checkout, *, hook=HOOK, cwd=None):
     """Run the session-start hook as the harness does for a new T3 Code thread, with the homes'
     state under `user`: `JBUS_HOME_DIR`, which the hook honours, is left unset."""
-    env = {**os.environ, "HOME": str(user), "T3_CODE_MCP_AUTHORIZATION": "x"}
+    env = {**os.environ, "HOME": str(user), "T3CODE_THREAD_ID": "mcp:a-thread"}
     env.pop("JBUS_HOME_DIR", None)
     stdin = json.dumps({"source": "startup", "cwd": str(checkout)})
     done = subprocess.run(
@@ -112,14 +112,14 @@ def setting(skill):
 
 
 def resolved(skill, tmp_path):
-    """What the skill's `T=` line gives, and the file that each `$T/<path>.md` it names resolves to.
+    """What the skill's `T=` line gives, and the file that each `$T/<path>` it names resolves to.
 
     The test reads the skill as the user has it, from another repo. It follows a symlink under
     ~/.claude/skills to the skill's folder in the layout that the install assembles.
 
     """
     text = as_read(skills()[skill] / "SKILL.md")
-    named = sorted(set(re.findall(r"`(\$T/[^`<>\s]+\.(?:md|html|json|yml))`", text)))
+    named = sorted(set(re.findall(r"`(\$T/[^`<>\s]+\.(?:md|html|json|yml|sh))`", text)))
     user = tmp_path / skill / "user"
     (user / ".claude" / "skills").mkdir(parents=True)
     (user / ".claude" / "skills" / skill).symlink_to(TEMPLATES.parent / "skills" / skill)

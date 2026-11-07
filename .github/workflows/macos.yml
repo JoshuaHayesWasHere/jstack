@@ -13,10 +13,12 @@ name: macos
 # code or the tests too, and a feature's paths reach none, so a change to code that runs the
 # same on a Mac starts no Mac before it merges (the owner's go, 2026-11-04, gap-macos-post-merge).
 # The job `macos-select`
-# runs it on Linux and hands the tests on to the job `macos`; where the selection is `all`
+# runs it on Linux and hands the tests on to the job `macos-part`; where the selection is `all`
 # (pyproject.toml, uv.lock, the root conftest.py or the list itself) it hands on the whole list.
-# Where the change reaches no test of the list, `macos-select` says so in one line of its
-# summary and `macos` is skipped by its `if:`, so no Mac starts: GitHub runs few macOS jobs at
+# `macos-part` runs them on up to three Macs side by side, each its part of the tests dealt by
+# their recorded times (testing/shard.py's `--shard`), and the job `macos`, on Linux, passes
+# only when every part did. Where the change reaches no test of the list, `macos-select` says
+# so in one line of its summary and both are skipped by their `if:`, so no Mac starts: GitHub runs few macOS jobs at
 # once, and with about 30 pull requests open a run waited up to 14.5 minutes for a Mac only to
 # skip its tests (the owner's word, 2026-11-03: skip the Mac when the change reaches no Mac
 # test). The whole suite on macOS is mac-nightly's (2026-10-24: "changes should stay quick with
@@ -32,7 +34,7 @@ name: macos
 # waits on it. A job skipped by its `if:` passes GitHub's required checks, and jmerge's where
 # the rest of its workflow passed (`jmerge.ready.passed`). So `macos` is skipped only for an
 # empty selection, or for two trees a passed macos job ran before (`reuse`): after a failed
-# `macos-select` it runs, and fails its first step.
+# `macos-select` its parts run and fail their first step, and so `macos` fails.
 # No `paths:` filter: a run it filters out posts no `macos` check, and jmerge waits on that check
 # for ever. The selection and the job's `if:` skip the Mac instead.
 on:
@@ -56,13 +58,15 @@ env:
   UV_VERSION: "0.13.2"
 
 jobs:
-  # The list's tests the change reaches: the output `tests`, one a line, and `run`, whether
-  # there is one. The summary line that names them is this job's, since `macos` may not run.
+  # The list's tests the change reaches: the output `tests`, one a line, `run`, whether there
+  # is one, and `parts`, the parts `macos-part` deals them into: one for each test file, at
+  # most three, so a change that reaches one file starts one Mac. The summary line that names them is this job's, since `macos` may not run.
   macos-select:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       run: ${{ steps.reached.outputs.run }}
+      parts: ${{ steps.reached.outputs.parts }}
       tests: ${{ steps.reached.outputs.tests }}
       name: ${{ steps.reuse.outputs.name }}
       reused: ${{ steps.reuse.outputs.reused }}
@@ -133,26 +137,45 @@ jobs:
               echo "$line"
               [ "$tests" = all ] || sed 's/.*/- `&`/' "$reached"
           } | tee -a "$GITHUB_STEP_SUMMARY"
+          # No seq or wc: the tests run this step on a Mac too, where seq ends its list with the
+          # separator and wc pads its count.
+          case $(grep -c . "$reached" || true) in
+          0 | 1) parts=1 ;;
+          2) parts=1,2 ;;
+          *) parts=1,2,3 ;;
+          esac
           {
               if [ -s "$reached" ]; then echo run=true; else echo run=false; fi
+              echo "parts=[$parts]"
               echo "tests<<EOF_TESTS"
               cat "$reached"
               echo EOF_TESTS
           } >> "$GITHUB_OUTPUT"
-  # Its check fails when a test fails. Only the step that lists the failed tests, in the job's
-  # summary and in one warning with the count, carries continue-on-error. The tests' step stops
-  # before the job's cap, so a hung run still gets its list.
-  # The whole suite took 51 minutes there (run 40108766945); the list is about 640 tests.
+  # A part fails when a test of it fails, and so does `macos`. Only the step that lists the
+  # failed tests, in the job's summary and in one warning with the count, carries
+  # continue-on-error. The tests' step stops before the job's cap, so a hung run still gets its
+  # list. The whole suite took 51 minutes there (run 40108766945); the list is about 1100 tests.
   # Since the check is required, the tests' cap fails it too: it is 22 minutes, twice the
-  # slowest of the last twelve runs (423 to 639 s), as the list grows with each mac- fix.
-  # The job's 25 leaves setup, about a minute, and the summary.
-  macos:
+  # slowest whole run of the list on one Mac (423 to 639 s over twelve runs), as the list grows
+  # with each mac- fix. The job's 25 leaves setup, about half a minute, and the summary.
+  # Parts, because one Mac ran the list's tests in 0.7 to 12.9 minutes, p50 3.3, of which setup
+  # is about 25 s: the slowest required check of a pull request. Each part collects the
+  # selection, keeps its share (`--shard K/N`, by testing/shard-times.tsv) and runs it on the
+  # runner's three cores; a part the deal leaves empty passes.
+  macos-part:
     needs: macos-select
     # Not the implicit `success()`: it would skip the job after a failed selection, and a skip
     # passes the required check. A reuse of a passed macos job of the same trees skips it too.
     if: "!cancelled() && needs.macos-select.outputs.run != 'false' && needs.macos-select.outputs.reused != 'true'"
+    name: macos ${{ matrix.part }} of ${{ strategy.job-total }}
     runs-on: macos-15
     timeout-minutes: 25
+    strategy:
+      # Every part runs to its end, so a red check names every failing test.
+      fail-fast: false
+      matrix:
+        # A selection that failed gives no `parts`: one part runs, and its first step fails it.
+        part: ${{ fromJSON(needs.macos-select.outputs.parts || '[1]') }}
     steps:
       # The tests `macos-select` handed on, one a line in a file pytest reads.
       - name: handed tests
@@ -186,8 +209,10 @@ jobs:
       - name: quick tests
         id: suite
         timeout-minutes: 22
+        env:
+          PART: ${{ matrix.part }}/${{ strategy.job-total }}
         run: >-
-          uv run pytest -n 3 --dist worksteal --durations=25 -m "not browser"
+          uv run pytest -n 3 --dist worksteal --durations=25 -m "not browser" --shard "$PART"
           --junitxml="$RUNNER_TEMP/junit.xml" @"$RUNNER_TEMP/macos-reached.txt"
       - name: failed tests
         if: "!cancelled() && steps.suite.outcome != 'skipped'"
@@ -221,12 +246,26 @@ jobs:
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
               summary.write(line + "\n" + "".join(f"- `{test}`\n" for test in failed))
           EOF
+  # The check the ruleset requires, and jmerge's, so its name stays `macos`. It runs where the
+  # parts may run, with their `if:`, and passes only when every part passed: a part that failed,
+  # was cancelled or never ran fails it. So it is skipped, which passes, only for an empty
+  # selection or a reuse, as the parts are.
+  macos:
+    needs: [macos-select, macos-part]
+    if: "!cancelled() && needs.macos-select.outputs.run != 'false' && needs.macos-select.outputs.reused != 'true'"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: every part passed
+        env:
+          PARTS: ${{ needs.macos-part.result }}
+        run: '[ "$PARTS" = success ] || { echo "::error::the parts of the macos job ended $PARTS, not success"; exit 1; }'
       # The pass of the two trees, for a later run of them to reuse (`reuse` in `macos-select`):
-      # only a suite that passed leaves it. One that cannot be kept costs that reuse and nothing
+      # only parts that all passed leave it. One that cannot be kept costs that reuse and nothing
       # else.
       - name: checked trees marker
         id: checked
-        if: steps.suite.outcome == 'success' && needs.macos-select.outputs.name != ''
+        if: needs.macos-part.result == 'success' && needs.macos-select.outputs.name != ''
         env:
           NAME: ${{ needs.macos-select.outputs.name }}
         run: mkdir -p "$RUNNER_TEMP/macos-checked" && touch "$RUNNER_TEMP/macos-checked/$NAME"

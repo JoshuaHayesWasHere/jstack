@@ -211,14 +211,15 @@ def test_one_count_on_every_screen_and_the_soonest_default_leads(counter):
 
 
 def test_a_go_given_before_the_brief_changed_still_needs_the_user(counter):
-    """A row keeps its `approved` when its brief changes after the go, and that go no longer
-    holds. So the need stays, before the next pass and after it, which gates the row."""
+    """A go takes its need off the list at once, since it holds for the brief it was given for.
+    A row keeps its `approved` when its brief changes after the go, and that go no longer holds,
+    so the next pass lists the row to approve again, which gates it."""
     counter, served = counter
     sha = unapproved(counter)
     assert act(served, "approve", {"slug": "oat-milk", "sha": sha})[0] == 200
+    assert "approve:oat-milk" not in needs(served)
     brief = counter.state / "briefs" / "oat-milk.md"
     brief.write_text(brief.read_text().replace('"do oat-milk"', '"do oat-milk, then the jam"'))
-    assert needs(served)["approve:oat-milk"]["act"] == "approve"
     counter.passes(1)
     row = queue.fresh(counter.state, "oat-milk")
     assert row.get("approved") and row["why"].startswith("brief changed after approval")

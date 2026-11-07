@@ -56,10 +56,12 @@ def kitchen(tmp_path, monkeypatch):
 
 
 def with_group(kitchen, act):
-    """Do `act` to the guards' process group, and say whether there was one to do it to."""
+    """Do `act` to the guards' process group, and say whether there was one to do it to. A group
+    gone gives ESRCH on Linux, and EPERM on Darwin once it holds only zombies, as
+    `treeguards._stop` says."""
     try:
         act(int(kitchen.pgid.read_text()))
-    except ProcessLookupError:
+    except (ProcessLookupError, PermissionError):
         return False
     return True
 

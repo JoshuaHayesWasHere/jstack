@@ -277,7 +277,7 @@
   .wl .wa { color: var(--ink-2); }
   .wl:hover, .hf:hover { text-decoration: underline; }
   #map-m .wl { margin-top: var(--space-4); }
-  #map-q .sec { margin-top: var(--space-7); }
+  #map-q .sec, #map-x .sec { margin-top: var(--space-7); }
   .ql { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr)); gap: 0 var(--space-7); }
   .ql a { display: flex; gap: var(--space-4); align-items: baseline; text-decoration: none; padding: var(--space-1) 0; font-size: var(--text-sm); }
   .ql a b { font-weight: 600; }
@@ -517,6 +517,7 @@
     <div id="map-m"></div>
     <div class="grid" id="map-c"></div>
     <section id="map-q" aria-labelledby="map-qh" hidden><h2 class="sec" id="map-qh"></h2><ul class="ql clean" id="map-ql"></ul></section>
+    <section id="map-x" aria-labelledby="map-xh" hidden><h2 class="sec" id="map-xh"></h2><ul class="ql clean" id="map-xl"></ul></section>
   </div>
   <div class="none" id="none" role="alert" hidden></div>
   <div id="one" hidden>
@@ -764,9 +765,10 @@
       else m.lines[home].push(w);
     });
     STACK.proceeds.forEach(function (w) { if (by[w.project]) by[w.project].asks += 1; });
-    var cards = [], quiet = [];
+    var cards = [], quiet = [], closed = [];
     STACK.projects.forEach(function (p) {
       var m = by[p.name], bad = false, op = false;
+      if (p.closed) { closed.push(m); return; }
       p.homes.forEach(function (h) {
         var tone = homeState(h.health)[1];
         if (m.lines[h.name].length || m.flags[h.name].length || m.said[h.name] || tone === "bad") bad = true;
@@ -777,7 +779,7 @@
       (m.tone ? cards : quiet).push(m);
     });
     cards.sort(function (a, b) { return (a.tone !== "bad") - (b.tone !== "bad") || b.p.waits - a.p.waits || (a.p.name < b.p.name ? -1 : 1); });
-    return { machine: machine, cards: cards, quiet: quiet };
+    return { machine: machine, cards: cards, quiet: quiet, closed: closed };
   }
   function lastAct(l, who) {
     var v = ms(l && l.at), when = v == null ? "no act kept" : NOW - v < 60e3 ? "acted now" : "last act " + short(NOW - v) + " ago";
@@ -810,6 +812,9 @@
     $("map-q").hidden = !map.quiet.length;
     put($("map-qh"), 'Quiet <span class="cnt">' + map.quiet.length + '</span>');
     keyed($("map-ql"), "li", "", map.quiet.map(function (m) { return { key: m.p.name, html: '<a href="' + esc(href(m.p.name)) + '"><b>' + esc(m.p.name) + '</b> <span>' + m.p.open + ' open</span></a>' }; }));
+    $("map-x").hidden = !map.closed.length;
+    put($("map-xh"), 'Closed <span class="cnt">' + map.closed.length + '</span>');
+    keyed($("map-xl"), "li", "", map.closed.map(function (m) { return { key: m.p.name, html: '<a href="' + esc(href(m.p.name)) + '"><b>' + esc(m.p.name) + '</b> <span>closed ' + esc(m.p.closed) + ', ' + m.p.open + ' open: jbus project open ' + esc(m.p.name) + '</span></a>' }; }));
   }
   function idle(t) { return t.health === "ended"; }
   var TRI_MAX = 6, TRI_ALL = {};

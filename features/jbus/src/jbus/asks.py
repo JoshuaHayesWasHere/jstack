@@ -34,6 +34,7 @@ from jbus import (
     scouts,
     t3,
     verbs,
+    waiting,
     wake,
     watch,
     word,
@@ -121,8 +122,12 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
     return queue.Asks(out, launched, told, said, goes)
 
 
+READS = ("show", "verify", "check")
+"""The verbs of `jbus queue` that change nothing, and so work on a closed project too."""
+
+
 def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
-    project = verbs.project(config, args.project)
+    project = verbs.project(config, args.project, closed=args.verb in READS)
     state = config.state(project)
     if args.verb == "apply":
         asks = _asks(config, project)
@@ -141,6 +146,9 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
         for _, verb in queue.parse(text):
             if isinstance(verb, queue.Add):
                 _warn(config, project, verb.slug, verb.text)
+            elif isinstance(verb, (queue.Approve, queue.Remove)):
+                acted = "go" if isinstance(verb, queue.Approve) else "remove"
+                waiting.acted(run, acted, verb.slug)
         return 0
     if args.verb == "verify":
         return _verify(state, args.slug, args.brief)

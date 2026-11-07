@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from jbriefs import asks, below, cli, findings, home, page, parse, proof, runnable, skills
+from jbriefs import asks, below, cli, findings, home, page, parse, paths, proof, runnable, skills
 from testing.paths import REPO
 
 TEMPLATE = REPO / "features" / "jbriefs" / "templates" / "brief.md"
@@ -507,7 +507,7 @@ PROSE = {
 
 @pytest.mark.parametrize("case", RUNNABLE)
 def test_a_done_when_item_that_runs_something_is_no_fault(case):
-    text = CLEAN.replace("- it is done", f"- {RUNNABLE[case]}")
+    text = CLEAN.replace("- it is done", f"- {RUNNABLE[case]} (in none)")
     assert runnable.runnable(text) == ""
     assert parse.warnings(text, "") == []
 
@@ -517,7 +517,7 @@ def test_a_done_when_item_in_prose_alone_is_warned_of_and_still_queued(case):
     text = CLEAN.replace("- it is done", f"- {PROSE[case]}")
     fault = DONE_WHEN_FAULT.format(n=1, of=1, first=PROSE[case])
     assert runnable.runnable(text) == fault
-    assert parse.warnings(text, "") == [fault]
+    assert fault in parse.warnings(text, "")
     assert parse.faults(text) == []
 
 
@@ -797,12 +797,15 @@ def test_only_the_where_line_of_the_head_is_read():
         (("tests/test_*.py",), "tests/deep/test_a.py", False),
         (("skills/*",), "skills/crew/SKILL.md", True),
         (("**/SKILL.md",), "skills/crew/SKILL.md", True),
+        (("docs/**",), "docs/a/b.md", True),
+        (("src/?.py",), "src/a.py", True),
+        (("src/?.py",), "src/ab.py", False),
         ((), "src/a.py", False),
         ((".",), "src/a.py", True),
     ],
 )
 def test_a_path_is_covered_by_what_it_is_or_sits_under(patterns, path, covered):
-    assert parse.covers(patterns, path) is covered
+    assert paths.covers(patterns, path) is covered
 
 
 def test_the_brief_for_a_red_main_with_no_changed_file_has_a_where_the_lint_takes():

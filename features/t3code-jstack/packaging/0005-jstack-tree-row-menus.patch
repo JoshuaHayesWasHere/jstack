@@ -1,4 +1,4 @@
-From 1cbfd72e01b3b4af769b4df744006866e31f1f97 Mon Sep 17 00:00:00 2001
+From 9ba008ac5b45bb7bacfa1ba3beb468fc024f2987 Mon Sep 17 00:00:00 2001
 From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
 Date: Thu, 29 Oct 2026 15:39:20 -0400
 Subject: [PATCH] feat(web): every jstack tree row opens a context menu, by
@@ -20,22 +20,22 @@ the warning-foreground token.
  6 files changed, 300 insertions(+), 48 deletions(-)
 
 diff --git a/apps/web/package.json b/apps/web/package.json
-index c35aadeef5..1e6026139c 100644
+index 1d79dc07cd..862622531a 100644
 --- a/apps/web/package.json
 +++ b/apps/web/package.json
-@@ -98,6 +98,7 @@
+@@ -110,6 +110,7 @@
      "@vercel/config": "^0.3.0",
      "@vitejs/plugin-react": "^6.1.2",
      "@vitest/browser-playwright": "5.0.5",
 +    "axe-core": "^4.14.0",
      "compression": "^1.8.2",
+     "micromark-util-types": "catalog:",
      "oxc-transform-react": "~0.152.0",
-     "playwright": "1.60.0",
 diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
-index f85cdbe877..bbd3afb10b 100644
+index d482d9f0d8..bf428cd92b 100644
 --- a/apps/web/src/components/Sidebar.tsx
 +++ b/apps/web/src/components/Sidebar.tsx
-@@ -933,6 +933,27 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -973,6 +973,27 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
        );
      },
    });
@@ -63,7 +63,7 @@ index f85cdbe877..bbd3afb10b 100644
    const { copyToClipboard: copyBranchToClipboard } = useCopyToClipboard<{ branch: string }>({
      target: "branch name",
      onCopy: ({ branch }) => {
-@@ -1364,7 +1385,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -1437,7 +1458,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
      onToggleProject: toggleProjectFolder,
      onExpandHome: (homeKey) => setJstackExpandedHomes((current) => new Set(current).add(homeKey)),
      onNewThread: startThreadInProjectFolder,
@@ -548,10 +548,10 @@ index 65593538b9..f9491ec9f9 100644
 +  }
 +}
 diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
-index 087858aeab..b992808afa 100644
+index efc7f6e902..c3e4ec1385 100644
 --- a/pnpm-lock.yaml
 +++ b/pnpm-lock.yaml
-@@ -1244,6 +1244,9 @@ importers:
+@@ -1306,6 +1306,9 @@ importers:
        '@vitest/browser-playwright':
          specifier: 5.0.5
          version: 5.0.5(@tsc-rs/typescript@0.8.0)(@types/node@24.12.4)(@volar/typescript@2.4.28(@tsc-rs/typescript@0.8.0))(bufferutil@4.1.0)(esbuild@0.28.2)(jiti@2.7.0)(playwright@1.60.0)(terser@5.48.0)(unrun@0.2.39)(utf-8-validate@6.0.6)(vitest@5.0.5)(yaml@2.9.0)
@@ -561,7 +561,7 @@ index 087858aeab..b992808afa 100644
        compression:
          specifier: ^1.8.2
          version: 1.8.2(supports-color@8.1.1)
-@@ -5864,10 +5867,6 @@ packages:
+@@ -6068,10 +6071,6 @@ packages:
    '@pierre/highlights@0.2.0':
      resolution: {integrity: sha512-hTpcOU1EzDAP4bYtEhxmMu2jwMvtkUydRUBUpWMSHTs3dw0IaC3Ld5ansMy18L0GE3b6Vfl2OGkLK+pWWpnBmw==}
  
@@ -572,7 +572,7 @@ index 087858aeab..b992808afa 100644
    '@pierre/theme@2.0.0':
      resolution: {integrity: sha512-yNDd9GYLQl1mEUJR8AneJ5e4ohLIHQd/wZLWr4fagt78vS2RwwZNW530vVgHqXFAyFVcFlRmGUD5ramXH46OXw==}
      engines: {vscode: ^1.0.0}
-@@ -7562,6 +7561,10 @@ packages:
+@@ -7766,6 +7765,10 @@ packages:
    aws4fetch@1.0.20:
      resolution: {integrity: sha512-/djoAN709iY65ETD6LKCtyyEI04XIBP5xVvfmNxsEP0uJB5tyaGBztSryRr4HqMStr9R06PisQE7m9zDTXKu6g==}
  
@@ -583,7 +583,7 @@ index 087858aeab..b992808afa 100644
    axobject-query@4.1.0:
      resolution: {integrity: sha512-qIj0G9wZbMGNLjLmg1PT6v2mE9AH2zlnADJD/2tC6E00hgmhUOfEB6greHPAfLRSufHqROIUTkw6E+M3lH0PTQ==}
      engines: {node: '>= 0.4'}
-@@ -15444,8 +15447,6 @@ snapshots:
+@@ -15697,8 +15700,6 @@ snapshots:
  
    '@pierre/highlights@0.2.0': {}
  
@@ -592,7 +592,7 @@ index 087858aeab..b992808afa 100644
    '@pierre/theme@2.0.0': {}
  
    '@pierre/theming@1.0.0(@pierre/theme@2.0.0)(@shikijs/themes@4.2.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(shiki@4.2.0)':
-@@ -17224,6 +17225,8 @@ snapshots:
+@@ -17479,6 +17480,8 @@ snapshots:
  
    aws4fetch@1.0.20: {}
  

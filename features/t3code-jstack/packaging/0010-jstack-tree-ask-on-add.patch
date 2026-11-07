@@ -1,4 +1,4 @@
-From 685fa0d8daf4f94e1c56911d96897d9af46e1b95 Mon Sep 17 00:00:00 2001
+From be399131649a838482490cfa1641190d73717f63 Mon Sep 17 00:00:00 2001
 From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
 Date: Thu, 29 Oct 2026 16:50:03 -0400
 Subject: [PATCH] feat(web): a project added to T3 asks once whether to start a
@@ -18,10 +18,10 @@ added with a home is seen without an ask.
  create mode 100644 apps/web/src/components/sidebar/jstackAskOnAdd.ts
 
 diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
-index e12ce665f3..36e2c6fb44 100644
+index e8bfa73810..7f33c39bd8 100644
 --- a/apps/web/src/components/Sidebar.tsx
 +++ b/apps/web/src/components/Sidebar.tsx
-@@ -143,6 +143,7 @@ import {
+@@ -151,6 +151,7 @@ import {
  import {
    readThreadShell,
    useAllEnvironmentProjectSnapshotsReady,
@@ -29,7 +29,7 @@ index e12ce665f3..36e2c6fb44 100644
    useDelegatedUnderParent,
    useProjects,
    useServerConfigs,
-@@ -273,6 +274,7 @@ import {
+@@ -285,6 +286,7 @@ import {
  } from "./sidebar/jstackTree.logic";
  import { JstackBriefDialog, useJstackBrief } from "./sidebar/JstackBriefDialog";
  import { focusComposerSoon, placeHomeWork, useJstackHomeSends } from "./sidebar/jstackHomeActions";
@@ -37,7 +37,7 @@ index e12ce665f3..36e2c6fb44 100644
  import { JstackTreeRowView, type JstackTreeRowActions } from "./sidebar/JstackTreeRows";
  import { useJbusWork } from "../lib/jbusWorkState";
  import {
-@@ -1419,6 +1421,20 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -1492,6 +1494,20 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
      }
    }
    const jstackOrder = new Map(jstackRoots.flatMap(({ tree }) => [...tree.order]));
@@ -58,7 +58,7 @@ index e12ce665f3..36e2c6fb44 100644
    // A row's approve, remove or answer, told to the task's home as the user's own message.
    const sendJstackRowWord = async (
      homeThreadId: ThreadId,
-@@ -1487,19 +1503,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -1560,19 +1576,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
            });
          });
      },
@@ -79,7 +79,7 @@ index e12ce665f3..36e2c6fb44 100644
      onOpenChildHomeEditor: (group) => {
        const root = jstackRoots.find((one) => one.folder.group.projectKey === group.projectKey);
        if (root?.folder.collapsed) toggleProjectFolder(group);
-@@ -1682,6 +1686,18 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -1755,6 +1759,18 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
      });
    };
  

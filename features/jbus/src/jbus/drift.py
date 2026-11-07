@@ -19,19 +19,25 @@ counts as broken, since a word nobody could check is not known to hold.
   its scopes, has a dated line in its notes file (`jbus.notes.FILE`), as `jbus.notes` reads
   one. Every dated line counts, not only those since the word, since `jbus.notes` asks for each
   to move out.
-- `D6`, jbus merges with jmerge (2026-10-19, 3f5a838c64): each row of a project's queue whose
-  pull request merged in the `WINDOW` before the run has jmerge's `merged` line in the home's
-  `merge.log`. A pull request merged by hand has none, and GitHub names the same account for
-  both, so a merge by the user counts here as well as one by a crew.
+- `D6`, jbus merges with jmerge (2026-10-19, 3f5a838c64): each pull request that merged in the
+  `WINDOW` before the run, into the project's default branch or one of its `merge_bases`, has
+  jmerge's `merged` line in the home's `merge.log`. It reads every merge `merged.json` keeps,
+  which is each one GitHub lists, queue row or not, so a dependabot pull request or one with no
+  brief counts. A line is the merge's only where it names its number and its commit: jmerge
+  writes the merge commit, or the head where GitHub gave none, so a line of the same number from
+  another repo or another era does not hide a merge. A pull request merged by hand has none, and
+  GitHub names the same account for both, so a merge by the user counts here as well as one by
+  a crew. Each breach is named, with its project, number, base, merge time and head.
 
 D5, jmerge keeping integration bases, was retired by the user's word of 2026-11-02 (780f8c01).
 
 `run` runs every probe and appends one line for each to `drift.jsonl` in jbus's state, all
 under one `at`: the probe, its word's message id, its status, the breaches it found, the commit
-of the tree it read and, for an unrun probe, the name of what it raised and no more. The
+of the tree it read and, for an unrun probe, the name of what it raised and no more. A probe
+that names its breaches (`D6`) writes them too, under `breaches`. The
 telemetry store keeps the lines (`jbus.telemetry.records`), and the KPI is the probes not held
 in each week's last run (`weekly_drift`). The pass's chore runs the probes at most once a day
-of the user's, and says which words are not held.
+of the user's, and says which words are not held, with the breaches each one names.
 """
 
 from __future__ import annotations
@@ -54,7 +60,7 @@ FILE = "drift.jsonl"
 WINDOW = timedelta(days=7)
 """How far back `D6` reads merges: a week, so the week's last run reads the whole week."""
 Status = Literal["held", "broken", "unrun"]
-_MERGED = re.compile(r"^\S+ \S+ merged #?(\d+)\b")
+_MERGED = re.compile(r"^\S+ \S+ merged #?(\d+) \S+ ([0-9a-f]{40})\b")
 _HEAD, _FIX = "a" * 40, "b" * 40
 LATER_WARNING = f"""# drift-d1: a task
 Review: review
@@ -94,16 +100,20 @@ class Ground:
     steps: Callable[[], set[str]] = field(default=_steps)
 
 
+Breach = dict[str, str | int]
+"""A breach a probe names: for `D6`, a merge's project, number, base, merge time and head."""
+
+
 @dataclass(frozen=True)
 class Probe:
     """A standing word: its name, the id of the message it was said in, when, what it says, and
-    the check that counts its breaches."""
+    the check that counts its breaches, or names each one."""
 
     name: str
     word: str
     said: str
     says: str
-    check: Callable[[Ground], int]
+    check: Callable[[Ground], int | list[Breach]]
 
 
 def _later_warnings(ground: Ground) -> int:
@@ -139,28 +149,55 @@ def _notes(ground: Ground) -> int:
     return count
 
 
-def _merged_by_hand(ground: Ground) -> int:
+def _default_branch(checkout: Path) -> str:
+    """The branch `origin/HEAD` names in the checkout, or `main` where git names none."""
+    done = subprocess.run(
+        ["git", "-C", str(checkout), "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD"],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    return done.stdout.strip().removeprefix("origin/") or "main"
+
+
+def _merged_by_hand(ground: Ground) -> list[Breach]:
     since = ground.now - WINDOW
-    count = 0
+    found: list[Breach] = []
     for project in ground.config.projects:
         state, home = ground.config.state(project), ground.config.home(project)
         merged = state / "merged.json"
         if not merged.is_file():
             continue
-        pulls = json.loads(merged.read_text())
-        queue = json.loads((state / "queue.json").read_text())
-        rows = {one.get("slug") for one in queue if isinstance(one, dict)}
+        bases = {_default_branch(project.checkout), *project.merge_bases}
         log = home / "merge.log"
         lines = log.read_text(errors="replace").splitlines() if log.is_file() else []
-        by_jmerge = {int(found[1]) for line in lines if (found := _MERGED.match(line))}
-        for slug, pull in pulls.items():
-            at = pull.get("mergedAt") if isinstance(pull, dict) else None
-            if slug not in rows or not isinstance(at, str):
+        by_jmerge = {(int(hit[1]), hit[2]) for line in lines if (hit := _MERGED.match(line))}
+        pulls = {
+            pull.get("number"): pull
+            for pull in json.loads(merged.read_text()).values()
+            if isinstance(pull, dict) and isinstance(pull.get("number"), int)
+        }
+        for number, pull in sorted(pulls.items()):
+            at, base = pull.get("mergedAt"), pull.get("baseRefName")
+            if not isinstance(at, str):
                 continue
             when = datetime.fromisoformat(at.replace("Z", "+00:00"))
-            if since <= when <= ground.now and pull.get("number") not in by_jmerge:
-                count += 1
-    return count
+            if not since <= when <= ground.now or base not in bases:
+                continue
+            head = str(pull.get("headRefOid") or "")
+            commits = {head, str((pull.get("mergeCommit") or {}).get("oid") or "")} - {""}
+            if not any((number, commit) in by_jmerge for commit in commits):
+                found.append(
+                    {
+                        "project": project.name,
+                        "number": number,
+                        "base": base,
+                        "mergedAt": at,
+                        "head": head,
+                    }
+                )
+    return found
 
 
 PROBES: tuple[Probe, ...] = (
@@ -184,7 +221,7 @@ PROBES: tuple[Probe, ...] = (
         "D6",
         "3f5a838c64",
         "2026-10-19",
-        "jbus merges with jmerge: a row's merge in the last week has jmerge's line",
+        "jbus merges with jmerge: each merge in the last week has jmerge's line",
         _merged_by_hand,
     ),
 )
@@ -199,15 +236,18 @@ class Finding:
     status: Status
     found: int | None
     error: str | None = None
+    breaches: tuple[Breach, ...] | None = None
 
 
 def probe(one: Probe, ground: Ground) -> Finding:
     """Run one probe: held where it finds no breach, unrun where it raises."""
     try:
-        found = one.check(ground)
+        checked = one.check(ground)
     except Exception as raised:
         return Finding(one, "unrun", None, type(raised).__name__)
-    return Finding(one, "broken" if found else "held", found)
+    if isinstance(checked, list):
+        return Finding(one, "broken" if checked else "held", len(checked), None, tuple(checked))
+    return Finding(one, "broken" if checked else "held", checked)
 
 
 def _sha(root: Path) -> str | None:
@@ -242,6 +282,7 @@ def run(ground: Ground, probes: Iterable[Probe] = PROBES) -> list[Finding]:
             "sha": sha,
             "error": one.error,
         }
+        | ({} if one.breaches is None else {"breaches": list(one.breaches)})
         for one in found
     ]
     path = ground.config.state_dir / FILE
@@ -265,10 +306,18 @@ def _ground(config: jbus.Config, now: datetime) -> Ground:
     return Ground(config, now, skills.root())
 
 
+def _named(one: Finding) -> str:
+    """A probe not held, with the breaches it names: `D6 (jstack #1035, jstack #1036)`."""
+    if not one.breaches:
+        return one.probe.name
+    named = ", ".join(f"{breach['project']} #{breach['number']}" for breach in one.breaches)
+    return f"{one.probe.name} ({named})"
+
+
 def _chore(config: jbus.Config, _, now: datetime, say: Callable[[str], None]) -> None:
     if not ran_today(config, now):
         found = run(_ground(config, now))
-        broken = [one.probe.name for one in found if one.status != "held"]
+        broken = [_named(one) for one in found if one.status != "held"]
         if broken:
             say(
                 f"drift: {len(broken)} of {len(found)} standing words not held: {', '.join(broken)}"

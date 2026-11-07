@@ -12,7 +12,7 @@ features/jbus/tests/view/test_view_panels.py
 testing/tests/test_daemons.py
 features/repo-guards/tests/test_portable_shell.py
 features/repo-guards/tests/test_portable_sed.py
-testing/tests/test_workflows.py
+testing/tests/test_workflows_mac.py
 features/jbus/tests/test_gates.py
 features/home/tests/test_home_start.py
 features/skill-library/tests/test_make_bot_ui.py

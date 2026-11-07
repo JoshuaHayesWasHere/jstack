@@ -126,10 +126,11 @@ The rule is known by what it says, in code: jbus reads no number for it from any
 What makes a row a follow-up is one rule, read from the row and its brief and never judged by the home:
 
 - the row names its parent P, by a line `Follows: P` in its brief's head;
-- the row is of a follow-up's kind: a fix row jbus filed, which is a row jbus's own pass queued whose brief's `Decisions:` line begins `none, jbus filed this from a red`, whatever its slug, and which carries the `Follows:` line itself where a row's merge turned the check red; or, when it is queued, a row that does work for P's plan entry (`--entry`), as a second unit of that entry does;
+- the row is of a follow-up's kind: a fix row jbus filed, which is a row jbus's own pass queued whose brief's `Decisions:` line begins `none, jbus filed this from a red`, whatever its slug, and which carries the `Follows:` line itself where a row's merge turned the check red; or, when it is queued, any row a home queued, with or without `--entry`;
+- its brief holds no case of `gates.md`;
 - P's go still holds: P is a row of this queue, or one that was removed as merged, and the user's word or this rule approved it.
 
-Each pass approves a waiting row of the first two kinds by itself, before any launch, so neither the home nor the user is asked.
+Each pass approves a waiting fix row jbus filed by itself, before any launch, and `queue add` approves a home's row as it queues it, so neither the home nor the user is asked.
 A fix jbus filed from a red check that no row's merge turned red (a red main, browser or macOS run) names no parent, since a red check has no one parent row.
 The follow-up rule approves it all the same, as its filer queues it and on each pass, with the red run its brief's `Task:` line quotes as the ground of its go.
 Its line reads `the follow-up rule, jbus filed it from the red run "<the run>"; run <time> by jbus's pass; you did not speak of this row`.
@@ -139,7 +140,7 @@ The same brief, or any row with a red check's slug, queued by a home or a person
 It also checks the waiting rows that name P when P gets its go.
 It prints one line for each row it approved, and one for each row that names a parent and still waits, with why.
 `jbus queue add --help` gives the same rule.
-To queue a second unit, write `Follows: <parent>` in its brief's head and queue it with `--entry <the parent's plan entry>`.
+To queue a follow-up, write `Follows: <parent>` in its brief's head and queue it: no `--entry` is needed.
 A row that names no parent, or whose parent has no approval of the user's own, or whose parent was removed before it merged, is new work, and it waits for the user's go, or for its plan entry's ("A plan entry's go" above).
 The one exception is a fix jbus's own pass filed from a red check, which names no parent and is approved by the rule on its red run, as above.
 A row queued again keeps what it had: a row that waited for the user is not approved by rule because a later add named a parent, and a held row stays held.

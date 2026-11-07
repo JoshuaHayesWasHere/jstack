@@ -31,6 +31,7 @@ A crew whose thread is at work is left until a later pass.
 A rebase that conflicts, a push the lease refuses, a crew's worktree with work in it, or a reviewer still out leaves the branch as it was, and the crew is told to move its own commits instead.
 Once the link moved or that message went, the line says `Stacked on: <slug> <branch> at <the commit that merged it>`, and `jmerge` waits until the link's head holds that commit.
 A link still on its base's branch gets no message to rebase onto main: its branch holds its base's commits too.
+A link with no pull request yet, its crew at its desk proof or waiting on its review, has only its line moved, in the brief's head and on its Result's `Stacked on:` line, before jbus launches its reviewer, so the reviewer fetches a base origin still has.
 
 - **A brief whose scope changed after the go** gets `condition <slug>: brief changed after approval: <lines>`.
   `<lines>` names each line the go no longer covers, as `<field>: <the line>`, or `<field>: a line taken out`, joined by `; `.

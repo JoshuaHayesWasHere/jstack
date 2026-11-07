@@ -37,6 +37,13 @@ has the line and has not moved yet, and whose base merged:
   capped thread is sent on a later pass, and the crew hears of its stack once. `jmerge` then waits
   until the link's head holds that commit (`ready.STACKED_UNMOVED`), and merges it as any other.
 
+A row still before its pull request, its crew at its desk proof or waiting on the review jbus
+launches (`prereview`), has no commits of its own on GitHub to move: once its base merged,
+`before_pull` only moves its line onto the branch the base merged into, in the brief's head and on
+its Result's own `Stacked on:` line, `Stacked on: <slug> <branch> at <merge>`. It runs before
+`prereview.launch` in the pass, so the reviewer reads a base origin still has; the crew's blocks
+read the same line, and `jmerge` waits until the head holds the merge as for any link.
+
 A base closed with no merge leaves its link waiting on `jmerge`'s line: GitHub closes a pull
 request whose base branch is deleted, and what to do with the work is the home's."""
 
@@ -85,6 +92,29 @@ def move(run: Pass, client: Client, world: World) -> None:
             _moved(run, client, world, slug, pull, stacked, merged, onto, sent)
         else:
             run.say(f"wait {slug}: GitHub did not say what {stacked.slug} merged into")
+
+
+def before_pull(run: Pass, world: World) -> None:
+    """Move the `Stacked on:` line of each row with a crew and no pull request yet, whose base
+    merged, onto the branch the base merged into: see the module."""
+    for slug in sorted(world.threads):
+        brief = task_brief(run, slug)
+        stacked = stacks.of(brief)
+        if stacked is None or stacked.at or slug in world.open or slug in world.merged:
+            continue
+        merged = world.merged.get(stacked.slug) or {}
+        if not (merged.get("mergeCommit") or {}).get("oid") or not rebase.crew(run, slug):
+            continue
+        merge = str(merged["mergeCommit"]["oid"])
+        onto = _onto(run, brief, merged)
+        if not onto:
+            run.say(f"wait {slug}: GitHub did not say what {stacked.slug} merged into")
+            continue
+        moved = replace(stacked, branch=onto, at=merge)
+        if _rewrite(run, slug, moved, was=stacked):
+            line = f"{KIND} {slug}: moved its Stacked on: line onto {onto}, {stacked.slug} merged"
+            run.find(slug, KIND, line, stacks.line(moved), key=f"before pull {merge[:12]}")
+            run.say(line)
 
 
 def _moved(
@@ -280,18 +310,44 @@ def _onto(run: Pass, brief: str, merged: dict[str, Any]) -> str:
     return str(said.get("baseRefName") or "") if isinstance(said, dict) else ""
 
 
-def _rewrite(run: Pass, slug: str, stacked: stacks.Stacked) -> None:
+def _rewrite(
+    run: Pass, slug: str, stacked: stacks.Stacked, was: stacks.Stacked | None = None
+) -> bool:
     """Write where the link sits now on its brief's `Stacked on:` line, read again just before,
-    so a line its crew added since is kept."""
+    so a line its crew added since is kept. Given the line it `was`, a Result's own `Stacked on:`
+    line of that stack is moved too, with what followed the branch on it, the base's url. Return
+    whether it was written."""
     path = run.home / "tasks" / f"{slug}.md"
     try:
-        text = path.read_text(errors="replace")
-        path.write_text(dispatch.stacked(text, stacked))
+        text = dispatch.stacked(path.read_text(errors="replace"), stacked)
+        if was is not None:
+            old = f"{stacks.LINE} {was.slug} {was.branch}".split()
+            head, mark, body = text.partition("\n## ")
+            text = (
+                head
+                + mark
+                + "".join(
+                    " ".join([stacks.line(stacked), *line.split()[4:]]) + "\n"
+                    if line.split()[:4] == old
+                    else line
+                    for line in body.splitlines(keepends=True)
+                )
+            )
+        path.write_text(text)
     except OSError as error:
         run.say(f"wait {slug}: its Stacked on: line could not be written ({error})")
+        return False
+    return True
 
 
 STEPS = (
+    verbs.Step(
+        "tellers",
+        34,
+        "stack.before_pull",
+        lambda half: before_pull(half.run, half.seen.world),
+        ("world",),
+    ),
     verbs.Step(
         "after-expedite",
         27,

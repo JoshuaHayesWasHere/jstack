@@ -1,6 +1,6 @@
-"""The two hooks that judge a thread's own calls, `door-command` and `agent-sends`, refuse a call
-they cannot judge, and every refusal of a jstack hook is a quiet `hook` event in the jbus log of
-the repo the call ran in.
+"""The hooks that judge a thread's own calls, `door-command`, `agent-sends` and `merge-command`,
+refuse a call they cannot judge, and every refusal of a jstack hook is a quiet `hook` event in the
+jbus log of the repo the call ran in.
 
 Each test runs a hook from a source tree of its own, a copy of the hook and of
 `features/jbus/hooks/judge.sh` beside a judging module the test writes: one that raises, one that
@@ -29,7 +29,10 @@ SENDS = (
     "mcp__t3-code__t3_thread_send",
     {"threadId": "mcp:a-home", "message": "done"},
 )
-HOOKS = pytest.mark.parametrize("hook", [DOOR, SENDS], ids=["door-command", "agent-sends"])
+MERGE = ("merge-command", "jbus", "jbus.mergecall", "Bash", {"command": "gh pr merge 5 --squash"})
+HOOKS = pytest.mark.parametrize(
+    "hook", [DOOR, SENDS, MERGE], ids=["door-command", "agent-sends", "merge-command"]
+)
 RAISES = "raise RuntimeError('the judge broke')\n"
 SLEEPS = "import time\ntime.sleep(30)\n"
 FORKS = "import subprocess, time\nsubprocess.Popen(['sleep', '8'])\ntime.sleep(30)\n"

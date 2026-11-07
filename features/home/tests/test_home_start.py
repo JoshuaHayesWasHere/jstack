@@ -14,12 +14,14 @@ import pytest
 from test_home_thread import STATUS, as_read
 from test_jbus_kitchen import complete
 from testing.layouts import assembled
+from testing.paths import REPO
 
 HOOK = assembled() / "hooks" / "home-start.sh"
 NAME = "demo"
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
 
-T3 = ("T3_CODE_MCP_AUTHORIZATION", "T3_MCP_BEARER_TOKEN")
+T3 = "T3CODE_THREAD_ID"
+T3_CODEX = "CODEX_INTERNAL_ORIGINATOR_OVERRIDE"
 HOMES = "JBUS_HOME_DIR"
 MARK = "$first"
 FIRST, USUAL, *REST = (
@@ -66,16 +68,33 @@ class Scene:
         self.main.mkdir(parents=True)
         git(self.main, "init", "-q")
 
-    def start(self, cwd=None, *, source="startup", t3=T3[0], homes=None, env_file=None, **more):
+    def start(
+        self,
+        cwd=None,
+        *,
+        source="startup",
+        t3="claude",
+        originator=None,
+        homes=None,
+        env_file=None,
+        **more,
+    ):
         """Run the session-start hook as the harness does for a thread opened in `cwd`. `t3`
-        is the variable T3 Code sets for the thread, or None outside T3 Code. `homes` is the
-        `JBUS_HOME_DIR` the thread has, or None for none."""
-        env = {key: value for key, value in os.environ.items() if key not in (*T3, HOMES)}
+        names the agent T3 Code launched the session as, or None for a session T3 Code did not
+        launch. T3 Code sets `T3CODE_THREAD_ID` to a Claude session's thread id, and starts its
+        shared `codex app-server` with `CODEX_INTERNAL_ORIGINATOR_OVERRIDE=T3 Code`, which Codex
+        hands to its hooks. `originator` sets that variable to another client's name. `homes` is
+        the `JBUS_HOME_DIR` the thread has, or None for none."""
+        env = {key: value for key, value in os.environ.items() if key not in (T3, T3_CODEX, HOMES)}
         env["HOME"] = str(self.user)
         if homes:
             env[HOMES] = str(homes)
-        if t3:
-            env[t3] = "x"
+        if t3 == "claude":
+            env[T3] = "mcp:a-thread"
+        if t3 == "codex":
+            env[T3_CODEX] = "T3 Code"
+        if originator:
+            env[T3_CODEX] = originator
         env.pop("CLAUDE_ENV_FILE", None)
         if env_file:
             env["CLAUDE_ENV_FILE"] = str(env_file)
@@ -117,10 +136,12 @@ def test_a_repo_with_no_state_directory_gets_the_line_for_a_first_home(tmp_path,
     assert not scene.home_dir.exists()
 
 
-def test_a_codex_thread_in_t3_code_gets_the_line(scene):
-    said = scene.start(t3="T3_MCP_BEARER_TOKEN", hook_event_name="SessionStart")
-    assert said == scene.said(first=True)
-    assert scene.start(t3=None, hook_event_name="SessionStart") == ""
+def test_a_codex_thread_t3_code_opens_gets_the_line_too(scene):
+    assert scene.start(t3="codex") == scene.said(first=True)
+
+
+def test_a_codex_session_another_client_started_gets_no_line(scene):
+    assert scene.start(t3=None, originator="codex_vscode") == ""
 
 
 def test_a_state_directory_no_home_has_started_in_is_still_a_first_home(scene):
@@ -177,13 +198,14 @@ def a_worktree(scene, tmp_path):
     return {"cwd": tmp_path / "trees" / "a-task"}
 
 
-def test_a_launched_crews_tmpdir_is_its_scratch_folder_on_disk(scene, tmp_path):
+@pytest.mark.parametrize("source", ["startup", "resume", "clear", "compact", "fork"])
+def test_a_launched_crews_tmpdir_is_its_scratch_folder_on_disk(scene, tmp_path, source):
     tree = a_worktree(scene, tmp_path)["cwd"]
     branch = "a-task"
     folder = scene.user / ".cache" / "jstack" / "scratch" / scene.main.name / branch
     folder.mkdir(parents=True)
     env_file = tmp_path / "env"
-    scene.start(tree, env_file=env_file)
+    scene.start(tree, source=source, env_file=env_file)
     exported = subprocess.run(
         ["bash", "-c", f'. "{env_file}"; printf %s "$TMPDIR"'],
         capture_output=True,
@@ -191,6 +213,19 @@ def test_a_launched_crews_tmpdir_is_its_scratch_folder_on_disk(scene, tmp_path):
         check=True,
     ).stdout
     assert exported == str(folder)
+
+
+def test_the_installed_hook_runs_at_every_kind_of_session_start():
+    """The harness runs the hook only where its matcher matches the session's source, so a crew
+    resumed or compacted would otherwise lose its TMPDIR."""
+    (entry,) = [
+        hook
+        for hook in json.loads((REPO / "skills.json").read_text())["hooks"]
+        if hook["name"] == "home-start.sh"
+    ]
+    for event in entry["events"]:
+        for source in ("startup", "resume", "clear", "compact", "fork"):
+            assert re.fullmatch(event["matcher"], source), (event["harness"], source)
 
 
 def test_a_thread_with_no_scratch_folder_keeps_its_tmpdir(scene, tmp_path):
@@ -247,7 +282,7 @@ def a_bare_repo(scene, tmp_path):
 
 
 def outside_t3(scene, tmp_path):
-    return {"t3": False}
+    return {"t3": None}
 
 
 def a_resume(scene, tmp_path):

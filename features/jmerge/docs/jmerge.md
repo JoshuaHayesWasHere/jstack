@@ -36,6 +36,7 @@ If the file names a check that your repo's CI never runs, every pull request wai
 
 Run `jmerge --accept <number> --as user --message <thread id>/<message id>` from the main checkout, naming your own message in T3 Code.
 The section "Accept a held pull request" lists what `jmerge` checks before it merges.
+It is the one way an agent merges on your word: in a repo jbus's config names, the `merge-command` hook refuses an agent's own `gh pr merge` and prints this line in its place ([Hooks](../../home/docs/hooks.md#the-merge-hook)).
 
 ## What a merge does
 
@@ -122,7 +123,8 @@ The section "Protected paths" describes one more hold.
   `jmerge` judges the brief with it and writes nothing to the brief.
   A review after the first owes that line, and a push after it, only where it has an `error` finding.
   One round: a fix pushed for the findings gets no review, and a `Second pass:` line, from a brief before one round, makes the pull request wait for nothing.
-  A `Scoped review: needed since <head>` line, which the crew writes only after a `Meets the brief: no`, makes it wait for a review of a later head.
+  A `Scoped review: needed since <head>` line, which the crew writes only after a `Meets the brief: no`, makes it wait for a review of a later head (`fix`, `its fix is not reviewed`) only while no `Proved:` line of the Result holds at the head (`ready.proves`, as "Its Result proves the work" reads the line).
+  A fix whose proof runs there merges on that run and its checks: a `no` still waits on the `Meets the brief:` rule below, whose way out is the scoped review that says `yes`.
 - **Every blocking finding is answered.**
   Each blocking finding needs an answer that counts, for every pull request.
   `jbriefs --findings` reads every `## Review` section into one list.
@@ -518,7 +520,7 @@ That endpoint lists up to 3000 files.
 ## Accept a held pull request
 
 `jmerge --accept` merges, on your word, a pull request that `jmerge` holds.
-Never run `gh pr merge` by hand.
+Never run `gh pr merge` by hand: an agent's is refused by the `merge-command` hook, which prints the accept line in its place.
 
 ```sh
 jmerge --accept <number> --as user --message <thread id>/<message id>
@@ -531,7 +533,17 @@ The typed form, `jmerge --accept <number> --by <user> --at "YYYY-MM-DD HH:MM <zo
 
 It lifts the hold at the head where `jmerge` reported it.
 `jmerge` records that head in `holds.json` in the state directory.
-It refuses a pull request that is not held, one whose head is not the head on record, and one with no proven safety fact at that head, unless its brief says `Review: none`.
+It refuses a pull request that is not held, other than one waiting in line ("A pull request waiting in line" below), one whose head is not the head on record, and one with no proven safety fact at that head, unless its brief says `Review: none`.
+
+It also lifts one kind of `wait`: a Result's `Proved:` line (the `proved-*` codes, `jmerge.judgement.WAIVED`), which your word stands in for as it does for `Review: none`.
+No run keeps a record of a wait, so it lifts it at the head GitHub gives now, and the merge still names that head.
+A plain `jmerge` still waits on that line for its crew to fix.
+Every other wait but one in line ("A pull request waiting in line" below) is refused, `refused <number> <url>: it is not held, it waits: <reason>`, but for a pull request no brief names on your own message, below, and two of them end with why and the way through (`jmerge.judgement.UNLIFTED`):
+
+| The wait | Why the accept refuses it |
+|---|---|
+| `no brief has a Result that names it` (`no-brief`) | with no brief, no `Review:` line, review or Result is there to stand on, so only your own message merges it: `jmerge --accept <number> --as user --message <thread id>/<message id>` |
+| `its base is <base>, not <default>` (`base`) | `jbus project bases <project> --add <base>` names its base a merge base, and `jmerge` then merges it on main's rules |
 
 **A proven safety fact.**
 At the commit it saw, the review proved the one fact that makes the change safe.
@@ -543,16 +555,35 @@ Otherwise the reason is `no proven safety fact at <commit12> (blast-radius, revi
 
 `--by` takes only the `user` of `~/.config/jstack/config.toml`, which is `user` when that file names none.
 It writes an `accepted` line to `merge.log` that records who accepted and when, and then judges the pull request as any other, so `merge-off` applies.
+The `merged` line of an accept carries the word it rests on as a note before its revert command, `accepted by <user> at <when>`, with ` on <thread id>/<message id>` where `--message` named your message.
 `jmerge --accept <number> --check` says what it would do.
 
+**A pull request no brief names.**
+A dependabot bump, or a pull request opened by hand, has no brief, and a plain `jmerge` waits on it with `no brief has a Result that names it`.
+Your own message merges it, `--message`, as `--as user` or carried by a home; typed words, `--by` and `--at`, are refused.
+With no brief there is no review, Result or queue row to judge, so the accept judges it by every rule that needs no brief: its base is one `jmerge` merges into, its required checks passed at its head, it merges over today's base in its turn, a protected path is a door your message opens, and `merge-off` holds it.
+It needs no hold on record and no proven safety fact: your word stands in for both, as it does for `Review: none`.
+One that falls short of any of those merges nothing, and the accept prints its `wait` line and ends 1.
+Its `merged` line names it `#<number>` for its slug, as jbus names a line with no slug, so a reader of `merge.log` finds no brief of it and the root home is told of it: `merged <number> #<number> <commit> "<title>", accepted by <user> at <when> on <thread id>/<message id>, revert: <command>`.
+
 The accept of a held draft merges nothing and marks nothing ready: it prints the draft's wait and ends 1, and keeps no record, so the next run holds it again.
+
+**A pull request waiting in line.**
+A pull request whose only wait is its turn in line (`in-line`, "it is in line behind #<n>") is not held, and the accept merges it on no check from before its base moved.
+On your own message (`--message`), the accept gives it the head of its base's line instead.
+It asks GitHub to merge the base into the branch now and prints `accepted <number> <url>: it takes the head of the line of <base> from #<n>, accepted by <user> at <when> on <thread id>/<message id>`, followed by the pull request's `wait` line.
+The pull request that held the head keeps the update GitHub made it and waits in line again.
+A later run merges the accepted one once its check passes at the merged head, and its `merged` line carries the same `accepted by ...` note.
+If GitHub does not take the update, the line stays as it was and the accept ends 1.
+Typed words (`--by`, `--at`) do not move the line.
+The word is kept on the pull request's record in `base-merges.json` and is dropped if the pull request gives the line up, for example when its check fails.
 A push drops the hold, and so do the merge and a close.
 
 Where the checkout is a project of jbus's, the accept is an act of jbus's, one line of the project's `acts.jsonl`, whatever came of it ([Who acts, and the acts log](../../jbus/docs/jbus/the-queue.md#who-acts-and-the-acts-log)).
 `--as` names the party that accepts: `home`, the default, or `user`, which acts only on `--message` and is refused on typed words.
 An accept opens a door when the brief holds for one, by a `Holds:` line or a command it runs, and when the pull request touches a protected path, the case "changes access or secrets".
 Only you open a door, on your own message: `--as user` with `--message`.
-Any other party's accept on a door, a home's or one on typed words, parks a gate for you, `may jmerge merge pull request <number> of <slug>? It holds for <cases>`, and merges nothing.
+Any other party's accept on a door, a home's or one on typed words, parks a gate for you, `may jmerge merge pull request <number> of <slug>? It holds for <cases>`, with no ` of <slug>` for a pull request no brief names, and merges nothing.
 `--message` in a checkout that is no project of jbus's is refused, and there the accept runs on `--by` and `--at` alone and nothing logs it.
 `--check` is no act and records nothing.
 

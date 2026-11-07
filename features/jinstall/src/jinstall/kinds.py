@@ -1298,8 +1298,10 @@ class T3Code:
         return "on Arch: t3code-bin"
 
 
-T3_JSTACK = re.compile(r"([0-9]+(?:\.[0-9]+)+-nightly\.[0-9]+\.[0-9]+)\+jstack\.([0-9a-f]{10})\b")
-T3_NIGHTLY_TAG = re.compile(r"refs/tags/(v[0-9]+(?:\.[0-9]+)+-nightly\.[0-9]+\.[0-9]+)$", re.M)
+T3_JSTACK = re.compile(
+    r"([0-9]+(?:\.[0-9]+)+(?:-nightly\.[0-9]+\.[0-9]+)?)\+jstack\.([0-9a-f]{10})\b"
+)
+T3_STABLE_TAG = re.compile(r"refs/tags/(v[0-9]+\.[0-9]+\.[0-9]+)$", re.M)
 T3_UPSTREAM = "https://github.com/pingdotgg/t3code"
 PINNED_TAG = re.compile(r"T3CODE_JSTACK_TAG:-(v[^}\"]+)")
 MAKEPKG_DIRS = ("BUILDDIR", "PKGDEST", "SRCDEST")
@@ -1333,22 +1335,25 @@ def patch_series(packaging: Path) -> str:
 
 @dataclass(frozen=True)
 class T3JstackBuild:
-    """T3 Code nightly with jstack's tree sidebar, which the PKGBUILD in `packaging` builds
-    from an upstream nightly tag and the folder's patches, as the Arch package t3code-jstack.
-    Its version is `<nightly>+jstack.<series>`. The tree's own switch is T3's setting, which
-    the probe never reads.
+    """T3 Code with jstack's tree sidebar, which the PKGBUILD in `packaging` builds from an
+    upstream stable release tag, `v<major>.<minor>.<patch>`, and the folder's patches, as the
+    Arch package t3code-jstack. Its version is `<release>+jstack.<series>`. The tree's own
+    switch is T3's setting, which the probe never reads.
 
-    The build follows upstream: the tag it wants is upstream's newest nightly, else the nightly
-    of the running build, else the PKGBUILD's pinned tag, leaving out each tag the patches did
-    not apply to (the `failed` file of the cache, by tag and series). The probe asks upstream
-    with `git ls-remote`, and when upstream does not answer it wants the running nightly.
+    The build follows upstream: the tag it wants is upstream's newest stable release, else the
+    release of the running build, else the PKGBUILD's pinned tag, leaving out each tag the
+    patches did not apply to (the `failed` file of the cache, by tag and series). A nightly is
+    never one of them: only T3CODE_JSTACK_TAG, set by hand for makepkg, builds one. The probe
+    asks upstream with `git ls-remote`, and when upstream does not answer it wants the running
+    release, else the pinned tag.
     makepkg runs with TMPDIR at the cache's `tmp` folder, which the build makes and clears, so
     the desktop stage (about 1 GB) never needs room in /tmp. A build that failed on EDQUOT or
     ENOSPC is named as out of temp space, at the path its log names, else at that folder.
-    due: on Arch, where `t3 --version` answers a nightly, which the package replaces.
+    due: on Arch, where `t3 --version` answers a jstack build or a nightly, which the package
+      replaces with the stable build. Upstream's stable build is left as it is.
     ok: the running build is the tag it wants, with the folder's patches.
     missing: no `t3` answers, or the running build is upstream's.
-    old: the running build is another nightly or other patches. When no tag takes the
+    old: the running build is another release, a nightly, or other patches. When no tag takes the
       patches it is old and not replaceable, since only a rebase of the patches mends it."""
 
     packaging: Path
@@ -1358,7 +1363,7 @@ class T3JstackBuild:
         if not machine.which("pacman") or command is None:
             return False
         ran = machine.run([str(command), "--version"])
-        return ran.code == 0 and "-nightly." in ran.out
+        return ran.code == 0 and ("-nightly." in ran.out or T3_JSTACK.search(ran.out) is not None)
 
     def ask(self, machine: Machine) -> str:
         log = self._log(machine)
@@ -1383,7 +1388,7 @@ class T3JstackBuild:
         series = patch_series(self.packaging)
         newest, tags = self._plan(machine, f"v{built[1]}", series)
         if not tags:
-            return Found.foreign(f"no nightly takes jstack's patches {series}: rebase them")
+            return Found.foreign(f"no stable release takes jstack's patches {series}: rebase them")
         have, want = f"{built[1]}+jstack.{built[2]}", f"{tags[0][1:]}+jstack.{series}"
         if have != want:
             return Found.old(f"built {have}, and jstack builds {want}")
@@ -1425,10 +1430,10 @@ class T3JstackBuild:
                 with (cache / "failed").open("a") as failed:
                     failed.write(f"{tag} {series}\n")
             else:
-                raise Refused(f"no nightly takes jstack's patches {series}: rebase them")
+                raise Refused(f"no stable release takes jstack's patches {series}: rebase them")
         finally:
             _clear(temp)
-        version = f"{tag[1:].replace('-nightly.', '_nightly.')}.jstack.{series}"
+        version = f"{tag[1:]}.jstack.{series}"
         package = max(
             cache.glob(f"t3code-jstack-{version}-*.pkg.tar.*"),
             key=lambda path: path.stat().st_mtime,
@@ -1445,26 +1450,27 @@ class T3JstackBuild:
         if ran is None or ran.code != 0 or T3_JSTACK.search(ran.out) is None:
             return Dropped()
         return Dropped(
-            kept=("t3code-jstack -> it is T3 Code: yay -S t3code-nightly-bin puts upstream's back",)
+            kept=("t3code-jstack -> it is T3 Code: yay -S t3code-bin puts upstream's back",)
         )
 
     def _plan(
         self, machine: Machine, running: str | None, series: str
     ) -> tuple[str | None, list[str]]:
-        """Upstream's newest nightly, or None when upstream does not answer, and the tags to
-        build in order: the newest, the running build's, the pinned one, less each that
-        failed with `series`."""
+        """Upstream's newest stable release, or None when upstream does not answer, and the
+        tags to build in order: the newest, the running build's, the pinned one, less each
+        that failed with `series`. A nightly, running or upstream's, is never one of them."""
         asked = machine.run(
-            ["timeout", "20", "git", "ls-remote", "--tags", "--refs", T3_UPSTREAM, "v*-nightly.*"]
+            ["timeout", "20", "git", "ls-remote", "--tags", "--refs", T3_UPSTREAM, "v*"]
         )
-        found = T3_NIGHTLY_TAG.findall(asked.out) if asked.code == 0 else []
+        found = T3_STABLE_TAG.findall(asked.out) if asked.code == 0 else []
         newest = max(found, key=lambda tag: _t3_order(tag[1:]), default=None)
         pinned = PINNED_TAG.search((self.packaging / "PKGBUILD").read_text())
         failed = self._cache(machine) / "failed"
         lines = failed.read_text().splitlines() if failed.is_file() else []
         tags: list[str] = []
         for tag in (newest, running, pinned[1] if pinned else None):
-            if tag is not None and tag not in tags and f"{tag} {series}" not in lines:
+            stable = tag is not None and T3_STABLE_TAG.fullmatch(f"refs/tags/{tag}") is not None
+            if stable and tag not in tags and f"{tag} {series}" not in lines:
                 tags.append(tag)
         return newest, tags
 

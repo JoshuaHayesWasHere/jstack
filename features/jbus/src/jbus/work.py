@@ -31,22 +31,25 @@ confirmed.
 state, so every reader of the queue still finds the same words as before. `scouting` gives a
 scout's row one of queued, scouting and report in, which the sidebar's tree draws. `write` keeps
 every state of a pass, whole, in `work.json` in the project's state directory, and the view
-draws that file.
+draws that file. Between passes, an act that changes a row's go or takes the row out rewrites
+that row's one line (`update`, `restate`, from `waiting.acted`), judged again from the facts the
+last pass kept for it, so the view shows the act before the next pass. Both writers hold `LOCK`.
 """
 
 from __future__ import annotations
 
 import functools
 import itertools
-from collections.abc import Iterator
-from dataclasses import dataclass
+from collections.abc import Callable, Iterator
+from dataclasses import dataclass, replace
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from jbus import read_json, roles, write_json
+from jbus import locked, read_json, roles, write_json
 
 NAME = "work.json"
+LOCK = "work.lock"
 T3, GITHUB = "T3 Code", "GitHub"
 
 
@@ -548,6 +551,76 @@ def entry(state: State, held: Holder | None = None, **about: Any) -> dict[str, A
     }
 
 
+GONE = object()
+"""What `update` takes from a change to mean that the row's entry goes."""
+APPROVED = frozenset({Row.BEHIND, Row.FREE})
+
+
+def stored(one: dict[str, Any]) -> Facts | None:
+    """Return the facts a line of `work.json` was judged from, with its value as `last`, or None
+    for a line whose facts do not parse. A thread status that jbus does not know is `seen`."""
+    said = one.get("facts")
+    if not isinstance(said, dict) or one.get("value") not in VALUES:
+        return None
+    thread = str(said.get("thread", ""))
+    known = thread in set(Thread)
+    try:
+        return Facts(
+            row=Row(said["row"]),
+            thread=Thread(thread) if known else Thread.NONE,
+            launch=Launch(said["launch"]),
+            written=Written(said["written"]),
+            pull=Pull(said["pull"]),
+            question=Question(said["question"]),
+            answered=Answered(said["answered"]),
+            last=one["value"],
+            seen="" if known else thread,
+        )
+    except (KeyError, ValueError):
+        return None
+
+
+def restate(one: dict[str, Any], row: Row) -> dict[str, Any]:
+    """Return a row's line of `work.json` judged again from its stored facts with `row` as the
+    new `Row` facet, as an act that changed the row's go knows it. A new approved facet beside an
+    approved one is the pass's to tell apart, since only the pass sees which depends merged; and
+    a state that keeps its value keeps its holder, which the pass worked out from more than the
+    facts."""
+    facts = stored(one)
+    if facts is None or facts.row == row or {facts.row, row} <= APPROVED:
+        return one
+    facts = replace(facts, row=row)
+    asked = facts.question == Question.OPEN
+    state = unforeseen(facts) if facts.seen and not asked else judge(facts)
+    if state.value == one["value"]:
+        return {**one, "confirmed": state.confirmed, "facts": state.facts.said()}
+    about = {name: value for name, value in one.items() if name not in _JUDGED}
+    role = "scout" if "scout" in one else ""
+    scout = {"scout": str(scouting(state))} if role else {}
+    return entry(state, holder(state, role=role), **about, **scout)
+
+
+_JUDGED = frozenset({"value", "name", "who", "waits", "lane", "confirmed", "facts", "scout"})
+
+
+def update(state_dir: Path, slug: str, change: Callable[[dict[str, Any]], Any]) -> None:
+    """Rewrite the one line of `work.json` of the row `slug` with what `change` makes of it, or
+    take it out where `change` gives `GONE`, under `LOCK`. A file with no such line is left as it
+    is, since no pass judged that row yet."""
+    with locked(state_dir, LOCK):
+        kept = read(state_dir)
+        if kept is None:
+            return
+        work = []
+        for one in kept["work"]:
+            if isinstance(one, dict) and one.get("kind") == "row" and one.get("key") == slug:
+                one = change(one)
+            if one is not GONE:
+                work.append(one)
+        if work != kept["work"]:
+            write_json(path(state_dir), {**kept, "work": work})
+
+
 def path(state_dir: Path) -> Path:
     return state_dir / NAME
 
@@ -563,6 +636,7 @@ def last(state_dir: Path) -> dict[str, str]:
 
 
 def write(state_dir: Path, at: str, answered: Answered, work: list[dict[str, Any]]) -> None:
+    """Write the whole file. The caller holds `LOCK`, so no act's `update` falls between."""
     write_json(path(state_dir), {"at": at, "answered": str(answered), "work": work})
 
 

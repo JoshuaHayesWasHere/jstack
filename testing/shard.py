@@ -35,11 +35,14 @@ list of files carries this token for them, since a node id can hold a space or a
 `make test TESTS=...` would split.
 
 The table holds CI's times, not a desk's: the tests run several times slower on the 4 cores of
-GitHub's runner, and not by one factor. Each part of `full` keeps its junit report as the
-artifact `junit-<attempt>-<k>`, and `uv run python -m testing.shard` writes the table from the last
-`RUNS` green full runs of main that kept them, each test's median over them. Main's full runs
-restore main's TLC cache, so the merge flow's TLC test is in at its warm time, as the check's
-parts run it. `--shard-record PATH` writes it from a run of this machine instead:
+GitHub's runner, and not by one factor. Each part of `full` keeps its junit report as the artifact
+`junit-<attempt>-<k>`, and `uv run python -m testing.shard` writes the table from the last `RUNS`
+green full runs of main that kept them, each test's median over them: that command, run at a desk
+with `gh` and its diff committed, is how the table is refreshed, when the parts' walls drift apart
+or many tests are added; where the merge flow's TLC test's row moved, its pin below moves with it,
+as test_flow_spec.py's test says. Main's full runs restore main's TLC cache, so the merge flow's TLC
+test is in at its warm time, as the check's parts run it. `--shard-record PATH` writes it from a run
+of this machine instead:
 `uv run pytest -n 4 -m "not browser" --shard-record PATH`. There a test whose time on this
 machine is not its time in CI pins its CI seconds with `@pytest.mark.shard_seconds(S)`, and the
 record writes S for it in place of the time it took."""
@@ -62,6 +65,7 @@ FLOOR = 0.1
 WORKERS = 4
 RUNS = 5
 REPO = Path(__file__).resolve().parent.parent
+CHECK = REPO / ".github/workflows/check.yml"
 
 
 def pytest_addoption(parser):
@@ -306,10 +310,21 @@ def collected() -> list[str]:
     return [line for line in ran.stdout.splitlines() if "::" in line]
 
 
+def full_parts(workflow: Path) -> int:
+    """How many parts the job `full-shard` of this workflow runs: its matrix's `shard` list."""
+    job = re.search(r"^  full-shard:\n((?:(?:    .*)?\n)*)", workflow.read_text(), re.M)
+    shards = job and re.search(r"^ +shard: \[(.*)\]$", job[1], re.M)
+    if not shards:
+        sys.exit(f"shard.py: {workflow} has no job full-shard with a matrix of shards")
+    return len(shards[1].split(","))
+
+
 def downloaded(count: int, branch: str, into: Path) -> list[list[Path]]:
     """The junit reports of the last `count` green runs of the check on `branch` that are not a
-    pull request's and kept one from each of `full`'s 4 parts, each part's latest attempt: a run
-    that skipped the suite on a green tree's marker keeps none."""
+    pull request's and kept one from each of `full`'s parts, as many as check.yml's matrix gives
+    it, each part's latest attempt: a run that skipped the suite on a green tree's marker keeps
+    none, and a run of a full with another count of parts does not count."""
+    want = full_parts(CHECK)
     listed = subprocess.run(
         ["gh", "run", "list", "--workflow", "check.yml", "--branch", branch, "--status"]
         + ["success", "--limit", "100", "--json", "databaseId,event"],
@@ -335,7 +350,7 @@ def downloaded(count: int, branch: str, into: Path) -> list[list[Path]]:
             attempt, _, part = report.parent.name.removeprefix("junit-").partition("-")
             latest[part] = max(latest.get(part, (0, report)), (int(attempt), report))
         parts = [report for _, report in sorted(latest.values())]
-        if len(parts) == WORKERS:
+        if len(parts) == want:
             print(f"run {run['databaseId']}: {len(parts)} parts", file=sys.stderr)
             runs.append(parts)
         if len(runs) == count:

@@ -751,6 +751,12 @@
       "source": "jstack"
     },
     {
+      "name": "proved.sh",
+      "kind": "template",
+      "path": "features/crew/templates/proved.sh",
+      "source": "jstack"
+    },
+    {
       "name": "rerun.md",
       "kind": "template",
       "path": "features/crew/templates/rerun.md",
@@ -865,12 +871,12 @@
         {
           "harness": "claude-code",
           "event": "SessionStart",
-          "matcher": "startup"
+          "matcher": "startup|resume|clear|compact|fork"
         },
         {
           "harness": "codex",
           "event": "SessionStart",
-          "matcher": "startup"
+          "matcher": "startup|resume|clear|compact|fork"
         }
       ]
     },
@@ -903,6 +909,28 @@
         "claude-code"
       ],
       "events": []
+    },
+    {
+      "name": "merge-command.sh",
+      "path": "features/jbus/hooks/merge-command.sh",
+      "harnesses": [
+        "claude-code",
+        "codex"
+      ],
+      "events": [
+        {
+          "harness": "claude-code",
+          "event": "PreToolUse",
+          "matcher": "Bash",
+          "refuses": true
+        },
+        {
+          "harness": "codex",
+          "event": "PreToolUse",
+          "matcher": "Bash",
+          "refuses": true
+        }
+      ]
     },
     {
       "name": "outbound-command.sh",

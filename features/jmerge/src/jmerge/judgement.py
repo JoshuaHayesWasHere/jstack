@@ -38,6 +38,35 @@ APPROVE = "jbus queue approve"
 SWITCH = "/nohome merge on"
 LIFTS = {ready.ROW_HELD.code: APPROVE, ready.NO_GO.code: APPROVE, ready.MERGE_OFF.code: SWITCH}
 """The holds that a word of the user's other than `--accept` lifts, by code, and that word."""
+WAIVED = frozenset(
+    reason.code
+    for reason in (
+        ready.PROVED_MISSING,
+        ready.PROVED_UNREAD,
+        ready.PROVED_NOT_EXEMPT,
+        ready.PROVED_NOT_KIND,
+        ready.PROVED_UNNAMED,
+        ready.PROVED_BASE_PASSED,
+        ready.PROVED_HEAD_FAILED,
+        ready.PROVED_STALE,
+    )
+)
+"""The waits `jmerge --accept` lifts too, by code: a Result's `Proved:` line, which the user's
+word stands in for as it does for a brief that says `Review: none`. A plain `jmerge` still waits
+on them, for its crew to fix. #1071 waited on its `Proved:` line on 2026-11-05 when the user said
+to merge it, and a home merged it with `gh pr merge`."""
+UNLIFTED = {
+    ready.NO_BRIEF.code: "with no brief, no Review: line, review or Result is there for an "
+    "accept to stand on, so only the user's own message merges it: jmerge --accept <number> "
+    "--as user --message <thread id>/<message id>",
+    ready.BASE.code: "jmerge merges into the default branch and the merge bases jbus's config "
+    "names: `jbus project bases <project> --add <base>` names its base one, and jmerge then "
+    "merges it on main's rules",
+}
+"""Why `jmerge --accept` lifts no wait of these codes, and the way through, which its refusal
+prints: the cases homes merged by hand with `gh pr merge` that an accept does not merge, or
+merges on the user's own message alone (`no-brief`, `cli.Repo.unbriefed`). One in line takes the
+head of the line on the user's message instead (`cli.Repo.take_line`)."""
 
 
 @dataclass(frozen=True)
@@ -134,6 +163,12 @@ def lifted_by(why: str) -> str:
     if ready.step_of(code) != HOLD:
         return ""
     return LIFTS.get(code, ACCEPT)
+
+
+def accepted(why: str) -> bool:
+    """Return whether `jmerge --accept` lifts a reason: a hold it lifts (`verb`), or a wait of
+    `WAIVED`."""
+    return lifted_by(why) == ACCEPT or ready.code_of(why) in WAIVED
 
 
 def verb(why: str) -> str:

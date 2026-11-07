@@ -53,7 +53,8 @@ from functools import cached_property
 from typing import Any
 
 import jsettings
-from jbus.watch import MAC_JOBS
+from jbus.ci import macjobs
+from jbus.watch import mac_job
 
 LOOKBACK = timedelta(hours=2)
 FALLBACK = timedelta(hours=24)
@@ -157,7 +158,7 @@ def _number(
 def _of_main(job: dict[str, Any]) -> bool:
     """Return whether a job is one of main's check: a push to main, not one of macos.yml, which
     `jbus.watch` never judges as main's check."""
-    return job["event"] == "push" and job["branch"] == "main" and job.get("name") not in MAC_JOBS
+    return job["event"] == "push" and job["branch"] == "main" and not mac_job(job.get("name"))
 
 
 def _ran(job: dict[str, Any]) -> bool:
@@ -688,12 +689,13 @@ def shas_per_pr(facts: Facts, start: datetime, end: datetime) -> Number:
 
 
 def _wait(key: str, facts: Facts, start: datetime, end: datetime, jobs: str) -> Number:
+    mac = macjobs.on_mac(facts.jobs)
     waited = [
         j
         for j in facts.jobs
         if j["event"] == "pull_request"
         and j.get("started")
-        and (SHARD.fullmatch(j["name"]) if key == "wait_p90_shard" else j["name"] == "macos")
+        and (SHARD.fullmatch(j["name"]) if key == "wait_p90_shard" else mac(j))
         and _in(j["created"], start, end)
     ]
     how = (
@@ -714,7 +716,7 @@ def wait_p90_shard(facts: Facts, start: datetime, end: datetime) -> Number:
 
 
 def wait_p90_macos(facts: Facts, start: datetime, end: datetime) -> Number:
-    return _wait("wait_p90_macos", facts, start, end, "`macos`")
+    return _wait("wait_p90_macos", facts, start, end, macjobs.NAMED)
 
 
 def open_to_merge(facts: Facts, start: datetime, end: datetime) -> Number:

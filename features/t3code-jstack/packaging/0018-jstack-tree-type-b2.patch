@@ -1,4 +1,4 @@
-From 128b305a394b415fbbc5fbee392064560d82fd74 Mon Sep 17 00:00:00 2001
+From 5cf3a4d844a41d9bf7c9e12177aa5680cbd05781 Mon Sep 17 00:00:00 2001
 From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
 Date: Thu, 29 Oct 2026 23:40:27 -0400
 Subject: [PATCH] feat(web): the jstack tree keeps to one weight, a crew task's
@@ -1287,7 +1287,7 @@ index 46cd5bdbdf..671b2bfec7 100644
      faded: tasks.length === 0 && gates.length === 0 && !rootAsks && !isThreadWorking(rootThread),
      selected: root.threadId === input.routeThreadId,
 diff --git a/apps/web/src/index.css b/apps/web/src/index.css
-index dd05f9bcef..b9da1d6033 100644
+index f672895f9f..d30d02491c 100644
 --- a/apps/web/src/index.css
 +++ b/apps/web/src/index.css
 @@ -188,11 +188,8 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
@@ -1313,7 +1313,7 @@ index dd05f9bcef..b9da1d6033 100644
    --radius-sm: calc(var(--radius) - 4px);
    --radius-md: calc(var(--radius) - 2px);
    --radius-lg: var(--radius);
-@@ -2553,3 +2552,17 @@ code {
+@@ -2577,3 +2576,17 @@ code {
    outline: 2px solid var(--ring);
    outline-offset: -2px;
  }

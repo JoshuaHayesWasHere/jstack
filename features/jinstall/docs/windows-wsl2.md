@@ -27,9 +27,9 @@ Run `loginctl enable-linger "$USER"` in the distro, so the units run while no te
 
 ## 2. T3 Code on Windows, with a WSL connection
 
-Install the T3 Code desktop app on Windows, stable `0.1.2` or newer or the nightly build, as the [Requirements](../../../README.md#requirements) say.
-`winget install T3Tools.T3Code` installs the stable build.
-For the nightly, take the newest release titled "T3 Code Nightly" from [its releases](https://github.com/pingdotgg/t3code/releases), its `T3-Code-<version>-x64.exe`.
+Install the T3 Code desktop app on Windows, the stable build, `0.1.2` or newer, as the [Requirements](../../../README.md#requirements) say.
+`winget install T3Tools.T3Code` installs it.
+To pick the nightly by hand instead, take the newest release titled "T3 Code Nightly" from [its releases](https://github.com/pingdotgg/t3code/releases), its `T3-Code-<version>-x64.exe`.
 The doctor cannot see which build the app is, since it reads the `t3` command of step 4, so keep the app and that command on the same channel.
 Open it, then open **Settings → Connections** and choose your distro.
 T3 Code installs its own server runtime in the distro, under `~/.t3/wsl-runtime`, and runs your projects and agents there.
@@ -49,11 +49,13 @@ The desktop app does not put a `t3` there.
 It writes its `t3` launcher only on the Windows side, as `%USERPROFILE%\.t3\bin\t3.cmd`.
 Its runtime in the distro sits under `~/.t3/wsl-runtime/<id>/`, which is neither of those places.
 
-Install the `t3` command in the distro with T3 Code's own installer, on the channel of your app, here the nightly:
+Install the `t3` command in the distro with T3 Code's own installer, on the channel of your app, here the stable one, its default:
 
 ```sh
-curl -fsSL https://t3.codes/install.sh | T3CODE_CHANNEL=nightly sh
+curl -fsSL https://t3.codes/install.sh | sh
 ```
+
+For a nightly app picked by hand, run the installer with `T3CODE_CHANNEL=nightly` before `sh`.
 
 It puts `t3` in `~/.local/bin`, which `uv` also needs on `PATH`.
 Run `t3 update` in the distro after each update of the app, so the version the doctor reads keeps up with the app.

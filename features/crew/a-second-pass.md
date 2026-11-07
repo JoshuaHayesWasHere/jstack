@@ -108,7 +108,8 @@ The only other way out is the user's `Waived:` line ("The review").
 
 A brief from before one round may have a `Second pass:` line, or a `Scoped review: needed since` line that a fix wrote.
 `jmerge` reads a `Second pass:` line as no line, so it owes nothing.
-A `Scoped review: needed since <head>` line, the last such line in the Result, holds the pull request until a review of a later head than `<head>` is written, and on every path until every finding that blocks, of every review, has its answer.
+A `Scoped review: needed since <head>` line, the last such line in the Result, holds the pull request until a review of a later head than `<head>` is written (`its fix is not reviewed`) only while no `Proved:` line of the Result holds at the head (`ready.proves`): a fix whose proof runs there merges on that run and its checks.
+A `Meets the brief: no` still waits for the scoped review that says `yes`, as the first branch of the block above says, and on every path the pull request waits until every finding that blocks, of every review, has its answer.
 Where that review stays unwritten, jbus says so in a message here that begins `jbus: pull request #<n> waits on you`.
 
 A rebase waits for a review that is running, and for nothing else: the first block of "A conflict" does nothing while a reviewer this thread launched has not written its section, so the head does not move from under it.

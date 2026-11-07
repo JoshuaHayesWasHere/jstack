@@ -6,10 +6,13 @@ and the line says so with the base's exit 0. A branch that changes no test gets 
 The tests run the block in a real repo whose `origin/main` is the base, on macOS's tools
 (`bsd_tools`), with a `uv` on PATH that runs pytest on this interpreter, takes the slot by running
 the command, and syncs nothing. Each run leaves `git worktree list` as it found it, whether its
-tests pass, fail or are cut off."""
+tests pass, fail or are cut off, and each that ends leaves no copy of the base in its temp
+directory, whether its tests pass, fail, hit the lane's time limit or are stopped with TERM. The
+block is one command that runs `$T/proved.sh`, so the command a crew sends holds no `rm`."""
 
 import os
-import shutil
+import re
+import shlex
 import signal
 import subprocess
 import sys
@@ -21,13 +24,25 @@ from crew_helpers import block, git
 from jbriefs import proved
 from test_blocks_command_grep import UGREP
 from test_portable_shell import bsd_tools
+from testing.layouts import assembled
 
+TIMEOUT = """import os, signal, subprocess, sys
+run = subprocess.Popen(sys.argv[2:], process_group=0)
+try:
+    sys.exit(run.wait(float(sys.argv[1])))
+except subprocess.TimeoutExpired:
+    os.killpg(run.pid, signal.SIGTERM)
+    run.wait()
+    sys.exit(124)
+"""
+"""GNU `timeout`, which macOS lacks: the command in a group of its own, sent TERM at the limit,
+exit 124."""
 UV = f"""#!/bin/bash
 case " $* " in
 *" jgauge test-slot "*)
     while [ "$1" != -- ]; do shift; done
     shift
-    if [ -n "$LIMIT" ]; then exec {shutil.which("timeout")} "$LIMIT" "$@"; fi
+    if [ -n "$LIMIT" ]; then exec {sys.executable} -c {shlex.quote(TIMEOUT)} "$LIMIT" "$@"; fi
     exec "$@"
     ;;
 *" sync "*) exit 0 ;;
@@ -95,7 +110,7 @@ def commit(tree, files):
 
 def script():
     return (
-        block("Do the task", "Proved: ")
+        block("Do the task", "proved.sh")
         .replace("<slug>", "a-task")
         .replace("<thread id>", "mcp:thread-1")
     )
@@ -106,7 +121,7 @@ def environ(tree, **more):
         "PATH": f"{tree.parent / 'stub'}:{bsd_tools(tree.parent / 'bsd')}",
         "HOME": str(tree.parent),
         "H": str(tree.parent / "home"),
-        "T": str(tree.parent / "templates"),
+        "T": str(assembled() / "templates"),
         "TMPDIR": str(tree.parent),
         "PYTEST_XDIST_AUTO_NUM_WORKERS": "2",
         **more,
@@ -115,6 +130,10 @@ def environ(tree, **more):
 
 def worktrees(tree):
     return git(tree, "worktree", "list", "--porcelain")
+
+
+def copies(tree):
+    return sorted(path.name for path in tree.parent.glob("base.*"))
 
 
 def proof(tree, shell="", **more):
@@ -128,8 +147,24 @@ def proof(tree, shell="", **more):
         env=environ(tree, **more),
     )
     assert worktrees(tree) == before
+    assert copies(tree) == []
     home = tree.parent / "home"
     return ran.stdout, proved.proved((home / "tasks" / "a-task.md").read_text())
+
+
+def test_the_proof_block_runs_the_script_by_its_path_and_holds_no_rm(repo):
+    """Claude Code holds a command that has `rm` in it for an approval, even in full access, and
+    it held the block's `trap 'rm -rf "$tree"' EXIT` ("This shell -c script runs rm and could not
+    be checked"): on 2026-11-07 five crews stalled on it for hours, with nothing to wake them. The
+    block the crew sends runs `$T/proved.sh` with the brief and the thread, and holds no `rm`."""
+    stub = repo.parent / "stub"
+    (stub / "bash").write_text('#!/bin/sh\nprintf \'%s\\n\' "$@" > "$TMPDIR/bash-args"\n')
+    (stub / "bash").chmod(0o755)
+    env = environ(repo)
+    subprocess.run(["sh", "-c", script()], cwd=repo, env=env, check=True, timeout=60)
+    ran = (repo.parent / "bash-args").read_text().splitlines()
+    assert ran == [f"{env['T']}/proved.sh", f"{env['H']}/tasks/a-task.md", "mcp:thread-1"]
+    assert not re.search(r"\brm\b", script())
 
 
 def test_a_test_that_fails_without_the_fix_is_proved(repo):
@@ -193,6 +228,46 @@ def test_a_run_cut_off_mid_test_leaves_the_worktree_list_as_it_was(repo):
         os.killpg(running.pid, signal.SIGKILL)
         running.wait()
     assert worktrees(repo) == before
+
+
+def test_a_run_stopped_mid_test_leaves_no_copy_of_the_base(repo):
+    """A harness stops a call that runs past its time limit with TERM to its group: the script
+    removes its copy of the base as it exits, as after a pass, a failure or a 124."""
+    commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
+    stalled = repo.parent / "stalled"
+    running = subprocess.Popen(
+        ["bash", "-c", script()],
+        cwd=repo,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env=environ(repo, STALL=str(stalled)),
+        start_new_session=True,
+    )
+    try:
+        waited = time.monotonic() + 30
+        while not stalled.exists():
+            assert running.poll() is None and time.monotonic() < waited
+            time.sleep(0.05)
+        assert copies(repo) != []
+        os.killpg(running.pid, signal.SIGTERM)
+        running.wait(30)
+    finally:
+        if running.poll() is None:
+            os.killpg(running.pid, signal.SIGKILL)
+            running.wait()
+    assert copies(repo) == []
+
+
+def test_a_temp_directory_that_is_gone_leaves_the_branch_checked_out(repo):
+    """A thread's TMPDIR can be gone, as a settled row's scratch is: no copy of the base can be
+    made, and the block says so and leaves the worktree on its branch, never checked out at the
+    base in its place."""
+    head = commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
+    said, line = proof(repo, TMPDIR=str(repo.parent / "gone"))
+    assert said.startswith("no proof: no copy of the base could be made in ")
+    assert line is None
+    assert git(repo, "rev-parse", "HEAD") == head
+    assert git(repo, "branch", "--show-current") == "main"
 
 
 def test_a_test_that_reads_git_runs_at_the_base_in_a_repo_of_its_own(repo):
@@ -262,7 +337,7 @@ def test_a_change_to_source_and_tests_runs_at_the_base_where_grep_is_claude_code
     a change to `calc.py`. `UGREP` stands in for it."""
     base = git(repo, "rev-parse", "HEAD")
     head = commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
-    said, line = proof(repo, shell=UGREP)
+    said, line = proof(repo, shell=UGREP + "export -f grep\n")
     assert "tests only" not in said
     assert "base exit 1: 1 failed, 1 passed" in said
     assert line == proved.Proved(("tests/test_calc.py",), 1, base, 0, head)
@@ -278,6 +353,15 @@ def test_a_slow_test_file_is_proved_where_the_head_and_the_base_each_fit_the_lan
     said, line = proof(repo, LIMIT="7", SLOW="4")
     assert "no proof" not in said
     assert line == proved.Proved(("tests/test_calc.py",), 1, base, 0, head)
+
+
+def test_a_run_that_hits_the_lanes_time_limit_leaves_no_copy_of_the_base(repo):
+    """A slot's run cut at the lane's limit ends 124, and the block goes on to print no proof:
+    the copy of the base it made goes with it, as after a pass or a failure."""
+    commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
+    said, line = proof(repo, LIMIT="1", SLOW="5")
+    assert "no proof: the slot's run ended 124" in said
+    assert line is None
 
 
 def test_the_head_and_the_base_run_on_pytests_workers_where_the_repo_has_them(repo):

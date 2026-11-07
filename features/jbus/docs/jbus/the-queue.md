@@ -102,9 +102,9 @@ The head must have the eight lines of `jbriefs.parse.REQUIRED`, `Task:`, `Done w
 Each must be filled in, not left as the template's own text.
 A line is not filled in while it, or an item of a list under it, is still the template's `<...>`, bare or quoted.
 A `Pull request:` or `Review:` line that still offers its choices (`review | none`) is not filled in either.
-`add` then runs the thirteen checks of `jbriefs.parse.CHECKS` and the three of `jbus.queue.conduct`.
-The two checks of `jbriefs.parse.WARNED`, that `Done when:` is runnable and that `Proves it:` runs, only warn.
-The other eleven and the three of `conduct` are these:
+`add` then runs the fifteen checks of `jbriefs.parse.CHECKS` and the three of `jbus.queue.conduct`.
+The three checks of `jbriefs.parse.WARNED`, that `Done when:` is runnable, that each `Done when:` item ends with the file it lands in, and that `Proves it:` runs, only warn.
+The other twelve and the three of `conduct` are these:
 
 - `Task:` is 2,000 characters or fewer.
 - `Design:` names a file, or says `none, <why>`.
@@ -114,6 +114,10 @@ The other eleven and the three of `conduct` are these:
 - `Where:` names at least one path under the repo.
   A path is in backticks, or is a word that has a `/`, a glob character or a file extension.
   Prose and a flag are not paths.
+- A `Done when:` item that ends with ``(in `<path>`)``, the file the goal lands in, names a file that `Where:` covers and `Do not touch:` does not.
+  `(in none)` says the goal changes no file, and an item with neither only warns.
+  The fault names the item and the file, and says to widen `Where:` or to move the item to a follow-up brief with a `Follows: <slug>` line, which is approved on this row's go by the follow-up rule ([The bases](#the-bases)).
+  Move it before the go: an edit of `Done when:` or `Where:` after the go voids it.
 - `Review:` is one word, `twice`, `review` or `none`, and nothing more: the crew reads any other word as `review`, so `Review: standard` would launch a reviewer nobody asked for.
 - `Playbook:` names a crewmate's file of `playbooks/`, or `none`.
 - A brief for research, perf, analysis or outcome work has a filled-in `Read:` line and `Instruments:` line, as the home skill's deeper step writes them.
@@ -239,14 +243,14 @@ The home decides whether the brief is really a follow-up, and you audit that cal
   A row whose own go from your word still holds is refused: `refused: <slug> has the user's go, which holds, and a follow-up's go would write over it`.
 
 jbus also gives this approval itself, so that a follow-up never asks you and no home approves it.
-A row is a follow-up of P when it names P (a line `Follows: P` in its brief's head), when it is a fix row jbus filed or, when it is queued, does work for P's plan entry, and when P passes the parent check above.
+A row is a follow-up of P when it names P (a line `Follows: P` in its brief's head), when its brief holds no case of `gates.md`, when it is a fix row jbus filed or, when it is queued, any row a home queued (with or without `--entry`), and when P passes the parent check above.
 A fix row jbus filed is one that jbus's own pass queued (the row's `queued_by`) and whose brief's `Decisions:` line begins `none, jbus filed this from a red`, whatever its slug, with the `Follows:` line jbus writes where a row's merge turned the check red.
 Such a fix that names no parent, as for a red check no row's merge caused, is approved by the same rule on the red run its `Task:` line quotes, and reads `the follow-up rule, jbus filed it from the red run "<the run>"; run <time> by jbus's pass; you did not speak of this row`.
 The day's warnings row, `warnings-<day>`, is a row jbus filed too: its pass queues it, its brief's `Decisions:` line begins `none, jbus filed this from the warnings of later reviews`, and it names no parent.
 It is approved by the same rule as it is queued, on the later reviews that line names, and reads `the follow-up rule, jbus filed it from the warnings of later reviews kept <days>, in <n> pull requests, ...`.
 The same brief queued by a home or a person is not jbus's, and waits for your go.
 Each pass approves every waiting fix row jbus filed whose parent's go holds, before anything launches, and asks again until a round approves none, so a follow-up of a follow-up goes on the same pass.
-`queue add` approves such a row in the same write, and so does an `approve` of P, for the waiting rows that name P; there a row that does work for P's plan entry (the same `--entry` as P) is a follow-up too.
+`queue add` approves such a row in the same write, and so does an `approve` of P, for the waiting rows that name P; there any row a home queued that names P is a follow-up too.
 A row that names a parent and is no follow-up gets one line from `queue add`, `<slug> waits for the user's go, not a follow-up: <why>`, and waits for your go.
 A row whose go an edit voided is approved again only where its brief still follows the parent its go named, and a row your word approved waits for your word again.
 A held row stays held, and a `hold` of P takes back the go of every queued follow-up down the chain from P.

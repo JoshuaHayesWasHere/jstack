@@ -39,9 +39,9 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import jsettings
-from jbriefs import below
+from jbriefs import below, findings
 from jbriefs import home as homes
-from jbus import Refused, budget, queue, read_json, shots, t3, verbs, work, write_json
+from jbus import Refused, budget, queue, read_json, review, shots, t3, verbs, work, write_json
 from jbus.judged import Said, parse
 from jbus.launches import records
 from jbus.mirror import last_result, sections
@@ -517,14 +517,21 @@ def owes_pull(run: Pass, slug: str, brief: str, result: str) -> bool:
     """Say whether a crew's Result that would end its task clean still owes the pull request its
     brief asks for (`Pull request: open one ...`): its `Branch:` line names none, and that branch
     has a commit of its own (`own`). Such a task is not done, whatever its `Status:` says: its row
-    runs, and its thread is told once to open it (`threads.resume`). A crew that found nothing to
-    change owes nothing. Nor does a brief whose `Pull request:` line says none, a scout's or a
-    report's, or a follow-up Result, a later round: the home's close of a row nothing more is
-    wanted of (`leftover`), or the crew's answer once it was told. The rule is judged as a row
-    moves to done: a row the table had at done when the pass began owes nothing (`Pass.done`)."""
+    runs, and its thread is told once to open it (`threads.resume`). A Result that says its pull
+    request opens after its review (`review.before_pull`) owes it whatever the brief's header
+    says, when the brief asks for a review: the crew waits on that review (`jbus.prereview`). A
+    crew that found nothing to change owes nothing. Nor does a brief whose `Pull request:` line
+    says none, a scout's or a report's, or a follow-up Result, a later round: the home's close of
+    a row nothing more is wanted of (`leftover`), or the crew's answer once it was told. The rule
+    is judged as a row moves to done: a row the table had at done when the pass began owes
+    nothing (`Pass.done`)."""
     if not result.startswith("## Result\n") or unfinished(result):
         return False
-    if slug in run.done or not _ASKS.search(brief.split("\n## ")[0]):
+    if slug in run.done:
+        return False
+    if review.before_pull(result) and findings.mode_of(brief) != findings.NONE:
+        return True
+    if not _ASKS.search(brief.split("\n## ")[0]):
         return False
     return own(run, below.line(result, "Branch:").split()[0])
 
@@ -778,10 +785,14 @@ def _scouted(
     one titled `scout: <slug>` in the list of threads out, and what it wrote is its last Report
     (`owed`). It has no pull request. A launched thread that left the list once its Report was
     written was settled; one that left it with nothing written is still starting, as far as the
-    pass can tell."""
+    pass can tell. A scout whose turn ended on a wait that jbus owns is `quiet`, as a crew is
+    (`facts`): its thread is among the threads out and never `World.thread`, so the wait is looked
+    up by the thread's id there."""
     slug = row["slug"]
     one = seen.one_out("scout", slug)
     said = thread(one, str((one or {}).get("live", ""))) if one else None
+    if one and said in OVER and world is not None and world.awaits({"threadId": one["id"]}):
+        said = work.Thread.QUIET
     written = owed(run, "scout", slug)
     if one is None and launched:
         said = work.Thread.STARTING if written == work.Written.NONE else work.Thread.SETTLED
@@ -1204,14 +1215,23 @@ def _judged(run: Pass, sha: str) -> tuple[list[dict], list[dict]]:
     return [
         r
         for r in runs
-        if (r.get("check_suite") or {}).get("id") not in other and r.get("name") not in MAC_JOBS
+        if (r.get("check_suite") or {}).get("id") not in other and not mac_job(r.get("name"))
     ], pushed
 
 
 MAC_FLOW = ".github/workflows/macos.yml"
 MAC_JOBS = ("macos-select", "macos")
 """macos.yml, and its jobs' names: its run on each push to main judges that merge commit on a
-Mac, apart from main's check."""
+Mac, apart from main's check. `macos-select` and the gate `macos` run on Linux; the Mac runs
+are the parts (`MAC_PART`), and `macos` passes only when every part did."""
+MAC_PART = re.compile(r"macos \d+ of \d+")
+"""The name of each part of macos.yml's Mac tests, `macos K of N`, each on its own Mac."""
+
+
+def mac_job(name: object) -> bool:
+    """Return whether a job's name is one of macos.yml's: `macos-select`, `macos`, or a part
+    `macos K of N`."""
+    return isinstance(name, str) and (name in MAC_JOBS or bool(MAC_PART.fullmatch(name)))
 
 
 def _of_mac(one: dict) -> bool:
@@ -1272,18 +1292,24 @@ def mac_check(run: Pass, known: dict[str, str], sha: str) -> str:
 
 def mac_jobs(run: Pass, sha: str) -> list[tuple[str, str, Failed]] | None:
     """Each failed job of macos.yml's push run at a commit, with its URL and the tests its log
-    names, or None where GitHub gives no answer or a log could not be read."""
+    names, or None where GitHub gives no answer or a log could not be read. The gate `macos`
+    fails whenever a part did and names no test, so it is left out where a part failed."""
     runs = mac_runs(run, sha)
     said = _api(run, f"repos/{{owner}}/{{repo}}/commits/{sha}/check-runs")
     if runs is None or not isinstance(said, dict):
         return None
     suites = {r.get("check_suite_id") for r in runs} - {None}
+    failed = [
+        one
+        for one in said.get("check_runs") or []
+        if (one.get("check_suite") or {}).get("id") in suites
+        and one.get("status") == "completed"
+        and one.get("conclusion") not in NOT_RED
+    ]
+    if any(MAC_PART.fullmatch(str(one.get("name") or "")) for one in failed):
+        failed = [one for one in failed if one.get("name") != MAC_JOBS[-1]]
     jobs = []
-    for one in said.get("check_runs") or []:
-        if (one.get("check_suite") or {}).get("id") not in suites:
-            continue
-        if one.get("status") != "completed" or one.get("conclusion") in NOT_RED:
-            continue
+    for one in failed:
         found = _log_failed(run, one.get("id"))
         if found is None:
             return None

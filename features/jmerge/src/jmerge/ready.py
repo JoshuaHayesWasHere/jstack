@@ -718,10 +718,14 @@ def being_rebased(why: str) -> bool:
 
 @dataclass
 class Round:
+    """One section as the round reads it. `reviewer` tells one reviewer from another: the
+    seat (`findings.Section.seat`) where the roster is numbered, so one seat's sections written
+    on two instances are one reviewer, and the whole `By:` text where it is not."""
+
     verdict: str = ""
     head: str = ""
     found: int = 0
-    by: str = ""
+    reviewer: str | int = ""
     scoped: bool = False
 
 
@@ -756,9 +760,11 @@ def said_of(text: str) -> Said:
     said.triage = triage
     said.mode = triage.mode
     said.written = bool(triage.sections)
+    numbered = isinstance(triage.roster, findings.Numbered)
     said.rounds = [
-        Round(one.verdict, one.head, one.found, one.by, one.scoped)
+        Round(one.verdict, one.head, one.found, one.by if seat is None else seat, one.scoped)
         for one in triage.roster.counted(triage.sections)
+        for seat in [one.seat if numbered else None]
     ]
     said.reviewed = next((one.head for one in reversed(triage.sections) if one.head), "")
     sent = [one for one in triage.findings if one.blocks]
@@ -858,16 +864,20 @@ def _round(said: Said) -> None:
     """The last head's verdict: the worst of its reviewers' last sections, a reviewer's scoped
     pass apart from its full review. A section that did not run counts for nothing beside one
     of the same reviewer's that ran at that head, so a scoped pass that found no room does not
-    hide the review that ran; another reviewer's that did not run still holds the round."""
+    hide the review that ran, and a section that did not run never replaces the same pass's
+    section that ran before it at that head; another reviewer's that did not run still holds
+    the round."""
     if not said.rounds:
         return
-    heads: dict[str, dict[tuple[str, bool], str]] = {}
+    heads: dict[str, dict[tuple[str | int, bool], str]] = {}
     for number, one in enumerate(said.rounds):
-        heads.setdefault(one.head or f"#{number}", {})[(one.by, one.scoped)] = one.verdict
+        head = heads.setdefault(one.head or f"#{number}", {})
+        if one.verdict in _RANKS or head.get((one.reviewer, one.scoped)) not in _RANKS:
+            head[(one.reviewer, one.scoped)] = one.verdict
     last = heads[said.rounds[-1].head or f"#{len(said.rounds) - 1}"]
-    ran = {by for (by, _), verdict in last.items() if verdict in _RANKS}
+    ran = {who for (who, _), verdict in last.items() if verdict in _RANKS}
     said.verdict = _worst(
-        [verdict for (by, _), verdict in last.items() if verdict in _RANKS or by not in ran]
+        [verdict for (who, _), verdict in last.items() if verdict in _RANKS or who not in ran]
     )
     said.ran = sum(
         any(verdict in ("clean", "findings") for verdict in one.values()) for one in heads.values()
@@ -893,17 +903,20 @@ def short_on_meets(text: str, heard: Collection[meets.Waiver] = ()) -> str:
     return ""
 
 
-def short_of(text: str, head: str, heard: Collection[meets.Waiver] = ()) -> str:
+def short_of(
+    text: str, head: str, heard: Collection[meets.Waiver] = (), proven: bool = False
+) -> str:
     """What the pull request is short of at `head`, by its brief, or nothing. Every path that
     reads a review ends on the last round's judgement of the brief (`short_on_meets`), with the
-    waivers whose words are in `heard`."""
+    waivers whose words are in `heard`. `proven` says the Result's `Proved:` line holds at
+    `head` (`proves`), which owes a fix no scoped review."""
     said = said_of(text)
     unrun = skills.missing(text)
     if unrun:
         return SKILLS_UNRUN.format(names=", ".join(unrun))
     if said.mode == NONE:
         return REVIEW_NONE
-    short = _cleanup(said) if said.mode == CLEANUP else _review(said, head)
+    short = _cleanup(said) if said.mode == CLEANUP else _review(said, head, proven)
     return short or short_on_meets(text, heard)
 
 
@@ -985,6 +998,12 @@ def short_on_proved(
     return ""
 
 
+def proves(text: str, one: PullRequest, carries: Callable[[str], bool] = lambda at: False) -> bool:
+    """Whether the brief has a `Proved:` line and it holds at the pull request's head
+    (`short_on_proved`): a fix whose line holds merges with no scoped review of it."""
+    return proved.proved(text) is not None and not short_on_proved(text, one, carries)
+
+
 _CHECK_LINE = re.compile(r"Checked: (.+) exit (\d+) at ([0-9a-f]{40})")
 _TWO_STEP = re.compile(
     r"Checked: (make check-fast BASE=([0-9a-f]{40})(?: PYTEST=:)? PART=guards) exit (\d+) "
@@ -1044,7 +1063,10 @@ def short_on_checked(
     return ""
 
 
-def _review(said: Said, head: str) -> str:
+def _review(said: Said, head: str, proven: bool) -> str:
+    """What the review of a `review` brief still lacks. One round: a `Scoped review: needed`
+    line holds the pull request for a review of a later head only where no `Proved:` line holds
+    at `head`, since a fix whose proof runs there merges on that run and its checks."""
     verdict, reviewed, fixed = said.verdict, said.reviewed, said.fixed
     if not said.written:
         return NO_REVIEW
@@ -1054,7 +1076,8 @@ def _review(said: Said, head: str) -> str:
         return NO_FIXED
     if said.owes and fixed == reviewed:
         return NOT_PUSHED
-    if said.owed and not _scoped_since(said) and (not reviewed or said.asked in ("", reviewed)):
+    owed = said.owed and not proven and not _scoped_since(said)
+    if owed and (not reviewed or said.asked in ("", reviewed)):
         return FIX_UNREVIEWED
     if said.owes and _COMMIT.fullmatch(fixed) and head != fixed and head == reviewed:
         return NOT_PUSHED

@@ -8,6 +8,8 @@ and "changes access or secrets" for a pull request that touches a protected path
 `--message` (the user's own message, which jbus reads from T3 Code) or of `--by` and `--at`
 (typed, which opens no door). A door that the party may not open parks a gate for the user and
 merges nothing. Every accept, whatever came of it, is one line of the project's `acts.jsonl`.
+The accept of a pull request no brief names comes with no slug, and its act names it
+`#<number>`, as jbus names a `jmerge` line with no slug (`jbus.merge`).
 
 A checkout that is no project of jbus's has no `acts.jsonl` and no gates: there the accept runs
 on `--by` and `--at` alone, as it did before acts, and nothing logs it. `--check` is no accept
@@ -155,15 +157,15 @@ class Port:
         assert isinstance(kept, Acting)
         held = doors(brief, protected)
         user = kept.run.user.user
+        of = f" of {slug}" if slug else ""
         parked = acts.Parked(
-            question=f"may jmerge merge pull request {number} of {slug}? It holds for "
-            f"{', '.join(held)}",
+            question=f"may jmerge merge pull request {number}{of}? It holds for {', '.join(held)}",
             default=f"pull request {number} stays held at {head[:12]}, and nothing merges",
             given=f"{user}'s own message, read by jbus: jmerge --accept {number} --as user "
             "--message <thread id>/<message id>",
             fail_safe=f"the hold of pull request {number} at {head[:12]}, as jmerge keeps it",
         )
-        action = party.Action("accept", slug, head[:12], doors=held)
+        action = party.Action("accept", slug or f"#{number}", head[:12], doors=held)
         try:
             made = acts.act(kept.run, kept.who, action, kept.said, does=does, parked=parked)
         except Refused as error:

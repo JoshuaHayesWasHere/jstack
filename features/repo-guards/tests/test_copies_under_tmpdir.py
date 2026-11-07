@@ -49,17 +49,33 @@ def filled(command):
     return re.sub(r"<[^>]+>", lambda m: "HEAD" if "commit" in m.group() else "x", command)
 
 
+MACOS_MKTEMP = """#!/bin/sh
+for one; do
+    case $one in -*) ;; *) exec REAL "$@" ;; esac
+done
+TMPDIR=ELSEWHERE exec REAL "$@"
+"""
+"""`mktemp` as macOS runs it: given no template, it makes its file in the system's own temporary
+folder and ignores `TMPDIR`."""
+
+
 def under_tmpdir(tmp_path, commands):
-    """Run the commands in a fresh repo with `TMPDIR` set, and count the paths under it."""
-    repo, scratch = tmp_path / "repo", tmp_path / "scratch"
-    for made in (repo, scratch):
+    """Run the commands in a fresh repo with `TMPDIR` set and macOS's `mktemp`, and count the
+    paths under `TMPDIR`."""
+    repo, scratch, elsewhere = tmp_path / "repo", tmp_path / "scratch", tmp_path / "elsewhere"
+    for made in (repo, scratch, elsewhere):
         shutil.rmtree(made, ignore_errors=True)
         made.mkdir()
+    stub = elsewhere / "bin"
+    stub.mkdir()
+    mktemp = MACOS_MKTEMP.replace("REAL", shutil.which("mktemp"))
+    (stub / "mktemp").write_text(mktemp.replace("ELSEWHERE", str(elsewhere)))
+    (stub / "mktemp").chmod(0o755)
     subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
     empty = ["git", *IDENTITY, "commit", "-q", "--allow-empty", "-m", "a"]
     subprocess.run(empty, cwd=repo, check=True)
     script = "\n".join(f"{filled(command)} > /dev/null 2>&1" for command in commands)
-    env = {**os.environ, "TMPDIR": str(scratch)}
+    env = {**os.environ, "TMPDIR": str(scratch), "PATH": f"{stub}:{os.environ['PATH']}"}
     subprocess.run(["bash", "-c", script], cwd=repo, env=env, check=False)
     return sum(1 for _ in scratch.rglob("*"))
 

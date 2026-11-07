@@ -23,7 +23,9 @@ CORPUS = json.loads((REPO / "features/jbriefs/tests/fixtures/propose_replay.json
 
 def idle(slug):
     """A brief `jbus queue add` takes, with one item that runs and three that run nothing."""
-    return brief(slug).replace("- `make check` passes\n", f"- `make check` passes\n{IDLE}")
+    return brief(slug).replace(
+        "- `make check` passes (in none)\n", f"- `make check` passes (in none)\n{IDLE}"
+    )
 
 
 def proposed(capsys, path):

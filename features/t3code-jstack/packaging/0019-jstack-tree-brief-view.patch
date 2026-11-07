@@ -1,4 +1,4 @@
-From b304b0470a371f26f915224ef18e9e5bdd0aa450 Mon Sep 17 00:00:00 2001
+From f2b496b0a7a96cc0e2f5c77768d303e2f53d832f Mon Sep 17 00:00:00 2001
 From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
 Date: Fri, 30 Oct 2026 00:28:30 -0400
 Subject: [PATCH] feat(web): a jstack brief opens as what it says: its one
@@ -47,10 +47,10 @@ The approve flow is as it was: the sha line, Close and "Approve this brief", non
  create mode 100644 apps/web/test/fixtures/jstack-briefs/sb-type-b2-build.txt
 
 diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
-index bf5708a6d3..237a056467 100644
+index 977d8330b1..d1d27475ca 100644
 --- a/apps/web/src/components/Sidebar.tsx
 +++ b/apps/web/src/components/Sidebar.tsx
-@@ -267,11 +267,13 @@ import {
+@@ -277,11 +277,13 @@ import {
  } from "./sidebar/SidebarProjectFolderHeader";
  import {
    buildJstackTree,
@@ -64,7 +64,7 @@ index bf5708a6d3..237a056467 100644
    type JstackTree,
  } from "./sidebar/jstackTree.logic";
  import { JstackBriefDialog, useJstackBrief } from "./sidebar/JstackBriefDialog";
-@@ -1369,6 +1371,23 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -1441,6 +1443,23 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
    // The one jbus question whose answer row is open, and the one brief shown.
    const [jstackAnswering, setJstackAnswering] = useState<JstackAnswering | null>(null);
    const jstackBrief = useJstackBrief();
@@ -88,7 +88,7 @@ index bf5708a6d3..237a056467 100644
    // Scopes asked of a root home from here, shown as starting until jbus's home state has them.
    const [jstackRequestedScopes, setJstackRequestedScopes] = useState<
      ReadonlyArray<JbusStartingScope>
-@@ -1412,8 +1431,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -1484,8 +1503,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
          folderThreads: folder.threads,
          hiddenThreads: folder.hiddenThreads,
          collapsed: folder.collapsed,
@@ -98,7 +98,7 @@ index bf5708a6d3..237a056467 100644
          expandedHomes: jstackExpandedHomes,
          frozenOrder: jstackFrozenOrder,
          childHomeEditor: jstackChildHomeEditor === folder.group.projectKey,
-@@ -1490,10 +1508,21 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -1562,10 +1580,21 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
      );
      return sent;
    };
@@ -120,7 +120,7 @@ index bf5708a6d3..237a056467 100644
        if (primaryEnvironmentId !== null) {
          navigateToThread(scopeThreadRef(primaryEnvironmentId, threadId));
        }
-@@ -3908,6 +3937,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -4026,6 +4055,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
        <JstackBriefDialog
          shown={jstackBrief.shown}
          onClose={jstackBrief.close}
@@ -577,7 +577,7 @@ index cafe29d75c..2c1e2edf17 100644
      expandedHomes: new Set(),
      frozenOrder: null,
 diff --git a/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx b/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
-index 663f387fb7..8cb0765bb2 100644
+index 504eb349f8..a32b6fa83e 100644
 --- a/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
 +++ b/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
 @@ -96,7 +96,7 @@ function treeRoots(
@@ -941,13 +941,13 @@ index 671b2bfec7..76bf8f23c9 100644
    if (input.collapsed) return { root: project, rows: [project], order };
  
 diff --git a/apps/web/src/components/ui/button.tsx b/apps/web/src/components/ui/button.tsx
-index 4dea8acd73..6f980bcc8c 100644
+index 8aa747ad36..1f44b63964 100644
 --- a/apps/web/src/components/ui/button.tsx
 +++ b/apps/web/src/components/ui/button.tsx
-@@ -30,6 +30,8 @@ const buttonVariants = cva(
-         lg: "h-10 px-[calc(--spacing(3.5)-1px)] sm:h-9",
-         micro:
+@@ -32,6 +32,8 @@ const buttonVariants = cva(
            "h-5 gap-1 rounded-sm px-[calc(--spacing(1.5)-1px)] text-[11px] before:rounded-[calc(var(--radius-sm)-1px)] sm:text-[11px] [&_svg:not([class*='size-'])]:size-3 sm:[&_svg:not([class*='size-'])]:size-3",
+         multiline:
+           "min-h-9 px-[calc(--spacing(3)-1px)] py-[calc(--spacing(1.5)-1px)] whitespace-normal sm:min-h-8",
 +        // 13/400 at every breakpoint, for a dialog that keeps to two sizes and one weight.
 +        row: "h-8 gap-1.5 px-[calc(--spacing(2.5)-1px)] font-normal text-tree-row sm:h-7 sm:text-tree-row",
          sm: "h-8 gap-1.5 px-[calc(--spacing(2.5)-1px)] sm:h-7",
@@ -1018,7 +1018,7 @@ index 656a8c0a9f..9c5e32afd1 100644
        {...props}
      />
 diff --git a/apps/web/src/index.css b/apps/web/src/index.css
-index b9da1d6033..24f0f0c207 100644
+index d30d02491c..976ddf5241 100644
 --- a/apps/web/src/index.css
 +++ b/apps/web/src/index.css
 @@ -293,6 +293,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
@@ -1029,7 +1029,7 @@ index b9da1d6033..24f0f0c207 100644
    --radius-sm: calc(var(--radius) - 4px);
    --radius-md: calc(var(--radius) - 2px);
    --radius-lg: var(--radius);
-@@ -2556,13 +2557,16 @@ code {
+@@ -2580,13 +2581,16 @@ code {
  /* jstack fork: the tree sidebar's two colours, each with one meaning. Sky marks live work, a
     ring or diamond at work and the badge of a root with live work under it; amber marks what
     asks you. Each is its hue's 700 on light and its 400 on dark, at 4.5:1 or more on the

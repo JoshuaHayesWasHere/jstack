@@ -54,6 +54,12 @@ def reviewed(brief: str) -> int:
     return sum(1 for one in findings.triage(brief).sections if one.head)
 
 
+def ran(brief: str) -> int:
+    """Return how many `## Review` sections of the brief ran (`Verdict: clean` or `findings`) at
+    the head they name. A section that says `Verdict: not run` is no review."""
+    return sum(1 for one in findings.triage(brief).sections if one.ran and one.head)
+
+
 _CHECKED_AT = re.compile(r"^Checked: .* at ([0-9a-f]{40})\s*$", re.M)
 
 
@@ -71,8 +77,9 @@ def before_pull(result: str) -> bool:
 def awaited(brief: str, result: str) -> bool:
     """Say whether the crew waits on jbus for the review before its pull request: its last Result
     says the pull request opens after the review, the brief asks for one, and jbus has launched
-    no reviewer yet or one it launched has not written. jbus tells the crew once all have written
-    (`jbus.prereview`), so no carry-on goes to it meanwhile."""
+    no reviewer yet or one it launched has not written a section that ran. jbus tells the crew
+    once all have (`jbus.prereview`), so no carry-on goes to it meanwhile, and the clock asks a
+    reviewer that wrote `Verdict: not run` again."""
     if not before_pull(result) or findings.mode_of(brief) == findings.NONE:
         return False
-    return not launched(brief) or reviewing(brief)
+    return not launched(brief) or launched(brief) > ran(brief)

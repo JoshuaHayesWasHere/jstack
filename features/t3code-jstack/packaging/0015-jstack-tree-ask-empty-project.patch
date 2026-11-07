@@ -1,21 +1,21 @@
-From ef481cd80188f0c8dbf9bf6d28910021848ecd4c Mon Sep 17 00:00:00 2001
+From 072f82abec7f023250e079573d36caaeafc1272b Mon Sep 17 00:00:00 2001
 From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
 Date: Thu, 29 Oct 2026 21:26:34 -0400
 Subject: [PATCH] fix(web): a project added with no thread is a jstack tree
  root at once, so it is asked about on add and offers Start a home
 
 ---
- apps/web/src/components/Sidebar.tsx           |  25 ++-
+ apps/web/src/components/Sidebar.tsx           |  26 ++-
  .../sidebar/jstackAskOnAdd.browser.test.tsx   | 184 ++++++++++++++++++
  .../src/components/sidebar/jstackAskOnAdd.ts  |  29 +++
- 3 files changed, 230 insertions(+), 8 deletions(-)
+ 3 files changed, 231 insertions(+), 8 deletions(-)
  create mode 100644 apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
 
 diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
-index b00baebdca..fd2669c2c3 100644
+index 1ca9425f9e..5a2c4f6201 100644
 --- a/apps/web/src/components/Sidebar.tsx
 +++ b/apps/web/src/components/Sidebar.tsx
-@@ -276,7 +276,11 @@ import {
+@@ -286,7 +286,11 @@ import {
  } from "./sidebar/jstackTree.logic";
  import { JstackBriefDialog, useJstackBrief } from "./sidebar/JstackBriefDialog";
  import { focusComposerSoon, placeHomeWork, useJstackHomeSends } from "./sidebar/jstackHomeActions";
@@ -28,16 +28,16 @@ index b00baebdca..fd2669c2c3 100644
  import { useJstackRootOrder } from "./sidebar/jstackRootOrder";
  import { JstackTreeRowView, type JstackTreeRowActions } from "./sidebar/JstackTreeRows";
  import { useJbusWork } from "../lib/jbusWorkState";
-@@ -431,6 +435,8 @@ function useSidebarThreads(input: {
+@@ -448,6 +452,8 @@ function useSidebarThreads(input: {
    readonly folderGroups: readonly SidebarProjectSnapshot[] | null;
-   // Keeps folders with no active threads, so a project the user filtered to can start one.
-   readonly keepEmptyFolders: boolean;
+   // Keeps folders with no active threads, so a project the user filtered to or pinned can start one.
+   readonly keepEmptyFolders: (group: SidebarProjectSnapshot) => boolean;
 +  // jstack fork: keeps every project's folder, so a project just added is a root row at once.
 +  readonly jstackTreeOn: boolean;
  }) {
    const {
      projectScopeKey,
-@@ -442,6 +448,7 @@ function useSidebarThreads(input: {
+@@ -460,6 +466,7 @@ function useSidebarThreads(input: {
      routeRowThreadKey,
      folderGroups,
      keepEmptyFolders: keepEmpty,
@@ -45,19 +45,19 @@ index b00baebdca..fd2669c2c3 100644
    } = input;
    // Folders already separate the work, so boring mode has no Working shelf.
    const workingShelfEnabled =
-@@ -529,7 +536,10 @@ function useSidebarThreads(input: {
+@@ -561,7 +568,10 @@ function useSidebarThreads(input: {
    const projectFolders =
      folderGroups === null
        ? null
 -      : groupSidebarThreadsByProject(folderGroups, activeThreads, keepEmpty).map((folder) => {
-+      : (jstackTreeOn && !keepEmpty
++      : (jstackTreeOn
 +          ? jstackProjectFolders(folderGroups, activeThreads)
 +          : groupSidebarThreadsByProject(folderGroups, activeThreads, keepEmpty)
 +        ).map((folder) => {
            const collapsed = !resolveProjectExpanded(
              projectExpandedById,
              sidebarFolderExpansionKeys(folder.group),
-@@ -1282,6 +1292,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -1350,6 +1360,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
      },
    );
  
@@ -67,11 +67,12 @@ index b00baebdca..fd2669c2c3 100644
    const {
      workingShelfEnabled,
      pinnedThreads,
-@@ -1332,16 +1345,15 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
-         : scopedProjectGroups
+@@ -1403,16 +1416,16 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
        : null,
-     keepEmptyFolders: scopedProjectGroups.length > 0,
-+    jstackTreeOn: jbusWork !== null && primaryEnvironmentId !== null,
+     keepEmptyFolders: (group) =>
+       scopedProjectGroups.length > 0 || (group.pinned && !group.archived),
++    jstackTreeOn:
++      jbusWork !== null && primaryEnvironmentId !== null && scopedProjectGroups.length === 0,
    });
  
    // jstack fork: once jbus's snapshot loads, every project folder draws as a root row of the
@@ -85,7 +86,7 @@ index b00baebdca..fd2669c2c3 100644
    const jstackNowMinute = useNowMinute();
    const jstackLocalVisits = useUiStateStore((store) => store.threadLastVisitedAtById);
    const [jstackExpandedHomes, setJstackExpandedHomes] = useState<ReadonlySet<string>>(
-@@ -1712,10 +1724,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -1783,10 +1796,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
    const jstackShellsBootstrapped = useAllEnvironmentShellsBootstrapped();
    useJstackAskOnAdd(
      jstackTreeOn && allProjectSnapshotsReady && jstackShellsBootstrapped
@@ -99,7 +100,7 @@ index b00baebdca..fd2669c2c3 100644
    );
 diff --git a/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx b/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
 new file mode 100644
-index 0000000000..d344afcc3a
+index 0000000000..7be80713c9
 --- /dev/null
 +++ b/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
 @@ -0,0 +1,184 @@
@@ -230,7 +231,7 @@ index 0000000000..d344afcc3a
 +  ];
 +  // Upstream's folders drop a project with no thread unless the user filtered to it.
 +  expect(
-+    groupSidebarThreadsByProject([jstackGroup, winnifredGroup], threads, false).map(
++    groupSidebarThreadsByProject([jstackGroup, winnifredGroup], threads, () => false).map(
 +      (folder) => folder.group.displayName,
 +    ),
 +  ).toEqual(["jstack"]);
@@ -288,7 +289,7 @@ index 0000000000..d344afcc3a
 +  expect(actions.onStartHome).toHaveBeenCalledWith(winnifredGroup);
 +});
 diff --git a/apps/web/src/components/sidebar/jstackAskOnAdd.ts b/apps/web/src/components/sidebar/jstackAskOnAdd.ts
-index 6fa083c76e..0c0e6249c1 100644
+index 6fa083c76e..3c06b8d492 100644
 --- a/apps/web/src/components/sidebar/jstackAskOnAdd.ts
 +++ b/apps/web/src/components/sidebar/jstackAskOnAdd.ts
 @@ -2,7 +2,9 @@ import type { ScopedProjectRef } from "@t3tools/contracts";
@@ -317,7 +318,7 @@ index 6fa083c76e..0c0e6249c1 100644
 +  },
 +  TThread extends Parameters<typeof groupSidebarThreadsByProject>[1][number],
 +>(groups: readonly TGroup[], threads: readonly TThread[]) {
-+  return groupSidebarThreadsByProject(groups, threads, true).filter(
++  return groupSidebarThreadsByProject(groups, threads, () => true).filter(
 +    (folder) => folder.threads.length > 0 || folder.group.isScratch !== true,
 +  );
 +}

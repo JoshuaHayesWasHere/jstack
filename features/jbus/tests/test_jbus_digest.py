@@ -196,12 +196,16 @@ def test_a_change_of_the_list_is_one_quiet_event_and_what_it_gains_to_decide_one
     kitchen.poll()
     assert kitchen.events("waiting") == []
     assert go(kitchen, "unsaid")[0] == 0
+    (gone,) = kitchen.events("waiting")
+    assert (gone["slug"], gone["loud"]) == ("", "quiet")
+    assert gone["line"] == "waiting demo: 4 wait on user, 0 new, 1 gone"
+    assert gone["text"].splitlines()[-1] == f"- {approval('unsaid')}"
     add(kitchen, "second", priority=3, approve=False)
     kitchen.poll(later(3))
     kitchen.poll(later(9))
-    (event,) = kitchen.events("waiting")
+    (_, event) = kitchen.events("waiting")
     assert (event["slug"], event["loud"]) == ("", "quiet")
-    assert event["line"] == "waiting demo: 5 wait on user, 1 new (approve second), 1 gone"
+    assert event["line"] == "waiting demo: 5 wait on user, 1 new (approve second), 0 gone"
     said = listed_wakes(kitchen)[-1]
     assert f"\n- {listing('second')}" in said and "unsaid" not in said
     assert not [one for one in listed_wakes(kitchen) if "waiting demo" in one]
@@ -211,15 +215,14 @@ def test_a_change_of_the_list_is_one_quiet_event_and_what_it_gains_to_decide_one
         f"  condition stuck: {SETTLED}",
         f"+ {approval('second')}",
         f"  {HELD}",
-        f"- {approval('unsaid')}",
     ]
 
 
 def test_only_a_pass_that_adds_a_decision_to_the_list_posts_and_the_list_s_event_never(kitchen):
-    """The test runs passes that add an approval, remove one, and do both. A row to approve is
-    raised in the pass after the one that lists it, and the removal of one that was raised wakes
-    no one. A decision of the list reaches the home thread in the list's message, not as an
-    event."""
+    """The test runs passes that add an approval, and gos that take one off the list at once,
+    each its own event. A row to approve is raised in the pass after the one that lists it, and
+    the removal of one that was raised wakes no one. A decision of the list reaches the home
+    thread in the list's message, not as an event."""
     four(kitchen)
     kitchen.poll()
     add(kitchen, "second", priority=3, approve=False)
@@ -239,7 +242,8 @@ def test_only_a_pass_that_adds_a_decision_to_the_list_posts_and_the_list_s_event
     assert sent == [
         ("waiting demo: 6 wait on user, 1 new (approve second), 0 gone", "quiet"),
         ("waiting demo: 5 wait on user, 0 new, 1 gone", "quiet"),
-        ("waiting demo: 5 wait on user, 1 new (approve third), 1 gone", "quiet"),
+        ("waiting demo: 4 wait on user, 0 new, 1 gone", "quiet"),
+        ("waiting demo: 5 wait on user, 1 new (approve third), 0 gone", "quiet"),
     ]
     decided = [
         f"demo: {one['line']}"
@@ -427,7 +431,13 @@ def test_the_digest_of_a_project_no_pass_has_run_for_is_empty_and_makes_no_state
         "sweep": "",
         "waiting": [],
     }
-    assert said["status"] == {"pass": {}, "streaks": {}, "homes_off_bus": [], "held_pools": []}
+    assert said["status"] == {
+        "pass": {},
+        "streaks": {},
+        "homes_off_bus": [],
+        "closed": {},
+        "held_pools": [],
+    }
     assert said["token_expires"] == "2026-11-11 10:00 ET"
     assert not kitchen.state_dir.exists()
     kitchen.write(kitchen.config_dir / "t3.json", '{"token": "not a table"}')
