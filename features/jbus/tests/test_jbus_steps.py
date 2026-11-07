@@ -17,6 +17,10 @@ gate's words may name with no door meant. So is the `queue.load` and `questions.
 `wakes.tell`, of `stale.hourly`, a step added since: the hourly count of what is stale.
 Over a queue that does not parse, it stops at its `queue.load` (`UNREAD`).
 It needs no world, so it runs too where T3 Code is down and `wakes.tell` does not (`UNSEEN`).
+The `queue.load` before `work.write` is a step added since: `states.keep_work` reads each row's go
+again, so a go given while the pass ran is not written back. The list's event for the question the
+`question` fixture answers is no longer the pass's: the answer takes its gate off the list and
+logs that itself (`waiting.settle`).
 """
 
 import importlib
@@ -147,10 +151,7 @@ BEFORE = {
         "questions.read watch.watch threads.tie threads.resume threads.merged "
         "threads.out stall.hung rebase.tell expedite.tell mainmoved.tell "
         "remarks.tell dispatch.turns",
-        [
-            ("note", "note alpha: told its thread the answer to question 1"),
-            ("waiting", "waiting demo: 0 wait on user, 0 new, 1 gone"),
-        ],
+        [("note", "note alpha: told its thread the answer to question 1")],
     ),
     "word": (
         "word.deliver merge.merge queue.load questions.closed_in_files questions.read "
@@ -230,7 +231,7 @@ BEFORE = {
 }
 
 DERIVED = "queue.derive queue.load leftover.tell"
-ONCE = "work.write item.follow stall.tell waiting.keep questions.read waiting.cadence"
+ONCE = "queue.load work.write item.follow stall.tell waiting.keep questions.read waiting.cadence"
 JUDGED = ONCE.replace("questions.read", "questions.read questions.read queue.load")
 TELL = "queue.load questions.read wakes.tell queue.load questions.read"
 OWNED = JUDGED.replace(
@@ -250,7 +251,7 @@ AFTER = {
     "blind": f"stall.tell waiting.cadence {CLOSE}",
     "word-sends.json": f"{DERIVED} merge.unplaced {OWNED} Box.began {CLOSE}",
     "questions.json": f"{DERIVED} merge.unplaced {OWNED} Box.began {CLOSE}",
-    "queue.json": f"{UNREAD.removeprefix('work.write item.follow ')} Box.began {CLOSE}",
+    "queue.json": f"{UNREAD.removeprefix('queue.load work.write item.follow ')} Box.began {CLOSE}",
 }
 EVENING = (
     f"{DERIVED} merge.unplaced {OWNED} Box.began Box.snapshot_due Box.snapshot_sent "

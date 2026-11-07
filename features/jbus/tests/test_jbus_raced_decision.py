@@ -46,7 +46,7 @@ def test_a_row_approved_between_the_list_and_the_raise_is_not_raised(kitchen, mo
 
     monkeypatch.setattr(waiting, "keep", approved_after_the_list)
     kitchen.poll(later(20))
-    assert "approve:alpha" in [one["key"] for one in waiting.read(kitchen.state)]
+    assert "approve:alpha" not in [one["key"] for one in waiting.read(kitchen.state)]
     assert decisions(kitchen, "alpha") == []
 
 
