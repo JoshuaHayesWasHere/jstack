@@ -77,3 +77,11 @@ A scope that already holds the word, by any path, is not sent it again: that pri
 
 A word is no event, so it wakes no thread.
 The log still has a line for it, which `jbus events` prints.
+
+## A waiver in plain words
+
+A home asks you once, in its own thread, whether to waive the Done when lines a review says are unmet, naming each row by its slug with the numbers of the lines, as `alpha: lines 2 and 3`.
+Your plain reply ("yes", "clear them") is the waiver, and the home records it with `jbus waive <slug> <line number>... --message <thread id>/<message id>`, which takes `--to <project>` where the repo does not say the project, and `--as user` or `--as home` for the party, `home` by default.
+jbus reads the message in T3 Code and refuses it unless it is your own, it was said in a home's thread of the project, and the home's last message before it named the slug and each line.
+It then logs one `waive` act and appends the brief's `Waived: <the Done when line>, <thread>/<message>` lines, which `jmerge` counts for those lines and no others.
+It prints `waived <slug>: lines <n>, <m>, on <thread>/<message>`, and the same command again writes nothing new.
