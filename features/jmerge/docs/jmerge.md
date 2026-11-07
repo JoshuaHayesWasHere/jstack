@@ -122,7 +122,8 @@ The section "Protected paths" describes one more hold.
   `jmerge` judges the brief with it and writes nothing to the brief.
   A review after the first owes that line, and a push after it, only where it has an `error` finding.
   One round: a fix pushed for the findings gets no review, and a `Second pass:` line, from a brief before one round, makes the pull request wait for nothing.
-  A `Scoped review: needed since <head>` line, which the crew writes only after a `Meets the brief: no`, makes it wait for a review of a later head.
+  A `Scoped review: needed since <head>` line, which the crew writes only after a `Meets the brief: no`, makes it wait for a review of a later head (`fix`, `its fix is not reviewed`) only while no `Proved:` line of the Result holds at the head (`ready.proves`, as "Its Result proves the work" reads the line).
+  A fix whose proof runs there merges on that run and its checks: a `no` still waits on the `Meets the brief:` rule below, whose way out is the scoped review that says `yes`.
 - **Every blocking finding is answered.**
   Each blocking finding needs an answer that counts, for every pull request.
   `jbriefs --findings` reads every `## Review` section into one list.

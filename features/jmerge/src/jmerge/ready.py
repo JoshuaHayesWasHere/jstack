@@ -903,17 +903,20 @@ def short_on_meets(text: str, heard: Collection[meets.Waiver] = ()) -> str:
     return ""
 
 
-def short_of(text: str, head: str, heard: Collection[meets.Waiver] = ()) -> str:
+def short_of(
+    text: str, head: str, heard: Collection[meets.Waiver] = (), proven: bool = False
+) -> str:
     """What the pull request is short of at `head`, by its brief, or nothing. Every path that
     reads a review ends on the last round's judgement of the brief (`short_on_meets`), with the
-    waivers whose words are in `heard`."""
+    waivers whose words are in `heard`. `proven` says the Result's `Proved:` line holds at
+    `head` (`proves`), which owes a fix no scoped review."""
     said = said_of(text)
     unrun = skills.missing(text)
     if unrun:
         return SKILLS_UNRUN.format(names=", ".join(unrun))
     if said.mode == NONE:
         return REVIEW_NONE
-    short = _cleanup(said) if said.mode == CLEANUP else _review(said, head)
+    short = _cleanup(said) if said.mode == CLEANUP else _review(said, head, proven)
     return short or short_on_meets(text, heard)
 
 
@@ -995,6 +998,12 @@ def short_on_proved(
     return ""
 
 
+def proves(text: str, one: PullRequest, carries: Callable[[str], bool] = lambda at: False) -> bool:
+    """Whether the brief has a `Proved:` line and it holds at the pull request's head
+    (`short_on_proved`): a fix whose line holds merges with no scoped review of it."""
+    return proved.proved(text) is not None and not short_on_proved(text, one, carries)
+
+
 _CHECK_LINE = re.compile(r"Checked: (.+) exit (\d+) at ([0-9a-f]{40})")
 _TWO_STEP = re.compile(
     r"Checked: (make check-fast BASE=([0-9a-f]{40})(?: PYTEST=:)? PART=guards) exit (\d+) "
@@ -1054,7 +1063,10 @@ def short_on_checked(
     return ""
 
 
-def _review(said: Said, head: str) -> str:
+def _review(said: Said, head: str, proven: bool) -> str:
+    """What the review of a `review` brief still lacks. One round: a `Scoped review: needed`
+    line holds the pull request for a review of a later head only where no `Proved:` line holds
+    at `head`, since a fix whose proof runs there merges on that run and its checks."""
     verdict, reviewed, fixed = said.verdict, said.reviewed, said.fixed
     if not said.written:
         return NO_REVIEW
@@ -1064,7 +1076,8 @@ def _review(said: Said, head: str) -> str:
         return NO_FIXED
     if said.owes and fixed == reviewed:
         return NOT_PUSHED
-    if said.owed and not _scoped_since(said) and (not reviewed or said.asked in ("", reviewed)):
+    owed = said.owed and not proven and not _scoped_since(said)
+    if owed and (not reviewed or said.asked in ("", reviewed)):
         return FIX_UNREVIEWED
     if said.owes and _COMMIT.fullmatch(fixed) and head != fixed and head == reviewed:
         return NOT_PUSHED

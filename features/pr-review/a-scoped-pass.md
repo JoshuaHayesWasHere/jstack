@@ -4,6 +4,7 @@ A rebase gives a reviewed pull request another head. `jmerge` compares the head 
 
 A scoped pass is also the re-judgement a review's `Meets the brief: no` owes.
 One round gives a fix pushed for a review's findings no pass, and a decline no ruling: this pass judges again the `Done when` lines the `no` named, and it is the last, so a fix for its findings merges on the checks.
+A fix is never held for this pass as a review of the fix: `jmerge` waits for it as `its fix is not reviewed` only while the Result has no `Proved:` line that holds at the fixed head, and once one holds, only the `no` it re-judges holds the pull request.
 Like any review after the first, it routes each finding by the severity it writes, whatever its bucket or tag: an `error` goes to the crewmate, a `warning` goes to the day's warnings row once the pull request merged, and an `info` is dropped.
 The crewmate launches it once the fixed head's checks have passed, when the block of the crew skill's "A second pass" prints `scoped: launch the scoped reviewer`, and where it did not, jbus asks it to.
 The message is the same one.

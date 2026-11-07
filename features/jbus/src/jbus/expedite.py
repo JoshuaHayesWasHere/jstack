@@ -20,9 +20,9 @@ reason with its sentence:
   any reason. For each of these five reasons and the three above, the line lists by id the
   findings that have no answer that counts;
 - `fix`, `the scoped review of it is not written`: launch the scoped reviewer of the fix
-  with the two ranges, the patch the last review saw and the patch at the head. One round owes
-  it only after a `Meets the brief: no`. Where the crew cannot work out a range, run the crew
-  skill's block, which says what to do;
+  with the two ranges, the patch the last review saw and the patch at the head, owed only after
+  a `Meets the brief: no` and while no `Proved:` line holds at the head. Where the crew cannot
+  work out a range, run the crew skill's block, which says what to do;
 - `meets-no`, `meets-unread` and `meets-miscounted`, the last review round's `Meets the brief:`
   line (`jbriefs.meets`) says `no`, has no shape `jmerge` reads, or counts other lines than the
   brief has: run the crew skill's block of "A second pass", which gives the scoped review the
