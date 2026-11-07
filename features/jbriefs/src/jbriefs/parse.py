@@ -279,6 +279,10 @@ def fields(text: str) -> list[tuple[str, list[str]]]:
 _MARKER = re.compile(r"""^[\s"'“‘*+-]+""")
 _PLACEHOLDER = re.compile(r"""<[^<>]*>[\s"'”’.,;:]*""")
 _CHOICES = ("Pull request", "Review")
+_PULL_REQUESTS = re.compile(r"(open one|ask first|none)\b")
+"""The starts of a `Pull request:` line the crew and jbus read: the template's two choices, and
+`none`, which a brief with nothing to merge says. jbus keys a row's owed pull request on `open
+one` (`watch.owes_pull`), so a line it does not know settles the crew as if none were owed."""
 
 
 def _filled(text: str, label: str) -> str:
@@ -287,7 +291,8 @@ def _filled(text: str, label: str) -> str:
 
     A field is not filled in when its first line, or an item of a list under it, is still
     the template's whole placeholder (`<...>`, without its quote or list marker). A field of
-    `_CHOICES` that still offers its choices (`review | none`) is not filled in either. A
+    `_CHOICES` that still offers its choices (`review | none`) is not filled in either, nor is
+    a `Pull request:` line that starts with none of `_PULL_REQUESTS` (`after the review`). A
     line that only starts with `<` (`<200 ms`) is filled in, and so is a field that still
     has the template's notes under it.
     """
@@ -304,6 +309,11 @@ def _filled(text: str, label: str) -> str:
         label in _CHOICES and "|" in lines[0]
     ):
         return f"brief's {label}: line is the template's own text"
+    if label == "Pull request" and not _PULL_REQUESTS.match(lines[0]):
+        return (
+            f"brief's Pull request: line says {lines[0]}, and begins with none of the "
+            "template's choices: `open one when done`, `ask first` or `none, <why>`"
+        )
     return ""
 
 
