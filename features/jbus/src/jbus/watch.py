@@ -688,15 +688,6 @@ class Seen:
         return found[0] if len(found) == 1 else None
 
 
-def row_of(run: Pass, row: dict[str, Any], unmet: list[str]) -> work.Row:
-    if not row.get("approved"):
-        return work.Row.UNAPPROVED
-    brief = queue.brief(run.state, row["slug"])
-    if brief is None or not judgement.approved_text(row, brief):
-        return work.Row.CHANGED
-    return work.Row.BEHIND if unmet else work.Row.FREE
-
-
 def against(brief: str) -> str:
     """The branch a brief's `Pull request:` line opens its pull request against, or empty for the
     default branch."""
@@ -770,7 +761,7 @@ def facts(
             said = work.Thread.STARTING
     number = str((world.open.get(slug) or {}).get("number", "")) if world else ""
     made = work.Facts(
-        row=row_of(run, row, unmet(run, world, row, seen.final)),
+        row=queue.facet(run.state, row, unmet(run, world, row, seen.final)),
         thread=said or work.Thread.NONE,
         seen="" if said else str((found or {}).get("status", "")),
         launch=work.Launch.LAUNCHED if launched else work.Launch.NONE,
@@ -802,7 +793,7 @@ def _scouted(
     if one is None and launched:
         said = work.Thread.STARTING if written == work.Written.NONE else work.Thread.SETTLED
     made = work.Facts(
-        row=row_of(run, row, unmet(run, world, row, seen.final)),
+        row=queue.facet(run.state, row, unmet(run, world, row, seen.final)),
         thread=said or work.Thread.NONE,
         seen="" if said or one is None else str(one.get("status", "")),
         launch=work.Launch.LAUNCHED if launched else work.Launch.NONE,

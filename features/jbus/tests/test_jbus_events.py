@@ -259,6 +259,7 @@ TABLE = {
     "pack": "quiet",
     "collisions": "quiet",
     "worktree-removed": "quiet",
+    "work-drift": "quiet",
 }
 
 

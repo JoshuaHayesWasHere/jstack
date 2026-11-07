@@ -9,7 +9,8 @@ from types import SimpleNamespace
 import pytest
 
 import jsettings
-from jbus import merge, stall, watch
+from jbus import merge, stall, watch, work
+from jbus.judged import Said
 from test_jbus_kitchen import NOW
 
 URL = "https://example.test/pull"
@@ -33,6 +34,8 @@ def a_pass(tmp_path, printed, sent=None):
     sent = [] if sent is None else sent
     return SimpleNamespace(
         home=tmp_path,
+        state=tmp_path,
+        now=NOW,
         config=SimpleNamespace(state_dir=tmp_path),
         user=jsettings.DEFAULTS,
         project=SimpleNamespace(name="demo"),
@@ -57,6 +60,21 @@ def test_merge_sends_each_line_about_a_pull_request_and_gives_them_back(tmp_path
         ("#10", "jmerge", NO_NAME, f"10 {NO_NAME}"),
         ("#11", "jmerge", NO_REASON, f"11 {NO_REASON}"),
     ]
+
+
+def test_each_line_gives_its_pull_request_a_step_and_a_why_and_the_run_its_end(tmp_path):
+    """`merge.verdicts` is what `restated.pulled` writes into `work.json`: the last line of a
+    number wins, a line about no pull request gives nothing, and a run marks when it ended."""
+    said = merge.merge(a_pass(tmp_path, PRINTED))
+    assert said.at and Said().at == ""
+    found = merge.verdicts(Said([*said, *OTHER, f"wait 7 {URL}/7: it has no review yet"]))
+    assert found == {
+        7: (work.Pull.REVIEW, "wait: it has no review yet"),
+        6: (work.Pull.MERGED, ""),
+        5: (work.Pull.MERGED, ""),
+        8: (work.Pull.REVIEW, "wait: it has no review yet"),
+        9: (work.Pull.HOLD, "hold: needs user, touches secrets/x.json"),
+    }
 
 
 def test_a_row_waits_for_what_a_wait_or_a_hold_line_gives_as_its_reason(tmp_path):

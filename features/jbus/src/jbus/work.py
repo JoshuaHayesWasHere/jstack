@@ -32,22 +32,25 @@ confirmed.
 state, so every reader of the queue still finds the same words as before. `scouting` gives a
 scout's row one of queued, scouting and report in, which the sidebar's tree draws. `write` keeps
 every state of a pass, whole, in `work.json` in the project's state directory, and the view
-draws that file. Between passes, an act that changes a row's go or takes the row out rewrites
-that row's one line (`update`, `restate`, from `waiting.acted`), judged again from the facts the
-last pass kept for it, so the view shows the act before the next pass. Both writers hold `LOCK`.
+draws that file. Between passes, each writer of a row's inputs restates that row's line, judged
+again from the facts the last pass kept for it with the facet that writer knows (`restate`), as
+`jbus.restated` says: a write of the queue restates each row's `Row` facet, and a run of `jmerge`
+the `Pull` facet of each pull request it judged. So the view shows a change within
+milliseconds, not at the next pass. The pass still judges every row, and logs each line it
+corrects as drift. Every writer holds `LOCK`.
 """
 
 from __future__ import annotations
 
 import functools
 import itertools
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 from dataclasses import dataclass, replace
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from jbus import locked, read_json, roles, write_json
+from jbus import read_json, roles, write_json
 from jmerge import ready
 
 NAME = "work.json"
@@ -578,8 +581,6 @@ def entry(state: State, held: Holder | None = None, **about: Any) -> dict[str, A
     }
 
 
-GONE = object()
-"""What `update` takes from a change to mean that the row's entry goes."""
 APPROVED = frozenset({Row.BEHIND, Row.FREE})
 
 
@@ -607,48 +608,46 @@ def stored(one: dict[str, Any]) -> Facts | None:
         return None
 
 
-def restate(one: dict[str, Any], row: Row) -> dict[str, Any]:
-    """Return a row's line of `work.json` judged again from its stored facts with `row` as the
-    new `Row` facet, as an act that changed the row's go knows it. A new approved facet beside an
-    approved one is the pass's to tell apart, since only the pass sees which depends merged; and
-    a state that keeps its value keeps its holder and its `why`, which the pass worked out from
-    more than the facts. A state whose value changed has no `why` until the next pass judges
-    one, since the one it had was judged for the old state."""
+def restate(
+    one: dict[str, Any], row: Row | None = None, pull: Pull | None = None, why: str | None = None
+) -> dict[str, Any]:
+    """Return a row's line of `work.json` judged again from its stored facts, with `row` as the
+    new `Row` facet and `pull` as the new `Pull` facet where given, as the writer of that input
+    knows it. A new approved facet beside an approved one is the pass's to tell apart, since only
+    the pass sees which depends merged; and a state that keeps its value keeps its holder and its
+    `why`, which the pass worked out from more than the facts. A state whose value changed has no
+    `why` until the next pass judges one, since the one it had was judged for the old state,
+    unless the writer gives one (`why`), as a run of `jmerge` does with its reason. A line
+    restated with the facets and the `why` it has comes back as it is, so a writer that runs
+    twice writes nothing the second time."""
     facts = stored(one)
-    if facts is None or facts.row == row or {facts.row, row} <= APPROVED:
+    if facts is None:
         return one
-    facts = replace(facts, row=row)
-    asked = facts.question == Question.OPEN
-    state = unforeseen(facts) if facts.seen and not asked else judge(facts)
-    if state.value == one["value"]:
+    made = facts
+    if row is not None and not {facts.row, row} <= APPROVED:
+        made = replace(made, row=row)
+    if pull is not None:
+        made = replace(made, pull=pull)
+    had = str(one.get("why", ""))
+    said = had if why is None else why
+    if made == facts and said == had:
+        return one
+    asked = made.question == Question.OPEN
+    state = unforeseen(made) if made.seen and not asked else judge(made)
+    if state.value == one["value"] and said == had:
         return {**one, "confirmed": state.confirmed, "facts": state.facts.said()}
     about = {name: value for name, value in one.items() if name not in _JUDGED}
-    if "why" in about:
+    if why is not None:
+        about["why"] = why
+    elif "why" in about and state.value != one["value"]:
         about["why"] = ""
     role = "scout" if "scout" in one else ""
     scout = {"scout": str(scouting(state))} if role else {}
-    return entry(state, holder(state, role=role), **about, **scout)
+    held = holder(state, role=role, why=str(about.get("why", "")))
+    return entry(state, held, **about, **scout)
 
 
 _JUDGED = frozenset({"value", "name", "who", "waits", "lane", "confirmed", "facts", "scout"})
-
-
-def update(state_dir: Path, slug: str, change: Callable[[dict[str, Any]], Any]) -> None:
-    """Rewrite the one line of `work.json` of the row `slug` with what `change` makes of it, or
-    take it out where `change` gives `GONE`, under `LOCK`. A file with no such line is left as it
-    is, since no pass judged that row yet."""
-    with locked(state_dir, LOCK):
-        kept = read(state_dir)
-        if kept is None:
-            return
-        work = []
-        for one in kept["work"]:
-            if isinstance(one, dict) and one.get("kind") == "row" and one.get("key") == slug:
-                one = change(one)
-            if one is not GONE:
-                work.append(one)
-        if work != kept["work"]:
-            write_json(path(state_dir), {**kept, "work": work})
 
 
 def path(state_dir: Path) -> Path:

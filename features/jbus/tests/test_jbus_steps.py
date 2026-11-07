@@ -20,7 +20,10 @@ It needs no world, so it runs too where T3 Code is down and `wakes.tell` does no
 The `queue.load` before `work.write` is a step added since: `states.keep_work` reads each row's go
 again, so a go given while the pass ran is not written back. The list's event for the question the
 `question` fixture answers is no longer the pass's: the answer takes its gate off the list and
-logs that itself (`waiting.settle`).
+logs that itself (`waiting.settle`). Each write of the queue reads the table once more as it ends,
+to restate the rows' lines of `work.json` (`queue._restate_work`), a step added since: the
+`queue.load` after that of `queue.follow_ups` where the table parses, and the one after
+`queue.derive`.
 """
 
 import importlib
@@ -231,7 +234,7 @@ BEFORE = {
     ),
 }
 
-DERIVED = "queue.derive queue.load leftover.tell"
+DERIVED = "queue.derive queue.load queue.load leftover.tell"
 ONCE = "queue.load work.write item.follow stall.tell waiting.keep questions.read waiting.cadence"
 JUDGED = ONCE.replace("questions.read", "questions.read questions.read queue.load")
 TELL = "queue.load questions.read wakes.tell queue.load questions.read"
@@ -328,7 +331,8 @@ def moved(before, fixture="short"):
     outbox's `held` rule for each rebase or fix message (`HELD`), and what `children.watch`
     reads after `mainmoved.tell` since it watches the root: the queue and the questions, to know
     both parse, then the root's `out`, cut short at a file that does not parse (`WATCHED`)."""
-    calls = ["queue.load", *before.split()]
+    parsed = fixture not in ("blind", "queue.json")
+    calls = ["queue.load", *(["queue.load"] if parsed else []), *before.split()]
     calls.remove("questions.closed_in_files")
     calls.insert(calls.index("word.deliver") + 1, "questions.closed_in_files")
     if "watch.gone" in calls:

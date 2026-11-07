@@ -150,7 +150,7 @@ from jbriefs import chains, findings, meaning, skills
 from jbriefs import home as homes
 from jbriefs import parse as briefs
 from jbriefs.home import thread_of
-from jbus import Refused, history, party, verbs, write_json
+from jbus import Refused, history, party, restated, verbs, work, write_json
 from jmerge import judgement
 from jmerge import stacked as stacks
 from jmerge.judgement import bound
@@ -596,7 +596,10 @@ def load(state: Path) -> list[Row]:
 
 
 @contextmanager
-def _changing(state: Path) -> Iterator[list[Row]]:
+def _changing(state: Path, briefed: set[str] | None = None) -> Iterator[list[Row]]:
+    """Hold the queue's lock over a change of the table: yield its rows, write them where they
+    changed, and restate the lines of `work.json` the change reaches (`_restate_work`). `briefed`
+    is the slugs whose brief the caller stores under the same lock, which it fills in as it does."""
     with store.locked(state, "queue.lock"):
         try:
             rows = load(state)
@@ -607,6 +610,57 @@ def _changing(state: Path) -> Iterator[list[Row]]:
         rows.sort(key=order)
         if json.dumps(rows, sort_keys=True) != before:
             write_json(path(state), rows)
+        _restate_work(state, json.loads(before), briefed or set())
+
+
+def _restate_work(state: Path, was: list[Row], briefed: set[str]) -> None:
+    """Restate the lines of `work.json` that a write of the queue reaches (`restated.queued`), so
+    the view shows the write at once and not at the next pass: each row the write changed or
+    stored a brief for, and each row that depends on one whose status changed. A write's caller
+    holds the queue's lock, so the table and the briefs read here are of one moment. The rest of
+    the rows, over a thousand in a long-lived queue, keep their lines and cost nothing. The
+    caller loaded the table and wrote it under that lock, so it reads back here."""
+    rows = load(state)
+    then = {row["slug"]: row for row in was}
+    now = {row["slug"]: row for row in rows}
+    moved = {slug for slug, row in now.items() if then.get(slug) != row} | briefed
+    ended = {
+        slug
+        for slug in then.keys() | now.keys()
+        if (then.get(slug) or {}).get("status") != (now.get(slug) or {}).get("status")
+    }
+    moved |= {row["slug"] for row in rows if ended.intersection(row.get("depends", []))}
+    done = final(rows)
+    restated.queued(
+        state,
+        rows,
+        lambda row: standing(state, row, done),
+        lambda row: role(row) == SCOUT,
+        moved,
+    )
+
+
+def facet(state: Path, row: Row, unmet: list[str]) -> work.Row:
+    """Return a row's `Row` facet: its go, and whether that go holds for its brief as it is
+    stored, and with a go, whether depends that are not final (`unmet`) hold it back."""
+    if not row.get("approved"):
+        return work.Row.UNAPPROVED
+    text = brief(state, row["slug"])
+    if text is None or not judgement.approved_text(row, text):
+        return work.Row.CHANGED
+    return work.Row.BEHIND if unmet else work.Row.FREE
+
+
+def final(rows: list[Row]) -> frozenset[str]:
+    """Return the slugs whose own row's status is final (`FINAL`), as `jbus.watch.final` judges
+    with no world: a row that depends on one of them is not held back by it."""
+    return frozenset(row["slug"] for row in rows if row.get("status") in FINAL)
+
+
+def standing(state: Path, row: Row, ended: frozenset[str]) -> work.Row:
+    """Return a row's `Row` facet as the table has it now, with no world asked: `ended` is the
+    table's `final` slugs, worked out once for every row a caller judges."""
+    return facet(state, row, [one for one in row.get("depends", []) if one not in ended])
 
 
 def over(row: Row) -> bool:
@@ -2085,7 +2139,8 @@ def _run(
                 except Refused as error:
                     said_by[named] = error
     moves: list[dict[str, Any]] = []
-    with _changing(state) as rows:
+    briefed: set[str] = set()
+    with _changing(state, briefed) as rows:
         try:
             gone = removed(state)
         except Unparsable as error:
@@ -2124,6 +2179,7 @@ def _run(
             write_json(removed_path(state), batch.gone)
         for slug, text in batch.briefs.items():
             _store(state, slug, text)
+        briefed.update(batch.briefs)
         if asks:
             for move in moves:
                 asks.told(move)

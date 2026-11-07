@@ -2,6 +2,11 @@
 (`judged`). Three steps then read that state. `derive` rewrites the table's derived columns,
 `unplaced` tells the home of each open pull request that is on no step, and `keep_work` writes
 `work.json`.
+
+Each writer of a row's inputs restates that row's line of `work.json` as it writes
+(`restated.queued`, `restated.pulled`), so the pass is no longer how a change reaches the view.
+The pass still judges every row from all it saw, and `keep_work` logs each row's line it finds
+otherwise in the file as a quiet `work-drift` event, which tells nobody.
 """
 
 from __future__ import annotations
@@ -17,10 +22,10 @@ from jbus import (
     locked,
     merge,
     queue,
+    restated,
     stall,
     threads,
     verbs,
-    waiting,
     watch,
     work,
 )
@@ -28,6 +33,9 @@ from jbus import (
 if TYPE_CHECKING:
     from jbus.passes import Pass
     from jbus.poll import Half
+
+DRIFT = "work-drift"
+EVENTS = {"work-drift": "quiet"}
 
 
 def judged(half: Half) -> None:
@@ -130,25 +138,46 @@ def keep_work(half: Half) -> None:
     listed += watch.judged(run, half.out, mine, half.answered())
     at = jsettings.stamp(run.now)
     with locked(run.state, work.LOCK):
-        work.write(run.state, at, half.answered(), _since(run, listed))
+        was = work.read(run.state)
+        before = was["work"] if was else []
+        written = _since(run, _pulled(run, listed, before, half.said.at))
+        work.write(run.state, at, half.answered(), written)
+    for key, what in restated.drift(before, written) if was else []:
+        run.box.send(key, DRIFT, f"{DRIFT} {key}: {what}")
+
+
+def _pulled(
+    run: Pass, listed: list[dict[str, Any]], before: list[Any], ran: str
+) -> list[dict[str, Any]]:
+    """Return the pass's lines, each row's with the `Pull` facet that a run of `jmerge` which
+    ended after the pass's own run (`ran`) restated in the file (`restated.kept`), such as a merge
+    tick's. A tick that held the run lock while the pass's run found it busy ends after it too."""
+    was = {one.get("key"): one for one in before if isinstance(one, dict)}
+    ended = ran or restated.moment(run.now)
+    return [
+        restated.kept(one, was.get(one["key"]), ended) if one.get("kind") == "row" else one
+        for one in listed
+    ]
 
 
 def _since(run: Pass, listed: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Return the pass's lines with each row's go as the queue has it now. An act between the
-    pass's read of the table and this write (`acted`) changed a row's go or took the row out, and
-    the act's own line already says so: the pass keeps it, and does not write the row as it was."""
+    """Return the pass's lines with each row's go as the queue has it now. A write of the queue
+    between the pass's read of the table and this write changed a row's go or took the row out,
+    and that write's own restate already says so (`queue._changing`): the pass keeps it, and does
+    not write the row as it was."""
     try:
         rows = queue.load(run.state)
     except queue.Unparsable:
         return listed
     now = {row["slug"]: row for row in rows}
+    done = queue.final(rows)
     kept = []
     for one in listed:
         if one.get("kind") == "row":
             row = now.get(one["slug"])
             if row is None:
                 continue
-            one = work.restate(one, waiting.row_facet(run, row, rows))
+            one = work.restate(one, row=queue.standing(run.state, row, done))
         kept.append(one)
     return kept
 

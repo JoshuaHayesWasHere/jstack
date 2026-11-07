@@ -24,6 +24,16 @@ It runs `jmerge --if-free`, which does nothing while another run of `jmerge` is 
 What a tick misses, the next pass does: the pass runs `jmerge --if-free` too, so a pass that finds a tick's run under way does nothing, and the next one with the lock free runs it.
 `jbus-merge.service` logs at `notice` and above (`LogLevelMax=notice`), so its start and end every 5 seconds stay out of the journal, and its own lines, which are `notice`, stay in.
 On macOS its agent runs every 5 seconds too (`StartInterval`).
+`work.json`, the state of each row that the view and T3 Code's sidebar draw, waits for neither timer.
+Each writer of a row's inputs restates that row's line under `work.lock` as it writes:
+each write of the queue (`jbus queue add`, `approve`, `hold`, `remove` and the pass's own rewrite of the table) restates each row's go, adds the line of a new row and takes out the line of a row that went;
+each run of `jmerge`, the tick's and the pass's, restates the step of each pull request it judged, with its reason as the line's `why`.
+So a change reaches `work.json` within milliseconds of its write: `features/jbus/tests/work_live_probe.py` times it.
+The pass still judges every row from all it saw and writes the whole file.
+It keeps a pull request's step that a tick's run restated after the pass's own run of `jmerge` ended, since that run judged later; each run marks what it restated with the time it ended.
+Where it finds a row's line otherwise than a writer should have left it, it corrects the line and logs a `work-drift` event, which is quiet and tells nobody: a go, or a pull request's step that `jmerge` restated, that the pass judges otherwise, a value that does not follow from the line's own facts, or a line missing or left over.
+What the pass alone sees, such as a thread's state, is no drift.
+`held.json` and `checks.json` are no input of a line: the sidebar reads `held.json` itself, and main's checks reach a row through `jmerge`'s next verdict.
 `jbus-stale.timer` catches a timer that stopped.
 A stopped timer starts no pass, so no failed pass reports it ([When jbus fails](when-jbus-fails.md)).
 [Back up the homes' state](back-up-the-homes-state.md) covers `jbus-snapshot.timer`, [Measure the CI](measure-the-ci.md) covers `jbus-ci.timer` and `jbus-ci-day.timer`, [The relay](the-relay.md) covers `jbus-relay.service`, and [The view](the-view.md) covers `jbus-view.service`.

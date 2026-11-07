@@ -111,6 +111,7 @@ It is in the log, which `jbus events` prints and the view shows.
 - `unplaced`
 - `waiting`
 - `waiting-on-user`
+- `work-drift`
 - `worktree-removed`
 
 <!-- built: end -->

@@ -38,7 +38,7 @@ import re
 import subprocess
 from typing import TYPE_CHECKING
 
-from jbus import alert, outbox, verbs
+from jbus import alert, outbox, restated, verbs, work
 from jbus.judged import Said, parse
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
@@ -141,7 +141,29 @@ def _sent(run: Pass, ran: subprocess.CompletedProcess[str]) -> Said:
         if slug and (unfollowed := lines_of.unfollowed(text)):
             alert.deliver(run, f"alert: {run.project.name}: {unfollowed}")
     lines.failed = bool(ran.returncode)
+    lines.at = restated.moment(verbs.clock())
+    restated.pulled(run.state, verdicts(lines), lines.at)
     return lines
+
+
+def verdicts(lines: Said) -> dict[int, tuple[work.Pull, str]]:
+    """Return the `Pull` facet each line of a run of `jmerge` gives its pull request, by number,
+    with the line's `why`, the last line of a number winning: `merged` for a merge, with no
+    `why`, and for a `wait` or a `hold` the step of `word: reason` (`step`), as the pass reads it
+    (`jbus.watch.waits`), or `other` where no rule names the reason, with `word: reason` as the
+    `why`, the shape the queue keeps."""
+    found = {}
+    for text in lines:
+        line = parse(text)
+        if line is None:
+            continue
+        if line.word == "merged":
+            found[line.number] = (work.Pull.MERGED, "")
+        elif line.word in ("wait", "hold") and line.reason:
+            why = f"{line.word}: {line.reason}"
+            said = step(why)
+            found[line.number] = (work.Pull(said) if said else work.Pull.OTHER, why)
+    return found
 
 
 def tick(run: Pass) -> Said:

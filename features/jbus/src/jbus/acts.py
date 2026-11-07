@@ -31,9 +31,10 @@ the verbs themselves, and an act holds them only through those verbs. A `does` r
 `acts.lock`, so a merge does not hold every other act back, and it never takes an act itself:
 `locked` takes a lock a second time in one process by waiting on it forever.
 
-A go, an answer and a remove that are `done` show at once in `work.json` and
-`waiting-on-user.json` (`waiting.acted`), once `acts.lock` is let go, so the view does not wait
-for the next pass to drop what the act settled.
+A go, an answer and a remove that are `done` show at once in `waiting-on-user.json`
+(`waiting.acted`), once `acts.lock` is let go, so the view does not wait for the next pass to
+drop what the act settled. Their write of the queue shows them in `work.json` already
+(`queue._changing`).
 """
 
 from __future__ import annotations

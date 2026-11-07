@@ -10,7 +10,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import passes, queue, states, waiting, work
+from jbus import passes, queue, restated, states, tick, verbs, waiting, work
 from jmerge import ready
 from test_jbus_kitchen import ASK, NOW, SAID_AT, Kitchen, iso
 from test_jbus_queue import add, adds, approves, batch, brief, go, rows, sha12
@@ -565,6 +565,161 @@ def test_a_queue_apply_that_is_refused_rewrites_nothing(kitchen, refused):
     assert (code, said.startswith("refused: ")) == (1, True), said
     after = [(kitchen.state / name).read_text() for name in (work.NAME, waiting.NAME)]
     assert after == before
+
+
+def test_a_hold_and_a_row_added_show_before_any_pass(kitchen):
+    """Each write of the queue restates the rows' lines of `work.json` (`queue._changing`)."""
+    add(kitchen, "alpha", approve=False)
+    kitchen.poll()
+    assert go(kitchen, "alpha")[0] == 0
+    assert said(kitchen) == ("ready", True)
+    assert kitchen.main("--project", "demo", "queue", "hold", "alpha")[0] == 0
+    assert (judged(kitchen)["value"], judged(kitchen)["who"]) == ("unapproved", "user")
+    add(kitchen, "beta", depends="alpha")
+    line = judged(kitchen, "beta")
+    assert (line["value"], line["who"], line["facts"]["row"]) == (
+        "behind",
+        "dep",
+        "approved and behind",
+    )
+
+
+def on_review(kitchen):
+    """Put alpha's pull request #9 on the review step, with a check going, as a pass sees it."""
+    add(kitchen, "alpha")
+    kitchen.brief("alpha", result(branch=f"alpha   Pull request: {PULL}"))
+    kitchen.t3.thread("alpha", "completed")
+    kitchen.set("open.json", [kitchen.opened("alpha", 9, None)])
+    kitchen.set("jmerge.txt", f"wait 9 {PULL}: {ready.NO_REVIEW}\n")
+    kitchen.poll()
+    assert said(kitchen) == ("review", True)
+
+
+def a_tick_says(kitchen, line, run_id=1):
+    """Run a merge tick that finds a check ended and whose `jmerge` prints `line`."""
+    kitchen.set("jmerge.txt", f"{line}\n")
+    kitchen.set("runs.json", {"workflow_runs": [{"id": run_id, "status": "completed"}]})
+    assert tick.tick(jbus.load(), lambda _: None) == 0
+
+
+def test_a_ticks_verdict_shows_before_any_pass_and_the_next_pass_keeps_it(kitchen):
+    on_review(kitchen)
+    a_tick_says(kitchen, f"wait 9 {PULL}: {ready.FRESH_CONFLICT}")
+    line = judged(kitchen)
+    assert (line["value"], line["who"], line["facts"]["pull"]) == ("rebase", "crew", "rebase")
+    a_tick_says(kitchen, "merged 9 alpha abc1234", run_id=2)
+    assert said(kitchen) == ("merged", True)
+
+
+def test_a_ticks_stacked_verdict_shows_its_parent_as_the_holder_before_any_pass(kitchen):
+    on_review(kitchen)
+    stacked = ready.STACKED_ON.format(branch="beta", slug="beta", default="main")
+    a_tick_says(kitchen, f"wait 9 {PULL}: {stacked}")
+    line = judged(kitchen)
+    assert (line["value"], line["who"], line["waits"]) == ("stacked", "beta", "beta to merge")
+    assert line["why"] == f"wait: {stacked}"
+    a_tick_says(kitchen, f"wait 9 {PULL}: {ready.NO_REVIEW}", run_id=2)
+    line = judged(kitchen)
+    assert (line["value"], line["who"], line["why"]) == (
+        "review",
+        "rev",
+        f"wait: {ready.NO_REVIEW}",
+    )
+
+
+def test_a_ticks_verdict_given_while_a_pass_runs_is_not_written_back(kitchen, monkeypatch):
+    """The pass judged from its own run of `jmerge`, and a tick that ran after it began judged
+    later: the pass keeps the tick's facet (`restated.kept`)."""
+    on_review(kitchen)
+
+    def later():
+        monkeypatch.setattr(verbs, "clock", lambda: NOW + timedelta(seconds=20))
+        a_tick_says(kitchen, f"wait 9 {PULL}: {ready.FRESH_CONFLICT}")
+
+    while_keep_work_lists(monkeypatch, later)
+    kitchen.poll()
+    assert said(kitchen) == ("rebase", True)
+    assert kitchen.lines(states.DRIFT) == []
+
+
+def test_a_tick_that_began_before_a_pass_and_ended_in_it_is_not_written_back(kitchen, monkeypatch):
+    """The tick held the run lock, so the pass's own run of `jmerge` found it busy and judged
+    nothing; the tick began before the pass and ended after the pass's run, and its verdict is
+    the later one (`Said.at`)."""
+    on_review(kitchen)
+    kitchen.set("jmerge-busy", "")
+
+    def later():
+        (kitchen.stub / "jmerge-busy").unlink()
+        moments = iter([NOW - timedelta(seconds=5)])
+        monkeypatch.setattr(verbs, "clock", lambda: next(moments, NOW + timedelta(seconds=5)))
+        a_tick_says(kitchen, f"wait 9 {PULL}: {ready.FRESH_CONFLICT}")
+
+    while_keep_work_lists(monkeypatch, later)
+    kitchen.poll()
+    assert said(kitchen) == ("rebase", True)
+    assert kitchen.lines(states.DRIFT) == []
+
+
+def test_the_pass_corrects_a_line_broken_by_hand_and_logs_it_as_drift_quietly(kitchen):
+    add(kitchen, "alpha", approve=False)
+    kitchen.poll()
+    kept = json.loads((kitchen.state / work.NAME).read_text())
+    for one in kept["work"]:
+        if one["key"] == "alpha":
+            one.update(value="ready", who="bus")
+    (kitchen.state / work.NAME).write_text(json.dumps(kept))
+    kitchen.poll()
+    assert (judged(kitchen)["value"], judged(kitchen)["who"]) == ("unapproved", "user")
+    drifted = kitchen.events(states.DRIFT)
+    assert [(one["line"], one["loud"]) for one in drifted] == [
+        ("work-drift alpha: value 'ready' for 'unapproved'", "quiet")
+    ]
+    kitchen.poll()
+    assert len(kitchen.events(states.DRIFT)) == 1
+
+
+def line_of(key, row=work.Row.FREE, pull=work.Pull.NONE, answered=work.Answered.BOTH, **more):
+    facts = work.Facts(
+        row,
+        work.Thread.NONE,
+        work.Launch.NONE,
+        work.Written.NONE,
+        pull,
+        work.Question.NONE,
+        answered,
+    )
+    return work.entry(work.judge(facts), key=key, kind="row", slug=key, **more)
+
+
+def test_drift_is_what_a_writer_should_have_kept_right_and_not_what_the_pass_alone_sees():
+    review, check = work.Pull.REVIEW, work.Pull.CHECK
+    pulled = {"pr": "#9", restated.PULLED: "2026-11-07T00:00:00.000000+00:00"}
+    before = [
+        line_of("gone"),
+        line_of("go", row=work.Row.UNAPPROVED),
+        line_of("moved", row=work.Row.BEHIND),
+        line_of("pushed", pull=review, **pulled),
+        line_of("unasked", pull=review, **pulled),
+        line_of("opened", pull=work.Pull.NONE),
+        {**line_of("valued"), "value": "unapproved"},
+    ]
+    after = [
+        line_of("go"),
+        line_of("moved"),
+        line_of("pushed", pull=check, pr="#9"),
+        line_of("unasked", pull=check, pr="#9", answered=work.Answered.T3),
+        line_of("opened", pull=review, pr="#9"),
+        line_of("valued"),
+        line_of("new"),
+    ]
+    assert restated.drift(before, after) == [
+        ("go", "row 'unapproved' for 'approved and free'"),
+        ("gone", "a line for a row the queue does not have"),
+        ("new", "no line"),
+        ("pushed", "pull 'review' for 'check'"),
+        ("valued", "value 'unapproved' for 'ready'"),
+    ]
 
 
 def test_an_act_leaves_a_line_it_cannot_read_as_it_is_and_an_asking_row_still_asking():
