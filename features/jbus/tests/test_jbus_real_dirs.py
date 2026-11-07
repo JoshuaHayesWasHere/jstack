@@ -8,10 +8,12 @@ kitchen's clock, so the stale alarm said no pass had ended since 2026-10-12.
 import os
 import pwd
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 
 import jbus
+import jsettings
 
 ACCOUNT = Path(pwd.getpwuid(os.getuid()).pw_dir)
 REAL = {
@@ -75,3 +77,15 @@ def test_outside_a_test_jbus_never_asks_the_password_database(tmp_path, monkeypa
     monkeypatch.delenv("PYTEST_CURRENT_TEST")
     monkeypatch.setenv(name, str(tmp_path))
     assert asked() == tmp_path
+
+
+def test_a_desk_config_in_another_zone_reaches_no_test_that_undoes_its_monkeypatch(
+    tmp_path, monkeypatch
+):
+    desk = tmp_path / "desk"
+    (desk / ".config" / "jstack").mkdir(parents=True)
+    (desk / ".config" / "jstack" / "config.toml").write_text('timezone = "Pacific/Kiritimati"\n')
+    with pytest.MonkeyPatch.context() as machine:
+        machine.setenv("HOME", str(desk))
+        monkeypatch.undo()
+        assert jsettings.load().zone == ZoneInfo("America/New_York")
