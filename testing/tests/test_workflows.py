@@ -1348,6 +1348,7 @@ def test_the_fast_check_selects_and_lints_once_over_two_commits_and_runs_no_sele
         "astral-sh/setup-uv",
         "uv sync --locked",
         'echo "name=green-tree-$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"',
+        "actions/cache",
         "uv run python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD",
         "python3 features/writing/scripts/prose_lint.py HEAD^1",
         "make lint BASE=HEAD^1",
@@ -1355,8 +1356,8 @@ def test_the_fast_check_selects_and_lints_once_over_two_commits_and_runs_no_sele
     ]
     assert found[0]["with"] == {"persist-credentials": False, "fetch-depth": "2"}
     assert all("if" not in step for step in found[:-1])
-    assert (found[3]["id"], found[4]["id"]) == ("tree", "select")
-    assert found[4]["env"] == {
+    assert (found[3]["id"], found[5]["id"]) == ("tree", "select")
+    assert found[5]["env"] == {
         "FAILED_ON_MAIN": "${{ needs.reuse.outputs.failed }}",
         "SELECTED": "${{ runner.temp }}/selected-tests.txt",
     }
@@ -1383,6 +1384,29 @@ def test_the_fast_check_selects_and_lints_once_over_two_commits_and_runs_no_sele
     ]
     assert parts[1]["with"] == {"persist-credentials": False, "fetch-depth": "2"}
     assert parts[6]["id"] == "suite"
+
+
+def test_the_select_step_starts_from_the_facts_a_run_of_the_same_selector_kept():
+    """select_tests.py keeps what it read of each module in `KEPT` under the git directory, and
+    parses again only a module whose text changed. The job `select` restores that file right
+    before the selection and saves it after, under a key that hashes the selector and ends in the
+    run, so each run saves an entry of its own and a run restores the latest one only of the
+    same selector: a changed script starts cold and never reads facts an older one wrote."""
+    found, _ = steps(CHECK.read_text(), "select")
+    names = [step.get("uses", step.get("run")).partition("@")[0] for step in found]
+    at = names.index("actions/cache")
+    assert found[at + 1]["id"] == "select"
+    cache = found[at]
+    assert re.fullmatch(r"actions/cache@[0-9a-f]{40}", cache["uses"])
+    assert "if" not in cache
+    script = (REPO / "scripts" / "select_tests.py").read_text()
+    kept = re.search(r'^KEPT = "([^"]+)"$', script, re.M)
+    selector = "select-facts-${{ hashFiles('scripts/select_tests.py') }}-"
+    assert cache["with"] == {
+        "path": f".git/{kept[1]}",
+        "key": selector + "${{ github.run_id }}-${{ github.run_attempt }}",
+        "restore-keys": selector,
+    }
 
 
 PART = "${{ needs.select.outputs[format('part{0}', matrix.shard)] }}"

@@ -142,6 +142,17 @@ jobs:
       - name: green tree
         id: tree
         run: echo "name=green-tree-$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"
+      # What select_tests.py read of each module (`KEPT`), kept from a run before, so it parses
+      # again only the modules whose text changed: a cold run parsed every module, about 2 s of
+      # the step on a desk. A run restores the latest entry of the same selector and saves its
+      # own when the job passes. The key hashes the selector, so a changed script never starts
+      # from an entry an older one wrote, and the script itself drops a file whose salt is not
+      # its own.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .git/select_tests.facts
+          key: select-facts-${{ hashFiles('scripts/select_tests.py') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: select-facts-${{ hashFiles('scripts/select_tests.py') }}-
       # scripts/select_tests.py adds its selection and its parts to the job summary, and gives
       # this step the outputs `part1` to `part8` and `selection`: `all` where it selected the
       # whole suite, which it does only for a change the whole suite rests on, however many test
