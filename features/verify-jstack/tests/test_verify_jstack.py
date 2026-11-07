@@ -130,8 +130,11 @@ def test_a_launch_whose_stand_in_does_not_start_says_what_its_log_holds(tmp_path
         tmp_path, "python", "echo 'python: broken on purpose' >&2; exit 3"
     )
 
+    started = time.monotonic()
     ran = launch(tmp, scripts, path)
+    took = time.monotonic() - started
 
+    assert took < 5, f"waited out the 5 s start deadline on an exited stand-in ({took:.1f} s)"
     assert ran.returncode == 1
     assert "launch.sh: the stand-in for T3 Code did not start" in ran.stderr
     assert "python: broken on purpose" in ran.stderr
