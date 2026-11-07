@@ -13,19 +13,20 @@ Every job runs on GitHub's hosted runner, `ubuntu-24.04`, and never on the machi
 A pull request's run starts with the job `reuse`, which runs `python3 -m jmerge.reuse`.
 It looks for a passed run that checked the same two trees: GitHub's merge of the head over its base, and that base.
 When it finds one, no test job runs, and the job `check` passes on the run it reuses.
-`reuse` also lists the tests that failed on main in the last 30 days (`scripts/select_tests.py --failed-on-main 30`), and the job `select` adds them to its selection.
+`reuse` also lists the tests that failed on main in the last 30 days (`scripts/select_tests.py --failed-on-main 30`), and adds them to its selection.
 A lookup that fails adds no test, and the job `check` warns of it.
 The same job fails a pull request whose title, body or commits credit an AI tool as a co-author (`scripts/no_ai_trailers.py`).
 
-Without a reuse, the job `select` runs first, and selects, collects and lints once for the whole check.
-It runs `uv run python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD`, which selects the tests the change needs, collects them once, and deals their files out to eight parts by each test's time (`testing/shard.py`).
-It gives each part its files as the job's output `part1` to `part8`, or `none` for a part the selection left empty.
-Then it runs the lint, `python3 features/writing/scripts/prose_lint.py HEAD^1` and `make lint BASE=HEAD^1`.
-The tests run as eight jobs side by side, `check 1 of 8` to `check 8 of 8`.
-Each one runs `make test TESTS="$PART"` on only the files `select` gave it, and collects no other part's files.
-A part given `none` runs no test and passes, and a part that got no output from `select` fails.
-The job `check` passes only when `reuse`, `select` and all eight parts passed.
-`select` selects the whole suite only when the change touches a file every test depends on, however many test files the selection holds.
+Without a reuse, the same job `reuse` selects once for the whole check.
+It runs `python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD` in the runner's own Python, with no `uv sync` and no pytest: it selects the tests the change needs and deals their files out to eight parts by each file's time in `testing/shard-file-times.tsv` (`testing/split.py`), with no collection.
+A file whose tests sum past a part's share is cut by test, from its rows in `testing/shard-times.tsv`, and each part that holds a piece gets, beside the file, a word that picks the piece's tests by their keys in that table (`testing/shard.py`).
+It gives each part its words as the job's output `part1` to `part8`, or `none` for a part the selection left empty.
+The job `lint` runs the lint, `python3 features/writing/scripts/prose_lint.py HEAD^1` and `make lint BASE=HEAD^1`, beside `reuse`, from the start of the run.
+The tests run as eight jobs side by side, `check 1 of 8` to `check 8 of 8`, which start once `reuse` ends.
+Each one runs `make test TESTS="$PART"` on only the files `reuse` gave it, and collects no other part's files.
+A part given `none` runs no test and passes, and a part that got no output from `reuse` fails.
+The job `check` passes only when `reuse`, `lint` and all eight parts passed, or `reuse` and `lint` passed on a reuse.
+The selection is the whole suite only when the change touches a file every test depends on, however many test files the selection holds.
 When the whole suite passes, the job `check` uploads the artifact `green-tree-<tree>` for the tree it checked out, which is GitHub's merge of the head over main.
 A marker means the whole suite passed on that tree, so a run of only some tests uploads no marker.
 Each part's job summary says `full suite: yes` or `no` and `tree <tree>`, and `jbus ci --notice` writes the same to `ci.jsonl` as the job's `full` and `tree`.
