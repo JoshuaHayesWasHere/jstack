@@ -16,11 +16,12 @@ import io
 import json
 import shutil
 import sys
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from html.parser import HTMLParser
 
 import pytest
 
+import jsettings
 import test_jbus_telemetry_tokens as token_records
 from jbus import cli
 from jbus.telemetry import kpis
@@ -651,13 +652,14 @@ def test_the_redo_rate_says_how_many_rows_of_the_week_it_cannot_judge_yet(machin
         "alpha", "queue.json", [{"slug": "alpha-new"}, {"slug": "u", "approval": planned}]
     )
     machine.build()
+    due = date.fromisoformat(jsettings.load().day(merged)) + timedelta(days=7)
 
-    _, rows, _ = page_of(machine, (merged + timedelta(days=7)).date().isoformat())
+    _, rows, _ = page_of(machine, due.isoformat())
 
     with contextlib.closing(machine.store()) as store:
         waiting = store.execute(
             "SELECT count(*) FROM redo_rows WHERE NOT judged AND week = ?",
-            (kpis.week_of((merged + timedelta(days=7)).date()).isoformat(),),
+            (kpis.week_of(due).isoformat(),),
         ).fetchone()[0]
     assert waiting >= 1
     shown = f"{waiting} merged row{'s' * (waiting != 1)} not yet judged"
