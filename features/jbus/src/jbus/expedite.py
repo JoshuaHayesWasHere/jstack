@@ -21,8 +21,9 @@ reason with its sentence:
   findings that have no answer that counts;
 - `fix`, `the scoped review of it is not written`: launch the scoped reviewer of the fix
   with the two ranges, the patch the last review saw and the patch at the head. One round owes
-  it only after a `Meets the brief: no`. Where the crew cannot work out a range, run the crew
-  skill's block, which says what to do;
+  it only after a `Meets the brief: no`, and `jmerge` waits on it only while no `Proved:` line
+  holds at the head. Where the crew cannot work out a range, run the crew skill's block, which
+  says what to do;
 - `meets-no`, `meets-unread` and `meets-miscounted`, the last review round's `Meets the brief:`
   line (`jbriefs.meets`) says `no`, has no shape `jmerge` reads, or counts other lines than the
   brief has: run the crew skill's block of "A second pass", which gives the scoped review the
