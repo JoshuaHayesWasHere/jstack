@@ -85,9 +85,15 @@ def installs(monkeypatch):
 @pytest.fixture
 def systemctl(kitchen):
     """A systemctl on the kitchen's PATH that keeps each call's arguments, one line a call, so no
-    move reaches this machine's systemd."""
+    move reaches this machine's systemd. While `systemctl.refuse` is in the stub, it refuses the
+    next daemon-reload, as a user bus that is not up does, and takes the file away."""
     fake = kitchen.stub / "systemctl"
-    fake.write_text(f'#!/bin/sh\necho "$*" >> {kitchen.stub / "systemctl.log"}\n')
+    refuse = kitchen.stub / "systemctl.refuse"
+    fake.write_text(
+        f'#!/bin/sh\necho "$*" >> {kitchen.stub / "systemctl.log"}\n'
+        f'[ "$*" = "--user daemon-reload" ] && [ -f {refuse} ] || exit 0\nrm -f {refuse}\n'
+        'echo "Failed to connect to bus: No medium found" >&2\nexit 1\n'
+    )
     fake.chmod(0o755)
     return kitchen.stub / "systemctl.log"
 
@@ -173,6 +179,35 @@ def test_a_reload_systemd_refuses_raises_a_condition_and_restarts_no_timer(copie
     assert calls(systemctl) == ["--user daemon-reload"]
     assert gates(copied) == [f"condition green: {green.UNRELOADED}"]
     assert not [line for line in said if "systemd reloaded" in line]
+
+
+def test_a_reload_systemd_refused_is_tried_again_by_each_pass_until_it_holds(copied, systemctl):
+    """A move reloads once, so a reload systemd refused left the stale timer running, and every
+    later pass found the copy at green and never asked again: the day of #1240 until a hand
+    reload. The reload a move owes is kept until systemd takes every call of it."""
+    units = "features/jbus/units/"
+    land(copied, "success", {units + "jbus-merge.timer": TIMER.format("5s")})
+    copied.poll()
+    systemctl.unlink(missing_ok=True)
+
+    (systemctl.parent / "systemctl.refuse").touch()
+    faster = land(copied, "success", {units + "jbus-merge.timer": TIMER.format("2s")})
+    said = copied.poll()
+    assert at(copied.copy) == faster
+    assert calls(systemctl) == ["--user daemon-reload"]
+    assert gates(copied) == [f"condition green: {green.UNRELOADED}"]
+    assert not [line for line in said if "systemd reloaded" in line]
+
+    systemctl.unlink()
+    said = copied.poll()
+    assert at(copied.copy) == faster
+    assert calls(systemctl) == ["--user daemon-reload", "--user try-restart jbus-merge.timer"]
+    assert "green demo: systemd reloaded jbus-merge.timer, and restarted jbus-merge.timer" in said
+
+    systemctl.unlink()
+    said = copied.poll()
+    assert calls(systemctl) == []
+    assert not [line for line in said if "systemd" in line]
 
 
 def test_a_tip_whose_check_failed_and_that_does_not_import_leaves_the_copy_where_it_was(copied):
