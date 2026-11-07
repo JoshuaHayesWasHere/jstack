@@ -415,10 +415,16 @@ def ranked(paths: Iterable[str]) -> dict[str, tuple[Step, ...]]:
 
 def project(config: jbus.Config, name: str | None, closed: bool = False) -> jbus.Project:
     """Return the named project, the only project, or the one whose repo contains this
-    directory. With `closed`, for a verb that only reads, a closed project is found too."""
+    directory. With `closed`, for a verb that only reads, a closed project is found too. A closed
+    project whose repo this is is never taken for another: it is refused, or found with `closed`."""
+    if name is None:
+        repo = paths.repo_name()
+        for one in config.closed:
+            if one.state == repo:
+                return config.project(one.name, closed)
     if name is None and len(config.projects) > 1:
         repo = paths.repo_name()
-        for one in (*config.projects, *(config.closed if closed else ())):
+        for one in config.projects:
             if one.state == repo:
                 return one
     return config.project(name, closed)

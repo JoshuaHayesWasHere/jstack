@@ -309,10 +309,10 @@ def close(
             "tasks": sorted({*kept.get("tasks", []), *tasks}),
         }
         jbus.write_json(path, record, mode=0o600)
-        for thread in sorted(threads):
-            client.call("t3_thread_organize", {"action": "archive", "threadId": thread})
         for task in sorted(tasks):
             client.call("schedule_task", {"scheduledTaskId": task, "enabled": False})
+        for thread in sorted(threads):
+            client.call("t3_thread_organize", {"action": "archive", "threadId": thread})
         day = config.user.local(now or datetime.now().astimezone()).date().isoformat()
         jbus.write_json(path, {**record, CLOSED: day}, mode=0o600)
         backup = _set(config_path, name, CLOSED, day)

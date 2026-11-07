@@ -192,7 +192,7 @@ def run(kitchen, verb, steps):
 
 
 CLOSE_STEPS, OPEN_STEPS = 7, 4
-"""`close` of `other` makes seven changes: its record, two threads archived, one task off, the
+"""`close` of `other` makes seven changes: its record, one task off, two threads archived, the
 record with its day, the copy of the config and the config. `open` makes four before the record's
 delete: one task on, one home back, the copy and the config."""
 
