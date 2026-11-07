@@ -182,7 +182,8 @@ This section is for a checkout of jstack's repo.
 In a checkout that jbus does not watch, each file of a skill links to its file there, so an edit is live with no install.
 In a watched checkout, each file of a skill links to its file in the green copy, so an edit is live once it is on main and green.
 Codex's layout is the exception for `SKILL.md`, a copy that the next install brings up to date.
-A new skill appears on the next install, once `make trees` has listed it in `skills.json`.
+In a watched checkout, each move of the green copy also puts each layout again (`jinstall.green.relink`): a file main adds, once `make trees` has listed it in `skills.json`, is linked with no install, a link to a file main drops goes, and each copy is written again.
+A new skill still needs the next install for its link under the harness's skills root, such as `~/.claude/skills/<name>`.
 jleak's git hooks also go into the checkout that jstack is installed from, where each is a `hard` need.
 
 ### The checkout's own skills

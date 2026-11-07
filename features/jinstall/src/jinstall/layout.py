@@ -24,7 +24,8 @@ A layout holds these entries:
 skill's own link, `realpath ~/.claude/skills/<name>/../../templates`.
 
 Each entry is a symlink to its file in the source. So an edit to the source is live with no
-install, except in a copy, and a new file appears on the next install. A harness whose agent
+install, except in a copy, and a new file appears on the next install, or, from a green copy,
+on the next move of the copy (`jinstall.green.relink`). A harness whose agent
 reads no linked SKILL.md gets a copy of each (`Harness.copies`). Placing some Markdown files in
 the layout would break their relative links, so the assembly writes a rewritten copy of each of
 those files instead (`links`). In the copy, a link to a target that the layout holds points

@@ -20,7 +20,9 @@ from pathlib import Path
 
 import jbus
 from jbus import green as copies
+from jinstall.harnesses import HARNESSES
 from jinstall.kinds import Found, State
+from jinstall.layout import UNREADABLE, Layout, folder
 from jinstall.machine import Dropped, Machine, Refused
 from jmerge import mainjson
 
@@ -82,6 +84,27 @@ def make(machine: Machine) -> str:
     except Refused as why:
         return f"install.sh: green copy {machine.green}: {why}"
     return ""
+
+
+def relink(copy: Path) -> list[str]:
+    """Bring each harness layout that the install assembled from the green copy `copy` up to the
+    tip the copy now holds, as the install's own put does: link each file the tip added, remove
+    each link to a file it dropped, and write each rewritten copy again. jbus calls it each time
+    it moves the copy (`jbus.green.move`), since the layouts link files one by one and would
+    otherwise hold only the files of the tip the last install saw. A layout whose `source` names
+    anything else, or that is not there, is left as it is. Return why each layout it could not
+    put was not put, one line each."""
+    machine = replace(Machine.here(copies.of(copy)), green=copy)
+    faults = []
+    for harness in HARNESSES:
+        source = folder(machine, harness) / "source"
+        if not source.is_symlink() or os.readlink(source) != str(copy):
+            continue
+        try:
+            Layout(harness).put(machine)
+        except (Refused, *UNREADABLE) as why:
+            faults.append(f"layout {harness.name}: {why}")
+    return faults
 
 
 @dataclass(frozen=True)
