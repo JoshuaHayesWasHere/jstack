@@ -212,9 +212,12 @@ def test_add_warns_of_a_done_when_in_prose_alone_and_still_queues(kitchen):
     text = complete("alpha").replace("- `make check` passes", "- the page reads well")
     code, out = adds(kitchen, "alpha", text)
     assert code == 0, out
-    assert DONE_WHEN.format(first="the page reads well") in out.splitlines()
+    assert DONE_WHEN.format(first="the page reads well (in none)") in out.splitlines()
     assert queued(kitchen) == ["alpha"]
-    assert checks(kitchen, text) == (0, DONE_WHEN.format(first="the page reads well") + "\n")
+    assert checks(kitchen, text) == (
+        0,
+        DONE_WHEN.format(first="the page reads well (in none)") + "\n",
+    )
 
 
 @pytest.mark.parametrize(

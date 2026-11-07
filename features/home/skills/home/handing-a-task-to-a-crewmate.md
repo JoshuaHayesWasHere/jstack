@@ -8,6 +8,11 @@
 
    Its `Proves it:` line, under the "Done when" list, names what outside the agent shows the task is done: a test or a command, a metric, a dataset, an external judge or the user. `jbus queue add` queues no brief whose line names only the crew, the crewmate, the reviewer, the agent, the model or a review, or is empty, and a launch checks it again.
 
+   Each **Done when** line ends with the file it lands in, the one its goal needs changed, as ``(in `<path>`)``, or `(in none)` where it changes no file.
+   A line that lands outside **Where**, or under **Do not touch**, is not this brief's: widen **Where** when the file is this change's, and otherwise move the line to a follow-up brief with a `Follows: <slug>` line, queued with `jbus queue add`, where it is approved on this row's go.
+   Do it now, before the go: an edit of **Done when** or **Where** after it voids the go.
+   `jbus queue add` refuses such a line and warns of a line with no marker.
+
    A **Done when** line that asks for the check names it as "the check command (`$H/fresh-check`)", never as a literal `make check`: the crewmate runs the command `fresh-check` names, once, or, in a repo whose check selects its tests, the lint and the tests its change touches, and CI's check runs it whole.
    `jbus queue add` prints a line that begins ``warning: <slug>'s brief's Done when: asks for `make check` `` for a brief whose **Done when** asks for a bare `make check` while `fresh-check` names another check command: mend the line and add the brief again.
 

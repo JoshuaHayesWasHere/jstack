@@ -1274,7 +1274,7 @@ def complete(slug, more=""):
     `Home: root` unless `more` names a home of its own."""
     home = "" if "Home:" in more else "Home: root\n"
     return (
-        f'# {slug}: a task\nTask: "do {slug}"\nDone when:\n- `make check` passes\n'
+        f'# {slug}: a task\nTask: "do {slug}"\nDone when:\n- `make check` passes (in none)\n'
         f"Proves it: `make check`\nSize: S\nWhere: `src/{slug}/`\nDesign: none, a test\n"
         'Decisions: "review it once", the user\'s word in a test\n'
         f"Pull request: open one when done\nReview: review\nPlaybook: feature\n{home}{more}"
