@@ -164,6 +164,7 @@ _SHA = re.compile(r"[0-9a-f]{7,40}")
 _SLUG = re.compile(r"[a-z0-9][a-z0-9._-]*")
 LEFT = "left: "
 HOME = "home"
+AWAITS_REVIEW = "its Result opens its pull request after its review, which is not written yet"
 CLOSES = (
     "The home closes it: a follow-up task for what was left, "
     "or a Left: none line in its brief with the reason"
@@ -664,6 +665,8 @@ def _saying(row: queue.Row, line: dict[str, Any] | None, about: About) -> dict[s
         waits = f"{first} to merge"
     elif value == "ready":
         say, waits = (why, READY[why]) if why in READY else ("nothing is in front of it", waits)
+    elif value in ("leftover", "quiet") and line.get("who") == "rev":
+        say = AWAITS_REVIEW
     elif value in SAYS:
         say = why or SAYS[value]
     elif value == "lost":
@@ -677,6 +680,8 @@ def _saying(row: queue.Row, line: dict[str, Any] | None, about: About) -> dict[s
         say = _homes(row, merged, about.held)
     elif value == "leftover" and line.get("who") == "crew":
         say = why
+    elif value in ("leftover", "closed") and line.get("who") == "user":
+        say = about.asked or why
     elif value in ("leftover", "closed"):
         his = about.held.his if about.held else ""
         name, say = _leftover(row, value, merged, about.result, his)
