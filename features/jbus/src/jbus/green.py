@@ -244,7 +244,7 @@ def move(run: Pass, copy: Path | None = None) -> None:
     for old in trees(copy).iterdir():
         if old.is_dir() and old.resolve() not in (before, tree.resolve()):
             shutil.rmtree(old)
-    from jinstall.green import relink  # jinstall imports this module
+    from jinstall.green import relink
 
     for why in relink(copy):
         run.condition("green", UNLINKED, f"at {green[:12]}: {why}", key=green[:12])
