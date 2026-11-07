@@ -2,6 +2,7 @@
 a repo whose `.github/workflows/` holds it: in any other, each ask is a 404 that spends the core
 budget. Where GitHub gives no list of the files, the pass still asks for both, as before."""
 
+from jbus import watch
 from test_jbus_kitchen import NOW
 
 CHECK = "name: check\non:\n  push:\n    branches: [main]\njobs: {}\n"
@@ -13,11 +14,8 @@ def asked_runs(kitchen, flows):
     kitchen.set("workflows.json", flows)
     kitchen.poll(NOW)
     log = (kitchen.stub / "gh.log").read_text()
-    return [
-        file
-        for file in ("browser.yml", "macos-nightly.yml")
-        if f"actions/workflows/{file}/runs" in log
-    ]
+    nightlies = [nightly.file for nightly in watch.NIGHTLIES]
+    return [file for file in nightlies if f"actions/workflows/{file}/runs" in log]
 
 
 def test_a_repo_with_neither_nightly_is_asked_for_no_nightlys_runs(kitchen):
