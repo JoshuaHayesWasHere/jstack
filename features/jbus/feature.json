@@ -41,6 +41,14 @@
         "codex"
       ],
       "refuses": true
+    },
+    {
+      "event": "Stop",
+      "script": "hooks/turn-end.sh",
+      "harnesses": [
+        "claude-code",
+        "codex"
+      ]
     }
   ],
   "projectSkills": [

@@ -36,6 +36,7 @@ import re
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 import jsettings
@@ -100,6 +101,16 @@ _AGAINST = re.compile(r"^Pull request:[ \t]*open one against (?P<branch>[^\s,;:(
 _ASKS = re.compile(r"^Pull request:[ \t]*open one\b", re.M)
 
 
+def owned_waits(locks: Path) -> set[str]:
+    """The threads whose turn ended on a wait that jbus owns and ends with a wake (`slotwait`):
+    one waits on a test slot and is not woken yet (`jgauge.waiters`), or its own run holds a test
+    slot now, or ended with its wake not yet sent (`jgauge.holders`). The one rule for such a
+    wait, which `World.awaits` and the `Stop` hook (`jbus.crewend`) read."""
+    return {one.thread for one in waiters.read(locks) if not one.woken} | {
+        one.thread for one in holders.read(locks) if one.ended or holders.running(one)
+    }
+
+
 @dataclass
 class World:
     """A `World` is one pass's answers. `threads` holds a slug's threads that are not settled.
@@ -107,10 +118,8 @@ class World:
     T3 Code's list leaves out an archived thread, so `jbus.archived` asks after each launched
     thread that the list does not have. `archived` holds, by slug, the threads that T3 Code
     reports as archived. `missing` holds the slugs whose thread is unknown to T3 Code, and
-    `unasked` the slugs for which jbus could not ask T3 Code. `waiting` holds the threads that
-    wait on a test slot and are not woken yet (`jgauge.waiters`), and `holding` the threads whose
-    own run holds a test slot now, or ended with its wake not yet sent (`jgauge.holders`), which
-    jbus reads once a pass.
+    `unasked` the slugs for which jbus could not ask T3 Code. `awaiting` holds the threads whose
+    turn ended on a wait that jbus owns (`owned_waits`), which jbus reads once a pass.
 
     `results` holds each row's last Result as `look` read it, after T3 Code's list and before
     GitHub's, so a pass judges one world. A crew opens its pull request and then writes the Result
@@ -129,8 +138,7 @@ class World:
     unasked: set[str] = field(default_factory=set)
     open: dict[str, dict[str, Any]] = field(default_factory=dict)
     merged: dict[str, dict[str, Any]] = field(default_factory=dict)
-    waiting: set[str] = field(default_factory=set)
-    holding: set[str] = field(default_factory=set)
+    awaiting: set[str] = field(default_factory=set)
     results: dict[str, str] = field(default_factory=dict)
     logs: dict[str, str | None] = field(default_factory=dict)
 
@@ -145,7 +153,7 @@ class World:
         waits on a test slot, or its own run holds one (`slotwait`). A review or a check of its
         pull request is such a wait too, and the row is `pr` while it lasts."""
         at = jsettings.thread_id(str((thread or {}).get("threadId", "")))
-        return bool(at) and at in self.waiting | self.holding
+        return bool(at) and at in self.awaiting
 
     def result(self, run: Pass, slug: str) -> str:
         """The slug's last Result as `look` read it, or as the brief has it now for a slug that
@@ -361,10 +369,7 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     if client is None:
         return replace(_silent(run, "no token: run `jbus t3 login`"), held=held, spent=spent)
     locks = slot.locks_dir()
-    world = World(
-        waiting={one.thread for one in waiters.read(locks) if not one.woken},
-        holding={one.thread for one in holders.read(locks) if one.ended or holders.running(one)},
-    )
+    world = World(awaiting=owned_waits(locks))
     try:
         listed = crew_threads(client, run.project.project_id)
     except T3Error as error:
