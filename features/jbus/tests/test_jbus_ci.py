@@ -157,11 +157,13 @@ def test_a_test_that_failed_on_one_branch_is_no_flake_beside_one_that_failed_on_
     assert (found.value, found.shown, found.n) == (1.0, "1", 2)
 
 
-def test_numbers_count_a_red_macos_job_on_main_as_no_red_main():
-    """macos.yml runs on each push to main, beside main's check, and is never main's check."""
+@pytest.mark.parametrize("mac", ["macos", "macos 2 of 3"])
+def test_numbers_count_a_red_macos_job_on_main_as_no_red_main(mac):
+    """macos.yml runs on each push to main, beside main's check, and is never main's check:
+    neither its job `macos` nor a part `macos K of N` of its Mac tests."""
     jobs = [
         hosted(1, "m1", "main", "success", event="push"),
-        hosted(2, "m1", "main", "failure", event="push", name="macos", tests=["tests/test_m.py"]),
+        hosted(2, "m1", "main", "failure", event="push", name=mac, tests=["tests/test_m.py"]),
         hosted(3, "m1", "main", "success", event="push", name="macos-select"),
     ]
     facts = numbers.Facts(jobs, [], [], NOW)
@@ -179,7 +181,7 @@ def test_numbers_end_no_red_main_at_a_green_macos_job():
 
 
 def test_the_macos_yml_job_names_are_one_list_in_jbus_watch():
-    """`jbus.ci.numbers` judges main's runs by the list `jbus.watch` judges main by, not a copy."""
+    """`jbus.ci.numbers` judges main's runs by the test `jbus.watch` judges main by, not a copy."""
     src = Path(watch.__file__).parent
     defined = [
         str(path.relative_to(src))
@@ -189,7 +191,7 @@ def test_the_macos_yml_job_names_are_one_list_in_jbus_watch():
         and any(isinstance(t, ast.Name) and t.id == "MAC_JOBS" for t in node.targets)
     ]
     assert defined == ["watch.py"]
-    assert numbers.MAC_JOBS is watch.MAC_JOBS
+    assert numbers.mac_job is watch.mac_job
 
 
 def test_no_inode_figure_is_kept_until_a_job_writes_one(nine):

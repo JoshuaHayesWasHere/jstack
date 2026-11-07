@@ -583,10 +583,15 @@ def test_a_macos_revert_stays_open_until_macos_is_green_at_a_later_commit(kitche
     assert mac_state(kitchen)["red"] == "" and mac_state(kitchen)["green"] == later
 
 
-def test_a_macos_job_never_counts_as_main_check_where_github_lists_no_runs(kitchen):
+@pytest.mark.parametrize("job", ["macos", "macos 2 of 3"])
+def test_a_macos_job_never_counts_as_main_check_where_github_lists_no_runs(kitchen, job):
     """Where GitHub lists no workflow run of a commit, every check run there counts as main's,
-    but for macos.yml's jobs by their names: a red `macos` job never makes main red."""
+    but for macos.yml's jobs by their names: a red `macos` job, or a red part `macos K of N`,
+    never makes main red."""
     (red,) = mac_red_merges(kitchen, ("alpha", 7, None))
+    runs = json.loads((kitchen.stub / "check-runs.json").read_text())
+    runs[red] = [one | {"name": job} if one["name"] == "macos" else one for one in runs[red]]
+    kitchen.set("check-runs.json", runs)
     kitchen.set("push-runs.json", {})
     passes(kitchen)
     assert mainjson.read(kitchen.state).red == ""
