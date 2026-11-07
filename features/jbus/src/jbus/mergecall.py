@@ -20,8 +20,10 @@ The command line is read as the shell reads it, in simple commands cut at `;`, `
 and newlines (`shlex`), with a quoted string run by `sh -c` or `eval` read as commands of its own,
 and a heredoc's body left out but where it feeds a shell (`door._unfold`). A word quoted as an
 argument, a commit message naming `gh pr merge`, runs nothing. Before `gh` it skips what only
-runs the next word: an assignment, `env`, `command`, `exec`, `time`, `nohup`, `xargs` and the
-shell's `do`, `then`, `else`, `{` and `!`.
+runs the next word: an assignment, `env`, `command`, `exec`, `time`, `nohup`, `xargs`,
+`timeout` and its duration, `sudo`, `nice`, and the shell's `if`, `elif`, `while`, `until`, `do`,
+`then`, `else`, `{` and `!`, so a retry loop such as `until gh pr merge 5; do sleep 30; done` is
+read too.
 
 The repo a merge is of is the one its `--repo` (or `GH_REPO`, or the endpoint's
 `repos/<owner>/<repo>`) names, matched to a project by its `origin` remote, and otherwise the
@@ -59,7 +61,10 @@ SANDBOX = ".verify-jstack-sandbox"
 """The marker file `launch.sh` of the verify-jstack skill writes first in a sandbox."""
 NUMBER = "<number>"
 _PUNCTUATION = set(";&|()")
-_PASS_ON = {"do", "then", "else", "{", "!", "command", "exec", "time", "nohup"}
+_PASS_ON = {
+    "do", "then", "else", "if", "elif", "while", "until", "{", "!", "command", "exec", "time",
+    "nohup",
+}  # fmt: skip
 _ASSIGN = re.compile(r"[A-Za-z_]\w*=.*", re.S)
 _VARIABLE = re.compile(r"\$(?:\{(\w+)\}|(\w+))")
 _SHELLS = {"sh", "bash", "zsh", "dash", "ksh"}
@@ -75,7 +80,14 @@ _API_TAKES_ONE = {
     "-R", "--repo", "-X", "--method", "-H", "--header", "-f", "--raw-field", "-F", "--field",
     "-q", "--jq", "-t", "--template", "--hostname", "--input", "-p", "--preview", "--cache",
 }  # fmt: skip
-_XARGS_TAKES_ONE = {"-n", "-I", "-L", "-P", "-d", "-E", "-s", "-a"}
+_WRAPPERS = {
+    "xargs": {"-n", "-I", "-L", "-P", "-d", "-E", "-s", "-a"},
+    "timeout": {"-s", "--signal", "-k", "--kill-after"},
+    "sudo": {"-u", "--user", "-g", "--group", "-h", "--host", "-C", "-D", "-p", "-r", "-t"},
+    "nice": {"-n", "--adjustment"},
+}
+"""What runs the words after its flags, by name, with its flags whose value is the next word.
+`timeout` takes its duration too, before the command."""
 
 
 @dataclass(frozen=True)
@@ -155,8 +167,9 @@ def _bare(words: list[str]) -> list[str]:
             words = _after_env(words[1:])
         elif first in _PASS_ON:
             words = words[1:]
-        elif first.rpartition("/")[2] == "xargs":
-            words = _after(words[1:], _XARGS_TAKES_ONE)
+        elif (wrapper := first.rpartition("/")[2]) in _WRAPPERS:
+            words = _after(words[1:], _WRAPPERS[wrapper])
+            words = words[1:] if wrapper == "timeout" else words
         else:
             break
     if repo and words and words[0].rpartition("/")[2] == "gh":

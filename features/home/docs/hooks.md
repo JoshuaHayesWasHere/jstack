@@ -113,7 +113,7 @@ merge-command: refused: `gh pr merge 1046 --squash` merges a pull request of jst
 ```
 
 The decision is `jbus.mergecall`.
-It refuses `gh pr merge` with any flags, `gh api` on `repos/<owner>/<repo>/pulls/<number>/merge` with any method, and `gh api graphql` naming `mergePullRequest` or `enablePullRequestAutoMerge`, also inside `bash -c`, `eval`, a `for` loop (one line per number) or after `env`, `command` or `xargs`.
+It refuses `gh pr merge` with any flags, `gh api` on `repos/<owner>/<repo>/pulls/<number>/merge` with any method, and `gh api graphql` naming `mergePullRequest` or `enablePullRequestAutoMerge`, also inside `bash -c`, `eval`, a `for` loop (one line per number), an `if`, `while` or `until` around it, or after `env`, `command`, `xargs`, `timeout`, `sudo` or `nice`.
 A word that only names a merge, a commit message or a search, is not one.
 The repo is the one `--repo`, `GH_REPO`, a pull request's URL or the endpoint names, matched to a project by its `origin`, or else the one the command is in: the call's `cwd`, moved by each `cd` to a path the command names.
 It lets the merge through in a repo jbus's config does not name, and after the command sources the `env.sh` of a verify-jstack sandbox, whose `gh` is a stand-in.

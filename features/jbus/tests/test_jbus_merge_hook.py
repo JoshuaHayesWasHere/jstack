@@ -122,6 +122,28 @@ def test_each_form_a_home_merged_by_is_refused(home):
         ], command
 
 
+@pytest.mark.parametrize(
+    "command",
+    [
+        "until gh pr merge 5 --squash; do sleep 30; done",
+        "if gh pr merge 5; then echo merged; fi",
+        "while ! gh pr merge 5; do sleep 5; done",
+        "true; elif gh pr merge 5; then :",
+        "timeout 120 gh pr merge 5 --squash",
+        "timeout -k 5 2m gh pr merge 5",
+        "sudo -u me gh pr merge 5",
+        "nice -n 10 gh pr merge 5",
+        "bash -c 'until gh pr merge 5; do sleep 30; done'",
+    ],
+)
+def test_a_merge_in_a_retry_loop_or_a_wrapper_is_refused(home, command):
+    """Review finding F1: a retry loop, a condition and a wrapper around the merge are forms an
+    agent writes."""
+    code, said = run(home, command)
+    assert code == 2, command
+    assert accepts(said) == [f"jmerge --accept 5 --as user --message {ROOT}/<message id>"]
+
+
 def test_a_loop_of_merges_prints_a_line_for_each(home):
     command = "for n in 1047 1049 1050; do gh pr merge $n --squash; done"
     code, said = run(home, command, known=False)
