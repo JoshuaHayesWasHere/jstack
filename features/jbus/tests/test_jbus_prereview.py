@@ -295,3 +295,34 @@ def test_the_review_message_t3_code_does_not_take_is_tried_again_or_is_a_gate(ki
         ]
     else:
         assert not marked
+
+
+def test_a_crew_stacked_on_a_row_that_merged_gets_its_review_on_the_branch_it_merged_into(kitchen):
+    """A row before its pull request whose `Stacked on:` row merged and deleted its branch: jbus
+    moves the line, in the brief's head and in its Result, onto the branch that row merged into
+    before it launches the reviewer, whose start block reads the base from that line and fetches
+    it from origin."""
+    thread, path, head = proved_crew(kitchen)
+    first, _, rest = path.read_text().partition("\n")
+    after = "Pull request: after the review\n"
+    rest = rest.replace(after, f"{after}Stacked on: base base\n", 1)
+    path.write_text(f"{first}\nStacked on: base base\n{rest}")
+    merge = kitchen.started(
+        ["git", "rev-parse", "main"], cwd=kitchen.checkout, capture_output=True, text=True
+    ).stdout.strip()
+    kitchen.set("merged.json", [{**kitchen.merged("base", 10, merge), "baseRefName": "main"}])
+    for minutes in (0, 3):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    text = path.read_text()
+    moved = f"Stacked on: base main at {merge}"
+    assert [line for line in text.splitlines() if line.startswith("Stacked on:")] == [moved] * 2
+    assert len(reviewers(kitchen)) == 1
+    (line,) = [one for one in text.split("\n## ")[0].splitlines() if one.startswith("Stacked on:")]
+    on = line.split()[3]
+    fetched = kitchen.started(
+        ["git", "fetch", "-q", "origin", "alpha", on],
+        cwd=thread["worktreePath"],
+        capture_output=True,
+        text=True,
+    )
+    assert fetched.returncode == 0, fetched.stderr

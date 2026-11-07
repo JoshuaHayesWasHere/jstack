@@ -82,6 +82,7 @@ ORDER = [
     "tellers 16 history.pulls (world)",
     "tellers 20 questions.tell (sight, client)",
     "tellers 30 questions.propose (sight, client)",
+    "tellers 34 stack.before_pull (world)",
     "tellers 35 prereview.launch (client, world)",
     "tellers 40 watch.watch (client, world)",
     "tellers 50 threads.tie (client, world)",
