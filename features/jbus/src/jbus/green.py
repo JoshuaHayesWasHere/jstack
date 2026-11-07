@@ -32,9 +32,20 @@ dangles, until the next install. With each layout it puts the links under the ha
 root and the entries of its hooks file, so a skill or hook main adds is live and one it drops is
 gone.
 
+The units of `features/*/units/` link through the copy, so a move changes the files systemd
+runs, and systemd keeps running the ones it loaded until it is told to read them again. So a move
+whose new tip changed, added or dropped a unit file, by content against the tree it leaves
+(`units`), runs `systemctl --user daemon-reload`, then `try-restart` on each timer the new tip
+has among them, so a timer whose interval changed runs on the new one at once (`reload`). A
+service is not restarted: the pass that moves the copy runs in jbus.service, and a oneshot runs
+the new file on its next start. `try-restart` starts no timer that was not running, so a reload
+run twice ends the same. A move that changes no unit calls systemctl not at all, and on launchd
+nothing is reloaded. A reload systemd refuses raises a condition for the tip.
+
 Each move prints one line, `green <project>: the commands now run from <new 12>, in place of
-<old 12>`, which the pass's log keeps. A crew's worktree is not the copy: `uv run` there runs that
-tree's own code, and the copy moves no file of it.
+<old 12>`, which the pass's log keeps, and one that reloaded units a second, `green <project>:
+systemd reloaded <units>, and restarted <timers>`. A crew's worktree is not the copy: `uv run`
+there runs that tree's own code, and the copy moves no file of it.
 """
 
 from __future__ import annotations
@@ -47,7 +58,7 @@ import sys
 from collections.abc import Mapping
 from pathlib import Path
 
-from jbus import read_json, verbs, write_json
+from jbus import launchd, read_json, verbs, write_json
 from jbus.passes import Pass
 from jmerge import mainjson
 from jsettings import proc
@@ -71,6 +82,10 @@ FILE = "green.json"
 NO_IMPORT = "the green copy does not import"
 MOVE_FAILED = "the green copy could not move"
 UNLINKED = "the harness does not link the green copy's files"
+UNRELOADED = "systemd did not reload the green copy's units"
+
+UNITS = "features/*/units/*"
+"""The unit files a tree holds, which the install links into systemd through the copy."""
 
 
 def path(env: Mapping[str, str] | None = None, home: Path | None = None) -> Path:
@@ -211,6 +226,33 @@ def _reinstall(copy: Path) -> str:
     return "" if said.returncode == 0 else _said(said)
 
 
+def units(before: Path, after: Path) -> list[str]:
+    """The names of the unit files that differ between the trees, by content: changed, added
+    or dropped."""
+    old, new = (
+        {one.name: one.read_bytes() for one in tree.glob(UNITS) if one.is_file()}
+        for tree in (before, after)
+    )
+    return sorted(name for name in old.keys() | new.keys() if old.get(name) != new.get(name))
+
+
+def reload(run: Pass, changed: list[str], tree: Path, green: str) -> None:
+    """Have systemd read the `changed` units again, and restart each of them that is a timer of
+    `tree`, the tree the copy now names."""
+    if not changed or launchd.manager() != "systemd":
+        return
+    timers = [one for one in changed if one.endswith(".timer") and any(tree.glob(UNITS[:-1] + one))]
+    asks = [["daemon-reload"]] + ([["try-restart", *timers]] if timers else [])
+    for asked in asks:
+        said = proc.run("systemctl", "--user", *asked, timeout=60)
+        if said.returncode != 0:
+            why = f"at {green[:12]}: systemctl --user {' '.join(asked)}: {_said(said)}"
+            run.condition("green", UNRELOADED, why, key=green[:12])
+            return
+    restarted = f", and restarted {', '.join(timers)}" if timers else ""
+    run.say(f"green {run.project.name}: systemd reloaded {', '.join(changed)}{restarted}")
+
+
 def move(run: Pass, copy: Path | None = None) -> None:
     """Move the green copy of the project's checkout to main's green tip, when there is such a
     copy and the tip is newer than the one it holds."""
@@ -253,6 +295,7 @@ def move(run: Pass, copy: Path | None = None) -> None:
     run.say(
         f"green {run.project.name}: the commands now run from {green[:12]}, in place of {held[:12]}"
     )
+    reload(run, units(before, tree), tree, green)
 
 
 STEPS = (verbs.Step("close", 45, "green.move", lambda half: move(half.run), ()),)

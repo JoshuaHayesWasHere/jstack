@@ -83,9 +83,19 @@ def installs(monkeypatch):
 
 
 @pytest.fixture
-def copied(kitchen, tmp_path, monkeypatch):
+def systemctl(kitchen):
+    """A systemctl on the kitchen's PATH that keeps each call's arguments, one line a call, so no
+    move reaches this machine's systemd."""
+    fake = kitchen.stub / "systemctl"
+    fake.write_text(f'#!/bin/sh\necho "$*" >> {kitchen.stub / "systemctl.log"}\n')
+    fake.chmod(0o755)
+    return kitchen.stub / "systemctl.log"
+
+
+@pytest.fixture
+def copied(kitchen, tmp_path, monkeypatch, systemctl):
     """A kitchen whose checkout has a green copy at main's tip, which a first pass recorded as
-    green, under a data home of the test's own."""
+    green, under a data home of the test's own, and a systemctl that only keeps its calls."""
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
     first = tip(kitchen)
     checks(kitchen, first, "success")
@@ -104,6 +114,65 @@ def test_a_pass_moves_the_copy_to_main_s_new_green_tip_and_says_so_with_the_sha(
     line = f"green demo: the commands now run from {new[:12]}, in place of {copied.first[:12]}"
     assert line in said
     assert copied.poll().count(line) == 0
+
+
+TIMER = "[Timer]\nOnUnitActiveSec={}\n\n[Install]\nWantedBy=timers.target\n"
+SERVICE = "[Service]\nType=oneshot\nExecStart=jbus tick\n"
+
+
+READS = {"show", "list-units", "list-timers", "is-active", "is-enabled", "status", "cat"}
+"""The calls a pass makes to read systemd, which change nothing in it."""
+
+
+def calls(log):
+    """The calls that changed systemd, as the fake kept them."""
+    kept = log.read_text().splitlines() if log.exists() else []
+    return [one for one in kept if one.split()[1] not in READS]
+
+
+def test_a_move_that_changes_a_timer_restarts_it_and_one_that_changes_no_unit_calls_nothing(
+    copied, systemctl
+):
+    """The day of #1240: main set jbus-merge.timer to 2 s and the copy moved, but systemd kept
+    the 5 s timer it had loaded until the home ran daemon-reload by hand. The units link through
+    the copy, so a move that changes one reloads systemd and restarts each timer it changed."""
+    units = "features/jbus/units/"
+    land(copied, "success", {units + "jbus-merge.timer": TIMER.format("5s")})
+    land(copied, "success", {units + "jbus-merge.service": SERVICE})
+    copied.poll()
+    systemctl.unlink(missing_ok=True)
+
+    faster = land(copied, "success", {units + "jbus-merge.timer": TIMER.format("2s")})
+    said = copied.poll()
+    assert at(copied.copy) == faster
+    assert calls(systemctl) == ["--user daemon-reload", "--user try-restart jbus-merge.timer"]
+    assert "green demo: systemd reloaded jbus-merge.timer, and restarted jbus-merge.timer" in said
+
+    systemctl.unlink()
+    land(copied, "success", {units + "jbus-merge.service": SERVICE + "TimeoutStartSec=60\n"})
+    said = copied.poll()
+    assert calls(systemctl) == ["--user daemon-reload"]
+    assert "green demo: systemd reloaded jbus-merge.service" in said
+
+    systemctl.unlink()
+    unchanged = land(copied, "success", {"features/new.txt": "new\n"})
+    said = copied.poll()
+    assert at(copied.copy) == unchanged
+    assert calls(systemctl) == []
+    assert not [line for line in said if "systemd" in line]
+
+
+def test_a_reload_systemd_refuses_raises_a_condition_and_restarts_no_timer(copied, systemctl):
+    copied.stub.joinpath("systemctl").write_text(
+        f'#!/bin/sh\necho "$*" >> {systemctl}\n'
+        '[ "$2" = daemon-reload ] && { echo "Failed to connect to bus" >&2; exit 1; }\nexit 0\n'
+    )
+    moved = land(copied, "success", {"features/jbus/units/jbus.timer": TIMER.format("1min")})
+    said = copied.poll()
+    assert at(copied.copy) == moved
+    assert calls(systemctl) == ["--user daemon-reload"]
+    assert gates(copied) == [f"condition green: {green.UNRELOADED}"]
+    assert not [line for line in said if "systemd reloaded" in line]
 
 
 def test_a_tip_whose_check_failed_and_that_does_not_import_leaves_the_copy_where_it_was(copied):
