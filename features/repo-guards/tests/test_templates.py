@@ -112,14 +112,14 @@ def setting(skill):
 
 
 def resolved(skill, tmp_path):
-    """What the skill's `T=` line gives, and the file that each `$T/<path>.md` it names resolves to.
+    """What the skill's `T=` line gives, and the file that each `$T/<path>` it names resolves to.
 
     The test reads the skill as the user has it, from another repo. It follows a symlink under
     ~/.claude/skills to the skill's folder in the layout that the install assembles.
 
     """
     text = as_read(skills()[skill] / "SKILL.md")
-    named = sorted(set(re.findall(r"`(\$T/[^`<>\s]+\.(?:md|html|json|yml))`", text)))
+    named = sorted(set(re.findall(r"`(\$T/[^`<>\s]+\.(?:md|html|json|yml|sh))`", text)))
     user = tmp_path / skill / "user"
     (user / ".claude" / "skills").mkdir(parents=True)
     (user / ".claude" / "skills" / skill).symlink_to(TEMPLATES.parent / "skills" / skill)
