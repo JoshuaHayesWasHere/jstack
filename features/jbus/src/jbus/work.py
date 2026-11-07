@@ -671,12 +671,14 @@ def queued(
     rows: list[dict[str, Any]],
     facet: Callable[[dict[str, Any]], Row],
     scout: Callable[[dict[str, Any]], bool],
+    moved: set[str],
 ) -> None:
-    """Restate each row's line of `work.json` from the queue as it is now: the `Row` facet that
-    `facet` gives the row, and its `SEEN` columns. A row the queue no longer has loses its line,
-    and a row with no line yet gets one judged with nothing launched, written or open (`fresh`),
-    which the next pass judges in full. Each write of the queue calls this under the queue's lock
-    once it wrote (`queue._changing`), so the view shows a change of the queue at once."""
+    """Restate the line of `work.json` of each row of `moved` from the queue as it is now: the
+    `Row` facet that `facet` gives the row, and its `SEEN` columns. A row the queue no longer has
+    loses its line, and a row with no line yet gets one judged with nothing launched, written or
+    open (`fresh`), which the next pass judges in full. Each write of the queue calls this under
+    the queue's lock once it wrote (`queue._changing`), so the view shows a change of the queue at
+    once."""
     by_slug = {row["slug"]: row for row in rows}
 
     def change(lines: list[Any]) -> list[Any]:
@@ -687,6 +689,9 @@ def queued(
                 if row is None:
                     continue
                 had.add(one["key"])
+                if one["key"] not in moved:
+                    work.append(one)
+                    continue
                 one = restate(one, row=facet(row))
                 seen = {name: row.get(name, "") for name in SEEN}
                 if any(one.get(name) != value for name, value in seen.items()):

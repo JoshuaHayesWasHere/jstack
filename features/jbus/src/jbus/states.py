@@ -157,21 +157,23 @@ def _pulled(run: Pass, listed: list[dict[str, Any]], before: list[Any]) -> list[
 
 
 def _since(run: Pass, listed: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Return the pass's lines with each row's go as the queue has it now. An act between the
-    pass's read of the table and this write (`acted`) changed a row's go or took the row out, and
-    the act's own line already says so: the pass keeps it, and does not write the row as it was."""
+    """Return the pass's lines with each row's go as the queue has it now. A write of the queue
+    between the pass's read of the table and this write changed a row's go or took the row out,
+    and that write's own restate already says so (`queue._changing`): the pass keeps it, and does
+    not write the row as it was."""
     try:
         rows = queue.load(run.state)
     except queue.Unparsable:
         return listed
     now = {row["slug"]: row for row in rows}
+    done = queue.final(rows)
     kept = []
     for one in listed:
         if one.get("kind") == "row":
             row = now.get(one["slug"])
             if row is None:
                 continue
-            one = work.restate(one, row=queue.standing(run.state, row, rows))
+            one = work.restate(one, row=queue.standing(run.state, row, done))
         kept.append(one)
     return kept
 

@@ -16,8 +16,10 @@ what the change means:
 The clock starts just before the writer runs: the CLI verb for `queue`, and the tick for the
 other two, so a tick's own call to GitHub and its run of `jmerge` count. The 5 s between ticks
 (`jbus-merge.timer`) does not. A round whose line does not change within `PROBE_WAIT` seconds
-counts as none. `PROBE_ROUNDS` rounds of each kind run; the probe prints each kind's rounds, p50,
-p99 and max in ms, and fails where any round is none or the p99 is `PROBE_LIMIT_MS` or more.
+counts as none. `PROBE_ROWS` rows more stand in the queue beside the one timed, unapproved, as
+a long-lived queue holds hundreds. `PROBE_ROUNDS` rounds of each kind run; the probe prints each
+kind's rounds, p50, p99 and max in ms, and fails where any round is none or the p99 is
+`PROBE_LIMIT_MS` or more.
 """
 
 import ctypes
@@ -35,11 +37,12 @@ import jbus
 from jbus import tick, work
 from jmerge import ready
 from test_jbus_kitchen import Kitchen
-from test_jbus_queue import add, go
+from test_jbus_queue import add, adds, batch, go
 
 ROUNDS = int(os.environ.get("PROBE_ROUNDS", "50"))
 WAIT = float(os.environ.get("PROBE_WAIT", "2"))
 LIMIT = float(os.environ.get("PROBE_LIMIT_MS", "100"))
+ROWS = int(os.environ.get("PROBE_ROWS", "0"))
 PULL = "https://example.test/pull/9"
 IN_CLOSE_WRITE, IN_MOVED_TO = 0x8, 0x80
 
@@ -124,6 +127,10 @@ def kitchen(tmp_path, monkeypatch):
 
 
 def test_a_change_of_each_kind_reaches_work_json(kitchen):
+    if ROWS:
+        text = batch(*(adds(f"row-{n}", "--priority 2") for n in range(ROWS)))
+        code, said = kitchen.main("--project", "demo", "queue", "apply", stdin=text)
+        assert code == 0, said
     add(kitchen, "alpha", approve=False)
     kitchen.poll()
     assert value(kitchen) == "unapproved"
