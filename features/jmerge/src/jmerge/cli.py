@@ -1208,7 +1208,7 @@ class Repo:
             return self.take_line(one, default, first.slug, (by, when, message), say, check, acting)
         waived = first.verb == "wait" and judgement.accepted(first.why)
         unbriefed = first.verb == "wait" and ready.code_of(first.why) == ready.NO_BRIEF.code
-        heard = unbriefed and (check or bool(acting and message))
+        heard = unbriefed and (bool(acting and message) or (check and not by))
         if first.verb != "hold" and not waived and not heard:
             state = f"it waits: {first.why}" if first.verb else "jmerge merges it by itself"
             unlifted = judgement.UNLIFTED.get(ready.code_of(first.why)) if first.verb else None
