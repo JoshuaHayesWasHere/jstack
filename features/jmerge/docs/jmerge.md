@@ -169,7 +169,9 @@ The section "Protected paths" describes one more hold.
   The way out is a fix and a scoped review whose own line says `yes`: the crew skill's "A second pass" gives that review for any round whose line is not `yes`, whatever the fix changed.
   The only other way out is a line `Waived: <the Done when line>, <thread>/<message>` in the brief, which names the line by its words, whole or by a start no other line has.
   `jmerge` asks jbus of each such word once a run (`jmerge.bus.Bus.heard`, `jbus.port.Port.heard`): the user's own message in T3 Code, read by the check `jbus queue approve --message` reads a word with, or a word the bot gave over `POST /act`, and its words name the row's slug, say they waive, and quote the words the `Waived:` line names the line by (`jbriefs.meets.quotes`).
-  A crew's or a home's own message, a word of the bot's that a home typed, and the user's word about the row that waives nothing, its go included, waive nothing, and a word waives only the line it quotes.
+  A waive act bound by `jbus waive <slug> <line number>... --message <thread>/<message>` (`jbus.waive`) also counts, for the lines it names: the user's plain reply ("yes, clear them") in a home's own thread to the home's last message before it, which named the slug and those lines by number.
+  `jbus waive` checks that when the home records it, logs the act and writes the `Waived:` lines, and `Port.heard` takes a `Waived:` line whose message and slug such an act holds, with no quote needed.
+  A crew's or a home's own message, a word of the bot's that a home typed, and the user's word about the row that waives nothing, its go included, waive nothing, and a word waives only the line it quotes or a waive act names.
   The rule does not apply to a brief that says `Review: none`, to one with no review that ran, or to one with no `Done when` list.
   `jmerge` judges it after every other wait of the review, so a pull request short of a `Fixed:` line or a scoped review says that first.
 - **Its Result proves the work.**
