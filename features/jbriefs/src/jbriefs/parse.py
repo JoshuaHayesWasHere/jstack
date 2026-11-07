@@ -12,6 +12,7 @@ from pathlib import Path
 
 from jbriefs import asks, below, findings, skills, standing
 from jbriefs.meets import done_when
+from jbriefs.paths import covers, named
 from jbriefs.proof import Proof, proof
 from jbriefs.runnable import runnable
 from jsettings.brief import head as head
@@ -364,14 +365,6 @@ def check_asked(text: str, fresh_check: str) -> str:
     )
 
 
-_PAREN = re.compile(r"\([^()]*\)")
-_WORD = re.compile(r"`[^`]+`|\S+")
-_LINES = re.compile(r":\d+(?:-\d+)?$")
-_PATHLIKE = re.compile(r"[\w.@+~*?\[\]{}/-]+")
-_EXTENSION = re.compile(r"\.[A-Za-z0-9]{1,5}$")
-_BRACES = re.compile(r"\{([^{}]*)\}")
-
-
 def _head_lines(text: str, label: str) -> str | None:
     """The head field `<label>`: its first line and the lines under it, joined by a space."""
     for name, lines in fields(text):
@@ -380,103 +373,11 @@ def _head_lines(text: str, label: str) -> str | None:
     return None
 
 
-def _path(word: str, ticked: bool) -> str:
-    """The path or glob under the repo that a word names, or an empty string when it names none.
-
-    A word in backticks names one if it is a single token that is not an option, a URL or a
-    path that leaves the repo. A word between commas needs more to tell it from prose: a
-    `/`, a glob, or a file extension.
-    """
-    if word.strip() in (".", "./"):
-        return "."
-    word = _LINES.sub("", word.strip().rstrip(".,;:")).removeprefix("./")
-    if not word or word[0] in "-/~" or ".." in word.split("/") or "://" in word:
-        return ""
-    if not _PATHLIKE.fullmatch(word):
-        return ""
-    if not ticked and not ("/" in word or "*" in word or _EXTENSION.search(word)):
-        return ""
-    return word.rstrip("/")
-
-
-def _items(line: str) -> list[str]:
-    """The line cut at each comma that is not inside a brace set."""
-    items, depth, start = [], 0, 0
-    for at, char in enumerate(line):
-        if char == "{":
-            depth += 1
-        elif char == "}" and depth:
-            depth -= 1
-        elif char == "," and not depth:
-            items.append(line[start:at])
-            start = at + 1
-    return [*items, line[start:]]
-
-
-def _expanded(word: str) -> tuple[str, ...]:
-    """A word with its brace sets spelled out, the innermost first: `a{b,c}.py` gives two."""
-    found = _BRACES.search(word)
-    if found is None:
-        return (word,)
-    head, tail = word[: found.start()], word[found.end() :]
-    return tuple(
-        whole for part in found.group(1).split(",") for whole in _expanded(head + part + tail)
-    )
-
-
-def where(text: str) -> tuple[str, ...]:
-    """The paths and globs that the head's `Where:` line names, in its order, each once.
-
-    An item is a span in backticks or a span between commas, and the function keeps each
-    item that names a path under the repo. A `path:line` or `path:a-b` keeps its path, and a
-    directory loses its closing `/`. The function drops prose in parentheses, with the commas
-    in it. It spells out a brace set, so `src/{a,b}.py` gives two paths, and the commas of a
-    brace set do not end an item. It reads a bare word when the word is the first of its item
-    (`docs/ pages tied to`) or has a `/` (`plus templates/x.service`). A line that names no
-    path gives an empty tuple.
-    """
-    line = _head_lines(text, "Where")
-    if line is None:
-        return ()
-    while (bare := _PAREN.sub("", line)) != line:
-        line = bare
-    found: dict[str, None] = {}
-    for item in _items(line):
-        for at, word in enumerate(_WORD.findall(item)):
-            ticked = word.startswith("`") and word.endswith("`") and len(word) > 1
-            if ticked or at == 0 or "/" in word:
-                named = (
-                    _path(one, ticked) for one in _expanded(word.strip("`") if ticked else word)
-                )
-                found.update(dict.fromkeys(filter(None, named)))
-    return tuple(found)
-
-
-def _glob(pattern: str) -> re.Pattern[str]:
-    """A glob as a regex over a whole path. A `*` matches within one name, and `**` crosses `/`."""
-    out, at = "", 0
-    while at < len(pattern):
-        if pattern.startswith("**/", at):
-            out, at = out + "(?:.*/)?", at + 3
-        elif pattern.startswith("**", at):
-            out, at = out + ".*", at + 2
-        elif pattern[at] == "*":
-            out, at = out + "[^/]*", at + 1
-        elif pattern[at] == "?":
-            out, at = out + "[^/]", at + 1
-        else:
-            out, at = out + re.escape(pattern[at]), at + 1
-    return re.compile(out)
-
-
-def covers(patterns: tuple[str, ...], path: str) -> bool:
-    """Whether a changed file is one of the paths and globs that `where` gave, or is under one.
-    `.` is the whole repo."""
-    if "." in patterns:
-        return True
-    parts = path.split("/")
-    parents = ["/".join(parts[: n + 1]) for n in range(len(parts))]
-    return any(_glob(pattern).fullmatch(parent) for pattern in patterns for parent in parents)
+def where(text: str, label: str = "Where") -> tuple[str, ...]:
+    """The paths and globs that the head's `Where:` line names (`jbriefs.paths.named`), or that
+    another head line names, such as `Do not touch:`."""
+    line = _head_lines(text, label)
+    return () if line is None else named(line)
 
 
 def shared_where(text: str, other: str) -> tuple[str, ...]:
@@ -502,6 +403,63 @@ def wheres(text: str) -> str:
     return (
         "brief's Where: line names no path under the repo, so a changed file cannot be "
         f"told from one outside it (write each path or directory in backticks): {line}"
+    )
+
+
+_LANDS = re.compile(r"\(in (?P<named>none|`[^()]*)\)\W*$")
+_SLUG = re.compile(r"^# (?P<slug>[A-Za-z0-9][A-Za-z0-9._-]*):", re.MULTILINE)
+
+
+def _lands_in(item: str) -> tuple[str, ...] | None:
+    """The files a `Done when:` item says it lands in, from the `(in `<path>`, ...)` or
+    `(in none)` that ends it, or None when it ends with no such marker."""
+    marker = _LANDS.search(item)
+    return None if marker is None else named(marker["named"])
+
+
+def lands(text: str) -> str:
+    """Why a `Done when:` item cannot be met inside the brief, as one line: the first item whose
+    `(in ...)` marker names a file that `Where:` does not cover, or one that `Do not touch:`
+    covers (`covers`). It is an empty string when every marked file is inside, and for a brief
+    whose `Where:` names no path, which `wheres` refuses.
+
+    The marker is the writer's word for the file the goal lands in: the check reads nothing else
+    of the item, since most items name files they only read or run.
+    """
+    inside, kept = where(text), where(text, "Do not touch")
+    if not inside:
+        return ""
+    slug = found["slug"] if (found := _SLUG.search(text)) else "<this row's slug>"
+    remedy = (
+        f'move the line to a follow-up brief with a "Follows: {slug}" line and queue it with '
+        "jbus queue add, where it is approved on this row's go"
+    )
+    for number, item in enumerate(done_when(text.splitlines()), 1):
+        for path in _lands_in(item) or ():
+            said = f"brief's Done when {number} lands in {path}"
+            if not covers(inside, path):
+                return (
+                    f"{said}, outside Where ({', '.join(inside)}): widen Where to it, or {remedy}"
+                )
+            if covers(kept, path):
+                return (
+                    f"{said}, under Do not touch ({', '.join(kept)}): take it off Do not touch, "
+                    f"or {remedy}"
+                )
+    return ""
+
+
+def unmarked(text: str) -> str:
+    """Why items of a brief's `Done when:` list say no file they land in (`lands`), as one line:
+    how many, and the first. It is an empty string when every item ends with its marker."""
+    items = done_when(text.splitlines())
+    bare = [item for item in items if _lands_in(item) is None]
+    if not bare:
+        return ""
+    return (
+        f"brief's Done when: has {len(bare)} of {len(items)} items that say no file they land "
+        f"in, the first: {bare[0]} (end each with (in `<path>`), the file the goal needs "
+        "changed, or (in none))"
     )
 
 
@@ -613,6 +571,8 @@ CHECKS = (
     ("Task", tasked),
     ("Design", designed),
     ("Done when", runnable),
+    ("Done when", unmarked),
+    ("Done when", lands),
     ("Proves it", proven),
     ("Proves it", proof_runs),
     ("Skills", skills.unknown),
@@ -624,7 +584,7 @@ CHECKS = (
     ("Builds on", lambda text: standing.layered(fields(text))),
     ("Load", lambda text: standing.load(one for one in fields(text) if one[0] != REST)),
 )
-WARNED = (runnable, proof_runs)
+WARNED = (runnable, unmarked, proof_runs)
 """The checks of `CHECKS` that warn first: `jbus queue add` queues a brief they find at fault,
 and prints the fault as a warning (`warnings`). A check taken out of `WARNED` refuses the brief
 as the other checks do, and a row already approved keeps its go all the same (`jbus.queue`)."""

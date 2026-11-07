@@ -38,7 +38,9 @@ def text(slug, parent="", wider=False):
         filing = f"Decisions: {queue.RED_DECIDED}main and the user has not seen it\n"
         made = made.replace('Decisions: "review it once", the user\'s word in a test\n', filing)
     return (
-        made.replace("- `make check` passes\n", "- `make check` passes\n- and more\n")
+        made.replace(
+            "- `make check` passes (in none)\n", "- `make check` passes (in none)\n- and more\n"
+        )
         if wider
         else made
     )
