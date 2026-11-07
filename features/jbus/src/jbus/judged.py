@@ -20,6 +20,9 @@ class Said(list[str]):
     """
 
     failed = False
+    at = ""
+    """When the run ended, as `work.moment` gives it: `work.pulled` marks the lines it restated
+    with it, and the pass keeps a line a later run marked (`work.kept`)."""
 
     def crews(self, numbers: set[int]) -> Said:
         """Return the lines as the user is to hear them. A hold of one of these pull requests

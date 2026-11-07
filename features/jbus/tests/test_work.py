@@ -626,6 +626,25 @@ def test_a_ticks_verdict_given_while_a_pass_runs_is_not_written_back(kitchen, mo
     assert kitchen.lines(states.DRIFT) == []
 
 
+def test_a_tick_that_began_before_a_pass_and_ended_in_it_is_not_written_back(kitchen, monkeypatch):
+    """The tick held the run lock, so the pass's own run of `jmerge` found it busy and judged
+    nothing; the tick began before the pass and ended after the pass's run, and its verdict is
+    the later one (`Said.at`)."""
+    on_review(kitchen)
+    kitchen.set("jmerge-busy", "")
+
+    def later():
+        (kitchen.stub / "jmerge-busy").unlink()
+        moments = iter([NOW - timedelta(seconds=5)])
+        monkeypatch.setattr(verbs, "clock", lambda: next(moments, NOW + timedelta(seconds=5)))
+        a_tick_says(kitchen, f"wait 9 {PULL}: {ready.FRESH_CONFLICT}")
+
+    while_keep_work_lists(monkeypatch, later)
+    kitchen.poll()
+    assert said(kitchen) == ("rebase", True)
+    assert kitchen.lines(states.DRIFT) == []
+
+
 def test_the_pass_corrects_a_line_broken_by_hand_and_logs_it_as_drift_quietly(kitchen):
     add(kitchen, "alpha", approve=False)
     kitchen.poll()

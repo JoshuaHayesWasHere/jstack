@@ -141,7 +141,8 @@ def _sent(run: Pass, ran: subprocess.CompletedProcess[str]) -> Said:
         if slug and (unfollowed := lines_of.unfollowed(text)):
             alert.deliver(run, f"alert: {run.project.name}: {unfollowed}")
     lines.failed = bool(ran.returncode)
-    work.pulled(run.state, verdicts(lines), work.moment(run.now))
+    lines.at = work.moment(verbs.clock())
+    work.pulled(run.state, verdicts(lines), lines.at)
     return lines
 
 

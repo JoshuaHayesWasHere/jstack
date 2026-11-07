@@ -718,7 +718,8 @@ def fresh(row: dict[str, Any], facet: Row, scout: bool) -> dict[str, Any]:
 
 def pulled(state_dir: Path, said: dict[int, Pull], at: str) -> None:
     """Restate the `Pull` facet of the line of each pull request that a run of `jmerge` judged,
-    by its number, as `jmerge` judged it, and mark the line `PULLED` at `at`. The pass and the
+    by its number, as `jmerge` judged it, and mark the line `PULLED` at `at`, when the run ended
+    (`Said.at`). The pass and the
     merge tick both call this as their run of `jmerge` ends (`merge._sent`), so a verdict reaches
     the view at once. The pass keeps a facet that a run after its own restated (`kept`)."""
     if not said:
@@ -738,11 +739,11 @@ def pulled(state_dir: Path, said: dict[int, Pull], at: str) -> None:
     _rewrite(state_dir, change)
 
 
-def kept(one: dict[str, Any], was: dict[str, Any] | None, began: str) -> dict[str, Any]:
+def kept(one: dict[str, Any], was: dict[str, Any] | None, ran: str) -> dict[str, Any]:
     """Return the pass's line `one`, with the `Pull` facet of the file's line `was` where a run of
-    `jmerge` that began after the pass, at `began`, restated it: a merge tick's run judged later
-    than the pass's own run, whose verdict the pass's line holds."""
-    facts = stored(was) if was is not None and str(was.get(PULLED, "")) > began else None
+    `jmerge` that ended after `ran`, when the pass's own run ended, restated it: a merge tick's
+    run judged later than the pass's own run, whose verdict the pass's line holds."""
+    facts = stored(was) if was is not None and str(was.get(PULLED, "")) > ran else None
     if facts is None or was is None:
         return one
     return {**restate(one, pull=facts.pull), PULLED: was[PULLED]}

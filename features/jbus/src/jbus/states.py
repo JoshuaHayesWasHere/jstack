@@ -139,19 +139,22 @@ def keep_work(half: Half) -> None:
     with locked(run.state, work.LOCK):
         was = work.read(run.state)
         before = was["work"] if was else []
-        written = _since(run, _pulled(run, listed, before))
+        written = _since(run, _pulled(run, listed, before, half.said.at))
         work.write(run.state, at, half.answered(), written)
     for key, what in work.drift(before, written) if was else []:
         run.box.send(key, DRIFT, f"{DRIFT} {key}: {what}")
 
 
-def _pulled(run: Pass, listed: list[dict[str, Any]], before: list[Any]) -> list[dict[str, Any]]:
-    """Return the pass's lines, each row's with the `Pull` facet a run of `jmerge` that began
-    after the pass restated in the file (`work.kept`), such as a merge tick's."""
+def _pulled(
+    run: Pass, listed: list[dict[str, Any]], before: list[Any], ran: str
+) -> list[dict[str, Any]]:
+    """Return the pass's lines, each row's with the `Pull` facet that a run of `jmerge` which
+    ended after the pass's own run (`ran`) restated in the file (`work.kept`), such as a merge
+    tick's. A tick that held the run lock while the pass's run found it busy ends after it too."""
     was = {one.get("key"): one for one in before if isinstance(one, dict)}
-    began = work.moment(run.now)
+    ended = ran or work.moment(run.now)
     return [
-        work.kept(one, was.get(one["key"]), began) if one.get("kind") == "row" else one
+        work.kept(one, was.get(one["key"]), ended) if one.get("kind") == "row" else one
         for one in listed
     ]
 
