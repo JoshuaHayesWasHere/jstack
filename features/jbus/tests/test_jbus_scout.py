@@ -449,6 +449,7 @@ def test_a_scout_thread_that_ended_its_turn_on_a_slotwait_is_not_left(kitchen, w
     try:
         for minutes in (3, 60, 180):
             kitchen.poll(NOW + timedelta(minutes=minutes))
-            assert (rows(kitchen)["alpha"]["status"] == "left") is not waits, rows(kitchen)["alpha"]["why"]
+            row = rows(kitchen)["alpha"]
+            assert (row["status"] == "left") is not waits, row["why"]
     finally:
         slots.close()
