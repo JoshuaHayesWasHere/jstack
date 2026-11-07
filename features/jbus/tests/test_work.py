@@ -478,6 +478,7 @@ def test_an_answer_takes_its_question_off_the_list_before_any_pass(kitchen):
 def test_a_queue_apply_go_and_remove_show_before_any_pass_and_the_next_pass_keeps_them(
     kitchen,
 ):
+    """`jbus queue apply` (`jbus.asks._queue`) shows each go and remove of its batch at once."""
     add(kitchen, "beta", approve=False)
     add(kitchen, "alpha", depends="beta", approve=False)
     add(kitchen, "gamma", approve=False)
