@@ -5,7 +5,7 @@ A thread can end its turn while a run it started still holds a slot. That thread
 nothing in T3 Code says so: its turn is over, and its status is `completed`. So `jgauge test-slot
 --thread <id>` records the run here when its command starts, and records its end when the command
 ends, however it ends. `jbus poll` reads this file: a thread with a run that holds a slot is at
-work (`jbus.watch.World.holding`), and once the run has ended jbus wakes the thread once, if it is
+work (`jbus.watch.owned_waits`), and once the run has ended jbus wakes the thread once, if it is
 not at work by then, with the command and its exit code (`jbus.slotwait.wake_ended`).
 
 `test-slot-holders.json` is beside the slots' lock files and is a list of `Holder`, kept as the
