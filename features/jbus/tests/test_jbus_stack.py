@@ -6,6 +6,9 @@ While the base is open, its crew is told nothing, however the base's head moves.
   its own commits onto that branch, and writes where it sits now on the brief's `Stacked on:` line.
 - A link that still sits on its base gets no message to rebase onto main: its branch holds its
   base's commits, which only "A link that moved" leaves out.
+- A link with no pull request yet, its crew waiting on the review jbus launches, has its
+  `Stacked on:` lines moved onto the branch its base merged into by `jbus.stack.before_pull`, in
+  the brief's head and in its Result, before that review is launched.
 
 The tests run the real pass against the kitchen's fakes of T3 Code and GitHub."""
 
@@ -209,3 +212,68 @@ def test_the_restack_message_goes_out_inside_once(stacked, monkeypatch):
     pulls(stacked, merged=True)
     passes(stacked, 0)
     assert spied == [(f"restack|two|{LINK[:12]}|{MERGE[:12]}", True)]
+
+
+def before_pull(kitchen, merged=True, into="main"):
+    """`two` has no pull request yet: its crew wrote its Result with `Pull request: after the
+    review`, its own `Stacked on:` line naming `one`'s pull request, and `one` is open, or merged
+    into the branch `into` as `MERGE`."""
+    path = kitchen.home / "tasks" / "two.md"
+    path.write_text(
+        path.read_text() + "\n## Result\nStatus: done\nBranch: two   Pull request: after the "
+        "review\nStacked on: one one https://example.test/pull/10\nLeft: none\n"
+    )
+    if merged:
+        kitchen.set("open.json", [])
+        done = {**kitchen.merged("one", 10, MERGE), "headRefOid": LAST, "baseRefName": into}
+        kitchen.set("merged.json", [done])
+    else:
+        kitchen.set("open.json", [{**kitchen.opened("one", 10), "headRefOid": BASE}])
+    return path
+
+
+def result_line(path):
+    return [
+        line for line in path.read_text().split("\n## ", 1)[1].splitlines() if "Stacked" in line
+    ]
+
+
+def test_a_restack_before_the_pull_request_moves_both_lines_once_its_base_merged(stacked):
+    path = before_pull(stacked)
+    said = stacked.poll(NOW)
+    assert head_line(stacked) == stacks.Stacked("one", "main", MERGE)
+    assert result_line(path) == [f"Stacked on: one main at {MERGE} https://example.test/pull/10"]
+    assert "restack two: moved its Stacked on: line onto main, one merged" in said
+    assert edits(stacked) == [] and asks(stacked) == []
+
+
+def test_a_restack_before_the_pull_request_waits_while_its_base_is_open(stacked):
+    path = before_pull(stacked, merged=False)
+    stacked.poll(NOW)
+    assert head_line(stacked) == stacks.Stacked("one", "one")
+    assert result_line(path) == ["Stacked on: one one https://example.test/pull/10"]
+
+
+def test_a_restack_before_the_pull_request_waits_while_github_does_not_say_where(stacked):
+    path = before_pull(stacked, into="release/x")
+    (stacked.stub / "gh-view-down").write_text("")
+    said = stacked.poll(NOW)
+    assert "wait two: GitHub did not say what one merged into" in said
+    assert head_line(stacked) == stacks.Stacked("one", "one")
+    (stacked.stub / "gh-view-down").unlink()
+    passes(stacked, 3)
+    assert head_line(stacked) == stacks.Stacked("one", "release/x", MERGE)
+    assert result_line(path)[0].startswith(f"Stacked on: one release/x at {MERGE} ")
+
+
+def test_a_restack_before_the_pull_request_whose_brief_cannot_be_written_says_so(stacked):
+    path = before_pull(stacked)
+    path.chmod(0o444)
+    try:
+        said = stacked.poll(NOW)
+    finally:
+        path.chmod(0o644)
+    wait = "wait two: its Stacked on: line could not be written ("
+    assert [line for line in said if line.startswith(wait)] != []
+    assert [line for line in said if line.startswith("restack two: moved")] == []
+    assert head_line(stacked) == stacks.Stacked("one", "one")

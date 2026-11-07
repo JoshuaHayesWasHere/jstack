@@ -98,16 +98,15 @@ def before_pull(run: Pass, world: World) -> None:
     """Move the `Stacked on:` line of each row with a crew and no pull request yet, whose base
     merged, onto the branch the base merged into: see the module."""
     for slug in sorted(world.threads):
-        if slug in world.open or slug in world.merged or not rebase.crew(run, slug):
+        brief = task_brief(run, slug)
+        stacked = stacks.of(brief)
+        if stacked is None or stacked.at or slug in world.open or slug in world.merged:
             continue
-        stacked = stacks.of(task_brief(run, slug))
-        if stacked is None or stacked.at or stacked.slug in world.open:
+        merged = world.merged.get(stacked.slug) or {}
+        if not (merged.get("mergeCommit") or {}).get("oid") or not rebase.crew(run, slug):
             continue
-        merged = world.merged.get(stacked.slug)
-        merge = str(((merged or {}).get("mergeCommit") or {}).get("oid") or "")
-        if not merged or not merge:
-            continue
-        onto = _onto(run, task_brief(run, slug), merged)
+        merge = str(merged["mergeCommit"]["oid"])
+        onto = _onto(run, brief, merged)
         if not onto:
             run.say(f"wait {slug}: GitHub did not say what {stacked.slug} merged into")
             continue
