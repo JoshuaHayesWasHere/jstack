@@ -547,6 +547,16 @@ It writes an `accepted` line to `merge.log` that records who accepted and when, 
 `jmerge --accept <number> --check` says what it would do.
 
 The accept of a held draft merges nothing and marks nothing ready: it prints the draft's wait and ends 1, and keeps no record, so the next run holds it again.
+
+**A pull request waiting in line.**
+A pull request whose only wait is its turn in line (`in-line`, "it is in line behind #<n>") is not held, and the accept merges it on no check from before its base moved.
+On your own message (`--message`), the accept gives it the head of its base's line instead.
+It asks GitHub to merge the base into the branch now and prints `accepted <number> <url>: it takes the head of the line of <base> from #<n>, accepted by <user> at <when> on <thread id>/<message id>`, followed by the pull request's `wait` line.
+The pull request that held the head keeps the update GitHub made it and waits in line again.
+A later run merges the accepted one once its check passes at the merged head, and its `merged` line carries the same `accepted by ...` note.
+If GitHub does not take the update, the line stays as it was and the accept ends 1.
+Typed words (`--by`, `--at`) do not move the line.
+The word is kept on the pull request's record in `base-merges.json` and is dropped if the pull request gives the line up, for example when its check fails.
 A push drops the hold, and so do the merge and a close.
 
 Where the checkout is a project of jbus's, the accept is an act of jbus's, one line of the project's `acts.jsonl`, whatever came of it ([Who acts, and the acts log](../../jbus/docs/jbus/the-queue.md#who-acts-and-the-acts-log)).

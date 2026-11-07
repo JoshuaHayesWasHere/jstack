@@ -48,6 +48,7 @@ SHA = 12
 REFUSED = re.compile(r"\(HTTP (409|422)\)")
 FAILED = re.compile(r"\sFAILED (\S+::\S+)")
 RUNS = 20
+ACCEPTED = "accepted"
 HELD = timedelta(minutes=20)
 """How long a pull request keeps the head of the line with the head GitHub took the update of:
 GitHub makes the new head within seconds, so one it did not make by then is not coming."""
@@ -127,12 +128,30 @@ class BaseMerge:
 
     def release(self, number: int) -> None:
         """Take the pull request from the head of the line. Its record stays, so the update GitHub
-        was asked for is not asked again at the same head and tip."""
+        was asked for is not asked again at the same head and tip, but the user's word that gave
+        it the line (`accept`) goes with the line."""
         was = self.known().get(str(number))
-        if isinstance(was, dict) and was.get("line"):
-            self.records = {**self.known(), str(number): {**was, "line": False}}
+        if isinstance(was, dict) and (was.get("line") or ACCEPTED in was):
+            kept = {key: value for key, value in was.items() if key != ACCEPTED}
+            self.records = {**self.known(), str(number): {**kept, "line": False}}
             if self.run:
                 store.write_json(self.path, self.records)
+
+    def accept(self, number: int, word: str) -> None:
+        """Keep the user's word that gives the pull request the head of its base's line,
+        `accepted by <user> at <when> on <message>`, on its record until it merges or gives the
+        line up (`release`). Its merged line carries it (`cli.Repo.merge`)."""
+        was = self.known().get(str(number))
+        record = was if isinstance(was, dict) else {}
+        self.records = {**self.known(), str(number): {**record, ACCEPTED: word}}
+        if self.run:
+            store.write_json(self.path, self.records)
+
+    def accepted(self, number: int) -> str:
+        """The user's word that gave the pull request the head of its line, or nothing."""
+        was = self.known().get(str(number))
+        word = was.get(ACCEPTED) if isinstance(was, dict) else None
+        return word if isinstance(word, str) else ""
 
     def stuck(self, one: ready.PullRequest) -> dict:
         """What `jmerge` did about a run GitHub kept queued at the pull request's head
@@ -249,9 +268,12 @@ class BaseMerge:
         return None
 
     def keep(self, one: ready.PullRequest, tip: str, **kept: object) -> None:
-        """Keep `kept` in the record of the head and tip, over what it held."""
+        """Keep `kept` in the record of the head and tip, over what it held. The user's word that
+        gave it the line stays across a new head or tip, as the line does."""
         now = datetime.now().astimezone()
         was = self.was(one, tip) or {}
+        if word := self.accepted(one.number):
+            was = {**was, ACCEPTED: word}
         record = {**was, "head": one.head, "tip": tip, **kept, "at": f"{now:%Y-%m-%dT%H:%M:%S%z}"}
         self.records = {**self.known(), str(one.number): record}
         if self.run:

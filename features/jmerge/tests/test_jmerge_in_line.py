@@ -10,8 +10,11 @@ from datetime import datetime, timedelta
 
 import pytest
 
+import jsettings
 import test_home_merge as merge
+from jbus import acts
 from jmerge import cli, ready, rejudge
+from test_jmerge_accept_act import jmerge, on_bus, said
 from test_jmerge_fresh import AFTER, LINES, SHARED, STARTED, Kitchen, asked, git, url, write
 from test_jmerge_order import queue_of, row
 
@@ -267,3 +270,46 @@ def test_one_that_waits_on_its_crew_or_the_user_gives_the_line_up(kitchen, wait)
     assert first.startswith(f"{'hold' if wait == 'hold' else 'wait'} 7 ")
     assert second == asked(8, tip)
     assert kitchen.updates() == ["7", "8"]
+
+
+@pytest.fixture
+def bused(kitchen):
+    yield on_bus(kitchen)
+    kitchen.t3.close()
+
+
+def test_the_users_accept_of_one_in_line_gives_it_the_head_of_the_line_and_logs_the_word(bused):
+    """2026-11-04: the user said "merge by hand, via github cli" of pull requests that waited only
+    on their turn in line, and a home merged them with `gh pr merge`. The accept, on the user's
+    own message, gives the pull request the head of its base's line instead: GitHub merges the
+    base into it next, and it merges once its check passes there, never on its check from before
+    the base moved. The one at the head before it keeps its update and goes back in line."""
+    kitchen = bused
+    kitchen.crew("two", 7, {"b.txt": "ours\n" + LINES})
+    kitchen.crew("three", 8, {"c.txt": "ours\n" + LINES})
+    kitchen.crew("four", 9, {"a.txt": "ours\n" + LINES})
+    tip = kitchen.on_main({"d.txt": "theirs\n"})
+    assert kitchen.run() == [asked(7, tip), behind(8, 7), behind(9, 7)]
+
+    ref = said(kitchen, "merge 9 by hand")
+    out = jmerge(kitchen, "--accept", "9", "--as", "user", "--message", ref)
+    assert kitchen.home.code == 0, (out, kitchen.home.stderr)
+    user = jsettings.DEFAULTS.user
+    at = acts.read(kitchen.jbus)[-1]["evidence"]["said_at"]
+    word = f"accepted by {user} at {at} on {ref}"
+    assert out == [
+        f"accepted 9 {url(9)}: it takes the head of the line of main from #7, {word}",
+        asked(9, tip),
+    ]
+    assert kitchen.calls() == []
+    assert kitchen.updates() == ["7", "9"]
+    assert kitchen.run() == [behind(7, 9), behind(8, 9), asked(9, tip)]
+    assert kitchen.updates() == ["7", "9"]
+
+    kitchen.updated("four", AFTER)
+    first, second, third = kitchen.run()
+    assert (first, second) == (behind(7, 9), behind(8, 9))
+    assert third.startswith("merged 9 four ") and f", {word}, " in third
+    log = (kitchen.home.state / "merge.log").read_text()
+    assert f"{third}\n" in log
+    assert kitchen.updates() == ["7", "9"]

@@ -1157,13 +1157,17 @@ class Repo:
         say: Callable[[str], None],
         check: bool,
         acting: bus.Acting | None = None,
+        message: str | None = None,
     ) -> int:
         """Lift the hold of `one` and merge it, the user's hand-merge. A draft is not merged:
-        the accept says what it waits on (`HAND_DRAFT`) and marks nothing ready. With `acting`,
+        the accept says what it waits on (`HAND_DRAFT`) and marks nothing ready. One that waits
+        only on its turn in line takes the head of the line instead (`take_line`). With `acting`,
         the accept is an act of the bus's (`jmerge.bus`): a door the party may not open parks a
         gate and merges nothing. `check` says what it would do, and is no act."""
         about = f"{one.number} {one.url}"
         first = self.waits(one, default)
+        if first.verb == "wait" and ready.code_of(first.why) == ready.IN_LINE.code:
+            return self.take_line(one, default, first.slug, (by, when, message), say, check, acting)
         if first.verb != "hold":
             state = f"it waits: {first.why}" if first.verb else "jmerge merges it by itself"
             say(f"refused {about}: it is not held, {state}")
@@ -1214,6 +1218,70 @@ class Repo:
         outcome, line = bus.found().accept(
             acting, one.number, found.slug, one.head, text, touched, does
         )
+        if outcome == "done":
+            return 0
+        if not ran:
+            say(line)
+        return 1
+
+    def take_line(
+        self,
+        one: ready.PullRequest,
+        default: str,
+        slug: str,
+        word: tuple[str | None, str | None, str | None],
+        say: Callable[[str], None],
+        check: bool,
+        acting: bus.Acting | None,
+    ) -> int:
+        """Give `one`, which waits only on its turn in its base's line (`in_turn`), the head of
+        that line on the user's own message: GitHub is asked to merge the base into it now, and
+        a later run merges it once its check passes at that head, as the head of the line merges.
+        The accept lifts no wait: a check from before the base moved still merges nothing. The
+        pull request at the head before it keeps the update GitHub made it and goes back in line
+        (`rejudge.BaseMerge.release`). The word stays on its record, and its merged line carries
+        it. Where GitHub does not take the update, the line stays as it was. `word` is who
+        accepts, when, and the message it was said in."""
+        by, when, message = word
+        about = f"{one.number} {one.url}"
+        ahead = self.line.get(one.base)
+        if not message:
+            say(f"refused {about}: it waits in line, and only --message gives it the head")
+            return 1
+        if check:
+            say(f"accepted {about}: it would take the head of the line of {one.base} from #{ahead}")
+            return 0
+        accepted = f"accepted by {by} at {when} on {message}"
+        ran: list[str] = []
+
+        def does() -> str:
+            ran.append(one.head)
+            self.line[one.base] = one.number
+            self.base_merge.accept(one.number, accepted)
+            found = self.waits(one, default)
+            if self.line.get(one.base) != one.number:
+                self.base_merge.release(one.number)
+                if ahead is not None:
+                    self.line[one.base] = ahead
+                said = lines.waits(found.verb, one.number, one.url, found.why)
+                say(said)
+                raise jsettings.Refused(said)
+            if ahead is not None:
+                self.base_merge.release(ahead)
+            took = f"accepted {about}: it takes the head of the line of {one.base} from #{ahead}"
+            say(f"{took}, {accepted}")
+            say(lines.waits(found.verb, one.number, one.url, found.why))
+            return took
+
+        if acting is None:
+            try:
+                does()
+            except jsettings.Refused:
+                return 1
+            return 0
+        text = _read(self.state / "tasks" / f"{slug}.md")
+        touched = bool(ready.protected_path(one, self.protected, self.left(one) or ()))
+        outcome, line = bus.found().accept(acting, one.number, slug, one.head, text, touched, does)
         if outcome == "done":
             return 0
         if not ran:
@@ -1357,7 +1425,7 @@ class Repo:
             return lines.waits("wait", number, one.url, f"{ready.MERGE_FAILED}: {lines.said(ran)}")
         if self.line.get(one.base) == one.number:
             del self.line[one.base]
-        notes = [note for note in (rebase, passed) if note]
+        notes = [note for note in (rebase, passed, self.base_merge.accepted(one.number)) if note]
         asked = _run(
             self.main,
             "gh",
@@ -1976,7 +2044,7 @@ def _merging(
         by, at = args.by, args.at
         if acting is not None and args.message:
             by, at = user.user, acting.said_at
-        return repo.accept(found, default, by, at, say, args.check, acting)
+        return repo.accept(found, default, by, at, say, args.check, acting, args.message)
 
     for one in repo.line_up(listed, default):
         found = repo.waits(one, default)
