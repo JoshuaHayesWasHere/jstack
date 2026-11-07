@@ -205,6 +205,18 @@ def test_a_tool_install_that_fails_puts_the_link_back_and_the_next_pass_tries_ag
     assert installs == [green.trees(copied.copy) / new]
 
 
+def test_a_layout_the_move_cannot_put_again_is_a_condition_and_the_copy_still_moves(
+    copied, monkeypatch
+):
+    from jinstall import green as installed
+
+    monkeypatch.setattr(installed, "relink", lambda copy: ["layout claude-code: unreadable"])
+    new = land(copied, "success")
+    copied.poll()
+    assert at(copied.copy) == new
+    assert gates(copied) == [f"condition green: {green.UNLINKED}"]
+
+
 def test_a_copy_of_another_checkout_is_left_alone(kitchen, tmp_path):
     other = tmp_path / "other-checkout"
     subprocess.run(["git", "clone", "-q", str(kitchen.origin), str(other)], check=True)

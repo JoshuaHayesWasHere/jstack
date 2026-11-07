@@ -102,7 +102,7 @@ def relink(copy: Path) -> list[str]:
     an entry for a dropped script would run a file that is gone on every call. A Claude home
     other than ~/.claude reads its skills through ~/.claude/skills (`HomeSkills`), so it needs
     nothing more. Return why each layout or need it could not put was not put, one line each."""
-    from jinstall.needs import needs  # needs imports this module
+    from jinstall.needs import needs
 
     machine = replace(Machine.here(copies.of(copy)), green=copy)
     faults, put = [], []
