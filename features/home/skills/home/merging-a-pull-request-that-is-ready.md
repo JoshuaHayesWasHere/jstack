@@ -106,7 +106,9 @@ Two more things keep a ready pull request from the command, and only the user li
   To protect another path, a pull request adds a line to `protected.txt`, and since it changes the list the user merges it;
 - the repo's merge is on. Every repo is on until `$H/merge-off` is there: `/nohome merge` makes the file and `/nohome merge on` removes it. With it, the line is `wait <number> <url>: auto-merge is off for this repo`, whoever runs the command, a home or `jbus`.
 
-A pull request that is held (`hold`) is merged on the user's word, through `jmerge --accept <number> --as user --message <thread id>/<message id>`. A pull request of a repo whose merge is off is the user's to merge themselves: the accept waits on `merge-off` too. The sweep below then removes what its thread left.
+A pull request that is held (`hold`) is merged on the user's word, through `jmerge --accept <number> --as user --message <thread id>/<message id>`.
+A pull request of a repo whose merge is off is the user's to merge themselves: the accept waits on `merge-off` too.
+The sweep below then removes what its thread left.
 
 A head that moved between the check and the merge fails the merge, and that is the wanted result: the line is `wait <number> <url>: the merge failed`, with what GitHub said, and the next run looks again. A worktree is removed only when it is clean and its branch is at the merged head, so nothing unpushed is lost.
 
