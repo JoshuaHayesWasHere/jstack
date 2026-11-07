@@ -4,6 +4,10 @@ On Linux and WSL2, `jinstall` links each systemd unit of `features/jbus/units/` 
 On macOS it makes one launchd agent from each unit that systemd would enable, as `~/Library/LaunchAgents/jstack.<unit stem>.plist`, and it logs each agent to `~/Library/Logs/jstack/jstack.<unit stem>.log`.
 In a release the links point into the tool's own copy, `<tool venv>/share/jstack/features/jbus/units/`, and in a checkout they point into the checkout.
 Each unit runs `~/.local/bin/jbus`.
+Where the checkout has a green copy (`jbus.green`), the links point through it, so each move of the copy to main's next green tip changes the files systemd runs.
+systemd keeps running the units it loaded until it reads them again, so a move whose tip changed, added or dropped a unit file of `features/*/units/` runs `systemctl --user daemon-reload`, then `systemctl --user try-restart` on each changed timer, and the pass's log names them: `green <project>: systemd reloaded <units>, and restarted <timers>`.
+A timer that was not running stays stopped, and a service is not restarted: its next start runs the new file.
+A move that changes no unit calls systemctl not at all, and on macOS a move reloads no agent.
 
 | Unit | Runs | When | Enabled by the install |
 |---|---|---|---|
