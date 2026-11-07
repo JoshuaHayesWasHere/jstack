@@ -15,7 +15,7 @@ from jbus import clock, prereview
 from jgauge import slot, waiters
 from jroles import ledger
 from test_jbus_kitchen import NOW
-from test_jbus_queue import add
+from test_jbus_queue import add, rows
 
 DESK = "make check-fast BASE=" + "e" * 40 + " PART=touched"
 
@@ -55,9 +55,10 @@ def proof(head, ran=0, proved="Proved: none, docs\n"):
     )
 
 
-def proved_crew(kitchen, ran=0, push=True, review="review"):
+def proved_crew(kitchen, ran=0, push=True, review="review", pull="open one when done"):
     """A row jbus launched, whose crew committed a doc, wrote its desk proof's Result and
-    ended its turn. Returns its thread, the brief's path and the head."""
+    ended its turn. The brief's header says `Pull request: <pull>`. Returns its thread, the
+    brief's path and the head."""
     add(kitchen, "alpha")
     kitchen.poll(NOW - timedelta(minutes=3))
     (thread,) = kitchen.t3.threads
@@ -66,6 +67,7 @@ def proved_crew(kitchen, ran=0, push=True, review="review"):
     kitchen.t3.at_work.discard(thread["threadId"])
     path = kitchen.home / "tasks" / "alpha.md"
     text = path.read_text().replace("Review: review\n", f"Review: {review}\n")
+    text = text.replace("Pull request: open one when done\n", f"Pull request: {pull}\n", 1)
     path.write_text(text + proof(head, ran))
     return thread, path, head
 
@@ -140,6 +142,41 @@ def test_a_crew_waiting_on_its_review_is_told_once_when_it_is_written_and_not_nu
     assert told["message"].startswith(f"jbus: alpha's review at {head[:12]} is written")
     assert "F1 [Act on] error docs/notes.md:1 the doc is wrong" in told["message"], told["message"]
     assert len(reviewers(kitchen)) == 1
+
+
+def test_a_crew_whose_brief_header_says_after_the_review_is_not_over_before_its_review(kitchen):
+    """A brief whose header says `Pull request: after the review`, not `open one ...`, still
+    owes its pull request once its Result says the pull request opens after the review. A pass
+    that sees that Result while the crew is still at work neither settles the crew nor marks the
+    row done, and the pass after it, with the crew idle, launches the reviewer."""
+    thread, _, _ = proved_crew(kitchen, pull="after the review")
+    thread.update(status="running")
+    kitchen.t3.at_work.add(thread["threadId"])
+    kitchen.poll()
+    assert not thread.get("settled")
+    assert rows(kitchen)["alpha"]["status"] != "done"
+    assert reviewers(kitchen) == []
+    thread.update(status="completed")
+    kitchen.t3.at_work.discard(thread["threadId"])
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert [one["title"] for one in reviewers(kitchen)] == ["review: alpha, 1"]
+    assert not thread.get("settled")
+    assert rows(kitchen)["alpha"]["status"] != "done"
+
+
+def test_a_crew_whose_brief_header_says_after_the_review_is_told_when_its_review_is_written(
+    kitchen,
+):
+    """The pass that launches the reviewer of an idle crew also ties up threads: the crew is not
+    settled there, so the pass after its reviewer writes tells it."""
+    thread, path, head = proved_crew(kitchen, pull="after the review")
+    kitchen.poll()
+    assert len(reviewers(kitchen)) == 1
+    assert not thread.get("settled")
+    path.write_text(path.read_text() + section(head))
+    kitchen.poll(NOW + timedelta(minutes=3))
+    (told,) = [one for one in sends(kitchen) if one["threadId"] == thread["threadId"]]
+    assert told["clientRequestId"] == f"prereviewed|alpha|{head[:12]}"
 
 
 def test_a_review_before_the_pull_request_that_never_comes_is_asked_again_by_the_clock(kitchen):
