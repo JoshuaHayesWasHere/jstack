@@ -86,6 +86,7 @@ ORDER = [
     "tellers 10 mirror.scan (sight)",
     "tellers 15 tick.pending (world)",
     "tellers 16 history.pulls (world)",
+    "tellers 17 tick.timer",
     "tellers 20 questions.tell (sight, client)",
     "tellers 30 questions.propose (sight, client)",
     "tellers 34 stack.before_pull (world)",

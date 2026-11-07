@@ -7,4 +7,5 @@ OnFailure=jbus-failed.service
 Type=oneshot
 TimeoutStartSec=20min
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=JBUS_TICK_TIMER=jbus-merge.timer
 ExecStart=%h/.local/bin/jbus poll

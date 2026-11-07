@@ -86,7 +86,7 @@ A check that ends merges within seconds, apart from the pass (`merge-tick`):
   On the live machine, the systemd timer runs it.
 - Run `jbus queue show` to see the row, and read the brief in the home's `tasks/`.
 - Run `jbus tick` between passes.
-  On the live machine, `jbus-merge.timer` runs it every 2 seconds.
+  On the live machine, `jbus-merge.timer` runs it every 2 seconds while the last pass saw a pull request's checks going, and 2 seconds after the pass starts it; the pass stops it while none is going.
 
 ## Driving it with verify-jstack
 
