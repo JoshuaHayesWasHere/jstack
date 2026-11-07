@@ -32,6 +32,7 @@ def named(name):
 def test_a_test_that_reaches_a_real_jbus_dir_fails_by_its_name(monkeypatch, name):
     asked, real = named(name)
     test = os.environ["PYTEST_CURRENT_TEST"].rsplit(" ", 1)[0]
+    monkeypatch.setenv("HOME", str(ACCOUNT))
     for given in ("", str(real)):
         monkeypatch.setenv(name, given)
         with pytest.raises(jbus.RealDir) as raised:
