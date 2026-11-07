@@ -56,6 +56,7 @@ The feature's own docs say what its script does and show the entry the install w
 | `PreToolUse`, matcher `mcp__t3[-_]code__t3_thread_send`, refuses | [features/home/hooks/agent-sends.sh](features/home/hooks/agent-sends.sh) | claude-code, codex | `home` |
 | `PreToolUse`, matcher `Bash`, refuses | [features/jbus/hooks/door-command.sh](features/jbus/hooks/door-command.sh) | claude-code, codex | `jbus` |
 | `PreToolUse`, matcher `Bash`, refuses | [features/jbus/hooks/merge-command.sh](features/jbus/hooks/merge-command.sh) | claude-code, codex | `jbus` |
+| `Stop` | [features/jbus/hooks/turn-end.sh](features/jbus/hooks/turn-end.sh) | claude-code, codex | `jbus` |
 | the status line | [features/jgauge/hooks/limits.sh](features/jgauge/hooks/limits.sh) | claude-code | `jgauge` |
 | `PreToolUse`, matcher `Bash`, refuses | [features/jleak/hooks/outbound-command.sh](features/jleak/hooks/outbound-command.sh) | claude-code, codex | `jleak` |
 | `PreToolUse`, matcher `Bash`, refuses | [features/jleak/hooks/ai-trailer.sh](features/jleak/hooks/ai-trailer.sh) | claude-code, codex | `jleak` |
