@@ -302,10 +302,11 @@ MUTANTS = {
         "return {modules()[one] for one in found} | whole | set(EVERYTHING)",
         "return set(EVERYTHING)",
     ),
-    "imports": ("test_files(importers([by_path[path]]))", "test_files([by_path[path]])"),
+    "imports": ("testers().get(by_path[path], set())", "test_files([by_path[path]])"),
     "chain": (
-        "todo += imported_by().get(one, ())",
-        "todo += imported_by().get(one, ()) if one in names else ()",
+        "found.add(one)\n            todo += edges()[one]\n    return frozenset(found)",
+        "found.add(one)\n            todo += edges()[one] if one == name else ()\n"
+        "    return frozenset(found)",
     ),
     "process": ("if path.startswith(run)}", "if path.startswith(run) and False}"),
     "by-name": ("for loader in itself.union(", "for loader in set().union("),
@@ -324,10 +325,7 @@ MUTANTS = {
         'found["cross-cutting"] = set(cross_cutting()) if cross else set()',
         'found["cross-cutting"] = set()',
     ),
-    "browser": (
-        "tests if (ROOT / one).is_file() and not opens_browser(one)}",
-        "tests if (ROOT / one).is_file()}",
-    ),
+    "browser": ("tests if runs(one)}", "tests if (ROOT / one).is_file()}"),
     "models": ("if any(owns(paths, path) for path in changed)", "if False"),
     "models-only": ("found[key] -= models().keys()", "pass"),
     "failed-on-main": ("added = set(failed) & collected() - chosen", "added = set()"),
@@ -340,6 +338,7 @@ module = types.ModuleType("select_tests")
 module.__file__ = script
 exec(compile(open(script).read().replace(old, new), script, "exec"), module.__dict__)
 module.unowned = frozenset
+module.kept = lambda: (b"", None)
 print(json.dumps([module.selection(*one) for one in asked]))
 """
 
@@ -347,7 +346,9 @@ print(json.dumps([module.selection(*one) for one in asked]))
 def mutant(old, new):
     """The `(tests, why)` for each of the table's questions from the selector with one rule
     broken, `old` swapped for `new` in its source, run as CI runs it. The catch-all is left
-    out: no test of today's tree is in it, and finding that out takes each path's selection."""
+    out: no test of today's tree is in it, and finding that out takes each path's selection.
+    The kept facts are left alone too: they are kept under a hash of the script's file, which a
+    mutant's code is not."""
     assert SCRIPT.read_text().count(old) == 1, f"the rule's code moved: {old!r}"
     ran = subprocess.run(
         [sys.executable, "-I", "-S", "-c", MUTANT],
