@@ -316,15 +316,23 @@ def _rewrite(
 ) -> bool:
     """Write where the link sits now on its brief's `Stacked on:` line, read again just before,
     so a line its crew added since is kept. Given the line it `was`, a Result's own `Stacked on:`
-    line of that stack is moved too. Return whether it was written."""
+    line of that stack is moved too, with what followed the branch on it, the base's url. Return
+    whether it was written."""
     path = run.home / "tasks" / f"{slug}.md"
     try:
         text = dispatch.stacked(path.read_text(errors="replace"), stacked)
         if was is not None:
             old = f"{stacks.LINE} {was.slug} {was.branch}".split()
-            text = "".join(
-                f"{stacks.line(stacked)}\n" if line.split()[:4] == old else line
-                for line in text.splitlines(keepends=True)
+            head, mark, body = text.partition("\n## ")
+            text = (
+                head
+                + mark
+                + "".join(
+                    " ".join([stacks.line(stacked), *line.split()[4:]]) + "\n"
+                    if line.split()[:4] == old
+                    else line
+                    for line in body.splitlines(keepends=True)
+                )
             )
         path.write_text(text)
     except OSError as error:
