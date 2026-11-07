@@ -260,6 +260,10 @@ class User:
         self.CODEX_DOOR = group(
             "door-command.sh", self.home, matcher="Bash", refuses=True, harness="codex"
         )
+        self.MERGE = group("merge-command.sh", self.home, matcher="Bash", refuses=True)
+        self.CODEX_MERGE = group(
+            "merge-command.sh", self.home, matcher="Bash", refuses=True, harness="codex"
+        )
         limits = self.layout / "hooks" / "limits.sh"
         self.STATUS = {"type": "command", "command": f"sh '{limits}'"}
         self.home.mkdir()
@@ -511,6 +515,7 @@ def test_a_hook_already_in_a_hooks_file_is_kept(user):
                 user.CODEX_TRAILER,
                 user.CODEX_DOOR,
                 user.CODEX_INFRA,
+                user.CODEX_MERGE,
                 user.CODEX_OUTBOUND,
             ],
         }
@@ -538,6 +543,7 @@ def test_an_entry_for_another_checkout_is_old_and_replaced(user):
                 user.CODEX_TRAILER,
                 user.CODEX_DOOR,
                 user.CODEX_INFRA,
+                user.CODEX_MERGE,
                 user.CODEX_OUTBOUND,
             ],
         }
@@ -993,7 +999,7 @@ def test_a_machine_with_one_hook_before_a_tool_call_gets_the_others_too(user):
     code, said = user.run("--check")
     assert (code, line_for(said, part)) == (
         1,
-        [*[f"missing hard {part}"] * 4, f"ok hard {part}"],
+        [*[f"missing hard {part}"] * 5, f"ok hard {part}"],
     )
     assert user.run() == (0, user.every("ok"))
     assert json.loads(user.settings.read_text())["hooks"]["PreToolUse"] == [
@@ -1002,6 +1008,7 @@ def test_a_machine_with_one_hook_before_a_tool_call_gets_the_others_too(user):
         user.TRAILER,
         user.DOOR,
         user.INFRA,
+        user.MERGE,
     ]
     assert user.run("--check") == (0, user.every("ok"))
 

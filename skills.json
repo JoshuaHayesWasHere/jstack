@@ -911,6 +911,28 @@
       "events": []
     },
     {
+      "name": "merge-command.sh",
+      "path": "features/jbus/hooks/merge-command.sh",
+      "harnesses": [
+        "claude-code",
+        "codex"
+      ],
+      "events": [
+        {
+          "harness": "claude-code",
+          "event": "PreToolUse",
+          "matcher": "Bash",
+          "refuses": true
+        },
+        {
+          "harness": "codex",
+          "event": "PreToolUse",
+          "matcher": "Bash",
+          "refuses": true
+        }
+      ]
+    },
+    {
       "name": "outbound-command.sh",
       "path": "features/jleak/hooks/outbound-command.sh",
       "harnesses": [

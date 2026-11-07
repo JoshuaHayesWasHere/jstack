@@ -36,6 +36,7 @@ If the file names a check that your repo's CI never runs, every pull request wai
 
 Run `jmerge --accept <number> --as user --message <thread id>/<message id>` from the main checkout, naming your own message in T3 Code.
 The section "Accept a held pull request" lists what `jmerge` checks before it merges.
+It is the one way an agent merges on your word: in a repo jbus's config names, the `merge-command` hook refuses an agent's own `gh pr merge` and prints this line in its place ([Hooks](../../home/docs/hooks.md#the-merge-hook)).
 
 ## What a merge does
 
@@ -519,7 +520,7 @@ That endpoint lists up to 3000 files.
 ## Accept a held pull request
 
 `jmerge --accept` merges, on your word, a pull request that `jmerge` holds.
-Never run `gh pr merge` by hand.
+Never run `gh pr merge` by hand: an agent's is refused by the `merge-command` hook, which prints the accept line in its place.
 
 ```sh
 jmerge --accept <number> --as user --message <thread id>/<message id>
@@ -534,6 +535,16 @@ It lifts the hold at the head where `jmerge` reported it.
 `jmerge` records that head in `holds.json` in the state directory.
 It refuses a pull request that is not held, other than one waiting in line ("A pull request waiting in line" below), one whose head is not the head on record, and one with no proven safety fact at that head, unless its brief says `Review: none`.
 
+It also lifts one kind of `wait`: a Result's `Proved:` line (the `proved-*` codes, `jmerge.judgement.WAIVED`), which your word stands in for as it does for `Review: none`.
+No run keeps a record of a wait, so it lifts it at the head GitHub gives now, and the merge still names that head.
+A plain `jmerge` still waits on that line for its crew to fix.
+Every other wait but one in line ("A pull request waiting in line" below) is refused, `refused <number> <url>: it is not held, it waits: <reason>`, and two of them end with why and the way through (`jmerge.judgement.UNLIFTED`):
+
+| The wait | Why the accept refuses it |
+|---|---|
+| `no brief has a Result that names it` (`no-brief`) | with no brief, no `Review:` line, review or Result is there to stand on |
+| `its base is <base>, not <default>` (`base`) | `jbus project bases <project> --add <base>` names its base a merge base, and `jmerge` then merges it on main's rules |
+
 **A proven safety fact.**
 At the commit it saw, the review proved the one fact that makes the change safe.
 That proof is the `Proof:` line of the `## Review` section, a command that ended `exit 0`.
@@ -544,6 +555,7 @@ Otherwise the reason is `no proven safety fact at <commit12> (blast-radius, revi
 
 `--by` takes only the `user` of `~/.config/jstack/config.toml`, which is `user` when that file names none.
 It writes an `accepted` line to `merge.log` that records who accepted and when, and then judges the pull request as any other, so `merge-off` applies.
+The `merged` line of an accept carries the word it rests on as a note before its revert command, `accepted by <user> at <when>`, with ` on <thread id>/<message id>` where `--message` named your message.
 `jmerge --accept <number> --check` says what it would do.
 
 The accept of a held draft merges nothing and marks nothing ready: it prints the draft's wait and ends 1, and keeps no record, so the next run holds it again.

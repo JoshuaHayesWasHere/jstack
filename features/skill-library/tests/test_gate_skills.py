@@ -374,7 +374,8 @@ def test_accept_merges_a_held_pull_request_whose_fact_is_proven_and_logs_who_and
         f"accepted 7 {merge.URL}: {HOLD}, lifted at {proven_merged.head[:12]} by user at {AT}, "
         f"safe because 3 passed (proven at {proven_merged.head[:12]})"
     )
-    assert (code, said, pulled) == (0, merge.merged_line(commit), commit)
+    word = f"accepted by user at {AT}"
+    assert (code, said, pulled) == (0, merge.merged_line(commit, word), commit)
     assert [line[17:] for line in proven_merged.log()][-2:] == [accepted, said]
     assert proven_merged.plan.read_text() == merge.PLAN
 
@@ -682,7 +683,7 @@ def test_with_no_config_accept_takes_user_at_a_time_of_the_machines_zone(
         f"accepted 7 {merge.URL}: {HOLD}, lifted at {proven_merged.head[:12]} by user at {at}, "
         f"safe because 3 passed (proven at {proven_merged.head[:12]})"
     )
-    assert (code, said) == (0, merge.merged_line(commit))
+    assert (code, said) == (0, merge.merged_line(commit, f"accepted by user at {at}"))
     assert not jstack_config.exists()
 
 
@@ -701,7 +702,7 @@ def test_a_config_that_names_robin_is_whom_jmerge_prints_and_takes(proven_merged
         f"accepted 7 {merge.URL}: {hold}, lifted at {proven_merged.head[:12]} by Robin at {AT}, "
         f"safe because 3 passed (proven at {proven_merged.head[:12]})"
     )
-    assert (code, said) == (0, merge.merged_line(commit))
+    assert (code, said) == (0, merge.merged_line(commit, f"accepted by Robin at {AT}"))
 
 
 def test_a_config_jmerge_cannot_use_stops_it_before_it_judges(proven_merged, jstack_config):
