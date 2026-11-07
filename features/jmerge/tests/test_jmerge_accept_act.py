@@ -27,7 +27,14 @@ PROOF = "Proof: `make check`, exit 0: nothing else reads the file\n"
 
 @pytest.fixture
 def kitchen(tmp_path):
-    made = Kitchen(tmp_path, {"a.txt": LINES, "secrets/prod.json": "{}\n"})
+    made = on_bus(Kitchen(tmp_path, {"a.txt": LINES, "secrets/prod.json": "{}\n"}))
+    yield made
+    made.t3.close()
+
+
+def on_bus(made):
+    """The kitchen with a jbus config whose project is its main checkout, and the fake T3 Code,
+    which the caller closes."""
     made.t3 = T3()
     config = made.home.user / ".config" / "jbus"
     config.mkdir(parents=True)
@@ -46,8 +53,7 @@ def kitchen(tmp_path):
     made.jbus = made.home.user / ".local" / "state" / "jbus" / merge.NAME
     made.jbus.mkdir(parents=True)
     (made.jbus / "queue.json").write_text("[]\n")
-    yield made
-    made.t3.close()
+    return made
 
 
 def held(kitchen, slug, number, files, changed=None, holds="", mode=""):
