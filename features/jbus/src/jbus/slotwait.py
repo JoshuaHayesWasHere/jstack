@@ -18,7 +18,7 @@ thread, so each pass of `jbus poll` resumes it, in `wake`:
 
 A thread can also end its turn while its own run holds a slot. `jgauge test-slot --thread`
 records the run in `test-slot-holders.json` (`jgauge.holders`), and its end and exit code once the
-command ends. While the run holds its slot the thread is at work (`watch.World.holding`). Once the
+command ends. While the run holds its slot the thread is at work (`watch.owned_waits`). Once the
 run has ended, `wake_ended` sends the thread one message in mode queue that names the command and
 its exit code, keyed by the thread and the run's start, so one run wakes once. It sends none to a
 thread whose turn that started the run was still going when the run ended, which got the end
