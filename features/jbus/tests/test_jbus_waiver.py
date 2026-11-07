@@ -106,12 +106,19 @@ def home(kitchen):
 
 def asks(kitchen, message, text, thread=ASKER):
     kitchen.t3.says(
-        thread, message, text, type="assistant_message", createdBy="agent", creationSource="provider"
+        thread,
+        message,
+        text,
+        type="assistant_message",
+        createdBy="agent",
+        creationSource="provider",
     )
 
 
 def waive(kitchen, message, *lines, thread=ASKER):
-    return kitchen.main("waive", "alpha", *lines, "--to", "demo", "--message", f"{thread}/{message}")
+    return kitchen.main(
+        "waive", "alpha", *lines, "--to", "demo", "--message", f"{thread}/{message}"
+    )
 
 
 def brief(kitchen):

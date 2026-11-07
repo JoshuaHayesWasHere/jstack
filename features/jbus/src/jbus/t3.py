@@ -192,6 +192,7 @@ class Message:
     source: str
     text: str
     at: datetime
+    position: int = -1
 
     @property
     def own(self) -> bool:
@@ -283,20 +284,43 @@ class Client(Session):
             one, text, title = self.item(thread, item, "messageId", message)
         except T3Refused as error:
             raise T3Refused(f"t3_thread_read: thread {thread} has no message {message}") from error
-        try:
-            at = jsettings.when(str(one.get("updatedAt")))
-        except ValueError as error:
-            raise T3Refused(f"t3_thread_read: message {message} has no time") from error
-        return Message(
-            thread=thread,
-            id=message,
-            title=title,
-            kind=str(one.get("type") or ""),
-            by=str(one.get("createdBy") or ""),
-            source=str(one.get("creationSource") or ""),
-            text=text,
-            at=at if at.tzinfo else at.replace(tzinfo=UTC),
-        )
+        return _message(thread, message, one, text, title)
+
+    def asked_before(self, thread: str, position: int) -> Message | None:
+        """Return the last message an agent wrote in the thread before the item at `position`,
+        its assistant message, with its whole text, or None where none comes before it. It reads
+        the thread's messages in a window that ends at `position` and widens until it finds one,
+        or reaches the thread's start, so a long thread is not read whole."""
+        span = 256
+        while True:
+            start = position - span
+            after: int | None = start if start >= 0 else None
+            before: list[dict[str, Any]] = []
+            while True:
+                asked: dict[str, Any] = {
+                    "threadId": thread,
+                    "view": "messages",
+                    "limit": 100,
+                    "maxCharsPerItem": 1,
+                }
+                if after is not None:
+                    asked["afterPosition"] = after
+                read = self.call("t3_thread_read", asked) or {}
+                items = read.get("items") or []
+                before += [one for one in items if int(one.get("position", position)) < position]
+                further = read.get("nextPosition")
+                done = not read.get("hasMore") or not isinstance(further, int)
+                if done or further >= position or (after is not None and further <= after):
+                    break
+                after = further
+            mine = [one for one in before if one.get("type") == "assistant_message"]
+            if mine:
+                last = mine[-1]
+                one, text, title = self.item(thread, str(last.get("itemId") or ""))
+                return _message(thread, str(last.get("messageId") or ""), one, text, title)
+            if start < 0:
+                return None
+            span *= 4
 
     def call(self, tool: str, arguments: dict[str, Any]) -> Any:
         if tool not in TOOLS:
@@ -320,6 +344,26 @@ class Client(Session):
         return {}
 
 
+def _message(thread: str, message: str, one: dict[str, Any], text: str, title: str) -> Message:
+    """The `Message` of the item `one` of the thread, whose whole text is `text`. Raise
+    `T3Refused` for one with no time."""
+    try:
+        at = jsettings.when(str(one.get("updatedAt")))
+    except ValueError as error:
+        raise T3Refused(f"t3_thread_read: message {message} has no time") from error
+    return Message(
+        thread=thread,
+        id=message,
+        title=title,
+        kind=str(one.get("type") or ""),
+        by=str(one.get("createdBy") or ""),
+        source=str(one.get("creationSource") or ""),
+        text=text,
+        at=at if at.tzinfo else at.replace(tzinfo=UTC),
+        position=int(one.get("position", -1)),
+    )
+
+
 def listed(client: Client, project_id: str, **asked: Any) -> list[dict[str, Any]]:
     """Return every thread of the project that `t3_thread_list` gives for `asked`, page by page,
     up to 20 pages of 100."""
@@ -337,11 +381,18 @@ def listed(client: Client, project_id: str, **asked: Any) -> list[dict[str, Any]
 
 
 def heard(config: Config, ref: str) -> queue.Said:
-    """Read the user's own message `<thread id>/<message id>` from T3 Code now, and return
-    its text on one line, its time in the user's zone, and the title of its thread.
+    """Read the user's own message `<thread id>/<message id>` from T3 Code now (`own`), and
+    return its text on one line, its time in the user's zone, and the title of its thread."""
+    found = own(config, ref)
+    words = " ".join(found.text.split())
+    return queue.Said(words, config.user.stamp(found.at), found.title, True, ref)
 
-    A message that an agent or jbus sent into a thread is not the user's, and `heard` refuses
-    it. It also refuses a message that T3 Code does not return.
+
+def own(config: Config, ref: str) -> Message:
+    """Read the user's own message `<thread id>/<message id>` from T3 Code now, and return it.
+
+    A message that an agent or jbus sent into a thread is not the user's, and `own` refuses
+    it. It also refuses a message that T3 Code does not return, and one with no words.
     """
     thread, _, message = ref.partition("/")
     if not thread or not message:
@@ -355,10 +406,9 @@ def heard(config: Config, ref: str) -> queue.Said:
         raise Refused(
             f"refused: message {ref} is not {config.user.user}'s own: T3 Code has it as a {wrote}"
         )
-    words = " ".join(found.text.split())
-    if not words:
+    if not found.text.split():
         raise Refused(f"refused: message {ref} has no words")
-    return queue.Said(words, config.user.stamp(found.at), found.title, True, ref)
+    return found
 
 
 def typed(args: argparse.Namespace, config: Config, verb: str) -> queue.Said | None:
