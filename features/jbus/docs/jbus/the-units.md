@@ -30,7 +30,7 @@ each write of the queue (`jbus queue add`, `approve`, `hold`, `remove` and the p
 each run of `jmerge`, the tick's and the pass's, restates the step of each pull request it judged, with its reason as the line's `why`.
 So a change reaches `work.json` within milliseconds of its write: `features/jbus/tests/work_live_probe.py` times it.
 A thread's state has a writer too: `jbus follow` follows T3 Code's events and restates the line of each thread whose turn started, ended or waits on you, or that was settled or archived.
-T3 Code takes jbus's sign-in only at `/mcp`, which pushes nothing, so the follower reads the events where T3 Code keeps them, the table `orchestration_events` of `$T3CODE_HOME/userdata/statev2.sqlite`, read only, woken by inotify on Linux and every quarter second elsewhere.
+T3 Code takes jbus's sign-in only at its MCP endpoint, which pushes nothing, so the follower reads the events where T3 Code keeps them, the table `orchestration_events` of `$T3CODE_HOME/userdata/statev2.sqlite`, read only, woken by inotify on Linux and every quarter second elsewhere.
 A turn that ends with nothing written it leaves for the pass, which alone tells whether the row is lost or waits on jbus.
 So a thread's turn reaches `work.json` within milliseconds of T3 Code's event: `features/jbus/tests/thread_live_probe.py` times it.
 No unit runs `jbus follow` yet: run it yourself, and the pass judges a thread's state as before while it does not run.
