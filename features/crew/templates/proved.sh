@@ -20,7 +20,10 @@ elif ! tests=$(git diff --name-only --diff-filter=d "$base" HEAD | command grep 
 else
     kept='(^|/)tests?/|(^|/)(test_[^/]*|[^/]*_test|conftest)\.py$'
     exempt='(^|/)(docs|\.github)/|(^|/)\.[^/]*$|\.(md|txt|rst|toml|json|yml|yaml|cfg|ini|lock)$'
-    tree=$(mktemp -d "${TMPDIR:-/tmp}/base.XXXXXX")
+    if ! tree=$(mktemp -d "${TMPDIR:-/tmp}/base.XXXXXX"); then
+        echo "no proof: no copy of the base could be made in ${TMPDIR:-/tmp}"
+        exit 1
+    fi
     trap 'rm -rf "$tree"' EXIT
     if git diff --name-only --no-renames "$base" HEAD | command grep -vE "$kept" | command grep -qvE "$exempt"; then
         only=

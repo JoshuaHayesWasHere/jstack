@@ -126,6 +126,7 @@
   The copy is a clone of this repo in a temp directory, checked out at the base and sharing this repo's objects, not a git worktree: it is a repository of its own, so a test that runs git there reads the base, and it leaves `git worktree list` here as it was, whether the tests pass, fail or the call is cut off.
   The block needs no `git worktree remove`, which the door hook refuses as a deletion of data (`deletes data`), refusing the whole call with it.
   The script removes its copy when it exits, after a pass, a failure, a slot's 124 or a TERM that stops the call alike (a trap on `EXIT`), so no copy is left in the temp directory; a call killed outright, with KILL, leaves its copy there, as other scratch is left.
+  Where no copy can be made, as when the thread's `TMPDIR` is gone, it prints `no proof: no copy of the base could be made in <the directory>`, ends 1, and leaves the worktree on its branch.
   The files laid over it are the tests and what they lean on: every changed file under a `tests/` or `test/` directory, each `test_*.py` or `*_test.py`, and each `conftest.py`.
   A branch whose every changed file, a deleted one too, is such a file or of a kind `jbriefs.proved.EXEMPT` names (docs, config, listed below) changes no code: the base's code is the head's own, so its tests pass there as well and a base run proves nothing.
   A test made faster, split or cleaned up is such a branch, and so is a removal of tests with the doc that named them.
