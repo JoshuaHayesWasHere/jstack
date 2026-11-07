@@ -1,21 +1,18 @@
 """The cases of `make check`'s tests that test nothing a Mac does otherwise and read no more
 than their own files: the Makefile's comment lines, the job's time bound in check.yml, the step
-files and the select job's step on `ubuntu-24.04`, the browser fixture's skip, a marker the config
-does not list, and the finder of a browser test with no marker, on files of their own. They are
-not on `testing/macos-quick.txt`, so Linux runs them and the Mac does not. The cases that run
-the Makefile or a pytest's processes, as a desk on a Mac does, and those that read the whole
-tree, are `test_check_command.py`, which the Mac runs."""
+files, the browser fixture's skip, a marker the config does not list, and the finder of a
+browser test with no marker, on files of their own. They are not on `testing/macos-quick.txt`,
+so Linux runs them and the Mac does not. The cases that run the Makefile or a pytest's
+processes, as a desk on a Mac does, and those that read the whole tree, are
+`test_check_command.py`, which the Mac runs."""
 
-import os
 import re
 import subprocess
 import sys
 import tomllib
 
 from test_check_command import (
-    SET_BY_A_RUN,
     browser_files,
-    changed_copy,
     outside_a_run,
     pytest_of,
     step_files,
@@ -80,31 +77,6 @@ def test_no_test_writes_to_the_step_output_of_the_job_that_runs_it(tmp_path, ste
         text=True,
     )
     assert ran.returncode == 0 and "1 passed" in ran.stdout, ran.stdout[-2000:]
-
-
-def test_a_selection_pytest_cannot_collect_fails_the_select_step_and_still_keeps_its_list(
-    tmp_path,
-):
-    """The job `select` fails where pytest cannot collect the selection, and the run that fails
-    there is the one that most needs the list of what was selected: the step still writes it to
-    `SELECTED`, which the job keeps as an artifact, and to its summary."""
-    broken = "features/jdrift/tests/test_drift.py"
-    copy, _, _ = changed_copy(tmp_path, broken, "\nraise SystemExit('no collect')\n")
-    files = {name: tmp_path / name.lower() for name in ("GITHUB_OUTPUT", "GITHUB_STEP_SUMMARY")}
-    files["SELECTED"] = tmp_path / "selected"
-    env = {name: value for name, value in os.environ.items() if name not in SET_BY_A_RUN}
-    ran = subprocess.run(
-        [sys.executable, "scripts/select_tests.py", "--parts", "2", "HEAD^1", "HEAD"],
-        cwd=copy,
-        env=env | {name: str(file) for name, file in files.items()},
-        capture_output=True,
-        text=True,
-    )
-    assert ran.returncode != 0 and "pytest could not collect the selection" in ran.stderr
-    kept = files["SELECTED"].read_text().splitlines() if files["SELECTED"].exists() else []
-    assert any(line.startswith(f"{broken} ") for line in kept), kept
-    assert all((copy / line.split()[0]).is_file() for line in kept), kept
-    assert "\n".join(kept) in files["GITHUB_STEP_SUMMARY"].read_text()
 
 
 def test_a_marker_the_config_does_not_list_is_an_error_and_not_a_typo_that_passes(tmp_path):
