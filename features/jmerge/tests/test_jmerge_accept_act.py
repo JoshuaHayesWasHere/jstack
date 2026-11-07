@@ -19,6 +19,7 @@ import pytest
 import jsettings
 import test_home_merge as merge
 from jbus import acts, questions
+from jmerge import judgement, ready
 from test_jbus_kitchen import T3, TOKEN, iso
 from test_jmerge_fresh import AFTER, LINES, Kitchen, git, url, write
 
@@ -254,3 +255,64 @@ def test_an_accept_with_no_bus_is_refused_and_merges_nothing(kitchen):
     assert said[-1].startswith("refused 6: "), said
     assert kitchen.calls() == []
     assert acts.read(kitchen.jbus) == []
+
+
+def test_the_users_word_merges_a_pull_request_held_on_its_proved_line_and_logs_the_word(kitchen):
+    """#1071 waited on its `Proved:` line on 2026-11-05 when the user said "merge 69 and 71,
+    approval granted", and a home merged it with `gh pr merge`: the accept merges it, and its
+    `merged` line in `merge.log` names the message it was accepted on."""
+    kitchen.crew("gamma", 8, {"tests/test_a.py": "def test_a():\n    pass\n"})
+    with (kitchen.home.tasks / "gamma.md").open("a") as brief:
+        brief.write(PROOF)
+    (waits,) = kitchen.run()
+    assert waits.startswith(f"wait 8 {url(8)}: it changes tests/test_a.py, and its Result "), waits
+    ref = said(kitchen, "merge 8, approval granted")
+    out = jmerge(kitchen, "--accept", "8", "--as", "user", "--message", ref)
+    assert kitchen.home.code == 0, (out, kitchen.home.stderr)
+    assert out[0].startswith(f"accepted 8 {url(8)}: it changes tests/test_a.py"), out
+    assert [call.split()[2] for call in kitchen.calls()] == ["8"]
+    assert last(kitchen) == ("accept", "user", "t3-message", "done")
+    (line,) = [
+        one
+        for one in (kitchen.home.state / "merge.log").read_text().splitlines()
+        if " merged 8 gamma " in one
+    ]
+    assert f", accepted by {jsettings.DEFAULTS.user} at " in line
+    assert line.split(", revert: ")[0].endswith(f" on {ref}"), line
+
+
+def test_a_plain_run_still_waits_on_the_proved_line(kitchen):
+    kitchen.crew("gamma", 8, {"tests/test_a.py": "def test_a():\n    pass\n"})
+    with (kitchen.home.tasks / "gamma.md").open("a") as brief:
+        brief.write(PROOF)
+    kitchen.run()
+    (again,) = kitchen.run()
+    assert again.startswith(f"wait 8 {url(8)}: it changes tests/test_a.py"), again
+    assert kitchen.calls() == []
+
+
+def test_the_accept_of_a_pull_request_with_no_brief_is_refused_with_why(kitchen):
+    """#739 had no brief when the user said to merge it on 2026-10-30."""
+    kitchen.crew("bump", 9, {"a.txt": "ours\n" + LINES})
+    (kitchen.home.tasks / "bump.md").unlink()
+    ref = said(kitchen, "merge 9")
+    out = jmerge(kitchen, "--accept", "9", "--as", "user", "--message", ref)
+    assert kitchen.home.code == 1, (out, kitchen.home.stderr)
+    assert out[-1] == (
+        f"refused 9 {url(9)}: it is not held, it waits: no brief has a Result that names it: "
+        + judgement.UNLIFTED[ready.NO_BRIEF.code]
+    )
+    assert kitchen.calls() == []
+
+
+def test_the_accept_of_a_pull_request_into_another_base_is_refused_with_the_way_through(kitchen):
+    """#750 went into the integration branch t3code-jstack, which jbus's config did not name."""
+    kitchen.crew("side", 10, {"a.txt": "ours\n" + LINES})
+    kitchen.pulls["side"]["baseRefName"] = "t3code-jstack"
+    kitchen.brief("side", kitchen.pulls["side"]["headRefOid"])
+    ref = said(kitchen, "merge 10")
+    out = jmerge(kitchen, "--accept", "10", "--as", "user", "--message", ref)
+    assert kitchen.home.code == 1, (out, kitchen.home.stderr)
+    assert out[-1].startswith(f"refused 10 {url(10)}: it is not held, it waits: its base is "), out
+    assert out[-1].endswith(judgement.UNLIFTED[ready.BASE.code])
+    assert kitchen.calls() == []
