@@ -435,7 +435,8 @@ def test_the_scout_verbs_are_gone(kitchen):
 def test_a_scout_thread_that_ended_its_turn_on_a_slotwait_is_not_left(kitchen, waits):
     """cicd-good-broken-pr-tests-scout, 2026-11-05: the scout ended its turn on "Waiting on a test
     slot", and the next pass marked its row left with "its thread is gone". A thread with a
-    registered wait is waiting: jbus wakes it when a slot is free (`slotwait`)."""
+    registered wait is waiting (`jbus.watch._scouted`): jbus wakes it when a slot is free
+    (`slotwait`)."""
     slots = Slots(slot.locks_dir())
     slots.hold("full")
     add(kitchen, "alpha")
