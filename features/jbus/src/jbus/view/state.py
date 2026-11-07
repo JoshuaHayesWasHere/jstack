@@ -220,6 +220,7 @@ RANK = {
     "review": WAITS,
     "second": WAITS,
     "check": WAITS,
+    "stacked": WAITS,
     "behind": WAITS,
     "ready": QUEUED,
     "removed": OVER,
@@ -272,6 +273,9 @@ STEPS = (
 )
 UNKNOWN = Step("unknown", "Unknown", "unknown", "the view cannot work out its state")
 STEP = {step.key: step for step in (*STEPS, UNKNOWN)}
+LANE = {str(work.Pull.STACKED): work.BY_VALUE["stacked"].lane}
+"""The lane each of jmerge's steps is drawn on where it is not its own: a row stacked on another
+(`work.Pull.STACKED`) is drawn in Check, whose Stacked stage holds it (`checked.outcome`)."""
 
 
 @dataclass(frozen=True)
@@ -486,7 +490,7 @@ def _history(lines: list[str], user: jsettings.Settings) -> dict[int, list[dict[
         else:
             step = judgement.step(f"{line.word}: {line.reason}", line.code)
             reason = line.reason if step else f"jmerge said: {line.reason}"
-            step = step or UNKNOWN.key
+            step = LANE.get(step, step) or UNKNOWN.key
         found.setdefault(line.number, []).append(
             {"at": at, "word": line.word, "step": step, "code": line.code, "reason": text(reason)}
         )

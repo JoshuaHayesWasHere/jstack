@@ -14,7 +14,8 @@ one `State`. The facets are:
   the thread's role owes: a scout owes its Report, a reviewer its Review, and a home or another
   thread nothing.
 - `Pull`: the work's pull request. For an open pull request, the facet is the step that jmerge's
-  reason names (`jmerge.judgement.step`), or `other` for a reason that no rule names.
+  reason names (`jmerge.judgement.step`), or `other` for a reason that no rule names. A pull
+  request stacked on another row's (`jmerge.ready.STACKED_ON`) is `stacked`, held by that row.
 - `Question`: whether jbus has a gate open for the work this pass.
 - `Answered`: which of T3 Code and GitHub answered this pass.
 
@@ -47,6 +48,7 @@ from pathlib import Path
 from typing import Any
 
 from jbus import locked, read_json, roles, write_json
+from jmerge import ready
 
 NAME = "work.json"
 LOCK = "work.lock"
@@ -97,6 +99,7 @@ class Pull(StrEnum):
     FINDINGS = "findings"
     SECOND = "second"
     CHECK = "check"
+    STACKED = "stacked"
     REBASE = "rebase"
     HOLD = "hold"
     OTHER = "other"
@@ -120,6 +123,7 @@ STEPPED = (
     Pull.FINDINGS,
     Pull.SECOND,
     Pull.CHECK,
+    Pull.STACKED,
     Pull.REBASE,
     Pull.HOLD,
 )
@@ -293,6 +297,15 @@ PATTERNS = (
     ),
     Pattern(
         "check", "Check", "ci", "the check runner", "check", thread=STILL, pull=_set(Pull.CHECK)
+    ),
+    Pattern(
+        "stacked",
+        "Stacked",
+        "dep",
+        "the row it is stacked on to merge",
+        "check",
+        thread=STILL,
+        pull=_set(Pull.STACKED),
     ),
     Pattern(
         "rebase", "Rebase", "crew", "its crewmate", "rebase", thread=STILL, pull=_set(Pull.REBASE)
@@ -507,8 +520,20 @@ class Holder:
     lane: str
 
 
-def holder(state: State, role: str = "", home: bool = False, busy: bool = False) -> Holder:
-    """Return who holds a state, which is its pattern's holder except in three cases.
+def parent(why: str) -> str:
+    """Return the row that a row's `why` says it is stacked on (`ready.STACKED_ON`), or nothing
+    where it says no such thing. `why` is the queue's, `<word>: <reason>`, as jbus judged it."""
+    fields = ready.STACKED_ON.fields(why.partition(": ")[2])
+    return fields["slug"] if fields else ""
+
+
+def holder(
+    state: State, role: str = "", home: bool = False, busy: bool = False, why: str = ""
+) -> Holder:
+    """Return who holds a state, which is its pattern's holder except in four cases.
+
+    A stacked row is held by the row it is stacked on, which its `why` names (`parent`): it
+    waits for that row to merge, and no check runner or crewmate moves it.
 
     `role` is the role of a thread that belongs to no row. When such a thread is at work, the
     holder is that role, not a crewmate, and the state is on no lane of the line. A leftover or
@@ -526,6 +551,8 @@ def holder(state: State, role: str = "", home: bool = False, busy: bool = False)
         waits = "its thread" if state.waits == "its crewmate" else state.waits
         held = next((one.holder for one in roles.ROLES if one.name == role), roles.OTHER)
         return Holder(held, waits, "")
+    if state.value == "stacked" and (above := parent(why)):
+        return Holder(above, f"{above} to merge", pattern.lane)
     if state.value not in ("leftover", "closed"):
         return Holder(state.who, state.waits, pattern.lane)
     if busy and state.value == "leftover":
@@ -584,8 +611,9 @@ def restate(one: dict[str, Any], row: Row) -> dict[str, Any]:
     """Return a row's line of `work.json` judged again from its stored facts with `row` as the
     new `Row` facet, as an act that changed the row's go knows it. A new approved facet beside an
     approved one is the pass's to tell apart, since only the pass sees which depends merged; and
-    a state that keeps its value keeps its holder, which the pass worked out from more than the
-    facts."""
+    a state that keeps its value keeps its holder and its `why`, which the pass worked out from
+    more than the facts. A state whose value changed has no `why` until the next pass judges
+    one, since the one it had was judged for the old state."""
     facts = stored(one)
     if facts is None or facts.row == row or {facts.row, row} <= APPROVED:
         return one
@@ -595,6 +623,8 @@ def restate(one: dict[str, Any], row: Row) -> dict[str, Any]:
     if state.value == one["value"]:
         return {**one, "confirmed": state.confirmed, "facts": state.facts.said()}
     about = {name: value for name, value in one.items() if name not in _JUDGED}
+    if "why" in about:
+        about["why"] = ""
     role = "scout" if "scout" in one else ""
     scout = {"scout": str(scouting(state))} if role else {}
     return entry(state, holder(state, role=role), **about, **scout)

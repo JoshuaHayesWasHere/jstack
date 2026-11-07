@@ -83,6 +83,7 @@ SURFACES = {
     ("value", "findings"): Surface(row=True, rank=WORKS),
     ("value", "second"): Surface(row=True, rank=WAITS),
     ("value", "check"): Surface(row=True, rank=WAITS),
+    ("value", "stacked"): Surface(row=True, rank=WAITS),
     ("value", "rebase"): Surface(row=True, rank=WORKS),
     ("value", "hold"): Surface(needs=True, row=True, rank=ASKS),
     ("value", "launching"): Surface(row=True, rank=WORKS),

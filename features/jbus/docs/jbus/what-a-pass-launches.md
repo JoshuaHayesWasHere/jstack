@@ -17,6 +17,8 @@ jbus then writes `Thread: <id>` in the head of that file, the one line it writes
 
 A row launched stacked starts its worktree from its base's branch, and its brief has `Stacked on: <slug> <branch>` in its head in place of `Green main:`.
 Its crew opens its pull request on that branch, and `jmerge` waits on it as `it is stacked on <branch>, and merges after <slug> merged and jbus moved it onto <default>`.
+Its line of `work.json` is `stacked`: its `who` is `<slug>`, the row it is stacked on, its `waits` is `<slug> to merge`, and its `why` is the queue row's, as each row's line carries it.
+The view draws it in Check, on the Stacked stage.
 
 A stack is made by a depends only.
 `jbus queue add` refuses a brief whose own `Stacked on:` line names a row its depends does not, with `refused: <slug> cannot be stacked on <row>: its depends does not name <row>`, and says to add `--depends <row>`.

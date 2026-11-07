@@ -58,8 +58,8 @@ def test_every_combination_of_the_facets_is_one_state_and_what_matches_none_is_u
             assert (again.value, again.confirmed, again.facts.last) == ("ready", False, "ready")
         unknown += state.value == "unknown"
         answered_unknown += state.value == "unknown" and state.confirmed
-    assert walked == 6 * 11 * 2 * 4 * 11 * 2 * 4 == 46_464
-    assert (unknown, answered_unknown) == (14_084, 444)
+    assert walked == 6 * 11 * 2 * 4 * 12 * 2 * 4 == 50_688
+    assert (unknown, answered_unknown) == (15_324, 444)
     assert time.monotonic() - began < 10
 
 
@@ -211,6 +211,39 @@ def test_a_pull_request_on_a_step_is_that_step_and_a_hung_thread_over_it_is_hung
     kitchen.poll(NOW + timedelta(minutes=3))
     assert said(kitchen) == ("hung", True)
     assert rows(kitchen)["alpha"]["status"] == "pr"
+
+
+def _open_with(kitchen, reason):
+    """Open alpha (#9) and beta (#8), each with its Result, and have `jmerge` say `reason` of
+    alpha, then run a pass."""
+    for slug, number in (("beta", 8), ("alpha", 9)):
+        add(kitchen, slug)
+        url = f"https://example.test/pull/{number}"
+        kitchen.brief(slug, result(branch=f"{slug}   Pull request: {url}"))
+        kitchen.t3.thread(slug, "completed")
+    kitchen.set("open.json", [kitchen.opened("beta", 8), kitchen.opened("alpha", 9)])
+    kitchen.set("jmerge.txt", f"wait 9 {PULL}: {reason}\n")
+    kitchen.poll()
+
+
+def test_a_row_stacked_on_an_open_parent_waits_on_that_row_and_not_on_the_check_runner(kitchen):
+    """The 2026-11-07 tree: two stacked rows said `waits the check runner` while jmerge held each
+    behind the row it is stacked on."""
+    _open_with(kitchen, ready.STACKED_ON.format(branch="beta", slug="beta", default="main"))
+    line = judged(kitchen)
+    assert line["who"] == "beta"
+    assert line["waits"].startswith("beta ")
+    assert "check runner" not in line["waits"]
+    assert line["why"] == rows(kitchen)["alpha"]["why"]
+    assert "it is stacked on beta" in line["why"]
+
+
+def test_a_row_whose_check_runs_still_waits_on_the_check_runner(kitchen):
+    _open_with(kitchen, ready.LIVE_RUN.format(check="check", head="c" * 12, state="in progress"))
+    line = judged(kitchen)
+    assert (line["value"], line["who"], line["waits"]) == ("check", "ci", "the check runner")
+    assert line["why"] == rows(kitchen)["alpha"]["why"]
+    assert "is in progress" in line["why"]
 
 
 def test_a_pass_that_could_not_ask(kitchen):
@@ -397,8 +430,9 @@ def test_a_go_shows_before_any_pass_and_the_next_pass_writes_what_it_showed(kitc
         "approved and behind",
     )
     assert "approve:alpha" not in waits(kitchen) and "approve:beta" in waits(kitchen)
+    assert shown["why"] == ""
     kitchen.poll()
-    assert judged(kitchen) == shown
+    assert judged(kitchen) == shown | {"why": "depends on beta"}
     assert "approve:alpha" not in waits(kitchen)
 
 
@@ -492,12 +526,12 @@ def test_a_queue_apply_go_and_remove_show_before_any_pass_and_the_next_pass_keep
     code, said = kitchen.main("--project", "demo", "queue", "apply", stdin=text)
     assert code == 0, said
     shown = judged(kitchen)
-    assert (shown["value"], shown["who"]) == ("behind", "dep")
+    assert (shown["value"], shown["who"], shown["why"]) == ("behind", "dep", "")
     assert waits(kitchen) == {"approve:beta"}
     kept = json.loads((kitchen.state / work.NAME).read_text())["work"]
     assert "gamma" not in [one["key"] for one in kept]
     kitchen.poll()
-    assert judged(kitchen) == shown
+    assert judged(kitchen) == shown | {"why": "depends on beta"}
     assert waits(kitchen) == {"approve:beta"}
 
 

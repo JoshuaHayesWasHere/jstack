@@ -107,6 +107,7 @@ The section "Protected paths" describes one more hold.
   `jmerge` never merges a pull request based on a branch that is neither (`its base is <base>, not <default>`), nor one into a named base where jbus's config does not load.
   The sweep keeps a brief's branch that is a merge base (`it is a merge base of the project`).
   A link jbus stacked, whose brief has a `Stacked on:` line, is not held for its base: it waits as `it is stacked on <branch>, and merges after <slug> merged and jbus moved it onto <default>` while its line names its base's branch, whatever base GitHub gives it.
+  That wait is on a step of its own, `stacked`, not on `check`: what moves it is the row it is stacked on, not a check runner.
   Once jbus wrote the commit its base merged as, it waits as `<slug> merged as <sha>, which its head does not hold: it merges after its crew rebased it onto <default>` until its head holds that commit.
   CI checks a link on its base's branch while the base is open, beside its base's own check, as it checks any open pull request, and the link waits on its stack as above.
   Its check at the moved head then adds no round of the suite in series where the move is a clean replay: the check's `reuse` job finds that a passed run already checked the same two trees, the base's and GitHub's merge of the head over it, and `check` passes on that run in the time the lookup takes (`jmerge.reuse`).

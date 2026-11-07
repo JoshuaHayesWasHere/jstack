@@ -662,6 +662,7 @@ JMERGE = {
     "findings": "its findings are not handled: the Result has no Fixed line",
     "second": "the rebase changed the content after its review; scoped review of a..b c..d",
     "check": "check has not passed",
+    "stacked": ready.STACKED_ON.format(branch="fig-seed", slug="fig-seed", default="main"),
     "rebase": "it conflicts with its base",
     "hold": "needs user, touches skills/crew/SKILL.md",
 }
