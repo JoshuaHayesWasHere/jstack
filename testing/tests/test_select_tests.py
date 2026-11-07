@@ -14,6 +14,7 @@ import re
 import shutil
 import subprocess
 import sys
+from collections import Counter
 from functools import cache
 from pathlib import Path
 
@@ -1298,24 +1299,27 @@ def test_a_path_that_forces_all_says_all_to_the_steps_outputs(repo, tmp_path):
     assert given == {"selection": "all", "files": "all", "forced_by": "pyproject.toml"}
 
 
-def timed(seconds):
-    """A times table, as `testing/shard.py` reads it, of these seconds by node id."""
-    from testing import shard
+def timed(seconds, table="file_table"):
+    """A table, the file table unless named, as `testing/split.py` writes and reads it, of these
+    tests' seconds by node id."""
+    from testing import split
 
-    return "".join(f"{took:.2f}\t{shard.key(test)}\n" for test, took in seconds.items())
+    return getattr(split, table)(seconds)
+
+
+TOOK = {
+    "testing/tests/test_slow.py::test_slow": 10,
+    "testing/tests/test_two.py::test_one": 3,
+    "testing/tests/test_two.py::test_two": 3,
+}
 
 
 PARTED = {
     "conftest.py": "",
     "testing/__init__.py": "",
-    "testing/shard.py": (REPO / "testing" / "shard.py").read_text(),
-    "testing/shard-times.tsv": timed(
-        {
-            "testing/tests/test_slow.py::test_slow": 10,
-            "testing/tests/test_two.py::test_one": 3,
-            "testing/tests/test_two.py::test_two": 3,
-        }
-    ),
+    "testing/split.py": (REPO / "testing" / "split.py").read_text(),
+    "testing/shard-times.tsv": timed(TOOK, table="table"),
+    "testing/shard-file-times.tsv": timed(TOOK),
     "testing/tests/test_tree.py": "def test_tree():\n    pass\n",
     "testing/tests/test_slow.py": "def test_slow():\n    pass\n",
     "testing/tests/test_two.py": "def test_one():\n    pass\n\n\ndef test_two():\n    pass\n",
@@ -1323,13 +1327,13 @@ PARTED = {
 
 
 def parted(tmp_path, count, files=PARTED, changed=("slow", "two")):
-    """`--parts <count>` over a change to these test files, run as the job `select` runs it, with
-    the venv's python: what it printed, its summary, and what it gave the step's outputs."""
+    """`--parts <count>` over a change to these test files, run as the job `reuse` runs it, with
+    no pytest at hand: what it printed, its summary, and what it gave the step's outputs."""
     repo = Repo(tmp_path / "repo", files=dict(files))
     head = repo.change([*(f"testing/tests/test_{name}.py" for name in changed), OUTSIDE])
     summary, output = tmp_path / "summary.md", tmp_path / "output"
     ran = subprocess.run(
-        [sys.executable, repo.root / "scripts" / "select_tests.py", "--parts", str(count)]
+        [sys.executable, "-S", repo.root / "scripts" / "select_tests.py", "--parts", str(count)]
         + [repo.base, head],
         cwd=repo.root,
         capture_output=True,
@@ -1352,31 +1356,33 @@ def parted(tmp_path, count, files=PARTED, changed=("slow", "two")):
 def test_parts_get_test_files_dealt_by_time_once_for_all_parts_and_one_past_a_share_by_test(
     tmp_path,
 ):
-    """The selection is collected once and its files dealt out slowest first, to the part with
-    the least time so far, so a part collects only its own files. A file whose tests sum past a
-    part's share (6 s of 16 s over 4 parts) is dealt by test: each part that holds some of its
-    tests gets the file and the word that names those tests. A single test of 10 s cannot be
-    split, and has a part of its own."""
-    from testing import shard
+    """The selection's files are dealt out by the tables, with no collection, slowest first, to
+    the part with the least time so far, so a part collects only its own files. A file the table
+    does not hold counts `FLOOR` for each test it defines. A file whose tests sum past a part's
+    share (6 s of 16.1 s over 4 parts) is dealt by test: each part that holds some of its tests
+    gets the file and a word that picks them, the one with the tests the table does not hold
+    `--shard-skip` of the other's. A single test of 10 s cannot be split, and has a part of its
+    own."""
+    from testing import split
 
     ran, summary, given = parted(tmp_path, 4)
 
     assert ran.returncode == 0, ran.stderr
-    one, two = (shard.key(f"testing/tests/test_two.py::test_{n}") for n in ("one", "two"))
+    one, two = sorted(split.key(f"testing/tests/test_two.py::test_{n}") for n in ("one", "two"))
     assert given == {
         "selection": "some",
         "files": "3",
         "forced_by": "",
         "part1": "testing/tests/test_slow.py",
-        "part2": f"testing/tests/test_two.py --shard-tests={one}",
-        "part3": f"testing/tests/test_two.py --shard-tests={two}",
+        "part2": f"testing/tests/test_two.py --shard-skip=testing/tests/test_two.py:{two}",
+        "part3": f"testing/tests/test_two.py --shard-tests=testing/tests/test_two.py:{two}",
         "part4": "testing/tests/test_tree.py",
     }
-    assert "parts: 4 of 4 tests in 3 files, 0 3 3 10 s of test time each" in summary
+    assert "parts: 4 of 3 files, 0 3 3 10 s of test time each" in summary
     assert ran.stdout.splitlines()[-4:] == [
         "part 1: testing/tests/test_slow.py",
-        f"part 2: testing/tests/test_two.py --shard-tests={one}",
-        f"part 3: testing/tests/test_two.py --shard-tests={two}",
+        f"part 2: testing/tests/test_two.py --shard-skip=testing/tests/test_two.py:{two}",
+        f"part 3: testing/tests/test_two.py --shard-tests=testing/tests/test_two.py:{two}",
         "part 4: testing/tests/test_tree.py",
     ]
     kept = (tmp_path / "selection.txt").read_text().splitlines()
@@ -1404,21 +1410,8 @@ def test_every_selected_file_is_in_exactly_one_part(tmp_path):
     }
 
 
-def test_a_selection_that_collects_no_test_fails_and_gives_no_part(tmp_path):
-    """No part gets a selection, and the check's parts each fail on that, as a selection with no
-    tests failed every part before."""
-    files = {
-        name: "" if name.startswith("testing/tests/") else text for name, text in PARTED.items()
-    }
-    ran, _, given = parted(tmp_path, 8, files=files)
-
-    assert ran.returncode != 0
-    assert "the selection holds no test" in ran.stderr
-    assert [key for key in given if key.startswith("part")] == []
-
-
 def test_the_selections_list_names_the_part_that_runs_each_file(tmp_path):
-    """The job `select` keeps each part's selection: every file with why and its part."""
+    """The job `reuse` keeps each part's selection: every file with why and its part."""
     ran, summary, _ = parted(tmp_path, 2)
 
     assert ran.returncode == 0, ran.stderr
@@ -1441,40 +1434,60 @@ def test_an_all_dealt_to_parts_lists_every_file_with_its_part():
     ]
 
 
-def test_the_deal_of_no_tests_fails():
+def test_the_deal_of_no_test_file_fails():
     with pytest.raises(SystemExit, match="holds no test"):
-        select.dealt([], {}, 8)
+        select.dealt([], {}, {}, 8)
 
 
 def test_a_file_past_a_part_s_share_is_cut_into_the_fewest_pieces_that_fit_a_share():
     """A file of 40 tests of 10 s beside 200 files of 1 s, over 4 parts: its 400 s are past a
     share of 150 s, so it is cut into 3 pieces, each in a part of its own, and not spread over
     every part, since each part a piece lands in builds the file's caches again. Each test of it
-    is named in exactly one part's `--shard-tests`."""
-    from testing import shard
+    the table holds is run by exactly one part, and one more it does not hold by the part that
+    skips the others' tests."""
+    from testing import split
 
     big = [f"a/test_big.py::test_{n}" for n in range(40)]
     rest = [f"a/test_{n}.py::test_one" for n in range(200)]
-    times = {shard.key(test): 10 for test in big} | {shard.key(test): 1 for test in rest}
-    parts, seconds = select.dealt(big + rest, times, 4)
+    took = dict.fromkeys(big, 10) | dict.fromkeys(rest, 1)
+    tests = {"a/test_big.py": {split.key(test): 10 for test in big}}
+    files = split.by_file(took)
+    parts, seconds = select.dealt(sorted(files), files, tests, 4)
     holding = [part for part in parts if "a/test_big.py" in part]
     assert len(holding) == 3
-    named = [key for part in holding for key in part[-1].removeprefix("--shard-tests=").split(",")]
-    assert sorted(named) == sorted(shard.key(test) for test in big)
+    new = "a/test_big.py::test_new"
+    ran = Counter(test for part in holding for test in picked(part, [*big, new]))
+    assert sorted(ran) == sorted([*big, new]) and set(ran.values()) == {1}
     assert max(seconds) - min(seconds) <= 10
+
+
+def picked(words, nodeids):
+    """The node ids of `nodeids` a part with these words runs, as `testing/shard.py` picks them."""
+    from testing import shard
+
+    files = {word for word in words if not word.startswith("-")}
+    only = shard.scoped(
+        [word.partition("=")[2] for word in words if word.startswith("--shard-tests=")]
+    )
+    skip = shard.scoped(
+        [word.partition("=")[2] for word in words if word.startswith("--shard-skip=")]
+    )
+    mine = [test for test in nodeids if test.partition("::")[0] in files]
+    return shard.picked(mine, only, skip)
 
 
 def test_a_file_whose_slowest_test_outlasts_a_part_is_dealt_alone_and_one_of_quick_tests_is_not():
     """Files are dealt whole, and a part never ends before the slowest test of its files: a file
     of one 60 s test gets a part to itself, and a file of 60 tests of 1 s, as long in all, shares
     one, since its tests spread over the part's workers."""
-    from testing import shard
+    from testing import split
 
     serial = ["a/test_serial.py::test_long"]
     spread = [f"a/test_spread.py::test_{n}" for n in range(60)]
     rest = [f"a/test_{n}.py::test_one" for n in range(200)]
-    times = {shard.key(serial[0]): 60} | {shard.key(test): 1 for test in spread + rest}
-    parts, _ = select.dealt(serial + spread + rest, times, 4)
+    took = {serial[0]: 60} | dict.fromkeys(spread + rest, 1)
+    files = split.by_file(took)
+    parts, _ = select.dealt(sorted(files), files, {}, 4)
     assert ["a/test_serial.py"] in parts
     (spreads,) = [part for part in parts if "a/test_spread.py" in part]
     assert len(spreads) > 1

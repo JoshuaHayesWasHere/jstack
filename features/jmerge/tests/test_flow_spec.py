@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from testing import shard
+from testing import shard, split
 from testing.paths import REPO
 
 SPEC = REPO / "features" / "jmerge" / "spec"
@@ -59,7 +59,7 @@ def test_a_desk_record_writes_the_tlc_test_at_the_table_s_warm_time():
     test = test_today_and_the_design_hold_their_rules_and_each_canary_breaks_its_own
     (pin,) = [mark.args[0] for mark in test.pytestmark if mark.name == shard.PINNED]
     nodeid = f"features/jmerge/tests/test_flow_spec.py::{test.__name__}"
-    table = shard.seconds(shard.read_times(shard.TIMES), nodeid)
+    table = split.seconds(split.read_times(split.TIMES), nodeid)
     assert pin == table, f"pin the TLC test at the table's figure: shard_seconds({table:.2f})"
 
 

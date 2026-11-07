@@ -210,7 +210,7 @@ def test_every_job_of_every_workflow_runs_on_githubs_hosted_runner():
         "browser.yml": {"browser": HOSTED},
         "check.yml": {
             "reuse": HOSTED,
-            "select": HOSTED,
+            "lint": HOSTED,
             "check-shard": HOSTED,
             "check": HOSTED,
             "select-facts": HOSTED,
@@ -510,7 +510,7 @@ CAPS = {
     ("borders.yml", "borders"): "5",
     ("browser.yml", "browser"): "15",
     ("check.yml", "reuse"): "5",
-    ("check.yml", "select"): "10",
+    ("check.yml", "lint"): "10",
     ("check.yml", "check-shard"): "30",
     ("check.yml", "check"): "5",
     ("check.yml", "select-facts"): "5",
@@ -586,7 +586,7 @@ def ran_on(job, draft=False, reused=""):
 def test_a_pull_request_runs_check_and_a_push_to_main_and_a_manual_run_run_full():
     assert jobs(CHECK.read_text()) == {
         "reuse": HOSTED,
-        "select": HOSTED,
+        "lint": HOSTED,
         "check-shard": HOSTED,
         "check": HOSTED,
         "select-facts": HOSTED,
@@ -594,7 +594,7 @@ def test_a_pull_request_runs_check_and_a_push_to_main_and_a_manual_run_run_full(
         "full": HOSTED,
     }
     pull, push = ["pull_request"], ["push", "workflow_dispatch"]
-    named = ("reuse", "select", "check-shard", "check", "select-facts", "full-shard", "full")
+    named = ("reuse", "lint", "check-shard", "check", "select-facts", "full-shard", "full")
     assert [ran_on(job) for job in named] == [pull, pull, pull, pull, push, push, push]
 
 
@@ -603,7 +603,7 @@ def test_a_draft_runs_the_check_as_any_pull_request_does():
     someone opened by hand is checked on each push too, so jmerge reads its checks as any
     pull request's."""
     pull, push = ["pull_request"], ["push", "workflow_dispatch"]
-    named = ("reuse", "select", "check-shard", "check", "select-facts", "full-shard", "full")
+    named = ("reuse", "lint", "check-shard", "check", "select-facts", "full-shard", "full")
     ran = [pull, pull, pull, pull, push, push, push]
     assert [ran_on(job, draft=True) for job in named] == ran
     assert [ran_on(job, draft=False) for job in named] == ran
@@ -652,7 +652,7 @@ def test_the_suite_runs_as_parts_side_by_side_and_one_job_passes_only_when_all_d
     assert job_section(parts, "strategy") == {"fail-fast": False, "matrix": {"shard": PARTS[parts]}}
     assert job_line(parts, "name") == f"{gate} ${{{{ matrix.shard }}}} of {count}"
     assert job_line(gate, "needs") == (
-        ["reuse", "select", "check-shard"] if gate == "check" else parts
+        ["reuse", "lint", "check-shard"] if gate == "check" else parts
     )
     assert job_line(gate, "if").startswith("always() && ")
     (every, *_), _ = steps(CHECK.read_text(), gate)
@@ -660,7 +660,7 @@ def test_the_suite_runs_as_parts_side_by_side_and_one_job_passes_only_when_all_d
     ran = {
         result: subprocess.run(
             ["sh", "-c", every["run"]],
-            env={"PARTS": result, "SELECT": "success", "REUSE": "success"},
+            env={"PARTS": result, "LINT": "success", "REUSE": "success"},
             capture_output=True,
             text=True,
         )
@@ -1336,35 +1336,57 @@ def test_every_path_in_the_macos_quick_list_is_a_test_file_or_a_tests_directory_
         ), path
 
 
-def test_the_fast_check_selects_and_lints_once_over_two_commits_and_runs_no_selection_in_a_part():
-    """The job `select` reads the diff over main, HEAD^1 on GitHub's merge, once a run, and hands
-    each of the eight parts its files; the parts run neither the selection nor the lint."""
-    found, _ = steps(CHECK.read_text(), "select")
-    assert [step.get("uses", step.get("run")).partition("@")[0] for step in found] == [
+def test_the_fast_check_selects_in_reuse_and_lints_beside_it_and_runs_neither_in_a_part():
+    """The job `reuse`, where it reuses nothing, reads the diff over main, HEAD^1 on GitHub's
+    merge, once a run, and hands each of the eight parts its files, in the runner's python3 with
+    no `uv sync` and no collection, so no job of its own stands between it and the parts. The
+    lint is a job of its own beside it, which waits on nothing and nothing waits on but `check`.
+    The parts run neither the selection nor the lint."""
+    found, _ = steps(CHECK.read_text(), "reuse")
+    named = [step.get("uses", step.get("name")).partition("@")[0] for step in found]
+    assert named == [
         "actions/checkout",
-        "astral-sh/setup-uv",
-        "uv sync --locked",
-        'echo "name=green-tree-$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"',
+        "reuse",
         "actions/cache",
-        "uv run python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD",
-        "python3 features/writing/scripts/prose_lint.py HEAD^1",
-        "make lint BASE=HEAD^1",
+        "failed on main",
+        "green tree",
+        "actions/cache",
+        "select",
         "actions/upload-artifact",
+        "no AI co-author trailer",
     ]
-    assert found[0]["with"] == {"persist-credentials": False, "fetch-depth": "2"}
-    assert all("if" not in step for step in found[:-1])
-    assert (found[3]["id"], found[5]["id"]) == ("tree", "select")
-    assert found[5]["env"] == {
-        "FAILED_ON_MAIN": "${{ needs.reuse.outputs.failed }}",
+    tree, select = found[4], found[6]
+    assert tree["run"] == 'echo "name=green-tree-$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"'
+    assert select["run"] == "python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD"
+    assert "uv" not in " ".join(str(step.get("run", "")) for step in found)
+    assert (tree["id"], select["id"]) == ("tree", "select")
+    assert tree["if"] == select["if"] == "steps.reuse.outputs.reused != 'true'"
+    assert "continue-on-error" not in select
+    assert select["env"] == {
+        "FAILED_ON_MAIN": "${{ steps.failed.outputs.tests }}",
         "SELECTED": "${{ runner.temp }}/selected-tests.txt",
     }
-    assert job_line("select", "needs") == "reuse"
-    assert job_section("select", "outputs") == {
+    outputs = job_section("reuse", "outputs")
+    assert {
+        key: outputs[key] for key in outputs if key not in ("name", "reused", "failed", "lookup")
+    } == {
         "selection": "${{ steps.select.outputs.selection }}",
         "files": "${{ steps.select.outputs.files }}",
         "forced_by": "${{ steps.select.outputs.forced_by }}",
         "tree": "${{ steps.tree.outputs.name }}",
     } | {f"part{k}": f"${{{{ steps.select.outputs.part{k} }}}}" for k in range(1, 9)}
+    lint, keys = steps(CHECK.read_text(), "lint")
+    assert [step.get("uses", step.get("run")).partition("@")[0] for step in lint] == [
+        "actions/checkout",
+        "astral-sh/setup-uv",
+        "uv sync --locked",
+        "python3 features/writing/scripts/prose_lint.py HEAD^1",
+        "make lint BASE=HEAD^1",
+    ]
+    assert lint[0]["with"] == {"persist-credentials": False, "fetch-depth": "2"}
+    assert "needs" not in keys and job_line("lint", "needs") is None
+    assert all("if" not in step for step in lint)
+    assert ran_on("lint", reused="true") == ran_on("lint", reused="") == ["pull_request"]
     parts, _ = steps(CHECK.read_text(), "check-shard")
     said = " ".join(map(str, parts))
     assert "select_tests" not in said and "check-fast" not in said and "lint" not in said
@@ -1385,17 +1407,16 @@ def test_the_fast_check_selects_and_lints_once_over_two_commits_and_runs_no_sele
 
 def test_the_select_step_starts_from_the_facts_a_run_of_the_same_selector_kept():
     """select_tests.py keeps what it read of each module in `KEPT` under the git directory, and
-    parses again only a module whose text changed. The job `select` restores that file right
+    parses again only a module whose text changed. The job `reuse` restores that file right
     before the selection and saves it after, under a key that hashes the selector and ends in the
     run, so each run saves an entry of its own and a run restores the latest one only of the
-    same selector: a changed script starts cold and never reads facts an older one wrote."""
-    found, _ = steps(CHECK.read_text(), "select")
-    names = [step.get("uses", step.get("run")).partition("@")[0] for step in found]
-    at = names.index("actions/cache")
-    assert found[at + 1]["id"] == "select"
+    same selector: a changed script starts cold and never reads facts an older one wrote. A
+    reuse selects nothing, and restores nothing."""
+    found, _ = steps(CHECK.read_text(), "reuse")
+    at = next(n for n, step in enumerate(found) if step.get("id") == "select") - 1
     cache = found[at]
     assert re.fullmatch(r"actions/cache@[0-9a-f]{40}", cache["uses"])
-    assert "if" not in cache
+    assert cache["if"] == "steps.reuse.outputs.reused != 'true'"
     script = (REPO / "scripts" / "select_tests.py").read_text()
     kept = re.search(r'^KEPT = "([^"]+)"$', script, re.M)
     selector = "select-facts-${{ hashFiles('scripts/select_tests.py') }}-"
@@ -1409,24 +1430,32 @@ def test_the_select_step_starts_from_the_facts_a_run_of_the_same_selector_kept()
 def test_a_run_on_main_saves_the_facts_under_the_key_a_pull_requests_select_restores():
     """A cache saved on a pull request's ref is seen by that pull request only, and one saved on
     main by every pull request. So a run on main, and only there, builds the facts on main's
-    tree and saves them as `select` does: the same file, under the same key, so the restore-keys
-    of a pull request's first run find main's entry."""
+    tree and saves them as `reuse` does: the same file, under the same key, so the restore-keys
+    of a pull request's first run find main's entry. It builds them in the runner's python3, as
+    `reuse` selects, since the facts are kept under a salt that holds the Python's version."""
     assert ran_on("select-facts") == ["push", "workflow_dispatch"]
-    select, _ = steps(CHECK.read_text(), "select")
+    reuse, _ = steps(CHECK.read_text(), "reuse")
     found, _ = steps(CHECK.read_text(), "select-facts")
     names = [step.get("uses", step.get("run")).partition("@")[0] for step in found]
-    assert names[:3] == ["actions/checkout", "astral-sh/setup-uv", "uv sync --locked"]
+    assert names[:2] == ["actions/checkout", "actions/cache"]
+    assert "uv" not in " ".join(str(step.get("run", "")) for step in found)
     assert found[0]["with"] == {"persist-credentials": False}
     at = names.index("actions/cache")
-    restores = next(step for step in select if step.get("uses", "").startswith("actions/cache@"))
+    restores = next(
+        step
+        for step in reuse
+        if step.get("uses", "").startswith("actions/cache@")
+        and "select_tests" in str(step.get("with"))
+    )
     assert {key: found[at][key] for key in ("uses", "with")} == {
         key: restores[key] for key in ("uses", "with")
     }
     assert "if" not in found[at]
+    assert found[at + 1]["run"].startswith("python3 -c ")
     assert "select_tests.facts()" in found[at + 1]["run"]
 
 
-PART = "${{ needs.select.outputs[format('part{0}', matrix.shard)] }}"
+PART = "${{ needs.reuse.outputs[format('part{0}', matrix.shard)] }}"
 
 
 @pytest.mark.parametrize(
@@ -1442,7 +1471,7 @@ PART = "${{ needs.select.outputs[format('part{0}', matrix.shard)] }}"
     ],
 )
 def test_a_part_runs_only_its_own_files_and_fails_on_no_selection(tmp_path, part, ends, made):
-    """Each part reads its own output of `select`, and its steps run here as the runner runs them,
+    """Each part reads its own output of `reuse`, and its steps run here as the runner runs them,
     with a `make` that records what it was asked: a part runs `make test` on its files alone, so
     it collects only those; a part the selection left empty (`none`) passes; and a part that got
     nothing fails before its checkout, since `make test` with no files runs the whole suite."""
@@ -1641,22 +1670,24 @@ def test_only_full_asks_for_a_marker_and_both_jobs_leave_one():
 def test_a_pull_requests_check_leaves_a_marker_only_when_it_ran_the_whole_suite_and_passed():
     *_, mark, upload = steps(CHECK.read_text(), "check")[0]
     assert [
-        (result, select, selection)
+        (result, lint, reuse, selection)
         for result in RESULTS
-        for select in RESULTS
+        for lint in RESULTS
+        for reuse in RESULTS
         for selection in ("all", "some", "")
         if worked(
             mark["if"],
             {
                 "needs.check-shard.result": result,
-                "needs.select.result": select,
-                "needs.select.outputs.selection": selection,
+                "needs.lint.result": lint,
+                "needs.reuse.result": reuse,
+                "needs.reuse.outputs.selection": selection,
             },
         )
-    ] == [("success", "success", "all")]
+    ] == [("success", "success", "success", "all")]
     assert (mark["id"], mark["env"]) == (
         "marker",
-        {"NAME": "${{ needs.select.outputs.tree }}"},
+        {"NAME": "${{ needs.reuse.outputs.tree }}"},
     )
     assert (
         mark["run"] == 'mkdir -p "$RUNNER_TEMP/green-tree" && touch "$RUNNER_TEMP/green-tree/$NAME"'
@@ -1664,8 +1695,8 @@ def test_a_pull_requests_check_leaves_a_marker_only_when_it_ran_the_whole_suite_
     assert [o for o in OUTCOMES if worked(upload["if"], {"steps.marker.outcome": o})] == ["success"]
     assert (upload["id"], upload["continue-on-error"]) == ("upload", True)
     assert upload["with"] == {
-        "name": "${{ needs.select.outputs.tree }}",
-        "path": "${{ runner.temp }}/green-tree/${{ needs.select.outputs.tree }}",
+        "name": "${{ needs.reuse.outputs.tree }}",
+        "path": "${{ runner.temp }}/green-tree/${{ needs.reuse.outputs.tree }}",
         "retention-days": "7",
         "if-no-files-found": "error",
     }
@@ -1681,10 +1712,10 @@ def test_a_pull_requests_check_says_whether_the_suite_ran_whole_and_on_which_tre
         if worked(report["if"], {"!cancelled()": True, "steps.suite.outcome": o})
     ] == ["success", "failure", "cancelled", ""]
     assert report["env"] == {
-        "FULL": "${{ needs.select.outputs.selection == 'all' }}",
-        "NAME": "${{ needs.select.outputs.tree }}",
-        "FILES": "${{ needs.select.outputs.files }}",
-        "FORCED": "${{ needs.select.outputs.forced_by }}",
+        "FULL": "${{ needs.reuse.outputs.selection == 'all' }}",
+        "NAME": "${{ needs.reuse.outputs.tree }}",
+        "FILES": "${{ needs.reuse.outputs.files }}",
+        "FORCED": "${{ needs.reuse.outputs.forced_by }}",
     }
     bin = tmp_path / "bin"
     bin.mkdir()
@@ -1717,13 +1748,18 @@ def test_a_pull_requests_check_says_whether_the_suite_ran_whole_and_on_which_tre
 
 def test_a_pull_requests_check_keeps_the_list_of_tests_it_selected_as_an_artifact():
     """select_tests.py writes the selection it printed to the file `$SELECTED` names, and the
-    job `select` keeps that file for each attempt, whether its lint passed or failed, so a red
-    on main can be checked against what its pull request's check ran."""
-    found = steps(CHECK.read_text(), "select")[0]
-    kept = found[-1]
+    job `reuse` keeps that file for each attempt where it selected, also where the selection
+    failed, so a red on main can be checked against what its pull request's check ran."""
+    found = steps(CHECK.read_text(), "reuse")[0]
+    (kept,) = [step for step in found if "upload-artifact" in step.get("uses", "")]
     assert re.fullmatch(r"actions/upload-artifact@[0-9a-f]{40}", kept["uses"])
     assert kept["continue-on-error"] is True
-    assert [c for c in (True, False) if worked(kept["if"], {"!cancelled()": c})] == [True]
+    assert [
+        (c, reused)
+        for c in (True, False)
+        for reused in ("true", "false", "")
+        if worked(kept["if"], {"!cancelled()": c, "steps.reuse.outputs.reused": reused})
+    ] == [(True, "false"), (True, "")]
     assert kept["with"] == {
         "name": "selected-tests-${{ github.run_attempt }}",
         "path": "${{ runner.temp }}/selected-tests.txt",
@@ -2237,7 +2273,7 @@ def test_a_push_runs_the_browser_tests_for_a_version_tag_and_never_for_a_branch(
 def test_the_browser_job_runs_only_the_marked_tests_and_the_checks_jobs_never_name_that_target():
     found, _ = steps(BROWSER.read_text(), "browser")
     assert found[-2] == {"name": "make check-browser", "run": "make check-browser"}
-    for job in ("select", "check-shard", "check", "full-shard", "full"):
+    for job in ("reuse", "lint", "check-shard", "check", "full-shard", "full"):
         assert "check-browser" not in " ".join(map(str, steps(CHECK.read_text(), job)[0]))
 
 
@@ -2356,7 +2392,7 @@ def test_every_setup_uv_step_installs_one_exact_uv_named_once_in_each_workflow()
     found = {name: versions for name, versions in found.items() if versions}
     assert {name: len(versions) for name, versions in found.items()} == {
         "browser.yml": 1,
-        "check.yml": 4,
+        "check.yml": 3,
         "macos-nightly.yml": 1,
         "macos.yml": 2,
         "pstack-drift.yml": 1,
@@ -2501,13 +2537,15 @@ HUMAN = "Co-authored-by: Ada Lovelace <ada@example.com>"
 
 def test_every_pull_request_run_checks_for_an_ai_trailer_a_reuse_included():
     """The two trees a reuse keys on fix the files, not the title, the body or a commit's
-    message, so the trailer check runs in `reuse`, on every run, and no part runs it again."""
+    message, so the trailer check runs in `reuse`, on every run, also where the selection there
+    failed, and no part runs it again."""
     found, _ = steps(CHECK.read_text(), "reuse")
     (trailer,) = [step for step in found if step.get("name") == "no AI co-author trailer"]
     assert trailer["run"] == (
         "PYTHONPATH=features/jmerge/src:features/jleak/src python3 scripts/no_ai_trailers.py"
     )
-    assert "if" not in trailer and "continue-on-error" not in trailer
+    assert found[-1] is trailer and "continue-on-error" not in trailer
+    assert [c for c in (True, False) if worked(trailer["if"], {"!cancelled()": c})] == [True]
     assert trailer["env"] == {"GITHUB_TOKEN": "${{ github.token }}"}
     assert "no_ai_trailers" not in " ".join(map(str, steps(CHECK.read_text(), "check-shard")[0]))
 
@@ -2668,55 +2706,57 @@ def test_a_reuse_skips_the_parts_and_check_passes_on_it_and_a_miss_runs_them():
         == ran_on("check-shard", reused="")
         == ["pull_request"]
     )
-    assert ran_on("select", reused="true") == []
-    assert ran_on("select", reused="false") == ran_on("select", reused="") == ["pull_request"]
-    assert job_line("check-shard", "needs") == ["reuse", "select"]
+    assert job_line("check-shard", "needs") == "reuse"
     (every, *_), _ = steps(CHECK.read_text(), "check")
     assert every["env"]["REUSED"] == "${{ needs.reuse.outputs.reused }}"
     assert every["env"]["REUSE"] == "${{ needs.reuse.result }}"
-    assert every["env"]["SELECT"] == "${{ needs.select.result }}"
+    assert every["env"]["LINT"] == "${{ needs.lint.result }}"
     passes = [
-        (reuse, reused, select, result)
+        (reuse, reused, lint, result)
         for reuse in RESULTS
         for reused in ("true", "false", "")
-        for select in RESULTS
+        for lint in RESULTS
         for result in RESULTS
         if subprocess.run(
             ["sh", "-c", every["run"]],
-            env={"PARTS": result, "SELECT": select, "REUSE": reuse, "REUSED": reused},
+            env={"PARTS": result, "LINT": lint, "REUSE": reuse, "REUSED": reused},
             capture_output=True,
             text=True,
         ).returncode
         == 0
     ]
-    assert passes == [
-        ("success", "true", select, result) for select in RESULTS for result in RESULTS
-    ] + [("success", "false", "success", "success"), ("success", "", "success", "success")]
+    assert passes == [("success", "true", "success", result) for result in RESULTS] + [
+        ("success", "false", "success", "success"),
+        ("success", "", "success", "success"),
+    ]
 
 
 def test_a_run_whose_parts_passed_leaves_the_marker_of_its_two_trees_and_a_reuse_leaves_none():
     found, _ = steps(CHECK.read_text(), "check")
     _, mark, upload, *_ = found
-    assert job_section("reuse", "outputs") == {
+    outputs = job_section("reuse", "outputs")
+    assert {key: outputs[key] for key in ("name", "reused", "failed", "lookup")} == {
         "name": "${{ steps.reuse.outputs.name }}",
         "reused": "${{ steps.reuse.outputs.reused }}",
         "failed": "${{ steps.failed.outputs.tests }}",
         "lookup": "${{ steps.failed.outcome }}",
     }
     assert [
-        (result, select, name)
+        (result, lint, reuse, name)
         for result in RESULTS
-        for select in RESULTS
+        for lint in RESULTS
+        for reuse in RESULTS
         for name in ("checked-tree-a-b", "")
         if worked(
             mark["if"],
             {
                 "needs.check-shard.result": result,
-                "needs.select.result": select,
+                "needs.lint.result": lint,
+                "needs.reuse.result": reuse,
                 "needs.reuse.outputs.name": name,
             },
         )
-    ] == [("success", "success", "checked-tree-a-b")]
+    ] == [("success", "success", "success", "checked-tree-a-b")]
     assert mark["env"] == {"NAME": "${{ needs.reuse.outputs.name }}"}
     assert [o for o in OUTCOMES if worked(upload["if"], {"steps.checked.outcome": o})] == [
         "success"
