@@ -532,7 +532,7 @@ The typed form, `jmerge --accept <number> --by <user> --at "YYYY-MM-DD HH:MM <zo
 
 It lifts the hold at the head where `jmerge` reported it.
 `jmerge` records that head in `holds.json` in the state directory.
-It refuses a pull request that is not held, one whose head is not the head on record, and one with no proven safety fact at that head, unless its brief says `Review: none`.
+It refuses a pull request that is not held, other than one waiting in line ("A pull request waiting in line" below), one whose head is not the head on record, and one with no proven safety fact at that head, unless its brief says `Review: none`.
 
 **A proven safety fact.**
 At the commit it saw, the review proved the one fact that makes the change safe.
