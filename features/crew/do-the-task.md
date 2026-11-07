@@ -115,74 +115,17 @@
   Run this in this worktree, with the block at the top, and the brief's slug and this thread's id in place of the words in angle brackets:
 
   ```sh
-  B="$H/tasks/<slug>.md"
-  on=$(awk '/^## / {exit} /^Stacked on:/ {print $(4); exit}' "$B" 2> /dev/null)
-  on=origin/${on:-main}
-  git rev-parse -q --verify "$on^{commit}" > /dev/null || on=origin/main
-  head=$(git rev-parse HEAD)
-  if [ -n "$(git status --porcelain)" ]; then
-      echo "no proof: commit the work first"
-  elif ! base=$(git merge-base "$on" HEAD); then
-      echo "no proof: the branch shares no commit with $on"
-  elif ! tests=$(git diff --name-only --diff-filter=d "$base" HEAD | command grep -E '(^|/)(test_[^/]*|[^/]*_test)\.py$'); then
-      echo "no test changed: the Result says Proved: none, <kind>, where every file it changes is of that kind"
-  else
-      kept='(^|/)tests?/|(^|/)(test_[^/]*|[^/]*_test|conftest)\.py$'
-      exempt='(^|/)(docs|\.github)/|(^|/)\.[^/]*$|\.(md|txt|rst|toml|json|yml|yaml|cfg|ini|lock)$'
-      tree=$(mktemp -d "${TMPDIR:-/tmp}/base.XXXXXX")
-      trap 'rm -rf "$tree"' EXIT
-      if git diff --name-only --no-renames "$base" HEAD | command grep -vE "$kept" | command grep -qvE "$exempt"; then
-          only=
-          sides='head base'
-          git clone -q --shared --no-checkout . "$tree"
-          git -C "$tree" checkout -q --detach "$base"
-          git diff --name-only --diff-filter=d "$base" HEAD | command grep -E "$kept" |
-              while read -r file; do
-                  mkdir -p "$tree/$(dirname "$file")"
-                  git show "HEAD:$file" > "$tree/$file"
-              done
-          (cd "$tree" && env -u VIRTUAL_ENV uv sync -q)
-      else
-          only=1
-          sides=head
-          echo "tests only: every file the branch changes is a test, docs or config, so its tests run at the head alone"
-      fi
-      list=$(printf '%s\n' "$tests" | paste -sd ' ' -)
-      : > "$tree/.proof-said"
-      for side in $sides; do
-          if [ "$side" = head ]; then at=$PWD more=; else at=$tree more=--continue-on-collection-errors; fi
-          PROOF_AT=$at PROOF_MORE=$more PROOF_SIDE=$side PROOF_OUT=$tree/.proof-$side PROOF_TESTS=$list uv run --project "$T/../source" jgauge test-slot --short --thread '<thread id>' -- bash -c '
-              cd "$PROOF_AT" || exit
-              workers=
-              if env -u VIRTUAL_ENV uv run python -c "import xdist" > /dev/null 2>&1; then workers="-n auto --dist worksteal"; fi
-              env -u VIRTUAL_ENV uv run pytest -q -p no:cacheprovider $workers $PROOF_MORE $PROOF_TESTS > "$PROOF_OUT" 2>&1
-              echo "$PROOF_SIDE exit $?: $(tail -n 1 "$PROOF_OUT")"
-          ' | tee -a "$tree/.proof-said"
-          ran=${PIPESTATUS[0]}
-          [ "$ran" = 0 ] || break
-      done
-      at_head=$(sed -n 's/^head exit \([0-9]*\):.*/\1/p' "$tree/.proof-said")
-      at_base=$(sed -n 's/^base exit \([0-9]*\):.*/\1/p' "$tree/.proof-said")
-      line=
-      if [ "$ran" != 0 ] || [ -z "$at_head" ] || { [ -z "$only" ] && [ -z "$at_base" ]; }; then
-          echo "no proof: the slot's run ended $ran"
-      elif [ -n "$only" ]; then
-          line="Proved: $list head exit $at_head at $head, tests only"
-      else
-          line="Proved: $list base exit $at_base at $base, head exit $at_head at $head"
-      fi
-      if [ -n "$line" ]; then
-          echo "$line"
-          if command grep -q '^## Result' "$B"; then printf '%s\n' "$line" >> "$B"; fi
-      fi
-  fi
+  bash "$T/proved.sh" "$H/tasks/<slug>.md" '<thread id>'
   ```
 
+  The block is one command that runs `$T/proved.sh` by its path, and the script holds the proof's steps.
+  Claude Code stops a command that holds `rm`, a trap's or an inner shell's too, to ask the user, even in full access ("This shell -c script runs rm and could not be checked"), and a crew cannot answer its own ask: on 2026-11-07 five crews waited on the trap that removed the copy, for hours.
+  Run the script as the block does, never its steps pasted into a call.
   The head's tests run at the head, then laid over a copy of the base's files with a venv of its own, so the base run imports the base's code and not the head's.
   The head run and the base run each take a short slot of their own, so each has the lane's whole time limit, and each runs on pytest's workers (`-n auto --dist worksteal`) where the tree's venv has pytest-xdist, on one process where it has not.
   The copy is a clone of this repo in a temp directory, checked out at the base and sharing this repo's objects, not a git worktree: it is a repository of its own, so a test that runs git there reads the base, and it leaves `git worktree list` here as it was, whether the tests pass, fail or the call is cut off.
   The block needs no `git worktree remove`, which the door hook refuses as a deletion of data (`deletes data`), refusing the whole call with it.
-  The block removes its copy when its shell exits, after a pass, a failure or a slot's 124 alike (a trap on `EXIT`), so no copy is left in the temp directory; a call killed outright leaves its copy there, as other scratch is left.
+  The script removes its copy when it exits, after a pass, a failure, a slot's 124 or a TERM that stops the call alike (a trap on `EXIT`), so no copy is left in the temp directory; a call killed outright, with KILL, leaves its copy there, as other scratch is left.
   The files laid over it are the tests and what they lean on: every changed file under a `tests/` or `test/` directory, each `test_*.py` or `*_test.py`, and each `conftest.py`.
   A branch whose every changed file, a deleted one too, is such a file or of a kind `jbriefs.proved.EXEMPT` names (docs, config, listed below) changes no code: the base's code is the head's own, so its tests pass there as well and a base run proves nothing.
   A test made faster, split or cleaned up is such a branch, and so is a removal of tests with the doc that named them.

@@ -1,0 +1,69 @@
+#!/bin/bash
+# The crew's proof of the tests a branch changes: each runs at the head, then laid over a copy
+# of the merge-base's code, and the `Proved:` line `jmerge` reads is printed, and appended to the
+# brief once it has a Result. features/crew/do-the-task.md says what it proves and how.
+# A crew runs it by its path, `bash "$T/proved.sh" <brief> <thread id>`, from its worktree: the
+# command it sends then holds no `rm`, which Claude Code stops to ask about, even in full access.
+B=$1
+thread=$2
+T=$(dirname "$0")
+on=$(awk '/^## / {exit} /^Stacked on:/ {print $(4); exit}' "$B" 2> /dev/null)
+on=origin/${on:-main}
+git rev-parse -q --verify "$on^{commit}" > /dev/null || on=origin/main
+head=$(git rev-parse HEAD)
+if [ -n "$(git status --porcelain)" ]; then
+    echo "no proof: commit the work first"
+elif ! base=$(git merge-base "$on" HEAD); then
+    echo "no proof: the branch shares no commit with $on"
+elif ! tests=$(git diff --name-only --diff-filter=d "$base" HEAD | command grep -E '(^|/)(test_[^/]*|[^/]*_test)\.py$'); then
+    echo "no test changed: the Result says Proved: none, <kind>, where every file it changes is of that kind"
+else
+    kept='(^|/)tests?/|(^|/)(test_[^/]*|[^/]*_test|conftest)\.py$'
+    exempt='(^|/)(docs|\.github)/|(^|/)\.[^/]*$|\.(md|txt|rst|toml|json|yml|yaml|cfg|ini|lock)$'
+    tree=$(mktemp -d "${TMPDIR:-/tmp}/base.XXXXXX")
+    trap 'rm -rf "$tree"' EXIT
+    if git diff --name-only --no-renames "$base" HEAD | command grep -vE "$kept" | command grep -qvE "$exempt"; then
+        only=
+        sides='head base'
+        git clone -q --shared --no-checkout . "$tree"
+        git -C "$tree" checkout -q --detach "$base"
+        git diff --name-only --diff-filter=d "$base" HEAD | command grep -E "$kept" |
+            while read -r file; do
+                mkdir -p "$tree/$(dirname "$file")"
+                git show "HEAD:$file" > "$tree/$file"
+            done
+        (cd "$tree" && env -u VIRTUAL_ENV uv sync -q)
+    else
+        only=1
+        sides=head
+        echo "tests only: every file the branch changes is a test, docs or config, so its tests run at the head alone"
+    fi
+    list=$(printf '%s\n' "$tests" | paste -sd ' ' -)
+    : > "$tree/.proof-said"
+    for side in $sides; do
+        if [ "$side" = head ]; then at=$PWD more=; else at=$tree more=--continue-on-collection-errors; fi
+        PROOF_AT=$at PROOF_MORE=$more PROOF_SIDE=$side PROOF_OUT=$tree/.proof-$side PROOF_TESTS=$list uv run --project "$T/../source" jgauge test-slot --short --thread "$thread" -- bash -c '
+            cd "$PROOF_AT" || exit
+            workers=
+            if env -u VIRTUAL_ENV uv run python -c "import xdist" > /dev/null 2>&1; then workers="-n auto --dist worksteal"; fi
+            env -u VIRTUAL_ENV uv run pytest -q -p no:cacheprovider $workers $PROOF_MORE $PROOF_TESTS > "$PROOF_OUT" 2>&1
+            echo "$PROOF_SIDE exit $?: $(tail -n 1 "$PROOF_OUT")"
+        ' | tee -a "$tree/.proof-said"
+        ran=${PIPESTATUS[0]}
+        [ "$ran" = 0 ] || break
+    done
+    at_head=$(sed -n 's/^head exit \([0-9]*\):.*/\1/p' "$tree/.proof-said")
+    at_base=$(sed -n 's/^base exit \([0-9]*\):.*/\1/p' "$tree/.proof-said")
+    line=
+    if [ "$ran" != 0 ] || [ -z "$at_head" ] || { [ -z "$only" ] && [ -z "$at_base" ]; }; then
+        echo "no proof: the slot's run ended $ran"
+    elif [ -n "$only" ]; then
+        line="Proved: $list head exit $at_head at $head, tests only"
+    else
+        line="Proved: $list base exit $at_base at $base, head exit $at_head at $head"
+    fi
+    if [ -n "$line" ]; then
+        echo "$line"
+        if command grep -q '^## Result' "$B"; then printf '%s\n' "$line" >> "$B"; fi
+    fi
+fi

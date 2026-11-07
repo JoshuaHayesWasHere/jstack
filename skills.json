@@ -751,6 +751,12 @@
       "source": "jstack"
     },
     {
+      "name": "proved.sh",
+      "kind": "template",
+      "path": "features/crew/templates/proved.sh",
+      "source": "jstack"
+    },
+    {
       "name": "rerun.md",
       "kind": "template",
       "path": "features/crew/templates/rerun.md",

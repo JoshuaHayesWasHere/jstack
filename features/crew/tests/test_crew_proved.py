@@ -109,7 +109,7 @@ def commit(tree, files):
 
 def script():
     return (
-        block("Do the task", "Proved: ")
+        block("Do the task", "proved.sh")
         .replace("<slug>", "a-task")
         .replace("<thread id>", "mcp:thread-1")
     )
@@ -223,6 +223,34 @@ def test_a_run_cut_off_mid_test_leaves_the_worktree_list_as_it_was(repo):
         os.killpg(running.pid, signal.SIGKILL)
         running.wait()
     assert worktrees(repo) == before
+
+
+def test_a_run_stopped_mid_test_leaves_no_copy_of_the_base(repo):
+    """A harness stops a call that runs past its time limit with TERM to its group: the script
+    removes its copy of the base as it exits, as after a pass, a failure or a 124."""
+    commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
+    stalled = repo.parent / "stalled"
+    running = subprocess.Popen(
+        ["bash", "-c", script()],
+        cwd=repo,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env=environ(repo, STALL=str(stalled)),
+        start_new_session=True,
+    )
+    try:
+        waited = time.monotonic() + 30
+        while not stalled.exists():
+            assert running.poll() is None and time.monotonic() < waited
+            time.sleep(0.05)
+        assert copies(repo) != []
+        os.killpg(running.pid, signal.SIGTERM)
+        running.wait(30)
+    finally:
+        if running.poll() is None:
+            os.killpg(running.pid, signal.SIGKILL)
+            running.wait()
+    assert copies(repo) == []
 
 
 def test_a_test_that_reads_git_runs_at_the_base_in_a_repo_of_its_own(repo):
