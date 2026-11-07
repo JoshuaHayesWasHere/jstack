@@ -179,7 +179,7 @@ Merges(p) ==
     \* Its one review round came before it opened, at the head its desk proof binds, and a fix its
     \* crew pushes for the findings gets no review (review-after-green-one-round,
     \* vision-review-before-pr): the merge waits on that pass and the round's verdict at the head.
-    \* features/jmerge/src/jmerge/ready.py `short = _cleanup(said) if said.mode == CLEANUP else _review(said, head)`
+    \* features/jmerge/src/jmerge/ready.py `short = _cleanup(said) if said.mode == CLEANUP else _review(said, head, proven)`
     \* Its last review round says the brief is met (#843).
     /\ meets[p]                             \* features/jmerge/src/jmerge/ready.py `return short or short_on_meets(text, heard)`
     \* A red main holds no pull request (red-main-no-hold, #862): only its own checks do.
