@@ -120,7 +120,8 @@ A turn can still end on a wait the hook cannot see, such as a gate jbus holds or
 The hook does not fire on an interrupt in Claude Code, and `threads.resume` stays the fallback for a thread that ended with no Result.
 
 The hook fails open: what it cannot judge ends the turn.
-It prints its answer, `{"decision": "block", "reason": "<what to do>"}`, on stdout, and only when `jbus.crewend` ended 0: a crash, or a run past 4 seconds, prints nothing. The entry discards stderr and any exit code.
+It prints its answer, `{"decision": "block", "reason": "<what to do>"}`, on stdout, and only when `jbus.crewend` ended 0: a crash, or a run past 4 seconds, prints nothing.
+The entry discards stderr and any exit code.
 It needs `git` and Python 3.12 or newer, or the release's own Python, which it finds as the sends hook does, through `features/jbus/hooks/judge.sh`.
 `install.sh` merges this group into `~/.claude/settings.json` and `~/.codex/hooks.json`:
 
