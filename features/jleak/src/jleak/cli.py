@@ -11,8 +11,10 @@
 `--all` checks every tracked file of the repo it runs in. jleak checks a FILE as it is. It
 reads `-` as what is piped in, and a finding names that text by the FIELD that `--as` gives.
 `--push` reads what git gives a `pre-push` hook. Its URL is the second argument that git passes
-the hook. `--command` reads what Claude Code gives a `PreToolUse` hook. It reads the private
-patterns only for a command that writes to a pull request, since no other command needs them.
+the hook. Where no pattern matches, it refuses a crew's push of a head its desk check does
+not bind (`jleak.crewpush`). `--command` reads what Claude Code gives a `PreToolUse` hook. It
+reads the private patterns only for a command that writes to a pull request, since no other
+command needs them.
 
 The next two forms read no private pattern: they look for the AI trailers of `jleak.trailers`.
 `--trailers` reads what Claude Code or Codex gives a `PreToolUse` hook, and refuses a commit or a
@@ -45,7 +47,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import jleak
-from jleak import infra, sources, trailers
+from jleak import crewpush, infra, sources, trailers
 
 
 def parser() -> argparse.ArgumentParser:
@@ -155,13 +157,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     if not (args.all or args.push or args.command or args.files):
         parser().print_usage(sys.stderr)
         return 2
+    crew: list[str] = []
     try:
         if args.command:
             command, cwd = typed(sys.stdin.read())
             found, sent = sources.command(command, cwd)
             found += jleak.scan(sent, patterns(args)) if sent else []
         elif args.push:
-            found = jleak.scan(sources.pushed(sys.stdin, args.push), patterns(args))
+            refs = sys.stdin.readlines()
+            found = jleak.scan(sources.pushed(refs, args.push), patterns(args))
+            crew = [] if found else crewpush.refused(refs)
         elif args.all:
             found = jleak.scan(sources.tree(Path.cwd()), patterns(args))
         else:
@@ -180,6 +185,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(count(found))
     elif found and args.push:
         print(f"jleak: {count(found)}, so the push is refused", file=sys.stderr)
+    elif crew:
+        print("\n".join(crew), file=sys.stderr)
+        return 1
     elif found:
         again = "take the text out and run it again"
         if all(finding.pattern == "home-path" for finding in found):

@@ -224,7 +224,8 @@
 
   It asks `jmerge`'s own rule (`ready.short_on_checked`) of the brief's last `Checked:` line at the head, with no other head carried, and pushes only where the check block passed there: on `no push`, run the check block again at the head, fix what it finds, and run this block again.
   A failure, a 124, a missing line and a line of another head each refuse the push, so no review is launched and no pull request opens on a head whose desk check did not pass.
-  It is a block and not a git hook: a flag of `git push` skips a hook, and the check takes a slot of its own.
+  jleak's `pre-push` hook asks the same rule of every head a crew's worktree pushes, the fix pushes of "The review" and "The checks" and a rebase's included, and refuses one it does not bind with `crew-push: refused: <why>: run the check block of "Do the task" at <head12>, then push again`.
+  The hook holds since the door hook refuses a `git push` that skips it, by `--no-verify` or by a moved `core.hooksPath`; it runs no check itself, since the check takes a slot of its own, and this block stays to say why before a push is tried.
   A brief with a `Stacked on:` line in its head is a link jbus stacked: its row builds on a row whose pull request was open when it launched, and its worktree started from that pull request's branch.
   Its Result names the stack on its `Stacked on:` line, and jbus says when it moves ("A link that moved").
   The link stays stacked until its base merged, and only then does jbus move it and rewrite the line.
