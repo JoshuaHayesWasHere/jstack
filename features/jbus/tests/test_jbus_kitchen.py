@@ -375,27 +375,6 @@ class T3(Server):
                     thread["updatedAt"] = iso(datetime.now(UTC))
             made = {"threadId": given["threadId"], "status": "queued"}
         elif tool == "t3_thread_configure":
-            if given.get("view") == "messages":
-                after = given.get("afterPosition", -1)
-                listed = sorted(
-                    (one for (t, _), one in self.said.items() if t == given["threadId"]),
-                    key=lambda one: one["position"],
-                )
-                later = [one for one in listed if one["position"] > after]
-                page = [
-                    {
-                        **{k: v for k, v in one.items() if k != "title"},
-                        "text": one["text"][: given["maxCharsPerItem"]],
-                    }
-                    for one in later[: given["limit"]]
-                ]
-                made = {
-                    "thread": {"threadId": given["threadId"]},
-                    "items": page,
-                    "nextPosition": page[-1]["position"] if page else None,
-                    "hasMore": len(later) > len(page),
-                }
-                return {"structuredContent": made, "content": []}
             found = [t for t in self.threads if t["threadId"] == given["threadId"]]
             if not found:
                 return gone(given["threadId"], "is no longer available")
