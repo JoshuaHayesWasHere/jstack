@@ -46,3 +46,30 @@ def test_every_line_the_playbook_asks_for_is_named_once_in_one_fault():
 def test_a_playbook_that_asks_for_no_line_adds_no_fault():
     assert parse.faults(brief("feature")) == []
     assert parse.faults(brief("bug-fix")) == []
+
+
+@pytest.mark.parametrize(
+    "said", ["after the review", "push to main", "yes", "one when done", "nonesuch", "open ones"]
+)
+def test_a_pull_request_line_that_is_none_of_the_template_choices_is_refused(said):
+    (fault,) = parse.faults(brief("bug-fix", pull_request=f"Pull request: {said}\n"))
+    assert fault.startswith(f"brief's Pull request: line says {said},"), fault
+    for choice in ("`open one when done`", "`ask first`", "`none"):
+        assert choice in fault, fault
+
+
+@pytest.mark.parametrize(
+    "said",
+    [
+        "open one when done",
+        "open one, then stack the next",
+        "ask first",
+        "none",
+        "none.",
+        "none, this changes no code",
+        "none. This is an operation on the machine",
+    ],
+)
+def test_a_pull_request_line_that_starts_with_a_template_choice_has_no_fault(said):
+    playbook = "runtime-forensics" if said == "ask first" else "bug-fix"
+    assert parse.faults(brief(playbook, pull_request=f"Pull request: {said}\n")) == []
