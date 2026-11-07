@@ -314,3 +314,13 @@ def test_a_config_whose_table_cannot_be_written_stops_close_and_open_before_t3_c
     kitchen.t3.calls.clear()
     assert kitchen.main("project", "open", "other") == (1, UNWRITABLE + "\n")
     assert kitchen.t3.calls == []
+
+
+def test_a_merge_base_added_to_a_closed_project_keeps_it_closed(kitchen, two):
+    assert kitchen.main("project", "close", "other")[0] == 0
+    path = kitchen.config_dir / "config.toml"
+    said = project.add_base(path, "other", "release")
+    assert said.startswith("added: one merge base to the project's table")
+    assert table(kitchen, "other")["merge_bases"] == ["release"]
+    assert table(kitchen, "other")["closed"] == today()
+    assert kitchen.main("project", "bases", "other") == (0, "release\n")
