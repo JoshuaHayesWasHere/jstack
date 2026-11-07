@@ -33,6 +33,10 @@ then `threads.resume` and `watch` read the row as waiting on jbus (`review.await
 
 from __future__ import annotations
 
+import json
+from collections import deque
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 import jroles
@@ -52,6 +56,8 @@ UNPUSHED = "its Result waits on a review, and origin has no branch {branch}"
 NO_TREE = "its Result waits on a review, and T3 Code names no worktree for its crew"
 LOST = "a reviewer's launch got no reply"
 TEMPLATE = "prereviewed"
+TAIL = 2000
+"""How many of `outbox.jsonl`'s last lines `told_at` reads."""
 MESSAGE = (
     "jbus: {slug}'s review at {head} is written, before its pull request, in the brief's "
     '`## Review` {sections}. Handle its findings as the crew skill\'s "The review" says, then '
@@ -209,6 +215,25 @@ def due(brief: str) -> tuple[str, tuple[str, ...], tuple[str, ...]] | None:
     head = ran[-1].head
     by = tuple(dict.fromkeys(one.by for one in ran if one.head == head and one.by))
     return head, by, tuple(findings.listed(triage))
+
+
+def told_at(state: Path, slug: str) -> datetime | None:
+    """When jbus last sent the slug's crew `prereviewed`, as the tail of `outbox.jsonl` has it, or
+    None where it has no such send."""
+    try:
+        with open(state / outbox.FILE) as file:
+            tail = deque(file, maxlen=TAIL)
+    except OSError:
+        return None
+    at = None
+    for line in tail:
+        try:
+            one = json.loads(line)
+        except ValueError:
+            continue
+        if one.get("template") == TEMPLATE and one.get("row") == slug and one.get("went") == "sent":
+            at = datetime.fromisoformat(one["at"])
+    return at
 
 
 def tell(run: Pass, client: Client, world: World) -> None:

@@ -13,7 +13,7 @@ import pytest
 
 import jbus
 import jsettings
-from jbus import leftover, threads, view
+from jbus import leftover, prereview, threads, view
 from test_jbus_kitchen import NOW
 from test_jbus_queue import add
 from test_jbus_row_ends import PULL, column, listed, result, sends
@@ -330,12 +330,20 @@ REVIEW = (
 )
 
 
-def awaiting(kitchen, after):
+WRITTEN = "Reviewer: mcp:r1 #1\n" + REVIEW
+
+
+def awaiting(kitchen, after, status="completed"):
     """Make a row whose crew wrote its Result at its desk proof, with its pull request to open
-    after its review, then `after` under it, and whose thread ended its turn."""
+    after its review, then `after` under it, and whose thread is in `status`: by default it
+    ended its turn."""
     add(kitchen, "alpha")
     kitchen.brief("alpha", AFTER + after)
-    return kitchen.t3.thread("alpha", "completed")
+    return kitchen.t3.thread("alpha", status)
+
+
+def lefts(kitchen):
+    return [one for one in sends(kitchen) if "ended with something left" in one["message"]]
 
 
 @pytest.mark.parametrize("review", ["", "Reviewer: mcp:r1 #1\n"], ids=["due", "running"])
@@ -349,12 +357,42 @@ def test_a_row_that_waits_on_its_review_before_its_pull_request_is_not_left(kitc
     assert not [line for line in listed(kitchen) if line.startswith("left alpha")]
 
 
-def test_a_row_whose_review_is_written_and_that_ends_with_no_pull_request_is_left(kitchen):
+def test_a_row_whose_review_is_written_is_not_left_while_its_crew_is_at_work(kitchen):
     home(kitchen)
-    awaiting(kitchen, "Reviewer: mcp:r1 #1\n" + REVIEW)
+    awaiting(kitchen, WRITTEN, status="running")
+    for minutes in (0, leftover.OPENING_MINUTES + 1):
+        kitchen.poll(later(minutes))
+    assert leftover.read(kitchen.state) == {} and lefts(kitchen) == []
+    assert not [line for line in listed(kitchen) if line.startswith("left alpha")]
+
+
+def test_a_row_whose_review_is_written_is_left_only_once_its_crew_ended_past_the_window(kitchen):
+    home(kitchen)
+    crew = awaiting(kitchen, WRITTEN)
     kitchen.poll()
-    (sent,) = [one for one in sends(kitchen) if "ended with something left" in one["message"]]
+    told = [one for one in kitchen.t3.messages.values() if one["threadId"] == crew["threadId"]]
+    assert [one["clientRequestId"].split("|")[0] for one in told] == ["prereviewed"]
+    kitchen.poll(later(leftover.OPENING_MINUTES - 1))
+    assert leftover.read(kitchen.state) == {} and lefts(kitchen) == []
+    kitchen.poll(later(leftover.OPENING_MINUTES + 1))
+    (sent,) = lefts(kitchen)
     assert "It ended with no pull request.\nLeft: the docs\n" in sent["message"]
+
+
+def test_a_project_with_no_outbox_or_a_torn_last_line_reads_its_last_prereviewed_send(tmp_path):
+    assert prereview.told_at(tmp_path, "alpha") is None
+    sent = {"at": NOW.isoformat(), "row": "alpha", "template": "prereviewed", "went": "sent"}
+    (tmp_path / "outbox.jsonl").write_text(json.dumps(sent) + '\n{"at": "2026-')
+    assert prereview.told_at(tmp_path, "alpha") == NOW
+
+
+def test_a_row_whose_pull_request_is_open_is_never_told_it_ended_with_none(kitchen):
+    home(kitchen)
+    awaiting(kitchen, WRITTEN)
+    kitchen.set("open.json", [kitchen.opened("alpha", 7)])
+    for minutes in (0, leftover.OPENING_MINUTES + 1, leftover.CLOSE_MINUTES * 2):
+        kitchen.poll(later(minutes))
+    assert not [one for one in lefts(kitchen) if "no pull request" in one["message"]]
 
 
 def test_a_row_that_leaves_nothing_or_is_still_out_has_no_record_and_no_message(kitchen):
