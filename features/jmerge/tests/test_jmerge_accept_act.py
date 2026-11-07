@@ -346,6 +346,26 @@ def test_the_users_word_merges_no_pull_request_with_no_brief_whose_check_failed(
     assert kitchen.calls() == []
 
 
+def test_the_users_word_merges_no_pull_request_with_no_brief_that_conflicts_with_main(kitchen):
+    unbriefed(kitchen, "bump", 9)
+    kitchen.on_main({"a.txt": "main\n" + LINES})
+    ref = said(kitchen, "merge 9")
+    out = jmerge(kitchen, "--accept", "9", "--as", "user", "--message", ref)
+    assert kitchen.home.code == 1, (out, kitchen.home.stderr)
+    assert out[-1] == f"wait 9 {url(9)}: {ready.FRESH_CONFLICT}", out
+    assert kitchen.calls() == []
+
+
+def test_the_users_word_merges_no_pull_request_with_no_brief_while_merge_is_off(kitchen):
+    unbriefed(kitchen, "bump", 9)
+    (kitchen.home.state / "merge-off").write_text("")
+    ref = said(kitchen, "merge 9")
+    out = jmerge(kitchen, "--accept", "9", "--as", "user", "--message", ref)
+    assert kitchen.home.code == 1, (out, kitchen.home.stderr)
+    assert out[-1] == f"wait 9 {url(9)}: {ready.MERGE_OFF}", out
+    assert kitchen.calls() == []
+
+
 def test_the_accept_of_a_pull_request_into_another_base_is_refused_with_the_way_through(kitchen):
     """#750 went into the integration branch t3code-jstack, which jbus's config did not name."""
     kitchen.crew("side", 10, {"a.txt": "ours\n" + LINES})
