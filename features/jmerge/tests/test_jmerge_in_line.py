@@ -6,12 +6,15 @@ every one of them through CI again, about 80 branch updates in an hour). A pull 
 check ran over today's main merges as before."""
 
 import json
-from datetime import datetime, timedelta
+import sys
+from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 
+import jsettings
 import test_home_merge as merge
-from jmerge import cli, ready, rejudge
+from jmerge import cli, judgement, ready, rejudge
 from test_jmerge_fresh import AFTER, LINES, SHARED, STARTED, Kitchen, asked, git, url, write
 from test_jmerge_order import queue_of, row
 
@@ -267,3 +270,26 @@ def test_one_that_waits_on_its_crew_or_the_user_gives_the_line_up(kitchen, wait)
     assert first.startswith(f"{'hold' if wait == 'hold' else 'wait'} 7 ")
     assert second == asked(8, tip)
     assert kitchen.updates() == ["7", "8"]
+
+
+def test_the_accept_of_one_in_line_is_refused_and_merges_nothing(kitchen):
+    """#1046 to #1056 waited only on their turn in line on 2026-11-04 when the user said to merge
+    them by hand: the line keeps a merge off a check from before main moved, which broke main
+    with #164, so the accept says so and merges nothing."""
+    kitchen.crew("one", 6, {"a.txt": "ours\n" + LINES})
+    kitchen.crew("two", 7, {"b.txt": "ours\n" + LINES})
+    kitchen.crew("three", 8, {"c.txt": "ours\n" + LINES})
+    kitchen.run()
+    now = datetime.now(UTC).astimezone(ZoneInfo("America/New_York"))
+    said = kitchen.home.sh(
+        f'PYTHONPATH="{kitchen.source}" "{sys.executable}" -m jmerge --accept 8 --by '
+        f'{jsettings.DEFAULTS.user} --at "{now:%Y-%m-%d %H:%M} ET"'
+    )
+    assert kitchen.home.code == 1, (said, kitchen.home.stderr)
+    assert said[-1] == (
+        f"refused 8 {url(8)}: it is not held, it waits: "
+        + ready.IN_LINE.format(number=7, base="main")
+        + ": "
+        + judgement.UNLIFTED[ready.IN_LINE.code]
+    )
+    assert [call.split()[2] for call in kitchen.calls("pr merge")] == ["6"]
