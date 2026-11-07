@@ -1684,10 +1684,12 @@ def scheduled(file: str) -> Nightly:
 
 
 def watched(run: Pass) -> list[Nightly]:
-    """The workflows whose red run on the default branch jbus files a fix row for: `NIGHTLIES`,
-    with their own rule, and each other file of `.github/workflows/` with a `schedule:` trigger
-    at the default branch (`scheduled`). jbus asks GitHub for the files on each pass, since no
-    step of a pass is sure to fetch; where GitHub does not answer, it watches `NIGHTLIES` alone."""
+    """The workflows whose red run on the default branch jbus files a fix row for: each of
+    `NIGHTLIES` the repo holds, with its own rule, and each other file of `.github/workflows/`
+    with a `schedule:` trigger at the default branch (`scheduled`). jbus asks GitHub for the files
+    on each pass, since no step of a pass is sure to fetch, so a repo that adds a nightly is
+    watched from the next pass and one that lacks it costs no call for its runs, a 404. Where
+    GitHub gives no list of the files, it watches `NIGHTLIES` alone."""
     asked = run.run(
         "gh",
         "api",
@@ -1702,9 +1704,10 @@ def watched(run: Pass) -> list[Nightly]:
     try:
         entries = json.loads(asked.stdout)["data"]["repository"]["object"]["entries"]
     except (ValueError, KeyError, TypeError):
-        entries = []
+        entries = None
     if asked.returncode != 0 or not isinstance(entries, list):
-        entries = []
+        return list(NIGHTLIES)
+    names = {entry.get("name") for entry in entries if isinstance(entry, dict)}
     own = {nightly.file for nightly in NIGHTLIES}
     found = sorted(
         entry["name"]
@@ -1714,7 +1717,8 @@ def watched(run: Pass) -> list[Nightly]:
         and entry["name"] not in own
         and SCHEDULE.search((entry.get("object") or {}).get("text") or "")
     )
-    return [*NIGHTLIES, *map(scheduled, found)]
+    held = [nightly for nightly in NIGHTLIES if nightly.file in names]
+    return [*held, *map(scheduled, found)]
 
 
 def ran_at(one: dict[str, Any]) -> str:
