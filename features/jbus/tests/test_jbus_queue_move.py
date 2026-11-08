@@ -3,7 +3,8 @@
 A row's home is its brief's `Home:` line, which every send about the row reads again. The move
 rewrites that line in the brief jbus stores and in the home's copy, keeps the go (a go covers what
 the brief asks, not whom it is sent to), says so on the go's line, and logs the move. The tests
-run the real command, and the real pass, against the kitchen's fakes."""
+run the real command, `jbus.asks`'s `queue move` over `jbus.queue.move` and
+`jbus.blockers.rehome`, and the real pass, against the kitchen's fakes."""
 
 import json
 
