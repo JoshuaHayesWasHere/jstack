@@ -58,7 +58,7 @@ A refused go is left out too: most refusals are a sha that did not match, and th
 With nothing open it prints `nothing waits on <you> in any project`.
 A project no pass has listed yet is a `not known:` line, and the line that follows it says `nothing else known waits`, so it never reads as nothing waiting.
 
-`jbus --project <name> needs --home <directory>` keeps one home's items: a scope's directory keeps that scope's, and the root home's keeps its own and every scope's.
+`jbus needs --home <directory>`, with `--project <name>`, keeps one home's items: a scope's directory keeps that scope's, and the root home's keeps its own and every scope's.
 An item is a home's by the slug it is about, by its brief's or request's `Home:` line, and a gate is the home's whose `gates.md` holds it.
 The ketchup skill runs it in a home, so a home's catch-up names no other project's items.
 

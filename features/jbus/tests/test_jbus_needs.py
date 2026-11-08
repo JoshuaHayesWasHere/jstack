@@ -241,3 +241,21 @@ def test_a_gate_a_scope_asked_as_its_home_is_that_scopes(kitchen):
     assert needs(kitchen, "--project", "demo", home=alone) == [
         "nothing waits on user in demo's sd home"
     ]
+
+
+def test_a_held_pull_request_is_the_home_of_its_row_and_the_roots_where_the_queue_is_unread(
+    kitchen,
+):
+    sc = scoped(kitchen, "sc")
+    add(kitchen, "held", text=brief("held").replace("Home: root", "Home: sc"))
+    kitchen.brief("held", "Home: sc\n" + RESULT)
+    kitchen.set("open.json", [kitchen.opened("held", 9)])
+    kitchen.set("jmerge.txt", HOLDS + "\n")
+    kitchen.poll()
+    held = f"demo {HOLDS}, a pull request jmerge holds for your word"
+    assert needs(kitchen, "--project", "demo", home=sc)[1] == held
+    (kitchen.state / "queue.json").write_text("not a table\n")
+    assert needs(kitchen, "--project", "demo", home=sc) == [
+        "nothing waits on user in demo's sc home"
+    ]
+    assert needs(kitchen, "--project", "demo", home=kitchen.home)[1] == held
