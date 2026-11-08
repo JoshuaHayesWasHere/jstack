@@ -38,7 +38,7 @@ A path that starts with `~` is under your home directory.
 
 | Path | What the install puts there | When |
 |---|---|---|
-| `~/.local/share/uv/tools/jstack`, and the ten commands in `~/.local/bin` | The tool itself, which `uv tool install` puts, not `jinstall` | Before `jinstall` runs |
+| `~/.local/share/uv/tools/jstack`, and the eleven commands in `~/.local/bin` | The tool itself, which `uv tool install` puts, not `jinstall` | Before `jinstall` runs |
 | `~/.local/share/jstack/green` | The green copy of the checkout, which every command runs from ([The green copy](#the-green-copy)). It is under `$XDG_DATA_HOME` when that is set. | From a checkout that jbus's config names as a project |
 | `~/.local/share/jstack/harness/<harness>/` | One layout of the skills, playbooks, templates and hooks for each harness: `claude-code`, `codex` and `cursor` ([The layouts](#the-layouts)). It is under `$XDG_DATA_HOME` when that is set. | Always |
 | `~/.claude/skills/<skill>` | A link for each skill, into Claude Code's layout | Always |

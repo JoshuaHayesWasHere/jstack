@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "features/repo-standard/src"))
-from repo_standard.__main__ import main
+from repo_standard.cli import main
 
 if __name__ == "__main__":
     sys.exit(main(["borders", *sys.argv[1:]]))

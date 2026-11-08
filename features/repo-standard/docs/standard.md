@@ -135,7 +135,7 @@ Enforced by: `scripts/generate-jstack-trees.py`, `scripts/jtrees/check.py`, `.gi
 ### A feature's pages live in its folder
 
 The pages about a feature live in its own folder, so a change to the feature and to its pages stays one feature's change.
-The manifest lists the feature's pages, and the first is its main page.
+The manifest lists the feature's main page first, and each page it lists is in the feature's folder.
 
 **In jstack** the pages are under `features/<name>/docs/`, and the manifest's `docs` key lists them.
 The `commands` region of `README.md` links each command to the first page of its feature.

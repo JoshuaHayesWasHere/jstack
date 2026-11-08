@@ -40,7 +40,7 @@ from dataclasses import dataclass, field
 
 import pytest
 
-from repo_standard.__main__ import main
+from repo_standard.cli import main
 from testing.paths import REPO
 
 README = REPO / "README.md"

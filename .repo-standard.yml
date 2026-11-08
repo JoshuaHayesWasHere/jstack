@@ -91,3 +91,22 @@ comments:
     .txt: hash
   allow: ["# type:", "# pragma"]
   links: [.js, .html]
+deploy: [make release]
+enforced-by:
+  a-commands-page-matches-its-help: [features/repo-guards/tests/test_docs_true.py]
+  new-prose-has-one-sentence-per-line: [features/writing/scripts/prose_lint.py]
+  shell-runs-on-macos-as-well-as-on-linux:
+    - features/repo-guards/tests/test_portable_shell.py
+    - features/repo-guards/tests/test_bash32.py
+  a-test-runs-the-code: [features/repo-guards/tests/test_run_not_read.py]
+  a-shared-path-forces-the-whole-suite:
+    - scripts/select_tests.py
+    - testing/tests/test_select_tests_rules.py
+  a-pair-of-trees-passes-once: [.github/workflows/check.yml]
+  a-passing-tree-leaves-a-marker: [scripts/green_tree.py]
+  every-deploy-entry-refuses-a-tree-that-is-not-green-main:
+    - .github/workflows/release.yml
+    - testing/tests/test_workflows.py
+waivers:
+  - rule: a-change-selects-its-tests
+    reason: jstack has no make select target yet, and make check-fast calls scripts/select_tests.py by name

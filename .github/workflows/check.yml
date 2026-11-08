@@ -207,6 +207,9 @@ jobs:
         run: python3 features/writing/scripts/prose_lint.py HEAD^1
       - name: make lint
         run: make lint BASE=HEAD^1
+      # jstack holds to its own standard, at the version .repo-standard.yml pins.
+      - name: repo-standard conform
+        run: uv run repo-standard conform
   # The tests run as eight jobs side by side, each with the files `reuse` dealt it, and the job
   # `check` below passes only when all eight did. Eight, not four, halves the check's wall: a
   # part took p50 7.2 min of four on 2026-10-28..11-02. The account runs at most 40 hosted jobs

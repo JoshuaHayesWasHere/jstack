@@ -12,5 +12,6 @@ COMMANDS = {
     "leak": ("jleak", "jleak.cli:main"),
     "merge": ("jmerge", "jmerge.cli:main"),
     "pack": ("jpack", "jpack.cli:main"),
+    "repo-standard": ("repo-standard", "repo_standard.cli:main"),
     "roles": ("jroles", "jroles.cli:main"),
 }
