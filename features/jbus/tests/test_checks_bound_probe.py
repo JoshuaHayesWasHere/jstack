@@ -4,9 +4,18 @@ workflow no required check names, such as `browser`, neither ends a round nor ho
 
 The check runs are shaped as GitHub's `commits/<head>/check-runs` gives them: the workflow run of
 each is the number in its `html_url`.
+
+The probe itself runs against a stand-in `gh` on PATH, which answers from files as GitHub's API
+does, ETags included, and a `work.json` the test writes.
 """
 
-from datetime import datetime
+import json
+import os
+import subprocess
+import sys
+import time
+from datetime import UTC, datetime
+from pathlib import Path
 
 from checks_bound_probe import round_end
 
@@ -65,3 +74,100 @@ def test_a_required_check_github_lists_no_run_of_yet_holds_the_round():
     """GitHub lists `check` only once the shards it needs have ended (#1246)."""
     shards = [one for one in PASSED if one["name"] != "check"]
     assert round_end(shards, WORKFLOW_OF, REQUIRED) is None
+
+
+GH = """#!{python}
+import hashlib, os, sys
+from pathlib import Path
+
+state = Path(os.environ["PROBE_GH"])
+path = sys.argv[2]
+with (state / "calls").open("a") as calls:
+    calls.write(path + "\\n")
+kind = path.split("/")[3]
+name = {{"pulls": "pull", "commits": path.split("/")[-2], "actions": "workflow"}}[kind]
+body = (state / f"{{name}}.json").read_text()
+etag = '"' + hashlib.sha1(body.encode()).hexdigest() + '"'
+if f"If-None-Match: {{etag}}" in sys.argv:
+    print(f"HTTP/2.0 304 Not Modified\\netag: {{etag}}\\n")
+else:
+    print(f"HTTP/2.0 200 OK\\netag: {{etag}}\\n\\n{{body}}")
+"""
+
+
+class GitHub:
+    """The stand-in's state: the pull request's head and the check runs of each head."""
+
+    def __init__(self, folder: Path):
+        self.folder = folder
+        folder.mkdir()
+        (folder / "workflow.json").write_text(json.dumps({"name": "check"}))
+        (folder / "bin").mkdir()
+        gh = folder / "bin" / "gh"
+        gh.write_text(GH.format(python=sys.executable))
+        gh.chmod(0o755)
+
+    def head(self, sha: str, ended: float | None) -> None:
+        """Make `sha` the head, with its one required job going, or ended at `ended`."""
+        check = job("check", "check")
+        if ended is not None:
+            check["status"], check["conclusion"] = "completed", "success"
+            check["completed_at"] = datetime.fromtimestamp(ended, UTC).isoformat()
+        (self.folder / f"{sha}.json").write_text(json.dumps({"check_runs": [check]}))
+        (self.folder / "pull.json").write_text(json.dumps({"head": {"sha": sha}}))
+
+    def asked(self, path: str) -> None:
+        calls = self.folder / "calls"
+        until = time.time() + 10
+        while time.time() < until:
+            if calls.exists() and path in calls.read_text().splitlines():
+                return
+            time.sleep(0.05)
+        raise AssertionError(f"the probe never asked GitHub for {path}")
+
+
+def test_a_probe_started_after_a_head_settled_records_the_next_heads_round(tmp_path):
+    """On #1264 the probe started after head 1's checks had settled, and recorded nothing."""
+    github = GitHub(tmp_path / "gh")
+    work = tmp_path / "jbus" / "work.json"
+    work.parent.mkdir()
+    (tmp_path / "required-checks").write_text("check\n")
+
+    def line(says: str) -> None:
+        work.write_text(json.dumps({"work": [{"pr": "#7", "value": says}]}))
+
+    line("checks passed")
+    github.head("aaa", int(time.time()) - 60)
+    out = tmp_path / "rounds.jsonl"
+    probe = subprocess.Popen(
+        [
+            sys.executable,
+            str(Path(__file__).with_name("checks_bound_probe.py")),
+            *("--repo", "o/r", "--pr", "7", "--work", str(work), "--wait", "10"),
+            *("--required", str(tmp_path / "required-checks"), "--out", str(out)),
+        ],
+        env={
+            **os.environ,
+            "PATH": f"{github.folder / 'bin'}{os.pathsep}{os.environ['PATH']}",
+            "PROBE_GH": str(github.folder),
+        },
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    try:
+        github.asked("repos/o/r/commits/aaa/check-runs")
+        github.head("bbb", None)
+        github.asked("repos/o/r/commits/bbb/check-runs")
+        ended = int(time.time())
+        github.head("bbb", ended)
+        time.sleep(1.5)
+        line("checks passed at bbb")
+        said, _ = probe.communicate(timeout=20)
+    finally:
+        probe.kill()
+    rounds = [json.loads(one) for one in out.read_text().splitlines()]
+    assert [(one["head"], one["verdict"], one["says"]) for one in rounds] == [
+        ("bbb", "passed", "checks passed at bbb")
+    ], said
+    assert 1 <= rounds[0]["delay"] < 5, said
