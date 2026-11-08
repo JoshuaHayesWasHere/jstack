@@ -307,3 +307,43 @@ def test_a_link_whose_base_left_no_record_is_left_and_told_once(stacked, monkeyp
     assert any("jbus left its branch as it was (its head does not hold" in line for line in said)
     assert stack.origin("two") == stack.head
     assert len(asks(stacked)) == 1
+
+
+def waits_on_its_review(kitchen):
+    """`two` has opened no pull request: its crew pushed its branch and wrote its Result with
+    `Pull request: after the review`, and ended its turn."""
+    kitchen.set("open.json", [])
+    path = kitchen.home / "tasks" / "two.md"
+    path.write_text(
+        path.read_text() + "\n## Result\nStatus: done\nBranch: two   Pull request: after the "
+        "review\nStacked on: one one https://example.test/pull/10\nLeft: none\n"
+    )
+
+
+def test_a_link_before_its_pull_request_has_its_own_commits_moved_onto_main_before_its_review(
+    stack,
+):
+    """A squash merge leaves `one`'s own commit under `two` and not on main. Before its review
+    reads it, jbus moves `two`'s own commits onto main, so origin's `two` holds the merge and
+    changes `two.txt` alone, and a pass after that moves nothing."""
+    kitchen = stack.kitchen
+    waits_on_its_review(kitchen)
+    kitchen.poll(NOW)
+    moved = stack.origin("two")
+    assert git(kitchen.origin, "rev-parse", f"{moved}^") == stack.merge
+    assert git(kitchen.origin, "diff", "--name-only", stack.merge, moved) == "two.txt"
+    assert head_line(kitchen) == stacks.Stacked("one", "main", stack.merge)
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert stack.origin("two") == moved
+
+
+def test_a_link_before_its_pull_request_whose_commits_conflict_keeps_its_branch(stack_conflict):
+    """Where `two`'s commits conflict with main, jbus moves its line, leaves its branch as it was
+    and says why, as it does for a link whose pull request is open."""
+    kitchen = stack_conflict.kitchen
+    waits_on_its_review(kitchen)
+    said = kitchen.poll(NOW)
+    assert stack_conflict.origin("two") == stack_conflict.head
+    assert head_line(kitchen) == stacks.Stacked("one", "main", stack_conflict.merge)
+    left = "restack two: jbus left its branch as it was (its commits conflict with origin/main)"
+    assert any(line.startswith(left) for line in said), said
