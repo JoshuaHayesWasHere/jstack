@@ -2,7 +2,8 @@
 
 `jbus queue add` counts a fix into `blockers.json`, and `jbus queue remove` of a fix row that
 never launched gives that try back: the fix did no work. A fix that launched stays counted when
-its row is removed. Once the key had its cap, `jbus clear` raises it to the user, but not while
+its row is removed. Once the key had its cap, `jbus clear` raises it to the user as a decision
+whose `Reply:` is a plain hint (`jbus.blockers`), but not while
 the key's last fix has merged and the blocker has not been judged since: the merged fix may be
 what clears it. Like `test_jbus_queue.py`, the tests run the real commands and the real pass
 against a faked T3 Code server, `gh` and `jmerge`, on rows a pass would have written.

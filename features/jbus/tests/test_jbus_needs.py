@@ -1,5 +1,6 @@
 """`jbus needs` prints what waits on the user, for one project or for all: each item with what it
-holds and the reply that answers it, and nothing a home can clear by itself.
+holds and a plain hint for the reply (`jbus.blockers.reply`), and nothing a home can clear by
+itself.
 
 Like `test_jbus_kitchen.py`, the tests run the real commands and the real pass against a faked T3
 Code server, `gh` and `jmerge`. Nothing reaches the network.
@@ -92,6 +93,16 @@ def test_nothing_needs_prints_or_a_decision_says_gives_the_user_words_to_send(ki
         assert 'say "' not in line, line
         assert not re.search(r"(?:question \d+: default|gate [\w#]*\d+: hold it)", line), line
         assert not re.search(r"(?:#\d+: merge it|approve [\w-]+: go)", line), line
+
+
+def test_a_decision_raised_by_hand_carries_the_homes_hint_as_it_is(kitchen):
+    kitchen.quiet()
+    hint = "reply in your own words to add the sign-in or say what to do instead"
+    asked = ("decide", "alpha", "--question", "add a second sign-in to the plan?", "--reply", hint)
+    assert kitchen.main(*asked) == (0, "raised: alpha: add a second sign-in to the plan?\n")
+    assert kitchen.lines("decision") == [
+        f"decision alpha: add a second sign-in to the plan?. Reply: {hint}"
+    ]
 
 
 def test_with_nothing_open_it_says_nothing_waits(kitchen):
