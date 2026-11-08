@@ -237,3 +237,18 @@ def test_twice_counts_a_red_only_where_its_failed_tests_are_not_a_flake_of_two_o
     passes(launched, 3, 6)
     assert bool(rows(launched)["alpha"].get("held")) is held
     assert len(pages(launched)) == int(held)
+
+
+def test_twice_counts_a_shared_red_whose_log_also_counts_an_error_it_names_no_test_of(launched):
+    """The head's log names only `TEST`, a flake of two other branches, but its summary counts an
+    error no test id names, as a collection error is: what failed is not all shared, so two such
+    heads hold the row."""
+    red_elsewhere(launched, ("beta", "gamma"))
+    error = "ERROR features/x/test_y.py - ImportError\n= 1 failed, 1 error in 2.0s =\n"
+    for head, job, at in ((A, "11", (0,)), (B, "12", (3, 6))):
+        red_at(launched, head, job)
+        logs = json.loads((launched.stub / "logs.json").read_text())
+        launched.set("logs.json", {**logs, job: logs[job] + error})
+        passes(launched, *at)
+    assert rows(launched)["alpha"]["held"] is True
+    assert len(pages(launched)) == 1
