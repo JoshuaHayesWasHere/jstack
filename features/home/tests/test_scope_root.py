@@ -20,7 +20,7 @@ NEW = "release"
 PREFIX = "rl-"
 OWNS = 'how a release is cut, in the user\'s words: "one command, and a tag"'
 MAKES = "launch: "
-MAKING = "echo \"made: scope"
+MAKING = 'echo "made: scope'
 STATUS = "open plan entries"
 CLOSED = "third"
 
@@ -356,7 +356,7 @@ def test_with_uncategorized_made_two_other_scopes_still_may_not_overlap(homes):
     assert homes.changed(before) == []
 
 
-QUEUES = "jbus queue add \"$slug\""
+QUEUES = 'jbus queue add "$slug"'
 WORD = "mcp:the-root-home/msg-7"
 
 

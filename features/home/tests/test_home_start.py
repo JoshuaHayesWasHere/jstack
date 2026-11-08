@@ -217,8 +217,10 @@ def test_the_root_makes_uncategorized_once_and_its_launch_starts_that_child_s_ho
         f"scope {CATCH_ALL}\ntitle: {sent['title']}\n"
     )
     assert scene.run("home", first_step()) == ROOT
-    assert (scene.home_dir / CATCH_ALL / "plan.md").read_text().startswith(
-        f"# {NAME}, {CATCH_ALL}: plan\n"
+    assert (
+        (scene.home_dir / CATCH_ALL / "plan.md")
+        .read_text()
+        .startswith(f"# {NAME}, {CATCH_ALL}: plan\n")
     )
     assert not (scene.home_dir / CATCH_ALL / "prefix").exists()
 
