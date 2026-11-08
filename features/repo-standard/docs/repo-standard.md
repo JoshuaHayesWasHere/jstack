@@ -25,10 +25,12 @@ CI's `lint` job in `.github/workflows/check.yml` runs it there, so the required 
 | `docs` | Checks that the docs name only paths and make targets the tree has. |
 | `size` | Checks each file's length against its cap. |
 | `comments` | Checks that code holds no plain comment. |
+| `plan` | Prints what the jobs of [the shared check workflow](check-workflow.md) run, and checks nothing. |
 
 Every verb takes `--root` for another checkout, and `--config` for another config file than `<root>/.repo-standard.yml`.
 `borders` alone reads `--base <ref>`, `--labels a,b` and `--hard`, which [the guards' page](guards.md) explains.
 `conform` alone reads `--upstream` and `--list`.
+`plan` alone reads `--event`, by default `$GITHUB_EVENT_NAME`, and `--selection <file>`, the file `make select` wrote.
 A verb exits 2 when it cannot read the config or the tree.
 
 ## conform
