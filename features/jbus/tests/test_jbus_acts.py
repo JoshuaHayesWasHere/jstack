@@ -732,7 +732,7 @@ def test_a_plain_reply_to_the_homes_ask_that_named_the_row_opens_its_door(kitche
     ref = plain(kitchen, "early", "go ahead")
     code, said = kitchen.main("queue", "approve", "alpha", "--message", ref, "--sha", sha)
     assert code == 1 and "names neither alpha nor its gate" in said, said
-    home_asks(kitchen, "ask", "alpha rewrites history on main. Shall it go?")
+    home_asks(kitchen, "ask", "May alpha go? It rewrites history on main.")
     code, said = kitchen.main(
         "queue", "approve", "alpha", "--message", plain(kitchen, "yes", "go ahead"), "--sha", sha
     )
@@ -753,3 +753,31 @@ def test_a_plain_reply_whose_ask_t3_code_cannot_read_answers_nothing(kitchen, mo
     code, said = answer(kitchen, held, ref)
     assert code == 1 and f"names neither alpha nor question {held}" in said, said
     assert questions.question(kitchen.state, held).answer is None
+
+
+def test_an_ask_about_two_questions_binds_the_reply_to_the_one_it_asks(kitchen):
+    kitchen.brief("alpha", "Thread: mcp:crew-alpha\n")
+    held = gate(kitchen, holds=True)
+    other = ASK.replace("which one?", "which other history?").replace(
+        "Option:", f"{HOLDS}{SAFE}Option:", 1
+    )
+    assert kitchen.main("gate", "alpha", stdin=other)[0] == 0
+    asked = questions.read(kitchen.state)[-1].number
+    home_asks(kitchen, "ask", f"Question {held} stays held; question {asked}: may it go?")
+    ref = plain(kitchen, "ok", "ok")
+    code, said = answer(kitchen, held, ref)
+    assert code == 1 and f"names neither alpha nor question {held}" in said, said
+    assert questions.question(kitchen.state, held).answer is None
+    code, said = answer(kitchen, asked, ref)
+    assert code == 0, said
+    assert questions.question(kitchen.state, asked).answer.keeps
+
+
+def test_a_row_the_ask_names_in_passing_is_not_opened_by_the_reply(kitchen):
+    add(kitchen, "alpha", approve=False, text=brief("alpha", HOLDS))
+    sha = sha12(stored(kitchen, "alpha"))
+    home_asks(kitchen, "ask", "alpha merged its docs earlier. Shall I remove the five worktrees?")
+    ref = plain(kitchen, "yes", "yes")
+    code, said = kitchen.main("queue", "approve", "alpha", "--message", ref, "--sha", sha)
+    assert code == 1 and "names neither alpha nor its gate" in said, said
+    assert rows(kitchen)["alpha"]["approved"] == ""

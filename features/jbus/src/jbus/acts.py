@@ -393,7 +393,7 @@ def _unbound(
     the brief was stored or the question asked. Words are said of the door when they name the
     row's slug (`queue.names`) or one of its gates by its number, as `question 3`, `gate 3`, `q3`
     or `#3` (a number alone may count anything), or when they are a plain reply in a home's
-    thread to the home's ask that named the row or the gate as `question 3` (`_answers`). An
+    thread to the home's ask about the row or the gate as `question 3` (`_answers`). An
     older message, or one about something else, was not said of this door."""
     kind = "pick" if said.source == "t3-pick" else "message"
     named = (
@@ -422,16 +422,15 @@ def _unbound(
 def _answers(run: Pass, said: Evidence, slug: str, numbers: list[int]) -> bool:
     """Whether the user's own message is a plain reply to a home's ask about this door: the last
     message the home wrote in that thread before it (`t3.home_ask`, as `jbus waive` reads it)
-    names the row's slug or one of its gates as `question <n>` (`t3.asked_of`,
-    `t3.asks_question`). A message in no home's thread, one that is not the user's own
+    asks about the row's slug or one of its gates as `question <n>`, in the part of it about
+    them (`t3.asks`). A message in no home's thread, one that is not the user's own
     (`t3.own`), or one before any ask, answers none."""
     try:
         _, ask = t3.home_ask(run.config, run.home, run.project.name, said.ref)
     except Refused:
         return False
-    return bool(t3.asked_of(ask.text, slug)) or any(
-        t3.asks_question(ask.text, number) for number in numbers
-    )
+    others = queue.known(run.state) | {one.stem for one in (run.home / "tasks").glob("*.md")}
+    return t3.asks(ask.text, slug, numbers, others - {slug})
 
 
 def _stale(run: Pass, slug: str, seen: str) -> str:
