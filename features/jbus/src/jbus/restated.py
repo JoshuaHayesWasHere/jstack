@@ -46,6 +46,7 @@ from jbus.work import (
     scouting,
     stored,
 )
+from jmerge import ready
 
 SEEN = ("thread", "pr")
 """The columns of a row of the queue that a new row's line carries as they are (`fresh`)."""
@@ -59,6 +60,26 @@ CHECKED = "checked"
 of `jmerge` judged that run: `failed` or `passed` (`checked`). The next run of `jmerge` that
 judges the pull request takes it off (`pulled`)."""
 FAILED, PASSED = "failed", "passed"
+ENDED = "ended"
+"""The field of a line that names the head whose required checks a verdict said had ended: the
+merge tick's (`checked`), or a run of `jmerge`'s that judged the pull request past them
+(`pulled`, `ends`). The pass keeps watching a head whose rollup it reads as ended until its line
+names it here (`jbus.tick`): a rollup can say `passed` before a job that is still to start is in
+it, and the tick then has a check left to see end (#1246)."""
+PENDING = "checks-pending.json"
+"""The open pull requests whose checks the last pass saw still going, each by its `number` with
+the `head` it saw, for the merge tick to watch (`jbus.tick`). Only the pass writes it."""
+ENDS = frozenset(
+    reason.code
+    for reason in (
+        ready.CHECK_FAILED,
+        ready.CANCELLED_UNRUN,
+        ready.CANCELLED_TWICE,
+        ready.UNDECIDED,
+    )
+)
+"""The reasons on the check step that `jmerge` gives only once the checks at the head ended. Every
+other reason on it, such as a run still going or one not listed yet, says they may not have."""
 PASS_ONLY = frozenset({"lost", "unknown"})
 """The values that only the pass judges: a thread that ended with nothing written is lost only
 once the pass finds no wait of jbus's behind it and no pull request owed (`watch.facts`), and a
@@ -130,6 +151,22 @@ def fresh(row: dict[str, Any], facet: Row, scout: bool) -> dict[str, Any]:
     return entry(state, holder(state, role="scout" if scout else ""), **about, **said)
 
 
+def pending(state_dir: Path) -> dict[int, str]:
+    """Return the head of each pull request the merge tick watches (`PENDING`), by number."""
+    return {
+        one["number"]: one["head"]
+        for one in read_json(state_dir / PENDING, [])
+        if isinstance(one, dict) and isinstance(one.get("number"), int) and one.get("head")
+    }
+
+
+def ends(pull: Pull, why: str) -> bool:
+    """Whether a run of `jmerge` that judged a pull request `pull` for `why` saw the checks at its
+    head end: it judged it on a step other than the check, or on the check for a reason only an
+    ended check gives (`ENDS`)."""
+    return pull != Pull.CHECK or ready.code_of(why.partition(": ")[2]) in ENDS
+
+
 def pulled(state_dir: Path, said: dict[int, tuple[Pull, str]], at: str) -> list[tuple[str, str]]:
     """Restate the `Pull` facet of the line of each pull request that a run of `jmerge` judged,
     by its number, as `jmerge` judged it, with its reason as the line's `why`, and mark the line
@@ -139,8 +176,11 @@ def pulled(state_dir: Path, said: dict[int, tuple[Pull, str]], at: str) -> list[
 
     A line the merge tick restated (`CHECKED`) loses the mark, and where the run judged it
     otherwise than the tick (`corrects`), the run's verdict stands and the line is returned by key
-    with what was wrong in it, for the caller to log as drift."""
+    with what was wrong in it, for the caller to log as drift. A line of a pull request the tick
+    watches names its head as `ENDED` where the run saw its checks end (`ends`): the run read the
+    pull request after the pass that wrote the head, so it judged that head or a later one."""
     drifted: list[tuple[str, str]] = []
+    heads = pending(state_dir)
 
     def change(lines: list[Any]) -> list[Any]:
         work = []
@@ -154,6 +194,8 @@ def pulled(state_dir: Path, said: dict[int, tuple[Pull, str]], at: str) -> list[
                 made = restate(one, pull=pull, why=why)
                 if made is not one or tick:
                     one = {**{k: v for k, v in made.items() if k != CHECKED}, PULLED: at}
+                if (head := heads.get(int(number))) and ends(pull, why):
+                    one = {**one, ENDED: head}
             work.append(one)
         return work
 
@@ -179,10 +221,11 @@ def corrects(one: dict[str, Any], tick: str, pull: Pull, why: str) -> str:
     return f"the tick's check {tick} ({had!r}) for {str(pull)!r} ({why!r})"
 
 
-def checked(state_dir: Path, said: dict[int, tuple[str, str, str]], at: str) -> list[str]:
+def checked(state_dir: Path, said: dict[int, tuple[str, str, str, str]], at: str) -> list[str]:
     """Restate the line of each pull request in `said`, by its number, that is on the check step:
-    the `why` a run of `jmerge` would give it now that its required checks ended at its head, with
-    `failed` or `passed` (`CHECKED`), and `ended`, when the last of them ended on GitHub. Mark it
+    the `why` a run of `jmerge` would give it now that its required checks ended at `head`, with
+    `failed` or `passed` (`CHECKED`), and `ended`, when the last of them ended on GitHub. The line
+    names `head` as `ENDED` on any step, so the pass stops watching it. Mark it
     `PULLED` at `at`, so the pass keeps it as a later word than its own run's (`kept`). A line that
     a run of `jmerge` judged after `ended` is left as it is, since that run saw the end, so the
     tick that asks again after a busy `jmerge` writes nothing twice. Return the keys of the lines
@@ -194,13 +237,16 @@ def checked(state_dir: Path, said: dict[int, tuple[str, str, str]], at: str) -> 
         for one in lines:
             number = str(one.get("pr", "")).removeprefix("#") if _is_row(one) else ""
             facts = stored(one) if number.isdigit() and int(number) in said else None
-            if facts is not None and facts.pull == Pull.CHECK:
-                tick, why, ended = said[int(number)]
-                if str(one.get(PULLED, "")) <= ended:
-                    made = restate(one, pull=Pull.CHECK, why=why)
-                    if made is not one:
-                        one = {**made, PULLED: at, CHECKED: tick}
-                        changed.append(str(one["key"]))
+            if facts is None:
+                work.append(one)
+                continue
+            tick, why, ended, head = said[int(number)]
+            one = one if one.get(ENDED) == head else {**one, ENDED: head}
+            if facts.pull == Pull.CHECK and str(one.get(PULLED, "")) <= ended:
+                made = restate(one, pull=Pull.CHECK, why=why)
+                if made is not one:
+                    one = {**made, PULLED: at, CHECKED: tick}
+                    changed.append(str(one["key"]))
             work.append(one)
         return work
 

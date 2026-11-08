@@ -368,9 +368,11 @@ def test_the_pass_drops_a_head_once_the_tick_had_its_verdict(on_check):
 
 
 def test_the_pass_drops_a_head_once_jmerge_had_its_verdict(on_check):
+    """The pass runs `jmerge` before it reads the rollup, so a `jmerge` that saw the check fail
+    lets the same pass stop watching #7, and one that still sees it running keeps it."""
     on_check.set("open.json", [on_check.opened("alpha", 7, "FAILURE")])
-    on_check.set("jmerge.txt", f"wait 7 {PULL}: {ready.CHECK_FAILED.format(check='check')}\n")
     on_check.poll()
     assert watching(on_check) == [{"number": 7, "head": HEAD}]
+    on_check.set("jmerge.txt", f"wait 7 {PULL}: {ready.CHECK_FAILED.format(check='check')}\n")
     on_check.poll()
     assert watching(on_check) == []
