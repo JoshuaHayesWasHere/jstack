@@ -392,14 +392,15 @@ def tested(run: Pass, head: str, red: rebase.Red) -> str | None:
 def shared(run: Pass, pull: dict[str, Any], red: rebase.Red) -> list[str]:
     """Return the tests that failed at the pull request's head where each is a flake by `jbus ci`'s
     rule, failed on two branches besides the pull request's own (`reverts.flaky`), or nothing where
-    one is not, or a failed job's log names no test or was not given: that red is the row's own."""
+    one is not, or a failed job's log was not given, names no test, or counts a failure or an error
+    it names no test of, as a collection error is: that red is the row's own."""
     tests: set[str] = set()
     for repo, job in red.jobs:
         log = job_log(run, repo, job)
-        named = failed_in(log).tests if log is not None else ()
-        if not named:
+        failed = failed_in(log) if log is not None else None
+        if failed is None or not failed.tests or failed.count > len(failed.tests):
             return []
-        tests.update(named)
+        tests.update(failed.tests)
     if not tests or not tests <= reverts.flaky(run, str(pull.get("headRefName") or "")):
         return []
     return sorted(tests)
