@@ -105,7 +105,8 @@ def caller(tmp_path):
         "MAKE_LOG": str(tmp_path / "make.log"),
         "REPO_STANDARD_UPSTREAM": str(upstream),
     }
-    env.pop("PYTHONPATH", None)
+    for inherited in ("PYTHONPATH", "MAKEFLAGS", "MFLAGS", "MAKELEVEL"):
+        env.pop(inherited, None)
     return repo, env
 
 
