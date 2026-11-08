@@ -211,11 +211,12 @@ def checked(state_dir: Path, said: dict[int, tuple[str, str, str]], at: str) -> 
 def kept(one: dict[str, Any], was: dict[str, Any] | None, ran: str) -> dict[str, Any]:
     """Return the pass's line `one`, with the `Pull` facet of the file's line `was` where a run of
     `jmerge` that ended after `ran`, when the pass's own run ended, restated it: a merge tick's
-    run judged later than the pass's own run, whose verdict the pass's line holds."""
+    run judged later than the pass's own run, whose verdict the pass's line holds. The line keeps
+    that run's `why` too, which names what holds it, such as a stacked line's parent."""
     facts = stored(was) if was is not None and str(was.get(PULLED, "")) > ran else None
     if facts is None or was is None:
         return one
-    return {**restate(one, pull=facts.pull), PULLED: was[PULLED]}
+    return {**restate(one, pull=facts.pull, why=str(was.get("why", ""))), PULLED: was[PULLED]}
 
 
 def followed(state_dir: Path, thread: str, facet: Thread, at: str) -> list[str]:
