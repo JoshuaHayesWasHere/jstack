@@ -1,21 +1,42 @@
-# The check jmerge merges on: GitHub reports the job below as `check` on each pull request.
-# /new-home wrote this file from jstack's template. Add a setup step before the run when the
-# check command needs a toolchain the runner lacks.
+# The check jmerge merges on: GitHub reports the job `check` below as `check` on each pull request.
+# /new-home wrote this file from jstack's template. It calls the repo standard's shared check
+# workflow at the tag of a version, and that workflow reads the rest from .repo-standard.yml.
+# While the repo has no .repo-standard.yml, it runs the command below alone. A step the check
+# needs before any make target, such as a toolchain the runner lacks, goes in the composite
+# action .github/actions/setup/action.yml, which every job runs when it is there. The label of a
+# runner on the repo's own machines goes in `runner` and in the job check's `runs-on`.
 name: check
 
 on:
   pull_request:
-  workflow_dispatch:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 8 * * *"
+  workflow_dispatch: null
 
 permissions:
   contents: read
+  actions: read
+
+concurrency:
+  group: check-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  standard:
+    uses: JoshuaHayesWasHere/jstack/.github/workflows/repo-standard-check.yml@repo-standard-v1
+    with:
+      runner: ubuntu-24.04
+      command: '<the check command>'
   check:
-    runs-on: ubuntu-latest
+    if: always()
+    needs: standard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - run: |
-          <the check command>
+      - name: the shared check passed
+        env:
+          RESULT: ${{ needs.standard.result }}
+        run: '[ "$RESULT" = success ] || { echo "::error::the shared check ended $RESULT, not success"; exit 1; }'

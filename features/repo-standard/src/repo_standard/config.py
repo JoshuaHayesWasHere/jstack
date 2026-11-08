@@ -56,6 +56,15 @@ class Docs:
 
 
 @dataclass(frozen=True)
+class Check:
+    """How the shared check workflow runs the repo's tests: in how many parts side by side, and
+    whether a nightly run of the whole suite runs."""
+
+    shards: int = 1
+    nightly: bool = False
+
+
+@dataclass(frozen=True)
 class Waiver:
     rule: str
     reason: str
@@ -76,6 +85,7 @@ class Config:
     waivers: tuple[Waiver, ...] = ()
     enforced_by: dict[str, tuple[str, ...]] = field(default_factory=dict)
     deploy: tuple[str, ...] | None = None
+    check: Check = field(default_factory=Check)
 
     def part(self, name: str) -> Any:
         """The part a guard reads, refused when the config does not set it."""
@@ -273,6 +283,7 @@ def build(keys: dict[str, Any]) -> Config:
     """The typed config from the parsed keys."""
     known = {"standard", "features", "manifest-schema", "layout", "owners", "cross-cutting"}
     known |= {"generators", "docs", "size", "comments", "waivers", "enforced-by", "deploy"}
+    known |= {"check"}
     keys = _closed(keys, known, "the top")
     owners = _table(keys.get("owners"), "owners", list)
     enforced = _table(keys.get("enforced-by"), "enforced-by", list)
@@ -299,7 +310,18 @@ def build(keys: dict[str, Any]) -> Config:
             rule: _strings(rows, f"enforced-by.{rule}") for rule, rows in enforced.items()
         },
         deploy=None if keys.get("deploy") is None else _strings(keys["deploy"], "deploy"),
+        check=Check() if keys.get("check") is None else _check(keys["check"]),
     )
+
+
+def _check(value: Any) -> Check:
+    part = _closed(value, {"shards", "nightly"}, "check")
+    shards, nightly = part.get("shards", 1), part.get("nightly", False)
+    if not isinstance(shards, int) or isinstance(shards, bool) or not 1 <= shards <= 64:
+        raise Refused(f"{NAME}: check.shards is not a number of parts from 1 to 64")
+    if not isinstance(nightly, bool):
+        raise Refused(f"{NAME}: check.nightly is not true or false")
+    return Check(shards, nightly)
 
 
 def _waivers(value: Any) -> tuple[Waiver, ...]:
