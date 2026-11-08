@@ -21,6 +21,7 @@ jmerge = "jmerge.cli:main"
 jpack = "jpack.cli:main"
 jroles = "jroles.cli:main"
 jstack = "jstack.cli:main"
+repo-standard = "repo_standard.cli:main"
 # end generated
 
 # What jmerge asks of jbus (jmerge.bus), which jbus answers: jmerge imports nothing of jbus.

@@ -2,7 +2,7 @@
 
 Each test builds a small git repo in a temporary folder: two features, a core schema, a Makefile, a
 README and a generator, with a config that names them. Every guard passes there, and each fails
-on a fault planted in it. The guards run through `repo_standard.__main__.main`, the entry point
+on a fault planted in it. The guards run through `repo_standard.cli.main`, the entry point
 `python -m repo_standard` calls, and one test runs that command itself from outside jstack.
 
 The guards are `repo_standard.borders`, `repo_standard.stale`, `repo_standard.docs_true` and
@@ -20,7 +20,7 @@ import pytest
 
 from repo_standard import config as config_module
 from repo_standard import schema
-from repo_standard.__main__ import main
+from repo_standard.cli import main
 from testing.paths import REPO
 
 SOURCE = REPO / "features" / "repo-standard" / "src"
