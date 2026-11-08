@@ -23,7 +23,10 @@ SENDERS = {
     "wakes.py": (ITEMS, ["_send"]),
     "outbox.py": ("the outbox every send goes through", ["send"]),
     "reload.py": ("a thread that loaded a skill a merge changed", ["_told"]),
-    "prereview.py": ("the crew whose review before its pull request is written", ["tell"]),
+    "prereview.py": (
+        "the crew whose review before its pull request is written, or was refused",
+        ["refuse", "tell"],
+    ),
     "reviewed.py": ("the crew of a reviewed pull request", ["tell"]),
     "rebase.py": ("the crew of a pull request to rebase, or that main is fixed", ["once"]),
     "slotwait.py": ("a thread that waits on a test slot", ["tell", "tell_capped", "tell_ended"]),

@@ -87,6 +87,7 @@ It is in the log, which `jbus events` prints and the view shows.
 - `pack`
 - `pool-wake`
 - `prereview`
+- `prereview-refused`
 - `prereviewed`
 - `queue`
 - `rebase`
@@ -120,6 +121,10 @@ A `decision` is one thing you have to decide, raised once, with a reply you can 
 A `gate` is a question a thread asked, and a `waiting` event a change of the list of what waits on you: both are quiet, and what on them you have to decide reaches you as a `decision`.
 The routine events, `merged`, `stale`, `retro`, `revert`, `gate`, `stall`, `waiting` and `recovered` (`jbus.digest.ROUTINE`), go to the digest's `routine` list (`jbus digest --json`) and not to the pager.
 A `condition` is what jbus found that no rule covers, such as `condition <slug>: brief changed after approval`.
+A crew whose Result opens its pull request after its review gets its reviewers from jbus (`jbus.prereview`), and three events follow it.
+`prereview` is the launch of its reviewers, and `prereviewed` the one message that tells the crew its review is written.
+A review jbus does not launch, since the desk proof does not hold at the pushed head, origin has no branch, or T3 Code names no worktree, is a `condition` and a `prereview-refused` event: the crew is sent the reason once for its head, under `prereview-refused|<slug>|<head 12>`, so it fixes it, pushes and writes a follow-up Result.
+While that review is due, running, or refused and told to the crew, the row runs and is held by its review, whatever its Result's `Left:` line names (`jbus.watch.owes_pull`).
 
 jbus logs a `snapshot` event once a day, on the first pass at or after 5:15 PM in your time zone.
 With the snapshot jbus runs `jmerge --sweep --check`, which removes nothing, and logs its lines as one `sweep` event when there are any.
