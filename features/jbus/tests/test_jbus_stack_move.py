@@ -343,6 +343,25 @@ def test_a_restack_whose_base_merged_main_after_its_link_branched_moves_only_its
     assert asks(stacked) == []
 
 
+def test_a_restack_whose_base_was_amended_is_left_though_its_link_records_where_it_branched(
+    stacked, monkeypatch
+):
+    """`one`'s one commit was amended after `two` was made from it in its crew's worktree, and no
+    reflog of `one` is left: the commit `two`'s branch was made at is a head `one` dropped, so
+    jbus leaves the branch as it was and carries none of `one`'s old commits onto main."""
+    signed(monkeypatch)
+    stack = Stack(stacked, rewritten="amended")
+    git(stacked.checkout, "update-ref", "-d", "refs/remotes/origin/one")
+    tree = stacked.root / "two-tree"
+    git(stacked.checkout, "branch", "-q", "two", f"{stack.head}^")
+    git(stacked.checkout, "worktree", "add", "-q", str(tree), "two")
+    git(tree, "merge", "-q", "--ff-only", stack.head)
+    said = stacked.poll(NOW)
+    assert any("jbus left its branch as it was (its head does not hold" in line for line in said)
+    assert stack.origin("two") == stack.head
+    assert len(asks(stacked)) == 1
+
+
 def waits_on_its_review(kitchen):
     """`two` has opened no pull request: its crew pushed its branch and wrote its Result with
     `Pull request: after the review`, and ended its turn."""
