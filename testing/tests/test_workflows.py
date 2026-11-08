@@ -956,18 +956,15 @@ def test_the_macos_job_runs_the_tests_of_the_list_a_change_to_darwin_code_reache
 
 
 @pytest.mark.parametrize("event", ["pull_request", "push"], ids=["its pull request", "its push"])
-@pytest.mark.parametrize(
-    "path", ["features/crew/verify.md", "README.md"], ids=["a feature's page", "a doc"]
-)
 def test_a_pull_requests_macos_selects_strictly_and_the_push_of_its_merge_runs_the_rest(
-    merged, path, event
+    merged, event
 ):
     """A pull request selects with `--strict`: a change to code off Darwin starts no Mac there.
     The push of its merge commit into main selects with `--within` alone and runs the list's tests
-    that the change reaches by a feature or a name. Each case runs one selection of the whole tree,
-    and that the push runs every test the pull request ran is
-    `test_a_pull_requests_strict_macos_selects_a_part_of_what_the_push_of_its_merge_does`."""
-    reached, summary, output = merged(path, event=event)
+    that the change reaches by a name. Each case runs one selection of the whole tree. What
+    `--strict` and `--within` select for each path, and that the first is a part of the second, is
+    test_select_tests_rules.py's, in process; here, that the job passes each its own way."""
+    reached, summary, output = merged("README.md", event=event)
     if event == "pull_request":
         assert (reached, output["run"]) == ([], "false")
         assert summary.startswith("macOS: the change reaches no test")
@@ -980,44 +977,16 @@ def test_a_pull_requests_macos_selects_strictly_and_the_push_of_its_merge_runs_t
         assert summary.startswith(f"macOS: the change reaches {len(reached)} test files")
 
 
-@pytest.mark.parametrize("path", [DARWIN_LISTED, DARWIN_SOURCE], ids=["a listed test", "a module"])
-def test_a_pull_requests_strict_macos_selects_a_part_of_what_the_push_of_its_merge_does(
-    merged, path
-):
-    """A change to Darwin code that reaches tests of the list on a pull request reaches each of
-    them on the push of its merge too: `--strict` selects a part of what `--within` does, so the
-    push runs every test the pull request ran."""
-    reached = merged(path)[0]
-    assert reached and set(reached) <= set(merged(path, event="push")[0])
-
-
-@pytest.mark.parametrize(
-    "path", ["Makefile", "testing/paths.py"], ids=["the Makefile", "a module of the fixtures"]
-)
-def test_a_pull_requests_strict_macos_runs_the_whole_list_for_no_plumbing_its_push_does(
-    merged, path
-):
-    """A change to a file every test loads, but that changes no Mac run by itself, runs the whole
-    list on the push of its merge, and on its pull request only the list's tests that import or
-    name it."""
-    whole = MAC_QUICK.read_text().splitlines()
-    assert merged(path, event="push")[0] == whole
-    reached, summary, _ = merged(path)
-    assert reached != whole
-    assert not summary.startswith("macOS: the selection is all")
-
-
 ADDED = "features/jbus/tests/test_item.py"
 
 
 @pytest.mark.parametrize(
     ("path", "text", "listed"),
     [
-        ("uv.lock", "\n", []),
         ("testing/macos-quick.txt", f"{ADDED}\n", [ADDED]),
         (QUEUE, "def (\n", []),
     ],
-    ids=["a lock file", "the list itself", "a module that does not parse"],
+    ids=["the list itself", "a module that does not parse"],
 )
 def test_the_macos_job_runs_the_whole_list_where_the_selection_is_all(merged, path, text, listed):
     """A change to the list runs the whole list as the change leaves it, the new entry included.
