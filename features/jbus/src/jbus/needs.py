@@ -55,7 +55,10 @@ class Unknown(Exception):
 
 
 def _slug(run: passes.Pass, one: waiting.Item) -> str:
-    """The slug an item is about: its own, or for a pull request `jmerge` holds, its row's."""
+    """The slug an item is about: a scope's own for a gate of that scope's `gates.md` that its
+    home asked as `home`, else its own, or for a pull request `jmerge` holds, its row's."""
+    if one["kind"] == "gate" and one.get("home") and one.get("slug") in ("", "home"):
+        return f"home-{one['home']}"
     if one.get("slug"):
         return str(one["slug"])
     if one["kind"] == "hold":
