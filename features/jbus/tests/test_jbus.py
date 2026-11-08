@@ -71,6 +71,7 @@ def test_the_2_s_tick_never_reaches_systemds_start_limit():
     service.read(REPO / "features" / "jbus" / "units" / "jbus-merge.service")
     assert service["Unit"]["StartLimitIntervalSec"] == "0"
 
+
 def test_each_pass_rewrites_the_status_file_and_jbus_status_prints_it(kitchen):
     assert kitchen.main("status") == (
         1,
