@@ -20,7 +20,7 @@ again: a bootstrap while the bootout still runs fails with 5."""
 @dataclass(frozen=True)
 class Agents:
     """The jbus, jgauge and jroles agents. `agents` is each agent, by the unit that systemd
-    would enable in its place. The agents that are on are each of `timers`, and each opted unit
+    would enable in its place. The agents that are on are each of `always`, and each opted unit
     whose need is ok, as for `Units` (`kinds.split`). An agent that is on has its plist
     `<directory>/<label>.plist` and is loaded. An agent that is not on has no plist: launchd
     loads every plist of the folder at login, so a plist there is an agent that runs. The view,
@@ -49,7 +49,7 @@ class Agents:
 
     directory: Path
     agents: dict[str, launchd.Agent]
-    timers: tuple[str, ...]
+    always: tuple[str, ...]
     config: Path
     opted: tuple[tuple[str, Kind], ...] = ()
 
@@ -73,7 +73,7 @@ class Agents:
         ]
 
     def _split(self, machine: Machine) -> tuple[list[launchd.Agent], list[launchd.Agent]]:
-        on, off = split(machine, self.timers, self.opted)
+        on, off = split(machine, self.always, self.opted)
         return [self.agents[name] for name in on], [self.agents[name] for name in off]
 
     def _service(self, machine: Machine, agent: launchd.Agent) -> str:

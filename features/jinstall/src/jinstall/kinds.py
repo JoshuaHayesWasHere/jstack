@@ -974,12 +974,12 @@ def wanted_by(template: Path) -> str:
 
 
 def split(
-    machine: Machine, timers: tuple[str, ...], opted: tuple[tuple[str, Kind], ...]
+    machine: Machine, always: tuple[str, ...], opted: tuple[tuple[str, Kind], ...]
 ) -> tuple[list[str], list[str]]:
     """The units to turn on, and the opted units to turn off, by what each opted unit's need
     answers now: on while it is ok, off while it is missing, and neither while it is old. The
     systemd units and the launchd agents (`jinstall.agents`) take the same answer."""
-    on, off = list(timers), []
+    on, off = list(always), []
     for name, need in opted:
         state = need.probe(machine).state
         if state is State.OK:
@@ -989,12 +989,59 @@ def split(
     return on, off
 
 
+def stale(machine: Machine, always: tuple[str, ...]) -> list[str]:
+    """Each service of `always` that is running and started before ~/.local/bin/jbus last
+    changed, as an install or a move of the green copy changes it: it runs the jbus it
+    loaded, which is old code. A service that is not running, or whose start systemd does
+    not give, is not stale, since `try-restart` would start nothing."""
+    try:
+        changed = datetime.fromtimestamp(
+            (machine.home / ".local" / "bin" / "jbus").stat().st_mtime, UTC
+        )
+    except OSError:
+        return []
+    stale = []
+    for name in always:
+        if not name.endswith(".service"):
+            continue
+        ran = machine.systemctl(
+            "show",
+            "--property=ActiveState",
+            "--property=ActiveEnterTimestamp",
+            "--timestamp=us+utc",
+            name,
+        )
+        said = dict(
+            line.split("=", 1) for line in (ran.out if ran else "").splitlines() if "=" in line
+        )
+        try:
+            started = datetime.strptime(
+                said.get("ActiveEnterTimestamp", ""), "%a %Y-%m-%d %H:%M:%S.%f UTC"
+            ).replace(tzinfo=UTC)
+        except ValueError:
+            continue
+        if said.get("ActiveState") == "active" and started < changed:
+            stale.append(name)
+    return stale
+
+
+def restart(machine: Machine, always: tuple[str, ...]) -> None:
+    """Restart each service of `always` that `stale` names. A second call finds each started
+    after ~/.local/bin/jbus changed, and restarts nothing."""
+    for name in stale(machine, always):
+        ran = machine.systemctl("try-restart", name)
+        if ran is not None and ran.code != 0:
+            said = ran.out.strip().splitlines()
+            raise Refused(f"systemctl --user try-restart {name}: {said[-1] if said else ran.code}")
+
+
 @dataclass(frozen=True)
 class Units:
     """The jbus units. For each of `names` (every unit `templates(machine)` finds), the
     install links ~/.config/systemd/user/<name> to its template, and it enables each of
-    `timers`. The template is the checkout's, or else the release's. The checkout's template is
-    the file that the links pointed at before the committed harness copy
+    `always`, the units every machine runs: each timer, and each service of `needs.ALWAYS`.
+    The template is the checkout's, or else the release's. The checkout's template is the file
+    that the links pointed at before the committed harness copy
     (`harness/jstack/claude-code`, the first of `BEFORE`), and that systemd's own links under
     the `.wants` folder of the unit's `WantedBy=` still point at.
 
@@ -1004,30 +1051,34 @@ class Units:
 
     due: jbus is set up (its config is there), or a unit of this checkout's is there.
     ok: every link points at its template, and ~/.local/bin/jbus is there, since the units run
-      it. When the manager reads this HOME, each timer and each opted unit whose need is ok is
+      it. When the manager reads this HOME, each of `always` and each opted unit whose need is ok is
       also enabled, no opted unit whose need is missing is, and no reload is due. With a manager
       that reads another HOME (a sandbox), the probe checks only the links. Under the account's
       own HOME, a manager that does not answer makes the need old, since nothing enabled the
-      timer.
+      unit.
     old: the detail names the first piece that is not so: `lacks jbus-failed.service`,
       `jbus.timer is not enabled`, `jbus-ci.timer is enabled, and nothing asks for it`,
-      `needs daemon-reload`. A regular file whose bytes equal its template is a copy that
-      someone made by hand from the README, and the install may replace it. A regular file that
-      differs from its template is one made by hand too, `jbus.service -> not a link, differs:
-      the install backs it up`. A drop-in `VIEW_DROP_IN` that is not what the config's `[view]`
-      asks for, or that is there while the config has none, is old as well.
+      `needs daemon-reload`, `jbus-follow.service started before ~/.local/bin/jbus changed`.
+      A regular file whose bytes equal its template is a copy that someone made by hand from
+      the README, and the install may replace it. A regular file that differs from its template
+      is one made by hand too, `jbus.service -> not a link, differs: the install backs it up`.
+      A drop-in `VIEW_DROP_IN` that is not what the config's `[view]` asks for, or that is
+      there while the config has none, is old as well.
     foreign: something other than a regular file or a link where a unit goes. The need is also
       foreign for two cases that no put repairs: `no ~/.local/bin/jbus`, and a manager that did
       not answer.
-    put: refuse when there is no ~/.local/bin/jbus, so no timer starts on a missing program.
+    put: refuse when there is no ~/.local/bin/jbus, so no unit starts on a missing program.
       Otherwise disable --now each opted unit that is enabled while its need is missing, make
       `timers.target.wants` through the machine, move each unit made by hand aside to
       `<name>.<time>.bak` beside it, which systemd does not read, and say so, link each unit to
       its template, write or remove `VIEW_DROP_IN`, run daemon-reload, and run enable --now on
-      each unit that is to be on. A changed drop-in restarts `jbus-view.service` where it runs.
+      each unit that is to be on. A changed drop-in restarts `jbus-view.service` where it runs,
+      and each running service of `always` that started before ~/.local/bin/jbus last changed
+      is restarted, so it never runs the jbus of before an update; one restarted after is left.
       A config that jbus's loader refuses leaves the drop-in as it is.
-    drop: run disable --now on each timer and opted unit whose link is the install's, unlink
-      each link that points at its template, remove the drop-in, and run daemon-reload.
+    drop: run disable --now on each of `always` and each opted unit whose link is the
+      install's, unlink each link that points at its template, remove the drop-in, and run
+      daemon-reload.
       systemd's disable unlinks a linked unit by itself, and drop unlinks the links that it
       leaves. A backup stays: it is the user's.
     Each systemctl step goes through `machine.systemctl`. So with a manager that reads
@@ -1035,7 +1086,7 @@ class Units:
 
     directory: Path
     names: tuple[str, ...]
-    timers: tuple[str, ...]
+    always: tuple[str, ...]
     config: Path
     opted: tuple[tuple[str, Kind], ...] = ()
 
@@ -1090,7 +1141,7 @@ class Units:
         return self.directory / f"{target}.wants" / name
 
     def _split(self, machine: Machine) -> tuple[list[str], list[str]]:
-        return split(machine, self.timers, self.opted)
+        return split(machine, self.always, self.opted)
 
     def _enabled(self, machine: Machine, name: str) -> bool:
         ran = machine.systemctl("is-enabled", name)
@@ -1143,6 +1194,9 @@ class Units:
         reload = machine.systemctl("show", "--property", "NeedDaemonReload", "--value", *self.names)
         if reload is not None and "yes" in reload.out.split():
             return Found.old("needs daemon-reload")
+        for name in stale(machine, self.always):
+            jbus = machine.home / ".local" / "bin" / "jbus"
+            return Found.old(f"{name} started before {jbus} changed, so it runs old code")
         return Found.ok()
 
     def _systemctl(self, machine: Machine, *args: str) -> None:
@@ -1168,8 +1222,8 @@ class Units:
                 path.rename(backup)
                 kept.append(f"{name} was not the install's: kept as {backup}")
             machine.link(path, self._template(machine, name))
-        restart = self._view_is_due()
-        if restart:
+        view_due = self._view_is_due()
+        if view_due:
             drop_in, wanted = self.directory / VIEW_DROP_IN, self._view()
             if wanted:
                 machine.write_text(drop_in, wanted)
@@ -1178,15 +1232,16 @@ class Units:
         self._systemctl(machine, "daemon-reload")
         for name in on:
             self._systemctl(machine, "enable", "--now", name)
-        if restart:
+        if view_due:
             self._systemctl(machine, "try-restart", "jbus-view.service")
+        restart(machine, self.always)
         return "\n".join(kept) or None
 
     def drop(self, machine: Machine) -> Dropped:
         ours = self._ours(machine)
         if not ours:
             return Dropped()
-        for name in [*self.timers, *(name for name, _ in self.opted)]:
+        for name in [*self.always, *(name for name, _ in self.opted)]:
             if name in ours:
                 wanted = self._wanted(machine, name)
                 self._systemctl(machine, "disable", "--now", name)

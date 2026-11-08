@@ -55,6 +55,7 @@ UNITS = [
     "jbus-ci.service",
     "jbus-ci.timer",
     "jbus-failed.service",
+    "jbus-follow.service",
     "jbus-merge.service",
     "jbus-merge.timer",
     "jbus-relay.service",
@@ -72,7 +73,8 @@ UNITS = [
     "jroles-mirror.service",
     "jroles-mirror.timer",
 ]
-TIMERS = [
+ALWAYS = [
+    "jbus-follow.service",
     "jbus-merge.timer",
     "jbus-stale.timer",
     "jbus.timer",
@@ -100,12 +102,12 @@ beside its Darwin case (`linux_only`)."""
 UNITS_DIR = Path("Library", "LaunchAgents") if MAC else Path(".config", "systemd", "user")
 """Where the install puts the units, under HOME: launchd's agents on a Mac."""
 UNITS_PUT = (
-    sorted(f"{label(name)}.plist" for name in TIMERS)
+    sorted(f"{label(name)}.plist" for name in ALWAYS)
     if MAC
-    else sorted([*UNITS, "timers.target.wants"])
+    else sorted([*UNITS, "default.target.wants", "timers.target.wants"])
 )
 """What the units folder holds once a machine with jbus and no opted config has its units: a
-link to each unit, or on a Mac an agent for each timer."""
+link to each unit, or on a Mac an agent for each unit every machine runs."""
 T3_GET = "brew install --cask t3-code" if MAC else "yay -S t3code-bin"
 """How setup says to get T3 Code on this platform, on Arch where it is not a Mac."""
 T3_WHERE = "on a Mac with Apple Silicon: " + T3_GET if MAC else "on Arch: t3code-bin"
@@ -400,7 +402,7 @@ class User:
         """What `--uninstall` says of the units that `with_jbus` puts: each unit, or on a Mac
         each timer's agent."""
         if MAC:
-            return [f"removed agent {self.units / f'{label(name)}.plist'}" for name in TIMERS]
+            return [f"removed agent {self.units / f'{label(name)}.plist'}" for name in ALWAYS]
         return [f"removed unit {self.units / name}" for name in UNITS]
 
     def with_jbus(self):
