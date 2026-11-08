@@ -4,6 +4,9 @@ The generator runs before `uv sync`, so it cannot import `jsonschema`. The keywo
 `type`, `required`, `properties`, `additionalProperties`, `pattern`, `enum`, `const`, `items`,
 `minLength` and `maxLength`. The validator reads `$schema`, `$id`, `title`, `description` and
 `default` as notes. It refuses a schema with any other keyword rather than read half of it.
+`load` reads a schema from a file and puts in place of each `{"$ref": "<file>#<pointer>"}` the
+subschema it names, so `validate` never sees a `$ref`: that is how `schemas/feature.schema.json`,
+jstack's extension, takes the keys of `schemas/feature.core.schema.json`, the core any repo uses.
 `testing/tests/test_jtrees_schema.py` compares its verdicts with `jsonschema`'s on a corpus of
 good and bad manifests.
 """
@@ -12,6 +15,7 @@ from __future__ import annotations
 
 import json
 import re
+from pathlib import Path
 from typing import Any
 
 NOTES = frozenset(("$schema", "$id", "title", "description", "default"))
@@ -65,6 +69,43 @@ def _supported(schema: dict[str, Any], where: str) -> None:
     for key in ("items", "additionalProperties"):
         if isinstance(schema.get(key), dict):
             _supported(schema[key], _at(where, key))
+
+
+def _target(ref: str, here: Path, document: dict[str, Any]) -> dict[str, Any]:
+    """The subschema `ref` names: a JSON pointer into the file it names beside `here`, or into
+    `document` when it names no file."""
+    name, _, pointer = ref.partition("#")
+    node: Any = load(here.parent / name) if name else document
+    for step in pointer.split("/")[1:] if pointer else ():
+        step = step.replace("~1", "/").replace("~0", "~")
+        if not isinstance(node, dict) or step not in node:
+            raise ValueError(f"{here}: $ref {ref} names nothing")
+        node = node[step]
+    return node
+
+
+def _resolved(schema: dict[str, Any], here: Path, document: dict[str, Any]) -> dict[str, Any]:
+    if "$ref" in schema:
+        others = set(schema) - NOTES - {"$ref"}
+        if others:
+            raise Unsupported(f"{here}: $ref {schema['$ref']} beside {', '.join(sorted(others))}")
+        return _resolved(_target(schema["$ref"], here, document), here, document)
+    out = dict(schema)
+    if isinstance(out.get("properties"), dict):
+        out["properties"] = {
+            key: _resolved(value, here, document) for key, value in out["properties"].items()
+        }
+    for key in ("items", "additionalProperties"):
+        if isinstance(out.get(key), dict):
+            out[key] = _resolved(out[key], here, document)
+    return out
+
+
+def load(path: Path) -> dict[str, Any]:
+    """The schema at `path`, with each `$ref` in it replaced by the subschema it names. It raises
+    `OSError` or `ValueError` when a file cannot be read or a `$ref` names nothing."""
+    document = json.loads(path.read_text(encoding="utf-8"))
+    return _resolved(document, path, document)
 
 
 def _check(instance: object, schema: dict[str, Any], where: str, out: list[str]) -> None:
