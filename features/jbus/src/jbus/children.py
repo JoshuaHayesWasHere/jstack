@@ -86,17 +86,31 @@ NUDGE = (
 )
 
 
-def out(root: Path, scope: Path, state: Path, threads: list[dict[str, Any]]) -> list[str]:
-    """Return a line for each thing the home at `scope`, a scope or the root itself, has out, in
-    a fixed order: its rows that are not over, its entries whose go holds with no live row, its
-    crew and reviewer threads in `threads` (the last pass's), its questions, and its open
-    gates."""
-    rows = queue.load(state)
+def whose(root: Path, state: Path, rows: list[dict[str, Any]]) -> dict[str, Path]:
+    """The home of each slug the root knows: each of the queue's `rows`, by its queued brief, and
+    each brief under `tasks/` and request under `scouts/` that no row has."""
     texts = {row["slug"]: queue.brief(state, row["slug"]) or "" for row in rows}
     for kind in ("tasks", "scouts"):
         for file in sorted((root / kind).glob("*.md")):
             texts.setdefault(file.stem, file.read_text(errors="replace"))
-    mine = {slug for slug, text in texts.items() if homes.home_of(root, text) == scope}
+    home_of = homes.reader(root)
+    return {slug: home_of(text) for slug, text in texts.items()}
+
+
+def out(
+    root: Path,
+    scope: Path,
+    state: Path,
+    threads: list[dict[str, Any]],
+    known: dict[str, Path] | None = None,
+) -> list[str]:
+    """Return a line for each thing the home at `scope`, a scope or the root itself, has out, in
+    a fixed order: its rows that are not over, its entries whose go holds with no live row, its
+    crew and reviewer threads in `threads` (the last pass's), its questions, and its open
+    gates. `known` is `whose`, read once by a caller that asks of each home."""
+    rows = queue.load(state)
+    known = whose(root, state, rows) if known is None else known
+    mine = {slug for slug, home in known.items() if home == scope}
     found = [
         f"out {row['slug']}: row {row.get('status') or 'queued'}"
         for row in rows
@@ -225,7 +239,7 @@ def watch(run: Pass, client: Client, threads: list[dict[str, Any]] | None) -> No
     if threads is None:
         return
     try:
-        queue.load(run.state)
+        rows = queue.load(run.state)
         questions.read(run.state)
     except (queue.Unparsable, questions.Unparsable):
         return
@@ -233,10 +247,13 @@ def watch(run: Pass, client: Client, threads: list[dict[str, Any]] | None) -> No
         (run.state / WAS_FILE).replace(run.state / FILE)
     was: dict[str, Any] = read_json(run.state / FILE, {})
     kept: dict[str, Any] = {}
+    known = whose(run.home, run.state, rows)
     for scope in [run.home, *(one for one, _, _ in homes.scopes(run.home))]:
         thread = homes.thread_of(scope)
         lines = [
-            line for line in out(run.home, scope, run.state, threads) if not line.startswith(USERS)
+            line
+            for line in out(run.home, scope, run.state, threads, known)
+            if not line.startswith(USERS)
         ]
         launched = [line for line in lines if line.split(": ", 1)[1] not in QUEUED]
         beat = _rhythm(scope)

@@ -14,6 +14,7 @@ from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import jbus
@@ -98,7 +99,8 @@ class Pass:
     their threads no carry-on, since the failover sends one. `world` is what the pass saw of T3
     Code and GitHub, once it has looked (`watch.look`), or None before then or where it could not
     look. `red` is main's tip, red after its one rerun, that `watch` hands to `jbus.culprits` in
-    the pass that files its row or reverts its culprit.
+    the pass that files its row or reverts its culprit. `briefs` is each brief `watch.brief_of`
+    read this pass, by its path, with the mtime and size it had then.
     """
 
     config: Config
@@ -114,6 +116,7 @@ class Pass:
     failed: list[dict[str, Any]] | None = None
     world: World | None = None
     red: RedTip | None = None
+    briefs: dict[Path, tuple[tuple[int, int], str]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.state = self.config.state(self.project)
