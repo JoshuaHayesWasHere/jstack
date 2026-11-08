@@ -33,8 +33,9 @@ count. Its end is a `completed_at`, which GitHub gives to the second, and its de
 change of the row's line after that end.
 A round whose line did not change within `--wait` seconds counts as none. A push starts the next
 round, and a head whose checks had settled when the probe first saw them makes no round: a probe
-started then records the next head's. `--rounds` is the count of rounds it records. It prints each round as it ends and appends it as one JSON line to `--out`, then prints the
-rounds, p50 and max in seconds.
+started then records the next head's. `--rounds` is the count of rounds it records. It prints each
+round as it ends and appends it as one JSON line to `--out`, then prints the rounds, p50 and max in
+seconds.
 """
 
 from __future__ import annotations
