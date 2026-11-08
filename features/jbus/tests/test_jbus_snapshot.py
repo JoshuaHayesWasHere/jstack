@@ -215,9 +215,19 @@ def test_a_ci_log_of_cache_keys_is_committed(tree):
     [
         lambda: "  GITHUB_TOKEN: ghp_" + made_up(36) + "\n",
         lambda: "  AWS_ACCESS_KEY_ID: AKIA" + made_up(16, string.ascii_uppercase + "234567") + "\n",
-        lambda: "  key: ghp_" + made_up(36) + "\n",
+        lambda: "  key: ghp_" + made_up(36) + "-" + HASH + "\n",
+        lambda: "  KEY: AKIA" + made_up(16, string.ascii_uppercase + "234567") + "-" + HASH + "\n",
+        lambda: (
+            f"check 1 of 8\tRun ghp_{made_up(36)}\t2026-11-08T19:36:04.6132239Z   key: tlc-{HASH}\n"
+        ),
     ],
-    ids=["github-token", "aws-key", "github-token-as-a-cache-key"],
+    ids=[
+        "github-token",
+        "aws-key",
+        "github-token-as-a-cache-key",
+        "aws-key-as-a-cache-key",
+        "github-token-as-a-step",
+    ],
 )
 def test_a_ci_log_of_cache_keys_with_a_secret_in_it_is_refused(tree, leak):
     before = git(tree, "rev-parse", "HEAD")
