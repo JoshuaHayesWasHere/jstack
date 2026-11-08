@@ -3,13 +3,14 @@ to its thread, settles each thread of a finished task once, and settles a scout'
 when its page has ended. Like `test_jbus_kitchen.py`, the tests run the real pass against the fakes.
 """
 
+import json
 import subprocess
 from datetime import timedelta
 
 import pytest
 
-from jbus import t3
-from test_jbus_kitchen import FIXTURE, NOW, PROJECT, RESULT, queued, review, settles
+from jbus import questions, queue, t3
+from test_jbus_kitchen import FIXTURE, GATE, NOW, PROJECT, RESULT, queued, review, settles
 
 
 def links(kitchen):
@@ -37,7 +38,13 @@ def test_an_open_pull_request_of_a_launched_slug_is_linked_to_its_thread_once(ki
     assert [given["url"][-1] for given in links(kitchen)] == ["7", "9"]
 
 
-def test_the_threads_of_a_finished_slug_and_those_under_them_are_settled_once_each(kitchen):
+def put_away(kitchen, action="archive"):
+    """The title of each thread a pass asked T3 Code to `action`, in the order it asked."""
+    titles = {t["threadId"]: t["title"] for t in kitchen.t3.threads}
+    return [titles[given["threadId"]] for given in settles(kitchen, action)]
+
+
+def test_the_threads_of_a_finished_slug_and_those_under_them_are_archived_once_each(kitchen):
     under = {"relationshipToParent": "subagent"}
     for slug in ("alpha", "beta", "delta", "epsilon"):
         kitchen.brief(slug, RESULT if slug == "delta" else review("clean", "mcp:crew", "- none"))
@@ -72,35 +79,149 @@ def test_the_threads_of_a_finished_slug_and_those_under_them_are_settled_once_ea
     kitchen.t3.thread("zeta", "completed", title="scout: zeta")
     kitchen.t3.thread("alpha-two", "completed")
     said = kitchen.poll()
-    titles = {t["threadId"]: t["title"] for t in kitchen.t3.threads}
-    assert all(set(given) == {"action", "threadId"} for given in settles(kitchen))
+    assert all(set(given) == {"action", "threadId"} for given in settles(kitchen, "archive"))
     assert {tool for tool, _ in kitchen.t3.calls} <= set(t3.TOOLS)
-    assert sorted(titles[given["threadId"]] for given in settles(kitchen)) == [
-        "an explorer",
-        "crew: alpha",
-        "crew: delta",
-        "left behind",
-        "review: alpha",
-        "scout: gamma",
+    done = ["an explorer", "crew: alpha", "crew: delta", "left behind", "review: alpha"]
+    assert sorted(put_away(kitchen)) == sorted([*done, "review: beta", "scout: gamma"])
+    assert f"archived alpha: crew: alpha {crew['threadId']}" in said
+    assert sorted(t["title"] for t in kitchen.t3.threads if not t.get("archived")) == [
+        "a fork",
+        "crew: alpha-two",
+        "crew: beta",
+        "crew: epsilon",
+        "its helper",
+        "scout: zeta",
     ]
-    assert f"settled alpha: crew: alpha {crew['threadId']}" in said
     asked = [given for tool, given in kitchen.t3.calls if tool == "t3_thread_list"]
-    assert {"projectId": PROJECT, "limit": 100, "settled": False, "includeSubagents": True} in asked
+    assert {"projectId": PROJECT, "limit": 100, "includeSubagents": True} in asked
     kitchen.poll(NOW + timedelta(minutes=3))
-    assert len(settles(kitchen)) == 6
+    assert len(put_away(kitchen)) == 7
     for status in ("waiting", "starting"):
         busy["status"] = status
         kitchen.poll(NOW + timedelta(minutes=4))
-    assert len(settles(kitchen)) == 6
+    assert len(put_away(kitchen)) == 7
     busy["status"] = "completed"
     kitchen.poll(NOW + timedelta(minutes=6))
-    assert [given["threadId"] for given in settles(kitchen)[6:]] == [
-        busy["threadId"],
-        child["threadId"],
-    ]
-    crew["settled"] = gone["settled"] = False
-    kitchen.poll(NOW + timedelta(minutes=9))
-    assert len(settles(kitchen)) == 8 and (crew["settled"], gone["settled"]) == (False, False)
+    assert put_away(kitchen)[7:] == ["crew: beta", "its helper"]
+    assert busy["archived"] and child["archived"]
+
+
+def test_a_thread_the_user_unarchives_is_not_archived_again(kitchen):
+    kitchen.brief("alpha", RESULT)
+    crew = kitchen.t3.thread("alpha", "completed")
+    kitchen.poll()
+    assert crew["archived"] and crew["settled"]
+    crew["archived"] = False
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert crew["archived"] is False and put_away(kitchen) == ["crew: alpha"]
+
+
+def test_the_threads_an_earlier_pass_settled_are_archived_once_and_a_home_never(kitchen):
+    under = {"relationshipToParent": "subagent"}
+    kitchen.brief("alpha", RESULT)
+    kitchen.brief("look", "\n## Report\nStatus: done\n", kind="scouts")
+    crew = kitchen.t3.thread("alpha", "completed", settled=True)
+    kitchen.t3.thread(
+        "alpha",
+        "completed",
+        title="its helper",
+        parentThreadId=crew["threadId"],
+        settled=True,
+        **under,
+    )
+    kitchen.t3.thread("look", "completed", title="scout: look", settled=True)
+    home = kitchen.t3.thread("alpha", "completed", title="home: alpha", settled=True)
+    kitchen.t3.thread(
+        "alpha",
+        "completed",
+        title="home's helper",
+        parentThreadId=home["threadId"],
+        settled=True,
+        **under,
+    )
+    kitchen.poll()
+    assert sorted(put_away(kitchen)) == ["crew: alpha", "its helper", "scout: look"]
+    assert put_away(kitchen, "settle") == []
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert len(put_away(kitchen)) == 3 and "archived" not in home
+
+
+def test_the_subagent_of_a_thread_archived_before_is_archived_once_it_is_listed(kitchen):
+    under = {"relationshipToParent": "subagent"}
+    kitchen.brief("alpha", RESULT)
+    crew = kitchen.t3.thread("alpha", "completed")
+    kitchen.poll()
+    assert put_away(kitchen) == ["crew: alpha"]
+    kitchen.t3.thread(
+        "alpha",
+        "completed",
+        title="its helper",
+        parentThreadId=crew["threadId"],
+        settled=True,
+        **under,
+    )
+    kitchen.brief("beta", RESULT)
+    kitchen.t3.thread("beta", "completed")
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert sorted(put_away(kitchen)) == ["crew: alpha", "crew: beta", "its helper"]
+
+
+def tree(kitchen):
+    """Make a worktree on branch `alpha`, as a crew's, and return its path."""
+    path = kitchen.root / "trees" / "alpha"
+    kitchen.git("worktree", "add", "-q", "-b", "alpha", str(path))
+    return path
+
+
+def a_follower(kitchen):
+    kitchen.brief("beta", "Follows: alpha\n")
+    queue.path(kitchen.state).parent.mkdir(parents=True, exist_ok=True)
+    queue.path(kitchen.state).write_text(json.dumps([{"slug": "beta", "status": "queued"}]))
+    return lambda: queue.path(kitchen.state).write_text("[]")
+
+
+def a_question(kitchen):
+    lines = GATE.format(n=1, asked="drop the old rows?", status="open", slug="alpha").replace(
+        "Option:", "Holds: deletes data\nFail-safe: a dump of the rows at ~/rows.sql\nOption:", 1
+    )
+    questions.ask(kitchen.state, kitchen.home, "alpha", lines, NOW)
+
+
+def uncommitted(kitchen):
+    made = tree(kitchen) / "notes.txt"
+    made.write_text("half done\n")
+    return made.unlink
+
+
+def unpushed(kitchen):
+    path = tree(kitchen)
+    (path / "a.txt").write_text("one\n")
+    kitchen.git("add", "a.txt", cwd=path)
+    kitchen.git("commit", "-qm", "a commit", cwd=path)
+    return lambda: kitchen.git("push", "-q", "origin", "alpha", cwd=path)
+
+
+def after_the_merge(kitchen):
+    kitchen.set("merged.json", [kitchen.merged("alpha", 5, "a" * 40)])
+    kitchen.brief("alpha", RESULT.replace("Left: none", "Left: after the merge: tag it"))
+
+
+@pytest.mark.parametrize(
+    "work",
+    [a_follower, a_question, uncommitted, unpushed, after_the_merge],
+    ids=lambda w: w.__name__,
+)
+def test_a_finished_slug_with_work_still_open_is_settled_and_archived_once_it_closes(kitchen, work):
+    kitchen.brief("alpha", RESULT)
+    crew = kitchen.t3.thread("alpha", "completed")
+    close = work(kitchen)
+    kitchen.poll()
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert crew["settled"] and "archived" not in crew
+    if close:
+        close()
+        kitchen.poll(NOW + timedelta(minutes=6))
+        assert crew["archived"] and put_away(kitchen) == ["crew: alpha"]
 
 
 def test_a_settled_crew_leaves_no_scratch_folder_and_no_worktree_made_in_it(kitchen):
@@ -140,7 +261,7 @@ def test_a_task_that_is_not_done_or_has_a_pull_request_open_keeps_its_threads(ki
     for slug in ("alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta"):
         kitchen.t3.thread(slug, "completed")
     kitchen.poll()
-    assert settles(kitchen) == []
+    assert settles(kitchen) == [] and settles(kitchen, "archive") == []
 
 
 def scout_with(kitchen, report):

@@ -90,6 +90,23 @@ def test_a_merged_row_stays_merged_when_its_thread_is_archived(kitchen):
     assert len(kitchen.t3.launches) == 1
 
 
+@pytest.mark.parametrize("ending", ENDINGS)
+def test_a_crew_the_pass_archived_is_still_its_rows_and_a_left_row_keeps_its_thread(
+    kitchen, ending
+):
+    """A pass archives the thread of a finished row, and the row keeps it as `jbus.archived` reads
+    it. A `left` row's thread stays as it is until its home closes the row."""
+    more, status = ENDINGS[ending]
+    thread = launched(kitchen, more=more)
+    for minutes in (3, 6, 9):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+        assert rows(kitchen)["alpha"]["status"] == status
+    assert bool(thread.get("archived")) is (status == "done")
+    assert rows(kitchen)["alpha"]["thread"] == thread["threadId"]
+    assert judged(kitchen)["facts"]["thread"] == ("archived" if status == "done" else "completed")
+    assert len(kitchen.t3.launches) == 1 and kitchen.lines("gate") == []
+
+
 def test_a_thread_that_is_missing_is_told_apart_from_one_that_was_never_launched(kitchen):
     thread = launched(kitchen, more=result())
     add(kitchen, "beta", approve=False)

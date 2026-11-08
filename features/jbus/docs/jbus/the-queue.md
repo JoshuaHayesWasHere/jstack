@@ -460,7 +460,7 @@ One file tells a pass which slugs are gone permanently.
 `~/.local/state/jbus/<project>/removed.json` names each removed slug, with who said so and when.
 From then on a pass sends no event for that slug, whatever its brief in the home's `tasks/`, its thread or a gate it asked says.
 A pass also tells no thread of that slug to carry on.
-A pass still settles a thread of the slug whose brief has a done Result with nothing left, or whose pull request merged.
+A pass still archives a thread of the slug whose brief has a done Result with nothing left, or whose pull request merged.
 A thread that ended with no Result stays open in T3 Code until you settle it.
 A pull request opened for the slug later is still a pull request, so `jmerge` judges it, and jbus tells its crew what it is short of.
 The slug is on no list: not in `jbus queue show`, not in `waiting-on-user.json`, not in the digest, and on the view only in the feed of past events.
