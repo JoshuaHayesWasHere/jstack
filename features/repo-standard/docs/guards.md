@@ -103,7 +103,8 @@ The guard reads a file's comments the way its language does, by the file's exten
 | Reader | Extensions it takes by default | What it reads as a comment |
 |---|---|---|
 | `python` | `.py` | a `#` comment, read with `tokenize` |
-| `shell` | `.sh`, `.bash`, `.yml`, `.yaml`, `.toml` | a `#` that starts a word, outside quotes |
+| `shell` | `.sh`, `.bash` | a `#` that starts a word, outside quotes |
+| `config` | `.yml`, `.yaml`, `.toml` | a `#` that starts a word, outside a quote that opens where a value or a key starts |
 | `script` | `.js`, `.mjs`, `.ts`, `.css` | `//` and `/* */`, outside strings and regular expressions |
 | `page` | `.html` | a `script` comment in a `<script>` or `<style>` |
 | `unit` | `.service`, `.timer` | a line that starts with `#` or `;` |

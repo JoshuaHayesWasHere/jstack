@@ -335,6 +335,26 @@ def test_a_hash_list_reads_a_line_that_starts_with_a_hash(repo, capsys):
     ]
 
 
+def test_yaml_and_toml_open_a_quote_only_where_a_value_or_key_starts(repo, capsys):
+    write(
+        repo,
+        {
+            "features/beta/src/apostrophe.yml": "name: don't\nurl: 'a # no'\nb: x#y\n# why\n",
+            "features/beta/src/quoted.yaml": "- 'it''s # no'\n- [\"#\", '#'] # why\n",
+            "features/beta/src/table.toml": 'k = "it\'s # no"\nv = [\'a\', "#"] # why\n',
+            "features/beta/src/triple.toml": "t = '''a # no\n'''\n# why\nu = 'open # no\n",
+            "features/beta/src/escaped.yml": "a: '''x'\n# why\n",
+        },
+    )
+    assert run(repo, "comments", capsys=capsys)[1] == [
+        "features/beta/src/apostrophe.yml:4: a plain comment: # why",
+        "features/beta/src/escaped.yml:2: a plain comment: # why",
+        "features/beta/src/quoted.yaml:2: a plain comment: # why",
+        "features/beta/src/table.toml:2: a plain comment: # why",
+        "features/beta/src/triple.toml:3: a plain comment: # why",
+    ]
+
+
 @pytest.mark.parametrize(
     ("change", "said"),
     [
