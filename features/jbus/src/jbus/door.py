@@ -4,10 +4,12 @@
 A door is a case of `templates/gates.md`, and the commands that walk through one are the `runs`
 of `party.DOORS`, the table a brief's commands are read by (`party.walks`). jbus's go and answer
 paths are the main check: a row whose brief walks through a door goes only on the user's own word,
-read in T3 Code, that names it. This hook is the second, for what a thread runs itself:
+read in T3 Code, in reply to an ask about that row alone. This hook is the second, for what a
+thread runs itself:
 
 - a home's or a scout's command that walks through a door is refused: the door goes in a row
-  whose brief has `Holds: <case>`, and the user's own go in T3 Code opens it for that row's crew;
+  whose brief has `Holds: <case>`, and the user's own plain reply in T3 Code, to the home's ask
+  about that row, opens it for that row's crew;
 - a crew's command goes only where its row's go is a `done` act on the user's own words that jbus
   read (`party.opens`), and still holds for the brief stored now;
 - any other thread, and a session T3 Code's store does not know, is let through, as
@@ -309,9 +311,9 @@ def refusal(homes: Path, buses: Path, thread: str, command: str) -> str:
             "literally or through a variable that command set, it may remove"
         )
     row = (
-        f"the door goes in a row whose brief has Holds: {case}, and jbus queue approve <slug> "
-        f"--sha <sha12> --message <thread>/<message>, on {user}'s own message in T3 Code that "
-        "names the row, opens it for that row's crew"
+        f"the door goes in a row whose brief has Holds: {case}; ask {user} about that row alone, "
+        "in plain words, and pass their reply: jbus queue approve <slug> --sha <sha12> --message "
+        f"<thread>/<message>, on {user}'s own reply in T3 Code, opens it for that row's crew"
     )
     if any(one.holds(thread) for one in sends.homes(homes)):
         return f"{door}, and a home runs no door itself: {row}"
@@ -322,9 +324,10 @@ def refusal(homes: Path, buses: Path, thread: str, command: str) -> str:
     if crew is None or _holds(buses, crew.slug):
         return ""
     return (
-        f"{door}, and the go of {crew.slug} is not {user}'s own word read in T3 Code: jbus "
-        f"queue approve {crew.slug} --sha <sha12> --message <thread>/<message>, on {user}'s own "
-        f"message in T3 Code that names {crew.slug}, records it"
+        f"{door}, and the go of {crew.slug} is not {user}'s own word read in T3 Code: ask "
+        f"{user} about {crew.slug} alone, in plain words, and pass their reply: jbus queue "
+        f"approve {crew.slug} --sha <sha12> --message <thread>/<message>, on {user}'s own reply "
+        "in T3 Code, records it"
     )
 
 

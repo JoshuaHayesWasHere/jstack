@@ -105,9 +105,9 @@ def test_a_homes_prod_migration_is_refused_with_where_the_door_goes(home, harnes
     assert said == (
         f"door-command: refused: `{MIGRATE}` walks through a door (touches prod or real users), "
         "and a home runs no door itself: the door goes in a row whose brief has Holds: touches "
-        "prod or real users, and jbus queue approve <slug> --sha <sha12> --message "
-        "<thread>/<message>, on user's own message in T3 Code that names the row, opens it for "
-        "that row's crew\n"
+        "prod or real users; ask user about that row alone, in plain words, and pass their "
+        "reply: jbus queue approve <slug> --sha <sha12> --message <thread>/<message>, on user's "
+        "own reply in T3 Code, opens it for that row's crew\n"
     )
 
 
@@ -121,9 +121,9 @@ def test_a_crew_runs_a_door_on_the_users_own_go_and_not_on_a_carried_one(home):
     code, said = run(home, FLOW_CREW, MIGRATE)
     assert code == 2
     assert said.endswith(
-        f"and the go of {BOTS} is not user's own word read in T3 Code: jbus queue approve {BOTS} "
-        "--sha <sha12> --message <thread>/<message>, on user's own message in T3 Code that names "
-        f"{BOTS}, records it\n"
+        f"and the go of {BOTS} is not user's own word read in T3 Code: ask user about {BOTS} "
+        f"alone, in plain words, and pass their reply: jbus queue approve {BOTS} --sha <sha12> "
+        "--message <thread>/<message>, on user's own reply in T3 Code, records it\n"
     )
 
 
