@@ -1104,11 +1104,11 @@ def watch(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
             line = f"stale {slug}: thread {thread['threadId']} is archived with no Result"
             run.find(slug, "stale", line, key=f"{thread['threadId']} archived")
     for slug, pull in world.merged.items():
-        if slug in run.gated or not brief_of(run, slug):
+        if slug in run.gated or not (brief := brief_of(run, slug)):
             continue
         commit = (pull.get("mergeCommit") or {}).get("oid", "")
         line = f"merged {slug} #{pull['number']} {commit[:12]}"
-        result = last_result(brief_of(run, slug))
+        result = last_result(brief)
         run.find(slug, "merged", line, result, key=f"#{pull['number']}", past=True)
     for nightly in watched(run):
         _nightly_red(run, nightly)
