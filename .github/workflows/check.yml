@@ -245,12 +245,16 @@ jobs:
           restore-keys: |
             tlc-${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
             tlc-
-      # Collects only the part's own files.
+      # Collects only the part's own files. It records, as its tests run, the lines of the feature
+      # code this change touches that each test file ran (`NEW_LINES_PART`, the Makefile), which
+      # `check` reads for the guard of test_new_lines_run.py: that guard ran the tests that name
+      # each changed module a second time, under coverage, inside one part, and so bound the
+      # slowest part in 25 of 43 large runs (21 to 362 s, 2026-11-07..08). The part skips it.
       - name: make test
         id: suite
         env:
           PART: ${{ needs.reuse.outputs[format('part{0}', matrix.shard)] }}
-        run: '[ "$PART" = none ] || make test TESTS="$PART"'
+        run: '[ "$PART" = none ] || make test TESTS="$PART" NEW_LINES_PART="$RUNNER_TEMP/new-lines"'
       # After the suite, passed or failed, since a kept run is one TLC finished: a part whose
       # cache now holds runs it did not restore saves them, under the key it restored with (the
       # spec files' hash, taken before the suite wrote `__pycache__` under the hashed paths) and
@@ -270,6 +274,16 @@ jobs:
         with:
           path: ~/.cache/jstack/tlc
           key: ${{ steps.kept.outputs.key }}
+      # What the part recorded, for `check`; none where the change touches no feature code. One
+      # that cannot be kept costs `check` a run of the tests its lines need, and nothing else.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: "!cancelled() && steps.suite.outcome != 'skipped'"
+        continue-on-error: true
+        with:
+          name: new-lines-${{ github.run_attempt }}-${{ matrix.shard }}
+          path: ${{ runner.temp }}/new-lines
+          retention-days: 1
+          if-no-files-found: ignore
       # Whether the suite ran whole, and on which tree, in the job summary and as the job's
       # telemetry, which `jbus ci` keeps in ci.jsonl: the full runs a pull request had, what its
       # check selected (`all` or how many test files, and the path that forced `all`), so a red
@@ -292,7 +306,9 @@ jobs:
     if: always() && github.event_name == 'pull_request'
     needs: [reuse, lint, check-shard]
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    # The guard of the added lines runs here, and a line no part ran in a test that names its
+    # module runs those tests again before it is a fault: the guard's own cap is 15 minutes.
+    timeout-minutes: 20
     steps:
       # The parts are skipped only on a reuse, and then it passes on the pass it reuses. The
       # `reuse` job, which runs the selection and the trailer check, and `lint` passed in either
@@ -304,6 +320,39 @@ jobs:
           REUSE: ${{ needs.reuse.result }}
           REUSED: ${{ needs.reuse.outputs.reused }}
         run: '[ "$REUSE $LINT" = "success success" ] && { [ "$REUSED" = true ] || [ "$PARTS" = success ]; } || { echo "::error::the reuse job ended $REUSE, the lint $LINT, and the parts of the check $PARTS, not success"; exit 1; }'
+      # The guard of test_new_lines_run.py, which the parts skip: each line this change adds to a
+      # feature's code ran in a test that names its module, read from what the parts recorded
+      # (`NEW_LINES_PARTS`), so no test runs again for a line a part ran. It runs once every part
+      # passed, and only where the change touches a feature's src/ or scripts/, so any other
+      # change pays for the checkout and no more.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: needs.check-shard.result == 'success'
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: feature code
+        id: code
+        if: needs.check-shard.result == 'success'
+        run: 'git diff --quiet HEAD^1 HEAD -- "features/*/src/*.py" "features/*/scripts/*.py" || echo changed=true >> "$GITHUB_OUTPUT"'
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        if: steps.code.outputs.changed == 'true'
+        with:
+          version: ${{ env.UV_VERSION }}
+      - if: steps.code.outputs.changed == 'true'
+        run: uv sync --locked
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: steps.code.outputs.changed == 'true'
+        continue-on-error: true
+        with:
+          pattern: new-lines-${{ github.run_attempt }}-*
+          path: ${{ runner.temp }}/new-lines
+          merge-multiple: true
+      - name: new lines
+        if: steps.code.outputs.changed == 'true'
+        env:
+          NEW_LINES_PARTS: ${{ runner.temp }}/new-lines
+          BASE: HEAD^1
+        run: uv run pytest -q -p no:cacheprovider features/repo-guards/tests/test_new_lines_run.py -k every_line_this_branch_adds
       # The pass of the two trees, for a later run of them to reuse (`reuse`). A reuse leaves
       # none: the run it reused left one. One that cannot be kept costs that reuse and nothing
       # else.

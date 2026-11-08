@@ -512,7 +512,7 @@ CAPS = {
     ("check.yml", "reuse"): "5",
     ("check.yml", "lint"): "10",
     ("check.yml", "check-shard"): "30",
-    ("check.yml", "check"): "5",
+    ("check.yml", "check"): "20",
     ("check.yml", "select-facts"): "5",
     ("check.yml", "full-shard"): "30",
     ("check.yml", "full"): "5",
@@ -1466,7 +1466,8 @@ PART = "${{ needs.reuse.outputs[format('part{0}', matrix.shard)] }}"
         (
             "testing/tests/test_a.py testing/tests/test_b.py",
             0,
-            "test TESTS=testing/tests/test_a.py testing/tests/test_b.py",
+            "test TESTS=testing/tests/test_a.py testing/tests/test_b.py"
+            " NEW_LINES_PART=/runner/temp/new-lines",
         ),
     ],
 )
@@ -1482,7 +1483,7 @@ def test_a_part_runs_only_its_own_files_and_fails_on_no_selection(tmp_path, part
     bin.mkdir()
     (bin / "make").write_text(f'#!/bin/sh\necho "$*" >> "{tmp_path}/make"\n')
     (bin / "make").chmod(0o755)
-    env = {"PATH": f"{bin}:/usr/bin:/bin", "PART": part}
+    env = {"PATH": f"{bin}:/usr/bin:/bin", "PART": part, "RUNNER_TEMP": "/runner/temp"}
     first = subprocess.run(["sh", "-c", guard["run"]], env=env, capture_output=True, text=True)
     assert first.returncode == ends
     if ends:
@@ -2392,7 +2393,7 @@ def test_every_setup_uv_step_installs_one_exact_uv_named_once_in_each_workflow()
     found = {name: versions for name, versions in found.items() if versions}
     assert {name: len(versions) for name, versions in found.items()} == {
         "browser.yml": 1,
-        "check.yml": 3,
+        "check.yml": 4,
         "macos-nightly.yml": 1,
         "macos.yml": 2,
         "pstack-drift.yml": 1,
@@ -2733,7 +2734,8 @@ def test_a_reuse_skips_the_parts_and_check_passes_on_it_and_a_miss_runs_them():
 
 def test_a_run_whose_parts_passed_leaves_the_marker_of_its_two_trees_and_a_reuse_leaves_none():
     found, _ = steps(CHECK.read_text(), "check")
-    _, mark, upload, *_ = found
+    at = next(k for k, step in enumerate(found) if step.get("id") == "checked")
+    mark, upload = found[at : at + 2]
     outputs = job_section("reuse", "outputs")
     assert {key: outputs[key] for key in ("name", "reused", "failed", "lookup")} == {
         "name": "${{ steps.reuse.outputs.name }}",
@@ -2924,3 +2926,54 @@ def test_a_lookup_that_cannot_ask_runs_the_suite_and_warns(tmp_path):
     outputs, printed, name = reuse(tmp_path, {})
     assert outputs == {"name": name, "reused": "false"}
     assert printed.startswith(f"::warning::reuse: {name}: could not ask (HTTP 403"), printed
+
+
+@pytest.mark.parametrize(
+    "path,changed",
+    [("features/jbus/src/jbus/tick.py", True), ("features/jbus/docs/jbus.md", False)],
+)
+def test_the_parts_record_the_lines_they_run_and_check_reads_them_before_any_marker(
+    tmp_path, path, changed
+):
+    """No part runs a test a second time for the guard of test_new_lines_run.py: each part's
+    `make test` records the lines of the changed feature code its tests run and uploads them, and
+    `check` downloads every part's upload of the same attempt and runs the guard on them, only
+    where the change touches a feature's src/ or scripts/. A marker of a pass comes after the
+    guard, so a run whose guard failed leaves none."""
+    parts, _ = steps(CHECK.read_text(), "check-shard")
+    test = next(step for step in parts if step.get("name") == "make test")
+    assert 'NEW_LINES_PART="$RUNNER_TEMP/new-lines"' in test["run"]
+    upload = next(
+        step for step in parts if step.get("with", {}).get("path") == "${{ runner.temp }}/new-lines"
+    )
+    assert upload["uses"].startswith("actions/upload-artifact@")
+    assert upload["with"]["name"] == "new-lines-${{ github.run_attempt }}-${{ matrix.shard }}"
+    found, _ = steps(CHECK.read_text(), "check")
+    names = [step.get("id", step.get("name", step.get("uses", ""))) for step in found]
+    code, guard = found[names.index("code")], found[names.index("new lines")]
+    download = next(step for step in found if "download-artifact" in step.get("uses", ""))
+    assert fnmatch(
+        upload["with"]["name"].replace("${{ matrix.shard }}", "3"), download["with"]["pattern"]
+    )
+    assert download["with"]["merge-multiple"] is True
+    assert guard["env"]["NEW_LINES_PARTS"] == download["with"]["path"]
+    assert "features/repo-guards/tests/test_new_lines_run.py" in guard["run"]
+    assert names.index("new lines") < names.index("checked") < names.index("marker")
+    assert all("always()" not in str(step.get("if")) for step in found[names.index("new lines") :])
+    repo = tmp_path / "repo"
+    (repo / path).parent.mkdir(parents=True)
+    git = ["git", "-c", "user.name=a", "-c", "user.email=a@example.com", "-C", str(repo)]
+    subprocess.run([*git, "init", "-q"], check=True)
+    for text in ("base\n", "merge\n"):
+        (repo / path).write_text(text)
+        subprocess.run([*git, "add", "."], check=True)
+        subprocess.run([*git, "commit", "-q", "-m", text.strip()], check=True)
+    output = tmp_path / "output"
+    output.write_text("")
+    subprocess.run(
+        ["sh", "-c", code["run"]],
+        cwd=repo,
+        env={"PATH": "/usr/bin:/bin", "GITHUB_OUTPUT": str(output)},
+        check=True,
+    )
+    assert output.read_text() == ("changed=true\n" if changed else "")
