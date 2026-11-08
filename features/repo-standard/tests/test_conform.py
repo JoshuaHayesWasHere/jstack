@@ -21,6 +21,7 @@ import textwrap
 
 import pytest
 
+from repo_standard import conform as conform_module
 from repo_standard.cli import main
 from testing.paths import REPO
 
@@ -440,7 +441,7 @@ def test_a_config_conform_cannot_read_exits_2_and_says_why(repo, capsys, line, s
 
 
 def test_python_m_repo_standard_runs_the_command(repo):
-    """`python -m repo_standard`, which `repo_standard.__main__` serves, runs as the command does."""
+    """`python -m repo_standard`, which `repo_standard.__main__` serves, runs as the command."""
     env = {**os.environ, "PYTHONPATH": str(REPO / "features" / "repo-standard" / "src")}
     command = [sys.executable, "-m", "repo_standard", "conform", "--upstream", ""]
     ran = subprocess.run(command, cwd=repo, env=env, capture_output=True, text=True)
@@ -448,3 +449,60 @@ def test_python_m_repo_standard_runs_the_command(repo):
         0,
         f"conform repo-standard-v1, {len(BREAKS)} rules: errors 0, warnings 0, waived 0",
     )
+
+
+def one_feature_only(repo):
+    shutil.rmtree(repo / "features" / "beta")
+    edit(
+        repo / ".repo-standard.yml",
+        "[features/beta/tests/test_beta.py]",
+        "[features/alpha/tests/test_alpha.py]",
+    )
+    subprocess.run([sys.executable, "scripts/gen.py"], cwd=repo, check=True)
+    write(repo, {"features/alpha/docs/alpha.md": "# alpha\n\nAll of features/alpha/.\n"})
+
+
+@pytest.mark.parametrize(
+    ("change", "said"),
+    [
+        (
+            lambda r: write(r, {"schemas/feature.core.schema.json": "{not json"}),
+            "error a-feature-owns-its-folder-and-nothing-else: schemas/feature.core.schema.json: "
+            "is not JSON",
+        ),
+        (
+            lambda r: write(r, {"features/beta/skills/gamma/SKILL.md": "No front matter.\n"}),
+            "error each-item-has-one-feature-and-one-name: features/beta/skills/gamma/SKILL.md: "
+            "names no skill in its front matter",
+        ),
+        (
+            lambda r: write(r, {"features/alpha/skills/gamma/SKILL.md": skill("gamma")}),
+            "error each-item-has-one-feature-and-one-name: features/beta/skills/gamma/SKILL.md: "
+            "names gamma, as features/alpha/skills/gamma/SKILL.md does",
+        ),
+        (
+            lambda r: edit(r / ".repo-standard.yml", "deploy: [make deploy]\n", ""),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: the config has no "
+            "`deploy` part",
+        ),
+        (
+            lambda r: edit(r / ".repo-standard.yml", "[scripts/prose.py]", "[scripts/gone.py]"),
+            "error new-prose-has-one-sentence-per-line: enforced-by: scripts/gone.py is not a file "
+            "git tracks",
+        ),
+        (one_feature_only, "conform repo-standard-v1, 34 rules: errors 0, warnings 0, waived 0"),
+    ],
+)
+def test_each_way_a_rule_is_broken_is_named(repo, capsys, change, said):
+    change(repo)
+    code, lines = conform(repo, capsys)
+    found = [line for line in lines if line.startswith(said)]
+    assert found, lines
+    assert code == (0 if said.startswith("conform ") else 1)
+
+
+def test_a_tag_lookup_that_hangs_is_a_note_and_fails_nothing(repo, tmp_path, capsys, monkeypatch):
+    monkeypatch.setattr(conform_module, "LIST_SECONDS", 0.001)
+    upstream = tagged(tmp_path / "jstack", 1, 2)
+    assert main(["conform", "--root", str(repo), "--upstream", str(upstream)]) == 0
+    assert "note: cannot list the standard's versions: git ls-remote" in capsys.readouterr().out
