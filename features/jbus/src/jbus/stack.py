@@ -23,7 +23,9 @@ has the line and has not moved yet, and whose base merged:
   `git reset --keep`.
   A link whose head does not hold the base's last head, since the base took commits after it was
   stacked, is moved from the fork instead (`_fork`), where the base only grew: every head of the
-  base that this machine's reflogs record under the link's head is under the base's last head.
+  base that this machine's reflogs record under the link's head is under the base's last head. A
+  base whose branch is gone, here and on origin, leaves no reflog, so the commit the link's own
+  branch was made at counts as one of those heads, unless the branch it moves onto holds it.
   jbus moves nothing while the outbox holds the crew (`rebase.held`): its thread is at work, waits
   on a test slot, or waits on a review it launched that jmerge says is not written at the head.
   Such a link waits for a later pass, and its crew is told nothing. Nor does jbus move it while a
@@ -251,7 +253,7 @@ def _carry(
     if not run.run("git", "merge-base", "--is-ancestor", merge, head).returncode:
         return head
     if run.run("git", "merge-base", "--is-ancestor", last, head).returncode:
-        fork = _fork(run, base, last, head)
+        fork = _fork(run, base, branch, last, head, onto)
         if not fork:
             return _left(run, slug, f"its head does not hold {last[:12]} here")
         last = fork
@@ -291,17 +293,22 @@ def _push(run: Pass, slug: str, branch: str, head: str, new: str, crew: Path | N
     return new
 
 
-def _fork(run: Pass, base: str, last: str, head: str) -> str:
-    """Where the link left its `base` branch, when the base only grew after the link was stacked
-    on it: the fork of the base's `last` head and the link's `head`. The heads the base had are
-    read from this machine's record of them, the reflogs of its local and remote-tracking branch,
-    and the base only grew when one of them is under the link's head and every one under it is
-    under `last` too. Nothing when the base dropped a head the link holds, as an amend or a rebase
-    does, or when no record is left to say."""
+def _fork(run: Pass, base: str, branch: str, last: str, head: str, onto: str) -> str:
+    """Where the link on `branch` left its `base` branch, when the base only grew after the link
+    was stacked on it: the fork of the base's `last` head and the link's `head`. The heads the base
+    had are read from this machine's record of them: the reflogs of its local and remote-tracking
+    branch, and the oldest entry of the reflog of the link's own `branch`, the base's head it was
+    made at, unless `origin/<onto>` holds that commit and so it is no head of the base. The base
+    only grew when one of them is under the link's head and every one under it is under `last`
+    too. Nothing when the base dropped a head the link holds, as an amend or a rebase does, or
+    when no record is left to say."""
     heads: set[str] = set()
     for ref in (f"refs/heads/{base}", f"refs/remotes/origin/{base}"):
         said = run.run("git", "reflog", "show", "--format=%H", ref, "--")
         heads.update(said.stdout.split() if not said.returncode else ())
+    said = run.run("git", "reflog", "show", "--format=%H", f"refs/heads/{branch}", "--")
+    made = said.stdout.split()[-1:] if not said.returncode else []
+    heads.update(one for one in made if not _holds(run, f"origin/{onto}", one))
     under = [one for one in heads if _holds(run, head, one)]
     if not under or not all(_holds(run, last, one) for one in under):
         return ""
