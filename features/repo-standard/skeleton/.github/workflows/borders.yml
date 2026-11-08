@@ -1,6 +1,7 @@
-# A change across two features needs the label `cross-cutting`, so a label added or taken off
-# runs the borders guard again: check.yml's triggers leave those two events out. It is a workflow
-# of its own, since a label event in check.yml's concurrency group would cancel a running check.
+# A change across two features needs the label `cross-cutting`, so the borders of a change are
+# checked here, on each push of a pull request and each label added or taken off, and not in the
+# shared check, which reads no labels. It is a workflow of its own, since a label event in
+# check.yml's concurrency group would cancel a running check.
 name: borders
 
 on:

@@ -166,6 +166,20 @@ def test_a_shared_path_selects_all_and_a_page_selects_nothing(new_repo, path, te
     assert selected(root, env, "HEAD") == selection
 
 
+def test_a_change_across_two_features_passes_the_lint_and_needs_its_label(new_repo):
+    """The shared check runs `make lint BASE=HEAD^1` with no labels, and borders.yml reads them."""
+    root, env = new_repo
+    write(root, PLANTED)
+    make(root, env, "generate")
+    git(root, "add", "-A")
+    git(root, "commit", "-qm", "two features")
+
+    make(root, env, "lint", "BASE=HEAD~1")
+    out = make(root, env, "borders", "BASE=HEAD~1", ok=False)
+    assert "cross-cutting" in out
+    make(root, {**env, "LABELS": "cross-cutting"}, "borders", "BASE=HEAD~1")
+
+
 def test_a_planted_unowned_file_fails_the_lint(new_repo):
     root, env = new_repo
     make(root, env, "lint")

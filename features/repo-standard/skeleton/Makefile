@@ -22,7 +22,6 @@ $(REPO_STANDARD_HOME):
 lint: | $(REPO_STANDARD_HOME)
 	$(STACK_LINT)
 	$(REPO_STANDARD) conform --upstream '$(REPO_STANDARD_UPSTREAM)'
-	$(if $(BASE),$(REPO_STANDARD) borders --hard --base '$(BASE)')
 
 test:
 	$(STACK_TEST)$(if $(TESTS), $(TESTS))
@@ -44,8 +43,10 @@ check-fast: lint
 	*) $(MAKE) --no-print-directory test TESTS="$$(echo $$selection)" ;; \
 	esac
 
-# A change across two features needs the label `cross-cutting`. borders.yml runs this again when
-# a pull request's labels change, with the labels in LABELS.
+# A change across two features needs the label `cross-cutting`, so the borders of a change are
+# checked here, with the pull request's labels in LABELS, and not in `lint`, which the shared check
+# runs with no labels. borders.yml runs this on each push of a pull request and each change of its
+# labels.
 borders: | $(REPO_STANDARD_HOME)
 	$(REPO_STANDARD) borders --hard --base '$(BASE)' --labels "$$LABELS"
 

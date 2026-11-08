@@ -31,7 +31,7 @@ Each file is a path from the new repo's root, where the copy puts it.
 | `.repo-standard.yml` | Pins the standard's version and sets the guards' parts, as [the guards' page](guards.md) says. |
 | `Makefile` | The targets of the standard, the same in every stack. |
 | `.github/workflows/check.yml` | Calls [the shared check workflow](check-workflow.md) at the pinned tag: /new-home's template, `features/home/templates/check.yml`, with `make check` as its command. |
-| `.github/workflows/borders.yml` | Runs the target `borders` again when a pull request's labels change. |
+| `.github/workflows/borders.yml` | Runs the target `borders` on each push of a pull request and each change of its labels. |
 | `schemas/feature.core.schema.json` | The schema each `feature.json` holds to, a copy of jstack's. |
 | `generate-index.py` in `scripts/` | Writes the list of features in `README.md` from the manifests. |
 | `README.md` and `.gitignore` | The repo's front page, and the folders the tools write. |
@@ -53,12 +53,12 @@ Each target runs as `make <target>` in the new repo.
 
 | Target | What it runs |
 |---|---|
-| `lint` | The stack's lint, then `repo-standard conform`, and with `BASE=<ref>` the borders of the change from that ref. |
+| `lint` | The stack's lint, then `repo-standard conform`. |
 | `test` | The whole suite, or only the ids `TESTS` names. |
 | `check` | `lint` and `test`. |
 | `select BASE=<ref>` | The test ids the change from `<ref>` reaches, one a line, or `all`, and nothing else. |
 | `check-fast BASE=<ref>` | `lint`, then `test` with the ids `select` prints, the whole suite on `all`, and no test on an empty selection. |
-| `borders BASE=<ref>` | The borders of the change, with the pull request's labels in `LABELS`. |
+| `borders BASE=<ref>` | The borders of the change from `<ref>`, with the pull request's labels in `LABELS`: a change across two features passes only with the label `cross-cutting`. The shared check's lint reads no labels, so `lint` leaves this to `borders`. |
 | `generate` | Each generator, which writes its files again from the manifests. |
 
 The standard's guards come from jstack at the tag `.repo-standard.yml` pins.
