@@ -68,12 +68,11 @@ FAILED, PASSED = "failed", "passed"
 ENDED = "ended"
 """The field of a line that names the head whose required checks a verdict said had ended: the
 merge tick's (`checked`), or a run of `jmerge`'s that merged the pull request or judged its
-checks ended (`pulled`, `ends`). The pass keeps watching a head whose rollup it reads as ended
-until its line names it here (`jbus.tick`): a rollup can say `passed` before a job that is still
-to start is in it, and the tick then has a check left to see end (#1246)."""
+checks ended (`pulled`, `ends`)."""
 PENDING = "checks-pending.json"
-"""The open pull requests whose checks the last pass saw still going, each by its `number` with
-the `head` it saw, for the merge tick to watch (`jbus.tick`). Only the pass writes it."""
+"""The open pull requests the merge tick watches, each by its `number` with the `head` the last
+pass saw: each that a row's line names, and any other whose checks that pass saw still going
+(`jbus.tick`). Only the pass writes it."""
 ENDS = frozenset(
     reason.code
     for reason in (
