@@ -537,7 +537,7 @@ def settle(run: Pass, client: Client, world: World) -> None:
         while up.get(at) in slug_of and up[at] not in busy:
             at = up[at]
             busy.add(at)
-    open_work = held(run, world, set(slug_of.values()))
+    open_work = held(run, world, set(slug_of.values())) if slug_of else {}
     for thread in waiting:
         at, slug = thread["threadId"], slug_of[thread["threadId"]]
         if at in busy or role_of(str(thread.get("title", "")))[0] == "home":
