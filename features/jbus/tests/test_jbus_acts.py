@@ -12,7 +12,7 @@ import pytest
 
 import jbus
 import jsettings
-from jbus import acts, blockers, item, party, questions, queue, waiting, wake, word
+from jbus import acts, blockers, item, party, questions, queue, t3, waiting, wake, word
 from jbus import view as jview
 from jbus.view import state as view_state
 from test_jbus_kitchen import ASK, RAN, SAID, Kitchen, sends
@@ -667,3 +667,89 @@ def test_the_bot_sending_one_chat_message_again_later_is_the_same_word(kitchen, 
     assert len(sends(kitchen)) == 1
     other = route.act(body | {"evidence": "bot-chat:+15550100/another-phone"})[1]
     assert other["act"]["id"] != said["act"]["id"] and len(sends(kitchen)) == 2
+
+
+def home_asks(kitchen, message, text):
+    """The home's own message `text` in its own thread, `HOME`, as the home asks the user."""
+    (kitchen.home / "home-id").write_text(f"{HOME}\n")
+    kitchen.t3.says(
+        HOME, message, text, type="assistant_message", createdBy="agent", creationSource="provider"
+    )
+
+
+def plain(kitchen, message, words="yes, delete it"):
+    """The user's plain reply `words`, said now in the home's thread: it names no row or gate."""
+    from datetime import UTC, datetime
+
+    from test_jbus_kitchen import iso
+
+    kitchen.t3.says(HOME, message, words, updatedAt=iso(datetime.now(UTC)))
+    return f"{HOME}/{message}"
+
+
+def answer(kitchen, number, ref):
+    return kitchen.main("answer", str(number), "--default", "--message", ref)
+
+
+def test_a_plain_reply_to_the_homes_ask_that_named_the_question_answers_it(kitchen):
+    kitchen.brief("alpha", "Thread: mcp:crew-alpha\n")
+    held = gate(kitchen, holds=True)
+    home_asks(kitchen, "ask", f"Question {held}: may alpha rewrite history? And five worktrees.")
+    code, said = answer(kitchen, held, plain(kitchen, "yes"))
+    assert code == 0, said
+    assert said.startswith(f"answered: question {held}: ")
+    assert questions.question(kitchen.state, held).answer.keeps
+
+
+def test_a_plain_reply_to_an_ask_about_another_question_answers_nothing(kitchen):
+    kitchen.brief("alpha", "Thread: mcp:crew-alpha\n")
+    held = gate(kitchen, holds=True)
+    home_asks(kitchen, "ask", f"Question {held + 1}: may beta deploy?")
+    ref = plain(kitchen, "yes")
+    code, said = answer(kitchen, held, ref)
+    assert code == 1
+    assert said.startswith(
+        f"refused: question {held} holds for rewrites history, and message {ref} "
+        f'("yes, delete it") names neither alpha nor question {held}'
+    ), said
+    assert questions.question(kitchen.state, held).answer is None
+
+
+def test_a_plain_reply_older_than_the_homes_ask_answers_nothing(kitchen):
+    kitchen.brief("alpha", "Thread: mcp:crew-alpha\n")
+    held = gate(kitchen, holds=True)
+    ref = plain(kitchen, "yes")
+    home_asks(kitchen, "ask", f"Question {held}: may alpha rewrite history?")
+    code, said = answer(kitchen, held, ref)
+    assert code == 1
+    assert f"names neither alpha nor question {held}" in said, said
+    assert questions.question(kitchen.state, held).answer is None
+
+
+def test_a_plain_reply_to_the_homes_ask_that_named_the_row_opens_its_door(kitchen):
+    add(kitchen, "alpha", approve=False, text=brief("alpha", HOLDS))
+    sha = sha12(stored(kitchen, "alpha"))
+    ref = plain(kitchen, "early", "go ahead")
+    code, said = kitchen.main("queue", "approve", "alpha", "--message", ref, "--sha", sha)
+    assert code == 1 and "names neither alpha nor its gate" in said, said
+    home_asks(kitchen, "ask", "alpha rewrites history on main. Shall it go?")
+    code, said = kitchen.main(
+        "queue", "approve", "alpha", "--message", plain(kitchen, "yes", "go ahead"), "--sha", sha
+    )
+    assert code == 0, said
+    assert rows(kitchen)["alpha"]["approval"]["checked"] is True
+
+
+def test_a_plain_reply_whose_ask_t3_code_cannot_read_answers_nothing(kitchen, monkeypatch):
+    kitchen.brief("alpha", "Thread: mcp:crew-alpha\n")
+    held = gate(kitchen, holds=True)
+    home_asks(kitchen, "ask", f"Question {held}: may alpha rewrite history?")
+    ref = plain(kitchen, "yes")
+
+    def lost(*_):
+        raise t3.T3Error("the thread did not come")
+
+    monkeypatch.setattr(t3.Client, "asked_before", lost)
+    code, said = answer(kitchen, held, ref)
+    assert code == 1 and f"names neither alpha nor question {held}" in said, said
+    assert questions.question(kitchen.state, held).answer is None

@@ -13,12 +13,13 @@ the act's id and its `subject`, so the feed (`jbus.cursor`) gives events and act
 - A go for a brief that holds for a door (`party.doors`: its `Holds:` lines and the commands it
   runs), from a party the door does not open for (`party.opens`), approves nothing. It parks a
   gate that holds for the user instead (`questions.park`), and the act is `gated`. The user's
-  own go later closes that gate, on words that name the row or its gate and were said after its
-  brief was stored (`_unbound`); other words of the user's are `refused`.
+  own go later closes that gate, on words said of the row or its gate after its brief was
+  stored (`_unbound`): words that name it, or a plain reply in a home's thread to the home's ask
+  that named it (`t3.home_ask`); other words of the user's are `refused`.
 - A go whose row's go already holds for that brief is a `noop`.
 - An answer to a gate that holds, from a party the door does not open for, or on words of the
-  user's that name neither the gate nor its row or came before it, is `refused`, and the gate
-  stays open.
+  user's that are not said of the gate or its row, as above, or came before it, is `refused`,
+  and the gate stays open.
 
 Every other verb (`party.Verb`) is given by its caller as `does`, which does the verb and returns
 its line, or raises `Refused`: `queue hold`, `remove` and `withdraw`, a word, the view's go of a
@@ -63,6 +64,7 @@ from jbus import (
     questions,
     queue,
     read_json,
+    t3,
     verbs,
     waiting,
     wake,
@@ -387,14 +389,20 @@ def _unbound(
     run: Pass, said: Evidence, slug: str, numbers: list[int], since: datetime | None, what: str
 ) -> str:
     """Why the user's own words do not open a door for this row, or nothing where they do: they
-    name the row's slug (`queue.names`) or one of its gates by its number, as `question 3`,
-    `gate 3`, `q3` or `#3` (a number alone may count anything), and were said no earlier
-    than the minute of `since`, when `what` says the brief was stored or the question asked. An
+    are said of the door, and were said no earlier than the minute of `since`, when `what` says
+    the brief was stored or the question asked. Words are said of the door when they name the
+    row's slug (`queue.names`) or one of its gates by its number, as `question 3`, `gate 3`, `q3`
+    or `#3` (a number alone may count anything), or when they are a plain reply in a home's
+    thread to the home's ask that named the row or the gate as `question 3` (`_answers`). An
     older message, or one about something else, was not said of this door."""
     kind = "pick" if said.source == "t3-pick" else "message"
-    named = queue.names(said.words, slug) or any(
-        re.search(rf"(?:\bquestion\s+|\bgate\s+|\bq\s*|#){number}(?![\w.-])", said.words, re.I)
-        for number in numbers
+    named = (
+        queue.names(said.words, slug)
+        or any(
+            re.search(rf"(?:\bquestion\s+|\bgate\s+|\bq\s*|#){number}(?![\w.-])", said.words, re.I)
+            for number in numbers
+        )
+        or _answers(run, said, slug, numbers)
     )
     if not named:
         gate = f"question {numbers[0]}" if what.startswith("question") else "its gate"
@@ -409,6 +417,21 @@ def _unbound(
         stamp = run.user.stamp(since)
         return f"{kind} {said.ref} was said at {said.said_at}, before {what} at {stamp}"
     return ""
+
+
+def _answers(run: Pass, said: Evidence, slug: str, numbers: list[int]) -> bool:
+    """Whether the user's own message is a plain reply to a home's ask about this door: the last
+    message the home wrote in that thread before it (`t3.home_ask`, as `jbus waive` reads it)
+    names the row's slug or one of its gates as `question <n>` (`t3.asked_of`,
+    `t3.asks_question`). A message in no home's thread, one that is not the user's own
+    (`t3.own`), or one before any ask, answers none."""
+    try:
+        _, ask = t3.home_ask(run.config, run.home, run.project.name, said.ref)
+    except Refused:
+        return False
+    return bool(t3.asked_of(ask.text, slug)) or any(
+        t3.asks_question(ask.text, number) for number in numbers
+    )
 
 
 def _stale(run: Pass, slug: str, seen: str) -> str:

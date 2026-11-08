@@ -30,6 +30,12 @@ the message, its text and its time, and that is why jbus counts the user's word 
 `Client.item` reads any item of a thread by its id the same way, such as a question box
 (`jbus.boxes`).
 
+`home_ask` reads the ask a plain reply of the user's answers: the last message a home wrote in its
+own thread before that reply (`Client.asked_before`). `asked_of` is the one rule of what such an
+ask names, so a plain "yes" binds to the rows and the questions the home asked about and to
+nothing else: `jbus waive` reads the lines it names of a row, and `jbus.acts` the row and the
+question a door waits on.
+
 A tool of `TOOLS` that T3 Code stops serving fails only where jbus calls it, so each pass compares
 the two, with one `tools/list`, in a chore (`contract`). Each tool it no longer serves is an
 incident of the machine's (`jbus.alert`), under the key `t3-tool <tool>`, told once when it starts
@@ -58,6 +64,7 @@ from typing import Any
 
 import jroles
 import jsettings
+from jbriefs.home import scopes, thread_of
 from jbus import Config, Refused, alert, queue, verbs, write_json
 from jbus.bind import NoLookup
 from jroles import pool
@@ -421,6 +428,52 @@ def own(config: Config, ref: str) -> Message:
     if not found.text.split():
         raise Refused(f"refused: message {ref} has no words")
     return found
+
+
+def homes(home: Path) -> set[str]:
+    """The threads of the homes of a project whose root home is `home`: the root's and each
+    scope's that has one now."""
+    return {one for one in (thread_of(home), *(thread_of(s) for s, _, _ in scopes(home))) if one}
+
+
+def home_ask(config: Config, home: Path, project: str, ref: str) -> tuple[Message, Message]:
+    """Return the user's own message `ref` (`own`) and the ask it answers: the last message the
+    home wrote in that thread before it. Refused where the thread is no home's of the project, or
+    where nothing of the home's comes before the message."""
+    thread = ref.partition("/")[0]
+    if thread not in homes(home):
+        raise Refused(f"refused: {thread} is no home's thread of {project}")
+    said = own(config, ref)
+    try:
+        ask = Client(config.server, config.token_path).asked_before(thread, said.position)
+    except T3Error as error:
+        raise Refused(f"refused: T3 Code gave no message before {ref} ({error})") from error
+    if ask is None:
+        raise Refused(f"refused: no message of the home comes before {ref}")
+    return said, ask
+
+
+def asked_of(text: str, slug: str, others: frozenset[str] = frozenset()) -> list[str]:
+    """The parts of a home's ask `text` that are about the row `slug`: each runs from a place it
+    names the slug to the next place it names another row of `others`, so an ask about two rows
+    says of each only what follows its name. None where the ask does not name the slug."""
+    lowered = text.lower()
+    marks = sorted(
+        (found.start(), one)
+        for one in {slug, *others}
+        for found in re.finditer(queue._SLUG_IN.format(re.escape(one)), lowered)
+    )
+    parts = []
+    for place, (start, one) in enumerate(marks):
+        if one == slug:
+            end = next((at for at, other in marks[place + 1 :] if other != slug), len(text))
+            parts.append(text[start:end])
+    return parts
+
+
+def asks_question(text: str, number: int) -> bool:
+    """Whether a home's ask `text` names the question `number`, as `question <n>`."""
+    return re.search(rf"\bquestion\s+{number}(?![\w.-])", text, re.I) is not None
 
 
 def typed(args: argparse.Namespace, config: Config, verb: str) -> queue.Said | None:
