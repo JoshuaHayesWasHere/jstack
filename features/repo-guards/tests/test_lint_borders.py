@@ -1,9 +1,10 @@
-"""`scripts/lint-borders.py [--base <ref>] [--labels a,b] [--hard]` prints warnings that GitHub
-reads as annotations. It warns for each tracked path with no owner or with two owners, and for
-each tracked path outside the feature layout and the root's own files. It also warns for a diff
-that touches two features with no `cross-cutting` label. It exits 0 when it warns, and under
-`--hard` it exits 1 when it warns. It refuses a manifest with `owns` and exits 2. Each test runs
-the script in a git repo."""
+"""`scripts/lint-borders.py [--base <ref>] [--labels a,b] [--hard]` runs the repo standard's
+borders guard from the checkout's `.repo-standard.yml`, and prints warnings that GitHub reads as
+annotations. It warns for each tracked path with no owner or with two owners, for each tracked path
+outside the feature layout and the repo's own paths, and for a manifest that breaks the schema. It
+also warns for a diff that touches two features with no `cross-cutting` label. It exits 0 when it
+warns, and under `--hard` it exits 1 when it warns. It exits 2 with no config to read. Each test
+runs the script in a git repo with jstack's schemas and jstack's `.repo-standard.yml`."""
 
 import json
 import os
@@ -13,6 +14,7 @@ import sys
 
 import pytest
 
+from repo_standard.config import load
 from testing.paths import REPO
 
 SCRIPT = REPO / "scripts" / "lint-borders.py"
@@ -55,7 +57,7 @@ def repo(tmp_path):
     """A repo of two features, alpha and beta, with one commit."""
     root = tmp_path / "repo"
     shutil.copytree(REPO / "schemas", root / "schemas")
-    for path in ("plugin.json", "pyproject.toml"):
+    for path in ("plugin.json", "pyproject.toml", ".repo-standard.yml"):
         shutil.copy2(REPO / path, root / path)
     feature(root, "alpha")
     feature(root, "beta")
@@ -103,19 +105,20 @@ def test_a_diff_inside_one_feature_and_the_repos_own_files_passes_hard(repo):
 def test_a_root_file_fails_hard_with_or_without_a_base(repo):
     write(repo, "stray.md")
     commit(repo)
-    (one,) = warnings(lint(repo, "--base", "HEAD^1"))
-    assert one.startswith("::warning file=stray.md::")
-    assert "no owner" in one and "at the root" in one
-    assert hard(repo, "--base", "HEAD^1") == (1, ["stray.md"])
-    assert hard(repo) == (1, ["stray.md"])
+    outside, unowned = warnings(lint(repo, "--base", "HEAD^1"))
+    assert unowned == "::warning file=stray.md::no owner"
+    assert outside.startswith("::warning file=stray.md::") and "at the root" in outside
+    assert hard(repo, "--base", "HEAD^1") == (1, ["stray.md", "stray.md"])
+    assert hard(repo) == (1, ["stray.md", "stray.md"])
 
 
 def test_a_file_under_a_root_folder_outside_the_layout_fails_hard(repo):
     write(repo, "src/thing/new.py")
     commit(repo)
-    (one,) = warnings(lint(repo))
-    assert one.startswith("::warning file=src/thing/new.py::") and "under src/" in one
-    assert hard(repo) == (1, ["src/thing/new.py"])
+    outside, unowned = warnings(lint(repo))
+    assert unowned == "::warning file=src/thing/new.py::no owner"
+    assert outside.startswith("::warning file=src/thing/new.py::") and "under src/" in outside
+    assert hard(repo) == (1, ["src/thing/new.py", "src/thing/new.py"])
 
 
 def test_an_unowned_file_inside_the_layout_fails_hard(repo):
@@ -126,11 +129,33 @@ def test_an_unowned_file_inside_the_layout_fails_hard(repo):
     assert hard(repo) == (1, ["scripts/tool.py"])
 
 
-def test_a_manifest_with_owns_is_refused(repo):
+def test_a_manifest_with_owns_fails_hard(repo):
     feature(repo, "alpha", owns=["stray.md"])
+    (one,) = warnings(lint(repo))
+    assert one.startswith("::warning file=features/alpha/feature.json::")
+    assert one.endswith("/: has owns, which the schema does not allow")
+    assert hard(repo) == (1, ["features/alpha/feature.json"])
+
+
+def test_the_configs_owners_are_the_generators():
+    sys.path.insert(0, str(REPO / "scripts"))
+    from jtrees.crawl import REPO_OWNERS
+
+    owners = load(REPO).owners
+    assert {group: set(globs) for group, globs in owners.items()} == {
+        group: set(globs) for group, globs in REPO_OWNERS.items()
+    }
+
+
+def test_jstack_itself_passes_hard():
+    assert hard(REPO) == (0, [])
+
+
+def test_a_checkout_with_no_config_is_refused(repo):
+    (repo / ".repo-standard.yml").unlink()
     ran = lint(repo, "--hard")
     assert ran.returncode == 2
-    assert "features/alpha/feature.json: /: has owns, which the schema does not allow" in ran.stderr
+    assert ".repo-standard.yml" in ran.stderr
 
 
 def test_a_base_git_does_not_know_is_refused_with_its_reason(repo):
