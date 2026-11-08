@@ -35,12 +35,12 @@ count. Its end is a `completed_at`, which GitHub gives to the second, and its de
 change of the row's line after that end that names the head as ended (`ENDED`), the write of the
 verdict on it. A write that names another head or none, such as a pass's at its start, is not the
 round's end: on a draft only the merge tick writes it (sa-checks-bound-measure-8).
-A round whose line did not name its head within `--wait` seconds counts as none. A push starts the next
-round. A head whose checks had settled when the probe first saw them makes no round, and neither
-does one whose checks ended before the row's line had the pull request: a probe started then, or
-before the row was linked, records the next head's. `--rounds` is the count of rounds it records. It prints each
-round as it ends and appends it as one JSON line to `--out`, then prints the rounds, p50 and max in
-seconds.
+A round whose line did not name its head within `--wait` seconds counts as none. A push starts
+the next round. A head whose checks had settled when the probe first saw them makes no round, and
+neither does one whose checks ended before the row's line had the pull request: a probe started
+then, or before the row was linked, records the next head's. `--rounds` is the count of rounds it
+records. It prints each round as it ends and appends it as one JSON line to `--out`, then prints
+the rounds, p50 and max in seconds.
 """
 
 from __future__ import annotations
@@ -58,10 +58,9 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
+from jbus.restated import ENDED
 from jmerge.checks import NOT_RED
 from jmerge.ready import required_of
-
-from jbus.restated import ENDED
 
 POLL = 0.5
 OUT = Path("~/.local/state/checks-bound-probe/rounds.jsonl")

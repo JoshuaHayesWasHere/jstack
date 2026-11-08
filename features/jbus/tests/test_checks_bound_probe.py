@@ -144,7 +144,9 @@ class Probe:
     def line(self, says: str, ended: str = "") -> None:
         """Write the row's line of pull request #7 saying `says`, naming `ended` as ended."""
         self.work.write_text(
-            json.dumps({"work": [{"pr": "#7", "value": says, **({"ended": ended} if ended else {})}]})
+            json.dumps(
+                {"work": [{"pr": "#7", "value": says, **({"ended": ended} if ended else {})}]}
+            )
         )
 
     def no_line(self) -> None:
@@ -213,9 +215,7 @@ def test_a_round_ends_at_the_first_write_that_names_its_head_as_ended(tmp_path):
     time.sleep(1.5)
     probe.line("checks passed at bbb", "bbb")
     rounds, said = probe.rounds()
-    assert [(one["head"], one["says"]) for one in rounds] == [
-        ("bbb", "checks passed at bbb")
-    ], said
+    assert [(one["head"], one["says"]) for one in rounds] == [("bbb", "checks passed at bbb")], said
     assert 2.5 <= rounds[0]["delay"] < 6, said
 
 
@@ -236,7 +236,5 @@ def test_a_round_that_ended_before_the_line_had_the_pull_request_is_not_recorded
     time.sleep(1.5)
     probe.line("checks passed at ccc", "ccc")
     rounds, said = probe.rounds()
-    assert [(one["head"], one["says"]) for one in rounds] == [
-        ("ccc", "checks passed at ccc")
-    ], said
+    assert [(one["head"], one["says"]) for one in rounds] == [("ccc", "checks passed at ccc")], said
     assert 1 <= rounds[0]["delay"] < 5, said
