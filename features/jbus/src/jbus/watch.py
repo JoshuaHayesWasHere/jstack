@@ -463,11 +463,24 @@ def task_brief(run: Pass, slug: str) -> str:
 
 
 def brief_of(run: Pass, slug: str) -> str:
+    """Return the slug's brief under the home's `tasks/`, else its queued brief, or nothing. A
+    brief this pass read before is served from `run.briefs` while its mtime and size are those
+    it had then, so a brief written since is read again."""
     for path in (run.home / "tasks" / f"{slug}.md", run.state / "briefs" / f"{slug}.md"):
         try:
-            return path.read_text(errors="replace")
+            seen = path.stat()
         except OSError:
             continue
+        key = (seen.st_mtime_ns, seen.st_size)
+        kept = run.briefs.get(path)
+        if kept and kept[0] == key:
+            return kept[1]
+        try:
+            text = path.read_text(errors="replace")
+        except OSError:
+            continue
+        run.briefs[path] = (key, text)
+        return text
     return ""
 
 

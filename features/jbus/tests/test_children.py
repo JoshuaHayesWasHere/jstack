@@ -5,11 +5,13 @@ see ends the spell, and its home's reply to a nudge does not. A routine, a scope
 file, is watched with nothing out. `jbus out --scope` says what a scope has out."""
 
 import json
+import os
 from datetime import timedelta
 
 import pytest
 
-from jbus import children, questions
+import jbus
+from jbus import children, passes, questions, watch
 from test_jbus_kitchen import GATE, NOW, PROJECT
 from test_jbus_leftover import home
 from test_jbus_queue import add, brief
@@ -264,3 +266,23 @@ def test_a_child_with_a_hold_and_a_quiet_crew_is_still_nudged(child):
     assert len(nudges) == 2 and "has had 2 things out" in nudges[0]["message"]
     first, asked = told(kitchen)
     assert "nudged it" in first and "after two nudges" in asked
+
+
+def test_a_brief_rewritten_mid_pass_is_read_fresh(kitchen):
+    """`watch.brief_of` keeps what a pass read, and a step that writes the brief later in the
+    same pass is seen by the steps after it: a new text of the same size, a longer one, and the
+    brief's removal from `tasks/`, which leaves the queued brief."""
+    add(kitchen, "alpha")
+    config = jbus.load()
+    run = passes.Pass(config, config.projects[0], NOW, lambda _: None)
+    task = kitchen.home / "tasks" / "alpha.md"
+    task.write_text("# alpha\nStatus: one\n")
+    assert watch.brief_of(run, "alpha") == "# alpha\nStatus: one\n"
+    stamp = task.stat().st_mtime_ns
+    task.write_text("# alpha\nStatus: two\n")
+    os.utime(task, ns=(stamp + 1, stamp + 1))
+    assert watch.brief_of(run, "alpha") == "# alpha\nStatus: two\n"
+    task.write_text("# alpha\nStatus: two\n\n## Result\nStatus: done\n")
+    assert watch.brief_of(run, "alpha").endswith("## Result\nStatus: done\n")
+    task.unlink()
+    assert watch.brief_of(run, "alpha") == (run.state / "briefs" / "alpha.md").read_text()
