@@ -375,9 +375,36 @@ def test_the_pinned_version_as_the_newest_or_no_upstream_reports_nothing_and_fai
     assert "note: cannot list the standard's versions: git ls-remote" in said
 
 
-def test_jstack_meets_the_standard(capsys):
+def test_jstack_meets_the_standard_with_no_waiver(capsys):
     code, lines = conform(REPO, capsys)
     assert code == 0, "\n".join(lines)
+    assert lines[-1].endswith(", waived 0"), lines
+    assert not [line for line in lines if line.startswith(("waived ", "waiver "))], lines
+
+
+EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+
+
+@pytest.mark.parametrize("base", ["HEAD", EMPTY_TREE])
+def test_jstacks_make_select_prints_what_select_tests_selects(base):
+    """From HEAD the change is empty and selects the tests every change runs, one a line; from
+    the empty tree it adds every file, a shared path among them, so it selects `all`."""
+    made = subprocess.run(
+        ["make", "--no-print-directory", "select", f"BASE={base}"],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+    )
+    script = [sys.executable, "scripts/select_tests.py", base, "HEAD"]
+    selected = subprocess.run(script, cwd=REPO, capture_output=True, text=True)
+    assert made.returncode == 0, made.stderr
+    assert made.stdout == selected.stdout
+    lines = made.stdout.splitlines()
+    if base == "HEAD":
+        assert lines and "all" not in lines
+        assert all(re.fullmatch(r"\S+/test_\w+\.py", line) for line in lines), lines
+    else:
+        assert lines == ["all"]
 
 
 def lint_steps():

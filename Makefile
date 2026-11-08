@@ -80,6 +80,12 @@ test:
 .PHONY: check
 check: lint test
 
+# The test files the change from BASE to HEAD reaches, one a line, or `all` where it reaches every
+# test: the repo standard's `make select BASE=<ref>`, which wraps scripts/select_tests.py.
+.PHONY: select
+select:
+	@python3 scripts/select_tests.py '$(BASE)' HEAD
+
 # The check of a change: prose_lint.py on the prose lines the diff from BASE adds, the lint, and the
 # files select_tests.py names for the diff, one a line, which the unquoted `echo` puts on one; or
 # `make check` where it says `all`. CI runs it with BASE=HEAD^1, the tip of main on GitHub's merge.

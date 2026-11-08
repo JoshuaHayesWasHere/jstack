@@ -274,8 +274,7 @@ Enforced by: `scripts/jtrees/outputs/pyproject.py`, `features/repo-guards/tests/
 `make select BASE=<ref>` prints the test ids that the change from `<ref>` to `HEAD` reaches, one a line, or the single word `all` when the change reaches every test.
 A selection names the tests and never stands in for the suite: what it misses, the safety net below catches.
 
-**In jstack** the selection is `python3 scripts/select_tests.py <ref> HEAD`, which prints test files, and `make check-fast BASE=<ref>` runs the lint and the files it prints.
-jstack has no `make select` target yet: its adapter calls the script by name.
+**In jstack** `make select BASE=<ref>` runs `python3 scripts/select_tests.py <ref> HEAD`, which prints test files, and `make check-fast BASE=<ref>` runs the lint and the files it prints.
 The script follows imports, fixtures, the names a test reads and the files a test includes, and its rules are in the script's docstring.
 
 Enforced by: `scripts/select_tests.py`, `testing/tests/test_select_tests.py`, `testing/tests/test_select_tests_rules.py`

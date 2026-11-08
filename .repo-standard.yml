@@ -43,9 +43,6 @@ docs:
     - SECURITY.md
     - "features/*/docs/**/*.md"
     - "features/*/docs/**/*.html"
-  # The standard states its contracts for any repo, such as `make select`, which jstack's
-  # Makefile does not have yet; scripts/check-jstack-docs.py still reads the page's paths.
-  exclude: [features/repo-standard/docs/standard.md]
   roots: [features, schemas, scripts, testing, .github]
   elsewhere:
     scripts/deploy: another repo's deploy command, an example of a door in the-queue.md
@@ -107,6 +104,3 @@ enforced-by:
   every-deploy-entry-refuses-a-tree-that-is-not-green-main:
     - .github/workflows/release.yml
     - testing/tests/test_workflows.py
-waivers:
-  - rule: a-change-selects-its-tests
-    reason: jstack has no make select target yet, and make check-fast calls scripts/select_tests.py by name
