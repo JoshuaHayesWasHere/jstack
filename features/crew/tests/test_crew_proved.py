@@ -67,8 +67,8 @@ esac
 exit 64
 """
 """`uv` as the block calls it. A short test-slot run is stopped at `LIMIT` seconds, exit 124, as
-the short lane stops one at its limit, and a full one at `FULL_LIMIT` seconds; each pytest run takes `SLOW` seconds more, and `NO_XDIST`
-stands for a repo whose venv has no pytest-xdist."""
+the short lane stops one at its limit, and a full one at `FULL_LIMIT` seconds; each pytest run
+takes `SLOW` seconds more, and `NO_XDIST` stands for a repo whose venv has no pytest-xdist."""
 BUGGY = "def add(a, b):\n    return a - b\n"
 FIXED = "def add(a, b):\n    return a + b\n"
 OLD_TEST = "from calc import add\n\n\ndef test_zero():\n    assert add(0, 0) == 0\n"
@@ -365,7 +365,10 @@ def test_a_side_the_short_lane_stops_is_proved_alone_in_a_full_slot(repo):
     base = git(repo, "rev-parse", "HEAD")
     head = commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
     said, line = proof(repo, LIMIT="1", SLOW="3")
-    assert "head: stopped at the short lane's limit, no verdict: it runs again alone in a full slot" in said
+    stopped = (
+        "head: stopped at the short lane's limit, no verdict: it runs again alone in a full slot"
+    )
+    assert stopped in said
     assert "head exit 0: 2 passed" in said
     assert "base exit 1: 1 failed, 1 passed" in said
     assert line == proved.Proved(("tests/test_calc.py",), 1, base, 0, head)
