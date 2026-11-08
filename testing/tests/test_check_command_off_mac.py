@@ -1,18 +1,21 @@
-"""The cases of `make check`'s tests that test nothing a Mac does otherwise and read no more
-than their own files: the Makefile's comment lines, the job's time bound in check.yml, the step
-files, the browser fixture's skip, a marker the config does not list, and the finder of a
-browser test with no marker, on files of their own. They are not on `testing/macos-quick.txt`,
-so Linux runs them and the Mac does not. The cases that run the Makefile or a pytest's
-processes, as a desk on a Mac does, and those that read the whole tree, are
-`test_check_command.py`, which the Mac runs."""
+"""The cases of `make check`'s tests that test nothing a Mac does otherwise: the Makefile's
+comment lines, the job's time bound in check.yml, the step files, the browser fixture's skip, a
+marker the config does not list, and the finder of a browser test with no marker, on files of
+their own. With them are the cases that collect the whole tree: the same id a second later, the
+browser tests' folder, and the marker on every module that opens a browser. Collection is the
+same on a Mac as on Linux, so they are not on `testing/macos-quick.txt` either: Linux runs them
+and the Mac does not. The cases that run the Makefile or a pytest's processes, as a desk on a Mac
+does, are `test_check_command.py`, which the Mac runs."""
 
 import re
 import subprocess
 import sys
+import time
 import tomllib
+from pathlib import Path
 
 from test_check_command import (
-    browser_files,
+    LEAVES_OUT,
     outside_a_run,
     pytest_of,
     step_files,
@@ -20,6 +23,80 @@ from test_check_command import (
 from testing.paths import REPO
 
 __all__ = ["step_files"]
+
+
+def collected(*more):
+    """The id of every test, as a new process collects them. `more` holds pytest's options."""
+    ran = subprocess.run(
+        [sys.executable, "-m", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider", *more],
+        cwd=REPO,
+        env=outside_a_run(),
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return [line for line in ran.stdout.splitlines() if "::" in line]
+
+
+def test_every_test_has_the_same_id_a_second_later():
+    first = collected()
+    second = int(time.time())
+    while int(time.time()) == second:
+        time.sleep(0.05)
+    assert collected() == first and first
+
+
+def test_the_browser_tests_are_the_whole_of_one_folder_and_the_other_run_leaves_them_out():
+    everything, marked, others = collected(), collected("-m", "browser"), collected(*LEAVES_OUT)
+    assert marked and others
+    assert sorted(marked + others) == sorted(everything)
+    page = REPO / "features" / "jbus" / "tests" / "view" / "page"
+    assert {test.split("::")[0] for test in marked} == {
+        path.relative_to(REPO).as_posix() for path in page.glob("test_*.py")
+    }
+
+
+OPENS = re.compile(r"--headles[s]|browser[.]lock")
+IMPORTS = re.compile(r"^(?:from|import) ([\w.]+)", re.M)
+
+
+def browser_files(directory):
+    """Two sets of test files under the directory. The first holds the files that start a browser or
+    take the browser lock, directly or through a module of the directory that they import. The
+    second holds the files that pytest collects under `-m browser`, the selection the marker is for.
+    """
+    texts = {path: path.read_text() for path in sorted(directory.rglob("*.py"))}
+    opens = {
+        ".".join(path.relative_to(directory).with_suffix("").parts)
+        for path, text in texts.items()
+        if OPENS.search(text)
+    }
+    opening = {
+        path.name
+        for path, text in texts.items()
+        if path.name.startswith("test_")
+        and (OPENS.search(text) or set(IMPORTS.findall(text)) & opens)
+    }
+    ran = subprocess.run(
+        [sys.executable, "-m", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider"]
+        + ["-c", str(REPO / "pyproject.toml"), "--rootdir", str(directory), "-m", "browser"]
+        + [str(directory)],
+        cwd=directory,
+        env=outside_a_run(),
+        capture_output=True,
+        text=True,
+    )
+    assert ran.returncode in (0, 5), ran.stdout + ran.stderr
+    ids = [line.split("::")[0] for line in ran.stdout.splitlines() if "::" in line]
+    return opening, {Path(one).name for one in ids}
+
+
+def test_every_test_module_that_opens_a_browser_carries_the_marker():
+    tests = REPO / "features" / "jbus" / "tests"
+    opening, marked = browser_files(tests)
+    page = {path.name for path in (tests / "view" / "page").glob("test_*.py")}
+    assert page and page <= opening
+    assert sorted(opening - marked) == []
 
 
 def test_every_comment_line_of_the_makefile_fits_the_repos_line_length():
