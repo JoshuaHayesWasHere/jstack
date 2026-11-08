@@ -354,8 +354,8 @@ def build(scene):
 
 def _gates(scene):
     """The twelve gates, each in the `gates.md` of its home: the root's, a live scope's that
-    has a `home-id`, and a retired scope's, which has a handoff and no id, so that jbriefs
-    no longer counts it as a scope."""
+    has a `plan.md` and a `home-id`, and a retired scope's, which has a handoff and no plan, so
+    that jbriefs no longer counts it as a scope."""
     homes = {
         "root": scene.home,
         "live scope": scene.home / "pantry-shelf",
@@ -363,6 +363,7 @@ def _gates(scene):
     }
     homes["live scope"].mkdir()
     homes["retired scope"].mkdir()
+    (homes["live scope"] / "plan.md").write_text("# demo, pantry-shelf: plan\n")
     (homes["live scope"] / "home-id").write_text("mcp:shelf\n")
     (homes["retired scope"] / "handoff.md").write_text("Status: retired\n")
     asked, files = {}, {}
