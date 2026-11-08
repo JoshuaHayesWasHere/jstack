@@ -352,7 +352,7 @@ PROOFS = {
     "a judge": ("a human judge scores it", "an external judge"),
     "a test path with its test": ("tests/test_briefs.py::test_x passes", "a test"),
     "a judged line": ("judged: only the user can say the page reads well", "judged"),
-    "the user, judged": ("judged: the user's eye on the screenshot", "judged"),
+    "the user, judged": ("judged: the user's eye on the page's colors", "judged"),
     "CI by its command": ("`gh pr checks` passes on the pull request", "a test"),
 }
 
@@ -361,7 +361,7 @@ LOOSE = {
     "github": ("github says green", "an external judge", "names CI, which runs nothing by itself"),
     "the user": ("the user, on the page", "the user", "names the user with no judged: <why>"),
     "the operator": (
-        "the operator's word on the screenshot",
+        "the operator's word on the page",
         "the user",
         "names the user with no judged: <why>",
     ),
@@ -477,6 +477,53 @@ def test_a_loose_proof_warns_and_an_agents_own_word_still_refuses():
     assert parse.faults(own) == [
         f"brief's Proves it: line names the crewmate, the agent's own word {ASKED}"
     ]
+
+
+SHOWN = "(prove a UI change by a test, or by a live read of the data it draws)"
+
+
+def test_a_brief_that_asks_for_shots_of_the_window_in_done_when_is_refused_naming_the_item():
+    item = 'shots of the real T3 Code window show no "x crew, x scouts, x queued" line (in none)'
+    text = CLEAN.replace("- it is done", f"- `make check` passes\n- {item}")
+    assert parse.faults(text) == [
+        "brief's Done when 2 asks for a screenshot, a shot or a recording of the window as "
+        f"proof: {item} {SHOWN}"
+    ]
+
+
+def test_a_brief_that_asks_for_a_screenshot_in_proves_it_is_refused_whatever_else_it_names():
+    text = CLEAN.replace(
+        "Proves it: `make check`", "Proves it: `uv run pytest` passes, and a screenshot of the tree"
+    )
+    assert parse.faults(text) == [
+        "brief's Proves it: line asks for a screenshot, a shot or a recording of the window as "
+        f"proof {SHOWN}"
+    ]
+
+
+@pytest.mark.parametrize(
+    "item",
+    [
+        "the log keeps a recording of events in events.jsonl",
+        "the shots field in work.json counts each run",
+        "a one-shot snapshot of queue.json matches",
+    ],
+)
+def test_a_shot_or_recording_of_no_window_is_no_screenshot(item):
+    text = CLEAN.replace("- it is done", f"- `make check` passes\n- {item} (in `src/alpha/`)")
+    assert parse.faults(text) == []
+
+
+def test_a_brief_that_proves_the_ui_change_by_what_the_tree_draws_from_work_json_is_queued():
+    text = CLEAN.replace(
+        "- it is done",
+        "- the tree draws no count line from work.json, and a one-shot snapshot test shows it "
+        "(in `src/alpha/tree.test.ts`)",
+    ).replace(
+        "Proves it: `make check`",
+        "Proves it: `bun test src/alpha/tree.test.ts` passes",
+    )
+    assert parse.faults(text) == []
 
 
 DONE_WHEN_FAULT = (
