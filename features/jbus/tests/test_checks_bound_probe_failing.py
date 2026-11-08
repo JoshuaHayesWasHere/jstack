@@ -1,8 +1,10 @@
-"""A throwaway test for sa-checks-bound-rounds-3: head 3 of 12 passes, so the checks probe times a
-passed round. It never merges."""
+"""A throwaway test for sa-checks-bound-rounds-3: head 4 of 12 fails on GitHub Actions on purpose,
+so the checks probe times a failed round. It never merges."""
 
-HEAD = 3
+import os
+
+HEAD = 4
 
 
-def test_head_3() -> None:
-    assert HEAD == 3
+def test_head_4() -> None:
+    assert not os.environ.get("GITHUB_ACTIONS"), "fails on purpose"
