@@ -59,9 +59,9 @@ def _starts_a_value(text: str, at: int) -> bool:
 
 def _config_quoted_end(text: str, at: int) -> int:
     quote = text[at]
-    if text.startswith(quote * 3, at):
-        end = text.find(quote * 3, at + 3)
-        return len(text) if end < 0 else end + 3
+    end = text.find(quote * 3, at + 3) if text.startswith(quote * 3, at) else -1
+    if end >= 0:
+        return end + 3
     at += 1
     while at < len(text):
         escaped = text[at] == "\\" if quote == '"' else text[at : at + 2] == "''"
