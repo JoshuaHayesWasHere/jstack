@@ -39,11 +39,15 @@ def commit(tree, name, text, message=""):
 class Stack:
     """The git history of the stack, and what GitHub lists of it."""
 
-    def __init__(self, kitchen, conflict=False, fixed=False, rewritten="", into="main"):
+    def __init__(
+        self, kitchen, conflict=False, fixed=False, rewritten="", into="main", merges_main=False
+    ):
         """`one` is pushed before `two` is stacked on it, so the checkout's reflog of
         `origin/one` records the head `two` sits on. Then `one` takes a `fixed` commit, or is
         `rewritten`: its one commit `amended` to new content, or a second commit `reworded` to
-        the same content or `changed` to new content."""
+        the same content or `changed` to new content. Where `one` `merges_main`, `two` is made
+        in its crew's worktree from `one`'s head, `one` then takes a merge of a newer main, and
+        its branch is deleted once merged, on origin and here."""
         self.kitchen, tree = kitchen, kitchen.checkout
         self.start = git(tree, "rev-parse", "main")
         git(tree, "switch", "-q", "-c", "one")
@@ -51,9 +55,19 @@ class Stack:
         if rewritten in ("reworded", "changed"):
             self.last = commit(tree, "one-more.txt", "more\n")
         git(tree, "push", "-q", "origin", "one")
-        git(tree, "switch", "-q", "-c", "two")
-        self.head = commit(tree, "two.txt", "two\n")
-        git(tree, "switch", "-q", "one")
+        if merges_main:
+            crew = kitchen.root / "two-tree"
+            git(tree, "worktree", "add", "-q", "-b", "two", str(crew), "one")
+            self.head = commit(crew, "two.txt", "two\n")
+            git(tree, "switch", "-q", "main")
+            commit(tree, "main.txt", "main's own\n")
+            git(tree, "switch", "-q", "one")
+            git(tree, "merge", "-q", "--no-edit", "main")
+            self.last = git(tree, "rev-parse", "HEAD")
+        else:
+            git(tree, "switch", "-q", "-c", "two")
+            self.head = commit(tree, "two.txt", "two\n")
+            git(tree, "switch", "-q", "one")
         if fixed:
             self.last = commit(tree, "fix.txt", "fix\n")
         if rewritten:
@@ -72,7 +86,9 @@ class Stack:
             commit(tree, "two.txt", "main's own two\n")
         git(tree, "push", "-q", "origin", into)
         git(tree, "switch", "-q", "main")
-        git(tree, "branch", "-q", "-D", "one", "two")
+        if merges_main:
+            git(tree, "push", "-q", "origin", "--delete", "one")
+        git(tree, "branch", "-q", "-D", "one", *(() if merges_main else ("two",)))
         two = {**kitchen.opened("two", 11), "headRefOid": self.head, "baseRefName": "one"}
         kitchen.set("open.json", [two])
         one = {**kitchen.merged("one", 10, self.merge), "headRefOid": self.last}
@@ -307,6 +323,24 @@ def test_a_link_whose_base_left_no_record_is_left_and_told_once(stacked, monkeyp
     assert any("jbus left its branch as it was (its head does not hold" in line for line in said)
     assert stack.origin("two") == stack.head
     assert len(asks(stacked)) == 1
+
+
+def test_a_restack_whose_base_merged_main_after_its_link_branched_moves_only_its_own_commits(
+    stacked, monkeypatch
+):
+    """`one` took a merge of main after `two` branched from it, and its branch is gone, here and
+    on origin, so no reflog of `one` is left. `two`'s own branch, made from `one`'s head in its
+    crew's worktree, records where it left `one`, which `one`'s last head holds: jbus moves `two`'s
+    one commit onto main, with none of `one`'s, and sends nothing."""
+    signed(monkeypatch)
+    stack = Stack(stacked, merges_main=True)
+    stacked.poll(NOW)
+    moved = stack.origin("two")
+    assert git(stacked.origin, "rev-parse", f"{moved}^") == stack.merge
+    assert git(stacked.origin, "show", f"{moved}:two.txt") == "two"
+    assert git(stacked.root / "two-tree", "rev-parse", "HEAD") == moved
+    assert head_line(stacked) == stacks.Stacked("one", "main", stack.merge)
+    assert asks(stacked) == []
 
 
 def waits_on_its_review(kitchen):
