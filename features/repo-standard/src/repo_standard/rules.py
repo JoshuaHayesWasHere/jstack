@@ -41,7 +41,7 @@ FRONT_NAME = re.compile(
 GATED = ("deploy", "release")
 SHARED_CHECK = re.compile(
     r"^\s*uses:\s*['\"]?[\w.-]+/[\w.-]+/\.github/workflows/repo-standard-check\.yml"
-    r"@repo-standard-v\d+['\"]?\s*$",
+    r"@repo-standard-v\d+['\"]?\s*(?:#.*)?$",
     re.M,
 )
 
