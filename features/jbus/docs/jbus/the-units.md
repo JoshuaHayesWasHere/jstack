@@ -82,7 +82,6 @@ A stopped timer starts no pass, so no failed pass reports it ([When jbus fails](
 [Back up the homes' state](back-up-the-homes-state.md) covers `jbus-snapshot.timer`, [Measure the CI](measure-the-ci.md) covers `jbus-ci.timer` and `jbus-ci-day.timer`, [The relay](the-relay.md) covers `jbus-relay.service`, and [The view](the-view.md) covers `jbus-view.service`.
 
 Once the config that asked for an optional unit is gone, the next install turns the unit off again.
-systemd reads a unit's file only on a reload, so each move of the green copy that changes a unit linked through it runs `systemctl --user daemon-reload` (`jbus.green`), and the pass runs that unit as main has it from then on, not from the next install.
 `jinstall --check` and `jinstall --doctor` print one `units` line, and [The jbus units](../troubleshooting/the-jbus-units.md) says what each form of it means.
 
 Each unit's `Documentation=` names the page of these docs for what it runs, such as [Set up jbus](set-up-jbus.md) for `jbus.timer`.

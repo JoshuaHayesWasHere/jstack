@@ -120,11 +120,13 @@ def _timer(half: Half) -> None:
         return
     config = half.run.config
     going = sum(len(store.read_json(config.state(p) / PENDING, [])) for p in config.projects)
-    active = proc.run("systemctl", "--user", "is-active", unit).stdout.strip() == "active"
+    active = (
+        proc.run("systemctl", "--user", "is-active", unit, timeout=60).stdout.strip() == "active"
+    )
     if bool(going) == active:
         return
     verb = "start" if going else "stop"
-    done = proc.run("systemctl", "--user", verb, unit)
+    done = proc.run("systemctl", "--user", verb, unit, timeout=60)
     if done.returncode != 0:
         half.run.say(f"tick: systemctl --user {verb} {unit} failed: {done.stderr.strip()}")
     elif going:
