@@ -457,3 +457,33 @@ def head_of(kitchen, tree):
     return kitchen.started(
         ["git", "rev-parse", "HEAD"], cwd=tree, capture_output=True, text=True
     ).stdout.strip()
+
+
+@pytest.mark.parametrize("fault", ["refused", "no answer", "held"])
+def test_a_refusal_t3_code_does_not_take_is_a_gate_or_is_sent_on_a_later_pass(kitchen, fault):
+    """The message that a review was not launched goes through the outbox as `prereviewed` does:
+    one T3 Code refuses is a gate, and one with no answer, or held while the crew waits on a test
+    slot, is not marked, so a later pass sends it once."""
+    thread, _, head = proved_crew(kitchen, ran=1)
+    if fault == "refused":
+        kitchen.t3.refuse_send = True
+    elif fault == "no answer":
+        kitchen.t3.lose_send = True
+    else:
+        command = ["uv", "run", "pytest", "tests/test_alpha.py"]
+        lane = slot.short()
+        waiters.register(slot.locks_dir(), thread["threadId"], "short", lane.slots, command, NOW)
+    kitchen.poll()
+    key = f"prereview-refused|alpha|{head[:12]}"
+    assert key not in jbus.read_json(kitchen.state / "sent.json", [])
+    if fault == "refused":
+        what = "condition alpha: T3 Code refused the message that its review was not launched"
+        assert what in kitchen.lines("condition")
+        return
+    kitchen.t3.lose_send = False
+    if fault == "held":
+        waiters.drop(slot.locks_dir(), thread["threadId"])
+    for minutes in (3, 6):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    assert [one["clientRequestId"] for one in refused(kitchen, thread)][-1:] == [key]
+    assert key in jbus.read_json(kitchen.state / "sent.json", [])
