@@ -322,7 +322,8 @@ jobs:
         run: '[ "$REUSE $LINT" = "success success" ] && { [ "$REUSED" = true ] || [ "$PARTS" = success ]; } || { echo "::error::the reuse job ended $REUSE, the lint $LINT, and the parts of the check $PARTS, not success"; exit 1; }'
       # The guard of test_new_lines_run.py, which the parts skip: each line this change adds to a
       # feature's code ran in a test that names its module, read from what the parts recorded
-      # (`NEW_LINES_PARTS`), so no test runs again for a line a part ran. It runs once every part
+      # (`NEW_LINES_PARTS`, a folder for each part's upload, whose files are named alike), so no
+      # test runs again for a line a part ran. It runs once every part
       # passed, and only where the change touches a feature's src/ or scripts/, so any other
       # change pays for the checkout and no more.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -346,7 +347,6 @@ jobs:
         with:
           pattern: new-lines-${{ github.run_attempt }}-*
           path: ${{ runner.temp }}/new-lines
-          merge-multiple: true
       - name: new lines
         if: steps.code.outputs.changed == 'true'
         env:

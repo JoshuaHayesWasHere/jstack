@@ -205,12 +205,12 @@ def unread(
     lines: dict[str, set[int]], tests: dict[str, list[str]], parts: Path
 ) -> dict[str, set[int]]:
     """The lines of `lines` that CI's parts did not run in a test file that names their module,
-    read from what `features/repo-guards/ran/part_lines.py` wrote to `parts` as they ran their
-    tests. A line that ran while no test did, as a module was imported at collection, counts
+    read from what `features/repo-guards/ran/part_lines.py` wrote as they ran their tests, each
+    part's in a folder of its own under `parts`, since every part names its files alike. A line that ran while no test did, as a module was imported at collection, counts
     once a test file that names its module ran in a part, since that file would have run it."""
-    ran = {name for one in parts.glob("tests.*") for name in one.read_text().split()}
+    ran = {name for one in parts.glob("*/tests.*") for name in one.read_text().split()}
     found = {path: set(numbers) for path, numbers in lines.items()}
-    for one in parts.glob("data*"):
+    for one in parts.glob("*/data*"):
         data = coverage.CoverageData(basename=str(one))
         data.read()
         for name in data.measured_files():
@@ -437,7 +437,7 @@ def test_an_untested_line_is_listed_once_its_own_tests_end_not_another_modules(t
     assert len(list(ended.iterdir())) < 12, "the run waited on every slow test of another module"
 
 
-def a_part(repo: Path, since: str, folder: Path) -> None:
+def a_part(repo: Path, since: str, folder: Path, *tests: str) -> None:
     """Run `repo`'s tests as one of CI's parts runs its own, with `part_lines`, on one worker, so
     the test files run in the order of their names."""
     env = {
@@ -449,7 +449,7 @@ def a_part(repo: Path, since: str, folder: Path) -> None:
     env["PYTHONPATH"] = os.pathsep.join(filter(None, [str(RAN), env.get("PYTHONPATH")]))
     ran = subprocess.run(
         [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-p", "part_lines"]
-        + ["-n", "1", "features/pkg/tests"],
+        + ["-n", "1", *(tests or ["features/pkg/tests"])],
         cwd=repo,
         env=env,
         capture_output=True,
@@ -460,8 +460,9 @@ def a_part(repo: Path, since: str, folder: Path) -> None:
 
 def test_the_check_reads_what_the_parts_ran_and_runs_no_test_again_for_a_line_they_ran(tmp_path):
     """A line a part ran in a test file that names its module, in the test's own process or one it
-    started, passes on what the part recorded, with no test run again, also when a test file that
-    ran before it in the same process ran it first. A line that ran only in a test that does not
+    started, passes on what the parts recorded, with no test run again, also when a test file that
+    ran before it in the same process ran it first, and when each part ran only some of the lines,
+    as CI deals one module's tests out to several. A line that ran only in a test that does not
     name its module, or not at all, is still a fault."""
     repo = tmp_path / "repo"
     code = repo / "features/pkg/src/pkg"
@@ -498,7 +499,7 @@ def test_the_check_reads_what_the_parts_ran_and_runs_no_test_again_for_a_line_th
         "def held(row):\n    if row is None:\n        return False\n    return row == 'held'\n"
         "\n\ndef late(row):\n    return row\n"
     )
-    a_part(repo, since, tmp_path / "unrun-parts")
+    a_part(repo, since, tmp_path / "unrun-parts/1")
     assert faults(added(since, repo), tmp_path / "unrun", repo, tmp_path / "unrun-parts") == [
         "features/pkg/src/pkg/held.py:3 is a line this branch adds that no test runs: add a test "
         "that runs it, among the tests that name its module (1 of them ran)",
@@ -509,7 +510,9 @@ def test_the_check_reads_what_the_parts_ran_and_runs_no_test_again_for_a_line_th
         "    subprocess.run([sys.executable, '-c', code + '; assert held.held(None) is False'],"
         " check=True)\n"
     )
-    a_part(repo, since, tmp_path / "ran-parts")
+    first, held_row = "features/pkg/tests/test_a_row.py", "features/pkg/tests/test_held.py"
+    a_part(repo, since, tmp_path / "ran-parts/1", first, f"{held_row}::test_a_held_row")
+    a_part(repo, since, tmp_path / "ran-parts/2", f"{held_row}::test_no_row")
     before = sum(len(one.read_text().split()) for one in runs.iterdir())
     assert faults(added(since, repo), tmp_path / "ran", repo, tmp_path / "ran-parts") == []
     assert sum(len(one.read_text().split()) for one in runs.iterdir()) == before, (

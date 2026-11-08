@@ -2955,7 +2955,7 @@ def test_the_parts_record_the_lines_they_run_and_check_reads_them_before_any_mar
     assert fnmatch(
         upload["with"]["name"].replace("${{ matrix.shard }}", "3"), download["with"]["pattern"]
     )
-    assert download["with"]["merge-multiple"] is True
+    assert "merge-multiple" not in download["with"], "every part names its record alike"
     assert guard["env"]["NEW_LINES_PARTS"] == download["with"]["path"]
     assert "features/repo-guards/tests/test_new_lines_run.py" in guard["run"]
     assert names.index("new lines") < names.index("checked") < names.index("marker")
