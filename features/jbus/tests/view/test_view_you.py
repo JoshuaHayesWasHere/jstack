@@ -222,7 +222,9 @@ def test_a_retired_scopes_gates_wait_on_nobody_and_a_file_gate_stands_until_its_
     homes = {name: scene.home / name for name in ("shelf", "old-shelf", "back-shelf")}
     for name, where in homes.items():
         where.mkdir()
-        (where / "plan.md").write_text("# a plan\n")
+        (where / ("plan-archived.md" if name == "old-shelf" else "plan.md")).write_text(
+            "# a plan\n"
+        )
         if name != "shelf":
             (where / "handoff.md").write_text(CLOSED.format(name=name))
     (homes["shelf"] / "home-id").write_text("mcp:shelf\n")
