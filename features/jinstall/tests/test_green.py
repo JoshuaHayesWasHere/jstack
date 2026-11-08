@@ -6,6 +6,7 @@ does not break jbus. A checkout jbus does not watch installs from itself, as bef
 import json
 import os
 import subprocess
+from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
@@ -346,7 +347,13 @@ def test_a_move_restarts_a_follower_of_the_jbus_before_it_and_says_when_systemd_
     tmp_path, monkeypatch
 ):
     """The move installed the tool again, so a follower that started before ~/.local/bin/jbus
-    changed is restarted, and a restart systemd refuses is a fault the move raises."""
+    changed is restarted (`green.live`), and a restart systemd refuses is said, for the move to
+    raise. The machine is a Linux one wherever the test runs: on macOS `live` asks launchd,
+    which test_launchd.py covers."""
+    here = Machine.here.__func__
+    monkeypatch.setattr(
+        Machine, "here", classmethod(lambda cls, *args: replace(here(cls, *args), platform="linux"))
+    )
     home = tmp_path / "home"
     jbus = home / ".local" / "bin" / "jbus"
     jbus.parent.mkdir(parents=True)
@@ -373,10 +380,11 @@ esac
         monkeypatch.delenv(name)
     copy = tmp_path / "green"
     assert copies.make(REPO, copy, head(REPO)) == ""
-    assert green.relink(copy) == []
+    assert green.live(copy) == ([], "")
     assert "--user try-restart jbus-follow.service" in log.read_text().splitlines()
     (tmp_path / "refuse").touch()
-    assert green.relink(copy) == [
-        "units: systemctl --user try-restart jbus-follow.service: "
-        "Failed to restart jbus-follow.service: Access denied"
-    ]
+    assert green.live(copy) == (
+        [],
+        "systemctl --user try-restart jbus-follow.service: "
+        "Failed to restart jbus-follow.service: Access denied",
+    )

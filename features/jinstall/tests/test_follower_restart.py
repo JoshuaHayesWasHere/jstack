@@ -1,5 +1,6 @@
-"""`jinstall.kinds.restart`: a running always-on service that started before ~/.local/bin/jbus
-changed runs old code, so the install restarts it, once, and a manager's refusal is said."""
+"""`jinstall.kinds.restart`: a running service the install turns on (the follower, and the relay
+where its keys are there) that started before ~/.local/bin/jbus changed runs old code, so the
+install and the green move restart it, once, and a manager's refusal is said."""
 
 import os
 import time
@@ -7,23 +8,27 @@ from datetime import UTC, datetime
 
 import pytest
 
-from jinstall.kinds import State, Units, restart, stale, unit_templates
+from jinstall.kinds import Found, State, Units, restart, stale, unit_templates
 from jinstall.machine import Machine, Ran, Refused
 from testing.paths import REPO
 
 FOLLOWER = "jbus-follow.service"
+RELAY = "jbus-relay.service"
 
 
 class Manager:
-    """A stand-in for `systemctl --user` that reads this HOME, with the follower in `state`,
-    started at `started`, and whose try-restart answers `refuses` when it is set."""
+    """A stand-in for `systemctl --user` that reads this HOME, with each service in `state`,
+    started at `started`, or at its own start in `starts`, and whose try-restart answers
+    `refuses` when it is set."""
 
     def __init__(self, home):
         self.home = home
         self.state = "active"
         self.started = datetime.now(UTC)
+        self.starts = {}
         self.refuses = ""
         self.restarted = []
+        self.changed = []
 
     def __call__(self, args):
         if list(args[:2]) != ["systemctl", "--user"]:
@@ -36,13 +41,17 @@ class Manager:
         if asked[:2] == ["show", "--property"]:
             return Ran(0, "no\n")
         if asked[0] == "show":
-            at = self.started.strftime("%a %Y-%m-%d %H:%M:%S.%f UTC")
+            started = self.starts.get(asked[-1], self.started)
+            at = started.strftime("%a %Y-%m-%d %H:%M:%S.%f UTC")
             return Ran(0, f"ActiveState={self.state}\nActiveEnterTimestamp={at}\n")
+        if asked[0] in ("daemon-reload", "enable"):
+            self.changed.append(" ".join(asked))
+            return Ran(0, "")
         if asked[0] == "try-restart":
             if self.refuses:
                 return Ran(1, f"{self.refuses}\n")
             self.restarted.append(asked[1])
-            self.started = datetime.now(UTC)
+            self.starts[asked[1]] = datetime.now(UTC)
             return Ran(0, "")
         return Ran(64, f"no stand-in for {asked}")
 
@@ -98,3 +107,53 @@ def test_a_restart_the_manager_refuses_says_what_it_said(machine):
     manager.refuses = "Failed to restart jbus-follow.service: Access denied"
     with pytest.raises(Refused, match=f"try-restart {FOLLOWER}: Failed to restart"):
         restart(machine, (FOLLOWER,))
+
+
+class Keys:
+    """The relay's need, as `RelayKeys` answers it while the relay's env file holds its keys."""
+
+    def probe(self, machine):
+        return Found.ok()
+
+
+def test_a_running_relay_of_the_jbus_before_an_update_is_restarted_once_with_the_follower(
+    machine,
+):
+    """sa-follow-runs-live: an install that changed jbus restarted the follower and left the
+    relay, an opted service, on the jbus of before until its next restart."""
+    machine, manager = machine
+    units = machine.home / ".config" / "systemd" / "user"
+    units.mkdir(parents=True)
+    for name in (FOLLOWER, RELAY):
+        (units / name).symlink_to(unit_templates(REPO)[name])
+    need = Units(units, (FOLLOWER, RELAY), (FOLLOWER,), machine.home / "none", ((RELAY, Keys()),))
+    manager.starts[FOLLOWER] = datetime.now(UTC)
+    manager.starts[RELAY] = datetime.now(UTC).replace(year=2020)
+    changed(machine, ago=60)
+    found = need.probe(machine)
+    assert (found.state, found.detail.split()[0]) == (State.OLD, RELAY)
+    need.restart(machine)
+    need.restart(machine)
+    assert manager.restarted == [RELAY]
+    assert need.probe(machine).state is State.OK
+
+
+def test_add_links_enables_and_starts_each_unit_with_no_link_once_services_first(machine):
+    """The green move's add: each unit that is to be on and has no link, as one main added, is
+    linked, then systemd reloads and enables it, services first; a second call adds nothing, and
+    a machine whose install linked none of the units gets none."""
+    machine, manager = machine
+    units = machine.home / ".config" / "systemd" / "user"
+    units.mkdir(parents=True)
+    templates = unit_templates(REPO)
+    old, new = sorted(name for name in templates if name.endswith(".timer"))[:2]
+    need = Units(units, (FOLLOWER, old, new), (new, old, FOLLOWER), machine.home / "none")
+    assert need.add(machine) == []
+    (units / old).symlink_to(templates[old])
+
+    assert need.add(machine) == [FOLLOWER, new]
+    for name in (FOLLOWER, old, new):
+        assert (units / name).readlink() == templates[name]
+    assert manager.changed == ["daemon-reload", f"enable --now {FOLLOWER}", f"enable --now {new}"]
+    assert need.add(machine) == []
+    assert len(manager.changed) == 3

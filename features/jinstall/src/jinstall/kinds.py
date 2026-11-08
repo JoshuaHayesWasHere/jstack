@@ -27,7 +27,7 @@ import re
 import shutil
 import sys
 import tomllib
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
@@ -989,19 +989,27 @@ def split(
     return on, off
 
 
-def stale(machine: Machine, always: tuple[str, ...]) -> list[str]:
-    """Each service of `always` that is running and started before ~/.local/bin/jbus last
-    changed, as an install or a move of the green copy changes it: it runs the jbus it
-    loaded, which is old code. A service that is not running, or whose start systemd does
-    not give, is not stale, since `try-restart` would start nothing."""
+def changed(machine: Machine) -> datetime | None:
+    """When ~/.local/bin/jbus last changed, as an install or a move of the green copy changes it
+    when it installs uv's tool again, or None where it is not there."""
     try:
-        changed = datetime.fromtimestamp(
+        return datetime.fromtimestamp(
             (machine.home / ".local" / "bin" / "jbus").stat().st_mtime, UTC
         )
     except OSError:
+        return None
+
+
+def stale(machine: Machine, units: Sequence[str]) -> list[str]:
+    """Each service of `units` that systemd runs and that started before ~/.local/bin/jbus last
+    changed (`changed`): it runs the jbus it loaded, which is old code. A service that is not
+    running, or whose start systemd does not give, is not stale, since `try-restart` would start
+    nothing."""
+    since = changed(machine)
+    if since is None:
         return []
     stale = []
-    for name in always:
+    for name in units:
         if not name.endswith(".service"):
             continue
         ran = machine.systemctl(
@@ -1020,15 +1028,15 @@ def stale(machine: Machine, always: tuple[str, ...]) -> list[str]:
             ).replace(tzinfo=UTC)
         except ValueError:
             continue
-        if said.get("ActiveState") == "active" and started < changed:
+        if said.get("ActiveState") == "active" and started < since:
             stale.append(name)
     return stale
 
 
-def restart(machine: Machine, always: tuple[str, ...]) -> None:
-    """Restart each service of `always` that `stale` names. A second call finds each started
+def restart(machine: Machine, units: Sequence[str]) -> None:
+    """Restart each service of `units` that `stale` names. A second call finds each started
     after ~/.local/bin/jbus changed, and restarts nothing."""
-    for name in stale(machine, always):
+    for name in stale(machine, units):
         ran = machine.systemctl("try-restart", name)
         if ran is not None and ran.code != 0:
             said = ran.out.strip().splitlines()
@@ -1073,9 +1081,12 @@ class Units:
       `<name>.<time>.bak` beside it, which systemd does not read, and say so, link each unit to
       its template, write or remove `VIEW_DROP_IN`, run daemon-reload, and run enable --now on
       each unit that is to be on. A changed drop-in restarts `jbus-view.service` where it runs,
-      and each running service of `always` that started before ~/.local/bin/jbus last changed
-      is restarted, so it never runs the jbus of before an update; one restarted after is left.
-      A config that jbus's loader refuses leaves the drop-in as it is.
+      and each running service that is on (the follower, the relay) that started before
+      ~/.local/bin/jbus last changed is restarted (`restart`), so it never runs the jbus of
+      before an update; one restarted after is left. A config that jbus's loader refuses leaves
+      the drop-in as it is.
+    add: what the green move runs after it moves the copy (`jinstall.green.live`): link, enable
+      and start each unit that is to be on and has no link yet, as when main adds one.
     drop: run disable --now on each of `always` and each opted unit whose link is the
       install's, unlink each link that points at its template, remove the drop-in, and run
       daemon-reload.
@@ -1194,7 +1205,7 @@ class Units:
         reload = machine.systemctl("show", "--property", "NeedDaemonReload", "--value", *self.names)
         if reload is not None and "yes" in reload.out.split():
             return Found.old("needs daemon-reload")
-        for name in stale(machine, self.always):
+        for name in stale(machine, on):
             jbus = machine.home / ".local" / "bin" / "jbus"
             return Found.old(f"{name} started before {jbus} changed, so it runs old code")
         return Found.ok()
@@ -1234,8 +1245,33 @@ class Units:
             self._systemctl(machine, "enable", "--now", name)
         if view_due:
             self._systemctl(machine, "try-restart", "jbus-view.service")
-        restart(machine, self.always)
+        restart(machine, on)
         return "\n".join(kept) or None
+
+    def add(self, machine: Machine) -> list[str]:
+        """Link, enable and start each unit that is to be on and has nothing where its link
+        goes, as a tip of the green copy that adds a unit leaves it, services first: the move
+        runs it so a unit main adds runs with no install. A machine where the install linked
+        none of these units has none added. Return the units it added; a second call finds
+        each linked and adds none."""
+        if not self._ours(machine):
+            return []
+        on, _ = self._split(machine)
+        new = [name for name in on if not os.path.lexists(self.directory / name)]
+        new.sort(key=lambda name: not name.endswith(".service"))
+        for name in new:
+            machine.make_dirs(self._wanted(machine, name).parent)
+            machine.link(self.directory / name, self._template(machine, name))
+        if new:
+            self._systemctl(machine, "daemon-reload")
+        for name in new:
+            self._systemctl(machine, "enable", "--now", name)
+        return new
+
+    def restart(self, machine: Machine) -> None:
+        """Restart each service that is to be on and still runs the jbus of before
+        ~/.local/bin/jbus changed (`restart`): the follower, and the relay where it runs."""
+        restart(machine, self._split(machine)[0])
 
     def drop(self, machine: Machine) -> Dropped:
         ours = self._ours(machine)

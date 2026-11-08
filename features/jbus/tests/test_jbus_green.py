@@ -230,6 +230,73 @@ def test_a_move_that_changes_no_unit_leaves_no_unit_owing_systemd_a_reload(copie
     assert f"green demo: systemd reloaded the units of {unchanged[:12]}" in said
 
 
+FOLLOWER = (
+    "[Service]\nExecStart=jbus follow\nRestart=on-failure\n\n[Install]\nWantedBy=default.target\n"
+)
+
+
+def test_a_move_to_a_main_that_adds_a_unit_links_enables_and_starts_it_once(
+    copied, systemd, systemctl, tmp_path, monkeypatch
+):
+    """sa-follow-runs-live: #1255 added jbus-follow.service to main, and the move relinked the
+    units already linked but linked no new one, so the follower ran only once someone ran
+    jinstall. The move adds each unit the install would enable that has no link yet, services
+    first, and a second move finds it there and adds nothing."""
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    units = "features/jbus/units/"
+    land(copied, "success", {units + "jbus-merge.timer": TIMER.format("2s")})
+    land(copied, "success", {units + "jbus-merge.service": SERVICE})
+    copied.poll()
+    systemd.link("jbus-merge.timer", "jbus-merge.service")
+    systemctl.unlink()
+
+    added = land(
+        copied,
+        "success",
+        {units + "jbus-follow.service": FOLLOWER, units + "jbus-day.timer": TIMER.format("1d")},
+    )
+    said = copied.poll()
+    assert at(copied.copy) == added
+    folder = tmp_path / "config" / "systemd" / "user"
+    for name in ("jbus-follow.service", "jbus-day.timer"):
+        assert (folder / name).readlink() == copied.copy / units / name
+    assert calls(systemctl)[:3] == [
+        "--user daemon-reload",
+        "--user enable --now jbus-follow.service",
+        "--user enable --now jbus-day.timer",
+    ]
+    assert "green demo: linked, enabled and started jbus-follow.service, jbus-day.timer" in said
+    assert gates(copied) == []
+
+    systemctl.unlink()
+    land(copied, "success", {"features/new.txt": "new\n"})
+    said = copied.poll()
+    assert not [line for line in calls(systemctl) if " enable " in line]
+    assert not [line for line in said if "linked, enabled" in line]
+
+
+def test_a_new_unit_the_manager_will_not_enable_raises_a_condition_and_the_copy_still_moves(
+    copied, systemd, systemctl, tmp_path, monkeypatch
+):
+    """An enable systemd refuses leaves the follower stopped, so the move says so as a condition
+    of the tip, and the copy has moved all the same."""
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    units = "features/jbus/units/"
+    land(copied, "success", {units + "jbus-merge.timer": TIMER.format("2s")})
+    copied.poll()
+    systemd.link("jbus-merge.timer")
+    copied.stub.joinpath("systemctl").write_text(
+        f'#!/bin/sh\necho "$*" >> {systemctl}\n'
+        '[ "$2" = show-environment ] && { echo "HOME=$HOME"; exit 0; }\n'
+        '[ "$2" = enable ] && { echo "Failed to enable unit: Access denied"; exit 1; }\nexit 0\n'
+    )
+    added = land(copied, "success", {units + "jbus-follow.service": FOLLOWER})
+    said = copied.poll()
+    assert at(copied.copy) == added
+    assert gates(copied) == [f"condition green: {green.UNSTARTED}"]
+    assert not [line for line in said if "linked, enabled" in line]
+
+
 def test_a_manager_that_reads_another_home_is_asked_for_no_reload(copied, systemd, systemctl):
     """A test or a sandbox runs a move under a HOME of its own, whose units link through its
     copy, while `systemctl --user` reaches the account's manager, which reads another HOME: the

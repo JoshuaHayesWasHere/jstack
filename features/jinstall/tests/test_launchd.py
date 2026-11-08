@@ -22,6 +22,7 @@ from jinstall import agents, launchd
 from jinstall.__main__ import doctor, install, setup, uninstall
 from jinstall.kinds import unit_templates
 from jinstall.machine import Machine, Ran
+from jinstall.needs import units
 from test_install import ALWAYS, User, line_for
 from testing.paths import REPO
 
@@ -265,6 +266,81 @@ def test_every_mac_keeps_the_follower_alive_and_restarts_it_after_a_failure(mac)
     assert (follow["RunAtLoad"], follow["KeepAlive"]) == (True, {"SuccessfulExit": False})
     assert follow["ProgramArguments"][-1].endswith("/.local/bin/jbus follow")
     assert follow["EnvironmentVariables"]["PYTHONUNBUFFERED"] == "1"
+
+
+def test_a_running_follower_and_relay_of_the_jbus_before_an_update_are_kickstarted_once(mac):
+    """sa-follow-runs-live: on macOS an install that changed jbus restarted neither the
+    follower's agent nor the relay's, so each ran the jbus of before until its next restart.
+    An agent whose log's last start marker is older than ~/.local/bin/jbus is kickstarted, once:
+    its new run writes a later marker, and one started after the change is left."""
+    mac.as_owner()
+    setup(mac.machine())
+    real = mac.stub / "launchctl.real"
+    (mac.stub / "launchctl").rename(real)
+    logs = mac.home / "Library" / "Logs" / "jstack"
+    mac.write(
+        mac.stub / "launchctl",
+        f"""#!/bin/sh
+[ "$1" = kickstart ] || exec {real} "$@"
+echo "$*" >> {mac.launchctl_log}
+echo "jstack: started $(date +%s)" >> {logs}/"${{3##*/}}.log"
+""",
+    )
+    (mac.stub / "launchctl").chmod(0o755)
+    jbus = mac.home / ".local" / "bin" / "jbus"
+    os.utime(jbus, (time.time() - 60,) * 2)
+    for name in ("jbus-follow", "jbus-relay", "jbus-ci"):
+        (mac.loaded / f"jstack.{name}.pid").write_text("4242\n")
+        mac.write(logs / f"jstack.{name}.log", f"{STARTED}{int(time.time()) - 600}\nran\n")
+
+    stale = f"jstack.jbus-follow started before {jbus} changed, so it runs old code"
+    assert mac.said_by(install, False) == [f"old optional {mac.line} -> {stale}"]
+    setup(mac.machine())
+    setup(mac.machine())
+    assert mac.calls("kickstart") == [
+        f"kickstart -k {GUI}/jstack.jbus-follow",
+        f"kickstart -k {GUI}/jstack.jbus-relay",
+    ]
+    assert mac.said_by(install, False) == [f"ok optional {mac.line}"]
+
+
+def test_add_writes_and_bootstraps_an_agent_main_added_once(mac):
+    """The green move's add on macOS: an agent that is on and has no plist, as one main added,
+    is written and bootstrapped; a second call adds nothing, and a Mac whose install wrote no
+    plist gets none."""
+    mac.with_jbus()
+    need = units(mac.machine())
+    assert need.add(mac.machine()) == []
+    setup(mac.machine())
+    follower = mac.plist("jbus-follow.service")
+    (mac.loaded / follower.stem).unlink()
+    follower.unlink()
+
+    assert need.add(mac.machine()) == ["jbus-follow.service"]
+    assert follower.is_file()
+    assert mac.calls("bootstrap")[-1] == f"bootstrap {GUI} {follower}"
+    before = len(mac.calls("bootstrap"))
+    assert need.add(mac.machine()) == []
+    assert len(mac.calls("bootstrap")) == before
+
+
+def test_an_agent_with_no_start_marker_or_with_no_jbus_is_not_stale(mac):
+    """An agent's start is its log's last start marker: a log with none, or with one that names
+    no time, gives no start, and with no ~/.local/bin/jbus nothing changed, so none is stale."""
+    mac.with_jbus()
+    setup(mac.machine())
+    need = units(mac.machine())
+    logs = mac.home / "Library" / "Logs" / "jstack"
+    (mac.loaded / "jstack.jbus-follow.pid").write_text("4242\n")
+    jbus = mac.home / ".local" / "bin" / "jbus"
+    for said in ("ran\n", f"{STARTED}soon\n"):
+        mac.write(logs / "jstack.jbus-follow.log", said)
+        assert need.stale(mac.machine()) == []
+    mac.write(logs / "jstack.jbus-follow.log", f"{STARTED}{int(time.time()) - 600}\n")
+    os.utime(jbus)
+    assert [agent.label for agent in need.stale(mac.machine())] == ["jstack.jbus-follow"]
+    jbus.unlink()
+    assert need.stale(mac.machine()) == []
 
 
 def test_the_view_gets_no_agent_as_systemd_enables_no_view(mac):
