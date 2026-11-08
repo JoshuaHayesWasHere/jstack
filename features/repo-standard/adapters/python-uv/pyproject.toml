@@ -1,0 +1,21 @@
+[project]
+name = "repo"
+version = "0"
+requires-python = ">=3.12"
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["features"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+src = ["features/*/src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
