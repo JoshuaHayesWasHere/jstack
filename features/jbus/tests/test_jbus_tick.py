@@ -7,9 +7,11 @@ loses no merge. The pass runs `jmerge --if-free` too. The tests run the real tic
 the fakes (`test_jbus_kitchen.py`).
 """
 
+import configparser
 import json
 import sys
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
 
@@ -20,6 +22,8 @@ from test_jbus_kitchen import NOW, Kitchen, rate_limit
 from test_jbus_merge import LOCKING, held
 from test_jbus_queue import add
 from test_jbus_row_ends import sends
+
+REPO = Path(__file__).resolve().parents[3]
 
 
 @pytest.fixture
@@ -443,3 +447,95 @@ def test_a_verdict_jmerge_gives_before_it_reads_the_checks_keeps_the_head(on_che
     on_check.set("jmerge.txt", f"wait 7 {PULL}: {ready.NO_REVIEW}\n")
     on_check.poll()
     assert watching(on_check) == [{"number": 7, "head": HEAD}]
+
+
+MANAGER = """#!/bin/sh
+echo "$*" >> "{stub}/systemctl.log"
+if [ "$2" != is-active ] && [ -f "{stub}/refused.txt" ]; then
+    cat "{stub}/refused.txt" >&2
+    exit 1
+fi
+case "$2" in
+is-active) cat "{stub}/timer.txt"; [ "$(cat "{stub}/timer.txt")" = active ] ;;
+start) echo active > "{stub}/timer.txt" ;;
+stop) echo inactive > "{stub}/timer.txt" ;;
+*) exit 1 ;;
+esac
+"""
+"""A user manager with the one timer the pass starts and stops, active as the install leaves it
+(`enable --now`), which refuses to start or stop it while `refused.txt` says why."""
+
+
+@pytest.fixture
+def manager(kitchen):
+    stand_in = kitchen.stub / "systemctl"
+    stand_in.write_text(MANAGER.format(stub=kitchen.stub))
+    stand_in.chmod(0o755)
+    (kitchen.stub / "timer.txt").write_text("active\n")
+    return kitchen
+
+
+def timer(kitchen):
+    return (kitchen.stub / "timer.txt").read_text().strip()
+
+
+def switched(kitchen):
+    return [call for call in kitchen.log("systemctl") if "jbus-merge.timer" in call]
+
+
+def test_the_tick_runs_only_while_a_pass_saw_a_check_going_and_starts_within_2_s(
+    manager, monkeypatch
+):
+    """The install leaves `jbus-merge.timer` running. A pass of `jbus.service`, which names the
+    timer, stops it while no project's `checks-pending.json` holds a pull request, so no tick
+    starts, and starts it once one does. The timer's first tick then comes `OnActiveSec=` after
+    the start, within 2 s, and the next ones every 2 s. A pass that changes nothing leaves it."""
+    kitchen = manager
+    monkeypatch.setenv(tick.TIMER, "jbus-merge.timer")
+    said = kitchen.poll()
+    assert json.loads((kitchen.state / tick.PENDING).read_text()) == []
+    assert timer(kitchen) == "inactive"
+    assert "tick: no pull request has checks going, so jbus-merge.timer stops" in said
+    kitchen.poll()
+    assert [call for call in switched(kitchen) if "is-active" not in call] == [
+        "--user stop jbus-merge.timer"
+    ]
+    going(kitchen)
+    assert timer(kitchen) == "active"
+    going(kitchen)
+    going(kitchen, "SUCCESS")
+    assert json.loads((kitchen.state / tick.PENDING).read_text()) == []
+    assert timer(kitchen) == "inactive"
+    assert [call for call in switched(kitchen) if "is-active" not in call] == [
+        f"--user {verb} jbus-merge.timer" for verb in ("stop", "start", "stop")
+    ]
+    unit = configparser.ConfigParser(interpolation=None)
+    unit.optionxform = str
+    unit.read(REPO / "features" / "jbus" / "units" / "jbus-merge.timer")
+    assert unit["Timer"]["OnActiveSec"] == unit["Timer"]["OnUnitActiveSec"] == "2s"
+    service = (REPO / "features" / "jbus" / "units" / "jbus.service").read_text()
+    assert f"Environment={tick.TIMER}=jbus-merge.timer" in service.splitlines()
+
+
+def test_a_pass_that_no_unit_started_leaves_the_machines_timer_as_it_is(manager):
+    """A pass that a test, a sandbox or a hand starts has no `JBUS_TICK_TIMER`, which only
+    `jbus.service` sets, so it asks the user manager nothing of the timer."""
+    going(manager)
+    going(manager, "SUCCESS")
+    assert switched(manager) == []
+    assert timer(manager) == "active"
+
+
+def test_a_pass_whose_stop_the_manager_refuses_says_so_and_the_next_pass_stops_it(
+    manager, monkeypatch
+):
+    """The user manager refuses the stop: the pass says why in its log and the timer runs on.
+    The next pass finds it running with nothing pending, and stops it."""
+    monkeypatch.setenv(tick.TIMER, "jbus-merge.timer")
+    (manager.stub / "refused.txt").write_text("Failed to connect to bus\n")
+    said = manager.poll()
+    assert "tick: systemctl --user stop jbus-merge.timer failed: Failed to connect to bus" in said
+    assert timer(manager) == "active"
+    (manager.stub / "refused.txt").unlink()
+    assert "tick: no pull request has checks going, so jbus-merge.timer stops" in manager.poll()
+    assert timer(manager) == "inactive"

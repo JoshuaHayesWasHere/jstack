@@ -37,7 +37,7 @@ def test_the_timer_runs_a_pass_every_minute_and_a_failed_one_runs_the_alarm():
     services name."""
     units = {}
     for name in ("jbus.service", "jbus.timer", "jbus-failed.service"):
-        units[name] = configparser.ConfigParser(interpolation=None)
+        units[name] = configparser.ConfigParser(interpolation=None, strict=False)
         units[name].optionxform = str
         units[name].read(REPO / "features" / "jbus" / "units" / name)
     service, failed = units["jbus.service"], units["jbus-failed.service"]
@@ -54,7 +54,7 @@ def test_jmerge_ends_before_systemd_stops_the_pass():
     """The test names each of the two limits once: what a pass allows `jmerge`, and the unit's.
     Once, at 03:26 ET, a local check ran past a later limit and was killed before it recorded
     its result."""
-    service = configparser.ConfigParser(interpolation=None)
+    service = configparser.ConfigParser(interpolation=None, strict=False)
     service.optionxform = str
     service.read(REPO / "features" / "jbus" / "units" / "jbus.service")
     started = service["Service"]["TimeoutStartSec"]
