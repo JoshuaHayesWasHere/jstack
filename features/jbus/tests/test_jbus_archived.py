@@ -12,7 +12,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import item, work
+from jbus import item, queue, work
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_queue import add, rows
 
@@ -88,6 +88,40 @@ def test_a_merged_row_stays_merged_when_its_thread_is_archived(kitchen):
         kitchen.poll(NOW + timedelta(minutes=minutes))
         assert rows(kitchen)["alpha"]["status"] == "merged"
     assert len(kitchen.t3.launches) == 1
+
+
+@pytest.mark.parametrize("ending", ENDINGS)
+def test_a_crew_the_pass_archived_is_still_its_rows_and_a_left_row_keeps_its_thread(
+    kitchen, ending
+):
+    """A pass archives the thread of a finished row, and the row keeps it as `jbus.archived` reads
+    it. A `left` row's thread stays as it is until its home closes the row."""
+    more, status = ENDINGS[ending]
+    thread = launched(kitchen, more=more)
+    for minutes in (3, 6, 9):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+        assert rows(kitchen)["alpha"]["status"] == status
+    assert bool(thread.get("archived")) is (status == "done")
+    assert rows(kitchen)["alpha"]["thread"] == thread["threadId"]
+    assert judged(kitchen)["facts"]["thread"] == ("archived" if status == "done" else "completed")
+    assert len(kitchen.t3.launches) == 1 and kitchen.lines("gate") == []
+
+
+def test_a_done_row_whose_thread_jbus_did_not_launch_stays_done_once_the_pass_archives_it(
+    kitchen,
+):
+    """A row's thread that a home launched, not jbus, is the row's by its `thread` column: once the
+    pass archives it, `jbus.archived` asks after it, and the row stays done."""
+    add(kitchen, "alpha")
+    kitchen.brief("alpha", result())
+    thread = kitchen.t3.thread("alpha", "completed")
+    table = json.loads(queue.path(kitchen.state).read_text())
+    queue.path(kitchen.state).write_text(json.dumps([{**row, "status": "done"} for row in table]))
+    for minutes in (0, 3, 6):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+        assert rows(kitchen)["alpha"]["status"] == "done"
+    assert thread["archived"] and kitchen.t3.launches == []
+    assert judged(kitchen)["facts"]["thread"] == "archived"
 
 
 def test_a_thread_that_is_missing_is_told_apart_from_one_that_was_never_launched(kitchen):

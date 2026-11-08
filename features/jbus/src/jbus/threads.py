@@ -3,13 +3,12 @@ settle.
 
 `link` links an open pull request to the thread that jbus launched for the pull request's branch, so
 T3 Code shows the pull request in that thread. A review's findings reach the crew from
-`jbus.reviewed`. `settle` settles the threads of a slug that is finished, and
-the subagent threads under them. `settle` also archives the review threads of a pull request that
-merged or closed. `resume` tells a crewmate to carry on when its thread ended with no Result.
-`resume` does this twice at most, and after that it tells the brief's home in one line. `merged`
-tells a crewmate to carry on, once, when its pull request merged and its Result leaves work for
-after the merge. `out` lists every thread that is not settled, whatever its title, with the role
-that its title gives it (`ROLES`) and its liveness.
+`jbus.reviewed`. `settle` archives the threads of a slug that is finished, and the subagent threads
+under them, and only settles them while the slug still has work open. `resume` tells a crewmate to
+carry on when its thread ended with no Result. `resume` does this twice at most, and after that it
+tells the brief's home in one line. `merged` tells a crewmate to carry on, once, when its pull
+request merged and its Result leaves work for after the merge. `out` lists every thread that is
+not settled, whatever its title, with the role that its title gives it (`ROLES`) and its liveness.
 
 Each action happens once. jbus records the action's key in `sent.json`, beside the keys of the
 events, but only after T3 Code accepted the call. So when an action got no answer, the next pass
@@ -30,6 +29,7 @@ from jbus import (
     dispatch,
     mirror,
     outbox,
+    questions,
     queue,
     record,
     review,
@@ -177,15 +177,13 @@ def shut(world: World, briefs: dict[str, str]) -> set[str]:
 
 
 def finished(run: Pass, world: World) -> dict[str, set[str]]:
-    """Return the slugs whose threads may be put away, by the start of such a thread's title. Under
-    `archive`, also return the slugs whose review threads jbus archives.
+    """Return the slugs whose threads may be put away, by the start of such a thread's title.
 
     A task is over when its pull request merged, or when its last Result says `Status: done` and
     `Left: none` and names no pull request. Under the crew skill, a thread that has something left
     stays where the user sees it. A reviewer is over when the brief's last Review has a verdict and
     either the reviewer's pull request merged or closed or the reviewer's task is over. A reviewer
-    that stopped early stays. jbus archives a reviewer when its pull request merged or closed. A
-    scout is over when its last Report says `Status: done`.
+    that stopped early stays. A scout is over when its last Report says `Status: done`.
     """
     briefs = _briefs(run)
     tasks = set(world.merged) - set(world.open)
@@ -208,7 +206,6 @@ def finished(run: Pass, world: World) -> dict[str, set[str]]:
         "crew: ": tasks,
         "review: ": reviewed,
         "scout: ": _scouts(run),
-        "archive": reviewed & ended,
     }
 
 
@@ -350,16 +347,100 @@ def out(run: Pass, client: Client, also: frozenset[str] = frozenset()) -> list[O
     return found
 
 
-def settle(run: Pass, client: Client, world: World) -> None:
-    """Settle the threads of each finished slug, and the subagent threads under them, once each.
-    Archive each review thread whose pull request merged or closed, with the threads under it.
+def _trees(run: Pass) -> dict[str, tuple[str, str]] | None:
+    """Return each worktree of the checkout that is on a branch, as its path and its head by the
+    branch, or None where git could not list them."""
+    listed = run.run("git", "worktree", "list", "--porcelain")
+    if listed.returncode:
+        return None
+    found = {}
+    for block in listed.stdout.strip().split("\n\n")[1:]:
+        lines = {
+            key: value for key, _, value in (line.partition(" ") for line in block.splitlines())
+        }
+        if lines.get("branch") and lines.get("worktree"):
+            found[lines["branch"].removeprefix("refs/heads/")] = (lines["worktree"], lines["HEAD"])
+    return found
 
-    `settle` skips a thread that is still at work, and the threads under it, until the next pass.
-    Once a crew's thread is settled, its scratch folder goes (`dispatch.clear_scratch`).
+
+def _unsaved(run: Pass, world: World, slug: str, tree: tuple[str, str]) -> str:
+    """Return why a slug's worktree holds work that would be lost, or nothing. Work is lost where
+    the worktree has an uncommitted or untracked file, or a commit that no branch of origin has
+    and that the head of its merged pull request does not hold."""
+    path, head = tree
+    status = run.run("git", "--no-optional-locks", "-C", path, "status", "--porcelain")
+    if status.returncode or status.stdout.strip():
+        return f"its worktree {path} has uncommitted work, or git could not say"
+    left = run.run("git", "rev-list", "--count", head, "--not", "--remotes")
+    if left.returncode == 0 and left.stdout.strip() == "0":
+        return ""
+    oid = str((world.merged.get(slug) or {}).get("headRefOid") or "")
+    if oid and run.run("git", "merge-base", "--is-ancestor", head, oid).returncode == 0:
+        return ""
+    return f"its worktree {path} has a commit that is not pushed"
+
+
+def held(run: Pass, world: World, slugs: set[str]) -> dict[str, str]:
+    """Return, by slug, why each finished slug of `slugs` still has work open, so its threads are
+    not archived: its row is not over (`queue.over`), as a `left` row is until its home closes it;
+    an open row follows it (`Follows:`); a question or gate it asked (`jbus.questions`) waits for
+    an answer; its last Result leaves work for after the merge; or its worktree holds uncommitted
+    or unpushed work (`_unsaved`). A slug whose pull request is open is never finished
+    (`finished`). Where the queue or the questions do not parse, or git cannot list the
+    worktrees, every slug is held: nothing is archived on a guess."""
+    try:
+        rows = queue.load(run.state)
+        asked = {
+            one.slug
+            for one in questions.read(run.state)
+            if one.answer is None or one.answer.closed_by == questions.SILENCE
+        }
+    except (queue.Unparsable, questions.Unparsable):
+        return dict.fromkeys(slugs, "its queue or its questions do not parse")
+    briefs = _briefs(run)
+    found: dict[str, str] = {}
+    trees = _trees(run)
+    branch = {row["slug"]: row.get("branch") or row["slug"] for row in rows}
+    for row in rows:
+        parent = queue.named_parent(row["slug"], briefs.get(row["slug"], ""))
+        if parent in slugs and not queue.over(row):
+            found.setdefault(parent, f"its follower {row['slug']} is open")
+    for row in rows:
+        if row["slug"] in slugs and not queue.over(row):
+            found[row["slug"]] = f"its row is {row.get('status')}"
+    for slug in slugs - set(found):
+        tree = None if trees is None else trees.get(branch.get(slug, slug))
+        if slug in asked:
+            found[slug] = "a question it asked waits for an answer"
+        elif after_merge(mirror.last_result(briefs.get(slug, ""))):
+            found[slug] = "its Result leaves work for after the merge"
+        elif trees is None:
+            found[slug] = "git could not list the worktrees"
+        elif tree:
+            why = _unsaved(run, world, slug, tree)
+            if why:
+                found[slug] = why
+    return found
+
+
+def settle(run: Pass, client: Client, world: World) -> None:
+    """Archive the threads of each finished slug (`finished`), and the subagent threads under
+    them, once each. A slug that still has work open (`held`) has its threads settled instead,
+    and they wait for a pass that finds the work closed.
+
+    `settle` lists the threads settled or not, so a thread that an earlier pass settled is
+    archived by the same step once its slug is finished. A subagent thread whose parent jbus
+    archived keeps its parent's slug through the parent's key in `sent.json`, since T3 Code no
+    longer lists the parent. Each action's key goes in `sent.json` once T3 Code took it, so a
+    thread the user unarchives is not archived again. `settle` never archives a home thread.
+
+    `settle` skips a thread that is still at work, settled or not, since T3 Code leaves a thread
+    settled while it takes up a message, with the threads under it and the threads above it, so a
+    running subagent keeps its parent too, until the next pass.
+    Once a crew's thread is put away, its scratch folder goes (`dispatch.clear_scratch`).
     """
     over = finished(run, world)
     slug_of: dict[str, str] = {}
-    shelve: set[str] = set()
     waiting: list[dict[str, Any]] = []
     try:
         for prefix in PREFIXES:
@@ -370,35 +451,43 @@ def settle(run: Pass, client: Client, world: World) -> None:
                 if slug in over[prefix]:
                     slug_of[thread["threadId"]] = slug
                     waiting.append(thread)
-                    if prefix == "review: " and slug in over["archive"]:
-                        shelve.add(thread["threadId"])
         if not slug_of:
             return
-        below = t3.listed(client, run.project.project_id, settled=False, includeSubagents=True)
+        below = t3.listed(client, run.project.project_id, includeSubagents=True)
     except T3Error as error:
         run.say(f"wait {run.project.name}: the threads to settle could not be listed ({error})")
         return
-    busy = {t["threadId"] for t in waiting if watch.at_work([t])}
+    busy = {t["threadId"] for t in waiting if watch.at_work([t], settled_too=True)}
+    parents = dict(slug_of)
+    for key in run.box.sent():
+        action, _, rest = key.partition("|")
+        slug, _, at = rest.partition("|")
+        if action == "archived" and at:
+            parents.setdefault(at, slug)
     below = [t for t in below if t.get("relationshipToParent") == "subagent"]
     grew = True
     while grew:
         grew = False
         for thread in below:
             parent = thread.get("parentThreadId")
-            if thread["threadId"] in slug_of or parent not in slug_of:
+            if thread["threadId"] in slug_of or parent not in parents:
                 continue
-            slug_of[thread["threadId"]] = slug_of[parent]
-            if parent in shelve:
-                shelve.add(thread["threadId"])
-            if parent in busy or watch.at_work([thread]):
+            slug_of[thread["threadId"]] = parents[thread["threadId"]] = parents[parent]
+            if parent in busy or watch.at_work([thread], settled_too=True):
                 busy.add(thread["threadId"])
             waiting.append(thread)
             grew = True
+    up = {t["threadId"]: t.get("parentThreadId") for t in waiting}
+    for at in list(busy):
+        while up.get(at) in slug_of and up[at] not in busy:
+            at = up[at]
+            busy.add(at)
+    open_work = held(run, world, set(slug_of.values()))
     for thread in waiting:
         at, slug = thread["threadId"], slug_of[thread["threadId"]]
-        if at in busy:
+        if at in busy or role_of(str(thread.get("title", "")))[0] == "home":
             continue
-        for action in ("settle", "archive") if at in shelve else ("settle",):
+        for action in ("settle",) if slug in open_work else ("settle", "archive"):
             key = f"{action}d|{slug}|{at}"
             if _done(run, key):
                 continue

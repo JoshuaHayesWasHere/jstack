@@ -68,7 +68,16 @@ PRUNE_AFTER = timedelta(days=7)
 LOG = "events.jsonl"
 UNLOGGED = "unlogged.json"
 LOG_KEEP = timedelta(days=14)
-FOUND_AGAIN = ("merged", "merged-left", "retro", "stale", "gate", "condition", "settled")
+FOUND_AGAIN = (
+    "merged",
+    "merged-left",
+    "retro",
+    "stale",
+    "gate",
+    "condition",
+    "settled",
+    "archived",
+)
 BLOCKING = "blocking"
 EVENTS_KIND = "events"
 TIMERS = ("reminder", "refresh")

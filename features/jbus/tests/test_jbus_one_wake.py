@@ -487,7 +487,12 @@ def test_once_a_day_the_keys_of_a_slug_merged_a_week_ago_are_forgotten(kitchen):
         ]
 
     was = {slug: kept(slug) for slug in ("old", "new", "open", "")}
-    assert sorted(key.split("|")[0] for key in was["old"]) == ["merged", "result", "settled"]
+    assert sorted(key.split("|")[0] for key in was["old"]) == [
+        "archived",
+        "merged",
+        "result",
+        "settled",
+    ]
     kitchen.poll(QUARTER_PAST_FIVE - PASS)
     assert {slug: kept(slug) for slug in was} == was
     kitchen.poll(QUARTER_PAST_FIVE)
