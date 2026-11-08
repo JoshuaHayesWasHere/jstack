@@ -1,14 +1,13 @@
-"""A skill's SKILL.md stays within `CAP` lines. A long section moves to a file beside the
-SKILL.md, and one trigger line in the SKILL.md says to read that file now. The nesting is one
-level deep: a side file holds no trigger line of its own."""
+"""A skill's SKILL.md stays within its cap, a `size` rule of `.repo-standard.yml` that
+`test_module_size.py` runs. A long section moves to a file beside the SKILL.md, and one trigger
+line in the SKILL.md says to read that file now. That is jstack's extension, and this file holds
+it. The nesting is one level deep: a side file holds no trigger line of its own."""
 
 import pytest
 
 from test_home_thread import NAMED, named
 from testing.paths import skills
 
-CAP = 400
-OVER = {skills()["handoff"]}
 SKILLS = [folder / "SKILL.md" for folder in skills().values()]
 SIDES = sorted(
     side
@@ -20,23 +19,6 @@ SIDES = sorted(
 
 def ids(path):
     return f"{path.parent.name}/{path.name}"
-
-
-@pytest.mark.parametrize(
-    "skill",
-    [skill for skill in SKILLS if skill.parent.name not in {"in-your-own-words", "teach"}],
-    ids=ids,
-)
-def test_a_skill_md_stays_within_the_cap_or_is_on_the_allowlist(skill):
-    lines = len(skill.read_text().splitlines())
-    if skill.parent in OVER:
-        assert lines > CAP, f"{ids(skill)} is within {CAP} lines now: take it off OVER"
-    else:
-        assert lines <= CAP, f"{ids(skill)} has {lines} lines: move a long section beside it"
-
-
-def test_every_skill_on_the_allowlist_is_there():
-    assert sorted(OVER - {skill.parent for skill in SKILLS}) == []
 
 
 @pytest.mark.parametrize("side", SIDES, ids=ids)

@@ -115,13 +115,13 @@ On `no open questions`, say nothing about gates.
 On `no jbus`, `no project` and `jbus could not be`, say that line: no question could be read.
 Give each open question to the user as text, by its number: the question and the default taken, then what was built on it and how to undo it.
 For one whose last line is `holds (<case>) for the answer`, say instead that its default waits for their answer, with the case and the fail-safe.
-Ask it once, in plain words in this home's own thread, in one sentence that names it as `question <n>`, or names the row a `may <slug> go?` question waits on, and ends with a question mark: "Question 250: delete the throwaway branch?".
-The user's plain reply to that ask is the answer: their words need not name the question or the row, since jbus reads the last message this home wrote before the reply, and takes the reply as said of what that message asked.
-A question or row the message names only in passing, or whose sentence asks nothing, is not asked: "question 250 stays held; question 251: may it go?" asks only of 251.
-Never ask them to repeat an answer in exact words.
+Ask it once, in plain words in this home's own thread, in a message that names it as `question <n>`, or names the row a `may <slug> go?` question waits on: "Question 250: delete the throwaway branch, or keep it?".
+The user's plain reply to that ask is the answer: "drop it", "yes" or "keep it" need not name the question or the row, since jbus reads the last message this home wrote before the reply, and binds the reply to the one open door that message named.
+A message that names two or more open doors binds a plain reply to none of them, so ask about one door in a message; a reply that names its item itself, as `q250`, `#250` or the row's slug, binds to that one wherever it was said.
+Turn the user's words into the verb yourself: never give them words to send, and never ask them to repeat an answer in exact words.
 Close it with `jbus answer <n> --default --message <thread id>/<message id>`, or `--differs` for an answer that is not the default, on that reply; a reply to a `may <slug> go?` ask opens the row with `jbus queue approve <slug> --message <thread id>/<message id>` the same way.
 Where they already sent that message, run the command on it yourself, and never ask them to send it again.
-A reply said before the ask, or to an ask about another question or row, answers nothing: ask again, asking this one.
+When jbus refuses the reply (said before the ask, or to an ask that named another door or more than one), ask again about this one item alone, in plain words, and run the command on their next reply: never hand them a line to send.
 On a `may <slug> go?` question, `--differs` is the go, and jbus approves the row with it.
 "Close one" below cannot close it, since jbus refuses `--by` and `--at` words on a question that holds.
 Ask for nothing more than the answer.

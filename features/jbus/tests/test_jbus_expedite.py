@@ -596,7 +596,8 @@ def test_a_hold_the_crew_did_not_lift_is_one_stall_and_one_decision_from_the_nex
     assert told.startswith("hold 7 ") and told.endswith("a pull request jmerge holds for your word")
     (decided,) = kitchen.events("decision")
     assert decided["line"].endswith(
-        'a pull request jmerge holds for your word. Reply: "demo #7: merge it"'
+        "a pull request jmerge holds for your word. Reply: reply in your own words to merge #7 "
+        "or say what to do instead"
     )
     assert listed(kitchen) == ["#7"]
     assert len(asks(kitchen)) == 1

@@ -61,7 +61,7 @@ The Python code is one `uv` project.
 
 `make check` is the one check command.
 It runs `make lint`, then `make test`, and stops at the first that fails.
-`make lint` runs `features/writing/scripts/comment_lint.py` on the files the branch changed, which only warns, then `scripts/generate-jstack-trees.py --check`, `scripts/check-jstack-docs.py`, `uv run ruff check .`, `uv run ruff format --check .` and `uv run pyrefly check --summary=none features/*/src`, which type-checks each feature's `src`.
+`make lint` runs `features/writing/scripts/comment_lint.py` on the files the branch changed, which only warns, then the repo standard's `stale` guard, which runs `scripts/generate-jstack-trees.py --check` as `.repo-standard.yml` names it, `scripts/check-jstack-docs.py`, `uv run ruff check .`, `uv run ruff format --check .` and `uv run pyrefly check --summary=none features/*/src`, which type-checks each feature's `src`.
 `make test` runs `uv run pytest` on several workers with `-m "not browser"`, so it leaves out the tests that open a real browser.
 `make check-browser` runs those.
 
@@ -74,7 +74,7 @@ A skill or page includes the file beside it that one of its lines says to read n
 
 When a check fails, [A test of `make check` failed on a bound](features/repo-guards/docs/troubleshooting/a-test-of-make-check-failed-on-a-bound.md) and [`make check-fast` stopped before the tests](features/repo-guards/docs/troubleshooting/make-check-fast-stopped-before-the-tests.md) have the common causes.
 
-`features/repo-guards/tests/test_no_comments.py` fails `make check` on a comment in the files under `src/`, `hooks/*.sh`, `install.sh` and `tests/*.py`, other than a shebang, `# type:` or `# pragma`.
+`features/repo-guards/tests/test_no_comments.py` fails `make check` on a comment in the files the `comments` part of `.repo-standard.yml` sweeps, other than a shebang, `# type:` or `# pragma`.
 It fails a `# noqa` too: write the code so that ruff reports nothing on it.
 
 `verify-jstack` drives `jbus`, `jmerge`, `jgauge` and `install.sh` in a throwaway sandbox, with stand-ins for T3 Code and GitHub.

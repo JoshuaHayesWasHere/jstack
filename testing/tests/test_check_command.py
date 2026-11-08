@@ -470,7 +470,7 @@ def test_928s_807_line_module_fails_the_desks_guard_part_with_neither_0_nor_124(
         text=True,
     )
     assert made.returncode not in (0, 124), made.stdout
-    assert "jbus/telemetry/records.py has 807 lines, over 800" in made.stdout
+    assert f"{records}: has 807 lines, over 800" in made.stdout
     runs = [line for line in asked.read_text().splitlines() if line.startswith("run pytest")]
     assert len(runs) == 1 and f" {guard}" in runs[0] and reached not in runs[0], runs
 

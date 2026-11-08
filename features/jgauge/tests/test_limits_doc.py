@@ -12,7 +12,7 @@ from testing.paths import REPO
 DOC = REPO / "features" / "jgauge" / "docs" / "limits.md"
 CELL = re.compile(r"`([^`]+)`")
 PLACE = re.compile(
-    r"^((?:src|tests|templates|features|scripts|testing|\.github)/[\w./-]+|Makefile)"
+    r"^((?:src|tests|templates|features|scripts|testing|\.github)/[\w./-]+|Makefile|\.repo-standard\.yml)"
     r"(?::(\d+)(?:-(\d+))?)?$"
 )
 

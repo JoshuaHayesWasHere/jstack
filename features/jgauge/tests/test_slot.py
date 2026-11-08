@@ -622,7 +622,8 @@ def test_every_take_and_release_in_both_lanes_appends_one_row_to_the_slot_log(sl
     assert waiting.wait(timeout=5) == 7
     slots.hold(2)
     held_up = slots("--slots", "2", command=["true"])
-    time.sleep(5 * slot.LOOK_EVERY_SECONDS)
+    assert held_up.stderr.readline() == "test-slot: waiting for one of 2 slots\n"
+    time.sleep(4 * slot.LOOK_EVERY_SECONDS)
     slots.free()
     assert held_up.wait(timeout=5) == 0
     ran = slots("--short", "--thread", "mcp:thread-7", command=["sh", "-c", "exit 0"])
