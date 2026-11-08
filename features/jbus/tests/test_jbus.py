@@ -62,6 +62,15 @@ def test_jmerge_ends_before_systemd_stops_the_pass():
     assert int(started.removesuffix("min")) * 60 > wake.JMERGE_TIMEOUT
 
 
+def test_the_2_s_tick_never_reaches_systemds_start_limit():
+    """systemd refuses a unit started more than 5 times in 10 s by default, and a 2 s timer sits at
+    that edge: a reload from a green move pushed `jbus-merge.service` over it 3 times on
+    2026-11-08, and one refusal cost a pull request's line a 4 s gap. The tick has no limit."""
+    service = configparser.ConfigParser(interpolation=None, strict=False)
+    service.optionxform = str
+    service.read(REPO / "features" / "jbus" / "units" / "jbus-merge.service")
+    assert service["Unit"]["StartLimitIntervalSec"] == "0"
+
 def test_each_pass_rewrites_the_status_file_and_jbus_status_prints_it(kitchen):
     assert kitchen.main("status") == (
         1,
