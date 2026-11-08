@@ -476,24 +476,24 @@ def fake_gh(stub, args, cwd):
     If-None-Match:` that ETag it gives 304 and nothing more, and exits 1, as gh does; on stderr it
     writes gh's debug log of the request, which `GH_DEBUG=api` gives.
     `api rate_limit` gives GitHub's API budget from `rate-limit.json`, or a full one.
-    `api` picks its answer by the end of the path. It gives a commit's check runs, each naming
-    its `head_sha`, by the sha or by a pull request's ref (`pull/<number>/head`, the head the open
-    pull request has now), its runs for a push, who owns the repo (with no `repo.json`, GitHub
-    does not say), the commits, and a pull request's comments, line comments and reviews. Asked
-    for every page (`--paginate --slurp`), it gives a list of pages, here two, and for the runs,
-    a run's jobs and a check run's annotations (none), one. A job comes from `jobs.json` by its
-    id, or is one step at the first attempt where `jobs.json` has none for it. Its log comes from `logs.json` by its id, or is
-    not found, and a log with an escape sequence in it is refused unless asked for with
-    `--allow-escape-sequences`, as gh 2.102 does. A commit asked for by its sha lists the files it
-    changed, from `commit-files.json`, and its parents and committer, from `commit-made.json`.
-    The runs of the browser workflow are in `browser-runs.json`, and the runs of each other
-    workflow in `workflow-runs.json` by its file. The files of `.github/workflows/` at the default
-    branch, asked for in GraphQL, are `workflows.json`, each file's name to its text, or with no
-    `workflows.json` the two nightlies, browser.yml and macos-nightly.yml; one that holds null
-    is a repo GitHub gives no list for, an `object` of null. A run's jobs
-    come from `run-jobs.json` by the run's id, and the call fails where that entry is null. A
-    compare of two commits gives the status of its head against its base from `compare.json` by
-    `<base>...<head>`, or `ahead`, a head that holds its base.
+    `api` picks its answer by the end of the path. It gives a commit's check runs, each naming its
+    `head_sha`, by the sha or by a pull request's ref (`pull/<number>/head`, the head the open pull
+    request has now), its runs for a push, who owns the repo (with no `repo.json`, GitHub does not
+    say), the commits, and a pull request's comments, line comments and reviews. Asked for every
+    page (`--paginate --slurp`), it gives a list of pages, here two, and for the runs, a run's jobs
+    and a check run's annotations (none), one. A job comes from `jobs.json` by its id, or is one
+    step at the first attempt where `jobs.json` has none for it. Its log comes from `logs.json` by
+    its id, or is not found, and a log with an escape sequence in it is refused unless asked for
+    with `--allow-escape-sequences`, as gh 2.102 does. A commit asked for by its sha lists the files
+    it changed, from `commit-files.json`, and its parents and committer, from `commit-made.json`.
+    The runs of the browser workflow are in `browser-runs.json`, and the runs of each other workflow
+    in `workflow-runs.json` by its file. The files of `.github/workflows/` at the default branch,
+    asked for in GraphQL, are `workflows.json`, each file's name to its text, or with no
+    `workflows.json` the two nightlies, browser.yml and macos-nightly.yml; one that holds null is a
+    repo GitHub gives no list for, an `object` of null. A run's jobs come from `run-jobs.json` by
+    the run's id, and the call fails where that entry is null. A compare of two commits gives the
+    status of its head against its base from `compare.json` by `<base>...<head>`, or `ahead`, a head
+    that holds its base.
     """
     with open(stub / "gh.log", "a") as log:
         log.write(" ".join(args) + "\n")
