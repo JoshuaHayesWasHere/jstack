@@ -41,11 +41,9 @@ The test holds the caller and the schema equal to jstack's, so a change to eithe
 ### The config's waivers
 
 A new repo meets most rules from the start.
-The config waives five, each with its reason, and `repo-standard conform` prints each waiver on every run:
-
-- Four rules need a file of the repo's own to enforce them: a command's page, its prose lint, its shell scripts and a guard over its tests.
-  When the repo adds the file, it names it under `enforced-by` and drops the waiver.
-- `a-pull-request-runs-the-selection-the-lint-and-the-selected-tests` is met by the shared check, which conform does not read yet.
+The config waives four, each with its reason, and `repo-standard conform` prints each waiver on every run.
+Each needs a file of the repo's own to enforce it: a command's page, its prose lint, its shell scripts and a guard over its tests.
+When the repo adds the file, it names it under `enforced-by` and drops the waiver.
 
 ## The make targets
 

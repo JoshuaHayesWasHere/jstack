@@ -9,9 +9,10 @@ do not. On each page:
   pattern, and a path with a `/` or a word before it (`/tmp/scripts/x`, `a/scripts/x`) starts
   somewhere else, so neither is read.
 - a `make` command, a code span or a line of a fenced block that starts with `make`, names
-  targets the root `Makefile` defines. The command ends at a `;`, `|`, `&`, `#` or `)`, and a
-  `$(...)` in it is no target. Words that set a variable (`TESTS=a`) or pass a flag are not
-  targets, and a command with `-C` or `-f` runs another makefile, so it is not read.
+  targets the root `Makefile` or a make file it includes defines. The command ends at a `;`,
+  `|`, `&`, `#` or `)`, and a `$(...)` in it is no target. Words that set a variable
+  (`TESTS=a`) or pass a flag are not targets, and a command with `-C` or `-f` runs another
+  makefile, so it is not read.
 """
 
 from __future__ import annotations
@@ -29,19 +30,42 @@ SUBSTITUTION = re.compile(r"\$\([^)]*\)|\$\{[^}]*\}")
 SHELL_END = re.compile(r"[;|&#)]")
 RULE = re.compile(r"^([^\s#:=][^:=]*?)\s*::?(?!=)")
 ELSEWHERE_MAKEFILES = ("-C", "-f", "--file", "--directory")
+INCLUDE = re.compile(r"^-?s?include\s+(.+)$")
+
+
+def makefiles(root: Path) -> dict[str, str]:
+    """The root Makefile and each make file it includes, in turn, by path from the root.
+
+    An include whose path holds a variable is not read, since only make knows its value.
+    """
+    found: dict[str, str] = {}
+    waiting = ["Makefile"]
+    while waiting:
+        path = waiting.pop(0)
+        if path in found:
+            continue
+        try:
+            found[path] = text = (root / path).read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        for line in text.splitlines():
+            included = INCLUDE.match(line)
+            if included:
+                waiting += [one for one in included[1].split() if "$" not in one]
+    return found
 
 
 def targets(root: Path) -> set[str] | None:
-    """The targets the root Makefile defines, or None when there is none."""
-    try:
-        text = (root / "Makefile").read_text(encoding="utf-8")
-    except OSError:
+    """The targets the root Makefile and the make files it includes define, or None with none."""
+    texts = makefiles(root)
+    if "Makefile" not in texts:
         return None
     found = set()
-    for line in text.splitlines():
-        rule = RULE.match(line)
-        if rule and "$" not in rule[1]:
-            found.update(rule[1].split())
+    for text in texts.values():
+        for line in text.splitlines():
+            rule = RULE.match(line)
+            if rule and "$" not in rule[1]:
+                found.update(rule[1].split())
     return found
 
 
