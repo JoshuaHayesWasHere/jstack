@@ -43,8 +43,13 @@ TEST_WORKERS ?= $(shell n=$$(($(or $(strip $(CORES)),2) * $(PER_CORE))); [ "$$n"
 # the tests queued behind it. The 25 slowest tests are printed at the end, and `JUNIT=<file>`
 # writes every test's time there, which CI's summary line reads. `SHARD=K/N` runs only the K-th
 # of N parts of the tests the run selected, split by time (testing/shard.py): CI's check runs as
-# eight jobs side by side and its full run as four, one for each part.
-PYTEST = uv run pytest -n $(TEST_WORKERS) --dist worksteal --durations=25 -m "not browser"$(if $(JUNIT), --junitxml=$(JUNIT))$(if $(SHARD), --shard=$(SHARD))
+# eight jobs side by side and its full run as four, one for each part. `NEW_LINES_PART=<folder>`
+# records there the lines of the feature code the branch changes that each test file runs
+# (features/repo-guards/ran/part_lines.py), which CI's job `check` reads for the guard of
+# test_new_lines_run.py once the parts end, so no part runs those tests a second time for it.
+# It stays out of the environment, as TESTS does, so a make that a test runs records nothing.
+unexport NEW_LINES_PART
+PYTEST = $(if $(NEW_LINES_PART),NEW_LINES_PART='$(NEW_LINES_PART)' PYTHONPATH='$(CURDIR)/features/repo-guards/ran'$${PYTHONPATH:+:$$PYTHONPATH} )uv run pytest$(if $(NEW_LINES_PART), -p part_lines) -n $(TEST_WORKERS) --dist worksteal --durations=25 -m "not browser"$(if $(JUNIT), --junitxml=$(JUNIT))$(if $(SHARD), --shard=$(SHARD))
 
 # The lint of `check` and `check-fast`. comment_lint.py only warns; generate-jstack-trees.py fails
 # a stale generated file, and check-jstack-docs.py a doc that says what the tree does not have.

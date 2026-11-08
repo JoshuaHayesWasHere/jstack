@@ -31,6 +31,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import coverage
 import pytest
 
 from test_run_not_read import base, git
@@ -153,7 +154,11 @@ def unrun(
             }
         )
     )
-    env = {key: value for key, value in os.environ.items() if not key.startswith("PYTEST_")}
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if not key.startswith("PYTEST_") and key not in ("COVERAGE_PROCESS_START", "NEW_LINES_TEST")
+    }
     env["NEW_LINES_RAN"] = str(waited)
     env["PYTHONPATH"] = os.pathsep.join(filter(None, [str(RAN), env.get("PYTHONPATH")]))
     coverage = [sys.executable, "-m", "coverage"]
@@ -196,6 +201,31 @@ def unrun(
     return found
 
 
+def unread(
+    lines: dict[str, set[int]], tests: dict[str, list[str]], parts: Path
+) -> dict[str, set[int]]:
+    """The lines of `lines` that CI's parts did not run in a test file that names their module,
+    read from what `features/repo-guards/ran/part_lines.py` wrote as they ran their tests, each
+    part's in a folder of its own under `parts`, since every part names its files alike. A line
+    that ran while no test did, as a module was imported at collection, counts once a test file
+    that names its module ran in a part, since that file would have run it."""
+    ran = {name for one in parts.glob("*/tests.*") for name in one.read_text().split()}
+    found = {path: set(numbers) for path, numbers in lines.items()}
+    for one in parts.glob("*/data*"):
+        data = coverage.CoverageData(basename=str(one))
+        data.read()
+        for name in data.measured_files():
+            for path in [path for path in found if name.endswith(f"/{path}")]:
+                namers = set(tests[path])
+                counted = namers | ({""} if namers & ran else set())
+                found[path] -= {
+                    number
+                    for number, contexts in data.contexts_by_lineno(name).items()
+                    if counted & set(contexts)
+                }
+    return {path: numbers for path, numbers in found.items() if numbers}
+
+
 def statements(file: Path) -> set[int]:
     """The line each statement of `file` starts on, a docstring's left out: the lines coverage can
     say ran or not, so a branch that changes only words runs no test here."""
@@ -207,12 +237,16 @@ def statements(file: Path) -> set[int]:
     }
 
 
-def faults(lines: dict[str, set[int]], scratch: Path, repo: Path = REPO) -> list[str]:
+def faults(
+    lines: dict[str, set[int]], scratch: Path, repo: Path = REPO, parts: Path | None = None
+) -> list[str]:
     """What is wrong with the lines a branch adds: an unexcused pragma, or a statement no test that
-    names its module runs. The tests run in two rounds, so a module many tests name costs little
-    when its own tests run its lines: first each module's own test files, those whose name holds
-    the module's file name (`test_jbus_remarks.py` for `remarks.py`), then, for the lines still
-    unrun, every other test that names the module."""
+    names its module runs. With `parts`, the folder of what CI's parts ran (`unread`), a line they
+    ran in a test that names its module runs no test here. The tests run for the lines still
+    unrun, in two rounds, so a module many tests name costs little when its own tests run its
+    lines: first each module's own test files, those whose name holds the module's file name
+    (`test_jbus_remarks.py` for `remarks.py`), then, for the lines still unrun, every other test
+    that names the module."""
     lines = {path: numbers & statements(repo / path) for path, numbers in lines.items()}
     lines = {path: numbers for path, numbers in lines.items() if numbers}
     tests = {path: naming([path], repo) for path in lines}
@@ -222,6 +256,8 @@ def faults(lines: dict[str, set[int]], scratch: Path, repo: Path = REPO) -> list
         if not tests[path]
     ]
     left = {path: numbers for path, numbers in lines.items() if tests[path]}
+    if parts is not None:
+        left = unread(left, tests, parts)
     own = {path: [one for one in tests[path] if Path(path).stem in Path(one).stem] for path in left}
     first = sorted({one for path in left for one in own[path]})
     if first:
@@ -245,11 +281,17 @@ def faults(lines: dict[str, set[int]], scratch: Path, repo: Path = REPO) -> list
 
 
 @pytest.mark.timeout(900)
-def test_every_line_this_branch_adds_to_a_feature_runs_in_a_test(tmp_path):
+def test_every_line_this_branch_adds_to_a_feature_runs_in_a_test(tmp_path, request):
+    """In CI's check each part records what its tests run (`part_lines.py`), and the job `check`
+    runs this test once the parts end, with `NEW_LINES_PARTS` the folder of what they recorded,
+    so no part runs a test a second time for it."""
+    if request.config.pluginmanager.hasplugin("part_lines"):
+        pytest.skip("this part records the lines its tests run, which the job check reads")
     since = base()
     if since is None:
         pytest.skip("no merge-base with origin/main here, so the added lines are not known")
-    found = faults(added(since), tmp_path)
+    parts = os.environ.get("NEW_LINES_PARTS")
+    found = faults(added(since), tmp_path, parts=Path(parts) if parts else None)
     assert found == [], "\n".join(found)
 
 
@@ -394,3 +436,86 @@ def test_an_untested_line_is_listed_once_its_own_tests_end_not_another_modules(t
     ]
     assert (tmp_path / "unrun/own/stopped").exists(), "the run went on to its end"
     assert len(list(ended.iterdir())) < 12, "the run waited on every slow test of another module"
+
+
+def a_part(repo: Path, since: str, folder: Path, *tests: str) -> None:
+    """Run `repo`'s tests as one of CI's parts runs its own, with `part_lines`, on one worker, so
+    the test files run in the order of their names."""
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if not key.startswith("PYTEST_") and key not in ("COVERAGE_PROCESS_START", "NEW_LINES_TEST")
+    }
+    env |= {"NEW_LINES_PART": str(folder), "NEW_LINES_BASE": since}
+    env["PYTHONPATH"] = os.pathsep.join(filter(None, [str(RAN), env.get("PYTHONPATH")]))
+    ran = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-p", "part_lines"]
+        + ["-n", "1", *(tests or ["features/pkg/tests"])],
+        cwd=repo,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert ran.returncode == 0, ran.stdout + ran.stderr
+
+
+def test_the_check_reads_what_the_parts_ran_and_runs_no_test_again_for_a_line_they_ran(tmp_path):
+    """A line a part ran in a test file that names its module, in the test's own process or one it
+    started, passes on what the parts recorded, with no test run again, also when a test file that
+    ran before it in the same process ran it first, and when each part ran only some of the lines,
+    as CI deals one module's tests out to several. A line that ran only in a test that does not
+    name its module, or not at all, is still a fault."""
+    repo = tmp_path / "repo"
+    code = repo / "features/pkg/src/pkg"
+    tests = repo / "features/pkg/tests"
+    runs = tmp_path / "runs"
+    code.mkdir(parents=True)
+    tests.mkdir(parents=True)
+    runs.mkdir()
+    (code / "__init__.py").write_text("")
+    (code / "held.py").write_text("def held(row):\n    return row == 'held'\n")
+    (tests / "test_held.py").write_text(
+        "import os\n"
+        "import subprocess\n"
+        "import sys\n"
+        "sys.path.insert(0, 'features/pkg/src')\n"
+        "from pkg import held\n\n\n"
+        "def test_a_held_row():\n"
+        f"    open(os.path.join({str(runs)!r}, str(os.getpid())), 'a').write('ran\\n')\n"
+        "    assert held.held('held')\n"
+        "    assert held.late(1)\n"
+    )
+    (tests / "test_a_row.py").write_text(
+        "import importlib\n"
+        "import sys\n"
+        "sys.path.insert(0, 'features/pkg/src')\n\n\n"
+        "def test_a_row_of_no_module_this_names():\n"
+        "    assert not importlib.import_module('pkg.' + 'held').held(None)\n"
+        "    assert importlib.import_module('pkg.' + 'held').late(1)\n"
+    )
+    for args in (["init", "-q"], ["add", "."], ["commit", "-qm", "base"]):
+        git("-c", "user.name=t", "-c", "user.email=t@t", *args, repo=repo)
+    since = git("rev-parse", "HEAD", repo=repo)
+    (code / "held.py").write_text(
+        "def held(row):\n    if row is None:\n        return False\n    return row == 'held'\n"
+        "\n\ndef late(row):\n    return row\n"
+    )
+    a_part(repo, since, tmp_path / "unrun-parts/1")
+    assert faults(added(since, repo), tmp_path / "unrun", repo, tmp_path / "unrun-parts") == [
+        "features/pkg/src/pkg/held.py:3 is a line this branch adds that no test runs: add a test "
+        "that runs it, among the tests that name its module (1 of them ran)",
+    ]
+    (tests / "test_held.py").write_text(
+        (tests / "test_held.py").read_text() + "\n\ndef test_no_row():\n"
+        "    code = 'import sys; sys.path.insert(0, \"features/pkg/src\"); from pkg import held'\n"
+        "    subprocess.run([sys.executable, '-c', code + '; assert held.held(None) is False'],"
+        " check=True)\n"
+    )
+    first, held_row = "features/pkg/tests/test_a_row.py", "features/pkg/tests/test_held.py"
+    a_part(repo, since, tmp_path / "ran-parts/1", first, f"{held_row}::test_a_held_row")
+    a_part(repo, since, tmp_path / "ran-parts/2", f"{held_row}::test_no_row")
+    before = sum(len(one.read_text().split()) for one in runs.iterdir())
+    assert faults(added(since, repo), tmp_path / "ran", repo, tmp_path / "ran-parts") == []
+    assert sum(len(one.read_text().split()) for one in runs.iterdir()) == before, (
+        "the check ran a test again for a line a part ran"
+    )
