@@ -347,7 +347,7 @@ A go on such a brief from the bot, a home or the view approves nothing: it parks
 Your own go, `jbus --as user queue approve <slug> --sha <sha12> --message <thread>/<message>`, or `--pick <thread>/<item>` for your answer to a question box, approves the row and closes that gate.
 That message or pick names the row's slug or its gate's number, and was said after the brief was stored: an older one, or one about other work, is refused with what to send.
 A message that names neither still opens the door when it is your plain reply in a home's thread to that home's ask: the home's last message before it asks about the row by its slug, or about its gate as `question <n>`, with a question mark in the sentence that names it (`t3.home_ask`, `t3.asks`).
-It opens only the door of what that ask named: a row the ask names in passing, or another row or question it names, is not asked about.
+It opens only the doors of what that ask asked about: each row or question it names counts on its own, by the part of the ask that follows its name up to the next one it names, so a reply to "may alpha go? may beta go?" opens both, while a row named in passing, as "alpha merged. Shall I remove the worktrees?", is not asked about.
 An answer to a gate that holds is held to the same: your message names the gate's number or its row, or is your plain reply to the home's ask about it, and was said after the gate was asked.
 `jbus queue apply` refuses a batch that approves a brief with a door, and applies nothing of it.
 No plan entry's go, follow-up rule or close by silence approves such a row either.
