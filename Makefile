@@ -2,7 +2,8 @@
 # several workers. CI runs it on main after each merge. On a pull request CI runs `make lint`,
 # and `make test` on the files scripts/select_tests.py picks, in eight parts side by side
 # (.github/workflows/check.yml). Neither runs the tests marked `browser`, which open a real
-# browser: `check-browser` runs those, on a nightly and on a release (.github/workflows/browser.yml).
+# browser: `check-browser` runs those, on a nightly and on a release
+# (.github/workflows/browser.yml).
 
 # The tests run on this many workers (pytest-xdist), counted from the processors the run may
 # use. One core bounds the suite, so workers are what make a run short. A run's processors are
