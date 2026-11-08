@@ -172,7 +172,10 @@ def refusal(state: Path, sender: str, to: str) -> str:
     crew = next((one for one in briefs if one.thread == to), None)
     if crew is None:
         return ""
-    owner = next((one for one in every if one.directory == crew.home), every[0])
+    owner = next(
+        (one for one in every if one.directory == crew.home),
+        Home(crew.home, crew.home.name, "", ""),
+    )
     if from_home is not None and from_home.directory == crew.home:
         return ""
     if from_home is None and sender in crew.reviewers:
