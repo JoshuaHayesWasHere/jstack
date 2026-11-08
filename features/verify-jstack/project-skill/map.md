@@ -113,6 +113,7 @@ A test file reads the tree when it globs, walks or lists with `git ls-files` a f
 
 Cross-cutting:
 - `testing/tests/test_check_command.py`
+- `testing/tests/test_check_command_off_mac.py`
 - `testing/tests/test_cross_cutting.py`
 - `testing/tests/test_daemons.py`
 - `features/repo-guards/tests/test_docs_true.py`

@@ -26,13 +26,13 @@ A desk's share is also the test slots' count: every slot at once runs at most on
 for each of the machine's processors. CI is not in that budget, since it runs on GitHub's machines.
 
 This module is on `testing/macos-quick.txt`: its cases run the Makefile or a pytest's processes,
-as a desk on a Mac does, or read the whole tree. The cases that do neither, which no Mac does
-otherwise, are `test_check_command_off_mac.py`.
+as a desk on a Mac does. The cases that do not, which no Mac does otherwise, and the cases that
+collect the whole tree, which is collection and not a Mac's behavior, are
+`test_check_command_off_mac.py`.
 """
 
 import fcntl
 import os
-import re
 import shlex
 import shutil
 import subprocess
@@ -99,19 +99,6 @@ def check(*args, **more):
 def outside_a_run():
     """The environment without the variables that a pytest run sets or reads."""
     return {name: value for name, value in os.environ.items() if not name.startswith("PYTEST_")}
-
-
-def collected(*more):
-    """The id of every test, as a new process collects them. `more` holds pytest's options."""
-    ran = subprocess.run(
-        [sys.executable, "-m", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider", *more],
-        cwd=REPO,
-        env=outside_a_run(),
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return [line for line in ran.stdout.splitlines() if "::" in line]
 
 
 def pytest_of(*args):
@@ -309,14 +296,6 @@ def test_on_a_runner_of_githubs_own_a_tlc_run_in_the_suite_waits_on_no_test_slot
     finally:
         os.close(held)
     assert ran.returncode == 0 and "1 passed" in ran.stdout, ran.stdout + ran.stderr
-
-
-def test_every_test_has_the_same_id_a_second_later():
-    first = collected()
-    second = int(time.time())
-    while int(time.time()) == second:
-        time.sleep(0.05)
-    assert collected() == first and first
 
 
 def changed_copy(tmp_path, path, added="\n"):
@@ -526,56 +505,3 @@ def test_make_check_browser_runs_the_marked_tests_alone_one_at_a_time_and_no_lin
         ["make", "-n", "check-browser"], cwd=REPO, env=env, capture_output=True, text=True
     )
     assert made.stdout.splitlines() == ["uv run pytest -m browser"]
-
-
-def test_the_browser_tests_are_the_whole_of_one_folder_and_the_other_run_leaves_them_out():
-    everything, marked, others = collected(), collected("-m", "browser"), collected(*LEAVES_OUT)
-    assert marked and others
-    assert sorted(marked + others) == sorted(everything)
-    page = REPO / "features" / "jbus" / "tests" / "view" / "page"
-    assert {test.split("::")[0] for test in marked} == {
-        path.relative_to(REPO).as_posix() for path in page.glob("test_*.py")
-    }
-
-
-OPENS = re.compile(r"--headles[s]|browser[.]lock")
-IMPORTS = re.compile(r"^(?:from|import) ([\w.]+)", re.M)
-
-
-def browser_files(directory):
-    """Two sets of test files under the directory. The first holds the files that start a browser or
-    take the browser lock, directly or through a module of the directory that they import. The
-    second holds the files that pytest collects under `-m browser`, the selection the marker is for.
-    """
-    texts = {path: path.read_text() for path in sorted(directory.rglob("*.py"))}
-    opens = {
-        ".".join(path.relative_to(directory).with_suffix("").parts)
-        for path, text in texts.items()
-        if OPENS.search(text)
-    }
-    opening = {
-        path.name
-        for path, text in texts.items()
-        if path.name.startswith("test_")
-        and (OPENS.search(text) or set(IMPORTS.findall(text)) & opens)
-    }
-    ran = subprocess.run(
-        [sys.executable, "-m", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider"]
-        + ["-c", str(REPO / "pyproject.toml"), "--rootdir", str(directory), "-m", "browser"]
-        + [str(directory)],
-        cwd=directory,
-        env=outside_a_run(),
-        capture_output=True,
-        text=True,
-    )
-    assert ran.returncode in (0, 5), ran.stdout + ran.stderr
-    ids = [line.split("::")[0] for line in ran.stdout.splitlines() if "::" in line]
-    return opening, {Path(one).name for one in ids}
-
-
-def test_every_test_module_that_opens_a_browser_carries_the_marker():
-    tests = REPO / "features" / "jbus" / "tests"
-    opening, marked = browser_files(tests)
-    page = {path.name for path in (tests / "view" / "page").glob("test_*.py")}
-    assert page and page <= opening
-    assert sorted(opening - marked) == []
