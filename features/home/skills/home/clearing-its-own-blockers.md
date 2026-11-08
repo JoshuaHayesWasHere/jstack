@@ -22,9 +22,9 @@ fi
 It reads only what jbus keeps and asks no service.
 Each line it prints is one blocker of this home, and its first word says what to do:
 
-- `decision <what>`: the user has to decide it, and the pass raises it once, as one `decision` event with a reply the user can send as it is.
+- `decision <what>`: the user has to decide it, and the pass raises it once, as one `decision` event that ends in a plain hint for the user's reply.
   Do nothing more for it.
-  The reply comes back as the user's word ("The user's word, carried by jbus"): act on it then.
+  The user's reply, in their own words, comes back as the user's word ("The user's word, carried by jbus"): act on it then.
 - `fix <key>`: brief a fix, as below, and queue it.
 - `wait <key>`: a fix of the key is queued and not over, or its last fix merged and the blocker has not been judged since.
   Nothing to do.
@@ -53,8 +53,9 @@ Then stop: queue no fix of it under another key and another slug. The user's rep
 A force-push, a deploy, deleting data or a message to anyone outside is a gate that holds ("Gates"), and the pass raises it.
 
 ```sh
-jbus decide '<slug>' --question '<what the user has to decide, in one line>' --reply '<the reply the user can send as it is, after the project>'
+jbus decide '<slug>' --question '<what the user has to decide, in one line>' --reply 'reply in your own words to <what the reply decides> or say what to do instead'
 ```
 
+The hint gives the user no words to send: turn their reply into the verb yourself.
 It prints `raised:` once, and `raised already:` for the same question again.
 Raise nothing else: every other blocker is this home's to clear.

@@ -31,11 +31,11 @@ the message, its text and its time, and that is why jbus counts the user's word 
 (`jbus.boxes`).
 
 `home_ask` reads the ask a plain reply of the user's answers: the last message a home wrote in its
-own thread before that reply (`Client.asked_before`). `asked_of` and `asks` are the one rule of
-what such an ask is about: each row or question owns the part of the ask from its name to the
-next row or question named, so a plain "yes" binds to what the home asked about and to nothing
-else. `jbus waive` reads the lines a row's part names, and `jbus.acts` whether the part of the row
-or question a door waits on asks the user, with a question mark.
+own thread before that reply (`Client.asked_before`). `asks` is the rule of what such an ask is
+about for a door: the ask names this door, by the row's slug or its gate's number, and no other
+open door, so a plain "yes" binds to one door and never to two (`jbus.acts`). `asked_of` cuts an
+ask into the part each row owns, from its name to the next row named, and `jbus waive` reads the
+lines a row's part names. `names` reads an item named in the forms a person writes.
 
 A tool of `TOOLS` that T3 Code stops serving fails only where jbus calls it, so each pass compares
 the two, with one `tools/list`, in a chore (`contract`). Each tool it no longer serves is an
