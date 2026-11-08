@@ -21,7 +21,7 @@ from jbus.launchd import STARTED, TIMED_OUT, label
 from jinstall import agents, launchd
 from jinstall.__main__ import doctor, install, setup, uninstall
 from jinstall.kinds import unit_templates
-from jinstall.machine import Machine, Ran
+from jinstall.machine import Machine, Ran, Refused
 from jinstall.needs import units
 from test_install import ALWAYS, User, line_for
 from testing.paths import REPO
@@ -505,3 +505,45 @@ def test_a_unit_key_with_no_launchd_form_is_refused(tmp_path):
     unit.write_text("[Service]\nExecStart=/bin/true\nMemoryMax=1G\n")
     with pytest.raises(ValueError, match="MemoryMax"):
         launchd.read_unit(unit)
+
+
+def test_an_agent_whose_bootstrap_was_refused_is_bootstrapped_by_the_next_add_once(mac):
+    """sa-follow-add-retries: a move that wrote the follower's plist and had its bootstrap
+    refused left a plist that no later move bootstrapped, so the follower stayed stopped until
+    a jinstall run. The next add bootstraps it, and one after that does nothing."""
+    mac.with_jbus()
+    setup(mac.machine())
+    follower = mac.plist("jbus-follow.service")
+    subprocess.run(
+        [LAUNCHCTL, "bootout", f"{GUI}/jstack.jbus-follow"],
+        env={**os.environ, "FAKE_LAUNCHCTL_LOG": str(mac.launchctl_log)},
+        check=True,
+    )
+    follower.unlink()
+    real = mac.stub / "launchctl.real"
+    (mac.stub / "launchctl").rename(real)
+    mac.write(
+        mac.stub / "launchctl",
+        f"""#!/bin/sh
+[ "$1" = bootstrap ] || exec {real} "$@"
+echo "Bootstrap failed: 5: Input/output error" >&2
+exit 5
+""",
+    )
+    (mac.stub / "launchctl").chmod(0o755)
+    need = units(mac.machine())
+    with pytest.raises(Refused, match="Bootstrap failed: 5"):
+        need.add(mac.machine())
+    assert follower.is_file()
+
+    (mac.stub / "launchctl").unlink()
+    real.rename(mac.stub / "launchctl")
+    before = mac.bootstraps().count(str(follower))
+    assert need.add(mac.machine()) == ["jbus-follow.service"]
+    assert mac.bootstraps().count(str(follower)) == before + 1
+
+    calls = len(mac.said(mac.launchctl_log))
+    assert need.add(mac.machine()) == []
+    assert [line.split()[0] for line in mac.said(mac.launchctl_log)[calls:]] == ["print"] * len(
+        ALWAYS
+    )

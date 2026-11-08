@@ -1043,6 +1043,11 @@ def restart(machine: Machine, units: Sequence[str]) -> None:
             raise Refused(f"systemctl --user try-restart {name}: {said[-1] if said else ran.code}")
 
 
+UNENABLED = frozenset({"disabled", "linked", "linked-runtime", "not-found"})
+"""The states `systemctl is-enabled` gives a unit that daemon-reload and enable --now would
+enable: a link systemd has not read, or has read and not enabled."""
+
+
 @dataclass(frozen=True)
 class Units:
     """The jbus units. For each of `names` (every unit `templates(machine)` finds), the
@@ -1086,7 +1091,9 @@ class Units:
       before an update; one restarted after is left. A config that jbus's loader refuses leaves
       the drop-in as it is.
     add: what the green move runs after it moves the copy (`jinstall.green.live`): link, enable
-      and start each unit that is to be on and has no link yet, as when main adds one.
+      and start each unit that is to be on and has no link yet, as when main adds one, or whose
+      link is the install's and that `systemctl is-enabled` says is not enabled (`UNENABLED`),
+      as a refused daemon-reload or enable --now leaves it.
     drop: run disable --now on each of `always` and each opted unit whose link is the
       install's, unlink each link that points at its template, remove the drop-in, and run
       daemon-reload.
@@ -1248,16 +1255,31 @@ class Units:
         restart(machine, on)
         return "\n".join(kept) or None
 
+    def _refused(self, machine: Machine, name: str) -> bool:
+        """Whether the unit is linked as the install's and the manager says it is not enabled,
+        as a move whose daemon-reload or enable --now was refused leaves it. A manager that does
+        not answer with one of systemd's states says nothing, and the link alone decides."""
+        if not points_at(self.directory / name, self._template(machine, name)):
+            return False
+        ran = machine.systemctl("is-enabled", name)
+        return ran is not None and ran.out.strip() in UNENABLED
+
     def add(self, machine: Machine) -> list[str]:
         """Link, enable and start each unit that is to be on and has nothing where its link
-        goes, as a tip of the green copy that adds a unit leaves it, services first: the move
-        runs it so a unit main adds runs with no install. A machine where the install linked
-        none of these units has none added. Return the units it added; a second call finds
-        each linked and adds none."""
+        goes, as a tip of the green copy that adds a unit leaves it, or that is linked as the
+        install's and not enabled, as a refused daemon-reload or enable --now leaves it,
+        services first: the move runs it so a unit main adds runs with no install, and the next
+        move takes up a step the manager refused. A machine where the install linked none of
+        these units has none added. Return the units it added; a second call after each step
+        was taken finds each linked and enabled and adds none."""
         if not self._ours(machine):
             return []
         on, _ = self._split(machine)
-        new = [name for name in on if not os.path.lexists(self.directory / name)]
+        new = [
+            name
+            for name in on
+            if not os.path.lexists(self.directory / name) or self._refused(machine, name)
+        ]
         new.sort(key=lambda name: not name.endswith(".service"))
         for name in new:
             machine.make_dirs(self._wanted(machine, name).parent)
