@@ -659,9 +659,7 @@ def test_the_tick_reads_on_while_its_jmerge_runs(two_on_check, monkeypatch):
     assert said[-1] == "tick demo: a check ended, and jmerge ran"
 
 
-def test_a_read_that_fails_while_jmerge_runs_still_keeps_that_runs_merge(
-    two_on_check, monkeypatch
-):
+def test_a_read_that_fails_while_jmerge_runs_still_keeps_that_runs_merge(two_on_check, monkeypatch):
     """A read of the tick's fails while its `jmerge` runs: the tick lets that run end and keeps
     what it said before the failure goes on, since `jmerge` prints its `merged` line once, so a
     merge that changed a skill still reaches the next pass's `reload.tell`."""
