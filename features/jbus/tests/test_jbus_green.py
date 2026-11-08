@@ -275,6 +275,42 @@ def test_a_move_to_a_main_that_adds_a_unit_links_enables_and_starts_it_once(
     assert not [line for line in said if "linked, enabled" in line]
 
 
+def test_a_pass_at_a_tip_whose_move_did_not_put_the_units_to_work_does_it_once(
+    copied, systemd, systemctl, tmp_path, monkeypatch
+):
+    """sa-follow-live-each-pass: the move to 269cb479d, which added `live`, ran the jbus of before
+    the move, which has no `live` step, so the follower was never linked, and each later pass found
+    the copy at green and returned before `live`. A pass at a tip whose `live` stamp in
+    `green.json` is not that tip's puts the units to work, and the next pass does nothing."""
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    units = "features/jbus/units/"
+    land(copied, "success", {units + "jbus-merge.timer": TIMER.format("2s")})
+    copied.poll()
+    systemd.link("jbus-merge.timer")
+    added = land(copied, "success", {units + "jbus-follow.service": FOLLOWER})
+    copied.poll()
+    assert at(copied.copy) == added
+    folder = tmp_path / "config" / "systemd" / "user"
+    (folder / "jbus-follow.service").unlink(missing_ok=True)
+    kept = _pass(copied).state / green.FILE
+    record = json.loads(kept.read_text()) if kept.exists() else {}
+    kept.write_text(json.dumps({key: value for key, value in record.items() if key != "live"}))
+    systemctl.unlink()
+
+    said = copied.poll()
+    assert at(copied.copy) == added
+    follower = units + "jbus-follow.service"
+    assert (folder / "jbus-follow.service").readlink() == copied.copy / follower
+    assert "--user enable --now jbus-follow.service" in calls(systemctl)
+    assert "green demo: linked, enabled and started jbus-follow.service" in said
+    assert gates(copied) == []
+
+    systemctl.unlink()
+    said = copied.poll()
+    assert not [line for line in calls(systemctl) if " enable " in line]
+    assert not [line for line in said if "linked, enabled" in line]
+
+
 def test_a_new_unit_the_manager_will_not_enable_raises_a_condition_and_the_copy_still_moves(
     copied, systemd, systemctl, tmp_path, monkeypatch
 ):

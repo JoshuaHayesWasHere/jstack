@@ -30,13 +30,18 @@ command that still runs in it. Last, it puts each harness's layout again from th
 so a file main added would otherwise reach no harness, and one it dropped would leave a link that
 dangles, until the next install. With each layout it puts the links under the harness's skills
 root and the entries of its hooks file, so a skill or hook main adds is live and one it drops is
-gone. Then it puts the units to work as the install would (`jinstall.green.live`), by the
-install's own list (`jinstall.needs.units`): it links, enables and starts each unit the install
-turns on that has no link yet, as when main adds one, services such as the follower first, and
+gone. Then, on the first pass at a tip, it puts the units to work as the install would
+(`jinstall.green.live`), by the install's own list (`jinstall.needs.units`): it links, enables
+and starts each unit the install turns on that has no link yet, as when main adds one, services
+such as the follower first, and
 it restarts each service the install turns on (the follower, and the relay where it runs) that
 started before the reinstall changed ~/.local/bin/jbus, with `systemctl --user try-restart` or
 `launchctl kickstart -k`. A second move finds each unit linked and each service newer than
-the change, and does neither; one the manager refuses raises a condition for the tip.
+the change, and does neither; one the manager refuses raises a condition for the tip. The pass
+that moves the copy still runs the jbus it loaded before the move, which may have no such step,
+so each pass asks for it, the move's or a later one's, until `green.json` keeps `live` stamped
+with the tip the copy holds, which it writes once the manager took each step: a refused step is
+asked again on the next pass, and not only on the next move.
 
 The units of `features/*/units/` link through the copy, so a move changes the files systemd
 runs, and systemd keeps running the ones it loaded until it is told to read them again. systemd
@@ -103,9 +108,10 @@ BUILT = ("pyproject.toml", "uv.lock")
 """The files whose change makes `move` import the new tip in an environment uv makes for it."""
 
 FILE = "green.json"
-"""The project's record of the copy: `refused`, the tip it would not import, and the reload a move
-owes systemd: `at`, the tip whose units systemd must read, and `reload`, the unit files whose
-content changed since systemd read them, whose timers the reload restarts."""
+"""The project's record of the copy: `refused`, the tip it would not import, `live`, the tip whose
+units the manager took every step of `jinstall.green.live` for, and the reload a move owes
+systemd: `at`, the tip whose units systemd must read, and `reload`, the unit files whose content
+changed since systemd read them, whose timers the reload restarts."""
 
 OWED = ("reload", "at")
 
@@ -312,14 +318,35 @@ def reload(run: Pass, copy: Path) -> None:
 
 def move(run: Pass, copy: Path | None = None) -> None:
     """Move the green copy of the project's checkout to main's green tip, when there is such a
-    copy and the tip is newer than the one it holds, then have systemd reload the units any move
-    still owes it."""
+    copy and the tip is newer than the one it holds, put the units of the tip it holds to work
+    once, then have systemd reload the units any move still owes it."""
     copy = path() if copy is None else copy
     made_from = of(copy)
     if made_from is None or made_from.resolve() != run.project.checkout.resolve():
         return
     _advance(run, copy)
+    _live(run, copy)
     reload(run, copy)
+
+
+def _live(run: Pass, copy: Path) -> None:
+    """Put the units of the tip the copy holds to work (`jinstall.green.live`), unless
+    `green.json` keeps `live` stamped with that tip, and stamp it once the manager took each step.
+    The pass that moves the copy still runs the jbus of before the move, so the first pass that
+    runs the new one does this, and one the manager refused asks again on the next pass."""
+    held = at(copy)
+    record = read_json(run.state / FILE, {})
+    if not held or record.get("live") == held:
+        return
+    from jinstall.green import live
+
+    added, why = live(copy)
+    if added:
+        run.say(f"green {run.project.name}: linked, enabled and started {', '.join(added)}")
+    if why:
+        run.condition("green", UNSTARTED, f"at {held[:12]}: {why}", key=held[:12])
+        return
+    write_json(run.state / FILE, {**read_json(run.state / FILE, {}), "live": held})
 
 
 def _advance(run: Pass, copy: Path) -> None:
@@ -357,18 +384,13 @@ def _advance(run: Pass, copy: Path) -> None:
     for old in trees(copy).iterdir():
         if old.is_dir() and old.resolve() not in (before, tree.resolve()):
             shutil.rmtree(old)
-    from jinstall.green import live, relink
+    from jinstall.green import relink
 
     for why in relink(copy):
         run.condition("green", UNLINKED, f"at {green[:12]}: {why}", key=green[:12])
     run.say(
         f"green {run.project.name}: the commands now run from {green[:12]}, in place of {held[:12]}"
     )
-    added, why = live(copy)
-    if added:
-        run.say(f"green {run.project.name}: linked, enabled and started {', '.join(added)}")
-    if why:
-        run.condition("green", UNSTARTED, f"at {green[:12]}: {why}", key=green[:12])
 
 
 STEPS = (verbs.Step("close", 45, "green.move", lambda half: move(half.run), ()),)
