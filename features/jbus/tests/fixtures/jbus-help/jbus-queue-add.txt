@@ -1,6 +1,7 @@
 usage: jbus queue add [-h] --priority PRIORITY [--depends DEPENDS]
                       [--merge-after MERGE_AFTER] [--entry ENTRY]
                       [--item ITEM] [--from THREAD] [--for HOME]
+                      [--message THREAD/MESSAGE]
                       slug
 
 Queue a row, with its brief on stdin. A follow-up: a row is a follow-up of the
@@ -40,3 +41,7 @@ options:
   --for HOME            the scope the brief's Home: line resolves to,
                         uncategorized where it names no scope: the row is that
                         home's, handed over on purpose
+  --message THREAD/MESSAGE
+                        the user's own message in T3 Code that gives the go
+                        for this brief: the row is approved on it in the same
+                        write, as queue approve --message approves it
