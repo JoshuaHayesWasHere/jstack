@@ -10,6 +10,7 @@ from datetime import timedelta
 import pytest
 
 from jbus import questions, queue, t3
+from jbus.passes import Pass
 from test_jbus_kitchen import FIXTURE, GATE, NOW, PROJECT, RESULT, queued, review, settles
 
 
@@ -241,6 +242,26 @@ def test_a_finished_slug_with_work_still_open_is_settled_and_archived_once_it_cl
         close()
         kitchen.poll(NOW + timedelta(minutes=6))
         assert crew["archived"] and put_away(kitchen) == ["crew: alpha"]
+
+
+def test_a_finished_slug_is_not_archived_while_git_cannot_list_the_worktrees(kitchen, monkeypatch):
+    """Where git gives no list of the worktrees, no worktree's work can be judged, so nothing is
+    archived on a guess, and the first pass that gets the list archives."""
+    kitchen.brief("alpha", RESULT)
+    crew = kitchen.t3.thread("alpha", "completed")
+    real = Pass.run
+
+    def run(self, *command, **more):
+        if command[:3] == ("git", "worktree", "list"):
+            return subprocess.CompletedProcess(command, 128, "", "fatal: not a git repository")
+        return real(self, *command, **more)
+
+    monkeypatch.setattr(Pass, "run", run)
+    kitchen.poll()
+    assert crew["settled"] and "archived" not in crew
+    monkeypatch.setattr(Pass, "run", real)
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert crew["archived"] and put_away(kitchen) == ["crew: alpha"]
 
 
 def test_a_settled_crew_leaves_no_scratch_folder_and_no_worktree_made_in_it(kitchen):
