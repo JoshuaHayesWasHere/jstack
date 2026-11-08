@@ -6,6 +6,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from jbriefs.meets import done_when
+
 _NAMED = (
     (
         "a test",
@@ -46,6 +48,15 @@ _LOOSE = (
     ("a dataset", r"\bdata ?sets?\b|\bcorpus\b|\bfixtures?\b|\bgolden\b|\bevals?\b"),
     ("an external judge", r"\bjudge\b"),
 )
+_SHOWN = re.compile(
+    r"\bscreen[- ]?(shots?|grabs?|captures?|recordings?)\b|(?<![-\w])shots?\b(?!-)"
+    r"|\brecordings?\s+of\b|\brecord(s|ed)?\s+(the|a|its)\s+(screen|window|ui)\b",
+    re.I,
+)
+"""A screenshot, a shot or a recording of a window or the UI, which the user does not take as
+proof (2026-11-08: "i don't need screenshots of anything")."""
+_SHOWN_FAULT = "asks for a screenshot, a shot or a recording of the window as proof"
+_INSTEAD = "(prove a UI change by a test, or by a live read of the data it draws)"
 _SPAN = re.compile(r"`([^`\n]+)`")
 _PROVES = "(name a test, a command, a metric, a dataset, an external judge or the user)"
 _RUNS = (
@@ -75,22 +86,28 @@ class Proof:
         """Why the proof does not hold, as one line. It is an empty string when it holds."""
         if not self.fault:
             return ""
+        if self.fault == _SHOWN_FAULT:
+            return f"brief's Proves it: line {self.fault} {_INSTEAD}"
         return f"brief's Proves it: line {self.fault} {_RUNS if self.was else _PROVES}"
 
 
 def proof(said: str) -> Proof:
     """Judge what a `Proves it:` line says, without its label.
 
-    A line that begins `judged: <why>` is a person's call, and holds with its reason. Otherwise
-    it reads the tables in turn, and the first match decides. `_NAMED` lists the words that on
-    their own name something outside the agent: a test's path or name, a runner, a make target
-    or a named judge. A command in backticks that names no agent counts too, so a test that the
-    crewmate runs is still a test. `_RAN_NOTHING` lists the words that once counted and no
-    longer do, as CI, the user and a word for a test. `_SELF` lists the agent's own claims.
+    A line that asks for a screenshot, a shot or a recording of the window (`_SHOWN`) is
+    refused first, whatever else it names, `judged:` included. A line that begins `judged:
+    <why>` is a person's call, and holds with its reason. Otherwise it reads the tables in turn,
+    and the first match decides. `_NAMED` lists the words that on their own name something
+    outside the agent: a test's path or name, a runner, a make target or a named judge. A
+    command in backticks that names no agent counts too, so a test that the crewmate runs is
+    still a test. `_RAN_NOTHING` lists the words that once counted and no longer do, as CI, the
+    user and a word for a test. `_SELF` lists the agent's own claims.
     `_LOOSE` lists words that count only when no agent is named, because "the agent measures
     it" is the agent's own claim.
     """
     said = said.strip()
+    if _SHOWN.search(said):
+        return Proof(said, fault=_SHOWN_FAULT)
     if judged := _JUDGED.match(said):
         if not judged["why"].strip():
             return Proof(said, fault="is empty")
@@ -117,3 +134,13 @@ def proof(said: str) -> Proof:
         if re.search(pattern, said, re.I):
             return Proof(said, kind=kind)
     return Proof(said, fault="names nothing outside the agent")
+
+
+def shown(text: str) -> str:
+    """Why a brief's `Done when:` list asks for a screenshot, a shot or a recording of a window
+    or the UI as proof, as one line naming the first item that does. It is an empty string when
+    no item does."""
+    for number, item in enumerate(done_when(text.splitlines()), 1):
+        if _SHOWN.search(item):
+            return f"brief's Done when {number} {_SHOWN_FAULT}: {item} {_INSTEAD}"
+    return ""

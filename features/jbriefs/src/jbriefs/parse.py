@@ -13,7 +13,7 @@ from pathlib import Path
 from jbriefs import asks, below, findings, skills, standing
 from jbriefs.meets import done_when
 from jbriefs.paths import covers, named
-from jbriefs.proof import Proof, proof
+from jbriefs.proof import Proof, proof, shown
 from jbriefs.runnable import runnable
 from jsettings.brief import head as head
 
@@ -573,6 +573,7 @@ CHECKS = (
     ("Done when", runnable),
     ("Done when", unmarked),
     ("Done when", lands),
+    ("Done when", shown),
     ("Proves it", proven),
     ("Proves it", proof_runs),
     ("Skills", skills.unknown),
