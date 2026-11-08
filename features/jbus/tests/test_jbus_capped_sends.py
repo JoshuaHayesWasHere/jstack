@@ -121,7 +121,7 @@ def test_a_crew_carry_on_waits_for_the_reset(kitchen):
     cap("claudeAgent", resets=later(15))
     said = short.passes(15)
     assert sent(kitchen, "clock") == [] and waits(said, "alpha")
-    short.passes(15)
+    short.passes(2)
     assert len(sent(kitchen, "clock")) == 1
 
 
@@ -135,24 +135,25 @@ def test_the_clock_s_line_to_the_home_waits_for_the_home_s_reset(kitchen):
     (kitchen.home / "tasks/alpha.md").write_text(short.launched)
     short.passes(10)
     assert len(sent(kitchen, "clock")) == 1
-    cap(PRIME, resets=later(30))
-    said = short.passes(20)
+    cap(PRIME, resets=later(21))
+    said = short.passes(11)
     assert sent(kitchen, "wakes") == [] and waits(said, "demo", "its wakes message")
-    short.passes(5)
+    short.passes(2)
     assert len(sent(kitchen, "wakes")) == 1
 
 
 def test_a_hold_stall_line_waits_for_the_reset(kitchen):
+    """The hold's age is minutes since a pass first saw it (`clock.HOLD_MINUTES`), not passes, so
+    a pass at the minutes the test reads stands for one a minute."""
     held = Held(kitchen)
     cap("claudeAgent")
-    held.until(31)
+    until(kitchen, 0, 31)
     for said in until(kitchen, 32, 35):
         rows = "one (#11), two (#12), three (#13), four (#14)"
         assert len(waits(said, rows, "its hold-stall message")) == 1, said
-    held.minute = 36
-    held.until(39)
+    until(kitchen, 36, 39)
     assert held.told() == [] and kitchen.lines("hold-stall") == []
-    held.until(44)
+    until(kitchen, 40, 44)
     (told,) = held.told()
     assert REASON in told
 
