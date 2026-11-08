@@ -60,9 +60,12 @@ size:
       features/jbus/src/jbus/queue.py: 1219
       features/jbus/src/jbus/view/state.py: 1405
       features/jmerge/src/jmerge/cli.py: 1586
-  - files: ["features/*/tests/**/*.py"]
-    exclude: ["features/*/tests/fixtures/**"]
+  - files: ["features/*/tests/**/*.py", "testing/tests/**/*.py"]
+    exclude: ["features/*/tests/fixtures/**", "testing/tests/fixtures/**"]
     cap: 1500
+    over:
+      testing/tests/test_select_tests.py: 1664
+      testing/tests/test_workflows.py: 3125
   - files: ["features/*/SKILL.md", "features/*/skills/*/SKILL.md"]
     cap: 400
     over:
