@@ -244,11 +244,7 @@ def test_a_finished_slug_with_work_still_open_is_settled_and_archived_once_it_cl
         assert crew["archived"] and put_away(kitchen) == ["crew: alpha"]
 
 
-def test_a_finished_slug_is_not_archived_while_git_cannot_list_the_worktrees(kitchen, monkeypatch):
-    """Where git gives no list of the worktrees, no worktree's work can be judged, so nothing is
-    archived on a guess, and the first pass that gets the list archives."""
-    kitchen.brief("alpha", RESULT)
-    crew = kitchen.t3.thread("alpha", "completed")
+def git_fails(kitchen, monkeypatch):
     real = Pass.run
 
     def run(self, *command, **more):
@@ -257,10 +253,46 @@ def test_a_finished_slug_is_not_archived_while_git_cannot_list_the_worktrees(kit
         return real(self, *command, **more)
 
     monkeypatch.setattr(Pass, "run", run)
+    return lambda: monkeypatch.setattr(Pass, "run", real)
+
+
+def questions_break(kitchen, monkeypatch):
+    path = questions.path(kitchen.state)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("not a record")
+    return path.unlink
+
+
+@pytest.mark.parametrize("unread", [git_fails, questions_break], ids=lambda f: f.__name__)
+def test_a_finished_slug_is_not_archived_while_jbus_cannot_read_its_work(
+    kitchen, monkeypatch, unread
+):
+    """Where git gives no list of the worktrees, or the questions do not parse, no open work can be
+    judged, so nothing is archived on a guess, and the first pass that reads it archives."""
+    kitchen.brief("alpha", RESULT)
+    crew = kitchen.t3.thread("alpha", "completed")
+    mend = unread(kitchen, monkeypatch)
     kitchen.poll()
     assert crew["settled"] and "archived" not in crew
-    monkeypatch.setattr(Pass, "run", real)
+    mend()
     kitchen.poll(NOW + timedelta(minutes=3))
+    assert crew["archived"] and put_away(kitchen) == ["crew: alpha"]
+
+
+def test_a_commit_only_its_merged_pull_request_holds_is_saved(kitchen):
+    """A squash merge leaves the branch's commits on no branch of origin, and the head of the
+    merged pull request holds them, so the work is saved and the threads are archived."""
+    path = tree(kitchen)
+    (path / "a.txt").write_text("one\n")
+    kitchen.git("add", "a.txt", cwd=path)
+    kitchen.git("commit", "-qm", "a commit", cwd=path)
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=path, capture_output=True, text=True, check=True
+    ).stdout.strip()
+    kitchen.brief("alpha", RESULT)
+    kitchen.set("merged.json", [{**kitchen.merged("alpha", 5, "a" * 40), "headRefOid": head}])
+    crew = kitchen.t3.thread("alpha", "completed")
+    kitchen.poll()
     assert crew["archived"] and put_away(kitchen) == ["crew: alpha"]
 
 

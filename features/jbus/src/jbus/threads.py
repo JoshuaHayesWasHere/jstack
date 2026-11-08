@@ -369,10 +369,8 @@ def _unsaved(run: Pass, world: World, slug: str, tree: tuple[str, str]) -> str:
     and that the head of its merged pull request does not hold."""
     path, head = tree
     status = run.run("git", "--no-optional-locks", "-C", path, "status", "--porcelain")
-    if status.returncode:
-        return f"git status failed in its worktree {path}"
-    if status.stdout.strip():
-        return f"its worktree {path} has uncommitted work"
+    if status.returncode or status.stdout.strip():
+        return f"its worktree {path} has uncommitted work, or git could not say"
     left = run.run("git", "rev-list", "--count", head, "--not", "--remotes")
     if left.returncode == 0 and left.stdout.strip() == "0":
         return ""
@@ -384,24 +382,25 @@ def _unsaved(run: Pass, world: World, slug: str, tree: tuple[str, str]) -> str:
 
 def held(run: Pass, world: World, slugs: set[str]) -> dict[str, str]:
     """Return, by slug, why each finished slug of `slugs` still has work open, so its threads are
-    not archived: its pull request is open; its row is not over (`queue.over`), as a `left` row
-    is until its home closes it; an open row follows it (`Follows:`); a question or gate it asked
-    (`jbus.questions`) waits for an answer; its last Result leaves work for after the merge; or its
-    worktree holds uncommitted or unpushed work (`_unsaved`). Where the queue does not parse
-    or git cannot list the worktrees, every slug is held: nothing is archived on a guess."""
+    not archived: its row is not over (`queue.over`), as a `left` row is until its home closes it;
+    an open row follows it (`Follows:`); a question or gate it asked (`jbus.questions`) waits for
+    an answer; its last Result leaves work for after the merge; or its worktree holds uncommitted
+    or unpushed work (`_unsaved`). A slug whose pull request is open is never finished
+    (`finished`). Where the queue or the questions do not parse, or git cannot list the
+    worktrees, every slug is held: nothing is archived on a guess."""
     try:
         rows = queue.load(run.state)
-    except queue.Unparsable:
-        return dict.fromkeys(slugs, "its queue does not parse")
+        asked = {
+            one.slug
+            for one in questions.read(run.state)
+            if one.answer is None or one.answer.closed_by == questions.SILENCE
+        }
+    except (queue.Unparsable, questions.Unparsable):
+        return dict.fromkeys(slugs, "its queue or its questions do not parse")
     briefs = _briefs(run)
     found: dict[str, str] = {}
     trees = _trees(run)
     branch = {row["slug"]: row.get("branch") or row["slug"] for row in rows}
-    asked = {
-        one.slug
-        for one in questions.load(run.state)
-        if one.answer is None or one.answer.closed_by == questions.SILENCE
-    }
     for row in rows:
         parent = queue.named_parent(row["slug"], briefs.get(row["slug"], ""))
         if parent in slugs and not queue.over(row):
@@ -411,9 +410,7 @@ def held(run: Pass, world: World, slugs: set[str]) -> dict[str, str]:
             found[row["slug"]] = f"its row is {row.get('status')}"
     for slug in slugs - set(found):
         tree = None if trees is None else trees.get(branch.get(slug, slug))
-        if slug in world.open:
-            found[slug] = "its pull request is open"
-        elif slug in asked:
+        if slug in asked:
             found[slug] = "a question it asked waits for an answer"
         elif after_merge(mirror.last_result(briefs.get(slug, ""))):
             found[slug] = "its Result leaves work for after the merge"
