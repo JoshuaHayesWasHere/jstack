@@ -9,7 +9,7 @@ cap, or gone, fails until it leaves the list, so the list only shrinks. The repo
 guard holds the rules (features/repo-standard/docs/guards.md), and this test runs it on jstack.
 """
 
-from repo_standard.__main__ import main
+from repo_standard.cli import main
 from repo_standard.config import load
 from repo_standard.tree import chosen, tracked
 from testing.paths import REPO

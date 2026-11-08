@@ -23,7 +23,7 @@ from dataclasses import replace
 import pytest
 
 from repo_standard import size
-from repo_standard.__main__ import main
+from repo_standard.cli import main
 from repo_standard.config import Config, load
 from repo_standard.tree import chosen, tracked
 from testing.paths import REPO
