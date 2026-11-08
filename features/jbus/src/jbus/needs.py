@@ -16,9 +16,10 @@ the same lines for its own project (`jbus.homestatus`).
 
 `--home <directory>` keeps one home's items of its project: a scope's directory keeps that
 scope's, and the root home's keeps its own and every scope's. An item is a home's by the slug it
-is about, by the rule `jbus home status --home` reads questions by: a home's own slug (`home`,
-`home-<scope>`), else the home of the slug's brief or request (`jbriefs.home.home_of`), else the
-root's. A pull request `jmerge` holds is about the row whose pull request it is.
+is about, by the one rule (`home_of`) that `jbus home status --home` reads questions by too: a
+home's own slug (`home`, `home-<scope>`), else the home of the slug's brief or request
+(`jbriefs.home.home_of`), in the home's files or as the queue stored it, else the root's. A pull
+request `jmerge` holds is about the row whose pull request it is.
 """
 
 from __future__ import annotations
@@ -69,17 +70,18 @@ def _slug(run: passes.Pass, one: waiting.Item) -> str:
     return str(one.get("slug") or "")
 
 
-def home_of(run: passes.Pass, root: Path, slug: str) -> Path:
-    """The directory of the home a slug is: a scope's for `home-<scope>`, else the home of its
-    brief or request, in the home's files or as the queue stored it, else the root's, which
-    `home` and a slug of no brief are."""
+def home_of(state: Path, root: Path, slug: str) -> Path:
+    """The directory of the home a slug is, of the project whose jbus state is `state` and whose
+    root home is `root`: a scope's for `home-<scope>`, else the home of its brief or request, in
+    the home's files or as the queue stored it, else the root's, which `home` and a slug of no
+    brief are. It is the one rule, which `jbus home status --home` reads questions by too."""
     if slug.startswith("home-") and (root / slug[5:]).is_dir():
         return root / slug[5:]
     for kind in ("tasks", "scouts"):
         file = root / kind / f"{slug}.md"
         if file.is_file():
             return homes.home_of(root, file.read_text(errors="replace"))
-    stored = queue.brief(run.state, slug) if slug else None
+    stored = queue.brief(state, slug) if slug else None
     return homes.home_of(root, stored) if stored else root
 
 
@@ -102,7 +104,8 @@ def of(
         found = [
             (one, said)
             for one, said in found
-            if (at := home_of(run, root, _slug(run, one))) == home or home == root == at.parent
+            if (at := home_of(run.state, root, _slug(run, one))) == home
+            or home == root == at.parent
         ]
     return [
         Need(project.name, said, blockers.reply(project, one), str(one.get("fail_safe") or ""))
