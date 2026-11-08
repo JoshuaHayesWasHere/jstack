@@ -30,7 +30,10 @@ names, or jmerge's default where it names none). A row that is held already is n
 pull request's check runs on GitHub's merge of its head into main, and a failed job's log names
 that main (`tested`). A head whose check ran on a main whose own check failed, a tip `main.json`
 called `broken` (`mainmoved.main_check`), is kept apart and counted for nothing: main failed
-there, not the row, whatever commit the head's branch was based on (#1177, 2026-11-06). At the
+there, not the row, whatever commit the head's branch was based on (#1177, 2026-11-06). A head
+whose failed tests each failed on two other branches in `jbus ci`'s window (`reverts.flaky`, `jbus
+ci`'s flake rule) is kept apart too and counted for nothing: the red is shared, not the row's
+(#1219 and #1220, 2026-11-07). At the
 second head, a push or a merge of main alike, `twice` holds the row (`jbus queue hold`) and pages
 the Chef once, a gate `check failed twice` that names the row, the pull request, both heads and
 the failed jobs at each. The outbox then sends the crew of a held row no rebase and no fix message
@@ -50,7 +53,18 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 import jsettings
-from jbus import Refused, alert, cancelled, queue, read_json, rebase, verbs, waiting, write_json
+from jbus import (
+    Refused,
+    alert,
+    cancelled,
+    queue,
+    read_json,
+    rebase,
+    reverts,
+    verbs,
+    waiting,
+    write_json,
+)
 from jbus.dispatch import launched
 from jbus.mainmoved import main_check
 from jbus.merge import parse
@@ -61,6 +75,7 @@ from jbus.wake import notify
 from jbus.watch import FAILS, TWICE, World, job_log, task_brief
 from jmerge import judgement
 from jmerge import stacked as stacks
+from jmerge.joblog import failed_in
 from jmerge.lines import READY
 from jsettings import store
 
@@ -374,6 +389,23 @@ def tested(run: Pass, head: str, red: rebase.Red) -> str | None:
     return None if unread else ""
 
 
+def shared(run: Pass, pull: dict[str, Any], red: rebase.Red) -> list[str]:
+    """Return the tests that failed at the pull request's head where each is a flake by `jbus ci`'s
+    rule, failed on two branches besides the pull request's own (`reverts.flaky`), or nothing where
+    one is not, or a failed job's log was not given, names no test, or counts a failure or an error
+    it names no test of, as a collection error is: that red is the row's own."""
+    tests: set[str] = set()
+    for repo, job in red.jobs:
+        log = job_log(run, repo, job)
+        failed = failed_in(log) if log is not None else None
+        if failed is None or not failed.tests or failed.count > len(failed.tests):
+            return []
+        tests.update(failed.tests)
+    if not tests or not tests <= reverts.flaky(run, str(pull.get("headRefName") or "")):
+        return []
+    return sorted(tests)
+
+
 def _said(head: str, one: dict[str, Any]) -> str:
     jobs = ", ".join(one.get("jobs") or ()) or "no job GitHub gave"
     return f"{head[:12]}: {', '.join(one.get('checks') or ())} failed ({jobs})"
@@ -382,8 +414,8 @@ def _said(head: str, one: dict[str, Any]) -> str:
 def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
     """Count, for each row's open pull request, the heads at which a required check failed, and
     hold the row and page the Chef once at the second (`TWICE`). A head whose check ran on a red
-    main is not counted. A held row is counted no further; once its hold is lifted, its count
-    starts again."""
+    main is not counted, nor one whose failed tests are each a flake of two other branches. A
+    held row is counted no further; once its hold is lifted, its count starts again."""
     path = run.state / FAILS
     was: dict[str, Any] = read_json(path, {})
     table = {row["slug"]: row for row in rows}
@@ -397,8 +429,9 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
         if one.get("held_at") and not row.get("held"):
             one = {}
         heads, on_red = dict(one.get("heads") or {}), list(one.get("red") or ())
-        kept[slug] = {**one, "heads": heads, "red": on_red}
-        if row.get("held") or head in heads or head in on_red:
+        flakes = list(one.get("shared") or ())
+        kept[slug] = {**one, "heads": heads, "red": on_red, "shared": flakes}
+        if row.get("held") or head in heads or head in on_red or head in flakes:
             continue
         found = rebase.ran_and_failed(run, pull)
         names = [name for name in found.names if name in required]
@@ -414,6 +447,13 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
             run.say(
                 f"failed {slug}: #{pull['number']} at {head[:12]} ran on main's red "
                 f"{main[:12]}, not counted"
+            )
+            continue
+        if tests := shared(run, pull, found):
+            flakes.append(head)
+            run.say(
+                f"failed {slug}: #{pull['number']} at {head[:12]} failed only tests that also "
+                f"failed on two other branches ({', '.join(tests)}), not counted"
             )
             continue
         heads[head] = {"at": run.now.isoformat(), **_failure(found, names)}

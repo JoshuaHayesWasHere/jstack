@@ -195,6 +195,7 @@ A pull request that no row names is judged as any other.
 jbus holds a row itself when its pull request fails a required check at two heads (`jbus.stall.twice`).
 Each head counts once, a push or GitHub's merge of main alike, and a required check is one the home's `required-checks` names.
 A head whose check ran on main's red tip, the `broken` tip of `main.json`, is not counted: main failed there, not the row.
+A head whose failed tests each failed on two other branches in `jbus ci`'s window, its flake rule (`jbus.reverts.flaky`), is not counted either: the red is shared, not the row's.
 At the second head jbus runs the same `hold` as `jbus queue hold <slug>`, and pages the Chef once, with the gate `condition <slug>: check failed twice`, whose text names the row, the pull request, both heads and the failed jobs at each.
 The row's `why` says `check failed twice` while it is held.
 A held row's crewmate gets no rebase and no fix message from jbus, at the second head or a third, any held row alike (`jbus.outbox.FIXES`); your answers, its review's findings and its wakes still reach it.
