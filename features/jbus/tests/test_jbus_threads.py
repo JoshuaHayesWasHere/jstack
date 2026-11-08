@@ -585,7 +585,8 @@ def test_a_thread_that_cannot_be_read_or_organized_is_put_away_on_a_later_pass(
 
     monkeypatch.setattr(kitchen.t3, "result", refuse)
     said = kitchen.poll(NOW + timedelta(minutes=3))
-    assert f"wait alpha: thread {crew['threadId']} could not be settled (t3_thread_organize: no)" in said
+    refused = f"wait alpha: thread {crew['threadId']} could not be settled (t3_thread_organize: no)"
+    assert refused in said
     assert not crew["settled"]
     monkeypatch.setattr(kitchen.t3, "result", answer)
     kitchen.poll(NOW + timedelta(minutes=6))
