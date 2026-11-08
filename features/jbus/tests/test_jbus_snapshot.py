@@ -28,6 +28,7 @@ from jbus import alert, snapshot
 from test_jbus_kitchen import NOW, REPO
 
 UNITS = ("jbus-snapshot.service", "jbus-snapshot.timer")
+HASH = "9e6221dd362b652bb22a8bf3570b9c240de3b68d662f05df5e18787994137b9a-"
 
 
 def failed(cause, owner=""):
@@ -168,6 +169,67 @@ def test_a_staged_secret_is_refused_and_nothing_is_committed_or_left_staged(tree
     assert take() == (1, [f"snapshot: {why}", failed(why, "demo")])
     assert git(tree, "rev-parse", "HEAD") == before
     assert git(tree, "diff", "--cached", "--name-only") == ""
+
+
+CACHE_LOG = "".join(
+    f"check 1 of 8\t{step}\t2026-11-08T19:36:04.6132239Z {line}\n"
+    for step, line in (
+        (
+            "Run actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
+            "  key: tlc-" + HASH,
+        ),
+        (
+            "Run actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
+            "  restore-keys: tlc-" + HASH,
+        ),
+        (
+            "Run actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
+            "  restore-key: tlc-" + HASH,
+        ),
+        (
+            "Run actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
+            "Cache hit for restore-key: tlc-" + HASH + "8343c21f63409aba",
+        ),
+        (
+            "Run actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
+            "Cache restored from key: tlc-" + HASH + "8343c21f63409aba",
+        ),
+        ("tlc kept", "  KEY: tlc-" + HASH),
+        ("tlc kept", "  RESTORED: tlc-" + HASH + "8343c21f63409aba"),
+    )
+)
+
+
+@pytest.mark.skipif(not shutil.which("gitleaks"), reason="gitleaks is not installed")
+def test_a_ci_log_of_cache_keys_is_committed(tree):
+    """actions/cache prints its keys, `<name>-<sha256>-`, which gitleaks' default rules read as an
+    API key."""
+    (tree / "demo" / "log-1.txt").write_text(CACHE_LOG)
+    assert take() == (0, [no_remote(tree)])
+    assert git(tree, "show", "--name-only", "--format=", "HEAD") == "demo/log-1.txt"
+
+
+@pytest.mark.skipif(not shutil.which("gitleaks"), reason="gitleaks is not installed")
+@pytest.mark.parametrize(
+    "leak",
+    [
+        lambda: "  GITHUB_TOKEN: ghp_" + made_up(36) + "\n",
+        lambda: "  AWS_ACCESS_KEY_ID: AKIA" + made_up(16, string.ascii_uppercase + "234567") + "\n",
+        lambda: "  key: ghp_" + made_up(36) + "\n",
+    ],
+    ids=["github-token", "aws-key", "github-token-as-a-cache-key"],
+)
+def test_a_ci_log_of_cache_keys_with_a_secret_in_it_is_refused(tree, leak):
+    before = git(tree, "rev-parse", "HEAD")
+    (tree / "demo" / "log-1.txt").write_text(CACHE_LOG + leak())
+    why = "gitleaks found a secret in the changes (demo/log-1.txt), nothing committed"
+    assert take() == (1, [f"snapshot: {why}", failed(why, "demo")])
+    assert git(tree, "rev-parse", "HEAD") == before
+    assert git(tree, "diff", "--cached", "--name-only") == ""
+
+
+def made_up(k, alphabet=string.ascii_letters + string.digits):
+    return "".join(random.choices(alphabet, k=k))
 
 
 def secret():

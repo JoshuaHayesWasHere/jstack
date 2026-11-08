@@ -1,0 +1,21 @@
+# The rules `jbus snapshot` reads the homes' state tree with: gitleaks' own, with GitHub Actions
+# cache keys passed. A home keeps CI logs, and actions/cache prints its keys as `key: <name>-<hash>`,
+# which the generic-api-key rule takes for a secret. Each regex below is the whole of one such line,
+# with the `check <n> of <m>`, step and timestamp columns a saved log puts before it, and a value
+# that is a name and hex segments of 16 or more, so a line with anything else on it is still read.
+# gitleaks hands each line over with the newline before it, hence the `\n?`.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "GitHub Actions cache keys in saved CI logs"
+regexTarget = "line"
+regexes = [
+    # `  key: <k>`, `  restore-keys: <k>`, `  restore-key: <k>`: the inputs actions/cache echoes.
+    '''^\n?(?:check \d+ of \d+\t[^\t]{0,200}\t)?\x{FEFF}?(?:\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z)?\s*(?:key|restore-keys?):\s*[A-Za-z][\w.]*(?:-[A-Za-z][\w.]*)*(?:-[0-9a-f]{16,})+-?\s*$''',
+    # `Cache restored from key: <k>`, `Cache hit for restore-key: <k>`: what actions/cache says it found.
+    '''^\n?(?:check \d+ of \d+\t[^\t]{0,200}\t)?\x{FEFF}?(?:\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z)?\s*(?:Cache restored from key|Cache hit for restore-key):\s*[A-Za-z][\w.]*(?:-[A-Za-z][\w.]*)*(?:-[0-9a-f]{16,})+-?\s*$''',
+    # `  KEY: <name>-<hex>`, `  RESTORED: <name>-<hex>`: a step's env, as the log echoes it.
+    '''^\n?(?:check \d+ of \d+\t[^\t]{0,200}\t)?\x{FEFF}?(?:\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z)?\s*(?:KEY|RESTORED):\s*[A-Za-z][\w.]*(?:-[A-Za-z][\w.]*)*(?:-[0-9a-f]{16,})+-?\s*$''',
+]
