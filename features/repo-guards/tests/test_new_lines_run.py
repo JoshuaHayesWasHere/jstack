@@ -206,8 +206,9 @@ def unread(
 ) -> dict[str, set[int]]:
     """The lines of `lines` that CI's parts did not run in a test file that names their module,
     read from what `features/repo-guards/ran/part_lines.py` wrote as they ran their tests, each
-    part's in a folder of its own under `parts`, since every part names its files alike. A line that ran while no test did, as a module was imported at collection, counts
-    once a test file that names its module ran in a part, since that file would have run it."""
+    part's in a folder of its own under `parts`, since every part names its files alike. A line
+    that ran while no test did, as a module was imported at collection, counts once a test file
+    that names its module ran in a part, since that file would have run it."""
     ran = {name for one in parts.glob("*/tests.*") for name in one.read_text().split()}
     found = {path: set(numbers) for path, numbers in lines.items()}
     for one in parts.glob("*/data*"):
