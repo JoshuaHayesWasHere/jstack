@@ -80,7 +80,11 @@ ASKS = (
     "nothing into the {scope} home's files, and the user alone opens or refuses the door. A stop "
     "whose row merges or is removed closes itself."
 )
-ANSWERS = "jbus: the root home's answer to the {scope} home's stop on {row}: {answer}"
+ANSWERS = (
+    "jbus: the root home's answer to the {scope} home's stop on {row}: {answer}\n\n"
+    "Add it, as the root's recommendation, to your own gate for the door: the user alone opens or "
+    "refuses the door."
+)
 DIRECT = (
     "a stop carries only a one-way door, --holds '<case>' with a case of "
     "features/home/templates/gates.md ({cases}): anything else, tell the user directly from this "

@@ -39,6 +39,7 @@ jbus takes that stop too, and counts it per scope in the digest, since no row ba
 On `stopped:` jbus has sent the stop to the root home's thread, read as it sends, or keeps it until a root home runs, and sends nothing more for it.
 On `refused:` nothing is sent: the home clears what the line names itself, or it is no stop.
 A stop whose own row merges or is removed closes itself, with no message.
+On the root's answer, which jbus carries here, add it to this home's own gate for the door as the root's recommendation: the user alone opens or refuses the door.
 
 A `decision` the scope cannot make alone, one the user must make, is no stop: park it as a gate (`jbus gate`, "Gates"), which jbus takes to the user.
 Nothing else reaches the root, and never by a `t3_thread_send` of this home's own.
