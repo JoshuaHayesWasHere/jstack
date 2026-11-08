@@ -46,6 +46,7 @@ docs:
   roots: [features, schemas, scripts, testing, .github]
   elsewhere:
     scripts/deploy: another repo's deploy command, an example of a door in the-queue.md
+    .github/actions/setup/action.yml: a caller repo's setup action, which the shared check runs
 size:
   - files: ["features/*/src/**/*.py"]
     cap: 800
