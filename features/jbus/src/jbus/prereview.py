@@ -15,8 +15,15 @@ brief's last `Checked:` line and its `Proved:` line bind that head (`ready.short
 launches one reviewer for each line of the role map's review list (`jroles.pool.routes`), each a
 thread titled `review: <slug>, <n>` in the crew's worktree, told `/pr-review run <slug> <n>`, and
 adds a `Reviewer: <thread> #<n>` line for each under the Result, the line every reader of the
-roster parses. Where they do not, the row is a condition, once for its head: the crew wrote that
-it waits on a review its proof does not earn.
+roster parses. Where they do not, or origin has no such branch, or T3 Code names no worktree for
+the crew, the row is a condition, once for its head: the crew wrote that it waits on a review it
+has not earned. jbus also tells the crew, once for that head (the one origin has, else the
+branch's own), under `prereview-refused|<slug>|<head 12>` (`refuse`): what does not hold, and that
+it fixes it, pushes and writes a follow-up Result that still opens its pull request after the
+review. The message is sent here and not by `threads.resume`, which sends nothing to a crew whose
+review is awaited: only this pass knows the head it read and why it refused it. Meanwhile the row
+runs, waiting on its review (`watch.owes_pull`), whatever its Result's `Left:` line names, and
+the crew's follow-up Result is read like the first.
 
 The key `reviewers|<slug>|<head 12>` is marked before the first launch, since a launch has no
 retry key: a pass that crashes after it launches no reviewer twice. A pass that finds every
@@ -48,7 +55,7 @@ from jbus.watch import World, _default_branch, at_work, task_brief
 from jmerge import ready
 from jroles import pool
 
-EVENTS = {"prereview": "quiet", "prereviewed": "quiet"}
+EVENTS = {"prereview": "quiet", "prereviewed": "quiet", "prereview-refused": "quiet"}
 TITLE = "review: {slug}, {n}"
 ASK = "/pr-review run {slug} {n}"
 UNPROVED = "its Result waits on a review, and its desk proof does not hold at its pushed head"
@@ -56,6 +63,13 @@ UNPUSHED = "its Result waits on a review, and origin has no branch {branch}"
 NO_TREE = "its Result waits on a review, and T3 Code names no worktree for its crew"
 LOST = "a reviewer's launch got no reply"
 TEMPLATE = "prereviewed"
+REFUSED = "prereview-refused"
+REFUSAL = (
+    "jbus: {slug}'s review was not launched: {why}.{detail}\n\n"
+    "Fix that in your worktree, push the branch, and write a follow-up Result in the same shape "
+    "that still says `Pull request: after the review`, with the `Checked:` and `Proved:` lines "
+    "of the head you pushed. jbus launches the review once they hold there. " + END_TURN
+)
 TAIL = 2000
 """How many of `outbox.jsonl`'s last lines `told_at` reads."""
 MESSAGE = (
@@ -161,7 +175,10 @@ def launch(run: Pass, client: Client, world: World) -> None:
         branch = below.line(result, "Branch:").split()[0]
         head = pushed(run, branch)
         if not head:
-            run.condition(slug, UNPUSHED.format(branch=branch), key=f"unpushed {branch}")
+            why = UNPUSHED.format(branch=branch)
+            run.condition(slug, why, key=f"unpushed {branch}")
+            local = run.run("git", "rev-parse", "-q", "--verify", f"refs/heads/{branch}^{{commit}}")
+            refuse(run, client, slug, thread, local.stdout.strip() or branch, why, "", sent)
             continue
         key = f"reviewers|{slug}|{head[:12]}"
         if key in sent:
@@ -169,10 +186,12 @@ def launch(run: Pass, client: Client, world: World) -> None:
         short = proved(run, brief, head)
         if short:
             run.condition(slug, UNPROVED, f"at {head}: {short}", key=f"unproved {head[:12]}")
+            refuse(run, client, slug, thread, head, UNPROVED, f"at {head}: {short}", sent)
             continue
         tree = rebase.worktree(client, thread["threadId"])
         if not tree:
             run.condition(slug, NO_TREE, thread["threadId"], key=f"no tree {head[:12]}")
+            refuse(run, client, slug, thread, head, NO_TREE, "", sent)
             continue
         try:
             routes: list[pool.Route | None] = list(pool.routes("review", run.now))
@@ -201,6 +220,42 @@ def launch(run: Pass, client: Client, world: World) -> None:
             said = f"launched review {slug}: {named} at {head[:12]}"
             run.find(slug, "prereview", said, "".join(lines), key=head[:12])
             run.say(said)
+
+
+def refuse(
+    run: Pass,
+    client: Client,
+    slug: str,
+    thread: dict[str, Any],
+    head: str,
+    why: str,
+    detail: str,
+    sent: list[str],
+) -> None:
+    """Tell the crew, once for `head`, why jbus launched no review of its Result: see the
+    module. `head` is the head origin has, or the branch's own where it has none."""
+    key = f"{REFUSED}|{slug}|{head[:12]}"
+    if key in sent:
+        return
+    at = thread["threadId"]
+    text = REFUSAL.format(slug=slug, why=why, detail=f"\n\n{detail}" if detail else "")
+    try:
+        went = outbox.send(
+            run, client, thread=at, row=slug, key=key, text=text, template=REFUSED, needs="act"
+        )
+    except T3Refused as error:
+        what = "T3 Code refused the message that its review was not launched"
+        run.gate(slug, what, f"{error}\n\n{text}", key=key)
+        return
+    except T3Error as error:
+        run.say(f"wait {slug}: why its review was not launched could not be sent ({error})")
+        return
+    if not went:
+        return
+    run.box.mark(key)
+    line = f"{REFUSED} {slug}: told {at} why its review at {head[:12]} was not launched"
+    run.find(slug, REFUSED, line, text, key=head[:12])
+    run.say(line)
 
 
 def due(brief: str) -> tuple[str, tuple[str, ...], tuple[str, ...]] | None:

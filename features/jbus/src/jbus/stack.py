@@ -38,11 +38,20 @@ has the line and has not moved yet, and whose base merged:
   until the link's head holds that commit (`ready.STACKED_UNMOVED`), and merges it as any other.
 
 A row still before its pull request, its crew at its desk proof or waiting on the review jbus
-launches (`prereview`), has no commits of its own on GitHub to move: once its base merged,
-`before_pull` only moves its line onto the branch the base merged into, in the brief's head and on
-its Result's own `Stacked on:` line, `Stacked on: <slug> <branch> at <merge>`. It runs before
-`prereview.launch` in the pass, so the reviewer reads a base origin still has; the crew's blocks
-read the same line, and `jmerge` waits until the head holds the merge as for any link.
+launches (`prereview`), is moved by `before_pull` once its base merged. It moves the line onto the
+branch the base merged into, in the brief's head and on its Result's own `Stacked on:` line,
+`Stacked on: <slug> <branch> at <merge>`. Then, once its Result says its pull request opens after
+the review and its crew is not at work, it moves the link's own commits there with the same
+`_carry` an open link gets, from the branch origin has (`_lift`), on every pass until the pushed
+head holds the merge. A squash merge leaves the base's own commits under the link and none of them
+on main, so without the move the diff `prereview` reads from the link's fork with main holds the
+base's files, and its `Proved:` line would have to name the base's tests. The move is made rather
+than read around (a diff from the base's last head) since the pull request the crew then opens
+needs the same move before `jmerge` merges it (`ready.STACKED_UNMOVED`). It runs before
+`prereview.launch` in the pass, so the reviewer reads the moved head; its `Checked:` line no
+longer binds that head, so `prereview` tells the crew to prove it again. A link `_carry` leaves
+as it was waits for a later pass; the crew's blocks read the same line, and `jmerge` waits until
+the head holds the merge as for any link.
 
 A base closed with no merge leaves its link waiting on `jmerge`'s line: GitHub closes a pull
 request whose base branch is deleted, and what to do with the work is the home's."""
@@ -56,11 +65,13 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+from jbriefs import below
 from jbriefs.home import thread_of
-from jbus import END_TURN, dispatch, rebase, review, verbs
+from jbus import END_TURN, dispatch, mirror, rebase, review, verbs
 from jbus.passes import Pass
+from jbus.prereview import pushed
 from jbus.t3 import Client
-from jbus.watch import World, against, task_brief
+from jbus.watch import World, against, at_work, task_brief
 from jmerge import stacked as stacks
 
 EVENTS = {"restack": "quiet"}
@@ -100,21 +111,48 @@ def before_pull(run: Pass, world: World) -> None:
     for slug in sorted(world.threads):
         brief = task_brief(run, slug)
         stacked = stacks.of(brief)
-        if stacked is None or stacked.at or slug in world.open or slug in world.merged:
+        if stacked is None or slug in world.open or slug in world.merged:
             continue
         merged = world.merged.get(stacked.slug) or {}
         if not (merged.get("mergeCommit") or {}).get("oid") or not rebase.crew(run, slug):
             continue
         merge = str(merged["mergeCommit"]["oid"])
-        onto = _onto(run, brief, merged)
+        onto = stacked.branch if stacked.at else _onto(run, brief, merged)
         if not onto:
             run.say(f"wait {slug}: GitHub did not say what {stacked.slug} merged into")
             continue
-        moved = replace(stacked, branch=onto, at=merge)
-        if _rewrite(run, slug, moved, was=stacked):
+        if not stacked.at:
+            moved = replace(stacked, branch=onto, at=merge)
+            if not _rewrite(run, slug, moved, was=stacked):
+                continue
             line = f"{KIND} {slug}: moved its Stacked on: line onto {onto}, {stacked.slug} merged"
             run.find(slug, KIND, line, stacks.line(moved), key=f"before pull {merge[:12]}")
             run.say(line)
+        _lift(run, world, slug, merged, merge, onto)
+
+
+def _lift(
+    run: Pass, world: World, slug: str, merged: dict[str, Any], merge: str, onto: str
+) -> None:
+    """Move the own commits of a link whose Result waits on its review before its pull request
+    onto `onto`, where its pushed head does not hold the base's `merge` yet: see the module."""
+    live = world.threads[slug]
+    result = mirror.last_result(task_brief(run, slug))
+    if len(live) != 1 or at_work(live) or world.awaits(live[0]) or not review.before_pull(result):
+        return
+    branch = below.line(result, "Branch:").split()[0]
+    head, last = pushed(run, branch), str(merged.get("headRefOid") or "")
+    if not head or not last:
+        return
+    base = str(merged.get("headRefName") or "")
+    moved = _carry(run, slug, head, branch, 0, base, last, merge, onto)
+    if moved and moved != head:
+        line = (
+            f"{KIND} {slug}: moved its own commits onto {onto} before its review, "
+            f"{merged.get('headRefName') or 'its base'} merged ({head[:12]} to {moved[:12]})"
+        )
+        run.find(slug, KIND, line, key=f"before pull {head[:12]} {merge[:12]}")
+        run.say(line)
 
 
 def _moved(
@@ -144,7 +182,10 @@ def _moved(
     if rebase.held(run, client, thread, slug, number, head, key, KIND):
         return
     last = str(merged.get("headRefOid") or "")
-    moved = _carry(run, slug, pull, stacked.branch, last, merge, onto) if last else ""
+    branch = str(pull.get("headRefName") or slug)
+    moved = ""
+    if last:
+        moved = _carry(run, slug, head, branch, number, stacked.branch, last, merge, onto)
     if moved:
         run.box.mark(key)
         line = (
@@ -181,13 +222,20 @@ def _moved(
 
 
 def _carry(
-    run: Pass, slug: str, pull: dict[str, Any], base: str, last: str, merge: str, onto: str
+    run: Pass,
+    slug: str,
+    head: str,
+    branch: str,
+    number: int,
+    base: str,
+    last: str,
+    merge: str,
+    onto: str,
 ) -> str:
-    """Move the link's own commits, those above `last`, the head its `base` branch merged at, onto
-    `origin/<onto>`, and push them over the head the pass read. Return the head the branch is at
-    now, or nothing when it was left as it was, with the reason said."""
-    head, number = str(pull["headRefOid"]), pull["number"]
-    branch = str(pull.get("headRefName") or slug)
+    """Move the link's own commits on `branch` at `head`, those above `last`, the head its `base`
+    branch merged at, onto `origin/<onto>`, and push them over the head the pass read. `number` is
+    its pull request's, or 0 before it has one. Return the head the branch is at now, or nothing
+    when it was left as it was, with the reason said."""
     if review.reviewing(task_brief(run, slug)):
         return _left(run, slug, "a reviewer it launched has written no review yet")
     crew = _worktree(run, branch)
@@ -196,7 +244,8 @@ def _carry(
         return _left(run, slug, f"its worktree {busy}")
     run.run("git", "fetch", "-q", "origin", f"+refs/heads/{onto}:refs/remotes/origin/{onto}")
     if run.run("git", "cat-file", "-e", f"{head}^{{commit}}").returncode:
-        run.run("git", "fetch", "-q", "origin", f"refs/pull/{number}/head")
+        ref = f"refs/pull/{number}/head" if number else f"refs/heads/{branch}"
+        run.run("git", "fetch", "-q", "origin", ref)
     if run.run("git", "merge-base", "--is-ancestor", merge, f"origin/{onto}").returncode:
         return _left(run, slug, f"origin/{onto} does not hold {merge[:12]} here")
     if not run.run("git", "merge-base", "--is-ancestor", merge, head).returncode:

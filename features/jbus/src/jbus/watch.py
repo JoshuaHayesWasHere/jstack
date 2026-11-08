@@ -522,17 +522,25 @@ def owes_pull(run: Pass, slug: str, brief: str, result: str) -> bool:
     """Say whether a crew's Result that would end its task clean still owes the pull request its
     brief asks for (`Pull request: open one ...`): its `Branch:` line names none, and that branch
     has a commit of its own (`own`). Such a task is not done, whatever its `Status:` says: its row
-    runs, and its thread is told once to open it (`threads.resume`). A Result that says its pull
-    request opens after its review (`review.before_pull`) owes it whatever the brief's header
-    says, when the brief asks for a review: the crew waits on that review (`jbus.prereview`). A
-    crew that found nothing to change owes nothing. Nor does a brief whose `Pull request:` line
-    says none, a scout's or a report's, or a follow-up Result, a later round: the home's close of
-    a row nothing more is wanted of (`leftover`), or the crew's answer once it was told. The rule
-    is judged as a row moves to done: a row the table had at done when the pass began owes
-    nothing (`Pass.done`)."""
-    if not result.startswith("## Result\n") or unfinished(result):
-        return False
+    runs, and its thread is told once to open it (`threads.resume`).
+
+    A Result that says its pull request opens after its review (`review.before_pull`) owes it
+    whatever the brief's header says, when the brief asks for a review: the crew waits on that
+    review (`jbus.prereview`). While the review is due, running, or refused and told to the crew
+    (`review.awaited`), a Result with `Status: done` owes it whatever its `Left:` line names,
+    since that work rides along to after the merge and does not end the row, and so does a
+    follow-up Result, the crew's answer to a review jbus refused. Once the review ran, a Result
+    that leaves something is the home's to close if its crew opens nothing (`leftover.opening`).
+    Otherwise a crew that found nothing to change owes nothing. Nor does a brief whose
+    `Pull request:` line says none, a scout's or a report's, or a follow-up Result, a later round:
+    the home's close of a row nothing more is wanted of (`leftover`), or the crew's answer once it
+    was told. The rule is judged as a row moves to done: a row the table had at done when the pass
+    began owes nothing (`Pass.done`)."""
     if slug in run.done:
+        return False
+    if below.line(result, "Status:") == "done" and review.awaited(brief, result):
+        return True
+    if not result.startswith("## Result\n") or unfinished(result):
         return False
     if review.before_pull(result) and findings.mode_of(brief) != findings.NONE:
         return True
