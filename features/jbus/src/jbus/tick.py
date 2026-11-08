@@ -83,6 +83,9 @@ TIMER = "JBUS_TICK_TIMER"
 timer as it is."""
 PASS = frozenset({"success", "neutral", "skipped"})
 """The conclusions of a required check's own job that pass it, as `jmerge` reads them."""
+ENDS = frozenset({"passed", "failed"})
+"""The words of a rollup (`watch.checks`) that say a head's checks ended, which the tick reads
+again until a verdict names their end on the head's line."""
 FAIL = "failure"
 """The conclusion of a job that fails the required check of its workflow: the required job
 runs once every job it needs ended, and fails where one of them failed (check.yml, macos.yml)."""
@@ -90,19 +93,20 @@ runs once every job it needs ended, and fails where one of them failed (check.ym
 
 def _pending(half: Half) -> None:
     """Keep the open pull requests whose checks are still going, for the tick to watch, by the
-    head the pass saw. A head the tick watched stays while the rollup reads its checks as ended,
-    until its row's line names it as one whose end a verdict of the tick's or `jmerge`'s said
-    (`restated.ENDED`): the rollup can say `passed` before a required job that is still to start
-    is in it (#1246), or `failed` at a failed shard while the others still run, and the tick that
-    stopped asking then would miss the end."""
+    head the pass saw. A head whose rollup reads its checks as ended stays too, until its row's
+    line names it as one whose end a verdict of the tick's or `jmerge`'s said (`restated.ENDED`),
+    whether or not a pass saw it going: the rollup can say `passed` before a required job that is
+    still to start is in it (#1246), or `failed` at a failed shard while the others still run, and
+    a head pushed whose checks failed between two passes was never seen going at all, while on a
+    draft, which `jmerge` holds on the Result step, only the tick names the checks' end."""
     world = half.seen.world
     assert world is not None
-    watched, ended = restated.pending(half.run.state), restated.ended(half.run.state)
+    ended = restated.ended(half.run.state)
     going = []
     for pull in world.open.values():
-        number, head = pull["number"], pull.get("headRefOid", "")
-        unjudged = bool(head) and watched.get(number) == head and ended.get(number, head) != head
-        if watch.checks(pull) == "pending" or unjudged:
+        number, head, checks = pull["number"], pull.get("headRefOid", ""), watch.checks(pull)
+        unjudged = bool(head) and checks in ENDS and ended.get(number, head) != head
+        if checks == "pending" or unjudged:
             going.append({"number": number, "head": head})
     going.sort(key=lambda one: one["number"])
     if store.read_json(half.run.state / PENDING, None) != going:

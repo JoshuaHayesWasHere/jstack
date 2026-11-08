@@ -539,3 +539,55 @@ def test_a_pass_whose_stop_the_manager_refuses_says_so_and_the_next_pass_stops_i
     (manager.stub / "refused.txt").unlink()
     assert "tick: no pull request has checks going, so jbus-merge.timer stops" in manager.poll()
     assert timer(manager) == "inactive"
+
+
+@pytest.fixture
+def pushed(kitchen):
+    """The row `alpha`, whose pull request #7 the last pass saw on the check step at an older
+    head. #7's head `HEAD` is then pushed, and its check fails, between that pass and the next."""
+    add(kitchen, "alpha")
+    kitchen.brief("alpha", f"\n## Result\nStatus: done\nBranch: alpha   Pull request: {PULL}\n")
+    kitchen.t3.thread("alpha", "completed")
+    older = {**kitchen.opened("alpha", 7, None), "headRefOid": "b" * 40}
+    kitchen.set("open.json", [older])
+    kitchen.set("jmerge.txt", f"{RUNNING}\n")
+    kitchen.poll()
+    assert watching(kitchen) == [{"number": 7, "head": "b" * 40}]
+    check_ended(kitchen, 1, "failure")
+    kitchen.set("open.json", [kitchen.opened("alpha", 7, "FAILURE")])
+    return kitchen
+
+
+def test_a_head_pushed_and_failed_between_two_passes_gets_the_ticks_failed(pushed, monkeypatch):
+    """The pass never saw #7's head `HEAD` going: it was pushed, and its check failed, between two
+    passes, and the pass's own `jmerge` was busy. The pass keeps the head for the tick all the
+    same, since #7's line names no verdict at it, and the tick's next read puts `failed` on the
+    line before its `jmerge` runs, after which the pass lets the head go."""
+    pushed.set("jmerge-busy", "")
+    pushed.poll()
+    assert watching(pushed) == [{"number": 7, "head": HEAD}]
+    (pushed.stub / "jmerge-busy").unlink()
+    seen = before_jmerge(monkeypatch, pushed)
+    pushed.set("jmerge.txt", f"wait 7 {PULL}: {ready.CHECK_FAILED.format(check='check')}\n")
+    assert ticks(pushed)[0] == "tick demo: a check ended, and alpha's line says so"
+    (first,) = seen
+    said = (first["why"], first[restated.CHECKED], first[restated.ENDED])
+    assert said == (FAILED, "failed", HEAD)
+    assert (line(pushed)["why"], line(pushed)[restated.ENDED]) == (FAILED, HEAD)
+    pushed.poll()
+    assert watching(pushed) == []
+
+
+def test_a_drafts_head_pushed_and_failed_between_two_passes_gets_the_ticks_verdict(pushed):
+    """#7 is a draft, which `jmerge` holds on the Result step whatever its checks say, so no run of
+    `jmerge` names their end on its line. The pass that first sees the failed head keeps it for the
+    tick, whose read of the failed job names the head as ended on the line, after which the pass
+    lets the head go."""
+    pushed.set("jmerge.txt", f"wait 7 {PULL}: {ready.HAND_DRAFT}\n")
+    pushed.poll()
+    assert watching(pushed) == [{"number": 7, "head": HEAD}]
+    assert restated.ENDED not in line(pushed)
+    ticks(pushed)
+    assert (line(pushed)["facts"]["pull"], line(pushed)[restated.ENDED]) == ("result", HEAD)
+    pushed.poll()
+    assert watching(pushed) == []
