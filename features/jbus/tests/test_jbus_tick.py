@@ -337,3 +337,40 @@ def test_a_list_of_runs_the_tick_cannot_read_leaves_the_line_to_jmerge(on_check,
     before = line(on_check)
     assert ticks(on_check) == ["tick demo: a run ended, and jmerge ran"]
     assert line(on_check)["why"] == before["why"]
+
+
+def watching(kitchen):
+    return json.loads((kitchen.state / tick.PENDING).read_text())
+
+
+def test_a_rollup_that_says_passed_before_its_check_appears_keeps_the_pull_request_pending(
+    on_check,
+):
+    """#1246: the pass read #7's rollup before its job `check` was in it, so the rollup said
+    `passed` while `jmerge` still saw `check` running. The pass keeps #7's head for the tick,
+    which asks GitHub and restates the line once the run ends."""
+    on_check.set("open.json", [on_check.opened("alpha", 7, "SUCCESS")])
+    on_check.poll()
+    assert watching(on_check) == [{"number": 7, "head": HEAD}]
+    check_ended(on_check, 1, "success")
+    before = len(asked(on_check))
+    assert ticks(on_check)[0] == "tick demo: a run ended, and alpha's line says its check ended"
+    assert len(asked(on_check)) == before + 1
+
+
+def test_the_pass_drops_a_head_once_the_tick_had_its_verdict(on_check):
+    check_ended(on_check, 1, "failure")
+    on_check.set("jmerge.txt", f"{RUNNING}\n")
+    ticks(on_check)
+    on_check.set("open.json", [on_check.opened("alpha", 7, "FAILURE")])
+    on_check.poll()
+    assert watching(on_check) == []
+
+
+def test_the_pass_drops_a_head_once_jmerge_had_its_verdict(on_check):
+    on_check.set("open.json", [on_check.opened("alpha", 7, "FAILURE")])
+    on_check.set("jmerge.txt", f"wait 7 {PULL}: {ready.CHECK_FAILED.format(check='check')}\n")
+    on_check.poll()
+    assert watching(on_check) == [{"number": 7, "head": HEAD}]
+    on_check.poll()
+    assert watching(on_check) == []
