@@ -152,8 +152,8 @@ def test_a_leftover_its_home_has_is_not_on_the_users_list_and_the_view_says_who_
     assert task["state"]["waits"] == "its home"
     assert task["state"]["say"] == (
         f"its pull request #9 is merged. Its crewmate left a note: {NOTE}. "
-        f"jbus told its home {told}. The home closes it: a follow-up task for what was left, "
-        "or a Left: none line in its brief with the reason"
+        f"jbus told its home {told}. The home closes it with one of two things: a follow-up "
+        "task for what was left, a Left: none line in its brief with the reason"
     )
     assert task["since"] == NOW.isoformat(timespec="seconds")
     assert [one for one in built["tasks"] if one["who"] == "user"] == []

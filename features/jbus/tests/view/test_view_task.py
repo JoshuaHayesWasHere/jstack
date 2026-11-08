@@ -486,8 +486,8 @@ def test_a_merged_task_that_left_a_note_is_done_and_waits_only_for_a_word_on_the
     assert f"Its crewmate left a note of something it did not do: {NOTE}. " in said["say"]
     assert "[cut]" not in said["say"]
     assert said["say"].endswith(
-        "The home closes it: a follow-up task for what was left, "
-        "or a Left: none line in its brief with the reason"
+        "The home closes it with one of two things: a follow-up task for what was left, "
+        "a Left: none line in its brief with the reason"
     )
     assert (said["waits"], said["row"]) == ("its home", "")
     assert (jam["step"], jam["who"], jam["blocked"]) == ("running", "home", None)

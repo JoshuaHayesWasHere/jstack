@@ -166,8 +166,8 @@ LEFT = "left: "
 HOME = "home"
 AWAITS_REVIEW = "its Result opens its pull request after its review, which is not written yet"
 CLOSES = (
-    "The home closes it: a follow-up task for what was left, "
-    "or a Left: none line in its brief with the reason"
+    "The home closes it with one of two things: a follow-up task for what was left, "
+    "a Left: none line in its brief with the reason"
 )
 READY = {
     "no slot": "a slot",
