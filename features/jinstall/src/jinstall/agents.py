@@ -47,8 +47,9 @@ class Agents:
       each agent that `stale` names. A run that finds everything as it should be writes
       nothing and runs no bootstrap.
     add: what the green move runs after it moves the copy (`jinstall.green.live`): write and
-      bootstrap each agent that is on and has no plist yet, as when main adds a unit, where the
-      install wrote any plist here.
+      bootstrap each agent that is on and has no plist yet, as when main adds a unit, and
+      bootstrap each that has the install's plist and that launchctl says is not loaded, as a
+      refused bootstrap leaves it, where the install wrote any plist here.
     drop: boot out each agent whose plist is this install's, and remove the plist.
     Each launchctl step goes through `machine.launchctl`, so in a sandbox with no stand-in the
     need only writes, checks and removes the plists."""
@@ -225,16 +226,26 @@ class Agents:
             self._launchctl(machine, "kickstart", "-k", self._service(machine, agent))
 
     def add(self, machine: Machine) -> list[str]:
-        """Write and bootstrap each agent that is on and has no plist, services first, where the
-        install wrote a plist here. Return the units it added; a second call adds none."""
-        if not self._ours(machine):
+        """Write and bootstrap each agent that is on and has no plist, and bootstrap each that
+        has the install's plist and that launchd does not have, as a refused bootstrap leaves
+        it, services first, where the install wrote a plist here. A launchctl that does not
+        answer leaves the plist alone to decide. Return the units it added; a second call after
+        each bootstrap was taken adds none."""
+        ours = self._ours(machine)
+        if not ours:
             return []
         on, _ = self._split(machine)
-        new = [agent for agent in on if self._read(agent) is None]
+        new = [
+            agent
+            for agent in on
+            if self._read(agent) is None
+            or (agent in ours and self._loaded(machine, agent) is False)
+        ]
         new.sort(key=lambda agent: not agent.unit.endswith(".service"))
         for agent in new:
-            machine.make_dirs(launchd.log(machine.home, agent.label).parent)
-            machine.write_text(self._path(agent), self._text(machine, agent), PLIST_MODE)
+            if self._read(agent) is None:
+                machine.make_dirs(launchd.log(machine.home, agent.label).parent)
+                machine.write_text(self._path(agent), self._text(machine, agent), PLIST_MODE)
             if self._loaded(machine, agent) is False:
                 self._launchctl(machine, "bootstrap", machine.gui(), str(self._path(agent)))
         return [agent.unit for agent in new]
