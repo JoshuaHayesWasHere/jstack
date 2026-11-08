@@ -95,6 +95,7 @@ Enforced by: `scripts/jtrees/crawl.py`, `scripts/jtrees/schema.py`, `scripts/gen
 
 Each path a manifest declares is a file in the feature's folder.
 A declared path that does not exist fails the check.
+A glob of the core's `reads`, which names files across the repo that the feature's tests read, matches at least one file.
 
 **In jstack** the crawl checks each package, page, hook, status line, git hook and project skill a manifest declares.
 A skill a manifest marks `hidden`, or a playbook it marks `nameable`, must be one the feature owns.

@@ -1,0 +1,53 @@
+# This repo's config for the repo standard, read by the standard's guards and `repo-standard
+# conform`: https://github.com/JoshuaHayesWasHere/jstack/blob/main/features/repo-standard/docs/guards.md
+# `standard` pins the version, and .github/workflows/check.yml calls the shared check at the same tag.
+standard: 1
+features: features
+manifest-schema: schemas/feature.core.schema.json
+layout: [features/, schemas/, scripts/, .github/]
+owners:
+  INFRA:
+    - .repo-standard.yml
+    - .gitignore
+    - Makefile
+    - README.md
+    - "schemas/**"
+    - "scripts/**"
+    - ".github/**"
+  # The root files of the stack's adapter: the go adapter has none, since each module's go.mod
+  # and go.sum sit in its feature.
+  STACK: []
+cross-cutting: cross-cutting
+generators:
+  - [python3, scripts/generate-index.py]
+docs:
+  pages: ["*.md", "features/*/docs/**/*.md"]
+  exclude: []
+  roots: [features, schemas, scripts, .github]
+size:
+  - files: ["features/**/*.go", "scripts/*.py"]
+    exclude: ["features/**/*_test.go"]
+    cap: 800
+  - files: ["features/**/*_test.go"]
+    cap: 1500
+comments:
+  files: ["features/**/*.go", "scripts/*.py"]
+  readers:
+    .go: script
+  allow: ["//go:"]
+deploy: []
+enforced-by:
+  a-shared-path-forces-the-whole-suite: [scripts/stack.mk]
+  a-pair-of-trees-passes-once: [.github/workflows/check.yml]
+  a-passing-tree-leaves-a-marker: [.github/workflows/check.yml]
+waivers:
+  - rule: a-commands-page-matches-its-help
+    reason: the repo has no command yet; with its first, name the test that reads its page against its help
+  - rule: new-prose-has-one-sentence-per-line
+    reason: the repo has no prose lint yet; name the one it adopts
+  - rule: shell-runs-on-macos-as-well-as-on-linux
+    reason: the repo has no shell script yet; with its first, name the check that runs it on macOS
+  - rule: a-test-runs-the-code
+    reason: the repo has no guard over its tests yet; name the one it adopts
+  - rule: a-pull-request-runs-the-selection-the-lint-and-the-selected-tests
+    reason: check.yml calls the shared check, which runs make select, make lint and make test on each pull request, and conform does not read a called workflow yet

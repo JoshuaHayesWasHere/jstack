@@ -27,6 +27,11 @@
       "description": "Each page of the feature; the first is the one the README links.",
       "type": "array",
       "items": {"type": "string", "pattern": "^docs/[a-z0-9/-]+\\.md$"}
+    },
+    "reads": {
+      "description": "Each file the feature's tests read that the stack's selection cannot see, such as a page or a schema a test opens, as a glob from the repo's root in which * crosses folders: a change to a file it matches selects the feature's tests. An adapter's selection says whether it reads this list.",
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
     }
   }
 }

@@ -13,6 +13,7 @@ or the Makefile names by its path are reached, so a page or a file nothing runs 
 
 from __future__ import annotations
 
+import fnmatch
 import json
 import re
 import sys
@@ -162,9 +163,10 @@ def manifest(repo: Repo) -> list[str]:
 
 
 def _declared(value: Any, key: str = "") -> list[str]:
-    """The paths a manifest declares: a string in a list, or a `script`, that holds a `/`."""
+    """The paths a manifest declares in its folder: a string in a list, or a `script`, that holds
+    a `/`. `reads` names files across the repo, and `declared` reads it apart."""
     if isinstance(value, dict):
-        return [one for k, v in value.items() for one in _declared(v, k)]
+        return [one for k, v in value.items() if k != "reads" for one in _declared(v, k)]
     if isinstance(value, list):
         found = [one for v in value if not isinstance(v, str) for one in _declared(v)]
         return found + [v for v in value if isinstance(v, str) and "/" in v and " " not in v]
@@ -182,6 +184,11 @@ def declared(repo: Repo) -> list[str]:
             if path not in held and not any(one.startswith(f"{path}/") for one in held):
                 where = f"{repo.config.features}/{name}/feature.json"
                 faults.append(f"{where}: declares {path}, which is not there")
+        reads = manifest.get("reads", [])
+        for glob in reads if isinstance(reads, list) else []:
+            if isinstance(glob, str) and not fnmatch.filter(repo.paths, glob):
+                where = f"{repo.config.features}/{name}/feature.json"
+                faults.append(f"{where}: reads {glob}, which matches no file")
     return faults
 
 
