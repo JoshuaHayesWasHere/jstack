@@ -59,24 +59,20 @@ def _slug(run: passes.Pass, one: waiting.Item) -> str:
     home asked as `home`, else its own, or for a pull request `jmerge` holds, its row's."""
     if one["kind"] == "gate" and one.get("home") and one.get("slug") in ("", "home"):
         return f"home-{one['home']}"
-    if one.get("slug"):
-        return str(one["slug"])
-    if one["kind"] == "hold":
+    if one["kind"] == "hold" and not one.get("slug"):
         try:
             rows = queue.load(run.state)
         except queue.Unparsable:
             return ""
         pr = f"#{one.get('number')}"
         return next((row["slug"] for row in rows if row.get("pr") == pr), "")
-    return ""
+    return str(one.get("slug") or "")
 
 
 def home_of(run: passes.Pass, root: Path, slug: str) -> Path:
-    """The directory of the home a slug is: its own home's for `home` and `home-<scope>`, else
-    the home of its brief or request, in the home's files or as the queue stored it, else the
-    root's."""
-    if slug == "home":
-        return root
+    """The directory of the home a slug is: a scope's for `home-<scope>`, else the home of its
+    brief or request, in the home's files or as the queue stored it, else the root's, which
+    `home` and a slug of no brief are."""
     if slug.startswith("home-") and (root / slug[5:]).is_dir():
         return root / slug[5:]
     for kind in ("tasks", "scouts"):
