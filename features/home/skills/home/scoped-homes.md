@@ -81,7 +81,11 @@ child='<child>'
 priority='<n>'
 entry='<entry>'
 message='<thread id>/<message id>'
-B="$H/$kind/$slug.md"
+case $kind in
+tasks) B="$H/tasks/$slug.md" ;;
+scouts) B="$H/scouts/$slug.md" ;;
+*) B= ;;
+esac
 why=
 if [ "${M:?run the block that finds this home first}" != "$H" ]; then
     why="this is the home of the scope $(basename "$M"): a child queues its own rows by \"Handing a task to a crewmate\""
@@ -113,7 +117,7 @@ fi
 if [ -n "$why" ]; then
     echo "not queued: $why. Nothing is queued."
 elif ! command -v jbus > /dev/null || ! jbus plan > /dev/null 2>&1; then
-    echo "no plan: jbus answers for no plan of this repo, so nothing is queued"
+    echo "no plan: jbus holds no plan of this repo, so nothing is queued"
 elif said=$(jbus queue add "$slug" --priority "$priority" --entry "$entry" --from "$ME" --for "$child" --message "$message" < "$B" 2>&1); then
     echo "queued: the row $slug, in $child, approved on $message"
 else
