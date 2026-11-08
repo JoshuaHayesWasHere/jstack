@@ -78,3 +78,15 @@ def test_a_manager_that_reads_another_home_leaves_the_link_alone_to_decide(setup
     manager.elsewhere = True
     assert need.add(machine) == []
     assert manager.calls == []
+
+
+def test_a_unit_linked_elsewhere_is_left_alone_though_it_is_not_enabled(setup, tmp_path):
+    """A link that points at something other than the install's template is someone else's: the
+    move enables nothing for it, whatever the manager says of it."""
+    machine, manager, need, units = setup
+    theirs = tmp_path / "theirs.service"
+    theirs.write_text("[Service]\nExecStart=/bin/true\n")
+    (units / FOLLOWER).symlink_to(theirs)
+    assert need.add(machine) == []
+    assert [call for call in manager.calls if not call.startswith("is-enabled")] == []
+    assert (units / FOLLOWER).readlink() == theirs
