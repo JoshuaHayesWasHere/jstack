@@ -33,9 +33,12 @@ for each change of a job's status at it (queued, in progress, completed), whiche
 plus one read of the workflow runs a check suite, and `jmerge`'s own once a verdict is new
 (`docs/jbus/the-units.md`). Every other tick answers 304.
 
-The tick keeps a head's ETag, and the verdict `jmerge` ran for, only once `jmerge` ran to its
-end, so a tick that dies, a `jmerge` that was busy with the pass's own run, or one that failed
-leaves the change to the next tick, which asks again and restates nothing twice. The pass runs
+The tick keeps a head's ETag with the verdict read under it at once, and the verdict `jmerge` ran
+for only once `jmerge` ran to its end, so a tick that dies, a `jmerge` that was busy with the
+pass's own run, or one that failed leaves the verdict to the next tick's `jmerge`, and the tick
+restates nothing twice. While a run of `jmerge` it started is going, which a merge's guards
+make a minute or more (`jmerge.treeguards`), the tick reads on every 2 seconds in its own
+process (`tick`), since the timer starts no tick until it ends. The pass runs
 `jmerge --if-free` each minute too, so what the tick misses the next pass with the run lock free
 does. A merge of the tick's that changed a skill is kept for the next pass's `reload.tell`
 before the ETag is (`reload.keep`), since `jmerge` prints its `merged` line once. One run of
@@ -50,7 +53,10 @@ from __future__ import annotations
 
 import json
 import os
+import time
+from concurrent import futures
 from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import jbus
@@ -72,6 +78,9 @@ RUNS_AT = "repos/{owner}/{repo}/actions/runs?head_sha=%s&per_page=100"
 """A head's workflow runs, asked for only when its check runs name a check suite the tick does
 not know the workflow of yet."""
 OK = "200"
+EVERY = 2
+"""The seconds between the tick's reads while a run of `jmerge` it started is still going, the
+interval of `jbus-merge.timer`, which starts no tick while one runs."""
 HELD = 5
 """The seconds between the times a tick asks GitHub while its budget is held."""
 BACKOFF = "tick-held.json"
@@ -232,21 +241,20 @@ def _at(text: Any) -> datetime | None:
         return None
 
 
-def _read(run: passes.Pass) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]], bool]:
-    """Ask GitHub for the check runs of each pending head, with the ETag the tick kept, and
-    restate the line of each pull request whose head's required checks failed or ended
-    (`restated.checked`). Return what the tick read of each head as it is to be kept once
-    `jmerge` ran to its end, as it is to be kept where `jmerge` did not, and whether a head's
-    verdict is new since `jmerge` last ran to its end for it, so that `jmerge` is to run."""
-    kept = store.read_json(run.state / SEEN, {}).get("heads")
-    kept = kept if isinstance(kept, dict) else {}
+def _read(run: passes.Pass) -> dict[str, list[Any]]:
+    """Ask GitHub for the check runs of each pending head, with the ETag the tick kept, restate
+    the line of each pull request whose head's required checks failed or ended
+    (`restated.checked`), and keep what the tick read of each head (`SEEN`). Return the verdict of
+    each head that is new since `jmerge` last ran to its end for it, so that `jmerge` is to run.
+    A verdict is kept with the ETag it was read under, so a 304 to the next read still says it."""
+    kept = _heads(run.state)
     pending = restated.pending(run.state)
     names = cancelled.required(run)
-    after, before, said = {}, {}, {}
+    heads, said = {}, {}
     for number, head in pending.items():
         found = kept.get(head)
         was: dict[str, Any] = found if isinstance(found, dict) else {}
-        before[head] = after[head] = was
+        heads[head] = was
         asked = _asked(run, CHECK_RUNS % head, str(was.get("etag", "")))
         if asked is None:
             continue
@@ -254,45 +262,94 @@ def _read(run: passes.Pass) -> tuple[dict[str, dict[str, Any]], dict[str, dict[s
         jobs = [job for job in given.get("check_runs") or [] if isinstance(job, dict)]
         suites = _suites(run, head, jobs, was.get("suites") or {})
         verdict = _verdict(names, jobs, suites)
-        after[head] = before[head] = {"etag": etag, "suites": suites, "ran": was.get("ran")}
-        if verdict is not None and list(verdict) != was.get("ran"):
-            before[head] = {**was, "suites": suites}
-            after[head] = {**after[head], "ran": list(verdict)}
+        heads[head] = {
+            "etag": etag,
+            "suites": suites,
+            "verdict": None if verdict is None else list(verdict),
+            "ran": was.get("ran"),
+        }
         if verdict is not None and verdict[0]:
             said[number] = (*verdict, head)
     at = restated.moment(verbs.clock())
     for key in restated.checked(run.state, said, at):
         run.say(f"tick {run.project.name}: a check ended, and {key}'s line says so")
-    return after, before, after != before
+    if heads != kept:
+        store.write_json(run.state / SEEN, {"heads": heads})
+    return {
+        head: one["verdict"]
+        for head, one in heads.items()
+        if one.get("verdict") is not None and one["verdict"] != one.get("ran")
+    }
+
+
+def _heads(state: Path) -> dict[str, Any]:
+    kept = store.read_json(state / SEEN, {}).get("heads")
+    return kept if isinstance(kept, dict) else {}
+
+
+def _ran(run: passes.Pass, wanted: dict[str, list[Any]], said: merge.Said) -> None:
+    """Keep what a run of `jmerge` the tick started said, and, once it ran to its end, the
+    verdicts it ran for (`wanted`), as `ran` of each head still kept."""
+    reload.keep(run, said)
+    name = run.project.name
+    if said.failed:
+        run.say(f"tick {name}: a check ended, and jmerge did not run to its end")
+        return
+    heads = _heads(run.state)
+    for head, verdict in wanted.items():
+        if isinstance(heads.get(head), dict):
+            heads[head] = {**heads[head], "ran": verdict}
+    store.write_json(run.state / SEEN, {"heads": heads})
+    run.say(f"tick {name}: a check ended, and jmerge ran")
+
+
+def _watched(config: jbus.Config) -> list[jbus.Project]:
+    return [p for p in config.projects if store.read_json(config.state(p) / PENDING, [])]
+
+
+def _asks(config: jbus.Config, say) -> bool:
+    """Whether this read may ask GitHub: always, unless the budget is held (`_due`)."""
+    held = budget.held(budget.read())
+    if not held:
+        return True
+    if not _due(config, verbs.clock()):
+        return False
+    say(f"tick: the budget is held, so the tick asks GitHub once in {HELD} s, not 2 s: {held}")
+    return True
 
 
 def tick(config: jbus.Config, say=print) -> int:
     """Run one tick over every project: read the check runs of each pending head, restate the
     line of each pull request whose required checks failed or ended, and run `jmerge` where one
-    did since `jmerge` last ran for it."""
-    watched = [p for p in config.projects if store.read_json(config.state(p) / PENDING, [])]
-    if not watched:
+    did since `jmerge` last ran for it.
+
+    Each `jmerge` runs on a thread of its own, and while one runs the tick reads every `EVERY`
+    seconds on, and restates what it reads, until each has ended. A `jmerge` that merges runs the
+    merged-tree guards first (`jmerge.treeguards`), 68 to 86 s on 2026-11-08, and the timer starts
+    no tick while one runs. A verdict that is new in a read after the first is left to the next
+    tick's `jmerge`, so a tick runs `jmerge` at most once a project, whatever its run said."""
+    watched = _watched(config)
+    if not watched or not _asks(config, say):
         return 0
-    held = budget.held(budget.read())
-    if held:
-        if not _due(config, verbs.clock()):
-            return 0
-        say(f"tick: the budget is held, so the tick asks GitHub once in {HELD} s, not 2 s: {held}")
-    for project in watched:
-        run = passes.Pass(config, project, verbs.clock(), say)
-        after, before, due = _read(run)
-        if not due:
-            if after != store.read_json(run.state / SEEN, {}).get("heads"):
-                store.write_json(run.state / SEEN, {"heads": after})
-            continue
-        said = merge.tick(run)
-        reload.keep(run, said)
-        if not said.failed:
-            store.write_json(run.state / SEEN, {"heads": after})
-            say(f"tick {project.name}: a check ended, and jmerge ran")
-        else:
-            store.write_json(run.state / SEEN, {"heads": before})
-            say(f"tick {project.name}: a check ended, and jmerge did not run to its end")
+    with futures.ThreadPoolExecutor() as pool:
+        going: dict[futures.Future[merge.Said], tuple[passes.Pass, dict[str, list[Any]]]] = {}
+        for project in watched:
+            run = passes.Pass(config, project, verbs.clock(), say)
+            wanted = _read(run)
+            if wanted:
+                going[pool.submit(merge.tick, run)] = (run, wanted)
+        due = time.monotonic() + EVERY
+        while going:
+            ended, _ = futures.wait(
+                going, timeout=max(0.0, due - time.monotonic()), return_when=futures.FIRST_COMPLETED
+            )
+            for one in ended:
+                _ran(*going.pop(one), one.result())
+            if going and time.monotonic() >= due:
+                if _asks(config, say):
+                    for project in _watched(config):
+                        _read(passes.Pass(config, project, verbs.clock(), say))
+                due = time.monotonic() + EVERY
     return 0
 
 

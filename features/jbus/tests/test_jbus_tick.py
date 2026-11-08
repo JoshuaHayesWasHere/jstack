@@ -10,6 +10,7 @@ the fakes (`test_jbus_kitchen.py`).
 import configparser
 import json
 import sys
+import time
 from datetime import timedelta
 from pathlib import Path
 
@@ -265,9 +266,9 @@ def on_check(kitchen):
     return kitchen
 
 
-def line(kitchen):
+def line(kitchen, key="alpha"):
     kept = json.loads((kitchen.state / work.NAME).read_text())
-    return {one["key"]: one for one in kept["work"]}["alpha"]
+    return {one["key"]: one for one in kept["work"]}[key]
 
 
 def check_ended(kitchen, second, conclusion):
@@ -593,3 +594,65 @@ def test_a_drafts_head_pushed_and_failed_between_two_passes_gets_the_ticks_verdi
     assert (line(pushed)["facts"]["pull"], line(pushed)[restated.ENDED]) == ("result", HEAD)
     pushed.poll()
     assert watching(pushed) == []
+
+
+OTHER = "e" * 40
+"""The head of #8, a second pull request on the check step."""
+
+
+@pytest.fixture
+def two_on_check(on_check):
+    """The rows `alpha` (#7) and `beta` (#8), both on the check step while their checks run."""
+    add(on_check, "beta")
+    other = "https://example.test/pull/8"
+    on_check.brief("beta", f"\n## Result\nStatus: done\nBranch: beta   Pull request: {other}\n")
+    on_check.t3.thread("beta", "completed")
+    beta = {**on_check.opened("beta", 8, None), "headRefOid": OTHER}
+    on_check.set("open.json", [on_check.opened("alpha", 7, None), beta])
+    running = ready.LIVE_RUN.format(check="check", head=OTHER[:12], state="running")
+    on_check.set("jmerge.txt", f"{RUNNING}\nwait 8 {other}: {running}\n")
+    on_check.poll()
+    assert watching(on_check) == [{"number": 7, "head": HEAD}, {"number": 8, "head": OTHER}]
+    assert line(on_check, "beta")["value"] == "check"
+    return on_check
+
+
+def at_both(kitchen, mine, other):
+    """GitHub lists `mine` at #7's head and `other` at #8's, each of its own run of `check`."""
+    kitchen.set("check-runs.json", {HEAD: mine, OTHER: other})
+    kitchen.set(
+        "push-runs.json",
+        {
+            HEAD: [{"id": 100, "name": "check", "check_suite_id": SUITE}],
+            OTHER: [{"id": 101, "name": "check", "check_suite_id": SUITE + 1}],
+        },
+    )
+
+
+def test_the_tick_reads_on_while_its_jmerge_runs(two_on_check, monkeypatch):
+    """sa-tick-jmerge-apart: a `jmerge` that merges first runs the merged-tree guards, which took
+    68 to 86 s on 2026-11-08, and the tick read nothing for as long. #7's check passed, so the
+    tick runs `jmerge`; #8's check fails while that run is still going. The tick reads on every
+    2 s (`EVERY`, short here), so #8's line says it failed before #7's `jmerge` ends."""
+    monkeypatch.setattr(tick, "EVERY", 0.05, raising=False)
+    at_both(two_on_check, [job("check", "success", 1)], [job("check", suite=SUITE + 1)])
+    seen, ran = [], merge.tick
+
+    def slow(run):
+        at_both(
+            two_on_check,
+            [job("check", "success", 1)],
+            [job("check", "failure", 3, suite=SUITE + 1)],
+        )
+        until = time.monotonic() + 5
+        while line(two_on_check, "beta")["why"] != FAILED and time.monotonic() < until:
+            time.sleep(0.05)
+        seen.append(line(two_on_check, "beta")["why"])
+        return ran(run)
+
+    monkeypatch.setattr(merge, "tick", slow)
+    two_on_check.set("jmerge.txt", f"{MERGED}\n")
+    said = ticks(two_on_check)
+    assert seen == [FAILED]
+    assert "tick demo: a check ended, and beta's line says so" in said
+    assert said[-1] == "tick demo: a check ended, and jmerge ran"
