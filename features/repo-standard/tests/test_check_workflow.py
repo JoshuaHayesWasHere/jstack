@@ -23,6 +23,7 @@ import pytest
 from repo_standard.cli import main
 from repo_standard.config import parse
 from repo_standard.conform import TAG, UPSTREAM, VERSION
+from repo_standard.plan import ALL, NONE
 from testing.paths import REPO
 
 WORKFLOW = REPO / ".github" / "workflows" / "repo-standard-check.yml"
@@ -489,10 +490,10 @@ def test_the_plan_verb_reads_the_event_and_the_selection_it_is_given(caller, cap
     assert said["parts"] == json.dumps({"1": "tests/test_a.py", "2": "tests/test_b.py"})
     monkeypatch.setenv("GITHUB_EVENT_NAME", "schedule")
     code, said, _ = plan_of(repo, capsys)
-    assert (code, said["run"], said["selection"]) == (0, "true", "all")
+    assert (code, said["run"], said["selection"]) == (0, "true", ALL)
     selection.write_text("")
     code, said, _ = plan_of(repo, capsys, "--selection", str(selection))
-    assert (said["selection"], said["parts"]) == ("none", json.dumps({"1": "none", "2": "none"}))
+    assert (said["selection"], said["parts"]) == (NONE, json.dumps({"1": NONE, "2": NONE}))
 
 
 @pytest.mark.parametrize(
