@@ -750,11 +750,19 @@
   var FLAG = { stall: "stalled", idle: "idle" };
   function wrongKey(w) { return w.kind + "/" + w.subj + "/" + w.cause; }
   function wrongLine(w, where) { return '<a class="wl" data-wrong="' + esc(wrongKey(w)) + '" href="' + esc(w.where.length ? linkOf(w.where[0].open) : href(STACK.projects.length ? STACK.projects[0].name : "", "pulse")) + '"><span><code>' + esc(w.subj) + '</code> ' + esc(w.cause) + (where ? " &middot; " + esc(where) : "") + (ms(w.since) == null ? "" : ' <span class="wa">' + esc(ago(w.since)) + '</span>') + '</span></a>'; }
+  function mapHomes(p) {
+    var root = p.homes.filter(function (h) { return h.name === ""; })[0], all = p.homes.filter(function (h) { return h.name === "uncategorized" && h.health === "none"; });
+    if (!root || !all.length) return p.homes;
+    var c = all[0], sum = {};
+    ["failing", "waiting", "passed", "stacked"].forEach(function (k) { sum[k] = (root.in_check ? root.in_check[k] : 0) + (c.in_check ? c.in_check[k] : 0); });
+    var both = Object.assign({}, root, { open: root.open + c.open, waits: root.waits + c.waits, in_check: sum });
+    return p.homes.filter(function (h) { return h !== c; }).map(function (h) { return h === root ? both : h; });
+  }
   function mapOf() {
     var by = {}, machine = [];
     STACK.projects.forEach(function (p) {
-      var m = by[p.name] = { p: p, homes: {}, lines: {}, flags: {}, said: {}, asks: 0 };
-      p.homes.forEach(function (h) { m.homes[h.name] = h; m.lines[h.name] = []; m.flags[h.name] = []; });
+      var m = by[p.name] = { p: p, shown: mapHomes(p), homes: {}, lines: {}, flags: {}, said: {}, asks: 0 };
+      m.shown.forEach(function (h) { m.homes[h.name] = h; m.lines[h.name] = []; m.flags[h.name] = []; });
     });
     STACK.wrong.forEach(function (w) {
       var at = w.where.length === 1 ? w.where[0] : null, m = at && by[at.project];
@@ -769,7 +777,7 @@
     STACK.projects.forEach(function (p) {
       var m = by[p.name], bad = false, op = false;
       if (p.closed) { closed.push(m); return; }
-      p.homes.forEach(function (h) {
+      m.shown.forEach(function (h) {
         var tone = homeState(h.health)[1];
         if (m.lines[h.name].length || m.flags[h.name].length || m.said[h.name] || tone === "bad") bad = true;
         if (h.name === "" && p.unplaced.length) bad = true;
@@ -803,7 +811,7 @@
     return '<div class="hm' + (root ? " root" : " child") + '" data-home="' + esc(h.name) + '">' + bits.join(" ") + '</div>' + lines.join("");
   }
   function card(m) {
-    return '<section class="card ' + m.tone + '" aria-label="' + esc(m.p.name) + '">' + m.p.homes.map(function (h) { return homeLine(m, h); }).join("") + '</section>';
+    return '<section class="card ' + m.tone + '" aria-label="' + esc(m.p.name) + '">' + m.shown.map(function (h) { return homeLine(m, h); }).join("") + '</section>';
   }
   function renderStack() {
     var map = mapOf();
@@ -908,7 +916,7 @@
     if (t.seen.check && /fail/.test(t.seen.check.state)) add("check failed", "bad");
     if (t.state.kind === "behind") add("behind " + (t.waits_on || (t.blockers[0] && t.blockers[0].what) || "another task"), "plain");
     if (t.unconfirmed) add(t.unconfirmed.since ? "not confirmed since " + hm(ms(t.unconfirmed.since)) : "not confirmed", "gap");
-    if (t.retired) add("home " + t.retired + " retired, so under the root", "plain");
+    if (t.retired) add("home " + t.retired + " retired, so under uncategorized", "plain");
     return out.join(" ");
   }
   var ITEM_WORD = { proposed: "Proposed", approved: "Approved", queued: "Queued", running: "Running", waiting_on_you: "Needs you", held: "Held", done: "Done", dropped: "Dropped" };
@@ -934,11 +942,11 @@
     });
     S.items.filter(function (it) { return ITEM_ROWS[it.state] && !(it.slug && (you[it.slug] || TASK[it.slug] && TASK[it.slug].step !== UNKNOWN.key)); }).forEach(function (it) {
       var at = itemAt(it);
-      rows.push({ key: "item:" + it.id, slug: it.title || it.slug || it.id, home: it.slug && TASK[it.slug] ? TASK[it.slug].home : "", open: "item:" + it.id, rank: it.state === "waiting_on_you" ? 1 : 2, since: at, state: stageName(ITEM_STAGE[it.state]), detail: ITEM_WORD[it.state], holder: it.owner, chips: "", age: at == null ? "" : short(NOW - at) });
+      rows.push({ key: "item:" + it.id, slug: it.title || it.slug || it.id, home: it.slug && TASK[it.slug] ? TASK[it.slug].home : null, open: "item:" + it.id, rank: it.state === "waiting_on_you" ? 1 : 2, since: at, state: stageName(ITEM_STAGE[it.state]), detail: ITEM_WORD[it.state], holder: it.owner, chips: "", age: at == null ? "" : short(NOW - at) });
     });
     (S.threads || []).filter(function (t) { return (t.out || idle(t)) && !(t.slug && known(t.slug)); }).forEach(function (t) {
       var at = ms(t.created) || ms(t.updated);
-      rows.push({ key: "thread:" + t.role + ":" + (t.slug || t.title), slug: t.slug || t.title, home: t.home || "", open: threadAt(t), rank: t.rank, since: at, state: t.role === "home" ? homeState(t.health)[0] : idle(t) ? "Idle" : LIVEWORD[t.live], holder: ROLE[t.role].called, chips: "", age: at == null ? "" : short(NOW - at) });
+      rows.push({ key: "thread:" + t.role + ":" + (t.slug || t.title), slug: t.slug || t.title, home: t.home, open: threadAt(t), rank: t.rank, since: at, state: t.role === "home" ? homeState(t.health)[0] : idle(t) ? "Idle" : LIVEWORD[t.live], holder: ROLE[t.role].called, chips: "", age: at == null ? "" : short(NOW - at) });
     });
     return rows.sort(function (a, b) { return a.rank - b.rank || (a.since == null) - (b.since == null) || a.since - b.since || (a.key < b.key ? -1 : 1); });
   }
@@ -954,7 +962,9 @@
   function byHome(rows, homes) {
     var named = {};
     homes.forEach(function (h) { named[h.name] = 1; });
-    return homes.map(function (h) { return { home: h, rows: rows.filter(function (r) { return (named[r.home] ? r.home : "") === h.name; }) }; });
+    var groups = homes.map(function (h) { return { home: h, rows: rows.filter(function (r) { return (r.home in named ? r.home : "uncategorized") === h.name; }) }; });
+    var kept = groups.filter(function (g) { return g.rows.length || g.home.open || g.home.waits; });
+    return kept.length ? kept : groups.slice(0, 1);
   }
   function homeHead(h) {
     return esc(h.name || "root") + ' <span class="cnt">' + h.open + ' open</span>' + (h.waits ? ' <span class="chip user">' + plural(h.waits, "waits", "wait") + ' on you</span>' : "");

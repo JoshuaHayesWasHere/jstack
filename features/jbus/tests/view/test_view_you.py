@@ -14,9 +14,9 @@ from jbus.view.panels.you import panel as panel_you
 from jbus.view.panels.you.panel import ACTS, ANSWERS, APPROVES, OPENS, THREADS
 from test_jbus_kitchen import GATE as PIPED
 from view.scene import (
+    CATCHALL,
     GATE,
     PULL,
-    ROOT,
     SHELF,
     Scene,
     Served,
@@ -191,7 +191,8 @@ def test_an_item_of_the_list_that_names_a_row_needs_the_user_in_the_row_s_words(
 
 def test_each_need_of_a_row_carries_the_home_of_its_row(scene, served):
     """A need of an item that names a row belongs to a home as every other need does: a row of a
-    scoped home's brief to that home, and a row of a brief with no `Home:` line to the root."""
+    scoped home's brief to that home, and a row of a brief with no `Home:` line to the catch-all,
+    never the root."""
     homed(scene)
     scene.waiting(
         [
@@ -200,7 +201,7 @@ def test_each_need_of_a_row_carries_the_home_of_its_row(scene, served):
         ]
     )
     needs = {one["key"]: one["home"] for one in served.json("/stack.json")["needs"]}
-    assert (needs["row:jam-lid"], needs["approve:tea-kettle"]) == (SHELF, ROOT)
+    assert (needs["row:jam-lid"], needs["approve:tea-kettle"]) == (SHELF, CATCHALL)
 
 
 CLOSED = """# {name}: handoff
