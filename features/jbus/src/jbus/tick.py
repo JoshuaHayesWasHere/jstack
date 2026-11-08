@@ -37,11 +37,10 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import jbus
-from jbus import cancelled, merge, passes, reload, restated, verbs, watch, work
+from jbus import cancelled, merge, passes, reload, restated, verbs, watch
 from jmerge import ready
 from jsettings import budget, store
 
@@ -70,7 +69,7 @@ def _pending(half: Half) -> None:
     stopped asking then would miss the end."""
     world = half.seen.world
     assert world is not None
-    watched, ended = restated.pending(half.run.state), _ended_heads(half.run.state)
+    watched, ended = restated.pending(half.run.state), restated.ended(half.run.state)
     going = []
     for pull in world.open.values():
         number, head = pull["number"], pull.get("headRefOid", "")
@@ -80,21 +79,6 @@ def _pending(half: Half) -> None:
     going.sort(key=lambda one: one["number"])
     if store.read_json(half.run.state / PENDING, None) != going:
         store.write_json(half.run.state / PENDING, going)
-
-
-def _ended_heads(state: Path) -> dict[int, str]:
-    """Return, by number, the head each row's line of a pull request names as one whose checks a
-    verdict said ended (`restated.ENDED`), or nothing for a line that names none. A pull request
-    with no row's line has nothing on the view to keep right, and is not in it."""
-    kept = work.read(state) or {"work": []}
-    found = {}
-    for one in kept["work"]:
-        if not isinstance(one, dict) or one.get("kind") != "row":
-            continue
-        number = str(one.get("pr", "")).removeprefix("#")
-        if number.isdigit():
-            found[int(number)] = str(one.get(restated.ENDED, ""))
-    return found
 
 
 def _ended(run: passes.Pass) -> tuple[str, dict[str, Any]] | None:

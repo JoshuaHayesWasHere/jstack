@@ -160,6 +160,19 @@ def pending(state_dir: Path) -> dict[int, str]:
     }
 
 
+def ended(state_dir: Path) -> dict[int, str]:
+    """Return, by number, the head each row's line of a pull request names as one whose checks a
+    verdict said ended (`ENDED`), or nothing for a line that names none. A pull request with no
+    row's line has nothing on the view to keep right, and is not in it."""
+    kept = read(state_dir) or {"work": []}
+    found = {}
+    for one in kept["work"]:
+        number = str(one.get("pr", "")).removeprefix("#") if _is_row(one) else ""
+        if number.isdigit():
+            found[int(number)] = str(one.get(ENDED, ""))
+    return found
+
+
 def ends(pull: Pull, why: str) -> bool:
     """Whether a run of `jmerge` that judged a pull request `pull` for `why` saw the checks at its
     head end: it merged it, or judged it on the check for a reason only an ended check gives
