@@ -1,12 +1,12 @@
 """`crawl(root) -> Tree`: every feature of `features/`, read once and checked.
 
-A feature is a folder of `features/` with a `feature.json`, a `SKILL.md`, or both. Its
-manifest must validate against `schemas/feature.schema.json` and name its folder, and each path it
-declares must be a file. The crawl finds skills, principles, playbooks and templates where
-they are now and where they will be after a move (`SPOTS`). It assigns each item to the one
-feature that owns the item's path. `plugin.json` must validate against the vendored agent-plugins
-schema and contain pyproject's version. The crawl collects every fault it finds and raises them
-together, in one `Invalid`.
+A feature is a folder of `features/` with a `feature.json`, a `SKILL.md`, or both. Its manifest must
+validate against `schemas/feature.schema.json`, the core schema with jstack's keys, and name its
+folder, and each path it declares must be a file. The crawl finds skills, principles, playbooks and
+templates where they are now and where they will be after a move (`SPOTS`). It assigns each item to
+the one feature that owns the item's path. `plugin.json` must validate against the vendored
+agent-plugins schema and contain pyproject's version. The crawl collects every fault it finds and
+raises them together, in one `Invalid`.
 """
 
 from __future__ import annotations
@@ -266,9 +266,10 @@ def crawl(root: Path) -> Tree:
     """The tree at `root`, after the crawl has checked it. It raises `Invalid` with every fault it
     finds in the tree."""
     faults: list[str] = []
-    rules = _json(root / FEATURE_SCHEMA, faults, root)
-    if rules is None:
-        raise Invalid(faults)
+    try:
+        rules = schema.load(root / FEATURE_SCHEMA)
+    except (OSError, ValueError) as error:
+        raise Invalid([f"{FEATURE_SCHEMA}: {error}"]) from error
     features = []
     for folder in sorted((root / FEATURES).iterdir()) if (root / FEATURES).is_dir() else ():
         if folder.is_dir():
