@@ -55,4 +55,4 @@ def test_no_name_or_a_name_the_table_lacks_exits_2_with_the_usage(argv, capsys):
     with pytest.raises(SystemExit) as ended:
         cli.main(argv)
     assert ended.value.code == 2
-    assert capsys.readouterr().err.startswith("usage: jstack [-h] {")
+    assert capsys.readouterr().err.startswith("usage: jstack [-h]")

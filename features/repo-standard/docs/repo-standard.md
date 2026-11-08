@@ -21,7 +21,7 @@ CI's `lint` job in `.github/workflows/check.yml` runs it there, so the required 
 |---|---|
 | `conform` | Checks every rule of the standard, and exits 1 on an error. |
 | `borders` | Checks the layout's borders and, with a base, that a change touches one feature. |
-| `stale` | Runs each generator with `--check`. |
+| `stale` | Runs each generator in its check mode, which writes nothing. |
 | `docs` | Checks that the docs name only paths and make targets the tree has. |
 | `size` | Checks each file's length against its cap. |
 | `comments` | Checks that code holds no plain comment. |

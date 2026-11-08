@@ -422,3 +422,29 @@ def test_uvx_runs_conform_from_a_tag_of_a_jstack_checkout(repo, tmp_path):
     )
     assert ran.returncode == 0, ran.stdout + ran.stderr
     assert ran.stdout.splitlines()[-1].startswith("conform repo-standard-v1, ")
+
+
+@pytest.mark.parametrize(
+    ("line", "said"),
+    [
+        ("standard: v1\n", "standard is not a whole number"),
+        ("waivers: none\n", "waivers is not a list"),
+        ("waivers:\n  - reason: x\n", "waivers[0] names no rule"),
+        ("waivers:\n  - rule: x\n    reason: y\n    until: z\n", "waivers[0] has until"),
+    ],
+)
+def test_a_config_conform_cannot_read_exits_2_and_says_why(repo, capsys, line, said):
+    edit(repo / ".repo-standard.yml", "standard: 1\n", line)
+    assert main(["conform", "--root", str(repo), "--upstream", ""]) == 2
+    assert said in capsys.readouterr().err
+
+
+def test_python_m_repo_standard_runs_the_command(repo):
+    """`python -m repo_standard`, which `repo_standard.__main__` serves, runs as the command does."""
+    env = {**os.environ, "PYTHONPATH": str(REPO / "features" / "repo-standard" / "src")}
+    command = [sys.executable, "-m", "repo_standard", "conform", "--upstream", ""]
+    ran = subprocess.run(command, cwd=repo, env=env, capture_output=True, text=True)
+    assert (ran.returncode, ran.stdout.splitlines()[-1]) == (
+        0,
+        f"conform repo-standard-v1, {len(BREAKS)} rules: errors 0, warnings 0, waived 0",
+    )
