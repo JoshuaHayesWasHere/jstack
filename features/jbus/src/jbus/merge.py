@@ -127,10 +127,13 @@ def _failed(run: Pass, why: str) -> None:
     )
 
 
-def _sent(run: Pass, ran: subprocess.CompletedProcess[str]) -> Said:
+def _sent(
+    run: Pass, ran: subprocess.CompletedProcess[str], read: dict[int, str] | None = None
+) -> Said:
     """Send each line a run of `jmerge` printed about a pull request, once for its key, and
     return them. The run restates each line it judged, and logs as a quiet `work-drift` each one
-    the merge tick restated otherwise (`restated.pulled`)."""
+    the merge tick restated otherwise (`restated.pulled`), with the heads the merge tick read
+    (`read`) where it ran it."""
     lines = Said()
     for text in map(str.strip, ran.stdout.splitlines()):
         line = parse(text)
@@ -143,7 +146,7 @@ def _sent(run: Pass, ran: subprocess.CompletedProcess[str]) -> Said:
             alert.deliver(run, f"alert: {run.project.name}: {unfollowed}")
     lines.failed = bool(ran.returncode)
     lines.at = restated.moment(verbs.clock())
-    for key, what in restated.pulled(run.state, verdicts(lines), lines.at):
+    for key, what in restated.pulled(run.state, verdicts(lines), lines.at, read):
         run.box.send(key, "work-drift", f"work-drift {key}: {what}")
     return lines
 
@@ -168,9 +171,10 @@ def verdicts(lines: Said) -> dict[int, tuple[work.Pull, str]]:
     return found
 
 
-def tick(run: Pass) -> Said:
+def tick(run: Pass, read: dict[int, str]) -> Said:
     """Run `jmerge` for the merge tick (`jbus.tick`), send its lines as `merge` does, and return
-    them, `failed` where it did not run to its end.
+    them, `failed` where it did not run to its end. `read` is the head the tick read of each
+    pull request it watches, by number, which a line whose checks the run saw end names.
 
     It runs with `--if-free`, as the pass does, so a run of the pass's under way makes it do
     nothing. It leaves the `jmerge` streak alone for a run that ended, failed or not: the tick runs
@@ -182,7 +186,7 @@ def tick(run: Pass) -> Said:
     ran = run.run(*RUN, timeout=JMERGE_TIMEOUT)
     if isinstance(ran, proc.TimedOut):
         _failed(run, lines_of.said(ran))
-    return _sent(run, ran)
+    return _sent(run, ran, read)
 
 
 def _shown(half: Half) -> None:

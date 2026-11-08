@@ -57,7 +57,7 @@ def runs(kitchen):
 
 
 def asked(kitchen):
-    return [call for call in kitchen.log("gh") if call.startswith(f"api {tick.CHECK_RUNS % HEAD}")]
+    return [call for call in kitchen.log("gh") if call.startswith(f"api {tick.CHECK_RUNS % 7}")]
 
 
 def going(kitchen, state=None):
@@ -187,7 +187,7 @@ def test_a_jmerge_that_fails_leaves_the_ended_run_to_the_next_tick(watched):
 
 
 def test_a_tick_that_dies_before_jmerge_ends_loses_no_merge(watched, monkeypatch):
-    def dies(run):
+    def dies(run, read):
         raise KeyboardInterrupt
 
     ran = merge.tick
@@ -281,9 +281,9 @@ def before_jmerge(monkeypatch, kitchen):
     """Keep #7's line of `work.json` as it is when the tick starts `jmerge`."""
     seen, ran = [], merge.tick
 
-    def tick_of(run):
+    def tick_of(run, read):
         seen.append(line(kitchen))
-        return ran(run)
+        return ran(run, read)
 
     monkeypatch.setattr(merge, "tick", tick_of)
     return seen
@@ -421,24 +421,28 @@ def test_a_rollup_that_says_passed_before_its_check_appears_keeps_the_pull_reque
     assert len(asked(on_check)) == before + 1
 
 
-def test_the_pass_drops_a_head_once_the_tick_had_its_verdict(on_check):
+def test_a_rows_pull_request_stays_watched_after_its_verdict_so_a_later_push_reaches_the_tick(
+    on_check,
+):
+    """#7's check failed, and the tick and `jmerge` both said so. The pass after keeps watching
+    #7 all the same, since a row's line names it: while nothing changes at its head a tick costs
+    a 304 and runs no `jmerge`. A head pushed later reaches the next tick, with no pass
+    between."""
     check_ended(on_check, 1, "failure")
-    on_check.set("jmerge.txt", f"{RUNNING}\n")
+    on_check.set("jmerge.txt", f"wait 7 {PULL}: {ready.CHECK_FAILED.format(check='check')}\n")
     ticks(on_check)
     on_check.set("open.json", [on_check.opened("alpha", 7, "FAILURE")])
     on_check.poll()
-    assert watching(on_check) == []
-
-
-def test_the_pass_drops_a_head_once_jmerge_had_its_verdict(on_check):
-    """The pass runs `jmerge` before it reads the rollup, so a `jmerge` that saw the check fail
-    lets the same pass stop watching #7, and one that still sees it running keeps it."""
-    on_check.set("open.json", [on_check.opened("alpha", 7, "FAILURE")])
-    on_check.poll()
     assert watching(on_check) == [{"number": 7, "head": HEAD}]
-    on_check.set("jmerge.txt", f"wait 7 {PULL}: {ready.CHECK_FAILED.format(check='check')}\n")
-    on_check.poll()
-    assert watching(on_check) == []
+    ran = runs(on_check)
+    assert ticks(on_check) == []
+    assert runs(on_check) == ran and "If-None-Match: " in asked(on_check)[-1]
+    later = "d" * 40
+    on_check.set("open.json", [{**on_check.opened("alpha", 7, None), "headRefOid": later}])
+    on_check.set("push-runs.json", {later: [{"id": 101, "name": "check", "check_suite_id": 12}]})
+    on_check.set("check-runs.json", {later: [job("check", "failure", 30, suite=12)]})
+    assert ticks(on_check)[-1] == "tick demo: a check ended, and jmerge ran"
+    assert (line(on_check)["why"], line(on_check)[restated.ENDED]) == (FAILED, later)
 
 
 def test_a_verdict_jmerge_gives_before_it_reads_the_checks_keeps_the_head(on_check):
@@ -499,7 +503,7 @@ def test_the_tick_runs_only_while_a_pass_saw_a_check_going_and_starts_within_2_s
     said = kitchen.poll()
     assert json.loads((kitchen.state / tick.PENDING).read_text()) == []
     assert timer(kitchen) == "inactive"
-    assert "tick: no pull request has checks going, so jbus-merge.timer stops" in said
+    assert "tick: the tick watches no pull request, so jbus-merge.timer stops" in said
     kitchen.poll()
     assert [call for call in switched(kitchen) if "is-active" not in call] == [
         "--user stop jbus-merge.timer"
@@ -541,7 +545,7 @@ def test_a_pass_whose_stop_the_manager_refuses_says_so_and_the_next_pass_stops_i
     assert "tick: systemctl --user stop jbus-merge.timer failed: Failed to connect to bus" in said
     assert timer(manager) == "active"
     (manager.stub / "refused.txt").unlink()
-    assert "tick: no pull request has checks going, so jbus-merge.timer stops" in manager.poll()
+    assert "tick: the tick watches no pull request, so jbus-merge.timer stops" in manager.poll()
     assert timer(manager) == "inactive"
 
 
@@ -566,7 +570,7 @@ def test_a_head_pushed_and_failed_between_two_passes_gets_the_ticks_failed(pushe
     """The pass never saw #7's head `HEAD` going: it was pushed, and its check failed, between two
     passes, and the pass's own `jmerge` was busy. The pass keeps the head for the tick all the
     same, since #7's line names no verdict at it, and the tick's next read puts `failed` on the
-    line before its `jmerge` runs, after which the pass lets the head go."""
+    line before its `jmerge` runs, and the pass keeps watching #7, a row's pull request."""
     pushed.set("jmerge-busy", "")
     pushed.poll()
     assert watching(pushed) == [{"number": 7, "head": HEAD}]
@@ -579,14 +583,14 @@ def test_a_head_pushed_and_failed_between_two_passes_gets_the_ticks_failed(pushe
     assert said == (FAILED, "failed", HEAD)
     assert (line(pushed)["why"], line(pushed)[restated.ENDED]) == (FAILED, HEAD)
     pushed.poll()
-    assert watching(pushed) == []
+    assert watching(pushed) == [{"number": 7, "head": HEAD}]
 
 
 def test_a_drafts_head_pushed_and_failed_between_two_passes_gets_the_ticks_verdict(pushed):
     """#7 is a draft, which `jmerge` holds on the Result step whatever its checks say, so no run of
     `jmerge` names their end on its line. The pass that first sees the failed head keeps it for the
-    tick, whose read of the failed job names the head as ended on the line, after which the pass
-    lets the head go."""
+    tick, whose read of the failed job names the head as ended on the line, and the pass keeps
+    watching #7, a row's pull request."""
     pushed.set("jmerge.txt", f"wait 7 {PULL}: {ready.HAND_DRAFT}\n")
     pushed.poll()
     assert watching(pushed) == [{"number": 7, "head": HEAD}]
@@ -594,7 +598,7 @@ def test_a_drafts_head_pushed_and_failed_between_two_passes_gets_the_ticks_verdi
     ticks(pushed)
     assert (line(pushed)["facts"]["pull"], line(pushed)[restated.ENDED]) == ("result", HEAD)
     pushed.poll()
-    assert watching(pushed) == []
+    assert watching(pushed) == [{"number": 7, "head": HEAD}]
 
 
 OTHER = "e" * 40
@@ -639,7 +643,7 @@ def test_the_tick_reads_on_while_its_jmerge_runs(two_on_check, monkeypatch):
     at_both(two_on_check, [job("check", "success", 1)], [job("check", suite=SUITE + 1)])
     seen, ran = [], merge.tick
 
-    def slow(run):
+    def slow(run, read):
         at_both(
             two_on_check,
             [job("check", "success", 1)],
@@ -649,7 +653,7 @@ def test_the_tick_reads_on_while_its_jmerge_runs(two_on_check, monkeypatch):
         while line(two_on_check, "beta")["why"] != FAILED and time.monotonic() < until:
             time.sleep(0.05)
         seen.append(line(two_on_check, "beta")["why"])
-        return ran(run)
+        return ran(run, read)
 
     monkeypatch.setattr(merge, "tick", slow)
     two_on_check.set("jmerge.txt", f"{MERGED}\n")
@@ -672,12 +676,12 @@ def test_a_read_that_fails_while_jmerge_runs_still_keeps_that_runs_merge(two_on_
         failed.append(run)
         raise OSError("tick.json: no space left on device")
 
-    def slow(run):
+    def slow(run, heads):
         monkeypatch.setattr(tick, "_read", fails)
         until = time.monotonic() + 5
         while not failed and time.monotonic() < until:
             time.sleep(0.05)
-        return ran(run)
+        return ran(run, heads)
 
     monkeypatch.setattr(merge, "tick", slow)
     two_on_check.set(
@@ -692,3 +696,24 @@ def test_a_read_that_fails_while_jmerge_runs_still_keeps_that_runs_merge(two_on_
     two_on_check.poll(NOW + timedelta(minutes=1))
     told = [one for one in sends(two_on_check) if one["threadId"] == crew["threadId"]]
     assert len(told) == 1 and "skills: crew." in told[0]["message"]
+
+
+def test_a_head_pushed_after_the_passs_read_is_read_by_the_next_tick(pushed):
+    """The pass read #7 at an older head, and kept it for the tick. `HEAD` is pushed after that
+    read, and its check fails before the next pass. The tick, which the timer runs every 2 s
+    while #7 is pending, asks for the check runs at #7's head as it is now, not at the head the
+    pass saw, so its next read puts `failed` on the line at `HEAD`, with no pass between."""
+    pushed.set("jmerge.txt", f"wait 7 {PULL}: {ready.CHECK_FAILED.format(check='check')}\n")
+    assert ticks(pushed)[0] == "tick demo: a check ended, and alpha's line says so"
+    assert (line(pushed)["why"], line(pushed)[restated.ENDED]) == (FAILED, HEAD)
+
+
+def test_a_head_whose_rollup_lists_no_checks_yet_stays_pending(on_check):
+    """#7's head was just pushed, and GitHub lists no check at it yet: the pass keeps it for the
+    tick, which reads its first job within 2 s of GitHub listing it."""
+    on_check.set("open.json", [{**on_check.opened("alpha", 7), "statusCheckRollup": []}])
+    on_check.poll()
+    assert watching(on_check) == [{"number": 7, "head": HEAD}]
+    assert ticks(on_check) == []
+    check_ended(on_check, 1, "failure")
+    assert ticks(on_check)[0] == "tick demo: a check ended, and alpha's line says so"
