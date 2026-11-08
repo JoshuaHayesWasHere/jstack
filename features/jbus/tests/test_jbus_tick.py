@@ -657,3 +657,40 @@ def test_the_tick_reads_on_while_its_jmerge_runs(two_on_check, monkeypatch):
     assert seen == [FAILED]
     assert "tick demo: a check ended, and beta's line says so" in said
     assert said[-1] == "tick demo: a check ended, and jmerge ran"
+
+
+def test_a_read_that_fails_while_jmerge_runs_still_keeps_that_runs_merge(
+    two_on_check, monkeypatch
+):
+    """A read of the tick's fails while its `jmerge` runs: the tick lets that run end and keeps
+    what it said before the failure goes on, since `jmerge` prints its `merged` line once, so a
+    merge that changed a skill still reaches the next pass's `reload.tell`."""
+    monkeypatch.setattr(tick, "EVERY", 0.05)
+    at_both(two_on_check, [job("check", "success", 1)], [job("check", suite=SUITE + 1)])
+    crew = two_on_check.t3.thread("alpha")
+    failed, ran, read = [], merge.tick, tick._read
+
+    def fails(run):
+        failed.append(run)
+        raise OSError("tick.json: no space left on device")
+
+    def slow(run):
+        monkeypatch.setattr(tick, "_read", fails)
+        until = time.monotonic() + 5
+        while not failed and time.monotonic() < until:
+            time.sleep(0.05)
+        return ran(run)
+
+    monkeypatch.setattr(merge, "tick", slow)
+    two_on_check.set(
+        "jmerge.txt", 'merged 7 alpha abc1234def5 "a skill", skills changed: crew, revert: x\n'
+    )
+    said = []
+    with pytest.raises(OSError, match="no space left"):
+        tick.tick(jbus.load(), said.append)
+    assert failed and said[-1] == "tick demo: a check ended, and jmerge ran"
+    monkeypatch.setattr(tick, "_read", read)
+    two_on_check.set("jmerge.txt", "")
+    two_on_check.poll(NOW + timedelta(minutes=1))
+    told = [one for one in sends(two_on_check) if one["threadId"] == crew["threadId"]]
+    assert len(told) == 1 and "skills: crew." in told[0]["message"]
