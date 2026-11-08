@@ -7,8 +7,12 @@ judged again on a later pass.
 Like `test_jbus_github.py`, the tests run the real pass against the fakes."""
 
 import json
+from datetime import timedelta
+
+import pytest
 
 from test_jbus_github import failed, launched, passes, pull, sends
+from test_jbus_kitchen import NOW
 from test_jbus_queue import go, rows
 
 __all__ = ["launched"]
@@ -186,3 +190,50 @@ def test_twice_judges_a_head_whose_log_github_does_not_give_again_on_a_later_pas
     red_at(launched, A, "11", main=RED)
     passes(launched, 3)
     assert json.loads((launched.state / "fails.json").read_text())["alpha"]["red"] == [A]
+
+
+TEST = "features/x/test_x.py::test_x"
+
+
+def red_elsewhere(kitchen, branches):
+    """`jbus ci`'s ledger: `TEST` failed an hour ago on each of `branches`, with no runner fault in
+    the log and no red main to blame."""
+    at = (NOW - timedelta(hours=1)).isoformat().replace("+00:00", "Z")
+    job = {
+        "event": "pull_request",
+        "kind": "local",
+        "conclusion": "failure",
+        "steps": 3,
+        "created": at,
+        "started": at,
+        "completed": at,
+        "sha": "e" * 40,
+        "tests": [TEST],
+        "signs": [],
+        "attempt": 1,
+        "name": "check",
+    }
+    jobs = [{**job, "run": at, "job": 900 + at, "branch": one} for at, one in enumerate(branches)]
+    kitchen.state.mkdir(parents=True, exist_ok=True)
+    (kitchen.state / "ci.jsonl").write_text("".join(json.dumps(one) + "\n" for one in jobs))
+
+
+@pytest.mark.parametrize(
+    ("branches", "held"),
+    [(("beta", "gamma"), False), (("beta",), True), (("alpha", "beta"), True)],
+    ids=["shared-with-two-branches", "one-other-branch", "its-own-branch"],
+)
+def test_twice_counts_a_red_only_where_its_failed_tests_are_not_a_flake_of_two_other_branches(
+    launched, branches, held
+):
+    """2026-11-07: #1219 and #1220 were held for a clock-bound test that failed the same way on
+    #1218, #1219 and #1220. A head whose failed tests all failed on two other branches in the
+    window is a flake by `jbus ci`'s rule and is not counted; a test that failed on one other
+    branch alone, or on the row's own, is the pull request's red, and two of them hold it."""
+    red_elsewhere(launched, branches)
+    red_at(launched, A, "11")
+    passes(launched, 0)
+    red_at(launched, B, "12")
+    passes(launched, 3, 6)
+    assert bool(rows(launched)["alpha"].get("held")) is held
+    assert len(pages(launched)) == int(held)
