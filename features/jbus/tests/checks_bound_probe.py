@@ -25,18 +25,22 @@ head, each with the ETag it last saw, so a 304, which is every answer but the on
 spends none of the API allowance. It asks
 once for each workflow run it has not seen, for the workflow's name: about four counted calls a
 head. It watches the directory of `work.json` with inotify and keeps the moment each write changed
-the line whose `pr` is the pull request.
+the line whose `pr` is the pull request, with the line as it then was, and the moment that line
+first had the pull request.
 
 A round is one head whose required checks the probe saw going and then settled, where jmerge's
 verdict is settled too (`round_end`): at the end of its first failed required job, or at the end
 of its last required job. A job of a workflow no required check names, such as `browser`, does not
 count. Its end is a `completed_at`, which GitHub gives to the second, and its delay is the first
-change of the row's line after that end.
-A round whose line did not change within `--wait` seconds counts as none. A push starts the next
-round, and a head whose checks had settled when the probe first saw them makes no round: a probe
-started then records the next head's. `--rounds` is the count of rounds it records. It prints each
-round as it ends and appends it as one JSON line to `--out`, then prints the rounds, p50 and max in
-seconds.
+change of the row's line after that end that names the head as ended (`ENDED`), the write of the
+verdict on it. A write that names another head or none, such as a pass's at its start, is not the
+round's end: on a draft only the merge tick writes it (sa-checks-bound-measure-8).
+A round whose line did not name its head within `--wait` seconds counts as none. A push starts
+the next round. A head whose checks had settled when the probe first saw them makes no round, and
+neither does one whose checks ended before the row's line had the pull request: a probe started
+then, or before the row was linked, records the next head's. `--rounds` is the count of rounds it
+records. It prints each round as it ends and appends it as one JSON line to `--out`, then prints
+the rounds, p50 and max in seconds.
 """
 
 from __future__ import annotations
@@ -54,6 +58,7 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
+from jbus.restated import ENDED
 from jmerge.checks import NOT_RED
 from jmerge.ready import required_of
 
@@ -111,11 +116,14 @@ _RUN_URL = re.compile(r"/actions/runs/(\d+)/job/")
 
 
 class Line:
-    """The moments the row's line of `work.json` changed, from inotify on its directory."""
+    """The moments the row's line of `work.json` changed, each with the line as it then was, from
+    inotify on its directory, and `since`, the first moment the probe saw a line of the pull
+    request, None while it has seen none."""
 
     def __init__(self, work: Path, pr: int):
         self.work, self.pr, self.changed = work, pr, []
         self.last = self.read()
+        self.since = time.time() if self.last else None
         libc = ctypes.CDLL("libc.so.6", use_errno=True)
         self.fd = libc.inotify_init1(os.O_NONBLOCK)
         assert (
@@ -140,7 +148,13 @@ class Line:
             now = self.read()
             if now != self.last:
                 self.last = now
-                self.changed.append((at, (now or {}).get("value", "")))
+                self.changed.append((at, now or {}))
+                if now and self.since is None:
+                    self.since = at
+
+    def named(self, head: str, ended: float) -> list[tuple[float, dict]]:
+        """The changes since `ended` whose line names `head` as ended, with a verdict on it."""
+        return [(at, now) for at, now in self.changed if at >= ended and now.get(ENDED) == head]
 
 
 def main() -> int:
@@ -186,14 +200,14 @@ def main() -> int:
             end = round_end(runs or [], workflow_of, required)
             if runs and end is None:
                 going.add(sha)
-            elif end and sha not in going:
+            elif end and (sha not in going or line.since is None or line.since > end[0]):
                 done.add(sha)
             elif end:
                 ended, verdict = end
                 until = time.time() + args.wait
-                while time.time() < until and not [at for at, _ in line.changed if at >= ended]:
+                while time.time() < until and not line.named(sha, ended):
                     time.sleep(0.05)
-                after = [(at, value) for at, value in line.changed if at >= ended]
+                after = [(at, now.get("value", "")) for at, now in line.named(sha, ended)]
                 delay = after[0][0] - ended if after else None
                 delays.append(delay)
                 done.add(sha)

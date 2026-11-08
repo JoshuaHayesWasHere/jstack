@@ -126,48 +126,115 @@ class GitHub:
         raise AssertionError(f"the probe never asked GitHub for {path}")
 
 
+class Probe:
+    """The probe, run against the stand-in GitHub and a `work.json` the test writes.
+
+    GitHub gives a job's end to the second, so a test waits a second after the row's line first
+    has the pull request before it ends a head: an end floored to the second could otherwise come
+    before it, and the probe would rightly record no round."""
+
+    def __init__(self, tmp_path: Path):
+        self.github = GitHub(tmp_path / "gh")
+        self.work = tmp_path / "jbus" / "work.json"
+        self.work.parent.mkdir()
+        self.required = tmp_path / "required-checks"
+        self.required.write_text("check\n")
+        self.out = tmp_path / "rounds.jsonl"
+
+    def line(self, says: str, ended: str = "") -> None:
+        """Write the row's line of pull request #7 saying `says`, naming `ended` as ended."""
+        self.work.write_text(
+            json.dumps(
+                {"work": [{"pr": "#7", "value": says, **({"ended": ended} if ended else {})}]}
+            )
+        )
+
+    def no_line(self) -> None:
+        """Write a `work.json` whose row has no pull request yet."""
+        self.work.write_text(json.dumps({"work": [{"key": "a-task", "value": "under way"}]}))
+
+    def start(self) -> None:
+        self.run = subprocess.Popen(
+            [
+                sys.executable,
+                str(Path(__file__).with_name("checks_bound_probe.py")),
+                *("--repo", "o/r", "--pr", "7", "--work", str(self.work), "--wait", "10"),
+                *("--required", str(self.required), "--out", str(self.out)),
+            ],
+            env={
+                **os.environ,
+                "PATH": f"{self.github.folder / 'bin'}{os.pathsep}{os.environ['PATH']}",
+                "PROBE_GH": str(self.github.folder),
+            },
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+
+    def rounds(self) -> tuple[list[dict], str]:
+        """The rounds the probe recorded once it stopped, and what it printed."""
+        try:
+            said, _ = self.run.communicate(timeout=20)
+        finally:
+            self.run.kill()
+        return [json.loads(one) for one in self.out.read_text().splitlines()], said
+
+
 def test_a_probe_started_after_a_head_settled_records_the_next_heads_round(tmp_path):
     """On #1264 the probe started after head 1's checks had settled, and recorded nothing."""
-    github = GitHub(tmp_path / "gh")
-    work = tmp_path / "jbus" / "work.json"
-    work.parent.mkdir()
-    (tmp_path / "required-checks").write_text("check\n")
-
-    def line(says: str) -> None:
-        work.write_text(json.dumps({"work": [{"pr": "#7", "value": says}]}))
-
-    line("checks passed")
-    github.head("aaa", int(time.time()) - 60)
-    out = tmp_path / "rounds.jsonl"
-    probe = subprocess.Popen(
-        [
-            sys.executable,
-            str(Path(__file__).with_name("checks_bound_probe.py")),
-            *("--repo", "o/r", "--pr", "7", "--work", str(work), "--wait", "10"),
-            *("--required", str(tmp_path / "required-checks"), "--out", str(out)),
-        ],
-        env={
-            **os.environ,
-            "PATH": f"{github.folder / 'bin'}{os.pathsep}{os.environ['PATH']}",
-            "PROBE_GH": str(github.folder),
-        },
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-    )
-    try:
-        github.asked("repos/o/r/commits/aaa/check-runs")
-        github.head("bbb", None)
-        github.asked("repos/o/r/commits/bbb/check-runs")
-        ended = int(time.time())
-        github.head("bbb", ended)
-        time.sleep(1.5)
-        line("checks passed at bbb")
-        said, _ = probe.communicate(timeout=20)
-    finally:
-        probe.kill()
-    rounds = [json.loads(one) for one in out.read_text().splitlines()]
+    probe = Probe(tmp_path)
+    probe.line("checks passed", "aaa")
+    probe.github.head("aaa", int(time.time()) - 60)
+    probe.start()
+    probe.github.asked("repos/o/r/commits/aaa/check-runs")
+    probe.github.head("bbb", None)
+    probe.github.asked("repos/o/r/commits/bbb/check-runs")
+    time.sleep(1.1)
+    probe.github.head("bbb", int(time.time()))
+    time.sleep(1.5)
+    probe.line("checks passed at bbb", "bbb")
+    rounds, said = probe.rounds()
     assert [(one["head"], one["verdict"], one["says"]) for one in rounds] == [
         ("bbb", "passed", "checks passed at bbb")
     ], said
+    assert 1 <= rounds[0]["delay"] < 5, said
+
+
+def test_a_round_ends_at_the_first_write_that_names_its_head_as_ended(tmp_path):
+    """On #1271, 8 of 12 failed rounds were timed to a pass's write at its start, which named no
+    verdict, before the tick had read the head at all (sa-checks-bound-measure-8)."""
+    probe = Probe(tmp_path)
+    probe.line("checks running", "aaa")
+    probe.github.head("bbb", None)
+    probe.start()
+    probe.github.asked("repos/o/r/commits/bbb/check-runs")
+    time.sleep(1.1)
+    probe.github.head("bbb", int(time.time()))
+    time.sleep(1.2)
+    probe.line("pass started", "aaa")
+    time.sleep(1.5)
+    probe.line("checks passed at bbb", "bbb")
+    rounds, said = probe.rounds()
+    assert [(one["head"], one["says"]) for one in rounds] == [("bbb", "checks passed at bbb")], said
+    assert 2.5 <= rounds[0]["delay"] < 6, said
+
+
+def test_a_round_that_ended_before_the_line_had_the_pull_request_is_not_recorded(tmp_path):
+    """On #1271 round 1 counted the 14 s before the row's line had `pr #1271` at all."""
+    probe = Probe(tmp_path)
+    probe.no_line()
+    probe.github.head("bbb", None)
+    probe.start()
+    probe.github.asked("repos/o/r/commits/bbb/check-runs")
+    probe.github.head("bbb", int(time.time()) - 1)
+    time.sleep(1.5)
+    probe.line("checks passed at bbb", "bbb")
+    time.sleep(1.1)
+    probe.github.head("ccc", None)
+    probe.github.asked("repos/o/r/commits/ccc/check-runs")
+    probe.github.head("ccc", int(time.time()))
+    time.sleep(1.5)
+    probe.line("checks passed at ccc", "ccc")
+    rounds, said = probe.rounds()
+    assert [(one["head"], one["says"]) for one in rounds] == [("ccc", "checks passed at ccc")], said
     assert 1 <= rounds[0]["delay"] < 5, said
