@@ -1253,7 +1253,9 @@ class Units:
         goes, as a tip of the green copy that adds a unit leaves it, services first: the move
         runs it so a unit main adds runs with no install. A machine where the install linked
         none of these units has none added. Return the units it added; a second call finds
-        each linked and adds none."""
+        each linked and adds none. When the manager refuses a step, the link and the wanted
+        link of each unit not yet enabled are taken back before the refusal is raised, so the
+        next call adds that unit again."""
         if not self._ours(machine):
             return []
         on, _ = self._split(machine)
@@ -1262,10 +1264,20 @@ class Units:
         for name in new:
             machine.make_dirs(self._wanted(machine, name).parent)
             machine.link(self.directory / name, self._template(machine, name))
-        if new:
-            self._systemctl(machine, "daemon-reload")
-        for name in new:
-            self._systemctl(machine, "enable", "--now", name)
+        enabled = []
+        try:
+            if new:
+                self._systemctl(machine, "daemon-reload")
+            for name in new:
+                self._systemctl(machine, "enable", "--now", name)
+                enabled.append(name)
+        except Refused:
+            for name in new[len(enabled) :]:
+                template = self._template(machine, name)
+                for path in (self._wanted(machine, name), self.directory / name):
+                    if points_at(path, template):
+                        machine.unlink(path)
+            raise
         return new
 
     def restart(self, machine: Machine) -> None:

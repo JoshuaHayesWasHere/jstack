@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from jinstall.kinds import Found, State, Units, restart, stale, unit_templates
+from jinstall.kinds import Found, State, Units, restart, stale, unit_templates, wanted_by
 from jinstall.machine import Machine, Ran, Refused
 from testing.paths import REPO
 
@@ -29,6 +29,8 @@ class Manager:
         self.refuses = ""
         self.restarted = []
         self.changed = []
+        self.refuses_enable = ""
+        self.units = home / ".config" / "systemd" / "user"
 
     def __call__(self, args):
         if list(args[:2]) != ["systemctl", "--user"]:
@@ -44,6 +46,13 @@ class Manager:
             started = self.starts.get(asked[-1], self.started)
             at = started.strftime("%a %Y-%m-%d %H:%M:%S.%f UTC")
             return Ran(0, f"ActiveState={self.state}\nActiveEnterTimestamp={at}\n")
+        if asked[0] == "enable":
+            template = unit_templates(REPO)[asked[-1]]
+            wanted = self.units / f"{wanted_by(template)}.wants" / asked[-1]
+            if not wanted.is_symlink():
+                wanted.symlink_to(template)
+            if self.refuses_enable:
+                return Ran(1, f"{self.refuses_enable}\n")
         if asked[0] in ("daemon-reload", "enable"):
             self.changed.append(" ".join(asked))
             return Ran(0, "")
@@ -157,3 +166,27 @@ def test_add_links_enables_and_starts_each_unit_with_no_link_once_services_first
     assert manager.changed == ["daemon-reload", f"enable --now {FOLLOWER}", f"enable --now {new}"]
     assert need.add(machine) == []
     assert len(manager.changed) == 3
+
+
+def test_add_after_an_enable_the_manager_refused_links_enables_and_starts_the_unit_again(
+    machine,
+):
+    """sa-follow-add-retries-enable: an enable the manager refused left the unit's link, so each
+    later add found it linked and added nothing, and the follower stayed stopped. The refusal is
+    said, and the next add links, enables and starts the unit again."""
+    machine, manager = machine
+    units = machine.home / ".config" / "systemd" / "user"
+    units.mkdir(parents=True)
+    templates = unit_templates(REPO)
+    timer = min(name for name in templates if name.endswith(".timer"))
+    (units / timer).symlink_to(templates[timer])
+    need = Units(units, (FOLLOWER, timer), (FOLLOWER, timer), machine.home / "none")
+    manager.refuses_enable = "Failed to enable unit: Access denied"
+    with pytest.raises(Refused, match=f"enable --now {FOLLOWER}: Failed to enable"):
+        need.add(machine)
+
+    manager.refuses_enable = ""
+    assert need.add(machine) == [FOLLOWER]
+    assert (units / FOLLOWER).readlink() == templates[FOLLOWER]
+    assert manager.changed[-2:] == ["daemon-reload", f"enable --now {FOLLOWER}"]
+    assert need.add(machine) == []

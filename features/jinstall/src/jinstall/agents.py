@@ -226,7 +226,9 @@ class Agents:
 
     def add(self, machine: Machine) -> list[str]:
         """Write and bootstrap each agent that is on and has no plist, services first, where the
-        install wrote a plist here. Return the units it added; a second call adds none."""
+        install wrote a plist here. Return the units it added; a second call adds none. When
+        launchd refuses a bootstrap, that agent's plist is taken back before the refusal is
+        raised, so the next call adds it again."""
         if not self._ours(machine):
             return []
         on, _ = self._split(machine)
@@ -236,7 +238,11 @@ class Agents:
             machine.make_dirs(launchd.log(machine.home, agent.label).parent)
             machine.write_text(self._path(agent), self._text(machine, agent), PLIST_MODE)
             if self._loaded(machine, agent) is False:
-                self._launchctl(machine, "bootstrap", machine.gui(), str(self._path(agent)))
+                try:
+                    self._launchctl(machine, "bootstrap", machine.gui(), str(self._path(agent)))
+                except Refused:
+                    machine.unlink(self._path(agent))
+                    raise
         return [agent.unit for agent in new]
 
     def drop(self, machine: Machine) -> Dropped:

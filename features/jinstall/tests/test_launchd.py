@@ -21,7 +21,7 @@ from jbus.launchd import STARTED, TIMED_OUT, label
 from jinstall import agents, launchd
 from jinstall.__main__ import doctor, install, setup, uninstall
 from jinstall.kinds import unit_templates
-from jinstall.machine import Machine, Ran
+from jinstall.machine import Machine, Ran, Refused
 from jinstall.needs import units
 from test_install import ALWAYS, User, line_for
 from testing.paths import REPO
@@ -322,6 +322,38 @@ def test_add_writes_and_bootstraps_an_agent_main_added_once(mac):
     before = len(mac.calls("bootstrap"))
     assert need.add(mac.machine()) == []
     assert len(mac.calls("bootstrap")) == before
+
+
+def test_add_after_a_bootstrap_launchd_refused_writes_and_bootstraps_the_agent_again(mac):
+    """sa-follow-add-retries-enable: a bootstrap launchd refused left the agent's plist, so each
+    later add found it written and added nothing. The refusal is said, and the next add writes
+    and bootstraps the agent again."""
+    mac.with_jbus()
+    need = units(mac.machine())
+    setup(mac.machine())
+    follower = mac.plist("jbus-follow.service")
+    (mac.loaded / follower.stem).unlink()
+    follower.unlink()
+    real = mac.stub / "launchctl.real"
+    (mac.stub / "launchctl").rename(real)
+    refuse = mac.stub.parent / "refuse"
+    refuse.write_text("")
+    mac.write(
+        mac.stub / "launchctl",
+        f"""#!/bin/sh
+[ "$1" = bootstrap ] && [ -e {refuse} ] && echo "Bootstrap failed: 5: I/O error" && exit 5
+exec {real} "$@"
+""",
+    )
+    (mac.stub / "launchctl").chmod(0o755)
+
+    with pytest.raises(Refused, match="bootstrap .*: Bootstrap failed: 5"):
+        need.add(mac.machine())
+    refuse.unlink()
+    assert need.add(mac.machine()) == ["jbus-follow.service"]
+    assert follower.is_file()
+    assert mac.calls("bootstrap")[-1] == f"bootstrap {GUI} {follower}"
+    assert need.add(mac.machine()) == []
 
 
 def test_an_agent_with_no_start_marker_or_with_no_jbus_is_not_stale(mac):
