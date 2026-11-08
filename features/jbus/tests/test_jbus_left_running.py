@@ -15,6 +15,7 @@ import tempfile
 import time
 from datetime import timedelta
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -198,6 +199,29 @@ def test_a_temporary_folder_the_crews_session_made_counts(kitchen, tmp_path, str
         assert os.readlink(f"/proc/{stray[0]}/cwd").endswith(" (deleted)")
     kitchen.poll()
     assert not alive(stray[0])
+
+
+def test_a_pass_reads_the_slots_folder_once_however_many_tasks_and_processes(
+    kitchen, tmp_path, stray, monkeypatch
+):
+    """2026-11-08: `owns` read `jgauge.slot.locks_dir()` again for each task and process, 1.3 s
+    of a pass with 1670 tasks and 126 orphans on the user's machine (go-speed)."""
+    ended_crew(kitchen, tmp_path)
+    for slug in ("beta", "gamma"):
+        add(kitchen, slug)
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    stray += [orphan(elsewhere, "sleep", "60") for _ in range(3)]
+    read = []
+
+    def locks_dir():
+        read.append(1)
+        return tmp_path / "locks"
+
+    monkeypatch.setattr(strays, "slot", SimpleNamespace(locks_dir=locks_dir))
+    kitchen.poll()
+    assert len(read) == 1
+    assert all(alive(pid) for pid in stray)
 
 
 def test_a_process_outside_the_crews_folders_is_never_touched(kitchen, tmp_path, stray):

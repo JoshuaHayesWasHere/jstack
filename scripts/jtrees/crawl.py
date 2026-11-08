@@ -29,10 +29,11 @@ SKILL = "SKILL.md"
 # The paths no feature owns: the repo's own build, CI, generator, lints and tests, and the entry
 # points a user or a harness looks for where they are (INFRA); and the shared files the
 # generator writes or a later unit deletes (SHARED-DELETE). This list lives here and not in a
-# manifest, since a feature owns its folder and nothing else. Each row outside lint-borders.py's
-# LAYOUT is a path that may stay outside it.
+# manifest, since a feature owns its folder and nothing else. The `owners` of .repo-standard.yml,
+# which the borders guard reads, are the same list, and test_lint_borders.py holds them equal.
 REPO_OWNERS: dict[str, tuple[str, ...]] = {
     "INFRA": (
+        ".repo-standard.yml",
         ".github/**",
         ".gitignore",
         "LICENSE",
@@ -296,15 +297,3 @@ def tracked(root: Path) -> list[str]:
     return sorted(
         {one for one in listed.stdout.decode().split("\0") if one and (root / one).exists()}
     )
-
-
-def borders(tree: Tree, paths: list[str]) -> tuple[list[str], dict[str, tuple[str, ...]]]:
-    """The paths with no owner, and those with more than one, by their owners."""
-    unowned, twice = [], {}
-    for path in paths:
-        owners = tree.owners(path)
-        if not owners:
-            unowned.append(path)
-        elif len(owners) > 1:
-            twice[path] = owners
-    return unowned, twice
