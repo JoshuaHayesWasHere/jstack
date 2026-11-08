@@ -15,7 +15,7 @@ import jbus
 import jsettings
 from jbus import leftover, prereview, threads, view
 from test_jbus_kitchen import NOW
-from test_jbus_queue import add
+from test_jbus_queue import add, brief, go
 from test_jbus_row_ends import PULL, column, listed, result, sends
 from test_work import judged
 from view.scene import Served
@@ -34,6 +34,7 @@ def home(kitchen, scope="", **more):
     thread = kitchen.t3.thread("demo", "completed", title=f"home: demo {scope}".strip(), **more)
     where = kitchen.home / scope
     where.mkdir(exist_ok=True)
+    (where / "plan.md").write_text("# a plan\n")
     (where / "home-id").write_text(thread["threadId"] + "\n")
     return thread
 
@@ -313,6 +314,30 @@ def test_a_scoped_homes_brief_goes_to_that_scope_by_its_name_or_its_thread(kitch
         "gamma": root["threadId"],
         "delta": root["threadId"],
     }
+
+
+def test_a_child_made_before_its_thread_takes_its_row_and_is_told_once_its_home_id_is_written(
+    kitchen,
+):
+    """The root home makes a child with its `plan.md` and launches its thread, and queues a row
+    for it at once: the row is the child's before its thread has written its `home-id`."""
+    root = home(kitchen)
+    (kitchen.home / "uncategorized").mkdir()
+    (kitchen.home / "uncategorized" / "plan.md").write_text("# demo, uncategorized: plan\n")
+    text = brief("alpha").replace("Home: root\n", "Home: uncategorized\n")
+    argv = ["--project", "demo", "queue", "add", "alpha", "--priority", "1"]
+    code, said = kitchen.main(
+        *argv, "--from", root["threadId"], "--for", "uncategorized", stdin=text
+    )
+    assert code == 0, said
+    assert go(kitchen, "alpha")[0] == 0
+    kitchen.t3.thread("alpha", "completed")
+    kitchen.brief("alpha", "Home: uncategorized\n" + result("the docs"))
+    kitchen.poll()
+    assert sends(kitchen) == []
+    child = home(kitchen, "uncategorized")
+    kitchen.poll(later(50))
+    assert [one["threadId"] for one in sends(kitchen)] == [child["threadId"]]
 
 
 def test_a_message_t3_code_does_not_take_is_sent_on_the_next_pass(kitchen):

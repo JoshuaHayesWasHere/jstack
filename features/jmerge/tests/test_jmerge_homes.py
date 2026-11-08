@@ -26,6 +26,7 @@ def kitchen(tmp_path):
     (state / "home-thread").unlink()
     (state / "home-id").write_text(f"{ROOT}\n")
     (state / "flow").mkdir()
+    (state / "flow" / "plan.md").write_text("# a plan\n")
     (state / "flow" / "home-id").write_text(f"{SCOPED}\n")
     kitchen.crew("root-task", 6, {"a.txt": "ours\n" + LINES}, checks=(AFTER,))
     kitchen.crew("fl-task", 7, {"b.txt": LINES + "ours\n"}, checks=(AFTER,))

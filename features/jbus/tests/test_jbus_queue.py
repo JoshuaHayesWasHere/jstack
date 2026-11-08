@@ -41,6 +41,7 @@ def kitchen(tmp_path, monkeypatch):
     made = Kitchen(tmp_path, monkeypatch)
     made.word()
     (made.home / "flow").mkdir()
+    (made.home / "flow" / "plan.md").write_text("# a plan\n")
     (made.home / "flow" / "home-id").write_text("mcp:flow-home\n")
     yield made
     made.close()

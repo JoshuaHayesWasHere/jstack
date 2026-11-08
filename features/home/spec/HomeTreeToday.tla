@@ -92,7 +92,7 @@ GetsStuck(k) ==
 \* The root or Josh retires a child: the scope's handoff archives it, whatever it has out, and
 \* starts no home after it. It lists what `jbus out --scope` says the scope has out, removes its
 \* home-id and moves its plan out, so the scope is no home and every brief of it is the
-\* catch-all's, `uncategorized` (jbriefs/home.py `if (now or was) and not archived(one):`): the
+\* catch-all's, `uncategorized` (jbriefs/home.py `sorted(state.glob("*/plan.md"))`): the
 \* catch-all's watch, the root's thread while it stands in, covers that work from then on, and
 \* a child with nothing out is just retired. With the hand-over dropped, a child archived with
 \* work out leaves it with no home.

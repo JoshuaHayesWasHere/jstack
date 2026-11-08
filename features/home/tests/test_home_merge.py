@@ -804,8 +804,10 @@ def test_a_home_that_asks_sees_its_own_pull_requests(home, case):
     if listed:
         (home.state / "home-id").write_text(f"{listed}\n")
     (home.state / "second").mkdir()
+    (home.state / "second" / "plan.md").write_text("# a plan\n")
     (home.state / "second" / "home-id").write_text(f"{ME}\n")
     (home.state / "third").mkdir()
+    (home.state / "third" / "plan.md").write_text("# a plan\n")
     (home.state / "third" / "home-id").write_text(f"{OTHER}\n")
     if was:
         (home.state / "handoff.md").write_text(f"# a handoff\n\nWas home: {was}\n")
@@ -962,6 +964,7 @@ def test_another_homes_pull_request_is_left_by_a_home_and_merged_by_jbus(merged)
     )
     theirs = merged.home.state / "second" / "plan.md"
     theirs.parent.mkdir()
+    (theirs.parent / "plan.md").write_text("# a plan\n")
     theirs.write_text(PLAN)
     (theirs.parent / "home-id").write_text(f"{OTHER}\n")
     merged.plan.write_text("# a demo repo: plan\n")
