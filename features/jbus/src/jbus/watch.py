@@ -463,11 +463,21 @@ def task_brief(run: Pass, slug: str) -> str:
 
 
 def brief_of(run: Pass, slug: str) -> str:
+    """Return the slug's brief under the home's `tasks/`, else its queued brief, or nothing. A
+    brief this pass read before is served from `run.briefs` while its mtime and size are those
+    it had then, so a brief written since is read again."""
     for path in (run.home / "tasks" / f"{slug}.md", run.state / "briefs" / f"{slug}.md"):
         try:
-            return path.read_text(errors="replace")
+            seen = path.stat()
+            key = (seen.st_mtime_ns, seen.st_size)
+            kept = run.briefs.get(path)
+            if kept and kept[0] == key:
+                return kept[1]
+            text = path.read_text(errors="replace")
         except OSError:
             continue
+        run.briefs[path] = (key, text)
+        return text
     return ""
 
 
@@ -1091,11 +1101,11 @@ def watch(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
             line = f"stale {slug}: thread {thread['threadId']} is archived with no Result"
             run.find(slug, "stale", line, key=f"{thread['threadId']} archived")
     for slug, pull in world.merged.items():
-        if slug in run.gated or not brief_of(run, slug):
+        if slug in run.gated or not (brief := brief_of(run, slug)):
             continue
         commit = (pull.get("mergeCommit") or {}).get("oid", "")
         line = f"merged {slug} #{pull['number']} {commit[:12]}"
-        result = last_result(brief_of(run, slug))
+        result = last_result(brief)
         run.find(slug, "merged", line, result, key=f"#{pull['number']}", past=True)
     for nightly in watched(run):
         _nightly_red(run, nightly)

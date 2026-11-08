@@ -228,7 +228,10 @@ def test_a_blocker_past_its_cap_stops_and_gives_one_decision_event(demo):
     assert "delta-fix-3" not in shown and "delta-fix-4" not in shown
     (line,) = [one for one in posted(demo) if "check:delta" in one]
     assert line.startswith("decision delta-fix-3: check:delta had 2 fixes")
-    assert 'Reply: "demo check:delta: I take it"' in line
+    assert (
+        "Reply: reply in your own words to take check:delta on yourself or say what to do instead"
+        in line
+    )
 
 
 def test_the_cap_is_the_one_jsettings_names(demo):
@@ -313,7 +316,10 @@ def test_a_fix_at_work_is_waited_on_one_removed_unrun_gives_its_try_back_and_a_c
     assert fifth.returncode == 1
     assert "row:mu had 2 fixes (mu-fix-3, mu-fix-4)" in fifth.stdout + fifth.stderr
     (line,) = [one for one in posted(demo) if "row:mu had" in one]
-    assert 'Reply: "demo row:mu: I take it"' in line
+    assert (
+        "Reply: reply in your own words to take row:mu on yourself or say what to do instead"
+        in line
+    )
 
 
 def test_a_batch_of_fixes_past_the_cap_queues_none_and_counts_none(demo):
@@ -335,7 +341,10 @@ def test_a_batch_of_fixes_past_the_cap_queues_none_and_counts_none(demo):
 
 
 def test_a_scope_change_raised_by_hand_is_one_decision_with_its_reply(demo):
-    question = "--question 'add a second sign-in to the plan?' --reply 'scope: yes, add it'"
+    question = (
+        "--question 'add a second sign-in to the plan?' "
+        "--reply 'reply in your own words to add the sign-in or say what to do instead'"
+    )
 
     first = run(demo, f"jbus decide alpha {question}")
     again = run(demo, f"jbus decide alpha {question}")
@@ -344,7 +353,8 @@ def test_a_scope_change_raised_by_hand_is_one_decision_with_its_reply(demo):
     assert first.stdout == "raised: alpha: add a second sign-in to the plan?\n"
     assert again.stdout == "raised already: alpha: add a second sign-in to the plan?\n"
     assert posted(demo) == [
-        'decision alpha: add a second sign-in to the plan?. Reply: "demo scope: yes, add it"'
+        "decision alpha: add a second sign-in to the plan?. Reply: "
+        "reply in your own words to add the sign-in or say what to do instead"
     ]
 
 
@@ -403,4 +413,7 @@ def test_a_fix_whose_own_check_failed_is_not_at_work_and_the_next_try_then_the_c
     assert "try 2 of 2" in second
     assert capped.startswith("decision check:rho: check:rho had 2 fixes"), capped
     (line,) = [one for one in posted(demo) if "check:rho had" in one]
-    assert 'Reply: "demo check:rho: I take it"' in line
+    assert (
+        "Reply: reply in your own words to take check:rho on yourself or say what to do instead"
+        in line
+    )

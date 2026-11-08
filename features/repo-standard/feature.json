@@ -1,8 +1,12 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "repo-standard",
-  "description": "The standard a repo's layout, feature map and docs hold to, with the jstack file that enforces each rule.",
+  "description": "The standard a repo's layout, feature map and docs hold to, and the guards any repo runs from its .repo-standard.yml to hold them.",
+  "packages": [
+    "src/repo_standard"
+  ],
   "docs": [
-    "docs/standard.md"
+    "docs/standard.md",
+    "docs/guards.md"
   ]
 }

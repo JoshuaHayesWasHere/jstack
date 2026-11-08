@@ -50,7 +50,8 @@ For each such row, it holds the `Left:` text, the home's thread, when jbus told 
 It keeps an item by the rule that raises a decision and wakes a home with it (`blockers.needs`).
 That rule keeps a gate that holds, a gate with no default or one that names a door, a go gate whose silence starts nothing, a row with no go, a pull request `jmerge` holds for your word and a setup only you can give.
 
-Each item is one line with what it holds, then its fail-safe where it has one, then the reply that answers it: `answer: say "<project> question <n>: default", or say what to do instead`.
+Each item is one line with what it holds, then its fail-safe where it has one, then a plain hint for your reply: `answer: reply in your own words to keep the default (<default, cut short>) or say what to do instead`.
+You reply to the home in your own words, and the home turns them into the verb: nothing here is a line to send as it is.
 
 A row a home can clear by itself is left out, such as a row at `gate` or a leftover its home still has.
 A refused go is left out too: most refusals are a sha that did not match, and the home tries again by itself.

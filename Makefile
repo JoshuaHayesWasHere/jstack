@@ -1,7 +1,9 @@
 # The one check command: the lint commands the README lists, and its test command on
-# several workers. CI runs it on main after each merge, and `check-fast` on a pull request.
-# Neither runs the tests marked `browser`, which open a real browser: `check-browser` runs
-# those, on a nightly and on a release (.github/workflows/browser.yml).
+# several workers. CI runs it on main after each merge. On a pull request CI runs `make lint`,
+# and `make test` on the files scripts/select_tests.py picks, in eight parts side by side
+# (.github/workflows/check.yml). Neither runs the tests marked `browser`, which open a real
+# browser: `check-browser` runs those, on a nightly and on a release
+# (.github/workflows/browser.yml).
 
 # The tests run on this many workers (pytest-xdist), counted from the processors the run may
 # use. One core bounds the suite, so workers are what make a run short. A run's processors are
@@ -51,8 +53,9 @@ TEST_WORKERS ?= $(shell n=$$(($(or $(strip $(CORES)),2) * $(PER_CORE))); [ "$$n"
 unexport NEW_LINES_PART
 PYTEST = $(if $(NEW_LINES_PART),NEW_LINES_PART='$(NEW_LINES_PART)' PYTHONPATH='$(CURDIR)/features/repo-guards/ran'$${PYTHONPATH:+:$$PYTHONPATH} )uv run pytest$(if $(NEW_LINES_PART), -p part_lines) -n $(TEST_WORKERS) --dist worksteal --durations=25 -m "not browser"$(if $(JUNIT), --junitxml=$(JUNIT))$(if $(SHARD), --shard=$(SHARD))
 
-# The lint of `check` and `check-fast`. comment_lint.py only warns; generate-jstack-trees.py fails
-# a stale generated file, and check-jstack-docs.py a doc that says what the tree does not have.
+# The lint of `check` and `check-fast`. comment_lint.py only warns; the repo standard's `stale`
+# guard runs each generator of .repo-standard.yml with --check and fails a stale generated file, and
+# check-jstack-docs.py fails a doc that says what the tree does not have.
 # pyrefly type-checks each feature's src at the settings of [tool.pyrefly] in pyproject.toml, and
 # fails on an error. The paths are given here, not in that table: pyrefly's default excludes
 # drop every path under a dot directory, which a worktree such as ~/.t3/worktrees/... sits in.
@@ -61,7 +64,7 @@ BASE ?= origin/main
 .PHONY: lint
 lint:
 	git diff -z --name-only --diff-filter=d '$(BASE)...HEAD' -- 2> /dev/null | xargs -0 -r python3 features/writing/scripts/comment_lint.py || true
-	python3 scripts/generate-jstack-trees.py --check
+	PYTHONPATH=features/repo-standard/src python3 -m repo_standard stale
 	python3 scripts/check-jstack-docs.py
 	uv run ruff check .
 	uv run ruff format --check .

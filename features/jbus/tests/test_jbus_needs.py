@@ -1,11 +1,13 @@
 """`jbus needs` prints what waits on the user, for one project or for all: each item with what it
-holds and the reply that answers it, and nothing a home can clear by itself.
+holds and a plain hint for the reply (`jbus.blockers.reply`), and nothing a home can clear by
+itself.
 
 Like `test_jbus_kitchen.py`, the tests run the real commands and the real pass against a faked T3
 Code server, `gh` and `jmerge`. Nothing reaches the network.
 """
 
 import json
+import re
 from datetime import timedelta
 
 import pytest
@@ -42,7 +44,8 @@ def test_an_open_gate_that_holds_is_listed_with_what_it_holds_and_the_reply_that
         "waiting on user: 1, in demo",
         "demo question 1: drop the old branch, it holds (deletes data) for your answer",
         "  fail-safe: the dry-run in /tmp/gone.txt",
-        '  answer: say "demo question 1: default", or say what to do instead',
+        "  answer: reply in your own words to keep the default (the first one) or say what "
+        "to do instead",
     ]
 
 
@@ -57,10 +60,48 @@ def test_a_row_awaiting_the_users_word_and_a_held_pull_request_are_listed(kitche
     assert said[0] == "waiting on user: 2, in demo"
     assert said[1].startswith(f"demo approve unsaid: {command}")
     assert said[1].endswith(", a row with no approval of its brief")
-    assert said[2] == '  answer: say "demo approve unsaid: go", or say what to do instead'
+    assert said[2] == (
+        "  answer: reply in your own words to give unsaid its go or say what to do instead"
+    )
     assert said[3:] == [
         f"demo {HOLDS}, a pull request jmerge holds for your word",
-        '  answer: say "demo #9: merge it", or say what to do instead',
+        "  answer: reply in your own words to merge #9 or say what to do instead",
+    ]
+
+
+def test_nothing_needs_prints_or_a_decision_says_gives_the_user_words_to_send(kitchen):
+    """Each item ends in a plain hint: the user replies in their own words, and the home turns
+    them into a verb. A `say "..."` line is what a home copied to the user as words to send."""
+    kitchen.config(max_running=6)
+    kitchen.quiet()
+    kitchen.brief("alpha")
+    assert kitchen.main("gate", "alpha", stdin=held())[0] == 0
+    sc = scoped(kitchen, "sc")
+    asked = GATE.format(n=1, asked="drop the old rows?", status="open", slug="home")
+    (sc / "gates.md").write_text(asked.replace("Option:", "Holds: deletes data\nOption:", 1))
+    add(kitchen, "unsaid", approve=False)
+    kitchen.brief("held", RESULT)
+    kitchen.set("open.json", [kitchen.opened("held", 9)])
+    kitchen.set("jmerge.txt", HOLDS + "\n")
+    kitchen.poll()
+    kitchen.poll(AFTER)
+    said = needs(kitchen)
+    decided = kitchen.lines("decision")
+    assert len([one for one in said if one.startswith("  answer: ")]) == 4, said
+    assert len(decided) == 4, decided
+    for line in [*said, *decided]:
+        assert 'say "' not in line, line
+        assert not re.search(r"(?:question \d+: default|gate [\w#]*\d+: hold it)", line), line
+        assert not re.search(r"(?:#\d+: merge it|approve [\w-]+: go)", line), line
+
+
+def test_a_decision_raised_by_hand_carries_the_homes_hint_as_it_is(kitchen):
+    kitchen.quiet()
+    hint = "reply in your own words to add the sign-in or say what to do instead"
+    asked = ("decide", "alpha", "--question", "add a second sign-in to the plan?", "--reply", hint)
+    assert kitchen.main(*asked) == (0, "raised: alpha: add a second sign-in to the plan?\n")
+    assert kitchen.lines("decision") == [
+        f"decision alpha: add a second sign-in to the plan?. Reply: {hint}"
     ]
 
 

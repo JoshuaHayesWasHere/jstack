@@ -21,7 +21,7 @@ SCRIPT = "scripts/generate-jstack-trees.py"
 sys.path.insert(0, str(REPO / "scripts"))
 
 jtrees = importlib.import_module("jtrees.crawl")
-Invalid, borders, crawl, tracked = jtrees.Invalid, jtrees.borders, jtrees.crawl, jtrees.tracked
+Invalid, crawl, tracked = jtrees.Invalid, jtrees.crawl, jtrees.tracked
 
 
 def generate(root, *args):
@@ -362,8 +362,8 @@ def test_a_tree_that_breaks_a_rule_is_refused_with_its_fault_and_nothing_is_writ
 
 
 def test_every_file_of_the_checkout_has_exactly_one_owner():
-    unowned, twice = borders(crawl(REPO), tracked(REPO))
-    assert (unowned, twice) == ([], {})
+    tree = crawl(REPO)
+    assert [(path, owners) for path in tracked(REPO) if len(owners := tree.owners(path)) != 1] == []
 
 
 def test_an_owner_is_the_feature_folder_or_a_repo_row(copy):

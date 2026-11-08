@@ -352,6 +352,11 @@ def under(path: str, folder: Path) -> bool:
     return path == str(folder) or path.startswith(f"{folder}/")
 
 
+def within(proc: Proc, places: tuple[Path, ...]) -> bool:
+    """Whether the process works in, or names, a path under one of the folders."""
+    return any(under(one, place) for one in proc.paths for place in places)
+
+
 def temp() -> tuple[Path, ...]:
     """The temporary folders: /tmp, /var/tmp and the folder of jgauge's test slots, whose own
     TMPDIR each slot's command gets."""
@@ -392,11 +397,10 @@ def _asked(path: Path) -> str:
     return ""
 
 
-def scout_of(proc: Proc, checkout: Path) -> str:
-    """The slug of the scout whose session started the process under the main checkout or a
-    temporary folder, or nothing."""
-    places = (checkout, *temp())
-    if not any(under(one, place) for one in proc.paths for place in places):
+def scout_of(proc: Proc, checkout: Path, made: bool) -> str:
+    """The slug of the scout whose session started the process under the main checkout or, where
+    `made`, a temporary folder, or nothing."""
+    if not made and not within(proc, (checkout,)):
         return ""
     kept = transcript(proc, checkout)
     asked = _asked(kept) if kept else ""
@@ -408,9 +412,9 @@ def scout_of(proc: Proc, checkout: Path) -> str:
     return found[1] if found else ""
 
 
-def owns(task: Task, proc: Proc) -> bool:
-    """Whether the process is one the task's crew or reviewers left."""
-    made = any(under(one, place) for one in proc.paths for place in temp())
+def owns(task: Task, proc: Proc, made: bool) -> bool:
+    """Whether the process is one the task's crew or reviewers left, where `made` says it works
+    under a temporary folder."""
     for folder in task.folders:
         if any(under(one, folder) for one in proc.paths):
             return True
@@ -490,13 +494,15 @@ def stop(run: Pass, out: list[threads.Out], rows: Iterable[queue.Row]) -> None:
     if not left:
         _note(run, {})
         return
+    places = temp()
+    made = {one.pid: within(one, places) for one in left}
     claimed: dict[tuple[str, str], list[Proc]] = {}
     for task in tasks(run, out, rows):
-        claimed[("crew", task.slug)] = [one for one in left if owns(task, one)]
+        claimed[("crew", task.slug)] = [one for one in left if owns(task, one, made[one.pid])]
     taken = {one.pid for found in claimed.values() for one in found}
     at_work = working(out)
     for one in left:
-        slug = "" if one.pid in taken else scout_of(one, run.project.checkout)
+        slug = "" if one.pid in taken else scout_of(one, run.project.checkout, made[one.pid])
         if slug and ("scout", slug) not in at_work:
             claimed.setdefault(("scout", slug), []).append(one)
     scouts = (one for (role, _), found in claimed.items() if role == "scout" for one in found)

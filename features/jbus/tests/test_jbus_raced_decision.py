@@ -95,7 +95,7 @@ def test_a_gate_that_holds_is_raised_in_the_pass_that_lists_it(kitchen):
     kitchen.poll(later(10))
     assert decisions(kitchen, "alpha") == [
         "decision alpha: question 1: which one, it holds (deletes data) for your answer. "
-        'Reply: "demo question 1: default"'
+        "Reply: reply in your own words to keep the default (the first) or say what to do instead"
     ]
 
 

@@ -203,7 +203,7 @@ BEFORE = {
             (
                 "decision",
                 "decision config: run jbus t3 login, jbus lacks a setup only you can give. "
-                'Reply: "demo config: I set it up"',
+                "Reply: set it up, then say so in your own words",
             ),
         ],
     ),

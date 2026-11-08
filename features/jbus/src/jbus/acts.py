@@ -14,8 +14,9 @@ the act's id and its `subject`, so the feed (`jbus.cursor`) gives events and act
   runs), from a party the door does not open for (`party.opens`), approves nothing. It parks a
   gate that holds for the user instead (`questions.park`), and the act is `gated`. The user's
   own go later closes that gate, on words said of the row or its gate after its brief was
-  stored (`_unbound`): words that name it, or a plain reply in a home's thread to the home's ask
-  that named it (`t3.home_ask`); other words of the user's are `refused`.
+  stored (`_unbound`): a plain reply in a home's thread to the home's ask that named this door
+  and no other (`t3.home_ask`, `t3.asks`), or words that name it themselves; other words of the
+  user's are `refused`.
 - A go whose row's go already holds for that brief is a `noop`.
 - An answer to a gate that holds, from a party the door does not open for, or on words of the
   user's that are not said of the gate or its row, as above, or came before it, is `refused`,
@@ -45,7 +46,6 @@ import hashlib
 import hmac
 import json
 import os
-import re
 import secrets
 import sys
 from collections.abc import Callable
@@ -94,18 +94,21 @@ GO_OPTIONS = {
 """The option of `jbus queue approve` that each source `--evidence` may spell is."""
 GO_GATE = "may {slug} go? Its brief holds for {case}"
 _GO_GATE_HOLDS = "keeps the go of {slug}, whose brief holds for {cases}"
+ASK_PLAINLY = "ask {user} about {item} alone, in plain words, and pass their reply"
+"""What a home does with a door jbus did not open: it puts this one item to the user in its own
+words, and the user replies in theirs. Nobody is handed words to send."""
 HELD_ANSWER = (
-    "It closes with jbus answer {number} --default --message <thread id>/<message id>, or "
-    "--differs for an answer that is not the default, where the message is {user}'s own in T3 "
-    "Code: --by and --at cannot close it"
+    ASK_PLAINLY + ": it closes with jbus answer {number} --default --message <thread id>/"
+    "<message id>, or --differs for an answer that is not the default, where the message is "
+    "{user}'s own in T3 Code: --by and --at cannot close it"
 )
-"""How a held question closes, said with its refusal so a home hands the user one command."""
+"""How a held question closes, said with its refusal."""
 OPENS = (
-    "jbus queue approve {slug} --sha {sha} --message <thread>/<message>, on {user}'s own message "
-    "in T3 Code that names {slug} and was said after its brief was stored, opens it"
+    ASK_PLAINLY + ": jbus queue approve {slug} --sha {sha} --message <thread>/<message>, on "
+    "{user}'s own reply in T3 Code said after its brief was stored, opens it"
 )
-"""The command that opens a door row, which every line of a go that does not open it names. A
-message the user already sent that names the row is enough: nobody is asked to send another."""
+"""How a door row opens, which every line of a go that does not open it says. A reply the user
+already sent about the row is enough: nobody is asked to send another."""
 UNCHECKED_USER = (
     "refused: --as user acts on the user's own words that jbus reads itself, --message "
     "<thread>/<message> or --pick <thread>/<item>, and this act has {source} words"
@@ -272,7 +275,7 @@ def _go(
     if action.doors and not party.opens(who, said):
         number = _park(run, who, action, said, text or "")
         opens = OPENS.format(
-            slug=slug, sha=judgement.brief_sha(text or "")[:12], user=run.user.user
+            slug=slug, sha=judgement.brief_sha(text or "")[:12], user=run.user.user, item=slug
         )
         line = (
             f"gated {slug}: its brief holds for {', '.join(action.doors)}, so it waits for "
@@ -290,7 +293,7 @@ def _go(
             sha = judgement.brief_sha(text or "")[:12]
             line = (
                 f"refused: {slug}'s brief holds for {', '.join(action.doors)}, and {unbound}: "
-                + OPENS.format(slug=slug, sha=sha, user=run.user.user)
+                + OPENS.format(slug=slug, sha=sha, user=run.user.user, item=slug)
             )
             return action, "refused", line, None
     try:
@@ -327,8 +330,8 @@ def _answer(run: Pass, who: Party, action: Action, said: Evidence, keeps: bool, 
         )
         line = (
             f"refused: question {number} {why}: only {run.user.user}'s own word, read in T3 "
-            "Code, answers it, so it stays open. "
-            + HELD_ANSWER.format(number=number, user=run.user.user)
+            "Code, answers it, so it stays open: "
+            + HELD_ANSWER.format(number=number, user=run.user.user, item=f"question {number}")
         )
         return action, "refused", line, number
     if action.doors and asked is not None:
@@ -344,9 +347,9 @@ def _answer(run: Pass, who: Party, action: Action, said: Evidence, keeps: bool, 
         if unbound:
             line = (
                 f"refused: question {number} holds for {', '.join(action.doors)}, and {unbound}: "
-                f"jbus answer {number} --message <thread>/<message>, on {run.user.user}'s own "
-                f"message in T3 Code that names {asked.slug} or question {number} and was said "
-                f"after {what}, closes it"
+                + ASK_PLAINLY.format(user=run.user.user, item=f"question {number}")
+                + f": jbus answer {number} --message <thread>/<message>, on their own reply in "
+                f"T3 Code said after {what}, closes it"
             )
             return action, "refused", line, number
     try:
@@ -391,19 +394,12 @@ def _unbound(
     """Why the user's own words do not open a door for this row, or nothing where they do: they
     are said of the door, and were said no earlier than the minute of `since`, when `what` says
     the brief was stored or the question asked. Words are said of the door when they name the
-    row's slug (`queue.names`) or one of its gates by its number, as `question 3`, `gate 3`, `q3`
-    or `#3` (a number alone may count anything), or when they are a plain reply in a home's
-    thread to the home's ask about the row or the gate as `question 3` (`_answers`). An
-    older message, or one about something else, was not said of this door."""
+    row's slug or one of its gates by its number, in the forms a person writes (`t3.names`: a
+    number alone may count anything), or when they are a plain reply in a home's thread to the
+    home's ask that named this door and no other (`_answers`). An older message, or one about
+    something else, was not said of this door."""
     kind = "pick" if said.source == "t3-pick" else "message"
-    named = (
-        queue.names(said.words, slug)
-        or any(
-            re.search(rf"(?:\bquestion\s+|\bgate\s+|\bq\s*|#){number}(?![\w.-])", said.words, re.I)
-            for number in numbers
-        )
-        or _answers(run, said, slug, numbers)
-    )
+    named = t3.names(said.words, slug, numbers) or _answers(run, said, slug, numbers)
     if not named:
         gate = f"question {numbers[0]}" if what.startswith("question") else "its gate"
         return f'{kind} {said.ref} ("{said.words}") names neither {slug} nor {gate}'
@@ -422,15 +418,28 @@ def _unbound(
 def _answers(run: Pass, said: Evidence, slug: str, numbers: list[int]) -> bool:
     """Whether the user's own message is a plain reply to a home's ask about this door: the last
     message the home wrote in that thread before it (`t3.home_ask`, as `jbus waive` reads it)
-    asks about the row's slug or one of its gates as `question <n>`, in the part of it about
-    them (`t3.asks`). A message in no home's thread, one that is not the user's own
-    (`t3.own`), or one before any ask, answers none."""
+    names the row's slug or one of its gates, and no other open door (`t3.asks`, on `_doors`).
+    A message in no home's thread, one that is not the user's own (`t3.own`), or one before any
+    ask, answers none."""
     try:
         _, ask = t3.home_ask(run.config, run.home, run.project.name, said.ref)
     except Refused:
         return False
-    others = queue.known(run.state) | {one.stem for one in (run.home / "tasks").glob("*.md")}
-    return t3.asks(ask.text, slug, numbers, others - {slug})
+    return t3.asks(ask.text, slug, numbers, _doors(run))
+
+
+def _doors(run: Pass) -> dict[str, set[int]]:
+    """The doors open now: each open gate that holds or is a row's go gate (`_may_go`), under its
+    row's slug, and each row with no go whose brief holds for a door (`party.doors`), with none
+    where it has no such gate."""
+    doors: dict[str, set[int]] = {}
+    for one in questions.read(run.state):
+        if one.answer is None and (one.holds or _may_go(one)):
+            doors.setdefault(one.slug, set()).add(one.number)
+    for row in queue.load(run.state):
+        if not row.get("approved") and party.doors(queue.brief(run.state, row["slug"]) or ""):
+            doors.setdefault(row["slug"], set())
+    return doors
 
 
 def _stale(run: Pass, slug: str, seen: str) -> str:
@@ -467,14 +476,15 @@ def _park(run: Pass, who: Party, action: Action, said: Evidence, text: str) -> i
             f"Default: {slug} waits, with no go and no launch",
             "Built on it: nothing, since no thread launched",
             f"Undo: nothing to undo; jbus queue approve {slug} --sha {shown} --message "
-            f"<thread>/<message>, on {user}'s own message in T3 Code that names {slug}, opens it",
+            f"<thread>/<message>, on {user}'s own reply in T3 Code to an ask about {slug} "
+            "alone, opens it",
             f"Holds: {case}",
             f"Fail-safe: the brief, stored at {queue.brief_path(run.state, slug)}, unlaunched",
             f"Context: the {who.kind} gave the go on {said.source} {said.ref}, and a door "
             f"opens only on {user}'s own word that jbus reads in T3 Code{also}",
             f"Option: wait (default, recommended): {slug} stays unlaunched",
-            f"Option: go: {user}'s own message in T3 Code names {slug}, jbus queue approve "
-            "records it, and the next pass launches it",
+            f"Option: go: {user} says so in their own words, jbus queue approve records it, "
+            "and the next pass launches it",
         )
     )
     one, _ = questions.park(run, slug, lines)
