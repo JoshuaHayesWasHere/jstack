@@ -7,6 +7,10 @@
    A brief a scout wrote is already there: check that its `Home:` line is as this says and that its `Size:` line is its plan entry's size, set each if not, and go to step 2.
 
    Its `Proves it:` line, under the "Done when" list, names what outside the agent shows the task is done: a test or a command, a metric, a dataset, an external judge or the user. `jbus queue add` queues no brief whose line names only the crew, the crewmate, the reviewer, the agent, the model or a review, or is empty, and a launch checks it again.
+   A crewmate's desk check is the crew skill's touched check, `make check-fast BASE=<base> PART=touched`: the lint and the test files the branch adds or edits.
+   The whole suite, `make check-fast BASE=origin/main` with no `PART=` or `make check`, is CI's check on the pull request, never a desk step a brief asks for: it holds a full test slot for about 9 minutes, and CI runs it again.
+   Write the line to name the touched check and the test the task adds, as `Proves it: the touched check passes, with the test the task adds, <its test file>`.
+   `jbus queue add` warns of a brief whose `Proves it:` or **Done when** runs the whole suite at the desk, and queues it all the same: a task about the suite itself may need the whole run.
 
    Each **Done when** line ends with the file it lands in, the one its goal needs changed, as ``(in `<path>`)``, or `(in none)` where it changes no file.
    A line that lands outside **Where**, or under **Do not touch**, is not this brief's: widen **Where** when the file is this change's, and otherwise move the line to a follow-up brief with a `Follows: <slug>` line, queued with `jbus queue add`, where it is approved on this row's go.
@@ -14,7 +18,7 @@
    `jbus queue add` refuses such a line and warns of a line with no marker.
 
    A **Done when** line that asks for the check names it as "the check command (`$H/fresh-check`)", never as a literal `make check`: the crewmate runs the command `fresh-check` names, once, or, in a repo whose check selects its tests, the lint and the tests its change touches, and CI's check runs it whole.
-   `jbus queue add` prints a line that begins ``warning: <slug>'s brief's Done when: asks for `make check` `` for a brief whose **Done when** asks for a bare `make check` while `fresh-check` names another check command: mend the line and add the brief again.
+   `jbus queue add` prints a line that begins ``warning: <slug>'s brief's Done when: asks for `make check` `` for a brief whose **Done when** asks for a bare `make check` while `fresh-check` names another check command, one that is no `make check-fast`, which the warning of the whole suite above covers: mend the line and add the brief again.
 
    Its `Size:` line is the task's t-shirt size, `S`, `M` or `L`, as its plan entry's `Size:` line has it: the feature playbook's step 4 reads it to decide on a design read.
    `jbus queue add` queues no brief with no such line, or with any other word on it.

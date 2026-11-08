@@ -1,5 +1,6 @@
 """`jbus queue add` warns of a brief whose `Done when:` asks for a bare `make check` while the
-repo's `fresh-check` names another check command. This runs the home skill's rule for a check
+repo's `fresh-check` names another check command, one that is no `make check-fast` (for that,
+`test_jbus_desk_suite.py`). This runs the home skill's rule for a check
 line. The test runs it as `features/jbus/tests/test_jbus_kitchen.py` does, with the real command
 against a faked T3 Code server."""
 
@@ -9,10 +10,10 @@ from test_jbus_kitchen import Kitchen
 from test_jbus_queue import brief
 
 FAST = "jgauge test-slot -- make check-fast BASE=origin/main\n"
+OTHER = "jgauge test-slot -- uv run pytest -q\n"
 WARNED = (
     "warning: alpha's brief's Done when: asks for `make check`, and fresh-check names the check "
-    "command `make check-fast BASE=origin/main`: a check line names the check command "
-    "(`fresh-check`)"
+    "command `uv run pytest -q`: a check line names the check command (`fresh-check`)"
 )
 
 
@@ -36,7 +37,7 @@ def added(kitchen, done, check):
 
 
 @pytest.mark.parametrize("done", ["`make check` passes", "make check passes under a test slot"])
-@pytest.mark.parametrize("check", [FAST, FAST.removeprefix("jgauge test-slot -- ")])
+@pytest.mark.parametrize("check", [OTHER, OTHER.removeprefix("jgauge test-slot -- ")])
 def test_a_bare_make_check_is_warned_of_when_fresh_check_names_another_command(
     kitchen, done, check
 ):
@@ -49,7 +50,7 @@ def test_a_bare_make_check_is_warned_of_when_fresh_check_names_another_command(
 @pytest.mark.parametrize(
     ("done", "check"),
     [
-        ("`make check-fast BASE=origin/main` passes", FAST),
+        ("`uv run pytest -q` passes", OTHER),
         ("`make check` passes", "make check\n"),
         ("`make check` passes", "jgauge test-slot -- make check\n"),
         ("`make check` passes", ""),

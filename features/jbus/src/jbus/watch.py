@@ -1652,8 +1652,9 @@ MACOS = Nightly(
     where="the tests the macOS nightly runs on main, under `features/` and `testing/`",
     done="each failed test named under Read passes on macOS, in a manual run of "
     "macos-nightly.yml with `ref` set to the fix's branch",
-    proves="`make check-fast BASE=origin/main` passes, and so does a manual run of "
-    "macos-nightly.yml (`gh workflow run macos-nightly.yml -f ref=<the fix's branch>`)",
+    proves="the touched check, `make check-fast BASE=origin/main PART=touched`, passes, and so "
+    "does a manual run of macos-nightly.yml (`gh workflow run macos-nightly.yml -f ref=<the "
+    "fix's branch>`)",
     pull="open one when done",
     home="macos",
     title="macos-nightly on main",
