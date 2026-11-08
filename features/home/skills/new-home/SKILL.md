@@ -238,7 +238,8 @@ case $C in
         else
             t=$(cat "$T/check.yml")
             mark=$(printf '<%s>' 'the check command')
-            printf '%s\n' "${t%%"$mark"*}$K${t#*"$mark"}" > "$tmp/check.yml"
+            q=$(printf '%s' "$K" | sed "s/'/''/g")
+            printf '%s\n' "${t%%"$mark"*}$q${t#*"$mark"}" > "$tmp/check.yml"
             if blob=$(git -C "$C" hash-object -w "$tmp/check.yml" 2> "$tmp/said") &&
                 GIT_INDEX_FILE="$tmp/index" git -C "$C" read-tree "$sha" 2>> "$tmp/said" &&
                 GIT_INDEX_FILE="$tmp/index" git -C "$C" update-index --add --cacheinfo "100644,$blob,$flow" 2>> "$tmp/said" &&
@@ -277,6 +278,7 @@ A workflow counts when it runs on `pull_request` and one of its jobs reports a c
 The workflow is read in the checkout as it is, on whatever branch is checked out there, and then on the tip of origin's default branch.
 
 Where neither has one, the block commits `.github/workflows/check.yml`, made from `$T/check.yml` with the check command in it, on a new branch `jstack-check` over that tip.
+The file calls the repo standard's shared check workflow at a pinned tag, which runs the check command alone until the repo adds a `.repo-standard.yml`.
 It commits with git's plumbing and a scratch index, so the checkout's files, its index and the branch checked out there stay as they were, and it signs nothing.
 It pushes nothing: the user pushes the branch and merges its pull request, the repo's first, and the check runs on that pull request already.
 A runner that lacks the toolchain the command needs fails that check: the template's head says where a setup step goes.

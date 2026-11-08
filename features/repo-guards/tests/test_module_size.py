@@ -1,69 +1,32 @@
-"""No module under src/, or a feature's src/, grows past `CAP` lines. A long module is one that many
-changes touch: every change appends to it, and every rebase conflicts on it. A
-feature goes in a module of its own.
+"""No module of a feature's `src/`, test file or SKILL.md grows past its cap. A long module is one
+that many changes touch: every change appends to it, and every rebase conflicts on it. A feature
+goes in a module of its own.
 
-`OVER` is the modules that were over the cap when the cap was set, with their length then. When a
-change shortens a module to under the cap, the change must also take the module off the list. So the
-list only shrinks, and no module joins it.
+The caps are the `size` rules of `.repo-standard.yml`: 800 lines for a module of a feature's `src/`,
+1500 for a test file of a feature's `tests/` or of `testing/tests/`, and 400 for a SKILL.md. Each
+rule's `over` holds the files that were over the cap when the cap was set, with their length then. A
+listed file that is back under the cap, or gone, fails until it leaves the list, so the list only
+shrinks. The repo standard's `size` guard holds the rules (features/repo-standard/docs/guards.md),
+and this test runs it on jstack.
 """
 
-from pathlib import Path
-
-from testing.paths import sources
-
-CAP = 800
-OVER = {
-    "jbus/questions.py": 860,
-    "jmerge/ready.py": 1062,
-    "jinstall/kinds.py": 1098,
-    "jbus/watch.py": 1112,
-    "jbus/queue.py": 1219,
-    "jbus/view/state.py": 1405,
-    "jmerge/cli.py": 1586,
-}
+from repo_standard.cli import main
+from repo_standard.config import load
+from repo_standard.tree import chosen, tracked
+from testing.paths import REPO
 
 
-def lengths(*roots: Path) -> dict[str, int]:
-    """The length in lines of each module under `roots`, keyed by its path from the root it is
-    under. With no `roots`, it measures the modules under each feature's `src/`."""
-    return {
-        path.relative_to(root).as_posix(): len(path.read_text().splitlines())
-        for root in roots or sources()
-        for path in sorted(root.rglob("*.py"))
-    }
+def test_jstack_passes_the_size_guard(capsys):
+    assert main(["size", "--root", str(REPO)]) == 0
+    assert capsys.readouterr().out == ""
 
 
-def offences(found: dict[str, int], over: dict[str, int] = OVER) -> list[str]:
-    """What is wrong with the lengths `found`. One fault is a module over the cap that is not on the
-    list. The other is a listed module that is now under the cap or no longer exists: that module
-    must come off the list."""
-    said = [
-        f"{name} has {length} lines, over {CAP}: split it, a feature in a module of its own"
-        for name, length in found.items()
-        if length > CAP and name not in over
-    ]
-    said += [
-        f"{name} has {found[name]} lines, under {CAP}: take it off OVER"
-        if name in found
-        else f"{name} is gone: take it off OVER"
-        for name in over
-        if found.get(name, 0) <= CAP
-    ]
-    return said
-
-
-def test_no_module_is_over_the_cap_but_those_listed_and_each_listed_one_still_is():
-    assert offences(lengths()) == []
-
-
-def test_a_new_long_module_and_a_listed_one_cut_under_the_cap_each_fail(tmp_path):
-    (tmp_path / "pkg").mkdir()
-    (tmp_path / "pkg" / "long.py").write_text("x = 1\n" * (CAP + 1))
-    (tmp_path / "pkg" / "cut.py").write_text("x = 1\n" * CAP)
-    (tmp_path / "pkg" / "kept.py").write_text("x = 1\n" * (CAP + 5))
-    found = lengths(tmp_path)
-    assert offences(found, {"pkg/cut.py": 900, "pkg/kept.py": 900, "pkg/gone.py": 900}) == [
-        f"pkg/long.py has {CAP + 1} lines, over {CAP}: split it, a feature in a module of its own",
-        f"pkg/cut.py has {CAP} lines, under {CAP}: take it off OVER",
-        "pkg/gone.py is gone: take it off OVER",
-    ]
+def test_each_size_rule_picks_the_files_it_caps():
+    paths = tracked(REPO)
+    picked = [chosen(paths, rule.files, rule.exclude) for rule in load(REPO).part("size")]
+    modules, tests, skills = picked
+    assert "features/jbus/src/jbus/queue.py" in modules
+    assert "features/repo-guards/tests/test_module_size.py" in tests
+    assert "testing/tests/test_workflows.py" in tests
+    assert not [name for name in tests if "/tests/fixtures/" in name]
+    assert {"features/crew/SKILL.md", "features/home/skills/handoff/SKILL.md"} <= set(skills)

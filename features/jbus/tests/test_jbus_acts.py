@@ -348,9 +348,9 @@ def test_a_bot_go_on_a_brief_that_holds_parks_a_gate_for_the_user_and_approves_n
     assert (code, said.splitlines()[0]) == (
         0,
         "gated alpha: its brief holds for rewrites history, so it waits for user's own word: "
-        f"question {asked.number}; jbus queue approve alpha --sha {sha} --message "
-        "<thread>/<message>, on user's own message in T3 Code that names alpha and was said "
-        "after its brief was stored, opens it",
+        f"question {asked.number}; ask user about alpha alone, in plain words, and pass their "
+        f"reply: jbus queue approve alpha --sha {sha} --message <thread>/<message>, on user's "
+        "own reply in T3 Code said after its brief was stored, opens it",
     )
     now(kitchen, "yes, rewrite alpha")
     code, said = kitchen.main(
@@ -420,7 +420,8 @@ def test_a_bot_answer_closes_a_two_way_gate_and_is_refused_on_a_gate_that_holds(
     assert status == 409
     assert said["error"] == (
         f"refused: question {held} holds (rewrites history): only user's own word, read in T3 "
-        "Code, answers it, so it stays open. It closes with jbus "
+        "Code, answers it, so it stays open: ask user about question "
+        f"{held} alone, in plain words, and pass their reply: it closes with jbus "
         f"answer {held} --default --message <thread id>/<message id>, or --differs for an "
         "answer that is not the default, where the message is user's own in T3 Code: --by and "
         "--at cannot close it"
@@ -441,7 +442,8 @@ def test_a_home_typing_the_users_name_on_a_door_is_refused_and_the_gate_stays_op
     assert (code, said) == (
         1,
         f"refused: question {held} holds (rewrites history): only user's own word, read in T3 "
-        "Code, answers it, so it stays open. It closes with jbus "
+        "Code, answers it, so it stays open: ask user about question "
+        f"{held} alone, in plain words, and pass their reply: it closes with jbus "
         f"answer {held} --default --message <thread id>/<message id>, or --differs for an "
         "answer that is not the default, where the message is user's own in T3 Code: --by and "
         "--at cannot close it\n",
@@ -540,7 +542,8 @@ def test_the_bots_answer_that_keeps_a_go_gates_default_is_a_go_and_a_door_still_
     assert said["error"] == (
         f"refused: question {numbers['door']} keeps the go of door, whose brief holds for "
         "rewrites history: only user's own word, read in T3 Code, answers it, "
-        f"so it stays open. It closes with jbus answer {numbers['door']} --default "
+        f"so it stays open: ask user about question {numbers['door']} alone, in plain words, "
+        f"and pass their reply: it closes with jbus answer {numbers['door']} --default "
         "--message <thread id>/<message id>, or --differs for an answer that is not the default, "
         "where the message is user's own in T3 Code: --by and --at cannot close it"
     )
@@ -755,29 +758,118 @@ def test_a_plain_reply_whose_ask_t3_code_cannot_read_answers_nothing(kitchen, mo
     assert questions.question(kitchen.state, held).answer is None
 
 
-def test_an_ask_about_two_questions_binds_the_reply_to_the_one_it_asks(kitchen):
-    kitchen.brief("alpha", "Thread: mcp:crew-alpha\n")
-    held = gate(kitchen, holds=True)
+def held_too(kitchen):
+    """A second gate of alpha's that holds, open beside the first: another door."""
     other = ASK.replace("which one?", "which other history?").replace(
         "Option:", f"{HOLDS}{SAFE}Option:", 1
     )
     assert kitchen.main("gate", "alpha", stdin=other)[0] == 0
-    asked = questions.read(kitchen.state)[-1].number
+    return questions.read(kitchen.state)[-1].number
+
+
+def test_an_ask_that_names_two_open_doors_binds_a_plain_reply_to_neither(kitchen):
+    """#1272's F1: "question 250 stays held; question 251: may it go?" names two doors, so a
+    plain "ok" opens neither, and a "yes" never opens two doors."""
+    kitchen.brief("alpha", "Thread: mcp:crew-alpha\n")
+    held = gate(kitchen, holds=True)
+    asked = held_too(kitchen)
     home_asks(kitchen, "ask", f"Question {held} stays held; question {asked}: may it go?")
     ref = plain(kitchen, "ok", "ok")
+    for number in (held, asked):
+        code, said = answer(kitchen, number, ref)
+        assert code == 1 and f"names neither alpha nor question {number}" in said, said
+        assert questions.question(kitchen.state, number).answer is None
+
+
+def test_a_reply_to_an_ask_about_two_doors_answers_the_one_it_names_itself(kitchen):
+    kitchen.brief("alpha", "Thread: mcp:crew-alpha\n")
+    held = gate(kitchen, holds=True)
+    asked = held_too(kitchen)
+    home_asks(kitchen, "ask", f"Questions {held} and {asked} both wait: keep the defaults?")
+    ref = plain(kitchen, "named", f"q{asked}: keep it")
     code, said = answer(kitchen, held, ref)
-    assert code == 1 and f"names neither alpha nor question {held}" in said, said
-    assert questions.question(kitchen.state, held).answer is None
+    assert code == 1, said
     code, said = answer(kitchen, asked, ref)
     assert code == 0, said
-    assert questions.question(kitchen.state, asked).answer.keeps
+    assert questions.question(kitchen.state, held).answer is None
 
 
-def test_a_row_the_ask_names_in_passing_is_not_opened_by_the_reply(kitchen):
-    add(kitchen, "alpha", approve=False, text=brief("alpha", HOLDS))
-    sha = sha12(stored(kitchen, "alpha"))
-    home_asks(kitchen, "ask", "alpha merged its docs earlier. Shall I remove the five worktrees?")
-    ref = plain(kitchen, "yes", "yes")
-    code, said = kitchen.main("queue", "approve", "alpha", "--message", ref, "--sha", sha)
-    assert code == 1 and "names neither alpha nor its gate" in said, said
-    assert rows(kitchen)["alpha"]["approved"] == ""
+def test_an_ask_that_names_the_question_once_with_no_question_mark_binds_drop_it(kitchen):
+    """The user's own ask: "i should be able to say drop". The home's ask names the one open
+    door, with its pick and no question mark, and "drop it" is the reply to it."""
+    kitchen.brief("alpha", "Thread: mcp:crew-alpha\n")
+    held = gate(kitchen, holds=True)
+    home_asks(
+        kitchen, "ask", f"- **demo question {held}, the old history:** my pick is the default"
+    )
+    code, said = answer(kitchen, held, plain(kitchen, "drop", "drop it"))
+    assert code == 0, said
+    assert questions.question(kitchen.state, held).answer.keeps
+
+
+@pytest.mark.parametrize(
+    "named",
+    ["q{n}", "Q {n}", "#{n}", "quetsion {n}", "Qeustion {n}", "questoin {n}", "gate {n}"],
+)
+def test_a_reply_names_the_question_in_the_forms_a_person_writes(kitchen, named):
+    kitchen.brief("alpha", "Thread: mcp:crew-alpha\n")
+    held = gate(kitchen, holds=True)
+    code, said = answer(kitchen, held, plain(kitchen, "named", f"{named.format(n=held)}: drop it"))
+    assert code == 0, said
+
+
+def test_an_ask_names_a_row_with_spaces_for_its_hyphens(kitchen):
+    add(kitchen, "old-history", approve=False, text=brief("old-history", HOLDS))
+    sha = sha12(stored(kitchen, "old-history"))
+    home_asks(kitchen, "ask", "Old history waits on you: it rewrites history on main.")
+    ref = plain(kitchen, "yes", "go ahead")
+    code, said = kitchen.main("queue", "approve", "old-history", "--message", ref, "--sha", sha)
+    assert code == 0, said
+
+
+INFRA_ASK = (
+    "Question 14 is closed on your message. The lavish-axi repo is already gone from GitHub (it "
+    'still returns "not found"), so there was nothing to delete.\n\nThree things still wait on '
+    "you:\n- **infra question {n}, turning on Funnel for Categories in the tailnet policy:** my "
+    "pick is the default, leave the policy as it is.\n- **The finished /tmp scout row:** send "
+    '"remove tmp-quota-root" to clear it.\n- **Your reboot:** it moves /tmp onto the main disk.'
+)
+"""The infra home's message at position 3485 of its thread, on 2026-11-08 at 18:51, with the
+gate's number for 15: it names question 15 as the only open door, with no question mark."""
+INFRA_REPLY = (
+    "this was already done, and then turned back off. infra quetsion {n}: delete this question "
+    "and row"
+)
+"""The user's reply at 18:51 (message 636432db...), which jbus refused twice."""
+
+
+def test_the_1851_replay_answers_the_question_the_home_asked(kitchen):
+    kitchen.brief("alpha", "Thread: mcp:crew-alpha\n")
+    add(kitchen, "tmp-quota-root")
+    held = gate(kitchen, holds=True)
+    home_asks(kitchen, "ask", INFRA_ASK.format(n=held))
+    ref = plain(kitchen, "636432db", INFRA_REPLY.format(n=held))
+    code, said = answer(kitchen, held, ref)
+    assert code == 0, said
+    assert said.startswith(f"answered: question {held}: ")
+    assert questions.question(kitchen.state, held).answer.keeps
+
+
+def test_a_plain_reply_in_a_thread_that_is_no_homes_answers_nothing(kitchen):
+    kitchen.brief("alpha", "Thread: mcp:crew-alpha\n")
+    held = gate(kitchen, holds=True)
+    home_asks(kitchen, "ask", f"Question {held}: may alpha rewrite history?")
+    (kitchen.home / "home-id").write_text("mcp:another-home\n")
+    code, said = answer(kitchen, held, plain(kitchen, "yes"))
+    assert code == 1 and f"names neither alpha nor question {held}" in said, said
+    assert questions.question(kitchen.state, held).answer is None
+
+
+def test_the_homes_own_message_answers_nothing(kitchen):
+    kitchen.brief("alpha", "Thread: mcp:crew-alpha\n")
+    held = gate(kitchen, holds=True)
+    home_asks(kitchen, "ask", f"Question {held}: may alpha rewrite history?")
+    home_asks(kitchen, "again", f"Yes, question {held}: drop it.")
+    code, said = answer(kitchen, held, f"{HOME}/again")
+    assert code == 1, said
+    assert questions.question(kitchen.state, held).answer is None

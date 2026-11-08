@@ -2,6 +2,7 @@
 
 `jstack` runs each of jstack's other commands by one name: `jstack <name> ...` runs what `j<name> ...` runs.
 It takes the name with no leading `j`, and passes every word after it to that command as it is.
+A command whose name does not start with `j`, as `repo-standard`, is run by its whole name.
 The usage, the help, the output and the exit code are the command's own.
 The other names stay on `PATH`, so the skills, units and hooks that name them keep working.
 
@@ -15,6 +16,7 @@ The other names stay on `PATH`, so the skills, units and hooks that name them ke
 | `jstack leak` | `jleak` |
 | `jstack merge` | `jmerge` |
 | `jstack pack` | `jpack` |
+| `jstack repo-standard` | `repo-standard` |
 | `jstack roles` | `jroles` |
 
 `scripts/generate-jstack-trees.py` writes the table `jstack` reads from each feature's `commands`, so a new command needs no line in `jstack`.

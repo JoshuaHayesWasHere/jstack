@@ -72,7 +72,7 @@ CrewEnds(k) ==
     /\ UNCHANGED <<life, msg, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
 \* A gate or an item for Josh is an open item of the one list, raised once: its key is in sent.json
 \* from then on, so it is never raised again (jbus/wake.py `return False
-\* write_json(self.state / "sent.json", [*sent, key])`). A new call is a change in what the child has out, so its spell
+\* _write_sent(self.state / SENT, (*sent.keys, key))`). A new call is a change in what the child has out, so its spell
 \* ends.
 RaiseCall(c) ==
     /\ c \in Raised
@@ -147,7 +147,7 @@ RouteMends ==
 \* A routine, a scope with a `rhythm` file, owes its next beat whatever it has out
 \* (jbus/children.py `beat = _rhythm(scope)`). The root never reads whether a child is stuck.
 \* A handed child's work is the root's, which the root's own watch reads as its out
-\* (jbus/children.py `mine = {slug for slug, text in texts.items() if homes.home_of(root, text) == scope}`).
+\* (jbus/children.py `mine = {slug for slug, home in known.items() if home == scope}`).
 Sees(k) ==
     /\ life[k] \in {"working", "stuck", "handed"}     \* jbus/children.py `if not thread or not (launched or beat):`
     /\ \/ Kept("beat") /\ Kind[k] = "routine" /\ life[k] # "handed"     \* jbus/children.py `patience = beat or PATIENCE`

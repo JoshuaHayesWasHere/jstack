@@ -23,6 +23,11 @@ The test reads the fenced blocks of every other Markdown file under `features/`,
 their templates but not the tests' fixtures or the recorded eval runs, the same way, so a skill
 teaches no verb or flag that is gone. It reads no inline span there, since a skill's spans quote
 the lines its blocks print, as `jbus is not installed`.
+
+That reading of `--help` is jstack's extension. The core of "the docs say what the tree has", that
+each path a page names under a folder of `docs.roots` exists and each `make` target a page runs is
+in the root `Makefile`, is the repo standard's `docs` guard (features/repo-standard/docs/guards.md),
+which reads the pages of `.repo-standard.yml`. The first test runs it on jstack.
 """
 
 import contextlib
@@ -35,6 +40,7 @@ from dataclasses import dataclass, field
 
 import pytest
 
+from repo_standard.cli import main
 from testing.paths import REPO
 
 README = REPO / "README.md"
@@ -281,6 +287,11 @@ def told(command):
 @pytest.mark.parametrize("command", SCRIPTS)
 def test_a_commands_page_has_every_verb_and_every_flag_its_help_has(trees, command):
     assert missing(trees[command], told(command)) == []
+
+
+def test_jstack_passes_the_docs_guard(capsys):
+    assert main(["docs", "--root", str(REPO)]) == 0
+    assert capsys.readouterr().out == ""
 
 
 def test_a_page_that_lacks_a_verb_a_flag_or_a_choice_is_found(trees):

@@ -56,7 +56,23 @@ class Docs:
 
 
 @dataclass(frozen=True)
+class Check:
+    """How the shared check workflow runs the repo's tests: in how many parts side by side, and
+    whether a nightly run of the whole suite runs."""
+
+    shards: int = 1
+    nightly: bool = False
+
+
+@dataclass(frozen=True)
+class Waiver:
+    rule: str
+    reason: str
+
+
+@dataclass(frozen=True)
 class Config:
+    standard: int | None = None
     features: str = "features"
     manifest_schema: str | None = None
     layout: tuple[str, ...] = ()
@@ -66,6 +82,10 @@ class Config:
     docs: Docs | None = None
     size: tuple[Size, ...] | None = None
     comments: Comments | None = None
+    waivers: tuple[Waiver, ...] = ()
+    enforced_by: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    deploy: tuple[str, ...] | None = None
+    check: Check = field(default_factory=Check)
 
     def part(self, name: str) -> Any:
         """The part a guard reads, refused when the config does not set it."""
@@ -262,13 +282,20 @@ def _docs(value: Any) -> Docs:
 def build(keys: dict[str, Any]) -> Config:
     """The typed config from the parsed keys."""
     known = {"standard", "features", "manifest-schema", "layout", "owners", "cross-cutting"}
-    keys = _closed(keys, known | {"generators", "docs", "size", "comments"}, "the top")
+    known |= {"generators", "docs", "size", "comments", "waivers", "enforced-by", "deploy"}
+    known |= {"check"}
+    keys = _closed(keys, known, "the top")
     owners = _table(keys.get("owners"), "owners", list)
+    enforced = _table(keys.get("enforced-by"), "enforced-by", list)
+    standard = keys.get("standard")
+    if standard is not None and (not isinstance(standard, int) or isinstance(standard, bool)):
+        raise Refused(f"{NAME}: standard is not a whole number, the version the repo pins")
     generators = keys.get("generators")
     size = keys.get("size")
     if size is not None and not isinstance(size, list):
         raise Refused(f"{NAME}: size is not a list of rules")
     return Config(
+        standard=standard,
         features=str(keys.get("features", "features")).rstrip("/"),
         manifest_schema=keys.get("manifest-schema"),
         layout=_strings(keys.get("layout", []), "layout"),
@@ -278,7 +305,38 @@ def build(keys: dict[str, Any]) -> Config:
         docs=None if keys.get("docs") is None else _docs(keys["docs"]),
         size=None if size is None else tuple(_size(one, at) for at, one in enumerate(size)),
         comments=None if keys.get("comments") is None else _comments(keys["comments"]),
+        waivers=_waivers(keys.get("waivers", [])),
+        enforced_by={
+            rule: _strings(rows, f"enforced-by.{rule}") for rule, rows in enforced.items()
+        },
+        deploy=None if keys.get("deploy") is None else _strings(keys["deploy"], "deploy"),
+        check=Check() if keys.get("check") is None else _check(keys["check"]),
     )
+
+
+def _check(value: Any) -> Check:
+    part = _closed(value, {"shards", "nightly"}, "check")
+    shards, nightly = part.get("shards", 1), part.get("nightly", False)
+    if not isinstance(shards, int) or isinstance(shards, bool) or not 1 <= shards <= 64:
+        raise Refused(f"{NAME}: check.shards is not a number of parts from 1 to 64")
+    if not isinstance(nightly, bool):
+        raise Refused(f"{NAME}: check.nightly is not true or false")
+    return Check(shards, nightly)
+
+
+def _waivers(value: Any) -> tuple[Waiver, ...]:
+    """Each waiver as written: a reason left out reads as empty, which the conformance tool fails,
+    so the config still loads and the tool can name the waiver."""
+    if not isinstance(value, list):
+        raise Refused(f"{NAME}: waivers is not a list of `rule:` and `reason:` maps")
+    found = []
+    for at, one in enumerate(value):
+        waiver = _closed(one, {"rule", "reason"}, f"waivers[{at}]")
+        if not isinstance(waiver.get("rule"), str) or not waiver["rule"]:
+            raise Refused(f"{NAME}: waivers[{at}] names no rule")
+        reason = waiver.get("reason", "")
+        found.append(Waiver(waiver["rule"], reason.strip() if isinstance(reason, str) else ""))
+    return tuple(found)
 
 
 def _generators(value: Any) -> tuple[tuple[str, ...], ...]:

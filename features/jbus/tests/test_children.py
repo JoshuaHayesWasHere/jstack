@@ -4,12 +4,16 @@ user is asked, and nothing more is sent in that spell. Something the child does 
 see ends the spell, and its home's reply to a nudge does not. A routine, a scope with a `rhythm`
 file, is watched with nothing out. `jbus out --scope` says what a scope has out."""
 
+import collections
 import json
+import os
+import pathlib
 from datetime import timedelta
 
 import pytest
 
-from jbus import children, questions
+import jbus
+from jbus import children, passes, questions, watch
 from test_jbus_kitchen import GATE, NOW, PROJECT
 from test_jbus_leftover import home
 from test_jbus_queue import add, brief
@@ -264,3 +268,61 @@ def test_a_child_with_a_hold_and_a_quiet_crew_is_still_nudged(child):
     assert len(nudges) == 2 and "has had 2 things out" in nudges[0]["message"]
     first, asked = told(kitchen)
     assert "nudged it" in first and "after two nudges" in asked
+
+
+def reads_of_tasks(monkeypatch):
+    """Count each read of a brief under a `tasks/` directory, by file name."""
+    reads = collections.Counter()
+    real = pathlib.Path.read_text
+
+    def counted(self, *args, **kwargs):
+        if self.parent.name == "tasks" and self.suffix == ".md":
+            reads[self.name] += 1
+        return real(self, *args, **kwargs)
+
+    monkeypatch.setattr(pathlib.Path, "read_text", counted)
+    return reads
+
+
+def test_the_watch_of_many_homes_reads_each_brief_once(child, monkeypatch):
+    """However many scopes the root has, the watch of the homes reads each brief once a pass, and
+    still finds the quiet child its brief names."""
+    kitchen, found, _ = child
+    home(kitchen, "sd", idle=timedelta(hours=6))
+    home(kitchen, "se", idle=timedelta(hours=6))
+    reads = reads_of_tasks(monkeypatch)
+    during = collections.Counter()
+    real = children.watch
+
+    def watched(*args, **kwargs):
+        before = reads.copy()
+        real(*args, **kwargs)
+        during.update(reads - before)
+
+    monkeypatch.setattr(children, "watch", watched)
+    kitchen.poll(minutes(P + 1))
+    assert during["sc-alpha.md"] == 1
+    assert [one for one in sends(kitchen) if one["threadId"] == found["threadId"]]
+
+
+def test_a_brief_is_read_once_a_pass_until_it_is_rewritten(kitchen, monkeypatch):
+    """`watch.brief_of` reads a brief once a pass however many steps ask for it, and a step that
+    writes the brief later in the same pass is seen by the steps after it: a new text of the same
+    size, a longer one, and the brief's removal from `tasks/`, which leaves the queued brief."""
+    add(kitchen, "alpha")
+    config = jbus.load()
+    run = passes.Pass(config, config.projects[0], NOW, lambda _: None)
+    task = kitchen.home / "tasks" / "alpha.md"
+    task.write_text("# alpha\nStatus: one\n")
+    reads = reads_of_tasks(monkeypatch)
+    assert watch.brief_of(run, "alpha") == "# alpha\nStatus: one\n"
+    assert watch.brief_of(run, "alpha") == "# alpha\nStatus: one\n"
+    assert reads["alpha.md"] == 1
+    stamp = task.stat().st_mtime_ns
+    task.write_text("# alpha\nStatus: two\n")
+    os.utime(task, ns=(stamp + 1, stamp + 1))
+    assert watch.brief_of(run, "alpha") == "# alpha\nStatus: two\n"
+    task.write_text("# alpha\nStatus: two\n\n## Result\nStatus: done\n")
+    assert watch.brief_of(run, "alpha").endswith("## Result\nStatus: done\n")
+    task.unlink()
+    assert watch.brief_of(run, "alpha") == (run.state / "briefs" / "alpha.md").read_text()

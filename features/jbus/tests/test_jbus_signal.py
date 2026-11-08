@@ -270,7 +270,9 @@ def test_one_gate_that_holds_is_one_line_of_the_one_list_and_not_the_quiet_event
     assert f"wakes demo: told {HOME_THREAD} of {asked}" in kitchen.poll(later(1))
     assert kitchen.wakes.listed == [[asked]]
     (made,) = kitchen.events("decision")
-    reply = 'Reply: "demo question 2: default"'
+    reply = (
+        "Reply: reply in your own words to keep the default (the first) or say what to do instead"
+    )
     assert (made["loud"], made["line"]) == ("user", f"decision alpha: {asked}. {reply}")
 
 

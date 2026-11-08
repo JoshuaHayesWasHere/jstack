@@ -6,7 +6,7 @@ jbus sends a `decision` to the project's home thread ([Where wakes go](events-an
 Where you run the relay, it also gets what blocks and sends it on to your chat bot (the agent behind `RELAY_WEBHOOK_URL`, Sous Chef, the brief's Chief Keef), which pages you ([What blocks](what-blocks.md), [The relay](the-relay.md)).
 
 A decision is one `user` event of the kind `decision`, sent once for each blocker, whoever raises it again.
-Its line is `decision <slug>: <what to decide>. Reply: "<reply>"`, and the reply is a line you can send as it is: it reaches the home as your word ([Your word to a home](your-word-to-a-home.md)).
+Its line is `decision <slug>: <what to decide>. Reply: <hint>`, and the hint says what your reply decides, such as `reply in your own words to merge #9 or say what to do instead`: you answer in your own words, which reach the home as your word ([Your word to a home](your-word-to-a-home.md)), and the home turns them into the verb.
 These raise one, and nothing else does:
 
 | What | Raised by | Reply |

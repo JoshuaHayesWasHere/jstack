@@ -135,7 +135,7 @@ Enforced by: `scripts/generate-jstack-trees.py`, `scripts/jtrees/check.py`, `.gi
 ### A feature's pages live in its folder
 
 The pages about a feature live in its own folder, so a change to the feature and to its pages stays one feature's change.
-The manifest lists the feature's pages, and the first is its main page.
+The manifest lists the feature's main page first, and each page it lists is in the feature's folder.
 
 **In jstack** the pages are under `features/<name>/docs/`, and the manifest's `docs` key lists them.
 The `commands` region of `README.md` links each command to the first page of its feature.
@@ -274,8 +274,7 @@ Enforced by: `scripts/jtrees/outputs/pyproject.py`, `features/repo-guards/tests/
 `make select BASE=<ref>` prints the test ids that the change from `<ref>` to `HEAD` reaches, one a line, or the single word `all` when the change reaches every test.
 A selection names the tests and never stands in for the suite: what it misses, the safety net below catches.
 
-**In jstack** the selection is `python3 scripts/select_tests.py <ref> HEAD`, which prints test files, and `make check-fast BASE=<ref>` runs the lint and the files it prints.
-jstack has no `make select` target yet: its adapter calls the script by name.
+**In jstack** `make select BASE=<ref>` runs `python3 scripts/select_tests.py <ref> HEAD`, which prints test files, and `make check-fast BASE=<ref>` runs the lint and the files it prints.
 The script follows imports, fixtures, the names a test reads and the files a test includes, and its rules are in the script's docstring.
 
 Enforced by: `scripts/select_tests.py`, `testing/tests/test_select_tests.py`, `testing/tests/test_select_tests_rules.py`

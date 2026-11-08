@@ -6,6 +6,8 @@ Nothing reaches the network.
 
 import http.server
 import json
+import subprocess
+import sys
 import threading
 import urllib.request
 from datetime import UTC, datetime
@@ -165,3 +167,51 @@ def test_with_no_second_target_a_body_waits_nowhere_and_nothing_is_posted(tmp_pa
     monkeypatch.setattr(wake, "_post_blocking", lambda *given: posted.append(given) or "")
     assert made.blocking is None and second(made) == (0, [])
     assert posted == [] and not (made.state / wake.BLOCKING).exists()
+
+
+def test_a_key_sent_once_is_never_sent_again_by_this_process_or_another(tmp_path):
+    """A pass and a `jbus tick` are two processes that send under the same keys. Each must see
+    the keys the other sent, however many it has already looked up, and `sent.json` stays the
+    list of keys in the order they were sent."""
+    made = box(tmp_path)
+    assert made.send("s", "merged", "first", key="one") is True
+    assert made.send("s", "merged", "again", key="one") is False
+    other = (
+        "import sys; from pathlib import Path; from jbus import Project, wake\n"
+        "project = Project('demo', Path(sys.argv[1]) / 'checkout', 'demo', 'project-1')\n"
+        "made = wake.Box(Path(sys.argv[1]) / 'state', project)\n"
+        "print(made.send('s', 'merged', 'tick one', key='one'),"
+        " made.send('s', 'merged', 'tick two', key='two'))\n"
+    )
+    ran = subprocess.run(
+        [sys.executable, "-c", other, str(tmp_path)], capture_output=True, text=True, check=True
+    )
+    assert ran.stdout.split() == ["False", "True"]
+    assert made.send("s", "merged", "pass two", key="two") is False
+    assert made.send("s", "merged", "pass three", key="three") is True
+    assert json.loads((tmp_path / "state" / "sent.json").read_text()) == ["one", "two", "three"]
+    assert made.sent() == ["one", "two", "three"]
+    assert [one["line"] for one in made.log()] == ["first", "tick two", "pass three"]
+
+
+def test_a_keyed_send_parses_sent_json_again_only_once_another_process_wrote_it(
+    tmp_path, monkeypatch
+):
+    """`sent.json` holds every key a project ever sent, 4 MB on a busy one, and a pass sends
+    under hundreds of keys. Parsing it whole for each of them was 1.35 s of a pass."""
+    made = box(tmp_path)
+    sent = tmp_path / "state" / "sent.json"
+    parsed = []
+    real = wake.read_json
+    monkeypatch.setattr(
+        wake, "read_json", lambda path, *rest: (parsed.append(path), real(path, *rest))[1]
+    )
+    made.send("s", "merged", "first", key="first")
+    for n in range(20):
+        made.send("s", "merged", f"line {n}", key=f"key {n}")
+        made.send("s", "merged", f"line {n} again", key=f"key {n}")
+    assert parsed.count(sent) == 0
+    sent.write_text(json.dumps([*json.loads(sent.read_text()), "from a tick"]))
+    assert made.send("s", "merged", "the tick's", key="from a tick") is False
+    assert made.send("s", "merged", "then", key="then") is True
+    assert parsed.count(sent) == 1

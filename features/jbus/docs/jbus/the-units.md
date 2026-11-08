@@ -42,7 +42,8 @@ The pass acts on the timer that `jbus.service` names in `JBUS_TICK_TIMER`, so a 
 The install enables the timer, so a boot or an install starts it, and the first pass after stops it again where no row's pull request is open and no check is going.
 A pass that starts or stops it says so in its log, `tick: ... so jbus-merge.timer runs` or `... stops`.
 A tick asks GitHub nothing while that file is `[]` in every project.
-Otherwise it reads the heads: for each pull request in it, it asks for the check runs at its head as it is now, the jobs of its workflow runs, by the pull request's ref (`commits/pull/<number>/head/check-runs`), with the ETag it kept, which GitHub answers with a 304 that spends no API allowance until a job at that head changes or a push moves the head.
+Otherwise it reads the heads: for every pull request in it at once, at most 16 at a time (`GH_CAP`, the `gh` processes the machine runs at one moment), it asks for the check runs at its head as it is now, the jobs of its workflow runs, by the pull request's ref (`commits/pull/<number>/head/check-runs`), with the ETag it kept, which GitHub answers with a 304 that spends no API allowance until a job at that head changes or a push moves the head.
+So ten pending pull requests cost a tick about one read's time, not ten, and each is read every 2 seconds.
 So a head pushed after the pass read the pull request reaches the next tick, within 2 seconds, at no call of its own, and the tick stops reading a head that a newer push superseded.
 A row's pull request stays in it however long ago a verdict named its last head's end, so a push to it any time later reaches the next tick too, and while nothing changes at its head it costs a 304 a tick.
 A head's check suite the tick has not seen yet costs one more read, of the head's workflow runs, so the tick knows which workflow each job belongs to.
@@ -54,6 +55,8 @@ GitHub pushes a check's end only to a webhook, which needs an endpoint GitHub ca
 The poll costs a start of `jbus tick` every 2 seconds, about 0.14 seconds of one core, only while a row's pull request is open or a check is going.
 It runs `jmerge --if-free`, which does nothing while another run of `jmerge` is under way, since `jmerge` holds its run lock for the whole of a run that may merge.
 What a tick misses, the next pass does: the pass runs `jmerge --if-free` too, so a pass that finds a tick's run under way does nothing, and the next one with the lock free runs it.
+`jbus-merge.service` has no start limit (`StartLimitIntervalSec=0`): systemd's default refuses a unit started more than 5 times in 10 seconds, a 2 second timer sits at that edge, and the extra start a green move's reload brings pushed it over, so systemd refused the tick for seconds at a time.
+On macOS the install drops the key (`jinstall.launchd.DROPPED`), since launchd has no start limit of that kind.
 `jbus-merge.service` logs at `notice` and above (`LogLevelMax=notice`), so its start and end every 2 seconds stay out of the journal, and its own lines, which are `notice`, stay in.
 On macOS its agent runs every 2 seconds too (`StartInterval`), whether or not a check is going: the pass starts and stops only a systemd timer.
 `work.json`, the state of each row that the view and T3 Code's sidebar draw, waits for neither timer.
@@ -66,7 +69,7 @@ A gate of the user's that holds a row, one `jbus needs` lists, makes any row the
 A row whose last Result opens its pull request after a review that is not written (`Pull request: after the review`) has not ended, whatever its `Left:` line says: its line says `who: rev` and `waits: its review`.
 Each writer of a row's inputs restates that row's line under `work.lock` as it writes:
 each write of the queue (`jbus queue add`, `approve`, `hold`, `remove` and the pass's own rewrite of the table) restates each row's go, adds the line of a new row and takes out the line of a row that went;
-the merge tick, as soon as a head's check runs change and before it runs `jmerge`, also while `jmerge` is busy and does not run, restates the line of the pull request on the check step: failed, with the reason `jmerge` gives a failed check, at the first job of a required check's workflow run that failed, such as one shard while the others still run; or passed, for `jmerge` to judge next, once each required check's own job passed (a required job GitHub does not list yet, as `check` while the shards it needs run, is still going);
+the merge tick, as soon as a head's check runs change, as that pull request's own read lands and not after the project's other reads, and before it runs `jmerge`, also while `jmerge` is busy and does not run, restates the line of the pull request on the check step: failed, with the reason `jmerge` gives a failed check, at the first job of a required check's workflow run that failed, such as one shard while the others still run; or passed, for `jmerge` to judge next, once each required check's own job passed (a required job GitHub does not list yet, as `check` while the shards it needs run, is still going);
 each run of `jmerge`, the tick's and the pass's, restates the step of each pull request it judged, with its reason as the line's `why`.
 So a check that ends reaches its line without waiting on `jmerge`'s own run of seconds.
 `jmerge` reads a check as failed only once the check's own job ends, which waits on every job it needs, so while it says that check is still going at the same head, the tick's `failed` stands.

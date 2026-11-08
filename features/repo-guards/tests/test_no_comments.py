@@ -1,167 +1,47 @@
 """No swept file holds a plain comment. The test fails on a new one and names its file and line.
 
-The test reads a Python file with `tokenize`, so a `#` in a string is no comment. It reads a shell
-file character by character, so a `#` in quotes is no comment either. It reads a systemd unit and a
-list of jmerge's paths line by line: a line that starts with `#` is a comment, and in a unit so is a
-line that starts with `;`. The test lets through what a tool reads as an instruction: a shebang, `#
-type:` and `# pragma`. It does not let a `# noqa` through: write the code so that ruff reports
-nothing on it instead.
+The swept files, and what passes there, are the `comments` part of `.repo-standard.yml`, and the
+repo standard's `comments` guard reads them (features/repo-standard/docs/guards.md): this test runs
+it on jstack. The guard reads a Python file with `tokenize`, so a `#` in a string is no comment. It
+reads a shell file character by character, so a `#` in quotes is no comment either. It reads a
+systemd unit and a list of jmerge's paths line by line: a line that starts with `#` is a comment,
+and in a unit so is a line that starts with `;`. jstack lets through what a tool reads as an
+instruction: a shebang, `# type:` and `# pragma`. It does not let a `# noqa` through: write the
+code so that ruff reports nothing on it instead.
 
-In a script, and in the `<script>` and `<style>` of a page, the test looks for `/* */` and `//`. It
-skips strings, regular expressions and a `://`. It lets through a comment there that holds an
+In a script, and in the `<script>` and `<style>` of a page, the guard looks for `/* */` and `//`. It
+skips strings, regular expressions and a `://`. jstack lets through a comment there that holds an
 `https://` link. Such a comment names a fact of the platform, and the link is the page that
 documents that fact.
+
+The cases below run jstack's `comments` part through the guard on files written for them.
 """
 
-import io
 import re
-import tokenize
+from dataclasses import replace
 
 import pytest
 
+from repo_standard import size
+from repo_standard.cli import main
+from repo_standard.config import Config, load
+from repo_standard.tree import chosen, tracked
 from testing.paths import REPO
 
-SWEPT = (
-    "src/**/*.py",
-    "src/**/*.sh",
-    "src/**/*.js",
-    "src/**/*.html",
-    "features/*/src/**/*.py",
-    "features/*/src/**/*.sh",
-    "features/*/src/**/*.js",
-    "features/*/src/**/*.html",
-    "hooks/*.sh",
-    "features/*/hooks/*.sh",
-    "scripts/*.sh",
-    "install.sh",
-    "testing/tests/**/*.py",
-    "features/*/tests/**/*.py",
-    "testing/*.py",
-    "conftest.py",
-    "templates/*.service",
-    "templates/*.timer",
-    "features/*/units/*.service",
-    "features/*/units/*.timer",
-    "templates/*.html",
-    "features/*/templates/*.html",
-    "features/jmerge/src/jmerge/*.txt",
-)
-READ_BY_A_TOOL = ("# type:", "# pragma")
-LINKED = "https://"
-EMBEDDED = re.compile(r"<(script|style)\b[^>]*>(.*?)</\1>", re.S | re.I)
-WORD = re.compile(r"[\w$]+")
-PACKAGE = re.compile(r"(?:features/[^/]+/)?src/([^/]+)/")
-AFTER_A_WORD_A_REGEX = {"return", "typeof", "case", "do", "else", "in", "of", "new", "delete"}
-AFTER_A_MARK_A_REGEX = {"", *"([{,;:=!&|?+-*%<>~^"}
+COMMENTS = load(REPO).part("comments")
+PACKAGE = re.compile(r"features/[^/]+/src/([^/]+)/")
 
 
 def swept():
-    return sorted({path.relative_to(REPO).as_posix() for glob in SWEPT for path in REPO.glob(glob)})
+    return chosen(tracked(REPO), COMMENTS.files, COMMENTS.exclude)
 
 
-def python_comments(text):
-    tokens = tokenize.generate_tokens(io.StringIO(text).readline)
-    return [(token.start[0], token.string) for token in tokens if token.type == tokenize.COMMENT]
-
-
-def shell_comments(text):
-    found, quote, at = [], "", 0
-    while at < len(text):
-        char = text[at]
-        if char == "\\" and quote != "'":
-            at += 1
-        elif quote:
-            quote = "" if char == quote else quote
-        elif char in "'\"":
-            quote = char
-        elif char == "#" and text[at - 1 : at].strip() == "":
-            end = text.find("\n", at) % (len(text) + 1)
-            found.append((text.count("\n", 0, at) + 1, text[at:end]))
-            at = end
-        at += 1
-    return found
-
-
-def quoted_end(text, at):
-    quote, at = text[at], at + 1
-    while at < len(text) and text[at] != quote and (quote == "`" or text[at] != "\n"):
-        at += 2 if text[at] == "\\" else 1
-    return at + 1
-
-
-def regex_end(text, at):
-    within, at = False, at + 1
-    while at < len(text) and text[at] != "\n":
-        if text[at] == "\\":
-            at += 1
-        elif text[at] in "[]":
-            within = text[at] == "["
-        elif text[at] == "/" and not within:
-            return at + 1
-        at += 1
-    return at
-
-
-def comment_end(text, at):
-    closing = "*/" if text[at + 1] == "*" else "\n"
-    end = text.find(closing, at + 2)
-    return len(text) if end < 0 else end + len(closing.strip())
-
-
-def script_comments(text):
-    found, before, at = [], "", 0
-    while at < len(text):
-        char, two, word = text[at], text[at : at + 2], WORD.match(text, at)
-        if char in "'\"`":
-            before, at = char, quoted_end(text, at)
-        elif two == "/*" or (two == "//" and text[at - 1 : at] != ":"):
-            end = comment_end(text, at)
-            found.append((text.count("\n", 0, at) + 1, text[at:end]))
-            at = end
-        elif char == "/" and (before in AFTER_A_WORD_A_REGEX or before in AFTER_A_MARK_A_REGEX):
-            before, at = "/", regex_end(text, at)
-        elif word:
-            before, at = word[0], word.end()
-        else:
-            before, at = before if char.isspace() else char, at + 1
-    return found
-
-
-def page_comments(text):
+def plain_comments(root, name):
+    """Each plain comment of the file `name` under `root`, read by jstack's `comments` part."""
+    config = Config(comments=replace(COMMENTS, files=(name,), exclude=()))
     return [
-        (text.count("\n", 0, embedded.start(2)) + at, comment)
-        for embedded in EMBEDDED.finditer(text)
-        for at, comment in script_comments(embedded[2])
-    ]
-
-
-def line_comments(text, marks=("#",)):
-    lines = enumerate(text.splitlines(), 1)
-    return [(at, line.strip()) for at, line in lines if line.lstrip().startswith(marks)]
-
-
-def unit_comments(text):
-    return line_comments(text, ("#", ";"))
-
-
-READERS = {
-    ".py": python_comments,
-    ".js": script_comments,
-    ".html": page_comments,
-    ".service": unit_comments,
-    ".timer": unit_comments,
-    ".txt": line_comments,
-}
-
-
-def plain_comments(path, root=REPO):
-    read = READERS.get(path.suffix, shell_comments)
-    return [
-        f"{path.relative_to(root).as_posix()}:{at}: {comment}"
-        for at, comment in read(path.read_text())
-        if not comment.startswith(READ_BY_A_TOOL)
-        and not (at == 1 and comment.startswith("#!"))
-        and not (path.suffix in (".js", ".html") and LINKED in comment)
+        f"{fault.path}:{fault.line}: {fault.why.removeprefix('a plain comment: ')}"
+        for fault in size.comments(root, config, [name])
     ]
 
 
@@ -201,9 +81,9 @@ def test_the_sweep_reads_every_package_the_scripts_and_the_tests():
     } <= set(files)
 
 
-@pytest.mark.parametrize("name", swept())
-def test_a_swept_file_holds_no_plain_comment(name):
-    assert plain_comments(REPO / name) == []
+def test_jstack_passes_the_comments_guard(capsys):
+    assert main(["comments", "--root", str(REPO)]) == 0
+    assert capsys.readouterr().out == ""
 
 
 @pytest.mark.parametrize(
@@ -252,7 +132,7 @@ def test_a_swept_file_holds_no_plain_comment(name):
 )
 def test_a_file_written_with_a_comment_fails_with_its_file_and_line(tmp_path, name, text, found):
     (tmp_path / name).write_text(text)
-    assert plain_comments(tmp_path / name, tmp_path) == found
+    assert plain_comments(tmp_path, name) == found
 
 
 @pytest.mark.parametrize(
@@ -281,4 +161,4 @@ def test_a_file_written_with_a_comment_fails_with_its_file_and_line(tmp_path, na
 )
 def test_what_a_tool_reads_and_a_hash_that_opens_no_comment_pass(tmp_path, name, text):
     (tmp_path / name).write_text(text)
-    assert plain_comments(tmp_path / name, tmp_path) == []
+    assert plain_comments(tmp_path, name) == []

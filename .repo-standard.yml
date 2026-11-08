@@ -1,0 +1,107 @@
+# jstack's own config for the repo standard's guards (features/repo-standard/docs/guards.md).
+# The guards read jstack's layout, owners, generators, docs and caps from here, not from code.
+# `owners` is scripts/jtrees/crawl.py's REPO_OWNERS, and test_lint_borders.py holds them equal.
+standard: 1
+features: features
+manifest-schema: schemas/feature.schema.json
+layout: [features/, schemas/, scripts/, testing/, .github/]
+owners:
+  INFRA:
+    - .repo-standard.yml
+    - ".github/**"
+    - .gitignore
+    - LICENSE
+    - SECURITY.md
+    - CONTRIBUTING.md
+    - THIRD_PARTY.md
+    - Makefile
+    - pyproject.toml
+    - uv.lock
+    - plugin.json
+    - "schemas/**"
+    - scripts/generate-jstack-trees.py
+    - "scripts/jtrees/**"
+    - scripts/lint-borders.py
+    - scripts/check-jstack-docs.py
+    - scripts/green_tree.py
+    - scripts/no_ai_trailers.py
+    - scripts/fresh-host.sh
+    - scripts/select_tests.py
+    - scripts/hot_files.py
+    - conftest.py
+    - "testing/**"
+    - install.sh
+  SHARED-DELETE: [README.md, CATALOG.md, skills.json]
+cross-cutting: cross-cutting
+generators:
+  - [python3, scripts/generate-jstack-trees.py]
+docs:
+  pages:
+    - README.md
+    - CATALOG.md
+    - CONTRIBUTING.md
+    - SECURITY.md
+    - "features/*/docs/**/*.md"
+    - "features/*/docs/**/*.html"
+  roots: [features, schemas, scripts, testing, .github]
+  elsewhere:
+    scripts/deploy: another repo's deploy command, an example of a door in the-queue.md
+    .github/actions/setup/action.yml: a caller repo's setup action, which the shared check runs
+size:
+  - files: ["features/*/src/**/*.py"]
+    cap: 800
+    over:
+      features/jbus/src/jbus/questions.py: 860
+      features/jmerge/src/jmerge/ready.py: 1062
+      features/jinstall/src/jinstall/kinds.py: 1098
+      features/jbus/src/jbus/watch.py: 1112
+      features/jbus/src/jbus/queue.py: 1219
+      features/jbus/src/jbus/view/state.py: 1405
+      features/jmerge/src/jmerge/cli.py: 1586
+  - files: ["features/*/tests/**/*.py", "testing/tests/**/*.py"]
+    exclude: ["features/*/tests/fixtures/**", "testing/tests/fixtures/**"]
+    cap: 1500
+    over:
+      testing/tests/test_select_tests.py: 1664
+      testing/tests/test_workflows.py: 3125
+  - files: ["features/*/SKILL.md", "features/*/skills/*/SKILL.md"]
+    cap: 400
+    over:
+      features/home/skills/handoff/SKILL.md: 504
+comments:
+  files:
+    - "features/*/src/**/*.py"
+    - "features/*/src/**/*.sh"
+    - "features/*/src/**/*.js"
+    - "features/*/src/**/*.html"
+    - "features/*/hooks/*.sh"
+    - "scripts/*.sh"
+    - install.sh
+    - "testing/tests/**/*.py"
+    - "features/*/tests/**/*.py"
+    - "testing/*.py"
+    - conftest.py
+    - "features/*/units/*.service"
+    - "features/*/units/*.timer"
+    - "features/*/templates/*.html"
+    - "features/jmerge/src/jmerge/*.txt"
+  readers:
+    .txt: hash
+  allow: ["# type:", "# pragma"]
+  links: [.js, .html]
+deploy: [make release]
+enforced-by:
+  a-commands-page-matches-its-help: [features/repo-guards/tests/test_docs_true.py]
+  new-prose-has-one-sentence-per-line: [features/writing/scripts/prose_lint.py]
+  shell-runs-on-macos-as-well-as-on-linux:
+    - features/repo-guards/tests/test_portable_shell.py
+    - features/repo-guards/tests/test_bash32.py
+  a-test-runs-the-code: [features/repo-guards/tests/test_run_not_read.py]
+  a-shared-path-forces-the-whole-suite:
+    - scripts/select_tests.py
+    - testing/tests/test_select_tests_rules.py
+  a-pair-of-trees-passes-once: [.github/workflows/check.yml]
+  a-passing-tree-leaves-a-marker: [scripts/green_tree.py]
+  every-deploy-entry-refuses-a-tree-that-is-not-green-main:
+    - .github/workflows/release.yml
+    - testing/tests/test_workflows.py

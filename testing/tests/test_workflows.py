@@ -9,7 +9,9 @@ The test reads the workflow file as YAML with two small readers, `mapping` and `
 only mappings by their indentation, a scalar, and a list in brackets.
 
 Every job runs on GitHub's hosted runner, the pinned image `ubuntu-24.04`, and none names a runner
-of the owner's machine or reads a repo variable for it. The one other image is `macos-15`, for
+of the owner's machine or reads a repo variable for it. The one exception is the repo standard's
+shared check workflow, `repo-standard-check.yml`, which runs only when another repo calls it, on
+the runner that caller names. The one other image is `macos-15`, for
 two workflows. The workflow `macos`: on each pull request and each push to main its job
 `macos-select`, on Linux, picks the test files listed in `testing/macos-quick.txt`, the ones whose
 code branches on macOS or that guard a break only a Mac has, that the change reaches, and its job
@@ -79,10 +81,12 @@ RELEASE = WORKFLOWS / "release.yml"
 BORDERS = WORKFLOWS / "borders.yml"
 NIGHTLY = WORKFLOWS / "macos-nightly.yml"
 MAC = WORKFLOWS / "macos.yml"
+SHARED = WORKFLOWS / "repo-standard-check.yml"
 MAC_QUICK = REPO / "testing" / "macos-quick.txt"
 GREEN_TREE = REPO / "scripts" / "green_tree.py"
 READ_SET = ("/.github/", "spec/", "statechart/")
 HOSTED = "ubuntu-24.04"
+CALLERS = "${{ inputs.runner }}"
 MACOS = "macos-15"
 
 
@@ -221,6 +225,9 @@ def test_every_job_of_every_workflow_runs_on_githubs_hosted_runner():
         "macos.yml": {"macos-select": HOSTED, "macos-part": MACOS, "macos": HOSTED},
         "pstack-drift.yml": {"drift": HOSTED},
         "release.yml": {"release": HOSTED},
+        "repo-standard-check.yml": dict.fromkeys(
+            ("plan", "lint", "test", "command", "passed"), CALLERS
+        ),
     }
 
 
@@ -234,7 +241,7 @@ def test_no_file_under_github_names_a_runner_of_the_owners_machine_or_its_variab
 
 def test_every_workflow_may_read_the_contents_and_no_more_and_none_runs_for_a_fork_with_secrets():
     for path in sorted(WORKFLOWS.glob("*.yml")):
-        more = {"actions": "read"} if path in (CHECK, MAC, RELEASE) else {}
+        more = {"actions": "read"} if path in (CHECK, MAC, RELEASE, SHARED) else {}
         contents = "write" if path == RELEASE else "read"
         assert block("permissions", path) == {"contents": contents} | more, path.name
         assert "pull_request_target" not in path.read_text(), path.name
@@ -522,6 +529,11 @@ CAPS = {
     ("macos.yml", "macos"): "5",
     ("pstack-drift.yml", "drift"): "5",
     ("release.yml", "release"): "15",
+    ("repo-standard-check.yml", "plan"): "10",
+    ("repo-standard-check.yml", "lint"): "15",
+    ("repo-standard-check.yml", "test"): "${{ inputs.timeout-minutes }}",
+    ("repo-standard-check.yml", "command"): "${{ inputs.timeout-minutes }}",
+    ("repo-standard-check.yml", "passed"): "5",
 }
 
 
@@ -1384,6 +1396,7 @@ def test_the_fast_check_selects_in_reuse_and_lints_beside_it_and_runs_neither_in
         "uv sync --locked",
         "python3 features/writing/scripts/prose_lint.py HEAD^1",
         "make lint BASE=HEAD^1",
+        "uv run repo-standard conform",
     ]
     assert lint[0]["with"] == {"persist-credentials": False, "fetch-depth": "2"}
     assert "needs" not in keys and job_line("lint", "needs") is None

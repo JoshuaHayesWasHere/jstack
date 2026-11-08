@@ -1,11 +1,20 @@
 """A scoped home reaches the root home only by a stop: `jbus stop`, which jbus takes only when the
-home's own open row is held by something the home cannot clear.
+home's own open row is held by something the home cannot clear, and only for a one-way door.
+
+A stop carries a one-way door and nothing else: `--holds` names one case of
+`features/home/templates/gates.md` word for word (`party.CASES`). A stop with no `--holds`, or
+with a case the table does not have, is refused, and the refusal tells the home to tell the user
+directly from its own thread: a scoped home's own decisions are the user's and its, never the
+root's. On a door stop the root scouts if it needs facts and answers the stop with its
+recommendation, which the home adds to the gate it parked for the door; the root writes nothing
+into a scope's files, and the user alone opens or refuses the door.
 
 Being stuck is a fact of the queue, so jbus checks it and reads no words. A stop names the scope's
 own row and what holds it: `--on` another home's open row, by its slug or its pull request's `#<n>`,
 or `--outside` something no home owns, such as the machine or a sign-in. jbus refuses a stop
 unless:
 
+- `--holds` is a case of the gates table;
 - `--from` is the thread in a scoped home's `home-id`, and not the root's (`_scope`);
 - the own row is in the queue, is that scope's by its stored brief's `Home:` line
   (`jbriefs.home.home_of`), and is not merged, done or removed;
@@ -49,7 +58,7 @@ from typing import TYPE_CHECKING, Any, TypedDict, Unpack
 
 from jbriefs import home as homes
 from jbriefs.home import thread_of
-from jbus import Config, Refused, locked, outbox, queue, verbs, write_json
+from jbus import Config, Refused, locked, outbox, party, queue, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
 
@@ -63,13 +72,24 @@ ANSWER = "stop-answer"
 OUTSIDE = "outside"
 ENDED = {**{status: status for status in queue.FINAL}, "removed": "removed"}
 ASKS = (
-    "jbus: the {scope} home is stopped. Its row {row} is held by {held}, and it cannot clear that "
-    "itself. What the root must clear: {what}\n\n"
-    'Answer it once, with `jbus stop answer {scope} {row} "<your answer>" --from <this home\'s '
-    "id>`, and jbus carries the answer to the {scope} home. A stop whose row merges or is removed "
-    "closes itself."
+    "jbus: the {scope} home is stopped at a one-way door, {holds}. Its row {row} is held by "
+    "{held}, and it cannot clear that itself. What the root must clear: {what}\n\n"
+    "Scout if you need facts, then answer the stop with your recommendation, once, with "
+    '`jbus stop answer {scope} {row} "<your recommendation>" --from <this home\'s id>`: jbus '
+    "carries it to the {scope} home, which adds it to its own gate for the door. The root writes "
+    "nothing into the {scope} home's files, and the user alone opens or refuses the door. A stop "
+    "whose row merges or is removed closes itself."
 )
-ANSWERS = "jbus: the root home's answer to the {scope} home's stop on {row}: {answer}"
+ANSWERS = (
+    "jbus: the root home's answer to the {scope} home's stop on {row}: {answer}\n\n"
+    "Add it, as the root's recommendation, to your own gate for the door: the user alone opens or "
+    "refuses the door."
+)
+DIRECT = (
+    "a stop carries only a one-way door, --holds '<case>' with a case of "
+    "features/home/templates/gates.md ({cases}): anything else, tell the user directly from this "
+    "home's own thread, and stop"
+)
 NO_ROOT = "no root home is running, its home-id holds no thread"
 NO_SCOPE = "the {scope} home is not running, its home-id holds no thread"
 NO_T3 = "jbus is not signed in to T3 Code"
@@ -94,6 +114,7 @@ class Stop:
     outside: str
     what: str
     at: str
+    holds: str = ""
     thread: str = ""
     sent_at: str = ""
     waits: str = ""
@@ -209,11 +230,24 @@ def _pulled(run: Pass, number: str) -> str:
     return found[0]
 
 
-def take(run: Pass, thread: str, row: str, on: str, outside: str, what: str) -> Stop:
-    """Check a stop and keep it, or refuse it. `on` is the row or `#<n>` that holds the own row,
-    and `outside` what holds it that no home owns: exactly one of the two is given."""
+def _door(holds: str) -> str:
+    """Return the case of the gates table that `holds` names, or refuse it."""
+    holds = " ".join(holds.split())
+    if holds in party.CASES:
+        return holds
+    named = f"--holds '{holds}' is no case of the table" if holds else "this stop has no --holds"
+    raise Refused(f"refused: {named}; {DIRECT.format(cases=', '.join(party.CASES))}")
+
+
+def take(
+    run: Pass, thread: str, row: str, on: str, outside: str, what: str, holds: str = ""
+) -> Stop:
+    """Check a stop and keep it, or refuse it. `holds` is the one-way door, a case of the gates
+    table. `on` is the row or `#<n>` that holds the own row, and `outside` what holds it that no
+    home owns: exactly one of the two is given."""
     what = " ".join(what.split())
     outside = " ".join(outside.split())
+    holds = _door(holds)
     if not what:
         raise Refused("refused: a stop says what the root must clear")
     if bool(on) == bool(outside):
@@ -234,7 +268,14 @@ def take(run: Pass, thread: str, row: str, on: str, outside: str, what: str) -> 
                 "a stop is on another home's row"
             )
     made = Stop(
-        key(scope.name, row, on or OUTSIDE), scope.name, row, on, outside, what, _stamp(run)
+        key(scope.name, row, on or OUTSIDE),
+        scope.name,
+        row,
+        on,
+        outside,
+        what,
+        _stamp(run),
+        holds,
     )
     with locked(run.state, LOCK):
         kept = load(run.state)
@@ -335,7 +376,9 @@ def _held(run: Pass, one: Stop) -> str:
 
 def _ask(run: Pass, client: Client | None, one: Stop) -> None:
     thread = thread_of(run.home)
-    text = ASKS.format(scope=one.scope, row=one.row, held=_held(run, one), what=one.what)
+    text = ASKS.format(
+        scope=one.scope, row=one.row, held=_held(run, one), what=one.what, holds=one.holds
+    )
     waits = _send(
         run, client, thread, NO_ROOT, row=one.row, sent=one.sent, text=text, needs="decide"
     )
@@ -424,7 +467,8 @@ def _stop(args: argparse.Namespace, config: Config) -> int:
     run = Pass(config, verbs.project(config, args.project), datetime.now(UTC), lambda _: None)
     try:
         if args.row == "answer":
-            if args.on is not None or args.outside is not None or len(args.words) < 3:
+            given = (args.on, args.outside, args.holds)
+            if any(one is not None for one in given) or len(args.words) < 3:
                 raise Refused(
                     'refused: an answer is jbus stop answer <scope> <row> "<text>" --from <root id>'
                 )
@@ -437,7 +481,13 @@ def _stop(args: argparse.Namespace, config: Config) -> int:
             print(f"answered: {', '.join(given.stops)}, closed, the answer sent to {to}")
             return 0
         one = take(
-            run, args.thread, args.row, args.on or "", args.outside or "", " ".join(args.words)
+            run,
+            args.thread,
+            args.row,
+            args.on or "",
+            args.outside or "",
+            " ".join(args.words),
+            args.holds or "",
         )
         settle(run)
         deliver(run, _client(config))
@@ -458,6 +508,11 @@ def _arguments(stop: argparse.ArgumentParser) -> None:
     )
     held.add_argument("--outside", metavar="WHAT", help="what holds it that no home owns")
     stop.add_argument(
+        "--holds",
+        metavar="CASE",
+        help="the one-way door, a case of features/home/templates/gates.md, word for word",
+    )
+    stop.add_argument(
         "--from",
         dest="thread",
         metavar="THREAD",
@@ -474,7 +529,7 @@ def _arguments(stop: argparse.ArgumentParser) -> None:
 VERBS = (
     verbs.Verb(
         "stop",
-        "a scoped home's stop on its own row that another home's row holds, or the root's answer",
+        "a scoped home's stop at a one-way door on its own row, or the root's answer",
         _arguments,
         _stop,
     ),

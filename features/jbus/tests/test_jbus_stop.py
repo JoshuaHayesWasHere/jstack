@@ -64,8 +64,11 @@ def status(kitchen, slug, to):
     queue.path(kitchen.state).write_text(json.dumps(table))
 
 
-def stops(kitchen, row="fl-mine", *held, by=FLOW, what=WHAT):
-    return kitchen.main("stop", row, *held, "--from", by, *what)
+DOOR = ("--holds", "touches prod or real users")
+
+
+def stops(kitchen, row="fl-mine", *held, by=FLOW, what=WHAT, door=DOOR):
+    return kitchen.main("stop", row, *held, *door, "--from", by, *what)
 
 
 def answers(kitchen, *text, scope=SCOPE, row="fl-mine", by=ROOT):
@@ -90,6 +93,10 @@ def test_a_stop_on_another_homes_open_row_goes_to_the_root_once(kitchen):
     )
     assert sent(kitchen) == [(ROOT, "stop")]
     (text,) = texts(kitchen)
+    assert "stopped at a one-way door, touches prod or real users" in text
+    assert "answer the stop with your recommendation" in text
+    assert "which adds it to its own gate for the door" in text
+    assert "The root writes nothing into the flow home's files" in text
     assert "fl-mine is held by fix-root, the root home's row" in text
     assert "the train is red on a root fix" in text
     assert "jbus stop answer flow fl-mine" in text
@@ -150,6 +157,50 @@ def test_a_stop_that_is_not_a_scopes_own_open_row_held_by_another_home_is_refuse
     assert sent(kitchen) == []
 
 
+@pytest.mark.parametrize(
+    ("door", "named"),
+    [
+        ((), "refused: this stop has no --holds; "),
+        (
+            ("--holds", "needs steering"),
+            "refused: --holds 'needs steering' is no case of the table; ",
+        ),
+        (("--holds", "deletes"), "refused: --holds 'deletes' is no case of the table; "),
+    ],
+)
+def test_a_stop_that_is_no_one_way_door_is_refused_and_told_to_the_user_directly(
+    kitchen, door, named
+):
+    code, said = stops(kitchen, "fl-mine", "--on", "fix-root", door=door)
+    assert code == 1
+    assert said.startswith(named), said
+    assert "a stop carries only a one-way door" in said
+    assert "features/home/templates/gates.md" in said
+    assert "tell the user directly from this home's own thread" in said
+    assert sent(kitchen) == []
+    assert stop.load(kitchen.state) == stop.Kept()
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "deletes data",
+        "rewrites history",
+        "spends money",
+        "touches prod or real users",
+        "changes access or secrets",
+        "publishes",
+    ],
+)
+def test_a_stop_at_each_one_way_door_of_the_gates_table_is_taken(kitchen, case):
+    code, said = stops(kitchen, "fl-mine", "--on", "fix-root", door=("--holds", case))
+    assert (code, said) == (
+        0,
+        f"stopped: stop|flow|fl-mine|fix-root, sent to the root home at {ROOT}\n",
+    )
+    assert f"stopped at a one-way door, {case}." in texts(kitchen)[0]
+
+
 def test_a_stop_says_what_the_root_must_clear(kitchen):
     code, said = stops(kitchen, "fl-mine", "--on", "fix-root", what=())
     assert (code, said) == (1, "refused: a stop says what the root must clear\n")
@@ -191,7 +242,9 @@ def test_an_answer_reaches_the_scope_once_and_closes_the_stop(kitchen):
         f"answered: stop|flow|fl-mine|fix-root, closed, the answer sent to {FLOW}\n",
     )
     assert sent(kitchen) == [(ROOT, "stop"), (FLOW, "stop-answer")]
-    assert texts(kitchen)[1].endswith("on fl-mine: rebase on main once fix-root merges")
+    answer = texts(kitchen)[1]
+    assert "on fl-mine: rebase on main once fix-root merges" in answer
+    assert "as the root's recommendation, to your own gate for the door" in answer
     kitchen.poll()
     assert sent(kitchen) == [(ROOT, "stop"), (FLOW, "stop-answer")]
     code, said = answers(kitchen, "again")
