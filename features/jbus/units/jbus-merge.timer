@@ -1,9 +1,9 @@
 [Unit]
-Description=jbus merge tick: jmerge within seconds of a check ending
+Description=jbus merge tick: jmerge within seconds of a check ending, while the last pass saw one going
 Documentation=file:%Y/../docs/jbus/the-units.md#the-units
 
 [Timer]
-OnBootSec=2min
+OnActiveSec=2s
 OnUnitActiveSec=2s
 AccuracySec=200ms
 
