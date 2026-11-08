@@ -22,6 +22,7 @@ asks it whose a pull request is. No other copy of the rule exists.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from pathlib import Path
 
 from jbriefs import parse
@@ -65,14 +66,26 @@ def scopes(state: Path) -> list[tuple[Path, str, str]]:
 def home_of(state: Path, brief: str) -> Path:
     """The directory of the home that a brief belongs to. That is the scope that its `Home:`
     line names, by name or by either of its ids. Where two scopes match, it is the last one
-    in name order. For any other brief it is `state`."""
-    name = named(brief)
-    if not name or name == ROOT or name in ids(state):
-        return state
-    for scope, now, was in reversed(scopes(state)):
-        if name in (scope.name, now, was):
-            return scope
-    return state
+    in name order. For any other brief it is `state`. A caller that asks of many briefs takes
+    `reader`, which reads the scopes once."""
+    return reader(state)(brief)
+
+
+def reader(state: Path) -> Callable[[str], Path]:
+    """`home_of` for many briefs: the root's ids and the scopes of `state` are read once, here,
+    so a home that changes after this call is not seen by the function it returns."""
+    root = ids(state)
+    homes: dict[str, Path] = {}
+    for scope, now, was in scopes(state):
+        homes |= {key: scope for key in (scope.name, now, was) if key}
+
+    def home(brief: str) -> Path:
+        name = named(brief)
+        if not name or name == ROOT or name in root:
+            return state
+        return homes.get(name, state)
+
+    return home
 
 
 def fault(state: Path, brief: str, project: str) -> str:
