@@ -134,7 +134,7 @@ def queued(kitchen, slug, *more, text=None):
 
 def test_a_row_queued_with_the_users_message_is_approved_on_it_in_the_same_write(kitchen):
     """`queue add --message` records the go `approve --message` would, for the brief it adds,
-    and logs it as a go of the home's."""
+    and `jbus.asks` logs it as a go of the home's."""
     kitchen.t3.says(HOME, MESSAGE, "yes,\n  launch alpha")
     code, said = queued(kitchen, "alpha", "--message", REF)
     assert code == 0, said
