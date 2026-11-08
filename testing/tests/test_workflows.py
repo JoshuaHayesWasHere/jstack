@@ -1352,6 +1352,8 @@ def test_the_fast_check_selects_in_reuse_and_lints_beside_it_and_runs_neither_in
         "green tree",
         "actions/cache",
         "select",
+        "selection",
+        "actions/upload-artifact",
         "actions/upload-artifact",
         "no AI co-author trailer",
     ]
@@ -1392,17 +1394,18 @@ def test_the_fast_check_selects_in_reuse_and_lints_beside_it_and_runs_neither_in
     assert "select_tests" not in said and "check-fast" not in said and "lint" not in said
     assert [
         step.get("uses", step.get("name", step.get("run"))).partition("@")[0] for step in parts
-    ][:7] == [
-        "part",
+    ][:8] == [
         "actions/checkout",
         "astral-sh/setup-uv",
         "uv sync --locked",
         "zsh",
         "actions/cache/restore",
+        "selection",
+        "part",
         "make test",
     ]
-    assert parts[1]["with"] == {"persist-credentials": False, "fetch-depth": "2"}
-    assert parts[6]["id"] == "suite"
+    assert parts[0]["with"] == {"persist-credentials": False, "fetch-depth": "2"}
+    assert parts[7]["id"] == "suite"
 
 
 def test_the_select_step_starts_from_the_facts_a_run_of_the_same_selector_kept():
@@ -1455,7 +1458,7 @@ def test_a_run_on_main_saves_the_facts_under_the_key_a_pull_requests_select_rest
     assert "select_tests.facts()" in found[at + 1]["run"]
 
 
-PART = "${{ needs.reuse.outputs[format('part{0}', matrix.shard)] }}"
+PART = "${{ steps.selection.outputs[format('part{0}', matrix.shard)] }}"
 
 
 @pytest.mark.parametrize(
@@ -1472,13 +1475,22 @@ PART = "${{ needs.reuse.outputs[format('part{0}', matrix.shard)] }}"
     ],
 )
 def test_a_part_runs_only_its_own_files_and_fails_on_no_selection(tmp_path, part, ends, made):
-    """Each part reads its own output of `reuse`, and its steps run here as the runner runs them,
-    with a `make` that records what it was asked: a part runs `make test` on its files alone, so
-    it collects only those; a part the selection left empty (`none`) passes; and a part that got
-    nothing fails before its checkout, since `make test` with no files runs the whole suite."""
+    """Each part reads its own entry of the selection `reuse` handed it, and its steps run here as
+    the runner runs them, with a `make` that records what it was asked: a part runs `make test` on
+    its files alone, so it collects only those; a part the selection left empty (`none`) passes;
+    and a part that got nothing fails before `make test`, which with no files runs the whole
+    suite. A reuse runs neither."""
     found, _ = steps(CHECK.read_text(), "check-shard")
-    guard, test = found[0], next(step for step in found if step.get("name") == "make test")
+    guard, test = (
+        next(step for step in found if step.get("name") == n) for n in ("part", "make test")
+    )
     assert guard["env"] == test["env"] == {"PART": PART}
+    for step in (guard, test):
+        assert [
+            r
+            for r in ("true", "false", "")
+            if worked(step["if"], {"steps.selection.outputs.reused": r})
+        ] == ["false", ""]
     bin = tmp_path / "bin"
     bin.mkdir()
     (bin / "make").write_text(f'#!/bin/sh\necho "$*" >> "{tmp_path}/make"\n')
@@ -1494,6 +1506,120 @@ def test_a_part_runs_only_its_own_files_and_fails_on_no_selection(tmp_path, part
     assert (asked.read_text().strip() if asked.exists() else None) == made
 
 
+def hand_over(tmp_path, select, reused, ready, status):
+    """Run `reuse`'s `selection` step and a part's, as the runner runs them, with a `gh` that
+    serves the run's artifacts as GitHub does: none for the asks before `ready`, then the file
+    `reuse` wrote. The `reuse` job's status is `status`. Return how the part's step ended, its
+    outputs, and what it asked of `gh`."""
+    (wrote,) = [s for s in steps(CHECK.read_text(), "reuse")[0] if s.get("name") == "selection"]
+    (asks,) = [
+        s for s in steps(CHECK.read_text(), "check-shard")[0] if s.get("name") == "selection"
+    ]
+    assert wrote["if"] == "!cancelled()"
+    assert wrote["env"] == {
+        "SELECT": "${{ toJSON(steps.select.outputs) }}",
+        "TREE": "${{ steps.tree.outputs.name }}",
+        "REUSED": "${{ steps.reuse.outputs.reused }}",
+    }
+    assert asks["env"] == {"GH_TOKEN": "${{ github.token }}"}
+    (upload,) = [
+        s for s in steps(CHECK.read_text(), "reuse")[0] if "selection-" in str(s.get("with"))
+    ]
+    assert upload["with"]["name"] == "selection-${{ github.run_attempt }}"
+    assert upload["with"]["path"] == "${{ runner.temp }}/selection/selection.json"
+    reuse = tmp_path / "reuse"
+    reuse.mkdir()
+    env = {"PATH": "/usr/bin:/bin", "RUNNER_TEMP": str(reuse), "TREE": "green-tree-ab"}
+    env |= {"SELECT": json.dumps(select), "REUSED": reused}
+    subprocess.run(["bash", "-e", "-c", wrote["run"]], env=env, check=True)
+    with zipfile.ZipFile(tmp_path / "artifact.zip", "w") as kept:
+        kept.write(reuse / "selection" / "selection.json", "selection.json")
+    bin = tmp_path / "bin"
+    bin.mkdir()
+    (bin / "sleep").write_text("#!/bin/sh\n")
+    (bin / "gh").write_text(
+        "#!/bin/sh\n"
+        f'echo "$*" >> "{tmp_path}/asked"\n'
+        'case "$2" in\n'
+        "*/artifacts?name=selection-3)\n"
+        f'  echo x >> "{tmp_path}/lists"\n'
+        f'  [ "$(wc -l < "{tmp_path}/lists")" -lt {ready} ] || echo 77 ;;\n'
+        f'*/runs/9/attempts/3/jobs) echo "{status}" ;;\n'
+        f'*/actions/artifacts/77/zip) cat "{tmp_path}/artifact.zip" ;;\n'
+        "*) exit 1 ;;\n"
+        "esac\n"
+    )
+    for name in ("sleep", "gh"):
+        (bin / name).chmod(0o755)
+    part = tmp_path / "part"
+    part.mkdir()
+    out = tmp_path / "output"
+    env = {"PATH": f"{bin}:/usr/bin:/bin", "RUNNER_TEMP": str(part), "GITHUB_OUTPUT": str(out)}
+    env |= {"GITHUB_REPOSITORY": "o/r", "GITHUB_RUN_ID": "9", "GITHUB_RUN_ATTEMPT": "3"}
+    ran = subprocess.run(
+        ["bash", "-e", "-o", "pipefail", "-c", asks["run"]], env=env, capture_output=True, text=True
+    )
+    outputs = (
+        dict(line.split("=", 1) for line in out.read_text().splitlines()) if out.exists() else {}
+    )
+    asked = (tmp_path / "asked").read_text().splitlines()
+    return ran, outputs, asked
+
+
+SELECTED = {f"part{k}": f"testing/tests/test_{k}.py" for k in range(1, 9)} | {
+    "part8": "none",
+    "selection": "some",
+    "files": "7",
+    "forced_by": "",
+}
+
+
+def test_a_part_sets_up_while_reuse_selects_and_waits_only_for_the_selection():
+    """The parts need no job, so they set up while `reuse` runs; `reuse` uploads its selection
+    the moment it has one, and a part, its setup done, asks for that artifact until it is there
+    and takes it as its outputs, before its tests and after its setup."""
+    found, _ = steps(CHECK.read_text(), "check-shard")
+    named = [step.get("name", step.get("uses", "")) for step in found]
+    assert named.index("selection") > max(
+        i
+        for i, step in enumerate(found)
+        if "setup-uv" in step.get("uses", "") or step.get("name") == "zsh"
+    )
+    assert named.index("selection") < named.index("part") < named.index("make test")
+    assert job_line("check-shard", "needs") is None
+    reuse = [
+        step.get("name", step.get("uses", "")) for step in steps(CHECK.read_text(), "reuse")[0]
+    ]
+    assert reuse.index("select") + 1 == reuse.index("selection")
+
+
+@pytest.mark.parametrize("ready", [1, 4, 12])
+def test_a_part_takes_the_selection_reuse_handed_over_once_it_is_there(tmp_path, ready):
+    ran, outputs, asked = hand_over(tmp_path, SELECTED, "false", ready, "in_progress")
+    assert ran.returncode == 0, ran.stdout + ran.stderr
+    assert outputs == SELECTED | {"tree": "green-tree-ab", "reused": "false"}
+    lists = [line for line in asked if "artifacts?name=" in line]
+    assert len(lists) == ready
+    assert asked[-1].startswith("api repos/o/r/actions/artifacts/77/zip")
+
+
+def test_a_reuse_hands_the_parts_no_files_and_says_it_reused(tmp_path):
+    ran, outputs, _ = hand_over(tmp_path, {}, "true", 1, "in_progress")
+    assert ran.returncode == 0, ran.stdout + ran.stderr
+    assert outputs == {"tree": "green-tree-ab", "reused": "true"}
+
+
+def test_a_part_fails_soon_when_reuse_ended_with_no_selection(tmp_path):
+    """A `reuse` that ended before it uploaded its selection, as when its checkout failed, fails
+    the part on the fifth ask, not at the part's timeout."""
+    ran, outputs, asked = hand_over(tmp_path, SELECTED, "false", 10**6, "completed")
+    assert ran.returncode == 1
+    assert "::error::the job reuse ended with no selection for this part" in ran.stdout
+    assert outputs == {}
+    assert len([line for line in asked if "artifacts?name=" in line]) == 6
+    assert len([line for line in asked if "/jobs" in line]) == 1
+
+
 @pytest.mark.parametrize("job", ["check-shard", "full-shard"])
 def test_every_part_restores_one_tlc_cache_by_the_spec_files_and_saves_what_it_added(job):
     """The cache of TLC's output (statechart's `kept`) is one for every part, since a test's part
@@ -1506,6 +1632,8 @@ def test_every_part_restores_one_tlc_cache_by_the_spec_files_and_saves_what_it_a
     later run's key finds."""
     text = CHECK.read_text()
     found, _ = steps(text, job)
+    # A part of the check waits for its selection between the restore and its tests.
+    found = [step for step in found if step.get("name") not in ("selection", "part")]
     names = [
         step.get("uses", step.get("name", step.get("run"))).partition("@")[0] for step in found
     ]
@@ -1713,10 +1841,10 @@ def test_a_pull_requests_check_says_whether_the_suite_ran_whole_and_on_which_tre
         if worked(report["if"], {"!cancelled()": True, "steps.suite.outcome": o})
     ] == ["success", "failure", "cancelled", ""]
     assert report["env"] == {
-        "FULL": "${{ needs.reuse.outputs.selection == 'all' }}",
-        "NAME": "${{ needs.reuse.outputs.tree }}",
-        "FILES": "${{ needs.reuse.outputs.files }}",
-        "FORCED": "${{ needs.reuse.outputs.forced_by }}",
+        "FULL": "${{ steps.selection.outputs.selection == 'all' }}",
+        "NAME": "${{ steps.selection.outputs.tree }}",
+        "FILES": "${{ steps.selection.outputs.files }}",
+        "FORCED": "${{ steps.selection.outputs.forced_by }}",
     }
     bin = tmp_path / "bin"
     bin.mkdir()
@@ -1752,7 +1880,7 @@ def test_a_pull_requests_check_keeps_the_list_of_tests_it_selected_as_an_artifac
     job `reuse` keeps that file for each attempt where it selected, also where the selection
     failed, so a red on main can be checked against what its pull request's check ran."""
     found = steps(CHECK.read_text(), "reuse")[0]
-    (kept,) = [step for step in found if "upload-artifact" in step.get("uses", "")]
+    (kept,) = [step for step in found if "selected-tests" in str(step.get("with"))]
     assert re.fullmatch(r"actions/upload-artifact@[0-9a-f]{40}", kept["uses"])
     assert kept["continue-on-error"] is True
     assert [
@@ -2696,18 +2824,16 @@ def test_a_range_that_cannot_be_read_fails_the_check(tmp_path):
     assert ran.stdout.startswith("::error::no-ai-trailers: the commits could not be read: ")
 
 
-def test_a_reuse_skips_the_parts_and_check_passes_on_it_and_a_miss_runs_them():
-    """A pull request's run whose two trees a passed check already checked skips the eight parts,
-    and `check`, the required check, passes on the reuse. A lookup that failed or found nothing
-    runs them, and `check` then passes only when every part did. A `reuse` job that failed, as
-    on an AI co-author trailer, fails `check` whatever the parts did."""
-    assert ran_on("check-shard", reused="true") == []
+def test_a_reuse_skips_the_parts_tests_and_check_passes_on_it_and_a_miss_runs_them():
+    """A pull request's run whose two trees a passed check already checked runs no test in its
+    eight parts, and `check`, the required check, passes on the reuse. The parts start with
+    `reuse`, needing no job, so that they set up while it selects. A lookup that failed or found
+    nothing runs the tests, and `check` then passes only when every part did. A `reuse` job that
+    failed, as on an AI co-author trailer, fails `check` whatever the parts did."""
     assert (
-        ran_on("check-shard", reused="false")
-        == ran_on("check-shard", reused="")
-        == ["pull_request"]
+        ran_on("check-shard", reused="true") == ran_on("check-shard", reused="") == ["pull_request"]
     )
-    assert job_line("check-shard", "needs") == "reuse"
+    assert job_line("check-shard", "needs") is None
     (every, *_), _ = steps(CHECK.read_text(), "check")
     assert every["env"]["REUSED"] == "${{ needs.reuse.outputs.reused }}"
     assert every["env"]["REUSE"] == "${{ needs.reuse.result }}"

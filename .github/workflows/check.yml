@@ -48,8 +48,11 @@ jobs:
   # where the move replays the same trees, so the move adds no round of the suite in series. The
   # lookup is plain python on the runner, with `gh` and the run's token (`actions: read`), before
   # any `uv sync`. Where it reuses nothing, the same job selects the tests the change needs and
-  # deals their files out to the eight parts (`select`), so the parts start once this one job
-  # ends: a job of its own for that, after this one, held the parts back about 40 s more.
+  # deals their files out to the eight parts (`select`), and hands them over as the artifact
+  # `selection-<attempt>`: the parts start with this job, set up while it runs, and wait for that
+  # file alone. A job of its own for the selection, after this one, held the parts back about
+  # 40 s more, and parts that waited for this job's end started their tests 32 s after the run's
+  # creation (median of 24 runs, 2026-11-08), their own setup 12 s of it.
   reuse:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
@@ -136,6 +139,27 @@ jobs:
           FAILED_ON_MAIN: ${{ steps.failed.outputs.tests }}
           SELECTED: ${{ runner.temp }}/selected-tests.txt
         run: python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD
+      # What the parts read of this job, its selection and whether it reused a pass, as one
+      # artifact the moment the selection is made: the parts start with this job and set up
+      # while it runs, and wait for this file, not for the job's end (`check-shard`). It is
+      # kept also on a reuse, where it holds `reused` and no part, and where the selection
+      # failed, where a part finds no files and fails.
+      - name: selection
+        if: "!cancelled()"
+        env:
+          SELECT: ${{ toJSON(steps.select.outputs) }}
+          TREE: ${{ steps.tree.outputs.name }}
+          REUSED: ${{ steps.reuse.outputs.reused }}
+        run: >-
+          mkdir -p "$RUNNER_TEMP/selection" && jq -n --argjson select "$SELECT" --arg tree "$TREE" --arg reused "$REUSED"
+          '$select + {tree: $tree, reused: $reused}' > "$RUNNER_TEMP/selection/selection.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: "!cancelled()"
+        with:
+          name: selection-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/selection/selection.json
+          retention-days: 1
+          if-no-files-found: error
       # The test files the check selected, one a line with why and its part, kept for each
       # attempt, also where the selection failed. A list that cannot be kept costs that lookup
       # and nothing else.
@@ -160,8 +184,8 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: PYTHONPATH=features/jmerge/src:features/jleak/src python3 scripts/no_ai_trailers.py
   # The lint reads no test and needs no selection, so it is a job of its own that starts with
-  # `reuse` and ends before the parts start: it holds back no part, and it is never one of a
-  # head's jobs at once with them. It runs on a reuse too, where it passes on the same trees.
+  # `reuse` and the parts: it holds back no part. It runs on a reuse too, where it passes on the
+  # same trees.
   # `check` fails when it did.
   lint:
     if: github.event_name == 'pull_request'
@@ -184,14 +208,15 @@ jobs:
   # The tests run as eight jobs side by side, each with the files `reuse` dealt it, and the job
   # `check` below passes only when all eight did. Eight, not four, halves the check's wall: a
   # part took p50 7.2 min of four on 2026-10-28..11-02. The account runs at most 40 hosted jobs
-  # at once (no more than 40 ran in ci.jsonl since 10-14, and jobs queued there): `reuse` and
-  # `lint` end before the parts start, so a head's eight parts, borders and macos are ten jobs at
-  # once, and four heads run at once and a fifth queues.
+  # at once (no more than 40 ran in ci.jsonl since 10-14, and jobs queued there): a head's eight
+  # parts start with `reuse` and `lint`, so with borders and macos it is twelve jobs at once
+  # for the first 15 s or so, then ten, and three heads start at once and a fourth queues.
+  # A part needs no job: it sets up while `reuse` selects, then waits for the selection's
+  # artifact (`selection`), so its setup is off the path to its first test. It runs whatever
+  # `reuse` did, so that a trailer that failed there still runs the tests, a reuse passes it
+  # with no test run, and a part that got no files fails before `make test`.
   check-shard:
-    needs: reuse
-    # A part runs whatever `reuse` did, so that a trailer that failed there still runs the
-    # tests, and a part that got no files fails on its first step.
-    if: "!cancelled() && github.event_name == 'pull_request' && needs.reuse.outputs.reused != 'true'"
+    if: github.event_name == 'pull_request'
     name: check ${{ matrix.shard }} of 8
     # Every job of every workflow runs on GitHub's hosted runner, by the owner's word ("all
     # jstack CI can be done on via github", 2026-10-22): the repo is public, so its minutes
@@ -208,13 +233,6 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
-      # The part's files, or `none` where the selection left this part empty, which passes. A
-      # part that got nothing, as when the selection failed before its outputs, fails: with no
-      # files `make test` would run the whole suite.
-      - name: part
-        env:
-          PART: ${{ needs.reuse.outputs[format('part{0}', matrix.shard)] }}
-        run: '[ -n "$PART" ] || { echo "::error::this part got no selection from the job reuse"; exit 1; }'
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -245,6 +263,33 @@ jobs:
           restore-keys: |
             tlc-${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
             tlc-
+      # The selection `reuse` uploads as `selection-<attempt>`, waited for here with the part's
+      # setup done, and given as this step's outputs: `reused`, `tree`, `selection`, `files`,
+      # `forced_by` and `part1` to `part8`. It asks for the artifact once a second, and every
+      # fifth time whether `reuse` has ended: a `reuse` that ended with none fails the part, so
+      # no part waits out its timeout. The run's token reads the run's artifacts (`actions: read`).
+      - name: selection
+        id: selection
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          runs="repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"; asks="$runs/artifacts?name=selection-$GITHUB_RUN_ATTEMPT";
+          tries=0; while :; do id=$(gh api "$asks" --jq '.artifacts[0].id // empty') || id=; [ -n "$id" ] && break;
+          tries=$((tries + 1));
+          if [ $((tries % 5)) = 0 ] && [ "$(gh api "$runs/attempts/$GITHUB_RUN_ATTEMPT/jobs" --jq '.jobs[] | select(.name == "reuse") | .status')" = completed ]; then
+          id=$(gh api "$asks" --jq '.artifacts[0].id // empty') || id=; [ -n "$id" ] && break;
+          echo "::error::the job reuse ended with no selection for this part"; exit 1; fi;
+          sleep 1; done;
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "$RUNNER_TEMP/selection.zip"
+          && unzip -p "$RUNNER_TEMP/selection.zip" selection.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> "$GITHUB_OUTPUT"
+      # The part's files, or `none` where the selection left this part empty, which passes. A
+      # part that got nothing, as when the selection failed before its outputs, fails: with no
+      # files `make test` would run the whole suite. A reuse runs neither this nor the tests.
+      - name: part
+        if: steps.selection.outputs.reused != 'true'
+        env:
+          PART: ${{ steps.selection.outputs[format('part{0}', matrix.shard)] }}
+        run: '[ -n "$PART" ] || { echo "::error::this part got no selection from the job reuse"; exit 1; }'
       # Collects only the part's own files. It records, as its tests run, the lines of the feature
       # code this change touches that each test file ran (`NEW_LINES_PART`, the Makefile), which
       # `check` reads for the guard of test_new_lines_run.py: that guard ran the tests that name
@@ -252,8 +297,9 @@ jobs:
       # slowest part in 25 of 43 large runs (21 to 362 s, 2026-11-07..08). The part skips it.
       - name: make test
         id: suite
+        if: steps.selection.outputs.reused != 'true'
         env:
-          PART: ${{ needs.reuse.outputs[format('part{0}', matrix.shard)] }}
+          PART: ${{ steps.selection.outputs[format('part{0}', matrix.shard)] }}
         run: '[ "$PART" = none ] || make test TESTS="$PART" NEW_LINES_PART="$RUNNER_TEMP/new-lines"'
       # After the suite, passed or failed, since a kept run is one TLC finished: a part whose
       # cache now holds runs it did not restore saves them, under the key it restored with (the
@@ -293,10 +339,10 @@ jobs:
         if: "!cancelled() && steps.suite.outcome != 'skipped'"
         continue-on-error: true
         env:
-          FULL: ${{ needs.reuse.outputs.selection == 'all' }}
-          NAME: ${{ needs.reuse.outputs.tree }}
-          FILES: ${{ needs.reuse.outputs.files }}
-          FORCED: ${{ needs.reuse.outputs.forced_by }}
+          FULL: ${{ steps.selection.outputs.selection == 'all' }}
+          NAME: ${{ steps.selection.outputs.tree }}
+          FILES: ${{ steps.selection.outputs.files }}
+          FORCED: ${{ steps.selection.outputs.forced_by }}
         run: 'echo "full suite: $([ "$FULL" = true ] && echo yes || echo no), tree ${NAME#green-tree-}" >> "$GITHUB_STEP_SUMMARY" && INODES=$(df --output=ipcent /tmp | tail -n 1 | tr -dc 0-9) && uv run jbus ci --notice full="$FULL" tree="${NAME#green-tree-}" ${FILES:+selection="$FILES"} ${FORCED:+reason="$FORCED"} ${INODES:+tmp_inode_pct="$INODES"}'
   # The check the ruleset requires, and jmerge's REQUIRED, so its name stays `check`. It runs
   # whatever the parts did, and passes only when `reuse`, `lint` and all eight parts passed: a
