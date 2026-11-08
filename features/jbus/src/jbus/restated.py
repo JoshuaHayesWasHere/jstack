@@ -62,10 +62,10 @@ judges the pull request takes it off (`pulled`)."""
 FAILED, PASSED = "failed", "passed"
 ENDED = "ended"
 """The field of a line that names the head whose required checks a verdict said had ended: the
-merge tick's (`checked`), or a run of `jmerge`'s that judged the pull request past them
-(`pulled`, `ends`). The pass keeps watching a head whose rollup it reads as ended until its line
-names it here (`jbus.tick`): a rollup can say `passed` before a job that is still to start is in
-it, and the tick then has a check left to see end (#1246)."""
+merge tick's (`checked`), or a run of `jmerge`'s that merged the pull request or judged its
+checks ended (`pulled`, `ends`). The pass keeps watching a head whose rollup it reads as ended
+until its line names it here (`jbus.tick`): a rollup can say `passed` before a job that is still
+to start is in it, and the tick then has a check left to see end (#1246)."""
 PENDING = "checks-pending.json"
 """The open pull requests whose checks the last pass saw still going, each by its `number` with
 the `head` it saw, for the merge tick to watch (`jbus.tick`). Only the pass writes it."""
@@ -162,9 +162,13 @@ def pending(state_dir: Path) -> dict[int, str]:
 
 def ends(pull: Pull, why: str) -> bool:
     """Whether a run of `jmerge` that judged a pull request `pull` for `why` saw the checks at its
-    head end: it judged it on a step other than the check, or on the check for a reason only an
-    ended check gives (`ENDS`)."""
-    return pull != Pull.CHECK or ready.code_of(why.partition(": ")[2]) in ENDS
+    head end: it merged it, or judged it on the check for a reason only an ended check gives
+    (`ENDS`). A verdict on any other step says nothing of them: `jmerge` judges a pull request's
+    Result, review and findings before its checks, and a hold may come before or after them, so
+    such a head stays watched until the tick's list of runs shows its end (`checked`)."""
+    if pull == Pull.MERGED:
+        return True
+    return pull == Pull.CHECK and ready.code_of(why.partition(": ")[2]) in ENDS
 
 
 def pulled(state_dir: Path, said: dict[int, tuple[Pull, str]], at: str) -> list[tuple[str, str]]:

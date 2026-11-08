@@ -376,3 +376,13 @@ def test_the_pass_drops_a_head_once_jmerge_had_its_verdict(on_check):
     on_check.set("jmerge.txt", f"wait 7 {PULL}: {ready.CHECK_FAILED.format(check='check')}\n")
     on_check.poll()
     assert watching(on_check) == []
+
+
+def test_a_verdict_jmerge_gives_before_it_reads_the_checks_keeps_the_head(on_check):
+    """`jmerge` judges a pull request's review before its checks, so a `jmerge` that waits on
+    #7's review says nothing of them: with a rollup that says `passed` too early, the pass keeps
+    #7's head for the tick."""
+    on_check.set("open.json", [on_check.opened("alpha", 7, "SUCCESS")])
+    on_check.set("jmerge.txt", f"wait 7 {PULL}: {ready.NO_REVIEW}\n")
+    on_check.poll()
+    assert watching(on_check) == [{"number": 7, "head": HEAD}]
