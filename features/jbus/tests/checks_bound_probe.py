@@ -4,9 +4,24 @@ line of `work.json`. Pytest does not collect it: run it by name, beside a runnin
     uv run python features/jbus/tests/checks_bound_probe.py --repo owner/name --pr 123 \
         --work ~/.local/state/jbus/<project>/work.json
 
+jbus's leftover sweep (`jbus.strays`) stops an orphan, a process whose parent is a reaper as it is
+after `setsid` or once the shell that started it is gone, when its working directory or a path
+argument is under a task's worktree, or under /tmp or /var/tmp while a session of that worktree
+started it. It keeps a process whose parent still runs, such as one in the user's own terminal.
+So a thread that leaves the probe running starts it from the main checkout, with every path
+argument and the output outside any worktree and /tmp:
+
+    cd <the main checkout> && setsid -f uv run python features/jbus/tests/checks_bound_probe.py \
+        --repo owner/name --pr 123 --work ~/.local/state/jbus/<project>/work.json \
+        > ~/.local/state/checks-bound-probe/probe.log 2>&1
+
+A scout works in the main checkout, and the sweep stops what a scout's own session left there, so a
+scout leaves no probe running.
+
 It writes nothing of jbus's, and reads the home's `required-checks` (`--required`). Every `POLL`
-seconds it asks GitHub for the check runs of the pull request's head with the ETag it last saw, so
-a 304, which is every answer but the one after a change, spends none of the API allowance. It asks
+seconds it asks GitHub for the pull request, to follow its head, and for the check runs of that
+head, each with the ETag it last saw, so a 304, which is every answer but the one after a change,
+spends none of the API allowance. It asks
 once for each workflow run it has not seen, for the workflow's name: about four counted calls a
 head. It watches the directory of `work.json` with inotify and keeps the moment each write changed
 the line whose `pr` is the pull request.
@@ -17,7 +32,8 @@ of its last required job. A job of a workflow no required check names, such as `
 count. Its end is a `completed_at`, which GitHub gives to the second, and its delay is the first
 change of the row's line after that end.
 A round whose line did not change within `--wait` seconds counts as none. A push starts the next
-round. It prints each round as it ends and appends it as one JSON line to `--out`, then prints the
+round, and a head whose checks had settled when the probe first saw them makes no round: a probe
+started then records the next head's. `--rounds` is the count of rounds it records. It prints each round as it ends and appends it as one JSON line to `--out`, then prints the
 rounds, p50 and max in seconds.
 """
 
@@ -150,11 +166,14 @@ def main() -> int:
     done: set[str] = set()
     going: set[str] = set()
     etags: dict[str, str] = {}
+    sha = ""
     while len(delays) < args.rounds:
-        _, _, pull = gh(f"repos/{args.repo}/pulls/{args.pr}")
-        sha = pull["head"]["sha"] if isinstance(pull, dict) else ""
-        while sha and sha not in done:
-            status, etags[sha], body = gh(
+        time.sleep(POLL)
+        _, etags["pull"], pull = gh(f"repos/{args.repo}/pulls/{args.pr}", etags.get("pull", ""))
+        if isinstance(pull, dict):
+            sha = pull["head"]["sha"]
+        if sha and sha not in done:
+            _, etags[sha], body = gh(
                 f"repos/{args.repo}/commits/{sha}/check-runs", etags.get(sha, "")
             )
             runs = body.get("check_runs", []) if isinstance(body, dict) else None
@@ -165,7 +184,9 @@ def main() -> int:
             end = round_end(runs or [], workflow_of, required)
             if runs and end is None:
                 going.add(sha)
-            elif end and sha in going:
+            elif end and sha not in going:
+                done.add(sha)
+            elif end:
                 ended, verdict = end
                 until = time.time() + args.wait
                 while time.time() < until and not [at for at, _ in line.changed if at >= ended]:
@@ -194,9 +215,6 @@ def main() -> int:
                 }
                 with out.open("a") as rounds:
                     rounds.write(json.dumps(kept) + "\n")
-                break
-            time.sleep(POLL)
-        time.sleep(POLL)
     timed = sorted(one for one in delays if one is not None)
     p50 = f"{statistics.median(timed):.1f} s" if timed else "none"
     print(
