@@ -377,3 +377,31 @@ def test_the_accept_of_a_pull_request_into_another_base_is_refused_with_the_way_
     assert out[-1].startswith(f"refused 10 {url(10)}: it is not held, it waits: its base is "), out
     assert out[-1].endswith(judgement.UNLIFTED[ready.BASE.code])
     assert kitchen.calls() == []
+
+
+@pytest.mark.parametrize("word", [False, True], ids=["plain", "message"])
+def test_the_check_of_an_accept_of_a_pull_request_with_no_brief_says_it_would_merge(kitchen, word):
+    """The check of the accept the user's own message makes, with that message or with none,
+    says it would merge the pull request no brief names, and merges nothing."""
+    unbriefed(kitchen, "bump", 9)
+    flags = ["--as", "user", "--message", said(kitchen, "merge 9")] if word else []
+    out = jmerge(kitchen, "--accept", "9", "--check", *flags)
+    assert kitchen.home.code == 0, (out, kitchen.home.stderr)
+    (line,) = out
+    assert line.startswith("ready 9 "), line
+    assert line.endswith(", so it merges on the user's own message alone"), line
+    assert kitchen.calls() == []
+    assert acts.read(kitchen.jbus) == []
+
+
+def test_the_check_of_a_typed_accept_of_a_pull_request_with_no_brief_refuses_as_the_accept_does(
+    kitchen,
+):
+    unbriefed(kitchen, "bump", 9)
+    out = accept(kitchen, 9, "--check")
+    assert kitchen.home.code == 1, (out, kitchen.home.stderr)
+    assert out[-1] == (
+        f"refused 9 {url(9)}: it is not held, it waits: no brief has a Result that names it: "
+        + judgement.UNLIFTED[ready.NO_BRIEF.code]
+    )
+    assert kitchen.calls() == []

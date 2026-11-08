@@ -687,6 +687,24 @@ def test_a_tick_that_began_before_a_pass_and_ended_in_it_is_not_written_back(kit
     assert kitchen.lines(states.DRIFT) == []
 
 
+def test_a_ticks_stacked_verdict_kept_by_a_pass_keeps_its_parent_as_the_holder(
+    kitchen, monkeypatch
+):
+    """The pass keeps a tick's `stacked` verdict (`restated.kept`), and with it the tick's `why`,
+    which names the parent that holds the line."""
+    on_review(kitchen)
+    stacked = ready.STACKED_ON.format(branch="beta", slug="beta", default="main")
+
+    def later():
+        monkeypatch.setattr(verbs, "clock", lambda: NOW + timedelta(seconds=20))
+        a_tick_says(kitchen, f"wait 9 {PULL}: {stacked}")
+
+    while_keep_work_lists(monkeypatch, later)
+    kitchen.poll()
+    line = judged(kitchen)
+    assert (line["value"], line["who"], line["why"]) == ("stacked", "beta", f"wait: {stacked}")
+
+
 def test_the_pass_corrects_a_line_broken_by_hand_and_logs_it_as_drift_quietly(kitchen):
     add(kitchen, "alpha", approve=False)
     kitchen.poll()
