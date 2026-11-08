@@ -56,6 +56,7 @@ The poll costs a start of `jbus tick` every 2 seconds, about 0.14 seconds of one
 It runs `jmerge --if-free`, which does nothing while another run of `jmerge` is under way, since `jmerge` holds its run lock for the whole of a run that may merge.
 What a tick misses, the next pass does: the pass runs `jmerge --if-free` too, so a pass that finds a tick's run under way does nothing, and the next one with the lock free runs it.
 `jbus-merge.service` has no start limit (`StartLimitIntervalSec=0`): systemd's default refuses a unit started more than 5 times in 10 seconds, a 2 second timer sits at that edge, and the extra start a green move's reload brings pushed it over, so systemd refused the tick for seconds at a time.
+On macOS the install drops the key (`jinstall.launchd.DROPPED`), since launchd has no start limit of that kind.
 `jbus-merge.service` logs at `notice` and above (`LogLevelMax=notice`), so its start and end every 2 seconds stay out of the journal, and its own lines, which are `notice`, stay in.
 On macOS its agent runs every 2 seconds too (`StartInterval`), whether or not a check is going: the pass starts and stops only a systemd timer.
 `work.json`, the state of each row that the view and T3 Code's sidebar draw, waits for neither timer.
