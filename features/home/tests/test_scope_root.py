@@ -20,6 +20,7 @@ NEW = "release"
 PREFIX = "rl-"
 OWNS = 'how a release is cut, in the user\'s words: "one command, and a tag"'
 MAKES = "launch: "
+MAKING = "echo \"made: scope"
 STATUS = "open plan entries"
 CLOSED = "third"
 
@@ -37,7 +38,7 @@ def make(homes, thread=ROOT, scope=NEW, prefix=PREFIX, owns=OWNS):
     """What the block that makes a scope prints when the home whose thread id is `thread` runs
     the block."""
     filled = {"<scope>": scope, "<prefix>": prefix, "<what the scope owns>": owns}
-    return homes.step(MAKES, thread, **filled).stdout.splitlines()
+    return homes.step(MAKING, thread, **filled).stdout.splitlines()
 
 
 def test_the_root_home_makes_a_scope_with_its_plan_and_its_prefix(homes):
@@ -80,7 +81,7 @@ def test_the_launch_is_json_whatever_the_repo_is_called(tmp_path, monkeypatch):
     scene = Scene(tmp_path)
     (scene.home_dir / "plan.md").write_text("")
     scene.home_starts(ROOT, "")
-    found = test_home_thread.block("home", MAKES)
+    found = test_home_thread.block("home", MAKING)
     for mark, text in {"<scope>": NEW, "<prefix>": PREFIX, "<what the scope owns>": OWNS}.items():
         found = found.replace(mark, text)
     _, launch = scene.run("home", found, scene.main, ROOT).stdout.splitlines()
@@ -202,6 +203,12 @@ def test_on_status_the_root_reads_each_scope_s_handoff_and_open_plan_entries(no_
         "none\n"
         f"=== scope {CLOSED}: queue rows\n"
         "no jbus: jbus is not installed here, so it holds no row\n"
+        "=== scope uncategorized: no home thread\n"
+        "no handoff yet\n"
+        "=== scope uncategorized: open plan entries\n"
+        "none\n"
+        "=== scope uncategorized: queue rows\n"
+        "no jbus: jbus is not installed here, so it holds no row\n"
     )
     assert homes.changed(before) == []
 
@@ -216,14 +223,23 @@ def test_a_scope_just_made_has_no_handoff_yet(no_jbus):
     ) in said
 
 
-def test_on_status_a_repo_with_no_scope_prints_nothing(tmp_path):
+def test_on_status_a_root_with_no_other_child_reads_its_catch_all_alone(tmp_path, monkeypatch):
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
     scene = Scene(tmp_path)
     for shared in ("tasks", "scouts", "reports", "log"):
         (scene.home_dir / shared).mkdir()
         (scene.home_dir / shared / "plan.md").write_text("# plan: a file with that name\n")
     scene.home_starts(ROOT, "")
     ran = scene.run("home", test_home_thread.block("home", STATUS), scene.main, ROOT)
-    assert (ran.returncode, ran.stdout) == (0, "")
+    assert (ran.returncode, ran.stdout) == (
+        0,
+        "=== scope uncategorized: no home thread\n"
+        "no handoff yet\n"
+        "=== scope uncategorized: open plan entries\n"
+        "none\n"
+        "=== scope uncategorized: queue rows\n"
+        "no jbus: jbus is not installed here, so it holds no row\n",
+    )
 
 
 def test_on_status_a_scoped_home_reads_no_other_scope(homes):
@@ -278,13 +294,13 @@ def test_the_blocks_run_in_zsh_where_a_pattern_that_matches_nothing_stops_a_call
         assert (ran.stderr, ran.returncode) == ("", 0)
         return ran.stdout
 
-    assert zsh(STATUS) == ""
+    assert zsh(STATUS).startswith("=== scope uncategorized: no home thread\n")
     filled = {"<scope>": NEW, "<prefix>": PREFIX, "<what the scope owns>": OWNS}
-    made, launch = zsh(MAKES, **filled).splitlines()
+    made, launch = zsh(MAKING, **filled).splitlines()
     assert made.startswith(f"made: scope {NEW}")
     assert json.loads(launch.removeprefix(MAKES))["message"] == f"/home {NEW}"
     assert zsh(STATUS).startswith(f"=== scope {NEW}: no home thread\n")
-    (said,) = zsh(MAKES, **{**filled, "<scope>": "other"}).splitlines()
+    (said,) = zsh(MAKING, **{**filled, "<scope>": "other"}).splitlines()
     assert said.startswith(f"not made: the slug prefix {PREFIX} is another home's")
 
 
@@ -338,3 +354,67 @@ def test_with_uncategorized_made_two_other_scopes_still_may_not_overlap(homes):
     (said,) = make(homes, scope="pstack-x", prefix="ps-x-")
     assert said.startswith("not made: the slug prefix ps-x- starts with ps-")
     assert homes.changed(before) == []
+
+
+QUEUES = "jbus queue add \"$slug\""
+WORD = "mcp:the-root-home/msg-7"
+
+
+@pytest.fixture
+def stubbed(homes, monkeypatch):
+    """A jbus that has a plan for this repo and writes each `queue add` it is given to a file."""
+    stub = homes.user / "bin"
+    stub.mkdir()
+    called = homes.user / "called"
+    (stub / "jbus").write_text(
+        f'#!/bin/sh\nif [ "$1" = plan ]; then exit 0; fi\necho "$*: $(head -n 1)" >> "{called}"\n'
+    )
+    (stub / "jbus").chmod(0o755)
+    monkeypatch.setenv("PATH", f"{stub}{os.pathsep}{os.environ['PATH']}")
+    return homes, called
+
+
+def queues(homes, thread=ROOT, kind="tasks", slug="sc-row", child=SCOPE, message=WORD):
+    filled = {
+        "<tasks or scouts>": kind,
+        "<slug>": slug,
+        "<child>": child,
+        "<n>": "3",
+        "<entry>": "epic",
+        "<thread id>/<message id>": message,
+    }
+    return homes.step(QUEUES, thread, **filled).stdout
+
+
+@pytest.mark.parametrize("kind", ["tasks", "scouts"])
+def test_the_root_queues_a_row_in_its_child_with_for_and_the_users_message(stubbed, kind):
+    homes, called = stubbed
+    homes.sent(kind, "sc-row", f"Home: {SCOPE}")
+    assert queues(homes, kind=kind) == f"queued: the row sc-row, in {SCOPE}, approved on {WORD}\n"
+    assert called.read_text() == (
+        f"queue add sc-row --priority 3 --entry epic --from {ROOT} --for {SCOPE} "
+        f"--message {WORD}: # sc-row: a title\n"
+    )
+
+
+@pytest.mark.parametrize(
+    ("thread", "child", "home", "message", "why"),
+    [
+        (ROOT, "root", "root", WORD, "the root queues no row of its own"),
+        (ROOT, "", SCOPE, WORD, "the root queues no row of its own"),
+        (ROOT, "nosuch", "nosuch", WORD, "nosuch is no child home of"),
+        (ROOT, SCOPE, "root", WORD, f"has Home: root, not {SCOPE}: write Home: {SCOPE}"),
+        (ROOT, SCOPE, SCOPE, "msg-7", "msg-7 is not the user's message"),
+        (ROOT, SCOPE, SCOPE, "<thread id>/<message id>", "is not filled in"),
+        (SCOPED, SCOPE, SCOPE, WORD, f"this is the home of the scope {SCOPE}"),
+    ],
+)
+def test_the_root_queues_nothing_without_a_child_its_brief_names(
+    stubbed, thread, child, home, message, why
+):
+    homes, called = stubbed
+    homes.home_starts(SCOPED, SCOPE)
+    homes.sent("tasks", "sc-row", f"Home: {home}")
+    said = queues(homes, thread=thread, child=child, message=message)
+    assert said.startswith("not queued: ") and why in said
+    assert not called.exists()

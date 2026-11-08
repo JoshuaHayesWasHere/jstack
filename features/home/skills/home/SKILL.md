@@ -66,7 +66,7 @@ A message that reaches such a thread is not its to act on, whoever sent it: run 
 | `$M/handoff.md` | The note a home left when a handoff still started the next home, where one is left. A start reads it, and the archive moves it to `log/`. | Ten lines, and its gates |
 | `$M/plan.md` | The work this home has planned: one entry per task, each with a "Done when" list. | Open tasks only |
 | `$M/blockers.json` | Each blocker this home briefed a fix of, with each fix queued for it, which `jbus queue add` counts against the retry cap and writes: never by hand ("Clearing its own blockers"). | One entry per blocker |
-| `$M/home-id` | This home's thread id. A scout, a crewmate or a reviewer reads it each time it sends: the root home's for a brief or a request whose `Home:` line is `root` (or that has none, from before the line was required), a scoped home's for one that names its scope. | One line |
+| `$M/home-id` | This home's thread id. A scout, a crewmate or a reviewer reads it each time it sends: a scoped home's for a brief or a request that names its scope, and the root home's only for one whose `Home:` line is `root` (or that has none) from before the root queued every row in a child. | One line |
 | `$H/home-thread` | The sweep switch, and not this home's id. An id in it has the home run `jmerge --sweep` at its start, and empty or missing nobody sweeps ("Merging a pull request that is ready", "Who sweeps"). It decides nothing of the merge: jbus runs `jmerge` on each pass whatever it holds, and no home merges. Set by hand only: no skill and no script writes it. | Empty, or one line |
 | `$M/read-seen` | The Result and Report headings step 4 of a start has shown this home, one a line, so each is shown once. | One line per heading |
 | `$M/told` | Each decision and stop a turn's end told the user, one a line, so each is told once, and each `local` one is shown on status until a `cleared local` line ends it ("How a turn ends"). | One line per decision or stop |
@@ -170,6 +170,7 @@ When the shape of the work is not settled (more than one task, or a design choic
   A line added inside that list, or a changed heading, voids the entry's go and every row under it waits for the user again: after a plan edit, `jbus plan` says `go void` for such an entry.
 - Write no status in an entry, and change none by hand. An entry has a `Stage:` line, which says where the planning is: `proposed`, `planned`, `parked` or `scouting`. Once a brief of the entry is queued, its status is counted from its queue rows by `jbus plan`, and the `Stage:` line is not read.
 - Queue each brief of an entry with `jbus queue add --entry <entry>`, in a repo `jbus plan` answers for and in no other, where the brief's slug is not the entry's own: an entry is often several briefs, and the column is how a row is counted for its entry.
+  The root home queues by "Queueing a row in a child" (`scoped-homes.md`), which adds `--for <child>` and the user's message.
 - The user gives the go once per entry, never per row, and to an entry that has a row: queue its first row, a scout's if it needs design, then record the go with `jbus plan go <entry> --message <thread>/<message>`, which refuses an entry with no row.
   Under `go = "silence"` park each pick as a gate instead ("The user's word, carried by jbus" says how).
 
@@ -184,6 +185,16 @@ A plan of several entries that the user approves in one go runs as a queue, by t
 A home plans, hands out, and keeps the record. Every task is done by a **crewmate**: a separate thread, in its own worktree, that the user can open, watch and steer. The home does not edit the repo, run its checks, or read a crewmate's diff.
 
 The home does no research of its own: it reads only its state directory, `$H`. Not the code, not the docs, not a diff. What it needs to know from those, a scout finds out.
+
+## The root home
+
+The root home is where the user works: it investigates, hypothesises, sends scouts, plans with the user, writes briefs, and queues each one in a child home.
+A child home carries a row once it is moving: its launch, its Results, its leftovers, its stalls and its own decisions, which it tells the user itself.
+The root holds no row of its own: each brief and request it writes has `Home: <child>`, the scope whose goal the work serves, or `uncategorized` where none does, and it queues each by "Queueing a row in a child" in `scoped-homes.md`, with `--for <child>` and the user's message, which approves the row as it is queued.
+The root launches no crewmate: jbus's pass launches the row, and the crew reports to its child.
+No step of the root's waits on a wake.
+It reads its children when the user asks, and at its start, by "Reading the scopes" in `scoped-homes.md`, and never asks a child for anything.
+Only a one-way door, a stop, the user's word and the root's own notices reach the root's thread.
 
 ## Sending a scout
 
@@ -314,7 +325,7 @@ Put the new thread's id on the brief's `Thread:` line with the block of step 3 o
 
 ## Scoped homes
 
-When the root home is asked for status, when the repo has more than one home, or when the user asks for a home scoped to one goal: read `$T/../skills/home/scoped-homes.md` now.
+When this is the root home, at its start, when it queues a row and when it is asked for status, when the repo has more than one home, or when the user asks for a home scoped to one goal: read `$T/../skills/home/scoped-homes.md` now.
 
 ## When to archive
 

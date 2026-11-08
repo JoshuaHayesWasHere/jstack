@@ -13,6 +13,7 @@ import pytest
 
 from test_home_thread import STATUS, as_read
 from test_jbus_kitchen import complete
+from test_tool_calls import Call, errors
 from testing.layouts import assembled
 from testing.paths import REPO
 
@@ -174,20 +175,60 @@ def first_step(typed=""):
 
 
 ROOT = f"root\ntitle: home: {NAME}\n"
+CATCH_ALL = "uncategorized"
+LAUNCH = "launch: "
+
+
+def made(scene):
+    """The lines the root's first step prints when it makes `uncategorized` beside it."""
+    return (
+        f"catch-all: made {scene.home_dir / CATCH_ALL}, the child home of every row no other "
+        f"child claims\n{LAUNCH}"
+        + json.dumps(
+            {
+                "title": f"home: {NAME} {CATCH_ALL}",
+                "workspaceStrategy": {"type": "root"},
+                "message": f"/home {CATCH_ALL}",
+            }
+        )
+        + "\n"
+    )
 
 
 def test_the_home_skills_first_step_makes_the_home_the_hook_said_it_would(scene):
     assert scene.start() == scene.said(first=True)
-    assert scene.run("home", first_step()) == f"{ROOT}first home: made {scene.home_dir}\n"
-    assert sorted(path.name for path in scene.home_dir.iterdir()) == ["plan.md"]
+    assert scene.run("home", first_step()) == (
+        f"{ROOT}first home: made {scene.home_dir}\n{made(scene)}"
+    )
+    assert sorted(path.name for path in scene.home_dir.iterdir()) == ["plan.md", CATCH_ALL]
     assert scene.start() == scene.said(first=False)
     assert scene.run("home", first_step()) == ROOT
+
+
+def test_the_root_makes_uncategorized_once_and_its_launch_starts_that_child_s_home(scene):
+    """A project whose root started before the catch-all gets it at the root's next start, and
+    the launch it prints is a call the tool takes, which step 1 reads as that scope's home."""
+    scene.home_dir.mkdir(parents=True)
+    (scene.home_dir / "plan.md").write_text("# plan\n")
+    *_, launch = scene.run("home", first_step()).splitlines()
+    sent = json.loads(launch.removeprefix(LAUNCH))
+    assert errors(Call("home: when a home starts", "`t3_thread_launch`", ""), sent) == []
+    assert scene.run("home", first_step(CATCH_ALL)) == (
+        f"scope {CATCH_ALL}\ntitle: {sent['title']}\n"
+    )
+    assert scene.run("home", first_step()) == ROOT
+    assert (scene.home_dir / CATCH_ALL / "plan.md").read_text().startswith(
+        f"# {NAME}, {CATCH_ALL}: plan\n"
+    )
+    assert not (scene.home_dir / CATCH_ALL / "prefix").exists()
 
 
 def test_the_home_skills_first_step_keeps_the_files_that_are_there(scene):
     scene.home_dir.mkdir(parents=True)
     (scene.home_dir / "fresh-check").write_text("make check\n")
-    assert scene.run("home", first_step()) == f"{ROOT}first home: made {scene.home_dir}\n"
+    assert scene.run("home", first_step()) == (
+        f"{ROOT}first home: made {scene.home_dir}\n{made(scene)}"
+    )
     assert (scene.home_dir / "fresh-check").read_text() == "make check\n"
     assert (scene.home_dir / "plan.md").read_text() == ""
 
