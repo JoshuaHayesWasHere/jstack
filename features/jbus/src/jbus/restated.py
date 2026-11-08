@@ -2,15 +2,16 @@
 the view shows a change within milliseconds and not at the next pass (`jbus.work`).
 
 A write of the queue restates the `Row` facet of each row it reaches (`queued`, from
-`queue._changing`), and a run of `jmerge`, the tick's or the pass's, restates the `Pull` facet
-and the `why` of each pull request it judged (`pulled`, from `merge._sent`), each judged again
-from the facts the last pass kept (`work.restate`). Before its run of `jmerge`, and also where
-`jmerge` is busy, the merge tick restates the `why` of each pull request on the check step whose
-required checks ended at its head, from GitHub's list of runs (`checked`, from `jbus.tick`). The
-next run of `jmerge` restates that line again, and where it judges otherwise its verdict stands
-and the line is logged as drift (`pulled`, `corrects`). The pass still judges every row: it keeps a
-`Pull` facet that a later run of `jmerge` restated (`kept`), and logs each line it corrects as
-drift (`drift`, from `states.keep_work`). Every writer holds `work.LOCK`.
+`queue._changing`), and a run of `jmerge`, the tick's or the pass's, restates the `Pull` facet and
+the `why` of each pull request it judged (`pulled`, from `merge._sent`), each judged again from the
+facts the last pass kept (`work.restate`). Before its run of `jmerge`, and also where `jmerge` is
+busy, the merge tick restates the `why` of each pull request on the check step whose required checks
+failed or ended at its head, from the head's check runs (`checked`, from `jbus.tick`). The next run
+of `jmerge` restates that line again, and where it judges otherwise its verdict stands and the line
+is logged as drift (`pulled`, `corrects`), except that the tick's `failed` stands while `jmerge`
+only says that check is still going at that head (`stands`). The pass still judges every row: it
+keeps a `Pull` facet that a later run of `jmerge` restated (`kept`), and logs each line it corrects
+as drift (`drift`, from `states.keep_work`). Every writer holds `work.LOCK`.
 
 `jbus follow` restates the `Thread` facet of each line whose thread T3 Code says started, ended,
 was settled or was archived (`followed`, from `jbus.follow`). The pass keeps a `Thread` facet an
@@ -56,9 +57,13 @@ FOLLOWED = "followed"
 """The field of a line that says when the T3 Code event that `jbus follow` last restated its
 `Thread` facet from happened."""
 CHECKED = "checked"
-"""The field of a line that says the merge tick restated it from a run that ended, before any run
-of `jmerge` judged that run: `failed` or `passed` (`checked`). The next run of `jmerge` that
-judges the pull request takes it off (`pulled`)."""
+"""The field of a line that says the merge tick restated it from the check runs at its head,
+before any run of `jmerge` judged them: `failed` or `passed` (`checked`). The next run of
+`jmerge` that judges the pull request takes it off (`pulled`), unless the tick's `failed` stands
+(`stands`)."""
+CHECKED_HEAD = "checked_head"
+"""The field of a line the merge tick restated (`CHECKED`) that names the head whose check runs
+it read."""
 FAILED, PASSED = "failed", "passed"
 ENDED = "ended"
 """The field of a line that names the head whose required checks a verdict said had ended: the
@@ -178,7 +183,8 @@ def ends(pull: Pull, why: str) -> bool:
     head end: it merged it, or judged it on the check for a reason only an ended check gives
     (`ENDS`). A verdict on any other step says nothing of them: `jmerge` judges a pull request's
     Result, review and findings before its checks, and a hold may come before or after them, so
-    such a head stays watched until the tick's list of runs shows its end (`checked`)."""
+    such a head stays watched until the tick reads its end from the head's check runs
+    (`checked`)."""
     if pull == Pull.MERGED:
         return True
     return pull == Pull.CHECK and ready.code_of(why.partition(": ")[2]) in ENDS
@@ -206,11 +212,14 @@ def pulled(state_dir: Path, said: dict[int, tuple[Pull, str]], at: str) -> list[
             if number.isdigit() and int(number) in said:
                 pull, why = said[int(number)]
                 tick = str(one.get(CHECKED, ""))
+                if stands(one, pull, why):
+                    work.append({**one, PULLED: at})
+                    continue
                 if wrong := corrects(one, tick, pull, why):
                     drifted.append((str(one["key"]), wrong))
                 made = restate(one, pull=pull, why=why)
                 if made is not one or tick:
-                    one = {**{k: v for k, v in made.items() if k != CHECKED}, PULLED: at}
+                    one = {**{k: v for k, v in made.items() if k not in TICKS}, PULLED: at}
                 if (head := heads.get(int(number))) and ends(pull, why):
                     one = {**one, ENDED: head}
             work.append(one)
@@ -219,6 +228,24 @@ def pulled(state_dir: Path, said: dict[int, tuple[Pull, str]], at: str) -> list[
     if said:
         _rewrite(state_dir, change)
     return drifted
+
+
+TICKS = frozenset({CHECKED, CHECKED_HEAD})
+
+
+def stands(one: dict[str, Any], pull: Pull, why: str) -> bool:
+    """Whether the line `one`, which the merge tick restated as `failed` from a job that failed
+    at its head, stands over a run of `jmerge` that judged `pull` for `why`: one that keeps the
+    pull request on the check step only because a required check's run at the same head is still
+    going (`ready.LIVE_RUN`). `jmerge` reads a check as failed once its own job ends, which waits
+    on every job it needs, so for that while the tick's word is the later one. A verdict that
+    names no head, such as `ready.NOT_PASSED`, a verdict at another head, or one of any other
+    kind, is `jmerge`'s, since nothing in it says the tick's head is still the pull request's."""
+    if one.get(CHECKED) != FAILED or pull != Pull.CHECK or not why.startswith("wait: "):
+        return False
+    head = str(one.get(CHECKED_HEAD, ""))
+    live = ready.LIVE_RUN.fields(why.removeprefix("wait: "))
+    return live is not None and bool(head) and head.startswith(live["head"])
 
 
 def corrects(one: dict[str, Any], tick: str, pull: Pull, why: str) -> str:
@@ -240,13 +267,14 @@ def corrects(one: dict[str, Any], tick: str, pull: Pull, why: str) -> str:
 
 def checked(state_dir: Path, said: dict[int, tuple[str, str, str, str]], at: str) -> list[str]:
     """Restate the line of each pull request in `said`, by its number, that is on the check step:
-    the `why` a run of `jmerge` would give it now that its required checks ended at `head`, with
-    `failed` or `passed` (`CHECKED`), and `ended`, when the last of them ended on GitHub. The line
-    names `head` as `ENDED` on any step, so the pass stops watching it. Mark it
-    `PULLED` at `at`, so the pass keeps it as a later word than its own run's (`kept`). A line that
-    a run of `jmerge` judged after `ended` is left as it is, since that run saw the end, so the
-    tick that asks again after a busy `jmerge` writes nothing twice. Return the keys of the lines
-    it changed. The merge tick calls this as soon as GitHub lists the runs (`jbus.tick`)."""
+    the `why` a run of `jmerge` would give it now that its required checks failed or ended at
+    `head`, with `failed` or `passed` (`CHECKED`) and the head (`CHECKED_HEAD`), and `ended`, when
+    the job that decided it ended on GitHub. The line names `head` as `ENDED` on any step, so the
+    pass stops watching it. Mark it `PULLED` at `at`, so the pass keeps it as a
+    later word than its own run's (`kept`). A line that a run of `jmerge` judged after `ended` is
+    left as it is, since that run saw the end, so the tick that asks again after a busy `jmerge`
+    writes nothing twice. Return the keys of the lines it changed. The merge tick calls this as
+    soon as GitHub lists the job (`jbus.tick`)."""
     changed: list[str] = []
 
     def change(lines: list[Any]) -> list[Any]:
@@ -262,7 +290,7 @@ def checked(state_dir: Path, said: dict[int, tuple[str, str, str, str]], at: str
             if facts.pull == Pull.CHECK and str(one.get(PULLED, "")) <= ended:
                 made = restate(one, pull=Pull.CHECK, why=why)
                 if made is not one:
-                    one = {**made, PULLED: at, CHECKED: tick}
+                    one = {**made, PULLED: at, CHECKED: tick, CHECKED_HEAD: head}
                     changed.append(str(one["key"]))
             work.append(one)
         return work
@@ -275,7 +303,13 @@ def kept(one: dict[str, Any], was: dict[str, Any] | None, ran: str) -> dict[str,
     """Return the pass's line `one`, with the `Pull` facet of the file's line `was` where a run of
     `jmerge` that ended after `ran`, when the pass's own run ended, restated it: a merge tick's
     run judged later than the pass's own run, whose verdict the pass's line holds. The line keeps
-    that run's `why` too, which names what holds it, such as a stacked line's parent."""
+    that run's `why` too, which names what holds it, such as a stacked line's parent. A line the
+    merge tick restated as `failed` that stands over the pass's verdict (`stands`) is kept whole.
+    """
+    mine = stored(one)
+    if was is not None and mine is not None and stands(was, mine.pull, str(one.get("why", ""))):
+        held = {name: was[name] for name in (*TICKS, PULLED) if name in was}
+        return {**restate(one, why=str(was.get("why", ""))), **held}
     facts = stored(was) if was is not None and str(was.get(PULLED, "")) > ran else None
     if facts is None or was is None:
         return one

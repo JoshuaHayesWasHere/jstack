@@ -577,7 +577,7 @@ def fake_gh(stub, args, cwd):
         said = "[[]]" if "--slurp" in args else "[]"
     elif args[0] == "api" and "/check-runs" in args[1]:
         runs = json.loads((stub / "check-runs.json").read_text())
-        ref = args[1].split("/commits/")[-1].removesuffix("/check-runs")
+        ref = args[1].split("?")[0].split("/commits/")[-1].removesuffix("/check-runs")
         said = json.dumps({"check_runs": runs.get(ref, [])})
     elif args[0] == "api" and "/actions/runs?per_page=" in args[1]:
         kept = stub / "runs.json"

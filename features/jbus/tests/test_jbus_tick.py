@@ -1,9 +1,10 @@
-"""The merge tick runs `jmerge` a few seconds after a check ends, apart from the pass, and spends
-none of GitHub's API allowance while no check ends (`jbus.tick`). It runs `jmerge --if-free`, so
-one merger runs at a time (`features/jmerge/tests/test_jmerge_one_run.py`), and it keeps what it
-saw only once `jmerge` ran to its end, so a tick that dies or finds `jmerge` busy loses no merge.
-The pass runs `jmerge --if-free` too. The tests run the real tick and pass against the fakes
-(`test_jbus_kitchen.py`).
+"""The merge tick reads the check runs of each pending head, restates its pull request's line and
+runs `jmerge` a few seconds after a required check fails or ends, apart from the pass, and spends
+none of GitHub's API allowance while no job at the head changes (`jbus.tick`). It runs `jmerge
+--if-free`, so one merger runs at a time (`features/jmerge/tests/test_jmerge_one_run.py`), and it
+keeps what it saw only once `jmerge` ran to its end, so a tick that dies or finds `jmerge` busy
+loses no merge. The pass runs `jmerge --if-free` too. The tests run the real tick and pass against
+the fakes (`test_jbus_kitchen.py`).
 """
 
 import json
@@ -50,7 +51,7 @@ def runs(kitchen):
 
 
 def asked(kitchen):
-    return [call for call in kitchen.log("gh") if call.startswith(f"api {tick.RUNS}")]
+    return [call for call in kitchen.log("gh") if call.startswith(f"api {tick.CHECK_RUNS % HEAD}")]
 
 
 def going(kitchen, state=None):
@@ -59,8 +60,29 @@ def going(kitchen, state=None):
     kitchen.poll()
 
 
-def ended(kitchen, run_id):
-    kitchen.set("runs.json", {"workflow_runs": [{"id": run_id, "status": "completed"}]})
+SUITE = 11
+"""The check suite of the workflow run `check` at #7's head."""
+
+
+def job(name, conclusion=None, second=0, suite=SUITE):
+    """A job GitHub lists at #7's head: going while it has no `conclusion`, or ended at `second`
+    past the minute."""
+    one = {"name": name, "check_suite": {"id": suite}, "status": "in_progress"}
+    if conclusion:
+        one |= {"status": "completed", "conclusion": conclusion}
+        one["completed_at"] = f"2026-01-01T00:00:{second:02d}Z"
+    return one
+
+
+def listed(kitchen, *jobs):
+    """GitHub lists `jobs` at #7's head, of the workflow run `check` there."""
+    kitchen.set("check-runs.json", {HEAD: list(jobs)})
+    kitchen.set("push-runs.json", {HEAD: [{"id": 100, "name": "check", "check_suite_id": SUITE}]})
+
+
+def ended(kitchen, second):
+    """The required check `check` passed at #7's head, its job ending at `second`."""
+    listed(kitchen, job("check", "success", second))
 
 
 @pytest.fixture
@@ -76,7 +98,7 @@ def watched(kitchen):
 def test_a_check_that_ends_runs_jmerge_on_the_next_tick_and_sends_its_lines(watched):
     assert runs(watched) == 1
     ended(watched, 2)
-    assert ticks(watched) == ["tick demo: a run ended, and jmerge ran"]
+    assert ticks(watched) == ["tick demo: a check ended, and jmerge ran"]
     assert runs(watched) == 2
     assert MERGED in watched.lines("jmerge")
 
@@ -111,7 +133,7 @@ def test_with_the_budget_held_a_tick_backs_off_to_asking_once_in_5_s_and_says_so
     assert said.startswith(
         "tick: the budget is held, so the tick asks GitHub once in 5 s, not 2 s: "
     )
-    assert ran == "tick demo: a run ended, and jmerge ran"
+    assert ran == "tick demo: a check ended, and jmerge ran"
     assert (len(asked(kitchen)), runs(kitchen)) == (1, 1)
     for seconds in (2, 4):
         now[0] = NOW + timedelta(seconds=seconds)
@@ -125,30 +147,27 @@ def test_with_the_budget_held_a_tick_backs_off_to_asking_once_in_5_s_and_says_so
 
 def test_a_304_to_the_ticks_conditional_read_is_not_counted_against_the_budget(watched):
     """gh exits 1 on a 304, and GitHub counts none of it against the allowance: `jbus budget
-    --callers` counts the tick's one read that changed, and its 304s apart, as free."""
+    --callers` counts the tick's one read of the head's check runs that changed, and the one read
+    of its workflow runs for the suite it had not seen, and its 304s apart, as free."""
     for _ in range(3):
         assert ticks(watched) == []
     since = NOW - timedelta(days=3650)
     lines = budget.callers(watched.state_dir, since).splitlines()
-    tick_lines = [line for line in lines if "jbus.tick._ended" in line]
-    assert tick_lines[0].split() == [
-        "1",
-        "jbus.tick._ended",
-        "<",
-        "jbus.tick.tick",
-        "(0",
-        "failed)",
+    tick_lines = [line.split() for line in lines if "jbus.tick._asked" in line]
+    assert tick_lines == [
+        ["1", "jbus.tick._asked", "<", "jbus.tick._read", "(0", "failed)"],
+        ["1", "jbus.tick._asked", "<", "jbus.tick._suites", "(0", "failed)"],
+        ["3", "jbus.tick._asked", "<", "jbus.tick._read"],
     ]
     assert "and 3 answered 304, which spend nothing:" in lines
-    assert tick_lines[1].split() == ["3", "jbus.tick._ended", "<", "jbus.tick.tick"]
 
 
 def test_a_busy_jmerge_leaves_the_ended_run_to_the_next_tick(watched):
     watched.set("jmerge-busy", "")
     ended(watched, 2)
-    assert ticks(watched) == ["tick demo: a run ended, and jmerge did not run to its end"]
+    assert ticks(watched) == ["tick demo: a check ended, and jmerge did not run to its end"]
     (watched.stub / "jmerge-busy").unlink()
-    assert ticks(watched) == ["tick demo: a run ended, and jmerge ran"]
+    assert ticks(watched) == ["tick demo: a check ended, and jmerge ran"]
     assert MERGED in watched.lines("jmerge")
     assert ticks(watched) == []
 
@@ -158,7 +177,7 @@ def test_a_jmerge_that_fails_leaves_the_ended_run_to_the_next_tick(watched):
     ended(watched, 2)
     ticks(watched)
     (watched.stub / "jmerge-says").unlink()
-    assert ticks(watched) == ["tick demo: a run ended, and jmerge ran"]
+    assert ticks(watched) == ["tick demo: a check ended, and jmerge ran"]
 
 
 def test_a_tick_that_dies_before_jmerge_ends_loses_no_merge(watched, monkeypatch):
@@ -171,7 +190,7 @@ def test_a_tick_that_dies_before_jmerge_ends_loses_no_merge(watched, monkeypatch
     with pytest.raises(KeyboardInterrupt):
         ticks(watched)
     monkeypatch.setattr(merge, "tick", ran)
-    assert ticks(watched) == ["tick demo: a run ended, and jmerge ran"]
+    assert ticks(watched) == ["tick demo: a check ended, and jmerge ran"]
     assert MERGED in watched.lines("jmerge")
 
 
@@ -247,11 +266,9 @@ def line(kitchen):
     return {one["key"]: one for one in kept["work"]}["alpha"]
 
 
-def check_ended(kitchen, run_id, conclusion):
-    """GitHub lists the run of the required check `check` at #7's head as ended."""
-    one = {"id": run_id, "status": "completed", "name": "check", "head_sha": HEAD}
-    one |= {"conclusion": conclusion, "updated_at": "2026-01-01T00:00:00Z"}
-    kitchen.set("runs.json", {"workflow_runs": [one]})
+def check_ended(kitchen, second, conclusion):
+    """GitHub lists the job of the required check `check` at #7's head as ended."""
+    listed(kitchen, job("check", conclusion, second))
 
 
 def before_jmerge(monkeypatch, kitchen):
@@ -273,8 +290,8 @@ def test_a_changed_runs_list_restates_the_rows_line_before_jmerge_runs(on_check,
     check_ended(on_check, 1, "failure")
     on_check.set("jmerge.txt", f"wait 7 {PULL}: {ready.CHECK_FAILED.format(check='check')}\n")
     assert ticks(on_check) == [
-        "tick demo: a run ended, and alpha's line says its check ended",
-        "tick demo: a run ended, and jmerge ran",
+        "tick demo: a check ended, and alpha's line says so",
+        "tick demo: a check ended, and jmerge ran",
     ]
     (first,) = seen
     assert (first["value"], first["why"], first[restated.CHECKED]) == ("check", FAILED, "failed")
@@ -291,13 +308,13 @@ def test_a_check_that_ends_while_jmerge_lock_is_held_reaches_the_line(on_check):
     check_ended(on_check, 1, "success")
     on_check.set("jmerge.txt", f"{MERGED}\n")
     with held(on_check):
-        assert ticks(on_check)[-1] == "tick demo: a run ended, and jmerge did not run to its end"
+        assert ticks(on_check)[-1] == "tick demo: a check ended, and jmerge did not run to its end"
         said = line(on_check)
         assert said["why"] == "wait: check passed, and jmerge has not judged it yet"
         assert said[restated.CHECKED] == "passed"
-        assert ticks(on_check) == ["tick demo: a run ended, and jmerge did not run to its end"]
+        assert ticks(on_check) == ["tick demo: a check ended, and jmerge did not run to its end"]
         assert line(on_check) == said
-    assert ticks(on_check) == ["tick demo: a run ended, and jmerge ran"]
+    assert ticks(on_check) == ["tick demo: a check ended, and jmerge ran"]
     assert line(on_check)["facts"]["pull"] == "merged"
     assert on_check.events(states.DRIFT) == []
 
@@ -305,37 +322,77 @@ def test_a_check_that_ends_while_jmerge_lock_is_held_reaches_the_line(on_check):
 def test_a_304_restates_nothing(on_check):
     check_ended(on_check, 1, "failure")
     on_check.set("jmerge.txt", f"wait 7 {PULL}: {ready.CHECK_FAILED.format(check='check')}\n")
-    assert ticks(on_check)[0] == "tick demo: a run ended, and alpha's line says its check ended"
+    assert ticks(on_check)[0] == "tick demo: a check ended, and alpha's line says so"
     assert line(on_check)["why"] == FAILED
     before = (on_check.state / work.NAME).read_bytes()
     assert ticks(on_check) == []
     assert (on_check.state / work.NAME).read_bytes() == before
 
 
+def test_a_shard_that_failed_while_the_others_run_restates_the_line_as_failed(on_check):
+    """One shard of eight failed, and the check's own job `check`, which needs all eight, is not
+    listed yet: the line says the check failed now, not when the last shard ends. `jmerge`,
+    which reads the check as running until `check` ends, does not undo it, and nor does the
+    pass, which runs `jmerge` too."""
+    listed(
+        on_check,
+        job("reuse", "success", 1),
+        job("check 1 of 8"),
+        job("check 2 of 8", "failure", 9),
+        job("check 3 of 8"),
+    )
+    assert ticks(on_check) == [
+        "tick demo: a check ended, and alpha's line says so",
+        "tick demo: a check ended, and jmerge ran",
+    ]
+    said = line(on_check)
+    assert (said["value"], said["why"], said[restated.CHECKED]) == ("check", FAILED, "failed")
+    on_check.poll()
+    assert line(on_check)["why"] == FAILED
+    assert on_check.events(states.DRIFT) == []
+
+
+def test_a_required_job_not_listed_yet_keeps_the_check_going(on_check):
+    """Every shard passed, but `check`, which waits on them, is not listed yet: the check is
+    still going, so the line says nothing new and `jmerge` does not run."""
+    before = line(on_check)
+    listed(on_check, *(job(f"check {n} of 8", "success", n) for n in range(1, 9)))
+    assert ticks(on_check) == []
+    assert line(on_check) == before
+    assert runs(on_check) == 0
+
+
+def test_a_required_job_that_ended_otherwise_leaves_the_line_to_jmerge_and_runs_it(on_check):
+    """`check` ended cancelled, neither passed nor failed: the tick says nothing of it on the
+    line, and runs `jmerge`, whose reason for it is the line's."""
+    before = line(on_check)
+    listed(on_check, job("check", "cancelled", 4))
+    assert ticks(on_check) == ["tick demo: a check ended, and jmerge ran"]
+    assert runs(on_check) == 1
+    assert restated.CHECKED not in line(on_check)
+    assert line(on_check)["why"] == before["why"]
+
+
 def test_jmerge_that_judges_the_check_otherwise_corrects_the_line_and_logs_drift(on_check):
-    """The tick's word is the list of runs; `jmerge`'s is the pull request's checks. Where
-    `jmerge`, run after the tick restated the line, still finds the check running, its verdict
-    stands, and the line is logged as drift, quietly."""
+    """The tick's word is the check runs at the head it read; `jmerge`'s is the pull request's
+    checks. Where `jmerge`, run after the tick restated the line, finds the check running at
+    another head, as after a push, its verdict stands, and the line is logged as drift,
+    quietly."""
     check_ended(on_check, 1, "failure")
+    other = ready.LIVE_RUN.format(check="check", head="d" * 12, state="running")
+    on_check.set("jmerge.txt", f"wait 7 {PULL}: {other}\n")
     ticks(on_check)
-    assert line(on_check)["why"] != FAILED
+    assert line(on_check)["why"] == f"wait: {other}"
     (drift,) = [one["line"] for one in on_check.events(states.DRIFT)]
     assert drift.startswith("work-drift alpha: the tick's check failed (")
 
 
-@pytest.mark.parametrize(
-    "given",
-    [
-        "a page that is no JSON",
-        {"workflow_runs": [{"name": "check", "head_sha": HEAD, "conclusion": "failure"}]},
-    ],
-)
-def test_a_list_of_runs_the_tick_cannot_read_leaves_the_line_to_jmerge(on_check, given):
-    """An answer that is no JSON, or a run with no time it ended, restates nothing: the tick's
-    `jmerge` runs as before and judges the line."""
-    on_check.set("runs.json", given)
+def test_a_job_with_no_time_it_ended_leaves_the_line_to_jmerge(on_check):
+    """A job GitHub gives no time it ended restates nothing and runs no `jmerge`: the pass's run
+    judges the line."""
+    listed(on_check, {"name": "check", "check_suite": {"id": SUITE}, "conclusion": "failure"})
     before = line(on_check)
-    assert ticks(on_check) == ["tick demo: a run ended, and jmerge ran"]
+    assert ticks(on_check) == []
     assert line(on_check)["why"] == before["why"]
 
 
@@ -354,7 +411,7 @@ def test_a_rollup_that_says_passed_before_its_check_appears_keeps_the_pull_reque
     assert watching(on_check) == [{"number": 7, "head": HEAD}]
     check_ended(on_check, 1, "success")
     before = len(asked(on_check))
-    assert ticks(on_check)[0] == "tick demo: a run ended, and alpha's line says its check ended"
+    assert ticks(on_check)[0] == "tick demo: a check ended, and alpha's line says so"
     assert len(asked(on_check)) == before + 1
 
 

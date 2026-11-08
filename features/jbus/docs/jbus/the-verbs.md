@@ -74,7 +74,7 @@ A systemd unit runs each of these on Linux, and a launchd agent on macOS ([The u
 | `jbus poll` | Runs one pass over every project. `jbus.service` runs it each minute, and you may run it by hand. |
 | `jbus relay` | Takes what blocks, which jbus posts on 127.0.0.1:4390, spools it, and sends it on to the webhook of a chat bot of your own. It pages you when the chat bot is silent. `jbus-relay.service` runs it, where you set the relay up. [The relay](the-relay.md) has the rest. |
 | `jbus snapshot [--why <text>]` | Commits the homes' state tree and pushes it. `--why` puts what changed in the commit message after the time. A snapshot that did not finish raises its own alert. [Back up the homes' state](back-up-the-homes-state.md) has the rest. |
-| `jbus tick` | Runs `jmerge --if-free` for each project where the last pass saw a check still going, or one the tick watched whose end no verdict of the tick's or `jmerge`'s has named yet (a rollup can say `passed` before a job still to start is in it), and a workflow run ended since the last tick. `jbus-merge.service` runs it every 2 seconds, and it asks GitHub nothing while no check is going, and once in 5 seconds while the budget is held. |
+| `jbus tick` | Runs `jmerge --if-free` for each project where the last pass saw a check still going, or one the tick watched whose end no verdict of the tick's or `jmerge`'s has named yet (a rollup can say `passed` before a job still to start is in it), and a required check's job at its head failed or ended since the last tick, which it reads from the head's check runs. `jbus-merge.service` runs it every 2 seconds, and it asks GitHub nothing while no check is going, and once in 5 seconds while the budget is held. |
 
 ## The verbs the skills run
 
