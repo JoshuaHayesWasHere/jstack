@@ -489,7 +489,7 @@ def test_a_scout_whose_last_report_is_a_follow_up_that_says_done_is_put_away(kit
     kitchen.t3.thread("look", "completed", title="scout: look")
     kitchen.t3.thread("keep", "completed", title="scout: keep")
     kitchen.poll()
-    assert put_away(kitchen) == ["scout: look"] and settles(kitchen) == []
+    assert put_away(kitchen) == ["scout: look"] and put_away(kitchen, "settle") == ["scout: look"]
 
 
 def test_the_threads_of_a_removed_slug_are_put_away(kitchen):
@@ -563,3 +563,30 @@ def test_a_thread_with_a_request_waiting_is_not_put_away(kitchen):
     crew["pendingRequestCount"] = helper["pendingRequestCount"] = 0
     kitchen.poll(NOW + timedelta(minutes=3))
     assert crew["archived"] and helper["settled"]
+
+
+def test_a_thread_that_cannot_be_read_or_organized_is_put_away_on_a_later_pass(
+    kitchen, monkeypatch
+):
+    kitchen.brief("alpha", RESULT)
+    crew = kitchen.t3.thread("alpha", "completed")
+    kitchen.t3.lose_read = True
+    said = kitchen.poll()
+    assert any(
+        line.startswith(f"wait alpha: thread {crew['threadId']} could not be read") for line in said
+    )
+    kitchen.t3.lose_read = False
+    answer = kitchen.t3.result
+
+    def refuse(asked):
+        if asked.get("params", {}).get("name") == "t3_thread_organize":
+            return {"isError": True, "content": [{"type": "text", "text": "no"}]}
+        return answer(asked)
+
+    monkeypatch.setattr(kitchen.t3, "result", refuse)
+    said = kitchen.poll(NOW + timedelta(minutes=3))
+    assert f"wait alpha: thread {crew['threadId']} could not be settled (t3_thread_organize: no)" in said
+    assert not crew["settled"]
+    monkeypatch.setattr(kitchen.t3, "result", answer)
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert crew["settled"] and crew["archived"]

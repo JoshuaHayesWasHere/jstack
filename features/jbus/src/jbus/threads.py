@@ -4,15 +4,16 @@ settle.
 `link` links an open pull request to the thread that jbus launched for the pull request's branch, so
 T3 Code shows the pull request in that thread. A review's findings reach the crew from
 `jbus.reviewed`. `settle` archives the threads of a slug that is finished, and the subagent threads
-under them, and only settles them while the slug still has work open. `resume` tells a crewmate to
-carry on when its thread ended with no Result. `resume` does this twice at most, and after that it
-tells the brief's home in one line. `merged` tells a crewmate to carry on, once, when its pull
-request merged and its Result leaves work for after the merge. `out` lists every thread that is
-not settled, whatever its title, with the role that its title gives it (`ROLES`) and its liveness.
+under them, and only settles them while the slug still has work open. It settles every other idle
+subagent thread whose parent has no run going. `resume` tells a crewmate to carry on when its
+thread ended with no Result. `resume` does this twice at most, and after that it tells the
+brief's home in one line. `merged` tells a crewmate to carry on, once, when its pull request
+merged and its Result leaves work for after the merge. `out` lists every thread that is not
+settled, whatever its title, with the role that its title gives it (`ROLES`) and its liveness.
 
-Each action happens once. jbus records the action's key in `sent.json`, beside the keys of the
-events, but only after T3 Code accepted the call. So when an action got no answer, the next pass
-tries it again.
+Each action happens once, and a settle or an archive once per run of its thread. jbus records the
+action's key in `sent.json`, beside the keys of the events, but only after T3 Code accepted the
+call. So when an action got no answer, the next pass tries it again.
 """
 
 from __future__ import annotations
@@ -150,11 +151,12 @@ def _says_done(report: str) -> bool:
 
 
 def _scouts(run: Pass) -> set[str]:
-    """Return each scout that is over: its last Report says `Status: done`. Any other stays, as the
-    scout skill's End keeps it."""
+    """Return each scout that is over: its last Report, a follow-up (`## Report, follow-up (…)`)
+    as much as the first, says `Status: done`. Any other stays, as the scout skill's End keeps
+    it."""
     over = set()
     for slug, text in _briefs(run, "scouts").items():
-        reports = [body for heading, body in mirror.sections(text) if heading == REPORT]
+        reports = [body for heading, body in mirror.sections(text) if heading.startswith(REPORT)]
         if reports and _says_done(reports[-1]):
             over.add(slug)
     return over
@@ -183,10 +185,11 @@ def finished(run: Pass, world: World) -> dict[str, set[str]]:
     `Left: none` and names no pull request. Under the crew skill, a thread that has something left
     stays where the user sees it. A reviewer is over when the brief's last Review has a verdict and
     either the reviewer's pull request merged or closed or the reviewer's task is over. A reviewer
-    that stopped early stays. A scout is over when its last Report says `Status: done`.
+    that stopped early stays. A scout is over when its last Report says `Status: done`. A slug
+    removed from the queue (`Pass.removed`) is over, for its crew and its scout.
     """
     briefs = _briefs(run)
-    tasks = set(world.merged) - set(world.open)
+    tasks = (set(world.merged) - set(world.open)) | run.removed
     for slug, text in briefs.items():
         result = mirror.last_result(text)
         if (
@@ -205,7 +208,7 @@ def finished(run: Pass, world: World) -> dict[str, set[str]]:
     return {
         "crew: ": tasks,
         "review: ": reviewed,
-        "scout: ": _scouts(run),
+        "scout: ": _scouts(run) | run.removed,
     }
 
 
@@ -423,16 +426,71 @@ def held(run: Pass, world: World, slugs: set[str]) -> dict[str, str]:
     return found
 
 
+def _ran(thread: dict[str, Any]) -> str:
+    """Return the run that a settle or an archive of `thread` is keyed by: its latest run, or, for
+    a subagent thread that has none, its count of items."""
+    mark = thread.get("latestRunId") or thread.get("itemCount")
+    return "" if mark is None else str(mark)
+
+
+def _put_away(
+    run: Pass, client: Client, thread: dict[str, Any], slug: str, actions: tuple[str, ...]
+) -> bool:
+    """Do each of `actions` (`settle`, `archive`) to `thread` that is not done for its run yet,
+    and return whether none is left. The key of each holds the thread's run (`_ran`), so a
+    thread that a message woke is due again once that run has ended, and a thread the user
+    unsettled or unarchived with no run since is not. A thread listed settled counts as settled
+    for its run. Before it acts, `_put_away` reads the thread, and leaves one that has a run
+    going or a request waiting (`pendingRequestCount`), which T3 Code's list does not give."""
+    at, ran = thread["threadId"], _ran(thread)
+    due = []
+    for action in actions:
+        key = f"{action}d|{slug}|{at}|{ran}"
+        if _done(run, key):
+            continue
+        if action == "settle" and thread.get("settled"):
+            run.box.mark(key)
+            continue
+        due.append((action, key))
+    if not due:
+        return True
+    name = slug or "a subagent"
+    try:
+        said = client.call("t3_thread_read", {"threadId": at, "limit": 1}).get("thread") or {}
+    except T3Error as error:
+        run.say(f"wait {name}: thread {at} could not be read ({error})")
+        return False
+    pending = said.get("pendingRequestCount")
+    if said.get("activeRunId") or (type(pending) is int and pending > 0):
+        return False
+    for action, key in due:
+        try:
+            client.call("t3_thread_organize", {"action": action, "threadId": at})
+        except T3Error as error:
+            run.say(f"wait {name}: thread {at} could not be {action}d ({error})")
+            return False
+        run.box.mark(key)
+        run.say(f"{action}d {name}: {thread.get('title') or 'a thread'} {at}")
+    return True
+
+
 def settle(run: Pass, client: Client, world: World) -> None:
-    """Archive the threads of each finished slug (`finished`), and the subagent threads under
-    them, once each. A slug that still has work open (`held`) has its threads settled instead,
-    and they wait for a pass that finds the work closed.
+    """Put away each thread that has no work left, on every pass, once per run of the thread.
+
+    The threads of each finished slug (`finished`), and the subagent threads under them, are
+    archived. A slug that still has work open (`held`) has its threads settled instead, and they
+    wait for a pass that finds the work closed. Every other subagent thread, under a home, a
+    crew that is not finished or a thread that is gone, is settled once it is idle and its
+    parent has no run going. A home thread is never touched.
+
+    Settle is a state that `settle` keeps, not an event it fires once: T3 Code unsettles a thread
+    on any message that starts a run, whoever sends it, so a finished thread that a gate answer
+    or a reload woke is put away again on the first pass after that run ends (`_put_away`).
 
     `settle` lists the threads settled or not, so a thread that an earlier pass settled is
     archived by the same step once its slug is finished. A subagent thread whose parent jbus
     archived keeps its parent's slug through the parent's key in `sent.json`, since T3 Code no
-    longer lists the parent. Each action's key goes in `sent.json` once T3 Code took it, so a
-    thread the user unarchives is not archived again. `settle` never archives a home thread.
+    longer lists the parent.
 
     `settle` skips a thread that is still at work, settled or not, since T3 Code leaves a thread
     settled while it takes up a message, with the threads under it and the threads above it, so a
@@ -451,20 +509,17 @@ def settle(run: Pass, client: Client, world: World) -> None:
                 if slug in over[prefix]:
                     slug_of[thread["threadId"]] = slug
                     waiting.append(thread)
-        if not slug_of:
-            return
-        below = t3.listed(client, run.project.project_id, includeSubagents=True)
+        every = t3.listed(client, run.project.project_id, includeSubagents=True)
     except T3Error as error:
         run.say(f"wait {run.project.name}: the threads to settle could not be listed ({error})")
         return
     busy = {t["threadId"] for t in waiting if watch.at_work([t], settled_too=True)}
     parents = dict(slug_of)
     for key in run.box.sent():
-        action, _, rest = key.partition("|")
-        slug, _, at = rest.partition("|")
+        action, slug, at, *_ = [*key.split("|"), ""]
         if action == "archived" and at:
             parents.setdefault(at, slug)
-    below = [t for t in below if t.get("relationshipToParent") == "subagent"]
+    below = [t for t in every if t.get("relationshipToParent") == "subagent"]
     grew = True
     while grew:
         grew = False
@@ -487,23 +542,28 @@ def settle(run: Pass, client: Client, world: World) -> None:
         at, slug = thread["threadId"], slug_of[thread["threadId"]]
         if at in busy or role_of(str(thread.get("title", "")))[0] == "home":
             continue
-        for action in ("settle",) if slug in open_work else ("settle", "archive"):
-            key = f"{action}d|{slug}|{at}"
-            if _done(run, key):
-                continue
-            if action == "settle" and thread.get("settled"):
-                run.box.mark(key)
-                continue
-            try:
-                client.call("t3_thread_organize", {"action": action, "threadId": at})
-            except T3Error as error:
-                run.say(f"wait {slug}: thread {at} could not be {action}d ({error})")
-                break
-            run.box.mark(key)
-            run.say(f"{action}d {slug}: {thread.get('title') or 'a thread'} {at}")
-        else:
-            if str(thread.get("title", "")).startswith(watch.TITLE):
-                dispatch.clear_scratch(run, slug)
+        actions = ("settle",) if slug in open_work else ("settle", "archive")
+        done = _put_away(run, client, thread, slug, actions)
+        if done and str(thread.get("title", "")).startswith(watch.TITLE):
+            dispatch.clear_scratch(run, slug)
+    by_id = {t["threadId"]: t for t in every}
+    working: set[str] = set()
+    for thread in every:
+        at = thread["threadId"] if watch.at_work([thread], settled_too=True) else None
+        while at in by_id and at not in working:
+            working.add(at)
+            one = by_id[at]
+            at = (
+                one.get("parentThreadId") if one.get("relationshipToParent") == "subagent" else None
+            )
+    for thread in below:
+        at, parent = thread["threadId"], by_id.get(thread.get("parentThreadId"))
+        if at in slug_of or at in working or thread.get("settled"):
+            continue
+        if parent and watch.at_work([parent], settled_too=True):
+            continue
+        slug = role_of(str(parent.get("title", "")))[1] if parent else ""
+        _put_away(run, client, thread, slug, ("settle",))
 
 
 def resume(run: Pass, client: Client, world: World) -> None:
