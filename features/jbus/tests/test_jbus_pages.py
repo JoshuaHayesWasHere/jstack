@@ -12,8 +12,6 @@ import jbus
 from jbus import pages, wake
 from testing.paths import REPO
 
-# `verbs.reads` parses every jbus module off its source, so a change to any of them can put
-# the-verbs.md behind: #1258 changed needs.py alone and merged a stale page.
 READ_SET = ("features/jbus/src/jbus/",)
 
 
