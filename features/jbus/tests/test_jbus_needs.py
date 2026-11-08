@@ -13,6 +13,7 @@ import pytest
 import jbus
 from jbus import acts, questions, verbs, work
 from test_jbus_kitchen import GATE, NOW, RESULT
+from test_jbus_leftover import home
 from test_jbus_questions import held
 from test_jbus_queue import add, brief, go, sha12
 
@@ -23,10 +24,10 @@ AFTER = NOW + timedelta(minutes=5)
 """A few minutes after the pass, past a row's grace."""
 
 
-def needs(kitchen, *argv, at=AFTER):
-    """What `jbus needs` prints at `at`."""
+def needs(kitchen, *argv, at=AFTER, home=None):
+    """What `jbus needs` prints at `at`, for the home `home` where it is given."""
     kitchen.monkeypatch.setattr(verbs, "clock", lambda: at)
-    code, out = kitchen.main(*argv, "needs")
+    code, out = kitchen.main(*argv, "needs", *(["--home", str(home)] if home else []))
     assert code == 0, out
     return out.splitlines()
 
@@ -163,3 +164,98 @@ def test_a_row_work_json_says_is_the_users_is_one_jbus_needs_lists(kitchen, home
     assert (lines["left"]["who"], lines["left"]["value"]) == ("home", "leftover")
     assert lines["left"]["waits"].startswith("its home" if homed else "a home")
     assert (lines["reviewed"]["who"], lines["reviewed"]["waits"]) == ("rev", "its review")
+
+
+def scoped(kitchen, scope):
+    """Start the scoped home `scope` of demo, with its plan, and return its directory."""
+    home(kitchen, scope)
+    (kitchen.home / scope / "plan.md").write_text(f"# {scope}: plan\n")
+    return kitchen.home / scope
+
+
+def unsaid(kitchen, slug, where="root", project="demo"):
+    """Queue a row of the home `where` with no go, so it waits on the user's word."""
+    text = brief(slug).replace("Home: root", f"Home: {where}")
+    add(kitchen, slug, approve=False, text=text, project=project)
+
+
+def rows(said):
+    """The slugs of the rows awaiting a go that `jbus needs` printed, each with its project."""
+    return [line.split(":")[0] for line in said if " approve " in line.split(":")[0]]
+
+
+def test_a_root_home_lists_its_own_and_its_scopes_items_and_a_scope_only_its_own(kitchen):
+    sc = scoped(kitchen, "sc")
+    scoped(kitchen, "sd")
+    other = kitchen.second()
+    unsaid(kitchen, "rooted")
+    unsaid(kitchen, "scoped", "sc")
+    unsaid(kitchen, "sibling", "sd")
+    unsaid(kitchen, "elsewhere", project=other.name)
+    kitchen.poll()
+    assert rows(needs(kitchen)) == [
+        "demo approve rooted",
+        "demo approve scoped",
+        "demo approve sibling",
+        "other approve elsewhere",
+    ]
+    root = needs(kitchen, "--project", "demo", home=kitchen.home)
+    assert root[0] == "waiting on user: 3, in demo"
+    assert rows(root) == ["demo approve rooted", "demo approve scoped", "demo approve sibling"]
+    assert rows(needs(kitchen, "--project", "demo", home=sc)) == ["demo approve scoped"]
+
+
+def test_a_root_home_with_no_scope_lists_its_own_items(kitchen):
+    unsaid(kitchen, "rooted")
+    kitchen.poll()
+    said = needs(kitchen, "--project", "demo", home=kitchen.home)
+    assert rows(said) == ["demo approve rooted"]
+
+
+def test_a_scope_with_nothing_waiting_says_so_by_its_name(kitchen):
+    sc = scoped(kitchen, "sc")
+    unsaid(kitchen, "rooted")
+    kitchen.poll()
+    assert needs(kitchen, "--project", "demo", home=sc) == [
+        "nothing waits on user in demo's sc home"
+    ]
+
+
+def test_a_directory_that_is_no_home_of_the_project_is_refused(kitchen, tmp_path):
+    kitchen.poll()
+    code, said = kitchen.main("--project", "demo", "needs", "--home", str(tmp_path))
+    assert code != 0 and f"refused: {tmp_path} is no home of demo" in said
+
+
+def test_a_gate_a_scope_asked_as_its_home_is_that_scopes(kitchen):
+    """A gate in a scope's `gates.md` whose `Asked by:` is `home` is the scope's (`jbus.needs`),
+    not the root's, though the root home lists it with its scopes'."""
+    sc = scoped(kitchen, "sc")
+    asked = GATE.format(n=1, asked="drop the old rows?", status="open", slug="home")
+    (sc / "gates.md").write_text(asked.replace("Option:", "Holds: deletes data\nOption:", 1))
+    kitchen.poll()
+    gated = "demo gate 1: drop the old rows"
+    assert needs(kitchen, "--project", "demo", home=sc)[1].startswith(gated)
+    assert needs(kitchen, "--project", "demo", home=kitchen.home)[1].startswith(gated)
+    alone = scoped(kitchen, "sd")
+    assert needs(kitchen, "--project", "demo", home=alone) == [
+        "nothing waits on user in demo's sd home"
+    ]
+
+
+def test_a_held_pull_request_is_the_home_of_its_row_and_the_roots_where_the_queue_is_unread(
+    kitchen,
+):
+    sc = scoped(kitchen, "sc")
+    add(kitchen, "held", text=brief("held").replace("Home: root", "Home: sc"))
+    kitchen.brief("held", "Home: sc\n" + RESULT)
+    kitchen.set("open.json", [kitchen.opened("held", 9)])
+    kitchen.set("jmerge.txt", HOLDS + "\n")
+    kitchen.poll()
+    held = f"demo {HOLDS}, a pull request jmerge holds for your word"
+    assert needs(kitchen, "--project", "demo", home=sc)[1] == held
+    (kitchen.state / "queue.json").write_text("not a table\n")
+    assert needs(kitchen, "--project", "demo", home=sc) == [
+        "nothing waits on user in demo's sc home"
+    ]
+    assert needs(kitchen, "--project", "demo", home=kitchen.home)[1] == held
