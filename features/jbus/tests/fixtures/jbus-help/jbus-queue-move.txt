@@ -1,0 +1,8 @@
+usage: jbus queue move [-h] --home SCOPE slug
+
+positional arguments:
+  slug
+
+options:
+  -h, --help    show this help message and exit
+  --home SCOPE  the scope whose home takes the row; never root
