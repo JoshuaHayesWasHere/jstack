@@ -244,7 +244,11 @@ def _at(text: Any) -> datetime | None:
         return None
 
 
-def _read(run: passes.Pass) -> dict[str, tuple[str, list[Any]]]:
+Wanted = dict[str, tuple[str, list[Any]]]
+"""By a pull request's number, the head and its verdict that a run of `jmerge` is to run for."""
+
+
+def _read(run: passes.Pass) -> Wanted:
     """Ask GitHub for the check runs at the head of each pending pull request as it is now, with
     the ETag the tick kept, restate the line of each pull request whose head's required checks
     failed or ended (`restated.checked`), and keep what the tick read of each (`SEEN`). Return,
@@ -295,7 +299,7 @@ def _pulls(state: Path) -> dict[str, Any]:
     return kept if isinstance(kept, dict) else {}
 
 
-def _ran(run: passes.Pass, wanted: dict[str, tuple[str, list[Any]]], said: merge.Said) -> None:
+def _ran(run: passes.Pass, wanted: Wanted, said: merge.Said) -> None:
     """Keep what a run of `jmerge` the tick started said, and, once it ran to its end, the
     verdicts it ran for (`wanted`), as `ran` of each pull request still kept at the same head."""
     reload.keep(run, said)
@@ -341,7 +345,7 @@ def tick(config: jbus.Config, say=print) -> int:
     watched = _watched(config)
     if not watched or not _asks(config, say):
         return 0
-    going: dict[futures.Future[merge.Said], tuple[passes.Pass, dict[str, list[Any]]]] = {}
+    going: dict[futures.Future[merge.Said], tuple[passes.Pass, Wanted]] = {}
     with futures.ThreadPoolExecutor() as pool:
         try:
             for project in watched:
