@@ -11,7 +11,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import acts, questions, verbs, work
+from jbus import acts, homestatus, questions, verbs, work
 from test_jbus_kitchen import GATE, NOW, RESULT
 from test_jbus_leftover import home
 from test_jbus_questions import held
@@ -259,3 +259,27 @@ def test_a_held_pull_request_is_the_home_of_its_row_and_the_roots_where_the_queu
         "nothing waits on user in demo's sc home"
     ]
     assert needs(kitchen, "--project", "demo", home=kitchen.home)[1] == held
+
+
+def test_a_question_whose_brief_only_the_queue_stored_is_its_scopes_in_needs_and_home_status(
+    kitchen, monkeypatch
+):
+    """`jbus needs --home` and `jbus home status --home` say which home a question is by one
+    rule, so a slug whose brief is in no home's files goes to the home its stored brief names
+    in both."""
+    sc = scoped(kitchen, "sc")
+    unsaid(kitchen, "stored", "sc")
+    assert not (kitchen.home / "tasks" / "stored.md").exists()
+    assert kitchen.main("gate", "stored", stdin=held())[0] == 0
+    kitchen.poll()
+    question = "demo question 1: drop the old branch"
+    assert any(line.startswith(question) for line in needs(kitchen, "--project", "demo", home=sc))
+    monkeypatch.setattr(homestatus.paths, "repo_name", lambda: kitchen.home.name)
+
+    def asked(directory):
+        here = homestatus.Home.of(str(directory))
+        found = homestatus.bus(here, installed=True)
+        return [line.split(homestatus.SEP)[1] for line in homestatus.gates(here, found)[2:]]
+
+    assert asked(sc) == ["stored"]
+    assert asked(kitchen.home) == []
