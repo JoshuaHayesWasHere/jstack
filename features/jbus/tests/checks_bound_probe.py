@@ -4,16 +4,21 @@ line of `work.json`. Pytest does not collect it: run it by name, beside a runnin
     uv run python features/jbus/tests/checks_bound_probe.py --repo owner/name --pr 123 \
         --work ~/.local/state/jbus/<project>/work.json
 
-It reads and writes nothing of jbus's. Every `POLL` seconds it asks GitHub for the check runs of
-the pull request's head with the ETag it last saw, so a 304, which is every answer but the one
-after a change, spends none of the API allowance. It watches the directory of `work.json` with
-inotify and keeps the moment each write changed the line whose `pr` is the pull request.
+It writes nothing of jbus's, and reads the home's `required-checks` (`--required`). Every `POLL`
+seconds it asks GitHub for the check runs of the pull request's head with the ETag it last saw, so
+a 304, which is every answer but the one after a change, spends none of the API allowance. It asks
+once for each workflow run it has not seen, for the workflow's name: about four counted calls a
+head. It watches the directory of `work.json` with inotify and keeps the moment each write changed
+the line whose `pr` is the pull request.
 
-A round is one head whose check runs the probe saw going and then all ended: its end is the
-latest `completed_at`, which GitHub gives to the second, and its delay is the first change of the
-row's line after that end.
+A round is one head whose required checks the probe saw going and then settled, where jmerge's
+verdict is settled too (`round_end`): at the end of its first failed required job, or at the end
+of its last required job. A job of a workflow no required check names, such as `browser`, does not
+count. Its end is a `completed_at`, which GitHub gives to the second, and its delay is the first
+change of the row's line after that end.
 A round whose line did not change within `--wait` seconds counts as none. A push starts the next
-round. It prints each round as it ends, then the rounds, p50 and max in seconds.
+round. It prints each round as it ends and appends it as one JSON line to `--out`, then prints the
+rounds, p50 and max in seconds.
 """
 
 from __future__ import annotations
@@ -22,15 +27,20 @@ import argparse
 import ctypes
 import json
 import os
+import re
 import select
 import statistics
 import subprocess
 import threading
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
+from jmerge.checks import NOT_RED
+from jmerge.ready import required_of
+
 POLL = 0.5
+OUT = Path("~/.local/state/checks-bound-probe/rounds.jsonl")
 IN_CLOSE_WRITE, IN_MOVED_TO = 0x8, 0x80
 
 
@@ -51,10 +61,35 @@ def gh(path: str, etag: str = "") -> tuple[str, str, object]:
 def round_end(
     runs: list[dict], workflow_of: dict[str, str], required: tuple[str, ...]
 ) -> tuple[float, str] | None:
-    """When a head's round of checks ended, and its verdict, or None while it goes."""
-    if not runs or any(one["status"] != "completed" for one in runs):
+    """When a head's round of checks ended, with `failed` or `passed`, or None while it goes.
+
+    A required job is any job of a workflow that a required check names, shards included, found
+    by the workflow run in its `html_url` (`workflow_of`). The round fails at the end of its first
+    failed required job, and passes at the end of its last required job once GitHub lists a run
+    of each required check: it lists `check` only after the shards it needs have ended. A job of
+    any other workflow, such as `browser`, counts for neither."""
+    mine = [one for one in runs if workflow_of.get(_run(one)) in required]
+    failed = [
+        one for one in mine if one["status"] == "completed" and one["conclusion"] not in NOT_RED
+    ]
+    if failed:
+        return min(map(_ended, failed)), "failed"
+    listed = {one["name"] for one in mine}
+    if not set(required) <= listed or any(one["status"] != "completed" for one in mine):
         return None
-    return max(datetime.fromisoformat(one["completed_at"]).timestamp() for one in runs), "ended"
+    return max(map(_ended, mine)), "passed"
+
+
+def _run(one: dict) -> str:
+    found = _RUN_URL.search(one.get("html_url") or "")
+    return found.group(1) if found else ""
+
+
+def _ended(one: dict) -> float:
+    return datetime.fromisoformat(one["completed_at"]).timestamp()
+
+
+_RUN_URL = re.compile(r"/actions/runs/(\d+)/job/")
 
 
 class Line:
@@ -97,8 +132,20 @@ def main() -> int:
     parser.add_argument("--work", type=Path, required=True)
     parser.add_argument("--rounds", type=int, default=1)
     parser.add_argument("--wait", type=float, default=120)
+    parser.add_argument(
+        "--required",
+        type=Path,
+        help="the home's required-checks, by default ~/.local/state/home/<repo>/required-checks",
+    )
+    parser.add_argument("--out", type=Path, default=OUT)
     args = parser.parse_args()
+    home = Path("~/.local/state/home") / args.repo.split("/")[-1] / "required-checks"
+    required = required_of((args.required or home).expanduser().read_text())
+    out = args.out.expanduser()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    print(f"required: {', '.join(required)}; each round is appended to {out}", flush=True)
     line = Line(args.work.expanduser(), args.pr)
+    workflow_of: dict[str, str] = {}
     delays: list[float | None] = []
     done: set[str] = set()
     going: set[str] = set()
@@ -111,11 +158,15 @@ def main() -> int:
                 f"repos/{args.repo}/commits/{sha}/check-runs", etags.get(sha, "")
             )
             runs = body.get("check_runs", []) if isinstance(body, dict) else None
-            end = round_end(runs or [], {}, ())
+            for run in {_run(one) for one in runs or []} - workflow_of.keys() - {""}:
+                _, _, workflow = gh(f"repos/{args.repo}/actions/runs/{run}")
+                if isinstance(workflow, dict):
+                    workflow_of[run] = workflow["name"]
+            end = round_end(runs or [], workflow_of, required)
             if runs and end is None:
                 going.add(sha)
             elif end and sha in going:
-                ended = end[0]
+                ended, verdict = end
                 until = time.time() + args.wait
                 while time.time() < until and not [at for at, _ in line.changed if at >= ended]:
                     time.sleep(0.05)
@@ -125,10 +176,24 @@ def main() -> int:
                 done.add(sha)
                 said = f"{delay:.1f} s, the line says {after[0][1]}" if after else "none"
                 print(
-                    f"round {len(delays)}: head {sha[:7]}, checks ended "
+                    f"round {len(delays)}: head {sha[:7]}, checks {verdict} "
                     f"{datetime.fromtimestamp(ended):%H:%M:%S}: {said}",
                     flush=True,
                 )
+                kept = {
+                    "repo": args.repo,
+                    "pr": args.pr,
+                    "head": sha,
+                    "verdict": verdict,
+                    "ended": datetime.fromtimestamp(ended, UTC).isoformat(),
+                    "line_at": datetime.fromtimestamp(after[0][0], UTC).isoformat()
+                    if after
+                    else None,
+                    "delay": round(delay, 3) if delay is not None else None,
+                    "says": after[0][1] if after else None,
+                }
+                with out.open("a") as rounds:
+                    rounds.write(json.dumps(kept) + "\n")
                 break
             time.sleep(POLL)
         time.sleep(POLL)
