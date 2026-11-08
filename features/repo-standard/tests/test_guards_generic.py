@@ -4,6 +4,10 @@ Each test builds a small git repo in a temporary folder: two features, a core sc
 README and a generator, with a config that names them. Every guard passes there, and each fails
 on a fault planted in it. The guards run through `repo_standard.__main__.main`, the entry point
 `python -m repo_standard` calls, and one test runs that command itself from outside jstack.
+
+The guards are `repo_standard.borders`, `repo_standard.stale`, `repo_standard.docs_true` and
+`repo_standard.size`, which reads comments with `repo_standard.lexers`. Each reads the repo through
+`repo_standard.tree` and its config through `repo_standard.config`.
 """
 
 import json
