@@ -1,0 +1,24 @@
+# The rules `jbus snapshot` reads the homes' state tree with: gitleaks' own, with GitHub Actions
+# cache keys passed. A home keeps CI logs, and actions/cache prints its keys as `key: <name>-<hash>`,
+# which the generic-api-key rule takes for a secret. Each regex below is the whole of one such line,
+# with the `check <n> of <m>`, step and timestamp columns a saved log puts before it. No free text
+# is passed, so a secret on such a line is still read: a step is a `Run <owner>/<action>@<sha>` or
+# words (a letter then lowercase letters and digits, or at most 12 capitals and digits), a key's name
+# parts are a letter then lowercase letters, digits and dots, so no `ghp_` token or AWS key fits
+# either, and its hash is hex segments of 16 or more. gitleaks hands each line over with the newline
+# before it, hence the `\n?`.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "GitHub Actions cache keys in saved CI logs"
+regexTarget = "line"
+regexes = [
+    # `  key: <k>`, `  restore-keys: <k>`, `  restore-key: <k>`: the inputs actions/cache echoes.
+    '''^\n?(?:check \d+ of \d+\t(?:Run [A-Za-z0-9][a-z0-9.-]*(?:/[a-z0-9][a-z0-9.-]*)*@[0-9a-f]{40}|(?:[A-Za-z][a-z0-9]{0,30}|[A-Z0-9]{1,12})(?: (?:[A-Za-z][a-z0-9]{0,30}|[A-Z0-9]{1,12}))*)\t)?\x{FEFF}?(?:\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z)?\s*(?:key|restore-keys?):\s*[A-Za-z][a-z0-9.]*(?:-[A-Za-z][a-z0-9.]*)*(?:-[0-9a-f]{16,})+-?\s*$''',
+    # `Cache restored from key: <k>`, `Cache hit for restore-key: <k>`: what actions/cache says it found.
+    '''^\n?(?:check \d+ of \d+\t(?:Run [A-Za-z0-9][a-z0-9.-]*(?:/[a-z0-9][a-z0-9.-]*)*@[0-9a-f]{40}|(?:[A-Za-z][a-z0-9]{0,30}|[A-Z0-9]{1,12})(?: (?:[A-Za-z][a-z0-9]{0,30}|[A-Z0-9]{1,12}))*)\t)?\x{FEFF}?(?:\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z)?\s*(?:Cache restored from key|Cache hit for restore-key):\s*[A-Za-z][a-z0-9.]*(?:-[A-Za-z][a-z0-9.]*)*(?:-[0-9a-f]{16,})+-?\s*$''',
+    # `  KEY: <name>-<hex>`, `  RESTORED: <name>-<hex>`: a step's env, as the log echoes it.
+    '''^\n?(?:check \d+ of \d+\t(?:Run [A-Za-z0-9][a-z0-9.-]*(?:/[a-z0-9][a-z0-9.-]*)*@[0-9a-f]{40}|(?:[A-Za-z][a-z0-9]{0,30}|[A-Z0-9]{1,12})(?: (?:[A-Za-z][a-z0-9]{0,30}|[A-Z0-9]{1,12}))*)\t)?\x{FEFF}?(?:\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z)?\s*(?:KEY|RESTORED):\s*[A-Za-z][a-z0-9.]*(?:-[A-Za-z][a-z0-9.]*)*(?:-[0-9a-f]{16,})+-?\s*$''',
+]

@@ -1,13 +1,14 @@
 """`jbus snapshot`: commit the homes' state tree and push it, so every home's state is kept.
 
 The tree is the config's `home_dir`, `~/.local/state/home`, which is a git repo. A snapshot stages
-everything (`git add -A`). When something is staged, gitleaks reads it. If gitleaks finds one
-secret, the snapshot unstages everything and commits nothing. Otherwise it commits
-`snapshot <YYYY-MM-DD HH:MM ET>`, in the user's zone, followed by `: <why>` when `--why` says what
-changed. Then it pushes to `origin`, whether or not it committed, so the next run retries a push
-that failed. The backup is opt-in: a tree with no `origin` keeps its commit, which an edit can be
-undone to, and the snapshot succeeds and says the backup is off. The install enables the timer
-only once the tree has an origin and gitleaks is on the machine.
+everything (`git add -A`). When something is staged, gitleaks reads it with `RULES`: its own rules,
+with the cache keys a home's saved CI logs print passed. If gitleaks finds one secret, the snapshot
+unstages everything and commits nothing. Otherwise it commits `snapshot <YYYY-MM-DD HH:MM ET>`, in
+the user's zone, followed by `: <why>` when `--why` says what changed. Then it pushes to `origin`,
+whether or not it committed, so the next run retries a push that failed. The backup is opt-in: a
+tree with no `origin` keeps its commit, which an edit can be undone to, and the snapshot succeeds
+and says the backup is off. The install enables the timer only once the tree has an origin and
+gitleaks is on the machine.
 
 `jbus-snapshot.timer` runs `jbus snapshot` at 08:30 and 17:30, and `--why` says what changed. A
 `standing.md` holds no rule at all now, and `jbus.rules` is what flags one, so a snapshot reads
@@ -54,6 +55,7 @@ KILLED = (
     "it was stopped before its end, as the unit's timeout stops one "
     "(journalctl --user -u jbus-snapshot)"
 )
+RULES = Path(__file__).with_name("gitleaks.toml")
 RUNS = "snapshot-runs"
 WAIT = 60.0
 
@@ -134,7 +136,7 @@ def _commit(tree: Path, message: str) -> None:
     with tempfile.TemporaryDirectory() as scratch:
         report = Path(scratch) / "report.json"
         scanned = subprocess.run(
-            [gitleaks, "protect", "--staged", "--no-banner", "--redact"]
+            [gitleaks, "protect", "--staged", "--no-banner", "--redact", "--config", str(RULES)]
             + ["--report-format", "json", "--report-path", str(report)],
             cwd=tree,
             capture_output=True,
