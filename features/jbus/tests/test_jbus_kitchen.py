@@ -36,7 +36,7 @@ import jbus
 import jsettings
 import repo_template
 from jbriefs import meaning
-from jbus import acts, cli, live, outbox, party, poll, queue, rebase, t3, verbs, wake, word
+from jbus import acts, cli, live, outbox, party, poll, queue, rebase, t3, tick, verbs, wake, word
 from jgauge import slot, waiters
 from jmerge import judgement
 from jroles import ledger
@@ -800,6 +800,7 @@ class Kitchen:
         monkeypatch.setenv("JBUS_HOME_DIR", str(tmp_path / "home"))
         monkeypatch.setenv("JGAUGE_LOCKS_DIR", str(tmp_path / "locks"))
         monkeypatch.setenv("JSTACK_SCRATCH_DIR", str(tmp_path / "scratch"))
+        monkeypatch.delenv(tick.TIMER, raising=False)
         monkeypatch.chdir(self.checkout)
         monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", SESSION)
         monkeypatch.setattr(queue, "clock", lambda: NOW)
