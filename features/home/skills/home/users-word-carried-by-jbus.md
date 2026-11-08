@@ -69,6 +69,8 @@ jbus --project <project> queue approve <slug> --sha <sha12> --message <thread id
 
 Any wording of theirs that names the row opens it, `go <slug>` or the T3 tree row's `approve <slug> (brief sha <sha12>)` alike, the first time: never ask them to send it again.
 jbus refuses a message of the user's that names neither the row nor its gate by its number (`question 3`, `gate 3`, `q3` or `#3`, never a number alone), or that was said before the brief was stored, and names the command that works.
+A plain reply of theirs in this home's thread, such as "yes, go", names neither and opens the door all the same when this home's last message before it asked about that row by slug, or about its gate as `question 3`, with a question mark in the sentence that names it.
+It opens only the doors of what that ask asked about: each row or gate it names counts on its own, by the part of the ask that follows its name, so an ask about two rows, each with its own question mark, opens both, while a row the ask only names in passing is not asked about.
 This home never runs a door's command itself, a prod migration or deploy, a force-push, a release, a tailnet or DNS change, or a delete: the `door-command` hook refuses it, and the row's crew runs it on the user's own go.
 
 ### A go given in a question box
