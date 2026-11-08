@@ -476,9 +476,10 @@ def fake_gh(stub, args, cwd):
     If-None-Match:` that ETag it gives 304 and nothing more, and exits 1, as gh does; on stderr it
     writes gh's debug log of the request, which `GH_DEBUG=api` gives.
     `api rate_limit` gives GitHub's API budget from `rate-limit.json`, or a full one.
-    `api` picks its answer by the end of the path. It gives a commit's check runs, its runs for a
-    push, who owns the repo (with no `repo.json`, GitHub does not say), the commits, and a pull
-    request's comments, line comments and reviews. Asked for every page (`--paginate --slurp`), it
+    `api` picks its answer by the end of the path. It gives a commit's check runs, each naming
+    its `head_sha`, by the sha or by a pull request's ref (`pull/<number>/head`, the head the open
+    pull request has now), its runs for a push, who owns the repo (with no `repo.json`, GitHub
+    does not say), the commits, and a pull request's comments, line comments and reviews. Asked for every page (`--paginate --slurp`), it
     gives a list of pages, here two, and for the runs, a run's jobs and a check run's annotations
     (none), one. A job comes from `jobs.json` by its id, or is one step at the
     first attempt where `jobs.json` has none for it. Its log comes from `logs.json` by its id, or is
@@ -578,7 +579,11 @@ def fake_gh(stub, args, cwd):
     elif args[0] == "api" and "/check-runs" in args[1]:
         runs = json.loads((stub / "check-runs.json").read_text())
         ref = args[1].split("?")[0].split("/commits/")[-1].removesuffix("/check-runs")
-        said = json.dumps({"check_runs": runs.get(ref, [])})
+        if ref.startswith("pull/") and ref.endswith("/head"):
+            opened = json.loads((stub / "open.json").read_text())
+            heads = [p["headRefOid"] for p in opened if f"pull/{p['number']}/head" == ref]
+            ref = heads[0] if heads else ""
+        said = json.dumps({"check_runs": [{"head_sha": ref, **one} for one in runs.get(ref, [])]})
     elif args[0] == "api" and "/actions/runs?per_page=" in args[1]:
         kept = stub / "runs.json"
         said = kept.read_text() if kept.exists() else json.dumps({"workflow_runs": []})
@@ -1064,6 +1069,9 @@ class Kitchen:
         return {"sha": sha, "commit": {"message": message, "committer": {"date": iso(NOW - ago)}}}
 
 
+RUNS_AT_C = json.dumps({"c" * 40: [{"name": "check"}]})
+
+
 @pytest.mark.parametrize(
     ("command", "files"),
     [
@@ -1072,7 +1080,8 @@ class Kitchen:
         (["gh", "pr", "view", "7"], {}),
         (["gh", "pr", "view", "7"], {"head-now.json": '{"7": {"headRefOid": "d"}}'}),
         (["gh", "pr", "view", "0"], {}),
-        (["gh", "api", "repos/o/r/commits/abc/check-runs"], {"check-runs.json": '{"abc": [1]}'}),
+        (["gh", "api", "repos/o/r/commits/abc/check-runs"], {"check-runs.json": '{"abc": [{}]}'}),
+        (["gh", "api", "repos/o/r/commits/pull/7/head/check-runs"], {"check-runs.json": RUNS_AT_C}),
         (["gh", "api", "repos/{owner}/{repo}"], {}),
         (["gh", "api", "repos/o/r/pulls/7/reviews", "--slurp"], {}),
         (["gh", "api", "repos/o/r/commits"], {}),

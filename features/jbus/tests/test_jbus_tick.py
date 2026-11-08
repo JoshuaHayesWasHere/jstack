@@ -692,3 +692,26 @@ def test_a_read_that_fails_while_jmerge_runs_still_keeps_that_runs_merge(two_on_
     two_on_check.poll(NOW + timedelta(minutes=1))
     told = [one for one in sends(two_on_check) if one["threadId"] == crew["threadId"]]
     assert len(told) == 1 and "skills: crew." in told[0]["message"]
+||||||| parent of 15bf79474 (test(jbus): the tick reads a head pushed after the pass's read, and the pass keeps a head with no checks listed yet)
+
+
+def test_a_head_pushed_after_the_passs_read_is_read_by_the_next_tick(pushed):
+    """The pass read #7 at an older head, and kept it for the tick. `HEAD` is pushed after that
+    read, and its check fails before the next pass. The tick, which the timer runs every 2 s
+    while #7 is pending, asks for the check runs at #7's head as it is now, not at the head the
+    pass saw, so its next read puts `failed` on the line at `HEAD`, with no pass between."""
+    pushed.set("jmerge.txt", f"wait 7 {PULL}: {ready.CHECK_FAILED.format(check='check')}\n")
+    assert ticks(pushed)[0] == "tick demo: a check ended, and alpha's line says so"
+    said = line(pushed)
+    assert (said["why"], said[restated.CHECKED], said[restated.ENDED]) == (FAILED, "failed", HEAD)
+
+
+def test_a_head_whose_rollup_lists_no_checks_yet_stays_pending(on_check):
+    """#7's head was just pushed, and GitHub lists no check at it yet: the pass keeps it for the
+    tick, which reads its first job within 2 s of GitHub listing it."""
+    on_check.set("open.json", [{**on_check.opened("alpha", 7), "statusCheckRollup": []}])
+    on_check.poll()
+    assert watching(on_check) == [{"number": 7, "head": HEAD}]
+    assert ticks(on_check) == []
+    check_ended(on_check, 1, "failure")
+    assert ticks(on_check)[0] == "tick demo: a check ended, and alpha's line says so"
