@@ -437,7 +437,9 @@ def settle(run: Pass, client: Client, world: World) -> None:
     longer lists the parent. Each action's key goes in `sent.json` once T3 Code took it, so a
     thread the user unarchives is not archived again. `settle` never archives a home thread.
 
-    `settle` skips a thread that is still at work, and the threads under it, until the next pass.
+    `settle` skips a thread that is still at work, settled or not, since T3 Code leaves a thread
+    settled while it takes up a message, with the threads under it and the threads above it, so a
+    running subagent keeps its parent too, until the next pass.
     Once a crew's thread is put away, its scratch folder goes (`dispatch.clear_scratch`).
     """
     over = finished(run, world)
@@ -458,7 +460,7 @@ def settle(run: Pass, client: Client, world: World) -> None:
     except T3Error as error:
         run.say(f"wait {run.project.name}: the threads to settle could not be listed ({error})")
         return
-    busy = {t["threadId"] for t in waiting if watch.at_work([t])}
+    busy = {t["threadId"] for t in waiting if watch.at_work([t], settled_too=True)}
     parents = dict(slug_of)
     for key in run.box.sent():
         action, _, rest = key.partition("|")
@@ -474,10 +476,15 @@ def settle(run: Pass, client: Client, world: World) -> None:
             if thread["threadId"] in slug_of or parent not in parents:
                 continue
             slug_of[thread["threadId"]] = parents[thread["threadId"]] = parents[parent]
-            if parent in busy or watch.at_work([thread]):
+            if parent in busy or watch.at_work([thread], settled_too=True):
                 busy.add(thread["threadId"])
             waiting.append(thread)
             grew = True
+    up = {t["threadId"]: t.get("parentThreadId") for t in waiting}
+    for at in list(busy):
+        while up.get(at) in slug_of and up[at] not in busy:
+            at = up[at]
+            busy.add(at)
     open_work = held(run, world, set(slug_of.values()))
     for thread in waiting:
         at, slug = thread["threadId"], slug_of[thread["threadId"]]

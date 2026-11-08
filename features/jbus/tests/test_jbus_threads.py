@@ -106,6 +106,25 @@ def test_the_threads_of_a_finished_slug_and_those_under_them_are_archived_once_e
     assert busy["archived"] and child["archived"]
 
 
+def test_a_settled_thread_taking_a_turn_or_a_running_subagent_keeps_its_threads_out(kitchen):
+    """T3 Code leaves a thread settled while it takes up a message, so a settled thread that runs
+    is at work, and a subagent that runs keeps the thread above it as well as itself."""
+    under = {"relationshipToParent": "subagent"}
+    kitchen.brief("alpha", RESULT)
+    kitchen.brief("beta", RESULT)
+    woken = kitchen.t3.thread("alpha", "running", settled=True)
+    crew = kitchen.t3.thread("beta", "completed")
+    helper = kitchen.t3.thread(
+        "beta", "running", title="its helper", parentThreadId=crew["threadId"], **under
+    )
+    kitchen.poll()
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert put_away(kitchen) == []
+    woken["status"] = helper["status"] = "completed"
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert sorted(put_away(kitchen)) == ["crew: alpha", "crew: beta", "its helper"]
+
+
 def test_a_thread_the_user_unarchives_is_not_archived_again(kitchen):
     kitchen.brief("alpha", RESULT)
     crew = kitchen.t3.thread("alpha", "completed")
