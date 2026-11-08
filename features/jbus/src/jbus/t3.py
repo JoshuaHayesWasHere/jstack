@@ -30,6 +30,13 @@ the message, its text and its time, and that is why jbus counts the user's word 
 `Client.item` reads any item of a thread by its id the same way, such as a question box
 (`jbus.boxes`).
 
+`home_ask` reads the ask a plain reply of the user's answers: the last message a home wrote in its
+own thread before that reply (`Client.asked_before`). `asked_of` and `asks` are the one rule of
+what such an ask is about: each row or question owns the part of the ask from its name to the
+next row or question named, so a plain "yes" binds to what the home asked about and to nothing
+else. `jbus waive` reads the lines a row's part names, and `jbus.acts` whether the part of the row
+or question a door waits on asks the user, with a question mark.
+
 A tool of `TOOLS` that T3 Code stops serving fails only where jbus calls it, so each pass compares
 the two, with one `tools/list`, in a chore (`contract`). Each tool it no longer serves is an
 incident of the machine's (`jbus.alert`), under the key `t3-tool <tool>`, told once when it starts
@@ -58,6 +65,7 @@ from typing import Any
 
 import jroles
 import jsettings
+from jbriefs.home import scopes, thread_of
 from jbus import Config, Refused, alert, queue, verbs, write_json
 from jbus.bind import NoLookup
 from jroles import pool
@@ -421,6 +429,82 @@ def own(config: Config, ref: str) -> Message:
     if not found.text.split():
         raise Refused(f"refused: message {ref} has no words")
     return found
+
+
+def homes(home: Path) -> set[str]:
+    """The threads of the homes of a project whose root home is `home`: the root's and each
+    scope's that has one now."""
+    return {one for one in (thread_of(home), *(thread_of(s) for s, _, _ in scopes(home))) if one}
+
+
+def home_ask(config: Config, home: Path, project: str, ref: str) -> tuple[Message, Message]:
+    """Return the user's own message `ref` (`own`) and the ask it answers: the last message the
+    home wrote in that thread before it. Refused where the thread is no home's of the project, or
+    where nothing of the home's comes before the message."""
+    thread = ref.partition("/")[0]
+    if thread not in homes(home):
+        raise Refused(f"refused: {thread} is no home's thread of {project}")
+    said = own(config, ref)
+    try:
+        ask = Client(config.server, config.token_path).asked_before(thread, said.position)
+    except T3Error as error:
+        raise Refused(f"refused: T3 Code gave no message before {ref} ({error})") from error
+    if ask is None:
+        raise Refused(f"refused: no message of the home comes before {ref}")
+    return said, ask
+
+
+def asked_of(text: str, slug: str, others: frozenset[str] = frozenset()) -> list[str]:
+    """The parts of a home's ask `text` that are about the row `slug`: each runs from a place it
+    names the slug to the next place it names another row of `others`, so an ask about two rows
+    says of each only what follows its name. None where the ask does not name the slug."""
+    return _parts(text, {_row(slug)}, {_row(one) for one in others})
+
+
+def asks(text: str, slug: str, numbers: list[int], others: frozenset[str]) -> bool:
+    """Whether a home's ask `text` asks the user about the row `slug` or one of its questions
+    `numbers`, named as `question <n>`: a part of it about them (as `asked_of` cuts it, at the
+    next row of `others` or the next question it names) asks, in the sentence that names them,
+    with a question mark. So "question 250 stays held; question 251: may beta go?" asks about
+    251 alone, and a row named in passing, "alpha merged. Shall I remove the worktrees?", is
+    not asked about."""
+    mentioned = {int(one) for one in re.findall(r"\bquestion\s+(\d+)", text, re.I)}
+    mine = {_row(slug), *(_question(one) for one in numbers)}
+    theirs = {_row(one) for one in others} | {_question(one) for one in mentioned - set(numbers)}
+    for part in _parts(text, mine, theirs):
+        end = _END.search(part)
+        if end and end[0] == "?":
+            return True
+    return False
+
+
+_END = re.compile(r"[.?!](?=[\s*_)\"'`]|$)|\n")
+"""Where a sentence ends: a stop, a question mark or a bang before a space, a close of markdown,
+or the end, or a line's end."""
+
+
+def _row(slug: str) -> str:
+    return queue._SLUG_IN.format(re.escape(slug))
+
+
+def _question(number: int) -> str:
+    return rf"\bquestion\s+{number}(?![\w-]|\.\d)"
+
+
+def _parts(text: str, mine: set[str], theirs: set[str]) -> list[str]:
+    """The parts of `text` from each place a pattern of `mine` matches it, lowered, to the next
+    place one of `theirs` does."""
+    lowered = text.lower()
+    marks = sorted(
+        (found.start(), pattern in mine)
+        for pattern in mine | theirs
+        for found in re.finditer(pattern, lowered)
+    )
+    return [
+        text[start : next((at for at, own in marks[place + 1 :] if not own), len(text))]
+        for place, (start, own) in enumerate(marks)
+        if own
+    ]
 
 
 def typed(args: argparse.Namespace, config: Config, verb: str) -> queue.Said | None:

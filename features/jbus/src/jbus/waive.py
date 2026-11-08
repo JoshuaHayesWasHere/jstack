@@ -12,8 +12,8 @@ which checks, before anything is written:
 
 - the message is the user's own, read in T3 Code (`t3.own`), as every word jbus takes is;
 - its thread is the thread of a home of the project, the root's or a scoped one's (`home-id`);
-- the last message the home wrote in that thread before it (`t3.Client.asked_before`) names the
-  row's slug and each line by its number, as `alpha: lines 2 and 3` (`asked`). So a message
+- the last message the home wrote in that thread before it (`t3.home_ask`) names the row's slug
+  and each line by its number, as `alpha: lines 2 and 3` (`asked`, on `t3.asked_of`). So a message
   older than the ask, an ask about another row, and a line the home did not ask about waive
   nothing.
 
@@ -31,10 +31,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from jbriefs import meets
-from jbriefs.home import scopes, thread_of
-from jbus import Config, Refused, acts, locked, party, queue, verbs
+from jbus import Config, Refused, acts, locked, party, queue, t3, verbs
 from jbus.passes import Pass
-from jbus.t3 import Client, T3Error, own
 from jsettings.brief import head_lines
 
 KIND = "waive"
@@ -43,22 +41,13 @@ _LINES = re.compile(r"\blines?\s+(\d+(?:(?:\s*,\s*|\s+and\s+|\s*&\s*|\s*,\s*and\
 
 def asked(text: str, slug: str, others: frozenset[str]) -> frozenset[int]:
     """The line numbers a home's message names for the row `slug`: those named as `line <n>` or
-    `lines <n>, <m> and <k>` from each place it names the slug up to the next place it names
-    another row it knows."""
-    lowered = text.lower()
-    marks = sorted(
-        (found.start(), one)
-        for one in {slug, *others}
-        for found in re.finditer(queue._SLUG_IN.format(re.escape(one)), lowered)
+    `lines <n>, <m> and <k>` in each part of it about the row (`t3.asked_of`)."""
+    return frozenset(
+        int(number)
+        for part in t3.asked_of(text, slug, others)
+        for found in _LINES.finditer(part)
+        for number in re.findall(r"\d+", found[1])
     )
-    named: set[int] = set()
-    for place, (start, one) in enumerate(marks):
-        if one != slug:
-            continue
-        end = next((at for at, other in marks[place + 1 :] if other != slug), len(text))
-        for found in _LINES.finditer(text[start:end]):
-            named |= {int(number) for number in re.findall(r"\d+", found[1])}
-    return frozenset(named)
 
 
 def held(state: Path, slug: str, ref: str) -> frozenset[int]:
@@ -74,18 +63,11 @@ def held(state: Path, slug: str, ref: str) -> frozenset[int]:
     )
 
 
-def _homes(run: Pass) -> set[str]:
-    return {
-        one for one in (thread_of(run.home), *(thread_of(s) for s, _, _ in scopes(run.home))) if one
-    }
-
-
 def _waive(args: argparse.Namespace, config: Config) -> int:
     """`jbus waive`: bind the user's plain reply to the home's ask, as the module says."""
     project = verbs.project(config, args.to)
     run = Pass(config, project, datetime.now(UTC), lambda _: None)
     slug, ref, numbers = args.slug, args.message, sorted(set(args.lines))
-    thread, _, message = ref.partition("/")
     brief = run.home / "tasks" / f"{slug}.md"
     if not brief.is_file():
         raise Refused(f"refused: {project.name}'s home has no brief {slug}")
@@ -94,15 +76,7 @@ def _waive(args: argparse.Namespace, config: Config) -> int:
     off = [one for one in numbers if not 1 <= one <= len(items)]
     if off:
         raise Refused(f"refused: {slug}'s brief has no Done when line {off[0]}")
-    if thread not in _homes(run):
-        raise Refused(f"refused: {thread} is no home's thread of {project.name}")
-    said = own(config, ref)
-    try:
-        ask = Client(config.server, config.token_path).asked_before(thread, said.position)
-    except T3Error as error:
-        raise Refused(f"refused: T3 Code gave no message before {ref} ({error})") from error
-    if ask is None:
-        raise Refused(f"refused: no message of the home comes before {ref}")
+    said, ask = t3.home_ask(config, run.home, project.name, ref)
     others = queue.known(run.state) | {one.stem for one in (run.home / "tasks").glob("*.md")}
     named = asked(ask.text, slug, others - {slug})
     if not named:
