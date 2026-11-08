@@ -3,7 +3,8 @@
 A green pull request merges on the first run of `jmerge` after its last check ended, and the
 pass runs it once a pass, which is a minute or more apart. `jbus-merge.timer` runs a tick every
 2 seconds. A tick asks GitHub nothing unless the last pass saw a pull request whose checks were
-still going (`PENDING`, written by the pass's step `tick.pending`). For each such project it asks
+still going, or one it watched whose end no verdict has named yet (`PENDING`, written by the
+pass's step `tick.pending`). For each such project it asks
 GitHub for the repo's last completed workflow runs, with the ETag it kept (`SEEN`). GitHub answers
 304, which spends none of the API allowance, until a run ends.
 
@@ -46,9 +47,7 @@ from jsettings import budget, store
 if TYPE_CHECKING:
     from jbus.poll import Half
 
-PENDING = "checks-pending.json"
-"""The open pull requests whose checks the last pass saw still going, each by its `number` with
-the `head` it saw. Only the pass writes it."""
+PENDING = restated.PENDING
 SEEN = "tick.json"
 """The ETag of the repo's completed runs when `jmerge` last ran to its end for a tick. Only the
 tick writes it."""
@@ -62,17 +61,22 @@ the tick writes it, and a stamp it cannot read is one from long ago."""
 
 
 def _pending(half: Half) -> None:
-    """Keep the open pull requests whose checks are still going, for the tick to watch."""
+    """Keep the open pull requests whose checks are still going, for the tick to watch, by the
+    head the pass saw. A head the tick watched stays while the rollup reads its checks as ended,
+    until its row's line names it as one whose end a verdict of the tick's or `jmerge`'s said
+    (`restated.ENDED`): the rollup can say `passed` before a required job that is still to start
+    is in it (#1246), or `failed` at a failed shard while the others still run, and the tick that
+    stopped asking then would miss the end."""
     world = half.seen.world
     assert world is not None
-    going = sorted(
-        (
-            {"number": pull["number"], "head": pull.get("headRefOid", "")}
-            for pull in world.open.values()
-            if watch.checks(pull) == "pending"
-        ),
-        key=lambda one: one["number"],
-    )
+    watched, ended = restated.pending(half.run.state), restated.ended(half.run.state)
+    going = []
+    for pull in world.open.values():
+        number, head = pull["number"], pull.get("headRefOid", "")
+        unjudged = bool(head) and watched.get(number) == head and ended.get(number, head) != head
+        if watch.checks(pull) == "pending" or unjudged:
+            going.append({"number": number, "head": head})
+    going.sort(key=lambda one: one["number"])
     if store.read_json(half.run.state / PENDING, None) != going:
         store.write_json(half.run.state / PENDING, going)
 
@@ -106,11 +110,7 @@ def _restate(run: passes.Pass, given: dict[str, Any]) -> None:
     `passed`. A required check is a workflow of its name, as `jmerge` reads one. One with no ended
     run in the list, one that ended otherwise, or a run with no time it ended, leaves the pull
     request to `jmerge`."""
-    heads = {
-        one["number"]: one["head"]
-        for one in store.read_json(run.state / PENDING, [])
-        if isinstance(one, dict) and one.get("head")
-    }
+    heads = restated.pending(run.state)
     ends: dict[tuple[str, str], dict[str, Any]] = {}
     for one in given.get("workflow_runs") or []:
         if isinstance(one, dict) and (at := _at(one.get("updated_at"))):
@@ -125,10 +125,10 @@ def _restate(run: passes.Pass, given: dict[str, Any]) -> None:
         ended = restated.moment(max(one["at"] for one in found[: stop + 1] if one))
         if stop < len(names):
             why = f"wait: {ready.CHECK_FAILED.format(check=names[stop])}"
-            said[number] = (restated.FAILED, why, ended)
+            said[number] = (restated.FAILED, why, ended, head)
         else:
             why = f"wait: {' and '.join(names)} passed, and jmerge has not judged it yet"
-            said[number] = (restated.PASSED, why, ended)
+            said[number] = (restated.PASSED, why, ended, head)
     at = restated.moment(verbs.clock())
     for key in restated.checked(run.state, said, at):
         run.say(f"tick {run.project.name}: a run ended, and {key}'s line says its check ended")
