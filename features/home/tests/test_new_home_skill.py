@@ -15,6 +15,7 @@ import tomllib
 
 import pytest
 
+from repo_standard.config import parse
 from skill_blocks import COPY, block, git, linked
 from testing.paths import REPO
 
@@ -341,9 +342,10 @@ def test_a_fresh_repo_gets_its_check_workflow_on_a_branch_and_its_fresh_check(ma
     ]
     assert machine.scaffold() == filled("make check")
     assert machine.sha("jstack-check^") == machine.sha("wip")
-    pinned = re.compile(r"^\s*- uses: (actions/checkout@\S+)", re.M)
-    ours = set(pinned.findall((REPO / ".github/workflows/check.yml").read_text()))
-    assert set(pinned.findall(machine.scaffold())) == ours != set()
+    called = re.findall(r"^\s*uses: (\S+)$", machine.scaffold(), re.M)
+    assert called == [
+        "JoshuaHayesWasHere/jstack/.github/workflows/repo-standard-check.yml@repo-standard-v1"
+    ]
     assert (machine.state / "fresh-check").read_text() == "make check\n"
     assert not (machine.repo / ".github").exists()
     assert (
@@ -519,3 +521,11 @@ def test_a_workflow_on_pull_request_target_alone_does_not_count(machine):
     (flows / "ci.yml").write_text("on:\n  pull_request_target:\njobs:\n  check:\n    steps: []\n")
     machine.merge("npm test")
     assert machine.scaffold() == filled("npm test")
+
+
+def test_a_command_with_a_quote_reaches_the_shared_workflow_as_written(machine):
+    machine.origin()
+    command = "npm test -- --grep 'it''s' # all"
+    machine.merge(command)
+    called = parse(machine.scaffold())["jobs"]["standard"]
+    assert called["with"]["command"] == command
