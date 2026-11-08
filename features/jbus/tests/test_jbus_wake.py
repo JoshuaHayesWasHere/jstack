@@ -192,3 +192,26 @@ def test_a_key_sent_once_is_never_sent_again_by_this_process_or_another(tmp_path
     assert json.loads((tmp_path / "state" / "sent.json").read_text()) == ["one", "two", "three"]
     assert made.sent() == ["one", "two", "three"]
     assert [one["line"] for one in made.log()] == ["first", "tick two", "pass three"]
+
+
+def test_a_keyed_send_parses_sent_json_again_only_once_another_process_wrote_it(
+    tmp_path, monkeypatch
+):
+    """`sent.json` holds every key a project ever sent, 4 MB on a busy one, and a pass sends
+    under hundreds of keys. Parsing it whole for each of them was 1.35 s of a pass."""
+    made = box(tmp_path)
+    sent = tmp_path / "state" / "sent.json"
+    parsed = []
+    real = wake.read_json
+    monkeypatch.setattr(
+        wake, "read_json", lambda path, *rest: (parsed.append(path), real(path, *rest))[1]
+    )
+    made.send("s", "merged", "first", key="first")
+    for n in range(20):
+        made.send("s", "merged", f"line {n}", key=f"key {n}")
+        made.send("s", "merged", f"line {n} again", key=f"key {n}")
+    assert parsed.count(sent) == 0
+    sent.write_text(json.dumps([*json.loads(sent.read_text()), "from a tick"]))
+    assert made.send("s", "merged", "the tick's", key="from a tick") is False
+    assert made.send("s", "merged", "then", key="then") is True
+    assert parsed.count(sent) == 1
