@@ -1,9 +1,10 @@
 """The merge tick reads the check runs of each pending head, restates its pull request's line and
 runs `jmerge` a few seconds after a required check fails or ends, apart from the pass, and spends
 none of GitHub's API allowance while no job at the head changes (`jbus.tick`). It runs `jmerge
---if-free`, so one merger runs at a time (`features/jmerge/tests/test_jmerge_one_run.py`), and it
-keeps what it saw only once `jmerge` ran to its end, so a tick that dies or finds `jmerge` busy
-loses no merge. The pass runs `jmerge --if-free` too. The tests run the real tick and pass against
+--if-free`, so one merger runs at a time (`features/jmerge/tests/test_jmerge_one_run.py`). It
+keeps each head's ETag and verdict as it reads them, and the verdict `jmerge` ran for only once
+`jmerge` ran to its end, so a tick that dies or finds `jmerge` busy loses no merge. While its
+`jmerge` runs, it reads on every 2 s. The pass runs `jmerge --if-free` too. The tests run the real tick and pass against
 the fakes (`test_jbus_kitchen.py`).
 """
 

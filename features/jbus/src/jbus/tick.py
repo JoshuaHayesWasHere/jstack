@@ -327,29 +327,38 @@ def tick(config: jbus.Config, say=print) -> int:
     seconds on, and restates what it reads, until each has ended. A `jmerge` that merges runs the
     merged-tree guards first (`jmerge.treeguards`), 68 to 86 s on 2026-11-08, and the timer starts
     no tick while one runs. A verdict that is new in a read after the first is left to the next
-    tick's `jmerge`, so a tick runs `jmerge` at most once a project, whatever its run said."""
+    tick's `jmerge`, so a tick runs `jmerge` at most once a project, whatever its run said. A read
+    that fails still lets each run under way end and be kept, since `jmerge` prints its `merged`
+    line once (`reload.keep`), before the failure goes on."""
     watched = _watched(config)
     if not watched or not _asks(config, say):
         return 0
+    going: dict[futures.Future[merge.Said], tuple[passes.Pass, dict[str, list[Any]]]] = {}
     with futures.ThreadPoolExecutor() as pool:
-        going: dict[futures.Future[merge.Said], tuple[passes.Pass, dict[str, list[Any]]]] = {}
-        for project in watched:
-            run = passes.Pass(config, project, verbs.clock(), say)
-            wanted = _read(run)
-            if wanted:
-                going[pool.submit(merge.tick, run)] = (run, wanted)
-        due = time.monotonic() + EVERY
-        while going:
-            ended, _ = futures.wait(
-                going, timeout=max(0.0, due - time.monotonic()), return_when=futures.FIRST_COMPLETED
-            )
-            for one in ended:
-                _ran(*going.pop(one), one.result())
-            if going and time.monotonic() >= due:
-                if _asks(config, say):
-                    for project in _watched(config):
-                        _read(passes.Pass(config, project, verbs.clock(), say))
-                due = time.monotonic() + EVERY
+        try:
+            for project in watched:
+                run = passes.Pass(config, project, verbs.clock(), say)
+                wanted = _read(run)
+                if wanted:
+                    going[pool.submit(merge.tick, run)] = (run, wanted)
+            due = time.monotonic() + EVERY
+            while going:
+                ended, _ = futures.wait(
+                    going,
+                    timeout=max(0.0, due - time.monotonic()),
+                    return_when=futures.FIRST_COMPLETED,
+                )
+                for one in ended:
+                    _ran(*going.pop(one), one.result())
+                if going and time.monotonic() >= due:
+                    if _asks(config, say):
+                        for project in _watched(config):
+                            _read(passes.Pass(config, project, verbs.clock(), say))
+                    due = time.monotonic() + EVERY
+        except Exception:
+            for one in futures.as_completed(going):
+                _ran(*going[one], one.result())
+            raise
     return 0
 
 
