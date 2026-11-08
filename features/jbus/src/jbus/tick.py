@@ -1,15 +1,17 @@
 """`jbus tick`: restate a pull request's line, and run `jmerge`, within seconds of a check's job
 ending, apart from the pass.
 
-A green pull request merges on the first run of `jmerge` after its last check ended, and the
-pass runs it once a pass, which is a minute or more apart. `jbus-merge.timer` runs a tick every
-2 seconds while the last pass saw a check going, and the pass stops it while none is (`_timer`).
-A tick asks GitHub nothing unless the last pass saw a pull request whose checks were
-still going, or one it watched whose end no verdict has named yet (`PENDING`, written by the
-pass's step `tick.pending`). For each such head it asks
-GitHub for the head's check runs, which are the jobs of its workflow runs (`CHECK_RUNS`), with
-the ETag it kept (`SEEN`). GitHub answers 304, which spends none of the API allowance, until a
-job at that head changes. A check suite the tick has not seen yet costs one read of the head's
+A green pull request merges on the first run of `jmerge` after its last check ended, and the pass
+runs it once a pass, which is a minute or more apart. `jbus-merge.timer` runs a tick every 2 seconds
+while the last pass saw a row's pull request open or a check going, and the pass stops it while it
+saw neither (`_timer`). A tick asks GitHub nothing unless the last pass saw an open pull request
+that a row's line names, or another whose checks were still going (`PENDING`, written by the pass's
+step `tick.pending`). For each such pull request it asks GitHub for the check runs at its head as it
+is now, by the pull request's ref and not by the sha the pass saw, which are the jobs of its
+workflow runs (`CHECK_RUNS`), with the ETag it kept (`SEEN`). GitHub answers 304, which spends none
+of the API allowance, until a job at that head changes or a push moves the head. So a head pushed
+after the pass's read reaches the next tick at no call of its own, and a head a newer push
+superseded is no longer read. A check suite the tick has not seen yet costs one read of the head's
 workflow runs (`RUNS_AT`), for the workflow each job belongs to.
 
 On a 200 the tick restates, from that answer, the line of `work.json` of the pull request on the
@@ -69,11 +71,14 @@ if TYPE_CHECKING:
 
 PENDING = restated.PENDING
 SEEN = "tick.json"
-"""What the tick read of each pending head (`heads`, by its sha): the ETag of its check runs
-(`etag`), the workflow run of each of its check suites (`suites`, each `[name, run id]`), and
-the verdict `jmerge` last ran to its end for (`ran`). Only the tick writes it."""
-CHECK_RUNS = "repos/{owner}/{repo}/commits/%s/check-runs?per_page=100"
-"""A head's check runs, the latest of each name, which are the jobs of its workflow runs."""
+"""What the tick read of each pending pull request (`pulls`, by its number): the ETag of the
+check runs at its head (`etag`), the head they named (`head`), the workflow run of each of the
+head's check suites (`suites`, each `[name, run id]`), the verdict read under that ETag
+(`verdict`), and the verdict `jmerge` last ran to its end for at that head (`ran`). Only the
+tick writes it."""
+CHECK_RUNS = "repos/{owner}/{repo}/commits/pull/%s/head/check-runs?per_page=100"
+"""The check runs at a pull request's head as it is now, the latest of each name, which are the
+jobs of its workflow runs. Each names the head it ran at (`head_sha`)."""
 RUNS_AT = "repos/{owner}/{repo}/actions/runs?head_sha=%s&per_page=100"
 """A head's workflow runs, asked for only when its check runs name a check suite the tick does
 not know the workflow of yet."""
@@ -92,30 +97,27 @@ TIMER = "JBUS_TICK_TIMER"
 timer as it is."""
 PASS = frozenset({"success", "neutral", "skipped"})
 """The conclusions of a required check's own job that pass it, as `jmerge` reads them."""
-ENDS = frozenset({"passed", "failed"})
-"""The words of a rollup (`watch.checks`) that say a head's checks ended, which the tick reads
-again until a verdict names their end on the head's line."""
 FAIL = "failure"
 """The conclusion of a job that fails the required check of its workflow: the required job
 runs once every job it needs ended, and fails where one of them failed (check.yml, macos.yml)."""
 
 
 def _pending(half: Half) -> None:
-    """Keep the open pull requests whose checks are still going, for the tick to watch, by the
-    head the pass saw. A head whose rollup reads its checks as ended stays too, until its row's
-    line names it as one whose end a verdict of the tick's or `jmerge`'s said (`restated.ENDED`),
-    whether or not a pass saw it going: the rollup can say `passed` before a required job that is
-    still to start is in it (#1246), or `failed` at a failed shard while the others still run, and
-    a head pushed whose checks failed between two passes was never seen going at all, while on a
-    draft, which `jmerge` holds on the Result step, only the tick names the checks' end."""
+    """Keep, for the tick to watch, each open pull request that a row's line names, whatever its
+    checks say, and any other open pull request whose checks are still going, by the head the
+    pass saw. The tick reads each one's check runs at its head as it is now, so a head pushed to
+    a row's pull request reaches the next tick, within 2 s, however long ago a verdict named the
+    end of its last head and whatever its rollup said: no check listed yet, as in the seconds
+    after a push, `passed` before a required job that is still to start is in it (#1246), or
+    `failed` at a failed shard while the others still run. A row's pull request whose head did
+    not change costs the tick a 304 a tick, which spends none of the API allowance."""
     world = half.seen.world
     assert world is not None
-    ended = restated.ended(half.run.state)
+    rows = restated.ended(half.run.state)
     going = []
     for pull in world.open.values():
-        number, head, checks = pull["number"], pull.get("headRefOid", ""), watch.checks(pull)
-        unjudged = bool(head) and checks in ENDS and ended.get(number, head) != head
-        if checks == "pending" or unjudged:
+        number, head = pull["number"], pull.get("headRefOid", "")
+        if head and (number in rows or watch.checks(pull) == "pending"):
             going.append({"number": number, "head": head})
     going.sort(key=lambda one: one["number"])
     if store.read_json(half.run.state / PENDING, None) != going:
@@ -123,8 +125,9 @@ def _pending(half: Half) -> None:
 
 
 def _timer(half: Half) -> None:
-    """Start the tick's timer while some project's pull request has its checks going, and stop it
-    while none has, so no tick runs while there is nothing for it to watch. The pass is the only
+    """Start the tick's timer while some project's `PENDING` names a pull request, a row's open
+    one or one whose checks are going, and stop it while none does, so no tick runs while there
+    is nothing for it to watch. The pass is the only
     writer of `PENDING`, so the timer changes only here. Each pass sets it from the files as they
     are, whatever started or stopped it before (a boot, an install, a pass that died), and the
     timer's `OnActiveSec=` gives a check the pass just saw going its first tick within 2 s."""
@@ -143,9 +146,9 @@ def _timer(half: Half) -> None:
     if done.returncode != 0:
         half.run.say(f"tick: systemctl --user {verb} {unit} failed: {done.stderr.strip()}")
     elif going:
-        half.run.say(f"tick: checks are going on {going} pull request(s), so {unit} runs")
+        half.run.say(f"tick: the tick watches {going} pull request(s), so {unit} runs")
     else:
-        half.run.say(f"tick: no pull request has checks going, so {unit} stops")
+        half.run.say(f"tick: the tick watches no pull request, so {unit} stops")
 
 
 def _asked(run: passes.Pass, path: str, etag: str = "") -> tuple[str, dict[str, Any]] | None:
@@ -241,65 +244,70 @@ def _at(text: Any) -> datetime | None:
         return None
 
 
-def _read(run: passes.Pass) -> dict[str, list[Any]]:
-    """Ask GitHub for the check runs of each pending head, with the ETag the tick kept, restate
-    the line of each pull request whose head's required checks failed or ended
-    (`restated.checked`), and keep what the tick read of each head (`SEEN`). Return the verdict of
-    each head that is new since `jmerge` last ran to its end for it, so that `jmerge` is to run.
-    A verdict is kept with the ETag it was read under, so a 304 to the next read still says it."""
-    kept = _heads(run.state)
-    pending = restated.pending(run.state)
+def _read(run: passes.Pass) -> dict[str, tuple[str, list[Any]]]:
+    """Ask GitHub for the check runs at the head of each pending pull request as it is now, with
+    the ETag the tick kept, restate the line of each pull request whose head's required checks
+    failed or ended (`restated.checked`), and keep what the tick read of each (`SEEN`). Return,
+    by number, the head and its verdict where the verdict is new since `jmerge` last ran to its
+    end for that head, so that `jmerge` is to run. A verdict is kept with the ETag it was read
+    under, so a 304 to the next read still says it."""
+    kept = _pulls(run.state)
     names = cancelled.required(run)
-    heads, said = {}, {}
-    for number, head in pending.items():
-        found = kept.get(head)
+    pulls, said = {}, {}
+    for number, seen in restated.pending(run.state).items():
+        key = str(number)
+        found = kept.get(key)
         was: dict[str, Any] = found if isinstance(found, dict) else {}
-        heads[head] = was
-        asked = _asked(run, CHECK_RUNS % head, str(was.get("etag", "")))
+        pulls[key] = was
+        asked = _asked(run, CHECK_RUNS % number, str(was.get("etag", "")))
         if asked is None:
             continue
         etag, given = asked
         jobs = [job for job in given.get("check_runs") or [] if isinstance(job, dict)]
-        suites = _suites(run, head, jobs, was.get("suites") or {})
+        head = next((str(job["head_sha"]) for job in jobs if job.get("head_sha")), seen)
+        jobs = [job for job in jobs if job.get("head_sha", head) == head]
+        same = was if was.get("head") == head else {}
+        suites = _suites(run, head, jobs, same.get("suites") or {})
         verdict = _verdict(names, jobs, suites)
-        heads[head] = {
+        pulls[key] = {
             "etag": etag,
+            "head": head,
             "suites": suites,
             "verdict": None if verdict is None else list(verdict),
-            "ran": was.get("ran"),
+            "ran": same.get("ran"),
         }
         if verdict is not None and verdict[0]:
             said[number] = (*verdict, head)
     at = restated.moment(verbs.clock())
     for key in restated.checked(run.state, said, at):
         run.say(f"tick {run.project.name}: a check ended, and {key}'s line says so")
-    if heads != kept:
-        store.write_json(run.state / SEEN, {"heads": heads})
+    if pulls != kept:
+        store.write_json(run.state / SEEN, {"pulls": pulls})
     return {
-        head: one["verdict"]
-        for head, one in heads.items()
+        key: (one["head"], one["verdict"])
+        for key, one in pulls.items()
         if one.get("verdict") is not None and one["verdict"] != one.get("ran")
     }
 
 
-def _heads(state: Path) -> dict[str, Any]:
-    kept = store.read_json(state / SEEN, {}).get("heads")
+def _pulls(state: Path) -> dict[str, Any]:
+    kept = store.read_json(state / SEEN, {}).get("pulls")
     return kept if isinstance(kept, dict) else {}
 
 
-def _ran(run: passes.Pass, wanted: dict[str, list[Any]], said: merge.Said) -> None:
+def _ran(run: passes.Pass, wanted: dict[str, tuple[str, list[Any]]], said: merge.Said) -> None:
     """Keep what a run of `jmerge` the tick started said, and, once it ran to its end, the
-    verdicts it ran for (`wanted`), as `ran` of each head still kept."""
+    verdicts it ran for (`wanted`), as `ran` of each pull request still kept at the same head."""
     reload.keep(run, said)
     name = run.project.name
     if said.failed:
         run.say(f"tick {name}: a check ended, and jmerge did not run to its end")
         return
-    heads = _heads(run.state)
-    for head, verdict in wanted.items():
-        if isinstance(heads.get(head), dict):
-            heads[head] = {**heads[head], "ran": verdict}
-    store.write_json(run.state / SEEN, {"heads": heads})
+    pulls = _pulls(run.state)
+    for key, (head, verdict) in wanted.items():
+        if isinstance(pulls.get(key), dict) and pulls[key].get("head") == head:
+            pulls[key] = {**pulls[key], "ran": verdict}
+    store.write_json(run.state / SEEN, {"pulls": pulls})
     run.say(f"tick {name}: a check ended, and jmerge ran")
 
 
@@ -319,9 +327,9 @@ def _asks(config: jbus.Config, say) -> bool:
 
 
 def tick(config: jbus.Config, say=print) -> int:
-    """Run one tick over every project: read the check runs of each pending head, restate the
-    line of each pull request whose required checks failed or ended, and run `jmerge` where one
-    did since `jmerge` last ran for it.
+    """Run one tick over every project: read the check runs at each pending pull request's head,
+    restate the line of each pull request whose required checks failed or ended, and run
+    `jmerge` where one did since `jmerge` last ran for it.
 
     Each `jmerge` runs on a thread of its own, and while one runs the tick reads every `EVERY`
     seconds on, and restates what it reads, until each has ended. A `jmerge` that merges runs the
@@ -340,7 +348,8 @@ def tick(config: jbus.Config, say=print) -> int:
                 run = passes.Pass(config, project, verbs.clock(), say)
                 wanted = _read(run)
                 if wanted:
-                    going[pool.submit(merge.tick, run)] = (run, wanted)
+                    read = {int(key): head for key, (head, _) in wanted.items()}
+                    going[pool.submit(merge.tick, run, read)] = (run, wanted)
             due = time.monotonic() + EVERY
             while going:
                 ended, _ = futures.wait(

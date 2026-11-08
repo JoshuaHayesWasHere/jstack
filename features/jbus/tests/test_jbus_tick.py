@@ -57,7 +57,7 @@ def runs(kitchen):
 
 
 def asked(kitchen):
-    return [call for call in kitchen.log("gh") if call.startswith(f"api {tick.CHECK_RUNS % HEAD}")]
+    return [call for call in kitchen.log("gh") if call.startswith(f"api {tick.CHECK_RUNS % 7}")]
 
 
 def going(kitchen, state=None):
@@ -187,7 +187,7 @@ def test_a_jmerge_that_fails_leaves_the_ended_run_to_the_next_tick(watched):
 
 
 def test_a_tick_that_dies_before_jmerge_ends_loses_no_merge(watched, monkeypatch):
-    def dies(run):
+    def dies(run, read):
         raise KeyboardInterrupt
 
     ran = merge.tick
@@ -281,9 +281,9 @@ def before_jmerge(monkeypatch, kitchen):
     """Keep #7's line of `work.json` as it is when the tick starts `jmerge`."""
     seen, ran = [], merge.tick
 
-    def tick_of(run):
+    def tick_of(run, read):
         seen.append(line(kitchen))
-        return ran(run)
+        return ran(run, read)
 
     monkeypatch.setattr(merge, "tick", tick_of)
     return seen
@@ -639,7 +639,7 @@ def test_the_tick_reads_on_while_its_jmerge_runs(two_on_check, monkeypatch):
     at_both(two_on_check, [job("check", "success", 1)], [job("check", suite=SUITE + 1)])
     seen, ran = [], merge.tick
 
-    def slow(run):
+    def slow(run, read):
         at_both(
             two_on_check,
             [job("check", "success", 1)],
@@ -649,7 +649,7 @@ def test_the_tick_reads_on_while_its_jmerge_runs(two_on_check, monkeypatch):
         while line(two_on_check, "beta")["why"] != FAILED and time.monotonic() < until:
             time.sleep(0.05)
         seen.append(line(two_on_check, "beta")["why"])
-        return ran(run)
+        return ran(run, read)
 
     monkeypatch.setattr(merge, "tick", slow)
     two_on_check.set("jmerge.txt", f"{MERGED}\n")
@@ -672,12 +672,12 @@ def test_a_read_that_fails_while_jmerge_runs_still_keeps_that_runs_merge(two_on_
         failed.append(run)
         raise OSError("tick.json: no space left on device")
 
-    def slow(run):
+    def slow(run, heads):
         monkeypatch.setattr(tick, "_read", fails)
         until = time.monotonic() + 5
         while not failed and time.monotonic() < until:
             time.sleep(0.05)
-        return ran(run)
+        return ran(run, heads)
 
     monkeypatch.setattr(merge, "tick", slow)
     two_on_check.set(
@@ -692,7 +692,6 @@ def test_a_read_that_fails_while_jmerge_runs_still_keeps_that_runs_merge(two_on_
     two_on_check.poll(NOW + timedelta(minutes=1))
     told = [one for one in sends(two_on_check) if one["threadId"] == crew["threadId"]]
     assert len(told) == 1 and "skills: crew." in told[0]["message"]
-||||||| parent of 15bf79474 (test(jbus): the tick reads a head pushed after the pass's read, and the pass keeps a head with no checks listed yet)
 
 
 def test_a_head_pushed_after_the_passs_read_is_read_by_the_next_tick(pushed):
@@ -702,8 +701,7 @@ def test_a_head_pushed_after_the_passs_read_is_read_by_the_next_tick(pushed):
     pass saw, so its next read puts `failed` on the line at `HEAD`, with no pass between."""
     pushed.set("jmerge.txt", f"wait 7 {PULL}: {ready.CHECK_FAILED.format(check='check')}\n")
     assert ticks(pushed)[0] == "tick demo: a check ended, and alpha's line says so"
-    said = line(pushed)
-    assert (said["why"], said[restated.CHECKED], said[restated.ENDED]) == (FAILED, "failed", HEAD)
+    assert (line(pushed)["why"], line(pushed)[restated.ENDED]) == (FAILED, HEAD)
 
 
 def test_a_head_whose_rollup_lists_no_checks_yet_stays_pending(on_check):

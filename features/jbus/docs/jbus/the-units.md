@@ -42,7 +42,9 @@ The pass acts on the timer that `jbus.service` names in `JBUS_TICK_TIMER`, so a 
 The install enables the timer, so a boot or an install starts it, and the first pass after stops it again where no check is going.
 A pass that starts or stops it says so in its log, `tick: ... so jbus-merge.timer runs` or `... stops`.
 A tick asks GitHub nothing while the last pass saw no check going.
-Otherwise it reads the heads: for each pull request the last pass saw with a check going, it asks for the check runs at its head, the jobs of its workflow runs (`commits/<head>/check-runs`), with the ETag it kept, which GitHub answers with a 304 that spends no API allowance until a job at that head changes.
+Otherwise it reads the heads: for each pull request the last pass saw with a check going, or with no check listed yet, it asks for the check runs at its head as it is now, the jobs of its workflow runs, by the pull request's ref (`commits/pull/<number>/head/check-runs`), with the ETag it kept, which GitHub answers with a 304 that spends no API allowance until a job at that head changes or a push moves the head.
+So a head pushed after the pass read the pull request reaches the next tick, within 2 seconds, at no call of its own, and the tick stops reading a head that a newer push superseded.
+A push to a pull request the tick no longer watches, because a verdict already named its last head's end, still waits for the next pass to watch it.
 A head's check suite the tick has not seen yet costs one more read, of the head's workflow runs, so the tick knows which workflow each job belongs to.
 So a 2 second tick costs no allowance while nothing changes, and `jbus budget --callers` counts its 304s apart, as free.
 A round, a head's checks from the push to their end, costs a counted read of its check runs for each 2 second window in which a job at the head was queued, started or ended, plus one read of its workflow runs and the tick's run of `jmerge` once the verdict is in.

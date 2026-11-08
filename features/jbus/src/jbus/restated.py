@@ -190,7 +190,9 @@ def ends(pull: Pull, why: str) -> bool:
     return pull == Pull.CHECK and ready.code_of(why.partition(": ")[2]) in ENDS
 
 
-def pulled(state_dir: Path, said: dict[int, tuple[Pull, str]], at: str) -> list[tuple[str, str]]:
+def pulled(
+    state_dir: Path, said: dict[int, tuple[Pull, str]], at: str, read: dict[int, str] | None = None
+) -> list[tuple[str, str]]:
     """Restate the `Pull` facet of the line of each pull request that a run of `jmerge` judged,
     by its number, as `jmerge` judged it, with its reason as the line's `why`, and mark the line
     `PULLED` at `at`, when the run ended (`Said.at`). The pass and the merge tick both call this
@@ -201,9 +203,11 @@ def pulled(state_dir: Path, said: dict[int, tuple[Pull, str]], at: str) -> list[
     otherwise than the tick (`corrects`), the run's verdict stands and the line is returned by key
     with what was wrong in it, for the caller to log as drift. A line of a pull request the tick
     watches names its head as `ENDED` where the run saw its checks end (`ends`): the run read the
-    pull request after the pass that wrote the head, so it judged that head or a later one."""
+    pull request after the pass that wrote the head, so it judged that head or a later one. For
+    the merge tick's run that head is the one the tick read just before it (`read`), which a push
+    after the pass's read may have moved on from the pass's."""
     drifted: list[tuple[str, str]] = []
-    heads = pending(state_dir)
+    heads = {**pending(state_dir), **(read or {})}
 
     def change(lines: list[Any]) -> list[Any]:
         work = []
