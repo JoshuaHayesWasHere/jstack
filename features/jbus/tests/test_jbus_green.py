@@ -275,6 +275,28 @@ def test_a_move_to_a_main_that_adds_a_unit_links_enables_and_starts_it_once(
     assert not [line for line in said if "linked, enabled" in line]
 
 
+def test_a_new_unit_the_manager_will_not_enable_raises_a_condition_and_the_copy_still_moves(
+    copied, systemd, systemctl, tmp_path, monkeypatch
+):
+    """An enable systemd refuses leaves the follower stopped, so the move says so as a condition
+    of the tip, and the copy has moved all the same."""
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    units = "features/jbus/units/"
+    land(copied, "success", {units + "jbus-merge.timer": TIMER.format("2s")})
+    copied.poll()
+    systemd.link("jbus-merge.timer")
+    copied.stub.joinpath("systemctl").write_text(
+        f'#!/bin/sh\necho "$*" >> {systemctl}\n'
+        '[ "$2" = show-environment ] && { echo "HOME=$HOME"; exit 0; }\n'
+        '[ "$2" = enable ] && { echo "Failed to enable unit: Access denied"; exit 1; }\nexit 0\n'
+    )
+    added = land(copied, "success", {units + "jbus-follow.service": FOLLOWER})
+    said = copied.poll()
+    assert at(copied.copy) == added
+    assert gates(copied) == [f"condition green: {green.UNSTARTED}"]
+    assert not [line for line in said if "linked, enabled" in line]
+
+
 def test_a_manager_that_reads_another_home_is_asked_for_no_reload(copied, systemd, systemctl):
     """A test or a sandbox runs a move under a HOME of its own, whose units link through its
     copy, while `systemctl --user` reaches the account's manager, which reads another HOME: the

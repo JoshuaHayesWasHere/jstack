@@ -28,6 +28,7 @@ class Manager:
         self.starts = {}
         self.refuses = ""
         self.restarted = []
+        self.changed = []
 
     def __call__(self, args):
         if list(args[:2]) != ["systemctl", "--user"]:
@@ -43,6 +44,9 @@ class Manager:
             started = self.starts.get(asked[-1], self.started)
             at = started.strftime("%a %Y-%m-%d %H:%M:%S.%f UTC")
             return Ran(0, f"ActiveState={self.state}\nActiveEnterTimestamp={at}\n")
+        if asked[0] in ("daemon-reload", "enable"):
+            self.changed.append(" ".join(asked))
+            return Ran(0, "")
         if asked[0] == "try-restart":
             if self.refuses:
                 return Ran(1, f"{self.refuses}\n")
@@ -132,3 +136,24 @@ def test_a_running_relay_of_the_jbus_before_an_update_is_restarted_once_with_the
     need.restart(machine)
     assert manager.restarted == [RELAY]
     assert need.probe(machine).state is State.OK
+
+
+def test_add_links_enables_and_starts_each_unit_with_no_link_once_services_first(machine):
+    """The green move's add: each unit that is to be on and has no link, as one main added, is
+    linked, then systemd reloads and enables it, services first; a second call adds nothing, and
+    a machine whose install linked none of the units gets none."""
+    machine, manager = machine
+    units = machine.home / ".config" / "systemd" / "user"
+    units.mkdir(parents=True)
+    templates = unit_templates(REPO)
+    old, new = sorted(name for name in templates if name.endswith(".timer"))[:2]
+    need = Units(units, (FOLLOWER, old, new), (new, old, FOLLOWER), machine.home / "none")
+    assert need.add(machine) == []
+    (units / old).symlink_to(templates[old])
+
+    assert need.add(machine) == [FOLLOWER, new]
+    for name in (FOLLOWER, old, new):
+        assert (units / name).readlink() == templates[name]
+    assert manager.changed == ["daemon-reload", f"enable --now {FOLLOWER}", f"enable --now {new}"]
+    assert need.add(machine) == []
+    assert len(manager.changed) == 3

@@ -22,6 +22,7 @@ from jinstall import agents, launchd
 from jinstall.__main__ import doctor, install, setup, uninstall
 from jinstall.kinds import unit_templates
 from jinstall.machine import Machine, Ran
+from jinstall.needs import units
 from test_install import ALWAYS, User, line_for
 from testing.paths import REPO
 
@@ -301,6 +302,45 @@ echo "jstack: started $(date +%s)" >> {logs}/"${{3##*/}}.log"
         f"kickstart -k {GUI}/jstack.jbus-relay",
     ]
     assert mac.said_by(install, False) == [f"ok optional {mac.line}"]
+
+
+def test_add_writes_and_bootstraps_an_agent_main_added_once(mac):
+    """The green move's add on macOS: an agent that is on and has no plist, as one main added,
+    is written and bootstrapped; a second call adds nothing, and a Mac whose install wrote no
+    plist gets none."""
+    mac.with_jbus()
+    need = units(mac.machine())
+    assert need.add(mac.machine()) == []
+    setup(mac.machine())
+    follower = mac.plist("jbus-follow.service")
+    (mac.loaded / follower.stem).unlink()
+    follower.unlink()
+
+    assert need.add(mac.machine()) == ["jbus-follow.service"]
+    assert follower.is_file()
+    assert mac.calls("bootstrap")[-1] == f"bootstrap {GUI} {follower}"
+    before = len(mac.calls("bootstrap"))
+    assert need.add(mac.machine()) == []
+    assert len(mac.calls("bootstrap")) == before
+
+
+def test_an_agent_with_no_start_marker_or_with_no_jbus_is_not_stale(mac):
+    """An agent's start is its log's last start marker: a log with none, or with one that names
+    no time, gives no start, and with no ~/.local/bin/jbus nothing changed, so none is stale."""
+    mac.with_jbus()
+    setup(mac.machine())
+    need = units(mac.machine())
+    logs = mac.home / "Library" / "Logs" / "jstack"
+    (mac.loaded / "jstack.jbus-follow.pid").write_text("4242\n")
+    jbus = mac.home / ".local" / "bin" / "jbus"
+    for said in ("ran\n", f"{STARTED}soon\n"):
+        mac.write(logs / "jstack.jbus-follow.log", said)
+        assert need.stale(mac.machine()) == []
+    mac.write(logs / "jstack.jbus-follow.log", f"{STARTED}{int(time.time()) - 600}\n")
+    os.utime(jbus)
+    assert [agent.label for agent in need.stale(mac.machine())] == ["jstack.jbus-follow"]
+    jbus.unlink()
+    assert need.stale(mac.machine()) == []
 
 
 def test_the_view_gets_no_agent_as_systemd_enables_no_view(mac):
