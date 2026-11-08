@@ -13,10 +13,11 @@ import io
 import json
 import shutil
 import sqlite3
-from datetime import date
+from datetime import UTC, datetime
 
 import pytest
 
+import jsettings
 from jbriefs import skills
 from jbus import cli
 from jbus.telemetry import firstload
@@ -117,7 +118,8 @@ def test_the_kpi_page_shows_the_latest_first_load_in_kb_against_16(machine):
     machine.build()
     [(_, total, *_)] = kept(machine)
 
-    _, rows, _ = page_of(machine, date.today().isoformat())
+    today = jsettings.load().local(datetime.now(UTC)).date()
+    _, rows, _ = page_of(machine, today.isoformat())
 
     row = rows[NAME]
     kb = f"{round(total / 1000, 1):g}"
