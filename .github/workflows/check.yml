@@ -158,7 +158,9 @@ jobs:
         with:
           name: selection-${{ github.run_attempt }}
           path: ${{ runner.temp }}/selection/selection.json
-          retention-days: 1
+          # A run's failed jobs can be run again for 30 days, and a part run again alone reads
+          # this file.
+          retention-days: 30
           if-no-files-found: error
       # The test files the check selected, one a line with why and its part, kept for each
       # attempt, also where the selection failed. A list that cannot be kept costs that lookup
@@ -265,20 +267,25 @@ jobs:
             tlc-
       # The selection `reuse` uploads as `selection-<attempt>`, waited for here with the part's
       # setup done, and given as this step's outputs: `reused`, `tree`, `selection`, `files`,
-      # `forced_by` and `part1` to `part8`. It asks for the artifact once a second, and every
-      # fifth time whether `reuse` has ended: a `reuse` that ended with none fails the part, so
-      # no part waits out its timeout. The run's token reads the run's artifacts (`actions: read`).
+      # `forced_by` and `part1` to `part8`. It asks for this attempt's artifact once a second,
+      # and every fifth time whether this attempt's `reuse` has ended or is not of this attempt,
+      # as when only the failed jobs run again: then the newest selection of the run is the one,
+      # the one `reuse` left in the attempt it ran, and where there is none the part fails, so no
+      # part waits out its timeout. The run's token reads the run's artifacts (`actions: read`).
       - name: selection
         id: selection
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
           runs="repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"; asks="$runs/artifacts?name=selection-$GITHUB_RUN_ATTEMPT";
-          tries=0; while :; do id=$(gh api "$asks" --jq '.artifacts[0].id // empty') || id=; [ -n "$id" ] && break;
+          tries=0; while :; do id=$(gh api "$asks" --jq '[.artifacts[] | select(.expired | not)][0].id // empty') || id=; [ -n "$id" ] && break;
           tries=$((tries + 1));
-          if [ $((tries % 5)) = 0 ] && [ "$(gh api "$runs/attempts/$GITHUB_RUN_ATTEMPT/jobs" --jq '.jobs[] | select(.name == "reuse") | .status')" = completed ]; then
-          id=$(gh api "$asks" --jq '.artifacts[0].id // empty') || id=; [ -n "$id" ] && break;
-          echo "::error::the job reuse ended with no selection for this part"; exit 1; fi;
+          if [ $((tries % 5)) = 0 ]; then
+          reuse=$(gh api "$runs/attempts/$GITHUB_RUN_ATTEMPT/jobs?per_page=100" --jq '[.jobs[] | select(.name == "reuse") | .status][0] // "none"') || reuse=unknown;
+          if [ "$reuse" = completed ] || [ "$reuse" = none ]; then
+          id=$(gh api "$runs/artifacts?per_page=100" --jq '[.artifacts[] | select((.name | startswith("selection-")) and (.expired | not))] | max_by(.name | ltrimstr("selection-") | tonumber) | .id // empty') || id=;
+          [ -n "$id" ] && break;
+          echo "::error::the job reuse ended with no selection for this part"; exit 1; fi; fi;
           sleep 1; done;
           gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "$RUNNER_TEMP/selection.zip"
           && unzip -p "$RUNNER_TEMP/selection.zip" selection.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> "$GITHUB_OUTPUT"
@@ -356,9 +363,9 @@ jobs:
     # module runs those tests again before it is a fault: the guard's own cap is 15 minutes.
     timeout-minutes: 20
     steps:
-      # The parts are skipped only on a reuse, and then it passes on the pass it reuses. The
-      # `reuse` job, which runs the selection and the trailer check, and `lint` passed in either
-      # case.
+      # On a reuse the parts run no test, and it passes on the pass it reuses, whatever they
+      # did. The `reuse` job, which runs the selection and the trailer check, and `lint` passed
+      # in either case.
       - name: every part passed
         env:
           PARTS: ${{ needs.check-shard.result }}
@@ -404,7 +411,7 @@ jobs:
       # else.
       - name: checked trees marker
         id: checked
-        if: needs.check-shard.result == 'success' && needs.lint.result == 'success' && needs.reuse.result == 'success' && needs.reuse.outputs.name != ''
+        if: needs.check-shard.result == 'success' && needs.lint.result == 'success' && needs.reuse.result == 'success' && needs.reuse.outputs.name != '' && needs.reuse.outputs.reused != 'true'
         env:
           NAME: ${{ needs.reuse.outputs.name }}
         run: mkdir -p "$RUNNER_TEMP/checked-tree" && touch "$RUNNER_TEMP/checked-tree/$NAME"

@@ -1506,11 +1506,12 @@ def test_a_part_runs_only_its_own_files_and_fails_on_no_selection(tmp_path, part
     assert (asked.read_text().strip() if asked.exists() else None) == made
 
 
-def hand_over(tmp_path, select, reused, ready, status):
+def hand_over(tmp_path, select, reused, ready, status, newest=""):
     """Run `reuse`'s `selection` step and a part's, as the runner runs them, with a `gh` that
     serves the run's artifacts as GitHub does: none for the asks before `ready`, then the file
-    `reuse` wrote. The `reuse` job's status is `status`. Return how the part's step ended, its
-    outputs, and what it asked of `gh`."""
+    `reuse` wrote. The `reuse` job's status in this attempt is `status` (`none` where it is not
+    of this attempt), and the newest selection of the run, of any attempt, is `newest`. Return
+    how the part's step ended, its outputs, and what it asked of `gh`."""
     (wrote,) = [s for s in steps(CHECK.read_text(), "reuse")[0] if s.get("name") == "selection"]
     (asks,) = [
         s for s in steps(CHECK.read_text(), "check-shard")[0] if s.get("name") == "selection"
@@ -1544,7 +1545,8 @@ def hand_over(tmp_path, select, reused, ready, status):
         "*/artifacts?name=selection-3)\n"
         f'  echo x >> "{tmp_path}/lists"\n'
         f'  [ "$(wc -l < "{tmp_path}/lists")" -lt {ready} ] || echo 77 ;;\n'
-        f'*/runs/9/attempts/3/jobs) echo "{status}" ;;\n'
+        f'*/runs/9/attempts/3/jobs?per_page=100) echo "{status}" ;;\n'
+        f"*/runs/9/artifacts?per_page=100) echo {newest} ;;\n"
         f'*/actions/artifacts/77/zip) cat "{tmp_path}/artifact.zip" ;;\n'
         "*) exit 1 ;;\n"
         "esac\n"
@@ -1609,14 +1611,27 @@ def test_a_reuse_hands_the_parts_no_files_and_says_it_reused(tmp_path):
     assert outputs == {"tree": "green-tree-ab", "reused": "true"}
 
 
+@pytest.mark.parametrize("status", ["completed", "none"])
+def test_a_part_run_again_alone_reads_the_selection_reuse_left_in_its_own_attempt(tmp_path, status):
+    """Where only the failed jobs run again, `reuse` is carried over from the attempt it ran in,
+    and no `selection-<attempt>` of this attempt comes: on the fifth ask the part finds `reuse`
+    ended, or not of this attempt, and takes the newest selection of the run."""
+    ran, outputs, asked = hand_over(tmp_path, SELECTED, "false", 10**6, status, newest="77")
+    assert ran.returncode == 0, ran.stdout + ran.stderr
+    assert outputs == SELECTED | {"tree": "green-tree-ab", "reused": "false"}
+    assert len([line for line in asked if "artifacts?name=" in line]) == 5
+    assert len([line for line in asked if "artifacts?per_page=" in line]) == 1
+
+
 def test_a_part_fails_soon_when_reuse_ended_with_no_selection(tmp_path):
-    """A `reuse` that ended before it uploaded its selection, as when its checkout failed, fails
-    the part on the fifth ask, not at the part's timeout."""
+    """A `reuse` that ended before it uploaded its selection, as when its checkout failed, and
+    left none in an earlier attempt, fails the part on the fifth ask, not at its timeout."""
     ran, outputs, asked = hand_over(tmp_path, SELECTED, "false", 10**6, "completed")
     assert ran.returncode == 1
     assert "::error::the job reuse ended with no selection for this part" in ran.stdout
     assert outputs == {}
-    assert len([line for line in asked if "artifacts?name=" in line]) == 6
+    assert len([line for line in asked if "artifacts?name=" in line]) == 5
+    assert len([line for line in asked if "artifacts?per_page=" in line]) == 1
     assert len([line for line in asked if "/jobs" in line]) == 1
 
 
@@ -2870,11 +2885,12 @@ def test_a_run_whose_parts_passed_leaves_the_marker_of_its_two_trees_and_a_reuse
         "lookup": "${{ steps.failed.outcome }}",
     }
     assert [
-        (result, lint, reuse, name)
+        (result, lint, reuse, name, reused)
         for result in RESULTS
         for lint in RESULTS
         for reuse in RESULTS
         for name in ("checked-tree-a-b", "")
+        for reused in ("true", "false", "")
         if worked(
             mark["if"],
             {
@@ -2882,9 +2898,13 @@ def test_a_run_whose_parts_passed_leaves_the_marker_of_its_two_trees_and_a_reuse
                 "needs.lint.result": lint,
                 "needs.reuse.result": reuse,
                 "needs.reuse.outputs.name": name,
+                "needs.reuse.outputs.reused": reused,
             },
         )
-    ] == [("success", "success", "success", "checked-tree-a-b")]
+    ] == [
+        ("success", "success", "success", "checked-tree-a-b", "false"),
+        ("success", "success", "success", "checked-tree-a-b", ""),
+    ]
     assert mark["env"] == {"NAME": "${{ needs.reuse.outputs.name }}"}
     assert [o for o in OUTCOMES if worked(upload["if"], {"steps.checked.outcome": o})] == [
         "success"
