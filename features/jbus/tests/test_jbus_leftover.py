@@ -152,8 +152,8 @@ def test_a_leftover_its_home_has_is_not_on_the_users_list_and_the_view_says_who_
     assert task["state"]["waits"] == "its home"
     assert task["state"]["say"] == (
         f"its pull request #9 is merged. Its crewmate left a note: {NOTE}. "
-        f"jbus told its home {told}. The home closes it: a follow-up task for what was left, "
-        "or a Left: none line in its brief with the reason"
+        f"jbus told its home {told}. The home closes it with one of two things: a follow-up "
+        "task for what was left, a Left: none line in its brief with the reason"
     )
     assert task["since"] == NOW.isoformat(timespec="seconds")
     assert [one for one in built["tasks"] if one["who"] == "user"] == []
@@ -223,7 +223,7 @@ def test_a_leftover_open_thirty_minutes_is_said_to_the_root_home_and_not_the_use
     assert len(sends(kitchen)) == 3 and listed(kitchen) == []
 
 
-def test_a_leftover_open_thirty_minutes_with_no_root_home_to_tell_is_the_users(kitchen):
+def test_a_leftover_open_thirty_minutes_with_no_root_home_to_tell_waits_on_a_home(kitchen):
     kitchen.quiet()
     scoped = home(kitchen, "pantry")["threadId"]
     ended(kitchen, head="Home: pantry\n")
@@ -232,9 +232,12 @@ def test_a_leftover_open_thirty_minutes_with_no_root_home_to_tell_is_the_users(k
     why = leftover.NO_ROOT.format(thread=scoped, minutes=leftover.CLOSE_MINUTES)
     assert listed(kitchen) == [f"left alpha: left: the docs; {why}"]
     assert len(sends(kitchen)) == 1
-    assert judged(kitchen)["who"] == "user"
+    assert (judged(kitchen)["who"], judged(kitchen)["waits"]) == (
+        "home",
+        f"a home to close it: {why}",
+    )
     (task,) = state(kitchen, later(31))["tasks"]
-    assert task["who"] == "user" and f"It waits on you: {why}" in task["state"]["say"]
+    assert task["who"] == "home" and f"It waits on a home: {why}" in task["state"]["say"]
 
 
 def test_a_leftover_goes_from_the_record_when_its_brief_says_left_none(kitchen):
@@ -251,7 +254,7 @@ def test_a_leftover_goes_from_the_record_when_its_brief_says_left_none(kitchen):
     assert stalls(kitchen) == [] and len(sends(kitchen)) == 1
 
 
-def test_a_row_with_no_home_is_the_users_at_once_and_the_line_says_why(kitchen):
+def test_a_row_with_no_home_waits_on_a_home_and_the_line_says_why(kitchen):
     kitchen.quiet()
     ended(kitchen)
     kitchen.poll()
@@ -259,8 +262,9 @@ def test_a_row_with_no_home_is_the_users_at_once_and_the_line_says_why(kitchen):
     assert listed(kitchen) == [f"left alpha: left: the docs; {why}"]
     assert sends(kitchen) == [] and stalls(kitchen) == []
     (task,) = state(kitchen)["tasks"]
-    assert (task["step"], task["who"]) == ("gate", "user")
-    assert f"the docs. It waits on you: {why}. Either of two things ends it" in task["state"]["say"]
+    assert (task["step"], task["who"]) == ("running", "home")
+    assert task["state"]["waits"] == f"a home to close it: {why}"
+    assert f"the docs. It waits on a home: {why}. The home closes it" in task["state"]["say"]
 
 
 @pytest.mark.parametrize("how", ["settled", "unlisted", "handed off"])

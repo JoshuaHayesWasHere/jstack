@@ -157,10 +157,11 @@ def judge_row(one, state=None):
     )
     judged = work.State(value, pattern.who, pattern.waits, True, made)
     held = leftover.read(state).get(one["slug"]) if state is not None else None
-    home = bool(held and not held.busy and not leftover.his(held, NOW))
+    closer = work.Closer.BUSY if held and held.busy else work.Closer.HOME
+    unhomed = leftover.his(held, NOW) if held else ""
     line = work.entry(
         judged,
-        work.holder(judged, home=home and "who" not in one),
+        work.holder(judged, closer=closer, unhomed=unhomed),
         key=one["slug"],
         kind="row",
         slug=one["slug"],

@@ -535,13 +535,15 @@ def test_the_digest_has_the_rows_that_leave_something_and_names_the_ones_done(ki
     ]
 
 
-def test_the_view_has_the_same_rows_at_the_gate_step_as_the_users(kitchen):
+def test_the_view_has_the_rows_the_users_list_names_as_waiting_on_a_home(kitchen):
+    """Rows with no home are on the list of what blocks, and the view says they wait on a home
+    to close them, as `work.json` does, since `jbus needs` does not list them."""
     scene(kitchen)
     sources = state.Sources(kitchen.state_dir, kitchen.root / "home", user=jsettings.DEFAULTS)
     built = state.build(sources, "demo", NOW, lambda repo: {"runs": [], "at": None, "error": ""})
     assert [(t["slug"], t["status"], t["step"], t["who"]) for t in built["tasks"]] == [
-        ("after", "merged", "gate", "user"),
-        ("left", "left", "gate", "user"),
+        ("after", "merged", "running", "home"),
+        ("left", "left", "running", "home"),
     ]
     after, left = (t["reason"] for t in built["tasks"])
     assert after.startswith("its pull request #9 is merged and the work is done. ")

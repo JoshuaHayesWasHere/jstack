@@ -417,6 +417,19 @@ def deciding(run: Pass, listed: list[waiting.Item] | None) -> list[tuple[waiting
     return found
 
 
+def holding(run: Pass) -> frozenset[str]:
+    """Return the slugs that a gate of the user's holds now: each open gate whose item `jbus
+    needs` lists (`deciding`), read from the gates on disk, since `work.json` is written before
+    the pass lists what waits. None holds where `questions.json` does not parse."""
+    try:
+        asked = questions.read(run.state)
+        why = questions.waits(run.state, run.user)
+        found = deciding(run, waiting.gates(run.home, asked, run.removed, why))
+    except questions.Unparsable:
+        return frozenset()
+    return frozenset(str(one.get("slug") or "") for one, _ in found) - {""}
+
+
 def raise_listed(run: Pass, listed: list[waiting.Item] | None) -> None:
     """Log one decision for each item that the user has to decide (`deciding`). A home thread
     hears of it from the one list (`jbus.wakes`), and the log keeps this event."""

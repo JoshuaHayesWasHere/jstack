@@ -163,14 +163,11 @@ _STAMP = re.compile(r"(\d{4}-\d\d-\d\d \d\d:\d\d)(?: \S+)?")
 _SHA = re.compile(r"[0-9a-f]{7,40}")
 _SLUG = re.compile(r"[a-z0-9][a-z0-9._-]*")
 LEFT = "left: "
-ENDS = (
-    "Either of two things ends it: a new task for what was left, "
-    "a Left: none line in its brief once you say the rest is not wanted"
-)
 HOME = "home"
+AWAITS_REVIEW = "its Result opens its pull request after its review, which is not written yet"
 CLOSES = (
-    "The home closes it: a follow-up task for what was left, "
-    "or a Left: none line in its brief with the reason"
+    "The home closes it with one of two things: a follow-up task for what was left, "
+    "a Left: none line in its brief with the reason"
 )
 READY = {
     "no slot": "a slot",
@@ -580,35 +577,35 @@ def _how(row: queue.Row, merged: bool) -> tuple[str, int | None]:
 
 def _leftover(
     row: queue.Row, value: str, merged: bool, result: tuple[str, str], his: str = ""
-) -> tuple[str, str, str]:
+) -> tuple[str, str]:
     """What the view says of a row that ended with something left, or whose pull request
-    closed: its name, its sentence and what it waits for.
+    closed: its name and its sentence. What it waits for is `work.json`'s.
 
     The work is finished where the row's last Result says `Status: done`, its reason is a
     note, and none of its pull requests is left unmerged. The sentence then says how the work
     ended. It also gives the crewmate's whole note, as the brief has it. It also gives the
-    two things that end the work. Any other such row is not closed, and its sentence gives
+    way its home ends the work. Any other such row is not closed, and its sentence gives
     the note or the reason the row has. Where the view read a `Status:` that is not `done`,
     the sentence also says that the brief does not say the work is finished. A row with a
-    home to tell may still wait on the user, and `his` says why (`leftover.his`). The
-    sentence gives that reason after the note.
+    home to tell still waits on a home, and `his` says why no home has it yet
+    (`leftover.his`). The sentence gives that reason after the note.
     """
     status, whole = result
     why = text(row.get("why"))
     ended, number = _how(row, merged)
     noted = why.startswith(LEFT)
-    yours = f". It waits on you: {his}" if his else ""
+    yours = f". It waits on a home: {his}" if his else ""
     note = whole if whole and whole.lower() != "none" else why.removeprefix(LEFT)
     note = text(note, NOTE).rstrip(". ")
     if value == "leftover" and noted and status == "done" and (merged or number is None):
         said = "Its crewmate left a note of something it did not do"
-        say = f"{ended} and the work is done. {said}: {note}{yours}. {ENDS}"
-        return "Ended, with a leftover", say, "your word on that note"
+        say = f"{ended} and the work is done. {said}: {note}{yours}. {CLOSES}"
+        return "Ended, with a leftover", say
     if status and status != "done":
         ended += ", and its brief does not say the work is finished"
     say = f"{ended}. Its crewmate left a note: {note}{yours}" if noted else f"{ended}: {why}"
     name = "Ended, not closed" if value == "leftover" else "Closed"
-    return name, say, "your word on how it ends"
+    return name, say
 
 
 def _homes(row: queue.Row, merged: bool, held: Held) -> str:
@@ -668,17 +665,26 @@ def _saying(row: queue.Row, line: dict[str, Any] | None, about: About) -> dict[s
         waits = f"{first} to merge"
     elif value == "ready":
         say, waits = (why, READY[why]) if why in READY else ("nothing is in front of it", waits)
+    elif value in ("leftover", "quiet") and line.get("who") == "rev":
+        say = AWAITS_REVIEW
     elif value in SAYS:
         say = why or SAYS[value]
     elif value == "lost":
         say = LOST.get(facts.get("thread", ""), LOST["completed"])
-    elif value in ("leftover", "closed") and line.get("who") == HOME and about.held:
+    elif (
+        value in ("leftover", "closed")
+        and line.get("who") == HOME
+        and about.held
+        and not about.held.his
+    ):
         say = _homes(row, merged, about.held)
     elif value == "leftover" and line.get("who") == "crew":
         say = why
+    elif value in ("leftover", "closed") and line.get("who") == "user":
+        say = about.asked or why
     elif value in ("leftover", "closed"):
         his = about.held.his if about.held else ""
-        name, say, waits = _leftover(row, value, merged, about.result, his)
+        name, say = _leftover(row, value, merged, about.result, his)
         return _said(value, name, say, waits, cap=WHOLE)
     elif value == "merged":
         say = _how(row, True)[0]

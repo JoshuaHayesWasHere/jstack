@@ -157,7 +157,7 @@ def test_each_kind_of_row_is_in_one_state_with_one_reason_and_names_no_other(sce
         "it ended with no pull request, and its brief does not say the work is finished: "
         "status: paused"
     )
-    assert (burr["waits"], burr["row"]) == ("your word on how it ends", "")
+    assert (burr["waits"], burr["row"]) == ("its home", "")
     assert "done" not in burr["say"]
 
 
@@ -197,12 +197,30 @@ def test_a_quiet_thread_and_a_closed_pull_request_are_drawn_as_the_pass_judged_t
     assert (shut["state"]["kind"], shut["state"]["name"], shut["step"]) == (
         "closed",
         "Closed",
-        "gate",
+        "running",
     )
     assert shut["state"]["say"] == (
         "its thread ended and its pull request #18 is not merged: " + closed
     )
-    assert shut["state"]["waits"] == "your word on how it ends"
+    assert (shut["state"]["waits"], shut["who"]) == ("its home", "home")
+
+
+def test_a_left_row_its_review_or_a_gate_of_the_users_holds_says_so_and_not_how_its_home_closes_it(
+    scene, served
+):
+    """A row whose Result waits on its review, and one a gate of the user's holds, are drawn by
+    what holds them: neither gives the home's way of closing a leftover."""
+    noted = "left: the docs page"
+    scene.queue(
+        [
+            row("fig-proof", "left", why=noted, thread="mcp:16", value="leftover", who="rev"),
+            row("fig-asked", "left", why=noted, thread="mcp:17", value="leftover", who="user"),
+        ]
+    )
+    found = tasks(served.json("/state.json?project=demo"))
+    proof, asked = found["fig-proof"], found["fig-asked"]
+    assert (proof["who"], proof["state"]["say"]) == ("rev", built.AWAITS_REVIEW)
+    assert (asked["who"], asked["state"]["say"]) == ("user", noted)
 
 
 def test_a_row_work_json_does_not_have_is_unknown_and_says_what_its_row_says(scene, served):
@@ -257,7 +275,7 @@ def test_a_task_that_is_merged_or_finished_is_not_on_the_line_and_a_lost_one_is(
         "fig-twig": ("running", "user"),
     }
     vine = open_work["fig-vine"]
-    assert (vine["state"]["kind"], vine["step"], vine["who"]) == ("leftover", "gate", "user")
+    assert (vine["state"]["kind"], vine["step"], vine["who"]) == ("leftover", "running", "home")
     assert open_work["fig-twig"]["blocked"] == {"by": "", "what": "thread", "state": ""}
     assert open_work["fig-leaf"]["who"] == "dep" and open_work["fig-jam"]["who"] == "bus"
 
@@ -468,18 +486,18 @@ def test_a_merged_task_that_left_a_note_is_done_and_waits_only_for_a_word_on_the
     assert f"Its crewmate left a note of something it did not do: {NOTE}. " in said["say"]
     assert "[cut]" not in said["say"]
     assert said["say"].endswith(
-        "Either of two things ends it: a new task for what was left, "
-        "a Left: none line in its brief once you say the rest is not wanted"
+        "The home closes it with one of two things: a follow-up task for what was left, "
+        "a Left: none line in its brief with the reason"
     )
-    assert (said["waits"], said["row"]) == ("your word on that note", "")
-    assert (jam["step"], jam["who"], jam["blocked"]) == ("gate", "user", None)
+    assert (said["waits"], said["row"]) == ("its home", "")
+    assert (jam["step"], jam["who"], jam["blocked"]) == ("running", "home", None)
 
 
 def test_a_task_that_ended_with_no_pull_request_and_a_note_is_done_too(scene, served):
     leftovers(scene)
     found = tasks(served.json("/state.json?project=demo"))
     said = found["plum-pit"]["state"]
-    assert (said["kind"], said["waits"]) == ("leftover", "your word on that note")
+    assert (said["kind"], said["waits"]) == ("leftover", "its home")
     assert said["say"].startswith("it ended with no pull request and the work is done. ")
     assert "left a note of something it did not do: the stones are not sorted. " in said["say"]
     assert found["plum-skin"]["state"]["name"] == "Lost"
@@ -489,7 +507,7 @@ def test_a_task_that_ended_with_no_pull_request_and_a_note_is_done_too(scene, se
         "it ended with no pull request, and its brief does not say the work is finished. "
         "Its crewmate left a note: the stem is half cut"
     )
-    assert stem["waits"] == "your word on how it ends"
+    assert stem["waits"] == "its home"
     assert [slug for slug, one in found.items() if one["state"]["kind"] == "lost"] == ["plum-skin"]
 
 
@@ -513,7 +531,7 @@ def test_a_note_longer_than_the_view_keeps_is_cut_and_the_sentence_keeps_its_end
     brief = scene.home / "tasks" / "plum-jam.md"
     brief.write_text(brief.read_text().replace(NOTE, "long " * 2000))
     say = tasks(served.json("/state.json?project=demo"))["plum-jam"]["state"]["say"]
-    assert say.endswith("once you say the rest is not wanted") and len(say) < 5000
+    assert say.endswith("a Left: none line in its brief with the reason") and len(say) < 5000
 
 
 def test_the_waiting_list_words_a_leftover_as_the_drawer_does(scene, served):

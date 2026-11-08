@@ -37,6 +37,13 @@ What a tick misses, the next pass does: the pass runs `jmerge --if-free` too, so
 `jbus-merge.service` logs at `notice` and above (`LogLevelMax=notice`), so its start and end every 2 seconds stay out of the journal, and its own lines, which are `notice`, stay in.
 On macOS its agent runs every 2 seconds too (`StartInterval`).
 `work.json`, the state of each row that the view and T3 Code's sidebar draw, waits for neither timer.
+Each line says who holds its row (`who`) and the one thing the row waits on (`waits`).
+A row that ended with something left (`status: left`: a crewmate's Result that leaves something under `Left:`, a scout's Report that is not done, or a pull request that closed) waits on its home: jbus tells the home, which closes it, and the user is not asked.
+Its line says `who: home` and `waits: its home`, or `waits: a home to close it: <why>` while no home has it yet, such as a row with no home, or one its home did not close in time with no root home to tell.
+Such a row is the one left row that still reaches the user: jbus's list of what blocks names it ([What blocks](what-blocks.md), row d), while its line says the home it waits on, since `jbus needs` does not list it.
+A thread at work on what the row left holds it instead.
+A gate of the user's that holds a row, one `jbus needs` lists, makes any row the user's, `waits: your answer`.
+A row whose last Result opens its pull request after a review that is not written (`Pull request: after the review`) has not ended, whatever its `Left:` line says: its line says `who: rev` and `waits: its review`.
 Each writer of a row's inputs restates that row's line under `work.lock` as it writes:
 each write of the queue (`jbus queue add`, `approve`, `hold`, `remove` and the pass's own rewrite of the table) restates each row's go, adds the line of a new row and takes out the line of a row that went;
 the merge tick, as soon as GitHub's list of runs changes and before it runs `jmerge`, also while `jmerge` is busy and does not run, restates the line of each pull request on the check step whose required checks ended at its head: failed, with the reason `jmerge` gives a failed check, or passed, for `jmerge` to judge next;
