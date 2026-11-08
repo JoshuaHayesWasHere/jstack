@@ -31,11 +31,11 @@ the message, its text and its time, and that is why jbus counts the user's word 
 (`jbus.boxes`).
 
 `home_ask` reads the ask a plain reply of the user's answers: the last message a home wrote in its
-own thread before that reply (`Client.asked_before`). `asked_of` and `asks` are the one rule of
-what such an ask is about: each row or question owns the part of the ask from its name to the
-next row or question named, so a plain "yes" binds to what the home asked about and to nothing
-else. `jbus waive` reads the lines a row's part names, and `jbus.acts` whether the part of the row
-or question a door waits on asks the user, with a question mark.
+own thread before that reply (`Client.asked_before`). `asks` is the rule of what such an ask is
+about for a door: the ask names this door, by the row's slug or its gate's number, and no other
+open door, so a plain "yes" binds to one door and never to two (`jbus.acts`). `asked_of` cuts an
+ask into the part each row owns, from its name to the next row named, and `jbus waive` reads the
+lines a row's part names. `names` reads an item named in the forms a person writes.
 
 A tool of `TOOLS` that T3 Code stops serving fails only where jbus calls it, so each pass compares
 the two, with one `tools/list`, in a chore (`contract`). Each tool it no longer serves is an
@@ -57,7 +57,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import webbrowser
-from collections.abc import Callable
+from collections.abc import Callable, Collection, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -461,34 +461,61 @@ def asked_of(text: str, slug: str, others: frozenset[str] = frozenset()) -> list
     return _parts(text, {_row(slug)}, {_row(one) for one in others})
 
 
-def asks(text: str, slug: str, numbers: list[int], others: frozenset[str]) -> bool:
-    """Whether a home's ask `text` asks the user about the row `slug` or one of its questions
-    `numbers`, named as `question <n>`: a part of it about them (as `asked_of` cuts it, at the
-    next row of `others` or the next question it names) asks, in the sentence that names them,
-    with a question mark. So "question 250 stays held; question 251: may beta go?" asks about
-    251 alone, and a row named in passing, "alpha merged. Shall I remove the worktrees?", is
-    not asked about."""
-    mentioned = {int(one) for one in re.findall(r"\bquestion\s+(\d+)", text, re.I)}
-    mine = {_row(slug), *(_question(one) for one in numbers)}
-    theirs = {_row(one) for one in others} | {_question(one) for one in mentioned - set(numbers)}
-    for part in _parts(text, mine, theirs):
-        end = _END.search(part)
-        if end and end[0] == "?":
-            return True
-    return False
+def names(text: str, slug: str, numbers: Collection[int]) -> bool:
+    """Whether `text` names the row `slug` or one of its gates `numbers`, in the forms a person
+    writes (`_row`, `_question`)."""
+    lowered = text.lower()
+    return any(re.search(one, lowered) for one in (_row(slug), *map(_question, numbers)))
 
 
-_END = re.compile(r"[.?!](?=[\s*_)\"'`]|$)|\n")
-"""Where a sentence ends: a stop, a question mark or a bang before a space, a close of markdown,
-or the end, or a line's end."""
+def asks(
+    text: str, slug: str, numbers: Collection[int], doors: Mapping[str, Collection[int]]
+) -> bool:
+    """Whether a home's ask `text` is about this door and no other: the row `slug`, or its open
+    gates `numbers`, among the open doors `doors` (each row's slug with its open door gates, none
+    for a row whose brief holds and has no gate yet). The ask names a gate by its number, and a
+    row by its slug, which stands for each of its open gates the ask does not name by number. So
+    "question 250 stays held; question 251: may it go?" names two doors and binds a plain reply
+    to neither, and a "yes" never opens two doors."""
+    lowered = text.lower()
+    named: set[str | int] = set()
+    for row, gates in {**doors, slug: {*doors.get(slug, ()), *numbers}}.items():
+        by_number = {one for one in gates if re.search(_question(one), lowered)}
+        if by_number:
+            named |= by_number
+        elif re.search(_row(row), lowered):
+            named |= set(gates) or {row}
+    return bool(named) and named <= (set(numbers) or {slug})
+
+
+def _near(word: str) -> str:
+    """A pattern for `word` and each word one edit from it: a letter left out, added, changed,
+    or two side by side swapped, so `quetsion` is `question`."""
+    near = {word}
+    for at in range(len(word) + 1):
+        near.add(f"{word[:at]}[a-z]{word[at:]}")
+        near.add(f"{word[:at]}{word[at + 1 :]}")
+        near.add(f"{word[:at]}[a-z]{word[at + 1 :]}")
+        near.add(f"{word[:at]}{word[at + 1 : at + 2]}{word[at : at + 1]}{word[at + 2 :]}")
+    return "(?:" + "|".join(sorted(near - {""}, key=len, reverse=True)) + ")"
+
+
+_GATE = rf"(?:\b(?:{_near('question')}s?|gate)\s*#?\s*|\bq\s*|#)"
+"""What comes before a gate's number where a person names it: `question 15` and its slips,
+`gate 15`, `q15`, `Q 15` or `#15`, and a list after one of them, `questions 14 and 15`."""
+
+_LISTED = r"(?:\d+(?:\s*(?:,|&|/|\band\b|\bor\b)\s*)+#?)*"
+"""The numbers listed before a gate's own, as `14, ` or `14 and ` in `questions 14 and 15`."""
 
 
 def _row(slug: str) -> str:
-    return queue._SLUG_IN.format(re.escape(slug))
+    """A slug as a word of its own, with a space or a run of them for any of its hyphens."""
+    spelled = r"[-\s]+".join(map(re.escape, slug.split("-")))
+    return queue._SLUG_IN.format(spelled)
 
 
 def _question(number: int) -> str:
-    return rf"\bquestion\s+{number}(?![\w-]|\.\d)"
+    return rf"{_GATE}{_LISTED}{number}(?![\w-]|\.\d)"
 
 
 def _parts(text: str, mine: set[str], theirs: set[str]) -> list[str]:

@@ -117,7 +117,7 @@ It is in the log, which `jbus events` prints and the view shows.
 
 <!-- built: end -->
 
-A `decision` is one thing you have to decide, raised once, with a reply you can send as it is ([Decisions](decisions.md)).
+A `decision` is one thing you have to decide, raised once, with a plain hint for your reply, which you give in your own words ([Decisions](decisions.md)).
 A `gate` is a question a thread asked, and a `waiting` event a change of the list of what waits on you: both are quiet, and what on them you have to decide reaches you as a `decision`.
 The routine events, `merged`, `stale`, `retro`, `revert`, `gate`, `stall`, `waiting` and `recovered` (`jbus.digest.ROUTINE`), go to the digest's `routine` list (`jbus digest --json`) and not to the pager.
 A `condition` is what jbus found that no rule covers, such as `condition <slug>: brief changed after approval`.
