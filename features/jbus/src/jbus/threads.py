@@ -355,7 +355,9 @@ def _trees(run: Pass) -> dict[str, tuple[str, str]] | None:
         return None
     found = {}
     for block in listed.stdout.strip().split("\n\n")[1:]:
-        lines = dict(line.partition(" ")[::2] for line in block.splitlines())
+        lines = {
+            key: value for key, _, value in (line.partition(" ") for line in block.splitlines())
+        }
         if lines.get("branch") and lines.get("worktree"):
             found[lines["branch"].removeprefix("refs/heads/")] = (lines["worktree"], lines["HEAD"])
     return found
