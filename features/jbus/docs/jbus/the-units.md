@@ -27,8 +27,12 @@ On macOS a move reloads no agent.
 
 `jbus.service` stops a pass after 20 minutes (`TimeoutStartSec=20min`).
 `jbus-merge.timer` is the bound on how soon a check that ends on GitHub reaches jbus: a tick every 2 seconds, where the pass alone would take a minute or more.
-A tick asks GitHub nothing while the last pass saw no check going, and asks only with an ETag otherwise, which GitHub answers with a 304 that spends no API allowance until a workflow run ends.
-So the 2 seconds cost no allowance: only the one read after a run ended is counted, and `jbus budget --callers` counts the 304s apart, as free.
+A tick asks GitHub nothing while the last pass saw no check going.
+Otherwise it reads the heads: for each pull request the last pass saw with a check going, it asks for the check runs at its head, the jobs of its workflow runs (`commits/<head>/check-runs`), with the ETag it kept, which GitHub answers with a 304 that spends no API allowance until a job at that head changes.
+A head's check suite the tick has not seen yet costs one more read, of the head's workflow runs, so the tick knows which workflow each job belongs to.
+So a 2 second tick costs no allowance while nothing changes, and `jbus budget --callers` counts its 304s apart, as free.
+A round, a head's checks from the push to their end, costs a counted read of its check runs for each 2 second window in which a job at the head was queued, started or ended, plus one read of its workflow runs and the tick's run of `jmerge` once the verdict is in.
+On two rounds of 2026-11-07, one passed and one with a failed shard, the head's jobs started or ended 36 and 42 times, in 19 and 23 windows of 2 seconds: about 20 to 25 counted reads of the check runs a round, for each head.
 While `jbus budget` says `held`, a tick asks GitHub only once in 5 seconds, the interval it had before, and its line in the journal says so.
 GitHub pushes a check's end only to a webhook, which needs an endpoint GitHub can reach and a secret to sign with; jbus has none by design, so the 2 second poll was chosen and a webhook was not.
 The poll costs a start of `jbus tick` every 2 seconds, about 0.14 seconds of one core while no check is going.
@@ -46,11 +50,12 @@ A gate of the user's that holds a row, one `jbus needs` lists, makes any row the
 A row whose last Result opens its pull request after a review that is not written (`Pull request: after the review`) has not ended, whatever its `Left:` line says: its line says `who: rev` and `waits: its review`.
 Each writer of a row's inputs restates that row's line under `work.lock` as it writes:
 each write of the queue (`jbus queue add`, `approve`, `hold`, `remove` and the pass's own rewrite of the table) restates each row's go, adds the line of a new row and takes out the line of a row that went;
-the merge tick, as soon as GitHub's list of runs changes and before it runs `jmerge`, also while `jmerge` is busy and does not run, restates the line of each pull request on the check step whose required checks ended at its head: failed, with the reason `jmerge` gives a failed check, or passed, for `jmerge` to judge next;
+the merge tick, as soon as a head's check runs change and before it runs `jmerge`, also while `jmerge` is busy and does not run, restates the line of the pull request on the check step: failed, with the reason `jmerge` gives a failed check, at the first job of a required check's workflow run that failed, such as one shard while the others still run; or passed, for `jmerge` to judge next, once each required check's own job passed (a required job GitHub does not list yet, as `check` while the shards it needs run, is still going);
 each run of `jmerge`, the tick's and the pass's, restates the step of each pull request it judged, with its reason as the line's `why`.
 So a check that ends reaches its line without waiting on `jmerge`'s own run of seconds.
+`jmerge` reads a check as failed only once the check's own job ends, which waits on every job it needs, so while it says that check is still going at the same head, the tick's `failed` stands.
 Where the next run of `jmerge` judges the line otherwise than the tick, its verdict stands and the line is logged as drift (`work-drift`), quietly.
-What is left of the wait from GitHub ending a check to its line is the tick's own part, 2 seconds at most and about 1 on average, and GitHub's list, which shows a run about 2.5 seconds after its end, which only a webhook would take away.
+What is left of the wait from GitHub ending a job to its line is the tick's own part, 2 seconds at most and about 1 on average, and GitHub's lag in listing the job, which only a webhook would take away.
 `features/jbus/tests/checks_bound_probe.py` times it live, and no figure here claims the total.
 So a change reaches `work.json` within milliseconds of its write: `features/jbus/tests/work_live_probe.py` times it.
 A thread's state has a writer too: `jbus follow` follows T3 Code's events and restates the line of each thread whose turn started, ended or waits on you, or that was settled or archived.

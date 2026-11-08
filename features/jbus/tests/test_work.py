@@ -603,9 +603,14 @@ def on_review(kitchen):
 
 
 def a_tick_says(kitchen, line, run_id=1):
-    """Run a merge tick that finds a check ended and whose `jmerge` prints `line`."""
+    """Run a merge tick that finds the required check `check` passed at #9's head, its job ending
+    at second `run_id`, and whose `jmerge` prints `line`."""
     kitchen.set("jmerge.txt", f"{line}\n")
-    kitchen.set("runs.json", {"workflow_runs": [{"id": run_id, "status": "completed"}]})
+    head, ended = "c" * 40, f"2026-01-01T00:00:{run_id:02d}Z"
+    passed = {"name": "check", "status": "completed", "conclusion": "success"}
+    passed |= {"completed_at": ended, "check_suite": {"id": 11}}
+    kitchen.set("check-runs.json", {head: [passed]})
+    kitchen.set("push-runs.json", {head: [{"id": 100, "name": "check", "check_suite_id": 11}]})
     assert tick.tick(jbus.load(), lambda _: None) == 0
 
 
@@ -620,7 +625,7 @@ def test_a_ticks_verdict_shows_before_any_pass_and_the_next_pass_keeps_it(kitche
 
 def test_a_check_that_ends_on_github_reaches_its_rows_line_on_the_next_2_s_tick(kitchen):
     """The pass saw #9's check going, and `jmerge` waited on it. GitHub's check then passes: its
-    run is among the repo's completed runs, and `jmerge` moves #9 on to review. The next tick, at
+    job is among the head's check runs, and `jmerge` moves #9 on to review. The next tick, at
     most 2 s later (`jbus-merge.timer`), restates the row's line, with no pass between."""
     on_review(kitchen)
     going = ready.NOT_PASSED.format(check="check")
