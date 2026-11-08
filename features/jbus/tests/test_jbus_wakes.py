@@ -15,7 +15,8 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import outbox, passes, t3, wakes
+import jsettings
+from jbus import outbox, passes, verbs, wakes
 from jbus.view import state
 from test_jbus_github import FAILED, failed, launched, pull, sends
 from test_jbus_kitchen import NOW, Kitchen, iso
@@ -254,17 +255,15 @@ def test_an_item_whose_words_move_only_to_a_new_commit_or_time_is_not_news():
 
 
 @pytest.mark.parametrize("kind", ["tasks", "scouts"])
-def test_a_row_to_approve_wakes_the_home_whose_brief_it_is_and_not_the_root(
+def test_a_row_to_approve_wakes_no_thread_and_waits_on_needs_and_the_tree(
     tmp_path, monkeypatch, kind
 ):
-    """Every home starts in the main checkout, so a scoped home queues its row from there. The
-    row's approve item is still the home's whose brief or scout's request it is (`jbriefs.home`),
-    as `jbus home` says, and the root's own row is the root's."""
+    """A home approves a row on the user's word as it queues it (`queue add --message`), so a go
+    still owed is the user's alone: it wakes neither the home whose brief or scout's request it
+    is nor the root, and `jbus needs` and the view's tree of homes still show it, each under the
+    home whose row it is."""
     kitchen = Kitchen(tmp_path, monkeypatch)
     root, sidebar = home(kitchen)["threadId"], home(kitchen, "sidebar")["threadId"]
-    checkout = tmp_path / "repo"
-    checkout.mkdir()
-    monkeypatch.chdir(checkout)
     for slug, named, where in (
         ("sb-rows-build", "sidebar", kind),
         ("alpha", "root", "tasks"),
@@ -272,27 +271,25 @@ def test_a_row_to_approve_wakes_the_home_whose_brief_it_is_and_not_the_root(
         given = (request(slug) if where == "scouts" else brief(slug)).replace("Home: root\n", "")
         add(kitchen, slug, approve=False, text=f"{given}Home: {named}\n")
         kitchen.brief(slug, f"Home: {named}\n", kind=where)
-    rows = json.loads((kitchen.state / "queue.json").read_text())
-    assert {row["queued_by"]["directory"] for row in rows} == {str(checkout)}
-    since = (NOW - 10 * MIN).isoformat()
-    listed = [
-        {"kind": "approve", "key": f"approve:{slug}", "slug": slug, "since": since}
-        | {"line": f"approve {slug}: jbus --project demo queue approve {slug}"}
-        for slug in ("sb-rows-build", "alpha")
+    for minutes in (0, 5, 10):
+        kitchen.poll(NOW + minutes * MIN)
+    heard = [
+        line
+        for given in sends(kitchen)
+        if given["threadId"] in (root, sidebar)
+        for line in given["message"].splitlines()
+        if line.startswith("- approve ")
     ]
-    jbus.write_json(kitchen.state / "wake.json", {"began": iso(NOW - 60 * MIN)})
-    config = jbus.load()
-    run = passes.Pass(config, config.projects[0], NOW)
-    wakes.tell(run, t3.Client(config.server, config.token_path), listed)
-    heard = {
-        thread: [
-            line
-            for given in sends(kitchen)
-            if given["threadId"] == thread
-            for line in given["message"].splitlines()
-            if line.startswith("- approve ")
-        ]
-        for thread in (root, sidebar)
-    }
-    assert [line.split(":")[0] for line in heard[sidebar]] == ["- approve sb-rows-build"]
-    assert [line.split(":")[0] for line in heard[root]] == ["- approve alpha"]
+    assert heard == []
+    monkeypatch.setattr(verbs, "clock", lambda: NOW + 10 * MIN)
+    code, said = kitchen.main("needs")
+    assert code == 0, said
+    assert sorted(
+        line.split(":")[0] for line in said.splitlines() if line.startswith("demo approve ")
+    ) == [
+        "demo approve alpha",
+        "demo approve sb-rows-build",
+    ]
+    sources = state.Sources(kitchen.state_dir, kitchen.root / "home", user=jsettings.load())
+    tree = state.summary(state.Read(sources, "demo", NOW + 10 * MIN, lambda _: {}))["homes"]
+    assert {one["name"]: one["waits"] for one in tree} == {"": 1, "sidebar": 1}

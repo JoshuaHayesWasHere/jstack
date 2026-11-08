@@ -29,7 +29,7 @@ from test_jbus_kitchen import (
     RESULT,
     settles,
 )
-from test_jbus_queue import add, go
+from test_jbus_queue import add
 
 GATE = ASK
 ASKED = "gate alpha: question 1: which one?"
@@ -124,7 +124,11 @@ def test_a_question_that_holds_is_one_decision_under_the_project_s_name(kitchen)
     assert kitchen.wakes.listed == [[listing(HOLDING)]]
 
 
-def test_a_hold_and_an_approval_are_told_once_and_again_only_when_their_words_change(kitchen):
+def test_a_hold_is_told_once_and_again_only_when_its_words_change_and_an_approval_never(
+    kitchen,
+):
+    """A home approves a row on the user's word as it queues it, so a go still owed wakes no
+    thread: it waits on `jbus needs` and the view alone."""
     kitchen.poll()
     add(kitchen, "unsaid", approve=False)
     kitchen.brief("held", RESULT)
@@ -132,8 +136,9 @@ def test_a_hold_and_an_approval_are_told_once_and_again_only_when_their_words_ch
     kitchen.set("jmerge.txt", HELD + "\n")
     kitchen.poll(later(10))
     kitchen.poll(later(20))
-    gained = [[listing(HOLDING_9)], [listing(approving("unsaid"))]]
+    gained = [[listing(HOLDING_9)]]
     assert kitchen.wakes.listed == gained
+    assert [one["slug"] for one in listed(kitchen) if one["kind"] == "approve"] == ["unsaid"]
     assert (HELD, "quiet") in logged(kitchen)
     kitchen.set("jmerge.txt", HELD.replace("crew", "home") + "\n")
     kitchen.poll(later(80))
@@ -143,7 +148,7 @@ def test_a_hold_and_an_approval_are_told_once_and_again_only_when_their_words_ch
     assert (HELD.replace("crew", "home"), "quiet") in logged(kitchen)
 
 
-def test_an_approval_a_waiting_row_ends_at_is_told_once_and_not_again_each_hour(kitchen):
+def test_an_approval_a_waiting_row_ends_at_is_logged_once_and_wakes_no_thread(kitchen):
     kitchen.poll()
     add(kitchen, "base", approve=False)
     add(kitchen, "top", priority=2, depends="base")
@@ -152,7 +157,7 @@ def test_an_approval_a_waiting_row_ends_at_is_told_once_and_not_again_each_hour(
     roots = [line for line, _ in logged(kitchen) if line.startswith("waiting-on-user demo:")]
     assert len(roots) == 3
     assert [line for line, loud in logged(kitchen) if loud == "user"] == [approving("base")]
-    assert kitchen.wakes.listed == [[listing(approving("base"))]]
+    assert kitchen.wakes.listed == []
 
 
 def test_the_third_pass_that_did_not_finish_is_an_alert_of_the_machine_on_the_desk(kitchen):
@@ -190,11 +195,13 @@ def test_a_merge_a_result_a_review_and_a_report_start_no_post_and_are_in_the_log
 
 def test_a_list_that_only_lost_an_item_posts_nothing(kitchen):
     kitchen.poll()
-    add(kitchen, "unsaid", approve=False)
+    kitchen.brief("held", RESULT)
+    kitchen.set("open.json", [kitchen.opened("held", 9)])
+    kitchen.set("jmerge.txt", HELD + "\n")
     kitchen.poll(later(10))
     kitchen.poll(later(20))
     assert len(kitchen.wakes.listed) == 1
-    assert go(kitchen, "unsaid")[0] == 0
+    kitchen.set("open.json", [])
     kitchen.poll(later(30))
     kitchen.poll(later(40))
     assert len(kitchen.wakes.listed) == 1
@@ -368,7 +375,7 @@ def test_a_hold_found_while_t3_code_cannot_be_asked_is_listed_by_jmerge_s_line_a
     assert [(one["kind"], one["line"]) for one in listed(kitchen)] == [("hold", HELD)]
     assert (HOLDING_9, "user") in logged(kitchen)
     assert kitchen.wakes.listed == []
-    kitchen.set("jmerge.txt", "")
+    kitchen.set("open.json", [])
     (kitchen.stub / "jmerge-dies").write_text("jmerge: could not ask GitHub")
     kitchen.poll(later(30))
     assert [one["key"] for one in listed(kitchen)] == ["#9"]
