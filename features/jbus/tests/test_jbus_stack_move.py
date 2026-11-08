@@ -347,3 +347,20 @@ def test_a_link_before_its_pull_request_whose_commits_conflict_keeps_its_branch(
     assert head_line(kitchen) == stacks.Stacked("one", "main", stack_conflict.merge)
     left = "restack two: jbus left its branch as it was (its commits conflict with origin/main)"
     assert any(line.startswith(left) for line in said), said
+
+
+def test_a_link_before_its_pull_request_whose_crew_is_at_work_is_not_moved_under_it(stack):
+    """jbus moves no branch whose crew is at work: the pass moves its line alone, and a pass once
+    its turn ended moves its commits."""
+    kitchen = stack.kitchen
+    waits_on_its_review(kitchen)
+    (crew,) = [one for one in kitchen.t3.threads if one["title"] == "crew: two"]
+    crew.update(status="running")
+    kitchen.t3.at_work.add(crew["threadId"])
+    kitchen.poll(NOW)
+    assert stack.origin("two") == stack.head
+    assert head_line(kitchen) == stacks.Stacked("one", "main", stack.merge)
+    crew.update(status="completed")
+    kitchen.t3.at_work.discard(crew["threadId"])
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert git(kitchen.origin, "rev-parse", f"{stack.origin('two')}^") == stack.merge
