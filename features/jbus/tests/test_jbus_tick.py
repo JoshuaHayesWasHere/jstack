@@ -451,6 +451,10 @@ def test_a_verdict_jmerge_gives_before_it_reads_the_checks_keeps_the_head(on_che
 
 MANAGER = """#!/bin/sh
 echo "$*" >> "{stub}/systemctl.log"
+if [ "$2" != is-active ] && [ -f "{stub}/refused.txt" ]; then
+    cat "{stub}/refused.txt" >&2
+    exit 1
+fi
 case "$2" in
 is-active) cat "{stub}/timer.txt"; [ "$(cat "{stub}/timer.txt")" = active ] ;;
 start) echo active > "{stub}/timer.txt" ;;
@@ -459,7 +463,7 @@ stop) echo inactive > "{stub}/timer.txt" ;;
 esac
 """
 """A user manager with the one timer the pass starts and stops, active as the install leaves it
-(`enable --now`)."""
+(`enable --now`), which refuses to start or stop it while `refused.txt` says why."""
 
 
 @pytest.fixture
@@ -520,3 +524,18 @@ def test_a_pass_that_no_unit_started_leaves_the_machines_timer_as_it_is(manager)
     going(manager, "SUCCESS")
     assert switched(manager) == []
     assert timer(manager) == "active"
+
+
+def test_a_pass_whose_stop_the_manager_refuses_says_so_and_the_next_pass_stops_it(
+    manager, monkeypatch
+):
+    """The user manager refuses the stop: the pass says why in its log and the timer runs on.
+    The next pass finds it running with nothing pending, and stops it."""
+    monkeypatch.setenv(tick.TIMER, "jbus-merge.timer")
+    (manager.stub / "refused.txt").write_text("Failed to connect to bus\n")
+    said = manager.poll()
+    assert "tick: systemctl --user stop jbus-merge.timer failed: Failed to connect to bus" in said
+    assert timer(manager) == "active"
+    (manager.stub / "refused.txt").unlink()
+    assert "tick: no pull request has checks going, so jbus-merge.timer stops" in manager.poll()
+    assert timer(manager) == "inactive"
