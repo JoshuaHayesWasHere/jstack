@@ -15,6 +15,8 @@ from referencing import Registry, Resource
 
 from testing.paths import REPO
 
+READ_SET = ("schemas/", "features/*/feature.json")
+
 sys.path.insert(0, str(REPO / "scripts"))
 
 schema = importlib.import_module("jtrees.schema")
@@ -25,7 +27,6 @@ CORE = json.loads(CORE_PATH.read_text())
 REGISTRY = Registry().with_resource(CORE["$id"], Resource.from_contents(CORE))
 MANIFESTS = sorted((REPO / "features").glob("*/feature.json"))
 
-# A valid value of each key jstack adds to the core.
 JSTACK_KEYS = {
     "packages": ["src/foo"],
     "commands": {"foo": "foo.cli:main"},
@@ -59,9 +60,11 @@ def test_a_manifest_of_only_core_keys_holds_to_the_core():
     assert faults({"name": "Foo", "description": "Does foo."}, CORE_PATH) != []
 
 
-def test_jstack_adds_exactly_the_keys_this_test_covers():
+def test_jstack_adds_exactly_the_keys_this_test_covers_and_each_value_holds():
     extension = json.loads(FEATURE_PATH.read_text())["properties"]
     assert set(extension) - set(CORE["properties"]) == set(JSTACK_KEYS)
+    assert faults(JSTACK | JSTACK_KEYS, FEATURE_PATH) == []
+    assert faults(JSTACK | JSTACK_KEYS | {"packages": "src/foo"}, FEATURE_PATH) != []
 
 
 @pytest.mark.parametrize("key", sorted(JSTACK_KEYS))
