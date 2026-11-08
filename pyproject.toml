@@ -58,6 +58,7 @@ packages = [
     "features/jroles/src/jroles",
     "features/jsettings/src/jsettings",
     "features/jstack/src/jstack",
+    "features/repo-standard/src/repo_standard",
 ]
 # end generated
 
@@ -125,6 +126,7 @@ pythonpath = [
     "features/jroles/src",
     "features/jsettings/src",
     "features/jstack/src",
+    "features/repo-standard/src",
     "testing/tests",
     "features/architect/tests",
     "features/automate-me/tests",
@@ -206,6 +208,7 @@ src = [
     "features/jroles/src",
     "features/jsettings/src",
     "features/jstack/src",
+    "features/repo-standard/src",
     "testing/tests",
     "features/architect/tests",
     "features/automate-me/tests",
