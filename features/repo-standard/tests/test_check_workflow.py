@@ -20,6 +20,7 @@ import subprocess
 
 import pytest
 
+from repo_standard.cli import main
 from repo_standard.config import parse
 from repo_standard.conform import TAG, UPSTREAM, VERSION
 from testing.paths import REPO
@@ -469,3 +470,61 @@ def test_the_template_is_a_caller_of_the_shared_workflow_at_the_pinned_tag(calle
     for result, ends in (("success", "success"), ("failure", "failure"), ("skipped", "failure")):
         context = {"needs": {"standard": {"result": result}}}
         assert run_job("check", repo, env, context, top)["result"] == ends
+
+
+def plan_of(root, capsys, *args):
+    """What `repo-standard plan` prints for the repo at `root`, and its exit code."""
+    code = main(["plan", "--root", str(root), *args])
+    printed = capsys.readouterr()
+    return code, dict(line.split("=", 1) for line in printed.out.splitlines()), printed.err
+
+
+def test_the_plan_verb_reads_the_event_and_the_selection_it_is_given(caller, capsys, monkeypatch):
+    repo, _ = caller
+    configure(repo, "standard: 1\ncheck:\n  shards: 2\n  nightly: true\n")
+    selection = repo.parent / "selection.txt"
+    selection.write_text("tests/test_a.py\n\ntests/test_b.py\ntests/test_a.py\n")
+    code, said, _ = plan_of(repo, capsys, "--event", "pull_request", "--selection", str(selection))
+    assert code == 0
+    assert said["parts"] == json.dumps({"1": "tests/test_a.py", "2": "tests/test_b.py"})
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "schedule")
+    code, said, _ = plan_of(repo, capsys)
+    assert (code, said["run"], said["selection"]) == (0, "true", "all")
+    selection.write_text("")
+    code, said, _ = plan_of(repo, capsys, "--selection", str(selection))
+    assert (said["selection"], said["parts"]) == ("none", json.dumps({"1": "none", "2": "none"}))
+
+
+@pytest.mark.parametrize(
+    "check, said",
+    [
+        ("  shards: 0\n", "check.shards is not a number of parts from 1 to 64"),
+        ("  shards: true\n", "check.shards is not a number of parts from 1 to 64"),
+        ("  shards: 65\n", "check.shards is not a number of parts from 1 to 64"),
+        ("  nightly: yes\n", "check.nightly is not true or false"),
+        ("  parts: 2\n", "check has parts, which the standard does not know"),
+    ],
+)
+def test_a_check_part_the_plan_cannot_follow_exits_2_and_says_why(caller, capsys, check, said):
+    repo, _ = caller
+    configure(repo, f"standard: 1\ncheck:\n{check}")
+    code, _, err = plan_of(repo, capsys, "--event", "push")
+    assert code == 2
+    assert said in err
+
+
+@pytest.mark.parametrize(
+    "selection, said",
+    [
+        (None, "cannot read"),
+        ("tests/test_a.py::test_one[a b]\n", "make select printed an id with a space"),
+    ],
+)
+def test_a_selection_the_plan_cannot_read_exits_2_and_says_why(caller, capsys, selection, said):
+    repo, _ = caller
+    path = repo.parent / "selection.txt"
+    if selection is not None:
+        path.write_text(selection)
+    code, _, err = plan_of(repo, capsys, "--event", "pull_request", "--selection", str(path))
+    assert code == 2
+    assert said in err
