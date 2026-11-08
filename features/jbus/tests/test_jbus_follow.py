@@ -7,6 +7,7 @@ test writes as T3 Code would. The follower runs as `jbus follow` does, in a thre
 
 import json
 import sqlite3
+import sys
 import threading
 import time
 from datetime import timedelta
@@ -309,6 +310,9 @@ def test_a_store_whose_events_start_over_is_lost(events):
     store.close()
 
 
+@pytest.mark.skipif(
+    not sys.platform.startswith("linux"), reason="only Linux has inotify; elsewhere the waker polls"
+)
 def test_the_waker_wakes_on_the_store_s_write_and_not_on_another_file_s(tmp_path):
     waker = follow.Waker(tmp_path)
     (tmp_path / "other").write_text("x")
