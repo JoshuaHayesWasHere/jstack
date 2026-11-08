@@ -72,9 +72,12 @@ def test_a_move_rewrites_the_home_line_keeps_the_go_by_rule_and_logs_the_move(ki
 
 def test_a_second_move_to_the_same_home_moves_nothing_and_logs_nothing(kitchen, homes_of):
     add(kitchen, "alpha")
+    copy = kitchen.home / "tasks/alpha.md"
+    copy.write_text(stored(kitchen, "alpha"))
     assert move(kitchen, "alpha", "flow")[0] == 0
     code, said = move(kitchen, "alpha", "flow")
     assert (code, said.splitlines()[0]) == (0, "alpha is the flow home's already: nothing is moved")
+    assert homes.named(copy.read_text()) == "flow"
     assert len(kitchen.events("move")) == 1
 
 
@@ -144,6 +147,61 @@ def test_a_fix_row_takes_its_try_to_its_new_homes_ledger(kitchen, homes_of):
     assert move(kitchen, "alpha", "flow")[0] == 0
     assert blockers.tries(kitchen.home, "check:beta") == []
     assert [one["slug"] for one in blockers.tries(kitchen.home / "flow", "check:beta")] == ["alpha"]
+
+
+def test_a_fix_row_with_no_try_counted_moves_with_none(kitchen, homes_of):
+    fix = "Fix of: check:beta\nWhen green: `check` passes on the fix's head\n"
+    add(kitchen, "alpha", text=brief("alpha", fix))
+    (kitchen.home / blockers.LEDGER).write_text("{}")
+    assert move(kitchen, "alpha", "flow")[0] == 0
+    assert blockers.tries(kitchen.home / "flow", "check:beta") == []
+
+
+def test_a_brief_that_names_no_home_gets_the_line_above_its_first_section(kitchen, homes_of):
+    add(kitchen, "alpha")
+    named = stored(kitchen, "alpha").replace("Home: root\n", "")
+    queue.brief_path(kitchen.state, "alpha").write_text(named + "\n## Result\nStatus: done")
+    assert move(kitchen, "alpha", "flow")[0] == 0
+    head, section = stored(kitchen, "alpha").split("## Result")
+    assert (head.endswith("Home: flow\n"), section) == (True, "\nStatus: done")
+    add(kitchen, "beta")
+    queue.brief_path(kitchen.state, "beta").write_text(
+        stored(kitchen, "beta").replace("Home: root\n", "").rstrip("\n")
+    )
+    assert move(kitchen, "beta", "flow")[0] == 0
+    assert stored(kitchen, "beta").endswith("\nHome: flow\n")
+
+
+def test_a_row_with_no_brief_is_refused(kitchen, homes_of):
+    add(kitchen, "alpha")
+    queue.brief_path(kitchen.state, "alpha").unlink()
+    assert move(kitchen, "alpha", "flow") == (1, "refused: alpha has no brief, add it again\n")
+
+
+def test_a_move_cut_short_before_the_homes_copy_finishes_when_run_again(kitchen, homes_of):
+    add(kitchen, "alpha")
+    copy = kitchen.home / "tasks/alpha.md"
+    copy.write_text(stored(kitchen, "alpha"))
+    assert move(kitchen, "alpha", "flow")[0] == 0
+    copy.write_text(copy.read_text().replace("Home: flow", "Home: root"))
+    code, said = move(kitchen, "alpha", "flow")
+    assert (code, said.splitlines()[0]) == (0, f"moved alpha's copy at {copy} to the flow home")
+    assert homes.named(copy.read_text()) == "flow"
+    assert len(kitchen.events("move")) == 1
+
+
+def test_a_go_bound_to_the_whole_text_still_holds_after_a_move(kitchen, homes_of):
+    """A go jbus recorded before its sha left out the `Home:` line binds the whole text, which
+    the move changes, so the move binds that go to the moved brief."""
+    add(kitchen, "alpha")
+    table = json.loads((kitchen.state / "queue.json").read_text())
+    for column in ("brief_sha", "scope", "meaning"):
+        table[0]["approval"].pop(column)
+    table[0]["brief_sha"] = judgement.sha(stored(kitchen, "alpha"))
+    (kitchen.state / "queue.json").write_text(json.dumps(table))
+    assert verified(kitchen, "alpha")["holds"]
+    assert move(kitchen, "alpha", "flow")[0] == 0
+    assert verified(kitchen, "alpha")["holds"]
 
 
 def test_a_moved_running_rows_result_wake_and_stall_reach_its_new_home(short, kitchen):
