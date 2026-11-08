@@ -59,18 +59,16 @@ class Reader:
         """The helper calls whose result is only looked up by a name: called and indexed at once,
         or put in a name that is only ever indexed."""
         found = set(self.keyed)
+        loads = {}
+        for one in ast.walk(self.tree):
+            if isinstance(one, ast.Name) and isinstance(one.ctx, ast.Load):
+                loads.setdefault(one.id, []).append(one)
         for node in ast.walk(self.tree):
             if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call):
                 (target, *more) = node.targets
                 if more or not isinstance(target, ast.Name):
                     continue
-                uses = [
-                    one
-                    for one in ast.walk(self.tree)
-                    if isinstance(one, ast.Name)
-                    and one.id == target.id
-                    and isinstance(one.ctx, ast.Load)
-                ]
+                uses = loads.get(target.id, [])
                 if uses and all(id(one) in self.keyed for one in uses):
                     found.add(id(node.value))
         return found
