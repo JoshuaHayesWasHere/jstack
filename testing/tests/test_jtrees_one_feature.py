@@ -1,9 +1,8 @@
 """A new hook, playbook or skill is one feature's change: in a copy of this checkout each case
 adds one to one feature, the generator runs, and the docs check passes. Every path the case
 and the generator changed is then that feature's or only the repo's own (`INFRA`,
-`SHARED-DELETE`), so lint-borders sees one feature and asks for no `cross-cutting` label."""
+`SHARED-DELETE`), so the borders guard sees one feature and asks for no `cross-cutting` label."""
 
-import importlib.util
 import json
 import shutil
 import subprocess
@@ -14,15 +13,13 @@ import pytest
 from jinstall.kinds import HookGroup
 from jinstall.machine import Machine
 from jinstall.needs import needs
+from repo_standard import borders
+from repo_standard.config import load
 from testing.paths import REPO
 
 sys.path.insert(0, str(REPO / "scripts"))
 from jtrees.crawl import crawl, tracked
 
-spec = importlib.util.spec_from_file_location("lint_borders", REPO / "scripts" / "lint-borders.py")
-assert spec is not None and spec.loader is not None
-lint = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(lint)
 REPO_OWNED = {"INFRA", "SHARED-DELETE"}
 
 
@@ -115,8 +112,10 @@ def test_one_new_hook_playbook_or_skill_changes_its_own_feature_and_the_repo_onl
         assert ran.returncode == 0, ran.stdout + ran.stderr
     after = files(copy)
     changed = sorted(path for path in before | after if before.get(path) != after.get(path))
+    config = load(copy)
+    named, _ = borders.features(copy, config, sorted(after))
+    assert borders.crossing(config, changed, named, set()) == []
     tree = crawl(copy)
-    assert lint.features(tree, changed, set()) is None
     for path in changed:
         owners = set(tree.owners(path))
         assert owners == {feature} or (owners and owners <= REPO_OWNED), (path, owners)

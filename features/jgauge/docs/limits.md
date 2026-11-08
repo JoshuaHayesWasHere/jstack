@@ -178,6 +178,6 @@ They are set in `features/jgauge/src/jgauge/room.sh`.
 
 | Limit | Where | Value | Protects | Its yelena basis |
 |---|---|---|---|---|
-| A SKILL.md | `features/repo-guards/tests/test_skill_size.py` | `CAP = 400` | A skill keeps a spine | Design choice |
-| A test file | `features/repo-guards/tests/test_test_size.py` | `CAP = 1500` | A test file stays short | Design choice |
-| A module | `features/repo-guards/tests/test_module_size.py` | `CAP = 800` | A module stays short | Design choice |
+| A SKILL.md | `.repo-standard.yml` | `cap: 400` | A skill keeps a spine | Design choice |
+| A test file | `.repo-standard.yml` | `cap: 1500` | A test file stays short | Design choice |
+| A module | `.repo-standard.yml` | `cap: 800` | A module stays short | Design choice |
