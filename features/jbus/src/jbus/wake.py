@@ -83,6 +83,7 @@ EVENTS_KIND = "events"
 TIMERS = ("reminder", "refresh")
 HEADER = "X-Automation-Key"
 AGENT = "jbus"
+SENT = "sent.json"
 
 EVENTS = {"heartbeat": "quiet", "snapshot": "quiet"}
 
@@ -170,6 +171,53 @@ def notify(line: str) -> None:
 
 
 @dataclass(frozen=True)
+class _Keys:
+    """`sent.json` as this process last read or wrote it: the file's stamp then, and its keys,
+    in order and as a set."""
+
+    stamp: tuple[int, int, int]
+    keys: tuple[str, ...]
+    lookup: frozenset[str]
+
+
+_READ: dict[Path, _Keys] = {}
+"""The keys of each `sent.json` this process has read, so a keyed send parses the file again only
+once another process has written it. The file is 4 MB on a busy project."""
+
+
+def _stamp(path: Path) -> tuple[int, int, int] | None:
+    """Return what changes whenever `write_json` writes the file: its mtime, size and inode."""
+    try:
+        made = path.stat()
+    except OSError:
+        return None
+    return made.st_mtime_ns, made.st_size, made.st_ino
+
+
+def _sent(path: Path) -> _Keys:
+    """Return the keys in `sent.json`, read again only when its stamp has changed."""
+    stamp = _stamp(path)
+    held = _READ.get(path)
+    if stamp is None:
+        _READ.pop(path, None)
+        return _Keys((0, 0, 0), (), frozenset())
+    if held is not None and held.stamp == stamp:
+        return held
+    keys = tuple(read_json(path, []))
+    _READ[path] = read = _Keys(stamp, keys, frozenset(keys))
+    return read
+
+
+def _write_sent(path: Path, keys: tuple[str, ...]) -> None:
+    """Write `sent.json` whole, as the list it has always been, and hold what was written. The
+    caller holds the lock, so no other writer comes between the write and its stamp."""
+    write_json(path, list(keys))
+    stamp = _stamp(path)
+    if stamp is not None:
+        _READ[path] = _Keys(stamp, keys, frozenset(keys))
+
+
+@dataclass(frozen=True)
 class Route:
     """A `Route` is the second target, the place that gets a project's bodies, with the folder that
     holds its `outbox.json` and its `wake.json`, its URL and its key."""
@@ -209,8 +257,8 @@ class Box:
         return datetime.now(UTC)
 
     def sent(self) -> list[str]:
-        """Return the keys of everything ever sent."""
-        return read_json(self.state / "sent.json", [])
+        """Return the keys of everything ever sent, in the order they were sent."""
+        return list(_sent(self.state / SENT).keys)
 
     def send(
         self,
@@ -230,10 +278,10 @@ class Box:
         made = event(self.project.name, slug, kind, line, text, cap, loud)
         with locked(self.state, LOCK):
             if key is not None:
-                sent = self.sent()
-                if key in sent:
+                sent = _sent(self.state / SENT)
+                if key in sent.lookup:
                     return False
-                write_json(self.state / "sent.json", [*sent, key])
+                _write_sent(self.state / SENT, (*sent.keys, key))
             took = {"event": kind, "slug": slug, "loud": made["loud"], "line": line}
             self._log(id=_id(made), **took, text=made["text"], owed=True)
         return True
@@ -301,9 +349,9 @@ class Box:
     def mark(self, key: str) -> None:
         """Record a key as sent, sending nothing, for what was already so on the first pass."""
         with locked(self.state, LOCK):
-            sent = self.sent()
-            if key not in sent:
-                write_json(self.state / "sent.json", [*sent, key])
+            sent = _sent(self.state / SENT)
+            if key not in sent.lookup:
+                _write_sent(self.state / SENT, (*sent.keys, key))
 
     def began(self) -> None:
         """Record that a whole pass has run for this project: from now on jbus sends what is new.
@@ -346,10 +394,10 @@ class Box:
     def prune(self, slugs: set[str]) -> None:
         """Forget the keys that name one of these slugs, except those of a kind in `FOUND_AGAIN`."""
         with locked(self.state, LOCK):
-            sent = self.sent()
-            kept = [key for key in sent if not _prunable(key, slugs)]
+            sent = _sent(self.state / SENT).keys
+            kept = tuple(key for key in sent if not _prunable(key, slugs))
             if len(kept) < len(sent):
-                write_json(self.state / "sent.json", kept)
+                _write_sent(self.state / SENT, kept)
 
     def marks(self, route: Route | None = None) -> dict[str, Any]:
         """Return the marks of the second target's route, or by default the project's, which sit

@@ -6,6 +6,8 @@ Nothing reaches the network.
 
 import http.server
 import json
+import subprocess
+import sys
 import threading
 import urllib.request
 from datetime import UTC, datetime
@@ -165,3 +167,28 @@ def test_with_no_second_target_a_body_waits_nowhere_and_nothing_is_posted(tmp_pa
     monkeypatch.setattr(wake, "_post_blocking", lambda *given: posted.append(given) or "")
     assert made.blocking is None and second(made) == (0, [])
     assert posted == [] and not (made.state / wake.BLOCKING).exists()
+
+
+def test_a_key_sent_once_is_never_sent_again_by_this_process_or_another(tmp_path):
+    """A pass and a `jbus tick` are two processes that send under the same keys. Each must see
+    the keys the other sent, however many it has already looked up, and `sent.json` stays the
+    list of keys in the order they were sent."""
+    made = box(tmp_path)
+    assert made.send("s", "merged", "first", key="one") is True
+    assert made.send("s", "merged", "again", key="one") is False
+    other = (
+        "import sys; from pathlib import Path; from jbus import Project, wake\n"
+        "project = Project('demo', Path(sys.argv[1]) / 'checkout', 'demo', 'project-1')\n"
+        "made = wake.Box(Path(sys.argv[1]) / 'state', project)\n"
+        "print(made.send('s', 'merged', 'tick one', key='one'),"
+        " made.send('s', 'merged', 'tick two', key='two'))\n"
+    )
+    ran = subprocess.run(
+        [sys.executable, "-c", other, str(tmp_path)], capture_output=True, text=True, check=True
+    )
+    assert ran.stdout.split() == ["False", "True"]
+    assert made.send("s", "merged", "pass two", key="two") is False
+    assert made.send("s", "merged", "pass three", key="three") is True
+    assert json.loads((tmp_path / "state" / "sent.json").read_text()) == ["one", "two", "three"]
+    assert made.sent() == ["one", "two", "three"]
+    assert [one["line"] for one in made.log()] == ["first", "tick two", "pass three"]
