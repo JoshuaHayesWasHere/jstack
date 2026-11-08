@@ -72,7 +72,7 @@ CrewEnds(k) ==
     /\ UNCHANGED <<life, msg, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
 \* A gate or an item for Josh is an open item of the one list, raised once: its key is in sent.json
 \* from then on, so it is never raised again (jbus/wake.py `return False
-\* write_json(self.state / "sent.json", [*sent, key])`). A new call is a change in what the child has out, so its spell
+\* _write_sent(self.state / SENT, (*sent.keys, key))`). A new call is a change in what the child has out, so its spell
 \* ends.
 RaiseCall(c) ==
     /\ c \in Raised
