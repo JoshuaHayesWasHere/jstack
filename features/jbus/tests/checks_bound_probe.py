@@ -48,6 +48,15 @@ def gh(path: str, etag: str = "") -> tuple[str, str, object]:
     return status, tags[0] if tags else etag, json.loads(body) if status == "200" else None
 
 
+def round_end(
+    runs: list[dict], workflow_of: dict[str, str], required: tuple[str, ...]
+) -> tuple[float, str] | None:
+    """When a head's round of checks ended, and its verdict, or None while it goes."""
+    if not runs or any(one["status"] != "completed" for one in runs):
+        return None
+    return max(datetime.fromisoformat(one["completed_at"]).timestamp() for one in runs), "ended"
+
+
 class Line:
     """The moments the row's line of `work.json` changed, from inotify on its directory."""
 
@@ -102,10 +111,11 @@ def main() -> int:
                 f"repos/{args.repo}/commits/{sha}/check-runs", etags.get(sha, "")
             )
             runs = body.get("check_runs", []) if isinstance(body, dict) else None
-            if runs and any(one["status"] != "completed" for one in runs):
+            end = round_end(runs or [], {}, ())
+            if runs and end is None:
                 going.add(sha)
-            elif runs and sha in going:
-                ended = max(datetime.fromisoformat(one["completed_at"]).timestamp() for one in runs)
+            elif end and sha in going:
+                ended = end[0]
                 until = time.time() + args.wait
                 while time.time() < until and not [at for at, _ in line.changed if at >= ended]:
                     time.sleep(0.05)
