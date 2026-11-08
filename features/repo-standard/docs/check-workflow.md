@@ -26,6 +26,7 @@ The caller also sets the triggers, the permissions and the concurrency, since a 
 It runs on each pull request, on each push to `main`, on a nightly schedule and by hand, and it grants `contents: read` and `actions: read`, which the marker lookups need.
 
 The `uses:` line's tag and the `standard:` line of `.repo-standard.yml` name the same version, and a version bump moves both.
+The plan fails when the config pins another version than the workflow's own.
 
 | Input | What it sets | Default |
 |---|---|---|
@@ -62,7 +63,7 @@ It reads the version `.repo-standard.yml` pins and clones jstack at the tag `rep
 | `test` | Each part runs what `plan` dealt it: `make test TESTS=<ids>`, the whole suite, or nothing | Each part runs the whole suite |
 | `passed` | Passes when `plan`, `lint` and every part passed, or the pair of trees was reused | Passes when every job passed, or the tree's marker skipped the tests |
 
-`repo-standard plan` deals a selection out to the parts in turn.
+`repo-standard plan` deals a selection out to the parts in turn, and starts no more parts than the selection has ids.
 A part dealt the whole suite runs `make test` with one part, and `make test SHARD=<part>/<parts>` with more, so a repo that sets `shards` above 1 gives its `test` target a `SHARD` variable.
 An id `make select` prints holds no space, since the part passes its ids to `TESTS` with a space between each.
 

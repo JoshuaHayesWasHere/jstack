@@ -29,6 +29,12 @@ TEMPLATE = REPO / "features" / "home" / "templates" / "check.yml"
 CALLED = f"JoshuaHayesWasHere/jstack/.github/workflows/repo-standard-check.yml@{TAG}{VERSION}"
 TOOL = ("features/repo-standard/src", "features/jmerge/src", "scripts/green_tree.py")
 SELECTED = ["tests/test_a.py", "tests/test_b.py", "tests/test_c.py"]
+SHELLS = {
+    "": ["bash", "-e", "-c"],
+    "bash": ["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c"],
+}
+"""How GitHub runs a `run:` step on Linux: with no shell named, `bash -e`, which lets a pipe hide a
+failure, and with `shell: bash`, the same with pipefail."""
 EXPRESSION = re.compile(r"\$\{\{\s*(.*?)\s*\}\}")
 TOKEN = re.compile(
     r"\s*(?:'((?:[^']|'')*)'|(==|!=|&&|\|\||!|\(|\)|\[|\]|,)|(\d+)|([A-Za-z_][\w.-]*))"
@@ -176,7 +182,7 @@ def run_job(name, repo, env, context, top=None):
         output.write_text("")
         own = {k: substitute(v, context, repo) for k, v in step.get("env", {}).items()}
         done = subprocess.run(
-            ["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", step["run"]],
+            [*SHELLS[top.get("defaults", {}).get("run", {}).get("shell", "")], step["run"]],
             cwd=repo,
             env={**base, **own, "GITHUB_OUTPUT": str(output)},
             capture_output=True,
@@ -286,12 +292,28 @@ def test_a_repo_with_no_config_runs_its_check_command_alone(caller):
     assert (repo.parent / "make.log").read_text() == "make lint it\n"
 
 
-def test_a_pin_of_no_version_fails_the_plan(caller):
+@pytest.mark.parametrize(
+    "config, step, said",
+    [
+        ("features: features\n", "standard", "pins no version"),
+        ("standard: 2\n", "standard", "pins v2, and check.yml calls the shared check at"),
+        ("standard: 1\ncheck:\n  shards: 0\n", "plan", "check.shards is not a number of parts"),
+    ],
+)
+def test_a_config_the_plan_cannot_follow_fails_it(caller, config, step, said):
     repo, env = caller
-    configure(repo, "features: features\n")
-    done = run_job("plan", repo, env, {"github": github("push"), "inputs": {}})
+    configure(repo, config)
+    done = run_job("plan", repo, {**env, "GITHUB_EVENT_NAME": "push"}, {"github": github("push")})
     assert done["result"] == "failure"
-    assert "pins no version" in done["steps"]["standard"]["said"]
+    assert said in done["steps"][step]["said"]
+
+
+def test_a_selection_of_fewer_ids_than_parts_starts_no_empty_part(caller):
+    repo, env = caller
+    configure(repo, "standard: 1\ncheck:\n  shards: 4\n", ["tests/test_a.py"])
+    said = planned(repo, env, "pull_request")
+    assert json.loads(said["shards"]) == [1]
+    assert json.loads(said["parts"]) == {"1": "tests/test_a.py"}
 
 
 def test_the_lint_runs_make_lint_and_conform_at_the_pinned_tag(caller):
@@ -398,6 +420,8 @@ PULL = {
         ),
         ("push", {**PULL, "marker": "green"}, {"lint": "success"}, "success", ["green-tree-t"]),
         ("schedule", {**PULL, "run": "false"}, {}, "success", []),
+        ("pull_request", {**PULL, "run": ""}, {}, "failure", []),
+        ("push", {**PULL, "run": "false"}, {}, "failure", []),
         ("pull_request", {"mode": "command"}, {"command": "success"}, "success", []),
         ("pull_request", {"mode": "command"}, {"command": "failure"}, "failure", []),
     ],
@@ -416,6 +440,8 @@ def test_every_job_runs_on_the_callers_runner_and_takes_the_pinned_actions():
     assert set(top["on"]["workflow_call"]["inputs"]) == {"runner", "command", "timeout-minutes"}
     assert top["permissions"] == {"contents": "read", "actions": "read"}
     assert top["env"]["REPO_STANDARD_UPSTREAM"] == UPSTREAM
+    assert top["env"]["REPO_STANDARD_VERSION"] == VERSION
+    assert top["defaults"] == {"run": {"shell": "bash"}}
     assert set(top["jobs"]) == {"plan", "lint", "test", "command", "passed"}
     for job in top["jobs"].values():
         assert job["runs-on"] == "${{ inputs.runner }}"

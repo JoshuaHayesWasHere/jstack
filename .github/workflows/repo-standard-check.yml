@@ -27,8 +27,16 @@ permissions:
   contents: read
   actions: read
 
+# bash with pipefail, so a step that pipes into tee fails when its command does.
+defaults:
+  run:
+    shell: bash
+
 env:
   REPO_STANDARD_UPSTREAM: https://github.com/JoshuaHayesWasHere/jstack
+  # The version this file is: a repo whose .repo-standard.yml pins another fails the plan, since
+  # the jobs here and the code they run come from one version.
+  REPO_STANDARD_VERSION: 1
 
 jobs:
   # What the run tests, asked once: the version the repo pins, whether a passed check of the same
@@ -55,7 +63,7 @@ jobs:
           fetch-depth: 2
       - name: standard
         id: standard
-        run: 'if [ ! -f .repo-standard.yml ]; then echo "mode=command" >> "$GITHUB_OUTPUT"; echo "no .repo-standard.yml, so the check runs the repo''s check command"; exit 0; fi; N=$(sed -n "s/^standard:[[:space:]]*\([0-9][0-9]*\)[[:space:]]*\(#.*\)\{0,1\}$/\1/p" .repo-standard.yml); [ -n "$N" ] || { echo "::error::.repo-standard.yml pins no version: give it a line standard: <N>"; exit 1; }; git clone -q --depth 1 --branch "repo-standard-v$N" "$REPO_STANDARD_UPSTREAM" "$RUNNER_TEMP/repo-standard" && printf "mode=standard\ntag=repo-standard-v%s\n" "$N" >> "$GITHUB_OUTPUT"'
+        run: 'if [ ! -f .repo-standard.yml ]; then echo "mode=command" >> "$GITHUB_OUTPUT"; echo "no .repo-standard.yml, so the check runs the repo''s check command"; exit 0; fi; N=$(sed -n "s/^standard:[[:space:]]*\([0-9][0-9]*\)[[:space:]]*\(#.*\)\{0,1\}$/\1/p" .repo-standard.yml); [ -n "$N" ] || { echo "::error::.repo-standard.yml pins no version: give it a line standard: <N>"; exit 1; }; [ "$N" = "$REPO_STANDARD_VERSION" ] || { echo "::error::.repo-standard.yml pins v$N, and check.yml calls the shared check at repo-standard-v$REPO_STANDARD_VERSION: move both to one version"; exit 1; }; git clone -q --depth 1 --branch "repo-standard-v$N" "$REPO_STANDARD_UPSTREAM" "$RUNNER_TEMP/repo-standard" && printf "mode=standard\ntag=repo-standard-v%s\n" "$N" >> "$GITHUB_OUTPUT"'
       - name: reuse
         id: reuse
         if: steps.standard.outputs.mode == 'standard' && github.event_name == 'pull_request'
@@ -169,10 +177,10 @@ jobs:
           LINT: ${{ needs.lint.result }}
           TESTS: ${{ needs.test.result }}
           COMMAND: ${{ needs.command.result }}
-        run: 'fail() { echo "::error::$1"; exit 1; }; [ "$PLAN" = success ] || fail "the plan ended $PLAN"; if [ "$MODE" = command ]; then [ "$EVENT" = schedule ] || [ "$COMMAND" = success ] || fail "the check command ended $COMMAND"; elif [ "$RUN" != true ]; then echo "check.nightly is off in .repo-standard.yml, so the nightly run tests nothing"; else [ "$LINT" = success ] || fail "the lint ended $LINT"; [ "$TESTS" = success ] || [ "$REUSED" = true ] || [ "$MARKER" = green ] || fail "the tests ended $TESTS"; fi'
+        run: 'fail() { echo "::error::$1"; exit 1; }; [ "$PLAN" = success ] || fail "the plan ended $PLAN"; if [ "$MODE" = command ]; then [ "$EVENT" = schedule ] || [ "$COMMAND" = success ] || fail "the check command ended $COMMAND"; elif [ "$RUN" = false ] && [ "$EVENT" = schedule ]; then echo "check.nightly is off in .repo-standard.yml, so the nightly run tests nothing"; elif [ "$RUN" != true ]; then fail "the plan said nothing of what to run"; else [ "$LINT" = success ] || fail "the lint ended $LINT"; [ "$TESTS" = success ] || [ "$REUSED" = true ] || [ "$MARKER" = green ] || fail "the tests ended $TESTS"; fi'
       - name: checked trees marker
         id: checked
-        if: github.event_name == 'pull_request' && needs.plan.outputs.mode == 'standard' && needs.plan.outputs.checked != '' && needs.plan.outputs.reused != 'true'
+        if: github.event_name == 'pull_request' && needs.plan.outputs.mode == 'standard' && needs.plan.outputs.run == 'true' && needs.plan.outputs.checked != '' && needs.plan.outputs.reused != 'true'
         env:
           NAME: ${{ needs.plan.outputs.checked }}
         run: mkdir -p "$RUNNER_TEMP/checked-tree" && touch "$RUNNER_TEMP/checked-tree/$NAME"

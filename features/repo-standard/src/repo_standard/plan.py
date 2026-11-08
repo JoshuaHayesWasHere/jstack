@@ -7,9 +7,10 @@ the parts the tests run in, and what each part runs.
 A run tests nothing only on a nightly schedule that the config's `check.nightly` leaves off. A
 pull request's selection is what `make select` printed: the test ids its change reaches, one a
 line, or the word `all`. Every other run, and a pull request whose selection the workflow did not
-make, tests the whole suite. The ids are dealt out to the parts in turn, in the order `make
-select` printed them, and a part they do not reach runs `none`. Where the selection is `all`,
-every part runs `all`, and the workflow runs `make test SHARD=<part>/<parts>` in each.
+make, tests the whole suite, and a selection of no id runs `none` in each part. The ids are dealt
+out to the parts in turn, in the order `make select` printed them, to no more parts than there
+are ids. Where the selection is `all`, every part runs `all`, and the workflow runs
+`make test SHARD=<part>/<parts>` in each.
 """
 
 from __future__ import annotations
@@ -55,5 +56,5 @@ def plan(check: Check, event: str, selection: tuple[str, ...] | None) -> Plan:
         return Plan(run, ALL, (ALL,) * check.shards)
     if not selection:
         return Plan(run, NONE, (NONE,) * check.shards)
-    dealt = [selection[at :: check.shards] for at in range(check.shards)]
-    return Plan(run, "some", tuple(" ".join(part) or NONE for part in dealt))
+    parts = min(check.shards, len(selection))
+    return Plan(run, "some", tuple(" ".join(selection[at::parts]) for at in range(parts)))
