@@ -234,7 +234,8 @@ With no such tool, tell the user to open a new thread in this project and type `
 On `not made:` nothing is written: tell the user what the line says. A name or a prefix that is taken needs another from them.
 For `uncategorized`, put nothing in place of `<prefix>`, and nothing in place of `<what the scope owns>` to have the plan say it owns every row no other scope claims; its directory may be there already, with jbus's files for its rows, and the block keeps them.
 
-**Reading the scopes** is the root home's too, at its start (step 5 of "When a home starts") and whenever the user asks for status or about a child: it reads the children's files and rows, and no child is asked or woken for it. In one call with the block at the top and the block that finds this home:
+**Reading the scopes** is the root home's too, at its start (step 5 of "When a home starts") and whenever the user asks for status or about a child: it reads the children's files and rows, and no child is asked or woken for it.
+In one call with the block at the top and the block that finds this home:
 
 ```sh
 if [ "${M:?run the block that finds this home first}" = "$H" ]; then
