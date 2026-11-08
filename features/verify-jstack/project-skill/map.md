@@ -138,6 +138,7 @@ Cross-cutting:
 - `features/repo-guards/tests/test_one_way.py`
 - `features/repo-guards/tests/test_playbook_wiring.py`
 - `features/repo-guards/tests/test_playbooks.py`
+- `features/repo-standard/tests/test_conform.py`
 - `features/pr-review/tests/test_pr_review_skill.py`
 - `features/principles/tests/test_principles.py`
 - `features/jinstall/tests/test_project_skills.py`
