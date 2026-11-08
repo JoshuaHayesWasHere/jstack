@@ -1,0 +1,202 @@
+# The shared check of the repo standard (features/repo-standard/docs/check-workflow.md). A repo
+# calls it from its own .github/workflows/check.yml at the tag of the version it pins, and that
+# caller's job `check` gathers it into the one check jmerge and the ruleset wait on. It takes the
+# repo-standard and jmerge code it runs from jstack at the tag `.repo-standard.yml` pins, in the
+# runner's python3, before any setup. A repo with no `.repo-standard.yml` yet runs its check
+# command alone. The file stays in the YAML subset `repo_standard.config` reads, so its test reads
+# it with the standard's own reader: no block scalar, no flow map.
+name: repo-standard check
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: The label of the runner every job runs on, such as one on the repo's own machines.
+        type: string
+        default: ubuntu-24.04
+      command:
+        description: The repo's check command, which runs alone while the repo has no .repo-standard.yml.
+        type: string
+        default: ""
+      timeout-minutes:
+        description: The cap of each part of the tests, and of the check command.
+        type: number
+        default: 30
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  REPO_STANDARD_UPSTREAM: https://github.com/JoshuaHayesWasHere/jstack
+
+jobs:
+  # What the run tests, asked once: the version the repo pins, whether a passed check of the same
+  # two trees is reused, the tree's marker, the selection `make select` prints for a pull request,
+  # and the parts it is dealt to (`repo-standard plan`). The other jobs read its outputs.
+  plan:
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 10
+    outputs:
+      mode: ${{ steps.standard.outputs.mode }}
+      tag: ${{ steps.standard.outputs.tag }}
+      run: ${{ steps.plan.outputs.run }}
+      selection: ${{ steps.plan.outputs.selection }}
+      shards: ${{ steps.plan.outputs.shards }}
+      parts: ${{ steps.plan.outputs.parts }}
+      reused: ${{ steps.reuse.outputs.reused }}
+      checked: ${{ steps.reuse.outputs.name }}
+      tree: ${{ steps.tree.outputs.name }}
+      marker: ${{ steps.green.outputs.marker }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: standard
+        id: standard
+        run: 'if [ ! -f .repo-standard.yml ]; then echo "mode=command" >> "$GITHUB_OUTPUT"; echo "no .repo-standard.yml, so the check runs the repo''s check command"; exit 0; fi; N=$(sed -n "s/^standard:[[:space:]]*\([0-9][0-9]*\)[[:space:]]*\(#.*\)\{0,1\}$/\1/p" .repo-standard.yml); [ -n "$N" ] || { echo "::error::.repo-standard.yml pins no version: give it a line standard: <N>"; exit 1; }; git clone -q --depth 1 --branch "repo-standard-v$N" "$REPO_STANDARD_UPSTREAM" "$RUNNER_TEMP/repo-standard" && printf "mode=standard\ntag=repo-standard-v%s\n" "$N" >> "$GITHUB_OUTPUT"'
+      - name: reuse
+        id: reuse
+        if: steps.standard.outputs.mode == 'standard' && github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: PYTHONPATH="$RUNNER_TEMP/repo-standard/features/jmerge/src" python3 -m jmerge.reuse
+      - name: tree
+        id: tree
+        if: steps.standard.outputs.mode == 'standard'
+        run: echo "name=green-tree-$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"
+      # A push to main and a manual run skip the suite on a tree a green run already passed. A
+      # nightly run always runs it, and a lookup that fails runs it too.
+      - name: green tree
+        id: green
+        if: steps.standard.outputs.mode == 'standard' && github.event_name != 'pull_request' && github.event_name != 'schedule'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 "$RUNNER_TEMP/repo-standard/scripts/green_tree.py"
+      - name: setup
+        if: steps.standard.outputs.mode == 'standard' && github.event_name == 'pull_request' && steps.reuse.outputs.reused != 'true' && hashFiles('.github/actions/setup/action.yml') != ''
+        uses: ./.github/actions/setup
+      - name: select
+        if: steps.standard.outputs.mode == 'standard' && github.event_name == 'pull_request' && steps.reuse.outputs.reused != 'true'
+        run: make -s select BASE=HEAD^1 > "$RUNNER_TEMP/selection.txt" && cat "$RUNNER_TEMP/selection.txt"
+      - name: plan
+        id: plan
+        if: steps.standard.outputs.mode == 'standard'
+        run: 'if [ -f "$RUNNER_TEMP/selection.txt" ]; then set -- --selection "$RUNNER_TEMP/selection.txt"; fi; PYTHONPATH="$RUNNER_TEMP/repo-standard/features/repo-standard/src" python3 -m repo_standard plan "$@" | tee -a "$GITHUB_OUTPUT"'
+  # The lint of the tree and the standard's conformance, at the version the repo pins. It needs no
+  # selection, so it runs beside the tests, on a reuse too.
+  lint:
+    needs: plan
+    if: needs.plan.outputs.mode == 'standard' && needs.plan.outputs.run == 'true'
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: setup
+        if: hashFiles('.github/actions/setup/action.yml') != ''
+        uses: ./.github/actions/setup
+      - name: make lint
+        run: make lint BASE=HEAD^1
+      - name: repo-standard conform
+        env:
+          TAG: ${{ needs.plan.outputs.tag }}
+        run: git clone -q --depth 1 --branch "$TAG" "$REPO_STANDARD_UPSTREAM" "$RUNNER_TEMP/repo-standard" && PYTHONPATH="$RUNNER_TEMP/repo-standard/features/repo-standard/src" python3 -m repo_standard conform
+  # The tests, in the parts `check.shards` sets, each with what `plan` dealt it. A reuse of a
+  # passed pair of trees, and a tree a green run already passed, run none.
+  test:
+    needs: plan
+    if: needs.plan.outputs.mode == 'standard' && needs.plan.outputs.run == 'true' && needs.plan.outputs.reused != 'true' && needs.plan.outputs.marker != 'green'
+    name: test ${{ matrix.shard }}
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: setup
+        if: hashFiles('.github/actions/setup/action.yml') != ''
+        uses: ./.github/actions/setup
+      - name: make test
+        env:
+          REPO_STANDARD_PART: ${{ fromJSON(needs.plan.outputs.parts)[format('{0}', matrix.shard)] }}
+          REPO_STANDARD_SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
+        run: 'case $REPO_STANDARD_PART in none) echo "the selection dealt this part no test";; all) if [ "${REPO_STANDARD_SHARD#*/}" = 1 ]; then make test; else make test SHARD="$REPO_STANDARD_SHARD"; fi;; *) make test TESTS="$REPO_STANDARD_PART";; esac'
+  # A repo with no .repo-standard.yml yet: its check command, alone.
+  command:
+    needs: plan
+    if: needs.plan.outputs.mode == 'command' && github.event_name != 'schedule'
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: setup
+        if: hashFiles('.github/actions/setup/action.yml') != ''
+        uses: ./.github/actions/setup
+      - name: the check command
+        env:
+          REPO_STANDARD_COMMAND: ${{ inputs.command }}
+        run: '[ -n "$REPO_STANDARD_COMMAND" ] || { echo "::error::the repo has no .repo-standard.yml and its caller gives no command"; exit 1; }; eval "$REPO_STANDARD_COMMAND"'
+  # Passes only when every job the plan asked for passed: a job that failed, was cancelled or never
+  # ran fails it, where a skipped job would count as passed. Then it leaves the markers a later run
+  # reads: the pair of trees a pull request's check passed, and the tree the whole suite passed.
+  passed:
+    if: always()
+    needs: [plan, lint, test, command]
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 5
+    steps:
+      - name: every job passed
+        env:
+          PLAN: ${{ needs.plan.result }}
+          MODE: ${{ needs.plan.outputs.mode }}
+          RUN: ${{ needs.plan.outputs.run }}
+          REUSED: ${{ needs.plan.outputs.reused }}
+          MARKER: ${{ needs.plan.outputs.marker }}
+          EVENT: ${{ github.event_name }}
+          LINT: ${{ needs.lint.result }}
+          TESTS: ${{ needs.test.result }}
+          COMMAND: ${{ needs.command.result }}
+        run: 'fail() { echo "::error::$1"; exit 1; }; [ "$PLAN" = success ] || fail "the plan ended $PLAN"; if [ "$MODE" = command ]; then [ "$EVENT" = schedule ] || [ "$COMMAND" = success ] || fail "the check command ended $COMMAND"; elif [ "$RUN" != true ]; then echo "check.nightly is off in .repo-standard.yml, so the nightly run tests nothing"; else [ "$LINT" = success ] || fail "the lint ended $LINT"; [ "$TESTS" = success ] || [ "$REUSED" = true ] || [ "$MARKER" = green ] || fail "the tests ended $TESTS"; fi'
+      - name: checked trees marker
+        id: checked
+        if: github.event_name == 'pull_request' && needs.plan.outputs.mode == 'standard' && needs.plan.outputs.checked != '' && needs.plan.outputs.reused != 'true'
+        env:
+          NAME: ${{ needs.plan.outputs.checked }}
+        run: mkdir -p "$RUNNER_TEMP/checked-tree" && touch "$RUNNER_TEMP/checked-tree/$NAME"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.checked.outcome == 'success'
+        continue-on-error: true
+        with:
+          name: ${{ needs.plan.outputs.checked }}
+          path: ${{ runner.temp }}/checked-tree/${{ needs.plan.outputs.checked }}
+          retention-days: 7
+          if-no-files-found: error
+      # A marker says the whole suite passed on the tree: main's run, a nightly run, or a pull
+      # request whose selection was `all`. A deploy entry refuses a tree with none.
+      - name: green tree marker
+        id: marker
+        if: needs.plan.outputs.mode == 'standard' && needs.plan.outputs.run == 'true' && needs.plan.outputs.tree != '' && needs.plan.outputs.reused != 'true' && (github.event_name != 'pull_request' || needs.plan.outputs.selection == 'all')
+        env:
+          NAME: ${{ needs.plan.outputs.tree }}
+        run: mkdir -p "$RUNNER_TEMP/green-tree" && touch "$RUNNER_TEMP/green-tree/$NAME"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.marker.outcome == 'success'
+        continue-on-error: true
+        with:
+          name: ${{ needs.plan.outputs.tree }}
+          path: ${{ runner.temp }}/green-tree/${{ needs.plan.outputs.tree }}
+          retention-days: 7
+          if-no-files-found: error

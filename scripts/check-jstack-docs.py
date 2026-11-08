@@ -70,6 +70,7 @@ EXTERNAL = {
 # Paths that start at a folder of `ROOTS` and are no path of this tree, each with the reason.
 ELSEWHERE = {
     "scripts/deploy": "another repo's deploy command, an example of a door in the-queue.md",
+    ".github/actions/setup/action.yml": "a caller repo's setup action, the shared check runs it",
 }
 PROSE_SLASH = re.compile(r"(?<![\w/.~<>$-])/([a-z][a-z0-9-]*)(?![\w/-]|\.\w)")
 NAMED_SKILL = re.compile(r"`([a-z][a-z0-9-]*)` skills?\b|\bskills? `([a-z][a-z0-9-]*)`")
