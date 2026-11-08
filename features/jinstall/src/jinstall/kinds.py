@@ -989,6 +989,52 @@ def split(
     return on, off
 
 
+def stale(machine: Machine, always: tuple[str, ...]) -> list[str]:
+    """Each service of `always` that is running and started before ~/.local/bin/jbus last
+    changed, as an install or a move of the green copy changes it: it runs the jbus it
+    loaded, which is old code. A service that is not running, or whose start systemd does
+    not give, is not stale, since `try-restart` would start nothing."""
+    try:
+        changed = datetime.fromtimestamp(
+            (machine.home / ".local" / "bin" / "jbus").stat().st_mtime, UTC
+        )
+    except OSError:
+        return []
+    stale = []
+    for name in always:
+        if not name.endswith(".service"):
+            continue
+        ran = machine.systemctl(
+            "show",
+            "--property=ActiveState",
+            "--property=ActiveEnterTimestamp",
+            "--timestamp=us+utc",
+            name,
+        )
+        said = dict(
+            line.split("=", 1) for line in (ran.out if ran else "").splitlines() if "=" in line
+        )
+        try:
+            started = datetime.strptime(
+                said.get("ActiveEnterTimestamp", ""), "%a %Y-%m-%d %H:%M:%S.%f UTC"
+            ).replace(tzinfo=UTC)
+        except ValueError:
+            continue
+        if said.get("ActiveState") == "active" and started < changed:
+            stale.append(name)
+    return stale
+
+
+def restart(machine: Machine, always: tuple[str, ...]) -> None:
+    """Restart each service of `always` that `stale` names. A second call finds each started
+    after ~/.local/bin/jbus changed, and restarts nothing."""
+    for name in stale(machine, always):
+        ran = machine.systemctl("try-restart", name)
+        if ran is not None and ran.code != 0:
+            said = ran.out.strip().splitlines()
+            raise Refused(f"systemctl --user try-restart {name}: {said[-1] if said else ran.code}")
+
+
 @dataclass(frozen=True)
 class Units:
     """The jbus units. For each of `names` (every unit `templates(machine)` finds), the
@@ -1101,41 +1147,6 @@ class Units:
         ran = machine.systemctl("is-enabled", name)
         return ran is not None and ran.out.strip() == "enabled"
 
-    def _stale(self, machine: Machine) -> list[str]:
-        """Each service of `always` that is running and started before ~/.local/bin/jbus last
-        changed, as an install or a move of the green copy changes it: it runs the jbus it
-        loaded, which is old code. A service that is not running, or whose start systemd does
-        not give, is not stale, since `try-restart` would start nothing."""
-        try:
-            changed = datetime.fromtimestamp(
-                (machine.home / ".local" / "bin" / "jbus").stat().st_mtime, UTC
-            )
-        except OSError:
-            return []
-        stale = []
-        for name in self.always:
-            if not name.endswith(".service"):
-                continue
-            ran = machine.systemctl(
-                "show",
-                "--property=ActiveState",
-                "--property=ActiveEnterTimestamp",
-                "--timestamp=us+utc",
-                name,
-            )
-            said = dict(
-                line.split("=", 1) for line in (ran.out if ran else "").splitlines() if "=" in line
-            )
-            try:
-                started = datetime.strptime(
-                    said.get("ActiveEnterTimestamp", ""), "%a %Y-%m-%d %H:%M:%S.%f UTC"
-                ).replace(tzinfo=UTC)
-            except ValueError:
-                continue
-            if said.get("ActiveState") == "active" and started < changed:
-                stale.append(name)
-        return stale
-
     def due(self, machine: Machine) -> bool:
         return self.config.is_file() or bool(self._ours(machine))
 
@@ -1183,7 +1194,7 @@ class Units:
         reload = machine.systemctl("show", "--property", "NeedDaemonReload", "--value", *self.names)
         if reload is not None and "yes" in reload.out.split():
             return Found.old("needs daemon-reload")
-        for name in self._stale(machine):
+        for name in stale(machine, self.always):
             jbus = machine.home / ".local" / "bin" / "jbus"
             return Found.old(f"{name} started before {jbus} changed, so it runs old code")
         return Found.ok()
@@ -1211,8 +1222,8 @@ class Units:
                 path.rename(backup)
                 kept.append(f"{name} was not the install's: kept as {backup}")
             machine.link(path, self._template(machine, name))
-        restart = self._view_is_due()
-        if restart:
+        view_due = self._view_is_due()
+        if view_due:
             drop_in, wanted = self.directory / VIEW_DROP_IN, self._view()
             if wanted:
                 machine.write_text(drop_in, wanted)
@@ -1221,16 +1232,10 @@ class Units:
         self._systemctl(machine, "daemon-reload")
         for name in on:
             self._systemctl(machine, "enable", "--now", name)
-        if restart:
+        if view_due:
             self._systemctl(machine, "try-restart", "jbus-view.service")
-        self.restart(machine)
+        restart(machine, self.always)
         return "\n".join(kept) or None
-
-    def restart(self, machine: Machine) -> None:
-        """Restart each running service of `always` that started before ~/.local/bin/jbus last
-        changed. A second call finds each started after, and restarts nothing."""
-        for name in self._stale(machine):
-            self._systemctl(machine, "try-restart", name)
 
     def drop(self, machine: Machine) -> Dropped:
         ours = self._ours(machine)

@@ -21,7 +21,7 @@ from pathlib import Path
 import jbus
 from jbus import green as copies
 from jinstall.harnesses import HARNESSES
-from jinstall.kinds import Carried, Found, GoneLink, HookGroup, RetiredHook, State, Units
+from jinstall.kinds import Carried, Found, GoneLink, HookGroup, RetiredHook, State, restart
 from jinstall.layout import UNREADABLE, Layout, folder
 from jinstall.machine import Dropped, Machine, Moved, Refused
 from jmerge import mainjson
@@ -102,9 +102,9 @@ def relink(copy: Path) -> list[str]:
     an entry for a dropped script would run a file that is gone on every call. A Claude home
     other than ~/.claude reads its skills through ~/.claude/skills (`HomeSkills`), so it needs
     nothing more. The move installed the tool again, so it also restarts each always-on service
-    that still runs the jbus of before (`Units.restart`), as the install does. Return why each
-    layout or need it could not put was not put, one line each."""
-    from jinstall.needs import needs
+    that still runs the jbus of before (`jinstall.kinds.restart`), as the install does. Return
+    why each layout or need it could not put was not put, one line each."""
+    from jinstall.needs import ALWAYS, needs
 
     machine = replace(Machine.here(copies.of(copy)), green=copy)
     faults, put = [], []
@@ -117,18 +117,15 @@ def relink(copy: Path) -> list[str]:
             put.append(harness)
         except (Refused, *UNREADABLE) as why:
             faults.append(f"layout {harness.name}: {why}")
-    listed = needs(machine)
-    for need in listed:
-        if isinstance(need.kind, Units) and need.kind.due(machine):
-            try:
-                need.kind.restart(machine)
-            except Refused as why:
-                faults.append(f"{need.name}: {why}")
+    try:
+        restart(machine, ALWAYS)
+    except Refused as why:
+        faults.append(f"units: {why}")
     if not put:
         return faults
     roots = {machine.home / harness.root for harness in put}
     names = {harness.name for harness in put}
-    for need in listed:
+    for need in needs(machine):
         kind = need.kind
         if not isinstance(kind, Carried) or not (
             need.fold in {f"skills {name}" for name in names}
