@@ -503,7 +503,7 @@ def test_the_tick_runs_only_while_a_pass_saw_a_check_going_and_starts_within_2_s
     said = kitchen.poll()
     assert json.loads((kitchen.state / tick.PENDING).read_text()) == []
     assert timer(kitchen) == "inactive"
-    assert "tick: no pull request has checks going, so jbus-merge.timer stops" in said
+    assert "tick: the tick watches no pull request, so jbus-merge.timer stops" in said
     kitchen.poll()
     assert [call for call in switched(kitchen) if "is-active" not in call] == [
         "--user stop jbus-merge.timer"
@@ -545,7 +545,7 @@ def test_a_pass_whose_stop_the_manager_refuses_says_so_and_the_next_pass_stops_i
     assert "tick: systemctl --user stop jbus-merge.timer failed: Failed to connect to bus" in said
     assert timer(manager) == "active"
     (manager.stub / "refused.txt").unlink()
-    assert "tick: no pull request has checks going, so jbus-merge.timer stops" in manager.poll()
+    assert "tick: the tick watches no pull request, so jbus-merge.timer stops" in manager.poll()
     assert timer(manager) == "inactive"
 
 

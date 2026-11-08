@@ -39,7 +39,7 @@ The tick runs only while some project's `checks-pending.json` names a pull reque
 The pass is that file's only writer, and each pass sets the timer from every project's file as it finds them (the step `tick.timer`): it starts `jbus-merge.timer` while one names a pull request and stops it while all are `[]`, so no tick starts while no row's pull request is open and no check is going, and a stopped timer costs nothing.
 A check the pass first sees going gets its first tick within 2 seconds of that pass, by the timer's `OnActiveSec=2s`.
 The pass acts on the timer that `jbus.service` names in `JBUS_TICK_TIMER`, so a pass that a test, a sandbox or you start by hand leaves the machine's timer as it is.
-The install enables the timer, so a boot or an install starts it, and the first pass after stops it again where no check is going.
+The install enables the timer, so a boot or an install starts it, and the first pass after stops it again where no row's pull request is open and no check is going.
 A pass that starts or stops it says so in its log, `tick: ... so jbus-merge.timer runs` or `... stops`.
 A tick asks GitHub nothing while that file is `[]` in every project.
 Otherwise it reads the heads: for each pull request in it, it asks for the check runs at its head as it is now, the jobs of its workflow runs, by the pull request's ref (`commits/pull/<number>/head/check-runs`), with the ETag it kept, which GitHub answers with a 304 that spends no API allowance until a job at that head changes or a push moves the head.
