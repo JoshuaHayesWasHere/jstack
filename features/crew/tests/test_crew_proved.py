@@ -40,9 +40,11 @@ exit 124."""
 UV = f"""#!/bin/bash
 case " $* " in
 *" jgauge test-slot "*)
+    limit=$FULL_LIMIT
+    case " $* " in *" --short "*) limit=$LIMIT ;; esac
     while [ "$1" != -- ]; do shift; done
     shift
-    if [ -n "$LIMIT" ]; then exec {sys.executable} -c {shlex.quote(TIMEOUT)} "$LIMIT" "$@"; fi
+    if [ -n "$limit" ]; then exec {sys.executable} -c {shlex.quote(TIMEOUT)} "$limit" "$@"; fi
     exec "$@"
     ;;
 *" sync "*) exit 0 ;;
@@ -64,8 +66,8 @@ case " $* " in
 esac
 exit 64
 """
-"""`uv` as the block calls it. A test-slot run is stopped at `LIMIT` seconds, exit 124, as the
-short lane stops one at its limit; each pytest run takes `SLOW` seconds more, and `NO_XDIST`
+"""`uv` as the block calls it. A short test-slot run is stopped at `LIMIT` seconds, exit 124, as
+the short lane stops one at its limit, and a full one at `FULL_LIMIT` seconds; each pytest run takes `SLOW` seconds more, and `NO_XDIST`
 stands for a repo whose venv has no pytest-xdist."""
 BUGGY = "def add(a, b):\n    return a - b\n"
 FIXED = "def add(a, b):\n    return a + b\n"
@@ -355,11 +357,26 @@ def test_a_slow_test_file_is_proved_where_the_head_and_the_base_each_fit_the_lan
     assert line == proved.Proved(("tests/test_calc.py",), 1, base, 0, head)
 
 
-def test_a_run_that_hits_the_lanes_time_limit_leaves_no_copy_of_the_base(repo):
-    """A slot's run cut at the lane's limit ends 124, and the block goes on to print no proof:
-    the copy of the base it made goes with it, as after a pass or a failure."""
+def test_a_side_the_short_lane_stops_is_proved_alone_in_a_full_slot(repo):
+    """A head run of browser page tests took 226 s, and the short lane stopped it at its 120 s
+    four times, so its branch could never be proved: a side that ends 124 in the short lane runs
+    again alone in a full slot, as the check block's steps do, and the `Proved:` line is that
+    run's."""
+    base = git(repo, "rev-parse", "HEAD")
+    head = commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
+    said, line = proof(repo, LIMIT="1", SLOW="3")
+    assert "head: stopped at the short lane's limit, no verdict: it runs again alone in a full slot" in said
+    assert "head exit 0: 2 passed" in said
+    assert "base exit 1: 1 failed, 1 passed" in said
+    assert line == proved.Proved(("tests/test_calc.py",), 1, base, 0, head)
+
+
+def test_a_run_that_hits_a_full_slots_limit_too_leaves_no_copy_of_the_base(repo):
+    """A slot's run that ends 124 in the full slot as well reaches no verdict, and the block
+    goes on to print no proof: the copy of the base it made goes with it, as after a pass or a
+    failure."""
     commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
-    said, line = proof(repo, LIMIT="1", SLOW="5")
+    said, line = proof(repo, LIMIT="1", FULL_LIMIT="1", SLOW="5")
     assert "no proof: the slot's run ended 124" in said
     assert line is None
 

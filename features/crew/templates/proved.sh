@@ -45,18 +45,22 @@ else
     : > "$tree/.proof-said"
     for side in $sides; do
         if [ "$side" = head ]; then at=$PWD more=; else at=$tree more=--continue-on-collection-errors; fi
-        PROOF_AT=$at PROOF_MORE=$more PROOF_SIDE=$side PROOF_OUT=$tree/.proof-$side PROOF_TESTS=$list uv run --project "$T/../source" jgauge test-slot --short --thread "$thread" -- bash -c '
-            cd "$PROOF_AT" || exit
-            workers=
-            if env -u VIRTUAL_ENV uv run python -c "import xdist" > /dev/null 2>&1; then workers="-n auto --dist worksteal"; fi
-            env -u VIRTUAL_ENV uv run pytest -q -p no:cacheprovider $workers $PROOF_MORE $PROOF_TESTS > "$PROOF_OUT" 2>&1
-            echo "$PROOF_SIDE exit $?: $(tail -n 1 "$PROOF_OUT")"
-        ' | tee -a "$tree/.proof-said"
-        ran=${PIPESTATUS[0]}
+        for lane in --short ''; do
+            PROOF_AT=$at PROOF_MORE=$more PROOF_SIDE=$side PROOF_OUT=$tree/.proof-$side PROOF_TESTS=$list uv run --project "$T/../source" jgauge test-slot $lane --thread "$thread" -- bash -c '
+                cd "$PROOF_AT" || exit
+                workers=
+                if env -u VIRTUAL_ENV uv run python -c "import xdist" > /dev/null 2>&1; then workers="-n auto --dist worksteal"; fi
+                env -u VIRTUAL_ENV uv run pytest -q -p no:cacheprovider $workers $PROOF_MORE $PROOF_TESTS > "$PROOF_OUT" 2>&1
+                echo "$PROOF_SIDE exit $?: $(tail -n 1 "$PROOF_OUT")"
+            ' | tee -a "$tree/.proof-said"
+            ran=${PIPESTATUS[0]}
+            [ "$ran" = 124 ] && [ -n "$lane" ] || break
+            echo "$side: stopped at the short lane's limit, no verdict: it runs again alone in a full slot"
+        done
         [ "$ran" = 0 ] || break
     done
-    at_head=$(sed -n 's/^head exit \([0-9]*\):.*/\1/p' "$tree/.proof-said")
-    at_base=$(sed -n 's/^base exit \([0-9]*\):.*/\1/p' "$tree/.proof-said")
+    at_head=$(sed -n 's/^head exit \([0-9]*\):.*/\1/p' "$tree/.proof-said" | tail -n 1)
+    at_base=$(sed -n 's/^base exit \([0-9]*\):.*/\1/p' "$tree/.proof-said" | tail -n 1)
     line=
     if [ "$ran" != 0 ] || [ -z "$at_head" ] || { [ -z "$only" ] && [ -z "$at_base" ]; }; then
         echo "no proof: the slot's run ended $ran"
