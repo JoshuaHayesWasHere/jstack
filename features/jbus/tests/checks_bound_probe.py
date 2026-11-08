@@ -11,7 +11,8 @@ started it. It keeps a process whose parent still runs, such as one in the user'
 So a thread that leaves the probe running starts it from the main checkout, with every path
 argument and the output outside any worktree and /tmp:
 
-    cd <the main checkout> && setsid -f uv run python features/jbus/tests/checks_bound_probe.py \
+    mkdir -p ~/.local/state/checks-bound-probe && cd <the main checkout> &&
+        setsid -f uv run python features/jbus/tests/checks_bound_probe.py \
         --repo owner/name --pr 123 --work ~/.local/state/jbus/<project>/work.json \
         > ~/.local/state/checks-bound-probe/probe.log 2>&1
 
