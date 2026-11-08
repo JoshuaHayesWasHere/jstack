@@ -340,3 +340,43 @@ def test_a_move_of_a_copy_no_layout_links_puts_nothing(tmp_path, monkeypatch):
     assert copies.make(REPO, copy, head(REPO)) == ""
     assert green.relink(copy) == []
     assert sorted(path.name for path in home.iterdir()) == []
+
+
+def test_a_move_restarts_a_follower_of_the_jbus_before_it_and_says_when_systemd_refuses(
+    tmp_path, monkeypatch
+):
+    """The move installed the tool again, so a follower that started before ~/.local/bin/jbus
+    changed is restarted, and a restart systemd refuses is a fault the move raises."""
+    home = tmp_path / "home"
+    jbus = home / ".local" / "bin" / "jbus"
+    jbus.parent.mkdir(parents=True)
+    jbus.write_text("#!/bin/sh\n")
+    stub, log = tmp_path / "stub", tmp_path / "systemctl.log"
+    stub.mkdir()
+    (stub / "systemctl").write_text(
+        f"""#!/bin/sh
+echo "$*" >> '{log}'
+case "$2" in
+show-environment) echo "HOME={home}" ;;
+show) echo ActiveState=active; echo "ActiveEnterTimestamp=Wed 2020-01-01 00:00:00.000000 UTC" ;;
+try-restart)
+  [ -e '{tmp_path}/refuse' ] || exit 0
+  echo "Failed to restart $3: Access denied"
+  exit 1 ;;
+esac
+"""
+    )
+    (stub / "systemctl").chmod(0o755)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("PATH", f"{stub}:{os.environ['PATH']}")
+    for name in [one for one in os.environ if one.startswith("XDG_")]:
+        monkeypatch.delenv(name)
+    copy = tmp_path / "green"
+    assert copies.make(REPO, copy, head(REPO)) == ""
+    assert green.relink(copy) == []
+    assert "--user try-restart jbus-follow.service" in log.read_text().splitlines()
+    (tmp_path / "refuse").touch()
+    assert green.relink(copy) == [
+        "units: systemctl --user try-restart jbus-follow.service: "
+        "Failed to restart jbus-follow.service: Access denied"
+    ]

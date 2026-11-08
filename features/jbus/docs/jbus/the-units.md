@@ -1,6 +1,6 @@
 # The units
 
-On Linux and WSL2, `jinstall` links each systemd unit of `features/jbus/units/` into `~/.config/systemd/user/`, reloads systemd, and enables the timers that run jbus.
+On Linux and WSL2, `jinstall` links each systemd unit of `features/jbus/units/` into `~/.config/systemd/user/`, reloads systemd, and enables the timers that run jbus and the follower, `jbus-follow.service`.
 On macOS it makes one launchd agent from each unit that systemd would enable, as `~/Library/LaunchAgents/jstack.<unit stem>.plist`, and it logs each agent to `~/Library/Logs/jstack/jstack.<unit stem>.log`.
 In a release the links point into the tool's own copy, `<tool venv>/share/jstack/features/jbus/units/`, and in a checkout they point into the checkout.
 Each unit runs `~/.local/bin/jbus`.
@@ -8,7 +8,8 @@ Where the checkout has a green copy (`jbus.green`), the links point through it, 
 The links do not change on a move: the copy's path stays the same and names whichever tree is green, so the install sets each link up once.
 systemd judges a unit loaded through a link by the file behind it, and each green tip is a tree of its own, `green.d/<sha>`, whose files are all new, so after any move every unit would show `NeedDaemonReload=yes` and "changed on disk" in `systemctl --user cat`, even where its content is the same.
 So a move runs `systemctl --user daemon-reload` wherever `~/.config/systemd/user` links a unit into the tree it leaves, or the tip changed, added or dropped a unit file, then `systemctl --user try-restart` on each timer whose content the tip changed, and the pass's log names them: `green <project>: systemd reloaded <units>, and restarted <timers>`, or `systemd reloaded the units of <sha>` where no unit's content changed.
-A timer that was not running stays stopped, a timer whose content is the same keeps its schedule, and a service is not restarted: its next start runs the new file.
+A timer that was not running stays stopped, a timer whose content is the same keeps its schedule, and a service is not restarted by the reload: its next start runs the new file.
+The follower, which runs until it is stopped, is restarted once the move has installed the tool again, as an install restarts it, when it started before `~/.local/bin/jbus` changed.
 The move writes the reload it owes systemd in the project's `green.json` before it points the copy, and clears it only once systemctl took every call.
 A reload systemctl refuses raises a condition, and each later pass tries it again, with no new green tip, until it holds, so neither a refusal nor a pass that died before its reload leaves systemd on the old units or a unit owing a reload.
 On macOS a move reloads no agent.
@@ -22,6 +23,7 @@ On macOS a move reloads no agent.
 | `jbus-snapshot.timer`, `jbus-snapshot.service` | `jbus snapshot` | At 08:30 and 17:30 local time | Once the homes' state tree has a remote and gitleaks is on the machine |
 | `jbus-ci.timer`, `jbus-ci.service` | `jbus ci --report --each` | Mondays at 09:00 in the machine's zone | Once a project says `ci_report = true` |
 | `jbus-ci-day.timer`, `jbus-ci-day.service` | `jbus ci --day --each` | Every day at 06:45 in the machine's zone | Once a project says `ci_report = true` |
+| `jbus-follow.service` | `jbus follow` | Always on, restarted on a failure | Always; on macOS a launchd agent kept alive |
 | `jbus-relay.service` | `jbus relay` | Always on, restarted on a failure | Once `~/.config/jbus-relay/env` holds every key the relay needs |
 | `jbus-view.service` | `jbus view` | Always on | Never: on Linux `systemctl --user enable --now jbus-view.service` starts it, and on macOS the view gets no agent, so you run `jbus view` yourself |
 
@@ -68,7 +70,8 @@ A thread's state has a writer too: `jbus follow` follows T3 Code's events and re
 T3 Code takes jbus's sign-in only at its MCP endpoint, which pushes nothing, so the follower reads the events where T3 Code keeps them, the table `orchestration_events` of `$T3CODE_HOME/userdata/statev2.sqlite`, read only, woken by inotify on Linux and every quarter second elsewhere.
 A turn that ends with nothing written it leaves for the pass, which alone tells whether the row is lost or waits on jbus.
 So a thread's turn reaches `work.json` within milliseconds of T3 Code's event: `features/jbus/tests/thread_live_probe.py` times it.
-No unit runs `jbus follow` yet: run it yourself, and the pass judges a thread's state as before while it does not run.
+`jbus-follow.service` runs it on every machine, and while it does not run, as before the install starts it, the pass judges a thread's state as before.
+`systemctl --user status jbus-follow.service` says whether it runs, and `journalctl --user -u jbus-follow.service` shows the store it follows and each time it lost its stream; on macOS its log is `~/Library/Logs/jstack/jstack.jbus-follow.log`.
 The pass still judges every row from all it saw and writes the whole file.
 It keeps a pull request's step that a tick's run restated after the pass's own run of `jmerge` ended, since that run judged later; each run marks what it restated with the time it ended.
 It keeps a thread's state that the follower restated from an event after the pass began, since T3 Code may have answered the pass before that event; the follower marks each line with the time of its event.
