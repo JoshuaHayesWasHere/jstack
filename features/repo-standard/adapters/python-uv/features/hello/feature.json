@@ -1,0 +1,6 @@
+{
+  "$schema": "../../schemas/feature.core.schema.json",
+  "name": "hello",
+  "description": "An example feature: a package, its test and its page, to rename or delete.",
+  "docs": ["docs/hello.md"]
+}

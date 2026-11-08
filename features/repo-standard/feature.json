@@ -9,7 +9,8 @@
     "docs/standard.md",
     "docs/repo-standard.md",
     "docs/guards.md",
-    "docs/check-workflow.md"
+    "docs/check-workflow.md",
+    "docs/skeleton.md"
   ],
   "commands": {
     "repo-standard": "repo_standard.cli:main"

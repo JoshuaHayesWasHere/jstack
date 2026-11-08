@@ -1,0 +1,10 @@
+# The step every job of the shared check runs before a make target: uv, which runs the lint and
+# the tests from uv.lock.
+name: setup
+description: Install uv.
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      with:
+        version: "0.13.2"

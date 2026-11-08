@@ -1,0 +1,31 @@
+# A change across two features needs the label `cross-cutting`, so a label added or taken off
+# runs the borders guard again: check.yml's triggers leave those two events out. It is a workflow
+# of its own, since a label event in check.yml's concurrency group would cancel a running check.
+name: borders
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: borders-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  borders:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      # The labels reach the shell through the environment, never spliced into the script. On
+      # GitHub's merge of the pull request, HEAD^1 is the tip of the base.
+      - name: borders
+        env:
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: make borders BASE=HEAD^1
