@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/JoshuaHayesWasHere/jstack/blob/main/schemas/feature.core.schema.json",
+  "title": "feature manifest, core",
+  "description": "features/<name>/feature.json in any repo: the keys every feature has, whatever the repo's stack. A repo with keys of its own writes an extension that takes these by $ref, as schemas/feature.schema.json does for jstack.",
+  "type": "object",
+  "required": ["name", "description"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "description": "The path from the manifest to the schema it holds to.",
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "description": "The feature's folder under features/.",
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
+    },
+    "description": {
+      "description": "One sentence: what the feature does.",
+      "type": "string",
+      "minLength": 1
+    },
+    "docs": {
+      "description": "Each page of the feature; the first is the one the README links.",
+      "type": "array",
+      "items": {"type": "string", "pattern": "^docs/[a-z0-9/-]+\\.md$"}
+    }
+  }
+}
