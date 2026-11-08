@@ -14,8 +14,10 @@ import jbus
 from jbus import clock, prereview
 from jgauge import slot, waiters
 from jroles import ledger
+from repo_template import IDENTITY
 from test_jbus_kitchen import NOW
 from test_jbus_queue import add, rows
+from test_jbus_stack_move import signed
 
 DESK = "make check-fast BASE=" + "e" * 40 + " PART=touched"
 
@@ -113,11 +115,60 @@ def test_a_crew_whose_desk_proof_holds_gets_its_review_launched_by_jbus_with_no_
 def test_a_crew_whose_desk_proof_does_not_hold_at_a_pushed_head_gets_no_review(
     kitchen, ran, push, why
 ):
-    proved_crew(kitchen, ran=ran, push=push)
-    for minutes in (0, 3):
+    thread, _, head = proved_crew(kitchen, ran=ran, push=push)
+    for minutes in (0, 3, 6):
         kitchen.poll(NOW + timedelta(minutes=minutes))
     assert reviewers(kitchen) == []
     assert kitchen.lines("condition") == [f"condition alpha: {why}"]
+    (told,) = refused(kitchen, thread)
+    assert told["clientRequestId"] == f"prereview-refused|alpha|{head[:12]}"
+    assert why in told["message"], told["message"]
+
+
+def refused(kitchen, thread):
+    """What jbus sent the crew of a review it would not launch."""
+    return [
+        one
+        for one in sends(kitchen)
+        if one["threadId"] == thread["threadId"]
+        and one["clientRequestId"].startswith("prereview-refused|")
+    ]
+
+
+def test_a_refused_crew_that_fixes_its_proof_and_writes_a_follow_up_result_gets_its_review(
+    kitchen,
+):
+    """The crew told that its desk proof does not hold at its pushed head reruns it, and writes a
+    follow-up Result that still says its pull request opens after the review. That Result waits
+    on the review as the first did: the row is not ended, and jbus launches the reviewer."""
+    thread, path, head = proved_crew(kitchen, ran=1)
+    kitchen.poll()
+    assert len(refused(kitchen, thread)) == 1
+    again = proof(head).replace("## Result\n", "## Result, follow-up (2026-11-08, proof)\n", 1)
+    path.write_text(path.read_text() + again)
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert [one["title"] for one in reviewers(kitchen)] == ["review: alpha, 1"]
+    assert rows(kitchen)["alpha"]["status"] not in ("done", "left")
+    assert not thread.get("settled")
+
+
+@pytest.mark.parametrize("ran", [0, 1], ids=["its proof holds", "its proof does not hold"])
+def test_a_crew_whose_result_leaves_something_still_waits_on_its_review(kitchen, ran):
+    """A Result that opens its pull request after the review and whose `Left:` line names work
+    for after the merge owes its review all the same: its row is not `left` while the review is
+    due, running, or refused and told to the crew."""
+    thread, path, head = proved_crew(kitchen, ran=ran)
+    text = path.read_text()
+    path.write_text(text.replace("Left: none\n", "Left: after the merge, a row for the index\n"))
+    for minutes in (0, 3, 30):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+        assert rows(kitchen)["alpha"]["status"] not in ("done", "left")
+    assert not thread.get("settled")
+    if ran:
+        assert reviewers(kitchen) == []
+        assert len(refused(kitchen, thread)) == 1
+    else:
+        assert [one["title"] for one in reviewers(kitchen)] == ["review: alpha, 1"]
 
 
 def test_a_brief_that_asks_for_no_review_gets_no_reviewer_before_its_pull_request(kitchen):
@@ -257,11 +308,13 @@ def test_a_role_map_that_gives_the_review_no_model_launches_one_reviewer_that_in
 
 
 def test_a_crew_thread_t3_code_names_no_worktree_for_gets_no_reviewer(kitchen):
-    thread, _, _ = proved_crew(kitchen)
+    thread, _, head = proved_crew(kitchen)
     del thread["worktreePath"]
     kitchen.poll()
     assert reviewers(kitchen) == []
     assert kitchen.lines("condition") == [f"condition alpha: {prereview.NO_TREE}"]
+    (told,) = refused(kitchen, thread)
+    assert told["clientRequestId"] == f"prereview-refused|alpha|{head[:12]}"
 
 
 def test_a_review_launch_t3_code_refuses_is_a_condition_once_and_is_not_tried_again(kitchen):
@@ -326,3 +379,111 @@ def test_a_crew_stacked_on_a_row_that_merged_gets_its_review_on_the_branch_it_me
         text=True,
     )
     assert fetched.returncode == 0, fetched.stderr
+
+
+def test_a_crew_stacked_on_a_row_that_squash_merged_is_reviewed_on_its_own_commits(
+    kitchen, monkeypatch
+):
+    """A link before its pull request, stacked on a row whose pull request squash-merged: main
+    holds a new commit with the base's tree, and none of the base's own commits. jbus moves the
+    link's own commits onto main before its review, so the diff the review reads and the
+    `Proved:` line answers to hold the link's change alone, not the base's code."""
+    signed(monkeypatch)
+    add(kitchen, "alpha")
+    kitchen.poll(NOW - timedelta(minutes=3))
+    (thread,) = kitchen.t3.threads
+    base = kitchen.root / "worktrees" / "base"
+    kitchen.git("worktree", "add", "-q", "-b", "base", str(base), "main")
+    (base / "src").mkdir(exist_ok=True)
+    (base / "src" / "base.py").write_text("VALUE = 1\n")
+    kitchen.git("add", "src/base.py", cwd=base)
+    kitchen.git("commit", "-q", "-m", "feat: the base", cwd=base)
+    last = head_of(kitchen, base)
+    tree = kitchen.root / "worktrees" / "alpha"
+    kitchen.git("worktree", "add", "-q", "-b", "alpha", str(tree), "base")
+    (tree / "docs").mkdir(exist_ok=True)
+    (tree / "docs" / "notes.md").write_text("the task\n")
+    kitchen.git("add", "docs/notes.md", cwd=tree)
+    kitchen.git("commit", "-q", "-m", "docs: the task", cwd=tree)
+    kitchen.git("push", "-q", "origin", "alpha:refs/heads/alpha", cwd=tree)
+    head = head_of(kitchen, tree)
+    squash = kitchen.started(
+        [
+            "git",
+            *IDENTITY,
+            "commit-tree",
+            f"{last}^{{tree}}",
+            "-p",
+            "main",
+            "-m",
+            "feat: the base (#10)",
+        ],
+        cwd=kitchen.checkout,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    kitchen.git("push", "-q", "origin", f"{squash}:refs/heads/main")
+    merged = {**kitchen.merged("base", 10, squash), "headRefOid": last, "baseRefName": "main"}
+    kitchen.set("merged.json", [merged])
+    thread.update(status="completed", latestRunId="run-1", worktreePath=str(tree))
+    kitchen.t3.at_work.discard(thread["threadId"])
+    path = kitchen.home / "tasks" / "alpha.md"
+    first, _, rest = path.read_text().partition("\n")
+    after = "Pull request: after the review\n"
+    result = proof(head).replace(after, f"{after}Stacked on: base base\n", 1)
+    path.write_text(f"{first}\nStacked on: base base\n{rest}{result}")
+    kitchen.poll()
+    moved = kitchen.started(
+        ["git", "ls-remote", "origin", "refs/heads/alpha"],
+        cwd=kitchen.checkout,
+        capture_output=True,
+        text=True,
+    ).stdout.split()[0]
+    again = proof(moved).replace("## Result\n", "## Result, follow-up (2026-11-08, moved)\n", 1)
+    path.write_text(path.read_text() + again)
+    kitchen.poll(NOW + timedelta(minutes=3))
+    kitchen.git("fetch", "-q", "origin")
+    own = kitchen.started(
+        ["git", "diff", "--name-only", "origin/main...origin/alpha"],
+        cwd=kitchen.checkout,
+        capture_output=True,
+        text=True,
+    ).stdout.split()
+    assert own == ["docs/notes.md"]
+    assert [one["title"] for one in reviewers(kitchen)] == ["review: alpha, 1"]
+
+
+def head_of(kitchen, tree):
+    return kitchen.started(
+        ["git", "rev-parse", "HEAD"], cwd=tree, capture_output=True, text=True
+    ).stdout.strip()
+
+
+@pytest.mark.parametrize("fault", ["refused", "no answer", "held"])
+def test_a_refusal_t3_code_does_not_take_is_a_gate_or_is_sent_on_a_later_pass(kitchen, fault):
+    """The message that a review was not launched goes through the outbox as `prereviewed` does:
+    one T3 Code refuses is a gate, and one with no answer, or held while the crew waits on a test
+    slot, is not marked, so a later pass sends it once."""
+    thread, _, head = proved_crew(kitchen, ran=1)
+    if fault == "refused":
+        kitchen.t3.refuse_send = True
+    elif fault == "no answer":
+        kitchen.t3.lose_send = True
+    else:
+        command = ["uv", "run", "pytest", "tests/test_alpha.py"]
+        lane = slot.short()
+        waiters.register(slot.locks_dir(), thread["threadId"], "short", lane.slots, command, NOW)
+    kitchen.poll()
+    key = f"prereview-refused|alpha|{head[:12]}"
+    assert key not in jbus.read_json(kitchen.state / "sent.json", [])
+    if fault == "refused":
+        what = "condition alpha: T3 Code refused the message that its review was not launched"
+        assert what in kitchen.lines("condition")
+        return
+    kitchen.t3.lose_send = False
+    if fault == "held":
+        waiters.drop(slot.locks_dir(), thread["threadId"])
+    for minutes in (3, 6):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    assert [one["clientRequestId"] for one in refused(kitchen, thread)][-1:] == [key]
+    assert key in jbus.read_json(kitchen.state / "sent.json", [])

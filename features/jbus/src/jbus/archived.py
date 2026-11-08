@@ -1,9 +1,11 @@
-"""Find the launched threads that T3 Code's list leaves out: archived, missing, or not yet listed.
+"""Find the threads of rows that T3 Code's list leaves out: archived, missing, or not yet listed.
 
-`t3_thread_list` lists the threads that are not archived, and cannot list the rest. So when
-a home archives a finished thread to tidy up, a pass no longer reads that thread, though the
-thread still belongs to its row. `ask` reads each launched thread that is not in the list by
-its id, with `t3_thread_read`, which also answers for an archived thread:
+`t3_thread_list` lists the threads that are not archived, and cannot list the rest. So when a
+pass or a home archives a finished thread, a pass no longer reads that thread, though the thread
+still belongs to its row. A row's thread is the one jbus launched for it, or else the one its
+`thread` column has, since `jbus.threads.settle` archives a finished row's thread whoever launched
+it. `ask` reads each row's thread that is not in the list by its id, with `t3_thread_read`, which
+also answers for an archived thread:
 
 - archived: the thread is the row's, put away like a settled one (`World.archived`);
 - not found: T3 Code has no such thread (`World.missing`);
@@ -37,7 +39,7 @@ def ask(run: Pass, client: Client, world: World, rows: list[queue.Row]) -> None:
     before = dict(kept)
     for row in rows:
         slug = row["slug"]
-        thread = dispatch.launched(run, slug)
+        thread = dispatch.launched(run, slug) or row.get("thread") or ""
         if not thread or slug in run.removed or slug in world.threads or slug in world.settled:
             continue
         if thread not in kept:

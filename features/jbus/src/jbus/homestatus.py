@@ -17,8 +17,9 @@ With `--gates` it prints instead what the blocks of the home skill's "Gates" rea
 open questions, one to a line, their fields joined by `SEP`.
 
 `--home` is the home's directory: the repo's state directory for the root home, or a scope's
-directory inside it. A question, a row or a merge is the home's by the brief or the request of its
-slug, by the one rule of `jbriefs.home`. `--no-jbus` says that jbus is not installed on the
+directory inside it. A row or a merge is the home's by the brief of its slug, by the rule of
+`jbriefs.home`, and a question is the home's by its slug, by the one rule `jbus needs --home`
+reads items by too (`jbus.needs.home_of`). `--no-jbus` says that jbus is not installed on the
 machine, which the skill checks, since `uv run` puts this command on PATH whether it is or not.
 """
 
@@ -60,30 +61,10 @@ class Home:
     def scope(self) -> str:
         return "" if self.mine == self.state else self.mine.name
 
-    @property
-    def own(self) -> str:
-        """The slug the home asks its own questions under."""
-        return f"home-{self.scope}" if self.scope else "home"
-
     def keeps(self, kind: str, slug: str) -> bool:
         """Whether the brief (`tasks`) or the request (`scouts`) of `slug` is this home's."""
         brief = self.state / kind / f"{slug}.md"
         return home.home_of(self.state, _text(brief)) == self.mine
-
-    def asked(self, slug: str) -> bool:
-        """Whether a question asked under `slug` is this home's: one under its own slug, or one
-        whose brief or request is its. A question no brief, no request and no home asked is the
-        root home's."""
-        if slug == self.own:
-            return True
-        if slug == "home" or (
-            slug.startswith("home-") and (self.state / slug[5:] / "plan.md").is_file()
-        ):
-            return False
-        for kind in ("tasks", "scouts"):
-            if (self.state / kind / f"{slug}.md").is_file():
-                return self.keeps(kind, slug)
-        return self.mine == self.state
 
 
 def _text(file: Path) -> str:
@@ -142,7 +123,11 @@ def bus(here: Home, installed: bool) -> Bus:
     except questions.Unparsable:
         why = f"jbus could not be read: {questions.path(state)} is not the record jbus writes"
         return Bus(project, config, why, ())
-    mine = (one for one in kept if one.answer is None and here.asked(one.slug))
+    mine = (
+        one
+        for one in kept
+        if one.answer is None and needs.home_of(state, here.state, one.slug) == here.mine
+    )
     return Bus(project, config, "", tuple(mine))
 
 

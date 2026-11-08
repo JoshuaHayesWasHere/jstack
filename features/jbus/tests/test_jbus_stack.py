@@ -244,7 +244,8 @@ def test_a_restack_before_the_pull_request_moves_both_lines_once_its_base_merged
     assert head_line(stacked) == stacks.Stacked("one", "main", MERGE)
     assert result_line(path) == [f"Stacked on: one main at {MERGE} https://example.test/pull/10"]
     assert "restack two: moved its Stacked on: line onto main, one merged" in said
-    assert edits(stacked) == [] and asks(stacked) == []
+    restacks = [one for one in asks(stacked) if not one["clientRequestId"].startswith("prereview-")]
+    assert edits(stacked) == [] and restacks == []
 
 
 def test_a_restack_before_the_pull_request_waits_while_its_base_is_open(stacked):

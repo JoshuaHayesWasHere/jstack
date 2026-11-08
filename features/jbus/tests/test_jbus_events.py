@@ -230,6 +230,7 @@ TABLE = {
     "refailed": "quiet",
     "prereview": "quiet",
     "prereviewed": "quiet",
+    "prereview-refused": "quiet",
     "resume": "quiet",
     "slot-wake": "quiet",
     "slot-end": "quiet",

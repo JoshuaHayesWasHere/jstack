@@ -27,15 +27,41 @@ An action item is a call or step only the user can take, such as a product choic
 
 One call can cover many items, such as each PR in a set awaiting merge. For each item, collect its link, what it changes for users, the evidence behind your pick, its risk, and your pick. Write "unknown" for a fact the call needs that you do not know. Leave out a link you do not have.
 
-Where jbus runs, it holds the one list of what waits on the user, across every project, and this prints it:
+Where jbus runs, it holds the one list of what waits on the user.
+In a home, the catch-up names only that home's items: a scoped home's own, and a root home's own with every scope's under it, and never another project's.
+Outside a home it names every project's.
+This prints it, with this thread's id in place of `<threadId>` (T3 Code's `t3_thread_configure` with no arguments gives it as `threadId`):
 
 ```sh
-if command -v jbus > /dev/null && said=$(jbus needs 2> /dev/null); then
+if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
+ME='<threadId>'
+R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir 2> /dev/null)")")
+H=~/.local/state/home/$R
+M=
+case $ME in
+'' | *'<'* | *'>'*) ;;
+*)
+    for f in "$H"/home-id "$H"/*/home-id; do
+        if [ -f "$f" ] && [ "$(awk 'NF {print $(1); exit}' "$f")" = "$ME" ]; then
+            M=$(dirname "$f")
+            break
+        fi
+    done ;;
+esac
+P=$R
+if ! command -v jbus > /dev/null; then
+    echo "no list: jbus is not installed or set up here, so what waits on the user is not known"
+elif [ -n "$M" ] && said=$(jbus --project "$P" needs --home "$M" 2> /dev/null); then
+    printf '%s\n' "$said"
+elif [ -z "$M" ] && said=$(jbus needs 2> /dev/null); then
     printf '%s\n' "$said"
 else
     echo "no list: jbus is not installed or set up here, so what waits on the user is not known"
 fi
 ```
+
+`$M` is this home's directory, found by the `home-id` that holds this thread's id, and empty outside a home.
+`$P` is the home's project, which jbus names after the repo.
 
 In a home, the reply opens with what it printed, as it printed it: each item, what it holds and the reply that answers it.
 Each item is an action item too, with its reply as the way to answer it.

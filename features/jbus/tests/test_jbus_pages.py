@@ -12,6 +12,8 @@ import jbus
 from jbus import pages, wake
 from testing.paths import REPO
 
+READ_SET = ("features/jbus/src/jbus/",)
+
 
 @pytest.fixture
 def tree(tmp_path, monkeypatch):

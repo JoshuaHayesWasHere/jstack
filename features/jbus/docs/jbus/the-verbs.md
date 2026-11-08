@@ -11,6 +11,7 @@ Without it, these verbs act on the project whose repo they are run in (`jbus vie
 - `jbus done`
 - `jbus gate`
 - `jbus link`
+- `jbus needs`
 - `jbus out`
 - `jbus plan`
 - `jbus view-shot`
@@ -111,7 +112,6 @@ These verbs take no project of their own, and read none, every project, or the o
 - `jbus health`
 - `jbus home`
 - `jbus kpis`
-- `jbus needs`
 - `jbus playbook`
 - `jbus poll`
 - `jbus project`
