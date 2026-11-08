@@ -512,6 +512,10 @@ The old slug goes into `removed.json` with `why: renamed to <new>`, so no `add` 
 jbus writes the renamed brief and the table before it retires the old slug, so a rename cut short leaves the row under its new slug with its go.
 It refuses a row that launched, a row whose slug another row names in its depends, merge_after, entry or go, a new slug that is taken or was removed, and a new slug that is not a slug.
 
+If `removed.json` does not parse, jbus treats it as it treats a `queue.json` that does not parse.
+jbus refuses every `queue` verb until you mend the file, and a pass records `condition <project>: removed.json does not parse`.
+Such a pass cannot tell which slugs were removed, so it launches nothing, reads no brief, acts on no thread or pull request except through `jmerge`, and leaves `waiting-on-user.json` as it was.
+
 ## A row moves to another home
 
 `jbus queue move <slug> --home <scope>` gives a row to the home of another scope, with its go, at any status but merged or done: a row the root holds, or one in `uncategorized`, goes to the child home that owns its work.
@@ -528,7 +532,3 @@ A move cut short between its two writes finishes when it is run again.
 
 It refuses the root as the target, by `root` or by the root's thread id, as `refused: root is the root home, and a row moves only to a child home: name one of its scopes`.
 It refuses a name that is no scope as `add` refuses that `Home:` line, ending `: nothing is moved`, and a row that merged or is done, as `refused: <slug> is merged, and a row that is over stays`.
-
-If `removed.json` does not parse, jbus treats it as it treats a `queue.json` that does not parse.
-jbus refuses every `queue` verb until you mend the file, and a pass records `condition <project>: removed.json does not parse`.
-Such a pass cannot tell which slugs were removed, so it launches nothing, reads no brief, acts on no thread or pull request except through `jmerge`, and leaves `waiting-on-user.json` as it was.
