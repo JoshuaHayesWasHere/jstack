@@ -1639,15 +1639,15 @@ def test_a_part_fails_soon_when_reuse_ended_with_no_selection(tmp_path):
 def test_every_part_restores_one_tlc_cache_by_the_spec_files_and_saves_what_it_added(job):
     """The cache of TLC's output (statechart's `kept`) is one for every part, since a test's part
     changes with the selection: its keys name no part. It is restored right before the suite,
-    the latest of the same spec files first, else the latest of any, and saved after it under a
-    key `tlc kept` gives. The files its key hashes are every file a kept run reads from the repo,
+    where only a part of the check's wait for its selection comes between them, the latest of
+    the same spec files first, else the latest of any, and saved after it under a key `tlc kept`
+    gives. The files its key hashes are every file a kept run reads from the repo,
     TLC's pinned jar in statechart's tools.py among them, so a change to any of them misses. The
     save's key starts with the very key the restore looked for, hashed once before the suite: the
     suite writes `__pycache__` under the hashed paths, so a hash taken after it names an entry no
     later run's key finds."""
     text = CHECK.read_text()
     found, _ = steps(text, job)
-    # A part of the check waits for its selection between the restore and its tests.
     found = [step for step in found if step.get("name") not in ("selection", "part")]
     names = [
         step.get("uses", step.get("name", step.get("run"))).partition("@")[0] for step in found
