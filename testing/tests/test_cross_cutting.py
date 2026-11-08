@@ -41,17 +41,17 @@ class Reader:
     """The reads of the real tree in one module's source."""
 
     def __init__(self, source):
-        self.tree = ast.parse(source)
+        self.nodes = list(ast.walk(ast.parse(source)))
         self.bound = {}
         functions = {
             node.name: node.args
-            for node in ast.walk(self.tree)
+            for node in self.nodes
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
         }
-        for node in ast.walk(self.tree):
+        for node in self.nodes:
             for name, value in bindings(node) + given(node, functions):
                 self.bound.setdefault(name, []).append(value)
-        self.keyed = {id(node.value) for node in ast.walk(self.tree) if is_key(node)}
+        self.keyed = {id(node.value) for node in self.nodes if is_key(node)}
         self.looked_up = self.lookups()
         self.seen = set()
 
@@ -60,10 +60,10 @@ class Reader:
         or put in a name that is only ever indexed."""
         found = set(self.keyed)
         loads = {}
-        for one in ast.walk(self.tree):
+        for one in self.nodes:
             if isinstance(one, ast.Name) and isinstance(one.ctx, ast.Load):
                 loads.setdefault(one.id, []).append(one)
-        for node in ast.walk(self.tree):
+        for node in self.nodes:
             if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call):
                 (target, *more) = node.targets
                 if more or not isinstance(target, ast.Name):
@@ -109,7 +109,7 @@ class Reader:
         """Each read of the real tree, as its source."""
         return [
             ast.unparse(node)
-            for node in ast.walk(self.tree)
+            for node in self.nodes
             if isinstance(node, ast.Call) and self.reads_tree(node)
         ]
 
