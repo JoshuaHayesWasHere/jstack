@@ -225,3 +225,19 @@ def test_a_directory_that_is_no_home_of_the_project_is_refused(kitchen, tmp_path
     kitchen.poll()
     code, said = kitchen.main("--project", "demo", "needs", "--home", str(tmp_path))
     assert code != 0 and f"refused: {tmp_path} is no home of demo" in said
+
+
+def test_a_gate_a_scope_asked_as_its_home_is_that_scopes(kitchen):
+    """A gate in a scope's `gates.md` whose `Asked by:` is `home` is the scope's (`jbus.needs`),
+    not the root's, though the root home lists it with its scopes'."""
+    sc = scoped(kitchen, "sc")
+    asked = GATE.format(n=1, asked="drop the old rows?", status="open", slug="home")
+    (sc / "gates.md").write_text(asked.replace("Option:", "Holds: deletes data\nOption:", 1))
+    kitchen.poll()
+    gated = "demo gate 1: drop the old rows"
+    assert needs(kitchen, "--project", "demo", home=sc)[1].startswith(gated)
+    assert needs(kitchen, "--project", "demo", home=kitchen.home)[1].startswith(gated)
+    alone = scoped(kitchen, "sd")
+    assert needs(kitchen, "--project", "demo", home=alone) == [
+        "nothing waits on user in demo's sd home"
+    ]
