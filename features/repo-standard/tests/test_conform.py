@@ -451,6 +451,12 @@ def test_python_m_repo_standard_runs_the_command(repo):
     )
 
 
+def no_owners(repo):
+    config = repo / ".repo-standard.yml"
+    text = config.read_text()
+    config.write_text(text[: text.index("owners:")] + text[text.index("generators:") :])
+
+
 def deploys_nothing(repo):
     """`deploy: []` says the repo deploys nothing, so no file need enforce a deploy's refusal."""
     rule = "every-deploy-entry-refuses-a-tree-that-is-not-green-main"
@@ -496,6 +502,16 @@ def one_feature_only(repo):
             lambda r: edit(r / ".repo-standard.yml", "[scripts/prose.py]", "[scripts/gone.py]"),
             "error new-prose-has-one-sentence-per-line: enforced-by: scripts/gone.py is not a file "
             "git tracks",
+        ),
+        (
+            lambda r: edit(
+                r / ".repo-standard.yml", "layout: [features/, schemas/, scripts/, .github/]\n", ""
+            ),
+            "error every-file-has-a-place: the config sets no `layout`",
+        ),
+        (
+            no_owners,
+            "error every-path-has-one-owner: the config sets no `owners`",
         ),
         (deploys_nothing, "conform repo-standard-v1, 34 rules: errors 0, warnings 0, waived 0"),
         (one_feature_only, "conform repo-standard-v1, 34 rules: errors 0, warnings 0, waived 0"),
