@@ -451,6 +451,13 @@ def test_python_m_repo_standard_runs_the_command(repo):
     )
 
 
+def deploys_nothing(repo):
+    """`deploy: []` says the repo deploys nothing, so no file need enforce a deploy's refusal."""
+    rule = "every-deploy-entry-refuses-a-tree-that-is-not-green-main"
+    edit(repo / ".repo-standard.yml", "deploy: [make deploy]", "deploy: []")
+    edit(repo / ".repo-standard.yml", f"  {rule}: [{ENFORCED[rule]}]\n", "")
+
+
 def one_feature_only(repo):
     shutil.rmtree(repo / "features" / "beta")
     edit(
@@ -490,6 +497,7 @@ def one_feature_only(repo):
             "error new-prose-has-one-sentence-per-line: enforced-by: scripts/gone.py is not a file "
             "git tracks",
         ),
+        (deploys_nothing, "conform repo-standard-v1, 34 rules: errors 0, warnings 0, waived 0"),
         (one_feature_only, "conform repo-standard-v1, 34 rules: errors 0, warnings 0, waived 0"),
     ],
 )

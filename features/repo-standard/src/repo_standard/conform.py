@@ -57,7 +57,8 @@ def _version(repo: Repo) -> list[str]:
 
 
 def _deploy_refuses(repo: Repo) -> list[str]:
-    rules.deploys(repo)
+    if not rules.deploys(repo):
+        return []
     return enforcer("every-deploy-entry-refuses-a-tree-that-is-not-green-main")(repo)
 
 
