@@ -6,18 +6,21 @@ runs it once a pass, which is a minute or more apart. `jbus-merge.timer` runs a 
 while the last pass saw a row's pull request open or a check going, and the pass stops it while it
 saw neither (`_timer`). A tick asks GitHub nothing unless the last pass saw an open pull request
 that a row's line names, or another whose checks were still going (`PENDING`, written by the pass's
-step `tick.pending`). For each such pull request it asks GitHub for the check runs at its head as it
-is now, by the pull request's ref and not by the sha the pass saw, which are the jobs of its
-workflow runs (`CHECK_RUNS`), with the ETag it kept (`SEEN`). GitHub answers 304, which spends none
+step `tick.pending`). It asks GitHub for the check runs at the head of every such pull request at
+once, at most `proc.GH_CAP` at a time, so one more pending pull request adds no wait to the
+others' reads. It asks for each head as it is now, by the pull request's ref and not by the sha
+the pass saw, which are the jobs of its workflow runs (`CHECK_RUNS`), with the ETag it kept
+(`SEEN`). GitHub answers 304, which spends none
 of the API allowance, until a job at that head changes or a push moves the head. So a head pushed
 after the pass's read reaches the next tick at no call of its own, and a head a newer push
 superseded is no longer read. A check suite the tick has not seen yet costs one read of the head's
 workflow runs (`RUNS_AT`), for the workflow each job belongs to.
 
-On a 200 the tick restates, from that answer, the line of `work.json` of the pull request on the
-check step (`_verdict`, `jbus.restated.checked`): failed, with the reason `jmerge` gives a failed
-check, as soon as any job of a required check's workflow run failed, such as one shard of eight
-while the other seven still run; or passed, for `jmerge` to judge next, once the required check's
+On a 200 the tick restates, from that answer and as soon as it lands, not after the project's
+other reads, the line of `work.json` of the pull request on the check step (`_verdict`,
+`jbus.restated.checked`): failed, with the reason `jmerge` gives a failed check, as soon as any
+job of a required check's workflow run failed, such as one shard of eight while the other seven
+still run; or passed, for `jmerge` to judge next, once the required check's
 own job passed. A required job GitHub does not list yet, as `check` while the shards it needs
 run, is still going. It does so before it runs `jmerge`, and also where `jmerge` is busy and does
 not run, so the line changes in the milliseconds after GitHub lists the job, not after the whole
@@ -248,49 +251,62 @@ Wanted = dict[str, tuple[str, list[Any]]]
 """By a pull request's number, the head and its verdict that a run of `jmerge` is to run for."""
 
 
-def _read(run: passes.Pass) -> Wanted:
-    """Ask GitHub for the check runs at the head of each pending pull request as it is now, with
-    the ETag the tick kept, restate the line of each pull request whose head's required checks
-    failed or ended (`restated.checked`), and keep what the tick read of each (`SEEN`). Return,
-    by number, the head and its verdict where the verdict is new since `jmerge` last ran to its
-    end for that head, so that `jmerge` is to run. A verdict is kept with the ETag it was read
-    under, so a 304 to the next read still says it."""
+def _reads(run: passes.Pass) -> Wanted:
+    """Ask GitHub for the check runs at the head of every pending pull request at once, as it is
+    now, each with the ETag the tick kept, at most `proc.GH_CAP` at a time, and keep what the
+    tick read of each (`SEEN`). Each pull request's line is restated as soon as its own answer
+    lands (`_read`), not after the other reads. Return, by number, the head and its verdict where
+    the verdict is new since `jmerge` last ran to its end for that head, so that `jmerge` is to
+    run. A verdict is kept with the ETag it was read under, so a 304 to the next read still says
+    it. `SEEN` has one writer, this function once every read landed; the lines of `work.json`
+    each read writes are kept apart by `work.LOCK`."""
     kept = _pulls(run.state)
     names = cancelled.required(run)
-    pulls, said = {}, {}
-    for number, seen in restated.pending(run.state).items():
-        key = str(number)
-        found = kept.get(key)
-        was: dict[str, Any] = found if isinstance(found, dict) else {}
-        pulls[key] = was
-        asked = _asked(run, CHECK_RUNS % number, str(was.get("etag", "")))
-        if asked is None:
-            continue
-        etag, given = asked
-        jobs = [job for job in given.get("check_runs") or [] if isinstance(job, dict)]
-        head = next((str(job["head_sha"]) for job in jobs if job.get("head_sha")), seen)
-        jobs = [job for job in jobs if job.get("head_sha", head) == head]
-        same = was if was.get("head") == head else {}
-        suites = _suites(run, head, jobs, same.get("suites") or {})
-        verdict = _verdict(names, jobs, suites)
-        pulls[key] = {
-            "etag": etag,
-            "head": head,
-            "suites": suites,
-            "verdict": None if verdict is None else list(verdict),
-            "ran": same.get("ran"),
-        }
-        if verdict is not None and verdict[0]:
-            said[number] = (*verdict, head)
-    at = restated.moment(verbs.clock())
-    for key in restated.checked(run.state, said, at):
-        run.say(f"tick {run.project.name}: a check ended, and {key}'s line says so")
+    pending = list(restated.pending(run.state).items())
+    pulls = {}
+    if pending:
+        with futures.ThreadPoolExecutor(max_workers=min(proc.GH_CAP, len(pending))) as pool:
+            read = pool.map(
+                lambda one: _read(run, names, one[0], one[1], kept.get(str(one[0]))), pending
+            )
+            pulls = {str(number): one for (number, _), one in zip(pending, read, strict=True)}
     if pulls != kept:
         store.write_json(run.state / SEEN, {"pulls": pulls})
     return {
         key: (one["head"], one["verdict"])
         for key, one in pulls.items()
         if one.get("verdict") is not None and one["verdict"] != one.get("ran")
+    }
+
+
+def _read(
+    run: passes.Pass, names: tuple[str, ...], number: int, seen: str, found: Any
+) -> dict[str, Any]:
+    """Read the check runs at pull request `number`'s head with the ETag the tick kept (`found`),
+    restate its line at once where its required checks failed or ended (`restated.checked`), and
+    return what the tick keeps of it. A read GitHub answered 304, or did not answer, keeps what
+    the tick had."""
+    was: dict[str, Any] = found if isinstance(found, dict) else {}
+    asked = _asked(run, CHECK_RUNS % number, str(was.get("etag", "")))
+    if asked is None:
+        return was
+    etag, given = asked
+    jobs = [job for job in given.get("check_runs") or [] if isinstance(job, dict)]
+    head = next((str(job["head_sha"]) for job in jobs if job.get("head_sha")), seen)
+    jobs = [job for job in jobs if job.get("head_sha", head) == head]
+    same = was if was.get("head") == head else {}
+    suites = _suites(run, head, jobs, same.get("suites") or {})
+    verdict = _verdict(names, jobs, suites)
+    if verdict is not None and verdict[0]:
+        at = restated.moment(verbs.clock())
+        for key in restated.checked(run.state, {number: (*verdict, head)}, at):
+            run.say(f"tick {run.project.name}: a check ended, and {key}'s line says so")
+    return {
+        "etag": etag,
+        "head": head,
+        "suites": suites,
+        "verdict": None if verdict is None else list(verdict),
+        "ran": same.get("ran"),
     }
 
 
@@ -350,7 +366,7 @@ def tick(config: jbus.Config, say=print) -> int:
         try:
             for project in watched:
                 run = passes.Pass(config, project, verbs.clock(), say)
-                wanted = _read(run)
+                wanted = _reads(run)
                 if wanted:
                     read = {int(key): head for key, (head, _) in wanted.items()}
                     going[pool.submit(merge.tick, run, read)] = (run, wanted)
@@ -366,7 +382,7 @@ def tick(config: jbus.Config, say=print) -> int:
                 if going and time.monotonic() >= due:
                     if _asks(config, say):
                         for project in _watched(config):
-                            _read(passes.Pass(config, project, verbs.clock(), say))
+                            _reads(passes.Pass(config, project, verbs.clock(), say))
                     due = time.monotonic() + EVERY
         except Exception:
             for one in futures.as_completed(going):
