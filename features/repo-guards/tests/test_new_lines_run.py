@@ -210,7 +210,7 @@ def unread(
     once a test file that names its module ran in a part, since that file would have run it."""
     ran = {name for one in parts.glob("tests.*") for name in one.read_text().split()}
     found = {path: set(numbers) for path, numbers in lines.items()}
-    for one in parts.glob("data.*"):
+    for one in parts.glob("data*"):
         data = coverage.CoverageData(basename=str(one))
         data.read()
         for name in data.measured_files():
