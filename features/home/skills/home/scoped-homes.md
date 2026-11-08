@@ -45,9 +45,10 @@ Nothing else reaches the root, and never by a `t3_thread_send` of this home's ow
 `features/home/hooks/agent-sends.sh` refuses a home's own `t3_thread_send` to any home of this repo or of another repo, or to a crew of another home's brief, and its line names the jbus verb that carries the message instead.
 
 **Answering a stop** is the root home's, and a stop is always a one-way door, so the root investigates, then advises.
-It scouts first if it needs facts, adds its recommendation to the scope's gate for that door, and answers the stop.
+It scouts first if it needs facts, then answers the stop with its recommendation; the scope's home adds that recommendation to its own gate, the one it parked for the door.
+The root writes nothing into a scope's files: the gate is the scope's, and the answer is the only thing the root sends it.
 The root never opens or refuses the door: the user alone does, with their own answer to the gate.
-jbus's message names the scope, the row and the door; answer it once, in the same call as the block that finds this home and the block that reads jbus:
+jbus's message names the scope, the row and the door; answer it once, with the recommendation as the answer, in the same call as the block that finds this home and the block that reads jbus:
 
 ```sh
 : "${ME:?run the block that finds this home first}" "${P:?run the block that reads jbus first}"

@@ -94,7 +94,9 @@ def test_a_stop_on_another_homes_open_row_goes_to_the_root_once(kitchen):
     assert sent(kitchen) == [(ROOT, "stop")]
     (text,) = texts(kitchen)
     assert "stopped at a one-way door, touches prod or real users" in text
-    assert "add your recommendation to the flow home's gate" in text
+    assert "answer the stop with your recommendation" in text
+    assert "which adds it to its own gate for the door" in text
+    assert "The root writes nothing into the flow home's files" in text
     assert "fl-mine is held by fix-root, the root home's row" in text
     assert "the train is red on a root fix" in text
     assert "jbus stop answer flow fl-mine" in text
