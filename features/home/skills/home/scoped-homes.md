@@ -39,15 +39,17 @@ jbus takes that stop too, and counts it per scope in the digest, since no row ba
 On `stopped:` jbus has sent the stop to the root home's thread, read as it sends, or keeps it until a root home runs, and sends nothing more for it.
 On `refused:` nothing is sent: the home clears what the line names itself, or it is no stop.
 A stop whose own row merges or is removed closes itself, with no message.
+On the root's answer, which jbus carries here, add it to this home's own gate for the door as the root's recommendation: the user alone opens or refuses the door.
 
 A `decision` the scope cannot make alone, one the user must make, is no stop: park it as a gate (`jbus gate`, "Gates"), which jbus takes to the user.
 Nothing else reaches the root, and never by a `t3_thread_send` of this home's own.
 `features/home/hooks/agent-sends.sh` refuses a home's own `t3_thread_send` to any home of this repo or of another repo, or to a crew of another home's brief, and its line names the jbus verb that carries the message instead.
 
 **Answering a stop** is the root home's, and a stop is always a one-way door, so the root investigates, then advises.
-It scouts first if it needs facts, adds its recommendation to the scope's gate for that door, and answers the stop.
+It scouts first if it needs facts, then answers the stop with its recommendation; the scope's home adds that recommendation to its own gate, the one it parked for the door.
+The root writes nothing into a scope's files: the gate is the scope's, and the answer is the only thing the root sends it.
 The root never opens or refuses the door: the user alone does, with their own answer to the gate.
-jbus's message names the scope, the row and the door; answer it once, in the same call as the block that finds this home and the block that reads jbus:
+jbus's message names the scope, the row and the door; answer it once, with the recommendation as the answer, in the same call as the block that finds this home and the block that reads jbus:
 
 ```sh
 : "${ME:?run the block that finds this home first}" "${P:?run the block that reads jbus first}"

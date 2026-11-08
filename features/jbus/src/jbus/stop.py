@@ -5,8 +5,9 @@ A stop carries a one-way door and nothing else: `--holds` names one case of
 `features/home/templates/gates.md` word for word (`party.CASES`). A stop with no `--holds`, or
 with a case the table does not have, is refused, and the refusal tells the home to tell the user
 directly from its own thread: a scoped home's own decisions are the user's and its, never the
-root's. On a door stop the root scouts if it needs facts, adds its recommendation to the home's
-gate, and answers the stop; the user alone opens or refuses the door.
+root's. On a door stop the root scouts if it needs facts and answers the stop with its
+recommendation, which the home adds to the gate it parked for the door; the root writes nothing
+into a scope's files, and the user alone opens or refuses the door.
 
 Being stuck is a fact of the queue, so jbus checks it and reads no words. A stop names the scope's
 own row and what holds it: `--on` another home's open row, by its slug or its pull request's `#<n>`,
@@ -73,13 +74,17 @@ ENDED = {**{status: status for status in queue.FINAL}, "removed": "removed"}
 ASKS = (
     "jbus: the {scope} home is stopped at a one-way door, {holds}. Its row {row} is held by "
     "{held}, and it cannot clear that itself. What the root must clear: {what}\n\n"
-    "Scout if you need facts, add your recommendation to the {scope} home's gate, and answer the "
-    "stop: the user alone opens or refuses the door. "
-    'Answer it once, with `jbus stop answer {scope} {row} "<your answer>" --from <this home\'s '
-    "id>`, and jbus carries the answer to the {scope} home. A stop whose row merges or is removed "
-    "closes itself."
+    "Scout if you need facts, then answer the stop with your recommendation, once, with "
+    '`jbus stop answer {scope} {row} "<your recommendation>" --from <this home\'s id>`: jbus '
+    "carries it to the {scope} home, which adds it to its own gate for the door. The root writes "
+    "nothing into the {scope} home's files, and the user alone opens or refuses the door. A stop "
+    "whose row merges or is removed closes itself."
 )
-ANSWERS = "jbus: the root home's answer to the {scope} home's stop on {row}: {answer}"
+ANSWERS = (
+    "jbus: the root home's answer to the {scope} home's stop on {row}: {answer}\n\n"
+    "Add it, as the root's recommendation, to your own gate for the door: the user alone opens or "
+    "refuses the door."
+)
 DIRECT = (
     "a stop carries only a one-way door, --holds '<case>' with a case of "
     "features/home/templates/gates.md ({cases}): anything else, tell the user directly from this "

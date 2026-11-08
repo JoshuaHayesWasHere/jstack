@@ -94,7 +94,9 @@ def test_a_stop_on_another_homes_open_row_goes_to_the_root_once(kitchen):
     assert sent(kitchen) == [(ROOT, "stop")]
     (text,) = texts(kitchen)
     assert "stopped at a one-way door, touches prod or real users" in text
-    assert "add your recommendation to the flow home's gate" in text
+    assert "answer the stop with your recommendation" in text
+    assert "which adds it to its own gate for the door" in text
+    assert "The root writes nothing into the flow home's files" in text
     assert "fl-mine is held by fix-root, the root home's row" in text
     assert "the train is red on a root fix" in text
     assert "jbus stop answer flow fl-mine" in text
@@ -240,7 +242,9 @@ def test_an_answer_reaches_the_scope_once_and_closes_the_stop(kitchen):
         f"answered: stop|flow|fl-mine|fix-root, closed, the answer sent to {FLOW}\n",
     )
     assert sent(kitchen) == [(ROOT, "stop"), (FLOW, "stop-answer")]
-    assert texts(kitchen)[1].endswith("on fl-mine: rebase on main once fix-root merges")
+    answer = texts(kitchen)[1]
+    assert "on fl-mine: rebase on main once fix-root merges" in answer
+    assert "as the root's recommendation, to your own gate for the door" in answer
     kitchen.poll()
     assert sent(kitchen) == [(ROOT, "stop"), (FLOW, "stop-answer")]
     code, said = answers(kitchen, "again")
