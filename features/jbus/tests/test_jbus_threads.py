@@ -9,6 +9,7 @@ from datetime import timedelta
 
 import pytest
 
+import jbus
 from jbus import questions, queue, t3
 from jbus.passes import Pass
 from test_jbus_kitchen import FIXTURE, GATE, NOW, PROJECT, RESULT, queued, review, settles
@@ -434,3 +435,159 @@ def test_the_review_thread_of_a_merged_or_closed_pull_request_is_archived_and_an
     ]
     for kept in [t for t in kitchen.t3.threads if t["title"] in ("review: delta", "review: eta")]:
         assert kept["settled"] is False and "archived" not in kept
+
+
+def wake(thread, run, status="running"):
+    """What T3 Code does to a thread when a message starts a run on it: the run is its latest, and
+    the thread is unsettled."""
+    thread.update(latestRunId=run, status=status, settled=False)
+
+
+def test_a_settled_thread_a_send_woke_is_settled_again_once_its_run_ends(kitchen):
+    """A finished slug's thread that a gate answer or a reload woke is settled again on the first
+    pass after its new run ends. The user's own unsettle, with no run since, still holds."""
+    kitchen.brief("alpha", RESULT)
+    a_follower(kitchen)
+    crew = kitchen.t3.thread("alpha", "completed", latestRunId="run-1")
+    kitchen.poll()
+    assert crew["settled"] and len(settles(kitchen)) == 1
+    wake(crew, "run-2")
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert not crew["settled"] and len(settles(kitchen)) == 1
+    crew["status"] = "completed"
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert crew["settled"] and len(settles(kitchen)) == 2
+    crew["settled"] = False
+    kitchen.poll(NOW + timedelta(minutes=9))
+    assert not crew["settled"] and len(settles(kitchen)) == 2
+
+
+def test_an_unarchived_thread_is_archived_again_only_after_a_new_run(kitchen):
+    kitchen.brief("alpha", RESULT)
+    crew = kitchen.t3.thread("alpha", "completed", latestRunId="run-1")
+    kitchen.poll()
+    crew["archived"] = False
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert crew["archived"] is False
+    wake(crew, "run-2", "completed")
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert crew["archived"] and put_away(kitchen) == ["crew: alpha", "crew: alpha"]
+
+
+def test_a_scout_whose_last_report_is_a_follow_up_that_says_done_is_put_away(kitchen):
+    kitchen.brief(
+        "look",
+        "\n## Report\nStatus: blocked\n"
+        "\n## Report, follow-up (2026-11-07, the run came back)\nStatus: done\n",
+        kind="scouts",
+    )
+    kitchen.brief(
+        "keep",
+        "\n## Report\nStatus: done\n\n## Report, follow-up (2026-11-07, more)\nStatus: blocked\n",
+        kind="scouts",
+    )
+    kitchen.t3.thread("look", "completed", title="scout: look")
+    kitchen.t3.thread("keep", "completed", title="scout: keep")
+    kitchen.poll()
+    assert put_away(kitchen) == ["scout: look"] and put_away(kitchen, "settle") == ["scout: look"]
+
+
+def test_the_threads_of_a_removed_slug_are_put_away(kitchen):
+    kitchen.brief("alpha", "")
+    kitchen.brief("look", "", kind="scouts")
+    kitchen.t3.thread("alpha", "completed")
+    kitchen.t3.thread("look", "completed", title="scout: look")
+    kitchen.t3.thread("beta", "completed")
+    removed = {"at": "2026-11-07 10:00 EST", "by": "user"}
+    jbus.write_json(kitchen.state / "removed.json", {"alpha": removed, "look": removed})
+    kitchen.poll()
+    assert sorted(put_away(kitchen)) == ["crew: alpha", "scout: look"]
+
+
+def test_an_idle_subagent_under_any_parent_is_settled_once_per_run_and_a_home_never(kitchen):
+    """A subagent thread whose parent is a home, an unfinished crew, or a thread that is not
+    listed as unsettled is settled once it is idle and its parent has no run going. A running
+    subagent, or one whose parent runs, is left."""
+    under = {"relationshipToParent": "subagent"}
+    home = kitchen.t3.thread("demo", "completed", title="home: demo")
+    helper = kitchen.t3.thread(
+        "demo",
+        "completed",
+        title="home's helper",
+        parentThreadId=home["threadId"],
+        itemCount=4,
+        **under,
+    )
+    runner = kitchen.t3.thread(
+        "demo", "running", title="a running helper", parentThreadId=home["threadId"], **under
+    )
+    busy = kitchen.t3.thread("beta", "running")
+    kept = kitchen.t3.thread(
+        "beta", "completed", title="kept helper", parentThreadId=busy["threadId"], **under
+    )
+    gone = kitchen.t3.thread("gamma", "completed", archived=True)
+    orphan = kitchen.t3.thread(
+        "gamma", "completed", title="orphan", parentThreadId=gone["threadId"], **under
+    )
+    kitchen.poll()
+    titles = {t["threadId"]: t["title"] for t in kitchen.t3.threads}
+    assert sorted(titles[given["threadId"]] for given in settles(kitchen)) == [
+        "home's helper",
+        "orphan",
+    ]
+    assert not home["settled"] and not runner["settled"] and not kept["settled"]
+    assert settles(kitchen, "archive") == []
+    helper["settled"] = False
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert not helper["settled"]
+    helper["itemCount"] = 9
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert helper["settled"] and orphan["settled"] and len(settles(kitchen)) == 3
+
+
+def test_a_thread_with_a_request_waiting_is_not_put_away(kitchen):
+    under = {"relationshipToParent": "subagent"}
+    kitchen.brief("alpha", RESULT)
+    crew = kitchen.t3.thread("alpha", "completed", pendingRequestCount=1)
+    home = kitchen.t3.thread("demo", "completed", title="home: demo")
+    helper = kitchen.t3.thread(
+        "demo",
+        "completed",
+        title="a helper",
+        parentThreadId=home["threadId"],
+        pendingRequestCount=2,
+        **under,
+    )
+    kitchen.poll()
+    assert settles(kitchen) == [] and settles(kitchen, "archive") == []
+    crew["pendingRequestCount"] = helper["pendingRequestCount"] = 0
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert crew["archived"] and helper["settled"]
+
+
+def test_a_thread_that_cannot_be_read_or_organized_is_put_away_on_a_later_pass(
+    kitchen, monkeypatch
+):
+    kitchen.brief("alpha", RESULT)
+    crew = kitchen.t3.thread("alpha", "completed")
+    kitchen.t3.lose_read = True
+    said = kitchen.poll()
+    assert any(
+        line.startswith(f"wait alpha: thread {crew['threadId']} could not be read") for line in said
+    )
+    kitchen.t3.lose_read = False
+    answer = kitchen.t3.result
+
+    def refuse(asked):
+        if asked.get("params", {}).get("name") == "t3_thread_organize":
+            return {"isError": True, "content": [{"type": "text", "text": "no"}]}
+        return answer(asked)
+
+    monkeypatch.setattr(kitchen.t3, "result", refuse)
+    said = kitchen.poll(NOW + timedelta(minutes=3))
+    refused = f"wait alpha: thread {crew['threadId']} could not be settled (t3_thread_organize: no)"
+    assert refused in said
+    assert not crew["settled"]
+    monkeypatch.setattr(kitchen.t3, "result", answer)
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert crew["settled"] and crew["archived"]
