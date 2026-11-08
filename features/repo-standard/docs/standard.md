@@ -11,6 +11,7 @@ Its first lines state the contract, which holds in any repo.
 The lines under **In jstack** say how jstack meets it.
 Its `Enforced by:` line names each file that fails a check when the rule breaks, as a path from the repo root.
 A rule names at least one such file under `scripts/`, `.github/`, `features/` or `testing/`, and `features/repo-standard/tests/test_standard_cites.py` fails on a rule that names none.
+The rules of the part Versions are the one exception: no check of the tag exists before the tag does, so they name no such file, and the test holds that part to its two rules and the tag's name instead.
 
 ## Layout
 
@@ -185,13 +186,15 @@ Enforced by: `features/writing/scripts/prose_lint.py`, `.github/workflows/check.
 
 ### Each check has one make target
 
-A repo's checks run through a few make targets that every repo names the same, and CI calls the targets, never the commands under them.
-`make lint` runs every lint, `make test` runs the tests, or only the files `TESTS` names, and `make check` runs both.
+A repo's checks run through a few make targets that every repo names the same, and CI runs its lint of the tree and its tests through those targets.
+`make lint` runs every lint of the tree, `make test` runs the tests, or only the files `TESTS` names, and `make check` runs both.
+A lint that reads only the lines a change adds needs the change's base, so it runs by name beside `make lint` and is no part of the tree's lint.
 A stack adapter fills in the commands under each target.
 
 **In jstack** the targets are in the `Makefile`.
 `make test` runs pytest on several workers, counted from the processors the run may use, and `testing/tests/test_check_command.py` holds that count.
-`.github/workflows/check.yml` runs the lint and the tests through `make lint`, `make test` and `make check`.
+`.github/workflows/check.yml` runs the lint of the tree and the tests through `make lint`, `make test` and `make check`.
+The prose lint, `features/writing/scripts/prose_lint.py`, reads the lines a diff adds, so the `lint` job runs it by name with the base, and so does `make check-fast`.
 
 Enforced by: `.github/workflows/check.yml`, `testing/tests/test_check_command.py`, `testing/tests/test_workflows.py`
 
@@ -200,7 +203,7 @@ Enforced by: `.github/workflows/check.yml`, `testing/tests/test_check_command.py
 A script that serves the whole repo, such as the generator, a lint across features, the test selection or the green-tree lookup, lives under `scripts/`, and the repo owns it.
 A script that serves one feature lives in that feature's folder.
 
-**In jstack** `scripts/` holds `generate-jstack-trees.py`, `check-jstack-docs.py`, `lint-borders.py`, `select_tests.py`, `green_tree.py` and `no_ai_trailers.py`.
+**In jstack** `scripts/` holds, among others, `generate-jstack-trees.py`, `check-jstack-docs.py`, `lint-borders.py`, `select_tests.py`, `green_tree.py` and `no_ai_trailers.py`.
 The writing feature's lints, `prose_lint.py` and `comment_lint.py`, live under `features/writing/scripts/`.
 
 Enforced by: `scripts/jtrees/crawl.py`, `scripts/lint-borders.py`
@@ -291,7 +294,7 @@ Enforced by: `scripts/select_tests.py`, `testing/tests/test_select_tests_rules.p
 Each push to main runs every test, so a test a selection missed fails on main within one merge.
 A test that failed on main joins the selection of every pull request until it passes again.
 
-**In jstack** `check.yml`'s `full` job runs `make check` in four parts on each push to main.
+**In jstack** `check.yml`'s `full-shard` job runs `make check` in four parts on each push to main, and its `full` job passes only when all four did.
 A pull request's `reuse` job runs `select_tests.py --failed-on-main 30`, which reads the logs of main's red runs of the last 30 days and adds each test file they name that no later green run of main has passed.
 
 Enforced by: `.github/workflows/check.yml`, `testing/tests/test_workflows.py`
@@ -312,8 +315,8 @@ Enforced by: `.github/workflows/check.yml`, `testing/tests/test_workflows.py`
 
 ### One required check gathers the rest
 
-A pull request into main needs one check to pass, and that check passes only when every job of the run passed.
-A part that failed, was cancelled or never ran fails it.
+A pull request into main needs one check to pass, and that check passes only when every job of the run passed, or the run reused a pass of the same trees.
+Otherwise a part that failed, was cancelled or never ran fails it.
 
 **In jstack** the `check` job needs `reuse`, `lint` and every part of `check-shard`, and `check`, `borders` and `macos` are the checks the ruleset of main requires.
 
