@@ -479,10 +479,10 @@ def fake_gh(stub, args, cwd):
     `api` picks its answer by the end of the path. It gives a commit's check runs, each naming
     its `head_sha`, by the sha or by a pull request's ref (`pull/<number>/head`, the head the open
     pull request has now), its runs for a push, who owns the repo (with no `repo.json`, GitHub
-    does not say), the commits, and a pull request's comments, line comments and reviews. Asked for every page (`--paginate --slurp`), it
-    gives a list of pages, here two, and for the runs, a run's jobs and a check run's annotations
-    (none), one. A job comes from `jobs.json` by its id, or is one step at the
-    first attempt where `jobs.json` has none for it. Its log comes from `logs.json` by its id, or is
+    does not say), the commits, and a pull request's comments, line comments and reviews. Asked
+    for every page (`--paginate --slurp`), it gives a list of pages, here two, and for the runs,
+    a run's jobs and a check run's annotations (none), one. A job comes from `jobs.json` by its
+    id, or is one step at the first attempt where `jobs.json` has none for it. Its log comes from `logs.json` by its id, or is
     not found, and a log with an escape sequence in it is refused unless asked for with
     `--allow-escape-sequences`, as gh 2.102 does. A commit asked for by its sha lists the files it
     changed, from `commit-files.json`, and its parents and committer, from `commit-made.json`.
