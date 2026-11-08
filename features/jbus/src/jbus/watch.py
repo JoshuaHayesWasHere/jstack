@@ -536,13 +536,12 @@ def owes_pull(run: Pass, slug: str, brief: str, result: str) -> bool:
     the home's close of a row nothing more is wanted of (`leftover`), or the crew's answer once it
     was told. The rule is judged as a row moves to done: a row the table had at done when the pass
     began owes nothing (`Pass.done`)."""
+    awaits = below.line(result, "Status:") == "done" and review.awaited(brief, result)
+    if not awaits and (not result.startswith("## Result\n") or unfinished(result)):
+        return False
     if slug in run.done:
         return False
-    if below.line(result, "Status:") == "done" and review.awaited(brief, result):
-        return True
-    if not result.startswith("## Result\n") or unfinished(result):
-        return False
-    if review.before_pull(result) and findings.mode_of(brief) != findings.NONE:
+    if awaits or (review.before_pull(result) and findings.mode_of(brief) != findings.NONE):
         return True
     if not _ASKS.search(brief.split("\n## ")[0]):
         return False
