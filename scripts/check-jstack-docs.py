@@ -1,7 +1,12 @@
 """Check what README.md, the docs and the skills say about the tree: `check-jstack-docs.py [root]`.
 
 This is a stdlib port of pstack's check-pstack-docs.mjs, and `make check` and `make check-fast`
-run it. It reads the tree once and checks each page of `docs_of` against it: README.md,
+run it. It is jstack's extension of the repo standard's `docs` guard, which
+`features/repo-guards/tests/test_docs_true.py` runs: that guard reads the paths and the `make`
+targets of the pages `.repo-standard.yml` names, and this script reads what only jstack has, its
+skills, the layout's places and the pages' links, counts and models.
+
+It reads the tree once and checks each page of `docs_of` against it: README.md,
 CATALOG.md, CONTRIBUTING.md, SECURITY.md, every page of the docs and every skill's `SKILL.md`.
 A page of the docs is Markdown or HTML. The script reads an HTML page line by line as the Markdown
 it would be: a `<code>` span as a code span, an `<a href>` as a link, no other tag, and no line of
