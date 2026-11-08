@@ -1,6 +1,7 @@
 [Unit]
 Description=jbus merge tick: run jmerge for each project where a check ended since the last tick
 Documentation=file:%Y/../docs/jbus/the-units.md#the-units
+StartLimitIntervalSec=0
 
 [Service]
 Type=oneshot

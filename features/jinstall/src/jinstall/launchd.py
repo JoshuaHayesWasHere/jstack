@@ -56,6 +56,7 @@ CARRIED = {
 DROPPED = {
     ("Unit", "Description"): "launchd keeps no description",
     ("Unit", "Documentation"): "launchd keeps no documentation",
+    ("Unit", "StartLimitIntervalSec"): "launchd has no start limit of systemd's kind to lift",
     ("Service", "Type"): "launchd runs each agent as a process, a oneshot included",
     ("Service", "SuccessExitStatus"): "the view, the one unit with it, gets no agent",
     ("Service", "RestartForceExitStatus"): "the view, the one unit with it, gets no agent",
