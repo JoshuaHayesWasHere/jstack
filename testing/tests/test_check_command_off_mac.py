@@ -12,6 +12,7 @@ import subprocess
 import sys
 import time
 import tomllib
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from test_check_command import (
@@ -49,7 +50,9 @@ def test_every_test_has_the_same_id_a_second_later():
 
 
 def test_the_browser_tests_are_the_whole_of_one_folder_and_the_other_run_leaves_them_out():
-    everything, marked, others = collected(), collected("-m", "browser"), collected(*LEAVES_OUT)
+    with ThreadPoolExecutor() as pool:
+        runs = pool.map(lambda more: collected(*more), [[], ["-m", "browser"], LEAVES_OUT])
+        everything, marked, others = runs
     assert marked and others
     assert sorted(marked + others) == sorted(everything)
     assert {test.split("::")[0] for test in marked} == {
