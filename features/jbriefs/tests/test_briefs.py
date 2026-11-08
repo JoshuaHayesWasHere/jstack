@@ -501,6 +501,19 @@ def test_a_brief_that_asks_for_a_screenshot_in_proves_it_is_refused_whatever_els
     ]
 
 
+@pytest.mark.parametrize(
+    "item",
+    [
+        "the log keeps a recording of events in events.jsonl",
+        "the shots field in work.json counts each run",
+        "a one-shot snapshot of queue.json matches",
+    ],
+)
+def test_a_shot_or_recording_of_no_window_is_no_screenshot(item):
+    text = CLEAN.replace("- it is done", f"- `make check` passes\n- {item} (in `src/alpha/`)")
+    assert parse.faults(text) == []
+
+
 def test_a_brief_that_proves_the_ui_change_by_what_the_tree_draws_from_work_json_is_queued():
     text = CLEAN.replace(
         "- it is done",

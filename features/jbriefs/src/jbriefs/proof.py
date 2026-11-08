@@ -48,9 +48,11 @@ _LOOSE = (
     ("a dataset", r"\bdata ?sets?\b|\bcorpus\b|\bfixtures?\b|\bgolden\b|\bevals?\b"),
     ("an external judge", r"\bjudge\b"),
 )
+_DRAWN = r"(window|screen|ui|app|page|tree|sidebar|hover|desktop|browser)s?"
 _SHOWN = re.compile(
-    r"\bscreen[- ]?(shots?|grabs?|captures?|recordings?)\b|(?<![-\w])shots?\b(?!-)"
-    r"|\brecordings?\s+of\b|\brecord(s|ed)?\s+(the|a|its)\s+(screen|window|ui)\b",
+    r"\bscreen[- ]?(shots?|grabs?|captures?|recordings?)\b"
+    rf"|\b(shots?|recordings?)\s+of\b[^.;,()]{{0,60}}?\b{_DRAWN}\b"
+    rf"|\brecord(s|ed)?\s+(the|a|its)\s+{_DRAWN}\b",
     re.I,
 )
 """A screenshot, a shot or a recording of a window or the UI, which the user does not take as
