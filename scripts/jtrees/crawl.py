@@ -36,7 +36,6 @@ REPO_OWNERS: dict[str, tuple[str, ...]] = {
         ".repo-standard.yml",
         ".github/**",
         ".gitignore",
-        ".repo-standard.yml",
         "LICENSE",
         "SECURITY.md",
         "CONTRIBUTING.md",
