@@ -130,6 +130,30 @@ def fault(state: Path, brief: str, project: str) -> str:
     return ""
 
 
+def stands_in(state: Path) -> bool:
+    """Whether the root home stands in for the catch-all (`catchall`): until `/home
+    uncategorized` starts it, the catch-all has no thread of its own, and the root's thread hears
+    and works its rows."""
+    now, was = ids(catchall(state))
+    return was == now
+
+
+def worked_by(state: Path, directory: Path) -> Path:
+    """The directory of the home whose thread works the rows of the home `directory`: its own,
+    and the root's for the catch-all while the root stands in for it (`stands_in`)."""
+    if directory == catchall(state) and stands_in(state):
+        return state
+    return directory
+
+
+def works(state: Path, directory: Path) -> frozenset[Path]:
+    """The homes whose rows the home of `directory` works: its own, and for the root the
+    catch-all's too while it stands in for it (`stands_in`)."""
+    if directory == state and stands_in(state):
+        return frozenset((state, catchall(state)))
+    return frozenset((directory,))
+
+
 def thread_of(home: Path, slug: str = "") -> str:
     """The one lookup of whom jbus sends to: the thread an owner is now, read again on each call.
     A home's directory, the root's or a scope's, is its home's thread: an empty string when the
@@ -138,10 +162,10 @@ def thread_of(home: Path, slug: str = "") -> str:
     `scouts/`. It is an empty string where there is none. The catch-all's directory with no
     thread of its own is the root's thread, until its home starts."""
     if not slug:
+        if home.name == UNCATEGORIZED and stands_in(home.parent):
+            return thread_of(home.parent)
         now, was = ids(home)
-        if was != now:
-            return now
-        return thread_of(home.parent) if home.name == UNCATEGORIZED else ""
+        return "" if was == now else now
     for kind in ("tasks", "scouts"):
         try:
             text = (home / kind / f"{slug}.md").read_text(errors="replace")

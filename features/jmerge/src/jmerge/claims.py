@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from jbriefs import below, home, parse
 from jmerge import sweep
 
-ROOT = "root"
+ROOT = home.ROOT
+UNCATEGORIZED = home.UNCATEGORIZED
 NOBODY = ""
 NOT_LAUNCHED = "not launched"
 OUT = "out"
@@ -47,7 +48,10 @@ def scope(text: str, changed: list[str]) -> list[str]:
 
 
 def home_of(text: str, homes: dict[str, str]) -> str:
-    return homes.get(home.named(text), ROOT)
+    """The name of the home a brief is, by the home names and ids `homes` knows: the catch-all's,
+    `uncategorized`, for any brief no other scope claims, as `jbriefs.home.home_of` has it. The
+    root home owns no row."""
+    return homes.get(home.named(text), UNCATEGORIZED)
 
 
 def of_brief(

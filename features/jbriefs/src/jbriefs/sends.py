@@ -1,14 +1,15 @@
 """Whether an agent's own `t3_thread_send` may go, read by `features/home/hooks/agent-sends.sh`.
 
-jbus carries every message between a repo's homes, and every review notice, through its
-outbox: `jbus stop` from a scope to the root, `jbus word --scope` and `jbus stop answer` from the
-root to a scope, and the notice jbus sends a crew once its review is written. A fault one thread
-finds in another home's work is no message at all: it is a row of the queue, `jbus queue add`
-(`templates/a-fault-outside.md`). A send of the agent's own skips the outbox's rules,
-so it is refused when the sender is a home or a reviewer of the repo and the thread is one of the
-repo's homes, now or before a handoff, or the crew on a brief's `Thread:` line. A home's send to
-another repo's home is refused too: jbus carries each repo's events to that repo's home alone. A
-home's send to a crew of its own briefs is a steer, and it goes. So does any send to a scout, a
+jbus carries every message between a repo's homes, and every review notice, through its outbox:
+`jbus stop` from a scope to the root, `jbus word --scope` and `jbus stop answer` from the root to a
+scope, and the notice jbus sends a crew once its review is written. A fault one thread finds in
+another home's work is no message at all: it is a row of the queue, `jbus queue add`
+(`templates/a-fault-outside.md`). A send of the agent's own skips the outbox's rules, so it is
+refused when the sender is a home or a reviewer of the repo and the thread is one of the repo's
+homes, now or before a handoff, or the crew on a brief's `Thread:` line. A home's send to another
+repo's home is refused too: jbus carries each repo's events to that repo's home alone. A home's send
+to a crew of its own briefs is a steer, and it goes, and so is the root's to a crew of the
+catch-all's while it stands in for it (`jbriefs.home.works`). So does any send to a scout, a
 reviewer's to another repo's thread, and any send by a thread that is no home and no reviewer.
 
 The sender's thread is the one T3 Code's store runs this Claude session in. A session the store
@@ -176,7 +177,7 @@ def refusal(state: Path, sender: str, to: str) -> str:
         (one for one in every if one.directory == crew.home),
         Home(crew.home, crew.home.name, "", ""),
     )
-    if from_home is not None and from_home.directory == crew.home:
+    if from_home is not None and crew.home in home.works(state, from_home.directory):
         return ""
     if from_home is None and sender in crew.reviewers:
         return (

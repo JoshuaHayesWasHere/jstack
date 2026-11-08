@@ -31,7 +31,8 @@ def scoped(kitchen, *names):
 
 
 def queue(kitchen, slug, home="", priority=1, approve=True):
-    """Queue a row whose brief belongs to `home`, a scope's name, or to the root home."""
+    """Queue a row whose brief belongs to `home`, a scope's name, or to the catch-all,
+    `uncategorized`."""
     text = brief(slug)
     if home:
         text = text.replace("Home: root", f"Home: {home}")
@@ -63,8 +64,8 @@ def test_one_home_launches_six_and_the_rest_wait_naming_the_home(kitchen):
 
     assert launched(kitchen) == slugs[:6]
     assert capped(said, "max_per_home") == [
-        f"max_per_home is 6 in the root home: r7 waits, {SINCE}",
-        f"max_per_home is 6 in the root home: r8 waits, {SINCE}",
+        f"max_per_home is 6 in the uncategorized home: r7 waits, {SINCE}",
+        f"max_per_home is 6 in the uncategorized home: r8 waits, {SINCE}",
     ]
     assert capped(said, "max_running") == [] and capped(said, "max_per_project") == []
     assert [rows(kitchen)[slug]["status"] for slug in slugs[6:]] == ["queued", "queued"]

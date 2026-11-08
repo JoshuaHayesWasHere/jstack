@@ -334,15 +334,16 @@ def _table(table: argparse.ArgumentParser) -> None:
         "--from",
         dest="adder",
         metavar="THREAD",
-        help="the thread of the home that adds the row, empty for the root home: a brief whose "
-        "Home: line names another home is refused",
+        help="the thread of the home that adds the row, empty for the uncategorized home: a brief "
+        "whose Home: line names another home is refused, and the root home, which owns no row, "
+        "gives --for",
     )
     add.add_argument(
         "--for",
         dest="handed",
         metavar="HOME",
-        help="root, or the scope the brief's Home: line names: the row is that home's, "
-        "handed over on purpose",
+        help="the scope the brief's Home: line resolves to, uncategorized where it names no scope: "
+        "the row is that home's, handed over on purpose",
     )
     approve = table_verbs.add_parser(
         "approve", help="record the go for the brief the user was shown", allow_abbrev=False
@@ -429,7 +430,7 @@ def _table(table: argparse.ArgumentParser) -> None:
         "--for",
         dest="handed",
         metavar="HOME",
-        help="root, or the scope the brief's Home: line names, as add takes it",
+        help="the scope the brief's Home: line resolves to, as add takes it",
     )
 
 

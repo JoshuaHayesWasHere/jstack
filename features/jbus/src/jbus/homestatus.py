@@ -70,7 +70,12 @@ class Home:
     def keeps(self, kind: str, slug: str) -> bool:
         """Whether the brief (`tasks`) or the request (`scouts`) of `slug` is this home's."""
         brief = self.state / kind / f"{slug}.md"
-        return self._home_of(_text(brief)) == self.mine
+        return self._home_of(_text(brief)) in self.works
+
+    @cached_property
+    def works(self) -> frozenset[Path]:
+        """The homes whose rows this one works (`jbriefs.home.works`)."""
+        return home.works(self.state, self.mine)
 
 
 def _text(file: Path) -> str:
@@ -132,7 +137,7 @@ def bus(here: Home, installed: bool) -> Bus:
     mine = (
         one
         for one in kept
-        if one.answer is None and needs.home_of(state, here.state, one.slug) == here.mine
+        if one.answer is None and needs.home_of(state, here.state, one.slug) in here.works
     )
     return Bus(project, config, "", tuple(mine))
 

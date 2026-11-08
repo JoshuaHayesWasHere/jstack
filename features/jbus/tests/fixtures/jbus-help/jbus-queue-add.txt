@@ -34,7 +34,9 @@ options:
   --item ITEM           the work item the row is, by its id; with none, one is
                         made
   --from THREAD         the thread of the home that adds the row, empty for
-                        the root home: a brief whose Home: line names another
-                        home is refused
-  --for HOME            root, or the scope the brief's Home: line names: the
-                        row is that home's, handed over on purpose
+                        the uncategorized home: a brief whose Home: line names
+                        another home is refused, and the root home, which owns
+                        no row, gives --for
+  --for HOME            the scope the brief's Home: line resolves to,
+                        uncategorized where it names no scope: the row is that
+                        home's, handed over on purpose

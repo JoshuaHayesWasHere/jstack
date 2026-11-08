@@ -337,14 +337,19 @@ class Repo:
 
     @functools.cached_property
     def asking(self) -> str:
+        """The home that asks with `--home`. The root home owns no row, but until the catch-all's
+        home (`uncategorized`) runs, the root asks for it, as `jbriefs.home.thread_of` sends the
+        catch-all's messages to the root's thread."""
+        catchall_runs = claims.UNCATEGORIZED in self.homes.running.values()
+        root = claims.ROOT if catchall_runs else claims.UNCATEGORIZED
         if self.mine == self.listed:
-            return claims.ROOT
+            return root
         if self.mine in self.homes.running:
             return self.homes.running[self.mine]
         root_runs, handed_off = bool(self.listed), self.mine in self.homes.known
         if root_runs or handed_off:
             return claims.NOBODY
-        return claims.ROOT
+        return root
 
     @functools.cached_property
     def homes(self) -> Homes:
@@ -353,7 +358,8 @@ class Repo:
             named.update(dict.fromkeys(filter(None, [scope.name, now, was]), scope.name))
             if now:
                 running[now] = scope.name
-        named.update(dict.fromkeys(filter(None, [self.listed, self.was]), claims.ROOT))
+        named.update(dict.fromkeys(filter(None, [self.listed, self.was]), claims.UNCATEGORIZED))
+        named[claims.ROOT] = claims.UNCATEGORIZED
         if self.listed:
             running[self.listed] = claims.ROOT
         return Homes(known=named, running=running)

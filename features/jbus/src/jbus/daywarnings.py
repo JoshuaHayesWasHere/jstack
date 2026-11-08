@@ -133,7 +133,7 @@ def brief(day: str, warnings: list[Kept]) -> str:
             "Pull request: open one when done",
             f"Review: {findings.CLEANUP}",
             "Playbook: bug-fix",
-            f"Home: {homes.ROOT}",
+            f"Home: {homes.UNCATEGORIZED}",
             "",
         ]
     )
