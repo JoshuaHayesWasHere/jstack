@@ -12,6 +12,7 @@ import subprocess
 import sys
 import time
 import tomllib
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from test_check_command import (
@@ -23,6 +24,8 @@ from test_check_command import (
 from testing.paths import REPO
 
 __all__ = ["step_files"]
+
+PAGE = REPO / "features" / "jbus" / "tests" / "view" / "page"
 
 
 def collected(*more):
@@ -47,12 +50,13 @@ def test_every_test_has_the_same_id_a_second_later():
 
 
 def test_the_browser_tests_are_the_whole_of_one_folder_and_the_other_run_leaves_them_out():
-    everything, marked, others = collected(), collected("-m", "browser"), collected(*LEAVES_OUT)
+    with ThreadPoolExecutor() as pool:
+        runs = pool.map(lambda more: collected(*more), [[], ["-m", "browser"], LEAVES_OUT])
+        everything, marked, others = runs
     assert marked and others
     assert sorted(marked + others) == sorted(everything)
-    page = REPO / "features" / "jbus" / "tests" / "view" / "page"
     assert {test.split("::")[0] for test in marked} == {
-        path.relative_to(REPO).as_posix() for path in page.glob("test_*.py")
+        path.relative_to(REPO).as_posix() for path in PAGE.glob("test_*.py")
     }
 
 
@@ -117,13 +121,15 @@ def test_the_bound_of_a_test_is_well_inside_the_jobs_limit():
 
 def browser_tests(tmp_path, **more):
     """A run of `make check-browser`'s pytest command on a machine with no browser on `PATH`
-    and none named in `JSTACK_TEST_BROWSER`: how it ended, and what it printed."""
+    and none named in `JSTACK_TEST_BROWSER`: how it ended, and what it printed. It is given the
+    browser tests' folder, which holds every browser test (the test above), so that it does not
+    collect the rest of the tree only to leave it out."""
     named = ("GITHUB_ACTIONS", "JSTACK_TEST_BROWSER")
     env = {name: value for name, value in outside_a_run().items() if name not in named}
     (tmp_path / "bin").mkdir(exist_ok=True)
     ran = subprocess.run(
         [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-p", "no:xdist"]
-        + ["--basetemp", str(tmp_path / "base"), *pytest_of("check-browser")],
+        + ["--basetemp", str(tmp_path / "base"), *pytest_of("check-browser"), str(PAGE)],
         cwd=REPO,
         env=env | {"PATH": str(tmp_path / "bin")} | more,
         capture_output=True,
