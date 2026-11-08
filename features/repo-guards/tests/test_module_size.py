@@ -2,11 +2,12 @@
 that many changes touch: every change appends to it, and every rebase conflicts on it. A feature
 goes in a module of its own.
 
-The caps are the `size` rules of `.repo-standard.yml`: 800 lines for a module of a feature's
-`src/`, 1500 for a test file and 400 for a SKILL.md. Each rule's `over` holds the files that were
-over the cap when the cap was set, with their length then. A listed file that is back under the
-cap, or gone, fails until it leaves the list, so the list only shrinks. The repo standard's `size`
-guard holds the rules (features/repo-standard/docs/guards.md), and this test runs it on jstack.
+The caps are the `size` rules of `.repo-standard.yml`: 800 lines for a module of a feature's `src/`,
+1500 for a test file of a feature's `tests/` or of `testing/tests/`, and 400 for a SKILL.md. Each
+rule's `over` holds the files that were over the cap when the cap was set, with their length then. A
+listed file that is back under the cap, or gone, fails until it leaves the list, so the list only
+shrinks. The repo standard's `size` guard holds the rules (features/repo-standard/docs/guards.md),
+and this test runs it on jstack.
 """
 
 from repo_standard.__main__ import main
@@ -26,5 +27,6 @@ def test_each_size_rule_picks_the_files_it_caps():
     modules, tests, skills = picked
     assert "features/jbus/src/jbus/queue.py" in modules
     assert "features/repo-guards/tests/test_module_size.py" in tests
+    assert "testing/tests/test_workflows.py" in tests
     assert not [name for name in tests if "/tests/fixtures/" in name]
     assert {"features/crew/SKILL.md", "features/home/skills/handoff/SKILL.md"} <= set(skills)
