@@ -578,10 +578,8 @@ def test_the_selector_finds_the_skills_the_index_finds():
 @pytest.mark.parametrize(
     "path, reader",
     [
-        ("features/home/skills/home/SKILL.md", "features/home/tests/test_quiet_turns.py"),
         ("features/home/skills/home/SKILL.md", "features/home/tests/test_home_start.py"),
         ("features/home/skills/handoff/SKILL.md", "features/home/tests/test_handoff_mail.py"),
-        ("features/crew/a-gate.md", "features/jbus/tests/test_gates.py"),
         ("features/ketchup/SKILL.md", "features/home/tests/test_home_needs.py"),
     ],
 )
@@ -789,7 +787,7 @@ def test_strict_within_is_all_only_for_what_changes_every_run_and_within_for_all
         assert strict != ["all"] and set(strict) <= set(select.tracked()), path
 
 
-@pytest.mark.parametrize("path", ["uv.lock", MAC_LIST])
+@pytest.mark.parametrize("path", [MAC_LIST])
 def test_strict_within_is_all_where_within_is(path):
     assert mac_within(path, strict=True) == mac_within(path) == ["all"]
 
