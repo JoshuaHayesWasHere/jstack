@@ -45,7 +45,7 @@ def approval(slug):
 
 def deciding(slug):
     """Return the decision a row with no approval is raised as, as the chat says it."""
-    reply = f'Reply: "demo approve {slug}: go"'
+    reply = f"Reply: reply in your own words to give {slug} its go or say what to do instead"
     return f"demo: decision {slug}: {approval(slug)}, a row with no approval of its brief. {reply}"
 
 

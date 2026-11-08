@@ -9,6 +9,7 @@ real tick and pass against the fakes (`test_jbus_kitchen.py`).
 """
 
 import configparser
+import itertools
 import json
 import sys
 import time
@@ -670,14 +671,14 @@ def test_a_read_that_fails_while_jmerge_runs_still_keeps_that_runs_merge(two_on_
     monkeypatch.setattr(tick, "EVERY", 0.05)
     at_both(two_on_check, [job("check", "success", 1)], [job("check", suite=SUITE + 1)])
     crew = two_on_check.t3.thread("alpha")
-    failed, ran, read = [], merge.tick, tick._read
+    failed, ran, read = [], merge.tick, tick._reads
 
     def fails(run):
         failed.append(run)
         raise OSError("tick.json: no space left on device")
 
     def slow(run, heads):
-        monkeypatch.setattr(tick, "_read", fails)
+        monkeypatch.setattr(tick, "_reads", fails)
         until = time.monotonic() + 5
         while not failed and time.monotonic() < until:
             time.sleep(0.05)
@@ -691,7 +692,7 @@ def test_a_read_that_fails_while_jmerge_runs_still_keeps_that_runs_merge(two_on_
     with pytest.raises(OSError, match="no space left"):
         tick.tick(jbus.load(), said.append)
     assert failed and said[-1] == "tick demo: a check ended, and jmerge ran"
-    monkeypatch.setattr(tick, "_read", read)
+    monkeypatch.setattr(tick, "_reads", read)
     two_on_check.set("jmerge.txt", "")
     two_on_check.poll(NOW + timedelta(minutes=1))
     told = [one for one in sends(two_on_check) if one["threadId"] == crew["threadId"]]
@@ -717,3 +718,90 @@ def test_a_head_whose_rollup_lists_no_checks_yet_stays_pending(on_check):
     assert ticks(on_check) == []
     check_ended(on_check, 1, "failure")
     assert ticks(on_check)[0] == "tick demo: a check ended, and alpha's line says so"
+
+
+NINE = range(8, 17)
+"""Nine pull requests besides #7 whose checks are still going, each at a head of its own and of
+a run of `check` of its own."""
+
+
+def head_of(number):
+    return f"{number:040x}"
+
+
+@pytest.fixture
+def ten_pending(on_check):
+    """#7, a row's pull request on the check step, and nine others, #8 to #16, all pending, each
+    with its required job `check` still going."""
+    others = [{**on_check.opened(f"other{n}", n, None), "headRefOid": head_of(n)} for n in NINE]
+    on_check.set("open.json", [on_check.opened("alpha", 7, None), *others])
+    on_check.poll()
+    assert [one["number"] for one in watching(on_check)] == [7, *NINE]
+    on_check.set(
+        "check-runs.json",
+        {HEAD: [job("check")], **{head_of(n): [job("check", suite=100 + n)] for n in NINE}},
+    )
+    on_check.set(
+        "push-runs.json",
+        {
+            HEAD: [{"id": 100, "name": "check", "check_suite_id": SUITE}],
+            **{
+                head_of(n): [{"id": 200 + n, "name": "check", "check_suite_id": 100 + n}]
+                for n in NINE
+            },
+        },
+    )
+    return on_check
+
+
+def test_a_check_that_ends_reaches_its_line_before_the_other_reads_answer(ten_pending, monkeypatch):
+    """sa-tick-reads-apart: ten pull requests are pending, and #7's check failed. GitHub holds
+    its answer to each of the other nine reads until #7's line says so, or for 3 s. The tick
+    asks for all ten at once and writes #7's line as its own answer lands, so each of the nine
+    answers comes back with #7's line already written, not after them."""
+    ten_pending.set(
+        "check-runs.json",
+        {
+            **json.loads((ten_pending.stub / "check-runs.json").read_text()),
+            HEAD: [job("check", "failure", 1)],
+        },
+    )
+    ten_pending.set("jmerge.txt", f"wait 7 {PULL}: {ready.CHECK_FAILED.format(check='check')}\n")
+    others = {tick.CHECK_RUNS % n for n in NINE}
+    written, asked_of, until = {}, tick._asked, time.monotonic() + 3
+
+    def held(run, path, etag=""):
+        if path in others:
+            while line(ten_pending)["why"] != FAILED and time.monotonic() < until:
+                time.sleep(0.02)
+            written[path] = line(ten_pending)["why"] == FAILED
+        return asked_of(run, path, etag)
+
+    monkeypatch.setattr(tick, "_asked", held)
+    said = ticks(ten_pending)
+    assert "tick demo: a check ended, and alpha's line says so" in said
+    assert written == dict.fromkeys(others, True)
+
+
+def test_reads_of_one_pull_request_are_at_most_every_plus_1_s_apart_with_10_pending(
+    ten_pending, monkeypatch
+):
+    """sa-checks-bound-measure-9 read #7 every 4 to 5 s with ten pull requests pending, since the
+    tick asked for them one at a time. GitHub answers each read here in 0.4 s, and the timer
+    starts a tick every `EVERY` seconds, or as soon as the last one ended where it ran longer:
+    #7's reads are at most `EVERY` plus 1 s apart."""
+    read, asked_of = [], tick._asked
+
+    def slow(run, path, etag=""):
+        time.sleep(0.4)
+        if path == tick.CHECK_RUNS % 7:
+            read.append(time.monotonic())
+        return asked_of(run, path, etag)
+
+    monkeypatch.setattr(tick, "_asked", slow)
+    for _ in range(3):
+        started = time.monotonic()
+        assert ticks(ten_pending) == []
+        time.sleep(max(0.0, started + tick.EVERY - time.monotonic()))
+    apart = [later - earlier for earlier, later in itertools.pairwise(read)]
+    assert len(read) == 3 and max(apart) <= tick.EVERY + 1, apart

@@ -9,7 +9,7 @@ can give. A row a home can clear by itself (a row at `gate`, a leftover its home
 a thread works on) is not on it, and neither is a refused go: a refusal is an act of the home's
 (`acts.jsonl`), most of them a sha that did not match, and the home tries again by itself.
 
-Each item is one line with what it holds, then the reply that answers it, the same `Reply:` a
+Each item is one line with what it holds, then a plain hint for the reply, the same `Reply:` a
 decision carries (`blockers.reply`), and, for a gate that holds, the fail-safe to read first. A
 project no pass has listed yet says so, since nothing is known of it. `jbus home status` opens with
 the same lines for its own project (`jbus.homestatus`).
@@ -37,7 +37,8 @@ from jbus import blockers, passes, questions, queue, verbs, waiting
 @dataclass(frozen=True)
 class Need:
     """`Need` is one thing only the user can do: the project it is in, what it is and what it
-    holds (`said`), the reply that answers it, and the fail-safe of a gate that holds."""
+    holds (`said`), the plain hint for the reply (`blockers.reply`), and the fail-safe of a gate
+    that holds."""
 
     project: str
     said: str
@@ -46,7 +47,7 @@ class Need:
 
     def lines(self) -> list[str]:
         safe = [f"  fail-safe: {self.fail_safe}"] if self.fail_safe else []
-        answer = f'  answer: say "{self.reply}", or say what to do instead'
+        answer = f"  answer: {self.reply}"
         return [f"{self.project} {self.said}", *safe, answer]
 
 
@@ -108,7 +109,7 @@ def of(
             or home == root == at.parent
         ]
     return [
-        Need(project.name, said, blockers.reply(project, one), str(one.get("fail_safe") or ""))
+        Need(project.name, said, blockers.reply(one), str(one.get("fail_safe") or ""))
         for one, said in found
     ]
 
@@ -176,7 +177,7 @@ def _needs(args: argparse.Namespace, config: jbus.Config) -> int:
 VERBS = (
     verbs.Verb(
         "needs",
-        "what waits on the user, with what each holds and the reply that answers it",
+        "what waits on the user, with what each holds and a plain hint for the reply",
         _arguments,
         _needs,
     ),

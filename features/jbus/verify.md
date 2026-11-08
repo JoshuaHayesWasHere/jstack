@@ -170,14 +170,14 @@ Preconditions:
   Run `record home-wake jbus status`.
   It prints `refused: no status at <path>: no pass has run` and exits 1.
 - **Raise a decision.**
-  Run `record home-wake jbus decide alpha --question 'may the demo task skip its tests?' --reply 'scope: no, keep them'`.
+  Run `record home-wake jbus decide alpha --question 'may the demo task skip its tests?' --reply 'reply in your own words to keep the tests or say what to do instead'`.
   It prints `raised: alpha: may the demo task skip its tests?`.
 - **Raise it again.**
   Run the same command.
   It prints `raised already: alpha: may the demo task skip its tests?`.
 - **Pass.**
   Run `record home-wake jbus poll`.
-  It prints `wakes demo: told mcp:sandbox-home of decision alpha: may the demo task skip its tests?. Reply: "demo scope: no, keep them"`.
+  It prints `wakes demo: told mcp:sandbox-home of decision alpha: may the demo task skip its tests?. Reply: reply in your own words to keep the tests or say what to do instead`.
 - **Check the send.**
   Run `record home-wake jq -c 'select(.tool == "t3_thread_send") | .arguments | {threadId, mode, clientRequestId}' "$VERIFY_JSTACK_SANDBOX/t3/calls.jsonl"`.
   There is one line, to `mcp:sandbox-home`, in `queue` mode, with a `clientRequestId` that begins `wakes|demo|`, and `t3/wake.jsonl` has the decision's line.
@@ -188,8 +188,8 @@ Preconditions:
   Run `record home-wake jbus poll`.
   It prints no `wakes` line, and `t3/calls.jsonl` still has one `t3_thread_send`.
 - **Raise another, and pass.**
-  Run `record home-wake jbus decide beta --question 'may beta wait a day?' --reply 'scope: yes'`, then `record home-wake jbus poll`.
-  It prints `wakes demo: told mcp:sandbox-home of decision beta: may beta wait a day?. Reply: "demo scope: yes"`, and the new line of `t3/wake.jsonl` names beta alone.
+  Run `record home-wake jbus decide beta --question 'may beta wait a day?' --reply 'reply in your own words to let beta wait or say what to do instead'`, then `record home-wake jbus poll`.
+  It prints `wakes demo: told mcp:sandbox-home of decision beta: may beta wait a day?. Reply: reply in your own words to let beta wait or say what to do instead`, and the new line of `t3/wake.jsonl` names beta alone.
 - **Read the status.**
   Run `record home-wake jbus status`.
   `projects.demo.failed_wakes` is 0, and `last_pass` is this minute.

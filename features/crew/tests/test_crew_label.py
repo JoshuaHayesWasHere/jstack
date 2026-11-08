@@ -29,8 +29,9 @@ def work(tmp_path):
     the repo's own borders check."""
     origin, root = tmp_path / "origin.git", tmp_path / "work"
     shutil.copytree(REPO / "schemas", root / "schemas")
-    shutil.copytree(REPO / "scripts" / "jtrees", root / "scripts" / "jtrees")
-    for path in ("plugin.json", "pyproject.toml", "scripts/lint-borders.py"):
+    shutil.copytree(REPO / "features/repo-standard", root / "features/repo-standard")
+    (root / "scripts").mkdir()
+    for path in ("plugin.json", "pyproject.toml", ".repo-standard.yml", "scripts/lint-borders.py"):
         shutil.copy2(REPO / path, root / path)
     for name in ("alpha", "beta"):
         feature(root, name)

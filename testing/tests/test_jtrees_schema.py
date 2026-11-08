@@ -1,6 +1,7 @@
-"""Every feature.json and plugin.json holds to its schema as `jsonschema` reads it, and
-`jtrees.schema.validate`, the generator's stdlib validator, gives the same verdict as
-`jsonschema` on a corpus of good and bad manifests."""
+"""`jtrees.schema.validate`, the generator's stdlib validator, gives the same verdict as
+`jsonschema` on a corpus of good and bad manifests, with each schema's `$ref`s resolved by
+`jtrees.schema.load` on one side and by a `referencing` registry on the other, and plugin.json
+holds to its schema."""
 
 import importlib
 import json
@@ -8,6 +9,7 @@ import sys
 
 import pytest
 from jsonschema import Draft202012Validator
+from referencing import Registry, Resource
 
 from testing.paths import REPO
 
@@ -15,33 +17,48 @@ sys.path.insert(0, str(REPO / "scripts"))
 
 schema = importlib.import_module("jtrees.schema")
 
-FEATURE = json.loads((REPO / "schemas" / "feature.schema.json").read_text())
-PLUGIN = json.loads((REPO / "schemas" / "agent-plugins-1.0.0.plugin.schema.json").read_text())
-MANIFESTS = sorted((REPO / "features").glob("*/feature.json"))
+SCHEMAS = REPO / "schemas"
+CORE = json.loads((SCHEMAS / "feature.core.schema.json").read_text())
+FEATURE = json.loads((SCHEMAS / "feature.schema.json").read_text())
+PLUGIN = json.loads((SCHEMAS / "agent-plugins-1.0.0.plugin.schema.json").read_text())
+REGISTRY = Registry().with_resource(CORE["$id"], Resource.from_contents(CORE))
+LOADED = {
+    rules["$id"]: schema.load(SCHEMAS / name)
+    for rules, name in (
+        (CORE, "feature.core.schema.json"),
+        (FEATURE, "feature.schema.json"),
+        (PLUGIN, "agent-plugins-1.0.0.plugin.schema.json"),
+    )
+}
+
+
+def holds(instance, rules):
+    """`jsonschema`'s verdict on `instance`."""
+    return list(Draft202012Validator(rules, registry=REGISTRY).iter_errors(instance)) == []
 
 
 def test_the_schemas_are_draft_2020_12_and_closed():
-    for rules in (FEATURE, PLUGIN):
+    for rules in (CORE, FEATURE, PLUGIN):
         Draft202012Validator.check_schema(rules)
         assert rules["$schema"] == "https://json-schema.org/draft/2020-12/schema"
         assert rules["additionalProperties"] is False
 
 
-def test_every_feature_has_a_manifest_and_each_holds_to_the_schema():
-    assert len(MANIFESTS) == 41
-    for path in MANIFESTS:
-        manifest = json.loads(path.read_text())
-        assert list(Draft202012Validator(FEATURE).iter_errors(manifest)) == [], path
-        assert manifest["name"] == path.parent.name
-
-
 def test_plugin_json_holds_to_agent_plugins_1_0_0():
     plugin = json.loads((REPO / "plugin.json").read_text())
-    assert list(Draft202012Validator(PLUGIN).iter_errors(plugin)) == []
+    assert holds(plugin, PLUGIN)
     assert plugin["$schema"] == PLUGIN["$id"]
 
 
 GOOD = {"$schema": "../../schemas/feature.schema.json", "name": "foo", "description": "Does foo."}
+CORES = [
+    {"name": "foo", "description": "Does foo."},
+    {"$schema": "x.json", "name": "foo", "description": "Does foo.", "docs": ["docs/foo.md"]},
+    {"name": "foo"},
+    {"name": "foo", "description": "Does foo.", "docs": ["foo.md"]},
+    {"name": "foo", "description": "Does foo.", "packages": ["src/foo"]},
+    {"$schema": "", "name": "foo", "description": "Does foo."},
+]
 FEATURES = [
     GOOD,
     GOOD | {"packages": ["src/foo"], "commands": {"foo": "foo.cli:main"}, "docs": ["docs/foo.md"]},
@@ -122,17 +139,17 @@ PLUGINS = [
 
 @pytest.mark.parametrize(
     ("rules", "instance"),
-    [(FEATURE, one) for one in FEATURES] + [(PLUGIN, one) for one in PLUGINS],
+    [(CORE, one) for one in CORES]
+    + [(FEATURE, one) for one in FEATURES]
+    + [(PLUGIN, one) for one in PLUGINS],
 )
 def test_the_stdlib_validator_agrees_with_jsonschema(rules, instance):
-    expected = list(Draft202012Validator(rules).iter_errors(instance)) == []
-    assert (schema.validate(instance, rules) == []) == expected
+    assert (schema.validate(instance, LOADED[rules["$id"]]) == []) == holds(instance, rules)
 
 
 def test_the_corpus_has_good_and_bad_of_each():
-    for rules, corpus in ((FEATURE, FEATURES), (PLUGIN, PLUGINS)):
-        verdicts = {list(Draft202012Validator(rules).iter_errors(one)) == [] for one in corpus}
-        assert verdicts == {True, False}
+    for rules, corpus in ((CORE, CORES), (FEATURE, FEATURES), (PLUGIN, PLUGINS)):
+        assert {holds(one, rules) for one in corpus} == {True, False}
 
 
 def test_a_schema_with_a_keyword_outside_the_subset_is_refused():
@@ -140,3 +157,12 @@ def test_a_schema_with_a_keyword_outside_the_subset_is_refused():
         schema.Unsupported, match="/properties/a: keywords outside the subset: minimum"
     ):
         schema.validate({}, {"properties": {"a": {"minimum": 1}}})
+
+
+def test_a_ref_beside_a_keyword_or_naming_nothing_is_refused(tmp_path):
+    (tmp_path / "beside.json").write_text('{"$ref": "#/properties", "type": "object"}')
+    with pytest.raises(schema.Unsupported, match="beside type"):
+        schema.load(tmp_path / "beside.json")
+    (tmp_path / "nothing.json").write_text('{"properties": {"a": {"$ref": "#/nowhere"}}}')
+    with pytest.raises(ValueError, match="names nothing"):
+        schema.load(tmp_path / "nothing.json")

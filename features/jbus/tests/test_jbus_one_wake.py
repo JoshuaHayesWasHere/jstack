@@ -39,11 +39,12 @@ DECIDED = "decision alpha: which one?"
 WHY = f"T3 Code did not take the wake: t3_thread_send: {REFUSED}"
 WHY_APPROVE = "a row with no approval of its brief"
 HOLDING_9 = (
-    f'decision #9: {HELD}, a pull request jmerge holds for your word. Reply: "demo #9: merge it"'
+    f"decision #9: {HELD}, a pull request jmerge holds for your word. Reply: "
+    "reply in your own words to merge #9 or say what to do instead"
 )
 HOLDING = (
     "demo: decision alpha: question 1: which one, it holds (deletes data) for your answer. "
-    'Reply: "demo question 1: default"'
+    "Reply: reply in your own words to keep the default (the first one) or say what to do instead"
 )
 BEFORE, ROOTED = "user", "waiting-on-user"
 
@@ -66,13 +67,13 @@ def approving(slug):
     state = jbus.load().state(jbus.load().project("demo"))
     sha = judgement.brief_sha(queue.brief(state, slug))[:12]
     command = f"jbus --project demo queue approve {slug} --sha {sha} with {queue.BASIS}"
-    reply = f'Reply: "demo approve {slug}: go"'
+    reply = f"Reply: reply in your own words to give {slug} its go or say what to do instead"
     return f"decision {slug}: approve {slug}: {command}, {WHY_APPROVE}. {reply}"
 
 
 def listing(line):
     """Return the line the one list carries a decision of the list as (`jbus.wakes`)."""
-    return re.sub(r'^(?:demo: )?decision [^:]+: (.*)\. Reply: "[^"]*"$', r"\1", line)
+    return re.sub(r"^(?:demo: )?decision [^:]+: (.*?)\. Reply: .*$", r"\1", line)
 
 
 def decide(kitchen, slug="alpha"):
@@ -387,7 +388,7 @@ def test_a_sign_in_to_t3_code_that_stopped_working_is_raised_on_the_desk_and_end
     ]
     signed_out = (
         "decision config: run jbus t3 login, jbus lacks a setup only you can give. "
-        'Reply: "demo config: I set it up"'
+        "Reply: set it up, then say so in your own words"
     )
     assert kitchen.wakes.listed == []
     assert (signed_out, "user") in logged(kitchen)

@@ -111,8 +111,10 @@ def _channel(sender: Home, to: Home) -> str:
         return "it is this home's own thread: send nothing"
     if to.name == "root":
         return (
-            "a scoped home reaches the root only by"
-            " `jbus stop <its open row> --on <row>` or `--outside <what>`"
+            "a scoped home reaches the root only at a one-way door, by"
+            " `jbus stop <its open row> --holds <case>` with `--on <row>` or `--outside <what>`,"
+            " the case one of features/home/templates/gates.md: anything else, tell the user"
+            " directly from this home's own thread, and stop"
         )
     if sender.name == "root":
         return (

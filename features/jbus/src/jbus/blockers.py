@@ -47,8 +47,9 @@ the key `decision|<key>`, which names no slug, so whoever raises the same blocke
 nothing. An item of the list of what waits is raised once for each time it is on the list: its key
 holds the item's `since`, so a hold or an approval that leaves the list and comes back is raised
 again. A blocker at its cap is `blocker:<key>`, the same from `admit` and `jbus clear`. Its line
-ends with `Reply: "<reply>"`, a line the user can send as it is: the reply goes to the home as the
-user's word (`jbus word`). A pass raises one for each item of the list of what waits that the user
+ends with `Reply: <hint>` (`reply`): the user replies in their own words, which go to the home as
+the user's word (`jbus word`), and the home turns them into a verb. No line gives the user words
+to send. A pass raises one for each item of the list of what waits that the user
 has to decide (`needs`): a question or a gate that holds, has no default or names one of
 `waiting.PAUSE`, a go gate whose silence starts nothing, a row to approve, a pull request `jmerge`
 holds, and a config item. `jbus decide` raises one by hand, for a scope change. A project's first
@@ -71,6 +72,7 @@ import argparse
 import hashlib
 import json
 import re
+import textwrap
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -108,7 +110,10 @@ KIND = "decision"
 APPROVE_GRACE_SECONDS = 60
 LEDGER = "blockers.json"
 FIX_OF, WHEN_GREEN = "Fix of", "When green"
-TAKE_IT = "I take it"
+OWN_WORDS = "reply in your own words to {what} or say what to do instead"
+"""The hint an item ends in (`reply`)."""
+DEFAULT_WIDTH = 60
+"""How much of a gate's default the hint shows, cut short at a word."""
 FIXED = {"check": "its check failed", "row": "it was refused or is stuck", "left": "it left work"}
 STUCK = ("gate", "failed", "stale")
 _STAMP = re.compile(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}")
@@ -125,7 +130,7 @@ def decide(run: Pass, slug: str, key: str, said: str, reply: str, *, listed: boo
     """Log one decision for the key, and return False when it was logged before. A home thread
     hears of it from the one list (`jbus.wakes`): a decision `listed` is an item of what waits
     there already, and any other is the project's alert, which ends after `alert.LASTS`."""
-    line, keyed = f'{KIND} {slug}: {said}. Reply: "{reply}"', f"{KIND}|{key}"
+    line, keyed = f"{KIND} {slug}: {said}. Reply: {reply}", f"{KIND}|{key}"
     sent = run.box.send(slug, KIND, line, key=keyed)
     if sent and not listed:
         ends = (run.now + alert.LASTS).isoformat()
@@ -147,11 +152,11 @@ def tries(directory: Path, key: str) -> list[dict[str, str]]:
     return found if isinstance(found, list) else []
 
 
-def _capped(project: Project, slug: str, key: str, had: list[dict[str, str]]) -> tuple[str, str]:
+def _capped(key: str, had: list[dict[str, str]]) -> tuple[str, str]:
     """The decision of a key that had its cap of fixes: what it says and its reply."""
     slugs = ", ".join(one.get("slug", "") for one in had)
     said = f"{key} had {_count(len(had), 'fix')} ({slugs}), the retry cap, and it still blocks"
-    return said, f"{project.name} {key}: {TAKE_IT}"
+    return said, OWN_WORDS.format(what=f"take {key} on yourself")
 
 
 def admit(config: Config, project: Project, slug: str, text: str) -> Callable[[], None]:
@@ -190,7 +195,7 @@ def admit(config: Config, project: Project, slug: str, text: str) -> Callable[[]
             f"refused: {merged}, so {slug} is not queued and nothing is raised: wait for "
             f"{key}'s next judgment"
         )
-    said, reply = _capped(project, slug, key, had)
+    said, reply = _capped(key, had)
     decide(run, slug, f"blocker:{key}", said, reply)
     raise Refused(
         f"refused: {said}: raised to {config.user.user} as a decision, and {slug} is not queued"
@@ -316,20 +321,21 @@ def needs(one: waiting.Item, context: str = "", known: frozenset[str] = frozense
     return f"it names {named}" if named else ""
 
 
-def reply(project: Project, one: waiting.Item) -> str:
-    """Return the line the user sends as it is to answer an item, which a decision carries as its
-    `Reply:` and `jbus needs` prints."""
+def reply(one: waiting.Item) -> str:
+    """Return the hint that ends an item, which a decision carries as its `Reply:` and `jbus
+    needs` prints: the user replies in their own words, and the home turns them into a verb. It
+    gives the user no words to send."""
     kind = one["kind"]
     if kind == "gate" and questions.listed(one):
-        return f"{project.name} question {one['number']}: default"
+        default = textwrap.shorten(str(one.get("default") or ""), DEFAULT_WIDTH, placeholder="...")
+        return OWN_WORDS.format(what=f"keep the default ({default})")
     if kind == "gate":
-        home = f"{one['home']}#" if one.get("home") else ""
-        return f"{project.name} gate {home}{one['number']}: hold it"
+        return OWN_WORDS.format(what="hold it")
     if kind == "hold":
-        return f"{project.name} #{one['number']}: merge it"
+        return OWN_WORDS.format(what=f"merge #{one['number']}")
     if kind == "approve":
-        return f"{project.name} approve {one['slug']}: go"
-    return f"{project.name} config: I set it up"
+        return OWN_WORDS.format(what=f"give {one['slug']} its go")
+    return "set it up, then say so in your own words"
 
 
 def _keyed(one: waiting.Item) -> tuple[str, str]:
@@ -435,7 +441,7 @@ def raise_listed(run: Pass, listed: list[waiting.Item] | None) -> None:
     hears of it from the one list (`jbus.wakes`), and the log keeps this event."""
     for one, said in deciding(run, listed):
         key, slug = _keyed(one)
-        decide(run, slug, key, said, reply(run.project, one), listed=True)
+        decide(run, slug, key, said, reply(one), listed=True)
 
 
 def _raise(half: Half) -> None:
@@ -525,7 +531,7 @@ def _rows(run: Pass, home: Directory) -> list[str]:
         elif merged:
             said.append(f"wait {key}: {merged}, and {slug} has not been judged since")
         elif len(had) >= cap:
-            what, reply = _capped(run.project, slug, key, had)
+            what, reply = _capped(key, had)
             decide(run, slug, f"blocker:{key}", what, reply)
             said.append(f"decision {key}: {what}, raised, it waits on {run.user.user}")
         else:
@@ -558,7 +564,7 @@ def _decide(args: argparse.Namespace, config: Config) -> int:
         raise Refused("refused: a decision needs --question and --reply, each filled in")
     run = Pass(config, project, datetime.now(UTC))
     key = "decide " + hashlib.sha256(f"{args.slug}\n{question}".encode()).hexdigest()[:16]
-    sent = decide(run, args.slug, key, question, f"{project.name} {reply}")
+    sent = decide(run, args.slug, key, question, reply)
     print(f"{'raised' if sent else 'raised already'}: {args.slug}: {question}")
     return 0
 
@@ -570,7 +576,11 @@ def _clears(parser: argparse.ArgumentParser) -> None:
 def _decides(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("slug")
     parser.add_argument("--question", required=True, help="what the user has to decide")
-    parser.add_argument("--reply", required=True, help="the reply the user can send as it is")
+    parser.add_argument(
+        "--reply",
+        required=True,
+        help="a plain hint for the user's reply, as: reply in your own words to ...",
+    )
 
 
 VERBS = (

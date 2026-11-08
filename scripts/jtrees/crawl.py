@@ -1,12 +1,12 @@
 """`crawl(root) -> Tree`: every feature of `features/`, read once and checked.
 
-A feature is a folder of `features/` with a `feature.json`, a `SKILL.md`, or both. Its
-manifest must validate against `schemas/feature.schema.json` and name its folder, and each path it
-declares must be a file. The crawl finds skills, principles, playbooks and templates where
-they are now and where they will be after a move (`SPOTS`). It assigns each item to the one
-feature that owns the item's path. `plugin.json` must validate against the vendored agent-plugins
-schema and contain pyproject's version. The crawl collects every fault it finds and raises them
-together, in one `Invalid`.
+A feature is a folder of `features/` with a `feature.json`, a `SKILL.md`, or both. Its manifest must
+validate against `schemas/feature.schema.json`, the core schema with jstack's keys, and name its
+folder, and each path it declares must be a file. The crawl finds skills, principles, playbooks and
+templates where they are now and where they will be after a move (`SPOTS`). It assigns each item to
+the one feature that owns the item's path. `plugin.json` must validate against the vendored
+agent-plugins schema and contain pyproject's version. The crawl collects every fault it finds and
+raises them together, in one `Invalid`.
 """
 
 from __future__ import annotations
@@ -29,10 +29,11 @@ SKILL = "SKILL.md"
 # The paths no feature owns: the repo's own build, CI, generator, lints and tests, and the entry
 # points a user or a harness looks for where they are (INFRA); and the shared files the
 # generator writes or a later unit deletes (SHARED-DELETE). This list lives here and not in a
-# manifest, since a feature owns its folder and nothing else. Each row outside lint-borders.py's
-# LAYOUT is a path that may stay outside it.
+# manifest, since a feature owns its folder and nothing else. The `owners` of .repo-standard.yml,
+# which the borders guard reads, are the same list, and test_lint_borders.py holds them equal.
 REPO_OWNERS: dict[str, tuple[str, ...]] = {
     "INFRA": (
+        ".repo-standard.yml",
         ".github/**",
         ".gitignore",
         "LICENSE",
@@ -266,9 +267,10 @@ def crawl(root: Path) -> Tree:
     """The tree at `root`, after the crawl has checked it. It raises `Invalid` with every fault it
     finds in the tree."""
     faults: list[str] = []
-    rules = _json(root / FEATURE_SCHEMA, faults, root)
-    if rules is None:
-        raise Invalid(faults)
+    try:
+        rules = schema.load(root / FEATURE_SCHEMA)
+    except (OSError, ValueError) as error:
+        raise Invalid([f"{FEATURE_SCHEMA}: {error}"]) from error
     features = []
     for folder in sorted((root / FEATURES).iterdir()) if (root / FEATURES).is_dir() else ():
         if folder.is_dir():
@@ -295,15 +297,3 @@ def tracked(root: Path) -> list[str]:
     return sorted(
         {one for one in listed.stdout.decode().split("\0") if one and (root / one).exists()}
     )
-
-
-def borders(tree: Tree, paths: list[str]) -> tuple[list[str], dict[str, tuple[str, ...]]]:
-    """The paths with no owner, and those with more than one, by their owners."""
-    unowned, twice = [], {}
-    for path in paths:
-        owners = tree.owners(path)
-        if not owners:
-            unowned.append(path)
-        elif len(owners) > 1:
-            twice[path] = owners
-    return unowned, twice
