@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 import jbus
-from jbus import green
+from jbus import green, launchd
 from jbus.passes import Pass
 from test_jbus_kitchen import NOW
 from test_jbus_queue import gates
@@ -84,10 +84,12 @@ def installs(monkeypatch):
 
 
 @pytest.fixture
-def systemctl(kitchen):
+def systemctl(kitchen, monkeypatch):
     """A systemctl on the kitchen's PATH that keeps each call's arguments, one line a call, so no
     move reaches this machine's systemd. While `systemctl.refuse` is in the stub, it refuses the
-    next daemon-reload, as a user bus that is not up does, and takes the file away."""
+    next daemon-reload, as a user bus that is not up does, and takes the file away. The machine is
+    one whose units systemd runs, on macOS too, where `launchd.manager()` would say launchd."""
+    monkeypatch.setattr(launchd, "manager", lambda: "systemd")
     fake = kitchen.stub / "systemctl"
     refuse = kitchen.stub / "systemctl.refuse"
     fake.write_text(

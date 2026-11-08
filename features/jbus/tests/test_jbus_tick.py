@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 import jbus
-from jbus import alert, budget, merge, restated, states, tick, verbs, work
+from jbus import alert, budget, launchd, merge, restated, states, tick, verbs, work
 from jmerge import ready
 from test_jbus_kitchen import NOW, Kitchen, rate_limit
 from test_jbus_merge import LOCKING, held
@@ -463,11 +463,13 @@ stop) echo inactive > "{stub}/timer.txt" ;;
 esac
 """
 """A user manager with the one timer the pass starts and stops, active as the install leaves it
-(`enable --now`), which refuses to start or stop it while `refused.txt` says why."""
+(`enable --now`), which refuses to start or stop it while `refused.txt` says why. The machine is
+one whose units systemd runs, on macOS too, where `launchd.manager()` would say launchd."""
 
 
 @pytest.fixture
-def manager(kitchen):
+def manager(kitchen, monkeypatch):
+    monkeypatch.setattr(launchd, "manager", lambda: "systemd")
     stand_in = kitchen.stub / "systemctl"
     stand_in.write_text(MANAGER.format(stub=kitchen.stub))
     stand_in.chmod(0o755)
