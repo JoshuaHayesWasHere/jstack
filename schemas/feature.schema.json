@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/JoshuaHayesWasHere/jstack/blob/main/schemas/feature.schema.json",
-  "title": "jstack feature manifest",
-  "description": "features/<name>/feature.json: what a feature ships beyond its SKILL.md files. scripts/generate-jstack-trees.py reads it, and writes skills.json, the generated regions of pyproject.toml and the docs indexes from it. A path is relative to the feature's folder, or, while the file has not moved there, to the repo root.",
+  "title": "jstack feature manifest: the core plus jstack's keys",
+  "description": "features/<name>/feature.json in jstack: the keys of schemas/feature.core.schema.json, which it takes by $ref, and what a feature ships beyond its SKILL.md files. scripts/generate-jstack-trees.py reads it, and writes skills.json, the generated regions of pyproject.toml and the docs indexes from it. A path is relative to the feature's folder, or, while the file has not moved there, to the repo root.",
   "type": "object",
   "required": ["$schema", "name", "description"],
   "additionalProperties": false,
@@ -10,17 +10,9 @@
     "$schema": {
       "const": "../../schemas/feature.schema.json"
     },
-    "name": {
-      "description": "The feature's folder under features/.",
-      "type": "string",
-      "maxLength": 64,
-      "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
-    },
-    "description": {
-      "description": "One sentence: what the feature does.",
-      "type": "string",
-      "minLength": 1
-    },
+    "name": {"$ref": "feature.core.schema.json#/properties/name"},
+    "description": {"$ref": "feature.core.schema.json#/properties/description"},
+    "docs": {"$ref": "feature.core.schema.json#/properties/docs"},
     "packages": {
       "description": "Each Python package of the wheel, as src/<package>.",
       "type": "array",
@@ -81,11 +73,6 @@
       "description": "Each folder of the feature that holds a skill of this repo's own, which the install links into a checkout's .claude/skills/<name> and .cursor/skills/<name>, by the name its SKILL.md gives.",
       "type": "array",
       "items": {"type": "string", "pattern": "^[a-z0-9-]+(?:/[a-z0-9-]+)*$"}
-    },
-    "docs": {
-      "description": "Each page of the feature; the first is the one the README links.",
-      "type": "array",
-      "items": {"type": "string", "pattern": "^docs/[a-z0-9/-]+\\.md$"}
     },
     "everyRun": {
       "description": "Each test that runs on every change, whatever the change touches.",
