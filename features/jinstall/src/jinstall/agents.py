@@ -1,13 +1,14 @@
 """The Units need on macOS: the launchd agents that `jinstall.launchd` makes from the unit
 templates, in `~/Library/LaunchAgents`, loaded into the gui domain."""
 
+import math
 import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from jbus.launchd import NOT_LOADED
+from jbus.launchd import NOT_LOADED, STARTED, parse_print
 from jinstall import launchd
-from jinstall.kinds import Found, Kind, split
+from jinstall.kinds import Found, Kind, changed, split
 from jinstall.machine import Dropped, Machine, Refused
 
 PLIST_MODE = 0o644
@@ -36,13 +37,18 @@ class Agents:
       there.
     old: the detail names the first piece that is not so: `lacks jstack.jbus.plist`,
       `jstack.jbus.plist is not as its templates make it`, `jstack.jbus is not loaded`,
-      `jstack.jbus-ci.plist is there, and nothing asks for it`.
+      `jstack.jbus-ci.plist is there, and nothing asks for it`, `jstack.jbus-follow started
+      before ~/.local/bin/jbus changed, so it runs old code` (`stale`).
     foreign: a plist that no install made, `jstack.jbus.plist -> not jstack's, differs`; no
       ~/.local/bin/jbus; and, under the account's own HOME, a launchctl that did not answer.
     put: refuse when there is no ~/.local/bin/jbus. Otherwise boot out and remove the plist of
       each opted agent whose need is missing, write each plist that differs (booting its agent
-      out first when it is loaded), and bootstrap each agent that is not loaded. A run that
-      finds everything as it should be writes nothing and runs no bootstrap.
+      out first when it is loaded), bootstrap each agent that is not loaded, and kickstart -k
+      each agent that `stale` names. A run that finds everything as it should be writes
+      nothing and runs no bootstrap.
+    add: what the green move runs after it moves the copy (`jinstall.green.live`): write and
+      bootstrap each agent that is on and has no plist yet, as when main adds a unit, where the
+      install wrote any plist here.
     drop: boot out each agent whose plist is this install's, and remove the plist.
     Each launchctl step goes through `machine.launchctl`, so in a sandbox with no stand-in the
     need only writes, checks and removes the plists."""
@@ -123,6 +129,9 @@ class Agents:
                 return Found.foreign(loaded)
             if not loaded:
                 return Found.old(f"{agent.label} is not loaded")
+        for agent in self.stale(machine):
+            jbus = machine.home / ".local" / "bin" / "jbus"
+            return Found.old(f"{agent.label} started before {jbus} changed, so it runs old code")
         for agent in off:
             if launchd.made_from(self._read(agent) or "") is not None:
                 return Found.old(f"{self._path(agent).name} is there, and nothing asks for it")
@@ -166,6 +175,69 @@ class Agents:
                 machine.write_text(self._path(agent), wanted, PLIST_MODE)
             if self._loaded(machine, agent) is False:
                 self._launchctl(machine, "bootstrap", machine.gui(), str(self._path(agent)))
+        self.restart(machine)
+
+    def _started(self, agent: launchd.Agent, home: Path) -> int | None:
+        """When the agent's last run started, by the last start marker of its log, or None
+        where its log holds none."""
+        try:
+            lines = launchd.log(home, agent.label).read_text().splitlines()
+        except OSError:
+            return None
+        for line in reversed(lines):
+            if line.startswith(STARTED):
+                try:
+                    return int(line.removeprefix(STARTED))
+                except ValueError:
+                    return None
+        return None
+
+    def _running(self, machine: Machine, agent: launchd.Agent) -> bool:
+        ran = machine.launchctl("print", self._service(machine, agent))
+        return ran is not None and ran.code == 0 and parse_print(ran.out).get("state") == "running"
+
+    def stale(self, machine: Machine) -> list[launchd.Agent]:
+        """Each agent of a service that is on, whose last run started before ~/.local/bin/jbus
+        last changed, and that launchd runs: the follower, and the relay where it runs, still on
+        the jbus they loaded. The start marker counts whole seconds, so a run that started in the
+        second ~/.local/bin/jbus changed is not stale, and a restart is never repeated for it.
+        launchd is asked only of an agent whose marker is older than the change."""
+        since = changed(machine)
+        if since is None:
+            return []
+        on, _ = self._split(machine)
+        found = []
+        for agent in on:
+            if not agent.unit.endswith(".service"):
+                continue
+            started = self._started(agent, machine.home)
+            if started is None or started >= math.floor(since.timestamp()):
+                continue
+            if self._running(machine, agent):
+                found.append(agent)
+        return found
+
+    def restart(self, machine: Machine) -> None:
+        """Restart each agent that `stale` names, with `launchctl kickstart -k`, which stops the
+        run and starts the agent again. Its new run writes a later start marker, so a second
+        call restarts nothing."""
+        for agent in self.stale(machine):
+            self._launchctl(machine, "kickstart", "-k", self._service(machine, agent))
+
+    def add(self, machine: Machine) -> list[str]:
+        """Write and bootstrap each agent that is on and has no plist, services first, where the
+        install wrote a plist here. Return the units it added; a second call adds none."""
+        if not self._ours(machine):
+            return []
+        on, _ = self._split(machine)
+        new = [agent for agent in on if self._read(agent) is None]
+        new.sort(key=lambda agent: not agent.unit.endswith(".service"))
+        for agent in new:
+            machine.make_dirs(launchd.log(machine.home, agent.label).parent)
+            machine.write_text(self._path(agent), self._text(machine, agent), PLIST_MODE)
+            if self._loaded(machine, agent) is False:
+                self._launchctl(machine, "bootstrap", machine.gui(), str(self._path(agent)))
+        return [agent.unit for agent in new]
 
     def drop(self, machine: Machine) -> Dropped:
         ours = self._ours(machine)

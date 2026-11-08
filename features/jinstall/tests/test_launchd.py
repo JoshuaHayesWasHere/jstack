@@ -267,6 +267,42 @@ def test_every_mac_keeps_the_follower_alive_and_restarts_it_after_a_failure(mac)
     assert follow["EnvironmentVariables"]["PYTHONUNBUFFERED"] == "1"
 
 
+def test_a_running_follower_and_relay_of_the_jbus_before_an_update_are_kickstarted_once(mac):
+    """sa-follow-runs-live: on macOS an install that changed jbus restarted neither the
+    follower's agent nor the relay's, so each ran the jbus of before until its next restart.
+    An agent whose log's last start marker is older than ~/.local/bin/jbus is kickstarted, once:
+    its new run writes a later marker, and one started after the change is left."""
+    mac.as_owner()
+    setup(mac.machine())
+    real = mac.stub / "launchctl.real"
+    (mac.stub / "launchctl").rename(real)
+    logs = mac.home / "Library" / "Logs" / "jstack"
+    mac.write(
+        mac.stub / "launchctl",
+        f"""#!/bin/sh
+[ "$1" = kickstart ] || exec {real} "$@"
+echo "$*" >> {mac.launchctl_log}
+echo "jstack: started $(date +%s)" >> {logs}/"${{3##*/}}.log"
+""",
+    )
+    (mac.stub / "launchctl").chmod(0o755)
+    jbus = mac.home / ".local" / "bin" / "jbus"
+    os.utime(jbus, (time.time() - 60,) * 2)
+    for name in ("jbus-follow", "jbus-relay", "jbus-ci"):
+        (mac.loaded / f"jstack.{name}.pid").write_text("4242\n")
+        mac.write(logs / f"jstack.{name}.log", f"{STARTED}{int(time.time()) - 600}\nran\n")
+
+    stale = f"jstack.jbus-follow started before {jbus} changed, so it runs old code"
+    assert mac.said_by(install, False) == [f"old optional {mac.line} -> {stale}"]
+    setup(mac.machine())
+    setup(mac.machine())
+    assert mac.calls("kickstart") == [
+        f"kickstart -k {GUI}/jstack.jbus-follow",
+        f"kickstart -k {GUI}/jstack.jbus-relay",
+    ]
+    assert mac.said_by(install, False) == [f"ok optional {mac.line}"]
+
+
 def test_the_view_gets_no_agent_as_systemd_enables_no_view(mac):
     mac.with_jbus()
     setup(mac.machine())

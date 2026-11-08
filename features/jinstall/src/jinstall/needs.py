@@ -326,6 +326,19 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         Need(f"env {file}", Level.HARD, SettingsEnv(file, CLAUDE_CODE.env, file == claude[0]))
         for file in claude
     ]
+    made = units(machine)
+    found.append(Need(f"units {made.directory}", Level.OPTIONAL, made))
+    return tuple(found)
+
+
+def units(machine: Machine) -> Units | Agents:
+    """The need of the jbus units: `Units` for systemd, or `Agents` for launchd on macOS. It
+    holds the one list of what the install enables, each timer and each service of `ALWAYS`,
+    and the units an opted need turns on, so the green move (`jinstall.green.live`) adds and
+    restarts by the same list as the install."""
+    home = machine.home
+    jbus, state = _jbus_config(machine), _state_tree(machine)
+    relay = machine.config_home() / "jbus-relay" / "env"
     names = sorted(templates(machine))
     opted = {
         "jbus-ci.timer": CiReport(jbus),
@@ -339,12 +352,9 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     chosen = tuple((name, need) for name, need in opted.items() if name in names)
     if machine.platform == "darwin":
         made = launchd.agents(templates(machine), home)
-        units = Agents(home / "Library" / "LaunchAgents", made, always, jbus, chosen)
-    else:
-        systemd = machine.config_home() / "systemd" / "user"
-        units = Units(systemd, tuple(names), always, jbus, chosen)
-    found.append(Need(f"units {units.directory}", Level.OPTIONAL, units))
-    return tuple(found)
+        return Agents(home / "Library" / "LaunchAgents", made, always, jbus, chosen)
+    systemd = machine.config_home() / "systemd" / "user"
+    return Units(systemd, tuple(names), always, jbus, chosen)
 
 
 def _attribution(home: Path, providers: dict) -> list[tuple[Path, dict, bool]]:

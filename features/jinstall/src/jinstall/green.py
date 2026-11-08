@@ -21,7 +21,7 @@ from pathlib import Path
 import jbus
 from jbus import green as copies
 from jinstall.harnesses import HARNESSES
-from jinstall.kinds import Carried, Found, GoneLink, HookGroup, RetiredHook, State, restart
+from jinstall.kinds import Carried, Found, GoneLink, HookGroup, RetiredHook, State
 from jinstall.layout import UNREADABLE, Layout, folder
 from jinstall.machine import Dropped, Machine, Moved, Refused
 from jmerge import mainjson
@@ -101,10 +101,8 @@ def relink(copy: Path) -> list[str]:
     (`hooks <file>`, RetiredHook): the layout's `hooks/` now holds the scripts of the new tip, so
     an entry for a dropped script would run a file that is gone on every call. A Claude home
     other than ~/.claude reads its skills through ~/.claude/skills (`HomeSkills`), so it needs
-    nothing more. The move installed the tool again, so it also restarts each always-on service
-    that still runs the jbus of before (`jinstall.kinds.restart`), as the install does. Return
-    why each layout or need it could not put was not put, one line each."""
-    from jinstall.needs import ALWAYS, needs
+    nothing more. Return why each layout or need it could not put was not put, one line each."""
+    from jinstall.needs import needs
 
     machine = replace(Machine.here(copies.of(copy)), green=copy)
     faults, put = [], []
@@ -117,10 +115,6 @@ def relink(copy: Path) -> list[str]:
             put.append(harness)
         except (Refused, *UNREADABLE) as why:
             faults.append(f"layout {harness.name}: {why}")
-    try:
-        restart(machine, ALWAYS)
-    except Refused as why:
-        faults.append(f"units: {why}")
     if not put:
         return faults
     roots = {machine.home / harness.root for harness in put}
@@ -140,6 +134,27 @@ def relink(copy: Path) -> list[str]:
         except (OSError, Moved, Refused) as why:
             faults.append(f"{need.name}: {why}")
     return faults
+
+
+def live(copy: Path) -> tuple[list[str], str]:
+    """Put the units of the tip the green copy `copy` now holds to work, as the install would:
+    link, enable and start each unit the install turns on that has no link yet, as when main
+    adds one, services first (`Units.add`, `Agents.add`), then restart each service the install
+    turns on that still runs the jbus of before the move installed the tool again (`restart`),
+    with `kickstart -k` on launchd. Both read the install's own list (`jinstall.needs.units`).
+    A machine whose install linked none of the units gets none, and a second call finds each
+    unit there and each service started after the change, and does nothing. Return the units it
+    added, and why the manager refused a step, or "" when it took each."""
+    from jinstall.needs import units
+
+    machine = replace(Machine.here(copies.of(copy)), green=copy)
+    need, added = units(machine), []
+    try:
+        added = need.add(machine)
+        need.restart(machine)
+    except (OSError, Refused) as why:
+        return added, str(why)
+    return added, ""
 
 
 @dataclass(frozen=True)

@@ -30,7 +30,13 @@ command that still runs in it. Last, it puts each harness's layout again from th
 so a file main added would otherwise reach no harness, and one it dropped would leave a link that
 dangles, until the next install. With each layout it puts the links under the harness's skills
 root and the entries of its hooks file, so a skill or hook main adds is live and one it drops is
-gone.
+gone. Then it puts the units to work as the install would (`jinstall.green.live`), by the
+install's own list (`jinstall.needs.units`): it links, enables and starts each unit the install
+turns on that has no link yet, as when main adds one, services such as the follower first, and
+it restarts each service the install turns on (the follower, and the relay where it runs) that
+started before the reinstall changed ~/.local/bin/jbus, with `systemctl --user try-restart` or
+`launchctl kickstart -k`. A second move finds each unit linked and each service newer than
+the change, and does neither; one the manager refuses raises a condition for the tip.
 
 The units of `features/*/units/` link through the copy, so a move changes the files systemd
 runs, and systemd keeps running the ones it loaded until it is told to read them again. systemd
@@ -61,8 +67,9 @@ never moves, and yet it spares no reload: systemd judges the file behind it, whi
 makes new.
 
 Each move prints one line, `green <project>: the commands now run from <new 12>, in place of
-<old 12>`, which the pass's log keeps, and one that reloaded units a second, `green <project>:
-systemd reloaded <units>, and restarted <timers>`, whose units are the files that
+<old 12>`, which the pass's log keeps, one that added units a second, `green <project>: linked,
+enabled and started <units>`, and one that reloaded units another, `green <project>: systemd
+reloaded <units>, and restarted <timers>`, whose units are the files that
 changed or else `the units of <new 12>`. A crew's worktree is not the copy: `uv run`
 there runs that tree's own code, and the copy moves no file of it.
 """
@@ -106,6 +113,7 @@ NO_IMPORT = "the green copy does not import"
 MOVE_FAILED = "the green copy could not move"
 UNLINKED = "the harness does not link the green copy's files"
 UNRELOADED = "systemd did not reload the green copy's units"
+UNSTARTED = "the green copy's units did not go live"
 
 UNITS = "features/*/units/*"
 """The unit files a tree holds, which the install links into systemd through the copy."""
@@ -349,13 +357,18 @@ def _advance(run: Pass, copy: Path) -> None:
     for old in trees(copy).iterdir():
         if old.is_dir() and old.resolve() not in (before, tree.resolve()):
             shutil.rmtree(old)
-    from jinstall.green import relink
+    from jinstall.green import live, relink
 
     for why in relink(copy):
         run.condition("green", UNLINKED, f"at {green[:12]}: {why}", key=green[:12])
     run.say(
         f"green {run.project.name}: the commands now run from {green[:12]}, in place of {held[:12]}"
     )
+    added, why = live(copy)
+    if added:
+        run.say(f"green {run.project.name}: linked, enabled and started {', '.join(added)}")
+    if why:
+        run.condition("green", UNSTARTED, f"at {green[:12]}: {why}", key=green[:12])
 
 
 STEPS = (verbs.Step("close", 45, "green.move", lambda half: move(half.run), ()),)
