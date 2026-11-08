@@ -14,6 +14,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from collections import Counter
 from functools import cache
 from pathlib import Path
@@ -167,7 +168,9 @@ class Repo:
     """A repo with the script, a copy of the folders of packages it imports, a map and a few
     modules and tests."""
 
-    def __init__(self, root, features=None, files=None):
+    def __init__(self, root, features=None, files=None, facts=True):
+        """`facts` starts the repo with the script's kept facts of a repo of `FILES` (`kept()`),
+        as a run on a developer's checkout starts from the last run's."""
         self.root = root
         shutil.copy2(SCRIPT, self.put("scripts/select_tests.py"))
         for folder in packages():
@@ -182,6 +185,8 @@ class Repo:
         write(root, cross)
         write(root, FILES if files is None else files)
         git(root, "init", "-q", "-b", "main")
+        if facts:
+            (root / ".git" / select.KEPT).write_bytes(kept())
         self.base = self.commit()
 
     def commit_head(self):
@@ -221,6 +226,19 @@ class Repo:
         ran = self.run(self.base, head)
         assert ran.returncode == 0, ran.stderr
         return ran.stdout.splitlines()
+
+
+@cache
+def kept():
+    """The facts (`select.KEPT`) one run of this checkout's script keeps in a repo of `FILES`.
+    Without them each test's first run parses every module of the copied packages, about 0.1 s
+    of a core. They are kept under a hash of the script, jmerge's reader of patterns, the Python
+    and the repo's skills, and by the hash of each module's text, so a test whose script, skills
+    or modules differ parses afresh what differs, as a run on a developer's checkout does."""
+    with tempfile.TemporaryDirectory() as held:
+        repo = Repo(Path(held), facts=False)
+        repo.selected(repo.change(["src/alpha/util.py"]))
+        return (repo.root / ".git" / select.KEPT).read_bytes()
 
 
 @pytest.fixture
