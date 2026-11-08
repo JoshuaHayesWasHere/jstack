@@ -184,7 +184,10 @@ def test_at_the_cap_a_merged_fix_s_effect_is_waited_on_and_a_rerun_that_fails_ag
     assert row["updated"] == stamp(timedelta(minutes=60)), "the rerun changed no column"
     assert stands.startswith("decision check:beta: check:beta had 2 fixes"), stands
     (said,) = posted(kitchen)
-    assert 'Reply: "demo check:beta: I take it"' in said
+    assert (
+        "Reply: reply in your own words to take check:beta on yourself or say what to do instead"
+        in said
+    )
 
 
 def test_a_blocker_whose_two_launched_fixes_both_failed_pages_at_the_cap(kitchen):
@@ -248,5 +251,6 @@ def test_a_blocker_no_pass_judges_again_pages_at_the_cap_once_its_last_fix_merge
     assert "raised to" in refused[1], refused[1]
     assert [one["line"] for one in paged(kitchen)] == [
         f"decision beta: {key} had 2 fixes (beta-fix-1, beta-fix-2), the retry cap, and it still "
-        f'blocks. Reply: "demo {key}: I take it"'
+        f"blocks. Reply: reply in your own words to take {key} on yourself or say what to do "
+        "instead"
     ]

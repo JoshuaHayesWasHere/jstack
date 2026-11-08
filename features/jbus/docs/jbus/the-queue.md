@@ -346,10 +346,10 @@ A command that runs dry, with `--dry-run` or `DRY_RUN=1`, or only prints its hel
 An act on a door goes through only for you, on words jbus read itself.
 A go on such a brief from the bot, a home or the view approves nothing: it parks a gate that holds, `may <slug> go? Its brief holds for <case>`, and the act is `gated`.
 Your own go, `jbus --as user queue approve <slug> --sha <sha12> --message <thread>/<message>`, or `--pick <thread>/<item>` for your answer to a question box, approves the row and closes that gate.
-That message or pick names the row's slug or its gate's number, and was said after the brief was stored: an older one, or one about other work, is refused with what to send.
-A message that names neither still opens the door when it is your plain reply in a home's thread to that home's ask: the home's last message before it asks about the row by its slug, or about its gate as `question <n>`, with a question mark in the sentence that names it (`t3.home_ask`, `t3.asks`).
-It opens only the doors of what that ask asked about: each row or question it names counts on its own, by the part of the ask that follows its name up to the next one it names, so an ask about two rows, each with its own question mark, opens both, while a row the ask only names in passing is not asked about.
-An answer to a gate that holds is held to the same: your message names the gate's number or its row, or is your plain reply to the home's ask about it, and was said after the gate was asked.
+Your plain reply in a home's thread opens it: the home's last message before it names the row by its slug, or its gate as `question <n>`, and names no other open door (`t3.home_ask`, `t3.asks`). You need not name anything: "yes" or "drop it" is enough, and the home turns it into the verb.
+An ask that names two or more open doors opens none on a plain reply, so a "yes" never opens two doors; a message that names the row or its gate itself (`question 15` and its slips, `q15`, `#15`, or the slug with spaces for its hyphens) opens that one.
+The message or pick was said after the brief was stored: an older one, or a reply to an ask about other work, is refused, and the home asks you about the one row again in plain words.
+An answer to a gate that holds is held to the same: your plain reply to the home's ask about it, or a message that names it, said after the gate was asked.
 `jbus queue apply` refuses a batch that approves a brief with a door, and applies nothing of it.
 No plan entry's go, follow-up rule or close by silence approves such a row either.
 A home's or a scout's own shell command that walks through a door is refused before it runs by the `door-command` hook (`jbus.door`), and so is a crew's whose row did not go on your own word read in T3 Code.

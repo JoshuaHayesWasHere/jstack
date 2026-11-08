@@ -315,11 +315,11 @@ def test_the_carried_word_parks_a_gate_whose_holds_names_the_case(kitchen):
     queued(kitchen)
     said = carried_word(kitchen, None, "deploy-prod")
     (asked,) = questions.read(kitchen.state)
-    assert f"so it waits for user's own word: question {asked.number}; jbus queue " in said
+    assert f"so it waits for user's own word: question {asked.number}; ask user about " in said
     assert (asked.slug, asked.holds) == ("deploy-prod", PROD)
 
 
-def test_a_message_of_joshs_that_names_another_row_is_refused_and_says_what_to_send(kitchen):
+def test_a_message_of_joshs_that_names_another_row_is_refused_and_says_what_to_ask(kitchen):
     queued(kitchen)
     ref = josh(kitchen, "go on the skills")
     code, said = approve(kitchen, "deploy-prod", "--message", ref, user=True)
@@ -327,9 +327,10 @@ def test_a_message_of_joshs_that_names_another_row_is_refused_and_says_what_to_s
     assert (code, said) == (
         1,
         f"refused: deploy-prod's brief holds for {PROD}, and message {ref} (\"go on the "
-        f'skills") names neither deploy-prod nor its gate: jbus queue approve deploy-prod --sha '
-        f"{sha} --message <thread>/<message>, on user's own message in T3 Code that names "
-        "deploy-prod and was said after its brief was stored, opens it\n",
+        f'skills") names neither deploy-prod nor its gate: ask user about deploy-prod alone, '
+        f"in plain words, and pass their reply: jbus queue approve deploy-prod --sha {sha} "
+        "--message <thread>/<message>, on user's own reply in T3 Code said after its brief was "
+        "stored, opens it\n",
     )
     assert rows(kitchen)["deploy-prod"]["approved"] == ""
 
@@ -395,7 +396,8 @@ def test_a_carried_go_on_winnifreds_prod_deploy_brief_is_gated_and_launches_noth
     (asked,) = questions.read(kitchen.state)
     assert said.startswith(
         f"gated qw-deploy-main-to-prod: its brief holds for {PROD}, so it waits for user's own "
-        f"word: question {asked.number}; jbus queue approve qw-deploy-main-to-prod --sha "
+        f"word: question {asked.number}; ask user about qw-deploy-main-to-prod alone, in plain "
+        "words, and pass their reply: jbus queue approve qw-deploy-main-to-prod --sha "
     )
     assert asked.holds == PROD
     assert rows(kitchen)["qw-deploy-main-to-prod"]["approved"] == ""

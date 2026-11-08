@@ -348,9 +348,9 @@ def test_a_bot_go_on_a_brief_that_holds_parks_a_gate_for_the_user_and_approves_n
     assert (code, said.splitlines()[0]) == (
         0,
         "gated alpha: its brief holds for rewrites history, so it waits for user's own word: "
-        f"question {asked.number}; jbus queue approve alpha --sha {sha} --message "
-        "<thread>/<message>, on user's own message in T3 Code that names alpha and was said "
-        "after its brief was stored, opens it",
+        f"question {asked.number}; ask user about alpha alone, in plain words, and pass their "
+        f"reply: jbus queue approve alpha --sha {sha} --message <thread>/<message>, on user's "
+        "own reply in T3 Code said after its brief was stored, opens it",
     )
     now(kitchen, "yes, rewrite alpha")
     code, said = kitchen.main(
@@ -420,7 +420,8 @@ def test_a_bot_answer_closes_a_two_way_gate_and_is_refused_on_a_gate_that_holds(
     assert status == 409
     assert said["error"] == (
         f"refused: question {held} holds (rewrites history): only user's own word, read in T3 "
-        "Code, answers it, so it stays open. It closes with jbus "
+        "Code, answers it, so it stays open: ask user about question "
+        f"{held} alone, in plain words, and pass their reply: it closes with jbus "
         f"answer {held} --default --message <thread id>/<message id>, or --differs for an "
         "answer that is not the default, where the message is user's own in T3 Code: --by and "
         "--at cannot close it"
@@ -441,7 +442,8 @@ def test_a_home_typing_the_users_name_on_a_door_is_refused_and_the_gate_stays_op
     assert (code, said) == (
         1,
         f"refused: question {held} holds (rewrites history): only user's own word, read in T3 "
-        "Code, answers it, so it stays open. It closes with jbus "
+        "Code, answers it, so it stays open: ask user about question "
+        f"{held} alone, in plain words, and pass their reply: it closes with jbus "
         f"answer {held} --default --message <thread id>/<message id>, or --differs for an "
         "answer that is not the default, where the message is user's own in T3 Code: --by and "
         "--at cannot close it\n",
@@ -540,7 +542,8 @@ def test_the_bots_answer_that_keeps_a_go_gates_default_is_a_go_and_a_door_still_
     assert said["error"] == (
         f"refused: question {numbers['door']} keeps the go of door, whose brief holds for "
         "rewrites history: only user's own word, read in T3 Code, answers it, "
-        f"so it stays open. It closes with jbus answer {numbers['door']} --default "
+        f"so it stays open: ask user about question {numbers['door']} alone, in plain words, "
+        f"and pass their reply: it closes with jbus answer {numbers['door']} --default "
         "--message <thread id>/<message id>, or --differs for an answer that is not the default, "
         "where the message is user's own in T3 Code: --by and --at cannot close it"
     )
@@ -796,7 +799,9 @@ def test_an_ask_that_names_the_question_once_with_no_question_mark_binds_drop_it
     door, with its pick and no question mark, and "drop it" is the reply to it."""
     kitchen.brief("alpha", "Thread: mcp:crew-alpha\n")
     held = gate(kitchen, holds=True)
-    home_asks(kitchen, "ask", f"- **demo question {held}, the old history:** my pick is the default")
+    home_asks(
+        kitchen, "ask", f"- **demo question {held}, the old history:** my pick is the default"
+    )
     code, said = answer(kitchen, held, plain(kitchen, "drop", "drop it"))
     assert code == 0, said
     assert questions.question(kitchen.state, held).answer.keeps
@@ -826,7 +831,7 @@ INFRA_ASK = (
     "Question 14 is closed on your message. The lavish-axi repo is already gone from GitHub (it "
     'still returns "not found"), so there was nothing to delete.\n\nThree things still wait on '
     "you:\n- **infra question {n}, turning on Funnel for Categories in the tailnet policy:** my "
-    'pick is the default, leave the policy as it is.\n- **The finished /tmp scout row:** send '
+    "pick is the default, leave the policy as it is.\n- **The finished /tmp scout row:** send "
     '"remove tmp-quota-root" to clear it.\n- **Your reboot:** it moves /tmp onto the main disk.'
 )
 """The infra home's message at position 3485 of its thread, on 2026-11-08 at 18:51, with the

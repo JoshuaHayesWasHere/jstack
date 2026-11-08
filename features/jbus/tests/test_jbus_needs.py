@@ -43,7 +43,7 @@ def test_an_open_gate_that_holds_is_listed_with_what_it_holds_and_the_reply_that
         "waiting on user: 1, in demo",
         "demo question 1: drop the old branch, it holds (deletes data) for your answer",
         "  fail-safe: the dry-run in /tmp/gone.txt",
-        "  answer: reply in your own words to keep the default (keep the branch) or say what "
+        "  answer: reply in your own words to keep the default (the first one) or say what "
         "to do instead",
     ]
 
