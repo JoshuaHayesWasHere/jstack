@@ -623,7 +623,9 @@ def _makeflags(repo: Repo) -> list[str]:
             faults.extend(
                 f"{path}:{line}: `MAKEFLAGS` sets `{flag}`, so make goes on past a deploy "
                 "entry's failing `repo-standard green`"
-                for flag in dict.fromkeys(_goes_on_flags(hit[1].split(), bare_first=True))
+                for flag in dict.fromkeys(
+                    _goes_on_flags(hit[1].split("#")[0].split(), bare_first=True)
+                )
             )
     return faults
 
