@@ -11,6 +11,7 @@ from datetime import timedelta
 
 import pytest
 
+import jbus
 from jbus import leftover, questions, stale, wakes
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_leftover import home
@@ -299,44 +300,29 @@ def stale_wakes(kitchen):
     return [line for line in kitchen.wakes.said if line.startswith("jbus stale:")]
 
 
-def test_the_hourly_audit_sends_its_count_to_the_root_home_once_each_time_it_changes(kitchen):
-    root = home(kitchen)["threadId"]
+def quiet(kitchen):
+    """What `jbus status` shows of the project's items that wake no home."""
+    return json.loads(jbus.load().status_path.read_text())["projects"]["demo"]["quiet"]
+
+
+def test_the_hourly_count_wakes_no_home_and_jbus_status_shows_it(kitchen):
+    """The user, 2026-11-08: "Drop it". The count is no wake of the root's, or of any home's;
+    `jbus status` shows it while it is above none."""
+    home(kitchen)
     (kitchen.home / "holds.json").write_text(json.dumps({"5": "a" * 40}))
     kitchen.poll(NOW)
     hint = "`jbus stale --project demo` lists each, and deletes nothing"
-    assert stale_wakes(kitchen) == [f"jbus stale: 1 stale in demo (hold 1): {hint}"]
-    assert stale.read(kitchen.state) == {
-        "hour": int(NOW.timestamp() // stale.HOUR),
-        "count": 1,
-        "kinds": {"brief": 0, "worktree": 0, "hold": 1, "told": 0, "home-id": 0},
-        "gone": False,
-    }
+    assert quiet(kitchen) == [f"jbus stale: 1 stale in demo (hold 1): {hint}"]
+    assert stale.read(kitchen.state)["count"] == 1
     (kitchen.home / "holds.json").write_text(json.dumps({"5": "a" * 40, "6": "b" * 40}))
-    kitchen.poll(NOW + timedelta(minutes=30))
-    assert len(stale_wakes(kitchen)) == 1
     kitchen.poll(NOW + timedelta(hours=1))
-    assert stale_wakes(kitchen)[1:] == [f"jbus stale: 2 stale in demo (hold 2): {hint}"]
-    kitchen.poll(NOW + timedelta(hours=2))
-    assert len(stale_wakes(kitchen)) == 2
+    assert quiet(kitchen) == [f"jbus stale: 2 stale in demo (hold 2): {hint}"]
     sends = [one for tool, one in kitchen.t3.calls if tool == "t3_thread_send"]
-    assert {one["threadId"] for one in sends if "jbus stale:" in one["message"]} == {root}
-    (kitchen.home / "holds.json").write_text("{}")
-    kitchen.poll(NOW + timedelta(hours=3))
-    assert stale.read(kitchen.state)["count"] == 0 and len(stale_wakes(kitchen)) == 2
-
-
-def test_a_root_home_whose_home_id_is_gone_is_not_sent_the_count(kitchen):
-    (kitchen.home / "home-id").write_text("mcp:thread-gone\n")
-    (kitchen.home / "holds.json").write_text(json.dumps({"5": "a" * 40}))
-    kitchen.poll(NOW)
-    assert stale.read(kitchen.state)["count"] == 2 and stale.read(kitchen.state)["gone"]
+    assert [one for one in sends if "jbus stale:" in one["message"]] == []
     assert stale_wakes(kitchen) == []
-    home(kitchen)
-    kitchen.poll(NOW + timedelta(hours=1))
-    assert stale_wakes(kitchen) == [
-        "jbus stale: 1 stale in demo (hold 1): `jbus stale --project demo` lists each, and "
-        "deletes nothing"
-    ]
+    (kitchen.home / "holds.json").write_text("{}")
+    kitchen.poll(NOW + timedelta(hours=2))
+    assert stale.read(kitchen.state)["count"] == 0 and quiet(kitchen) == []
 
 
 def test_a_brief_whose_leftover_jbus_holds_is_not_stale(kitchen):

@@ -80,9 +80,9 @@ def makefile(selection):
 def caller(tmp_path):
     """A caller repo with two commits, the upstream it clones, and the env every step gets.
 
-    The env leaves out what a make that runs this suite passes down: a make such as CI's
-    `make check SHARD=K/4` exports each variable of its command line, which MAKEFLAGS lists
-    after `--`, and the caller's own make must not see them."""
+    The env takes only PATH and HOME from the runner's, so nothing else there reaches a step: a
+    SHARD or TESTS in the env of CI's full run, or exported by a make such as `make check
+    SHARD=K/4`, would otherwise reach the caller's make and change what it is asked."""
     upstream = tmp_path / "upstream"
     for part in TOOL:
         source, target = REPO / part, upstream / part
@@ -104,17 +104,13 @@ def caller(tmp_path):
     (bin_ / "gh").write_text("#!/bin/sh\necho 'gh: no network here' >&2\nexit 1\n")
     (bin_ / "gh").chmod(0o755)
     env = {
-        **os.environ,
+        "HOME": os.environ["HOME"],
         "PATH": f"{bin_}{os.pathsep}{os.environ['PATH']}",
         "GITHUB_REPOSITORY": "someone/repo",
         "GITHUB_RUN_ATTEMPT": "1",
         "MAKE_LOG": str(tmp_path / "make.log"),
         "REPO_STANDARD_UPSTREAM": str(upstream),
     }
-    _, _, overrides = os.environ.get("MAKEFLAGS", "").partition("--")
-    on_make_line = [word.split("=", 1)[0] for word in overrides.split() if "=" in word]
-    for inherited in ("PYTHONPATH", "MAKEFLAGS", "MFLAGS", "MAKELEVEL", *on_make_line):
-        env.pop(inherited, None)
     return repo, env
 
 

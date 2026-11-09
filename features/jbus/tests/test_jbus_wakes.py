@@ -82,17 +82,20 @@ def test_a_red_check_of_a_crews_pull_request_is_told_to_the_crew_once_and_not_th
     assert root not in {given["threadId"] for given in sends(launched)}
 
 
-def test_a_red_run_no_row_owns_is_told_to_the_root_home_once(launched):
-    """A red check on a branch with no row, as a bot's, is a fault of the project."""
+def test_a_red_run_no_row_owns_is_told_to_the_catchall_once_and_not_the_root(launched):
+    """A red check on a branch with no row, as a bot's, is a fault of the project, which the
+    catch-all's home owns (the user, 2026-11-08: "Uncategorized")."""
     root = home(launched)["threadId"]
+    catchall = home(launched, "uncategorized")["threadId"]
     runs(launched, "dependabot/pip/oat")
     for minutes in (0, 3, 6):
         launched.poll(NOW + minutes * MIN)
-    assert told(launched) == [(wakes.KIND, root)]
-    (sent,) = [given for given in sends(launched) if given["threadId"] == root]
+    assert told(launched) == [(wakes.KIND, catchall)]
+    (sent,) = [given for given in sends(launched) if given["threadId"] == catchall]
     assert sent["message"].startswith("jbus: 1 new for this home in demo")
+    assert [given for given in sends(launched) if given["threadId"] == root] == []
     (ci,) = [one for one in wrongs(launched, NOW + 6 * MIN) if one["kind"] == "ci"]
-    assert (ci["owner"], ci["fixing"]["what"]) == ("root home", wakes.KIND)
+    assert (ci["owner"], ci["fixing"]["what"]) == ("home uncategorized", wakes.KIND)
 
 
 def test_with_no_root_home_a_red_run_no_row_owns_is_the_users_and_told_to_nobody(launched):

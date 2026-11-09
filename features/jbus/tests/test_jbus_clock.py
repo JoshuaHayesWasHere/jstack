@@ -8,6 +8,9 @@ fakes: the replay the report names for NoWaitWithoutClock is
 
 import pytest
 
+import jbus
+from jbus import passes, wakes
+from jbus.view import state
 from jmerge import ready
 from jroles import ledger
 from test_jbus_expedite import NO_REVIEW, Short, later
@@ -143,10 +146,10 @@ def test_with_no_home_the_second_miss_is_one_quiet_stall_and_not_the_user_s(shor
     assert loud(kitchen) == [] and gates(kitchen) == []
 
 
-def test_a_clock_s_stall_with_no_scoped_home_to_tell_goes_to_the_root_home_once(short, kitchen):
-    """The clock logs a stall where the row's home has handed off and no next home has started,
-    and the pass tells the root home of it, once: the second review of #563 found that stall
-    went to nobody."""
+def test_a_clock_s_stall_with_no_scoped_home_to_tell_is_the_users_and_not_the_roots(short, kitchen):
+    """The clock logs a stall where the row's home has handed off and no next home has started.
+    The root home hears of a one-way door alone (the user, 2026-11-08), so the stall is on the
+    user's band of what is wrong, where the second review of #563 found it went to nobody."""
     root = home(kitchen)
     gone = home(kitchen, "pantry")["threadId"]
     (kitchen.home / "pantry/handoff.md").write_text(f"Was home: {gone}\n")
@@ -156,10 +159,11 @@ def test_a_clock_s_stall_with_no_scoped_home_to_tell_goes_to_the_root_home_once(
     short.out(NO_REVIEW, result=f"Reviewer: {reviewer['threadId']} #1\n", review=False)
     short.passes(2 * N)
     assert [one for one in kitchen.lines("stall") if "no home to tell" in one]
-    (told,) = to(kitchen, root)
-    assert told.startswith("jbus: 1 new for this home in demo") and "- stall alpha: " in told
-    short.passes(N)
-    assert len(to(kitchen, root)) == 1
+    assert to(kitchen, root) == []
+    config = jbus.load()
+    found = wakes.read(passes.Pass(config, config.projects[0], later(2 * N)))
+    (stall,) = [one for one in state.users(found) if one["kind"] == "stall"]
+    assert (stall["owner"], stall["row"], stall["to"]) == ("user", "alpha", "")
 
 
 def test_a_reviewer_whose_thread_is_gone_is_not_asked_again_and_the_home_gets_the_line(
