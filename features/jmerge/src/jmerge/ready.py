@@ -950,28 +950,32 @@ def changed_tests(one: PullRequest) -> tuple[str, ...]:
 
 
 def short_on_proved(
-    text: str, one: PullRequest, carries: Callable[[str], bool] = lambda at: False
+    text: str,
+    one: PullRequest,
+    carries: Callable[[str], bool] = lambda at: False,
+    prose: Callable[[str], bool] = lambda path: False,
 ) -> str:
     """Why the brief's `Proved:` line does not prove the pull request, or nothing
     (`proved.proved`). A pull request that changes tests needs the line to name each of them,
     with their run over its merge-base's code ending 1, a failure, and at its head ending 0. A
     run that passes at the base, or ends on anything but a failure there (no test collected, a
     time limit), passes vacuously. One that changes no test needs no line, and where it says
-    `none, <kind>` each file it changes is of a kind it names. One whose every file, a deleted
-    one too, is a `proved.TEST_FILE` or of a `proved.EXEMPT` kind changes no code, so its tests
-    pass at its base as well: its `tests only` line needs only the run at its head, ending 0, and
-    the same line on a pull request that changes anything else proves nothing. A pull request
-    that removes tests is one, with the edit to the doc that named them, which the docs lint
-    makes it carry: a removal has no base run that fails. One that adds or changes a fork's patch
-    (`proved.FORK_FILE`) needs a line as one that changes tests does, since its tests are inside
-    the patch; one that only edits the `PKGBUILD` or deletes a patch has no fork test to run, and
-    needs none. Where every file it changes is a
-    fork file or of an `EXEMPT` kind, its `fork patches` line names the fork's test files, with
-    the same base and head runs; the same line on a pull request that changes any other file, a
-    test of this repo too, proves nothing (`proved.outside_fork`). A line of another head holds
-    where the head carries that head's patch unchanged (`carries`, the range-diff `jmerge` reads
-    after a rebase or a merge of the base): a push that changed the patch, a fix for a review's
-    finding most of all, may have changed the tests too."""
+    `none, <kind>` each file it changes is of a kind it names, a `.py` file whose change `prose`
+    says is to its docstrings and comments alone being `docs` (`proved.prose_in`). One whose
+    every file, a deleted one too, is a `proved.TEST_FILE` or of a `proved.EXEMPT` kind changes
+    no code, so its tests pass at its base as well: its `tests only` line needs only the run at
+    its head, ending 0, and the same line on a pull request that changes anything else proves
+    nothing. A pull request that removes tests is one, with the edit to the doc that named them,
+    which the docs lint makes it carry: a removal has no base run that fails. One that adds or
+    changes a fork's patch (`proved.FORK_FILE`) needs a line as one that changes tests does,
+    since its tests are inside the patch; one that only edits the `PKGBUILD` or deletes a patch
+    has no fork test to run, and needs none. Where every file it changes is a fork file or of an
+    `EXEMPT` kind, its `fork patches` line names the fork's test files, with the same base and
+    head runs; the same line on a pull request that changes any other file, a test of this repo
+    too, proves nothing (`proved.outside_fork`). A line of another head holds where the head
+    carries that head's patch unchanged (`carries`, the range-diff `jmerge` reads after a rebase
+    or a merge of the base): a push that changed the patch, a fix for a review's finding most of
+    all, may have changed the tests too."""
     tests = changed_tests(one)
     said = proved.proved(text)
     if said is None:
@@ -992,7 +996,7 @@ def short_on_proved(
             (
                 path
                 for path in one.files
-                if not any(proved.of_kind(path, kind) for kind in said.kinds)
+                if not any(proved.of_kind(path, kind, prose) for kind in said.kinds)
             ),
             "",
         )
@@ -1026,10 +1030,15 @@ def short_on_proved(
     return ""
 
 
-def proves(text: str, one: PullRequest, carries: Callable[[str], bool] = lambda at: False) -> bool:
+def proves(
+    text: str,
+    one: PullRequest,
+    carries: Callable[[str], bool] = lambda at: False,
+    prose: Callable[[str], bool] = lambda path: False,
+) -> bool:
     """Whether the brief has a `Proved:` line and it holds at the pull request's head
     (`short_on_proved`): a fix whose line holds merges with no scoped review of it."""
-    return proved.proved(text) is not None and not short_on_proved(text, one, carries)
+    return proved.proved(text) is not None and not short_on_proved(text, one, carries, prose)
 
 
 _CHECK_LINE = re.compile(r"Checked: (.+) exit (\d+) at ([0-9a-f]{40})")

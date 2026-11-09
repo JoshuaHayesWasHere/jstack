@@ -48,6 +48,7 @@ from typing import Any
 
 import jroles
 from jbriefs import below, findings
+from jbriefs import proved as jproved
 from jbus import END_TURN, dispatch, mirror, outbox, rebase, review, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
@@ -109,8 +110,7 @@ def changes(run: Pass, brief: str, head: str) -> ready.PullRequest:
     """The pull request the branch at `head` would open, as far as `ready.short_on_proved` reads
     one: the files it changes since it left its base, and those it deletes. The base is the branch
     of the brief's `Stacked on:` line, else the default branch, as the crew's blocks read it."""
-    stacked = below.line(brief.split("\n## ")[0], "Stacked on:")
-    on = stacked.split()[1] if len(stacked.split()) > 1 else _default_branch(run)
+    on = _on(run, brief)
     base = run.run("git", "merge-base", f"origin/{on}", head).stdout.strip()
     listed = run.run("git", "diff", "--name-status", "--no-renames", base, head).stdout
     status = [line.split("\t", 1) for line in listed.splitlines() if "\t" in line]
@@ -132,11 +132,19 @@ def changes(run: Pass, brief: str, head: str) -> ready.PullRequest:
     )
 
 
+def _on(run: Pass, brief: str) -> str:
+    """The branch the brief's branch leaves: its `Stacked on:` line's, else the default."""
+    stacked = below.line(brief.split("\n## ")[0], "Stacked on:")
+    return stacked.split()[1] if len(stacked.split()) > 1 else _default_branch(run)
+
+
 def proved(run: Pass, brief: str, head: str) -> str:
     """Why the brief's desk proof does not bind `head`, or nothing: `jmerge`'s rules of the
-    `Checked:` and `Proved:` lines, with no other head carried."""
+    `Checked:` and `Proved:` lines, with no other head carried, and a `.py` file whose change is
+    to its docstrings and comments alone counted as docs (`proved.prose_in`)."""
+    prose = jproved.prose_in(str(run.project.checkout), f"origin/{_on(run, brief)}", head)
     return ready.short_on_checked(brief, head) or ready.short_on_proved(
-        brief, changes(run, brief, head)
+        brief, changes(run, brief, head), prose=prose
     )
 
 

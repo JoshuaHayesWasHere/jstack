@@ -44,6 +44,8 @@ except subprocess.TimeoutExpired:
 """
 """GNU `timeout`, which macOS lacks: the command in a group of its own, sent TERM at the limit,
 exit 124."""
+JBRIEFS = "import sys; from jbriefs.cli import main; sys.exit(main(sys.argv[1:]))"
+"""`jbriefs` on this interpreter, which the block asks for a `Proved: none, <kinds>` line."""
 UV = f"""#!/bin/bash
 case " $* " in
 *" jgauge test-slot "*)
@@ -61,6 +63,11 @@ case " $* " in
     shift
     if [ -n "$limit" ]; then exec {sys.executable} -c {shlex.quote(TIMEOUT)} "$limit" "$@"; fi
     exec "$@"
+    ;;
+*" jbriefs "*)
+    while [ "$1" != jbriefs ]; do shift; done
+    shift
+    exec {sys.executable} -c {shlex.quote(JBRIEFS)} "$@"
     ;;
 *" sync "*) exit 0 ;;
 *" run python "*)
@@ -218,10 +225,26 @@ def test_a_test_of_a_name_the_base_lacks_fails_at_the_base_and_is_no_collection_
     assert (line.tests, line.base_exit, line.head_exit) == (("tests/test_times.py",), 1, 0)
 
 
-def test_a_change_with_no_test_runs_nothing_and_writes_no_line(repo):
+def test_a_change_to_docs_alone_runs_nothing_and_writes_its_none_line(repo):
     commit(repo, {"README.md": "how\n"})
     said, line = proof(repo)
+    assert said == "Proved: none, docs\n"
+    assert line == proved.Proved(kinds=("docs",))
+
+
+def test_a_change_to_a_docstring_and_a_comment_alone_writes_none_docs(repo):
+    """sidebar-home-start-says-docs fixed a docstring of a `.py` file and nothing else."""
+    commit(repo, {"calc.py": '"""Sums."""\n\n\n' + BUGGY.replace("b):", "b):  # two numbers")})
+    said, line = proof(repo)
+    assert said == "Proved: none, docs\n"
+    assert line == proved.Proved(kinds=("docs",))
+
+
+def test_a_change_to_code_with_no_test_runs_nothing_and_writes_no_line(repo):
+    commit(repo, {"calc.py": '"""Sums."""\n\n\n' + FIXED, "README.md": "how\n"})
+    said, line = proof(repo)
     assert said.startswith("no test changed: the Result says Proved: none, <kind>")
+    assert said.rstrip().endswith("(no kind: calc.py)")
     assert line is None
 
 

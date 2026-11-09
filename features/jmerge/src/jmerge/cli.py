@@ -19,7 +19,7 @@ from typing import Literal, NamedTuple
 
 import jsettings
 from jbriefs import home as home_rule
-from jbriefs import meets, parse
+from jbriefs import meets, parse, proved
 from jmerge import (
     backoff,
     bus,
@@ -566,6 +566,20 @@ class Repo:
         since = self.own_fork(default, reviewed, head, stacked) if stacked else None
         return rangediff.verdict(self.main, reviewed, head, default, since or "")
 
+    def prose(self, one: ready.PullRequest) -> Callable[[str], bool]:
+        """Whether a `.py` file of the pull request changes in its docstrings and comments alone
+        (`proved.prose_in`), from the merge-base of its base on origin to its head, which a fetch
+        of origin brings once a pass."""
+
+        @functools.cache
+        def asked() -> Callable[[str], bool]:
+            if not self.fetched:
+                self.fetched = True
+                _run(self.main, "git", "fetch", "-q", "origin")
+            return proved.prose_in(str(self.main), f"origin/{one.base}", one.head)
+
+        return lambda path: asked()(path)
+
     def as_fixed(self, slug: str, text: str, one: ready.PullRequest) -> str:
         """The brief's text as `jmerge` judges it: with the `Fixed:` line a crew did not write
         (`ready.unwritten_fixed`), where git gives the commit it names, the newest of the head
@@ -918,9 +932,10 @@ class Repo:
             def carries(at: str) -> bool:
                 return self.range_diff(at, one.head, one.base, stacked).clean
 
-            proven = ready.proves(text, one, carries)
+            prose = self.prose(one)
+            proven = ready.proves(text, one, carries, prose)
             short = self.lift(ready.short_of(text, one.head, heard, proven), lifted)
-            short = short or self.lift(ready.short_on_proved(text, one, carries), lifted)
+            short = short or self.lift(ready.short_on_proved(text, one, carries, prose), lifted)
             short = short or ready.short_on_checked(text, one.head, carries)
         rebase: ready.Rebase | None = None
         unreviewed = ready.said_of(text).mode == ready.NONE

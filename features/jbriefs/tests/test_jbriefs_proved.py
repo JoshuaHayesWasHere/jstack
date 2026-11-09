@@ -3,6 +3,8 @@ the base and at the head, a `none, <kind>` exemption, and a run at the head alon
 request that changes only tests, whose code at the base is the head's own, and a run of a fork's
 own tests over its base's patches and its head's."""
 
+import subprocess
+
 from jbriefs import proved
 from jmerge import ready
 
@@ -84,3 +86,90 @@ def test_only_fork_files_docs_and_config_are_inside_the_fork():
     assert proved.outside_fork((f"{packaging}/0030-a.patch", "features/x/a.py")) == (
         "features/x/a.py"
     )
+
+
+CHILDREN = '''"""Children of a thread."""
+
+LIMIT = 3
+"""How many children a thread keeps."""
+
+
+def kept(children):
+    """The children a thread keeps, the newest first."""
+    # newest first
+    return sorted(children, reverse=True)[:LIMIT]
+'''
+
+
+def _git(cwd, *args):
+    identity = ["-c", "user.name=t", "-c", "user.email=t@example.com"]
+    ran = subprocess.run(
+        ["git", *identity, *args], cwd=cwd, check=True, capture_output=True, text=True
+    )
+    return ran.stdout.strip()
+
+
+def _changed(tmp_path, head_text):
+    """A repo whose `origin/main` has `children.py` and whose head changes it to `head_text`,
+    and the pull request of that head."""
+    _git(tmp_path, "init", "-q", "-b", "main")
+    (tmp_path / "children.py").write_text(CHILDREN)
+    _git(tmp_path, "add", "-A")
+    _git(tmp_path, "commit", "-q", "-m", "base")
+    _git(tmp_path, "update-ref", "refs/remotes/origin/main", "HEAD")
+    (tmp_path / "children.py").write_text(head_text)
+    _git(tmp_path, "commit", "-q", "-am", "head")
+    head = _git(tmp_path, "rev-parse", "HEAD")
+    pull = ready.PullRequest(
+        number=7,
+        url="https://github.com/o/r/pull/7",
+        title="",
+        branch="alpha",
+        head=head,
+        base="main",
+        mergeable="MERGEABLE",
+        waiting=(),
+        files=("children.py",),
+        renamed=False,
+        changed=1,
+    )
+    return pull, proved.prose_in(str(tmp_path), "origin/main", head)
+
+
+DOCS_ONLY = (
+    CHILDREN.replace("the newest first", "the newest first, as its doc says")
+    .replace("# newest first", "# the newest first, by the stamp")
+    .replace('"""How many', '"""The most')
+)
+
+
+def test_a_docstring_and_comment_change_to_a_py_file_proves_with_none_docs(tmp_path):
+    """sidebar-home-start-says-docs fixed a docstring of jbus's children.py to agree with its
+    doc, and its `Proved: none, docs` line held it, since no test fails over a docstring."""
+    pull, prose = _changed(tmp_path, DOCS_ONLY)
+    assert ready.short_on_proved(result("Proved: none, docs"), pull, prose=prose) == ""
+
+
+def test_a_py_file_that_changes_code_beside_its_docstring_is_not_docs(tmp_path):
+    pull, prose = _changed(tmp_path, DOCS_ONLY.replace("[:LIMIT]", "[: LIMIT + 1]"))
+    said = ready.short_on_proved(result("Proved: none, docs"), pull, prose=prose)
+    assert said == ready.PROVED_NOT_KIND.format(kinds="docs", path="children.py")
+
+
+def test_a_docstring_only_py_change_is_no_config():
+    """`docs` alone covers a docstring: a `none, config` line names no kind that does."""
+    pull = ready.PullRequest(
+        number=7,
+        url="",
+        title="",
+        branch="alpha",
+        head=HEAD,
+        base="main",
+        mergeable="MERGEABLE",
+        waiting=(),
+        files=("children.py",),
+        renamed=False,
+        changed=1,
+    )
+    said = ready.short_on_proved(result("Proved: none, config"), pull, prose=lambda path: True)
+    assert said == ready.PROVED_NOT_KIND.format(kinds="config", path="children.py")
