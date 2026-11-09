@@ -209,7 +209,7 @@ def test_ci_day_writes_the_seven_local_days_before_the_run_each_cell_with_its_n(
     assert f"ci: day report {day.path}" in said
     found = by_day(text)
     assert list(found["red share"]) == DATES
-    assert (found["red share"]["11-03"], found["red share n"]["11-03"]) == ("62%", "101 PRs")
+    assert (found["red share"]["11-03"], found["red share n"]["11-03"]) == ("56%", "101 PRs")
     shard = (found["shard wait p90"]["11-03"], found["shard wait p90 n"]["11-03"])
     assert shard == ("555 s", "3162 jobs")
     macos = (found["macos wait p90"]["11-03"], found["macos wait p90 n"]["11-03"])
@@ -220,11 +220,12 @@ def test_ci_day_writes_the_seven_local_days_before_the_run_each_cell_with_its_n(
 def test_ci_day_gives_the_quiet_day_baseline_of_oct_30(day):
     """The brief's baseline for 10-30, from the scout's read of the ledger: 36 PRs, 25% red,
     shard and macos p90 3 s and 9 s, wall p50 9.3 min, 2.3 shas per PR and 0.4 h open to merge.
-    One PR of the 36 had only a skipped `check`, which ran nothing, so the day counts 35 and
-    9 of 35 is 26%."""
+    One PR of the 36 had only a skipped `check`, which ran nothing, so the day counts 35. Of the 9
+    the scout read as red, one was red only by the roll-up of a run a newer push cancelled
+    (`jbus.ci.cancels`), so 8 of 35 is 23%."""
     found = by_day(day.run()[2])
     column = {name: cells["10-30"] for name, cells in found.items()}
-    assert column["red share"] == "26%" and column["red share n"] == "35 PRs"
+    assert column["red share"] == "23%" and column["red share n"] == "35 PRs"
     assert column["shard wait p90"] == "3 s" and column["macos wait p90"] == "9 s"
     assert column["PR check wall p50"] == "9.3 min"
     assert column["head shas per merged PR"] == "2.3"
@@ -287,7 +288,7 @@ def test_ci_day_writes_its_report_with_main_red_no_data_when_gh_does_not_answer(
     assert code == 0, said
     assert "gh run list did not answer: gh: HTTP 502" in text
     assert set(by_day(text)["main-red"].values()) == {"no data"}
-    assert by_day(text)["red share"]["11-03"] == "62%"
+    assert by_day(text)["red share"]["11-03"] == "56%"
 
 
 def test_ci_day_gives_a_before_and_after_for_each_cicd_row_that_merged(day):
@@ -369,7 +370,7 @@ def test_ci_day_keeps_the_pull_requests_of_jmerges_line_out_of_the_counts(day):
                 + "\n"
             )
     found = by_day(day.run()[2])
-    assert (found["red share"]["11-03"], found["red share n"]["11-03"]) == ("62%", "101 PRs")
+    assert (found["red share"]["11-03"], found["red share n"]["11-03"]) == ("56%", "101 PRs")
 
 
 def test_ci_day_gives_the_newest_day_as_lines_the_digest_reads(day):
@@ -583,7 +584,7 @@ def test_ci_day_reads_the_review_numbers_as_no_data_when_t3_codes_store_is_not_t
     assert code == 0, said
     assert f"T3 Code's store was not read: {spend.STORE} is not T3 Code's store" in text
     assert set(by_day(text)["review launches"].values()) == {"no data"}
-    assert by_day(text)["red share"]["11-03"] == "62%"
+    assert by_day(text)["red share"]["11-03"] == "56%"
 
 
 def test_ci_day_reads_the_review_numbers_as_no_data_when_t3_codes_store_cannot_be_read(day):
