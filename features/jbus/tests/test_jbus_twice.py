@@ -4,6 +4,10 @@ row is approved again. A head whose check ran on a red main, the main that GitHu
 into as its failed job's log names it, is not counted, and one whose log GitHub does not give is
 judged again on a later pass.
 
+The hold keeps the go it takes (`jbus.queue.hold`), and the pass that sees every required check
+passed at the head puts that go back (`jbus.queue.lift`), unless the row was held again since or
+its brief changed. A head that failed only at an infra step is not counted either.
+
 Like `test_jbus_github.py`, the tests run the real pass against the fakes."""
 
 import json
