@@ -551,9 +551,12 @@ def test_every_job_has_a_cap_that_stops_a_hung_run():
 
 UNLESS_GREEN = "steps.tree.outputs.marker != 'green'"
 ZSH = (
-    'cd "$RUNNER_TEMP" && set -- $ZSH_DEBS && printf "%s  %s\\n" $ZSH_DEBS > zsh.sha256'
-    ' && curl -fsSL --retry 3 --remote-name-all "$ZSH_POOL/$2" "$ZSH_POOL/$4"'
-    ' && sha256sum -c zsh.sha256 && sudo dpkg -i "$2" "$4" && zsh --version'
+    'mkdir -p "$RUNNER_TEMP/zsh-debs" && cd "$RUNNER_TEMP/zsh-debs" && set -- $ZSH_DEBS'
+    ' && printf "%s  %s\\n" $ZSH_DEBS > ../zsh.sha256'
+    ' && { sha256sum --status -c ../zsh.sha256 && echo "zsh: the .debs from the cache"'
+    ' || { curl -fsSL --retry 5 --retry-all-errors --remote-name-all "$ZSH_POOL/$2" "$ZSH_POOL/$4"'
+    " && sha256sum -c ../zsh.sha256; }; }"
+    ' && sudo dpkg -i "$2" "$4" && zsh --version'
 )
 SUITE = 'make check JUNIT="$RUNNER_TEMP/junit.xml" SHARD=${{ matrix.shard }}/4'
 TLC = "~/.cache/jstack/tlc"
@@ -1376,10 +1379,11 @@ def test_the_fast_check_selects_in_reuse_and_lints_beside_it_and_runs_neither_in
     assert "select_tests" not in said and "check-fast" not in said and "lint" not in said
     assert [
         step.get("uses", step.get("name", step.get("run"))).partition("@")[0] for step in parts
-    ][:8] == [
+    ][:9] == [
         "actions/checkout",
         "astral-sh/setup-uv",
         "uv sync --locked",
+        "actions/cache",
         "zsh",
         "actions/cache/restore",
         "selection",
@@ -1387,7 +1391,7 @@ def test_the_fast_check_selects_in_reuse_and_lints_beside_it_and_runs_neither_in
         "make test",
     ]
     assert parts[0]["with"] == {"persist-credentials": False, "fetch-depth": "2"}
-    assert parts[7]["id"] == "suite"
+    assert parts[8]["id"] == "suite"
 
 
 def test_the_select_step_starts_from_the_facts_a_run_of_the_same_selector_kept():
@@ -1870,9 +1874,9 @@ def test_the_zsh_steps_install_from_their_cache_and_fetch_with_a_retry_on_any_er
         debs.mkdir(parents=True)
         names = block("env")["ZSH_DEBS"].split()[1::2]
         for name in names[: 2 if cached == "both" else 1]:
-            (debs / name).write_text("pinned")
+            (debs / name).write_text("pinned\n")
         if cached == "a file that is not the pinned one":
-            (debs / names[0]).write_text("cut short")
+            (debs / names[0]).write_text("cut short\n")
         stubs = ZSH_STUBS | {
             "curl": 'echo "curl $*" >> "$LOG"; for a; do'
             ' case $a in http*) echo pinned >"${a##*/}";; esac; done',
@@ -2032,6 +2036,7 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
         ' of this tree may not skip it"',
         "astral-sh/setup-uv",
         "uv sync --locked",
+        "actions/cache",
         ZSH,
         "actions/cache/restore",
         SUITE,
@@ -2059,10 +2064,11 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
         'echo "::warning::green-tree, the upload ended failure, so a later run of this tree may'
         ' not skip the suite"',
     ]
-    checkout, ask, _, setup, sync, zsh, kept, suite, *_ = found
+    checkout, ask, _, setup, sync, cache, zsh, kept, suite, *_ = found
     assert "if" not in checkout
     assert (ask.get("if"), ask["id"], ask["continue-on-error"]) == (None, "tree", True)
-    assert [step["if"] for step in (setup, sync, zsh, kept, suite)] == [
+    assert [step["if"] for step in (setup, sync, cache, zsh, kept, suite)] == [
+        UNLESS_GREEN,
         UNLESS_GREEN,
         UNLESS_GREEN,
         UNLESS_GREEN,
