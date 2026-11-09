@@ -51,6 +51,9 @@ def test_the_block_that_queues_a_row_adds_a_scoped_homes_brief_for_that_home_alo
     home, thread, queued
 ):
     (home.dir / "tasks" / "sp-fix.md").write_text(complete("sp-fix", f"Home: {SCOPE}\n"))
+    (home.dir / SCOPE / "plan.md").write_text(
+        "# a plan\n\n## sp-fix: the fix\nDone when:\n- it is fixed\n"
+    )
     filled = {"<slug>": "sp-fix", "<n>": "1", "<entry>": "sp-fix"}
     ran = home.home(QUEUES, thread, **filled)
     if queued:
