@@ -32,20 +32,21 @@ line, a name a touched assignment binds, and each name whose code reads a name a
 binds. A module of the tests that is no test file, such as a helper or a `conftest.py`, counts as
 the test's own code: it carries the change on to the tests that import it, through any chain of
 such modules. A test that asks for a plugin's fixture that uses a module that carries the change
-is reached too. Where the diff touched other code that runs on import, such as an `if`, every
-module that imports the changed one carries it on. A test that spells the name of a package,
-which runs the package in a process, is not reached so. Every other rule selects as below. So a
-change escapes the check where it breaks a test only through a module of a `src/` that names no
-name the change touched (a chain of two such modules or more, or a table of verbs that names no
-function of the module), or only through a package the test runs in a process. Main's full run
-runs every test and catches it. Without `--pull-request` the script keeps the wide rule, as a
-desk's `make check-fast` and `make select` run it. Measured over main's last 60 merges
-on 2026-11-08 (go-speed's `why.py`), the selections of 300 files or more fell from 29 to 13, none
-of them through imports where 18 were, and 9 of the 13 select `all` for a path every test rests
-on. The median of the selections that are not `all` fell from 293 files to 69. Of the 10 test
-files that failed main's full run in the 7 days before and that their merge's wide selection
-held, it holds 9 (`replay.py`): the one it drops, `test_view_server.py` after an edit of
-`jbus.green`, failed once on the timing of a reverse lookup and has passed on main since.
+is reached too. A module that walks a package's `__path__` (below) reads the changed module where
+the test imports that walker itself or through such modules (`nearby`). Where the diff touched
+other code that runs on import, such as an `if`, every module that imports the changed one
+carries it on. A test that spells the name of a package, which runs the package in a process, is
+not reached so. Every other rule selects as below. So a change escapes the check where it breaks
+a test only through a module of a `src/` that names no name the change touched (a chain of two
+such modules or more, or a table of verbs that names no function of the module), or only through
+a package the test runs in a process. Main's full run runs every test and catches it. Without
+`--pull-request` the script keeps the wide rule, as a desk's `make check-fast` and `make select`
+run it. Measured with this script over main's last 60 merges on 2026-11-09 (go-speed's
+`why.py`), the selections of 300 files or more fell from 38 to 13, none of them through imports
+or a walk, and 9 of the 13 select `all` for a path every test rests on. The median of the
+selections that are not `all` fell from 309 files to 100. Of the 12 test files that failed
+main's full run in the 7 days before and that their merge's wide selection held, it holds all
+12 (`replay.py`).
 
 A test may hold a string that is the name of a package of a `src/`. The script counts such a
 test as running that package in a process of its own, so the test imports every module of the
@@ -1147,35 +1148,54 @@ def walked(name):
 
 
 @cache
-def read_sets():
+def read_sets(near=False):
     """Each test file, with the patterns of its read set and of the read sets of the modules of
     the tests it imports, and the folders of the packages it or any module it imports walks
-    (`walked`)."""
+    (`walked`). With `near` a walk counts only in a module the test imports itself or through
+    modules of the tests (`nearby`), as a pull request's check reaches through imports."""
     found = {}
     for name, path in modules().items():
         if not TEST.fullmatch(path):
             continue
         patterns = {pattern for one in reached(name) for pattern in sources()[one][5]}
-        patterns |= {pattern for one in imported(name) for pattern in walked(one)}
+        walkers = nearby(name) if near else imported(name)
+        patterns |= {pattern for one in walkers for pattern in walked(one)}
         if patterns:
             found[path] = patterns
     return found
 
 
 @cache
-def globbed():
+def nearby(name):
+    """The modules a test module imports itself, and through modules of the tests that are no
+    test file, such as a helper: what `near` counts as the test's own reach. A package the test
+    runs in a process is not among them."""
+    found, todo = set(), [name]
+    while todo:
+        one = todo.pop()
+        if one not in found:
+            found.add(one)
+            if one == name or of_tests(modules()[one]) and not TEST.fullmatch(modules()[one]):
+                todo += edges(runs=False)[one]
+    return frozenset(found)
+
+
+@cache
+def globbed(near=False):
     """Each pattern of a read set, with the test files whose read set holds it: the read sets
     share most of their patterns."""
     found = {}
-    for test, patterns in read_sets().items():
+    for test, patterns in read_sets(near).items():
         for pattern in patterns:
             found.setdefault(pattern, set()).add(test)
     return found
 
 
-def globbers(path):
-    """The test files whose read set matches this path."""
-    return set().union(*(tests for pattern, tests in globbed().items() if owns([pattern], path)))
+def globbers(path, near=False):
+    """The test files whose read set matches this path, with `near` as `read_sets` takes it."""
+    return set().union(
+        *(tests for pattern, tests in globbed(near).items() if owns([pattern], path))
+    )
 
 
 def inside(parts, spelling):
@@ -1459,7 +1479,9 @@ def ruled(changed, follows=everywhere, cross=True, strict=False, edited=None):
             if counts:
                 for one in {path} | includers(path):
                     found["names"] |= readers(one)
-        if counts:
+        if counts and edited is not None:
+            found["names"] |= globbers(path, near=True)
+        elif counts:
             found["names"] |= globbers(path)
     where = {} if strict else pages()
     for name in where:
