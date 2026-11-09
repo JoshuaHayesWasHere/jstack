@@ -137,7 +137,7 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 | `row_moves` | each row's first move to each status in `transitions.jsonl`, read by `lead_times` |
 | `lead_times` | S5 for each merged row: minutes from its go to its merge, where the go is the earliest of its first approved item, its approval and its first launch |
 | `main_runs` | each push check on main in `ci.jsonl`: the latest attempt of each run, and its `state`, `red`, `green` or `pending`, read by `main_checks`, `ci_projects` and `ci_rows` |
-| `main_checks` | each commit of `main_runs` with its latest run, and `first`, when its first run began, read by `main_spells` |
+| `main_checks` | each commit of `main_runs` with its latest run of the `check` workflow (a run with a job named `check`), and `first`, when its first such run began, read by `main_spells` |
 | `main_spells` | each red spell of the push checks on main, from the first commit whose check failed to the next commit whose check passed, with `minutes_to_green` |
 | `ci_projects` | each project whose push checks on main the store holds |
 | `ci_rows` | each merged row of a project in `ci_projects`, `kept` where the store holds a push check of main for its pull request |
