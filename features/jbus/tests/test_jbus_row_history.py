@@ -10,6 +10,7 @@ import pytest
 import jbus
 from jbus import poll, rotation
 from jbus.dispatch import HELD
+from jbus.launchhome import unhomed
 from test_jbus_kitchen import NOW, RESULT
 from test_jbus_queue import add, brief, go, queued_before, rows, sha12, widened
 
@@ -121,7 +122,8 @@ def test_in_a_full_pass_each_row_says_what_holds_it(kitchen):
     """`other` holds the one slot, so `alpha` is the first row that cannot launch for want of a
     slot. The pass reads the rows after `alpha` without sending a gate for any of them: `beta`
     says the gate it is owed waits, and `gamma` and `delta` wait for the slot. `gamma`'s brief
-    has no `Design:` line, which a launch no longer asks for, so its go is still valid."""
+    has no `Design:` line, which a launch no longer asks for, so its go is still valid.
+    `epsilon`'s brief names no home, and the gate it is owed waits as `beta`'s does."""
     kitchen.brief("other")
     kitchen.t3.thread("other", "running")
     add(kitchen, "alpha", priority=1)
@@ -129,6 +131,8 @@ def test_in_a_full_pass_each_row_says_what_holds_it(kitchen):
     kitchen.t3.thread("beta", "failed", settled=True)
     queued_before(kitchen, "gamma", brief("gamma").replace("Design: none, a test\n", ""), 3)
     add(kitchen, "delta", priority=4)
+    homeless = brief("epsilon").replace("Home: uncategorized\n", "")
+    queued_before(kitchen, "epsilon", homeless, 5)
     kitchen.poll()
     assert kitchen.lines("gate") == []
     assert {slug: (row["status"], row["why"]) for slug, row in rows(kitchen).items()} == {
@@ -136,6 +140,7 @@ def test_in_a_full_pass_each_row_says_what_holds_it(kitchen):
         "beta": ("queued", f"{HELD}: a settled thread already has this slug"),
         "gamma": ("queued", MAX),
         "delta": ("queued", MAX),
+        "epsilon": ("queued", f"{HELD}: {unhomed('epsilon', homeless)[0]}"),
     }
 
 

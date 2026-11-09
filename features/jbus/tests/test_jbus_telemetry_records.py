@@ -355,9 +355,10 @@ def test_the_queue_keeps_who_queued_each_row_and_the_message_its_go_rests_on(mac
 
 
 def test_launch_waits_splits_a_rows_go_to_launch_by_the_kind_of_each_reason(machine):
-    """`one`'s go is at NOW, after `zero`'s line began the log: a minute with no line, ten on a
-    slug it depends on, ten on a full /tmp, ten on its home's cap, then its launch. Its line
-    after the launch, and `zero`, which never launched, count nothing."""
+    """The table of `jbus.telemetry.migrations.v014_row_waits` and the view
+    `jbus.telemetry.views.launch_waits`. `one`'s go is at NOW, after `zero`'s line began the log:
+    a minute with no line, ten on a slug it depends on, ten on a full /tmp, ten on its home's cap,
+    then its launch. Its line after the launch, and `zero`, which never launched, count nothing."""
     from jbus import dispatch
 
     minute = timedelta(minutes=1)
