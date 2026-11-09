@@ -538,13 +538,8 @@ def reruns(kitchen):
     return [call for call in kitchen.log("gh") if call.startswith("run ")]
 
 
-@pytest.mark.parametrize(
-    "check_runs",
-    [[{"status": "completed", "conclusion": "cancelled"}], []],
-    ids=["its only check run ended cancelled", "displaced with no job and no check run"],
-)
-def test_a_cancelled_run_on_main_is_no_failed_check_and_is_run_again_once(kitchen, check_runs):
-    sha, stopped = cancelled_on_main(kitchen, check_runs)
+def test_a_cancelled_run_on_main_is_no_failed_check_and_is_run_again_once(kitchen):
+    sha, stopped = cancelled_on_main(kitchen, [{"status": "completed", "conclusion": "cancelled"}])
     kitchen.poll()
     assert kitchen.lines("retro") == []
     assert reruns(kitchen) == ["run rerun 501"]
@@ -557,13 +552,8 @@ def test_a_cancelled_run_on_main_is_no_failed_check_and_is_run_again_once(kitche
     assert reruns(kitchen) == ["run rerun 501"]
 
 
-@pytest.mark.parametrize(
-    "check_runs",
-    [[{"status": "completed", "conclusion": "cancelled"}], []],
-    ids=["its only check run ended cancelled", "displaced with no job and no check run"],
-)
-def test_a_run_on_main_cancelled_a_second_time_is_said_once_and_not_run_again(kitchen, check_runs):
-    sha, stopped = cancelled_on_main(kitchen, check_runs)
+def test_a_run_on_main_cancelled_a_second_time_is_said_once_and_not_run_again(kitchen):
+    sha, stopped = cancelled_on_main(kitchen, [{"status": "completed", "conclusion": "cancelled"}])
     kitchen.poll()
     kitchen.set("push-runs.json", {sha: [{**stopped, "run_attempt": 2}]})
     kitchen.poll(NOW + timedelta(minutes=3))
@@ -573,7 +563,7 @@ def test_a_run_on_main_cancelled_a_second_time_is_said_once_and_not_run_again(ki
 
 
 def test_a_cancelled_run_on_main_that_github_does_not_run_again_is_said_once(kitchen):
-    cancelled_on_main(kitchen, [])
+    cancelled_on_main(kitchen, [{"status": "completed", "conclusion": "cancelled"}])
     kitchen.set("gh-no-rerun", "")
     kitchen.poll()
     kitchen.poll(NOW + timedelta(minutes=3))

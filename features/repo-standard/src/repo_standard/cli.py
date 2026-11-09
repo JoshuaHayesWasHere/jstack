@@ -10,6 +10,10 @@ workflow's jobs run (`repo_standard.plan`): it reads the config's `check` part, 
 `--event` or `$GITHUB_EVENT_NAME`, and a pull request's selection from `--selection`, the file
 `make select` wrote.
 
+The verb `stacks` runs the targets `lint`, `test` and `select` of a repo whose config sets
+`stacks:`, each stack over its own roots (`repo_standard.stacks`), and takes the rest of the line
+as its own: `stacks lint`, `stacks test [ids]` or `stacks select <base>`.
+
 The guards are `borders`, `stale`, `docs`, `size` and `comments`. Each reads the repo's
 `.repo-standard.yml`, prints one line for each fault it finds, and exits 1 on any. `borders`
 prints each fault as a warning GitHub reads and exits 0 when it warns, or 1 under `--hard`. Every
@@ -25,12 +29,12 @@ import subprocess
 import sys
 from pathlib import Path
 
-from repo_standard import borders, conform, docs_true, plan, size, stale
+from repo_standard import borders, conform, docs_true, plan, size, stacks, stale
 from repo_standard.config import Refused, load
 from repo_standard.tree import Unreadable, tracked
 
 GUARDS = ("borders", "stale", "docs", "size", "comments")
-VERBS = (*GUARDS, "conform", "plan")
+VERBS = (*GUARDS, "conform", "plan", "stacks")
 
 
 def _root(given: str | None) -> Path:
@@ -43,6 +47,18 @@ def _root(given: str | None) -> Path:
 
 
 def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["stacks"]:
+        parser = argparse.ArgumentParser(prog="repo-standard stacks", description=stacks.__doc__)
+        parser.add_argument("verb", choices=stacks.VERBS, help="the target to run")
+        parser.add_argument("rest", nargs="*", help="test: the ids to run; select: the base")
+        args = parser.parse_args(argv[1:])
+        try:
+            root = _root(None)
+            return stacks.main(root, load(root), [args.verb, *args.rest])
+        except (Refused, Unreadable) as refused:
+            print(f"repo_standard stacks: {refused}", file=sys.stderr)
+            return 2
     parser = argparse.ArgumentParser(prog="repo-standard", description=__doc__)
     parser.add_argument("guard", choices=VERBS, help="a guard to run, or conform")
     parser.add_argument("--root", help="the repo's root; by default the checkout here")

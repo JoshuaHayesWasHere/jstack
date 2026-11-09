@@ -133,13 +133,14 @@ class GitHub(BaseHTTPRequestHandler):
             return self.answer(404, b'{"message": "Not Found"}')
         rest = parts[3:]
         if rest == ["actions", "workflows", "check.yml", "runs"]:
-            assert query["branch"] == ["main"] and query["event"] == ["push"]
+            assert query["branch"] == ["main"] and query["event"][0] in ("push", "schedule")
             created = query["created"][0]
             GitHub.days.append(created)
+            runs = [run for run in RUNS if run.get("event", "push") == query["event"][0]]
             if created.startswith(">="):
-                runs = [run for run in RUNS if run["created_at"][:10] >= created[2:]]
+                runs = [run for run in runs if run["created_at"][:10] >= created[2:]]
             else:
-                runs = [run for run in RUNS if run["created_at"][:10] == created]
+                runs = [run for run in runs if run["created_at"][:10] == created]
             size, page = int(query["per_page"][0]), int(query.get("page", ["1"])[0])
             if (page - 1) * size >= SEARCHED:
                 return self.answer(422, b'{"message": "Only the first 1000 search results"}')
@@ -226,6 +227,26 @@ def test_a_green_run_after_every_failure_leaves_no_test(github, tmp_path):
         RUNS.pop()
     assert done.returncode == 0, done.stderr
     assert done.stdout == "\n"
+
+
+def test_a_nightly_run_names_what_it_failed_and_a_green_one_passes_what_failed_before_it(
+    github, tmp_path
+):
+    """A push's run checks only what its merges reach, so the nightly whole suite is main's check
+    too: its red run 75 names a test no push run failed, and its green run 85 passes them all."""
+    red = {"id": 75, "run_attempt": 1, "conclusion": "failure", "created_at": stamp(0)}
+    RUNS.append({**red, "event": "schedule"})
+    JOBS[75] = [{"id": 76, "conclusion": "failure", "run_attempt": 1}]
+    LOGS[76] = log("FAILED features/jbus/tests/test_jbus_nightly.py::test_x - only nightly")
+    try:
+        done = lookup(github, tmp_path / "kept.json")
+        RUNS.append({**red, "id": 85, "conclusion": "success", "event": "schedule"})
+        passed = lookup(github, tmp_path / "again.json")
+    finally:
+        del RUNS[-2:], JOBS[75], LOGS[76]
+    assert done.returncode == 0, done.stderr
+    assert done.stdout.splitlines() == sorted([*FAILED, "features/jbus/tests/test_jbus_nightly.py"])
+    assert passed.stdout == "\n"
 
 
 def test_a_second_lookup_reads_no_log_or_job_list_it_kept(github, tmp_path):

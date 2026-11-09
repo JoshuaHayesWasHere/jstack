@@ -75,6 +75,41 @@ An adapter gives the Makefile three commands, in the file `stack.mk` of its `scr
 
 Its root files, such as a lock file, are owned in the config's `STACK` group of `owners`, and each adapter names its own there.
 
+## Several stacks
+
+A repo of more than one stack, such as a Go API beside a Python program, declares each in `.repo-standard.yml`, under `stacks:`, by name:
+
+```yaml
+stacks:
+  api:
+    adapter: go
+    roots: [api]
+  capture:
+    adapter: python-uv
+    roots: [tools/capture]
+```
+
+`adapter` is `go` or `python-uv`, and `roots` lists the folders the stack owns, from the repo's root.
+The config refuses an adapter it does not know, a stack with no root, and a root that sits in another root or holds one.
+Such a repo copies each of its adapters' scripts into `scripts/`, and no `stack.mk`: the Makefile sees `stacks:` and hands `lint`, `test` and `select` to the standard's driver, `python3 -m repo_standard stacks`, at the tag the config pins.
+The targets keep their names and what they print.
+
+| Target | What the driver does |
+|---|---|
+| `lint` | Runs every stack's lint, and fails when any failed. |
+| `test` | Runs every stack's suite, or, given ids in `TESTS`, each path in the stack whose root holds it, and `stack:<name>` as that stack's whole suite. |
+| `select BASE=<ref>` | Joins the stacks' selections, as below. |
+
+A test id is a path from the repo's root, or `stack:<name>`, every test of one stack.
+`all` is every test of the repo, so the shared check's plan never reads a stack's whole suite as the repo's.
+The selection prints `all` for a shared path: the `Makefile`, `.repo-standard.yml`, and anything under `scripts/`, `.github/` or `schemas/`.
+It prints `all` for a path outside every root too, unless it is a page of Markdown, a file in a feature's `docs/` or its `feature.json`, which select nothing.
+Each stack's own selection places the paths under its roots and ignores the rest, and one that would print `all` prints `stack:<name>`.
+
+A stack's roots own its root files: a lock file sits in the root, so a change to it selects that stack alone.
+The `owners` of the config name each root, as any other path.
+The adapters' scripts the driver runs may be named in `enforced-by`.
+
 ### python-uv
 
 The python-uv adapter runs the lint, `ruff check` and `ruff format --check`, and the tests, `pytest`, with `uv run --locked`.
@@ -89,6 +124,14 @@ It reads the change from the base to the working tree, and each file git does no
 - A test file selects itself.
 - A module under a feature's `src/` selects each test that imports it, directly or through other modules.
 - Any other file under a feature's `src/` or `tests/`, such as a `conftest.py` or a file of data, selects the feature's tests and each test that imports one of its modules.
+
+In a stack of a repo with `stacks:`, each root is a uv project of its own, whose `pyproject.toml` and `uv.lock` sit in the root, and whose dev group holds `pytest` and `ruff`.
+The driver runs `ruff` and `pytest` with `uv run --locked --project <root>`, and pytest with the root as its rootdir and the root's `pyproject.toml` as its config.
+The selection, given `--roots`, holds each root to the rules above with the root in place of the repo, and a feature's `src/` and `tests/` in place of the root's:
+
+- The root's `pyproject.toml`, `uv.lock` and `conftest.py`, and any file the rules cannot place, such as a `Dockerfile`, select the whole stack.
+- A `.py` file outside a `tests/` folder is a module, named from the root, or from its `src/` when it sits there.
+- Any other file under a `tests/` folder selects each test of the root.
 
 A test whose imports do not show what it runs, such as one that runs a module in a subprocess, is not selected.
 Main's full run after each merge runs it, as the standard's rule [Main runs the whole suite after each merge](standard.md#main-runs-the-whole-suite-after-each-merge) says.
@@ -121,6 +164,10 @@ Its selection adds up what each changed path selects, and prints the packages wi
   go test's cache skips the packages whose inputs did not change.
 - Outside a module, a Markdown page, a feature's `docs/` and its `feature.json` select nothing.
 - Any other path selects `all`.
+
+In a stack of a repo with `stacks:`, the script takes `--roots <root>` once a root, after its command, and works on the modules under those roots alone.
+A root holds whole modules, each `go.mod` inside it.
+The selection ignores a path outside the roots that no `reads` matches, and a path under them it cannot place selects the whole stack.
 
 `reads`, a key of the core manifest schema, lists the files a feature's tests read that its imports do not show, such as a page another feature owns, which a test opens.
 Each entry is a glob from the repo's root, in which `*` crosses folders, and `repo-standard conform` fails a glob that matches no file.
