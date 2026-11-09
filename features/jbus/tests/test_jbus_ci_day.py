@@ -417,10 +417,10 @@ def test_ci_day_timer_fires_every_day_at_06_45_in_the_machines_own_zone():
 @pytest.fixture
 def guarded(day):
     """The day's run in a checkout that keeps main's ruleset body, with the home's
-    `required-checks` naming check, borders and macos, as jstack's does."""
+    `required-checks` naming check and borders, as jstack's does since 2026-11-09."""
     (day.kitchen.checkout / ruleset.KEPT).parent.mkdir(parents=True, exist_ok=True)
     shutil.copy(KEPT, day.kitchen.checkout / ruleset.KEPT)
-    (day.home / "required-checks").write_text("check\nborders\nmacos\n")
+    (day.home / "required-checks").write_text("check\nborders\n")
     return day
 
 
@@ -430,12 +430,12 @@ def told(day):
     return [line for line in day.kitchen.wakes.said if "ruleset" in line]
 
 
-def lacking_macos(body):
+def lacking_borders(body):
     body = json.loads(json.dumps(body))
     for rule in body["rules"]:
         if rule["type"] == "required_status_checks":
             checks = rule["parameters"]["required_status_checks"]
-            checks[:] = [one for one in checks if one["context"] != "macos"]
+            checks[:] = [one for one in checks if one["context"] != "borders"]
     return body
 
 
@@ -448,24 +448,24 @@ def test_ci_day_ruleset_that_matches_tells_nobody_after_one_read(guarded):
     assert told(guarded) == []
 
 
-def test_ci_day_ruleset_that_lacks_macos_tells_the_home_its_drift(guarded):
-    guarded.gh.ruleset = lacking_macos(guarded.gh.ruleset)
+def test_ci_day_ruleset_that_lacks_borders_tells_the_home_its_drift(guarded):
+    guarded.gh.ruleset = lacking_borders(guarded.gh.ruleset)
 
     code, said, _ = guarded.run()
 
     assert code == 0, said
     (line,) = told(guarded)
     assert "ruleset 25665226" in line and "drifted" in line
-    assert "required_status_checks" in line and "lacks macos of required-checks" in line
+    assert "required_status_checks" in line and "lacks borders of required-checks" in line
 
 
 def test_ci_day_ruleset_requiring_a_check_required_checks_does_not_name_is_drift(guarded):
-    (guarded.home / "required-checks").write_text("check\nborders\n")
+    (guarded.home / "required-checks").write_text("check\n")
 
     guarded.run()
 
     (line,) = told(guarded)
-    assert "requires macos, which required-checks does not name" in line
+    assert "requires borders, which required-checks does not name" in line
     assert "rules differ" not in line
 
 
@@ -499,7 +499,7 @@ def test_ci_day_ruleset_with_no_required_checks_file_is_held_to_jmerges_check_al
     guarded.run()
 
     (line,) = told(guarded)
-    assert "requires borders, macos, which required-checks does not name" in line
+    assert "requires borders, which required-checks does not name" in line
 
 
 PULL = "https://github.com/JoshuaHayesWasHere/jstack/pull/{}"
