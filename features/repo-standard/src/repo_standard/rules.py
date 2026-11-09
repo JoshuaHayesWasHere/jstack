@@ -72,11 +72,12 @@ COMMAND_END = re.compile(r"&&|\|\||[;|]")
 GOES_ON = re.compile(r"&&|\|\||[;|]|(?<![<>&])&(?![>&])")
 """What may follow a command on its line: only `&&` stops the line when the command fails, and
 `||`, `;`, `|` and a lone `&` (not the `&` of a redirect such as `2>&1`) go on."""
-MAKEFLAGS = re.compile(r"^ *(?:(?:override|export)\s+)*MAKEFLAGS\s*(?:[+?!]|:{1,3})?=(.*)$", re.M)
+MAKEFLAGS = re.compile(
+    r"^ *(?:(?:override|export)\s+)*MAKEFLAGS\s*(?:[+?!]|:{1,3})?=([^#\n]*)", re.M
+)
 GOES_ON_FLAG = {"i": "--ignore-errors", "k": "--keep-going"}
 ARGUMENT_FLAGS = "CfIjloWOE"
-"""The make flags that go on past a failing recipe line, `-i` that ignores its error and `-k` that
-keeps going with the rest of the goal, and the short flags that take the rest of their word."""
+"""Make's flags that go on past a failing line, and its short flags that take an argument."""
 CONDITIONAL = re.compile(r"^\s*(?:ifeq|ifneq|ifdef|ifndef|else|endif)\b")
 SHARED_CHECK = re.compile(
     r"^\s*uses:\s*['\"]?[\w.-]+/[\w.-]+/\.github/workflows/repo-standard-check\.yml"
@@ -585,9 +586,8 @@ def _entry_target(entry: str) -> str | None:
 
 
 def _goes_on(command: str, at: int) -> str:
-    """The first operator after `at` that runs on when the command there fails: any `||`, `;` or
-    lone `&` up to the line's end, since a failed command skips only the `&&` part after it and
-    the next of those runs, and a `|` that pipes the command itself. ``""`` when there is none."""
+    """The first operator after `at` that runs on when the command fails, or ``""``: a `|` right
+    after it, or any `||`, `;` or lone `&`, since a failure skips only the `&&` part after it."""
     for nth, hit in enumerate(GOES_ON.finditer(command, at)):
         if hit[0] != "&&" and (hit[0] != "|" or nth == 0):
             return hit[0]
@@ -595,22 +595,16 @@ def _goes_on(command: str, at: int) -> str:
 
 
 def _goes_on_flags(words: list[str], bare_first: bool = False) -> list[str]:
-    """The `-i` and `-k` flags, or their long forms, among make's words: in a short cluster such as
-    `-sk`, and in a long name that make reads as one of theirs, such as `--keep`. With `bare_first`,
-    as in `MAKEFLAGS`, the first word may leave out its `-`."""
+    """The `-i` and `-k` among make's words, in a cluster such as `-sk` or a long name such as
+    `--keep`. With `bare_first`, as in `MAKEFLAGS`, the first word may leave out its `-`."""
     found = []
     for at, word in enumerate(words):
         if word.startswith("--"):
             name = word[2:].split("=")[0]
-            found += [
-                one for one in GOES_ON_FLAG.values() if len(name) > 1 and one[2:].startswith(name)
-            ]
+            found += [one for one in GOES_ON_FLAG.values() if name and one[2:].startswith(name)]
         elif word.startswith("-") or (bare_first and at == 0 and "=" not in word):
-            for letter in word.lstrip("-"):
-                if letter in ARGUMENT_FLAGS:
-                    break
-                if letter in GOES_ON_FLAG:
-                    found.append(f"-{letter}")
+            letters = re.split(f"[{ARGUMENT_FLAGS}]", word.lstrip("-"))[0]
+            found += [f"-{one}" for one in letters if one in GOES_ON_FLAG]
     return found
 
 
@@ -623,9 +617,7 @@ def _makeflags(repo: Repo) -> list[str]:
             faults.extend(
                 f"{path}:{line}: `MAKEFLAGS` sets `{flag}`, so make goes on past a deploy "
                 "entry's failing `repo-standard green`"
-                for flag in dict.fromkeys(
-                    _goes_on_flags(hit[1].split("#")[0].split(), bare_first=True)
-                )
+                for flag in dict.fromkeys(_goes_on_flags(hit[1].split(), bare_first=True))
             )
     return faults
 
