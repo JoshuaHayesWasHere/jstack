@@ -470,3 +470,28 @@ def test_transitions_carry_whether_the_move_table_holds_the_move(machine):
     with contextlib.closing(machine.store()) as store:
         rows = store.execute(query).fetchall()
     assert rows == [("one", "pr", "merged", 1), ("two", "merged", "gate", 0)]
+
+
+def test_a_store_from_before_health_readings_gains_the_table_and_reads_the_machines_log(machine):
+    """A store migrated up to `jbus.telemetry.migrations.v016_health_readings` gains its table,
+    and `jbus.telemetry.machine` reads each line of the machine's `health.jsonl` as the
+    machine's row: a fraction of a quota as it is, a reading jbus could not take as null."""
+    path = machine.state_dir / telemetry.FILE
+    counted(path, list(migrations.MIGRATIONS).index("v016_health_readings"))
+    with open(machine.state_dir / "health.jsonl", "w") as log:
+        for key, value, over in (
+            ("disk /", 19, False),
+            ("quota claudeAgent seven_day", 81.5, True),
+            ("timeout jbus", None, None),
+        ):
+            log.write(json.dumps({"at": iso(NOW), "key": key, "value": value, "over": over}) + "\n")
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        rows = store.execute(
+            "SELECT project, reading, value, over FROM health_readings ORDER BY reading"
+        ).fetchall()
+    assert rows == [
+        ("", "disk /", 19.0, 0),
+        ("", "quota claudeAgent seven_day", 81.5, 1),
+        ("", "timeout jbus", None, None),
+    ]

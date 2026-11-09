@@ -507,16 +507,18 @@ def watch(config: jbus.Config, now: datetime, say: Callable[[str], None]) -> lis
     return found
 
 
-def _last(log: Path) -> dict[str, dict[str, Any]]:
-    """The last line of each key in the log's tail, `TAIL` bytes. A key whose last line is
-    older than the tail reads as having none, so the next look writes it again."""
+def _last(log: Path) -> tuple[dict[str, dict[str, Any]], bool]:
+    """The last line of each key in the log's tail, `TAIL` bytes, and whether the log ends in a
+    torn line, one a write stopped before its newline. A key whose last line is older than the
+    tail reads as having none, so the next look writes it again."""
     try:
         with log.open("rb") as handle:
             begins = max(0, handle.seek(0, os.SEEK_END) - TAIL)
             handle.seek(begins)
-            lines = handle.read().decode(errors="replace").splitlines()[1 if begins else 0 :]
+            tail = handle.read()
     except FileNotFoundError:
-        return {}
+        return {}, False
+    lines = tail.decode(errors="replace").splitlines()[1 if begins else 0 :]
     found: dict[str, dict[str, Any]] = {}
     for text in lines:
         try:
@@ -525,7 +527,7 @@ def _last(log: Path) -> dict[str, dict[str, Any]]:
             continue
         if isinstance(one, dict) and isinstance(one.get("key"), str):
             found[one["key"]] = one
-    return found
+    return found, bool(tail) and not tail.endswith(b"\n")
 
 
 def _stale(line: dict[str, Any], now: datetime) -> bool:
@@ -540,8 +542,8 @@ def keep(log: Path, found: list[Reading], now: datetime) -> None:
     """Append to `log` a line `{at, key, value, over}` for each reading whose value or `over`
     differs from its key's last line, or whose last line is `KEEP_EVERY` old or more. The log
     is the one record of what was last kept, so a look that ran twice, or stopped halfway,
-    writes only what the log still lacks."""
-    last = _last(log)
+    writes only what the log still lacks, after it ends a torn line."""
+    last, torn = _last(log)
     at = jsettings.stamp(now, z=True)
     lines = []
     for one in found:
@@ -553,6 +555,9 @@ def keep(log: Path, found: list[Reading], now: datetime) -> None:
             or _stale(before, now)
         ):
             lines.append({"at": at, "key": one.key, "value": one.value, "over": one.over})
+    if lines and torn:
+        with log.open("a") as handle:
+            handle.write("\n")
     store.append_jsonl(log, lines, mode=0o600)
 
 

@@ -19,6 +19,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
+import jsettings
 from jbus import health, merge, poll, telemetry, wake
 from jroles import ledger
 from test_jbus_blocking import Second
@@ -365,8 +366,16 @@ def test_jbus_health_prints_each_check_with_its_number_and_limit_and_pages_nothi
 
 
 def kept_lines(config, key):
-    log = config.state_dir / health.LOG
-    return [one for line in log.read_text().splitlines() if (one := json.loads(line))["key"] == key]
+    """The lines of `key` in the health log, past any line that is not JSON."""
+    found = []
+    for line in (config.state_dir / health.LOG).read_text().splitlines():
+        try:
+            one = json.loads(line)
+        except ValueError:
+            continue
+        if one["key"] == key:
+            found.append(one)
+    return found
 
 
 def test_the_look_keeps_a_reading_on_a_change_or_each_15_minutes_and_the_store_reads_it(
@@ -389,6 +398,22 @@ def test_the_look_keeps_a_reading_on_a_change_or_each_15_minutes_and_the_store_r
             "select value, over from health_readings where reading = 'disk /home' order by at"
         ).fetchall()
     assert rows == [(40.0, 0), (41.0, 0), (41.0, 0)]
+
+
+def test_a_look_after_a_torn_or_timeless_last_line_keeps_its_reading_again(kitchen, senses):
+    """A pass stopped halfway through its write leaves a torn line, and a line whose time cannot
+    be read cannot say how old it is: the next look writes the key's reading again."""
+    config = jbus.load()
+    senses.disks = {"/home": (40 * GIB, 60 * GIB, 0, 0)}
+    log = config.state_dir / health.LOG
+    log.parent.mkdir(parents=True, exist_ok=True)
+    log.write_text(
+        json.dumps({"at": "when", "key": "disk /home", "value": 40, "over": False}) + "\n{"
+    )
+    health.watch(config, NOW, lambda line: None)
+    assert [one["at"] for one in kept_lines(config, "disk /home")[1:]] == [
+        jsettings.stamp(NOW, z=True)
+    ]
 
 
 def test_a_pass_in_which_a_project_raises_still_looks_at_the_machine_and_pages(
