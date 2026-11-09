@@ -225,6 +225,7 @@ def test_merged_tree_guards_see_none_of_the_environment_jbus_service_gives_jmerg
     """jbus.service gives `jmerge` its unit's variables, and systemd its own: a guard test that
     reads one, as `JBUS_TICK_TIMER` held #1283 and `INVOCATION_ID` #1159, fails on the merged
     tree alone. The guards see the machine's login, their `BASE` and their slot, and no more."""
+    monkeypatch.delenv(slot.HELD, raising=False)
     monkeypatch.setenv("JBUS_TICK_TIMER", "jbus-merge.timer")
     monkeypatch.setenv("INVOCATION_ID", "0123456789abcdef")
     command = 'test -z "$JBUS_TICK_TIMER$INVOCATION_ID" && test "$BASE" = tip && test -n "$HOME"'
