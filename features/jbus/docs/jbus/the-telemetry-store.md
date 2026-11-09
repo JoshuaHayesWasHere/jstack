@@ -328,7 +328,7 @@ An alert whose count falls back under its limit ends with a `recovered` line.
 
 `jbus --project <name> scorecard` reads each health measure of one project from the store, opened read only, and prints one line a measure: its state, group, name, value, unit, the count it is of, its baseline and its tier.
 `--json` prints a list instead, each item with `name`, `group`, `value`, `unit`, `n`, `baseline`, `state`, `tier`, `wired`, `audit` and `note`.
-`--out <path>` writes the scorecard's page there in place of the lines, through a draft file renamed over it, and prints one line with the count of each state.
+`jbus scorecard --out <path>` writes the scorecard's page there in place of the lines, through a draft file renamed over it, and prints one line with the count of each state.
 It raises no alert and changes nothing in the store.
 
 ### The page
