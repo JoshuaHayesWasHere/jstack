@@ -205,7 +205,9 @@ class Facts:
         now: datetime,
     ) -> None:
         cancelled = replaced(jobs)
-        self.jobs = [{**j, "conclusion": "cancelled"} if j["job"] in cancelled else j for j in jobs]
+        self.jobs: list[dict[str, Any]] = [
+            {**j, "conclusion": "cancelled"} if j["job"] in cancelled else j for j in jobs
+        ]
         self.pulls, self.events, self.now = pulls, events, now
         self.main = self._main()
         self.intervals = self._intervals()
