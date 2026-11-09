@@ -1125,23 +1125,25 @@ def why(run: Pass, row: dict[str, Any], found: dict[str, str], waits: Waits, unr
     """Return why a row waits, or nothing. `found` is its derived columns, as `status` gave them.
 
     A held row whose check failed at two heads waits for `TWICE` (`jbus.stall.twice`). A row with
-    a pull request waits for what `jmerge` says of it. A row that was not launched waits
-    for what `dispatch` recorded (`Pass.reasons`), or for its approval. Where `dispatch` read no
-    row, it recorded nothing, and an approved row waits for what is `unread`: dispatch that is off,
-    or the stop file. A pass that is `UNREAD` says nothing of the row, so the row's stored reason
-    stays, unless the row has got its approval since. The same holds for a pass in which `jmerge`
-    failed and printed no line for the pull request. A row that ended, or that merged with work left
-    for after it, takes its reason from `status`.
+    a pull request waits for what `jmerge` says of it, after the question this pass asked of it
+    (`Pass.asked`) where there is one, as in the pass that holds it for `TWICE`. A row that was not
+    launched waits for what `dispatch` recorded (`Pass.reasons`), or for its approval. Where
+    `dispatch` read no row, it recorded nothing, and an approved row waits for what is `unread`:
+    dispatch that is off, or the stop file. A pass that is `UNREAD` says nothing of the row, so
+    the row's stored reason stays, unless the row has got its approval since. The same holds for a
+    pass in which `jmerge` failed and printed no line for the pull request. A row that ended, or
+    that merged with work left for after it, takes its reason from `status`.
     """
     if found.get("why"):
         return found["why"]
-    if row.get("held") and failed_twice(run, row["slug"]):
+    asked = run.asked.get(row["slug"], "") if found["status"] == "pr" else ""
+    if row.get("held") and failed_twice(run, row["slug"]) and not asked:
         return TWICE
     if found["status"] == "pr":
         said = waits.said.get(found["pr"].removeprefix("#"))
         if said is None and waits.failed and row.get("status") == "pr":
             return row.get("why", "")
-        return said or ""
+        return "; ".join(one for one in (asked, said) if one)
     if found["status"] not in ("queued", "gate"):
         return ""
     match run.reasons.get(row["slug"]):
