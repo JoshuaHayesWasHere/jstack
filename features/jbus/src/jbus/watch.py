@@ -347,6 +347,33 @@ class Missed:
             write_json(self.path, self.known)
 
 
+BASES = "bases.json"
+"""The tips of the project's base branches when `look` last read the list of merged pull
+requests, by branch, kept in the project's state."""
+
+
+def base_tips(run: Pass) -> dict[str, str] | None:
+    """Return the tip of each of the project's base branches (the default branch and its
+    `merge_bases`) by name, from one `git ls-remote origin`, or None where git gave no answer."""
+    bases = sorted({_default_branch(run), *run.project.merge_bases})
+    asked = run.run("git", "ls-remote", "origin", *(f"refs/heads/{base}" for base in bases))
+    if asked.returncode != 0:
+        return None
+    tips = {}
+    for line in asked.stdout.splitlines():
+        sha, _, ref = line.partition("\t")
+        if ref.removeprefix("refs/heads/") in bases:
+            tips[ref.removeprefix("refs/heads/")] = sha
+    return tips
+
+
+def _newest(kept: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return the hundred newest merges `merged.json` keeps, each once, as GitHub's list of merged
+    pull requests gives them."""
+    by_url = {pull.get("url", "").rstrip("/") or slug: pull for slug, pull in kept.items()}
+    return sorted(by_url.values(), key=lambda p: p.get("mergedAt") or "", reverse=True)[:100]
+
+
 def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     """Ask T3 Code and GitHub. If either one is silent, there is no world to act on.
 
@@ -357,6 +384,11 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     queue names a slug that is in neither, `look` asks GitHub for it by name, and keeps the merge
     it finds that way too, so the slug stays merged. It keeps a slug it found no merge for too
     (`Missed`), and does not ask for it again on each pass.
+
+    A merge moves its base branch, so `look` asks for the merged list only when a base branch
+    moved since it last did (`base_tips`, kept in `BASES`), or git gave no tips. Otherwise the
+    hundred newest merges of `merged.json` stand in for the list. Until a base moves, such a pass
+    misses a merge into a branch that is no base, and a merged pull request's later edit.
 
     `look` keeps a pull request under the slug whose brief names it (`tied`), and under the
     name of its branch where no brief does. When a slug's brief names a pull request, `look`
@@ -402,20 +434,25 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     kept: dict[str, dict[str, Any]] = read_json(run.state / "merged.json", {})
     named = {slug for row in rows for slug in (row["slug"], *row.get("depends", []))}
     queued = {row["slug"] for row in rows}
+    tips = base_tips(run)
+    unmoved = tips is not None and read_json(run.state / BASES, None) == tips
     try:
-        for state, fields, into in (("open", OPEN, world.open), ("merged", MERGED, world.merged)):
-            for pull in sorted(
-                pulls(run, state, fields, "--limit", "100"), key=lambda p: p.get("mergedAt") or ""
-            ):
-                slug = slug_of.get(pull.get("url", "").rstrip("/"), pull["headRefName"])
-                if state == "open" and (slug in queued or records(run, slug, queue.CREW)):
-                    rollup = pull.get("statusCheckRollup") or []
-                    never = reading.never_started(rollup, lambda *at: ran(run, world, *at))
-                    pull[NEVER] = sorted(never)
-                into[slug] = pull
+        for pull in pulls(run, "open", OPEN, "--limit", "100"):
+            slug = slug_of.get(pull.get("url", "").rstrip("/"), pull["headRefName"])
+            if slug in queued or records(run, slug, queue.CREW):
+                rollup = pull.get("statusCheckRollup") or []
+                pull[NEVER] = sorted(
+                    reading.never_started(rollup, lambda *at: ran(run, world, *at))
+                )
+            world.open[slug] = pull
+        merges = _newest(kept) if unmoved else pulls(run, "merged", MERGED, "--limit", "100")
+        for pull in sorted(merges, key=lambda p: p.get("mergedAt") or ""):
+            world.merged[slug_of.get(pull.get("url", "").rstrip("/"), pull["headRefName"])] = pull
         if kept | world.merged != kept:
             kept |= world.merged
             write_json(run.state / "merged.json", kept)
+        if tips is not None and not unmoved:
+            write_json(run.state / BASES, tips)
         missed = Missed(run, world)
         for slug in sorted(named - set(world.open) - set(world.merged)):
             if slug not in kept:
