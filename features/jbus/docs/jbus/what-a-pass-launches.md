@@ -100,10 +100,10 @@ The third kind ends in a scoped-review ask too.
 Once the Result explains each drop, `jmerge` waits with `the scoped review has not ruled on the drops in <files>; scoped review of <range-diff>`, and jbus asks the crew for that scoped review under the `rereview` key.
 A head with a `rereview` mark already, or whose Result has a `Scoped reviewer:` line of it, is asked nothing more.
 
-## A crew's `/compact` at its pull request
+## A crew is compacted at its pull request
 
-Once a crew's pull request is open, `compact.tell` sends its thread the one message `/compact`, template `compact`, key `compact|<slug>`, once for the row.
-T3 Code runs a compaction for a user message that is `/compact`, so the crew waits on its checks with a summary of its work, and not the whole context it built up.
+Once a crew's pull request is open, `compact.tell` sends its thread one message, a slash and the word `compact`, which is Claude Code's command to compact a session; its template is `compact` and its key `compact|<slug>`, and it goes once for the row.
+T3 Code runs a compaction for a user message that is that command, so the crew waits on its checks with a summary of its work, and not the whole context it built up.
 
 Why: a crew is at about 160k tokens when its pull request opens, under T3 Code's 200k floor for an idle compaction, so it was never compacted there.
 Each call it then made for a failed check, a conflict or a comment sent 208.7k tokens on average (2026-11-09).
