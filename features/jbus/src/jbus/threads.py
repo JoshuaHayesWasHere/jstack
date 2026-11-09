@@ -117,7 +117,7 @@ Out = dict[str, Any]
 
 
 def _done(run: Pass, key: str) -> bool:
-    return key in run.box.sent()
+    return run.box.has(key)
 
 
 def _briefs(run: Pass, kind: str = "tasks") -> dict[str, str]:
@@ -674,7 +674,7 @@ def _stopped(
     what = f"thread ended {status} after two carry-ons"
     home = thread_of(home_of(run.home, brief))
     key = f"stopped|{slug}|{at}"
-    if home and key in run.box.sent():
+    if home and run.box.has(key):
         return
     if not home:
         run.gate(slug, what, at, key=f"{at} {ended}")

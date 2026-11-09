@@ -260,6 +260,10 @@ class Box:
         """Return the keys of everything ever sent, in the order they were sent."""
         return list(_sent(self.state / SENT).keys)
 
+    def has(self, key: str) -> bool:
+        """Return whether a key is among everything ever sent."""
+        return key in _sent(self.state / SENT).lookup
+
     def send(
         self,
         slug: str,
