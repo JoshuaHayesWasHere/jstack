@@ -40,8 +40,8 @@ def tmp(kitchen, monkeypatch):
     stub.mkdir()
     (stub / "python3").write_text(
         "#!/bin/sh\nfor arg; do last=$arg; done\n"
-        "used=$(find \"$last\" -type f -printf '%s\\n' | awk '{s += $1} END {print s + 0}')\n"
-        f"echo {QUOTA_KIB} $((used * {SCALE}))\n"
+        'find "$last" -type f -exec cat {} + | wc -c'
+        f" | awk '{{print {QUOTA_KIB}, $1 * {SCALE}}}'\n"
     )
     (stub / "python3").chmod(0o755)
     monkeypatch.setenv("PATH", f"{stub}:{os.environ['PATH']}")
