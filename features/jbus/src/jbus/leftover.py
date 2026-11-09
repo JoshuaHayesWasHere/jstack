@@ -13,7 +13,7 @@ jbus closes no leftover and starts no thread for one. `tell` writes each leftove
 the record is an item of the one list that wakes a home (`jbus.wakes`), keyed `left:<slug>`: its
 home is told of it once while it stays open. The record keeps the text the home is told: the
 slug, its pull request and whether it merged, the whole `Left:` line, each question the slug
-asked with its answer or a note that it is open, and the two ways to end it. A new `Left:` text
+asked with its answer or a note that it is open, and the three ways to end it. A new `Left:` text
 is a new record. When a home takes over from the one jbus told, the new home is told too, and its
 30 minutes start then.
 
