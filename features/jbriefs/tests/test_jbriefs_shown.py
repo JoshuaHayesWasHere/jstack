@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from jbriefs import cli
+from jbriefs import cli, shown
 
 THREAD = "mcp:launch:the-polish-home"
 PICTURE = f"{THREAD.replace(':', '-')}-e2abb2b8"
@@ -93,7 +93,7 @@ def test_shown_prints_the_path_of_each_picture_the_user_sent_in_the_thread(t3, c
     assert lines == [
         "2026-11-09T16:15:05.233Z m-picture"
         ' "why is this \\"stalled 2h\\" still in my sidebar?"'
-        f" {(attachments / f'{PICTURE}.png').resolve()} gone"
+        f" {(attachments / f'{PICTURE}.png').resolve()} {shown.GONE}"
     ]
 
 
@@ -139,3 +139,17 @@ def test_shown_refuses_a_store_it_cannot_read(tmp_path, capsys):
     assert (code, lines) == (1, [])
     assert "none.sqlite" in err
     assert not (tmp_path / "none.sqlite").exists()
+
+
+@pytest.mark.parametrize(
+    ("argv", "said"),
+    [
+        (["--since", "2026-11-09"], "--since goes with --shown"),
+        (["--shown", THREAD, "--since", "yesterday"], "--since yesterday is no ISO time"),
+    ],
+)
+def test_shown_refuses_a_since_it_cannot_use(argv, said, capsys):
+    with pytest.raises(SystemExit) as stopped:
+        cli.main(argv)
+    assert stopped.value.code == 2
+    assert said in capsys.readouterr().err
