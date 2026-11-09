@@ -161,9 +161,9 @@ def passed(ask: Ask, tree: str, head: str) -> Passed:
     return Passed(None, fork)
 
 
-def judge(said: Read, found: Passed | None, unasked: str = "") -> tuple[int, list[str]]:
-    """The exit code and the lines that say why. `found` is None where GitHub was not asked,
-    and `unasked` then says why."""
+def judge(said: Read, found: Passed | str) -> tuple[int, list[str]]:
+    """The exit code and the lines that say why. `found` is where the tree passed, or why
+    GitHub gave no answer."""
     reasons = []
     if said.dirty:
         reasons.append(
@@ -177,7 +177,7 @@ def judge(said: Read, found: Passed | None, unasked: str = "") -> tuple[int, lis
             f"HEAD {said.head[:12]} {where} origin's main {said.main[:12]}: "
             "check out origin's main as it is now"
         )
-    if found is not None and found.run is None:
+    if isinstance(found, Passed) and found.run is None:
         whose = "only a fork's run left" if found.fork else "no green run of check.yml left"
         reasons.append(
             f"tree {said.tree[:12]} has not passed the check: {whose} "
@@ -185,11 +185,13 @@ def judge(said: Read, found: Passed | None, unasked: str = "") -> tuple[int, lis
             f"{said.head[:12]}: wait for main's run to pass, or start one with "
             "`gh workflow run check.yml --ref main`"
         )
-    missing = [one for one in (said.unasked, unasked) if one]
+    missing = [said.unasked] if said.unasked else []
+    if isinstance(found, str):
+        missing.append(found)
     if reasons:
         refused = [f"refused: {one}" for one in reasons]
         return 1, refused + [f"note: no answer: {one}" for one in missing]
-    if missing:
+    if missing or isinstance(found, str):
         return 2, [f"cannot ask: {one}" for one in missing]
     return 0, [
         f"green: {said.head[:12]} is origin's main, clean, and its tree passed in {found.run}"
@@ -202,4 +204,4 @@ def main(root: Path, ask: Ask | None = None) -> tuple[int, list[str]]:
     try:
         return judge(said, passed(ask or gh(root), said.tree, said.head))
     except CannotAsk as error:
-        return judge(said, None, str(error))
+        return judge(said, str(error))

@@ -245,7 +245,8 @@ jobs:
           retention-days: 7
           if-no-files-found: error
       # A marker says the whole suite passed on the tree: main's run, a nightly run, or a pull
-      # request whose selection was `all`. A deploy entry refuses a tree with none.
+      # request whose selection was `all`. A deploy entry refuses a tree with none, through
+      # `repo-standard green`, so the marker lives 90 days, as long as GitHub keeps a run.
       - name: green tree marker
         id: marker
         if: needs.plan.outputs.mode == 'standard' && needs.plan.outputs.run == 'true' && needs.plan.outputs.tree != '' && needs.plan.outputs.reused != 'true' && (github.event_name != 'pull_request' || needs.plan.outputs.selection == 'all')
@@ -258,5 +259,5 @@ jobs:
         with:
           name: ${{ needs.plan.outputs.tree }}
           path: ${{ runner.temp }}/green-tree/${{ needs.plan.outputs.tree }}
-          retention-days: 7
+          retention-days: 90
           if-no-files-found: error
