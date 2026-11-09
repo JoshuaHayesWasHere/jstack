@@ -362,7 +362,9 @@ def need_items(run: Pass, listed: list | None) -> list[Item]:
         brief = next((file for file in files if slug and file.exists()), None)
         if door(one):
             to = root_of(run)
-        elif one["kind"] in ("approve", "stalled", "install") or (
+        elif one["kind"] == "install":
+            to = ""
+        elif one["kind"] in ("approve", "stalled") or (
             one["kind"] == "gate" and slug == mirror.HOME
         ):
             to = ""

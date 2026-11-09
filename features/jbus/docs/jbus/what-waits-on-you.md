@@ -24,7 +24,7 @@ A window with no call left is under the floor, so the pass asks GitHub only what
 A T3 Code build behind jstack's patches is one item of that list too, of the kind `install`.
 A merged change to the patches reaches the sidebar only once you run `jinstall --setup`, which needs sudo, and then quit T3 Code and open it again.
 Each pass reads the series of the running build from `t3 --version`, as `jinstall --doctor` does, and the series of the patches in the tree jbus runs from: the green copy, else the checkout.
-While the two differ, the line names both series, how many changes to the patches merged since the running build's, and `jinstall --setup`, such as `install t3code-jstack: T3 Code runs the jstack build of series 175325ee3a, and the patches jbus runs from are series ba09003d8a: the build lacks 3 merged changes to them; run jinstall --setup, then quit T3 Code and open it again`.
+While the two differ, the line names both series, how many changes to the patches merged since the running build's, and `jinstall --setup`, such as `install t3code-jstack: T3 Code runs the jstack build of series 175325ee3a, and the patches jbus runs from are series ba09003d8a: the build lacks 3 merged changes to them; run jinstall --setup and then quit T3 Code and open it again`.
 `jbus needs` prints it, and it wakes no home, since no home can install it.
 It goes on the first pass after the install, and a machine whose T3 Code is no jstack build never lists it.
 It never blocks.

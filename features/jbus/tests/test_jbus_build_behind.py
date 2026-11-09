@@ -72,7 +72,7 @@ def test_build_behind_main_waits_on_the_user_until_the_installed_series_matches(
     assert item["line"] == (
         f"install t3code-jstack: T3 Code runs the jstack build of series {old}, and the patches "
         f"jbus runs from are series {new}: the build lacks 2 merged changes to them; run "
-        "jinstall --setup, then quit T3 Code and open it again"
+        "jinstall --setup and then quit T3 Code and open it again"
     )
     assert needs(kitchen) == [
         f"demo {item['line']}, a T3 Code build only you can install",

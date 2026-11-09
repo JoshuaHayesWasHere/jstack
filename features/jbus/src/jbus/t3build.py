@@ -56,7 +56,7 @@ def behind(run: Pass) -> list[dict[str, Any]]:
     lacks = _lacks(run.project.checkout, green.at(tree), have)
     line = (
         f"install t3code-jstack: T3 Code runs the jstack build of series {have}, and the patches "
-        f"jbus runs from are series {want}: {lacks}; run jinstall --setup, then quit T3 Code "
+        f"jbus runs from are series {want}: {lacks}; run jinstall --setup and then quit T3 Code "
         "and open it again"
     )
     return [{"kind": "install", "key": "install:t3code-jstack", "line": line}]
