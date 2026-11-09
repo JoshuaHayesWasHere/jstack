@@ -23,6 +23,7 @@ DEBUG = """\
 < HTTP/2.0 403 Forbidden
 < Retry-After: 60
 < X-Ratelimit-Remaining: 4812
+< X-Ratelimit-Reset: 1794234969
 < X-Ratelimit-Resource: core
 
 {
@@ -80,6 +81,7 @@ def test_a_gh_call_logs_its_caller_endpoint_status_and_github_s_limits(gh):
         "status": 1,
         "remaining": 4812,
         "resource": "core",
+        "reset": 1794234969,
         "retry_after": "60",
         "http": "HTTP/2.0 403 Forbidden",
     }
@@ -91,7 +93,7 @@ def test_a_call_gh_made_no_request_for_is_logged_by_its_command(gh, monkeypatch)
     assert done is None
     [line] = calls(gh)
     assert (line["endpoint"], line["status"], line["remaining"]) == ("pr list", 127, None)
-    assert "retry_after" not in line
+    assert "retry_after" not in line and "reset" not in line
 
 
 def test_a_state_directory_that_cannot_be_written_costs_the_call_nothing(gh, monkeypatch):

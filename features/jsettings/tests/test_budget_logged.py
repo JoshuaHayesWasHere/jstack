@@ -110,6 +110,41 @@ def test_of_github_s_two_counts_of_a_window_the_lowest_of_the_last_minute_answer
     assert github.asks == 1
 
 
+def test_each_line_names_the_count_it_spent_by_github_s_window_and_reset():
+    reset = datetime(2026, 11, 9, 13, 56, 9, tzinfo=UTC)
+    assert budget.count({"resource": "core", "reset": int(reset.timestamp())}) == ("core", reset)
+    assert budget.count({"resource": "core", "remaining": 4000}) is None
+    assert budget.count({"remaining": None}) is None
+
+
+def test_the_lowest_count_answers_with_its_own_reset(state):
+    github = GitHub(4000)
+    budget.logged(state, asked=github)
+    aged(state)
+    soon = github.reset - timedelta(minutes=20)
+    logs(state, "core", 4100, reset=int(soon.timestamp()))
+    logs(state, "core", 4900, reset=int(github.reset.timestamp()))
+    logs(state, "graphql", 4500, reset=int(github.reset.timestamp()))
+    read = budget.logged(state, asked=github)
+    assert remaining(read) == {"core": 4100, "graphql": 4500}
+    assert {one.name: one.reset for one in read.windows} == {"core": soon, "graphql": github.reset}
+    assert github.asks == 1
+
+
+def test_a_count_that_started_again_says_nothing_of_what_is_left(state):
+    """A line of the last minute whose count reset since then gave a `remaining` GitHub has
+    since filled up again: the read takes the other count's."""
+    github = GitHub(4000)
+    budget.logged(state, asked=github)
+    aged(state)
+    gone = datetime.now(UTC).replace(microsecond=0) - timedelta(seconds=1)
+    logs(state, "core", 12, ago=5, reset=int(gone.timestamp()))
+    logs(state, "core", 4900, reset=int(github.reset.timestamp()))
+    logs(state, "graphql", 4500)
+    assert remaining(budget.logged(state, asked=github)) == {"core": 4900, "graphql": 4500}
+    assert github.asks == 1
+
+
 def test_a_window_with_no_line_in_the_last_minute_is_asked_for_once(state):
     github = GitHub(4000)
     budget.logged(state, asked=github)
