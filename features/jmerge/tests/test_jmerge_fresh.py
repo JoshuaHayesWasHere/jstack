@@ -1,8 +1,9 @@
 """`jmerge` merges a pull request on its passing check while that check ran over today's main.
 When main changed any file after its check started, `git merge-tree` of the head onto main
-decides how it waits: a clean merge merges on its existing check, whatever files it shares with
-main's changes (`test_jmerge_existing_check.py`, `test_jmerge_over_main.py`), and a conflict
-waits for a rebase (`test_jmerge_rejudge.py`). When a rebase
+decides how it waits: in a repo with no guards on the merged tree, as here, a clean merge has
+GitHub merge main into its branch, and the check at the new head decides, and a conflict waits
+for a rebase (`test_jmerge_rejudge.py`). With the guards, one that shares no file with main's
+changes merges on its existing check (`test_jmerge_existing_check.py`). When a rebase
 drops a line, the pull request waits until its crew says why
 (`features/jmerge/tests/test_jmerge_drops.py`), and `jmerge` keeps a branch that moved after its
 merge.
@@ -306,13 +307,12 @@ def test_a_second_one_that_conflicts_with_the_first_merge_waits_for_its_rebase(k
     assert git(kitchen.origin, "rev-parse", "refs/heads/two") == two
 
 
-def test_a_file_main_renamed_under_the_pull_request_merges_on_its_check_as_git_merges_it(kitchen):
+def test_a_file_main_renamed_under_the_pull_request_is_merged_into_it_as_git_merges_it(kitchen):
     kitchen.crew("two", 7, {"b.txt": LINES + "ours\n"})
     kitchen.on_main({}, rename=("b.txt", "c.txt"))
-    (said,) = kitchen.run()
-    assert said.startswith("merged 7 two ")
-    assert kitchen.updates() == []
-    assert kitchen.at_main("c.txt") == (LINES + "ours").strip()
+    assert kitchen.run() == [asked(7, kitchen.tip())]
+    tree = git(kitchen.origin, "show", "refs/heads/two:c.txt")
+    assert tree == (LINES + "ours").strip()
 
 
 def test_main_changing_a_file_the_pull_request_renamed_away_conflicts(kitchen):
@@ -350,17 +350,18 @@ def repo(kitchen, monkeypatch):
 def test_a_merge_by_hand_between_the_judgment_and_the_merge_has_it_judged_again(
     kitchen, monkeypatch
 ):
-    """The merge made by hand moved main's tip after the judgement: the merge lock judges it again
-    over the new tip, and it merges cleanly over that on its existing check."""
+    """Its check did not run over the merge made by hand, which changed a file it changes, so it
+    waits for one that does."""
     kitchen.crew("two", 7, {"b.txt": LINES + "ours\n"})
     one = ready.pull_request(kitchen.pulls["two"])
     here = repo(kitchen, monkeypatch)
     slug, verb, why, note, judged = here.waits(one, "main")
     assert (slug, verb, why, judged) == ("two", "", "", ready.Judged(tip=kitchen.tip()))
     by_hand = kitchen.on_main({"b.txt": "theirs\n" + LINES})
-    assert here.merge(one, slug, note, judged).startswith("merged 7 two ")
-    assert git(kitchen.origin, "rev-parse", "main^") == by_hand
-    assert kitchen.updates() == []
+    due = ready.BASE_MOVED_DUE.format(base="main", tip=by_hand[:12])
+    assert here.merge(one, slug, note, judged) == f"wait 7 {url(7)}: {due}"
+    assert kitchen.tip() == by_hand
+    assert not (kitchen.home.stub / "calls").exists()
 
 
 def test_a_merge_by_hand_that_conflicts_with_it_keeps_it_from_the_merge(kitchen, monkeypatch):

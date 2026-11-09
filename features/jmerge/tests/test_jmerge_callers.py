@@ -1,16 +1,19 @@
 """`jmerge` judges a pull request's passing check against what main changed since the check
-started. A clean merge over main merges it on its existing check, whether it shares a file with
-main's changes or not, and even where main's file imports its files, is one they import, names
-their path, or is one CI reads: no path rule tells which of main's changes its check would meet,
-so main's own run over what moved catches that clash, and jbus reverts the one clear culprit
-(Josh, 2026-11-05: "we don't need every pr to be up to date"). A conflict waits for a rebase.
+started. A clean merge over main of a pull request that shares a file with main's changes has
+GitHub merge main into its branch, so that its check runs over today's main, and a conflict waits
+for a rebase. One that shares no file merges on its existing check, even where main's file
+imports its files, is one they import, names their path, or is one CI reads: no path rule tells
+which of main's changes its check would meet, so the fast guards on its merged tree catch that
+clash where the repo names them (`test_jmerge_existing_check.py`), and main's own run where it
+names none (Josh, 2026-11-05: "we don't need every pr to be up to date").
 
 The tests run the command against a real origin, as
-`features/jmerge/tests/test_jmerge_fresh.py` does."""
+`features/jmerge/tests/test_jmerge_fresh.py` does, in a repo with no guards."""
 
 import pytest
 
-from test_jmerge_fresh import Kitchen
+from jmerge import ready
+from test_jmerge_fresh import Kitchen, url
 
 CORE = "def f():\n    return 1\n"
 CALLER = "from pkg import core\n\nassert core.f() == 1\n"
@@ -47,10 +50,10 @@ def test_main_changing_another_file_cleanly_merges_it_on_its_existing_check(kitc
     assert kitchen.updates() == []
 
 
-def test_main_changing_its_own_file_cleanly_merges_it_on_its_existing_check(kitchen):
+def test_main_changing_its_own_file_cleanly_has_its_check_run_over_today_s_main(kitchen):
     kitchen.crew("two", 7, {"src/pkg/core.py": CORE + "\n# ours\n"})
-    kitchen.on_main({"src/pkg/core.py": "# theirs\n" + CORE, "src/pkg/caller.py": CALLER})
-    (said,) = kitchen.run()
-    assert said.startswith("merged 7 two ")
-    assert kitchen.updates() == []
-    assert kitchen.at_main("src/pkg/core.py") == ("# theirs\n" + CORE + "\n# ours").strip()
+    tip = kitchen.on_main({"src/pkg/core.py": "# theirs\n" + CORE, "src/pkg/caller.py": CALLER})
+    asked = ready.BASE_MOVED_ASKED.format(base="main", tip=tip[:12])
+    assert kitchen.run() == [f"wait 7 {url(7)}: {asked}"]
+    assert kitchen.updates() == ["7"]
+    assert kitchen.calls() == []

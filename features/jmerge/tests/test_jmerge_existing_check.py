@@ -1,8 +1,11 @@
-"""A green pull request whose check main moved past merges on that existing check when its head
-merges cleanly over today's main (`jmerge.cli.Repo.over_main`): GitHub is asked for no update of
-its branch, no check runs again, and nothing runs on its merged tree (Josh, 2026-11-05: "we
-don't need every pr to be up to date"). One that shares a file with main's changes merges alike
-(`test_jmerge_over_main.py`).
+"""A green pull request whose check main moved past merges on that existing check when its
+files overlap none of the files main changed since the check started and its head merges
+cleanly over today's main (`jmerge.cli.Repo.over_main`): GitHub is asked for no update of its
+branch, and no check runs again. The fast guards run on its tree merged over main first
+(`test_jmerge_cli_merged_tree.py`), and hold it when the two clash. A pull request that shares
+a file with main's changes merges on its guards too, and goes through the one-at-a-time line
+where they fail (`test_jmerge_over_main.py`, `test_jmerge_in_line.py`). A repo with no guards
+runs nothing on the merged tree, and merges on the existing check alike.
 
 The tests run the command against a real origin and a fake `gh` (`test_jmerge_fresh.Kitchen`),
 with GitHub's strict "up to date" rule off on main, as ruleset 25665226 has it since
@@ -10,23 +13,43 @@ with GitHub's strict "up to date" rule off on main, as ruleset 25665226 has it s
 
 import pytest
 
-from jmerge import ready
-from test_jmerge_fresh import LINES, Kitchen, url
+from jmerge import ready, treeguards
+from test_jmerge_cli_merged_tree import MAKEFILE, runs
+from test_jmerge_fresh import LINES, Kitchen, asked, url
 
 
 @pytest.fixture
 def kitchen(tmp_path):
-    return Kitchen(tmp_path, {"a.txt": LINES, "b.txt": LINES})
+    ran = tmp_path / "guards-ran"
+    made = Kitchen(tmp_path, {"a.txt": LINES, "b.txt": LINES, "Makefile": MAKEFILE.format(ran=ran)})
+    (made.home.state / treeguards.NAME).write_text("make -s guards\n")
+    made.ran = ran
+    return made
 
 
 def test_existing_check_with_no_overlap_merges_with_no_update(kitchen):
     kitchen.crew("two", 7, {"b.txt": "ours\n" + LINES})
-    kitchen.on_main({"a.txt": LINES + "main\n"})
+    tip = kitchen.on_main({"a.txt": LINES + "main\n"})
     (said,) = kitchen.run()
     assert said.startswith(f"merged 7 two {kitchen.tip()} ")
+    assert f"the guards passed on its tree merged over main at {tip[:12]} in " in said
     assert kitchen.updates() == []
+    assert runs(kitchen) == 1
     assert kitchen.at_main("a.txt").endswith("main")
     assert kitchen.at_main("b.txt").startswith("ours")
+
+
+def test_existing_check_with_no_overlap_merges_beside_one_in_the_line(kitchen):
+    """The line holds only those that overlap and whose guards failed: #8 merges on its check
+    while #7, whose `v007_` file clashes with main's, waits for its check at the head GitHub
+    made."""
+    kitchen.crew("two", 7, {"a.txt": "ours\n" + LINES, "mig/v007_two.txt": "two\n"})
+    kitchen.crew("three", 8, {"b.txt": "ours\n" + LINES})
+    tip = kitchen.on_main({"a.txt": LINES + "main\n", "mig/v007_main.txt": "main\n"})
+    first, second = kitchen.run()
+    assert first == asked(7, tip)
+    assert second.startswith("merged 8 three ")
+    assert kitchen.updates() == ["7"]
 
 
 def test_existing_check_with_a_clean_merge_that_github_refuses_waits(kitchen):
@@ -37,3 +60,25 @@ def test_existing_check_with_a_clean_merge_that_github_refuses_waits(kitchen):
     assert said.startswith(f"wait 7 {url(7)}: {ready.MERGE_FAILED}: ")
     assert "not mergeable" in said
     assert kitchen.updates() == []
+
+
+def test_existing_check_in_a_repo_with_no_guards_merges_with_no_update(kitchen):
+    """With no `merged-tree-guards` file, nothing runs on the merged tree, and a pull request
+    that overlaps none of main's changes still merges on its existing check: no update of its
+    branch, and no rerun (Josh, 2026-11-05: "we don't need every pr to be up to date")."""
+    (kitchen.home.state / treeguards.NAME).unlink()
+    kitchen.crew("two", 7, {"b.txt": "ours\n" + LINES})
+    kitchen.on_main({"a.txt": LINES + "main\n"})
+    (said,) = kitchen.run()
+    assert said.startswith(f"merged 7 two {kitchen.tip()} ")
+    assert kitchen.updates() == []
+    assert runs(kitchen) == 0
+    assert kitchen.at_main("b.txt").startswith("ours")
+
+
+def test_existing_check_in_a_repo_with_no_guards_and_an_overlap_goes_through_the_line(kitchen):
+    (kitchen.home.state / treeguards.NAME).unlink()
+    kitchen.crew("two", 7, {"a.txt": "ours\n" + LINES})
+    tip = kitchen.on_main({"a.txt": LINES + "main\n"})
+    assert kitchen.run() == [asked(7, tip)]
+    assert kitchen.updates() == ["7"]

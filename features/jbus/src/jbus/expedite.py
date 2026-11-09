@@ -63,8 +63,9 @@ reason with its sentence:
 - `rereview`, drops no scoped review ruled on or a rebase that changed the content: launch the one
   scoped reviewer over the reason's range-diff. It is `jbus.rebase`'s kind, so a head is told once,
   and it tells where a scoped reviewer of the head the Result names ended with no review;
-- `fresh-conflict`, `base` and `not-upheld`: rebase with "A conflict" run with `stale`, retarget
-  to the default branch, or put back a drop the review did not uphold, else tell the home.
+- `fresh-conflict`, `merged-tree`, `base` and `not-upheld`: rebase with "A conflict" run with
+  `stale` (and fix the guards that fail for `merged-tree`), retarget to the default branch, or
+  put back a drop the review did not uphold, else tell the home.
 
 Every reason of `ready.reasons()` is a row of `TABLE`, in `UNTOLD` (no crew can fix it) or in
 `ELSEWHERE` (another part of jbus tells the crew), and a test holds the three to `ready`.
@@ -519,6 +520,14 @@ TABLE = (
         "resolve the conflict, run the check command, and push with the block's push.",
     ),
     Short(
+        "merged-tree",
+        "wait",
+        ready.MERGED_TREE_FAILS,
+        "Merged over today's default branch, your head fails the guards the reason names: a clash "
+        'with what merged since your check. Rebase with the crew skill\'s "A conflict" block, run '
+        "with `stale`, run the check command, fix what fails, and push with the block's push.",
+    ),
+    Short(
         "base",
         "wait",
         ready.BASE,
@@ -561,7 +570,8 @@ UNTOLD = {
                 "main-moved merging merge-failed no-messages undecided not-passed live-run "
                 "queue-unreadable carries-unknown base-merge-asked base-merge-due "
                 "base-merge-refused base-moved-asked base-moved-due in-line queued-restarted "
-                "queued-unopened queued-unclosed queued-gave-up queued-unrestarted",
+                "queued-unopened queued-unclosed queued-gave-up queued-unrestarted "
+                "merged-tree-unended merged-tree-unbuilt merged-tree-no-time merged-tree-no-slot",
                 _RUNNER,
             ),
             ("merges-after carries-after stacked-on migration-merging migration-rebasing", _AHEAD),

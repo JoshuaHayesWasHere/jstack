@@ -376,6 +376,32 @@ GitHub has this long to list the new run before the line goes to the next pull r
 lists the new run within seconds of the reopen, so a run of `jmerge` in the same minute still
 sees the old one."""
 UNMERGED = Reason("check", "its head could not be merged over today's base ({why})")
+MERGED_TREE_FAILS = Reason(
+    "rebase",
+    "merged over today's {base} at {tip}, it fails {guard}: its crew rebases it onto {base}, "
+    "runs the check, and fixes what fails",
+)
+"""The wait on a pull request whose tree merged over today's base fails the fast guards
+(`jmerge.treeguards`): a clash with what merged since its check, which only its crew can fix."""
+MERGED_TREE_UNENDED = Reason(
+    "check",
+    "the guards on its tree merged over today's {base} at {tip} ran past {minutes} minutes and "
+    "were stopped",
+)
+MERGED_TREE_UNBUILT = Reason(
+    "check",
+    "its tree merged over today's {base} at {tip} could not be built for the guards ({why})",
+)
+MERGED_TREE_NO_TIME = Reason(
+    "check",
+    "the guards of this run's other merges took its time: the next run runs them on its tree "
+    "merged over {base} at {tip}",
+)
+MERGED_TREE_NO_SLOT = Reason(
+    "check",
+    "every full test slot stayed taken for {seconds} s, so the guards did not start on its tree "
+    "merged over {base} at {tip}: the next run tries again",
+)
 _MAINS_LOST = "{count} of main's lines in {file}"
 _OWN_LOST = "{count} of its own in {file}"
 _REFUSED = "{file}: {why}"
@@ -1403,10 +1429,12 @@ def needs_the_user(
 
 @dataclass(frozen=True)
 class Judged:
-    """The base's tip a pull request was judged over (`cli.Repo.over_main`): the merge lock
-    merges it only while the base is still there (`cli.Repo.merge_holding`)."""
+    """The base's tip a pull request was judged over, and whether its files overlap what that
+    base changed since its check started: such a one merges on the guards on its tree merged
+    over `tip`, and goes through the line where they fail or were stopped (`cli.Repo.over_main`)."""
 
     tip: str = ""
+    overlaps: bool = False
 
 
 MERGING = Reason("check", "another run of jmerge is merging into its base")

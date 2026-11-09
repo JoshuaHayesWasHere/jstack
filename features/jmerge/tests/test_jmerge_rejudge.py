@@ -3,8 +3,8 @@ is judged again over today's base: `jmerge` asks GitHub to merge the base into t
 (`PUT /repos/{owner}/{repo}/pulls/{n}/update-branch`), once for a head and a base tip, and the
 pull request goes on by the normal path once GitHub's new check passes. A change broken on its
 own fails again at the updated head, as its own. A green pull request whose base moved under it
-on a file it changes merges on its existing check where its head merges cleanly over today's
-base, and waits for its rebase where it conflicts.
+on a file it changes takes the same path: its check ran over a main that is gone, and the check
+at the updated head decides.
 
 The replay is 2026-10-23: main red on two whole-tree tests, pull requests that touched neither
 red on them, then main fixed. The tests run the command as `test_jmerge_fresh` does, against a
@@ -256,6 +256,7 @@ def test_each_line_of_a_judgement_again_is_on_the_check_step_and_tells_no_crew()
 
 
 PASSED_BEFORE = {**merge.PASSED, "startedAt": STARTED}
+PENDING = {**merge.RUNNING, "startedAt": "2099-01-01T00:00:00Z"}
 FAILED_AFTER = {**merge.FAILED, "startedAt": "2099-01-01T00:00:00Z"}
 REQUIRED = "check\nborders\nmacos\n"
 MACOS_RED = {**merge.run("FAILURE", "macos"), "startedAt": STARTED}
@@ -269,16 +270,26 @@ def moved(tmp_path):
     return replay, head
 
 
-def test_main_moving_under_a_green_pull_request_that_still_merges_cleanly_merges_on_its_check(
-    moved,
-):
+def moved_line(number, tip):
+    return f"wait {number} {url(number)}: " + ready.BASE_MOVED_ASKED.format(
+        base="main", tip=tip[:12]
+    )
+
+
+def test_main_moving_under_a_green_pull_request_that_still_merges_cleanly_reruns_its_check(moved):
     """The base moved after the check passed, and the head merges over today's main with no
-    conflict: `jmerge` merges it on that check, with no update of its branch and no rerun."""
+    conflict: `jmerge` asks GitHub to merge main into its branch, once, and merges it on the
+    check at the new head, which ran over today's main."""
     replay, head = moved
-    replay.main_at({"a.txt": LINES + "theirs\n"}, FIXED, "green")
+    tip = replay.main_at({"a.txt": LINES + "theirs\n"}, FIXED, "green")
+    assert replay.run() == [moved_line(333, tip)]
+    assert replay.updated() == ["333"]
+    replay.github(PENDING)
+    assert replay.run() == [f"wait 333 {url(333)}: check has not passed"]
+    replay.github(GREEN)
     replay.run()
     assert merged(replay.said) == [333]
-    assert replay.updated() == []
+    assert replay.updated() == ["333"]
     assert replay.kitchen.at_main("a.txt") == "ours\n" + LINES + "theirs"
 
 
