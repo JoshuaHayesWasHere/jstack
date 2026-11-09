@@ -5,6 +5,7 @@ against the fakes.
 """
 
 import json
+import re
 from datetime import timedelta
 
 import pytest
@@ -1296,6 +1297,25 @@ def test_a_red_run_of_any_scheduled_workflow_on_main_files_one_row_a_day(kitchen
     assert kitchen.lines("retro") == [
         "retro red-drift-2026-10-12: the drift run 66 failed on 2026-10-12, 1 test named"
     ]
+
+
+def test_a_pass_reads_every_nightlys_runs_before_it_files_from_any(kitchen):
+    """Each list of a nightly's runs is a call to GitHub that waits, so a pass reads them all side
+    by side, then files from each in turn, and its first red run's jobs come after every list."""
+    sweep = browser_run(67, ago=timedelta(hours=2))
+    runs = {"drift.yml": [browser_run(66, ago=timedelta(hours=3))], "sweep.yml": [sweep]}
+    scheduled_runs(kitchen, runs, {"drift.yml": DRIFT, "sweep.yml": DRIFT})
+    kitchen.poll()
+    assert [row["slug"] for row in red_rows(kitchen, "red-")] == [
+        "red-drift-2026-10-12",
+        "red-sweep-2026-10-12",
+    ]
+    asked = (kitchen.stub / "gh.log").read_text().splitlines()
+    lists = [n for n, ask in enumerate(asked) if re.search(r"(drift|sweep).yml/runs", ask)]
+    jobs = [n for n, ask in enumerate(asked) if re.search(r"actions/runs/6[67]/jobs", ask)]
+    assert len(lists) == 2
+    assert len(jobs) == 2
+    assert max(lists) < min(jobs)
 
 
 def test_a_workflow_with_no_schedule_and_a_pull_requests_run_file_nothing(kitchen):

@@ -46,7 +46,7 @@ from jbus import Refused, budget, queue, read_json, review, shots, t3, verbs, wo
 from jbus.judged import Said, parse
 from jbus.launches import records
 from jbus.mirror import last_result, sections
-from jbus.passes import Changed, Depends, Pass, Red, Rerun, Slot
+from jbus.passes import Changed, Depends, Pass, Red, Rerun, Slot, side_by_side
 from jbus.t3 import Client, T3Error
 from jbus.wake import cut
 from jgauge import holders, slot, waiters
@@ -1108,8 +1108,10 @@ def watch(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
         line = f"merged {slug} #{pull['number']} {commit[:12]}"
         result = last_result(brief)
         run.find(slug, "merged", line, result, key=f"#{pull['number']}", past=True)
-    for nightly in watched(run):
-        _nightly_red(run, nightly)
+    nightlies = watched(run)
+    read = side_by_side(lambda nightly: _nightly_runs(run, nightly), nightlies)
+    for nightly, runs in zip(nightlies, read, strict=True):
+        _nightly_red(run, nightly, runs)
 
 
 def _api(run: Pass, path: str) -> Any:
@@ -1782,8 +1784,22 @@ def _filed(run: Pass, nightly: Nightly, name: str, text: str, number: str, said:
     return True
 
 
-def _nightly_red(run: Pass, nightly: Nightly) -> None:
-    """File the brief for the fix of a red run of a nightly workflow, and queue the brief
+def _nightly_runs(run: Pass, nightly: Nightly) -> list[dict[str, Any]] | None:
+    """Read a nightly's last 20 completed runs, or nothing where GitHub gave no list. `watch`
+    reads every nightly's side by side, before it files from any, since each read is a call to
+    GitHub that waits."""
+    said = _api(
+        run,
+        f"repos/{{owner}}/{{repo}}/actions/workflows/{nightly.file}/runs"
+        "?status=completed&per_page=20",
+    )
+    listed = said.get("workflow_runs") if isinstance(said, dict) else None
+    return listed if isinstance(listed, list) else None
+
+
+def _nightly_red(run: Pass, nightly: Nightly, runs: list[dict[str, Any]] | None) -> None:
+    """File the brief for the fix of a red run of a nightly workflow, from its completed `runs`
+    (`_nightly_runs`, nothing where GitHub gave none), and queue the brief
     unapproved, once per day: a further red run of the day folds into that day's row, whatever its
     state, and files no `-2`. jbus records each run that it has seen in the nightly's `seen`
     file, so it files no brief again for a run whose row was removed. On a project's first
@@ -1808,13 +1824,7 @@ def _nightly_red(run: Pass, nightly: Nightly) -> None:
     each run that passed as `GREEN` in `seen`, since GitHub lists only the last 20. A red run
     before any is one quiet line, under the workflow's name, and no row asks the user anything.
     """
-    said = _api(
-        run,
-        f"repos/{{owner}}/{{repo}}/actions/workflows/{nightly.file}/runs"
-        "?status=completed&per_page=20",
-    )
-    runs = said.get("workflow_runs") if isinstance(said, dict) else None
-    if not isinstance(runs, list):
+    if runs is None:
         return
     seen: dict[str, str] = read_json(run.state / nightly.seen, {})
     default = _default_branch(run)
