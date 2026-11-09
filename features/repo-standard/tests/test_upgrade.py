@@ -45,6 +45,21 @@ def test_every_file_of_the_skeleton_and_each_adapter_has_a_kind():
     assert unplaced == [], "place each in repo_standard.owned.RULES"
 
 
+def test_no_script_a_repo_gets_shadows_a_module_of_python_s_own():
+    """`python3 scripts/<name>.py` puts `scripts/` first on the import path, so a script named
+    for a module of the standard library is what that module's importers get. The python-uv
+    adapter's selection was `select.py`, and on macOS, whose Python loads `select` from a file,
+    `subprocess` imported the script in its place (macos-nightly run 42593535428)."""
+    folders = [SKELETON, *sorted((STANDARD / "adapters").iterdir())]
+    shadowing = [
+        f"{folder.relative_to(REPO)}/{path}"
+        for folder in folders
+        for path in tracked(folder)
+        if path.endswith(".py") and path.rsplit("/", 1)[-1][:-3] in sys.stdlib_module_names
+    ]
+    assert shadowing == []
+
+
 def test_a_repo_owns_the_skeletons_owned_files_and_its_adapters_scripts():
     paths = ["scripts/uv_select.py"]
     found = owned.files(STANDARD, Config(), paths, owned.Kind.OWNED)
