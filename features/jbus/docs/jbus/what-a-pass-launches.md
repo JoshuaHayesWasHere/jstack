@@ -100,6 +100,27 @@ The third kind ends in a scoped-review ask too.
 Once the Result explains each drop, `jmerge` waits with `the scoped review has not ruled on the drops in <files>; scoped review of <range-diff>`, and jbus asks the crew for that scoped review under the `rereview` key.
 A head with a `rereview` mark already, or whose Result has a `Scoped reviewer:` line of it, is asked nothing more.
 
+## A crew's `/compact` at its pull request
+
+Once a crew's pull request is open, `compact.tell` sends its thread the one message `/compact`, template `compact`, key `compact|<slug>`, once for the row.
+T3 Code runs a compaction for a user message that is `/compact`, so the crew waits on its checks with a summary of its work, and not the whole context it built up.
+
+Why: a crew is at about 160k tokens when its pull request opens, under T3 Code's 200k floor for an idle compaction, so it was never compacted there.
+Each call it then made for a failed check, a conflict or a comment sent 208.7k tokens on average (2026-11-09).
+A probe compacted a finished crew at 137k: its next call sent 38.9k, and it still knew its brief.
+
+It goes on the first pass where all of these hold:
+
+- the row's pull request is open: a merged or closed one gets none;
+- the brief's last Result that names a pull request names its URL;
+- the thread is the row's crew, as its title says: a home, a scout or a reviewer gets none;
+- T3 Code says the thread has no turn running or queued: a crew still at work is compacted on the first pass after its turn ends;
+- the thread's last call, in [the telemetry store](the-telemetry-store.md), sent 100k tokens or more: a thread the store holds no call of yet waits for a pass whose build read one;
+- the outbox holds it under none of its rules: a thread this pass already told something waits for the next pass.
+
+A pass where one of these does not hold sends nothing and writes no key, so a later pass asks again.
+`outbox.jsonl` keeps one `compact` line for each send.
+
 ## A scout
 
 jbus launches a scout's request as a scout thread, never as a crewmate.

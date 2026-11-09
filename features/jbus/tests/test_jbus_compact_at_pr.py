@@ -1,7 +1,7 @@
 """Once a crew's Result names its pull request and the crew's turn has ended, jbus sends its thread
 `/compact`, once for the row, so the crew waits on its checks with a small context and not the one
-its work built up. A thread at work, a thread whose last call was small, and a pull request that is
-no longer open get none.
+its work built up. A thread at work, a thread whose last call was small or is not in jbus's
+telemetry store yet, and a pull request that is no longer open get none.
 
 The tests run the real pass against the fakes, as `test_jbus_github.py` does."""
 
@@ -74,6 +74,7 @@ def last_call(kitchen, thread, tokens):
 def test_an_idle_crew_with_its_pull_request_open_is_compacted_once(kitchen):
     opened(kitchen)
     ends(kitchen)
+    last_call(kitchen, "mcp:thread-1", 160_000)
     kitchen.poll(NOW)
     assert compacts(kitchen) == [("sent", "")]
     assert [(one["threadId"], one["clientRequestId"]) for one in sent(kitchen)] == [
@@ -86,6 +87,7 @@ def test_an_idle_crew_with_its_pull_request_open_is_compacted_once(kitchen):
 
 def test_a_crew_at_work_is_not_compacted_until_its_turn_ends(kitchen):
     opened(kitchen)
+    last_call(kitchen, "mcp:thread-1", 160_000)
     kitchen.poll(NOW)
     kitchen.poll(NOW + timedelta(minutes=3))
     assert compacts(kitchen) == []
@@ -104,12 +106,12 @@ def test_a_crew_whose_last_call_was_small_is_not_compacted(kitchen):
     assert sent(kitchen) == []
 
 
-def test_a_crew_whose_last_call_was_large_is_compacted(kitchen):
+def test_a_crew_whose_last_call_is_not_in_the_store_yet_is_not_compacted(kitchen):
     opened(kitchen)
     ends(kitchen)
-    last_call(kitchen, "mcp:thread-1", 160_000)
     kitchen.poll(NOW)
-    assert compacts(kitchen) == [("sent", "")]
+    assert compacts(kitchen) == []
+    assert sent(kitchen) == []
 
 
 def test_a_pull_request_no_longer_open_gets_none(kitchen):
@@ -117,6 +119,7 @@ def test_a_pull_request_no_longer_open_gets_none(kitchen):
     kitchen.set("open.json", [])
     kitchen.set("merged.json", [kitchen.merged("alpha", 7, "c" * 40)])
     ends(kitchen)
+    last_call(kitchen, "mcp:thread-1", 160_000)
     kitchen.poll(NOW)
     assert compacts(kitchen) == []
     assert sent(kitchen) == []
@@ -127,5 +130,6 @@ def test_a_result_that_names_no_pull_request_gets_none(kitchen):
     brief = kitchen.home / "tasks" / "alpha.md"
     brief.write_text(brief.read_text() + "\n## Result\nStatus: done\nPull request: after the review\n")
     ends(kitchen)
+    last_call(kitchen, "mcp:thread-1", 160_000)
     kitchen.poll(NOW)
     assert compacts(kitchen) == []
