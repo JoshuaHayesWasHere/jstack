@@ -12,11 +12,12 @@ T3 Code's storage cleanup removes a worktree by its thread's `worktreePath` unde
 worktrees folder, whoever made it, so a finished crew's worktree goes as it did when T3 Code
 made it.
 
-The launch record (`jbus.launches`) holds the commit jbus made the branch at, as `sha`. A launch
-whose connection dropped before any reply, and that made no thread, is tried once more
-(`dispatch.settle_lost`): that retry takes the worktree as it is (`kept`) where the branch is
-still at that commit and nothing in it changed, and makes no second one. Any other branch of the
-slug's name still stops a launch.
+jbus writes the launch record (`jbus.launches`) once the worktree is made, with the commit it
+made the branch at, as `sha`. A launch whose connection dropped before any reply, and that made
+no thread, is tried once more (`dispatch.settle_lost`): that retry takes the worktree as it is
+(`kept`) where the branch is still at that commit and nothing in it changed, and makes no second
+one. Any other branch of the slug's name still stops a launch, as one a pass left when it
+stopped between the worktree and the record does.
 """
 
 from __future__ import annotations
@@ -24,6 +25,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from typing import Any
 
 import jroles
 import jroles.mirror
@@ -39,22 +41,28 @@ def path(run: Pass, slug: str) -> Path:
     return cleanup.worktrees() / run.project.checkout.name / slug.replace("/", "-")
 
 
-def kept(run: Pass, slug: str, sha: str) -> bool:
-    """Say whether the branch `slug` is the one jbus made at `sha` for an earlier try of this
-    launch: checked out at `path`, still at `sha`, with nothing changed in it."""
-    tree = path(run, slug).resolve()
+def strategy(run: Pass, slug: str) -> dict[str, str]:
+    """Return the `workspaceStrategy` of the crew's launch: the worktree jbus made, on `slug`."""
+    return {"type": "existing_worktree", "worktreePath": str(path(run, slug)), "branch": slug}
+
+
+def kept(run: Pass, slug: str, record: dict[str, Any]) -> str:
+    """Return the commit jbus made the branch `slug` at for the launch `record`, a launch to try
+    again, where the branch is still checked out at `path` at that commit with nothing changed in
+    it, and nothing otherwise."""
+    tree, sha = path(run, slug).resolve(), str(record.get("sha") or "")
     listed = run.run("git", "worktree", "list", "--porcelain")
-    if not sha or listed.returncode:
-        return False
+    if record.get("state") != "retry" or not sha or listed.returncode:
+        return ""
     for entry in listed.stdout.split("\n\n"):
         parts = (line.partition(" ") for line in entry.splitlines())
         lines = {key: value for key, _, value in parts}
         if Path(lines.get("worktree", "/")).resolve() == tree:
             if lines.get("branch") != f"refs/heads/{slug}" or lines.get("HEAD") != sha:
-                return False
+                return ""
             status = run.run("git", "-C", str(tree), "status", "--porcelain")
-            return status.returncode == 0 and not status.stdout.strip()
-    return False
+            return sha if status.returncode == 0 and not status.stdout.strip() else ""
+    return ""
 
 
 def make(run: Pass, slug: str, base: str, sha: str = "") -> tuple[str, str]:

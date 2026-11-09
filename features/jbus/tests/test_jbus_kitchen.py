@@ -1065,39 +1065,6 @@ class Kitchen:
             ],
         }
 
-    def pushed(self, *branches):
-        """Put each branch on origin, at a commit of its own on main whose subject is its name,
-        as a pull request's head or a release branch is there before a crew launches on it. A
-        branch origin has already stays as it is."""
-        for branch in branches:
-            there = subprocess.run(
-                [
-                    "git",
-                    "-C",
-                    str(self.origin),
-                    "rev-parse",
-                    "-q",
-                    "--verify",
-                    f"refs/heads/{branch}",
-                ],
-                capture_output=True,
-            )
-            if there.returncode == 0:
-                continue
-            made = self.git_said("commit-tree", "main^{tree}", "-p", "main", "-m", branch)
-            self.git("push", "-q", "origin", f"{made}:refs/heads/{branch}")
-
-    def started_on(self, slug):
-        """Return the branch that the crew branch `slug`, which jbus made, starts on: the subject
-        of its tip, a commit `pushed` made, or `start` for main."""
-        return self.git_said("log", "-1", "--format=%s", f"refs/heads/{slug}")
-
-    def git_said(self, *args):
-        ran = subprocess.run(
-            ["git", *IDENTITY, *args], cwd=self.checkout, check=True, capture_output=True, text=True
-        )
-        return ran.stdout.strip()
-
     def commit(self, sha, message="a change", ago=timedelta(minutes=10)):
         return {"sha": sha, "commit": {"message": message, "committer": {"date": iso(NOW - ago)}}}
 

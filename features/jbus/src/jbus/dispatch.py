@@ -44,9 +44,7 @@ request (`jmerge.mainjson`); this rule holds back launches only.
 
 A row whose queued brief names no child home is a gate and does not launch (`launchhome`).
 
-jbus makes each crew's worktree and branch itself, with the crew's settings file in it, and
-launches the crew into it with `existing_worktree` (`jbus.crewtree`). A worktree jbus cannot
-make is a gate, and a launch T3 Code refuses removes the worktree it was to go in.
+jbus makes each crew's worktree, with its settings file, and launches into it (`jbus.crewtree`).
 
 Each crew gets a scratch folder on disk, `~/.cache/jstack/scratch/<repo>/<slug>`
 (`JSTACK_SCRATCH_DIR` in place of `~/.cache/jstack/scratch`), made before its launch (`scratch`).
@@ -202,21 +200,14 @@ def stacked(brief: str, on: stacks.Stacked | None) -> str:
     return f"{first}\n{stacks.line(on)}\n{rest}"
 
 
-def arguments(
-    run: Pass, slug: str, brief: str, tree: Path, routed: pool.Route | None
-) -> dict[str, Any]:
+def arguments(run: Pass, slug: str, brief: str, routed: pool.Route | None) -> dict[str, Any]:
     """Return the arguments for `t3_thread_launch`: the home skill's crew launch with the
-    brief in it, into the worktree `tree` that jbus made on the branch `slug` (`jbus.crewtree`).
-    The model selection is the one the role map's `crew` line gives for the
-    instance that `routed` chose."""
+    brief in it, into the worktree jbus made (`jbus.crewtree`). The model selection is the one
+    the role map's `crew` line gives for the instance that `routed` chose."""
     made: dict[str, Any] = {
         "projectId": run.project.project_id,
         "title": f"{TITLE}{slug}",
-        "workspaceStrategy": {
-            "type": "existing_worktree",
-            "worktreePath": str(tree),
-            "branch": slug,
-        },
+        "workspaceStrategy": crewtree.strategy(run, slug),
         "message": f"/crew {slug}\n\n{brief}",
     }
     if run.config.runtime_mode:
@@ -264,11 +255,8 @@ def settle_lost(run: Pass, client: Client) -> None:
             write_thread(run, slug, matching[0])
             run.say(f"adopted {slug}: {matching[0]}")
         elif not matching and record.get("dropped"):
-            kept = {"sha": record["sha"]} if record.get("sha") else {}
-            write_json(
-                path,
-                {"key": record.get("key"), "state": "retry", "at": run.now.isoformat(), **kept},
-            )
+            retry = {"key": record.get("key"), "state": "retry", "sha": record.get("sha", "")}
+            write_json(path, {**retry, "at": run.now.isoformat()})
             run.say(f"relaunch {slug}: its launch dropped and made no thread: once more")
         else:
             run.gate(slug, f"launch reply lost, {len(matching)} matching threads", str(path))
@@ -598,10 +586,7 @@ class Turns:
             sha = judgement.brief_sha(brief)
             path = record_path(run, slug, sha)
             before = read_json(path, {})
-            retried = before.get("state") == "retry"
-            made = before.get("sha", "") if retried else ""
-            if made and not crewtree.kept(run, slug, made):
-                made = ""
+            made = crewtree.kept(run, slug, before)
             if (refs.stdout.strip() and not made) or remote.stdout.strip():
                 there = refs.stdout.strip() or f"refs/heads/{slug} on origin"
                 run.gate(slug, f"branch {slug} is there with no launch record", there)
@@ -673,27 +658,20 @@ class Turns:
                 put := homed(launched_text(kept, green, on), brief)
             ):
                 target.write_text(put)
-            key = f"{run.project.name}/{slug}/{sha[:12]}"
-            intent: dict[str, Any] = {"key": key, "state": "intent", "at": run.now.isoformat()}
-            if retried:
-                intent["retried"] = True
-            write_json(path, intent)
             scratch(run, slug).mkdir(parents=True, exist_ok=True)
             base = on.branch if on else against(brief) or default
             made, why = crewtree.make(run, slug, base, made)
             if why:
-                path.unlink()
                 if wrote:
                     target.unlink()
                 run.gate(slug, "jbus could not make the crew's worktree", why)
                 continue
-            intent["sha"] = made
-            write_json(path, intent)
+            key = f"{run.project.name}/{slug}/{sha[:12]}"
+            retried = before.get("state") == "retry"
+            intent = {"key": key, "state": "intent", "at": run.now.isoformat(), "sha": made}
+            write_json(path, {**intent, "retried": True} if retried else intent)
             try:
-                reply = client.call(
-                    "t3_thread_launch",
-                    arguments(run, slug, text, crewtree.path(run, slug), routed),
-                )
+                reply = client.call("t3_thread_launch", arguments(run, slug, text, routed))
             except T3Refused as error:
                 path.unlink()
                 crewtree.remove(run, slug)

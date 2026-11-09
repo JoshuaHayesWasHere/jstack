@@ -12,6 +12,7 @@ from datetime import timedelta
 
 import pytest
 
+from crew_branches import pushed, started_on
 from test_jbus_kitchen import KEY, NOW, REFUSED, RESULT, Kitchen
 from test_jbus_queue import add, brief, go, sha12, widened
 from test_jbus_wake_failing import refusing
@@ -58,7 +59,7 @@ def held(kitchen, accept=ACCEPTED):
     kitchen.config(max_running=6)
     kitchen.brief("ps-agnostic", RESULT)
     kitchen.set("accept.txt", accept)
-    kitchen.pushed("ps-agnostic")
+    pushed(kitchen, "ps-agnostic")
     kitchen.set("open.json", [kitchen.opened("ps-agnostic", 286)])
     kitchen.set("jmerge.txt", HOLD)
     kitchen.brief("other")
@@ -75,7 +76,7 @@ def test_four_rows_behind_a_held_pull_request_are_one_root_beside_a_running_crew
     assert waits(kitchen) == [MERGE]
     assert [event["slug"] for event in kitchen.events("waiting-on-user")] == ["#286"]
     assert len(kitchen.t3.launches) == len(ROWS)
-    assert [kitchen.started_on(slug) for slug in ROWS] == ["ps-agnostic"] * len(ROWS)
+    assert [started_on(kitchen, slug) for slug in ROWS] == ["ps-agnostic"] * len(ROWS)
 
 
 NO_FACT = f"no proven safety fact at {HEAD[:12]} (blast-radius, review step 5)"
@@ -142,7 +143,7 @@ def test_a_chain_that_ends_at_progress_or_at_a_gate_is_no_root(kitchen, end):
         kitchen.t3.thread("beta", "running")
     elif end == "a wait":
         kitchen.brief("beta", RESULT)
-        kitchen.pushed("beta")
+        pushed(kitchen, "beta")
         kitchen.set("open.json", [kitchen.opened("beta", 8)])
         kitchen.set("jmerge.txt", "wait 8 https://example.test/pull/8: its review is not written\n")
     elif end == "the limit":

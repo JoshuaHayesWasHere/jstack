@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 
 import jroles.mirror
+from crew_branches import git_said
 from jbriefs.home import home_of
 from jbriefs.parse import thread_of
 from jbus import children, cleanup, queue
@@ -362,9 +363,9 @@ def test_a_settled_crew_leaves_no_worktree_in_its_claude_scratchpad_but_one_in_u
 
 def crew_trees(kitchen, slug):
     """Each worktree git lists on the branch `slug`, and whether the branch is there."""
-    listed = kitchen.git_said("worktree", "list", "--porcelain").split("\n\n")
+    listed = git_said(kitchen, "worktree", "list", "--porcelain").split("\n\n")
     trees = [one.splitlines()[0] for one in listed if f"branch refs/heads/{slug}" in one]
-    return trees, kitchen.git_said("branch", "--list", "--format=%(refname)", slug)
+    return trees, git_said(kitchen, "branch", "--list", "--format=%(refname)", slug)
 
 
 @pytest.mark.parametrize("lose", [None, "after", "before"], ids=["a reply", "lost", "dropped"])
@@ -381,8 +382,8 @@ def test_a_crew_launches_into_the_one_worktree_jbus_made_with_its_settings_in_it
     settings = jroles.mirror.crew_settings(jroles.mirror.Main.of(Path.home()))
     assert json.loads((tree / ".claude" / "settings.json").read_text()) == settings
     assert (tree / ".claude" / ".gitignore").read_text() == "*\n"
-    assert kitchen.git_said("-C", str(tree), "status", "--porcelain") == ""
-    assert kitchen.git_said("rev-parse", "alpha") == kitchen.git_said("rev-parse", "origin/main")
+    assert git_said(kitchen, "-C", str(tree), "status", "--porcelain") == ""
+    assert git_said(kitchen, "rev-parse", "alpha") == git_said(kitchen, "rev-parse", "origin/main")
     for minutes in (3, 6):
         kitchen.poll(NOW + timedelta(minutes=minutes))
     launches = kitchen.t3.launches

@@ -12,6 +12,7 @@ from jsonschema import Draft202012Validator
 
 import jbus
 import test_tool_calls as tools
+from crew_branches import pushed, started_on
 from jbus import cleanup, passes, poll, queue, wake
 from jmerge import judgement
 from scoped import scope
@@ -686,11 +687,11 @@ def test_a_row_waits_silently_until_what_it_depends_on_opens_its_pull_request(ki
     kitchen.poll()
     kitchen.poll(NOW + timedelta(minutes=3))
     assert kitchen.t3.launches == [] and kitchen.lines() == []
-    kitchen.pushed("alpha")
+    pushed(kitchen, "alpha")
     kitchen.set("open.json", [kitchen.opened("alpha", 7)])
     kitchen.poll(NOW + timedelta(minutes=6))
     assert [given["title"] for given in kitchen.t3.launches] == ["crew: beta"]
-    assert kitchen.started_on("beta") == "alpha"
+    assert started_on(kitchen, "beta") == "alpha"
 
 
 def test_a_dependency_merged_into_another_branch_than_main_counts_as_merged(kitchen):
