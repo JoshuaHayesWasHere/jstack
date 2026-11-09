@@ -1611,16 +1611,13 @@ def selection(changed, failed=(), edited=None):
     if tests_alone(changed):
         kept = ("imports", "names", "models", "cross-cutting")
         chosen = set().union(*(why[key] for key in kept))
-        added = set(failed) & collected() - chosen
-        return sorted(chosen | added), {
-            **{key: why[key] for key in kept},
-            **{key: [] for key in ("features", "catch-all")},
-            "added": sorted(added),
-        }
-    lone = unowned()
-    chosen = set(tests) | lone
+        why = {**{key: why[key] for key in kept}, "features": [], "catch-all": []}
+    else:
+        lone = unowned()
+        chosen = set(tests) | lone
+        why = {**why, "catch-all": sorted(lone)}
     added = set(failed) & collected() - chosen
-    return sorted(chosen | added), {**why, "catch-all": sorted(lone), "added": sorted(added)}
+    return sorted(chosen | added), {**why, "added": sorted(added)}
 
 
 DESK_PARTS = ("guards", "rest", "touched")
