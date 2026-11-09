@@ -155,7 +155,7 @@
   For it the block lays each side's series over the tag its own `PKGBUILD` names, the head's with the head's patches and the base's with the base's patches and the head's test files over them, installs each with `vp i --frozen-lockfile`, and runs the vitest files the changed patches add or change, each through its package's own `test` script, in one full test slot.
   It prints `Proved: <fork tests> base exit <n> at <base>, head exit <n> at <head>, fork patches`, which proves the change where the base exits 1 and the head 0, as above, and `jmerge` takes only where every file the pull request changes is a fork file, docs or config (`jbriefs.proved.outside_fork`).
   A changed patch that adds or changes no vitest file prints `no proof: the fork patches it changes add or change no vitest file`: add the test to the patch.
-  `jmerge` waits on a pull request that changes a fork file and has no `Proved:` line, as on one that changes a test.
+  `jmerge` waits on a pull request that adds or changes a fork patch and has no `Proved:` line, as on one that changes a test; one that only edits the `PKGBUILD` or deletes a patch needs no line.
 - If the brief says to open a pull request, its review comes first: once the checks pass and the first-push block below has pushed the branch, write the Result with `Branch: <branch>   Pull request: after the review` and end your turn, as "The review" says, and jbus launches the reviewer at the head you pushed.
   The pull request opens on jbus's message that the review is written, once its findings are handled, or at once where the brief says `Review: none`, on the base this prints.
   Do not merge.

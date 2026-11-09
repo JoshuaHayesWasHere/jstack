@@ -113,9 +113,7 @@ def test_a_fork_patch_pull_request_waits_until_its_fork_line_binds_its_head(merg
     line that runs them over the base's patches and the head's, and merges once it binds."""
     opened(merged, (PATCH, PKGBUILD))
     (said,) = merged.run()
-    assert (
-        said == f"wait 7 {merge.URL}: {ready.PROVED_MISSING.format(tests=f'{PATCH}, {PKGBUILD}')}"
-    )
+    assert said == f"wait 7 {merge.URL}: {ready.PROVED_MISSING.format(tests=PATCH)}"
     assert merged.untouched()
     opened(merged, (PATCH, PKGBUILD), fork(head=merged.head))
     (said,) = merged.run()
@@ -244,8 +242,10 @@ def result(line=""):
         ),
         (one(PATCH, PKGBUILD), fork(), ""),
         (one(PATCH, PKGBUILD, "features/t3code-jstack/docs/t3code-jstack.md"), fork(), ""),
-        (one(PATCH, PKGBUILD), "", ready.PROVED_MISSING.format(tests=f"{PATCH}, {PKGBUILD}")),
+        (one(PATCH, PKGBUILD), "", ready.PROVED_MISSING.format(tests=PATCH)),
         (one(PATCH, removed=(PATCH,)), "", ""),
+        (one(PKGBUILD), "", ""),
+        (one(PATCH, PKGBUILD, removed=(PATCH,)), "", ""),
         (
             one(PATCH),
             "Proved: none, config\n",

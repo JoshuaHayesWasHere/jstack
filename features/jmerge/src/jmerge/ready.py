@@ -962,9 +962,10 @@ def short_on_proved(
     pass at its base as well: its `tests only` line needs only the run at its head, ending 0, and
     the same line on a pull request that changes anything else proves nothing. A pull request
     that removes tests is one, with the edit to the doc that named them, which the docs lint
-    makes it carry: a removal has no base run that fails. One that adds or changes a fork file of
-    no `EXEMPT` kind (`proved.FORK_FILE`), a patch or its `PKGBUILD`, needs a line as one that
-    changes tests does, since its tests are inside the patch. Where every file it changes is a
+    makes it carry: a removal has no base run that fails. One that adds or changes a fork's patch
+    (`proved.FORK_FILE`) needs a line as one that changes tests does, since its tests are inside
+    the patch; one that only edits the `PKGBUILD` or deletes a patch has no fork test to run, and
+    needs none. Where every file it changes is a
     fork file or of an `EXEMPT` kind, its `fork patches` line names the fork's test files, with
     the same base and head runs; the same line on a pull request that changes any other file, a
     test of this repo too, proves nothing (`proved.outside_fork`). A line of another head holds
@@ -978,9 +979,7 @@ def short_on_proved(
         fork = [
             path
             for path in one.files
-            if path not in gone
-            and proved.FORK_FILE.search(path)
-            and not any(proved.of_kind(path, kind) for kind in proved.EXEMPT)
+            if path not in gone and proved.FORK_FILE.search(path) and path.endswith(".patch")
         ]
         unproved = (*tests, *fork)
         return PROVED_MISSING.format(tests=", ".join(unproved)) if unproved else ""
