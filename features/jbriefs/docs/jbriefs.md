@@ -90,8 +90,8 @@ After a change to any of the six fields, the user must give the go again.
 Among them, one refuses a brief whose head asks for a load that takes every core (`stress-ng --cpu 0`, `stress-ng --cpu $(nproc)`, every core), and names a bounded load inside `jgauge test-slot` instead.
 Another, `layered`, refuses a brief whose `Builds on:` line gives a plan layer as its reason (`the base of layer 2`), since a row stacks only on a parent whose code it changes, calls or imports.
 `features/jbriefs/src/jbriefs/standing.py` holds the two.
-A check added after a row got its go does not apply to that row, so it refuses neither the row's brief nor its launch.
 `jbriefs.parse.warnings` lists what `jbus queue add` and `jbus queue check` warn of and queue all the same, among them a `Done when:` list of 5 or more items (`jbriefs.crowded`), which tells the home to split the row and not to fold items into fewer lines.
+A check added after a row got its go does not apply to that row, so it refuses neither the row's brief nor its launch.
 [What an approval is bound to](../../jbus/docs/jbus/the-queue.md#what-an-approval-is-bound-to) has the rules.
 
 ## Skills a brief names
