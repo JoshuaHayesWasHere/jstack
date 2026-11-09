@@ -481,7 +481,7 @@ def asks(
     gates = {*doors.get(slug, ()), *numbers}
     named: set[str | int] = {one for one in gates if re.search(_question(one), lowered)}
     if not named and re.search(_row(slug), lowered):
-        named = gates or {slug}
+        named = set[str | int](gates or [slug])
     return bool(named & (set(numbers) or {slug}))
 
 
