@@ -111,8 +111,8 @@ feature's tests and no catch-all. Such a change alters no code but the tests', a
 full run catches what a narrow check misses. A test that failed on main still runs: the lookup
 below reads a green push run of main as one that passed it. The cross-cutting tests still run,
 since they read the text of every file, the changed tests among them: a plain comment added to a
-test fails `test_no_comments.py`. A change that also touches a fixture, deletes a file or touches any path
-outside the tests selects by all the rules above.
+test fails `test_no_comments.py`. A change that also touches a fixture, deletes a file or touches
+any path outside the tests selects by all the rules above.
 
 It prints `all` only for a change to the dependencies, `pyproject.toml` and `uv.lock`, or to the
 root `conftest.py` (`EVERY_RUN`), and never for the size of what it selected: a selection of
@@ -1744,10 +1744,10 @@ def logged(job):
 def failed_on_main(days, kept_path):
     """The test files a red job of main's runs of the last `days` days named and no later green
     run of main has passed, sorted. A green run ran every test still red on main when it started,
-    since each selection adds them, so a test it passed is red on main no more, and a rerun that passed counts as one, since its red jobs are an earlier
-    attempt's. `kept` holds what earlier lookups read, and is left with the days, runs and jobs
-    still in the window. The last `SETTLED` days are listed again, and an older one only when
-    `kept` lacks it."""
+    since each selection adds them, so a test it passed is red on main no more, and a rerun that
+    passed counts as one, since its red jobs are an earlier attempt's. `kept` holds what earlier
+    lookups read, and is left with the days, runs and jobs still in the window. The last
+    `SETTLED` days are listed again, and an older one only when `kept` lacks it."""
     kept = {"days": {}, "runs": {}, "jobs": {}}
     if kept_path.is_file():
         kept |= json.loads(kept_path.read_text())
