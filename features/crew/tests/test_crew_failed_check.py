@@ -5,7 +5,7 @@ import re
 
 import pytest
 
-from crew_helpers import BRIEF, Failed, git, run, spent
+from crew_helpers import BRIEF, Failed, git, ran, run, spent
 from testing.paths import REPO
 
 
@@ -93,6 +93,45 @@ def test_a_rerun_the_brief_cannot_record_is_not_said_to_be_recorded(tmp_path):
         f"add the line Rerun: at {failed.head()}, workflow run 5 was run again whole"
     )
     assert failed.brief.read_text() == BRIEF
+
+
+def shards(going):
+    """A `borders` that failed and passed since, in workflow runs 7 and 8, and a `check` whose
+    first shard failed in workflow run 5, with its second shard still running if `going`."""
+    second = ran("SUCCESS", "10:05:00", "10:20:00", "check 2 of 8", job=3)
+    if going:
+        second |= {
+            "status": "IN_PROGRESS",
+            "conclusion": None,
+            "completedAt": "0001-01-01T00:00:00Z",
+        }
+    return [
+        ran("FAILURE", "10:00:00", "10:01:00", "borders", job=1, of=7),
+        ran("FAILURE", "10:05:00", "10:15:00", "check 1 of 8", job=2),
+        second,
+        ran("SUCCESS", "10:30:00", "10:31:00", "borders", job=1, of=8),
+    ]
+
+
+def test_only_the_latest_run_of_each_check_is_run_again(tmp_path):
+    failed = Failed(tmp_path)
+    failed.push(shards(going=False))
+    said = failed.says("passed")
+    assert said.split(": ")[0] == "rerun"
+    assert failed.reruns() == ["run rerun 5"]
+    assert (
+        failed.brief.read_text().splitlines()[-1].endswith(", workflow run 5 was run again whole")
+    )
+
+
+def test_a_failed_check_whose_workflow_run_is_still_going_waits_for_it_to_end(tmp_path):
+    failed = Failed(tmp_path)
+    failed.push(shards(going=True))
+    said = failed.says("passed")
+    assert said.split(": ")[0] == "wait"
+    assert "workflow run 5 " in said
+    assert failed.reruns() == []
+    assert "Rerun:" not in failed.brief.read_text()
 
 
 def test_a_failed_check_that_is_no_workflow_run_has_nothing_to_run_again(tmp_path):
