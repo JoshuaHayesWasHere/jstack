@@ -45,6 +45,7 @@ from jbus import (
     clock,
     history,
     leftover,
+    mirror,
     notes,
     outbox,
     plan,
@@ -348,8 +349,9 @@ def need_items(run: Pass, listed: list | None) -> list[Item]:
     approve is no thread's: a home approves a row on the user's word as it queues it (`queue add
     --message`), so a go still owed waits on the user alone, on `jbus needs` and the view. Any
     other need is the item of the home whose brief or scout's request its row is
-    (`jbriefs.home`), as `jbus home` says: a gate with no case on its `Holds:` line. A gate no
-    brief asked is the item of the home whose `gates.md` has it, the catch-all's for the root's."""
+    (`jbriefs.home`), as `jbus home` says: a gate with no case on its `Holds:` line. A gate a
+    home asked itself (`mirror.asker`) wakes no thread: it is that home's question to the user,
+    which `jbus needs` lists."""
     items = []
     for one, line in blockers.deciding(run, listed):
         slug = one.get("slug") or ""
@@ -357,10 +359,8 @@ def need_items(run: Pass, listed: list | None) -> list[Item]:
         brief = next((file for file in files if slug and file.exists()), None)
         if door(one):
             to = root_of(run)
-        elif one["kind"] == "approve":
+        elif one["kind"] == "approve" or (one["kind"] == "gate" and slug == mirror.HOME):
             to = ""
-        elif brief is None and one.get("home"):
-            to = thread_of(run.home / one["home"])
         else:
             text = brief.read_text(errors="replace") if brief else ""
             where = homes.home_of(run.home, text)

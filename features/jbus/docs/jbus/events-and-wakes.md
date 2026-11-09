@@ -31,7 +31,7 @@ Every other item goes to a child home, or to no home:
 | Item | Goes to |
 |---|---|
 | A gate with no `Holds:` line, a leftover, a stall, an idle or hung crew, an owed or buildable entry, a deferred line of a plan, a dated line of notes | The home whose brief, plan or notes it is in. A home that leaves it open is not told of it a second time, and no other home is told of it. |
-| A gate with no `Holds:` line and no row | The home whose `gates.md` has it, and the catch-all, `uncategorized`, for the root's `gates.md`. |
+| A gate with no `Holds:` line that a home asked itself (`Asked by: home`) | No home: it is that home's question to you, and `jbus needs` lists it. |
 | CI failing on a branch no row owns, or CI that could not be read | The catch-all, `uncategorized`. |
 | An alert of the project: a mechanical alert that persists (the main checkout not pulled, an install not run again, a snapshot that failed), a home that stalled, a decision | The catch-all, `uncategorized`. |
 | A file that holds a standing rule (`standing.md`, an auto-memory file) | The catch-all, `uncategorized`, once while the file stays. |
