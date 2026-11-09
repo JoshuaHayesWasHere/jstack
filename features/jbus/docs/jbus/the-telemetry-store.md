@@ -277,6 +277,52 @@ A crossing alerts once: a later pass that finds it still crossed sends nothing, 
 A daily alert ends with its day, and a crossing the next day is a new alert.
 An alert whose count falls back under its limit ends with a `recovered` line.
 
+## The scorecard
+
+`jbus --project <name> scorecard` reads each health measure of one project from the store, opened read only, and prints one line a measure: its state, group, name, value, unit, the count it is of, its baseline and its tier.
+`--json` prints a list instead, each item with `name`, `group`, `value`, `unit`, `n`, `baseline`, `state`, `tier`, `wired`, `audit` and `note`.
+It writes no page, raises no alert and changes nothing in the store.
+
+A KPI is a weekly value against a target for the vision; a measure is a reading of an hour, a day or a week so far against a baseline, to say whether jstack is healthy now.
+Each measure is a module of its own in `jbus.telemetry.measures`, `m<NN>_<slug>.py`, whose `MEASURE` is one `Measure` and holds no function:
+
+| Field | What it is |
+|---|---|
+| `name` | a slug, unique among the measures |
+| `group` | `flow`, `cost`, `quality`, `attention` or `machinery` |
+| `says`, `unit` | what it counts, and its value's unit |
+| `better` | `lower` or `higher` |
+| `source` | `Sql(query, machine)`, or `Lacks(needs)` where the store has no record for it yet |
+| `window` | `hour` (the last hour), `day` (the user's day so far), `week` (the user's week so far, from the midnight that begins its Sunday) or `now` |
+| `baseline`, `baseline_of` | the value it is judged against, or None, and where that value is from |
+| `kind` | `Zero()`, `Limit(at, floor)` or `Trend(by)` |
+| `tier` | `wake` where a crossing is to wake the user, `page` where it is only shown |
+| `wired` | the alert that already raises it, or empty, so nothing raises it twice |
+| `audit` | the ranks of the counters of the audit of 2026-11-09 it carries |
+
+A query is one SELECT that gives one row of `value` and `n`, how many the value is of.
+It takes only the named parameters `:project`, `:begins` and `:ends`: the window's bounds as UTC stamps, `begins` in it and `ends` not, so it filters on a stamp column such as `at`, never on `day`.
+A `machine` query reads the machine's rows, with `:project` the empty project.
+A weekly view is read at `week in (date(:begins), date(:begins, '+1 day'))`, the Sunday the window begins on in any zone.
+
+The three kinds say where a value is past its line:
+
+- `Zero()`: any value above 0, a count that should never happen.
+- `Limit(at, floor)`: a value beyond `at` in the worse direction, read only with `n` at least `floor`.
+- `Trend(by)`: a value worse than the mean of its own seven days before, each the same window that many days earlier, by more than `by` percent.
+
+A reading has one of four states:
+
+- `bad`: past the kind's line.
+- `watch`: worse than the baseline, not past the line.
+- `ok`: neither.
+- `none`: a `Lacks`, no baseline, no value, or `n` under the floor. A query that fails reads `none`, with its error as its note.
+
+The first 41 are the rows of the scorecard scout's visual of 2026-11-09, in its order.
+Where it named a line the measure has it as written; where it named none, a `page` measure's `Limit` is 20% past its baseline in the worse direction.
+To add a measure, add a module with the next free `NN`; no list names it.
+To measure one that `Lacks` its record, add the record and its table as "Change the store" says, then give the measure a `Sql` in place of its `Lacks`.
+
 ## How it stays current
 
 Each pass runs a build after its launches and before any project's second half.
