@@ -686,6 +686,10 @@ def selects_in_an_included_make_file(repo):
             "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0",
         ),
         (
+            lambda r: calls_the_shared_check(r, at="repo-standard-v2-rc"),
+            "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0",
+        ),
+        (
             lambda r: calls_the_shared_check(r, at="main"),
             "error a-pull-request-runs-the-selection-the-lint-and-the-selected-tests: no workflow",
         ),

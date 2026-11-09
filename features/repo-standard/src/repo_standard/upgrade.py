@@ -28,11 +28,14 @@ from pathlib import Path
 
 from repo_standard import TAG, VERSION, owned
 from repo_standard.config import NAME, Config, Refused
-from repo_standard.rules import SHARED_CHECK, WORKFLOWS
+from repo_standard.rules import CALLED_VERSION, SHARED_CHECK, WORKFLOWS
 from repo_standard.tree import matches
 
 STANDARD_LINE = re.compile(r"^standard:[ \t]*\d+", re.M)
-CALLED_TAG = re.compile(rf"@{re.escape(TAG)}\d+")
+CALLED_TAG = re.compile(rf"@{CALLED_VERSION}")
+REF_INPUT = re.compile(rf"^[ \t]*ref:[ \t]*(['\"]?){CALLED_VERSION}\1[ \t]*\n", re.M)
+"""The caller's `ref` input of a branch of a version not yet tagged, which the move to a tag drops,
+since an empty `ref` takes the tag the config pins."""
 LOCAL_MK = "local.mk"
 OWNED_MAKEFILE = re.compile(r"^([ \t]*- )(['\"]?)Makefile\2[ \t]*$", re.M)
 
@@ -55,7 +58,8 @@ def _owns_local_mk(text: str, config: Config) -> str | None:
 
 
 def _called(text: str, to: int) -> str:
-    return SHARED_CHECK.sub(lambda found: CALLED_TAG.sub(f"@{TAG}{to}", found[0]), text)
+    called = SHARED_CHECK.sub(lambda found: CALLED_TAG.sub(f"@{TAG}{to}", found[0]), text)
+    return REF_INPUT.sub("", called) if called != text else called
 
 
 def _write(path: Path, text: str, mode_from: Path | None) -> None:
