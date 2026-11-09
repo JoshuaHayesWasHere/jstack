@@ -145,11 +145,19 @@ def test_a_base_copy_stays_while_a_proof_runs_in_its_folder(kitchen, tmp, monkey
     assert [given["title"] for given in kitchen.t3.launches] == ["crew: alpha"]
 
 
-def test_a_pass_that_knows_no_process_removes_nothing_and_waits(kitchen, tmp, monkeypatch):
-    """Where no process can be read, no folder is known to be idle, so the sweep removes nothing
-    and the row waits for /tmp."""
+@pytest.mark.parametrize("procfs", [True, False], ids=["proc", "no-proc"])
+def test_a_pass_that_knows_no_process_removes_nothing_and_waits(kitchen, tmp, monkeypatch, procfs):
+    """Where no process can be read, from /proc or from `lsof` where there is none, no folder is
+    known to be idle, so the sweep removes nothing and the row waits for /tmp."""
     empty = kitchen.root / "empty-proc"
-    empty.mkdir()
+    if procfs:
+        empty.mkdir()
+    else:
+        stub = kitchen.root / "lsof-stub"
+        stub.mkdir()
+        (stub / "lsof").write_text("#!/bin/sh\nexit 0\n")
+        (stub / "lsof").chmod(0o755)
+        monkeypatch.setenv("PATH", f"{stub}:{os.environ['PATH']}")
     monkeypatch.setattr(cleanup, "ROOT", empty)
     gone = pad(tmp, kitchen, "done-1", 90_000)
     approved(kitchen, "alpha")
