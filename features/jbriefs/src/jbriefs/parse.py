@@ -584,16 +584,41 @@ def instrumented(text: str) -> str:
     return f"brief's {where} names {kind} work, and the brief has no filled-in {lines} {_DEEPER}"
 
 
+CROWDED = 5
+
+
+def crowded(text: str) -> str:
+    """Why a brief's `Done when:` list is too long for one pull request, as one line. It is an
+    empty string when the list has fewer than `CROWDED` items.
+
+    Every item counts, the check command's too. A brief of 5 or more took a second review round
+    about twice as often as one of 1 or 2 (po-briefs-scout, 2026-11-09: 74% of 83 against 38% of
+    219), so the line asks for a split, and says not to fold items into fewer lines, which keeps
+    the size and hides it from this count.
+    """
+    count = len(done_when(text.splitlines()))
+    if count < CROWDED:
+        return ""
+    return (
+        f"brief's Done when: lists {count} items, and a brief of {CROWDED} or more took a second "
+        "review round about twice as often as one of 1 or 2: split the row into briefs of one "
+        'pull request\'s worth each, the rest on a brief with a "Follows: <slug>" line or queued '
+        "with --depends, and do not fold items into fewer lines"
+    )
+
+
 def warnings(text: str, fresh_check: str) -> list[str]:
     """What `jbus queue add` and `jbus queue check` warn of in a brief they still queue, one
     line each: a check line that asks for the wrong command (`check_asked`), a brief that asks
-    for the whole suite at the desk (`desk_suite`), and `Review: none`
+    for the whole suite at the desk (`desk_suite`), a `Done when:` list of `CROWDED` items or
+    more (`crowded`), and `Review: none`
     on a brief whose pull request opens, which no reviewer reads and `jmerge` leaves to wait for
     the user's word (`crew/the-review.md`). Each check of `WARNED` warns here too, in place of the
     fault `faults` would give."""
     found = [
         check_asked(text, fresh_check),
         desk_suite(text, fresh_check),
+        crowded(text),
         *(check(text) for check in WARNED),
     ]
     opens = head(text, "Pull request:") == "open one when done"
