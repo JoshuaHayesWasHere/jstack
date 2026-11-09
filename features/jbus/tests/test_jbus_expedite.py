@@ -13,7 +13,9 @@ import pytest
 import jbus
 import jsettings
 from jbriefs import findings
-from jbus import expedite, merge
+from jbus import expedite, merge, strays, telemetry
+from jbus.view.panels.checks import panel as checks
+from jbus.view.panels.pulse import panel as pulse
 from jmerge import ready
 from jroles import ledger
 from test_jbus_kitchen import GATE, NOW, PROJECT, asks
@@ -22,6 +24,29 @@ from test_jbus_unlock import sends
 from test_pr_review_skill import ASKED, block
 from testing.layouts import assembled
 from testing.paths import REPO
+
+
+@pytest.fixture
+def host_unread(tmp_path, monkeypatch):
+    """A test of what jbus tells a crew or the home over many passes uses this, so that a pass
+    reads nothing of the machine that runs the test, and syncs no file it writes to disk. A pass
+    otherwise lists the host's processes from /proc for strays (`jbus.strays`), asks the host's
+    systemd for the runner units and jbus's timer for the view (here it answers nothing, as a
+    systemd that does not answer), fsyncs each state file it writes, and builds the telemetry
+    store (`jbus.telemetry`): of the 140 ms a pass took at the desk, these were some two thirds,
+    and none of them is what such a test asserts. A test of the leftover sweep, of the view's
+    panels or of the telemetry store uses the real ones."""
+    proc = tmp_path / "no-processes"
+    proc.mkdir()
+    monkeypatch.setattr(strays, "ROOT", proc)
+    monkeypatch.setattr(checks, "runners", lambda read: None)
+    monkeypatch.setattr(pulse, "systemd", lambda read: None)
+    monkeypatch.setattr(os, "fsync", lambda fd: None)
+    monkeypatch.setattr(telemetry, "_pass", lambda config, say: None)
+
+
+pytestmark = pytest.mark.usefixtures("host_unread")
+"""Each test runs many passes, and what a pass reads of the machine is none of what it asserts."""
 
 URL = "https://example.test/pull/7"
 DONE = "\n## Result\nStatus: done\nBranch: alpha   Pull request: {url}\nLeft: none\n"
@@ -365,80 +390,47 @@ def crew(kitchen):
     return [one for one in sends(kitchen) if one["threadId"] == "mcp:thread-1"]
 
 
-def test_an_expedite_due_while_the_crew_s_instance_is_capped_is_sent_once_after_the_reset(
+def test_a_cap_longer_than_a_review_logs_no_stall_and_a_crew_short_after_the_send_stalls(
     short, kitchen
 ):
-    """The reviewer wrote nothing, and jbus would ask the crew for `/pr-review run alpha again`
-    while the crew's instance is capped, 22 minutes before the cap resets. A turn the message
-    started would end at once on the limit, so the outbox holds it. The first pass after the reset
-    sends it, once, and a later pass sends nothing more."""
+    """The reviewer wrote nothing, and the crew would be asked for `/pr-review run alpha again`
+    while its instance is capped for 32 minutes, longer than `REVIEWING` passes. A turn the
+    message started would end at once on the limit, so the outbox holds it, and a crew the cap
+    locks out is not one that did not act, so no stall is logged during the cap. The first pass
+    after the reset sends the message, once, and a crew that stays short `PASSES` idle passes
+    after that gets its stall."""
     reviewer = kitchen.t3.thread("alpha", "completed", title="review: alpha")
     short.out(NO_REVIEW, result=f"Reviewer: {reviewer['threadId']}\n", review=False)
-    resets = later(2) + timedelta(minutes=22)
+    resets = later(2) + timedelta(minutes=32)
     ledger.file_of("claudeAgent").write_text(f"five_hour 100 {int(resets.timestamp())}\n")
-    short.passes(24)
+    short.passes(34)
     assert later(short.minute - 1) < resets and crew(kitchen) == []
+    assert kitchen.lines("stall") == []
     said = short.passes(1)
     assert later(short.minute - 1) == resets
     (sent,) = crew(kitchen)
     assert "`/pr-review run alpha again`" in sent["message"]
     line = f"expedite alpha: told the crew what #7 is short of (unreviewed, {short.head[:12]}), "
     assert line + "sent `/pr-review run alpha again`" in said
-    short.passes(12)
-    assert len(crew(kitchen)) == 1
-
-
-def test_a_hold_due_in_a_cap_longer_than_its_idle_passes_stays_in_hand_and_is_sent_after_it(
-    short, kitchen
-):
-    """The crew would be asked for a scoped pass over its rebase while its instance is capped for
-    40 minutes. The passes of the cap are not the crew's idleness, so the hold is not the user's
-    by the reset, and the first pass after it sends the message."""
-    short.out(short.unruled(), "hold")
-    resets = later(2) + timedelta(minutes=40)
-    ledger.file_of("claudeAgent").write_text(f"five_hour 100 {int(resets.timestamp())}\n")
-    short.passes(42)
-    assert later(short.minute - 1) < resets and sends(kitchen) == []
-    assert listed(kitchen) == []
-    short.passes(1)
-    assert len(sends(kitchen)) == 1
-    assert listed(kitchen) == []
-
-
-def test_a_cap_longer_than_a_review_logs_no_stall_and_a_crew_short_after_the_send_stalls(
-    short, kitchen
-):
-    """The crew would be asked for `/pr-review run alpha again` while its instance is capped for
-    an hour, longer than `REVIEWING` passes. A crew the cap locks out is not one that did not act,
-    so no stall is logged during the cap. After the reset the message is sent, and a crew that
-    stays short `PASSES` idle passes after that gets its stall."""
-    reviewer = kitchen.t3.thread("alpha", "completed", title="review: alpha")
-    short.out(NO_REVIEW, result=f"Reviewer: {reviewer['threadId']}\n", review=False)
-    resets = later(2) + timedelta(minutes=60)
-    ledger.file_of("claudeAgent").write_text(f"five_hour 100 {int(resets.timestamp())}\n")
-    short.passes(62)
-    assert later(short.minute - 1) < resets and crew(kitchen) == []
-    assert kitchen.lines("stall") == []
-    short.passes(1)
-    assert len(crew(kitchen)) == 1
     short.passes(9)
     assert kitchen.lines("stall") == []
     short.passes(1)
     (stalled,) = kitchen.lines("stall")
     assert stalled.startswith("stall alpha: #7 is as short as it was 10 passes after")
+    assert len(crew(kitchen)) == 1
 
 
 def test_a_hold_whose_crew_is_at_work_at_the_reset_stays_in_hand_and_is_sent_once_it_is_idle(
     short, kitchen
 ):
     """The crew would be asked for a scoped pass over its rebase while its instance is capped for
-    40 minutes, and it is at work at the reset. The passes of the cap are not passes the message
-    waited to be sent, so the hold is not the user's, and the first pass with the crew idle sends
-    the message."""
+    16 minutes, longer than `expedite.LAPSE` passes, and it is at work at the reset. The passes of
+    the cap are not passes the message waited to be sent, so the hold is not the user's, and the
+    first pass with the crew idle sends the message."""
     short.out(short.unruled(), "hold")
-    resets = later(2) + timedelta(minutes=40)
+    resets = later(2) + timedelta(minutes=16)
     ledger.file_of("claudeAgent").write_text(f"five_hour 100 {int(resets.timestamp())}\n")
-    short.passes(42)
+    short.passes(18)
     short.thread["status"] = "running"
     short.passes(1)
     assert later(short.minute - 1) == resets and sends(kitchen) == []
@@ -591,7 +583,10 @@ def test_a_hold_the_crew_did_not_lift_is_one_stall_and_one_decision_from_the_nex
     assert listed(kitchen) == ["#7"]
     assert kitchen.lines("waiting")[-1] == "waiting demo: 1 wait on user, 1 new (hold 7), 0 gone"
     assert kitchen.lines("gate") == [] and gates(kitchen) == []
+    asked = len(kitchen.t3.calls)
     short.passes(12)
+    titles = [given.get("titleContains") for _, given in kitchen.t3.calls[asked:]]
+    assert "review: alpha" not in titles
     ((told,),) = kitchen.wakes.listed
     assert told.startswith("hold 7 ") and told.endswith("a pull request jmerge holds for your word")
     (decided,) = kitchen.events("decision")
@@ -645,16 +640,6 @@ def test_a_stalled_hold_is_the_user_s_on_a_next_pass_that_cannot_ask_t3_code(sho
     short.passes(1)
     assert listed(kitchen) == ["#7"] and kitchen.lines("gate") == []
     assert kitchen.lines("waiting")[-1] == "waiting demo: 1 wait on user, 1 new (hold 7), 0 gone"
-
-
-def test_a_hold_on_the_user_s_list_no_longer_asks_t3_code_who_is_reviewing(short, kitchen):
-    short.out(short.unruled(), "hold")
-    short.passes(14)
-    asked = len(kitchen.t3.calls)
-    assert listed(kitchen) == ["#7"]
-    short.passes(1)
-    titles = [given.get("titleContains") for _, given in kitchen.t3.calls[asked:]]
-    assert "review: alpha" not in titles
 
 
 def test_a_crew_that_acted_is_never_a_stall_and_a_new_head_is_told_again(short, kitchen):

@@ -53,8 +53,9 @@ def listed(*runs):
     return found
 
 
-@pytest.mark.parametrize("selected", [["-m", "not browser"], SOME], ids=["whole", "check-fast"])
-def test_the_parts_hold_each_selected_test_once_and_miss_none(selected):
+def held_once(selected):
+    """The collection of `selected` and of each of its parts, once each part is shown to hold
+    each test of the collection once and to miss none."""
     whole, *parts = listed(
         selected, *([*selected, f"--shard={k}/{PARTS}"] for k in range(1, PARTS + 1))
     )
@@ -62,16 +63,19 @@ def test_the_parts_hold_each_selected_test_once_and_miss_none(selected):
     assert [test for test, times in together.items() if times > 1] == []
     assert sorted(together) == sorted(whole)
     assert len(whole) > PARTS and all(parts)
+    return whole, parts
 
 
-def test_the_whole_suite_s_parts_end_together():
-    """Time, not count: the parts of the whole suite, by the table's seconds, are no further apart
-    than their slowest test, and the merge flow's TLC test, at the warm time CI runs it at, shares
-    its part."""
-    whole, *parts = listed(
-        ["-m", "not browser"],
-        *(["-m", "not browser", f"--shard={k}/{PARTS}"] for k in range(1, PARTS + 1)),
-    )
+def test_the_parts_of_what_check_fast_names_hold_each_test_once_and_miss_none():
+    held_once(SOME)
+
+
+def test_the_whole_suite_s_parts_hold_each_test_once_and_end_together():
+    """The parts of the whole suite hold each of its tests once and miss none, and, by time, not
+    count: by the table's seconds they are no further apart than their slowest test, and the
+    merge flow's TLC test, at the warm time CI runs it at, shares its part. One collection of the
+    whole suite and its parts answers both."""
+    whole, parts = held_once(["-m", "not browser"])
     times = read_times(TIMES)
     assert sum(key(test) in times for test in whole) > len(whole) / 3
     assert [FLOW] not in parts

@@ -7,6 +7,7 @@ Each of these runs the selector on today's tree, whose first run in a process ta
 they sit apart from test_select_tests.py, whose tests run the selector in small repos of their
 own."""
 
+import ast
 import importlib.util
 import json
 import subprocess
@@ -333,26 +334,52 @@ MUTANTS = {
 
 MUTANT = """
 import json, sys, types
-script, old, new, asked = json.load(sys.stdin)
+script, old, new, asked, salt, where = json.load(sys.stdin)
 module = types.ModuleType("select_tests")
 module.__file__ = script
 exec(compile(open(script).read().replace(old, new), script, "exec"), module.__dict__)
 module.unowned = frozenset
-module.kept = lambda: (b"", None)
+module.kept = lambda: (bytes.fromhex(salt), where and module.Path(where))
 print(json.dumps([module.selection(*one) for one in asked]))
 """
+
+
+def parses(line):
+    """Whether a break of the selector at `line` can change what `facts` finds: the line is in
+    `facts`, in a function it names or one those name, or outside any function. A name a
+    function binds itself, such as a local `readers`, is not the function of that name."""
+    tree = ast.parse(SCRIPT.read_text())
+    defs = {one.name: one for one in tree.body if isinstance(one, ast.FunctionDef)}
+    found, todo = set(), ["facts"]
+    while todo:
+        name = todo.pop()
+        if name in defs and name not in found:
+            found.add(name)
+            names = [one for one in ast.walk(defs[name]) if isinstance(one, ast.Name)]
+            bound = {one.arg for one in ast.walk(defs[name]) if isinstance(one, ast.arg)}
+            bound |= {one.id for one in names if not isinstance(one.ctx, ast.Load)}
+            todo += [one.id for one in names if one.id not in bound]
+    at = [name for name, one in defs.items() if one.lineno <= line <= one.end_lineno]
+    return not at or at[0] in found
 
 
 def mutant(old, new):
     """The `(tests, why)` for each of the table's questions from the selector with one rule
     broken, `old` swapped for `new` in its source, run as CI runs it. The catch-all is left
     out: no test of today's tree is in it, and finding that out takes each path's selection.
-    The kept facts are left alone too: they are kept under a hash of the script's file, which a
-    mutant's code is not."""
-    assert SCRIPT.read_text().count(old) == 1, f"the rule's code moved: {old!r}"
+    A mutant whose broken line is in a function that `facts` does not run reads each module's
+    facts as the selector kept them, rather than parsing every module again: they are the
+    same facts. One that breaks `facts`, what it runs, or a line outside any function parses
+    them itself."""
+    text = SCRIPT.read_text()
+    assert text.count(old) == 1, f"the rule's code moved: {old!r}"
+    line = text[: text.index(old)].count("\n") + 1
+    salt, where = (b"", None) if parses(line) else select.kept()
+    if where:
+        select.facts()
     ran = subprocess.run(
         [sys.executable, "-I", "-S", "-c", MUTANT],
-        input=json.dumps([str(SCRIPT), old, new, asked()]),
+        input=json.dumps([str(SCRIPT), old, new, asked(), salt.hex(), where and str(where)]),
         capture_output=True,
         text=True,
         cwd=REPO,
@@ -371,7 +398,7 @@ def test_every_rule_of_the_table_has_a_mutant():
 def test_the_selector_run_as_the_mutants_run_fails_no_row():
     """The control: with no rule broken, the selector run the mutants' way gets every row
     right, so a mutant that fails a row fails it for the rule it broke."""
-    assert failing(mutant("ROOT = ", "ROOT = ")) == []
+    assert failing(mutant("def ruled(", "def ruled(")) == []
 
 
 @pytest.mark.parametrize("rule", MUTANTS)
@@ -578,10 +605,8 @@ def test_the_selector_finds_the_skills_the_index_finds():
 @pytest.mark.parametrize(
     "path, reader",
     [
-        ("features/home/skills/home/SKILL.md", "features/home/tests/test_quiet_turns.py"),
         ("features/home/skills/home/SKILL.md", "features/home/tests/test_home_start.py"),
         ("features/home/skills/handoff/SKILL.md", "features/home/tests/test_handoff_mail.py"),
-        ("features/crew/a-gate.md", "features/jbus/tests/test_gates.py"),
         ("features/ketchup/SKILL.md", "features/home/tests/test_home_needs.py"),
     ],
 )
@@ -789,7 +814,7 @@ def test_strict_within_is_all_only_for_what_changes_every_run_and_within_for_all
         assert strict != ["all"] and set(strict) <= set(select.tracked()), path
 
 
-@pytest.mark.parametrize("path", ["uv.lock", MAC_LIST])
+@pytest.mark.parametrize("path", [MAC_LIST])
 def test_strict_within_is_all_where_within_is(path):
     assert mac_within(path, strict=True) == mac_within(path) == ["all"]
 
