@@ -6,8 +6,10 @@ no role. Its entry is its queue row's (`queue.entry`: the row's `entry`, its `pa
 slug), or its own slug where the queue holds no row of it; the rows of an entry are the queue's
 rows that are no scout's request, each of its own slug's entry where it names none."""
 
-LIVE = "('queued', 'gate', 'launched', 'running', 'waiting', 'pr')"
-"""The statuses of an open row, `queue.LIVE`."""
+from jbus import queue
+
+LIVE = f"({', '.join(repr(status) for status in queue.LIVE)})"
+"""The statuses of an open row, `queue.LIVE`, as a list of SQL."""
 ENTRY_ROWS = (
     "entry_rows AS (SELECT q.project, coalesce(q.entry, q.slug) AS entry, q.slug, q.status, "
     "m.slug IS NOT NULL AS merged FROM queue q LEFT JOIN merged_rows m "
