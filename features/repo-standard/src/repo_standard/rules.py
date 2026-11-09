@@ -69,6 +69,9 @@ DEPLOYS = re.compile("|".join(f"(?P<d{at}>{one})" for at, one in enumerate(DEPLO
 SHELL_SUFFIXES = (".sh", ".bash", ".zsh", ".ksh")
 SHEBANG = re.compile(r"^#!.*\b(?:ba|z|k|da)?sh\b")
 COMMAND_END = re.compile(r"&&|\|\||[;|]")
+GOES_ON = re.compile(r"&&|\|\||[;|]|(?<![<>&])&(?![>&])")
+"""What may follow a command on its line: only `&&` stops the line when the command fails, and
+`||`, `;`, `|` and a lone `&` (not the `&` of a redirect such as `2>&1`) go on."""
 CONDITIONAL = re.compile(r"^\s*(?:ifeq|ifneq|ifdef|ifndef|else|endif)\b")
 SHARED_CHECK = re.compile(
     r"^\s*uses:\s*['\"]?[\w.-]+/[\w.-]+/\.github/workflows/repo-standard-check\.yml"
@@ -502,7 +505,7 @@ class Recipe:
 
 def recipes(path: str, text: str) -> list[Recipe]:
     """The targets of one make file and their recipes. A `define` block is text, not a rule, a
-    line that ends in `\\` goes on to the next, and a command's `@`, `-` and `+` are dropped. A
+    line that ends in `\\` goes on to the next, and a command keeps its `@`, `-` and `+`. A
     target-specific variable adds no recipe, and a conditional's lines (`ifeq`, `else`, `endif`)
     leave the recipe open, so a command behind one is still its target's."""
     found: list[Recipe] = []
@@ -521,8 +524,8 @@ def recipes(path: str, text: str) -> list[Recipe]:
             defining, current = True, []
             continue
         if line.startswith("\t") and current:
-            command = line[1:].lstrip(" @-+")
-            if command.strip() and not command.lstrip().startswith("#"):
+            command = line[1:].lstrip()
+            if command.strip() and not command.lstrip(" @-+").startswith("#"):
                 for one in current:
                     found[one] = replace(
                         found[one], commands=(*found[one].commands, (start, command))
@@ -540,7 +543,7 @@ def recipes(path: str, text: str) -> list[Recipe]:
         current = []
         for target in rule[1].split():
             current.append(len(found))
-            commands = ((start, inline.strip().lstrip("@-+")),) if inline.strip() else ()
+            commands = ((start, inline.strip()),) if inline.strip() else ()
             found.append(Recipe(path, start, target, normal, commands))
     return found
 
@@ -596,8 +599,21 @@ def green_first(repo: Repo) -> list[str]:
             names = ", ".join(recipe.prerequisites)
             faults.append(f"{where} has prerequisites ({names}), which make runs before its recipe")
         first = recipe.commands[0][1] if recipe.commands else ""
-        if not GREEN.search(COMMAND_END.split(first)[0]):
+        command = first.lstrip(" \t@+-")
+        prefix = first[: len(first) - len(command)]
+        green = GREEN.search(COMMAND_END.split(command)[0])
+        if not green:
             faults.append(f"{where} does not run `repo-standard green` before its first command")
+        elif "-" in prefix:
+            faults.append(
+                f"{where} runs `repo-standard green` on a `-` line, which make goes on past "
+                "when it fails"
+            )
+        elif (after := GOES_ON.search(command, green.end())) and after[0] != "&&":
+            faults.append(
+                f"{where} follows `repo-standard green` with `{after[0]}`, so its recipe goes on "
+                "when it fails"
+            )
     return faults
 
 

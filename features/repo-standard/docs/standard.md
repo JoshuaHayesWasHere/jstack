@@ -385,6 +385,7 @@ A repo ships through its deploy entries alone, and each one refuses a tree that 
 It refuses before it builds, tags or uploads anything, and its refusal names the fix.
 
 Each entry is a make target, listed in the config's `deploy` part, whose recipe runs `repo-standard green` before its first other command, and which has no prerequisite that make would run first.
+Its failure stops the recipe: the call ends its command line or is followed by `&&`, never by `||`, `;`, `|` or `&`, and its line has no `-` prefix, which make goes on past.
 `repo-standard green` exits 0 only when the checkout is clean, `HEAD` is main on the remote now, as `git ls-remote origin refs/heads/main` gives it and not a local `origin/main` that may be stale, and a run of `check.yml` passed the tree of `HEAD`.
 It reads that from the marker `green-tree-<tree>`, and, where the marker expired or is missing, from the push run of `check.yml` on main for `HEAD`'s commit, when its conclusion is success.
 It exits 1 with each of the three that failed, and 2 when it cannot ask the remote or GitHub.

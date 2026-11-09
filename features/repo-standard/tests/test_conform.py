@@ -803,6 +803,60 @@ def selects_in_an_included_make_file(repo):
         (
             lambda r: edit(
                 r / "Makefile",
+                "deploy:\n\t@repo-standard green\n",
+                "deploy:\n\trepo-standard green || true\n",
+            ),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: Makefile:7: deploy "
+            "entry `make deploy` follows `repo-standard green` with `||`, so its recipe goes on "
+            "when it fails",
+        ),
+        (
+            lambda r: edit(
+                r / "Makefile",
+                "deploy:\n\t@repo-standard green\n",
+                "deploy:\n\trepo-standard green ; aws s3 sync dist s3://x\n",
+            ),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: Makefile:7: deploy "
+            "entry `make deploy` follows `repo-standard green` with `;`, so its recipe goes on "
+            "when it fails",
+        ),
+        (
+            lambda r: edit(
+                r / "Makefile",
+                "deploy:\n\t@repo-standard green\n",
+                "deploy:\n\trepo-standard green | tee green.log\n",
+            ),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: Makefile:7: deploy "
+            "entry `make deploy` follows `repo-standard green` with `|`, so its recipe goes on "
+            "when it fails",
+        ),
+        (
+            lambda r: edit(
+                r / "Makefile",
+                "deploy:\n\t@repo-standard green\n",
+                "deploy:\n\trepo-standard green & aws s3 sync dist s3://x\n",
+            ),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: Makefile:7: deploy "
+            "entry `make deploy` follows `repo-standard green` with `&`, so its recipe goes on "
+            "when it fails",
+        ),
+        (
+            lambda r: edit(r / "Makefile", "\t@repo-standard green\n", "\t@-repo-standard green\n"),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: Makefile:7: deploy "
+            "entry `make deploy` runs `repo-standard green` on a `-` line, which make goes on past "
+            "when it fails",
+        ),
+        (
+            lambda r: edit(
+                r / "Makefile",
+                "deploy:\n\t@repo-standard green\n",
+                "deploy:\n\trepo-standard green 2>&1\n",
+            ),
+            "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0",
+        ),
+        (
+            lambda r: edit(
+                r / "Makefile",
                 "deploy:\n\t@repo-standard green\n\ttrue\n",
                 "define SHIP\ndeploy:\n\tnothing\nendef\n"
                 "deploy: | .cache\n\t$(REPO_STANDARD) green && \\\n\t  aws s3 sync dist s3://x\n",
