@@ -216,6 +216,11 @@ def test_the_config_reads_a_node_stacks_browser_tests():
         (MOCK + "        path: e2e/m\n        contract: x\n        producer: [e2e/m/a]", "inside"),
         (MOCK + "        path: e2e/m.ts\n        contract: x\n        producer: [.]", "around"),
         (MOCK + "        path: e2e/m.ts\n        contract: x\n        producer: [../a]", "not a"),
+        (
+            "      root: e2e/app\n      script: e2e\n      mock:\n        path: e2e/mock.ts\n"
+            "        contract: x\n        producer: [e2e/app]",
+            "around the e2e root e2e/app",
+        ),
     ],
 )
 def test_the_config_refuses_an_e2e_part_it_cannot_hold(e2e, said):
@@ -327,3 +332,20 @@ def test_a_config_with_no_browser_tests_has_none_to_run(web, capsys):
     config = build(parse("stacks:\n  web:\n    adapter: node-vite\n    roots: [web]\n"))
     assert stacks.main(web, config, ["e2e"]) == 2
     assert "no stack of the config sets `e2e:`" in capsys.readouterr().err
+
+
+def declare_contract(root, contract):
+    config = WEB[".repo-standard.yml"] + (
+        f"      mock:\n        path: web/e2e/mock-api.ts\n        contract: {contract}\n"
+    )
+    (root / ".repo-standard.yml").write_text(config)
+
+
+def test_the_lint_runs_each_contract_with_the_standard_on_its_path_and_fails_when_it_fails(
+    web, capfd
+):
+    declare_contract(web, 'printf "contract saw %s\\n" "$PYTHONPATH"')
+    assert cli.main(["stacks", "lint"]) == 0
+    assert f"contract saw {STANDARD / 'src'}\n" in capfd.readouterr().out
+    declare_contract(web, "exit 3")
+    assert cli.main(["stacks", "lint"]) == 1
