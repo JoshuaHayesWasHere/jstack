@@ -43,7 +43,7 @@ The skeleton's Makefile runs them from the repo's root, and they take no flag.
 The shared check runs its other two forms: `repo-standard misses record --failed <dir> --out <dir>` writes the ledger of main's commit, and `repo-standard misses failing --days 30` prints the ids a pull request's selection adds.
 It reads GitHub through `gh api`, for `$GITHUB_REPOSITORY` or the repo `gh repo view` names, and the caller's workflow from `$GITHUB_WORKFLOW_REF`, else `check.yml`.
 
-Every verb but `stacks`, `routes` and `misses` takes `--root` for another checkout, and every verb but `stacks`, `green`, `routes` and `misses` takes `--config` for another config file than `<root>/.repo-standard.yml`.
+Every verb but `stacks`, `routes`, `misses` and `floor` takes `--root` for another checkout, and every verb but `stacks`, `green`, `routes`, `misses` and `floor` takes `--config` for another config file than `<root>/.repo-standard.yml`.
 `borders` alone reads `--base <ref>`, `--labels a,b` and `--hard`, which [the guards' page](guards.md) explains.
 `conform` and `upgrade` read `--upstream`, `conform` alone reads `--list`, and `upgrade` alone reads `--to N`.
 `plan` alone reads `--event`, by default `$GITHUB_EVENT_NAME`, and `--selection <file>`, the test ids the repo's select target printed.
