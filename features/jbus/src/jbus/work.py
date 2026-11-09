@@ -438,8 +438,11 @@ def every() -> Iterator[Facts]:
 def status(state: State) -> str:
     """Return the row's `status`, one of `queue.STATUSES`, as the state projects it.
 
-    A gate comes first, then the pull request. A row whose pull request is open is `pr`, and one
-    whose pull request merged is `merged`, whatever the thread does. A thread in a status that jbus
+    A row that is over comes first, then a gate, then the pull request. A row whose pull request
+    merged is `merged`, and one the `done` pattern matches is `done`, whatever the thread does and
+    whether or not a question is open on it: a question about a row that is over holds back no row
+    that waits for it. Any other row with a question open is `gate`. A row whose pull request is
+    open is `pr`. A thread in a status that jbus
     does not know makes the row `stale`, for somebody to look at. A hung turn makes the row `stale`
     too. A thread that ended with nothing written makes the row `stale` when it completed or was
     archived, and `failed` when it failed. The row is `launched` while no thread is there for a
@@ -449,14 +452,16 @@ def status(state: State) -> str:
     quiet for long enough, which `watch.unwritten` decides.
     """
     facts, value = state.facts, state.value
+    if facts.pull == Pull.MERGED:
+        return "merged"
+    if value == "done" or (
+        value == "asking" and judge(replace(facts, question=Question.NONE)).value == "done"
+    ):
+        return "done"
     if value == "asking":
         return "gate"
     if facts.pull in OPEN:
         return "pr"
-    if facts.pull == Pull.MERGED:
-        return "merged"
-    if value == "done":
-        return "done"
     if value in ("leftover", "closed"):
         return "left"
     if facts.seen:
