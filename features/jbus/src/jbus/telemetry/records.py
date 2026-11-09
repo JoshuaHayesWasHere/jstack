@@ -278,7 +278,18 @@ def _queue(one: Row, zone: tzinfo | None) -> Row:
         "approval_said_at": utc(approval.get("said_at"), zone),
         "approval_ran_at": utc(approval.get("ran_at"), zone),
         "follows": _text(approval.get("follows")) or None,
+        "queued_by_session": _text(_dict(one.get("queued_by")).get("session")),
+        "approval_message": _approval_message(approval),
     }
+
+
+def _approval_message(approval: Row) -> str:
+    """The `<thread id>/<message id>` a row's go rests on: an entry's go keeps it in `message`,
+    a go on the user's message or pick in `ref`, and any other go names none."""
+    basis = approval.get("basis")
+    if basis == "entry":
+        return _text(approval.get("message"))
+    return _text(approval.get("ref")) if basis in ("message", "pick") else ""
 
 
 def _merged(one: Row, zone: tzinfo | None) -> Row:
@@ -626,6 +637,8 @@ SOURCES: tuple[Source, ...] = (
             "approval_said_at",
             "approval_ran_at",
             "follows",
+            "queued_by_session",
+            "approval_message",
         ),
         _queue,
         at="approval_ran_at",

@@ -259,3 +259,31 @@ def test_review_rounds_keeps_each_round_once_with_its_verdict_and_counts(machine
     assert "review_rounds 1" in machine.build()
     with contextlib.closing(machine.store()) as store:
         assert store.execute(f"{query} WHERE slug = 'one'").fetchall() == [row]
+
+
+def test_the_queue_keeps_who_queued_each_row_and_the_message_its_go_rests_on(machine):
+    home = {"directory": "/home/u/repo", "session": "home-session"}
+    jbus = {"by": "jbus", "session": ""}
+    goes = {
+        "entry": ({"ref": "plan-entry", "message": "mcp:home/m-entry"}, "mcp:home/m-entry"),
+        "message": ({"ref": "mcp:home/m-said"}, "mcp:home/m-said"),
+        "pick": ({"ref": "mcp:home/m-picked"}, "mcp:home/m-picked"),
+        "word": ({"ref": "w1", "message": "mcp:home/m-not"}, ""),
+        "answer": ({"ref": "3"}, ""),
+        "rule": ({"ref": "follow-up", "follows": "parent"}, ""),
+        "page": ({"ref": "p1"}, ""),
+        "bot-chat": ({"ref": "w2"}, ""),
+    }
+    rows = [
+        {"slug": basis, "status": "queued", "queued_by": home, "approval": {"basis": basis, **go}}
+        for basis, (go, _) in goes.items()
+    ]
+    rows.append({"slug": "filed", "status": "queued", "queued_by": jbus, "approval": {}})
+    machine.write("alpha", "queue.json", rows)
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        read = store.execute(
+            "SELECT slug, queued_by_session, approval_message FROM queue ORDER BY slug"
+        ).fetchall()
+    want = [(basis, "home-session", message) for basis, (_, message) in goes.items()]
+    assert read == sorted([*want, ("filed", "", "")])
