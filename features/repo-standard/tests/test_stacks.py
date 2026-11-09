@@ -7,6 +7,7 @@ reach: an id or a base the driver refuses, a stack whose select fails, a tool th
 installed, and the config's refusal of each `stacks:` it cannot hold.
 """
 
+import re
 import shutil
 import sys
 
@@ -15,7 +16,7 @@ import pytest
 import test_multi_stack
 from repo_standard import cli, stacks
 from repo_standard.adapters import COMMANDS
-from repo_standard.config import Config, Refused, Stack, build, parse
+from repo_standard.config import E2E, Config, Refused, Stack, Table, build, parse
 from test_go_adapter import needs_go
 from test_multi_stack import STACKS
 from test_skeleton_python import STANDARD, git
@@ -146,6 +147,63 @@ def test_the_config_reads_each_stack_with_its_roots():
 def test_the_config_refuses_a_stacks_part_it_cannot_hold(stacks_part, said):
     with pytest.raises(Refused, match=said.replace(".", r"\.")):
         build(parse(stacks_part))
+
+
+NODE = "stacks:\n  web:\n    adapter: node-vite\n    roots: [web, e2e]\n    e2e:\n"
+
+
+def test_the_config_reads_a_node_stacks_browser_tests():
+    e2e = (
+        build(
+            parse(
+                NODE + "      root: e2e/\n      script: test:e2e\n"
+                "      every: [e2e/layout.spec.ts]\n"
+                "      routes:\n        e2e/a.spec.ts: [/pets, /pets/1]\n"
+                "      table:\n        - file: e2e/screens.spec.ts\n          export: screenFlows\n"
+                '          title: "screen: {name}"\n'
+            )
+        )
+        .stacks["web"]
+        .e2e
+    )
+    assert e2e == E2E(
+        "e2e",
+        "test:e2e",
+        ("e2e/layout.spec.ts",),
+        {"e2e/a.spec.ts": ("/pets", "/pets/1")},
+        (Table("e2e/screens.spec.ts", "screenFlows", "screen: {name}"),),
+    )
+
+
+@pytest.mark.parametrize(
+    ("e2e", "said"),
+    [
+        ("      root: other\n      script: e2e", "e2e.root is other, outside the stack's roots"),
+        ("      root: ../e2e\n      script: e2e", "outside the stack's roots"),
+        ("      root: e2e\n      script: e2e\n      grep: x", "has grep, which the standard"),
+        ("      root: e2e", "names no npm script"),
+        ("      root: e2e\n      script: e2e\n      every: [x.spec.ts]", "outside the stack's"),
+        ("      root: e2e\n      script: e2e\n      routes:\n        e2e/a.ts: [pets]", "not a"),
+        (
+            "      root: e2e\n      script: e2e\n      table:\n        - file: e2e/a.spec.ts\n"
+            "          export: flows\n          title: screen",
+            "has no {name}",
+        ),
+        (
+            "      root: e2e\n      script: e2e\n      table:\n        - file: e2e/a.spec.ts\n"
+            "          export: flows\n          title: '{name}'\n          path: x",
+            "has path, which the standard",
+        ),
+    ],
+)
+def test_the_config_refuses_an_e2e_part_it_cannot_hold(e2e, said):
+    with pytest.raises(Refused, match=re.escape(said)):
+        build(parse(NODE + e2e + "\n"))
+
+
+def test_only_a_node_stack_runs_browser_tests():
+    with pytest.raises(Refused, match="only a node-vite stack runs one"):
+        build(parse("stacks:\n  a:\n    adapter: go\n    roots: [a]\n    e2e:\n      root: a\n"))
 
 
 def test_a_v1_config_has_no_stack():
