@@ -877,6 +877,7 @@ def test_a_test_module_only_a_fixture_uses_selects_the_tests_that_ask_for_the_fi
 
     assert repo.selected(head) == [
         "testing/tests/test_kit.py",
+        "testing/tests/test_tree.py",
         "testing/tests/test_uses_kit.py",
     ]
 
@@ -907,6 +908,7 @@ def test_a_test_module_named_as_a_plugin_selects_the_tests_that_ask_for_its_fixt
     assert repo.selected(repo.change(["testing/tests/test_shared.py"])) == [
         "features/x/tests/test_feature.py",
         "testing/tests/test_shared.py",
+        "testing/tests/test_tree.py",
     ]
 
 
@@ -927,6 +929,7 @@ def test_a_changed_test_selects_itself_and_each_test_that_imports_it_however_dee
 
     assert repo.selected(head) == [
         "testing/tests/test_helper.py",
+        "testing/tests/test_tree.py",
         "testing/tests/test_user.py",
         "testing/tests/test_user_of_user.py",
     ]

@@ -57,7 +57,11 @@ A test that reads files through a glob or a walk declares the paths it reads in 
 at the top level of its module: a tuple of patterns in jmerge's syntax, as `Paths:` takes them.
 A module of the tests that globs for the tests that import it declares one the same way. A
 changed path that a pattern of the read set matches selects the test files whose read set it is,
-or that import such a module, and the summary counts them with the names.
+or that import such a module, and the summary counts them with the names. A module that names a
+package's `__path__` holds the modules under that package's folder as a read set of its own:
+`jbus.pages` reads each verb's help through `jbus.__path__` to build the-verbs.md, and imports
+none of them. A change to a module of that folder selects the tests that import the module
+that names it, through any chain, and not the tests of what that folder's modules import.
 `testing/tests/test_cross_cutting.py` fails on a test that reads the tree so with neither a
 read set nor a place on the `Cross-cutting:` list.
 
@@ -75,11 +79,13 @@ it with the cross-cutting tests.
 
 A change of the tests alone runs a narrow check. Where every changed path is a module of a
 folder of tests that the head still holds (a test file, a helper of the tests or a `conftest.py`),
-the selection is the changed test files, the model checks they reach and the tests that import
-or name a helper they changed: no feature's tests, no cross-cutting tests, no catch-all and no
-test that failed on main. Such a change alters no code but the tests', and main's full run
-catches what a narrow check misses. A change that also touches a fixture, deletes a file or
-touches any path outside the tests selects by all the rules above.
+the selection is the changed test files, the model checks they reach, the tests that import
+or name a helper they changed and the cross-cutting tests: no feature's tests, no catch-all and
+no test that failed on main. Such a change alters no code but the tests', and main's full run
+catches what a narrow check misses. The cross-cutting tests still run, since they read the text
+of every file, the changed tests among them: a plain comment added to a test fails
+`test_no_comments.py`. A change that also touches a fixture, deletes a file or touches any path
+outside the tests selects by all the rules above.
 
 It prints `all` when a changed path is one that every test depends on, and never for the size of
 what it selected: a selection of nearly every test file still names its files, and main's full
@@ -266,6 +272,7 @@ WORDS = re.compile(r"[\s/\\'\"`:=,()\[\]{}*|<>;]+")
 DECLARED = "READ_SET"
 CHECKING = ("TYPE_CHECKING", "typing.TYPE_CHECKING")
 BY_NAME = {"import_module", "__import__"}
+PACKAGE_PATH = ".__path__"
 SKILL_INDEX = "testing.paths.skills"
 SKILL_SPOTS = ("skills/*/SKILL.md", "features/*/SKILL.md", "features/*/skills/*/SKILL.md")
 INCLUDE = re.compile(r"read `\$T/\.\./skills/([^/`]+)/([^/`]+\.md)` now")
@@ -1017,14 +1024,35 @@ def spells(name):
 
 
 @cache
+@cache
+def walked(name):
+    """The read set a module holds by naming a package's `__path__`, as `jbus.pages` does to build
+    the-verbs.md from the source of each verb: the modules under the folder of each package it
+    names so. It reads their text and imports none of them, so what they import is no part of it,
+    and neither is a file beside them that is no module."""
+    known = modules()
+    calls = sources()[name][6]
+    named = {one.removesuffix(PACKAGE_PATH) for one in calls if one.endswith(PACKAGE_PATH)}
+    below = tuple(
+        Path(known[one]).parent.as_posix() + "/"
+        for one in named & known.keys()
+        if known[one].endswith("/__init__.py")
+    )
+    folders = {Path(path).parent.as_posix() for path in known.values() if path.startswith(below)}
+    return ready().patterns_of("\n".join(f"{one}/*.py" for one in sorted(folders)))
+
+
 def read_sets():
     """Each test file, with the patterns of its read set and of the read sets of the modules of
-    the tests it imports."""
+    the tests it imports, and the folders of the packages it or any module it imports walks
+    (`walked`)."""
     found = {}
     for name, path in modules().items():
         if not TEST.fullmatch(path):
             continue
-        if patterns := {pattern for one in reached(name) for pattern in sources()[one][5]}:
+        patterns = {pattern for one in reached(name) for pattern in sources()[one][5]}
+        patterns |= {pattern for one in imported(name) for pattern in walked(one)}
+        if patterns:
             found[path] = patterns
     return found
 
@@ -1391,17 +1419,15 @@ def selection(changed, failed=()):
     each cause the sorted files it selected, or the path that forced `all`. They are what the
     rules select, the test files no rule owns (`catch-all`), and the `failed` test files that
     the check runs. `why["added"]` lists the failed ones nothing else selected. A change of the
-    tests alone selects only what its imports and names reach."""
+    tests alone selects only what its imports and names reach, and the cross-cutting tests."""
     tests, why = ruled(changed)
     if tests == ["all"]:
         return tests, why
     if tests_alone(changed):
-        narrow = sorted(set(why["imports"]) | set(why["names"]) | set(why["models"]))
-        return narrow, {
-            "imports": why["imports"],
-            "names": why["names"],
-            "models": why["models"],
-            **{key: [] for key in ("features", "cross-cutting", "catch-all", "added")},
+        kept = ("imports", "names", "models", "cross-cutting")
+        return sorted(set().union(*(why[key] for key in kept))), {
+            **{key: why[key] for key in kept},
+            **{key: [] for key in ("features", "catch-all", "added")},
         }
     lone = unowned()
     chosen = set(tests) | lone
