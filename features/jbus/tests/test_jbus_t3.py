@@ -94,6 +94,7 @@ def test_no_module_but_the_outbox_sends_a_message_to_a_thread():
 
 
 SEND = {"threadId": "mcp:crew", "message": "a", "mode": "queue", "clientRequestId": "a-key"}
+STEER = {**SEND, "mode": "auto", "clientRequestId": "reload|abc1234def5|mcp:crew"}
 
 
 @pytest.mark.parametrize(
@@ -148,6 +149,8 @@ SEND = {"threadId": "mcp:crew", "message": "a", "mode": "queue", "clientRequestI
             "no brief has it on a Thread: line",
         ),
         ("t3_thread_send", {**SEND, "mode": "auto"}, "only called with mode queue and a retry key"),
+        ("t3_thread_send", {**STEER, "mode": "queue"}, "or auto for a steer"),
+        ("t3_thread_send", {**STEER, "mode": "steer"}, "or auto for a steer"),
         ("t3_thread_send", {**SEND, "mode": "restart"}, "only called with mode queue"),
         ("t3_thread_send", {**SEND, "clientRequestId": ""}, "only called with mode queue"),
         ("t3_thread_send", {"threadId": "mcp:crew", "message": "a"}, "a mode and a retry key"),
@@ -175,8 +178,10 @@ def test_a_call_that_changes_a_thread_in_any_other_form_is_refused_before_it_goe
     assert kitchen.t3.calls == [] and kitchen.t3.messages == {}
     kitchen.t3.thread("alpha", "completed", threadId="mcp:crew")
     client.call("t3_thread_send", SEND)
+    client.call("t3_thread_send", STEER)
     client.call("t3_thread_organize", {"action": "settle", "threadId": "mcp:crew"})
-    assert [name for name, _ in kitchen.t3.calls] == ["t3_thread_send", "t3_thread_organize"]
+    called = [name for name, _ in kitchen.t3.calls]
+    assert called == ["t3_thread_send", "t3_thread_send", "t3_thread_organize"]
 
 
 def test_a_read_of_any_thread_goes_out_and_changes_nothing(kitchen):
