@@ -12,8 +12,9 @@ from datetime import timedelta
 
 import pytest
 
+import test_jbus_telemetry_tokens as token_records
 from jgauge import spend as jgauge_spend
-from test_jbus_telemetry_tokens import NOW, iso, machine, said  # noqa: F401
+from test_jbus_telemetry_tokens import NOW, iso, said
 
 SONNET = "claude-sonnet-5-5"
 MESSAGES = (
@@ -50,9 +51,10 @@ def spends(tokens, session, title, *calls):
 
 
 @pytest.fixture
-def store(machine):  # noqa: F811
+def store(tmp_path, monkeypatch, t3_settings):
     """A home that queues two rows on one plan entry, after a typed message; a scout of that entry;
     and a row of each way a row ends."""
+    machine = token_records.Machine(tmp_path, monkeypatch, t3_settings)
     state = machine.state_dir / "alpha"
     machine.t3.execute(MESSAGES)
     spends(machine, "home", "home: alpha", (1, 1_000), (12, 2_000), (40, 9_000))
