@@ -148,7 +148,7 @@ The install turns off each harness's own AI co-author trailer, and touches no ot
 | Cursor | `~/.cursor/cli-config.json`, once Cursor's CLI has made it | `"attribution": {"attributeCommitsToAgent": false, "attributePRsToAgent": false}` |
 | Codex | none | codex-cli 0.163.0 ignores `commit_attribution` as an unrecognized setting: its trailer is a flag of the account's workspace |
 
-A declared home that `jroles mirror` keeps has its own `settings.json`, which `jroles mirror` writes from `~/.claude/settings.json` with the skill listing trimmed ([jroles](../../jroles/docs/jroles/skill-listing.md)), and the install sets its keys in both files.
+A declared home that `jroles mirror` keeps has its own `settings.json`, which `jroles mirror` writes from `~/.claude/settings.json` with the skill listing trimmed ([jroles](../../jroles/docs/jroles/skill-listing.md)) and `Workflow`, `ScheduleWakeup` and `ReportFindings` added to `permissions.deny`, and the install sets its keys in both files.
 The install writes no `settings.json` for a declared home that has none yet, because `jroles mirror` writes that file.
 `--check` prints `attribution <file>` as `missing`, or as `old` with the first key that differs.
 `--uninstall` takes out only a key that still holds the install's value.
