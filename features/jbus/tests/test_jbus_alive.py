@@ -1,8 +1,8 @@
 """When jbus is dead or failing, the user finds out. A failure in one project does not stop the
 pass, and the pass always writes the status file. A `jmerge` command cannot hang. When the unit
-fails for the third time in a row, jbus raises the machine's alert once: the desk hears of it at
-once, and the infra home from the one list. Every hour, the first pass queues a heartbeat, which is
-quiet: it starts no wake.
+fails for the third time in a row, and the failures span two minutes, jbus raises the machine's
+alert once: the desk hears of it at once, and the infra home from the one list. Every hour, the
+first pass queues a heartbeat, which is quiet: it starts no wake.
 
 Every test runs the real pass or the real command against the faked T3 Code server of
 `test_jbus_kitchen`. Nothing reaches the network.
@@ -120,8 +120,8 @@ def test_the_third_alarm_in_a_row_alerts_once_on_the_desk_and_never_shows_the_ke
 
 def test_a_burst_of_fast_failures_raises_no_alert_until_they_span_two_minutes(kitchen):
     """A pass starts 10 s after the last one ended, so a pass that fails fast fails about every
-    11 s. The alert waits for failures that span two minutes, as three passes at once a minute
-    did, and not for a count of passes."""
+    11 s. The alert waits for failures that span two minutes, as three passes 60 s apart did,
+    and not for a count of passes."""
     said = []
     for second in range(0, 120, 11):
         said += alarm(NOW + timedelta(seconds=second))
@@ -136,14 +136,16 @@ def test_a_burst_of_fast_failures_raises_no_alert_until_they_span_two_minutes(ki
 
 
 def test_the_alarm_s_alert_reaches_the_infra_home_and_the_next_pass_ends_it(kitchen):
-    """The test runs the command as the unit runs it, on the real clock, so the kitchen signs in
-    at the real now: a sign-in from the tests' fixed now runs out within a week of a real day,
-    and its reminder is a streak too."""
+    """The test runs the third alarm as the unit runs it, on the real clock, so the kitchen signs
+    in at the real now: a sign-in from the tests' fixed now runs out within a week of a real day,
+    and its reminder is a streak too. The first two failed two minutes before it, so the three
+    span the pass streak's wait."""
     kitchen.signed_in(NOW - datetime.now(UTC))
     infra = kitchen.second("infra")
-    assert [kitchen.main("alarm") for _ in range(2)] == [
-        (0, "pass failed: 1 in a row\n"),
-        (0, "pass failed: 2 in a row\n"),
+    began = datetime.now(UTC) - alerts.LASTING[alerts.PASS]
+    assert alarm(began) + alarm(began + timedelta(minutes=1)) == [
+        "pass failed: 1 in a row",
+        "pass failed: 2 in a row",
     ]
     code, said = kitchen.main("alarm")
     (line,) = [one for one in said.splitlines() if one.startswith("alert: pass failed 3 ")]

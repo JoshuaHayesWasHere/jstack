@@ -20,6 +20,6 @@ function dPulse() {
   return h;
 }
 panel({
-  gloss: { jbus: ["jbus", "The timer that passes about once a minute: it reads each project's queue, launches, merges and sends events. Passing is its timer running and the last pass ended in time. One jbus serves every project of this machine."], homes: ["Homes", "The homes of this machine that are not on the bus: each has a home-id and no project in jbus's config, so jbus launches, merges and tells nothing for it. A home's start adds its repo, and jbus project add does by hand. The pass says the list each time it changes."] },
+  gloss: { jbus: ["jbus", "The timer that starts a pass 10 s after the last one ended: it reads each project's queue, launches, merges and sends events. Passing is its timer running and the last pass ended in time. One jbus serves every project of this machine."], homes: ["Homes", "The homes of this machine that are not on the bus: each has a home-id and no project in jbus's config, so jbus launches, merges and tells nothing for it. A home's start adds its repo, and jbus project add does by hand. The pass says the list each time it changes."] },
   drawer: dPulse
 });

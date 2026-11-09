@@ -20,7 +20,10 @@ A streak is the failures in a row of one thing, under a key:
 - `t3-tool <tool>` for a tool jbus calls that T3 Code stopped serving (`jbus.t3.contract`);
 - `once <digest>` for a line raised once, which ends by itself after `LASTS` (`deliver`).
 
-`failed` counts one failure, and returns the alert line once the count has reached the threshold.
+`failed` counts one failure, and returns the alert line once the count has reached the threshold
+and the failures span the key's `LASTING`. The `pass` streak waits two minutes, the span of three
+passes 60 s apart: a pass starts 10 s after the last one ended, so one that fails fast fails about
+every 11 s, and a count alone would page on a blip of half a minute.
 `ok` ends the streak, and returns the recovered line when the streak had alerted. An incident is a
 streak that `opened` starts and `closed` ends, with the line its caller passes. Everything else is
 silent: the failures before the threshold, the ones after the alert, and a success with no alert
@@ -60,6 +63,7 @@ SNAPSHOT = "snapshot"
 STALE = "stale"
 MACHINE = ""
 LASTS = timedelta(days=1)
+LASTING = {PASS: timedelta(minutes=2)}
 
 
 @dataclass
@@ -128,14 +132,15 @@ def failed(
     now: datetime | None = None,
     user: jsettings.Settings,
 ) -> str | None:
-    """Count one failure. From the count `after` on, return the alert line on each call until the
-    streak alerted (`raise_`)."""
+    """Count one failure. From the count `after` on, once the streak's failures span the key's
+    `LASTING`, return the alert line on each call until the streak alerted (`raise_`)."""
     now = now or datetime.now(UTC)
     with locked(state, LOCK):
         one = streak(state, key) or Streak(key, 0, now.isoformat(), False)
         one.count, one.why = one.count + 1, why
         _keep(state, key, one)
-    if one.count < after or one.alerted:
+    lasted = now - datetime.fromisoformat(one.since)
+    if one.count < after or one.alerted or lasted < LASTING.get(key, timedelta(0)):
         return None
     return _line(one, why, user)
 
