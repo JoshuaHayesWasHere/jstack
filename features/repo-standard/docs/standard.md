@@ -288,8 +288,8 @@ Enforced by: `scripts/select_tests.py`, `testing/tests/test_select_tests.py`, `t
 ### A shared path forces the whole suite
 
 A change to a path that every test rests on selects `all`, whatever else it touches.
+In a repo of several stacks, so does a path outside every stack's roots, unless it is a page of Markdown, a file in a feature's `docs/` or its `feature.json`.
 A change to the selection itself, or to the files that run it, selects the tests that read it: a pull request's check selects its tests by its own new version of them, and main's run of the whole suite after each merge catches what that version missed.
-In a repo of several stacks, a path outside every stack's roots selects `all`, unless it is a page of Markdown, a file in a feature's `docs/` or its `feature.json`.
 
 **In jstack** the paths are `EVERY_RUN` in `scripts/select_tests.py`: `pyproject.toml`, `uv.lock` and the root `conftest.py`.
 The script itself, the `Makefile`, `.github/workflows/check.yml` and the plugins of `testing/` select the tests that import or name them instead, and the whole suite runs on main, nightly and before a release.
