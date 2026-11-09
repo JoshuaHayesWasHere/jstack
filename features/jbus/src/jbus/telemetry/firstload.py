@@ -165,7 +165,7 @@ named in the first tool calls of its sessions."""
 
 BUDGET = {
     "crew": 10_500,
-    "reviewer": 19_500,
+    "reviewer": 20_000,
     "scout": 9_500,
     "home": 35_000,
 }
