@@ -62,10 +62,12 @@ def test_jmerge_ends_before_systemd_stops_the_pass():
     assert int(started.removesuffix("min")) * 60 > wake.JMERGE_TIMEOUT
 
 
-def test_the_2_s_tick_never_reaches_systemds_start_limit():
-    """systemd refuses a unit started more than 5 times in 10 s by default, and a 2 s timer sits at
-    that edge: a reload from a green move pushed `jbus-merge.service` over it 3 times on
-    2026-11-08, and one refusal cost a pull request's line a 4 s gap. The tick has no limit."""
+def test_the_tick_never_reaches_systemds_start_limit():
+    """systemd refuses a unit started more than 5 times in 10 s by default. A 2 s timer sat at that
+    edge, and a reload from a green move pushed `jbus-merge.service` over it 3 times on
+    2026-11-08. A 10 s timer alone stays under it, but the limit counts every start, a reload's
+    and a hand's too, and a refused start leaves the service failed, so the next tick waits on the
+    limit's window as well as the timer. The tick guards nothing by a limit: it has none."""
     service = configparser.ConfigParser(interpolation=None, strict=False)
     service.optionxform = str
     service.read(REPO / "features" / "jbus" / "units" / "jbus-merge.service")
