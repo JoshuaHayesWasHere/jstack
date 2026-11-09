@@ -24,6 +24,7 @@ import sys
 import pytest
 
 import test_skeleton_python as skeleton
+from repo_standard import TAG, VERSION
 from repo_standard.adapters import COMMANDS
 from repo_standard.config import Config, Stack, parse
 from repo_standard.rules import Advice, Repo, make_targets
@@ -405,8 +406,8 @@ def test_conform_warns_of_a_node_stack_that_pins_no_node_version(svelte_repo):
 
 
 def skeleton_conform(root, env, ok=True):
-    make(root, env, "-s", ".cache/repo-standard-v1")
-    pythonpath = root / ".cache/repo-standard-v1/features/repo-standard/src"
+    make(root, env, "-s", f".cache/{TAG}{VERSION}")
+    pythonpath = root / f".cache/{TAG}{VERSION}/features/repo-standard/src"
     done = subprocess.run(
         ["python3", "-m", "repo_standard", "conform"],
         cwd=root,

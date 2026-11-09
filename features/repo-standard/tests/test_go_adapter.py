@@ -16,6 +16,7 @@ import subprocess
 import pytest
 
 import test_skeleton_python as skeleton
+from repo_standard import TAG, VERSION
 from repo_standard.config import parse
 from test_skeleton_python import INHERITED, SKELETON, STANDARD, git, make, write
 
@@ -107,7 +108,7 @@ def test_the_new_repo_of_several_modules_passes_its_own_check(go_repo):
     out = make(root, env, "check")
     for package in ("hello", "alpha/core", "alpha/extra", "beta/pricing", "beta/use"):
         assert f"ok  \texample.com/{package}" in out, out
-    assert "conform repo-standard-v1" in out
+    assert f"conform {TAG}{VERSION}" in out
     assert "errors 0, warnings 0" in out
 
 

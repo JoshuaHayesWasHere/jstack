@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pytest
 
-from repo_standard import cli
+from repo_standard import VERSION, cli
 from repo_standard.config import Refused
 from repo_standard.misses import FILE, Row
 from test_check_workflow import caller, commit, git, makefile, run_job
@@ -203,7 +203,8 @@ def test_a_test_the_selection_skipped_fails_on_main_and_joins_the_next_selection
 
 
 E2E = {
-    ".repo-standard.yml": "standard: 1\nstacks:\n  web:\n    adapter: node-vite\n    roots: [web]\n"
+    ".repo-standard.yml": f"standard: {VERSION}\n"
+    "stacks:\n  web:\n    adapter: node-vite\n    roots: [web]\n"
     "    e2e:\n      root: web\n      script: test:e2e\n",
     "web/package-lock.json": json.dumps(
         {"packages": {"node_modules/@playwright/test": {"version": "1.64.1"}}}

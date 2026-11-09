@@ -9,7 +9,7 @@ It reads the repo's `.repo-standard.yml` and uses the Python standard library al
 A repo needs no copy of the tool: `uvx` runs it from jstack at the tag the repo pins.
 
 ```sh
-uvx --from git+https://github.com/JoshuaHayesWasHere/jstack@repo-standard-v1 repo-standard conform
+uvx --from git+https://github.com/JoshuaHayesWasHere/jstack@repo-standard-v2 repo-standard conform
 ```
 
 In jstack, the command is on the path of the project's environment, so `uv run repo-standard conform` runs it.
@@ -30,6 +30,7 @@ CI's `lint` job in `.github/workflows/check.yml` runs it there, so the required 
 | `upgrade` | Moves the repo to another version of the standard, as [upgrade](#upgrade) says. |
 | `green` | Says whether the checkout may deploy: it exits 0 on a clean checkout of the remote's main whose tree passed `check.yml`, as [the standard's rule](standard.md#every-deploy-entry-refuses-a-tree-that-is-not-green-main) says. |
 | `routes` | Fails on each route a mock API answers that the real API lacks, as [the skeleton's page](skeleton.md#the-mock-api-and-its-contract) says. |
+| `floor` | Prints the python3 it runs in and the standard's python3 floor, as [the standard's rule](standard.md#a-script-ci-runs-before-setup-needs-only-the-runners-python) says. |
 | `misses` | Prints the miss rate of main's runs and the ledger's rows, as [the shared check's page](check-workflow.md#the-tests-that-failed) says. |
 
 `repo-standard stacks lint` runs every stack's lint, `repo-standard stacks test [ids]` runs every stack's tests or the ids it is given, `repo-standard stacks select <base>` prints the ids the change from `<base>` reaches, and `repo-standard stacks e2e [<file>]` runs the browser tests of each stack with `e2e:`, or only the ids in the file, one a line.
@@ -42,11 +43,12 @@ The skeleton's Makefile runs them from the repo's root, and they take no flag.
 The shared check runs its other two forms: `repo-standard misses record --failed <dir> --out <dir>` writes the ledger of main's commit, and `repo-standard misses failing --days 30` prints the ids a pull request's selection adds.
 It reads GitHub through `gh api`, for `$GITHUB_REPOSITORY` or the repo `gh repo view` names, and the caller's workflow from `$GITHUB_WORKFLOW_REF`, else `check.yml`.
 
-Every verb but `stacks`, `routes` and `misses` takes `--root` for another checkout, and every verb but `stacks`, `green`, `routes` and `misses` takes `--config` for another config file than `<root>/.repo-standard.yml`.
+Every verb but `stacks`, `routes`, `misses` and `floor` takes `--root` for another checkout, and every verb but `stacks`, `green`, `routes`, `misses` and `floor` takes `--config` for another config file than `<root>/.repo-standard.yml`.
 `borders` alone reads `--base <ref>`, `--labels a,b` and `--hard`, which [the guards' page](guards.md) explains.
 `conform` and `upgrade` read `--upstream`, `conform` alone reads `--list`, and `upgrade` alone reads `--to N`.
 `plan` alone reads `--event`, by default `$GITHUB_EVENT_NAME`, and `--selection <file>`, the test ids the repo's select target printed.
 A verb exits 2 when it cannot read the config or the tree.
+`repo-standard floor` takes no flag, and `python -m repo_standard` refuses a python3 under the floor before any verb, with a message that names the floor.
 `green` reads no config, exits 1 with each reason the checkout may not deploy, and exits 2 when it cannot ask the remote's main or GitHub's API, which it asks through `gh`.
 
 ## conform
@@ -140,7 +142,7 @@ When the tags cannot be listed, the tool prints a note and goes on.
 Beside the guards' parts, which [the guards' page](guards.md) lists, `conform` reads these keys of `.repo-standard.yml`:
 
 ```yaml
-standard: 1
+standard: 2
 deploy: [make release]
 enforced-by:
   a-test-runs-the-code: [tests/test_run_not_read.py]

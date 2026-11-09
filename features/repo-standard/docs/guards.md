@@ -26,7 +26,7 @@ It is YAML in a small subset: maps and lists by indent, flow lists such as `[a, 
 The guards refuse anything else, and refuse a key the standard does not know, so a misspelt key fails instead of turning a check off.
 
 ```yaml
-standard: 1
+standard: 2
 features: features
 manifest-schema: schemas/feature.core.schema.json
 layout: [features/, schemas/, scripts/, .github/]

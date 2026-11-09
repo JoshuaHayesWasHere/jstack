@@ -12,7 +12,7 @@ The caller's job `standard` calls the shared workflow, and its job `check` passe
 ```yaml
 jobs:
   standard:
-    uses: JoshuaHayesWasHere/jstack/.github/workflows/repo-standard-check.yml@repo-standard-v1
+    uses: JoshuaHayesWasHere/jstack/.github/workflows/repo-standard-check.yml@repo-standard-v2
     with:
       runner: ubuntu-24.04
       command: 'make check'
@@ -73,6 +73,7 @@ Both are optional, and a config with no `check` part runs the tests in one part 
 
 The workflow's first job, `plan`, asks once what the run tests, and the other jobs read its answer.
 It reads the version `.repo-standard.yml` pins and clones jstack at the tag `repo-standard-vN`, or at the ref `ref` names, which holds the code the workflow runs in the runner's `python3` before any setup.
+Its next step, `repo-standard floor`, fails the run on a runner whose `python3` is older than the standard's floor, and names the floor.
 
 | Job | On a pull request | On a push to main, a nightly run, a manual run |
 |---|---|---|

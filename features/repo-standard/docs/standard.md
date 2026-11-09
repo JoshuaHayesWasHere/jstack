@@ -212,11 +212,13 @@ Enforced by: `scripts/jtrees/crawl.py`, `scripts/lint-borders.py`
 ### A script CI runs before setup needs only the runner's python
 
 A script that CI runs before it installs the project's dependencies imports only the standard library and the repo's own modules, so a selection or a lookup never waits on an install.
+The runner's `python3` is 3.12 or later, the floor the standard declares as `PYTHON` in `features/repo-standard/src/repo_standard/__init__.py`.
+The shared check's plan job and the skeleton's `make lint` refuse an older `python3` before any other step, with a message that names the floor.
 
 **In jstack** `check.yml`'s `reuse` job runs `scripts/select_tests.py`, `jmerge.reuse` and `scripts/no_ai_trailers.py` in the runner's `python3`, before any `uv sync`.
 `scripts/green_tree.py` runs the same way at the start of each part of main's full run.
 
-Enforced by: `.github/workflows/check.yml`, `testing/tests/test_workflows.py`
+Enforced by: `.github/workflows/check.yml`, `testing/tests/test_workflows.py`, `features/repo-standard/tests/test_check_workflow.py`
 
 ## Guards
 
@@ -245,6 +247,7 @@ Enforced by: `features/repo-guards/tests/test_no_comments.py`
 ### Shell runs on macOS as well as on Linux
 
 Every shell script, and every shell block of the docs, parses under the bash and runs on the tools that macOS ships.
+The supported developer platforms are Linux, macOS and WSL2 on Windows, so a make target or script runs on each, and native Windows is not supported.
 
 **In jstack** one guard fails on a GNU-only command or flag and names the form that works on both, and the other parses each script under bash 3.2.
 
@@ -355,10 +358,11 @@ Enforced by: `.github/workflows/check.yml`, `testing/tests/test_workflows.py`
 
 A pull request into main needs one check to pass, and that check passes only when every job of the run passed, or the run reused a pass of the same trees.
 Otherwise a part that failed, was cancelled or never ran fails it.
+Where GitHub refuses a ruleset, as on a private repo on the free plan, no ruleset can require the check, and jmerge is the merge gate: it merges a pull request only once that check passed.
 
 **In jstack** the `check` job needs `reuse`, `lint` and every part of `check-shard`, and `check`, `borders` and `macos` are the checks the ruleset of main requires.
 
-Enforced by: `.github/workflows/check.yml`, `features/repo-guards/main-ruleset.json`
+Enforced by: `.github/workflows/check.yml`, `features/repo-guards/main-ruleset.json`, `features/jmerge/src/jmerge/ready.py`
 
 ### A pair of trees passes once
 
