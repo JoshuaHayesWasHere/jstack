@@ -275,7 +275,6 @@ def _line(role: str) -> str:
     )
     assert isinstance(table, ast.Dict)
     key = next(key for key in table.keys if isinstance(key, ast.Constant) and key.value == role)
-    assert key is not None
     return f"features/jbus/src/jbus/telemetry/firstload.py:{key.lineno}"
 
 
