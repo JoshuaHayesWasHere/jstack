@@ -40,7 +40,7 @@ REPLACED = (
 )
 """Whether a `ci_jobs` row `j` is the roll-up `check` of a pull request run a newer push cancelled:
 no other job of its attempt is red, and one was cancelled. It is then not red, as
-`jbus.ci.numbers.replaced` reads it, though check.yml's roll-up fails on a cancelled part."""
+`jbus.ci.cancels.replaced` reads it, though check.yml's roll-up fails on a cancelled part."""
 WEEK = "date({day}, '-6 days', 'weekday 0')"
 """The Sunday a local date's week starts on."""
 WAIT = 120
