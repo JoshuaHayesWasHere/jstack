@@ -55,6 +55,34 @@ A row keeps ids, times, counts and labels, and in place of each text, its length
 What the user said stays in T3 Code's store.
 The file is readable by you alone.
 
+## The context budget
+
+`first_loads` keeps the crew's first load as a record.
+Beside it, `uv run python -m jbus.telemetry.firstload` counts the start of each role, crew, reviewer, scout and home, against a budget, and `make lint` runs it as `uv run python -m jbus.telemetry.firstload --check`, so CI's `make lint` step, `make check-fast` and jmerge's guards fail a change that grows a start past its budget.
+
+It counts jstack's own text that a role holds before its first act:
+
+- the files the role's start reads, the table `ROLES` in `features/jbus/src/jbus/telemetry/firstload.py`: the skill its slash command expands and the files that skill reads at every start;
+- the largest print of `jbus playbook <role> --name <name>` the role can get, with the install's paths in place of the checkout's, so a count is the same on every machine;
+- the skill listing a session is given: `- name: description` for each skill and principle of `skills.json` a model may load by itself and each of the repo's own skills, less those whose front matter lists `paths:`.
+
+It prints one line a role: its characters, its tokens, which are characters over 2.9 rounded up, and its budget.
+2.9 is what the store measured: since 2026-11-08 a first call of each role holds 2.90 to 2.95 characters a token.
+
+The check fails:
+
+- a role over its budget;
+- a budget more than 10% above its role's count, so a cut lowers the budget with it;
+- a file of a role's start that is not there, so a renamed file is counted under its new name and cannot pass uncounted.
+
+Each failure names the role, its tokens, its budget and the line of `BUDGET` to change.
+
+It cannot count what is not this repo's: the harness's system prompt and tool schemas, the user's own instructions file (`CLAUDE.md`), the brief, and a file a role reads only on some starts.
+Those are most of a first call: in 2026-11 a first call was 47k to 53k tokens, of which this repo's share was 9k to 34k.
+
+A budget is raised on purpose, by a pull request that edits `BUDGET` in `firstload.py` and says why.
+`BUDGET` is the one place a budget is written.
+
 ## The records jbus keeps for the store
 
 Five logs keep what jbus's snapshots overwrite, each written from what jbus already holds, so none costs a call to GitHub (`jbus.history`, `jbus.spent`):

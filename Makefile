@@ -61,6 +61,9 @@ PYTEST = $(if $(NEW_LINES_PART),NEW_LINES_PART='$(NEW_LINES_PART)' PYTHONPATH='$
 # drop every path under a dot directory, which a worktree such as ~/.t3/worktrees/... sits in.
 # `repo-standard conform` runs last, and CI's lint job runs it only here, so a desk check fails on
 # a rule of the standard (a file over its size cap, say) where CI does.
+# `jbus.telemetry.firstload --check` fails a role (crew, reviewer, scout, home) whose start of
+# jstack's own text is over its budget in tokens. -W hides runpy's warning that jbus.telemetry
+# imported the module before it ran.
 BASE ?= origin/main
 
 .PHONY: lint
@@ -71,6 +74,7 @@ lint:
 	uv run ruff check .
 	uv run ruff format --check .
 	uv run pyrefly check --summary=none features/*/src
+	uv run python -W ignore::RuntimeWarning:runpy -m jbus.telemetry.firstload --check
 	uv run repo-standard conform
 
 # `make test TESTS=<files>` runs only those files. TESTS stays out of the environment, where a
