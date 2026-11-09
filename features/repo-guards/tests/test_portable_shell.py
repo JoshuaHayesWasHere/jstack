@@ -297,14 +297,32 @@ exec REAL "$@"
 """macOS's paste: it reads only the files it is given, `-` for its input, and refuses a call
 that gives none."""
 
-BSD = {"realpath": BSD_REALPATH, "paste": BSD_PASTE}
+BSD_WC = """#!/bin/sh
+status=0
+counts=$(REAL "$@") || status=$?
+if [ -n "$counts" ]; then
+    printf '%s\\n' "$counts" | awk '{
+        rest = $0; out = ""
+        while (match(rest, /^ *[0-9]+/) && substr(rest, RLENGTH + 1, 1) ~ /^ ?$/) {
+            out = out sprintf(" %7d", substr(rest, RSTART, RLENGTH) + 0)
+            rest = substr(rest, RLENGTH + 1)
+        }
+        print out rest
+    }'
+fi
+exit "$status"
+"""
+"""macOS's wc: it pads each count to eight columns, so `wc -l` of one line is `       1`, never
+the `1` GNU prints for its input."""
+
+BSD = {"realpath": BSD_REALPATH, "paste": BSD_PASTE, "wc": BSD_WC}
 
 
 def bsd_tools(where):
     """A directory of every tool on PATH with macOS's gaps in it: the GNU-only tools are not
     there, the tools whose flags differ refuse the GNU-only flags, exit 64, and say which,
-    realpath fails on a missing path, and paste refuses a call that names no file. Put it on
-    PATH in place of the real directories."""
+    realpath fails on a missing path, paste refuses a call that names no file, and wc pads
+    each count to eight columns. Put it on PATH in place of the real directories."""
     where.mkdir(parents=True, exist_ok=True)
     for folder in os.environ["PATH"].split(os.pathsep):
         if not os.path.isdir(folder):
@@ -345,6 +363,7 @@ def test_the_bsd_tools_refuse_the_gnu_forms_and_pass_the_rest(tmp_path):
     assert runs("perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV or die' true").returncode == 0
     assert runs("printf 'a\\nb\\n' | paste -sd ' '").returncode == 64
     assert runs("printf 'a\\nb\\n' | paste -sd ' ' -").stdout == "a b\n"
+    assert runs("printf 'a\\n' | wc -l").stdout == "       1\n"
 
 
 BASH3_IMAGE = "bash:3.2"
