@@ -13,7 +13,7 @@ import pytest
 
 from jbriefs.home import home_of
 from jbriefs.parse import thread_of
-from jbus import children, cleanup
+from jbus import children, cleanup, queue
 from jmerge import judgement
 from test_jbus_kitchen import NOW, RESULT, approved, complete, go, queued, review, sends
 from test_room import FRESH
@@ -267,6 +267,32 @@ def test_a_launch_keeps_the_home_its_queued_brief_names_in_the_brief_it_writes(k
     assert "Home: flow\n" in kitchen.t3.launches[0]["message"]
     assert "out alpha: row launched" in children.out(kitchen.home, flow, kitchen.state, [])
     assert kitchen.lines("gate") == []
+
+
+@pytest.mark.parametrize("home", ["", "root"], ids=["no Home: line", "Home: root"])
+def test_a_row_whose_brief_names_no_child_home_is_refused_at_launch_and_the_digest_says_so(
+    kitchen, home
+):
+    """The root home owns no row: a row that would start under it waits, gated, until it names
+    a child home. A brief jbus files itself skips the check of `jbus queue add`, so the launch
+    is where it holds."""
+    line = f"Home: {home}\n" if home else ""
+    text = complete("alpha").replace("Home: uncategorized\n", line)
+    queue.add(kitchen.state, "alpha", 1, [], text, ran_by=queue.PASS)
+    assert go(kitchen, "alpha")[0] == 0
+    kitchen.poll()
+    assert kitchen.t3.launches == []
+    why = f"its brief names {'root' if home else 'no home'}"
+    assert any(f"alpha: {why}" in line for line in kitchen.lines())
+    code, out = kitchen.main("digest", "--json")
+    assert code == 0 and why in out
+    assert not (kitchen.home / "tasks/alpha.md").exists()
+
+
+def test_a_row_that_names_the_catch_all_launches_under_it(kitchen):
+    queued(kitchen, "alpha", complete("alpha", "Home: uncategorized\n"))
+    kitchen.poll()
+    assert "Home: uncategorized\n" in kitchen.t3.launches[0]["message"]
 
 
 @pytest.mark.parametrize(
