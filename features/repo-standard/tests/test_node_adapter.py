@@ -19,6 +19,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 
 import pytest
 
@@ -318,23 +319,30 @@ def test_make_test_runs_the_selected_files_from_the_root(react_repo):
     make(root, env, "test", "TESTS=client/src/gone.test.ts", ok=False)
 
 
-def test_the_driver_runs_each_roots_own_scripts_and_only_the_roots_the_ids_reach():
+def test_the_driver_runs_each_roots_own_scripts_and_only_the_roots_the_ids_reach(tmp_path):
     node = COMMANDS["node-vite"]
     roots = ("client", "admin")
     assert node.lint(roots) == [
         ["npm", "--prefix", "client", "run", "check"],
         ["npm", "--prefix", "admin", "run", "check"],
     ]
-    assert node.test(roots, []) == [
-        ["npm", "--prefix", "client", "test"],
-        ["npm", "--prefix", "admin", "test"],
+    for root in roots:
+        write(tmp_path, {f"{root}/{name.split('/', 1)[1]}": text for name, text in COMMON.items()})
+        write(tmp_path, {f"{root}/package.json": package(), f"{root}/src/a.test.ts": ""})
+    write(tmp_path, {"client/b.test.ts": ""})
+    shutil.copytree(ADAPTER / "scripts", tmp_path / "scripts", dirs_exist_ok=True)
+
+    def ran(ids):
+        argv = [arg.replace("python3", sys.executable, 1) for arg in node.test(roots, ids)[0]]
+        done = subprocess.run(argv, cwd=tmp_path, capture_output=True, text=True)
+        assert done.returncode == 0, done.stdout + done.stderr
+        return [line for line in done.stdout.splitlines() if line.startswith("vitest ran")]
+
+    assert ran([]) == ["vitest ran every test"] * 2
+    assert ran(["client/src/a.test.ts", "client/b.test.ts"]) == [
+        "vitest ran src/a.test.ts b.test.ts"
     ]
-    assert node.test(roots, ["client/src/a.test.ts", "client/b.test.ts"]) == [
-        ["npm", "--prefix", "client", "test", "--", "src/a.test.ts", "b.test.ts"]
-    ]
-    assert node.test((".",), ["src/a.test.ts"]) == [
-        ["npm", "--prefix", ".", "test", "--", "src/a.test.ts"]
-    ]
+    assert ran(["admin/src/a.test.ts"]) == ["vitest ran src/a.test.ts"]
     assert node.select(roots, "HEAD", None) == [
         "python3",
         "scripts/node.py",
@@ -489,3 +497,16 @@ def test_the_example_client_passes_its_check_and_selects_its_test(hello_repo):
     assert selected(root, env) == ["features/hello-client/src/greet.test.ts"]
     out = make(root, env, "test", "TESTS=features/hello-client/src/greet.test.ts")
     assert "1 passed" in out
+
+
+def test_vitests_report_names_the_failed_test_file_from_the_repos_root(hello_repo, tmp_path):
+    root, env = hello_repo
+    broken = "features/hello-client/src/broken.test.ts"
+    write(root, {broken: "import { expect, test } from 'vitest';\n\ntest('breaks', () => {\n"})
+    with (root / broken).open("a") as file:
+        file.write("  expect(1).toBe(2);\n});\n")
+    failed = tmp_path / "failed.txt"
+    out = make(root, {**env, "REPO_STANDARD_FAILED": str(failed)}, "test", ok=False)
+    assert "1 failed" in out
+    assert "1 passed" in out
+    assert failed.read_text().splitlines() == [broken]

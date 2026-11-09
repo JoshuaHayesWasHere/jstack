@@ -37,6 +37,14 @@ script, which runs Playwright, with `--fail-on-flaky-tests`, so a test that pass
 fails. Given a list, the ids `select` printed, one a line, it passes them on as `--test-list`, each
 spec's path made relative to the `testDir` of the config the script runs.
 
+`python3 scripts/node.py test --roots <folder> [--roots <folder>]... [ids]` runs each root's own
+`npm test`, from the repo's root as `npm --prefix` runs it: with no id every root's, and given ids,
+each a path from the repo's root, `npm test -- <files>` in each root they reach, each file a path
+from the root, and nothing in a root they miss. Given `REPO_STANDARD_FAILED=<file>`, it hands
+Vitest its JSON reporter beside the default one and appends to the file each test file the report
+says failed, one a line, as `list` prints it. A run that fails and names no file, such as one whose
+setup throws, appends every file it ran.
+
 `python3 scripts/node.py setup` prints, for `$GITHUB_OUTPUT`, `roots=` and each folder that holds a
 `package-lock.json` git tracks, and `version-file=` and the first such root's `.nvmrc`, or its
 `package.json` when that sets `engines.node`, or nothing.
@@ -45,6 +53,7 @@ spec's path made relative to the `testDir` of the config the script runs.
 from __future__ import annotations
 
 import json
+import os
 import posixpath
 import re
 import subprocess
@@ -241,6 +250,42 @@ def listed(roots: list[str]) -> list[str]:
     return sorted(one for one in found if Path(one).is_file())
 
 
+def failed_in(report: Path) -> list[str]:
+    """The test files Vitest's JSON report says failed, from the repo's root."""
+    try:
+        results = json.loads(report.read_text()).get("testResults") or []
+    except (OSError, ValueError, AttributeError):
+        return []
+    here = Path.cwd()
+    return [
+        Path(os.path.relpath(one["name"], here)).as_posix()
+        for one in results
+        if isinstance(one, dict) and one.get("status") == "failed" and one.get("name")
+    ]
+
+
+def test(roots: list[str], ids: list[str]) -> int:
+    report = os.environ.get("REPO_STANDARD_FAILED")
+    failed = 0
+    for root in roots:
+        mine = [one for one in ids if within(one, root)]
+        if ids and not mine:
+            continue
+        with tempfile.TemporaryDirectory() as temp:
+            out = Path(temp) / "vitest.json"
+            reporters = ["--reporter=default", "--reporter=json", f"--outputFile.json={out}"]
+            rest = [*(reporters if report else []), *(inner(one, root) for one in mine)]
+            argv = ["npm", "--prefix", root, "test", *(["--", *rest] if rest else [])]
+            print(" ".join(argv), flush=True)
+            code = subprocess.run(argv).returncode
+            named = failed_in(out)
+        failed |= code != 0
+        if code and report:
+            with open(report, "a", encoding="utf-8") as written:
+                written.write("".join(f"{one}\n" for one in named or mine or listed([root])))
+    return failed
+
+
 def node_version(root: str) -> str:
     """The file setup-node reads the root's Node version from, or nothing."""
     nvmrc = node_graph.join(root, ".nvmrc")
@@ -277,6 +322,7 @@ def main(argv: list[str]) -> int:
     usage = (
         "usage: node.py select --roots <folder> [--roots <folder>]... [--e2e <json>] <base>"
         " | node.py list --roots <folder> [--roots <folder>]..."
+        " | node.py test --roots <folder> [--roots <folder>]... [ids]"
         " | node.py e2e --root <folder> --script <name> [--list <file>] | node.py setup"
     )
     if argv == ["setup"]:
@@ -288,13 +334,17 @@ def main(argv: list[str]) -> int:
             print(usage, file=sys.stderr)
             return 2
         return e2e(found["root"][0], found["script"][0], (found.get("list") or [None])[-1])
-    if not argv or argv[0] not in ("select", "list"):
+    if not argv or argv[0] not in ("select", "list", "test"):
         print(usage, file=sys.stderr)
         return 2
     verb = argv[0]
     found, rest = options(argv[1:], ("roots", "e2e") if verb == "select" else ("roots",))
     roots = [posixpath.normpath(one) for one in found.get("roots", [])]
-    if len(rest) != (1 if verb == "select" else 0) or not roots or len(found.get("e2e", [])) > 1:
+    if (
+        not roots
+        or len(found.get("e2e", [])) > 1
+        or (verb != "test" and len(rest) != (1 if verb == "select" else 0))
+    ):
         print(usage, file=sys.stderr)
         return 2
     try:
@@ -303,6 +353,8 @@ def main(argv: list[str]) -> int:
         print(usage, file=sys.stderr)
         return 2
     try:
+        if verb == "test":
+            return test(roots, [posixpath.normpath(one) for one in rest])
         selection = select(roots, rest[0], part) if verb == "select" else listed(roots)
     except subprocess.CalledProcessError as error:
         print(f"node.py: git cannot read the tree: {error.stderr.strip()}", file=sys.stderr)
