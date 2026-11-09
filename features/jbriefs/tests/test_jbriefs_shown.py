@@ -153,3 +153,18 @@ def test_shown_refuses_a_since_it_cannot_use(argv, said, capsys):
         cli.main(argv)
     assert stopped.value.code == 2
     assert said in capsys.readouterr().err
+
+
+def test_shown_gives_no_words_for_a_picture_sent_with_none(tmp_path, capsys):
+    placeholder = (
+        "[User attached one or more files without additional text. Respond using the"
+        " conversation context and the attached files.]"
+    )
+    store = _store(
+        tmp_path / "statev2.sqlite",
+        [("m-bare", THREAD, "user", "2026-11-09T17:00:00.000Z", _said(placeholder, PICTURE))],
+    )
+    code, lines, _ = _run(
+        capsys, "--shown", THREAD, "--store", str(store), "--attachments", str(tmp_path)
+    )
+    assert (code, lines) == (0, [f'2026-11-09T17:00:00.000Z m-bare "" {shown.GONE}'])
