@@ -20,6 +20,7 @@ from test_jbus_word import thread
 
 ROOT, FLOW = thread("a"), thread("f")
 SCOPE = "flow"
+FLOW_PLAN = "# a plan\n\n## fl-epic: the flow\nDone when:\n- it flows\n"
 
 
 @pytest.fixture
@@ -27,7 +28,7 @@ def kitchen(tmp_path, monkeypatch):
     made = Kitchen(tmp_path, monkeypatch)
     (made.home / "home-id").write_text(f"{ROOT}\n")
     (made.home / SCOPE).mkdir()
-    (made.home / SCOPE / "plan.md").write_text("# a plan\n")
+    (made.home / SCOPE / "plan.md").write_text(FLOW_PLAN)
     (made.home / SCOPE / "home-id").write_text(f"{FLOW}\n")
     yield made
     made.close()
@@ -107,7 +108,9 @@ def test_a_home_line_that_gives_a_thread_id_is_refused(kitchen):
 def test_home_uncategorized_and_home_of_a_scope_are_queued(kitchen):
     assert adds(kitchen, "at-catch", complete("at-catch", "Home: uncategorized\n"))[0] == 0
     assert adds(kitchen, "at-flow", complete("at-flow", f"Home: {SCOPE}\n"))[0] == 0
-    assert adds(kitchen, "fl-own", complete("fl-own", f"Home: {SCOPE}\n"), "--from", FLOW)[0] == 0
+    fl_own = complete("fl-own", f"Home: {SCOPE}\n")
+    added = adds(kitchen, "fl-own", fl_own, "--from", FLOW, "--entry", "fl-epic")
+    assert added[0] == 0, added
     un_own = complete("un-own", "Home: uncategorized\n")
     assert adds(kitchen, "un-own", un_own, "--from", "")[0] == 0
     assert sorted(queued(kitchen)) == ["at-catch", "at-flow", "fl-own", "un-own"]

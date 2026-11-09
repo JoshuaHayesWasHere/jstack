@@ -160,6 +160,8 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
         home_fault = queue.owned(
             config.home(project), project.name, args.slug, text, args.adder, args.handed
         )
+        if args.adder is not None and not home_fault:
+            plan.filed_under(config.home(project), state, args.slug, text, args.entry or "")
         release = blockers.admit(config, project, args.slug, text)
         try:
             named = _item(state, args.slug, args.item or "")
