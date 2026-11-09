@@ -16,10 +16,12 @@ head that holds the tip already is the tree its check ran on, so nothing is buil
 tree that a successful check of this repo already tested over the same tip runs nothing either:
 CI's check runs a superset of the guards, plus the lint, on GitHub's merge of the head over the
 tip, and leaves an artifact named by the two trees (`green.checked`), so the guards would only run
-a part of that pass again (58 of 97 guard runs from 2026-11-06 to 11-08). A pass, a failure, or a stop at the time limit of the guards on
-a head over a tip is kept in `merged-trees.json`, so a held pull request is not run again until its
-head or the tip moves. A stopped tree is kept too, since running it again on the next run spends
-that run's time on the same tree and leaves every other pull request waiting (#1103 on 2026-11-05).
+a part of that pass again (58 of 97 guard runs from 2026-11-06 to 11-08).
+
+A pass, a failure, or a stop at the time limit of the guards on a head over a tip is kept in
+`merged-trees.json`, so a held pull request is not run again until its head or the tip moves. A
+stopped tree is kept too, since running it again on the next run spends that run's time on the
+same tree and leaves every other pull request waiting (#1103 on 2026-11-05).
 """
 
 from __future__ import annotations
