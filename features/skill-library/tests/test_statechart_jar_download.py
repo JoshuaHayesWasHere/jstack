@@ -7,6 +7,7 @@ import http.server
 import threading
 
 import pytest
+
 from statechart_support import statechart_tools
 
 JAR = b"PK\x03\x04 a stand-in for tla2tools.jar"
@@ -37,7 +38,7 @@ def release(tmp_path, monkeypatch):
     host, port = server.server_address
     monkeypatch.setattr(statechart_tools, "TLA2TOOLS_URL", f"http://{host}:{port}/tla2tools.jar")
     monkeypatch.setattr(statechart_tools, "TLA2TOOLS_SHA256", hashlib.sha256(JAR).hexdigest())
-    monkeypatch.setattr(statechart_tools, "DOWNLOAD_WAITS", (0, 0, 0), raising=False)
+    monkeypatch.setattr(statechart_tools, "DOWNLOAD_WAITS", (0, 0, 0))
     for name in ("TLA2TOOLS", "STATECHART_OFFLINE"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))

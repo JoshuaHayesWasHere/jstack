@@ -8,6 +8,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
+import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,6 +19,9 @@ TLA2TOOLS_URL = (
     f"https://github.com/tlaplus/tlaplus/releases/download/v{TLA2TOOLS_VERSION}/tla2tools.jar"
 )
 TLA2TOOLS_SHA256 = "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88"
+# The seconds `download_jar` waits before each fetch again of a jar the release server did not
+# send: GitHub's release download answered a check's part 504 (run 42584414866).
+DOWNLOAD_WAITS = (2, 5, 10)
 
 # TLC's workers for a run that checks a rule, unless TLC_WORKERS names another count. Never
 # `auto`, which starts one for each core: several such runs at once loaded a 24-core machine to 126.
@@ -106,13 +111,31 @@ def find_java():
         return shutil.which("java")
 
 
+def fetch_jar(handle):
+    """Writes the jar at TLA2TOOLS_URL to `handle`, fetching it again after each wait of
+    DOWNLOAD_WAITS when a fetch fails on anything but an answer under 500, such as a 504, a
+    timeout or a reset connection."""
+    for wait in (*DOWNLOAD_WAITS, None):
+        try:
+            with urllib.request.urlopen(TLA2TOOLS_URL, timeout=120) as r:
+                shutil.copyfileobj(r, handle)
+            return
+        except OSError as e:
+            if wait is None or (isinstance(e, urllib.error.HTTPError) and e.code < 500):
+                raise
+            print(f"Fetching tla2tools.jar failed: {e}. Trying again in {wait} s.", file=sys.stderr)
+            time.sleep(wait)
+            handle.seek(0)
+            handle.truncate()
+
+
 def download_jar(target):
     print(f"Downloading tla2tools.jar {TLA2TOOLS_VERSION} to {target}.", file=sys.stderr)
     target.parent.mkdir(parents=True, exist_ok=True)
     fd, part = tempfile.mkstemp(dir=target.parent, prefix=".tla2tools-")
     try:
-        with os.fdopen(fd, "wb") as handle, urllib.request.urlopen(TLA2TOOLS_URL, timeout=120) as r:
-            shutil.copyfileobj(r, handle)
+        with os.fdopen(fd, "wb") as handle:
+            fetch_jar(handle)
         with open(part, "rb") as handle:
             got = hashlib.sha256(handle.read()).hexdigest()
         if got != TLA2TOOLS_SHA256:
