@@ -13,7 +13,9 @@ import pytest
 import jbus
 import jsettings
 from jbriefs import findings
-from jbus import expedite, merge
+from jbus import expedite, merge, strays, telemetry
+from jbus.view.panels.checks import panel as checks
+from jbus.view.panels.pulse import panel as pulse
 from jmerge import ready
 from jroles import ledger
 from test_jbus_kitchen import GATE, NOW, PROJECT, asks
@@ -23,9 +25,28 @@ from test_pr_review_skill import ASKED, block
 from testing.layouts import assembled
 from testing.paths import REPO
 
+
+@pytest.fixture
+def host_unread(tmp_path, monkeypatch):
+    """A test of what jbus tells a crew or the home over many passes uses this, so that a pass
+    reads nothing of the machine that runs the test, and syncs no file it writes to disk. A pass
+    otherwise lists the host's processes from /proc for strays (`jbus.strays`), asks the host's
+    systemd for the runner units and jbus's timer for the view (here it answers nothing, as a
+    systemd that does not answer), fsyncs each state file it writes, and builds the telemetry
+    store (`jbus.telemetry`): of the 140 ms a pass took at the desk, these were some two thirds,
+    and none of them is what such a test asserts. A test of the leftover sweep, of the view's
+    panels or of the telemetry store uses the real ones."""
+    proc = tmp_path / "no-processes"
+    proc.mkdir()
+    monkeypatch.setattr(strays, "ROOT", proc)
+    monkeypatch.setattr(checks, "runners", lambda read: None)
+    monkeypatch.setattr(pulse, "systemd", lambda read: None)
+    monkeypatch.setattr(os, "fsync", lambda fd: None)
+    monkeypatch.setattr(telemetry, "_pass", lambda config, say: None)
+
+
 pytestmark = pytest.mark.usefixtures("host_unread")
-"""Each test runs many passes, and what a pass reads of the machine is none of what it asserts
-(`test_jbus_kitchen.host_unread`)."""
+"""Each test runs many passes, and what a pass reads of the machine is none of what it asserts."""
 
 URL = "https://example.test/pull/7"
 DONE = "\n## Result\nStatus: done\nBranch: alpha   Pull request: {url}\nLeft: none\n"

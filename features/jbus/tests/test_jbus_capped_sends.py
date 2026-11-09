@@ -13,7 +13,7 @@ import pytest
 from jbus import children
 from jroles import ledger
 from test_jbus_chains import queue_add
-from test_jbus_expedite import Short, later
+from test_jbus_expedite import Short, host_unread, later
 from test_jbus_failover import PRIME
 from test_jbus_github import failed, pull
 from test_jbus_held import REASON, Held
@@ -25,9 +25,9 @@ from test_jbus_row_ends import listed
 from test_jbus_stack import LINK, MERGE
 from test_jbus_stack import pulls as stack
 
-pytestmark = pytest.mark.usefixtures("host_unread")
+pytestmark = pytest.mark.usefixtures(host_unread.__name__)
 """Each test runs many passes, and what a pass reads of the machine is none of what it asserts
-(`test_jbus_kitchen.host_unread`)."""
+(`test_jbus_expedite.host_unread`)."""
 
 RESETS = NOW + timedelta(minutes=40)
 """The reset of the cap: after every pass a test runs inside it, and before the one after."""
