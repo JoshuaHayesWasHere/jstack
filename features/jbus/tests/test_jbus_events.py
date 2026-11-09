@@ -263,6 +263,7 @@ TABLE = {
     "collisions": "quiet",
     "worktree-removed": "quiet",
     "work-drift": "quiet",
+    "illegal-move": "quiet",
 }
 
 
