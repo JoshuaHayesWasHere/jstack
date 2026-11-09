@@ -84,6 +84,7 @@ A skill runs each of these inside a thread, and you do not type them.
 
 | Verb | What it does |
 |---|---|
+| `jbus brief new <brief>`, `jbus brief set <brief> [--result] <Label:> <value>`, `jbus brief append <brief>` | The one writer of a brief, `tasks/<slug>.md`, or of a scout's request, `scouts/<slug>.md`, given by its path. `jbus brief new` writes the whole brief from stdin, and refuses a brief a thread has taken up: one with a `Thread:` line in its head or a `## ` section. `jbus brief set` puts one line in the head, the lines above the first `## `: it replaces the line of that label, or adds the line after the head's last line. With `--result` it does the same in the last Result. A label that heads a list, such as `Done when:`, is refused, and a value that starts with `-` goes after `--`. `jbus brief append` adds the lines on stdin at the end of the last Result, before any section after it, or at the end of the brief where stdin starts with `## ` or the brief has no Result. Each prints the line it wrote, or `unchanged:` where `new` or `set` found the brief as asked. `set` and `append` refuse a brief that is not there and exit 1. A crew, a reviewer, a scout and a home all run it, and it reads no config. [The brief's lock](#the-briefs-lock) says how writers at once all keep their lines. |
 | `jbus done <slug>` | Sends a thread's result now, with its lines on stdin. |
 | `jbus forget [--dir] <path>...` | Deletes the files a skill's step names, so that no step holds an `rm` for Claude Code to stop on. It deletes a path only inside the homes' state (`JBUS_HOME_DIR`, `~/.local/state/home`) or the git directory of the repo it runs in, and checks every path before it deletes any. Any other path is refused with a line that names it, nothing is deleted, and it exits 2. A directory is refused too, but with `--dir`, which removes it when it is empty. A path that is not there is no error. It prints each path it removed. |
 | `jbus gate <slug>` | Keeps a question for you, with its lines on stdin, and gives it a number, or writes a crew's or a scout's gate with no `Holds:` line to its brief as a decision and asks you nothing, or refuses it with `settled:` where a rule answers the question and with `not sent:` where its default waits for your word. A crewmate or a scout runs it ([Questions](questions.md)). |
@@ -92,6 +93,15 @@ A skill runs each of these inside a thread, and you do not type them.
 | `jbus playbook <role> <brief> [--name <name>] [--named]` | Opens the playbook a brief, a request or a plan names on its `Playbook:` line, for the role that runs it: `crewmate`, `scout`, `reviewer`, `home` or `expert`. For a crewmate or a scout it prints the playbook's path and its numbered steps. It also prints a `has` or `lacks` line for each line the playbook's `Run by:` asks the brief to have, and the name and path of each principle the playbook cites, not its text. For the home it prints the path and an `asks of its brief:` line for each such line. For an expert it prints the path alone. For a reviewer it prints the playbook's name and the name and path of each cited principle. With no playbook to open, it prints one line that says why, `no playbook`, or `not <role>'s` for a playbook of another role. `--name` names the playbook in place of the line, and `--named` prints the line's name and opens nothing. It is the one way a skill opens a playbook. |
 | `jbus stop <own row> --on <row or #pr> --holds <case> --from <thread id> <what the root must clear>`, `jbus stop answer <scope> <own row> <answer> --from <thread id>` | A scoped home's one way to reach the root home: a stop on its own open row, held by another home's open row or, with `--outside <what>`, by something no home owns. A stop carries only a one-way door: `--holds` names a case of [the gates table](../../../home/templates/gates.md) word for word, and a stop with no `--holds`, or with a case the table does not have, is refused. Anything else the home tells the user directly from its own thread. The root answers with `jbus stop answer`, and [Scoped homes](../../../home/skills/home/scoped-homes.md) has the rest. |
 | `jbus told <directory>` | Ends a home's turn. It reads the turn's lines on stdin, one a line with its kind first, and prints `say: <line>` for each decision and stop whose key it has not told before, in their order, or `silent: end the turn with no message` when there is none. It keeps each one told in `told` in the home's directory, and a `cleared local <slug>:` line takes that slug's `local` lines out. A line whose kind or key it cannot read is refused with a `refused:` line that names it, nothing is marked told, and it exits 2. The home skill's "How a turn ends" gives the lines. |
+
+## The brief's lock
+
+Every write of `jbus brief` holds the brief's lock from its read of the brief to its write.
+The lock is one file for each brief, `<home>/.locks/<kind>-<slug>.lock`, such as `.locks/tasks-alpha.lock`, so writers of two briefs never wait on each other.
+The write goes to a temp file beside the brief and then replaces it, so a reader sees the old brief or the new one, never half of one.
+A writer that waits for the lock then reads the brief as the last writer left it, so no write drops a line another wrote.
+The lock is held for one read and one write, and a writer waits for it with no time limit.
+A caller that holds another lock, such as `queue.lock`, takes the brief's lock inside it, and nothing takes a lock while it holds a brief's.
 
 ## Times, projects and stdin
 
@@ -105,6 +115,7 @@ These verbs take no project of their own, and read none, every project, or the o
 <!-- built: none -->
 - `jbus alarm`
 - `jbus bot`
+- `jbus brief`
 - `jbus budget`
 - `jbus digest`
 - `jbus flow`
@@ -135,6 +146,8 @@ These verbs take no project of their own, and read none, every project, or the o
 These verbs read stdin, and wait for it when nothing is piped in:
 
 <!-- built: piped -->
+- `jbus brief append`
+- `jbus brief new`
 - `jbus done`
 - `jbus gate`
 - `jbus queue add`
