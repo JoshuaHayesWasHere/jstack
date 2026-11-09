@@ -47,6 +47,7 @@ from jbus import (
     rebase,
     strays,
     t3,
+    telemetry,
     tick,
     verbs,
     wake,
@@ -764,15 +765,17 @@ def host_unread(tmp_path, monkeypatch):
     reads nothing of the machine that runs the test, and syncs no file it writes to disk. A pass
     otherwise lists the host's processes from /proc for strays (`jbus.strays`), asks the host's
     systemd for the runner units and jbus's timer for the view (here it answers nothing, as a
-    systemd that does not answer), and fsyncs each state file it writes: of the 140 ms a pass took
-    at the desk, these were about half, and none of them is what such a test asserts. A test of
-    the leftover sweep or of the view's panels uses the real ones."""
+    systemd that does not answer), fsyncs each state file it writes, and builds the telemetry
+    store (`jbus.telemetry`): of the 140 ms a pass took at the desk, these were some two thirds,
+    and none of them is what such a test asserts. A test of the leftover sweep, of the view's
+    panels or of the telemetry store uses the real ones."""
     proc = tmp_path / "no-processes"
     proc.mkdir()
     monkeypatch.setattr(strays, "ROOT", proc)
     monkeypatch.setattr(checks, "runners", lambda read: None)
     monkeypatch.setattr(pulse, "systemd", lambda read: None)
     monkeypatch.setattr(os, "fsync", lambda fd: None)
+    monkeypatch.setattr(telemetry, "_pass", lambda config, say: None)
 
 
 class Kitchen:
