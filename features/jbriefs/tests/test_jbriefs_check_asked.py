@@ -59,3 +59,13 @@ def test_a_bare_make_check_is_warned_of_when_fresh_check_names_another_command(
 )
 def test_the_check_command_or_no_fresh_check_is_not_warned_of(kitchen, done, check):
     assert added(kitchen, done, check) == []
+
+
+def test_a_bare_make_check_under_a_make_check_fast_is_warned_of_once_as_the_whole_suite():
+    """Where `fresh-check` names a `make check-fast`, a bare `make check` line is the whole suite at
+    the desk: `jbriefs.parse.warnings` gives that one warning, and no check-command warning."""
+    from jbriefs import parse
+
+    warned = [line for line in parse.warnings(brief("alpha"), FAST) if "make check" in line]
+    assert len(warned) == 1
+    assert warned[0].startswith("brief's Done when: and Proves it: runs the whole suite")
