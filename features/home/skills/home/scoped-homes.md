@@ -1,7 +1,6 @@
 ## Scoped homes
 
 A scoped home, a child of the root home, is a home like any other, for one goal: it plans and launches its own tasks by this skill, from its own directory, and carries each row the root queues in it.
-`uncategorized` is the child of every row no other child's goal claims, and the root's start makes it ("When a home starts", step 1).
 The root home investigates, hypothesises, sends scouts and briefs with the user, queues each row in a child ("Queueing a row in a child" below), and reads its children when the user asks ("Reading the scopes").
 It waits on no wake: a child's Results, stalls and decisions go to the child, and the child tells the user its own decisions and stops.
 jbus merges a scoped home's pull requests as it merges the root home's, and no home merges its own ("Merging a pull request that is ready").
@@ -30,7 +29,7 @@ A scoped home gives each brief and request a slug that starts with its prefix, t
 **`uncategorized`** is the scope name reserved for the catch-all.
 The root home owns no row: every brief whose `Home:` line names no live scope, `root`, or none at all, is `uncategorized`'s, and so is every slug no other scope's prefix claims (`features/jbriefs/src/jbriefs/home.py`).
 It has no `prefix` file, so it overlaps no other scope's prefix, and two other scopes still may not overlap each other.
-It is made like any scope ("Making a scope"), with nothing in place of `<prefix>`, and its home starts with `/home uncategorized` like any scoped home's.
+The root's start makes it beside a project's first home and launches its home ("When a home starts", step 1); "Making a scope" makes it too, with nothing in place of `<prefix>`, and its home starts with `/home uncategorized` like any scoped home's.
 Until it has a home of its own, the root home's thread stands in for it: jbus sends the root what it would send `uncategorized`, and `jbus clear` and the root's start list its rows.
 
 **Stopping on the root** is a scoped home's, only for a one-way door, and the only way it reaches the root.
