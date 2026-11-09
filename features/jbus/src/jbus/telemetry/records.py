@@ -11,8 +11,8 @@ A source is a `log` or a `snapshot`:
   (`jbus.telemetry.waits`), `outbox.jsonl`, `ci.jsonl`, `review-rounds.jsonl` (`jbus.reviewed`), the
   home's `merge.log` and `merge-waits.jsonl` (`jmerge.waits`), `stalls.jsonl`, each spell a row's
   thread was quiet or hung (`jbus.stall.spells`) after the line of when the record began, and the
-  machine's `passes.jsonl`, the seconds of each pass (`jbus.record`), and `drift.jsonl`, each probe
-  of a standing word in each run (`jbus.drift`).
+  machine's `passes.jsonl`, the seconds of each pass, of each of its steps and of its children
+  (`jbus.record`), and `drift.jsonl`, each probe of a standing word in each run (`jbus.drift`).
   A row's key is the hash of the line, as JSON with sorted keys (as text for `merge.log`), and
   of how many equal lines come before it, as `jbus.wake.entries` names an event. So two equal
   lines are two rows, and a line read again, as after the daily trim rewrites `events.jsonl`, is
@@ -107,11 +107,24 @@ def _asks(verb: object, words: object) -> str | None:
     return asks.label(words if isinstance(words, str) else None)
 
 
+def _seconds(given: object) -> float | None:
+    return given if isinstance(given, int | float) and not isinstance(given, bool) else None
+
+
 def _passes(one: Row, zone: tzinfo | None) -> Row:
-    seconds = one.get("seconds")
+    """A pass: its seconds, the CPU seconds of its children, and `step_times`, each step's
+    `[wall, cpu]` as JSON, which the view `pass_steps` reads a row a step. A step whose figures
+    are not two numbers is left out."""
+    steps = {
+        name: [_seconds(took[0]), _seconds(took[1])]
+        for name, took in sorted(_dict(one.get("steps")).items())
+        if isinstance(took, list) and len(took) == 2 and None not in map(_seconds, took)
+    }
     return {
         "at": utc(one.get("at"), zone),
-        "seconds": seconds if isinstance(seconds, int | float) else None,
+        "seconds": _seconds(one.get("seconds")),
+        "step_times": json.dumps(steps) if steps else None,
+        "children": _seconds(one.get("children")),
     }
 
 
@@ -718,7 +731,14 @@ SOURCES: tuple[Source, ...] = (
         records=keyed("red"),
         natural="red",
     ),
-    Source("passes", "passes.jsonl", "log", _columns("at", "seconds"), _passes, where="machine"),
+    Source(
+        "passes",
+        "passes.jsonl",
+        "log",
+        _columns("at", "seconds", "step_times", "children"),
+        _passes,
+        where="machine",
+    ),
     Source(
         "review_rounds",
         "review-rounds.jsonl",

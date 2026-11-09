@@ -12,13 +12,16 @@ order. All first halves end before the launches, the chores run alone, and `halv
 of the config. What a project writes is under its own state directory, what the machine shares is
 kept under a lock file (`jsettings.store.locked`), and a step marked `shared` decides from what
 the machine shares, so it runs in one project at a time. Each client's session ends with the pass.
+
+The pass times each of its parts, each step of each half and each project's whole half, into the
+record's `Steps` (`jbus.record`), which `passes.jsonl` keeps. Timing a step changes nothing it does.
 """
 
 from __future__ import annotations
 
 import threading
 from collections.abc import Callable
-from contextlib import ExitStack
+from contextlib import AbstractContextManager, ExitStack
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import Any
@@ -44,6 +47,8 @@ from jbus import (
 from jsettings import store
 
 LAUNCH = "the launch"
+FIRST = "first halves"
+SECOND = "second halves"
 _SHARED = threading.Lock()
 """Held while a step marked `shared` runs, so a project's step sees all that another project's
 step recorded this pass."""
@@ -53,7 +58,8 @@ step recorded this pass."""
 class Half:
     """A `Half` is the state of one pass that its steps, the dispatch and its second half read.
 
-    `first_half` makes it when the pass starts. The pass fills it in as it runs its fixed steps in
+    `first_half` makes it when the pass starts, with the `Steps` its steps' seconds go to, under
+    the part of the pass it is `within`. The pass fills it in as it runs its fixed steps in
     order, so a step reads what the fixed steps had set when its slot comes (`verbs.SLOTS`). `held`
     is the keys of the questions on record, or None where `questions.json` does not parse. `turns`
     is set when the project may launch: T3 Code and GitHub answered and the queue parses. `blind`
@@ -87,6 +93,12 @@ class Half:
     users: merge.Said = field(default_factory=merge.Said)
     roots: list[waiting.Item] = field(default_factory=list)
     listed: list[waiting.Item] | None = None
+    times: record.Steps = field(default_factory=record.Steps)
+    within: str = FIRST
+
+    def timed(self, name: str) -> AbstractContextManager[None]:
+        """Time a step of this half, under the part of the pass it runs in."""
+        return self.times.timed(f"{self.within}/{name}")
 
     def answered(self) -> work.Answered:
         """Return which of T3 Code and GitHub answered the pass. When T3 Code is silent the
@@ -109,13 +121,16 @@ def steps(half: Half, slot: str) -> None:
         if not all(has[need] for need in step.needs):
             continue
         if step.shared:
-            with _SHARED:
+            with _SHARED, half.timed(step.name):
                 step.run(half)
         else:
-            step.run(half)
+            with half.timed(step.name):
+                step.run(half)
 
 
-def first_half(run: passes.Pass, client: t3.Client | None) -> Half:
+def first_half(
+    run: passes.Pass, client: t3.Client | None, times: record.Steps | None = None
+) -> Half:
     """Run a project's pass up to any launch: merge, read, ask, and say what it found.
 
     This function runs the fixed steps of the pass in order, with a call to `steps` per slot. What
@@ -123,36 +138,43 @@ def first_half(run: passes.Pass, client: t3.Client | None) -> Half:
     branch and no `crew: ` thread, and `jbus.scouts` launches it.
     """
     name = run.project.name
-    half = Half(run, client)
+    half = Half(run, client) if times is None else Half(run, client, times=times)
     steps(half, "before-watch")
-    half.said = merge.merge(run)
-    try:
-        half.rows = queue.load(run.state)
-    except queue.Unparsable as error:
-        half.blind = error.path == queue.removed_path(run.state)
-        run.gate(name, f"{error.path.name} does not parse", str(error.path))
-    try:
-        half.held = frozenset(one.key for one in questions.read(run.state))
-    except questions.Unparsable:
-        run.gate(name, "questions.json does not parse", str(questions.path(run.state)))
+    with half.timed("merge.merge"):
+        half.said = merge.merge(run)
+    with half.timed("queue.load"):
+        try:
+            half.rows = queue.load(run.state)
+        except queue.Unparsable as error:
+            half.blind = error.path == queue.removed_path(run.state)
+            run.gate(name, f"{error.path.name} does not parse", str(error.path))
+    with half.timed("questions.read"):
+        try:
+            half.held = frozenset(one.key for one in questions.read(run.state))
+        except questions.Unparsable:
+            run.gate(name, "questions.json does not parse", str(questions.path(run.state)))
     crew = [row for row in half.rows or [] if queue.role(row) == queue.CREW]
-    half.seen = watch.look(run, client, crew)
+    with half.timed("watch.look"):
+        half.seen = watch.look(run, client, crew)
     if half.blind:
         half.seen = replace(half.seen, world=None)
     run.world = half.seen.world
     if half.seen.world is not None and client is not None:
-        archived.ask(run, client, half.seen.world, crew)
+        with half.timed("archived.ask"):
+            archived.ask(run, client, half.seen.world, crew)
     steps(half, "tellers")
     rows, world = half.rows, half.seen.world
     if world is not None and client is not None:
-        half.gone = frozenset(
-            row["slug"]
-            for row in crew
-            if watch.gone(run, world, row["slug"], dispatch.launched(run, row["slug"]))
-        )
+        with half.timed("watch.gone"):
+            half.gone = frozenset(
+                row["slug"]
+                for row in crew
+                if watch.gone(run, world, row["slug"], dispatch.launched(run, row["slug"]))
+            )
     steps(half, "after-expedite")
     if world is not None and client is not None and rows is not None:
-        half.turns = dispatch.turns(run, client, world, rows, half.seen.out or ())
+        with half.timed("dispatch.turns"):
+            half.turns = dispatch.turns(run, client, world, rows, half.seen.out or ())
     return half
 
 
@@ -162,13 +184,15 @@ def second_half(half: Half, client: t3.Client | None) -> None:
     This function runs the fixed steps of the pass in order, with a call to `steps` per slot.
     """
     run, rows, world = half.run, half.rows, half.seen.world
+    half.within = SECOND
     half.derived = world is not None and client is not None and rows is not None
     half.read = half.turns is not None and not half.turns.left
     half.table = rows
     steps(half, "derive")
     steps(half, "after-derive")
     steps(half, "close")
-    alert.flush(run)
+    with half.timed("alert.flush"):
+        alert.flush(run)
 
 
 def _whole(say: Callable[[str], None]) -> Callable[[str], None]:
@@ -215,6 +239,7 @@ def poll(
         last = jbus.read_json(config.status_path, {})
         raised: dict[str, str] = {}
         kept = record.Record(config, now)
+        part = kept.steps.part
 
         def recorded(step: Callable[[], None]) -> None:
             try:
@@ -222,7 +247,8 @@ def poll(
             except Exception as error:
                 say(f"pass record failed: {alert.why(error, config)}")
 
-        recorded(kept.start)
+        with part("start"):
+            recorded(kept.start)
 
         def guarded(name: str, step: Callable[[], Any]) -> Any:
             try:
@@ -233,28 +259,40 @@ def poll(
                 return None
 
         def first(project: jbus.Project) -> Half:
-            run = passes.Pass(config, project, now, say)
-            record.heartbeat(run, last)
-            own = t3.Client(config.server, config.token_path) if client else None
-            if own is not None:
-                lock.callback(own.close)
-            return first_half(run, own)
+            with kept.steps.timed(f"{FIRST}/project {project.name}"):
+                run = passes.Pass(config, project, now, say)
+                record.heartbeat(run, last)
+                own = t3.Client(config.server, config.token_path) if client else None
+                if own is not None:
+                    lock.callback(own.close)
+                return first_half(run, own, kept.steps)
 
-        halves = passes.side_by_side(lambda p: guarded(p.name, lambda: first(p)), config.projects)
+        def second(half: Half) -> None:
+            with kept.steps.timed(f"{SECOND}/project {half.run.project.name}"):
+                second_half(half, half.client)
+
+        with part(FIRST):
+            halves = passes.side_by_side(
+                lambda p: guarded(p.name, lambda: first(p)), config.projects
+            )
         halves = [half for half in halves if half is not None]
         if raised:
             say(f"wait: crews out not known ({', '.join(sorted(raised))}: the pass raised)")
         else:
-            guarded(LAUNCH, lambda: rotation.share(config, halves, say))
+            with part(LAUNCH):
+                guarded(LAUNCH, lambda: rotation.share(config, halves, say))
         for chore in CHORES:
-            guarded(chore.name, lambda chore=chore: chore.run(config, client, now, say))
-        passes.side_by_side(
-            lambda half: guarded(half.run.project.name, lambda: second_half(half, half.client)),
-            halves,
-        )
+            with part(chore.name):
+                guarded(chore.name, lambda chore=chore: chore.run(config, client, now, say))
+        with part(SECOND):
+            passes.side_by_side(
+                lambda half: guarded(half.run.project.name, lambda: second(half)), halves
+            )
         if not raised:
-            guarded(alert.PASS, lambda: alert.recovered(config, say))
-        record.write_status(config, now, last, raised, say)
+            with part(alert.PASS):
+                guarded(alert.PASS, lambda: alert.recovered(config, say))
+        with part("status"):
+            record.write_status(config, now, last, raised, say)
         recorded(lambda: kept.end(record.saw(halves), record.silent(halves)))
     return 1 if raised else 0
 

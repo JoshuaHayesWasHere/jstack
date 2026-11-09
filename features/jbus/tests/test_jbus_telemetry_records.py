@@ -409,3 +409,37 @@ def test_launch_waits_splits_a_rows_go_to_launch_by_the_kind_of_each_reason(mach
         dispatch.UNKNOWN: "none",
     }
     assert {why: waits.kind(why) for why in said} == said
+
+
+def test_pass_steps_gives_each_step_of_each_pass_its_wall_and_cpu_seconds(machine):
+    """A pass's line names each step's `[wall, cpu]` seconds; a step whose figures are not two
+    numbers is left out, and a line from before the steps were timed has no step."""
+    lines = [
+        {"at": iso(NOW), "seconds": 30.2},
+        {
+            "at": iso(NOW + timedelta(minutes=1)),
+            "seconds": 31.0,
+            "steps": {
+                "first halves": [20.5, 18.25],
+                "first halves/watch.look": [12.0, 1.5],
+                "broken": [1.0],
+            },
+            "children": 9.75,
+        },
+    ]
+    (machine.state_dir / "passes.jsonl").write_text(
+        "".join(f"{json.dumps(one)}\n" for one in lines)
+    )
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        steps = store.execute(
+            "SELECT project, at, step, seconds, cpu FROM pass_steps ORDER BY step"
+        ).fetchall()
+        children = store.execute("SELECT children FROM passes ORDER BY at").fetchall()
+    at = iso(NOW + timedelta(minutes=1))
+    assert [(project, step, seconds, cpu) for project, _, step, seconds, cpu in steps] == [
+        ("", "first halves", 20.5, 18.25),
+        ("", "first halves/watch.look", 12.0, 1.5),
+    ]
+    assert {when[:16] for _, when, *_ in steps} == {at[:16]}
+    assert children == [(None,), (9.75,)]
