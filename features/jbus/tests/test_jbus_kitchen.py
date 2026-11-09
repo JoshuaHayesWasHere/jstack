@@ -33,27 +33,13 @@ from pathlib import Path
 import pytest
 
 import jbus
+import jbus.passes
+import jbus.questions
 import jsettings
 import origin_tips
 import repo_template
 from jbriefs import meaning
-from jbus import (
-    acts,
-    cli,
-    live,
-    outbox,
-    party,
-    passes,
-    poll,
-    questions,
-    queue,
-    rebase,
-    t3,
-    tick,
-    verbs,
-    wake,
-    word,
-)
+from jbus import acts, cli, live, outbox, party, poll, queue, rebase, t3, tick, verbs, wake, word
 from jgauge import slot, waiters
 from jmerge import judgement
 from jroles import ledger
@@ -1022,13 +1008,11 @@ class Kitchen:
         return code, out.getvalue()
 
     def raises(self, slug, lines, project="demo"):
-        """Keep `lines` as a question of `slug` the way a pass raises one (`questions.park`), on
-        the clock `jbus gate` reads, and return the record and whether it is new. `jbus gate`
-        asks nothing of a gate with no `Holds:` line from a crew's or a scout's row, so a test of
-        what a kept question does starts here."""
+        """Keep `lines` as `slug`'s question as a pass raises one: `jbus gate` asks nothing of a
+        crew's or a scout's gate with no `Holds:` line. Return the record and whether it is new."""
         config = jbus.load()
-        run = passes.Pass(config, config.project(project), questions.datetime.now(UTC))
-        return questions.park(run, slug, lines.strip())
+        run = jbus.passes.Pass(config, config.project(project), jbus.questions.datetime.now(UTC))
+        return jbus.questions.park(run, slug, lines.strip())
 
     def marks(self):
         return jbus.read_json(self.state / "wake.json", {})

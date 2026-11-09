@@ -654,17 +654,25 @@ def test_a_homes_go_gate_on_a_crews_row_waits_its_quiet_window_on_the_list(
     assert questions.question(home.kitchen.state, 1).answer.closed_by == questions.SILENCE
 
 
-QUESTION_259 = """\
-## Gate <n>: Should #1297 wait for #1292 to merge, rather than drop --message from the root's queue step to go green now?
-Status: open
-Asked by: rh-root-skill, thread mcp:crew-rh-root-skill
-Default: #1297 waits; no rerun and no commit, and its check goes green once #1292 puts jbus queue add --message on main
-Built on it: pull request 1297 at 138899afe90a, whose scoped-homes.md queue block passes --message
-Undo: drop --message from the queue block in scoped-homes.md and its test, in one commit on #1297
-Context: check 5 of 8 fails only test_docs_true[scoped-homes.md] because --message lands with #1292 (rh-approve-at-queue, open); a rerun fails the same way; https://github.com/JoshuaHayesWasHere/jstack/pull/1297
-Option: wait for #1292 (default, recommended): the brief asks for the user's message at queue time, and the row already merges after rh-approve-at-queue
-Option: drop --message now: #1297 goes green at once, and the root's queue step approves no row until a follow-up adds it back
-"""  # noqa: E501
+QUESTION_259 = (
+    "## Gate <n>: Should #1297 wait for #1292 to merge, rather than drop --message "
+    "from the root's queue step to go green now?\n"
+    "Status: open\n"
+    "Asked by: rh-root-skill, thread mcp:crew-rh-root-skill\n"
+    "Default: #1297 waits; no rerun and no commit, and its check goes green once "
+    "#1292 puts jbus queue add --message on main\n"
+    "Built on it: pull request 1297 at 138899afe90a, whose scoped-homes.md queue "
+    "block passes --message\n"
+    "Undo: drop --message from the queue block in scoped-homes.md and its test, in "
+    "one commit on #1297\n"
+    "Context: check 5 of 8 fails only test_docs_true[scoped-homes.md] because "
+    "--message lands with #1292 (rh-approve-at-queue, open); a rerun fails the same "
+    "way; https://github.com/JoshuaHayesWasHere/jstack/pull/1297\n"
+    "Option: wait for #1292 (default, recommended): the brief asks for the user's "
+    "message at queue time, and the row already merges after rh-approve-at-queue\n"
+    "Option: drop --message now: #1297 goes green at once, and the root's queue step "
+    "approves no row until a follow-up adds it back\n"
+)
 
 
 def test_question_259_a_crews_wait_on_another_pull_request_puts_nothing_on_the_users_list(home):
