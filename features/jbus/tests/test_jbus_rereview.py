@@ -209,6 +209,17 @@ def test_a_capped_review_pool_launches_nothing_and_is_a_gate_once_until_it_has_r
     assert len(scoped(launched)) == 1 and keys(launched) == ["rereview|alpha|cccccccccccc"]
 
 
+def test_a_role_map_that_gives_the_review_no_model_launches_one_reviewer_that_inherits(
+    launched, jstack_config
+):
+    (jstack_config.parent / "roles").write_text("review: not a line the role map reads\n")
+    out(launched)
+    said = launched.poll()
+    (given,) = scoped(launched)
+    assert "modelSelection" not in given
+    assert any(line.startswith("note alpha: the role map gives the review no") for line in said)
+
+
 def test_a_launch_t3_code_refuses_marks_nothing_is_a_gate_once_and_goes_when_taken(launched):
     out(launched)
     launched.t3.refuse = "no more threads"
