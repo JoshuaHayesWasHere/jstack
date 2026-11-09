@@ -106,7 +106,10 @@ def test_the_two_measures_read_the_hours(machine):
 
 
 def test_a_log_of_neither_inode_is_read_from_its_start(machine):
-    append(machine, call("2026-11-09T10:05:00+00:00"))
+    """A line that is no JSON object, or names no time, counts toward no hour."""
+    append(machine, call("2026-11-09T10:05:00+00:00"), {"caller": "x"}, ["not", "a", "call"])
+    with open(machine.state_dir / CALLS, "a") as log:
+        log.write("{torn\n")
     machine.build()
     rotate(machine)
     append(machine, call("2026-11-09T10:06:00+00:00"))
