@@ -306,7 +306,8 @@ def test_a_line_written_before_pull_reads_it_from_its_kept_text_or_as_empty(mach
 
 
 def test_the_queue_keeps_who_queued_each_row_and_the_message_its_go_rests_on(machine):
-    """A store built before `v014_queue_joins` gains both columns on its next build, and the
+    """A store built before `jbus.telemetry.migrations.v014_queue_joins` gains both columns on
+    its next build, and the
     queue's rows it already holds are read again to fill them."""
     home = {"directory": "/home/u/repo", "session": "home-session"}
     jbus = {"by": "jbus", "session": ""}
