@@ -8,7 +8,8 @@ The root home does step 1 and no other: it queues the brief by "Queueing a row i
    The crewmate, and its reviewer when it must, read the id in that home's `home-id` each time they send, so the brief is not changed when the home hands off.
    A brief a scout wrote is already there: check that its `Home:` line is as this says and that its `Size:` line is its plan entry's size, set each if not, and go to step 2.
 
-   Its `Proves it:` line, under the "Done when" list, names what outside the agent shows the task is done: a test or a command, a metric, a dataset, an external judge or the user. `jbus queue add` queues no brief whose line names only the crew, the crewmate, the reviewer, the agent, the model or a review, or is empty.
+   Its `Proves it:` line, under the "Done when" list, names what outside the agent shows the task is done: a test or a command, a metric, a dataset, an external judge or the user.
+   `jbus queue add` queues no brief whose line names only the crew, the crewmate, the reviewer, the agent, the model or a review, or is empty.
    A crewmate's desk check is the crew skill's touched check, `make check-fast BASE=<base> PART=touched`: the lint and the test files the branch adds or edits.
    The whole suite, `make check-fast BASE=origin/main` with no `PART=` or `make check`, is CI's check on the pull request, never a desk step a brief asks for: it holds a full test slot for about 9 minutes, and CI runs it again.
    Write the line to name the touched check and the test the task adds, as `Proves it: the touched check passes, with the test the task adds, <its test file>`.
