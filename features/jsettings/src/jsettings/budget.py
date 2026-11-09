@@ -18,11 +18,14 @@ asked: `jmerge`'s merge and the reads it makes. `read` asks for it through the o
 (`jsettings.proc`), and `jbus budget` is the verb a thread runs before a loop of `gh` calls.
 
 Every response of GitHub's says what is left of the window it counts against, and the runner logs
-it with each `gh` call (`proc.CALLS`). `logged` reads each window's `remaining` from the newest
-line of that log for it, and asks `gh api rate_limit` only where a window has no line in the last
-`WITHIN` seconds, once for every process that reads it then. The log has no window's limit nor its
-reset, so `logged` keeps those from the last answer it asked for (`KEPT`), and asks again once
-that window has started again.
+it with each `gh` call (`proc.CALLS`). `logged` reads each window's `remaining` from the lines of
+that log of the last `WITHIN` seconds, and asks `gh api rate_limit` only where a window has none,
+once for every process that reads it then. GitHub keeps two counts of one window, which start
+again at different times and on 2026-11-08 stood up to 2,900 calls apart; a response gives either
+(`/actions/` endpoints the other one 43% of the time, `/rate_limit` itself 0.6%). So `logged`
+takes the lowest count of the last `WITHIN` seconds: never later to hold than either count. The
+log has no window's limit nor its reset, so `logged` keeps those from the last answer it asked for
+(`KEPT`), and asks again once that window has started again.
 """
 
 from __future__ import annotations
@@ -157,11 +160,11 @@ def read(asked: Ask = proc.ask) -> Budget | None:
 
 
 def logged(state: Path, within: float = WITHIN, asked: Ask = proc.ask) -> Budget | None:
-    """What is left of the budget, read where it can be from what GitHub said in the last
-    `within` seconds: the newest line of `proc.CALLS` under `state` for each window, or the kept
-    answer (`KEPT`) where it is newer. Where a window has neither, or the kept answer's window has
-    started again, it asks with `read`, once: a reader in another thread or process that finds the
-    ask going waits for its answer, and takes it. None is no answer."""
+    """What is left of the budget, from what GitHub said in the last `within` seconds: for each
+    window the lowest count of the lines of `proc.CALLS` under `state` and of the kept answer
+    (`KEPT`). Where a window has neither, or the kept answer's window has started again, it asks
+    with `read`, once: a reader in another thread or process that finds the ask going waits for
+    its answer, and takes it. None is no answer."""
     found = _logged(state, within)
     if found is not None:
         return found
@@ -186,12 +189,15 @@ def _logged(state: Path, within: float) -> Budget | None:
     budget = parse(json.dumps(kept))
     if budget is None or any(one.reset <= now for one in budget.windows):
         return None
-    seen = _newest(state / proc.CALLS, max(since, at))
-    if at < since and len(seen) < len(WINDOWS):
+    seen = _lowest(state / proc.CALLS, since)
+    if at >= since:
+        seen = {
+            one.name: min(one.remaining, seen.get(one.name, one.remaining))
+            for one in budget.windows
+        }
+    if len(seen) < len(WINDOWS):
         return None
-    return Budget(
-        tuple(replace(one, remaining=seen.get(one.name, one.remaining)) for one in budget.windows)
-    )
+    return Budget(tuple(replace(one, remaining=seen[one.name]) for one in budget.windows))
 
 
 @contextlib.contextmanager
@@ -229,9 +235,9 @@ def _keep(state: Path, budget: Budget) -> None:
         return
 
 
-def _newest(path: Path, since: datetime) -> dict[str, int]:
-    """The `remaining` of the newest line of the log at `path` for each of `WINDOWS`, of the lines
-    at or after `since`, read from the end back until each window has one or a line is older."""
+def _lowest(path: Path, since: datetime) -> dict[str, int]:
+    """The lowest `remaining` of each of `WINDOWS` in the lines of the log at `path` at or after
+    `since`, read from the end back to the first line before it."""
     found: dict[str, int] = {}
     with contextlib.ExitStack() as opened:
         try:
@@ -248,15 +254,13 @@ def _newest(path: Path, since: datetime) -> dict[str, int]:
             for line in reversed(lines):
                 if not _take(line, since, found):
                     return found
-                if len(found) == len(WINDOWS):
-                    return found
             end = start
     return found
 
 
 def _take(line: bytes, since: datetime, found: dict[str, int]) -> bool:
-    """Keep the line's `remaining` for its window where none is kept yet, and return whether the
-    line is at or after `since`, so that the lines before it are read too."""
+    """Keep the line's `remaining` for its window where it is the lowest yet, and return whether
+    the line is at or after `since`, so that the lines before it are read too."""
     try:
         one = json.loads(line)
         if datetime.fromisoformat(one["at"]) < since:
@@ -264,8 +268,8 @@ def _take(line: bytes, since: datetime, found: dict[str, int]) -> bool:
     except (ValueError, TypeError, KeyError):
         return True
     resource, remaining = one.get("resource"), one.get("remaining")
-    if resource in WINDOWS and isinstance(remaining, int) and resource not in found:
-        found[resource] = remaining
+    if resource in WINDOWS and isinstance(remaining, int):
+        found[resource] = min(remaining, found.get(resource, remaining))
     return True
 
 

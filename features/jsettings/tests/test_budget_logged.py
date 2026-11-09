@@ -91,6 +91,20 @@ def test_a_fresh_line_for_each_window_answers_with_no_call(state):
     assert github.asks == 1
 
 
+def test_of_github_s_two_counts_of_a_window_the_lowest_of_the_last_minute_answers(state):
+    """GitHub keeps two counts of each window, which start again at different times, and a
+    response gives either: the read takes the lower, the answer it asked for included, and none
+    older than a minute."""
+    github = GitHub(4000)
+    budget.logged(state, asked=github)
+    logs(state, "core", 2600, ago=61)
+    logs(state, "core", 3100)
+    logs(state, "core", 4300)
+    logs(state, "graphql", 4500)
+    assert remaining(budget.logged(state, asked=github)) == {"core": 3100, "graphql": 4000}
+    assert github.asks == 1
+
+
 def test_a_window_with_no_line_in_the_last_minute_is_asked_for_once(state):
     github = GitHub(4000)
     budget.logged(state, asked=github)
