@@ -19,9 +19,11 @@ import sys
 
 import pytest
 
-from repo_standard import owned
-from repo_standard.config import Config
-from repo_standard.tree import tracked
+from repo_standard import VERSION, owned
+from repo_standard.cli import main
+from repo_standard.config import Config, Refused, Stack, load
+from repo_standard.tree import Unreadable, tracked
+from repo_standard.upgrade import run as upgrade_run
 from test_skeleton_python import ADAPTER, INHERITED, SKELETON, STANDARD, git, make
 from testing.paths import REPO
 
@@ -201,3 +203,105 @@ def test_upgrade_runs_only_from_the_tool_of_the_version_it_moves_to(v1_repo, ups
     code, said = upgrade(root, env, tool, 3)
     assert code == 2
     assert "this tool is repo-standard-v2: run upgrade from the tool at repo-standard-v3" in said
+
+
+def test_upgrade_with_no_version_to_move_to_is_refused(v1_repo):
+    root, _ = v1_repo
+    with pytest.raises(SystemExit) as exit_:
+        main(["upgrade", "--root", str(root)])
+    assert exit_.value.code == 2
+
+
+def test_the_tools_own_upgrade_keeps_the_runner_and_gives_local_mk_an_owner(v1_repo, capsys):
+    """This tree's tool, in process, moves a repo of its own version to its copies."""
+    root, _ = v1_repo
+    config = root / ".repo-standard.yml"
+    config.write_text(re.sub(r"(?m)^standard: \d+$", f"standard: {VERSION}", config.read_text()))
+    assert main(["upgrade", "--to", str(VERSION), "--root", str(root), "--upstream", ""]) == 0
+    said = capsys.readouterr().out.splitlines()
+    assert "wrote Makefile" in said, said
+    assert (root / "Makefile").read_text().endswith(LOCAL_MAKE)
+    assert OWNS_LOCAL_MAKE in config.read_text()
+    caller = (root / ".github/workflows/check.yml").read_text()
+    assert f"runner: {RUNNER}" in caller and f"runs-on: {RUNNER}" in caller
+    assert main(["upgrade", "--to", str(VERSION), "--root", str(root), "--upstream", ""]) == 0
+    assert (
+        capsys.readouterr().out.splitlines()[-1].endswith("nothing to write; run `make lint` next")
+    )
+
+
+def test_upgrade_never_moves_a_pin_down(v1_repo):
+    root, _ = v1_repo
+    config = load(root)
+    above = Config(standard=VERSION + 1, owners=config.owners)
+    with pytest.raises(Refused, match="a pin only moves up"):
+        upgrade_run(root, above, tracked(root), VERSION, None)
+
+
+def test_a_repo_of_several_stacks_owns_each_adapters_scripts_and_no_stack_mk():
+    config = Config(stacks={"api": Stack("go", ("api",)), "app": Stack("python-uv", ("app",))})
+    found = owned.files(STANDARD, config, [], owned.Kind.OWNED)
+    assert {"scripts/go.py", "scripts/select.py"} <= set(found)
+    assert "scripts/stack.mk" not in found
+
+
+def test_another_versions_tree_is_cloned_once_into_the_cache(tmp_path, upstream, monkeypatch):
+    source, _, _ = upstream
+    other = 2 if VERSION == 1 else 1
+    with pytest.raises(Unreadable, match="no upstream to clone it from"):
+        owned.tree(other, tmp_path, None)
+    with pytest.raises(Unreadable, match="git clone"):
+        owned.tree(other, tmp_path, str(tmp_path / "gone"))
+    monkeypatch.setattr(owned, "CLONE_SECONDS", 0.000001)
+    with pytest.raises(Unreadable, match="took over"):
+        owned.tree(other, tmp_path, str(source))
+    monkeypatch.undo()
+    shutil.rmtree(tmp_path / ".cache", ignore_errors=True)
+    found = owned.tree(other, tmp_path, str(source))
+    assert found == tmp_path / ".cache" / f"repo-standard-v{other}" / "features" / "repo-standard"
+    assert owned.tree(other, tmp_path, None) == found
+    bare = tmp_path / "bare"
+    (bare / ".cache" / f"repo-standard-v{other}").mkdir(parents=True)
+    with pytest.raises(Unreadable, match="holds no features/repo-standard/skeleton"):
+        owned.tree(other, bare, None)
+
+
+def test_upgrade_says_each_thing_it_left_in_a_repo_shaped_its_own_way(v1_repo, capsys):
+    """A repo with no pin line, no Makefile among its owners, a local file, a missing owned file
+    and no adapter's scripts: upgrade pins it, writes what is missing and says what it left."""
+    root, _ = v1_repo
+    config = root / ".repo-standard.yml"
+    text = re.sub(r"(?m)^standard: \d+\n", "", config.read_text())
+    text = text.replace("    - Makefile\n", "")
+    config.write_text(text + "local:\n  .github/workflows/check.yml: the check builds an image\n")
+    (root / ".github/workflows/borders.yml").unlink()
+    (root / "scripts/select.py").unlink()
+    assert main(["upgrade", "--to", str(VERSION), "--root", str(root), "--upstream", ""]) == 0
+    said = capsys.readouterr().out.splitlines()
+    assert config.read_text().startswith(f"standard: {VERSION}\n")
+    for line in (
+        "left .github/workflows/check.yml: local, the check builds an image",
+        "wrote .github/workflows/borders.yml",
+        "left .repo-standard.yml: name local.mk in `owners`, beside the Makefile",
+        "left the adapters' scripts: the repo sets no stacks and holds none of them",
+    ):
+        assert line in said, said
+
+
+def test_upgrade_in_process_runs_only_to_its_own_version(v1_repo, capsys):
+    root, _ = v1_repo
+    assert main(["upgrade", "--to", str(VERSION + 1), "--root", str(root), "--upstream", ""]) == 2
+    assert f"run upgrade from the tool at repo-standard-v{VERSION + 1}" in capsys.readouterr().err
+
+
+def test_a_write_that_fails_leaves_the_file_as_it_was_and_no_temporary_file(v1_repo, monkeypatch):
+    root, _ = v1_repo
+    before = snapshot(root)
+
+    def refuse(source, target):
+        raise OSError("the disk is full")
+
+    monkeypatch.setattr("repo_standard.upgrade.os.replace", refuse)
+    with pytest.raises(OSError, match="the disk is full"):
+        upgrade_run(root, load(root), tracked(root), VERSION, None)
+    assert snapshot(root) == before
