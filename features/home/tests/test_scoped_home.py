@@ -38,7 +38,7 @@ class Homes(Scene):
     def __init__(self, tmp_path):
         super().__init__(tmp_path)
         self.scope_dir = self.home_dir / SCOPE
-        for kind in ("tasks", "scouts", "reports"):
+        for kind in ("asked", "tasks", "scouts", "reports"):
             (self.home_dir / kind).mkdir()
         for own, name, last in (
             (self.home_dir, "the root home", LAST_ROOT),
@@ -154,7 +154,7 @@ def test_the_first_word_after_home_is_a_scope_when_it_names_one(homes, typed, sa
     assert homes.changed(before) == []
 
 
-SHARED = ["tasks", "scouts", "reports", "log"]
+SHARED = ["asked", "tasks", "scouts", "reports", "log"]
 
 
 @pytest.mark.parametrize("word", ["nosuch", *SHARED, "..", "../other", ".", "second/log"])
