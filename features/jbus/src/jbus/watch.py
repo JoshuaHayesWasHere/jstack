@@ -1239,7 +1239,7 @@ def rewritten(run: Pass, client: Client, rows: list[dict[str, Any]] | None) -> N
         old = kept.get(slug)
         seen[slug] = new
         lines = dropped(old, new) if old is not None else []
-        if not lines:
+        if old is None or not lines:
             continue
         key = f"rewritten|{slug}|{hashlib.sha256((old + new).encode()).hexdigest()[:16]}"
         text = REWRITTEN.format(slug=slug, lines="\n".join(lines))
