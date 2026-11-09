@@ -11,7 +11,7 @@ from datetime import date
 import pytest
 
 import test_home_thread
-from jbriefs.home import scopes
+from jbriefs.home import UNCATEGORIZED, scopes
 from jbriefs.skills import listed
 from test_home_thread import NAME, Scene
 from test_scoped_home import ROOT, SCOPE, SCOPED, Homes
@@ -245,8 +245,8 @@ def test_on_status_a_root_with_no_other_child_reads_its_catch_all_alone(tmp_path
 
 def test_the_scopes_the_root_reads_on_status_are_the_scopes_jbus_queues_for(no_jbus):
     """One rule says what a scope is: a directory of the state with a `plan.md`, but for the
-    directories every home shares. A scope just made, with no thread yet, is one; an archived
-    scope and a directory with only a `home-id` are none."""
+    directories every home shares. A scope just made, with no thread yet, is one, and so is the
+    catch-all; an archived scope and a directory with only a `home-id` are none."""
     homes = no_jbus
     state = homes.home_dir
     made = {
@@ -269,7 +269,7 @@ def test_the_scopes_the_root_reads_on_status_are_the_scopes_jbus_queues_for(no_j
         if line.endswith(": open plan entries")
     ]
     assert read == [scope.name for scope, _, _ in scopes(state)]
-    assert read == sorted(["handed-off", "just-made", SCOPE])
+    assert read == sorted(["handed-off", "just-made", SCOPE, UNCATEGORIZED])
 
 
 def test_on_status_a_scoped_home_reads_no_other_scope(homes):
