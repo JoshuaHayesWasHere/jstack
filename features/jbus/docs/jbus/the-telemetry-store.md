@@ -316,7 +316,7 @@ A reading has one of four states:
 - `bad`: past the kind's line.
 - `watch`: worse than the baseline, not past the line.
 - `ok`: neither.
-- `none`: a `Lacks`, no baseline, no value, or `n` under the floor. A query that fails reads `none`, with its error as its note.
+- `none`: a `Lacks`, no baseline, no value, `n` under the floor, or a query that failed, whose error is its note.
 
 The first 41 are the rows of the scorecard scout's visual of 2026-11-09, in its order.
 Where it named a line the measure has it as written; where it named none, a `page` measure's `Limit` is 20% past its baseline in the worse direction.
