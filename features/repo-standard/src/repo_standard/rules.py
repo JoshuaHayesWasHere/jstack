@@ -70,6 +70,15 @@ DEPLOYS = re.compile("|".join(f"(?P<d{at}>{one})" for at, one in enumerate(DEPLO
 SHELL_SUFFIXES = (".sh", ".bash", ".zsh", ".ksh")
 SHEBANG = re.compile(r"^#!.*\b(?:ba|z|k|da)?sh\b")
 COMMAND_END = re.compile(r"&&|\|\||[;|]")
+GOES_ON = re.compile(r"&&|\|\||[;|]|(?<![<>&])&(?![>&])")
+"""What may follow a command on its line: only `&&` stops the line when the command fails, and
+`||`, `;`, `|` and a lone `&` (not the `&` of a redirect such as `2>&1`) go on."""
+MAKEFLAGS = re.compile(
+    r"^ *(?:(?:override|export)\s+)*MAKEFLAGS\s*(?:[+?!]|:{1,3})?=([^#\n]*)", re.M
+)
+GOES_ON_FLAG = {"i": "--ignore-errors", "k": "--keep-going"}
+ARGUMENT_FLAGS = "CfIjloWOE"
+"""Make's flags that go on past a failing line, and its short flags that take an argument."""
 CONDITIONAL = re.compile(r"^\s*(?:ifeq|ifneq|ifdef|ifndef|else|endif)\b")
 SHARED_CHECK = re.compile(
     r"^\s*uses:\s*['\"]?[\w.-]+/[\w.-]+/\.github/workflows/repo-standard-check\.yml"
@@ -512,7 +521,7 @@ class Recipe:
 
 def recipes(path: str, text: str) -> list[Recipe]:
     """The targets of one make file and their recipes. A `define` block is text, not a rule, a
-    line that ends in `\\` goes on to the next, and a command's `@`, `-` and `+` are dropped. A
+    line that ends in `\\` goes on to the next, and a command keeps its `@`, `-` and `+`. A
     target-specific variable adds no recipe, and a conditional's lines (`ifeq`, `else`, `endif`)
     leave the recipe open, so a command behind one is still its target's."""
     found: list[Recipe] = []
@@ -531,8 +540,8 @@ def recipes(path: str, text: str) -> list[Recipe]:
             defining, current = True, []
             continue
         if line.startswith("\t") and current:
-            command = line[1:].lstrip(" @-+")
-            if command.strip() and not command.lstrip().startswith("#"):
+            command = line[1:].lstrip()
+            if command.strip() and not command.lstrip(" @-+").startswith("#"):
                 for one in current:
                     found[one] = replace(
                         found[one], commands=(*found[one].commands, (start, command))
@@ -550,7 +559,7 @@ def recipes(path: str, text: str) -> list[Recipe]:
         current = []
         for target in rule[1].split():
             current.append(len(found))
-            commands = ((start, inline.strip().lstrip("@-+")),) if inline.strip() else ()
+            commands = ((start, inline.strip()),) if inline.strip() else ()
             found.append(Recipe(path, start, target, normal, commands))
     return found
 
@@ -586,17 +595,69 @@ def _entry_target(entry: str) -> str | None:
     return named[0] if len(named) == 1 else None
 
 
+def _goes_on(command: str, at: int) -> str:
+    """The first operator after `at` that runs on when the command fails, or ``""``: a `|` right
+    after it, or any `||`, `;` or lone `&`, since a failure skips only the `&&` part after it."""
+    for nth, hit in enumerate(GOES_ON.finditer(command, at)):
+        if hit[0] != "&&" and (hit[0] != "|" or nth == 0):
+            return hit[0]
+    return ""
+
+
+def _goes_on_flags(words: list[str], bare_first: bool = False) -> list[str]:
+    """The `-i` and `-k` among make's words, in a cluster such as `-sk` or a long name such as
+    `--keep`. With `bare_first`, as in `MAKEFLAGS`, the first word may leave out its `-`."""
+    found = []
+    for at, word in enumerate(words):
+        if word.startswith("--"):
+            name = word[2:].split("=")[0]
+            found += [one for one in GOES_ON_FLAG.values() if name and one[2:].startswith(name)]
+        elif word.startswith("-") or (bare_first and at == 0 and "=" not in word):
+            letters = re.split(f"[{ARGUMENT_FLAGS}]", word.lstrip("-"))[0]
+            found += [f"-{one}" for one in letters if one in GOES_ON_FLAG]
+    return found
+
+
+def _makeflags(repo: Repo) -> list[str]:
+    """Each `MAKEFLAGS` assignment of the make files that sets `-i` or `-k`, by where it is."""
+    faults = []
+    for path, text in sorted(repo.makefiles.items()):
+        for hit in MAKEFLAGS.finditer(text):
+            line = text.count("\n", 0, hit.start()) + 1
+            faults.extend(
+                f"{path}:{line}: `MAKEFLAGS` sets `{flag}`, so make goes on past a deploy "
+                "entry's failing `repo-standard green`"
+                for flag in dict.fromkeys(_goes_on_flags(hit[1].split(), bare_first=True))
+            )
+    return faults
+
+
 def green_first(repo: Repo) -> list[str]:
     """Each deploy entry runs `repo-standard green` before any other command."""
     faults = []
     known = _recipes(repo)
-    for entry in deploys(repo):
+    entries = deploys(repo)
+    faults += _makeflags(repo) if entries else []
+    every = [one for path, text in repo.makefiles.items() for one in recipes(path, text)]
+    ignores = [one for one in every if one.target == ".IGNORE"]
+    for entry in entries:
         target = _entry_target(entry)
         if target is None:
             faults.append(
                 f"deploy entry `{entry}` is not `make <target>`, so conform cannot read its recipe"
             )
             continue
+        faults += [
+            f"deploy entry `{entry}` runs make with `{flag}`, which goes on past a failing "
+            "`repo-standard green`"
+            for flag in dict.fromkeys(_goes_on_flags(entry.split()[1:]))
+        ]
+        faults += [
+            f"{one.path}:{one.line}: `.IGNORE` covers deploy entry `{entry}`, so make goes on "
+            "past its failing `repo-standard green`"
+            for one in ignores
+            if not one.prerequisites or target in one.prerequisites
+        ]
         recipe = known.get(target)
         if recipe is None:
             faults.append(f"deploy entry `{entry}`: the Makefile has no target {target}")
@@ -606,8 +667,21 @@ def green_first(repo: Repo) -> list[str]:
             names = ", ".join(recipe.prerequisites)
             faults.append(f"{where} has prerequisites ({names}), which make runs before its recipe")
         first = recipe.commands[0][1] if recipe.commands else ""
-        if not GREEN.search(COMMAND_END.split(first)[0]):
+        command = first.lstrip(" \t@+-")
+        prefix = first[: len(first) - len(command)]
+        green = GREEN.search(COMMAND_END.split(command)[0])
+        if not green:
             faults.append(f"{where} does not run `repo-standard green` before its first command")
+        elif "-" in prefix:
+            faults.append(
+                f"{where} runs `repo-standard green` on a `-` line, which make goes on past "
+                "when it fails"
+            )
+        elif after := _goes_on(command, green.end()):
+            faults.append(
+                f"{where} follows `repo-standard green` with `{after}`, so its recipe goes on "
+                "when it fails"
+            )
     return faults
 
 
