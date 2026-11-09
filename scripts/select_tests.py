@@ -39,14 +39,15 @@ carries it on. A test that spells the name of a package, which runs the package 
 not reached so. Every other rule selects as below. So a change escapes the check where it breaks
 a test only through a module of a `src/` that names no name the change touched (a chain of two
 such modules or more, or a table of verbs that names no function of the module), or only through
-a package the test runs in a process. Main's full run runs every test and catches it. Without
-`--pull-request` the script keeps the wide rule, as a desk's `make check-fast` and `make select`
-run it. Measured with this script over main's last 60 merges on 2026-11-09 (go-speed's
-`why.py`), the selections of 300 files or more fell from 38 to 13, none of them through imports
-or a walk, and 9 of the 13 select `all` for a path every test rests on. The median of the
-selections that are not `all` fell from 309 files to 100. Of the 12 test files that failed
-main's full run in the 7 days before and that their merge's wide selection held, it holds all
-12 (`replay.py`).
+a package the test runs in a process. Without `--pull-request` the script keeps the wide rule,
+as main's run over what moved since its last checked commit, a desk's `make check-fast` and
+`make select` run it: main's run and the nightly full suite catch what a pull request leaves
+out. Measured with this script over main's last 60 merges on 2026-11-09 (go-speed's
+`why.py`), the selections of 300 files or more fell from 32 to 7, none of them through imports
+or a walk, and 3 of the 7 select `all` for a path every run rests on. The median of the
+selections that are not `all` fell from 300 files to 100, and 35 of the 60 hold 50 to 149
+files. Of the 12 test files that failed main's full run in the 7 days before and that their
+merge's wide selection held, it holds all 12 (`replay.py`).
 
 A test may hold a string that is the name of a package of a `src/`. The script counts such a
 test as running that package in a process of its own, so the test imports every module of the
@@ -940,7 +941,7 @@ def near(name, edit):
                 else:
                     carry.add(one)
                     todo.append(one)
-    fixtures = conftest()[1]
+    fixtures = conftest()
     hit = {fixture for fixture, (used, _) in fixtures.items() if used & carry}
     while more := {fixture for fixture, (_, asks) in fixtures.items() if asks & hit} - hit:
         hit |= more
