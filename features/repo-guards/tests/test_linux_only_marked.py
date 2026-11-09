@@ -55,13 +55,13 @@ def runs(call):
 
 
 def command_lines(call):
-    """The literal command lines a `subprocess` call runs: an argv list's words joined, and each
-    string among its arguments."""
+    """The command lines a `subprocess` call runs: an argv list whose first word is a literal, with
+    `ARG` for each word that is not, and each string among its arguments."""
     for arg in call.args[:1]:
-        if isinstance(arg, (ast.List, ast.Tuple)):
+        if isinstance(arg, (ast.List, ast.Tuple)) and arg.elts:
             words = [getattr(one, "value", None) for one in arg.elts]
-            if words and all(isinstance(word, str) for word in words):
-                yield words
+            if isinstance(words[0], str):
+                yield [word if isinstance(word, str) else "ARG" for word in words]
     for node in ast.walk(ast.Module(body=[ast.Expr(arg) for arg in call.args], type_ignores=[])):
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
             yield node.value
