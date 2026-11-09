@@ -48,6 +48,7 @@ from jbus import (
     mirror,
     notes,
     outbox,
+    party,
     plan,
     prose,
     queue,
@@ -57,7 +58,6 @@ from jbus import (
     verbs,
     write_json,
 )
-from jbus.party import CASES
 from jbus.passes import Pass, side_by_side
 from jbus.roles import ROLES
 from jbus.t3 import Client, T3Error
@@ -336,11 +336,12 @@ def catchall_of(run: Pass) -> str:
 def door(one: dict[str, Any]) -> bool:
     """Whether a need of the user's is a one-way door, the one kind of item the root home hears
     of: a gate whose `Holds:` line names a case of `party.CASES`, a pull request `jmerge` holds
-    for the user's word, or a setup only the user can give."""
+    for the user's word, or a setup only the user can give. A `Holds:` line is read as the rest of
+    jbus reads it (`party.held`): one that names no case of the table holds for every door."""
     if one["kind"] in ("hold", "config"):
         return True
-    holds = str(one.get("holds") or "")
-    return one["kind"] == "gate" and any(holds.startswith(case) for case in CASES)
+    holds = str(one.get("holds") or "").strip()
+    return one["kind"] == "gate" and bool(holds) and bool(party.held(holds))
 
 
 def need_items(run: Pass, listed: list | None) -> list[Item]:

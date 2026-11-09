@@ -3,9 +3,16 @@
 The user, 2026-11-08, in the root-hierarchy home: "we never have any random \"agent jbus\" message
 in this root home ... the child homes don't bubble up messages unless it's a one way door
 scenario". The scout rh-every-row-in-a-child-home counted what woke the root in the 7 days to
-2026-11-08 (`MIX`). Each kind is placed here by the source jbus reads it from, in one kitchen,
-and the real pass runs over it past `leftover.CLOSE_MINUTES`, when the late copies went out. A
-kind's route does not depend on how many of it there are, so one of each stands for its count.
+2026-11-08: approve 177, left 77, stale 74, home-stall 25, question 18, ci 17, alert 16, owed 13,
+stall 10, rulefile 8, prose 3, main 2, brief 2, unasked 1. A kind's route does not depend on how
+many of it there are, so one of each stands for its count.
+
+The replay places ten of the kinds in one kitchen, by the source jbus reads each from (approve,
+left, stale, home-stall, question, ci, alert, rulefile, prose, main), beside a gate that holds,
+and runs the real pass over it past `leftover.CLOSE_MINUTES`, when the late copies went out. The
+other four are shown by a test of their own: owed (`test_jbus_entry_go.py`), stall
+(`test_jbus_clock.py`), unasked (`view/test_view_owner.py`), and brief, an entry of a plan
+routed as owed is (`wakes._plan_home`).
 """
 
 import json
@@ -21,23 +28,6 @@ from test_jbus_queue import add, brief
 from test_jbus_wakes import runs
 
 MIN = timedelta(minutes=1)
-MIX = {
-    "approve": 177,
-    "left": 77,
-    "stale": 74,
-    "home-stall": 25,
-    "question": 18,
-    "ci": 17,
-    "alert": 16,
-    "owed": 13,
-    "stall": 10,
-    "rulefile": 8,
-    "prose": 3,
-    "main": 2,
-    "brief": 2,
-    "unasked": 1,
-}
-"""The items of the root's `wakes` messages in the scout's 7 days, by kind, with their count."""
 DOOR = "Should the old state tree be deleted?"
 ASKED = "Which name should the sidebar's new row take?"
 GATES = f"""## Gate 1: {DOOR}

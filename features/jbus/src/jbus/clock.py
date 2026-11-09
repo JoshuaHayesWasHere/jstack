@@ -270,8 +270,8 @@ def _act(run: Pass, client: Client, slug: str, wait: dict[str, Any]) -> bool:
 
 def _home(run: Pass, slug: str, wait: dict[str, Any], brief: str) -> None:
     """Log one quiet stall of a wait jbus acted on that still waits. The stall is an item of the
-    one list, which takes it to the brief's home, or to the root home where it has none
-    (`jbus.wakes`)."""
+    one list, which takes it to the brief's home, or to the user's band where that home has no
+    thread (`jbus.view.state.owner`)."""
     did = wait.get("did") or ("relaunched its reviewer" if wait["line"] else "carried its crew on")
     crew = thread_of(run.home, slug) or "not known"
     home = thread_of(home_of(run.home, brief))
