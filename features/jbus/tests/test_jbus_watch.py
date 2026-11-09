@@ -1298,9 +1298,10 @@ DRIFT_LOG = (
 def scheduled_runs(kitchen, runs, flows=None):
     """Give the project the workflows `flows` at its default branch, by default drift.yml, which
     has a `schedule:` trigger and is neither nightly, and lint.yml, which has none; set the runs of
-    each workflow by its file, and a failed job and its log for each run."""
-    kitchen.quiet()
+    each workflow by its file, and a failed job and its log for each run. The files are there
+    before the first pass, as a commit's files never change while main's tip stays."""
     kitchen.set("workflows.json", flows or {"drift.yml": DRIFT, "lint.yml": LINT})
+    kitchen.quiet()
     kitchen.set("workflow-runs.json", runs)
     job = {"id": 611, "name": "drift", "status": "completed", "conclusion": "failure"}
     every = [one["id"] for flow in runs.values() for one in flow]
