@@ -87,19 +87,23 @@ def test_the_root_is_watched_under_no_key_of_its_own(state):
 def test_while_the_root_stands_in_its_clear_and_its_start_read_the_catch_all_s_rows(state):
     """`jbus clear` (`blockers.Directory`) and the home's start (`homestatus.Home`) read a row
     of the catch-all's as the root's while the root stands in for it, a slug of no brief too, and
-    as the catch-all's alone once that home has its own `home-id`."""
+    as the catch-all's alone once that home has its own `home-id`. The catch-all's own slug,
+    which `/handoff` queues an archived scope's gates under, reads the same, though its directory
+    is there already for its retry ledger."""
     (state / "tasks").mkdir()
     (state / "tasks" / "alpha.md").write_text("# alpha\nHome: root\n")
     catchall = homes.catchall(state)
+    catchall.mkdir()
+    (catchall / "blockers.json").write_text("{}\n")
 
     def views(mine):
         clear = blockers.Directory(state, mine)
         start = homestatus.Home(mine, state, "demo")
-        return clear.has("alpha"), clear.has("no-brief"), start.keeps("tasks", "alpha")
+        slugs = ("alpha", "no-brief", "home-uncategorized")
+        return (*(clear.has(slug) for slug in slugs), start.keeps("tasks", "alpha"))
 
-    assert views(state) == (True, True, True)
-    assert views(state / "flow") == (False, False, False)
-    catchall.mkdir()
+    assert views(state) == (True, True, True, True)
+    assert views(state / "flow") == (False, False, False, False)
     (catchall / "home-id").write_text("mcp:the-catch-all\n")
-    assert views(state) == (False, False, False)
-    assert views(catchall) == (True, True, True)
+    assert views(state) == (False, False, False, False)
+    assert views(catchall) == (True, True, True, True)

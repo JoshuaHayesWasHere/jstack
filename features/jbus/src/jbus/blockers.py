@@ -467,7 +467,7 @@ class Directory:
     def has(self, slug: str) -> bool:
         """Say whether a slug is this home's: its own, or by the home of its brief or request,
         and the catch-all's (`uncategorized`) when it has neither, as `jbus needs` reads it."""
-        if slug == self.own:
+        if slug == self.own or (slug.startswith("home-") and self.root / slug[5:] in self.works):
             return True
         if slug == "home" or (slug.startswith("home-") and (self.root / slug[5:]).is_dir()):
             return False
