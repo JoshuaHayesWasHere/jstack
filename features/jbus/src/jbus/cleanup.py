@@ -22,6 +22,7 @@ folder a process works in or names stays, and so does every copy of the base in 
 
 from __future__ import annotations
 
+import contextlib
 import os
 import re
 import shutil
@@ -150,18 +151,14 @@ def held() -> Held | None:
 
 def newest(folder: Path) -> float:
     """Return the mtime of the newest entry in `folder`, the folder itself counted, or infinity
-    for a folder gone before it was read, which is then no candidate."""
-    try:
-        found = folder.lstat().st_mtime
-    except OSError:
-        return float("inf")
+    for a folder gone before it was read, which is then no candidate. An entry gone while it is
+    read is left out."""
+    found = []
     for where, dirs, files in os.walk(folder):
-        for name in (*dirs, *files):
-            try:
-                found = max(found, os.lstat(os.path.join(where, name)).st_mtime)
-            except OSError:
-                continue
-    return found
+        for path in (where, *(os.path.join(where, name) for name in (*dirs, *files))):
+            with contextlib.suppress(OSError):
+                found.append(os.lstat(path).st_mtime)
+    return max(found, default=float("inf"))
 
 
 def sweep(run: Pass, live: Iterable[Path]) -> list[Path]:
