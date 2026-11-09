@@ -504,10 +504,10 @@ def settle(run: Pass, client: Client, world: World) -> None:
     on any message that starts a run, whoever sends it, so a finished thread that a gate answer
     or a reload woke is put away again on the first pass after that run ends (`_put_away`).
 
-    `settle` lists the threads settled or not, so a thread that an earlier pass settled is
-    archived by the same step once its slug is finished. A subagent thread whose parent jbus
-    archived keeps its parent's slug through the parent's key in `sent.json`, since T3 Code no
-    longer lists the parent.
+    `settle` lists the threads once, settled or not and subagents too, so a thread that an
+    earlier pass settled is archived by the same step once its slug is finished. A subagent thread
+    whose parent jbus archived keeps its parent's slug through the parent's key in `sent.json`,
+    since T3 Code no longer lists the parent.
 
     `settle` skips a thread that is still at work, settled or not, since T3 Code leaves a thread
     settled while it takes up a message, with the threads under it and the threads above it, so a
@@ -519,25 +519,23 @@ def settle(run: Pass, client: Client, world: World) -> None:
     slug_of: dict[str, str] = {}
     waiting: list[dict[str, Any]] = []
     try:
-        for prefix in PREFIXES:
-            if not over[prefix]:
-                continue
-            for thread in t3.listed(client, run.project.project_id, titleContains=prefix):
-                slug = slug_in(str(thread.get("title", "")), prefix)
-                if slug in over[prefix]:
-                    slug_of[thread["threadId"]] = slug
-                    waiting.append(thread)
         every = t3.listed(client, run.project.project_id, includeSubagents=True)
     except T3Error as error:
         run.say(f"wait {run.project.name}: the threads to settle could not be listed ({error})")
         return
+    below = [t for t in every if t.get("relationshipToParent") == "subagent"]
+    for prefix in PREFIXES:
+        for thread in every:
+            slug = slug_in(str(thread.get("title", "")), prefix)
+            if slug in over[prefix] and thread.get("relationshipToParent") != "subagent":
+                slug_of[thread["threadId"]] = slug
+                waiting.append(thread)
     busy = {t["threadId"] for t in waiting if watch.at_work([t], settled_too=True)}
     parents = dict(slug_of)
     for key in run.box.sent():
         action, slug, at, *_ = [*key.split("|"), ""]
         if action == "archived" and at:
             parents.setdefault(at, slug)
-    below = [t for t in every if t.get("relationshipToParent") == "subagent"]
     grew = True
     while grew:
         grew = False
