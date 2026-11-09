@@ -56,6 +56,12 @@ def launches(kitchen):
     return [one for one in kitchen.t3.launches if one["title"].startswith("scout: ")]
 
 
+def titles(kitchen):
+    """The title of each launch of a row's thread, leaving out the catch-all's home that the
+    pass keeps running beside them."""
+    return [one["title"] for one in kitchen.t3.launches if not one["title"].startswith("home: ")]
+
+
 def scout_thread(kitchen, slug):
     (thread,) = [t for t in kitchen.t3.threads if t["title"] == f"scout: {slug}"]
     return thread
@@ -192,7 +198,7 @@ def test_a_pass_launches_an_approved_scout_read_only_with_no_branch(kitchen):
     kept = (kitchen.home / "scouts" / "alpha.md").read_text()
     assert kept == request("alpha") + f"Thread: {thread['threadId']}\n"
     assert not (kitchen.home / "tasks" / "alpha.md").exists()
-    assert [one["title"] for one in kitchen.t3.launches] == ["scout: alpha"]
+    assert titles(kitchen) == ["scout: alpha"]
     assert rows(kitchen)["alpha"]["status"] == "launched"
     assert rows(kitchen)["alpha"]["thread"] == thread["threadId"]
     assert rows(kitchen)["beta"]["status"] == "queued"
@@ -215,7 +221,7 @@ def test_a_scout_row_waits_on_its_depends_and_launches_on_the_first_pass_after_i
     assert rows(kitchen)["look"]["approved"]
 
     kitchen.poll()
-    assert [one["title"] for one in kitchen.t3.launches] == ["crew: a"]
+    assert titles(kitchen) == ["crew: a"]
     kitchen.set("open.json", [kitchen.opened("a", 10)])
     kitchen.poll(NOW + timedelta(minutes=3))
     assert launches(kitchen) == []
@@ -238,13 +244,13 @@ def test_a_scout_row_is_done_on_its_report_and_a_row_that_depends_on_it_then_lau
     assert kitchen.main(*argv, stdin=built)[0] == 0
     assert go(kitchen, "build")[0] == 0
     kitchen.poll()
-    assert [one["title"] for one in kitchen.t3.launches] == ["scout: look"]
+    assert titles(kitchen) == ["scout: look"]
 
     reported(kitchen, "look")
     scout_thread(kitchen, "look")["settled"] = True
     kitchen.poll(NOW + timedelta(minutes=3))
     assert rows(kitchen)["look"]["status"] == "done"
-    assert "crew: build" in [one["title"] for one in kitchen.t3.launches]
+    assert "crew: build" in titles(kitchen)
 
 
 def judged(kitchen, slug):
@@ -360,10 +366,10 @@ def test_the_brief_a_scout_delivers_at_its_slug_takes_over_its_row_once_its_repo
         "epic",
     )
     kitchen.poll(NOW + timedelta(minutes=6))
-    assert [one["title"] for one in kitchen.t3.launches] == ["scout: look"]
+    assert titles(kitchen) == ["scout: look"]
     assert go(kitchen, "look")[0] == 0
     kitchen.poll(NOW + timedelta(minutes=9))
-    assert [one["title"] for one in kitchen.t3.launches] == ["scout: look", "crew: look"]
+    assert titles(kitchen) == ["scout: look", "crew: look"]
     assert rows(kitchen)["look"]["status"] == "launched"
     crew = [t for t in kitchen.t3.threads if t["title"] == "crew: look"][0]
     assert rows(kitchen)["look"]["thread"] == crew["threadId"]

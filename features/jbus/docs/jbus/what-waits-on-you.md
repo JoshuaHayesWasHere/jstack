@@ -38,6 +38,16 @@ When a home takes over from the one that jbus told, jbus tells the new home too.
 `~/.local/state/jbus/<project>/leftover.json` is the record.
 For each such row, it holds the `Left:` text, the home's thread, when jbus told the home, and when jbus sent the `stall` event.
 
+## A home that stalls
+
+A home that has had work out and done nothing jbus can see for its patience (60 minutes, or a routine's beat) is nudged in its thread, and nudged again a patience later.
+A patience after the second nudge, jbus launches the home again on a fresh thread ([A home](what-a-pass-launches.md#a-home)).
+A patience after that, still quiet, the home is yours: an item of the kind `stalled` on `jbus needs`, `home-stall <scope>: the home <scope> is quiet with work out after jbus nudged it twice and started it again on a fresh thread`.
+A home whose thread is the one jbus launched for it is not launched a second time: its next stall goes from the second nudge to `jbus needs`.
+The item wakes no thread, the root's included, and no stall raises an alert.
+It leaves the list once the home does something jbus can see.
+`~/.local/state/jbus/<project>/stalls.json` keeps each spell.
+
 ## The one answer to "what needs me"
 
 `jbus needs` prints what of that list only you can do, for every project, or for one with `--project`.

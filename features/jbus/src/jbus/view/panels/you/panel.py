@@ -141,6 +141,7 @@ IDLE = {
     "github": "It clears by itself when GitHub's window starts again, and until then jmerge "
     "still merges.",
     "gate": "It waits for your answer.",
+    "stalled": "The home stays quiet, and jbus starts it no more.",
 }
 """What happens if the user does nothing, for a need whose kind has no default of its own. Any
 other kind's need, such as a hold no thread works on, has `QUIET`."""

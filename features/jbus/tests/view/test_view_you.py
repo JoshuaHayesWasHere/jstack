@@ -86,6 +86,7 @@ def test_the_kinds_are_in_state_json_as_the_page_shows_them_and_an_added_kind_wi
         "config",
         "held",
         "github",
+        "stalled",
     ]
     assert {one["name"]: one["verb"] for one in kinds}["gate"] == "Accept default"
     added = waiting.Kind("chore", "Chores for you", "Do it", 9)
