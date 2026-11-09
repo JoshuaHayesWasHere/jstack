@@ -61,7 +61,7 @@ A repo's adapters are those its `stacks:` name, or, with no `stacks:`, each adap
 A repo of several stacks takes no `stack.mk`.
 
 An owned file stays equal to its copy at the tag the repo pins, and `repo-standard conform` warns of one that differs or is missing.
-In the caller, `.github/workflows/check.yml`, the runner's label in `runner:` is the repo's own and is not compared, and the job `check` runs on that label through the call's output `runner`.
+In the caller, `.github/workflows/check.yml`, the inputs `runner`, `browser-channel` and `timeout-minutes` of the call of the shared check are the repo's own: they are not compared, and `repo-standard upgrade` keeps them, as [the shared check's page](check-workflow.md#call-it) says; the job `check` runs on the label in `runner` through the call's output `runner`.
 The repo's own make targets, such as a deploy entry, go in `local.mk` at the root, which the Makefile includes when it is there, and which the config's `owners` names.
 A repo that must keep an owned file of its own names it under `local:` in `.repo-standard.yml`, with the reason:
 

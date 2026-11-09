@@ -7,12 +7,12 @@ each text of a record into its length (`<name>_len`), so no table holds what a m
 
 A source is a `log` or a `snapshot`:
 
-- A log only grows: `events.jsonl`, `acts.jsonl`, `items.jsonl`, `transitions.jsonl`,
-  `outbox.jsonl`, `ci.jsonl`, `review-rounds.jsonl` (`jbus.reviewed`), the home's `merge.log`
-  and `merge-waits.jsonl` (`jmerge.waits`), `stalls.jsonl`, each spell a row's thread was quiet
-  or hung (`jbus.stall.spells`) after the line of when the record began, and the machine's
-  `passes.jsonl`, the seconds of each pass (`jbus.record`), and `drift.jsonl`, each probe of a
-  standing word in each run (`jbus.drift`).
+- A log only grows: `events.jsonl`, `acts.jsonl`, `items.jsonl`, `transitions.jsonl`, `waits.jsonl`
+  (`jbus.telemetry.waits`), `outbox.jsonl`, `ci.jsonl`, `review-rounds.jsonl` (`jbus.reviewed`), the
+  home's `merge.log` and `merge-waits.jsonl` (`jmerge.waits`), `stalls.jsonl`, each spell a row's
+  thread was quiet or hung (`jbus.stall.spells`) after the line of when the record began, and the
+  machine's `passes.jsonl`, the seconds of each pass (`jbus.record`), and `drift.jsonl`, each probe
+  of a standing word in each run (`jbus.drift`).
   A row's key is the hash of the line, as JSON with sorted keys (as text for `merge.log`), and
   of how many equal lines come before it, as `jbus.wake.entries` names an event. So two equal
   lines are two rows, and a line read again, as after the daily trim rewrites `events.jsonl`, is
@@ -40,7 +40,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from jbus import history
-from jbus.telemetry import asks
+from jbus.telemetry import asks, waits
 from jbus.telemetry.readers import json_lines, keyed, listed, questions
 from jbus.telemetry.values import (
     KINDS,
@@ -517,6 +517,7 @@ SOURCES: tuple[Source, ...] = (
         _columns("at", "slug", "from_status", "to_status", "by", "why_len"),
         _transitions,
     ),
+    Source("row_waits", "waits.jsonl", "log", _columns("at", "slug", "kind", "why_len"), waits.row),
     Source(
         "outbox",
         "outbox.jsonl",

@@ -6,7 +6,7 @@ from jbriefs import asks, below, cli, findings, home, page, parse, paths, proof,
 from testing.paths import REPO
 
 TEMPLATE = REPO / "features" / "jbriefs" / "templates" / "brief.md"
-FINDINGS = ("Read:", "Instruments:", "Change:", "Rests on:", "Sources:", "Ruled out:")
+FINDINGS = ("Read:", "Instruments:", "Change:", "Rests on:", "Ruled out:")
 
 PLAN = """\
 # demo: plan
@@ -273,7 +273,7 @@ def written(*, by_a_scout):
     as a result.
     """
     filled = {
-        "Sources:": "Sources: https://github.com/someone/demo/pull/3, the part on retries",
+        "Read:": "Read: https://github.com/someone/demo/pull/3, the part on retries",
         "Rests on:": "Rests on: Status: done in `tasks/beta.md`, and its Pull request: line",
     }
     lines = []
@@ -285,6 +285,13 @@ def written(*, by_a_scout):
             continue
         lines.append(filled.get(label, line.replace("<slug>: <one line>", "alpha: the first task")))
     return "\n".join([*lines, "Thread: mcp:1111-aaaa", ""])
+
+
+def test_jbriefs_reads_the_lines_a_scout_fills_as_the_last_fields_of_the_template():
+    fields = parse.fields(TEMPLATE.read_text())
+    labels = [label for label, _ in fields if label not in ("", parse.REST)]
+    after = labels.index("Builds on") + 1
+    assert tuple(f"{label}:" for label in labels[after:]) == FINDINGS
 
 
 @pytest.mark.parametrize("by_a_scout", [True, False])
