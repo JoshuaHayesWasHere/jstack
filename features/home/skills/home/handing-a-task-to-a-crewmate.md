@@ -112,7 +112,9 @@ The root home does step 1 and no other: it queues the brief by "Queueing a row i
    `features/jbriefs/docs/jbriefs.md` "Skills a brief names" says which aliases resolve.
    The crewmate loads each file in full at its start, and its Result owes one artifact for each, the one `templates/skill-artifacts.md` names: `jmerge` merges no pull request whose Result leaves one out.
 
-   Its `Playbook:` line names the steps the crewmate works through: one file in `$T/../playbooks/`, without its `.md`. Run this with the block at the top. It prints a row for each playbook, its name and then who runs it and for what kind of task, and a last row for `none`, which only a scout's request may take:
+   Its `Playbook:` line names the steps the crewmate works through: one file in `$T/../playbooks/`, without its `.md`.
+   Run this with the block at the top.
+   It prints a row for each playbook, its name and then who runs it and for what kind of task, and a last row for `none`, which only a scout's request may take:
 
    ```sh
    for f in "$T"/../playbooks/*.md; do
@@ -123,7 +125,13 @@ The root home does step 1 and no other: it queues the brief by "Queueing a row i
    echo "none | nothing above fits"
    ```
 
-   Pick from what it prints, by who runs the row. A brief takes a row `a crewmate` runs, the one the table above gives for its kind of task, and never `none`. A scout's request takes a row `a scout` runs, or `none`. A row `the home` runs goes on no brief and no request: "A playbook of the home's own" opens it. jbus launches no brief whose line names a playbook that is no file there, such as `fix` or `feature.`: it is a gate that says why. A row that ends `in a brief with` some lines asks for those lines in the brief: write them. Do not read the playbook to pick it: its row is enough.
+   Pick from what it prints, by who runs the row.
+   A brief takes a row `a crewmate` runs, the one the table above gives for its kind of task, and never `none`.
+   A scout's request takes a row `a scout` runs, or `none`.
+   A row `the home` runs goes on no brief and no request: "A playbook of the home's own" opens it.
+   jbus launches no brief whose line names a playbook that is no file there, such as `fix` or `feature.`: it is a gate that says why.
+   A row that ends `in a brief with` some lines asks for those lines in the brief: write them.
+   Do not read the playbook to pick it: its row is enough.
 
    Then ask for the deeper version of the task, not a bigger one (`$T/../principles/principle-depth-over-breadth.md`). Run this, for a brief or a scout's request alike, with the playbook you picked in place of the words in angle brackets. Put the kind of work there instead, `research`, `perf`, `analysis`, `outcome` or `other`, where you picked `none`, and where the playbook hides the kind: an outcome under `feature` or `autonomous-run` is `outcome`, and a bug whose cause is not proven is `analysis`, whatever the playbook:
 
