@@ -287,6 +287,13 @@ def written(*, by_a_scout):
     return "\n".join([*lines, "Thread: mcp:1111-aaaa", ""])
 
 
+def test_the_template_keeps_for_a_scout_the_lines_a_scout_fills():
+    lines = TEMPLATE.read_text().splitlines()
+    after = next(n for n, line in enumerate(lines) if line.startswith("Builds on:")) + 1
+    labels = tuple(line.split(":")[0] + ":" for line in lines[after:] if not line.startswith("<"))
+    assert labels == FINDINGS
+
+
 @pytest.mark.parametrize("by_a_scout", [True, False])
 def test_a_brief_is_read_the_same_with_and_without_a_scouts_findings(by_a_scout):
     text = written(by_a_scout=by_a_scout)
