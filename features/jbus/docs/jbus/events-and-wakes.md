@@ -15,10 +15,32 @@ A send to another thread of the project's list, as a child home's, counts that t
 
 Every alert is an open item with an owner ([When jbus fails](when-jbus-fails.md)).
 The owner is a project's name, or the machine's for what belongs to no project, as a pass that did not finish or the sign-in.
-An item of a project goes to that project's home only.
-An item of the machine, and an item whose owner names no project, goes to the desk with `notify-send` and to the home of the infra project, the one the config's top-level `infra` names (`infra` by default).
+An item of a project goes to that project's homes only.
+An item of the machine, and an item whose owner names no project, goes to the desk with `notify-send` and to the infra project, the one the config's top-level `infra` names (`infra` by default).
 It never goes to every home.
 The desk shows only where `notify-send` is on the PATH.
+
+Within a project, the root home hears of a one-way door alone (`door` in `features/jbus/src/jbus/wakes.py`):
+
+- a gate whose `Holds:` line names a case of `features/home/templates/gates.md`;
+- a pull request `jmerge` holds for your word, such as one that touches a protected path;
+- a `config` need, a setup only you can give.
+
+Every other item goes to a child home, or to no home:
+
+| Item | Goes to |
+|---|---|
+| A gate with no `Holds:` line, a leftover, a stall, an idle or hung crew, an owed or buildable entry, a deferred line of a plan, a dated line of notes | The home whose brief, plan or notes it is in. A home that leaves it open is not told of it a second time, and no other home is told of it. |
+| A gate with no `Holds:` line and no row | The home whose `gates.md` has it, and the catch-all, `uncategorized`, for the root's `gates.md`. |
+| CI failing on a branch no row owns, or CI that could not be read | The catch-all, `uncategorized`. |
+| An alert of the project: a mechanical alert that persists (the main checkout not pulled, an install not run again, a snapshot that failed), a home that stalled, a decision | The catch-all, `uncategorized`. |
+| A file that holds a standing rule (`standing.md`, an auto-memory file) | The catch-all, `uncategorized`, once while the file stays. |
+| The week's collision report | The catch-all, `uncategorized`. |
+| A row to approve | No home: it waits on you alone, on `jbus needs` and the view. |
+| A red main | No home: jbus files its `main-red-*` row, owned by `uncategorized`, for every red tip ([A red main](a-red-main.md)), and no KPI alert says it again. |
+| The hourly count of what is stale, a source that cannot be read, a source the last pass did not ask | No home. `jbus status` lists each under its project's `quiet`, and the view's band shows the sources while they are open. |
+
+Until the catch-all's home has a thread of its own, the root's thread hears its items ([`uncategorized`](../../../home/skills/home/scoped-homes.md)).
 
 ## One list wakes a home
 
@@ -29,7 +51,7 @@ A home's notes file that takes a new dated line is an item of that home's too (`
 A stall is how a step hands a row to its home: the clock's second miss, a check cancelled twice, a decline the scoped pass did not uphold.
 An item's key is what it is, with no run and no time in it: a red is its failing tests, so one red is one item whatever runs or branches show it.
 A row to approve wakes no thread: a home approves a row on your word as it queues it (`jbus queue add --message`), so a go still owed waits on you alone, on `jbus needs` and the view.
-Any other need is the root home's.
+A gate with no `Holds:` line is the item of the home whose brief it is, as `jbus home` says, and a one-way door is the root home's ([Who an item is for](#who-an-item-is-for)).
 An item whose cause is another open item folds into that item, as the stall of a row whose pull request is red, unless the row is that item's fix.
 An item that leaves the list wakes no one.
 A pass sends each home thread at most one `wakes` message, and `wakes.json` in the project's state keeps what each home was told.

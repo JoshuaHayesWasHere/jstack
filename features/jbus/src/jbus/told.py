@@ -16,7 +16,8 @@ def told_to(record: dict[str, Any], thread: str) -> dict[str, dict[str, str]]:
     """What the one list told the thread, by item key, from the record `jbus.wakes.tell` keeps
     in `FILE`:
     `{"threads": {<thread>: {<key>: {"at", "wrong"}}}, "tests": {<run id>: <its tests>},
-    "open": {<the line of each item open within a day>: <when a pass last had it>}}`."""
+    "open": {<the line of each item open within a day>: <when a pass last had it>},
+    "quiet": [<the line of each item open now that wakes no home>]}`."""
     return (record.get("threads") or {}).get(thread) or {}
 
 

@@ -147,34 +147,20 @@ def red(run, sha, conclusion, at):
     }
 
 
-def test_main_red_alerts_over_30_minutes_in_a_day_counting_a_spell_still_open(machine):
+def test_a_red_main_raises_no_kpi_alert_however_long_it_is_red(machine):
+    """jbus files a main-red row for every red tip (`jbus.watch.retro`), so a KPI alert of a
+    red main would wake a home a second time for what the row already says (the user,
+    2026-11-08: "jbus always files it")."""
     machine.append(
         "ci.jsonl",
         red(1, "a", "failure", MIDNIGHT - timedelta(minutes=50)),
         red(2, "b", "success", MIDNIGHT + timedelta(minutes=10)),
-        red(3, "c", "failure", NOW - timedelta(minutes=20)),
+        red(3, "c", "failure", NOW - timedelta(hours=3)),
         project="alpha",
     )
-
-    assert machine.look() == []
-    assert machine.alerts() == []
-
     later = NOW + timedelta(minutes=1)
-    said = machine.look(later)
-
-    line = "alert: kpi main-red alpha: main red 31 min on 2026-11-02, over the threshold of 30 min"
-    assert said == [f"alpha: {line}"]
-    assert machine.alerts(later) == [line]
-
-
-def test_main_red_on_another_project_is_its_own(machine):
-    machine.append(
-        "ci.jsonl",
-        red(1, "a", "failure", NOW - timedelta(minutes=29)),
-        project="beta",
-    )
-    assert machine.look() == []
-    assert machine.alerts() == []
+    assert machine.look(later) == []
+    assert machine.alerts(later) == []
 
 
 class T3:
