@@ -413,7 +413,9 @@ def test_launch_waits_splits_a_rows_go_to_launch_by_the_kind_of_each_reason(mach
 
 def test_pass_steps_gives_each_step_of_each_pass_its_wall_and_cpu_seconds(machine):
     """A pass's line names each step's `[wall, cpu]` seconds; a step whose figures are not two
-    numbers is left out, and a line from before the steps were timed has no step."""
+    numbers is left out, and a line from before the steps were timed has no step. The code is the
+    migration `jbus.telemetry.migrations.v014_pass_steps` and the view
+    `jbus.telemetry.views.pass_steps`."""
     lines = [
         {"at": iso(NOW), "seconds": 30.2},
         {
