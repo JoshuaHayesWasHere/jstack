@@ -42,6 +42,15 @@ The package has the stable package's commands, `t3code` and `t3-code-desktop`, a
 Its updater is off, so the app never swaps itself back to upstream's build.
 T3 Code's stable and prerelease builds share their data in `~/.t3`, so the move to the stable build keeps every thread and setting.
 
+## The idle-compaction floor
+
+The series lowers T3 Code's compaction floor, `COMPACTION_SUGGESTION_MIN_TOKENS` in `packages/shared/src/claudeCompaction.ts`, from upstream's 200,000 tokens to 150,000 (`0034-jstack-idle-compaction-150k-trial.patch`).
+With the setting `idleCompaction: "beforeCacheExpires"`, T3 Code sends `/compact` to an idle Claude thread shortly before its prompt cache expires, but only where its last call held at least that many tokens; the Compact chip on a stale thread reads the same floor, so it shows from 150,000 too.
+It is a one-day trial: every compaction jstack's homes and crews had ran at 202,000 tokens or more, and the trial asks whether compacting earlier costs fewer units per merged row without more rows needing a second review round.
+It is kept only if those rounds do not rise.
+`CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS` does not move it: that variable sets Claude Code's own idle compaction, not the `/compact` T3 Code sends.
+To put it back, revert the pull request that added the patch (`gh pr revert <n>`), then run `jinstall --setup` and restart T3 Code.
+
 ## Switch the tree
 
 The tree is on by default.
