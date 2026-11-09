@@ -1649,29 +1649,27 @@ def test_a_part_fails_soon_when_reuse_ended_with_no_selection(tmp_path):
 
 
 @pytest.mark.parametrize("job", ["check-shard", "full-shard"])
-def test_every_part_restores_one_tlc_cache_by_the_spec_files_and_saves_what_it_added(job):
+def test_every_part_restores_one_tlc_cache_by_the_spec_files_and_keeps_what_it_added(job):
     """The cache of TLC's output (statechart's `kept`) is one for every part, since a test's part
     changes with the selection: its keys name no part. It is restored right before the suite,
     where only a part of the check's wait for its selection comes between them, the latest of
-    the same spec files first, else the latest of any, and saved after it under a key `tlc kept`
-    gives. The files its key hashes are every file a kept run reads from the repo,
-    TLC's pinned jar in statechart's tools.py among them, so a change to any of them misses. The
-    save's key starts with the very key the restore looked for, hashed once before the suite: the
-    suite writes `__pycache__` under the hashed paths, so a hash taken after it names an entry no
-    later run's key finds."""
+    the same spec files first, else the latest of any. A part of the check saves what it added
+    after the suite, under a key `tlc kept` gives; a part of `full` uploads its runs for `full`
+    to save, which the next test pins. The files its key hashes are every file a kept run reads
+    from the repo, TLC's pinned jar in statechart's tools.py among them, so a change to any of
+    them misses. The save's key starts with the very key the restore looked for, hashed once
+    before the suite: the suite writes `__pycache__` under the hashed paths, so a hash taken
+    after it names an entry no later run's key finds."""
     text = CHECK.read_text()
     found, _ = steps(text, job)
     found = [step for step in found if step.get("name") not in ("selection", "part")]
     names = [
         step.get("uses", step.get("name", step.get("run"))).partition("@")[0] for step in found
     ]
-    suite = "make check" if job == "full-shard" else "make test"
     at = names.index("actions/cache/restore")
-    assert names[at : at + 4] == ["actions/cache/restore", suite, "tlc kept", "actions/cache/save"]
-    restore, _, kept, save = found[at : at + 4]
+    restore = found[at]
     assert re.fullmatch(r"actions/cache/(restore|save)@[0-9a-f]{40}", restore["uses"])
-    assert restore["uses"].partition("@")[2] == save["uses"].partition("@")[2]
-    assert "matrix.shard" not in str([restore, kept, save])
+    assert "matrix.shard" not in str(restore)
     specs = re.fullmatch(r"tlc-\$\{\{ (hashFiles\(.*\)) \}\}-", restore["with"]["key"])[1]
     assert (restore["id"], restore["with"]["path"], restore["with"]["restore-keys"]) == (
         "tlc",
@@ -1679,18 +1677,35 @@ def test_every_part_restores_one_tlc_cache_by_the_spec_files_and_saves_what_it_a
         "|",
     )
     assert f"\n            tlc-${{{{ {specs} }}}}-\n            tlc-\n" in text
-    assert "hashFiles" not in str([kept, save])
-    assert kept["env"] == {
-        "KEY": "${{ steps.tlc.outputs.cache-primary-key }}",
-        "RESTORED": "${{ steps.tlc.outputs.cache-matched-key }}",
-    }
-    assert (kept["id"], kept["if"], kept["run"]) == (
-        "kept",
-        "!cancelled() && steps.suite.outcome != 'skipped'",
-        KEPT,
-    )
-    assert save["if"] == "!cancelled() && steps.kept.outputs.key != ''"
-    assert save["with"] == {"path": TLC, "key": "${{ steps.kept.outputs.key }}"}
+    if job == "check-shard":
+        assert names[at : at + 4] == [
+            "actions/cache/restore",
+            "make test",
+            "tlc kept",
+            "actions/cache/save",
+        ]
+        _, _, kept, save = found[at : at + 4]
+        assert restore["uses"].partition("@")[2] == save["uses"].partition("@")[2]
+        assert "matrix.shard" not in str([kept, save])
+        assert "hashFiles" not in str([kept, save])
+        assert kept["env"] == {
+            "KEY": "${{ steps.tlc.outputs.cache-primary-key }}",
+            "RESTORED": "${{ steps.tlc.outputs.cache-matched-key }}",
+        }
+        assert (kept["id"], kept["if"], kept["run"]) == (
+            "kept",
+            "!cancelled() && steps.suite.outcome != 'skipped'",
+            KEPT,
+        )
+        assert save["if"] == "!cancelled() && steps.kept.outputs.key != ''"
+        assert save["with"] == {"path": TLC, "key": "${{ steps.kept.outputs.key }}"}
+    else:
+        assert names[at : at + 3] == [
+            "actions/cache/restore",
+            "make check",
+            "actions/upload-artifact",
+        ]
+        assert "actions/cache/save" not in names
     globs = [f":(glob){one}" for one in re.findall(r"'([^']+)'", specs)]
     hashed = subprocess.run(
         ["git", "ls-files", "--", *globs], cwd=REPO, capture_output=True, text=True, check=True
@@ -1707,6 +1722,60 @@ def test_every_part_restores_one_tlc_cache_by_the_spec_files_and_saves_what_it_a
     ).stdout.split()
     assert read
     assert set(read) - set(hashed) == set()
+
+
+def test_mains_full_run_saves_one_tlc_entry_that_holds_every_parts_runs():
+    """A pull request's part restores only the newest entry under the spec files' key. When each
+    part of main's full run saved its own, that newest entry held one part's runs, and a pull
+    request ran the other parts' TLC scenes cold, at 60 to 271 s a scene where the dealer
+    weighed them at their warm 0.1 to 1.8 s (run 42531437810, 2026-11-08). So no part of `full`
+    saves: each uploads every run it holds, passed or failed, and `full`, which runs once after
+    them all, downloads every part's into the one folder and saves it, under the key the parts
+    restored with and the hash of the names it holds, as a part of the check does. Parts that
+    skipped the suite on a green marker restored nothing, so `full` saves nothing."""
+    parts, _ = steps(CHECK.read_text(), "full-shard")
+    (upload,) = [
+        step
+        for step in parts
+        if step.get("uses", "").startswith("actions/upload-artifact@")
+        and step["with"]["path"] == TLC
+    ]
+    assert upload["if"] == "!cancelled() && steps.suite.outcome != 'skipped'"
+    assert upload["with"]["name"] == "tlc-${{ github.run_attempt }}-${{ matrix.shard }}"
+    assert upload["continue-on-error"] is True
+    assert upload["with"]["if-no-files-found"] == "ignore"
+    outputs = job_section("full-shard", "outputs")
+    assert (outputs["tlc"], outputs["restored"]) == (
+        "${{ steps.tlc.outputs.cache-primary-key }}",
+        "${{ steps.tlc.outputs.cache-matched-key }}",
+    )
+    found, _ = steps(CHECK.read_text(), "full")
+    names = [step.get("uses", step.get("name")).partition("@")[0] for step in found]
+    at = names.index("actions/download-artifact")
+    assert names[at : at + 3] == ["actions/download-artifact", "tlc kept", "actions/cache/save"]
+    runs, kept, save = found[at : at + 3]
+    assert runs["with"] == {"pattern": "tlc-*", "path": TLC, "merge-multiple": True}
+    assert [
+        key
+        for key in ("tlc-1", "")
+        if worked(runs["if"], {"!cancelled()": True, "needs.full-shard.outputs.tlc": key})
+    ] == ["tlc-1"]
+    assert not worked(runs["if"], {"!cancelled()": False, "needs.full-shard.outputs.tlc": "x"})
+    assert (runs["id"], runs["continue-on-error"]) == ("runs", True)
+    ran = {"!cancelled()": True}
+    assert [o for o in OUTCOMES if worked(kept["if"], ran | {"steps.runs.outcome": o})] == [
+        "success"
+    ]
+    assert kept["env"] == {
+        "KEY": "${{ needs.full-shard.outputs.tlc }}",
+        "RESTORED": "${{ needs.full-shard.outputs.restored }}",
+    }
+    assert (kept["id"], kept["run"]) == ("kept", KEPT)
+    assert save["if"] == "!cancelled() && steps.kept.outputs.key != ''"
+    assert save["with"] == {"path": TLC, "key": "${{ steps.kept.outputs.key }}"}
+    assert save["continue-on-error"] is True
+    restore = [step for step in parts if step.get("id") == "tlc"][0]
+    assert save["uses"].partition("@")[2] == restore["uses"].partition("@")[2]
 
 
 def kept_key(home, restored):
@@ -1938,8 +2007,7 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
         ZSH,
         "actions/cache/restore",
         SUITE,
-        KEPT,
-        "actions/cache/save",
+        "actions/upload-artifact",
         "|",
         "actions/upload-artifact",
     ]
@@ -1952,6 +2020,9 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
     }
     gate, _ = steps(CHECK.read_text(), "full")
     assert [step.get("uses", step.get("run")).partition("@")[0] for step in gate][1:] == [
+        "actions/download-artifact",
+        KEPT,
+        "actions/cache/save",
         "actions/checkout",
         "actions/cache",
         "python3 scripts/select_tests.py --failed-on-main 30 ~/.cache/jstack/failed-on-main.json",
@@ -1986,7 +2057,11 @@ def test_the_marker_is_left_only_after_every_part_passed():
     give only the tree, which is the same in all of them, and the marker waits on the result,
     which is success only when every part ran its share and passed or skipped on a marker."""
     *_, mark, upload, warn = steps(CHECK.read_text(), "full")[0]
-    assert job_section("full-shard", "outputs") == {"tree": "${{ steps.tree.outputs.name }}"}
+    assert job_section("full-shard", "outputs") == {
+        "tree": "${{ steps.tree.outputs.name }}",
+        "tlc": "${{ steps.tlc.outputs.cache-primary-key }}",
+        "restored": "${{ steps.tlc.outputs.cache-matched-key }}",
+    }
     assert [
         (result, name)
         for result in RESULTS
@@ -3105,7 +3180,6 @@ def test_the_parts_record_the_lines_they_run_and_check_reads_them_before_any_mar
     upload = next(
         step for step in parts if step.get("with", {}).get("path") == "${{ runner.temp }}/new-lines"
     )
-    assert upload["uses"].startswith("actions/upload-artifact@")
     assert upload["with"]["name"] == "new-lines-${{ github.run_attempt }}-${{ matrix.shard }}"
     found, _ = steps(CHECK.read_text(), "check")
     names = [step.get("id", step.get("name", step.get("uses", ""))) for step in found]
