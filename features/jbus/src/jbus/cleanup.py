@@ -45,7 +45,7 @@ def in_use() -> set[Path] | None:
                 continue
     else:
         listed = proc.run(
-            "lsof", "-a", "-d", "cwd", "-Fn", "-u", str(os.getuid()), errors="replace"
+            "lsof", "-a", "-d", "cwd", "-Fn", "-u", str(os.getuid()), errors="replace", timeout=30
         )
         found = {
             Path(line[1:]).resolve() for line in listed.stdout.splitlines() if line[:2] == "n/"
