@@ -2,6 +2,8 @@
 result directory. The store here is a fixture built with jbus's own schema and views, so the
 backtest's real side is held to the store's own KPI definitions."""
 
+import contextlib
+import fcntl
 import hashlib
 import json
 import os
@@ -185,26 +187,48 @@ def lab(machine, *args):
     )
 
 
-@pytest.fixture(scope="module")
-def machine(tmp_path_factory):
+@contextlib.contextmanager
+def once(path):
+    """Hold the lock at `path` while the body runs, for one pytest-xdist worker at a time."""
+    with open(path, "a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        yield
+
+
+@pytest.fixture(scope="session")
+def shared(tmp_path_factory):
+    """The session's own directory: under pytest-xdist each worker's base temp is a directory of
+    the session's base, which the workers share, so each fixture below is built there once for
+    the session by the first worker that asks, and the others wait for it and read it."""
+    base = tmp_path_factory.getbasetemp()
+    root = (base.parent if os.environ.get("PYTEST_XDIST_WORKER") else base) / "lab"
+    root.mkdir(exist_ok=True)
+    return root
+
+
+@pytest.fixture(scope="session")
+def machine(shared):
     """A home with a live store, a sitecustomize that logs every path opened, and a `claude` that
     says if anything called it."""
-    root = tmp_path_factory.mktemp("lab")
+    root = shared
     home = root / "home"
     store = home / ".local/state/jbus/telemetry.sqlite"
-    build_store(store)
     hook = root / "hook"
-    hook.mkdir()
-    (hook / "sitecustomize.py").write_text(HOOK)
     bin_dir = root / "bin"
-    bin_dir.mkdir()
     called = root / "claude-called"
-    (bin_dir / "claude").write_text(f'#!/bin/sh\necho "$@" >> "{called}"\nexit 1\n')
-    (bin_dir / "claude").chmod(0o755)
     limits = root / "limits"
-    limits.write_text("seven_day 41 1793563200\n")
     temporary = root / "tmp"
-    temporary.mkdir()
+    with once(root / "machine.lock"):
+        if not limits.exists():
+            store.unlink(missing_ok=True)
+            build_store(store)
+            hook.mkdir(exist_ok=True)
+            (hook / "sitecustomize.py").write_text(HOOK)
+            bin_dir.mkdir(exist_ok=True)
+            (bin_dir / "claude").write_text(f'#!/bin/sh\necho "$@" >> "{called}"\nexit 1\n')
+            (bin_dir / "claude").chmod(0o755)
+            temporary.mkdir(exist_ok=True)
+            limits.write_text("seven_day 41 1793563200\n")
     env = {k: v for k, v in os.environ.items() if not k.startswith("VERIFY_JSTACK_")}
     env |= {
         "PATH": f"{bin_dir}:{os.environ['PATH']}",
@@ -224,14 +248,20 @@ def machine(tmp_path_factory):
     }
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def run(machine):
-    """One lab run of every stage into the default out directory."""
-    ran = lab(machine)
-    assert ran.returncode == 0, ran.stdout + ran.stderr
+    """One lab run of every stage into the default out directory, once for the session."""
+    ran = machine["root"] / "run.json"
+    with once(machine["root"] / "run.lock"):
+        if not ran.exists():
+            done = lab(machine)
+            said = {"exit": done.returncode, "stdout": done.stdout, "stderr": done.stderr}
+            ran.write_text(json.dumps(said))
+    said = json.loads(ran.read_text())
+    assert said["exit"] == 0, said["stdout"] + said["stderr"]
     reports = machine["home"] / ".local/state/home" / repo_name() / "reports/lab"
     (out,) = reports.iterdir()
-    return {"out": out, "stdout": ran.stdout}
+    return {"out": out, "stdout": said["stdout"]}
 
 
 def repo_name():
@@ -386,9 +416,12 @@ def test_a_run_deletes_its_copy_at_its_end_and_names_the_copys_hash_and_size(run
     assert size(out) < 10 * 2**20
 
 
-def test_two_runs_of_the_same_copy_write_the_same_stage_json(machine, run, tmp_path):
+def test_two_runs_of_the_same_copy_write_the_same_stage_json(machine, tmp_path, request):
+    """This run goes first, so that it runs beside the session's on another worker and does not
+    wait for it."""
     again = tmp_path / "again"
     ran = lab(machine, "--out", again, "--keep-store")
+    run = request.getfixturevalue("run")
     assert ran.returncode == 0, ran.stdout + ran.stderr
     copy = again / "store.sqlite"
     store = json.loads((again / "manifest.json").read_text())["store"]
