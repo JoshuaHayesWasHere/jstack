@@ -98,7 +98,8 @@ A row's menu, by right-click, the ContextMenu key or Shift+F10, holds what the r
 
 The server sends the tree a change to a file it reads from jbus or a home within a tenth of a second.
 It refreshes on the first write to such a file, and folds the writes that come in the next 50 ms into one more refresh, so a write never waits longer than 50 ms and two refreshes.
-It wakes only on the files it reads, `work.json`, `merged.json`, `questions.json`, `waiting-on-user.json` and `held.json` of jbus, a home's `home-id`, a scope's `home-id`, `prefix`, `plan.md` and `handoff.md`, a task's or a scout's brief, and a folder made or removed, and never on jbus's locks and logs beside them.
+It wakes only on the files it reads, `work.json`, `merged.json`, `questions.json`, `waiting-on-user.json`, `held.json` and `relaunches.json` of jbus, a home's `home-id`, a scope's `home-id`, `prefix`, `plan.md` and `handoff.md`, a task's or a scout's brief, and a folder made or removed, and never on jbus's locks and logs beside them.
+A home still starting prints the `says` of its entry in `relaunches.json`, such as `start failed: not signed in`, in place of `starting...`.
 Each refresh is a span, `JbusWork.refresh`, and logs its duration at the debug level.
 
 The tree is as fresh as jbus's files, and jbus writes `work.json` at each pass.
