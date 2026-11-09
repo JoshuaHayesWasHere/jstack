@@ -22,6 +22,8 @@ import subprocess
 
 import pytest
 
+from repo_standard import rules
+from repo_standard.config import load
 from test_node_adapter import ADAPTER, CHECK, RUNNER, change, npm_runs, skeleton_conform
 from test_skeleton_python import INHERITED, SKELETON, git, make, write
 
@@ -304,6 +306,78 @@ def test_the_selected_ids_are_the_tests_playwright_lists(browser_repo, tmp_path)
         "sign in",
     ]
     assert "--fail-on-flaky-tests" in out
+
+
+def reach_faults(root):
+    """The faults of the rule a browser test no path reaches breaks, as conform reads them."""
+    paths = subprocess.run(
+        ["git", "-C", str(root), "ls-files"], capture_output=True, text=True, check=True
+    ).stdout.splitlines()
+    return rules.selects(rules.Repo(root, load(root), paths))
+
+
+def commit_all(root, message):
+    git(root, "add", "-A")
+    git(root, "commit", "--allow-empty", "-qm", message)
+
+
+@pytest.mark.parametrize(
+    ("planted", "fault"),
+    [
+        ({}, None),
+        (
+            {f"{E2E}/lost.spec.ts": "import { test } from '@playwright/test';\n"},
+            f"{E2E}/lost.spec.ts: no path reaches it: it opens no route, imports no local file",
+        ),
+        (
+            {f"{E2E}/kennel.spec.ts": "test('k', ({ page }) => page.goto('/kennel/1'));\n"},
+            f"{E2E}/kennel.spec.ts: opens /kennel/1, which matches no route of the app",
+        ),
+        (
+            {f"{E2E}/flows.ts": APP[f"{E2E}/flows.ts"].replace("path: () => '/help',\n", "")},
+            f"{E2E}/screens.spec.ts > screen: help: its row names no path",
+        ),
+        (
+            {f"{E2E}/flows.ts": APP[f"{E2E}/flows.ts"].replace("screenFlows", "flows")},
+            f"{E2E}/screens.spec.ts: e2e.table names screenFlows, an array it never declares",
+        ),
+    ],
+)
+def test_the_reach_rule_fails_a_browser_test_no_path_reaches(browser_repo, planted, fault):
+    root, _ = browser_repo
+    write(root, planted)
+    commit_all(root, "a browser test")
+    found = reach_faults(root)
+    assert found == [] if fault is None else len(found) == 1 and found[0].startswith(fault), found
+
+
+def test_the_reach_rule_names_a_spec_the_config_names_that_is_gone(browser_repo):
+    root, _ = browser_repo
+    git(root, "rm", "-q", f"{E2E}/screens.spec.ts")
+    commit_all(root, "the table spec is gone")
+    assert reach_faults(root) == [
+        f"{E2E}/screens.spec.ts: e2e names it, and it is no spec under client/e2e"
+    ]
+
+
+def test_the_reach_rule_needs_the_repos_browser_selection(browser_repo):
+    root, _ = browser_repo
+    git(root, "rm", "-q", "scripts/node_browser.py")
+    commit_all(root, "no browser selection")
+    assert reach_faults(root) == [
+        "scripts/node_browser.py: is not there, so no change selects a browser test"
+    ]
+
+
+def test_a_node_stack_with_no_browser_tests_is_warned_of_and_another_stack_is_not(browser_repo):
+    root, _ = browser_repo
+    config = (root / ".repo-standard.yml").read_text().split("    e2e:")[0]
+    go = "  api:\n    adapter: go\n    roots: [api]\n"
+    (root / ".repo-standard.yml").write_text(config + go)
+    commit_all(root, "no e2e part, and a Go stack beside the client")
+    found = reach_faults(root)
+    assert found == ["stack client: sets no `e2e:`, so no browser test runs on a pull request"]
+    assert isinstance(found[0], rules.Advice)
 
 
 def test_conform_fails_a_spec_whose_url_has_no_route(browser_repo):

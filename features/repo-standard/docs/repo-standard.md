@@ -26,9 +26,9 @@ CI's `lint` job in `.github/workflows/check.yml` runs it there, so the required 
 | `size` | Checks each file's length against its cap. |
 | `comments` | Checks that code holds no plain comment. |
 | `plan` | Prints what the jobs of [the shared check workflow](check-workflow.md) run, and checks nothing. |
-| `stacks` | Runs `lint`, `test` or `select` over each stack of a repo whose config sets `stacks:`, as [the skeleton's page](skeleton.md#several-stacks) says. |
+| `stacks` | Runs `lint`, `test`, `select` or `e2e` over each stack of a repo whose config sets `stacks:`, as [the skeleton's page](skeleton.md#several-stacks) says. |
 
-`repo-standard stacks lint` runs every stack's lint, `repo-standard stacks test [ids]` runs every stack's tests or the ids it is given, and `repo-standard stacks select <base>` prints the ids the change from `<base>` reaches.
+`repo-standard stacks lint` runs every stack's lint, `repo-standard stacks test [ids]` runs every stack's tests or the ids it is given, `repo-standard stacks select <base>` prints the ids the change from `<base>` reaches, and `repo-standard stacks e2e [<file>]` runs the browser tests of each stack with `e2e:`, or only the ids in the file, one a line.
 The skeleton's Makefile runs them from the repo's root, and they take no flag.
 
 Every verb but `stacks` takes `--root` for another checkout, and `--config` for another config file than `<root>/.repo-standard.yml`.

@@ -607,14 +607,18 @@ def test_a_pull_requests_plan_routes_its_browser_ids_to_the_browser_job(caller):
     ],
 )
 def test_the_plan_runs_the_browser_job_only_where_it_routed_it_an_id(
-    caller, selection, parts, browser, ids
+    caller, capsys, selection, parts, browser, ids
 ):
-    repo, env = caller
+    repo, _ = caller
     browser_caller(repo, selection)
-    said = planned(repo, env, "pull_request")
+    path = repo.parent / "selection.txt"
+    path.write_text("".join(f"{one}\n" for one in selection))
+    code, said, _ = plan_of(repo, capsys, "--event", "pull_request", "--selection", str(path))
+    assert code == 0
     assert json.loads(said["parts"]) == parts
     assert (said["browser"], json.loads(said["browser-ids"])) == (browser, ids)
-    needs = {"plan": {"result": "success", "outputs": said}}
+    outputs = {"mode": "standard", "reused": "false", "marker": "", **said}
+    needs = {"plan": {"result": "success", "outputs": outputs}}
     context = {"github": github("pull_request"), "needs": needs}
     assert evaluate(workflow()["jobs"]["browser"]["if"], context, repo) == (browser != NONE)
 
@@ -637,6 +641,37 @@ def test_an_e2e_root_that_pins_no_playwright_fails_the_plan(caller):
     done = run_job("plan", repo, {**env, "GITHUB_EVENT_NAME": "push"}, {"github": github("push")})
     assert done["result"] == "failure"
     assert "web/package-lock.json pins no @playwright/test" in done["steps"]["plan"]["said"]
+
+
+@pytest.mark.parametrize("lock", [None, "{}", "not json"])
+def test_the_plan_refuses_an_e2e_root_whose_lockfile_pins_no_playwright(caller, capsys, lock):
+    repo, _ = caller
+    browser_caller(repo, BROWSER_IDS)
+    if lock is None:
+        git(repo, "rm", "-q", "web/package-lock.json")
+        commit(repo, {}, "no lockfile")
+    else:
+        commit(repo, {"web/package-lock.json": lock}, "a lockfile with no Playwright")
+    code, _, err = plan_of(repo, capsys, "--event", "push")
+    assert code == 2
+    assert "stack web: web/package-lock.json pins no @playwright/test" in err
+
+
+def test_two_e2e_roots_that_pin_two_playwrights_fail_the_plan(caller, capsys):
+    repo, _ = caller
+    second = E2E_CONFIG.replace("web", "app").split("stacks:\n")[1]
+    commit(
+        repo,
+        {
+            ".repo-standard.yml": E2E_CONFIG + second,
+            "web/package-lock.json": E2E_LOCK,
+            "app/package-lock.json": E2E_LOCK.replace("1.64.1", "1.63.0"),
+        },
+        "two e2e roots",
+    )
+    code, _, err = plan_of(repo, capsys, "--event", "push")
+    assert code == 2
+    assert "pin Playwright at more than one version: web 1.64.1, app 1.63.0" in err
 
 
 def browser_job(repo, env, said, channel=""):

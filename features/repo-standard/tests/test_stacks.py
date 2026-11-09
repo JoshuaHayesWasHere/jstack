@@ -7,6 +7,8 @@ reach: an id or a base the driver refuses, a stack whose select fails, a tool th
 installed, and the config's refusal of each `stacks:` it cannot hold.
 """
 
+import json
+import os
 import re
 import shutil
 import sys
@@ -19,7 +21,7 @@ from repo_standard.adapters import COMMANDS
 from repo_standard.config import E2E, Config, Refused, Stack, Table, build, parse
 from test_go_adapter import needs_go
 from test_multi_stack import STACKS
-from test_skeleton_python import STANDARD, git
+from test_skeleton_python import STANDARD, git, write
 
 stacked_repo = test_multi_stack.stacked_repo
 upstream = test_multi_stack.upstream
@@ -183,6 +185,13 @@ def test_the_config_reads_a_node_stacks_browser_tests():
         ("      root: e2e\n      script: e2e\n      grep: x", "has grep, which the standard"),
         ("      root: e2e", "names no npm script"),
         ("      root: e2e\n      script: e2e\n      every: [x.spec.ts]", "outside the stack's"),
+        ("      root: [e2e]\n      script: e2e", "e2e.root is not a path"),
+        ("      root: e2e\n      script: e2e\n      table: x", "is not a list of `file`"),
+        (
+            "      root: e2e\n      script: e2e\n      table:\n        - file: e2e/a.spec.ts\n"
+            "          export: 1flows\n          title: '{name}'",
+            "export is not the name of an array",
+        ),
         ("      root: e2e\n      script: e2e\n      routes:\n        e2e/a.ts: [pets]", "not a"),
         (
             "      root: e2e\n      script: e2e\n      table:\n        - file: e2e/a.spec.ts\n"
@@ -216,3 +225,92 @@ def test_each_script_an_adapter_runs_ships_in_that_adapters_folder():
     for name, commands in COMMANDS.items():
         for script in commands.scripts:
             assert (STANDARD / "adapters" / name / script).is_file(), f"{name}: {script}"
+
+
+NPM = """#!/bin/sh
+echo "npm $*"
+while [ $# -gt 0 ]; do
+  if [ "$1" = --test-list ]; then cat "$2"; fi
+  shift
+done
+[ -z "$NPM_FAILS" ]
+"""
+WEB = {
+    ".repo-standard.yml": (
+        "standard: 1\nstacks:\n  web:\n    adapter: node-vite\n    roots: [web]\n"
+        "    e2e:\n      root: web\n      script: test:e2e\n"
+    ),
+    "web/package.json": json.dumps(
+        {"name": "web", "scripts": {"check": "x", "test": "x", "test:e2e": "playwright test"}}
+    ),
+    "web/package-lock.json": "{}\n",
+    "web/playwright.config.ts": "export default { testDir: './e2e' };\n",
+    "web/src/routes/+page.svelte": "<p>home</p>\n",
+    "web/src/routes/pets/+page.svelte": "<p>pets</p>\n",
+    "web/e2e/home.spec.ts": "test('home', async ({ page }) => page.goto('/'));\n",
+    "web/e2e/pets.spec.ts": "test('pets', async ({ page }) => page.goto('/pets'));\n",
+}
+
+
+@pytest.fixture
+def web(tmp_path, monkeypatch):
+    """A repo of one node stack, `web`, with browser tests, as the working directory, and an `npm`
+    that prints what it was asked and the test list it was given."""
+    root = tmp_path / "repo"
+    write(root, WEB)
+    shutil.copytree(STANDARD / "adapters/node-vite/scripts", root / "scripts")
+    git(root, "init", "-q", "-b", "main")
+    git(root, "add", "-A")
+    git(root, "commit", "-qm", "a node stack with browser tests")
+    tools = tmp_path / "bin"
+    tools.mkdir()
+    (tools / "npm").write_text(NPM)
+    (tools / "npm").chmod(0o755)
+    monkeypatch.setenv("PATH", f"{tools}:{os.environ['PATH']}")
+    monkeypatch.delenv("NPM_FAILS", raising=False)
+    monkeypatch.chdir(root)
+    return root
+
+
+def test_the_driver_selects_a_node_stacks_browser_tests(web, capsys):
+    change(web, "web/src/routes/pets/+page.svelte")
+    assert selection(capsys) == ["web/e2e/pets.spec.ts"]
+
+
+def test_the_driver_runs_every_browser_test_or_the_listed_ones(web, capfd, tmp_path):
+    assert cli.main(["stacks", "e2e"]) == 0
+    assert "npm --prefix web run test:e2e -- --fail-on-flaky-tests\n" in capfd.readouterr().out
+    listed = tmp_path / "ids.txt"
+    listed.write_text("web/e2e/pets.spec.ts > pets\nweb/e2e/home.spec.ts\n")
+    assert cli.main(["stacks", "e2e", str(listed)]) == 0
+    out = capfd.readouterr().out
+    assert "--fail-on-flaky-tests --test-list" in out
+    assert out.endswith("pets.spec.ts > pets\nhome.spec.ts\n")
+    listed.write_text("stack:web\n")
+    assert cli.main(["stacks", "e2e", str(listed)]) == 0
+    assert "--test-list" not in capfd.readouterr().out
+
+
+def test_a_failing_browser_test_fails_the_driver(web, monkeypatch):
+    monkeypatch.setenv("NPM_FAILS", "1")
+    assert cli.main(["stacks", "e2e"]) == 1
+
+
+@pytest.mark.parametrize(
+    ("argv", "said"),
+    [
+        (["e2e", "nowhere.txt"], "cannot read nowhere.txt"),
+        (["e2e", "ids.txt"], "is under no stack's roots"),
+        (["e2e", "a", "b"], "usage:"),
+    ],
+)
+def test_the_driver_refuses_a_browser_run_it_cannot_make(web, capsys, argv, said):
+    (web / "ids.txt").write_text("api/e2e/a.spec.ts\n")
+    assert cli.main(["stacks", *argv]) == 2
+    assert said in capsys.readouterr().err
+
+
+def test_a_config_with_no_browser_tests_has_none_to_run(web, capsys):
+    config = build(parse("stacks:\n  web:\n    adapter: node-vite\n    roots: [web]\n"))
+    assert stacks.main(web, config, ["e2e"]) == 2
+    assert "no stack of the config sets `e2e:`" in capsys.readouterr().err

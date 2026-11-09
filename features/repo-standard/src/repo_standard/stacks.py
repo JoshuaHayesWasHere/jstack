@@ -146,8 +146,7 @@ def e2e(config: Config, listed: str | None) -> int:
     for name, mine in runs.items():
         one = browsers[name]
         command = COMMANDS[one.adapter].e2e
-        if command is None or one.e2e is None:
-            raise Refused(f"the adapter {one.adapter} of stack {name} runs no browser test")
+        assert command is not None and one.e2e is not None, "the config sets e2e: on node alone"
         if not mine:
             failed |= run(command(one.e2e, None)).returncode != 0
             continue
