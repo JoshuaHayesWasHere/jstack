@@ -25,52 +25,66 @@ ON_PAGE = ("role",)
 
 BUILT = {}
 
-SLOWER = 30
+ROUNDS = 3
+
+SLOWER = {"in process": 12, "in its shells": 60}
 
 
 def cpu():
-    """The CPU seconds this process and the children it waited on have used: a runner whose
-    cores are busy makes a build wait longer, and does not make it use more."""
+    """The CPU seconds this process has used, and those of the children it waited on: a
+    runner whose cores are busy makes the views wait longer, and does not make them use more."""
     children = resource.getrusage(resource.RUSAGE_CHILDREN)
-    return time.process_time() + children.ru_utime + children.ru_stime
+    return time.process_time(), children.ru_utime + children.ru_stime
+
+
+def spent(began):
+    return tuple(now - then for now, then in zip(cpu(), began, strict=True))
 
 
 def reference(folder):
-    """The CPU seconds of a fixed piece of the work the build does, JSON written to files and
-    read back and a few shells run, the least of three tries: the yardstick of this machine."""
+    """The CPU seconds of fixed work of each kind the views do, JSON written to files and read
+    back in this process and shells run as children: the yardstick of this machine. Each kind
+    is held to its own, since a loaded runner slows the start of a shell more than it slows
+    the work of this process."""
     data = {f"k{n}": {"n": n, "text": "x" * 50, "list": list(range(20))} for n in range(400)}
-    tries = []
-    for _ in range(3):
-        began = cpu()
-        for n in range(40):
-            file = folder / f"reference-{n % 5}.json"
-            file.write_text(json.dumps(data))
-            json.loads(file.read_text())
-        for _ in range(4):
-            subprocess.run(["sh", "-c", ":"], check=True)
-        tries.append(cpu() - began)
-    return min(tries)
+    began = cpu()
+    for n in range(40):
+        file = folder / f"reference-{n % 5}.json"
+        file.write_text(json.dumps(data))
+        json.loads(file.read_text())
+    for _ in range(8):
+        subprocess.run(["sh", "-c", ":"], check=True)
+    return spent(began)
+
+
+def viewed(scene):
+    """The three answers over the scene, and the CPU seconds of each kind they took."""
+    began = cpu()
+    seen = {}
+    for who in ("", work.T3, work.GITHUB):
+        walk.silent(scene, who)
+        seen[who] = walk.view(scene)
+    return seen, spent(began)
 
 
 @pytest.fixture
 def walked(tmp_path, monkeypatch):
-    """The walk's project and the three answers over it, with the CPU time they took to build
-    and the reference's on the same machine in the same run. The first test that asks builds
-    them, under the isolation every test has (the zone of `testing/jstack_fixtures.py` among
-    it), and the tests after it read the same answers."""
+    """The walk's project and the three answers over it, with the CPU time of each kind they
+    took and the reference's, the least of `ROUNDS` rounds that run one of each in turn, so
+    that a burst of load on the runner has to fall on every round to count. The first test
+    that asks builds them, under the isolation every test has (the zone of
+    `testing/jstack_fixtures.py` among it), and the tests after it read the same answers."""
     if not BUILT:
-        (tmp_path / "reference").mkdir()
-        yardstick = reference(tmp_path / "reference")
-        began = cpu()
         scene = Scene(tmp_path, monkeypatch)
         made = walk.build(scene)
-        seen = {}
-        for who in ("", work.T3, work.GITHUB):
-            walk.silent(scene, who)
-            seen[who] = walk.view(scene)
-        took = cpu() - began
-        yardstick = min(yardstick, reference(tmp_path / "reference"))
-        BUILT["walk"] = made, seen, (took, yardstick)
+        (tmp_path / "reference").mkdir()
+        took, yardstick = [], []
+        for _ in range(ROUNDS):
+            yardstick.append(reference(tmp_path / "reference"))
+            seen, cost = viewed(scene)
+            took.append(cost)
+        least = [tuple(map(min, zip(*one, strict=True))) for one in (took, yardstick)]
+        BUILT["walk"] = made, seen, least
     return BUILT["walk"]
 
 
@@ -91,9 +105,9 @@ def test_a_state_with_no_entry_fails_the_walk():
     assert set(walk.KNOWN) <= set(walk.SURFACES)
 
 
-def test_the_walk_has_each_state_and_builds_in_under_30_references(walked):
-    """The build is held to `SLOWER` times the reference's CPU time: it takes about 12 times
-    it, idle or on a runner whose every core is busy, so a build three times slower fails."""
+def test_the_walk_has_each_state_and_its_views_cost_few_references(walked):
+    """The views are held to `SLOWER` times the reference of each kind: about 5 times it in
+    process and 36 times it in shells, so views built twice over fail in shells."""
     made, _, (took, yardstick) = walked
     pairs = walk.reached()
     assert set(made.rows) == set(pairs)
@@ -102,11 +116,15 @@ def test_the_walk_has_each_state_and_builds_in_under_30_references(walked):
     assert set(made.items) == walk.states()["kind"]
     assert len(made.gates) == 12
     assert set(made.owners) == walk.states()["owner"]
-    times = took / yardstick
-    assert times < SLOWER, (
-        f"the walk took {took:.2f} CPU s to build, {times:.0f} times the reference's"
-        f" {yardstick:.3f} s, {times / SLOWER:.1f} times the limit of {SLOWER}"
-    )
+    over = []
+    for kind, cost, unit in zip(SLOWER, took, yardstick, strict=True):
+        times = cost / unit
+        if times >= SLOWER[kind]:
+            over.append(
+                f"{kind} the views took {cost:.3f} CPU s, {times:.1f} times the reference's"
+                f" {unit:.4f} s, {times / SLOWER[kind]:.1f} times the limit of {SLOWER[kind]}"
+            )
+    assert not over, "; ".join(over)
 
 
 def needed(stack, slug, pr):
