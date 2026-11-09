@@ -366,8 +366,8 @@ Two pull requests can each pass their check alone and break main together, as #9
 `jmerge` runs nothing on the merged tree to catch that: fast guards on the merged tree ran inside the merge lock from 2026-11-04 to 2026-11-08, on 76% of merges at 75 s each, and caught no real clash in that time, while a merge every 75 s or more caps merges near 45 an hour.
 What stands behind such a merge instead:
 
-- **Main's own run over what moved.** Main's run checks main's tree as the merges left it, everything that moved since its last green run together, so a clash two merges make shows there and turns main red.
-- **jbus's revert of the one clear culprit.** On a red main, jbus opens a revert of the merge whose change the failing test names (`jmerge.reverts`), and that revert comes first in the line.
+- **Main's own run over what moved**: main's run checks main's tree as the merges left it, everything that moved since its last green run together, so a clash two merges make shows there and turns main red.
+- **jbus's revert of the one clear culprit**: on a red main, jbus opens a revert of the merge whose change the failing test names (`jmerge.reverts`), and that revert comes first in the line.
 
 ## A failed check over a base that moved
 
