@@ -715,14 +715,12 @@ def facet(state: Path, row: Row, unmet: list[str]) -> work.Row:
     return work.Row.BEHIND if unmet else work.Row.FREE
 
 
-def unheld(state: Path, row: Row) -> work.Go | None:
-    """Return why the row waits on the user's go, or None where its go holds (`work.Go`): a row
-    never approved, one whose go was taken back (`hold`), and one whose brief changed after the
-    go, with the lines that changed (`changed`). work.json says it as the row's `why`
+def unheld(state: Path, row: Row) -> work.Go:
+    """Return why a row whose go does not hold (its facet is in `work.UNHELD`) waits on the user's
+    go (`work.Go`): it was never approved, its go was taken back (`hold`), or its brief changed
+    after the go, with the lines that changed (`changed`). work.json says it as the row's `why`
     (`work.holder`), and the sidebar shows it."""
     text = brief(state, row["slug"])
-    if not row.get("held") and judgement.has_go(row, text):
-        return None
     sha = judgement.brief_sha(text)[:12] if text is not None else ""
     if row.get("held"):
         hold = row.get("hold") or {}
