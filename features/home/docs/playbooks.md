@@ -14,6 +14,8 @@ The home runs a playbook of its own from a `Playbook:` line in the head of its `
 Each file in `templates/` is the one copy of a shape, such as `brief.md`, `result.md`, `review.md` and `gates.md`.
 A skill reads a template at the step that names it, and finds the directory from its own symlink (`realpath ~/.claude/skills/<name>/../../templates`), so the symlinks must point into the harness layout that `install.sh` assembles, under `~/.local/share/jstack/harness/`.
 
-A brief's head has a `Design:` line only where `/architect` wrote a design for the task, and the line gives that design's path. Its `Proves it:` line, under the "Done when" list, names what outside the agent shows the task is done: a test or a command, a metric, a dataset, an external judge or the user, never the crew's own review. A crewmate's Result has a `Proof:` line: for each "Done when" line, the command run and what it printed.
+A brief's head has a `Design:` line only where `/architect` wrote a design for the task, and the line gives that design's path.
+Its `Proves it:` line, under the "Done when" list, names what outside the agent shows the task is done: a test or a command, a metric, a dataset, an external judge or the user, never the crew's own review.
+A crewmate's Result has a `Proof:` line: for each "Done when" line, the command run and what it printed.
 
 [The catalog](../../../CATALOG.md) lists every skill, principle and playbook, by feature.
