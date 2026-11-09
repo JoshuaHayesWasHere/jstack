@@ -93,6 +93,7 @@ It is in the log, which `jbus events` prints and the view shows.
 - `heartbeat`
 - `hold-stall`
 - `home-stall`
+- `home-start`
 - `hook`
 - `item.approved`
 - `item.done`

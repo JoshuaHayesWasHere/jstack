@@ -127,10 +127,14 @@ A pass keeps the catch-all's home, `uncategorized`, running once the project's h
 When the catch-all's `home-id` names no thread, or one T3 Code has archived or does not know, and the thread jbus last launched for it is not at work, the pass makes `uncategorized/` with an empty `plan.md` where there is none and launches a thread titled `home: <project> uncategorized` whose message is `/home uncategorized`.
 The thread works in the project's own checkout, with no worktree and no branch, and its model is the role map's `home` line.
 Its start writes its own `home-id`.
-A launched thread holds off the next launch only while it is at work (`watch.at_work`): one whose start failed or went idle with no `home-id` written is launched again once `PATIENCE` is up, at most once in `PATIENCE`.
+A launched thread holds off the next launch only while its start may still write its `home-id`: one whose start failed or went idle with no `home-id` written is launched again on the next pass.
 
 A home that stalls is launched again too: a home quiet with work out is nudged twice, a patience apart, and a patience after the second nudge jbus launches `/home <scope>` on a fresh thread ([What waits on you](what-waits-on-you.md#a-home-that-stalls)).
 
 `~/.local/state/jbus/<project>/relaunches.json` keeps the last launch of each home: its thread, when, and why.
-jbus launches a home at most once in `PATIENCE` (60 minutes), the time its start has to write its `home-id`, a lost reply included.
+jbus holds a home's next launch for `PATIENCE` (60 minutes), the time its start has to write its `home-id`, only while that start may still write it: its thread is at work, T3 Code does not list it yet, or the reply that names it was lost.
+A start whose run ended is over at once, and the next pass launches the home again.
+jbus reads what the run failed on: `not signed in` for a login lapse, a usage limit, which it writes to the ledger so the next launch goes to another instance or waits for the reset, or else the run's end.
+A second start in a row that fails on the cause the first failed on waits for that cause to clear (the instance it ran on signed in again, the limit's reset, or `PATIENCE` for any other cause) and says so once, a quiet `home-start` event in the digest.
+The home's entry keeps the failure and `says`, the words the sidebar shows for a home with no `home-id` yet, such as `start failed: not signed in`.
 No home launches while the dispatch is off or stopped.
