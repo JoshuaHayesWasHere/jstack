@@ -4,7 +4,6 @@
 import pytest
 
 from crew_helpers import BRIEF, said
-from jmerge import judgement
 from test_jbus_kitchen import Kitchen
 
 
@@ -22,9 +21,7 @@ def test_a_brief_that_came_in_the_launch_message_is_the_brief_the_skill_reads(ki
         "Design: none, a test\nReview: review\nPlaybook: feature\nHome: uncategorized\n"
     )
     assert kitchen.main("queue", "add", "alpha", "--priority", "1", stdin=brief)[0] == 0
-    sha = judgement.brief_sha(brief)[:12]
-    at = ["--word", kitchen.word(), "--sha", sha]
-    assert kitchen.main("queue", "approve", "alpha", *at)[0] == 0
+    assert kitchen.main("queue", "approve", "alpha", "--word", kitchen.word())[0] == 0
     kitchen.poll()
     first, _, below = kitchen.t3.launches[0]["message"].partition("\n")
     assert first == "/crew alpha"

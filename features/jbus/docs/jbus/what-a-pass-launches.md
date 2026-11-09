@@ -108,7 +108,7 @@ A request is a row of the queue, queued, approved and ordered as any row is:
 
 ```
 jbus queue add <slug> --priority <n> [--entry <entry>] [--depends <slugs>] < scouts/<slug>.md
-jbus queue approve <slug> --sha <sha12> --word <id>
+jbus queue approve <slug> --word <id>
 ```
 
 - **`add`** takes a text whose head has a `Request:` line and no `Task:` line as a scout's request, and keeps it as a row whose `role` is `scout`.

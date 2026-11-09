@@ -90,8 +90,7 @@ The other features are in each `features/<name>/verify.md`, and the shared test 
 printf '# alpha: a demo task\nTask: alpha, a demo task\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/alpha/`\nDesign: none, a demo\nReview: none\nPlaybook: none\nPull request: none\nHome: uncategorized\n' | record queue-row jbus queue add alpha --priority 1
 printf '{"mcp:sandbox-chat": [{"itemId": "turn-item:message:m1", "messageId": "m1", "text": "go", "type": "user_message", "createdBy": "user", "updatedAt": "%s"}]}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$VERIFY_JSTACK_SANDBOX/t3/messages.json"
 word=$(record queue-row jbus word --to demo --message mcp:sandbox-chat/m1 | awk '{print $NF}')
-sha=$(command grep -v '^Home:' "$JBUS_STATE_DIR/demo/briefs/alpha.md" | shasum -a 256 | cut -c1-12)
-record queue-row jbus queue approve alpha --sha "$sha" --word "$word"
+record queue-row jbus queue approve alpha --word "$word"
 record queue-row jbus poll
 record queue-row jbus queue show
 record queue-row jbus status
@@ -110,8 +109,7 @@ echo 'crew: claudeAgent claude-sonnet-5-5 claudeAgent,claudeAgent_sandbox' > "$V
 printf '# alpha: a demo task\nTask: alpha, a demo task\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/alpha/`\nDesign: none, a demo\nReview: none\nPlaybook: none\nPull request: none\nHome: uncategorized\n' | record usage-limit jbus queue add alpha --priority 1
 printf '{"mcp:sandbox-chat": [{"itemId": "turn-item:message:m1", "messageId": "m1", "text": "go", "type": "user_message", "createdBy": "user", "updatedAt": "%s"}]}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$VERIFY_JSTACK_SANDBOX/t3/messages.json"
 word=$(record usage-limit jbus word --to demo --message mcp:sandbox-chat/m1 | awk '{print $NF}')
-sha=$(command grep -v '^Home:' "$JBUS_STATE_DIR/demo/briefs/alpha.md" | shasum -a 256 | cut -c1-12)
-record usage-limit jbus queue approve alpha --sha "$sha" --word "$word"
+record usage-limit jbus queue approve alpha --word "$word"
 record usage-limit jbus poll
 T="$VERIFY_JSTACK_SANDBOX/t3"
 notice="run-1:usage-limit:five_hour:$(($(date +%s) + 3600))"
@@ -132,8 +130,7 @@ Leave the pull request out of this drive: a pass tells the crew of a green one, 
 printf '# alpha: a demo task\nTask: alpha, a demo task\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/alpha/`\nDesign: none, a demo\nReview: none\nPlaybook: none\nPull request: none\nHome: uncategorized\n' | record login-lapse jbus queue add alpha --priority 1
 printf '{"mcp:sandbox-chat": [{"itemId": "turn-item:message:m1", "messageId": "m1", "text": "go", "type": "user_message", "createdBy": "user", "updatedAt": "%s"}]}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$VERIFY_JSTACK_SANDBOX/t3/messages.json"
 word=$(record login-lapse jbus word --to demo --message mcp:sandbox-chat/m1 | awk '{print $NF}')
-sha=$(command grep -v '^Home:' "$JBUS_STATE_DIR/demo/briefs/alpha.md" | shasum -a 256 | cut -c1-12)
-record login-lapse jbus queue approve alpha --sha "$sha" --word "$word"
+record login-lapse jbus queue approve alpha --word "$word"
 record login-lapse jbus poll
 T="$VERIFY_JSTACK_SANDBOX/t3"
 ended=$(perl -MPOSIX -e 'print strftime("%Y-%m-%dT%H:%M:%SZ", gmtime(time - 600))')

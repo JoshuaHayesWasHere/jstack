@@ -10,7 +10,7 @@ The Chef runs `jbus queue` and nothing else that changes state.
 | `jbus queue show` | Reads the table, and what waits on you above it. |
 | `jbus queue check [<slug>]` | Checks a brief on stdin as `add` would, and writes nothing. It judges the brief's lines only: `add` can still refuse a clean brief for a slug that is no slug, a twin of another live row's brief, or a brief whose role is not its row's. |
 | `jbus queue add <slug> --priority <n> [--depends <slugs>]` | Adds a row, with the brief on stdin. |
-| `jbus queue approve <slug> --sha <sha12> --message <thread id>/<message id>` | Records your go for the brief you were shown. The Chef runs it only after you said yes to that brief, and names the message you said it in. For a brief that holds for a door, by a `Holds:` line or a command it runs, it parks a gate for you instead, unless it runs as `jbus --as user queue approve ... --message ...` on your own message. |
+| `jbus queue approve <slug> --message <thread id>/<message id>` | Records your go for the brief as jbus stores it. The Chef runs it only after you said yes to that brief, and names the message you said it in. For a brief that holds for a door, by a `Holds:` line or a command it runs, it parks a gate for you instead, unless it runs as `jbus --as user queue approve ... --message ...` on your own message. |
 | `jbus queue hold <slug>` | Takes a row's approval back. |
 | `jbus queue apply` | Runs a batch of `add`, `approve`, `hold` and `remove` lines from stdin, all or none; the Chef uses only the first three. |
 
@@ -18,7 +18,7 @@ The Chef never approves by itself.
 The `approve` command above takes no name and no time.
 Instead it names your own message, which jbus reads from T3 Code, or a word or an answer that jbus keeps.
 jbus writes who ran the command and when.
-`--sha` ties the go to one text of the brief.
+The go is tied to one text of the brief, the one jbus stores at that moment, whose sha256 the row keeps: a later change to the brief voids the go unless it means the same.
 One more basis, `--follows <parent slug>`, is not your word for the row: a follow-up of approved work needs no new approval, and its ground is the parent's go.
 A home uses it for a follow-up to a row with a go, and jbus uses it itself, in `jbus queue add` and on each pass, for a row that its follow-up rule names a follow-up ([the queue](the-queue.md)).
 jbus does not check who runs the command, and it records who did.

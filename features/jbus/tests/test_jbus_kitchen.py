@@ -1355,8 +1355,7 @@ def approved(kitchen, slug, priority=1):
 
 
 def go(kitchen, slug):
-    sha = judgement.brief_sha((kitchen.state / "briefs" / f"{slug}.md").read_text())[:12]
-    return kitchen.main("queue", "approve", slug, "--word", kitchen.word(), "--sha", sha)
+    return kitchen.main("queue", "approve", slug, "--word", kitchen.word())
 
 
 GATE = textwrap.dedent("""\
@@ -1443,8 +1442,7 @@ def queued(kitchen, slug, text=None):
     """Add a row of the queue, approved, as the Chef adds one."""
     text = text or complete(slug)
     assert kitchen.main("queue", "add", slug, "--priority", "1", stdin=text)[0] == 0
-    sha = judgement.brief_sha(text)[:12]
-    go = ["queue", "approve", slug, "--word", kitchen.word(), "--sha", sha]
+    go = ["queue", "approve", slug, "--word", kitchen.word()]
     assert kitchen.main(*go)[0] == 0
 
 

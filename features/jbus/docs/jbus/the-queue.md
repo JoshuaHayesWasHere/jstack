@@ -14,10 +14,10 @@ To approve it from a shell:
    jbus queue show
    ```
 
-   Above the table, a row that waits for your go has its own line, with the brief's sha in it:
+   Above the table, a row that waits for your go has its own line, with the sha of its brief as jbus stores it now:
 
    ```text
-   approve alpha: jbus --project demo queue approve alpha --sha 52e43397dc8c with --word <id>, --answer <number>, --message <thread id>/<message id> or --pick <thread id>/<item id>
+   approve alpha: jbus --project demo queue approve alpha with --word <id>, --answer <number>, --message <thread id>/<message id> or --pick <thread id>/<item id>, for its brief 52e43397dc8c
    ```
 
 2. Read the brief you approve, `~/.local/state/jbus/<project>/briefs/<slug>.md`.
@@ -33,7 +33,7 @@ To approve it from a shell:
 4. Approve the row on that word, with the command the first line gave:
 
    ```sh
-   jbus --project demo queue approve alpha --sha 52e43397dc8c --word 6f6dcb57a29b
+   jbus --project demo queue approve alpha --word 6f6dcb57a29b
    ```
 
    The table's `approved` column now says `your word, <time>, in <thread title>; run <time> by <who>`.
@@ -66,19 +66,19 @@ add alpha --priority 1 --depends beta,gamma --merge-after delta
 --- brief alpha
 # alpha: the brief, as it will be launched
 --- end
-approve alpha --word 0a1b2c3d4e5f --sha 1a2b3c4d5e6f
+approve alpha --word 0a1b2c3d4e5f
 approve epsilon --follows alpha
 hold delta
 ```
 
 It applies every verb or none, under one lock, and prints one result line per verb.
 If a verb cannot be done, it prints `refused: line <n>: <why>, and nothing in the batch was applied` and exits with code 1.
-The verbs run in order, so an `approve` can name the sha of a brief added earlier in the same batch.
+The verbs run in order, so an `approve` is for the brief an `add` stored earlier in the same batch.
 Each of the four verbs typed alone is a batch of one, with the brief of an `add` on stdin:
 
 ```sh
 jbus queue add <slug> --priority <n> --depends <slug>,<slug> --merge-after <slug>,<slug> --entry <entry> < brief.md
-jbus queue approve <slug> --sha <sha12> --word <id>
+jbus queue approve <slug> --word <id>
 jbus queue hold <slug>
 jbus queue remove <slug> --by <user> --at "<YYYY-MM-DD HH:MM zone>"
 ```
@@ -206,10 +206,10 @@ A held row's crewmate gets no rebase and no fix message from jbus, at the second
 The hold is lifted as any hold is, with `jbus queue approve`, and the count then starts again from none.
 The heads are kept in `fails.json` in the project's state.
 
-An approval names its brief.
-`--sha` is required with a basis of your word, and it is the first 12 characters of the sha256 of the brief you were shown.
-If the stored brief has another sha, `approve` prints `refused: <slug>'s brief is <sha12>, not <given>`.
-With no `--sha`, it prints `refused: approve on the user's word needs --sha <sha12>, the first 12 of the sha256 of the brief they were shown; a go by --follows needs none`.
+An approval is for the brief as jbus stores it at that moment, and the row keeps that brief's sha256 as `brief_sha`.
+An `add` that changes the brief after the go prints `its go holds` when the new text means the same, and `its go does not hold for it: approve it again` when it does not ([What an approval is bound to](#what-an-approval-is-bound-to)).
+`jbus queue approve` takes a `--sha` beside any basis and does not read it, so a command that still passes one is not refused for it.
+Two acts name the brief their person had on screen, and are held to it: the bot's go, whose `sha12` is the brief its page showed ([The bot's route](#the-bots-route)), refused with `refused: <slug>'s brief is <sha12>, not <given>` when the stored brief has another sha; and a go on the message the sidebar's Approve sends, `approve <slug> (brief sha <sha12>)`, refused with `refused: the sidebar showed <slug>'s brief <sha12>, and jbus holds <sha12>: open the brief again and approve what it holds now`.
 
 ### The bases
 
@@ -235,7 +235,7 @@ jbus queue approve <slug> --follows <parent slug>
 ```
 
 `--follows` goes with none of the bases above.
-It takes no `--sha`, since nobody read the brief's sha for a follow-up, and a `--sha` beside it is taken and not read: the go is for the brief jbus stores.
+Like every go typed on the command line, it is for the brief jbus stores, and a `--sha` beside it is taken and not read.
 A `--rule <n>` beside it is taken and not read, so `jbus queue approve <slug> --rule 6 --follows <parent slug>` approves as `--follows` alone does.
 Any other mix gets the refusal above.
 jbus checks the parent and judges nothing else.
@@ -271,7 +271,7 @@ The row's `approval` field records the approval:
 | `follows` | By rule only: the slug of the parent row. |
 | `ground` | By rule only, for a fix jbus filed from a red check, which names no parent: the words that name the red run, which the line says in place of the parent (above). |
 | `ran_by`, `ran_at` | The session that ran the command (`CLAUDE_CODE_SESSION_ID`) with its directory, and the time by the clock. No option gives either. |
-| `brief_sha` | The sha256 of the stored brief at the go, which `--sha` named for a go on your word. |
+| `brief_sha` | The sha256 of the brief jbus stored at the go: what pins the go to one text. |
 | `meaning`, `scope` | The brief's meaning fingerprint at the go, and the sha256 of it. The go holds for any brief that means the same (below). |
 
 `jbus queue show` prints it in the `approved` column as `your word, <said_at>, in <said_in>; run <ran_at> by <who>`, with `(time typed)` after the time where `checked` is false.
@@ -349,7 +349,7 @@ A command that runs dry, with `--dry-run` or `DRY_RUN=1`, or only prints its hel
 `jbus queue add` prints `holds: <case>, from <the command>` for each such door that no `Holds:` line names, so the home writes the line.
 An act on a door goes through only for you, on words jbus read itself.
 A go on such a brief from the bot, a home or the view approves nothing: it parks a gate that holds, `may <slug> go? Its brief holds for <case>`, and the act is `gated`.
-Your own go, `jbus --as user queue approve <slug> --sha <sha12> --message <thread>/<message>`, or `--pick <thread>/<item>` for your answer to a question box, approves the row and closes that gate.
+Your own go, `jbus --as user queue approve <slug> --message <thread>/<message>`, or `--pick <thread>/<item>` for your answer to a question box, approves the row and closes that gate.
 Your plain reply in a home's thread opens it: the home's last message before it names the row by its slug, or its gate as `question <n>` (`t3.home_ask`, `t3.asks`).
 You need not name anything: "yes" or "drop it" is enough, and the home turns it into the verb.
 A plain reply opens every door the ask named, so one "yes" to an ask about two rows opens both, and a home asks about a door it does not want opened in a message of its own; a message that names a row or a gate itself (`question 15` and its slips, `q15`, `#15`, or the slug with spaces for its hyphens) opens only the doors it names.
@@ -362,7 +362,7 @@ The hook refuses a command it cannot judge too: with no Python 3.12 or newer, wh
 Each refusal is a quiet `hook` event in the project's log, with the hook, the command's head and the reason, which `jbus events` prints.
 
 A second go that the row's go already holds for is a `noop`, and writes nothing to the row.
-A go given with `jbus queue approve <slug> --sha <sha12> --seen <event id>` is refused as stale when the project's event log has an event for the row after that one, or has no event of that id.
+A go given with `jbus queue approve <slug> --seen <event id>` and a basis is refused as stale when the project's event log has an event for the row after that one, or has no event of that id.
 `jbus events` prints the `id` of each event, the one a go names and the feed's cursor: two equal events have two ids, and an id names the same event across restarts and the daily prune.
 
 #### The bot's route

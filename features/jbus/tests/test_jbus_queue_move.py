@@ -86,8 +86,7 @@ def test_a_new_go_after_a_move_is_not_said_to_be_carried(kitchen, homes_of):
     add(kitchen, "alpha")
     assert move(kitchen, "alpha", "flow")[0] == 0
     assert kitchen.main("--project", "demo", "queue", "hold", "alpha")[0] == 0
-    sha = judgement.brief_sha(stored(kitchen, "alpha"))[:12]
-    argv = ["queue", "approve", "alpha", "--word", kitchen.word(), "--sha", sha]
+    argv = ["queue", "approve", "alpha", "--word", kitchen.word()]
     assert kitchen.main("--project", "demo", *argv)[0] == 0
     assert "carried" not in verified(kitchen, "alpha")["approved"]
 

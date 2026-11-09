@@ -70,12 +70,12 @@ A check that ends merges within seconds, apart from the pass (`merge-tick`):
 ## How to get to it (user POV)
 
 - Run `jbus queue add <slug> --priority <n>` with the brief on stdin.
-- Run `jbus word --to <project> --message <thread id>/<message id>` to keep the user's word, then `jbus queue approve <slug> --sha <12 characters> --word <id>`.
+- Run `jbus word --to <project> --message <thread id>/<message id>` to keep the user's word, then `jbus queue approve <slug> --word <id>`.
 - Run `jbus queue hold <slug>`.
 - Run `jbus queue show` to read the table.
 - Run `jbus poll` for one pass.
   On the live machine, the systemd timer runs it.
-- Run `jbus queue add <slug> --priority <n>` with a scout's request on stdin, `jbus queue approve <slug> --sha <12 characters> --word <id>`, and `jbus queue show`.
+- Run `jbus queue add <slug> --priority <n>` with a scout's request on stdin, `jbus queue approve <slug> --word <id>`, and `jbus queue show`.
 - Run `jbus gate <slug>` with the gate's lines on stdin, from the project's repo.
 - Run `jbus done <slug>` with the result's lines on stdin.
 - Run `jbus poll` for one pass.
@@ -109,8 +109,8 @@ Preconditions:
 - **Keep a word, and approve it.**
   Give the user's message to the stand-in with `printf '{"mcp:sandbox-chat": [{"itemId": "turn-item:message:m1", "messageId": "m1", "text": "go", "type": "user_message", "createdBy": "user", "updatedAt": "%s"}]}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$VERIFY_JSTACK_SANDBOX/t3/messages.json"`.
   Run `record queue-row jbus word --to demo --message mcp:sandbox-chat/m1`, which ends with the word's id.
-  Then run `sha=$(command grep -v '^Home:' "$JBUS_STATE_DIR/demo/briefs/alpha.md" | shasum -a 256 | cut -c1-12)` and `record queue-row jbus queue approve alpha --sha "$sha" --word <the id>`.
-  The row's `approved` reads `your word, ...` and its `brief_sha` is the 12 characters.
+  Then run `record queue-row jbus queue approve alpha --word <the id>`.
+  The row's `approved` reads `your word, ...` and its `brief_sha` is the sha256 of `$JBUS_STATE_DIR/demo/briefs/alpha.md` less its `Home:` line.
 - **Hold it, and pass.** Run `record queue-row jbus queue hold alpha`, then `record queue-row jbus poll`. The row's `approved` is empty again, the pass prints no `launched` line, and `$VERIFY_JSTACK_SANDBOX/t3/calls.jsonl` has no `t3_thread_launch`.
 - **Approve again, and pass.** Run the approve command again, then `record queue-row jbus poll`. It prints `launched alpha: mcp:sandbox-thread-1`.
 - **Read the table.** Run `record queue-row jbus queue show`. The row's `status` is `launched` and its `thread` is `mcp:sandbox-thread-1`.
@@ -138,7 +138,7 @@ Preconditions:
   It exits 1 and names `a Size: line, which only a crewmate's brief has`, and no `beta` row is added.
 - **Keep a word, and approve.**
   Give the user's message to the stand-in with `printf '{"mcp:sandbox-chat": [{"itemId": "turn-item:message:m1", "messageId": "m1", "text": "go", "type": "user_message", "createdBy": "user", "updatedAt": "%s"}]}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$VERIFY_JSTACK_SANDBOX/t3/messages.json"`.
-  Run `record scout-path jbus word --to demo --message mcp:sandbox-chat/m1`, which ends with the word's id, then `sha=$(command grep -v '^Home:' "$JBUS_STATE_DIR/demo/briefs/alpha.md" | shasum -a 256 | cut -c1-12)` and `record scout-path jbus --project demo queue approve alpha --sha "$sha" --word <the id>`.
+  Run `record scout-path jbus word --to demo --message mcp:sandbox-chat/m1`, which ends with the word's id, then `record scout-path jbus --project demo queue approve alpha --word <the id>`.
   The row's `approved` reads `your word, ...`.
 - **Pass.**
   Run `record scout-path jbus poll`.
@@ -256,8 +256,8 @@ Preconditions:
 
 A queue row, from add to launch:
 
-- `--sha` is the sha of the brief that jbus stored, `$JBUS_STATE_DIR/demo/briefs/alpha.md`, not of the text you typed.
-  Take it from that file.
+- A go is for the brief that jbus stored, `$JBUS_STATE_DIR/demo/briefs/alpha.md`, not the text you typed, and the row's `brief_sha` is of that file.
+  `approve` needs no `--sha`, and takes one given beside the basis without reading it.
 - `max_running` is 1 in the sandbox's config. A second approved row waits (`max_running is 1: <slug> waits`) while the first thread is `running` in `t3/threads.json`.
 - jbus records a launch under `$JBUS_STATE_DIR/launches/demo/<slug>/`.
   It never launches a slug with a record again, so use a new slug, or a new sandbox, for a second launch.

@@ -70,7 +70,7 @@ A row that waits on one word of the user's that the sidebar can send is the user
 - `lift: approve`: its go does not hold for the brief jbus keeps, queued or launched, up to its merge.
   That is a row never approved, one whose go was taken back (`jbus queue hold`), or one whose brief changed after the go.
   Its `waits` is `your go for its brief at <sha12>`, and its `why` says which of the three in plain words, with the lines that changed for a changed brief (`queue.changed`), such as `its brief changed after your go: Done when: the sidebar shows the row`.
-  The word is `jbus queue approve <slug> --sha <sha12>` on the user's message.
+  The word is `jbus queue approve <slug> --message <thread id>/<message id>` on the user's message.
 - `lift: accept`: `jmerge` holds its pull request for a reason `jmerge --accept` lifts (`judgement.lifted_by`).
   Its `waits` is `your accept of #<n> (jmerge --accept <n>)`, and its `why` is `jmerge`'s hold.
 

@@ -15,7 +15,7 @@ import jbus
 from jbus import queue
 from jmerge import judgement
 from test_jbus_kitchen import FIX_BRIEFS, RAN, SAID, Kitchen
-from test_jbus_queue import brief, rows, sha12
+from test_jbus_queue import brief, rows
 
 RED, OTHER_RED = "main-red-" + "a" * 12, "main-red-" + "b" * 12
 FIXED = (RED, OTHER_RED)
@@ -52,8 +52,7 @@ def filed(kitchen, slug, parent="", wider=False):
 
 
 def approve(kitchen, slug):
-    sha = sha12((kitchen.state / "briefs" / f"{slug}.md").read_text())
-    code, said = kitchen.main("queue", "approve", slug, "--word", SAID, "--sha", sha)
+    code, said = kitchen.main("queue", "approve", slug, "--word", SAID)
     assert code == 0, said
 
 

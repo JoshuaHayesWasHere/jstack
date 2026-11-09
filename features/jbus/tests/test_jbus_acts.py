@@ -231,12 +231,7 @@ def test_each_go_and_each_answer_is_one_act_and_each_basis_is_its_source(kitchen
     kitchen.t3.says(HOME, MESSAGE, "yes")
     add(kitchen, "alpha")
     add(kitchen, "beta", approve=False)
-    assert (
-        kitchen.main(
-            "queue", "approve", "beta", "--message", REF, "--sha", sha12(stored(kitchen, "beta"))
-        )[0]
-        == 0
-    )
+    assert kitchen.main("queue", "approve", "beta", "--message", REF)[0] == 0
     number = gate(kitchen)
     assert kitchen.main("answer", str(number), "--message", REF, "--default")[0] == 0
     add(kitchen, "gamma", approve=False)
@@ -247,8 +242,6 @@ def test_each_go_and_each_answer_is_one_act_and_each_basis_is_its_source(kitchen
             "gamma",
             "--answer",
             str(number),
-            "--sha",
-            sha12(stored(kitchen, "gamma")),
         )[0]
         == 0
     )
@@ -293,8 +286,6 @@ def test_the_bots_route_takes_its_key_alone_and_nothing_else(kitchen, route):
         "alpha",
         "--word",
         kitchen.word(),
-        "--sha",
-        sha12(stored(kitchen, "alpha")),
     )
     assert code == 2
     assert said.splitlines()[-1] == (
@@ -756,13 +747,12 @@ def test_a_plain_reply_older_than_the_homes_ask_answers_nothing(kitchen):
 
 def test_a_plain_reply_to_the_homes_ask_that_named_the_row_opens_its_door(kitchen):
     add(kitchen, "alpha", approve=False, text=brief("alpha", HOLDS))
-    sha = sha12(stored(kitchen, "alpha"))
     ref = plain(kitchen, "early", "go ahead")
-    code, said = kitchen.main("queue", "approve", "alpha", "--message", ref, "--sha", sha)
+    code, said = kitchen.main("queue", "approve", "alpha", "--message", ref)
     assert code == 1 and "names neither alpha nor its gate" in said, said
     home_asks(kitchen, "ask", "May alpha go? It rewrites history on main.")
     code, said = kitchen.main(
-        "queue", "approve", "alpha", "--message", plain(kitchen, "yes", "go ahead"), "--sha", sha
+        "queue", "approve", "alpha", "--message", plain(kitchen, "yes", "go ahead")
     )
     assert code == 0, said
     assert rows(kitchen)["alpha"]["approval"]["checked"] is True
@@ -858,10 +848,9 @@ def test_a_reply_names_the_question_in_the_forms_a_person_writes(kitchen, named)
 
 def test_an_ask_names_a_row_with_spaces_for_its_hyphens(kitchen):
     add(kitchen, "old-history", approve=False, text=brief("old-history", HOLDS))
-    sha = sha12(stored(kitchen, "old-history"))
     home_asks(kitchen, "ask", "Old history waits on you: it rewrites history on main.")
     ref = plain(kitchen, "yes", "go ahead")
-    code, said = kitchen.main("queue", "approve", "old-history", "--message", ref, "--sha", sha)
+    code, said = kitchen.main("queue", "approve", "old-history", "--message", ref)
     assert code == 0, said
 
 

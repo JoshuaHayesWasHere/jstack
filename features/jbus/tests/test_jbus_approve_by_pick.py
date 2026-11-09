@@ -16,7 +16,7 @@ import pytest
 
 from test_jbus_approval import cell, go
 from test_jbus_kitchen import RAN, SESSION, bound
-from test_jbus_queue import add, brief, rows, sha12
+from test_jbus_queue import add, brief, rows
 
 HOME = "mcp:a-home"
 REQUEST = "runtime-request:provider:claudeAgent:native-request:toolu_01:e9a1"
@@ -169,10 +169,7 @@ def test_one_answer_of_three_picks_is_the_go_for_the_three_rows(kitchen, tmp_pat
     stored(tmp_path, monkeypatch, {QUESTION: LABELS})
     for slug in ("alpha", "beta", "gamma"):
         add(kitchen, slug, approve=False)
-    batch = "".join(
-        f"approve {slug} --pick {REF} --sha {sha12(brief(slug))}\n"
-        for slug in ("alpha", "beta", "gamma")
-    )
+    batch = "".join(f"approve {slug} --pick {REF}\n" for slug in ("alpha", "beta", "gamma"))
     code, said = kitchen.main("queue", "apply", stdin=batch)
     assert code == 0, said
     assert {slug: row["approved"] for slug, row in rows(kitchen).items()} == {
@@ -304,7 +301,7 @@ def test_a_pick_is_the_users_own_word_for_a_door(kitchen, tmp_path, monkeypatch)
     add(kitchen, "alpha", approve=False, text=held)
     now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.000Z")
     stored(tmp_path, monkeypatch, {QUESTION: ["alpha (S)"]}, resolved=now)
-    code, said = kitchen.main("queue", "approve", "alpha", "--pick", REF, "--sha", sha12(held))
+    code, said = kitchen.main("queue", "approve", "alpha", "--pick", REF)
     assert code == 0, said
     made = rows(kitchen)["alpha"]["approval"]
     assert (made["basis"], made["words"]) == ("pick", f'"alpha (S)", for "{QUESTION}"')
