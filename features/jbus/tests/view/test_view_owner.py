@@ -180,9 +180,9 @@ def test_the_band_is_calm_while_every_fault_has_an_agent_owner(tmp_path, monkeyp
     scene.waiting([])
     (scene.home / "gates.md").unlink()
     scene.passed(20, threads=[out("crew: jam-jar", "hung", minutes=25)])
-    scene.write("main.json", {"at": iso(ago(minutes=12)), "main": RED, "check": "failed"})
+    _ci_of_no_row(scene)
     (scene.home / "home-id").write_text("mcp:root\n")
-    assert {one["owner"] for one in wrongs(scene)} == {"root home", "home uncategorized"}
+    assert {one["owner"] for one in wrongs(scene)} == {"home uncategorized"}
     given = stack(scene)
     assert given["wrong"] == []
     assert given["glance"]["calm"]
@@ -244,12 +244,12 @@ def _idle(scene):
 @pytest.mark.parametrize(
     ("made", "kind", "owner"),
     [
-        (_main, "main", "root home"),
-        (_ci_of_no_row, "ci", "root home"),
-        (_ci_unread, "ci", "root home"),
+        (_main, "main", "status"),
+        (_ci_of_no_row, "ci", "home uncategorized"),
+        (_ci_unread, "ci", "home uncategorized"),
         (_bus, "bus", "user"),
-        (_source, "source", "root home"),
-        (_unasked_github, "unasked", "root home"),
+        (_source, "source", "status"),
+        (_unasked_github, "unasked", "status"),
         (_unasked_t3, "unasked", "user"),
         (_thread, "thread", "home pantry-shelf"),
         (_stall, "stall", "home uncategorized"),
@@ -261,22 +261,26 @@ def _idle(scene):
 def test_each_row_of_the_owner_table_names_who_fixes_its_kind(
     tmp_path, monkeypatch, made, kind, owner
 ):
-    """Each row of `state.OWNERS`: a fault of the project or the machine is the root home's, a
+    """Each row of `state.OWNERS`: a fault of the project with no row is the catch-all's, a
     fault of a row is its home's, the catch-all's for a row whose brief names no home, and the
     user's only where no agent can fix it: a wake the home thread does not take, T3 Code not
-    answering, a fix that is a case of `gates.md`, or a cap."""
+    answering, a fix that is a case of `gates.md`, or a cap. A red main with no fix row, a
+    source that cannot be read and one the pass did not ask wake no home, and the band shows
+    them while they are open (the user, 2026-11-08: "Drop, status only"). No kind is the root
+    home's."""
     scene = Scene(tmp_path, monkeypatch)
     (scene.home / "home-id").write_text("mcp:root\n")
     made(scene)
     found = [one for one in wrongs(scene) if one["kind"] == kind]
     assert found and {one["owner"] for one in found} == {owner}
+    assert ("" in {one["to"] for one in found}) == (owner in ("user", "status"))
     shown = [one for one in stack(scene)["wrong"] if one["kind"] == kind]
-    assert bool(shown) == (owner == "user")
+    assert bool(shown) == (owner in ("user", "status"))
 
 
 def test_a_home_with_no_thread_to_tell_leaves_the_fault_the_users(tmp_path, monkeypatch):
-    """An agent owner is one that can be told: with no root home, nobody is."""
+    """An agent owner is one that can be told: with no home of the catch-all's, nobody is."""
     scene = Scene(tmp_path, monkeypatch)
-    _source(scene)
-    (one,) = [one for one in wrongs(scene) if one["kind"] == "source"]
-    assert one["owner"] == "user"
+    _ci_of_no_row(scene)
+    (one,) = [one for one in wrongs(scene) if one["kind"] == "ci"]
+    assert (one["owner"], one["to"]) == ("user", "")

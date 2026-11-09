@@ -72,8 +72,7 @@ def test_a_thread_that_ended_with_nothing_written_is_sent_to_its_home_once(kitch
     assert [row["status"] for row in rows(kitchen).values()] == ["left"]
     kitchen.poll(NOW + (leftover.CLOSE_MINUTES + 1) * MIN)
     assert listed(kitchen) == []
-    first, late = told(kitchen, at)
-    assert first == sent and "and its home, thread" in late["message"]
+    assert told(kitchen, at) == [sent]
 
 
 def test_a_thread_that_hung_with_nothing_written_is_told_to_its_home_to_interrupt(kitchen):

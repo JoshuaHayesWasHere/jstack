@@ -25,14 +25,8 @@ A row that ended with something left is not yours while its home has it.
 jbus tells the home once ("The leftover" in [Tying a crewmate to its thread](../working-on-jbus/tying-a-crewmate-to-its-thread.md)), and the row waits on that home.
 The row is not in `waiting-on-user.json`.
 The view shows the row as ended with a leftover that its home has, and shows when jbus told the home.
-The row becomes yours in one of two ways:
-
-- The home asks you a question about it, which is a gate.
-- The home has not closed it 30 minutes after the message (`CLOSE_MINUTES` in `features/jbus/src/jbus/leftover.py`), and no root home is listed to tell.
-  From then on, jbus lists the row among what waits on you, with that reason.
-
-A home that has not closed it in 30 minutes, where a root home is listed, does not make it yours.
-jbus tells the root home once instead, and the row stays off what waits on you.
+The row becomes yours when the home asks you a question about it, which is a gate.
+A home that has not closed it, however long, does not make it yours, and jbus tells no other home of it: the row stays its home's.
 
 A row is yours at once, and its line says why, in any of these cases:
 
