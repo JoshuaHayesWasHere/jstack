@@ -5,10 +5,11 @@ Josh's traffic fix, step 9 (2026-11-03), from the conflict-hotspots scout's reco
 next list two rows keep adding to shows up in a weekly report and no scout has to find it.
 
 Once a week, on the first pass on or after Monday in the user's zone, `weekly` runs that script in
-the project's checkout over the 7 days before the pass, with `--json`, and sends the root home one
-message (`report`): the `TOP` files with the most `insert` and `renumber` hunks, each with its pull
-requests, and a line naming each file of them that was not in last week's top. A week with no
-such file is one line. A project whose checkout has no script sends nothing.
+the project's checkout over the 7 days before the pass, with `--json`, and sends the catch-all's
+home, `uncategorized`, one message (`report`): the `TOP` files with the most `insert` and
+`renumber` hunks, each with its pull requests, and a line naming each file of them that was not in
+last week's top. A week with no such file is one line. A project whose checkout has no script
+sends nothing.
 
 `collisions.json` in the project's state keeps each report under the date of its week's Monday,
 with its window, its top files and its message, as `day-warnings.json` keeps its days. A week with
@@ -26,7 +27,7 @@ from typing import TYPE_CHECKING, Any
 
 from jbus import outbox, read_json, verbs, write_json
 from jbus.t3 import T3Error
-from jbus.wakes import root_of
+from jbus.wakes import catchall_of
 
 if TYPE_CHECKING:
     from jbus.poll import Half
@@ -91,14 +92,14 @@ def report(
 
 
 def weekly(half: Half) -> None:
-    """Run the week's report where it is due, send it to the root home, and keep it."""
+    """Run the week's report where it is due, send it to the catch-all's home, and keep it."""
     run, client = half.run, half.client
     script = run.project.checkout / SCRIPT
     week = week_of(run.user.local(run.now))
     ledger: dict[str, Any] = read_json(run.state / LEDGER, {})
     if client is None or week in ledger or not script.is_file():
         return
-    thread = root_of(run)
+    thread = catchall_of(run)
     if not thread:
         run.say(f"wait {run.project.name}: the week's collision report has no home to go to")
         return

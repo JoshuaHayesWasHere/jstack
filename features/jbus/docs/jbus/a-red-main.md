@@ -61,6 +61,7 @@ The brief holds:
 - the failed test ids that its log names;
 - the merges since the last green, with the files they changed;
 - `Playbook: bug-fix` and `Size: S`;
+- `Home: uncategorized`, so the catch-all's home owns the row;
 - under `Done when:`, where the fix may go (`watch.FIX_GOES`): in a pull request of its own, or in another open pull request only where that one waits on no other open pull request.
   That one has no `merge_after` row still open (jmerge's `merges after` or `carries ... which merges after`), and is not stacked on an open base (`it is stacked on`).
   Otherwise the crew opens its own pull request with the fix, and whichever of the two merges second rebases.
@@ -76,8 +77,10 @@ So once it has its go, it is the next launch in that project.
   So if a pass stopped before it added the row, the next pass files it, and a removed row is not filed again.
 - No pass files a red commit that a later commit on main superseded, not even the first pass after jbus starts.
   Only a red tip is a main to fix.
-- A project's first pass files no brief, and neither does a pass for a merged slug that was removed.
-  The next pass files a red tip that the first pass found.
+- A project's first pass files the brief too, and so does a pass whose red came in with a merged slug that was removed.
+  Neither reverts anything: the brief says why (`FIRST` and `REMOVED` in `features/jbus/src/jbus/culprits.py`).
+  A red main always has its row, so no home is woken of the red itself ([Who an item is for](events-and-wakes.md#who-an-item-is-for)).
+  A `main-red-<sha12>` row that was itself removed stays removed: `queue add` refuses its slug, and the red stays on the view's band until main is green.
 - When main's tip is green at a later commit and a `main-red-<sha12>` row has not launched, the pass withdraws the row.
   It says so once: `retro main-red-<sha12>: main is green again at <sha12>, and its row is withdrawn`.
   A row that launched is left to its crew and its pull request.
