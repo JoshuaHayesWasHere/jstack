@@ -8,7 +8,7 @@ defines or imports.
 
 The facilities are the ones that broke the macOS nightly: libc.so.6 loaded through ctypes,
 inotify, a `systemctl` a test runs through `subprocess`, and a sed script a test runs whose form
-BSD sed refuses (`test_portable_shell.GNU_ONLY`, `test_portable_sed.unended`). The guard reads
+BSD sed refuses (`test_portable_shell.GNU_SED`, `test_portable_sed.unended`). The guard reads
 each test's own code and, by name, each function, class, fixture and test helper module the test
 reaches, and each helper script beside it that the test runs, as the 3 tests of
 `test_checks_bound_probe.py` reached libc.so.6 by running `checks_bound_probe.py`. A string the
@@ -22,12 +22,12 @@ import textwrap
 from functools import cache
 
 from test_portable_sed import scripts, unended
-from test_portable_shell import GNU_ONLY
+from test_portable_shell import GNU_SED
 from testing.paths import REPO
 
 RUNS = {"run", "Popen", "check_call", "check_output", "call", "getoutput", "getstatusoutput"}
 LOADERS = {"CDLL", "PyDLL", "LoadLibrary"}
-GNU_SED = [re.compile(pattern) for pattern, _ in GNU_ONLY if "sed" in pattern]
+SED_RULES = [re.compile(pattern) for pattern, _ in GNU_SED]
 PLATFORM = re.compile(r"\bplatform\b|\bMAC\b|\bwhich\(")
 
 
@@ -38,7 +38,7 @@ def folders(root):
 
 def gnu_sed(command):
     """Whether a command line runs sed in a form only GNU sed takes."""
-    return any(rule.search(command) for rule in GNU_SED) or any(
+    return any(rule.search(command) for rule in SED_RULES) or any(
         unended(script) for script in scripts(command)
     )
 
