@@ -337,6 +337,8 @@ def needs(one: waiting.Item, context: str = "", known: frozenset[str] = frozense
         return "jbus lacks a setup only you can give"
     if kind == "stalled":
         return "a home that stalled again after jbus started it again"
+    if kind == "install":
+        return "a T3 Code build only you can install"
     if kind != "gate":
         return ""
     if one.get("holds"):
@@ -365,6 +367,8 @@ def reply(one: waiting.Item) -> str:
         return OWN_WORDS.format(what=f"give {one['slug']} its go")
     if kind == "stalled":
         return "get the home going in its thread, or start it again, then say so in your own words"
+    if kind == "install":
+        return "nothing to reply: the next pass after the install takes it off"
     return "set it up, then say so in your own words"
 
 

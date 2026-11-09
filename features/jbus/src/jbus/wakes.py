@@ -349,7 +349,8 @@ def need_items(run: Pass, listed: list | None) -> list[Item]:
     decide (`blockers.deciding`). A one-way door (`door`) is the root's (`root_of`). A row to
     approve is no thread's: a home approves a row on the user's word as it queues it (`queue add
     --message`), so a go still owed waits on the user alone, on `jbus needs` and the view. A
-    stalled home's is no thread's either, since that home is the one that stalled. Any other need
+    stalled home's is no thread's either, since that home is the one that stalled, and nor is a
+    T3 Code build to install, which no home can do. Any other need
     is the item of the home whose brief or scout's request its row is (`jbriefs.home`), as `jbus
     home` says: a gate with no case on its `Holds:` line. A gate a home asked itself
     (`mirror.asker`) wakes no thread: it is that home's question to the user, which `jbus needs`
@@ -361,7 +362,7 @@ def need_items(run: Pass, listed: list | None) -> list[Item]:
         brief = next((file for file in files if slug and file.exists()), None)
         if door(one):
             to = root_of(run)
-        elif one["kind"] in ("approve", "stalled") or (
+        elif one["kind"] in ("approve", "stalled", "install") or (
             one["kind"] == "gate" and slug == mirror.HOME
         ):
             to = ""
