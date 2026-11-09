@@ -495,3 +495,27 @@ def test_a_store_from_before_health_readings_gains_the_table_and_reads_the_machi
         ("", "quota claudeAgent seven_day", 81.5, 1),
         ("", "timeout jbus", None, None),
     ]
+
+
+def test_each_of_the_machines_logs_is_read_as_the_machines_rows(machine):
+    """`jbus.telemetry.machine` reads the passes, the drift probes and the capped reads of jbus's
+    own state as rows of the project `''`, each column as its writer gave it."""
+    later = iso(NOW + timedelta(hours=2))
+    for name, line in (
+        ("passes.jsonl", {"at": iso(NOW), "seconds": 21.5}),
+        ("drift.jsonl", {"at": iso(NOW), "probe": "p", "word": "w", "status": "held", "found": 2}),
+        (
+            "capped.jsonl",
+            {"at": iso(NOW), "reader": "pass", "instances": ["a"], "capped": {"a": later}},
+        ),
+    ):
+        (machine.state_dir / name).write_text(json.dumps(line) + "\n")
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        assert store.execute("SELECT project, seconds FROM passes").fetchall() == [("", 21.5)]
+        assert store.execute("SELECT probe, status, found FROM drift").fetchall() == [
+            ("p", "held", 2)
+        ]
+        assert store.execute(
+            "SELECT reader, instances, capped, ends_at IS NOT NULL FROM capped_reads"
+        ).fetchall() == [("pass", 1, 1, 1)]
