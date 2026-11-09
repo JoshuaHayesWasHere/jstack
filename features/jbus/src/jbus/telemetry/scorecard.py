@@ -109,9 +109,8 @@ def worst(found: list[Line]) -> list[Line]:
 
 
 def _distance(each: Line) -> float:
-    value, baseline = each.reading.value, each.reading.baseline
-    if value is None or baseline is None:
-        return 0.0
+    """A measure worse than its baseline has a value and a baseline, or it would read `none`."""
+    value, baseline = each.reading.value or 0.0, each.reading.baseline or 0.0
     if baseline == 0:
         return abs(value)
     return abs(value - baseline) / abs(baseline)
