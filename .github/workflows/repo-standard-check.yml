@@ -180,7 +180,8 @@ jobs:
   # runner's own browser, whose version the job prints. A test that passes only on a retry fails
   # the job, and its report and traces are kept unless the run was cancelled. As a part of the tests
   # does, it writes the ids that failed to the summary and uploads them as failed-<run id>-browser,
-  # and on a push to main runs them once more, for the ledger the `passed` job writes.
+  # and on a push to main runs them once more, for the ledger the `passed` job writes; the first
+  # run's report and traces are kept beside the rerun's, under repo-standard-first-run/.
   browser:
     needs: plan
     if: needs.plan.outputs.mode == 'standard' && needs.plan.outputs.run == 'true' && needs.plan.outputs.reused != 'true' && needs.plan.outputs.marker != 'green' && needs.plan.outputs.browser != 'none'
@@ -210,7 +211,7 @@ jobs:
         run: 'export REPO_STANDARD_FAILED="$GITHUB_WORKSPACE/repo-standard-failed/failed.txt"; mkdir -p "${REPO_STANDARD_FAILED%/*}" && : > "$REPO_STANDARD_FAILED"; if [ "$BROWSER" = all ]; then make e2e; else printf ''%s'' "$IDS" | python3 -c "import json, sys; [print(one) for one in json.load(sys.stdin)]" > "$RUNNER_TEMP/e2e-list.txt" && cat "$RUNNER_TEMP/e2e-list.txt" && make e2e E2E_LIST="$RUNNER_TEMP/e2e-list.txt"; fi'
       - name: again
         if: failure() && steps.e2e.outcome == 'failure' && github.event_name == 'push' && github.ref_name == github.event.repository.default_branch
-        run: 'failed="$GITHUB_WORKSPACE/repo-standard-failed/failed.txt"; if [ ! -s "$failed" ]; then echo "the browser tests failed and named no test to run again"; exit 0; fi; sort -u "$failed" > "$RUNNER_TEMP/e2e-again.txt"; export REPO_STANDARD_FAILED="${failed%/*}/again.txt"; : > "$REPO_STANDARD_FAILED"; make e2e E2E_LIST="$RUNNER_TEMP/e2e-again.txt" || true'
+        run: 'failed="$GITHUB_WORKSPACE/repo-standard-failed/failed.txt"; if [ ! -s "$failed" ]; then echo "the browser tests failed and named no test to run again"; exit 0; fi; sort -u "$failed" > "$RUNNER_TEMP/e2e-again.txt"; find . \( -name node_modules -o -name .git -o -name repo-standard-first-run \) -prune -o -type d \( -name playwright-report -o -name test-results \) -print -prune | while read -r kept; do mkdir -p "repo-standard-first-run/${kept%/*}" && cp -R "$kept" "repo-standard-first-run/$kept"; done; export REPO_STANDARD_FAILED="${failed%/*}/again.txt"; : > "$REPO_STANDARD_FAILED"; make e2e E2E_LIST="$RUNNER_TEMP/e2e-again.txt" || true'
       - name: failed tests
         if: failure() && steps.e2e.outcome == 'failure'
         run: 'failed="$GITHUB_WORKSPACE/repo-standard-failed/failed.txt"; { echo "### The browser tests failed"; echo; if [ -s "$failed" ]; then sort -u "$failed" | sed "s/^/- /"; else echo "The browser tests failed and named no test."; fi; } | tee -a "$GITHUB_STEP_SUMMARY"'
