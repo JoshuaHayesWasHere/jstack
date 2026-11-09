@@ -47,6 +47,9 @@ RAN = Path(__file__).parents[1] / "ran"
 SPEC = importlib.util.spec_from_file_location("new_lines_rounds", RAN / "new_lines_rounds.py")
 rounds = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(rounds)
+DATA_SPEC = importlib.util.spec_from_file_location("data_files", RAN / "data_files.py")
+data_files = importlib.util.module_from_spec(DATA_SPEC)
+DATA_SPEC.loader.exec_module(data_files)
 
 
 def added(since: str, repo: Path = REPO) -> dict[str, set[int]]:
@@ -187,8 +190,12 @@ def unrun(
             f"the tests that name the code did not run (exit {ran.returncode}):\n{ran.stdout}"
         )
     report = scratch / "coverage.json"
-    for step in (["combine", "-q"], ["json", "-q", "-o", str(report)]):
-        subprocess.run([*coverage, *step, f"--rcfile={config}"], cwd=repo, env=env, check=True)
+    folded = f"--data-file={scratch / 'folded'}"
+    for step in (
+        ["combine", "-q", f"--rcfile={config}", folded, *data_files.ended(scratch)],
+        ["json", "-q", "-o", str(report), f"--rcfile={config}", folded],
+    ):
+        subprocess.run([*coverage, *step], cwd=repo, env=env, check=True)
     measured = {
         (repo / name).resolve(): data
         for name, data in json.loads(report.read_text())["files"].items()
@@ -206,12 +213,14 @@ def unread(
 ) -> dict[str, set[int]]:
     """The lines of `lines` that CI's parts did not run in a test file that names their module,
     read from what `features/repo-guards/ran/part_lines.py` wrote as they ran their tests, each
-    part's in a folder of its own under `parts`, since every part names its files alike. A line
-    that ran while no test did, as a module was imported at collection, counts once a test file
-    that names its module ran in a part, since that file would have run it."""
+    part's in a folder of its own under `parts`, since every part names its files alike: the one
+    file its processes' data is folded into, `data`, and not the file of a process a test left
+    running, which may hold half a write. A line that ran while no test did, as a module was
+    imported at collection, counts once a test file that names its module ran in a part, since
+    that file would have run it."""
     ran = {name for one in parts.glob("*/tests.*") for name in one.read_text().split()}
     found = {path: set(numbers) for path, numbers in lines.items()}
-    for one in parts.glob("*/data*"):
+    for one in parts.glob("*/data"):
         data = coverage.CoverageData(basename=str(one))
         data.read()
         for name in data.measured_files():
