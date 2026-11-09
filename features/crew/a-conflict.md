@@ -196,7 +196,7 @@ A commit made before the push, for the check command or for a line put back, is 
 
 The review stands after a rebase when the rebase left the reviewed content as it was: `jmerge` works out the `git range-diff` between the commit the review covers and the rebased head, and where that is clean no review is started and nothing is asked of this thread.
 Where it is not, the rebase changed what was reviewed, and `jmerge` waits on one scoped review of the changed hunks only.
-jbus launches that reviewer itself, in this worktree, with `/pr-review run <slug> scoped <old range> <new range>`, and adds its `Scoped reviewer:` line, of the rebased head, to the Result: launch nothing, and write no such line for it.
+jbus launches that reviewer itself, in this worktree, with `/pr-review run <slug> scoped <old range> <new range>`, and adds its `Scoped reviewer:` line, of the rebased head, to the Result: launch nothing, and write no such line for it, unless a later message from jbus asks you to, as it does where it could not launch one.
 This thread hears of it once its `## Review` is written, in a message that lists its findings by id, and hears nothing of one that is clean; handle the findings as a review's.
 Until its `## Review` section is written, the first block above does not rebase.
 A head gets one scoped review: a later rebase that changes the content gets its own, and its `Scoped reviewer:` line goes under the earlier one, which stays: the first block counts every reviewer that was launched.
