@@ -69,6 +69,7 @@ DEPLOYS = re.compile("|".join(f"(?P<d{at}>{one})" for at, one in enumerate(DEPLO
 SHELL_SUFFIXES = (".sh", ".bash", ".zsh", ".ksh")
 SHEBANG = re.compile(r"^#!.*\b(?:ba|z|k|da)?sh\b")
 COMMAND_END = re.compile(r"&&|\|\||[;|]")
+CONDITIONAL = re.compile(r"^\s*(?:ifeq|ifneq|ifdef|ifndef|else|endif)\b")
 SHARED_CHECK = re.compile(
     r"^\s*uses:\s*['\"]?[\w.-]+/[\w.-]+/\.github/workflows/repo-standard-check\.yml"
     r"@repo-standard-v\d+['\"]?\s*(?:#.*)?$",
@@ -495,7 +496,8 @@ class Recipe:
 def recipes(path: str, text: str) -> list[Recipe]:
     """The targets of one make file and their recipes. A `define` block is text, not a rule, a
     line that ends in `\\` goes on to the next, and a command's `@`, `-` and `+` are dropped. A
-    target-specific variable adds no recipe."""
+    target-specific variable adds no recipe, and a conditional's lines (`ifeq`, `else`, `endif`)
+    leave the recipe open, so a command behind one is still its target's."""
     found: list[Recipe] = []
     lines = text.splitlines()
     at, defining, current = 0, False, []
@@ -519,7 +521,7 @@ def recipes(path: str, text: str) -> list[Recipe]:
                         found[one], commands=(*found[one].commands, (start, command))
                     )
             continue
-        if not line.strip() or line.lstrip().startswith("#"):
+        if not line.strip() or line.lstrip().startswith("#") or CONDITIONAL.match(line):
             continue
         rule = docs_true.RULE.match(line)
         rest = line[rule.end() :] if rule else ""

@@ -778,6 +778,15 @@ def selects_in_an_included_make_file(repo):
             "sam deploy, and only a deploy entry's recipe may",
         ),
         (
+            lambda r: edit(
+                r / "Makefile",
+                "deploy:\n",
+                "upload:\nifeq ($(ENV),prod)\n\taws s3 sync dist s3://x\nendif\ndeploy:\n",
+            ),
+            "error only-a-deploy-entry-runs-a-deploy-command: Makefile:9: target upload runs "
+            "aws s3 sync, and only a deploy entry's recipe may",
+        ),
+        (
             lambda r: edit(r / "Makefile", "deploy:\n", "deploy: build\n"),
             "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: Makefile:7: deploy "
             "entry `make deploy` has prerequisites (build), which make runs before its recipe",
