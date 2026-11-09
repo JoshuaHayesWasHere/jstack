@@ -96,6 +96,8 @@ A brief that holds for a door is opened by a pick only when the user's own pick 
 ### A plan entry's go
 
 The user gives the go for work once per plan entry, never per row.
+No row is queued outside an entry: a task that fits no open entry gets an entry of its own first, one heading and its `Done when:` list, and `jbus queue add --from` refuses a new row with no open entry of its home's plan and no `Follows:` line.
+When this home files the first rows of an entry, it asks the user for the entry's go once, in one message that names the entry and its rows.
 When the user's word is a go for an entry, record it with the reference of their own message:
 
 ```sh
@@ -107,7 +109,7 @@ jbus refuses a message that is not the user's own and an entry the plan does not
 It binds the go to the entry's head, its heading and its `Done when:` lines, and `jbus plan` shows the go on the entry's line.
 Under the setting `go = "entry"`, the default, jbus approves each row queued with `--entry <entry>` while that go holds, as the row is queued, on each pass, and again after an edit of its brief.
 Its line reads `your go for the plan entry <entry>, <time>, in <where>; run <time> by <who>`.
-So ask the user nothing for a row of an entry with a go: queue it with `--entry`.
+So ask the user for no row's go where the row's entry has a go: queue it with `--entry`, and it is approved in the same write.
 The go stops holding when the entry's heading or `Done when:` lines change, when the entry closes, or when the user's word stops it, which this home runs as `jbus plan stop <entry>`.
 A row not yet launched then waits for the user's go, and a launched one goes on.
 A brief that is a case of `gates.md` names the case on a `Holds: <case>` line in its head, and its row waits for the user's word under every setting, as does one whose `Done when:` or `Proves it:` runs a door's command.

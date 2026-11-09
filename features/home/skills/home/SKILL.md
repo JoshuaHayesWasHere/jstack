@@ -169,9 +169,14 @@ When the shape of the work is not settled (more than one task, or a design choic
 - Record a decision the user makes in the entry it belongs to, in their words, above its `Done when:` list.
   A line added inside that list, or a changed heading, voids the entry's go and every row under it waits for the user again: after a plan edit, `jbus plan` says `go void` for such an entry.
 - Write no status in an entry, and change none by hand. An entry has a `Stage:` line, which says where the planning is: `proposed`, `planned`, `parked` or `scouting`. Once a brief of the entry is queued, its status is counted from its queue rows by `jbus plan`, and the `Stage:` line is not read.
+- No row is queued outside an entry. A task that fits no open entry gets an entry of its own first: one heading and its `Done when:` list.
 - Queue each brief of an entry with `jbus queue add --entry <entry>`, in a repo `jbus plan` answers for and in no other, where the brief's slug is not the entry's own: an entry is often several briefs, and the column is how a row is counted for its entry.
+  `jbus queue add --from` refuses a new row that names no open entry of its home's plan, unless its brief has a `Follows:` line, and queues nothing: write the entry, or give the right `--entry`, and add it again.
   The root home queues by "Queueing a row in a child" (`scoped-homes.md`), which adds `--for <child>` and the user's message.
-- The user gives the go once per entry, never per row, and to an entry that has a row: queue its first row, a scout's if it needs design, then record the go with `jbus plan go <entry> --message <thread>/<message>`, which refuses an entry with no row.
+- The user gives the go once per entry, never per row, and to an entry that has a row.
+  When this home files the first rows of an entry, it queues them, a scout's first if the entry needs design, and then asks the user for the entry's go once, in one message that names the entry and its rows.
+  It records the user's answer with `jbus plan go <entry> --message <thread>/<message>`, which refuses an entry with no row.
+  Each later row of the entry is approved by that go as it is queued, and the user is asked nothing for it.
   Under `go = "silence"` park each pick as a gate instead ("The user's word, carried by jbus" says how).
 
 An entry has the shape of `$T/plan-entry.md`: read it before writing the first one.
