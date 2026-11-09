@@ -403,3 +403,10 @@ A change to the standard is breaking when a repo that conformed at `repo-standar
 These are breaking: a new rule at the error level, a rule made stricter, a make target or command a contract renames or drops, and a key of `.repo-standard.yml` renamed, dropped or given a new meaning.
 These are not: a change of wording that keeps each rule's meaning, a new rule at the warn level, a rule made looser, and a new stack adapter.
 A breaking change goes out only in a new version, `repo-standard-vN+1`, and a change that breaks nothing may go out in the next version or wait for one.
+
+### A file a version owns is that version's copy
+
+A version owns some of the files a repo takes from the skeleton and its adapters: the `Makefile`, the workflows, the schemas and the scripts.
+The repo keeps each equal to the copy at the tag it pins, so a move to the next version replaces them and loses nothing, and the repo adds its own make targets in `local.mk`, which the `Makefile` includes.
+A file the repo keeps as its own is named under `local:` in `.repo-standard.yml`, with the reason, and is not compared.
+`repo-standard conform` warns of each other file that differs from its copy, with the runner's labels in the caller's `check.yml` left out, and `repo-standard upgrade --to N` writes version N's copies.

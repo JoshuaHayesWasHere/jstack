@@ -117,8 +117,12 @@ class Stack:
 
 @dataclass(frozen=True)
 class Waiver:
+    """A rule the repo does not meet yet, and why. `until` is the version by which it means to:
+    once the repo pins that version, conform warns that the waiver is due."""
+
     rule: str
     reason: str
+    until: int | None = None
 
 
 @dataclass(frozen=True)
@@ -138,6 +142,7 @@ class Config:
     deploy: tuple[str, ...] | None = None
     check: Check = field(default_factory=Check)
     stacks: dict[str, Stack] = field(default_factory=dict)
+    local: dict[str, str] = field(default_factory=dict)
 
     def part(self, name: str) -> Any:
         """The part a guard reads, refused when the config does not set it."""
@@ -335,7 +340,7 @@ def build(keys: dict[str, Any]) -> Config:
     """The typed config from the parsed keys."""
     known = {"standard", "features", "manifest-schema", "layout", "owners", "cross-cutting"}
     known |= {"generators", "docs", "size", "comments", "waivers", "enforced-by", "deploy"}
-    known |= {"check", "stacks"}
+    known |= {"check", "stacks", "local"}
     keys = _closed(keys, known, "the top")
     owners = _table(keys.get("owners"), "owners", list)
     enforced = _table(keys.get("enforced-by"), "enforced-by", list)
@@ -364,6 +369,7 @@ def build(keys: dict[str, Any]) -> Config:
         deploy=None if keys.get("deploy") is None else _strings(keys["deploy"], "deploy"),
         check=Check() if keys.get("check") is None else _check(keys["check"]),
         stacks=_stacks(keys.get("stacks", {})),
+        local=_local(keys.get("local")),
     )
 
 
@@ -468,6 +474,29 @@ def _check(value: Any) -> Check:
     return Check(shards, nightly)
 
 
+def _local(value: Any) -> dict[str, str]:
+    """Each file a version owns that the repo keeps as its own, with why. A reason left blank
+    reads as empty, which the conformance tool fails, as it does a waiver's."""
+    if value is None:
+        return {}
+    if not isinstance(value, dict) or not all(isinstance(one, str) for one in value.values()):
+        raise Refused(f"{NAME}: local is not a map of a path to the reason the repo keeps it")
+    for path in value:
+        clean = posixpath.normpath(path)
+        if clean != path or path.startswith("/") or clean.startswith(".."):
+            raise Refused(f"{NAME}: local has {path}, not a file of the repo")
+    return {path: reason.strip() for path, reason in value.items()}
+
+
+def _until(value: Any, at: int) -> int | None:
+    if value is None:
+        return None
+    found = re.fullmatch(r"repo-standard-v(\d+)", value) if isinstance(value, str) else None
+    if not found:
+        raise Refused(f"{NAME}: waivers[{at}].until is not a version's tag, repo-standard-vN")
+    return int(found[1])
+
+
 def _waivers(value: Any) -> tuple[Waiver, ...]:
     """Each waiver as written: a reason left out reads as empty, which the conformance tool fails,
     so the config still loads and the tool can name the waiver."""
@@ -475,11 +504,12 @@ def _waivers(value: Any) -> tuple[Waiver, ...]:
         raise Refused(f"{NAME}: waivers is not a list of `rule:` and `reason:` maps")
     found = []
     for at, one in enumerate(value):
-        waiver = _closed(one, {"rule", "reason"}, f"waivers[{at}]")
+        waiver = _closed(one, {"rule", "reason", "until"}, f"waivers[{at}]")
         if not isinstance(waiver.get("rule"), str) or not waiver["rule"]:
             raise Refused(f"{NAME}: waivers[{at}] names no rule")
         reason = waiver.get("reason", "")
-        found.append(Waiver(waiver["rule"], reason.strip() if isinstance(reason, str) else ""))
+        reason = reason.strip() if isinstance(reason, str) else ""
+        found.append(Waiver(waiver["rule"], reason, _until(waiver.get("until"), at)))
     return tuple(found)
 
 

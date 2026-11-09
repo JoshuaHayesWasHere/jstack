@@ -14,6 +14,11 @@ The verb `stacks` runs the targets `lint`, `test`, `select` and `e2e` of a repo 
 `stacks:`, each stack over its own roots (`repo_standard.stacks`), and takes the rest of the line
 as its own: `stacks lint`, `stacks test [ids]`, `stacks select <base>` or `stacks e2e [<file>]`.
 
+The verb `upgrade --to N` moves the repo to version N of the standard
+(`repo_standard.upgrade`): its pin, its call of the shared check and every file the version owns.
+It runs from the tool at version N, and `--upstream` names where it clones that version's files
+from when the tool's own tree does not hold them. It prints what it wrote and what it left.
+
 The guards are `borders`, `stale`, `docs`, `size` and `comments`. Each reads the repo's
 `.repo-standard.yml`, prints one line for each fault it finds, and exits 1 on any. `borders`
 prints each fault as a warning GitHub reads and exits 0 when it warns, or 1 under `--hard`. Every
@@ -29,12 +34,12 @@ import subprocess
 import sys
 from pathlib import Path
 
-from repo_standard import borders, conform, docs_true, plan, size, stacks, stale
+from repo_standard import borders, conform, docs_true, plan, size, stacks, stale, upgrade
 from repo_standard.config import Refused, load
 from repo_standard.tree import Unreadable, tracked
 
 GUARDS = ("borders", "stale", "docs", "size", "comments")
-VERBS = (*GUARDS, "conform", "plan", "stacks")
+VERBS = (*GUARDS, "conform", "plan", "stacks", "upgrade")
 
 
 def _root(given: str | None) -> Path:
@@ -66,11 +71,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--base", help="borders: the ref the diff is read from")
     parser.add_argument("--labels", default="", help="borders: the pull request's labels, a,b")
     parser.add_argument("--hard", action="store_true", help="borders: fail on any warning")
-    parser.add_argument("--upstream", default=conform.UPSTREAM, help="conform: where the tags are")
+    parser.add_argument(
+        "--upstream", default=conform.UPSTREAM, help="conform, upgrade: where the tags are"
+    )
     parser.add_argument("--list", action="store_true", help="conform: print the rules, check none")
     parser.add_argument("--event", help="plan: the event; by default $GITHUB_EVENT_NAME")
     parser.add_argument("--selection", help="plan: the file make select wrote")
+    parser.add_argument("--to", type=int, help="upgrade: the version to move the repo to")
     args = parser.parse_args(argv)
+    if args.guard == "upgrade" and args.to is None:
+        parser.error("upgrade needs --to N, the version to move the repo to")
     if args.guard == "conform" and args.list:
         print("\n".join(conform.listing()))
         return 0
@@ -89,6 +99,9 @@ def main(argv: list[str] | None = None) -> int:
             print("".join(f"{key}={value}\n" for key, value in outputs.items()), end="")
             return 0
         paths = tracked(root)
+        if args.guard == "upgrade":
+            print("\n".join(upgrade.run(root, config, paths, args.to, args.upstream or None)))
+            return 0
         if args.guard == "conform":
             lines, failed = conform.run(root, config, paths, args.upstream or None)
             print("\n".join(lines))

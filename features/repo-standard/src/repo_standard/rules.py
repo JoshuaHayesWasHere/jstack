@@ -15,6 +15,9 @@ A check may return an `Advice`, a fault that warns whatever its rule's level and
 
 A workflow that calls the standard's shared check at a version's tag runs what that workflow runs:
 `make select`, `make lint` and the selected tests on a pull request, and `make check` on main.
+
+A file the pinned version owns (`repo_standard.owned`) is held to that version's copy, read from
+the tag's tree, which `Repo.upstream` clones when the tool's own tree is not that tree.
 """
 
 from __future__ import annotations
@@ -29,7 +32,7 @@ from functools import cached_property
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from repo_standard import borders, docs_true, size, stale
+from repo_standard import TAG, VERSION, borders, docs_true, owned, size, stale
 from repo_standard.adapters import COMMANDS
 from repo_standard.config import Config, Refused, Stack
 from repo_standard.tree import Fault
@@ -62,6 +65,7 @@ class Repo:
     root: Path
     config: Config
     paths: list[str]
+    upstream: str | None = None
     _borders: tuple[set[str], list[Fault]] | None = field(default=None, repr=False)
 
     def read(self, path: str) -> str:
@@ -458,6 +462,28 @@ def pinned(repo: Repo) -> list[str]:
     if repo.config.standard is None:
         return ["the config pins no version: set `standard: N`, for the tag repo-standard-vN"]
     return []
+
+
+def drift(repo: Repo) -> list[str]:
+    """Each file the pinned version owns that is not its copy at the tag, less the `local:` ones.
+    A pin of another version than the tool's is the version rule's fault, not this one's."""
+    pin = repo.config.standard
+    if pin != VERSION:
+        return []
+    feature = owned.tree(pin, repo.root, repo.upstream)
+    copies = owned.files(feature, repo.config, repo.paths, owned.Kind.OWNED)
+    held, faults = set(repo.paths), []
+    for path, copy in sorted(copies.items()):
+        if path in repo.config.local:
+            continue
+        if path not in held:
+            faults.append(f"{path}: is not here, and {TAG}{pin} owns it")
+        elif owned.masked(path, repo.read(path)) != owned.masked(path, copy.read_text("utf-8")):
+            faults.append(f"{path}: differs from {TAG}{pin}'s copy")
+    return [
+        f"{fault}: `repo-standard upgrade --to {pin}` writes the copy, or `local:` keeps it"
+        for fault in faults
+    ]
 
 
 def enforcer(rule: str):
