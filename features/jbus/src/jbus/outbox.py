@@ -24,9 +24,9 @@ written from that, and `jbus.owed` keeps the ask and sends it again when the acc
 of `RULES`, the one table of them. A new rule is a row of that table, and no sender checks it:
 
 - `held`: the row is held in the queue (`jbus queue hold`, or jbus's own at a check that failed
-  at two heads, `jbus.stall.twice`), so its crew gets no rebase and no fix message (`FIXES`) until
-  it is approved again. It holds no other template: a held row's crew still gets the user's
-  answers, its review's findings and every other message;
+  at two heads, `jbus.stall.twice`), so its crew gets no rebase, no fix message and no restart
+  of a failed check (`FIXES`) until it is approved again. It holds no other template: a held
+  row's crew still gets the user's answers, its review's findings and every other message;
 - `slot`: the thread waits on a test slot and is not woken yet (`jgauge.waiters`);
 - `review`: the thread is the row's crew, and the row's pull request waits on a review that a
   reviewer the crew launched has not written at its head, as jmerge's judge says
@@ -95,9 +95,10 @@ ASKS = frozenset(
 """The templates that ask for the review itself: `jbus.expedite`'s kinds whose reason is a review
 not written, and `jbus.rebase`'s asks for a scoped review. `review` never holds them, since the
 review it waits on is what they ask for."""
-FIXES = frozenset({"rebase", "restack", "failed", "refailed", "conflict", "drops"})
-"""The templates of a rebase or a fix message to a crew: `jbus.rebase`'s and `jbus.stack`'s.
-`held` holds these and no other."""
+FIXES = frozenset({"rebase", "restack", "failed", "refailed", "conflict", "drops", "restart"})
+"""The templates of a rebase or a fix message to a crew: `jbus.rebase`'s and `jbus.stack`'s, and
+the stall clock's restart of a crew whose check failed (`jbus.clock`). `held` holds these and no
+other."""
 USERS = frozenset({"word", "item"})
 """The templates of the user's word and steer to a home (`jbus.word`, `jbus.steer`). No rule
 holds them."""

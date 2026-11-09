@@ -194,50 +194,36 @@ def test_a_leftover_a_thread_is_at_work_on_is_held_by_that_thread_and_not_the_us
     assert task["who"] == "crew"
 
 
-def test_a_leftover_open_thirty_minutes_is_said_to_the_root_home_and_not_the_user(kitchen):
-    """The home of the row did not close it in time: the root home gets it, once, and the user is
-    not asked, since an agent can still close it."""
+def test_a_leftover_its_home_leaves_open_is_told_to_no_other_home(kitchen):
+    """The home of the row did not close it in time: no home is told of it a second time, the
+    root included, and the user is not asked, since its home can still close it (the user,
+    2026-11-08: "Drop them")."""
     kitchen.quiet()
     root = home(kitchen)["threadId"]
     scoped = home(kitchen, "pantry")["threadId"]
     ended(kitchen, head="Home: pantry\n")
-    kitchen.poll(NOW)
-    kitchen.poll(later(leftover.CLOSE_MINUTES - 1))
-    assert [one["threadId"] for one in sends(kitchen)] == [scoped]
-    for minutes in (30, 31, 95):
+    for minutes in (0, 29, 30, 31, 95):
         kitchen.poll(later(minutes))
         assert listed(kitchen) == [] and loud(kitchen) == []
     assert stalls(kitchen) == []
-    first, raised = sends(kitchen)
-    assert (raised["threadId"], raised["mode"]) == (root, "queue")
-    assert raised["clientRequestId"].startswith("wakes|demo|")
-    late = f"its home, thread {scoped}, has not closed it 30 min after jbus told it"
-    assert f"\n\njbus: alpha ended with something left, and {late}." in raised["message"]
-    assert "Left: the docs" in raised["message"]
-    assert "jbus says this row to the root home once" in first["message"]
+    (first,) = woke(kitchen)
+    assert first["threadId"] == scoped and first["threadId"] != root
+    assert "root home" not in first["message"]
     (task,) = state(kitchen, later(95))["tasks"]
     assert task["who"] != "user"
     kitchen.brief("alpha", "Home: pantry\n" + result("the index page"))
     kitchen.poll(later(96))
-    kitchen.poll(later(120))
-    assert len(sends(kitchen)) == 3 and listed(kitchen) == []
+    kitchen.poll(later(130))
+    assert [one["threadId"] for one in woke(kitchen)] == [scoped, scoped]
 
 
-def test_a_leftover_open_thirty_minutes_with_no_root_home_to_tell_waits_on_a_home(kitchen):
-    kitchen.quiet()
-    scoped = home(kitchen, "pantry")["threadId"]
-    ended(kitchen, head="Home: pantry\n")
-    kitchen.poll(NOW)
-    kitchen.poll(later(31))
-    why = leftover.NO_ROOT.format(thread=scoped, minutes=leftover.CLOSE_MINUTES)
-    assert listed(kitchen) == [f"left alpha: left: the docs; {why}"]
-    assert len(sends(kitchen)) == 1
-    assert (judged(kitchen)["who"], judged(kitchen)["waits"]) == (
-        "home",
-        f"a home to close it: {why}",
-    )
-    (task,) = state(kitchen, later(31))["tasks"]
-    assert task["who"] == "home" and f"It waits on a home: {why}" in task["state"]["say"]
+def woke(kitchen):
+    """The one list's messages that name a leftover."""
+    return [
+        one
+        for one in sends(kitchen)
+        if one["clientRequestId"].startswith("wakes|") and "\n- left " in one["message"]
+    ]
 
 
 def test_a_leftover_goes_from_the_record_when_its_brief_says_left_none(kitchen):
@@ -425,10 +411,10 @@ def test_a_record_that_is_not_one_is_read_as_none(kitchen):
     kept = {"alpha": {"left": "the docs", "told": NOW.isoformat()}}
     (kitchen.state / leftover.NAME).write_text(json.dumps(kept))
     (record,) = leftover.read(kitchen.state).values()
-    assert leftover.late(record, later(30)) and not leftover.late(record, later(29))
+    assert (record.left, record.told) == ("the docs", NOW.isoformat())
 
 
-def test_a_home_that_took_over_is_told_too_and_its_thirty_minutes_start_then(kitchen):
+def test_a_home_that_took_over_is_told_too_and_once(kitchen):
     kitchen.quiet()
     first = home(kitchen)
     ended(kitchen)
@@ -448,9 +434,7 @@ def test_a_home_that_took_over_is_told_too_and_its_thirty_minutes_start_then(kit
     assert listed(kitchen) == [] and stalls(kitchen) == []
     kitchen.poll(later(71))
     assert stalls(kitchen) == [] and listed(kitchen) == []
-    raised = sends(kitchen)[-1]
-    assert (raised["threadId"], len(sends(kitchen))) == (second["threadId"], 3)
-    assert "\n\njbus: alpha ended with something left, and its home" in raised["message"]
+    assert [one["threadId"] for one in sends(kitchen)] == [first["threadId"], second["threadId"]]
 
 
 def test_a_home_told_and_then_settled_is_the_users_with_that_reason_and_not_raised(kitchen):

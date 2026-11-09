@@ -152,6 +152,7 @@ def test_a_spared_template_is_one_its_sender_sends():
     is not held by accident."""
     assert set(slotwait.EVENTS) | {clock.CLOCK} == outbox.WAKES
     assert {word.KIND, "item"} == outbox.USERS
+    assert clock.RESTARTED in outbox.FIXES
     kinds = {row.kind for row in expedite.TABLE}
     asked = {"rereview"}
     assert kinds | asked >= outbox.ASKS and asked <= outbox.ASKS

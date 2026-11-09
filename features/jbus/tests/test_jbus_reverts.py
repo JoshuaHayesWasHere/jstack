@@ -125,6 +125,26 @@ def test_two_overlapping_reds_revert_nothing_and_file_one_row_naming_both_tips(k
     assert first[:12] in task and second[:12] in task
 
 
+def test_a_red_batched_run_over_two_merges_reverts_nothing_and_files_one_row(kitchen):
+    """Pushes to main share one group, so beta's push displaced alpha's waiting run before it had
+    a job, and beta's run checked both merges and failed. The red shows neither merge to be the
+    break, as a red with several commits since the last green does: no revert, and one row."""
+    first, second = red_merges(kitchen, ("alpha", 7, None), ("beta", 8, None))
+    pushed = json.loads((kitchen.stub / "push-runs.json").read_text())
+    displaced = {**DONE, "id": 501, "conclusion": "cancelled", "run_attempt": 1}
+    kitchen.set("push-runs.json", {**pushed, first: [displaced]})
+    runs = json.loads((kitchen.stub / "check-runs.json").read_text())
+    kitchen.set("check-runs.json", {**runs, first: []})
+    passes(kitchen)
+    assert asked(kitchen, "pr revert") == []
+    assert [line for line in asked(kitchen, "run rerun") if "501" in line] == []
+    (row,) = main_red(kitchen)
+    assert row["slug"] == f"{mainjson.FIX}{second[:12]}"
+    text = (kitchen.home / "tasks" / f"{row['slug']}.md").read_text()
+    task = next(line for line in text.splitlines() if line.startswith("Task:"))
+    assert reverts.Keep.OVERLAP in task
+
+
 def test_a_red_two_merges_made_together_reverts_nothing_and_files_its_row(kitchen):
     """#864 merged a minute before #866 and renamed a helper #866's new tests still used: main
     was green at #864, and #866's own check passed over a main that lacked it. Neither merge is
@@ -441,8 +461,10 @@ def test_the_rule_names_one_reason_for_each_red_it_does_not_revert():
     opened = {"q" * 40: made["o" * 40]}
     pending = [("q" * 40, "pending"), *tip]
     cancelled = [("q" * 40, "cancelled"), *tip]
+    batched = [("q" * 40, "failed"), ("r" * 40, "batched")]
     for red, why in (
         (reverts.Red(two, pull, "alpha", [TEST], under=under), None),
+        (reverts.Red(batched, pull, "alpha", [TEST], under=under), reverts.Keep.OVERLAP),
         (reverts.Red(pending, pull, "alpha", [TEST], under=under), reverts.Keep.UNREAD),
         (reverts.Red(pending, pull, "alpha", [TEST], late, under), reverts.Keep.OVERLAP),
         (reverts.Red(cancelled, pull, "alpha", [TEST], under=under), reverts.Keep.OVERLAP),

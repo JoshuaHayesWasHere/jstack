@@ -66,8 +66,8 @@ blocks when it is open and nothing can move without the user. That is the design
   because its brief changed after the go, and a row of the queue that waits with no brief in
   `briefs/<slug>.md`;
 - (c) a `hold`, which is a pull request that `jmerge` holds;
-- (d) a stall, which is any of these: a `left` item, a leftover that is the user's because the row's
-  home did not close it in `CLOSE_MINUTES` or the row has no home; a `config` item; a streak of
+- (d) a stall, which is any of these: a `left` item, a leftover that is the user's because the row
+  has no home or its home's thread is not one to tell (`leftover.his`); a `config` item; a streak of
   `alert` that alerted, of this project or of the pass, except the second target's own; and a gate
   that has a default, whose slug wrote no event for `CLOSE_MINUTES` and has no thread at work.
 

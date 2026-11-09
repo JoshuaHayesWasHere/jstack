@@ -6,9 +6,13 @@ and note, and exits 1 on an error. `--upstream` names the repo whose `repo-stand
 lists for a newer version, and `--list` prints each rule's level and id and checks nothing.
 
 The verb `plan` prints, as `key=value` lines for `$GITHUB_OUTPUT`, what the shared check
-workflow's jobs run (`repo_standard.plan`): it reads the config's `check` part, the event from
-`--event` or `$GITHUB_EVENT_NAME`, and a pull request's selection from `--selection`, the file
-`make select` wrote.
+workflow's jobs run (`repo_standard.plan`): it reads the config's `check` and `stacks` parts, the
+lockfile of each stack's e2e root, the event from `--event` or `$GITHUB_EVENT_NAME`, and a pull
+request's selection from `--selection`, the file `make select` wrote.
+
+The verb `stacks` runs the targets `lint`, `test`, `select` and `e2e` of a repo whose config sets
+`stacks:`, each stack over its own roots (`repo_standard.stacks`), and takes the rest of the line
+as its own: `stacks lint`, `stacks test [ids]`, `stacks select <base>` or `stacks e2e [<file>]`.
 
 The guards are `borders`, `stale`, `docs`, `size` and `comments`. Each reads the repo's
 `.repo-standard.yml`, prints one line for each fault it finds, and exits 1 on any. `borders`
@@ -25,12 +29,12 @@ import subprocess
 import sys
 from pathlib import Path
 
-from repo_standard import borders, conform, docs_true, plan, size, stale
+from repo_standard import borders, conform, docs_true, plan, size, stacks, stale
 from repo_standard.config import Refused, load
 from repo_standard.tree import Unreadable, tracked
 
 GUARDS = ("borders", "stale", "docs", "size", "comments")
-VERBS = (*GUARDS, "conform", "plan")
+VERBS = (*GUARDS, "conform", "plan", "stacks")
 
 
 def _root(given: str | None) -> Path:
@@ -43,6 +47,18 @@ def _root(given: str | None) -> Path:
 
 
 def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["stacks"]:
+        parser = argparse.ArgumentParser(prog="repo-standard stacks", description=stacks.__doc__)
+        parser.add_argument("verb", choices=stacks.VERBS, help="the target to run")
+        parser.add_argument("rest", nargs="*", help="test: the ids to run; select: the base")
+        args = parser.parse_args(argv[1:])
+        try:
+            root = _root(None)
+            return stacks.main(root, load(root), [args.verb, *args.rest])
+        except (Refused, Unreadable) as refused:
+            print(f"repo_standard stacks: {refused}", file=sys.stderr)
+            return 2
     parser = argparse.ArgumentParser(prog="repo-standard", description=__doc__)
     parser.add_argument("guard", choices=VERBS, help="a guard to run, or conform")
     parser.add_argument("--root", help="the repo's root; by default the checkout here")
@@ -69,7 +85,7 @@ def main(argv: list[str] | None = None) -> int:
                     chosen = plan.selected(Path(args.selection).read_text(encoding="utf-8"))
                 except OSError as error:
                     raise Unreadable(f"cannot read {args.selection}: {error.strerror}") from error
-            outputs = plan.plan(config.check, event, chosen).outputs()
+            outputs = plan.plan(config, event, chosen, root).outputs()
             print("".join(f"{key}={value}\n" for key, value in outputs.items()), end="")
             return 0
         paths = tracked(root)

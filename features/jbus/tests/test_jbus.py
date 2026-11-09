@@ -86,6 +86,7 @@ def test_each_pass_rewrites_the_status_file_and_jbus_status_prints_it(kitchen):
                 "capped": [],
                 "failed_wakes": 0,
                 "last_error": "",
+                "quiet": [],
                 "sign_in": "",
                 "sweep": "",
             }

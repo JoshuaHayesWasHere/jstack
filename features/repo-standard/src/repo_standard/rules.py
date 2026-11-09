@@ -8,8 +8,10 @@ the workflows, the manifests and the config.
 A rule that no check of the tree can judge in every stack is met by the files that enforce it in
 the repo, named in the config's `enforced-by`. `enforcer` holds each named file to two things: git
 tracks it, and something the checks run reaches it. A test file, a workflow, and a file a workflow,
-the Makefile or a make file it includes names by its path are reached, so a page or a file nothing
-runs does not meet it.
+the Makefile or a make file it includes names by its path are reached, and so is a script the
+adapter of one of the config's `stacks` runs, so a page or a file nothing runs does not meet it.
+
+A check may return an `Advice`, a fault that warns whatever its rule's level and fails nothing.
 
 A workflow that calls the standard's shared check at a version's tag runs what that workflow runs:
 `make select`, `make lint` and the selected tests on a pull request, and `make check` on main.
@@ -18,6 +20,7 @@ A workflow that calls the standard's shared check at a version's tag runs what t
 from __future__ import annotations
 
 import fnmatch
+import importlib
 import json
 import re
 import sys
@@ -27,7 +30,8 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from repo_standard import borders, docs_true, size, stale
-from repo_standard.config import Config, Refused
+from repo_standard.adapters import COMMANDS
+from repo_standard.config import Config, Refused, Stack
 from repo_standard.tree import Fault
 
 WORKFLOWS = ".github/workflows/"
@@ -45,6 +49,10 @@ SHARED_CHECK = re.compile(
     r"@repo-standard-v\d+['\"]?\s*(?:#.*)?$",
     re.M,
 )
+
+
+class Advice(str):
+    """A fault that `conform` prints as a warning, whatever the level of its rule."""
 
 
 @dataclass
@@ -274,7 +282,42 @@ def docs_true_(repo: Repo) -> list[str]:
 
 def make_targets(repo: Repo) -> list[str]:
     lacking = [one for one in ("lint", "test", "check") if one not in repo.targets]
-    return [f"Makefile: has no `{one}` target" for one in lacking]
+    faults = [f"Makefile: has no `{one}` target" for one in lacking]
+    for root in (
+        r for one in repo.config.stacks.values() if one.adapter == "node-vite" for r in one.roots
+    ):
+        faults += _npm_root(repo, root)
+    return faults
+
+
+def _npm_root(repo: Repo, root: str) -> list[str]:
+    """A node-vite root's faults: `make lint` runs its package's `check` script and `make test`
+    its `test` script, and CI's setup reads its Node version from `.nvmrc` or `engines.node`."""
+    where = "package.json" if root == "." else f"{root}/package.json"
+    try:
+        package = json.loads(repo.read(where))
+    except json.JSONDecodeError:
+        package = None
+    if not isinstance(package, dict):
+        return [f"{where}: is not there, or is not a JSON object, so the stack has no scripts"]
+    scripts = package.get("scripts")
+    scripts = scripts if isinstance(scripts, dict) else {}
+    faults: list[str] = [
+        f"{where}: has no `{name}` script, which `make {target}` runs"
+        for name, target in (("check", "lint"), ("test", "test"))
+        if not isinstance(scripts.get(name), str) or not scripts[name].strip()
+    ]
+    engines = package.get("engines")
+    pinned = isinstance(engines, dict) and bool(engines.get("node"))
+    nvmrc = ".nvmrc" if root == "." else f"{root}/.nvmrc"
+    if not pinned and nvmrc not in repo.paths:
+        faults.append(
+            Advice(
+                f"{root}: pins no Node version, in `.nvmrc` or package.json `engines.node`,"
+                " so CI runs the runner's Node"
+            )
+        )
+    return faults
 
 
 def scripts_home(repo: Repo) -> list[str]:
@@ -335,7 +378,38 @@ def tests_home(repo: Repo) -> list[str]:
 
 
 def selects(repo: Repo) -> list[str]:
-    return [] if "select" in repo.targets else ["Makefile: has no `select` target"]
+    faults = [] if "select" in repo.targets else ["Makefile: has no `select` target"]
+    for name, stack in repo.config.stacks.items():
+        if stack.adapter != "node-vite":
+            continue
+        if stack.e2e is None:
+            faults.append(
+                Advice(f"stack {name}: sets no `e2e:`, so no browser test runs on a pull request")
+            )
+        else:
+            faults += _browser(repo, stack)
+    return faults
+
+
+def _browser(repo: Repo, stack: Stack) -> list[str]:
+    """The browser tests of a node stack that no change reaches, as the repo's own selection,
+    `scripts/node_browser.py`, reads them."""
+    scripts = repo.root / "scripts"
+    if not (scripts / "node_browser.py").is_file():
+        return ["scripts/node_browser.py: is not there, so no change selects a browser test"]
+    names = ("node_browser", "node_graph", "node_table")
+    saved = {name: sys.modules.pop(name) for name in names if name in sys.modules}
+    sys.path.insert(0, str(scripts))
+    try:
+        module = importlib.import_module("node_browser")
+        assert stack.e2e is not None
+        suite = module.Suite(stack.roots, json.loads(stack.e2e.json()), repo.paths, repo.read)
+        return list(suite.faults)
+    finally:
+        sys.path.remove(str(scripts))
+        for name in names:
+            sys.modules.pop(name, None)
+        sys.modules.update(saved)
 
 
 def main_runs_all(repo: Repo) -> list[str]:
@@ -395,6 +469,11 @@ def enforcer(rule: str):
             return [f"the config's `enforced-by` names no file that enforces {rule}"]
         tracked = set(repo.paths)
         runners = [*repo.workflows.values(), *repo.makefiles.values()]
+        runners += [
+            script
+            for one in repo.config.stacks.values()
+            for script in COMMANDS[one.adapter].scripts
+        ]
         faults = []
         for path in named:
             if path not in tracked:
