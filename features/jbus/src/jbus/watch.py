@@ -1422,8 +1422,8 @@ def fix_brief(
     shared doc a fix brief may not claim (`queue.shared_doc`), or says
     `nowhere` where there are none. `filed` is what jbus filed it from, and
     `follows` the row whose work the fix is a follow-up of: a pass approves it on that row's go
-    (`queue.follow_ups`). Its `Home:` line is `home`, a scope's name, or `root`, so that a home
-    can queue it again as `jbus queue add` asks."""
+    (`queue.follow_ups`). Its `Home:` line is `home`, a scope's name, or `uncategorized`, so that
+    a home can queue it again as `jbus queue add` asks."""
     tests = [test for _, _, failed in jobs for test in failed]
     where = [
         file
@@ -1445,7 +1445,7 @@ def fix_brief(
             f"Pull request: {pull}",
             "Review: review",
             "Playbook: bug-fix",
-            f"Home: {home or homes.ROOT}",
+            f"Home: {home or homes.UNCATEGORIZED}",
             *([f"Follows: {follows}"] if follows else []),
             "Read:",
             *(

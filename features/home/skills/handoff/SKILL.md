@@ -1,10 +1,10 @@
 ---
 name: handoff
-description: Archive this home - stop what runs, keep a note of ten lines at most in its log, hand what it has out to the root home, close its scope, switch off its scheduled tasks, and rename and settle this thread. It starts no next home. Use when the user invokes /handoff or $handoff, archives a home from the jstack tree, or says to archive or close this home.
+description: Archive this home - stop what runs, keep a note of ten lines at most in its log, hand what it has out to the uncategorized home, close its scope, switch off its scheduled tasks, and rename and settle this thread. It starts no next home. Use when the user invokes /handoff or $handoff, archives a home from the jstack tree, or says to archive or close this home.
 tip: archives this home and starts no next one | archive | archive this home | close this home | wrap up
 user-invocable: true
 disable-model-invocation: true
-card: "Run the pipeline | 6 | Archives a home. It keeps a note of ten lines at most in the home's log, hands what the home has out to the root home, closes its scope and starts no next home. | Reach for it when a home's work is over, or from the tree's Archive item. | op: the operator; model: a home"
+card: "Run the pipeline | 6 | Archives a home. It keeps a note of ten lines at most in the home's log, hands what the home has out to the uncategorized home, closes its scope and starts no next home. | Reach for it when a home's work is over, or from the tree's Archive item. | op: the operator; model: a home"
 ---
 
 # handoff
@@ -185,9 +185,9 @@ Tell the user so in three lines at most, with what this thread leaves undone, an
                    /^Asked by: / { by = $(0); sub(/^Asked by: /, "", by); sub(/,.*/, "", by) }
                    { entry = entry $(0) "\002" }
                    END { out() }' "$M/gates.md" | while IFS=$sep read -r n by entry; do
-                   if [ -z "$by" ] || [ "$by" = home ] || [ "$by" = "home-$scope" ]; then by=home; fi
+                   if [ -z "$by" ] || [ "$by" = home ] || [ "$by" = "home-$scope" ]; then by=home-uncategorized; fi
                    if said=$(printf '%s\n' "$entry" | tr '\002' '\n' | jbus gate "$by" 2>&1); then
-                       echo "gate $n of gates.md is the root home's, $(printf '%s\n' "${said#asked: }" | head -n 1)"
+                       echo "gate $n of gates.md is the uncategorized home's, $(printf '%s\n' "${said#asked: }" | head -n 1)"
                    else
                        echo "gate $n of gates.md is kept whole in this note, jbus said: $(printf '%s' "${said#not asked: }" | head -n 1)"
                        printf 'KEEP%s\n' "$entry"
@@ -201,11 +201,11 @@ Tell the user so in three lines at most, with what this thread leaves undone, an
                fi
                out=$(printf '%s\n%s\n' "$out" "$moved" | command grep .)
            fi
-           if [ -n "$scope" ]; then label="Moved to the root:"; else label="Left with no home:"; fi
+           if [ -n "$scope" ]; then label="Moved to uncategorized:"; else label="Left with no home:"; fi
            kept=$M/log/$(date +%F-%H%M).md
            if [ -e "$kept" ]; then kept=$M/log/$(date +%F-%H%M%S).md; fi
            if ! mkdir -p "$M/log" || ! {
-               sed '/^Was home:/d; /^Archived:/d; /^Moved to the root:/d; /^Left with no home:/d' "$note"
+               sed '/^Was home:/d; /^Archived:/d; /^Moved to the root:/d; /^Moved to uncategorized:/d; /^Left with no home:/d' "$note"
                if [ -n "${held:-}" ]; then printf '\n%s\n' "$held"; fi
                printf '\nArchived: %s, and no home was started after this one.\n' "$(date +%F)"
                if [ -z "$out" ]; then
@@ -229,7 +229,7 @@ Tell the user so in three lines at most, with what this thread leaves undone, an
    fi
    if [ -f "$note" ]; then uv run --project "$T/../source" jbus forget "$note" > /dev/null; fi
    if [ -n "$scope" ]; then
-       what="scope $scope is closed, and what it had out is the root home's"
+       what="scope $scope is closed, and what it had out is the uncategorized home's"
    else
        what="the root home is archived, and $R has no home until someone types /home"
    fi
@@ -239,7 +239,7 @@ Tell the user so in three lines at most, with what this thread leaves undone, an
        echo "archived: $what. Start no home: switch off its scheduled tasks, tell the user, then rename and settle this thread"
    fi
    printf 'note: %s\n' "$kept"
-   awk '/^(Moved to the root|Left with no home):/ {on = 1; print; next} on && /^- / {print; next} {on = 0}' "$kept"
+   awk '/^(Moved to the root|Moved to uncategorized|Left with no home):/ {on = 1; print; next} on && /^- / {print; next} {on = 0}' "$kept"
    printf 'title: home: %s%s\n' "$R" "${scope:+ $scope}"
    jq -rs --arg me "$ME" '
        if length == 1 and (.[0].tasks | type) == "array" then .[0] else error("no tasks") end
@@ -252,7 +252,7 @@ Tell the user so in three lines at most, with what this thread leaves undone, an
        echo "not read: put the whole reply of list_scheduled_tasks in place of the placeholder"
    ```
 
-   It does it all, in this order: it reads the note, asks jbus what this home has out, hands each open gate of a scoped home's `gates.md` to jbus as a question of the root home's, keeps one jbus refuses whole in the note, and renames the file `gates-moved.md`, keeps the note in `$M/log/` under a dated name with an `Archived:` line, the list of what was out and a `Was home:` line with this thread's id, moves an older `handoff.md` beside it, moves a scoped home's `plan.md` to `plan-archived.md`, and removes `home-id`.
+   It does it all, in this order: it reads the note, asks jbus what this home has out, hands each open gate of a scoped home's `gates.md` to jbus as a question of the `uncategorized` home's, keeps one jbus refuses whole in the note, and renames the file `gates-moved.md`, keeps the note in `$M/log/` under a dated name with an `Archived:` line, the list of what was out and a `Was home:` line with this thread's id, moves an older `handoff.md` beside it, moves a scoped home's `plan.md` to `plan-archived.md`, and removes `home-id`.
    A second run changes nothing and prints `archived before`, with the same lines under it.
    Its first line is what the steps below go by, and the lines under it are what step 4 tells the user and step 5 renames by: keep all of them.
 
@@ -265,9 +265,9 @@ Tell the user so in three lines at most, with what this thread leaves undone, an
    - `archived` or `archived before`: go on with step 4.
 
    What a home has out is what `jbus out` prints for it: each queue row of its briefs that is not over, each entry whose go holds with no live row, each of their crew or reviewer threads that is not settled, each question jbus holds for it and each open gate of its `gates.md`.
-   The block writes each under `Moved to the root:` for a scoped home and under `Left with no home:` for the root, and prints them under its first line.
-   A scope is a home only while its directory has a `home-id` or a `Was home:` line of a `handoff.md`, so once the block has run, every brief whose `Home:` line names the scope is the root home's by the rule `jbus home` keeps (`features/jbriefs/src/jbriefs/home.py`).
-   jbus sends the root home what each of its threads has to tell, `jmerge` merges its pull requests as the root's, and the root home's start lists its rows as its own: nothing is rewritten and nothing is sent.
+   The block writes each under `Moved to uncategorized:` for a scoped home and under `Left with no home:` for the root, and prints them under its first line.
+   A scope is a home only while its directory has a `home-id` or a `Was home:` line of a `handoff.md` and its plan is not archived, so once the block has run, every brief whose `Home:` line names the scope is the `uncategorized` home's by the rule `jbus home` keeps (`features/jbriefs/src/jbriefs/home.py`): the root home owns no row.
+   jbus sends the `uncategorized` home what each of its threads has to tell, or the root home's thread while `uncategorized` has no home of its own, `jmerge` merges its pull requests as `uncategorized`'s, and that home's start lists its rows as its own: nothing is rewritten and nothing is sent.
    With `plan.md` moved, jbus and the jstack tree count the scope as no home, and `/home <scope>` moves it back and starts it again (`skills/home/when-a-home-starts.md`, step 1).
    A root home that is archived leaves the repo with no home: jbus keeps running its queue and merging, a thread with something to tell finds no `home-id` and sends nothing, and its report waits on disk for the home someone starts with `/home`.
 
@@ -281,7 +281,7 @@ Tell the user so in three lines at most, with what this thread leaves undone, an
    A task that is off runs nothing, so it cannot make this thread active again, and it keeps its address for a home started later in this directory to take over.
    Delete none.
    On `not read`, in a session with no such tool, there is nothing to do: tell the user that a task bound to this thread may still run.
-   Then tell the user, in three lines at most: the note's path, what moved to the root home (or, for the root, that the repo has no home until someone types `/home`, with what was out), each task that is now off, and each gate the note carries.
+   Then tell the user, in three lines at most: the note's path, what moved to the `uncategorized` home (or, for the root, that the repo has no home until someone types `/home`, with what was out), each task that is now off, and each gate the note carries.
 
 5. **Rename and settle.**
 

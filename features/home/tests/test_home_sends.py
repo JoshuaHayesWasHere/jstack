@@ -155,7 +155,7 @@ def refused(home, sender, to, **given):
         (REVIEWER, FLOW_CREW, ["fl-task", "send nothing", "review notice"]),
         (REVIEWER, FLOW, ["the flow home's work", "jbus queue add"]),
         (REVIEWER, ROOT, ["the root home's work", "jbus queue add"]),
-        (REVIEWER, ROOT_CREW, ["root-task", "the root home's work", "jbus queue add"]),
+        (REVIEWER, ROOT_CREW, ["root-task", "the uncategorized home's work", "jbus queue add"]),
     ],
 )
 def test_a_send_between_homes_and_crews_is_refused_with_its_channel(home, sender, to, names):

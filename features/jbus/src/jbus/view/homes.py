@@ -2,23 +2,24 @@
 the order the page groups them.
 
 A home is the one `jbriefs.home_of` gives a brief or a scout's request: the scope that its
-`Home:` line names, or the root. The view asks jbriefs and keeps no rule of its own. A home is
-written as its scope's name, and the root as an empty string, as a gate of the root's
-`gates.md` has it. A brief whose `Home:` line names something that is no scope now, such as a
-scope that has retired, belongs to the root, and `retired` keeps the name the line gives, so
-that its row can say so. A brief that names one of the root's own ids is the root's and names
-no retired scope.
+`Home:` line names, or the catch-all, `uncategorized`. The view asks jbriefs and keeps no rule
+of its own. A home is written as its scope's name, and the root as an empty string, as a gate
+of the root's `gates.md` has it. The root owns no row: its own are its thread, its gates and
+the needs of its own. A brief whose `Home:` line names something that is no scope now, such as
+a scope that has retired, belongs to the catch-all, and `retired` keeps the name the line
+gives, so that its row can say so. A brief that names `root`, `uncategorized` or one of the
+root's own ids names no retired scope.
 
 A slug's brief is its file in the home's `tasks/`, then the one jbus keeps in the state
 directory's `briefs/`, the order `state._whole` reads them in. A scout's is its request in the
 home's `scouts/`. A home's own thread is the home whose `home-id`, or whose handoff's
 `Was home:` line, has its id. A thread that is none of these has no home.
 
-`group` gives the project's homes: the root first, then each scope in name order, each with
-the open tasks and the needs that are its own, its health and the day its scope was made. Each also
-has `in_check`, how many of its rows in check have a failing check, one that runs or waits for a
-runner, one that passed and waits for `jmerge`, and how many are stacked and merge after another
-row (`checked`).
+`group` gives the project's homes: the root first, then the catch-all, made or not, then each other
+scope in name order, each with the open tasks and the needs that are its own, its health and the day
+its scope was made. Each also has `in_check`, how many of its rows in check have a failing check,
+one that runs or waits for a runner, one that passed and waits for `jmerge`, and how many are
+stacked and merge after another row (`checked`).
 
 `group` also gives each home its `last` act: the newest of the acts it is given, `state.acts`,
 whose home is that home, with its time and its line, or None where it has none. An act is
@@ -30,19 +31,20 @@ A home's health is the `health` of its own thread, the home thread the last pass
 it (`state._home_work`), and of the one that is out where it listed two, as a handoff leaves
 them. Where the health is `quiet` or `hung`, `since` is the time that thread last wrote. A home
 no listed thread is has `none`, since a repo may run with no home, and where the pass left no
-list of threads every home has `unknown`.
+list of threads every home has `unknown`, but the catch-all while the root stands in for it
+(`jbriefs.home.stands_in`): it has no thread of its own whatever the pass listed, so `none`.
 
 A scope is made by the root home's block, which writes its `plan.md` with a first line and
 then `Goal (<day>, ...)`. That day is `started`. The root, a plan with no such line before its
 first entry, and a scope with no plan have none.
 
-Each home has a `colour`, 1 to `COLOURS`, the page's `--cat-<colour>` swatch beside its name.
-It is the home's place in the order the homes were made, counted round past `COLOURS`: the
-root is 1, then each scope by its `started` day, a scope with none first, then by the time of
-its `prefix`, which the block writes once as it makes the scope, and by name among equals. A
-scope made later, which the block dates and gives its prefix, comes after every scope there
-is, so it takes the next colour and moves no other home's, whatever its name and on the same
-day too. A home that is no scope now has none.
+Each home has a `colour`, 1 to `COLOURS`, the page's `--cat-<colour>` swatch beside its name. It is
+the home's place in the order the homes were made, counted round past `COLOURS`: the root is 1, the
+catch-all 2, then each other scope by its `started` day, a scope with none first, then by the time
+of its `prefix`, which the block writes once as it makes the scope, and by name among equals. A
+scope made later, which the block dates and gives its prefix, comes after every scope there is, so
+it takes the next colour and moves no other home's, whatever its name and on the same day too. A
+home that is no scope now has none.
 """
 
 from __future__ import annotations
@@ -57,6 +59,7 @@ from jbriefs import home as jbriefs
 from jbus.view import checked
 
 ROOT = ""
+CATCHALL = jbriefs.UNCATEGORIZED
 GROUP = {
     "name": None,
     "open": None,
@@ -116,11 +119,11 @@ class Homes:
 
     def owner(self, brief: str) -> Owner:
         """The home of a brief or a request, by its text."""
-        found = jbriefs.home_of(self.home, brief)
-        if found != self.home:
+        found, named = jbriefs.home_of(self.home, brief), jbriefs.named(brief)
+        plain = ("", jbriefs.ROOT, jbriefs.UNCATEGORIZED, *jbriefs.ids(self.home))
+        if found != jbriefs.catchall(self.home) or named in plain:
             return Owner(found.name)
-        named = jbriefs.named(brief)
-        return Owner(ROOT, "" if named in (jbriefs.ROOT, *jbriefs.ids(self.home)) else named)
+        return Owner(found.name, named)
 
     def of_slug(self, slug: str, kind: str = "tasks") -> Owner | None:
         """The home of the slug's brief, or of its request for `scouts`, or None where it has
@@ -137,8 +140,8 @@ class Homes:
         return None
 
     def of_task(self, slug: str) -> Owner:
-        """The home of a task: its brief's, or the root where it has no brief."""
-        return self.of_slug(slug) or Owner()
+        """The home of a task: its brief's, or the catch-all's where it has no brief."""
+        return self.of_slug(slug) or Owner(CATCHALL)
 
     def of_thread(self, thread: dict[str, Any], given: str) -> Owner | None:
         """The home of a thread the last pass listed, with `given` its id: a home's own, the
@@ -157,22 +160,30 @@ class Homes:
         return self.of_slug(slug, "scouts") if role == "scout" else None
 
     def of_key(self, key: str, pulls: dict[str, str], rows: set[str]) -> str | None:
-        """The home of what an act's record names: the brief's of a slug, the request's of a
-        scout, the row's of a pull request `#<number>` that `pulls` gives the slug of, the root
-        for a slug of `rows` with no brief, and the home of a home's own thread id. None for
-        any other key."""
+        """The home of what an act's record names: the brief's of a slug, the request's of a scout,
+        the row's of a pull request `#<number>` that `pulls` gives the slug of, the catch-all for a
+        slug of `rows` with no brief, and the home of a home's own thread id. None for any other
+        key."""
         key = pulls.get(key.removeprefix("#"), "") if key.startswith("#") else key
         owner = self.of_slug(key) or self.of_slug(key, "scouts")
         if owner is None and key in rows:
-            owner = Owner()
+            owner = Owner(CATCHALL)
         if owner is None and key:
             owner = self.of_thread({"role": "home", "slug": ""}, key)
         return owner.name if owner is not None else None
 
+    def works(self, name: str) -> frozenset[str]:
+        """The homes whose rows the home `name` works, by name (`jbriefs.home.works`): the
+        root's thread works the catch-all's while it stands in for it."""
+        directory = self.home if name == ROOT else self.home / name
+        return frozenset(
+            ROOT if one == self.home else one.name for one in jbriefs.works(self.home, directory)
+        )
+
     def of_gate(self, scope: str) -> str:
         """The home of a gate of a `gates.md`, by the name of the directory it is in: that
-        scope while it is one, else the root."""
-        return scope if scope in {one.name for one, _, _ in self.scopes} else ROOT
+        scope while it is one, or the catch-all, else the root."""
+        return scope if scope in {CATCHALL, *(one.name for one, _, _ in self.scopes)} else ROOT
 
     def started(self, scope: Path) -> str | None:
         """The day the scope was made: the `Goal (<day>` line of its plan, before the plan's
@@ -182,11 +193,16 @@ class Homes:
         return found[1] if found else None
 
     @cached_property
+    def others(self) -> list[Path]:
+        """Each scope but the catch-all, by name."""
+        return [one for one, _, _ in self.scopes if one.name != CATCHALL]
+
+    @cached_property
     def colours(self) -> dict[str, int]:
-        """Each home's colour, by its name: the root's, then each scope's in the order they
-        were made."""
-        made = sorted(self.scopes, key=lambda one: (self.started(one[0]) or "", _made(one[0])))
-        names = [ROOT, *(one.name for one, _, _ in made)]
+        """Each home's colour, by its name: the root's, the catch-all's, then each other
+        scope's in the order they were made."""
+        made = sorted(self.others, key=lambda one: (self.started(one) or "", _made(one)))
+        names = [ROOT, CATCHALL, *(one.name for one in made)]
         return {name: place % COLOURS + 1 for place, name in enumerate(names)}
 
     def group(
@@ -196,20 +212,24 @@ class Homes:
         threads: list[dict[str, Any]] | None = None,
         acts: list[dict[str, Any]] | None = None,
     ) -> list[Any]:
-        """The project's homes, the root first and then each scope by name, each with how many
+        """The project's homes, the root first, the catch-all, and then each other scope by
+        name, each with how many
         open tasks and needs are its own, its health from `threads`, the threads the last pass
         listed with each one's home, its colour, its rows in check by what their check did, the day
         its scope was made, and its newest act of `acts`, which are oldest first."""
         last = {one["home"]: {"at": one["at"], "what": one["what"]} for one in acts or []}
         own = [one for one in threads or [] if one["role"] == "home"]
         found = []
-        for name, scope in ((ROOT, None), *((one.name, one) for one, _, _ in self.scopes)):
+        homes = [(ROOT, None), (CATCHALL, jbriefs.catchall(self.home))]
+        bare = {CATCHALL} if jbriefs.stands_in(self.home) else set()
+        for name, scope in (*homes, *((one.name, one) for one in self.others)):
             mine = sorted(
                 (one for one in own if one["home"] == name),
                 key=lambda one: (one["out"], one["updated"] or ""),
             )
             thread = mine[-1] if mine else None
-            health = "unknown" if threads is None else thread["health"] if thread else "none"
+            known = threads is not None or name in bare
+            health = thread["health"] if thread else "none" if known else "unknown"
             rows = [task for task in tasks if task["home"] == name]
             found.append(
                 {

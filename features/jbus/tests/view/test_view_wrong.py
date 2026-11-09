@@ -63,7 +63,8 @@ def troubled(scene):
 def test_each_wrong_thing_of_a_scene_is_in_the_list_once(tmp_path, monkeypatch):
     """A hung and a quiet thread are wrong, and a thread at work, waiting, ended or not known
     is not. The hung thread's stall is the thread's entry, and the pull request that stalled is
-    one entry, the stall's."""
+    one entry, the stall's. Each is about a row whose brief names no home, so it is under the
+    catch-all."""
     scene = Scene(tmp_path, monkeypatch)
     troubled(scene)
     given = stack(scene)
@@ -82,7 +83,9 @@ def test_each_wrong_thing_of_a_scene_is_in_the_list_once(tmp_path, monkeypatch):
     assert "no review" in by["oat-spoon"]["cause"]
     for one in given["wrong"]:
         assert one["cause"]
-        assert [(place["project"], place["home"]) for place in one["where"]] == [("demo", "")]
+        assert [(place["project"], place["home"]) for place in one["where"]] == [
+            ("demo", "uncategorized")
+        ]
         assert one["where"][0]["open"].startswith("#/demo/")
 
 

@@ -286,3 +286,55 @@ def test_the_blocks_run_in_zsh_where_a_pattern_that_matches_nothing_stops_a_call
     assert zsh(STATUS).startswith(f"=== scope {NEW}: no home thread\n")
     (said,) = zsh(MAKES, **{**filled, "<scope>": "other"}).splitlines()
     assert said.startswith(f"not made: the slug prefix {PREFIX} is another home's")
+
+
+CATCHALL = "uncategorized"
+
+
+def test_uncategorized_is_made_with_no_prefix_and_owns_every_slug_no_other_prefix_claims(homes):
+    """The catch-all takes no prefix: the block writes its plan, says what it owns, and writes no
+    `prefix` file. jbus may have made its directory already, for the files of its rows, and the
+    block keeps them. `/home uncategorized` then starts its home like any scope's, and every brief
+    no other scope claims is its own."""
+    from jbriefs import home as rule
+
+    (homes.home_dir / CATCHALL).mkdir()
+    (homes.home_dir / CATCHALL / "blockers.json").write_text("{}\n")
+    before = homes.state()
+    made, launch = make(homes, scope=CATCHALL, prefix="", owns="")
+    assert made == (
+        f"made: scope {CATCHALL}, with {homes.home_dir / CATCHALL / 'plan.md'} and no prefix: it"
+        " owns every slug no other scope's prefix claims"
+    )
+    assert launch.startswith(MAKES)
+    assert homes.changed(before) == [f"{CATCHALL}/plan.md"]
+    assert (homes.home_dir / CATCHALL / "blockers.json").read_text() == "{}\n"
+    assert (
+        (homes.home_dir / CATCHALL / "plan.md")
+        .read_text()
+        .endswith(f"the user): every row no other scope of {NAME} claims\n")
+    )
+    assert homes.which_home(CATCHALL) == [f"scope {CATCHALL}", f"title: home: {NAME} {CATCHALL}"]
+    for line in ("", "Home: root\n", "Home: gone\n", f"Home: {CATCHALL}\n"):
+        assert rule.home_of(homes.home_dir, f"# rl-x\n{line}") == homes.home_dir / CATCHALL
+
+
+def test_uncategorized_given_a_prefix_is_refused_and_nothing_is_written(homes):
+    before = homes.state()
+    (said,) = make(homes, scope=CATCHALL, prefix="un-")
+    assert said.startswith("not made: uncategorized takes no prefix")
+    assert homes.changed(before) == []
+
+
+def test_with_uncategorized_made_two_other_scopes_still_may_not_overlap(homes):
+    """The catch-all's missing prefix overlaps no other, and the rule between the other scopes
+    holds as it did."""
+    made, _ = make(homes, scope=CATCHALL, prefix="", owns="")
+    assert made.startswith(f"made: scope {CATCHALL}")
+    assert not (homes.home_dir / CATCHALL / "prefix").exists()
+    made, _ = make(homes, scope="pstack", prefix="ps-")
+    assert made.startswith("made: scope pstack")
+    before = homes.state()
+    (said,) = make(homes, scope="pstack-x", prefix="ps-x-")
+    assert said.startswith("not made: the slug prefix ps-x- starts with ps-")
+    assert homes.changed(before) == []

@@ -205,7 +205,14 @@ def test_a_fix_with_no_when_green_line_is_refused(demo):
     assert "has no When green: line" in added.stdout + added.stderr
     assert "gamma-fix" not in run(demo, "jbus queue show").stdout
     assert not (
-        demo.parent / "home" / ".local" / "state" / "home" / "demo" / "blockers.json"
+        demo.parent
+        / "home"
+        / ".local"
+        / "state"
+        / "home"
+        / "demo"
+        / "uncategorized"
+        / "blockers.json"
     ).exists()
 
 
@@ -336,7 +343,16 @@ def test_a_batch_of_fixes_past_the_cap_queues_none_and_counts_none(demo):
     shown = run(demo, "jbus queue show").stdout
     assert not any(f"nu-fix-{n} " in shown for n in (1, 2, 3))
     assert after.returncode == 0, after.stdout + after.stderr
-    blockers = demo.parent / "home" / ".local" / "state" / "home" / "demo" / "blockers.json"
+    blockers = (
+        demo.parent
+        / "home"
+        / ".local"
+        / "state"
+        / "home"
+        / "demo"
+        / "uncategorized"
+        / "blockers.json"
+    )
     assert [one["slug"] for one in json.loads(blockers.read_text())["check:nu"]] == ["nu-fix-4"]
 
 
