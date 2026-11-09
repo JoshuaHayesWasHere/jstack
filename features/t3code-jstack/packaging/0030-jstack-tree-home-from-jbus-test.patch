@@ -1,0 +1,53 @@
+From d4a0022a950316d8127148b1e123caca20ec7db9 Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@gmail.com>
+Date: Mon, 9 Nov 2026 11:59:54 -0500
+Subject: [PATCH 30/31] test(server): a jstack row whose brief names root, no
+ home, or no scope sits under uncategorized
+
+---
+ apps/server/src/jstack/jbusWork.logic.test.ts | 29 +++++++++++++++++++
+ 1 file changed, 29 insertions(+)
+
+diff --git a/apps/server/src/jstack/jbusWork.logic.test.ts b/apps/server/src/jstack/jbusWork.logic.test.ts
+index 8c42ae7d0f..ebf15ce24e 100644
+--- a/apps/server/src/jstack/jbusWork.logic.test.ts
++++ b/apps/server/src/jstack/jbusWork.logic.test.ts
+@@ -31,6 +31,35 @@ const files = (overrides: Partial<JbusRepoFiles> = {}): JbusRepoFiles => ({
+ });
+ 
+ describe("buildRepoWork", () => {
++  it("places a row whose brief names root, no home, or no scope under uncategorized, as jbus does", () => {
++    const scopes = [
++      { scope: "flow", homeId: "mcp:flow-home", prefix: "fl-" },
++      { scope: "uncategorized", homeId: "mcp:uncategorized-home", prefix: null },
++    ];
++    const work = {
++      work: [
++        row("named-root", "running", "running"),
++        row("no-line", "running", "running"),
++        row("no-scope", "running", "running"),
++        row("named-flow", "running", "running"),
++        row("fl-prefixed", "running", "running"),
++      ],
++    };
++    const briefHomes = new Map([
++      ["named-root", "root"],
++      ["no-scope", "winnifred"],
++      ["named-flow", "flow"],
++    ]);
++    const result = buildRepoWork(files({ scopes, work, briefHomes }), NOW);
++    expect(result.tasks.map((task) => [task.slug, task.homeThreadId])).toEqual([
++      ["named-root", "mcp:uncategorized-home"],
++      ["no-line", "mcp:uncategorized-home"],
++      ["no-scope", "mcp:uncategorized-home"],
++      ["named-flow", "mcp:flow-home"],
++      ["fl-prefixed", "mcp:flow-home"],
++    ]);
++  });
++
+   it("waits on the user only for a question, an approval or a hold", () => {
+     const lost = (slug: string, thread: string) =>
+       row(slug, "lost", "running", {
+-- 
+2.56.0
+
