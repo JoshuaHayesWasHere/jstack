@@ -322,20 +322,18 @@ def test_a_child_made_before_its_thread_takes_its_row_and_is_told_once_its_home_
     """The root home makes a child with its `plan.md` and launches its thread, and queues a row
     for it at once: the row is the child's before its thread has written its `home-id`."""
     root = home(kitchen)
-    (kitchen.home / "uncategorized").mkdir()
-    (kitchen.home / "uncategorized" / "plan.md").write_text("# demo, uncategorized: plan\n")
-    text = brief("alpha").replace("Home: root\n", "Home: uncategorized\n")
+    (kitchen.home / "pages").mkdir()
+    (kitchen.home / "pages" / "plan.md").write_text("# demo, pages: plan\n")
+    text = brief("alpha").replace("Home: root\n", "Home: pages\n")
     argv = ["--project", "demo", "queue", "add", "alpha", "--priority", "1"]
-    code, said = kitchen.main(
-        *argv, "--from", root["threadId"], "--for", "uncategorized", stdin=text
-    )
+    code, said = kitchen.main(*argv, "--from", root["threadId"], "--for", "pages", stdin=text)
     assert code == 0, said
     assert go(kitchen, "alpha")[0] == 0
     kitchen.t3.thread("alpha", "completed")
-    kitchen.brief("alpha", "Home: uncategorized\n" + result("the docs"))
+    kitchen.brief("alpha", "Home: pages\n" + result("the docs"))
     kitchen.poll()
     assert sends(kitchen) == []
-    child = home(kitchen, "uncategorized")
+    child = home(kitchen, "pages")
     kitchen.poll(later(50))
     assert [one["threadId"] for one in sends(kitchen)] == [child["threadId"]]
 
