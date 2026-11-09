@@ -19,7 +19,7 @@ The store has one table for each record file of each project, with a `project` c
 | `merges` | the home's `merge.log` | a line `jmerge` logged: its verb, its pull request, a merge's slug and a wait's label |
 | `merge_waits` | the home's `merge-waits.jsonl` | a pull request `jmerge` merged: the second it was ready, the second its merge began, its `seconds` between, and the seconds each code held it (`blockers`), the longest of them `blocker` |
 | `questions` | `questions.json` | a gate and its answer |
-| `queue` | `queue.json` | a row of the queue, with its approval's times and `follows`, the parent a follow-up's go names |
+| `queue` | `queue.json` | a row of the queue, with its approval's times, `follows`, the parent a follow-up's go names, `queued_by_session`, the session that queued it (empty for a row jbus filed), and `approval_message`, the `<thread id>/<message id>` its go rests on (an entry's go, the user's message or pick; empty for any other go) |
 | `merged` | `merged.json` | a merged pull request of a row |
 | `ci_prs` | `ci-prs.jsonl` | a pull request the CI ledger keeps |
 | `brief_versions` | `brief-versions.jsonl` | a change of a stored brief's sha, or its removal (no sha), with `pull`, what the version's `Pull request:` line asks: `open` for `open one`, `ask` for `ask first`, `none` for any other text, no line or a removal |
