@@ -287,6 +287,7 @@ A URL maps to the files of its route: a SvelteKit page with every layout above i
 The change reaches each test whose route files, or the files they import, hold a changed file, where an import of names from a barrel follows only those names.
 A spec that runs a table of screens is selected by row: a change inside one row selects that row, and a change to a helper selects the rows that name it.
 A spec that no path reaches, or that opens a URL that matches no route, fails conformance, unless the config names it as one that every change of the app selects.
+The browser tests run on a mock of the API, and a contract the lint runs holds each route the mock answers to the real API, so a change to the real API selects no browser test and the lint fails on a mock route the real API lost.
 
 **In jstack** `make select BASE=<ref>` runs `python3 scripts/select_tests.py <ref> HEAD`, which prints test files, and `make check-fast BASE=<ref>` runs the lint and the files it prints.
 The script follows imports, fixtures, the names a test reads and the files a test includes, and its rules are in the script's docstring.
@@ -307,7 +308,7 @@ A browser test rests on more than its imports, so these force every browser test
 - The service worker and the files it imports reach each spec that runs with service workers allowed.
 - Static assets: a file under `static/` or `public/` is reached by URL, not by import, so it forces every test, and an asset imported from the source is reached through the graph.
 - i18n catalogs: a catalog the code imports is reached through the graph, and one loaded by URL sits in `static/` or `public/` and forces.
-- The test harness: the Playwright configs, the e2e package and its lockfile, the mock API, the server the tests run against and the shared fixture.
+- The test harness: the Playwright configs, the e2e package and its lockfile, the mock API, whatever its files are named, the server the tests run against and the shared fixture.
 
 **In jstack** the paths are `EVERY_RUN` in `scripts/select_tests.py`: `pyproject.toml`, `uv.lock` and the root `conftest.py`.
 The script itself, the `Makefile`, `.github/workflows/check.yml` and the plugins of `testing/` select the tests that import or name them instead, and the whole suite runs on main, nightly and before a release.
