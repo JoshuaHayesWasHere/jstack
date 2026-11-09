@@ -36,8 +36,10 @@ import re
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import tzinfo
+from pathlib import Path
 from typing import Any, Literal
 
+from jbus import history
 from jbus.telemetry import asks
 from jbus.telemetry.readers import json_lines, keyed, listed, questions
 from jbus.telemetry.values import Row, _count, _dict, _length, _number, _pull, _text, utc
@@ -333,7 +335,22 @@ def _brief_versions(one: Row, zone: tzinfo | None) -> Row:
         "sha": _text(one.get("sha")),
         "was": _text(one.get("was")),
         "bytes": _number(one.get("bytes")),
+        "pull": _text(one.get("pull")),
     }
+
+
+def _kept_pull(one: Row, beside: Path) -> Row:
+    """A line written before `history.brief` wrote `pull`, with the `pull` of its version's text
+    as `brief-versions/<sha>.md` keeps it, where that file is there: a line with neither keeps no
+    `pull`, so it reads as empty, never as `none`."""
+    sha = one.get("sha")
+    if "pull" in one or not isinstance(sha, str) or not sha.isalnum():
+        return one
+    try:
+        text = (beside / history.KEPT / f"{sha}.md").read_text(errors="replace")
+    except OSError:
+        return one
+    return {**one, "pull": history.pull(text)}
 
 
 def _row_pulls(one: Row, zone: tzinfo | None) -> Row:
@@ -429,7 +446,8 @@ class Source:
     and `day`, each with its SQLite type, and `row` makes them of one record. A log's `text` is
     True where its lines are text, not JSON. A snapshot's `records` reads its records from the
     file, and `natural` names the column that is its key. `at` names the column whose local date
-    is `day`."""
+    is `day`. A log's `beside`, where given, adds to each record what the files in its file's
+    directory hold, before `row`; the row's key is still of the line as written."""
 
     table: str
     file: str
@@ -441,6 +459,7 @@ class Source:
     text: bool = False
     records: Callable[[str], Iterable[Row]] = json_lines
     natural: str = ""
+    beside: Callable[[Row, Path], Row] | None = None
 
 
 def _columns(*names: str) -> tuple[tuple[str, str], ...]:
@@ -678,8 +697,9 @@ SOURCES: tuple[Source, ...] = (
         "brief_versions",
         "brief-versions.jsonl",
         "log",
-        _columns("at", "slug", "sha", "was", "bytes"),
+        _columns("at", "slug", "sha", "was", "bytes", "pull"),
         _brief_versions,
+        beside=_kept_pull,
     ),
     Source(
         "row_pulls",

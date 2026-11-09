@@ -15,9 +15,9 @@ from test_jbus_telemetry_tokens import NOW, iso, machine, said
 __all__ = ["machine"]
 
 
-def reviewed(machine, slug, session, launched, ended):
+def reviewed(machine, slug, session, launched, ended, thread=None):
     """A reviewer thread of the row `slug`, with a call at `launched` and one at `ended`."""
-    machine.thread(f"mcp:review-{slug}", f"review: {slug}", "claudeAgent", session)
+    machine.thread(thread or f"mcp:review-{slug}", f"review: {slug}", "claudeAgent", session)
     machine.claude(
         session,
         said(launched, f"{session}-1", (1, 10, 100, 2), session=session),
@@ -124,3 +124,31 @@ def test_each_reviewer_launch_has_its_pull_request_and_checks_state_at_its_head(
         ("red", 3, at(30), at(31), 340, "c" * 40, "failure", 20.0),
     ]
     assert green == (1,)
+
+
+def test_a_launch_repeats_another_only_where_both_have_the_same_head(machine):
+    """Two reviewers of a slug launched before its pull request opened have no head, and are no
+    repeat of each other; a second reviewer at the head the first one judged is one."""
+    minute = timedelta(minutes=1)
+    reviewed(machine, "early", "s1", NOW, NOW + minute, "mcp:early-1")
+    reviewed(machine, "early", "s2", NOW + 10 * minute, NOW + 11 * minute, "mcp:early-2")
+    reviewed(machine, "twice", "s3", NOW + 10 * minute, NOW + 11 * minute, "mcp:twice-1")
+    reviewed(machine, "twice", "s4", NOW + 20 * minute, NOW + 21 * minute, "mcp:twice-2")
+    lines(machine, "ci-prs.jsonl", opened(1, "early", NOW + 30 * minute), opened(2, "twice", NOW))
+    lines(machine, "runs.jsonl", check("twice", 2, "a" * 40, NOW, "success", NOW + 5 * minute))
+
+    machine.run()
+
+    with machine.store() as store:
+        rows = store.execute(
+            "SELECT thread, head, again FROM review_launches ORDER BY thread"
+        ).fetchall()
+        repeats = store.execute("SELECT count(*) FROM review_launches WHERE again > 0").fetchone()
+
+    assert rows == [
+        ("mcp:early-1", None, 0),
+        ("mcp:early-2", None, 0),
+        ("mcp:twice-1", "a" * 40, 0),
+        ("mcp:twice-2", "a" * 40, 1),
+    ]
+    assert repeats == (1,)

@@ -70,6 +70,35 @@ def test_the_projection_keeps_each_status_a_reader_knows_and_gives_no_other():
     assert seen == set(queue.STATUSES)
 
 
+def test_a_row_that_is_over_stays_over_while_a_question_is_open_on_it():
+    """A merged row went merged, gate, merged in one minute when a send to its archived thread was
+    refused and the refusal became a question, and every row behind it waited that pass. A row
+    with nothing over is still held at its gate."""
+
+    def facts(written, pull, thread=work.Thread.COMPLETED):
+        return work.Facts(
+            work.Row.FREE,
+            thread,
+            work.Launch.LAUNCHED,
+            written,
+            pull,
+            work.Question.OPEN,
+            work.Answered.BOTH,
+        )
+
+    merged = work.judge(facts(work.Written.CLEAN, work.Pull.MERGED, work.Thread.ARCHIVED))
+    done = work.judge(facts(work.Written.CLEAN, work.Pull.NONE))
+    open_ = work.judge(facts(work.Written.CLEAN, work.Pull.REVIEW))
+    unwritten = work.judge(facts(work.Written.NONE, work.Pull.NONE))
+    assert {state.value for state in (merged, done, open_, unwritten)} == {"asking"}
+    assert [work.status(state) for state in (merged, done, open_, unwritten)] == [
+        "merged",
+        "done",
+        "gate",
+        "gate",
+    ]
+
+
 def test_merged(kitchen):
     add(kitchen, "alpha")
     kitchen.brief("alpha", result())

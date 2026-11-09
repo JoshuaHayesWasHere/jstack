@@ -16,8 +16,8 @@ import json
 import sqlite3
 from datetime import timedelta
 
-from jbus import telemetry
-from jbus.telemetry import migrations
+from jbus import history, queue, telemetry
+from jbus.telemetry import cursors, migrations
 from test_jbus_telemetry import NOW, SECRET, counted, iso, machine
 
 __all__ = ["machine"]
@@ -305,3 +305,47 @@ def test_the_queue_keeps_who_queued_each_row_and_the_message_its_go_rests_on(mac
     machine.build()
     with contextlib.closing(machine.store()) as store:
         assert store.execute(query).fetchall() == want
+
+
+ASKED = {"opens": "open one when done", "asks": "ask first", "none": "none, a probe"}
+
+
+def brief(slug, asked):
+    return f"# {slug}: a task\nDone when:\n- it holds\nPull request: {asked}\nReview: none\n"
+
+
+def test_each_stored_brief_keeps_what_its_pull_request_line_asks(machine):
+    for slug, asked in ASKED.items():
+        queue._store(machine.state("alpha"), slug, brief(slug, asked))
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        rows = store.execute("SELECT slug, pull FROM brief_versions ORDER BY slug").fetchall()
+    assert rows == [("asks", "ask"), ("none", "none"), ("opens", "open")]
+
+
+def test_a_line_written_before_pull_reads_it_from_its_kept_text_or_as_empty(machine):
+    """A store read to the end of a log before `jbus.telemetry.migrations.v015_brief_pull` reads
+    it again, and `jbus.telemetry.records` takes each old line's `pull` from its kept text, or
+    keeps none where that text is gone."""
+    path = machine.state_dir / telemetry.FILE
+    counted(path, list(migrations.MIGRATIONS).index("v015_brief_pull"))
+    state = machine.state("alpha")
+    (state / history.KEPT).mkdir()
+    (state / history.KEPT / f"{'a' * 64}.md").write_text(brief("kept", ASKED["opens"]))
+    machine.append(
+        "alpha",
+        "brief-versions.jsonl",
+        *(
+            {"at": iso(NOW), "slug": slug, "sha": sha * 64, "was": "", "bytes": 80}
+            for slug, sha in (("kept", "a"), ("gone", "b"))
+        ),
+    )
+    log = state / "brief-versions.jsonl"
+    with contextlib.closing(sqlite3.connect(path)) as old, open(log, "rb") as handle:
+        at = (log.stat().st_ino, log.stat().st_size, cursors.head(handle))
+        cursors.keep(old, "alpha", "brief_versions", at[0], at[1], at[2], at[1], None)
+        old.commit()
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        rows = store.execute("SELECT slug, pull FROM brief_versions ORDER BY slug").fetchall()
+    assert rows == [("gone", None), ("kept", "open")]

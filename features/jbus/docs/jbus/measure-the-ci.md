@@ -54,6 +54,8 @@ A job counts once, and a run never does.
 Each target counts the jobs that ran on self-hosted runners (`kind` `local`) and on GitHub-hosted runners together, so a repo that runs on one kind alone still gets all nine numbers.
 Each number names the runners it covers, with how many jobs of each, as in `local 3, hosted 40`.
 Rebases per merged PR and staleness-only rebases count pull requests, not jobs, and say `pull requests, any runner`.
+Every number, and the store's crew first-round share, reads the roll-up `check` of a pull request run a newer push cancelled as `cancelled`, not red: in such an attempt `check` is the only job that failed, at `every part passed`, and a part was cancelled.
+check.yml's roll-up fails on a cancelled part, since a skipped required check would count as passed, and GitHub calls that run a failure though nothing in it was red.
 
 | Target | Held to | Counted as |
 | --- | --- | --- |
