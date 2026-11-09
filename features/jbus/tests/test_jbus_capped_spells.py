@@ -1,6 +1,6 @@
 """The capped minutes: each read of which instances are capped is a line of a log, the KPI page sums
 the minutes in which every instance was capped from those lines, and the store's
-`weekly_capped_any` the minutes in which one or more was.
+`jbus.telemetry.views.weekly_capped_any` the minutes in which one or more was.
 
 `jgauge limits` and jbus's pass each read the ledger and append the read
 (`jgauge.limits.note`). The tests run the real `jgauge limits` reader against a stand-in for the
