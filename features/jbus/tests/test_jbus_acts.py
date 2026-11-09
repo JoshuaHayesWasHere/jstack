@@ -803,8 +803,7 @@ def test_a_plain_reply_to_an_ask_that_names_two_rows_approves_each(kitchen):
     home_asks(kitchen, "ask", "May alpha go? And beta? Each rewrites history on main.")
     ref = plain(kitchen, "yes", "go ahead")
     for slug in ("alpha", "beta"):
-        sha = sha12(stored(kitchen, slug))
-        code, said = kitchen.main("queue", "approve", slug, "--message", ref, "--sha", sha)
+        code, said = kitchen.main("queue", "approve", slug, "--message", ref)
         assert code == 0, said
         assert rows(kitchen)[slug]["approval"]["checked"] is True
 
