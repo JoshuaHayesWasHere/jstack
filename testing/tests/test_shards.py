@@ -8,6 +8,7 @@ slowest test's time over another.
 The test asks pytest itself, as the jobs do: a separate pytest for the whole collection and one for
 each part, started side by side, each listing the node ids it would run."""
 
+import fcntl
 import importlib.util
 import os
 import subprocess
@@ -41,15 +42,23 @@ SOME = ["testing/tests/test_workflows.py", "features/repo-guards/tests/test_one_
 
 
 def listed(*runs):
-    """The node ids each of these pytest runs would run, from runs started side by side."""
-    started = [
-        subprocess.Popen([*LIST, *run], cwd=REPO, stdout=subprocess.PIPE, text=True) for run in runs
-    ]
-    found = []
-    for one in started:
-        out, _ = one.communicate(timeout=100)
-        assert one.returncode == 0, out[-2000:]
-        found.append([line for line in out.splitlines() if "::" in line])
+    """The node ids each of these pytest runs would run, from runs started side by side.
+
+    The runs of one call fill a CI part's 4 cores, and the table counts each test as one
+    worker's time, so the dealer can put two or three such tests in one part, where they overlap.
+    27 whole collections at once took past the 100 s limit in part 3 of #1335's check, and 9 take
+    about a third of that, so one call runs at a time, under a lock on this file."""
+    with open(__file__) as held:
+        fcntl.flock(held, fcntl.LOCK_EX)
+        started = [
+            subprocess.Popen([*LIST, *run], cwd=REPO, stdout=subprocess.PIPE, text=True)
+            for run in runs
+        ]
+        found = []
+        for one in started:
+            out, _ = one.communicate(timeout=100)
+            assert one.returncode == 0, out[-2000:]
+            found.append([line for line in out.splitlines() if "::" in line])
     return found
 
 
