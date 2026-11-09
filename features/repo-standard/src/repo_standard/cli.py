@@ -49,9 +49,13 @@ def _root(given: str | None) -> Path:
 def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if argv[:1] == ["stacks"]:
+        parser = argparse.ArgumentParser(prog="repo-standard stacks", description=stacks.__doc__)
+        parser.add_argument("verb", choices=stacks.VERBS, help="the target to run")
+        parser.add_argument("rest", nargs="*", help="test: the ids to run; select: the base")
+        args = parser.parse_args(argv[1:])
         try:
             root = _root(None)
-            return stacks.main(root, load(root), argv[1:])
+            return stacks.main(root, load(root), [args.verb, *args.rest])
         except (Refused, Unreadable) as refused:
             print(f"repo_standard stacks: {refused}", file=sys.stderr)
             return 2

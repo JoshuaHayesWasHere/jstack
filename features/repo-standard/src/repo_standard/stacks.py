@@ -30,6 +30,7 @@ SHARED = {"Makefile", ".repo-standard.yml"}
 SHARED_FOLDERS = ("scripts/", ".github/", "schemas/")
 ALL = "all"
 WHOLE = "stack:"
+VERBS = ("lint", "test", "select")
 
 
 def within(path: str, root: str) -> bool:
@@ -125,11 +126,7 @@ def main(root: Path, config: Config, argv: list[str]) -> int:
     if not config.stacks:
         print("repo_standard stacks: the config sets no `stacks:`", file=sys.stderr)
         return 2
-    if (
-        not argv
-        or argv[0] not in ("lint", "test", "select")
-        or (argv[0] == "select" and len(argv) != 2)
-    ):
+    if not argv or argv[0] not in VERBS or (argv[0] == "select" and len(argv) != 2):
         print(usage, file=sys.stderr)
         return 2
     os.chdir(root)
