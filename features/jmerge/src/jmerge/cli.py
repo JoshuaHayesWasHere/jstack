@@ -1032,8 +1032,9 @@ class Repo:
         not merged yet. That wait stands as long as the row does, while GitHub's state comes and
         goes under it: its mergeability is undecided each time main moves, and a check fails or
         runs again. Said in the row's place, it drew a `wait` line on each change, and #1335 went
-        from `row-held` to `undecided` and back all night. A conflict and a check with no run at
-        the head are work for the crew, and keep their place."""
+        from `row-held` to `undecided` and back all night. A check with no run at the head, and a
+        conflict where `ready.short_on_github` names one (no required check waits), are work for
+        the crew, and keep their place."""
         github = ready.short_on_github(one)
         if ready.code_of(github) not in QUEUE_OUTRANKS:
             return github
