@@ -1,14 +1,22 @@
 # The targets of the repo standard, the same in every stack:
 # https://github.com/JoshuaHayesWasHere/jstack/blob/main/features/repo-standard/docs/skeleton.md
 # scripts/stack.mk, from the stack's adapter, fills in the commands: STACK_LINT, STACK_TEST and
-# STACK_SELECT. The standard's guards run from jstack at the tag .repo-standard.yml pins, cloned
+# STACK_SELECT. A repo of several stacks sets `stacks:` in .repo-standard.yml instead, and the
+# standard's driver runs each stack over its own roots and joins them. The standard's guards run from jstack at the tag .repo-standard.yml pins, cloned
 # once into .cache/, with no tool but git and python3.
 STANDARD := $(shell sed -n 's/^standard:[[:space:]]*\([0-9][0-9]*\).*/\1/p' .repo-standard.yml)
 REPO_STANDARD_UPSTREAM ?= https://github.com/JoshuaHayesWasHere/jstack
 REPO_STANDARD_HOME := .cache/repo-standard-v$(STANDARD)
 REPO_STANDARD := PYTHONPATH=$(REPO_STANDARD_HOME)/features/repo-standard/src python3 -m repo_standard
 
+ifneq ($(shell sed -n '/^stacks:/p' .repo-standard.yml),)
+STACK_LINT = $(REPO_STANDARD) stacks lint
+STACK_TEST = $(REPO_STANDARD) stacks test
+STACK_SELECT = $(REPO_STANDARD) stacks select
+test select: | $(REPO_STANDARD_HOME)
+else
 include scripts/stack.mk
+endif
 
 # `make test TESTS=<ids>` runs only those tests. TESTS stays out of the environment, where a make
 # that a test runs would take it for its own.
