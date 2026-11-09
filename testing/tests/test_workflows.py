@@ -1873,7 +1873,7 @@ def test_the_zsh_steps_install_from_their_cache_and_fetch_with_a_retry_on_any_er
         debs = temp / "zsh-debs"
         debs.mkdir(parents=True)
         names = block("env")["ZSH_DEBS"].split()[1::2]
-        for name in names[: 2 if cached == "both" else 1]:
+        for name in names[: 1 if cached == "one" else 2]:
             (debs / name).write_text("pinned\n")
         if cached == "a file that is not the pinned one":
             (debs / names[0]).write_text("cut short\n")
