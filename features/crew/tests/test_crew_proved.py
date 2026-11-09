@@ -18,6 +18,7 @@ nothing."""
 import os
 import re
 import shlex
+import shutil
 import signal
 import subprocess
 import sys
@@ -73,6 +74,7 @@ case " $* " in
         sleep 60
     fi
     if [ -n "$SLOW" ]; then sleep "$SLOW"; fi
+    case $PWD in "$TMPDIR"/base.*) if [ -n "$BASE_SLOW" ]; then sleep "$BASE_SLOW"; fi ;; esac
     shift 2
     echo "$*" >> "$TMPDIR/pytest-args"
     exec {sys.executable} -m pytest "$@"
@@ -82,9 +84,13 @@ exit 64
 """
 """`uv` as the block calls it. A short test-slot run is stopped at `LIMIT` seconds, exit 124, as
 the short lane stops one at its limit, and a full one at `FULL_LIMIT` seconds; each pytest run
-takes `SLOW` seconds more, `NO_XDIST` stands for a repo whose venv has no pytest-xdist, and with
-`SLOTS` set only that many test-slot calls get a slot, and every one after them finds every slot
-taken, exit 76."""
+takes `SLOW` seconds more, and one in the copy of the base `BASE_SLOW` seconds more, `NO_XDIST`
+stands for a repo whose venv has no pytest-xdist, and with `SLOTS` set only that many test-slot
+calls get a slot, and every one after them finds every slot taken, exit 76."""
+BSD_WC = """#!/bin/sh
+REAL "$@" | awk '{ $1 = sprintf("%8s", $1); print }'
+"""
+"""macOS's wc: it pads each count to eight columns, so `wc -l` of one line prints `       1`."""
 BUGGY = "def add(a, b):\n    return a - b\n"
 FIXED = "def add(a, b):\n    return a + b\n"
 OLD_TEST = "from calc import add\n\n\ndef test_zero():\n    assert add(0, 0) == 0\n"
@@ -114,6 +120,8 @@ def repo(tmp_path):
     stub.mkdir()
     (stub / "uv").write_text(UV)
     (stub / "uv").chmod(0o755)
+    (stub / "wc").write_text(BSD_WC.replace("REAL", shutil.which("wc")))
+    (stub / "wc").chmod(0o755)
     (tmp_path / "home" / "tasks").mkdir(parents=True)
     (tmp_path / "home" / "tasks" / "a-task.md").write_text(RESULT)
     return tree
@@ -446,10 +454,11 @@ def test_no_free_slot_runs_no_side_and_ends_76(repo):
 def test_a_wake_after_the_base_side_waited_runs_the_base_side_alone(repo):
     """A base side the short lane's limit cut asks for a full slot, and on a busy machine finds
     every one taken. A side that exited 0 at a head and base is kept, and the run after the wait
-    runs only the side still owed."""
+    runs only the side still owed. Only the base is slowed past the lane's limit: a head slowed
+    as well had to fit pytest's start in the time left, and on macOS's runners it did not."""
     base = git(repo, "rev-parse", "HEAD")
     head = commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
-    said, line = proof(repo, SLOTS="1", LIMIT="5", SLOW="3")
+    said, line = proof(repo, SLOTS="1", LIMIT="10", BASE_SLOW="30")
     assert "head exit 0: 2 passed" in said
     assert "base: stopped at the short lane's limit" in said
     assert "no proof: the slot's run ended 76" in said
@@ -463,7 +472,7 @@ def test_a_wake_after_the_base_side_waited_runs_the_base_side_alone(repo):
 
 def test_a_side_kept_at_one_head_runs_again_at_another(repo):
     commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
-    proof(repo, SLOTS="1", LIMIT="5", SLOW="3")
+    proof(repo, SLOTS="1", LIMIT="10", BASE_SLOW="30")
     base = git(repo, "rev-parse", "HEAD~1")
     head = commit(repo, {"util.py": ""})
     said, line = proof(repo)
