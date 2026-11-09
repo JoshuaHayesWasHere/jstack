@@ -150,13 +150,14 @@ pstack-drift:
 
 # A release. Its version is pyproject.toml's, and plugin.json's, which the generator holds to
 # it. A bump is an ordinary pull request: `uv version --bump <major|minor|patch>`, then
-# `make trees`. `make release`, on a clean main that is origin/main, runs `make release-tag`,
-# tags `v<version>` and pushes the tag, dropping it again where the push fails, and
-# .github/workflows/release.yml does the rest: `make release-tag`, `make release-green REF=<tag>`
-# on the tag's own checkout, which waits for the whole suite on the tag's tree, `make dist`, an
-# install of the wheel in a HOME of its own, and the GitHub release. A push to main runs only
-# what its merges reach, so the whole suite runs nightly and before a release (the owner's word,
-# 2026-11-08).
+# `make trees`. `make release` runs `repo-standard green` first, which refuses a checkout that is
+# not clean, is not origin's main now, or has a tree no green run of check.yml passed. Then it
+# runs `make release-tag`, tags `v<version>` and pushes the tag, dropping it again where the push
+# fails, and .github/workflows/release.yml does the rest: `make release-tag`, `make release-green
+# REF=<tag>` on the tag's own checkout, which waits for the whole suite on the tag's tree, `make
+# dist`, an install of the wheel in a HOME of its own, and the GitHub release. A push to main runs
+# only what its merges reach, so the whole suite runs nightly and before a release (the owner's
+# word, 2026-11-08).
 VERSION = $(shell uv version --short)
 
 # Fails unless TAG is `v<version>` of both pyproject.toml and plugin.json.
@@ -261,10 +262,7 @@ dist:
 
 .PHONY: release
 release:
-	@[ "$$(git symbolic-ref -q --short HEAD)" = main ] || { echo "release: not on main"; exit 1; }
-	@[ -z "$$(git status --porcelain)" ] || { echo "release: the checkout is not clean"; exit 1; }
-	@git fetch -q origin main
-	@[ "$$(git rev-parse HEAD)" = "$$(git rev-parse origin/main)" ] || { echo "release: main is not origin/main"; exit 1; }
+	@PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=features/repo-standard/src python3 -m repo_standard green
 	@$(MAKE) -s release-tag TAG='v$(VERSION)'
 	git tag -a 'v$(VERSION)' -m 'jstack $(VERSION)'
 	git push origin 'v$(VERSION)' || { git tag -d 'v$(VERSION)'; exit 1; }
