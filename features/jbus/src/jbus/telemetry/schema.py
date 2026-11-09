@@ -1,6 +1,6 @@
 """The SQL the store's views share: the Sunday a week starts on, the conclusions of a red and a
-green check, a message the user typed, a call's spend in units and in dollars, and each week's
-quantiles.
+green check, the roll-up of a run a newer push cancelled, a message the user typed, a call's spend
+in units and in dollars, and each week's quantiles.
 
 The store's tables are made by its migrations (`jbus.telemetry.migrations`), and each view is a
 module of its own (`jbus.telemetry.views`), whose docstring says what it counts.
@@ -31,6 +31,16 @@ DOLLARS = (
 the call's exact model: NULL for a model the table does not price."""
 RED = "('failure', 'timed_out', 'startup_failure', 'action_required')"
 GREEN = "('success', 'skipped', 'neutral')"
+REPLACED = (
+    "(j.name = 'check' AND j.event = 'pull_request' AND EXISTS (SELECT 1 FROM ci_jobs p "
+    "WHERE p.project = j.project AND p.run = j.run AND p.attempt = j.attempt "
+    "AND p.conclusion = 'cancelled') AND NOT EXISTS (SELECT 1 FROM ci_jobs p "
+    "WHERE p.project = j.project AND p.run = j.run AND p.attempt = j.attempt "
+    f"AND p.name <> 'check' AND p.conclusion IN {RED}))"
+)
+"""Whether a `ci_jobs` row `j` is the roll-up `check` of a pull request run a newer push cancelled:
+no other job of its attempt is red, and one was cancelled. It is then not red, as
+`jbus.ci.numbers.replaced` reads it, though check.yml's roll-up fails on a cancelled part."""
 WEEK = "date({day}, '-6 days', 'weekday 0')"
 """The Sunday a local date's week starts on."""
 WAIT = 120

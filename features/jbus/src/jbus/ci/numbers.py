@@ -167,13 +167,33 @@ def _ran(job: dict[str, Any]) -> bool:
     )
 
 
+def replaced(jobs: list[dict[str, Any]]) -> set[int]:
+    """Return the roll-up `check` jobs of pull request runs a newer push cancelled: in their
+    attempt the roll-up is the only job that failed, and a part was cancelled. check.yml's roll-up
+    fails then, at `every part passed`, since a skipped required check would count as passed, so
+    GitHub calls the run a failure though nothing in it was red."""
+    attempts: dict[tuple[int, int], list[dict[str, Any]]] = defaultdict(list)
+    for job in jobs:
+        if job["event"] == "pull_request":
+            attempts[(job["run"], job["attempt"])].append(job)
+    return {
+        j["job"]
+        for run in attempts.values()
+        if any(one["conclusion"] == "cancelled" for one in run)
+        and all(one["name"] == CHECK for one in run if one["conclusion"] == "failure")
+        for j in run
+        if j["name"] == CHECK and j["conclusion"] == "failure"
+    }
+
+
 def _in(stamp: str | None, start: datetime, end: datetime) -> bool:
     moment = time(stamp)
     return moment is not None and start <= moment < end
 
 
 class Facts:
-    """`Facts` reads the ledger once and works out these facts from it, once each: the pull request
+    """`Facts` reads the ledger once, each roll-up `check` of a run a newer push cancelled as
+    `cancelled` (`replaced`), and works out these facts from it, once each: the pull request
     each jbus event is about, the runs of main in order, the intervals main was red, the cause
     of each red, and the cause of each force-push."""
 
@@ -184,7 +204,9 @@ class Facts:
         events: list[dict[str, Any]],
         now: datetime,
     ) -> None:
-        self.jobs, self.pulls, self.events, self.now = jobs, pulls, events, now
+        cancelled = replaced(jobs)
+        self.jobs = [{**j, "conclusion": "cancelled"} if j["job"] in cancelled else j for j in jobs]
+        self.pulls, self.events, self.now = pulls, events, now
         self.main = self._main()
         self.intervals = self._intervals()
         self.causes = self._causes()
