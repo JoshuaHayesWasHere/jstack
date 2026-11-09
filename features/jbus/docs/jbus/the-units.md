@@ -67,6 +67,8 @@ Its line says `who: home` and `waits: its home`, or `waits: a home to close it: 
 Such a row is the one left row that still reaches the user: jbus's list of what blocks names it ([What blocks](what-blocks.md), row d), while its line says the home it waits on, since `jbus needs` does not list it.
 A thread at work on what the row left holds it instead.
 A gate of the user's that holds a row, one `jbus needs` lists, makes any row the user's, `waits: your answer`.
+A question a pass asks of a row (`Pass.asked`, such as `check failed twice`) puts it at `status: gate` only while the row has no open pull request.
+A row whose pull request is open stays at `status: pr` (`work.status`), so the question hides no pull request: its `why` says the question first and then what `jmerge` says of the pull request, such as `check failed twice; hold: its queue row has no go: ...`.
 A row that waits on one word of the user's that the sidebar can send is the user's at any stage, and its line names that word in `lift` (`work.Lift`):
 - `lift: approve`: its go does not hold for the brief jbus keeps, queued or launched, up to its merge.
   That is a row never approved, one whose go was taken back (`jbus queue hold`), or one whose brief changed after the go.
