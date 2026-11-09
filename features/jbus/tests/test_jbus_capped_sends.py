@@ -8,6 +8,8 @@ in the ledger (`jroles.ledger`) as the usage hooks write it."""
 
 from datetime import timedelta
 
+import pytest
+
 from jbus import children
 from jroles import ledger
 from test_jbus_chains import queue_add
@@ -22,6 +24,10 @@ from test_jbus_queue import add, brief, go
 from test_jbus_row_ends import listed
 from test_jbus_stack import LINK, MERGE
 from test_jbus_stack import pulls as stack
+
+pytestmark = pytest.mark.usefixtures("host_unread")
+"""Each test runs many passes, and what a pass reads of the machine is none of what it asserts
+(`test_jbus_kitchen.host_unread`)."""
 
 RESETS = NOW + timedelta(minutes=40)
 """The reset of the cap: after every pass a test runs inside it, and before the one after."""

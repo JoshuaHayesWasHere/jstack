@@ -23,6 +23,10 @@ from test_pr_review_skill import ASKED, block
 from testing.layouts import assembled
 from testing.paths import REPO
 
+pytestmark = pytest.mark.usefixtures("host_unread")
+"""Each test runs many passes, and what a pass reads of the machine is none of what it asserts
+(`test_jbus_kitchen.host_unread`)."""
+
 URL = "https://example.test/pull/7"
 DONE = "\n## Result\nStatus: done\nBranch: alpha   Pull request: {url}\nLeft: none\n"
 REVIEW = (

@@ -2679,7 +2679,8 @@ def test_every_pull_request_run_checks_for_an_ai_trailer_a_reuse_included():
 class Compare:
     """GitHub's compare API for one range, served on localhost a page at a time. It records
     the requests for that range's path and answers 404 to any other, such as a stray probe of
-    local ports from another process on the desk."""
+    local ports from another process on the desk. It looks for its shutdown every 10 ms: at the
+    default half second, the wait for it was most of each test that serves it."""
 
     def __init__(self, messages, path):
         import http.server
@@ -2708,7 +2709,8 @@ class Compare:
                 pass
 
         self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        polled = {"poll_interval": 0.01}
+        threading.Thread(target=self.server.serve_forever, kwargs=polled, daemon=True).start()
         self.url = f"http://127.0.0.1:{self.server.server_port}"
 
     def close(self):

@@ -36,7 +36,24 @@ import jbus
 import jsettings
 import repo_template
 from jbriefs import meaning
-from jbus import acts, cli, live, outbox, party, poll, queue, rebase, t3, tick, verbs, wake, word
+from jbus import (
+    acts,
+    cli,
+    live,
+    outbox,
+    party,
+    poll,
+    queue,
+    rebase,
+    strays,
+    t3,
+    tick,
+    verbs,
+    wake,
+    word,
+)
+from jbus.view.panels.checks import panel as checks
+from jbus.view.panels.pulse import panel as pulse
 from jgauge import slot, waiters
 from jmerge import judgement
 from jroles import ledger
@@ -739,6 +756,23 @@ class Side:
         self.home = kitchen.root / "home" / name
         self.state = kitchen.state_dir / name
         self.wakes = kitchen.t3.wakes.setdefault(name, Wakes())
+
+
+@pytest.fixture
+def host_unread(tmp_path, monkeypatch):
+    """A test of what jbus tells a crew or the home over many passes uses this, so that a pass
+    reads nothing of the machine that runs the test, and syncs no file it writes to disk. A pass
+    otherwise lists the host's processes from /proc for strays (`jbus.strays`), asks the host's
+    systemd for the runner units and jbus's timer for the view (here it answers nothing, as a
+    systemd that does not answer), and fsyncs each state file it writes: of the 140 ms a pass took
+    at the desk, these were about half, and none of them is what such a test asserts. A test of
+    the leftover sweep or of the view's panels uses the real ones."""
+    proc = tmp_path / "no-processes"
+    proc.mkdir()
+    monkeypatch.setattr(strays, "ROOT", proc)
+    monkeypatch.setattr(checks, "runners", lambda read: None)
+    monkeypatch.setattr(pulse, "systemd", lambda read: None)
+    monkeypatch.setattr(os, "fsync", lambda fd: None)
 
 
 class Kitchen:
