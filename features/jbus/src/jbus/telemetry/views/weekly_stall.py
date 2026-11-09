@@ -3,11 +3,11 @@
 is 0."""
 
 SQL = (
-    "WITH merged AS (SELECT week, count(*) AS merged FROM lead_times "
-    "WHERE day >= (SELECT day FROM stalls_since) GROUP BY week), "
-    "quiet AS (SELECT week, sum(minutes) AS minutes, count(*) AS spells FROM stall_spells "
-    "GROUP BY week) "
-    "SELECT m.week, m.merged, coalesce(q.minutes, 0) AS minutes, "
+    "WITH merged AS (SELECT project, week, count(*) AS merged FROM lead_times "
+    "WHERE day >= (SELECT day FROM stalls_since) GROUP BY project, week), "
+    "quiet AS (SELECT project, week, sum(minutes) AS minutes, count(*) AS spells "
+    "FROM stall_spells GROUP BY project, week) "
+    "SELECT m.project, m.week, m.merged, coalesce(q.minutes, 0) AS minutes, "
     "coalesce(q.spells, 0) AS spells, coalesce(q.minutes, 0) / m.merged AS per_row "
-    "FROM merged m LEFT JOIN quiet q ON q.week = m.week"
+    "FROM merged m LEFT JOIN quiet q ON q.project = m.project AND q.week = m.week"
 )

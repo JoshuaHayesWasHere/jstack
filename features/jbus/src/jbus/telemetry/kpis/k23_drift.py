@@ -7,5 +7,5 @@ KPI = Kpi(
     "",
     0,
     "lower",
-    Measured("weekly_drift", "broken", "probes"),
+    Measured("weekly_drift", "broken", "probes", machine=True),
 )

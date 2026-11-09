@@ -8,7 +8,7 @@ CLOSERS = (("silence", "silence"), ("word", "jbus answer"))
 here, and a test holds S8 to the weekly report's count, which reads them from there."""
 
 SQL = (
-    "SELECT week, count(*) AS labels, "
+    "SELECT project, week, count(*) AS labels, "
     + ", ".join(
         f"sum(known AND closed_by IS '{closer}') AS {name}, "
         f"sum(wrong AND closed_by IS '{closer}') AS {name}_wrong, "
@@ -16,5 +16,5 @@ SQL = (
         f"/ nullif(sum(known AND closed_by IS '{closer}'), 0) AS {name}_share"
         for name, closer in CLOSERS
     )
-    + " FROM gate_outcomes GROUP BY week"
+    + " FROM gate_outcomes GROUP BY project, week"
 )

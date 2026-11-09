@@ -15,5 +15,6 @@ KPI = Kpi(
         since="capped_since",
         records="the reads of which instances are capped",
         partial=True,
+        machine=True,
     ),
 )

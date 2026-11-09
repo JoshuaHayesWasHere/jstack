@@ -4,8 +4,9 @@
 from jbus.telemetry.schema import WEEK
 
 SQL = (
-    f"SELECT {WEEK.format(day='spent_on')} AS week, count(*) AS days, sum(units) AS units, "
+    f"SELECT project, {WEEK.format(day='spent_on')} AS week, count(*) AS days, "
+    "sum(units) AS units, "
     "100.0 * sum(coalesce(sends, 0) + coalesce(homes, 0)) / nullif(sum(units), 0) "
     "AS coordination, 100.0 * sum(coalesce(capped, 0)) / nullif(sum(units), 0) AS capped "
-    "FROM spend_kept GROUP BY 1"
+    "FROM spend_kept GROUP BY 1, 2"
 )

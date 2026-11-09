@@ -51,16 +51,16 @@ reviewed, content changed after its review, and drops a rebase made and no one r
 
 
 def quantiles(table: str, value: str) -> str:
-    """The median and the 85th percentile of `value` over each week of `table`, of the values
-    that are 0 or more: the median as `statistics.median`, the mean of the two middle values for
-    an even count, and the 85th as the scorecard's `pct`, the value at index
+    """The median and the 85th percentile of `value` over each project's week of `table`, of the
+    values that are 0 or more: the median as `statistics.median`, the mean of the two middle
+    values for an even count, and the 85th as the scorecard's `pct`, the value at index
     `min(n - 1, int(0.85 * n))` of the sorted values."""
     return (
-        f"WITH ranked AS (SELECT week, {value} AS value, "
-        f"row_number() OVER (PARTITION BY week ORDER BY {value}) AS place, "
-        f"count(*) OVER (PARTITION BY week) AS n FROM {table} WHERE {value} >= 0) "
-        "SELECT week, max(n) AS n, "
+        f"WITH ranked AS (SELECT project, week, {value} AS value, "
+        f"row_number() OVER (PARTITION BY project, week ORDER BY {value}) AS place, "
+        f"count(*) OVER (PARTITION BY project, week) AS n FROM {table} WHERE {value} >= 0) "
+        "SELECT project, week, max(n) AS n, "
         "avg(CASE WHEN place IN ((n + 1) / 2, (n + 2) / 2) THEN value END) AS median, "
         "max(CASE WHEN place - 1 = min(n - 1, CAST(0.85 * n AS INTEGER)) THEN value END) AS p85, "
-        "max(value) AS most FROM ranked GROUP BY week"
+        "max(value) AS most FROM ranked GROUP BY project, week"
     )

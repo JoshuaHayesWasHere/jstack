@@ -422,7 +422,9 @@ def _page_arguments(parser: argparse.ArgumentParser) -> None:
 
 
 def _page(args: argparse.Namespace, config: jbus.Config) -> int:
-    """Write the KPI page from the store, which it brings to this schema's views first."""
+    """Write one project's KPI page from the store, which it brings to this schema's views first:
+    the project `--project` names, or the config's only one."""
+    project = config.project(args.project).name
     store = Path(args.store) if args.store else path(config)
     if not store.is_file() or store.stat().st_size == 0:
         print(f"refused: no telemetry store at {store}: run jbus telemetry first")
@@ -430,7 +432,7 @@ def _page(args: argparse.Namespace, config: jbus.Config) -> int:
     now = datetime.now(config.user.zone).astimezone(config.user.zone)
     connection = connect(store)
     try:
-        board = kpis.board(connection, args.week or now.date())
+        board = kpis.board(connection, args.week or now.date(), project)
     finally:
         connection.close()
     out = Path(args.out) if args.out else config.state_dir / PAGE
@@ -438,7 +440,7 @@ def _page(args: argparse.Namespace, config: jbus.Config) -> int:
     draft = out.with_name(f".{out.name}.{os.getpid()}")
     draft.write_text(kpis.page(board, now))
     draft.replace(out)
-    print(f"kpis: {out}: {board.line()}")
+    print(f"kpis: {out}: {project}: {board.line()}")
     return 0
 
 

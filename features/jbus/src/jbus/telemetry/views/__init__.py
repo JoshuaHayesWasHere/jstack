@@ -5,6 +5,10 @@ build: a change to a view is a change to its module and nothing else. `VIEWS` ho
 order of their names (`jbus.telemetry.entries`). SQLite reads the views a view selects from only
 when it is queried, so a view may read one whose name sorts after its own. The SQL they share,
 such as the Sunday a week starts on, is in `jbus.telemetry.schema`.
+
+Each `weekly_*` view gives a row per `project` and `week`, so a reader filters a project's weeks
+by its name, and a week of one project counts no other's. A view of the machine as a whole, such as
+the pass time, gives its rows under the project `''`.
 """
 
 from __future__ import annotations

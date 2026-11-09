@@ -12,6 +12,8 @@ targets are the report's, which the user confirms or changes in the KPI's module
 
 A week starts on Sunday in the user's zone, as the views' `week` does. Each week of the two gets
 its own `Reading`: its value, how many it is of, and its `Status`. This week is the one so far.
+The page is one project's: each weekly view gives a row per project and week, and the page reads
+the project's own, or the machine's for a KPI of the machine as a whole.
 
 The page reads only the store: it calls no `gh` and no service. It names no row, no path and no
 thread, and no project but those a KPI says it covers, the projects whose push checks the store
@@ -49,6 +51,9 @@ class Covers:
 KPI_MODULE = r"k\d\d_[a-z0-9_]+"
 """The name of a KPI's module: its place on the page, two digits, and its slug."""
 
+MACHINE = ""
+"""The project of a row of the machine as a whole, such as a jbus pass, as `jbus.alert.MACHINE`."""
+
 ROWS = "jbus's row records"
 """The records a KPI over merged rows reads, whose first day `rows_since` gives."""
 
@@ -74,7 +79,8 @@ class Measured:
     where it counts only some. `missing`, where it is set, says why a week the view has no row for
     has no value: the records the KPI needs are kept a week at a time, and none for that week.
     `detail` is SQL over the week's row of `view` that gives the note of a week with a value, and
-    `aside` what the week's reading names beside its value."""
+    `aside` what the week's reading names beside its value. `machine` says the view's rows are the
+    machine's (`MACHINE`), the same on every project's page."""
 
     view: str
     value: str
@@ -88,6 +94,7 @@ class Measured:
     missing: str | None = None
     detail: str | None = None
     aside: Aside | None = None
+    machine: bool = False
 
 
 @dataclass(frozen=True)
@@ -121,8 +128,8 @@ def week_of(day: date) -> date:
     return day - timedelta(days=(day.weekday() + 1) % 7)
 
 
-def read(store: sqlite3.Connection, kpi: Kpi, week: date) -> Reading | None:
-    """A measured KPI's week, or None for one the store has no instrument for."""
+def read(store: sqlite3.Connection, kpi: Kpi, week: date, project: str) -> Reading | None:
+    """A measured KPI's week of `project`, or None for one the store has no instrument for."""
     source = kpi.source
     if isinstance(source, Lacks):
         return None
@@ -140,16 +147,17 @@ def read(store: sqlite3.Connection, kpi: Kpi, week: date) -> Reading | None:
             begins = f"from {start}, the day {source.records} begin"
     detail = source.detail or "''"
     row = store.execute(
-        f"SELECT {source.value}, {source.n}, {detail} FROM {source.view} WHERE week = ?",
-        (week.isoformat(),),
+        f"SELECT {source.value}, {source.n}, {detail} FROM {source.view} "
+        "WHERE project = ? AND week = ?",
+        (MACHINE if source.machine else project, week.isoformat()),
     ).fetchone()
     if row is None and source.missing:
         return Reading(None, 0, "not covered", source.missing)
     value, n = (row[0], row[1] or 0) if row else (source.empty, 0)
     detailed = (row[2] if row else "") or begins
     notes = (
-        _covered(store, source.covers, week) if source.covers else detailed,
-        _aside(store, source.aside, week) if source.aside else "",
+        _covered(store, source.covers, week, project) if source.covers else detailed,
+        _aside(store, source.aside, week, project) if source.aside else "",
     )
     note = "; ".join(one for one in notes if one)
     if value is None:
@@ -160,16 +168,21 @@ def read(store: sqlite3.Connection, kpi: Kpi, week: date) -> Reading | None:
     return Reading(value, n, "met" if met else "missed", note)
 
 
-def _covered(store: sqlite3.Connection, covers: Covers, week: date) -> str:
-    """Which projects the KPI counts, and the days of the week with rows it lacks the records of."""
+def _covered(store: sqlite3.Connection, covers: Covers, week: date, project: str) -> str:
+    """Whether the KPI counts `project`, and the days of the week with rows it lacks the records
+    of."""
     projects = [
-        one for (one,) in store.execute(f"SELECT project FROM {covers.projects} ORDER BY 1")
+        one
+        for (one,) in store.execute(
+            f"SELECT project FROM {covers.projects} WHERE project = ?", (project,)
+        )
     ]
     if not projects:
         return f"covers no project, since the store keeps no {covers.kept}"
     gaps = store.execute(
-        f"SELECT day, sum(rows) FROM {covers.gaps} WHERE week = ? GROUP BY day ORDER BY day",
-        (week.isoformat(),),
+        f"SELECT day, sum(rows) FROM {covers.gaps} WHERE project = ? AND week = ? "
+        "GROUP BY day ORDER BY day",
+        (project, week.isoformat()),
     ).fetchall()
     if not gaps:
         return f"covers {', '.join(projects)}"
@@ -179,11 +192,11 @@ def _covered(store: sqlite3.Connection, covers: Covers, week: date) -> str:
     return f"covers {', '.join(projects)}; {lacks}"
 
 
-def _aside(store: sqlite3.Connection, aside: Aside, week: date) -> str:
+def _aside(store: sqlite3.Connection, aside: Aside, week: date, project: str) -> str:
     """The names the week's reading gives beside its value, each with its count, or nothing."""
     named = store.execute(
-        f"SELECT name, count FROM {aside.view} WHERE week = ? ORDER BY name",
-        (week.isoformat(),),
+        f"SELECT name, count FROM {aside.view} WHERE project = ? AND week = ? ORDER BY name",
+        (project, week.isoformat()),
     ).fetchall()
     if not named:
         return ""
@@ -243,14 +256,19 @@ class Board:
         )
 
 
-def board(store: sqlite3.Connection, today: date) -> Board:
+def board(store: sqlite3.Connection, today: date, project: str) -> Board:
+    """Each KPI's last week and this week of `project`."""
     this = week_of(today)
     found = store.execute("SELECT max(at) FROM builds").fetchone()
     return Board(
         this,
         found[0] if found else None,
         tuple(
-            (kpi, read(store, kpi, this - timedelta(days=7)), read(store, kpi, this))
+            (
+                kpi,
+                read(store, kpi, this - timedelta(days=7), project),
+                read(store, kpi, this, project),
+            )
             for kpi in KPIS
         ),
     )
