@@ -544,9 +544,7 @@ def test_a_missing_claude_json_is_no_drift_a_run_could_never_clear(home, capsys)
     assert not any(str(home / ".claude.json") in line for line in said)
 
 
-def test_a_crews_worktree_settings_deny_two_tools_and_list_every_other_skill_by_name(
-    home, skills
-):
+def test_a_crews_worktree_settings_deny_two_tools_and_list_every_other_skill_by_name(home, skills):
     """`crew_settings` is the file jbus writes in a crew's worktree: it takes Artifact and
     AskUserQuestion out, and lists by name only each skill of `~/.claude/skills` that neither a
     crew nor its reviewer invokes. A skill `~/.claude` already overrides keeps its own value, so
