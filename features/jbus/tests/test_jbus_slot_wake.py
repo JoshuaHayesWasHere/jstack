@@ -1,7 +1,7 @@
-"""jbus wakes a thread that waits on a test slot when a slot of its lane is free. It wakes the
-oldest waiter, once for each free slot, and once for each wait. Like `test_jbus_kitchen.py`, the
-tests run the real pass against the fakes, with slots that are lock files in a directory of the
-kitchen's own."""
+"""jbus wakes a thread that waits on a full test slot when one is free (`jbus.slotwait.wake`). It
+wakes the oldest waiter, once for each free slot, and once for each wait. Like
+`test_jbus_kitchen.py`, the tests run the real pass against the fakes, with slots that are lock
+files in a directory of the kitchen's own."""
 
 import fcntl
 import os
