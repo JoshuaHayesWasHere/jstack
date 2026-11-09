@@ -21,6 +21,15 @@ if TYPE_CHECKING:
 
 PACKAGING = Path("features/t3code-jstack/packaging")
 """Where a checkout of jstack keeps the patches and the PKGBUILD of its T3 Code build."""
+TIMEOUT = 10
+"""How long, in seconds, a pass waits on `t3 --version` or on git, so that neither holds the
+pass: one that does not answer in time answers nothing."""
+
+
+def _said(*command: str) -> str | None:
+    """What a command printed, or None where it failed, did not run or did not end in time."""
+    done = proc.run(*command, timeout=TIMEOUT)
+    return done.stdout if done.returncode == 0 else None
 
 
 def behind(run: Pass) -> list[dict[str, Any]]:
@@ -37,10 +46,9 @@ def behind(run: Pass) -> list[dict[str, Any]]:
     tree = copy if ours else run.project.checkout
     if not any((tree / PACKAGING).glob("*.patch")):
         return []
-    machine = Machine.here(run.project.checkout)
-    command = t3_command(machine)
-    ran = machine.run([str(command), "--version"]) if command is not None else None
-    built = None if ran is None or ran.code != 0 else T3_JSTACK.search(ran.out)
+    command = t3_command(Machine.here(run.project.checkout))
+    said = _said(str(command), "--version") if command is not None else None
+    built = None if said is None else T3_JSTACK.search(said)
     want = patch_series(tree / PACKAGING)
     if built is None or built[2] == want:
         return []
@@ -59,8 +67,7 @@ def _lacks(checkout: Path, tip: str, have: str) -> str:
     series `have`, up to `tip`, from the checkout's history."""
 
     def git(*args: str) -> str:
-        said = proc.run("git", "-C", str(checkout), *args, timeout=60)
-        return said.stdout.strip() if said.returncode == 0 else ""
+        return (_said("git", "-C", str(checkout), *args) or "").strip()
 
     if tip:
         pkgbuild = str(PACKAGING / "PKGBUILD")

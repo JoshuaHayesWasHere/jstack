@@ -8,10 +8,12 @@ against the kitchen's fakes.
 """
 
 import json
+import subprocess
+import time
 
 import pytest
 
-from jbus import verbs
+from jbus import green, t3build, verbs
 from jinstall.kinds import patch_series
 from test_jbus_kitchen import NOW
 
@@ -89,4 +91,44 @@ def test_build_behind_is_never_listed_with_no_jstack_build(kitchen, machine, sai
     if said is not None:
         machine(said)
     kitchen.poll()
+    assert installs(kitchen) == []
+
+
+def test_build_behind_reads_the_green_copy_where_jbus_runs_from_one(kitchen, machine, tmp_path):
+    """On the user's machine jbus runs from the green copy, and the checkout may be ahead of it:
+    a build of the copy's patches is not behind, and one older than them lacks what the copy
+    holds and it does not."""
+    old = patched(kitchen, "0001-tree.patch", "one\n")
+    held = patched(kitchen, "0002-rows.patch", "two\n")
+    patched(kitchen, "0003-menus.patch", "three\n")
+    copy = green.path()
+    subprocess.run(["git", "clone", "-q", str(kitchen.checkout), str(copy)], check=True)
+    subprocess.run(["git", "-C", str(copy), "checkout", "-q", "HEAD~1"], check=True)
+    (copy / ".git" / green.MARK).write_text(f"{kitchen.checkout}\n")
+    machine(f"t3 v0.1.7+jstack.{held}")
+    kitchen.poll()
+    assert installs(kitchen) == []
+    machine(f"t3 v0.1.7+jstack.{old}")
+    kitchen.poll()
+    [item] = installs(kitchen)
+    assert f"are series {held}: the build lacks 1 merged change to them;" in item["line"]
+
+
+def test_build_behind_of_a_series_main_never_had_still_waits(kitchen, machine):
+    new = patched(kitchen, "0001-tree.patch", "one\n")
+    machine("t3 v0.1.7+jstack.0123456789")
+    kitchen.poll()
+    [item] = installs(kitchen)
+    assert f"are series {new}: main's history does not hold the build's series" in item["line"]
+
+
+def test_build_behind_a_t3_that_hangs_holds_no_pass(kitchen, machine, monkeypatch, tmp_path):
+    patched(kitchen, "0001-tree.patch", "one\n")
+    machine("t3 v0.1.7+jstack.0123456789")
+    t3 = tmp_path / "account" / ".t3" / "bin" / "t3"
+    t3.write_text("#!/bin/sh\nexec sleep 30\n")
+    monkeypatch.setattr(t3build, "TIMEOUT", 0.5)
+    started = time.monotonic()
+    kitchen.poll()
+    assert time.monotonic() - started < 10
     assert installs(kitchen) == []
