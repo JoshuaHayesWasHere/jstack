@@ -10,7 +10,7 @@ Each is a setting, and `jroles mirror` writes the mirror's `settings.json` as `~
 | Claude Code's bundled ones | `disableBundledSkills: true`, and `skillOverrides` turns `plugin-authoring` `off`, the one it leaves listed |
 | The claude.ai account's, synced under `~/.claude/skills/synced/<login>/<name>` | `skillOverrides` turns each `anthropic-skills:<name>` `off` |
 
-The mirror's other `skillOverrides` and every other key are `~/.claude`'s.
+The mirror's `permissions.deny` is `~/.claude`'s list with the tools of `DENIED_TOOLS` after it ([Mirrors](../jroles.md#mirrors) says why), and its other `skillOverrides` and every other key are `~/.claude`'s.
 `plugins` and `skills` stay links, so a thread can still read a plugin's or an account skill's `SKILL.md` by its path.
 A plugin you enable later, or an account skill Claude Code syncs later, is off in the mirror from the next run on, and `--check` prints `would write <home>/settings.json as ~/.claude/settings.json, trimmed` until then.
 A change written to the mirror's `settings.json`, a copy the home held before it was a mirror included, lasts until the next run, which writes it from `~/.claude`'s again and keeps no backup of it: change `~/.claude/settings.json` instead.
