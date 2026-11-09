@@ -147,13 +147,20 @@ def sparkline(days: tuple[float | None, ...], state: State) -> str:
     placed = [(x, height - 3 - (v - least) / span * (height - 6)) for x, v in points]
     path = " ".join(f"{x:.1f},{y:.1f}" for x, y in placed)
     x, y = placed[-1]
-    shown = ", ".join("none" if v is None else f"{v:g}" for v in days)
+    shown = ", ".join(_short(v) for v in days)
     return (
         f"<svg class='sp s-{state}' viewBox='0 0 {width} {height}' role=img "
         f"aria-label='the last 7 days, oldest first: {shown}'><title>{shown}</title>"
         f"<polyline fill=none stroke=currentColor stroke-width=1.6 points='{path}'/>"
         f"<circle cx={x:.1f} cy={y:.1f} r=2.4 fill=currentColor /></svg>"
     )
+
+
+def _short(value: float | None) -> str:
+    """A day's value in three figures, or whole from 100 up: `0.301`, `21.9`, `1,234`."""
+    if value is None:
+        return "none"
+    return f"{value:,.0f}" if abs(value) >= 100 else f"{value:.3g}"
 
 
 def _tier(measure: Measure) -> str:
