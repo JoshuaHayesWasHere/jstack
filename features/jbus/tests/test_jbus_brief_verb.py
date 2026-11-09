@@ -37,6 +37,7 @@ import os, sys, time
 from jbus import brief, cli
 fast = brief._write
 brief._write = lambda path, text: (time.sleep(0.05), fast(path, text))
+open(f"{sys.argv[1]}-ready-{os.getpid()}", "w").close()
 os.close(os.open(sys.argv[1], os.O_RDONLY))
 sys.exit(cli.main(sys.argv[2:]))
 """
@@ -65,11 +66,12 @@ def at_once(brief, writes):
     """Start one process per write, its stdin a file it can read at once, and let them all go at
     the same moment.
 
-    A child (`CHILD`) blocks opening the go pipe for reading, and the one open of it for writing
-    frees all of them together. That open is read-write, which Linux never blocks, so a child that
-    died before it opened the pipe does not hang the test. A child's disk is slow: each write of the
-    brief starts 50 ms after its read, so without the lock every child reads the brief before any
-    writes it."""
+    A child (`CHILD`) says it is ready, then blocks opening the go pipe for reading. Once every
+    child is ready or has ended, one open of the pipe for writing frees all of them together. That
+    open is read-write, which Linux never blocks, and it stays open until the children end, so a
+    child that died first, or opens the pipe late, does not hang the test. A child's disk is slow:
+    each write of the brief starts 50 ms after its read, so without the lock every child reads the
+    brief before any writes it."""
     go = brief.parent.parent / "go"
     os.mkfifo(go)
     children = []
@@ -85,9 +87,18 @@ def at_once(brief, writes):
                     text=True,
                 )
             )
-    time.sleep(1)
-    os.close(os.open(go, os.O_RDWR))
-    outs = [child.communicate(timeout=60)[0] for child in children]
+    deadline = time.monotonic() + 60
+    while time.monotonic() < deadline and any(
+        child.poll() is None and not go.with_name(f"go-ready-{child.pid}").exists()
+        for child in children
+    ):
+        time.sleep(0.01)
+    time.sleep(0.2)
+    held = os.open(go, os.O_RDWR)
+    try:
+        outs = [child.communicate(timeout=60)[0] for child in children]
+    finally:
+        os.close(held)
     assert [child.returncode for child in children] == [0] * len(children), outs
 
 
@@ -203,7 +214,7 @@ def test_a_write_keeps_a_line_that_holds_a_carriage_return_or_a_line_separator(b
     brief.write_text(STARTED.replace("Status: done\n", f"Status: done\n{odd}\n"))
     form, rest = argv[0], argv[1:]
     assert jbus("brief", form, str(brief), *rest, stdin=stdin)[0] == 0
-    assert odd in brief.read_text(newline="").split("\n")
+    assert odd in brief.read_bytes().decode().split("\n")
 
 
 def test_append_drops_blank_lines_around_its_lines(brief):
