@@ -83,12 +83,13 @@ class _File:
     size: int
     head: str
 
-    def matches(self, held: tuple | None) -> bool:
-        """Whether the cursor names this file: its inode, and its first line where the cursor
-        read past one, at an offset the file still reaches."""
+    def at(self, held: tuple | None) -> int | None:
+        """The offset the cursor read this file to, or None where the cursor names another file:
+        one of another inode, of another first line where the cursor read past one, or that is
+        shorter than the offset."""
         if held is None or held[0] != self.inode or held[1] > self.size:
-            return False
-        return held[1] == 0 or held[2] == self.head
+            return None
+        return held[1] if held[1] == 0 or held[2] == self.head else None
 
 
 def _file(handle: BinaryIO) -> _File:
@@ -136,12 +137,10 @@ def read(
             old = None
         held = cursors.held(connection, values.MACHINE, TABLE)
         chunks = []
-        if new.matches(held):
-            data, end = _whole(new, held[1])
-        else:
-            if old is not None:
-                chunks.append(_whole(old, held[1] if old.matches(held) else 0)[0])
-            data, end = _whole(new, 0)
+        start = new.at(held)
+        if start is None and old is not None:
+            chunks.append(_whole(old, old.at(held) or 0)[0])
+        data, end = _whole(new, start or 0)
         chunks.append(data)
     rows: dict[tuple[str, str, str], _Row] = {}
     for chunk in chunks:
@@ -150,7 +149,7 @@ def read(
             if key is not None:
                 rows.setdefault(key, _Row()).add(line)
     count = sum(len(chunk) for chunk in chunks)
-    if not count and new.matches(held) and held[1] == end:
+    if not count and start == end:
         return
     connection.execute("BEGIN")
     connection.executemany(
