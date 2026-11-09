@@ -14,7 +14,7 @@ import pytest
 import jbus
 import jsettings
 from jbus import leftover, prereview, threads, view
-from test_jbus_kitchen import NOW
+from test_jbus_kitchen import NOW, iso
 from test_jbus_queue import add, brief, go
 from test_jbus_row_ends import PULL, column, listed, result, sends
 from test_work import judged
@@ -119,7 +119,7 @@ def test_three_passes_send_the_home_one_message_and_a_new_left_text_a_second(kit
     assert f"Left: {NOTE}\n" in said
     assert 'Question 1: tea or coffee? It is answered: "tea it is", by user' in said
     assert "Question 2: milk? It is open, and the default was taken: tea." in said
-    assert "write a brief for what is left and queue it as a follow-up" in said
+    assert "write a brief for what is left, with a line `Follows: alpha` in its head" in said
     assert "`Left: none`" in said and "`jbus gate alpha`" in said
     kitchen.brief("alpha", result("only the index page", pull=PULL))
     for _ in range(3):
@@ -137,6 +137,31 @@ def test_a_task_that_ended_with_no_pull_request_says_so_to_its_home(kitchen):
     assert (
         "It ended with no pull request.\nLeft: the docs\nIt asked no question." in (sent["message"])
     )
+
+
+def unwritten(kitchen):
+    """Make a row that jbus launched, whose thread completed long ago and wrote nothing."""
+    add(kitchen, "alpha")
+    assert go(kitchen, "alpha")[0] == 0
+    assert "launched alpha: mcp:thread-1" in kitchen.poll(NOW - timedelta(minutes=90))
+    (thread,) = kitchen.t3.threads
+    thread |= {"status": "completed", "updatedAt": iso(NOW - timedelta(minutes=40))}
+    kitchen.t3.at_work.discard(thread["threadId"])
+
+
+@pytest.mark.parametrize("make", [ended, unwritten], ids=["left", "nothing-written"])
+def test_each_message_of_a_row_left_says_the_row_that_carries_its_work_follows_it(kitchen, make):
+    """The home writes `Follows: alpha` on the brief of the row that carries alpha's work, new or
+    already queued, which is how a closed row is joined to its successor."""
+    make(kitchen)
+    at = home(kitchen)
+    kitchen.poll()
+    said = [one["message"] for one in sends(kitchen) if one["threadId"] == at["threadId"]]
+    ways = [line for line in said[0].splitlines() if line.startswith("- ")]
+    naming = [line for line in ways if "`Follows: alpha`" in line]
+    assert len(naming) == 2, ways
+    assert any("brief's head" in line or "in its head" in line for line in naming)
+    assert any("that row's brief and queue it again" in line for line in naming)
 
 
 def test_a_leftover_its_home_has_is_not_on_the_users_list_and_the_view_says_who_has_it(kitchen):
