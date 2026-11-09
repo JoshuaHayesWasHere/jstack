@@ -58,6 +58,7 @@ Each item is one line with what it holds, then its fail-safe where it has one, t
 You reply to the home in your own words, and the home turns them into the verb: nothing here is a line to send as it is.
 
 A row a home can clear by itself is left out, such as a row at `gate` or a leftover its home still has.
+A gate that holds, or a go gate, whose row merged, and a go gate whose row was removed, are left out too: a pass closes each as `cleared`, an answer that is jbus's and not yours ([Questions](questions.md#act-unless-stopped-and-the-gates-that-hold)).
 A refused go is left out too: most refusals are a sha that did not match, and the home tries again by itself.
 
 With nothing open it prints `nothing waits on <you> in any project`.

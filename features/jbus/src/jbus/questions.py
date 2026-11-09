@@ -64,6 +64,12 @@ cause passes, the pass closes such a question that still waits (`clear`), with `
 `cleared`, `by` jbus and words that say what passed. That close is not the user's word either, and
 a question the user answered keeps the answer.
 
+A pass closes the same way a door question whose row has ended so that nothing is left to decide
+(`moot`). A question that holds, or a go gate, whose row merged closes with the words `kept the
+fail-safe: <slug> merged, and the door stayed shut`: the fail-safe is what ran. A go gate whose
+row was removed closes with `<slug> was removed, so there is no row to go`. A row that is `done`
+with no merge, `left`, or still live closes nothing, since its door may still be taken up.
+
 A gate whose default is irreversible or slow to revert holds: its thread does not act, and the
 question waits for the user. Its `Holds:` line names the case, one of `party.CASES`, and its
 `Fail-safe:` line names the dry-run, plan or bundle on which the user answers. Silence never closes
@@ -808,6 +814,33 @@ def silent(run: Pass) -> None:
     f1trial.log(run, (one for was, one in zip(records, closed, strict=True) if was is not one))
 
 
+MOOT = {
+    "merged": "kept the fail-safe: {slug} merged, and the door stayed shut",
+    "removed": "{slug} was removed, so there is no row to go",
+}
+"""What a row's end makes of a door question that still waits, by that end: the words `moot`
+closes it with."""
+
+
+def moot(run: Pass) -> None:
+    """Close each door question that still waits, where its row's end leaves nothing to decide
+    (`MOOT`): one that holds or a go gate, on a row that merged, and a go gate whose row was
+    removed. The close is `clear`'s, not the user's word."""
+    if not path(run.state).exists():
+        return
+    try:
+        _, records = _kept(run.state)
+        ends = {row["slug"]: row.get("status") for row in queue.load(run.state)}
+    except (Unparsable, queue.Unparsable):
+        return
+    ends |= dict.fromkeys(queue.removed_slugs(run.state), "removed")
+    for one in records:
+        end = ends.get(one.slug)
+        door = go_gate(one) or (bool(one.holds) and end == "merged")
+        if _open(one) and door and end in MOOT:
+            clear(run, one.number, MOOT[end].format(slug=one.slug))
+
+
 def go_gate(one: Question) -> bool:
     """Return whether the question's default is to approve its row: a go gate."""
     return one.default.strip().lower() == queue.GO_DEFAULT
@@ -1224,6 +1257,7 @@ STEPS = (
     verbs.Step(
         "before-watch", 20, "questions.closed_in_files", lambda half: closed_in_files(half.run)
     ),
+    verbs.Step("before-watch", 25, "questions.moot", lambda half: moot(half.run)),
     verbs.Step("before-watch", 30, "questions.silent", lambda half: silent(half.run)),
     verbs.Step(
         "tellers",

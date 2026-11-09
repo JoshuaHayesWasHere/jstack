@@ -12,7 +12,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 import jbus
-from jbus import digest, questions, wake
+from jbus import digest, questions, verbs, wake
 from jbus.view import state as view_state
 from test_jbus_kitchen import GATE, HOME, NOW, OPTIONS, Kitchen, iso
 
@@ -893,3 +893,91 @@ def test_a_question_with_no_thread_line_is_asked_nothing_and_a_lost_send_goes_ne
         "note expert-sage-tea: question 2 has no options and no thread to ask",
         "note alpha: asked its thread for the options of question 1",
     ]
+
+
+def moot_row(kitchen, slug, status):
+    """Queue `slug` with its go, once, and set its status, as the pass that saw it left it."""
+    from test_jbus_queue import add
+
+    if not (kitchen.state / "briefs" / f"{slug}.md").exists():
+        add(kitchen, slug)
+    table = json.loads((kitchen.state / "queue.json").read_text())
+    for row in table:
+        if row["slug"] == slug:
+            row["status"] = status
+    jbus.write_json(kitchen.state / "queue.json", table)
+
+
+def go_gate(slug):
+    asked = gate(f"may {slug} go?", slug)
+    return asked.replace("Default: the first one", "Default: approve").replace(
+        "Option: the first one (default, recommended)", "Option: approve (default, recommended)"
+    )
+
+
+def needs(kitchen):
+    """Return what `jbus needs` prints, a few minutes after the last pass."""
+    kitchen.monkeypatch.setattr(verbs, "clock", lambda: later(25))
+    code, out = kitchen.main("needs")
+    assert code == 0, out
+    return out
+
+
+def test_a_held_question_on_a_merged_row_is_moot_and_closes_as_the_fail_safe_kept(kitchen):
+    moot_row(kitchen, "alpha", "pr")
+    assert kitchen.main("gate", "alpha", stdin=held())[0] == 0
+    kitchen.poll()
+    assert "demo question 1: drop the old branch" in needs(kitchen)
+    moot_row(kitchen, "alpha", "merged")
+    words = "kept the fail-safe: alpha merged, and the door stayed shut"
+    said = kitchen.poll(later(10))
+    assert f"note alpha: question 1 closed, {words}" in said
+    closed = records(kitchen)["records"][0]["answer"]
+    assert (closed["closed_by"], closed["words"], closed["by"]) == ("cleared", words, "jbus")
+    assert closed["where"] == "a jbus pass"
+    assert [line for line in kitchen.lines("note") if "question 1 closed" in line] == [
+        f"note alpha: question 1 closed, {words}"
+    ]
+    assert listed(kitchen) == []
+    kitchen.poll(later(20))
+    assert "question 1" not in needs(kitchen)
+    assert records(kitchen)["records"][0]["answer"] == closed
+    assert [line for line in kitchen.lines("note") if "question 1 closed" in line] == [
+        f"note alpha: question 1 closed, {words}"
+    ]
+
+
+def test_a_moot_go_gate_of_a_removed_row_closes_as_no_row_to_go(kitchen):
+    moot_row(kitchen, "beta", "queued")
+    assert kitchen.main("gate", "beta", stdin=go_gate("beta"))[0] == 0
+    code, said = kitchen.main("queue", "remove", "beta", "--by", "user", "--at", AT)
+    assert code == 0, said
+    kitchen.poll(later(10))
+    closed = records(kitchen)["records"][0]["answer"]
+    assert closed["closed_by"] == "cleared"
+    assert closed["words"] == "beta was removed, so there is no row to go"
+    assert listed(kitchen) == []
+    assert "question 1" not in needs(kitchen)
+
+
+@pytest.mark.parametrize("status", ["done", "pr", "left", "running"])
+def test_a_held_question_on_a_row_that_did_not_merge_is_not_moot_and_stays_open(
+    kitchen, status
+):
+    moot_row(kitchen, "alpha", status)
+    assert kitchen.main("gate", "alpha", stdin=held())[0] == 0
+    kitchen.poll(later(10))
+    kitchen.poll(later(20))
+    assert records(kitchen)["records"][0]["answer"] is None
+    assert [one["key"] for one in listed(kitchen)] == ["gate:q1"]
+
+
+def test_a_moot_row_keeps_the_answer_the_user_gave(kitchen):
+    moot_row(kitchen, "alpha", "running")
+    assert kitchen.main("gate", "alpha", stdin=held())[0] == 0
+    kitchen.t3.says(HOME, "no-1", "no to question 1", updatedAt=iso(datetime.now(UTC)))
+    argv = ("--as", "user", "answer", "1", "--message", f"{HOME}/no-1", "--differs")
+    assert kitchen.main(*argv)[0] == 0
+    moot_row(kitchen, "alpha", "merged")
+    kitchen.poll(later(10))
+    assert records(kitchen)["records"][0]["answer"]["closed_by"] == "jbus answer"
