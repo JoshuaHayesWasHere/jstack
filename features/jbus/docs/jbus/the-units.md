@@ -62,7 +62,7 @@ On macOS its agent runs every 2 seconds too (`StartInterval`), whether or not a 
 `work.json`, the state of each row that the view and T3 Code's sidebar draw, waits for neither timer.
 Each line says who holds its row (`who`) and the one thing the row waits on (`waits`).
 A row that ended with something left (`status: left`: a crewmate's Result that leaves something under `Left:`, a scout's Report that is not done, or a pull request that closed) waits on its home: jbus tells the home, which closes it, and the user is not asked.
-Its line says `who: home` and `waits: its home`, or `waits: a home to close it: <why>` while no home has it yet, such as a row with no home, or one its home did not close in time with no root home to tell.
+Its line says `who: home` and `waits: its home`, or `waits: a home to close it: <why>` while no home has it yet, such as a row with no home.
 Such a row is the one left row that still reaches the user: jbus's list of what blocks names it ([What blocks](what-blocks.md), row d), while its line says the home it waits on, since `jbus needs` does not list it.
 A thread at work on what the row left holds it instead.
 A gate of the user's that holds a row, one `jbus needs` lists, makes any row the user's, `waits: your answer`.

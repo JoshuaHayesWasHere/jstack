@@ -12,7 +12,7 @@ import pytest
 
 import jbus
 import jbus.queue
-from jbus import poll, watch
+from jbus import culprits, poll, watch
 from jmerge import judgement, ready, reverts
 from test_jbus_kitchen import NOW, RESULT, TOKEN, filed_as, iso, sends
 from test_jbus_queue import add, rows
@@ -400,13 +400,27 @@ def test_a_removed_row_is_not_filed_again(kitchen):
     assert main_red(kitchen) == []
 
 
-def test_a_first_pass_over_a_red_main_files_no_brief(kitchen):
+def test_a_first_pass_over_a_red_main_files_its_row_for_the_catchall(kitchen):
+    """A red main always has its row, owned by `uncategorized`, so no home is woken of the red
+    (the user, 2026-11-08: "jbus always files it"). The first pass reverts nothing."""
     main_after_alpha(kitchen, "failure")
     (kitchen.state / "wake.json").unlink()
     kitchen.poll()
-    assert list((kitchen.home / "tasks").glob("main-red-*")) == []
-    assert main_red(kitchen) == []
-    assert kitchen.lines("retro") == []
+    assert [row["slug"] for row in main_red(kitchen)] == ["main-red-dddddddddddd"]
+    text = (kitchen.home / "tasks" / "main-red-dddddddddddd.md").read_text()
+    assert "Home: uncategorized\n" in text
+    assert culprits.FIRST in text
+
+
+def test_a_red_main_after_a_removed_merge_files_its_row(kitchen):
+    """A merge whose row was removed turned main red: jbus reverts nothing of it, and still files
+    the fix row."""
+    main_after_alpha(kitchen, "failure")
+    jbus.write_json(kitchen.state / "removed.json", {"alpha": {"at": iso(NOW), "by": "user"}})
+    kitchen.poll()
+    assert [row["slug"] for row in main_red(kitchen)] == ["main-red-dddddddddddd"]
+    text = (kitchen.home / "tasks" / "main-red-dddddddddddd.md").read_text()
+    assert culprits.REMOVED.format(slug="alpha") in text
 
 
 def test_a_green_main_files_no_brief(kitchen):
@@ -1298,9 +1312,12 @@ DRIFT_LOG = (
 def scheduled_runs(kitchen, runs, flows=None):
     """Give the project the workflows `flows` at its default branch, by default drift.yml, which
     has a `schedule:` trigger and is neither nightly, and lint.yml, which has none; set the runs of
-    each workflow by its file, and a failed job and its log for each run."""
-    kitchen.quiet()
+    each workflow by its file, and a failed job and its log for each run. The files are there
+    before the first pass, as a commit's files never change while main's tip stays, and the calls
+    of that pass are left out of `gh.log`."""
     kitchen.set("workflows.json", flows or {"drift.yml": DRIFT, "lint.yml": LINT})
+    kitchen.quiet()
+    kitchen.set("gh.log", "")
     kitchen.set("workflow-runs.json", runs)
     job = {"id": 611, "name": "drift", "status": "completed", "conclusion": "failure"}
     every = [one["id"] for flow in runs.values() for one in flow]
