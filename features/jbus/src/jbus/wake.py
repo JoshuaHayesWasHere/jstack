@@ -357,6 +357,14 @@ class Box:
             if key not in sent.lookup:
                 _write_sent(self.state / SENT, (*sent.keys, key))
 
+    def unmark(self, key: str) -> None:
+        """Forget one key `mark` wrote, for an act marked before it ran that T3 Code then refused,
+        so that the next pass does it again."""
+        with locked(self.state, LOCK):
+            sent = _sent(self.state / SENT)
+            if key in sent.lookup:
+                _write_sent(self.state / SENT, tuple(one for one in sent.keys if one != key))
+
     def began(self) -> None:
         """Record that a whole pass has run for this project: from now on jbus sends what is new.
         `began` removes the marks of the old webhook, `posted` and `last_error`, which an earlier

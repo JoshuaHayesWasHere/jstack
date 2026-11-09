@@ -195,12 +195,12 @@ A `Fixed:` line that names a commit keeps naming the commit it named before the 
 A commit made before the push, for the check command or for a line put back, is read with the rebase.
 
 The review stands after a rebase when the rebase left the reviewed content as it was: `jmerge` works out the `git range-diff` between the commit the review covers and the rebased head, and where that is clean no review is started and nothing is asked of this thread.
-Where it is not, the rebase changed what was reviewed, and jbus says so in a message here: `the rebase changed the content after its review`, with the two ranges of that range-diff.
-That message, and nothing else, starts one scoped review, of the changed hunks only.
-Launch one reviewer the way "The review" launches one, with the message `/pr-review run <slug> scoped <old range> <new range>`, add the line `Scoped reviewer: <threadId>, of <the rebased head, in full>` to the Result (jbus counts a `Scoped reviewer:` line only for the head it names after `of`, and one that names no head for none), and handle its findings as a review's.
+Where it is not, the rebase changed what was reviewed, and `jmerge` waits on one scoped review of the changed hunks only.
+jbus launches that reviewer itself, in this worktree, with `/pr-review run <slug> scoped <old range> <new range>`, and adds its `Scoped reviewer:` line, of the rebased head, to the Result: launch nothing, and write no such line for it.
+This thread hears of it once its `## Review` is written, in a message that lists its findings by id, and hears nothing of one that is clean; handle the findings as a review's.
 Until its `## Review` section is written, the first block above does not rebase.
-A head gets one scoped review: a later rebase gets its own only on its own message, and its `Scoped reviewer:` line is added under the earlier one, which stays: the first block counts every reviewer that was launched.
-A push for a failed check made after a review saw an older head is ruled on the same way, with no line in the Result ("The checks"): `jmerge` compares the two heads, a clean range-diff carries the review over, and one that is not brings the same message here, which starts the one scoped review.
+A head gets one scoped review: a later rebase that changes the content gets its own, and its `Scoped reviewer:` line goes under the earlier one, which stays: the first block counts every reviewer that was launched.
+A push for a failed check made after a review saw an older head is ruled on the same way, with no line in the Result ("The checks"): `jmerge` compares the two heads, a clean range-diff carries the review over, and one that is not gets the same one scoped review from jbus.
 A failing push before any review starts nothing more than the reviewer the pull request was still owed.
 
 A task is stacked on another task's branch in one case only, and a crewmate sees it as a line in the head of its brief.

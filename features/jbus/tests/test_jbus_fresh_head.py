@@ -17,10 +17,10 @@ from test_jbus_main_moved import checks, move, pull, red_since, tip
 from test_jbus_questions import answer, ask
 from test_jbus_queue import add
 from test_jbus_remarks import one
-from test_jbus_rereview import unsaid, waits
+from test_jbus_rereview import unsaid
 from test_jbus_unlock import CHANGED, sends
 
-KINDS = ("rebase", "rereview", "drops")
+KINDS = ("rebase", "drops")
 CONFLICT = "it conflicts with its base"
 URL = "https://example.test/pull/7"
 DONE = "\n## Result\nStatus: done\nBranch: alpha   Pull request: {url}\nLeft: none\n"
@@ -87,7 +87,6 @@ class Due:
         kitchen = self.kitchen
         says = {
             "rebase": CHANGED,
-            "rereview": waits(head),
             "drops": unsaid(head),
         }
         opened = pull(kitchen, "alpha", 7, "SUCCESS", mergeable)
