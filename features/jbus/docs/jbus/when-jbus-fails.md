@@ -16,7 +16,7 @@ A failure that repeats is told once, and so is its end. jbus counts these kinds 
   The next pass in which nothing raised ends the streak.
   The look runs the same `jbus` program as the pass, so a jbus that cannot start at all (an import that fails) stops both, and nothing alerts: that is the limit of this watch.
 
-The alert goes out after 3 failures in a row, and for `snapshot` and `stale` after the first, as `alert: <key> failed <n> times in a row since <HH:MM zone>: <why>`.
+The alert goes out after 3 failures in a row, for `pass` only once they span 2 minutes as well (a pass that fails fast fails about every 11 s), and for `snapshot` and `stale` after the first, as `alert: <key> failed <n> times in a row since <HH:MM zone>: <why>`.
 Later failures say nothing.
 The first success after an alert logs `recovered: <key> after <n> failures since <HH:MM zone>`, a `quiet` event that `jbus digest` lists and that wakes no thread.
 An alert is an open item with an owner, and it goes to the owner's home on the one list ([Who an item is for](events-and-wakes.md#who-an-item-is-for)).

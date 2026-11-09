@@ -178,7 +178,7 @@ def tick(run: Pass, read: dict[int, str]) -> Said:
 
     It runs with `--if-free`, as the pass does, so a run of the pass's under way makes it do
     nothing. It leaves the `jmerge` streak alone for a run that ended, failed or not: the tick runs
-    every few seconds, and the pass's own run each minute is what counts a `jmerge` that does not
+    every few seconds, and the pass's own run, once a pass, is what counts a `jmerge` that does not
     run. A run that held the run lock past `JMERGE_TIMEOUT` and was stopped is the one the tick
     counts itself, since the pass, which does not wait on the lock, cannot see it. A run that did
     not end, busy or failed, is the tick's to try again.

@@ -59,7 +59,7 @@ whether a reviewer's thread of its own is out, and null where the pass left no l
 
 jbus has stopped when the timer is not active, or when the last pass ended more than
 `QUIET` seconds ago and systemd does not say that a pass is running now. A pass that starts
-and fails each minute has stopped too, because only the end of a pass counts, and its start
+and fails over and over has stopped too, because only the end of a pass counts, and its start
 does not. Each source says who writes it. A source that jbus writes stands as the last pass
 left it. A source that the server reads itself is as it is now. A session's status line writes
 the limits file, so the file is old whenever no session ran. The file gives its age, and its age

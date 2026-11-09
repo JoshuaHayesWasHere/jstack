@@ -19,8 +19,9 @@ makes one event, and waits for the row's line to say it:
 The row's Result is written, so it is `done` either way, as a row is whose crew is still at work
 on its pull request. The clock starts just before the event is written. A round whose line does
 not change within `PROBE_WAIT` seconds counts as none: in a tree with no follower each round is
-none, since the line waits for the next pass (`jbus.timer`, every minute, and the pass's write
-of `work.json` some 30 s into it). `PROBE_ROWS` rows more stand in the queue beside the one timed,
+none, since the line waits for the next pass (`jbus.timer`, 10 s after the last pass ended, and
+the pass's write of `work.json` some 30 s into it). `PROBE_ROWS` rows more stand in the queue
+beside the one timed,
 unapproved. `PROBE_ROUNDS` rounds of each kind run; the probe prints each kind's rounds, p50, p99
 and max in ms, and fails where any round is none or the p99 is `PROBE_LIMIT_MS` or more.
 """
