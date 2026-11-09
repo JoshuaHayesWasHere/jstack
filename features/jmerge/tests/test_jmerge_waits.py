@@ -10,7 +10,8 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 import test_home_merge as merge
-from jmerge import ready, waits
+import test_jmerge_order as order
+from jmerge import ready, rows, waits
 from jsettings import store
 
 
@@ -140,3 +141,32 @@ def test_the_spells_of_closed_pull_requests_are_dropped(tmp_path):
     spells.saw(pull(), "no-review", seconds(10))
     spells.open_only({8})
     assert json.loads((tmp_path / waits.SPELLS).read_text()) == {}
+
+
+QUEUE_WAITS = {
+    "held": ([order.row("alpha", pr="#7", approved="", held=True)], ready.ROW_HELD),
+    "merge-after": (
+        [order.row("alpha", pr="#7", merge_after=["gamma"]), order.row("gamma")],
+        ready.MERGES_AFTER.format(slug="gamma", open=rows.NO_PULL),
+    ),
+}
+
+
+@pytest.mark.parametrize("wait", QUEUE_WAITS)
+def test_a_queue_wait_reads_the_same_whatever_github_says_of_the_pull_request(merged, wait):
+    """The wait of a pull request its queue row holds back is that row, judged on any run: what
+    GitHub has not yet computed, or a check that failed or still runs, changes nothing of it.
+    #1335's `wait` line went from `row-held` to `undecided` and back each time main moved, and
+    each change drew a line of its own (merge.log of 2026-11-08)."""
+    table, why = QUEUE_WAITS[wait]
+    order.queue_of(merged.home, table)
+    said = []
+    for checks, mergeable in [
+        ((merge.PASSED,), "UNKNOWN"),
+        ((merge.PASSED,), "MERGEABLE"),
+        ((merge.FAILED,), "MERGEABLE"),
+        ((merge.RUNNING,), "UNKNOWN"),
+    ]:
+        merged.home.open_pull_request(merged.head, checks=checks, mergeable=mergeable)
+        said += merged.run("--check")
+    assert said == [f"wait 7 {merge.URL}: {why}"] * 4
