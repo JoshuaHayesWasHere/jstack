@@ -4,9 +4,10 @@ The fixture is a small git repo that is not jstack, with a `.repo-standard.yml`,
 `select`, `lint` and `test` targets print what they were asked, and an upstream: a git repo tagged
 `repo-standard-v1` that holds the repo-standard and jmerge code the workflow takes from jstack.
 `run_job` runs a job of the workflow as GitHub would, step by step: it evaluates each step's `if:`
-and the `${{ }}` of its `env:`, runs its `run:` under bash with `$GITHUB_OUTPUT`, and records what
-an `upload-artifact` step would upload. A `gh` on the path that always fails stands in for GitHub,
-so a lookup of a marker cannot ask and runs the tests, as the workflow does with no network.
+and the `${{ }}` of its job's and its own `env:`, runs its `run:` under bash with
+`$GITHUB_OUTPUT`, and records what an `upload-artifact` step would upload. A `gh` on the path
+that always fails stands in for GitHub, so a lookup of a marker cannot ask and runs the tests, as
+the workflow does with no network.
 
 The workflow and /new-home's template, the caller every repo starts from, are read with the
 standard's own YAML reader, `repo_standard.config.parse`, which refuses what it cannot read.
@@ -68,11 +69,13 @@ def commit(root, files, message):
 
 
 def makefile(selection):
-    printed = "".join(f"\t@echo {one}\n" for one in selection)
+    printed = "".join(f"\t@echo '{one}'\n" for one in selection)
     return (
         f"select:\n{printed or chr(9) + '@true' + chr(10)}"
         'lint:\n\t@echo "make lint $(BASE)" >> "$(MAKE_LOG)"\n'
         'test:\n\t@echo "make test TESTS=$(TESTS) SHARD=$(SHARD)" >> "$(MAKE_LOG)"\n'
+        'e2e:\n\t@echo "make e2e E2E_LIST=$(if $(E2E_LIST),given)" >> "$(MAKE_LOG)"\n'
+        '\t@$(if $(E2E_LIST),cat "$(E2E_LIST)" >> "$(MAKE_LOG)")\n'
     )
 
 
@@ -80,9 +83,9 @@ def makefile(selection):
 def caller(tmp_path):
     """A caller repo with two commits, the upstream it clones, and the env every step gets.
 
-    The env leaves out what a make that runs this suite passes down: a make such as CI's
-    `make check SHARD=K/4` exports each variable of its command line, which MAKEFLAGS lists
-    after `--`, and the caller's own make must not see them."""
+    The env takes only PATH and HOME from the runner's, so nothing else there reaches a step: a
+    SHARD or TESTS in the env of CI's full run, or exported by a make such as `make check
+    SHARD=K/4`, would otherwise reach the caller's make and change what it is asked."""
     upstream = tmp_path / "upstream"
     for part in TOOL:
         source, target = REPO / part, upstream / part
@@ -104,17 +107,13 @@ def caller(tmp_path):
     (bin_ / "gh").write_text("#!/bin/sh\necho 'gh: no network here' >&2\nexit 1\n")
     (bin_ / "gh").chmod(0o755)
     env = {
-        **os.environ,
+        "HOME": os.environ["HOME"],
         "PATH": f"{bin_}{os.pathsep}{os.environ['PATH']}",
         "GITHUB_REPOSITORY": "someone/repo",
         "GITHUB_RUN_ATTEMPT": "1",
         "MAKE_LOG": str(tmp_path / "make.log"),
         "REPO_STANDARD_UPSTREAM": str(upstream),
     }
-    _, _, overrides = os.environ.get("MAKEFLAGS", "").partition("--")
-    on_make_line = [word.split("=", 1)[0] for word in overrides.split() if "=" in word]
-    for inherited in ("PYTHONPATH", "MAKEFLAGS", "MFLAGS", "MAKELEVEL", *on_make_line):
-        env.pop(inherited, None)
     return repo, env
 
 
@@ -129,6 +128,7 @@ def evaluate(expression, context, root):
     """The value of a GitHub expression, for the operators and functions the workflow uses."""
     functions = {
         "always": lambda: True,
+        "cancelled": lambda: False,
         "fromJSON": json.loads,
         "format": lambda text, *values: text.format(*values),
         "hashFiles": lambda path: "hashed" if (root / path).is_file() else "",
@@ -172,6 +172,9 @@ def run_job(name, repo, env, context, top=None):
     temp.mkdir()
     workflow_env = top.get("env", {}).items()
     base = {**{key: substitute(value, context, repo) for key, value in workflow_env}, **env}
+    base.update(
+        {key: substitute(value, context, repo) for key, value in job.get("env", {}).items()}
+    )
     base["RUNNER_TEMP"] = str(temp)
     for at, step in enumerate(job["steps"]):
         key = step.get("id") or step.get("name") or f"step{at}"
@@ -384,7 +387,7 @@ def test_a_reuse_a_green_tree_or_a_nightly_left_off_runs_no_test(caller, skip):
 
 def gathered(repo, env, event, plan, **results):
     needs = {"plan": {"result": "success", "outputs": plan}}
-    for job in ("lint", "test", "command"):
+    for job in ("lint", "test", "browser", "command"):
         needs[job] = {"result": results.get(job, "skipped")}
     return run_job("passed", repo, env, {"github": github(event), "needs": needs})
 
@@ -433,6 +436,27 @@ PULL = {
         ("push", {**PULL, "run": "false"}, {}, "failure", []),
         ("pull_request", {"mode": "command"}, {"command": "success"}, "success", []),
         ("pull_request", {"mode": "command"}, {"command": "failure"}, "failure", []),
+        (
+            "pull_request",
+            PULL,
+            {"lint": "success", "test": "success", "browser": "failure"},
+            "failure",
+            [],
+        ),
+        (
+            "pull_request",
+            PULL,
+            {"lint": "success", "test": "success", "browser": "cancelled"},
+            "failure",
+            [],
+        ),
+        (
+            "pull_request",
+            PULL,
+            {"lint": "success", "test": "success", "browser": "success"},
+            "success",
+            ["green-checked-a-b"],
+        ),
     ],
 )
 def test_passed_gathers_every_job_and_leaves_the_markers(
@@ -446,17 +470,22 @@ def test_passed_gathers_every_job_and_leaves_the_markers(
 def test_every_job_runs_on_the_callers_runner_and_takes_the_pinned_actions():
     top = workflow()
     assert set(top["on"]) == {"workflow_call"}
-    assert set(top["on"]["workflow_call"]["inputs"]) == {"runner", "command", "timeout-minutes"}
+    assert set(top["on"]["workflow_call"]["inputs"]) == {
+        "runner",
+        "command",
+        "timeout-minutes",
+        "browser-channel",
+    }
     assert top["permissions"] == {"contents": "read", "actions": "read"}
     assert top["env"]["REPO_STANDARD_UPSTREAM"] == UPSTREAM
     assert top["env"]["REPO_STANDARD_VERSION"] == VERSION
     assert top["defaults"] == {"run": {"shell": "bash"}}
-    assert set(top["jobs"]) == {"plan", "lint", "test", "command", "passed"}
+    assert set(top["jobs"]) == {"plan", "lint", "test", "browser", "command", "passed"}
     for job in top["jobs"].values():
         assert job["runs-on"] == "${{ inputs.runner }}"
         cap = job["timeout-minutes"]
         assert isinstance(cap, int) or cap == "${{ inputs.timeout-minutes }}"
-    assert top["jobs"]["passed"]["needs"] == ["plan", "lint", "test", "command"]
+    assert top["jobs"]["passed"]["needs"] == ["plan", "lint", "test", "browser", "command"]
     pinned = re.compile(r"^\s*- uses: (actions/[\w-]+@\S+)", re.M)
     ours = set(pinned.findall((REPO / ".github/workflows/check.yml").read_text()))
     assert set(pinned.findall(WORKFLOW.read_text())) <= ours
@@ -535,3 +564,156 @@ def test_a_selection_the_plan_cannot_read_exits_2_and_says_why(caller, capsys, s
     code, _, err = plan_of(repo, capsys, "--event", "pull_request", "--selection", str(path))
     assert code == 2
     assert said in err
+
+
+E2E_CONFIG = (
+    "standard: 1\ncheck:\n  shards: 2\nstacks:\n  web:\n    adapter: node-vite\n"
+    "    roots: [web]\n    e2e:\n      root: web\n      script: test:e2e\n"
+)
+E2E_LOCK = json.dumps(
+    {"packages": {"node_modules/@playwright/test": {"version": "1.64.1"}}}, indent=2
+)
+BROWSER_IDS = ["web/e2e/pets.spec.ts", "web/e2e/screens.spec.ts > screen: help"]
+
+
+def browser_caller(repo, selection):
+    commit(
+        repo,
+        {
+            ".repo-standard.yml": E2E_CONFIG,
+            "Makefile": makefile(selection),
+            "web/package-lock.json": E2E_LOCK,
+        },
+        "a node stack with browser tests",
+    )
+
+
+def test_a_pull_requests_plan_routes_its_browser_ids_to_the_browser_job(caller):
+    repo, env = caller
+    browser_caller(repo, ["web/src/a.test.ts", *BROWSER_IDS, "web/src/b.test.ts"])
+    said = planned(repo, env, "pull_request")
+    assert json.loads(said["parts"]) == {"1": "web/src/a.test.ts", "2": "web/src/b.test.ts"}
+    assert (said["browser"], json.loads(said["browser-ids"])) == ("some", BROWSER_IDS)
+    assert said["playwright"] == "1.64.1"
+
+
+@pytest.mark.parametrize(
+    "selection, parts, browser, ids",
+    [
+        (["web/e2e/pets.spec.ts"], {"1": NONE, "2": NONE}, "some", ["web/e2e/pets.spec.ts"]),
+        (["web/src/a.test.ts"], {"1": "web/src/a.test.ts"}, NONE, []),
+        (["stack:web"], {"1": "stack:web"}, "some", ["stack:web"]),
+        (["all"], {"1": ALL, "2": ALL}, ALL, []),
+    ],
+)
+def test_the_plan_runs_the_browser_job_only_where_it_routed_it_an_id(
+    caller, capsys, selection, parts, browser, ids
+):
+    repo, _ = caller
+    browser_caller(repo, selection)
+    path = repo.parent / "selection.txt"
+    path.write_text("".join(f"{one}\n" for one in selection))
+    code, said, _ = plan_of(repo, capsys, "--event", "pull_request", "--selection", str(path))
+    assert code == 0
+    assert json.loads(said["parts"]) == parts
+    assert (said["browser"], json.loads(said["browser-ids"])) == (browser, ids)
+    outputs = {"mode": "standard", "reused": "false", "marker": "", **said}
+    needs = {"plan": {"result": "success", "outputs": outputs}}
+    context = {"github": github("pull_request"), "needs": needs}
+    assert evaluate(workflow()["jobs"]["browser"]["if"], context, repo) == (browser != NONE)
+
+
+def test_main_and_nightly_run_every_browser_test_and_a_repo_with_none_skips_the_job(caller):
+    repo, env = caller
+    browser_caller(repo, [])
+    configure(repo, E2E_CONFIG.replace("  shards: 2\n", "  shards: 2\n  nightly: true\n"))
+    for event in ("push", "schedule"):
+        said = planned(repo, env, event)
+        assert said["browser"] == ALL
+    configure(repo, "standard: 1\n")
+    assert planned(repo, env, "push")["browser"] == NONE
+
+
+def test_an_e2e_root_that_pins_no_playwright_fails_the_plan(caller):
+    repo, env = caller
+    browser_caller(repo, BROWSER_IDS)
+    commit(repo, {"web/package-lock.json": "{}"}, "no Playwright")
+    done = run_job("plan", repo, {**env, "GITHUB_EVENT_NAME": "push"}, {"github": github("push")})
+    assert done["result"] == "failure"
+    assert "web/package-lock.json pins no @playwright/test" in done["steps"]["plan"]["said"]
+
+
+@pytest.mark.parametrize("lock", [None, "{}", "not json"])
+def test_the_plan_refuses_an_e2e_root_whose_lockfile_pins_no_playwright(caller, capsys, lock):
+    repo, _ = caller
+    browser_caller(repo, BROWSER_IDS)
+    if lock is None:
+        git(repo, "rm", "-q", "web/package-lock.json")
+        commit(repo, {}, "no lockfile")
+    else:
+        commit(repo, {"web/package-lock.json": lock}, "a lockfile with no Playwright")
+    code, _, err = plan_of(repo, capsys, "--event", "push")
+    assert code == 2
+    assert "stack web: web/package-lock.json pins no @playwright/test" in err
+
+
+def test_two_e2e_roots_that_pin_two_playwrights_fail_the_plan(caller, capsys):
+    repo, _ = caller
+    second = E2E_CONFIG.replace("web", "app").split("stacks:\n")[1]
+    commit(
+        repo,
+        {
+            ".repo-standard.yml": E2E_CONFIG + second,
+            "web/package-lock.json": E2E_LOCK,
+            "app/package-lock.json": E2E_LOCK.replace("1.64.1", "1.63.0"),
+        },
+        "two e2e roots",
+    )
+    code, _, err = plan_of(repo, capsys, "--event", "push")
+    assert code == 2
+    assert "pin Playwright at more than one version: web 1.64.1, app 1.63.0" in err
+
+
+def browser_job(repo, env, said, channel=""):
+    needs = {"plan": {"result": "success", "outputs": said}}
+    inputs = {"runner": "ubuntu-24.04", "browser-channel": channel}
+    context = {"github": github("pull_request"), "needs": needs, "inputs": inputs}
+    image = substitute(workflow()["jobs"]["browser"]["container"], context, repo)
+    return image, run_job("browser", repo, env, context)
+
+
+def test_the_browser_job_runs_the_routed_ids_in_the_pinned_playwright_image(caller):
+    repo, env = caller
+    browser_caller(repo, ["web/src/a.test.ts", *BROWSER_IDS])
+    image, done = browser_job(repo, env, planned(repo, env, "pull_request"))
+    assert image == "mcr.microsoft.com/playwright:v1.64.1-noble"
+    assert done["result"] == "success"
+    assert done["steps"]["browser version"]["outcome"] == "skipped"
+    logged = (repo.parent / "make.log").read_text().splitlines()
+    assert logged == ["make e2e E2E_LIST=given", *BROWSER_IDS]
+    assert done["uploaded"] == ["playwright-report", "test-results"]
+
+
+def test_on_main_the_browser_job_runs_every_test_with_no_list(caller):
+    repo, env = caller
+    browser_caller(repo, [])
+    _, done = browser_job(repo, env, planned(repo, env, "push"))
+    assert done["result"] == "success"
+    assert (repo.parent / "make.log").read_text() == "make e2e E2E_LIST=\n"
+
+
+def test_channel_mode_runs_on_the_runner_and_prints_the_browsers_version(caller, tmp_path):
+    repo, env = caller
+    browser_caller(repo, BROWSER_IDS)
+    chrome = tmp_path / "bin" / "google-chrome"
+    chrome.write_text("#!/bin/sh\necho 'Google Chrome 142.0.7444.59'\n")
+    chrome.chmod(0o755)
+    image, done = browser_job(repo, env, planned(repo, env, "pull_request"), channel="chrome")
+    assert image == ""
+    assert done["result"] == "success"
+    assert done["steps"]["tools"]["outcome"] == "skipped"
+    assert "Google Chrome 142.0.7444.59" in done["steps"]["browser version"]["said"]
+    said = planned(repo, env, "pull_request")
+    _, done = browser_job(repo, env, said, channel="chrome-nowhere")
+    assert done["result"] == "failure"
+    assert "the runner has no google-chrome-nowhere" in done["steps"]["browser version"]["said"]

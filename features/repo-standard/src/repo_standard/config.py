@@ -13,11 +13,14 @@ check it never set up.
 
 from __future__ import annotations
 
+import json
+import posixpath
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from repo_standard.adapters import COMMANDS
 from repo_standard.lexers import READERS
 
 NAME = ".repo-standard.yml"
@@ -65,6 +68,54 @@ class Check:
 
 
 @dataclass(frozen=True)
+class Table:
+    """A spec that runs one test a row of a table: the spec `file`, the name of the array it
+    runs, `export`, defined in the spec or in a file it imports, and the title of each row's test,
+    `title`, in which `{name}` stands for the row's `name:`."""
+
+    file: str
+    export: str
+    title: str
+
+
+@dataclass(frozen=True)
+class E2E:
+    """A node stack's browser tests: the npm `root` whose `script` runs Playwright, the specs any
+    change of the app selects (`every`), the URLs a spec opens that its text does not name
+    (`routes`), and the specs that run a table (`table`). Each path is from the repo's root."""
+
+    root: str
+    script: str
+    every: tuple[str, ...] = ()
+    routes: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    table: tuple[Table, ...] = ()
+
+    def json(self) -> str:
+        """The part as the node-vite adapter's scripts read it, on their command line."""
+        return json.dumps(
+            {
+                "root": self.root,
+                "script": self.script,
+                "every": list(self.every),
+                "routes": {spec: list(urls) for spec, urls in self.routes.items()},
+                "table": [vars(one) for one in self.table],
+            },
+            sort_keys=True,
+        )
+
+
+@dataclass(frozen=True)
+class Stack:
+    """One stack of a repo of several: the adapter that runs it, the folders it owns and, for a
+    node stack, its browser tests. No root of one stack sits in another's, so each path has at
+    most one stack."""
+
+    adapter: str
+    roots: tuple[str, ...]
+    e2e: E2E | None = None
+
+
+@dataclass(frozen=True)
 class Waiver:
     rule: str
     reason: str
@@ -86,6 +137,7 @@ class Config:
     enforced_by: dict[str, tuple[str, ...]] = field(default_factory=dict)
     deploy: tuple[str, ...] | None = None
     check: Check = field(default_factory=Check)
+    stacks: dict[str, Stack] = field(default_factory=dict)
 
     def part(self, name: str) -> Any:
         """The part a guard reads, refused when the config does not set it."""
@@ -283,7 +335,7 @@ def build(keys: dict[str, Any]) -> Config:
     """The typed config from the parsed keys."""
     known = {"standard", "features", "manifest-schema", "layout", "owners", "cross-cutting"}
     known |= {"generators", "docs", "size", "comments", "waivers", "enforced-by", "deploy"}
-    known |= {"check"}
+    known |= {"check", "stacks"}
     keys = _closed(keys, known, "the top")
     owners = _table(keys.get("owners"), "owners", list)
     enforced = _table(keys.get("enforced-by"), "enforced-by", list)
@@ -311,7 +363,99 @@ def build(keys: dict[str, Any]) -> Config:
         },
         deploy=None if keys.get("deploy") is None else _strings(keys["deploy"], "deploy"),
         check=Check() if keys.get("check") is None else _check(keys["check"]),
+        stacks=_stacks(keys.get("stacks", {})),
     )
+
+
+def _inside(path: str, root: str) -> bool:
+    return f"{path}/".startswith(f"{root}/")
+
+
+def _stacks(value: Any) -> dict[str, Stack]:
+    """Each stack, refused when its adapter is unknown, it has no root, or two roots overlap."""
+    if not isinstance(value, dict):
+        raise Refused(f"{NAME}: stacks is not a map of a stack's name to its adapter and roots")
+    found, owner = {}, {}
+    for name, one in value.items():
+        if not name or any(char in name for char in " :/"):
+            raise Refused(f"{NAME}: stacks.{name} is not a name: it holds a space, : or /")
+        part = _closed(one, {"adapter", "roots", "e2e"}, f"stacks.{name}")
+        adapter = part.get("adapter")
+        if adapter not in COMMANDS:
+            known = ", ".join(COMMANDS)
+            raise Refused(f"{NAME}: stacks.{name}.adapter is {adapter}, not one of {known}")
+        roots = _strings(part.get("roots", []), f"stacks.{name}.roots")
+        if not roots:
+            raise Refused(f"{NAME}: stacks.{name}.roots names no folder")
+        for root in roots:
+            clean = posixpath.normpath(root)
+            if clean != root.rstrip("/") or root.startswith("/") or clean.startswith(".."):
+                raise Refused(f"{NAME}: stacks.{name}.roots has {root}, not a folder of the repo")
+            for other, holder in owner.items():
+                if "." in (clean, other) or _inside(clean, other) or _inside(other, clean):
+                    raise Refused(
+                        f"{NAME}: stacks.{name}.roots has {root}, inside or around {other}"
+                        f" of {holder}"
+                    )
+            owner[clean] = name
+        clean_roots = tuple(posixpath.normpath(root) for root in roots)
+        e2e = part.get("e2e")
+        if e2e is not None and adapter != "node-vite":
+            raise Refused(f"{NAME}: stacks.{name}.e2e is set, and only a node-vite stack runs one")
+        found[name] = Stack(
+            adapter, clean_roots, None if e2e is None else _e2e(e2e, clean_roots, f"stacks.{name}")
+        )
+    return found
+
+
+def _path(value: Any, roots: tuple[str, ...], where: str) -> str:
+    """A path of the repo inside one of the roots, refused when it is not."""
+    if not isinstance(value, str) or not value:
+        raise Refused(f"{NAME}: {where} is not a path")
+    clean = posixpath.normpath(value)
+    if (
+        value.startswith("/")
+        or clean.startswith("..")
+        or not any(root == "." or _inside(clean, root) for root in roots)
+    ):
+        raise Refused(f"{NAME}: {where} is {value}, outside the stack's roots {', '.join(roots)}")
+    return clean
+
+
+def _e2e(value: Any, roots: tuple[str, ...], stack: str) -> E2E:
+    """A node stack's `e2e:` part, refused when a path falls outside the stack's roots."""
+    where = f"{stack}.e2e"
+    part = _closed(value, {"root", "script", "every", "routes", "table"}, where)
+    root = _path(part.get("root"), roots, f"{where}.root")
+    script = part.get("script")
+    if not isinstance(script, str) or not script.strip():
+        raise Refused(f"{NAME}: {where}.script names no npm script of {root}")
+    every = tuple(
+        _path(one, roots, f"{where}.every")
+        for one in _strings(part.get("every", []), f"{where}.every")
+    )
+    routes = _table(part.get("routes"), f"{where}.routes", list)
+    found_routes = {}
+    for spec, urls in routes.items():
+        urls = _strings(urls, f"{where}.routes.{spec}")
+        wrong = [url for url in urls if not url.startswith("/")]
+        if wrong:
+            raise Refused(f"{NAME}: {where}.routes.{spec} has {wrong[0]}, not a path from /")
+        found_routes[_path(spec, roots, f"{where}.routes")] = urls
+    table = part.get("table", [])
+    if not isinstance(table, list):
+        raise Refused(f"{NAME}: {where}.table is not a list of `file`, `export` and `title` maps")
+    rows = []
+    for at, one in enumerate(table):
+        row = _closed(one, {"file", "export", "title"}, f"{where}.table[{at}]")
+        export, title = row.get("export"), row.get("title")
+        if not isinstance(export, str) or not re.fullmatch(r"[A-Za-z_$][\w$]*", export):
+            raise Refused(f"{NAME}: {where}.table[{at}].export is not the name of an array")
+        if not isinstance(title, str) or "{name}" not in title:
+            raise Refused(f"{NAME}: {where}.table[{at}].title has no {{name}} for a row's name")
+        spec = _path(row.get("file"), roots, f"{where}.table[{at}].file")
+        rows.append(Table(spec, export, title))
+    return E2E(root, script.strip(), every, found_routes, tuple(rows))
 
 
 def _check(value: Any) -> Check:

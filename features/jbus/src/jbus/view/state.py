@@ -1692,21 +1692,23 @@ def _wrong(
     return found | {"row": row}
 
 
-USER, ROOT_HOME, CREW = "user", "root home", "crew"
+USER, STATUS, CREW = "user", "status", "crew"
 CHECK_TOLD = ("failed", "refailed")
 """The outbox's templates that tell a crew its pull request's check failed (`jbus.rebase`)."""
 
 
 def _main(read: Read, one: dict[str, Any]) -> tuple[str, str]:
-    """A red main is the crew's of its main-red row while one is open, else the root home's."""
+    """A red main is the crew's of its main-red row while one is open. jbus files that row for
+    every red tip (`jbus.watch._file`), so with none open the red wakes no home: status shows it
+    until the row is filed."""
     fix = next((task["slug"] for task in read.tasks if mainjson.fix_of(task["slug"])), "")
-    return (CREW, fix) if fix else (ROOT_HOME, "")
+    return (CREW, fix) if fix else (STATUS, "")
 
 
 def _ci(read: Read, one: dict[str, Any]) -> tuple[str, str]:
     """A red branch is the crew's of the row whose branch it is, and CI that could not be read
-    or a branch no row has is the root home's."""
-    return (CREW, one["row"]) if one["row"] else (ROOT_HOME, "")
+    or a branch no row has is the catch-all's, `uncategorized`."""
+    return (CREW, one["row"]) if one["row"] else ("home", "")
 
 
 def _bus(read: Read, one: dict[str, Any]) -> tuple[str, str]:
@@ -1716,8 +1718,9 @@ def _bus(read: Read, one: dict[str, Any]) -> tuple[str, str]:
 
 
 def _unasked(read: Read, one: dict[str, Any]) -> tuple[str, str]:
-    """T3 Code not answering is the user's, since no agent is reached without it."""
-    return (USER, "") if one["subj"] == "T3 Code" else (ROOT_HOME, "")
+    """T3 Code not answering is the user's, since no agent is reached without it. Any other
+    source the last pass could not ask wakes no home: status shows it while it is open."""
+    return (USER, "") if one["subj"] == "T3 Code" else (STATUS, "")
 
 
 def _of_row(read: Read, one: dict[str, Any]) -> tuple[str, str]:
@@ -1734,27 +1737,28 @@ OWNERS: dict[str, Callable[[Read, dict[str, Any]], tuple[str, str]]] = {
     "main": _main,
     "ci": _ci,
     "bus": _bus,
-    "source": lambda read, one: (ROOT_HOME, ""),
+    "source": lambda read, one: (STATUS, ""),
     "unasked": _unasked,
     "thread": _of_row,
     "stall": _of_row,
     "idle": _of_row,
 }
 """Who fixes each kind of `wrongs`: `crew` with the row whose crew it is, `home` with the row
-whose home it is, the root home, or the user."""
+whose home it is, the catch-all's home with no row, the user, or `STATUS`: no agent is told,
+and status shows it while it is open. No kind is the root home's, which hears of a one-way
+door alone (`jbus.wakes.door`)."""
 
 
 def _home_of(read: Read, row: str) -> tuple[str, str]:
-    """The name and the thread of the home of a row, or of the root home for no row."""
-    scope = read.homes.of_task(row).name if row else ""
-    thread = thread_of(read.home / scope if scope else read.home)
-    return (f"home {scope}" if scope else ROOT_HOME), thread
+    """The name and the thread of the home of a row, or of the catch-all for no row."""
+    scope = read.homes.of_task(row).name
+    return f"home {scope}", thread_of(read.home / scope)
 
 
 def owner(read: Read, one: dict[str, Any]) -> tuple[str, str, str]:
     """Who fixes an entry of `wrongs`, the thread jbus tells, and the row it is about: an agent
     that can be told, or else the next one up. A crew with no thread hands it to its row's home,
-    and a home with no thread to the root home. With no root home to tell, it is the user's."""
+    and a home with no thread to the user. A `STATUS` entry is told to no thread."""
     who, row = OWNERS[one["kind"]](read, one)
     if who == CREW:
         task = next((task for task in read.tasks if task["slug"] == row), {})
@@ -1765,11 +1769,8 @@ def owner(read: Read, one: dict[str, Any]) -> tuple[str, str, str]:
         name, thread = _home_of(read, row)
         if thread:
             return name, thread, row
-        who = ROOT_HOME
-    if who == ROOT_HOME:
-        name, thread = _home_of(read, "")
-        if thread:
-            return name, thread, row
+    if who == STATUS:
+        return STATUS, "", row
     return USER, "", row
 
 
@@ -1792,7 +1793,7 @@ def _fixing(read: Read, one: dict[str, Any]) -> dict[str, str | None] | None:
     entry's row since the fault began (a stalled row's home line from `jbus.expedite`), the
     main-red row that fixes a red main, or the leftover its row's home was told of
     (`jbus.leftover`). None where the owner was not told yet."""
-    if one["owner"] == USER:
+    if one["owner"] in (USER, STATUS):
         return None
     if one["kind"] == "main" and mainjson.fix_of(one["row"]):
         moves = [
@@ -1954,9 +1955,9 @@ def wrongs(read: Read) -> list[dict[str, Any]]:
 
 
 def users(read: Read) -> list[dict[str, Any]]:
-    """The entries of `wrongs` that are the user's, which no agent can fix: what the band, the
-    since line and `/stack.json`'s `wrong` show."""
-    return [one for one in read.once(wrongs) if one["owner"] == USER]
+    """The entries of `wrongs` that are the user's, which no agent can fix, and those that wake
+    no agent (`STATUS`): what the band, the since line and `/stack.json`'s `wrong` show."""
+    return [one for one in read.once(wrongs) if one["owner"] in (USER, STATUS)]
 
 
 def fixing(read: Read) -> dict[str, dict[str, Any]]:
@@ -1964,7 +1965,7 @@ def fixing(read: Read) -> dict[str, dict[str, Any]]:
     and when they were told, or None where they were not told yet."""
     found: dict[str, dict[str, Any]] = {}
     for one in read.once(wrongs):
-        if one["owner"] != USER and one["row"] and one["row"] not in found:
+        if one["owner"] not in (USER, STATUS) and one["row"] and one["row"] not in found:
             told = (one["fixing"] or {}).get("told")
             found[one["row"]] = {"owner": one["owner"], "told": told}
     return found
