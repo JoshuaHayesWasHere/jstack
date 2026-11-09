@@ -288,6 +288,9 @@ def test_a_queue_that_does_not_parse_is_a_gate_and_nothing_is_launched(kitchen, 
 def test_a_settled_crew_leaves_no_worktree_in_its_claude_scratchpad_but_one_in_use_or_another_s(
     kitchen, monkeypatch
 ):
+    """Settling a crew runs `jbus.cleanup.clear_scratch`, which removes the crew's scratch folder
+    and the worktrees under its Claude scratchpad, and keeps one a process works in and one under
+    another crew's."""
     monkeypatch.setenv("CLAUDE_CODE_TMPDIR", str(kitchen.root / "tmp"))
     claude = kitchen.root / "tmp" / f"claude-{os.getuid()}"
 
@@ -299,6 +302,8 @@ def test_a_settled_crew_leaves_no_worktree_in_its_claude_scratchpad_but_one_in_u
     mine, theirs = scratchpad("alpha"), scratchpad("beta")
     for tree in (mine / "base.Xy12/base", mine / "busy", theirs / "base"):
         kitchen.git("worktree", "add", "-q", "--detach", str(tree))
+    folder = kitchen.root / "scratch" / kitchen.checkout.name / "alpha"
+    folder.mkdir(parents=True)
     kitchen.brief("alpha", RESULT)
     kitchen.brief("beta", RESULT.replace("Status: done", "Status: paused"))
     with subprocess.Popen(["sleep", "60"], cwd=mine / "busy") as busy:
@@ -314,5 +319,5 @@ def test_a_settled_crew_leaves_no_worktree_in_its_claude_scratchpad_but_one_in_u
         check=True,
     ).stdout
     assert f"worktree {mine / 'base.Xy12/base'}\n" not in listed
-    assert not (mine / "base.Xy12/base").exists()
+    assert not (mine / "base.Xy12/base").exists() and not folder.exists()
     assert f"worktree {mine / 'busy'}\n" in listed and f"worktree {theirs / 'base'}\n" in listed
