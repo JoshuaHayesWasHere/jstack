@@ -100,11 +100,11 @@ def test_a_review_out_holds_only_the_crew_and_not_a_home_told_of_its_row(launche
 
 
 def waiting(kitchen):
-    """Return the thread of alpha's crew, whose turn ended to wait on the short lane."""
+    """Return the thread of alpha's crew, whose turn ended to wait on the full lane."""
     (crew,) = kitchen.t3.threads
-    lane = slot.short()
+    lane = slot.full(2)
     command = ["uv", "run", "pytest", "tests/test_alpha.py"]
-    waiters.register(slot.locks_dir(), crew["threadId"], "short", lane.slots, command, NOW)
+    waiters.register(slot.locks_dir(), crew["threadId"], "full", lane.slots, command, NOW)
     return crew["threadId"]
 
 
@@ -163,7 +163,7 @@ def test_a_pass_that_finds_a_held_message_due_no_more_sends_nothing_late(launche
     nothing of it. Here the crew pushed a new head while it waited on a slot, every slot of the
     lane taken, and the failed check of the old head is never told."""
     crew = waiting(launched)
-    taken = take(slot.short())
+    taken = take(slot.full(2))
     try:
         launched.set("open.json", [pull(launched, [failed()])])
         at(launched, 0)
