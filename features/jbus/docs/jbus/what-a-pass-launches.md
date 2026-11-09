@@ -45,6 +45,15 @@ A link with no pull request yet, its crew at its desk proof or waiting on its re
   A row with a go is grandfathered, whatever a check added since says of its brief.
 - **No room** prints `wait <slug>: no room: <why>` and launches neither that row nor any after it in the pass.
   After `room_passes` passes in a row with no room, jbus records `condition <slug>: no room for <n> passes: <why>` once.
+- **A full /tmp is swept before the row waits on it**, with no word of yours (`jbus.cleanup.sweep`).
+  When `jgauge room` says /tmp is full (its quota, its size or its file slots), jbus removes, and then asks room again:
+  - the Claude scratch folder of each T3 Code worktree that is gone and is no live row's;
+  - each session folder in the Claude scratch folder of a configured project's main checkout (`/tmp/claude-<uid>/-home-<user>-repos-<repo>/<session>/`, a home's, a scout's or your own session's) that nothing wrote in for `IDLE`, 12 hours;
+  - each copy of the base that a `proved.sh` killed before its EXIT trap left.
+
+  It leaves every folder a process works in or names, every session folder written in within those 12 hours, every copy of the base in a folder where a `proved.sh` still runs, and everything else in /tmp: a crew's own clone under a name of its choosing, such as `/tmp/t3s-stable`, stays until you clear it.
+  It says `cleared /tmp: <n> folders finished crews left, <m> of sessions ended in a main checkout, <the first three>`.
+  Where no process can be read, it removes nothing and the row waits.
 - **A lost reply leads to a second launch only when the connection dropped and no thread was made.**
   jbus writes a file keyed `<project>/<slug>/<brief_sha 12>` under `~/.local/state/jbus/launches/` before the call, and looks up the thread of a lost reply.
   A launch whose connection dropped (ECONNRESET) and whose lookup finds no thread of its title and branch is launched once more, under the same file.
@@ -137,5 +146,5 @@ A start whose run ended is over at once, and the next pass launches the home aga
 jbus reads what the run failed on: `not signed in` for a login lapse, a usage limit, which it writes to the ledger so the next launch goes to another instance or waits for the reset, or else the run's end.
 A second start in a row that fails on the cause the first failed on waits for that cause to clear (the instance it ran on signed in again, the limit's reset, or `PATIENCE` for any other cause) and says so once, a quiet `home-start` event in the digest.
 The home's entry keeps the failure and `says`, why a home has no `home-id` yet, such as `start failed: not signed in`.
-The T3 Code fork's sidebar still shows such a home as `starting...`, and does not read `says`.
+The T3 Code fork's sidebar shows such a home's `says` in place of `starting...`.
 No home launches while the dispatch is off or stopped.

@@ -613,3 +613,43 @@ def test_a_react_change_selects_the_specs_whose_router_rows_reach_it(react_repo,
 def test_a_react_app_passes_the_reach_check(react_repo):
     root, env = react_repo
     assert "errors 0, warnings 0" in skeleton_conform(root, env)
+
+
+CARE = f"{E2E}/screens.spec.ts > screen: care"
+NEW_PET = f"{E2E}/screens.spec.ts > screen: new pet"
+QUOTED_ROWS = {
+    f"{E2E}/flows.ts": APP[f"{E2E}/flows.ts"].replace(
+        "export const screenFlows: ScreenFlow[] = [\n",
+        "export const screenFlows: ScreenFlow[] = [\n"
+        "  {\n    name: 'care',\n    path: () => '/pets',\n    caption: /^.+'s care$/i,\n  },\n"
+        "  {\n    name: 'new pet',\n"
+        "    path: (a) => `/pets/${x ? 'a' : a.petId}/new`,\n  },\n",
+    ),
+    "client/src/routes/(app)/pets/[id]/new/+page.svelte": "<p>new pet</p>\n",
+}
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "selection"),
+    [
+        ("care$/i", "care!$/i", [CARE]),
+        ("/new`", "/new?tab=1`", [NEW_PET]),
+        ("path: () => '/about',", "path: () => '/about?tab=1',", [ABOUT]),
+        ("`h1:${text}`", "`h2:${text}`", [HELP]),
+    ],
+)
+def test_a_row_with_a_regex_or_a_quoted_template_path_is_read_with_the_rows_after_it(
+    browser_repo, old, new, selection
+):
+    """A regex literal whose apostrophe could open a string, and a path whose `${...}` holds
+    quotes, leave every row of the table read: each has its name and a path to a route, and a
+    change inside a row selects that row alone."""
+    root, env = browser_repo
+    write(root, QUOTED_ROWS)
+    commit_all(root, "rows with a regex and a quoted template path")
+    assert reach_faults(root) == []
+    change(root, "client/src/routes/(app)/pets/[id]/new/+page.svelte")
+    assert selected(root, env) == [NEW_PET]
+    git(root, "checkout", "-q", "--", ".")
+    edit(root, f"{E2E}/flows.ts", old, new)
+    assert selected(root, env) == selection
