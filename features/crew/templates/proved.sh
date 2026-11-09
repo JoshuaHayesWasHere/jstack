@@ -20,7 +20,7 @@ fork='^features/[^/]+/packaging/'
 prove_fork() {
     local dir patches files side rev at file list ran at_head at_base
     dir=$(printf '%s\n' "$changed" | command grep -E "$fork" | sed -E 's|^(features/[^/]+/packaging)/.*|\1|' | sort -u)
-    if [ "$(printf '%s\n' "$dir" | wc -l)" != 1 ]; then
+    if [[ $dir == *$'\n'* ]]; then
         echo "no proof: the branch changes more than one fork's packaging: $(printf '%s\n' "$dir" | paste -sd ' ' -)"
         return
     fi
