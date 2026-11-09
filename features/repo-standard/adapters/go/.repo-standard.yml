@@ -49,5 +49,3 @@ waivers:
     reason: the repo has no shell script yet; with its first, name the check that runs it on macOS
   - rule: a-test-runs-the-code
     reason: the repo has no guard over its tests yet; name the one it adopts
-  - rule: a-pull-request-runs-the-selection-the-lint-and-the-selected-tests
-    reason: check.yml calls the shared check, which runs make select, make lint and make test on each pull request, and conform does not read a called workflow yet
