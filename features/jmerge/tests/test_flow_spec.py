@@ -26,7 +26,7 @@ find_java = tools.find_java
 
 @pytest.mark.skipif(not find_java(), reason="no Java to run TLC")
 @pytest.mark.timeout(1800)
-@pytest.mark.shard_seconds(0.59)
+@pytest.mark.shard_seconds(0.23)
 def test_today_and_the_design_hold_their_rules_and_each_canary_breaks_its_own():
     """About 650s on a Linux runner and 1073s on a macOS one (2026-11-05), whose speed varies by a
     fifth from run to run: the limit sits well above the slow end of that."""
