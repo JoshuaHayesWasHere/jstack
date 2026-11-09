@@ -95,6 +95,7 @@ class Repo:
         (self.user / ".claude" / "skills").symlink_to(SKILLS)
         self.state = self.user / ".local" / "state" / "home" / NAME
         self.state.mkdir(parents=True)
+        (self.state / "plan.md").write_text("# a plan\n")
         (self.state / "home-id").write_text(f"{ME}\n")
         self.stub = tmp_path / "stub"
         self.stub.mkdir()
@@ -225,6 +226,7 @@ def test_a_log_shorter_than_the_mark_is_read_from_its_start(repo):
 def test_a_home_is_told_its_own_lines_and_no_other_homes(repo):
     scope = repo.state / "billing"
     scope.mkdir()
+    (scope / "plan.md").write_text("# a plan\n")
     (scope / "home-id").write_text("mcp:scoped\n")
     tasks = repo.state / "tasks"
     (tasks / "alpha.md").write_text(f"# alpha\nBranch: alpha   Pull request: {URL}\n")
@@ -246,6 +248,7 @@ def test_a_home_is_told_its_own_lines_and_no_other_homes(repo):
 def test_an_open_pull_request_is_the_home_of_the_brief_whose_branch_line_ends_on_it(repo):
     scope = repo.state / "billing"
     scope.mkdir()
+    (scope / "plan.md").write_text("# a plan\n")
     (scope / "home-id").write_text("mcp:scoped\n")
     tasks = repo.state / "tasks"
     (tasks / "alpha.md").write_text(f"# alpha\nDecisions: as {URL} did\n")
@@ -267,6 +270,7 @@ def test_two_briefs_of_one_pull_request_are_told_apart_as_jmerge_does(repo, monk
     monkeypatch.setenv("LC_ALL", "en_US.UTF-8")
     scope = repo.state / "billing"
     scope.mkdir()
+    (scope / "plan.md").write_text("# a plan\n")
     (scope / "home-id").write_text("mcp:scoped\n")
     tasks = repo.state / "tasks"
     (tasks / "foo.md").write_text(f"# foo\nBranch: foo   Pull request: {URL}\n")
@@ -312,6 +316,7 @@ def test_whose_a_brief_is_agrees_with_jmerge(repo):
     `uncategorized`, and the root asks for it while it stands in for it."""
     scope = repo.state / "billing"
     scope.mkdir()
+    (scope / "plan.md").write_text("# a plan\n")
     (scope / "home-id").write_text("mcp:scoped\n")
     (scope / "handoff.md").write_text("# handoff\nWas home: mcp:scoped-before\n")
     (repo.state / "handoff.md").write_text("# handoff\nWas home: mcp:root-before\n")

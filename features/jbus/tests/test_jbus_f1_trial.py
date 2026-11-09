@@ -89,8 +89,9 @@ def said(*words):
 
 
 def closed(kitchen, lines):
-    """Ask the gate, run a pass, and return how the pass closed it and the trial's log."""
-    assert kitchen.main("gate", "alpha", stdin=lines)[0] == 0
+    """Keep the gate as a question, as a pass raises one, run a pass, and return how the pass
+    closed it and the trial's log."""
+    assert kitchen.raises("alpha", lines)[1]
     said = kitchen.poll(NOW)
     (one,) = json.loads((kitchen.state / "questions.json").read_text())["records"]
     assert (one["answer"], NOTE in said, kitchen.lines("note")) == (SILENCE, True, [NOTE])
@@ -140,6 +141,6 @@ def test_a_reversing_gate_with_no_word_in_the_window_is_not_held(kitchen):
     """gate-f1-trial F4: a window the user said nothing in holds nothing, and raises nothing."""
     from jbus import f1trial
 
-    assert kitchen.main("gate", "alpha", stdin=REMOVES)[0] == 0
+    assert kitchen.raises("alpha", REMOVES)[1]
     (one,) = questions.read(kitchen.state)
     assert f1trial.held(PROJECT, one, []) == ()

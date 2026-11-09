@@ -1,6 +1,8 @@
 ## Scoped homes
 
-A scoped home is a home like any other, for one goal: it plans and launches its own tasks by this skill, from its own directory.
+A scoped home, a child of the root home, is a home like any other, for one goal: it plans and launches its own tasks by this skill, from its own directory, and carries each row the root queues in it.
+The root home investigates, hypothesises, sends scouts and briefs with the user, queues each row in a child ("Queueing a row in a child" below), and reads its children when the user asks ("Reading the scopes").
+It waits on no wake: a child's Results, stalls and decisions go to the child, and the child tells the user its own decisions and stops.
 jbus merges a scoped home's pull requests as it merges the root home's, and no home merges its own ("Merging a pull request that is ready").
 The homes of a repo do not plan each other's work, and they are quiet towards each other:
 
@@ -18,6 +20,7 @@ The homes of a repo do not plan each other's work, and they are quiet towards ea
   It is relayed to no home: each home meets the rule in the code it runs.
 - A fault one home finds in another's work, with a known fix, is a queued row of that home's and never a send: `jbus queue add` with `--for <its home>`, its brief's `Decisions:` saying `noticed in <slug>`, unapproved, where approval by rule or the user's go takes it as any row.
   One with no known fix is nothing.
+- A row changes home only by a move, never by an edit of its brief's `Home:` line or a second row ("Moving a row" below).
 - No home asks another what it has out.
   `jmerge --claims` prints it.
 
@@ -26,7 +29,7 @@ A scoped home gives each brief and request a slug that starts with its prefix, t
 **`uncategorized`** is the scope name reserved for the catch-all.
 The root home owns no row: every brief whose `Home:` line names no live scope, `root`, or none at all, is `uncategorized`'s, and so is every slug no other scope's prefix claims (`features/jbriefs/src/jbriefs/home.py`).
 It has no `prefix` file, so it overlaps no other scope's prefix, and two other scopes still may not overlap each other.
-It is made like any scope ("Making a scope"), with nothing in place of `<prefix>`, and its home starts with `/home uncategorized` like any scoped home's.
+The root's start makes it beside a project's first home ("When a home starts", step 1), and jbus keeps its home running; "Making a scope" makes it too, with nothing in place of `<prefix>`, and its home starts with `/home uncategorized` like any scoped home's.
 Until it has a home of its own, the root home's thread stands in for it: jbus sends the root what it would send `uncategorized`, and `jbus clear` and the root's start list its rows.
 
 **Stopping on the root** is a scoped home's, only for a one-way door, and the only way it reaches the root.
@@ -64,6 +67,79 @@ jbus --project "$P" stop answer '<scope>' '<own row>' '<the answer>' --from "$ME
 
 `--from` comes last.
 jbus closes the stop and carries the answer to the scope's home, once.
+
+**Queueing a row in a child** is the root home's, and its only way to queue.
+A brief or a request goes to the child whose goal it serves, or to `uncategorized`, and its `Home:` line names that child.
+The user's message that asks for the work or says go to it approves the row as it is queued: `--message` binds it, as `jbus queue approve --message` does, and a row the user has not asked for is planned with them first.
+In one call with the block at the top and the block that finds this home, in the main checkout, with `tasks` for a brief or `scouts` for a request, its slug, the child, a priority, the plan entry and the user's message in place of the words in angle brackets, and the row's order added as `--depends <slugs>` or `--merge-after <slugs>` ("Handing a task to a crewmate", step 1):
+
+```sh
+kind='<tasks or scouts>'
+slug='<slug>'
+child='<child>'
+priority='<n>'
+entry='<entry>'
+message='<thread id>/<message id>'
+case $kind in
+tasks) B="$H/tasks/$slug.md" ;;
+scouts) B="$H/scouts/$slug.md" ;;
+*) B= ;;
+esac
+why=
+if [ "${M:?run the block that finds this home first}" != "$H" ]; then
+    why="this is the home of the scope $(basename "$M"): a child queues its own rows by \"Handing a task to a crewmate\""
+fi
+if [ -z "$why" ]; then
+    case $kind/$slug/$child/$priority/$entry/$message in
+    *'<'* | *'>'*) why="the kind, the slug, the child, the priority, the entry or the user's message is not filled in" ;;
+    esac
+fi
+if [ -z "$why" ]; then
+    case $kind in tasks | scouts) ;; *) why="$kind is neither tasks nor scouts" ;; esac
+    case $child in
+    '' | root) why="the root queues no row of its own: name the child whose goal the row serves, or uncategorized" ;;
+    *) [ -f "$H/$child/plan.md" ] || why="$child is no child home of $R: there is no $H/$child/plan.md" ;;
+    esac
+    case $message in
+    ?*/?*) ;;
+    *) why="$message is not the user's message as <thread id>/<message id>" ;;
+    esac
+fi
+if [ -z "$why" ]; then
+    named=$(awk '/^Home:/ {print $(2); exit}' "$B" 2> /dev/null)
+    if [ ! -f "$B" ]; then
+        why="there is no $B"
+    elif [ "$named" != "$child" ]; then
+        why="$B has Home: ${named:-nothing}, not $child: write Home: $child in it"
+    fi
+fi
+if [ -n "$why" ]; then
+    echo "not queued: $why. Nothing is queued."
+elif ! command -v jbus > /dev/null || ! jbus plan > /dev/null 2>&1; then
+    echo "no plan: jbus holds no plan of this repo, so nothing is queued"
+elif said=$(jbus queue add "$slug" --priority "$priority" --entry "$entry" --from "$ME" --for "$child" --message "$message" < "$B" 2>&1); then
+    echo "queued: the row $slug, in $child, approved on $message"
+else
+    printf '%s\n' "$said"
+fi
+```
+
+On `queued:`, the row is the child's: jbus's pass launches it, and the root sends the child nothing.
+On `not queued:` nothing is queued: mend what the line names and run it again.
+On `no plan:` the repo is not on jbus: "On the bus" ("When a home starts") adds it.
+On `refused:`, mend the brief as the lines under it say, and run it again.
+
+**Moving a row** to another child home is the root home's: a row in `uncategorized`, the home of every row no scope claims, or in another child home goes to the scope whose work it is, at any status short of merged or done.
+In one call with the block at the top and the block that reads jbus, with the row's slug in place of `<slug>` and the scope's name in place of `<scope>`:
+
+```sh
+: "${P:?run the block that reads jbus first}"
+jbus --project "$P" queue move '<slug>' --home '<scope>'
+```
+
+On `moved` jbus has rewritten the brief's `Home:` line, in its stored brief and in `$H/tasks/<slug>.md`, kept the row's go by rule (its line says `carried`), and logged the move: the crew's next Result, each wake and each stall go to the scope's home, and nothing is sent to anyone now.
+Ask the user for no new go, and send the scope's home nothing: it meets the row on its next wake.
+On `refused:` nothing moved: the root is never a target, and a name that is no scope needs one made first ("Making a scope").
 
 **Making a scope** is the root home's, and only on the user's word. In one call with the block at the top and the block that finds this home, with the scope's name in place of `<scope>`, the prefix its slugs and branches will start with, such as `rs-`, in place of `<prefix>`, and what the scope owns, in the user's words, in place of `<what the scope owns>`:
 
@@ -161,7 +237,8 @@ With no such tool, tell the user to open a new thread in this project and type `
 On `not made:` nothing is written: tell the user what the line says. A name or a prefix that is taken needs another from them.
 For `uncategorized`, put nothing in place of `<prefix>`, and nothing in place of `<what the scope owns>` to have the plan say it owns every row no other scope claims; its directory may be there already, with jbus's files for its rows, and the block keeps them.
 
-**Reading the scopes** is the root home's too, when the user asks for status. In one call with the block at the top and the block that finds this home:
+**Reading the scopes** is the root home's too, at its start (step 5 of "When a home starts") and whenever the user asks for status or about a child: it reads the children's files and rows, and no child is asked or woken for it.
+In one call with the block at the top and the block that finds this home:
 
 ```sh
 if [ "${M:?run the block that finds this home first}" = "$H" ]; then

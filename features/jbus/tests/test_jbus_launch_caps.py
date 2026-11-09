@@ -27,6 +27,7 @@ def scoped(kitchen, *names):
     `home-id`."""
     for name in names:
         (kitchen.home / name).mkdir()
+        (kitchen.home / name / "plan.md").write_text("# a plan\n")
         (kitchen.home / name / "home-id").write_text(f"mcp:{name}-home\n")
 
 

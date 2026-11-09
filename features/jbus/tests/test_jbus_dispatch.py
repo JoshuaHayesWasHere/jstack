@@ -247,6 +247,7 @@ def test_a_launch_keeps_the_home_its_queued_brief_names_in_the_brief_it_writes(k
     the copy in `tasks/`, so the copy names the home the queued brief names."""
     flow = kitchen.home / "flow"
     flow.mkdir(parents=True)
+    (flow / "plan.md").write_text("# a plan\n")
     (flow / "home-id").write_text("mcp:flow-home\n")
     stored = complete("alpha").replace("\n", "\nHome: flow\n", 1)
     queued(kitchen, "alpha", stored)

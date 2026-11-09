@@ -733,7 +733,10 @@ def test_a_gate_a_crew_parks_is_logged_at_once_and_not_posted(short, kitchen):
         "demo",
         "gate",
         "alpha",
-        stdin=GATE.format(n="<n>", asked="a made up question", status="open", slug="alpha"),
+        stdin=GATE.format(n="<n>", asked="a made up question", status="open", slug="alpha").replace(
+            "Undo: pick the other\n",
+            "Undo: pick the other\nHolds: publishes\nFail-safe: the package at dist/demo.whl\n",
+        ),
     )
     assert code == 0
     (event,) = kitchen.events("gate")

@@ -15,6 +15,7 @@ FLOW = "mcp:the-flow-home"
 def state(tmp_path):
     (tmp_path / "tasks").mkdir()
     (tmp_path / "flow").mkdir()
+    (tmp_path / "flow" / "plan.md").write_text("# a plan\n")
     (tmp_path / "home-id").write_text(f"{ROOT}\n")
     (tmp_path / "flow" / "home-id").write_text(f"{FLOW}\n")
     return tmp_path

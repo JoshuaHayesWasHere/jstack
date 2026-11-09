@@ -31,7 +31,7 @@ server = "http://127.0.0.1:3773"
 dispatch = false
 ```
 
-The setup also turned on jbus's timer, so a pass runs every minute from now on.
+The setup also turned on jbus's timer, so a pass runs 25 seconds after the last one ended from now on.
 On Linux and WSL2 it linked jbus's systemd user units and enabled `jbus.timer`, and on macOS it wrote and loaded the launchd agent `jstack.jbus`.
 With `dispatch = false` and no project, a pass does nothing.
 If T3 Code listens on another address, `jq -r .origin ~/.t3/userdata/server-runtime.json` prints it.

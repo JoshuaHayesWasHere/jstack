@@ -77,9 +77,9 @@ Preconditions:
 - **Over a main that moved.**
   The pull request's check started in 2000, and main gets a commit after it.
   Run `jq '(.[0].statusCheckRollup[] | select(.name == "check")).startedAt = "2000-01-01T00:00:00Z"' "$VERIFY_JSTACK_SANDBOX/gh/open.json" > "$VERIFY_JSTACK_SANDBOX/gh/open.json.new" && mv "$VERIFY_JSTACK_SANDBOX/gh/open.json.new" "$VERIFY_JSTACK_SANDBOX/gh/open.json"`, then `git switch -q -c moved && echo moved > moved.txt && git add moved.txt && git commit -qm moved && git push -q origin moved:main && git switch -q main && git branch -q -D moved`, then `record jmerge-decision jmerge --check`.
-  It prints `ready 7 <the head> beta beta`: main changed none of its files, so it merges on its existing check, with no guards file in the sandbox to run on its merged tree.
+  It prints `ready 7 <the head> beta beta`: main changed none of its files, so it merges on its existing check.
   Then run `git switch -q -c moved2 origin/main && mkdir -p src/beta && echo theirs >> src/beta/a.py && git add src/beta/a.py && git commit -qm moved2 && git push -q origin moved2:main && git switch -q main && git branch -q -D moved2`, then `record jmerge-decision jmerge --check`.
-  It prints `wait 7 https://example.test/pull/7: main moved after its check started: GitHub is to merge main at <the new tip's first 12> into it`: main changed `src/beta/a.py`, a file it changes.
+  It prints `ready 7 <the head> beta beta` again: main changed `src/beta/a.py`, a file it changes, and its head merges cleanly over the new tip, so it still merges on its existing check.
   `--check` asks for no update: `grep -cE 'pr merge|update-branch' "$VERIFY_JSTACK_SANDBOX/gh/calls.log"` prints `0`.
   The demo checkout's `main` stays at `start`, and only origin's moved.
 - **Queue it with no go.**

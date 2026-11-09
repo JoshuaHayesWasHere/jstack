@@ -58,13 +58,12 @@ def write(root, files):
 
 @pytest.fixture(scope="module")
 def upstream(tmp_path_factory):
-    """jstack at the tag the skeleton pins, as far as the repo's make reads it."""
+    """jstack at the tag the skeleton pins, as far as the repo's make reads it: the standard's
+    code, and the skeleton and adapters whose copies conform holds the owned files to."""
     root = tmp_path_factory.mktemp("upstream")
-    shutil.copytree(
-        STANDARD / "src",
-        root / "features" / "repo-standard" / "src",
-        ignore=shutil.ignore_patterns("__pycache__"),
-    )
+    ignore = shutil.ignore_patterns("__pycache__", ".venv", ".cache", ".ruff_cache")
+    for part in ("src", "skeleton", "adapters"):
+        shutil.copytree(STANDARD / part, root / "features" / "repo-standard" / part, ignore=ignore)
     git(root, "init", "-q")
     git(root, "add", "-A")
     git(root, "commit", "-qm", "the standard")
@@ -110,7 +109,7 @@ def test_the_new_repo_passes_its_own_check(new_repo):
     out = make(root, env, "check")
     assert "1 passed" in out
     assert "conform repo-standard-v1" in out
-    assert "errors 0" in out
+    assert "errors 0, warnings 0" in out
 
 
 def test_check_fast_runs_the_tests_its_change_selects(new_repo):
@@ -202,3 +201,25 @@ def test_the_skeleton_calls_the_shared_check_as_new_home_writes_it():
     assert json.loads((SKELETON / "schemas/feature.core.schema.json").read_text()) == json.loads(
         CORE.read_text()
     )
+
+
+def test_make_test_writes_each_test_file_that_failed(new_repo, tmp_path):
+    root, env = new_repo
+    write(root, PLANTED)
+    write(root, {"features/alpha/tests/test_broken.py": "def test_broken():\n    assert False\n"})
+    failed = tmp_path / "failed.txt"
+    report = {**env, "REPO_STANDARD_FAILED": str(failed)}
+    make(root, report, "test", ok=False)
+    assert failed.read_text().splitlines() == ["features/alpha/tests/test_broken.py"]
+
+    failed.write_text("")
+    write(root, {"features/beta/tests/conftest.py": "import nowhere\n"})
+    ids = ["features/alpha/tests/test_core.py", "features/beta/tests/test_use.py"]
+    make(root, report, "test", f"TESTS={' '.join(ids)}", ok=False)
+    assert failed.read_text().splitlines() == ids
+
+    failed.write_text("")
+    (root / "features/beta/tests/conftest.py").unlink()
+    (root / "features/alpha/tests/test_broken.py").unlink()
+    make(root, report, "test")
+    assert failed.read_text() == ""

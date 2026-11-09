@@ -79,6 +79,7 @@ def test_each_home_on_the_homes_map_says_what_the_checks_of_its_rows_in_check_di
     asks(scene)
     in_check(scene, ["failed", "failed", "passed", "failed", "pending", "none"])
     (scene.home / SHELF).mkdir()
+    (scene.home / SHELF / "plan.md").write_text("# a plan\n")
     (scene.home / SHELF / "home-id").write_text("mcp:shelf\n")
     (scene.home / "tasks").mkdir(exist_ok=True)
     for slug, _, _ in IN_CHECK[:3]:

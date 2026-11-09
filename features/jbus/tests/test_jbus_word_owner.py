@@ -35,6 +35,7 @@ def kitchen(tmp_path, monkeypatch):
     made.brief("fl-s1-stack", f"Home: {SCOPE}\n")
     made.brief("fix-login")
     (made.home / OTHER).mkdir()
+    (made.home / OTHER / "plan.md").write_text("# a plan\n")
     (made.home / OTHER / "home-id").write_text(f"{VIEW}\n")
     made.brief("vw-board", f"Home: {OTHER}\n")
     yield made
@@ -218,6 +219,7 @@ def wakes(kitchen):
 @pytest.fixture
 def three(kitchen):
     (kitchen.home / "macos").mkdir()
+    (kitchen.home / "macos" / "plan.md").write_text("# a plan\n")
     (kitchen.home / "macos" / "home-id").write_text(f"{MAC}\n")
     kitchen.t3.says(SOUS, "m1", ASKED, title="Sous Chef")
     return kitchen

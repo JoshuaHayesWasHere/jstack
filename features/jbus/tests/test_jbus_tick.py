@@ -674,10 +674,10 @@ def at_both(kitchen, mine, other):
 
 
 def test_the_tick_reads_on_while_its_jmerge_runs(two_on_check, monkeypatch):
-    """sa-tick-jmerge-apart: a `jmerge` that merges first runs the merged-tree guards, which took
-    68 to 86 s on 2026-11-08, and the tick read nothing for as long. #7's check passed, so the
-    tick runs `jmerge`; #8's check fails while that run is still going. The tick reads on every
-    2 s (`EVERY`, short here), so #8's line says it failed before #7's `jmerge` ends."""
+    """sa-tick-jmerge-apart: the tick reads on while a `jmerge` it started runs. #7's check
+    passed, so the tick runs `jmerge`; #8's check fails while that run is still going. The tick
+    reads on every 2 s (`EVERY`, short here), so #8's line says it failed before #7's `jmerge`
+    ends."""
     monkeypatch.setattr(tick, "EVERY", 0.05, raising=False)
     at_both(two_on_check, [job("check", "success", 1)], [job("check", suite=SUITE + 1)])
     seen, ran = [], merge.tick

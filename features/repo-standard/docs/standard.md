@@ -280,6 +280,15 @@ A test id is then a path from the repo's root, which the stack whose root holds 
 `all` still means every test of the repo, so a change that reaches a whole stack prints `stack:<name>` and never `all`.
 A stack's roots hold its own root files, such as its lock file, so a change to one reaches that stack and no other.
 
+Browser tests are selected from the change like any other test, down to the one test of a spec that the change reaches, and never from a hand-kept list of specs.
+A browser test's id is Playwright's test-list form, `<spec>` or `<spec> > <title>`, and the shared check runs those ids in its browser job and no others.
+A test is reached by the URLs it opens and by its spec's own imports.
+A URL maps to the files of its route: a SvelteKit page with every layout above it, or the row of a React router table with the components it names.
+The change reaches each test whose route files, or the files they import, hold a changed file, where an import of names from a barrel follows only those names.
+A spec that runs a table of screens is selected by row: a change inside one row selects that row, and a change to a helper selects the rows that name it.
+A spec that no path reaches, or that opens a URL that matches no route, fails conformance, unless the config names it as one that every change of the app selects.
+The browser tests run on a mock of the API, and a contract the lint runs holds each route the mock answers to the real API, so a change to the real API selects no browser test and the lint fails on a mock route the real API lost.
+
 **In jstack** `make select BASE=<ref>` runs `python3 scripts/select_tests.py <ref> HEAD`, which prints test files, and `make check-fast BASE=<ref>` runs the lint and the files it prints.
 The script follows imports, fixtures, the names a test reads and the files a test includes, and its rules are in the script's docstring.
 
@@ -291,6 +300,16 @@ A change to a path that every test rests on selects `all`, whatever else it touc
 In a repo of several stacks, so does a path outside every stack's roots, unless it is a page of Markdown, a file in a feature's `docs/` or its `feature.json`.
 A change to the selection itself, or to the files that run it, selects the tests that read it: a pull request's check selects its tests by its own new version of them, and main's run of the whole suite after each merge catches what that version missed.
 
+A browser test rests on more than its imports, so these force every browser test of a stack, by kind:
+
+- The app's shell and layouts: `app.html`, `index.html`, a React entry and its router file force every test, a root layout reaches every test through the graph, and a nested layout reaches the routes under it.
+- Global CSS: the root layout or the entry imports it, and the graph follows each `@import`, so a change to it reaches every test.
+- Tailwind: a class in markup reaches only the tests that reach its file, and the Tailwind, PostCSS, Vite and Svelte configs force every test.
+- The service worker and the files it imports reach each spec that runs with service workers allowed.
+- Static assets: a file under `static/` or `public/` is reached by URL, not by import, so it forces every test, and an asset imported from the source is reached through the graph.
+- i18n catalogs: a catalog the code imports is reached through the graph, and one loaded by URL sits in `static/` or `public/` and forces.
+- The test harness: the Playwright configs, the e2e package and its lockfile, the mock API, whatever its files are named, the server the tests run against and the shared fixture.
+
 **In jstack** the paths are `EVERY_RUN` in `scripts/select_tests.py`: `pyproject.toml`, `uv.lock` and the root `conftest.py`.
 The script itself, the `Makefile`, `.github/workflows/check.yml` and the plugins of `testing/` select the tests that import or name them instead, and the whole suite runs on main, nightly and before a release.
 
@@ -301,10 +320,18 @@ Enforced by: `scripts/select_tests.py`, `testing/tests/test_select_tests_rules.p
 Each push to main runs every test, so a test a selection missed fails on main within one merge.
 A test that failed on main joins the selection of every pull request until it passes again.
 
+The shared check keeps this record as data, not as a log.
+Each part's `make test`, and the browser job's target `e2e`, writes the id of each test that failed to `$REPO_STANDARD_FAILED`, in the form `make select` prints, which each adapter reads from its test runner's own report.
+On a push to main a failed part or browser job runs those ids once more, and the run's `passed` job writes one ledger row per failed id to the artifact `miss-ledger-<run id>`, kept 90 days.
+A row holds the id, the merged pull request, whether `make select BASE=HEAD^1` on the main commit selects it, and a class: `flaky` where it passed when run again, `miss` where the selection did not reach it, `race` where it did but no passed check of the pull request left the marker of the two trees that merged, and `env` otherwise.
+A pull request's plan then adds each id a ledger of main's runs of the last 30 days names, unless it was `flaky`, a later green run of main passed it, or its path is gone.
+Runs are ordered by run id, and a lookup that cannot ask GitHub warns and adds nothing.
+`repo-standard misses --days 30` prints the miss rate, rows of class `miss` per merged pull request, and the rows.
+
 **In jstack** `check.yml`'s `full-shard` job runs `make check` in four parts on each push to main, and its `full` job passes only when all four did.
 A pull request's `reuse` job runs `select_tests.py --failed-on-main 30`, which reads the logs of main's red runs of the last 30 days and adds each test file they name that no later green run of main has passed.
 
-Enforced by: `.github/workflows/check.yml`, `testing/tests/test_workflows.py`
+Enforced by: `.github/workflows/check.yml`, `testing/tests/test_workflows.py`, `.github/workflows/repo-standard-check.yml`, `features/repo-standard/tests/test_misses.py`
 
 ## CI
 
@@ -312,6 +339,8 @@ Enforced by: `.github/workflows/check.yml`, `testing/tests/test_workflows.py`
 
 A pull request's check selects its tests from the change, runs the lint, and runs the selected tests split into parts that run side by side.
 It needs no run of the whole suite, which main's run after the merge does.
+The selected browser tests run in a job of their own, on the built app with a mocked API and never on a live stage, and the job is skipped when the change selects none.
+A browser test that passes only on a retry fails the job: a retry may keep a trace, and never turns a flaky test green.
 
 **In jstack** `.github/workflows/check.yml` runs on each push of a pull request, a draft too, and a new push cancels the older run.
 Its `reuse` job runs `python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD`, which deals the selected files out to eight parts, or `all` where the change forces it.
@@ -352,14 +381,37 @@ Enforced by: `scripts/green_tree.py`, `.github/workflows/check.yml`
 
 ### Every deploy entry refuses a tree that is not green main
 
-A repo ships through its deploy entries alone, and each one refuses a tree that is not main's, clean, and marked green by main's full run.
+A repo ships through its deploy entries alone, and each one refuses a tree that is not main's, clean, and marked green by main's check.
 It refuses before it builds, tags or uploads anything, and its refusal names the fix.
 
-**In jstack** the one deploy entry is the release.
-`make release` refuses a checkout that is not main, not clean or not `origin/main`, and runs `make release-green`, which fails unless a green run of `check.yml` left the marker for the tree of `HEAD`.
+Each entry is a make target, listed in the config's `deploy` part, whose recipe runs `repo-standard green` before its first other command, and which has no prerequisite that make would run first.
+`repo-standard green` exits 0 only when the checkout is clean, `HEAD` is main on the remote now, as `git ls-remote origin refs/heads/main` gives it and not a local `origin/main` that may be stale, and a run of `check.yml` passed the tree of `HEAD`.
+It reads that from the marker `green-tree-<tree>`, and, where the marker expired or is missing, from the push run of `check.yml` on main for `HEAD`'s commit, when its conclusion is success.
+It exits 1 with each of the three that failed, and 2 when it cannot ask the remote or GitHub.
+The shared check workflow keeps the marker 90 days, which is as long as GitHub keeps a run by default.
+
+**In jstack** the one deploy entry is the release, and it is waived: `make release` checks main, a clean tree and `origin/main` itself, then runs `make release-green`, which fails unless a green run of `check.yml` left the marker for the tree of `HEAD`.
 `.github/workflows/release.yml` runs only on a pushed `v*` tag, and runs `make release-green` again on the tag's own checkout before `make dist` and the release.
 
-Enforced by: `.github/workflows/release.yml`, `features/jmerge/src/jmerge/green.py`, `testing/tests/test_workflows.py`
+Enforced by: `features/repo-standard/src/repo_standard/green.py`, `features/repo-standard/src/repo_standard/rules.py`, `.github/workflows/release.yml`
+
+### Only a deploy entry runs a deploy command
+
+A deploy command runs only in a deploy entry's recipe, or in a script that runs `repo-standard green` before it, so no path to prod steps around the refusal above.
+Conform looks for these deploy commands in each tracked shell script, each make recipe and each workflow, with any global flags between the tool and its verb:
+
+- `aws s3 sync` and `aws cloudfront create-invalidation`
+- `sam deploy`
+- `terraform apply`
+- `cdk deploy`
+
+A workflow step runs a deploy entry rather than a deploy command, and a make target that is not a deploy entry runs none.
+A comment line is not read.
+The list is kept beside the rule, in `features/repo-standard/src/repo_standard/rules.py`, and it does not see a deploy run from Python, through a package script such as `npm run deploy`, or by a workflow's `uses:` action.
+
+**In jstack** no script, recipe or workflow runs one: the release builds and publishes through `make dist` and GitHub's release, which are not deploy commands.
+
+Enforced by: `features/repo-standard/src/repo_standard/rules.py`
 
 ### A deploy is behind the `touches prod` gate
 
@@ -383,3 +435,10 @@ A change to the standard is breaking when a repo that conformed at `repo-standar
 These are breaking: a new rule at the error level, a rule made stricter, a make target or command a contract renames or drops, and a key of `.repo-standard.yml` renamed, dropped or given a new meaning.
 These are not: a change of wording that keeps each rule's meaning, a new rule at the warn level, a rule made looser, and a new stack adapter.
 A breaking change goes out only in a new version, `repo-standard-vN+1`, and a change that breaks nothing may go out in the next version or wait for one.
+
+### A file a version owns is that version's copy
+
+A version owns some of the files a repo takes from the skeleton and its adapters: the `Makefile`, the workflows, the schemas and the scripts.
+The repo keeps each equal to the copy at the tag it pins, so a move to the next version replaces them and loses nothing, and the repo adds its own make targets in `local.mk`, which the `Makefile` includes.
+A file the repo keeps as its own is named under `local:` in `.repo-standard.yml`, with the reason, and is not compared.
+`repo-standard conform` warns of each other file that differs from its copy, with the runner's labels in the caller's `check.yml` left out, and `repo-standard upgrade --to N` writes version N's copies.

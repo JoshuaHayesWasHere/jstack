@@ -229,6 +229,7 @@ def test_a_told_line_is_stale_once_its_decision_or_stop_ended(kitchen):
     (kitchen.state / wakes.FILE).write_text(json.dumps(record))
     scope = kitchen.home / "jview"
     scope.mkdir()
+    (scope / "plan.md").write_text("# a plan\n")
     (scope / "home-id").write_text("mcp:a-scope\n")
     (kitchen.home / "told").write_text(
         "decision question 1: tea or coffee? default tea\n"
@@ -260,6 +261,7 @@ def test_a_home_id_is_stale_once_t3_code_no_longer_has_its_thread(kitchen):
     home(kitchen)
     scope = kitchen.home / "jview"
     scope.mkdir()
+    (scope / "plan.md").write_text("# a plan\n")
     (scope / "home-id").write_text("mcp:thread-gone\n")
     assert of(listed(kitchen)[1], "home-id") == [
         "home-id demo/jview/home-id: T3 Code no longer has thread mcp:thread-gone"

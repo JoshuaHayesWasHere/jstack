@@ -23,6 +23,32 @@ counts for each module that names the function that holds it, through its import
 that re-exports it, or a star import. A call with a string also imports the module the string
 names.
 
+`select_tests.py --pull-request [--parts <n>] <base> <head>` selects as a pull request's check
+does, and the check's job `reuse` passes it. There an import reaches only the tests near the
+change. A changed module that is not the tests' own reaches the test files that import it, and
+the test files that import a module that imports it and names, through its imports, a top-level
+name whose code the diff touched (`names_touched`): a function or a class that holds a touched
+line, a name a touched assignment binds, and each name whose code reads a name a touched import
+binds. A module of the tests that is no test file, such as a helper or a `conftest.py`, counts as
+the test's own code: it carries the change on to the tests that import it, through any chain of
+such modules. A test that asks for a plugin's fixture that uses a module that carries the change
+is reached too. A module that walks a package's `__path__` (below) reads the changed module where
+the test imports that walker itself or through such modules (`nearby`). Where the diff touched
+other code that runs on import, such as an `if`, every module that imports the changed one
+carries it on. A test that spells the name of a package, which runs the package in a process, is
+not reached so. Every other rule selects as below. So a change escapes the check where it breaks
+a test only through a module of a `src/` that names no name the change touched (a chain of two
+such modules or more, or a table of verbs that names no function of the module), or only through
+a package the test runs in a process. Without `--pull-request` the script keeps the wide rule,
+as main's run over what moved since its last checked commit, a desk's `make check-fast` and
+`make select` run it: main's run and the nightly full suite catch what a pull request leaves
+out. Measured with this script over main's last 60 merges on 2026-11-09 (go-speed's
+`why.py`), the selections of 300 files or more fell from 32 to 7, none of them through imports
+or a walk, and 3 of the 7 select `all` for a path every run rests on. The median of the
+selections that are not `all` fell from 300 files to 100, and 35 of the 60 hold 50 to 149
+files. Of the 12 test files that failed main's full run in the 7 days before and that their
+merge's wide selection held, it holds all 12 (`replay.py`).
+
 A test may hold a string that is the name of a package of a `src/`. The script counts such a
 test as running that package in a process of its own, so the test imports every module of the
 package. A file in a package may be no module, such as a page or a pattern list. The script
@@ -146,7 +172,8 @@ sync`: `python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD`.
 cross-cutting tests, the catch-all and the changed test files. `--part rest` prints the rest of
 it, the files the rules reached through imports, names and features alone. Where the selection
 is `all`, `--part guards` still prints those guards, never `all`, and `--part rest` prints `all`.
-`jmerge` runs the guards on a pull request's tree merged over its base (`merged-tree-guards`).
+The home's `merged-tree-guards` file names them; jmerge runs nothing on a merged tree, and the part
+goes once that file is removed.
 
 `select_tests.py --part touched <base> <head>` prints the test files the change itself adds or
 edits, each one the check runs, and never `all`: a change that selects every test still names
@@ -230,6 +257,7 @@ TESTS = re.compile(r"((features/[^/]+|testing)/)?tests/")
 SOURCE = re.compile(r"(features/[^/]+/)?src/")
 TEST = re.compile(TESTS.pattern + r"(\w+/)*test_\w+\.py")
 FIXTURES = re.compile(TESTS.pattern + "fixtures/")
+WILD = re.compile(r"[*?[]")
 SHARED = "testing/"
 SHARED_TESTS = "testing/tests"
 SCRIPTS = "scripts"
@@ -373,7 +401,41 @@ def models():
 
 
 def owns(patterns, path):
+    if path in tracked():
+        return any(path in owned(pattern) for pattern in patterns)
     return any(ready().protects(pattern, path) for pattern in patterns)
+
+
+@cache
+def owned(pattern):
+    """The tracked paths a pattern protects, as jmerge reads it. Its leading parts with no `*`,
+    `?` or `[` match only themselves, so jmerge is asked only of the paths that hold them."""
+    wanted = pattern.strip("/").split("/")
+    if "/" in pattern.removesuffix("/"):
+        fixed = []
+        for part in wanted:
+            if WILD.search(part):
+                break
+            fixed.append(part)
+        where = ("at", "/".join(fixed)) if fixed else None
+    else:
+        where = None if WILD.search(wanted[0]) else (pattern.endswith("/"), wanted[0])
+    could = tracked() if where is None else holders().get(where, ())
+    return frozenset(one for one in could if ready().protects(pattern, one))
+
+
+@cache
+def holders():
+    """The tracked paths by each run of their leading parts (`("at", "a/b")`), by each directory
+    above them (`(True, "b")`) and by their file name (`(False, "c.md")`)."""
+    found = {}
+    for path in tracked():
+        *directories, name = parts = path.split("/")
+        keys = {("at", "/".join(parts[:end])) for end in range(1, len(parts) + 1)}
+        keys |= {(True, one) for one in directories} | {(False, name)}
+        for key in keys:
+            found.setdefault(key, []).append(path)
+    return found
 
 
 def of_tests(path):
@@ -751,10 +813,11 @@ def sources():
 
 
 @cache
-def edges():
+def edges(runs=True):
     """Each module, with the modules it imports. A test may spell the name of a package in a `src/`
     folder. The script then counts the test as running that package in a process of its own, and so
-    as importing every module of the package.
+    as importing every module of the package, unless `runs` is false: the pull request's reach
+    (`near`) follows no such run.
 
     A module that imports by name imports every module under its directory, but only when that code
     runs. So the module itself imports them when it imports by name on import, or when it is a
@@ -787,7 +850,7 @@ def edges():
             below = Path(known[loader]).parent.as_posix() + "/"
             reached |= {other for other, path in known.items() if path.startswith(below)}
             reached |= set().union(*map(parents, sources()[loader][2][2])) & known.keys()
-        if of_tests(known[name]):
+        if runs and of_tests(known[name]):
             run = tuple(
                 f"{packages[one]}/"
                 for one in packages.keys() & {one[0] for one in paths if len(one) == 1}
@@ -834,10 +897,11 @@ def conftests(name):
 
 
 @cache
-def imported_by():
-    """Each module, with the modules that import it directly."""
+def imported_by(runs=True):
+    """Each module, with the modules that import it directly, and, with `runs`, the tests that
+    run its package in a process (`edges`)."""
     found = {}
-    for name, reached in edges().items():
+    for name, reached in edges(runs).items():
         for one in reached:
             found.setdefault(one, set()).add(name)
     return found
@@ -880,6 +944,87 @@ def testers():
 
 def test_files(names):
     return {modules()[name] for name in names if TEST.fullmatch(modules()[name])}
+
+
+def near(name, edit):
+    """The test files a change to module `name` reaches through imports on a pull request's
+    check, `edit` the two sides of its diff (`edits`), or `None` where all of it counts as
+    changed. They are the tests that import the module, and the tests that import a module that
+    carries the change on: one that imports it and names a name the change touched
+    (`names_touched`), as `jbus.poll` names `tick.once`, or a module of the tests that is no
+    test file, such as a helper or a `conftest.py`, which counts as the test's own code and
+    carries on whatever it imports. A test that asks for a plugin's fixture that uses a module
+    that carries the change is one too. A test that spells a package runs it in a process, and
+    that counts for nothing here."""
+    touched = names_touched(edit)
+    dotted = {f"{name}.{one}" for one in touched or ()}
+    importers = imported_by(runs=False).get(name, set())
+    found = test_files(importers)
+    carry = {name} | {
+        one
+        for one in importers
+        if touched is None
+        or sources()[one][6] & dotted
+        or of_tests(modules()[one])
+        and not TEST.fullmatch(modules()[one])
+    }
+    todo = list(carry)
+    while todo:
+        for one in imported_by(runs=False).get(todo.pop(), ()):
+            if one not in carry and of_tests(modules()[one]):
+                if TEST.fullmatch(modules()[one]):
+                    found.add(modules()[one])
+                else:
+                    carry.add(one)
+                    todo.append(one)
+    fixtures = conftest()
+    hit = {fixture for fixture, (used, _) in fixtures.items() if used & carry}
+    while more := {fixture for fixture, (_, asks) in fixtures.items() if asks & hit} - hit:
+        hit |= more
+    return found | {test for test, asks in askers().items() if hit & asks}
+
+
+def names_touched(edit):
+    """The top-level names of a module whose code the lines of `edit` touched, on either side
+    of the diff: a function or a class that holds a touched line, the names an assignment binds,
+    and, for a touched import, each top-level name whose code reads a name it binds. A
+    docstring touches nothing. `None` where all of the module counts as touched: there is no
+    `edit`, a side is no Python or has no file, or a touched line is in other code that runs on
+    import, such as an `if` or an assignment to no name."""
+    if edit is None:
+        return None
+    found = set()
+    for lines, text in edit:
+        try:
+            tree = ast.parse(text)
+        except (SyntaxError, ValueError, TypeError):
+            return None
+        imports = set()
+        for node in tree.body:
+            first = min([node.lineno, *(one.lineno for one in getattr(node, "decorator_list", ()))])
+            if not any(first <= line <= node.end_lineno for line in lines):
+                continue
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                imports |= {(one.asname or one.name).split(".")[0] for one in node.names}
+            elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                found.add(node.name)
+            elif isinstance(node, (ast.Assign, ast.AnnAssign)) and (assigned := binds(node)):
+                found |= assigned
+            elif not (isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant)):
+                return None
+        for node in tree.body if imports else ():
+            reads = {one.id for one in walk(node) if isinstance(one, ast.Name)}
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                found |= {node.name} if reads & imports else set()
+            elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+                found |= binds(node) if reads & imports else set()
+    return found
+
+
+def binds(node):
+    """The names an assignment at a module's top level binds: `a` and `b` of `a, b = …`."""
+    targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+    return {one.id for target in targets for one in walk(target) if isinstance(one, ast.Name)}
 
 
 @cache
@@ -1011,17 +1156,6 @@ def reaches(name):
 
 
 @cache
-def spells(name):
-    """The paths a test module spells, and the test modules it imports. Where code of the test
-    reads skills through `testing.paths.skills()`, a word of that code (`reaches`) that is a
-    skill's name spells that skill's `SKILL.md`: `block("home", …)` reads the home skill so. A
-    name of a skill elsewhere in a module it imports spells nothing: `test_home_thread` names
-    four skills, and a test that takes only its `git` reads none of them."""
-    paths = frozenset().union(*(sources()[one][4] for one in reached(name)))
-    return paths | {(*skills()[word].split("/"), "SKILL.md") for word in reaches(name)}
-
-
-@cache
 def walked(name):
     """The read set a module holds by naming a package's `__path__`, as `jbus.pages` does to build
     the-verbs.md from the source of each verb: the modules under the folder of each package it
@@ -1040,40 +1174,54 @@ def walked(name):
 
 
 @cache
-def read_sets():
+def read_sets(near=False):
     """Each test file, with the patterns of its read set and of the read sets of the modules of
     the tests it imports, and the folders of the packages it or any module it imports walks
-    (`walked`)."""
+    (`walked`). With `near` a walk counts only in a module the test imports itself or through
+    modules of the tests (`nearby`), as a pull request's check reaches through imports."""
     found = {}
     for name, path in modules().items():
         if not TEST.fullmatch(path):
             continue
         patterns = {pattern for one in reached(name) for pattern in sources()[one][5]}
-        patterns |= {pattern for one in imported(name) for pattern in walked(one)}
+        walkers = nearby(name) if near else imported(name)
+        patterns |= {pattern for one in walkers for pattern in walked(one)}
         if patterns:
             found[path] = patterns
     return found
 
 
 @cache
-def globbed():
+def nearby(name):
+    """The modules a test module imports itself, and through modules of the tests that are no
+    test file, such as a helper: what `near` counts as the test's own reach. A package the test
+    runs in a process is not among them."""
+    found, todo = set(), [name]
+    while todo:
+        one = todo.pop()
+        if one not in found:
+            found.add(one)
+            if one == name or of_tests(modules()[one]) and not TEST.fullmatch(modules()[one]):
+                todo += edges(runs=False)[one]
+    return frozenset(found)
+
+
+@cache
+def globbed(near=False):
     """Each pattern of a read set, with the test files whose read set holds it: the read sets
     share most of their patterns."""
     found = {}
-    for test, patterns in read_sets().items():
+    for test, patterns in read_sets(near).items():
         for pattern in patterns:
             found.setdefault(pattern, set()).add(test)
     return found
 
 
-def globbers(path):
-    """The test files whose read set matches this path."""
-    return set().union(*(tests for pattern, tests in globbed().items() if owns([pattern], path)))
-
-
-def inside(parts, spelling):
-    """Whether `parts` are in `spelling`, one after the other."""
-    return any(spelling[at : at + len(parts)] == parts for at in range(len(spelling)))
+def globbers(path, near=False):
+    """The test files whose read set matches this path, with `near` as `read_sets` takes it."""
+    return set().union(
+        *(tests for pattern, tests in globbed(near).items() if owns([pattern], path))
+    )
 
 
 @cache
@@ -1108,21 +1256,72 @@ def called(path):
     return tuple(parts)
 
 
+def placed(spellers):
+    """Each part of the spellings, with each place it sits: the spelling, where in it the part
+    is, and what spells it. A run of parts is then looked up from the places of its first part,
+    not from a table of every run of every spelling."""
+    found = {}
+    for spelling, who in spellers.items():
+        for at, part in enumerate(spelling):
+            found.setdefault(part, []).append((spelling, at, who))
+    return found
+
+
+def spellers_of(places, parts):
+    """What spells `parts` one after the other, in a spelling `placed` placed."""
+    return set().union(
+        *(
+            who
+            for spelling, at, who in places.get(parts[0], ())
+            if spelling[at : at + len(parts)] == parts
+        )
+    )
+
+
 @cache
 def spelled_by():
-    """The test files that spell each run of consecutive parts of a spelled path. It gives the
-    result of `inside` for every test file at once, and reads each file once."""
+    """The paths the modules spell, placed, with the modules that spell each path."""
+    spellers = {}
+    for name, one in sources().items():
+        for spelling in one[4]:
+            spellers.setdefault(spelling, set()).add(name)
+    return placed(spellers)
+
+
+@cache
+def skills_read():
+    """The `SKILL.md` of each skill a test reads by name, placed, with the test files that read
+    it. Where code of the test reads skills through `testing.paths.skills()`, a word of that code
+    (`reaches`) that is a skill's name spells that skill's `SKILL.md`: `block("home", …)` reads
+    the home skill so. A name of a skill elsewhere in a module it imports spells nothing:
+    `test_home_thread` names four skills, and a test that takes only its `git` reads none of
+    them."""
     spellers = {}
     for name, path in modules().items():
         if TEST.fullmatch(path):
-            for spelling in spells(name):
-                spellers.setdefault(spelling, set()).add(path)
+            for word in reaches(name):
+                spellers.setdefault((*skills()[word].split("/"), "SKILL.md"), set()).add(path)
+    return placed(spellers)
+
+
+@cache
+def reached_by():
+    """Each module, with the test files that are it or import it."""
     found = {}
-    for spelling, paths in spellers.items():
-        for start in range(len(spelling)):
-            for end in range(start + 1, len(spelling) + 1):
-                found.setdefault(spelling[start:end], set()).update(paths)
+    for name, path in modules().items():
+        if TEST.fullmatch(path):
+            for one in reached(name):
+                found.setdefault(one, set()).add(path)
     return found
+
+
+@cache
+def read_by(parts):
+    """The test files that spell `parts`: in a path of their own or of a module they import, or
+    in the `SKILL.md` of a skill they read by name."""
+    tests = reached_by()
+    found = spellers_of(skills_read(), parts)
+    return frozenset(found.union(*(tests.get(one, ()) for one in spellers_of(spelled_by(), parts))))
 
 
 @cache
@@ -1154,7 +1353,7 @@ def includers(path):
 
 def readers(path):
     """The test files that spell this path, in a path of their own or of a module they import."""
-    return set(spelled_by().get(called(path), ()))
+    return set(read_by(called(path)))
 
 
 def fixture_readers(path):
@@ -1181,11 +1380,7 @@ def users(path):
     whose strings name the file. When no module's strings name it, they are the modules in the
     file's directory."""
     parts = called(path)
-    named = {
-        name
-        for name, one in sources().items()
-        if SOURCE.match(modules()[name]) and any(inside(parts, spelling) for spelling in one[4])
-    }
+    named = {name for name in spellers_of(spelled_by(), parts) if SOURCE.match(modules()[name])}
     here = Path(path).parent.as_posix() + "/"
     beside = {
         name
@@ -1313,13 +1508,15 @@ def everywhere(path):
     return True
 
 
-def ruled(changed, follows=everywhere, cross=True, strict=False):
+def ruled(changed, follows=everywhere, cross=True, strict=False, edited=None):
     """`(tests, why)`: the sorted test files the rules select for the changed paths, or
     `["all"]`, and for each cause the sorted files it selected, or the path that forced
     `all`. An import reaches a test only from a changed path that `follows` holds for, and the
     cross-cutting tests count only with `cross`. With `strict` a name reaches a test only from
     such a path too, and a feature's paths reach none of its tests. Only `EVERY_RUN` forces
-    `all`, and so does a module that does not parse (`Unread`), which `facts` reads first."""
+    `all`, and so does a module that does not parse (`Unread`), which `facts` reads first. With
+    `edited`, the sides of each changed path (`edits`), a change to a module that is not the
+    tests' own reaches through imports only the tests `near` it: a pull request's check."""
     ready()
     facts()
     for path in changed:
@@ -1329,8 +1526,11 @@ def ruled(changed, follows=everywhere, cross=True, strict=False):
     found = {"imports": set(), "names": set(), "features": set()}
     for path in changed:
         counts = not strict or follows(path)
+        narrow = edited is not None and not of_tests(path)
         if path in by_path:
-            if follows(path):
+            if follows(path) and narrow:
+                found["imports"] |= near(by_path[path], edited.get(path))
+            elif follows(path):
                 found["imports"] |= testers().get(by_path[path], set()) | asking(by_path[path])
             if of_tests(path) and counts:
                 found["names"] |= readers(path)
@@ -1340,12 +1540,16 @@ def ruled(changed, follows=everywhere, cross=True, strict=False):
             if counts:
                 found["names"] |= named
         else:
-            if SOURCE.match(path) and follows(path):
+            if SOURCE.match(path) and follows(path) and narrow:
+                found["imports"] |= set().union(*(near(one, None) for one in users(path)))
+            elif SOURCE.match(path) and follows(path):
                 found["imports"] |= test_files(importers(users(path)))
             if counts:
                 for one in {path} | includers(path):
                     found["names"] |= readers(one)
-        if counts:
+        if counts and edited is not None:
+            found["names"] |= globbers(path, near=True)
+        elif counts:
             found["names"] |= globbers(path)
     where = {} if strict else pages()
     for name in where:
@@ -1392,13 +1596,14 @@ def tests_alone(changed):
     )
 
 
-def selection(changed, failed=()):
+def selection(changed, failed=(), edited=None):
     """`(tests, why)`: the sorted test files the changed paths need, or `["all"]`, and for
     each cause the sorted files it selected, or the path that forced `all`. They are what the
     rules select, the test files no rule owns (`catch-all`), and the `failed` test files that
     the check runs. `why["added"]` lists the failed ones nothing else selected. A change of the
-    tests alone selects only what its imports and names reach, and the cross-cutting tests."""
-    tests, why = ruled(changed)
+    tests alone selects only what its imports and names reach, and the cross-cutting tests.
+    With `edited`, imports reach as on a pull request's check (`ruled`)."""
+    tests, why = ruled(changed, edited=edited)
     if tests == ["all"]:
         return tests, why
     if tests_alone(changed):
@@ -1891,6 +2096,8 @@ def main(argv):
         print("\n".join(failed_on_main(int(argv[1]), Path(argv[2]))))
         return
     listed = count = cut = None
+    pull_request = argv[:1] == ["--pull-request"]
+    argv = argv[1:] if pull_request else argv
     strict = argv[2:3] == ["--strict"] and argv[:1] == ["--within"] and len(argv) == 5
     if strict:
         argv = argv[:2] + argv[3:]
@@ -1900,9 +2107,10 @@ def main(argv):
         count, argv = int(argv[1]), argv[2:]
     elif argv[:1] == ["--part"] and len(argv) == 4 and argv[1] in DESK_PARTS:
         cut, argv = argv[1], argv[2:]
-    if len(argv) != 2:
+    if len(argv) != 2 or pull_request and (listed or cut):
         sys.exit(
-            "usage: select_tests.py [--within <list> [--strict] | --parts <n>] <base> <head>\n"
+            "usage: select_tests.py [--within <list> [--strict] | [--pull-request] [--parts <n>]]"
+            " <base> <head>\n"
             "       select_tests.py --part guards|rest|touched <base> <head>\n"
             "       select_tests.py --failed-on-main <days> <kept>"
         )
@@ -1932,7 +2140,8 @@ def main(argv):
     failed = os.environ.get(FAILED_ON_MAIN)
     failed = None if failed is None else failed.split()
     try:
-        tests, why = selection(changed, failed or ())
+        edited = edits(*argv, changed) if pull_request else None
+        tests, why = selection(changed, failed or (), edited)
     except Unread as error:
         print(f"select_tests.py: nothing can be read ({error}), so all", file=sys.stderr)
         tests, why = ["all"], {"forced-by": "unread"}

@@ -14,6 +14,7 @@ import jbus
 import test_tool_calls as tools
 from jbus import passes, poll, queue, wake
 from jmerge import judgement
+from scoped import scope
 from test_jbus_kitchen import GO, NOW, PROJECT, QUARTER_PAST_FIVE, RAN, RESULT, SAID, Kitchen
 from test_machine_sizes import fake_proc
 
@@ -40,8 +41,7 @@ NO_SHA = (
 def kitchen(tmp_path, monkeypatch):
     made = Kitchen(tmp_path, monkeypatch)
     made.word()
-    (made.home / "flow").mkdir()
-    (made.home / "flow" / "home-id").write_text("mcp:flow-home\n")
+    scope(made.home, "flow", "mcp:flow-home")
     yield made
     made.close()
 

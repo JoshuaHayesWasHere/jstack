@@ -232,6 +232,7 @@ def test_each_home_counts_its_rows_in_check_as_failing_running_or_queued_and_pas
     scene = Scene(tmp_path, monkeypatch)
     in_check(scene, ["failed", "failed", "passed", "failed", "pending", "none"])
     (scene.home / SHELF).mkdir()
+    (scene.home / SHELF / "plan.md").write_text("# a plan\n")
     (scene.home / SHELF / "home-id").write_text("mcp:shelf\n")
     (scene.home / "tasks").mkdir(exist_ok=True)
     for slug, _, _ in IN_CHECK[:3]:

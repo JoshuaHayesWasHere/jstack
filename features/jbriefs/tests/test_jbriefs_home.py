@@ -2,8 +2,8 @@
 
 `uncategorized` is the catch-all scope. A brief with no `Home:` line, `Home: root`, a root id, a
 name that is no scope, or a scope whose plan `/handoff` archived, belongs to it, made or not. A
-scope is a directory with a `plan.md` (what the home skill makes and `/home <scope>` starts) or
-ids (`home-id`, `Was home:`), and not one whose plan is archived: the two marks agree.
+scope is a directory with a `plan.md` (what the home skill makes and `/home <scope>` starts),
+whether or not it has ids (`home-id`, `Was home:`) yet, so one whose plan is archived is none.
 The catch-all is named without a read of the root's ids or of any scope, and a brief that
 names a scope still finds it.
 """
@@ -99,6 +99,7 @@ def counted(tmp_path, monkeypatch):
     (tmp_path / "home-id").write_text("root-thread\n")
     for name in ("aa", "bb", "cc"):
         (tmp_path / name).mkdir()
+        (tmp_path / name / "plan.md").write_text("# plan\n")
         (tmp_path / name / "home-id").write_text(f"{name}-thread\n")
     reads = []
     real = pathlib.Path.read_text

@@ -86,6 +86,7 @@ def test_the_kinds_are_in_state_json_as_the_page_shows_them_and_an_added_kind_wi
         "config",
         "held",
         "github",
+        "stalled",
     ]
     assert {one["name"]: one["verb"] for one in kinds}["gate"] == "Accept default"
     added = waiting.Kind("chore", "Chores for you", "Do it", 9)
@@ -222,6 +223,9 @@ def test_a_retired_scopes_gates_wait_on_nobody_and_a_file_gate_stands_until_its_
     homes = {name: scene.home / name for name in ("shelf", "old-shelf", "back-shelf")}
     for name, where in homes.items():
         where.mkdir()
+        (where / ("plan-archived.md" if name == "old-shelf" else "plan.md")).write_text(
+            "# a plan\n"
+        )
         if name != "shelf":
             (where / "handoff.md").write_text(CLOSED.format(name=name))
     (homes["shelf"] / "home-id").write_text("mcp:shelf\n")

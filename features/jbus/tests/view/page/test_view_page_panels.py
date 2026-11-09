@@ -160,6 +160,7 @@ def test_a_homes_drawer_names_its_scope_and_an_idle_home_is_a_row_in_progress(sc
     says it is the root's. A home that ended with a task of its own open is a row of In
     progress that says it is idle."""
     (scene.home / "second").mkdir()
+    (scene.home / "second" / "plan.md").write_text("# a plan\n")
     (scene.home / "second" / "home-id").write_text("mcp:home: demo second\n")
     (scene.home / "tasks").mkdir(exist_ok=True)
     (scene.home / "tasks" / "jam-jar.md").write_text("# jam-jar: a jar\nHome: second\n")

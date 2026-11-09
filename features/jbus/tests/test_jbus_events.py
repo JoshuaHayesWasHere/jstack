@@ -243,6 +243,7 @@ TABLE = {
     "expedite": "quiet",
     "heartbeat": "quiet",
     "queue": "quiet",
+    "move": "quiet",
     "sweep": "quiet",
     "reviewed": "quiet",
     "note": "quiet",

@@ -108,7 +108,7 @@ def test_the_new_repo_of_several_modules_passes_its_own_check(go_repo):
     for package in ("hello", "alpha/core", "alpha/extra", "beta/pricing", "beta/use"):
         assert f"ok  \texample.com/{package}" in out, out
     assert "conform repo-standard-v1" in out
-    assert "errors 0" in out
+    assert "errors 0, warnings 0" in out
 
 
 @needs_go
@@ -193,3 +193,19 @@ def test_the_go_config_differs_from_the_skeletons_only_in_the_stacks_parts():
     for config in (skeleton, adapter):
         del config["size"], config["comments"], config["owners"]["STACK"]
     assert adapter == skeleton
+
+
+@needs_go
+def test_make_test_writes_each_package_that_failed_or_did_not_build(go_repo, tmp_path):
+    root, env = go_repo
+    change(root, "features/alpha/core/core.go", "\nfunc init() { panic(1) }\n")
+    change(root, "features/beta/use/use.go", "\nconst Broken = undefined\n")
+    failed = tmp_path / "failed.txt"
+    report = {**env, "REPO_STANDARD_FAILED": str(failed)}
+    out = make(root, report, "test", ok=False)
+    assert "ok  \texample.com/alpha/extra" in out
+    assert sorted(failed.read_text().splitlines()) == ["features/alpha/core", "features/beta/use"]
+
+    failed.write_text("")
+    make(root, report, "test", "TESTS=features/alpha/extra features/beta/pricing")
+    assert failed.read_text() == ""

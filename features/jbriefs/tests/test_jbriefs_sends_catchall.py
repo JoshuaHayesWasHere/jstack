@@ -18,6 +18,7 @@ def state(tmp_path):
     (tmp_path / "tasks").mkdir()
     (tmp_path / "flow").mkdir()
     (tmp_path / "home-id").write_text(f"{ROOT}\n")
+    (tmp_path / "flow" / "plan.md").write_text("# plan\n")
     (tmp_path / "flow" / "home-id").write_text(f"{FLOW}\n")
     (tmp_path / "tasks" / "alpha.md").write_text(f"# alpha\nHome: root\nThread: {CREW}\n")
     return tmp_path

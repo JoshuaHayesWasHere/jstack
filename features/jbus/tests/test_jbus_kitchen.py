@@ -33,6 +33,8 @@ from pathlib import Path
 import pytest
 
 import jbus
+import jbus.passes
+import jbus.questions
 import jsettings
 import origin_tips
 import repo_template
@@ -1005,6 +1007,13 @@ class Kitchen:
                 code = stopped.code
         return code, out.getvalue()
 
+    def raises(self, slug, lines, project="demo"):
+        """Keep `lines` as `slug`'s question as a pass raises one: `jbus gate` asks nothing of a
+        crew's or a scout's gate with no `Holds:` line. Return the record and whether it is new."""
+        config = jbus.load()
+        run = jbus.passes.Pass(config, config.project(project), jbus.questions.datetime.now(UTC))
+        return jbus.questions.park(run, slug, lines.strip())
+
     def marks(self):
         return jbus.read_json(self.state / "wake.json", {})
 
@@ -1196,7 +1205,7 @@ def test_an_answer_into_a_capped_thread_is_held_then_sent_once_after_the_reset(k
     kitchen.brief("alpha", f"Thread: {crew['threadId']}\n")
     kitchen.quiet()
     asked = GATE.format(n="<n>", asked="tea or coffee?", status="open", slug="alpha")
-    assert kitchen.main("gate", "alpha", stdin=asked)[0] == 0
+    assert kitchen.raises("alpha", asked)[1]
     said = ("--by", "user", "--at", "2026-10-12 11:00 ET", "--differs", "coffee")
     assert kitchen.main("answer", "1", *said)[0] == 0
     resets = NOW + timedelta(minutes=40)

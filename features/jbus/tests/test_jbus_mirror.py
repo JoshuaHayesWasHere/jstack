@@ -106,7 +106,9 @@ def test_a_gate_inside_a_result_does_not_end_the_result(kitchen):
 def test_a_gate_piped_to_jbus_and_written_in_the_brief_goes_once(kitchen):
     brief = kitchen.brief("alpha")
     kitchen.quiet()
-    lines = GATE.format(n="<n>", asked="which way?", status="open", slug="alpha")
+    lines = GATE.format(n="<n>", asked="which way?", status="open", slug="alpha").replace(
+        "Undo: pick the other\n", "Undo: pick the other\nHolds: publishes\nFail-safe: dist/a.whl\n"
+    )
     assert (
         kitchen.main("gate", "alpha", stdin=lines)[1]
         == "asked: queued: question 1\nGate: question 1\n"

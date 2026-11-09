@@ -304,10 +304,11 @@ class Counter:
         return view.App(sources, clock=lambda: POLLED)
 
     def asks(self, asked="tea or coffee?"):
+        """Keep alpha's question as a pass raises one: `jbus gate` writes a gate of a crew's row
+        with no `Holds:` line to its brief as a decision."""
         lines = PIPED.format(n="<n>", asked=asked, status="open", slug="alpha")
-        code, said = self.kitchen.main("gate", "alpha", stdin=lines)
-        assert code == 0, said
-        return int(said.split()[-1])
+        one, _ = self.kitchen.raises("alpha", lines)
+        return one.number
 
     def sends(self):
         """Each message the server asked the stand-in for T3 Code to send, taken or not."""

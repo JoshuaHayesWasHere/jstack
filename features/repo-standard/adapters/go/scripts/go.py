@@ -9,6 +9,12 @@ folder from the repo's root, such as `features/alpha/core`, and the package is o
   each module, and fails when gofmt names a file.
 - `python3 scripts/go.py test [ids]` runs `go test ./...` in each module, or, given ids, `go test`
   on those packages, a run per module. It runs every module before it fails.
+  Given `REPO_STANDARD_FAILED=<file>`, it runs `go test -json`, prints the output each event
+  carries, and appends to the file each package an event says failed (`"Action":"fail"` with no
+  test), one a line, as `list` prints it: a package that fails to build fails too. A module whose
+  run fails and names no package appends every package it ran.
+- `python3 scripts/go.py list` prints every test id, one a line, sorted: the whole suite, which
+  `make test SHARD=<part>/<parts>` deals out to the parts.
 - `python3 scripts/go.py select <base>` prints the test ids the change from `<base>` reaches, one a
   line, or `all`. It reads each path that differs between `<base>` and the working tree, and each
   file git does not track yet, and adds up what each selects:
@@ -35,6 +41,7 @@ from __future__ import annotations
 
 import fnmatch
 import json
+import os
 import posixpath
 import re
 import subprocess
@@ -47,6 +54,7 @@ SHARED_FOLDERS = ("scripts/", ".github/", "schemas/")
 ALL = "all"
 FEATURES = "features"
 LOCAL = re.compile(r"^\.{1,2}(?:/|$)")
+MODULE = re.compile(r"^module\s+\"?([^\s\"]+)", re.MULTILINE)
 
 
 def skipped(name: str) -> bool:
@@ -201,19 +209,61 @@ def lint(layout: Layout) -> int:
     return failed
 
 
+def failed_packages(events: str, module: str) -> list[str]:
+    """The ids of the packages `go test -json` says failed, from the repo's root, given the
+    module's folder: an event's `Package` is an import path under the module's path."""
+    text = Path(module, "go.mod").read_text(encoding="utf-8", errors="replace")
+    found = MODULE.search(text)
+    path = found[1] if found else ""
+    failed = []
+    for line in events.splitlines():
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(event, dict) or event.get("Action") != "fail" or event.get("Test"):
+            continue
+        package = event.get("Package") or ""
+        if package != path and not package.startswith(f"{path}/"):
+            continue
+        inner = package[len(path) + 1 :]
+        one = posixpath.normpath(posixpath.join(module, inner)) if inner else module
+        if one not in failed:
+            failed.append(one)
+    return failed
+
+
 def test(layout: Layout, ids: list[str]) -> int:
+    ids = [posixpath.normpath(one) for one in ids]
     runs: dict[str, list[str]] = {module: ["./..."] for module in layout.modules} if not ids else {}
     for one in ids:
-        one = posixpath.normpath(one)
         module = layout.module_of(one)
         if module is None:
             print(f"go.py: {one} is in no Go module", file=sys.stderr)
             return 2
         inner = one if module == "." else one[len(module) + 1 :]
         runs.setdefault(module, []).append(f"./{inner}" if inner else ".")
+    report = os.environ.get("REPO_STANDARD_FAILED")
     failed = 0
     for module in sorted(runs):
-        failed |= run(["go", "test", *runs[module]], module) != 0
+        if not report:
+            failed |= run(["go", "test", *runs[module]], module) != 0
+            continue
+        command = ["go", "test", "-json", *runs[module]]
+        print(f"{module}: {' '.join(command)}", flush=True)
+        done = subprocess.run(command, cwd=module, capture_output=True, text=True)
+        for line in done.stdout.splitlines():
+            try:
+                print(json.loads(line).get("Output") or "", end="")
+            except (ValueError, AttributeError):
+                print(line)
+        print(done.stderr, end="", file=sys.stderr, flush=True)
+        if done.returncode:
+            failed = 1
+            ran = [one for one in ids if layout.module_of(one) == module]
+            named = failed_packages(done.stdout, module) or ran or sorted(layout.packages[module])
+            with open(report, "a", encoding="utf-8") as out:
+                out.write("".join(f"{one}\n" for one in named))
     return failed
 
 
@@ -228,10 +278,11 @@ def split_roots(argv: list[str]) -> tuple[list[str] | None, list[str]]:
 
 def main(argv: list[str]) -> int:
     usage = (
-        "usage: go.py lint | go.py test [ids] | go.py select <base>, each verb then [--roots R]..."
+        "usage: go.py lint | go.py test [ids] | go.py list | go.py select <base>,"
+        " each verb then [--roots R]..."
     )
     roots, argv = split_roots(argv)
-    if not argv or argv[0] not in ("lint", "test", "select"):
+    if not argv or argv[0] not in ("lint", "test", "list", "select"):
         print(usage, file=sys.stderr)
         return 2
     command, rest = argv[0], argv[1:]
@@ -246,6 +297,10 @@ def main(argv: list[str]) -> int:
                 print(line)
             return 0
         layout = Layout(files(), roots)
+        if command == "list":
+            for one in sorted(one for found in layout.packages.values() for one in found):
+                print(one)
+            return 0
     except subprocess.CalledProcessError as error:
         print(f"go.py: git cannot read the tree: {error.stderr.strip()}", file=sys.stderr)
         return 2

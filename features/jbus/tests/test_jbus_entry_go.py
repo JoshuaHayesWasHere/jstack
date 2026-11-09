@@ -131,8 +131,9 @@ def test_a_row_whose_brief_changed_after_it_was_queued_launches_on_the_entry_go(
     assert plan_go(kitchen)[0] == 0
     queued(kitchen, "alpha", text=widened("alpha"))
     kitchen.poll()
-    assert [launch["title"] for launch in kitchen.t3.launches] == ["crew: alpha"]
-    assert "One more line." in kitchen.t3.launches[0]["message"]
+    assert crews(kitchen) == ["crew: alpha"]
+    (launch,) = [one for one in kitchen.t3.launches if one["title"] == "crew: alpha"]
+    assert "One more line." in launch["message"]
 
 
 def test_a_row_queued_before_the_go_is_approved_on_the_next_pass(kitchen):
@@ -141,7 +142,7 @@ def test_a_row_queued_before_the_go_is_approved_on_the_next_pass(kitchen):
     assert plan_go(kitchen)[0] == 0
     kitchen.poll()
     assert basis(kitchen, "alpha") == (queue.ENTRY, "epic")
-    assert [launch["title"] for launch in kitchen.t3.launches] == ["crew: alpha"]
+    assert crews(kitchen) == ["crew: alpha"]
 
 
 def test_a_go_for_an_entry_with_no_row_is_refused_and_keeps_no_go(kitchen):
@@ -152,7 +153,7 @@ def test_a_go_for_an_entry_with_no_row_is_refused_and_keeps_no_go(kitchen):
     queued(kitchen, "alpha")
     kitchen.poll()
     assert basis(kitchen, "alpha") == ()
-    assert kitchen.t3.launches == []
+    assert crews(kitchen) == []
 
 
 def test_a_message_that_is_not_the_users_own_gives_no_go(kitchen):
@@ -197,7 +198,7 @@ def test_a_go_that_ends_leaves_an_unlaunched_row_waiting_and_a_launched_one_goin
     assert basis(kitchen, "alpha") == ()
     assert not rows(kitchen)["alpha"].get("held")
     assert basis(kitchen, "beta") == (queue.ENTRY, "epic")
-    assert "crew: alpha" not in [launch["title"] for launch in kitchen.t3.launches]
+    assert "crew: alpha" not in crews(kitchen)
     queued(kitchen, "gamma")
     assert basis(kitchen, "gamma") == ()
 
@@ -265,12 +266,12 @@ def test_under_silence_a_gated_s_row_is_approved_after_the_window_and_not_before
     kitchen.poll(NOW + timedelta(minutes=29))
     assert basis(kitchen, "alpha") == ()
     assert waits_on_user(kitchen) == [f"gate:q{number}"]
-    assert kitchen.t3.launches == []
+    assert crews(kitchen) == []
     kitchen.poll(NOW + timedelta(minutes=31))
     assert basis(kitchen, "alpha") == ("answer", str(number))
     made = rows(kitchen)["alpha"]["approval"]
     assert made["closed_by"] == questions.SILENCE
-    assert [launch["title"] for launch in kitchen.t3.launches] == ["crew: alpha"]
+    assert crews(kitchen) == ["crew: alpha"]
 
 
 def test_under_silence_a_row_that_follows_a_row_silence_started_waits(kitchen):
@@ -332,7 +333,7 @@ def test_under_silence_the_users_answer_that_keeps_a_go_gates_default_starts_its
     assert basis(kitchen, "beta") == ("answer", str(second))
     assert "closed_by" not in rows(kitchen)["alpha"]["approval"]
     kitchen.poll(NOW + timedelta(minutes=5))
-    assert "crew: alpha" in [launch["title"] for launch in kitchen.t3.launches]
+    assert "crew: alpha" in crews(kitchen)
 
 
 def test_under_silence_a_unit_of_a_row_silence_started_is_approved_by_the_follow_up_rule(
@@ -536,3 +537,9 @@ def test_an_entry_whose_live_row_waits_on_depends_raises_nothing(jview):
     kitchen.poll(NOW)
     assert owed_wakes(kitchen, scoped) == owed_wakes(kitchen, root) == []
     assert not any(line.startswith("out entry ") for line in out(kitchen))
+
+
+def crews(kitchen):
+    """The title of each launch of a row's thread, leaving out the catch-all's home that the
+    pass keeps running beside them."""
+    return [one["title"] for one in kitchen.t3.launches if not one["title"].startswith("home: ")]

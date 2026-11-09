@@ -46,7 +46,7 @@ MUTANTS = {
     "beside": ('found["imports"] |= test_files(importers(users(path)))', "pass"),
     "spelled": ('found["names"] |= readers(one)', "pass"),
     "included": ("for one in {path} | includers(path):", "for one in {path}:"),
-    "skill-index": ("for word in reaches(name)}", "for word in ()}"),
+    "skill-index": ("for word in reaches(name):", "for word in ():"),
     "fixture": ('found["names"] |= named', "pass"),
     "read-set": ('found["names"] |= globbers(path)', "pass"),
     "tests-line": ('found["features"] |= set(listed_tests)', "pass"),

@@ -208,6 +208,8 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
     elif args.verb == "rename":
         at, by = config.user.stamp(queue.clock()), queue.who(queue.runner())
         print(queue.rename(state, args.slug, args.new, at, by, _asks(config, project)))
+    elif args.verb == "move":
+        _move(config, project, args.slug, args.to)
     try:
         table = queue.shown(queue.load(state), args.verb == "show" and args.all)
         if args.verb == "show":
@@ -236,6 +238,22 @@ def _went(
     with acts.locked(run.state, acts.LOCK):
         acts.logged(run, party.HOME, action, evidence, "done", line)
     waiting.acted(run, "go", slug)
+
+
+def _move(config: jbus.Config, project: jbus.Project, slug: str, scope: str) -> None:
+    """`jbus queue move`: give the row to the scope's home (`queue.move`), carry a fix's tries to
+    that home's ledger (`blockers.rehome`), and log the move as one quiet `move` event. The carry
+    runs on a move that moved nothing too, so a move cut short before it finishes when run again."""
+    state, home = config.state(project), config.home(project)
+    at, by = config.user.stamp(queue.clock()), queue.who(queue.runner())
+    made = queue.move(state, home, slug, scope, at, by)
+    print(made.line)
+    blockers.rehome(home, slug, made.text)
+    if not made.moved:
+        return
+    row = queue.fresh(state, slug)
+    shown = queue.render([row]) if row else ""
+    wake.Box(state, project).send(slug, "move", f"queue {project.name}: {made.line}", shown)
 
 
 def _warn(config: jbus.Config, project: jbus.Project, slug: str, text: str) -> None:
@@ -434,6 +452,19 @@ def _table(table: argparse.ArgumentParser) -> None:
     )
     rename.add_argument("slug")
     rename.add_argument("new", help="the new slug; the old one is retired")
+    move = table_verbs.add_parser(
+        "move",
+        help="give a row to another child home, with its go: rewrites its brief's Home: line",
+        allow_abbrev=False,
+    )
+    move.add_argument("slug")
+    move.add_argument(
+        "--home",
+        dest="to",
+        required=True,
+        metavar="SCOPE",
+        help="the scope whose home takes the row; never root",
+    )
     table_verbs.add_parser("apply", help="a batch of the four verbs on stdin, all or none")
     verify = table_verbs.add_parser(
         "verify",

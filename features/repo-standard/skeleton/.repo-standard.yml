@@ -10,6 +10,7 @@ owners:
     - .repo-standard.yml
     - .gitignore
     - Makefile
+    - local.mk
     - README.md
     - "schemas/**"
     - "scripts/**"

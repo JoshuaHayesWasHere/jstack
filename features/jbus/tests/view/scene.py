@@ -944,6 +944,8 @@ def homed(scene):
     (scene.home / "home-id").write_text("mcp:root\n")
     for name in (SHELF, RACK, OLD):
         (scene.home / name).mkdir()
+    for name in (SHELF, RACK):
+        (scene.home / name / "plan.md").write_text(f"# demo, {name}: plan\n")
     (scene.home / SHELF / "home-id").write_text("mcp:shelf\n")
     (scene.home / RACK / "home-id").write_text("mcp:rack\n")
     (scene.home / OLD / "handoff.md").write_text("Status: retired\n")
@@ -1042,13 +1044,14 @@ def slots(scene, monkeypatch, held, total=4):
 
 def briefed(scene, home=None, **homes):
     """A brief in the home's `tasks/` for each slug, with a `Home:` line where one is named, and
-    each scope named, made a home by its `home-id`."""
+    each scope named, made a scope by its `plan.md` and a running home by its `home-id`."""
     where = scene.home if home is None else home
     (where / "tasks").mkdir(exist_ok=True)
     for slug, named in homes.items():
         slug = slug.replace("_", "-")
         if named:
             (where / named).mkdir(exist_ok=True)
+            (where / named / "plan.md").write_text(f"# demo, {named}: plan\n")
             (where / named / "home-id").write_text(f"mcp:{named}\n")
         line = f"Home: {named}\n" if named else ""
         (where / "tasks" / f"{slug}.md").write_text(f"# {slug}: a made-up task\n{line}Task: x\n")

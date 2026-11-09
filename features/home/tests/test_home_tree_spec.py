@@ -186,12 +186,12 @@ def test_retire_hands_over_a_child_archived_with_its_crew_out_to_uncategorized(r
 
 
 def test_stall_flagged_a_quiet_child_with_its_crew_out_is_flagged(kitchen):
-    """StallFlagged and FirstStrike, along bug 2 of the chart. 1. The root makes child a: the
+    """StallFlagged and StallOnNeeds, along bug 2 of the chart. 1. The root makes child a: the
     root home and the scope `sc` each have a home thread, and the child's has written nothing
     for six hours. 2. Child a launches a crew: a pass launches the scope's approved row, and its
     crew then writes nothing more. 3. The root's check runs: once the child and its crew have
-    been quiet for the child's patience, a pass nudges the child's home thread, and the user
-    hears of it at once, an alert of the project's that the one list carries to the root home."""
+    been quiet for the child's patience, a pass nudges the child's home thread, and sends the
+    root's thread nothing of it: a stall reaches the user on `jbus needs` and through no home."""
     from test_jbus_kitchen import NOW
     from test_jbus_leftover import home
     from test_jbus_queue import add, brief
@@ -210,8 +210,8 @@ def test_stall_flagged_a_quiet_child_with_its_crew_out_is_flagged(kitchen):
     assert [one for one in sends(kitchen) if one["threadId"] in (root, child)] == []
     kitchen.poll(NOW + PATIENCE + timedelta(minutes=1))
     went = {one["threadId"]: one["message"] for one in sends(kitchen)}
-    assert set(went) == {child, root}
-    assert "home-stall sc: " in went[root] and "jbus nudged it" in went[root]
+    assert "has done nothing jbus can see" in went[child]
+    assert root not in went
 
 
 @pytest.fixture

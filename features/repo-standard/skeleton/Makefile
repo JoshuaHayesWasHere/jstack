@@ -1,10 +1,11 @@
 # The targets of the repo standard, the same in every stack:
 # https://github.com/JoshuaHayesWasHere/jstack/blob/main/features/repo-standard/docs/skeleton.md
-# scripts/stack.mk, from the stack's adapter, fills in the commands: STACK_LINT, STACK_TEST and
-# STACK_SELECT. A repo of several stacks sets `stacks:` in .repo-standard.yml instead, and the
-# standard's driver runs each stack over its own roots and joins them. The standard's guards run
+# scripts/stack.mk, from the stack's adapter, fills in the commands: STACK_LINT, STACK_TEST,
+# STACK_SELECT and STACK_LIST. A repo of several stacks sets `stacks:` in .repo-standard.yml
+# instead, and the standard's driver runs each stack over its own roots and joins them. The standard's guards run
 # from jstack at the tag .repo-standard.yml pins, cloned once into .cache/, with no tool but git
-# and python3.
+# and python3. The standard's version owns this file, so the repo's own targets, such as a deploy
+# entry, go in local.mk, included at the end when it is there.
 STANDARD := $(shell sed -n 's/^standard:[[:space:]]*\([0-9][0-9]*\).*/\1/p' .repo-standard.yml)
 REPO_STANDARD_UPSTREAM ?= https://github.com/JoshuaHayesWasHere/jstack
 REPO_STANDARD_HOME := .cache/repo-standard-v$(STANDARD)
@@ -13,17 +14,30 @@ REPO_STANDARD := PYTHONPATH=$(REPO_STANDARD_HOME)/features/repo-standard/src pyt
 ifneq ($(shell sed -n '/^stacks:/p' .repo-standard.yml),)
 STACK_LINT = $(REPO_STANDARD) stacks lint
 STACK_TEST = $(REPO_STANDARD) stacks test
+STACK_SHARD = $(REPO_STANDARD) stacks test --shard '$(SHARD)'
 STACK_SELECT = $(REPO_STANDARD) stacks select
-test select: | $(REPO_STANDARD_HOME)
+test select e2e: | $(REPO_STANDARD_HOME)
 else
 include scripts/stack.mk
+STACK_SHARD = $(if $(STACK_LIST),,$(error scripts/stack.mk sets no STACK_LIST, which SHARD needs)) \
+	ids=$$($(STACK_LIST)) || exit 1; \
+	part=$$(printf '%s\n' "$$ids" | $(DEAL)) || exit 2; \
+	if [ -z "$$part" ]; then echo 'part $(SHARD) of the suite is dealt no test'; exit 0; fi; \
+	echo $(STACK_TEST) $$part; $(STACK_TEST) $$part
 endif
 
-# `make test TESTS=<ids>` runs only those tests. TESTS stays out of the environment, where a make
-# that a test runs would take it for its own.
-unexport TESTS
+# `make test TESTS=<ids>` runs only those tests, and `make test SHARD=<part>/<parts>` with no TESTS
+# runs that part of the whole suite: the ids the stack lists, dealt to the parts in turn, as the
+# shared check deals a selection. Neither reaches a test, through its environment or through the
+# MAKEFLAGS a make it runs reads, where that make would take them for its own.
+unexport TESTS SHARD
+MAKEOVERRIDES :=
+DEAL = awk -v shard='$(SHARD)' 'BEGIN { split(shard, s, "/"); k = s[1] + 0; n = s[2] + 0; \
+	if (shard !~ /^[0-9]+\/[0-9]+$$/ || k < 1 || k > n) { \
+	print "SHARD " shard " is not <part>/<parts>, with 1 <= part <= parts" > "/dev/stderr"; exit 2 } } \
+	NF && (++i - k) % n == 0'
 
-.PHONY: lint test check select check-fast borders generate
+.PHONY: lint test check select check-fast e2e borders generate
 
 $(REPO_STANDARD_HOME):
 	git -c advice.detachedHead=false clone -q --depth 1 --branch 'repo-standard-v$(STANDARD)' '$(REPO_STANDARD_UPSTREAM)' '$@'
@@ -33,7 +47,11 @@ lint: | $(REPO_STANDARD_HOME)
 	$(REPO_STANDARD) conform --upstream '$(REPO_STANDARD_UPSTREAM)'
 
 test:
+ifeq ($(if $(TESTS),,$(SHARD)),)
 	$(STACK_TEST)$(if $(TESTS), $(TESTS))
+else
+	@$(STACK_SHARD)
+endif
 
 check: lint test
 
@@ -42,6 +60,13 @@ check: lint test
 select:
 	@test -n '$(BASE)' || { echo 'make select needs BASE=<ref>' >&2; exit 2; }
 	@$(STACK_SELECT) '$(BASE)'
+
+# The browser tests of each stack whose config sets `e2e:`: its npm script runs Playwright on the
+# app it builds and serves with a mocked API, never on a live stage, and a test that passes only on
+# a retry fails. `make e2e E2E_LIST=<file>` runs only the ids in the file, one a line, as `make
+# select` prints them.
+e2e:
+	$(REPO_STANDARD) stacks e2e$(if $(E2E_LIST), '$(E2E_LIST)')
 
 check-fast: lint
 	@test -n '$(BASE)' || { echo 'make check-fast needs BASE=<ref>' >&2; exit 2; }
@@ -63,3 +88,5 @@ borders: | $(REPO_STANDARD_HOME)
 # lint runs the same generators with --check, which fails on a stale file.
 generate:
 	python3 scripts/generate-index.py
+
+-include local.mk

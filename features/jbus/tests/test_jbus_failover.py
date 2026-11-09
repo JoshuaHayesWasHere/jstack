@@ -308,6 +308,7 @@ def mover(kitchen, who):
     home = kitchen.t3.thread("home", "failed", title="home: demo")
     where = kitchen.home if who == "home" else kitchen.home / "infra"
     where.mkdir(parents=True, exist_ok=True)
+    (where / "plan.md").write_text("# a plan\n")
     (where / "home-id").write_text(f"{home['threadId']} 2026-10-20\n")
     return home, "home"
 
