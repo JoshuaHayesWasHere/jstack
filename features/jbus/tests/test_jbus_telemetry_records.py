@@ -262,7 +262,8 @@ def test_review_rounds_keeps_each_round_once_with_its_verdict_and_counts(machine
 
 
 def test_the_queue_keeps_who_queued_each_row_and_the_message_its_go_rests_on(machine):
-    """A store built before `jbus.telemetry.migrations.v014_queue_joins` gains both columns on
+    """`jbus.telemetry.records` fills `queued_by_session` and `approval_message` for each basis,
+    and a store built before `jbus.telemetry.migrations.v014_queue_joins` gains both columns on
     its next build, and the queue's rows it already holds are read again to fill them."""
     home = {"directory": "/home/u/repo", "session": "home-session"}
     jbus = {"by": "jbus", "session": ""}
