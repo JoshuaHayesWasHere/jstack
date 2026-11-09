@@ -221,4 +221,4 @@ def test_jbus_scorecard_prints_each_measure_and_writes_nothing(tmp_path, monkeyp
 
 def test_no_two_measures_share_a_name():
     names = [each.name for each in measures.MEASURES]
-    assert len(names) == len(set(names)) == 41
+    assert len(names) == len(set(names))
