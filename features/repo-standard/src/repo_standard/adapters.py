@@ -8,6 +8,11 @@ take `--roots`, so each places only the paths under its stack's roots.
 - python-uv takes each root as a uv project of its own, whose `pyproject.toml` and `uv.lock` sit
   in the root and whose dev group holds pytest and ruff. pytest runs with the root as its rootdir
   and the root's `pyproject.toml` as its config, so the repo's own config never reaches it.
+- node-vite takes each root as an npm package of its own and runs the package's own scripts:
+  `npm run check` for the lint and `npm test` for the tests, each in the root, as `npm --prefix`
+  runs them. Given ids, a root runs `npm test -- <files>`, each a path from the root, and a root
+  the ids miss runs nothing. The selection, `scripts/node.py`, reads the import graph of
+  `scripts/node_graph.py`.
 """
 
 from __future__ import annotations
@@ -42,6 +47,21 @@ def _within(path: str, root: str) -> bool:
     return root == "." or path == root or path.startswith(f"{root}/")
 
 
+def _inner(path: str, root: str) -> str:
+    return path if root == "." else path[len(root) + 1 :]
+
+
+def _npm_test(roots: tuple[str, ...], ids: list[str]) -> list[Argv]:
+    runs = []
+    for root in roots:
+        mine = [_inner(one, root) for one in ids if _within(one, root)]
+        if not ids:
+            runs.append(["npm", "--prefix", root, "test"])
+        elif mine:
+            runs.append(["npm", "--prefix", root, "test", "--", *mine])
+    return runs
+
+
 def _pytest(roots: tuple[str, ...], ids: list[str]) -> list[Argv]:
     runs = []
     for root in roots:
@@ -71,5 +91,11 @@ COMMANDS: dict[str, Commands] = {
         test=_pytest,
         select=lambda roots, base: ["python3", "scripts/select.py", *_roots(roots), base],
         scripts=("scripts/select.py",),
+    ),
+    "node-vite": Commands(
+        lint=lambda roots: [["npm", "--prefix", root, "run", "check"] for root in roots],
+        test=_npm_test,
+        select=lambda roots, base: ["python3", "scripts/node.py", "select", *_roots(roots), base],
+        scripts=("scripts/node.py", "scripts/node_graph.py"),
     ),
 }
