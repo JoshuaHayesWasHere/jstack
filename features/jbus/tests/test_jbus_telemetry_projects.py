@@ -3,7 +3,9 @@ one project counts no other's.
 
 The test writes two projects' records as jbus writes them, builds the store with the real
 `jbus telemetry`, builds a second store from one project's records alone, and reads both with
-`sqlite3` as any reader would."""
+`sqlite3` as any reader would. It reads every `jbus.telemetry.views.weekly_*` module's view, among
+them `jbus.telemetry.views.weekly_merges`, whose counts it asserts, and
+`jbus.telemetry.views.weekly_needs_asks`."""
 
 import contextlib
 import sqlite3
