@@ -4,6 +4,7 @@ A playbook is the numbered steps for one kind of task, and nothing in `playbooks
 A brief names one playbook on its `Playbook:` line, such as `Playbook: bug-fix`, and a scout's request does the same.
 The thread that takes the brief works the playbook's steps in order, and reports a step it does not do as `skip: <reason>`.
 `Playbook: none`, or no line, means the thread works by its skill alone.
+A brief for an operation that changes no tracked file and opens no pull request, such as a cleanup, a tag or a setting, names `Playbook: operations` (`features/crew/playbooks/operations.md`), not `none`.
 Where a playbook and the skill disagree, the skill wins.
 
 A playbook is for one role, the one its `Run by:` line starts with: a crewmate, a scout, the home or an expert.
