@@ -2,7 +2,8 @@
 
 Each command is an argv run from the repo's root by `repo_standard.stacks`. An adapter's scripts
 sit in the repo's `scripts/`, copied from `features/repo-standard/adapters/<name>/scripts/`, and
-take `--roots`, so each places only the paths under its stack's roots.
+take `--roots`, so each places only the paths under its stack's roots. Each lists the stack's whole
+suite as ids, sorted, which `repo_standard.stacks` deals out to the parts of a sharded run.
 
 - go runs `scripts/go.py` once over all the stack's roots, each a folder of whole Go modules.
 - python-uv takes each root as a uv project of its own, whose `pyproject.toml` and `uv.lock` sit
@@ -38,6 +39,7 @@ class Commands:
     lint: Callable[[tuple[str, ...]], list[Argv]]
     test: Callable[[tuple[str, ...], list[str]], list[Argv]]
     select: Callable[[tuple[str, ...], str, E2E | None], Argv]
+    list: Callable[[tuple[str, ...]], Argv]
     scripts: tuple[str, ...]
     e2e: Callable[[E2E, str | None], Argv] | None = None
 
@@ -88,6 +90,7 @@ COMMANDS: dict[str, Commands] = {
         lint=lambda roots: [_go("lint", roots, [])],
         test=lambda roots, ids: [_go("test", roots, ids)],
         select=lambda roots, base, e2e: _go("select", roots, [base]),
+        list=lambda roots: _go("list", roots, []),
         scripts=("scripts/go.py",),
     ),
     "python-uv": Commands(
@@ -101,6 +104,7 @@ COMMANDS: dict[str, Commands] = {
         ],
         test=_pytest,
         select=lambda roots, base, e2e: ["python3", "scripts/select.py", *_roots(roots), base],
+        list=lambda roots: ["python3", "scripts/select.py", *_roots(roots), "--list"],
         scripts=("scripts/select.py",),
     ),
     "node-vite": Commands(
@@ -114,6 +118,7 @@ COMMANDS: dict[str, Commands] = {
             *(["--e2e", e2e.json()] if e2e else []),
             base,
         ],
+        list=lambda roots: ["python3", "scripts/node.py", "list", *_roots(roots)],
         scripts=(
             "scripts/node.py",
             "scripts/node_graph.py",

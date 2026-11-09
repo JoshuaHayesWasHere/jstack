@@ -9,7 +9,10 @@ repo's root and joins what they do.
   shell command run from the repo's root with this standard's `src` on `PYTHONPATH`, so that
   `python3 -m repo_standard routes` is the version the config pins. It fails when any failed.
 - `test` with no id runs every stack's whole suite. Given ids, it runs each path id in the stack
-  whose root holds it, and an id `stack:<name>` as that stack's whole suite.
+  whose root holds it, and an id `stack:<name>` as that stack's whole suite. `test --shard K/N`
+  runs part K of N of the whole suite: the ids each stack lists, stack by stack in the config's
+  order, dealt to the parts in turn as `repo_standard.plan.deal` deals a selection. A part dealt
+  no id runs nothing.
 - `select <base>` prints the ids the change from `<base>` reaches, one a line, or `all`. A shared
   path (`SHARED`, or anything under `SHARED_FOLDERS`) selects `all`, and so does a path outside
   every root, unless it is Markdown, a file in a feature's `docs/` or its `feature.json`. Each
@@ -32,6 +35,7 @@ from pathlib import Path, PurePosixPath
 
 from repo_standard.adapters import COMMANDS, Argv
 from repo_standard.config import Config, Refused, Stack
+from repo_standard.plan import deal, shard
 
 SHARED = {"Makefile", ".repo-standard.yml"}
 SHARED_FOLDERS = ("scripts/", ".github/", "schemas/")
@@ -109,7 +113,23 @@ def lint(config: Config) -> int:
     return failed
 
 
-def test(config: Config, ids: list[str]) -> int:
+def listed(config: Config) -> list[str]:
+    """Every test id of every stack, in the config's order of stacks."""
+    found = []
+    for name, one in config.stacks.items():
+        done = run(COMMANDS[one.adapter].list(one.roots), quiet=True)
+        if done.returncode != 0:
+            raise Refused(f"the list of stack {name} failed: {done.stderr.strip()}")
+        found += [line.strip() for line in done.stdout.splitlines() if line.strip()]
+    return found
+
+
+def test(config: Config, ids: list[str], part: tuple[int, int] | None = None) -> int:
+    if part is not None:
+        ids = list(deal(tuple(listed(config)), *part))
+        if not ids:
+            print(f"part {part[0]}/{part[1]} of the suite is dealt no test")
+            return 0
     runs = route(ids, config.stacks) if ids else {name: [] for name in config.stacks}
     failed = 0
     for name, mine in runs.items():
@@ -172,15 +192,20 @@ def e2e(config: Config, listed: str | None) -> int:
 
 def main(root: Path, config: Config, argv: list[str]) -> int:
     """The verb's exit code: 2 when the config has no stack or the verb cannot run."""
-    usage = "usage: repo-standard stacks lint | test [ids] | select <base> | e2e [<file>]"
+    usage = (
+        "usage: repo-standard stacks lint | test [ids] | test --shard K/N | select <base>"
+        " | e2e [<file>]"
+    )
     if not config.stacks:
         print("repo_standard stacks: the config sets no `stacks:`", file=sys.stderr)
         return 2
+    sharded = argv[:2] == ["test", "--shard"]
     if (
         not argv
         or argv[0] not in VERBS
         or (argv[0] == "select" and len(argv) != 2)
         or (argv[0] == "e2e" and len(argv) > 2)
+        or (sharded and len(argv) != 3)
     ):
         print(usage, file=sys.stderr)
         return 2
@@ -188,6 +213,8 @@ def main(root: Path, config: Config, argv: list[str]) -> int:
     try:
         if argv[0] == "lint":
             return lint(config)
+        if sharded:
+            return test(config, [], shard(argv[2]))
         if argv[0] == "test":
             return test(config, argv[1:])
         if argv[0] == "e2e":

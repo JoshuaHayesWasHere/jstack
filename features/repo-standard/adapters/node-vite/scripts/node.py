@@ -27,6 +27,11 @@ Given `--e2e <json>`, the stack's `e2e:` part, it also prints the Playwright tes
 reaches, as `node_browser` reads them, each in Playwright's test-list form, or `all` when the
 change forces every browser test.
 
+`python3 scripts/node.py list --roots <folder> [--roots <folder>]...` prints every unit test of the
+roots, one a line from the repo's root, sorted: the whole suite, which
+`make test SHARD=<part>/<parts>` deals out to the parts. A Playwright test is no unit test, and
+the browser job runs it.
+
 `python3 scripts/node.py e2e --root <folder> --script <name> [--list <file>]` runs the root's npm
 script, which runs Playwright, with `--fail-on-flaky-tests`, so a test that passes only on a retry
 fails. Given a list, the ids `select` printed, one a line, it passes them on as `--test-list`, each
@@ -229,6 +234,13 @@ def e2e(root: str, script: str, listed: str | None) -> int:
         Path(file.name).unlink()
 
 
+def listed(roots: list[str]) -> list[str]:
+    files = set(git("ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", *roots))
+    tests = [Root(root, files).is_test for root in roots]
+    found = [one for one in files if any(is_test(one) for is_test in tests)]
+    return sorted(one for one in found if Path(one).is_file())
+
+
 def node_version(root: str) -> str:
     """The file setup-node reads the root's Node version from, or nothing."""
     nvmrc = node_graph.join(root, ".nvmrc")
@@ -264,6 +276,7 @@ def options(argv: list[str], names: tuple[str, ...]) -> tuple[dict[str, list[str
 def main(argv: list[str]) -> int:
     usage = (
         "usage: node.py select --roots <folder> [--roots <folder>]... [--e2e <json>] <base>"
+        " | node.py list --roots <folder> [--roots <folder>]..."
         " | node.py e2e --root <folder> --script <name> [--list <file>] | node.py setup"
     )
     if argv == ["setup"]:
@@ -275,12 +288,13 @@ def main(argv: list[str]) -> int:
             print(usage, file=sys.stderr)
             return 2
         return e2e(found["root"][0], found["script"][0], (found.get("list") or [None])[-1])
-    if not argv or argv[0] != "select":
+    if not argv or argv[0] not in ("select", "list"):
         print(usage, file=sys.stderr)
         return 2
-    found, rest = options(argv[1:], ("roots", "e2e"))
+    verb = argv[0]
+    found, rest = options(argv[1:], ("roots", "e2e") if verb == "select" else ("roots",))
     roots = [posixpath.normpath(one) for one in found.get("roots", [])]
-    if len(rest) != 1 or not roots or len(found.get("e2e", [])) > 1:
+    if len(rest) != (1 if verb == "select" else 0) or not roots or len(found.get("e2e", [])) > 1:
         print(usage, file=sys.stderr)
         return 2
     try:
@@ -288,14 +302,10 @@ def main(argv: list[str]) -> int:
     except ValueError:
         print(usage, file=sys.stderr)
         return 2
-    argv = rest
     try:
-        selection = select(roots, argv[0], part)
+        selection = select(roots, rest[0], part) if verb == "select" else listed(roots)
     except subprocess.CalledProcessError as error:
-        print(
-            f"node.py: git cannot read the change from {argv[0]}: {error.stderr.strip()}",
-            file=sys.stderr,
-        )
+        print(f"node.py: git cannot read the tree: {error.stderr.strip()}", file=sys.stderr)
         return 2
     for line in selection:
         print(line)

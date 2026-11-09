@@ -9,6 +9,8 @@ folder from the repo's root, such as `features/alpha/core`, and the package is o
   each module, and fails when gofmt names a file.
 - `python3 scripts/go.py test [ids]` runs `go test ./...` in each module, or, given ids, `go test`
   on those packages, a run per module. It runs every module before it fails.
+- `python3 scripts/go.py list` prints every test id, one a line, sorted: the whole suite, which
+  `make test SHARD=<part>/<parts>` deals out to the parts.
 - `python3 scripts/go.py select <base>` prints the test ids the change from `<base>` reaches, one a
   line, or `all`. It reads each path that differs between `<base>` and the working tree, and each
   file git does not track yet, and adds up what each selects:
@@ -228,10 +230,11 @@ def split_roots(argv: list[str]) -> tuple[list[str] | None, list[str]]:
 
 def main(argv: list[str]) -> int:
     usage = (
-        "usage: go.py lint | go.py test [ids] | go.py select <base>, each verb then [--roots R]..."
+        "usage: go.py lint | go.py test [ids] | go.py list | go.py select <base>,"
+        " each verb then [--roots R]..."
     )
     roots, argv = split_roots(argv)
-    if not argv or argv[0] not in ("lint", "test", "select"):
+    if not argv or argv[0] not in ("lint", "test", "list", "select"):
         print(usage, file=sys.stderr)
         return 2
     command, rest = argv[0], argv[1:]
@@ -246,6 +249,10 @@ def main(argv: list[str]) -> int:
                 print(line)
             return 0
         layout = Layout(files(), roots)
+        if command == "list":
+            for one in sorted(one for found in layout.packages.values() for one in found):
+                print(one)
+            return 0
     except subprocess.CalledProcessError as error:
         print(f"go.py: git cannot read the tree: {error.stderr.strip()}", file=sys.stderr)
         return 2
