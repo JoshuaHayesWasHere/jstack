@@ -393,11 +393,10 @@ def test_a_waiver_until_the_pinned_version_warns_that_it_is_due(repo, capsys):
 
 def test_an_owned_file_that_differs_or_is_gone_warns(repo, capsys, tmp_path):
     """The repo made from the skeleton keeps its owned files as they are, but for the runner's
-    labels in its caller, and conform warns of one changed and one gone."""
+    label in its caller, and conform warns of one changed and one gone."""
     skeleton = REPO / "features" / "repo-standard" / "skeleton"
     caller = (skeleton / ".github/workflows/check.yml").read_text()
     caller = caller.replace("runner: ubuntu-24.04", "runner: self-hosted-a")
-    caller = caller.replace("runs-on: ubuntu-24.04", "runs-on: self-hosted-a")
     write(
         repo,
         {

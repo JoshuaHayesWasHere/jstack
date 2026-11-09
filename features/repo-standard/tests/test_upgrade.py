@@ -30,6 +30,7 @@ from testing.paths import REPO
 LOCAL_MAKE = "\n-include local.mk\n"
 OWNS_LOCAL_MAKE = "    - Makefile\n    - local.mk\n"
 RUNNER = "self-hosted-builder"
+RUNS_ON = "${{ needs.standard.outputs.runner }}"
 
 
 def test_every_file_of_the_skeleton_and_each_adapter_has_a_kind():
@@ -119,14 +120,15 @@ def upstream(tmp_path_factory):
 
 @pytest.fixture
 def v1_repo(tmp_path, upstream):
-    """A repo made from v1's skeleton and python-uv adapter, on a runner of its own."""
+    """A repo made from v1's skeleton and python-uv adapter, on a runner of its own, written in
+    `runner:` and, as v1's caller had it, in the job check's `runs-on:`."""
     source, v1, _ = upstream
     root = tmp_path / "repo"
     shutil.copytree(v1 / "skeleton", root)
     shutil.copytree(v1 / "adapters" / ADAPTER.name, root, dirs_exist_ok=True)
     caller = root / ".github/workflows/check.yml"
     text = caller.read_text().replace("runner: ubuntu-24.04", f"runner: {RUNNER}")
-    caller.write_text(text.replace("runs-on: ubuntu-24.04", f"runs-on: {RUNNER}"))
+    caller.write_text(re.sub(r"(?m)^(\s*runs-on:).*$", rf"\1 {RUNNER}", text))
     env = {k: v for k, v in os.environ.items() if k not in INHERITED}
     env["REPO_STANDARD_UPSTREAM"] = str(source)
     make(root, env, "generate")
@@ -167,7 +169,7 @@ def test_a_repo_made_from_v1_passes_conform_at_v2_after_one_upgrade_and_one_lint
     assert OWNS_LOCAL_MAKE in config, config
     caller = (root / ".github/workflows/check.yml").read_text()
     assert "repo-standard-check.yml@repo-standard-v2" in caller
-    assert f"runner: {RUNNER}" in caller and f"runs-on: {RUNNER}" in caller
+    assert f"runner: {RUNNER}" in caller and f"runs-on: {RUNS_ON}" in caller
 
     (root / "local.mk").write_text("deploy-hello:\n\t@echo a target of the repo\n")
     assert make(root, env, "-s", "deploy-hello") == "a target of the repo\n"
@@ -223,7 +225,7 @@ def test_the_tools_own_upgrade_keeps_the_runner_and_gives_local_mk_an_owner(v1_r
     assert (root / "Makefile").read_text().endswith(LOCAL_MAKE)
     assert OWNS_LOCAL_MAKE in config.read_text()
     caller = (root / ".github/workflows/check.yml").read_text()
-    assert f"runner: {RUNNER}" in caller and f"runs-on: {RUNNER}" in caller
+    assert f"runner: {RUNNER}" in caller and f"runs-on: {RUNS_ON}" in caller
     main(["conform", "--root", str(root), "--upstream", ""])
     drift = "warn a-file-a-version-owns-is-that-versions-copy"
     assert not [line for line in capsys.readouterr().out.splitlines() if line.startswith(drift)]
