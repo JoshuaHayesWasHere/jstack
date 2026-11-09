@@ -18,10 +18,20 @@ counted text, by name, so it is the install's: a change to `SKILL.md`, to a play
 the install is, which a print names, gives a new hash. A build keeps a record when the hash is not
 the one of the latest record, and only then, so a store holds one record for each install it
 saw, in order, and an install that comes back after another is a record again.
+
+`starts` counts the same for each role, crew, reviewer, scout and home, against a budget in
+tokens: the files the role's start reads (`ROLES`), the largest print of `jbus playbook` for
+the role, and the skill listing a session is given, rebuilt from `skills.json`.
+`python -m jbus.telemetry.firstload --check`, which `make lint` runs, fails a role over its
+`BUDGET`, a budget more than 10% above its role's count, and a start file that is not there.
+The budget covers jstack's text only: the harness's system prompt and tool schemas, the user's
+own instructions file and the brief are not this repo's to bound.
 """
 
 from __future__ import annotations
 
+import argparse
+import ast
 import hashlib
 import json
 import sqlite3
@@ -129,3 +139,194 @@ def keep(connection: sqlite3.Connection, zone: tzinfo | None) -> int:
         ),
     )
     return 1
+
+
+ROLES = {
+    "crew": ("crewmate", ("features/crew/SKILL.md",)),
+    "reviewer": ("reviewer", ("features/pr-review/SKILL.md", "features/pr-review/the-review.md")),
+    "scout": ("scout", ("features/scout/SKILL.md",)),
+    "home": (
+        "home",
+        tuple(
+            f"features/home/skills/home/{name}.md"
+            for name in (
+                "SKILL",
+                "when-a-home-starts",
+                "clearing-its-own-blockers",
+                "gates",
+                "merging-a-pull-request-that-is-ready",
+            )
+        ),
+    ),
+}
+"""Each role's `jbus playbook` role and the files its start reads before its first act: the
+skill the slash command expands and the files it reads at every start, by the paths each role
+named in the first tool calls of its sessions."""
+
+BUDGET = {
+    "crew": 10_000,
+    "reviewer": 19_500,
+    "scout": 9_500,
+    "home": 35_000,
+}
+"""The most tokens of jstack's own text each role may start with. It is raised on purpose, by a
+pull request that edits this table, and lowered when a cut leaves more than `SLACK` above the
+count."""
+
+CHARACTERS = (29, 10)
+"""A token is 2.9 characters, as numerator and denominator: the first calls the store measured
+since 2026-11-08 hold 2.90 to 2.95 characters a token, by role."""
+
+SLACK = (11, 10)
+"""How far above a role's count its budget may be, 10%, so a cut lowers the budget with it."""
+
+INSTALL = "/home/user/.local/share/jstack/green.d/" + "0" * 40
+"""The root a print's paths are counted at: an install's, the same on every machine, in place
+of the checkout's, which is as long as the path the checkout happens to sit at."""
+
+
+@dataclass(frozen=True)
+class Start:
+    """A role's start: the characters of each text counted, by name, and the start files that
+    are not there."""
+
+    role: str
+    texts: dict[str, int]
+    missing: tuple[str, ...]
+
+    @property
+    def characters(self) -> int:
+        return sum(self.texts.values())
+
+    @property
+    def tokens(self) -> int:
+        per, by = CHARACTERS
+        return -(-self.characters * by // per)
+
+
+def _head(path: Path) -> dict[str, str]:
+    """The flat front matter of a `SKILL.md`, its keys and their values unquoted."""
+    lines = path.read_text().splitlines()
+    if not lines or lines[0] != "---":
+        return {}
+    head = {}
+    for line in lines[1:]:
+        if line == "---":
+            break
+        key, colon, value = line.partition(":")
+        if colon and not key.startswith(" "):
+            head[key] = value.strip().strip("\"'")
+    return head
+
+
+def listing(repo: Path) -> str:
+    """The skill listing a session of this repo is given: `- name: description` for each skill
+    and principle of `skills.json` a model may load by itself, and each of this repo's own,
+    less those whose front matter lists `paths:`, which are listed only once a matching file is
+    read."""
+    catalog = json.loads((repo / skills.CATALOG).read_text())
+    found = [
+        (item["name"], item["description"], repo / item["path"])
+        for item in catalog["items"]
+        if item["kind"] in skills.NAMEABLE and not item.get("hidden")
+    ]
+    for own in catalog.get("projectSkills", []):
+        path = repo / own["path"] / "SKILL.md"
+        found.append((own["name"], _head(path).get("description", ""), path))
+    return "".join(
+        f"- {name}: {description}\n"
+        for name, description, path in found
+        if "paths" not in _head(path)
+    )
+
+
+def _printed(role: str, name: str, repo: Path) -> str | None:
+    """What `jbus playbook <role> --name <name>` prints, at `INSTALL`, or None where it opens
+    no playbook of the role's."""
+    lines = playbook.opened(role, "", name, repo)
+    opens = lines and (
+        lines[0].startswith("Playbook: ") if role == "reviewer" else lines[0][:1] == "/"
+    )
+    if not opens:
+        return None
+    return ("\n".join(lines) + "\n").replace(str(repo.resolve()), INSTALL)
+
+
+def starts(repo: Path | None = None) -> dict[str, Start]:
+    """Count each role's start of jstack's own text: its start files, the largest playbook print
+    it can get, and the skill listing."""
+    repo = repo or REPO or skills.root()
+    shown = listing(repo)
+    names = sorted(skills.listed("playbook", repo))
+    counted = {}
+    for role, (asks, files) in ROLES.items():
+        texts = {name: len((repo / name).read_text()) for name in files if (repo / name).is_file()}
+        prints = {
+            name: len(said) for name in names if (said := _printed(asks, name, repo)) is not None
+        }
+        if prints:
+            largest = max(prints, key=lambda name: (prints[name], name))
+            texts[f"jbus playbook {asks} --name {largest}"] = prints[largest]
+        texts["the skill listing"] = len(shown)
+        counted[role] = Start(role, texts, tuple(name for name in files if name not in texts))
+    return counted
+
+
+def _line(role: str) -> str:
+    """Where `BUDGET` gives `role` its number, as `path:line`."""
+    source = Path(__file__)
+    for node in ast.parse(source.read_text()).body:
+        if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == "BUDGET":
+            assert isinstance(node.value, ast.Dict)
+            for key in node.value.keys:
+                if isinstance(key, ast.Constant) and key.value == role:
+                    return f"features/jbus/src/jbus/telemetry/firstload.py:{key.lineno}"
+    return "features/jbus/src/jbus/telemetry/firstload.py, BUDGET"
+
+
+def faults(counted: dict[str, Start]) -> list[str]:
+    """What fails the check: a start file that is not there, a role over its budget, and a
+    budget more than `SLACK` above its role's count."""
+    per, by = CHARACTERS
+    over, under = SLACK
+    said = []
+    for role, start in counted.items():
+        budget, at = BUDGET[role], _line(role)
+        said += (
+            f"{role}: {name} is not there: count it under its new name in ROLES"
+            for name in start.missing
+        )
+        if start.characters * by > budget * per:
+            said.append(
+                f"{role}: {start.tokens} tokens, over its budget of {budget}: cut its start, "
+                f"or raise its budget at {at} in a pull request that says why"
+            )
+        elif budget * per * under > start.characters * by * over:
+            said.append(
+                f"{role}: {start.tokens} tokens, its budget of {budget} is more than 10% above: "
+                f"lower it at {at}"
+            )
+    return said
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Print each role's start against its budget; with `--check`, fail on a fault."""
+    parser = argparse.ArgumentParser(
+        prog="python -m jbus.telemetry.firstload",
+        description="count each role's start of jstack's own text against its budget",
+    )
+    parser.add_argument("--check", action="store_true", help="exit 1 on a fault")
+    args = parser.parse_args(argv)
+    counted = starts()
+    for role, start in counted.items():
+        print(
+            f"{role}: {start.characters} characters, {start.tokens} tokens, budget {BUDGET[role]}"
+        )
+    found = faults(counted)
+    for line in found:
+        print(f"fault: {line}")
+    return 1 if args.check and found else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

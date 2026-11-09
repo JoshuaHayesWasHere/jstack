@@ -1,5 +1,6 @@
 """`jbus telemetry` keeps a record of the crew first load each time the installed files change,
-and `jbus kpis` shows the latest one as the week's "Crew first load, KB".
+and `jbus kpis` shows the latest one as the week's "Crew first load, KB". `make lint` runs
+`python -m jbus.telemetry.firstload --check`, which fails a role whose start is over its budget.
 
 The first load is what a `/crew` thread reads of jstack's before its work: the crew `SKILL.md`
 and what `jbus playbook crewmate` prints, the largest print of the crewmate playbooks. The tests
@@ -126,3 +127,84 @@ def test_the_kpi_page_shows_the_latest_first_load_in_kb_against_16(machine):
     assert row[3] == "≤ 16 KB"
     assert row[5] == f"{kb} KB n 1 {'met' if total / 1000 <= 16 else 'missed'}"
     assert row[4] == "n/a n 0 no data"
+
+
+@pytest.fixture
+def tree(tmp_path, monkeypatch):
+    """A copy of every file a role's start is counted from: `skills.json`, the files it lists,
+    this repo's own skills and each role's start files; `BUDGET` set to each role's count."""
+    real, copy = skills.root(), tmp_path / "tree"
+    catalog = json.loads((real / "skills.json").read_text())
+    paths = [item["path"] for item in catalog["items"]]
+    paths += [f"{own['path']}/SKILL.md" for own in catalog["projectSkills"]]
+    paths += [name for _, files in firstload.ROLES.values() for name in files]
+    for name in ["skills.json", *paths]:
+        target = copy / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(real / name, target)
+    monkeypatch.setattr(firstload, "REPO", copy)
+    for role, start in firstload.starts(copy).items():
+        monkeypatch.setitem(firstload.BUDGET, role, start.tokens)
+    return copy
+
+
+def checked(capsys):
+    code = firstload.main(["--check"])
+    return code, capsys.readouterr().out
+
+
+def line_of(role):
+    """The line of `BUDGET` that gives `role` its number, in the module's own source."""
+    source = firstload.__file__
+    with open(source) as text:
+        lines = text.read().splitlines()
+    table = lines.index("BUDGET = {")
+    at = next(
+        n for n, line in enumerate(lines, 1) if n > table and line.startswith(f'    "{role}": ')
+    )
+    return f"features/jbus/src/jbus/telemetry/firstload.py:{at}"
+
+
+def test_a_start_at_its_budget_passes_and_one_character_over_fails(tree, capsys):
+    skill = tree / "features" / "crew" / "SKILL.md"
+    characters = firstload.starts(tree)["crew"].characters
+    budget = (characters // 29 + 1) * 10
+    skill.write_text(skill.read_text() + "x" * (budget * 29 // 10 - characters))
+    firstload.BUDGET["crew"] = budget
+
+    code, out = checked(capsys)
+    assert code == 0, out
+    lines = out.splitlines()
+    assert [line.split(":")[0] for line in lines] == ["crew", "reviewer", "scout", "home"]
+    assert lines[0] == f"crew: {budget * 29 // 10} characters, {budget} tokens, budget {budget}"
+
+    skill.write_text(skill.read_text() + "x")
+    code, out = checked(capsys)
+    assert code == 1
+    assert (
+        f"fault: crew: {budget + 1} tokens, over its budget of {budget}: cut its start, "
+        f"or raise its budget at {line_of('crew')}"
+    ) in out
+
+
+def test_a_budget_more_than_ten_percent_above_the_count_fails(tree, capsys):
+    characters = firstload.starts(tree)["scout"].characters
+    firstload.BUDGET["scout"] = characters * 11 // 29
+    assert checked(capsys)[0] == 0
+
+    tokens = firstload.starts(tree)["scout"].tokens
+    firstload.BUDGET["scout"] = -(-tokens * 111 // 100)
+    code, out = checked(capsys)
+    assert code == 1
+    assert (
+        f"fault: scout: {tokens} tokens, its budget of {firstload.BUDGET['scout']} is more than "
+        f"10% above: lower it at {line_of('scout')}"
+    ) in out
+
+
+def test_a_start_file_that_is_not_there_fails(tree, capsys):
+    (tree / "features" / "pr-review" / "the-review.md").unlink()
+
+    code, out = checked(capsys)
+    assert code == 1
+    assert "fault: reviewer: features/pr-review/the-review.md is not there" in out
