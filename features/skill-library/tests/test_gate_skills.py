@@ -301,8 +301,17 @@ def test_a_fact_is_proven_only_by_the_review_of_the_head(case):
     assert proof.short(text, HEAD) == ("" if found else no_fact(HEAD))
 
 
+NOT_RUN = (
+    "<not run: the part of the brief's Proves it check, which the command runs beside the safety"
+    " fact, that cannot run at a review, and why, or not run: nothing>"
+)
+"""The part of the brief's `Proves it:` check the review could not run, the template's last
+placeholder before ` | `."""
+
+
 @pytest.mark.parametrize(
-    ("code", "found"), [("0", ("3 passed", "uv run pytest tests/test_a.py")), ("1", None)]
+    ("code", "found"),
+    [("0", ("3 passed, not run: nothing", "uv run pytest tests/test_a.py")), ("1", None)],
 )
 def test_the_proof_line_the_review_template_shows_is_the_one_the_gate_reads(code, found):
     """The reviewer writes the line by hand, from the form in pr-review's `templates/review.md`."""
@@ -313,6 +322,7 @@ def test_the_proof_line_the_review_template_shows_is_the_one_the_gate_reads(code
         "<the command that ran>": "`uv run pytest tests/test_a.py`",
         "<its exit code>": code,
         "<the last line or two it printed>": "3 passed",
+        NOT_RUN: "not run: nothing",
         "<the fact>": "a held pull request is never merged",
     }
     for place, value in filled.items():
@@ -340,14 +350,16 @@ def test_the_proof_line_written_as_step_5_says_is_proven_and_its_trap_is_refused
         line = ran.replace("<the command that ran>", f"`{command}`")
         line = line.replace("<its exit code>", "0")
         line = line.replace("<the last line or two it printed>", fact)
+        line = line.replace(NOT_RUN, "not run: nothing")
         assert "<" not in line
         return proof.fact(merge.brief(merge.review("clean", HEAD) + f"Proof: {line}\n"), HEAD)
 
-    assert filled(plain) == (plain, "sh proof.sh")
+    assert filled(plain) == (f"{plain}, not run: nothing", "sh proof.sh")
     assert filled(trap) is None
     for n, stands in (("0", True), ("1", False), ("2", False)):
         named = code.replace("<n>", n)
-        assert filled(f"then {named}") == ((f"then {named}", "sh proof.sh") if stands else None)
+        said = (f"then {named}, not run: nothing", "sh proof.sh")
+        assert filled(f"then {named}") == (said if stands else None)
         assert bool(filled(plain, command=f"sh -c 'run || {named}'")) is stands
 
 
