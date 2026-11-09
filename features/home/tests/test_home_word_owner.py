@@ -56,5 +56,8 @@ def test_the_block_that_queues_a_row_adds_a_scoped_homes_brief_for_that_home_alo
     if queued:
         assert ran == "added: the row sp-fix, of the entry sp-fix"
     else:
-        assert ran.startswith(f"refused: sp-fix's brief is the {SCOPE} home's, and the root ")
+        assert ran.startswith(
+            f"refused: the root home owns no row, and sp-fix's brief is the {SCOPE} home's: hand"
+            f" it over with --for {SCOPE}"
+        )
     assert ("sp-fix" in home.kitchen.main("queue", "show")[1]) is queued

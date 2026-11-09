@@ -258,10 +258,18 @@ def why_not(made: Go, text: str | None) -> str:
 
 def holding(state: Path, home: Path, brief: str, entry: str) -> queue.Said | None:
     """Return the user's go for the plan entry `entry` of the home the brief belongs to
-    (`jbriefs.home.home_of`), where it holds, or None."""
+    (`jbriefs.home.home_of`), where it holds, or None. A brief of the catch-all's
+    (`uncategorized`) takes the go of an entry of its own plan, else of the root's: the root
+    plans and briefs, and the catch-all owns the row from the queue on."""
     directory = homes.home_of(home, brief)
-    scope = _scope(home, directory)
-    made = next((one for one in goes(state) if (one.scope, one.entry) == (scope, entry)), None)
+    places = [directory, *([home] if directory == homes.catchall(home) else [])]
+    found = (
+        (made, place)
+        for place in places
+        for made in goes(state)
+        if (made.scope, made.entry) == (_scope(home, place), entry)
+    )
+    made, directory = next(found, (None, directory))
     if made is None:
         return None
     try:

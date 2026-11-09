@@ -1099,7 +1099,7 @@ def test_a_red_browser_run_and_a_red_macos_nightly_of_one_night_file_a_brief_eac
     kitchen.set("logs.json", {"712": MACOS_LOG, "911": BROWSER_LOG})
     kitchen.poll()
     tasks = kitchen.home / "tasks"
-    assert "\nHome: root\n" in (tasks / "browser-red-2026-10-12.md").read_text()
+    assert "\nHome: uncategorized\n" in (tasks / "browser-red-2026-10-12.md").read_text()
     assert (
         "tests/test_jbus_view_page.py::test_one"
         in (tasks / "browser-red-2026-10-12.md").read_text()
@@ -1283,7 +1283,7 @@ def test_a_red_run_of_any_scheduled_workflow_on_main_files_one_row_a_day(kitchen
         "the drift run 66 failed on 2026-10-12, 1 test named",
         "features/jdrift/tests/test_pin.py::test_pin",
         DRIFT_JOB,
-        "\nHome: root\n",
+        "\nHome: uncategorized\n",
         f"\nDecisions: {jbus.queue.RED_DECIDED}scheduled run ",
     ):
         assert said in text

@@ -1,9 +1,10 @@
 """`jbus queue add` refuses a brief that does not say which home it is for.
 
-A brief with no `Home:` line once landed in the root home without a word, so work meant for a
-scope ran in the wrong place. The line is required: it names `root` or a scope of the project's
-homes, and `--for`, where it is given, names the same home. A row already queued is not checked
-again.
+A brief with no `Home:` line once landed in a home without a word, so work meant for a scope ran
+in the wrong place. The line is required: it names `uncategorized`, the catch-all, `root`, which
+is the catch-all's too, or a scope of the project's homes, and `--for`, where it is given, names
+the home it resolves to. The root home owns no row, so a row it adds goes over with `--for`. A row
+already queued is not checked again.
 
 The tests run the real command against the kitchen.
 """
@@ -50,7 +51,7 @@ def test_a_brief_with_no_home_line_is_refused_as_a_brief_fault(kitchen):
         1,
         [
             "refused: no-home's brief has 1 fault, and nothing is queued",
-            "- brief has no Home: line: name root or the row's scope (flow)",
+            "- brief has no Home: line: name uncategorized or the row's scope (flow)",
         ],
     )
     assert not (kitchen.state / "queue.json").exists() or "no-home" not in queued(kitchen)
@@ -62,7 +63,7 @@ def test_a_scouts_request_with_no_home_line_is_refused_too(kitchen):
         1,
         [
             "refused: sc-ask's request has 1 fault, and nothing is queued",
-            "- no Home: line: name root or the row's scope (flow)",
+            "- no Home: line: name uncategorized or the row's scope (flow)",
         ],
     )
 
@@ -73,8 +74,8 @@ def test_a_home_line_that_names_no_scope_is_refused(kitchen):
         1,
         [
             "refused: to-docs's brief has 1 fault, and nothing is queued",
-            "- brief's Home: line names docs, which is no home of demo: name root or the row's "
-            "scope (flow)",
+            "- brief's Home: line names docs, which is no home of demo: name uncategorized or the "
+            "row's scope (flow)",
         ],
     )
 
@@ -87,19 +88,38 @@ def test_a_home_line_that_gives_a_thread_id_is_refused(kitchen):
     )
 
 
-def test_home_root_and_home_of_a_scope_are_queued(kitchen):
+def test_home_root_uncategorized_and_home_of_a_scope_are_queued(kitchen):
     assert adds(kitchen, "at-root", complete("at-root", "Home: root\n"))[0] == 0
+    assert adds(kitchen, "at-catch", complete("at-catch", "Home: uncategorized\n"))[0] == 0
     assert adds(kitchen, "at-flow", complete("at-flow", f"Home: {SCOPE}\n"))[0] == 0
     assert adds(kitchen, "fl-own", complete("fl-own", f"Home: {SCOPE}\n"), "--from", FLOW)[0] == 0
-    assert adds(kitchen, "rt-own", complete("rt-own", "Home: root\n"), "--from", ROOT)[0] == 0
-    assert sorted(queued(kitchen)) == ["at-flow", "at-root", "fl-own", "rt-own"]
+    assert adds(kitchen, "un-own", complete("un-own", "Home: root\n"), "--from", "")[0] == 0
+    assert sorted(queued(kitchen)) == ["at-catch", "at-flow", "at-root", "fl-own", "un-own"]
+
+
+def test_the_root_home_owns_no_row_and_hands_one_over_with_for(kitchen):
+    text = complete("rt-own", "Home: root\n")
+    code, out = adds(kitchen, "rt-own", text, "--from", ROOT)
+    assert (code, out.splitlines()[0]) == (
+        1,
+        "refused: the root home owns no row, and rt-own's brief is the uncategorized home's: "
+        "hand it over with --for uncategorized, and nothing is queued",
+    )
+    assert not (kitchen.state / "queue.json").exists() or "rt-own" not in queued(kitchen)
+    assert adds(kitchen, "rt-own", text, "--from", ROOT, "--for", "uncategorized")[0] == 0
+    assert queued(kitchen) == ["rt-own"]
 
 
 def test_a_home_line_and_a_for_that_differ_are_refused(kitchen):
     code, out = adds(kitchen, "to-root", complete("to-root", "Home: root\n"), "--for", SCOPE)
     assert (code, out.splitlines()[0]) == (
         1,
-        "refused: --for flow, and to-root's brief is the root home's: nothing is queued",
+        "refused: --for flow, and to-root's brief is the uncategorized home's: nothing is queued",
+    )
+    code, out = adds(kitchen, "to-root", complete("to-root", "Home: root\n"), "--for", "root")
+    assert (code, out.splitlines()[0]) == (
+        1,
+        "refused: --for root, and to-root's brief is the uncategorized home's: nothing is queued",
     )
     code, out = adds(kitchen, "to-flow", complete("to-flow", f"Home: {SCOPE}\n"), "--for", "root")
     assert (code, out.splitlines()[0]) == (
@@ -117,6 +137,6 @@ def test_a_row_queued_before_the_rule_is_not_checked_again(kitchen):
     assert queued(kitchen) == ["old-row"]
 
 
-def test_home_root_is_the_roots_and_names_no_retired_scope(kitchen):
+def test_home_root_is_the_catch_alls_and_names_no_retired_scope(kitchen):
     owner = Homes(kitchen.home, kitchen.state).owner(complete("x", "Home: root\n"))
-    assert (owner.name, owner.retired) == ("", "")
+    assert (owner.name, owner.retired) == ("uncategorized", "")

@@ -11,7 +11,8 @@ that named TLC's every-core count of workers says it in other words, as the repo
 A reviewer of the wireframes (scout jv-glance-r4) found the root shown as quiet for 5h18, since
 its last merge, while its rows had events at 08:59 EDT. Another (jv-glance-r2) found 14 of the
 44 open rows placed by slug prefix in the wrong home. By `home_of` the open rows are jview's
-15, flow's 8, macos's 1 and the root's 20.
+15, flow's 8, macos's 1 and the catch-all's 20: a brief that names no home is `uncategorized`'s,
+and the root owns no row.
 """
 
 import json
@@ -25,7 +26,7 @@ from view.scene import Scene, Served, row
 
 FIXTURE = Path(__file__).parent.parent / "fixtures" / "jv-glance"
 AT = datetime.fromisoformat("2026-10-26T13:00:00+00:00")
-OPEN = {"": 20, "jview": 15, "flow": 8, "macos": 1}
+OPEN = {"": 0, "uncategorized": 20, "jview": 15, "flow": 8, "macos": 1}
 
 
 def glance(scene):
@@ -75,25 +76,27 @@ def test_each_home_has_its_open_rows_by_its_briefs_home_line(zoned):
     """The summary counts each open row in its brief's home. The pipeline places
     only the rows on a step it knows, and the fixture keeps no step of `jmerge`'s for most pull
     requests, so each row it places is checked against its brief: a cleanup row, whose brief
-    names no home, is the root's whatever row it is stacked on."""
+    names no home, is the catch-all's whatever row it is stacked on."""
     (project,) = zoned.json("/stack.json")["projects"]
     assert {one["name"]: one["open"] for one in project["homes"]} == OPEN
     named = json.loads((FIXTURE / "state.json").read_text())["tasks"]
     rows = zoned.json("/panel/pipeline.json")["data"]["rows"]
     assert {one["slug"]: one["home"] for one in rows} == {
-        one["slug"]: named[one["slug"]] or "root" for one in rows
+        one["slug"]: named[one["slug"]] or "uncategorized" for one in rows
     }
-    assert "root" in {one["home"] for one in rows if one["slug"].startswith("cleanup-")}
+    assert "uncategorized" in {one["home"] for one in rows if one["slug"].startswith("cleanup-")}
 
 
 def test_each_home_and_the_project_say_their_last_act_not_their_last_merge(zoned):
-    """The root's last act is the Result of cleanup-ux-flow-status at 08:59:44 EDT, a row
-    whose brief names no home. Its last merge was hours before. jview's is jbus's failover of
+    """The catch-all's last act is the Result of cleanup-ux-flow-status at 08:59:44 EDT, a row
+    whose brief names no home. Its last merge was hours before. The root owns no row, and no
+    act of that moment is its own. jview's is jbus's failover of
     its home's thread, which names the thread's id, and it is the project's last act too."""
     (project,) = zoned.json("/stack.json")["projects"]
     last = {one["name"]: one["last"] for one in project["homes"]}
     assert last == {
-        "": {
+        "": None,
+        "uncategorized": {
             "at": "2026-10-26T12:59:44+00:00",
             "what": "result cleanup-ux-flow-status: done",
         },
@@ -126,4 +129,7 @@ def test_a_heartbeat_is_no_act_and_an_act_of_no_home_is_the_projects_alone(zoned
         "home": None,
         "what": "waiting demo: 10 wait on the user",
     }
-    assert max(one["last"]["at"] for one in project["homes"]) == "2026-10-26T12:59:52+00:00"
+    assert (
+        max(one["last"]["at"] for one in project["homes"] if one["last"])
+        == "2026-10-26T12:59:52+00:00"
+    )

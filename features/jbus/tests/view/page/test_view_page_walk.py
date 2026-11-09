@@ -66,7 +66,7 @@ def faults(key, made, answer, rows, overview):
                 found.append(f"{slug}: a row of In progress is {drawn}")
     elif kind == "owner":
         slug = made.owners[name]
-        retired = f"home {want.home[1]} retired, so under the root"
+        retired = f"home {want.home[1]} retired, so under {want.home[0]}"
         if (slug in rows) != want.row:
             found.append(f"{slug}: a row of In progress is {slug in rows}")
         elif (retired in rows[slug]["chips"]) != bool(want.home[1]):

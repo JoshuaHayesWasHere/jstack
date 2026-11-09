@@ -56,18 +56,18 @@ def claims(tmp_path):
 
 def test_a_brief_with_no_thread_line_is_not_launched(claims):
     claims.write("alpha", thread=False)
-    assert claims.run() == [f"alpha not launched root Where: {WHERE}"]
+    assert claims.run() == [f"alpha not launched uncategorized Where: {WHERE}"]
 
 
 def test_a_launched_brief_with_no_result_is_out(claims):
     claims.write("alpha")
-    assert claims.run() == [f"alpha out root Where: {WHERE}"]
+    assert claims.run() == [f"alpha out uncategorized Where: {WHERE}"]
 
 
 def test_the_last_result_is_the_one_that_counts(claims):
     claims.write("alpha", result=result(PULLS.format(7)) + result(PULLS.format(12)))
     claims.open(12)
-    assert claims.run() == [f"alpha pull request 12 root Where: {WHERE}"]
+    assert claims.run() == [f"alpha pull request 12 uncategorized Where: {WHERE}"]
     claims.open(7)
     assert claims.run() == []
 
@@ -78,8 +78,8 @@ def test_an_old_results_wider_line_claims_nothing_beside_the_where(claims):
     claims.write("beta", result="\n## Result\nStatus: paused\n" + wider)
     claims.open(12)
     assert claims.run() == [
-        f"alpha pull request 12 root Where: {WHERE}",
-        f"beta paused root Where: {WHERE}",
+        f"alpha pull request 12 uncategorized Where: {WHERE}",
+        f"beta paused uncategorized Where: {WHERE}",
     ]
 
 
@@ -87,7 +87,7 @@ def test_a_brief_whose_pull_request_is_no_longer_open_claims_nothing(claims):
     claims.write("alpha", result=result(PULLS.format(12)))
     claims.write("beta")
     claims.open(7)
-    assert claims.run() == [f"beta out root Where: {WHERE}"]
+    assert claims.run() == [f"beta out uncategorized Where: {WHERE}"]
 
 
 def test_a_brief_folded_into_another_claims_nothing(claims):
@@ -96,7 +96,7 @@ def test_a_brief_folded_into_another_claims_nothing(claims):
     claims.write("alpha", result=folded)
     claims.write("beta", result=result())
     claims.write("gamma", thread=False)
-    assert claims.run() == [f"gamma not launched root Where: {WHERE}"]
+    assert claims.run() == [f"gamma not launched uncategorized Where: {WHERE}"]
 
 
 def test_a_paused_brief_still_holds_its_files_with_and_without_a_pull_request(claims):
@@ -106,9 +106,9 @@ def test_a_paused_brief_still_holds_its_files_with_and_without_a_pull_request(cl
     claims.write("delta", result=result(status="paused, wip at abc123"))
     claims.open(12)
     assert claims.run() == [
-        f"alpha paused root Where: {WHERE}",
-        f"beta paused pull request 12 root Where: {WHERE}",
-        f"delta paused root Where: {WHERE}",
+        f"alpha paused uncategorized Where: {WHERE}",
+        f"beta paused pull request 12 uncategorized Where: {WHERE}",
+        f"delta paused uncategorized Where: {WHERE}",
     ]
 
 
@@ -123,23 +123,23 @@ def test_a_scoped_home_is_also_known_by_its_directory_and_by_the_home_it_took_ov
     claims.write("alpha", home="mcp:the-root-before")
     claims.write("stray", home="mcp:nobody-here")
     assert claims.run() == [
-        f"alpha out root Where: {WHERE}",
+        f"alpha out uncategorized Where: {WHERE}",
         f"rs-alpha out review-speed Where: {WHERE}",
         f"rs-beta out review-speed Where: {WHERE}",
-        f"stray out root Where: {WHERE}",
+        f"stray out uncategorized Where: {WHERE}",
     ]
 
 
 @pytest.mark.parametrize(
     ("line", "home"),
     [
-        ("", "root"),
+        ("", "uncategorized"),
         ("pstack", "pstack"),
         ("pstack (a second home of this repo)", "pstack"),
         (OTHER, "pstack"),
-        (ME, "root"),
-        ("mcp:a-home-of-long-ago", "root"),
-        ("tasks", "root"),
+        (ME, "uncategorized"),
+        ("mcp:a-home-of-long-ago", "uncategorized"),
+        ("tasks", "uncategorized"),
     ],
 )
 def test_a_brief_has_one_home_by_each_of_the_three_kinds_of_home_line(claims, line, home):
@@ -167,7 +167,8 @@ LINES = ["", "speed", "speed (a second home)", OTHER, "mcp:before", ME, "mcp:roo
 def test_a_thread_finds_a_brief_the_home_jmerge_gives_it(claims, reader, scope):
     """The tests run two things over one state directory: the block that a thread uses to find
     its home, and `jmerge --claims`. They run both for every kind of `Home:` line and every
-    state a scope may be left in."""
+    state a scope may be left in. No scope here is named `uncategorized`, so the thread finds the
+    catch-all's briefs in the root's directory: the root stands in for it."""
     state = claims.home.state
     (state / "handoff.md").write_text("# Handoff\nWas home: mcp:root-before\n")
     (state / "speed").mkdir()
@@ -180,7 +181,7 @@ def test_a_thread_finds_a_brief_the_home_jmerge_gives_it(claims, reader, scope):
 
     block = about_the_home_id(reader)
     asked = 'uv run --project "$T/../source" jbus home'
-    named = 'if [ "$D" = "$H" ]; then echo root; else echo "${D##*/}"; fi'
+    named = 'if [ "$D" = "$H" ]; then echo uncategorized; else echo "${D##*/}"; fi'
     block = block.replace(f'{asked} "$B"', f'D=$({asked} --directory "$B")\n{named}')
     by_thread = [
         claims.home.sh(f'{paths(reader)}\nB="$H/tasks/brief-{at}.md"\n{block}')
@@ -193,7 +194,7 @@ def test_a_thread_finds_a_brief_the_home_jmerge_gives_it(claims, reader, scope):
 
 def test_a_brief_with_no_where_line_is_still_listed(claims):
     claims.write("alpha", where="")
-    assert claims.run() == ["alpha out root no Where line"]
+    assert claims.run() == ["alpha out uncategorized no Where line"]
 
 
 def kept(state):
