@@ -72,9 +72,9 @@ RETRO = timedelta(hours=24)
 NO_JOB = "nojob"
 """What `_check` answers for a commit on main whose failed check runs started no job."""
 BATCHED = "batched"
-"""What `_check` answers for a commit on main whose push run GitHub cancelled before it had a job:
-a newer push displaced it from check.yml's group `check-main`, and the next run that ran checks
-its merge with the rest of its range (`scripts/green_tree.py --last-checked`)."""
+"""What `_check` answers for a commit under main's tip whose push run GitHub cancelled before it
+had a job: a newer push displaced it from check.yml's group `check-main`, and the next run that
+ran checks its merge with the rest of its range (`scripts/green_tree.py --last-checked`)."""
 RERUNS = "reruns.json"
 """The push runs on main whose failed jobs jbus asked GitHub to rerun, by id: when it asked,
 and whether GitHub took the rerun."""
@@ -1251,14 +1251,17 @@ def _check(
     commit says nothing of main's check, and its red has its own path (`BROWSER`, `NIGHTLIES`).
 
     A cancelled run is no failed check. A push run cancelled before it had a job leaves the commit
-    with no check run at all: pushes to main share one concurrency group, where a newer push
-    displaces the run that waits, and the next run that runs selects over every merge since the
-    last checked commit. That commit is `BATCHED`, final, and never rerun: a rerun would join the
-    group and displace the newest push's run in turn. A red over a batch is judged as a red with
-    several commits since the last green (`jbus.reverts.culprit`). A run someone stopped once it
-    had jobs is rerun with `again`, where it is at its first attempt, and the commit is `pending`
-    until the rerun ends. GitHub's `run_attempt` says whether the run ran again: `cancelled` is a
-    later attempt that was cancelled too, and `refused` a run that GitHub did not start again.
+    with no check run at all: pushes to main share one concurrency group, where a newer push, or the
+    rerun of an older push's failed run, displaces the run that waits. Under main's tip, the next
+    run that runs selects over every merge since the last checked commit, so the commit is
+    `BATCHED`, final, and never rerun: a rerun would join the group and displace the newest push's
+    run in turn. A red over a batch is judged as a red with several commits since the last green
+    (`jbus.reverts.culprit`). At main's tip, which `again` asks of, a kept `BATCHED` is asked again,
+    since no later push covers it, as where jbus's own rerun of a failed run displaced it: there, as
+    for a run someone stopped once it had jobs, a cancelled run at its first attempt is rerun, the
+    rerun selects over every merge since the last checked commit, and the commit is `pending` until
+    the rerun ends. GitHub's `run_attempt` says whether the run ran again: `cancelled` is a later
+    attempt that was cancelled too, and `refused` a run that GitHub did not start again.
 
     A failed push run is rerun once before the commit is `failed`, since most of main's reds
     were flakes that passed on a second attempt. With `rerun`, `_check` reruns the failed jobs
@@ -1274,10 +1277,16 @@ def _check(
     run beside it that started none is a failed check. A check run whose job GitHub does not give
     counts as one that ran, as in `never_started`.
     """
-    if sha in known:
+    if sha in known and not (again and known[sha] == BATCHED):
         return known[sha]
+    known.pop(sha, None)
     runs, pushed = _judged(run, sha)
-    if not runs and pushed and all(r.get("conclusion") == "cancelled" for r in pushed):
+    if (
+        not again
+        and not runs
+        and pushed
+        and all(r.get("conclusion") == "cancelled" for r in pushed)
+    ):
         known[sha] = BATCHED
         return BATCHED
     ended = [r.get("conclusion") for r in runs if r.get("status") == "completed"]

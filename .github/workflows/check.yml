@@ -461,11 +461,13 @@ jobs:
         run: echo "::warning::the lookup of the tests that failed on main failed, so the check added none of them"
       # As `full` does: a run that ran the whole suite and passed leaves a marker named by the
       # tree, and a fast run leaves none, since a marker says the full suite passed. A later
-      # run of the same tree, main's after a squash merge, skips the suite on it. A marker that
-      # cannot be kept costs that skip and nothing else.
+      # run of the same tree, main's after a squash merge, skips the suite on it. A push to main
+      # whose selection was the whole suite leaves one too: its lint is skipped, since its pull
+      # request's passed on the same files. A marker that cannot be kept costs that skip and
+      # nothing else.
       - name: green tree marker
         id: marker
-        if: needs.check-shard.result == 'success' && needs.lint.result == 'success' && needs.reuse.result == 'success' && needs.reuse.outputs.selection == 'all'
+        if: needs.check-shard.result == 'success' && (needs.lint.result == 'success' || github.event_name == 'push' && needs.lint.result == 'skipped') && needs.reuse.result == 'success' && needs.reuse.outputs.selection == 'all'
         env:
           NAME: ${{ needs.reuse.outputs.tree }}
         run: mkdir -p "$RUNNER_TEMP/green-tree" && touch "$RUNNER_TEMP/green-tree/$NAME"

@@ -531,19 +531,6 @@ def test_a_cancelled_run_on_main_that_github_does_not_run_again_is_said_once(kit
     assert reruns(kitchen) == ["run rerun 501"]
 
 
-def test_a_run_on_main_a_newer_push_displaced_is_batched_and_never_run_again(kitchen):
-    """Pushes to main share check.yml's group `check-main`, where GitHub cancels the waiting run,
-    before it has a job, once a newer push displaces it: the next run checks that merge with the
-    rest of its range. The commit is `batched`, final, not a cancelled check: a rerun would
-    displace the newest push's run in turn."""
-    sha, _ = cancelled_on_main(kitchen, [])
-    kitchen.poll()
-    kitchen.poll(NOW + timedelta(minutes=3))
-    assert kitchen.lines("retro") == []
-    assert reruns(kitchen) == []
-    assert json.loads((kitchen.state / "checks.json").read_text())[sha] == "batched"
-
-
 def test_a_revert_on_main_names_the_slug_it_reverts(kitchen):
     kitchen.brief("alpha", RESULT)
     kitchen.brief("beta", RESULT)

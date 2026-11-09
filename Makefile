@@ -226,7 +226,10 @@ try:
     if not run and ref:
         ended = full_run()
         run, fork = green.green_run(ask, name)
-        fix = f"check.yml's full run on {ref} ended {ended}: fix main, then tag again"
+        fix = (
+            f"check.yml's full run on {ref} ended {ended}: delete the tag"
+            f" (`git push origin :refs/tags/{ref}` and `git tag -d {ref}`), fix main, then tag again"
+        )
 except Exception as error:
     print(f"release-green: could not ask GitHub for {name} ({error}), so no release: {fix}")
     sys.exit(1)

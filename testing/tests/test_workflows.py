@@ -1950,7 +1950,12 @@ def test_only_full_asks_for_a_marker_and_both_jobs_leave_one():
         assert [word for word in leaving if word in said] == list(leaving), gate
 
 
-def test_a_pull_requests_check_leaves_a_marker_only_when_it_ran_the_whole_suite_and_passed():
+@pytest.mark.parametrize(
+    "event,lints",
+    [("pull_request", ["success"]), ("push", ["success", "skipped"])],
+    ids=["a pull request", "a push to main, whose lint is skipped"],
+)
+def test_a_check_leaves_a_marker_only_when_it_ran_the_whole_suite_and_passed(event, lints):
     *_, mark, upload = steps(CHECK.read_text(), "check")[0]
     assert [
         (result, lint, reuse, selection)
@@ -1961,13 +1966,14 @@ def test_a_pull_requests_check_leaves_a_marker_only_when_it_ran_the_whole_suite_
         if worked(
             mark["if"],
             {
+                "github.event_name": event,
                 "needs.check-shard.result": result,
                 "needs.lint.result": lint,
                 "needs.reuse.result": reuse,
                 "needs.reuse.outputs.selection": selection,
             },
         )
-    ] == [("success", "success", "success", "all")]
+    ] == [("success", lint, "success", "all") for lint in lints]
     assert (mark["id"], mark["env"]) == (
         "marker",
         {"NAME": "${{ needs.reuse.outputs.tree }}"},
@@ -2822,6 +2828,7 @@ def test_a_release_whose_full_run_failed_fails_naming_the_run_and_publishes_noth
     assert done.returncode != 0
     assert f"{URL}9 ended failure" in done.stdout
     assert "check.yml's full run on v1.2.3 ended failure" in done.stdout
+    assert "`git push origin :refs/tags/v1.2.3` and `git tag -d v1.2.3`" in done.stdout
     assert f"green-tree-{tree}" in done.stdout and "Traceback" not in done.stderr
 
 
