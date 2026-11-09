@@ -3,8 +3,8 @@ Description=jbus merge tick: jmerge within seconds of a check ending, while the 
 Documentation=file:%Y/../docs/jbus/the-units.md#the-units
 
 [Timer]
-OnActiveSec=2s
-OnUnitActiveSec=2s
+OnActiveSec=10s
+OnUnitActiveSec=10s
 AccuracySec=200ms
 
 [Install]
