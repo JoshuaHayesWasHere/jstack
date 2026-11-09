@@ -16,8 +16,8 @@ import pytest
 
 import jbus
 from jbus import alert, blockers, children, passes, questions, stalls, watch
-from jroles import ledger
-from test_jbus_failover import NOT_LOGGED_IN, lapsed_on
+from jroles import inventory, ledger
+from test_jbus_failover import NOT_LOGGED_IN, SESSION, failed_on, lapsed_on
 from test_jbus_kitchen import GATE, NOW, PROJECT
 from test_jbus_leftover import home
 from test_jbus_owed import signed_in
@@ -25,6 +25,8 @@ from test_jbus_queue import add, brief
 from test_jbus_row_ends import sends
 
 P = children.PATIENCE
+SESSION_AT = NOW.replace(hour=3) + timedelta(days=1)
+"""When SESSION's limit, 11pm New York on the kitchen's day, resets."""
 STALL = f"{children.STALL}|"
 
 
@@ -531,6 +533,61 @@ def test_two_starts_that_failed_on_one_cause_wait_for_it_to_clear(started):
     kitchen.poll(minutes(2 * P + 2))
     assert len(homes(kitchen)) == 3
     assert says(kitchen) == "start failed: not signed in"
+
+
+def test_a_start_that_failed_and_is_unread_is_launched_again_and_its_start_clears_the_failure(
+    started,
+):
+    """A failed start whose run T3 Code cannot read is still over: the next pass says so and
+    launches the home again. Once that launch writes the home's `home-id`, the sidebar no
+    longer says a start failed."""
+    kitchen = started
+    kitchen.poll(NOW)
+    failed_at_once(kitchen, minutes(0))
+    kitchen.t3.lose_read = True
+    said = kitchen.poll(minutes(1))
+    kitchen.t3.lose_read = False
+    assert any("could not be read" in one for one in said)
+    assert len(homes(kitchen)) == 2
+    assert says(kitchen) == "start failed: its run failed"
+    (kitchen.home / "uncategorized" / "home-id").write_text(launched(kitchen)["threadId"] + "\n")
+    kitchen.poll(minutes(2))
+    assert says(kitchen) is None
+    assert len(homes(kitchen)) == 2
+
+
+def test_two_starts_that_failed_on_a_usage_limit_wait_for_its_reset(started):
+    """A second start in a row that fails on a usage limit makes the home wait for the limit's
+    reset, not for `PATIENCE`, and the sidebar names the limit and its reset."""
+    kitchen = started
+    kitchen.poll(NOW)
+    for n in (0, 1):
+        failed_on(launched(kitchen), SESSION, run=f"run-{n + 1}", at=minutes(n))
+        kitchen.t3.at_work.discard(launched(kitchen)["threadId"])
+        kitchen.poll(minutes(n + 1))
+    for n in (2, 2 * P, 11 * 60):
+        kitchen.poll(minutes(n))
+    assert len(homes(kitchen)) == 2
+    assert says(kitchen) == f"start failed: five_hour limit: waits for {SESSION_AT.isoformat()}"
+    kitchen.poll(SESSION_AT + timedelta(minutes=1))
+    assert len(homes(kitchen)) == 3
+
+
+def test_two_starts_that_failed_signed_out_wait_out_patience_when_no_instance_is_known(started):
+    """Where T3 Code's settings cannot be read, jbus cannot see the instance signed in again:
+    a home whose second start failed signed out waits `PATIENCE` from that failure instead."""
+    kitchen = started
+    inventory.path().parent.mkdir(parents=True, exist_ok=True)
+    inventory.path().write_text("not json")
+    kitchen.poll(NOW)
+    failed_at_once(kitchen, minutes(0))
+    kitchen.poll(minutes(1))
+    failed_at_once(kitchen, minutes(1))
+    for n in (2, P):
+        kitchen.poll(minutes(n))
+    assert len(homes(kitchen)) == 2
+    kitchen.poll(minutes(P + 2))
+    assert len(homes(kitchen)) == 3
 
 
 def test_a_catch_all_is_not_launched_while_the_dispatch_is_stopped(started):
