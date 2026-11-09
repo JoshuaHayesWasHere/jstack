@@ -417,7 +417,7 @@ def infra(run: Pass, world: World, red: rebase.Red) -> list[str]:
     the row's, such as a package's download. Return nothing where a failed check gives no job, or
     a job's failed step or log is not given, or a log names a failed test or a make target: that
     red is the row's own. The step comes from `watch.ran`, which keeps it with the job."""
-    if not red.jobs or len(red.jobs) < len(red.names):
+    if len(red.jobs) < len(red.names):
         return []
     steps: list[str] = []
     for repo, job in red.jobs:
@@ -434,11 +434,11 @@ def infra(run: Pass, world: World, red: rebase.Red) -> list[str]:
 def lifted(
     run: Pass, slug: str, row: queue.Row, pull: dict[str, Any], required: tuple[str, ...]
 ) -> bool:
-    """Lift the row's hold where `twice` made it, kept the go it took, and every required check
-    passed at the pull request's head: the go comes back with no approve (`queue.lift`). Say
-    whether it did. A row held by anyone since keeps no go to put back and is left as it is; one
-    whose brief changed since its go is refused, and stays held for an approve."""
-    if not row.get("held") or not (row.get("hold") or {}).get(queue.TOOK):
+    """Lift the row's hold where every required check passed at the pull request's head and the
+    hold is `twice`'s, which kept the go it took: the go comes back with no approve
+    (`queue.lift`). Say whether it did. `queue.lift` refuses a row held by anyone since, whose
+    hold kept no go, and one whose brief changed since its go: each stays held for an approve."""
+    if not row.get("held"):
         return False
     if ready.waiting(pull.get("statusCheckRollup") or [], required):
         return False

@@ -1238,14 +1238,12 @@ GO_COLUMNS = ("approved", "approval", "brief_sha")
 
 def _lift(batch: _Batch, slug: str) -> str:
     """Put back the go a hold kept (`TOOK`) and end the hold, and return the line that says so.
-    Refuse a row that is not held, one whose hold kept no go, and one whose stored brief is not
-    the one that go was for, by its sha: each stays held until it is approved again."""
+    Refuse a row that is not held or whose hold kept no go, and one whose stored brief is not the
+    one that go was for, by its sha: each stays held until it is approved again."""
     row = batch.row(slug)
     took = (row.get("hold") or {}).get(TOOK) if row.get("held") else None
-    if not row.get("held"):
-        raise Refused(f"refused: {slug} is not held")
     if not isinstance(took, dict) or not took.get("approved"):
-        raise Refused(f"refused: {slug}'s hold kept no go to put back")
+        raise Refused(f"refused: {slug} has no hold that kept a go to put back")
     text = batch.brief(slug)
     if text is None or took.get("brief_sha") not in (
         judgement.brief_sha(text),

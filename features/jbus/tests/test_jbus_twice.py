@@ -378,3 +378,15 @@ def test_a_failed_step_whose_log_names_a_make_target_is_no_infra_and_counts(laun
     passes(launched, 3, 6)
     assert fails(launched).get("infra", []) == []
     assert rows(launched)["alpha"]["held"] is True
+
+
+def test_a_failed_check_that_gives_no_job_beside_an_infra_step_counts(launched):
+    """Each failed check must show its step: one whose link names no job may have failed at a
+    test, so the head is the row's red."""
+    status = {**failed(), "detailsUrl": "https://example.test/o/r/status"}
+    for head, job, at in ((A, "11", (0,)), (B, "12", (3, 6))):
+        infra_at(launched, head, job)
+        launched.set("open.json", [pull(launched, [failed(job), status], head=head)])
+        passes(launched, *at)
+    assert fails(launched).get("infra", []) == []
+    assert rows(launched)["alpha"]["held"] is True
