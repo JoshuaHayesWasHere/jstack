@@ -6,6 +6,7 @@ user. Like
 fakes: the replay the report names for NoWaitWithoutClock is
 `test_a_review_that_never_comes_is_relaunched_and_then_goes_to_the_home_in_one_line`."""
 
+import json
 from datetime import timedelta
 
 import pytest
@@ -15,7 +16,7 @@ from jbus import clock, passes, wakes
 from jbus.view import state
 from jmerge import ready
 from jroles import ledger
-from test_jbus_expedite import NO_REVIEW, Short, later
+from test_jbus_expedite import NO_REVIEW, URL, Short, later
 from test_jbus_github import JOB, launched
 from test_jbus_github import passes as run_at
 from test_jbus_kitchen import NOW, sends
@@ -317,6 +318,17 @@ def test_a_crew_gets_one_restart_an_idle_spell_and_its_second_miss_goes_to_its_h
     run_at(red, *range(61, 61 + N))
     assert len(restarts(red)) == 2 and len(to(red, desk)) == 1
     assert loud(red) == [] and gates(red) == []
+
+
+def test_a_red_head_s_check_wait_takes_the_row_from_jmerge_s_wait(red):
+    """`jmerge` says the pull request has no review, a wait whose clock would carry the crew on
+    at `N` passes; the red head's restart is the row's one wait, and no carry-on goes."""
+    red.set("jmerge.txt", f"wait 7 {URL}: {NO_REVIEW}\n")
+    spell(red, 1)
+    run_at(red, *range(2, 3 + N))
+    assert [one["clientRequestId"] for one in restarts(red)] == ["restart|alpha|aaaaaaaaaaaa 1"]
+    assert not [one for one in sends(red) if one["clientRequestId"].startswith("clock|")]
+    assert json.loads((red.state / "clock.json").read_text())["alpha"]["kind"] == "check"
 
 
 def test_a_row_held_by_check_failed_twice_is_not_restarted(red):
