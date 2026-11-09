@@ -260,10 +260,10 @@ def test_a_row_to_approve_wakes_no_thread_and_waits_on_needs_and_the_tree(
 ):
     """A home approves a row on the user's word as it queues it (`queue add --message`), so a go
     still owed is the user's alone: it wakes neither the home whose brief or scout's request it
-    is nor the root, and `jbus needs` and the view's tree of homes still show it, each under the
-    home whose row it is."""
+    is, nor the uncategorized home a root brief belongs to, nor the root, and `jbus needs` and
+    the view's tree of homes still show it, each under the home whose row it is."""
     kitchen = Kitchen(tmp_path, monkeypatch)
-    root, sidebar = home(kitchen)["threadId"], home(kitchen, "sidebar")["threadId"]
+    homes = [home(kitchen, *name)["threadId"] for name in ((), ("sidebar",), ("uncategorized",))]
     for slug, named, where in (
         ("sb-rows-build", "sidebar", kind),
         ("alpha", "root", "tasks"),
@@ -276,7 +276,7 @@ def test_a_row_to_approve_wakes_no_thread_and_waits_on_needs_and_the_tree(
     heard = [
         line
         for given in sends(kitchen)
-        if given["threadId"] in (root, sidebar)
+        if given["threadId"] in homes
         for line in given["message"].splitlines()
         if line.startswith("- approve ")
     ]
@@ -292,4 +292,4 @@ def test_a_row_to_approve_wakes_no_thread_and_waits_on_needs_and_the_tree(
     ]
     sources = state.Sources(kitchen.state_dir, kitchen.root / "home", user=jsettings.load())
     tree = state.summary(state.Read(sources, "demo", NOW + 10 * MIN, lambda _: {}))["homes"]
-    assert {one["name"]: one["waits"] for one in tree} == {"": 1, "sidebar": 1}
+    assert {one["name"]: one["waits"] for one in tree} == {"": 0, "uncategorized": 1, "sidebar": 1}
