@@ -76,6 +76,9 @@ When the doctor says a release does not take the patches, rebase the checkout's 
 
 The tree draws one row for the project and its root home, the domain homes under it, and each scout, crew and review as a quiet row with its stage.
 A domain home's row says its name and its age, open work under it or not; one with no live work is one line, with nothing to unfold.
+A row sits under the home jbus gives it, the `home` on its line of jbus's `work.json`: a scope's name or `uncategorized`, never the root.
+The tree reads no brief's `Home:` line to place a row; jbus does that, by `jbriefs.home.home_of`.
+A row whose `home` names no started home sits under `uncategorized`, and until that home starts the tree does not draw it.
 A home lists only its open rows: a task leaves the tree once it merges or is done, and the project row counts what merged since you last opened its root home.
 A task in review says which part it is in, "review 1", "fixing", "review 2", "checks" or "rebase".
 A crew task's row draws its stage as one ring filled by thirds, crew, review and merge, empty while it is queued.
