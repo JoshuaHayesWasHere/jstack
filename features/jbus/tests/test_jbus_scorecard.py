@@ -62,6 +62,25 @@ MODULES = (
     "jbus.telemetry.measures.m39_disk",
     "jbus.telemetry.measures.m40_drift_broken",
     "jbus.telemetry.measures.m41_build_time",
+    "jbus.telemetry.measures.m42_crew_after_pr",
+    "jbus.telemetry.measures.m43_sends_share",
+    "jbus.telemetry.measures.m44_go_to_launch_p90",
+    "jbus.telemetry.measures.m45_hours_unowned",
+    "jbus.telemetry.measures.m46_reviewer_sessions",
+    "jbus.telemetry.measures.m47_done_no_merge",
+    "jbus.telemetry.measures.m48_closed_unmerged",
+    "jbus.telemetry.measures.m49_duplicate_reviews",
+    "jbus.telemetry.measures.m50_reread_tokens",
+    "jbus.telemetry.measures.m51_brief_versions",
+    "jbus.telemetry.measures.m52_needs_me_asks",
+    "jbus.telemetry.measures.m53_sidebar_friction",
+    "jbus.telemetry.measures.m54_status_asks",
+    "jbus.telemetry.measures.m55_merge_asks",
+    "jbus.telemetry.measures.m56_reply_corrections",
+    "jbus.telemetry.measures.m57_approval_reasks",
+    "jbus.telemetry.measures.m58_visual_misses",
+    "jbus.telemetry.measures.m59_wrong_home",
+    "jbus.telemetry.measures.m60_schema_files",
 )
 """Each measure's module by its dotted name, so a new measure is named by a test that reads it."""
 
@@ -222,3 +241,14 @@ def test_jbus_scorecard_prints_each_measure_and_writes_nothing(tmp_path, monkeyp
 def test_no_two_measures_share_a_name():
     names = [each.name for each in measures.MEASURES]
     assert len(names) == len(set(names))
+
+
+AUDIT = range(1, 41)
+"""The ranks of the audit's 40 findings (`reports/po-audit.html` in the home)."""
+
+
+def test_every_finding_of_the_audit_is_carried_by_a_measure():
+    """Each rank is in some measure's `audit`, so the scorecard reads every counter the audit
+    ranked, and no measure names a rank the audit does not have."""
+    carried = {rank for each in measures.MEASURES for rank in each.audit}
+    assert carried == set(AUDIT)

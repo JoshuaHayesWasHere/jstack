@@ -1,19 +1,19 @@
-from jbus.telemetry.measures import Lacks, Measure, Trend
+from jbus.telemetry.measures import Lacks, Limit, Measure
 
 MEASURE = Measure(
     name="friction-by-surface",
     group="attention",
-    says="friction messages the user typed this week: sidebar, merge line, exact words, routing",
+    says="friction messages the user typed this week, of every surface",
     unit="messages",
     better="lower",
     source=Lacks(
-        "a label on each typed message by the surface it is friction with:"
-        " messages.asks holds needs or other only"
+        "messages.surface, the label po-sc-ask-labels puts on each typed message by the surface"
+        " it is friction with: messages.asks holds needs or other only"
     ),
     window="week",
-    baseline=210,
+    baseline=256,
     baseline_of="the audit of 2026-11-09, by hand: 210 to 256 per 7 days",
-    kind=Trend(20),
+    kind=Limit(256, 0),
     tier="page",
-    audit=(3, 10, 16, 23),
+    audit=(3,),
 )
