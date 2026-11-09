@@ -162,8 +162,8 @@ def test_a_freed_short_slot_goes_to_the_caller_that_came_first(machine):
         os.close(held.pop())
         time.sleep(1)
         assert run.poll() is None
-        os.close(older)
         (line / f"{1:020d}.2").unlink()
+        os.close(older)
         ran = ended(run)
     finally:
         for fd in held:
