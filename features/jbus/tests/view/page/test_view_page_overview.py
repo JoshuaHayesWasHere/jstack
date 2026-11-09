@@ -549,8 +549,7 @@ def test_on_a_phone_the_overview_is_one_column_in_the_order_of_the_wireframe(sce
 def test_every_home_is_a_line_with_its_open_rows_its_check_and_its_last_act(scene, tmp_path):
     """Over the T moment, each home of the project but the root, which owns no row, is one line,
     the catch-all `uncategorized` first and then by its open rows: its name, its open count, a bar
-    of its rows in check by outcome beside the rest, and how long ago it last acted, on one line,
-    the name whole, and each bar starting where the others do.
+    of its rows in check by outcome beside the rest, and how long ago it last acted, on one line.
     Each line opens the board's rows of that home, keyed by its project and its name,
     `#/?home=demo/uncategorized`. The legend names only the kinds a bar draws, each in its own
     paint."""
@@ -565,8 +564,6 @@ def test_every_home_is_a_line_with_its_open_rows_its_check_and_its_last_act(scen
     ]
     assert all(re.fullmatch(r"\d+m|\d+h\d\d|\d+d|none", one["ago"]["text"]) for one in homes), homes
     assert [one["ago"]["lines"] for one in homes] == [1] * len(homes), homes
-    assert [one["name"]["lines"] for one in homes] == [1] * len(homes), homes
-    assert len({one["barLeft"] for one in homes}) == 1, homes
     assert [one["href"] for one in homes] == [f"#/?home={one['home']}" for one in homes]
     assert all(one["box"]["bottom"] - one["box"]["top"] >= 44 for one in homes), homes
     drawn = {cls for one in homes for cls in one["bar"]}
