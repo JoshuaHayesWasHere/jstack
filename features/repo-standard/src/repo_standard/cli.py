@@ -19,6 +19,10 @@ The verb `upgrade --to N` moves the repo to version N of the standard
 It runs from the tool at version N, and `--upstream` names where it clones that version's files
 from when the tool's own tree does not hold them. It prints what it wrote and what it left.
 
+The verb `green` says whether the checkout may deploy (`repo_standard.green`): it exits 0 on a
+clean checkout of the remote's main whose tree passed the check, 1 with each reason it may not,
+and 2 when it cannot ask the remote or GitHub. It reads no config.
+
 The guards are `borders`, `stale`, `docs`, `size` and `comments`. Each reads the repo's
 `.repo-standard.yml`, prints one line for each fault it finds, and exits 1 on any. `borders`
 prints each fault as a warning GitHub reads and exits 0 when it warns, or 1 under `--hard`. Every
@@ -39,7 +43,7 @@ from repo_standard.config import Refused, load
 from repo_standard.tree import Unreadable, tracked
 
 GUARDS = ("borders", "stale", "docs", "size", "comments")
-VERBS = (*GUARDS, "conform", "plan", "stacks", "upgrade")
+VERBS = (*GUARDS, "conform", "plan", "stacks", "upgrade", "green")
 
 
 def _root(given: str | None) -> Path:
@@ -86,6 +90,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     try:
         root = _root(args.root)
+        if args.guard == "green":
+            from repo_standard import green
+
+            code, lines = green.main(root)
+            print("".join(f"repo-standard green: {one}\n" for one in lines), end="")
+            return code
         config = load(root, Path(args.config) if args.config else None)
         if args.guard == "plan":
             event = args.event or os.environ.get("GITHUB_EVENT_NAME", "")
