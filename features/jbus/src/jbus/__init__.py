@@ -29,8 +29,10 @@ refuses a repo table that comes after a scratch home of the same name.
 
 A repo table with a `closed` date is a closed project (`jbus project close`). `load` sorts it into
 `Config.closed` and never into `Config.projects`, as it sorts a scratch table, so the pass, `word
---all`, the needs and every chore leave it be. `Config.project` refuses a closed project's name
-with the line that names `jbus project open`, except to a read verb, which asks with `closed`.
+--all`, the needs and every chore leave it be, but for `questions.moot_closed`, which closes its
+door questions whose rows merged or were removed and sends nothing. `Config.project` refuses a
+closed project's name with the line that names `jbus project open`, except to a read verb, which
+asks with `closed`.
 
 `END_TURN` is the ending of every message to a crew, and of the message that continues or
 wakes a reviewer. When a turn ends while its own check or a reviewer's proof still runs,
