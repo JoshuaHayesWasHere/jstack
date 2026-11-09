@@ -275,6 +275,11 @@ Enforced by: `scripts/jtrees/outputs/pyproject.py`, `features/repo-guards/tests/
 `make select BASE=<ref>` prints the test ids that the change from `<ref>` to `HEAD` reaches, one a line, or the single word `all` when the change reaches every test.
 A selection names the tests and never stands in for the suite: what it misses, the safety net below catches.
 
+A repo can hold several stacks, such as a Go API and a Python program, each over its own roots, as the config's `stacks:` declares them.
+A test id is then a path from the repo's root, which the stack whose root holds it runs, or `stack:<name>`, which means every test of that one stack.
+`all` still means every test of the repo, so a change that reaches a whole stack prints `stack:<name>` and never `all`.
+A stack's roots hold its own root files, such as its lock file, so a change to one reaches that stack and no other.
+
 **In jstack** `make select BASE=<ref>` runs `python3 scripts/select_tests.py <ref> HEAD`, which prints test files, and `make check-fast BASE=<ref>` runs the lint and the files it prints.
 The script follows imports, fixtures, the names a test reads and the files a test includes, and its rules are in the script's docstring.
 
@@ -284,6 +289,7 @@ Enforced by: `scripts/select_tests.py`, `testing/tests/test_select_tests.py`, `t
 
 A change to a path that every test rests on selects `all`, whatever else it touches.
 So does a change to the selection itself, or to the files that run it, since a pull request's check selects its tests by its own new version of them.
+In a repo of several stacks, so does a path outside every stack's roots, unless it is a page of Markdown, a file in a feature's `docs/` or its `feature.json`.
 
 **In jstack** the paths are `EVERYTHING` in `scripts/select_tests.py`: `pyproject.toml`, `uv.lock`, the root `conftest.py`, the script itself, the `Makefile` and `.github/workflows/check.yml`, with the plugins of `testing/` that the root `conftest.py` loads.
 
