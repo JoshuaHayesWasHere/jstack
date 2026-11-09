@@ -42,6 +42,11 @@ launches stacked on an open row it depends on. Every other approved row waits wi
 a crew launched onto a red main finds its check failed on main's break. A red main holds no pull
 request (`jmerge.mainjson`); this rule holds back launches only.
 
+The root home owns no row. A row whose queued brief names no home, or names `root`, does not
+launch: it is a gate, which the digest lists, until `jbus queue move` gives it a child home.
+`jbus queue add` refuses such a brief from a user, and every brief jbus files itself names one
+(`tests/test_jbus_shots.py`), so the launch is the last place a row could start under the root.
+
 Each crew gets a scratch folder on disk, `~/.cache/jstack/scratch/<repo>/<slug>`
 (`JSTACK_SCRATCH_DIR` in place of `~/.cache/jstack/scratch`), made before its launch (`scratch`).
 `t3_thread_launch` takes no environment, so the session-start hook
@@ -69,7 +74,7 @@ from typing import Any
 
 import jroles
 import jroles.mirror
-from jbriefs.home import home_of, named
+from jbriefs.home import ROOT, UNCATEGORIZED, home_of, named
 from jbus import cleanup, queue, read_json, watch, write_json
 from jbus.launches import record_path, records
 from jbus.passes import Changed, Depends, Pass, Red, Rerun, Slot
@@ -523,6 +528,12 @@ class Turns:
                     what = f"brief changed after approval: {'; '.join(lines)}"
                     run.gate(slug, what, key=f"brief changed, now {now}")
                 run.reasons[slug] = Changed(now, row.get("brief_sha", "")[:12], lines)
+                continue
+            if (home := named(brief)) in ("", ROOT):
+                if not full:
+                    what = f"its brief names {home or 'no home'}, and the root home owns no row"
+                    move = f"jbus queue move {slug} --home {UNCATEGORIZED}, or the row's scope"
+                    run.gate(slug, what, move)
                 continue
             met = merged | {
                 other for other in row.get("depends", []) if ended(run, world, other) == End("done")

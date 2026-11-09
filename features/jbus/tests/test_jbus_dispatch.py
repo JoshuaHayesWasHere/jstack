@@ -276,7 +276,8 @@ def test_a_row_whose_brief_names_no_child_home_is_refused_at_launch_and_the_dige
     """The root home owns no row: a row that would start under it waits, gated, until it names
     a child home. A brief jbus files itself skips the check of `jbus queue add`, so the launch
     is where it holds."""
-    text = complete("alpha").replace("Home: root\n", f"Home: {home}\n" if home else "")
+    line = f"Home: {home}\n" if home else ""
+    text = complete("alpha").replace("Home: uncategorized\n", line)
     queue.add(kitchen.state, "alpha", 1, [], text, ran_by=queue.PASS)
     assert go(kitchen, "alpha")[0] == 0
     kitchen.poll()

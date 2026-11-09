@@ -17,6 +17,9 @@ from __future__ import annotations
 
 import re
 
+UNCATEGORIZED = "uncategorized"
+"""The catch-all home, which owns the shots row: `jbriefs.home.UNCATEGORIZED`, named here since
+the borders check loads this module with no `jbriefs`."""
 KEPT = "features/jbus/tests/fixtures/jbus-view/shots"
 """The directory of the kept shots and of `browser.txt`, which names the browser that drew them."""
 PREFIX = "shots-"
@@ -109,6 +112,7 @@ def brief(
             "Pull request: open one when done",
             "Review: review",
             "Playbook: none",
+            f"Home: {UNCATEGORIZED}",
             "Read:",
             *(
                 f"- the job `{job}`, {url or 'with no URL'}: "
