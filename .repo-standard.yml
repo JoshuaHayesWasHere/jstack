@@ -90,6 +90,12 @@ comments:
   allow: ["# type:", "# pragma"]
   links: [.js, .html]
 deploy: [make release]
+# jstack is where the skeleton comes from, not a copy of it, so the files a version owns are its own.
+local:
+  Makefile: jstack's own targets, a superset of the skeleton's
+  .github/workflows/check.yml: jstack runs its own check, from which the shared check is drawn
+  .github/workflows/borders.yml: jstack's borders job runs its own lint's guards
+  scripts/generate-index.py: jstack's indexes come from its own generators
 enforced-by:
   a-commands-page-matches-its-help: [features/repo-guards/tests/test_docs_true.py]
   new-prose-has-one-sentence-per-line: [features/writing/scripts/prose_lint.py]
@@ -102,6 +108,6 @@ enforced-by:
     - testing/tests/test_select_tests_rules.py
   a-pair-of-trees-passes-once: [.github/workflows/check.yml]
   a-passing-tree-leaves-a-marker: [scripts/green_tree.py]
-  every-deploy-entry-refuses-a-tree-that-is-not-green-main:
-    - .github/workflows/release.yml
-    - testing/tests/test_workflows.py
+waivers:
+  - rule: every-deploy-entry-refuses-a-tree-that-is-not-green-main
+    reason: make release checks main, a clean tree and origin's main itself, then release-green looks up the same marker before the tag; a row of its own moves it onto repo-standard green

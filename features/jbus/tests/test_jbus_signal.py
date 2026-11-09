@@ -126,23 +126,39 @@ PASSED_AS = {
 }
 
 
-def sent_kinds(source: pathlib.Path) -> dict[str, set[str]]:
-    """Return every kind that a file of jbus sends, named as the sending call names it.
-
-    A call that sends is `<...>.find(slug, kind, ...)`, `<...>.send(slug, kind, ...)`,
-    `<...>box.record(kind, ...)` or `event(project, slug, kind, ...)`. A kind is a string, a name
-    the module sets to a string, or a name that `PASSED_AS` knows. This refuses any other kind,
-    since nothing here could say what it is. `outbox.send` sends a message to a thread, not an
-    event, so it has no kind.
-    """
-    tree = ast.parse(source.read_text())
-    constants = {
+def strings(tree: ast.Module) -> dict[str, str]:
+    """Each name a module sets to a string at its top level."""
+    return {
         target.id: node.value.value
         for node in tree.body
         if isinstance(node, ast.Assign) and isinstance(node.value, ast.Constant)
         for target in node.targets
         if isinstance(target, ast.Name) and isinstance(node.value.value, str)
     }
+
+
+def sent_kinds(source: pathlib.Path) -> dict[str, set[str]]:
+    """Return every kind that a file of jbus sends, named as the sending call names it.
+
+    A call that sends is `<...>.find(slug, kind, ...)`, `<...>.send(slug, kind, ...)`,
+    `<...>box.record(kind, ...)` or `event(project, slug, kind, ...)`. A kind is a string, a name
+    the module sets to a string or imports by `from jbus.<module> import` from a module that sets
+    it, or a name that `PASSED_AS` knows. This refuses any other kind,
+    since nothing here could say what it is. `outbox.send` sends a message to a thread, not an
+    event, so it has no kind.
+    """
+    tree = ast.parse(source.read_text())
+    constants = strings(tree)
+    for node in tree.body:
+        if isinstance(node, ast.ImportFrom) and (node.module or "").startswith("jbus."):
+            sibling = source.parent / f"{node.module.removeprefix('jbus.')}.py"
+            if sibling.exists():
+                theirs = strings(ast.parse(sibling.read_text()))
+                constants |= {
+                    one.asname or one.name: theirs[one.name]
+                    for one in node.names
+                    if one.name in theirs
+                }
 
     def written(name: str, at: int) -> set[str]:
         made = [

@@ -6,6 +6,7 @@ against the fakes.
 
 import json
 import re
+import subprocess
 from datetime import timedelta
 
 import pytest
@@ -14,6 +15,7 @@ import jbus
 import jbus.queue
 from jbus import culprits, poll, watch
 from jmerge import judgement, ready, reverts
+from repo_template import IDENTITY
 from test_jbus_kitchen import NOW, RESULT, TOKEN, filed_as, iso
 from test_jbus_queue import add, rows
 
@@ -70,6 +72,31 @@ def test_the_merged_list_is_asked_for_only_once_a_base_branch_moved(kitchen):
     assert kitchen.lines("merged") == ["merged beta #8 bbbbbbbbbbbb"]
     kitchen.poll(NOW + timedelta(minutes=9))
     assert listed(kitchen) == []
+    assert kitchen.lines("merged") == ["merged beta #8 bbbbbbbbbbbb"]
+
+
+def test_a_base_tip_that_moved_under_the_kept_tips_asks_for_the_merged_list(kitchen):
+    """The tips a pass kept stand beside the tips `git ls-remote origin` gives now: a merge that
+    moved origin's main, with the kept tips still on disk, gets the merged list asked for and its
+    merge sent."""
+    kitchen.brief("beta", RESULT)
+    kitchen.set("merged.json", [kitchen.merged("alpha", 7, "a" * 40)])
+    kitchen.quiet()
+    kitchen.poll(NOW + timedelta(minutes=3))
+    listed(kitchen)
+    assert (kitchen.state / watch.BASES).exists()
+    beta = kitchen.merged("beta", 8, "b" * 40, ago=timedelta(0))
+    (kitchen.stub / "merged.json").write_text(json.dumps([beta]))
+    origin = ["git", f"--git-dir={kitchen.origin}"]
+    moved = subprocess.run(
+        [*origin, *IDENTITY, "commit-tree", "main^{tree}", "-p", "main", "-m", "merge #8"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    subprocess.run([*origin, "update-ref", "refs/heads/main", moved], check=True)
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert len(listed(kitchen)) == 1
     assert kitchen.lines("merged") == ["merged beta #8 bbbbbbbbbbbb"]
 
 
@@ -511,13 +538,8 @@ def reruns(kitchen):
     return [call for call in kitchen.log("gh") if call.startswith("run ")]
 
 
-@pytest.mark.parametrize(
-    "check_runs",
-    [[{"status": "completed", "conclusion": "cancelled"}], []],
-    ids=["its only check run ended cancelled", "displaced with no job and no check run"],
-)
-def test_a_cancelled_run_on_main_is_no_failed_check_and_is_run_again_once(kitchen, check_runs):
-    sha, stopped = cancelled_on_main(kitchen, check_runs)
+def test_a_cancelled_run_on_main_is_no_failed_check_and_is_run_again_once(kitchen):
+    sha, stopped = cancelled_on_main(kitchen, [{"status": "completed", "conclusion": "cancelled"}])
     kitchen.poll()
     assert kitchen.lines("retro") == []
     assert reruns(kitchen) == ["run rerun 501"]
@@ -530,13 +552,8 @@ def test_a_cancelled_run_on_main_is_no_failed_check_and_is_run_again_once(kitche
     assert reruns(kitchen) == ["run rerun 501"]
 
 
-@pytest.mark.parametrize(
-    "check_runs",
-    [[{"status": "completed", "conclusion": "cancelled"}], []],
-    ids=["its only check run ended cancelled", "displaced with no job and no check run"],
-)
-def test_a_run_on_main_cancelled_a_second_time_is_said_once_and_not_run_again(kitchen, check_runs):
-    sha, stopped = cancelled_on_main(kitchen, check_runs)
+def test_a_run_on_main_cancelled_a_second_time_is_said_once_and_not_run_again(kitchen):
+    sha, stopped = cancelled_on_main(kitchen, [{"status": "completed", "conclusion": "cancelled"}])
     kitchen.poll()
     kitchen.set("push-runs.json", {sha: [{**stopped, "run_attempt": 2}]})
     kitchen.poll(NOW + timedelta(minutes=3))
@@ -546,7 +563,7 @@ def test_a_run_on_main_cancelled_a_second_time_is_said_once_and_not_run_again(ki
 
 
 def test_a_cancelled_run_on_main_that_github_does_not_run_again_is_said_once(kitchen):
-    cancelled_on_main(kitchen, [])
+    cancelled_on_main(kitchen, [{"status": "completed", "conclusion": "cancelled"}])
     kitchen.set("gh-no-rerun", "")
     kitchen.poll()
     kitchen.poll(NOW + timedelta(minutes=3))

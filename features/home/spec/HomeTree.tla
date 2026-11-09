@@ -3,10 +3,11 @@
 \* feature and is retired, archived by its handoff, which starts no home after it and hands what it
 \* has out to the root. Child b is long-lived: a routine, a home with a declared rhythm.
 \* Each child has one pull request, a crew thread that opens it, and two calls to Josh: a gate
-\* and an item that waits on him. The root's own message to Josh about a child's stall, its
-\* notice, is a call too. A call waits in the outbox of jbus's one route to Josh, the root's
-\* home thread, until a post to it goes through. The home thread can fail and mend. Time is
-\* counted in the root's checks, one per jbus pass.
+\* and an item that waits on him. A call waits in the outbox of jbus's one route to Josh, the
+\* root's home thread, until a post to it goes through. The home thread can fail and mend. jbus's
+\* word to Josh about a child's stall, its notice, is no call: it is an item of `jbus needs`,
+\* which Josh reads, and it goes through no home thread. Time is counted in the root's checks,
+\* one per jbus pass.
 \*
 \* This module holds the variables, the start, and the rules. HomeTreeToday.tla extends it with
 \* the steps of today's code, which has each guard of the design. README.md says how to check it.
@@ -39,10 +40,13 @@ NoticeOf(k) == IF k = "a" THEN "an" ELSE "bn"
 Mergers == {"jbus", "root", "child"}
 NoTip == 9
 Patience(k) == IF Kind[k] = "routine" THEN Rhythm ELSE K
-\* A quiet spell is counted to three times a child's patience: two nudges, then the question.
-Cap == 3 * (IF K > Rhythm THEN K ELSE Rhythm) + 1
-Rank == [w \in {"calm", "nudged1", "nudged2", "nudged3", "asked"} |->
-            CASE w = "calm" -> 0 [] w = "nudged1" -> 1 [] w = "nudged2" -> 2 [] OTHER -> 3]
+\* A quiet spell is counted to four times a child's patience: two nudges, a launch of its home
+\* on a fresh thread, then the question.
+Cap == 4 * (IF K > Rhythm THEN K ELSE Rhythm) + 1
+Watches == {"calm", "nudged1", "nudged2", "nudged3", "relaunched", "asked"}
+Rank == [w \in Watches |->
+            CASE w = "calm" -> 0 [] w = "nudged1" -> 1 [] w = "nudged2" -> 2
+              [] w \in {"nudged3", "relaunched"} -> 3 [] OTHER -> 4]
 Up(n, top) == IF n < top THEN n + 1 ELSE top
 
 VARIABLES
@@ -57,7 +61,9 @@ VARIABLES
                 \* it has a crew or pull request out or, for a routine, always; a nudge does
                 \* not reset it
     watch,      \* each child: the root's quiet spell for it, calm, nudged once, twice or three
-                \* times, or asked (the root has asked Josh)
+                \* times, relaunched (jbus launched its home on a fresh thread), or asked (it is
+                \* on Josh's list of what needs him)
+    launches,   \* each child: how many times jbus launched its home on a fresh thread
     up,         \* whether a post to the home thread goes through
     broke,      \* whether the home thread has failed (it fails at most once)
     tip,        \* main's tip, one more after each merge
@@ -65,14 +71,15 @@ VARIABLES
     blind,      \* whether a merge has landed over a tip its merger did not read
     lock,       \* the pull request whose merge holds the repo, or free
     mode        \* who runs jmerge, fixed for a run
-vars == <<life, work, msg, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
+vars == <<life, work, msg, quiet, watch, launches, up, broke, tip, seen, blind, lock, mode>>
 
 TypeOK ==
     /\ life \in [Kids -> {"unmade", "working", "stuck", "retired", "handed"}]
     /\ work \in [Kids -> {"none", "crew", "open", "ready", "again", "back", "merged", "done"}]
     /\ msg \in [Msgs -> {"none", "home", "told"}]
     /\ quiet \in [Kids -> 0..Cap]
-    /\ watch \in [Kids -> {"calm", "nudged1", "nudged2", "nudged3", "asked"}]
+    /\ watch \in [Kids -> Watches]
+    /\ launches \in [Kids -> 0..2]
     /\ up \in BOOLEAN /\ broke \in BOOLEAN
     /\ tip \in 0..2
     /\ seen \in [Kids -> [Mergers -> 0..2 \cup {NoTip}]]
@@ -86,6 +93,7 @@ Init ==
     /\ msg = [m \in Msgs |-> "none"]
     /\ quiet = [k \in Kids |-> 0]
     /\ watch = [k \in Kids |-> "calm"]
+    /\ launches = [k \in Kids |-> 0]
     /\ up = TRUE /\ broke = FALSE
     /\ tip = 0
     /\ seen = [k \in Kids |-> [a \in Mergers |-> NoTip]]
@@ -108,7 +116,7 @@ Watched(k) ==
     \/ life[k] \in {"working", "stuck"} /\ (Kind[k] = "routine" \/ CrewOut(k))
     \/ life[k] = "handed" /\ CrewOut(k)
 \* What one check does to each child's count of quiet checks.
-Ticked == [k \in Kids |-> IF Watched(k) THEN Up(quiet[k], 3 * Patience(k) + 1) ELSE 0]
+Ticked == [k \in Kids |-> IF Watched(k) THEN Up(quiet[k], 4 * Patience(k) + 1) ELSE 0]
 
 \* The scene of a run is the children it makes, the calls they raise and their notices. Nothing
 \* outside the scene ever leaves its start (SceneStill, which is no rule), so each step of a child
@@ -119,10 +127,12 @@ SceneNotices == {NoticeOf(k) : k \in Made}
 SceneStill ==
     /\ \A k \in Kids \ Made :
         /\ life[k] = "unmade" /\ work[k] = "none" /\ quiet[k] = 0 /\ watch[k] = "calm"
+        /\ launches[k] = 0
         /\ \A a \in Mergers : seen[k][a] = NoTip
     /\ \A m \in Msgs \ (Raised \cup SceneNotices) : msg[m] = "none"
 
-\* Rules. Each is Josh's sentence (decisions.md, 2026-10-23) or the scouts' (home-tree review).
+\* Rules. Each is Josh's sentence (decisions.md, 2026-10-23, and the root-hierarchy home's plan,
+\* 2026-11-08) or the scouts' (home-tree review).
 
 \* No child retires leaving a call, gate, pull request or crew thread of its with no home: a child
 \* archived with one open hands it to the root.
@@ -141,13 +151,19 @@ CallsReachJosh == \A m \in Msgs : Queued(m) ~> msg[m] = "told"
 \* feature child here stands for it: the root needs no state of its own in Kids.
 StallFlagged == \A k \in Kids : (Watched(k) /\ quiet[k] >= Patience(k)) => watch[k] # "calm"
 
-\* A stall reaches Josh on the first strike.
-FirstStrike == \A k \in Kids : watch[k] # "calm" => msg[NoticeOf(k)] # "none"
+\* "No home-stall alert goes to the root": a stall goes to no home thread, and a child jbus asks
+\* Josh about is on his list of what needs him (2026-11-08, Q15).
+StallOnNeeds == \A k \in Kids :
+    /\ msg[NoticeOf(k)] # "home"
+    /\ watch[k] = "asked" => msg[NoticeOf(k)] = "told"
 
-\* On a stall, the root nudges twice, then asks Josh.
+\* On a stall, jbus nudges twice, then launches the home on a fresh thread, then asks Josh.
 NudgesBounded == \A k \in Kids : watch[k] # "nudged3"
-\* On a stall, the root nudges twice, then asks Josh.
-AsksAfterTwo == \A k \in Kids : watch[k] = "nudged2" ~> watch[k] \in {"asked", "calm"}
+\* "Only a second stall of the relaunched home goes on jbus needs": jbus launches a home again
+\* at most once (2026-11-08, Q15).
+RelaunchOnce == \A k \in Kids : launches[k] <= 1
+\* A home jbus launched again that stays quiet is on Josh's list.
+AsksAfterRelaunch == \A k \in Kids : watch[k] = "relaunched" ~> watch[k] \in {"asked", "calm"}
 
 \* jbus is the only merger; child homes never merge their own pull requests.
 OneMerger == \A k \in Kids : \A a \in Mergers : seen[k][a] # NoTip => a = "jbus"

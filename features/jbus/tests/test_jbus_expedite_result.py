@@ -183,11 +183,6 @@ def test_drops_whose_scoped_reviewer_ended_with_no_review_tell_the_crew_its_line
     [
         ("no-head", "wait", ready.NO_HEAD),
         ("fresh-conflict", "wait", ready.FRESH_CONFLICT),
-        (
-            "merged-tree",
-            "wait",
-            ready.MERGED_TREE_FAILS.format(base="main", tip="a" * 12, guard="test_a.py"),
-        ),
         ("base", "wait", ready.BASE.format(base="other", default="main")),
         ("not-upheld", "hold", ready.NOT_UPHELD.format(user="user", refused="a.py")),
         ("rereview", "wait", ready.SCOPED_UNRULED.format(files="a.py", command="nothing")),

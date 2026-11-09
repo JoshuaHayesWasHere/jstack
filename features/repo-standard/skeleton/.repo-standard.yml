@@ -10,11 +10,14 @@ owners:
     - .repo-standard.yml
     - .gitignore
     - Makefile
+    - local.mk
     - README.md
     - "schemas/**"
     - "scripts/**"
     - ".github/**"
-  # The root files of the stack's adapter, python-uv's here: another stack names its own.
+  # The root files of the stack's adapter, python-uv's here: another stack names its own. A repo
+  # of several stacks names each stack's roots here instead, and declares them under `stacks:`:
+  # https://github.com/JoshuaHayesWasHere/jstack/blob/main/features/repo-standard/docs/skeleton.md#several-stacks
   STACK: [pyproject.toml, uv.lock, conftest.py]
 cross-cutting: cross-cutting
 generators:

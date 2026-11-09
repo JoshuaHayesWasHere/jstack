@@ -3,12 +3,15 @@
 `RULES` has one entry for each `###` rule of `features/repo-standard/docs/standard.md`, in its
 order. A rule's id is its heading's anchor, so `standard.md#<id>` is the rule's text. Each rule has
 a level: a fault of an `error` rule fails the run, and a fault of a `warn` rule is printed and
-fails nothing.
+fails nothing. A fault a check returns as an `Advice` warns under either level.
 
 The repo's `.repo-standard.yml` may waive a rule with a reason. A waived rule still runs, its
 faults print as `waived`, and they fail nothing. Every waiver prints with its reason, a waiver
 with no reason or for no rule of the standard fails the run, and a waiver whose rule passes says
-it can go.
+it can go. A waiver `until: repo-standard-vN` warns once the repo pins version N or later.
+
+The config's `local:` keeps a file the version owns as the repo's own, with a reason, and an
+entry with no reason fails the run.
 
 The config pins the version as `standard: N`, the tag `repo-standard-vN` of jstack. The tool is
 the standard at one version, `VERSION`, and judges by that version's rules, so a pin of another
@@ -28,13 +31,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from repo_standard import rules
+from repo_standard import TAG, VERSION, rules
 from repo_standard.config import Config, Refused
-from repo_standard.rules import Repo, enforcer
+from repo_standard.rules import Advice, Repo, enforcer
 from repo_standard.tree import Unreadable
 
-VERSION = 1
-TAG = "repo-standard-v"
 UPSTREAM = "https://github.com/JoshuaHayesWasHere/jstack"
 LIST_SECONDS = 20
 COUNTED = {"error": "errors", "warn": "warnings", "waived": "waived"}
@@ -54,12 +55,6 @@ def _version(repo: Repo) -> list[str]:
     if pin is None or pin == VERSION:
         return []
     return [f"the config pins v{pin}, and this tool is {TAG}{VERSION}: run the tool at {TAG}{pin}"]
-
-
-def _deploy_refuses(repo: Repo) -> list[str]:
-    if not rules.deploys(repo):
-        return []
-    return enforcer("every-deploy-entry-refuses-a-tree-that-is-not-green-main")(repo)
 
 
 def _named(rule: str, level: Level = "error") -> Rule:
@@ -103,10 +98,12 @@ RULES: tuple[Rule, ...] = (
     Rule("one-required-check-gathers-the-rest", "error", rules.gathers),
     _named("a-pair-of-trees-passes-once", "warn"),
     _named("a-passing-tree-leaves-a-marker", "warn"),
-    Rule("every-deploy-entry-refuses-a-tree-that-is-not-green-main", "error", _deploy_refuses),
+    Rule("every-deploy-entry-refuses-a-tree-that-is-not-green-main", "error", rules.green_first),
+    Rule("only-a-deploy-entry-runs-a-deploy-command", "error", rules.deploy_commands),
     Rule("a-deploy-is-behind-the-touches-prod-gate", "error", rules.gated),
     Rule("the-standard-is-versioned-by-a-tag", "error", rules.pinned),
     Rule("a-breaking-change-takes-a-new-version", "error", _version),
+    Rule("a-file-a-version-owns-is-that-versions-copy", "warn", rules.drift),
 )
 
 
@@ -142,7 +139,7 @@ def run(
     root: Path, config: Config, paths: list[str], upstream: str | None
 ) -> tuple[list[str], bool]:
     """Every line the run prints, and whether it failed."""
-    repo = Repo(root, config, paths)
+    repo = Repo(root, config, paths, upstream)
     known = {rule.id for rule in RULES}
     waived = {waiver.rule for waiver in config.waivers}
     lines, failed, counts = [], False, {"errors": 0, "warnings": 0, "waived": 0}
@@ -151,10 +148,12 @@ def run(
             faults = rule.check(repo)
         except (Refused, Unreadable) as refused:
             faults = [str(refused)]
-        kind = "waived" if rule.id in waived else rule.level
-        counts[COUNTED[kind]] += len(faults)
-        failed = failed or (kind == "error" and bool(faults))
-        lines += [f"{kind} {rule.id}: {fault}" for fault in faults]
+        for fault in faults:
+            kind = "waived" if rule.id in waived else rule.level
+            kind = "warn" if kind == "error" and isinstance(fault, Advice) else kind
+            counts[COUNTED[kind]] += 1
+            failed = failed or kind == "error"
+            lines.append(f"{kind} {rule.id}: {fault}")
         if rule.id in waived and not faults:
             lines.append(f"note {rule.id}: passes, so its waiver can go")
     for waiver in config.waivers:
@@ -166,6 +165,16 @@ def run(
             failed = True
         else:
             lines.append(f"waiver {waiver.rule}: {waiver.reason}")
+        if waiver.until is not None and (config.standard or 0) >= waiver.until:
+            lines.append(
+                f"warn waiver {waiver.rule}: is until {TAG}{waiver.until}, and the repo pins"
+                f" v{config.standard}: meet the rule and drop the waiver"
+            )
+            counts["warnings"] += 1
+    for path, reason in config.local.items():
+        if not reason:
+            lines.append(f"error local {path}: has no reason, and a local file needs one")
+            failed = True
     lines += _version_note(config, upstream)
     total = ", ".join(f"{kind} {count}" for kind, count in counts.items())
     lines.append(f"conform {TAG}{VERSION}, {len(RULES)} rules: {total}")

@@ -40,4 +40,8 @@ else
 fi
 ```
 
-On `moved: gate <n> of <file>, queued: question <number>`, jbus holds the gate as that question. `already sent` is one jbus held before. On `retired`, every open gate of the file is a question now, and the file has another name: nothing reads it again, and no block writes it. On `not moved`, the gate's own lines are under the line, and the file stays: jbus could not take that one, so it is one of those the end of this section speaks of, shown to the user as text and carried in the handoff's note, whole, under a `## Gate` line.
+On `moved: gate <n> of <file>, queued: question <number>`, jbus holds the gate as that question.
+`already sent` is one jbus held before.
+`decided: written to <brief>` is a crew's or a scout's gate with no `Holds:` line: jbus wrote it to that brief as a decision and holds no question of it.
+On `retired`, every open gate of the file is a question now, and the file has another name: nothing reads it again, and no block writes it.
+On `not moved`, the gate's own lines are under the line, and the file stays: jbus could not take that one, so it is one of those the end of this section speaks of, shown to the user as text and carried in the handoff's note, whole, under a `## Gate` line.

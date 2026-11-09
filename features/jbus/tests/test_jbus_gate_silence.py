@@ -54,6 +54,12 @@ def gate(kitchen, lines=LINES + OPTIONS):
     return kitchen.main("gate", "alpha", stdin=lines)
 
 
+def raised(kitchen, lines=LINES + OPTIONS):
+    """Keep alpha's gate with no `Holds:` line as a question, as a pass raises one: `jbus gate`
+    writes such a gate of a crew's row to its brief as a decision."""
+    return kitchen.raises("alpha", lines)
+
+
 def record(kitchen):
     (one,) = json.loads((kitchen.state / "questions.json").read_text())["records"]
     return one
@@ -122,7 +128,7 @@ def test_a_holds_line_with_no_fail_safe_or_an_unknown_case_is_refused(kitchen, l
 
 
 def test_a_waiting_question_says_whether_it_was_acted_on_or_holds(kitchen):
-    gate(kitchen)
+    raised(kitchen)
     gate(
         kitchen,
         LINES.replace("tea or coffee?", "drop the branches?")
@@ -141,7 +147,7 @@ def test_a_waiting_question_says_whether_it_was_acted_on_or_holds(kitchen):
 
 
 def test_a_plain_gate_asked_this_pass_settles_on_its_default_at_once(kitchen):
-    gate(kitchen)
+    raised(kitchen)
     assert record(kitchen)["holds"] == ""
 
     said = kitchen.poll(NOW)
@@ -184,7 +190,7 @@ def test_a_gate_that_holds_is_open_after_days(kitchen, case):
 
 
 def test_a_later_answer_that_differs_is_taken_and_carried_to_the_thread(kitchen):
-    gate(kitchen)
+    raised(kitchen)
     kitchen.poll(NOW)
     kitchen.clock_reads(AT)
     code, said = kitchen.main("answer", "1", "--by", "user", "--at", AT, "--differs", "coffee")
@@ -204,7 +210,7 @@ def test_a_later_answer_that_differs_is_taken_and_carried_to_the_thread(kitchen)
 
 
 def test_a_home_that_answered_in_its_gates_file_replaces_a_close_by_silence(kitchen):
-    gate(kitchen)
+    raised(kitchen)
     kitchen.poll(NOW)
     status = "answered 2026-10-12: coffee"
     (kitchen.home / "gates.md").write_text(
@@ -235,14 +241,14 @@ def test_a_gate_that_holds_answered_with_its_default_goes_to_its_thread_as_a_go_
 
 
 def test_a_plain_gate_answered_with_its_default_sends_nothing(kitchen):
-    gate(kitchen)
+    raised(kitchen)
     kitchen.main("answer", "1", "--by", "user", "--at", AT, "--default", "yes")
     kitchen.poll(NOW + timedelta(minutes=10))
     assert kitchen.t3.messages == {}
 
 
 def test_the_line_on_the_list_says_acted_on_or_what_holds_with_its_fail_safe(kitchen):
-    gate(kitchen)
+    raised(kitchen)
     held = LINES.replace("tea or coffee?", "drop the branches?") + "Holds: deletes data\n"
     gate(kitchen, held + SAFE + OPTIONS)
     lines = {one["key"]: one["line"] for one in map(questions.item, questions.load(kitchen.state))}

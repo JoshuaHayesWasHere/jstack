@@ -1,7 +1,8 @@
 """A row whose thread ended, or hung, with nothing written does not stay `stale` with nobody to
 handle it. jbus tells its home what to do, once, as it does for a leftover, and the row drops out
-of `stale` when the home handles it. A home that did not close it in time is raised to the root
-home, and the row waits on the user only where there is no home to tell.
+of `stale` when the home handles it. A home that did not close it in time is not told a second
+time, no other home is told of it, and the row waits on the user only where there is no home to
+tell.
 
 Like `test_jbus_leftover.py`, the tests run the real pass against a faked T3 Code server, `gh`
 and `jmerge`, over briefs that are made up."""

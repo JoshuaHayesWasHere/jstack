@@ -1,8 +1,10 @@
-"""jbus's watch of the homes (`jbus.children`): a child or the root with work out that stays
-quiet for its patience is nudged, the user hears of it at once, it is nudged once more, and then the
-user is asked, and nothing more is sent in that spell. Something the child does that the root can
-see ends the spell, and its home's reply to a nudge does not. A routine, a scope with a `rhythm`
-file, is watched with nothing out. `jbus out --scope` says what a scope has out."""
+"""jbus's watch of the homes (`jbus.children`): a home with work out that stays quiet for its
+patience is nudged, nudged once more, started again on a fresh thread, and then put on `jbus
+needs`, and nothing more is sent in that spell. A home jbus started that stalls again is not started
+a second time. Something the home does that jbus can see ends the spell, and its home's reply to a
+nudge does not. A routine, a scope with a `rhythm` file, is watched with nothing out. The catch-all,
+`uncategorized`, is kept running: a pass launches its home when it has no live thread. No home's
+stall wakes the root. `jbus out --scope` says what a scope has out."""
 
 import collections
 import json
@@ -13,7 +15,8 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import children, passes, questions, watch
+from jbus import alert, blockers, children, passes, questions, stalls, watch
+from jroles import ledger
 from test_jbus_kitchen import GATE, NOW, PROJECT
 from test_jbus_leftover import home
 from test_jbus_queue import add, brief
@@ -46,15 +49,95 @@ def told(kitchen):
     return [e["line"] for e in kitchen.events(children.STALL)]
 
 
-def test_a_quiet_child_is_nudged_twice_then_the_user_is_asked_and_nothing_more(child):
+def homes(kitchen):
+    """The launch of each home's thread a pass made."""
+    return [one for one in kitchen.t3.launches if one["title"].startswith(children.TITLE)]
+
+
+def needs(kitchen):
+    """What `jbus needs` prints for the project."""
+    code, said = kitchen.main("--project", "demo", "needs")
+    assert code == 0
+    return said
+
+
+def test_a_quiet_child_is_nudged_twice_then_started_again_then_on_needs_and_nothing_more(child):
+    """A home quiet with work out is nudged at its patience and again a patience later. A
+    patience after the second nudge jbus launches `/home <scope>` on a fresh thread; a patience
+    after that, still quiet, the home is on `jbus needs`, and nothing more is sent or launched."""
     kitchen, found, _ = child
-    for n in range(10, 5 * P, 10):
+    for n in range(10, 6 * P, 10):
         kitchen.poll(minutes(n))
         nudges = [one for one in sends(kitchen) if one["threadId"] == found["threadId"]]
         assert len(nudges) == (0 if n < P else 1 if n < 2 * P else 2)
-        assert len(told(kitchen)) == (0 if n < P else 1 if n < 3 * P else 2)
+        assert len(homes(kitchen)) == (0 if n < 3 * P else 1)
+        assert len(told(kitchen)) == (0 if n < P else 1 if n < 4 * P else 2)
+        assert ("stalled" in needs(kitchen)) == (n >= 4 * P)
+    (launch,) = homes(kitchen)
+    assert launch["message"] == "/home sc"
+    assert launch["workspaceStrategy"] == {"type": "root"}
+    assert (
+        "after two nudges"
+        in json.loads((kitchen.state / "relaunches.json").read_text())["sc"]["why"]
+    )
     first, asked = told(kitchen)
-    assert "nudged it" in first and "after two nudges" in asked
+    assert "nudged it" in first and "after jbus started it again" in asked
+    assert "home-sc" in needs(kitchen) or "sc:" in needs(kitchen)
+
+
+def test_a_home_jbus_started_again_that_stalls_again_is_on_needs_and_not_started_again(child):
+    """The thread jbus launched starts and writes its `home-id`. A crew's write ends the spell.
+    When the home then stalls again it is nudged twice and goes on `jbus needs` with no second
+    launch."""
+    kitchen, found, crew = child
+    for n in range(10, 3 * P + 1, 10):
+        kitchen.poll(minutes(n))
+    assert len(homes(kitchen)) == 1
+    ours = json.loads((kitchen.state / "relaunches.json").read_text())["sc"]["thread"]
+    (fresh,) = [one for one in kitchen.t3.threads if one["threadId"] == ours]
+    assert fresh is not found
+    (kitchen.home / "sc" / "home-id").write_text(fresh["threadId"] + "\n")
+    kitchen.t3.at_work.discard(fresh["threadId"])
+    fresh.update(status="completed", itemCount=40)
+    crew["updatedAt"] = minutes(3 * P + 5).isoformat().replace("+00:00", "Z")
+    crew["items"] = 99
+    kitchen.poll(minutes(3 * P + 6))
+    assert json.loads((kitchen.state / "stalls.json").read_text())["sc"]["step"] == "calm"
+    for n in range(3 * P + 10, 8 * P, 10):
+        kitchen.poll(minutes(n))
+    nudged = [one for one in sends(kitchen) if one["threadId"] == fresh["threadId"]]
+    assert len([one for one in nudged if one["clientRequestId"].startswith(STALL)]) == 2
+    assert len(homes(kitchen)) == 1
+    (item,) = stalls.stalled(kitchen.state)
+    assert item["slug"] == "home-sc"
+    said = needs(kitchen)
+    assert item["line"] in said
+    assert blockers.needs(item) in said
+    assert blockers.reply(item) in said
+
+
+def test_no_home_stall_reaches_the_root(child):
+    """Through a whole spell of a scope's stall, nothing about it is sent to the root's thread and
+    no home-stall alert is open, while `jbus needs` lists the stalled home."""
+    kitchen, _, _ = child
+    root = (kitchen.home / "home-id").read_text().split()[0]
+    for n in range(10, 6 * P, 10):
+        kitchen.poll(minutes(n))
+        to_root = [one["message"] for one in sends(kitchen) if one["threadId"] == root]
+        assert not [one for one in to_root if children.STALL in one]
+        streaks = alert.streaks(kitchen.state_dir)
+        assert not [key for key in streaks if key.startswith(children.STALL)]
+    assert "stalled" in needs(kitchen)
+
+
+def test_a_home_stall_alert_left_open_from_before_is_retired(child):
+    """An alert a stall raised before the stall went on `jbus needs` is retired on the next pass,
+    so it no longer wakes the root."""
+    kitchen, _, _ = child
+    key = f"{children.STALL} demo sc"
+    alert.raise_(jbus.load(), key, f"{children.STALL} sc: old", owner="demo", now=NOW)
+    kitchen.poll(minutes(1))
+    assert key not in alert.streaks(kitchen.state_dir)
 
 
 def test_each_step_of_a_spell_waits_a_patience_after_the_last_one_after_a_long_gap(child):
@@ -69,8 +152,12 @@ def test_each_step_of_a_spell_waits_a_patience_after_the_last_one_after_a_long_g
     kitchen.poll(minutes(start + P))
     assert len([one for one in sends(kitchen) if one["threadId"] == found["threadId"]]) == 2
     kitchen.poll(minutes(start + 2 * P - 1))
-    assert len(told(kitchen)) == 1
+    assert homes(kitchen) == []
     kitchen.poll(minutes(start + 2 * P))
+    assert len(homes(kitchen)) == 1
+    kitchen.poll(minutes(start + 3 * P - 1))
+    assert len(told(kitchen)) == 1
+    kitchen.poll(minutes(start + 3 * P))
     assert len(told(kitchen)) == 2
 
 
@@ -104,7 +191,7 @@ def test_a_routine_that_misses_its_beat_is_flagged_with_nothing_out(kitchen):
     nudged = [one for one in sends(kitchen) if not one["clientRequestId"].startswith("wakes|")]
     assert [one["threadId"] for one in nudged] == [found["threadId"]]
     (line,) = told(kitchen)
-    assert kitchen.wakes.said == [line]
+    assert line not in kitchen.wakes.said
 
 
 def test_a_child_with_nothing_out_is_not_watched(kitchen):
@@ -130,9 +217,10 @@ def root(kitchen):
     return kitchen, found
 
 
-def test_a_quiet_catch_all_the_root_stands_in_for_is_nudged_twice_then_the_user_is_asked(root):
+def test_a_quiet_catch_all_the_root_stands_in_for_is_nudged_twice_then_started(root):
     """The catch-all, `uncategorized`, is watched as a scoped home is. While it has no thread of
-    its own, the root's thread is nudged for it, and its nudge names the root's plan, no scope."""
+    its own, the root's thread is nudged for it, and its nudge names the root's plan, no scope.
+    After the second, jbus makes its directory and launches `/home uncategorized`."""
     kitchen, found = root
     for n in range(10, 5 * P, 10):
         kitchen.poll(minutes(n))
@@ -140,13 +228,15 @@ def test_a_quiet_catch_all_the_root_stands_in_for_is_nudged_twice_then_the_user_
         assert [one["threadId"] for one in nudges] == [found["threadId"]] * (
             0 if n < P else 1 if n < 2 * P else 2
         )
-        assert len(told(kitchen)) == (0 if n < P else 1 if n < 3 * P else 2)
+        assert len(told(kitchen)) == (0 if n < P else 1 if n < 4 * P else 2)
     first = nudges[0]
     assert "the home uncategorized has had" in first["message"]
     assert "`jbus plan`" in first["message"]
     assert "--scope" not in first["message"]
+    assert [one["message"] for one in homes(kitchen)] == ["/home uncategorized"]
+    assert (kitchen.home / "uncategorized" / "plan.md").exists()
     stalled, asked = told(kitchen)
-    assert "nudged it" in stalled and "after two nudges" in asked
+    assert "nudged it" in stalled and "after jbus started it again" in asked
 
 
 def test_a_spell_kept_under_the_old_name_is_read_once_and_moved(root):
@@ -269,8 +359,149 @@ def test_a_child_with_a_hold_and_a_quiet_crew_is_still_nudged(child):
         kitchen.poll(minutes(n))
     nudges = [one for one in sends(kitchen) if one["threadId"] == found["threadId"]]
     assert len(nudges) == 2 and "has had 2 things out" in nudges[0]["message"]
+    assert len(homes(kitchen)) == 1
     first, asked = told(kitchen)
-    assert "nudged it" in first and "after two nudges" in asked
+    assert "nudged it" in first and "after jbus started it again" in asked
+
+
+@pytest.fixture
+def started(kitchen):
+    """A project whose home has started: a root `plan.md` and the root's thread."""
+    home(kitchen)
+    (kitchen.home / "plan.md").write_text("# plan\n")
+    return kitchen
+
+
+def test_a_pass_makes_the_catch_all_and_launches_its_home_once(started):
+    """With no `uncategorized/`, a pass makes it with its plan and launches `/home
+    uncategorized` in the project's own checkout. A pass while that launch starts launches
+    nothing."""
+    kitchen = started
+    kitchen.poll(NOW)
+    (launch,) = homes(kitchen)
+    assert launch["message"] == "/home uncategorized"
+    assert launch["title"] == "home: demo uncategorized"
+    assert launch["workspaceStrategy"] == {"type": "root"}
+    assert (kitchen.home / "uncategorized" / "plan.md").exists()
+    kitchen.poll(minutes(10))
+    kitchen.poll(minutes(P + 10))
+    assert len(homes(kitchen)) == 1
+
+
+@pytest.mark.parametrize("gone", ["archived", "missing"])
+def test_a_catch_all_whose_thread_is_archived_or_missing_is_launched_again(started, gone):
+    kitchen = started
+    if gone == "archived":
+        found = home(kitchen, "uncategorized")
+        found["archived"] = True
+    else:
+        (kitchen.home / "uncategorized").mkdir()
+        (kitchen.home / "uncategorized" / "home-id").write_text("mcp:no-such-thread\n")
+    (kitchen.home / "uncategorized" / "plan.md").write_text("# uncategorized: plan\n")
+    kitchen.poll(NOW)
+    (launch,) = homes(kitchen)
+    assert launch["message"] == "/home uncategorized"
+    assert (
+        "archived or gone"
+        in json.loads((kitchen.state / "relaunches.json").read_text())["uncategorized"]["why"]
+    )
+
+
+def test_a_catch_all_whose_thread_is_live_launches_nothing(started):
+    kitchen = started
+    home(kitchen, "uncategorized", idle=timedelta(hours=6))
+    (kitchen.home / "uncategorized" / "plan.md").write_text("# uncategorized: plan\n")
+    for n in (0, 10, P + 10, 3 * P):
+        kitchen.poll(minutes(n))
+    assert homes(kitchen) == []
+
+
+@pytest.mark.parametrize("answer", ["refused", "lost"])
+def test_a_catch_all_whose_thread_cannot_be_read_is_not_launched_again(started, answer):
+    """A read T3 Code refuses for a reason other than a gone thread, or whose reply is lost, says
+    nothing of whether the thread is live, so the pass launches nothing and says why."""
+    kitchen = started
+    (kitchen.home / "uncategorized").mkdir()
+    (kitchen.home / "uncategorized" / "home-id").write_text("mcp:unread\n")
+    (kitchen.home / "uncategorized" / "plan.md").write_text("# uncategorized: plan\n")
+    if answer == "lost":
+        kitchen.t3.lose_read = True
+    else:
+        result = kitchen.t3.result
+
+        def refusing(asked):
+            if asked.get("params", {}).get("name") == "t3_thread_read":
+                return {"isError": True, "content": [{"type": "text", "text": "not allowed"}]}
+            return result(asked)
+
+        kitchen.t3.result = refusing
+    said = kitchen.poll(NOW)
+    assert homes(kitchen) == []
+    assert any("wait home: its thread mcp:unread could not be read" in one for one in said)
+
+
+def test_a_launch_whose_reply_is_lost_is_not_launched_again_within_its_patience(started):
+    kitchen = started
+    kitchen.t3.lose = "after"
+    said = kitchen.poll(NOW)
+    assert any("launch home uncategorized: no reply" in one for one in said)
+    kitchen.t3.lose = None
+    kitchen.poll(minutes(10))
+    assert len(homes(kitchen)) == 1
+    kitchen.poll(minutes(P + 10))
+    assert len(homes(kitchen)) == 2
+
+
+def test_a_catch_all_is_not_launched_while_the_dispatch_is_stopped(started):
+    kitchen = started
+    kitchen.state_dir.mkdir(parents=True, exist_ok=True)
+    (kitchen.state_dir / "stop").write_text("")
+    said = kitchen.poll(NOW)
+    assert homes(kitchen) == []
+    assert any("the dispatch is off or stopped" in one for one in said)
+
+
+PRIME = "claudeAgent_claude_prime"
+
+
+def test_a_catch_all_launches_on_the_model_the_role_map_gives_the_home(started, jstack_config):
+    kitchen = started
+    (jstack_config.parent / "roles").write_text(
+        f"home: claudeAgent claude-opus-5-5 claudeAgent,{PRIME}\n"
+    )
+    kitchen.poll(NOW)
+    (launch,) = homes(kitchen)
+    assert launch["modelSelection"]["model"] == "claude-opus-5-5"
+    assert launch["modelSelection"]["instanceId"] == "claudeAgent"
+
+
+def test_a_catch_all_waits_when_no_instance_of_the_home_pool_can_run(started, jstack_config):
+    kitchen = started
+    (jstack_config.parent / "roles").write_text(
+        f"home: claudeAgent claude-opus-5-5 claudeAgent,{PRIME}\n"
+    )
+    kitchen.machine(plan=None)
+    weekly = "You've hit your weekly limit · resets Oct 18, 4pm (America/New_York)"
+    for instance in ("claudeAgent", PRIME):
+        ledger.write(ledger.cap_of([{"text": weekly}], NOW).record(instance))
+    said = kitchen.poll(NOW)
+    assert homes(kitchen) == []
+    assert any("wait home uncategorized: no launch: " in one for one in said)
+
+
+def test_a_catch_all_waits_when_the_role_map_gives_the_home_no_model(started, jstack_config):
+    kitchen = started
+    (jstack_config.parent / "roles").write_text("home: nobody\n")
+    said = kitchen.poll(NOW)
+    assert homes(kitchen) == []
+    assert any("the role map gives the home no model" in one for one in said)
+
+
+def test_a_project_whose_home_has_not_started_launches_no_catch_all(kitchen):
+    home(kitchen)
+    kitchen.poll(NOW)
+    assert homes(kitchen) == []
+    assert not (kitchen.home / "uncategorized").exists()
 
 
 def reads_of_tasks(monkeypatch):

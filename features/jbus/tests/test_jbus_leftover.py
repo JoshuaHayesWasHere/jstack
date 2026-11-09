@@ -95,8 +95,8 @@ def state(kitchen, now=NOW):
 def test_three_passes_send_the_home_one_message_and_a_new_left_text_a_second(kitchen):
     at = home(kitchen)
     merged(kitchen, left=NOTE)
-    assert kitchen.main("gate", "alpha", stdin=ASK)[0] == 0
-    assert kitchen.main("gate", "alpha", stdin=ASK.replace("tea or coffee", "milk"))[0] == 0
+    assert kitchen.raises("alpha", ASK)[1]
+    assert kitchen.raises("alpha", ASK.replace("tea or coffee", "milk"))[1]
     kitchen.clock_reads("2026-10-12 10:00 ET")
     answered = kitchen.main(
         "answer", "1", "--by", "user", "--at", "2026-10-12 10:00 ET", "--default", "tea it is"
@@ -450,8 +450,10 @@ def test_a_home_told_and_then_settled_is_the_users_with_that_reason_and_not_rais
     assert stalls(kitchen) == []
     at["settled"] = False
     kitchen.poll(later(61))
-    raised = [one for one in sends(kitchen) if not one["clientRequestId"].startswith("home-stall|")]
-    assert stalls(kitchen) == [] and len(raised) == 2
+    told, nudged = sends(kitchen)
+    assert stalls(kitchen) == []
+    assert told["clientRequestId"].startswith("wakes|demo|") and "left alpha" in told["message"]
+    assert nudged["clientRequestId"].startswith("home-stall|uncategorized|")
 
 
 def test_a_pass_that_cannot_list_the_threads_out_leaves_an_untold_row_the_users(kitchen):

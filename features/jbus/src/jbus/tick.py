@@ -41,9 +41,8 @@ plus one read of the workflow runs a check suite, and `jmerge`'s own once a verd
 The tick keeps a head's ETag with the verdict read under it at once, and the verdict `jmerge` ran
 for only once `jmerge` ran to its end, so a tick that dies, a `jmerge` that was busy with the
 pass's own run, or one that failed leaves the verdict to the next tick's `jmerge`, and the tick
-restates nothing twice. While a run of `jmerge` it started is going, which a merge's guards
-make a minute or more (`jmerge.treeguards`), the tick reads on every 2 seconds in its own
-process (`tick`), since the timer starts no tick until it ends. The pass runs
+restates nothing twice. While a run of `jmerge` it started is going, the tick reads on every 2
+seconds in its own process (`tick`), since the timer starts no tick until it ends. The pass runs
 `jmerge --if-free` each minute too, so what the tick misses the next pass with the run lock free
 does. A merge of the tick's that changed a skill is kept for the next pass's `reload.tell`
 before the ETag is (`reload.keep`), since `jmerge` prints its `merged` line once. One run of
@@ -352,9 +351,8 @@ def tick(config: jbus.Config, say=print) -> int:
     `jmerge` where one did since `jmerge` last ran for it.
 
     Each `jmerge` runs on a thread of its own, and while one runs the tick reads every `EVERY`
-    seconds on, and restates what it reads, until each has ended. A `jmerge` that merges runs the
-    merged-tree guards first (`jmerge.treeguards`), 68 to 86 s on 2026-11-08, and the timer starts
-    no tick while one runs. A verdict that is new in a read after the first is left to the next
+    seconds on, and restates what it reads, until each has ended, since the timer starts no tick
+    while one runs. A verdict that is new in a read after the first is left to the next
     tick's `jmerge`, so a tick runs `jmerge` at most once a project, whatever its run said. A read
     that fails still lets each run under way end and be kept, since `jmerge` prints its `merged`
     line once (`reload.keep`), before the failure goes on."""

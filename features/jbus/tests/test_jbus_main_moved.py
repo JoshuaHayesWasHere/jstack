@@ -221,3 +221,24 @@ def test_the_rebase_message_writes_its_key_and_no_main_moved_key(launched):
     assert "rebase|alpha|cccccccccccc" in sent
     assert [key for key in sent if key.startswith(("mainmoved|", "moved|"))] == []
     assert launched.lines("rebase") == ["rebase alpha: told the crew (#7, cccccccccccc)"]
+
+
+def test_a_run_displaced_at_mains_tip_is_run_again_once_and_one_under_it_is_batched(kitchen):
+    """jbus's rerun of an older push's failed run joins check.yml's group `check-main` and
+    displaces the run waiting at main's tip, which GitHub cancels before it has a job. No later
+    push covers the tip, so the pass runs it again, and the rerun selects over every merge since
+    the last checked commit. Once a newer commit lands on it, the same commit is `batched`."""
+    kitchen.quiet()
+    move(kitchen)
+    displaced = move(kitchen)
+    checks_kept = kitchen.stub / "check-runs.json"
+    kitchen.set("check-runs.json", {**json.loads(checks_kept.read_text()), displaced: []})
+    stopped = {"id": 601, "status": "completed", "conclusion": "cancelled", "run_attempt": 1}
+    kitchen.set("push-runs.json", {displaced: [stopped]})
+    kitchen.poll(NOW)
+    assert [call for call in kitchen.log("gh") if call.startswith("run ")] == ["run rerun 601"]
+    assert jbus.read_json(kitchen.state / "checks.json", {}).get(displaced) is None
+    move(kitchen)
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert [call for call in kitchen.log("gh") if call.startswith("run ")] == ["run rerun 601"]
+    assert jbus.read_json(kitchen.state / "checks.json", {})[displaced] == "batched"

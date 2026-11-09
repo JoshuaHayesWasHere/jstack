@@ -8,26 +8,33 @@ the workflows, the manifests and the config.
 A rule that no check of the tree can judge in every stack is met by the files that enforce it in
 the repo, named in the config's `enforced-by`. `enforcer` holds each named file to two things: git
 tracks it, and something the checks run reaches it. A test file, a workflow, and a file a workflow,
-the Makefile or a make file it includes names by its path are reached, so a page or a file nothing
-runs does not meet it.
+the Makefile or a make file it includes names by its path are reached, and so is a script the
+adapter of one of the config's `stacks` runs, so a page or a file nothing runs does not meet it.
+
+A check may return an `Advice`, a fault that warns whatever its rule's level and fails nothing.
 
 A workflow that calls the standard's shared check at a version's tag runs what that workflow runs:
 `make select`, `make lint` and the selected tests on a pull request, and `make check` on main.
+
+A file the pinned version owns (`repo_standard.owned`) is held to that version's copy, read from
+the tag's tree, which `Repo.upstream` clones when the tool's own tree is not that tree.
 """
 
 from __future__ import annotations
 
 import fnmatch
+import importlib
 import json
 import re
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import cached_property
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from repo_standard import borders, docs_true, size, stale
-from repo_standard.config import Config, Refused
+from repo_standard import TAG, VERSION, borders, docs_true, owned, size, stale
+from repo_standard.adapters import COMMANDS
+from repo_standard.config import Config, Refused, Stack
 from repo_standard.tree import Fault
 
 WORKFLOWS = ".github/workflows/"
@@ -40,11 +47,38 @@ FRONT_NAME = re.compile(
     r"\A---\n(?:.*\n)*?name:\s*['\"]?([^'\"\n]+?)['\"]?\s*\n(?:.*\n)*?---", re.M
 )
 GATED = ("deploy", "release")
+GREEN = re.compile(
+    r"(?:\brepo-standard|-m\s+repo_standard|\$[({]REPO_STANDARD[)}])\s+green(?![\w-])"
+)
+"""A command that runs `repo-standard green`: the command, `python3 -m repo_standard`, or the
+skeleton Makefile's `$(REPO_STANDARD)`."""
+_FLAGS = r"(?:\s+--?[\w-]+(?:[= ](?!-)\S+)?)*"
+DEPLOY = {
+    "aws s3 sync": rf"\baws{_FLAGS}\s+s3{_FLAGS}\s+sync\b",
+    "aws cloudfront create-invalidation": (
+        rf"\baws{_FLAGS}\s+cloudfront{_FLAGS}\s+create-invalidation\b"
+    ),
+    "sam deploy": rf"\bsam{_FLAGS}\s+deploy\b",
+    "terraform apply": rf"\bterraform{_FLAGS}\s+apply\b",
+    "cdk deploy": rf"\bcdk{_FLAGS}\s+deploy\b",
+}
+"""The deploy commands conform looks for, each with the pattern that finds it: the AWS CLI's S3
+sync and CloudFront invalidation, and the deploy or apply of SAM, Terraform and CDK. A global
+flag may stand between the tool and its verb, as in `aws --profile prod s3 sync`."""
+DEPLOYS = re.compile("|".join(f"(?P<d{at}>{one})" for at, one in enumerate(DEPLOY.values())))
+SHELL_SUFFIXES = (".sh", ".bash", ".zsh", ".ksh")
+SHEBANG = re.compile(r"^#!.*\b(?:ba|z|k|da)?sh\b")
+COMMAND_END = re.compile(r"&&|\|\||[;|]")
+CONDITIONAL = re.compile(r"^\s*(?:ifeq|ifneq|ifdef|ifndef|else|endif)\b")
 SHARED_CHECK = re.compile(
     r"^\s*uses:\s*['\"]?[\w.-]+/[\w.-]+/\.github/workflows/repo-standard-check\.yml"
     r"@repo-standard-v\d+['\"]?\s*(?:#.*)?$",
     re.M,
 )
+
+
+class Advice(str):
+    """A fault that `conform` prints as a warning, whatever the level of its rule."""
 
 
 @dataclass
@@ -54,6 +88,7 @@ class Repo:
     root: Path
     config: Config
     paths: list[str]
+    upstream: str | None = None
     _borders: tuple[set[str], list[Fault]] | None = field(default=None, repr=False)
 
     def read(self, path: str) -> str:
@@ -274,7 +309,42 @@ def docs_true_(repo: Repo) -> list[str]:
 
 def make_targets(repo: Repo) -> list[str]:
     lacking = [one for one in ("lint", "test", "check") if one not in repo.targets]
-    return [f"Makefile: has no `{one}` target" for one in lacking]
+    faults = [f"Makefile: has no `{one}` target" for one in lacking]
+    for root in (
+        r for one in repo.config.stacks.values() if one.adapter == "node-vite" for r in one.roots
+    ):
+        faults += _npm_root(repo, root)
+    return faults
+
+
+def _npm_root(repo: Repo, root: str) -> list[str]:
+    """A node-vite root's faults: `make lint` runs its package's `check` script and `make test`
+    its `test` script, and CI's setup reads its Node version from `.nvmrc` or `engines.node`."""
+    where = "package.json" if root == "." else f"{root}/package.json"
+    try:
+        package = json.loads(repo.read(where))
+    except json.JSONDecodeError:
+        package = None
+    if not isinstance(package, dict):
+        return [f"{where}: is not there, or is not a JSON object, so the stack has no scripts"]
+    scripts = package.get("scripts")
+    scripts = scripts if isinstance(scripts, dict) else {}
+    faults: list[str] = [
+        f"{where}: has no `{name}` script, which `make {target}` runs"
+        for name, target in (("check", "lint"), ("test", "test"))
+        if not isinstance(scripts.get(name), str) or not scripts[name].strip()
+    ]
+    engines = package.get("engines")
+    pinned = isinstance(engines, dict) and bool(engines.get("node"))
+    nvmrc = ".nvmrc" if root == "." else f"{root}/.nvmrc"
+    if not pinned and nvmrc not in repo.paths:
+        faults.append(
+            Advice(
+                f"{root}: pins no Node version, in `.nvmrc` or package.json `engines.node`,"
+                " so CI runs the runner's Node"
+            )
+        )
+    return faults
 
 
 def scripts_home(repo: Repo) -> list[str]:
@@ -335,7 +405,38 @@ def tests_home(repo: Repo) -> list[str]:
 
 
 def selects(repo: Repo) -> list[str]:
-    return [] if "select" in repo.targets else ["Makefile: has no `select` target"]
+    faults = [] if "select" in repo.targets else ["Makefile: has no `select` target"]
+    for name, stack in repo.config.stacks.items():
+        if stack.adapter != "node-vite":
+            continue
+        if stack.e2e is None:
+            faults.append(
+                Advice(f"stack {name}: sets no `e2e:`, so no browser test runs on a pull request")
+            )
+        else:
+            faults += _browser(repo, stack)
+    return faults
+
+
+def _browser(repo: Repo, stack: Stack) -> list[str]:
+    """The browser tests of a node stack that no change reaches, as the repo's own selection,
+    `scripts/node_browser.py`, reads them."""
+    scripts = repo.root / "scripts"
+    if not (scripts / "node_browser.py").is_file():
+        return ["scripts/node_browser.py: is not there, so no change selects a browser test"]
+    names = ("node_browser", "node_graph", "node_table")
+    saved = {name: sys.modules.pop(name) for name in names if name in sys.modules}
+    sys.path.insert(0, str(scripts))
+    try:
+        module = importlib.import_module("node_browser")
+        assert stack.e2e is not None
+        suite = module.Suite(stack.roots, json.loads(stack.e2e.json()), repo.paths, repo.read)
+        return list(suite.faults)
+    finally:
+        sys.path.remove(str(scripts))
+        for name in names:
+            sys.modules.pop(name, None)
+        sys.modules.update(saved)
 
 
 def main_runs_all(repo: Repo) -> list[str]:
@@ -380,10 +481,198 @@ def gated(repo: Repo) -> list[str]:
     ]
 
 
+@dataclass(frozen=True)
+class Recipe:
+    """One target of a make file: where its rule is, the prerequisites make runs before it (its
+    order-only ones apart), and each command of its recipe with the line it starts on."""
+
+    path: str
+    line: int
+    target: str
+    prerequisites: tuple[str, ...]
+    commands: tuple[tuple[int, str], ...]
+
+
+def recipes(path: str, text: str) -> list[Recipe]:
+    """The targets of one make file and their recipes. A `define` block is text, not a rule, a
+    line that ends in `\\` goes on to the next, and a command's `@`, `-` and `+` are dropped. A
+    target-specific variable adds no recipe, and a conditional's lines (`ifeq`, `else`, `endif`)
+    leave the recipe open, so a command behind one is still its target's."""
+    found: list[Recipe] = []
+    lines = text.splitlines()
+    at, defining, current = 0, False, []
+    while at < len(lines):
+        start, line = at + 1, lines[at]
+        while line.endswith("\\") and at + 1 < len(lines):
+            at += 1
+            line = line[:-1] + " " + lines[at].lstrip("\t ")
+        at += 1
+        if defining:
+            defining = not re.match(r"^\s*endef\b", line)
+            continue
+        if re.match(r"^\s*define\b", line):
+            defining, current = True, []
+            continue
+        if line.startswith("\t") and current:
+            command = line[1:].lstrip(" @-+")
+            if command.strip() and not command.lstrip().startswith("#"):
+                for one in current:
+                    found[one] = replace(
+                        found[one], commands=(*found[one].commands, (start, command))
+                    )
+            continue
+        if not line.strip() or line.lstrip().startswith("#") or CONDITIONAL.match(line):
+            continue
+        rule = docs_true.RULE.match(line)
+        rest = line[rule.end() :] if rule else ""
+        if not rule or "$" in rule[1] or "=" in rest.split(";")[0]:
+            current = []
+            continue
+        given, _, inline = rest.partition(";")
+        normal = tuple(given.split("|")[0].split())
+        current = []
+        for target in rule[1].split():
+            current.append(len(found))
+            commands = ((start, inline.strip().lstrip("@-+")),) if inline.strip() else ()
+            found.append(Recipe(path, start, target, normal, commands))
+    return found
+
+
+def _recipes(repo: Repo) -> dict[str, Recipe]:
+    """Each target of the Makefile and the make files it includes. A target named by several
+    rules has the prerequisites of all of them and the recipe of the one that has it."""
+    merged: dict[str, Recipe] = {}
+    for path, text in repo.makefiles.items():
+        for one in recipes(path, text):
+            had = merged.get(one.target)
+            if had is None:
+                merged[one.target] = one
+                continue
+            ran = one if one.commands else had
+            given = (*had.prerequisites, *one.prerequisites)
+            merged[one.target] = replace(ran, prerequisites=given)
+    return merged
+
+
+def _deploy(text: str) -> str:
+    """The deploy command a line runs, by its name in `DEPLOY`, or ``""``."""
+    hit = DEPLOYS.search(text)
+    return list(DEPLOY)[int(hit.lastgroup[1:])] if hit and hit.lastgroup else ""
+
+
+def _entry_target(entry: str) -> str | None:
+    """The one make target a deploy entry `make [flags] [VAR=value] <target>` runs, or None."""
+    words = entry.split()
+    if words[:1] != ["make"]:
+        return None
+    named = [one for one in words[1:] if not one.startswith("-") and "=" not in one]
+    return named[0] if len(named) == 1 else None
+
+
+def green_first(repo: Repo) -> list[str]:
+    """Each deploy entry runs `repo-standard green` before any other command."""
+    faults = []
+    known = _recipes(repo)
+    for entry in deploys(repo):
+        target = _entry_target(entry)
+        if target is None:
+            faults.append(
+                f"deploy entry `{entry}` is not `make <target>`, so conform cannot read its recipe"
+            )
+            continue
+        recipe = known.get(target)
+        if recipe is None:
+            faults.append(f"deploy entry `{entry}`: the Makefile has no target {target}")
+            continue
+        where = f"{recipe.path}:{recipe.line}: deploy entry `{entry}`"
+        if recipe.prerequisites:
+            names = ", ".join(recipe.prerequisites)
+            faults.append(f"{where} has prerequisites ({names}), which make runs before its recipe")
+        first = recipe.commands[0][1] if recipe.commands else ""
+        if not GREEN.search(COMMAND_END.split(first)[0]):
+            faults.append(f"{where} does not run `repo-standard green` before its first command")
+    return faults
+
+
+def _deploy_lines(text: str) -> list[tuple[int, str, str]]:
+    """Each line of a script or workflow that is not a comment, with its number, and the deploy
+    command it runs or ``""``."""
+    found = []
+    for at, line in enumerate(text.splitlines(), 1):
+        if line.lstrip().startswith("#"):
+            continue
+        found.append((at, line, _deploy(line)))
+    return found
+
+
+def _is_shell(repo: Repo, path: str) -> bool:
+    if path.endswith(SHELL_SUFFIXES):
+        return True
+    if "." in PurePosixPath(path).name or path.startswith(WORKFLOWS):
+        return False
+    return SHEBANG.match(repo.read(path)) is not None
+
+
+def deploy_commands(repo: Repo) -> list[str]:
+    """Only a deploy entry's recipe, or a script that runs `repo-standard green` first, runs a
+    deploy command."""
+    faults = []
+    entries = {_entry_target(one) for one in repo.config.deploy or ()}
+    for recipe in _recipes(repo).values():
+        if recipe.target in entries:
+            continue
+        for line, command in recipe.commands:
+            said = _deploy(command)
+            if said:
+                faults.append(
+                    f"{recipe.path}:{line}: target {recipe.target} runs {said}, "
+                    "and only a deploy entry's recipe may"
+                )
+    for path, text in sorted(repo.workflows.items()):
+        faults += [
+            f"{path}:{line}: runs {said}, where a step runs a deploy entry instead"
+            for line, _, said in _deploy_lines(text)
+            if said
+        ]
+    for path in sorted(repo.paths):
+        if path in repo.workflows or not _is_shell(repo, path):
+            continue
+        green_at = None
+        for line, text, said in _deploy_lines(repo.read(path)):
+            if green_at is None and GREEN.search(text):
+                green_at = line
+            if said and green_at is None:
+                faults.append(f"{path}:{line}: runs {said} before any `repo-standard green`")
+                break
+    return faults
+
+
 def pinned(repo: Repo) -> list[str]:
     if repo.config.standard is None:
         return ["the config pins no version: set `standard: N`, for the tag repo-standard-vN"]
     return []
+
+
+def drift(repo: Repo) -> list[str]:
+    """Each file the pinned version owns that is not its copy at the tag, less the `local:` ones.
+    A pin of another version than the tool's is the version rule's fault, not this one's."""
+    pin = repo.config.standard
+    if pin != VERSION:
+        return []
+    feature = owned.tree(pin, repo.root, repo.upstream)
+    copies = owned.files(feature, repo.config, repo.paths, owned.Kind.OWNED)
+    held, faults = set(repo.paths), []
+    for path, copy in sorted(copies.items()):
+        if path in repo.config.local:
+            continue
+        if path not in held:
+            faults.append(f"{path}: is not here, and {TAG}{pin} owns it")
+        elif owned.masked(path, repo.read(path)) != owned.masked(path, copy.read_text("utf-8")):
+            faults.append(f"{path}: differs from {TAG}{pin}'s copy")
+    return [
+        f"{fault}: `repo-standard upgrade --to {pin}` writes the copy, or `local:` keeps it"
+        for fault in faults
+    ]
 
 
 def enforcer(rule: str):
@@ -395,6 +684,11 @@ def enforcer(rule: str):
             return [f"the config's `enforced-by` names no file that enforces {rule}"]
         tracked = set(repo.paths)
         runners = [*repo.workflows.values(), *repo.makefiles.values()]
+        runners += [
+            script
+            for one in repo.config.stacks.values()
+            for script in COMMANDS[one.adapter].scripts
+        ]
         faults = []
         for path in named:
             if path not in tracked:

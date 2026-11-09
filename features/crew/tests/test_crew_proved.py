@@ -40,6 +40,10 @@ exit 124."""
 UV = f"""#!/bin/bash
 case " $* " in
 *" jgauge test-slot "*)
+    if [ -n "$BUSY" ] && [ "$PROOF_SIDE" = "$BUSY" ]; then
+        echo "every slot of the lane is taken: this thread waits"
+        exit 76
+    fi
     limit=$FULL_LIMIT
     case " $* " in *" --short "*) limit=$LIMIT ;; esac
     while [ "$1" != -- ]; do shift; done
@@ -68,7 +72,8 @@ exit 64
 """
 """`uv` as the block calls it. A short test-slot run is stopped at `LIMIT` seconds, exit 124, as
 the short lane stops one at its limit, and a full one at `FULL_LIMIT` seconds; each pytest run
-takes `SLOW` seconds more, and `NO_XDIST` stands for a repo whose venv has no pytest-xdist."""
+takes `SLOW` seconds more, `NO_XDIST` stands for a repo whose venv has no pytest-xdist, and the
+side `BUSY` names finds every slot taken, exit 76."""
 BUGGY = "def add(a, b):\n    return a - b\n"
 FIXED = "def add(a, b):\n    return a + b\n"
 OLD_TEST = "from calc import add\n\n\ndef test_zero():\n    assert add(0, 0) == 0\n"
@@ -79,8 +84,9 @@ RESULT = "# a-task: a task\n\n## Result\nStatus: done\n"
 
 @pytest.fixture
 def repo(tmp_path):
-    """A repo whose base commit has a buggy `add` and a test that misses the bug, with
-    `origin/main` at that commit, and a home whose brief has a Result."""
+    """A repo whose base commit has a buggy `add` and a test that misses the bug, and ignores
+    the bytecode a run leaves, with `origin/main` at that commit, and a home whose brief has a
+    Result."""
     tree = tmp_path / "repo"
     tree.mkdir()
     git(tree, "init", "-q", "-b", "main")
@@ -89,6 +95,7 @@ def repo(tmp_path):
     (tree / "calc.py").write_text(BUGGY)
     (tree / "tests").mkdir()
     (tree / "tests" / "test_calc.py").write_text(OLD_TEST)
+    (tree / ".gitignore").write_text("__pycache__/\n")
     git(tree, "add", "-A")
     git(tree, "commit", "-q", "-m", "base")
     git(tree, "update-ref", "refs/remotes/origin/main", "HEAD")
@@ -400,3 +407,33 @@ def test_a_repo_without_pytest_xdist_is_proved_on_one_process(repo):
     assert line == proved.Proved(("tests/test_calc.py",), 1, base, 0, head)
     runs = (repo.parent / "pytest-args").read_text().splitlines()
     assert not any("-n " in run for run in runs)
+
+
+def test_a_wake_after_the_base_side_waited_runs_the_base_side_alone(repo):
+    """Each side takes a slot of its own, and on a busy machine the one slot a wake frees went to
+    the head side again, so the base side waited on every run: rt-multi-stack lost that race five
+    times at one head on 2026-11-08. A side that exited 0 at a head and base is kept, and the run
+    after the wait runs only the side still owed."""
+    base = git(repo, "rev-parse", "HEAD")
+    head = commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
+    said, line = proof(repo, BUSY="base")
+    assert "head exit 0: 2 passed" in said
+    assert "no proof: the slot's run ended 76" in said
+    assert line is None
+    said, line = proof(repo)
+    assert "head: exited 0 at this head and base already" in said
+    assert "base exit 1: 1 failed, 1 passed" in said
+    assert line == proved.Proved(("tests/test_calc.py",), 1, base, 0, head)
+    assert len((repo.parent / "pytest-args").read_text().splitlines()) == 2
+
+
+def test_a_side_kept_at_one_head_runs_again_at_another(repo):
+    commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
+    proof(repo, BUSY="base")
+    base = git(repo, "rev-parse", "HEAD~1")
+    head = commit(repo, {"util.py": ""})
+    said, line = proof(repo)
+    assert "already" not in said
+    assert "head exit 0: 2 passed" in said
+    assert line == proved.Proved(("tests/test_calc.py",), 1, base, 0, head)
+    assert len((repo.parent / "pytest-args").read_text().splitlines()) == 3

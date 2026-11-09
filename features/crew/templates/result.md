@@ -16,5 +16,6 @@ Scoped review: <none, one round: the fix merges on its checks, or needed since <
 Fixed: <the head commit pushed for the review's findings, in full, or none needed and the reason; this line only once the findings are handled>
 Scoped reviewer: <threadId>, of <the head it reviews, in full>   <this line only after `Scoped review: needed since`, once the scoped reviewer is launched>
 Gate: question <n>   <one such line for each gate this crew parked, as the crew skill's "Do the task" prints it>
+Decision: <the choice, in one line>: <the default taken>; undo: <how to take it back>   <one such line for each choice this crew made that is no one-way door, and so no gate>
 Steers: <what the user changed along the way, or none>
 Left: <uncommitted or unpushed work, or none>

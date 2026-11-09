@@ -51,7 +51,7 @@ ends with `Reply: <hint>` (`reply`): the user replies in their own words, which 
 the user's word (`jbus word`), and the home turns them into a verb. No line gives the user words
 to send. A pass raises one for each item of the list of what waits that the user
 has to decide (`needs`): a question or a gate that holds, has no default or names one of
-`waiting.PAUSE`, a go gate whose silence starts nothing, a row to approve, a pull request `jmerge`
+`party.PAUSE`, a go gate whose silence starts nothing, a row to approve, a pull request `jmerge`
 holds, and a config item. `jbus decide` raises one by hand, for a scope change. A project's first
 pass raises none, as it sends nothing else.
 
@@ -89,6 +89,7 @@ from jbus import (
     cancelled,
     dispatch,
     locked,
+    party,
     questions,
     queue,
     read_json,
@@ -219,6 +220,26 @@ def _release(directory: Path, key: str, sha: str = "", slug: str = "") -> None:
         write_json(directory / LEDGER, kept)
 
 
+def rehome(was: Path, to: Path, slug: str, text: str) -> None:
+    """Carry the tries a fix row counts from the ledger of the home it was in, `was`, to that of
+    the home `jbus queue move` gave it, `to`, so its new home's cap counts them and `forgo` finds
+    them there. A brief that is no fix, or a try already carried, carries nothing."""
+    key = head(text, FIX_OF)
+    if not key or was == to:
+        return
+    with locked(was, LOCK), locked(to, LOCK):
+        old, new = ledger(was), ledger(to)
+        going = [one for one in old.get(key, []) if one.get("slug") == slug]
+        if not going:
+            return
+        old[key] = [one for one in old[key] if one.get("slug") != slug]
+        if not old[key]:
+            del old[key]
+        new[key] = [*new.get(key, []), *going]
+        write_json(to / LEDGER, new)
+        write_json(was / LEDGER, old)
+
+
 def forgo(run: Pass, move: dict[str, Any]) -> None:
     """Give back the try of a fix whose row `jbus queue remove` took out before it launched: no
     thread, no pull request and no launch record. `move` is the removal's line of
@@ -309,6 +330,8 @@ def needs(one: waiting.Item, context: str = "", known: frozenset[str] = frozense
         return "a row with no approval of its brief"
     if kind == "config":
         return "jbus lacks a setup only you can give"
+    if kind == "stalled":
+        return "a home that stalled again after jbus started it again"
     if kind != "gate":
         return ""
     if one.get("holds"):
@@ -317,7 +340,7 @@ def needs(one: waiting.Item, context: str = "", known: frozenset[str] = frozense
         return "a gate with no default"
     if one.get("waits"):
         return f"its silence starts nothing, since {one['waits']}"
-    named = waiting.paused(f"{one.get('question', '')} {context}", known | {one.get("slug") or ""})
+    named = party.paused(f"{one.get('question', '')} {context}", known | {one.get("slug") or ""})
     return f"it names {named}" if named else ""
 
 
@@ -335,6 +358,8 @@ def reply(one: waiting.Item) -> str:
         return OWN_WORDS.format(what=f"merge #{one['number']}")
     if kind == "approve":
         return OWN_WORDS.format(what=f"give {one['slug']} its go")
+    if kind == "stalled":
+        return "get the home going in its thread, or start it again, then say so in your own words"
     return "set it up, then say so in your own words"
 
 

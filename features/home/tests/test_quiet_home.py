@@ -39,6 +39,7 @@ Asked by: {SLUG}, thread mcp:the-crewmate
 Default: it stays
 Built on it: the test of the flag
 Undo: remove the flag and its test"""
+DOOR = f"{GATE}\nHolds: deletes data\nFail-safe: the dry-run lists the flag's 2 files that go"
 
 
 class Quiet(Scene):
@@ -126,13 +127,13 @@ def quiet(tmp_path):
 @pytest.mark.parametrize("skill", SENDERS)
 def test_a_gate_is_queued_by_the_real_jbus_and_the_home_is_sent_nothing(quiet, skill):
     quiet.jbus()
-    assert quiet.gate(skill) == "asked: queued: question 1\nGate: question 1"
+    assert quiet.gate(skill, DOOR) == "asked: queued: question 1\nGate: question 1"
     assert quiet.outbox() == []
     (sent,) = [one for one in quiet.logged() if one.get("event") == "gate"]
     assert (sent["event"], sent["slug"], sent["loud"]) == ("gate", SLUG, "quiet")
     assert sent["line"] == f"gate {SLUG}: question 1: {ASKED}"
-    assert sent["text"] == f"{GATE}\n{CONTEXT}\n{PROPOSED}"
-    assert quiet.gate(skill) == "asked: already sent: question 1\nGate: question 1"
+    assert sent["text"] == f"{DOOR}\n{CONTEXT}\n{PROPOSED}"
+    assert quiet.gate(skill, DOOR) == "asked: already sent: question 1\nGate: question 1"
 
 
 @pytest.mark.parametrize("skill", SENDERS)

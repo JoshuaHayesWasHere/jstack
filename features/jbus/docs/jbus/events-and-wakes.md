@@ -106,6 +106,7 @@ It is in the log, which `jbus events` prints and the view shows.
 - `item.waiting`
 - `jmerge`
 - `merged`
+- `move`
 - `note`
 - `pack`
 - `pool-wake`

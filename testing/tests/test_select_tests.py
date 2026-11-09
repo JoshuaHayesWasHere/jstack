@@ -504,6 +504,29 @@ def test_a_test_that_runs_a_package_in_a_process_of_its_own_is_selected_by_a_cha
     assert repo.selected(head) == ["testing/tests/test_runs_gamma.py", "testing/tests/test_tree.py"]
 
 
+PAGED = {
+    "src/verbs/__init__.py": "",
+    "src/verbs/needs.py": "HELP = 'what waits on you'\n",
+    "src/verbs/pages.py": "import verbs\n\nPATHS = verbs.__path__\n",
+    "testing/tests/test_pages.py": "from verbs import pages\n",
+    "testing/tests/test_package.py": "import verbs\n",
+}
+
+
+def test_a_module_that_reads_its_package_by_its_path_selects_its_tests_on_a_change_to_any_module(
+    tmp_path,
+):
+    """`verbs.pages` builds a page from the source of each module under `verbs.__path__`, and
+    imports none of them, as `jbus.pages` builds the-verbs.md from each verb's help. A change to
+    a verb's help selects the tests of the page, and not a test that imports the package alone."""
+    repo = Repo(tmp_path, files={**FILES, **PAGED})
+
+    assert repo.selected(repo.change(["src/verbs/needs.py"])) == [
+        "testing/tests/test_pages.py",
+        "testing/tests/test_tree.py",
+    ]
+
+
 def test_a_changed_test_module_selects_the_tests_that_spell_its_path(repo):
     head = repo.change(["testing/tests/helper_data.py"])
 
@@ -825,28 +848,45 @@ def test_an_edit_to_the_maps_readme_selects_the_cross_cutting_and_not_all(repo):
     assert repo.selected(head) == ["testing/tests/test_tree.py"]
 
 
-@pytest.mark.parametrize(
-    "path", ["pyproject.toml", "uv.lock", "conftest.py", "testing/fixtures.py"]
-)
+@pytest.mark.parametrize("path", ["pyproject.toml", "uv.lock", "conftest.py"])
 def test_a_path_every_test_rests_on_selects_all(repo, path):
     head = repo.change([path], text="# changed\n")
 
     assert repo.selected(head) == ["all"]
 
 
+BUILD = {
+    "Makefile": "test:\n",
+    ".github/workflows/check.yml": "on: pull_request\n",
+    "testing/tests/test_build.py": (
+        "from pathlib import Path\n\n"
+        "MAKE = Path('Makefile')\n"
+        "CHECK = Path('.github') / 'workflows' / 'check.yml'\n"
+        "SELECTOR = Path('scripts') / 'select_tests.py'\n"
+    ),
+}
+
+
 @pytest.mark.parametrize(
     "path", ["scripts/select_tests.py", "Makefile", ".github/workflows/check.yml"]
 )
-def test_a_change_to_what_picks_and_runs_the_tests_selects_all(repo, path):
+def test_a_change_to_what_picks_and_runs_the_tests_selects_the_tests_that_name_it(repo, path):
+    """A pull request's check runs the whole suite only where a dependency or the root
+    conftest.py changed: the whole suite runs on main, nightly and before a release."""
+    write(repo.root, BUILD)
+    repo.base = repo.commit()
+
     head = repo.change([path], text="# changed\n")
 
-    assert repo.selected(head) == ["all"]
+    assert repo.selected(head) == ["testing/tests/test_build.py", "testing/tests/test_tree.py"]
 
 
-def test_a_test_module_a_plugin_loads_for_every_test_selects_all(repo):
-    head = repo.change(["testing/tests/daemons.py"], text="# changed\n")
+def test_a_plugin_of_testing_selects_the_tests_that_ask_for_its_fixtures_and_not_all(repo):
+    """A change to what the plugin runs for every test, at its top level or in an autouse
+    fixture, runs on main's full run."""
+    head = repo.change(["testing/fixtures.py"], text="# changed\n")
 
-    assert repo.selected(head) == ["all"]
+    assert repo.selected(head) == ["testing/tests/test_tree.py", "testing/tests/test_uses_kit.py"]
 
 
 def test_a_test_module_only_a_fixture_uses_selects_the_tests_that_ask_for_the_fixture(repo):
@@ -854,6 +894,7 @@ def test_a_test_module_only_a_fixture_uses_selects_the_tests_that_ask_for_the_fi
 
     assert repo.selected(head) == [
         "testing/tests/test_kit.py",
+        "testing/tests/test_tree.py",
         "testing/tests/test_uses_kit.py",
     ]
 
@@ -884,6 +925,7 @@ def test_a_test_module_named_as_a_plugin_selects_the_tests_that_ask_for_its_fixt
     assert repo.selected(repo.change(["testing/tests/test_shared.py"])) == [
         "features/x/tests/test_feature.py",
         "testing/tests/test_shared.py",
+        "testing/tests/test_tree.py",
     ]
 
 
@@ -904,6 +946,7 @@ def test_a_changed_test_selects_itself_and_each_test_that_imports_it_however_dee
 
     assert repo.selected(head) == [
         "testing/tests/test_helper.py",
+        "testing/tests/test_tree.py",
         "testing/tests/test_user.py",
         "testing/tests/test_user_of_user.py",
     ]
@@ -911,21 +954,40 @@ def test_a_changed_test_selects_itself_and_each_test_that_imports_it_however_dee
 
 def test_a_change_of_the_tests_alone_selects_them_and_the_tests_of_the_helpers_it_changed(tmp_path):
     """A test file and a helper of the tests changed, and nothing else: the check runs those
-    files and the tests that import the helper, and not the cross-cutting tests or the
-    catch-all. The same change with a path outside the tests selects by every rule."""
+    files, the tests that import the helper and the cross-cutting tests, and not the catch-all.
+    The same change with a path outside the tests selects by every rule."""
     repo = Repo(tmp_path, files={**FILES, **LONE})
     tests = ["testing/tests/test_helper.py", "testing/tests/helper.py"]
     reached = [
         "testing/tests/test_helped.py",
         "testing/tests/test_helper.py",
+        "testing/tests/test_tree.py",
         "testing/tests/test_user.py",
         "testing/tests/test_user_of_user.py",
     ]
 
     assert repo.selected(repo.change(tests)) == reached
     assert repo.selected(repo.change([*tests, "README.md"])) == sorted(
-        [*reached, "testing/tests/test_lone.py", "testing/tests/test_tree.py"]
+        [*reached, "testing/tests/test_lone.py"]
     )
+
+
+def test_a_comment_added_to_a_test_file_alone_selects_the_guard_that_reads_every_file(tmp_path):
+    """`test_no_comments.py` reads every tracked file for a plain comment, and the map lists it
+    as cross-cutting. A comment added to a test file, and nothing else, selects it."""
+    guard = "testing/tests/test_no_comments.py"
+    features = {
+        "README.md": README.replace("- `testing/tests/test_tree.py`", f"- `{guard}`"),
+        "alpha.md": ALPHA,
+        "beta.md": BETA,
+    }
+    files = {**FILES, guard: "def test_no_plain_comment():\n    pass\n"}
+    files.pop("testing/tests/test_tree.py")
+    repo = Repo(tmp_path, features=features, files=files)
+
+    head = repo.change(["testing/tests/test_glob.py"], text="# a plain comment\n")
+
+    assert repo.selected(head) == ["testing/tests/test_glob.py", guard]
 
 
 NESTED = {
@@ -1587,12 +1649,17 @@ MAC_LIST = "testing/macos-quick.txt"
 
 
 CLI = "features/jmerge/src/jmerge/cli.py"
-TREEGUARDS = "features/jmerge/src/jmerge/treeguards.py"
+STOPS = "features/jmerge/src/jmerge/stops.py"
 ON_A_MAC = {
     "conftest.py": "",
-    MAC_LIST: "testing/tests/test_cli_on_a_mac.py\ntesting/tests/test_guards_on_a_mac.py\n",
+    MAC_LIST: "testing/tests/test_cli_on_a_mac.py\ntesting/tests/test_stops_on_a_mac.py\n",
     "testing/tests/test_cli_on_a_mac.py": "from jmerge import cli\n",
-    "testing/tests/test_guards_on_a_mac.py": "from jmerge import treeguards\n",
+    STOPS: (
+        "import os\n\n\ndef stop(group):\n"
+        '    """Kill the group: a group gone gives ESRCH on Linux, and EPERM on Darwin."""\n'
+        "    os.killpg(group, 9)\n"
+    ),
+    "testing/tests/test_stops_on_a_mac.py": "from jmerge import stops\n",
 }
 
 
@@ -1621,7 +1688,7 @@ def on_a_mac(repo, head, *strict):
 @pytest.mark.parametrize(
     ("path", "line", "reached"),
     [
-        (TREEGUARDS, "EPERM on Darwin", []),
+        (STOPS, "EPERM on Darwin", []),
         (CLI, "def _cwds_from_lsof", []),
         (CLI, "on_a_mac = sys.platform", ["testing/tests/test_cli_on_a_mac.py"]),
         (
@@ -1646,7 +1713,7 @@ def test_strict_darwin_counts_a_change_only_inside_code_that_branches_on_darwin(
     head = edit_line(mac_repo, path, line)
 
     assert on_a_mac(mac_repo, head, "--strict") == reached
-    own = "cli" if path == CLI else "guards"
+    own = "cli" if path == CLI else "stops"
     assert f"testing/tests/test_{own}_on_a_mac.py" in on_a_mac(mac_repo, head)
 
 
