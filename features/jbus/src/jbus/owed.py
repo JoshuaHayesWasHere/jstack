@@ -47,7 +47,6 @@ from __future__ import annotations
 
 import json
 import re
-from collections import deque
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass, fields
 from datetime import UTC, datetime, timedelta
@@ -483,19 +482,20 @@ def taken(run: Pass, thread: str) -> None:
 
 
 def _held(state: Path) -> list[dict[str, Any]]:
-    """Return the last line of each key of `outbox.jsonl`'s tail, by the key."""
+    """Return the last line of each key of the whole `outbox.jsonl`, by the key. A hold that
+    still holds can sit behind any number of later lines, so no tail would do."""
+    last: dict[str, dict[str, Any]] = {}
     try:
         with open(state / outbox.FILE) as file:
-            tail = deque(file, maxlen=2000)
+            for line in file:
+                try:
+                    one = json.loads(line)
+                except ValueError:
+                    continue
+                if isinstance(one, dict):
+                    last[str(one.get("key"))] = one
     except OSError:
         return []
-    last: dict[str, dict[str, Any]] = {}
-    for line in tail:
-        try:
-            one = json.loads(line)
-        except ValueError:
-            continue
-        last[str(one.get("key"))] = one
     return list(last.values())
 
 
