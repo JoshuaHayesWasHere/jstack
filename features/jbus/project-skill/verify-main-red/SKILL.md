@@ -49,7 +49,7 @@ Run it by hand anyway when you change the contract on purpose: what it prints is
 uv run pytest features/jbus/tests/test_main_red_model.py -q
 ```
 
-It takes a few seconds (3,447 states in the widest world).
+It takes a few seconds (5,449 states in the widest world).
 On the code as it is today it prints `7 passed`.
 To print every world:
 
@@ -58,7 +58,7 @@ uv run python features/jbus/tests/main_red_model.py
 ```
 
 It prints both worlds, how many states each walks, and for each property `holds` or the number of states that break it with a trace.
-On the code as it is today, every order walks 3,447 states and one tip at a time walks 649, and S1, S2 and S3 hold in both.
+On the code as it is today, every order walks 5,449 states and one tip at a time walks 1,029, and S1, S2 and S3 hold in both.
 
 The model has two worlds:
 
