@@ -1368,7 +1368,6 @@ def test_the_fast_check_selects_in_reuse_and_lints_beside_it_and_runs_neither_in
         "uv sync --locked",
         "python3 features/writing/scripts/prose_lint.py HEAD^1",
         "make lint BASE=HEAD^1",
-        "uv run repo-standard conform",
     ]
     assert lint[0]["with"] == {"persist-credentials": False, "fetch-depth": "2"}
     assert "needs" not in keys and job_line("lint", "needs") is None
