@@ -47,7 +47,19 @@ import jsettings
 from jbriefs import below, findings
 from jbriefs import home as homes
 from jbriefs.home import thread_of
-from jbus import Refused, budget, queue, read_json, review, shots, t3, verbs, work, write_json
+from jbus import (
+    Refused,
+    budget,
+    history,
+    queue,
+    read_json,
+    review,
+    shots,
+    t3,
+    verbs,
+    work,
+    write_json,
+)
 from jbus.judged import Said, parse
 from jbus.launches import records
 from jbus.mirror import last_result, sections
@@ -112,7 +124,6 @@ UNRESOLVED = "Could not resolve to a"
 WORDS = 100
 _PULL = re.compile(r"^(https?://\S+/pull/(\d+))/?$")
 _AGAINST = re.compile(r"^Pull request:[ \t]*open one against (?P<branch>[^\s,;:()`]+)", re.M)
-_ASKS = re.compile(r"^Pull request:[ \t]*open one\b", re.M)
 
 
 def owned_waits(locks: Path) -> set[str]:
@@ -636,7 +647,7 @@ def owes_pull(run: Pass, slug: str, brief: str, result: str) -> bool:
         return False
     if awaits or (review.before_pull(result) and findings.mode_of(brief) != findings.NONE):
         return True
-    if not _ASKS.search(brief.split("\n## ")[0]):
+    if history.pull(brief) != "open":
         return False
     return own(run, below.line(result, "Branch:").split()[0])
 

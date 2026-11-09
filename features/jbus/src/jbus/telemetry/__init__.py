@@ -262,6 +262,8 @@ def _log(connection, project: str, source: Source, file: Path, zone, built: Buil
             counts[canon] = 0 if start == 0 else _seen(connection, source.table, project, canon)
         key = values.key(canon, counts[canon])
         counts[canon] += 1
+        if source.beside is not None:
+            record = source.beside(record, file.parent)
         rows.append(_values(source, project, key, source.row(record, zone), zone))
     connection.execute("BEGIN")
     before = connection.total_changes
