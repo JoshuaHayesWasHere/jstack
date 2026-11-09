@@ -15,8 +15,9 @@ catch-all: it owns every brief no other scope claims (`catchall`). A brief names
 A brief written before homes wrote scope names gives instead a thread id that is in a `home-id`
 or on a `Was home:` line. A brief with no such line, or one that names `root`, the root's ids, a
 name that is no scope, or a scope that is archived, belongs to the catch-all (`home_of`), whether
-or not its directory is made yet. A brief queued now must name its home as `root`, which is the
-catch-all's, `uncategorized` or a scope's name (`fault`).
+or not its directory is made yet. A brief queued now must name its home as `uncategorized` or a
+scope's name (`fault`): a brief queued with `Home: root` would show under the root, which T3 Code's
+sidebar groups by the line as written.
 
 A home's thread is the first word of its `home-id`, read again on each call. A home that
 handed off has no thread until the next home's start writes its own id there. An id equal
@@ -111,15 +112,18 @@ def reader(state: Path) -> Callable[[str], Path]:
 
 def fault(state: Path, brief: str, project: str) -> str:
     """Why a brief may not be queued for its home, or an empty string. Its `Home:` line must
-    name `root`, which is the catch-all's, `uncategorized`, or the name of a scope of `state`
-    (`scopes`): a brief with no line once landed in a home without a word, and a thread id or
-    a name that is no scope would too."""
+    name `uncategorized` or the name of a scope of `state` (`scopes`): a brief with no line once
+    landed in a home without a word, and a thread id or a name that is no scope would too. The
+    root owns no row, so a line that names `root` is refused too, though `home_of` reads one
+    written before as the catch-all's."""
     name = named(brief)
     known = [scope.name for scope, _, _ in scopes(state) if scope.name != UNCATEGORIZED]
     want = f"name {UNCATEGORIZED} or the row's scope" + (f" ({', '.join(known)})" if known else "")
     if not name:
         return f"no Home: line: {want}"
-    if name not in (ROOT, UNCATEGORIZED, *known):
+    if name == ROOT:
+        return f"Home: line names {ROOT}, which owns no row: {want}"
+    if name not in (UNCATEGORIZED, *known):
         return f"Home: line names {name}, which is no home of {project}: {want}"
     return ""
 

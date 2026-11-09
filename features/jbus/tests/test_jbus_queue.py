@@ -12,8 +12,8 @@ from jsonschema import Draft202012Validator
 
 import jbus
 import test_tool_calls as tools
-from jbus import passes, poll, queue, wake
 from jbriefs import home as homes
+from jbus import passes, poll, queue, wake
 from jmerge import judgement
 from scoped import scope
 from test_jbus_kitchen import GO, NOW, PROJECT, QUARTER_PAST_FIVE, RAN, RESULT, SAID, Kitchen

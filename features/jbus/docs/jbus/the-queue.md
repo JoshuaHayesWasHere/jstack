@@ -180,7 +180,7 @@ With no `--item`, a new row gets an item of its own, with source `cli`.
 `add` refuses an item that is not there, or that is another row's, and queues nothing.
 A row keeps its item, and `add` refuses an `--item` that names another.
 `jbus queue add <slug> --from <thread id>` says which home adds the row, and an empty id is the root home.
-`add` refuses a brief or a request with no `Home:` line, or one whose line names neither `root` nor a scope of the project's homes, as a fault of the brief beside its other faults, and queues nothing.
+`add` refuses a brief or a request with no `Home:` line, or one whose line names `root`, which owns no row, or names neither `uncategorized` nor a scope of the project's homes, as a fault of the brief beside its other faults, and queues nothing.
 A row already queued is not checked again.
 `add` refuses a row whose brief's `Home:` line names a home other than the one adding it, and queues nothing, so two homes do not brief the same fix unseen.
 `jbus queue add --for <home>`, `root` or a scope's name, hands the row over on purpose, and `add` refuses a `--for` that is not the brief's home.
@@ -299,7 +299,7 @@ jbus also writes the launch's own `Thread:` line.
 A review after the first sends its crew only its errors, and an info is dropped.
 Its warnings hold no merge: once the pull request merged, each pass keeps them in `day-warnings.json`, once each, with the day it first kept them (`features/jbus/src/jbus/daywarnings.py`).
 It keeps none that the crew answered by id anyway, and none of a brief that says `Review: cleanup`, the row itself.
-Once a day has ended, the pass files every kept warning of an earlier day that no row holds as one row, `warnings-<the latest of those days>`, with each warning's path:line and its pull request, `Size: S`, `Review: cleanup` and `Home: root`.
+Once a day has ended, the pass files every kept warning of an earlier day that no row holds as one row, `warnings-<the latest of those days>`, with each warning's path:line and its pull request, `Size: S`, `Review: cleanup` and `Home: uncategorized`.
 Under 3 such warnings it files nothing, and they carry to the next day's row, so a thin day neither launches a row nor loses a warning.
 A day with no warning files nothing.
 The row gets one review, of its own diff, in which only an error goes to its crew, and none of its findings is kept, so no follow-up of a follow-up is queued.

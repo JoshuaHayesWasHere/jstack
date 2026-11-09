@@ -35,7 +35,7 @@ DONE = {"status": "completed"}
 
 def brief(kitchen, slug, number):
     result = f"\n## Result\nStatus: done\nBranch: {slug}   Pull request: {url(number)}\n"
-    kitchen.brief(slug, f"Thread: mcp:{slug}-crew\nHome: root\n{result}")
+    kitchen.brief(slug, f"Thread: mcp:{slug}-crew\nHome: uncategorized\n{result}")
 
 
 def url(number):
@@ -93,7 +93,7 @@ def test_one_clear_culprit_red_after_its_one_rerun_is_reverted_and_its_crew_and_
     assert made == {red: kept.Revert(red, "alpha", "revert-7-alpha", "e" * 40, made[red].pull)}
     text = (kitchen.home / "tasks" / "revert-7-alpha.md").read_text()
     assert f"Branch: revert-7-alpha   Pull request: {made[red].pull}" in text
-    assert "Home: root" in text
+    assert "Home: uncategorized" in text
     assert main_red(kitchen) == []
     assert [line for line in kitchen.lines("revert") if line.startswith("revert alpha: ")]
     sent = [given for tool, given in kitchen.t3.calls if tool == "t3_thread_send"]

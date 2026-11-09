@@ -20,8 +20,8 @@ Review: review | none
 <`none`: no reviewer, and `jmerge` leaves the pull request to wait for the user's word, so `jbus queue add` warns of it beside `Pull request: open one when done`.>
 <`jbus queue add` refuses any other word on the `Review:` line, and `cleanup` on any brief but the day's warnings row, which jbus files.>
 Playbook: <a row `a crewmate` runs, from the home skill's block that prints a row for each playbook> | none
-<Every brief has the line below, and it names the home the row is for: `root` for the root home, and the scope's name for a scoped home, never a thread id, since `jbus queue add` refuses a brief with no such line, or one that names no home of the project.>
-Home: <root, or the scope's name>
+<Every brief has the line below, and it names the home the row is for: `uncategorized` where no scope owns the work, and the scope's name for a scoped home, never `root` or a thread id, since the root home owns no row and `jbus queue add` refuses a brief with no such line, one that names `root`, or one that names no home of the project.>
+Home: <uncategorized, or the scope's name>
 <The line below is there only for a row queued with `--depends`, and names each row it depends on before a colon with what of its work this row starts from after it, the code this row changes, calls or imports, one item for each and `;` between them, while a plan layer, docs order or a shared file is no such need and an order that is only about merging is `--merge-after` with no line.>
 Builds on: <slug>: <what of its work this row starts from>; <slug>: <what of its work>
 <The six lines below are there when a scout wrote this brief.>

@@ -94,7 +94,7 @@ def test_check_says_nothing_and_exits_0_for_a_good_brief_and_writes_nothing(kitc
 
 
 def test_check_gives_every_fault_add_gives_the_home_line_included(kitchen):
-    text = said("alpha", "Review", "standard").replace("Home: root\n", "")
+    text = said("alpha", "Review", "standard").replace("Home: uncategorized\n", "")
     text = text.replace("Size: S", "Size: XL")
     _, added = adds(kitchen, "alpha", text)
     code, out = checks(kitchen, text)
@@ -190,7 +190,9 @@ def test_add_and_check_refuse_a_deeper_playbook_with_no_read_and_instruments(kit
 
 def test_a_task_that_names_analysis_needs_its_instruments_line_too(kitchen):
     text = complete("alpha").replace('Task: "do alpha"', 'Task: "run a full analysis of alpha"')
-    text = text.replace("Home: root\n", "Home: root\nRead: `src/alpha/`, the code\n")
+    text = text.replace(
+        "Home: uncategorized\n", "Home: uncategorized\nRead: `src/alpha/`, the code\n"
+    )
     fault = DEEPER_FAULT.format(where="Task: line", kind="analysis", lines="Instruments: line")
     assert checks(kitchen, text) == (1, f"{fault}\n")
 

@@ -295,7 +295,7 @@ Deliver:
 - Under "## Report" in this file: the findings with their evidence.
 Playbook: none
 Out of bounds: read-only. Run nothing that writes.
-Home: root
+Home: uncategorized
 """
 
 

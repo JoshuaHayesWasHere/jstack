@@ -89,17 +89,17 @@ def test_a_home_line_that_gives_a_thread_id_is_refused(kitchen):
     )
 
 
-def test_home_root_uncategorized_and_home_of_a_scope_are_queued(kitchen):
-    assert adds(kitchen, "at-root", complete("at-root", "Home: root\n"))[0] == 0
+def test_home_uncategorized_and_home_of_a_scope_are_queued(kitchen):
     assert adds(kitchen, "at-catch", complete("at-catch", "Home: uncategorized\n"))[0] == 0
     assert adds(kitchen, "at-flow", complete("at-flow", f"Home: {SCOPE}\n"))[0] == 0
     assert adds(kitchen, "fl-own", complete("fl-own", f"Home: {SCOPE}\n"), "--from", FLOW)[0] == 0
-    assert adds(kitchen, "un-own", complete("un-own", "Home: root\n"), "--from", "")[0] == 0
-    assert sorted(queued(kitchen)) == ["at-catch", "at-flow", "at-root", "fl-own", "un-own"]
+    un_own = complete("un-own", "Home: uncategorized\n")
+    assert adds(kitchen, "un-own", un_own, "--from", "")[0] == 0
+    assert sorted(queued(kitchen)) == ["at-catch", "at-flow", "fl-own", "un-own"]
 
 
 def test_the_root_home_owns_no_row_and_hands_one_over_with_for(kitchen):
-    text = complete("rt-own", "Home: root\n")
+    text = complete("rt-own", "Home: uncategorized\n")
     code, out = adds(kitchen, "rt-own", text, "--from", ROOT)
     assert (code, out.splitlines()[0]) == (
         1,
@@ -112,12 +112,16 @@ def test_the_root_home_owns_no_row_and_hands_one_over_with_for(kitchen):
 
 
 def test_a_home_line_and_a_for_that_differ_are_refused(kitchen):
-    code, out = adds(kitchen, "to-root", complete("to-root", "Home: root\n"), "--for", SCOPE)
+    code, out = adds(
+        kitchen, "to-root", complete("to-root", "Home: uncategorized\n"), "--for", SCOPE
+    )
     assert (code, out.splitlines()[0]) == (
         1,
         "refused: --for flow, and to-root's brief is the uncategorized home's: nothing is queued",
     )
-    code, out = adds(kitchen, "to-root", complete("to-root", "Home: root\n"), "--for", "root")
+    code, out = adds(
+        kitchen, "to-root", complete("to-root", "Home: uncategorized\n"), "--for", "root"
+    )
     assert (code, out.splitlines()[0]) == (
         1,
         "refused: --for root, and to-root's brief is the uncategorized home's: nothing is queued",
@@ -132,7 +136,7 @@ def test_a_home_line_and_a_for_that_differ_are_refused(kitchen):
 
 
 def test_a_row_queued_before_the_rule_is_not_checked_again(kitchen):
-    assert adds(kitchen, "old-row", complete("old-row", "Home: root\n"))[0] == 0
+    assert adds(kitchen, "old-row", complete("old-row", "Home: uncategorized\n"))[0] == 0
     (kitchen.state / "briefs" / "old-row.md").write_text(bare(complete("old-row")))
     assert kitchen.main("queue", "show")[0] == 0
     assert queued(kitchen) == ["old-row"]

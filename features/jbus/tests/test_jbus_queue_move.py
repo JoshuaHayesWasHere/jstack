@@ -44,7 +44,7 @@ def homes_of(kitchen):
 
 
 def test_a_move_rewrites_the_home_line_keeps_the_go_by_rule_and_logs_the_move(kitchen, homes_of):
-    add(kitchen, "alpha", text=brief("alpha").replace("Home: root", "Home: flow"))
+    add(kitchen, "alpha", text=brief("alpha").replace("Home: uncategorized", "Home: flow"))
     copy = kitchen.home / "tasks/alpha.md"
     copy.write_text(stored(kitchen, "alpha") + "Thread: mcp:crew\n" + result())
     was = verified(kitchen, "alpha")
@@ -117,7 +117,7 @@ def test_a_row_with_no_go_moves_and_has_none_to_carry(kitchen, homes_of):
 def test_a_move_to_the_root_or_to_no_scope_is_refused_and_changes_nothing(
     kitchen, homes_of, scope, refused
 ):
-    add(kitchen, "alpha", text=brief("alpha").replace("Home: root", "Home: flow"))
+    add(kitchen, "alpha", text=brief("alpha").replace("Home: uncategorized", "Home: flow"))
     before = (stored(kitchen, "alpha"), (kitchen.state / "queue.json").read_text())
     assert move(kitchen, "alpha", scope) == (1, refused + "\n")
     assert (stored(kitchen, "alpha"), (kitchen.state / "queue.json").read_text()) == before
@@ -125,7 +125,7 @@ def test_a_move_to_the_root_or_to_no_scope_is_refused_and_changes_nothing(
 
 
 def test_a_move_to_the_root_by_its_thread_id_is_refused_too(kitchen, homes_of):
-    add(kitchen, "alpha", text=brief("alpha").replace("Home: root", "Home: flow"))
+    add(kitchen, "alpha", text=brief("alpha").replace("Home: uncategorized", "Home: flow"))
     code, said = move(kitchen, "alpha", homes_of["root"])
     assert code == 1 and said.startswith(f"refused: {homes_of['root']} is the root home")
 
@@ -202,14 +202,14 @@ def test_a_fix_row_with_no_try_counted_moves_with_none(kitchen, homes_of):
 
 def test_a_brief_that_names_no_home_gets_the_line_above_its_first_section(kitchen, homes_of):
     add(kitchen, "alpha")
-    named = stored(kitchen, "alpha").replace("Home: root\n", "")
+    named = stored(kitchen, "alpha").replace("Home: uncategorized\n", "")
     queue.brief_path(kitchen.state, "alpha").write_text(named + "\n## Result\nStatus: done")
     assert move(kitchen, "alpha", "flow")[0] == 0
     head, section = stored(kitchen, "alpha").split("## Result")
     assert (head.endswith("Home: flow\n"), section) == (True, "\nStatus: done")
     add(kitchen, "beta")
     queue.brief_path(kitchen.state, "beta").write_text(
-        stored(kitchen, "beta").replace("Home: root\n", "").rstrip("\n")
+        stored(kitchen, "beta").replace("Home: uncategorized\n", "").rstrip("\n")
     )
     assert move(kitchen, "beta", "flow")[0] == 0
     assert stored(kitchen, "beta").endswith("\nHome: flow\n")
@@ -226,7 +226,7 @@ def test_a_move_cut_short_before_the_homes_copy_finishes_when_run_again(kitchen,
     copy = kitchen.home / "tasks/alpha.md"
     copy.write_text(stored(kitchen, "alpha"))
     assert move(kitchen, "alpha", "flow")[0] == 0
-    copy.write_text(copy.read_text().replace("Home: flow", "Home: root"))
+    copy.write_text(copy.read_text().replace("Home: flow", "Home: uncategorized"))
     code, said = move(kitchen, "alpha", "flow")
     assert (code, said.splitlines()[0]) == (0, f"moved alpha's copy at {copy} to the flow home")
     assert homes.named(copy.read_text()) == "flow"
@@ -268,7 +268,7 @@ def test_a_moved_running_rows_result_wake_and_stall_reach_its_new_home(short, ki
 
 def test_a_moved_rows_leftover_wakes_its_new_home(kitchen, homes_of):
     add(kitchen, "alpha")
-    kitchen.brief("alpha", "Home: root\n" + result("the docs"))
+    kitchen.brief("alpha", "Home: uncategorized\n" + result("the docs"))
     kitchen.t3.thread("alpha", "completed")
     assert move(kitchen, "alpha", "flow")[0] == 0
     kitchen.poll()

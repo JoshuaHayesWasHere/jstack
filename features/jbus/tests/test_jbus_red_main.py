@@ -402,7 +402,7 @@ def test_a_brief_that_names_a_green_main_itself_is_sent_with_jbus_own_line(kitch
             ]
         )
         + "Proves it: `make check`\nSize: S\nWhere: `src/beta/`\nDesign: none, a test\n"
-        "Pull request: open one when done\nReview: twice\nPlaybook: feature\nHome: root\n"
+        "Pull request: open one when done\nReview: twice\nPlaybook: feature\nHome: uncategorized\n"
     )
     queued(kitchen, "beta", text)
     kitchen.poll(NOW + timedelta(minutes=3))
@@ -419,7 +419,7 @@ def test_a_brief_already_in_the_home_gets_the_green_main_line_it_is_launched_wit
     approved(kitchen, "beta")
     target = kitchen.home / "tasks" / "beta.md"
     target.write_text(
-        complete("beta").replace("\n", "\nHome: root\nGreen main: " + "9" * 40 + "\n", 1)
+        complete("beta").replace("\n", "\nHome: uncategorized\nGreen main: " + "9" * 40 + "\n", 1)
     )
     kitchen.poll(NOW + timedelta(minutes=3))
     (given,) = kitchen.t3.launches
@@ -427,7 +427,7 @@ def test_a_brief_already_in_the_home_gets_the_green_main_line_it_is_launched_wit
     assert line in given["message"]
     lines = target.read_text().splitlines()
     assert [x for x in lines if x.startswith("Green main:")] == [line]
-    assert "Home: root" in lines
+    assert "Home: uncategorized" in lines
 
 
 def test_a_launch_with_no_green_main_known_sends_the_brief_as_approved(kitchen):

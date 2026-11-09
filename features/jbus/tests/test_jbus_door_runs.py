@@ -390,7 +390,7 @@ def test_an_edit_that_adds_a_door_takes_the_rows_go_back(kitchen):
 
 
 def test_a_carried_go_on_winnifreds_prod_deploy_brief_is_gated_and_launches_nothing(kitchen):
-    text = WINNIFRED.replace("Home: 123s\n", "Home: root\n")
+    text = WINNIFRED.replace("Home: 123s\n", "Home: uncategorized\n")
     queued(kitchen, "qw-deploy-main-to-prod", text)
     said = carried_word(kitchen, None, "qw-deploy-main-to-prod")
     (asked,) = questions.read(kitchen.state)

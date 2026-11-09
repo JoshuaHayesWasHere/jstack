@@ -83,7 +83,7 @@ Preconditions:
   `--check` asks for no update: `grep -cE 'pr merge|update-branch' "$VERIFY_JSTACK_SANDBOX/gh/calls.log"` prints `0`.
   The demo checkout's `main` stays at `start`, and only origin's moved.
 - **Queue it with no go.**
-  Run `printf '# beta: a demo task\nTask: beta, a demo task\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/beta/`\nDesign: none, a demo\nReview: none\nPlaybook: none\nPull request: open one when done\nHome: root\n' | jbus --project demo queue add beta --priority 1 > /dev/null`, then `record jmerge-decision jmerge --check`.
+  Run `printf '# beta: a demo task\nTask: beta, a demo task\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/beta/`\nDesign: none, a demo\nReview: none\nPlaybook: none\nPull request: open one when done\nHome: uncategorized\n' | jbus --project demo queue add beta --priority 1 > /dev/null`, then `record jmerge-decision jmerge --check`.
   It prints `wait 7 https://example.test/pull/7: its queue row has no go: the user's go (jbus plan go <entry> --message <thread>/<message>), or the bot's, lets it merge`.
   The line names the command a user gives the go with, so a stranger is not sent to a bare `jbus queue approve` that refuses.
 - **Into another branch.**

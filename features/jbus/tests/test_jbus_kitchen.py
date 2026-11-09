@@ -1325,8 +1325,8 @@ ASK = asking()
 
 def complete(slug, more=""):
     """Return a brief with every field that `jbus queue add` asks for, and `more` under them:
-    `Home: root` unless `more` names a home of its own."""
-    home = "" if "Home:" in more else "Home: root\n"
+    `Home: uncategorized` unless `more` names a home of its own."""
+    home = "" if "Home:" in more else "Home: uncategorized\n"
     return (
         f'# {slug}: a task\nTask: "do {slug}"\nDone when:\n- `make check` passes (in none)\n'
         f"Proves it: `make check`\nSize: S\nWhere: `src/{slug}/`\nDesign: none, a test\n"

@@ -214,9 +214,9 @@ def scoped(kitchen, scope):
     return kitchen.home / scope
 
 
-def unsaid(kitchen, slug, where="root", project="demo"):
+def unsaid(kitchen, slug, where="uncategorized", project="demo"):
     """Queue a row of the home `where` with no go, so it waits on the user's word."""
-    text = brief(slug).replace("Home: root", f"Home: {where}")
+    text = brief(slug).replace("Home: uncategorized", f"Home: {where}")
     add(kitchen, slug, approve=False, text=text, project=project)
 
 
@@ -288,7 +288,7 @@ def test_a_held_pull_request_is_the_home_of_its_row_and_the_roots_where_the_queu
     kitchen,
 ):
     sc = scoped(kitchen, "sc")
-    add(kitchen, "held", text=brief("held").replace("Home: root", "Home: sc"))
+    add(kitchen, "held", text=brief("held").replace("Home: uncategorized", "Home: sc"))
     kitchen.brief("held", "Home: sc\n" + RESULT)
     kitchen.set("open.json", [kitchen.opened("held", 9)])
     kitchen.set("jmerge.txt", HOLDS + "\n")
