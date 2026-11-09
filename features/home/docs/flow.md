@@ -12,7 +12,7 @@ A message wakes a thread, and the records are files in that directory.
 | Step | Who | What happens |
 |---|---|---|
 | 1. Plan entry | You, with the home | You say what you want. The home writes one entry per pull request in `plan.md`, with a "Done when" list. |
-| 2. Brief | The home | It writes `tasks/<slug>.md`: the task, where it may work, and its `Proves it:`, `Design:`, `Review:` and `Playbook:` lines. |
+| 2. Brief | The home | It writes `tasks/<slug>.md`: the task, where it may work, and its `Proves it:`, `Review:` and `Playbook:` lines, and a `Design:` line only where `/architect` wrote a design. |
 | 3. The queue and the approval | You | The brief waits as a row of the queue. You approve that exact brief, named by its sha. |
 | 4. Launch | `jbus` | It launches an approved row once `jgauge room` prints `go` and each row its `depends` names is merged or done. Where one row it depends on is still open and has opened its pull request, it launches the row stacked on that pull request's branch. |
 | 5. The worktree | The crewmate | A new thread in its own worktree, on a branch named for the slug, works the brief by its playbook. |

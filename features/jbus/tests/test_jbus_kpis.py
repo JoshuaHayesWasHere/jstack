@@ -12,6 +12,7 @@ look at it.
 import json
 import sqlite3
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -378,3 +379,10 @@ def test_with_no_store_and_no_t3_store_nothing_is_read_and_nothing_alerts(machin
     kpis.look(jbus.load(), NOW, said.append)
     assert said == []
     assert machine.alerts() == []
+
+
+def test_the_stores_doc_lists_each_kpi_alert_the_code_has_and_no_other():
+    doc = Path(__file__).resolve().parents[3] / "features/jbus/docs/jbus/the-telemetry-store.md"
+    section = doc.read_text().split("\n## The KPI alerts\n", 1)[1].split("\n## ", 1)[0]
+    rows = [line for line in section.splitlines() if line.startswith("| `")]
+    assert [row.split("`")[1] for row in rows] == [t.name for t in kpis.THRESHOLDS]
