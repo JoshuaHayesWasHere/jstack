@@ -54,6 +54,15 @@ A restart keeps that time, so a relay that restarts often still goes silent.
 The instances are the built-in one and each instance a role's pool names ([jroles](../../../jroles/docs/jroles.md)).
 Their numbers come from the ledger, which the threads' status lines and their usage-limit failures write.
 
+## The readings kept
+
+Each pass's look keeps its readings in `health.jsonl`, in jbus's state directory, one JSON line `{at, key, value, over}` a reading.
+`value` is the number alone: the percent of a `disk`, `inodes` or `quota` reading, 1 or 0 of the others, by whether the reading is over, and null where the look could not read it.
+A reading gets a line when its `value` or `over` differs from its key's last line, or when that line is 15 minutes old or more, so each key has a line at least every 15 minutes and at most one a pass.
+The look reads each key's last line from the file's last 64 KiB, so a look that ran twice writes nothing new, and a key whose last line is older than that gets one at once.
+`jbus health` keeps nothing.
+The telemetry store reads the file as the table `health_readings` ([The telemetry store](the-telemetry-store.md)), and the scorecard's `disk` measure reads the day's highest `disk` or `inodes` value from it.
+
 ## Incidents and pages
 
 A check over its limit is an incident, under the key `health <check>`.

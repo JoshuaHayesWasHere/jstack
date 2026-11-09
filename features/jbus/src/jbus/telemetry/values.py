@@ -135,8 +135,9 @@ def _columns(*names: str) -> tuple[tuple[str, str], ...]:
         *SEVERITIES,
         "found",
         "legal",
+        "over",
     }
-    real = {"slowest_s", "tail_s", "seconds", "minutes", "children"}
+    real = {"slowest_s", "tail_s", "seconds", "minutes", "children", "value"}
     return tuple(
         (
             name,

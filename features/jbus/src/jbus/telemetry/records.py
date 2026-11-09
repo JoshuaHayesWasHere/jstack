@@ -18,7 +18,8 @@ A source is a `log` or a `snapshot`:
   lines are two rows, and a line read again, as after the daily trim rewrites `events.jsonl`, is
   the row it was.
   The machine's `capped.jsonl`, each read of which instances are capped (`jgauge.limits.note`),
-  is a log too.
+  and `health.jsonl`, each reading of jbus's health look on a change or each 15 minutes
+  (`jbus.health.keep`), are logs too.
 - A snapshot is written whole each time: `questions.json`, `queue.json`, `merged.json`,
   `ci-prs.jsonl` and `reverts.json`, each revert jbus opened (`jmerge.reverts`). A row's key is
   the record's own (`number`, `slug`, or a revert's red tip), and a newer snapshot updates the
@@ -41,7 +42,7 @@ from typing import Any, Literal
 
 from jbus import history
 from jbus.telemetry import asks, waits
-from jbus.telemetry.machine import capped_reads, drift, passes
+from jbus.telemetry.machine import capped_reads, drift, health_readings, passes
 from jbus.telemetry.readers import json_lines, keyed, listed, questions
 from jbus.telemetry.values import (
     KINDS,
@@ -725,6 +726,14 @@ SOURCES: tuple[Source, ...] = (
         "log",
         _columns("at", "reader", "instances", "capped", "ends_at"),
         capped_reads,
+        where="machine",
+    ),
+    Source(
+        "health_readings",
+        "health.jsonl",
+        "log",
+        _columns("at", "reading", "value", "over"),
+        health_readings,
         where="machine",
     ),
     Source("merge_waits", "merge-waits.jsonl", "log", _WAITS, _merge_waits, where="home"),

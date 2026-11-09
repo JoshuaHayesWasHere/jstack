@@ -35,6 +35,11 @@ A reading over its limit is an incident, with the key `health <the reading's key
 incident as it is. When jbus no longer takes an incident's reading, because a mount or an instance
 is gone or the config no longer posts to a relay, jbus ends the incident with no line.
 
+The pass's look also keeps its readings (`keep`): one line `{at, key, value, over}` in
+`health.jsonl` of jbus's state for a reading whose value or `over` changed since its key's last
+line, or whose last line is `KEEP_EVERY` old, which the telemetry store reads as
+`health_readings`.
+
 `jbus poll` pages. Its look is the first step of the config's first project (rank 6 of
 `before-watch`, ahead of every other step), so the look runs in every pass before another
 step can raise. It also runs before the launch, so a capped instance's lines come before the
@@ -45,6 +50,7 @@ and goes on. `jbus health` prints every reading and pages nothing.
 from __future__ import annotations
 
 import argparse
+import json
 import math
 import os
 import subprocess
@@ -53,7 +59,7 @@ import time
 import urllib.parse
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -62,6 +68,7 @@ import jroles
 import jsettings
 from jbus import alert, launchd, read_json, relayenv, verbs, wake
 from jroles import ledger, pool
+from jsettings import store
 
 FULL = 80
 TIMEOUT_MINUTES = 60
@@ -75,6 +82,9 @@ LOCAL = {"127.0.0.1", "localhost", "::1"}
 TIMED_OUT = "Failed with result 'timeout'"
 JMERGE_TIMED_OUT = "jmerge did not run (Command "
 GIB = 2**30
+LOG = "health.jsonl"
+KEEP_EVERY = timedelta(minutes=15)
+TAIL = 64 * 1024
 
 
 @dataclass(frozen=True)
@@ -118,7 +128,9 @@ class Reading:
     """A `Reading` is one check's number. `said` is the number and what it counts, and `limit`
     is what jbus compares it with. `over` is whether the number is past the limit, or None
     where jbus could not read it. `then` is what follows while the reading is over, and
-    `after` is what follows once it is not."""
+    `after` is what follows once it is not. `value` is the number alone, as `health.jsonl`
+    keeps it: the percent of a `disk`, `inodes` or `quota` reading, 1 or 0 of a reading that
+    is over or not (`flag`), and None where jbus could not read it."""
 
     key: str
     said: str
@@ -126,6 +138,14 @@ class Reading:
     over: bool | None
     then: str = ""
     after: str = ""
+    value: float | None = None
+
+    @classmethod
+    def flag(
+        cls, key: str, said: str, limit: str, over: bool | None, then: str = "", after: str = ""
+    ) -> Reading:
+        """A reading whose number is whether it is over: 1 or 0, or None where it is unread."""
+        return cls(key, said, limit, over, then, after, None if over is None else float(over))
 
     def line(self, recovered: bool = False) -> str:
         follows = self.after if recovered else self.then if self.over else ""
@@ -306,12 +326,13 @@ def disks(mounts: Iterable[Mount]) -> list[Reading]:
         size = one.used + one.free
         share = _share(one.used, size)
         said = f"{share}% of its space used ({one.used / GIB:.1f} of {size / GIB:.1f} GiB)"
-        found.append(Reading(f"disk {one.point}", said, f"alerts at {FULL}%", share >= FULL))
+        limit = f"alerts at {FULL}%"
+        found.append(Reading(f"disk {one.point}", said, limit, share >= FULL, value=share))
         if not one.inodes:
             continue
         share = _share(one.inodes_used, one.inodes)
         said = f"{share}% of its inodes used ({one.inodes_used:,} of {one.inodes:,})"
-        found.append(Reading(f"inodes {one.point}", said, f"alerts at {FULL}%", share >= FULL))
+        found.append(Reading(f"inodes {one.point}", said, limit, share >= FULL, value=share))
     return found
 
 
@@ -320,16 +341,16 @@ def timeouts(journal: tuple[str, ...] | None, start_timeout: str) -> list[Readin
     limit = "alerts at 1"
     if journal is None:
         said = f"the journal of {UNIT} could not be read"
-        return [Reading(f"timeout {name}", said, limit, None) for name in ("jbus", "jmerge")]
+        return [Reading.flag(f"timeout {name}", said, limit, None) for name in ("jbus", "jmerge")]
     passes = sum(TIMED_OUT in line for line in journal)
     runs = sum(JMERGE_TIMED_OUT in line and "timed out after" in line for line in journal)
     unit = f"its {start_timeout} start timeout" if start_timeout else "its start timeout"
     jmerge = f"its {wake.JMERGE_TIMEOUT // 60} min timeout"
     return [
-        Reading(
+        Reading.flag(
             "timeout jbus", f"{UNIT} stopped at {unit} {passes} times {window}", limit, passes > 0
         ),
-        Reading(
+        Reading.flag(
             "timeout jmerge", f"jmerge stopped at {jmerge} {runs} times {window}", limit, runs > 0
         ),
     ]
@@ -348,9 +369,9 @@ def relays(relay: Relay | None, now: datetime) -> list[Reading]:
     and a restart does not reset that time. `started` counts only for a relay that has never
     heard a body, so a relay that restarts often still reads as silent."""
     if relay is None:
-        return [Reading("relay", "the config posts nothing to 127.0.0.1", "not watched", False)]
+        return [Reading.flag("relay", "the config posts nothing to 127.0.0.1", "not watched", False)]
     found = [
-        Reading(
+        Reading.flag(
             "relay",
             f"{RELAY} is {relay.state or 'not known'}",
             "alerts when it is not active",
@@ -362,17 +383,17 @@ def relays(relay: Relay | None, now: datetime) -> list[Reading]:
     limit = f"alerts after {BEAT_MINUTES} min"
     if age is None:
         said = f"no heartbeat in {relay.path / 'heartbeat.json'}"
-        found.append(Reading("relay heartbeat", said, limit, True))
+        found.append(Reading.flag("relay heartbeat", said, limit, True))
     else:
         said = f"last heartbeat {age} min ago"
-        found.append(Reading("relay heartbeat", said, limit, age >= BEAT_MINUTES))
+        found.append(Reading.flag("relay heartbeat", said, limit, age >= BEAT_MINUTES))
     live = relay.state == "active" and age is not None and age < BEAT_MINUTES
     silent = beat.get("silent_minutes")
     quiet = _minutes(beat.get("heard") or beat.get("started"), now)
     if isinstance(silent, (int, float)) and quiet is not None:
         said = f"no body heard for {quiet} min"
         limit = f"alerts after {silent:g} min (RELAY_SILENT_MINUTES)"
-        found.append(Reading("relay silent", said, limit, quiet >= silent if live else None))
+        found.append(Reading.flag("relay silent", said, limit, quiet >= silent if live else None))
     failing = [one for one in beat.get("failing") or [] if isinstance(one, dict)]
     ages = [(_minutes(one.get("since"), now) or 0, one) for one in failing]
     long = [(minutes, one) for minutes, one in ages if minutes >= ERRORS_MINUTES]
@@ -385,7 +406,7 @@ def relays(relay: Relay | None, now: datetime) -> list[Reading]:
         )
     else:
         said = f"{len(failing)} routes failing"
-    found.append(Reading("relay errors", said, limit, bool(long) if live else None))
+    found.append(Reading.flag("relay errors", said, limit, bool(long) if live else None))
     refused = [one for one in beat.get("refused") or [] if isinstance(one, dict)]
     ages = [(m, one) for one in refused if (m := _minutes(one.get("at"), now)) is not None]
     lately = [(m, one) for m, one in ages if m < REFUSED_MINUTES]
@@ -400,7 +421,7 @@ def relays(relay: Relay | None, now: datetime) -> list[Reading]:
     if relay.beat is None:
         said = f"no heartbeat in {relay.path / 'heartbeat.json'} to read the refusals of"
     found.append(
-        Reading("relay refused", said, limit, None if relay.beat is None else bool(lately))
+        Reading.flag("relay refused", said, limit, None if relay.beat is None else bool(lately))
     )
     return found
 
@@ -420,13 +441,15 @@ def quotas(
             weekly = record.window == "seven_day"
             if resets <= now:
                 said = f"the {record.window} window reset {user.stamp(resets)}"
-                over = False
+                over, share = False, 0.0
             else:
                 used = f"{record.used:g}% of the {record.window} window used"
                 said = f"{used}, resets {user.stamp(resets)}"
                 over = record.used >= FULL if weekly else False
+                share = record.used
             limit = f"alerts at {FULL}%" if weekly else f"paged when full, as capped {one}"
-            found.append(Reading(f"quota {one} {record.window}", said, limit, over))
+            key = f"quota {one} {record.window}"
+            found.append(Reading(key, said, limit, over, value=share))
         until = capped[one]
         full = [r.window for r in records if r.full(now)]
         if until is None:
@@ -441,7 +464,7 @@ def quotas(
                 )
         after = f"launches on {one} resume"
         limit = "pauses its launches at 100% of a window"
-        found.append(Reading(f"capped {one}", said, limit, until is not None, then, after))
+        found.append(Reading.flag(f"capped {one}", said, limit, until is not None, then, after))
     return found
 
 
@@ -478,7 +501,57 @@ def watch(config: jbus.Config, now: datetime, say: Callable[[str], None]) -> lis
     for key in alert.streaks(state):
         if key.startswith(PREFIX) and key not in taken:
             alert.retire(state, key)
+    keep(state / LOG, found, now)
     return found
+
+
+def _last(log: Path) -> dict[str, dict[str, Any]]:
+    """The last line of each key in the log's tail, `TAIL` bytes. A key whose last line is
+    older than the tail reads as having none, so the next look writes it again."""
+    try:
+        with log.open("rb") as handle:
+            begins = max(0, handle.seek(0, os.SEEK_END) - TAIL)
+            handle.seek(begins)
+            lines = handle.read().decode(errors="replace").splitlines()[1 if begins else 0 :]
+    except FileNotFoundError:
+        return {}
+    found: dict[str, dict[str, Any]] = {}
+    for text in lines:
+        try:
+            one = json.loads(text)
+        except ValueError:
+            continue
+        if isinstance(one, dict) and isinstance(one.get("key"), str):
+            found[one["key"]] = one
+    return found
+
+
+def _stale(line: dict[str, Any], now: datetime) -> bool:
+    try:
+        at = datetime.fromisoformat(str(line.get("at")))
+    except ValueError:
+        return True
+    return now - at >= KEEP_EVERY
+
+
+def keep(log: Path, found: list[Reading], now: datetime) -> None:
+    """Append to `log` a line `{at, key, value, over}` for each reading whose value or `over`
+    differs from its key's last line, or whose last line is `KEEP_EVERY` old or more. The log
+    is the one record of what was last kept, so a look that ran twice, or stopped halfway,
+    writes only what the log still lacks."""
+    last = _last(log)
+    at = jsettings.stamp(now, z=True)
+    lines = []
+    for one in found:
+        before = last.get(one.key)
+        if (
+            before is None
+            or before.get("value") != one.value
+            or before.get("over") != one.over
+            or _stale(before, now)
+        ):
+            lines.append({"at": at, "key": one.key, "value": one.value, "over": one.over})
+    store.append_jsonl(log, lines, mode=0o600)
 
 
 def first(half: Any) -> None:
