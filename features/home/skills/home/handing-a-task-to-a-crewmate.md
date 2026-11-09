@@ -8,6 +8,16 @@ The root home does step 1 and no other: it queues the brief by "Queueing a row i
    The crewmate, and its reviewer when it must, read the id in that home's `home-id` each time they send, so the brief is not changed when the home hands off.
    A brief a scout wrote is already there: check that its `Home:` line is as this says and that its `Size:` line is its plan entry's size, set each if not, and go to step 2.
 
+   The user's request is kept once, in `$H/asked/<entry>.md`, under `$H` and never under a scope's `$M`, with `<entry>` the plan entry the request became.
+   The home writes the file when it takes the request, before it cuts the first brief, and never once per brief.
+   It holds the user's messages of the request, word for word, each under its time and its message id, and the earlier words the user's reason or example comes from, each with its own time and id, and the pictures the user sent, by their paths.
+   A later message of the user's that adds to the same request is added to the same file.
+   Every brief cut from that request names the file on its `Asked:` line, and keeps only its own slice on `Task:`.
+   A quote on `Task:` holds only words the file holds, as the user typed them, and the home's own words, such as which slice this brief is, go outside the quotes.
+   A brief that comes from no message of the user's, such as a fix jbus filed or a scout's finding, has no `Asked:` line.
+   `jbus queue add` and `jbus queue check` warn of an `Asked:` path that is no file under `$H/asked/`, and of a `Task:` quote whose words the file does not hold, and queue the brief all the same: mend the line and add the brief again.
+   An edit of the `Asked:` line keeps the go.
+
    Its `Proves it:` line, under the "Done when" list, names what outside the agent shows the task is done: a test or a command, a metric, a dataset, an external judge or the user.
    `jbus queue add` queues no brief whose line names only the crew, the crewmate, the reviewer, the agent, the model or a review, or is empty.
    A crewmate's desk check is the crew skill's touched check, `make check-fast BASE=<base> PART=touched`: the lint, the test files the branch adds or edits, and the repo-guards tests the selection names (`select_tests.py --part guards`).
