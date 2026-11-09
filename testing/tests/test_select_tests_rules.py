@@ -779,3 +779,17 @@ def test_on_a_pull_request_an_edit_deep_in_jbus_selects_its_own_tests_and_not_th
     } <= set(why["imports"])
     assert set(near) < set(wide)
     assert len(suite & set(near)) * 2 < len(suite)
+
+
+def test_on_a_pull_request_an_edit_to_a_private_helper_reaches_the_tests_of_what_calls_it():
+    """An edit to `tick._asks`, which `tick.tick` calls, selects through imports what an edit to
+    `tick.tick` selects: a module that calls `tick.tick` carries the change on, as it does when
+    the edit is in `tick.tick` itself."""
+    text = (REPO / TICK).read_text()
+
+    def near(start):
+        line = next(at for at, one in enumerate(text.splitlines(), 1) if one.startswith(start))
+        _, why = select.selection([TICK], edited={TICK: [({line}, text), ({line}, text)]})
+        return set(why["imports"])
+
+    assert near("def _asks(") == near("def tick(")

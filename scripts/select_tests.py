@@ -23,31 +23,34 @@ counts for each module that names the function that holds it, through its import
 that re-exports it, or a star import. A call with a string also imports the module the string
 names.
 
-`select_tests.py --pull-request [--parts <n>] <base> <head>` selects as a pull request's check
-does, and the check's job `reuse` passes it. There an import reaches only the tests near the
-change. A changed module that is not the tests' own reaches the test files that import it, and
-the test files that import a module that imports it and names, through its imports, a top-level
-name whose code the diff touched (`names_touched`): a function or a class that holds a touched
-line, a name a touched assignment binds, and each name whose code reads a name a touched import
-binds. A module of the tests that is no test file, such as a helper or a `conftest.py`, counts as
-the test's own code: it carries the change on to the tests that import it, through any chain of
-such modules. A test that asks for a plugin's fixture that uses a module that carries the change
-is reached too. A module that walks a package's `__path__` (below) reads the changed module where
-the test imports that walker itself or through such modules (`nearby`). Where the diff touched
-other code that runs on import, such as an `if`, every module that imports the changed one
-carries it on. A test that spells the name of a package, which runs the package in a process, is
-not reached so. Every other rule selects as below. So a change escapes the check where it breaks
-a test only through a module of a `src/` that names no name the change touched (a chain of two
-such modules or more, or a table of verbs that names no function of the module), or only through
-a package the test runs in a process. Without `--pull-request` the script keeps the wide rule,
-as main's run over what moved since its last checked commit, a desk's `make check-fast` and
-`make select` run it: main's run and the nightly full suite catch what a pull request leaves
-out. Measured with this script over main's last 60 merges on 2026-11-09 (go-speed's
-`why.py`), the selections of 300 files or more fell from 32 to 7, none of them through imports
-or a walk, and 3 of the 7 select `all` for a path every run rests on. The median of the
-selections that are not `all` fell from 300 files to 100, and 35 of the 60 hold 50 to 149
-files. Of the 12 test files that failed main's full run in the 7 days before and that their
-merge's wide selection held, it holds all 12 (`replay.py`).
+`select_tests.py --pull-request [--parts <n>] <base> <head>` selects as a pull request's check does,
+and the check's job `reuse` passes it. There an import reaches only the tests near the change. A
+changed module that is not the tests' own reaches the test files that import it, and the test files
+that import a module that imports it and names, through its imports, a top-level name whose code the
+diff touched (`names_touched`): a function or a class that holds a touched line, a name a touched
+assignment binds, and each name whose code reads a name a touched import binds or a touched name of
+the module, through any chain: an edit of the private helper `tick._asks` touches `tick.tick`, which
+calls it. A module of the tests that is no test file, such as a helper or a `conftest.py`, counts as
+the test's own code: it carries the change on to the tests that import it, through any chain of such
+modules. A test that asks for a plugin's fixture that uses a module that carries the change is
+reached too. A module that walks a package's `__path__` (below) reads the changed module where the
+test imports that walker itself or through such modules (`nearby`). Where the diff touched other
+code that runs on import, such as an `if`, every module that imports the changed one carries it on.
+A test that spells the name of a package, which runs the package in a process, is not reached so.
+Every other rule selects as below. So a change escapes the check where it breaks a test only through
+a module of a `src/` that names no name the change touched (a chain of two such modules or more, or
+a table of verbs that names no function of the module), or only through a package the test runs in a
+process. A module that names only a public name whose private helper the change touched is no such
+module: that public name counts as touched. Without `--pull-request` the script keeps the wide rule,
+as main's run over what moved since its last checked commit, a desk's `make check-fast` and `make
+select` run it: main's run and the nightly full suite catch what a pull request leaves out. Measured
+with this script over main's last 60 merges on 2026-11-09 (go-speed's `why.py` and `why_pr.py`), the
+selections of 300 files or more fell from 32 to 7, none of them through imports or a walk, and 3 of
+the 7 select `all` for a path every run rests on. The median of the selections that are not `all`
+fell from 300 files to 102 (100 before a name that reads a touched name of its module counted as
+touched, which added 228 files over 14 of the 60), and 34 of the 60 hold 50 to 149 files. Of the 12
+test files that failed main's full run in the 7 days before and that their merge's wide selection
+held, it holds all 12 (`replay.py`).
 
 A test may hold a string that is the name of a package of a `src/`. The script counts such a
 test as running that package in a process of its own, so the test imports every module of the
@@ -987,8 +990,9 @@ def near(name, edit):
 def names_touched(edit):
     """The top-level names of a module whose code the lines of `edit` touched, on either side
     of the diff: a function or a class that holds a touched line, the names an assignment binds,
-    and, for a touched import, each top-level name whose code reads a name it binds. A
-    docstring touches nothing. `None` where all of the module counts as touched: there is no
+    and each top-level name whose code reads a name a touched import binds or a touched name, to
+    a fixed point: `tick` is touched where it calls a touched `_asks`. A docstring touches
+    nothing. `None` where all of the module counts as touched: there is no
     `edit`, a side is no Python or has no file, or a touched line is in other code that runs on
     import, such as an `if` or an assignment to no name."""
     if edit is None:
@@ -1012,12 +1016,22 @@ def names_touched(edit):
                 found |= assigned
             elif not (isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant)):
                 return None
-        for node in tree.body if imports else ():
-            reads = {one.id for one in walk(node) if isinstance(one, ast.Name)}
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-                found |= {node.name} if reads & imports else set()
-            elif isinstance(node, (ast.Assign, ast.AnnAssign)):
-                found |= binds(node) if reads & imports else set()
+        held = [
+            (
+                binds(node) if isinstance(node, (ast.Assign, ast.AnnAssign)) else {node.name},
+                {one.id for one in walk(node) if isinstance(one, ast.Name)},
+            )
+            for node in tree.body
+            if isinstance(
+                node,
+                (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Assign, ast.AnnAssign),
+            )
+        ]
+        while (
+            more := {name for names, reads in held if reads & (imports | found) for name in names}
+            - found
+        ):
+            found |= more
     return found
 
 
