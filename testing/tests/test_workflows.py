@@ -1797,6 +1797,7 @@ ZSH_STUBS = {
     "dpkg": 'echo "dpkg $*" >> "$LOG"; installs',
     "curl": 'echo "curl $*" >> "$LOG"; for a; do case $a in http*) echo x >"${a##*/}";; esac; done',
     "sha256sum": "exit 0",
+    "mkdir": f'{shutil.which("mkdir")} "$@"',
 }
 
 
@@ -1842,6 +1843,64 @@ def test_the_zsh_steps_update_no_unnamed_source_and_fail_unless_zsh_runs(tmp_pat
             assert ran.returncode != 0
         if ends == "not the pinned file":
             assert [line for line in called if not line.startswith("curl")] == []
+
+
+@pytest.mark.parametrize("cached", ["both", "one", "a file that is not the pinned one"])
+def test_the_zsh_steps_install_from_their_cache_and_fetch_with_a_retry_on_any_error_when_it_misses(
+    tmp_path, cached
+):
+    """On 2026-11-09 six parts failed fetching the .debs: curl's `--retry` retries no reset
+    mid-transfer (exit 56). Each zsh step follows a cache of the two .debs keyed by `ZSH_DEBS`,
+    in the folder the step fetches into, so a run after the first fetches nothing. A miss, or a
+    cached file that is not the pinned one, fetches from the pool, with curl retrying any error
+    after a growing wait, and installs only what passes the SHA-256 check."""
+    for job in ("check-shard", "full-shard"):
+        found, _ = steps(CHECK.read_text(), job)
+        at = [step.get("name") for step in found].index("zsh")
+        cache, zsh = found[at - 1], found[at]
+        assert re.fullmatch(r"actions/cache@[0-9a-f]{40}", cache.get("uses", "")), job
+        assert cache["with"] == {
+            "path": "${{ runner.temp }}/zsh-debs",
+            "key": "zsh-debs-${{ env.ZSH_DEBS }}",
+        }
+        assert cache.get("if") == zsh.get("if"), job
+        bin, temp, log = tmp_path / job / "bin", tmp_path / job / "temp", tmp_path / job / "log"
+        bin.mkdir(parents=True)
+        debs = temp / "zsh-debs"
+        debs.mkdir(parents=True)
+        names = block("env")["ZSH_DEBS"].split()[1::2]
+        for name in names[: 2 if cached == "both" else 1]:
+            (debs / name).write_text("pinned")
+        if cached == "a file that is not the pinned one":
+            (debs / names[0]).write_text("cut short")
+        stubs = ZSH_STUBS | {
+            "curl": 'echo "curl $*" >> "$LOG"; for a; do'
+            ' case $a in http*) echo pinned >"${a##*/}";; esac; done',
+            "sha256sum": "for f; do :; done; while read h n; do"
+            ' read c < "$n" && [ "$c" = pinned ] || exit 1; done < "$f"',
+        }
+        for name, body in stubs.items():
+            installs = f"{shutil.which('cp')} -p {bin}/fake-zsh {bin}/zsh"
+            (bin / name).write_text(f"#!/bin/sh\ninstalls() {{ {installs}; }}\n{body}\n")
+            (bin / name).chmod(0o755)
+        (bin / "fake-zsh").write_text('#!/bin/sh\necho "zsh $*" >> "$LOG"\n')
+        (bin / "fake-zsh").chmod(0o755)
+        env = {**block("env"), "PATH": str(bin), "RUNNER_TEMP": str(temp), "LOG": str(log)}
+        ran = subprocess.run(["/bin/sh", "-c", zsh["run"]], env=env, capture_output=True, text=True)
+        assert ran.returncode == 0, (job, ran.stderr)
+        called = log.read_text().splitlines()
+        fetched = [line for line in called if line.startswith("curl")]
+        if cached == "both":
+            assert fetched == [], job
+            assert "from the cache" in ran.stdout, job
+        else:
+            assert len(fetched) == 1, job
+            words = fetched[0].split()
+            assert "--retry-all-errors" in words, job
+            assert int(words[words.index("--retry") + 1]) >= 5, job
+            assert "--retry-delay" not in words, job
+        assert called[-2:] == [f"dpkg -i {names[0]} {names[1]}", "zsh --version"], job
+        assert sorted(p.name for p in debs.iterdir()) == sorted(names), job
 
 
 def test_only_full_asks_for_a_marker_and_both_jobs_leave_one():
