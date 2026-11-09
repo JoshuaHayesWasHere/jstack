@@ -2679,7 +2679,7 @@ def derive(
     and `at`. Each `why` that changed, to a reason or to none, becomes one line of
     `waits.jsonl`: the slug, the new `why`, and `at`, so the reasons a row waited between its
     go and its launch stay after the table moves on. The pass that starts `waits.jsonl` writes
-    each row's `why` as it stands, so a row that already waited has a line before its reason
+    each open row's `why` as it stands, so a row that already waited has a line before its reason
     next changes. The pass appends the lines before it writes the table, so a pass that dies
     between the two reports a change twice and loses none.
     """
@@ -2704,7 +2704,7 @@ def derive(
             if row.get("why", "") != new["why"]:
                 row.update(why=new["why"], since=stamp if new["why"] else "")
                 waited.append({"slug": row["slug"], "why": new["why"], "at": at})
-            elif begins:
+            elif begins and not over(row):
                 waited.append({"slug": row["slug"], "why": new["why"], "at": at})
         if moved:
             store.append_jsonl(transitions_path(state), moved)
