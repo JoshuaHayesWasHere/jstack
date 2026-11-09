@@ -159,7 +159,9 @@ class Repo:
         origin = _run(main, "git", "remote", "get-url", "origin")
         self.about = [] if origin.returncode else ["--repo", origin.stdout.strip()]
         self.base_merge = rejudge.BaseMerge(main, state, self.about, asks)
-        self.guards = treeguards.Guards(main, state, asks)
+        self.guards = treeguards.Guards(
+            main, state, asks, lambda path: self.api(f"repos/{{owner}}/{{repo}}/{path}")
+        )
         self.spells = waits.Spells(state, asks)
         self.began: dict[int, datetime] = {}
         self.listed, self.was = home_rule.ids(state)
