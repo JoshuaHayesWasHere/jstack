@@ -2,7 +2,7 @@
 start (`jbus.rules`).
 
 A home's `standing.md` with text in it, and a file with text in it in a Claude Code auto-memory
-directory, are each an item of the one list, the root home's, keyed `rulefile:<path>`, and
+directory, are each an item of the one list, the catch-all's, keyed `rulefile:<path>`, and
 `jbus rules` lists them and fails. The tests run the real pass against the kitchen's fakes, with
 the Claude homes under a home directory of the test's own.
 """
@@ -65,14 +65,19 @@ def listed(kitchen):
     return [key for seen in told.values() for key in seen if key.startswith("rulefile:")]
 
 
-def test_a_standing_md_with_a_rule_wakes_the_root_once_and_leaves_when_deleted(kitchen, root):
+def test_a_standing_md_with_a_rule_wakes_the_catchall_once_and_leaves_when_deleted(kitchen, root):
+    """The user, 2026-11-08: "Uncategorized takes it". The root home is not woken of it, and
+    the catch-all's home is woken once, not on every pass while the file stays."""
+    catchall = home(kitchen, "uncategorized")["threadId"]
     standing = kitchen.home / "standing.md"
     standing.write_text("# demo: standing rules\n\n1. Never do the thing.\n")
     kitchen.poll(NOW)
-    (said,) = rule_wakes(kitchen, root)
+    (said,) = rule_wakes(kitchen, catchall)
     assert f"rulefile {standing}" in said and ASK in said
-    kitchen.poll(NOW + timedelta(minutes=1))
-    assert len(rule_wakes(kitchen, root)) == 1
+    for minutes in (1, 2, 60):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    assert len(rule_wakes(kitchen, catchall)) == 1
+    assert rule_wakes(kitchen, root) == []
     standing.unlink()
     kitchen.poll(NOW + wakes.KEEP + timedelta(minutes=2))
     assert listed(kitchen) == []

@@ -97,7 +97,9 @@ def test_a_reworded_line_leaves_the_list_and_the_new_wording_is_told_if_it_still
     assert listed(kitchen) == []
 
 
-def test_a_scope_plan_line_wakes_that_scope_once_and_the_root_once_late(homes):
+def test_a_scope_plan_line_wakes_that_scope_once_and_no_home_again_late(homes):
+    """A line its home leaves open is told to no other home (the user, 2026-11-08: "Drop
+    them")."""
     kitchen, root, scoped = homes
     plan = kitchen.home / "jview" / "plan.md"
     kitchen.poll(NOW)
@@ -109,8 +111,7 @@ def test_a_scope_plan_line_wakes_that_scope_once_and_the_root_once_late(homes):
     kitchen.poll(NOW + timedelta(minutes=2))
     assert len(prose_wakes(kitchen, scoped)) == 1
     kitchen.poll(NOW + timedelta(minutes=leftover.CLOSE_MINUTES + 2))
-    (late,) = prose_wakes(kitchen, root)
-    assert DECISION in late and scoped in late
+    assert prose_wakes(kitchen, root) == []
     assert len(prose_wakes(kitchen, scoped)) == 1
     plan.write_text(plan.read_text().replace(DECISION + "\n", ""))
     kitchen.poll(NOW + wakes.KEEP + timedelta(minutes=leftover.CLOSE_MINUTES + 3))

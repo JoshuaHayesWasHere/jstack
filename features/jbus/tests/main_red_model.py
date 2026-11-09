@@ -71,6 +71,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from functools import cache
 from pathlib import Path
+from typing import Any
 from unittest import mock
 
 from jbus import mainmoved
@@ -124,12 +125,18 @@ class Asked:
 
 @dataclass
 class FakePass:
-    """`FakePass` has what `tell` reads of a `jbus.passes.Pass`, over the state of the model."""
+    """`FakePass` has what `tell` reads of a `jbus.passes.Pass`, over the state of the model:
+    `main` is main's tip, as `Pass.tip` gives it, and `answers` what GitHub answered this
+    pass, as `Pass.answers` keeps it."""
 
     state: Path
     checks: dict[str, str]
-    tip: str
+    main: str
     now: datetime = NOW
+    answers: dict[str, Any] = field(default_factory=dict)
+
+    def tip(self) -> str:
+        return self.main
 
     def run(self, *command: str) -> Asked:
         if command[:2] == ("git", "symbolic-ref"):
@@ -140,7 +147,7 @@ class FakePass:
                 {"sha": sha(n), "parents": [{"sha": sha(n - 1)}] if n else []} for n in landed
             ]
             return Asked(json.dumps(commits[::-1]))
-        return Asked(f"{self.tip}\trefs/heads/main\n")
+        return Asked(f"{self.main}\trefs/heads/main\n")
 
 
 @contextmanager

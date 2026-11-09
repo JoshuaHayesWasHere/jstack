@@ -4,12 +4,13 @@ The items are the entries of `state.wrongs` an agent owns, the needs a home pass
 (`blockers.deciding`), the leftovers a home has (`jbus.leftover`), the entries whose go holds
 with no live row (`jbus.plan.owed`), the entries whose `Builds on:` merged with no row
 (`jbus.plan.buildable`), the deferred lines of a home's plan (`jbus.prose`), the dated lines that
-land in a home's notes (`jbus.notes`), the files that hold a standing rule (`jbus.rules`), the
-root home's, and the open alerts
-whose owner is the project (`jbus.alert`): an alert, a health incident, the sign-in running out, a
-tool T3 Code stopped serving (`jbus.t3.contract`), a snapshot that failed, a home that stalled. The
-hourly count of what is stale (`jbus.stale`) is one
-more, the root home's, whose words change with the count.
+land in a home's notes (`jbus.notes`), the files that hold a standing rule (`jbus.rules`), and
+the open alerts whose owner is the project (`jbus.alert`): an alert, a health incident, the
+sign-in running out, a tool T3 Code stopped serving (`jbus.t3.contract`), a snapshot that failed,
+a home that stalled. The hourly count of what is stale (`jbus.stale`) is one more, which wakes no
+home: `jbus status` shows it, with each other item on the list for no home (`Item.quiet`).
+The root home hears of a one-way door alone (`door`): every other item no row or scope has is the
+catch-all's, `uncategorized` (`catchall_of`).
 An item's key has no run and no time in it: a red's
 failing tests, a wrong's kind, subject and reason (`state.key_of`), a need's own key. `pick` takes
 the items one home thread owns that are new to it, less those whose cause is another open item,
@@ -31,7 +32,7 @@ from __future__ import annotations
 
 import hashlib
 import re
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -44,8 +45,10 @@ from jbus import (
     clock,
     history,
     leftover,
+    mirror,
     notes,
     outbox,
+    party,
     plan,
     prose,
     queue,
@@ -98,7 +101,6 @@ NOTES = (
     "a brief or code, and take it out of the file once it is moved. Deleting the file is a "
     "deletes-data door."
 )
-LATE = "Its home, thread {thread}, has not acted on it in {minutes} min since jbus told it."
 _QUOTED = re.compile(r'\bjbus "([^"]+)"')
 _RUN_ID = re.compile(r"/actions/runs/(\d+)")
 
@@ -106,7 +108,8 @@ _RUN_ID = re.compile(r"/actions/runs/(\d+)")
 @dataclass(frozen=True)
 class Item:
     """One open item: `to` owns it, `of` is the key of the item that caused it, and `fixes` the
-    keys of the items its row is the fix of."""
+    keys of the items its row is the fix of. A `quiet` item wakes no home, and `jbus status`
+    shows it while it is open."""
 
     key: str
     to: str
@@ -116,6 +119,7 @@ class Item:
     fixes: frozenset[str] = field(default_factory=frozenset)
     wrong: str = ""
     text: str = ""
+    quiet: bool = False
 
 
 def words(one: Item) -> str:
@@ -187,13 +191,12 @@ def read(run: Pass) -> state.Read:
 
 
 def _hung(one: dict) -> bool:
-    """Whether the entry is a crew of the catch-all's, `uncategorized`, whose turn hung, which
-    the root home's once were: `jbus.stall.hung` only logs it. A home's own thread is no crew,
+    """Whether the entry is a crew of the catch-all's, `uncategorized`, whose turn hung:
+    `jbus.stall.hung` only logs it. A home's own thread is no crew,
     and a crew another child home owns is left to `jbus.children`, whose nudge to that home
     counts all it has out."""
     hung = one["cause"].startswith(state.QUIET_OR_HUNG["hung"])
-    owners = (state.ROOT_HOME, f"home {homes.UNCATEGORIZED}")
-    crew = one["subj"].startswith(CREW.prefix) and one["owner"] in owners
+    crew = one["subj"].startswith(CREW.prefix) and one["owner"] == f"home {homes.UNCATEGORIZED}"
     return one["kind"] == "thread" and hung and crew
 
 
@@ -284,11 +287,12 @@ def _fixes(found: state.Read, row: str, lines: dict[str, str]) -> frozenset[str]
 
 
 def wrong_items(found: state.Read, tests: _Tests | None) -> list[Item]:
-    """The items of the list from `state.wrongs`, each with the open item its cause is: a red
-    main's is the red at its tip, and a stalled row's is its own red. A red whose tests are not
+    """The items of the list from `state.wrongs` that an agent is told of or status shows (a
+    quiet item), each with the open item its cause is: a red main's is the red at its tip, and a
+    stalled row's is its own red. A red whose tests are not
     read yet is on the list for no one this pass (`_Tests`), so what it causes still folds into
     it."""
-    wrongs = [one for one in found.once(state.wrongs) if one["owner"] != state.USER and one["to"]]
+    wrongs = [one for one in found.once(state.wrongs) if one["to"] or one["owner"] == state.STATUS]
     keys, lines, reds, unread = [], {}, {}, set()
     for one in wrongs:
         failing = tests.of(_url(found, one)) if tests and one["kind"] == "ci" else []
@@ -304,6 +308,7 @@ def wrong_items(found: state.Read, tests: _Tests | None) -> list[Item]:
             Item(
                 key=key,
                 to=one["to"] if at not in unread and _woken(found, one) else "",
+                quiet=one["owner"] == state.STATUS,
                 line=f"{one['kind']} {one['subj']}: {one['cause']}",
                 row=one["row"],
                 of=reds.get(cause, "") if cause else "",
@@ -315,117 +320,144 @@ def wrong_items(found: state.Read, tests: _Tests | None) -> list[Item]:
 
 
 def root_of(run: Pass) -> str:
-    """The root home's thread, or with none the top-level `home_thread` its wakes go to."""
+    """The root home's thread, or with none the top-level `home_thread` its wakes go to. It hears
+    of a one-way door alone (`door`)."""
     return thread_of(run.home) or run.config.home_thread
+
+
+def catchall_of(run: Pass) -> str:
+    """The thread of the catch-all, `uncategorized`, which owns each item no row or scope has:
+    the root's while the root stands in for it (`jbriefs.home.stands_in`)."""
+    if homes.stands_in(run.home):
+        return root_of(run)
+    return thread_of(homes.catchall(run.home))
+
+
+def door(one: dict[str, Any]) -> bool:
+    """Whether a need of the user's is a one-way door, the one kind of item the root home hears
+    of: a gate whose `Holds:` line names a case of `party.CASES`, a pull request `jmerge` holds
+    for the user's word, or a setup only the user can give. A `Holds:` line is read as the rest of
+    jbus reads it (`party.held`): one that names no case of the table holds for every door."""
+    if one["kind"] in ("hold", "config"):
+        return True
+    holds = str(one.get("holds") or "").strip()
+    return one["kind"] == "gate" and bool(holds) and bool(party.held(holds))
 
 
 def need_items(run: Pass, listed: list | None) -> list[Item]:
     """The needs of the user that a home passes on: each item of the list that the user has to
-    decide (`blockers.deciding`). A row to approve is the item of the home whose brief or scout's
-    request it is (`jbriefs.home`), as `jbus home` says, and any other need, or a home with no
-    thread, the root's (`root_of`)."""
-    root, items = root_of(run), []
+    decide (`blockers.deciding`). A one-way door (`door`) is the root's (`root_of`). A row to
+    approve is no thread's: a home approves a row on the user's word as it queues it (`queue add
+    --message`), so a go still owed waits on the user alone, on `jbus needs` and the view. Any
+    other need is the item of the home whose brief or scout's request its row is
+    (`jbriefs.home`), as `jbus home` says: a gate with no case on its `Holds:` line. A gate a
+    home asked itself (`mirror.asker`) wakes no thread: it is that home's question to the user,
+    which `jbus needs` lists."""
+    items = []
     for one, line in blockers.deciding(run, listed):
-        files = (run.home / kind / f"{one.get('slug')}.md" for kind in ("tasks", "scouts"))
-        brief = next((file for file in files if file.exists()), None)
-        text = brief.read_text(errors="replace") if one["kind"] == "approve" and brief else ""
-        to = thread_of(homes.home_of(run.home, text)) or root
-        items.append(Item(key=one["key"], to=to, line=line, row=one.get("slug") or ""))
+        slug = one.get("slug") or ""
+        files = (run.home / kind / f"{slug}.md" for kind in ("tasks", "scouts"))
+        brief = next((file for file in files if slug and file.exists()), None)
+        if door(one):
+            to = root_of(run)
+        elif one["kind"] == "approve" or (one["kind"] == "gate" and slug == mirror.HOME):
+            to = ""
+        else:
+            text = brief.read_text(errors="replace") if brief else ""
+            where = homes.home_of(run.home, text)
+            to = catchall_of(run) if where == homes.catchall(run.home) else thread_of(where)
+        items.append(Item(key=one["key"], to=to, line=line, row=slug))
     return items
 
 
 def alert_items(run: Pass) -> list[Item]:
     """The open alerts whose owner is this project (`jbus.Config.owner`), each the item of the
-    root's thread, the machine's for the infra project only."""
-    root = root_of(run)
+    catch-all's thread (`catchall_of`), the machine's for the infra project only."""
+    to = catchall_of(run)
     return [
-        Item(key=f"alert|{one.key}", to=root, line=one.line)
+        Item(key=f"alert|{one.key}", to=to, line=one.line)
         for one in alert.open_items(run.config.state_dir, run.now)
         if run.config.owner(one.owner) == run.project
     ]
 
 
 def left_items(run: Pass) -> list[Item]:
-    """The leftovers its home has (`jbus.leftover`), each the item of that home's thread, and the
-    root home's too once its home has not closed it in `leftover.CLOSE_MINUTES`."""
-    root, items = root_of(run), []
+    """The leftovers its home has (`jbus.leftover`), each the item of that home's thread alone:
+    one its home leaves open is told to no other home."""
+    items = []
     for slug, one in leftover.read(run.state).items():
         if one.why or one.busy or not one.thread:
             continue
         line = leftover.key_of(slug, one.left)
         items.append(Item(key=line, to=one.thread, line=line, row=slug, text=one.text))
-        if root and leftover.late(one, run.now):
-            key = leftover.key_of(slug, one.left, "left-late")
-            text = leftover.raised(run, slug, one)
-            items.append(Item(key=key, to=root, line=line, row=slug, text=text))
     return items
 
 
-def owed_items(run: Pass, record: dict[str, Any], rows: list[queue.Row]) -> list[Item]:
+def _plan_home(run: Pass, scope: str) -> str:
+    """The thread of the home whose plan or notes a line is in: a scope's, or the catch-all's for
+    the root's own, since the root home owns no row."""
+    return thread_of(run.home / scope) if scope else catchall_of(run)
+
+
+def owed_items(run: Pass, rows: list[queue.Row]) -> list[Item]:
     """The entries whose go holds with no live row (`plan.owed`), each the item of its home's
-    thread, and the root home's too once its home has not acted on it in
-    `leftover.CLOSE_MINUTES`, as a leftover is."""
-    root, items = root_of(run), []
+    thread (`_plan_home`)."""
+    items = []
     for made in plan.owed(run.state, run.home, rows):
         key = plan.owed_key(made)
         line = f"{key}: go holds, no live row"
-        thread = thread_of(run.home / made.scope) or root
         where = f"the {made.scope} home's plan" if made.scope else "the root home's plan"
         flag = f" --scope {made.scope}" if made.scope else ""
         text = OWED.format(entry=made.entry, plan=where, user=run.user.user, scope=flag)
-        items += _with_late(run, record, root, Item(key, thread, line, made.entry, text=text))
+        items.append(Item(key, _plan_home(run, made.scope), line, made.entry, text=text))
     return items
 
 
 def brief_items(run: Pass, rows: list[queue.Row]) -> list[Item]:
-    """The entries ready to brief (`plan.buildable`), each the item of its home's thread."""
-    root, items = root_of(run), []
+    """The entries ready to brief (`plan.buildable`), each the item of its home's thread
+    (`_plan_home`)."""
+    items = []
     for made in plan.buildable(run.home, rows):
         merged = ", ".join(made.merged)
         where = f"the {made.scope} home's plan" if made.scope else "the root home's plan"
         text = BRIEF.format(entry=made.entry, plan=where, merged=merged)
         line = f"{made.key()}: {merged} merged"
-        thread = thread_of(run.home / made.scope) or root
+        thread = _plan_home(run, made.scope)
         items.append(Item(key=made.key(), to=thread, line=line, row=made.entry, text=text))
     return items
 
 
-def prose_items(run: Pass, record: dict[str, Any]) -> list[Item]:
+def prose_items(run: Pass) -> list[Item]:
     """The deferred lines of a home's plan written since the seed pass (`jbus.prose`),
-    each the item of its home's thread, and the root home's too once its home has not acted on it
-    in `leftover.CLOSE_MINUTES`, as a leftover is."""
-    root, items = root_of(run), []
+    each the item of its home's thread (`_plan_home`)."""
+    items = []
     for key, one in (prose.read(run.state) or {}).items():
         if one.seeded:
             continue
-        thread = (thread_of(run.home / one.scope) if one.scope else "") or root
         line, text = f"{key}: {one.text}", PROSE.format(file=one.file)
-        items += _with_late(run, record, root, Item(key, thread, line, text=text))
+        items.append(Item(key, _plan_home(run, one.scope), line, text=text))
     return items
 
 
-def notes_items(run: Pass, record: dict[str, Any]) -> list[Item]:
+def notes_items(run: Pass) -> list[Item]:
     """Each home's notes that hold a dated line (`jbus.notes`), the item of its home's thread
-    named by the newest new line, and the root home's too once its home has not acted on it in
-    `leftover.CLOSE_MINUTES`, as a leftover is."""
-    root, items = root_of(run), []
+    (`_plan_home`), named by the newest new line."""
+    items = []
     for key, one in notes.read(run.state).items():
-        thread = (thread_of(run.home / one.scope) if one.scope else "") or root
-        line, text = (
-            f"{key}: {one.last}",
-            NOTES.format(file=one.file, dated=one.dated, user=run.user.user),
-        )
-        items += _with_late(run, record, root, Item(key, thread, line, text=text))
+        line = f"{key}: {one.last}"
+        text = NOTES.format(file=one.file, dated=one.dated, user=run.user.user)
+        items.append(Item(key, _plan_home(run, one.scope), line, text=text))
     return items
 
 
 def rule_items(run: Pass) -> list[Item]:
-    """The files of the project that hold a standing rule (`jbus.rules`), each the root home's."""
-    root = root_of(run)
+    """The files of the project that hold a standing rule (`jbus.rules`), each the catch-all's
+    (`catchall_of`)."""
+    to = catchall_of(run)
     return [
         Item(
             key=f"{rules.KEY}:{path}",
-            to=root,
+            to=to,
             line=f"{rules.KEY} {path}",
             text=rules.TEXT.format(path=path, user=run.user.user),
         )
@@ -434,19 +466,10 @@ def rule_items(run: Pass) -> list[Item]:
 
 
 def stale_items(run: Pass) -> list[Item]:
-    """The hourly count of what is stale, an item of the root home's while it is above none."""
+    """The hourly count of what is stale, a quiet item while it is above none: it wakes no home,
+    and `jbus status` shows it."""
     line = stale.line(run.project.name, stale.read(run.state))
-    return [Item(key=stale.KEY, to=root_of(run), line=line)] if line else []
-
-
-def _with_late(run: Pass, record: dict[str, Any], root: str, one: Item) -> list[Item]:
-    """The item, and the root home's item of it too once a home that is not the root was told of
-    it `leftover.CLOSE_MINUTES` ago or more."""
-    at = told_to(record, one.to).get(one.key, {}).get("at", "")
-    if not at or one.to == root or not leftover.late(leftover.Record("", told=at), run.now):
-        return [one]
-    said = LATE.format(thread=one.to, minutes=leftover.CLOSE_MINUTES)
-    return [one, replace(one, key=f"{one.key} late", to=root, text=f"{one.text} {said}")]
+    return [Item(key=stale.KEY, to="", line=line, quiet=True)] if line else []
 
 
 def tell(run: Pass, client: Client, listed: list | None = None) -> None:
@@ -460,13 +483,9 @@ def tell(run: Pass, client: Client, listed: list | None = None) -> None:
     except queue.Unparsable:
         pass
     else:
-        items += owed_items(run, record, rows) + brief_items(run, rows)
+        items += owed_items(run, rows) + brief_items(run, rows)
     items += (
-        prose_items(run, record)
-        + notes_items(run, record)
-        + rule_items(run)
-        + alert_items(run)
-        + stale_items(run)
+        prose_items(run) + notes_items(run) + rule_items(run) + alert_items(run) + stale_items(run)
     )
     threads = record.get("threads", {})
     for thread in sorted(({one.to for one in items} | set(threads)) - {""}):
@@ -476,7 +495,9 @@ def tell(run: Pass, client: Client, listed: list | None = None) -> None:
         threads[thread] = kept(items, seen, told, run.now)
     threads = {thread: seen for thread, seen in threads.items() if seen}
     lines = seen_lines(record.get("open"), items, run.now)
-    write_json(run.state / FILE, {"threads": threads, "tests": tests.used, "open": lines})
+    quiet = sorted({one.line for one in items if one.quiet})
+    record = {"threads": threads, "tests": tests.used, "open": lines, "quiet": quiet}
+    write_json(run.state / FILE, record)
 
 
 def seen_lines(was: Any, items: list[Item], now: datetime) -> dict[str, str]:

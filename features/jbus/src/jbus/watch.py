@@ -349,6 +349,33 @@ class Missed:
             write_json(self.path, self.known)
 
 
+BASES = "bases.json"
+"""The tips of the project's base branches when `look` last read the list of merged pull
+requests, by branch, kept in the project's state."""
+
+
+def base_tips(run: Pass) -> dict[str, str] | None:
+    """Return the tip of each of the project's base branches (the default branch and its
+    `merge_bases`) by name, from one `git ls-remote origin`, or None where git gave no answer."""
+    bases = sorted({_default_branch(run), *run.project.merge_bases})
+    asked = run.run("git", "ls-remote", "origin", *(f"refs/heads/{base}" for base in bases))
+    if asked.returncode != 0:
+        return None
+    tips = {}
+    for line in asked.stdout.splitlines():
+        sha, _, ref = line.partition("\t")
+        if ref.removeprefix("refs/heads/") in bases:
+            tips[ref.removeprefix("refs/heads/")] = sha
+    return tips
+
+
+def _newest(kept: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return the hundred newest merges `merged.json` keeps, each once, as GitHub's list of merged
+    pull requests gives them."""
+    by_url = {pull.get("url", "").rstrip("/") or slug: pull for slug, pull in kept.items()}
+    return sorted(by_url.values(), key=lambda p: p.get("mergedAt") or "", reverse=True)[:100]
+
+
 def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     """Ask T3 Code and GitHub. If either one is silent, there is no world to act on.
 
@@ -359,6 +386,11 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     queue names a slug that is in neither, `look` asks GitHub for it by name, and keeps the merge
     it finds that way too, so the slug stays merged. It keeps a slug it found no merge for too
     (`Missed`), and does not ask for it again on each pass.
+
+    A merge moves its base branch, so `look` asks for the merged list only when a base branch
+    moved since it last did (`base_tips`, kept in `BASES`), or git gave no tips. Otherwise the
+    hundred newest merges of `merged.json` stand in for the list. Until a base moves, such a pass
+    misses a merge into a branch that is no base, and a merged pull request's later edit.
 
     `look` keeps a pull request under the slug whose brief names it (`tied`), and under the
     name of its branch where no brief does. When a slug's brief names a pull request, `look`
@@ -412,20 +444,25 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     kept: dict[str, dict[str, Any]] = read_json(run.state / "merged.json", {})
     named = {slug for row in rows for slug in (row["slug"], *row.get("depends", []))}
     queued = {row["slug"] for row in rows}
+    tips = base_tips(run)
+    unmoved = tips is not None and read_json(run.state / BASES, None) == tips
     try:
-        for state, fields, into in (("open", OPEN, world.open), ("merged", MERGED, world.merged)):
-            for pull in sorted(
-                pulls(run, state, fields, "--limit", "100"), key=lambda p: p.get("mergedAt") or ""
-            ):
-                slug = slug_of.get(pull.get("url", "").rstrip("/"), pull["headRefName"])
-                if state == "open" and (slug in queued or records(run, slug, queue.CREW)):
-                    rollup = pull.get("statusCheckRollup") or []
-                    never = reading.never_started(rollup, lambda *at: ran(run, world, *at))
-                    pull[NEVER] = sorted(never)
-                into[slug] = pull
+        for pull in pulls(run, "open", OPEN, "--limit", "100"):
+            slug = slug_of.get(pull.get("url", "").rstrip("/"), pull["headRefName"])
+            if slug in queued or records(run, slug, queue.CREW):
+                rollup = pull.get("statusCheckRollup") or []
+                pull[NEVER] = sorted(
+                    reading.never_started(rollup, lambda *at: ran(run, world, *at))
+                )
+            world.open[slug] = pull
+        merges = _newest(kept) if unmoved else pulls(run, "merged", MERGED, "--limit", "100")
+        for pull in sorted(merges, key=lambda p: p.get("mergedAt") or ""):
+            world.merged[slug_of.get(pull.get("url", "").rstrip("/"), pull["headRefName"])] = pull
         if kept | world.merged != kept:
             kept |= world.merged
             write_json(run.state / "merged.json", kept)
+        if tips is not None and not unmoved:
+            write_json(run.state / BASES, tips)
         missed = Missed(run, world)
         for slug in sorted(named - set(world.open) - set(world.merged)):
             if slug not in kept:
@@ -1153,11 +1190,60 @@ def watch(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
 
 
 def _api(run: Pass, path: str) -> Any:
+    """Return what GitHub answers a GET of `path`, or None where it gives no answer. A path the
+    pass already read is answered from `Pass.answers`, without a call."""
+    if path in run.answers:
+        return run.answers[path]
     asked = run.run("gh", "api", path)
     try:
-        return json.loads(asked.stdout) if asked.returncode == 0 else None
+        said = json.loads(asked.stdout) if asked.returncode == 0 else None
     except ValueError:
-        return None
+        said = None
+    if said is not None:
+        run.answers[path] = said
+    return said
+
+
+MAIN_COMMITS = "main-commits.json"
+"""Main's newest `MAIN_LISTED` commits, as GitHub lists them, with the tip they were read at:
+`{tip, commits}`."""
+MAIN_LISTED = 50
+WORKFLOW_FILES = "workflow-files.json"
+"""The `.github/workflows/` tree GitHub gave `watched`, with the tip it was read at:
+`{tip, tree}`."""
+
+
+def _at_tip(
+    run: Pass, name: str, key: str, ask: Callable[[str], Any], keeps: Callable[[Any, str], bool]
+) -> Any:
+    """Return what `ask` answers for main's tip, kept in the file `name` of the project's state
+    under `key` with that tip, where `keeps` finds the answer is the tip's. A commit's history
+    and its files never change, so it is asked again only once the tip is another (`Pass.tip`).
+    Where git gives no tip, `ask` is given the default branch's name, and nothing is kept."""
+    tip = run.tip()
+    if not tip:
+        return ask(_default_branch(run))
+    path = run.state / name
+    kept = read_json(path, {})
+    if isinstance(kept, dict) and kept.get("tip") == tip and key in kept:
+        return kept[key]
+    said = ask(tip)
+    if keeps(said, tip):
+        write_json(path, {"tip": tip, key: said})
+    return said
+
+
+def main_commits(run: Pass) -> Any:
+    """Main's newest `MAIN_LISTED` commits, newest first, as GitHub's list of commits gives
+    them, or None where it gives no answer. One read for each tip of main (`_at_tip`): a list
+    is kept only where it starts at that tip."""
+    return _at_tip(
+        run,
+        MAIN_COMMITS,
+        "commits",
+        lambda at: _api(run, f"repos/{{owner}}/{{repo}}/commits?sha={at}&per_page={MAIN_LISTED}"),
+        lambda said, tip: isinstance(said, list) and bool(said) and said[0].get("sha") == tip,
+    )
 
 
 def _check(
@@ -1705,12 +1791,12 @@ NIGHTLIES = (BROWSER, MACOS)
 """The nightly workflows with their own brief for a red run (`_nightly_red`). Every other
 scheduled workflow gets the brief `scheduled` gives it (`watched`)."""
 WORKFLOWS = (
-    "query($owner: String!, $repo: String!) { repository(owner: $owner, name: $repo) {"
-    ' object(expression: "HEAD:.github/workflows") { ... on Tree {'
-    " entries { name object { ... on Blob { text } } } } } } }"
+    "query($owner: String!, $repo: String!, $at: String!) { repository(owner: $owner, name: $repo)"
+    " { object(expression: $at) { ... on Tree { entries { name object { ... on Blob { text } } } }"
+    " } } }"
 )
-"""The GraphQL query for the text of each file of `.github/workflows/` at the default branch,
-which `HEAD:` names on GitHub, in one call."""
+"""The GraphQL query for the text of each file of a tree, `$at` as `<commit>:.github/workflows`,
+in one call."""
 SCHEDULED_EVENTS = ("schedule", "workflow_dispatch")
 """The events of a scheduled workflow's runs that `scheduled` files: its push runs on the default
 branch are main's check (`_judged`), and its release runs are no concern of the schedule's."""
@@ -1746,25 +1832,19 @@ def watched(run: Pass) -> list[Nightly]:
     """The workflows whose red run on the default branch jbus files a fix row for: each of
     `NIGHTLIES` the repo holds, with its own rule, and each other file of `.github/workflows/`
     with a `schedule:` trigger at the default branch (`scheduled`). jbus asks GitHub for the files
-    on each pass, since no step of a pass is sure to fetch, so a repo that adds a nightly is
-    watched from the next pass and one that lacks it costs no call for its runs, a 404. Where
-    GitHub gives no list of the files, it watches `NIGHTLIES` alone."""
-    asked = run.run(
-        "gh",
-        "api",
-        "graphql",
-        "-F",
-        "owner={owner}",
-        "-F",
-        "repo={repo}",
-        "-f",
-        f"query={WORKFLOWS}",
+    at main's tip, since no step of a pass is sure to fetch, once for each tip (`_at_tip`), so a
+    repo that adds a nightly is watched from the pass that sees its merge, and one that lacks it
+    costs no call for its runs, a 404. Where GitHub gives no list of the files, it watches
+    `NIGHTLIES` alone."""
+    tree = _at_tip(
+        run,
+        WORKFLOW_FILES,
+        "tree",
+        lambda at: _workflows(run, at),
+        lambda said, _: said is not None,
     )
-    try:
-        entries = json.loads(asked.stdout)["data"]["repository"]["object"]["entries"]
-    except (ValueError, KeyError, TypeError):
-        entries = None
-    if asked.returncode != 0 or not isinstance(entries, list):
+    entries = tree.get("entries") if isinstance(tree, dict) else None
+    if not isinstance(entries, list):
         return list(NIGHTLIES)
     names = {entry.get("name") for entry in entries if isinstance(entry, dict)}
     own = {nightly.file for nightly in NIGHTLIES}
@@ -1778,6 +1858,31 @@ def watched(run: Pass) -> list[Nightly]:
     )
     held = [nightly for nightly in NIGHTLIES if nightly.file in names]
     return [*held, *map(scheduled, found)]
+
+
+def _workflows(run: Pass, at: str) -> dict[str, Any] | None:
+    """The tree of `.github/workflows/` at the commit or branch `at`, as `WORKFLOWS` asks
+    GitHub for it: empty where there is no such tree, and None where GitHub gives no answer."""
+    asked = run.run(
+        "gh",
+        "api",
+        "graphql",
+        "-F",
+        "owner={owner}",
+        "-F",
+        "repo={repo}",
+        "-f",
+        f"query={WORKFLOWS}",
+        "-f",
+        f"at={at}:.github/workflows",
+    )
+    if asked.returncode != 0:
+        return None
+    try:
+        tree = json.loads(asked.stdout)["data"]["repository"]["object"]
+    except (ValueError, KeyError, TypeError):
+        return None
+    return tree if isinstance(tree, dict) else {}
 
 
 def ran_at(one: dict[str, Any]) -> str:
@@ -2047,7 +2152,7 @@ def retro(run: Pass, world: World, rows: list[dict[str, Any]], check: Callable[[
         if world.merged[slug].get("baseRefName", branch) in (branch, None, "")
     ]
     slug_of = {pull["number"]: slug for slug, pull in world.merged.items()}
-    commits = _api(run, f"repos/{{owner}}/{{repo}}/commits?sha={branch}&per_page=50")
+    commits = main_commits(run)
     if not isinstance(commits, list):
         return
     tip = commits[0]["sha"] if commits else ""
@@ -2097,7 +2202,7 @@ def retro(run: Pass, world: World, rows: list[dict[str, Any]], check: Callable[[
         )
         line += "" if slug else ", and no briefed merge came in the day before it"
         run.find(owner, "retro", line, key=f"red {sha}", past=True)
-        if place == 0 and not run.first and slug not in run.removed:
+        if place == 0:
             red = commits[place : place + since]
             pull = by_commit.get(red[-1]["sha"])
             culprit = slug_of.get(pull["number"], "") if pull else ""

@@ -2205,15 +2205,31 @@ def add(
     asks: Asks | None = None,
     ran_by: dict[str, str] | None = None,
     home_fault: str = "",
+    message: str = "",
 ) -> list[str]:
     """Add the row, or its brief again, linked to the work item `item` where one is given.
     Return the line that says what was added, and the line of its approval by the follow-up rule
     or of why it waits, where `asks`, or a `user` with `ran_by`, names the rule (`_followers`).
     `ran_by` is who queued it, `runner` where none is given: a filer gives `PASS`, and the row
     keeps it as `queued_by`, which makes its fix a fix jbus filed (`filed`). `home_fault` is why
-    the brief names no home of the project (`owned`), a fault that refuses it beside the others."""
+    the brief names no home of the project (`owned`), a fault that refuses it beside the others.
+
+    `message` is the user's own message `<thread id>/<message id>` that approves the brief as it
+    is added, in the same write, as `approve --message` approves it: the line of that go comes
+    second. A brief that holds for a door is refused with it, since its go goes by `approve`
+    alone, and so is a message that is not the user's own: either way nothing is queued."""
     verb = Add(slug, priority, depends, text, entry, item, merge_after or [], home_fault)
-    return _run(state, [(0, verb)], user, asks, ran_by)
+    batch: list[tuple[int, Verb]] = [(0, verb)]
+    if message:
+        held = case(text)
+        if held:
+            raise Refused(
+                f"refused: {slug}'s brief holds for {held}, so its go goes by jbus queue approve "
+                "alone, and nothing is queued"
+            )
+        given = judgement.brief_sha(text)[:12]
+        batch.append((0, Approve(slug, "message", message, given)))
+    return _run(state, batch, user, asks, ran_by)
 
 
 def approve(

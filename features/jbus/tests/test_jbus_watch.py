@@ -12,7 +12,7 @@ import pytest
 
 import jbus
 import jbus.queue
-from jbus import poll, watch
+from jbus import culprits, poll, watch
 from jmerge import judgement, ready, reverts
 from test_jbus_kitchen import NOW, RESULT, TOKEN, filed_as, iso
 from test_jbus_queue import add, rows
@@ -50,6 +50,46 @@ def test_every_merge_a_pass_sees_is_kept_and_known_once_github_lists_it_no_more(
     kitchen.poll(NOW + timedelta(minutes=3))
     assert rows(kitchen)["alpha"]["status"] == "merged"
     assert [line for line in kitchen.log("gh") if "--head" in line] == []
+
+
+def test_the_merged_list_is_asked_for_only_once_a_base_branch_moved(kitchen):
+    """A merge moves the branch it went into, which one `git ls-remote origin` sees, so a pass
+    whose base branches stand where they stood asks GitHub for no merged list (10.71 GraphQL calls
+    a pass for 5 projects on 2026-11-08, half of them this list) and reads `merged.json`."""
+    kitchen.brief("alpha", RESULT)
+    kitchen.brief("beta", RESULT)
+    kitchen.set("merged.json", [kitchen.merged("alpha", 7, "a" * 40)])
+    kitchen.quiet()
+    listed(kitchen)
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert listed(kitchen) == []
+    beta = kitchen.merged("beta", 8, "b" * 40, ago=timedelta(0))
+    kitchen.set("merged.json", [kitchen.merged("alpha", 7, "a" * 40), beta])
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert len(listed(kitchen)) == 1
+    assert kitchen.lines("merged") == ["merged beta #8 bbbbbbbbbbbb"]
+    kitchen.poll(NOW + timedelta(minutes=9))
+    assert listed(kitchen) == []
+    assert kitchen.lines("merged") == ["merged beta #8 bbbbbbbbbbbb"]
+
+
+def test_a_pass_that_cannot_read_the_base_tips_asks_for_the_merged_list(kitchen):
+    """With no answer from `git ls-remote origin`, no base is known to stand still, so each pass
+    asks GitHub for the merged list as it did before the tips were kept."""
+    kitchen.set("merged.json", [kitchen.merged("alpha", 7, "a" * 40)])
+    kitchen.quiet()
+    kitchen.git("remote", "set-url", "origin", str(kitchen.root / "gone.git"))
+    listed(kitchen)
+    for minutes in (3, 6):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+        assert len(listed(kitchen)) == 1
+
+
+def listed(kitchen):
+    """Return the merged lists asked of the fake `gh` since the last call, and forget them."""
+    said = [line for line in kitchen.log("gh") if line.startswith("pr list --state merged")]
+    (kitchen.stub / "gh.log").unlink(missing_ok=True)
+    return said
 
 
 def heads(kitchen):
@@ -360,13 +400,27 @@ def test_a_removed_row_is_not_filed_again(kitchen):
     assert main_red(kitchen) == []
 
 
-def test_a_first_pass_over_a_red_main_files_no_brief(kitchen):
+def test_a_first_pass_over_a_red_main_files_its_row_for_the_catchall(kitchen):
+    """A red main always has its row, owned by `uncategorized`, so no home is woken of the red
+    (the user, 2026-11-08: "jbus always files it"). The first pass reverts nothing."""
     main_after_alpha(kitchen, "failure")
     (kitchen.state / "wake.json").unlink()
     kitchen.poll()
-    assert list((kitchen.home / "tasks").glob("main-red-*")) == []
-    assert main_red(kitchen) == []
-    assert kitchen.lines("retro") == []
+    assert [row["slug"] for row in main_red(kitchen)] == ["main-red-dddddddddddd"]
+    text = (kitchen.home / "tasks" / "main-red-dddddddddddd.md").read_text()
+    assert "Home: uncategorized\n" in text
+    assert culprits.FIRST in text
+
+
+def test_a_red_main_after_a_removed_merge_files_its_row(kitchen):
+    """A merge whose row was removed turned main red: jbus reverts nothing of it, and still files
+    the fix row."""
+    main_after_alpha(kitchen, "failure")
+    jbus.write_json(kitchen.state / "removed.json", {"alpha": {"at": iso(NOW), "by": "user"}})
+    kitchen.poll()
+    assert [row["slug"] for row in main_red(kitchen)] == ["main-red-dddddddddddd"]
+    text = (kitchen.home / "tasks" / "main-red-dddddddddddd.md").read_text()
+    assert culprits.REMOVED.format(slug="alpha") in text
 
 
 def test_a_green_main_files_no_brief(kitchen):
@@ -1258,9 +1312,12 @@ DRIFT_LOG = (
 def scheduled_runs(kitchen, runs, flows=None):
     """Give the project the workflows `flows` at its default branch, by default drift.yml, which
     has a `schedule:` trigger and is neither nightly, and lint.yml, which has none; set the runs of
-    each workflow by its file, and a failed job and its log for each run."""
-    kitchen.quiet()
+    each workflow by its file, and a failed job and its log for each run. The files are there
+    before the first pass, as a commit's files never change while main's tip stays, and the calls
+    of that pass are left out of `gh.log`."""
     kitchen.set("workflows.json", flows or {"drift.yml": DRIFT, "lint.yml": LINT})
+    kitchen.quiet()
+    kitchen.set("gh.log", "")
     kitchen.set("workflow-runs.json", runs)
     job = {"id": 611, "name": "drift", "status": "completed", "conclusion": "failure"}
     every = [one["id"] for flow in runs.values() for one in flow]
