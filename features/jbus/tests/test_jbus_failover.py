@@ -832,6 +832,24 @@ def test_while_no_instance_of_the_pool_can_sign_in_nothing_is_sent_and_the_user_
     assert not any(key.startswith("signed-out ") for key in alert.streaks(kitchen.state_dir))
 
 
+def test_a_lapsed_thread_waits_while_t3_code_does_not_say_which_instances_sign_in(kitchen):
+    """`jbus.dispatch.cannot_run` gets no answer from T3 Code, so the failover cannot tell where
+    the thread could go: it sends nothing and says why."""
+    thread = crew(kitchen)
+    lapsed_on(thread)
+    result = kitchen.t3.result
+
+    def silent(asked):
+        if asked.get("params", {}).get("name") == "orchestrator_capabilities":
+            return {"isError": True, "content": [{"type": "text", "text": "not now"}]}
+        return result(asked)
+
+    kitchen.t3.result = silent
+    said = kitchen.poll(LAPSED + timedelta(minutes=7))
+    assert asks(kitchen) == [] and configures(kitchen) == []
+    assert any("T3 Code did not say which instances sign in" in one for one in said)
+
+
 def test_one_carry_on_goes_per_failed_run_and_none_while_its_instance_just_failed_to_sign_in(
     kitchen, pools
 ):

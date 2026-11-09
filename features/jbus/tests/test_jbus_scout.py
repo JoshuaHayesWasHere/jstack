@@ -207,6 +207,30 @@ def test_a_pass_launches_an_approved_scout_read_only_with_no_branch(kitchen):
     assert len(launches(kitchen)) == 1
 
 
+PRIME = "claudeAgent_claude_prime"
+
+
+def test_a_scout_launches_on_the_first_instance_of_its_pool_that_can_sign_in(
+    kitchen, jstack_config
+):
+    """`jbus.scouts` skips an instance T3 Code says is not authenticated, and launches nothing
+    while no instance of the pool can sign in."""
+    (jstack_config.parent / "roles").write_text(
+        f"scout: claudeAgent claude-sonnet-5-5 claudeAgent,{PRIME}\n"
+    )
+    for instance in ("claudeAgent", PRIME):
+        kitchen.t3.constraints[instance] = ["Provider is not authenticated."]
+    add(kitchen, "alpha")
+    assert go(kitchen, "alpha")[0] == 0
+    said = kitchen.poll()
+    assert launches(kitchen) == []
+    assert any("wait scout alpha: no launch: claudeAgent cannot sign in" in one for one in said)
+    kitchen.t3.constraints[PRIME] = []
+    kitchen.poll(NOW + timedelta(minutes=3))
+    (made,) = launches(kitchen)
+    assert made["modelSelection"]["instanceId"] == PRIME
+
+
 def test_a_scout_row_waits_on_its_depends_and_launches_on_the_first_pass_after_it_merges(kitchen):
     """The Done when of scout-row: a design pass queued with `--depends a` under an entry with a
     go launches `/scout <slug>` on the first pass after `a` merges, and not before."""
