@@ -56,6 +56,7 @@ Each target runs as `make <target>` in the new repo.
 | `check` | `lint` and `test`. |
 | `select BASE=<ref>` | The test ids the change from `<ref>` reaches, one a line, or `all`, and nothing else. |
 | `check-fast BASE=<ref>` | `lint`, then `test` with the ids `select` prints, the whole suite on `all`, and no test on an empty selection. |
+| `e2e` | The browser tests of each stack whose config sets `e2e:`, or, given `E2E_LIST=<file>`, only the ids in the file, one a line. |
 | `borders BASE=<ref>` | The borders of the change from `<ref>`, with the pull request's labels in `LABELS`: a change across two features passes only with the label `cross-cutting`. The shared check's lint reads no labels, so `lint` leaves this to `borders`. |
 | `generate` | Each generator, which writes its files again from the manifests. |
 
@@ -91,7 +92,7 @@ stacks:
 
 `adapter` is `go`, `python-uv` or `node-vite`, and `roots` lists the folders the stack owns, from the repo's root.
 The config refuses an adapter it does not know, a stack with no root, and a root that sits in another root or holds one.
-Such a repo copies each of its adapters' scripts into `scripts/`, and no `stack.mk`: the Makefile sees `stacks:` and hands `lint`, `test` and `select` to the standard's driver, `python3 -m repo_standard stacks`, at the tag the config pins.
+Such a repo copies each of its adapters' scripts into `scripts/`, and no `stack.mk`: the Makefile sees `stacks:` and hands `lint`, `test`, `select` and `e2e` to the standard's driver, `python3 -m repo_standard stacks`, at the tag the config pins.
 The targets keep their names and what they print.
 
 | Target | What the driver does |
@@ -99,6 +100,7 @@ The targets keep their names and what they print.
 | `lint` | Runs every stack's lint, and fails when any failed. |
 | `test` | Runs every stack's suite, or, given ids in `TESTS`, each path in the stack whose root holds it, and `stack:<name>` as that stack's whole suite. |
 | `select BASE=<ref>` | Joins the stacks' selections, as below. |
+| `e2e` | Runs the browser tests of each stack with `e2e:`, or, given `E2E_LIST`, each stack the ids reach, as [Browser tests](#browser-tests) says. |
 
 A test id is a path from the repo's root, or `stack:<name>`, every test of one stack.
 `all` is every test of the repo, so the shared check's plan never reads a stack's whole suite as the repo's.
@@ -193,11 +195,12 @@ The adapter runs the package's own scripts, so each repo keeps its own lint and 
 |---|---|
 | `lint` | `npm run check`, the package's `check` script. |
 | `test` | `npm test`, the package's `test` script, or `npm test -- <files>` with the ids under that root, each a path from the root. |
-| `select BASE=<ref>` | `node.py select --roots <root> <ref>`, from the repo's `scripts/`. |
+| `select BASE=<ref>` | `node.py select --roots <root> <ref>`, from the repo's `scripts/`, with `--e2e <part>` for a stack that sets `e2e:`. |
+| `e2e` | `node.py e2e --root <root> --script <name>`, which runs `npm run <name> -- --fail-on-flaky-tests` in the e2e root, with `--test-list <file>` given ids. |
 
 `repo-standard conform` fails a root whose `package.json` has no `check` or no `test` script, under the rule [Each check has one make target](standard.md#each-check-has-one-make-target).
 It warns of a root that pins no Node version, in an `.nvmrc` or in the `engines.node` of its `package.json`, since CI then runs the runner's Node.
-The repo copies the adapter's two scripts, `features/repo-standard/adapters/node-vite/scripts/node.py` and `features/repo-standard/adapters/node-vite/scripts/node_graph.py`, into its `scripts/`, and adds `node_modules/` to its `.gitignore`, as the skeleton's does.
+The repo copies the adapter's four scripts, `features/repo-standard/adapters/node-vite/scripts/node.py`, `features/repo-standard/adapters/node-vite/scripts/node_graph.py`, `features/repo-standard/adapters/node-vite/scripts/node_browser.py` and `features/repo-standard/adapters/node-vite/scripts/node_table.py`, into its `scripts/`, and adds `node_modules/` to its `.gitignore`, as the skeleton's does.
 
 Its setup action, `.github/actions/setup/action.yml`, finds each folder whose `package-lock.json` git tracks, installs Node with `actions/setup-node` at the version the first such root pins, with npm's cache, and runs `npm ci` in each.
 The shared check's plan selects before it, in `python3` alone.
@@ -212,6 +215,46 @@ The selection reads the import graph of the root, as `node_graph.py` says, and h
 - A string in a test that names a file of the repo, such as one the test reads, counts as an import, so a change to that file selects the test, even in another stack.
 - Any other path under the root, such as a file under `static/` or `index.html`, selects the whole stack.
 
+#### Browser tests
+
+A node stack declares its Playwright tests under `e2e:`, and conform warns of a node stack that declares none:
+
+```yaml
+stacks:
+  client:
+    adapter: node-vite
+    roots: [client, e2e]
+    e2e:
+      root: e2e
+      script: test:e2e
+      every: [e2e/page-layout.spec.ts]
+      routes:
+        e2e/public.spec.ts: [/pantries, /about]
+      table:
+        - file: e2e/screens.spec.ts
+          export: screenFlows
+          title: "screen: {name}"
+```
+
+| Key | What it sets |
+|---|---|
+| `root` | The npm package whose script runs Playwright, inside one of the stack's roots. |
+| `script` | The npm script that runs Playwright, such as `playwright test`, on the built app it serves with a mocked API, never on a live stage. |
+| `every` | The specs any change of the app selects, such as one that reads every page's built CSS. |
+| `routes` | The URLs a spec opens that its text does not name, such as ones it builds in a loop. |
+| `table` | The specs that run one test a row of an array: the spec, the array's name, and the title of a row's test, in which `{name}` stands for the row's `name:`. |
+
+Each path is from the repo's root, and the config refuses a key it does not know and a path outside the stack's roots.
+A spec is a `*.spec.<ext>` file under the `testDir` of the Playwright config the script runs.
+The selection prints a browser test as Playwright's test-list form with the spec's path from the repo's root, `<spec>` or `<spec> > <title>`, and the target `e2e` hands the ids to Playwright as `--test-list`, each spec's path made relative to `testDir`.
+Playwright still runs a setup project the selected tests depend on.
+`features/repo-standard/adapters/node-vite/scripts/node_browser.py` holds the rules: a URL a spec opens maps to its route's files, a SvelteKit page with every layout above it or a React router table's row, and the change reaches each test whose route files, and the files they import, hold it.
+`repo-standard conform` fails a spec or a row that no path reaches, and a URL that matches no route of the app, under the rule [A change selects its tests](standard.md#a-change-selects-its-tests).
+
+The shared check runs the browser tests in the Playwright image of the version the e2e root's `package-lock.json` pins.
+A caller that sets the input `browser-channel`, such as `chrome`, runs them on the runner's own browser instead, and the job prints its version; the Playwright config reads the channel as `process.env.REPO_STANDARD_BROWSER_CHANNEL`.
+
 Its example feature, `hello-client`, is an npm package, `features/repo-standard/adapters/node-vite/features/hello-client/package.json`, whose `check` script runs `tsc --noEmit` and whose `test` script runs `vitest run`.
 Its stack's root is the feature's folder.
 `features/repo-standard/tests/test_node_adapter.py` makes a repo of it, installs it with `npm ci` and runs its make targets, and runs the selection on a Svelte client and a React client.
+`features/repo-standard/tests/test_browser_select.py` runs the browser selection on a SvelteKit client and a React client, and has Playwright list the tests a selection hands it.

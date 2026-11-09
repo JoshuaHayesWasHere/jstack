@@ -32,12 +32,13 @@ The plan fails when the config pins another version than the workflow's own.
 |---|---|---|
 | `runner` | The label of the runner every job runs on, such as one on the repo's own machines | `ubuntu-24.04` |
 | `command` | The repo's check command, which runs alone while the repo has no `.repo-standard.yml` | none |
-| `timeout-minutes` | The cap of each part of the tests, and of the check command | 30 |
+| `timeout-minutes` | The cap of each part of the tests, of the browser tests, and of the check command | 30 |
+| `browser-channel` | A browser the runner has, such as `chrome`, for the browser tests to run in, in place of the Playwright image | none |
 
 The label of a runner on the repo's own machines goes in `runner`, and in the caller's job `check` as its `runs-on`.
 
 A step that the make targets need first, such as a toolchain the runner lacks or a cache of dependencies, goes in a composite action at `.github/actions/setup/action.yml` in the repo.
-The jobs `lint` and `test` run that action after their checkout, where the file exists.
+The jobs `lint`, `test` and `browser` run that action after their checkout, where the file exists.
 The job `plan` runs `make select` before any setup, in the runner's `python3` alone.
 
 ## The config's part for the check
@@ -62,11 +63,18 @@ It reads the version `.repo-standard.yml` pins and clones jstack at the tag `rep
 | `plan` | Asks `jmerge.reuse` whether a passed check of the same two trees is reused, and runs `make select BASE=HEAD^1` | Asks `scripts/green_tree.py` whether a green run left a marker for the tree, except on a nightly run |
 | `lint` | `make lint BASE=HEAD^1`, then `repo-standard conform` | The same |
 | `test` | Each part runs what `plan` dealt it: `make test TESTS=<ids>`, the whole suite, or nothing | Each part runs the whole suite |
-| `passed` | Passes when `plan`, `lint` and every part passed, or the pair of trees was reused | Passes when every job passed, or the tree's marker skipped the tests |
+| `browser` | The target `e2e`, given `E2E_LIST=<file>` with the browser ids `plan` routed it, or given none on `all`, and skipped when `plan` routed it no id | The target `e2e`, every browser test |
+| `passed` | Passes when `plan`, `lint` and every part passed, and `browser` passed or was skipped, or the pair of trees was reused | Passes when every job passed, or the tree's marker skipped the tests |
 
 `repo-standard plan` deals a selection out to the parts in turn, and starts no more parts than the selection has ids.
 A part dealt the whole suite runs `make test` with one part, and `make test SHARD=<part>/<parts>` with more, so a repo that sets `shards` above 1 gives its `test` target a `SHARD` variable.
 An id `make select` prints holds no space, since the part passes its ids to `TESTS` with a space between each.
+A browser id is the exception, and `plan` routes it to `browser` instead of a part: an id `<spec> > <title>`, or a `*.spec.*` file of a stack whose config sets `e2e:`.
+An id `stack:<name>` of such a stack goes to both, as that stack's whole suite.
+
+The job `browser` runs in the container `mcr.microsoft.com/playwright:v<version>-noble`, the version the e2e root's `package-lock.json` pins, and the plan fails where it pins none or two e2e roots pin two.
+With `browser-channel` set, it runs on the runner instead, prints the browser's version, and the Playwright config reads the channel as `$REPO_STANDARD_BROWSER_CHANNEL`.
+The target `e2e` passes `--fail-on-flaky-tests`, so a test that passes only on a retry fails the job, and the job keeps `playwright-report/` and `test-results/` as artifacts unless the run was cancelled.
 
 A reuse of a passed pair of trees, a tree a green run already passed, and a nightly run that `nightly` leaves off run no test.
 
