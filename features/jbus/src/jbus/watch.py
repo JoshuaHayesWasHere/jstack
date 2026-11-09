@@ -87,11 +87,13 @@ GREEN = "passed"
 """What a nightly's `seen` keeps for a run of it that passed on its `branch`."""
 _TIMEBOX = re.compile(r"^TIMEBOX:\s*(\d+(?:\.\d+)?)\s*(?:h\b|hours?\b)", re.M)
 OPEN = "number,url,title,headRefName,headRefOid,baseRefName,mergeable,statusCheckRollup,updatedAt"
+JOBS, KEPT_JOBS = "completed-jobs.json", 1000
+"""The file of the project's state where `ran` keeps completed jobs, and how many it keeps."""
 NEVER = "neverStarted"
-JOBS = "completed-jobs.json"
-KEPT_JOBS = 1000
 """The key of an open pull request's failed checks whose job ran no step, as the pass found
-them: `checks` reads them as `jmerge --checks` does."""
+them: `checks` reads them as `jmerge --checks` does. `look` works it out only for a pull request
+of a queue row or of a crew jbus launched, the only ones whose readers (`cancelled.rerun`,
+`rebase.ran_and_failed`) use it; for any other, `checks` gives the same word without it."""
 MERGED = "number,url,title,headRefName,headRefOid,baseRefName,mergeCommit,mergedAt"
 GATED = "a gate the Chef has"
 OFF, STOP, UNREAD = "dispatch is off", "the stop file is there", "not read in this pass"
@@ -406,7 +408,7 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
                 pulls(run, state, fields, "--limit", "100"), key=lambda p: p.get("mergedAt") or ""
             ):
                 slug = slug_of.get(pull.get("url", "").rstrip("/"), pull["headRefName"])
-                if state == "open" and slug in queued:
+                if state == "open" and (slug in queued or records(run, slug, queue.CREW)):
                     rollup = pull.get("statusCheckRollup") or []
                     never = reading.never_started(rollup, lambda *at: ran(run, world, *at))
                     pull[NEVER] = sorted(never)
