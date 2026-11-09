@@ -29,6 +29,19 @@ count of the last `WITHIN` seconds, never later to hold than either, with that c
 leaves out a count whose window has started again since. The log has no window's limit, so
 `logged` keeps it from the last answer it asked for (`KEPT`), and asks again once that answer's
 window has started again.
+
+The log holds every `gh` call of jbus, `jmerge` and jsettings, and no other: GitHub counts more.
+A thread runs `gh` in its own shell, and Claude Code runs `gh pr view --json url` for the
+pull request of a thread's branch; neither is a process of jstack's, so neither goes through
+the runner, and the token they spend is the same one. On 2026-11-09 a thread's
+`gh run list --workflow check` every 30 seconds spent two calls of the core count that the
+`/actions/workflows` endpoints answer from, and that count fell by 66 in four minutes while the
+log held 49 of them (gs-gh-unlogged). Such calls cannot be logged from here: only a `gh` on
+every shell's PATH ahead of the real one could log them, and that is no command of jstack's. So
+the lines of the log are what jstack spends, and not what is left: `logged` takes `remaining`,
+which GitHub gives after every call of every caller, and never counts lines, and a reader that
+counts the calls a pass spends from the lines, as against GitHub's drop in `remaining`, finds
+GitHub's drop the larger by what the threads spent meanwhile.
 """
 
 from __future__ import annotations
