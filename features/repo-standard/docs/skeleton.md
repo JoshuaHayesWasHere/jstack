@@ -57,7 +57,7 @@ One rule, `RULES` in `features/repo-standard/src/repo_standard/owned.py`, sorts 
 | An adapter | `scripts/**` | `.repo-standard.yml`, `.github/actions/setup/action.yml`, the example feature, its root files such as `pyproject.toml` |
 
 A file the rule does not place fails `features/repo-standard/tests/test_upgrade.py`, so a file added to the skeleton or an adapter is placed when it is added.
-A repo's adapters are those its `stacks:` name, or, with no `stacks:`, each adapter whose scripts the repo holds, such as `select.py` in `scripts/` for python-uv.
+A repo's adapters are those its `stacks:` name, or, with no `stacks:`, each adapter whose scripts the repo holds, such as `uv_select.py` in `scripts/` for python-uv.
 A repo of several stacks takes no `stack.mk`.
 
 An owned file stays equal to its copy at the tag the repo pins, and `repo-standard conform` warns of one that differs or is missing.
@@ -178,7 +178,8 @@ The python-uv adapter runs the lint, `ruff check` and `ruff format --check`, and
 Its root `conftest.py` puts each feature's `src/` on the path, so a test imports any feature's package by its name.
 Its setup action, `.github/actions/setup/action.yml`, installs uv in each job of the shared check.
 
-Its selection, `features/repo-standard/adapters/python-uv/scripts/select.py`, runs in `python3` alone, so the shared check's plan selects before any setup.
+Its selection, `features/repo-standard/adapters/python-uv/scripts/uv_select.py`, runs in `python3` alone, so the shared check's plan selects before any setup.
+It is named for no module of Python's standard library: `python3` puts the folder of the script it runs first on the path, and a python3 that builds `select` as a module of its own, as Arch's does, would import a script named `select.py` in its place.
 It reads the change from the base to the working tree, and each file git does not track yet:
 
 - A shared path selects `all`: `pyproject.toml`, `uv.lock`, the root `conftest.py`, the `Makefile`, `.repo-standard.yml`, anything under `scripts/`, `.github/` or `schemas/`, and any path the rules below cannot place.

@@ -62,7 +62,7 @@ def stacked_repo(tmp_path, upstream):
     root = tmp_path / "repo"
     shutil.copytree(SKELETON, root, ignore=shutil.ignore_patterns("__pycache__", ".cache"))
     shutil.copy(ADAPTERS / "go" / "scripts" / "go.py", root / "scripts" / "go.py")
-    shutil.copy(UV / "scripts" / "select.py", root / "scripts" / "select.py")
+    shutil.copy(UV / "scripts" / "uv_select.py", root / "scripts" / "uv_select.py")
     write(root, PLANTED)
     capture = root / "tools" / "capture"
     shutil.copy(UV / "uv.lock", capture / "uv.lock")
@@ -74,7 +74,7 @@ def stacked_repo(tmp_path, upstream):
         "  STACK: [pyproject.toml, uv.lock, conftest.py]",
         '  STACK: []\n  API: ["api/**"]\n  CAPTURE: ["tools/capture/**"]',
     )
-    config = config.replace("[scripts/stack.mk]", "[scripts/go.py, scripts/select.py]")
+    config = config.replace("[scripts/stack.mk]", "[scripts/go.py, scripts/uv_select.py]")
     (root / ".repo-standard.yml").write_text(config + STACKS)
     env = {k: v for k, v in os.environ.items() if k not in INHERITED}
     env["REPO_STANDARD_UPSTREAM"] = str(upstream)
@@ -116,7 +116,7 @@ def test_the_repo_of_two_stacks_passes_its_lint_its_tests_and_an_empty_select(st
         ("tools/capture/Dockerfile", ["stack:capture"]),
         ("api/notes.txt", GO_IDS),
         ("Makefile", ["all"]),
-        ("scripts/select.py", ["all"]),
+        ("scripts/uv_select.py", ["all"]),
         ("notes.txt", ["all"]),
         ("README.md", []),
         ("tools/capture/README.md", []),

@@ -25,10 +25,6 @@ SKELETON = STANDARD / "skeleton"
 ADAPTER = STANDARD / "adapters" / "python-uv"
 TEMPLATE = REPO / "features" / "home" / "templates" / "check.yml"
 CORE = REPO / "schemas" / "feature.core.schema.json"
-# Runs the script as `python3 <script>` does, with its folder first on the path, in a python3 that
-# finds `select` on the path, as one does that builds it as a module of its own and not into the
-# interpreter (Arch's python 3.14). A script named for a module of the standard library would be
-# imported in that module's place.
 PATH_SELECT = """
 import os, runpy, sys
 from importlib.machinery import BuiltinImporter, PathFinder
@@ -173,7 +169,7 @@ def test_a_change_to_one_module_selects_only_its_importers(new_repo):
     ("path", "text", "selection"),
     [
         ("pyproject.toml", "\n", ["all"]),
-        ("scripts/select.py", "\n", ["all"]),
+        ("scripts/uv_select.py", "\n", ["all"]),
         ("notes.txt", "a stray file\n", ["all"]),
         ("features/hello/docs/hello.md", "More.\n", []),
     ],
@@ -215,6 +211,10 @@ def test_select_needs_a_base(new_repo):
 
 
 def test_the_selection_runs_where_select_is_found_on_the_path(new_repo):
+    """`PATH_SELECT` runs the script as `python3 <script>` does, with its folder first on the path,
+    in a python3 that finds `select` on the path, as one that builds it as a module of its own and
+    not into the interpreter does (Arch's python 3.14). There a script named for a module of the
+    standard library is imported in that module's place."""
     root, env = new_repo
     (script,) = COMMANDS["python-uv"].scripts
     hello = "features/hello/tests/test_hello.py"

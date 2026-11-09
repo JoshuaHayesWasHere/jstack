@@ -45,7 +45,7 @@ def test_every_file_of_the_skeleton_and_each_adapter_has_a_kind():
 
 
 def test_a_repo_owns_the_skeletons_owned_files_and_its_adapters_scripts():
-    paths = ["scripts/select.py"]
+    paths = ["scripts/uv_select.py"]
     found = owned.files(STANDARD, Config(), paths, owned.Kind.OWNED)
     assert sorted(found) == [
         ".github/workflows/borders.yml",
@@ -53,8 +53,8 @@ def test_a_repo_owns_the_skeletons_owned_files_and_its_adapters_scripts():
         "Makefile",
         "schemas/feature.core.schema.json",
         "scripts/generate-index.py",
-        "scripts/select.py",
         "scripts/stack.mk",
+        "scripts/uv_select.py",
     ]
 
 
@@ -244,7 +244,7 @@ def test_upgrade_never_moves_a_pin_down(v1_repo):
 def test_a_repo_of_several_stacks_owns_each_adapters_scripts_and_no_stack_mk():
     config = Config(stacks={"api": Stack("go", ("api",)), "app": Stack("python-uv", ("app",))})
     found = owned.files(STANDARD, config, [], owned.Kind.OWNED)
-    assert {"scripts/go.py", "scripts/select.py"} <= set(found)
+    assert {"scripts/go.py", "scripts/uv_select.py"} <= set(found)
     assert "scripts/stack.mk" not in found
 
 
@@ -278,7 +278,7 @@ def test_upgrade_says_each_thing_it_left_in_a_repo_shaped_its_own_way(v1_repo, c
     text = text.replace("    - Makefile\n", "")
     config.write_text(text + "local:\n  .github/workflows/check.yml: the check builds an image\n")
     (root / ".github/workflows/borders.yml").unlink()
-    (root / "scripts/select.py").unlink()
+    (root / "scripts/uv_select.py").unlink()
     assert main(["upgrade", "--to", str(VERSION), "--root", str(root), "--upstream", ""]) == 0
     said = capsys.readouterr().out.splitlines()
     assert config.read_text().startswith(f"standard: {VERSION}\n")
