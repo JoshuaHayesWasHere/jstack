@@ -3,16 +3,21 @@
 The fixture is a small git repo that is not jstack, with a `.repo-standard.yml`, a Makefile whose
 `select`, `lint` and `test` targets print what they were asked, and an upstream: a git repo tagged
 `repo-standard-v1` that holds the repo-standard and jmerge code the workflow takes from jstack.
-`run_job` runs a job of the workflow as GitHub would, step by step: it evaluates each step's `if:`
-and the `${{ }}` of its job's and its own `env:`, runs its `run:` under bash with
-`$GITHUB_OUTPUT`, and records what an `upload-artifact` step would upload. A `gh` on the path
-that always fails stands in for GitHub, so a lookup of a marker cannot ask and runs the tests, as
-the workflow does with no network.
+`run_job` runs a job of the workflow as GitHub would, step by step: it evaluates each step's `if:`,
+with `success()` in front of one that names no status function, and the `${{ }}` of its job's and
+its own `env:`, runs its `run:` under bash in the repo, its `$GITHUB_WORKSPACE`, with
+`$GITHUB_OUTPUT` and `$GITHUB_STEP_SUMMARY`, and records what an `upload-artifact` step would
+upload, a relative path read from the workspace. Given a `store`, a dict, an upload copies its path
+there under its name, the last upload of a name kept, and a `download-artifact` step copies each
+stored artifact its pattern matches back, each to a folder of its name, as GitHub does with no
+`merge-multiple`. A `gh` on the path that always fails stands in for GitHub, so a lookup of a
+marker cannot ask and runs the tests, as the workflow does with no network.
 
 The workflow and /new-home's template, the caller every repo starts from, are read with the
 standard's own YAML reader, `repo_standard.config.parse`, which refuses what it cannot read.
 """
 
+import fnmatch
 import json
 import os
 import re
@@ -39,6 +44,7 @@ SHELLS = {
 """How GitHub runs a `run:` step on Linux: with no shell named, `bash -e`, which lets a pipe hide a
 failure, and with `shell: bash`, the same with pipefail."""
 EXPRESSION = re.compile(r"\$\{\{\s*(.*?)\s*\}\}")
+STATUS = re.compile(r"\b(?:always|success|failure|cancelled)\(")
 TOKEN = re.compile(
     r"\s*(?:'((?:[^']|'')*)'|(==|!=|&&|\|\||!|\(|\)|\[|\]|,)|(\d+)|([A-Za-z_][\w.-]*))"
 )
@@ -126,8 +132,11 @@ def lookup(name, context):
 
 def evaluate(expression, context, root):
     """The value of a GitHub expression, for the operators and functions the workflow uses."""
+    failed = context.get("failed", False)
     functions = {
         "always": lambda: True,
+        "success": lambda: not failed,
+        "failure": lambda: failed,
         "cancelled": lambda: False,
         "fromJSON": json.loads,
         "format": lambda text, *values: text.format(*values),
@@ -161,24 +170,31 @@ def substitute(text, context, root):
     return EXPRESSION.sub(one, str(text))
 
 
-def run_job(name, repo, env, context, top=None):
+def run_job(name, repo, env, context, top=None, store=None):
     """Run job `name` of the workflow in `repo`: each step's outputs, outcome and the artifacts
-    it uploaded, keyed by its id or name, and the job's outputs."""
+    it uploaded, keyed by its id or name, and the job's outputs. A failed step fails the job, and
+    only the steps whose `if:` asks for a failure run after it."""
     top = top or workflow()
     job = top["jobs"][name]
     steps, uploaded = {}, []
-    context = {**context, "steps": steps}
+    context = {**context, "steps": steps, "failed": False}
     temp = repo.parent / f"temp-{name}-{len(list(repo.parent.glob('temp-*')))}"
     temp.mkdir()
+    summary = temp / "summary.md"
     workflow_env = top.get("env", {}).items()
     base = {**{key: substitute(value, context, repo) for key, value in workflow_env}, **env}
     base.update(
         {key: substitute(value, context, repo) for key, value in job.get("env", {}).items()}
     )
     base["RUNNER_TEMP"] = str(temp)
+    base["GITHUB_WORKSPACE"] = str(repo)
+    context["runner"] = {"temp": str(temp)}
     for at, step in enumerate(job["steps"]):
         key = step.get("id") or step.get("name") or f"step{at}"
-        if "if" in step and not evaluate(step["if"], context, repo):
+        condition = step.get("if", "success()")
+        if not STATUS.search(EXPRESSION.sub(r"\1", condition)):
+            condition = f"success() && ({condition})"
+        if not evaluate(condition, context, repo):
             steps[key] = {"outputs": {}, "outcome": "skipped"}
             continue
         action = step.get("uses", "")
@@ -186,7 +202,26 @@ def run_job(name, repo, env, context, top=None):
             steps[key] = {"outputs": {}, "outcome": "success"}
             continue
         if action.startswith("actions/upload-artifact@"):
-            uploaded.append(substitute(step["with"]["name"], context, repo))
+            artifact = substitute(step["with"]["name"], context, repo)
+            uploaded.append(artifact)
+            path = os.path.join(repo, substitute(step["with"]["path"], context, repo))
+            if store is not None and os.path.exists(path):
+                kept = repo.parent / "store" / artifact
+                shutil.rmtree(kept, ignore_errors=True)
+                if os.path.isdir(path):
+                    shutil.copytree(path, kept)
+                else:
+                    kept.mkdir(parents=True)
+                    shutil.copy(path, kept)
+                store[artifact] = kept
+            steps[key] = {"outputs": {}, "outcome": "success"}
+            continue
+        if action.startswith("actions/download-artifact@"):
+            pattern = substitute(step["with"]["pattern"], context, repo)
+            into = substitute(step["with"]["path"], context, repo)
+            for artifact, kept in sorted((store or {}).items()):
+                if fnmatch.fnmatchcase(artifact, pattern):
+                    shutil.copytree(kept, os.path.join(into, artifact), dirs_exist_ok=True)
             steps[key] = {"outputs": {}, "outcome": "success"}
             continue
         assert "run" in step, f"{name}: the fixture runs no action {action}"
@@ -196,7 +231,7 @@ def run_job(name, repo, env, context, top=None):
         done = subprocess.run(
             [*SHELLS[top.get("defaults", {}).get("run", {}).get("shell", "")], step["run"]],
             cwd=repo,
-            env={**base, **own, "GITHUB_OUTPUT": str(output)},
+            env={**base, **own, "GITHUB_OUTPUT": str(output), "GITHUB_STEP_SUMMARY": str(summary)},
             capture_output=True,
             text=True,
         )
@@ -204,13 +239,28 @@ def run_job(name, repo, env, context, top=None):
         outcome = "success" if done.returncode == 0 else "failure"
         steps[key] = {"outputs": outputs, "outcome": outcome, "said": done.stdout + done.stderr}
         if outcome == "failure" and not step.get("continue-on-error"):
-            return {"result": "failure", "steps": steps, "uploaded": uploaded, "outputs": {}}
+            context["failed"] = True
+    said = summary.read_text() if summary.exists() else ""
+    if context["failed"]:
+        return {
+            "result": "failure",
+            "steps": steps,
+            "uploaded": uploaded,
+            "outputs": {},
+            "summary": said,
+        }
     outputs = {k: substitute(v, context, repo) for k, v in job.get("outputs", {}).items()}
-    return {"result": "success", "steps": steps, "uploaded": uploaded, "outputs": outputs}
+    return {
+        "result": "success",
+        "steps": steps,
+        "uploaded": uploaded,
+        "outputs": outputs,
+        "summary": said,
+    }
 
 
 def github(event):
-    return {"event_name": event, "token": "a-token"}
+    return {"event_name": event, "token": "a-token", "run_id": "1"}
 
 
 def planned(repo, env, event, inputs=None):
@@ -691,7 +741,7 @@ def test_the_browser_job_runs_the_routed_ids_in_the_pinned_playwright_image(call
     assert done["steps"]["browser version"]["outcome"] == "skipped"
     logged = (repo.parent / "make.log").read_text().splitlines()
     assert logged == ["make e2e E2E_LIST=given", *BROWSER_IDS]
-    assert done["uploaded"] == ["playwright-report", "test-results"]
+    assert done["uploaded"] == ["failed-1-browser", "playwright-report", "test-results"]
 
 
 def test_on_main_the_browser_job_runs_every_test_with_no_list(caller):

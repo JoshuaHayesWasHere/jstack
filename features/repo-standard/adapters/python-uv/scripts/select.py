@@ -33,13 +33,23 @@ roots, which the repo's driver places, and holds each root to these rules:
 sorted: the whole suite, which `make test SHARD=<part>/<parts>` deals out to the parts. A test file
 is a file git lists, `test_*.py` or `*_test.py`, under `features/`, where the skeleton's pytest
 collects, or under the roots. A test pytest is set to find by another name is not listed.
+
+`python3 scripts/select.py [--roots <folder>]... --test [ids]` runs the tests: `uv run --locked
+pytest`, over the ids or the whole suite, and with roots a run per root the ids reach, each with
+the root as its rootdir and its `pyproject.toml` as its config. Given `REPO_STANDARD_FAILED=<file>`,
+it appends to the file each test file that failed, one a line, as `--list` prints it: the files
+pytest's cache names under `lastfailed`, read from a fresh cache dir the run is given. A run that
+fails and names no file, such as one whose conftest cannot import, appends every file it ran.
 """
 
 from __future__ import annotations
 
 import ast
+import json
+import os
 import subprocess
 import sys
+import tempfile
 from collections import defaultdict
 from pathlib import Path, PurePosixPath
 
@@ -217,21 +227,75 @@ def git(*args: str) -> list[str]:
     return [one for one in out.split("\0") if one]
 
 
+def suite(roots: list[str]) -> list[str]:
+    """Every test file under the roots, or under `features/` with none, sorted."""
+    found = git("ls-files", "-z", "-co", "--exclude-standard", "--", *(roots or ["features"]))
+    tests = {one for one in found if is_test(PurePosixPath(one).name)}
+    return sorted(one for one in tests if Path(one).is_file())
+
+
+def runs(roots: list[str], ids: list[str]) -> list[tuple[str, list[str], list[str]]]:
+    """Each pytest run: its rootdir, its argv, and the test files it runs, given or listed."""
+    if not roots:
+        return [(".", ["uv", "run", "--locked", "pytest", *ids], ids or suite([]))]
+    found = []
+    for root in roots:
+        mine = [one for one in ids if within(one, root)] if ids else [root]
+        if mine:
+            config = f"{root}/pyproject.toml"
+            argv = ["uv", "run", "--locked", "--project", root, "pytest", f"--rootdir={root}"]
+            found.append((root, [*argv, "-c", config, *mine], mine if ids else suite([root])))
+    return found
+
+
+def lastfailed(cache: Path, root: str) -> list[str]:
+    """The test files pytest's cache names as failed, from the repo's root. A folder or a conftest
+    it names, which failed to collect, is no test file, and names none."""
+    try:
+        nodes = json.loads((cache / "v" / "cache" / "lastfailed").read_text())
+    except (OSError, ValueError):
+        return []
+    files = dict.fromkeys(node.split("::", 1)[0] for node in nodes)
+    tests = [one for one in files if is_test(PurePosixPath(one).name)]
+    return [one if root == "." else f"{root}/{one}" for one in tests]
+
+
+def test(roots: list[str], ids: list[str]) -> int:
+    report = os.environ.get("REPO_STANDARD_FAILED")
+    failed = 0
+    for root, argv, ran in runs(roots, ids):
+        print(" ".join(argv), flush=True)
+        if not report:
+            failed |= subprocess.run(argv).returncode != 0
+            continue
+        with tempfile.TemporaryDirectory() as cache:
+            code = subprocess.run([*argv, "-o", f"cache_dir={cache}"]).returncode
+            named = lastfailed(Path(cache), root)
+        if code:
+            failed = 1
+            with open(report, "a", encoding="utf-8") as out:
+                out.write("".join(f"{one}\n" for one in named or ran))
+    return failed
+
+
 def main(argv: list[str]) -> int:
     roots = []
     while len(argv) > 2 and argv[0] == "--roots":
         roots.append(str(PurePosixPath(argv[1])))
         argv = argv[2:]
+    if argv[:1] == ["--test"]:
+        try:
+            return test(roots, argv[1:])
+        except subprocess.CalledProcessError as error:
+            print(f"select.py: git cannot read the tree: {error.stderr.strip()}", file=sys.stderr)
+            return 2
     if len(argv) != 1:
-        print("usage: select.py [--roots <folder>]... <base> | --list", file=sys.stderr)
+        usage = "usage: select.py [--roots <folder>]... <base> | --list | --test [ids]"
+        print(usage, file=sys.stderr)
         return 2
     try:
         if argv == ["--list"]:
-            scope = roots or ["features"]
-            listed = git("ls-files", "-z", "-co", "--exclude-standard", "--", *scope)
-            for line in sorted({one for one in listed if is_test(PurePosixPath(one).name)}):
-                if Path(line).is_file():
-                    print(line)
+            print("".join(f"{one}\n" for one in suite(roots)), end="")
             return 0
         changed = git("diff", "-z", "--name-only", "--no-renames", argv[0], "--")
         changed += git("ls-files", "-z", "--others", "--exclude-standard")

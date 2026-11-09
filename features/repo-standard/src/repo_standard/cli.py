@@ -28,6 +28,12 @@ The verb `routes --producer <cmd> --mock <cmd>` is the reference contract of a s
 (`repo_standard.routes`): it fails on each route the mock answers that the real API lacks. It
 reads no config, and a stack's `mock.contract` runs it from the repo's root during `make lint`.
 
+The verb `misses` reads the ledger of the tests main's runs failed (`repo_standard.misses`).
+`misses --days N` prints the miss rate of the last N days, rows of class `miss` per merged pull
+request, and the rows. The shared check runs the other two: `misses record --failed DIR --out DIR`
+writes the ledger of this commit of main from the ids its parts failed, and `misses failing --days
+N` prints the ids a pull request's selection adds, and only warns where it cannot ask GitHub.
+
 The guards are `borders`, `stale`, `docs`, `size` and `comments`. Each reads the repo's
 `.repo-standard.yml`, prints one line for each fault it finds, and exits 1 on any. `borders`
 prints each fault as a warning GitHub reads and exits 0 when it warns, or 1 under `--hard`. Every
@@ -43,12 +49,23 @@ import subprocess
 import sys
 from pathlib import Path
 
-from repo_standard import borders, conform, docs_true, plan, routes, size, stacks, stale, upgrade
+from repo_standard import (
+    borders,
+    conform,
+    docs_true,
+    misses,
+    plan,
+    routes,
+    size,
+    stacks,
+    stale,
+    upgrade,
+)
 from repo_standard.config import Refused, load
 from repo_standard.tree import Unreadable, tracked
 
 GUARDS = ("borders", "stale", "docs", "size", "comments")
-VERBS = (*GUARDS, "conform", "plan", "stacks", "upgrade", "green", "routes")
+VERBS = (*GUARDS, "conform", "plan", "stacks", "upgrade", "green", "routes", "misses")
 
 
 def _root(given: str | None) -> Path:
@@ -60,8 +77,56 @@ def _root(given: str | None) -> Path:
     return Path(top.stdout.strip())
 
 
+def _warn(line: str) -> None:
+    print(f"::warning::misses: {line}", file=sys.stderr)
+
+
+def _misses(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(prog="repo-standard misses", description=misses.__doc__)
+    parser.add_argument("verb", nargs="?", choices=("record", "failing"), help="none: the rate")
+    parser.add_argument("--days", type=int, default=misses.DAYS, help="the window, in days")
+    parser.add_argument("--failed", help="record: the folder of the failed ids the parts wrote")
+    parser.add_argument("--out", help="record: the folder the ledger is written to")
+    args = parser.parse_args(argv)
+    env = dict(os.environ)
+    if args.verb == "failing":
+        try:
+            found = misses.failing_here(
+                misses.GitHub(misses.repository(env)), misses.workflow(env), args.days
+            )
+        except Exception as error:
+            _warn(f"could not read main's ledgers ({error}), so the selection adds nothing")
+            return 0
+        print("".join(f"{one}\n" for one in found), end="")
+        print(f"misses: {len(found)} tests main failed join the selection", file=sys.stderr)
+        return 0
+    try:
+        github = misses.GitHub(misses.repository(env))
+        if args.verb == "record":
+            if not (args.failed and args.out):
+                parser.error("record needs --failed and --out")
+            root = _root(None)
+            rows = misses.record_here(
+                Path(args.failed), Path(args.out), github, load(root).stacks, _warn
+            )
+            table = misses.table(rows)
+            print(table, end="")
+            if env.get("GITHUB_STEP_SUMMARY"):
+                with open(env["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+                    summary.write(f"### The tests main failed\n\n{table}\n")
+            return 0
+        print("\n".join(misses.report(github, misses.workflow(env), args.days)))
+        return 0
+    except (Refused, Unreadable, RuntimeError, subprocess.CalledProcessError) as error:
+        said = getattr(error, "stderr", None) or error
+        print(f"repo_standard misses: {said}", file=sys.stderr)
+        return 2
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["misses"]:
+        return _misses(argv[1:])
     if argv[:1] == ["stacks"]:
         parser = argparse.ArgumentParser(prog="repo-standard stacks", description=stacks.__doc__)
         parser.add_argument("verb", choices=stacks.VERBS, help="the target to run")
