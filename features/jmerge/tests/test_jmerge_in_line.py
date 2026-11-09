@@ -3,7 +3,12 @@ next, whose only reason to wait is that main moved after its check started. Ever
 moved past waits in line behind it, and gets no update until its turn, so each merge costs one
 rerun, as a merge queue's does (2026-11-03: with about 30 pull requests open, each merge sent
 every one of them through CI again, about 80 branch updates in an hour). A pull request whose
-check ran over today's main merges as before."""
+check ran over today's main merges as before.
+
+A green pull request main moved past merges on its existing check where it merges cleanly
+(`test_jmerge_over_main.py`), so green ones go through the line only as reverts jbus opened, and
+red ones whose check failed before main moved. The kitchen here names each pull request it opens
+a revert (`reverting`)."""
 
 import json
 from datetime import datetime, timedelta
@@ -13,16 +18,38 @@ import pytest
 import jsettings
 import test_home_merge as merge
 from jbus import acts
-from jmerge import cli, ready, rejudge
+from jmerge import cli, ready, rejudge, reverts
 from test_jmerge_accept_act import accept, jmerge, on_bus, said
 from test_jmerge_fresh import AFTER, LINES, SHARED, STARTED, Kitchen, asked, git, url, write
 from test_jmerge_order import queue_of, row
 
 
+def reverting(kitchen):
+    """The kitchen, each pull request it opens named in jbus's `reverts.json` as a revert jbus
+    opened, so main moving under it sends it through the line. jbus's state is the one a test
+    gave the kitchen (`on_bus`), else a project of its own."""
+    opened = kitchen.crew
+
+    def crew(slug, number, *args, **kwargs):
+        head = opened(slug, number, *args, **kwargs)
+        if getattr(kitchen, "jbus", None) is None:
+            config = kitchen.home.user / ".config" / "jbus" / "config.toml"
+            state = kitchen.home.user / ".local" / "state" / "jbus" / "demo"
+            kitchen.jbus = state if config.exists() else queue_of(kitchen.home, []).parent
+        path = kitchen.jbus / reverts.NAME
+        kept = json.loads(path.read_text()) if path.exists() else {}
+        made = reverts.Revert(f"{number:040d}", f"culprit-{number}", slug, "f" * 40, url(number))
+        path.write_text(json.dumps({**kept, made.red: reverts.record(made)}))
+        return head
+
+    kitchen.crew = crew
+    return kitchen
+
+
 @pytest.fixture
 def kitchen(tmp_path):
     files = {"a.txt": LINES, "b.txt": LINES, "c.txt": LINES, "d.txt": LINES}
-    return Kitchen(tmp_path, {**files, "Makefile": "check:\n"}, overlap=True)
+    return reverting(Kitchen(tmp_path, {**files, "Makefile": "check:\n"}, overlap=True))
 
 
 def behind(number, ahead):

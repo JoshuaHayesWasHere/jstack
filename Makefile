@@ -92,11 +92,7 @@ select:
 # A desk's check is `PART=touched` (features/crew/do-the-task.md): the lint and the test files the
 # change adds or edits, and never the whole suite, even where the selection is `all`: CI's check
 # runs the rest of it. The crew's check block runs it in steps, the lint and then each file alone,
-# so each fits the short lane. `PART=guards`, the lint and the guard tests, is what jmerge runs on
-# a pull request's tree merged over its base, and it too never runs the whole suite: where the
-# selection is `all` its guards are the cross-cutting tests, the catch-all and the changed test
-# files, since the whole suite outran jmerge's 10 minutes on 2026-11-05. `PART=rest`, the other
-# tests the selection names and no lint, stays for a run by hand.
+# so each fits the short lane.
 # PART stays out of the environment, as TESTS does, so a make that a guard test runs is whole.
 unexport PART
 .PHONY: check-fast
@@ -108,13 +104,8 @@ check-fast:
 		[ -z "$$tests" ] || exec $(MAKE) --no-print-directory test TESTS="$$(echo $$tests)"; \
 		exit 0; \
 	fi; \
-	if [ '$(PART)' = rest ]; then \
-		[ "$$tests" != all ] || exec $(MAKE) --no-print-directory test; \
-		[ -z "$$tests" ] || exec $(MAKE) --no-print-directory test TESTS="$$(echo $$tests)"; \
-		exit 0; \
-	fi; \
 	python3 features/writing/scripts/prose_lint.py '$(BASE)' || exit; \
-	if [ "$$tests" = all ] && [ -z '$(PART)' ]; then exec $(MAKE) --no-print-directory check; fi; \
+	if [ "$$tests" = all ]; then exec $(MAKE) --no-print-directory check; fi; \
 	$(MAKE) --no-print-directory lint && exec $(MAKE) --no-print-directory test TESTS="$$(echo $$tests)"
 
 # This checkout's `jbus view`, to show a branch's page before it merges: on VIEW_PORT, beside the
