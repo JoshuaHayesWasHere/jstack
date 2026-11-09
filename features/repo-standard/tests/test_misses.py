@@ -7,14 +7,20 @@ first time only, and writes the ids that failed to `$REPO_STANDARD_FAILED`, as a
 The jobs' uploads go to a store, and `gh` on the path is a stub that serves GitHub's answers from
 it: the artifacts by name, each one's zip, and the runs of main that the case lists, so a later
 job finds what an earlier one left, as it would on GitHub.
+
+The jobs run the tool from the copy the workflow clones, so the cases after them run the verb
+`misses` in this process, from the caller's checkout with the same stub, as a job runs it: those
+are the runs of this checkout's own `repo_standard.misses`.
 """
 
 import json
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
+from repo_standard import cli
 from repo_standard.config import Refused
 from repo_standard.misses import FILE, Row
 from test_check_workflow import caller, commit, git, makefile, run_job
@@ -49,6 +55,9 @@ sys.exit(1 if failed else 0)
 GH = """import io, json, os, re, sys, zipfile
 from pathlib import Path
 
+if sys.argv[1] == "repo":
+    print(os.environ.get("REPO_VIEW", ""))
+    sys.exit(0 if os.environ.get("REPO_VIEW") else 1)
 store, path = Path(os.environ["STORE"]), sys.argv[2]
 names = sorted(one.name for one in store.iterdir()) if store.is_dir() else []
 route = path.split("?")[0]
@@ -61,8 +70,11 @@ elif route.endswith("/runs") and "/workflows/" in route:
     print(json.dumps({"workflow_runs": listed}))
 elif route.endswith("/artifacts") and "name" in query:
     name = query["name"]
-    found = [{"id": names.index(name), "name": name, "expired": False}] if name in names else []
+    expired = name in os.environ.get("EXPIRED", "").split()
+    found = [{"id": names.index(name), "name": name, "expired": expired}] if name in names else []
     print(json.dumps({"artifacts": found}))
+elif route.endswith("/pulls") and os.environ.get("PULLS"):
+    print(os.environ["PULLS"])
 elif m := re.fullmatch(r"repos/someone/repo/actions/artifacts/(\\d+)/zip", route):
     folder, out = store / names[int(m[1])], io.BytesIO()
     with zipfile.ZipFile(out, "w") as archive:
@@ -276,3 +288,149 @@ def test_a_ledger_row_of_an_unknown_class_is_refused():
     line = json.dumps({"id": "a", "pr": "", "selected": True, "kind": "lost", "commit": "c"})
     with pytest.raises(Refused):
         Row.read(line)
+
+
+@pytest.fixture
+def here(loop, monkeypatch):
+    """The caller as the verb `misses` sees it when a job runs it: its checkout as the working
+    directory, and the stub `gh` on the path. The verb runs here in this process."""
+    repo, env, store = loop
+    for key, value in env.items():
+        monkeypatch.setenv(key, value)
+    monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
+    monkeypatch.delenv("GITHUB_WORKFLOW_REF", raising=False)
+    monkeypatch.chdir(repo)
+    return repo, env
+
+
+def misses(capsys, *argv):
+    code = cli.main(["misses", *argv])
+    out, err = capsys.readouterr()
+    return code, out, err
+
+
+def kept(env, run, *rows):
+    """A ledger main's run `run` left, where the stub serves it."""
+    folder = Path(env["STORE"]) / f"miss-ledger-{run}"
+    folder.mkdir(parents=True)
+    (folder / FILE).write_text("".join(f"{row.line()}\n" for row in rows))
+
+
+def test_record_writes_a_row_for_each_failed_id_with_its_class_and_pull_request(
+    here, capsys, monkeypatch, tmp_path
+):
+    repo, env = here
+    merge(repo, "a change to a (#7)", ["tests/test_a.py"])
+    failed = tmp_path / "failed" / "failed-1-1"
+    failed.mkdir(parents=True)
+    (failed / "failed.txt").write_text("tests/test_a.py\ntests/test_b.py\ntests/test_c.py\n")
+    (failed / "again.txt").write_text("tests/test_a.py\ntests/test_b.py\n")
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+    monkeypatch.setenv("PULLS", json.dumps([{"number": 12, "merged_at": "2026-11-09T00:00:00Z"}]))
+
+    out_dir = tmp_path / "ledger"
+    code, out, _ = misses(
+        capsys, "record", "--failed", str(tmp_path / "failed"), "--out", str(out_dir)
+    )
+
+    commit_ = head(repo)
+    assert code == 0
+    assert [Row.read(line) for line in (out_dir / FILE).read_text().splitlines()] == [
+        Row("tests/test_a.py", "#12", True, "race", commit_),
+        Row("tests/test_b.py", "#12", False, "miss", commit_),
+        Row("tests/test_c.py", "#12", False, "flaky", commit_),
+    ]
+    assert "| `tests/test_b.py` | #12 | no | miss |" in out
+    assert summary.read_text() == f"### The tests main failed\n\n{out}\n"
+
+
+def test_record_with_no_selection_and_no_marker_to_read_calls_no_row_a_miss_or_a_race(
+    here, capsys, monkeypatch, tmp_path
+):
+    repo, env = here
+    commit(repo, {"Makefile": "select:\n\t@exit 3\n"}, "a change to b (#7)")
+    monkeypatch.setenv("PATH", f"{tmp_path / 'nogh'}:{env['PATH']}")
+    (tmp_path / "nogh").mkdir()
+    (tmp_path / "nogh" / "gh").write_text("#!/bin/sh\nexit 1\n")
+    (tmp_path / "nogh" / "gh").chmod(0o755)
+    failed = tmp_path / "failed"
+    failed.mkdir()
+    (failed / "failed.txt").write_text("tests/test_b.py\n")
+
+    code, out, err = misses(capsys, "record", "--failed", str(failed), "--out", str(tmp_path / "o"))
+
+    assert code == 0
+    assert "| `tests/test_b.py` | #7 | yes | env |" in out
+    assert "::warning::misses: make select BASE=HEAD^1 failed" in err
+    assert "::warning::misses: could not ask for the checked-tree marker" in err
+
+
+def test_record_needs_both_folders(here, capsys):
+    with pytest.raises(SystemExit) as stopped:
+        misses(capsys, "record", "--failed", "somewhere")
+    assert stopped.value.code == 2
+    assert "record needs --failed and --out" in capsys.readouterr().err
+
+
+def test_failing_prints_each_red_id_no_later_green_run_passed_that_is_still_here_in_a_kept_ledger(
+    here, capsys, monkeypatch
+):
+    _, env = here
+    monkeypatch.setenv(
+        "GITHUB_WORKFLOW_REF", "someone/repo/.github/workflows/check.yml@refs/heads/main"
+    )
+    kept(env, 101, Row("tests/test_a.py", "#6", False, "miss", "a" * 40))
+    kept(
+        env,
+        103,
+        Row("tests/test_b.py", "#7", False, "miss", "c" * 40),
+        Row("tests/gone.py", "#7", False, "miss", "c" * 40),
+        Row("tests/test_c.py", "#7", False, "flaky", "c" * 40),
+    )
+    kept(env, 104, Row("tests/test_c.py", "#8", False, "miss", "d" * 40))
+    monkeypatch.setenv("EXPIRED", "miss-ledger-104")
+    ran_on_main(env, (101, "failure"), (102, "success"), (103, "failure"), (104, "failure"))
+
+    code, out, err = misses(capsys, "failing")
+
+    assert (code, out) == (0, "tests/test_b.py\n")
+    assert "misses: 1 tests main failed join the selection" in err
+
+
+def test_failing_that_cannot_read_the_ledgers_warns_and_prints_nothing(here, capsys):
+    _, env = here
+    Path(env["RUNS"]).write_text("not json")
+    code, out, err = misses(capsys, "failing")
+    assert (code, out) == (0, "")
+    assert "::warning::misses: could not read main's ledgers" in err
+
+
+def test_the_rate_counts_the_misses_per_merged_pull_request(here, capsys, monkeypatch):
+    _, env = here
+    monkeypatch.delenv("GITHUB_REPOSITORY")
+    monkeypatch.setenv("REPO_VIEW", "someone/repo")
+    kept(
+        env,
+        101,
+        Row("tests/test_b.py", "#7", False, "miss", "b" * 40),
+        Row("tests/test_c.py", "#7", False, "flaky", "b" * 40),
+    )
+    ran_on_main(env, (100, "success"), (101, "failure"))
+
+    code, out, _ = misses(capsys, "--days", "7")
+
+    assert code == 0
+    assert out.splitlines() == [
+        "miss rate: 1 misses in 2 merged pull requests (50.0%),"
+        " from the runs of check.yml on main in the last 7 days",
+        f"101\t{'b' * 12}\t#7\tmiss\tnot selected\ttests/test_b.py",
+        f"101\t{'b' * 12}\t#7\tflaky\tnot selected\ttests/test_c.py",
+    ]
+
+
+def test_the_rate_with_no_repo_to_ask_fails(here, capsys, monkeypatch):
+    monkeypatch.delenv("GITHUB_REPOSITORY")
+    code, _, err = misses(capsys, "--days", "7")
+    assert code == 2
+    assert "no GITHUB_REPOSITORY, and gh repo view names no repo" in err
