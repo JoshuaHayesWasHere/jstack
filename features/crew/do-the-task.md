@@ -99,7 +99,8 @@
   A step that passed at a committed head is kept in the worktree's `crew-check-steps` (`git rev-parse --git-path crew-check-steps`), and a run of the block at the same head and base skips it, so a wait for a slot, or a call cut at its time limit, never starts the check over.
   `jmerge` merges a pull request only once its last `Checked:` line says the desk's check (`PART=touched`, a `PART=guards` line of an earlier head, or another repo's `jgauge check`) exited 0 at its head, or at a head whose patch the head carries unchanged (`ready.short_on_checked`): a missing line, a failure, a 124 and a line of a head whose patch changed since each hold it, until this block runs again at the head.
   Give the call a time limit of 10 minutes (`timeout: 600000` in Claude Code), and never send it to the background: a step that falls back to a full slot can take minutes on a busy machine.
-  With no slot of a lane, it ends 76, as a targeted run does: where the short lane had none by its ceiling, run the block again at once, in this turn; where the full lane had none, the turn ends with the one line of "test slots", and on jbus's message run the block again. Either way it goes on from the first step that has not passed.
+  With no slot of a lane, it ends 76, as a targeted run does: where the short lane had none by its ceiling, run the block again at once, in this turn; where the full lane had none, the turn ends with the one line of "test slots", and on jbus's message run the block again.
+  Either way it goes on from the first step that has not passed.
   It ends with the check's exit code, and on 0 the `touched:` line, each step's line and that exit code go on `Proof:`.
   A step that fails is the change's to fix, and every exit but 0 holds the pull request: a 124 reached no verdict, so run the block again.
   This desk proof, the `Checked:` line and the `Proved:` line below, is what jbus launches the review on, before the pull request opens.
