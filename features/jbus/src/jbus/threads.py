@@ -32,6 +32,7 @@ from jbus import (
     outbox,
     questions,
     queue,
+    rebase,
     record,
     review,
     stall,
@@ -545,7 +546,7 @@ def settle(run: Pass, client: Client, world: World) -> None:
         actions = ("settle",) if slug in open_work else ("settle", "archive")
         done = _put_away(run, client, thread, slug, actions)
         if done and str(thread.get("title", "")).startswith(watch.TITLE):
-            dispatch.clear_scratch(run, slug)
+            dispatch.clear_scratch(run, slug, rebase.worktree(client, at) or "")
     by_id = {t["threadId"]: t for t in every}
     working: set[str] = set()
     for thread in every:

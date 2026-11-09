@@ -47,6 +47,9 @@ Each crew gets a scratch folder on disk, `~/.cache/jstack/scratch/<repo>/<slug>`
 worktree's repo and branch, and every `mktemp`, clone and worktree the thread makes goes there and
 not in /tmp, whose tmpfs quota full repo copies filled. `jbus.threads.settle` removes the folder,
 and prunes the worktrees that were in it, once it settles the crew's thread (`clear_scratch`).
+A crew whose own scratch lands in /tmp all the same, such as a "before" worktree in its Claude
+scratchpad (`scratchpad`) that the door hook will not let it remove, has those worktrees removed
+there too, save one that a process still works in.
 
 jbus never holds back a launch because another brief names the same file, since each crew
 has its own worktree and branch. The crew of the pull request that merges second rebases that
@@ -92,14 +95,48 @@ def scratch(run: Pass, slug: str) -> Path:
     return Path(root) / run.project.checkout.name / slug
 
 
-def clear_scratch(run: Pass, slug: str) -> None:
-    """Remove the slug's scratch folder, then the registrations of the worktrees made in it."""
+def scratchpad(worktree: str) -> Path:
+    """Return the folder Claude Code keeps the scratchpads of a session in `worktree` under:
+    `claude-<uid>` in `CLAUDE_CODE_TMPDIR` or /tmp, then the worktree's path with each character
+    that is not a letter or a digit made `-`."""
+    root = Path(os.environ.get("CLAUDE_CODE_TMPDIR") or "/tmp") / f"claude-{os.getuid()}"
+    return root / re.sub("[^A-Za-z0-9]", "-", worktree)
+
+
+def in_use() -> set[Path]:
+    """Return the working directory of each process this user can read."""
+    found: set[Path] = set()
+    for proc in Path("/proc").glob("[0-9]*"):
+        try:
+            found.add(Path(os.readlink(proc / "cwd")))
+        except OSError:
+            continue
+    return found
+
+
+def clear_scratch(run: Pass, slug: str, worktree: str = "") -> None:
+    """Remove the slug's scratch folder, and the worktrees of the repo its crew made in the
+    Claude scratchpad of its own `worktree`, then prune their registrations. A worktree that is
+    some process's working directory, or holds one, stays."""
     folder = scratch(run, slug)
-    if not folder.exists():
-        return
-    shutil.rmtree(folder, ignore_errors=True)
-    run.run("git", "worktree", "prune")
-    run.say(f"cleared {slug}: its scratch folder {folder}")
+    cleared = []
+    if folder.exists():
+        shutil.rmtree(folder, ignore_errors=True)
+        cleared.append(f"its scratch folder {folder}")
+    if worktree:
+        pad, busy = scratchpad(worktree), in_use()
+        listed = run.run("git", "worktree", "list", "--porcelain").stdout.splitlines()
+        for line in listed:
+            tree = Path(line.removeprefix("worktree "))
+            if not line.startswith("worktree ") or not tree.is_relative_to(pad):
+                continue
+            if any(cwd.is_relative_to(tree) for cwd in busy):
+                continue
+            if run.run("git", "worktree", "remove", "--force", str(tree)).returncode == 0:
+                cleared.append(f"the worktree {tree}")
+    if cleared:
+        run.run("git", "worktree", "prune")
+        run.say(f"cleared {slug}: {', '.join(cleared)}")
 
 
 def write_thread(
