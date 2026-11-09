@@ -161,3 +161,14 @@ def test_a_long_log_is_read_from_its_end(state, monkeypatch):
         logs(state, "core", left)
     assert remaining(budget.logged(state, asked=github)) == {"core": 3901, "graphql": 4700}
     assert github.asks == 1
+
+
+def test_a_state_that_cannot_be_written_still_answers_and_asks_again(tmp_path):
+    """No lock and no kept answer can be made where the state is a file: each read asks, and
+    answers."""
+    state = tmp_path / "state"
+    state.write_text("")
+    github = GitHub(4000)
+    for asks in (1, 2):
+        assert remaining(budget.logged(state, asked=github)) == {"core": 4000, "graphql": 4000}
+        assert github.asks == asks
