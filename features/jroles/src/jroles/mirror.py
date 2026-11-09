@@ -29,10 +29,10 @@ lock in the mirror, and a run with nothing to do writes nothing. These are infra
 A mirror is the home of the launched roles, never the user's own sessions, so its threads list
 only the user's skills and the repo's. `settings.json` is the one entry that is a file of the
 mirror's own and not a link: it is `~/.claude/settings.json` with every enabled plugin off,
-Claude Code's bundled skills off, and each claude.ai account skill synced under
-`~/.claude/skills/synced` off. The skills' files stay where they are, so a thread can still
-read one by its path. A write to the mirror's copy lasts until the next run, which writes
-`~/.claude`'s again.
+Claude Code's bundled skills off, each claude.ai account skill synced under
+`~/.claude/skills/synced` off, and the unused built-in tools of `DENIED_TOOLS` denied. The
+skills' files stay where they are, so a thread can still read one by its path. A write to the
+mirror's copy lasts until the next run, which writes `~/.claude`'s again.
 
 The run does not copy `skillUsage` from the main file. All the accounts are one user, so the
 run pools it. For each skill, the run takes the highest of every home's numbers, field by
@@ -102,6 +102,11 @@ each skill a folder with a SKILL.md. It lists each as `anthropic-skills:<folder>
 KEPT_BUNDLED = ("plugin-authoring",)
 """The bundled skills that `disableBundledSkills` leaves listed, as Claude Code 2.1.310 lists
 them with it set."""
+DENIED_TOOLS = ("Workflow", "ScheduleWakeup", "ReportFindings")
+"""The built-in tools a mirror's threads do without. A bare tool name in `permissions.deny`
+takes the tool's schema out of every request. No thread on the machine called one of these in
+the week up to 2026-11-09, and together their schemas were about 10,000 tokens of each request
+a crew, reviewer, scout or home sent. `~/.claude` keeps them for the user's own sessions."""
 DRIFT, BROKEN = 1, 2
 USAGE = "skillUsage"
 PERIOD = (5 + 1 + 1) * 60
@@ -232,8 +237,9 @@ def _own(at: Path) -> object:
 
 def trimmed(main: Main) -> dict | None:
     """`~/.claude/settings.json` as a mirror's threads read it: every plugin it enables off,
-    the bundled skills off, and each account skill synced under `~/.claude` off. The skills the
-    user wrote and the repo's stay listed. None when `~/.claude` has no settings.json."""
+    the bundled skills off, each account skill synced under `~/.claude` off, and the tools of
+    `DENIED_TOOLS` denied after `~/.claude`'s own deny list. The skills the user wrote and the
+    repo's stay listed. None when `~/.claude` has no settings.json."""
     path = main.home / SETTINGS
     found = _read(path)
     if found is None:
@@ -241,6 +247,12 @@ def trimmed(main: Main) -> dict | None:
     plugins, overrides = found.get("enabledPlugins", {}), found.get("skillOverrides", {})
     if not isinstance(plugins, dict) or not isinstance(overrides, dict):
         raise Refused(f"jroles mirror: {path}: enabledPlugins or skillOverrides is not an object")
+    permissions = found.get("permissions", {})
+    if not isinstance(permissions, dict):
+        raise Refused(f"jroles mirror: {path}: permissions is not an object")
+    deny = permissions.get("deny", [])
+    if not isinstance(deny, list):
+        raise Refused(f"jroles mirror: {path}: permissions.deny is not a list")
     synced = sorted({skill.parent.name for skill in (main.home / SYNCED).glob("*/*/SKILL.md")})
     off = [f"anthropic-skills:{name}" for name in synced] + list(KEPT_BUNDLED)
     return {
@@ -248,6 +260,10 @@ def trimmed(main: Main) -> dict | None:
         "enabledPlugins": dict.fromkeys(plugins, False),
         "disableBundledSkills": True,
         "skillOverrides": {**overrides, **dict.fromkeys(off, "off")},
+        "permissions": {
+            **permissions,
+            "deny": deny + [name for name in DENIED_TOOLS if name not in deny],
+        },
     }
 
 

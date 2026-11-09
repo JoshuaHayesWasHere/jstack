@@ -297,3 +297,22 @@ def test_a_pass_whose_end_cannot_be_written_is_said_and_keeps_its_start_with_no_
         "projects": {},
         "silent": {},
     }
+
+
+def test_a_pass_line_says_where_its_seconds_went_step_by_step(kitchen):
+    """T3 Code takes a second to list the threads, so the pass is long enough that its seconds,
+    kept to a tenth, can be weighed against its steps'. The parts of the pass, the steps named with
+    no `/`, follow one another, so their wall seconds add up to the pass's; a step of a project's
+    half is named under its part."""
+    three_rows(kitchen)
+    kitchen.t3.on_list = lambda: time.sleep(1)
+    kitchen.poll()
+    line = json.loads((kitchen.state_dir / "passes.jsonl").read_text().splitlines()[-1])
+    steps = line["steps"]
+    parts = sum(wall for name, (wall, _) in steps.items() if "/" not in name)
+    assert line["seconds"] >= 1
+    assert abs(parts - line["seconds"]) <= 0.1 * line["seconds"]
+    assert {"first halves/project demo", "first halves/watch.look"} <= steps.keys()
+    assert {"second halves/project demo", "second halves/alert.flush"} <= steps.keys()
+    assert all(wall >= 0 and cpu >= 0 for wall, cpu in steps.values())
+    assert line["children"] >= 0

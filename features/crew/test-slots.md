@@ -9,11 +9,15 @@
   The check of the change runs here too, one step to a call, and its block runs a step the lane stopped again alone in a full test slot, as "Do the task" says.
 
   `<thread id>` is this thread's own id: the `t3-code` server's `t3_thread_configure` with no arguments gives it as `threadId` (if your harness defers it, load it first).
-  With `--thread` the call waits in the call for a short slot for up to the lane's time limit, and waits for no full slot.
-  Give a short call a time limit of 10 minutes (`timeout: 600000` in Claude Code), as the check's and the proof's blocks have, since it can wait the lane's limit and then run as long again.
-  When every slot of the lane is still taken by then it registers this thread as a waiter, prints one line saying so, and ends 76.
+  With `--thread` a short call waits in the call for a short slot, in the order the calls came, for up to 5 minutes, and registers nothing.
+  Give a short call a time limit of 10 minutes (`timeout: 600000` in Claude Code), as the check's and the proof's blocks have, since it can wait 5 minutes and then run for the lane's limit.
+  When every short slot is still taken by then, nothing ran: the call prints one line saying to run the same command again now, and ends 76.
+  Run it again at once, in this turn: a short slot is held for seconds, and nothing wakes this thread for one.
+  Never wait in a background job, and never end the turn on a short-lane 76.
+
+  A full slot is another matter: with `--thread` a full-lane call (the check's fallback step) tries once, and with every full slot taken it registers this thread as a waiter, prints one line saying so, and ends 76.
   Then end your turn at once, with one line: `Waiting on a test slot: jbus will wake this thread when one is free.`
-  Never poll for a slot, never loop on the call, never wait in a background job, and never end the turn with nothing said: `jbus poll` sends this thread one message when a slot of the lane is free, and that message is the wake.
+  Never poll for a full slot, never loop on the call, and never end the turn with nothing said: `jbus poll` sends this thread one message when a full slot is free, and that message is the wake.
   On it, run the same command again.
   If the slots are taken again by then, the call registers this thread again and you stop again: each wait is woken once.
   On a machine with no jbus nothing wakes a waiter: leave `--thread <thread id>` off, and the call waits in place.

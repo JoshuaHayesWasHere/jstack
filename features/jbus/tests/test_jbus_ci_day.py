@@ -209,7 +209,7 @@ def test_ci_day_writes_the_seven_local_days_before_the_run_each_cell_with_its_n(
     assert f"ci: day report {day.path}" in said
     found = by_day(text)
     assert list(found["red share"]) == DATES
-    assert (found["red share"]["11-03"], found["red share n"]["11-03"]) == ("62%", "101 PRs")
+    assert (found["red share"]["11-03"], found["red share n"]["11-03"]) == ("56%", "101 PRs")
     shard = (found["shard wait p90"]["11-03"], found["shard wait p90 n"]["11-03"])
     assert shard == ("555 s", "3162 jobs")
     macos = (found["macos wait p90"]["11-03"], found["macos wait p90 n"]["11-03"])
@@ -220,11 +220,12 @@ def test_ci_day_writes_the_seven_local_days_before_the_run_each_cell_with_its_n(
 def test_ci_day_gives_the_quiet_day_baseline_of_oct_30(day):
     """The brief's baseline for 10-30, from the scout's read of the ledger: 36 PRs, 25% red,
     shard and macos p90 3 s and 9 s, wall p50 9.3 min, 2.3 shas per PR and 0.4 h open to merge.
-    One PR of the 36 had only a skipped `check`, which ran nothing, so the day counts 35 and
-    9 of 35 is 26%."""
+    One PR of the 36 had only a skipped `check`, which ran nothing, so the day counts 35. Of the 9
+    the scout read as red, one was red only by the roll-up of a run a newer push cancelled
+    (`jbus.ci.cancels`), so 8 of 35 is 23%."""
     found = by_day(day.run()[2])
     column = {name: cells["10-30"] for name, cells in found.items()}
-    assert column["red share"] == "26%" and column["red share n"] == "35 PRs"
+    assert column["red share"] == "23%" and column["red share n"] == "35 PRs"
     assert column["shard wait p90"] == "3 s" and column["macos wait p90"] == "9 s"
     assert column["PR check wall p50"] == "9.3 min"
     assert column["head shas per merged PR"] == "2.3"
@@ -287,7 +288,7 @@ def test_ci_day_writes_its_report_with_main_red_no_data_when_gh_does_not_answer(
     assert code == 0, said
     assert "gh run list did not answer: gh: HTTP 502" in text
     assert set(by_day(text)["main-red"].values()) == {"no data"}
-    assert by_day(text)["red share"]["11-03"] == "62%"
+    assert by_day(text)["red share"]["11-03"] == "56%"
 
 
 def test_ci_day_gives_a_before_and_after_for_each_cicd_row_that_merged(day):
@@ -369,7 +370,7 @@ def test_ci_day_keeps_the_pull_requests_of_jmerges_line_out_of_the_counts(day):
                 + "\n"
             )
     found = by_day(day.run()[2])
-    assert (found["red share"]["11-03"], found["red share n"]["11-03"]) == ("62%", "101 PRs")
+    assert (found["red share"]["11-03"], found["red share n"]["11-03"]) == ("56%", "101 PRs")
 
 
 def test_ci_day_gives_the_newest_day_as_lines_the_digest_reads(day):
@@ -417,10 +418,10 @@ def test_ci_day_timer_fires_every_day_at_06_45_in_the_machines_own_zone():
 @pytest.fixture
 def guarded(day):
     """The day's run in a checkout that keeps main's ruleset body, with the home's
-    `required-checks` naming check, borders and macos, as jstack's does."""
+    `required-checks` naming check and borders, as jstack's does since 2026-11-09."""
     (day.kitchen.checkout / ruleset.KEPT).parent.mkdir(parents=True, exist_ok=True)
     shutil.copy(KEPT, day.kitchen.checkout / ruleset.KEPT)
-    (day.home / "required-checks").write_text("check\nborders\nmacos\n")
+    (day.home / "required-checks").write_text("check\nborders\n")
     return day
 
 
@@ -430,12 +431,12 @@ def told(day):
     return [line for line in day.kitchen.wakes.said if "ruleset" in line]
 
 
-def lacking_macos(body):
+def lacking_borders(body):
     body = json.loads(json.dumps(body))
     for rule in body["rules"]:
         if rule["type"] == "required_status_checks":
             checks = rule["parameters"]["required_status_checks"]
-            checks[:] = [one for one in checks if one["context"] != "macos"]
+            checks[:] = [one for one in checks if one["context"] != "borders"]
     return body
 
 
@@ -448,24 +449,24 @@ def test_ci_day_ruleset_that_matches_tells_nobody_after_one_read(guarded):
     assert told(guarded) == []
 
 
-def test_ci_day_ruleset_that_lacks_macos_tells_the_home_its_drift(guarded):
-    guarded.gh.ruleset = lacking_macos(guarded.gh.ruleset)
+def test_ci_day_ruleset_that_lacks_borders_tells_the_home_its_drift(guarded):
+    guarded.gh.ruleset = lacking_borders(guarded.gh.ruleset)
 
     code, said, _ = guarded.run()
 
     assert code == 0, said
     (line,) = told(guarded)
     assert "ruleset 25665226" in line and "drifted" in line
-    assert "required_status_checks" in line and "lacks macos of required-checks" in line
+    assert "required_status_checks" in line and "lacks borders of required-checks" in line
 
 
 def test_ci_day_ruleset_requiring_a_check_required_checks_does_not_name_is_drift(guarded):
-    (guarded.home / "required-checks").write_text("check\nborders\n")
+    (guarded.home / "required-checks").write_text("check\n")
 
     guarded.run()
 
     (line,) = told(guarded)
-    assert "requires macos, which required-checks does not name" in line
+    assert "requires borders, which required-checks does not name" in line
     assert "rules differ" not in line
 
 
@@ -499,7 +500,7 @@ def test_ci_day_ruleset_with_no_required_checks_file_is_held_to_jmerges_check_al
     guarded.run()
 
     (line,) = told(guarded)
-    assert "requires borders, macos, which required-checks does not name" in line
+    assert "requires borders, which required-checks does not name" in line
 
 
 PULL = "https://github.com/JoshuaHayesWasHere/jstack/pull/{}"
@@ -583,7 +584,7 @@ def test_ci_day_reads_the_review_numbers_as_no_data_when_t3_codes_store_is_not_t
     assert code == 0, said
     assert f"T3 Code's store was not read: {spend.STORE} is not T3 Code's store" in text
     assert set(by_day(text)["review launches"].values()) == {"no data"}
-    assert by_day(text)["red share"]["11-03"] == "62%"
+    assert by_day(text)["red share"]["11-03"] == "56%"
 
 
 def test_ci_day_reads_the_review_numbers_as_no_data_when_t3_codes_store_cannot_be_read(day):

@@ -13,6 +13,8 @@ import json
 import os
 import re
 import subprocess
+import sys
+import time
 
 import pytest
 
@@ -165,3 +167,69 @@ def test_a_pass_that_knows_no_process_removes_nothing_and_waits(kitchen, tmp, mo
     kitchen.poll()
     assert gone.exists()
     assert kitchen.t3.launches == []
+
+
+def session(tmp, kitchen, name, size, idle):
+    """Leave a session folder in the Claude scratch folder of the main checkout, holding `size`
+    bytes, whose entries were last written `idle` seconds ago, and return it."""
+    folder = tmp / f"claude-{os.getuid()}" / mangled(kitchen.checkout) / name
+    (folder / "scratchpad").mkdir(parents=True)
+    (folder / "scratchpad" / "blob").write_bytes(b"x" * size)
+    then = time.time() - idle
+    for one in (folder / "scratchpad" / "blob", folder / "scratchpad", folder):
+        os.utime(one, (then, then))
+    return folder
+
+
+def test_a_pass_waiting_on_tmp_clears_the_main_checkout_session_folders_that_ended(kitchen, tmp):
+    """A home's, a scout's or the user's own session in the main checkout leaves its scratch folder
+    when it ends. The sweep removes one nothing wrote in for `IDLE` and no process holds, beside a
+    finished crew's, and keeps a live one and one written in lately."""
+    old = cleanup.IDLE + 3_600
+    ended = session(tmp, kitchen, "ended", 60_000, old)
+    fresh = session(tmp, kitchen, "fresh", 5_000, 60)
+    alive = session(tmp, kitchen, "alive", 5_000, old)
+    finished = pad(tmp, kitchen, "done-1", 30_000)
+    approved(kitchen, "alpha")
+    with subprocess.Popen(["sleep", "60"], cwd=alive / "scratchpad") as working:
+        try:
+            said = kitchen.poll()
+        finally:
+            working.kill()
+    assert not ended.exists()
+    assert not finished.exists()
+    assert (fresh / "scratchpad" / "blob").exists()
+    assert (alive / "scratchpad" / "blob").exists()
+    assert [given["title"] for given in kitchen.t3.launches] == ["crew: alpha"], said
+    assert any(
+        "1 folders finished crews left, 1 of sessions ended in a main checkout" in line
+        for line in said
+    ), said
+
+
+@pytest.mark.parametrize("procfs", [True, False], ids=["proc", "no-proc"])
+@pytest.mark.parametrize(
+    "names", [["--resume={}"], ["--session-id", "{}"]], ids=["resume=id", "session-id id"]
+)
+def test_a_pass_waiting_on_tmp_keeps_the_folder_of_a_session_a_running_process_resumes(
+    kitchen, tmp, monkeypatch, procfs, names
+):
+    """T3 Code runs a session in the main checkout with its cwd at the checkout and
+    `--resume=<session id>`, so no path names its folder. The sweep keeps the folder of a session a
+    process resumes, however long nothing wrote in it, and removes an ended one as old; with no
+    /proc, as on macOS, `ps` gives the arguments."""
+    if not procfs:
+        monkeypatch.setattr(cleanup, "ROOT", kitchen.root / "no-proc")
+    old = cleanup.IDLE + 3_600
+    ended = session(tmp, kitchen, "ended", 100_000, old)
+    resumed = session(tmp, kitchen, "resumed", 5_000, old)
+    approved(kitchen, "alpha")
+    given = [name.format(resumed.name) for name in names]
+    command = [sys.executable, "-c", "import time; time.sleep(60)", *given]
+    with subprocess.Popen(command, cwd=kitchen.root) as running:
+        try:
+            said = kitchen.poll()
+        finally:
+            running.kill()
+    assert not ended.exists(), said
+    assert (resumed / "scratchpad" / "blob").exists(), said

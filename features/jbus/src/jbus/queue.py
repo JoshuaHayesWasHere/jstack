@@ -4,8 +4,8 @@ A row has two kinds of column, and each kind has one writer. Only the verbs here
 columns: `add`, `approve`, `hold` and `remove`. Only a pass writes the derived columns, using what
 T3 Code and GitHub say (`derive`), and no verb takes a derived column as input. Two derived columns
 are a pair: `why` is the reason a row waits, and `since` is when that reason first held. jbus also
-keeps each change of a row's status as one line of `transitions.jsonl` beside the table, and only
-ever appends to that file.
+keeps each change of a row's status as one line of `transitions.jsonl` beside the table, and
+each change of its `why` as one line of `waits.jsonl`, and only ever appends to those files.
 
 When a row is first queued, `add` refuses a brief that a launch would refuse
 (`jbriefs.parse.faults`), so nobody asks the user for a go on a brief that cannot launch. It also
@@ -264,6 +264,10 @@ def path(state: Path) -> Path:
 
 def transitions_path(state: Path) -> Path:
     return state / "transitions.jsonl"
+
+
+def waits_path(state: Path) -> Path:
+    return state / "waits.jsonl"
 
 
 def brief_path(state: Path, slug: str) -> Path:
@@ -2672,11 +2676,17 @@ def derive(
     of the two counts as a change of the table.
 
     Each status that changed becomes one line of `transitions.jsonl`: the slug, from, to,
-    and `at`. The pass appends the line before it writes the table, so a pass that dies
+    and `at`. Each `why` that changed, to a reason or to none, becomes one line of
+    `waits.jsonl`: the slug, the new `why`, and `at`, so the reasons a row waited between its
+    go and its launch stay after the table moves on. The pass that starts `waits.jsonl` writes
+    each open row's `why` as it stands, so a row that already waited has a line before its reason
+    next changes. The pass appends the lines before it writes the table, so a pass that dies
     between the two reports a change twice and loses none.
     """
     changed = []
     moved = []
+    waited = []
+    begins = not waits_path(state).exists()
     with _changing(state) as rows:
         for row in rows:
             new = {**_blank(), **facts(row)}
@@ -2693,8 +2703,13 @@ def derive(
                 changed.append(Change(row, columns))
             if row.get("why", "") != new["why"]:
                 row.update(why=new["why"], since=stamp if new["why"] else "")
+                waited.append({"slug": row["slug"], "why": new["why"], "at": at})
+            elif begins and not over(row):
+                waited.append({"slug": row["slug"], "why": new["why"], "at": at})
         if moved:
             store.append_jsonl(transitions_path(state), moved)
+        if waited:
+            store.append_jsonl(waits_path(state), waited)
     return rows, changed
 
 

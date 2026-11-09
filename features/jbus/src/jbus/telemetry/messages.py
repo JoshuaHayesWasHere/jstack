@@ -40,7 +40,7 @@ from typing import TYPE_CHECKING
 
 import jbus
 from jbus import boxes
-from jbus.telemetry import asks, records, values
+from jbus.telemetry import asks, values
 
 if TYPE_CHECKING:
     from datetime import tzinfo
@@ -52,7 +52,7 @@ RULES = 3
 """The version of the rules of `kind` and `asks`: a change to either raises it, and the next
 build reads every message again, so each row is labelled by the rules of today."""
 BATCH = 5000
-COLUMNS = records._columns(
+COLUMNS = values._columns(
     "id",
     "thread",
     "role",

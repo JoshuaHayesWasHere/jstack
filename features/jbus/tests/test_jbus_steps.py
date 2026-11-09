@@ -78,6 +78,7 @@ ORDER = [
     "before-watch 11 failover.held",
     "before-watch 12 stop.deliver",
     "before-watch 20 questions.closed_in_files",
+    "before-watch 25 questions.moot",
     "before-watch 30 questions.silent",
     "before-watch 40 slotwait.wake (client)",
     "before-watch 41 slotwait.wake_capped (client)",
@@ -117,6 +118,7 @@ ORDER = [
     "after-expedite 25 cancelled.rerun (world)",
     "after-expedite 27 stack.move (client, world)",
     "after-expedite 30 rebase.github (client, world)",
+    "after-expedite 35 compact.tell (client, world)",
     "after-expedite 40 scouts.launch (client, world)",
     "derive 5 merge.shown",
     "derive 10 states.judged (sight)",
@@ -332,6 +334,11 @@ WATCHED = {
 Code, where `mainmoved.tell` still judges main and `children.watch` does not run."""
 
 
+MOOT = ("question",)
+"""Where `questions.moot`, added since, reads the table: once, after `questions.closed_in_files`, in
+a pass whose questions file is there and parses."""
+
+
 HELD = {
     "stale": ("rebase.tell", 1, 2),
 }
@@ -341,14 +348,17 @@ message (`outbox.FIXES`), after the call that sends it, at the offset given, as 
 
 def moved(before, fixture="short"):
     """Return the calls recorded before the move, with the two that moved put where they are now,
-    the `queue.load` of `queue.follow_ups`, a step added since, first, the `queue.load` of the
-    outbox's `held` rule for each rebase or fix message (`HELD`), and what `children.watch`
-    reads after `mainmoved.tell` since it watches the root: the queue and the questions, to know
-    both parse, then the root's `out`, cut short at a file that does not parse (`WATCHED`)."""
+    the `queue.load` of `queue.follow_ups`, a step added since, first, the `queue.load` of
+    `questions.moot` where the questions are there (`MOOT`), the `queue.load` of the outbox's
+    `held` rule for each rebase or fix message (`HELD`), and what `children.watch` reads after
+    `mainmoved.tell` since it watches the root: the queue and the questions, to know both parse,
+    then the root's `out`, cut short at a file that does not parse (`WATCHED`)."""
     parsed = fixture not in ("blind", "queue.json")
     calls = ["queue.unshared", *(["queue.load"] if parsed else []), *before.split()]
     calls.remove("questions.closed_in_files")
     calls.insert(calls.index("word.deliver") + 1, "questions.closed_in_files")
+    if fixture in MOOT:
+        calls.insert(calls.index("questions.closed_in_files") + 1, "queue.load")
     if "watch.gone" in calls:
         calls.remove("watch.gone")
         calls.insert(calls.index("rebase.tell") + 1, "watch.gone")

@@ -350,9 +350,9 @@ A command that runs dry, with `--dry-run` or `DRY_RUN=1`, or only prints its hel
 An act on a door goes through only for you, on words jbus read itself.
 A go on such a brief from the bot, a home or the view approves nothing: it parks a gate that holds, `may <slug> go? Its brief holds for <case>`, and the act is `gated`.
 Your own go, `jbus --as user queue approve <slug> --sha <sha12> --message <thread>/<message>`, or `--pick <thread>/<item>` for your answer to a question box, approves the row and closes that gate.
-Your plain reply in a home's thread opens it: the home's last message before it names the row by its slug, or its gate as `question <n>`, and names no other open door (`t3.home_ask`, `t3.asks`).
+Your plain reply in a home's thread opens it: the home's last message before it names the row by its slug, or its gate as `question <n>` (`t3.home_ask`, `t3.asks`).
 You need not name anything: "yes" or "drop it" is enough, and the home turns it into the verb.
-An ask that names two or more open doors opens none on a plain reply, so a "yes" never opens two doors; a message that names the row or its gate itself (`question 15` and its slips, `q15`, `#15`, or the slug with spaces for its hyphens) opens that one.
+A plain reply opens every door the ask named, so one "yes" to an ask about two rows opens both, and a home asks about a door it does not want opened in a message of its own; a message that names a row or a gate itself (`question 15` and its slips, `q15`, `#15`, or the slug with spaces for its hyphens) opens only the doors it names.
 The message or pick was said after the brief was stored: an older one, or a reply to an ask about other work, is refused, and the home asks you about the one row again in plain words.
 An answer to a gate that holds is held to the same: your plain reply to the home's ask about it, or a message that names it, said after the gate was asked.
 `jbus queue apply` refuses a batch that approves a brief with a door, and applies nothing of it.
@@ -410,7 +410,7 @@ A change to the title, the `Task`, `Done when`, `Where`, `Do not touch` or `Size
 It is deterministic and asks no model.
 
 The fingerprint reads six fields (`MEANING` in `features/jbriefs/src/jbriefs/meaning.py`): the title, `Task` (the goal), `Done when`, `Where`, `Do not touch` and `Size`.
-It leaves out every other (`NOT_MEANING`): `Skills`, `Decisions`, `Design`, `Proves it`, `Review`, `Playbook`, `Pull request`, `Holds`, `Builds on`, `Read`, `Instruments`, `Change`, `Rests on`, `Sources`, `Ruled out`, `Home` and `Thread`, a field the template does not name, and anything under a `## ` in the brief.
+It leaves out every other (`NOT_MEANING`): `Skills`, `Decisions`, `Design`, `Proves it`, `Review`, `Playbook`, `Pull request`, `Holds`, `Builds on`, `Read`, `Instruments`, `Change`, `Rests on`, `Ruled out`, `Home` and `Thread`, a field the template does not name, and anything under a `## ` in the brief.
 These say how the work is done or who runs it, not what it is for.
 A field starts at a line `<Label>: ` of the head, and runs to the next one.
 The fingerprint normalises each field in these steps:

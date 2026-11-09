@@ -1,6 +1,7 @@
 """The values a record's fields hold, read as the telemetry store keeps them: a time in UTC as
 `STAMP` writes it, its local day, a log line's key, and a text, a count, a number or a mapping
-where the record holds one (`jbus.telemetry.records`)."""
+where the record holds one (`jbus.telemetry.records`), and the SQL type of each column by its
+name (`_columns`)."""
 
 from __future__ import annotations
 
@@ -89,3 +90,60 @@ def _pull(value: object) -> int | None:
         return _number(value)
     found = re.search(r"/pull/(\d+)", value) or re.fullmatch(r"#?(\d+)", value.strip())
     return int(found[1]) if found else None
+
+
+SPENT = ("units", "runs", "input", "cached", "written", "output")
+KINDS = ("first", "reviews", "fixes", "sends", "homes", "scouts", "capped")
+"""The units of a day's spend by kind, as `jgauge.spend.COLUMNS` names them."""
+SEVERITIES = ("errors", "warnings", "infos", "others", "dismissed")
+"""The counts of a review round's findings by severity, as `jbus.reviewed.round_lines` writes
+them: `others` of a severity none of the three, and `dismissed` those its lead dismissed."""
+
+
+def _columns(*names: str) -> tuple[tuple[str, str], ...]:
+    """Columns by name, typed by their suffix: `_len`, counts and numbers are INTEGER."""
+    whole = {
+        "gate",
+        "doors",
+        "picks",
+        "run",
+        "job",
+        "attempt",
+        "pr",
+        "steps",
+        "workers",
+        "tests",
+        "signs",
+        "number",
+        "options",
+        "priority",
+        "pushes",
+        "holds",
+        "on_hold",
+        "keeps",
+        "bytes",
+        "waiting",
+        "instances",
+        *SPENT,
+        *KINDS,
+        "checked",
+        "round_number",
+        "scoped",
+        "sections",
+        "met",
+        "done_when",
+        *SEVERITIES,
+        "found",
+    }
+    real = {"slowest_s", "tail_s", "seconds", "minutes", "children"}
+    return tuple(
+        (
+            name,
+            "INTEGER"
+            if name.endswith("_len") or name in whole
+            else "REAL"
+            if name in real
+            else "TEXT",
+        )
+        for name in names
+    )

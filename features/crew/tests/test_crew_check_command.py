@@ -211,10 +211,11 @@ def slot_script(text, home):
 
 
 def test_with_every_slot_taken_the_blocks_register_the_thread_and_end_76(tmp_path, monkeypatch):
-    """When every slot is taken, the blocks register the thread in the file, and the thread's
-    turn ends after the blocks print their one line. jbus wakes the thread later because the
-    file lists it. The lanes are the 4 full and 3 short slots that a machine with 24
-    processors and 62 GiB gets, whatever `TEST_SLOTS` the machine sets."""
+    """When every slot is taken, the blocks end 76. A targeted run in the short lane registers
+    nothing and says to run it again now; the check, in the full lane, registers the thread in
+    the file, and jbus wakes the thread later because the file lists it. The lanes are the 4
+    full and 3 short slots that a machine with 24 processors and 62 GiB gets, whatever
+    `TEST_SLOTS` the machine sets."""
     monkeypatch.delenv("TEST_SLOTS", raising=False)
     monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
     monkeypatch.setenv("PROC", str(fake_proc(tmp_path / "proc", 24, 62)))
@@ -237,8 +238,9 @@ def test_with_every_slot_taken_the_blocks_register_the_thread_and_end_76(tmp_pat
             ),
             home,
         )
-        assert (ran.returncode, ran.stderr) == (76, "")
-        assert "mcp:thread-1 is registered as a waiter" in ran.stdout
+        assert ran.returncode == 76
+        assert "run the same command again now, in this turn" in ran.stdout
+        assert not (locks / "test-slot-waiters.json").exists()
         said, code, _ = checked(tmp_path, "echo ran")
         assert (said[-1].split(":")[0], code) == ("waiting", 76)
         assert "mcp:thread-1 is registered as a waiter" in "\n".join(said)
@@ -370,10 +372,13 @@ def stubbed(tmp_path, selector):
     return repo
 
 
-def touching(*files):
-    """A selector that prints `files` for `--part touched`, and fails on any other ask."""
-    return "import sys\nassert sys.argv[1:3] == ['--part', 'touched'], sys.argv\n" + "".join(
-        f"print({one!r})\n" for one in files
+def touching(*files, guards=()):
+    """A selector that prints `files` for `--part touched` and `guards` for `--part guards`, and
+    fails on any other ask."""
+    return (
+        f"import sys\nparts = {{'touched': {list(files)!r}, 'guards': {list(guards)!r}}}\n"
+        "assert sys.argv[1] == '--part' and sys.argv[2] in parts, sys.argv\n"
+        "print('\\n'.join(parts[sys.argv[2]]))\n"
     )
 
 
@@ -381,8 +386,8 @@ def lint(base, lane="short=held full=free"):
     return f"check-fast BASE={base} PYTEST=: PART=touched {lane}"
 
 
-def alone(test, lane="short=held full=free"):
-    return f"test TESTS={test} {lane}"
+def alone(test, base, lane="short=held full=free"):
+    return f"test TESTS={test} BASE={base} {lane}"
 
 
 def a_brief(tmp_path):
@@ -393,14 +398,34 @@ def a_brief(tmp_path):
     return brief
 
 
-def test_a_change_runs_the_lint_and_each_touched_test_alone_in_the_short_lane(tmp_path):
-    """In jstack, the desk's check is the lint and the test files the change touches, each its
-    own call of the short lane, and never the selection: CI's check is the check of record and
-    runs the rest. The real selector names the touched tests: a test file the branch edits, and
-    not the crew tests the edited doc reaches, nor the cross-cutting tests."""
+def cloned(tmp_path):
+    """A clone of this checkout, with `origin/main` at its head."""
     repo = tmp_path / "repo"
     subprocess.run(["git", "clone", "-q", "--shared", str(REPO), str(repo)], check=True)
     git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    return repo
+
+
+def guarded(repo, base):
+    """The guard tests the real selector names for the branch: its files under
+    features/repo-guards/tests."""
+    printed = subprocess.run(
+        [sys.executable, "scripts/select_tests.py", "--part", "guards", base, "HEAD"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.split()
+    return [one for one in printed if one.startswith("features/repo-guards/tests/")]
+
+
+def test_a_change_runs_the_lint_and_each_touched_test_alone_in_the_short_lane(tmp_path):
+    """In jstack, the desk's check is the lint, the test files the change touches and the
+    repo's guard tests, each its own call of the short lane, and never the selection: CI's check
+    is the check of record and runs the rest. The real selector names the touched tests: a test
+    file the branch edits, and not the crew tests the edited doc reaches, nor the cross-cutting
+    tests outside features/repo-guards/tests."""
+    repo = cloned(tmp_path)
     with (repo / "features" / "crew" / "the-checks.md").open("a") as page:
         page.write("\nA line the test adds.\n")
     mine = "features/crew/tests/test_crew_label.py"
@@ -409,10 +434,16 @@ def test_a_change_runs_the_lint_and_each_touched_test_alone_in_the_short_lane(tm
     git(repo, "commit", "-qam", "a change to the crew feature")
     brief = a_brief(tmp_path)
     said, code, ran, base = selected(tmp_path, repo)
-    assert said[0].startswith("touched: 1 test files, each alone in the short lane"), said
+    guards = guarded(repo, base)
+    assert "features/repo-guards/tests/test_new_lines_run.py" in guards
+    assert said[0].startswith(
+        f"touched: 1 test files, then {len(guards)} guard tests of features/repo-guards/tests, "
+        "each alone in the short lane"
+    ), said
     assert re.fullmatch(r"lint: exit 0 in \d+ s, short lane", said[1]), said
     assert re.fullmatch(rf"{mine}: exit 0 in \d+ s, short lane", said[2]), said
-    assert (ran, code) == ([lint(base), alone(mine)], 0)
+    assert ran == [lint(base), alone(mine, base), *(alone(one, base) for one in guards)]
+    assert code == 0
     head = git(repo, "rev-parse", "HEAD")
     assert brief.read_text().endswith(
         f"Checked: make check-fast BASE={base} PART=touched exit 0 at {head}\n"
@@ -426,14 +457,14 @@ def test_a_step_the_short_lane_stops_runs_again_alone_in_a_full_slot_and_passes(
     step's. The other steps stay in the short lane."""
     repo = stubbed(tmp_path, touching("tests/test_slow.py", "tests/test_quick.py"))
     brief = a_brief(tmp_path)
-    slow = "*test_slow.py short=held*"
+    slow = "*test_slow.py BASE=* short=held*"
     said, code, ran, base = selected(tmp_path, repo, exits={slow: 124})
     head = git(repo, "rev-parse", "HEAD")
     assert ran == [
         lint(base),
-        alone("tests/test_slow.py"),
-        alone("tests/test_slow.py", "short=free full=held"),
-        alone("tests/test_quick.py"),
+        alone("tests/test_slow.py", base),
+        alone("tests/test_slow.py", base, "short=free full=held"),
+        alone("tests/test_quick.py", base),
     ]
     assert re.search(r"^tests/test_slow.py: exit 0 in \d+ s, full lane$", "\n".join(said), re.M)
     assert code == 0
@@ -447,7 +478,7 @@ def test_a_step_the_short_lane_stops_runs_again_alone_in_a_full_slot_and_passes(
     [
         pytest.param({"*test_slow.py*": 124}, 124, "test_quick", id="a 124 in the full slot too"),
         pytest.param(
-            {"*test_slow.py short=held*": 124, "*test_slow.py*": 1},
+            {"*test_slow.py BASE=* short=held*": 124, "*test_slow.py*": 1},
             1,
             "test_slow",
             id="a fail in the full slot",
@@ -481,10 +512,10 @@ def test_a_failed_step_ends_the_check_and_a_run_again_skips_what_passed_at_the_h
     a_brief(tmp_path)
     said, code, ran, base = selected(tmp_path, repo, exits={"*test_b.py*": 1})
     assert code == 1
-    assert ran == [lint(base), alone("tests/test_a.py"), alone("tests/test_b.py")]
+    assert ran == [lint(base), alone("tests/test_a.py", base), alone("tests/test_b.py", base)]
     said, code, ran, base = selected(tmp_path, repo)
     assert code == 0
-    assert ran == [alone("tests/test_b.py"), alone("tests/test_c.py")]
+    assert ran == [alone("tests/test_b.py", base), alone("tests/test_c.py", base)]
     assert "lint: passed at this head already" in said
     (repo / "page.md").write_text("A new head.\n")
     git(repo, "commit", "-qam", "a new head")
@@ -492,11 +523,89 @@ def test_a_failed_step_ends_the_check_and_a_run_again_skips_what_passed_at_the_h
     assert [one.split()[0] for one in ran] == ["check-fast", "test", "test", "test"]
 
 
+def test_the_guard_tests_run_after_the_touched_ones_and_a_failed_one_fails_the_check(tmp_path):
+    """After the touched tests the block runs each guard test the selector names under
+    features/repo-guards/tests, alone, and none of its other guards: those are CI's. A guard the
+    change touches runs once, as a touched test. A failed guard is the check's exit, as a failed
+    touched test is, and a run again at the same head runs only the steps that did not pass."""
+    g, h = "features/repo-guards/tests/test_g.py", "features/repo-guards/tests/test_h.py"
+    selector = touching("tests/test_a.py", h, guards=(g, h, "testing/tests/test_x.py"))
+    repo = stubbed(tmp_path, selector)
+    brief = a_brief(tmp_path)
+    said, code, ran, base = selected(tmp_path, repo, exits={"*test_g.py*": 1})
+    head = git(repo, "rev-parse", "HEAD")
+    assert said[0].startswith("touched: 2 test files, then 1 guard tests"), said
+    assert ran == [lint(base), alone("tests/test_a.py", base), alone(h, base), alone(g, base)]
+    assert re.search(rf"^{g}: exit 1 in \d+ s, short lane$", "\n".join(said), re.M), said
+    assert code == 1
+    assert brief.read_text().endswith(
+        f"Checked: make check-fast BASE={base} PART=touched exit 1 at {head}\n"
+    )
+    said, code, ran, base = selected(tmp_path, repo)
+    assert (ran, code) == ([alone(g, base)], 0)
+    assert f"{h}: passed at this head already" in said
+    assert ready.short_on_checked(brief.read_text(), head) == ""
+
+
+NEW_LINES = "features/repo-guards/tests/test_new_lines_run.py"
+
+
+def guard_make(stub):
+    """A `make` on the path that runs the new-lines guard for real, with the `BASE` the block
+    gives it, and passes every other step. The guard's own pytest must not see the outer run's
+    workers or a CI part's recording."""
+    (stub / "make").write_text(
+        "#!/bin/sh\n"
+        'for one; do case $one in TESTS=*|BASE=*) export "$one" ;; esac; done\n'
+        f'[ "$TESTS" = {NEW_LINES} ] || exit 0\n'
+        "unset $(env | sed -n 's/^\\(PYTEST_[A-Z_]*\\)=.*/\\1/p') NEW_LINES_PART NEW_LINES_PARTS "
+        "NEW_LINES_TEST COVERAGE_PROCESS_START\n"
+        f"exec {shlex.quote(sys.executable)} -m pytest -q -p no:cacheprovider "
+        f'"$TESTS::test_every_line_this_branch_adds_to_a_feature_runs_in_a_test"\n'
+    )
+    (stub / "make").chmod(0o755)
+
+
+@pytest.mark.timeout(600)
+@pytest.mark.parametrize("unrun", [True, False], ids=["a line no test runs", "clean"])
+def test_a_branch_that_adds_a_line_no_test_runs_fails_the_desk_check(tmp_path, unrun):
+    """The guard behind most red checks of pull requests the desk had passed: a branch that adds
+    a statement to a feature's `src/` that no test runs fails the desk's check, at the step of
+    the new-lines guard, before the review reads it. A branch clean of that passes it, with the
+    `Checked:` line jmerge binds."""
+    repo = cloned(tmp_path)
+    if unrun:
+        (repo / "features/jgauge/src/jgauge/never_run.py").write_text(
+            '"""A module no test names."""\n\n\ndef never():\n    return 1\n'
+        )
+    else:
+        with (repo / "features/crew/the-checks.md").open("a") as page:
+            page.write("\nA line the test adds.\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "the branch")
+    head = git(repo, "rev-parse", "HEAD")
+    brief = a_brief(tmp_path)
+    stub = tmp_path / "stub"
+    stub.mkdir()
+    room.uv(stub)
+    guard_make(stub)
+    said, code, _ = checked(tmp_path, "echo the full lane", limit=540)
+    step = re.findall(
+        rf"^{NEW_LINES}: exit (\d+) in \d+ s, (?:short|full) lane$", "\n".join(said), re.M
+    )
+    if unrun:
+        assert (step, code) == (["1"], 1), said
+        assert ready.short_on_checked(brief.read_text(), head), "jmerge holds it"
+    else:
+        assert (step, code) == (["0"], 0), said
+        assert ready.short_on_checked(brief.read_text(), head) == ""
+
+
 def test_with_every_short_slot_taken_the_check_waits_and_writes_no_checked_line(
     tmp_path, monkeypatch
 ):
-    """A step that finds no short slot registers the thread as a waiter and ends the block 76,
-    with no `Checked:` line: a wait is no verdict either."""
+    """A step that finds no short slot by the lane's ceiling ends the block 76 and says to run it
+    again now, with no `Checked:` line: a wait is no verdict either."""
     monkeypatch.setenv("JGAUGE_SHORT_WAIT_SECONDS", "0")
     monkeypatch.delenv("TEST_SLOTS", raising=False)
     monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
@@ -521,7 +630,8 @@ def test_with_every_short_slot_taken_the_check_waits_and_writes_no_checked_line(
             os.close(fd)
     assert code == 76
     assert not log.exists()
-    assert "mcp:thread-1 is registered as a waiter" in "\n".join(said)
+    assert "run the same command again now, in this turn" in "\n".join(said)
+    assert not (locks / "test-slot-waiters.json").exists()
     assert brief.read_text() == "# a-task: a task\n\n## Result\n"
 
 

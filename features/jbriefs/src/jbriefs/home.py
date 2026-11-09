@@ -43,7 +43,7 @@ from jsettings.paths import homes_dir as homes_dir
 WAS = re.compile(r"^Was home:[ \t]*(\S+)", re.M)
 ROOT = "root"
 UNCATEGORIZED = "uncategorized"
-SHARED = frozenset({"tasks", "scouts", "reports", "log"})
+SHARED = frozenset({"asked", "tasks", "scouts", "reports", "log"})
 
 
 def _read(file: Path) -> str:

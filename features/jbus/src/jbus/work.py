@@ -438,25 +438,26 @@ def every() -> Iterator[Facts]:
 def status(state: State) -> str:
     """Return the row's `status`, one of `queue.STATUSES`, as the state projects it.
 
-    A gate comes first, then the pull request. A row whose pull request is open is `pr`, and one
-    whose pull request merged is `merged`, whatever the thread does. A thread in a status that jbus
-    does not know makes the row `stale`, for somebody to look at. A hung turn makes the row `stale`
-    too. A thread that ended with nothing written makes the row `stale` when it completed or was
-    archived, and `failed` when it failed. The row is `launched` while no thread is there for a
-    launch, and `queued` once the thread was settled. A thread that left T3 Code's list changes
-    nothing for a row that ended: it counts only for a row with nothing written. `status` reads no
-    clock. A `stale` row with nothing written becomes `left` once the pass finds the row's thread
-    quiet for long enough, which `watch.unwritten` decides.
+    A row that is over comes first, then the pull request, then a gate, so a question holds back no
+    row that is over and hides no pull request. A row whose pull request merged is `merged`, one the
+    `done` pattern matches is `done`, and one whose pull request is open is `pr`, with a question
+    open or not. Any other row with a question open is `gate`. A thread in a status jbus does not
+    know, or a hung turn, makes the row `stale`. A thread that ended with nothing written makes the
+    row `stale` when it completed or was archived, and `failed` when it failed. The row is
+    `launched` while no thread is there for a launch, and `queued` once the thread was settled. A
+    thread off T3 Code's list counts only for a row with nothing written. `status` reads no clock: a
+    `stale` row with nothing written becomes `left` once its thread is quiet (`watch.unwritten`).
     """
     facts, value = state.facts, state.value
-    if value == "asking":
-        return "gate"
-    if facts.pull in OPEN:
-        return "pr"
     if facts.pull == Pull.MERGED:
         return "merged"
-    if value == "done":
+    over = value == "asking" and judge(replace(facts, question=Question.NONE)).value == "done"
+    if value == "done" or over:
         return "done"
+    if facts.pull in OPEN:
+        return "pr"
+    if value == "asking":
+        return "gate"
     if value in ("leftover", "closed"):
         return "left"
     if facts.seen:

@@ -29,7 +29,8 @@ To make merges wait for other checks, follow these steps.
 2. Write the names of the checks in a file named `required-checks`, one name to a line.
 3. Run `jmerge --check` and read the `wait` lines.
 
-For example, the `required-checks` file of jstack's own repo names `check` (its test suite), `borders` (its border lint) and `macos` (its macOS job), so its pull requests wait for all three.
+For example, the `required-checks` file of jstack's own repo names `check` (its test suite) and `borders` (its border lint), so its pull requests wait for both.
+Its macOS job, `macos`, runs on each push to main and on no pull request, so it is no required check: a Mac red is caught after the merge, and jbus reverts its culprit (2026-11-09).
 If the file names a check that your repo's CI never runs, every pull request waits.
 
 ## Accept a pull request it holds
@@ -181,13 +182,13 @@ The section "Protected paths" describes one more hold.
   One that changes only test files, and files of a kind `jbriefs.proved.EXEMPT` names (docs, config), needs only the run at its head, its `tests only` line: a removal of tests with the edit to the doc that named them is one.
   A `tests only` line on one that changes any other file holds it, and one that changes no test needs no line.
   One that adds or changes a fork's patch (a `.patch` under a feature's `packaging/` folder, `jbriefs.proved.FORK_FILE`) needs a line all the same, since its tests are inside the patch, and one that only edits the `PKGBUILD` or deletes a patch needs none: where every file it changes is a fork file, docs or config, its `fork patches` line names the fork's test files, with their run ending 1 over the base's series and 0 over the head's, and the same line on one that changes any other file holds it (`jbriefs.proved.outside_fork`).
-  The last `Checked:` line names the desk's whole check, `make check-fast BASE=<sha> PART=touched` (the lint and the touched tests), `make check-fast BASE=<sha> PART=guards` (the desk's check before 2026-11-05) or `jgauge check`, ending 0 at the head, or at a head whose patch the head carries unchanged.
+  The last `Checked:` line names the desk's whole check, `make check-fast BASE=<sha> PART=touched` (the lint, the touched tests and the repo-guards tests), `make check-fast BASE=<sha> PART=guards` (the desk's check before 2026-11-05) or `jgauge check`, ending 0 at the head, or at a head whose patch the head carries unchanged.
   An exit of 124 is a time limit, and holds the pull request like any other exit but 0.
   On the two-step line the crew's check block once wrote, only the guards' step counts.
   Each line it waits with is a `Reason` in `features/jmerge/src/jmerge/ready.py`, from `SKILLS_UNRUN` to `CHECKED_PART`.
 - **The required checks passed, and GitHub reports that the pull request can merge.**
   Green means that the latest run of each required check at the head passed, whatever the other checks say.
-  A required check whose job its own workflow skipped by an `if:` counts as passed when every other job of that workflow at the head passed or was skipped, and one passed: macos.yml skips `macos` that way where its `macos-select` job finds no Mac test the change reaches (`ready.passed`).
+  A required check whose job its own workflow skipped by an `if:` counts as passed when every other job of that workflow at the head passed or was skipped, and one passed (`ready.passed`).
   Any other skip is no pass.
   A repo names its required checks in a `required-checks` file in its state directory.
   The file has one check name per line, and `jmerge` ignores blank lines and the spaces around a name.
@@ -195,6 +196,7 @@ The section "Protected paths" describes one more hold.
   A check that the repo's workflows never run then blocks no merge.
   A pull request waits with `<check> has failed` for the first required check that has not passed where its latest run failed, with `<check> has not passed` where it has not, and with `it conflicts with its base` for a conflict.
   Where GitHub lists no run of that check at the head, the line is `<check> has no run at <head12>` instead: no runner is at work on it, as for a workflow that reached the base after the head's checks ran.
+  A held queue row, or one that merges after a row not merged yet, comes before `<check> has failed`, `<check> has not passed` and a running check, and a check with no run at the head comes before it ("Its queue row lets it merge").
 - **Its queue row lets it merge.**
   Once each run, `jmerge` reads the `queue.json` of the jbus project that the current checkout belongs to (`features/jmerge/src/jmerge/rows.py`).
   It looks up the row whose slug is the brief's slug.
@@ -210,6 +212,10 @@ The section "Protected paths" describes one more hold.
   When the queue exists but cannot be read, every pull request waits with `its queue cannot be read, so its holds and merge order are not known`.
   A repo with no jbus config, or that no project names, has no queue and no such wait.
   `jmerge` judges these after the review and rebase gates, so it reports a missing review or rebase line first.
+  A held row and a `merges after` wait come before GitHub's waits too: a pull request whose row says either waits on it whatever GitHub says of its mergeability or its check, in place of `GitHub has not decided whether it merges`, `<check> has failed`, `<check> has not passed` and `<check>'s run at <head12> is <state>` (`Repo.row_first`).
+  GitHub's state comes and goes each time main moves, and the row's wait stands until the row changes, so the pull request keeps one `wait` line for as long as its row holds it.
+  A check with no run at the head, and a conflict while no required check waits, keep their place before the queue's waits: they are the crew's to act on.
+  GitHub names a waiting check before a conflict, so a held row on a pull request that conflicts and has a failed check reads `row-held`, as it read `<check> has failed` before.
   It judges them before today's main, so a run never asks GitHub to update a pull request that must wait.
 - **Main is not red: a red main holds no pull request.**
   jbus records main's red tip as `broken` in `main.json` beside the queue, and that file is the one record of it (`features/jbus/docs/jbus.md`).
@@ -417,7 +423,7 @@ A run drops the record of each pull request that is no longer open.
 A pull request's check runs on its merge with the base as the base was then, and a rerun runs on that same merge.
 So a check that failed while the base was red stays red after the base is fixed, though the pull request owes no change (`features/jmerge/src/jmerge/rejudge.py`).
 `jmerge` judges such a pull request again when all that holds it is a required check that ran and failed, it merges cleanly, and its base (`baseRefName`) has moved since the check started.
-That holds for every required check the `required-checks` file names, `macos` as much as `check`.
+That holds for every required check the `required-checks` file names, `borders` as much as `check`.
 It judges the pull request as if the failed checks had passed, and a pull request that waits on anything else says that instead of `<check> has failed`.
 So a crew is asked for what its pull request is short of, such as a scoped review of a push after its review, and its base is merged in once that is done.
 It asks GitHub to merge the base into the branch, `PUT /repos/{owner}/{repo}/pulls/<n>/update-branch` with `expected_head_sha`, which rewrites no history.
@@ -433,8 +439,8 @@ GitHub's new check at the new head then decides by the normal path, and a change
 A pull request broken on its own is not given its base again: when the last two runs of a required check it failed both failed a same pytest id, and main's run of that check at neither run's base failed it, `jmerge` asks GitHub nothing and keeps the line `<check> has failed`.
 It reads the runs of each failed check's own workflow, and a run's ids from the `FAILED <id>` lines of `gh run view <id> --log-failed`.
 Main's run at a run's base is main's latest run of the same check that started by the time the pull request's run started.
-A check that main never runs, as `macos` and `borders` run on pull requests alone, has no such run, so its repeats are not known and the base is merged in as before.
-That is on purpose: a test that main broke on macOS alone would otherwise read as the pull request's own, and hold it for good.
+A check that main never runs, as `borders` runs on pull requests alone, has no such run, so its repeats are not known and the base is merged in as before.
+That is on purpose: a test that main broke in such a check alone would otherwise read as the pull request's own, and hold it for good.
 A pull request whose runs failed no test id, or a test that main's check also failed there, is asked for as before, and so is one whose runs or logs GitHub does not give.
 It keeps that answer for a head and a base tip in `base-merges.json`, so the logs are read again only once either moves.
 A run drops the record of each pull request that is no longer open, once it merged or closed, so the file holds open pull requests alone.

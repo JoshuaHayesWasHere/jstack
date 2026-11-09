@@ -176,3 +176,25 @@ def test_a_week_the_passes_watched_with_no_stall_shows_no_stall_minute_per_merge
     assert stall[4] == (
         "n/a n 0 no data: covers demo; no stall record kept for 1 merged row, on 2026-10-05"
     )
+
+
+def test_a_gap_after_a_pass_whose_line_is_long_still_adds_none_of_its_minutes(kitchen):
+    """A pass's line in `passes.jsonl` names the seconds of each of its steps, so with many
+    projects it runs past any fixed tail of the file: the gap is still found from it."""
+    thread = hanging(kitchen, minutes=12, queued=0)
+    kitchen.poll()
+    kitchen.poll(NOW + MIN)
+    log = kitchen.state_dir / "passes.jsonl"
+    *before, last = log.read_text().splitlines()
+    long = json.loads(last)
+    long["steps"] |= {f"first halves/project p{n}": [1.234, 0.567] for n in range(400)}
+    log.write_text("".join(f"{line}\n" for line in [*before, json.dumps(long)]))
+    after = NOW + MIN + 5 * 60 * MIN
+    kitchen.poll(after)
+    thread |= {"updatedAt": iso(after + MIN), "itemCount": 41}
+    kitchen.poll(after + 2 * MIN)
+    kitchen.poll(after + 3 * MIN)
+
+    assert [(one["since"], one["until"], one["minutes"]) for one in ended(kitchen)] == [
+        (iso(NOW - 12 * MIN), iso(after + MIN), 14.0)
+    ]

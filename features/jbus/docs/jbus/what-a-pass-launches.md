@@ -45,6 +45,15 @@ A link with no pull request yet, its crew at its desk proof or waiting on its re
   A row with a go is grandfathered, whatever a check added since says of its brief.
 - **No room** prints `wait <slug>: no room: <why>` and launches neither that row nor any after it in the pass.
   After `room_passes` passes in a row with no room, jbus records `condition <slug>: no room for <n> passes: <why>` once.
+- **A full /tmp is swept before the row waits on it**, with no word of yours (`jbus.cleanup.sweep`).
+  When `jgauge room` says /tmp is full (its quota, its size or its file slots), jbus removes, and then asks room again:
+  - the Claude scratch folder of each T3 Code worktree that is gone and is no live row's;
+  - each session folder in the Claude scratch folder of a configured project's main checkout (`/tmp/claude-<uid>/-home-<user>-repos-<repo>/<session>/`, a home's, a scout's or your own session's) that nothing wrote in for `IDLE`, 12 hours, and that no running process resumes;
+  - each copy of the base that a `proved.sh` killed before its EXIT trap left.
+
+  It leaves every folder a process works in or names, every session folder written in within those 12 hours, every session folder a running process resumes however long it sat idle (its name is the session id a Claude process names, as in `claude --resume=<id>`, `claude --resume <id>` or `claude --session-id <id>`, as T3 Code runs a session with its working directory at the checkout; a session started fresh, with neither, is kept by those 12 hours alone), every copy of the base in a folder where a `proved.sh` still runs, and everything else in /tmp: a crew's own clone under a name of its choosing, such as `/tmp/t3s-stable`, stays until you clear it.
+  It says `cleared /tmp: <n> folders finished crews left, <m> of sessions ended in a main checkout, <the first three>`.
+  Where no process can be read, it removes nothing and the row waits.
 - **A lost reply leads to a second launch only when the connection dropped and no thread was made.**
   jbus writes a file keyed `<project>/<slug>/<brief_sha 12>` under `~/.local/state/jbus/launches/` before the call, and looks up the thread of a lost reply.
   A launch whose connection dropped (ECONNRESET) and whose lookup finds no thread of its title and branch is launched once more, under the same file.
@@ -92,6 +101,27 @@ Once the Result explains each drop, `jmerge` waits with `the scoped review has n
 A head with a `rereview` mark already, or whose Result has a `Scoped reviewer:` line of it, gets no other reviewer.
 The key is marked before the launch, so a pass that crashes launches no second one; a capped review pool, no worktree for the crew, or T3 Code refusing the launch marks nothing and is a gate once for the head.
 The crew hears of the scoped review from `jbus.reviewed` once it is written, with its findings by id, and of a clean one not at all.
+
+## A crew is compacted at its pull request
+
+Once a crew's pull request is open, `compact.tell` sends its thread one message, a slash and the word `compact`, which is Claude Code's command to compact a session; its template is `compact` and its key `compact|<slug>`, and it goes once for the row.
+T3 Code runs a compaction for a user message that is that command, so the crew waits on its checks with a summary of its work, and not the whole context it built up.
+
+Why: a crew is at about 160k tokens when its pull request opens, under T3 Code's 200k floor for an idle compaction, so it was never compacted there.
+Each call it then made for a failed check, a conflict or a comment sent 208.7k tokens on average (2026-11-09).
+A probe compacted a finished crew at 137k: its next call sent 38.9k, and it still knew its brief.
+
+It goes on the first pass where all of these hold:
+
+- the row's pull request is open: a merged or closed one gets none;
+- the brief's last Result that names a pull request names its URL;
+- the thread is the row's crew, as its title says: a home, a scout or a reviewer gets none;
+- T3 Code says the thread has no turn running or queued: a crew still at work is compacted on the first pass after its turn ends;
+- the thread's last call, in [the telemetry store](the-telemetry-store.md), sent 100k tokens or more: a thread the store holds no call of yet waits for a pass whose build read one;
+- the outbox holds it under none of its rules: a thread this pass already told something waits for the next pass.
+
+A pass where one of these does not hold sends nothing and writes no key, so a later pass asks again.
+`outbox.jsonl` keeps one `compact` line for each send.
 
 ## A scout
 

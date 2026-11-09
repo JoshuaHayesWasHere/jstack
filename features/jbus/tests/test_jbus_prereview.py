@@ -232,6 +232,41 @@ def test_a_crew_whose_brief_header_says_after_the_review_is_told_when_its_review
     assert told["clientRequestId"] == f"prereviewed|alpha|{head[:12]}"
 
 
+def corrected_then_reviewed(kitchen):
+    """A crew's brief as jbus-rows-name-a-home's stood at the pass that marked it done
+    (2026-11-09T17:57:26Z): its first Result says the pull request opens after the review, jbus
+    launched the reviewer, the crew wrote a follow-up Result that corrects a line and still says
+    so, and the review is written and ran. No pull request is open. Returns the crew's thread."""
+    thread, path, head = proved_crew(kitchen)
+    kitchen.poll()
+    assert len(reviewers(kitchen)) == 1
+    again = proof(head).replace("## Result\n", "## Result, follow-up (2026-11-09, Left:)\n", 1)
+    path.write_text(path.read_text() + again + section(head))
+    return thread
+
+
+def test_a_follow_up_result_that_opens_its_pull_request_after_the_review_is_not_done(kitchen):
+    """A follow-up Result that still says its pull request opens after the review owes that pull
+    request once the review ran, as a first Result does (`jbus.watch.owes_pull`): the row is
+    not `done` while no pull request is open."""
+    thread = corrected_then_reviewed(kitchen)
+    for minutes in (3, 6, 30):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+        assert rows(kitchen)["alpha"]["status"] not in ("done", "left")
+    assert not thread.get("settled")
+
+
+def test_a_row_that_depends_on_a_crew_that_owes_its_pull_request_after_the_review_waits(kitchen):
+    """Such a row has not ended (`jbus.watch.final`), so a row that depends on it does not
+    launch before its pull request merges."""
+    corrected_then_reviewed(kitchen)
+    add(kitchen, "beta", priority=2, depends="alpha")
+    for minutes in (3, 6, 30):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    assert [one["title"] for one in kitchen.t3.launches if one["title"] == "crew: beta"] == []
+    assert rows(kitchen)["beta"]["status"] == "queued"
+
+
 def test_a_review_before_the_pull_request_that_never_comes_is_asked_again_by_the_clock(kitchen):
     """The crew waits on jbus while its review is out, so a reviewer that ended its turn writing
     nothing is the clock's, as on an open pull request: after `clock.PASSES` passes it is sent
@@ -337,8 +372,8 @@ def test_the_review_message_t3_code_does_not_take_is_tried_again_or_is_a_gate(ki
         kitchen.t3.lose_send = True
     else:
         command = ["uv", "run", "pytest", "tests/test_alpha.py"]
-        lane = slot.short()
-        waiters.register(slot.locks_dir(), thread["threadId"], "short", lane.slots, command, NOW)
+        lane = slot.full(2)
+        waiters.register(slot.locks_dir(), thread["threadId"], "full", lane.slots, command, NOW)
     kitchen.poll(NOW + timedelta(minutes=3))
     key = f"prereviewed|alpha|{head[:12]}"
     marked = key in jbus.read_json(kitchen.state / "sent.json", [])
@@ -471,8 +506,8 @@ def test_a_refusal_t3_code_does_not_take_is_a_gate_or_is_sent_on_a_later_pass(ki
         kitchen.t3.lose_send = True
     else:
         command = ["uv", "run", "pytest", "tests/test_alpha.py"]
-        lane = slot.short()
-        waiters.register(slot.locks_dir(), thread["threadId"], "short", lane.slots, command, NOW)
+        lane = slot.full(2)
+        waiters.register(slot.locks_dir(), thread["threadId"], "full", lane.slots, command, NOW)
     kitchen.poll()
     key = f"prereview-refused|alpha|{head[:12]}"
     assert key not in jbus.read_json(kitchen.state / "sent.json", [])

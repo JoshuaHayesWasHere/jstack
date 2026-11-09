@@ -20,7 +20,9 @@ them only in the forms below (`_held`):
   `threadId` it changes nothing and reads the thread's selection, which any thread may have.
 - `t3_thread_send`, as a queued message with a retry key, to a thread that the sender adds to
   `recipients`. Every such message goes through `jbus.outbox.send`, which adds its thread, holds
-  a message to a capped thread, and logs each send and hold.
+  a message to a capped thread, and logs each send and hold. A message whose key names a template
+  of `STEERS` goes in mode `auto` instead, and only so: into a turn the thread already runs, as a
+  steer, since `outbox`'s `idle` rule holds it while the thread runs none.
 
 `orchestrator_capabilities` only reads: which provider instances T3 Code can run, and why not
 where it cannot, such as an instance that is signed out (`jbus.failover`).
@@ -75,6 +77,10 @@ from jsettings.t3 import T3Dropped as T3Dropped
 from jsettings.t3 import T3Error as T3Error
 from jsettings.t3 import T3Refused as T3Refused
 
+STEERS = frozenset({"reload"})
+"""The templates whose message goes only into a turn its thread already runs, as a steer, in mode
+`auto`: the key of each starts with its template. `outbox`'s `idle` rule holds them while the
+thread runs none. The notice of `jbus.reload` is one."""
 TOOLS = (
     "t3_thread_configure",
     "t3_thread_launch",
@@ -268,8 +274,10 @@ class Client(Session):
         if tool == "t3_thread_send":
             if set(arguments) != {"threadId", "message", "mode", "clientRequestId"}:
                 return "is only called with a thread, a message, a mode and a retry key"
-            if arguments["mode"] != "queue" or not arguments["clientRequestId"]:
-                return "is only called with mode queue and a retry key"
+            key = arguments["clientRequestId"]
+            steer = str(key).split("|")[0] in STEERS
+            if not key or arguments["mode"] != ("auto" if steer else "queue"):
+                return "is only called with mode queue and a retry key, or auto for a steer"
             if arguments["threadId"] not in self.recipients:
                 return f"to {arguments['threadId']}: no brief has it on a Thread: line"
         return ""
@@ -471,21 +479,18 @@ def names(text: str, slug: str, numbers: Collection[int]) -> bool:
 def asks(
     text: str, slug: str, numbers: Collection[int], doors: Mapping[str, Collection[int]]
 ) -> bool:
-    """Whether a home's ask `text` is about this door and no other: the row `slug`, or its open
-    gates `numbers`, among the open doors `doors` (each row's slug with its open door gates, none
-    for a row whose brief holds and has no gate yet). The ask names a gate by its number, and a
-    row by its slug, which stands for each of its open gates the ask does not name by number. So
-    "question 250 stays held; question 251: may it go?" names two doors and binds a plain reply
-    to neither, and a "yes" never opens two doors."""
+    """Whether a home's ask `text` is about this door: the row `slug`, or one of its open gates
+    `numbers`, whether or not it names other open doors too. `doors` holds each row's slug with
+    its open door gates. The ask names a gate by its number, and a row by its slug, which stands
+    for each of its open gates the ask does not name by number. So "question 250 stays held;
+    question 251: may it go?" names both doors, and a plain reply to it opens each of them: a
+    home asks about a door it does not want opened in a message of its own."""
     lowered = text.lower()
-    named: set[str | int] = set()
-    for row, gates in {**doors, slug: {*doors.get(slug, ()), *numbers}}.items():
-        by_number = {one for one in gates if re.search(_question(one), lowered)}
-        if by_number:
-            named |= by_number
-        elif re.search(_row(row), lowered):
-            named |= set(gates) or {row}
-    return bool(named) and named <= (set(numbers) or {slug})
+    gates = {*doors.get(slug, ()), *numbers}
+    named: set[str | int] = {one for one in gates if re.search(_question(one), lowered)}
+    if not named and re.search(_row(slug), lowered):
+        named = set[str | int](gates or [slug])
+    return bool(named & (set(numbers) or {slug}))
 
 
 def _near(word: str) -> str:

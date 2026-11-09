@@ -506,11 +506,18 @@ def _open_spells(run: Pass) -> dict[str, dict[str, Any]]:
 def _last_pass(run: Pass) -> datetime | None:
     """The start of the last pass that ended, from the last line of `passes.jsonl` (`jbus.record`),
     or None where there is none. The log gets a line at the end of every pass, whatever T3 Code and
-    GitHub answered, so its last line is the pass before this one. Only the file's tail is read."""
+    GitHub answered, so its last line is the pass before this one. Only the file's tail is read,
+    one that doubles until it holds the whole last line, since a line names each step's seconds and
+    so grows with the projects."""
     try:
         with (run.config.state_dir / PASS_LOG).open("rb") as log:
-            log.seek(max(0, log.seek(0, 2) - 4096))
-            lines = log.read().decode(errors="replace").splitlines()
+            size, tail = log.seek(0, 2), 4096
+            while True:
+                log.seek(max(0, size - tail))
+                lines = log.read().decode(errors="replace").splitlines()
+                if tail >= size or len(lines) > 1:
+                    break
+                tail *= 2
     except OSError:
         return None
     try:

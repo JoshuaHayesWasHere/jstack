@@ -97,21 +97,22 @@ A maintainer approves each CI run of a pull request from a fork, since the repo 
 A run waits for that approval each time you push, also when you push the fixes of a review.
 The maintainer reviews the pull request and leaves the findings as comments on it.
 Push the fixes to the same branch.
-The maintainer merges it once the findings are fixed and `check`, `borders` and `macos` pass.
+The maintainer merges it once the findings are fixed and `check` and `borders` pass.
 
 ## The repo's CI
 
 | Workflow | Runs on | What it does |
 |---|---|---|
 | `check` | each push of a pull request, a draft too, each push to `main`, and by hand | On a pull request, a `reuse` job first: where a green run already checked the same tree, the pull request reuses it and runs nothing more. The `reuse` job also checks for AI co-author lines, and a `lint` job beside it runs the prose lint and `make lint`. Without a reuse, the `reuse` job also runs `scripts/select_tests.py --pull-request --parts 8 HEAD^1 HEAD` in plain `python3`: it selects the tests the change needs, where `--pull-request` has an import reach only the tests near the change (the tests that import a changed module, and those that import a module that names a name the diff touched), adds the tests that failed on `main` in the last 30 days, and deals the selected files out to 8 parts, `check 1 of 8` to `check 8 of 8`, which run side by side, each `make test` on its own files. On a push to `main`, `make check` in 4 parts, skipped where a green tree marker shows the tree passed already. |
-| `macos` | each pull request, and each push to `main` | On macOS, the tests of `testing/macos-quick.txt` that the change reaches, selected by `scripts/select_tests.py --within`. |
+| `macos` | each push to `main`, and no pull request | On macOS, the tests of `testing/macos-quick.txt` that the merged change reaches, selected by `scripts/select_tests.py --within`. |
 | `macos-nightly` | each night, and by hand | `make check` on macOS over `main`, the whole suite. |
 | `borders` | each pull request, and each change of its labels | `scripts/lint-borders.py`: every path has one owner, and a pull request that touches two features carries the `cross-cutting` label, which a maintainer adds. Then `features/jbus/scripts/kept_shots.py`: a pull request that changes a kept shot of the view changes nothing else. |
 | `browser` | each night, a `v<version>` tag, each published release, by hand, and a pull request into `main` that changes the view, its browser tests, their kept shots or `browser.yml` | `make check-browser`, the tests that open a real browser. |
 | `release` | a `v<version>` tag | Builds and publishes the release. It runs no check of its own: `make release-green` reuses `main`'s check of the same tree. |
 | `pstack-drift` | each Monday, and by hand | `make pstack-drift`: what changed upstream in the files taken from pstack. |
 
-A pull request into `main` needs `check`, `borders` and `macos` to pass before it merges.
+A pull request into `main` needs `check` and `borders` to pass before it merges.
+macOS runs on each push to `main` (`macos`) and nightly (`macos-nightly`), and is no required check of a pull request: a pull request waits for no Mac.
 
 ## Release
 

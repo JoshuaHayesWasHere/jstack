@@ -15,8 +15,8 @@ the act's id and its `subject`, so the feed (`jbus.cursor`) gives events and act
   gate that holds for the user instead (`questions.park`), and the act is `gated`. The user's
   own go later closes that gate, on words said of the row or its gate after its brief was
   stored (`_unbound`): a plain reply in a home's thread to the home's ask that named this door
-  and no other (`t3.home_ask`, `t3.asks`), or words that name it themselves; other words of the
-  user's are `refused`.
+  (`t3.home_ask`, `t3.asks`), so one reply to an ask that named several doors opens each, or
+  words that name it themselves; other words of the user's are `refused`.
 - A go whose row's go already holds for that brief is a `noop`.
 - An answer to a gate that holds, from a party the door does not open for, or on words of the
   user's that are not said of the gate or its row, as above, or came before it, is `refused`,
@@ -396,8 +396,8 @@ def _unbound(
     the brief was stored or the question asked. Words are said of the door when they name the
     row's slug or one of its gates by its number, in the forms a person writes (`t3.names`: a
     number alone may count anything), or when they are a plain reply in a home's thread to the
-    home's ask that named this door and no other (`_answers`). An older message, or one about
-    something else, was not said of this door."""
+    home's ask that named this door (`_answers`). An older message, or one about something else,
+    was not said of this door."""
     kind = "pick" if said.source == "t3-pick" else "message"
     named = t3.names(said.words, slug, numbers) or _answers(run, said, slug, numbers)
     if not named:
@@ -416,16 +416,20 @@ def _unbound(
 
 
 def _answers(run: Pass, said: Evidence, slug: str, numbers: list[int]) -> bool:
-    """Whether the user's own message is a plain reply to a home's ask about this door: the last
-    message the home wrote in that thread before it (`t3.home_ask`, as `jbus waive` reads it)
-    names the row's slug or one of its gates, and no other open door (`t3.asks`, on `_doors`).
-    A message in no home's thread, one that is not the user's own (`t3.own`), or one before any
-    ask, answers none."""
+    """Whether the user's own message is a plain reply to the home's ask that named this door:
+    the last message the home wrote in that thread before it (`t3.home_ask`, as `jbus waive`
+    reads it) names the row's slug or one of its gates, whatever other doors it names
+    (`t3.asks`, on `_doors`). A reply that names an open door itself (`t3.names`) is no plain
+    reply, and binds only to the doors it names. A message in no home's thread, one that is
+    not the user's own (`t3.own`), or one before any ask, answers none."""
+    doors = _doors(run)
+    if any(t3.names(said.words, row, gates) for row, gates in doors.items()):
+        return False
     try:
         _, ask = t3.home_ask(run.config, run.home, run.project.name, said.ref)
     except Refused:
         return False
-    return t3.asks(ask.text, slug, numbers, _doors(run))
+    return t3.asks(ask.text, slug, numbers, doors)
 
 
 def _doors(run: Pass) -> dict[str, set[int]]:

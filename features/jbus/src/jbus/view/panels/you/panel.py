@@ -142,6 +142,7 @@ IDLE = {
     "still merges.",
     "gate": "It waits for your answer.",
     "stalled": "The home stays quiet, and jbus starts it no more.",
+    "install": "T3 Code goes on without the newer patches.",
 }
 """What happens if the user does nothing, for a need whose kind has no default of its own. Any
 other kind's need, such as a hold no thread works on, has `QUIET`."""

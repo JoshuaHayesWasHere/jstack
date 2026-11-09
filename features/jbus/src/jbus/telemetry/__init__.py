@@ -31,6 +31,9 @@ reads everything, prints what it added and how long it took, and `builds` record
 
 `--rebuild <path>` writes a new store at `path` from the sources alone, as a check: the store
 itself is never rebuilt, since the sources no longer have every row it keeps.
+
+`jbus scorecard` reads each measure of `jbus.telemetry.measures` from the store, read only, and
+prints one line a measure, or with `--json` a list of them. It writes nothing.
 """
 
 from __future__ import annotations
@@ -54,6 +57,7 @@ from jbus.telemetry import (
     kpis,
     labels,
     launches,
+    measures,
     messages,
     migrations,
     records,
@@ -258,6 +262,8 @@ def _log(connection, project: str, source: Source, file: Path, zone, built: Buil
             if not isinstance(record, dict):
                 continue
             canon = json.dumps(record, sort_keys=True)
+            if source.beside is not None:
+                record = source.beside(record, file.parent)
         if canon not in counts:
             counts[canon] = 0 if start == 0 else _seen(connection, source.table, project, canon)
         key = values.key(canon, counts[canon])
@@ -444,6 +450,65 @@ def _page(args: argparse.Namespace, config: jbus.Config) -> int:
     return 0
 
 
+def _scorecard_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--store", metavar="path", help="the store to read, the machine's by default"
+    )
+    parser.add_argument("--json", action="store_true", help="print a JSON list of the readings")
+
+
+def _scorecard(args: argparse.Namespace, config: jbus.Config) -> int:
+    """Read each measure for one project from the store, opened read only: the project
+    `--project` names, or the config's only one."""
+    project = config.project(args.project).name
+    store = Path(args.store) if args.store else path(config)
+    try:
+        connection = sqlite3.connect(f"file:{store}?mode=ro", uri=True, timeout=BUSY_MS / 1000)
+    except sqlite3.Error as error:
+        print(f"refused: no telemetry store to read at {store}: {error}")
+        return 2
+    now = datetime.now(UTC)
+    try:
+        read = [
+            (measure, measures.read(connection, measure, project, now, config.user))
+            for measure in measures.MEASURES
+        ]
+    finally:
+        connection.close()
+    if args.json:
+        print(json.dumps([_reading(measure, reading) for measure, reading in read], indent=1))
+        return 0
+    for measure, reading in read:
+        print(_line(measure, reading))
+    return 0
+
+
+def _reading(measure: measures.Measure, reading: measures.Reading) -> dict[str, object]:
+    return {
+        "name": measure.name,
+        "group": measure.group,
+        "value": reading.value,
+        "unit": measure.unit,
+        "n": reading.n,
+        "baseline": reading.baseline,
+        "state": reading.state,
+        "tier": measure.tier,
+        "wired": measure.wired,
+        "audit": list(measure.audit),
+        "note": reading.note,
+    }
+
+
+def _line(measure: measures.Measure, reading: measures.Reading) -> str:
+    value = "-" if reading.value is None else f"{round(reading.value, 2):g}"
+    baseline = "-" if reading.baseline is None else f"{reading.baseline:g}"
+    note = f"  {reading.note}" if reading.note else ""
+    return (
+        f"{reading.state:<5}  {measure.group:<9}  {measure.name:<22}  {value} {measure.unit}"
+        f" of {reading.n}, baseline {baseline}, {measure.tier}{note}"
+    )
+
+
 def _pass(config: jbus.Config, say: Callable[[str], None]) -> None:
     """The pass's build: at most `PASS_BYTES` read, and a line only where files were left."""
     built = build(config, most=PASS_BYTES)
@@ -463,6 +528,12 @@ VERBS = (
         "write a static page of each KPI against its target, this week and last, from the store",
         _page_arguments,
         _page,
+    ),
+    verbs.Verb(
+        "scorecard",
+        "print each health measure of one project against its baseline, from the store, read only",
+        _scorecard_arguments,
+        _scorecard,
     ),
 )
 CHORES = (verbs.Chore(35, "the telemetry store", lambda config, _, __, say: _pass(config, say)),)
