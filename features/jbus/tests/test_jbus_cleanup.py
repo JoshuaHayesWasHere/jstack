@@ -119,3 +119,40 @@ def test_a_row_that_still_waits_for_tmp_says_so_on_its_first_pass_and_on_jbus_ne
     code, out = kitchen.main("needs")
     assert code == 0, out
     assert f"demo row alpha: {cause}" in out.splitlines()
+
+
+@pytest.mark.parametrize("procfs", [True, False], ids=["proc", "no-proc"])
+def test_a_base_copy_stays_while_a_proof_runs_in_its_folder(kitchen, tmp, monkeypatch, procfs):
+    """A `proved.sh` between its head and base sides holds its copy with no process inside it, so
+    every copy of the base in the folder it makes them in stays while it runs; with no /proc, as
+    on macOS, `ps` says that one runs. The finished crew's folder still goes."""
+    if not procfs:
+        monkeypatch.setattr(cleanup, "ROOT", kitchen.root / "no-proc")
+    gone = pad(tmp, kitchen, "done-1", 60_000)
+    copy = base(tmp, "base.Mn78Op", 30_000)
+    script = kitchen.root / "proof" / "proved.sh"
+    script.parent.mkdir()
+    script.write_text("sleep 60\n")
+    env = {**os.environ, "TMPDIR": str(tmp)}
+    approved(kitchen, "alpha")
+    with subprocess.Popen(["bash", str(script)], env=env, cwd=kitchen.root) as proving:
+        try:
+            kitchen.poll()
+        finally:
+            proving.kill()
+    assert (copy / "src" / "blob").exists()
+    assert not gone.exists()
+    assert [given["title"] for given in kitchen.t3.launches] == ["crew: alpha"]
+
+
+def test_a_pass_that_knows_no_process_removes_nothing_and_waits(kitchen, tmp, monkeypatch):
+    """Where no process can be read, no folder is known to be idle, so the sweep removes nothing
+    and the row waits for /tmp."""
+    empty = kitchen.root / "empty-proc"
+    empty.mkdir()
+    monkeypatch.setattr(cleanup, "ROOT", empty)
+    gone = pad(tmp, kitchen, "done-1", 90_000)
+    approved(kitchen, "alpha")
+    kitchen.poll()
+    assert gone.exists()
+    assert kitchen.t3.launches == []
