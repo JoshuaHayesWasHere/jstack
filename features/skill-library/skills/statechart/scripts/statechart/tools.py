@@ -3,6 +3,7 @@ pinned here, the one place its version is written."""
 
 import functools
 import hashlib
+import http.client
 import os
 import shutil
 import subprocess
@@ -113,14 +114,17 @@ def find_java():
 
 def fetch_jar(handle):
     """Writes the jar at TLA2TOOLS_URL to `handle`, fetching it again after each wait of
-    DOWNLOAD_WAITS when a fetch fails on anything but an answer under 500, such as a 504, a
-    timeout or a reset connection."""
+    DOWNLOAD_WAITS when a fetch fails on anything but an answer under 500, such as a 504, a body
+    cut short, a timeout or a reset connection."""
     for wait in (*DOWNLOAD_WAITS, None):
         try:
             with urllib.request.urlopen(TLA2TOOLS_URL, timeout=120) as r:
                 shutil.copyfileobj(r, handle)
+                if r.length:
+                    # A body cut short of its Content-Length ends with no error from urllib.
+                    raise http.client.IncompleteRead(b"", r.length)
             return
-        except OSError as e:
+        except (OSError, http.client.HTTPException) as e:
             if wait is None or (isinstance(e, urllib.error.HTTPError) and e.code < 500):
                 raise
             print(f"Fetching tla2tools.jar failed: {e}. Trying again in {wait} s.", file=sys.stderr)
@@ -145,7 +149,7 @@ def download_jar(target):
             )
         os.chmod(part, 0o644)
         os.replace(part, target)
-    except OSError as e:
+    except (OSError, http.client.HTTPException) as e:
         raise NoTlc(
             f"Cannot download tla2tools.jar from {TLA2TOOLS_URL}: {e}. Download it, and set"
             " TLA2TOOLS to its path."
