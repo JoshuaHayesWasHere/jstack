@@ -20,6 +20,7 @@ def test_home_status_reads_each_scopes_home_id_once_however_many_briefs_name_it(
     (state / "tasks").mkdir(parents=True)
     for scope in SCOPES:
         (state / scope).mkdir()
+        (state / scope / "plan.md").write_text(f"# {scope}: plan\n")
         (state / scope / "home-id").write_text(f"thread-{scope}\n")
         (state / scope / "read-seen").write_text("")
         for n in range(BRIEFS):
