@@ -316,7 +316,7 @@ def hold(
 
 def _last(run: Pass, key: str) -> tuple[str, str]:
     """Return what the last line of the key in `outbox.jsonl` says, `sent` or `held`, and its rule,
-    or two empty strings where it has none."""
+    or two empty strings where it has none. A line that does not parse is skipped."""
     path = run.state / FILE
     if not path.exists():
         return "", ""
@@ -324,7 +324,13 @@ def _last(run: Pass, key: str) -> tuple[str, str]:
     last = ("", "")
     with path.open(encoding="utf-8") as lines:
         for line in lines:
-            if quoted in line and (one := json.loads(line)).get("key") == key:
+            if quoted not in line:
+                continue
+            try:
+                one = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(one, dict) and one.get("key") == key:
                 last = (one.get("went", ""), one.get("rule", ""))
     return last
 
