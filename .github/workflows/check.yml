@@ -489,11 +489,15 @@ jobs:
       fail-fast: false
       matrix:
         shard: [1, 2, 3, 4]
-    # One output, the same in every part, since every part checks out the same tree. When the
-    # parts of a matrix write one output, the last to end wins, so a part's own outcome is never
-    # an output: a lookup that failed is a warning in its part.
+    # Outputs that are the same in every part, since every part checks out the same tree and
+    # restores TLC's cache before any part saves one. When the parts of a matrix write one
+    # output, the last to end wins, so a part's own outcome is never an output: a lookup that
+    # failed is a warning in its part. `tlc` and `restored` are the key the parts restored TLC's
+    # cache with and the entry they found, for the save in `full`.
     outputs:
       tree: ${{ steps.tree.outputs.name }}
+      tlc: ${{ steps.tlc.outputs.cache-primary-key }}
+      restored: ${{ steps.tlc.outputs.cache-matched-key }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -526,8 +530,11 @@ jobs:
       - name: zsh
         if: steps.tree.outputs.marker != 'green'
         run: 'cd "$RUNNER_TEMP" && set -- $ZSH_DEBS && printf "%s  %s\n" $ZSH_DEBS > zsh.sha256 && curl -fsSL --retry 3 --remote-name-all "$ZSH_POOL/$2" "$ZSH_POOL/$4" && sha256sum -c zsh.sha256 && sudo dpkg -i "$2" "$4" && zsh --version'
-      # TLC's kept output, restored and saved as in the check's parts: main's entries are those a
-      # pull request restores.
+      # TLC's kept output, restored as in the check's parts. Main's entries are those a pull
+      # request restores, and it restores only the newest, so no part saves one: each part's runs
+      # go up as an artifact, and `full` saves them together as one entry. A part's own entry
+      # held only the runs it made, and a pull request that restored it ran every other part's
+      # scenes cold, at 60 to 271 s each (run 42531437810, 2026-11-08).
       - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: tlc
         if: steps.tree.outputs.marker != 'green'
@@ -541,19 +548,16 @@ jobs:
         id: suite
         if: steps.tree.outputs.marker != 'green'
         run: make check JUNIT="$RUNNER_TEMP/junit.xml" SHARD=${{ matrix.shard }}/4
-      # As in the check's parts.
-      - name: tlc kept
-        id: kept
+      # After the suite, passed or failed, as in the check's parts: every run the part holds,
+      # restored or its own, named by the attempt, so a rerun of a part adds its own.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: "!cancelled() && steps.suite.outcome != 'skipped'"
-        env:
-          KEY: ${{ steps.tlc.outputs.cache-primary-key }}
-          RESTORED: ${{ steps.tlc.outputs.cache-matched-key }}
-        run: 'RUNS=$(LC_ALL=C ls "$HOME/.cache/jstack/tlc" 2> /dev/null) || exit 0; NAMES=$(printf "%s\n" "$RUNS" | sha256sum | cut -c1-16); [ -z "$RUNS" ] || [ "$NAMES" = "${RESTORED##*-}" ] || echo "key=$KEY$NAMES" >> "$GITHUB_OUTPUT"'
-      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        if: "!cancelled() && steps.kept.outputs.key != ''"
+        continue-on-error: true
         with:
+          name: tlc-${{ github.run_attempt }}-${{ matrix.shard }}
           path: ~/.cache/jstack/tlc
-          key: ${{ steps.kept.outputs.key }}
+          retention-days: 1
+          if-no-files-found: ignore
       # One line on the job's summary for ci.jsonl, after the suite ran, passed or failed: the
       # workers, the CPU quota they were counted from, the suite's wall, the test time summed
       # over every test, the tail (the wall less that sum shared out over the workers: the time
@@ -623,6 +627,32 @@ jobs:
         env:
           PARTS: ${{ needs.full-shard.result }}
         run: '[ "$PARTS" = success ] || { echo "::error::the parts of the full run ended $PARTS, not success"; exit 1; }'
+      # TLC's runs of every part, passed or failed, in one folder, saved as one entry under the
+      # key the parts restored with and a hash of the names it holds, as `tlc kept` does in the
+      # check's parts: so the newest entry of main holds every scene main ran on these specs. A
+      # run is named by the hash of its inputs, so two parts that hold one run hold the same file.
+      # Parts that skipped the suite on a green marker restored nothing, and nothing is saved.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        id: runs
+        if: "!cancelled() && needs.full-shard.outputs.tlc != ''"
+        continue-on-error: true
+        with:
+          pattern: tlc-*
+          path: ~/.cache/jstack/tlc
+          merge-multiple: true
+      - name: tlc kept
+        id: kept
+        if: "!cancelled() && steps.runs.outcome == 'success'"
+        env:
+          KEY: ${{ needs.full-shard.outputs.tlc }}
+          RESTORED: ${{ needs.full-shard.outputs.restored }}
+        run: 'RUNS=$(LC_ALL=C ls "$HOME/.cache/jstack/tlc" 2> /dev/null) || exit 0; NAMES=$(printf "%s\n" "$RUNS" | sha256sum | cut -c1-16); [ -z "$RUNS" ] || [ "$NAMES" = "${RESTORED##*-}" ] || echo "key=$KEY$NAMES" >> "$GITHUB_OUTPUT"'
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: "!cancelled() && steps.kept.outputs.key != ''"
+        continue-on-error: true
+        with:
+          path: ~/.cache/jstack/tlc
+          key: ${{ steps.kept.outputs.key }}
       # The lookup of the tests that failed on main, as the check's `reuse` runs it, so that the
       # cache it leaves is main's, which every pull request's run restores and only adds to.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
