@@ -529,8 +529,9 @@ def _mac_file(
             "the fix's branch",
             "- the Result names the cause: the merge that broke it, or a flake with its evidence",
         ],
-        "`make check-fast BASE=origin/main` passes, and so does a manual run of "
-        "macos-nightly.yml (`gh workflow run macos-nightly.yml -f ref=<the fix's branch>`)",
+        "the touched check, `make check-fast BASE=origin/main PART=touched`, passes, and so "
+        "does a manual run of macos-nightly.yml (`gh workflow run macos-nightly.yml -f ref=<the "
+        "fix's branch>`)",
         "macos.yml run on main",
         [(job, url, failed.tests) for job, url, failed in jobs],
         [f"- main's macOS run is red at {one}" for one in reds],
