@@ -121,14 +121,14 @@ def _lines(data: bytes) -> Iterator[dict]:
 def read(connection: sqlite3.Connection, config: jbus.Config, built: Built, most: int | None) -> None:
     """Add the lines the log gained since the last build to their hours, unless `most` bytes are
     read already, which leaves the log to the next build."""
-    if most is not None and built.bytes >= most:
-        built.left += 1
-        return
     with contextlib.ExitStack() as stack:
         new = _open(stack, config.state_dir / CALLS)
-        old = _open(stack, config.state_dir / OLD)
         if new is None:
             return
+        if most is not None and built.bytes >= most:
+            built.left += 1
+            return
+        old = _open(stack, config.state_dir / OLD)
         if old is not None and old.inode == new.inode:
             old = None
         held = cursors.held(connection, values.MACHINE, TABLE)

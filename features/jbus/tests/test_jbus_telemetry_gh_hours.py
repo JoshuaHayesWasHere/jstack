@@ -8,12 +8,19 @@ and reads the store with `sqlite3`.
 
 import json
 import os
+from datetime import UTC, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 
+import jsettings
+from jbus.telemetry import measures
 from jsettings.proc import CALLS
 from test_jbus_telemetry import Machine
+
+NOW = datetime(2026, 11, 9, 12, 20, tzinfo=UTC)
+USER = jsettings.Settings(zone=ZoneInfo("America/New_York"))
 
 
 @pytest.fixture
@@ -81,6 +88,20 @@ def test_each_line_is_counted_once_across_a_rotation(machine):
 
     machine.build()
     assert total(machine) == 10
+
+
+def test_the_two_measures_read_the_hours(machine):
+    """Hour 10 had 3 calls and hour 11 had 7: a mean of 5 over the 24 whole hours before 12:20,
+    and the lowest core allowance of the hours 11:00 to 12:59 was 800, under jbus budget's floor of 1,000."""
+    append(machine, *(call(f"2026-11-09T10:0{n}:00+00:00") for n in range(3)))
+    append(machine, *(call(f"2026-11-09T11:0{n}:00+00:00", remaining=800 + n) for n in range(7)))
+    machine.build()
+    by = {each.name: each for each in measures.MEASURES}
+    with machine.store() as store:
+        rate = measures.read(store, by["gh-calls-per-hour"], "alpha", NOW, USER)
+        least = measures.read(store, by["gh-allowance"], "alpha", NOW, USER)
+    assert (rate.value, rate.n) == (5, 2)
+    assert (least.value, least.n, least.state) == (800, 7, "bad")
 
 
 def test_a_log_of_neither_inode_is_read_from_its_start(machine):
