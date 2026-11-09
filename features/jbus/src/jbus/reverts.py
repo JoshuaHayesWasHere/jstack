@@ -412,8 +412,14 @@ def macos(run: Pass, world: World) -> None:
     `macos-red-<commit>` under the home `macos`, which says why nothing was reverted. A revert
     opened here is kept in `MAC_MAIN` as well, so `close` closes it only once the Mac is green at
     a later commit. On a project's first pass, and for a red whose revert is open or whose failed
-    tests are not read yet, nothing is done."""
+    tests are not read yet, nothing is done.
+
+    A project whose default branch has no macos.yml has no Mac to judge, and `macos` asks GitHub
+    nothing for it. It reads the file in the main checkout's `origin/<default branch>`, which
+    `jmerge` fetches after each merge, so a macos.yml merged there is judged from the next pass."""
     branch = watch._default_branch(run)
+    if run.run("git", "cat-file", "-e", f"origin/{branch}:{watch.MAC_FLOW}").returncode:
+        return
     commits = watch._api(run, f"repos/{{owner}}/{{repo}}/commits?sha={branch}&per_page=50")
     if not isinstance(commits, list) or not commits:
         return
