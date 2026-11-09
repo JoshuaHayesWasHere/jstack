@@ -228,9 +228,6 @@ def test_a_reviewer_on_a_capped_instance_is_relaunched_only_after_the_reset(shor
     assert to(kitchen, reviewer) == ["/pr-review run alpha again"]
 
 
-# The `check` wait: a required check failed at the head, and the crew's thread stopped.
-
-
 @pytest.fixture
 def red(launched):
     """Alpha's pull request #7 is red at `A`, on a green main, in job 11. A first pass told the
