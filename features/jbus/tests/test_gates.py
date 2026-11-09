@@ -710,3 +710,12 @@ def test_a_crews_decline_of_a_risk_tagged_finding_is_asked_and_any_other_is_a_de
     decided = home.pipes(question="May F2 stay as it is?", holds="")
     assert decided == f"decided: written to {file}: {questions.DECIDED_WHY}"
     assert [one.question for one in questions.load(home.kitchen.state)] == ["May F1 stay as it is?"]
+
+
+def test_a_crews_gate_whose_question_names_a_door_is_asked_though_it_has_no_holds_line(home):
+    """The door table's words name a one-way door whatever the gate's lines say, so a crew's
+    gate that asks to deploy is asked of the user, though it has no `Holds:` line."""
+    said = home.pipes(question="May I deploy the site tonight?", holds="")
+    assert said.splitlines() == ["asked: queued: question 1", "Gate: question 1"]
+    (one,) = questions.load(home.kitchen.state)
+    assert (one.question, one.holds) == ("May I deploy the site tonight?", "")
