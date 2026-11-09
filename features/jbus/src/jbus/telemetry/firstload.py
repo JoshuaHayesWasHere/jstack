@@ -268,14 +268,15 @@ def starts(repo: Path | None = None) -> dict[str, Start]:
 
 def _line(role: str) -> str:
     """Where `BUDGET` gives `role` its number, as `path:line`."""
-    source = Path(__file__)
-    for node in ast.parse(source.read_text()).body:
-        if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == "BUDGET":
-            assert isinstance(node.value, ast.Dict)
-            for key in node.value.keys:
-                if isinstance(key, ast.Constant) and key.value == role:
-                    return f"features/jbus/src/jbus/telemetry/firstload.py:{key.lineno}"
-    return "features/jbus/src/jbus/telemetry/firstload.py, BUDGET"
+    table = next(
+        node.value
+        for node in ast.parse(Path(__file__).read_text()).body
+        if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == "BUDGET"
+    )
+    assert isinstance(table, ast.Dict)
+    key = next(key for key in table.keys if isinstance(key, ast.Constant) and key.value == role)
+    assert key is not None
+    return f"features/jbus/src/jbus/telemetry/firstload.py:{key.lineno}"
 
 
 def faults(counted: dict[str, Start]) -> list[str]:

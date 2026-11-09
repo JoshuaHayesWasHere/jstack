@@ -12,8 +12,10 @@ a changed `SKILL.md`.
 import contextlib
 import io
 import json
+import runpy
 import shutil
 import sqlite3
+import sys
 from datetime import UTC, datetime
 
 import pytest
@@ -208,3 +210,12 @@ def test_a_start_file_that_is_not_there_fails(tree, capsys):
     code, out = checked(capsys)
     assert code == 1
     assert "fault: reviewer: features/pr-review/the-review.md is not there" in out
+
+
+def test_the_module_run_as_make_lint_runs_it_prints_a_line_a_role(capsys, monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["firstload"])
+    with pytest.raises(SystemExit) as ended:
+        runpy.run_module("jbus.telemetry.firstload", run_name="__main__")
+    assert ended.value.code == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert [line.split(":")[0] for line in lines[:4]] == ["crew", "reviewer", "scout", "home"]
