@@ -106,12 +106,13 @@ it with the cross-cutting tests.
 A change of the tests alone runs a narrow check. Where every changed path is a module of a
 folder of tests that the head still holds (a test file, a helper of the tests or a `conftest.py`),
 the selection is the changed test files, the model checks they reach, the tests that import
-or name a helper they changed and the cross-cutting tests: no feature's tests, no catch-all and
-no test that failed on main. Such a change alters no code but the tests', and main's full run
-catches what a narrow check misses. The cross-cutting tests still run, since they read the text
-of every file, the changed tests among them: a plain comment added to a test fails
-`test_no_comments.py`. A change that also touches a fixture, deletes a file or touches any path
-outside the tests selects by all the rules above.
+or name a helper they changed, the cross-cutting tests and the tests that failed on main: no
+feature's tests and no catch-all. Such a change alters no code but the tests', and the nightly
+full run catches what a narrow check misses. A test that failed on main still runs: the lookup
+below reads a green push run of main as one that passed it. The cross-cutting tests still run,
+since they read the text of every file, the changed tests among them: a plain comment added to a
+test fails `test_no_comments.py`. A change that also touches a fixture, deletes a file or touches
+any path outside the tests selects by all the rules above.
 
 It prints `all` only for a change to the dependencies, `pyproject.toml` and `uv.lock`, or to the
 root `conftest.py` (`EVERY_RUN`), and never for the size of what it selected: a selection of
@@ -1601,21 +1602,22 @@ def selection(changed, failed=(), edited=None):
     each cause the sorted files it selected, or the path that forced `all`. They are what the
     rules select, the test files no rule owns (`catch-all`), and the `failed` test files that
     the check runs. `why["added"]` lists the failed ones nothing else selected. A change of the
-    tests alone selects only what its imports and names reach, and the cross-cutting tests.
+    tests alone selects only what its imports and names reach, the cross-cutting tests and the
+    failed ones.
     With `edited`, imports reach as on a pull request's check (`ruled`)."""
     tests, why = ruled(changed, edited=edited)
     if tests == ["all"]:
         return tests, why
     if tests_alone(changed):
         kept = ("imports", "names", "models", "cross-cutting")
-        return sorted(set().union(*(why[key] for key in kept))), {
-            **{key: why[key] for key in kept},
-            **{key: [] for key in ("features", "catch-all", "added")},
-        }
-    lone = unowned()
-    chosen = set(tests) | lone
+        chosen = set().union(*(why[key] for key in kept))
+        why = {**{key: why[key] for key in kept}, "features": [], "catch-all": []}
+    else:
+        lone = unowned()
+        chosen = set(tests) | lone
+        why = {**why, "catch-all": sorted(lone)}
     added = set(failed) & collected() - chosen
-    return sorted(chosen | added), {**why, "catch-all": sorted(lone), "added": sorted(added)}
+    return sorted(chosen | added), {**why, "added": sorted(added)}
 
 
 DESK_PARTS = ("guards", "rest", "touched")
@@ -1738,11 +1740,11 @@ def logged(job):
 
 def failed_on_main(days, kept_path):
     """The test files a red job of main's runs of the last `days` days named and no later green
-    run of main has passed, sorted. A green run ran the whole suite, so a test it passed is red on
-    main no more, and a rerun that passed counts as one, since its red jobs are an earlier
-    attempt's. `kept` holds what earlier lookups read, and is left with the days, runs and jobs
-    still in the window. The last `SETTLED` days are listed again, and an older one only when
-    `kept` lacks it."""
+    run of main has passed, sorted. A green run ran every test still red on main when it started,
+    since each selection adds them, so a test it passed is red on main no more, and a rerun that
+    passed counts as one, since its red jobs are an earlier attempt's. `kept` holds what earlier
+    lookups read, and is left with the days, runs and jobs still in the window. The last
+    `SETTLED` days are listed again, and an older one only when `kept` lacks it."""
     kept = {"days": {}, "runs": {}, "jobs": {}}
     if kept_path.is_file():
         kept |= json.loads(kept_path.read_text())
