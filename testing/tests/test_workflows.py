@@ -1405,8 +1405,8 @@ def test_the_fast_check_selects_in_reuse_and_lints_beside_it_and_runs_neither_in
     no `uv sync` and no collection, so no job of its own stands between it and the parts. The
     lint is a job of its own beside it, which waits on nothing and nothing waits on but `check`.
     The parts run neither the selection nor the lint. A push to main asks for no reuse and
-    selects over main's last checked commit, `BASE`, which `last checked` gives; a pull request
-    over `HEAD^1`."""
+    selects over main's last checked commit, `BASE`, which `last checked` gives, by the wide
+    rule; a pull request over `HEAD^1`, with `--pull-request` (`REACH`)."""
     found, _ = steps(CHECK.read_text(), "reuse")
     named = [step.get("uses", step.get("name")).partition("@")[0] for step in found]
     assert named == [
@@ -1425,7 +1425,14 @@ def test_the_fast_check_selects_in_reuse_and_lints_beside_it_and_runs_neither_in
     ]
     look, base, tree, select = found[1], found[2], found[5], found[7]
     assert tree["run"] == 'echo "name=green-tree-$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"'
-    assert select["run"] == 'python3 scripts/select_tests.py --parts 8 "$BASE" HEAD'
+    assert select["run"] == 'python3 scripts/select_tests.py $REACH --parts 8 "$BASE" HEAD'
+    reach = select["env"]["REACH"].removeprefix("${{ ").removesuffix(" }}")
+    assert [worked(reach, {"github.event_name": e}) for e in EVENTS] == [
+        "--pull-request",
+        "",
+        "",
+        "",
+    ]
     assert [e for e in EVENTS if worked(look["if"], {"github.event_name": e})] == ["pull_request"]
     assert [e for e in EVENTS if worked(base["if"], {"github.event_name": e})] == ["push"]
     assert base["run"] == "python3 scripts/green_tree.py --last-checked check.yml"
@@ -1438,6 +1445,7 @@ def test_the_fast_check_selects_in_reuse_and_lints_beside_it_and_runs_neither_in
         "FAILED_ON_MAIN": "${{ steps.failed.outputs.tests }}",
         "SELECTED": "${{ runner.temp }}/selected-tests.txt",
         "BASE": "${{ steps.base.outputs.base || 'HEAD^1' }}",
+        "REACH": "${{ github.event_name == 'pull_request' && '--pull-request' || '' }}",
     }
     outputs = job_section("reuse", "outputs")
     assert {
