@@ -3180,6 +3180,7 @@ def test_the_parts_record_the_lines_they_run_and_check_reads_them_before_any_mar
     upload = next(
         step for step in parts if step.get("with", {}).get("path") == "${{ runner.temp }}/new-lines"
     )
+    assert upload["uses"].startswith("actions/upload-artifact@")
     assert upload["with"]["name"] == "new-lines-${{ github.run_attempt }}-${{ matrix.shard }}"
     found, _ = steps(CHECK.read_text(), "check")
     names = [step.get("id", step.get("name", step.get("uses", ""))) for step in found]
