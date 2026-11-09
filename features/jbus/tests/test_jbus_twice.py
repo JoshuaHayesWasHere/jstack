@@ -252,3 +252,127 @@ def test_twice_counts_a_shared_red_whose_log_also_counts_an_error_it_names_no_te
         passes(launched, *at)
     assert rows(launched)["alpha"]["held"] is True
     assert len(pages(launched)) == 1
+
+
+GO = ("approved", "approval", "brief_sha")
+
+
+def green_at(kitchen, head, job="21"):
+    """The pull request's required check passes at `head`."""
+    passed = {**failed(job), "conclusion": "SUCCESS"}
+    kitchen.set("open.json", [pull(kitchen, [passed], head=head)])
+
+
+def held_twice(kitchen):
+    """Fail the row's check at two heads, so that `twice` holds it, and return the go it had."""
+    had = {column: rows(kitchen)["alpha"][column] for column in GO}
+    red_at(kitchen, A, "11")
+    passes(kitchen, 0)
+    red_at(kitchen, B, "12")
+    passes(kitchen, 3)
+    assert rows(kitchen)["alpha"]["held"] is True
+    assert not rows(kitchen)["alpha"]["approved"]
+    return had
+
+
+def fails(kitchen):
+    return json.loads((kitchen.state / "fails.json").read_text())["alpha"]
+
+
+def test_a_held_row_lifts_itself_once_its_required_check_passes_and_its_count_starts_again(
+    launched,
+):
+    """2026-11-09: each hold waited for an approve, 23.9 row-hours of it after the check was
+    green again. The pass that sees every required check passed at the head puts back the go the
+    hold took, with no approve from anyone, and the count starts from none: one more red head is
+    told to the crew and holds nothing."""
+    had = held_twice(launched)
+    green_at(launched, C)
+    passes(launched, 6)
+    row = rows(launched)["alpha"]
+    assert not row.get("held") and "hold" not in row
+    assert {column: row[column] for column in GO} == had
+    assert (fails(launched).get("heads") or {}) == {}
+    assert not fails(launched).get("held_at")
+
+    red_at(launched, D, "14")
+    passes(launched, 9)
+    assert "failed|alpha|dddddddddddd" in told(launched)
+    assert not rows(launched)["alpha"].get("held")
+    assert len(pages(launched)) == 1
+
+
+def test_a_row_somebody_else_held_since_stays_held_on_a_green_head(launched):
+    held_twice(launched)
+    assert launched.main("queue", "hold", "alpha")[0] == 0
+    green_at(launched, C)
+    passes(launched, 6)
+    assert rows(launched)["alpha"]["held"] is True
+    assert not rows(launched)["alpha"]["approved"]
+
+
+def test_a_row_whose_brief_changed_since_its_go_stays_held_on_a_green_head(launched):
+    held_twice(launched)
+    stored = launched.state / "briefs" / "alpha.md"
+    stored.write_text(stored.read_text() + "\nAlso: one more thing to do.\n")
+    green_at(launched, C)
+    passes(launched, 6)
+    assert rows(launched)["alpha"]["held"] is True
+    assert not rows(launched)["alpha"]["approved"]
+
+
+def infra_at(kitchen, head, job, said=""):
+    """The pull request's check fails at `head`, at a step that downloads a package: GitHub names
+    the failed step, and its log names no failed test and, unless `said` does, no make target."""
+    red_at(kitchen, head, job)
+    logs = json.loads((kitchen.stub / "logs.json").read_text())
+    log = (
+        f"2026-11-09T10:00:00.0000000Z HEAD is now at 10f4a11 Merge {head} into {GREEN}\n"
+        "2026-11-09T10:00:05.0000000Z curl: (22) The requested URL returned error: 503\n"
+        f"{said}"
+        "2026-11-09T10:00:05.1000000Z ##[error]Process completed with exit code 22.\n"
+    )
+    kitchen.set("logs.json", {**logs, job: log})
+    path = kitchen.stub / "jobs.json"
+    jobs = json.loads(path.read_text()) if path.exists() else {}
+    steps = [
+        {"name": "Set up job", "conclusion": "success"},
+        {"name": "Install zsh", "conclusion": "failure"},
+        {"name": "make check", "conclusion": "skipped"},
+    ]
+    kitchen.set("jobs.json", {**jobs, job: {"status": "completed", "run_attempt": 1, "steps": steps}})
+
+
+def job_reads(kitchen, job):
+    return [line for line in kitchen.log("gh") if line.endswith(f"/actions/jobs/{job}")]
+
+
+def test_a_head_that_failed_only_an_infra_step_is_kept_apart_and_counted_for_nothing(launched):
+    """13 of the 50 heads counted by 2026-11-09 failed only a shared test or an infra step. A
+    head whose failed job failed at a step whose log names no failed test and no make target is
+    kept apart, as a red main's is, and two of them hold nothing. GitHub is asked for each job's
+    step once, however many passes judge the head."""
+    infra_at(launched, A, "11")
+    passes(launched, 0)
+    infra_at(launched, B, "12")
+    passes(launched, 3, 6)
+    kept = fails(launched)
+    assert (kept["heads"], kept["infra"]) == ({}, [A, B])
+    assert not rows(launched)["alpha"].get("held")
+    assert not pages(launched)
+    assert len(job_reads(launched, "11")) == len(job_reads(launched, "12")) == 1
+
+    red_at(launched, C, "13")
+    passes(launched, 9)
+    assert list(fails(launched)["heads"]) == [C]
+    assert not rows(launched)["alpha"].get("held")
+
+
+def test_a_failed_step_whose_log_names_a_make_target_is_no_infra_and_counts(launched):
+    target = "2026-11-09T10:00:05.0500000Z make: *** [check-fast] Error 2\n"
+    infra_at(launched, A, "11", target)
+    passes(launched, 0)
+    infra_at(launched, B, "12", target)
+    passes(launched, 3, 6)
+    assert fails(launched).get("infra", []) == []
+    assert rows(launched)["alpha"]["held"] is True
