@@ -5,12 +5,14 @@ the other is new."""
 
 import json
 import os
+import shutil
 import time
 from pathlib import Path
 
 import pytest
 
 from jroles import cli
+from jroles import mirror as mirror_module
 
 PRIME, THIRD = "claudeAgent_claude_prime", "claudeAgent_third"
 
@@ -540,3 +542,32 @@ def test_a_missing_claude_json_is_no_drift_a_run_could_never_clear(home, capsys)
     code, said, err = mirror(capsys, "--check")
     assert (code, err) == (0, "")
     assert not any(str(home / ".claude.json") in line for line in said)
+
+
+def test_a_crews_worktree_settings_deny_two_tools_and_list_every_other_skill_by_name(
+    home, skills
+):
+    """`crew_settings` is the file jbus writes in a crew's worktree: it takes Artifact and
+    AskUserQuestion out, and lists by name only each skill of `~/.claude/skills` that neither a
+    crew nor its reviewer invokes. A skill `~/.claude` already overrides keeps its own value, so
+    no skill the mirror turns off is listed again."""
+    main = home / ".claude"
+    for name in ("pr-review", "teach", "why"):
+        write(main / "skills" / name / "SKILL.md", f"{name}\n")
+    write(main / "skills" / "notes.md", "no skill\n")
+    made = mirror_module.crew_settings(mirror_module.Main.of(home))
+    assert made["permissions"] == {"deny": ["Artifact", "AskUserQuestion"]}
+    listed_skills = {at.parent.name for at in (main / "skills").glob("*/SKILL.md")}
+    outside = listed_skills - {"crew", "pr-review"} - set(skills["skillOverrides"])
+    assert outside == {"teach", "why"}
+    assert made["skillOverrides"] == dict.fromkeys(sorted(outside), "name-only")
+
+
+def test_a_crews_worktree_settings_need_no_settings_or_skills_in_main(home):
+    main = home / ".claude"
+    (main / "settings.json").unlink()
+    shutil.rmtree(main / "skills")
+    assert mirror_module.crew_settings(mirror_module.Main.of(home)) == {
+        "permissions": {"deny": ["Artifact", "AskUserQuestion"]},
+        "skillOverrides": {},
+    }
