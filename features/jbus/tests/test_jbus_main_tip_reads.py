@@ -7,6 +7,11 @@ import json
 from collections import Counter
 from datetime import timedelta
 
+import pytest
+
+import jbus
+from jbus import watch
+from jbus.passes import Pass
 from test_jbus_kitchen import NOW
 from test_jbus_reverts import mac_flow
 from test_jbus_watch import main_of
@@ -66,3 +71,21 @@ def test_a_pass_asks_github_for_a_commits_runs_and_check_runs_once(kitchen):
         judged = [line for line in asked if "head_sha=" in line or line.endswith("/check-runs")]
         assert judged
         assert [line for line, n in Counter(judged).items() if n > 1] == []
+
+
+@pytest.mark.parametrize(("code", "out"), [("1", ""), ("0", "{not json")])
+def test_a_failed_or_garbled_answer_is_kept_for_no_tip_and_asked_again(kitchen, code, out):
+    """Where GitHub fails or answers what is not JSON, the pass watches the nightlies alone and
+    keeps nothing, neither for the tip nor for the pass, so the next ask goes to GitHub."""
+    config = jbus.load()
+    run = Pass(config, config.projects[0], NOW)
+    kitchen.set("gh-down", "")
+    kitchen.set("gh-code", code)
+    kitchen.set("gh-out", out)
+    path = "repos/{owner}/{repo}/commits?sha=main&per_page=50"
+    assert watch._api(run, path) is None and path not in run.answers
+    assert watch.watched(run) == list(watch.NIGHTLIES)
+    assert not (run.state / watch.WORKFLOW_FILES).exists()
+    (kitchen.stub / "gh-down").unlink()
+    assert watch.watched(run) == list(watch.NIGHTLIES)
+    assert json.loads((run.state / watch.WORKFLOW_FILES).read_text())["tip"] == run.tip()

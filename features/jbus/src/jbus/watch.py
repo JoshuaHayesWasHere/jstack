@@ -1866,11 +1866,11 @@ def _workflows(run: Pass, at: str) -> dict[str, Any] | None:
         "-f",
         f"at={at}:.github/workflows",
     )
+    if asked.returncode != 0:
+        return None
     try:
         tree = json.loads(asked.stdout)["data"]["repository"]["object"]
     except (ValueError, KeyError, TypeError):
-        return None
-    if asked.returncode != 0:
         return None
     return tree if isinstance(tree, dict) else {}
 
