@@ -299,7 +299,7 @@ def test_no_carried_or_typed_basis_opens_a_door_the_commands_imply(kitchen, rout
     assert says in said
     assert rows(kitchen)["deploy-prod"]["approved"] == ""
     kitchen.poll()
-    assert "crew: deploy-prod" not in [launch["title"] for launch in kitchen.t3.launches]
+    assert "crew: deploy-prod" not in crews(kitchen)
 
 
 @pytest.mark.parametrize("basis", [user_message, user_pick], ids=["message", "pick"])
@@ -308,7 +308,7 @@ def test_the_users_own_message_or_pick_naming_the_row_opens_it(kitchen, route, b
     basis(kitchen, route, "deploy-prod")
     assert rows(kitchen)["deploy-prod"]["approval"]["checked"] is True
     kitchen.poll()
-    assert "crew: deploy-prod" in [launch["title"] for launch in kitchen.t3.launches]
+    assert "crew: deploy-prod" in crews(kitchen)
 
 
 def test_the_carried_word_parks_a_gate_whose_holds_names_the_case(kitchen):
@@ -386,7 +386,7 @@ def test_an_edit_that_adds_a_door_takes_the_rows_go_back(kitchen):
     assert f"plain's go is taken back: its brief now holds for {PROD}" in said
     assert rows(kitchen)["plain"]["approved"] == ""
     kitchen.poll()
-    assert "crew: plain" not in [launch["title"] for launch in kitchen.t3.launches]
+    assert "crew: plain" not in crews(kitchen)
 
 
 def test_a_carried_go_on_winnifreds_prod_deploy_brief_is_gated_and_launches_nothing(kitchen):
@@ -402,7 +402,7 @@ def test_a_carried_go_on_winnifreds_prod_deploy_brief_is_gated_and_launches_noth
     assert asked.holds == PROD
     assert rows(kitchen)["qw-deploy-main-to-prod"]["approved"] == ""
     kitchen.poll()
-    assert kitchen.t3.launches == []
+    assert crews(kitchen) == []
 
 
 DELETES = "deletes data"
@@ -433,7 +433,7 @@ def test_the_homes_approve_on_the_users_own_message_opens_the_door_at_once(kitch
     assert questions.read(kitchen.state) == []
     assert rows(kitchen)[STALE]["approval"]["checked"] is True
     kitchen.poll()
-    assert f"crew: {STALE}" in [launch["title"] for launch in kitchen.t3.launches]
+    assert f"crew: {STALE}" in crews(kitchen)
 
 
 def test_a_message_that_is_not_the_users_own_opens_no_door(kitchen):
@@ -519,3 +519,9 @@ def test_an_answer_to_a_may_go_gate_said_before_the_brief_now_stored_approves_no
     assert f"before {STALE}'s brief was stored at " in said, said
     assert questions.question(kitchen.state, asked.number).answer is None
     assert rows(kitchen)[STALE]["approved"] == ""
+
+
+def crews(kitchen):
+    """The title of each launch of a row's thread, leaving out the catch-all's home that the
+    pass keeps running beside them."""
+    return [one["title"] for one in kitchen.t3.launches if not one["title"].startswith("home: ")]

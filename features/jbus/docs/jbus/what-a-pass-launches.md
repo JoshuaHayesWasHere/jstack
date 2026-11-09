@@ -120,3 +120,16 @@ jbus queue approve <slug> --sha <sha12> --word <id>
 
 `jbus queue add` refuses a `Task:` or a `Request:` line longer than 2,000 characters, counting the text of the line and the lines under it.
 A transcript or a long text goes in a file the line names.
+
+## A home
+
+A pass keeps the catch-all's home, `uncategorized`, running once the project's home has started (a root `plan.md`).
+When the catch-all's `home-id` names no thread, or one T3 Code has archived or does not know, and the thread jbus last launched for it is not live either, the pass makes `uncategorized/` with an empty `plan.md` where there is none and launches a thread titled `home: <project> uncategorized` whose message is `/home uncategorized`.
+The thread works in the project's own checkout, with no worktree and no branch, and its model is the role map's `home` line.
+Its start writes its own `home-id`.
+
+A home that stalls is launched again too: a home quiet with work out is nudged twice, a patience apart, and a patience after the second nudge jbus launches `/home <scope>` on a fresh thread ([What waits on you](what-waits-on-you.md#a-home-that-stalls)).
+
+`~/.local/state/jbus/<project>/relaunches.json` keeps the last launch of each home: its thread, when, and why.
+jbus launches a home at most once in `PATIENCE` (60 minutes), the time its start has to write its `home-id`, a lost reply included.
+No home launches while the dispatch is off or stopped.
