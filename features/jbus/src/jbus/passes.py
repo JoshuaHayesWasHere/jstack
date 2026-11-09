@@ -101,6 +101,10 @@ class Pass:
     look. `red` is main's tip, red after its one rerun, that `watch` hands to `jbus.culprits` in
     the pass that files its row or reverts its culprit. `briefs` is each brief `watch.brief_of`
     read this pass, by its path, with the mtime and size it had then.
+
+    `answers` is what GitHub answered `watch._api` this pass, by its path, and `tip` is main's tip
+    as `git ls-remote` gave it, so a pass asks each once. Both hold only until the pass runs a
+    command that may change something (`reads`): then the next asker asks again.
     """
 
     config: Config
@@ -117,6 +121,8 @@ class Pass:
     world: World | None = None
     red: RedTip | None = None
     briefs: dict[Path, tuple[tuple[int, int], str]] = field(default_factory=dict)
+    answers: dict[str, Any] = field(default_factory=dict)
+    main: str | None = None
 
     def __post_init__(self) -> None:
         self.state = self.config.state(self.project)
@@ -132,8 +138,25 @@ class Pass:
         """Run a command in the project's main checkout. A command that is missing, or that
         runs past `timeout` seconds, fails like any other. `JMERGE_TIMEOUT` is jmerge's: above
         the fresh check's own limit and below the unit's TimeoutStartSec
-        (`features/jbus/tests/test_jbus.py`)."""
+        (`features/jbus/tests/test_jbus.py`). A command that may change what GitHub would answer
+        forgets `answers` and `tip`."""
+        if not reads(command):
+            self.answers.clear()
+            self.main = None
         return proc.run(*command, cwd=self.project.checkout, timeout=timeout)
+
+    def tip(self) -> str:
+        """Main's tip, as `git ls-remote` gives it for the branch `origin/HEAD` names, asked
+        once until the pass changes something. Empty where origin names no default branch or
+        git gives no answer."""
+        if self.main is None:
+            asked = self.run("git", "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD")
+            default = asked.stdout.strip().removeprefix("origin/")
+            self.main = ""
+            if default:
+                asked = self.run("git", "ls-remote", "origin", f"refs/heads/{default}")
+                self.main = (asked.stdout.split() or [""])[0] if asked.returncode == 0 else ""
+        return self.main
 
     @functools.cached_property
     def done(self) -> frozenset[str]:
@@ -169,6 +192,22 @@ class Pass:
         self.gated.add(slug)
         self.asked[slug] = what
         self.condition(slug, what, text, key=key)
+
+
+WRITES = ("-X", "--method", "-f", "-F", "--field", "--raw-field", "--input")
+"""The flags of `gh api` that send a request other than a plain GET."""
+
+
+def reads(command: Sequence[str]) -> bool:
+    """Return whether a command only reads: `git` other than a push, which changes nothing on
+    GitHub, `gh api` with none of `WRITES`, or a GraphQL query that is no mutation. Any other
+    command may change what GitHub answers."""
+    head = tuple(command[:3])
+    if head[:1] == ("git",):
+        return "push" not in command
+    if head == ("gh", "api", "graphql"):
+        return not any("mutation" in one for one in command)
+    return head[:2] == ("gh", "api") and not set(command) & set(WRITES)
 
 
 def _done(args: argparse.Namespace, config: Config) -> int:
