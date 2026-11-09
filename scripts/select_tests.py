@@ -1287,8 +1287,9 @@ def ruled(changed, follows=everywhere, cross=True, strict=False):
     `all`. An import reaches a test only from a changed path that `follows` holds for, and the
     cross-cutting tests count only with `cross`. With `strict` a name reaches a test only from
     such a path too, and a feature's paths reach none of its tests. Only `EVERY_RUN` forces
-    `all`."""
+    `all`, and so does a module that does not parse (`Unread`), which `facts` reads first."""
     ready()
+    facts()
     for path in changed:
         if path in EVERY_RUN:
             return ["all"], {"forced-by": path}
