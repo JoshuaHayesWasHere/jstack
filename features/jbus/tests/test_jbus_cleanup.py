@@ -2,10 +2,11 @@
 says so from its first pass.
 
 A settled crew's whole Claude scratch folder goes with its worktrees (`jbus.cleanup.clear_scratch`).
-A pass that `jgauge room` holds back for /tmp first removes the Claude scratch folders of crews
-whose worktrees are gone and the copies of the base `proved.sh` left behind (`jbus.cleanup.sweep`),
-then asks room again. Like `test_jbus_kitchen.py`, the tests run the real pass and the real
-`jgauge room` against the fakes, here with a /tmp whose quota counts what the folders hold.
+A pass that `jgauge room` holds back for /tmp (`jbus.dispatch.Turns.take`) first removes the
+Claude scratch folders of crews whose worktrees are gone and the copies of the base `proved.sh`
+left behind (`jbus.cleanup.sweep`), then asks room again. Like `test_jbus_kitchen.py`, the tests
+run the real pass and the real `jgauge room` against the fakes, here with a /tmp whose quota
+counts what the folders hold.
 """
 
 import json
