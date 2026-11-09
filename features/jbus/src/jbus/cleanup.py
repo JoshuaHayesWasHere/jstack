@@ -56,13 +56,16 @@ def in_use() -> set[Path] | None:
 def clear_scratch(run: Pass, slug: str, worktree: str = "") -> bool:
     """Remove the slug's scratch folder and the worktrees its crew made in the scratchpad of its
     `worktree`, save one in use, then prune their registrations. Return whether nothing stayed:
-    no worktree was kept in use or failed to go."""
+    no worktree was kept in use or failed to go, and `in_use` could say which are in use."""
     folder = scratch(run, slug)
     cleared, stayed = [], False
     if folder.exists():
         shutil.rmtree(folder, ignore_errors=True)
         cleared.append(f"its scratch folder {folder}")
-    if worktree and (busy := in_use()) is not None:
+    busy = in_use() if worktree else set()
+    if busy is None:
+        stayed = True
+    elif worktree:
         pad = scratchpad(worktree).resolve()
         listed = run.run("git", "worktree", "list", "--porcelain").stdout.splitlines()
         for line in listed:
