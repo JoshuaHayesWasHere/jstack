@@ -244,8 +244,9 @@ TAKEN = "'s go is taken back: its brief now holds for "
 did not: no go given before a door was in the brief opens it."""
 SIDEBAR_GO = re.compile(r"approve (?P<slug>\S+) \(brief sha (?P<sha>[0-9a-f]{12})\)")
 """The user's own message that the sidebar's Approve sends to a home, `approve <slug> (brief sha
-<sha12>)` (`rowWordMessage` in `features/t3code-jstack/packaging/0008` and `0033`): the sha is
-the brief the user had on screen, which a go on that message is held to."""
+<sha12>)` (`rowWordMessage` in
+`features/t3code-jstack/packaging/0008-jstack-tree-row-actions.patch`): the sha is the brief the
+user had on screen, which a go on that message is held to."""
 
 Row = dict[str, Any]
 
