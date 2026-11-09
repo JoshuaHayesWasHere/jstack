@@ -14,7 +14,7 @@ import jbus
 from jbus import passes, queue, restated, states, tick, verbs, waiting, work
 from jmerge import ready
 from test_jbus_kitchen import ASK, NOW, REPO, SAID_AT, Kitchen, iso
-from test_jbus_queue import add, adds, approves, batch, brief, go, rows, sha12
+from test_jbus_queue import add, adds, approves, batch, brief, go, rows, sha12, widened
 from test_jbus_row_ends import branched
 
 PULL = "https://example.test/pull/9"
@@ -247,6 +247,47 @@ def test_a_row_whose_check_runs_still_waits_on_the_check_runner(kitchen):
     assert "is in progress" in line["why"]
 
 
+def test_a_launched_row_whose_brief_changed_after_its_go_waits_on_the_users_go_and_says_why(
+    kitchen,
+):
+    """The 2026-11-09 tree: sidebar-home-from-jbus's brief changed after the user's go, jmerge
+    held #1421 for no go, and the user learnt why only by asking its home. The row's line now
+    names the user, the go that lifts it with the brief's sha, and the lines that changed, and a
+    go for the new brief takes the word off at once, before the next pass."""
+    _open_with(kitchen, ready.NO_GO)
+    assert "lift" not in judged(kitchen)
+    changed = widened("alpha", "The sidebar shows the row.")
+    add(kitchen, "alpha", approve=False, text=changed)
+    kitchen.poll(NOW + timedelta(minutes=3))
+    line = judged(kitchen)
+    assert (line["who"], line["lift"]) == ("user", "approve")
+    assert line["waits"] == f"your go for its brief at {sha12(changed)}"
+    assert line["why"].startswith("its brief changed after your go: ")
+    assert "The sidebar shows the row." in line["why"]
+    assert go(kitchen, "alpha")[0] == 0
+    assert "lift" not in judged(kitchen)
+
+
+def test_a_queued_row_with_no_go_says_so_with_the_sha_it_waits_on(kitchen):
+    add(kitchen, "alpha", approve=False)
+    kitchen.poll()
+    line = judged(kitchen)
+    assert (line["value"], line["who"], line["lift"]) == ("unapproved", "user", "approve")
+    assert line["waits"] == f"your go for its brief at {sha12(brief('alpha'))}"
+    assert line["why"] == "it has no go of yours yet"
+    add(kitchen, "beta", approve=False)
+    line = judged(kitchen, "beta")
+    assert (line["lift"], line["why"]) == ("approve", "it has no go of yours yet")
+
+
+def test_a_pull_request_held_for_an_accept_waits_on_the_users_accept(kitchen):
+    _open_with(kitchen, ready.TOUCHES.format(user="joshua", path="infra/prod.tf"))
+    line = judged(kitchen)
+    assert (line["value"], line["who"], line["lift"]) == ("hold", "user", "accept")
+    assert line["waits"] == "your accept of #9 (jmerge --accept 9)"
+    assert "touches infra/prod.tf" in line["why"]
+
+
 def test_a_pass_that_could_not_ask(kitchen):
     add(kitchen, "alpha")
     kitchen.t3.thread("alpha", "running")
@@ -301,7 +342,8 @@ def kitchen(tmp_path, monkeypatch):
 
 def test_who_holds_a_state_is_its_patterns_holder_but_for_a_leftover_and_a_thread_by_role():
     """A row that ended with something left is never the user's but where a gate of the user's
-    holds it: its home closes it, or a thread at work on it, or its review is still to come."""
+    holds it: its home closes it, or a thread at work on it, or its review is still to come. A
+    row whose go does not hold is the user's at any stage up to its merge."""
     holders = {"user", "crew", "rev", "ci", "bus", "dep", "ok", "home", "unknown"}
     roles = {"crew", "rev", "scout", "home", "other"}
     for facts in work.every():
@@ -314,11 +356,14 @@ def test_who_holds_a_state_is_its_patterns_holder_but_for_a_leftover_and_a_threa
                     assert held == work.Holder("user", "your answer", "gate")
                 elif state.value in ("leftover", "closed"):
                     assert held.who != "user"
+                elif work.lift(state) is not None:
+                    assert (held.who, held.lift) == ("user", work.lift(state))
                 elif closer != work.Closer.REVIEW or state.value != "quiet":
                     assert held == work.Holder(state.who, state.waits, state.pattern.lane)
         for role in ("crew", "reviewer", "scout", "home", "other"):
             held = work.holder(state, role=role)
-            assert held.lane == "" and (held.who in roles or held.who == state.who)
+            mine = held.who in roles or held.who == state.who or held.lift is not None
+            assert held.lane == "" and mine
 
 
 def test_an_approved_row_added_while_a_pass_runs_waits_on_its_dependency(kitchen):

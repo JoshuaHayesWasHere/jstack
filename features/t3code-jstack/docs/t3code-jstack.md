@@ -97,6 +97,22 @@ A project added to T3 is a root row at once, before it has a thread, and asks on
 Root rows sort into an active group and an idle one below a divider, on their own, and within each group a root row keeps the place you drag it to, or move it to with Alt+ArrowUp and Alt+ArrowDown.
 A row's menu, by right-click, the ContextMenu key or Shift+F10, holds what the row can do, and a home's actions go to the home as your own message: New crew task and New scout fill its composer, New child home asks the root home for a scope, Archive home sends `/handoff`, and Start a home starts a root home in a project with none.
 
+### What the tree puts before you
+
+The tree puts a task before you, amber and first in its home, whenever jbus's `work.json` names you as its holder (`who: user`), at any stage, queued or launched.
+It keeps no rule of its own: what a task waits on, and why, are the line's `lift` and `why` ([jbus's units](../../jbus/docs/jbus/the-units.md)).
+A click unfolds it under the row: what it waits on, why, and a button.
+
+| jbus's `lift` | When | Button | What it sends the task's home, as your own message |
+|---|---|---|---|
+| `approve` | its go does not hold: never approved, held, or its brief changed after the go | read and approve | `approve <slug> (brief sha <sha12>)`, for the sha of the brief you read |
+| `accept` | jmerge holds its pull request for a reason `jmerge --accept` lifts | read and accept | `accept pull request #<n> (<slug>)` |
+
+Each button opens the brief as jbus keeps it, with why it waits above it, such as the lines that changed since your go, and the dialog's Approve this brief or Accept #<n> sends the message.
+The row's menu has them too, as Approve... and Accept....
+The home acts on the message as your word: it runs `jbus queue approve <slug> --sha <sha12>`, which refuses a brief that changed again since you read it, or `jmerge --accept <n>`.
+A gate's question gets Answer instead, and a task that waits on you for anything else says what it waits on, with no button.
+
 ## How fresh the tree is
 
 The server sends the tree a change to a file it reads from jbus or a home within a tenth of a second.

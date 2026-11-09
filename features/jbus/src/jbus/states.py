@@ -148,9 +148,11 @@ def keep_work(half: Half) -> None:
         scout = {"scout": str(work.scouting(state))} if role else {}
         why = str(row.get("why", ""))
         unhomed = leftover.his(record, run.now) if record else ""
+        unheld = queue.unheld(run.state, row) if state.facts.row in work.UNHELD else None
+        closer = _closer(run, slug, record, gated)
         line = work.entry(
             state,
-            work.holder(state, role, why, _closer(run, slug, record, gated), unhomed),
+            work.holder(state, role, why, closer, unhomed, unheld, str(row.get("pr", ""))),
             key=slug,
             kind="row",
             slug=slug,
@@ -225,7 +227,9 @@ def _since(run: Pass, listed: list[dict[str, Any]]) -> list[dict[str, Any]]:
             row = now.get(one["slug"])
             if row is None:
                 continue
-            one = work.restate(one, row=queue.standing(run.state, row, done))
+            facet = queue.standing(run.state, row, done)
+            go = queue.unheld(run.state, row) if facet in work.UNHELD else None
+            one = work.restate(one, row=facet, go=go)
         kept.append(one)
     return kept
 
