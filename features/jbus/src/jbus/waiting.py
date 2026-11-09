@@ -38,7 +38,13 @@ Each pass rewrites the list. An item is one thing only the user can do,
 - `stalled`: a home jbus nudged twice and started again on a fresh thread that is still quiet with
   work out (`stalls.stalled`), with its own slug `home-<scope>`. It wakes no thread, since the
   home is the one that stalled, and it blocks as a stall (d). It leaves the list once the home
-  does something jbus can see.
+  does something jbus can see;
+- `install`: T3 Code runs a jstack build whose patch series is not the series of the patches in
+  the green checkout, or in the project's checkout where it has no green copy (`behind`). The
+  line names both series, how many changes to the patches merged since the build's, and
+  `jinstall --setup`, which only the user runs, since it needs sudo and a restart of T3 Code. It
+  leaves the list on the first pass that reads the series match, and a machine with no jstack
+  build never lists it. It never blocks.
 
 No list holds an item of a slug that was removed from the queue (`queue.removed`). `read` leaves
 such an item out of what the last pass left, and `keep` leaves it out of what the pass finds. So the
@@ -100,6 +106,7 @@ import jsettings
 from jbriefs import below
 from jbus import (
     alert,
+    green,
     leftover,
     locked,
     merge,
@@ -116,6 +123,7 @@ from jbus import (
 from jbus.passes import CONDITION, Pass, Slot
 from jbus.watch import World, at_work
 from jmerge import judgement
+from jsettings import proc
 
 if TYPE_CHECKING:
     from jbus.poll import Half
@@ -147,6 +155,7 @@ KINDS = (
     Kind("config", "Setup jbus lacks", "Set up", 6),
     Kind("github", "GitHub's API allowance spent", "See when it resets", 8),
     Kind("stalled", "Homes stalled after jbus started them again", "Get it going", 9),
+    Kind("install", "A T3 Code build behind main's patches", "Install it", 10),
 )
 
 Item = dict[str, Any]
@@ -425,6 +434,7 @@ def keep(
     found += holds(run, world, pulls, had("hold"))
     found += held(run.state)
     found += stalls.stalled(run.state)
+    found += behind(run)
     if spent is None:
         found += had("github")
     elif spent:
@@ -596,6 +606,60 @@ def _alarms(run: Pass) -> list[Item]:
         item = {"key": f"alarm:{one.key}", "kind": "alarm", "line": one.line, "since": one.since}
         found.append(_blocks(run, item, "d", "a jbus alarm"))
     return found
+
+
+PACKAGING = Path("features/t3code-jstack/packaging")
+"""Where a checkout of jstack keeps the patches and the PKGBUILD of its T3 Code build."""
+
+
+def behind(run: Pass) -> list[Item]:
+    """Return the one `install` item where T3 Code runs a jstack build of other patches than the
+    tree jbus runs from: the green copy of the project's checkout, else the checkout. The series
+    on each side are the doctor's (`jinstall.kinds.T3JstackBuild`): the running build's from what
+    `t3 --version` answers, and the tree's from its patches (`patch_series`). A project whose
+    tree has no such patches, and a machine whose `t3` answers no jstack build, list nothing."""
+    from jinstall.kinds import T3_JSTACK, patch_series, t3_command
+    from jinstall.machine import Machine
+
+    copy = green.path()
+    made_from = green.of(copy)
+    ours = made_from is not None and made_from.resolve() == run.project.checkout.resolve()
+    tree = copy if ours else run.project.checkout
+    if not any((tree / PACKAGING).glob("*.patch")):
+        return []
+    machine = Machine.here(run.project.checkout)
+    command = t3_command(machine)
+    ran = machine.run([str(command), "--version"]) if command is not None else None
+    built = None if ran is None or ran.code != 0 else T3_JSTACK.search(ran.out)
+    want = patch_series(tree / PACKAGING)
+    if built is None or built[2] == want:
+        return []
+    have = built[2]
+    lacks = _lacks(run.project.checkout, green.at(tree), have)
+    line = (
+        f"install t3code-jstack: T3 Code runs the jstack build of series {have}, and the patches "
+        f"jbus runs from are series {want}: {lacks}; run jinstall --setup, then quit T3 Code "
+        "and open it again"
+    )
+    return [{"kind": "install", "key": "install:t3code-jstack", "line": line}]
+
+
+def _lacks(checkout: Path, tip: str, have: str) -> str:
+    """Say how many changes to the patches merged after the commit that gave the PKGBUILD the
+    series `have`, up to `tip`, from the checkout's history."""
+
+    def git(*args: str) -> str:
+        said = proc.run("git", "-C", str(checkout), *args, timeout=60)
+        return said.stdout.strip() if said.returncode == 0 else ""
+
+    if tip:
+        pkgbuild = str(PACKAGING / "PKGBUILD")
+        named = git("log", "--reverse", "--format=%H", f"-S{have}", tip, "--", pkgbuild)
+        first = named.split("\n", 1)[0]
+        count = git("rev-list", "--count", f"{first}..{tip}", "--", str(PACKAGING)) if first else ""
+        if count.isdigit():
+            return f"the build lacks {count} merged change{'s' * (count != '1')} to them"
+    return "main's history does not hold the build's series, so it lacks some of them"
 
 
 def _briefless(run: Pass, rows: list[queue.Row] | None, listed: list[Item]) -> list[Item]:

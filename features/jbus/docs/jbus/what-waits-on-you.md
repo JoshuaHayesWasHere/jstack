@@ -21,6 +21,14 @@ Its line names the window and when it starts again, such as `GitHub refused it f
 It goes on the first pass that reads calls left again, and it never blocks.
 A window with no call left is under the floor, so the pass asks GitHub only what merging needs ([`jbus budget`](the-verbs.md)).
 
+A T3 Code build behind jstack's patches is one item of that list too, of the kind `install`.
+A merged change to the patches reaches the sidebar only once you run `jinstall --setup`, which needs sudo, and then quit T3 Code and open it again.
+Each pass reads the series of the running build from `t3 --version`, as `jinstall --doctor` does, and the series of the patches in the tree jbus runs from: the green copy, else the checkout.
+While the two differ, the line names both series, how many changes to the patches merged since the running build's, and `jinstall --setup`, such as `install t3code-jstack: T3 Code runs the jstack build of series 175325ee3a, and the patches jbus runs from are series ba09003d8a: the build lacks 3 merged changes to them; run jinstall --setup, then quit T3 Code and open it again`.
+`jbus needs` prints it, and it wakes no home, since no home can install it.
+It goes on the first pass after the install, and a machine whose T3 Code is no jstack build never lists it.
+It never blocks.
+
 A row that ended with something left is not yours while its home has it.
 jbus tells the home once ("The leftover" in [Tying a crewmate to its thread](../working-on-jbus/tying-a-crewmate-to-its-thread.md)), and the row waits on that home.
 The row is not in `waiting-on-user.json`.
@@ -52,7 +60,7 @@ It leaves the list once the home does something jbus can see.
 
 `jbus needs` prints what of that list only you can do, for every project, or for one with `--project`.
 It keeps an item by the rule that raises a decision and wakes a home with it (`blockers.needs`).
-That rule keeps a gate that holds, a gate with no default or one that names a door, a go gate whose silence starts nothing, a row with no go, a pull request `jmerge` holds for your word and a setup only you can give.
+That rule keeps a gate that holds, a gate with no default or one that names a door, a go gate whose silence starts nothing, a row with no go, a pull request `jmerge` holds for your word, a setup only you can give and a T3 Code build to install.
 
 Each item is one line with what it holds, then its fail-safe where it has one, then a plain hint for your reply: `answer: reply in your own words to keep the default (<default, cut short>) or say what to do instead`.
 You reply to the home in your own words, and the home turns them into the verb: nothing here is a line to send as it is.
