@@ -61,8 +61,10 @@ Each now holds by the guard the design names for it, and a test in `features/hom
 
 1. `RetireHandsOver`, by the hand-over: the handoff skill archives a scope whatever it has out, starts no home after it, and removes its `home-id` and moves its plan out, so what `jbus out --scope <scope>` printed for it is the root home's (`jbriefs/home.py`, `jbus/children.py`).
    The test is `test_retire_hands_over_a_child_archived_with_its_crew_out_leaves_it_to_the_root`, where the handoff archives the scope while a crew jbus launched for it is out, and the crew's brief is the root home's from then on.
-2. `StallFlagged`, with `FirstStrike`, `NudgesBounded` and `AsksAfterTwo`, by the root's watch of its children: a jbus pass nudges a child that has been quiet for its patience with work out, tells the user at once, nudges it once more and then asks the user (`jbus/children.py`, `watch`).
-   The test is `test_stall_flagged_a_quiet_child_with_its_crew_out_is_flagged`, where real jbus passes nudge the child's home thread an hour after its crew stopped, and the user hears of it.
+2. `StallFlagged`, with `NudgesBounded` and `AsksAfterRelaunch`, by the root's watch of its children: a jbus pass nudges a child that has been quiet for its patience with work out, nudges it once more, launches its home on a fresh thread, and then puts it on the user's list of what needs them (`jbus/children.py`, `watch`).
+   The test is `test_stall_flagged_a_quiet_child_with_its_crew_out_is_flagged`, where real jbus passes nudge the child's home thread an hour after its crew stopped, and send the root's thread nothing.
+   Two rules of 2026-11-08 (the root-hierarchy home's plan, rh-keepalive) came with the launch: `StallOnNeeds`, that a stall goes to no home thread, the root's included, and reaches the user on `jbus needs`, and `RelaunchOnce`, that jbus launches a home again at most once; a home it launched that stalls again goes on `jbus needs`.
+   Each has a canary in `canaries.py`, `needs` and `relaunch-once`.
 3. `OneMerger`, by jbus as the only merger: jbus runs `jmerge` whatever `home-thread` holds, and a home's `jmerge --home` merges nothing (`jbus/merge.py`, `jmerge/cli.py`).
    The test is `test_one_merger_no_home_merges_and_jbus_merges_child_a_s_pull_request`, where with an id in `home-thread` neither the root's run nor child a's merges, and jbus's merges child a's pull request.
 4. `NoBlindMerge`, by the merge lock: a run of `jmerge` holds `$H/merge.lock` from its read of main's tip to its merge (`jmerge/lock.py`).
