@@ -35,7 +35,10 @@ from testing.paths import REPO
 READ_SET = ("features/repo-standard/adapters/node-vite/scripts/",)
 WORKFLOW = REPO / ".github" / "workflows" / "repo-standard-check.yml"
 TEMPLATE = REPO / "features" / "home" / "templates" / "check.yml"
-CALLED = f"JoshuaHayesWasHere/jstack/.github/workflows/repo-standard-check.yml@{TAG}{VERSION}"
+SHARED = "JoshuaHayesWasHere/jstack/.github/workflows/repo-standard-check.yml"
+SKELETON_CALLER = (
+    REPO / "features" / "repo-standard" / "skeleton" / ".github" / "workflows" / "check.yml"
+)
 TOOL = ("features/repo-standard/src", "features/jmerge/src", "scripts/green_tree.py")
 SELECTED = ["tests/test_a.py", "tests/test_b.py", "tests/test_c.py"]
 SHELLS = {
@@ -587,7 +590,7 @@ def test_the_template_is_a_caller_of_the_shared_workflow_at_the_pinned_tag(calle
     assert top["on"]["push"] == {"branches": ["main"]}
     assert top["permissions"] == {"contents": "read", "actions": "read"}
     standard = top["jobs"]["standard"]
-    assert standard["uses"] == CALLED
+    assert re.fullmatch(rf"{re.escape(SHARED)}@{TAG}\d+", standard["uses"])
     assert standard["with"] == {"runner": "ubuntu-24.04", "command": "npm test"}
     check = top["jobs"]["check"]
     assert (check["needs"], check["if"]) == ("standard", "always()")
@@ -601,6 +604,81 @@ def test_the_template_is_a_caller_of_the_shared_workflow_at_the_pinned_tag(calle
     for result, ends in (("success", "success"), ("failure", "failure"), ("skipped", "failure")):
         context = {"needs": {"standard": {"result": result}}}
         assert run_job("check", repo, env, context, top)["result"] == ends
+
+
+def cut(tag, root=REPO):
+    """Whether `tag` is in the git repo `root`: CI fetches no tags, and there no pin is cut."""
+    return (
+        subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "-q", "--verify", f"refs/tags/{tag}"],
+            capture_output=True,
+        ).returncode
+        == 0
+    )
+
+
+def unread(caller, root):
+    """The outputs `caller`, the text of a check.yml, reads of its job that calls the shared
+    workflow and the workflow at the tag that job pins, in the git repo `root`, does not declare.
+
+    GitHub reads an output the called workflow does not declare as empty, so a caller ahead of its
+    pin gets an empty `runs-on` and a check that never runs. A tag not cut yet is read as the
+    workflow of the tree, the head it is cut from."""
+    jobs = parse(caller)["jobs"]
+    (name,) = [name for name, job in jobs.items() if job.get("uses", "").startswith(SHARED + "@")]
+    tag = jobs[name]["uses"].split("@")[1]
+    path = WORKFLOW.relative_to(REPO).as_posix()
+    if cut(tag, root):
+        text = subprocess.run(
+            ["git", "-C", str(root), "show", f"{tag}:{path}"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+    else:
+        text = (root / path).read_text()
+    given = parse(text)["on"]["workflow_call"].get("outputs", {})
+    read = re.findall(rf"needs\.{re.escape(name)}\.outputs\.([\w-]+)", json.dumps(jobs))
+    return sorted(set(read) - set(given))
+
+
+def test_a_caller_reads_only_outputs_the_workflow_at_its_pinned_tag_declares(tmp_path):
+    root = tmp_path / "jstack"
+    root.mkdir()
+    git(root, "init", "-q")
+    path = WORKFLOW.relative_to(REPO).as_posix()
+    full = WORKFLOW.read_text()
+    without = re.sub(r"^    outputs:\n(?:      .*\n)+", "", full, count=1, flags=re.M)
+    assert "outputs" not in parse(without)["on"]["workflow_call"]
+    commit(root, {path: without}, "a workflow that gives no runner")
+    git(root, "tag", f"{TAG}1")
+    commit(root, {path: full}, "a workflow that gives the runner")
+    git(root, "tag", f"{TAG}2")
+    pinned = TEMPLATE.read_text().replace(f"@{TAG}2", "@{}")
+    assert pinned.count("@{}") == 1
+    assert unread(pinned.replace("@{}", f"@{TAG}1"), root) == ["runner"]
+    assert unread(pinned.replace("@{}", f"@{TAG}2"), root) == []
+    assert unread(pinned.replace("@{}", f"@{TAG}3"), root) == []
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        pytest.param(
+            SKELETON_CALLER,
+            marks=pytest.mark.xfail(
+                cut(f"{TAG}1"),
+                reason="the skeleton pins repo-standard-v1, whose workflow gives no runner, "
+                "until rt-release-v2 moves its pin with VERSION",
+                strict=True,
+            ),
+        ),
+        TEMPLATE,
+    ],
+    ids=["skeleton", "template"],
+)
+def test_the_skeleton_and_the_template_read_only_outputs_their_pinned_tag_gives(path):
+    assert unread(path.read_text(), REPO) == []
 
 
 def plan_of(root, capsys, *args):
