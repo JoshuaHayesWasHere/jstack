@@ -25,6 +25,9 @@ PROD = "touches prod or real users"
         ("P=/tmp/wt/rt-deploy-guard scripts/deploy caveman", [PROD]),
         ('B="$(scripts/deploy caveman)"', [PROD]),
         ('B="$H/`scripts/deploy caveman`"', [PROD]),
+        ('git commit -m "run $(scripts/deploy caveman) by hand"', [PROD]),
+        (r'git commit -m "document \$(scripts/deploy caveman) syntax"', []),
+        (r'git commit -m "document \`scripts/deploy caveman\` syntax"', []),
     ],
 )
 def test_a_known_slug_in_an_assignment_names_no_door(command, cases):
