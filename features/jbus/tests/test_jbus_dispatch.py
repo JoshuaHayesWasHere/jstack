@@ -4,6 +4,8 @@ Like `test_jbus_kitchen.py`, the tests run the real pass against the fakes.
 """
 
 import os
+import re
+import subprocess
 from datetime import timedelta
 from pathlib import Path
 
@@ -281,3 +283,36 @@ def test_a_queue_that_does_not_parse_is_a_gate_and_nothing_is_launched(kitchen, 
     assert kitchen.lines() == ["condition demo: queue.json does not parse"]
     assert kitchen.t3.launches == []
     assert (kitchen.state / "queue.json").read_text() == written
+
+
+def test_a_settled_crew_leaves_no_worktree_in_its_claude_scratchpad_but_one_in_use_or_another_s(
+    kitchen, monkeypatch
+):
+    monkeypatch.setenv("CLAUDE_CODE_TMPDIR", str(kitchen.root / "tmp"))
+    claude = kitchen.root / "tmp" / f"claude-{os.getuid()}"
+
+    def scratchpad(slug):
+        tree = kitchen.root / "worktrees" / kitchen.checkout.name / slug
+        kitchen.t3.thread(slug, "completed", worktreePath=str(tree))
+        return claude / re.sub("[^A-Za-z0-9]", "-", str(tree)) / "session" / "scratchpad"
+
+    mine, theirs = scratchpad("alpha"), scratchpad("beta")
+    for tree in (mine / "base.Xy12/base", mine / "busy", theirs / "base"):
+        kitchen.git("worktree", "add", "-q", "--detach", str(tree))
+    kitchen.brief("alpha", RESULT)
+    kitchen.brief("beta", RESULT.replace("Status: done", "Status: paused"))
+    with subprocess.Popen(["sleep", "60"], cwd=mine / "busy") as busy:
+        try:
+            kitchen.poll()
+        finally:
+            busy.kill()
+    listed = subprocess.run(
+        ["git", "worktree", "list", "--porcelain"],
+        cwd=kitchen.checkout,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    assert f"worktree {mine / 'base.Xy12/base'}\n" not in listed
+    assert not (mine / "base.Xy12/base").exists()
+    assert f"worktree {mine / 'busy'}\n" in listed and f"worktree {theirs / 'base'}\n" in listed
