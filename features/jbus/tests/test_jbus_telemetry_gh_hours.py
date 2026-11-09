@@ -15,7 +15,9 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+import jbus
 import jsettings
+from jbus import telemetry
 from jbus.telemetry import measures
 from jsettings.proc import CALLS
 from test_jbus_telemetry import Machine
@@ -118,3 +120,25 @@ def test_a_log_of_neither_inode_is_read_from_its_start(machine):
     machine.build()
 
     assert total(machine) == 3
+
+
+def test_a_pass_past_its_bytes_leaves_the_log_to_the_next_build(machine):
+    """With no log there is nothing to read; a build that has read `most` already leaves the log
+    as one file for the next, which reads it."""
+    machine.build()
+    assert total(machine) is None
+    append(machine, call("2026-11-09T10:05:00+00:00"))
+    capped = telemetry.build(jbus.load(), most=0)
+    assert capped.left >= 1
+    assert total(machine) is None
+    machine.build()
+    assert total(machine) == 1
+
+
+def test_an_old_file_that_is_the_new_one_is_read_once(machine):
+    """A rotation between the build's two opens finds one file under both names: its lines count
+    once."""
+    append(machine, call("2026-11-09T10:05:00+00:00"), call("2026-11-09T10:06:00+00:00"))
+    os.link(machine.state_dir / CALLS, machine.state_dir / f"{Path(CALLS).stem}.old.jsonl")
+    machine.build()
+    assert total(machine) == 2
