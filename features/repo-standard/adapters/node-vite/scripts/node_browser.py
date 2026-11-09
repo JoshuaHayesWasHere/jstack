@@ -44,11 +44,12 @@ reach, such as one the app imports, is a fault.
 A change that every browser test rests on forces the whole stack: the e2e root's `package.json`
 and lockfile, a Playwright config (`playwright*.config.*`, or a `*.config.*` that imports
 `@playwright/test`) and each file it imports, a file its `webServer` command or the `script`
-names, a `mock*` file, each file under `mock.path`, and the shared fixture (`test.*`, `fixture.*`, `fixtures.*` or `support.*`)
-under `testDir`; and, in each root of the stack, `index.html`, `src/app.html`, `src/hooks.*`,
-React's `src/main.*` and each router file, `static/**` and `public/**`, and the Vite, Svelte,
-Tailwind and PostCSS configs. Global CSS needs no entry: the root layout or `main.*` imports it,
-and the graph follows each `@import`, so it reaches every test.
+names, each file under `mock.path`, and a `mock*` file and the shared fixture (`test.*`,
+`fixture.*`, `fixtures.*` or `support.*`) under `testDir`; and, in each root of the stack,
+`index.html`, `src/app.html`, `src/hooks.*`, React's `src/main.*` and each router file,
+`static/**` and `public/**`, and the Vite, Svelte, Tailwind and PostCSS configs. Global CSS
+needs no entry: the root layout or `main.*` imports it, and the graph follows each `@import`, so
+it reaches every test.
 """
 
 from __future__ import annotations
