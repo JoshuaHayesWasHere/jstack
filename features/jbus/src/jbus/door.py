@@ -145,10 +145,13 @@ def pieces(command: str) -> list[str]:
 
 def _substitutions(quoted: str) -> tuple[list[str], str]:
     """The commands a double-quoted string runs, each `$(...)` read to its own closing
-    parenthesis and each backticked command, and the string with each of them as `_`."""
+    parenthesis and each backticked command, and the string with each of them as `_`. A
+    backslash-escaped `\\$` or backtick is text the shell stores, and runs nothing."""
     runs, kept, at = [], "", 0
     while at < len(quoted):
-        if quoted.startswith("$(", at):
+        if quoted[at] == "\\":
+            kept, at = kept + quoted[at : at + 2], at + 2
+        elif quoted.startswith("$(", at):
             depth, end = 1, at + 2
             while end < len(quoted) and depth:
                 depth += {"(": 1, ")": -1}.get(quoted[end], 0)
