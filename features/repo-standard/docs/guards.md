@@ -86,7 +86,8 @@ A path on a page that starts at a folder of `docs.roots` exists in the tree, or 
 A path with a placeholder or a glob after it, such as `features/<name>/`, is a pattern and is not read.
 A path with a `/` or a word before it starts somewhere else and is not read either.
 
-A `make` command, in a code span or on a line of a fenced block, names only targets the root `Makefile` defines.
+A `make` command, in a code span or on a line of a fenced block, names only targets the root `Makefile` defines, or a make file it includes.
+An `include` whose path holds a variable is not read.
 Words that set a variable, such as `TESTS=a`, and flags are not targets, and a command with `-C` or `-f` runs another makefile, so the guard does not read it.
 
 The code is `features/repo-standard/src/repo_standard/docs_true.py`.
@@ -103,7 +104,8 @@ The guard reads a file's comments the way its language does, by the file's exten
 | Reader | Extensions it takes by default | What it reads as a comment |
 |---|---|---|
 | `python` | `.py` | a `#` comment, read with `tokenize` |
-| `shell` | `.sh`, `.bash`, `.yml`, `.yaml`, `.toml` | a `#` that starts a word, outside quotes |
+| `shell` | `.sh`, `.bash` | a `#` that starts a word, outside quotes |
+| `config` | `.yml`, `.yaml`, `.toml` | a `#` that starts a word, outside a quote that opens where a value or a key starts |
 | `script` | `.js`, `.mjs`, `.ts`, `.css` | `//` and `/* */`, outside strings and regular expressions |
 | `page` | `.html` | a `script` comment in a `<script>` or `<style>` |
 | `unit` | `.service`, `.timer` | a line that starts with `#` or `;` |

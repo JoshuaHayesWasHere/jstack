@@ -502,9 +502,60 @@ def one_feature_only(repo):
     write(repo, {"features/alpha/docs/alpha.md": "# alpha\n\nAll of features/alpha/.\n"})
 
 
+CALLER = """\
+name: check
+on:
+  pull_request:
+    types: [opened, synchronize, labeled, unlabeled]
+  push:
+    branches: [main]
+jobs:
+  standard:
+    uses: owner/jstack/.github/workflows/repo-standard-check.yml@repo-standard-v1
+  check:
+    needs: standard
+    runs-on: ubuntu-24.04
+    steps:
+      - run: "true"
+"""
+
+
+def calls_the_shared_check(repo, at="repo-standard-v1"):
+    """The repo's one workflow calls the shared check, which runs its make targets."""
+    write(repo, {".github/workflows/check.yml": CALLER.replace("repo-standard-v1", at)})
+    edit(repo / "Makefile", "lint:\n", "lint:\n\tpython3 scripts/prose.py\n")
+
+
+def selects_in_an_included_make_file(repo):
+    """The select target and its selector are named only in a make file the Makefile includes."""
+    rule = "a-shared-path-forces-the-whole-suite"
+    edit(repo / "Makefile", "select:\n\techo all\n", "include scripts/stack.mk\n")
+    write(
+        repo,
+        {
+            "scripts/stack.mk": "select:\n\tpython3 scripts/select.py\n",
+            "scripts/select.py": '"""Print all."""\nprint("all")\n',
+        },
+    )
+    git(repo, "add", "-A")
+    edit(repo / ".repo-standard.yml", f"{rule}: [{ENFORCED[rule]}]", f"{rule}: [scripts/select.py]")
+
+
 @pytest.mark.parametrize(
     ("change", "said"),
     [
+        (
+            calls_the_shared_check,
+            "conform repo-standard-v1, 34 rules: errors 0, warnings 0, waived 0",
+        ),
+        (
+            lambda r: calls_the_shared_check(r, at="main"),
+            "error a-pull-request-runs-the-selection-the-lint-and-the-selected-tests: no workflow",
+        ),
+        (
+            selects_in_an_included_make_file,
+            "conform repo-standard-v1, 34 rules: errors 0, warnings 0, waived 0",
+        ),
         (
             lambda r: write(r, {"schemas/feature.core.schema.json": "{not json"}),
             "error a-feature-owns-its-folder-and-nothing-else: schemas/feature.core.schema.json: "

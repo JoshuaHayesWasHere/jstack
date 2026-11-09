@@ -5,7 +5,8 @@ any other extension to one of them in its config (`.go: script`).
 
 - `python` reads the file with `tokenize`, so a `#` in a string is no comment.
 - `shell` reads it character by character, so a `#` in quotes or inside a word is no comment.
-  YAML and TOML read `#` the same way.
+- `config` reads YAML and TOML as `shell` does, but opens a quote only where a value or a key
+  starts, so the apostrophe of a plain scalar such as `name: don't` opens none.
 - `script` finds `//` and `/* */`, skipping strings, template strings, regular expressions and a
   `://`, as JavaScript, TypeScript, Go, C and CSS write them.
 - `page` reads the `<script>` and `<style>` of an HTML page as `script`.
@@ -43,6 +44,41 @@ def shell(text: str) -> Found:
         elif char in "'\"":
             quote = char
         elif char == "#" and text[at - 1 : at].strip() == "":
+            end = text.find("\n", at) % (len(text) + 1)
+            found.append((text.count("\n", 0, at) + 1, text[at:end]))
+            at = end
+        at += 1
+    return found
+
+
+def _starts_a_value(text: str, at: int) -> bool:
+    before = text[text.rfind("\n", 0, at) + 1 : at]
+    mark = before.rstrip(" \t")[-1:]
+    return mark in ("", "[", "{", ",", "=") or (mark in (":", "-") and before[-1] in " \t")
+
+
+def _config_quoted_end(text: str, at: int) -> int:
+    quote = text[at]
+    end = text.find(quote * 3, at + 3) if text.startswith(quote * 3, at) else -1
+    if end >= 0:
+        return end + 3
+    at += 1
+    while at < len(text):
+        escaped = text[at] == "\\" if quote == '"' else text[at : at + 2] == "''"
+        if text[at] == quote and not escaped:
+            return at + 1
+        at += 2 if escaped else 1
+    return at
+
+
+def config(text: str) -> Found:
+    found, at = [], 0
+    while at < len(text):
+        char = text[at]
+        if char in "'\"" and _starts_a_value(text, at):
+            at = _config_quoted_end(text, at)
+            continue
+        if char == "#" and text[at - 1 : at].strip() == "":
             end = text.find("\n", at) % (len(text) + 1)
             found.append((text.count("\n", 0, at) + 1, text[at:end]))
             at = end
@@ -119,6 +155,7 @@ def hash_lines(text: str) -> Found:
 READERS: dict[str, Callable[[str], Found]] = {
     "python": python,
     "shell": shell,
+    "config": config,
     "script": script,
     "page": page,
     "unit": unit,
@@ -128,9 +165,9 @@ BY_EXTENSION = {
     ".py": "python",
     ".sh": "shell",
     ".bash": "shell",
-    ".yml": "shell",
-    ".yaml": "shell",
-    ".toml": "shell",
+    ".yml": "config",
+    ".yaml": "config",
+    ".toml": "config",
     ".js": "script",
     ".mjs": "script",
     ".ts": "script",

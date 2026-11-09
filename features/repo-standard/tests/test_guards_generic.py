@@ -267,6 +267,25 @@ def test_docs_fails_a_page_that_names_a_path_or_a_make_target_the_tree_lacks(rep
     assert "README.md:3: runs make lint, with no Makefile" in lines
 
 
+def test_docs_reads_the_targets_of_the_make_files_the_makefile_includes(repo, capsys):
+    """An included make file's targets count, an include back is read once, and one with a
+    variable in its path is not read."""
+    makefile = repo / "Makefile"
+    makefile.write_text(f"include scripts/stack.mk $(EXTRA).mk\n{makefile.read_text()}")
+    write(
+        repo,
+        {
+            "scripts/stack.mk": "-include Makefile\ndeploy:\n\ttrue\n",
+            "features/alpha/docs/b.md": "Run `make deploy`, then `make release`.\n",
+        },
+    )
+    code, lines, _ = run(repo, "docs", capsys=capsys)
+    assert (code, lines) == (
+        1,
+        ["features/alpha/docs/b.md:1: runs make release, which the Makefile lacks"],
+    )
+
+
 def test_size_reads_its_caps_and_globs_from_the_config(repo, capsys):
     write(
         repo,
@@ -332,6 +351,26 @@ def test_a_hash_list_reads_a_line_that_starts_with_a_hash(repo, capsys):
     write(repo, {"features/beta/src/paths.txt": "a/\n  # why\nb#c\n"})
     assert run(repo, "comments", capsys=capsys)[1] == [
         "features/beta/src/paths.txt:2: a plain comment: # why"
+    ]
+
+
+def test_yaml_and_toml_open_a_quote_only_where_a_value_or_key_starts(repo, capsys):
+    write(
+        repo,
+        {
+            "features/beta/src/apostrophe.yml": "name: don't\nurl: 'a # no'\nb: x#y\n# why\n",
+            "features/beta/src/quoted.yaml": "- 'it''s # no'\n- [\"#\", '#'] # why\n",
+            "features/beta/src/table.toml": 'k = "it\'s # no"\nv = [\'a\', "#"] # why\n',
+            "features/beta/src/triple.toml": "t = '''a # no\n'''\n# why\nu = 'open # no\n",
+            "features/beta/src/escaped.yml": "a: '''x'\n# why\n",
+        },
+    )
+    assert run(repo, "comments", capsys=capsys)[1] == [
+        "features/beta/src/apostrophe.yml:4: a plain comment: # why",
+        "features/beta/src/escaped.yml:2: a plain comment: # why",
+        "features/beta/src/quoted.yaml:2: a plain comment: # why",
+        "features/beta/src/table.toml:2: a plain comment: # why",
+        "features/beta/src/triple.toml:3: a plain comment: # why",
     ]
 
 

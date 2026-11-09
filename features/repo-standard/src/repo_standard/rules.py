@@ -7,8 +7,12 @@ the workflows, the manifests and the config.
 
 A rule that no check of the tree can judge in every stack is met by the files that enforce it in
 the repo, named in the config's `enforced-by`. `enforcer` holds each named file to two things: git
-tracks it, and something the checks run reaches it. A test file, a workflow, and a file a workflow
-or the Makefile names by its path are reached, so a page or a file nothing runs does not meet it.
+tracks it, and something the checks run reaches it. A test file, a workflow, and a file a workflow,
+the Makefile or a make file it includes names by its path are reached, so a page or a file nothing
+runs does not meet it.
+
+A workflow that calls the standard's shared check at a version's tag runs what that workflow runs:
+`make select`, `make lint` and the selected tests on a pull request, and `make check` on main.
 """
 
 from __future__ import annotations
@@ -36,6 +40,11 @@ FRONT_NAME = re.compile(
     r"\A---\n(?:.*\n)*?name:\s*['\"]?([^'\"\n]+?)['\"]?\s*\n(?:.*\n)*?---", re.M
 )
 GATED = ("deploy", "release")
+SHARED_CHECK = re.compile(
+    r"^\s*uses:\s*['\"]?[\w.-]+/[\w.-]+/\.github/workflows/repo-standard-check\.yml"
+    r"@repo-standard-v\d+['\"]?\s*(?:#.*)?$",
+    re.M,
+)
 
 
 @dataclass
@@ -60,6 +69,10 @@ class Repo:
             for path in self.paths
             if path.startswith(WORKFLOWS) and path.endswith((".yml", ".yaml"))
         }
+
+    @cached_property
+    def makefiles(self) -> dict[str, str]:
+        return docs_true.makefiles(self.root)
 
     @cached_property
     def targets(self) -> set[str]:
@@ -328,14 +341,16 @@ def selects(repo: Repo) -> list[str]:
 def main_runs_all(repo: Repo) -> list[str]:
     for text in repo.workflows.values():
         on_main = re.search(r"^\s*push:\s*$", text, re.M) and re.search(r"\bmain\b", text)
-        if on_main and (_makes(text, "check") or re.search(r"make test(?! *TESTS=)", text)):
+        runs = _makes(text, "check") or re.search(r"make test(?! *TESTS=)", text)
+        if on_main and (runs or SHARED_CHECK.search(text)):
             return []
     return ["no workflow runs `make check` on a push to main"]
 
 
 def pull_request_runs(repo: Repo) -> list[str]:
     for text in repo.workflows.values():
-        if "pull_request" in text and _makes(text, "lint") and _makes(text, "test"):
+        runs = (_makes(text, "lint") and _makes(text, "test")) or SHARED_CHECK.search(text)
+        if "pull_request" in text and runs:
             return []
     return ["no workflow of a pull request runs both `make lint` and `make test`"]
 
@@ -379,7 +394,7 @@ def enforcer(rule: str):
         if not named:
             return [f"the config's `enforced-by` names no file that enforces {rule}"]
         tracked = set(repo.paths)
-        runners = [*repo.workflows.values(), repo.read("Makefile")]
+        runners = [*repo.workflows.values(), *repo.makefiles.values()]
         faults = []
         for path in named:
             if path not in tracked:
