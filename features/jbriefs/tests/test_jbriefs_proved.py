@@ -3,6 +3,7 @@ the base and at the head, a `none, <kind>` exemption, and a run at the head alon
 request that changes only tests, whose code at the base is the head's own."""
 
 from jbriefs import proved
+from jmerge import ready
 
 HEAD = "d" * 40
 TESTS = "features/x/tests/test_x.py features/x/tests/test_y.py"
@@ -31,3 +32,24 @@ def test_a_base_and_head_line_is_not_tests_only():
     base = "c" * 40
     said = proved.proved(result(f"Proved: {TESTS} base exit 1 at {base}, head exit 0 at {HEAD}"))
     assert (said.base_exit, said.head_exit, said.tests_only) == (1, 0, False)
+
+
+def test_a_pull_request_that_only_deletes_a_conf_file_is_config_and_not_held():
+    """Infra's rt-caller-proof-runner-off deleted one runner `.conf`, KEY=VALUE settings and no
+    code, and its `Proved: none, config` line held it until `config` covered `*.conf`."""
+    conf = "hosts/x/runners/y.conf"
+    pull = ready.PullRequest(
+        number=7,
+        url="https://github.com/o/r/pull/7",
+        title="",
+        branch="alpha",
+        head=HEAD,
+        base="main",
+        mergeable="MERGEABLE",
+        waiting=(),
+        files=(conf,),
+        renamed=False,
+        changed=1,
+        removed=(conf,),
+    )
+    assert ready.short_on_proved(result("Proved: none, config"), pull) == ""

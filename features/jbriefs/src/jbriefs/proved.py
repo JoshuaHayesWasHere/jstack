@@ -18,6 +18,7 @@ EXEMPT = {
         "*.yaml",
         "*.cfg",
         "*.ini",
+        "*.conf",
         "*.lock",
         ".*",
         ".github/*",

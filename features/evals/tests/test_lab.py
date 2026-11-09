@@ -436,6 +436,37 @@ def test_two_runs_of_the_same_copy_write_the_same_stage_json(machine, tmp_path, 
         ).read_text(), stage
 
 
+DISK = """
+import os
+_used = int(os.environ["LAB_DISK_USED"])
+_statvfs = os.statvfs
+def statvfs(path):
+    got = _statvfs(path)
+    free = got.f_blocks // 10 - _used
+    return os.statvfs_result((*got[:3], free, free, *got[5:]))
+os.statvfs = statvfs
+"""
+"""A sitecustomize that reports each disk over 90% full, with `LAB_DISK_USED` more blocks used, so
+that jbus's pass says a disk alert, as it does on a runner whose disk is over its 80%."""
+
+
+def test_the_replay_json_holds_no_disk_use_the_machine_reports(machine, tmp_path):
+    """The replay's jbus pass reads the disk, and the disk fills while the lab runs: its JSON is
+    the same whatever the disk use, as it is in no way what the replay decided."""
+    hook = tmp_path / "hook"
+    hook.mkdir()
+    (hook / "sitecustomize.py").write_text(DISK)
+    said = []
+    for used in (0, 1_000_000):
+        out = tmp_path / str(used)
+        env = machine["env"] | {"PYTHONPATH": str(hook), "LAB_DISK_USED": str(used)}
+        ran = lab(machine | {"env": env}, "--out", out, "--stages", "replay")
+        assert ran.returncode == 0, ran.stdout + ran.stderr
+        assert "used (" in (out / "replay.txt").read_text()
+        said.append((out / "replay.json").read_text())
+    assert said[0] == said[1]
+
+
 def test_an_out_directory_that_holds_files_is_refused_before_the_store_is_read(machine, tmp_path):
     out = tmp_path / "used"
     out.mkdir()
