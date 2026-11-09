@@ -602,7 +602,7 @@ def test_a_queue_apply_go_and_remove_show_before_any_pass_and_the_next_pass_keep
     assert (judged(kitchen)["who"], "approve:alpha" in waits(kitchen)) == ("user", True)
     kitchen.word()
     text = batch(
-        approves("alpha", sha12(brief("alpha", "Builds on: beta\n"))),
+        approves("alpha"),
         f'remove gamma --by user --at "{TYPED_AT}"\n',
     )
     code, said = kitchen.main("--project", "demo", "queue", "apply", stdin=text)
@@ -624,10 +624,7 @@ FIX = "Fix of: ci:check\n"
 @pytest.mark.parametrize(
     "refused",
     [
-        lambda: (
-            adds("delta", "--priority 1", brief("delta", HOLDS))
-            + approves("delta", sha12(brief("delta", HOLDS)))
-        ),
+        lambda: adds("delta", "--priority 1", brief("delta", HOLDS)) + approves("delta"),
         lambda: adds("delta", "--priority 1", brief("delta", FIX)),
     ],
     ids=["a door", "a fix with no when green"],
@@ -639,7 +636,7 @@ def test_a_queue_apply_that_is_refused_rewrites_nothing(kitchen, refused):
     kitchen.word()
     before = [(kitchen.state / name).read_text() for name in (work.NAME, waiting.NAME)]
     text = batch(
-        approves("alpha", sha12(brief("alpha"))),
+        approves("alpha"),
         f'remove gamma --by user --at "{TYPED_AT}"\n',
         refused(),
     )

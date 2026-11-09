@@ -73,7 +73,6 @@ from jbus import (
 from jbus.party import Act, Action, Evidence, Party
 from jbus.passes import Pass
 from jbus.t3 import typed
-from jmerge import judgement
 from jsettings import store
 
 LOG = "acts.jsonl"
@@ -104,7 +103,7 @@ HELD_ANSWER = (
 )
 """How a held question closes, said with its refusal."""
 OPENS = (
-    ASK_PLAINLY + ": jbus queue approve {slug} --sha {sha} --message <thread>/<message>, on "
+    ASK_PLAINLY + ": jbus queue approve {slug} --message <thread>/<message>, on "
     "{user}'s own reply in T3 Code said after its brief was stored, opens it"
 )
 """How a door row opens, which every line of a go that does not open it says. A reply the user
@@ -273,10 +272,8 @@ def _go(
     _, text = queue.current(run.state, slug)
     action = replace(action, doors=party.doors(text or ""))
     if action.doors and not party.opens(who, said):
-        number = _park(run, who, action, said, text or "")
-        opens = OPENS.format(
-            slug=slug, sha=judgement.brief_sha(text or "")[:12], user=run.user.user, item=slug
-        )
+        number = _park(run, who, action, said)
+        opens = OPENS.format(slug=slug, user=run.user.user, item=slug)
         line = (
             f"gated {slug}: its brief holds for {', '.join(action.doors)}, so it waits for "
             f"{run.user.user}'s own word: question {number}; {opens}"
@@ -290,10 +287,9 @@ def _go(
             run, said, slug, open_gates, _stored(run, slug), f"{slug}'s brief was stored"
         )
         if unbound:
-            sha = judgement.brief_sha(text or "")[:12]
             line = (
                 f"refused: {slug}'s brief holds for {', '.join(action.doors)}, and {unbound}: "
-                + OPENS.format(slug=slug, sha=sha, user=run.user.user, item=slug)
+                + OPENS.format(slug=slug, user=run.user.user, item=slug)
             )
             return action, "refused", line, None
     try:
@@ -464,12 +460,10 @@ def _stale(run: Pass, slug: str, seen: str) -> str:
     return ""
 
 
-def _park(run: Pass, who: Party, action: Action, said: Evidence, text: str) -> int:
+def _park(run: Pass, who: Party, action: Action, said: Evidence) -> int:
     """Park the gate a go on a door waits on, and return its number. A gate holds for one case,
-    so it names the first, and its context names the rest. Its command names the sha of the
-    stored brief `text`, since a go by rule is given none."""
+    so it names the first, and its context names the rest."""
     slug, user = action.subject, run.user.user
-    shown = judgement.brief_sha(text)[:12]
     case, *rest = action.doors
     also = f"; it holds for {', '.join(rest)} too" if rest else ""
     lines = "\n".join(
@@ -479,7 +473,7 @@ def _park(run: Pass, who: Party, action: Action, said: Evidence, text: str) -> i
             f"Asked by: {slug}, by the {who.kind}'s go",
             f"Default: {slug} waits, with no go and no launch",
             "Built on it: nothing, since no thread launched",
-            f"Undo: nothing to undo; jbus queue approve {slug} --sha {shown} --message "
+            f"Undo: nothing to undo; jbus queue approve {slug} --message "
             f"<thread>/<message>, on {user}'s own reply in T3 Code to an ask about {slug} "
             "alone, opens it",
             f"Holds: {case}",
@@ -611,7 +605,7 @@ def go(args: argparse.Namespace, run: Pass, asks: queue.Asks) -> Act:
     unread, follows = queue.basis(given)
     said = read_evidence(asks, unread)
     who = cli_party(args, said)
-    action = Action("go", args.slug, args.sha or "", args.seen or "")
+    action = Action("go", args.slug, "", args.seen or "")
     return act(run, who, action, said, asks=asks, follows=follows)
 
 

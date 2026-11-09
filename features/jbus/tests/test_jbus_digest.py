@@ -39,7 +39,8 @@ def gate(number, asked, status="open"):
 
 
 def approval(slug):
-    command = f"jbus --project demo queue approve {slug} --sha {sha12(brief(slug))} {BASES}"
+    sha = sha12(brief(slug))
+    command = f"jbus --project demo queue approve {slug} {BASES}, for its brief {sha}"
     return f"approve {slug}: {command}"
 
 

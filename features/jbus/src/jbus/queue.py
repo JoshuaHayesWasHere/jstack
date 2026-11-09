@@ -241,10 +241,10 @@ GO_VOID = ", its go does not hold for it: approve it again"
 TAKEN = "'s go is taken back: its brief now holds for "
 """What `add` says of a row whose go held, and whose new brief holds for a door the old one
 did not: no go given before a door was in the brief opens it."""
-NO_SHA = (
-    "approve on the user's word needs --sha <sha12>, the first 12 of the sha256 of the brief "
-    "they were shown; a go by --follows needs none"
-)
+SIDEBAR_GO = re.compile(r"approve (?P<slug>\S+) \(brief sha (?P<sha>[0-9a-f]{12})\)")
+"""The user's own message that the sidebar's Approve sends to a home, `approve <slug> (brief sha
+<sha12>)` (`rowWordMessage` in `features/t3code-jstack/packaging/0008` and `0033`): the sha is
+the brief the user had on screen, which a go on that message is held to."""
 
 Row = dict[str, Any]
 
@@ -835,11 +835,13 @@ class Add:
 
 @dataclass(frozen=True)
 class Approve:
-    """`Approve` is the verb that records the user's go for the brief whose sha256 starts with
-    `given`, on the words that `ref` names. For a go by a rule, `ref` is the rule's number,
-    `follows` is the parent row's slug, and `given` is not read: no user read the brief's sha,
-    so the go is pinned to none. `heard` is those words where the caller read them
-    already (`jbus.acts`), and the batch then asks nothing for them."""
+    """`Approve` is the verb that records the user's go, on the words that `ref` names, for the
+    brief as it is stored at that moment. `given` is the first 12 of the sha256 of the brief a
+    page showed the user, read only for the bot's act (`BOT_CHAT`): a go typed on the user's
+    word or by a rule is for the stored brief, and a `--sha` beside it is taken and not read.
+    For a go by a rule, `ref` is the rule's number and `follows` is the parent row's slug.
+    `heard` is those words where the caller read them already (`jbus.acts`), and the batch then
+    asks nothing for them."""
 
     slug: str
     basis: str
@@ -924,10 +926,10 @@ _BRIEF, _END = "--- brief ", "--- end"
 def basis(given: Mapping[str, Any]) -> tuple[party.Evidence, str]:
     """Return the evidence that an `approve` was given, not yet read, and the parent that a
     follow-up names. Each basis is one `party.Evidence.source` (`party.SOURCE`). A `--follows`
-    is the follow-up rule's basis, `RULE` with `FOLLOW_REF`, and a `--rule <n>` or a `--sha`
-    beside it is taken and not read: the rule is known by what it says, and no user read the
-    brief's sha. `basis` refuses no basis or more than one, a `--rule` with no parent, a name or
-    a time beside the basis, and the user's word with no `--sha`."""
+    is the follow-up rule's basis, `RULE` with `FOLLOW_REF`, and a `--rule <n>` beside it is
+    taken and not read: the rule is known by what it says. A `--sha` beside any basis is taken
+    and not read: the go is for the brief as it is stored. `basis` refuses no basis or more than
+    one, a `--rule` with no parent, and a name or a time beside the basis."""
     named = [(name, str(given[name])) for name in BASES if given.get(name) not in (None, "")]
     follows = str(given.get("follows") or "")
     ruled = given.get(RULE) not in (None, "")
@@ -940,8 +942,6 @@ def basis(given: Mapping[str, Any]) -> tuple[party.Evidence, str]:
             "--at: jbus writes who ran it and when; the user's go on a plan entry is "
             f"{PLAN_GO}"
         )
-    if not follows and given.get("sha") in (None, ""):
-        raise Refused(f"refused: {NO_SHA}")
     name, ref = named[0]
     return party.Evidence(party.SOURCE[name], ref), follows  # type: ignore[arg-type]
 
@@ -1677,7 +1677,7 @@ def _do(
         if text is None:
             raise Refused(f"refused: {verb.slug} has no brief, add it again")
         stored = judgement.brief_sha(text)
-        if not ruled and stored[:12] != verb.given:
+        if verb.basis == BOT_CHAT and stored[:12] != verb.given:
             raise Refused(f"refused: {verb.slug}'s brief is {stored[:12]}, not {verb.given}")
         again = row.get("approved") and judgement.approved_text(row, text) and not row.get("held")
         if verb.heard is not None and again and not _ruled(row):
@@ -1702,6 +1702,8 @@ def _do(
             raise rests
         if verb.basis == PICK:
             rests = picked(rests, verb.slug)
+        if verb.basis == "message":
+            _on_screen(verb.slug, stored, rests)
         if not ruled:
             _bare(batch.state, verb, rests, ran_by or runner(), user)
             _held_by_another(row, verb, rests, ran_by or runner(), user)
@@ -1733,6 +1735,17 @@ def _do(
 def _stamp(user: jsettings.Settings | None) -> str:
     """Return the time now, in the user's zone where there is a user."""
     return user.stamp(clock()) if user is not None else jsettings.stamp(clock())
+
+
+def _on_screen(slug: str, stored: str, rests: Said) -> None:
+    """Refuse a go on the sidebar's message (`SIDEBAR_GO`) for a brief other than the stored
+    one: the user read another text of it."""
+    shown = SIDEBAR_GO.search(rests.words)
+    if shown and shown["slug"] == slug and shown["sha"] != stored[:12]:
+        raise Refused(
+            f"refused: the sidebar showed {slug}'s brief {shown['sha']}, and jbus holds "
+            f"{stored[:12]}: open the brief again and approve what it holds now"
+        )
 
 
 def _users_own(verb: Approve, rests: Said) -> bool:
@@ -2322,8 +2335,7 @@ def add(
                 f"refused: {slug}'s brief holds for {held}, so its go goes by jbus queue approve "
                 "alone, and nothing is queued"
             )
-        given = judgement.brief_sha(text)[:12]
-        batch.append((0, Approve(slug, "message", message, given)))
+        batch.append((0, Approve(slug, "message", message, "")))
     return _run(state, batch, user, asks, ran_by)
 
 
@@ -2582,9 +2594,9 @@ def parse(text: str) -> list[tuple[int, Verb]]:
     A line is one of these:
 
     - `add <slug> --priority N [--depends a,b] [--merge-after a,b] [--entry <plan entry>]`;
-    - `approve <slug> --sha <12>` with one of `--word <id>`, `--answer <number>`,
-      `--message <thread id>/<message id>` and `--pick <thread id>/<item id>`, or `approve <slug>`
-      with `--follows <parent slug>` (a `--rule <n>` or a `--sha` beside it is taken and not read);
+    - `approve <slug>` with one of `--word <id>`, `--answer <number>`,
+      `--message <thread id>/<message id>` and `--pick <thread id>/<item id>`, or with
+      `--follows <parent slug>` (a `--rule <n>` or a `--sha` beside either is taken and not read);
     - `hold <slug>`;
     - `remove <slug> --by <user> --at "<YYYY-MM-DD HH:MM ZONE>"`.
 
@@ -2612,8 +2624,7 @@ def parse(text: str) -> list[tuple[int, Verb]]:
                 verbs.append((number, Hold(slug)))
             elif verb == "approve":
                 said, follows = basis(given)
-                pin = given.get("sha", "")
-                verbs.append((number, Approve(slug, said.basis, said.ref, pin, follows)))
+                verbs.append((number, Approve(slug, said.basis, said.ref, "", follows)))
             elif verb == "remove":
                 verbs.append((number, Remove(slug, given["by"], given["at"])))
             else:

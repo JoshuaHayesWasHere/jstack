@@ -25,8 +25,7 @@ HEARD = f"your word, {HEARD_AT}, in home: demo; run {RAN} by the demo home"
 
 
 def go(kitchen, slug, *basis):
-    sha = sha12((kitchen.state / "briefs" / f"{slug}.md").read_text())
-    return kitchen.main("queue", "approve", slug, *basis, "--sha", sha)
+    return kitchen.main("queue", "approve", slug, *basis)
 
 
 def cell(kitchen, slug):
@@ -310,12 +309,12 @@ def test_the_line_names_a_home_or_a_shell_by_where_and_whether_a_session_ran_it(
     desk.mkdir()
     kitchen.monkeypatch.chdir(desk)
     argv = ("--project", "demo", "queue", "approve", "alpha", "--word", kitchen.word())
-    assert kitchen.main(*argv, "--sha", sha12(brief("alpha")))[0] == 0
+    assert kitchen.main(*argv)[0] == 0
     typed = f"your word, {SAID_AT} (time typed); run {RAN} by"
     assert rows(kitchen)["alpha"]["approved"] == f"{typed} the elsewhere home"
     kitchen.monkeypatch.delenv("CLAUDE_CODE_SESSION_ID")
     assert kitchen.main("--project", "demo", "queue", "hold", "alpha")[0] == 0
-    assert kitchen.main(*argv, "--sha", sha12(brief("alpha")))[0] == 0
+    assert kitchen.main(*argv)[0] == 0
     row = rows(kitchen)["alpha"]
     assert row["approval"]["ran_by"] == {"session": "", "directory": str(desk)}
     assert row["approved"] == f"{typed} a shell in {desk}"
@@ -325,10 +324,7 @@ def test_a_batch_takes_the_three_bases_and_asks_t3_code_for_a_message_once(kitch
     kitchen.t3.says(HOME, MESSAGE, "yes, both")
     add(kitchen, "alpha", approve=False)
     add(kitchen, "beta", approve=False)
-    text = (
-        f"approve alpha --message {REF} --sha {sha12(brief('alpha'))}\n"
-        f"approve beta --message={REF} --sha {sha12(brief('beta'))}\n"
-    )
+    text = f"approve alpha --message {REF}\napprove beta --message={REF}\n"
     code, said = kitchen.main("queue", "apply", stdin=text)
     assert (code, said.splitlines()) == (
         0,
@@ -341,8 +337,8 @@ def test_a_batch_takes_the_three_bases_and_asks_t3_code_for_a_message_once(kitch
     assert queue.parse(
         f"approve alpha --word {SAID} --sha 0\napprove beta --answer 4 --sha 0\n"
     ) == [
-        (1, queue.Approve("alpha", "word", SAID, "0")),
-        (2, queue.Approve("beta", "answer", "4", "0")),
+        (1, queue.Approve("alpha", "word", SAID, "")),
+        (2, queue.Approve("beta", "answer", "4", "")),
     ]
     with pytest.raises(jbus.Refused, match="line 1: approve takes one basis"):
         queue.parse(f'approve alpha --by user --at "{SAID_AT}" --sha 0\n')
@@ -353,9 +349,9 @@ def test_a_row_with_no_approval_is_listed_with_the_command_and_its_three_bases(k
     kitchen.poll()
     (one,) = jbus.read_json(kitchen.state / "waiting-on-user.json", [])
     assert one["line"] == (
-        f"approve alpha: jbus --project demo queue approve alpha --sha {sha12(brief('alpha'))} "
-        "with --word <id>, --answer <number>, --message <thread id>/<message id> or --pick "
-        "<thread id>/<item id>"
+        "approve alpha: jbus --project demo queue approve alpha with --word <id>, --answer "
+        "<number>, --message <thread id>/<message id> or --pick <thread id>/<item id>, for its "
+        f"brief {sha12(brief('alpha'))}"
     )
 
 

@@ -416,8 +416,8 @@ def _table(table: argparse.ArgumentParser) -> None:
     approve.add_argument("--at", help=argparse.SUPPRESS)
     approve.add_argument(
         "--sha",
-        help="the first 12 of the sha256 of the brief the user was shown: needed with the "
-        "user's word, and taken and not read beside --follows",
+        help="taken and not read: the go is for the brief as it is stored, whose sha256 jbus "
+        "keeps on the go",
     )
     approve.add_argument(
         "--seen",

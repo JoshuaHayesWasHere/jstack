@@ -517,7 +517,7 @@ def unforeseen(facts: Facts) -> State:
 class Lift(StrEnum):
     """`Lift` is the one word of the user's that lets a row go on, which work.json names as a
     line's `lift` and the sidebar draws as a button: `approve` gives the go for the brief as jbus
-    keeps it (`jbus queue approve <slug> --sha <sha12>`), and `accept` lets the row's pull
+    keeps it (`jbus queue approve <slug>`), and `accept` lets the row's pull
     request merge past a hold (`jmerge --accept <number>`)."""
 
     APPROVE = "approve"
