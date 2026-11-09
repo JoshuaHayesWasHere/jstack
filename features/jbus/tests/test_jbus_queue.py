@@ -51,7 +51,7 @@ def brief(slug, more=""):
         f"Proves it: `make check`\nSize: S\nWhere: `src/{slug}/`, a new test\n"
         'Design: none, a test\nDecisions: "review it once", the user\'s word in a test\n'
         "Pull request: open one when done\nReview: review\n"
-        f"Playbook: feature\n{more}"
+        f"Playbook: feature\n{'' if 'Skills:' in more else 'Skills: tdd\n'}{more}"
     )
 
 

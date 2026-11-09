@@ -702,19 +702,15 @@ def test_the_homes_state_is_jbus_home_dir_as_jbus_reads_it(tmp_path, monkeypatch
 
 
 SHAPED = BRIEF.replace("Done when:", "Size: S\nPlaybook: feature\nDone when:", 1)
-PLAYBOOK_ASKED = "(name a file in playbooks/, without its .md, or none)"
+PLAYBOOK_ASKED = skills.TABLE
 
 
 def test_a_brief_with_a_size_and_a_real_playbook_holds():
     assert (parse.sized(SHAPED), parse.playbook(SHAPED)) == ("", "")
     for size in parse.SIZES:
         assert parse.sized(SHAPED.replace("Size: S", f"Size: {size}")) == ""
-    for name in ("none", "bug-fix", "authoring-a-skill"):
+    for name in ("bug-fix", "authoring-a-skill"):
         assert parse.playbook(SHAPED.replace("Playbook: feature", f"Playbook: {name}")) == ""
-
-
-def test_a_brief_with_no_playbook_line_counts_as_none():
-    assert parse.playbook(SHAPED.replace("Playbook: feature\n", "")) == ""
 
 
 @pytest.mark.parametrize(
@@ -725,12 +721,20 @@ def test_a_brief_with_no_playbook_line_counts_as_none():
         ("../feature", "names ../feature, which is no file in playbooks/"),
         ("", "is empty"),
         ("<a row `a crewmate` runs>", "is the template's own text"),
+        ("none", "says none"),
+        ("none, a one-line fix", "says none"),
     ],
-    ids=["fix", "feature.", "a path", "empty", "the template"],
+    ids=["fix", "feature.", "a path", "empty", "the template", "none", "none with a why"],
 )
 def test_a_playbook_that_is_no_file_is_refused_with_one_line(said, why):
     text = SHAPED.replace("Playbook: feature", f"Playbook: {said}".rstrip())
     assert parse.playbook(text) == f"brief's Playbook: line {why} {PLAYBOOK_ASKED}"
+
+
+def test_a_brief_with_no_playbook_line_is_refused_with_the_homes_table():
+    assert parse.playbook(SHAPED.replace("Playbook: feature\n", "")) == (
+        f"brief has no Playbook: line {PLAYBOOK_ASKED}"
+    )
 
 
 @pytest.mark.parametrize(
@@ -753,7 +757,9 @@ def test_a_brief_with_no_size_is_refused_with_one_line(line, why):
 def test_only_the_head_of_a_brief_is_read_for_its_size_and_playbook():
     after = SHAPED.replace("Size: S\nPlaybook: feature\n", "") + RESULT
     assert parse.sized(after + "Size: S\n") == "brief has no Size: line (S, M or L)"
-    assert parse.playbook(after + "Playbook: fix\n") == ""
+    assert (
+        parse.playbook(after + "Playbook: fix\n") == f"brief has no Playbook: line {PLAYBOOK_ASKED}"
+    )
 
 
 def test_the_templates_have_a_size_line_and_the_brief_is_refused_until_it_is_filled_in():

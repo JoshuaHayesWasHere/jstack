@@ -35,7 +35,6 @@ _REPORTED = re.compile(r"^Playbook:[ \t]*(?P<said>.*)$", re.MULTILINE)
 _STEP = re.compile(r"(?P<number>\d+) (?:done|skip: (?P<skip>\S.*))")
 SIZES = ("S", "M", "L")
 _SIZES = "(S, M or L)"
-_PLAYBOOK = "(name a file in playbooks/, without its .md, or none)"
 
 
 @dataclass(frozen=True)
@@ -196,13 +195,16 @@ def playbook(text: str) -> str:
     it names one.
 
     The name is the line's first word, as `jbus playbook` reads it. It must be a crewmate's
-    file of `playbooks/` without its `.md`, or `none`. A brief with no line counts as `none`.
+    file of `playbooks/` without its `.md`: a brief with no line, or one that says `none`, names
+    none, and the fault points at the home's table that picks one for each kind of task.
     """
     said = head(text, "Playbook:")
     name = playbook_named(text)
-    if said is None or name == "none":
-        return ""
-    if not said:
+    if said is None:
+        return f"brief has no Playbook: line {skills.TABLE}"
+    if name.rstrip(".,;:").lower() == "none":
+        fault = "says none"
+    elif not said:
         fault = "is empty"
     elif _template(said):
         fault = "is the template's own text"
@@ -212,7 +214,7 @@ def playbook(text: str) -> str:
         fault = f"names {name}, which is not a crewmate's playbook"
     else:
         return asks.fault(text, name)
-    return f"brief's Playbook: line {fault} {_PLAYBOOK}"
+    return f"brief's Playbook: line {fault} {skills.TABLE}"
 
 
 NO_DESIGN = "brief's Design: line gives no design call (run /architect or say none, <why>)"
@@ -246,7 +248,6 @@ REQUIRED = (
     "Where",
     "Pull request",
     "Review",
-    "Playbook",
 )
 
 
@@ -615,7 +616,7 @@ CHECKS = (
     ("Done when", shown),
     ("Proves it", proven),
     ("Proves it", proof_runs),
-    ("Skills", skills.unknown),
+    ("Skills", skills.fault),
     ("Size", sized),
     ("Review", reviewed),
     ("Playbook", playbook),
@@ -628,7 +629,7 @@ WARNED = (runnable, unmarked, proof_runs)
 """The checks of `CHECKS` that warn first: `jbus queue add` queues a brief they find at fault,
 and prints the fault as a warning (`warnings`). A check taken out of `WARNED` refuses the brief
 as the other checks do, and a row already approved keeps its go all the same (`jbus.queue`)."""
-_SAYS_MISSING = ("Design", "Size", "Skills", "Instruments", "Builds on", "Load")
+_SAYS_MISSING = ("Design", "Size", "Skills", "Playbook", "Instruments", "Builds on", "Load")
 
 
 def faults(text: str) -> list[str]:
@@ -636,10 +637,11 @@ def faults(text: str) -> list[str]:
 
     It checks that each field of `REQUIRED` is filled in, then runs every check of each
     filled field (`CHECKS`), the first fault of a field the one it gives, but a check of `WARNED`,
-    which only warns. It leaves `Design`, `Size`, `Skills`, `Instruments`, `Builds on` and
-    `Load` to their own checks. `Size`'s reports a missing line, while a brief with no `Design:` or
-    `Skills:` line needs no design and names no skill, as `none` would say, `Instruments:` is
-    needed only for the deeper work (`instrumented`), and `Builds on` and `Load` need no line. A
+    which only warns. It leaves `Design`, `Size`, `Skills`, `Playbook`, `Instruments`, `Builds on`
+    and `Load` to their own checks. Those of `Size`, `Skills` and `Playbook` report a missing
+    line, the last two with the home's table that picks them (`skills.TABLE`), while a brief with
+    no `Design:` line needs no design, as `none` would say, `Instruments:` is needed only for the
+    deeper work (`instrumented`), and `Builds on` and `Load` need no line. A
     brief with no fault is complete. This check runs when a row is first queued and does not run
     again at a launch, so a brief that already has a go launches without being checked again
     (`jbus.queue`).

@@ -1326,6 +1326,7 @@ def complete(slug, more=""):
     `Home: uncategorized`, the catch-all's, unless `more` names a home of its own: the root home
     owns no row, and a pass launches none that names it."""
     home = "" if "Home:" in more else "Home: uncategorized\n"
+    home += "" if "Skills:" in more else "Skills: tdd\n"
     return (
         f'# {slug}: a task\nTask: "do {slug}"\nDone when:\n- `make check` passes (in none)\n'
         f"Proves it: `make check`\nSize: S\nWhere: `src/{slug}/`\nDesign: none, a test\n"
