@@ -44,8 +44,13 @@ TABLE = [
     ("all", ["pyproject.toml"], {"all"}, ()),
     ("all", ["uv.lock"], {"all"}, ()),
     ("all", ["conftest.py"], {"all"}, ()),
-    ("plugin", ["testing/jstack_fixtures.py"], {"all"}, ()),
-    ("plugin", ["testing/paths.py"], {"all"}, ()),
+    (
+        "fixture-asked",
+        ["testing/jstack_fixtures.py"],
+        {"features/architect/tests/test_architect_skill.py"},
+        (),
+    ),
+    ("imports", ["testing/paths.py"], {"testing/tests/test_select_tests.py"}, ()),
     (
         "imports",
         ["features/jmerge/src/jmerge/reuse.py"],
@@ -544,10 +549,39 @@ def test_a_change_to_a_file_a_test_of_this_repo_globs_selects_that_test(changed,
 
 
 @pytest.mark.parametrize(
-    "path",
-    ["scripts/select_tests.py", "Makefile", ".github/workflows/check.yml", "testing/shard.py"],
+    ("path", "readers"),
+    [
+        (
+            "scripts/select_tests.py",
+            {
+                "testing/tests/test_select_tests.py",
+                "testing/tests/test_select_tests_mutants.py",
+                "testing/tests/test_select_tests_rules.py",
+            },
+        ),
+        ("Makefile", {"features/repo-standard/tests/test_check_workflow.py"}),
+        (
+            ".github/workflows/check.yml",
+            {"testing/tests/test_workflows.py", "testing/tests/test_shards.py"},
+        ),
+        ("testing/shard.py", {"testing/tests/test_shards.py"}),
+    ],
+    ids=["the selector", "the Makefile", "the check", "a plugin of testing"],
 )
-def test_in_this_repo_a_change_to_what_picks_and_runs_the_tests_selects_all(path):
+def test_in_this_repo_a_change_to_what_picks_and_runs_the_tests_selects_the_tests_that_read_it(
+    path, readers
+):
+    """Only the dependencies and the root conftest.py force the whole suite on a pull request:
+    the selector, the Makefile, the check and the plugins reach the tests that import or name
+    them, and the whole suite runs on main, nightly and before a release."""
+    tests, why = select.selection([path])
+
+    assert tests != ["all"], why
+    assert readers <= set(tests)
+
+
+@pytest.mark.parametrize("path", ["pyproject.toml", "uv.lock", "conftest.py"])
+def test_in_this_repo_a_change_to_what_every_run_loads_selects_all(path):
     assert select.selection([path]) == (["all"], {"forced-by": path})
 
 
@@ -685,21 +719,21 @@ def test_strict_within_keeps_what_darwin_code_and_the_tests_reach(path, test):
     assert mac_within(path, strict=True) == mac_within(path)
 
 
-def test_strict_within_is_all_only_for_what_changes_every_run_and_within_for_all_tests_load():
-    """The run on each merge commit runs the whole list for a change to any file every test
-    loads. A pull request's run does so only for the dependencies and the root conftest.py,
-    which change every run of the tests: the rest, such as the fixtures, the Makefile, check.yml
-    and this script, reach the Mac tests that import or name them, a part of the whole list."""
-    every_run = {"pyproject.toml", "uv.lock", "conftest.py"}
-    plumbing = sorted(select.shared() - every_run)
-    assert plumbing
-    for path in sorted(select.shared()):
-        assert mac_within(path) == ["all"], path
-    for path in every_run:
-        assert mac_within(path, strict=True) == ["all"], path
-    for path in plumbing:
-        strict = mac_within(path, strict=True)
-        assert strict != ["all"] and set(strict) <= set(select.tracked()), path
+@pytest.mark.parametrize("strict", [False, True], ids=["within", "strict"])
+def test_within_is_all_only_for_what_changes_every_run(strict):
+    """A Mac selection runs the whole list only for the dependencies and the root conftest.py,
+    which change every run of the tests: the plugins, the Makefile, check.yml and this script
+    reach the Mac tests that import or name them, a part of the whole list."""
+    for path in ["pyproject.toml", "uv.lock", "conftest.py"]:
+        assert mac_within(path, strict=strict) == ["all"], path
+    for path in [
+        "scripts/select_tests.py",
+        "Makefile",
+        ".github/workflows/check.yml",
+        "testing/jstack_fixtures.py",
+    ]:
+        tests = mac_within(path, strict=strict)
+        assert tests != ["all"] and set(tests) <= set(select.tracked()), path
 
 
 @pytest.mark.parametrize("path", [MAC_LIST])

@@ -274,20 +274,62 @@ def aside_path(state: Path, slug: str, text: str) -> Path:
     return state / "removed" / f"{slug}.{judgement.brief_sha(text)[:12]}.md"
 
 
+_parsed: dict[Path, tuple[tuple[int, int, int], Any]] = {}
+
+
+def _stat(file: Path) -> tuple[int, int, int]:
+    seen = file.stat()
+    return seen.st_ino, seen.st_size, seen.st_mtime_ns
+
+
+def _read(file: Path, valid: Callable[[Any], bool]) -> Any:
+    """Return the parsed JSON of `file`, or None where there is no file. The parse is kept with
+    the inode, size and mtime the file had before it was read, and served again while the file
+    has them: a pass reads the 8 MB `queue.json` from some thirty callers, and every write
+    replaces the file whole (`store.write_json`), so a write is read again. A file replaced
+    between the stat and the read is read again on the next call. The kept value is shared:
+    callers copy what they change. Raise `Unparsable` where it is not JSON or not `valid`."""
+    try:
+        key = _stat(file)
+        kept = _parsed.get(file)
+        if kept and kept[0] == key:
+            return kept[1]
+        raw = file.read_bytes()
+    except (FileNotFoundError, NotADirectoryError):
+        return None
+    try:
+        value = json.loads(raw)
+        if not valid(value):
+            raise ValueError
+    except (ValueError, AttributeError) as error:
+        raise Unparsable(file) from error
+    _parsed[file] = (key, value)
+    return value
+
+
+def _write(file: Path, value: list[Row] | dict[str, Any]) -> None:
+    """Write `file` whole and keep a copy of what was written as its parse (`_read`), so the
+    readers after a write parse nothing. The copy is of the rows, or of the table's top level,
+    since the writer may go on changing its own. The caller holds the queue's lock, which every
+    writer of the file holds, so the file stat here is the one written."""
+    write_json(file, value)
+    kept = [dict(row) for row in value] if isinstance(value, list) else dict(value)
+    _parsed[file] = (_stat(file), kept)
+
+
+def _removed_table(kept: Any) -> bool:
+    return isinstance(kept, dict) and all(isinstance(one, dict) for one in kept.values())
+
+
+def _table(rows: Any) -> bool:
+    return isinstance(rows, list) and all(_well_formed(row) for row in rows)
+
+
 def removed(state: Path) -> dict[str, dict[str, str]]:
     """Return the slugs removed for good, each with the `at` and `by` that its `remove` got, and
     the `why` of a `withdraw`."""
-    try:
-        text = removed_path(state).read_text()
-    except (FileNotFoundError, NotADirectoryError):
-        return {}
-    try:
-        kept = json.loads(text)
-        if not isinstance(kept, dict) or not all(isinstance(one, dict) for one in kept.values()):
-            raise ValueError
-    except ValueError as error:
-        raise Unparsable(removed_path(state)) from error
-    return kept
+    kept = _read(removed_path(state), _removed_table)
+    return {} if kept is None else dict(kept)
 
 
 def known(state: Path) -> frozenset[str]:
@@ -586,19 +628,29 @@ def current(state: Path, slug: str) -> tuple[Row | None, str | None]:
 
 def load(state: Path) -> list[Row]:
     """Return the rows of the table, leaving out any row of a slug that `removed.json`
-    names."""
+    names. Each row is the caller's own dict, and its lists and dicts are shared with the other
+    callers of this read (`_read`): set a column, never change one in place."""
     gone = removed(state)
-    try:
-        text = path(state).read_text()
-    except FileNotFoundError:
-        return []
-    try:
-        rows = json.loads(text)
-        if not isinstance(rows, list) or not all(_well_formed(row) for row in rows):
-            raise ValueError
-    except (ValueError, AttributeError) as error:
-        raise Unparsable(path(state)) from error
-    return [row for row in rows if row["slug"] not in gone]
+    rows = _read(path(state), _table)
+    return [dict(row) for row in rows or () if row["slug"] not in gone]
+
+
+def unshared(state: Path) -> list[Row]:
+    """Return the rows of the table for a writer, which changes them in place: like `load`, but
+    with each list and table a row holds copied too, so a writer's change reaches no reader of
+    the parse. A table under those, such as an approval's meaning, is still shared, and a writer
+    replaces it whole."""
+    gone = removed(state)
+    rows = _read(path(state), _table)
+    return [
+        {column: _copied(value) for column, value in row.items()}
+        for row in rows or ()
+        if row["slug"] not in gone
+    ]
+
+
+def _copied(value: Any) -> Any:
+    return value.copy() if isinstance(value, (list, dict)) else value
 
 
 @contextmanager
@@ -608,14 +660,14 @@ def _changing(state: Path, briefed: set[str] | None = None) -> Iterator[list[Row
     is the slugs whose brief the caller stores under the same lock, which it fills in as it does."""
     with store.locked(state, "queue.lock"):
         try:
-            rows = load(state)
+            rows = unshared(state)
         except Unparsable as error:
             raise Refused(f"refused: {error}, and nothing writes it") from error
         before = json.dumps(rows, sort_keys=True)
         yield rows
         rows.sort(key=order)
         if json.dumps(rows, sort_keys=True) != before:
-            write_json(path(state), rows)
+            _write(path(state), rows)
         _restate_work(state, json.loads(before), briefed or set())
 
 
@@ -2180,9 +2232,9 @@ def _run(
                 if text is not None:
                     _store(state, slug, text)
             rows.sort(key=order)
-            write_json(path(state), rows)
+            _write(path(state), rows)
         if batch.gone != gone:
-            write_json(removed_path(state), batch.gone)
+            _write(removed_path(state), batch.gone)
         for slug, text in batch.briefs.items():
             _store(state, slug, text)
         briefed.update(batch.briefs)

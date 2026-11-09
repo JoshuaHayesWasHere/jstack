@@ -239,7 +239,7 @@ BEFORE = {
     ),
 }
 
-DERIVED = "queue.derive queue.load queue.load leftover.tell"
+DERIVED = "queue.derive queue.unshared queue.load leftover.tell"
 ONCE = "queue.load work.write item.follow stall.tell waiting.keep questions.read waiting.cadence"
 JUDGED = ONCE.replace("questions.read", "questions.read questions.read queue.load")
 TELL = "queue.load questions.read wakes.tell queue.load questions.read"
@@ -280,6 +280,7 @@ CALLED = (
     (word, "deliver"),
     (merge, "merge"),
     (queue, "load"),
+    (queue, "unshared"),
     (questions, "closed_in_files"),
     (questions, "read"),
     (watch, "look"),
@@ -346,7 +347,7 @@ def moved(before, fixture="short"):
     reads after `mainmoved.tell` since it watches the root: the queue and the questions, to know
     both parse, then the root's `out`, cut short at a file that does not parse (`WATCHED`)."""
     parsed = fixture not in ("blind", "queue.json")
-    calls = ["queue.load", *(["queue.load"] if parsed else []), *before.split()]
+    calls = ["queue.unshared", *(["queue.load"] if parsed else []), *before.split()]
     calls.remove("questions.closed_in_files")
     calls.insert(calls.index("word.deliver") + 1, "questions.closed_in_files")
     if "watch.gone" in calls:

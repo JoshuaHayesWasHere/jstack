@@ -14,8 +14,11 @@ merges landed on that red and broke nothing more, so the oldest is the culprit, 
 2026-10-23 with four merges on top of it. It reverts nothing, and says which `Keep` holds:
 
 - `OVERLAP`: a later tip failed a test that did not fail at the oldest, or named none, as when two
-  reds overlap; or a commit of the run ended neither red nor green; or no green is in reach. The
-  fix row names every red tip among them.
+  reds overlap; or a commit of the run ended neither red nor green; or no green is in reach. A
+  commit whose push run a newer push displaced (`watch.BATCHED`) is one of those: pushes to main
+  share one concurrency group, so one run checks every merge since the last run that ran, and a
+  red over a batch of merges shows no one of them to be the break. The fix row names every red
+  tip among them.
 - `UNREAD`, besides the case below: a commit of the run whose check has not ended is no second red
   yet, as #864's under 52b82e7 on 2026-11-02, so the next pass judges the run again. Once the tip
   is older than `READ_WAIT`, it is `OVERLAP`.
@@ -56,10 +59,12 @@ thread of it is unsettled and its row, if the queue still has one, is final. A s
 merges nothing more, so its record holds nothing, and `TWICE` no longer files a fix row for a
 later red that is due a revert.
 
-`macos` judges main's Mac by the same rule. macos.yml runs on each merge commit into main, one
-run for each, and that run is never main's check (`watch._judged`): a Mac red writes nothing to
-`main.json` and holds no pull request. After its one rerun (`watch.mac_check`), the newest red
-commit and every one since the last Mac green are a `Red`, with the Mac run's failed tests:
+`macos` judges main's Mac by the same rule. macos.yml's push runs share one group, as main's check
+does, so a run selects over every merge since the last Mac run that ran, and a commit whose run a
+newer push displaced ends `cancelled`, neither green nor red. That run is never main's check
+(`watch._judged`): a Mac red writes nothing to `main.json` and holds no pull request. After its
+one rerun (`watch.mac_check`), the newest red commit and every one since the last Mac green are a
+`Red`, with the Mac run's failed tests:
 `culprit`, `tested` and `covered` judge it, a clear culprit is reverted, and anything else files
 the row `macos-red-<commit>` under the home `macos`. Its revert is closed only once the Mac is
 green at a later commit (`MAC_MAIN`).
@@ -409,8 +414,9 @@ QUIET = (Keep.OPENED, Keep.UNREAD)
 def macos(run: Pass, world: World) -> None:
     """Judge main's Mac as `culprit` judges main's check, one merge commit at a time.
 
-    macos.yml runs on each push to main over the merge commit and its first parent, one run for
-    each commit, none cancelled (`watch.mac_check` reads it, and reruns a failed run once). Its
+    macos.yml runs on pushes to main over every merge since its last run that ran, one run going
+    and the newest push waiting, so a displaced commit's run ends `cancelled` (`watch.mac_check`
+    reads it, and reruns a failed run once). Its
     run is no part of main's check (`watch._judged`), so a Mac red never writes `main.json` and
     holds no pull request. `macos` reads the newest of main's commits whose Mac run ended green or
     red; a run that skipped its Mac judged nothing on a Mac, and is passed over, neither a green
