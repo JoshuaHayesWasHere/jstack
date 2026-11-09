@@ -13,7 +13,7 @@ from dataclasses import replace
 
 import pytest
 
-from jmerge import ready
+from jmerge import cli, ready
 from test_jmerge_fresh import LINES, Kitchen, asked, git, repo, url
 from test_jmerge_order import queue_of
 from test_jmerge_revert_line import named
@@ -68,6 +68,16 @@ def test_over_main_an_overlapping_revert_still_takes_the_line(kitchen):
     assert first == asked(9, tip)
     assert second.startswith("merged 7 two ")
     assert kitchen.updates() == ["9"]
+
+
+def test_over_main_one_no_brief_names_merges_on_its_existing_check_alike(kitchen, monkeypatch):
+    """A pull request no brief names, as a dependabot bump is, which only the user's accept
+    merges (`Repo.unbriefed`), is judged to merge over today's tip on its existing check too."""
+    kitchen.crew("bump", 7, OURS)
+    tip = kitchen.on_main(THEIRS)
+    here = repo(kitchen, monkeypatch)
+    judged = here.unbriefed(ready.pull_request(kitchen.pulls["bump"]), "main", "")
+    assert judged == cli.Judgement("", "", "", "", ready.Judged(tip))
 
 
 def test_over_main_a_base_that_cannot_be_fetched_waits_saying_so(kitchen, monkeypatch):

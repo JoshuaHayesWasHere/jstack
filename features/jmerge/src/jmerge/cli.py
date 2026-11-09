@@ -1403,8 +1403,9 @@ class Repo:
         self, lock, one: ready.PullRequest, slug: str, rebase: str, judged: ready.Judged
     ) -> str:
         """Merge `one` while this run holds the repo's merge lock, from the read of its base's
-        tip to `gh pr merge` and the fetch after it, and nothing else. A tip that moved since it was judged gives the lock back while the pull
-        request is judged again, so a wait on GitHub holds up no other run."""
+        tip to `gh pr merge` and the fetch after it, and nothing else. A tip that moved since it
+        was judged gives the lock back while the pull request is judged again, so a wait on GitHub
+        holds up no other run."""
         number = str(one.number)
         again = 0
         while lock.take():
