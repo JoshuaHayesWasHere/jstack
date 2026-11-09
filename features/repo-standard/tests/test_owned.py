@@ -11,12 +11,12 @@ import subprocess
 
 import pytest
 
-from repo_standard import VERSION
+from repo_standard import VERSION, owned
 from repo_standard.cli import main
 from testing.paths import REPO
 
 FEATURE = REPO / "features" / "repo-standard"
-CALLER = ".github/workflows/check.yml"
+CALLER = owned.CALLER
 DRIFT = "warn a-file-a-version-owns-is-that-versions-copy"
 SKELETON = (FEATURE / "skeleton" / CALLER).read_text()
 OWN = "      runner: winnifred-ephemeral\n      browser-channel: chrome\n"
