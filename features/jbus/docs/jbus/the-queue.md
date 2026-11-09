@@ -200,7 +200,8 @@ jbus holds a row itself when its pull request fails a required check at two head
 Each head counts once, a push or GitHub's merge of main alike, and a required check is one the home's `required-checks` names.
 A head whose check ran on main's red tip, the `broken` tip of `main.json`, is not counted: main failed there, not the row.
 A head whose failed tests each failed on two other branches in `jbus ci`'s window, its flake rule (`jbus.reverts.flaky`), is not counted either: the red is shared, not the row's.
-Nor is a head at which each failed job failed at a step whose log names no failed test and no make target, such as a package's download: that step ran nothing of the row's.
+Nor is a head at which each failed job failed at an infra step, one whose log shows a download or network failure (a `curl` error, an HTTP 5xx, a host that did not resolve, a connection reset or timed out, an artifact download that failed) and names no failed test and no make target, such as a package's download: that step ran nothing of the row's.
+A lint step, such as `prose lint`, also runs no test and no make target, but shows no fetch failure: it failed on the row's own work, and its head counts.
 jbus asks GitHub for a job's failed step once, and keeps it with the job.
 At the second head jbus runs the same `hold` as `jbus queue hold <slug>`, keeping the go it takes, and pages the Chef once, with the gate `condition <slug>: check failed twice`, whose text names the row, the pull request, both heads and the failed jobs at each.
 The row's `why` says `check failed twice` while it is held.
