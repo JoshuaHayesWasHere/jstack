@@ -18,6 +18,14 @@ from testing.paths import REPO
 HOOK = REPO / "features" / "jgauge" / "hooks" / "limits.sh"
 NOW = int(time.time())
 SOON, LATER, WEEK = NOW + 3600, NOW + 5 * 3600, NOW + 90 * 3600
+"""Resets for the script, which never reads the clock. A test that asks `room`, which does, takes
+its resets from `ahead` instead, since a whole suite can run for longer than SOON is ahead."""
+
+
+def ahead():
+    """Return a five-hour and a weekly reset an hour and 90 hours from now."""
+    now = int(time.time())
+    return now + 3600, now + 90 * 3600
 
 
 def handed(**windows):
@@ -57,8 +65,9 @@ def kept(env):
 
 
 def test_what_the_script_writes_is_what_room_reads(env):
-    write(handed(five_hour=(23.5, SOON), seven_day=(41.2, WEEK)), env)
-    assert kept(env) == f"five_hour 23.5 {SOON}\nseven_day 41.2 {WEEK}\n"
+    soon, week = ahead()
+    write(handed(five_hour=(23.5, soon), seven_day=(41.2, week)), env)
+    assert kept(env) == f"five_hour 23.5 {soon}\nseven_day 41.2 {week}\n"
     said = ran(env, check())
     assert (said.stdout, said.stderr) == ("go\n", "")
 
@@ -246,14 +255,15 @@ def test_a_second_account_writes_its_own_file_and_leaves_the_first_alone(tmp_pat
     """Each account's status line writes the file of one instance: the instance whose home is
     the account's CLAUDE_CONFIG_DIR. So one account's limits never count as another's."""
     home = tmp_path / "home"
+    soon, week = ahead()
     named = inventory(tmp_path, {**env, "HOME": str(home)}, prime_home.format(home=home))
-    write(handed(five_hour=(12, SOON), seven_day=(30, WEEK)), named)
-    full = handed(five_hour=(100, SOON), seven_day=(30, WEEK))
+    write(handed(five_hour=(12, soon), seven_day=(30, week)), named)
+    full = handed(five_hour=(100, soon), seven_day=(30, week))
     write(full, {**named, "CLAUDE_CONFIG_DIR": str(home / ".claude_prime")})
-    assert kept(env) == f"five_hour 12 {SOON}\nseven_day 30 {WEEK}\n"
+    assert kept(env) == f"five_hour 12 {soon}\nseven_day 30 {week}\n"
     assert (
         Path(f"{env['LIMITS']}.{PRIME}").read_text()
-        == f"five_hour 100 {SOON}\nseven_day 30 {WEEK}\n"
+        == f"five_hour 100 {soon}\nseven_day 30 {week}\n"
     )
     assert ran(env, check()).stdout == "go\n"
     waits = ran({**env, "POOL": PRIME}, check()).stdout
