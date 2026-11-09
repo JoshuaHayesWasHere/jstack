@@ -18,9 +18,10 @@ or at a launch. Only a fault that an edit brings refuses it. `show` names the gr
 jbus keeps the brief that came with a row's `add` beside the table, in `briefs/<slug>.md`, and
 `approve` records the brief's sha256 and its meaning fingerprint (`jbriefs.meaning`). The go holds
 for a brief whose title, Task, Done when, Where, Do not touch and Size are what they were, whatever
-else changed, and not for one whose goal or scope changed. `approve` on the user's word also takes
-the sha of the brief the user was shown, and refuses when the stored brief differs from it. A go by
-a rule, the follow-up rule's or an entry's, is pinned to no sha, since no user read one.
+else changed, and not for one whose goal or scope changed. Every go is for the brief as it is
+stored at that moment, and a `--sha` typed beside its basis is taken and not read. Only a go that
+names the brief its person had on screen is held to it: the bot's act (`BOT_CHAT`), and the
+sidebar's message (`SIDEBAR_GO`).
 
 An approval is based on the user's words, which another store holds, and `approve` names them: a
 word that `jbus word` kept, the answer that closed a question, a message of a T3 Code thread, or
