@@ -46,7 +46,7 @@ def test_the_timer_runs_a_pass_every_minute_and_a_failed_one_runs_the_alarm():
         assert (Path(command[0]).name, command[1:]) == ("jbus", [verb])
         assert unit["Service"]["Type"] == "oneshot"
     assert service["Unit"]["OnFailure"] == "jbus-failed.service"
-    assert units["jbus.timer"]["Timer"]["OnUnitInactiveSec"] == "25s"
+    assert units["jbus.timer"]["Timer"]["OnUnitInactiveSec"] == "10s"
     assert units["jbus.timer"]["Install"]["WantedBy"] == "timers.target"
 
 

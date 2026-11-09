@@ -482,7 +482,7 @@ def test_a_relay_with_no_env_file_fails_to_start_as_under_systemd(tmp_path):
     assert "cannot be read" in out
 
 
-@pytest.mark.parametrize(("gap", "every"), [("20s", 60), ("1min", 60), ("5min", 300)])
+@pytest.mark.parametrize(("gap", "every"), [("10s", 60), ("20s", 60), ("1min", 60), ("5min", 300)])
 def test_a_gap_after_the_end_starts_the_agent_each_minute_or_each_gap_where_longer(
     tmp_path, gap, every
 ):

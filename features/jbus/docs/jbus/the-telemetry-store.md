@@ -163,7 +163,7 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 | `pass_times` | the `seconds` of each jbus pass, by `week`, read by `weekly_pass_time` |
 | `weekly_pass_time` | each week's jbus passes: `n`, and the `median` and `p85` of their seconds |
 | `capped_spells` | each read of `capped_reads` and the `minutes` it holds every instance capped: up to the next read of either reader, or its `ends_at`, whichever is first, so two readers' reads of the same minutes count once |
-| `weekly_capped` | each week's `reads` and capped `minutes`, right to about a minute at each end of a spell, since a pass reads about once a minute (25 seconds after the last one ended) and `jgauge limits` every 2 |
+| `weekly_capped` | each week's `reads` and capped `minutes`, right to about a minute at each end of a spell, since a pass reads about twice a minute (10 seconds after the last one ended) and `jgauge limits` every 2 |
 | `capped_since` | the first `day` of `capped_reads` |
 | `jmerge_waits` | each pull request `jmerge` merged, from the second its required checks passed at the head it merged at to the second its merge began: `seconds`, `minutes`, `blocker` and `blockers`, by `jmerge`'s record (`how` is `jmerge`), else by its last passed `pull_request` job to GitHub's merge time (`how` is `checks`) |
 | `jmerge_blockers` | each code that held a recorded wait, and its `seconds` |

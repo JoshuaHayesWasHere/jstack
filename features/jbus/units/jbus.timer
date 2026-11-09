@@ -1,10 +1,10 @@
 [Unit]
-Description=jbus: a pass 25 seconds after the last one ended
+Description=jbus: a pass 10 seconds after the last one ended
 Documentation=file:%Y/../docs/jbus/set-up-jbus.md#set-up-jbus file:%Y/../docs/jbus/when-jbus-fails.md#when-jbus-fails
 
 [Timer]
 OnBootSec=2min
-OnUnitInactiveSec=25s
+OnUnitInactiveSec=10s
 AccuracySec=1s
 
 [Install]

@@ -137,7 +137,7 @@ They are set in `features/jgauge/src/jgauge/room.sh`.
 
 | Limit | Where | Value | Protects | Its yelena basis |
 |---|---|---|---|---|
-| jbus's pass | `features/jbus/units/jbus.timer` | `OnUnitInactiveSec=25s` | How soon a launch, a wake or a merge happens, and GitHub's core calls an hour | On 2026-11-08 a pass took p50 34 s and spent about 58 core calls, and the two hours measured at about 59 passes an hour spent 3,090 and 3,800 core calls, inside the 4,000 above `jsettings.budget.FLOOR`: 25 s after a pass's end keeps that pace |
+| jbus's pass | `features/jbus/units/jbus.timer` | `OnUnitInactiveSec=10s` | How soon a launch, a wake or a merge happens, and GitHub's core calls an hour | On 2026-11-09 a pass took a mean 21 s (p50 19.5 s) and spent at most 14.9 calls of either of GitHub's two core counts: 10 s after a pass's end is about 116 passes an hour and about 1,730 calls a count, under half the 3,945 above `jsettings.budget.FLOOR` and the rest of the hour's callers. The pass's CPU (0.86 of a core) sets the floor, not the budget |
 | A sample of the load | `features/jgauge/units/jgauge-sample.timer` | `OnUnitActiveSec=15s` | The load history | A sample is one read of `/proc` |
 | A look for a missing pass | `features/jbus/units/jbus-stale.timer` | `OnUnitActiveSec=15min` | An alert when jbus stops | Design choice |
 | The slot log's history | `features/jgauge/src/jgauge/slotlog.py` | `KEEP_DAYS = 30` | The slot log stays small: a take past it drops the rows over 29 days old | As the load log keeps |
