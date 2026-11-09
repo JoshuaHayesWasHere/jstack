@@ -717,18 +717,19 @@ def restate(
     thread: Thread | None = None,
     go: Go | None = None,
 ) -> dict[str, Any]:
-    """Return a line of `work.json` judged again from its stored facts, with `row` as the new
-    `Row` facet, `pull` as the new `Pull` facet and `thread` as the new `Thread` facet where given,
-    as the writer of that input knows it. A new approved facet beside an approved one is the
-    pass's to tell apart, since only the pass sees which depends merged; and a state that keeps
-    its value and its word of the user's (`lift`) keeps its holder and its `why`, which the pass
+    """Return a line of `work.json` judged again from its stored facts, with `row` as the new `Row`
+    facet, `pull` as the new `Pull` facet and `thread` as the new `Thread` facet where given, as
+    the writer of that input knows it. A new approved facet beside an approved one is the pass's
+    to tell apart, since only the pass sees which depends merged; and a state that keeps its
+    value and its word of the user's (`lift`) keeps its holder and its `why`, which the pass
     worked out from more than the facts. A state whose value changed has no `why` until the next
-    pass judges one, since the one it had was judged for the old state, unless the writer gives
-    one (`why`), as a run of `jmerge` does with its reason. A write of the queue gives why the
-    row's go does not hold (`go`, `jbus.queue.unheld`), which the line says while it waits on the
-    user's go; a writer that gives none keeps what the line said of the go. A line restated with
-    the facets, the `why` and the go it has comes back as it is, so a writer that runs twice
-    writes nothing the second time."""
+    pass judges one, since the one it had was judged for the old state, and so has a line whose
+    go holds again (`lifted`), unless the writer gives one (`why`), as a run of `jmerge` does
+    with its reason. A write of the queue gives why the row's go does not hold (`go`,
+    `jbus.queue.unheld`), which the line says while it waits on the user's go; a writer that
+    gives none keeps what the line said of the go. A line restated with the facets, the `why`
+    and the go it has comes back as it is, so a writer that runs twice writes nothing the second
+    time."""
     facts = stored(one)
     if facts is None:
         return one
@@ -752,7 +753,7 @@ def restate(
     about = {name: value for name, value in one.items() if name not in _JUDGED}
     if why is not None:
         about["why"] = why
-    elif "why" in about and state.value != one["value"]:
+    elif "why" in about and (state.value != one["value"] or lifted(one, word)):
         about["why"] = ""
     role = "scout" if "scout" in one else ""
     scout = {"scout": str(scouting(state))} if role else {}
@@ -762,6 +763,11 @@ def restate(
         held = replace(held, waits=str(one.get("waits", "")), why=one.get("why"))
     line = entry(state, held, **about, **scout)
     return one if line == one else line
+
+
+def lifted(one: dict[str, Any], word: Lift | None) -> bool:
+    """Return whether a line that waited on the user's go no longer does, so its `why` is gone."""
+    return one.get("lift") == Lift.APPROVE and word != Lift.APPROVE
 
 
 _JUDGED = frozenset(

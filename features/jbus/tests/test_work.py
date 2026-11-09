@@ -265,7 +265,8 @@ def test_a_launched_row_whose_brief_changed_after_its_go_waits_on_the_users_go_a
     assert line["why"].startswith("its brief changed after your go: ")
     assert "The sidebar shows the row." in line["why"]
     assert go(kitchen, "alpha")[0] == 0
-    assert "lift" not in judged(kitchen)
+    line = judged(kitchen)
+    assert "lift" not in line and "after your go" not in line["why"]
 
 
 def test_a_queued_row_with_no_go_says_so_with_the_sha_it_waits_on(kitchen):
