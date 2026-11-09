@@ -112,7 +112,14 @@ elif ! tests=$(git diff --name-only --diff-filter=d "$base" HEAD | command grep 
     ! printf '%s\n' "$changed" | command grep -vE "$fork" | command grep -qvE "$exempt"; then
     prove_fork
 elif [ -z "$tests" ]; then
-    echo "no test changed: the Result says Proved: none, <kind>, where every file it changes is of that kind"
+    # A .py file whose change is to its docstrings and comments alone is docs, which only its
+    # parsed code can tell, so jbriefs names the kinds (`jbriefs.proved.none_kinds`).
+    if line=$(uv run --project "$T/../source" jbriefs --proved-none "$base..$head"); then
+        echo "$line"
+        if command grep -q '^## Result' "$B"; then printf '%s\n' "$line" >> "$B"; fi
+    else
+        echo "no test changed: the Result says Proved: none, <kind>, where every file it changes is of that kind${line:+ ($line)}"
+    fi
 else
     kept='(^|/)tests?/|(^|/)(test_[^/]*|[^/]*_test|conftest)\.py$'
     if ! tree=$(mktemp -d "${TMPDIR:-/tmp}/base.XXXXXX"); then

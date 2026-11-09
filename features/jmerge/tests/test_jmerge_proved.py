@@ -9,13 +9,15 @@ passing and an exempt pull request. The rest drive `ready.short_on_proved`, whic
 before a merge, through each way a line falls short."""
 
 import re
+import subprocess
 from dataclasses import replace
 
 import pytest
 
+import jsettings
 import test_home_merge as merge
 from jbriefs import proved as proved_line
-from jmerge import ready
+from jmerge import cli, ready
 
 TEST = "features/x/tests/test_x.py"
 BASE = "c" * 40
@@ -332,3 +334,53 @@ def test_github_s_deleted_files_are_the_ones_it_removes():
         [{"filename": TEST, "status": "removed"}, {"filename": "a.py"}],
     )
     assert full.removed == (TEST,)
+
+
+def test_a_py_file_git_does_not_show_at_both_sides_is_no_docs_and_waits(merged):
+    """jmerge asks git for the base and the head of each `.py` file a `none, docs` line covers:
+    a file the pull request adds has no base, so its change is no docstring's alone."""
+    opened(merged, ("a.py",), "Proved: none, docs\n")
+    (said,) = merged.run()
+    why = ready.PROVED_NOT_KIND.format(kinds="docs", path="a.py")
+    assert said == f"wait 7 {merge.URL}: {why}"
+    assert merged.untouched()
+
+
+def test_jmerge_cli_asks_git_whether_a_py_file_changes_in_its_docstrings_alone(tmp_path):
+    """`jmerge.cli.Repo.prose` fetches origin once and reads the file at the merge-base of the
+    pull request's base on origin and at its head, so a docstring's rewording is docs and a
+    changed line of code is not."""
+
+    def git(*args):
+        identity = ["-c", "user.name=t", "-c", "user.email=t@example.com"]
+        ran = subprocess.run(
+            ["git", *identity, *args], cwd=tmp_path, check=True, capture_output=True, text=True
+        )
+        return ran.stdout.strip()
+
+    git("init", "-q", "-b", "main")
+    (tmp_path / "a.py").write_text('def f():\n    """Old words."""\n    return 1\n')
+    (tmp_path / "b.py").write_text("X = 1\n")
+    git("add", "-A")
+    git("commit", "-q", "-m", "base")
+    git("remote", "add", "origin", str(tmp_path))
+    git("switch", "-q", "-c", "alpha")
+    (tmp_path / "a.py").write_text('def f():\n    """New words."""  # and a note\n    return 1\n')
+    (tmp_path / "b.py").write_text("X = 2\n")
+    git("commit", "-q", "-am", "head")
+    one = ready.PullRequest(
+        number=7,
+        url="",
+        title="",
+        branch="alpha",
+        head=git("rev-parse", "HEAD"),
+        base="main",
+        mergeable="MERGEABLE",
+        waiting=(),
+        files=("a.py", "b.py"),
+        renamed=False,
+        changed=2,
+    )
+    repo = cli.Repo(tmp_path, tmp_path / "state", None, False, user=jsettings.DEFAULTS)
+    prose = repo.prose(one)
+    assert (prose("a.py"), prose("b.py"), repo.fetched) == (True, False, True)

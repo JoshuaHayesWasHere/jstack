@@ -6,8 +6,11 @@ patches and the fork's own tests in them fail over the base's patches and pass o
 
 from __future__ import annotations
 
+import ast
+import functools
 import re
-from collections.abc import Iterable
+import subprocess
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from fnmatch import fnmatchcase
 
@@ -30,7 +33,9 @@ EXEMPT = {
 """The kinds of change a pull request that changes no test names on its `Proved: none, <kind>`
 line, each with the paths it covers: `docs`, prose and the docs directories, and `config`,
 settings, workflows, lockfiles and dotfiles. A pattern with a `/` matches from any directory
-of the path on, one without it matches the file's name."""
+of the path on, one without it matches the file's name. A `.py` file whose change is to its
+docstrings and comments alone is `docs` too (`prose_only`), which no pattern can tell: no test
+can fail over a docstring without pinning its words."""
 _PROVED_RUN = re.compile(
     r"Proved: (?P<tests>\S.*?) base exit (?P<base_exit>\d+) at (?P<base>[0-9a-f]{40}), "
     r"head exit (?P<head_exit>\d+) at (?P<head>[0-9a-f]{40})"
@@ -83,8 +88,15 @@ class Proved:
     fork: bool = False
 
 
-def of_kind(path: str, kind: str) -> bool:
-    """Whether `path` is of the `EXEMPT` kind `kind`."""
+def _no_prose(path: str) -> bool:
+    return False
+
+
+def of_kind(path: str, kind: str, prose: Callable[[str], bool] = _no_prose) -> bool:
+    """Whether `path` is of the `EXEMPT` kind `kind`, or, for `docs`, a `.py` file `prose` says
+    changes only in its docstrings and comments (`prose_in`)."""
+    if kind == "docs" and path.endswith(".py") and prose(path):
+        return True
     parts = path.split("/")
     return any(
         any(fnmatchcase("/".join(parts[at:]), pattern) for at in range(len(parts)))
@@ -92,6 +104,75 @@ def of_kind(path: str, kind: str) -> bool:
         else fnmatchcase(parts[-1], pattern)
         for pattern in EXEMPT[kind]
     )
+
+
+class _Docstrings(ast.NodeTransformer):
+    """Drops each statement that is a string alone: a module's, a class's or a function's
+    docstring, and the docstring under an attribute or a constant, none of which runs."""
+
+    def visit_Expr(self, node: ast.Expr) -> ast.Expr | None:
+        if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
+            return None
+        return node
+
+
+def _code(source: str | None) -> str | None:
+    """The code of a Python source with its docstrings dropped, as `ast.dump` prints it, which
+    holds no comment and no line number; None where there is no source or it does not parse."""
+    if source is None:
+        return None
+    try:
+        tree = ast.parse(source)
+    except (SyntaxError, ValueError):
+        return None
+    return ast.dump(_Docstrings().visit(tree))
+
+
+def prose_only(base: str | None, head: str | None) -> bool:
+    """Whether a Python file's text at the base and at the head, None where it has none there,
+    differ only in their docstrings and comments: both parse, to the same code once docstrings are
+    dropped. A file the change adds or deletes is not, nor one that does not parse."""
+    code = _code(base)
+    return code is not None and code == _code(head)
+
+
+def _show(root: str, *command: str) -> str | None:
+    said = subprocess.run(["git", "-C", root, *command], capture_output=True, text=True)
+    return said.stdout if said.returncode == 0 else None
+
+
+def prose_in(root: str, on: str, head: str) -> Callable[[str], bool]:
+    """Whether a path's change in the repo at `root`, from the merge-base of `on` and `head` to
+    `head`, is to its docstrings and comments alone (`prose_only`). git is asked only for the
+    paths asked of, and a path git cannot show at either side is not."""
+
+    @functools.cache
+    def base() -> str:
+        return (_show(root, "merge-base", on, head) or "").strip()
+
+    def prose(path: str) -> bool:
+        if not base():
+            return False
+        return prose_only(
+            _show(root, "show", f"{base()}:{path}"), _show(root, "show", f"{head}:{path}")
+        )
+
+    return prose
+
+
+def none_kinds(
+    files: Iterable[str], prose: Callable[[str], bool] = _no_prose
+) -> tuple[tuple[str, ...], str]:
+    """The `EXEMPT` kinds a `Proved: none, <kinds>` line names for a change of `files`, in
+    `EXEMPT`'s order, each file counted as the first kind it is of, and the first file of no
+    kind, or "" where every file is of one."""
+    kinds: set[str] = set()
+    for path in files:
+        kind = next((kind for kind in EXEMPT if of_kind(path, kind, prose)), "")
+        if not kind:
+            return (), path
+        kinds.add(kind)
+    return tuple(kind for kind in EXEMPT if kind in kinds), ""
 
 
 def outside_fork(files: Iterable[str]) -> str:

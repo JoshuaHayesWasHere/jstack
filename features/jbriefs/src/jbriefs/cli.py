@@ -8,7 +8,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from jbriefs import findings, home, meets, page, parse, pick, propose, skills
+from jbriefs import findings, home, meets, page, parse, pick, propose, proved, skills
 from jsettings.paths import common_dir, jbus_state_dir
 
 
@@ -113,6 +113,22 @@ def rounds(said: findings.Triage) -> str:
     return f"{len(ran)} {saw} {heads}"
 
 
+def proved_none_main(base: str, head: str) -> int:
+    listed = subprocess.run(
+        ["git", "diff", "--name-only", "--no-renames", base, head], capture_output=True, text=True
+    )
+    if listed.returncode != 0:
+        print(f"no kind: git diff {base} {head} failed: {listed.stderr.strip()}")
+        return 1
+    files = listed.stdout.splitlines()
+    kinds, other = proved.none_kinds(files, proved.prose_in(os.getcwd(), base, head))
+    if other or not kinds:
+        print(f"no kind: {other or 'the change has no file'}")
+        return 1
+    print(f"Proved: none, {' and '.join(kinds)}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if argv[:1] == ["pick"]:
@@ -184,6 +200,13 @@ def main(argv: list[str] | None = None) -> int:
         "--project",
         help="with --runnable, the jbus project whose queue to read (default: this repo's name)",
     )
+    parser.add_argument(
+        "--proved-none",
+        metavar="BASE..HEAD",
+        help="print the `Proved: none, <kinds>` line of the change from BASE to HEAD in this "
+        "repo, a .py file whose change is to its docstrings and comments alone being docs, or, "
+        "exiting 1, the first file of no kind; write no page",
+    )
     told = parser.add_mutually_exclusive_group()
     told.add_argument(
         "--left",
@@ -200,6 +223,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if (args.left or args.rounds) and not args.findings:
         parser.error("--left and --rounds go with --findings")
+    if args.proved_none:
+        base, _, head = args.proved_none.partition("..")
+        return proved_none_main(base, head)
     if args.propose:
         return propose_main(args.propose.expanduser())
     if args.runnable:
