@@ -63,6 +63,7 @@ The install makes one agent from each timer and the service it starts, and one f
 Each agent is a plist at `~/Library/LaunchAgents/jstack.<name>.plist`, such as `jstack.jbus.plist` for `jbus.timer`.
 A comment in it names the source the install made it from, and the install rewrites or removes only a plist whose comment names its own source.
 A timer's `OnUnitActiveSec=` becomes `StartInterval`, and its `OnCalendar=` becomes `StartCalendarInterval`.
+launchd counts only from a start, so a timer's `OnUnitInactiveSec=`, a gap after its service ended, becomes a `StartInterval` of a minute, or of the gap where it is longer.
 The relay's `Restart=on-failure` becomes `KeepAlive`, and an exit 2 is not restarted, as on Linux.
 Each agent runs its command through `/bin/sh`, which stops it at the unit's `TimeoutStartSec=` and runs the unit's `OnFailure=` service when the command fails.
 What an agent prints goes to `~/Library/Logs/jstack/jstack.<name>.log`, which takes the place of the journal.

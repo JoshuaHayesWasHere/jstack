@@ -482,6 +482,23 @@ def test_a_relay_with_no_env_file_fails_to_start_as_under_systemd(tmp_path):
     assert "cannot be read" in out
 
 
+@pytest.mark.parametrize(("gap", "every"), [("20s", 60), ("1min", 60), ("5min", 300)])
+def test_a_gap_after_the_end_starts_the_agent_each_minute_or_each_gap_where_longer(
+    tmp_path, gap, every
+):
+    """launchd counts only from a start: a timer that waits a gap after its service ends keeps
+    macOS's minute, or waits the gap where it is longer."""
+    units = tmp_path / "units"
+    units.mkdir()
+    (units / "pass.timer").write_text(f"[Timer]\nOnBootSec=2min\nOnUnitInactiveSec={gap}\n")
+    (units / "pass.service").write_text("[Service]\nExecStart=/bin/true\n")
+    templates = {path.name: path for path in units.iterdir()}
+
+    agent = launchd.agents(templates, tmp_path)["pass.timer"]
+
+    assert agent.schedule == {"StartInterval": every}
+
+
 def test_a_command_past_its_start_timeout_is_stopped_and_says_so_as_systemd_does(tmp_path):
     units = tmp_path / "units"
     units.mkdir()
