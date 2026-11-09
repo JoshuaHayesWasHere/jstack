@@ -44,6 +44,7 @@ SENDERS = {
     "merge.py": ("a home, of a row jmerge put on no step", ["unplaced"]),
     "stop.py": ("a home, of what a stopped thread asked or was answered", ["_send"]),
     "word.py": ("a home, with the user's own word", ["post"]),
+    "watch.py": ("the crew whose brief lost lines it had the pass before", ["rewritten"]),
 }
 
 
