@@ -8,8 +8,8 @@ the workflows, the manifests and the config.
 A rule that no check of the tree can judge in every stack is met by the files that enforce it in
 the repo, named in the config's `enforced-by`. `enforcer` holds each named file to two things: git
 tracks it, and something the checks run reaches it. A test file, a workflow, and a file a workflow,
-the Makefile or a make file it includes names by its path are reached, so a page or a file nothing
-runs does not meet it.
+the Makefile or a make file it includes names by its path are reached, and so is a script the
+adapter of one of the config's `stacks` runs, so a page or a file nothing runs does not meet it.
 
 A workflow that calls the standard's shared check at a version's tag runs what that workflow runs:
 `make select`, `make lint` and the selected tests on a pull request, and `make check` on main.
@@ -27,6 +27,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from repo_standard import borders, docs_true, size, stale
+from repo_standard.adapters import COMMANDS
 from repo_standard.config import Config, Refused
 from repo_standard.tree import Fault
 
@@ -395,6 +396,11 @@ def enforcer(rule: str):
             return [f"the config's `enforced-by` names no file that enforces {rule}"]
         tracked = set(repo.paths)
         runners = [*repo.workflows.values(), *repo.makefiles.values()]
+        runners += [
+            script
+            for one in repo.config.stacks.values()
+            for script in COMMANDS[one.adapter].scripts
+        ]
         faults = []
         for path in named:
             if path not in tracked:
