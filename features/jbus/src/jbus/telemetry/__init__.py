@@ -258,6 +258,8 @@ def _log(connection, project: str, source: Source, file: Path, zone, built: Buil
             if not isinstance(record, dict):
                 continue
             canon = json.dumps(record, sort_keys=True)
+            if source.beside is not None:
+                record = source.beside(record, file.parent)
         if canon not in counts:
             counts[canon] = 0 if start == 0 else _seen(connection, source.table, project, canon)
         key = values.key(canon, counts[canon])

@@ -13,6 +13,7 @@ The evidence is checked as a bot's go is, by `party.chat`: `voice:` or any other
 `--words` goes only with `bot-chat` evidence, `--as user` is refused for it since jbus did not read the words, and so is `--scope`, which takes only your own message.
 `--evidence t3-message:<thread id>/<message id>` is the same as `--message`.
 A bot-chat word never opens a door: a go on it for a row whose brief holds for one parks a gate for your own word in T3 Code ([Doors](the-queue.md#doors)).
+Your own plain reply in a home's thread opens every door the home's ask before it named, so one "yes" to an ask about two rows opens both.
 A bot-chat word's id hashes the project, the words, you and the address, and no time, so the bot sending the same message again later is the same word and is not sent twice.
 A short reply in the bot's chat, such as "Telemetry" or "queue the missing", means what the bot's message before it asked, which jbus cannot read.
 So a bot-chat word takes that message with `--answers "<the bot's message>"`, or `"answers"` beside `"words"` on `POST /act`.

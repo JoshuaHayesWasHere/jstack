@@ -47,7 +47,19 @@ import jsettings
 from jbriefs import below, findings
 from jbriefs import home as homes
 from jbriefs.home import thread_of
-from jbus import Refused, budget, queue, read_json, review, shots, t3, verbs, work, write_json
+from jbus import (
+    Refused,
+    budget,
+    history,
+    queue,
+    read_json,
+    review,
+    shots,
+    t3,
+    verbs,
+    work,
+    write_json,
+)
 from jbus.judged import Said, parse
 from jbus.launches import records
 from jbus.mirror import last_result, sections
@@ -112,7 +124,6 @@ UNRESOLVED = "Could not resolve to a"
 WORDS = 100
 _PULL = re.compile(r"^(https?://\S+/pull/(\d+))/?$")
 _AGAINST = re.compile(r"^Pull request:[ \t]*open one against (?P<branch>[^\s,;:()`]+)", re.M)
-_ASKS = re.compile(r"^Pull request:[ \t]*open one\b", re.M)
 
 
 def owned_waits(locks: Path) -> set[str]:
@@ -621,22 +632,25 @@ def owes_pull(run: Pass, slug: str, brief: str, result: str) -> bool:
     whatever the brief's header says, when the brief asks for a review: the crew waits on that
     review (`jbus.prereview`). While the review is due, running, or refused and told to the crew
     (`review.awaited`), a Result with `Status: done` owes it whatever its `Left:` line names,
-    since that work rides along to after the merge and does not end the row, and so does a
-    follow-up Result, the crew's answer to a review jbus refused. Once the review ran, a Result
+    since that work rides along to after the merge and does not end the row. A follow-up Result
+    that says so owes it as the first did, before the review and after it: the crew's answer to a
+    review jbus refused, or a correction of a line of its Result. Once the review ran, a Result
     that leaves something is the home's to close if its crew opens nothing (`leftover.opening`).
     Otherwise a crew that found nothing to change owes nothing. Nor does a brief whose
-    `Pull request:` line says none, a scout's or a report's, or a follow-up Result, a later round:
-    the home's close of a row nothing more is wanted of (`leftover`), or the crew's answer once it
-    was told. The rule is judged as a row moves to done: a row the table had at done when the pass
-    began owes nothing (`Pass.done`)."""
+    `Pull request:` line says none, a scout's or a report's, or any other follow-up Result, a later
+    round: the home's close of a row nothing more is wanted of (`leftover`), or the crew's answer
+    once it was told. The rule is judged as a row moves to done: a row the table had at done when
+    the pass began owes nothing (`Pass.done`)."""
+    after = review.before_pull(result) and findings.mode_of(brief) != findings.NONE
     awaits = below.line(result, "Status:") == "done" and review.awaited(brief, result)
-    if not awaits and (not result.startswith("## Result\n") or unfinished(result)):
+    later = not result.startswith("## Result\n") and not after
+    if not awaits and (later or unfinished(result)):
         return False
     if slug in run.done:
         return False
-    if awaits or (review.before_pull(result) and findings.mode_of(brief) != findings.NONE):
+    if awaits or after:
         return True
-    if not _ASKS.search(brief.split("\n## ")[0]):
+    if history.pull(brief) != "open":
         return False
     return own(run, below.line(result, "Branch:").split()[0])
 

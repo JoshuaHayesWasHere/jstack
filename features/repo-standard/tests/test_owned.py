@@ -11,12 +11,12 @@ import subprocess
 
 import pytest
 
-from repo_standard import VERSION
+from repo_standard import VERSION, owned
 from repo_standard.cli import main
 from testing.paths import REPO
 
 FEATURE = REPO / "features" / "repo-standard"
-CALLER = ".github/workflows/check.yml"
+CALLER = owned.CALLER
 DRIFT = "warn a-file-a-version-owns-is-that-versions-copy"
 SKELETON = (FEATURE / "skeleton" / CALLER).read_text()
 OWN = "      runner: winnifred-ephemeral\n      browser-channel: chrome\n"
@@ -66,3 +66,13 @@ def test_upgrade_writes_the_versions_caller_with_the_repos_own_inputs_kept(repo,
     assert f"wrote {CALLER}" in capsys.readouterr().out.splitlines()
     assert caller.read_text() == MINE
     assert drift(repo, capsys) == []
+
+
+def test_upgrade_writes_the_versions_caller_whole_over_a_call_with_no_with(repo, capsys):
+    """A caller whose call of the shared check has no `with:` has no inputs of its own to keep."""
+    caller = repo / CALLER
+    block = "    with:\n" + OWN + "      command: 'make check'\n"
+    caller.write_text(caller.read_text().replace(block, ""))
+    assert "with:" not in caller.read_text()
+    assert main(["upgrade", "--to", str(VERSION), "--root", str(repo), "--upstream", ""]) == 0
+    assert caller.read_text() == SKELETON
