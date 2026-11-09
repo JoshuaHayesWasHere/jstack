@@ -3,7 +3,7 @@ Task: "the macOS nightly run 77 failed on 2026-10-12, 0 tests named" (jbus, from
 Done when:
 - each failed test named under Read passes on macOS, in a manual run of macos-nightly.yml with `ref` set to the fix's branch
 - the Result names the cause: the merge that broke it, or a flake with its evidence
-Proves it: `make check-fast BASE=origin/main` passes, and so does a manual run of macos-nightly.yml (`gh workflow run macos-nightly.yml -f ref=<the fix's branch>`)
+Proves it: the touched check, `make check-fast BASE=origin/main PART=touched`, passes, and so does a manual run of macos-nightly.yml (`gh workflow run macos-nightly.yml -f ref=<the fix's branch>`)
 Size: S
 Where: the tests the macOS nightly runs on main, under `features/` and `testing/`
 Do not touch: .github/workflows/, the ruleset

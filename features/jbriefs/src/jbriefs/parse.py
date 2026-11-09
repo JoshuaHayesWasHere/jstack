@@ -352,16 +352,49 @@ def check_asked(text: str, fresh_check: str) -> str:
 
     The repo's `fresh-check` names its check command. When that command is not a bare
     `make check`, a `Done when:` item that asks for a bare `make check` sends a crewmate to run
-    the full suite instead of the named command.
+    the full suite instead of the named command. Where the command is a `make check-fast`,
+    `desk_suite` warns of that line instead.
     """
     command = check_command(fresh_check)
-    if not command or _BARE_CHECK.fullmatch(command):
+    if not command or _BARE_CHECK.fullmatch(command) or _SELECTS.match(command):
         return ""
     if not any(_BARE_CHECK.search(item) for item in done_when(text.splitlines())):
         return ""
     return (
         f"brief's Done when: asks for `make check`, and fresh-check names the check command "
         f"`{command}`: a check line names the check command (`fresh-check`)"
+    )
+
+
+_SELECTS = re.compile(r"make check-fast\b")
+_WHOLE = re.compile(r"\bmake check-fast\b(?![^`\n]*\bPART=)")
+
+
+def desk_suite(text: str, fresh_check: str) -> str:
+    """Why a brief's `Proves it:` or `Done when:` asks a crewmate to run the whole suite at the
+    desk, as one line. It is an empty string when it does not.
+
+    A `make check-fast` with no `PART=` runs every test the branch selects, and CI's check on
+    the pull request runs the same again: the desk's check is the touched one
+    (`crew/do-the-task.md`). A bare `make check` asks for the same where `fresh-check` names a
+    `make check-fast`, the check of a repo whose check selects its tests. It is a warning and no
+    fault: a task about the suite itself may need the whole run.
+    """
+    selects = bool(_SELECTS.match(check_command(fresh_check)))
+    lines = [("Done when", item) for item in done_when(text.splitlines())]
+    lines.append(("Proves it", _head_lines(text, "Proves it") or ""))
+    labels = dict.fromkeys(
+        label
+        for label, line in lines
+        if _WHOLE.search(line) or (selects and _BARE_CHECK.search(line))
+    )
+    if not labels:
+        return ""
+    return (
+        f"brief's {' and '.join(f'{label}:' for label in labels)} runs the whole suite at the "
+        "desk (`make check-fast` with no `PART=`, or `make check`): a crewmate's desk check is "
+        "the touched check, `make check-fast BASE=<base> PART=touched`, and the whole suite is "
+        "CI's check on the pull request"
     )
 
 
@@ -553,11 +586,16 @@ def instrumented(text: str) -> str:
 
 def warnings(text: str, fresh_check: str) -> list[str]:
     """What `jbus queue add` and `jbus queue check` warn of in a brief they still queue, one
-    line each: a check line that asks for the wrong command (`check_asked`), and `Review: none`
+    line each: a check line that asks for the wrong command (`check_asked`), a brief that asks
+    for the whole suite at the desk (`desk_suite`), and `Review: none`
     on a brief whose pull request opens, which no reviewer reads and `jmerge` leaves to wait for
     the user's word (`crew/the-review.md`). Each check of `WARNED` warns here too, in place of the
     fault `faults` would give."""
-    found = [check_asked(text, fresh_check), *(check(text) for check in WARNED)]
+    found = [
+        check_asked(text, fresh_check),
+        desk_suite(text, fresh_check),
+        *(check(text) for check in WARNED),
+    ]
     opens = head(text, "Pull request:") == "open one when done"
     if opens and head(text, "Review:") == findings.NONE:
         found.append(
