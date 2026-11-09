@@ -13,7 +13,7 @@ import pytest
 import jbus
 import jsettings
 from jbriefs import findings
-from jbus import expedite, merge, strays, telemetry
+from jbus import expedite, merge, strays, telemetry, watch
 from jbus.view.panels.checks import panel as checks
 from jbus.view.panels.pulse import panel as pulse
 from jmerge import ready
@@ -114,11 +114,13 @@ class Short:
         return ran.stdout.strip()
 
     def out(self, reason, word="wait", result="", head=None, review=True):
-        """Write what the crew wrote, and set what `jmerge` says its pull request is short of."""
+        """Write what the crew wrote, and set what `jmerge` says its pull request is short of.
+        The brief is set afresh, which no crew does, so what `watch.rewritten` saw of it goes."""
         head = head or self.head
         text = self.launched + DONE.format(url=URL) + result
         text += REVIEW.format(saw=self.saw) if review else ""
         (self.kitchen.home / "tasks/alpha.md").write_text(text)
+        (self.kitchen.state / watch.BRIEFS_SEEN).unlink(missing_ok=True)
         self.kitchen.set("open.json", [{**self.kitchen.opened("alpha", 7), "headRefOid": head}])
         self.kitchen.set("jmerge.txt", f"{word} 7 {URL}: {reason}\n" if reason else "")
 

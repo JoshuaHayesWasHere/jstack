@@ -10,6 +10,7 @@ many crews are out. The machine has one such count: `jbus poll` adds it up over 
 timebox, waits on a request, or ended with no Result and on no wait that jbus owns
 (`World.awaits`); a main branch whose check failed after a merge; a red run of a scheduled workflow
 (`watched`); and a revert. `watch` names no cause and changes nothing.
+`rewritten` tells a launched row's crew once when its brief lost lines it had the pass before.
 A finding that no rule covers becomes a gate. `status` gives the table's derived column for a slug.
 `why` gives the reason the slug's row waits: the line that `jmerge` has for the slug's pull request,
 what stopped the slug's launch, or what the slug's Result leaves.
@@ -31,18 +32,21 @@ last wrote, jbus keeps resuming the row's crew. After that, the row is `left` (`
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import subprocess
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
+from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any
 
 import jsettings
 from jbriefs import below, findings
 from jbriefs import home as homes
+from jbriefs.home import thread_of
 from jbus import Refused, budget, queue, read_json, review, shots, t3, verbs, work, write_json
 from jbus.judged import Said, parse
 from jbus.launches import records
@@ -1193,6 +1197,99 @@ def watch(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
         _nightly_red(run, nightly, runs)
 
 
+BRIEFS_SEEN = "briefs-seen.json"
+"""What `rewritten` saw last of each launched row's brief, from its first `## ` heading on."""
+REWRITTEN = (
+    "jbus: tasks/{slug}.md lost lines since the last pass. A later round never rewrites a Result "
+    "or any section under it: it appends. These lines went, word for word:\n\n```\n{lines}\n```"
+    "\n\nPut them back as they were. A correction is a new `## Result, follow-up (<date>, <why>)` "
+    "section at the end of the brief."
+)
+
+
+IN_PLACE = (stacks.LINE, "Fixed:", "Scoped reviewer:")
+"""The lines of a Result that are rewritten in place by rule: jbus moves a `Stacked on:` line
+(`jbus.stack`), and the crew skill sets its `Fixed:` line to the head it pushed again and puts a
+new `Scoped reviewer:` line in place of one that stopped."""
+
+
+def sections_of(brief: str) -> str:
+    """The part of a brief that its crew and reviewers append to: from its first `## ` heading on,
+    with no line of `IN_PLACE`. The head above it is the home's and jbus's."""
+    _, mark, rest = brief.partition("\n## ")
+    if not mark:
+        return ""
+    lines = ("## " + rest).splitlines(keepends=True)
+    return "".join(line for line in lines if not line.startswith(IN_PLACE))
+
+
+def dropped(old: str, new: str) -> list[str]:
+    """The lines of `old` that `new` no longer has, blank ones aside, or none where `new` only
+    grew `old`."""
+    if new.startswith(old):
+        return []
+    was, now = old.splitlines(), new.splitlines()
+    return [
+        line
+        for tag, i1, i2, _, _ in SequenceMatcher(None, was, now, autojunk=False).get_opcodes()
+        if tag in ("delete", "replace")
+        for line in was[i1:i2]
+        if line.strip()
+    ]
+
+
+def rewritten(run: Pass, client: Client, rows: list[dict[str, Any]] | None) -> None:
+    """Tell a launched row's thread once when its brief lost lines it had on the pass before: a
+    later round appends a `## Result, follow-up` and never rewrites a section (the crew skill's
+    "End"). A message the outbox holds keeps the old text, so a later pass sends it. A queue
+    that does not parse (`rows` None) leaves what was seen as it was. `jbus.outbox` reads this
+    module, so this one reads `outbox` at the call."""
+    from jbus import outbox
+
+    if rows is None:
+        return
+    kept: dict[str, str] = read_json(run.state / BRIEFS_SEEN, {})
+    seen: dict[str, str] = {}
+    for row in rows:
+        slug = row["slug"]
+        thread = (
+            thread_of(run.home, slug)
+            if queue.role(row) == queue.CREW and not queue.over(row)
+            else ""
+        )
+        if not thread:
+            continue
+        new = sections_of(task_brief(run, slug))
+        old = kept.get(slug)
+        seen[slug] = new
+        lines = dropped(old, new) if old is not None else []
+        if old is None or not lines:
+            continue
+        key = f"rewritten|{slug}|{hashlib.sha256((old + new).encode()).hexdigest()[:16]}"
+        text = REWRITTEN.format(slug=slug, lines="\n".join(lines))
+        try:
+            went = outbox.send(
+                run,
+                client,
+                thread=thread,
+                row=slug,
+                key=key,
+                text=text,
+                template="rewritten",
+                needs="act",
+            )
+        except T3Error as error:
+            run.say(f"wait {slug}: its crew could not be told its brief lost lines ({error})")
+            went = False
+        if went:
+            many = "" if len(lines) == 1 else "s"
+            run.say(f"rewritten {slug}: told its crew the brief lost {len(lines)} line{many}")
+        else:
+            seen[slug] = old
+    if seen != kept:
+        write_json(run.state / BRIEFS_SEEN, seen)
+
+
 def _api(run: Pass, path: str) -> Any:
     """Return what GitHub answers a GET of `path`, or None where it gives no answer. A path the
     pass already read is answered from `Pass.answers`, without a call."""
@@ -2254,5 +2351,12 @@ STEPS = (
         "watch.watch",
         lambda half: watch(half.run, half.seen.world, half.rows or []),
         ("client", "world"),
+    ),
+    verbs.Step(
+        "tellers",
+        41,
+        "watch.rewritten",
+        lambda half: rewritten(half.run, half.client, half.rows),
+        ("sight", "client"),
     ),
 )
