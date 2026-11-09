@@ -322,22 +322,37 @@ def test_the_template_has_a_design_line_that_jbus_launches_only_once_it_is_fille
     assert parse.designed(text.replace(line + "\n", "") + RESULT + "Design: TBD") == ""
 
 
-CLEAN = (
+HEAD = (
     '# alpha: a task\nTask: "do alpha"\nDone when:\n- it is done\nProves it: `make check`\n'
     "Size: S\nWhere: `src/alpha/`\nPull request: open one when done\nReview: twice\n"
-    "Playbook: none\n"
 )
+CLEAN = HEAD + "Playbook: bug-fix\nSkills: tdd\n"
+
+
+def test_a_brief_that_names_a_playbook_and_a_skill_lints():
+    """A brief names a crewmate's playbook and a skill, as the home's table picks them, and may
+    leave out its `Design:` line where it would say none."""
+    assert parse.faults(CLEAN) == []
+    assert parse.faults(CLEAN + "Design: none, a fix\n") == []
 
 
 @pytest.mark.parametrize(
-    "lines",
-    ["", "Design: none, a removal\n", "Skills: none\n", "Design: none, a fix\nSkills: none\n"],
-    ids=["both left out", "design written", "skills written", "both written"],
+    "lines, label",
+    [
+        ("Playbook: none\nSkills: tdd\n", "Playbook"),
+        ("Skills: tdd\n", "Playbook"),
+        ("Playbook: bug-fix\n", "Skills"),
+        ("Playbook: bug-fix\nSkills: none\n", "Skills"),
+        ("Playbook: bug-fix\nSkills: none, a one-line fix\n", "Skills"),
+    ],
+    ids=["playbook none", "no playbook", "no skills", "skills none", "skills none with a why"],
 )
-def test_a_brief_may_leave_out_design_and_skills_where_they_would_say_none(lines):
-    """A brief with no `Design:` or `Skills:` line needs no design and names no skill, as `none`
-    would say, and one that writes them still lints."""
-    assert parse.faults(CLEAN + lines) == []
+def test_a_brief_that_names_no_playbook_or_no_skill_is_refused_with_the_homes_table(lines, label):
+    """`jbus queue add` refuses a brief with no playbook or no skill, and its fault names the
+    home's table, which picks both by the kind of task."""
+    (fault,) = parse.faults(HEAD + lines)
+    assert f"{label}: line" in fault
+    assert "handing-a-task-to-a-crewmate.md" in fault
 
 
 PROOFS = {
