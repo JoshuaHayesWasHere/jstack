@@ -4,7 +4,8 @@
 # STACK_SELECT. A repo of several stacks sets `stacks:` in .repo-standard.yml instead, and the
 # standard's driver runs each stack over its own roots and joins them. The standard's guards run
 # from jstack at the tag .repo-standard.yml pins, cloned once into .cache/, with no tool but git
-# and python3.
+# and python3. The standard's version owns this file, so the repo's own targets, such as a deploy
+# entry, go in local.mk, included at the end when it is there.
 STANDARD := $(shell sed -n 's/^standard:[[:space:]]*\([0-9][0-9]*\).*/\1/p' .repo-standard.yml)
 REPO_STANDARD_UPSTREAM ?= https://github.com/JoshuaHayesWasHere/jstack
 REPO_STANDARD_HOME := .cache/repo-standard-v$(STANDARD)
@@ -70,3 +71,5 @@ borders: | $(REPO_STANDARD_HOME)
 # lint runs the same generators with --check, which fails on a stale file.
 generate:
 	python3 scripts/generate-index.py
+
+-include local.mk

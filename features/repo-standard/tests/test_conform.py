@@ -63,6 +63,11 @@ size:
 comments:
   files: ["features/*/src/**", "scripts/*.py"]
 deploy: [make deploy]
+local:
+  Makefile: the repo's own targets, written before the skeleton was
+  .github/workflows/check.yml: the repo runs its own jobs, not the shared check
+  .github/workflows/borders.yml: the repo checks its borders in its own lint
+  scripts/generate-index.py: scripts/gen.py writes the repo's index
 enforced-by:
 """ + "".join(f"  {rule}: [{path}]\n" for rule, path in ENFORCED.items())
 WORKFLOW = """\
@@ -249,6 +254,11 @@ BREAKS = {
     "a-breaking-change-takes-a-new-version": lambda r: edit(
         r / ".repo-standard.yml", "standard: 1\n", "standard: 2\n"
     ),
+    "a-file-a-version-owns-is-that-versions-copy": lambda r: edit(
+        r / ".repo-standard.yml",
+        "  Makefile: the repo's own targets, written before the skeleton was\n",
+        "",
+    ),
 }
 for _rule, _path in ENFORCED.items():
     BREAKS.setdefault(
@@ -346,6 +356,63 @@ def test_a_waiver_with_no_reason_or_no_rule_fails(repo, capsys, waiver, said):
     code, lines = conform(repo, capsys)
     assert code == 1
     assert any(line.startswith("error waiver ") and said in line for line in lines), lines
+
+
+def test_a_local_file_with_no_reason_fails(repo, capsys):
+    edit(
+        repo / ".repo-standard.yml",
+        "  Makefile: the repo's own targets, written before the skeleton was\n",
+        '  Makefile: ""\n',
+    )
+    code, lines = conform(repo, capsys)
+    assert code == 1
+    assert "error local Makefile: has no reason, and a local file needs one" in lines, lines
+
+
+def test_a_waiver_until_the_pinned_version_warns_that_it_is_due(repo, capsys):
+    BREAKS["a-change-selects-its-tests"](repo)
+    waive(
+        repo,
+        "  - rule: a-change-selects-its-tests\n    reason: soon\n    until: repo-standard-v1\n",
+        "  - rule: a-test-runs-the-code\n    reason: later\n    until: repo-standard-v2\n",
+    )
+    code, lines = conform(repo, capsys)
+    assert code == 0, lines
+    due = [line for line in lines if line.startswith("warn waiver ")]
+    assert due == [
+        "warn waiver a-change-selects-its-tests: is until repo-standard-v1, and the repo pins v1:"
+        " meet the rule and drop the waiver"
+    ]
+    assert lines[-1].endswith("errors 0, warnings 1, waived 1"), lines
+
+
+def test_an_owned_file_that_differs_or_is_gone_warns(repo, capsys, tmp_path):
+    """The repo made from the skeleton keeps its owned files as they are, but for the runner's
+    labels in its caller, and conform warns of one changed and one gone."""
+    skeleton = REPO / "features" / "repo-standard" / "skeleton"
+    caller = (skeleton / ".github/workflows/check.yml").read_text()
+    caller = caller.replace("runner: ubuntu-24.04", "runner: self-hosted-a")
+    caller = caller.replace("runs-on: ubuntu-24.04", "runs-on: self-hosted-a")
+    write(
+        repo,
+        {
+            "Makefile": (skeleton / "Makefile").read_text() + "# an edit\n",
+            ".github/workflows/check.yml": caller,
+            "scripts/generate-index.py": (skeleton / "scripts/generate-index.py").read_text(),
+        },
+    )
+    git(repo, "add", "-A")
+    keep = "local:\n  Makefile: the repo's own targets, written before the skeleton was\n"
+    keep += "  .github/workflows/check.yml: the repo runs its own jobs, not the shared check\n"
+    keep += "  .github/workflows/borders.yml: the repo checks its borders in its own lint\n"
+    keep += "  scripts/generate-index.py: scripts/gen.py writes the repo's index\n"
+    edit(repo / ".repo-standard.yml", keep, "")
+    _, lines = conform(repo, capsys)
+    drift = [line for line in lines if line.startswith("warn a-file-a-version-owns")]
+    assert [line.split(": ")[1:3] for line in drift] == [
+        [".github/workflows/borders.yml", "is not here, and repo-standard-v1 owns it"],
+        ["Makefile", "differs from repo-standard-v1's copy"],
+    ], lines
 
 
 def tagged(path, *versions):
@@ -468,7 +535,8 @@ def test_uvx_runs_conform_from_a_tag_of_a_jstack_checkout(repo, tmp_path):
         ("standard: v1\n", "standard is not a whole number"),
         ("waivers: none\n", "waivers is not a list"),
         ("waivers:\n  - reason: x\n", "waivers[0] names no rule"),
-        ("waivers:\n  - rule: x\n    reason: y\n    until: z\n", "waivers[0] has until"),
+        ("waivers:\n  - rule: x\n    reason: y\n    until: z\n", "waivers[0].until is not a"),
+        ("waivers:\n  - rule: x\n    reason: y\n    by: v2\n", "waivers[0] has by"),
     ],
 )
 def test_a_config_conform_cannot_read_exits_2_and_says_why(repo, capsys, line, said):
@@ -510,6 +578,20 @@ def test_a_stacks_config_the_stacks_cannot_run_is_refused(rows):
     keys = parse(stacks(*rows))
     with pytest.raises(Refused):
         build(keys)
+
+
+@pytest.mark.parametrize(
+    ("local", "said"),
+    [
+        ("local: [Makefile]\n", "local is not a map"),
+        ("local:\n  ../Makefile: x\n", "local has ../Makefile, not a file"),
+    ],
+)
+def test_a_local_part_conform_cannot_read_exits_2_and_says_why(repo, capsys, local, said):
+    config = repo / ".repo-standard.yml"
+    config.write_text(re.sub(r"^local:\n(?:  .*\n)*", local, config.read_text(), flags=re.M))
+    assert main(["conform", "--root", str(repo), "--upstream", ""]) == 2
+    assert said in capsys.readouterr().err
 
 
 def test_python_m_repo_standard_runs_the_command(repo):
@@ -584,6 +666,11 @@ def selects_in_an_included_make_file(repo):
     )
     git(repo, "add", "-A")
     edit(repo / ".repo-standard.yml", f"{rule}: [{ENFORCED[rule]}]", f"{rule}: [scripts/select.py]")
+    edit(
+        repo / ".repo-standard.yml",
+        "local:\n",
+        "local:\n  scripts/stack.mk: the repo's own\n  scripts/select.py: the repo's own\n",
+    )
 
 
 @pytest.mark.parametrize(
@@ -591,7 +678,7 @@ def selects_in_an_included_make_file(repo):
     [
         (
             calls_the_shared_check,
-            "conform repo-standard-v1, 34 rules: errors 0, warnings 0, waived 0",
+            "conform repo-standard-v1, 35 rules: errors 0, warnings 0, waived 0",
         ),
         (
             lambda r: calls_the_shared_check(r, at="main"),
@@ -599,7 +686,7 @@ def selects_in_an_included_make_file(repo):
         ),
         (
             selects_in_an_included_make_file,
-            "conform repo-standard-v1, 34 rules: errors 0, warnings 0, waived 0",
+            "conform repo-standard-v1, 35 rules: errors 0, warnings 0, waived 0",
         ),
         (
             lambda r: write(r, {"schemas/feature.core.schema.json": "{not json"}),
@@ -647,10 +734,10 @@ def selects_in_an_included_make_file(repo):
             lambda r: write(
                 r, {"features/beta/feature.json": manifest("beta", reads=["features/alpha/*.md"])}
             ),
-            "conform repo-standard-v1, 34 rules: errors 0, warnings 0, waived 0",
+            "conform repo-standard-v1, 35 rules: errors 0, warnings 0, waived 0",
         ),
-        (deploys_nothing, "conform repo-standard-v1, 34 rules: errors 0, warnings 0, waived 0"),
-        (one_feature_only, "conform repo-standard-v1, 34 rules: errors 0, warnings 0, waived 0"),
+        (deploys_nothing, "conform repo-standard-v1, 35 rules: errors 0, warnings 0, waived 0"),
+        (one_feature_only, "conform repo-standard-v1, 35 rules: errors 0, warnings 0, waived 0"),
     ],
 )
 def test_each_way_a_rule_is_broken_is_named(repo, capsys, change, said):

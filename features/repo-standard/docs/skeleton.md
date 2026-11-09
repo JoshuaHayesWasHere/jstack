@@ -44,6 +44,47 @@ A new repo meets most rules from the start.
 The config waives four, each with its reason, and `repo-standard conform` prints each waiver on every run.
 Each needs a file of the repo's own to enforce it: a command's page, its prose lint, its shell scripts and a guard over its tests.
 When the repo adds the file, it names it under `enforced-by` and drops the waiver.
+A waiver may add `until: repo-standard-vN`, the version by which the repo means to meet its rule, and `repo-standard conform` warns of it once the repo pins that version.
+
+## What a version owns
+
+A copy of the skeleton is not the repo's to edit all through.
+One rule, `RULES` in `features/repo-standard/src/repo_standard/owned.py`, sorts each file the skeleton and an adapter hold by its path:
+
+| From | Owned by the version | Seeded once, then the repo's |
+|---|---|---|
+| The skeleton | `Makefile`, `.github/workflows/*.yml`, `schemas/**`, `scripts/**` | `.repo-standard.yml`, `.gitignore`, `README.md`, `.github/actions/setup/action.yml`, the example feature |
+| An adapter | `scripts/**` | `.repo-standard.yml`, `.github/actions/setup/action.yml`, the example feature, its root files such as `pyproject.toml` |
+
+A file the rule does not place fails `features/repo-standard/tests/test_upgrade.py`, so a file added to the skeleton or an adapter is placed when it is added.
+A repo's adapters are those its `stacks:` name, or, with no `stacks:`, each adapter whose scripts the repo holds, such as `select.py` in `scripts/` for python-uv.
+A repo of several stacks takes no `stack.mk`.
+
+An owned file stays equal to its copy at the tag the repo pins, and `repo-standard conform` warns of one that differs or is missing.
+In the caller, `.github/workflows/check.yml`, the runner's label in `runner:` and `runs-on:` is the repo's own and is not compared.
+The repo's own make targets, such as a deploy entry, go in `local.mk` at the root, which the Makefile includes when it is there, and which the config's `owners` names.
+A repo that must keep an owned file of its own names it under `local:` in `.repo-standard.yml`, with the reason:
+
+```yaml
+local:
+  Makefile: the deploy targets need the image's tag before the standard's targets
+```
+
+`conform` does not compare a `local:` file, and fails an entry with no reason.
+
+### Move to a new version
+
+`repo-standard upgrade --to N` moves the repo to version N.
+It runs from the tool at version N, never the repo's current one, since only version N's tool reads version N's config:
+
+```sh
+uvx --from git+https://github.com/JoshuaHayesWasHere/jstack@repo-standard-v2 repo-standard upgrade --to 2
+make lint
+```
+
+It writes the `standard:` line, `local.mk` beside the `Makefile` in `owners`, the caller's tag of the shared check and every owned file as version N's copy, keeping the caller's runner, and leaves the `local:` and seeded files, printing each it left.
+A second run writes nothing.
+[The command's page](repo-standard.md#upgrade) gives the rest.
 
 ## The make targets
 
@@ -59,6 +100,8 @@ Each target runs as `make <target>` in the new repo.
 | `e2e` | The browser tests of each stack whose config sets `e2e:`, or, given `E2E_LIST=<file>`, only the ids in the file, one a line. |
 | `borders BASE=<ref>` | The borders of the change from `<ref>`, with the pull request's labels in `LABELS`: a change across two features passes only with the label `cross-cutting`. The shared check's lint reads no labels, so `lint` leaves this to `borders`. |
 | `generate` | Each generator, which writes its files again from the manifests. |
+
+The repo's own targets go in `local.mk`, as [What a version owns](#what-a-version-owns) says.
 
 The standard's guards come from jstack at the tag `.repo-standard.yml` pins.
 The Makefile clones that tag into `.cache/` the first time a target needs it, and runs the guards with `python3`, so a repo of any stack needs only git and python3 for them.

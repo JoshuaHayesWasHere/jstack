@@ -90,6 +90,12 @@ comments:
   allow: ["# type:", "# pragma"]
   links: [.js, .html]
 deploy: [make release]
+# jstack is where the skeleton comes from, not a copy of it, so the files a version owns are its own.
+local:
+  Makefile: jstack's own targets, a superset of the skeleton's
+  .github/workflows/check.yml: jstack runs its own check, from which the shared check is drawn
+  .github/workflows/borders.yml: jstack's borders job runs its own lint's guards
+  scripts/generate-index.py: jstack's indexes come from its own generators
 enforced-by:
   a-commands-page-matches-its-help: [features/repo-guards/tests/test_docs_true.py]
   new-prose-has-one-sentence-per-line: [features/writing/scripts/prose_lint.py]

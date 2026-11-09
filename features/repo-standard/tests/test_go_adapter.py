@@ -108,7 +108,7 @@ def test_the_new_repo_of_several_modules_passes_its_own_check(go_repo):
     for package in ("hello", "alpha/core", "alpha/extra", "beta/pricing", "beta/use"):
         assert f"ok  \texample.com/{package}" in out, out
     assert "conform repo-standard-v1" in out
-    assert "errors 0" in out
+    assert "errors 0, warnings 0" in out
 
 
 @needs_go

@@ -58,13 +58,12 @@ def write(root, files):
 
 @pytest.fixture(scope="module")
 def upstream(tmp_path_factory):
-    """jstack at the tag the skeleton pins, as far as the repo's make reads it."""
+    """jstack at the tag the skeleton pins, as far as the repo's make reads it: the standard's
+    code, and the skeleton and adapters whose copies conform holds the owned files to."""
     root = tmp_path_factory.mktemp("upstream")
-    shutil.copytree(
-        STANDARD / "src",
-        root / "features" / "repo-standard" / "src",
-        ignore=shutil.ignore_patterns("__pycache__"),
-    )
+    ignore = shutil.ignore_patterns("__pycache__", ".venv", ".cache", ".ruff_cache")
+    for part in ("src", "skeleton", "adapters"):
+        shutil.copytree(STANDARD / part, root / "features" / "repo-standard" / part, ignore=ignore)
     git(root, "init", "-q")
     git(root, "add", "-A")
     git(root, "commit", "-qm", "the standard")
@@ -110,7 +109,7 @@ def test_the_new_repo_passes_its_own_check(new_repo):
     out = make(root, env, "check")
     assert "1 passed" in out
     assert "conform repo-standard-v1" in out
-    assert "errors 0" in out
+    assert "errors 0, warnings 0" in out
 
 
 def test_check_fast_runs_the_tests_its_change_selects(new_repo):

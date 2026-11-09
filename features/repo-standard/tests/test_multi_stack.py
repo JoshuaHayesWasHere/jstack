@@ -98,7 +98,7 @@ def change(root, path, text="\n"):
 def test_the_repo_of_two_stacks_passes_its_lint_its_tests_and_an_empty_select(stacked_repo):
     root, env = stacked_repo
     out = make(root, env, "lint")
-    assert "errors 0" in out
+    assert "errors 0, warnings 0" in out
     out = make(root, env, "test")
     assert "ok  \texample.com/api/handlers" in out
     assert "ok  \texample.com/api/store" in out
