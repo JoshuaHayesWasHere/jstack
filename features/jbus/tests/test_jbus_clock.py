@@ -11,7 +11,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import passes, wakes
+from jbus import clock, passes, wakes
 from jbus.view import state
 from jmerge import ready
 from jroles import ledger
@@ -266,7 +266,8 @@ def test_an_idle_crew_with_a_red_head_is_restarted_on_the_first_pass_its_turn_ha
     assert restart["clientRequestId"] == "restart|alpha|aaaaaaaaaaaa 1"
     for named in ("#7", "aaaaaaaaaaaa", "check", JOB.format("11"), "tasks/alpha.md"):
         assert named in restart["message"]
-    line = "clock alpha: #7 is red on aaaaaaaaaaaa, check failed; restarted its crew (1 of 2)"
+    line = "clock alpha: #7 is red on aaaaaaaaaaaa, check failed; "
+    line += f"restarted its crew (1 of {clock.RESTARTS})"
     assert any(one.startswith(line) for one in red.lines("clock"))
 
 
@@ -309,7 +310,7 @@ def test_a_crew_gets_one_restart_an_idle_spell_and_its_second_miss_goes_to_its_h
     run_at(red, *range(41, 41 + N))
     assert len(restarts(red)) == 2
     (stall,) = [one for one in red.lines("stall") if one.startswith("stall alpha: #7 is red")]
-    assert "restarted its crew 2 times" in stall
+    assert f"restarted its crew {clock.RESTARTS} times" in stall
     (told_home,) = to(red, desk)
     assert "alpha" in told_home and "#7" in told_home
     spell(red, 60)
