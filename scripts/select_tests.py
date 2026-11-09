@@ -1006,17 +1006,6 @@ def reaches(name):
 
 
 @cache
-def spells(name):
-    """The paths a test module spells, and the test modules it imports. Where code of the test
-    reads skills through `testing.paths.skills()`, a word of that code (`reaches`) that is a
-    skill's name spells that skill's `SKILL.md`: `block("home", …)` reads the home skill so. A
-    name of a skill elsewhere in a module it imports spells nothing: `test_home_thread` names
-    four skills, and a test that takes only its `git` reads none of them."""
-    paths = frozenset().union(*(sources()[one][4] for one in reached(name)))
-    return paths | {(*skills()[word].split("/"), "SKILL.md") for word in reaches(name)}
-
-
-@cache
 def read_sets():
     """Each test file, with the patterns of its read set and of the read sets of the modules of
     the tests it imports."""
@@ -1043,11 +1032,6 @@ def globbed():
 def globbers(path):
     """The test files whose read set matches this path."""
     return set().union(*(tests for pattern, tests in globbed().items() if owns([pattern], path)))
-
-
-def inside(parts, spelling):
-    """Whether `parts` are in `spelling`, one after the other."""
-    return any(spelling[at : at + len(parts)] == parts for at in range(len(spelling)))
 
 
 @cache
@@ -1082,21 +1066,72 @@ def called(path):
     return tuple(parts)
 
 
+def placed(spellers):
+    """Each part of the spellings, with each place it sits: the spelling, where in it the part
+    is, and what spells it. A run of parts is then looked up from the places of its first part,
+    not from a table of every run of every spelling."""
+    found = {}
+    for spelling, who in spellers.items():
+        for at, part in enumerate(spelling):
+            found.setdefault(part, []).append((spelling, at, who))
+    return found
+
+
+def spellers_of(places, parts):
+    """What spells `parts` one after the other, in a spelling `placed` placed."""
+    return set().union(
+        *(
+            who
+            for spelling, at, who in places.get(parts[0], ())
+            if spelling[at : at + len(parts)] == parts
+        )
+    )
+
+
 @cache
 def spelled_by():
-    """The test files that spell each run of consecutive parts of a spelled path. It gives the
-    result of `inside` for every test file at once, and reads each file once."""
+    """The paths the modules spell, placed, with the modules that spell each path."""
+    spellers = {}
+    for name, one in sources().items():
+        for spelling in one[4]:
+            spellers.setdefault(spelling, set()).add(name)
+    return placed(spellers)
+
+
+@cache
+def skills_read():
+    """The `SKILL.md` of each skill a test reads by name, placed, with the test files that read
+    it. Where code of the test reads skills through `testing.paths.skills()`, a word of that code
+    (`reaches`) that is a skill's name spells that skill's `SKILL.md`: `block("home", …)` reads
+    the home skill so. A name of a skill elsewhere in a module it imports spells nothing:
+    `test_home_thread` names four skills, and a test that takes only its `git` reads none of
+    them."""
     spellers = {}
     for name, path in modules().items():
         if TEST.fullmatch(path):
-            for spelling in spells(name):
-                spellers.setdefault(spelling, set()).add(path)
+            for word in reaches(name):
+                spellers.setdefault((*skills()[word].split("/"), "SKILL.md"), set()).add(path)
+    return placed(spellers)
+
+
+@cache
+def reached_by():
+    """Each module, with the test files that are it or import it."""
     found = {}
-    for spelling, paths in spellers.items():
-        for start in range(len(spelling)):
-            for end in range(start + 1, len(spelling) + 1):
-                found.setdefault(spelling[start:end], set()).update(paths)
+    for name, path in modules().items():
+        if TEST.fullmatch(path):
+            for one in reached(name):
+                found.setdefault(one, set()).add(path)
     return found
+
+
+@cache
+def read_by(parts):
+    """The test files that spell `parts`: in a path of their own or of a module they import, or
+    in the `SKILL.md` of a skill they read by name."""
+    tests = reached_by()
+    found = spellers_of(skills_read(), parts)
+    return frozenset(found.union(*(tests.get(one, ()) for one in spellers_of(spelled_by(), parts))))
 
 
 @cache
@@ -1128,7 +1163,7 @@ def includers(path):
 
 def readers(path):
     """The test files that spell this path, in a path of their own or of a module they import."""
-    return set(spelled_by().get(called(path), ()))
+    return set(read_by(called(path)))
 
 
 def fixture_readers(path):
@@ -1155,11 +1190,7 @@ def users(path):
     whose strings name the file. When no module's strings name it, they are the modules in the
     file's directory."""
     parts = called(path)
-    named = {
-        name
-        for name, one in sources().items()
-        if SOURCE.match(modules()[name]) and any(inside(parts, spelling) for spelling in one[4])
-    }
+    named = {name for name in spellers_of(spelled_by(), parts) if SOURCE.match(modules()[name])}
     here = Path(path).parent.as_posix() + "/"
     beside = {
         name
