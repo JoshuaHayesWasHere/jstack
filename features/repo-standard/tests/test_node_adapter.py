@@ -335,7 +335,7 @@ def test_the_driver_runs_each_roots_own_scripts_and_only_the_roots_the_ids_reach
     assert node.test((".",), ["src/a.test.ts"]) == [
         ["npm", "--prefix", ".", "test", "--", "src/a.test.ts"]
     ]
-    assert node.select(roots, "HEAD") == [
+    assert node.select(roots, "HEAD", None) == [
         "python3",
         "scripts/node.py",
         "select",
