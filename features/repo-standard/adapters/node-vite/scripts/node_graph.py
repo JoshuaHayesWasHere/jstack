@@ -6,10 +6,11 @@ files, directly or through others, and `Graph.closure` each file a set of files 
 
 A path is a path from the repo's root, as git prints it. `files` is every file of the repo, and the
 graph reads the source files under `root`: `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`,
-`.cjs` and `.svelte`, outside `node_modules`. In each it finds, by pattern and not by a parser:
+`.cjs`, `.svelte` and `.css`, outside `node_modules`. In each it finds, by pattern and not by a
+parser:
 
 - `import ... from 'x'`, `import 'x'`, `export ... from 'x'`, a literal `import('x')`,
-  `require('x')` and a CSS `@import 'x'` in a `.svelte` file's style.
+  `require('x')` and a CSS `@import 'x'`, in a stylesheet or a `.svelte` file's style.
 - `vi.mock('x')`, `vi.doMock`, `vi.importActual` and `vi.importMock`, whose module a test
   depends on.
 - A template `import(`./x/${name}.ts`)`, read as the glob `./x/*.ts`, and `import.meta.glob`, given
@@ -44,7 +45,7 @@ from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
-SOURCE = (".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".svelte")
+SOURCE = (".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".svelte", ".css")
 EXTENSIONS = (*SOURCE, ".json")
 SWAPS = {".js": (".ts", ".tsx"), ".jsx": (".tsx",), ".mjs": (".mts",), ".cjs": (".cts",)}
 SPECIFIER = re.compile(

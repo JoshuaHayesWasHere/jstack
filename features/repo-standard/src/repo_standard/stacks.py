@@ -1,4 +1,4 @@
-"""`python3 -m repo_standard stacks lint|test|select`: the targets of a repo of several stacks.
+"""`python3 -m repo_standard stacks lint|test|select|e2e`: the targets of a repo of several stacks.
 
 A repo whose `.repo-standard.yml` sets `stacks:` holds one stack a name, each an adapter over its
 own roots (`repo_standard.config.Stack`). The skeleton's Makefile hands `lint`, `test` and
@@ -12,7 +12,11 @@ repo's root and joins what they do.
   path (`SHARED`, or anything under `SHARED_FOLDERS`) selects `all`, and so does a path outside
   every root, unless it is Markdown, a file in a feature's `docs/` or its `feature.json`. Each
   stack's select places the paths under its roots, and one that prints `all` becomes
-  `stack:<name>`: `all` is the whole repo, which `repo_standard.plan` reads it as.
+  `stack:<name>`: `all` is the whole repo, which `repo_standard.plan` reads it as. A node
+  stack with `e2e:` adds its browser ids, each a spec's path in Playwright's test-list form:
+  `<spec>` or `<spec> > <title>`.
+- `e2e [<file>]` runs the browser tests of each stack with `e2e:`. Given a file of ids, one a
+  line, it runs each stack the ids reach: on its own ids, or, for `stack:<name>`, on all of them.
 """
 
 from __future__ import annotations
@@ -21,6 +25,7 @@ import os
 import posixpath
 import subprocess
 import sys
+import tempfile
 from pathlib import Path, PurePosixPath
 
 from repo_standard.adapters import COMMANDS, Argv
@@ -30,7 +35,8 @@ SHARED = {"Makefile", ".repo-standard.yml"}
 SHARED_FOLDERS = ("scripts/", ".github/", "schemas/")
 ALL = "all"
 WHOLE = "stack:"
-VERBS = ("lint", "test", "select")
+VERBS = ("lint", "test", "select", "e2e")
+TITLE = " > "
 
 
 def within(path: str, root: str) -> bool:
@@ -112,7 +118,7 @@ def select(config: Config, base: str) -> list[str]:
             return [ALL]
     found: set[str] = set()
     for name, one in config.stacks.items():
-        done = run(COMMANDS[one.adapter].select(one.roots, base), quiet=True)
+        done = run(COMMANDS[one.adapter].select(one.roots, base, one.e2e), quiet=True)
         if done.returncode != 0:
             raise Refused(f"the select of stack {name} failed: {done.stderr.strip()}")
         lines = {line.strip() for line in done.stdout.splitlines() if line.strip()}
@@ -120,13 +126,52 @@ def select(config: Config, base: str) -> list[str]:
     return sorted(found)
 
 
+def e2e(config: Config, listed: str | None) -> int:
+    browsers = {name: one for name, one in config.stacks.items() if one.e2e is not None}
+    if not browsers:
+        raise Refused("no stack of the config sets `e2e:`, so there is no browser test to run")
+    if listed is None:
+        runs: dict[str, list[str]] = {name: [] for name in browsers}
+    else:
+        try:
+            text = Path(listed).read_text(encoding="utf-8")
+        except OSError as error:
+            raise Refused(f"cannot read {listed}: {error.strerror}") from error
+        ids = [line.strip() for line in text.splitlines() if line.strip()]
+        spec = {one: posixpath.normpath(one.split(TITLE)[0]) for one in ids}
+        runs = route([one if one.startswith(WHOLE) else spec[one] for one in ids], browsers)
+        for name, mine in list(runs.items()):
+            runs[name] = [one for one in ids if spec[one] in mine] if mine else []
+    failed = 0
+    for name, mine in runs.items():
+        one = browsers[name]
+        command = COMMANDS[one.adapter].e2e
+        if command is None or one.e2e is None:
+            raise Refused(f"the adapter {one.adapter} of stack {name} runs no browser test")
+        if not mine:
+            failed |= run(command(one.e2e, None)).returncode != 0
+            continue
+        with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as file:
+            file.write("".join(f"{line}\n" for line in mine))
+        try:
+            failed |= run(command(one.e2e, file.name)).returncode != 0
+        finally:
+            Path(file.name).unlink()
+    return failed
+
+
 def main(root: Path, config: Config, argv: list[str]) -> int:
     """The verb's exit code: 2 when the config has no stack or the verb cannot run."""
-    usage = "usage: repo-standard stacks lint | test [ids] | select <base>"
+    usage = "usage: repo-standard stacks lint | test [ids] | select <base> | e2e [<file>]"
     if not config.stacks:
         print("repo_standard stacks: the config sets no `stacks:`", file=sys.stderr)
         return 2
-    if not argv or argv[0] not in VERBS or (argv[0] == "select" and len(argv) != 2):
+    if (
+        not argv
+        or argv[0] not in VERBS
+        or (argv[0] == "select" and len(argv) != 2)
+        or (argv[0] == "e2e" and len(argv) > 2)
+    ):
         print(usage, file=sys.stderr)
         return 2
     os.chdir(root)
@@ -135,6 +180,8 @@ def main(root: Path, config: Config, argv: list[str]) -> int:
             return lint(config)
         if argv[0] == "test":
             return test(config, argv[1:])
+        if argv[0] == "e2e":
+            return e2e(config, argv[1] if len(argv) == 2 else None)
         print("".join(f"{line}\n" for line in select(config, argv[1])), end="")
         return 0
     except subprocess.CalledProcessError as error:

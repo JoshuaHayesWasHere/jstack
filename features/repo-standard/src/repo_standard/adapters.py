@@ -12,23 +12,34 @@ take `--roots`, so each places only the paths under its stack's roots.
   `npm run check` for the lint and `npm test` for the tests, each in the root, as `npm --prefix`
   runs them. Given ids, a root runs `npm test -- <files>`, each a path from the root, and a root
   the ids miss runs nothing. The selection, `scripts/node.py`, reads the import graph of
-  `scripts/node_graph.py`.
+  `scripts/node_graph.py`, and for a stack with `e2e:` the browser tests of
+  `scripts/node_browser.py`, which reads a table spec with `scripts/node_table.py`. `make e2e`
+  runs `scripts/node.py e2e` on the stack's e2e root and script, given a file of browser ids or
+  none for every browser test.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from repo_standard.config import E2E
 
 Argv = list[str]
 
 
 @dataclass(frozen=True)
 class Commands:
+    """An adapter's commands: `select` takes the stack's roots, the base and its `e2e:` part, and
+    `e2e`, for an adapter that runs browser tests, the part and a file of ids, or None for all."""
+
     lint: Callable[[tuple[str, ...]], list[Argv]]
     test: Callable[[tuple[str, ...], list[str]], list[Argv]]
-    select: Callable[[tuple[str, ...], str], Argv]
+    select: Callable[[tuple[str, ...], str, E2E | None], Argv]
     scripts: tuple[str, ...]
+    e2e: Callable[[E2E, str | None], Argv] | None = None
 
 
 def _roots(roots: tuple[str, ...]) -> Argv:
@@ -76,7 +87,7 @@ COMMANDS: dict[str, Commands] = {
     "go": Commands(
         lint=lambda roots: [_go("lint", roots, [])],
         test=lambda roots, ids: [_go("test", roots, ids)],
-        select=lambda roots, base: _go("select", roots, [base]),
+        select=lambda roots, base, e2e: _go("select", roots, [base]),
         scripts=("scripts/go.py",),
     ),
     "python-uv": Commands(
@@ -89,13 +100,35 @@ COMMANDS: dict[str, Commands] = {
             )
         ],
         test=_pytest,
-        select=lambda roots, base: ["python3", "scripts/select.py", *_roots(roots), base],
+        select=lambda roots, base, e2e: ["python3", "scripts/select.py", *_roots(roots), base],
         scripts=("scripts/select.py",),
     ),
     "node-vite": Commands(
         lint=lambda roots: [["npm", "--prefix", root, "run", "check"] for root in roots],
         test=_npm_test,
-        select=lambda roots, base: ["python3", "scripts/node.py", "select", *_roots(roots), base],
-        scripts=("scripts/node.py", "scripts/node_graph.py"),
+        select=lambda roots, base, e2e: [
+            "python3",
+            "scripts/node.py",
+            "select",
+            *_roots(roots),
+            *(["--e2e", e2e.json()] if e2e else []),
+            base,
+        ],
+        scripts=(
+            "scripts/node.py",
+            "scripts/node_graph.py",
+            "scripts/node_browser.py",
+            "scripts/node_table.py",
+        ),
+        e2e=lambda e2e, listed: [
+            "python3",
+            "scripts/node.py",
+            "e2e",
+            "--root",
+            e2e.root,
+            "--script",
+            e2e.script,
+            *(["--list", listed] if listed else []),
+        ],
     ),
 }

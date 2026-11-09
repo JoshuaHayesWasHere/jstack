@@ -230,7 +230,8 @@ def test_each_shape_passes_conformance_and_runs_its_own_scripts(client_repo):
     root, env = client_repo
     out = make(root, env, "lint")
     assert "check ran" in out
-    assert "errors 0, warnings 0" in out
+    assert "warn a-change-selects-its-tests: stack client: sets no `e2e:`" in out
+    assert "errors 0, warnings 1" in out
     assert "vitest ran every test" in make(root, env, "test")
     assert selected(root, env) == []
 
@@ -392,7 +393,7 @@ def test_conform_warns_of_a_node_stack_that_pins_no_node_version(svelte_repo):
     git(root, "commit", "-qm", "no Node version")
     out = skeleton_conform(root, env)
     assert "warn each-check-has-one-make-target: client: pins no Node version" in out
-    assert "errors 0, warnings 1" in out
+    assert "errors 0, warnings 2" in out
 
 
 def skeleton_conform(root, env, ok=True):
