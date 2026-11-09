@@ -3,10 +3,9 @@ rule broken in its source must fail a row of test_select_tests_rules.py's table 
 rule, so the table pins what each rule selects and no row passes on another rule.
 
 Each mutant runs the selector over today's tree in a process of its own, so they sit apart from
-the table, which every change runs. They run where a change reaches the selector, whose change
-runs every test, or the table's file, whose name this file spells. It loads that file by its
-path and does not import it: an import would make every path the table's file reads select
-these tests too."""
+the table, which every change runs. They run where a change reaches the selector or the table's
+file, whose names this file spells. It loads that file by its path and does not import it: an
+import would make every path the table's file reads select these tests too."""
 
 import ast
 import importlib.util
@@ -23,8 +22,8 @@ RULES = Path(__file__).with_name("test_select_tests_rules.py")
 SPEC = importlib.util.spec_from_file_location("select_tests_rules", RULES)
 rules = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(rules)
-SCRIPT, TABLE, asked, failing, select = (
-    rules.SCRIPT,
+SCRIPT = REPO / "scripts" / "select_tests.py"
+TABLE, asked, failing, select = (
     rules.TABLE,
     rules.asked,
     rules.failing,
@@ -32,11 +31,7 @@ SCRIPT, TABLE, asked, failing, select = (
 )
 
 MUTANTS = {
-    "all": ("shared() & set(EVERY_RUN) if strict else shared()", "set()"),
-    "plugin": (
-        "return {modules()[one] for one in found} | whole | set(EVERYTHING)",
-        "return set(EVERYTHING)",
-    ),
+    "all": ("if path in EVERY_RUN:", "if path in ():"),
     "imports": ("testers().get(by_path[path], set())", "test_files([by_path[path]])"),
     "chain": (
         "found.add(one)\n            todo += edges()[one]\n    return frozenset(found)",
