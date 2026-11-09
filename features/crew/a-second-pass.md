@@ -38,6 +38,7 @@ EOF
 scoped() {
     if [ "$ruled" != needed ] || [ "$asked" != "$saw" ] || [ "$ran" -gt 0 ]; then return 0; fi
     head=$(git rev-parse HEAD 2> /dev/null) || return 0
+    if [ "$head" = "$saw" ]; then return 0; fi
     base=$(git symbolic-ref -q --short refs/remotes/origin/HEAD) && from=$(git merge-base "$base" "$head" 2> /dev/null) || from=
     if [ -z "$from" ]; then
         echo "scoped: this worktree does not know its default branch, so the range of the fix cannot be given"
@@ -77,6 +78,8 @@ fi
 
 The first branch reads the last round's judgement of the brief, as `jmerge` reads it (`jbriefs --meets`, `jbriefs.meets`).
 On `meets: ...`, push the fix for the unmet lines first, with the block of "The review" that pushes a fix, and run the block again: it then gives the launch.
+A scoped review judges a fix, so the block gives no launch at the head the review already judged: a second reviewer there would judge the same commit again.
+A crew that cannot push the fix inside its brief's `Where:` launches nothing: it parks a gate ("Do the task"), with the default that the pull request waits.
 The only other way out is the user's `Waived:` line ("The review").
 
 - `write Scoped review: ...`: add that line to the Result, as printed, and only then the `Fixed:` line.
