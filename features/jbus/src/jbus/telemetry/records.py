@@ -11,8 +11,8 @@ A source is a `log` or a `snapshot`:
   (`jbus.telemetry.waits`), `outbox.jsonl`, `ci.jsonl`, `review-rounds.jsonl` (`jbus.reviewed`), the
   home's `merge.log` and `merge-waits.jsonl` (`jmerge.waits`), `stalls.jsonl`, each spell a row's
   thread was quiet or hung (`jbus.stall.spells`) after the line of when the record began, and the
-  machine's `passes.jsonl`, the seconds of each pass (`jbus.record`), and `drift.jsonl`, each probe
-  of a standing word in each run (`jbus.drift`).
+  machine's `passes.jsonl`, the seconds of each pass, of each of its steps and of its children
+  (`jbus.record`), and `drift.jsonl`, each probe of a standing word in each run (`jbus.drift`).
   A row's key is the hash of the line, as JSON with sorted keys (as text for `merge.log`), and
   of how many equal lines come before it, as `jbus.wake.entries` names an event. So two equal
   lines are two rows, and a line read again, as after the daily trim rewrites `events.jsonl`, is
@@ -41,6 +41,7 @@ from typing import Any, Literal
 
 from jbus import history
 from jbus.telemetry import asks, waits
+from jbus.telemetry.machine import capped_reads, drift, passes
 from jbus.telemetry.readers import json_lines, keyed, listed, questions
 from jbus.telemetry.values import (
     KINDS,
@@ -105,42 +106,6 @@ def _asks(verb: object, words: object) -> str | None:
     if verb != "word":
         return None
     return asks.label(words if isinstance(words, str) else None)
-
-
-def _passes(one: Row, zone: tzinfo | None) -> Row:
-    seconds = one.get("seconds")
-    return {
-        "at": utc(one.get("at"), zone),
-        "seconds": seconds if isinstance(seconds, int | float) else None,
-    }
-
-
-def _drift(one: Row, zone: tzinfo | None) -> Row:
-    return {
-        "at": utc(one.get("at"), zone),
-        "probe": _text(one.get("probe")),
-        "word": _text(one.get("word")),
-        "status": _text(one.get("status")),
-        "found": _number(one.get("found")),
-        "sha": _text(one.get("sha")),
-        "error": _text(one.get("error")),
-    }
-
-
-def _capped_reads(one: Row, zone: tzinfo | None) -> Row:
-    """A read of which instances the ledger has capped (`jgauge.limits.note`): how many it read,
-    how many were capped, and, where every one was, `ends_at`, the first time one is free again."""
-    instances, capped = one.get("instances"), _dict(one.get("capped"))
-    count = _count(instances)
-    frees = [found for found in (utc(at) for at in capped.values()) if found is not None]
-    every = bool(count) and len(frees) == len(capped) >= count
-    return {
-        "at": utc(one.get("at"), zone),
-        "reader": _text(one.get("reader")),
-        "instances": count,
-        "capped": len(capped),
-        "ends_at": min(frees) if every else None,
-    }
 
 
 def _stalls(one: Row, zone: tzinfo | None) -> Row:
@@ -718,7 +683,14 @@ SOURCES: tuple[Source, ...] = (
         records=keyed("red"),
         natural="red",
     ),
-    Source("passes", "passes.jsonl", "log", _columns("at", "seconds"), _passes, where="machine"),
+    Source(
+        "passes",
+        "passes.jsonl",
+        "log",
+        _columns("at", "seconds", "step_times", "children"),
+        passes,
+        where="machine",
+    ),
     Source(
         "review_rounds",
         "review-rounds.jsonl",
@@ -743,7 +715,7 @@ SOURCES: tuple[Source, ...] = (
         "drift.jsonl",
         "log",
         _columns("at", "probe", "word", "status", "found", "sha", "error"),
-        _drift,
+        drift,
         where="machine",
     ),
     Source(
@@ -751,7 +723,7 @@ SOURCES: tuple[Source, ...] = (
         "capped.jsonl",
         "log",
         _columns("at", "reader", "instances", "capped", "ends_at"),
-        _capped_reads,
+        capped_reads,
         where="machine",
     ),
     Source("merge_waits", "merge-waits.jsonl", "log", _WAITS, _merge_waits, where="home"),

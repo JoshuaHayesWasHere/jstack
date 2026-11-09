@@ -17,6 +17,17 @@ died: the journal and the status file's `last_pass` show which of the two happen
 The pass reads the seconds from a clock that keeps counting while the machine is suspended, and the
 end is the start plus those seconds.
 
+The line of `passes.jsonl` also says where the seconds went. `steps` maps each step of the pass to
+`[wall seconds, CPU seconds]` (`Steps`), and `children` is the CPU seconds of the child processes
+the pass waited on (`gh`, `git`, `jmerge`), from `os.times`. A step's name with no `/` is a part of
+the pass itself, run once: `start`, `first halves`, the launch, each chore, `second halves`, `pass`
+and `status`. These follow one another, so their wall seconds add up to about the line's `seconds`,
+and their CPU seconds are the process's, every thread's. A name `<part>/<step>` is a step of a
+project's half inside that part, summed over projects: each fixed step by the function it calls,
+each slot's step by its name (`jbus.verbs.Step`), and `project <name>`, the project's whole half.
+The projects run side by side, so these add up to more than their part's wall seconds, and their
+CPU seconds are the project's thread's alone, without the threads a step starts of its own.
+
 A project's rows carry `seen`, the start of the pass that saw them. For a project that a pass could
 not ask T3 Code or GitHub about, the record keeps what the pass before saw, under that pass's
 `seen`. It does the same while a pass has not ended yet. The status file's `last_pass` moves only
@@ -32,8 +43,11 @@ Only a pass that saw the project's rows removes the entry.
 
 from __future__ import annotations
 
+import os
+import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
@@ -77,14 +91,55 @@ def _kept(config: Config, key: str = "projects") -> dict[str, Any]:
     return {name: seen for name, seen in projects.items() if name in names}
 
 
+def _children() -> float:
+    """Return the CPU seconds of every child process this one has waited on."""
+    times = os.times()
+    return times.children_user + times.children_system
+
+
+@dataclass
+class Steps:
+    """`Steps` holds the wall seconds and the CPU seconds of each step of a pass, by its name,
+    added up over each time the step ran. The projects' threads add to it at once."""
+
+    took: dict[str, list[float]] = field(default_factory=dict)
+    _lock: threading.Lock = field(default_factory=threading.Lock)
+
+    @contextmanager
+    def timed(self, name: str, cpu: Callable[[], float] = time.thread_time) -> Iterator[None]:
+        """Add the seconds of the block to the step `name`, its CPU by `cpu`: the calling
+        thread's by default, `time.process_time` for a part of the pass that waits on threads."""
+        wall, spent = time.perf_counter(), cpu()
+        try:
+            yield
+        finally:
+            done = (time.perf_counter() - wall, cpu() - spent)
+            with self._lock:
+                held = self.took.setdefault(name, [0.0, 0.0])
+                held[0] += done[0]
+                held[1] += done[1]
+
+    def part(self, name: str) -> AbstractContextManager[None]:
+        """Time a part of the pass itself, with the CPU of the whole process."""
+        return self.timed(name, time.process_time)
+
+    def line(self) -> dict[str, list[float]]:
+        with self._lock:
+            return {
+                name: [round(wall, 3), round(cpu, 3)] for name, (wall, cpu) in self.took.items()
+            }
+
+
 @dataclass
 class Record:
-    """A `Record` is the record of one pass: the time the pass began, by both clocks, and what
-    the passes before it saw."""
+    """A `Record` is the record of one pass: the time the pass began, by both clocks, the CPU its
+    children had spent by then, the seconds of its steps, and what the passes before it saw."""
 
     config: Config
     now: datetime
     began: float = field(default_factory=lambda: clock())
+    children: float = field(default_factory=_children)
+    steps: Steps = field(default_factory=Steps)
     kept: dict[str, Any] = field(init=False)
     silent: dict[str, Any] = field(init=False)
 
@@ -116,7 +171,12 @@ class Record:
         before = {name: source for name, source in self.silent.items() if name not in saw}
         seconds = round(clock() - self.began, 1)
         self._write(seconds, self.kept | seen, before | silent)
-        line = {"at": stamp(self.now), "seconds": seconds}
+        line = {
+            "at": stamp(self.now),
+            "seconds": seconds,
+            "steps": self.steps.line(),
+            "children": round(_children() - self.children, 3),
+        }
         store.append_jsonl(self.config.state_dir / PASSES, [line], mode=0o600)
 
 

@@ -32,7 +32,7 @@ The store has one table for each record file of each project, with a `project` c
 | `reverts` | `reverts.json` | a revert jbus opened for a red main, by its red tip: the culprit's `slug`, the revert's `branch` and its `pr` |
 | `drift` | the machine's `drift.jsonl` | a run of one drift probe: its `probe`, `word`, `status`, `found`, `sha` and `error` |
 | `stalls` | `stalls.jsonl` | a spell a running row's thread was quiet or hung: its line when a pass first saw it, and its line when a pass saw it end, with `until`, `minutes` and `became`; and the file's first line, `began`, when the first pass that ran `jbus.stall.spells` began the record |
-| `passes` | the machine's `passes.jsonl` | a pass of jbus: its start and its seconds, under the project `''` |
+| `passes` | the machine's `passes.jsonl` | a pass of jbus: its start and its seconds, under the project `''`, and from v014 `step_times`, the `[wall, cpu]` seconds of each of its steps as JSON, and `children`, the CPU seconds of the child processes it waited on (`jbus.record`) |
 | `launch_arms` | the launch records, `launches/<project>/<slug>/<sha>.json` | a launched record's arm of one dial (`dial`, `arm`, `covered` 1), or for a launch from before records named their arm, one row with no dial or arm and `covered` 0 |
 | `review_rounds` | `review-rounds.jsonl` | a settled review round of a row's pull request: its number, head, sections, `Meets the brief` verdict (`meets`, `met` of `done_when`) and its findings by severity (`errors`, `warnings`, `infos`, `others`, `dismissed`) |
 | `capped_reads` | the machine's `capped.jsonl` | a read of which Claude instances the ledger has capped, by `jgauge limits` or the pass (`jgauge.limits.note`): its `reader`, how many `instances` and how many `capped`, and, where every one was, `ends_at`, the first reset |
@@ -208,6 +208,7 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 | `weekly_doors` | each week's door acts `done`, and `not_yours`, those a home, a bot or jbus did |
 | `pass_times` | the `seconds` of each jbus pass, by `week`, read by `weekly_pass_time` |
 | `weekly_pass_time` | each week's jbus passes: `n`, and the `median` and `p85` of their seconds |
+| `pass_steps` | each step of each jbus pass, a row a step: `pass`, `at`, `step`, and its wall `seconds` and `cpu` seconds. A `step` with no `/` is a part of the pass, and the parts add up to its seconds; `<part>/<step>` is a step of a project's half within that part, summed over projects |
 | `capped_spells` | each read of `capped_reads` and the `minutes` it holds every instance capped: up to the next read of either reader, or its `ends_at`, whichever is first, so two readers' reads of the same minutes count once |
 | `weekly_capped` | each week's `reads` and capped `minutes`, right to about a minute at each end of a spell, since a pass reads about twice a minute (10 seconds after the last one ended) and `jgauge limits` every 2 |
 | `capped_since` | the first `day` of `capped_reads` |
