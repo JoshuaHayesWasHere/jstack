@@ -9,9 +9,11 @@ Source: this repo
 Work the numbered steps below in order.
 Report a step you do not do as `skip: <reason>`.
 
-A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
+A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo.
+Read a principle in full when a step you are doing names it.
 
-**You own the record of the measurement.** Each number comes from a file the machine wrote and that the home can open after you, never from your own account of the run.
+**You own the record of the measurement.**
+Each number comes from a file the machine wrote and that the home can open after you, never from your own account of the run.
 Each thing the probe made is closed, or named for the home.
 
 1. Check that there is something to measure before anything runs (`principles/principle-prove-it-works.md`).
@@ -49,10 +51,15 @@ Each thing the probe made is closed, or named for the home.
 
 Never done here, and who does it:
 
-- **A fix to what the run measured.** A crewmate does, from a brief the home writes: the finding goes on `Left:`, or is a queued row as `templates/a-fault-outside.md` says.
-- **Installing a build, restarting a service, or changing a setting so that there is something to measure.** The user does: step 1 pauses the row and names the wait on `Left:`.
-- **A change to the instrument in the middle of a run.** Nobody does, in this row: an instrument found wrong is a `Left:` line, and the next row runs the fixed one.
-- **Deleting a branch, a pull request or a report file.** The user does, on the gate step 5 parks.
-- **Merging the throwaway pull request.** Nobody does.
+- **A fix to what the run measured.**
+  A crewmate does, from a brief the home writes: the finding goes on `Left:`, or is a queued row as `templates/a-fault-outside.md` says.
+- **Installing a build, restarting a service, or changing a setting so that there is something to measure.**
+  The user does: step 1 pauses the row and names the wait on `Left:`.
+- **A change to the instrument in the middle of a run.**
+  Nobody does, in this row: an instrument found wrong is a `Left:` line, and the next row runs the fixed one.
+- **Deleting a branch, a pull request or a report file.**
+  The user does, on the gate step 5 parks.
+- **Merging the throwaway pull request.**
+  Nobody does.
 
 **Hand over:** in the Result, to the home and the next row: the one-line answers with their numbers and paths, the folder `reports/<slug>/`, each throwaway thing and its state, and what the next row must do.
