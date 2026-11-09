@@ -199,10 +199,40 @@ def test_a_mirrors_threads_list_no_plugin_bundled_or_account_skill_and_mains_lis
                 "anthropic-skills:morning": "off",
                 "plugin-authoring": "off",
             },
+            "permissions": {"deny": ["Workflow", "ScheduleWakeup", "ReportFindings"]},
         }
     for skill in ("skills/synced/org_one/docx/SKILL.md", "plugins/cache/typesafe/SKILL.md"):
         assert (prime / skill).read_text() == (main / skill).read_text()
     assert mirror(capsys) == (0, [], "")
+
+
+def test_a_mirror_denies_the_unused_tools_after_mains_deny_list_and_main_keeps_every_tool(
+    home, capsys
+):
+    main, prime = home / ".claude", home / ".claude_prime"
+    own = ["Read(~/.ssh/**)", "Read(~/.aws/**)"]
+    write(
+        main / "settings.json",
+        json.dumps({"permissions": {"allow": ["Bash(git log:*)"], "deny": own}}, indent=2),
+    )
+    before = (main / "settings.json").read_bytes()
+    assert mirror(capsys)[0] == 0
+    for at in (prime, home / ".claude_third"):
+        assert listed(at)["permissions"] == {
+            "allow": ["Bash(git log:*)"],
+            "deny": [*own, "Workflow", "ScheduleWakeup", "ReportFindings"],
+        }
+    assert (main / "settings.json").read_bytes() == before
+    assert mirror(capsys) == (0, [], "")
+
+
+@pytest.mark.parametrize("permissions", [["Read(~/.ssh/**)"], {"deny": "Read(~/.ssh/**)"}])
+def test_a_mirror_refuses_a_permissions_or_deny_of_the_wrong_shape(home, capsys, permissions):
+    main = home / ".claude"
+    write(main / "settings.json", json.dumps({"permissions": permissions}))
+    code, _, err = mirror(capsys)
+    assert code == 2
+    assert f"{main / 'settings.json'}: permissions" in err
 
 
 def test_a_plugin_or_account_skill_main_gains_is_drift_until_the_next_run_turns_it_off(
