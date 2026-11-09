@@ -224,10 +224,9 @@ def no_reviewer_by_rule(brief: str, head: str) -> bool:
 CHECKED = (
     'Run the check block of the crew skill\'s "Do the task" in your worktree at the head the '
     "reason names: it runs the lint, the touched tests and the repo-guards tests and writes the "
-    "`Checked:` line "
-    "`jmerge` reads. Where it ends other than 0, a 124 too, fix what it found, commit, push, and "
-    "run it again, until its line says `PART=touched exit 0` (`PART=guards exit 0` on an "
-    "earlier head's line) at the head. Never write a `Checked:` line by hand."
+    "`Checked:` line `jmerge` reads. Where it ends other than 0, a 124 too, fix what it found, "
+    "commit, push, and run it again, until its line says `PART=touched exit 0` (`PART=guards "
+    "exit 0` on an earlier head's line) at the head. Never write a `Checked:` line by hand."
 )
 TABLE = (
     Short(
