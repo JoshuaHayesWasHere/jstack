@@ -82,7 +82,7 @@ def machine(tmp_path, monkeypatch):
 def cells(machine, week="2026-10-28"):
     machine.build()
     out = machine.root / "page" / "kpis.html"
-    code, said = run("--week", week, "--out", str(out))
+    code, said = run("--week", week, "--out", str(out), project="alpha")
     assert code == 0, said
     found = Cells()
     found.feed(out.read_text())
