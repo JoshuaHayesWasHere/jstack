@@ -15,6 +15,7 @@ from datetime import timedelta
 import pytest
 
 from jbus import kpis as pass_kpis
+from jbus.telemetry.views import capped_any_spells
 from jgauge import limits
 from test_jbus_kpi_page import Cells, run
 from test_jbus_telemetry import NOW, Machine
@@ -176,7 +177,7 @@ def test_a_read_with_one_account_capped_holds_at_most_5_minutes_up_to_a_read_an_
     machine.accounts.read(NOW, main=100, prime=40)
     machine.accounts.read(NOW + timedelta(hours=1), main=5, prime=40)
 
-    assert weekly(machine, "weekly_capped_any") == {"2026-10-25": 5}
+    assert weekly(machine, "weekly_capped_any") == {"2026-10-25": capped_any_spells.HOLD}
 
 
 def test_reads_2_minutes_apart_with_one_account_capped_count_each_minute_once(machine):
