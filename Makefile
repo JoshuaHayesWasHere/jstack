@@ -96,8 +96,9 @@ select:
 # change adds or edits, and never the whole suite, even where the selection is `all`: CI's check
 # runs the rest of it. The crew's check block runs it in steps, the lint and then each file alone,
 # so each fits the short lane, and then, as steps of the same check, each test file under
-# features/repo-guards/tests that `--part guards` names, alone too. `PART=guards`, the lint and the guard tests, is what jmerge runs on
-# a pull request's tree merged over its base, and it too never runs the whole suite: where the
+# features/repo-guards/tests that `--part guards` names, alone too. `PART=guards`, the lint and
+# the guard tests, is what jmerge runs on a pull request's tree merged over its base, and it too
+# never runs the whole suite: where the
 # selection is `all` its guards are the cross-cutting tests, the catch-all and the changed test
 # files, since the whole suite outran jmerge's 10 minutes on 2026-11-05. `PART=rest`, the other
 # tests the selection names and no lint, stays for a run by hand.
