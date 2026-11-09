@@ -566,6 +566,19 @@ def test_every_job_runs_on_the_callers_runner_and_takes_the_pinned_actions():
     assert set(pinned.findall(WORKFLOW.read_text())) <= ours
 
 
+def test_every_output_a_job_reads_is_one_a_job_it_needs_gives():
+    """GitHub reads an output no job gives as empty, so a renamed output leaves its reader
+    cloning or deciding on nothing, with no error."""
+    jobs = workflow()["jobs"]
+    read = re.compile(r"needs\.([\w-]+)\.outputs\.([\w-]+)")
+    for name, job in jobs.items():
+        needs = job.get("needs", [])
+        needs = [needs] if isinstance(needs, str) else needs
+        for upstream, output in read.findall(json.dumps(job)):
+            assert upstream in needs, (name, upstream)
+            assert output in jobs[upstream].get("outputs", {}), (name, upstream, output)
+
+
 def test_the_template_is_a_caller_of_the_shared_workflow_at_the_pinned_tag(caller):
     repo, env = caller
     top = template("npm test")

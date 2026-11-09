@@ -297,8 +297,8 @@ jobs:
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ needs.plan.outputs.tag }}
-        run: git clone -q --depth 1 --branch "$TAG" "$REPO_STANDARD_UPSTREAM" "$RUNNER_TEMP/repo-standard" && PYTHONPATH="$RUNNER_TEMP/repo-standard/features/repo-standard/src" python3 -m repo_standard misses record --failed "$RUNNER_TEMP/failed" --out "$RUNNER_TEMP/ledger"
+          REF: ${{ needs.plan.outputs.ref }}
+        run: git clone -q --depth 1 --branch "$REF" "$REPO_STANDARD_UPSTREAM" "$RUNNER_TEMP/repo-standard" && PYTHONPATH="$RUNNER_TEMP/repo-standard/features/repo-standard/src" python3 -m repo_standard misses record --failed "$RUNNER_TEMP/failed" --out "$RUNNER_TEMP/ledger"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.ledger.outcome == 'success'
         continue-on-error: true
