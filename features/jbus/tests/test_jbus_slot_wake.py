@@ -48,7 +48,7 @@ def slots(kitchen):
     made.close()
 
 
-def waiter(kitchen, kind="short", ago=0, status="completed", **more):
+def waiter(kitchen, kind="full", ago=0, status="completed", **more):
     """Make a thread that ended its turn to wait on a slot, and register its wait `ago` minutes
     before NOW."""
     thread = kitchen.t3.thread("waiter", status, idle=timedelta(minutes=2), **more)
@@ -64,28 +64,28 @@ def told(kitchen):
 
 
 def test_two_waiters_one_slot_frees_only_the_oldest_is_woken(kitchen, slots):
-    slots.hold("short")
+    slots.hold("full")
     younger, older = waiter(kitchen, ago=3), waiter(kitchen, ago=9)
     kitchen.poll()
     assert sends(kitchen) == []
-    slots.free("short")
+    slots.free("full")
     said = kitchen.poll()
     assert told(kitchen) == [older]
     (given,) = sends(kitchen)
     assert given["mode"] == "queue" and given["clientRequestId"].startswith(f"slot-wake|{older}|")
-    assert "a short test slot is free" in given["message"]
+    assert "a full test slot is free" in given["message"]
     assert f"uv run pytest {older}" in given["message"]
     assert given["message"].endswith(jbus.END_TURN)
-    line = f"slot-wake: woke {older}, a short slot is free for `uv run pytest {older}`, after 9 min"
+    line = f"slot-wake: woke {older}, a full slot is free for `uv run pytest {older}`, after 9 min"
     assert line in said and kitchen.lines("slot-wake") == [line]
     by = {one.thread: one for one in waiters.read(slot.locks_dir())}
     assert by[older].woken and not by[younger].woken
 
 
 def test_a_second_pass_wakes_no_one_twice(kitchen, slots):
-    slots.hold("short")
+    slots.hold("full")
     first, second = waiter(kitchen, ago=9), waiter(kitchen, ago=3)
-    slots.free("short")
+    slots.free("full")
     kitchen.poll()
     kitchen.poll(NOW + timedelta(minutes=1))
     kitchen.poll(NOW + timedelta(minutes=2))
@@ -94,28 +94,28 @@ def test_a_second_pass_wakes_no_one_twice(kitchen, slots):
 
 
 def test_a_second_free_slot_wakes_the_next_waiter(kitchen, slots):
-    slots.hold("short")
+    slots.hold("full")
     first, second, third = waiter(kitchen, ago=9), waiter(kitchen, ago=6), waiter(kitchen, ago=3)
-    slots.free("short", 1)
+    slots.free("full", 1)
     kitchen.poll()
-    slots.free("short", 2)
+    slots.free("full", 2)
     kitchen.poll(NOW + timedelta(minutes=1))
     assert told(kitchen) == [first, second]
     assert third not in told(kitchen)
 
 
 def test_two_free_slots_wake_two_waiters_in_one_pass(kitchen, slots):
-    slots.hold("short")
+    slots.hold("full")
     first, second = waiter(kitchen, ago=9), waiter(kitchen, ago=6)
     third = waiter(kitchen, ago=3)
-    slots.free("short", 1)
-    slots.free("short", 2)
+    slots.free("full", 1)
+    slots.free("full", 2)
     kitchen.poll()
     assert told(kitchen) == [first, second] and third not in told(kitchen)
 
 
 def test_a_waiter_that_was_woken_and_took_no_slot_holds_it_for_a_while(kitchen, slots):
-    slots.hold("short", 2, 3)
+    slots.hold("full", 2)
     first, second = waiter(kitchen, ago=9), waiter(kitchen, ago=3)
     kitchen.poll()
     assert told(kitchen) == [first]
@@ -124,16 +124,16 @@ def test_a_waiter_that_was_woken_and_took_no_slot_holds_it_for_a_while(kitchen, 
 
 
 def test_a_waiter_that_waits_again_after_its_wake_is_woken_again_in_its_place(kitchen, slots):
-    slots.hold("short")
+    slots.hold("full")
     first, second = waiter(kitchen, ago=9), waiter(kitchen, ago=3)
-    slots.free("short")
+    slots.free("full")
     kitchen.poll()
-    slots.hold("short", 1)
+    slots.hold("full", 1)
     (was,) = [one for one in waiters.read(slot.locks_dir()) if one.thread == first]
-    lane = LANES["short"].slots
-    again = waiters.register(slot.locks_dir(), first, "short", lane, ["uv", "run", "pytest"], NOW)
+    lane = LANES["full"].slots
+    again = waiters.register(slot.locks_dir(), first, "full", lane, ["uv", "run", "pytest"], NOW)
     assert again.since == was.since and again.id != was.id and not again.woken
-    slots.free("short")
+    slots.free("full")
     kitchen.poll(NOW + timedelta(minutes=1))
     assert told(kitchen) == [first, first]
     ids = {given["clientRequestId"] for given in sends(kitchen)}
@@ -144,7 +144,7 @@ def test_a_waiter_that_waits_again_after_its_wake_is_woken_again_in_its_place(ki
     "how", ["gone", "settled", "archived", "failed", "interrupted", "cancelled"]
 )
 def test_a_dead_waiter_is_dropped_and_the_next_is_woken(kitchen, slots, how):
-    slots.hold("short")
+    slots.hold("full")
     dead, live = waiter(kitchen, ago=9), waiter(kitchen, ago=3)
     thread = next(t for t in kitchen.t3.threads if t["threadId"] == dead)
     if how == "gone":
@@ -156,13 +156,13 @@ def test_a_dead_waiter_is_dropped_and_the_next_is_woken(kitchen, slots, how):
     kitchen.poll()
     assert [one.thread for one in waiters.read(slot.locks_dir())] == [live]
     assert sends(kitchen) == []
-    slots.free("short")
+    slots.free("full")
     kitchen.poll(NOW + timedelta(minutes=1))
     assert told(kitchen) == [live]
 
 
 def test_a_waiter_whose_thread_could_not_be_checked_is_kept(kitchen, slots):
-    slots.hold("short")
+    slots.hold("full")
     waiter(kitchen, ago=3)
     kitchen.t3.lose_read = True
     said = kitchen.poll()
@@ -171,31 +171,38 @@ def test_a_waiter_whose_thread_could_not_be_checked_is_kept(kitchen, slots):
 
 
 def test_a_waiter_woken_long_ago_with_nothing_come_of_it_is_dropped(kitchen, slots):
-    slots.hold("short")
+    slots.hold("full")
     thread = waiter(kitchen, ago=9)
-    slots.free("short")
+    slots.free("full")
     kitchen.poll()
     assert told(kitchen) == [thread]
     kitchen.poll(NOW + waiters.FORGOTTEN + timedelta(minutes=1))
     assert waiters.read(slot.locks_dir()) == [] and told(kitchen) == [thread]
 
 
-def test_the_lanes_wake_their_own_waiters(kitchen, slots):
+def test_only_a_full_lane_waiter_is_woken_and_a_short_one_is_dropped_with_one_line(
+    kitchen, slots
+):
+    """A short call waits in its call and registers nothing, so a short-lane waiter in the file
+    is one an older jgauge left: it gets no wake, whatever slot is free, and leaves the file."""
     slots.hold("short")
     slots.hold("full")
-    short, full = waiter(kitchen, "short", ago=3), waiter(kitchen, "full", ago=9)
+    short, full = waiter(kitchen, "short", ago=9), waiter(kitchen, "full", ago=3)
     slots.free("short")
-    kitchen.poll()
-    assert told(kitchen) == [short]
     slots.free("full")
+    said = kitchen.poll()
+    assert told(kitchen) == [full]
+    (line,) = about(said, short)
+    assert "short" in line and "dropped" in line
+    assert [one.thread for one in waiters.read(slot.locks_dir())] == [full]
     kitchen.poll(NOW + timedelta(minutes=1))
-    assert told(kitchen) == [short, full]
+    assert told(kitchen) == [full]
 
 
 def test_a_lost_send_is_tried_again_with_the_same_key(kitchen, slots):
-    slots.hold("short")
+    slots.hold("full")
     thread = waiter(kitchen, ago=3)
-    slots.free("short")
+    slots.free("full")
     kitchen.t3.lose_send = True
     said = kitchen.poll()
     assert any("could not be told a slot is free" in line for line in said)
@@ -217,7 +224,7 @@ def about(said, thread):
 
 
 def test_a_waiter_t3_code_no_longer_has_is_dropped_with_one_line(kitchen, slots):
-    slots.hold("short")
+    slots.hold("full")
     thread = waiter(kitchen, ago=3)
     kitchen.t3.threads.remove(next(t for t in kitchen.t3.threads if t["threadId"] == thread))
     (line,) = about(kitchen.poll(), thread)
@@ -227,9 +234,9 @@ def test_a_waiter_t3_code_no_longer_has_is_dropped_with_one_line(kitchen, slots)
 
 
 def test_a_waiter_t3_code_will_not_send_to_is_dropped_with_one_line(kitchen, slots):
-    slots.hold("short")
+    slots.hold("full")
     thread = waiter(kitchen, ago=3)
-    slots.free("short")
+    slots.free("full")
     kitchen.t3.lose_read = True
     kitchen.t3.forgot.add(thread)
     said = kitchen.poll()

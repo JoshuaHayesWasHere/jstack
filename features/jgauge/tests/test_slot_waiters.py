@@ -1,6 +1,6 @@
-"""A thread that finds every slot taken registers as a waiter in the slot queue's file, and
-says so in one line, instead of waiting in the call, once a short call's wait in the call has
-run out. The tests run as `test_slot.py` does: the real `jgauge test-slot`, against lock files
+"""A thread that finds every full slot taken registers as a waiter in the slot queue's file,
+and says so in one line, instead of waiting in the call. A short call waits in the call, in the
+order the calls came, and registers nothing. The tests run as `test_slot.py` does: the real `jgauge test-slot`, against lock files
 in a temporary home that each test makes."""
 
 import fcntl
@@ -85,26 +85,6 @@ def hold_short(machine):
     return held
 
 
-def test_with_every_short_slot_taken_a_thread_registers_and_ends_its_turn(machine):
-    held = hold_short(machine)
-    try:
-        ran = jgauge(machine, "--short", "--", "echo", "ran")
-    finally:
-        for fd in held:
-            os.close(fd)
-    assert ran.returncode == slot.WAITING == 76
-    assert ran.stderr == "" and len(ran.stdout.splitlines()) == 1
-    assert f"{THREAD} is registered as a waiter and jbus will wake it" in ran.stdout
-    (one,) = waiters.read(machine.locks)
-    assert (one.thread, one.lane, one.slots, one.command) == (
-        THREAD,
-        "short",
-        slot.short().slots,
-        ("echo", "ran"),
-    )
-    assert not one.woken
-
-
 def _in_line(machine, count):
     """Wait until `count` callers wait in the short lane's line."""
     line = machine.locks / slot.LINE
@@ -172,64 +152,49 @@ def test_a_freed_short_slot_goes_to_the_caller_that_came_first(machine):
     assert sorted(line.iterdir()) == []
 
 
-def test_a_woken_thread_takes_its_claimed_slot_ahead_of_a_call_waiting_in_the_line(machine):
-    """jbus claimed the freed slot for the woken thread, so the caller that waits ahead of it
-    in the line cannot take it: the woken thread takes it at once, and the other waits on."""
-    waiters.register(machine.locks, THREAD, "short", slot.short().slots, ["echo", "a"], NOW)
-    held = hold_short(machine)
-    try:
-        other = started(machine, "--short", "--", "echo", "b", thread="mcp:b", wait="15")
-        _in_line(machine, 1)
-        wake(machine, THREAD)
-        os.close(held.pop())
-        woken = ended(started(machine, "--short", "--", "echo", "a", wait="15"), timeout=5)
-        assert (woken.returncode, woken.stdout) == (0, "a\n")
-    finally:
-        for fd in held:
-            os.close(fd)
-    assert ended(other).stdout == "b\n"
-    assert waiters.read(machine.locks) == []
-
-
-def test_a_call_that_has_waited_leaves_a_freed_slot_to_an_older_waiter_jbus_has_not_woken(
+def test_a_short_call_waits_past_the_old_wait_and_takes_a_freed_slot_with_no_waiter_on_file(
     machine,
 ):
-    """A freed slot goes to the waiter that registered first, by way of jbus's wake, and not to
-    a call that came after it and waits in the call."""
+    """A short-lane waiter an older jgauge left on file holds nothing: the call waits in the
+    line past the 1 s the old tests waited, takes the first slot freed, and its thread is never
+    registered, so jbus starts no turn to hand it one."""
+    waiters.register(machine.locks, "mcp:old", "short", slot.short().slots, ["echo", "a"], NOW)
     held = hold_short(machine)
     try:
-        run = started(machine, "--short", "--", "echo", "b", thread="mcp:b", wait="2")
+        run = started(machine, "--short", "--", "echo", "ran", wait="15")
         _in_line(machine, 1)
-        time.sleep(0.5)
-        waiters.register(machine.locks, THREAD, "short", slot.short().slots, ["echo", "a"], NOW)
+        time.sleep(1.5)
+        assert run.poll() is None
         os.close(held.pop())
-        late = ended(run)
+        ran = ended(run)
     finally:
         for fd in held:
             os.close(fd)
-    assert late.returncode == slot.WAITING
-    assert [one.thread for one in waiters.read(machine.locks)] == [THREAD, "mcp:b"]
+    assert (ran.returncode, ran.stdout) == (0, "ran\n")
+    assert THREAD not in [one.thread for one in waiters.read(machine.locks)]
 
 
-def test_a_short_call_still_waiting_past_its_wait_registers_and_ends_its_turn(machine):
+def test_a_short_call_at_its_ceiling_ends_76_and_says_to_run_again_now(machine):
     held = hold_short(machine)
     try:
         ran = jgauge(machine, "--short", "--", "echo", "ran", wait="1")
     finally:
         for fd in held:
             os.close(fd)
-    assert ran.returncode == slot.WAITING
-    assert f"{THREAD} is registered as a waiter and jbus will wake it" in ran.stdout
-    assert [one.thread for one in waiters.read(machine.locks)] == [THREAD]
+    assert ran.returncode == slot.WAITING == 76
+    (line,) = ran.stdout.splitlines()
+    assert "run the same command again now, in this turn" in line
+    assert "end your turn" not in ran.stdout.lower() + ran.stderr.lower()
+    assert waiters.read(machine.locks) == []
     assert [one.name for one in (machine.locks / slot.LINE).iterdir()] == []
 
 
 def test_a_thread_asked_twice_is_one_waiter_with_one_place(machine):
-    held = hold_short(machine)
+    held = hold_full(machine)
     try:
-        jgauge(machine, "--short", "--", "echo", "one")
+        jgauge(machine, "--slots", "2", "--", "echo", "one")
         (first,) = waiters.read(machine.locks)
-        jgauge(machine, "--short", "--", "echo", "two")
+        jgauge(machine, "--slots", "2", "--", "echo", "two")
     finally:
         for fd in held:
             os.close(fd)
@@ -238,9 +203,9 @@ def test_a_thread_asked_twice_is_one_waiter_with_one_place(machine):
 
 
 def test_a_thread_that_takes_a_slot_runs_and_leaves_the_waiters(machine):
-    waiters.register(machine.locks, THREAD, "short", slot.short().slots, ["echo", "ran"], NOW)
-    waiters.register(machine.locks, "mcp:other", "short", slot.short().slots, ["true"], NOW)
-    ran = jgauge(machine, "--short", "--", "echo", "ran")
+    waiters.register(machine.locks, THREAD, "full", 2, ["echo", "ran"], NOW)
+    waiters.register(machine.locks, "mcp:other", "full", 2, ["true"], NOW)
+    ran = jgauge(machine, "--slots", "2", "--", "echo", "ran")
     assert (ran.returncode, ran.stdout, ran.stderr) == (0, "ran\n", "")
     assert [one.thread for one in waiters.read(machine.locks)] == ["mcp:other"]
 
