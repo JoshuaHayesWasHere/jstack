@@ -1421,12 +1421,16 @@ def told_rewritten(kitchen):
 
 @pytest.fixture
 def written(kitchen):
-    """Launch alpha, whose crew has ended its turn on a Result with a `Proved:` line."""
+    """Launch alpha, whose crew has opened pull request 7 and ended its turn on a Result with a
+    `Proved:` line. A row that is over, merged or done, is no crew's at work, and goes unread."""
     add(kitchen, "alpha")
     assert "launched alpha: mcp:thread-1" in kitchen.poll(NOW - timedelta(minutes=30))
     kitchen.t3.threads[0]["status"] = "completed"
+    kitchen.set("open.json", [kitchen.opened("alpha", 7, state=None)])
     path = kitchen.home / "tasks" / "alpha.md"
-    path.write_text(path.read_text() + f"\n{RESULT}{PROVED}\n")
+    url = "https://example.test/pull/7"
+    result = RESULT.replace("Pull request: none", f"Pull request: {url}")
+    path.write_text(path.read_text() + f"\n{result}{PROVED}\n")
     kitchen.poll(NOW - timedelta(minutes=20))
     return path
 
