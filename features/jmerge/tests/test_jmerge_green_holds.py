@@ -126,8 +126,9 @@ def test_a_green_pull_request_with_no_review_holds_until_its_review_is_written(m
 
 def test_a_review_of_a_head_whose_content_changed_holds_until_the_head_is_reviewed(merged):
     reviewed = merged.head
-    (merged.tree / "a.txt").write_text("the task, changed after its review\n")
-    merge.git(merged.tree, "commit", "-q", "-am", "a change after the review")
+    (merged.tree / "a.py").write_text("the task, changed after its review\n")
+    merge.git(merged.tree, "add", "a.py")
+    merge.git(merged.tree, "commit", "-q", "-m", "a change after the review")
     merge.git(merged.tree, "push", "-q")
     merged.head = merge.git(merged.tree, "rev-parse", "HEAD")
     merged.home.open_pull_request(merged.head)
