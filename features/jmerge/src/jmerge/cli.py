@@ -37,6 +37,7 @@ from jmerge import (
     rows,
     sweep,
     trailers,
+    treeguards,
     waits,
 )
 from jmerge import reverts as reverting
@@ -158,6 +159,9 @@ class Repo:
         origin = _run(main, "git", "remote", "get-url", "origin")
         self.about = [] if origin.returncode else ["--repo", origin.stdout.strip()]
         self.base_merge = rejudge.BaseMerge(main, state, self.about, asks)
+        self.guards = treeguards.Guards(
+            main, state, asks, lambda path: self.api(f"repos/{{owner}}/{{repo}}/{path}")
+        )
         self.spells = waits.Spells(state, asks)
         self.began: dict[int, datetime] = {}
         self.listed, self.was = home_rule.ids(state)
@@ -687,17 +691,23 @@ class Repo:
     def over_main(
         self, one: ready.PullRequest, left: tuple[str, ...] | None
     ) -> tuple[str, ready.Judged]:
-        """Why the head waits over today's base, or nothing, and the base's tip it was judged
-        over. Where the base changed no path since the check started, the check ran over today's
-        base. Where it did, a head that conflicts with the tip with `git merge-tree` waits for a
-        rebase. A clean one merges on its existing check, with no update of its branch, no rerun
-        and nothing run on its merged tree, whatever paths it shares with the base's changes
-        (Josh, 2026-11-05: "we don't need every pr to be up to date"; his vision of 2026-11-06,
-        item F: "merge as soon as green, not stopping to rebase if not needed or to catch up with
-        main"). What stands behind it is main's own run over what moved and jbus's revert of the
-        one clear culprit (`jmerge.reverts`). A revert jbus opened whose files, or the old paths
-        of its renames (`left`), share a path the base changed has GitHub merge the base into the
-        branch (`in_turn`), and the check at the new head decides."""
+        """Why the head waits over today's base, or nothing, and what it was judged over: the
+        base's tip, and whether its files overlap the base's changes. Where the base changed no
+        path since the check started, the check ran over today's base. Where it did, a head that
+        conflicts with the tip with `git merge-tree` waits for a rebase. A clean one merges on
+        its existing check, with no update of its branch and no rerun, and `Repo.merge` runs the
+        fast guards on its tree merged over the tip first (`treeguards`), where the repo names
+        them. That holds for one whose files, and the old paths of its renames (`left`), share
+        none of the base's changed paths (Josh's rule of 2026-11-02, #847, back on 2026-11-04
+        with GitHub's strict rule off), where the guards catch a clash two pull requests make
+        with no shared file, as #923 and #935 made with two new `v007_` files. A repo with no
+        guards merges such a one on its existing check alike (Josh, 2026-11-05: "we don't need
+        every pr to be up to date"). It holds too for one that overlaps, in a repo that names
+        guards (Josh's vision of 2026-11-06, item F: "merge as soon as green, not stopping to
+        rebase if not needed or to catch up with main"), with main's own run and jbus's reverts
+        behind it. Such a one whose guards failed or were stopped at its head over the tip, one
+        in a repo with no guards, and a revert jbus opened, whose path is its own, have GitHub
+        merge the base into the branch (`in_turn`), and the check at the new head decides."""
         if one.started is None:
             return "", ready.Judged()
         moved = self.moved(one.base, one.started)
@@ -712,10 +722,11 @@ class Repo:
             return ready.FRESH_CONFLICT, ready.Judged()
         if merged.returncode:
             return ready.UNMERGED.format(why=lines.said(merged)), ready.Judged()
-        overlaps = left is None or bool({*one.files, *left} & set(paths))
-        if overlaps and self.is_revert(one):
+        if left is not None and not {*one.files, *left} & set(paths):
+            return "", ready.Judged(tip)
+        if not self.guards.command or self.is_revert(one) or self.guards.kept(one, tip):
             return self.base_moved(one, tip), ready.Judged()
-        return "", ready.Judged(tip)
+        return "", ready.Judged(tip, overlaps=True)
 
     def base_moved(self, one: ready.PullRequest, tip: str) -> str:
         """Why a green pull request waits for GitHub's merge of its base at `tip` into its
@@ -980,6 +991,7 @@ class Repo:
         if one.draft:
             return Judgement(brief.stem, "wait", ready.HAND_DRAFT, note, None)
         short, judged = self.over_main(one, left)
+        short = short or self.guards.kept(one, judged.tip)
         if short:
             return Judgement(brief.stem, "wait", short, note, None)
         note = f"{note}, {ready.KEPT}" if note else ""
@@ -1008,7 +1020,9 @@ class Repo:
         if short := self.lift(needs, self.lifted(one)) or red:
             return Judgement("", judgement.verb(short), short, "", None)
         short, judged = self.over_main(one, left)
-        short = short or self.short_on_migrations(one, one.base)
+        short = (
+            short or self.guards.kept(one, judged.tip) or self.short_on_migrations(one, one.base)
+        )
         if short:
             return Judgement("", "wait", short, "", None)
         if (self.state / "merge-off").exists():
@@ -1132,6 +1146,7 @@ class Repo:
         heads = {str(one.number): one.head for one in listed}
         self.base_merge.reopen(heads)
         self.base_merge.open_only(heads)
+        self.guards.open_only(heads)
         self.spells.open_only({one.number for one in listed})
         self.holds_are({number: head for number, head in self.holds().items() if number in heads})
 
@@ -1403,9 +1418,8 @@ class Repo:
         self, lock, one: ready.PullRequest, slug: str, rebase: str, judged: ready.Judged
     ) -> str:
         """Merge `one` while this run holds the repo's merge lock, from the read of its base's
-        tip to `gh pr merge` and the fetch after it, and nothing else. A tip that moved since it
-        was judged gives the lock back while the pull request is judged again, so a wait on GitHub
-        holds up no other run."""
+        tip to the merge. A tip that moved since it was judged gives the lock back while the pull
+        request is judged again, so a wait on GitHub holds up no other run."""
         number = str(one.number)
         again = 0
         while lock.take():
@@ -1429,6 +1443,12 @@ class Repo:
         messages = self.messages(one)
         if messages is None:
             return lines.waits("wait", number, one.url, ready.NO_MESSAGES)
+        tip = judged.tip or _run(self.main, "git", "rev-parse", f"origin/{one.base}").stdout.strip()
+        guarded, passed = self.guards.of(one, tip)
+        if guarded and judged.overlaps and self.guards.kept(one, tip):
+            guarded = self.base_moved(one, tip)
+        if guarded:
+            return lines.waits("wait", number, one.url, guarded)
         body = "\n\n".join(f"* {trailers.strip(message)}" for message in messages)
         self.began[one.number] = datetime.now(UTC)
         ran = _run(
@@ -1452,7 +1472,7 @@ class Repo:
         if self.line.get(one.base) == one.number:
             del self.line[one.base]
         word = self.word or self.base_merge.accepted(one.number)
-        notes = [note for note in (rebase, word) if note]
+        notes = [note for note in (rebase, passed, word) if note]
         asked = _run(
             self.main,
             "gh",
