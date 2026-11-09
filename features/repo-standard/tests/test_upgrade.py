@@ -4,8 +4,9 @@ The fixture is an upstream that stands in for jstack, with two tags. `repo-stand
 tree, with its version set to 2 as the release of v2 sets it. `repo-standard-v1` is the same tree
 set to version 1, with the skeleton's Makefile and owners as v1 had them, before `local.mk`. A
 repo is made from v1 with the python-uv adapter, as `features/repo-standard/docs/skeleton.md`
-says, on a runner of its own. The tool of the v2 clone upgrades it, and one `make lint` passes
-conform at v2.
+says, on a runner of its own, and passes conform at v1, pinned `standard: 1` and calling the
+shared check at `@repo-standard-v1`. The tool of the v2 clone upgrades it, and one `make lint`
+passes conform at v2.
 
 The rule of which files a version owns (`repo_standard.owned.RULES`) places every file of the
 skeleton and of each adapter, or the first case fails.
@@ -173,6 +174,10 @@ def snapshot(root):
 def test_a_repo_made_from_v1_passes_conform_at_v2_after_one_upgrade_and_one_lint(v1_repo, upstream):
     root, env = v1_repo
     _, _, tool = upstream
+    assert "standard: 1\n" in (root / ".repo-standard.yml").read_text()
+    assert "@repo-standard-v1\n" in (root / ".github/workflows/check.yml").read_text()
+    out = make(root, env, "lint")
+    assert re.search(r"(?m)^conform repo-standard-v1, \d+ rules: errors 0,", out), out
     code, said = upgrade(root, env, tool, 2)
     assert code == 0, said
     lines = said.splitlines()

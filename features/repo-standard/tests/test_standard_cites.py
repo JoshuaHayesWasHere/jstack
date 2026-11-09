@@ -14,6 +14,7 @@ other.
 
 import re
 
+from repo_standard import PYTHON
 from testing.paths import REPO
 
 STANDARD = REPO / "features" / "repo-standard" / "docs" / "standard.md"
@@ -156,3 +157,14 @@ def test_the_makefile_and_the_ci_part_name_what_a_pull_request_runs():
 def test_a_makefile_that_says_check_fast_runs_on_a_pull_request_fails():
     wrong = "# The check. CI runs it on main, and `make check-fast` on a pull request.\n\nall:\n"
     assert makefile_says(wrong) == {"check-fast"}
+
+
+def test_the_standard_names_its_python3_floor_its_merge_gate_and_its_platforms():
+    """The python3 floor it gives is the one the tool refuses under, it names jmerge as the merge
+    gate where GitHub refuses a ruleset, and it names the developer platforms it supports."""
+    text = " ".join(STANDARD.read_text(encoding="utf-8").split())
+    floor = ".".join(map(str, PYTHON))
+    assert f"The runner's `python3` is {floor} or later" in text
+    assert "Where GitHub refuses a ruleset, as on a private repo on the free plan" in text
+    assert "jmerge is the merge gate" in text
+    assert "The supported developer platforms are Linux, macOS and WSL2" in text

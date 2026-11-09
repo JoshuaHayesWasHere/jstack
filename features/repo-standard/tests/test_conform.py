@@ -21,6 +21,7 @@ import textwrap
 
 import pytest
 
+from repo_standard import TAG, VERSION
 from repo_standard import conform as conform_module
 from repo_standard.cli import main
 from repo_standard.config import Refused, Stack, build, parse
@@ -37,8 +38,8 @@ ENFORCED = {
     "a-pair-of-trees-passes-once": ".github/workflows/check.yml",
     "a-passing-tree-leaves-a-marker": ".github/workflows/check.yml",
 }
-CONFIG = """\
-standard: 1
+CONFIG = f"""\
+standard: {VERSION}
 features: features
 manifest-schema: schemas/feature.core.schema.json
 layout: [features/, schemas/, scripts/, .github/]
@@ -52,7 +53,7 @@ owners:
     - "scripts/**"
     - ".github/**"
 generators:
-  - [{python}, scripts/gen.py]
+  - [{{python}}, scripts/gen.py]
 docs:
   pages: ["*.md", "features/*/docs/**/*.md"]
   roots: [features, scripts]
@@ -254,10 +255,10 @@ BREAKS = {
         r / ".repo-standard.yml", "deploy: [make deploy]", "deploy: [./ship.sh]"
     ),
     "the-standard-is-versioned-by-a-tag": lambda r: edit(
-        r / ".repo-standard.yml", "standard: 1\n", ""
+        r / ".repo-standard.yml", f"standard: {VERSION}\n", ""
     ),
     "a-breaking-change-takes-a-new-version": lambda r: edit(
-        r / ".repo-standard.yml", "standard: 1\n", "standard: 2\n"
+        r / ".repo-standard.yml", f"standard: {VERSION}\n", f"standard: {VERSION + 1}\n"
     ),
     "a-file-a-version-owns-is-that-versions-copy": lambda r: edit(
         r / ".repo-standard.yml",
@@ -295,9 +296,7 @@ def test_conform_checks_each_rule_of_the_standard_and_each_has_a_case(capsys):
 def test_a_repo_that_meets_every_rule_passes(repo, capsys):
     code, lines = conform(repo, capsys)
     assert code == 0, lines
-    assert lines == [
-        f"conform repo-standard-v1, {len(BREAKS)} rules: errors 0, warnings 0, waived 0"
-    ]
+    assert lines == [f"conform {TAG}{VERSION}, {len(BREAKS)} rules: errors 0, warnings 0, waived 0"]
 
 
 @pytest.mark.parametrize("rule", sorted(BREAKS))
@@ -343,7 +342,7 @@ def test_a_waived_rule_fails_nothing_and_every_waiver_prints_with_its_reason(rep
         "waived a-change-selects-its-tests: Makefile: has no `select` target",
         "waiver a-change-selects-its-tests: the select target lands next",
         "waiver a-test-runs-the-code: an old waiver",
-        f"conform repo-standard-v1, {len(BREAKS)} rules: errors 0, warnings 0, waived 1",
+        f"conform {TAG}{VERSION}, {len(BREAKS)} rules: errors 0, warnings 0, waived 1",
     ]
 
 
@@ -378,14 +377,15 @@ def test_a_waiver_until_the_pinned_version_warns_that_it_is_due(repo, capsys):
     BREAKS["a-change-selects-its-tests"](repo)
     waive(
         repo,
-        "  - rule: a-change-selects-its-tests\n    reason: soon\n    until: repo-standard-v1\n",
-        "  - rule: a-test-runs-the-code\n    reason: later\n    until: repo-standard-v2\n",
+        f"  - rule: a-change-selects-its-tests\n    reason: soon\n    until: {TAG}{VERSION}\n",
+        f"  - rule: a-test-runs-the-code\n    reason: later\n    until: {TAG}{VERSION + 1}\n",
     )
     code, lines = conform(repo, capsys)
     assert code == 0, lines
     due = [line for line in lines if line.startswith("warn waiver ")]
     assert due == [
-        "warn waiver a-change-selects-its-tests: is until repo-standard-v1, and the repo pins v1:"
+        f"warn waiver a-change-selects-its-tests: is until {TAG}{VERSION}, and the repo pins"
+        f" v{VERSION}:"
         " meet the rule and drop the waiver"
     ]
     assert lines[-1].endswith("errors 0, warnings 1, waived 1"), lines
@@ -414,8 +414,8 @@ def test_an_owned_file_that_differs_or_is_gone_warns(repo, capsys, tmp_path):
     _, lines = conform(repo, capsys)
     drift = [line for line in lines if line.startswith("warn a-file-a-version-owns")]
     assert [line.split(": ")[1:3] for line in drift] == [
-        [".github/workflows/borders.yml", "is not here, and repo-standard-v1 owns it"],
-        ["Makefile", "differs from repo-standard-v1's copy"],
+        [".github/workflows/borders.yml", f"is not here, and {TAG}{VERSION} owns it"],
+        ["Makefile", f"differs from {TAG}{VERSION}'s copy"],
     ], lines
 
 
@@ -433,7 +433,7 @@ def test_a_newer_version_upstream_is_reported_and_fails_nothing(repo, tmp_path, 
     code = main(["conform", "--root", str(repo), "--upstream", str(upstream)])
     lines = capsys.readouterr().out.splitlines()
     assert code == 0, lines
-    assert "note: repo-standard-v10 is out, and this repo pins v1: move the pin when ready" in lines
+    assert f"note: {TAG}10 is out, and this repo pins v{VERSION}: move the pin when ready" in lines
 
 
 def test_the_pinned_version_as_the_newest_or_no_upstream_reports_nothing_and_fails_nothing(
@@ -521,8 +521,8 @@ def test_uvx_runs_conform_from_a_tag_of_a_jstack_checkout(repo, tmp_path):
     git(source, "init", "-q", "-b", "main")
     git(source, "add", "-A")
     git(source, "commit", "-q", "-m", "jstack")
-    git(source, "tag", "repo-standard-v1")
-    command = ["uvx", "--from", f"git+file://{source}@repo-standard-v1", "repo-standard"]
+    git(source, "tag", f"{TAG}{VERSION}")
+    command = ["uvx", "--from", f"git+file://{source}@{TAG}{VERSION}", "repo-standard"]
     env = {k: v for k, v in os.environ.items() if not k.startswith(("VIRTUAL_ENV", "UV_PROJECT"))}
     ran = subprocess.run(
         [*command, "conform", "--root", str(repo), "--upstream", str(source)],
@@ -532,7 +532,7 @@ def test_uvx_runs_conform_from_a_tag_of_a_jstack_checkout(repo, tmp_path):
         text=True,
     )
     assert ran.returncode == 0, ran.stdout + ran.stderr
-    assert ran.stdout.splitlines()[-1].startswith("conform repo-standard-v1, ")
+    assert ran.stdout.splitlines()[-1].startswith(f"conform {TAG}{VERSION}, ")
 
 
 @pytest.mark.parametrize(
@@ -546,7 +546,7 @@ def test_uvx_runs_conform_from_a_tag_of_a_jstack_checkout(repo, tmp_path):
     ],
 )
 def test_a_config_conform_cannot_read_exits_2_and_says_why(repo, capsys, line, said):
-    edit(repo / ".repo-standard.yml", "standard: 1\n", line)
+    edit(repo / ".repo-standard.yml", f"standard: {VERSION}\n", line)
     assert main(["conform", "--root", str(repo), "--upstream", ""]) == 2
     assert said in capsys.readouterr().err
 
@@ -607,7 +607,7 @@ def test_python_m_repo_standard_runs_the_command(repo):
     ran = subprocess.run(command, cwd=repo, env=env, capture_output=True, text=True)
     assert (ran.returncode, ran.stdout.splitlines()[-1]) == (
         0,
-        f"conform repo-standard-v1, {len(BREAKS)} rules: errors 0, warnings 0, waived 0",
+        f"conform {TAG}{VERSION}, {len(BREAKS)} rules: errors 0, warnings 0, waived 0",
     )
 
 
@@ -634,7 +634,8 @@ def one_feature_only(repo):
     write(repo, {"features/alpha/docs/alpha.md": "# alpha\n\nAll of features/alpha/.\n"})
 
 
-CALLER = """\
+PASSED = f"conform {TAG}{VERSION}, 36 rules: errors 0, warnings 0, waived 0"
+CALLER = f"""\
 name: check
 on:
   pull_request:
@@ -643,7 +644,7 @@ on:
     branches: [main]
 jobs:
   standard:
-    uses: owner/jstack/.github/workflows/repo-standard-check.yml@repo-standard-v1
+    uses: owner/jstack/.github/workflows/repo-standard-check.yml@{TAG}{VERSION}
   check:
     needs: standard
     runs-on: ubuntu-24.04
@@ -652,9 +653,9 @@ jobs:
 """
 
 
-def calls_the_shared_check(repo, at="repo-standard-v1"):
+def calls_the_shared_check(repo, at=f"{TAG}{VERSION}"):
     """The repo's one workflow calls the shared check, which runs its make targets."""
-    write(repo, {".github/workflows/check.yml": CALLER.replace("repo-standard-v1", at)})
+    write(repo, {".github/workflows/check.yml": CALLER.replace(f"{TAG}{VERSION}", at)})
     edit(repo / "Makefile", "lint:\n", "lint:\n\tpython3 scripts/prose.py\n")
 
 
@@ -683,11 +684,11 @@ def selects_in_an_included_make_file(repo):
     [
         (
             calls_the_shared_check,
-            "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0",
+            PASSED,
         ),
         (
             lambda r: calls_the_shared_check(r, at="repo-standard-v2-rc"),
-            "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0",
+            PASSED,
         ),
         (
             lambda r: calls_the_shared_check(r, at="main"),
@@ -695,7 +696,7 @@ def selects_in_an_included_make_file(repo):
         ),
         (
             selects_in_an_included_make_file,
-            "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0",
+            PASSED,
         ),
         (
             lambda r: write(r, {"schemas/feature.core.schema.json": "{not json"}),
@@ -743,9 +744,9 @@ def selects_in_an_included_make_file(repo):
             lambda r: write(
                 r, {"features/beta/feature.json": manifest("beta", reads=["features/alpha/*.md"])}
             ),
-            "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0",
+            PASSED,
         ),
-        (deploys_nothing, "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0"),
+        (deploys_nothing, PASSED),
         (
             lambda r: write(
                 r,
@@ -755,7 +756,7 @@ def selects_in_an_included_make_file(repo):
                     "aws cloudfront create-invalidation --distribution-id X --paths '/*'\n"
                 },
             ),
-            "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0",
+            PASSED,
         ),
         (
             lambda r: write(r, {"scripts/ship": "#!/usr/bin/env bash\nnpx cdk deploy --all\n"}),
@@ -882,7 +883,7 @@ def selects_in_an_included_make_file(repo):
                 "deploy:\n\t@repo-standard green\n",
                 "deploy:\n\trepo-standard green && a && b\n",
             ),
-            "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0",
+            PASSED,
         ),
         (
             lambda r: edit(
@@ -890,7 +891,7 @@ def selects_in_an_included_make_file(repo):
                 "deploy:\n\t@repo-standard green\n",
                 "deploy:\n\trepo-standard green && aws s3 sync dist s3://x | tee sync.log\n",
             ),
-            "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0",
+            PASSED,
         ),
         (
             lambda r: edit(
@@ -940,7 +941,7 @@ def selects_in_an_included_make_file(repo):
             lambda r: edit(
                 r / ".repo-standard.yml", "deploy: [make deploy]", "deploy: [make -s deploy]"
             ),
-            "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0",
+            PASSED,
         ),
         (
             lambda r: edit(r / "Makefile", "green\n\ttrue\n", "green\n\ttrue\n.IGNORE:\n"),
@@ -958,7 +959,7 @@ def selects_in_an_included_make_file(repo):
         ),
         (
             lambda r: edit(r / "Makefile", "green\n\ttrue\n", "green\n\ttrue\n.IGNORE: lint\n"),
-            "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0",
+            PASSED,
         ),
         (
             lambda r: edit(r / "Makefile", "lint:\n", "MAKEFLAGS += -i\nlint:\n"),
@@ -984,7 +985,7 @@ def selects_in_an_included_make_file(repo):
             lambda r: edit(
                 r / "Makefile", "lint:\n", "MAKEFLAGS += -s --no-print-directory\nlint:\n"
             ),
-            "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0",
+            PASSED,
         ),
         (
             lambda r: edit(
@@ -992,7 +993,7 @@ def selects_in_an_included_make_file(repo):
                 "deploy:\n\t@repo-standard green\n",
                 "deploy:\n\trepo-standard green 2>&1\n",
             ),
-            "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0",
+            PASSED,
         ),
         (
             lambda r: edit(
@@ -1001,7 +1002,7 @@ def selects_in_an_included_make_file(repo):
                 "define SHIP\ndeploy:\n\tnothing\nendef\n"
                 "deploy: | .cache\n\t$(REPO_STANDARD) green && \\\n\t  aws s3 sync dist s3://x\n",
             ),
-            "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0",
+            PASSED,
         ),
         (
             lambda r: edit(
@@ -1017,7 +1018,7 @@ def selects_in_an_included_make_file(repo):
             "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: deploy entry "
             "`./ship.sh` is not `make <target>`",
         ),
-        (one_feature_only, "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0"),
+        (one_feature_only, PASSED),
     ],
 )
 def test_each_way_a_rule_is_broken_is_named(repo, capsys, change, said):

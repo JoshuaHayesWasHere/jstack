@@ -48,7 +48,7 @@ env:
   REPO_STANDARD_UPSTREAM: https://github.com/JoshuaHayesWasHere/jstack
   # The version this file is: a repo whose .repo-standard.yml pins another fails the plan, since
   # the jobs here and the code they run come from one version.
-  REPO_STANDARD_VERSION: 1
+  REPO_STANDARD_VERSION: 2
   # The ref the plan and the lint clone, and the skeleton's Makefile clones into .cache/: empty
   # takes the tag of the version the repo pins.
   REPO_STANDARD_REF: ${{ inputs.ref }}
@@ -83,6 +83,11 @@ jobs:
       - name: standard
         id: standard
         run: 'if [ ! -f .repo-standard.yml ]; then echo "mode=command" >> "$GITHUB_OUTPUT"; echo "no .repo-standard.yml, so the check runs the repo''s check command"; exit 0; fi; N=$(sed -n "s/^standard:[[:space:]]*\([0-9][0-9]*\)[[:space:]]*\(#.*\)\{0,1\}$/\1/p" .repo-standard.yml); [ -n "$N" ] || { echo "::error::.repo-standard.yml pins no version: give it a line standard: <N>"; exit 1; }; [ "$N" = "$REPO_STANDARD_VERSION" ] || { echo "::error::.repo-standard.yml pins v$N, and check.yml calls the shared check at repo-standard-v$REPO_STANDARD_VERSION: move both to one version"; exit 1; }; REF=${REPO_STANDARD_REF:-repo-standard-v$N}; git clone -q --depth 1 --branch "$REF" "$REPO_STANDARD_UPSTREAM" "$RUNNER_TEMP/repo-standard" && printf "mode=standard\nref=%s\n" "$REF" >> "$GITHUB_OUTPUT"'
+      # The runner's python3 runs every step below, so one under the standard's floor fails here,
+      # with the floor named, and not part way through a later step.
+      - name: python3 floor
+        if: steps.standard.outputs.mode == 'standard'
+        run: PYTHONPATH="$RUNNER_TEMP/repo-standard/features/repo-standard/src" python3 -m repo_standard floor
       - name: reuse
         id: reuse
         if: steps.standard.outputs.mode == 'standard' && github.event_name == 'pull_request'

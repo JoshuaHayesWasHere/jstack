@@ -34,6 +34,10 @@ request, and the rows. The shared check runs the other two: `misses record --fai
 writes the ledger of this commit of main from the ids its parts failed, and `misses failing --days
 N` prints the ids a pull request's selection adds, and only warns where it cannot ask GitHub.
 
+The verb `floor` prints the python3 it runs in and the standard's floor, `repo_standard.PYTHON`.
+`python -m repo_standard` refuses a python3 under that floor before any verb, naming the floor, so
+the shared check's plan job and the skeleton's `make lint` run it first.
+
 The guards are `borders`, `stale`, `docs`, `size` and `comments`. Each reads the repo's
 `.repo-standard.yml`, prints one line for each fault it finds, and exits 1 on any. `borders`
 prints each fault as a warning GitHub reads and exits 0 when it warns, or 1 under `--hard`. Every
@@ -50,6 +54,7 @@ import sys
 from pathlib import Path
 
 from repo_standard import (
+    PYTHON,
     borders,
     conform,
     docs_true,
@@ -65,7 +70,7 @@ from repo_standard.config import Refused, load
 from repo_standard.tree import Unreadable, tracked
 
 GUARDS = ("borders", "stale", "docs", "size", "comments")
-VERBS = (*GUARDS, "conform", "plan", "stacks", "upgrade", "green", "routes", "misses")
+VERBS = (*GUARDS, "conform", "plan", "stacks", "upgrade", "green", "routes", "misses", "floor")
 
 
 def _root(given: str | None) -> Path:
@@ -127,6 +132,14 @@ def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if argv[:1] == ["misses"]:
         return _misses(argv[1:])
+    if argv[:1] == ["floor"]:
+        argparse.ArgumentParser(
+            prog="repo-standard floor",
+            description="Print this python3's version and the standard's python3 floor.",
+        ).parse_args(argv[1:])
+        found = ".".join(map(str, sys.version_info[:3]))
+        print(f"python3 {found}, at or past the floor {'.'.join(map(str, PYTHON))}")
+        return 0
     if argv[:1] == ["stacks"]:
         parser = argparse.ArgumentParser(prog="repo-standard stacks", description=stacks.__doc__)
         parser.add_argument("verb", choices=stacks.VERBS, help="the target to run")

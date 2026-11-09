@@ -124,7 +124,7 @@ def test_the_new_repo_passes_its_own_check(new_repo):
     root, env = new_repo
     out = make(root, env, "check")
     assert "1 passed" in out
-    assert "conform repo-standard-v1" in out
+    assert f"conform {TAG}{VERSION}" in out
     assert "errors 0, warnings 0" in out
 
 
@@ -267,13 +267,8 @@ def test_the_selection_runs_where_select_is_found_on_the_path(new_repo):
 
 
 def test_the_skeleton_calls_the_shared_check_as_new_home_writes_it():
-    """One template: the skeleton's caller is /new-home's, with `make check` as its command, and
-    pinned to repo-standard-v1 until rt-release-v2 moves its pin with VERSION."""
-    written = (
-        TEMPLATE.read_text()
-        .replace("<the check command>", "make check")
-        .replace("@repo-standard-v2\n", "@repo-standard-v1\n")
-    )
+    """One template: the skeleton's caller is /new-home's, with `make check` as its command."""
+    written = TEMPLATE.read_text().replace("<the check command>", "make check")
     assert parse((SKELETON / ".github/workflows/check.yml").read_text()) == parse(written)
     assert json.loads((SKELETON / "schemas/feature.core.schema.json").read_text()) == json.loads(
         CORE.read_text()

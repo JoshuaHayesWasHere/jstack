@@ -1,7 +1,7 @@
 # This repo's config for the repo standard, read by the standard's guards and `repo-standard
 # conform`: https://github.com/JoshuaHayesWasHere/jstack/blob/main/features/repo-standard/docs/guards.md
 # `standard` pins the version, and .github/workflows/check.yml calls the shared check at the same tag.
-standard: 1
+standard: 2
 features: features
 manifest-schema: schemas/feature.core.schema.json
 layout: [features/, schemas/, scripts/, .github/]

@@ -23,13 +23,16 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 
 import pytest
 
+from repo_standard import PYTHON
 from repo_standard.cli import main
 from repo_standard.config import parse
 from repo_standard.conform import TAG, UPSTREAM, VERSION
 from repo_standard.plan import ALL, NONE
+from test_skeleton_python import ADAPTER, INHERITED, SKELETON, STANDARD
 from testing.paths import REPO
 
 READ_SET = ("features/repo-standard/adapters/node-vite/scripts/",)
@@ -111,7 +114,11 @@ def caller(tmp_path):
     repo.mkdir()
     git(repo, "init", "-q", "-b", "main")
     commit(repo, {"README.md": "a repo\n"}, "first")
-    commit(repo, {"Makefile": makefile(SELECTED), ".repo-standard.yml": "standard: 1\n"}, "second")
+    commit(
+        repo,
+        {"Makefile": makefile(SELECTED), ".repo-standard.yml": f"standard: {VERSION}\n"},
+        "second",
+    )
     bin_ = tmp_path / "bin"
     bin_.mkdir()
     (bin_ / "gh").write_text("#!/bin/sh\necho 'gh: no network here' >&2\nexit 1\n")
@@ -283,7 +290,7 @@ def test_a_pull_requests_plan_selects_its_tests_and_deals_them_to_the_parts_the_
     caller,
 ):
     repo, env = caller
-    configure(repo, "standard: 1\ncheck:\n  shards: 2\n")
+    configure(repo, f"standard: {VERSION}\ncheck:\n  shards: 2\n")
     tree, base = (
         subprocess.run(
             ["git", "-C", str(repo), "rev-parse", f"{one}^{{tree}}"], capture_output=True, text=True
@@ -308,7 +315,7 @@ def test_a_pull_requests_plan_selects_its_tests_and_deals_them_to_the_parts_the_
 
 def test_a_selection_of_all_runs_every_part_whole(caller):
     repo, env = caller
-    configure(repo, "standard: 1\ncheck:\n  shards: 3\n", ["tests/test_a.py", "all"])
+    configure(repo, f"standard: {VERSION}\ncheck:\n  shards: 3\n", ["tests/test_a.py", "all"])
     said = planned(repo, env, "pull_request")
     assert said["selection"] == "all"
     assert json.loads(said["parts"]) == {"1": "all", "2": "all", "3": "all"}
@@ -326,9 +333,9 @@ def test_a_push_to_main_runs_the_whole_suite_in_one_part_by_default(caller):
 @pytest.mark.parametrize(
     "config, run, shards",
     [
-        ("standard: 1\n", "false", [1]),
-        ("standard: 1\ncheck:\n  nightly: false\n", "false", [1]),
-        ("standard: 1\ncheck:\n  nightly: true\n  shards: 4\n", "true", [1, 2, 3, 4]),
+        (f"standard: {VERSION}\n", "false", [1]),
+        (f"standard: {VERSION}\ncheck:\n  nightly: false\n", "false", [1]),
+        (f"standard: {VERSION}\ncheck:\n  nightly: true\n  shards: 4\n", "true", [1, 2, 3, 4]),
     ],
 )
 def test_the_nightly_run_tests_the_whole_suite_only_where_the_config_turns_it_on(
@@ -362,8 +369,16 @@ def test_a_repo_with_no_config_runs_its_check_command_alone(caller):
     "config, step, said",
     [
         ("features: features\n", "standard", "pins no version"),
-        ("standard: 2\n", "standard", "pins v2, and check.yml calls the shared check at"),
-        ("standard: 1\ncheck:\n  shards: 0\n", "plan", "check.shards is not a number of parts"),
+        (
+            f"standard: {VERSION + 1}\n",
+            "standard",
+            f"pins v{VERSION + 1}, and check.yml calls the shared check at",
+        ),
+        (
+            f"standard: {VERSION}\ncheck:\n  shards: 0\n",
+            "plan",
+            "check.shards is not a number of parts",
+        ),
     ],
 )
 def test_a_config_the_plan_cannot_follow_fails_it(caller, config, step, said):
@@ -372,6 +387,72 @@ def test_a_config_the_plan_cannot_follow_fails_it(caller, config, step, said):
     done = run_job("plan", repo, {**env, "GITHUB_EVENT_NAME": "push"}, {"github": github("push")})
     assert done["result"] == "failure"
     assert said in done["steps"][step]["said"]
+
+
+OLD = (*PYTHON[:1], PYTHON[1] - 1, 9)
+FLOOR = ".".join(map(str, PYTHON))
+REFUSED = (
+    f"repo-standard needs python3 {FLOOR} or later, the floor of {TAG}{VERSION}, "
+    f"and this python3 is {'.'.join(map(str, OLD))}"
+)
+
+
+def old_python3(folder):
+    """A folder whose `python3` is this one, but says it is a python3 one minor version under the
+    standard's floor, for `python3 -m <module>` as the workflow and the Makefile run it."""
+    folder.mkdir()
+    shim = folder / "python3"
+    shim.write_text(
+        f"#!{sys.executable}\n"
+        "import runpy, sys\n"
+        f"sys.version_info = {OLD!r}\n"
+        "assert sys.argv[1] == '-m', sys.argv\n"
+        "sys.argv = sys.argv[2:]\n"
+        "runpy.run_module(sys.argv[0], run_name='__main__', alter_sys=True)\n"
+    )
+    shim.chmod(0o755)
+    return folder
+
+
+def test_the_plan_refuses_a_python3_under_the_standards_floor_and_names_it(caller):
+    repo, env = caller
+    context = {"github": github("pull_request"), "inputs": {"runner": "r", "command": ""}}
+    env = {**env, "GITHUB_EVENT_NAME": "pull_request"}
+    done = run_job("plan", repo, env, context)
+    assert done["result"] == "success", done["steps"]
+    assert f"at or past the floor {FLOOR}" in done["steps"]["python3 floor"]["said"]
+    old = old_python3(repo.parent / "old")
+    done = run_job("plan", repo, {**env, "PATH": f"{old}{os.pathsep}{env['PATH']}"}, context)
+    assert done["result"] == "failure"
+    assert REFUSED in done["steps"]["python3 floor"]["said"]
+    after = list(done["steps"])[list(done["steps"]).index("python3 floor") + 1 :]
+    assert {done["steps"][one]["outcome"] for one in after} == {"skipped"}
+
+
+def test_the_skeletons_make_lint_refuses_a_python3_under_the_floor_and_names_it(tmp_path):
+    ignore = shutil.ignore_patterns("__pycache__", ".venv", ".cache", ".ruff_cache")
+    source = tmp_path / "upstream"
+    shutil.copytree(STANDARD / "src", source / "features/repo-standard/src", ignore=ignore)
+    git(source, "init", "-q")
+    commit(source, {}, "the standard")
+    git(source, "tag", f"{TAG}{VERSION}")
+    root = tmp_path / "repo"
+    shutil.copytree(SKELETON, root, ignore=ignore)
+    shutil.copytree(ADAPTER, root, ignore=ignore, dirs_exist_ok=True)
+    env = {k: v for k, v in os.environ.items() if k not in INHERITED}
+    env["REPO_STANDARD_UPSTREAM"] = str(source)
+    old = old_python3(tmp_path / "old")
+    env = {**env, "PATH": f"{old}{os.pathsep}{env['PATH']}"}
+    done = subprocess.run(
+        ["make", "--no-print-directory", "-C", str(root), "lint"],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    assert done.returncode != 0
+    assert REFUSED in done.stderr, done.stdout + done.stderr
+    assert "conform" not in done.stdout
 
 
 def test_the_plan_and_the_lint_clone_the_ref_the_caller_gives_or_the_pinned_tag(caller):
@@ -399,7 +480,7 @@ def test_the_plan_and_the_lint_clone_the_ref_the_caller_gives_or_the_pinned_tag(
 
 def test_a_selection_of_fewer_ids_than_parts_starts_no_empty_part(caller):
     repo, env = caller
-    configure(repo, "standard: 1\ncheck:\n  shards: 4\n", ["tests/test_a.py"])
+    configure(repo, f"standard: {VERSION}\ncheck:\n  shards: 4\n", ["tests/test_a.py"])
     said = planned(repo, env, "pull_request")
     assert json.loads(said["shards"]) == [1]
     assert json.loads(said["parts"]) == {"1": "tests/test_a.py"}
@@ -661,22 +742,7 @@ def test_a_caller_reads_only_outputs_the_workflow_at_its_pinned_tag_declares(tmp
     assert unread(pinned.replace("@{}", f"@{TAG}3"), root) == []
 
 
-@pytest.mark.parametrize(
-    "path",
-    [
-        pytest.param(
-            SKELETON_CALLER,
-            marks=pytest.mark.xfail(
-                cut(f"{TAG}1"),
-                reason="the skeleton pins repo-standard-v1, whose workflow gives no runner, "
-                "until rt-release-v2 moves its pin with VERSION",
-                strict=True,
-            ),
-        ),
-        TEMPLATE,
-    ],
-    ids=["skeleton", "template"],
-)
+@pytest.mark.parametrize("path", [SKELETON_CALLER, TEMPLATE], ids=["skeleton", "template"])
 def test_the_skeleton_and_the_template_read_only_outputs_their_pinned_tag_gives(path):
     assert unread(path.read_text(), REPO) == []
 
@@ -690,7 +756,7 @@ def plan_of(root, capsys, *args):
 
 def test_the_plan_verb_reads_the_event_and_the_selection_it_is_given(caller, capsys, monkeypatch):
     repo, _ = caller
-    configure(repo, "standard: 1\ncheck:\n  shards: 2\n  nightly: true\n")
+    configure(repo, f"standard: {VERSION}\ncheck:\n  shards: 2\n  nightly: true\n")
     selection = repo.parent / "selection.txt"
     selection.write_text("tests/test_a.py\n\ntests/test_b.py\ntests/test_a.py\n")
     code, said, _ = plan_of(repo, capsys, "--event", "pull_request", "--selection", str(selection))
@@ -716,7 +782,7 @@ def test_the_plan_verb_reads_the_event_and_the_selection_it_is_given(caller, cap
 )
 def test_a_check_part_the_plan_cannot_follow_exits_2_and_says_why(caller, capsys, check, said):
     repo, _ = caller
-    configure(repo, f"standard: 1\ncheck:\n{check}")
+    configure(repo, f"standard: {VERSION}\ncheck:\n{check}")
     code, _, err = plan_of(repo, capsys, "--event", "push")
     assert code == 2
     assert said in err
@@ -740,7 +806,7 @@ def test_a_selection_the_plan_cannot_read_exits_2_and_says_why(caller, capsys, s
 
 
 E2E_CONFIG = (
-    "standard: 1\ncheck:\n  shards: 2\nstacks:\n  web:\n    adapter: node-vite\n"
+    f"standard: {VERSION}\ncheck:\n  shards: 2\nstacks:\n  web:\n    adapter: node-vite\n"
     "    roots: [web]\n    e2e:\n      root: web\n      script: test:e2e\n"
 )
 E2E_LOCK = json.dumps(
@@ -830,7 +896,7 @@ def test_main_and_nightly_run_every_browser_test_and_a_repo_with_none_skips_the_
     for event in ("push", "schedule"):
         said = planned(repo, env, event)
         assert said["browser"] == ALL
-    configure(repo, "standard: 1\n")
+    configure(repo, f"standard: {VERSION}\n")
     assert planned(repo, env, "push")["browser"] == NONE
 
 
