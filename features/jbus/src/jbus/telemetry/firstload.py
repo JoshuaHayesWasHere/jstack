@@ -205,18 +205,12 @@ class Start:
 
 
 def _head(path: Path) -> dict[str, str]:
-    """The flat front matter of a `SKILL.md`, its keys and their values unquoted."""
-    lines = path.read_text().splitlines()
-    if not lines or lines[0] != "---":
-        return {}
-    head = {}
-    for line in lines[1:]:
-        if line == "---":
-            break
-        key, colon, value = line.partition(":")
-        if colon and not key.startswith(" "):
-            head[key] = value.strip().strip("\"'")
-    return head
+    """The flat front matter of a `SKILL.md`, its keys and their values unquoted: none for a file
+    that does not open with `---`."""
+    text = path.read_text()
+    front = text[4:].partition("\n---")[0] if text.startswith("---\n") else ""
+    pairs = (line.partition(":") for line in front.splitlines() if not line.startswith(" "))
+    return {key: value.strip().strip("\"'") for key, colon, value in pairs if colon}
 
 
 def listing(repo: Path) -> str:
