@@ -78,7 +78,11 @@ def makefile(selection):
 
 @pytest.fixture
 def caller(tmp_path):
-    """A caller repo with two commits, the upstream it clones, and the env every step gets."""
+    """A caller repo with two commits, the upstream it clones, and the env every step gets.
+
+    The env leaves out what a make that runs this suite passes down: a make such as CI's
+    `make check SHARD=K/4` exports each variable of its command line, which MAKEFLAGS lists
+    after `--`, and the caller's own make must not see them."""
     upstream = tmp_path / "upstream"
     for part in TOOL:
         source, target = REPO / part, upstream / part
@@ -107,8 +111,6 @@ def caller(tmp_path):
         "MAKE_LOG": str(tmp_path / "make.log"),
         "REPO_STANDARD_UPSTREAM": str(upstream),
     }
-    # A make that runs this suite, as CI's `make check SHARD=K/4` does, exports each variable of
-    # its command line, which MAKEFLAGS lists after `--`: the caller's own make must not see them.
     _, _, overrides = os.environ.get("MAKEFLAGS", "").partition("--")
     on_make_line = [word.split("=", 1)[0] for word in overrides.split() if "=" in word]
     for inherited in ("PYTHONPATH", "MAKEFLAGS", "MFLAGS", "MAKELEVEL", *on_make_line):
