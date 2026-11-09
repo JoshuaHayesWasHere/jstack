@@ -19,8 +19,9 @@ ALARM = "the last pass did not finish (see journalctl --user -u jbus)"
 def alarm(
     config: jbus.Config, now: datetime | None = None, say: Callable[[str], None] = print
 ) -> int:
-    """Count a pass that did not finish. On the third in a row, raise its alert, the machine's:
-    the desk hears of it at once, and the infra home from the one list (`alert.sound`)."""
+    """Count a pass that did not finish. Once three in a row span two minutes (`alert.LASTING`),
+    raise its alert, the machine's: the desk hears of it at once, and the infra home from the one
+    list (`alert.sound`)."""
     now = now or datetime.now(UTC)
     failing = alert.streak(config.state_dir, alert.PASS)
     say(f"pass failed: {failing.count + 1 if failing else 1} in a row")
@@ -97,7 +98,7 @@ def run_alarm(args: argparse.Namespace, config: jbus.Config) -> int:
 VERBS = (
     verbs.Verb(
         "alarm",
-        "count a pass that did not finish: the third in a row alerts",
+        "count a pass that did not finish: three in a row over two minutes alert",
         _stale,
         run_alarm,
     ),

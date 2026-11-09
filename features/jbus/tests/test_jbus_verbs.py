@@ -3,9 +3,10 @@ those declarations.
 
 `fixtures/jbus-help/` holds what `jbus --help` and each `jbus <verb> --help` printed before any
 feature declared a verb outside `jbus.cli`, at 80 columns and with no colour. `jbus.txt` is `jbus
---help` with the verbs there were then, `verbs.FIRST`, so a verb added since does not change it.
-`jbus-queue-add.txt` is `jbus queue add --help`. The tests run the real command and hold it to those
-files, byte for byte.
+--help` with the verbs there were then, `verbs.FIRST`, so a verb added since does not change it,
+while a help line of one of those verbs that changed since, as `jbus alarm`'s did, changes it with
+it. `jbus-queue-add.txt` is `jbus queue add --help`. The tests run the real command and hold it to
+those files, byte for byte.
 
 `jbus` reads its verbs off the sources and imports only the module of the verb that runs. A test
 holds what `jbus --help` and the `--help` of every verb, and of every verb under one, print to what
