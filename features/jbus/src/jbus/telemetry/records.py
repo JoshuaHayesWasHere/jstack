@@ -42,7 +42,20 @@ from typing import Any, Literal
 from jbus import history
 from jbus.telemetry import asks
 from jbus.telemetry.readers import json_lines, keyed, listed, questions
-from jbus.telemetry.values import Row, _count, _dict, _length, _number, _pull, _text, utc
+from jbus.telemetry.values import (
+    KINDS,
+    SEVERITIES,
+    SPENT,
+    Row,
+    _columns,
+    _count,
+    _dict,
+    _length,
+    _number,
+    _pull,
+    _text,
+    utc,
+)
 
 _MERGE_LINE = re.compile(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}) (\S+)(?: #?(\d+))?(?: (\S+))?")
 _LABEL = re.compile(r"\[([\w-]+)\]\s*$")
@@ -382,11 +395,6 @@ def _runs(one: Row, zone: tzinfo | None) -> Row:
     }
 
 
-SPENT = ("units", "runs", "input", "cached", "written", "output")
-KINDS = ("first", "reviews", "fixes", "sends", "homes", "scouts", "capped")
-"""The units of a day's spend by kind, as `jgauge.spend.COLUMNS` names them."""
-
-
 def _spend_days(one: Row, zone: tzinfo | None) -> Row:
     spent_on = _text(one.get("day"))
     return {
@@ -413,11 +421,6 @@ def _word_sends(one: Row, zone: tzinfo | None) -> Row:
         "sent_at": utc(one.get("sent_at"), zone),
         "waiting": bool(one.get("waits")),
     }
-
-
-SEVERITIES = ("errors", "warnings", "infos", "others", "dismissed")
-"""The counts of a review round's findings by severity, as `jbus.reviewed.round_lines` writes
-them: `others` of a severity none of the three, and `dismissed` those its lead dismissed."""
 
 
 def _review_rounds(one: Row, zone: tzinfo | None) -> Row:
@@ -460,55 +463,6 @@ class Source:
     records: Callable[[str], Iterable[Row]] = json_lines
     natural: str = ""
     beside: Callable[[Row, Path], Row] | None = None
-
-
-def _columns(*names: str) -> tuple[tuple[str, str], ...]:
-    """Columns by name, typed by their suffix: `_len`, counts and numbers are INTEGER."""
-    whole = {
-        "gate",
-        "doors",
-        "picks",
-        "run",
-        "job",
-        "attempt",
-        "pr",
-        "steps",
-        "workers",
-        "tests",
-        "signs",
-        "number",
-        "options",
-        "priority",
-        "pushes",
-        "holds",
-        "on_hold",
-        "keeps",
-        "bytes",
-        "waiting",
-        "instances",
-        *SPENT,
-        *KINDS,
-        "checked",
-        "round_number",
-        "scoped",
-        "sections",
-        "met",
-        "done_when",
-        *SEVERITIES,
-        "found",
-    }
-    real = {"slowest_s", "tail_s", "seconds", "minutes"}
-    return tuple(
-        (
-            name,
-            "INTEGER"
-            if name.endswith("_len") or name in whole
-            else "REAL"
-            if name in real
-            else "TEXT",
-        )
-        for name in names
-    )
 
 
 _WAITS = _columns("at", "number", "head", "ready", "ready_by", "seconds", "blocker", "blockers")
