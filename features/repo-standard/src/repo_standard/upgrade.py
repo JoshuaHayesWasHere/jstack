@@ -33,7 +33,7 @@ from repo_standard.tree import matches
 
 STANDARD_LINE = re.compile(r"^standard:[ \t]*\d+", re.M)
 CALLED_TAG = re.compile(rf"@{CALLED_VERSION}")
-REF_INPUT = re.compile(rf"^[ \t]*ref:[ \t]*(['\"]?){CALLED_VERSION}\1[ \t]*\n", re.M)
+REF_INPUT = re.compile(rf"^[ \t]*ref:[ \t]*(['\"]?){CALLED_VERSION}\1[ \t]*(?:#.*)?\n", re.M)
 """The caller's `ref` input of a branch of a version not yet tagged, which the move to a tag drops,
 since an empty `ref` takes the tag the config pins."""
 LOCAL_MK = "local.mk"
