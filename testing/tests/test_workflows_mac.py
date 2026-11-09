@@ -74,8 +74,7 @@ def test_the_macos_job_writes_the_tests_handed_on_for_pytest_and_fails_on_a_fail
 ):
     """The `macos` job's first step writes the tests `macos-select` handed on, as the runner
     gives the output, to the file pytest reads, the same lines the selection wrote. Where the
-    selection did not succeed, or handed on nothing, the step fails the job, and so the
-    required check."""
+    selection did not succeed, or handed on nothing, the step fails the job, and so the run."""
     reached, _, handed = merged(DARWIN_SOURCE)
     (step,) = [
         one for one in steps(MAC.read_text(), "macos-part")[0] if one.get("name") == "handed tests"

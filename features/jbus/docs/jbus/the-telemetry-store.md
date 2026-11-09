@@ -19,7 +19,7 @@ The store has one table for each record file of each project, with a `project` c
 | `merges` | the home's `merge.log` | a line `jmerge` logged: its verb, its pull request, a merge's slug and a wait's label |
 | `merge_waits` | the home's `merge-waits.jsonl` | a pull request `jmerge` merged: the second it was ready, the second its merge began, its `seconds` between, and the seconds each code held it (`blockers`), the longest of them `blocker` |
 | `questions` | `questions.json` | a gate and its answer |
-| `queue` | `queue.json` | a row of the queue, with its approval's times and `follows`, the parent a follow-up's go names |
+| `queue` | `queue.json` | a row of the queue, with its approval's times, `follows`, the parent a follow-up's go names, `queued_by_session`, the session that queued it (empty for a row jbus filed), and `approval_message`, the `<thread id>/<message id>` its go rests on (an entry's go, the user's message or pick; empty for any other go) |
 | `merged` | `merged.json` | a merged pull request of a row |
 | `ci_prs` | `ci-prs.jsonl` | a pull request the CI ledger keeps |
 | `brief_versions` | `brief-versions.jsonl` | a change of a stored brief's sha, or its removal (no sha), with `pull`, what the version's `Pull request:` line asks: `open` for `open one`, `ask` for `ask first`, `none` for any other text, no line or a removal |
@@ -54,6 +54,34 @@ A row keeps ids, times, counts and labels, and in place of each text, its length
 `acts.checked` says whether jbus read the act's words in T3 Code itself.
 What the user said stays in T3 Code's store.
 The file is readable by you alone.
+
+## The context budget
+
+`first_loads` keeps the crew's first load as a record.
+Beside it, `uv run python -m jbus.telemetry.firstload` counts the start of each role, crew, reviewer, scout and home, against a budget, and `make lint` runs it as `uv run python -m jbus.telemetry.firstload --check`, so CI's `make lint` step, `make check-fast` and jmerge's guards fail a change that grows a start past its budget.
+
+It counts jstack's own text that a role holds before its first act:
+
+- the files the role's start reads, the table `ROLES` in `features/jbus/src/jbus/telemetry/firstload.py`: the skill its slash command expands and the files that skill reads at every start;
+- the largest print of `jbus playbook <role> --name <name>` the role can get, with the install's paths in place of the checkout's, so a count is the same on every machine;
+- the skill listing a session is given: `- name: description` for each skill and principle of `skills.json` a model may load by itself and each of the repo's own skills, less those whose front matter lists `paths:`.
+
+It prints one line a role: its characters, its tokens, which are characters over 2.9 rounded up, and its budget.
+2.9 is what the store measured: since 2026-11-08 a first call of each role holds 2.90 to 2.95 characters a token.
+
+The check fails:
+
+- a role over its budget;
+- a budget more than 10% above its role's count, so a cut lowers the budget with it;
+- a file of a role's start that is not there, so a renamed file is counted under its new name and cannot pass uncounted.
+
+Each failure names the role, its tokens, its budget and the line of `BUDGET` to change.
+
+It cannot count what is not this repo's: the harness's system prompt and tool schemas, the user's own instructions file (`CLAUDE.md`), the brief, and a file a role reads only on some starts.
+Those are most of a first call: in 2026-11 a first call was 47k to 53k tokens, of which this repo's share was 9k to 34k.
+
+A budget is raised on purpose, by a pull request that edits `BUDGET` in `firstload.py` and says why.
+`BUDGET` is the one place a budget is written.
 
 ## The records jbus keeps for the store
 
@@ -267,10 +295,11 @@ Each pass, after the build, `jbus.kpis` reads each threshold as a count against 
 | Alert | Count | Alerts | Owner |
 |---|---|---|---|
 | `doors` | the one-way doors opened today without the user's word: a `done` act on a door whose words jbus did not read in T3 Code | on 1 | the project |
-| `main-red` | the minutes main's push check was red today, a spell still open counted up to now | over 30 | the project |
 | `capped` | the minutes today with every Claude instance capped, as `jgauge spend` counts them | over 30 | the machine |
 | `lost-asks` | the asks lost today: a typed message `ask_ledger` calls `unanswered`, counted on the day its wait ran out | on 1 | the project |
 | `pass-time` | the 90th percentile of the seconds of the passes of the last hour, once the store holds a pass an hour old | over 60 | the machine |
+
+A red main has no alert: jbus files a `main-red-*` row for every red tip, so an alert would say again what that row says.
 
 An alert goes on jbus's one list of alerts, so the owner's home hears of it as it hears of any other.
 A crossing alerts once: a later pass that finds it still crossed sends nothing, whatever the count has become.
