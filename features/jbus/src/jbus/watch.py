@@ -1223,8 +1223,9 @@ def rewritten(run: Pass, client: Client, rows: list[dict[str, Any]] | None) -> N
     """Tell a launched row's thread once when its brief lost lines it had on the pass before: a
     later round appends a `## Result, follow-up` and never rewrites a section (the crew skill's
     "End"). A message the outbox holds keeps the old text, so a later pass sends it. A queue
-    that does not parse (`rows` None) leaves what was seen as it was."""
-    from jbus import outbox  # outbox reads watch, so watch reads it at the call
+    that does not parse (`rows` None) leaves what was seen as it was. `jbus.outbox` reads this
+    module, so this one reads `outbox` at the call."""
+    from jbus import outbox
 
     if rows is None:
         return
