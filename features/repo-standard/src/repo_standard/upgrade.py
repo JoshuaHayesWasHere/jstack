@@ -33,9 +33,14 @@ from repo_standard.tree import matches
 
 STANDARD_LINE = re.compile(r"^standard:[ \t]*\d+", re.M)
 CALLED_TAG = re.compile(rf"@{CALLED_VERSION}")
-REF_INPUT = re.compile(rf"^[ \t]*ref:[ \t]*(['\"]?){CALLED_VERSION}\1[ \t]*(?:#.*)?\n", re.M)
+REF = rf"[ \t]*ref:[ \t]*(?P<quote>['\"]?){CALLED_VERSION}(?P=quote)[ \t]*(?:#.*)?\n"
+REF_INPUT = re.compile(rf"^{REF}", re.M)
 """The caller's `ref` input of a branch of a version not yet tagged, which the move to a tag drops,
 since an empty `ref` takes the tag the config pins."""
+WITH_REF_ALONE = re.compile(
+    rf"^(?P<indent>[ \t]*)with:[ \t]*(?:#.*)?\n{REF}(?!(?P=indent)[ \t]+\S)", re.M
+)
+"""A `with:` whose one input is that `ref`, which the move drops whole, `with:` and all."""
 LOCAL_MK = "local.mk"
 OWNED_MAKEFILE = re.compile(r"^([ \t]*- )(['\"]?)Makefile\2[ \t]*$", re.M)
 
@@ -59,7 +64,9 @@ def _owns_local_mk(text: str, config: Config) -> str | None:
 
 def _called(text: str, to: int) -> str:
     called = SHARED_CHECK.sub(lambda found: CALLED_TAG.sub(f"@{TAG}{to}", found[0]), text)
-    return REF_INPUT.sub("", called) if called != text else called
+    if called == text:
+        return called
+    return REF_INPUT.sub("", WITH_REF_ALONE.sub("", called))
 
 
 def _write(path: Path, text: str, mode_from: Path | None) -> None:

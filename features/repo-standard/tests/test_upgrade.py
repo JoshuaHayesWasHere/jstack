@@ -270,6 +270,25 @@ def test_upgrade_moves_a_caller_off_a_candidate_branch_to_the_tag(v1_repo, ref):
     assert f"runner: {RUNNER}" in moved
 
 
+def test_upgrade_drops_the_with_of_the_documented_candidate_caller_and_keeps_one_with_more(v1_repo):
+    """The candidate caller of `docs/check-workflow.md`, whose `with:` holds `ref` alone, loses its
+    `with:` with the `ref`, and the same caller with one more input keeps its `with:` and it."""
+    root, _ = v1_repo
+    config = root / ".repo-standard.yml"
+    config.write_text(re.sub(r"(?m)^standard: \d+$", f"standard: {VERSION}", config.read_text()))
+    doc = (REPO / "features/repo-standard/docs/check-workflow.md").read_text()
+    example = re.search(r"```yaml\n(    uses: [^\n]*-rc\n.*?)```", doc, re.S)[1]
+    head = "name: candidate\non: pull_request\njobs:\n  standard:\n"
+    tag = re.sub(r"@.*", f"@repo-standard-v{VERSION}", example.splitlines(keepends=True)[0])
+    alone = root / ".github/workflows/candidate.yml"
+    alone.write_text(f"{head}{example}  after:\n    runs-on: x\n")
+    more = root / ".github/workflows/more.yml"
+    more.write_text(f"{head}{example}      runner: {RUNNER}\n")
+    assert main(["upgrade", "--to", str(VERSION), "--root", str(root), "--upstream", ""]) == 0
+    assert alone.read_text() == f"{head}{tag}  after:\n    runs-on: x\n"
+    assert more.read_text() == f"{head}{tag}    with:\n      runner: {RUNNER}\n"
+
+
 def test_upgrade_never_moves_a_pin_down(v1_repo):
     root, _ = v1_repo
     config = load(root)
