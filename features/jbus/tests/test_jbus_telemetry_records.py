@@ -262,6 +262,8 @@ def test_review_rounds_keeps_each_round_once_with_its_verdict_and_counts(machine
 
 
 def test_the_queue_keeps_who_queued_each_row_and_the_message_its_go_rests_on(machine):
+    """A store built before `v014_queue_joins` gains both columns on its next build, and the
+    queue's rows it already holds are read again to fill them."""
     home = {"directory": "/home/u/repo", "session": "home-session"}
     jbus = {"by": "jbus", "session": ""}
     goes = {
@@ -280,10 +282,25 @@ def test_the_queue_keeps_who_queued_each_row_and_the_message_its_go_rests_on(mac
     ]
     rows.append({"slug": "filed", "status": "queued", "queued_by": jbus, "approval": {}})
     machine.write("alpha", "queue.json", rows)
+    want = sorted(
+        [
+            *((basis, "home-session", message) for basis, (_, message) in goes.items()),
+            ("filed", "", ""),
+        ]
+    )
+    query = "SELECT slug, queued_by_session, approval_message FROM queue ORDER BY slug"
     machine.build()
     with contextlib.closing(machine.store()) as store:
-        read = store.execute(
-            "SELECT slug, queued_by_session, approval_message FROM queue ORDER BY slug"
-        ).fetchall()
-    want = [(basis, "home-session", message) for basis, (_, message) in goes.items()]
-    assert read == sorted([*want, ("filed", "", "")])
+        assert store.execute(query).fetchall() == want
+        views = [
+            name for (name,) in store.execute("SELECT name FROM sqlite_master WHERE type = 'view'")
+        ]
+        store.executescript(
+            "".join(f"DROP VIEW {name};" for name in views)
+            + "ALTER TABLE queue DROP COLUMN queued_by_session;"
+            + "ALTER TABLE queue DROP COLUMN approval_message;"
+            + "DELETE FROM migrations WHERE name = 'v014_queue_joins';"
+        )
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        assert store.execute(query).fetchall() == want
