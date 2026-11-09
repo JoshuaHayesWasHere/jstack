@@ -131,11 +131,13 @@ Each entry has its `kind`, its `subj`, its `cause`, `since` when it went wrong, 
 An entry of the bus or of a source with the same subject and cause in several projects is one entry that names them all, and any other entry stays one per project.
 A project's red reasons (`broken`) are built from the same list, so the two never disagree.
 
-Each thing wrong has an `owner`, by one rule for each kind (`OWNERS` in `features/jbus/src/jbus/view/state.py`): the crew of its row, the home of its row, the root home for a fault of the project or the machine, or `user`.
+Each thing wrong has an `owner`, by one rule for each kind (`OWNERS` in `features/jbus/src/jbus/view/state.py`): the crew of its row, the home of its row, the catch-all's home (`uncategorized`) for a fault of the project with no row, `status`, or `user`.
+No kind is the root home's: it hears of a one-way door alone ([Who an item is for](events-and-wakes.md#who-an-item-is-for)).
+A `status` entry wakes no home and the band shows it while it is open: a red main with no `main-red-*` row yet, a source that cannot be read, and a source the last pass did not ask other than T3 Code.
 It is the user's only where no agent can fix it: a row that waits on a gate, which holds only for a case of `gates.md`, a cap, a wake the home thread does not take, or T3 Code not answering.
 A fault whose agent owner has no thread to tell is the user's too.
 Each has `fixing` beside it, what its owner was told and when, read from `wakes.json`, `outbox.jsonl`, the leftover record or the main-red row.
-`wrong`, the band's wrong tier, its since line and a project's red reasons hold only the user's entries.
+`wrong`, the band's wrong tier, its since line and a project's red reasons hold only the user's entries and the `status` ones.
 Any other is on its row, in the task drawer, as `fixing: <owner>, told <time>`.
 A home hears of these from the one list ([One list wakes a home](events-and-wakes.md#one-list-wakes-a-home)), and any other fault of a row is told by the step that works that row.
 

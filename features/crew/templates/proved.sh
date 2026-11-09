@@ -1,7 +1,9 @@
 #!/bin/bash
 # The crew's proof of the tests a branch changes: each runs at the head, then laid over a copy
 # of the merge-base's code, and the `Proved:` line `jmerge` reads is printed, and appended to the
-# brief once it has a Result. features/crew/do-the-task.md says what it proves and how.
+# brief once it has a Result. A side that exited 0 is kept in the worktree's `crew-proof-sides`,
+# and a run at the same head and base runs only the side still owed. features/crew/do-the-task.md
+# says what it proves and how.
 # A crew runs it by its path, `bash "$T/proved.sh" <brief> <thread id>`, from its worktree: the
 # command it sends then holds no `rm`, which Claude Code stops to ask about, even in full access.
 B=$1
@@ -43,7 +45,15 @@ else
     fi
     list=$(printf '%s\n' "$tests" | paste -sd ' ' -)
     : > "$tree/.proof-said"
+    passed=$(git rev-parse --git-path crew-proof-sides)
+    [ "$(sed -n 1p "$passed" 2> /dev/null)" = "$head $base" ] || printf '%s %s\n' "$head" "$base" > "$passed"
     for side in $sides; do
+        if had=$(command grep -m 1 "^$side exit 0: " "$passed"); then
+            echo "$side: exited 0 at this head and base already, $had"
+            printf '%s\n' "$had" >> "$tree/.proof-said"
+            ran=0
+            continue
+        fi
         if [ "$side" = head ]; then at=$PWD more=; else at=$tree more=--continue-on-collection-errors; fi
         for lane in --short ''; do
             PROOF_AT=$at PROOF_MORE=$more PROOF_SIDE=$side PROOF_OUT=$tree/.proof-$side PROOF_TESTS=$list uv run --project "$T/../source" jgauge test-slot $lane --thread "$thread" -- bash -c '
@@ -58,6 +68,7 @@ else
             echo "$side: stopped at the short lane's limit, no verdict: it runs again alone in a full slot"
         done
         [ "$ran" = 0 ] || break
+        command grep "^$side exit 0: " "$tree/.proof-said" >> "$passed"
     done
     at_head=$(sed -n 's/^head exit \([0-9]*\):.*/\1/p' "$tree/.proof-said" | tail -n 1)
     at_base=$(sed -n 's/^base exit \([0-9]*\):.*/\1/p' "$tree/.proof-said" | tail -n 1)
