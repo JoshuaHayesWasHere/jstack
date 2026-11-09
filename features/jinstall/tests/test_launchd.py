@@ -499,6 +499,17 @@ def test_a_gap_after_the_end_starts_the_agent_each_minute_or_each_gap_where_long
     assert agent.schedule == {"StartInterval": every}
 
 
+def test_a_timer_that_counts_from_both_a_start_and_an_end_is_refused(tmp_path):
+    units = tmp_path / "units"
+    units.mkdir()
+    (units / "pass.timer").write_text("[Timer]\nOnUnitActiveSec=1min\nOnUnitInactiveSec=20s\n")
+    (units / "pass.service").write_text("[Service]\nExecStart=/bin/true\n")
+    templates = {path.name: path for path in units.iterdir()}
+
+    with pytest.raises(ValueError, match="one of OnUnitActiveSec=, OnUnitInactiveSec="):
+        launchd.agents(templates, tmp_path)
+
+
 def test_a_command_past_its_start_timeout_is_stopped_and_says_so_as_systemd_does(tmp_path):
     units = tmp_path / "units"
     units.mkdir()
