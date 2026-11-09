@@ -642,6 +642,40 @@ def test_spells_restore_and_change_failure_follow_the_push_checks_on_main(machin
     assert failure == [("2026-10-25", 2, 5)]
 
 
+def test_main_checks_reads_the_check_run_over_a_green_macos_run_at_the_same_sha(machine):
+    machine.append(
+        "alpha",
+        "ci.jsonl",
+        job(1, "c1", 1, "failure", NOW),
+        job(2, "c1", 1, "success", NOW, name="macos"),
+    )
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        checks = store.execute("SELECT sha, state FROM main_checks").fetchall()
+    assert checks == [("c1", "red")]
+
+
+def test_main_spells_never_end_before_they_open_on_a_quick_green_macos_run(machine):
+    quick = {
+        **job(3, "c2", 2, "success", NOW + timedelta(minutes=1), name="macos"),
+        "completed": iso(NOW + timedelta(minutes=2)),
+    }
+    machine.append(
+        "alpha",
+        "ci.jsonl",
+        job(1, "c1", 1, "failure", NOW),
+        job(2, "c2", 2, "failure", NOW + timedelta(minutes=1)),
+        quick,
+        job(4, "c3", 3, "success", NOW + timedelta(minutes=20)),
+    )
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        spells = store.execute(
+            "SELECT start_pr, end_sha, minutes_to_green FROM main_spells"
+        ).fetchall()
+    assert spells == [(1, "c3", 20.0)]
+
+
 def merged_rows(machine, project, rows):
     """Merged rows of (slug, number, merged time), each with its pull request in `ci-prs.jsonl`."""
     snapshots(machine, project, rows)
