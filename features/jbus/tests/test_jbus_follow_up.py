@@ -63,7 +63,8 @@ def test_three_follow_ups_queued_overnight_launch_and_only_the_new_rows_decision
     """The replay: an approved entry, alpha, merged in the evening. Overnight, with the owner away,
     the home queues the entry's second, third and fourth units, the fourth building on alpha's
     code, and one row of new work. The three follow-ups are approved by rule and launch that
-    night, and the one decision sent asks for the new row."""
+    night, and the one decision sent asks for the new row, which waits on the user and wakes no
+    home."""
     kitchen.config(max_running=6)
     assert add(kitchen, "alpha") == []
     assert go(kitchen, "alpha")[0] == 0
@@ -101,8 +102,7 @@ def test_three_follow_ups_queued_overnight_launch_and_only_the_new_rows_decision
     assert decided(kitchen) == ["decision delta"]
     waits = jbus.read_json(kitchen.state / "waiting-on-user.json", [])
     assert [one["key"] for one in waits] == ["approve:delta"]
-    told = [line for message in kitchen.wakes.listed for line in message]
-    assert [line.split(":", 1)[0] for line in told] == ["approve delta"]
+    assert [line for message in kitchen.wakes.listed for line in message] == []
 
 
 def brief_of(kitchen, slug):

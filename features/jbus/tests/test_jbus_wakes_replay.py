@@ -175,16 +175,15 @@ def woken(tmp_path, monkeypatch):
     kitchen.close()
 
 
-def test_under_the_one_list_the_root_wakes_5_times_and_each_news_wake_once(woken):
-    """The root's own row to approve wakes it once, as a scoped home's wakes that home."""
+def test_under_the_one_list_the_root_wakes_4_times_and_each_news_wake_once(woken):
+    """The root's own row to approve wakes it no more: a go still owed waits on `jbus needs`
+    and the view alone."""
     said = [(at, told) for at, told in woken if told]
-    assert len(said) <= 5
+    assert len(said) <= 4
     for minute, news in NEWS.items():
         assert len([at for at, _ in said if at.startswith(minute)]) == 1, news
     stall = next(one["line"] for one in lines("events.jsonl") if one["slug"] == "browser-pin")
-    approve = "approve fl-slot-holder-busy: jbus --project demo queue approve fl-slot-holder-busy"
     assert said == [
-        ("2026-10-27T19:04:53", [f"{approve}, a row with no approval of its brief"]),
         ("2026-10-27T19:59:18", ["ci fl-msg-no-wrong: browser failed"]),
         (
             "2026-10-27T21:31:14",
@@ -196,10 +195,12 @@ def test_under_the_one_list_the_root_wakes_5_times_and_each_news_wake_once(woken
 
 
 def test_each_wake_the_rule_drops_is_dropped_for_its_own_reason(woken):
-    """The same red on main, a red main into the red at its tip, the same red on main again, an
-    approval that left the list, the root's own row to approve told before, a stall of a row
-    whose own red is open, twice, and an approval that left the list."""
+    """The root's own row to approve, which wakes no thread, the same red on main, a red main
+    into the red at its tip, the same red on main again, an approval that left the list, the
+    root's own row to approve again, a stall of a row whose own red is open, twice, and an
+    approval that left the list."""
     assert [at[:16] for at, told in woken if not told] == [
+        "2026-10-27T19:04",
         "2026-10-27T21:27",
         "2026-10-27T21:32",
         "2026-10-27T21:38",

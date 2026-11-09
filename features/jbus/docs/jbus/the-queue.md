@@ -184,6 +184,8 @@ A row keeps its item, and `add` refuses an `--item` that names another.
 A row already queued is not checked again.
 `add` refuses a row whose brief's `Home:` line names a home other than the one adding it, and queues nothing, so two homes do not brief the same fix unseen.
 `jbus queue add --for <home>`, `root` or a scope's name, hands the row over on purpose, and `add` refuses a `--for` that is not the brief's home.
+`jbus queue add <slug> --message <thread id>/<message id>` approves the row on that message of yours in the same write, as `jbus queue approve --message` does ([The bases](#the-bases)).
+It refuses a message that is not your own, and a brief that holds for a door, whose go goes by `approve` alone, and then queues nothing.
 `hold` takes a row's approval back, which stops both its launch and its merge.
 A held row that was never launched does not launch.
 If its pull request is open, `jmerge` leaves it unmerged, with `wait <number> <url>: its queue row is held: approve it again to let it merge`, until `jbus queue approve` gives the row its go again.

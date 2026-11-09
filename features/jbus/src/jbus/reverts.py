@@ -427,7 +427,7 @@ def macos(run: Pass, world: World) -> None:
     branch = watch._default_branch(run)
     if run.run("git", "cat-file", "-e", f"origin/{branch}:{watch.MAC_FLOW}").returncode:
         return
-    commits = watch._api(run, f"repos/{{owner}}/{{repo}}/commits?sha={branch}&per_page=50")
+    commits = watch.main_commits(run)
     if not isinstance(commits, list) or not commits:
         return
     path = run.state / MAC_CHECKS
