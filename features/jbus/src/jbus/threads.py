@@ -117,7 +117,7 @@ Out = dict[str, Any]
 
 
 def _done(run: Pass, key: str) -> bool:
-    return key in run.box.sent()
+    return run.box.has(key)
 
 
 def _briefs(run: Pass, kind: str = "tasks") -> dict[str, str]:
@@ -180,8 +180,10 @@ def shut(world: World, briefs: dict[str, str]) -> set[str]:
     return found
 
 
-def finished(run: Pass, world: World) -> dict[str, set[str]]:
+def finished(run: Pass, world: World, reviews: set[str] | None = None) -> dict[str, set[str]]:
     """Return the slugs whose threads may be put away, by the start of such a thread's title.
+    Given `reviews`, the slugs that have a reviewer's thread, only those are asked whether their
+    reviewer is over.
 
     A task is over when its pull request merged, or when its last Result says `Status: done` and
     `Left: none` and names no pull request. Under the crew skill, a thread that has something left
@@ -203,7 +205,7 @@ def finished(run: Pass, world: World) -> dict[str, set[str]]:
             tasks.add(slug)
     ended = shut(world, briefs)
     reviewed = set()
-    for slug in (tasks | ended) & set(briefs):
+    for slug in (tasks | ended) & set(briefs) & (set(briefs) if reviews is None else reviews):
         ran = [one.ran for one in findings.triage(briefs[slug]).sections]
         if ran and ran[-1]:
             reviewed.add(slug)
@@ -476,6 +478,21 @@ def _put_away(
     return True
 
 
+def _clear(run: Pass, client: Client, thread: dict[str, Any], slug: str) -> None:
+    """Clear the scratch of a crew whose thread is put away (`cleanup.clear_scratch`), once per
+    run of the thread, as `_put_away` keys its actions. The key is recorded only once T3 Code
+    named the thread's worktree, or said it has none, and nothing stayed behind, so a worktree
+    in use is tried again on the next pass and a thread that a message woke is cleared again
+    once that run ends."""
+    at = thread["threadId"]
+    key = f"cleared|{slug}|{at}|{_ran(thread)}"
+    if _done(run, key):
+        return
+    tree = rebase.worktree(client, at)
+    if cleanup.clear_scratch(run, slug, tree or "") and tree != "":
+        run.box.mark(key)
+
+
 def settle(run: Pass, client: Client, world: World) -> None:
     """Put away each thread that has no work left, on every pass, once per run of the thread.
 
@@ -489,39 +506,38 @@ def settle(run: Pass, client: Client, world: World) -> None:
     on any message that starts a run, whoever sends it, so a finished thread that a gate answer
     or a reload woke is put away again on the first pass after that run ends (`_put_away`).
 
-    `settle` lists the threads settled or not, so a thread that an earlier pass settled is
-    archived by the same step once its slug is finished. A subagent thread whose parent jbus
-    archived keeps its parent's slug through the parent's key in `sent.json`, since T3 Code no
-    longer lists the parent.
+    `settle` lists the threads once, settled or not and subagents too, so a thread that an
+    earlier pass settled is archived by the same step once its slug is finished. A subagent thread
+    whose parent jbus archived keeps its parent's slug through the parent's key in `sent.json`,
+    since T3 Code no longer lists the parent.
 
     `settle` skips a thread that is still at work, settled or not, since T3 Code leaves a thread
     settled while it takes up a message, with the threads under it and the threads above it, so a
     running subagent keeps its parent too, until the next pass.
-    Once a crew's thread is put away, its scratch folder goes (`cleanup.clear_scratch`).
+    Once a crew's thread is put away, its scratch folder goes, once per run of the thread
+    (`_clear`).
     """
-    over = finished(run, world)
     slug_of: dict[str, str] = {}
     waiting: list[dict[str, Any]] = []
     try:
-        for prefix in PREFIXES:
-            if not over[prefix]:
-                continue
-            for thread in t3.listed(client, run.project.project_id, titleContains=prefix):
-                slug = slug_in(str(thread.get("title", "")), prefix)
-                if slug in over[prefix]:
-                    slug_of[thread["threadId"]] = slug
-                    waiting.append(thread)
         every = t3.listed(client, run.project.project_id, includeSubagents=True)
     except T3Error as error:
         run.say(f"wait {run.project.name}: the threads to settle could not be listed ({error})")
         return
+    over = finished(run, world, {slug_in(str(t.get("title", "")), "review: ") or "" for t in every})
+    below = [t for t in every if t.get("relationshipToParent") == "subagent"]
+    for prefix in PREFIXES:
+        for thread in every:
+            slug = slug_in(str(thread.get("title", "")), prefix)
+            if slug in over[prefix] and thread.get("relationshipToParent") != "subagent":
+                slug_of[thread["threadId"]] = slug
+                waiting.append(thread)
     busy = {t["threadId"] for t in waiting if watch.at_work([t], settled_too=True)}
     parents = dict(slug_of)
     for key in run.box.sent():
         action, slug, at, *_ = [*key.split("|"), ""]
         if action == "archived" and at:
             parents.setdefault(at, slug)
-    below = [t for t in every if t.get("relationshipToParent") == "subagent"]
     grew = True
     while grew:
         grew = False
@@ -547,7 +563,7 @@ def settle(run: Pass, client: Client, world: World) -> None:
         actions = ("settle",) if slug in open_work else ("settle", "archive")
         done = _put_away(run, client, thread, slug, actions)
         if done and str(thread.get("title", "")).startswith(watch.TITLE):
-            cleanup.clear_scratch(run, slug, rebase.worktree(client, at) or "")
+            _clear(run, client, thread, slug)
     by_id = {t["threadId"]: t for t in every}
     working: set[str] = set()
     for thread in every:
@@ -658,7 +674,7 @@ def _stopped(
     what = f"thread ended {status} after two carry-ons"
     home = thread_of(home_of(run.home, brief))
     key = f"stopped|{slug}|{at}"
-    if home and key in run.box.sent():
+    if home and run.box.has(key):
         return
     if not home:
         run.gate(slug, what, at, key=f"{at} {ended}")

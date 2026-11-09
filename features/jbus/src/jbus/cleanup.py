@@ -53,15 +53,19 @@ def in_use() -> set[Path] | None:
     return found or None
 
 
-def clear_scratch(run: Pass, slug: str, worktree: str = "") -> None:
+def clear_scratch(run: Pass, slug: str, worktree: str = "") -> bool:
     """Remove the slug's scratch folder and the worktrees its crew made in the scratchpad of its
-    `worktree`, save one in use, then prune their registrations."""
+    `worktree`, save one in use, then prune their registrations. Return whether nothing stayed:
+    no worktree was kept in use or failed to go, and `in_use` could say which are in use."""
     folder = scratch(run, slug)
-    cleared = []
+    cleared, stayed = [], False
     if folder.exists():
         shutil.rmtree(folder, ignore_errors=True)
         cleared.append(f"its scratch folder {folder}")
-    if worktree and (busy := in_use()) is not None:
+    busy = in_use() if worktree else set()
+    if busy is None:
+        stayed = True
+    elif worktree:
         pad = scratchpad(worktree).resolve()
         listed = run.run("git", "worktree", "list", "--porcelain").stdout.splitlines()
         for line in listed:
@@ -69,9 +73,12 @@ def clear_scratch(run: Pass, slug: str, worktree: str = "") -> None:
             if not line.startswith("worktree ") or not tree.is_relative_to(pad):
                 continue
             if any(cwd.is_relative_to(tree) for cwd in busy):
-                continue
-            if run.run("git", "worktree", "remove", "--force", str(tree)).returncode == 0:
+                stayed = True
+            elif run.run("git", "worktree", "remove", "--force", str(tree)).returncode == 0:
                 cleared.append(f"the worktree {tree}")
+            else:
+                stayed = True
     if cleared:
         run.run("git", "worktree", "prune")
         run.say(f"cleared {slug}: {', '.join(cleared)}")
+    return not stayed
