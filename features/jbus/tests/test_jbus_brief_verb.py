@@ -1,12 +1,16 @@
-"""`jbus brief new|set|append` is the one writer of a brief: each write takes the brief's lock and
-replaces the file through a temp file, so writers that run at once all keep their lines."""
+"""`jbus brief new|set|append` (`jbus.brief`) is the one writer of a brief: each write takes the
+brief's lock and replaces the file through a temp file, so writers that run at once all keep their
+lines."""
 
 import os
+import resource
 import subprocess
 import sys
 import time
 
 import pytest
+
+from jbus import brief as briefs
 
 BRIEF = """# alpha: a task
 Green main: abc
@@ -177,6 +181,78 @@ def test_append_to_a_brief_with_no_result_goes_at_its_end(brief):
         "appended: 1 line, at the end of tasks/alpha.md\n",
     )
     assert brief.read_text() == BRIEF + "Note: x\n"
+
+
+def test_new_trims_blank_lines_at_the_end_and_says_unchanged_for_the_same_brief(brief):
+    assert jbus("brief", "new", str(brief), stdin=BRIEF + "\n\n")[0] == 0
+    assert brief.read_text() == BRIEF
+    assert jbus("brief", "new", str(brief), stdin=BRIEF) == (
+        0,
+        "unchanged: tasks/alpha.md holds these 6 lines\n",
+    )
+
+
+def test_append_drops_blank_lines_around_its_lines(brief):
+    started(brief)
+    assert jbus("brief", "append", str(brief), stdin="\n\nChecked: a\n\n")[0] == 0
+    assert brief.read_text() == STARTED.replace("Left: some\n", "Left: some\nChecked: a\n")
+
+
+@pytest.mark.parametrize(
+    ("argv", "stdin", "said"),
+    [
+        (("new",), "\n", "refused: stdin holds no brief"),
+        (("append",), "\n\n", "refused: stdin holds no lines to append"),
+        (
+            ("append",),
+            "Checked: a\n## Review\n",
+            "refused: stdin starts with lines and then has a section: append the lines and the "
+            "section apart",
+        ),
+        (
+            ("set", "Thread", "x"),
+            "",
+            'refused: "Thread" is no label, which is a capital, then letters, digits or spaces, '
+            "then a colon, as in Thread: or Scoped reviewer:",
+        ),
+        (("set", "Thread:", " "), "", "refused: the value of Thread: is one line, and not blank"),
+        (
+            ("set", "--result", "Left:", "x"),
+            "",
+            "refused: the brief has no Result to set a line in",
+        ),
+    ],
+    ids=["new-empty", "append-empty", "append-mixed", "set-label", "set-blank", "set-no-result"],
+)
+def test_a_write_the_verb_cannot_place_is_refused_and_the_brief_kept(brief, argv, stdin, said):
+    brief.write_text(BRIEF)
+    form, rest = argv[0], argv[1:]
+    assert jbus("brief", form, str(brief), *rest, stdin=stdin) == (1, said + "\n")
+    assert brief.read_text() == BRIEF
+
+
+def test_a_path_that_is_no_brief_is_refused(tmp_path):
+    other = tmp_path / "notes.md"
+    other.write_text(BRIEF)
+    assert jbus("brief", "set", str(other), "Thread:", "x") == (
+        1,
+        f"refused: {other} is no brief, which is <home>/tasks/<slug>.md or "
+        "<home>/scouts/<slug>.md\n",
+    )
+
+
+def test_a_write_that_fails_part_way_leaves_the_brief_whole_and_no_temp_file(brief):
+    """A full disk, here a limit on a file's size, stops the write after part of the text."""
+    brief.write_text(BRIEF)
+    soft, hard = resource.getrlimit(resource.RLIMIT_FSIZE)
+    resource.setrlimit(resource.RLIMIT_FSIZE, (len(BRIEF) * 2, hard))
+    try:
+        with pytest.raises(OSError):
+            briefs.new(brief, BRIEF + "Note: a long line\n" * 100)
+    finally:
+        resource.setrlimit(resource.RLIMIT_FSIZE, (soft, hard))
+    assert brief.read_text() == BRIEF
+    assert sorted(one.name for one in brief.parent.iterdir()) == ["alpha.md"]
 
 
 @pytest.mark.parametrize(

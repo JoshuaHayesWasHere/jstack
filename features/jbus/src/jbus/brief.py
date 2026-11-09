@@ -12,15 +12,15 @@ scout's request, `scouts/<slug>.md`.
 Each prints the one line it wrote, or `unchanged:` where `new` or `set` found the brief as asked,
 and `set` and `append` refuse a brief that is not there.
 
-Every write is `change`: it takes the brief's lock, reads the brief as it is under the lock, makes
+Every write is `_change`: it takes the brief's lock, reads the brief as it is under the lock, makes
 one pure edit (`with_line`, `appended`) and replaces the file through a temp file. So no reader sees
 half a brief, and no writer drops a line another wrote between its read and its write. The lock is
 one file per brief, `<home>/.locks/<kind>-<slug>.lock`, not the brief itself, since `os.replace`
 puts a new file in the brief's place and a lock on the old one would guard nothing. Writers of two
 briefs share nothing and do not wait on each other. The brief's lock is always the innermost one: a
 caller may hold `queue.lock` or `questions.lock` around a write, but nothing takes a lock while it
-holds a brief's, and an edit given to `change` must not write a brief itself, since a second
-`flock` of the same lock file blocks even in the same process.
+holds a brief's, and an edit run under it must not write a brief itself, since a second `flock`
+of the same lock file blocks even in the same process.
 
 The text is split at lines that start with `## `, as every `awk '/^## /'` reader of a brief splits
 it, and a code fence does not hide a heading.
@@ -198,7 +198,9 @@ def _locked(one: Brief) -> Iterator[None]:
 
 def _write(path: Path, text: str) -> None:
     """Write the brief whole, as `jsettings.store.write_json` writes a JSON file: a temp file of
-    this process's own beside it, then a rename, keeping the brief's mode."""
+    this process's own beside it, then a rename, keeping the brief's mode. A file object writes
+    the whole text or raises, where one `os.write` may write part of it, so a write that fails, on
+    a full disk, leaves the brief as it was and no temp file."""
     try:
         mode = path.stat().st_mode & 0o7777
     except FileNotFoundError:
@@ -207,11 +209,10 @@ def _write(path: Path, text: str) -> None:
     temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
     handle = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode)
     try:
-        try:
-            os.write(handle, text.encode())
-            os.fsync(handle)
-        finally:
-            os.close(handle)
+        with os.fdopen(handle, "wb") as written:
+            written.write(text.encode())
+            written.flush()
+            os.fsync(written.fileno())
         os.chmod(temporary, mode)
         os.replace(temporary, path)
     except BaseException:
@@ -240,14 +241,6 @@ def _there(one: Brief, text: str | None) -> str:
     if text is None:
         raise Missing(f"refused: no brief at {one.path}")
     return text
-
-
-def change(path: str | Path, edit: Callable[[str], str | None]) -> Wrote:
-    """Make one edit to the brief under its lock: `edit` gets the brief as it is under the lock and
-    returns the new text, or None for no change. It must be pure: no lock, and no write."""
-    one = Brief.at(path)
-    changed = _change(one, lambda text: edit(_there(one, text)))
-    return Wrote(changed, f"{'changed' if changed else 'unchanged'}: {one.named}")
 
 
 def new(path: str | Path, text: str) -> Wrote:
@@ -314,13 +307,6 @@ def append(path: str | Path, block: str) -> Wrote:
     else:
         what = f"{len(added)} line{'' if len(added) == 1 else 's'}"
     return Wrote(True, f"appended: {what}, {where[0]} of {one.named}")
-
-
-def remove(path: str | Path) -> None:
-    """Remove the brief under its lock, so that no writer that read it before puts it back."""
-    one = Brief.at(path)
-    with _locked(one):
-        one.path.unlink(missing_ok=True)
 
 
 def _arguments(parser: argparse.ArgumentParser) -> None:
