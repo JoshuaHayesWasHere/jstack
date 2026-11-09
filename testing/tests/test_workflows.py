@@ -3158,6 +3158,17 @@ def test_borders_fails_a_pull_request_that_changes_a_kept_shot_and_another_file_
     assert found[-1]["if"] == "${{ !cancelled() }}"
 
 
+def test_a_label_flipped_during_a_push_never_leaves_a_cancelled_borders_as_the_newest_run():
+    """A push and a label on one pull request in the same second make two runs of borders. In a
+    concurrency group one of them is cancelled, by cancel-in-progress or by displacing a waiting
+    run, and GitHub may order the cancelled one newest: the ruleset then reads `borders` as not
+    passed (#1405). Borders takes seconds, so it has no group at all and every run ends."""
+    text = BORDERS.read_text()
+    assert {"labeled", "unlabeled", "synchronize"} <= set(triggers(text)["pull_request"]["types"])
+    said = [line for line in text.splitlines() if not line.lstrip().startswith("#")]
+    assert not [line for line in said if "concurrency" in line or "cancel-in-progress" in line]
+
+
 NO_AI_TRAILERS = REPO / "scripts" / "no_ai_trailers.py"
 CLAUDE = "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 HUMAN = "Co-authored-by: Ada Lovelace <ada@example.com>"
