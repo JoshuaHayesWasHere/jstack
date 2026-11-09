@@ -59,6 +59,8 @@ PYTEST = $(if $(NEW_LINES_PART),NEW_LINES_PART='$(NEW_LINES_PART)' PYTHONPATH='$
 # pyrefly type-checks each feature's src at the settings of [tool.pyrefly] in pyproject.toml, and
 # fails on an error. The paths are given here, not in that table: pyrefly's default excludes
 # drop every path under a dot directory, which a worktree such as ~/.t3/worktrees/... sits in.
+# `repo-standard conform` runs last, and CI's lint job runs it only here, so a desk check fails on
+# a rule of the standard (a file over its size cap, say) where CI does.
 BASE ?= origin/main
 
 .PHONY: lint
@@ -69,6 +71,7 @@ lint:
 	uv run ruff check .
 	uv run ruff format --check .
 	uv run pyrefly check --summary=none features/*/src
+	uv run repo-standard conform
 
 # `make test TESTS=<files>` runs only those files. TESTS stays out of the environment, where a
 # make that a test runs would take it for its own.
