@@ -648,8 +648,8 @@ def test_a_pull_requests_plan_routes_its_browser_ids_to_the_browser_job(caller):
     assert said["playwright"] == "1.64.1"
 
 
-def test_a_unit_spec_outside_playwrights_test_dir_goes_to_a_part(caller):
-    repo, env = caller
+def test_a_unit_spec_outside_playwrights_test_dir_goes_to_a_part(caller, capsys):
+    repo, _ = caller
     scripts = REPO / "features" / "repo-standard" / "adapters" / "node-vite" / "scripts"
     config = E2E_CONFIG.replace("roots: [web]", "roots: [.]").replace("root: web", "root: .")
     commit(
@@ -667,7 +667,10 @@ def test_a_unit_spec_outside_playwrights_test_dir_goes_to_a_part(caller):
         },
         "a Vitest spec beside a Playwright testDir",
     )
-    said = planned(repo, env, "pull_request")
+    path = repo.parent / "selection.txt"
+    path.write_text("src/a.spec.ts\ne2e/b.spec.ts\n")
+    code, said, _ = plan_of(repo, capsys, "--event", "pull_request", "--selection", str(path))
+    assert code == 0
     assert json.loads(said["parts"]) == {"1": "src/a.spec.ts"}
     assert (said["browser"], json.loads(said["browser-ids"])) == ("some", ["e2e/b.spec.ts"])
 
