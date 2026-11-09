@@ -1180,11 +1180,60 @@ def watch(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
 
 
 def _api(run: Pass, path: str) -> Any:
+    """Return what GitHub answers a GET of `path`, or None where it gives no answer. A path the
+    pass already read is answered from `Pass.answers`, without a call."""
+    if path in run.answers:
+        return run.answers[path]
     asked = run.run("gh", "api", path)
     try:
-        return json.loads(asked.stdout) if asked.returncode == 0 else None
+        said = json.loads(asked.stdout) if asked.returncode == 0 else None
     except ValueError:
-        return None
+        said = None
+    if said is not None:
+        run.answers[path] = said
+    return said
+
+
+MAIN_COMMITS = "main-commits.json"
+"""Main's newest `MAIN_LISTED` commits, as GitHub lists them, with the tip they were read at:
+`{tip, commits}`."""
+MAIN_LISTED = 50
+WORKFLOW_FILES = "workflow-files.json"
+"""The `.github/workflows/` tree GitHub gave `watched`, with the tip it was read at:
+`{tip, tree}`."""
+
+
+def _at_tip(
+    run: Pass, name: str, key: str, ask: Callable[[str], Any], keeps: Callable[[Any, str], bool]
+) -> Any:
+    """Return what `ask` answers for main's tip, kept in the file `name` of the project's state
+    under `key` with that tip, where `keeps` finds the answer is the tip's. A commit's history
+    and its files never change, so it is asked again only once the tip is another (`Pass.tip`).
+    Where git gives no tip, `ask` is given the default branch's name, and nothing is kept."""
+    tip = run.tip()
+    if not tip:
+        return ask(_default_branch(run))
+    path = run.state / name
+    kept = read_json(path, {})
+    if isinstance(kept, dict) and kept.get("tip") == tip and key in kept:
+        return kept[key]
+    said = ask(tip)
+    if keeps(said, tip):
+        write_json(path, {"tip": tip, key: said})
+    return said
+
+
+def main_commits(run: Pass) -> Any:
+    """Main's newest `MAIN_LISTED` commits, newest first, as GitHub's list of commits gives
+    them, or None where it gives no answer. One read for each tip of main (`_at_tip`): a list
+    is kept only where it starts at that tip."""
+    return _at_tip(
+        run,
+        MAIN_COMMITS,
+        "commits",
+        lambda at: _api(run, f"repos/{{owner}}/{{repo}}/commits?sha={at}&per_page={MAIN_LISTED}"),
+        lambda said, tip: isinstance(said, list) and bool(said) and said[0].get("sha") == tip,
+    )
 
 
 def _check(
@@ -1732,12 +1781,12 @@ NIGHTLIES = (BROWSER, MACOS)
 """The nightly workflows with their own brief for a red run (`_nightly_red`). Every other
 scheduled workflow gets the brief `scheduled` gives it (`watched`)."""
 WORKFLOWS = (
-    "query($owner: String!, $repo: String!) { repository(owner: $owner, name: $repo) {"
-    ' object(expression: "HEAD:.github/workflows") { ... on Tree {'
-    " entries { name object { ... on Blob { text } } } } } } }"
+    "query($owner: String!, $repo: String!, $at: String!) { repository(owner: $owner, name: $repo)"
+    " { object(expression: $at) { ... on Tree { entries { name object { ... on Blob { text } } } }"
+    " } } }"
 )
-"""The GraphQL query for the text of each file of `.github/workflows/` at the default branch,
-which `HEAD:` names on GitHub, in one call."""
+"""The GraphQL query for the text of each file of a tree, `$at` as `<commit>:.github/workflows`,
+in one call."""
 SCHEDULED_EVENTS = ("schedule", "workflow_dispatch")
 """The events of a scheduled workflow's runs that `scheduled` files: its push runs on the default
 branch are main's check (`_judged`), and its release runs are no concern of the schedule's."""
@@ -1773,25 +1822,19 @@ def watched(run: Pass) -> list[Nightly]:
     """The workflows whose red run on the default branch jbus files a fix row for: each of
     `NIGHTLIES` the repo holds, with its own rule, and each other file of `.github/workflows/`
     with a `schedule:` trigger at the default branch (`scheduled`). jbus asks GitHub for the files
-    on each pass, since no step of a pass is sure to fetch, so a repo that adds a nightly is
-    watched from the next pass and one that lacks it costs no call for its runs, a 404. Where
-    GitHub gives no list of the files, it watches `NIGHTLIES` alone."""
-    asked = run.run(
-        "gh",
-        "api",
-        "graphql",
-        "-F",
-        "owner={owner}",
-        "-F",
-        "repo={repo}",
-        "-f",
-        f"query={WORKFLOWS}",
+    at main's tip, since no step of a pass is sure to fetch, once for each tip (`_at_tip`), so a
+    repo that adds a nightly is watched from the pass that sees its merge, and one that lacks it
+    costs no call for its runs, a 404. Where GitHub gives no list of the files, it watches
+    `NIGHTLIES` alone."""
+    tree = _at_tip(
+        run,
+        WORKFLOW_FILES,
+        "tree",
+        lambda at: _workflows(run, at),
+        lambda said, _: said is not None,
     )
-    try:
-        entries = json.loads(asked.stdout)["data"]["repository"]["object"]["entries"]
-    except (ValueError, KeyError, TypeError):
-        entries = None
-    if asked.returncode != 0 or not isinstance(entries, list):
+    entries = tree.get("entries") if isinstance(tree, dict) else None
+    if not isinstance(entries, list):
         return list(NIGHTLIES)
     names = {entry.get("name") for entry in entries if isinstance(entry, dict)}
     own = {nightly.file for nightly in NIGHTLIES}
@@ -1805,6 +1848,31 @@ def watched(run: Pass) -> list[Nightly]:
     )
     held = [nightly for nightly in NIGHTLIES if nightly.file in names]
     return [*held, *map(scheduled, found)]
+
+
+def _workflows(run: Pass, at: str) -> dict[str, Any] | None:
+    """The tree of `.github/workflows/` at the commit or branch `at`, as `WORKFLOWS` asks
+    GitHub for it: empty where there is no such tree, and None where GitHub gives no answer."""
+    asked = run.run(
+        "gh",
+        "api",
+        "graphql",
+        "-F",
+        "owner={owner}",
+        "-F",
+        "repo={repo}",
+        "-f",
+        f"query={WORKFLOWS}",
+        "-f",
+        f"at={at}:.github/workflows",
+    )
+    if asked.returncode != 0:
+        return None
+    try:
+        tree = json.loads(asked.stdout)["data"]["repository"]["object"]
+    except (ValueError, KeyError, TypeError):
+        return None
+    return tree if isinstance(tree, dict) else {}
 
 
 def ran_at(one: dict[str, Any]) -> str:
@@ -2074,7 +2142,7 @@ def retro(run: Pass, world: World, rows: list[dict[str, Any]], check: Callable[[
         if world.merged[slug].get("baseRefName", branch) in (branch, None, "")
     ]
     slug_of = {pull["number"]: slug for slug, pull in world.merged.items()}
-    commits = _api(run, f"repos/{{owner}}/{{repo}}/commits?sha={branch}&per_page=50")
+    commits = main_commits(run)
     if not isinstance(commits, list):
         return
     tip = commits[0]["sha"] if commits else ""
