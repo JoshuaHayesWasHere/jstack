@@ -180,8 +180,10 @@ def shut(world: World, briefs: dict[str, str]) -> set[str]:
     return found
 
 
-def finished(run: Pass, world: World) -> dict[str, set[str]]:
+def finished(run: Pass, world: World, reviews: set[str] | None = None) -> dict[str, set[str]]:
     """Return the slugs whose threads may be put away, by the start of such a thread's title.
+    Given `reviews`, the slugs that have a reviewer's thread, only those are asked whether their
+    reviewer is over.
 
     A task is over when its pull request merged, or when its last Result says `Status: done` and
     `Left: none` and names no pull request. Under the crew skill, a thread that has something left
@@ -203,7 +205,7 @@ def finished(run: Pass, world: World) -> dict[str, set[str]]:
             tasks.add(slug)
     ended = shut(world, briefs)
     reviewed = set()
-    for slug in (tasks | ended) & set(briefs):
+    for slug in (tasks | ended) & set(briefs) & (set(briefs) if reviews is None else reviews):
         ran = [one.ran for one in findings.triage(briefs[slug]).sections]
         if ran and ran[-1]:
             reviewed.add(slug)
@@ -515,7 +517,6 @@ def settle(run: Pass, client: Client, world: World) -> None:
     Once a crew's thread is put away, its scratch folder goes, once per run of the thread
     (`_clear`).
     """
-    over = finished(run, world)
     slug_of: dict[str, str] = {}
     waiting: list[dict[str, Any]] = []
     try:
@@ -523,6 +524,7 @@ def settle(run: Pass, client: Client, world: World) -> None:
     except T3Error as error:
         run.say(f"wait {run.project.name}: the threads to settle could not be listed ({error})")
         return
+    over = finished(run, world, {slug_in(str(t.get("title", "")), "review: ") or "" for t in every})
     below = [t for t in every if t.get("relationshipToParent") == "subagent"]
     for prefix in PREFIXES:
         for thread in every:
