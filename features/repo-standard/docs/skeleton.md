@@ -129,7 +129,7 @@ An adapter gives the Makefile four commands, in the file `stack.mk` of its `scri
 | Variable | What it runs |
 |---|---|
 | `STACK_LINT` | The stack's own lint. |
-| `STACK_TEST` | The test runner, to which the target `test` appends the ids of `TESTS`. |
+| `STACK_TEST` | The test runner, to which the target `test` appends the ids of `TESTS`. Given `REPO_STANDARD_FAILED=<file>`, it appends to the file the id of each test that failed, one a line. |
 | `STACK_SELECT` | The selection, given the base as its one argument. |
 | `STACK_LIST` | Every test id of the stack, one a line, sorted: the whole suite, which `SHARD` deals out. |
 
@@ -312,6 +312,7 @@ Each path is from the repo's root, and the config refuses a key it does not know
 A spec is a `*.spec.<ext>` file under the `testDir` of the Playwright config the script runs.
 The selection prints a browser test as Playwright's test-list form with the spec's path from the repo's root, `<spec>` or `<spec> > <title>`, and the target `e2e` hands the ids to Playwright as `--test-list`, each spec's path made relative to `testDir`.
 Playwright still runs a setup project the selected tests depend on.
+Given `REPO_STANDARD_FAILED=<file>`, the target `e2e` runs Playwright's list, HTML and JSON reporters in place of the config's, and appends to the file each test the JSON report says failed or passed only on a retry, as `<spec> > <title>`, with the title of each `describe` around it before the test's.
 `features/repo-standard/adapters/node-vite/scripts/node_browser.py` holds the rules: a URL a spec opens maps to its route's files, a SvelteKit page with every layout above it or a React router table's row, and the change reaches each test whose route files, and the files they import, hold it.
 `repo-standard conform` fails a spec or a row that no path reaches, and a URL that matches no route of the app, under the rule [A change selects its tests](standard.md#a-change-selects-its-tests).
 

@@ -1632,6 +1632,19 @@ def test_the_list_names_a_test_that_failed_on_main_as_failed_on_main(tmp_path):
     assert len(kept) == len(printed)
 
 
+def test_a_change_of_the_tests_alone_still_runs_each_test_that_failed_on_main(tmp_path):
+    """A push to main runs a selection, not the whole suite, and the lookup counts its green run as
+    one that passed every test still red on main. So a test that failed on main runs on a change
+    of the tests alone too: else it drops out red, as test_children.py did after #1377."""
+    repo = Repo(tmp_path / "repo", files=SMALL)
+    head = repo.change(["testing/tests/test_tree.py"])
+
+    printed, kept, _ = listed_selection(repo, head, tmp_path, failed="testing/tests/test_b.py")
+
+    assert "testing/tests/test_b.py failed-on-main" in kept
+    assert "testing/tests/test_b.py" in printed
+
+
 def test_an_all_lists_the_path_that_forced_it(tmp_path):
     repo = Repo(tmp_path / "repo", files=SMALL)
     head = repo.change(["pyproject.toml"], text="# changed\n")

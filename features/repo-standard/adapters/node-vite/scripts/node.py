@@ -35,7 +35,20 @@ the browser job runs it.
 `python3 scripts/node.py e2e --root <folder> --script <name> [--list <file>]` runs the root's npm
 script, which runs Playwright, with `--fail-on-flaky-tests`, so a test that passes only on a retry
 fails. Given a list, the ids `select` printed, one a line, it passes them on as `--test-list`, each
-spec's path made relative to the `testDir` of the config the script runs.
+spec's path made relative to the `testDir` of the config the script runs. Given
+`REPO_STANDARD_FAILED=<file>`, it runs Playwright's list, HTML and JSON reporters in place of the
+config's, and appends to the file each test the JSON report says failed or passed only on a retry,
+one a line, as `<spec> > <title>` with the spec's path from the repo's root and each `describe`'s
+title before the test's. A run that fails and names no test appends every id it was given, or
+every spec under `testDir` when it was given none.
+
+`python3 scripts/node.py test --roots <folder> [--roots <folder>]... [ids]` runs each root's own
+`npm test`, from the repo's root as `npm --prefix` runs it: with no id every root's, and given ids,
+each a path from the repo's root, `npm test -- <files>` in each root they reach, each file a path
+from the root, and nothing in a root they miss. Given `REPO_STANDARD_FAILED=<file>`, it hands
+Vitest its JSON reporter beside the default one and appends to the file each test file the report
+says failed, one a line, as `list` prints it. A run that fails and names no file, such as one whose
+setup throws, appends every file it ran.
 
 `python3 scripts/node.py setup` prints, for `$GITHUB_OUTPUT`, `roots=` and each folder that holds a
 `package-lock.json` git tracks, and `version-file=` and the first such root's `.nvmrc`, or its
@@ -45,6 +58,7 @@ spec's path made relative to the `testDir` of the config the script runs.
 from __future__ import annotations
 
 import json
+import os
 import posixpath
 import re
 import subprocess
@@ -218,20 +232,58 @@ def select(roots: list[str], base: str, e2e: dict | None = None) -> list[str]:
 
 def e2e(root: str, script: str, listed: str | None) -> int:
     """The exit code of the root's script, run on the listed tests, or on all of them."""
+    report = os.environ.get("REPO_STANDARD_FAILED")
     command = ["npm", "--prefix", root, "run", script, "--", "--fail-on-flaky-tests"]
-    if listed is None:
-        print(" ".join(command), flush=True)
-        return subprocess.run(command).returncode
     files = set(git("ls-files", "-z", "--cached", "--others", "--exclude-standard"))
     runner = node_browser.Runner(posixpath.normpath(root), script, files, read)
-    ids = [line.strip() for line in read(listed).splitlines() if line.strip()]
-    with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as file:
-        file.write("".join(f"{one}\n" for one in runner.listed(ids)))
-    print(f"{' '.join(command)} --test-list {file.name}", flush=True)
+    ids = [line.strip() for line in read(listed).splitlines() if line.strip()] if listed else []
+    with tempfile.TemporaryDirectory() as temp:
+        out = Path(temp) / "playwright.json"
+        if report:
+            command.append("--reporter=list,html,json")
+        if listed is not None:
+            tests = Path(temp) / "tests.txt"
+            tests.write_text("".join(f"{one}\n" for one in runner.listed(ids)))
+            command += ["--test-list", str(tests)]
+        print(" ".join(command), flush=True)
+        env = {
+            **os.environ,
+            "PLAYWRIGHT_JSON_OUTPUT_NAME": str(out),
+            "PLAYWRIGHT_HTML_OPEN": "never",
+        }
+        code = subprocess.run(command, env=env if report else None).returncode
+        named = failed_specs(out)
+    if code and report:
+        ran = ids or sorted(
+            one
+            for one in files
+            if within(one, runner.test_dir)
+            and node_browser.SPEC.search(one)
+            and Path(one).is_file()
+        )
+        with open(report, "a", encoding="utf-8") as written:
+            written.write("".join(f"{one}\n" for one in named or ran))
+    return code
+
+
+def failed_specs(report: Path) -> list[str]:
+    """Each test Playwright's JSON report says failed, or passed only on a retry, as an id from
+    the repo's root: `<spec> > <title>`, with the title of each `describe` around it first."""
     try:
-        return subprocess.run([*command, "--test-list", file.name]).returncode
-    finally:
-        Path(file.name).unlink()
+        found = json.loads(report.read_text())
+        top = Path(found["config"]["rootDir"])
+        suites = [(suite, []) for suite in found.get("suites") or []]
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return []
+    here, failed = Path.cwd(), []
+    while suites:
+        suite, titles = suites.pop(0)
+        for spec in suite.get("specs") or []:
+            if any(one.get("status") in ("unexpected", "flaky") for one in spec.get("tests") or []):
+                path = Path(os.path.relpath(top / spec["file"], here)).as_posix()
+                failed.append(" > ".join([path, *titles, spec["title"]]))
+        suites += [(inner, [*titles, inner["title"]]) for inner in suite.get("suites") or []]
+    return list(dict.fromkeys(failed))
 
 
 def listed(roots: list[str]) -> list[str]:
@@ -239,6 +291,42 @@ def listed(roots: list[str]) -> list[str]:
     tests = [Root(root, files).is_test for root in roots]
     found = [one for one in files if any(is_test(one) for is_test in tests)]
     return sorted(one for one in found if Path(one).is_file())
+
+
+def failed_in(report: Path) -> list[str]:
+    """The test files Vitest's JSON report says failed, from the repo's root."""
+    try:
+        results = json.loads(report.read_text()).get("testResults") or []
+    except (OSError, ValueError, AttributeError):
+        return []
+    here = Path.cwd()
+    return [
+        Path(os.path.relpath(one["name"], here)).as_posix()
+        for one in results
+        if isinstance(one, dict) and one.get("status") == "failed" and one.get("name")
+    ]
+
+
+def test(roots: list[str], ids: list[str]) -> int:
+    report = os.environ.get("REPO_STANDARD_FAILED")
+    failed = 0
+    for root in roots:
+        mine = [one for one in ids if within(one, root)]
+        if ids and not mine:
+            continue
+        with tempfile.TemporaryDirectory() as temp:
+            out = Path(temp) / "vitest.json"
+            reporters = ["--reporter=default", "--reporter=json", f"--outputFile.json={out}"]
+            rest = [*(reporters if report else []), *(inner(one, root) for one in mine)]
+            argv = ["npm", "--prefix", root, "test", *(["--", *rest] if rest else [])]
+            print(" ".join(argv), flush=True)
+            code = subprocess.run(argv).returncode
+            named = failed_in(out)
+        failed |= code != 0
+        if code and report:
+            with open(report, "a", encoding="utf-8") as written:
+                written.write("".join(f"{one}\n" for one in named or mine or listed([root])))
+    return failed
 
 
 def node_version(root: str) -> str:
@@ -277,6 +365,7 @@ def main(argv: list[str]) -> int:
     usage = (
         "usage: node.py select --roots <folder> [--roots <folder>]... [--e2e <json>] <base>"
         " | node.py list --roots <folder> [--roots <folder>]..."
+        " | node.py test --roots <folder> [--roots <folder>]... [ids]"
         " | node.py e2e --root <folder> --script <name> [--list <file>] | node.py setup"
     )
     if argv == ["setup"]:
@@ -288,13 +377,17 @@ def main(argv: list[str]) -> int:
             print(usage, file=sys.stderr)
             return 2
         return e2e(found["root"][0], found["script"][0], (found.get("list") or [None])[-1])
-    if not argv or argv[0] not in ("select", "list"):
+    if not argv or argv[0] not in ("select", "list", "test"):
         print(usage, file=sys.stderr)
         return 2
     verb = argv[0]
     found, rest = options(argv[1:], ("roots", "e2e") if verb == "select" else ("roots",))
     roots = [posixpath.normpath(one) for one in found.get("roots", [])]
-    if len(rest) != (1 if verb == "select" else 0) or not roots or len(found.get("e2e", [])) > 1:
+    if (
+        not roots
+        or len(found.get("e2e", [])) > 1
+        or (verb != "test" and len(rest) != (1 if verb == "select" else 0))
+    ):
         print(usage, file=sys.stderr)
         return 2
     try:
@@ -303,6 +396,8 @@ def main(argv: list[str]) -> int:
         print(usage, file=sys.stderr)
         return 2
     try:
+        if verb == "test":
+            return test(roots, [posixpath.normpath(one) for one in rest])
         selection = select(roots, rest[0], part) if verb == "select" else listed(roots)
     except subprocess.CalledProcessError as error:
         print(f"node.py: git cannot read the tree: {error.stderr.strip()}", file=sys.stderr)

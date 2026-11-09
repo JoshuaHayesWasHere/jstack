@@ -201,3 +201,25 @@ def test_the_skeleton_calls_the_shared_check_as_new_home_writes_it():
     assert json.loads((SKELETON / "schemas/feature.core.schema.json").read_text()) == json.loads(
         CORE.read_text()
     )
+
+
+def test_make_test_writes_each_test_file_that_failed(new_repo, tmp_path):
+    root, env = new_repo
+    write(root, PLANTED)
+    write(root, {"features/alpha/tests/test_broken.py": "def test_broken():\n    assert False\n"})
+    failed = tmp_path / "failed.txt"
+    report = {**env, "REPO_STANDARD_FAILED": str(failed)}
+    make(root, report, "test", ok=False)
+    assert failed.read_text().splitlines() == ["features/alpha/tests/test_broken.py"]
+
+    failed.write_text("")
+    write(root, {"features/beta/tests/conftest.py": "import nowhere\n"})
+    ids = ["features/alpha/tests/test_core.py", "features/beta/tests/test_use.py"]
+    make(root, report, "test", f"TESTS={' '.join(ids)}", ok=False)
+    assert failed.read_text().splitlines() == ids
+
+    failed.write_text("")
+    (root / "features/beta/tests/conftest.py").unlink()
+    (root / "features/alpha/tests/test_broken.py").unlink()
+    make(root, report, "test")
+    assert failed.read_text() == ""
