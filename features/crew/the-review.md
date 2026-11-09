@@ -156,7 +156,12 @@ The section's `Outside Where:` line is no finding and asks for no line: it is wh
 A finding the reviewer marked `outside Where, not this pull request` asks for no fix here: queue it as `$T/a-fault-outside.md` says, or leave it when its fix is not known, and end it `not fixed`, with the reason that its remedy is outside the brief's `Where`, naming the `Where:` line's file it falls outside.
 A finding parked as a gate ends by its default: `fixed`, or `not fixed` with the reason that the default leaves the pull request as it is and `question <n>` holds it.
 
-A finding tagged `(risk: <area>)`, on security, auth, billing, data, migrations or concurrency, holds the merge whatever its bucket, a `Consider` one too, and is not declined by this thread alone: the `Consider` default below does not apply to it. Where you would decline it, park it as a gate ("Do the task") whose default, the one you take, is "fix it", with the finding's id, `F<n>`, in its question: jbus asks the user a gate that names a risk-tagged finding of the brief's review, though it has no `Holds:` line. Fix it and end it `fixed`. Where the user answers that it stays, end it `Finding F<n>: not fixed, ..., because question <n>: <the answer>`. `jmerge` waits on a risky decline that names no such gate. No other finding asks the user anything.
+A finding tagged `(risk: <area>)`, on security, auth, billing, data, migrations or concurrency, holds the merge whatever its bucket, a `Consider` one too, and is not declined by this thread alone: the `Consider` default below does not apply to it.
+Where you would decline it, park it as a gate ("Do the task") whose default, the one you take, is "fix it", with the finding's id, `F<n>`, in its question: jbus asks the user a gate that names a risk-tagged finding of the brief's review, though it has no `Holds:` line.
+Fix it and end it `fixed`.
+Where the user answers that it stays, end it `Finding F<n>: not fixed, ..., because question <n>: <the answer>`.
+`jmerge` waits on a risky decline that names no such gate.
+No other finding asks the user anything.
 
 In a first review, a finding's bucket is the lead's reading, and it sets the default; its severity is a field and decides nothing.
 After the first review, the severity alone decides, as the reviewer wrote it: the scoped review a `Meets the brief: no` owes, or a rebase's, sends this thread its `error` findings, whatever their bucket or tag, and each is answered and fixed as an `Act on` one is.
