@@ -848,28 +848,45 @@ def test_an_edit_to_the_maps_readme_selects_the_cross_cutting_and_not_all(repo):
     assert repo.selected(head) == ["testing/tests/test_tree.py"]
 
 
-@pytest.mark.parametrize(
-    "path", ["pyproject.toml", "uv.lock", "conftest.py", "testing/fixtures.py"]
-)
+@pytest.mark.parametrize("path", ["pyproject.toml", "uv.lock", "conftest.py"])
 def test_a_path_every_test_rests_on_selects_all(repo, path):
     head = repo.change([path], text="# changed\n")
 
     assert repo.selected(head) == ["all"]
 
 
+BUILD = {
+    "Makefile": "test:\n",
+    ".github/workflows/check.yml": "on: pull_request\n",
+    "testing/tests/test_build.py": (
+        "from pathlib import Path\n\n"
+        "MAKE = Path('Makefile')\n"
+        "CHECK = Path('.github') / 'workflows' / 'check.yml'\n"
+        "SELECTOR = Path('scripts') / 'select_tests.py'\n"
+    ),
+}
+
+
 @pytest.mark.parametrize(
     "path", ["scripts/select_tests.py", "Makefile", ".github/workflows/check.yml"]
 )
-def test_a_change_to_what_picks_and_runs_the_tests_selects_all(repo, path):
+def test_a_change_to_what_picks_and_runs_the_tests_selects_the_tests_that_name_it(repo, path):
+    """A pull request's check runs the whole suite only where a dependency or the root
+    conftest.py changed: the whole suite runs on main, nightly and before a release."""
+    write(repo.root, BUILD)
+    repo.base = repo.commit()
+
     head = repo.change([path], text="# changed\n")
 
-    assert repo.selected(head) == ["all"]
+    assert repo.selected(head) == ["testing/tests/test_build.py", "testing/tests/test_tree.py"]
 
 
-def test_a_test_module_a_plugin_loads_for_every_test_selects_all(repo):
-    head = repo.change(["testing/tests/daemons.py"], text="# changed\n")
+def test_a_plugin_of_testing_selects_the_tests_that_ask_for_its_fixtures_and_not_all(repo):
+    """A change to what the plugin runs for every test, at its top level or in an autouse
+    fixture, runs on main's full run."""
+    head = repo.change(["testing/fixtures.py"], text="# changed\n")
 
-    assert repo.selected(head) == ["all"]
+    assert repo.selected(head) == ["testing/tests/test_tree.py", "testing/tests/test_uses_kit.py"]
 
 
 def test_a_test_module_only_a_fixture_uses_selects_the_tests_that_ask_for_the_fixture(repo):
