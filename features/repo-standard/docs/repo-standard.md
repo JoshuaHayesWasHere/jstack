@@ -56,12 +56,13 @@ A fault of a `warn` rule prints and fails nothing.
 
 ### How each rule is checked
 
-Most rules are checked from the tree: a guard runs, or the tool reads the Makefile's targets, the workflows under `.github/workflows/`, the manifests or the config.
+Most rules are checked from the tree: a guard runs, or the tool reads the targets of the Makefile and the make files it includes, the workflows under `.github/workflows/`, the manifests or the config.
+A workflow that calls the shared check at a version's tag, `repo-standard-check.yml@repo-standard-v<N>`, counts as running what the shared check runs: the selection, the lint and the selected tests on a pull request, and the whole check on main.
 A guard whose part the config does not set is a fault of its rule, so a repo never passes a rule it never set up.
 
 Some rules no check of the tree can judge in every stack, such as "a test runs the code".
 For each of those, the config's `enforced-by` names the files that enforce the rule in the repo.
-Each named file must be tracked, and must be a test file, a workflow, or a file a workflow or the Makefile names by its path.
+Each named file must be tracked, and must be a test file, a workflow, or a file a workflow, the Makefile or a make file it includes names by its path.
 A file nothing runs does not meet a rule.
 The rules met this way are these:
 

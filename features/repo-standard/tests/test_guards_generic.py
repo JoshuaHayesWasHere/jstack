@@ -267,6 +267,25 @@ def test_docs_fails_a_page_that_names_a_path_or_a_make_target_the_tree_lacks(rep
     assert "README.md:3: runs make lint, with no Makefile" in lines
 
 
+def test_docs_reads_the_targets_of_the_make_files_the_makefile_includes(repo, capsys):
+    """An included make file's targets count, an include back is read once, and one with a
+    variable in its path is not read."""
+    makefile = repo / "Makefile"
+    makefile.write_text(f"include scripts/stack.mk $(EXTRA).mk\n{makefile.read_text()}")
+    write(
+        repo,
+        {
+            "scripts/stack.mk": "-include Makefile\ndeploy:\n\ttrue\n",
+            "features/alpha/docs/b.md": "Run `make deploy`, then `make release`.\n",
+        },
+    )
+    code, lines, _ = run(repo, "docs", capsys=capsys)
+    assert (code, lines) == (
+        1,
+        ["features/alpha/docs/b.md:1: runs make release, which the Makefile lacks"],
+    )
+
+
 def test_size_reads_its_caps_and_globs_from_the_config(repo, capsys):
     write(
         repo,

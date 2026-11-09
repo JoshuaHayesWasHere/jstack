@@ -86,7 +86,8 @@ A path on a page that starts at a folder of `docs.roots` exists in the tree, or 
 A path with a placeholder or a glob after it, such as `features/<name>/`, is a pattern and is not read.
 A path with a `/` or a word before it starts somewhere else and is not read either.
 
-A `make` command, in a code span or on a line of a fenced block, names only targets the root `Makefile` defines.
+A `make` command, in a code span or on a line of a fenced block, names only targets the root `Makefile` defines, or a make file it includes.
+An `include` whose path holds a variable is not read.
 Words that set a variable, such as `TESTS=a`, and flags are not targets, and a command with `-C` or `-f` runs another makefile, so the guard does not read it.
 
 The code is `features/repo-standard/src/repo_standard/docs_true.py`.
