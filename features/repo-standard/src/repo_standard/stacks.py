@@ -11,8 +11,8 @@ repo's root and joins what they do.
 - `test` with no id runs every stack's whole suite. Given ids, it runs each path id in the stack
   whose root holds it, and an id `stack:<name>` as that stack's whole suite. `test --shard K/N`
   runs part K of N of the whole suite: the ids each stack lists, stack by stack in the config's
-  order, dealt to the parts in turn as `repo_standard.plan.deal` deals a selection. A part dealt
-  no id runs nothing.
+  order, dealt to the parts in turn by `deal`, the rule `repo_standard.plan` deals a selection
+  by. A part dealt no id runs nothing.
 - `select <base>` prints the ids the change from `<base>` reaches, one a line, or `all`. A shared
   path (`SHARED`, or anything under `SHARED_FOLDERS`) selects `all`, and so does a path outside
   every root, unless it is Markdown, a file in a feature's `docs/` or its `feature.json`. Each
@@ -35,7 +35,6 @@ from pathlib import Path, PurePosixPath
 
 from repo_standard.adapters import COMMANDS, Argv
 from repo_standard.config import Config, Refused, Stack
-from repo_standard.plan import deal, shard
 
 SHARED = {"Makefile", ".repo-standard.yml"}
 SHARED_FOLDERS = ("scripts/", ".github/", "schemas/")
@@ -43,6 +42,19 @@ ALL = "all"
 WHOLE = "stack:"
 VERBS = ("lint", "test", "select", "e2e")
 TITLE = " > "
+
+
+def deal(ids: tuple[str, ...], part: int, parts: int) -> tuple[str, ...]:
+    """The ids of part `part` of `parts`, counted from 1: the ids at `part`, `part + parts`, ..."""
+    return ids[part - 1 :: parts]
+
+
+def shard(text: str) -> tuple[int, int]:
+    """The part and the count of parts of a `SHARD` such as `2/4`."""
+    part, _, parts = text.partition("/")
+    if not (part.isdecimal() and parts.isdecimal() and 1 <= int(part) <= int(parts)):
+        raise Refused(f"SHARD {text!r} is not <part>/<parts>, with 1 <= part <= parts")
+    return int(part), int(parts)
 
 
 def within(path: str, root: str) -> bool:

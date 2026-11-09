@@ -9,9 +9,10 @@ pull request's selection is what `make select` printed: the test ids its change 
 line, or the word `all`. Every other run, and a pull request whose selection the workflow did not
 make, tests the whole suite, and a selection of no id runs `none` in each part. The ids are dealt
 out to the parts in turn, in the order `make select` printed them, to no more parts than there
-are ids (`deal`). Where the selection is `all`, every part is dealt `all`, and the workflow runs
-`make test SHARD=<part>/<parts>` in each, which runs that part's share of the ids the stack lists,
-dealt by the same rule: the whole suite is split across the parts and not run in each.
+are ids (`repo_standard.stacks.deal`). Where the selection is `all`, every part is dealt `all`,
+and the workflow runs `make test SHARD=<part>/<parts>` in each, which runs that part's share of
+the ids the stack lists, dealt by the same rule: the whole suite is split across the parts and
+not run in each.
 
 The browser ids go to the browser job and not to the parts: an id with a title,
 `<spec> > <title>`, and a `*.spec.*` file of a stack whose config sets `e2e:`. An id
@@ -29,7 +30,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from repo_standard.config import Config, Refused, Stack
-from repo_standard.stacks import TITLE, WHOLE, owner
+from repo_standard.stacks import TITLE, WHOLE, deal, owner
 
 ALL = "all"
 NONE = "none"
@@ -58,19 +59,6 @@ class Plan:
             "browser-ids": json.dumps(list(self.browser_ids)),
             "playwright": self.playwright,
         }
-
-
-def deal(ids: tuple[str, ...], part: int, parts: int) -> tuple[str, ...]:
-    """The ids of part `part` of `parts`, counted from 1: the ids at `part`, `part + parts`, ..."""
-    return ids[part - 1 :: parts]
-
-
-def shard(text: str) -> tuple[int, int]:
-    """The part and the count of parts of a `SHARD` such as `2/4`."""
-    part, _, parts = text.partition("/")
-    if not (part.isdecimal() and parts.isdecimal() and 1 <= int(part) <= int(parts)):
-        raise Refused(f"SHARD {text!r} is not <part>/<parts>, with 1 <= part <= parts")
-    return int(part), int(parts)
 
 
 def selected(text: str) -> tuple[str, ...]:

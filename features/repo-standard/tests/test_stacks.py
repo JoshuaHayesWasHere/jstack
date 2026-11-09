@@ -19,7 +19,6 @@ import test_multi_stack
 from repo_standard import cli, stacks
 from repo_standard.adapters import COMMANDS
 from repo_standard.config import E2E, Config, Mock, Refused, Stack, Table, build, parse
-from repo_standard.plan import deal
 from test_go_adapter import needs_go
 from test_multi_stack import STACKS
 from test_skeleton_python import STANDARD, git, write
@@ -116,13 +115,13 @@ SUITE = (
 
 @needs_go
 def test_the_driver_runs_each_part_of_the_listed_suite_as_the_plan_deals_it(here, capfd):
-    """`stacks test --shard K/N` runs the ids `repo_standard.plan.deal` gives part K of the
+    """`stacks test --shard K/N` runs the ids `stacks.deal`, the plan's rule, gives part K of the
     stacks' listed suite, a part dealt no id runs nothing, and a list that fails refuses."""
     for part in (1, 2):
         capfd.readouterr()
         assert cli.main(["stacks", "test", "--shard", f"{part}/2"]) == 0
         out = capfd.readouterr().out
-        mine = deal(SUITE, part, 2)
+        mine = stacks.deal(SUITE, part, 2)
         for one in SUITE:
             ran = f"example.com/{one}" in out if one.startswith("api/") else f" {one}" in out
             assert ran == (one in mine), (one, out)
