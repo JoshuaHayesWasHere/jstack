@@ -243,7 +243,7 @@ def test_queue_add_says_every_fault_one_line_each(kitchen):
         "- brief's Playbook: line names autopilot-full, which is not a crewmate's playbook (name a "
         "file in playbooks/, without its .md, or none)",
         f"- {parse.NO_DESIGN}",
-        "- brief has no Home: line: name root or the row's scope (flow)",
+        "- brief has no Home: line: name uncategorized or the row's scope (flow)",
     ]
     assert not queue.brief_path(kitchen.state, "alpha").exists()
 

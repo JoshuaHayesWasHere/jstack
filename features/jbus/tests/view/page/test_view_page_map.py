@@ -5,7 +5,10 @@ on the user and opens the triage tab.
 
 The scene is the busy day of the budgets (`test_view_page_budgets.busy`): demo has the child
 homes `ui` and `docs` (`browser.child_homes`), a failed CI run on the root and a hung crewmate
-and a stalled row in `ui`.
+and a stalled row in `ui`. Its other rows name no home, so they are the catch-all's,
+`uncategorized`: the root owns no row. The catch-all has no thread of its own, so the root's
+thread stands in for it, and the map draws the two as one line, the root's, with the catch-all's
+counts.
 """
 
 import json
@@ -30,13 +33,14 @@ def mapped(scene, tmp_path, name="busy", screen=DESK, **how):
 def test_a_card_for_each_project_that_has_something_the_root_first_and_a_line_per_child_home(
     scene, tmp_path
 ):
-    """demo has what is wrong, so it comes first. Its root is the card's first line, with the
-    project's last act and its own, then each child home by name: `docs` with nothing open and
-    no act kept, and `ui`, whose turn ended with its row out, and how old the home is. That
-    row's stall and the crewmate that hung are the `ui` home's to fix, so they are drawn on
-    their rows and not here. The failed run of CI, which no row owns
-    and no root home is listed to fix, is a line under the root. bakery and pantry have
-    something that waits on the user and come next."""
+    """demo has what is wrong, so it comes first. Its root is the card's first line, standing in
+    for the catch-all: the catch-all's open rows and what waits on the user, the root's gates on
+    default, and the project's last act and its own. No line of the catch-all's is drawn. Then each
+    child home by name: `docs` with nothing open and no act kept, and `ui`, whose turn ended with
+    its row out, and how old the home is. That row's stall and the crewmate that hung are the `ui`
+    home's to fix, so they are drawn on their rows and not here. The failed run of CI, which no row
+    owns and no root home is listed to fix, is a line under the root. bakery and pantry have
+    something that waits on the user and come next, each one line for the same reason."""
     seen, stack = mapped(scene, tmp_path)
     assert [one["project"] for one in seen["cards"]] == ["demo", "bakery", "pantry"]
     demo = seen["cards"][0]
@@ -54,8 +58,39 @@ def test_a_card_for_each_project_that_has_something_the_root_first_and_a_line_pe
     assert demo["wrong"] == ["tea-saucer check failed 30m"]
     bakery = seen["cards"][1]
     assert [one["home"] for one in bakery["homes"]] == [""]
-    assert "1 waits on you" in bakery["homes"][0]["text"]
+    assert bakery["homes"][0]["text"].startswith("bakery 3 open · 1 waits on you ")
     assert {one["kind"] for one in stack["wrong"]} == {"ci"}
+
+
+def started_catchall(scene):
+    """The busy day, with demo's catch-all started: `uncategorized` has a thread of its own,
+    which the last pass listed, so the root's thread stands in for it no more."""
+    SCENES["busy"](scene)
+    (scene.home / "uncategorized").mkdir()
+    (scene.home / "uncategorized" / "home-id").write_text("mcp:uncategorized\n")
+    record = json.loads((scene.state_dir / "pass.json").read_text())
+    listed = record["projects"][scene.name]["threads"]
+    listed.append(out("home: demo uncategorized", id="mcp:uncategorized"))
+    scene.write("pass.json", record, scene.state_dir)
+
+
+def test_a_catchall_with_a_thread_of_its_own_is_a_line_of_its_own_under_the_root(scene, tmp_path):
+    """The root owns no row and no need, so its line has none, and the catch-all's line, right
+    after it and before each child home, has its open rows, what waits on the user and the health
+    of its own thread."""
+    seen, _ = browser.mapped(scene, tmp_path, started_catchall, screen=(DESK[0], 1800))
+    assert seen["errors"] == []
+    root, catchall, docs, ui = seen["cards"][0]["homes"]
+    assert (root["home"], catchall["home"], docs["home"], ui["home"]) == (
+        "",
+        "uncategorized",
+        "docs",
+        "ui",
+    )
+    assert root["health"] == catchall["health"] == "Working"
+    assert "0 open" in root["text"] and "wait on you" not in root["text"]
+    assert "6 on default" in root["text"]
+    assert catchall["text"].startswith("demo › uncategorized Working 26 open · 4 wait on you")
 
 
 def test_a_project_with_nothing_wrong_and_nothing_for_the_user_is_one_line_among_the_quiet(
@@ -101,10 +136,12 @@ def test_the_bar_counts_what_waits_on_the_user_and_opens_the_triage_tab(scene, t
     assert tapped["hash"] == "#/triage"
 
 
-def test_a_card_opens_its_projects_root_home_page_with_a_group_per_child_home(scene, tmp_path):
+def test_a_card_opens_its_projects_page_with_a_group_per_home_that_has_something(scene, tmp_path):
+    """The root has its own thread, the catch-all and `ui` their rows. `docs`, with no row, no
+    open task and no wait, is not drawn."""
     seen, _ = mapped(scene, tmp_path, tap='#map-c [data-key="demo"] .cn', at=6000, budget=9000)
     assert seen["hash"] == "#/demo", seen
-    assert [head.split(" ")[0] for head in seen["groups"]] == ["root", "docs", "ui"]
+    assert [head.split(" ")[0] for head in seen["groups"]] == ["root", "uncategorized", "ui"]
 
 
 @pytest.mark.parametrize("screen", [DESK, PHONE], ids=["desk", "phone"])
@@ -179,6 +216,7 @@ def test_a_home_whose_thread_hung_or_went_quiet_says_so_with_its_age_as_a_wrong_
     seen, stack = browser.mapped(scene, tmp_path, troubled_homes, screen=(DESK[0], 1800))
     assert seen["errors"] == []
     root, docs, ui = seen["cards"][0]["homes"]
+    assert (root["home"], docs["home"], ui["home"]) == ("", "docs", "ui")
     assert (root["health"], docs["health"], ui["health"]) == (
         "Waiting on you",
         "Quiet 12m",

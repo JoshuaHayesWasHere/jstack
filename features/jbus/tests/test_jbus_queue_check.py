@@ -108,8 +108,12 @@ def test_check_refuses_a_for_that_is_not_the_briefs_home(kitchen):
     (kitchen.home / "flow").mkdir()
     (kitchen.home / "flow" / "home-id").write_text("t3:flow\n")
     code, out = checks(kitchen, complete("alpha"), "--for", "flow")
-    assert (code, out) == (1, "--for flow, and alpha's brief is the root home's\n")
-    assert checks(kitchen, complete("alpha"), "--for", "root") == (0, "")
+    assert (code, out) == (1, "--for flow, and alpha's brief is the uncategorized home's\n")
+    assert checks(kitchen, complete("alpha"), "--for", "uncategorized") == (0, "")
+    assert checks(kitchen, complete("alpha"), "--for", "root") == (
+        1,
+        "--for root, and alpha's brief is the uncategorized home's\n",
+    )
 
 
 def test_check_reads_the_slug_from_the_title_or_takes_one_given(kitchen):
@@ -118,11 +122,11 @@ def test_check_reads_the_slug_from_the_title_or_takes_one_given(kitchen):
     text = complete("alpha")
     assert checks(kitchen, text, "--for", "flow") == (
         1,
-        "--for flow, and alpha's brief is the root home's\n",
+        "--for flow, and alpha's brief is the uncategorized home's\n",
     )
     assert checks(kitchen, text, "beta", "--for", "flow") == (
         1,
-        "--for flow, and beta's brief is the root home's\n",
+        "--for flow, and beta's brief is the uncategorized home's\n",
     )
 
 

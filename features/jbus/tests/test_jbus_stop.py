@@ -45,7 +45,7 @@ def kitchen(tmp_path, monkeypatch):
 
 def rows(kitchen, *made):
     """Write each row into the queue, with its stored brief naming its home, as a pass leaves
-    them: `(slug, home, status, pr)`, where an empty home is the root's."""
+    them: `(slug, home, status, pr)`, where an empty home is the catch-all's, `uncategorized`."""
     table = []
     for slug, home, status, pr in made:
         text = f"# {slug}: a task\n" + (f"Home: {home}\n" if home else "")
@@ -97,7 +97,7 @@ def test_a_stop_on_another_homes_open_row_goes_to_the_root_once(kitchen):
     assert "answer the stop with your recommendation" in text
     assert "which adds it to its own gate for the door" in text
     assert "The root writes nothing into the flow home's files" in text
-    assert "fl-mine is held by fix-root, the root home's row" in text
+    assert "fl-mine is held by fix-root, the uncategorized home's row" in text
     assert "the train is red on a root fix" in text
     assert "jbus stop answer flow fl-mine" in text
     kitchen.poll()
@@ -142,7 +142,12 @@ def test_a_stop_on_a_merged_own_row_is_refused(kitchen):
         ("fl-mine", ("--on", "fix-old"), FLOW, "refused: fix-old is merged"),
         ("fl-mine", ("--on", "nothing-here"), FLOW, "refused: the queue has no row nothing-here"),
         ("fl-mine", ("--on", "#99"), FLOW, "refused: --on #99 is the pull request of no row"),
-        ("fix-root", ("--on", "vw-board"), FLOW, "refused: fix-root is the root home's row"),
+        (
+            "fix-root",
+            ("--on", "vw-board"),
+            FLOW,
+            "refused: fix-root is the uncategorized home's row",
+        ),
         ("vw-board", ("--on", "fix-root"), FLOW, "refused: vw-board is the view home's row"),
         ("fl-mine", ("--on", "fix-root"), ROOT, "refused: --from is the root home's thread"),
         ("fl-mine", ("--on", "fix-root"), NEXT, f"refused: --from {NEXT} is no scoped home's"),

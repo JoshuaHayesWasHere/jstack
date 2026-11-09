@@ -177,6 +177,7 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
                 config.user,
                 asks,
                 home_fault=home_fault,
+                message=args.message or "",
             )
         except BaseException:
             release()
@@ -185,6 +186,8 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
             print(said)
         for line in ruled:
             print(line)
+        if args.message:
+            _went(config, project, args.slug, text, args.message, ruled)
         _warn(config, project, args.slug, text)
         row = queue.fresh(state, args.slug)
         if row is not None:
@@ -218,6 +221,21 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
         print(f"refused: {error}")
         return 1
     return 0
+
+
+def _went(
+    config: jbus.Config, project: jbus.Project, slug: str, text: str, ref: str, said: list[str]
+) -> None:
+    """Log the go that `queue add --message` gave in its write, as `queue apply` logs the go of a
+    batch (`acts.batch`), and mark what waited on it as acted on."""
+    run = passes.Pass(config, project, datetime.now(UTC))
+    done = f"approved {slug}:"
+    line = next((one for one in said if one.startswith(done)), "")
+    action = party.Action("go", slug, judgement.brief_sha(text)[:12])
+    evidence = party.Evidence("t3-message", ref)
+    with acts.locked(run.state, acts.LOCK):
+        acts.logged(run, party.HOME, action, evidence, "done", line)
+    waiting.acted(run, "go", slug)
 
 
 def _warn(config: jbus.Config, project: jbus.Project, slug: str, text: str) -> None:
@@ -334,15 +352,22 @@ def _table(table: argparse.ArgumentParser) -> None:
         "--from",
         dest="adder",
         metavar="THREAD",
-        help="the thread of the home that adds the row, empty for the root home: a brief whose "
-        "Home: line names another home is refused",
+        help="the thread of the home that adds the row, empty for the uncategorized home: a brief "
+        "whose Home: line names another home is refused, and the root home, which owns no row, "
+        "gives --for",
     )
     add.add_argument(
         "--for",
         dest="handed",
         metavar="HOME",
-        help="root, or the scope the brief's Home: line names: the row is that home's, "
-        "handed over on purpose",
+        help="the scope the brief's Home: line resolves to, uncategorized where it names no scope: "
+        "the row is that home's, handed over on purpose",
+    )
+    add.add_argument(
+        "--message",
+        metavar="THREAD/MESSAGE",
+        help="the user's own message in T3 Code that gives the go for this brief: the row is "
+        "approved on it in the same write, as queue approve --message approves it",
     )
     approve = table_verbs.add_parser(
         "approve", help="record the go for the brief the user was shown", allow_abbrev=False
@@ -429,7 +454,7 @@ def _table(table: argparse.ArgumentParser) -> None:
         "--for",
         dest="handed",
         metavar="HOME",
-        help="root, or the scope the brief's Home: line names, as add takes it",
+        help="the scope the brief's Home: line resolves to, as add takes it",
     )
 
 

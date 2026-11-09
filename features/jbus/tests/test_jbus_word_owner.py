@@ -4,7 +4,8 @@ The subject of a word is the page it was given on, or the briefs, requests and r
 slug. A scoped home owns a subject whose brief or request has its `Home:` line, or a page in its own
 directory or named for such a slug. Any other word is the root home's. Two homes that both acted on
 one word wrote two briefs for one fix, so jbus carries each word to one home, and `jbus queue add`
-refuses a home's row whose brief names another home, unless `--for` hands it over.
+refuses a home's row whose brief names another home, unless `--for` hands it over. The root home
+owns no row: a row it adds, the catch-all's (`uncategorized`) included, goes over with `--for`.
 
 The tests run the real command against the kitchen's faked T3 Code server.
 """
@@ -162,15 +163,16 @@ def queues(kitchen, slug, home="", *more):
 
 def test_a_home_queues_no_row_whose_brief_names_another_home(kitchen):
     code, out = queues(kitchen, "fl-new", SCOPE, "--from", ROOT)
-    assert code != 0
-    assert out.startswith(
-        f"refused: fl-new's brief is the {SCOPE} home's, and the root home adds it: "
+    assert (code, out) == (
+        1,
+        f"refused: the root home owns no row, and fl-new's brief is the {SCOPE} home's: hand it "
+        f"over with --for {SCOPE}, and nothing is queued\n",
     )
     code, out = queues(kitchen, "root-job", "", "--from", FLOW)
     assert (
         code,
         out.startswith(
-            f"refused: root-job's brief is the root home's, and the {SCOPE} home adds it: "
+            f"refused: root-job's brief is the uncategorized home's, and the {SCOPE} home adds it: "
         ),
     ) == (1, True)
     assert "fl-new" not in kitchen.main("queue", "show")[1]
@@ -178,7 +180,11 @@ def test_a_home_queues_no_row_whose_brief_names_another_home(kitchen):
 
 def test_a_home_queues_its_own_rows_and_hands_another_homes_over_with_for(kitchen):
     assert queues(kitchen, "fl-mine", SCOPE, "--from", FLOW)[0] == 0
-    assert queues(kitchen, "root-mine", "", "--from", ROOT)[0] == 0
+    assert queues(kitchen, "un-mine", "", "--from", "")[0] == 0
+    code, out = queues(kitchen, "root-mine", "", "--from", ROOT)
+    refused = "refused: the root home owns no row, and root-mine's"
+    assert (code, out.startswith(refused)) == (1, True)
+    assert queues(kitchen, "root-mine", "", "--from", ROOT, "--for", "uncategorized")[0] == 0
     assert queues(kitchen, "fl-given", SCOPE, "--from", ROOT, "--for", SCOPE)[0] == 0
     code, out = queues(kitchen, "fl-wrong", SCOPE, "--from", ROOT, "--for", "root")
     assert (
@@ -186,7 +192,7 @@ def test_a_home_queues_its_own_rows_and_hands_another_homes_over_with_for(kitche
         out.startswith(f"refused: --for root, and fl-wrong's brief is the {SCOPE} home's"),
     ) == (1, True)
     table = kitchen.main("queue", "show")[1]
-    assert all(slug in table for slug in ("fl-mine", "root-mine", "fl-given"))
+    assert all(slug in table for slug in ("fl-mine", "un-mine", "root-mine", "fl-given"))
     assert "fl-wrong" not in table
 
 

@@ -9,4 +9,4 @@ positional arguments:
 
 options:
   -h, --help  show this help message and exit
-  --for HOME  root, or the scope the brief's Home: line names, as add takes it
+  --for HOME  the scope the brief's Home: line resolves to, as add takes it

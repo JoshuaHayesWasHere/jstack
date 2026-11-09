@@ -319,9 +319,10 @@ def owned(
 ) -> str:
     """Refuse a row that a home adds for a brief whose home is another (`jbriefs.home.home_of`),
     so that two homes do not brief the same fix unseen. `adder` is the thread of the home that
-    adds it (`--from`), the root home's when it is empty, and None when no home said it adds it.
-    `given` is the home the row is handed over to on purpose (`--for`): `root` or a scope's name,
-    which must be the brief's home.
+    adds it (`--from`), the catch-all's (`uncategorized`) when it is empty, and None when no home
+    said it adds it. `given` is the home the row is handed over to on purpose (`--for`): a
+    scope's name, `uncategorized` included, which must be the brief's home. The root home owns no
+    row, so a root that adds one hands it over with `--for <child>`.
 
     Return why the brief names no home of the project (`jbriefs.home.fault`), or nothing: such a
     brief has no home to own it, and `add` refuses it for that fault beside its fields' own,
@@ -341,7 +342,7 @@ def owned(
         return ""
     if adder is None:
         return ""
-    mine = home if not adder else None
+    mine = homes.catchall(home) if not adder else None
     for where in (home, *(scope for scope, _, _ in homes.scopes(home))):
         if adder and thread_of(where) == adder:
             mine = where
@@ -349,6 +350,11 @@ def owned(
         raise Refused(
             f"refused: --from {adder} is no home of {project} now, its id is in no home-id: "
             "nothing is queued"
+        )
+    if mine == home:
+        raise Refused(
+            f"refused: the root home owns no row, and {slug}'s brief is the {theirs} home's: "
+            f"hand it over with --for {theirs}, and nothing is queued"
         )
     if _home_name(home, mine) != theirs:
         raise Refused(
@@ -2199,15 +2205,31 @@ def add(
     asks: Asks | None = None,
     ran_by: dict[str, str] | None = None,
     home_fault: str = "",
+    message: str = "",
 ) -> list[str]:
     """Add the row, or its brief again, linked to the work item `item` where one is given.
     Return the line that says what was added, and the line of its approval by the follow-up rule
     or of why it waits, where `asks`, or a `user` with `ran_by`, names the rule (`_followers`).
     `ran_by` is who queued it, `runner` where none is given: a filer gives `PASS`, and the row
     keeps it as `queued_by`, which makes its fix a fix jbus filed (`filed`). `home_fault` is why
-    the brief names no home of the project (`owned`), a fault that refuses it beside the others."""
+    the brief names no home of the project (`owned`), a fault that refuses it beside the others.
+
+    `message` is the user's own message `<thread id>/<message id>` that approves the brief as it
+    is added, in the same write, as `approve --message` approves it: the line of that go comes
+    second. A brief that holds for a door is refused with it, since its go goes by `approve`
+    alone, and so is a message that is not the user's own: either way nothing is queued."""
     verb = Add(slug, priority, depends, text, entry, item, merge_after or [], home_fault)
-    return _run(state, [(0, verb)], user, asks, ran_by)
+    batch: list[tuple[int, Verb]] = [(0, verb)]
+    if message:
+        held = case(text)
+        if held:
+            raise Refused(
+                f"refused: {slug}'s brief holds for {held}, so its go goes by jbus queue approve "
+                "alone, and nothing is queued"
+            )
+        given = judgement.brief_sha(text)[:12]
+        batch.append((0, Approve(slug, "message", message, given)))
+    return _run(state, batch, user, asks, ran_by)
 
 
 def approve(

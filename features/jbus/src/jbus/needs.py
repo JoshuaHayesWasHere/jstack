@@ -18,7 +18,8 @@ the same lines for its own project (`jbus.homestatus`).
 scope's, and the root home's keeps its own and every scope's. An item is a home's by the slug it
 is about, by the one rule (`home_of`) that `jbus home status --home` reads questions by too: a
 home's own slug (`home`, `home-<scope>`), else the home of the slug's brief or request
-(`jbriefs.home.home_of`), in the home's files or as the queue stored it, else the root's. A pull
+(`jbriefs.home.home_of`), in the home's files or as the queue stored it, else the catch-all's,
+`uncategorized`; the root's own items, `home` and no slug, are the root's. A pull
 request `jmerge` holds is about the row whose pull request it is.
 """
 
@@ -74,16 +75,19 @@ def _slug(run: passes.Pass, one: waiting.Item) -> str:
 def home_of(state: Path, root: Path, slug: str) -> Path:
     """The directory of the home a slug is, of the project whose jbus state is `state` and whose
     root home is `root`: a scope's for `home-<scope>`, else the home of its brief or request, in
-    the home's files or as the queue stored it, else the root's, which `home` and a slug of no
-    brief are. It is the one rule, which `jbus home status --home` reads questions by too."""
+    the home's files or as the queue stored it. The root's own items, `home` and no slug, are the
+    root's, and any other slug of no brief is the catch-all's (`jbriefs.home.catchall`). It is
+    the one rule, which `jbus home status --home` reads questions by too."""
     if slug.startswith("home-") and (root / slug[5:]).is_dir():
         return root / slug[5:]
     for kind in ("tasks", "scouts"):
         file = root / kind / f"{slug}.md"
         if file.is_file():
             return homes.home_of(root, file.read_text(errors="replace"))
-    stored = queue.brief(state, slug) if slug else None
-    return homes.home_of(root, stored) if stored else root
+    if slug in ("", "home"):
+        return root
+    stored = queue.brief(state, slug)
+    return homes.home_of(root, stored) if stored else homes.catchall(root)
 
 
 def of(

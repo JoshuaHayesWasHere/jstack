@@ -989,10 +989,13 @@ def _threads(
 
 
 def _home_work(
-    found: list[dict[str, Any]] | None, tasks: list[dict[str, Any]]
+    found: list[dict[str, Any]] | None,
+    tasks: list[dict[str, Any]],
+    works: Callable[[str], frozenset[str]],
 ) -> list[dict[str, Any]] | None:
     """The threads, with each home's count of its own open tasks, the tasks whose `home` is
-    the home's. A home's thread whose id is in no `home-id` and on no `Was home:` line is the
+    one the home works (`works`): the root's thread counts the catch-all's while it stands in
+    for it. A home's thread whose id is in no `home-id` and on no `Was home:` line is the
     home its title names: the words after the project's name, which a root home's title has
     none of. A home whose turn ended while a task of its own is open is idle: nothing moves it
     but the user, so it ranks with what asks.
@@ -1011,7 +1014,8 @@ def _home_work(
             name = thread["home"]
             if name is None:
                 name = thread["slug"].partition(" ")[2]
-            thread = thread | {"home": name, "open": owned.get(name, 0)}
+            open_ = sum(owned.get(one, 0) for one in works(name))
+            thread = thread | {"home": name, "open": open_}
             if thread["out"]:
                 thread["health"] = thread["live"]
             else:
@@ -1373,7 +1377,7 @@ class Read:
     def out(self) -> list[dict[str, Any]] | None:
         """The threads the last pass listed, each home with its open tasks (`_home_work`), or
         None where the pass left no list."""
-        return _home_work(self.threads_listed, self.tasks)
+        return _home_work(self.threads_listed, self.tasks, self.homes.works)
 
     @cached_property
     def homes(self) -> Homes:
@@ -1905,8 +1909,9 @@ def wrongs(read: Read) -> list[dict[str, Any]]:
         for at in checks["now"]["failed"]:
             run = checks["runs"][at]
             cause, row = f"{run['name']} failed", run["branch"]
-            mine = row if any(task["slug"] == row for task in read.tasks) else ""
-            found.append(_wrong(read, "ci", row, cause, run["created"], "checks", row=mine))
+            task = next((task for task in read.tasks if task["slug"] == row), None)
+            mine, home = (row, task["home"]) if task else ("", "")
+            found.append(_wrong(read, "ci", row, cause, run["created"], "checks", home, mine))
     if bus["failed_wakes"] or bus["last_error"]:
         error = f": {bus['last_error']}" if bus["last_error"] else ""
         cause = f"wakes to the home thread fail{error}"

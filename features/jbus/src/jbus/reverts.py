@@ -75,6 +75,7 @@ from datetime import timedelta
 from typing import Any
 
 from jbriefs import below
+from jbriefs import home as homes
 from jbus import Refused, queue, read_json, verbs, watch, write_json
 from jbus.ci.ledger import JOBS, PULLS
 from jbus.ci.ledger import read as ledger
@@ -266,6 +267,12 @@ def opened(run: Pass, red: Culprit) -> dict[str, str]:
     return found[0] if found else {}
 
 
+def home_of_revert(culprit: str) -> str:
+    """The `Home:` line of a revert's brief: the one of the brief of the row it reverts, and the
+    catch-all's, `uncategorized`, where that names none. The root home owns no row."""
+    return below.line(culprit, "Home:") or homes.UNCATEGORIZED
+
+
 def revert(run: Pass, red: Culprit, where: str = MAIN) -> bool:
     """Open the revert of `red`, or take the one GitHub has, and keep it, which `jbus.culprits`
     tells the culprit's crew. Return False where GitHub did not open it, so the caller files the
@@ -299,7 +306,7 @@ def revert(run: Pass, red: Culprit, where: str = MAIN) -> bool:
             run.condition(red.slug, line, key=f"listed {red.red}")
             return True
     branch, head, url = (said.get(key, "") for key in ("headRefName", "headRefOid", "url"))
-    home = below.line(task_brief(run, red.slug), "Home:") or "root"
+    home = home_of_revert(task_brief(run, red.slug))
     tasks = run.home / "tasks"
     tasks.mkdir(parents=True, exist_ok=True)
     (tasks / f"{branch}.md").write_text(brief(branch, red, url, home, where))
@@ -420,7 +427,7 @@ def macos(run: Pass, world: World) -> None:
     branch = watch._default_branch(run)
     if run.run("git", "cat-file", "-e", f"origin/{branch}:{watch.MAC_FLOW}").returncode:
         return
-    commits = watch._api(run, f"repos/{{owner}}/{{repo}}/commits?sha={branch}&per_page=50")
+    commits = watch.main_commits(run)
     if not isinstance(commits, list) or not commits:
         return
     path = run.state / MAC_CHECKS

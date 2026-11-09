@@ -6,8 +6,9 @@ The states come from the modules that own them, never from a list of this file: 
 over `work.every`), each liveness of `live.LIVENESS` with each role of `threads.ROLES`, each
 kind of `waiting.KINDS`, and each word `state._source` gives a source. Beside them are the gates
 of the root home, of a live scope and of a retired one, with and without a default, open and
-closed; a row of each of those homes, whose brief's `Home:` line names it; a pass that T3 Code
-or GitHub did not answer.
+closed; a row of a brief with no `Home:` line, one whose line names the live scope and one whose
+line names the retired scope, the first and the last under the catch-all `uncategorized`; a pass
+that T3 Code or GitHub did not answer.
 
 `SURFACES` is closed. Its keys are `(class, name)`, and `missing` names each state that has no
 entry, and each entry that names no state. A place is where a person sees the state: an item
@@ -143,9 +144,9 @@ SURFACES = {
     ("gate", "retired scope, a default, closed"): Surface(),
     ("silent", work.T3): Surface(broken=f"{work.T3} did not answer", chip="not confirmed"),
     ("silent", work.GITHUB): Surface(broken=f"{work.GITHUB} did not answer", chip="not confirmed"),
-    ("owner", "root"): Surface(row=True, rank=QUEUED, home=("", "")),
+    ("owner", "root"): Surface(row=True, rank=QUEUED, home=("uncategorized", "")),
     ("owner", "live scope"): Surface(row=True, rank=QUEUED, home=("pantry-shelf", "")),
-    ("owner", "retired scope"): Surface(row=True, rank=QUEUED, home=("", "old-shelf")),
+    ("owner", "retired scope"): Surface(row=True, rank=QUEUED, home=("uncategorized", "old-shelf")),
 }
 
 
