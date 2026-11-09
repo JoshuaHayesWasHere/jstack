@@ -174,11 +174,13 @@ already. Where the variable is not set, as on a desk, the selection and the summ
 rules make.
 
 `select_tests.py --failed-on-main <days> <kept>` prints those test files, sorted and one per line:
-the files a `FAILED` or `ERROR` line of pytest's names in the log of a red job of a push's run of
-`check.yml` on main, created in the last `<days>` days, with every attempt of a run that was run
-again, and that no later green run of main in those days has passed. A green run ran the whole
-suite, a rerun that passed is one, and runs are ordered by id: GitHub numbers them as they are
-created, so a green run of an older commit that ends after a red one passes nothing of it. A test
+the files a `FAILED` or `ERROR` line of pytest's names in the log of a red job of a push's run or
+a nightly run of `check.yml` on main, created in the last `<days>` days, with every attempt of a
+run that was run again, and that no later green run of main in those days has passed. A push's run
+checks what the merges since main's last checked commit reach, with these tests added, and the
+nightly run the whole suite, so a green run of either passed every test still red when it started.
+A rerun that passed is one, and runs are ordered by id: GitHub numbers them as they are created,
+so a green run of an older commit that ends after a red one passes nothing of it. A test
 that fails and then passes on main drops out at the first green run after its failure. It reads
 GitHub's REST API at `$GITHUB_API_URL` for `$GITHUB_REPOSITORY` with `$GITHUB_TOKEN`, and fails,
 naming the answer, where GitHub refuses. A completed job and its log never change, so the JSON file
@@ -277,6 +279,8 @@ KEPT = "select_tests.facts"
 next, by its path and a hash of its text: a module that has not changed is not parsed again."""
 FAILED_ON_MAIN = "FAILED_ON_MAIN"
 WORKFLOW = "check.yml"
+RUN_EVENTS = ("push", "schedule")
+"""The runs of `WORKFLOW` on main that judge main: each push's, and the nightly whole suite."""
 PER_PAGE = 100
 READS = 8
 SETTLED = 4
@@ -1465,17 +1469,18 @@ def side_by_side(read, items):
 
 
 def red_runs(day):
-    """The completed push runs of `WORKFLOW` on main created on a UTC `day`: `red`, the ones
-    that failed or were run again, and `green`, the newest that passed, or `None`. Each is
-    `<id>/<attempt>`, and `later` orders them. GitHub gives a filtered list 1,000 runs at most,
-    and main has more in a month, so a day is listed at a time."""
+    """The completed push and nightly runs of `WORKFLOW` on main created on a UTC `day`: `red`,
+    the ones that failed or were run again, and `green`, the newest that passed, or `None`. Each
+    is `<id>/<attempt>`, and `later` orders them. GitHub gives a filtered list 1,000 runs at most,
+    and of one event only, and main has more in a month, so a day is listed at a time, for each
+    event."""
 
-    def page(number):
+    def page(event, number):
         return json.loads(
             ask(
                 f"actions/workflows/{WORKFLOW}/runs",
                 branch="main",
-                event="push",
+                event=event,
                 status="completed",
                 created=day,
                 exclude_pull_requests="true",
@@ -1484,9 +1489,12 @@ def red_runs(day):
             )
         )
 
-    first = page(1)
-    rest = [page(number) for number in range(2, -(-first["total_count"] // PER_PAGE) + 1)]
-    runs = [run for one in (first, *rest) for run in one["workflow_runs"]]
+    runs = []
+    for event in RUN_EVENTS:
+        first = page(event, 1)
+        pages = range(2, -(-first["total_count"] // PER_PAGE) + 1)
+        rest = [page(event, number) for number in pages]
+        runs += [run for one in (first, *rest) for run in one["workflow_runs"]]
     green = [f"{run['id']}/{run['run_attempt']}" for run in runs if run["conclusion"] == "success"]
     return {
         "red": sorted(

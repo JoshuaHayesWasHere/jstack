@@ -497,13 +497,8 @@ def reruns(kitchen):
     return [call for call in kitchen.log("gh") if call.startswith("run ")]
 
 
-@pytest.mark.parametrize(
-    "check_runs",
-    [[{"status": "completed", "conclusion": "cancelled"}], []],
-    ids=["its only check run ended cancelled", "displaced with no job and no check run"],
-)
-def test_a_cancelled_run_on_main_is_no_failed_check_and_is_run_again_once(kitchen, check_runs):
-    sha, stopped = cancelled_on_main(kitchen, check_runs)
+def test_a_cancelled_run_on_main_is_no_failed_check_and_is_run_again_once(kitchen):
+    sha, stopped = cancelled_on_main(kitchen, [{"status": "completed", "conclusion": "cancelled"}])
     kitchen.poll()
     assert kitchen.lines("retro") == []
     assert reruns(kitchen) == ["run rerun 501"]
@@ -516,13 +511,8 @@ def test_a_cancelled_run_on_main_is_no_failed_check_and_is_run_again_once(kitche
     assert reruns(kitchen) == ["run rerun 501"]
 
 
-@pytest.mark.parametrize(
-    "check_runs",
-    [[{"status": "completed", "conclusion": "cancelled"}], []],
-    ids=["its only check run ended cancelled", "displaced with no job and no check run"],
-)
-def test_a_run_on_main_cancelled_a_second_time_is_said_once_and_not_run_again(kitchen, check_runs):
-    sha, stopped = cancelled_on_main(kitchen, check_runs)
+def test_a_run_on_main_cancelled_a_second_time_is_said_once_and_not_run_again(kitchen):
+    sha, stopped = cancelled_on_main(kitchen, [{"status": "completed", "conclusion": "cancelled"}])
     kitchen.poll()
     kitchen.set("push-runs.json", {sha: [{**stopped, "run_attempt": 2}]})
     kitchen.poll(NOW + timedelta(minutes=3))
@@ -532,13 +522,26 @@ def test_a_run_on_main_cancelled_a_second_time_is_said_once_and_not_run_again(ki
 
 
 def test_a_cancelled_run_on_main_that_github_does_not_run_again_is_said_once(kitchen):
-    cancelled_on_main(kitchen, [])
+    cancelled_on_main(kitchen, [{"status": "completed", "conclusion": "cancelled"}])
     kitchen.set("gh-no-rerun", "")
     kitchen.poll()
     kitchen.poll(NOW + timedelta(minutes=3))
     line = "retro alpha: main check cancelled at dddddddddddd, and GitHub did not run it again"
     assert kitchen.lines("retro") == [line]
     assert reruns(kitchen) == ["run rerun 501"]
+
+
+def test_a_run_on_main_a_newer_push_displaced_is_batched_and_never_run_again(kitchen):
+    """Pushes to main share check.yml's group `check-main`, where GitHub cancels the waiting run,
+    before it has a job, once a newer push displaces it: the next run checks that merge with the
+    rest of its range. The commit is `batched`, final, not a cancelled check: a rerun would
+    displace the newest push's run in turn."""
+    sha, _ = cancelled_on_main(kitchen, [])
+    kitchen.poll()
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert kitchen.lines("retro") == []
+    assert reruns(kitchen) == []
+    assert json.loads((kitchen.state / "checks.json").read_text())[sha] == "batched"
 
 
 def test_a_revert_on_main_names_the_slug_it_reverts(kitchen):
