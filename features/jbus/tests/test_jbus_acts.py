@@ -769,18 +769,31 @@ def held_too(kitchen):
     return questions.read(kitchen.state)[-1].number
 
 
-def test_an_ask_that_names_two_open_doors_binds_a_plain_reply_to_neither(kitchen):
-    """#1272's F1: "question 250 stays held; question 251: may it go?" names two doors, so a
-    plain "ok" opens neither, and a "yes" never opens two doors."""
+def test_a_plain_reply_to_an_ask_that_names_two_open_doors_answers_each(kitchen):
+    """The user's "4. yes" to po-go-words: a reply to an ask that named several doors opens each
+    of them, so one "ok" closes both gates the ask named, and no second ask is needed."""
     kitchen.brief("alpha", "Thread: mcp:crew-alpha\n")
     held = gate(kitchen, holds=True)
     asked = held_too(kitchen)
-    home_asks(kitchen, "ask", f"Question {held} stays held; question {asked}: may it go?")
+    home_asks(kitchen, "ask", f"Question {held}: keep it? And question {asked}: may it go?")
     ref = plain(kitchen, "ok", "ok")
     for number in (held, asked):
         code, said = answer(kitchen, number, ref)
-        assert code == 1 and f"names neither alpha nor question {number}" in said, said
-        assert questions.question(kitchen.state, number).answer is None
+        assert code == 0, said
+        assert said.startswith(f"answered: question {number}: "), said
+        assert questions.question(kitchen.state, number).answer.ref == ref
+
+
+def test_a_plain_reply_to_an_ask_that_names_two_rows_approves_each(kitchen):
+    for slug in ("alpha", "beta"):
+        add(kitchen, slug, approve=False, text=brief(slug, HOLDS))
+    home_asks(kitchen, "ask", "May alpha go? And beta? Each rewrites history on main.")
+    ref = plain(kitchen, "yes", "go ahead")
+    for slug in ("alpha", "beta"):
+        sha = sha12(stored(kitchen, slug))
+        code, said = kitchen.main("queue", "approve", slug, "--message", ref, "--sha", sha)
+        assert code == 0, said
+        assert rows(kitchen)[slug]["approval"]["checked"] is True
 
 
 def test_a_reply_to_an_ask_about_two_doors_answers_the_one_it_names_itself(kitchen):

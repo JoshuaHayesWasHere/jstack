@@ -214,6 +214,13 @@ When T3's settings list no extra Claude home, `jroles mirror` has nothing to mir
 The mirror shares every entry of `~/.claude` but `settings.json` as a symlink: `projects` (the memory and the transcripts), `history.jsonl`, `file-history`, `downloads`, `uploads`, `skills`, `plugins`, `CLAUDE.md`, and any entry that `~/.claude` gains later, from the next run on.
 `jroles mirror` never links the entries that belong to one login, and each mirror keeps its own copy of them: `.credentials.json`, `.claude.json`, `sessions`, `session-env`, `shell-snapshots`, `cache`, `backups`, `debug`, `statsig`, `telemetry`, `ide`, `stats-cache.json`, `.last-cleanup` and `.last-update-result.json`.
 
+A mirror's threads get no Workflow, ScheduleWakeup or ReportFindings tool.
+The mirror's `settings.json` keeps every entry of `~/.claude`'s `permissions.deny` and adds the three bare tool names after them (`DENIED_TOOLS` in `features/jroles/src/jroles/mirror.py`).
+A bare tool name in `permissions.deny` takes the tool's schema out of every request.
+No thread on this machine called one of the three in the week up to 2026-11-09, and their schemas were about 10,000 tokens of every request a crew, reviewer, scout or home sent.
+`~/.claude` keeps all three, so the user's own sessions still have them.
+`jroles mirror` refuses a `settings.json` whose `permissions` is not an object or whose `deny` is not a list, and exits 2.
+
 `<home>/.claude.json` stays a file, because it holds that home's account keys.
 A run keeps the account keys of that file: `oauthAccount`, `userID`, `cachedUsageUtilization` and every other `cached*` key, every key ending in `Cache` or `CacheAt`, and the rest of `ACCOUNT_KEYS` in `features/jroles/src/jroles/mirror.py`.
 A run copies every other key from `~/.claude.json`, such as `mcpServers`.
@@ -233,7 +240,7 @@ A run reads each mirror, then changes only what differs:
 | A link into `~/.claude` whose entry is gone | Removes it | `removed   dangling <entry>` |
 | Shared keys of `.claude.json` that differ | Writes the file again, mode 600 | `synced    shared keys of ~/.claude.json into <file>` |
 | Less skill use than the pool, in a mirror or in `~/.claude.json` | Writes the pool into the file | `pooled    skillUsage into <file>` |
-| A `settings.json` that is a link, or that differs from `~/.claude`'s trimmed | Writes `~/.claude/settings.json` trimmed, in the mode of `~/.claude`'s | `trimmed   <file>: ~/.claude/settings.json with no plugin, bundled or account skill listed` |
+| A `settings.json` that is a link, or that differs from `~/.claude`'s trimmed | Writes `~/.claude/settings.json` trimmed and with the three tools denied, in the mode of `~/.claude`'s | `trimmed   <file>: ~/.claude/settings.json with no plugin, bundled or account skill listed` |
 
 A run with nothing to do prints nothing and writes nothing.
 A run changes each mirror under that mirror's own lock, `<home>/.jroles-mirror.lock`, and under the main home's lock, `~/.claude/.jroles-mirror.lock`.
