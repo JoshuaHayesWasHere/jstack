@@ -24,8 +24,9 @@ is no thread's, and its remove keeps the door. A path that is already something 
 such as another thread's worktree, is not taken.
 
 A command is read in pieces (`pieces`): cut at each shell separator, backtick and parenthesis,
-with a quoted string read as a command of its own where `ssh`, `bash -c` or `eval` runs it, and
-left out where it is an argument such as a commit message or a title, but for one word that is
+with a quoted string read as a command of its own where `ssh`, `bash -c` or `eval` runs it, a
+double-quoted string's `$(...)` read as one wherever it is, and the rest left out where it is an
+argument such as a commit message or a title, but for one word that is
 a flag or a refspec (`"--force"`, `'+main'`), which is read as that word, so that `party.walks`
 reads a quoted flag or refspec as it reads a bare one. A heredoc's body is left out, since it
 is text a command reads, but where it feeds a shell or `ssh`, whose commands it is. A command
@@ -106,7 +107,9 @@ def pieces(command: str) -> list[str]:
     newline joins the two lines, as the shell does, and the line is cut at each other
     separator. A quoted string is read as commands of its own after what runs it (`_RUNS_TEXT`),
     as part of its word after `=` or as the command's first word, and otherwise it is an
-    argument, a commit message or a title, which runs nothing and is left out."""
+    argument, a commit message or a title, which runs nothing and is left out. A double-quoted
+    string's command substitutions run wherever it is, and each is read as commands of its own
+    (`_substitutions`)."""
     found: list[str] = []
     text, at, now = _unfold(command).replace("\\\n", " "), 0, ""
 
@@ -123,6 +126,9 @@ def pieces(command: str) -> list[str]:
         elif char in "'\"":
             quoted = text[at + 1 :].partition(char)[0]
             at += len(quoted) + 1
+            if char == '"':
+                runs, quoted = _substitutions(quoted)
+                found.extend(one for run in runs for one in pieces(run))
             if _RUNS_TEXT.search(now):
                 cut()
                 found.extend(pieces(quoted))
@@ -135,6 +141,27 @@ def pieces(command: str) -> list[str]:
         at += 1
     cut()
     return found
+
+
+def _substitutions(quoted: str) -> tuple[list[str], str]:
+    """The commands a double-quoted string runs, each `$(...)` read to its own closing
+    parenthesis and each backticked command, and the string with each of them as `_`."""
+    runs, kept, at = [], "", 0
+    while at < len(quoted):
+        if quoted.startswith("$(", at):
+            depth, end = 1, at + 2
+            while end < len(quoted) and depth:
+                depth += {"(": 1, ")": -1}.get(quoted[end], 0)
+                end += 1
+            runs.append(quoted[at + 2 : end - 1 if not depth else end])
+            kept, at = kept + "_", end
+        elif quoted[at] == "`":
+            run = quoted[at + 1 :].partition("`")[0]
+            runs.append(run)
+            kept, at = kept + "_", at + len(run) + 2
+        else:
+            kept, at = kept + quoted[at], at + 1
+    return runs, kept
 
 
 _REMOVE = re.compile(r"\bworktree\s+remove\b")
