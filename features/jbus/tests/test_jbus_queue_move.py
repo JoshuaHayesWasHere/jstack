@@ -151,6 +151,47 @@ def test_a_fix_row_takes_its_try_to_its_new_homes_ledger(kitchen, homes_of):
     assert [one["slug"] for one in blockers.tries(kitchen.home / "flow", "check:beta")] == ["alpha"]
 
 
+FIX = "Fix of: check:beta\nWhen green: `check` passes on the fix's head\n"
+
+
+def slugs(directory):
+    return [one["slug"] for one in blockers.tries(directory, "check:beta")]
+
+
+def test_a_fix_rows_move_cut_short_before_its_try_is_carried_carries_it_when_run_again(
+    kitchen, homes_of
+):
+    add(kitchen, "alpha", text=brief("alpha", FIX))
+    catchall = homes.catchall(kitchen.home)
+    with pytest.MonkeyPatch.context() as cut_short:
+        cut_short.setattr(blockers, "rehome", lambda *_: None)
+        assert move(kitchen, "alpha", "flow")[0] == 0
+    assert (slugs(catchall), slugs(kitchen.home / "flow")) == (["alpha"], [])
+    code, said = move(kitchen, "alpha", "flow")
+    assert (code, said.splitlines()[0]) == (0, "alpha is the flow home's already: nothing is moved")
+    assert (slugs(catchall), slugs(kitchen.home / "flow")) == ([], ["alpha"])
+
+
+def test_a_fix_rows_try_cut_short_between_its_two_ledgers_is_carried_once(kitchen, homes_of):
+    add(kitchen, "alpha", text=brief("alpha", FIX))
+    catchall = homes.catchall(kitchen.home)
+    kept = (catchall / blockers.LEDGER).read_text()
+    assert move(kitchen, "alpha", "flow")[0] == 0
+    (catchall / blockers.LEDGER).write_text(kept)
+    assert move(kitchen, "alpha", "flow")[0] == 0
+    assert (slugs(catchall), slugs(kitchen.home / "flow")) == ([], ["alpha"])
+
+
+def test_a_fix_row_moved_twice_carries_its_try_once(kitchen, homes_of):
+    add(kitchen, "alpha", text=brief("alpha", FIX))
+    assert move(kitchen, "alpha", "flow")[0] == 0
+    assert move(kitchen, "alpha", "flow")[0] == 0
+    assert move(kitchen, "alpha", "pantry")[0] == 0
+    assert move(kitchen, "alpha", "pantry")[0] == 0
+    assert (slugs(kitchen.home / "flow"), slugs(kitchen.home / "pantry")) == ([], ["alpha"])
+    assert slugs(homes.catchall(kitchen.home)) == []
+
+
 def test_a_fix_row_with_no_try_counted_moves_with_none(kitchen, homes_of):
     fix = "Fix of: check:beta\nWhen green: `check` passes on the fix's head\n"
     add(kitchen, "alpha", text=brief("alpha", fix))
