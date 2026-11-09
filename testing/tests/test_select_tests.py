@@ -952,24 +952,23 @@ def test_a_changed_test_selects_itself_and_each_test_that_imports_it_however_dee
     ]
 
 
-def test_a_change_of_the_tests_alone_selects_them_and_the_tests_of_the_helpers_it_changed(tmp_path):
-    """A test file and a helper of the tests changed, and nothing else: the check runs those
-    files, the tests that import the helper and the cross-cutting tests, and not the catch-all.
-    The same change with a path outside the tests selects by every rule."""
+def test_a_change_of_the_tests_alone_selects_as_the_same_change_with_code_does(tmp_path):
+    """A test file and a helper of the tests changed, alone or beside a path outside the tests:
+    both run the changed files, the tests that import the helper, the cross-cutting tests and
+    the catch-all, since no rule narrows a change of the tests alone."""
     repo = Repo(tmp_path, files={**FILES, **LONE})
     tests = ["testing/tests/test_helper.py", "testing/tests/helper.py"]
     reached = [
         "testing/tests/test_helped.py",
         "testing/tests/test_helper.py",
+        "testing/tests/test_lone.py",
         "testing/tests/test_tree.py",
         "testing/tests/test_user.py",
         "testing/tests/test_user_of_user.py",
     ]
 
     assert repo.selected(repo.change(tests)) == reached
-    assert repo.selected(repo.change([*tests, "README.md"])) == sorted(
-        [*reached, "testing/tests/test_lone.py"]
-    )
+    assert repo.selected(repo.change([*tests, "README.md"])) == reached
 
 
 def test_a_comment_added_to_a_test_file_alone_selects_the_guard_that_reads_every_file(tmp_path):
@@ -1320,16 +1319,11 @@ def outputs(repo, head, tmp_path):
     return ran.stdout.splitlines(), SUMMARY.fullmatch(lead(file)), given
 
 
-OUTSIDE = "README.md"
-"""A path outside the tests that no test reads: beside changed tests it makes the selection
-follow every rule, as a change of the tests alone does not."""
-
-
 def test_a_selection_of_every_test_file_runs_what_it_selected_and_not_all(tmp_path):
     """Of five test files, the four changed ones and the cross-cutting one make all five: the
     selection names them, and only a path every test rests on makes it `all`."""
     repo = Repo(tmp_path / "repo", files=SMALL)
-    head = repo.change([*(f"testing/tests/test_{name}.py" for name in "abcd"), OUTSIDE])
+    head = repo.change([f"testing/tests/test_{name}.py" for name in "abcd"])
 
     printed, line, given = outputs(repo, head, tmp_path)
 
@@ -1346,7 +1340,7 @@ def test_a_selection_of_every_test_file_runs_what_it_selected_and_not_all(tmp_pa
 
 def test_a_selection_of_some_test_files_runs_only_what_it_selected(tmp_path):
     repo = Repo(tmp_path / "repo", files=SMALL)
-    head = repo.change(["testing/tests/test_a.py", "testing/tests/test_b.py", OUTSIDE])
+    head = repo.change(["testing/tests/test_a.py", "testing/tests/test_b.py"])
 
     printed, line, given = outputs(repo, head, tmp_path)
 
@@ -1410,7 +1404,7 @@ def parted(tmp_path, count, files=PARTED, changed=("slow", "two")):
     """`--parts <count>` over a change to these test files, run as the job `reuse` runs it, with
     no pytest at hand: what it printed, its summary, and what it gave the step's outputs."""
     repo = Repo(tmp_path / "repo", files=dict(files))
-    head = repo.change([*(f"testing/tests/test_{name}.py" for name in changed), OUTSIDE])
+    head = repo.change([f"testing/tests/test_{name}.py" for name in changed])
     summary, output = tmp_path / "summary.md", tmp_path / "output"
     ran = subprocess.run(
         [sys.executable, "-S", repo.root / "scripts" / "select_tests.py", "--parts", str(count)]
@@ -1624,7 +1618,7 @@ def test_the_selection_lists_each_test_file_with_why_in_the_summary_and_the_file
 
 def test_the_list_names_a_test_that_failed_on_main_as_failed_on_main(tmp_path):
     repo = Repo(tmp_path / "repo", files=SMALL)
-    head = repo.change(["testing/tests/test_tree.py", OUTSIDE])
+    head = repo.change(["testing/tests/test_tree.py"])
 
     printed, kept, _ = listed_selection(repo, head, tmp_path, failed="testing/tests/test_b.py")
 
