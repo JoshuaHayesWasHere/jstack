@@ -15,6 +15,7 @@ import subprocess
 
 import pytest
 
+from repo_standard.adapters import COMMANDS
 from repo_standard.config import parse
 from repo_standard.conform import TAG, VERSION
 from testing.paths import REPO
@@ -24,6 +25,25 @@ SKELETON = STANDARD / "skeleton"
 ADAPTER = STANDARD / "adapters" / "python-uv"
 TEMPLATE = REPO / "features" / "home" / "templates" / "check.yml"
 CORE = REPO / "schemas" / "feature.core.schema.json"
+# Runs the script as `python3 <script>` does, with its folder first on the path, in a python3 that
+# finds `select` on the path, as one does that builds it as a module of its own and not into the
+# interpreter (Arch's python 3.14). A script named for a module of the standard library would be
+# imported in that module's place.
+PATH_SELECT = """
+import os, runpy, sys
+from importlib.machinery import BuiltinImporter, PathFinder
+class PathFirst:
+    @staticmethod
+    def find_spec(name, path=None, target=None):
+        if name == "select":
+            return PathFinder.find_spec(name, path) or BuiltinImporter.find_spec(name)
+for name in ("select", "selectors", "subprocess"):
+    sys.modules.pop(name, None)
+sys.meta_path.insert(0, PathFirst)
+script, sys.argv = sys.argv[1], sys.argv[1:]
+sys.path.insert(0, os.path.dirname(os.path.abspath(script)))
+runpy.run_path(script, run_name="__main__")
+"""
 INHERITED = ("PYTHONPATH", "VIRTUAL_ENV", "MAKEFLAGS", "MFLAGS", "MAKELEVEL", "BASE", "TESTS")
 PLANTED = {
     "features/alpha/feature.json": '{"name": "alpha", "description": "Alpha."}\n',
@@ -192,6 +212,23 @@ def test_select_needs_a_base(new_repo):
     root, env = new_repo
     make(root, env, "select", ok=False)
     make(root, env, "-s", "select", "BASE=no-such-ref", ok=False)
+
+
+def test_the_selection_runs_where_select_is_found_on_the_path(new_repo):
+    root, env = new_repo
+    (script,) = COMMANDS["python-uv"].scripts
+    hello = "features/hello/tests/test_hello.py"
+    with (root / hello).open("a") as file:
+        file.write("\n")
+
+    def run(*args):
+        argv = ["python3", "-c", PATH_SELECT, script, *args]
+        done = subprocess.run(argv, cwd=root, env=env, capture_output=True, text=True)
+        assert done.returncode == 0, done.stderr
+        return done.stdout.splitlines()
+
+    assert run("HEAD") == [hello]
+    assert run("--list") == [hello]
 
 
 def test_the_skeleton_calls_the_shared_check_as_new_home_writes_it():
