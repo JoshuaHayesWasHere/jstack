@@ -347,3 +347,20 @@ def test_merged_tree_a_green_check_tested_runs_no_guards(tmp_path):
 
     said, note = tree.guards(f"touch {marker}", refused).of(tree.one, tree.tip)
     assert said == "" and note.startswith("the guards passed") and marker.exists()
+
+
+def test_merged_tree_guards_past_the_run_budget_wait_unless_a_green_check_covers_the_tree(tmp_path):
+    """A run that has spent `RUN_SECONDS` on guards starts no more: a tree no check covers waits
+    for the next run, and one a green check covers still merges, since it runs nothing."""
+    tree = Tree(tmp_path)
+    marker = tmp_path / "ran"
+    guards = tree.guards(f"touch {marker}")
+    guards.spent = treeguards.RUN_SECONDS
+    assert guards.of(tree.one, tree.tip) == (ready.MERGED_TREE_NO_TIME.format(**values(tree)), "")
+    assert not marker.exists() and guards.kept(tree.one, tree.tip) == ""
+
+    covered = tree.guards(f"touch {marker}", Checks(checked_name(tree)))
+    covered.spent = treeguards.RUN_SECONDS
+    said, note = covered.of(tree.one, tree.tip)
+    assert (said, note) == ("", treeguards.CHECKED.format(**values(tree), run=Checks.URL))
+    assert not marker.exists()
