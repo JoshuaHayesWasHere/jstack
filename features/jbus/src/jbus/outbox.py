@@ -4,8 +4,8 @@ scans the package for any other module that names the tool.
 A sender names the thread, the row the message is about, its retry key, its text, the name of its
 template, and what it needs of the receiver: `act`, where the receiver has work, or `decide`, where
 a person or a home must choose. There is no third kind, since a message that needs neither is not
-sent. A message goes in T3 Code's mode `queue`, which starts a turn, but for a template of `STEERS`,
-which goes in mode `auto`: into a turn the thread already runs, as a steer.
+sent. A message goes in T3 Code's mode `queue`, which starts a turn, but for a template of
+`jbus.t3.STEERS`, which goes in mode `auto`: into a turn the thread already runs, as a steer.
 
 A thread whose instance is capped (`jroles.ledger`) moves to the first instance of its pool with
 headroom, as `jbus.failover` moves a thread that failed, and the message goes there. Asking `capped`
@@ -71,7 +71,7 @@ import jsettings
 from jbriefs import meets
 from jbriefs.home import thread_of
 from jbus import dispatch, queue, review, roles
-from jbus.t3 import Client, T3Error
+from jbus.t3 import STEERS, Client, T3Error
 from jbus.watch import at_work, task_brief
 from jgauge import limits, slot, waiters
 from jmerge import ready, rows
@@ -105,9 +105,6 @@ FIXES = frozenset({"rebase", "restack", "failed", "refailed", "conflict", "drops
 """The templates of a rebase or a fix message to a crew: `jbus.rebase`'s and `jbus.stack`'s, and
 the stall clock's restart of a crew whose check failed (`jbus.clock`). `held` holds these and no
 other."""
-STEERS = frozenset({"reload"})
-"""The templates that go only into a turn their thread already runs, as a steer: `idle` holds them
-while it has none, and `send` sends them in mode `auto`. The notice of `jbus.reload` is one."""
 USERS = frozenset({"word", "item"})
 """The templates of the user's word and steer to a home (`jbus.word`, `jbus.steer`). No rule
 holds them."""

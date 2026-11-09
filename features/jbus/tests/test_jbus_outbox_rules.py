@@ -1,6 +1,7 @@
 """The outbox holds a message that needs `act` while its receiver cannot act on it now, by the rules
 of `jbus.outbox.RULES`: `held`, `busy`, `slot` and `review`. A wake still reaches a waiting
-thread, and a message that needs `decide` is held by no rule. The tests send through the real
+thread, and a message that needs `decide` is held by no rule but `idle`, which holds only the
+notice of `jbus.reload` (`test_jbus_reload_rule.py`). The tests send through the real
 outbox against the kitchen's fakes, and run the real pass where a sender's next message is what
 they are about."""
 
@@ -9,7 +10,7 @@ import json
 import os
 
 import jbus
-from jbus import clock, expedite, outbox, passes, queue, slotwait, t3, watch, word
+from jbus import clock, expedite, outbox, passes, queue, reload, slotwait, t3, watch, word
 from jgauge import slot, waiters
 from test_jbus_github import failed, keys, launched, pull
 from test_jbus_github import passes as at
@@ -153,6 +154,7 @@ def test_a_spared_template_is_one_its_sender_sends():
     assert set(slotwait.EVENTS) | {clock.CLOCK} == outbox.WAKES
     assert {word.KIND, "item"} == outbox.USERS
     assert clock.RESTARTED in outbox.FIXES
+    assert {reload.TEMPLATE} == outbox.STEERS
     kinds = {row.kind for row in expedite.TABLE}
     asked = {"rereview"}
     assert kinds | asked >= outbox.ASKS and asked <= outbox.ASKS
