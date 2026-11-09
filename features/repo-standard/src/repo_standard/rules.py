@@ -80,9 +80,12 @@ GOES_ON_FLAG = {"i": "--ignore-errors", "k": "--keep-going"}
 ARGUMENT_FLAGS = "CfIjloWOE"
 """Make's flags that go on past a failing line, and its short flags that take an argument."""
 CONDITIONAL = re.compile(r"^\s*(?:ifeq|ifneq|ifdef|ifndef|else|endif)\b")
+CALLED_VERSION = rf"{re.escape(TAG)}\d+(?:-[\w.]+)?"
+"""The ref a caller of the shared check names: a version's tag, or a branch of a version not yet
+tagged, such as repo-standard-v2-rc, which the workflow's `ref` input names as well."""
 SHARED_CHECK = re.compile(
     r"^\s*uses:\s*['\"]?[\w.-]+/[\w.-]+/\.github/workflows/repo-standard-check\.yml"
-    r"@repo-standard-v\d+['\"]?\s*(?:#.*)?$",
+    rf"@{CALLED_VERSION}['\"]?\s*(?:#.*)?$",
     re.M,
 )
 
