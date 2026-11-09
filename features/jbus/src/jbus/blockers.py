@@ -219,24 +219,29 @@ def _release(directory: Path, key: str, sha: str = "", slug: str = "") -> None:
         write_json(directory / LEDGER, kept)
 
 
-def rehome(was: Path, to: Path, slug: str, text: str) -> None:
-    """Carry the tries a fix row counts from the ledger of the home it was in, `was`, to that of
-    the home `jbus queue move` gave it, `to`, so its new home's cap counts them and `forgo` finds
-    them there. A brief that is no fix, or a try already carried, carries nothing."""
+def rehome(home: Path, slug: str, text: str) -> None:
+    """Carry the tries a fix row counts to the ledger of the home its brief names, `text`, from
+    that of every other home under `home`, so its home's cap counts them and `forgo` finds them
+    there. It reads only what the ledgers hold, so a `jbus queue move` cut short before it, or
+    between its two writes, carries what is left when run again, and each try once: a try the
+    home already holds, by its sha, is not counted twice. A brief that is no fix carries nothing."""
     key = head(text, FIX_OF)
-    if not key or was == to:
+    if not key:
         return
-    with locked(was, LOCK), locked(to, LOCK):
-        old, new = ledger(was), ledger(to)
-        going = [one for one in old.get(key, []) if one.get("slug") == slug]
-        if not going:
-            return
-        old[key] = [one for one in old[key] if one.get("slug") != slug]
-        if not old[key]:
-            del old[key]
-        new[key] = [*new.get(key, []), *going]
-        write_json(to / LEDGER, new)
-        write_json(was / LEDGER, old)
+    to = homes.home_of(home, text)
+    for was in sorted(path.parent for path in home.glob(f"*/{LEDGER}")):
+        if was == to or not any(one.get("slug") == slug for one in tries(was, key)):
+            continue
+        with locked(min(was, to), LOCK), locked(max(was, to), LOCK):
+            old, new = ledger(was), ledger(to)
+            going = [one for one in old.get(key, []) if one.get("slug") == slug]
+            held = {one.get("sha") for one in new.get(key, [])}
+            new[key] = [*new.get(key, []), *(one for one in going if one.get("sha") not in held)]
+            old[key] = [one for one in old.get(key, []) if one.get("slug") != slug]
+            if not old[key]:
+                del old[key]
+            write_json(to / LEDGER, new)
+            write_json(was / LEDGER, old)
 
 
 def forgo(run: Pass, move: dict[str, Any]) -> None:

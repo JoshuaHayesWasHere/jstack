@@ -242,14 +242,15 @@ def _went(
 
 def _move(config: jbus.Config, project: jbus.Project, slug: str, scope: str) -> None:
     """`jbus queue move`: give the row to the scope's home (`queue.move`), carry a fix's tries to
-    that home's ledger (`blockers.rehome`), and log the move as one quiet `move` event."""
+    that home's ledger (`blockers.rehome`), and log the move as one quiet `move` event. The carry
+    runs on a move that moved nothing too, so a move cut short before it finishes when run again."""
     state, home = config.state(project), config.home(project)
     at, by = config.user.stamp(queue.clock()), queue.who(queue.runner())
     made = queue.move(state, home, slug, scope, at, by)
     print(made.line)
+    blockers.rehome(home, slug, made.text)
     if not made.moved:
         return
-    blockers.rehome(home / made.was, home / made.to, slug, made.text)
     row = queue.fresh(state, slug)
     shown = queue.render([row]) if row else ""
     wake.Box(state, project).send(slug, "move", f"queue {project.name}: {made.line}", shown)
