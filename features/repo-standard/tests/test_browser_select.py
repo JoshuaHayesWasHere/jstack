@@ -111,7 +111,9 @@ APP = {
         "export { default as PetCard } from './PetCard.svelte';\n"
         "export { default as CalendarGrid } from './CalendarGrid.svelte';\n"
         "export { default as Badge } from './Badge.svelte';\n"
+        "export { default as Tooltip } from './Tooltip.svelte';\n"
     ),
+    f"{UI}/Tooltip.svelte": "<span>tip</span>\n",
     f"{UI}/Toast.svelte": "<p>toast</p>\n",
     f"{UI}/PetCard.svelte": '<p class="rounded p-2">pet</p>\n',
     f"{UI}/CalendarGrid.svelte": "<p>grid</p>\n",
@@ -152,8 +154,9 @@ APP = {
         "import { test } from '@playwright/test';\n\n"
         "test('pets lists each pet', async ({ page }) => {\n  await page.goto('/pets');\n});\n"
     ),
+    f"{E2E}/walk.ts": "export const month = 'May';\n",
     f"{E2E}/calendar.spec.ts": (
-        "import { test } from '@playwright/test';\n\n"
+        "import { test } from '@playwright/test';\nimport { month } from './walk';\n\n"
         "test('calendar shows a month', async ({ page }) => {\n"
         "  await page.goto('/calendar');\n});\n"
     ),
@@ -227,6 +230,9 @@ def edit(root, path, old, new):
         ("client/src/routes/(app)/pets/+page.svelte", [PETS]),
         (f"{UI}/PetCard.svelte", [PETS, f"{UI}/PetCard.test.ts"]),
         (f"{UI}/Badge.svelte", [HELP]),
+        (f"{UI}/Tooltip.svelte", []),
+        (f"{E2E}/walk.ts", [CALENDAR]),
+        (f"{E2E}/support.ts", ["stack:client"]),
         ("client/src/routes/+layout.svelte", [CALENDAR, OFFLINE, PETS, ABOUT, HELP]),
         ("client/src/tokens.css", [CALENDAR, OFFLINE, PETS, ABOUT, HELP]),
         ("client/src/routes/about/+page.svelte", [ABOUT]),
