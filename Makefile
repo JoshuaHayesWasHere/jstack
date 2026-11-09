@@ -94,9 +94,9 @@ select:
 # runs the rest of it. The crew's check block runs it in steps, the lint and then each file alone,
 # so each fits the short lane. `PART=guards`, the lint and the guard tests, is what the home's
 # `merged-tree-guards` file names until it is removed, and it too never runs the whole suite:
-# where the selection is `all` its guards are the cross-cutting tests, the catch-all and the changed test
-# files, since the whole suite outran jmerge's 10 minutes on 2026-11-05. `PART=rest`, the other
-# tests the selection names and no lint, stays for a run by hand.
+# where the selection is `all` its guards are the cross-cutting tests, the catch-all and the
+# changed test files, since the whole suite outran jmerge's 10 minutes on 2026-11-05.
+# `PART=rest`, the other tests the selection names and no lint, stays for a run by hand.
 # PART stays out of the environment, as TESTS does, so a make that a guard test runs is whole.
 unexport PART
 .PHONY: check-fast
