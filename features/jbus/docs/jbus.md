@@ -2,7 +2,7 @@
 
 jbus does a home's routine work with no model.
 The work you approve then goes through launch, review and merge while no thread is open.
-A timer runs one pass a minute, `jbus poll`, over every repo in its config.
+A timer runs one pass, `jbus poll`, over every repo in its config, 25 seconds after the last one ended.
 On Linux and WSL2 the timer is the systemd user unit `jbus.timer`, and on macOS it is the launchd agent `jstack.jbus`.
 A pass launches the rows of the queue you approved as crewmate threads in T3 Code, tells each thread what its pull request is short of, runs `jmerge` to merge what is ready, and tells you what waits on you.
 
