@@ -449,4 +449,4 @@ A breaking change goes out only in a new version, `repo-standard-vN+1`, and a ch
 A version owns some of the files a repo takes from the skeleton and its adapters: the `Makefile`, the workflows, the schemas and the scripts.
 The repo keeps each equal to the copy at the tag it pins, so a move to the next version replaces them and loses nothing, and the repo adds its own make targets in `local.mk`, which the `Makefile` includes.
 A file the repo keeps as its own is named under `local:` in `.repo-standard.yml`, with the reason, and is not compared.
-`repo-standard conform` warns of each other file that differs from its copy, with the runner's labels in the caller's `check.yml` left out, and `repo-standard upgrade --to N` writes version N's copies.
+`repo-standard conform` warns of each other file that differs from its copy, with the inputs `runner`, `browser-channel` and `timeout-minutes` of the caller's `check.yml` left out as the repo's own, as [the shared check's page](check-workflow.md#call-it) says, and `repo-standard upgrade --to N` writes version N's copies, keeping those three.

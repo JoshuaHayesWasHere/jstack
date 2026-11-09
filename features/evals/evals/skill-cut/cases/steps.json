@@ -395,7 +395,7 @@
     "id": "scout-row-brief",
     "file": "skills/scout/SKILL.md",
     "state": "You are a scout. The request's Deliver list asks for a report and a brief. The report is written under `## Report`, and the brief is not written yet.",
-    "expect": "Write `$H/tasks/<slug>.md` in the shape of `$T/brief.md`, with the six lines kept for a scout, and start no crewmate (the brief row, `a-brief.md`).",
+    "expect": "Write `$H/tasks/<slug>.md` in the shape of `$T/brief.md`, with the five lines kept for a scout, and start no crewmate (the brief row, `a-brief.md`).",
     "must": [
       "(?i)brief\\.md|tasks/"
     ],

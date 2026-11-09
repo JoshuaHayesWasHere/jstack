@@ -147,3 +147,11 @@ def test_a_reader_reads_each_home_once_however_many_briefs_it_answers(counted):
         root / "cc",
     ]
     assert len(reads) == len(set(reads))
+
+
+@pytest.mark.parametrize("shared", ["asked", "tasks", "scouts", "reports", "log"])
+def test_a_directory_every_home_shares_is_no_scope_even_with_a_plan(state, shared):
+    (state / shared).mkdir()
+    (state / shared / "plan.md").write_text("# plan\n")
+    assert [one.name for one, _, _ in home.scopes(state)] == ["cicd"]
+    assert home.home_of(state, brief(f"Home: {shared}")) == state / "uncategorized"

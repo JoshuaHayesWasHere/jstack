@@ -1,0 +1,57 @@
+From 8144121f84aa368eb838627519695009344deae7 Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
+Date: Mon, 9 Nov 2026 17:17:03 -0500
+Subject: [PATCH] feat(shared): idle compaction and the Compact chip start at
+ 150K, jstack's one-day trial floor
+
+T3 Code sends /compact to an idle Claude thread before its cache expires only where the last call held COMPACTION_SUGGESTION_MIN_TOKENS or more. jstack tries 150K in place of 200K for a day, and keeps it only if its rows need no more second review rounds. The idle window's test now has a 160K thread that compacts and a 140K one that does not.
+---
+ .../src/orchestration-v2/IdleCompaction.test.ts      | 12 +++++++++++-
+ packages/shared/src/claudeCompaction.ts              |  8 +++++---
+ 2 files changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/apps/server/src/orchestration-v2/IdleCompaction.test.ts b/apps/server/src/orchestration-v2/IdleCompaction.test.ts
+index a11a534b..b6399ef6 100644
+--- a/apps/server/src/orchestration-v2/IdleCompaction.test.ts
++++ b/apps/server/src/orchestration-v2/IdleCompaction.test.ts
+@@ -148,9 +148,19 @@ function records(
+ }
+ 
+ describe("idleCompactionWindow", () => {
++  it("compacts an idle Claude thread from jstack's 150K trial floor", () => {
++    const cache = { cacheExpiresInMs: 60 * MINUTE_MS };
++    expect(idleCompactionWindow(records({ ...cache, usedTokens: 160_000 }), NOW_MS)).toEqual({
++      runId,
++      startMs: NOW_MS + 58 * MINUTE_MS,
++      endMs: NOW_MS + 60 * MINUTE_MS,
++    });
++    expect(idleCompactionWindow(records({ ...cache, usedTokens: 140_000 }), NOW_MS)).toBeNull();
++  });
++
+   it("skips small contexts, unknown expiry, other providers, switched threads, compactions, and side chats", () => {
+     const cache = { cacheExpiresInMs: 60 * MINUTE_MS };
+-    expect(idleCompactionWindow(records({ ...cache, usedTokens: 199_999 }), NOW_MS)).toBeNull();
++    expect(idleCompactionWindow(records({ ...cache, usedTokens: 149_999 }), NOW_MS)).toBeNull();
+     expect(idleCompactionWindow(records(), NOW_MS)).toBeNull();
+     const codex = records(cache);
+     codex.providerThreads = [
+diff --git a/packages/shared/src/claudeCompaction.ts b/packages/shared/src/claudeCompaction.ts
+index f8341e44..dfeb2666 100644
+--- a/packages/shared/src/claudeCompaction.ts
++++ b/packages/shared/src/claudeCompaction.ts
+@@ -40,7 +40,9 @@ export function claudeResumeCompactionAge(questionAnswer: {
+ 
+ /**
+  * Context size below which T3 does not suggest or run a Claude compaction:
+- * the stale-thread Compact chip and idle compaction. Matches Claude Code's
+- * idleCompaction default of 200K.
++ * the stale-thread Compact chip and idle compaction. jstack's trial floor:
++ * 150K, under Claude Code's idleCompaction default of 200K, kept only if a
++ * day of jstack's work shows its review rounds do not rise. Put it back to
++ * 200_000 to end the trial.
+  */
+-export const COMPACTION_SUGGESTION_MIN_TOKENS = 200_000;
++export const COMPACTION_SUGGESTION_MIN_TOKENS = 150_000;
+-- 
+2.56.0
+

@@ -33,7 +33,10 @@ Every block below is sh, and its last line makes zsh read them so: without it zs
 
 `$T` is the `templates/` directory of the repo this skill lives in. Each template there is the one copy of its text: read it when a step names it, not before.
 
-A repo has one root home, and may have scoped homes beside it, each for one goal. A scope is a directory under `$H` that holds a `plan.md`, and never `tasks`, `scouts`, `reports` or `log`. `$M` is this home's own directory: `$H` for the root home, `$H/<scope>` for a scoped one. **The block that finds this home** sets it, from the one `home-id` that holds this thread's id:
+A repo has one root home, and may have scoped homes beside it, each for one goal.
+A scope is a directory under `$H` that holds a `plan.md`, and never `asked`, `tasks`, `scouts`, `reports` or `log`.
+`$M` is this home's own directory: `$H` for the root home, `$H/<scope>` for a scoped one.
+**The block that finds this home** sets it, from the one `home-id` that holds this thread's id:
 
 ```sh
 ME='<threadId>'
@@ -73,7 +76,7 @@ A message that reaches such a thread is not its to act on, whoever sent it: run 
 | `$M/merge-seen` | How many lines of `$H/merge.log` this home has read, so that each `merged` line of jbus's is relayed once ("Merging a pull request that is ready"). | One number |
 | `$M/log/` | The note of each home archived here, dated, with what it had out and its `Was home:` line, and older notes. A start reads only the last `Was home:` line ("The home before this one"). | Unbounded |
 | `$M/plan-archived.md` | An archived scope's plan, moved out of `plan.md` so that no home, jbus or tree counts the scope. `/home <scope>` moves it back. | Open tasks only |
-| `$H/fresh-check` | The repo's check command, which CI's check is the check of record for (a crewmate runs it once, but in a repo whose check selects its tests only the lint and the touched tests), and the line `jbus queue add` holds a brief's check line to. A fact a thread would otherwise relearn is no line in a file: it is code, a config key, or a queued row that codes it. | One line |
+| `$H/fresh-check` | The repo's check command, which CI's check is the check of record for (a crewmate runs it once, but in a repo whose check selects its tests only the lint, the touched tests and the repo-guards tests), and the line `jbus queue add` holds a brief's check line to. A fact a thread would otherwise relearn is no line in a file: it is code, a config key, or a queued row that codes it. | One line |
 | `$M/prefix` | A scoped home's slug prefix, such as `ux-`: each of its briefs and requests starts with it, and no other home's does. Written once, when the root home makes the scope. | One line |
 | `$H/standing.md` | None. A standing rule of the user's is code, the text of the skill step that needs it, or a queued row, and never a line in a file a thread reads at its start: not here, and not in Claude Code's auto-memory. `jbus rules` lists each such file, and jbus wakes the root home for each until it is gone. | Absent |
 | `$H/tasks/<slug>.md` | A crewmate's brief, and its result, whichever home wrote it. | One page |
@@ -164,6 +167,9 @@ Planning is a conversation with the user. Its result goes in `plan.md`, not in t
 When the shape of the work is not settled (more than one task, or a design choice the user has not made), plan by the grilling skill: read `$T/../skills/grilling/SKILL.md` and work its rounds before writing an entry. A single task the user has already described in full needs no round.
 
 - One entry per task. A task is one pull request's worth of work. If it is larger, split it before anything starts.
+  `jbus queue add` warns of a brief whose **Done when** list has 5 or more items (``warning: <slug>'s brief's Done when: lists <n> items``), since such a brief took a second review round about twice as often as one of 1 or 2.
+  On it, split the row: one brief per pull request's worth, the rest on a brief with a `Follows: <slug>` line or queued with `--depends`.
+  Never join two items into one line to get under 5: that keeps the size and hides it.
 - Every entry has a **Done when** list: checks a person or a command can run. It is the stopping rule. Without one, do not start.
 - A UI change's **Done when** asks for a check a command runs, a test or a live read of the data the UI draws, at the real Safari viewport (iPhone landscape about 844x300, portrait about 390x664, which Categories' `~/categories-playtest/lib.mjs` exports as `SAFARI`), and for a probe that fails on main, the old code, before it passes on the branch.
   A shot is evidence in the Result, never a **Done when** line: `jbus queue add` refuses a **Done when** item that asks for a screenshot, a shot or a recording as proof.

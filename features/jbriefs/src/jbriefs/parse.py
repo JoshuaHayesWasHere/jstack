@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from jbriefs import asks, below, findings, skills, standing
+from jbriefs.crowded import crowded
 from jbriefs.meets import done_when
 from jbriefs.paths import covers, named
 from jbriefs.proof import Proof, proof, shown
@@ -586,14 +587,14 @@ def instrumented(text: str) -> str:
 
 def warnings(text: str, fresh_check: str) -> list[str]:
     """What `jbus queue add` and `jbus queue check` warn of in a brief they still queue, one
-    line each: a check line that asks for the wrong command (`check_asked`), a brief that asks
-    for the whole suite at the desk (`desk_suite`), and `Review: none`
-    on a brief whose pull request opens, which no reviewer reads and `jmerge` leaves to wait for
-    the user's word (`crew/the-review.md`). Each check of `WARNED` warns here too, in place of the
-    fault `faults` would give."""
+    line each: a check line asking for the wrong command (`check_asked`), the whole suite at the
+    desk (`desk_suite`), a long `Done when:` list (`crowded`), and `Review: none` on a brief whose
+    pull request opens, which no reviewer reads and `jmerge` leaves to wait for the user's word
+    (`crew/the-review.md`). Each check of `WARNED` warns here too, in place of its fault."""
     found = [
         check_asked(text, fresh_check),
         desk_suite(text, fresh_check),
+        crowded(text),
         *(check(text) for check in WARNED),
     ]
     opens = head(text, "Pull request:") == "open one when done"

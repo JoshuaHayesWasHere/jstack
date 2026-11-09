@@ -372,8 +372,8 @@ def test_the_review_message_t3_code_does_not_take_is_tried_again_or_is_a_gate(ki
         kitchen.t3.lose_send = True
     else:
         command = ["uv", "run", "pytest", "tests/test_alpha.py"]
-        lane = slot.short()
-        waiters.register(slot.locks_dir(), thread["threadId"], "short", lane.slots, command, NOW)
+        lane = slot.full(2)
+        waiters.register(slot.locks_dir(), thread["threadId"], "full", lane.slots, command, NOW)
     kitchen.poll(NOW + timedelta(minutes=3))
     key = f"prereviewed|alpha|{head[:12]}"
     marked = key in jbus.read_json(kitchen.state / "sent.json", [])
@@ -506,8 +506,8 @@ def test_a_refusal_t3_code_does_not_take_is_a_gate_or_is_sent_on_a_later_pass(ki
         kitchen.t3.lose_send = True
     else:
         command = ["uv", "run", "pytest", "tests/test_alpha.py"]
-        lane = slot.short()
-        waiters.register(slot.locks_dir(), thread["threadId"], "short", lane.slots, command, NOW)
+        lane = slot.full(2)
+        waiters.register(slot.locks_dir(), thread["threadId"], "full", lane.slots, command, NOW)
     kitchen.poll()
     key = f"prereview-refused|alpha|{head[:12]}"
     assert key not in jbus.read_json(kitchen.state / "sent.json", [])

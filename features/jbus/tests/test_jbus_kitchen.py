@@ -1246,7 +1246,7 @@ def test_a_crew_that_waits_on_a_slot_while_main_moves_twice_is_told_to_rebase_on
 ):
     """The census of jbus's messages found 91 sent to a crew that waited on a test slot or on its
     review: the crew wrote a line and ended, and a later message did the work. Here the crew of
-    alpha waits on the short lane, every slot of it taken, while main moves twice under its pull
+    alpha waits on the full lane, every slot of it taken, while main moves twice under its pull
     request. The outbox holds the rebase message by its `slot` rule while the crew waits, and by
     its `busy` rule in the pass of the wake, which told the thread already, and while the woken
     turn runs. Once the crew took its
@@ -1262,14 +1262,14 @@ def test_a_crew_that_waits_on_a_slot_while_main_moves_twice_is_told_to_rebase_on
     kitchen.set("open.json", [{**kitchen.opened("alpha", 7), "mergeable": "MERGEABLE"}])
     locks = slot.locks_dir()
     locks.mkdir(parents=True, exist_ok=True)
-    lane = slot.short()
+    lane = slot.full(2)
     taken = []
     for n in range(1, lane.slots + 1):
         fd = os.open(locks / f"{lane.lock}.{n}.lock", os.O_RDWR | os.O_CREAT)
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         taken.append(fd)
     command = ["uv", "run", "pytest", "tests/test_alpha.py"]
-    waiters.register(locks, crew["threadId"], "short", lane.slots, command, NOW)
+    waiters.register(locks, crew["threadId"], "full", lane.slots, command, NOW)
     other = kitchen.root / "other"
     kitchen.git("clone", "-q", str(kitchen.origin), str(other), cwd=kitchen.root)
     try:
