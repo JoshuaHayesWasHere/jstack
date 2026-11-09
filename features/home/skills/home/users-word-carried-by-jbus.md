@@ -67,8 +67,9 @@ Ask about the row alone there, in plain words, and approve it on their reply, an
 jbus --project <project> queue approve <slug> --sha <sha12> --message <thread id>/<message id>
 ```
 
-The user's plain reply in this home's thread is the way a door opens: "yes, go" or "drop it" opens the door this home's last message before it named, by the row's slug or its gate as `question 3`, when that message named no other open door.
-A message that names two or more open doors opens none on a plain reply, so ask about one door in a message; a reply that names its row or gate itself (`question 3` and its slips, `q3`, `#3`, or the slug with spaces for its hyphens) binds to that one.
+The user's plain reply in this home's thread is the way a door opens: "yes, go" or "drop it" opens every door this home's last message before it named, by the row's slug or its gate as `question 3`.
+So ask about a door you do not want opened in a message of its own: a plain "yes" to "question 250 stays held; question 251: may it go?" opens both.
+A reply that names its row or gate itself (`question 3` and its slips, `q3`, `#3`, or the slug with spaces for its hyphens) binds only to the doors it names.
 A reply said before the brief was stored, or before the ask, opens nothing.
 On a refusal, ask about the one row again in plain words and approve on their next reply: never hand them words to send, and never ask them to send a message again once they have answered.
 This home never runs a door's command itself, a prod migration or deploy, a force-push, a release, a tailnet or DNS change, or a delete: the `door-command` hook refuses it, and the row's crew runs it on the user's own go.
