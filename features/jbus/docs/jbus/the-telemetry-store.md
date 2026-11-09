@@ -211,6 +211,8 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 | `capped_spells` | each read of `capped_reads` and the `minutes` it holds every instance capped: up to the next read of either reader, or its `ends_at`, whichever is first, so two readers' reads of the same minutes count once |
 | `weekly_capped` | each week's `reads` and capped `minutes`, right to about a minute at each end of a spell, since a pass reads about twice a minute (10 seconds after the last one ended) and `jgauge limits` every 2 |
 | `capped_since` | the first `day` of `capped_reads` |
+| `capped_any_spells` | each read of `capped_reads`, the minutes it holds (`held`), and the `minutes` it holds one instance or more capped: up to the next read of either reader, or the last build for the last read, and never over 5 minutes, so a gap no reader saw counts as no time |
+| `weekly_capped_any` | each week's `reads`, the `minutes` one instance or more was capped, and their `share`, in percent, of the minutes the reads hold. `weekly_capped` counts only the minutes every instance was capped, when no launch can start, so it stays at 0 while one account is free and launches run on it: this is the time spent on fewer accounts |
 | `jmerge_waits` | each pull request `jmerge` merged, from the second its required checks passed at the head it merged at to the second its merge began: `seconds`, `minutes`, `blocker` and `blockers`, by `jmerge`'s record (`how` is `jmerge`), else by its last passed `pull_request` job to GitHub's merge time (`how` is `checks`) |
 | `jmerge_blockers` | each code that held a recorded wait, and its `seconds` |
 | `weekly_jmerge_wait` | each week's waits for `jmerge`: `n`, and the `median` and `p85` of their minutes |
@@ -239,7 +241,7 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 
 A week starts on Sunday.
 Each `weekly_*` view gives a row per `project` and `week`, so a week of one project counts no other's: filter by `project` to read one.
-The pass time, the capped minutes, the crew first load and the drift probes are the machine's, under the project `''`.
+The pass time, both capped minutes, the crew first load and the drift probes are the machine's, under the project `''`.
 A gate's label counts under the gate's project, the part of its key before `#`, whichever home labelled it.
 The median and the 85th percentile are the scorecard's (`reports/week-audit/scorecard.py` in the home).
 To read one, open the file with any SQLite reader:
