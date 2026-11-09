@@ -51,6 +51,11 @@ UNTIMED = ("cancelled", "skipped", "queued", "in_progress", "waiting", "requeste
 """A run's conclusion, or status, that does not time a check: a newer push cancels a pull
 request's check, a skipped one ran nothing, and one not finished has no end yet."""
 REASONS = (
+    (
+        r"^(max_per_home|max_per_project|max_running) is |^a gate held back while every slot",
+        "slot cap",
+    ),
+    (r"^waiting(: \S+ at \d+% of its | for room )|^no launch: ", "no room"),
     (r"main is red|^\S+ is red at|is red at \w+: its latest", "main red"),
     (r"fails on \w+ over today's main|over today's main", "fails over today's main"),
     (r"fresh check|main changed .* after its check", "fresh check queued"),

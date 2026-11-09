@@ -528,10 +528,10 @@ def test_a_merge_that_changes_a_skill_tells_each_thread_out_once(kitchen):
     changed a skill it runs the old text until told, and the home told 19 crews by hand. Each
     thread out that loaded a changed skill is told once, naming only those; a reviewer, which
     loaded neither, a thread started after the merge, a settled one and one whose title gives no
-    role are not."""
+    role are not. Each runs a turn, since the notice starts none (`outbox`'s `idle` rule)."""
     crew = kitchen.t3.thread("alpha")
-    reviewer = kitchen.t3.thread("beta", "completed", idle=timedelta(1), title="review: beta")
-    home = kitchen.t3.thread("demo", "completed", idle=timedelta(1), title="home: demo")
+    reviewer = kitchen.t3.thread("beta", title="review: beta")
+    home = kitchen.t3.thread("demo", title="home: demo")
     kitchen.t3.thread("gamma", "completed", idle=timedelta(1), settled=True)
     kitchen.t3.thread("chat", "completed", idle=timedelta(1), title="a chat of the user's")
     kitchen.set("jmerge.txt", CHANGED)
@@ -603,8 +603,8 @@ def test_a_merge_tells_only_the_role_that_loads_its_skill(kitchen, skill, role):
     home."""
     threads = {
         "crew": kitchen.t3.thread("alpha"),
-        "review": kitchen.t3.thread("beta", "completed", idle=timedelta(1), title="review: beta"),
-        "home": kitchen.t3.thread("demo", "completed", idle=timedelta(1), title="home: demo"),
+        "review": kitchen.t3.thread("beta", title="review: beta"),
+        "home": kitchen.t3.thread("demo", title="home: demo"),
     }
     kitchen.set("jmerge.txt", CHANGED.replace("crew home", skill))
     kitchen.poll()

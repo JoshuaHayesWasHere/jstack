@@ -1,18 +1,22 @@
 name: macos
 
-# The tests a Mac can break, on macOS on Apple Silicon, on each merge commit into main and on
-# each pull request, in minutes: of the files in testing/macos-quick.txt, whose code branches on
-# Darwin or that guard a break only a Mac has, the ones the change reaches. Each mac- fix adds
-# its regression test file there.
+# The tests a Mac can break, on macOS on Apple Silicon, on each push to main, in minutes: of the
+# files in testing/macos-quick.txt, whose code branches on Darwin or that guard a break only a Mac
+# has, the ones the merges since the last checked run reach. Each mac- fix adds its regression
+# test file there.
+# It runs on no pull request, and no merge waits on it: the owner's word, 2026-11-09, "remove the
+# trigger, we don't have any macos users today". The pull request runs started 736 workflows in
+# 72 hours, 199 of them on a Mac, and caught 9 red parts on 7 pull requests before their merge;
+# such a red is now caught after the merge, by this push run and jbus's revert of its culprit.
 # `scripts/select_tests.py --within` names them, with the rules `make check-fast` selects by,
 # but for two: an import reaches a test only from a changed module of the tests or one that
-# names Darwin, and the tests that read the whole tree do not count. Both events select with
-# `--strict`, a part of that: there a name reaches a test only from Darwin code or the tests too,
-# and a feature's paths reach none, so a change to code that runs the same on a Mac starts no Mac
-# (the owner's go, 2026-11-04, gap-macos-post-merge). A pull request selects over its merge
-# commit and its first parent. Pushes to main share one group, as check.yml's do: one run goes
-# on, one waits, and a newer push displaces the waiting one, so a burst of merges is checked by a
-# few runs, each over every merge since the last run that ran (`green_tree.py --last-checked`).
+# names Darwin, and the tests that read the whole tree do not count. It selects with `--strict`,
+# a part of that: there a name reaches a test only from Darwin code or the tests too, and a
+# feature's paths reach none, so a change to code that runs the same on a Mac starts no Mac (the
+# owner's go, 2026-11-04, gap-macos-post-merge). Pushes share one group, as check.yml's do: one
+# run goes on, one waits, and a newer push displaces the waiting one, so a burst of merges is
+# checked by a few runs, each over every merge since the last run that ran (`green_tree.py
+# --last-checked`).
 # jbus judges a Mac red over several merges as a red with several commits since the last green
 # (`jbus.reverts.macos`). The whole `--within` list, and the rest of the suite, is
 # macos-nightly's (2026-11-08: "we should only be running the full test suite before releases
@@ -23,27 +27,20 @@ name: macos
 # `macos-part` runs them on up to three Macs side by side, each its part of the tests dealt by
 # their recorded times (testing/shard.py's `--shard`), and the job `macos`, on Linux, passes
 # only when every part did. Where the change reaches no test of the list, `macos-select` says
-# so in one line of its summary and both are skipped by their `if:`, so no Mac starts: GitHub runs few macOS jobs at
-# once, and with about 30 pull requests open a run waited up to 14.5 minutes for a Mac only to
-# skip its tests (the owner's word, 2026-11-03: skip the Mac when the change reaches no Mac
-# test). The whole suite on macOS is mac-nightly's (2026-10-24: "changes should stay quick with
-# mac bugs being caught during larger regression runs"; and 2026-10-27: run only the Mac tests
-# a change can reach).
+# so in one line of its summary and both are skipped by their `if:`, so no Mac starts: GitHub
+# runs few macOS jobs at once (the owner's word, 2026-11-03: skip the Mac when the change reaches
+# no Mac test). The whole suite on macOS is mac-nightly's (2026-10-24: "changes should stay quick
+# with mac bugs being caught during larger regression runs"; and 2026-10-27: run only the Mac
+# tests a change can reach).
 # It is a workflow of its own and not a job of check.yml: a run of check.yml has no conclusion
 # until its last job ends, and main's full job counts a green-tree marker only from a run that
 # concluded success (scripts/green_tree.py), so a slow macOS job there would hold up every
-# marker. Its run on a push to main is no part of main's check (`jbus.watch._judged` leaves it
-# out), so a Mac red never holds a pull request: jbus reverts its one clear culprit or files a
-# `macos-red-` row for it. macOS on Apple Silicon is
-# supported, so its check is required: the home's required-checks names `macos`, and jmerge
-# waits on it. A job skipped by its `if:` passes GitHub's required checks, and jmerge's where
-# the rest of its workflow passed (`jmerge.ready.passed`). So `macos` is skipped only for an
-# empty selection, or for two trees a passed macos job ran before (`reuse`): after a failed
-# `macos-select` its parts run and fail their first step, and so `macos` fails.
-# No `paths:` filter: a run it filters out posts no `macos` check, and jmerge waits on that check
-# for ever. The selection and the job's `if:` skip the Mac instead.
+# marker. Its run is no part of main's check (`jbus.watch._judged` leaves it out), so a Mac red
+# never holds a pull request: jbus reverts its one clear culprit or files a `macos-red-` row for
+# it. `macos` is skipped only for an empty selection, or for two trees a passed macos job ran
+# before (`reuse`): after a failed `macos-select` its parts run and fail their first step, and so
+# `macos` fails, a red jbus reads.
 on:
-  pull_request:
   push:
     branches: [main]
 
@@ -52,11 +49,11 @@ permissions:
   # To read the marker a passed macos job of the same two trees left: another run's artifact.
   actions: read
 
-# A pull request's newer run cancels its older one. Pushes to main share the group `macos-main`,
-# where a running run is never cancelled and only the newest push waits.
+# Pushes to main share the group `macos-main`, where a running run is never cancelled and only
+# the newest push waits.
 concurrency:
-  group: macos-${{ github.event_name == 'push' && 'main' || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: macos-main
+  cancel-in-progress: false
 
 env:
   # The same uv as check.yml's (testing/tests/test_workflows.py).
@@ -77,16 +74,14 @@ jobs:
       reused: ${{ steps.reuse.outputs.reused }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        # The merge commit and its first parent, main: the diff the selection reads.
+        # The pushed commit and its parent; the selection reads the diff from the last checked one.
         with:
           fetch-depth: 2
           persist-credentials: false
-      # A push's base: the newest commit of main under this one whose push run of macos.yml ran to
-      # an end, fetched; git's empty tree where GitHub does not say, so the whole list. A pull
-      # request's base is its merge commit's first parent.
+      # The base: the newest commit of main under this one whose push run of macos.yml ran to an
+      # end, fetched; git's empty tree where GitHub does not say, so the whole list.
       - name: last checked
         id: base
-        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 scripts/green_tree.py --last-checked macos.yml
@@ -169,17 +164,17 @@ jobs:
   # failed tests, in the job's summary and in one warning with the count, carries
   # continue-on-error. The tests' step stops before the job's cap, so a hung run still gets its
   # list. The whole suite took 51 minutes there (run 40108766945); the list is about 1100 tests.
-  # Since the check is required, the tests' cap fails it too: it is 22 minutes, twice the
+  # The tests' cap fails the run too, a red jbus reads: it is 22 minutes, twice the
   # slowest whole run of the list on one Mac (423 to 639 s over twelve runs), as the list grows
   # with each mac- fix. The job's 25 leaves setup, about half a minute, and the summary.
   # Parts, because one Mac ran the list's tests in 0.7 to 12.9 minutes, p50 3.3, of which setup
-  # is about 25 s: the slowest required check of a pull request. Each part collects the
+  # is about 25 s. Each part collects the
   # selection, keeps its share (`--shard K/N`, by testing/shard-times.tsv) and runs it on the
   # runner's three cores; a part the deal leaves empty passes.
   macos-part:
     needs: macos-select
     # Not the implicit `success()`: it would skip the job after a failed selection, and a skip
-    # passes the required check. A reuse of a passed macos job of the same trees skips it too.
+    # reads as a pass. A reuse of a passed macos job of the same trees skips it too.
     if: "!cancelled() && needs.macos-select.outputs.run != 'false' && needs.macos-select.outputs.reused != 'true'"
     name: macos ${{ matrix.part }} of ${{ strategy.job-total }}
     runs-on: macos-15
@@ -260,7 +255,7 @@ jobs:
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
               summary.write(line + "\n" + "".join(f"- `{test}`\n" for test in failed))
           EOF
-  # The check the ruleset requires, and jmerge's, so its name stays `macos`. It runs where the
+  # The job jbus reads (`jbus.watch`'s MAC_JOBS), so its name stays `macos`. It runs where the
   # parts may run, with their `if:`, and passes only when every part passed: a part that failed,
   # was cancelled or never ran fails it. So it is skipped, which passes, only for an empty
   # selection or a reuse, as the parts are.

@@ -3,7 +3,7 @@ ending, apart from the pass.
 
 A green pull request merges on the first run of `jmerge` after its last check ended, and the pass
 runs it once a pass, which starts 10 s after the last one ended. `jbus-merge.timer` runs a tick
-every 2 seconds while the last pass saw a row's pull request open or a check going, and the pass
+every 10 seconds while the last pass saw a row's pull request open or a check going, and the pass
 stops it while it saw neither (`_timer`). A tick asks GitHub nothing unless the last pass saw an
 open pull request that a row's line names, or another whose checks were still going (`PENDING`,
 written by the pass's
@@ -30,7 +30,7 @@ verdict that the check is still going does not undo the tick's `failed` at that 
 (`restated.stands`). Where a head's verdict is new, the tick then runs `jmerge --if-free`
 (`jbus.merge.tick`), whose verdicts restate each pull request's line again
 (`jbus.restated.pulled`), and log each one that says otherwise than the tick as drift. The tick
-bounds only its own part: it sees a job that GitHub lists as ended within 2 seconds. The
+bounds only its own part: it sees a job that GitHub lists as ended within 10 seconds. The
 end-to-end delay is what `features/jbus/tests/checks_bound_probe.py` measures live. GitHub tells
 no one of a job that ended sooner without a webhook, which jbus does not have.
 
@@ -43,16 +43,14 @@ The tick keeps a head's ETag with the verdict read under it at once, and the ver
 for only once `jmerge` ran to its end, so a tick that dies, a `jmerge` that was busy with the
 pass's own run, or one that failed leaves the verdict to the next tick's `jmerge`, and the tick
 restates nothing twice. While a run of `jmerge` it started is going, which a merge's guards
-make a minute or more (`jmerge.treeguards`), the tick reads on every 2 seconds in its own
+make a minute or more (`jmerge.treeguards`), the tick reads on every 10 seconds in its own
 process (`tick`), since the timer starts no tick until it ends. The pass runs
 `jmerge --if-free` each pass too, so what the tick misses the next pass with the run lock free
 does. A merge of the tick's that changed a skill is kept for the next pass's `reload.tell`
 before the ETag is (`reload.keep`), since `jmerge` prints its `merged` line once. One run of
-`jmerge` runs at a time, by its run lock (`jmerge.lock`). A tick reads GitHub's API budget before
-it asks GitHub anything, from what the calls of the last minute logged (`budget.logged`). While
-it is held (`jbus.budget`) the tick backs off to asking once in `HELD` seconds, the interval the
-timer had before it ran every 2 seconds, and says so each time it asks (`BACKOFF`): a 304 still
-spends nothing, and what a job that ended costs is `jmerge`'s, which the floor is kept for.
+`jmerge` runs at a time, by its run lock (`jmerge.lock`). A tick asks GitHub whatever the API
+budget says (`jbus.budget`): a 304 spends none of it, and what a job that ended costs is
+`jmerge`'s, which the floor is kept for.
 """
 
 from __future__ import annotations
@@ -68,7 +66,7 @@ from typing import TYPE_CHECKING, Any
 import jbus
 from jbus import cancelled, launchd, merge, passes, reload, restated, verbs, watch
 from jmerge import ready
-from jsettings import budget, paths, proc, store
+from jsettings import proc, store
 
 if TYPE_CHECKING:
     from jbus.poll import Half
@@ -87,14 +85,9 @@ RUNS_AT = "repos/{owner}/{repo}/actions/runs?head_sha=%s&per_page=100"
 """A head's workflow runs, asked for only when its check runs name a check suite the tick does
 not know the workflow of yet."""
 OK = "200"
-EVERY = 2
+EVERY = 10
 """The seconds between the tick's reads while a run of `jmerge` it started is still going, the
 interval of `jbus-merge.timer`, which starts no tick while one runs."""
-HELD = 5
-"""The seconds between the times a tick asks GitHub while its budget is held."""
-BACKOFF = "tick-held.json"
-"""When a tick last asked GitHub while its budget was held, in jbus's own state directory. Only
-the tick writes it, and a stamp it cannot read is one from long ago."""
 TIMER = "JBUS_TICK_TIMER"
 """The variable that names the timer the pass runs the tick by, `jbus-merge.timer`. Only
 `jbus.service` sets it, so a pass that a test, a sandbox or a hand starts leaves the machine's
@@ -110,7 +103,7 @@ def _pending(half: Half) -> None:
     """Keep, for the tick to watch, each open pull request that a row's line names, whatever its
     checks say, and any other open pull request whose checks are still going, by the head the
     pass saw. The tick reads each one's check runs at its head as it is now, so a head pushed to
-    a row's pull request reaches the next tick, within 2 s, however long ago a verdict named the
+    a row's pull request reaches the next tick, within 10 s, however long ago a verdict named the
     end of its last head and whatever its rollup said: no check listed yet, as in the seconds
     after a push, `passed` before a required job that is still to start is in it (#1246), or
     `failed` at a failed shard while the others still run. A row's pull request whose head did
@@ -134,7 +127,7 @@ def _timer(half: Half) -> None:
     is nothing for it to watch. The pass is the only
     writer of `PENDING`, so the timer changes only here. Each pass sets it from the files as they
     are, whatever started or stopped it before (a boot, an install, a pass that died), and the
-    timer's `OnActiveSec=` gives a check the pass just saw going its first tick within 2 s."""
+    timer's `OnActiveSec=` gives a check the pass just saw going its first tick within 10 s."""
     unit = os.environ.get(TIMER)
     if not unit or launchd.manager() != "systemd":
         return
@@ -336,17 +329,6 @@ def _watched(config: jbus.Config) -> list[jbus.Project]:
     return [p for p in config.projects if store.read_json(config.state(p) / PENDING, [])]
 
 
-def _asks(config: jbus.Config, say) -> bool:
-    """Whether this read may ask GitHub: always, unless the budget is held (`_due`)."""
-    held = budget.held(budget.logged(paths.jbus_state_dir()))
-    if not held:
-        return True
-    if not _due(config, verbs.clock()):
-        return False
-    say(f"tick: the budget is held, so the tick asks GitHub once in {HELD} s, not 2 s: {held}")
-    return True
-
-
 def tick(config: jbus.Config, say=print) -> int:
     """Run one tick over every project: read the check runs at each pending pull request's head,
     restate the line of each pull request whose required checks failed or ended, and run
@@ -360,7 +342,7 @@ def tick(config: jbus.Config, say=print) -> int:
     that fails still lets each run under way end and be kept, since `jmerge` prints its `merged`
     line once (`reload.keep`), before the failure goes on."""
     watched = _watched(config)
-    if not watched or not _asks(config, say):
+    if not watched:
         return 0
     going: dict[futures.Future[merge.Said], tuple[passes.Pass, Wanted]] = {}
     with futures.ThreadPoolExecutor() as pool:
@@ -381,30 +363,14 @@ def tick(config: jbus.Config, say=print) -> int:
                 for one in ended:
                     _ran(*going.pop(one), one.result())
                 if going and time.monotonic() >= due:
-                    if _asks(config, say):
-                        for project in _watched(config):
-                            _reads(passes.Pass(config, project, verbs.clock(), say))
+                    for project in _watched(config):
+                        _reads(passes.Pass(config, project, verbs.clock(), say))
                     due = time.monotonic() + EVERY
         except Exception:
             for one in futures.as_completed(going):
                 _ran(*going[one], one.result())
             raise
     return 0
-
-
-def _due(config: jbus.Config, now: datetime) -> bool:
-    """Whether a tick may ask GitHub while its budget is held: once `HELD` seconds passed since
-    the last such tick asked, which this one then stamps as asked (`BACKOFF`)."""
-    where = config.state_dir / BACKOFF
-    kept = store.read_json(where, {})
-    try:
-        since = (now - datetime.fromisoformat(kept["asked"])).total_seconds()
-    except (ValueError, TypeError, KeyError):
-        since = None
-    if since is not None and 0 <= since < HELD:
-        return False
-    store.write_json(where, {"asked": now.isoformat()})
-    return True
 
 
 STEPS = (

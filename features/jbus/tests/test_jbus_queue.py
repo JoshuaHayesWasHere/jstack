@@ -989,22 +989,14 @@ def test_a_row_that_depends_is_recorded_with_the_slugs_that_are_not_merged(kitch
     assert reasons(kitchen) == {"delta": passes.Depends(("beta", "gamma"))}
 
 
-def test_the_row_the_limit_stops_and_every_row_after_it_wait_for_a_slot(kitchen):
+def test_the_row_the_limit_stops_and_every_row_after_it_wait_for_the_limit(kitchen):
     kitchen.brief("other")
     kitchen.t3.thread("other", "running")
     add(kitchen, "alpha", priority=1)
     add(kitchen, "beta", priority=2)
     add(kitchen, "gamma", priority=3, approve=False)
-    assert reasons(kitchen) == {"alpha": passes.Slot(), "beta": passes.Slot()}
-
-
-def test_a_row_with_no_room_and_every_row_after_it_wait_for_a_slot(kitchen):
-    kitchen.config(max_running=5)
-    add(kitchen, "alpha", priority=1)
-    add(kitchen, "beta", priority=2)
-    kitchen.machine(load="30.00")
-    assert reasons(kitchen) == {"alpha": passes.Slot(), "beta": passes.Slot()}
-    assert kitchen.t3.launches == []
+    limit = passes.Slot("max_running is 1 across all projects")
+    assert reasons(kitchen) == {"alpha": limit, "beta": limit}
 
 
 def test_any_other_gate_has_no_reason_but_the_gate_and_holds_no_other_row(kitchen):

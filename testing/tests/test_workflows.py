@@ -15,14 +15,13 @@ Every job runs on GitHub's hosted runner, the pinned image `ubuntu-24.04`, and n
 of the owner's machine or reads a repo variable for it. The one exception is the repo standard's
 shared check workflow, `repo-standard-check.yml`, which runs only when another repo calls it, on
 the runner that caller names. The one other image is `macos-15`, for
-two workflows. The workflow `macos`: on each pull request and each push to main its job
+two workflows. The workflow `macos`: on each push to main, and on no pull request, its job
 `macos-select`, on Linux, picks the test files listed in `testing/macos-quick.txt`, the ones whose
-code branches on macOS or that guard a break only a Mac has, that the change reaches, and its job
-`macos` runs them on a Mac. Both pick with `--strict`: a pull request over its merge, a push over
-every merge since macos.yml's last checked commit. Where the change reaches none, `macos` is
-skipped by its `if:` and no Mac starts. No `paths:` filter skips the workflow, and pushes to main
-share the group `macos-main`, where a running run is never cancelled. Its check
-fails when those tests do, so the home can name it in `required-checks`, and a skip passes it.
+code branches on macOS or that guard a break only a Mac has, that the merges since macos.yml's
+last checked commit reach, with `--strict`, and its job `macos` runs them on a Mac. Where the
+change reaches none, `macos` is skipped by its `if:` and no Mac starts. Pushes to main share the
+group `macos-main`, where a running run is never cancelled. Its run fails when those tests do,
+the red jbus reverts, and no merge waits on it.
 The workflow `macos-nightly`: the whole suite on macOS, nightly at 04:00 ET, an hour after the
 browser run, and by hand, over the branch its `ref` names, `main` unless a manual run
 names another. It runs on no pull request and no push, and no merge waits on it.
@@ -743,32 +742,19 @@ def test_the_suite_runs_as_parts_side_by_side_and_one_job_passes_only_when_all_d
     assert (f"SHARD=${{{{ matrix.shard }}}}/{count}" in suite) == (gate == "full")
 
 
-MAC_GROUP = "github.event_name == 'push' && 'main' || github.ref"
-
-
-def test_macos_pushes_to_main_share_one_group_that_never_cancels_a_running_run():
-    """Pushes to main share `macos-main`, as check.yml's share `check-main`: one run goes on and
-    the newest push waits, so a burst of merges is checked on a Mac by a few runs, each over every
-    merge since the last one that ran. A running run is never cancelled. A pull request's newer
-    run cancels its older one."""
-    assert block("on", MAC) == {"pull_request": None, "push": {"branches": ["main"]}}
-    assert block("concurrency", MAC) == {
-        "group": "macos-${{ " + MAC_GROUP + " }}",
-        "cancel-in-progress": "${{ github.event_name == 'pull_request' }}",
-    }
-    cancels = block("concurrency", MAC)["cancel-in-progress"]
-    cancels = cancels.removeprefix("${{ ").removesuffix(" }}")
-    assert [worked(cancels, {"github.event_name": e}) for e in ("pull_request", "push")] == [
-        True,
-        False,
-    ]
-
-    def group(event, sha):
-        names = {"github.event_name": event, "github.sha": sha, "github.ref": "refs/pull/9/merge"}
-        return worked(MAC_GROUP, names)
-
-    assert group("pull_request", "a") == group("pull_request", "b") == "refs/pull/9/merge"
-    assert group("push", "a") == group("push", "b") == "main"
+def test_macos_runs_on_pushes_to_main_alone_in_one_group_that_never_cancels_a_running_run():
+    """The Mac runs on no pull request, so no merge waits on it (the owner's word, 2026-11-09:
+    "remove the trigger, we don't have any macos users today"): its run on each push to main
+    catches a Mac red after the merge, and jbus reverts the culprit. Pushes share `macos-main`, as
+    check.yml's share `check-main`: one run goes on and the newest push waits, so a burst of
+    merges is checked on a Mac by a few runs, each over every merge since the last one that ran.
+    A running run is never cancelled, and every run reads its base from the last checked one."""
+    assert block("on", MAC) == {"push": {"branches": ["main"]}}
+    assert block("concurrency", MAC) == {"group": "macos-main", "cancel-in-progress": False}
+    found, _ = steps(MAC.read_text(), "macos-select")
+    (base,) = [step for step in found if step.get("name") == "last checked"]
+    assert "if" not in base
+    assert "github.event_name" not in MAC.read_text()
 
 
 def path_filters(text):
@@ -778,15 +764,6 @@ def path_filters(text):
         for line in text.splitlines()
         if re.match(r"\s*(paths|paths-ignore)\s*:", line.split("#")[0])
     ]
-
-
-def test_macos_has_no_paths_filter_so_its_required_check_always_posts():
-    """A run a `paths:` filter leaves out posts no `macos` check at all, and jmerge waits on a
-    required check that never ran (`jmerge.ready.passed`): the line is stuck. The macos workflow
-    skips its Mac only by the selection and the job's `if:`, a skip that passes the check."""
-    assert path_filters(MAC.read_text()) == []
-    assert path_filters("on:\n  pull_request:\n    paths: ['a/**']\n") != []
-    assert path_filters("on:\n  push:\n    paths-ignore:\n      - docs/**\n") != []
 
 
 RULESET = REPO / "features" / "repo-guards" / "main-ruleset.json"
@@ -842,7 +819,7 @@ def test_every_context_the_ruleset_requires_posts_on_every_pull_request_into_mai
     it can never stall the line: no `paths:` or `branches:` filter leaves its workflow out, and
     the job skips only by its own `if:`, a skip that passes the check."""
     workflows = {path.name: path.read_text() for path in sorted(WORKFLOWS.glob("*.yml"))}
-    assert ruleset_contexts() == ["borders", "check", "macos"]
+    assert ruleset_contexts() == ["borders", "check"]
     assert {context: unreported(context, workflows) for context in ruleset_contexts()} == {
         context: [] for context in ruleset_contexts()
     }
@@ -852,37 +829,23 @@ def test_every_context_the_ruleset_requires_posts_on_every_pull_request_into_mai
         return {**workflows, name: workflows[name].replace(old, new)}
 
     pr = "  pull_request:\n"
-    assert unreported("macos", changed("macos.yml", pr, pr + "    paths: ['a/**']\n"))
-    assert unreported("macos", changed("macos.yml", pr, pr + "    branches: [main]\n"))
-    assert unreported(
-        "macos",
-        changed(
-            "macos.yml",
-            'macos-part]\n    if: "!cancelled() && needs.macos-select',
-            'macos-part]\n    if: "needs.macos-select',
-        ),
-    )
+    assert unreported("check", changed("check.yml", pr, pr + "    paths: ['a/**']\n"))
+    assert unreported("check", changed("check.yml", pr, pr + "    branches: [main]\n"))
+    assert unreported("macos", workflows)
     assert unreported("borders", changed("borders.yml", "\n  borders:\n", "\n  lint:\n"))
     assert unreported("borders", changed("borders.yml", "opened, synchronize, ", "opened, "))
     assert unreported("check", changed("check.yml", "  check:\n", "  check:\n    name: c\n"))
 
 
-def test_the_macos_job_fails_its_check_when_the_suite_fails_so_a_merge_can_wait_on_it():
-    """macOS on Apple Silicon is supported, so `macos` is a required check: the home's
-    `required-checks` names it beside `check` and `borders`, and jmerge waits on it. A job's or a
-    step's `continue-on-error` reports the check as passed whatever the suite did, so neither a
-    part nor `macos` nor any step that sets up or runs the tests carries it. Only the part's step
-    that lists the failed tests does, and the upload of the marker of passed parts, which run
-    after the tests and change nothing they decided. A part's tests' step cap is then a failure
-    of the check too, so it leaves the slowest run of the whole list on one Mac twice its time:
-    the step took 423 to 639 s on twelve runs, and the list grows with each mac- fix."""
-    from jmerge import ready
-
-    rollup = [
-        {"name": name, "status": "COMPLETED", "conclusion": "SUCCESS"}
-        for name in ("check", "borders")
-    ] + [{"name": "macos", "status": "COMPLETED", "conclusion": "FAILURE"}]
-    assert ready.waiting(rollup, ready.required_of("check\nborders\nmacos\n")) == ("macos",)
+def test_the_macos_job_fails_its_run_when_the_suite_fails_so_jbus_reads_the_red():
+    """A Mac red on main is the push run's failed `macos` job, which jbus reads to revert its
+    culprit (`jbus.reverts.macos`). A job's or a step's `continue-on-error` reports the job as
+    passed whatever the suite did, so neither a part nor `macos` nor any step that sets up or
+    runs the tests carries it. Only the part's step that lists the failed tests does, and the
+    upload of the marker of passed parts, which run after the tests and change nothing they
+    decided. A part's tests' step cap is then a failure of the run too, so it leaves the slowest
+    run of the whole list on one Mac twice its time: the step took 423 to 639 s on twelve runs,
+    and the list grows with each mac- fix."""
     text = MAC.read_text()
     assert job_value(text, "macos", "continue-on-error") is None
     assert job_value(text, "macos-part", "continue-on-error") is None
@@ -918,14 +881,14 @@ QUEUE = "features/jbus/src/jbus/queue.py"
 DARWIN_LISTED = "features/jgauge/tests/test_machine_sizes.py"
 DARWIN_SOURCE = "features/jbus/src/jbus/launchd.py"
 DARWIN_CODE = '\n\ndef on_a_mac():\n    return sys.platform == "darwin"\n'
-"""A function that branches on Darwin: a pull request's `--strict` counts a change to a module
-on a Mac only where it edits one."""
+"""A function that branches on Darwin: a push's `--strict` counts a change to a module on a Mac
+only where it edits one."""
 
 
 @pytest.fixture(scope="module")
 def merged(tmp_path_factory):
-    """Run the macos-select job's selection step, as the runner does, on a pull request's merge
-    commit whose one change over main is text added to a path: a blank line by default, and
+    """Run the macos-select job's selection step, as the runner does, on a push to main whose
+    one change over its last checked commit is text added to a path: a blank line by default, and
     `DARWIN_CODE` to `DARWIN_SOURCE`, so that change is to code that branches on Darwin. main is
     this repo's HEAD with the selection's files as they are here. It gives the paths the step
     wrote, its summary and its outputs, read as GitHub reads them."""
@@ -944,10 +907,10 @@ def merged(tmp_path_factory):
     (bin / "uv").chmod(0o755)
     shell = summary_step("reached tests", MAC)
 
-    def run(path, text=None, event="pull_request", earlier=None):
-        """A push gives `BASE`, main's last checked commit, as its `last checked` step does: here
-        `main`, so a change to `earlier` in a commit before the head's is in its range. A pull
-        request's is the workflow's default, `HEAD^1`."""
+    def run(path, text=None, base="HEAD^1", earlier=None):
+        """`BASE` is main's last checked commit, as the `last checked` step gives it: the head's
+        parent by default, and `main` to put a change to `earlier`, in a commit before the head's,
+        in its range."""
         subprocess.run([*git, "reset", "-q", "--hard", main], check=True)
         for one in (earlier, path) if earlier else (path,):
             with (repo / one).open("a") as file:
@@ -963,7 +926,7 @@ def merged(tmp_path_factory):
             cwd=repo,
             env={"PATH": f"{bin}:/usr/bin:/bin", "RUNNER_TEMP": str(temp)}
             | {"GITHUB_STEP_SUMMARY": str(out["summary"]), "GITHUB_OUTPUT": str(out["output"])}
-            | {"GITHUB_EVENT_NAME": event, "BASE": main if event == "push" else "HEAD^1"},
+            | {"GITHUB_EVENT_NAME": "push", "BASE": main if base == "main" else base},
             capture_output=True,
             check=True,
         )
@@ -1019,25 +982,14 @@ def test_the_macos_job_runs_the_tests_of_the_list_a_change_to_darwin_code_reache
     assert output == {"run": "true", "parts": dealt(reached), "tests": "\n".join(reached)}
 
 
-@pytest.mark.parametrize("event", ["pull_request", "push"], ids=["its pull request", "its push"])
-def test_a_pull_request_and_a_push_to_main_both_select_strictly_so_code_off_darwin_starts_no_mac(
-    merged, event
-):
-    """Both events select with `--strict`: a change to code off Darwin starts no Mac, on a pull
-    request or on the push of its merge. The rest of the list, and the whole suite, is
-    macos-nightly's. What `--strict` selects for each path is test_select_tests_rules.py's, in
-    process; here, that the job passes it on."""
-    reached, summary, output = merged("README.md", event=event)
-    assert (reached, output["run"]) == ([], "false")
-    assert summary.startswith("macOS: the change reaches no test")
-
-
 def test_a_push_to_main_selects_over_every_merge_since_its_last_checked_commit(merged):
     """A push's run selects over `BASE`, main's last checked commit, and its own: a merge whose
     run a newer push displaced, here a change to Darwin code before the head's change to the
-    README, is in its range, so its Mac tests run. A pull request's run of the head alone reaches
-    none."""
-    pushed, _, output = merged("README.md", event="push", earlier=DARWIN_SOURCE)
+    README, is in its range, so its Mac tests run. A run whose last checked commit is the head's
+    parent reaches none. It selects with `--strict`; the rest of the list, and the whole suite, is
+    macos-nightly's. What `--strict` selects for each path is test_select_tests_rules.py's, in
+    process; here, that the job passes it on."""
+    pushed, _, output = merged("README.md", base="main", earlier=DARWIN_SOURCE)
     assert "features/jbus/tests/test_jbus_launchd.py" in pushed and output["run"] == "true"
     assert merged("README.md", earlier=DARWIN_SOURCE)[0] == []
     found, _ = steps(MAC.read_text(), "macos-select")
@@ -1234,11 +1186,7 @@ def test_the_macos_reuse_skips_the_mac_for_the_two_trees_a_passed_macos_job_ran(
     found, _ = steps(MAC.read_text(), "macos-select")
     checkout, base, look, *rest = found
     assert checkout["with"] == {"fetch-depth": "2", "persist-credentials": False}
-    assert (base["name"], base["id"], base["if"]) == (
-        "last checked",
-        "base",
-        "github.event_name == 'push'",
-    )
+    assert (base["name"], base["id"], base.get("if")) == ("last checked", "base", None)
     assert base["env"] == {"GH_TOKEN": "${{ github.token }}"}
     assert base["run"] == "python3 scripts/green_tree.py --last-checked macos.yml"
     assert (look["name"], look["id"], look["continue-on-error"]) == ("reuse", "reuse", True)

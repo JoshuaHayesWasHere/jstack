@@ -20,7 +20,9 @@ them only in the forms below (`_held`):
   `threadId` it changes nothing and reads the thread's selection, which any thread may have.
 - `t3_thread_send`, as a queued message with a retry key, to a thread that the sender adds to
   `recipients`. Every such message goes through `jbus.outbox.send`, which adds its thread, holds
-  a message to a capped thread, and logs each send and hold.
+  a message to a capped thread, and logs each send and hold. A message whose key names a template
+  of `STEERS` goes in mode `auto` instead, and only so: into a turn the thread already runs, as a
+  steer, since `outbox`'s `idle` rule holds it while the thread runs none.
 
 `orchestrator_capabilities` only reads: which provider instances T3 Code can run, and why not
 where it cannot, such as an instance that is signed out (`jbus.failover`).
@@ -75,6 +77,10 @@ from jsettings.t3 import T3Dropped as T3Dropped
 from jsettings.t3 import T3Error as T3Error
 from jsettings.t3 import T3Refused as T3Refused
 
+STEERS = frozenset({"reload"})
+"""The templates whose message goes only into a turn its thread already runs, as a steer, in mode
+`auto`: the key of each starts with its template. `outbox`'s `idle` rule holds them while the
+thread runs none. The notice of `jbus.reload` is one."""
 TOOLS = (
     "t3_thread_configure",
     "t3_thread_launch",
@@ -268,8 +274,10 @@ class Client(Session):
         if tool == "t3_thread_send":
             if set(arguments) != {"threadId", "message", "mode", "clientRequestId"}:
                 return "is only called with a thread, a message, a mode and a retry key"
-            if arguments["mode"] != "queue" or not arguments["clientRequestId"]:
-                return "is only called with mode queue and a retry key"
+            key = arguments["clientRequestId"]
+            steer = str(key).split("|")[0] in STEERS
+            if not key or arguments["mode"] != ("auto" if steer else "queue"):
+                return "is only called with mode queue and a retry key, or auto for a steer"
             if arguments["threadId"] not in self.recipients:
                 return f"to {arguments['threadId']}: no brief has it on a Thread: line"
         return ""
