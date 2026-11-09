@@ -519,3 +519,60 @@ def test_the_check_reads_what_the_parts_ran_and_runs_no_test_again_for_a_line_th
     assert sum(len(one.read_text().split()) for one in runs.iterdir()) == before, (
         "the check ran a test again for a line a part ran"
     )
+
+
+def test_a_part_folds_no_data_file_a_process_still_writes(tmp_path):
+    """A process a test starts and leaves running is still writing its data file as the part
+    folds its processes' files, as CI's `coverage_schema` and `readonly database` failures show,
+    and again as the check folds those of the tests it runs for a line no part ran: each ends
+    well with the lines of every process that ended."""
+    repo = tmp_path / "repo"
+    code = repo / "features/pkg/src/pkg"
+    tests = repo / "features/pkg/tests"
+    code.mkdir(parents=True)
+    tests.mkdir(parents=True)
+    (code / "__init__.py").write_text("")
+    (code / "held.py").write_text("def held(row):\n    return row == 'held'\n")
+    writer = (
+        "import coverage, os, sqlite3, sys, time\n"
+        "path = coverage.Coverage.current().get_data().data_filename()\n"
+        "os.remove(path)\n"
+        "db = sqlite3.connect(path, isolation_level=None)\n"
+        "db.execute('begin immediate')\n"
+        "db.execute('create table coverage_schema (version integer)')\n"
+        "open(sys.argv[1], 'w').write(path)\n"
+        "time.sleep(30)\n"
+    )
+    ready = tmp_path / "writing"
+    (tests / "test_held.py").write_text(
+        "import os\n"
+        "import subprocess\n"
+        "import sys\n"
+        "import time\n"
+        "sys.path.insert(0, 'features/pkg/src')\n"
+        "from pkg import held\n\n"
+        f"WRITER = {writer!r}\n\n\n"
+        "def test_a_held_row():\n"
+        "    assert held.held('held')\n"
+        f"    ready = f'{ready}.{{time.time_ns()}}'\n"
+        "    subprocess.Popen([sys.executable, '-c', WRITER, ready],"
+        " stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\n"
+        "    deadline = time.monotonic() + 20\n"
+        "    while not os.path.exists(ready):\n"
+        "        assert time.monotonic() < deadline, 'the writer never started writing'\n"
+        "        time.sleep(0.05)\n"
+    )
+    for args in (["init", "-q"], ["add", "."], ["commit", "-qm", "base"]):
+        git("-c", "user.name=t", "-c", "user.email=t@t", *args, repo=repo)
+    since = git("rev-parse", "HEAD", repo=repo)
+    (code / "held.py").write_text(
+        "def held(row):\n    if row is None:\n        return False\n    return row == 'held'\n"
+    )
+    try:
+        a_part(repo, since, tmp_path / "parts/1")
+        assert faults(added(since, repo), tmp_path / "check", repo, tmp_path / "parts") == [
+            "features/pkg/src/pkg/held.py:3 is a line this branch adds that no test runs: add a "
+            "test that runs it, among the tests that name its module (1 of them ran)",
+        ]
+    finally:
+        subprocess.run(["pkill", "-f", str(ready)])
