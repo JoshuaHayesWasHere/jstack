@@ -1271,6 +1271,27 @@ def test_the_slice_gives_each_health_number_its_value_its_n_and_how_it_counts(sl
         assert found[key].how and found[key].met is None, key
 
 
+def test_a_run_a_newer_push_cancelled_is_not_red_though_its_roll_up_failed(tmp_path):
+    """check.yml's roll-up `check` fails at `every part passed` when a part was cancelled, since a
+    skipped required check counts as passed: #20's first run was cancelled by its next push, and
+    only #10 failed a part."""
+    jobs = [
+        row(1, 101, "check", 10, "a1", 1, conclusion="failure"),
+        row(2, 101, "check 1 of 8", 10, "a1", 1, conclusion="failure", tests=[OWN_TEST]),
+        *(
+            row(10 + part, 201, f"check {part} of 8", 20, "b1", 1, conclusion="cancelled")
+            for part in range(1, 9)
+        ),
+        row(19, 201, "check", 20, "b1", 6, conclusion="failure"),
+        row(20, 202, "check", 20, "b2", 7),
+        row(21, 202, "check 1 of 8", 20, "b2", 7),
+    ]
+    found = numbers.Facts(jobs, [pull(10, 0), pull(20, 0)], [], SLICE_NOW)
+    assert numbers.red_share(found, SLICE_START, SLICE_NOW).shown == (
+        "50% (1 of 2: 1 own, 0 shared)"
+    )
+
+
 def test_the_health_numbers_have_no_data_in_a_window_with_nothing_in_it(sliced):
     found = numbers.compute(sliced, SLICE_NOW, SLICE_NOW + timedelta(days=1))
     assert [(one.shown, one.n) for one in found if one.key in HEALTH] == [("no data", 0)] * 6

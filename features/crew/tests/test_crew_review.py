@@ -440,6 +440,19 @@ def test_a_review_that_says_the_brief_is_not_met_owes_a_scoped_review_of_a_tests
     ]
 
 
+def test_a_no_with_nothing_pushed_launches_no_reviewer_at_the_same_head(tmp_path, monkeypatch):
+    """A scoped review judges a fix: with none pushed since the `no`, a reviewer at the head the
+    review already judged would judge the same commit again, so the block says to push the fix."""
+    monkeypatch.setattr(crew, "BRIEF", MEETS_BRIEF)
+    fix = Fix(tmp_path, [], opened=True)
+    first = judged(fix, fix.saw, MEETS_NO)
+    needed = f"Scoped review: needed since {fix.saw}, the review's Meets the brief line is no\n"
+    assert fix.says(needed, first) == [
+        f"meets: the review at {fix.saw} says no of the brief: push the fix, then run this "
+        "block again"
+    ]
+
+
 def test_a_review_with_no_line_jmerge_reads_owes_a_scoped_review_too(tmp_path, monkeypatch):
     monkeypatch.setattr(crew, "BRIEF", MEETS_BRIEF)
     fix = Fix(tmp_path, [], opened=True)

@@ -19,6 +19,11 @@ out of some `pull_request` runs. A rerun counts from when it started, so one sta
 launch leaves the state at launch the earlier attempt's. `check_state` is none for a pull request
 with no such run in the store.
 
+`again` is how many reviewer threads of the slug launched before this one at the same `head`, so
+a launch at a head a reviewer had already judged is one where `again > 0`. It is 0 where `head` is
+none: a launch with no head on record, such as one before its pull request opened, is no repeat of
+another, whose head is unknown too.
+
 The threads are read from `calls` first, a `CROSS JOIN` fixing the order: the store keeps no
 statistics, and SQLite would otherwise read every call of a provider for each reviewer session,
 which takes half a minute on a store of a quarter of a million calls."""
@@ -48,7 +53,9 @@ SQL = (
     "t.output, h.sha AS head, h.created AS pushed, CASE WHEN h.sha IS NULL THEN NULL "
     "WHEN julianday(h.updated) <= julianday(t.launched) THEN h.conclusion ELSE 'running' END "
     "AS check_state, round((julianday(t.launched) - julianday(h.created)) * 1440.0, 2) "
-    "AS lag_minutes FROM threads t "
+    "AS lag_minutes, CASE WHEN h.sha IS NULL THEN 0 ELSE count(*) OVER (PARTITION BY t.project, "
+    "t.slug, h.sha ORDER BY t.launched, t.thread ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) "
+    "END AS again FROM threads t "
     "LEFT JOIN opened o ON o.project = t.project AND o.thread = t.thread AND o.newest = 1 "
     "LEFT JOIN headed h ON h.project = t.project AND h.thread = t.thread AND h.newest = 1"
 )

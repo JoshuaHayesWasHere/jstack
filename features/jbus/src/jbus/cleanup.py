@@ -13,16 +13,20 @@ path and macOS's /tmp and /var are links into /private.
 
 A launch that `jgauge room` holds back for /tmp (`waiting` reads its line) first gets `sweep`: it
 removes the Claude scratch folder of each T3 Code worktree that is gone and is no live row's
-(`WORKTREES`), and each copy of the base that `proved.sh` made (`BASE`) and that its run, killed
-before its EXIT trap, left behind. A folder a process works in or names stays, and so does every
-copy of the base in a folder where a `proved.sh` still runs.
+(`WORKTREES`), each session folder of a session started in a configured project's main checkout
+(a home's, a scout's, the user's own) whose newest entry is older than `IDLE`, and each copy of the
+base that `proved.sh` made (`BASE`) and that its run, killed before its EXIT trap, left behind. A
+folder a process works in or names stays, and so does every copy of the base in a folder where a
+`proved.sh` still runs.
 """
 
 from __future__ import annotations
 
+import contextlib
 import os
 import re
 import shutil
+import time
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -35,6 +39,9 @@ ROOT = Path("/proc")
 WORKTREES = Path.home() / ".t3" / "worktrees"
 BASE = "base.*"
 PROVED = "proved.sh"
+IDLE = 12 * 60 * 60
+"""Seconds since the newest entry of a main checkout's session folder was written after which
+`sweep` takes its session as ended: a session at work writes its task output there."""
 FULL = (
     (re.compile(r"(\S+) has ([\d.]+) of your ([\d.]+) GB quota used"), "quota", 1.0),
     (re.compile(r"(\S+) has ([\d.]+) GB used of ([\d.]+) GB, 80% of its size"), "size", 0.8),
@@ -142,12 +149,25 @@ def held() -> Held | None:
     return Held(frozenset(paths), frozenset(proving)) if paths else None
 
 
+def newest(folder: Path) -> float:
+    """Return the mtime of the newest entry in `folder`, the folder itself counted, or infinity
+    for a folder gone before it was read, which is then no candidate. An entry gone while it is
+    read is left out."""
+    found = []
+    for where, dirs, files in os.walk(folder):
+        for path in (where, *(os.path.join(where, name) for name in (*dirs, *files))):
+            with contextlib.suppress(OSError):
+                found.append(os.lstat(path).st_mtime)
+    return max(found, default=float("inf"))
+
+
 def sweep(run: Pass, live: Iterable[Path]) -> list[Path]:
-    """Remove what finished crews left in /tmp: the Claude scratch folder of each worktree under
-    `WORKTREES` that is gone and is none of `live`, the worktrees of the rows still out, and each
-    copy of the base `proved.sh` made in `TMPFS` (or /tmp) or in `claude_root`. Keep each that a
-    process holds, and each copy of the base in a folder where a `proved.sh` still runs. Return
-    what went."""
+    """Remove what finished crews and ended sessions left in /tmp: the Claude scratch folder of
+    each worktree under `WORKTREES` that is gone and is none of `live`, the worktrees of the rows
+    still out, each session folder in the Claude scratch folder of a configured project's main
+    checkout that nothing wrote in for `IDLE`, and each copy of the base `proved.sh` made in
+    `TMPFS` (or /tmp) or in `claude_root`. Keep each that a process holds, and each copy of the
+    base in a folder where a `proved.sh` still runs. Return what went."""
     known = held()
     if known is None:
         return []
@@ -159,11 +179,19 @@ def sweep(run: Pass, live: Iterable[Path]) -> list[Path]:
         for pad in root.glob(f"{mangled(WORKTREES)}-*")
         if not any(pad.name == one or pad.name.startswith(f"{one}-") for one in kept)
     ]
+    mains = {root / mangled(one.checkout) for one in run.config.projects}
+    stale = time.time() - IDLE
+    sessions = [
+        session
+        for main in mains
+        for session in main.glob("*")
+        if session.is_dir() and not session.is_symlink() and newest(session) < stale
+    ]
     homes = {Path(os.environ.get("TMPFS") or "/tmp"), root}
     copies = [copy for where in homes for copy in where.glob(BASE)]
     copies = [copy for copy in copies if not known.proves_in(copy.parent.resolve())]
     gone = []
-    for folder in sorted({*pads, *copies}):
+    for folder in sorted({*pads, *sessions, *copies}):
         if folder.is_symlink() or not folder.is_dir() or known.holds(folder.resolve()):
             continue
         shutil.rmtree(folder, ignore_errors=True)
@@ -171,8 +199,12 @@ def sweep(run: Pass, live: Iterable[Path]) -> list[Path]:
             gone.append(folder)
     if gone:
         run.run("git", "worktree", "prune")
+        ended = sum(folder in sessions for folder in gone)
         shown = ", ".join(map(str, gone[:3]))
-        run.say(f"cleared /tmp: {len(gone)} folders finished crews left, {shown}")
+        run.say(
+            f"cleared /tmp: {len(gone) - ended} folders finished crews left,"
+            f" {ended} of sessions ended in a main checkout, {shown}"
+        )
     return gone
 
 
