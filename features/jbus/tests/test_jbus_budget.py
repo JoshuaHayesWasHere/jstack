@@ -9,15 +9,18 @@ in `test_jbus_flow.py`.
 
 import json
 import time
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
 
 from jbus import budget, queue, waiting
 from jbus.flow import records
+from jsettings import paths
+from jsettings.proc import CALLS
 from test_jbus_kitchen import NOW, PROJECT, Kitchen, rate_limit
-from test_jbus_queue import add, launches
+from test_jbus_queue import add, launches, two
+from test_jbus_tick import going, ticks
 
 
 @pytest.fixture
@@ -173,3 +176,39 @@ def test_a_spent_window_waits_on_the_user_once_until_it_starts_again(kitchen):
     assert spent_items(kitchen) == []
     assert calls == ["api rate_limit"]
     assert kitchen.lines("decision") == []
+
+
+def logged(kitchen, *windows):
+    """Log a `gh` call of each window as `jsettings.proc.run` does, now, with 4000 calls left."""
+    with open(paths.jbus_state_dir() / CALLS, "a") as log:
+        for window in windows:
+            at = datetime.now(UTC).isoformat(timespec="seconds")
+            line = {"at": at, "caller": "x", "endpoint": "/x", "status": 0, "remaining": 4000}
+            log.write(json.dumps({**line, "resource": window}) + "\n")
+
+
+def asks(kitchen):
+    return kitchen.log("gh").count("api rate_limit")
+
+
+def test_the_projects_of_a_pass_ask_github_its_budget_once_between_them(kitchen):
+    """The pass reads the budget once for all its projects, and the next pass, a minute later,
+    from the calls the last minute logged, with no call of its own."""
+    two(kitchen)
+    kitchen.set("rate-limit.json", rate_limit(5000, datetime.now(UTC) + timedelta(hours=1)))
+    kitchen.poll()
+    assert asks(kitchen) == 1
+    logged(kitchen, "core", "graphql")
+    kitchen.poll(NOW + timedelta(minutes=1))
+    assert asks(kitchen) == 1
+
+
+def test_a_tick_reads_the_budget_from_the_last_minute_s_calls(kitchen):
+    """A tick asks `gh api rate_limit` only where a window has no call in the last minute."""
+    going(kitchen)
+    kitchen.set("rate-limit.json", rate_limit(5000, datetime.now(UTC) + timedelta(hours=1)))
+    ticks(kitchen)
+    before = asks(kitchen)
+    logged(kitchen, "core", "graphql")
+    ticks(kitchen)
+    assert asks(kitchen) == before

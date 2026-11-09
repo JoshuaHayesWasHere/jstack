@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
@@ -58,6 +59,7 @@ from jmerge.asked import why as asked_why
 from jmerge.checks import NOT_RED
 from jmerge.joblog import Failed, failed_in, plain
 from jsettings import budget as allowance
+from jsettings import paths
 
 EVENTS = {"merged": "quiet", "stale": "quiet", "retro": "quiet"}
 TITLE = "crew: "
@@ -398,13 +400,20 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     name of its branch where no brief does. When a slug's brief names a pull request, `look`
     asks for that pull request by its address.
 
-    First of all, `look` reads GitHub's API budget (`jbus.budget`), and every `Look` it returns
-    holds it, T3 Code silent or not: a step that spends the budget needs it. With no answer, or
+    First of all, `look` reads GitHub's API budget (`jbus.budget`), from what the calls of the
+    last minute logged (`allowance.logged`), so that the projects of a pass ask `gh api
+    rate_limit` once between them at most. Every `Look` it returns holds it, T3 Code silent or
+    not: a step that spends the budget needs it. With no answer, or
     with the budget at or under its floor, `look` asks GitHub nothing else, and the pass has no
     world, as when GitHub is silent: no row changes. `jmerge` ran before, so a merge still goes.
     """
-    asked = run.run(*budget.ASK)
-    left = budget.parse(asked.stdout) if asked.returncode == 0 else None
+    asked: list[subprocess.CompletedProcess[str]] = []
+
+    def ask(command: list[str]) -> str | None:
+        asked.append(run.run(*command))
+        return asked[-1].stdout if asked[-1].returncode == 0 else None
+
+    left = allowance.logged(paths.jbus_state_dir(), asked=ask)
     held = budget.held(left)
     spent = None if left is None else allowance.spent(left)
     if client is None:
@@ -428,7 +437,8 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     for slug in run.removed:
         world.threads.pop(slug, None)
     if left is None:
-        run.say(f"wait {run.project.name}: could not ask GitHub{asked_why(asked, run.run)}")
+        why = asked_why(asked[-1], run.run) if asked else f": {held}"
+        run.say(f"wait {run.project.name}: could not ask GitHub{why}")
         return Look(out=out, held=held)
     if held:
         run.say(f"wait {run.project.name}: GitHub not asked: {held}")

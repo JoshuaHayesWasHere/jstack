@@ -47,10 +47,10 @@ seconds in its own process (`tick`), since the timer starts no tick until it end
 does. A merge of the tick's that changed a skill is kept for the next pass's `reload.tell`
 before the ETag is (`reload.keep`), since `jmerge` prints its `merged` line once. One run of
 `jmerge` runs at a time, by its run lock (`jmerge.lock`). A tick reads GitHub's API budget before
-it asks GitHub anything. While it is held (`jbus.budget`) the tick backs off to asking once in
-`HELD` seconds, the interval the timer had before it ran every 2 seconds, and says so each time
-it asks (`BACKOFF`): a 304 still spends nothing, and what a job that ended costs is `jmerge`'s,
-which the floor is kept for.
+it asks GitHub anything, from what the calls of the last minute logged (`budget.logged`). While
+it is held (`jbus.budget`) the tick backs off to asking once in `HELD` seconds, the interval the
+timer had before it ran every 2 seconds, and says so each time it asks (`BACKOFF`): a 304 still
+spends nothing, and what a job that ended costs is `jmerge`'s, which the floor is kept for.
 """
 
 from __future__ import annotations
@@ -66,7 +66,7 @@ from typing import TYPE_CHECKING, Any
 import jbus
 from jbus import cancelled, launchd, merge, passes, reload, restated, verbs, watch
 from jmerge import ready
-from jsettings import budget, proc, store
+from jsettings import budget, paths, proc, store
 
 if TYPE_CHECKING:
     from jbus.poll import Half
@@ -336,7 +336,7 @@ def _watched(config: jbus.Config) -> list[jbus.Project]:
 
 def _asks(config: jbus.Config, say) -> bool:
     """Whether this read may ask GitHub: always, unless the budget is held (`_due`)."""
-    held = budget.held(budget.read())
+    held = budget.held(budget.logged(paths.jbus_state_dir()))
     if not held:
         return True
     if not _due(config, verbs.clock()):
