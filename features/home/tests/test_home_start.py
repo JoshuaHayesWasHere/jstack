@@ -383,7 +383,7 @@ def test_a_start_prints_this_homes_part_of_the_bus_and_what_came_in_since_the_no
     (bus.dir / "handoff.next.md").write_text("Next: cut off before it was put in place\n")
     bus.kitchen.brief("speedy", "Home: speed\n\n## Result\nStatus: done\n")
     rows(bus, ("speedy", "running", "", ""))
-    assert bus.kitchen.main("gate", "alpha", stdin=bus.whole())[0] == 0
+    assert bus.kitchen.raises("alpha", bus.whole())[1]
     a_note(bus, "read-before")
     bus.kitchen.brief("alpha", "\n## Result\nStatus: done\n\n## Result, follow-up (today, why)\n")
     (bus.dir / "merge.log").write_text(
@@ -453,7 +453,7 @@ def test_however_much_is_there_a_start_prints_under_6000_characters(bus):
     rows(bus, *((f"row-{n:02}", "queued", "", LONG) for n in range(40)))
     for n in range(12):
         question = f"question {n}: {'a long question that goes on, ' * 6}?"
-        assert bus.kitchen.main("gate", "alpha", stdin=bus.whole(question))[0] == 0
+        assert bus.kitchen.raises("alpha", bus.whole(question))[1]
     a_note(bus)
     (bus.dir / "read-seen").write_text("")
     for n in range(30):

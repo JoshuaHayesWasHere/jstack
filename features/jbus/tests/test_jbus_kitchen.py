@@ -37,7 +37,23 @@ import jsettings
 import origin_tips
 import repo_template
 from jbriefs import meaning
-from jbus import acts, cli, live, outbox, party, poll, queue, rebase, t3, tick, verbs, wake, word
+from jbus import (
+    acts,
+    cli,
+    live,
+    outbox,
+    party,
+    passes,
+    poll,
+    questions,
+    queue,
+    rebase,
+    t3,
+    tick,
+    verbs,
+    wake,
+    word,
+)
 from jgauge import slot, waiters
 from jmerge import judgement
 from jroles import ledger
@@ -1005,6 +1021,15 @@ class Kitchen:
                 code = stopped.code
         return code, out.getvalue()
 
+    def raises(self, slug, lines, project="demo"):
+        """Keep `lines` as a question of `slug` the way a pass raises one (`questions.park`), on
+        the clock `jbus gate` reads, and return the record and whether it is new. `jbus gate`
+        asks nothing of a gate with no `Holds:` line from a crew's or a scout's row, so a test of
+        what a kept question does starts here."""
+        config = jbus.load()
+        run = passes.Pass(config, config.project(project), questions.datetime.now(UTC))
+        return questions.park(run, slug, lines.strip())
+
     def marks(self):
         return jbus.read_json(self.state / "wake.json", {})
 
@@ -1196,7 +1221,7 @@ def test_an_answer_into_a_capped_thread_is_held_then_sent_once_after_the_reset(k
     kitchen.brief("alpha", f"Thread: {crew['threadId']}\n")
     kitchen.quiet()
     asked = GATE.format(n="<n>", asked="tea or coffee?", status="open", slug="alpha")
-    assert kitchen.main("gate", "alpha", stdin=asked)[0] == 0
+    assert kitchen.raises("alpha", asked)[1]
     said = ("--by", "user", "--at", "2026-10-12 11:00 ET", "--differs", "coffee")
     assert kitchen.main("answer", "1", *said)[0] == 0
     resets = NOW + timedelta(minutes=40)

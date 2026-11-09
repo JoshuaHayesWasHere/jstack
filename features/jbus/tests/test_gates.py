@@ -13,7 +13,10 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+import jbus
 import jsettings
+from jbus import questions
+from jbus.view import state as view_state
 from test_home_thread import (
     CONTEXT,
     FILLED,
@@ -24,7 +27,8 @@ from test_home_thread import (
     git,
     paths,
 )
-from test_jbus_kitchen import NOW, Kitchen, complete
+from test_jbus_kitchen import NOW, Kitchen, complete, iso
+from test_jbus_queue import brief as queued
 from testing.layouts import assembled
 from testing.paths import REPO
 
@@ -38,15 +42,18 @@ HEARD = NOW + timedelta(minutes=30)
 READS = "OPEN="
 ASKED = "tea or coffee?"
 ACTED = " Its default is acted on already, and stands unless you stop it."
+DOOR = "deletes data"
+SAFE = "the dry-run lists the 3 branches that go, bundle at ~/b.bundle"
 REST = (
     "default: tea\nbuilt on it: the cups in pull request 7\nundo: pour it out: one revert\n"
     "acted on already: the default stands unless the user stops it"
 )
 
 
-def a_gate(question=ASKED, slug="alpha", **changed):
+def a_gate(question=ASKED, slug="alpha", holds="", **changed):
     """Return the template as the asking thread sends it, with every `<...>` placeholder filled
-    in except `<n>`."""
+    in except `<n>`. With `holds`, it is a one-way door: its `Holds:` and `Fail-safe:` lines
+    follow `Undo:`."""
     said = {
         "Asked by": f"{slug}, thread {CREW}",
         "Default": "tea",
@@ -63,12 +70,14 @@ def a_gate(question=ASKED, slug="alpha", **changed):
             line = f"{label}: {said[label]}"
         if said.get(label, "") is not None:
             lines.append(line)
+    if holds:
+        lines += [f"Holds: {holds}", f"Fail-safe: {SAFE}"]
     return "\n".join(lines)
 
 
-def whole(question=ASKED, slug="alpha", **changed):
+def whole(question=ASKED, slug="alpha", holds="", **changed):
     """Return a gate as jbus takes it: the template filled in, with its context and its options."""
-    return f"{a_gate(question, slug, **changed)}\n{CONTEXT}\n{PROPOSED}"
+    return f"{a_gate(question, slug, holds, **changed)}\n{CONTEXT}\n{PROPOSED}"
 
 
 class Home:
@@ -113,12 +122,25 @@ class Home:
         top = f"{paths('home')}\n{finds_this_home(thread)}\n{block('home', READS)}"
         return self.sh(f"{top}\n{found}", cwd or self.main)
 
-    def pipes(self, skill="crew", question=ASKED, slug="alpha"):
+    def pipes(self, skill="crew", question=ASKED, slug="alpha", holds=DOOR):
         """Pipe a gate the way a crewmate or a scout does: run the block of that role's own
-        skill, in that role's worktree."""
+        skill, in that role's worktree. It is a one-way door unless `holds` is empty."""
         sends = block(skill, "jbus gate '<slug>'")
-        sends = a_gate_in(sends, a_gate(question, slug)).replace("<slug>", slug)
+        sends = a_gate_in(sends, a_gate(question, slug, holds)).replace("<slug>", slug)
         return self.sh(f"{paths(skill)}\n{sends}", self.worktree)
+
+    def raised(self, question=ASKED, slug="alpha", project="demo"):
+        """Keep a question with no `Holds:` line of a crew's row, as a pass raises one or as jbus
+        kept one before such a gate was a decision."""
+        return self.kitchen.raises(slug, whole(question, slug), project)
+
+    def hears(self, number, which="--default"):
+        """Answer a question with the user's own message in T3 Code, the one answer that closes a
+        gate that holds."""
+        at = iso(datetime.now(UTC))
+        self.kitchen.t3.says(ROOT, f"said-{number}", f"to question {number}", updatedAt=at)
+        argv = ("--as", "user", "answer", str(number), "--message", f"{ROOT}/said-{number}")
+        return self.kitchen.main(*argv, which)
 
     def asks(self, thread=ROOT, entry=None, slug="own"):
         filled = {FILLED: entry or a_gate("which way?", "home"), "slug='own'": f"slug='{slug}'"}
@@ -165,7 +187,7 @@ def home(tmp_path, monkeypatch):
 
 
 def test_the_template_is_a_gate_the_real_jbus_takes_with_every_line_of_it(home):
-    assert home.kitchen.main("gate", "alpha", stdin=whole()) == (
+    assert home.kitchen.main("gate", "alpha", stdin=whole(holds=DOOR)) == (
         0,
         "asked: queued: question 1\nGate: question 1\n",
     )
@@ -175,6 +197,7 @@ def test_the_template_is_a_gate_the_real_jbus_takes_with_every_line_of_it(home):
         "the cups in pull request 7",
         "pour it out: one revert",
     )
+    assert (kept["holds"], kept["fail_safe"]) == (DOOR, SAFE)
 
 
 @pytest.mark.parametrize("skill", ["crew", "scout"])
@@ -187,7 +210,7 @@ def test_a_piped_gate_leaves_its_number_as_the_one_line_to_keep(home, skill):
         "asked: already sent: question 1",
         "Gate: question 1",
     ]
-    home.closes(1, "tea is fine", "default")
+    assert home.hears(1)[0] == 0
     said, kept = home.pipes(skill).splitlines()
     assert said.startswith("asked: already answered: question 1: ")
     assert kept == "Gate: question 1"
@@ -217,7 +240,7 @@ def test_a_gate_with_the_blocks_option_line_left_as_it_is_is_not_taken(home):
 def test_a_home_reads_the_open_questions_from_jbus_and_writes_no_file(home):
     before = home.files()
     assert home.shown() == "no open questions"
-    home.pipes()
+    home.raised()
     home.kitchen.poll()
     assert home.shown() == f"question 1, from alpha: {ASKED}\n" + REST
     assert home.files() == before
@@ -225,7 +248,7 @@ def test_a_home_reads_the_open_questions_from_jbus_and_writes_no_file(home):
 
 
 def test_an_answer_that_differs_is_closed_by_jbus_and_carried_by_jbus_alone(home):
-    home.pipes()
+    home.raised()
     home.kitchen.poll()
     words = "no & don't: \"coffee\", it's $HOME \\n"
     at = jsettings.load().stamp(datetime.now(UTC))
@@ -251,7 +274,7 @@ def test_an_answer_that_differs_is_closed_by_jbus_and_carried_by_jbus_alone(home
 
 
 def test_an_answer_that_is_the_default_closes_it_and_nobody_is_sent_anything(home):
-    home.pipes()
+    home.raised()
     said = home.closes(1, "yes\ntea", "default")
     assert said.startswith('answered: question 1: "yes tea", by user, ')
     assert said.endswith("(the default stands): nothing is sent")
@@ -261,7 +284,7 @@ def test_an_answer_that_is_the_default_closes_it_and_nobody_is_sent_anything(hom
 
 
 def test_a_second_answer_is_refused_with_the_first_and_changes_nothing(home):
-    home.pipes()
+    home.raised()
     home.closes(1, "coffee")
     before = home.records()
     said = home.closes(1, "tea after all", "default")
@@ -272,7 +295,7 @@ def test_a_second_answer_is_refused_with_the_first_and_changes_nothing(home):
 
 
 def test_a_refusal_names_what_the_block_is_to_be_given(home):
-    home.pipes()
+    home.raised()
     said = home.closes(1, "coffee", by="somebody")
     assert said == "not answered: jbus said: refused: only user answers a question, not somebody"
     said = home.closes(1, "coffee", at="yesterday")
@@ -325,8 +348,7 @@ def test_a_question_is_shown_to_the_home_of_the_brief_that_asked(home):
     home.kitchen.brief("beta", f"Home: {SCOPED}\nThread: mcp:crew-beta\n")
     home.kitchen.brief("gamma", f"Home: {ROOT}\n", kind="scouts")
     for slug in ("alpha", "beta", "gamma", "expert-style-no-rollback"):
-        code, _ = home.kitchen.main("gate", slug, stdin=whole(f"from {slug}?", slug))
-        assert code == 0
+        assert home.raised(f"from {slug}?", slug)[1]
     home.kitchen.poll()
     lines = home.shown().splitlines()[::5]
     assert lines == [
@@ -340,9 +362,8 @@ def test_a_question_is_shown_to_the_home_of_the_brief_that_asked(home):
 def test_a_home_reads_the_questions_of_its_own_repos_project_and_no_other(home):
     side = home.kitchen.second()
     (side.home / "tasks" / "alpha.md").write_text("# alpha: a task\n")
-    code, _ = home.kitchen.main("--project", "other", "gate", "alpha", stdin=whole("theirs?"))
-    assert code == 0
-    home.pipes()
+    assert home.raised("theirs?", project="other")[1]
+    home.raised()
     home.kitchen.poll()
     assert home.shown() == f"question 1, from alpha: {ASKED}\n" + REST
     (side.home / "home-id").write_text(f"{ROOT}\n")
@@ -350,7 +371,7 @@ def test_a_home_reads_the_questions_of_its_own_repos_project_and_no_other(home):
 
 
 def test_a_home_that_cannot_read_jbus_says_why_and_shows_no_question(home, tmp_path):
-    home.pipes()
+    home.raised()
     home.kitchen.poll()
     elsewhere = tmp_path / "code" / "elsewhere"
     elsewhere.mkdir(parents=True)
@@ -429,25 +450,23 @@ def test_a_gate_an_older_home_left_in_a_file_is_moved_to_jbus_and_listed_once(ho
     retired = shown.with_name("gates-moved.md")
     home.kitchen.poll()
     assert gates_listed(home) == ["gate 2: an old one?", "gate 3: the home's own?"]
+    brief = home.kitchen.home / "tasks" / "alpha.md"
     assert home.moves(thread).splitlines() == [
-        f"moved: gate 2 of {shown}, queued: question 4",
-        f"moved: gate 3 of {shown}, queued: question 5",
+        f"moved: gate 2 of {shown}, decided: written to {brief}: {questions.DECIDED_WHY}",
+        f"moved: gate 3 of {shown}, queued: question 4",
         f"retired: {shown} is now {retired}, and jbus reads it no more",
     ]
     assert not file.exists() and retired.read_text() == before
+    assert "## Decision: an old one?" in brief.read_text().splitlines()
     assert [(one["slug"], one["question"]) for one in home.records()] == [
-        ("alpha", "an old one?"),
         (own, "the home's own?"),
     ]
-    assert home.shown(thread).splitlines()[::5][-1] == f"question 5, from {own}: the home's own?"
+    assert home.shown(thread).splitlines()[::5][-1] == f"question 4, from {own}: the home's own?"
     home.kitchen.poll()
-    assert gates_listed(home) == [
-        f"question 4: an old one?{ACTED}",
-        f"question 5: the home's own?{ACTED}",
-    ]
-    assert home.closes(5, "keep it", "default", thread=thread).startswith("answered: question 5: ")
+    assert gates_listed(home) == [f"question 4: the home's own?{ACTED}"]
+    assert home.closes(4, "keep it", "default", thread=thread).startswith("answered: question 4: ")
     home.kitchen.poll()
-    assert gates_listed(home) == [f"question 4: an old one?{ACTED}"]
+    assert gates_listed(home) == []
     assert home.moves(thread) == "nothing to move: this home has no gates.md"
 
 
@@ -489,17 +508,19 @@ def test_a_gate_jbus_cannot_take_stays_in_the_file_and_is_printed_whole(home):
 
 def test_a_gate_another_thread_wrote_out_is_handed_to_jbus_under_that_threads_slug(home):
     assert home.pipes().splitlines()[0] == "asked: queued: question 1"
-    written = a_gate().replace("<n>", "1")
+    written = a_gate(holds=DOOR).replace("<n>", "1")
     assert (
         home.asks(entry=written, slug="alpha")
         == "asked: already sent: question 1\nGate: question 1"
     )
     assert (
-        home.asks(entry=a_gate("milk?"), slug="alpha")
+        home.asks(entry=a_gate("milk?", holds=DOOR), slug="alpha")
         == "asked: queued: question 2\nGate: question 2"
     )
+    said = home.asks(entry=a_gate("sugar?"), slug="alpha")
+    assert said.startswith("decided: written to ")
     assert [(one["slug"], one["thread"]) for one in home.records()] == [("alpha", CREW)] * 2
-    home.closes(1, "tea", "default")
+    assert home.hears(1)[0] == 0
     assert home.asks(entry=written, slug="alpha").startswith(
         "asked: already answered: question 1: "
     )
@@ -507,7 +528,7 @@ def test_a_gate_another_thread_wrote_out_is_handed_to_jbus_under_that_threads_sl
 
 def test_a_question_closed_since_the_last_pass_is_not_shown_as_open(home):
     for question in ("one?", "two?", "three?"):
-        assert home.kitchen.main("gate", "alpha", stdin=whole(question))[0] == 0
+        assert home.raised(question)[1]
     home.kitchen.poll()
     home.closes(2, "yes", "default")
     assert home.shown().splitlines()[::5] == [
@@ -530,3 +551,134 @@ def test_a_scoped_homes_own_slug_is_its_own_whatever_brief_has_that_name(home):
     home.closes(1, "faster", thread=SCOPED)
     said = home.asks(SCOPED, a_gate("how fast?", "home"))
     assert said.startswith('asked: already answered: question 1: "faster", by user, ')
+
+
+def on_the_users_list(kitchen):
+    """Return every place a question of the project would wait on the user, after a pass: the
+    records jbus keeps, the gates of the list and of `jbus needs`, the view's Needs you, and the
+    `gate` and `waiting` events."""
+    kitchen.poll()
+    listed = jbus.read_json(kitchen.state / "waiting-on-user.json", [])
+    _, needs = kitchen.main("needs")
+    sources = view_state.Sources(kitchen.state_dir, kitchen.root / "home")
+    stack = view_state.build(sources, "demo", NOW, lambda _: {})
+    return {
+        "records": questions.load(kitchen.state),
+        "listed": [one["line"] for one in listed if one["kind"] == "gate"],
+        "needs": [line for line in needs.splitlines() if "question" in line],
+        "view": [one["key"] for one in stack["waiting"] if one["kind"] == "gate"],
+        "events": [one["line"] for one in kitchen.events() if one["event"] in ("gate", "waiting")],
+    }
+
+
+NOTHING = {"records": [], "listed": [], "needs": [], "view": [], "events": []}
+
+
+def decided(file, before):
+    """Return the lines jbus added to `file`, with the time on the `Decided:` line cut off."""
+    added = file.read_text().removeprefix(before).splitlines()
+    *said, last = added
+    stamp, by = last.split(", ", 1)
+    assert stamp.startswith("Decided: ") and by == questions.DECIDED_BY
+    return said
+
+
+@pytest.mark.parametrize(("skill", "kind"), [("crew", "tasks"), ("scout", "scouts")])
+def test_a_crews_or_a_scouts_gate_with_no_holds_line_is_a_decision_on_its_brief(home, skill, kind):
+    """A gate with no `Holds:` line is no one-way door: jbus writes it to the brief or the request
+    of the row as a decision, once, and nothing of it waits on the user."""
+    slug = "alpha" if kind == "tasks" else "gamma"
+    file = home.kitchen.brief(slug, f"Thread: {CREW}\n", kind=kind)
+    before = file.read_text()
+    said = f"written to {file}: {questions.DECIDED_WHY}"
+    assert home.pipes(skill, slug=slug, holds="") == f"decided: {said}"
+    assert home.pipes(skill, slug=slug, holds="") == f"decided: already {said}"
+    assert decided(file, before) == [
+        "",
+        f"## Decision: {ASKED}",
+        "Default: tea",
+        "Built on it: the cups in pull request 7",
+        "Undo: pour it out: one revert",
+    ]
+    assert on_the_users_list(home.kitchen) == NOTHING
+    assert home.shown() == "no open questions"
+
+
+def test_a_crews_gate_that_holds_is_asked_of_the_user_and_its_brief_is_not_written(home):
+    file = home.kitchen.home / "tasks" / "alpha.md"
+    before = file.read_text()
+    assert home.pipes().splitlines() == ["asked: queued: question 1", "Gate: question 1"]
+    assert file.read_text() == before
+    shown = on_the_users_list(home.kitchen)
+    assert [one.holds for one in shown["records"]] == [DOOR]
+    assert shown["listed"] == [
+        f"question 1: {ASKED} It holds ({DOOR}) for your answer, with its fail-safe: {SAFE}."
+    ]
+    assert shown["view"] == ["gate:q1"]
+    assert shown["events"][0] == f"gate alpha: question 1: {ASKED}"
+
+
+class Frozen(datetime):
+    @classmethod
+    def now(cls, tz=None):
+        return NOW
+
+
+GO = (
+    "## Gate <n>: start alpha?\nStatus: open\nAsked by: home, thread mcp:the-root-home\n"
+    "Default: approve\nBuilt on it: nothing yet\nUndo: hold the row\n"
+    "Option: start it (default, recommended): the row launches\nOption: wait: it waits\n"
+)
+
+
+def test_a_homes_go_gate_on_a_crews_row_waits_its_quiet_window_on_the_list(
+    home, jstack_config, monkeypatch
+):
+    """A go gate carries the user's go, not a crew's choice: under `go = "silence"` it is a
+    question, on the list for `go_quiet_minutes`, though the row's brief is in the home."""
+    jstack_config.write_text(jstack_config.read_text() + 'go = "silence"\ngo_quiet_minutes = 30\n')
+    monkeypatch.setattr(questions, "datetime", Frozen)
+    code, said = home.kitchen.main(
+        "queue", "add", "alpha", "--priority", "1", stdin=queued("alpha")
+    )
+    assert code == 0, said
+    assert home.kitchen.main("gate", "alpha", stdin=GO) == (
+        0,
+        "asked: queued: question 1\nGate: question 1\n",
+    )
+    home.kitchen.poll(NOW + timedelta(minutes=29))
+    listed = jbus.read_json(home.kitchen.state / "waiting-on-user.json", [])
+    assert [one["key"] for one in listed if one["kind"] == "gate"] == ["gate:q1"]
+    assert questions.question(home.kitchen.state, 1).answer is None
+    home.kitchen.poll(NOW + timedelta(minutes=31))
+    assert questions.question(home.kitchen.state, 1).answer.closed_by == questions.SILENCE
+
+
+QUESTION_259 = """\
+## Gate <n>: Should #1297 wait for #1292 to merge, rather than drop --message from the root's queue step to go green now?
+Status: open
+Asked by: rh-root-skill, thread mcp:crew-rh-root-skill
+Default: #1297 waits; no rerun and no commit, and its check goes green once #1292 puts jbus queue add --message on main
+Built on it: pull request 1297 at 138899afe90a, whose scoped-homes.md queue block passes --message
+Undo: drop --message from the queue block in scoped-homes.md and its test, in one commit on #1297
+Context: check 5 of 8 fails only test_docs_true[scoped-homes.md] because --message lands with #1292 (rh-approve-at-queue, open); a rerun fails the same way; https://github.com/JoshuaHayesWasHere/jstack/pull/1297
+Option: wait for #1292 (default, recommended): the brief asks for the user's message at queue time, and the row already merges after rh-approve-at-queue
+Option: drop --message now: #1297 goes green at once, and the root's queue step approves no row until a follow-up adds it back
+"""  # noqa: E501
+
+
+def test_question_259_a_crews_wait_on_another_pull_request_puts_nothing_on_the_users_list(home):
+    """Question 259 of 2026-11-09, replayed: rh-root-skill's crew asked whether #1297 waits for
+    #1292, with no `Holds:` line. jbus listed it and wrote a `waiting` event naming it before
+    the next pass closed it with its default. It is a decision on the brief, and nothing more."""
+    file = home.kitchen.brief("rh-root-skill", "Thread: mcp:crew-rh-root-skill\n")
+    before = file.read_text()
+    code, said = home.kitchen.main("gate", "rh-root-skill", stdin=QUESTION_259)
+    assert (code, said) == (0, f"decided: written to {file}: {questions.DECIDED_WHY}\n")
+    assert decided(file, before)[1:3] == [
+        "## Decision: Should #1297 wait for #1292 to merge, rather than drop --message from the "
+        "root's queue step to go green now?",
+        "Default: #1297 waits; no rerun and no commit, and its check goes green once #1292 puts "
+        "jbus queue add --message on main",
+    ]
+    assert on_the_users_list(home.kitchen) == NOTHING
