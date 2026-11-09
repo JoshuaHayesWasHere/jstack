@@ -518,11 +518,15 @@ def checks(pull: dict[str, Any]) -> str:
 
 
 def ran(run: Pass, world: World, repo: str, number: str) -> dict:
-    """Return what `never_started` and `rebase.ran_and_failed` read of a job: `steps`, which is
-    `[]` where the job ran no step, and `run_attempt`. A completed job's steps and attempt never
-    change (a rerun is a new job id), so `ran` keeps them by repo and job id in the project's
-    `JOBS`, the last `KEPT_JOBS` of them, and asks GitHub for a job id it keeps no more. A job
-    that is not completed is not kept, and is given as GitHub gives it, or {}."""
+    """Return what `never_started`, `rebase.ran_and_failed` and `jbus.stall.infra` read of a job:
+    `steps`, which is `[]` where the job ran no step, `run_attempt`, and `failed_step`, the name of
+    its first step that failed (`collect.failed_step`), or nothing. A completed job's steps and
+    attempt never change (a rerun is a new job id), so `ran` keeps them by repo and job id in the
+    project's `JOBS`, the last `KEPT_JOBS` of them, and asks GitHub for a job id it keeps no more.
+    A job kept before `failed_step` was gives none. A job that is not completed is not kept, and
+    is given as GitHub gives it, or {}, with its `failed_step`."""
+    from jbus.ci.collect import failed_step
+
     if world.jobs is None:
         world.jobs = read_json(run.state / JOBS, {})
     key = f"{repo}/{number}"
@@ -530,12 +534,20 @@ def ran(run: Pass, world: World, repo: str, number: str) -> dict:
     if kept is None:
         given = job(run, repo, number)
         if given.get("status") != "completed":
-            return given
-        kept = {"steps_empty": given.get("steps") == [], "run_attempt": given.get("run_attempt")}
+            return {**given, "failed_step": failed_step(given) or ""}
+        kept = {
+            "steps_empty": given.get("steps") == [],
+            "run_attempt": given.get("run_attempt"),
+            "failed_step": failed_step(given) or "",
+        }
         world.jobs[key] = kept
         world.jobs = dict(list(world.jobs.items())[-KEPT_JOBS:])
         write_json(run.state / JOBS, world.jobs)
-    return {"steps": [] if kept["steps_empty"] else None, "run_attempt": kept["run_attempt"]}
+    return {
+        "steps": [] if kept["steps_empty"] else None,
+        "run_attempt": kept["run_attempt"],
+        "failed_step": kept.get("failed_step", ""),
+    }
 
 
 def job(run: Pass, repo: str, number: str) -> dict:

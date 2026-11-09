@@ -340,7 +340,9 @@ def infra_at(kitchen, head, job, said=""):
         {"name": "Install zsh", "conclusion": "failure"},
         {"name": "make check", "conclusion": "skipped"},
     ]
-    kitchen.set("jobs.json", {**jobs, job: {"status": "completed", "run_attempt": 1, "steps": steps}})
+    kitchen.set(
+        "jobs.json", {**jobs, job: {"status": "completed", "run_attempt": 1, "steps": steps}}
+    )
 
 
 def job_reads(kitchen, job):
