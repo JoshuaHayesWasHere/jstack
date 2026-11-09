@@ -1193,15 +1193,20 @@ REWRITTEN = (
 )
 
 
+IN_PLACE = (stacks.LINE, "Fixed:", "Scoped reviewer:")
+"""The lines of a Result that are rewritten in place by rule: jbus moves a `Stacked on:` line
+(`jbus.stack`), and the crew skill sets its `Fixed:` line to the head it pushed again and puts a
+new `Scoped reviewer:` line in place of one that stopped."""
+
+
 def sections_of(brief: str) -> str:
-    """The part of a brief that its crew and reviewers append to: from its first `## ` heading on.
-    The head above it is the home's and jbus's, and jbus moves a `Stacked on:` line in place
-    (`jbus.stack`), so neither counts."""
+    """The part of a brief that its crew and reviewers append to: from its first `## ` heading on,
+    with no line of `IN_PLACE`. The head above it is the home's and jbus's."""
     _, mark, rest = brief.partition("\n## ")
     if not mark:
         return ""
     lines = ("## " + rest).splitlines(keepends=True)
-    return "".join(line for line in lines if not line.startswith(stacks.LINE))
+    return "".join(line for line in lines if not line.startswith(IN_PLACE))
 
 
 def dropped(old: str, new: str) -> list[str]:

@@ -1437,8 +1437,12 @@ def written(kitchen):
 
 def test_a_brief_that_only_grows_tells_its_crew_nothing(written, kitchen):
     """The head above the first `## ` is the home's and jbus's, which write lines into it in
-    place (`watch._add_tip`, `dispatch.write_thread`), so only the sections must grow."""
+    place (`watch._add_tip`, `dispatch.write_thread`), and the crew skill sets a `Fixed:` line to
+    its new head in place, so only the rest of the sections must grow."""
+    written.write_text(written.read_text() + "Fixed: " + "a" * 40 + "\n")
+    kitchen.poll(NOW - timedelta(minutes=15))
     head = written.read_text().replace("Where:", "Read: main is red again\nWhere:", 1)
+    head = head.replace("Fixed: " + "a" * 40, "Fixed: " + "b" * 40)
     written.write_text(head + "\n## Result, follow-up (2026-11-08, rebased)\n")
     kitchen.poll(NOW - timedelta(minutes=10))
     assert told_rewritten(kitchen) == []
