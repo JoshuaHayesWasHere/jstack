@@ -250,17 +250,17 @@ def test_the_tools_own_upgrade_keeps_the_runner_and_gives_local_mk_an_owner(v1_r
     )
 
 
-def test_upgrade_moves_a_caller_off_a_candidate_branch_to_the_tag(v1_repo):
+@pytest.mark.parametrize("ref", ["repo-standard-v2-rc", '"repo-standard-v2-rc"  # candidate'])
+def test_upgrade_moves_a_caller_off_a_candidate_branch_to_the_tag(v1_repo, ref):
     """A workflow of the repo's own that calls the shared check at a branch of a version not yet
-    tagged, in `uses` and `ref`, is moved to the tag, and its `ref` dropped, so the branch can go
-    once the tag is out."""
+    tagged, in `uses` and `ref`, is moved to the tag, and its `ref` dropped, quoted or with a
+    trailing comment too, so the branch can go once the tag is out."""
     root, _ = v1_repo
     config = root / ".repo-standard.yml"
     config.write_text(re.sub(r"(?m)^standard: \d+$", f"standard: {VERSION}", config.read_text()))
     text = (root / ".github/workflows/check.yml").read_text()
     text = re.sub(r"@repo-standard-v\d+", "@repo-standard-v2-rc", text)
-    ref = "      ref: repo-standard-v2-rc\n"
-    text = text.replace(f"runner: {RUNNER}\n", f"runner: {RUNNER}\n{ref}")
+    text = text.replace(f"runner: {RUNNER}\n", f"runner: {RUNNER}\n      ref: {ref}\n")
     caller = root / ".github/workflows/candidate.yml"
     caller.write_text(text)
     assert main(["upgrade", "--to", str(VERSION), "--root", str(root), "--upstream", ""]) == 0
