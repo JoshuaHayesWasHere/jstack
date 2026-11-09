@@ -95,6 +95,15 @@ jobs:
       - name: select
         if: steps.standard.outputs.mode == 'standard' && github.event_name == 'pull_request' && steps.reuse.outputs.reused != 'true'
         run: make -s select BASE=HEAD^1 > "$RUNNER_TEMP/selection.txt" && cat "$RUNNER_TEMP/selection.txt"
+      # Each test a ledger of main's runs of the last 30 days names, that no later green run of
+      # main passed and whose path is still here, joins the selection (`repo-standard misses
+      # failing`). A lookup that fails warns and adds nothing.
+      - name: failed on main
+        if: steps.standard.outputs.mode == 'standard' && github.event_name == 'pull_request' && steps.reuse.outputs.reused != 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: PYTHONPATH="$RUNNER_TEMP/repo-standard/features/repo-standard/src" python3 -m repo_standard misses failing --days 30 > "$RUNNER_TEMP/failing.txt" && cat "$RUNNER_TEMP/failing.txt" | tee -a "$RUNNER_TEMP/selection.txt"
       - name: plan
         id: plan
         if: steps.standard.outputs.mode == 'standard'
@@ -121,7 +130,10 @@ jobs:
           TAG: ${{ needs.plan.outputs.tag }}
         run: git clone -q --depth 1 --branch "$TAG" "$REPO_STANDARD_UPSTREAM" "$RUNNER_TEMP/repo-standard" && PYTHONPATH="$RUNNER_TEMP/repo-standard/features/repo-standard/src" python3 -m repo_standard conform
   # The tests, in the parts `check.shards` sets, each with what `plan` dealt it. A reuse of a
-  # passed pair of trees, and a tree a green run already passed, run none.
+  # passed pair of trees, and a tree a green run already passed, run none. Each part writes the ids
+  # that failed to failed.txt ($REPO_STANDARD_FAILED), and on a push to the default branch runs
+  # them once more, writing those that failed again to again.txt. The folder is uploaded as
+  # failed-<run id>-<part> whatever the part ended, so a part run again replaces what it said.
   test:
     needs: plan
     if: needs.plan.outputs.mode == 'standard' && needs.plan.outputs.run == 'true' && needs.plan.outputs.reused != 'true' && needs.plan.outputs.marker != 'green'
@@ -140,10 +152,28 @@ jobs:
         if: hashFiles('.github/actions/setup/action.yml') != ''
         uses: ./.github/actions/setup
       - name: make test
+        id: test
         env:
           REPO_STANDARD_PART: ${{ fromJSON(needs.plan.outputs.parts)[format('{0}', matrix.shard)] }}
           REPO_STANDARD_SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
-        run: 'case $REPO_STANDARD_PART in none) echo "the selection dealt this part no test";; all) if [ "${REPO_STANDARD_SHARD#*/}" = 1 ]; then make test; else make test SHARD="$REPO_STANDARD_SHARD"; fi;; *) make test TESTS="$REPO_STANDARD_PART";; esac'
+        run: 'export REPO_STANDARD_FAILED="$RUNNER_TEMP/failed/failed.txt"; mkdir -p "$RUNNER_TEMP/failed" && : > "$REPO_STANDARD_FAILED"; case $REPO_STANDARD_PART in none) echo "the selection dealt this part no test";; all) if [ "${REPO_STANDARD_SHARD#*/}" = 1 ]; then make test; else make test SHARD="$REPO_STANDARD_SHARD"; fi;; *) make test TESTS="$REPO_STANDARD_PART";; esac'
+      - name: again
+        if: failure() && steps.test.outcome == 'failure' && github.event_name == 'push' && github.ref_name == github.event.repository.default_branch
+        run: 'ids=$(sort -u "$RUNNER_TEMP/failed/failed.txt" | tr "\n" " "); if [ -z "$ids" ]; then echo "the part failed and named no test to run again"; exit 0; fi; export REPO_STANDARD_FAILED="$RUNNER_TEMP/failed/again.txt"; : > "$REPO_STANDARD_FAILED"; make test TESTS="$ids" || true'
+      - name: failed tests
+        if: failure() && steps.test.outcome == 'failure'
+        env:
+          PART: ${{ matrix.shard }}
+        run: '{ echo "### The tests part $PART failed"; echo; if [ -s "$RUNNER_TEMP/failed/failed.txt" ]; then sort -u "$RUNNER_TEMP/failed/failed.txt" | sed "s/^/- /"; else echo "The part failed and named no test."; fi; } | tee -a "$GITHUB_STEP_SUMMARY"'
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: "!cancelled()"
+        continue-on-error: true
+        with:
+          name: failed-${{ github.run_id }}-${{ matrix.shard }}
+          path: ${{ runner.temp }}/failed/
+          retention-days: 7
+          overwrite: true
+          if-no-files-found: ignore
   # The browser tests of each stack whose config sets `e2e:`: on a pull request only the ids the plan
   # routed here, skipped when it routed none, and on main and nightly every one. They run in the
   # Playwright image of the version the e2e lockfile pins, or with `browser-channel` on the
@@ -208,15 +238,46 @@ jobs:
           REPO_STANDARD_COMMAND: ${{ inputs.command }}
         run: '[ -n "$REPO_STANDARD_COMMAND" ] || { echo "::error::the repo has no .repo-standard.yml and its caller gives no command"; exit 1; }; eval "$REPO_STANDARD_COMMAND"'
   # Passes only when every job the plan asked for passed: a job that failed, was cancelled or never
-  # ran fails it, where a skipped job would count as passed. The browser job counts as passed when
-  # skipped, which it is when the plan routed it no id. Then it leaves the markers a later run
-  # reads: the pair of trees a pull request's check passed, and the tree the whole suite passed.
+  # ran fails it, where a skipped job would count as passed, and a part that failed names its
+  # failed tests. The browser job counts as passed when skipped, which it is when the plan routed it
+  # no id. Where the tests failed on a push to the default branch, it first writes the run's ledger,
+  # miss-ledger-<run id>, kept 90 days, one row a failed test (`repo-standard misses record`), which
+  # a pull request's plan reads. Then it leaves the markers a later run reads: the pair of trees a
+  # pull request's check passed, and the tree the whole suite passed.
   passed:
     if: always()
     needs: [plan, lint, test, browser, command]
     runs-on: ${{ inputs.runner }}
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.test.result == 'failure'
+        continue-on-error: true
+        with:
+          pattern: failed-${{ github.run_id }}-*
+          path: ${{ runner.temp }}/failed
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: needs.test.result == 'failure' && github.event_name == 'push' && github.ref_name == github.event.repository.default_branch
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: ledger
+        id: ledger
+        if: needs.test.result == 'failure' && github.event_name == 'push' && github.ref_name == github.event.repository.default_branch
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.plan.outputs.tag }}
+        run: git clone -q --depth 1 --branch "$TAG" "$REPO_STANDARD_UPSTREAM" "$RUNNER_TEMP/repo-standard" && PYTHONPATH="$RUNNER_TEMP/repo-standard/features/repo-standard/src" python3 -m repo_standard misses record --failed "$RUNNER_TEMP/failed" --out "$RUNNER_TEMP/ledger"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.ledger.outcome == 'success'
+        continue-on-error: true
+        with:
+          name: miss-ledger-${{ github.run_id }}
+          path: ${{ runner.temp }}/ledger/ledger.jsonl
+          retention-days: 90
+          overwrite: true
+          if-no-files-found: error
       - name: every job passed
         env:
           PLAN: ${{ needs.plan.result }}
@@ -229,7 +290,7 @@ jobs:
           TESTS: ${{ needs.test.result }}
           BROWSER: ${{ needs.browser.result }}
           COMMAND: ${{ needs.command.result }}
-        run: 'fail() { echo "::error::$1"; exit 1; }; [ "$PLAN" = success ] || fail "the plan ended $PLAN"; if [ "$MODE" = command ]; then [ "$EVENT" = schedule ] || [ "$COMMAND" = success ] || fail "the check command ended $COMMAND"; elif [ "$RUN" = false ] && [ "$EVENT" = schedule ]; then echo "check.nightly is off in .repo-standard.yml, so the nightly run tests nothing"; elif [ "$RUN" != true ]; then fail "the plan said nothing of what to run"; else [ "$LINT" = success ] || fail "the lint ended $LINT"; [ "$TESTS" = success ] || [ "$REUSED" = true ] || [ "$MARKER" = green ] || fail "the tests ended $TESTS"; [ "$BROWSER" = success ] || [ "$BROWSER" = skipped ] || fail "the browser tests ended $BROWSER"; fi'
+        run: 'fail() { echo "::error::$1"; exit 1; }; [ "$PLAN" = success ] || fail "the plan ended $PLAN"; if [ "$MODE" = command ]; then [ "$EVENT" = schedule ] || [ "$COMMAND" = success ] || fail "the check command ended $COMMAND"; elif [ "$RUN" = false ] && [ "$EVENT" = schedule ]; then echo "check.nightly is off in .repo-standard.yml, so the nightly run tests nothing"; elif [ "$RUN" != true ]; then fail "the plan said nothing of what to run"; else [ "$LINT" = success ] || fail "the lint ended $LINT"; [ "$TESTS" = success ] || [ "$REUSED" = true ] || [ "$MARKER" = green ] || { ids=$(cat "$RUNNER_TEMP"/failed/*/failed.txt 2> /dev/null | sort -u | tr "\n" " "); fail "the tests ended $TESTS${ids:+, and failed: ${ids% }}"; }; [ "$BROWSER" = success ] || [ "$BROWSER" = skipped ] || fail "the browser tests ended $BROWSER"; fi'
       - name: checked trees marker
         id: checked
         if: github.event_name == 'pull_request' && needs.plan.outputs.mode == 'standard' && needs.plan.outputs.run == 'true' && needs.plan.outputs.checked != '' && needs.plan.outputs.reused != 'true'

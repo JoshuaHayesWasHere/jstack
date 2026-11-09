@@ -207,3 +207,27 @@ def test_the_parts_of_three_stacks_run_each_test_once(three_stacks):
 
     make(root, env, "test")
     assert sorted(ran(log)) == sorted(suite)
+
+
+@needs_go
+@pytest.mark.skipif(not npm_runs(), reason="npm is not installed, or does not run")
+def test_each_stack_writes_the_ids_that_failed_from_the_repos_root(three_stacks, tmp_path):
+    root, env, _ = three_stacks
+    write(
+        root,
+        {
+            "api/handlers/fail_test.go": (
+                'package handlers\n\nimport "testing"\n\n'
+                'func TestFail(t *testing.T) {\n\tt.Fatal("no")\n}\n'
+            ),
+            "tools/capture/tests/test_broken.py": "def test_broken():\n    assert False\n",
+            "client/tools/vitest.mjs": "process.exit(1);\n",
+        },
+    )
+    failed = tmp_path / "failed.txt"
+    make(root, {**env, "REPO_STANDARD_FAILED": str(failed)}, "test", ok=False)
+    assert sorted(failed.read_text().splitlines()) == [
+        "api/handlers",
+        *CLIENT_IDS,
+        "tools/capture/tests/test_broken.py",
+    ]
