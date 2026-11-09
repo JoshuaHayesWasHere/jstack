@@ -5,8 +5,9 @@ array's literal and of each `<export>.push({...})`, the row's `name:` and `path:
 the file's top-level statements. `table_change` gives the ids a change to the file selects from
 its hunks, as `git diff -U0` prints them, by the rules of `node_browser`'s docstring.
 
-The scan reads brackets by pattern, not by a parser: it skips comments, strings and templates,
-and a quote opens a string only where one can stand, so the apostrophe of JSX text stays text.
+The scan reads brackets by pattern, not by a parser: it skips comments, strings, templates and
+regular expression literals, and a quote or a slash opens one only where one can stand, so the
+apostrophe of JSX text stays text.
 """
 
 from __future__ import annotations
@@ -16,7 +17,10 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 
 NAME = re.compile(r"\bname\s*:\s*(?:(['\"])((?:\\.|(?!\1).)*)\1|`([^`$]*)`)")
-ROW_PATH = re.compile(r"\bpath\s*:\s*(?:\([^)]*\)\s*=>\s*|[\w$]+\s*=>\s*)?(['\"`])([^'\"`\n]*)\1")
+ROW_PATH = re.compile(
+    r"\bpath\s*:\s*(?:\([^)]*\)\s*=>\s*|[\w$]+\s*=>\s*)?"
+    r"(?:(['\"])([^'\"`\n]*)\1|`((?:[^`$\n]|\$(?!\{)|\$\{[^}]*\})*)`)"
+)
 DECLARATION = re.compile(
     r"(?:export\s+)?(?:default\s+)?(?:declare\s+)?(?:async\s+)?"
     r"(?:const|let|var|function\*?|class|interface|type|enum)\s+([\w$]+)"
@@ -29,8 +33,9 @@ Hunks = list[tuple[int, int]]
 
 def spans(text: str, opening: str = "{") -> list[tuple[int, int]]:
     """The `(start, end)` of each bracketed span of the text, by a scan that skips comments,
-    strings and templates. A quote opens a string only where a string can stand, so the
-    apostrophe of JSX text, as in `<p>Don't</p>`, stays text."""
+    strings, templates and regular expression literals. A quote opens a string, and a slash a
+    regular expression, only where one can stand, so the apostrophe of JSX text, as in
+    `<p>Don't</p>`, stays text, and a slash whose line ends before it closes is no regex."""
     closing = {"{": "}", "[": "]"}[opening]
     found, stack, at, before = [], [], 0, ""
     while at < len(text):
@@ -50,6 +55,11 @@ def spans(text: str, opening: str = "{") -> list[tuple[int, int]]:
             at += 1
             before = "a"
             continue
+        if char == "/" and (not before or STRING_BEFORE.search(before)):
+            end = regex_end(text, at)
+            if end is not None:
+                at, before = end, "a"
+                continue
         if char == opening:
             stack.append(at)
         elif char == closing and stack:
@@ -58,6 +68,27 @@ def spans(text: str, opening: str = "{") -> list[tuple[int, int]]:
             before = (before + char)[-8:]
         at += 1
     return sorted(found)
+
+
+def regex_end(text: str, at: int) -> int | None:
+    """The end of the regular expression literal whose opening slash is at `at`, with its flags,
+    or None when its line ends before a closing slash outside a `[...]` class."""
+    inside = False
+    at += 1
+    while at < len(text) and text[at] != "\n":
+        char = text[at]
+        if char == "\\":
+            at += 2
+            continue
+        if char == "/" and not inside:
+            at += 1
+            while at < len(text) and (text[at].isalnum() or text[at] in "_$"):
+                at += 1
+            return at
+        if char in "[]":
+            inside = char == "["
+        at += 1
+    return None
 
 
 def blank(text: str, start: int, inner: Iterable[tuple[int, int]]) -> str:
@@ -159,7 +190,7 @@ def read_table(
         rows.append(
             Row(
                 None if literal is None or "${" in literal else literal,
-                re.sub(r"\$\{[^}]*\}", "x", url[2]) if url else None,
+                re.sub(r"\$\{[^}]*\}", "x", url[2] if url[1] else url[3]) if url else None,
                 line_of(text, one[0]),
                 line_of(text, one[1] - 1),
                 text[one[0] : one[1]],

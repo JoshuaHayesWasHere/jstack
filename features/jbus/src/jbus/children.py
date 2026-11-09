@@ -53,9 +53,9 @@ or else the run's end. A second start in a row that fails on the cause the first
 for that cause to clear: the instance it ran on signed in again (`jgauge.limits.renewed`), the
 limit's reset, or for any other cause `PATIENCE` after it. It says so once in the digest
 (`home-start`). The home's entry keeps the failure and `says`, why the home has no `home-id` yet,
-such as `start failed: not signed in`, until its home starts. The T3 Code fork's sidebar still
-shows such a home as `starting...`, and does not read `says`. A launch waits while the dispatch
-is off or stopped. The model is the one the role map's `home` line gives."""
+such as `start failed: not signed in`, until its home starts. The T3 Code fork's sidebar shows
+such a home's `says` in place of `starting...`. A launch waits while the dispatch is off or
+stopped. The model is the one the role map's `home` line gives."""
 
 from __future__ import annotations
 
