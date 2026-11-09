@@ -6,7 +6,7 @@ from jbriefs import asks, below, cli, findings, home, page, parse, paths, proof,
 from testing.paths import REPO
 
 TEMPLATE = REPO / "features" / "jbriefs" / "templates" / "brief.md"
-FINDINGS = ("Read:", "Instruments:", "Change:", "Rests on:", "Sources:", "Ruled out:")
+FINDINGS = ("Read:", "Instruments:", "Change:", "Rests on:", "Ruled out:")
 
 PLAN = """\
 # demo: plan
@@ -273,7 +273,7 @@ def written(*, by_a_scout):
     as a result.
     """
     filled = {
-        "Sources:": "Sources: https://github.com/someone/demo/pull/3, the part on retries",
+        "Read:": "Read: https://github.com/someone/demo/pull/3, the part on retries",
         "Rests on:": "Rests on: Status: done in `tasks/beta.md`, and its Pull request: line",
     }
     lines = []
