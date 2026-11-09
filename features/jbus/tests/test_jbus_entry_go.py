@@ -477,8 +477,9 @@ def out(kitchen, scope="jview"):
 
 def test_a_holding_go_whose_last_row_ended_wakes_its_home_once_and_jbus_out_says_it(jview):
     """The replay of jv-build: its design scout reported, nothing else queued, and the go still
-    holds. The home is woken once, the root once it is still open `CLOSE_MINUTES` later, and the
-    item leaves the list on a new row and the home's record a day later."""
+    holds. The home is woken once, no other home is told of it however long it stays open (the
+    user, 2026-11-08: "Drop them"), and the item leaves the list on a new row and the home's
+    record a day later."""
     kitchen, root, scoped = jview
     reported(kitchen, "jv-design")
     kitchen.poll(NOW)
@@ -491,8 +492,7 @@ def test_a_holding_go_whose_last_row_ended_wakes_its_home_once_and_jbus_out_says
     assert len(owed_wakes(kitchen, scoped)) == 1
     assert owed_wakes(kitchen, root) == []
     kitchen.poll(NOW + timedelta(minutes=leftover.CLOSE_MINUTES + 1))
-    (late,) = owed_wakes(kitchen, root)
-    assert "- owed jview/jv-build: go holds, no live row" in late and scoped in late
+    assert owed_wakes(kitchen, root) == []
     assert len(owed_wakes(kitchen, scoped)) == 1
     text = brief("jv-build-2").replace("Home: root\n", "Home: jview\n")
     queued(kitchen, "jv-build-2", entry="jv-build", text=text)

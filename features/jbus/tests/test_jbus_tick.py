@@ -380,18 +380,56 @@ def test_a_required_job_that_ended_otherwise_leaves_the_line_to_jmerge_and_runs_
     assert line(on_check)["why"] == before["why"]
 
 
-def test_jmerge_that_judges_the_check_otherwise_corrects_the_line_and_logs_drift(on_check):
+@pytest.mark.parametrize(
+    "other",
+    [
+        ready.LIVE_RUN.format(check="check", head="d" * 12, state="running"),
+        ready.NOT_PASSED.format(check="check"),
+    ],
+    ids=["running-at-another-head", "not-passed"],
+)
+def test_jmerge_that_judges_the_check_otherwise_corrects_the_line_and_logs_drift(on_check, other):
     """The tick's word is the check runs at the head it read; `jmerge`'s is the pull request's
     checks. Where `jmerge`, run after the tick restated the line, finds the check running at
-    another head, as after a push, its verdict stands, and the line is logged as drift,
-    quietly."""
+    another head, as after a push, or not passed, a verdict that names no head, its verdict
+    stands, and the line is logged as drift, quietly."""
     check_ended(on_check, 1, "failure")
-    other = ready.LIVE_RUN.format(check="check", head="d" * 12, state="running")
     on_check.set("jmerge.txt", f"wait 7 {PULL}: {other}\n")
     ticks(on_check)
     assert line(on_check)["why"] == f"wait: {other}"
     (drift,) = [one["line"] for one in on_check.events(states.DRIFT)]
     assert drift.startswith("work-drift alpha: the tick's check failed (")
+
+
+def test_a_check_suite_the_runs_list_does_not_show_yet_is_asked_of_again_on_the_next_200(
+    on_check,
+):
+    """GitHub lists `check`'s job, failed, before its workflow run reaches the head's runs list:
+    the job belongs to no workflow yet, so the line says nothing new. Once the check runs change
+    and the runs list shows the run, the next tick asks the runs list again, and the line says
+    the check failed."""
+    late = SUITE + 1
+    before = line(on_check)
+    on_check.set("check-runs.json", {HEAD: [job("check", "failure", 1, suite=late)]})
+    on_check.set("push-runs.json", {HEAD: [{"id": 100, "name": "other", "check_suite_id": SUITE}]})
+    assert ticks(on_check) == []
+    assert line(on_check) == before
+    on_check.set(
+        "check-runs.json",
+        {HEAD: [job("check", "failure", 1, suite=late), job("other", "success", 0)]},
+    )
+    on_check.set(
+        "push-runs.json",
+        {
+            HEAD: [
+                {"id": 100, "name": "other", "check_suite_id": SUITE},
+                {"id": 101, "name": "check", "check_suite_id": late},
+            ]
+        },
+    )
+    on_check.set("jmerge.txt", f"wait 7 {PULL}: {ready.CHECK_FAILED.format(check='check')}\n")
+    assert ticks(on_check)[0] == "tick demo: a check ended, and alpha's line says so"
+    assert line(on_check)["why"] == FAILED
 
 
 def test_a_job_with_no_time_it_ended_leaves_the_line_to_jmerge(on_check):

@@ -2212,7 +2212,7 @@ def retro(run: Pass, world: World, rows: list[dict[str, Any]], check: Callable[[
         )
         line += "" if slug else ", and no briefed merge came in the day before it"
         run.find(owner, "retro", line, key=f"red {sha}", past=True)
-        if place == 0 and not run.first and slug not in run.removed:
+        if place == 0:
             red = commits[place : place + since]
             pull = by_commit.get(red[-1]["sha"])
             culprit = slug_of.get(pull["number"], "") if pull else ""

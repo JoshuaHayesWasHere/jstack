@@ -33,9 +33,8 @@ uncommitted or untracked file and no ignored one but a cache such as `.venv`, no
 branch, or whose pull request merged at its head. It runs `git worktree remove`, which removes no
 worktree with a change in it, then deletes the branch, and logs a quiet `worktree-removed` event
 with the path, the branch and its head. The count is of what stays.
-A count above none is an item of the one list (`jbus.wakes`), so the root home hears it, and hears
-it again each time the count changes. While the root's own `home-id` is stale there is no home to
-hear it (`gone`), and the next home's start writes a new one.
+A count above none is a quiet item of the one list (`jbus.wakes`): it wakes no home, and `jbus
+status` shows it under the project's `quiet` while it stays above none.
 """
 
 from __future__ import annotations
@@ -467,15 +466,14 @@ def audit(
 
 
 def read(state: Path) -> dict[str, Any]:
-    """The last hourly count: `{"hour", "count", "kinds", "gone"}`, or empty before the first.
-    `gone` is whether the root's `home-id` names a thread T3 Code no longer has."""
+    """The last hourly count: `{"hour", "count", "kinds"}`, or empty before the first."""
     kept = read_json(state / NAME, {})
     return kept if isinstance(kept, dict) else {}
 
 
 def line(project: str, kept: dict[str, Any]) -> str:
-    """The one list's line for a count above none, or nothing while the root home is gone."""
-    if not kept.get("count") or kept.get("gone"):
+    """The one list's line for a count above none, or nothing."""
+    if not kept.get("count"):
         return ""
     kinds = ", ".join(f"{kind} {n}" for kind, n in kept.get("kinds", {}).items() if n)
     return LINE.format(count=kept["count"], project=project, kinds=kinds)
@@ -497,9 +495,8 @@ def hourly(half: Half) -> None:
     except jbus.Refused as refused:
         run.say(f"wait {run.project.name}: no stale count ({refused})")
         return
-    kinds, root = found.counts(), _where(run.home, run.home / "home-id")
-    lost = any(one.kind == "home-id" and one.what == root for one in found.stale)
-    kept = {"hour": hour, "count": sum(kinds.values()), "kinds": kinds, "gone": lost}
+    kinds = found.counts()
+    kept = {"hour": hour, "count": sum(kinds.values()), "kinds": kinds}
     write_json(run.state / NAME, kept)
 
 

@@ -13,11 +13,13 @@ check it never set up.
 
 from __future__ import annotations
 
+import posixpath
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from repo_standard.adapters import COMMANDS
 from repo_standard.lexers import READERS
 
 NAME = ".repo-standard.yml"
@@ -65,6 +67,15 @@ class Check:
 
 
 @dataclass(frozen=True)
+class Stack:
+    """One stack of a repo of several: the adapter that runs it and the folders it owns. No root
+    of one stack sits in another's, so each path has at most one stack."""
+
+    adapter: str
+    roots: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class Waiver:
     rule: str
     reason: str
@@ -86,6 +97,7 @@ class Config:
     enforced_by: dict[str, tuple[str, ...]] = field(default_factory=dict)
     deploy: tuple[str, ...] | None = None
     check: Check = field(default_factory=Check)
+    stacks: dict[str, Stack] = field(default_factory=dict)
 
     def part(self, name: str) -> Any:
         """The part a guard reads, refused when the config does not set it."""
@@ -283,7 +295,7 @@ def build(keys: dict[str, Any]) -> Config:
     """The typed config from the parsed keys."""
     known = {"standard", "features", "manifest-schema", "layout", "owners", "cross-cutting"}
     known |= {"generators", "docs", "size", "comments", "waivers", "enforced-by", "deploy"}
-    known |= {"check"}
+    known |= {"check", "stacks"}
     keys = _closed(keys, known, "the top")
     owners = _table(keys.get("owners"), "owners", list)
     enforced = _table(keys.get("enforced-by"), "enforced-by", list)
@@ -311,7 +323,43 @@ def build(keys: dict[str, Any]) -> Config:
         },
         deploy=None if keys.get("deploy") is None else _strings(keys["deploy"], "deploy"),
         check=Check() if keys.get("check") is None else _check(keys["check"]),
+        stacks=_stacks(keys.get("stacks", {})),
     )
+
+
+def _inside(path: str, root: str) -> bool:
+    return f"{path}/".startswith(f"{root}/")
+
+
+def _stacks(value: Any) -> dict[str, Stack]:
+    """Each stack, refused when its adapter is unknown, it has no root, or two roots overlap."""
+    if not isinstance(value, dict):
+        raise Refused(f"{NAME}: stacks is not a map of a stack's name to its adapter and roots")
+    found, owner = {}, {}
+    for name, one in value.items():
+        if not name or any(char in name for char in " :/"):
+            raise Refused(f"{NAME}: stacks.{name} is not a name: it holds a space, : or /")
+        part = _closed(one, {"adapter", "roots"}, f"stacks.{name}")
+        adapter = part.get("adapter")
+        if adapter not in COMMANDS:
+            known = ", ".join(COMMANDS)
+            raise Refused(f"{NAME}: stacks.{name}.adapter is {adapter}, not one of {known}")
+        roots = _strings(part.get("roots", []), f"stacks.{name}.roots")
+        if not roots:
+            raise Refused(f"{NAME}: stacks.{name}.roots names no folder")
+        for root in roots:
+            clean = posixpath.normpath(root)
+            if clean != root.rstrip("/") or root.startswith("/") or clean.startswith(".."):
+                raise Refused(f"{NAME}: stacks.{name}.roots has {root}, not a folder of the repo")
+            for other, holder in owner.items():
+                if "." in (clean, other) or _inside(clean, other) or _inside(other, clean):
+                    raise Refused(
+                        f"{NAME}: stacks.{name}.roots has {root}, inside or around {other}"
+                        f" of {holder}"
+                    )
+            owner[clean] = name
+        found[name] = Stack(adapter, tuple(posixpath.normpath(root) for root in roots))
+    return found
 
 
 def _check(value: Any) -> Check:

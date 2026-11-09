@@ -118,14 +118,14 @@ def test_a_check_whose_workflow_ended_with_no_check_job_has_no_run(tmp_path):
 def test_rows_waiting_on_a_running_check_are_no_hold(kitchen):
     """A runner is at work on the run, so the rows wait on the merge runner and wake nobody."""
     held = Held(kitchen, ready.LIVE_RUN.format(check="check", head="abcdef123456", state="running"))
-    held.until(31)
+    held.at(0, 31)
     assert held.told() == []
 
 
 def test_rows_held_on_a_check_with_no_run_wake_their_home_after_the_hold_minutes(kitchen):
     """No runner is at work on a check that has no run, so the rows are a hold of their own."""
     held = Held(kitchen, ready.NO_RUN.format(check="macos", head="abcdef123456"))
-    held.until(31)
+    held.at(0, 31)
     (told,) = held.told()
     assert "macos has no run at abcdef123456" in told
 
@@ -148,7 +148,7 @@ def test_rows_left_closed_by_a_reopen_jmerge_asks_no_more_wake_their_home(kitche
     reopens it, so it is a hold of its own."""
     held = Held(kitchen, UNREOPENED)
     closed(held)
-    held.until(31)
+    held.at(0, 31)
     (told,) = held.told()
     assert UNREOPENED in told
 
@@ -156,7 +156,7 @@ def test_rows_left_closed_by_a_reopen_jmerge_asks_no_more_wake_their_home(kitche
 def test_rows_whose_reopen_jmerge_still_asks_are_no_hold(kitchen):
     held = Held(kitchen, UNOPENED)
     closed(held)
-    held.until(31)
+    held.at(0, 31)
     assert held.told() == []
 
 

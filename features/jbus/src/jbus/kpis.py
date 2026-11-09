@@ -6,8 +6,6 @@ or the machine (`alert.MACHINE`).
 
 - `doors`: the one-way doors opened today without the user's word, an act that is `done` on a
   door by a party whose words jbus did not read in T3 Code itself (`party.opens`). It alerts on 1.
-- `main-red`: the minutes main's push check was red today, a red spell still open counted up to
-  now (`main_spells`). It alerts over 30.
 - `capped`: the minutes today in which every instance `jgauge spend` counts was capped, from the
   usage-limit failures in T3 Code's store. It alerts over 30.
 - `lost-asks`: the asks lost today, each a message the user typed that `ask_ledger` says is
@@ -16,6 +14,10 @@ or the machine (`alert.MACHINE`).
 - `pass-time`: the 90th percentile of the seconds of jbus's passes that started in the last hour
   (`passes`). It alerts over 60, and only once the store holds a pass an hour old, so a whole hour
   is read.
+
+A red main has no threshold: jbus files a `main-red-*` row for every red tip
+(`jbus.watch.retro`), so an alert of it would say again what that row says. The KPI page still
+counts its minutes (`jbus.ci.daily`).
 
 All but `capped` read the telemetry store (`jbus.telemetry`), which the chore before this one
 brings up to date. A count that cannot be read, with no store or no T3 Code store, is no
@@ -102,23 +104,6 @@ def _doors(look: Look) -> dict[str, float]:
     return {project.name: found.get(project.name, 0) for project in look.config.projects}
 
 
-def _main_red(look: Look) -> dict[str, float]:
-    if look.store is None:
-        return {}
-    spells: dict[str, list[tuple[datetime, datetime]]] = {}
-    for project, failed, green in look.store.execute(
-        "SELECT project, first_fail_at, green_at FROM main_spells WHERE first_fail_at < ? "
-        "AND (green_at IS NULL OR green_at > ?)",
-        (_stamp(look.now), _stamp(look.begins)),
-    ):
-        end = _at(green) if green else look.now
-        spells.setdefault(project, []).append((_at(failed), end))
-    return {
-        project.name: _minutes(spells.get(project.name, []), look.begins, look.now)
-        for project in look.config.projects
-    }
-
-
 def _capped(look: Look) -> dict[str, float]:
     try:
         found, instances = spend.caps(boxes.store(), look.now)
@@ -195,14 +180,6 @@ THRESHOLDS: tuple[Threshold, ...] = (
             f"{_count(n, 'one-way door', 'one-way doors')} opened on {day} without the user's word"
         ),
         "and the threshold alerts on 1",
-    ),
-    Threshold(
-        "main-red",
-        30,
-        True,
-        _main_red,
-        lambda minutes, day: f"main red {minutes:.0f} min on {day}",
-        "over the threshold of 30 min",
     ),
     Threshold(
         "capped",
