@@ -118,6 +118,23 @@ def test_the_third_alarm_in_a_row_alerts_once_on_the_desk_and_never_shows_the_ke
     assert not [line for line in said if KEY in line]
 
 
+def test_a_burst_of_fast_failures_raises_no_alert_until_they_span_two_minutes(kitchen):
+    """A pass starts 10 s after the last one ended, so a pass that fails fast fails about every
+    11 s. The alert waits for failures that span two minutes, as three passes at once a minute
+    did, and not for a count of passes."""
+    said = []
+    for second in range(0, 120, 11):
+        said += alarm(NOW + timedelta(seconds=second))
+    assert [line for line in said if line.startswith("alert:")] == []
+    assert machine(kitchen, NOW + timedelta(minutes=2)) == []
+    assert kitchen.log("notify") == []
+    said = alarm(NOW + timedelta(seconds=121))
+    (line,) = [one for one in said if one.startswith("alert:")]
+    assert line.startswith("alert: pass failed 12 times in a row since 11:00 ET: ")
+    assert machine(kitchen, NOW + timedelta(minutes=3)) == [alerts.PASS]
+    assert kitchen.log("notify") == [f"jbus | {line}"]
+
+
 def test_the_alarm_s_alert_reaches_the_infra_home_and_the_next_pass_ends_it(kitchen):
     """The test runs the command as the unit runs it, on the real clock, so the kitchen signs in
     at the real now: a sign-in from the tests' fixed now runs out within a week of a real day,
