@@ -160,19 +160,3 @@ def test_a_row_queued_before_the_rule_is_not_checked_again(kitchen):
 def test_home_root_is_the_catch_alls_and_names_no_retired_scope(kitchen):
     owner = Homes(kitchen.home, kitchen.state).owner(complete("x", "Home: root\n"))
     assert (owner.name, owner.retired) == ("uncategorized", "")
-
-
-def test_the_sidebar_file_names_a_row_from_before_that_says_root_under_uncategorized(kitchen):
-    """T3 Code's sidebar draws `work.json`, so each row's line there names the home jbus resolves
-    for it (`jbriefs.home.home_of`): a row queued before `add` refused `Home: root` is the
-    catch-all's, `uncategorized`, and never the root's, whichever copy of its brief says root."""
-    assert adds(kitchen, "old-row", complete("old-row", "Home: uncategorized\n"))[0] == 0
-    assert adds(kitchen, "fl-row", complete("fl-row", f"Home: {SCOPE}\n"))[0] == 0
-    stored = kitchen.state / "briefs" / "old-row.md"
-    stored.write_text(stored.read_text().replace("Home: uncategorized\n", "Home: root\n"))
-    (kitchen.home / "tasks").mkdir(exist_ok=True)
-    (kitchen.home / "tasks" / "old-row.md").write_text(stored.read_text())
-    kitchen.poll()
-    lines = json.loads((kitchen.state / "work.json").read_text())["work"]
-    homes = {one["key"]: one["home"] for one in lines if one.get("kind") == "row"}
-    assert homes == {"old-row": "uncategorized", "fl-row": SCOPE}

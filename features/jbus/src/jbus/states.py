@@ -112,15 +112,18 @@ def unplaced(half: Half) -> None:
 
 def _home(run: Pass, owner: Callable[[str], Path], slug: str, scout: bool) -> str:
     """The name of the home a row is, by its brief or a scout's request (`jbriefs.home.home_of`):
-    a scope's or `uncategorized`, never the root, whatever the text's `Home:` line says."""
-    if scout:
+    a scope's or `uncategorized`, never the root, whatever the text's `Home:` line says. A
+    scout's request is its home's copy under `scouts/`, else the one jbus keeps."""
+    if not scout:
+        return owner(watch.brief_of(run, slug)).name
+    found = ""
+    for path in (run.home / "scouts" / f"{slug}.md", queue.brief_path(run.state, slug)):
         try:
-            text = (run.home / "scouts" / f"{slug}.md").read_text(errors="replace")
+            found = path.read_text(errors="replace")
+            break
         except OSError:
-            text = ""
-    else:
-        text = watch.brief_of(run, slug)
-    return owner(text).name
+            continue
+    return owner(found).name
 
 
 def keep_work(half: Half) -> None:
