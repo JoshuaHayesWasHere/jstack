@@ -11,11 +11,17 @@ guard tests: the cross-cutting tests, the catch-all and the changed test files.
 They run inside a full test slot (`run_guards`), and a run that finds none free for
 `SLOT_SECONDS` leaves the pull request to the next run.
 
-A repo with no such file runs no guards. A head that holds the tip already is the tree its check
-ran on, so nothing is built for it. A pass, a failure, or a stop at the time limit of the guards on
-a head over a tip is kept in `merged-trees.json`, so a held pull request is not run again until its
-head or the tip moves. A stopped tree is kept too, since running it again on the next run spends
-that run's time on the same tree and leaves every other pull request waiting (#1103 on 2026-11-05).
+The guards run only on a tree no green check covers. A repo with no such file runs no guards. A
+head that holds the tip already is the tree its check ran on, so nothing is built for it. A merged
+tree that a successful check of this repo already tested over the same tip runs nothing either:
+CI's check runs a superset of the guards, plus the lint, on GitHub's merge of the head over the
+tip, and leaves an artifact named by the two trees (`green.checked`), so the guards would only run
+a part of that pass again (58 of 97 guard runs from 2026-11-06 to 11-08).
+
+A pass, a failure, or a stop at the time limit of the guards on a head over a tip is kept in
+`merged-trees.json`, so a held pull request is not run again until its head or the tip moves. A
+stopped tree is kept too, since running it again on the next run spends that run's time on the
+same tree and leaves every other pull request waiting (#1103 on 2026-11-05).
 """
 
 from __future__ import annotations
@@ -33,7 +39,7 @@ from datetime import datetime
 from pathlib import Path
 
 from jgauge import slot
-from jmerge import ready
+from jmerge import green, ready
 from jsettings import store
 
 NAME = "merged-tree-guards"
@@ -53,6 +59,7 @@ run stays under the 17 minutes jbus gives `jmerge` (`jbus.wake.JMERGE_TIMEOUT`).
 UNNAMED = "its guards"
 SHA = 12
 PASSED = "the guards passed on its tree merged over {base} at {tip} in {seconds} s"
+CHECKED = "CI's check passed its tree merged over {base} at {tip} in {run}, so no guards ran"
 _IDENTITY = ("-c", "user.name=jmerge", "-c", "user.email=jmerge@localhost")
 
 
@@ -196,11 +203,13 @@ def _said(ran: subprocess.CompletedProcess[str]) -> str:
 class Guards:
     """The guards of one `jmerge` run, and the record of what they said of each pull request's
     head over a tip (`KEPT`). `run` is False for `--check`, which runs no guards and keeps
-    nothing, but reads what a run kept."""
+    nothing, but reads what a run kept. `ask` answers a GitHub API path of this repo, as
+    `green.green_run` asks it."""
 
-    def __init__(self, main: Path, state: Path, run: bool) -> None:
+    def __init__(self, main: Path, state: Path, run: bool, ask: green.Ask) -> None:
         self.main = main
         self.state = state
+        self.ask = ask
         self.path = state / KEPT
         self.run = run
         self.command = command_of(state)
@@ -257,16 +266,20 @@ class Guards:
         if was is not None:
             return str(was.get("said") or ""), str(was.get("note") or "")
         values = {"base": one.base, "tip": tip[:SHA]}
-        if self.spent >= RUN_SECONDS:
-            return ready.MERGED_TREE_NO_TIME.format(**values), ""
-        if self.slotless:
-            return ready.MERGED_TREE_NO_SLOT.format(**values, seconds=SLOT_SECONDS), ""
         merged = _git(self.main, "merge-tree", "--write-tree", tip, one.head)
         tree = merged.stdout.split()[:1]
         if merged.returncode == 1 and tree:
             return ready.FRESH_CONFLICT, ""
         if merged.returncode or not tree:
             return ready.MERGED_TREE_UNBUILT.format(**values, why=_said(merged)), ""
+        if run := self.checked(tip, tree[0]):
+            note = CHECKED.format(**values, run=run)
+            self.keep(one, tip, "", note)
+            return "", note
+        if self.spent >= RUN_SECONDS:
+            return ready.MERGED_TREE_NO_TIME.format(**values), ""
+        if self.slotless:
+            return ready.MERGED_TREE_NO_SLOT.format(**values, seconds=SLOT_SECONDS), ""
         message = f"jmerge: #{one.number} merged over {one.base} at {tip[:SHA]}"
         made = _git(
             self.main, *_IDENTITY, "commit-tree", tree[0], "-p", tip, "-p", one.head, "-m", message
@@ -291,6 +304,17 @@ class Guards:
         if not said and at[:1] != [tip]:
             return ready.MAIN_MOVED.format(base=one.base), ""
         return said, note
+
+    def checked(self, tip: str, tree: str) -> str | None:
+        """The address of a successful check of this repo that tested `tree` over `tip`, by the
+        artifact it left for the two trees, or None. A lookup that fails finds none, and the
+        guards run."""
+        base = _git(self.main, "rev-parse", f"{tip}^{{tree}}").stdout.strip()
+        try:
+            run, _ = green.green_run(self.ask, green.checked(base, tree))
+        except Exception:
+            return None
+        return run
 
     def in_tree(self, commit: str, tip: str) -> Ran | str | None:
         """Run the guards in a worktree of `commit` at the state's `TREE`, and remove it after.

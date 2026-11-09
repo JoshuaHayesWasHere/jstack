@@ -14,7 +14,7 @@ from types import SimpleNamespace
 import pytest
 
 from jgauge import slot
-from jmerge import ready, treeguards
+from jmerge import green, ready, treeguards
 from test_jmerge_fresh import git
 from testing.paths import REPO
 
@@ -122,9 +122,14 @@ class Tree:
         git(self.main, "commit", "-q", "-m", "x")
         return git(self.main, "rev-parse", "HEAD")
 
-    def guards(self, command):
+    def guards(self, command, ask=None):
         (self.state / treeguards.NAME).write_text(command + "\n")
-        return treeguards.Guards(self.main, self.state, True)
+        return treeguards.Guards(self.main, self.state, True, ask or unchecked)
+
+
+def unchecked(path):
+    """GitHub with no check that left an artifact."""
+    return {"artifacts": []}
 
 
 def values(tree):
@@ -211,7 +216,7 @@ def test_merged_tree_records_of_pull_requests_no_longer_open_are_dropped(tmp_pat
     assert held and guards.kept(tree.one, tree.tip) == held
     guards.open_only({"8": "x"})
     assert json.loads((tree.state / treeguards.KEPT).read_text()) == {}
-    assert treeguards.Guards(tree.main, tree.state, True).kept(tree.one, tree.tip) == ""
+    assert treeguards.Guards(tree.main, tree.state, True, unchecked).kept(tree.one, tree.tip) == ""
 
 
 HOLDS_THE_SLOT = (
@@ -253,7 +258,7 @@ def test_merged_tree_guards_with_every_slot_taken_wait_for_the_next_run(tmp_path
         os.close(held)
     assert not marker.exists() and guards.kept(tree.one, tree.tip) == ""
     assert not (tree.state / treeguards.TREE).exists()
-    said, note = treeguards.Guards(tree.main, tree.state, True).of(tree.one, tree.tip)
+    said, note = treeguards.Guards(tree.main, tree.state, True, unchecked).of(tree.one, tree.tip)
     assert said == "" and note
     assert marker.exists()
 
@@ -282,4 +287,80 @@ def test_merged_tree_guards_whose_slot_command_fails_say_why_and_do_not_run(tmp_
     marker = tmp_path / "ran"
     why = treeguards.run_guards(f"touch {marker}", tmp_path, {}, 60)
     assert isinstance(why, str) and "none" in why
+    assert not marker.exists()
+
+
+class Checks:
+    """GitHub's artifacts API for a check of this repo that passed in run 5 and left `names`,
+    with every path it was asked."""
+
+    URL = "https://github.com/o/r/actions/runs/5"
+
+    def __init__(self, *names):
+        self.names = names
+        self.asked = []
+
+    def __call__(self, path):
+        self.asked.append(path)
+        if path.startswith("actions/runs/5"):
+            mine = {"id": 1}
+            return {
+                "conclusion": "success",
+                "path": green.WORKFLOW,
+                "html_url": self.URL,
+                "repository": mine,
+                "head_repository": mine,
+            }
+        name = path.split("name=", 1)[1].split("&", 1)[0]
+        run = {"id": 5, "repository_id": 1, "head_repository_id": 1}
+        found = [{"workflow_run": run}] if name in self.names else []
+        return {"artifacts": found}
+
+
+def checked_name(tree):
+    """The artifact CI's check leaves for the pull request's head merged over the tip."""
+    base = git(tree.main, "rev-parse", f"{tree.tip}^{{tree}}")
+    merged = git(tree.main, "merge-tree", "--write-tree", tree.tip, tree.head).split()[0]
+    return green.checked(base, merged)
+
+
+def test_merged_tree_a_green_check_tested_runs_no_guards(tmp_path):
+    """A tree that a successful check of this repo already tested over the same tip, by the
+    artifact it left for the two trees, merges with no guards run, and its merge line says so.
+    A tree no check covers, and one whose lookup fails, run the guards."""
+    tree = Tree(tmp_path)
+    marker = tmp_path / "ran"
+    checks = Checks(checked_name(tree))
+    said, note = tree.guards(f"touch {marker}", checks).of(tree.one, tree.tip)
+    assert (said, note) == ("", treeguards.CHECKED.format(**values(tree), run=Checks.URL))
+    assert not marker.exists(), "the guards ran on a tree CI's check passed"
+    assert len(checks.asked) == 2
+    (tree.state / treeguards.KEPT).unlink()
+
+    said, note = tree.guards(f"touch {marker}", Checks("checked-tree-other")).of(tree.one, tree.tip)
+    assert said == "" and note.startswith("the guards passed") and marker.exists()
+    marker.unlink()
+    (tree.state / treeguards.KEPT).unlink()
+
+    def refused(path):
+        raise RuntimeError("HTTP 502")
+
+    said, note = tree.guards(f"touch {marker}", refused).of(tree.one, tree.tip)
+    assert said == "" and note.startswith("the guards passed") and marker.exists()
+
+
+def test_merged_tree_guards_past_the_run_budget_wait_unless_a_green_check_covers_the_tree(tmp_path):
+    """A run that has spent `RUN_SECONDS` on guards starts no more: a tree no check covers waits
+    for the next run, and one a green check covers still merges, since it runs nothing."""
+    tree = Tree(tmp_path)
+    marker = tmp_path / "ran"
+    guards = tree.guards(f"touch {marker}")
+    guards.spent = treeguards.RUN_SECONDS
+    assert guards.of(tree.one, tree.tip) == (ready.MERGED_TREE_NO_TIME.format(**values(tree)), "")
+    assert not marker.exists() and guards.kept(tree.one, tree.tip) == ""
+
+    covered = tree.guards(f"touch {marker}", Checks(checked_name(tree)))
+    covered.spent = treeguards.RUN_SECONDS
+    said, note = covered.of(tree.one, tree.tip)
+    assert (said, note) == ("", treeguards.CHECKED.format(**values(tree), run=Checks.URL))
     assert not marker.exists()

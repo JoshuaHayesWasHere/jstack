@@ -5,6 +5,7 @@ against the fakes.
 """
 
 import json
+import re
 from datetime import timedelta
 
 import pytest
@@ -1298,6 +1299,25 @@ def test_a_red_run_of_any_scheduled_workflow_on_main_files_one_row_a_day(kitchen
     ]
 
 
+def test_a_pass_reads_every_nightlys_runs_before_it_files_from_any(kitchen):
+    """Each list of a nightly's runs is a call to GitHub that waits, so a pass reads them all side
+    by side, then files from each in turn, and its first red run's jobs come after every list."""
+    sweep = browser_run(67, ago=timedelta(hours=2))
+    runs = {"drift.yml": [browser_run(66, ago=timedelta(hours=3))], "sweep.yml": [sweep]}
+    scheduled_runs(kitchen, runs, {"drift.yml": DRIFT, "sweep.yml": DRIFT})
+    kitchen.poll()
+    assert [row["slug"] for row in red_rows(kitchen, "red-")] == [
+        "red-drift-2026-10-12",
+        "red-sweep-2026-10-12",
+    ]
+    asked = (kitchen.stub / "gh.log").read_text().splitlines()
+    lists = [n for n, ask in enumerate(asked) if re.search(r"(drift|sweep).yml/runs", ask)]
+    jobs = [n for n, ask in enumerate(asked) if re.search(r"actions/runs/6[67]/jobs", ask)]
+    assert len(lists) == 2
+    assert len(jobs) == 2
+    assert max(lists) < min(jobs)
+
+
 def test_a_workflow_with_no_schedule_and_a_pull_requests_run_file_nothing(kitchen):
     pull = {"event": "pull_request", "head_branch": "fix-pin"}
     scheduled_runs(kitchen, {"lint.yml": [browser_run(65)], "drift.yml": [browser_run(66, **pull)]})
@@ -1322,3 +1342,31 @@ def test_a_scheduled_workflows_push_run_on_main_is_mains_check_and_files_no_row_
     scheduled_runs(kitchen, {"drift.yml": [browser_run(66, event="push")]}, {"drift.yml": both})
     kitchen.poll()
     assert red_rows(kitchen, "red-drift-") == []
+
+
+def job_reads(kitchen):
+    return [line for line in kitchen.log("gh") if "/actions/jobs/" in line]
+
+
+def red(kitchen, slug, number, job):
+    failed = {
+        "name": "check",
+        "status": "COMPLETED",
+        "conclusion": "FAILURE",
+        "detailsUrl": f"https://example.test/o/r/actions/runs/77/job/{job}",
+    }
+    return {**kitchen.opened(slug, number), "statusCheckRollup": [failed]}
+
+
+def test_a_completed_job_is_read_once_and_only_for_a_row_s_pull_request(kitchen):
+    """A pass read each failed check's job of every open pull request, 17.49 reads a pass on
+    2026-11-08, the same completed jobs on every pass, and 4.0 of them of pull requests that were
+    no row's. A completed job's steps and attempt never change, and only a row's pull request is
+    read for a check that never started."""
+    add(kitchen, "alpha", approve=False)
+    kitchen.set("jobs.json", {"901": {"status": "completed", "steps": [], "run_attempt": 1}})
+    kitchen.set("open.json", [red(kitchen, "alpha", 7, "901"), red(kitchen, "other", 8, "902")])
+    kitchen.poll()
+    assert [line.split()[-1] for line in job_reads(kitchen)] == ["repos/o/r/actions/jobs/901"]
+    kitchen.poll(NOW + timedelta(minutes=2))
+    assert len(job_reads(kitchen)) == 1

@@ -26,8 +26,9 @@ machine, which the skill checks, since `uv run` puts this command on PATH whethe
 from __future__ import annotations
 
 import subprocess
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
 
 import jbus
@@ -46,7 +47,8 @@ SHOW_THE_OPEN_ONES = 'the block of "Show the open ones"'
 @dataclass(frozen=True)
 class Home:
     """`Home` is one home of a repo: its directory (`mine`), the repo's state directory (`state`),
-    which is `mine` for the root home, and the repo's name."""
+    which is `mine` for the root home, and the repo's name. It reads the repo's scopes once, at
+    the first brief it is asked of, and answers every brief of the pass from that read."""
 
     mine: Path
     state: Path
@@ -61,10 +63,14 @@ class Home:
     def scope(self) -> str:
         return "" if self.mine == self.state else self.mine.name
 
+    @cached_property
+    def _home_of(self) -> Callable[[str], Path]:
+        return home.reader(self.state)
+
     def keeps(self, kind: str, slug: str) -> bool:
         """Whether the brief (`tasks`) or the request (`scouts`) of `slug` is this home's."""
         brief = self.state / kind / f"{slug}.md"
-        return home.home_of(self.state, _text(brief)) == self.mine
+        return self._home_of(_text(brief)) == self.mine
 
 
 def _text(file: Path) -> str:

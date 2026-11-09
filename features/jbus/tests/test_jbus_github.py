@@ -212,6 +212,16 @@ def test_a_check_that_failed_with_no_step_run_is_not_told(launched):
     assert sends(launched) == [] and launched.lines("failed") == []
 
 
+def test_a_check_that_never_started_is_not_told_to_a_crew_whose_row_is_gone(launched):
+    """`look` works out the checks that never started for a launched crew's pull request as for a
+    row's, since `rebase.github` tells a crew jbus launched with or without its row."""
+    (launched.state / "queue.json").write_text("[]")
+    launched.set("jobs.json", {"11": {"status": "completed", "steps": [], "run_attempt": 1}})
+    launched.set("open.json", [pull(launched, [failed()])])
+    passes(launched, 0, 3)
+    assert sends(launched) == [] and launched.lines("failed") == []
+
+
 def test_only_the_checks_that_ran_are_named_beside_one_that_never_started(launched):
     launched.set("jobs.json", {"11": {"steps": []}})
     launched.set("open.json", [pull(launched, [failed("11", "lint"), failed("12", "check")])])

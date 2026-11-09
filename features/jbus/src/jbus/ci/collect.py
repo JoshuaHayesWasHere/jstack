@@ -23,6 +23,14 @@ most `CATCH_UP`: a pass after a gap keeps every pull request merged in it. It ne
 lock: while `jbus ci` holds it, the pass collects nothing. A run that completes more than
 `PASS_HOURS` after it was created is kept by the next `jbus ci`.
 
+A pass lists only the runs created since its mark (`MARK`, beside the ledger's lock), where that
+is within the `PASS_HOURS`: the creation time of the oldest run the last pass listed and did not
+keep, because it had not completed or was past its `PASS_RUNS`, or of the newest run it listed
+where it kept them all. So a pass after one that kept everything reads one page of runs, not
+every page of the hours. A rerun keeps its run's creation time, so a run kept before the mark is
+not listed again when it is rerun: a pass lists all the `PASS_HOURS` again once `SWEEP` has gone
+by since the last pass that did, and keeps the rerun's attempt then.
+
 The collector reads a job's telemetry from its check run's annotations. Of a job's own words, the
 API returns only its annotations, since the API cannot read a job summary. The telemetry is an
 annotation titled `jstack-ci` whose message is a JSON object (`jbus.ci.notice` writes it).
@@ -48,13 +56,15 @@ from jbus import locked
 from jbus.ci import ledger
 from jbus.passes import side_by_side
 from jsettings import budget as allowance
-from jsettings import proc
+from jsettings import proc, store
 
 TITLE = "jstack-ci"
 PAGE = 100
 PASS_HOURS = 3
 PASS_RUNS = 30
 CATCH_UP = timedelta(days=14)
+SWEEP = timedelta(minutes=15)
+MARK = "ci-mark.json"
 HOSTED = re.compile(r"^(ubuntu|windows|macos)-")
 EVIDENCE = re.compile(r"^(FAILED|ERROR|E  |##\[error\]|make(\[\d+\])?: \*\*\* )")
 FAILING = re.compile(r"^(?:FAILED|ERROR) (\S+::\S+)")
@@ -328,20 +338,32 @@ def collect(gh: Gh, repo: str, state: Path, now: datetime, days: int) -> Counts:
     """Add to the ledger the jobs of the last `days` days that it does not have yet. Also keep
     the pull requests. It waits for another collector to end first."""
     with locked(state, ledger.LOCK):
-        return _collect(gh, repo, state, now - timedelta(days=days))
+        return _collect(gh, repo, state, now - timedelta(days=days))[0]
 
 
 def keep(gh: Gh, repo: str, state: Path, now: datetime) -> Counts | None:
-    """What a pass collects: the runs of the last `PASS_HOURS` hours, at most `PASS_RUNS` new
+    """What a pass collects: the runs of the last `PASS_HOURS` hours created since the mark, all
+    of those hours once `SWEEP` has gone by since a pass listed them, at most `PASS_RUNS` new
     ones, and the pull requests updated since then or since the newest update the ledger holds,
-    whichever is earlier, back at most `CATCH_UP`. None where another collector holds the
-    ledger, which the pass does not wait for."""
+    whichever is earlier, back at most `CATCH_UP`. The mark is written once the jobs are kept.
+    None where another collector holds the ledger, which the pass does not wait for."""
     try:
         with locked(state, ledger.LOCK, wait=False):
             since = now - timedelta(hours=PASS_HOURS)
-            return _collect(gh, repo, state, since, PASS_RUNS, now - CATCH_UP)
+            held = store.read_dict(state / MARK)
+            mark, swept = _time(held.get("mark")), _time(held.get("swept"))
+            sweep = swept is None or now - swept >= SWEEP
+            start = since if sweep or mark is None else max(mark, since)
+            counts, mark = _collect(gh, repo, state, since, PASS_RUNS, now - CATCH_UP, start)
+            swept = now if sweep else swept
+            store.write_json(state / MARK, {"mark": _stamp(mark), "swept": _stamp(swept)})
+            return counts
     except BlockingIOError:
         return None
+
+
+def _stamp(when: datetime | None) -> str | None:
+    return when.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ") if when else None
 
 
 def _collect(
@@ -351,19 +373,22 @@ def _collect(
     since: datetime,
     most: int | None = None,
     back: datetime | None = None,
-) -> Counts:
-    """Keep the pull requests and the jobs of the runs created since `since`, of at most `most`
-    new runs. With `back`, the pull requests are those updated since the newest update the
-    ledger holds where that is earlier than `since`, and not before `back`. The pull requests'
-    file is written only where one of them changed. The pull requests and the runs are read side
+    start: datetime | None = None,
+) -> tuple[Counts, datetime]:
+    """Keep the pull requests and the jobs of the runs created since `start`, or `since` where
+    it is None, of at most `most` new runs, and return the mark: the creation time of the oldest
+    run listed that was not kept, or of the newest where all were, or `start` where none was.
+    With `back`, the pull requests are those updated since the newest update the ledger holds
+    where that is earlier than `since`, and not before `back`. The pull requests' file is
+    written only where one of them changed. The pull requests and the runs are read side
     by side, then the jobs of every new run, then each job's annotations and log, and the jobs
     are written once all of them are read: a collector stopped half way keeps the pull requests,
     and the next one reads the jobs again."""
     held = {one["number"]: one for one in ledger.read(state / ledger.PULLS)}
     updated = [when for one in held.values() if (when := _time(one.get("updated")))]
     caught = since if back is None or not updated else max(back, min(since, max(updated)))
-    stamp = since.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-    path = f"repos/{repo}/actions/runs?per_page={PAGE}&created=%3E%3D{stamp}"
+    start = start or since
+    path = f"repos/{repo}/actions/runs?per_page={PAGE}&created=%3E%3D{_stamp(start)}"
     found, runs = side_by_side(
         lambda ask: ask(),
         [lambda: pulls(gh, repo, caught, held), lambda: gh.pages(path, "workflow_runs")],
@@ -373,11 +398,16 @@ def _collect(
     if now_held != held:
         ledger.rewrite(state / ledger.PULLS, everyone)
     seen = {(one["run"], one["attempt"]) for one in ledger.read(state / ledger.JOBS)}
-    new = [
+    unseen = [
         run
         for run in runs
         if run.get("status") == "completed" and (run["id"], run.get("run_attempt") or 1) not in seen
-    ][:most]
+    ]
+    new = unseen[:most]
+    left = [run for run in runs if run.get("status") != "completed"] + unseen[len(new) :]
+    made = [when for run in runs if (when := _time(run.get("created_at")))]
+    unkept = [when for run in left if (when := _time(run.get("created_at")))]
+    mark = min(unkept) if unkept else max(made, default=start)
     listed = side_by_side(
         lambda run: gh.pages(f"repos/{repo}/actions/runs/{run['id']}/jobs?filter=all", "jobs"), new
     )
@@ -390,7 +420,7 @@ def _collect(
     rows = side_by_side(lambda one: row(gh, repo, *one, everyone), done)
     added = ledger.add(state / ledger.JOBS, rows)
     _reread(gh, repo, state, since)
-    return Counts(len(runs), added, len(everyone))
+    return Counts(len(runs), added, len(everyone)), mark
 
 
 def _steps(gh: Gh, repo: str, run: int) -> dict[int, str | None]:
