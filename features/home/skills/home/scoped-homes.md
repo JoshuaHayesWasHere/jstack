@@ -66,7 +66,7 @@ jbus --project "$P" stop answer '<scope>' '<own row>' '<the answer>' --from "$ME
 `--from` comes last.
 jbus closes the stop and carries the answer to the scope's home, once.
 
-**Moving a row** to another child home is the root home's: a row the root holds, or one in `uncategorized`, goes to the scope whose work it is, at any status short of merged or done.
+**Moving a row** to another child home is the root home's: a row in `uncategorized`, the home of every row no scope claims, or in another child home goes to the scope whose work it is, at any status short of merged or done.
 In one call with the block at the top and the block that reads jbus, with the row's slug in place of `<slug>` and the scope's name in place of `<scope>`:
 
 ```sh

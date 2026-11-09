@@ -109,8 +109,8 @@ def test_a_row_with_no_go_moves_and_has_none_to_carry(kitchen, homes_of):
         ),
         (
             "docs",
-            "refused: Home: line names docs, which is no home of demo: name root or the "
-            "row's scope (flow, pantry): nothing is moved",
+            "refused: Home: line names docs, which is no home of demo: name uncategorized or "
+            "the row's scope (flow, pantry): nothing is moved",
         ),
     ],
 )
@@ -144,16 +144,17 @@ def test_a_row_that_merged_stays_where_it_is(kitchen, homes_of):
 def test_a_fix_row_takes_its_try_to_its_new_homes_ledger(kitchen, homes_of):
     fix = "Fix of: check:beta\nWhen green: `check` passes on the fix's head\n"
     add(kitchen, "alpha", text=brief("alpha", fix))
-    assert blockers.tries(kitchen.home, "check:beta")
+    catchall = homes.catchall(kitchen.home)
+    assert blockers.tries(catchall, "check:beta")
     assert move(kitchen, "alpha", "flow")[0] == 0
-    assert blockers.tries(kitchen.home, "check:beta") == []
+    assert blockers.tries(catchall, "check:beta") == []
     assert [one["slug"] for one in blockers.tries(kitchen.home / "flow", "check:beta")] == ["alpha"]
 
 
 def test_a_fix_row_with_no_try_counted_moves_with_none(kitchen, homes_of):
     fix = "Fix of: check:beta\nWhen green: `check` passes on the fix's head\n"
     add(kitchen, "alpha", text=brief("alpha", fix))
-    (kitchen.home / blockers.LEDGER).write_text("{}")
+    (homes.catchall(kitchen.home) / blockers.LEDGER).write_text("{}")
     assert move(kitchen, "alpha", "flow")[0] == 0
     assert blockers.tries(kitchen.home / "flow", "check:beta") == []
 

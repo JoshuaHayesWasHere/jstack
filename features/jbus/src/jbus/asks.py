@@ -249,8 +249,7 @@ def _move(config: jbus.Config, project: jbus.Project, slug: str, scope: str) -> 
     print(made.line)
     if not made.moved:
         return
-    old = home if made.was == "root" else home / made.was
-    blockers.rehome(old, home / made.to, slug, made.text)
+    blockers.rehome(home / made.was, home / made.to, slug, made.text)
     row = queue.fresh(state, slug)
     shown = queue.render([row]) if row else ""
     wake.Box(state, project).send(slug, "move", f"queue {project.name}: {made.line}", shown)

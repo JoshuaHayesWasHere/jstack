@@ -2434,7 +2434,7 @@ def move(state: Path, home: Path, slug: str, scope: str, at: str, by: str) -> Mo
         text = brief(state, slug)
         if text is None:
             raise Refused(f"refused: {slug} has no brief, add it again")
-        was = _home_name(home, homes.home_of(home, text))
+        was = homes.home_of(home, text).name
         copy = home / ("scouts" if role(row) == SCOUT else "tasks") / f"{slug}.md"
         if was == scope:
             if _write_home_copy(copy, scope):

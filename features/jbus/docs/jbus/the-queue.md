@@ -518,7 +518,7 @@ Such a pass cannot tell which slugs were removed, so it launches nothing, reads 
 
 ## A row moves to another home
 
-`jbus queue move <slug> --home <scope>` gives a row to the home of another scope, with its go, at any status but merged or done: a row the root holds, or one in `uncategorized`, goes to the child home that owns its work.
+`jbus queue move <slug> --home <scope>` gives a row to the home of another scope, with its go, at any status but merged or done: a row in `uncategorized`, the home of every row no scope claims, goes to the child home that owns its work.
 A row's home is its brief's `Home:` line, and every send about the row reads it again: the crew's next Result (`jbus home`), each wake of the one list, a stall and a leftover.
 So the move rewrites that line, in the brief jbus stores and in the home's copy under `tasks/` (a scout's under `scouts/`), and nothing else of the brief.
 A go covers what a brief asks and not whom it is sent to (`Home:` and `Thread:` are left out of its sha and its fingerprint), so the go holds for the moved brief by rule, and needs no new word.
