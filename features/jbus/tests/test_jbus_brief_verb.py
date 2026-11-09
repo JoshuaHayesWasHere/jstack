@@ -28,9 +28,11 @@ Left: some
 Verdict: clean
 """
 
-# A child blocks opening the go pipe for reading, and the one open for writing frees all of them
-# at the same moment. Its disk is slow: each write of the brief starts 50 ms after its read, so
-# that without the lock every child reads the brief before any writes it. Then it runs the verb.
+# A child blocks opening the go pipe for reading, and the one open of it for writing frees all of
+# them at the same moment. That open is read-write, which Linux never blocks, so that a child that
+# died before it opened the pipe does not hang the test. Its disk is slow: each write of the brief
+# starts 50 ms after its read, so that without the lock every child reads the brief before any
+# writes it. Then it runs the verb.
 CHILD = """
 import os, sys, time
 from jbus import brief, cli
@@ -79,8 +81,8 @@ def at_once(brief, writes):
                 )
             )
     time.sleep(1)
-    os.close(os.open(go, os.O_WRONLY))
-    outs = [child.communicate()[0] for child in children]
+    os.close(os.open(go, os.O_RDWR))
+    outs = [child.communicate(timeout=60)[0] for child in children]
     assert [child.returncode for child in children] == [0] * len(children), outs
 
 
