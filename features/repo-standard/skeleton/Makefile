@@ -3,13 +3,14 @@
 # scripts/stack.mk, from the stack's adapter, fills in the commands: STACK_LINT, STACK_TEST,
 # STACK_SELECT and STACK_LIST. A repo of several stacks sets `stacks:` in .repo-standard.yml
 # instead, and the standard's driver runs each stack over its own roots and joins them. The standard's guards run
-# from jstack at the tag .repo-standard.yml pins, or at the ref REPO_STANDARD_REF names, such as a
-# branch of a version not yet tagged, cloned once into .cache/<ref>, with no tool but git and
-# python3. The standard's version owns this file, so the repo's own targets, such as a deploy
+# from jstack at the ref REPO_STANDARD_REF names, or else at the ref .github/workflows/check.yml
+# calls the shared check at, such as a branch of a version not yet tagged, or else at the tag
+# .repo-standard.yml pins, cloned once into .cache/<ref>, with no tool but git and python3. The standard's version owns this file, so the repo's own targets, such as a deploy
 # entry, go in local.mk, included at the end when it is there.
 STANDARD := $(shell sed -n 's/^standard:[[:space:]]*\([0-9][0-9]*\).*/\1/p' .repo-standard.yml)
 REPO_STANDARD_UPSTREAM ?= https://github.com/JoshuaHayesWasHere/jstack
-REPO_STANDARD_REF := $(or $(REPO_STANDARD_REF),repo-standard-v$(STANDARD))
+REPO_STANDARD_CALLED := $(shell sed -n 's/^[[:space:]]*uses:.*\/repo-standard-check\.yml@\([A-Za-z0-9._\/-]*\).*/\1/p' .github/workflows/check.yml 2> /dev/null | head -n 1)
+REPO_STANDARD_REF := $(or $(REPO_STANDARD_REF),$(REPO_STANDARD_CALLED),repo-standard-v$(STANDARD))
 REPO_STANDARD_HOME := .cache/$(REPO_STANDARD_REF)
 REPO_STANDARD := PYTHONPATH=$(REPO_STANDARD_HOME)/features/repo-standard/src python3 -m repo_standard
 

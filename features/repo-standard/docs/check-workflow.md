@@ -49,7 +49,9 @@ To run a branch of jstack before its version is tagged, a caller names the branc
 
 The `uses:` line picks the workflow's own file, and `ref` the code its jobs clone, which the workflow cannot learn from the `uses:` line.
 The workflow hands `ref` to the repo's make as `REPO_STANDARD_REF`, and the skeleton's Makefile clones that ref into `.cache/<ref>` once; a branch that moves on is taken again after that folder is deleted.
-`make lint REPO_STANDARD_REF=<ref>` does the same on a checkout.
+With no `REPO_STANDARD_REF`, as in the `borders` workflow and on a checkout, the Makefile takes the ref of the `uses:` line in `.github/workflows/check.yml`, so every target runs from the branch the caller names; `make lint REPO_STANDARD_REF=<ref>` names another.
+`repo-standard conform` takes a `uses:` line at such a branch only when the branch is named for a version, `repo-standard-v<N>-<name>`, and fails one at any other ref, such as `main`.
+`repo-standard upgrade --to <N>` moves the `uses:` line to the tag `repo-standard-v<N>` and drops the `ref` input, so the branch can be deleted once the tag is out.
 
 A step that the make targets need first, such as a toolchain the runner lacks or a cache of dependencies, goes in a composite action at `.github/actions/setup/action.yml` in the repo.
 The jobs `lint`, `test` and `browser` run that action after their checkout, where the file exists.
