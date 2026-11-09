@@ -20,7 +20,7 @@ A process that runs tests drops `NEW_LINES_PART` and `NEW_LINES_BASE` from its e
 its first test starts, after pytest-xdist has started the workers that need them, so a make or a
 pytest a test runs records nothing of its own.
 
-It writes to the folder coverage's data, `data`, and `tests.<pid>`, the test files the
+It writes to the folder coverage's data, folded into `data`, and `tests.<pid>`, the test files the
 process ran, one a line. A part where the diff changes no such file measures nothing and writes
 nothing.
 """
@@ -32,6 +32,7 @@ from pathlib import Path
 
 import coverage
 import pytest
+from data_files import ended
 
 FOLDER = os.environ.get("NEW_LINES_PART")
 BASE = os.environ.get("NEW_LINES_BASE", "HEAD^1")
@@ -85,17 +86,24 @@ def pytest_runtest_protocol(item: pytest.Item) -> None:
         sys.monitoring.restart_events()
 
 
-def pytest_sessionfinish(session: pytest.Session) -> None:
+@pytest.hookimpl(wrapper=True)
+def pytest_sessionfinish(session: pytest.Session):
     """Save what this process measured. The process that started the run, once its workers
-    have ended, folds every process's data file into one, `data`: a part's tests start hundreds
-    of Python processes, each with a file of its own (532 files, 28 MB, in one part of 1083
-    tests), and the one file keeps every line and its contexts in about 70 kB to upload."""
+    have ended (pytest-xdist ends them in its own hook, which this one wraps), folds into one
+    file, `data`, every process's data file whose writer has ended: a part's tests start
+    hundreds of Python processes, each with a file of its own (532 files, 28 MB, in one part of
+    1083 tests), and the one file keeps every line and its contexts in about 70 kB to upload.
+    A process a test started and left running is still writing its file, so the fold leaves it
+    out, and its lines with it."""
+    yield
     if MEASURED is None:
         return
     MEASURED.stop()
     MEASURED.save()
     (Path(FOLDER) / f"tests.{os.getpid()}").write_text("".join(f"{name}\n" for name in RAN))
-    if not hasattr(session.config, "workerinput"):
+    if hasattr(session.config, "workerinput"):
+        return
+    if files := ended(Path(FOLDER)):
         folded = coverage.Coverage(config_file=MEASURED.config.config_file, data_suffix=False)
-        folded.combine(data_paths=[FOLDER], keep=False)
+        folded.combine(data_paths=files, keep=False)
         folded.save()

@@ -24,6 +24,15 @@ from testing.paths import REPO
 READ_SET = ("*.md", "*.sh", "features/*/project-skill/scripts/")
 PERL_TIMEOUT = "`perl -e 'alarm shift; exec @ARGV' <seconds> <command>`"
 
+GNU_SED = [
+    (
+        r"\bsed(\s+-\w+)*\s+-\w*i(?=\s|$)",
+        "BSD sed -i takes the suffix as its next word: `sed -i.bak ... && rm <file>.bak`, "
+        "or write a new file and move it",
+    ),
+    (r"\bsed(\s+-\w+)*\s+-\w*r\b", "BSD sed has no -r: `sed -E`"),
+]
+
 GNU_ONLY = [
     (
         r"(?<![\w:])setsid\b(?!\()",
@@ -53,12 +62,7 @@ GNU_ONLY = [
         r"\bxargs(\s+-\w+)*\s+(-\w*r\w*|--no-run-if-empty)\b",
         "BSD xargs has no -r and runs nothing on empty input anyway: drop the r",
     ),
-    (
-        r"\bsed(\s+-\w+)*\s+-\w*i(?=\s|$)",
-        "BSD sed -i takes the suffix as its next word: `sed -i.bak ... && rm <file>.bak`, "
-        "or write a new file and move it",
-    ),
-    (r"\bsed(\s+-\w+)*\s+-\w*r\b", "BSD sed has no -r: `sed -E`"),
+    *GNU_SED,
     (r"\bgrep(\s+-\w+)*\s+-\w*P", "BSD grep has no -P: `grep -E`"),
     (r"\breadlink\s+-\w*f", "use `realpath`, the form the rest of jstack uses"),
     (

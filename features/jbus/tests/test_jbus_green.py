@@ -200,7 +200,7 @@ def systemd(copied, systemctl, tmp_path, monkeypatch):
         "    mtimes = {one.name: one.stat().st_mtime_ns for one in units}\n"
         f"    pathlib.Path({str(loaded)!r}).write_text(json.dumps(mtimes))\n"
     )
-    subprocess.run(["systemctl", "--user", "daemon-reload"], check=True)
+    subprocess.run([copied.stub / "systemctl", "--user", "daemon-reload"], check=True)
 
     def owing():
         kept = json.loads(loaded.read_text())
