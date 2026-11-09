@@ -21,7 +21,9 @@ and counts toward no cap.
 
 Before a launch, jbus runs `jgauge room` to check that the machine and the plan have room,
 the same check a home makes. A row with no room waits, and so does every row after it in the
-pass, in every project.
+pass, in every project. Where /tmp is what is full, the pass first removes what finished crews
+left there (`jbus.cleanup.sweep`) and asks again. A row that still waits for /tmp says so from
+that first pass, `waiting: /tmp at <n>% of its quota`, as its `why` and on `jbus needs`.
 
 jbus does not lint a brief here. `jbus queue add` runs the lints (`jbriefs.parse.faults`) when it
 first queues a row. A lint added after a row's approval does not make jbus refuse that row, whatever
@@ -68,7 +70,7 @@ from typing import Any
 import jroles
 import jroles.mirror
 from jbriefs.home import home_of, named
-from jbus import queue, read_json, watch, write_json
+from jbus import cleanup, queue, read_json, watch, write_json
 from jbus.launches import record_path, records
 from jbus.passes import Changed, Depends, Pass, Red, Rerun, Slot
 from jbus.t3 import Client, T3Dropped, T3Error, T3Refused
@@ -535,6 +537,14 @@ class Turns:
                 continue
             yield row, brief, on
 
+    def live(self) -> list[Path]:
+        """Return the worktrees T3 Code makes for the project's rows still out, whose Claude
+        scratch folders `cleanup.sweep` keeps."""
+        names = {self.run.project.name, self.run.project.checkout.name}
+        rows = queue.load(self.run.state)
+        out = (row["slug"] for row in rows if row.get("status") in queue.LIVE)
+        return [cleanup.WORKTREES / name / slug for slug in out for name in names]
+
     def take(self) -> str:
         """Take one turn: launch the first row that may launch, and return how the turn
         ended.
@@ -612,13 +622,15 @@ class Turns:
                 run.reasons[slug] = Slot()
                 return NO_ROOM
             why, notes = room(run, choice.instance)
+            if why and cleanup.waiting(why) and cleanup.sweep(run, self.live()):
+                why, notes = room(run, choice.instance)
             for note in notes:
                 day = run.day
                 name = run.project.name
                 run.find("", "note", f"note {name}: {note}", key=f"room {day}")
             if why:
                 no_room(run, slug, why, self.waited)
-                run.reasons[slug] = Slot()
+                run.reasons[slug] = Slot(cleanup.waiting(why))
                 return NO_ROOM
             again = queue.fresh(run.state, slug) or {}
             same = all(again.get(column) == row.get(column) for column in ("approved", "brief_sha"))

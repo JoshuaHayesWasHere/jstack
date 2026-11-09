@@ -1,13 +1,21 @@
 """Once `jbus.threads.settle` puts a crew's thread away, `clear_scratch` removes what the crew
-left on disk: its scratch folder (`jbus.dispatch.scratch`), and the worktrees of the repo it made
-in the Claude scratchpad of its own worktree (`scratchpad`), then prunes their registrations.
+left on disk: its scratch folder (`jbus.dispatch.scratch`), the worktrees of the repo it made in
+the Claude scratchpad of its own worktree, then the whole Claude scratch folder of that worktree
+(`scratchpad`), and prunes the worktrees' registrations.
 
-The scratchpad is in /tmp whatever the crew's `TMPDIR` says, and a crew makes a "before" worktree
-there for A/B timing that the door hook will not let it remove, so these stayed registered and
-helped fill the tmpfs quota. Only the crew's own scratchpad is searched, so another crew's
-worktrees and T3 Code's own under `~/.t3/worktrees` are out of reach, and a worktree that holds
-some process's working directory stays (`in_use`). Paths are compared resolved, since git lists
-a worktree at its resolved path and macOS's /tmp and /var are links into /private.
+The Claude scratch folder is in /tmp whatever the crew's `TMPDIR` says, and a crew makes a
+"before" worktree there for A/B timing that the door hook will not let it remove, so these stayed
+registered and filled the tmpfs quota, as did the folders themselves once their worktrees were
+gone. Only the crew's own folder is searched, so another crew's worktrees and T3 Code's own under
+`~/.t3/worktrees` are out of reach, and a folder or worktree that holds some process's working
+directory stays (`in_use`). Paths are compared resolved, since git lists a worktree at its resolved
+path and macOS's /tmp and /var are links into /private.
+
+A launch that `jgauge room` holds back for /tmp (`waiting` reads its line) first gets `sweep`: it
+removes the Claude scratch folder of each T3 Code worktree that is gone and is no live row's
+(`WORKTREES`), and each copy of the base that `proved.sh` made (`BASE`) and that its run, killed
+before its EXIT trap, left behind. A folder a process works in or names stays, and so does every
+copy of the base in a folder where a `proved.sh` still runs.
 """
 
 from __future__ import annotations
@@ -15,21 +23,53 @@ from __future__ import annotations
 import os
 import re
 import shutil
+from collections.abc import Iterable
+from dataclasses import dataclass
 from pathlib import Path
 
-from jbus.dispatch import scratch
+from jbus import dispatch
 from jbus.passes import Pass
 from jsettings import proc
 
 ROOT = Path("/proc")
+WORKTREES = Path.home() / ".t3" / "worktrees"
+BASE = "base.*"
+PROVED = "proved.sh"
+FULL = (
+    (re.compile(r"(\S+) has ([\d.]+) of your ([\d.]+) GB quota used"), "quota", 1.0),
+    (re.compile(r"(\S+) has ([\d.]+) GB used of ([\d.]+) GB, 80% of its size"), "size", 0.8),
+    (re.compile(r"(\S+) has (\d+) of (\d+) file slots used"), "file slots", 1.0),
+)
+"""The lines `jgauge room` waits with for a full /tmp, each with what it is full of and the share of
+the whole that its second number is."""
+WAITING = re.compile(r"waiting: \S+ at \d+% of its (quota|size|file slots)$")
+
+
+def mangled(path: str | Path) -> str:
+    """Return the path with each character that is not a letter or a digit made `-`, as Claude
+    Code names a folder for it."""
+    return re.sub("[^A-Za-z0-9]", "-", str(path))
+
+
+def claude_root() -> Path:
+    """Return `claude-<uid>` in `CLAUDE_CODE_TMPDIR` or /tmp, where Claude Code keeps the scratch
+    folder of each folder a session starts in."""
+    return Path(os.environ.get("CLAUDE_CODE_TMPDIR") or "/tmp") / f"claude-{os.getuid()}"
 
 
 def scratchpad(worktree: str) -> Path:
-    """Return the folder Claude Code keeps the scratchpads of a session in `worktree` under:
-    `claude-<uid>` in `CLAUDE_CODE_TMPDIR` or /tmp, then the worktree's path with each character
-    that is not a letter or a digit made `-`."""
-    root = Path(os.environ.get("CLAUDE_CODE_TMPDIR") or "/tmp") / f"claude-{os.getuid()}"
-    return root / re.sub("[^A-Za-z0-9]", "-", worktree)
+    """Return the folder Claude Code keeps the scratchpads of a session in `worktree` under."""
+    return claude_root() / mangled(worktree)
+
+
+def waiting(why: str) -> str:
+    """Return what a row waits on when `jgauge room` said `why` for a full /tmp, as `waiting: /tmp
+    at 81% of its quota`, or nothing for any other wait."""
+    for pattern, what, share in FULL:
+        if (found := pattern.match(why)) and float(found[3]) > 0:
+            used = round(100 * share * float(found[2]) / float(found[3]))
+            return f"waiting: {found[1]} at {used}% of its {what}"
+    return ""
 
 
 def in_use() -> set[Path] | None:
@@ -53,11 +93,97 @@ def in_use() -> set[Path] | None:
     return found or None
 
 
+@dataclass(frozen=True)
+class Held:
+    """What the user's processes hold: each working directory and each absolute argument
+    (`paths`), and the folder each live `proved.sh` makes its copy of the base in (`proving`),
+    None where a `proved.sh` runs and its folder is not known."""
+
+    paths: frozenset[Path]
+    proving: frozenset[Path] | None
+
+    def holds(self, folder: Path) -> bool:
+        return any(one.is_relative_to(folder) for one in self.paths)
+
+    def proves_in(self, folder: Path) -> bool:
+        return self.proving is None or folder in self.proving
+
+
+def _resolved(paths: Iterable[str]) -> set[Path]:
+    return {Path(one).resolve() for one in paths if one.startswith("/")}
+
+
+def held() -> Held | None:
+    """Return what the user's processes hold, from /proc, or from `in_use` and `ps` where there is
+    none. None when no process is known, as `in_use` says."""
+    if not ROOT.is_dir():
+        cwds = in_use()
+        if cwds is None:
+            return None
+        listed = proc.run("ps", "-A", "-ww", "-o", "command=", errors="replace", timeout=30)
+        args = [arg for line in listed.stdout.splitlines() for arg in line.split()]
+        proving = None if any(arg.endswith(f"/{PROVED}") for arg in args) else frozenset()
+        return Held(frozenset(cwds | _resolved(args)), proving)
+    paths: set[Path] = set()
+    proving: set[Path] = set()
+    for one in ROOT.glob("[0-9]*"):
+        try:
+            cwd = os.readlink(one / "cwd")
+            args = [
+                arg.decode(errors="replace") for arg in (one / "cmdline").read_bytes().split(b"\0")
+            ]
+            env = (one / "environ").read_bytes().split(b"\0")
+        except OSError:
+            continue
+        paths |= _resolved([cwd, *args])
+        if any(arg.endswith(f"/{PROVED}") or arg == PROVED for arg in args[:3]):
+            pairs = dict(
+                item.decode(errors="replace").partition("=")[::2] for item in env if b"=" in item
+            )
+            proving.add(Path(pairs.get("TMPDIR") or "/tmp").resolve())
+    return Held(frozenset(paths), frozenset(proving)) if paths else None
+
+
+def sweep(run: Pass, live: Iterable[Path]) -> list[Path]:
+    """Remove what finished crews left in /tmp: the Claude scratch folder of each worktree under
+    `WORKTREES` that is gone and is none of `live`, the worktrees of the rows still out, and each
+    copy of the base `proved.sh` made in `TMPFS` (or /tmp) or in `claude_root`. Keep each that a
+    process holds, and each copy of the base in a folder where a `proved.sh` still runs. Return
+    what went."""
+    known = held()
+    if known is None:
+        return []
+    root = claude_root()
+    trees = [tree for repo in WORKTREES.glob("*") for tree in repo.glob("*") if tree.is_dir()]
+    kept = {mangled(tree) for tree in (*trees, *live)}
+    pads = [
+        pad
+        for pad in root.glob(f"{mangled(WORKTREES)}-*")
+        if not any(pad.name == one or pad.name.startswith(f"{one}-") for one in kept)
+    ]
+    homes = {Path(os.environ.get("TMPFS") or "/tmp"), root}
+    copies = [copy for where in homes for copy in where.glob(BASE)]
+    copies = [copy for copy in copies if not known.proves_in(copy.parent.resolve())]
+    gone = []
+    for folder in sorted({*pads, *copies}):
+        if folder.is_symlink() or not folder.is_dir() or known.holds(folder.resolve()):
+            continue
+        shutil.rmtree(folder, ignore_errors=True)
+        if not folder.exists():
+            gone.append(folder)
+    if gone:
+        run.run("git", "worktree", "prune")
+        shown = ", ".join(map(str, gone[:3]))
+        run.say(f"cleared /tmp: {len(gone)} folders finished crews left, {shown}")
+    return gone
+
+
 def clear_scratch(run: Pass, slug: str, worktree: str = "") -> bool:
     """Remove the slug's scratch folder and the worktrees its crew made in the scratchpad of its
-    `worktree`, save one in use, then prune their registrations. Return whether nothing stayed:
-    no worktree was kept in use or failed to go, and `in_use` could say which are in use."""
-    folder = scratch(run, slug)
+    `worktree`, save one in use, then the whole Claude scratch folder of the worktree once nothing
+    in it stayed, and prune the worktrees' registrations. Return whether nothing stayed: no
+    worktree or folder was kept in use or failed to go, and `in_use` could say which are in use."""
+    folder = dispatch.scratch(run, slug)
     cleared, stayed = [], False
     if folder.exists():
         shutil.rmtree(folder, ignore_errors=True)
@@ -78,6 +204,11 @@ def clear_scratch(run: Pass, slug: str, worktree: str = "") -> bool:
                 cleared.append(f"the worktree {tree}")
             else:
                 stayed = True
+        if not stayed and pad.is_dir() and not any(cwd.is_relative_to(pad) for cwd in busy):
+            shutil.rmtree(pad, ignore_errors=True)
+            stayed = pad.exists()
+            if not stayed:
+                cleared.append(f"its Claude scratch folder {pad}")
     if cleared:
         run.run("git", "worktree", "prune")
         run.say(f"cleared {slug}: {', '.join(cleared)}")
