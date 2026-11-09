@@ -103,7 +103,7 @@ A home and a scout work in the project's own checkout, which has no such file, s
 The launch record keeps the commit the branch was made at.
 A launch whose reply is lost is looked up and adopted as before, since the thread is on the branch `<slug>`.
 A launch whose connection dropped and that made no thread is tried once more into the same worktree, where the branch is still at that commit and nothing in it changed, so no second worktree or branch is made.
-A worktree jbus cannot make (origin lacks the base, or the worktree is not clean once its files are written) is a condition, `jbus could not make the crew's worktree`, and the row does not launch.
+A worktree jbus cannot make (origin lacks the base, or the worktree is not clean once its files are written) is a condition, `the crew's worktree could not be made`, and the row does not launch.
 A launch T3 Code refuses removes the worktree and the branch with it.
 T3 Code's storage cleanup removes a finished crew's worktree by its thread's path under its worktrees folder, whoever made it, as it did when T3 Code made it.
 

@@ -664,7 +664,7 @@ class Turns:
             if why:
                 if wrote:
                     target.unlink()
-                run.gate(slug, "jbus could not make the crew's worktree", why)
+                run.gate(slug, "the crew's worktree could not be made", why)
                 continue
             key = f"{run.project.name}/{slug}/{sha[:12]}"
             retried = before.get("state") == "retry"

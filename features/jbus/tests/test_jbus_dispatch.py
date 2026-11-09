@@ -361,6 +361,12 @@ def test_a_settled_crew_leaves_no_worktree_in_its_claude_scratchpad_but_one_in_u
     assert f"worktree {mine / 'busy'}\n" in listed and f"worktree {theirs / 'base'}\n" in listed
 
 
+def t3_tree(kitchen, slug):
+    """The path T3 Code gives the worktree of the branch `slug`: `<its home>/worktrees/<the
+    checkout's name>/<slug>`."""
+    return Path(os.environ["T3CODE_HOME"]) / "worktrees" / kitchen.checkout.name / slug
+
+
 def crew_trees(kitchen, slug):
     """Each worktree git lists on the branch `slug`, and whether the branch is there."""
     listed = git_said(kitchen, "worktree", "list", "--porcelain").split("\n\n")
@@ -372,13 +378,15 @@ def crew_trees(kitchen, slug):
 def test_a_crew_launches_into_the_one_worktree_jbus_made_with_its_settings_in_it(kitchen, lose):
     """jbus makes the crew's worktree where T3 Code would, on the slug's branch off origin's
     main, writes the crew's settings file and the `.gitignore` that keeps it out of git, and
-    launches into it with `existing_worktree`. A second pass, a lost reply that is adopted, and a
-    dropped launch that is tried once more make no second worktree or branch."""
+    launches into it with `existing_worktree` (`jbus.crewtree`). A second pass, a lost reply that
+    is adopted, and a dropped launch that is tried once more make no second worktree or branch."""
     approved(kitchen, "alpha")
     kitchen.t3.lose = lose
     kitchen.poll()
     kitchen.t3.lose = None
-    tree = cleanup.worktrees() / kitchen.checkout.name / "alpha"
+    tree = t3_tree(kitchen, "alpha")
+    strategy = {"type": "existing_worktree", "worktreePath": str(tree), "branch": "alpha"}
+    assert kitchen.t3.launches[0]["workspaceStrategy"] == strategy
     settings = jroles.mirror.crew_settings(jroles.mirror.Main.of(Path.home()))
     assert json.loads((tree / ".claude" / "settings.json").read_text()) == settings
     assert (tree / ".claude" / ".gitignore").read_text() == "*\n"
@@ -388,9 +396,7 @@ def test_a_crew_launches_into_the_one_worktree_jbus_made_with_its_settings_in_it
         kitchen.poll(NOW + timedelta(minutes=minutes))
     launches = kitchen.t3.launches
     assert len(launches) == (2 if lose == "before" else 1)
-    assert {json.dumps(given["workspaceStrategy"]) for given in launches} == {
-        json.dumps({"type": "existing_worktree", "worktreePath": str(tree), "branch": "alpha"})
-    }
+    assert [given["workspaceStrategy"] for given in launches] == [strategy] * len(launches)
     assert crew_trees(kitchen, "alpha") == ([f"worktree {tree}"], "refs/heads/alpha")
     assert where_the_findings_go(kitchen, "alpha") == "mcp:thread-1"
     assert kitchen.lines("condition") == []
@@ -402,7 +408,7 @@ def test_a_launch_t3_code_refuses_leaves_no_worktree_or_branch(kitchen):
     kitchen.poll()
     assert kitchen.lines("condition") == ["condition alpha: T3 Code refused the launch"]
     assert crew_trees(kitchen, "alpha") == ([], "")
-    assert not (cleanup.worktrees() / kitchen.checkout.name / "alpha").exists()
+    assert not t3_tree(kitchen, "alpha").exists()
 
 
 def test_a_base_origin_lacks_is_a_gate_with_no_launch_and_no_branch(kitchen):
@@ -412,7 +418,5 @@ def test_a_base_origin_lacks_is_a_gate_with_no_launch_and_no_branch(kitchen):
     )
     queued(kitchen, "alpha", stored)
     kitchen.poll()
-    assert kitchen.lines("condition") == [
-        "condition alpha: jbus could not make the crew's worktree"
-    ]
+    assert kitchen.lines("condition") == ["condition alpha: the crew's worktree could not be made"]
     assert kitchen.t3.launches == [] and crew_trees(kitchen, "alpha") == ([], "")

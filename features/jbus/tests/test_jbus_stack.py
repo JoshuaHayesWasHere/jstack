@@ -17,6 +17,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
+from crew_branches import pushed
 from jmerge import stacked as stacks
 from test_jbus_chains import queue_add
 from test_jbus_kitchen import NOW, Kitchen, asks, sends_in_once
@@ -39,6 +40,7 @@ def stacked(tmp_path, monkeypatch):
     assert queue_add(kitchen, "two", "--depends", "one", text=built)[0] == 0
     assert go(kitchen, "two")[0] == 0
     kitchen.poll(NOW - timedelta(minutes=30))
+    pushed(kitchen, "one")
     kitchen.set("open.json", [kitchen.opened("one", 10)])
     kitchen.poll(NOW - timedelta(minutes=27))
     assert [given["title"] for given in kitchen.t3.launches] == ["crew: one", "crew: two"]
