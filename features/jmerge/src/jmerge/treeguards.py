@@ -22,6 +22,7 @@ A pass, a failure, or a stop at the time limit of the guards on a head over a ti
 `merged-trees.json`, so a held pull request is not run again until its head or the tip moves. A
 stopped tree is kept too, since running it again on the next run spends that run's time on the
 same tree and leaves every other pull request waiting (#1103 on 2026-11-05).
+A hold names one guard; its record keeps the last `TAIL` lines the guards printed, which say why.
 """
 
 from __future__ import annotations
@@ -61,6 +62,16 @@ SHA = 12
 PASSED = "the guards passed on its tree merged over {base} at {tip} in {seconds} s"
 CHECKED = "CI's check passed its tree merged over {base} at {tip} in {run}, so no guards ran"
 _IDENTITY = ("-c", "user.name=jmerge", "-c", "user.email=jmerge@localhost")
+TAIL = 40
+"""The lines of what failed or stopped guards printed that their record keeps."""
+PASSED_ON = ("HOME", "USER", "LOGNAME", "LANG", "PATH")
+"""The caller's variables the guards see, with their `BASE` and their slot's (`SLOT`): the
+machine's login, as a desk's shell and CI give it. jbus.service gives `jmerge` its unit's
+variables and systemd its own, and a guard test that reads one fails on the merged tree alone:
+`JBUS_TICK_TIMER` held #1283, and `INVOCATION_ID` failed #1159's check under a user unit."""
+SLOT = (slot.HELD, "TMPDIR", "JGAUGE_LOCKS_DIR", "TEST_SLOTS", "TMPFS")
+"""The variables of the test slot the guards run in: the one `jgauge test-slot` gives them, or
+the caller holds, and the machine's slots, which a suite the guards start takes from."""
 
 
 @dataclass(frozen=True)
@@ -107,7 +118,8 @@ def run_guards(command: str, cwd: Path, env: dict[str, str], timeout: float) -> 
 
     `sh` runs it as a login shell, so the guards see the machine's PATH as a desk's shell and CI
     do, after the few entries jbus's unit gives `jmerge`: Arch keeps `shasum` in
-    /usr/bin/core_perl, which only /etc/profile adds."""
+    /usr/bin/core_perl, which only /etc/profile adds. Of the caller's environment they see only
+    `PASSED_ON` and `SLOT`, with `env` over them."""
     with (
         tempfile.TemporaryDirectory(prefix="jmerge-slot-") as scratch,
         contextlib.ExitStack() as held,
@@ -123,7 +135,10 @@ def run_guards(command: str, cwd: Path, env: dict[str, str], timeout: float) -> 
             process = subprocess.Popen(
                 ["sh", "-c", _TIED, "sh", *argv],
                 cwd=cwd,
-                env={**os.environ, **env},
+                env={
+                    **{name: os.environ[name] for name in PASSED_ON + SLOT if name in os.environ},
+                    **env,
+                },
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 stdin=reading,
@@ -237,9 +252,11 @@ class Guards:
         said = was.get("said")
         return said if isinstance(said, str) else ""
 
-    def keep(self, one: ready.PullRequest, tip: str, said: str, note: str) -> None:
+    def keep(self, one: ready.PullRequest, tip: str, said: str, note: str, tail: str = "") -> None:
         now = datetime.now().astimezone()
         record = {"head": one.head, "tip": tip, "said": said, "note": note}
+        if tail:
+            record["tail"] = tail
         record["at"] = f"{now:%Y-%m-%dT%H:%M:%S%z}"
         self.records = {**self.known(), str(one.number): record}
         if self.run:
@@ -299,7 +316,8 @@ class Guards:
             said = ready.MERGED_TREE_FAILS.format(**values, guard=guard(ran.said))
         else:
             note = PASSED.format(**values, seconds=ran.seconds)
-        self.keep(one, tip, said, note)
+        tail = "\n".join(ran.said.rstrip().splitlines()[-TAIL:]) if said else ""
+        self.keep(one, tip, said, note, tail)
         at = _git(self.main, "ls-remote", "origin", f"refs/heads/{one.base}").stdout.split()
         if not said and at[:1] != [tip]:
             return ready.MAIN_MOVED.format(base=one.base), ""
