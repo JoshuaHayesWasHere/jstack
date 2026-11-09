@@ -504,6 +504,29 @@ def test_a_test_that_runs_a_package_in_a_process_of_its_own_is_selected_by_a_cha
     assert repo.selected(head) == ["testing/tests/test_runs_gamma.py", "testing/tests/test_tree.py"]
 
 
+PAGED = {
+    "src/verbs/__init__.py": "",
+    "src/verbs/needs.py": "HELP = 'what waits on you'\n",
+    "src/verbs/pages.py": "import verbs\n\nPATHS = verbs.__path__\n",
+    "testing/tests/test_pages.py": "from verbs import pages\n",
+    "testing/tests/test_package.py": "import verbs\n",
+}
+
+
+def test_a_module_that_reads_its_package_by_its_path_selects_its_tests_on_a_change_to_any_module(
+    tmp_path,
+):
+    """`verbs.pages` builds a page from the source of each module under `verbs.__path__`, and
+    imports none of them, as `jbus.pages` builds the-verbs.md from each verb's help. A change to
+    a verb's help selects the tests of the page, and not a test that imports the package alone."""
+    repo = Repo(tmp_path, files={**FILES, **PAGED})
+
+    assert repo.selected(repo.change(["src/verbs/needs.py"])) == [
+        "testing/tests/test_pages.py",
+        "testing/tests/test_tree.py",
+    ]
+
+
 def test_a_changed_test_module_selects_the_tests_that_spell_its_path(repo):
     head = repo.change(["testing/tests/helper_data.py"])
 
@@ -911,21 +934,40 @@ def test_a_changed_test_selects_itself_and_each_test_that_imports_it_however_dee
 
 def test_a_change_of_the_tests_alone_selects_them_and_the_tests_of_the_helpers_it_changed(tmp_path):
     """A test file and a helper of the tests changed, and nothing else: the check runs those
-    files and the tests that import the helper, and not the cross-cutting tests or the
-    catch-all. The same change with a path outside the tests selects by every rule."""
+    files, the tests that import the helper and the cross-cutting tests, and not the catch-all.
+    The same change with a path outside the tests selects by every rule."""
     repo = Repo(tmp_path, files={**FILES, **LONE})
     tests = ["testing/tests/test_helper.py", "testing/tests/helper.py"]
     reached = [
         "testing/tests/test_helped.py",
         "testing/tests/test_helper.py",
+        "testing/tests/test_tree.py",
         "testing/tests/test_user.py",
         "testing/tests/test_user_of_user.py",
     ]
 
     assert repo.selected(repo.change(tests)) == reached
     assert repo.selected(repo.change([*tests, "README.md"])) == sorted(
-        [*reached, "testing/tests/test_lone.py", "testing/tests/test_tree.py"]
+        [*reached, "testing/tests/test_lone.py"]
     )
+
+
+def test_a_comment_added_to_a_test_file_alone_selects_the_guard_that_reads_every_file(tmp_path):
+    """`test_no_comments.py` reads every tracked file for a plain comment, and the map lists it
+    as cross-cutting. A comment added to a test file, and nothing else, selects it."""
+    guard = "testing/tests/test_no_comments.py"
+    features = {
+        "README.md": README.replace("- `testing/tests/test_tree.py`", f"- `{guard}`"),
+        "alpha.md": ALPHA,
+        "beta.md": BETA,
+    }
+    files = {**FILES, guard: "def test_no_plain_comment():\n    pass\n"}
+    files.pop("testing/tests/test_tree.py")
+    repo = Repo(tmp_path, features=features, files=files)
+
+    head = repo.change(["testing/tests/test_glob.py"], text="# a plain comment\n")
+
+    assert repo.selected(head) == ["testing/tests/test_glob.py", guard]
 
 
 NESTED = {
