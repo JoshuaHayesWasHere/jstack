@@ -283,7 +283,7 @@ def _queue(one: Row, zone: tzinfo | None) -> Row:
     }
 
 
-def _approval_message(approval: Row) -> str:
+def _approval_message(approval: Row) -> str | None:
     """The `<thread id>/<message id>` a row's go rests on: an entry's go keeps it in `message`,
     a go on the user's message or pick in `ref`, and any other go names none."""
     basis = approval.get("basis")
