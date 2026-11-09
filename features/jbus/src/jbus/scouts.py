@@ -121,16 +121,17 @@ def _launch(half: Any) -> None:
         ):
             run.condition(slug, f"scouts/{slug}.md differs from the queued request", str(target))
             continue
+        out = dispatch.cannot_sign_in(run, client)
         try:
-            (routed,) = pool.routes("scout", run.now) or (None,)
+            (routed,) = pool.routes("scout", run.now, out) or (None,)
             full = pool.headroom("scout")
         except jroles.Refused as error:
             run.condition(slug, "the role map gives the scout no model", str(error))
             return
         if routed:
-            found = dispatch.mirrored_choice(
-                run, slug, routed.selection.instances, checked, full=full
-            )
+            instances = routed.selection.instances
+            skip = pool.signed_out(instances, out)
+            found = dispatch.mirrored_choice(run, slug, instances, checked, full=full, skip=skip)
             routed = pool.Route(routed.selection, found)
         choice = routed.choice if routed else pool.Choice(None, "")
         if routed and choice.instance is None:

@@ -786,8 +786,8 @@ def test_a_run_that_failed_on_either_login_text_is_a_lapse_and_moves_to_an_insta
 ):
     """Neither a crash, which the resume path would carry on where it failed, nor a cap, which
     the ledger would keep: the thread goes on the pool's first instance that can sign in."""
-    kitchen.t3.constraints["claudeAgent"] = SIGNED_OUT
     thread = crew(kitchen)
+    kitchen.t3.constraints["claudeAgent"] = SIGNED_OUT
     lapsed_on(thread, (text,))
     for minutes in (1, 4, 7):
         kitchen.poll(LAPSED + timedelta(minutes=minutes))
@@ -809,9 +809,9 @@ def test_a_run_that_failed_on_either_login_text_is_a_lapse_and_moves_to_an_insta
 def test_while_no_instance_of_the_pool_can_sign_in_nothing_is_sent_and_the_user_is_told_once(
     kitchen,
 ):
+    thread = crew(kitchen)
     for instance in ("claudeAgent", PRIME):
         kitchen.t3.constraints[instance] = SIGNED_OUT
-    thread = crew(kitchen)
     lapsed_on(thread)
     for minutes in (1, 4, 7, 30):
         kitchen.poll(LAPSED + timedelta(minutes=minutes))
@@ -830,6 +830,24 @@ def test_while_no_instance_of_the_pool_can_sign_in_nothing_is_sent_and_the_user_
     assert "now on claudeAgent" in asks(kitchen)[0]["message"]
     assert len(kitchen.log("notify")) == 1 and len(kitchen.lines("stall")) == 1
     assert not any(key.startswith("signed-out ") for key in alert.streaks(kitchen.state_dir))
+
+
+def test_a_lapsed_thread_waits_while_t3_code_does_not_say_which_instances_sign_in(kitchen):
+    """`jbus.dispatch.cannot_run` gets no answer from T3 Code, so `jbus.failover.signed_in`
+    cannot tell where the thread could go: the failover sends nothing and says why."""
+    thread = crew(kitchen)
+    lapsed_on(thread)
+    result = kitchen.t3.result
+
+    def silent(asked):
+        if asked.get("params", {}).get("name") == "orchestrator_capabilities":
+            return {"isError": True, "content": [{"type": "text", "text": "not now"}]}
+        return result(asked)
+
+    kitchen.t3.result = silent
+    said = kitchen.poll(LAPSED + timedelta(minutes=7))
+    assert asks(kitchen) == [] and configures(kitchen) == []
+    assert any("T3 Code did not say which instances sign in" in one for one in said)
 
 
 def test_one_carry_on_goes_per_failed_run_and_none_while_its_instance_just_failed_to_sign_in(

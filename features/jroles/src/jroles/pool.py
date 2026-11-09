@@ -10,6 +10,13 @@ cap, and a thread stays on the account it started on until that account is cappe
 rotates through the pool. When every instance is full, the choice names no instance, and gives
 the time when the first instance resets.
 
+A launch also skips an instance that cannot sign in. `jbus` reads which ones cannot from T3 Code
+(`jbus.dispatch.cannot_sign_in`: a signed-out instance has `Provider is not authenticated.` among
+its constraints, the reading `jbus.failover` makes for a move) and hands them to `routes`, which
+takes the next instance of the pool. The ledger keeps no such skip: an instance that signs in again
+is chosen again on the next pass. When no instance of the pool can sign in, the choice names none
+and has no reset to wait for.
+
 To grow the pool, add the instance in T3 Code's settings (`providerInstances`, which
 `jroles.inventory` reads) and one more id to the role line. `jroles` refuses a line with an id
 that T3 does not list under the line's provider, so a Claude pool never names a Codex or a
@@ -133,18 +140,33 @@ def selections(role: str) -> tuple[Selection, ...]:
     return chosen
 
 
-def routes(role: str, now: datetime) -> tuple[Route, ...]:
+def routes(role: str, now: datetime, out: Mapping[str, str] | None = None) -> tuple[Route, ...]:
     """Where each launch of `role` goes now, one for each of its lines, or none when the role
-    inherits. An instance is full at the user's headroom. The function refuses settings that
-    it cannot use."""
+    inherits. An instance is full at the user's headroom, and one that `out` names cannot sign in,
+    for the reason it gives, so the launch takes the next of the pool (`signed_out`). The function
+    refuses settings that it cannot use."""
     chosen = selections(role)
     if not chosen:
         return ()
     full = headroom(role)
     return tuple(
-        Route(one, choose(one.instances, ledger.read(one.instances), now, full=full))
+        Route(
+            one,
+            choose(
+                one.instances,
+                ledger.read(one.instances),
+                now,
+                signed_out(one.instances, out or {}),
+                full,
+            ),
+        )
         for one in chosen
     )
+
+
+def signed_out(instances: tuple[str, ...], out: Mapping[str, str]) -> dict[str, str]:
+    """The skip for `choose` of each of `instances` that `out` gives a reason it cannot sign in."""
+    return {name: f"{name} cannot sign in ({out[name]})" for name in instances if out.get(name)}
 
 
 def headroom(role: str) -> float:

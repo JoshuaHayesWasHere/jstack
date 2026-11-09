@@ -48,7 +48,7 @@ from typing import Any
 
 import jroles
 from jbriefs import below, findings
-from jbus import END_TURN, mirror, outbox, rebase, review, verbs
+from jbus import END_TURN, dispatch, mirror, outbox, rebase, review, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import World, _default_branch, at_work, task_brief
@@ -194,7 +194,8 @@ def launch(run: Pass, client: Client, world: World) -> None:
             refuse(run, client, slug, thread, head, NO_TREE, "", sent)
             continue
         try:
-            routes: list[pool.Route | None] = list(pool.routes("review", run.now))
+            out = dispatch.cannot_sign_in(run, client)
+            routes: list[pool.Route | None] = list(pool.routes("review", run.now, out))
         except jroles.Refused as error:
             run.say(f"note {slug}: the role map gives the review no model ({error}): it inherits")
             routes = []
