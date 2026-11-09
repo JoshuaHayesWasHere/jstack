@@ -210,8 +210,8 @@ def test_stall_flagged_a_quiet_child_with_its_crew_out_is_flagged(kitchen):
     assert [one for one in sends(kitchen) if one["threadId"] in (root, child)] == []
     kitchen.poll(NOW + PATIENCE + timedelta(minutes=1))
     went = {one["threadId"]: one["message"] for one in sends(kitchen)}
-    assert "home-stall" in went[child] or "nothing jbus can see" in went[child]
-    assert "home-stall" not in went.get(root, "")
+    assert "has done nothing jbus can see" in went[child]
+    assert root not in went
 
 
 @pytest.fixture
