@@ -11,8 +11,8 @@ Decisions: <any the user already made, in their words>
 Holds: <a case of gates.md the task walks through, word for word, several split by commas>
 <The line above is left out when the task walks through no door.>
 <A row whose `Done when:` or `Proves it:` runs a door's command holds for that door all the same, and `jbus queue add` prints `holds: <case>, from <the command>` for one no `Holds:` line names.>
-<The two lines below may be left out where they would say none.>
-Design: <the path of the design `/architect` wrote for this task> | none, <why it needs no design call>
+<The line below is there only where `/architect` wrote a design for this task, and the one under it may be left out where it would say none.>
+Design: <the path of the design `/architect` wrote for this task>
 Skills: <the skills and principles the crewmate runs, comma-separated, by pstack's names: a skill's directory of `skills/`, `architect`, and a principle's directory of `features/principles/skills/`, `principle-model-the-domain`> | none
 Pull request: open one when done | ask first
 Review: review | none
@@ -24,13 +24,12 @@ Playbook: <a row `a crewmate` runs, from the home skill's block that prints a ro
 Home: <uncategorized, or the scope's name>
 <The line below is there only for a row queued with `--depends`, and names each row it depends on before a colon with what of its work this row starts from after it, the code this row changes, calls or imports, one item for each and `;` between them, while a plan layer, docs order or a shared file is no such need and an order that is only about merging is `--merge-after` with no line.>
 Builds on: <slug>: <what of its work this row starts from>; <slug>: <what of its work>
-<The six lines below are there when a scout wrote this brief.>
+<The five lines below are there when a scout wrote this brief.>
 <A home that writes one from a light scout's answer may fill `Read:`, `Change:` and `Rests on:` from it.>
 <Where the home's deeper step ran, for research, perf, analysis or outcome work, the home writes `Read:` and `Instruments:` itself, and `jbus queue add` refuses such a brief without them.>
-<Any other brief the home writes leaves all six out.>
+<Any other brief the home writes leaves all five out.>
 Read: <the rawest material to start from: the files, logs or data to read first, each with its path and line and what is there>
 Instruments: <each method the work uses, with the command that runs it here>
 Change: <the files to change, each with its path and line and what changes>
 Rests on: <each finding the brief depends on, with its evidence>
-Sources: <the docs used: the path or URL, and the part that matters>
 Ruled out: <what was looked at and set aside, and why>

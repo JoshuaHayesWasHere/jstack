@@ -698,10 +698,10 @@ def test_a_ticks_verdict_shows_before_any_pass_and_the_next_pass_keeps_it(kitche
     assert said(kitchen) == ("merged", True)
 
 
-def test_a_check_that_ends_on_github_reaches_its_rows_line_on_the_next_2_s_tick(kitchen):
+def test_a_check_that_ends_on_github_reaches_its_rows_line_on_the_next_10_s_tick(kitchen):
     """The pass saw #9's check going, and `jmerge` waited on it. GitHub's check then passes: its
     job is among the head's check runs, and `jmerge` moves #9 on to review. The next tick, at
-    most 2 s later (`jbus-merge.timer`), restates the row's line, with no pass between."""
+    most 10 s later (`jbus-merge.timer`), restates the row's line, with no pass between."""
     on_review(kitchen)
     going = ready.NOT_PASSED.format(check="check")
     kitchen.set("jmerge.txt", f"wait 9 {PULL}: {going}\n")
@@ -714,7 +714,7 @@ def test_a_check_that_ends_on_github_reaches_its_rows_line_on_the_next_2_s_tick(
     timer = configparser.ConfigParser(interpolation=None)
     timer.optionxform = str
     timer.read(REPO / "features" / "jbus" / "units" / "jbus-merge.timer")
-    assert timer["Timer"]["OnUnitActiveSec"] == "2s"
+    assert timer["Timer"]["OnUnitActiveSec"] == "10s"
 
 
 def test_a_ticks_stacked_verdict_shows_its_parent_as_the_holder_before_any_pass(kitchen):

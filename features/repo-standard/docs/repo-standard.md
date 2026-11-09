@@ -114,7 +114,7 @@ Once the repo pins version N or a later one, the waiver prints a warning that it
 
 Some files a repo takes from the skeleton and its adapters belong to the version it pins, as [the skeleton's page](skeleton.md#what-a-version-owns) says.
 The rule `a-file-a-version-owns-is-that-versions-copy` warns of each that differs from its copy at the pinned tag, or is missing.
-In the caller, `.github/workflows/check.yml`, the value of `runner:` is left out of the comparison, since the runner is the repo's own; the job `check` takes its `runs-on:` from it.
+In the caller, `.github/workflows/check.yml`, the inputs `runner`, `browser-channel` and `timeout-minutes` of the call of the shared check are left out of the comparison, since they are the repo's own, as [the shared check's page](check-workflow.md#call-it) says; the job `check` takes its `runs-on:` from `runner`.
 The tool reads the tag's copies from its own tree when that tree holds the skeleton, as a clone of the tag does, and otherwise from the clone in the repo's `.cache/`, which it makes from `--upstream` when it is not there.
 
 The config's `local:` keeps an owned file as the repo's own, with the reason:
@@ -166,7 +166,7 @@ make lint
 ```
 
 It runs from the tool at version N, since only that version's tool reads that version's config, and it refuses any other N, and an N below the repo's pin.
-It writes the `standard:` line of `.repo-standard.yml`, the tag of each workflow's call of the shared check, and every file version N owns as N's copy, with the runner's labels of the caller kept.
+It writes the `standard:` line of `.repo-standard.yml`, the tag of each workflow's call of the shared check, and every file version N owns as N's copy, with the caller's `runner`, `browser-channel` and `timeout-minutes` kept, as [the shared check's page](check-workflow.md#call-it) says.
 Where no glob of the config's `owners` names `local.mk`, it adds `local.mk` to the list that names the `Makefile`, or prints that the repo must name it.
 It leaves the `local:` files and the seeded ones as they are, and prints each it left with why, and each waiver whose `until` version N reaches.
 It writes only a file whose text differs, so a second run writes nothing, and a run after one that stopped part way writes what is left.

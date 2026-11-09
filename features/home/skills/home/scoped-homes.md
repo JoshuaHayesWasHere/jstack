@@ -160,7 +160,7 @@ if [ -z "$why" ]; then
     case $scope in
     '' | *'<'* | *'>'*) why="the scope's name is not filled in" ;;
     .* | *[!A-Za-z0-9._-]*) why="$scope is not a name a scope can have: letters, digits, dots and dashes, and no dot first" ;;
-    tasks | scouts | reports | log) why="$scope is a directory every home of $R shares" ;;
+    asked | tasks | scouts | reports | log) why="$scope is a directory every home of $R shares" ;;
     off | merge.log) why="$scope is a file of $R's own directory, there or not" ;;
     *)
         if [ -f "$H/$scope/plan.md" ]; then
@@ -266,7 +266,7 @@ if [ "${M:?run the block that finds this home first}" = "$H" ]; then
         [ -f "$plan" ] || continue
         scope=$(basename "$(dirname "$plan")")
         case $scope in
-        tasks | scouts | reports | log) continue ;;
+        asked | tasks | scouts | reports | log) continue ;;
         esac
         if [ -s "$H/$scope/home-id" ]; then
             echo "=== scope $scope: home thread $(cat "$H/$scope/home-id")"
