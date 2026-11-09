@@ -166,7 +166,7 @@ Acts(k) ==
     /\ Ticked[k] >= Patience(k) * (Rank[watch[k]] + 1)     \* jbus/children.py `run.now - start >= timedelta(minutes=patience)`
 \* jbus/children.py `if step in ("calm", "nudged1"):` nudges, and the step after the second
 \* nudge launches the home on a fresh thread (jbus/children.py
-\* `return "relaunched" if launch(run, client, name, why) else ""`), unless jbus launched the
+\* `return "relaunched" if launch(run, client, name, why, threads) else ""`), unless jbus launched the
 \* thread it is now (jbus/children.py
 \* `if step == "nudged2" and not (ours and ours == homes.ids(run.home / name)[0]):`), and the step
 \* after that is the question (jbus/children.py `spell["step"] = went`).
