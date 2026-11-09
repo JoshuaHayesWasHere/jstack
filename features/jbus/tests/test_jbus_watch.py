@@ -60,23 +60,36 @@ def test_the_merged_list_is_asked_for_only_once_a_base_branch_moved(kitchen):
     kitchen.brief("beta", RESULT)
     kitchen.set("merged.json", [kitchen.merged("alpha", 7, "a" * 40)])
     kitchen.quiet()
-
-    def listed():
-        said = [line for line in kitchen.log("gh") if line.startswith("pr list --state merged")]
-        (kitchen.stub / "gh.log").unlink(missing_ok=True)
-        return said
-
-    listed()
+    listed(kitchen)
     kitchen.poll(NOW + timedelta(minutes=3))
-    assert listed() == []
+    assert listed(kitchen) == []
     beta = kitchen.merged("beta", 8, "b" * 40, ago=timedelta(0))
     kitchen.set("merged.json", [kitchen.merged("alpha", 7, "a" * 40), beta])
     kitchen.poll(NOW + timedelta(minutes=6))
-    assert len(listed()) == 1
+    assert len(listed(kitchen)) == 1
     assert kitchen.lines("merged") == ["merged beta #8 bbbbbbbbbbbb"]
     kitchen.poll(NOW + timedelta(minutes=9))
-    assert listed() == []
+    assert listed(kitchen) == []
     assert kitchen.lines("merged") == ["merged beta #8 bbbbbbbbbbbb"]
+
+
+def test_a_pass_that_cannot_read_the_base_tips_asks_for_the_merged_list(kitchen):
+    """With no answer from `git ls-remote origin`, no base is known to stand still, so each pass
+    asks GitHub for the merged list as it did before the tips were kept."""
+    kitchen.set("merged.json", [kitchen.merged("alpha", 7, "a" * 40)])
+    kitchen.quiet()
+    kitchen.git("remote", "set-url", "origin", str(kitchen.root / "gone.git"))
+    listed(kitchen)
+    for minutes in (3, 6):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+        assert len(listed(kitchen)) == 1
+
+
+def listed(kitchen):
+    """Return the merged lists asked of the fake `gh` since the last call, and forget them."""
+    said = [line for line in kitchen.log("gh") if line.startswith("pr list --state merged")]
+    (kitchen.stub / "gh.log").unlink(missing_ok=True)
+    return said
 
 
 def heads(kitchen):
