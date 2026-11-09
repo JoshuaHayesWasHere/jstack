@@ -66,6 +66,13 @@ The record keeps the case as `holds` and the fail-safe as `fail_safe`, and the l
 Each question's line on the list says which it is: `Its default is acted on already, and stands unless you stop it.`, or `It holds (<case>) for your answer, with its fail-safe: <fail-safe>.`
 `jbus gate` refuses with `not sent:` a `Holds:` line with no filled `Fail-safe:` line, a case not in the table, two `Holds:` lines, and a `Fail-safe:` line with no `Holds:` line.
 
+A door question closes itself when its row ends so that nothing is left to decide.
+A gate that holds, or a go gate, whose row merged is closed by the next pass with the words `kept the fail-safe: <slug> merged, and the door stayed shut`: the fail-safe is what ran.
+A go gate whose row was removed is closed with `<slug> was removed, so there is no row to go`.
+The record then holds `closed_by: cleared`, `by: jbus`, the time of that pass and `where: a jbus pass`, the log has one quiet `note`, and nothing is sent.
+That answer is jbus's, not yours: it records what happened to the row, and opens no door.
+A row that is `done` with no merge, `left`, or still live closes nothing, and a question you answered keeps your answer.
+
 ### Answers
 
 A question with no `Holds:` line settles on its default at once, in the first pass that sees it, and your answer can still replace that default later.
