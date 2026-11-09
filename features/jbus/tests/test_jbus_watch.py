@@ -1491,3 +1491,15 @@ def test_a_cut_proved_line_is_told_to_the_crew_once_word_for_word(written, kitch
     assert f"```\n{PROVED}\n```" in told[0]["message"]
     assert "a new `## Result, follow-up (<date>, <why>)` section" in told[0]["message"]
     assert "rewritten alpha: told its crew the brief lost 1 line" in said
+
+
+def test_a_cut_line_t3_code_refuses_to_send_is_told_on_a_later_pass(written, kitchen):
+    written.write_text(written.read_text().replace(f"{PROVED}\n", ""))
+    kitchen.t3.refuse_send = True
+    said = kitchen.poll(NOW - timedelta(minutes=10))
+    assert any(line.startswith("wait alpha: its crew could not be told") for line in said)
+    assert not [line for line in said if line.startswith("rewritten alpha")]
+    kitchen.t3.refuse_send = False
+    said = kitchen.poll(NOW)
+    assert "rewritten alpha: told its crew the brief lost 1 line" in said
+    assert f"```\n{PROVED}\n```" in told_rewritten(kitchen)[-1]["message"]
