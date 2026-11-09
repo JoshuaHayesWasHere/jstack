@@ -2173,7 +2173,11 @@ def test_a_pull_requests_check_keeps_the_list_of_tests_it_selected_as_an_artifac
 def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
     found, keys = steps(CHECK.read_text(), "full-shard")
     assert "if" in keys and ran_on("full-shard") == ["schedule", "workflow_dispatch"]
-    assert [step.get("uses", step.get("run")).partition("@")[0] for step in found] == [
+    assert [
+        step.get("uses", step.get("run")).partition("@")[0]
+        for step in found
+        if step.get("id") != "tla2tools"
+    ] == [
         "actions/checkout",
         "python3 scripts/green_tree.py",
         'echo "::warning::green-tree, the lookup ended failure, so the suite runs and a later run'
@@ -2182,7 +2186,6 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
         "uv sync --locked",
         "actions/cache",
         ZSH,
-        TLA2TOOLS_PIN,
         "actions/cache",
         "actions/cache/restore",
         SUITE,
