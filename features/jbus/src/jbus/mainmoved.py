@@ -43,14 +43,23 @@ runs start no job, and closes it (`questions.clear`) when a tip whose check ran 
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from jbus import Refused, questions, read_json, verbs, watch, write_json
 from jbus.passes import Pass
-from jbus.watch import NO_JOB, NOT_RED, _api, _check, _judged, _log_failed
+from jbus.watch import NO_JOB, NOT_RED, _api, _check, _judged, _log_failed, unjudged, when
 from jmerge import mainjson
 from jmerge.mainjson import SETTLED
 
 WAITING = 10
 CHECKS = "checks.json"
+UNJUDGED = "unjudged.json"
+"""The commits `main_check` found nothing judges (`watch.unjudged`), each with when a pass first
+and last found it so: `{sha: [first, last]}`."""
+UNJUDGED_WAIT = timedelta(minutes=15)
+"""How far apart two reads that find nothing judges a commit settle it: GitHub lists a push run
+within seconds of the push, so a commit that has none this long after it was first read never
+will."""
 ACCOUNT, ACCOUNT_FILE = "ci-account", "account.json"
 DECISION = (
     "## Gate <n>: CI on main started no job at {sha}: put the GitHub account's Actions limit "
@@ -79,12 +88,25 @@ def main_check(run: Pass, sha: str, again: bool = False, rerun: bool = False) ->
     once. This module is the file's one writer. With `again`, it asks again about a kept
     `failed` or `NO_JOB`, since a rerun of the check on the same commit may have passed, and it
     reruns a cancelled run once (`watch._check`). With `rerun`, a failed push run at its first
-    attempt is rerun once, and the commit is `pending` until the rerun ends."""
+    attempt is rerun once, and the commit is `pending` until the rerun ends.
+
+    A commit nothing judges, with no push run and no check run of one (`watch.unjudged`), is
+    `pending`. Passes read it again until a read `UNJUDGED_WAIT` after the first still finds it
+    so, as `unjudged.json` keeps, and after that only with `again`, at main's tip or the red
+    tip kept."""
     known: dict[str, str] = read_json(run.state / CHECKS, {})
     if again and known.get(sha) in ("failed", NO_JOB):
         del known[sha]
+    seen: dict[str, list[str]] = read_json(run.state / UNJUDGED, {})
+    first, last = seen.get(sha) or [run.now.isoformat()] * 2
+    if not again and when(last) - when(first) >= UNJUDGED_WAIT:
+        return "pending"
     answer = _check(run, known, sha, again=again, rerun=rerun)
     write_json(run.state / CHECKS, known)
+    if answer == "pending" and unjudged(run, sha):
+        write_json(run.state / UNJUDGED, {**seen, sha: [first, run.now.isoformat()]})
+    elif sha in seen:
+        write_json(run.state / UNJUDGED, {k: v for k, v in seen.items() if k != sha})
     return answer
 
 
