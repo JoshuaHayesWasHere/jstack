@@ -14,7 +14,7 @@ That close is not the user's word, and a later answer of theirs still replaces i
 
 A crewmate or a scout gates only a one-way door, the exception below, and records any other choice it makes as a decision in its Result or report.
 `jbus gate` takes a gate with no `Holds:` line from a crew's row or a scout's as such a decision: it writes the gate to the row's brief or request as a `## Decision:` section, with its default and undo lines, prints `decided:`, and asks the user nothing.
-One whose question or context names a case of the table below, a home's own gate and a go gate are asked as any other.
+One whose question or context names a case of the table below, one that names a risk-tagged review finding by its id, a home's own gate and a go gate are asked as any other.
 
 There is one exception.
 When the default is irreversible or slow to revert, the thread does not act.

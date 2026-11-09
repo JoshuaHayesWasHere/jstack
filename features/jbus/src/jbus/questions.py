@@ -81,8 +81,9 @@ and checks none of this itself.
 A crew's or a scout's gate with no `Holds:` line is no one-way door, so `jbus gate` asks the user
 nothing of it (`decides`): it appends the gate to the row's brief under `tasks/` or request under
 `scouts/` as a `## Decision:` section, once (`decide`), keeps no record, and queues no event. It
-still asks a go gate, a home's own gate, a gate whose words name a door of `party.PAUSE`, and a
-question that it already holds under that slug.
+still asks a go gate, a home's own gate, a gate whose words name a door of `party.PAUSE`, one
+that names a risk-tagged finding of the brief's review by its id, and a question that it
+already holds under that slug.
 
 `jbus gate` also asks nothing that a rule already settles (`refusal`). A gate with no `Holds:`
 line whose question is a shape of `SETTLED` (a swarm, a `Review: none` merge, exit 124's
@@ -139,7 +140,7 @@ from typing import Any
 
 import jbus
 import jsettings
-from jbriefs import below, skills
+from jbriefs import below, findings, skills
 from jbriefs.home import thread_of
 from jbus import (
     END_TURN,
@@ -1072,7 +1073,9 @@ def decides(run: Pass, slug: str, lines: str) -> Path | None:
     """Return the file a gate with no `Holds:` line is a decision on: the brief under `tasks/` of a
     crew's row, or the request under `scouts/` of a scout's. Return None, so the gate is asked,
     for a go gate, whose default waits for its close; for a gate whose question or context names
-    a one-way door in the words of `party.PAUSE`, which it is whatever its lines say; for a home's
+    a one-way door in the words of `party.PAUSE`, which it is whatever its lines say; for a gate
+    that names, by its id, a finding of the brief's review tagged `(risk: <area>)`, which the
+    crew declines only on the user's answer (`jbriefs.findings`, `UNASKED`); for a home's
     own slug (`home`, or `home-<scope>` of a scope it has), whatever brief has that name; and for
     a slug with neither file."""
     if below.line(lines, "Default:").strip().lower() == queue.GO_DEFAULT:
@@ -1083,7 +1086,13 @@ def decides(run: Pass, slug: str, lines: str) -> Path | None:
     if slug == "home" or (slug.startswith("home-") and (run.home / slug[5:]).is_dir()):
         return None
     files = (run.home / kind / f"{slug}.md" for kind in ("tasks", "scouts"))
-    return next((file for file in files if file.is_file()), None)
+    file = next((file for file in files if file.is_file()), None)
+    if file is None:
+        return None
+    risky = (one.id for one in findings.triage(file.read_text()).findings if one.risk)
+    if any(re.search(rf"\b{re.escape(id)}\b", said) for id in risky):
+        return None
+    return file
 
 
 def decide(state: Path, file: Path, lines: str, now: datetime) -> Decided:

@@ -9,7 +9,7 @@ A crewmate or a scout gates only a one-way door.
 From a crew's row or a scout's, a slug with a brief under the home's `tasks/` or a request under its `scouts/`, a gate with no `Holds:` line is a decision, not a question.
 jbus appends it to that brief or request as a `## Decision: <the question>` section, with its `Default:`, `Built on it:` and `Undo:` lines and a `Decided:` line, once for each question, and prints `decided: written to <the file>`.
 It keeps no record, sends no `gate` event, and lists nothing: nothing of it reaches `jbus needs`, the view's Needs you or a `waiting` event.
-jbus still asks a gate whose question or context names a case of the door table (`party.PAUSE`) whatever its lines say, a go gate (`Default: approve`), a home's own gate (`home`, `home-<scope>`), and a question it already holds under that slug.
+jbus still asks a gate whose question or context names a case of the door table (`party.PAUSE`) whatever its lines say, one that names by its id (`F<n>`) a finding of the brief's review tagged `(risk: <area>)`, a go gate (`Default: approve`), a home's own gate (`home`, `home-<scope>`), and a question it already holds under that slug.
 
 Whatever stops a gate prints `not asked: ` and why, and exits 1: `not asked: not sent: <why>` for lines to mend and pipe again, and `not asked: refused: <why>` for a slug that is not one, a removed slug, or a repo jbus's config does not name.
 A skill's block only pipes the gate and reads these lines.

@@ -682,3 +682,23 @@ def test_question_259_a_crews_wait_on_another_pull_request_puts_nothing_on_the_u
         "jbus queue add --message on main",
     ]
     assert on_the_users_list(home.kitchen) == NOTHING
+
+
+RISKY = (
+    "\n## Review\nBy: a reviewer #1\nVerdict: findings\nHead: {head}\nFindings:\n"
+    "- warning src/alpha/a.py:3 the token is logged (bucket: Consider) (risk: auth)\n"
+    "- warning src/alpha/b.py:9 a name says less than it could (bucket: Consider)\n"
+)
+
+
+def test_a_crews_decline_of_a_risk_tagged_finding_is_asked_and_any_other_is_a_decision(home):
+    """A finding tagged `(risk: <area>)` is declined only on the user's answer, so a gate that
+    names it by its id is asked, though it has no `Holds:` line; one that names another finding
+    of the review is a decision."""
+    file = home.kitchen.home / "tasks" / "alpha.md"
+    file.write_text(file.read_text() + RISKY.format(head="a" * 40))
+    asked = home.pipes(question="May F1 stay as it is?", holds="")
+    assert asked.splitlines() == ["asked: queued: question 1", "Gate: question 1"]
+    decided = home.pipes(question="May F2 stay as it is?", holds="")
+    assert decided == f"decided: written to {file}: {questions.DECIDED_WHY}"
+    assert [one.question for one in questions.load(home.kitchen.state)] == ["May F1 stay as it is?"]
