@@ -1,0 +1,286 @@
+From ac60c7703a60085f5093c467b046ea4b67c19f4a Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
+Date: Mon, 9 Nov 2026 10:53:22 -0500
+Subject: [PATCH 30/30] fix(web): a starting jstack home says why its start
+ failed, from jbus's relaunches.json
+
+JbusWork reads relaunches.json beside work.json and carries its `says` on
+each starting scope; the tree's starting-home row prints it in place of
+"starting...", whole on hover.
+---
+ apps/server/src/jstack/JbusWork.test.ts       | 44 ++++++++++++++++++-
+ apps/server/src/jstack/JbusWork.ts            |  2 +
+ apps/server/src/jstack/jbusWork.logic.test.ts |  1 +
+ apps/server/src/jstack/jbusWork.logic.ts      |  9 +++-
+ .../sidebar/JstackTreeRows.browser.test.tsx   | 28 ++++++++++++
+ .../src/components/sidebar/JstackTreeRows.tsx | 43 ++++++++++++------
+ .../components/sidebar/jstackTree.logic.ts    | 11 +++--
+ packages/contracts/src/jbusWork.ts            |  2 +
+ 8 files changed, 122 insertions(+), 18 deletions(-)
+
+diff --git a/apps/server/src/jstack/JbusWork.test.ts b/apps/server/src/jstack/JbusWork.test.ts
+index c30e8437c6..b96bb4f355 100644
+--- a/apps/server/src/jstack/JbusWork.test.ts
++++ b/apps/server/src/jstack/JbusWork.test.ts
+@@ -54,7 +54,7 @@ it.live(
+       yield* fs.writeFileString(path.join(scope, "plan.md"), "# jstack, ops: plan\n");
+       yield* fs.writeFileString(path.join(scope, "prefix"), "ops-\n");
+       const starting = yield* nextWhere(changes, (next) => next.startingScopes.length > 0);
+-      assert.deepEqual(
++      assert.deepEqual<unknown>(
+         Option.map(starting, (next) => [next.startingScopes, next.homes.map((home) => home.scope)]),
+         Option.some([[{ repo: "jstack", scope: "ops" }], [null]]),
+       );
+@@ -106,3 +106,45 @@ it.live("shows a work.json write while jbus writes its outbox.lock beside it wit
+     assert.isTrue(Option.isSome(quiet));
+   }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+ );
++
++it.live("says why a starting scope's home did not start, from jbus's relaunches.json", () =>
++  Effect.gen(function* () {
++    const fs = yield* FileSystem.FileSystem;
++    const path = yield* Path.Path;
++    const { roots } = yield* seed;
++    for (const scope of ["ops", "flow"]) {
++      yield* fs.makeDirectory(path.join(roots.home, "jstack", scope));
++      yield* fs.writeFileString(path.join(roots.home, "jstack", scope, "plan.md"), "# plan\n");
++    }
++    const service = yield* JbusWork.make(roots);
++    const { latest, changes } = yield* service.subscribe;
++    assert.deepEqual(latest.startingScopes, [
++      { repo: "jstack", scope: "flow" },
++      { repo: "jstack", scope: "ops" },
++    ]);
++
++    // What jbus writes once the ops home's start failed; flow's last launch says nothing.
++    yield* fs.writeFileString(
++      path.join(roots.jbus, "jstack", "relaunches.json"),
++      JSON.stringify({
++        ops: {
++          at: "2026-11-09T15:35:05+00:00",
++          thread: "mcp:ops",
++          why: "it has no thread",
++          says: "start failed: not signed in",
++        },
++        flow: { at: "2026-11-09T15:35:05+00:00", thread: "mcp:flow", why: "it has no thread" },
++      }),
++    );
++    const failed = yield* nextWhere(changes, (next) =>
++      next.startingScopes.some((each) => each.says !== undefined),
++    );
++    assert.deepEqual(
++      Option.map(failed, (next) => next.startingScopes),
++      Option.some([
++        { repo: "jstack", scope: "flow" },
++        { repo: "jstack", scope: "ops", says: "start failed: not signed in" },
++      ]),
++    );
++  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
++);
+diff --git a/apps/server/src/jstack/JbusWork.ts b/apps/server/src/jstack/JbusWork.ts
+index 62a9fd63c9..bd940a0af9 100644
+--- a/apps/server/src/jstack/JbusWork.ts
++++ b/apps/server/src/jstack/JbusWork.ts
+@@ -79,6 +79,7 @@ const BUS_FILES = new Set([
+   "questions.json",
+   "waiting-on-user.json",
+   "held.json",
++  "relaunches.json",
+ ]);
+ /** The files of a scope's directory, `home/<repo>/<scope>`, a refresh reads. */
+ const SCOPE_FILES = new Set(["home-id", "prefix", "plan.md", "handoff.md"]);
+@@ -163,6 +164,7 @@ export const make = Effect.fn("JbusWork.make")(function* (roots: JbusWorkRoots)
+         questions: yield* readJson(path.join(bus, "questions.json")),
+         waiting: yield* readJson(path.join(bus, "waiting-on-user.json")),
+         held: yield* readJson(path.join(bus, "held.json")),
++        relaunches: yield* readJson(path.join(bus, "relaunches.json")),
+         rootHomeId: yield* readText(path.join(home, "home-id")),
+         scopes: scopes.toSorted((a, b) => a.scope.localeCompare(b.scope)),
+         startingScopes: startingScopes.toSorted(),
+diff --git a/apps/server/src/jstack/jbusWork.logic.test.ts b/apps/server/src/jstack/jbusWork.logic.test.ts
+index 8c42ae7d0f..51a43107c1 100644
+--- a/apps/server/src/jstack/jbusWork.logic.test.ts
++++ b/apps/server/src/jstack/jbusWork.logic.test.ts
+@@ -25,6 +25,7 @@ const files = (overrides: Partial<JbusRepoFiles> = {}): JbusRepoFiles => ({
+   merged: {},
+   waiting: [],
+   held: {},
++  relaunches: {},
+   briefHomes: new Map(),
+   briefTitles: new Map(),
+   ...overrides,
+diff --git a/apps/server/src/jstack/jbusWork.logic.ts b/apps/server/src/jstack/jbusWork.logic.ts
+index 6228074a16..b779b3110e 100644
+--- a/apps/server/src/jstack/jbusWork.logic.ts
++++ b/apps/server/src/jstack/jbusWork.logic.ts
+@@ -23,6 +23,8 @@ export interface JbusRepoFiles {
+   readonly waiting: unknown;
+   /** `held.json`: the rows jbus holds, each with since when and why. */
+   readonly held: unknown;
++  /** `relaunches.json`: each scope's last home launch, with `says` when its start failed. */
++  readonly relaunches: unknown;
+   /** `home/<repo>/home-id`. */
+   readonly rootHomeId: string | null;
+   readonly scopes: ReadonlyArray<{
+@@ -281,7 +283,12 @@ export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnap
+     }
+   }
+ 
+-  const startingScopes = files.startingScopes.map((scope) => ({ repo, scope }));
++  const relaunches = isRecord(files.relaunches) ? files.relaunches : {};
++  const startingScopes = files.startingScopes.map((scope) => {
++    const launch = relaunches[scope];
++    const says = isRecord(launch) ? text(launch.says) : null;
++    return says === null ? { repo, scope } : { repo, scope, says };
++  });
+   return { homes, startingScopes, tasks, gates, landed };
+ };
+ 
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+index 0744dce92a..3afda4861f 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+@@ -766,3 +766,31 @@ describe("JstackTreeRowView pinned homes", () => {
+     expect(await auditIdle()).toEqual([]);
+   });
+ });
++
++describe("JstackTreeRowView starting homes", () => {
++  it("says why a starting home's start failed in place of starting..., and starting... while none did", async () => {
++    const says = "start failed: not signed in: waits for claudeAgent to be signed in again";
++    const snapshot: JbusWorkSnapshot = {
++      ...SNAPSHOT,
++      startingScopes: [
++        { repo: "jstack", scope: "infra" },
++        { repo: "jstack", scope: "ops", says },
++      ],
++    };
++    await using screen = await render(<LiveTree snapshot={snapshot} spies={actions()} sent={[]} />);
++    const rowOf = (scope: string) =>
++      screen.container.querySelector<HTMLElement>(
++        `[data-sidebar-row="jstack-starting:jstack/${scope}"]`,
++      )!;
++    await expect.element(rowOf("ops")).toBeVisible();
++    expect(rowOf("ops").textContent).toBe(`ops ${says}`);
++    expect(rowOf("ops").textContent).not.toContain("starting...");
++    expect(rowOf("infra").textContent).toBe("infra starting...");
++    // The words outrun the row: the whole of them is on hover.
++    await userEvent.hover(rowOf("ops"));
++    await vi.waitFor(() =>
++      expect(document.querySelector('[data-slot="tooltip-popup"]')?.textContent).toBe(says),
++    );
++    expect(await audit()).toEqual([]);
++  });
++});
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+index 616af5efee..f49726ebdd 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+@@ -922,22 +922,39 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+             ]
+           : []),
+       ]);
++      const button = (
++        <button
++          type="button"
++          data-sidebar-row={row.key}
++          data-sidebar-parent={row.parentKey}
++          onClick={() => actions.onOpenThread(row.rootThreadId)}
++          onContextMenu={onContextMenu}
++          className={cn(ROW_BUTTON, "h-7")}
++        >
++          <span className="min-w-0 flex-1 truncate text-tree-row text-sidebar-foreground/80">
++            {row.scope}
++          </span>{" "}
++          {row.says === null ? (
++            <span className="shrink-0 text-2xs text-sidebar-muted-foreground">starting...</span>
++          ) : (
++            <span className="min-w-0 max-w-[70%] truncate text-2xs text-sidebar-muted-foreground">
++              {row.says}
++            </span>
++          )}
++        </button>
++      );
+       return (
+         <li className="list-none">
+           <Nest depth={1}>
+-            <button
+-              type="button"
+-              data-sidebar-row={row.key}
+-              data-sidebar-parent={row.parentKey}
+-              onClick={() => actions.onOpenThread(row.rootThreadId)}
+-              onContextMenu={onContextMenu}
+-              className={cn(ROW_BUTTON, "h-7")}
+-            >
+-              <span className="min-w-0 flex-1 truncate text-tree-row text-sidebar-foreground/80">
+-                {row.scope}
+-              </span>{" "}
+-              <span className="shrink-0 text-2xs text-sidebar-muted-foreground">starting...</span>
+-            </button>
++            {row.says === null ? (
++              button
++            ) : (
++              // The words outrun the row: the whole of them is on hover.
++              <Tooltip>
++                <TooltipTrigger render={button} />
++                <TooltipPopup side="right">{row.says}</TooltipPopup>
++              </Tooltip>
++            )}
+           </Nest>
+         </li>
+       );
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
+index 86d92696e3..843857a0de 100644
+--- a/apps/web/src/components/sidebar/jstackTree.logic.ts
++++ b/apps/web/src/components/sidebar/jstackTree.logic.ts
+@@ -232,6 +232,8 @@ export type JstackTreeRow =
+       readonly rootThreadId: ThreadId;
+       /** Only the sidebar knows of it: sent to the root home, with no plan on disk yet. */
+       readonly requested: boolean;
++      /** Why its home's last start failed, which the row says in place of "starting...". */
++      readonly says: string | null;
+     }
+   | {
+       /** The inline row that asks the root home for a child home. */
+@@ -702,12 +704,14 @@ export function buildJstackTree(input: JstackTreeInput): JstackTree {
+ 
+   // A scope shows as starting from the sidebar's send, through its plan on disk, to its home-id.
+   const started = new Set(domains.map((home) => home.scope));
+-  const onDisk = new Set(
+-    snapshot.startingScopes.filter((each) => each.repo === root.repo).map((each) => each.scope),
++  const onDisk = new Map(
++    snapshot.startingScopes
++      .filter((each) => each.repo === root.repo)
++      .map((each) => [each.scope, each.says ?? null]),
+   );
+   const startingNames = [
+     ...new Set([
+-      ...onDisk,
++      ...onDisk.keys(),
+       ...input.requestedScopes.filter((each) => each.repo === root.repo).map((each) => each.scope),
+     ]),
+   ]
+@@ -721,6 +725,7 @@ export function buildJstackTree(input: JstackTreeInput): JstackTree {
+     scope,
+     rootThreadId: root.threadId,
+     requested: !onDisk.has(scope),
++    says: onDisk.get(scope) ?? null,
+   }));
+   if (input.childHomeEditor) {
+     childHomeRows.push({
+diff --git a/packages/contracts/src/jbusWork.ts b/packages/contracts/src/jbusWork.ts
+index a31b59c66c..c3935f57f4 100644
+--- a/packages/contracts/src/jbusWork.ts
++++ b/packages/contracts/src/jbusWork.ts
+@@ -122,6 +122,8 @@ export type JbusLanded = typeof JbusLanded.Type;
+ export const JbusStartingScope = Schema.Struct({
+   repo: TrimmedNonEmptyString,
+   scope: TrimmedNonEmptyString,
++  /** Why its home's last start failed, as jbus's `relaunches.json` says; absent while none did. */
++  says: Schema.optional(TrimmedNonEmptyString),
+ });
+ export type JbusStartingScope = typeof JbusStartingScope.Type;
+ 
+-- 
+2.56.0
+

@@ -11,7 +11,7 @@ pkgname=t3code-jstack
 _tag="${T3CODE_JSTACK_TAG:-v0.1.7}"
 _release="${_tag#v}"
 # A nightly picked by hand has a hyphen, which pkgver cannot hold.
-pkgver="${_release/-nightly./_nightly.}.jstack.175325ee3a"
+pkgver="${_release/-nightly./_nightly.}.jstack.fc7a7475a9"
 pkgrel=1
 pkgdesc='T3 Code with the jstack tree sidebar'
 arch=('x86_64')
@@ -79,10 +79,12 @@ _patches=(0001-jstack-tree-sidebar.patch 0002-jstack-tree-asking-and-projects.pa
           0026-jstack-tree-knip-file-local.patch
           0027-jstack-tree-push-now.patch
           0028-jstack-tree-no-counts-test.patch
-          0029-jstack-tree-no-counts.patch)
+          0029-jstack-tree-no-counts.patch
+          0030-jstack-tree-home-start-says.patch)
 source=("t3code-${_tag#v}.tar.gz::https://github.com/pingdotgg/t3code/archive/refs/tags/${_tag}.tar.gz"
         "${_patches[@]}")
 sha256sums=('SKIP'
+            'SKIP'
             'SKIP'
             'SKIP'
             'SKIP'
