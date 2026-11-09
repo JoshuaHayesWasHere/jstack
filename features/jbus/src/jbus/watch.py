@@ -1232,7 +1232,11 @@ def rewritten(run: Pass, client: Client, rows: list[dict[str, Any]] | None) -> N
     seen: dict[str, str] = {}
     for row in rows:
         slug = row["slug"]
-        thread = thread_of(run.home, slug) if queue.role(row) == queue.CREW else ""
+        thread = (
+            thread_of(run.home, slug)
+            if queue.role(row) == queue.CREW and not queue.over(row)
+            else ""
+        )
         if not thread:
             continue
         new = sections_of(task_brief(run, slug))
