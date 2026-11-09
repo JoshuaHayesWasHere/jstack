@@ -1,5 +1,6 @@
 """`jbus queue add` and `jbus queue check` warn of a brief whose `Asked:` line names no file under
-the home's `asked/`, and of a quote on its `Task:` line whose words that file does not hold. The
+the home's `asked/`, and of a quote on its `Task:` line whose words that file does not hold
+(`jbus.asks._asked_warnings`). The
 file keeps the user's whole request once, so a quote on `Task:` can be checked against it. Both are
 warnings: the brief is queued all the same.
 
