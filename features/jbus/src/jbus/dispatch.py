@@ -311,6 +311,29 @@ def say_unread(run: Pass, instance: str) -> None:
         run.say(line)
 
 
+def cannot_run(run: Pass, client: Client) -> dict[str, str] | None:
+    """Return why T3 Code cannot run each provider instance it lists, its constraints joined, and
+    nothing for one it can, or None where T3 Code did not say. A signed-out instance has
+    `Provider is not authenticated.` among its constraints."""
+    try:
+        said = client.call("orchestrator_capabilities", {})
+    except T3Error as error:
+        run.say(f"wait {run.project.name}: T3 Code did not say which instances sign in ({error})")
+        return None
+    return {
+        str(one["providerInstanceId"]): " ".join(str(c) for c in one.get("constraints") or [])
+        for one in said.get("providers") or []
+        if isinstance(one, dict) and one.get("providerInstanceId")
+    }
+
+
+def cannot_sign_in(run: Pass, client: Client) -> dict[str, str]:
+    """Return why each instance T3 Code lists cannot take a launch now (`cannot_run`), for
+    `jroles.pool.routes` to skip. An instance T3 Code does not list, or a pass where it did not
+    say, skips nothing: the launch call says why it cannot go there."""
+    return {name: why for name, why in (cannot_run(run, client) or {}).items() if why}
+
+
 def mirrored_choice(
     run: Pass,
     slug: str,
@@ -560,16 +583,17 @@ class Turns:
             if not wrote and on_disk.strip() != plain.strip():
                 run.gate(slug, f"tasks/{slug}.md differs from the approved brief", str(target))
                 continue
+            out = cannot_sign_in(run, client)
             try:
-                (routed,) = pool.routes("crew", run.now) or (None,)
+                (routed,) = pool.routes("crew", run.now, out) or (None,)
                 full = pool.headroom("crew")
             except jroles.Refused as error:
                 run.gate(slug, "the role map gives the crew no model", str(error))
                 continue
             if routed:
-                found = mirrored_choice(
-                    run, slug, routed.selection.instances, self.checked, full=full
-                )
+                instances = routed.selection.instances
+                skip = pool.signed_out(instances, out)
+                found = mirrored_choice(run, slug, instances, self.checked, full=full, skip=skip)
                 routed = pool.Route(routed.selection, found)
             choice = routed.choice if routed else pool.Choice(None, "")
             if routed and choice.instance is None:

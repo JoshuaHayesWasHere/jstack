@@ -66,6 +66,7 @@ from jbus import (
     Refused,
     alert,
     dispatch,
+    failover,
     mirror,
     outbox,
     plan,
@@ -437,18 +438,21 @@ def launch(run: Pass, client: Client, name: str, why: str) -> bool:
     if not (scope / "plan.md").exists() and not (scope / "plan-archived.md").exists():
         scope.mkdir(parents=True, exist_ok=True)
         (scope / "plan.md").touch()
+    out = dispatch.cannot_sign_in(run, client)
     try:
-        (routed,) = pool.routes("home", run.now) or (None,)
+        (routed,) = pool.routes("home", run.now, out) or (None,)
         full = pool.headroom("home")
     except jroles.Refused as error:
         run.say(f"wait home {name}: the role map gives the home no model ({error})")
         return False
     if routed:
-        found = dispatch.mirrored_choice(
-            run, f"home {name}", routed.selection.instances, {}, full=full
-        )
+        instances = routed.selection.instances
+        skip = pool.signed_out(instances, out)
+        found = dispatch.mirrored_choice(run, f"home {name}", instances, {}, full=full, skip=skip)
         routed = pool.Route(routed.selection, found)
         if found.instance is None:
+            if len(skip) == len(instances):
+                failover.signed_out(run, instances)
             run.say(f"wait home {name}: no launch: {found.why}")
             return False
     asked: dict[str, Any] = {

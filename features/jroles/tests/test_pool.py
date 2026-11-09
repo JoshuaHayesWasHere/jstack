@@ -48,7 +48,9 @@ def test_a_pool_whose_every_instance_is_signed_out_launches_nothing():
     assert routed.choice.instance is None
     assert routed.choice.until is None
     assert routed.choice.passed == ("claudeAgent", PRIME)
-    assert routed.choice.why == f"claudeAgent cannot sign in ({OUT}); {PRIME} cannot sign in ({OUT})"
+    assert routed.choice.why == "; ".join(
+        f"{name} cannot sign in ({OUT})" for name in ("claudeAgent", PRIME)
+    )
 
 
 def test_an_instance_that_signs_in_again_is_chosen_again_on_the_next_pass():

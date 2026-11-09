@@ -355,16 +355,9 @@ def signed_in(run: Pass, client: Client, lapsed: list[Lapsed]) -> dict[str, str]
     why: a signed-out instance has `Provider is not authenticated.` among its constraints. A
     run that failed to sign in on an instance less than `HOLD` ago says more than T3 Code's word
     that it can, since T3 Code may not have looked again yet."""
-    try:
-        said = client.call("orchestrator_capabilities", {})
-    except T3Error as error:
-        run.say(f"wait {run.project.name}: T3 Code did not say which instances sign in ({error})")
+    why = dispatch.cannot_run(run, client)
+    if why is None:
         return None
-    why = {
-        str(one["providerInstanceId"]): " ".join(str(c) for c in one.get("constraints") or [])
-        for one in said.get("providers") or []
-        if isinstance(one, dict) and one.get("providerInstanceId")
-    }
     for one in lapsed:
         if not why.get(one.ran, UNLISTED) and run.now - one.lapse.ended < HOLD:
             why[one.ran] = f"a turn on it failed to sign in at {one.lapse.ended.isoformat()}"
