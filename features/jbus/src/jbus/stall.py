@@ -433,7 +433,7 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
         kept[slug] = {**one, "heads": heads, "red": on_red, "shared": flakes}
         if row.get("held") or head in heads or head in on_red or head in flakes:
             continue
-        found = rebase.ran_and_failed(run, pull)
+        found = rebase.ran_and_failed(run, world, pull)
         names = [name for name in found.names if name in required]
         if not names:
             continue

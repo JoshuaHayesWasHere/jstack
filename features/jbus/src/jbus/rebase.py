@@ -80,8 +80,8 @@ from jbus.watch import (
     World,
     checks,
     failed_in,
-    job,
     job_log,
+    ran,
     task_brief,
 )
 from jmerge import lines as lines_of
@@ -258,7 +258,7 @@ def github(run: Pass, client: Client, world: World) -> None:
             continue
         brief = task_brief(run, slug)
         rebased = mark("rebase", slug, head) in sent
-        red = Red() if rebased else ran_and_failed(run, pull)
+        red = Red() if rebased else ran_and_failed(run, world, pull)
         again = _asked("refailed", FAILED, head) if red.attempt > 1 else None
         ask = again or _asked("failed", FAILED, head)
         if red.reason and mark(ask.kind, slug, head) not in sent:
@@ -382,7 +382,7 @@ def told_before(run: Pass, head: str, told: str, sent: list[str]) -> str:
     return parents[0] if same in sent else ""
 
 
-def ran_and_failed(run: Pass, pull: dict) -> Red:
+def ran_and_failed(run: Pass, world: World, pull: dict) -> Red:
     """Return the failed checks at the pull request's head, among the checks that ran, as a `Red`:
     its `reason` names them, or is empty, beside their names, their jobs and the highest attempt of
     the workflow runs in which they failed. When
@@ -404,7 +404,7 @@ def ran_and_failed(run: Pass, pull: dict) -> Red:
         ):
             continue
         found = _JOB.match(urlsplit(check.get("detailsUrl") or "").path)
-        given = job(run, *found.groups()) if found else {}
+        given = ran(run, world, *found.groups()) if found else {}
         attempt = max(attempt, int(given.get("run_attempt") or 1))
         names.append(check.get("name") or check.get("context") or "a check")
         jobs.extend([found.groups()] if found else [])

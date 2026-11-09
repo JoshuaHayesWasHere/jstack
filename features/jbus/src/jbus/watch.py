@@ -88,6 +88,8 @@ GREEN = "passed"
 _TIMEBOX = re.compile(r"^TIMEBOX:\s*(\d+(?:\.\d+)?)\s*(?:h\b|hours?\b)", re.M)
 OPEN = "number,url,title,headRefName,headRefOid,baseRefName,mergeable,statusCheckRollup,updatedAt"
 NEVER = "neverStarted"
+JOBS = "completed-jobs.json"
+KEPT_JOBS = 1000
 """The key of an open pull request's failed checks whose job ran no step, as the pass found
 them: `checks` reads them as `jmerge --checks` does."""
 MERGED = "number,url,title,headRefName,headRefOid,baseRefName,mergeCommit,mergedAt"
@@ -128,7 +130,7 @@ class World:
 
     `logs` holds each job's log that a step of the pass read, by the job's id, or None where GitHub
     did not give it, so that `watch`, `rebase` and `cancelled` read a failed job's log once a pass
-    (`job_log`).
+    (`job_log`). `jobs` holds what `ran` keeps of completed jobs, read from `JOBS` once a pass.
     """
 
     threads: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
@@ -141,6 +143,7 @@ class World:
     awaiting: set[str] = field(default_factory=set)
     results: dict[str, str] = field(default_factory=dict)
     logs: dict[str, str | None] = field(default_factory=dict)
+    jobs: dict[str, dict[str, Any]] | None = None
 
     def thread(self, slug: str) -> dict[str, Any] | None:
         live = self.threads.get(slug, [])
@@ -396,16 +399,18 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
         return Look(out=out, held=held, spent=spent)
     kept: dict[str, dict[str, Any]] = read_json(run.state / "merged.json", {})
     named = {slug for row in rows for slug in (row["slug"], *row.get("depends", []))}
+    queued = {row["slug"] for row in rows}
     try:
         for state, fields, into in (("open", OPEN, world.open), ("merged", MERGED, world.merged)):
             for pull in sorted(
                 pulls(run, state, fields, "--limit", "100"), key=lambda p: p.get("mergedAt") or ""
             ):
-                if state == "open":
+                slug = slug_of.get(pull.get("url", "").rstrip("/"), pull["headRefName"])
+                if state == "open" and slug in queued:
                     rollup = pull.get("statusCheckRollup") or []
-                    never = reading.never_started(rollup, lambda *at: job(run, *at))
+                    never = reading.never_started(rollup, lambda *at: ran(run, world, *at))
                     pull[NEVER] = sorted(never)
-                into[slug_of.get(pull.get("url", "").rstrip("/"), pull["headRefName"])] = pull
+                into[slug] = pull
         if kept | world.merged != kept:
             kept |= world.merged
             write_json(run.state / "merged.json", kept)
@@ -442,6 +447,27 @@ def checks(pull: dict[str, Any]) -> str:
     rollup, never = pull.get("statusCheckRollup") or [], frozenset(pull.get(NEVER) or ())
     word = reading.checks(rollup, never)
     return "failed" if word == "unstarted" else word
+
+
+def ran(run: Pass, world: World, repo: str, number: str) -> dict:
+    """Return what `never_started` and `rebase.ran_and_failed` read of a job: `steps`, which is
+    `[]` where the job ran no step, and `run_attempt`. A completed job's steps and attempt never
+    change (a rerun is a new job id), so `ran` keeps them by repo and job id in the project's
+    `JOBS`, the last `KEPT_JOBS` of them, and asks GitHub for a job id it keeps no more. A job
+    that is not completed is not kept, and is given as GitHub gives it, or {}."""
+    if world.jobs is None:
+        world.jobs = read_json(run.state / JOBS, {})
+    key = f"{repo}/{number}"
+    kept = world.jobs.get(key)
+    if kept is None:
+        given = job(run, repo, number)
+        if given.get("status") != "completed":
+            return given
+        kept = {"steps_empty": given.get("steps") == [], "run_attempt": given.get("run_attempt")}
+        world.jobs[key] = kept
+        world.jobs = dict(list(world.jobs.items())[-KEPT_JOBS:])
+        write_json(run.state / JOBS, world.jobs)
+    return {"steps": [] if kept["steps_empty"] else None, "run_attempt": kept["run_attempt"]}
 
 
 def job(run: Pass, repo: str, number: str) -> dict:
