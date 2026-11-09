@@ -14,6 +14,7 @@ The store has one table for each record file of each project, with a `project` c
 | `acts` | `acts.jsonl` | an act: a go, hold, word, answer, withdraw or remove |
 | `items` | `items.jsonl` | a work item's record |
 | `transitions` | `transitions.jsonl` | a row's move from one status to another |
+| `row_waits` | `waits.jsonl` | a change of a row's reason to wait, to a reason or to none: its `kind` (`hold`, `depends`, `red main`, `room`, `cap` or `none`, `jbus.telemetry.waits`) and `why_len`, never the reason's text |
 | `outbox` | `outbox.jsonl` | a message jbus sent or held |
 | `ci_jobs` | `ci.jsonl` | a job of a GitHub Actions run, for a project whose table says `ci_report = true` |
 | `merges` | the home's `merge.log` | a line `jmerge` logged: its verb, its pull request, a merge's slug and a wait's label |
@@ -85,13 +86,15 @@ A budget is raised on purpose, by a pull request that edits `BUDGET` in `firstlo
 
 ## The records jbus keeps for the store
 
-Five logs keep what jbus's snapshots overwrite, each written from what jbus already holds, so none costs a call to GitHub (`jbus.history`, `jbus.spent`):
+Six logs keep what jbus's snapshots overwrite, each written from what jbus already holds, so none costs a call to GitHub (`jbus.history`, `jbus.spent`, `jbus.queue`):
 
 - `brief-versions.jsonl`: the queue's one writer of a stored brief adds a line each time the brief's sha changes, and keeps each version's text once in `brief-versions/<sha>.md` beside it, out of the store.
   Each line says what the version's `Pull request:` line asks (`pull`), read above the brief's first `## ` section with the pattern that tells a pass the crewmate owes a pull request.
   The store gained `pull` with migration `v015_brief_pull`, which drops each `brief_versions` cursor, so the next build reads each log again and fills `pull` for a line written before it from that version's kept text.
   A line whose kept text is gone has no `pull`, never `none`.
 - `row-pulls.jsonl`: a pass adds a line for each pull request it sees under a row's slug, once open and once merged.
+- `waits.jsonl`: a pass adds a line each time a row's `why`, its reason to wait, changes, to a reason or to none, before it writes the queue, so the reasons a row waited between its go and its launch stay after the queue moves on.
+  The pass that starts the file writes the `why` of each open row as it stands, so a row that already waited has a line before its reason next changes.
 - `runs.jsonl`: the pass's list of the repo's last 40 workflow runs, which it asks for already, adds each completed attempt once.
   An attempt that ends and is rerun between two passes is not seen.
 - `spend.jsonl` and `spend-rows.jsonl`: once a pass, a chore reads T3 Code's store for each local day that ended six hours ago and is not kept yet, and keeps one line for the day and one for each role and row.
@@ -177,6 +180,7 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 | `weekly_lead_time` | each week's S5: `n`, `median` and `p85` |
 | `weekly_change_failure` | each week's S6: `failures`, `merged` and `rate` |
 | `brief_at_launch` | each launch of a row: the sha of the brief stored then, and how many versions came after |
+| `launch_waits` | each launched row's `seconds` from its go to its launch, one row for each kind of reason it waited for in `row_waits`: `hold`, `depends`, `red main`, `room`, `cap` or `none`, the time before the row's first line; the go is the earlier of its first approved item and its queue approval, and the launch its first move to `launched`; counted from the project's first line of `waits.jsonl`, so a row that launched before it has no row |
 | `run_attempts` | each run: its attempts, when and at which attempt it first failed, and how its last attempt ended |
 | `carried_words` | each word a home carried: from `acts.jsonl`, with the thread it went to from `word-sends.json` |
 | `weekly_restore` | each week's S7: `spells`, `median`, `most`, `still_open` and `negative` |
