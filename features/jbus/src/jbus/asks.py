@@ -320,9 +320,7 @@ def _asked_warnings(home: Path, text: str) -> list[str]:
             "user's request there once, as $H/asked/<entry>.md"
         ]
     held = _words(path.read_text(errors="replace"))
-    task = " ".join(
-        " ".join(lines) for label, lines in briefs.fields(text) if label == "Task"
-    )
+    task = " ".join(" ".join(lines) for label, lines in briefs.fields(text) if label == "Task")
     warned = []
     for quote in _QUOTE.finditer(re.sub(r"`[^`]*`", " ", task)):
         words = quote[1] or quote[2]
