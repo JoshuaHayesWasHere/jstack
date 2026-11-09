@@ -1598,12 +1598,13 @@ def test_a_part_runs_only_its_own_files_and_fails_on_no_selection(tmp_path, part
     assert (asked.read_text().strip() if asked.exists() else None) == made
 
 
-def hand_over(tmp_path, select, reused, ready, status, newest=""):
+def hand_over(tmp_path, select, reused, ready, status, newest="", missing=0):
     """Run `reuse`'s `selection` step and a part's, as the runner runs them, with a `gh` that
     serves the run's artifacts as GitHub does: none for the asks before `ready`, then the file
-    `reuse` wrote. The `reuse` job's status in this attempt is `status` (`none` where it is not
-    of this attempt), and the newest selection of the run, of any attempt, is `newest`. Return
-    how the part's step ended, its outputs, and what it asked of `gh`."""
+    `reuse` wrote, whose first `missing` downloads GitHub answers 404 though it lists it. The
+    `reuse` job's status in this attempt is `status` (`none` where it is not of this attempt),
+    and the newest selection of the run, of any attempt, is `newest`. Return how the part's
+    step ended, its outputs, and what it asked of `gh`."""
     (wrote,) = [s for s in steps(CHECK.read_text(), "reuse")[0] if s.get("name") == "selection"]
     (asks,) = [
         s for s in steps(CHECK.read_text(), "check-shard")[0] if s.get("name") == "selection"
@@ -1639,7 +1640,11 @@ def hand_over(tmp_path, select, reused, ready, status, newest=""):
         f'  [ "$(wc -l < "{tmp_path}/lists")" -lt {ready} ] || echo 77 ;;\n'
         f'*/runs/9/attempts/3/jobs?per_page=100) echo "{status}" ;;\n'
         f"*/runs/9/artifacts?per_page=100) echo {newest} ;;\n"
-        f'*/actions/artifacts/77/zip) cat "{tmp_path}/artifact.zip" ;;\n'
+        "*/actions/artifacts/77/zip)\n"
+        f'  echo x >> "{tmp_path}/zips"\n'
+        f'  if [ "$(wc -l < "{tmp_path}/zips")" -le {missing} ]; then\n'
+        "    echo 'gh: Not Found (HTTP 404)' >&2; exit 1; fi\n"
+        f'  cat "{tmp_path}/artifact.zip" ;;\n'
         "*) exit 1 ;;\n"
         "esac\n"
     )
@@ -1695,6 +1700,31 @@ def test_a_part_takes_the_selection_reuse_handed_over_once_it_is_there(tmp_path,
     lists = [line for line in asked if "artifacts?name=" in line]
     assert len(lists) == ready
     assert asked[-1].startswith("api repos/o/r/actions/artifacts/77/zip")
+
+
+@pytest.mark.parametrize("missing", [1, 3])
+def test_a_part_downloads_a_listed_selection_again_where_github_answers_404(tmp_path, missing):
+    """GitHub can list `selection-<attempt>` and still answer its download `Not Found (HTTP
+    404)` for a while: the part reads that as not there yet, asks again within the same wait,
+    and takes the selection once it downloads."""
+    ran, outputs, asked = hand_over(tmp_path, SELECTED, "false", 1, "in_progress", missing=missing)
+    assert ran.returncode == 0, ran.stdout + ran.stderr
+    assert outputs == SELECTED | {"tree": "green-tree-ab", "reused": "false"}
+    assert len([line for line in asked if line.endswith("/zip")]) == missing + 1
+    assert asked[-1].startswith("api repos/o/r/actions/artifacts/77/zip")
+
+
+def test_a_part_fails_once_reuse_ended_and_its_selection_never_downloads(tmp_path):
+    """A selection GitHub lists and never serves fails the part where the wait's bound is spent:
+    on the fifth ask, with `reuse` ended, and not at the first 404 nor at the part's timeout."""
+    ran, outputs, asked = hand_over(
+        tmp_path, SELECTED, "false", 1, "completed", newest="77", missing=10**6
+    )
+    assert ran.returncode == 1
+    assert "::error::the job reuse ended with no selection for this part" in ran.stdout
+    assert outputs == {}
+    assert len([line for line in asked if "artifacts?name=" in line]) == 5
+    assert len([line for line in asked if line.endswith("/zip")]) == 6
 
 
 def test_a_reuse_hands_the_parts_no_files_and_says_it_reused(tmp_path):
