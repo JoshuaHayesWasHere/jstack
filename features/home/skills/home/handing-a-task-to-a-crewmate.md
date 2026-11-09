@@ -41,8 +41,9 @@ The root home does step 1 and no other: it queues the brief by "Queueing a row i
    `jbus queue add` refuses a brief that is short of anything a launch asks: a `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:` line, each filled in; a `Proves it:` line that names something outside the agent; a t-shirt size; a crewmate's playbook or `none`; a `Design:` line, where the brief has one, that names the design or says `none, <why>`; and a `Skills:` line, where the brief has one, whose every name is a skill of `skills/` or a principle of `principles/`.
    It prints `refused: <slug>'s brief has <n> faults, and nothing is queued` and one line under it for each fault: mend the brief and add it again.
    Nothing is queued, so the user is never asked to approve a brief that cannot launch.
-   A launch checks the same again.
-   It also refuses a brief that asks for a load on every core (`stress-ng --cpu 0`, `--cpu $(nproc)`) instead of a bounded one inside `jgauge test-slot`.
+   It also refuses a brief that asks for a load on every core (`stress-ng --cpu 0`, `--cpu $(nproc)`) instead of a bounded one inside `jgauge test-slot`, and one whose `Done when:` asks for a screenshot, a shot or a recording as proof.
+   The lints run once, at `jbus queue add`: a launch lints nothing again, so a lint added after a row's approval does not refuse that row.
+   A launch refuses only a brief its approval no longer covers.
 
    Its order behind other rows is one of two kinds, and one rule tells them apart from the plan alone: does this row's crew need another row's code in hand when it starts, code it changes, calls or imports?
    Where it does, the row is queued with `--depends <that row>`, and the brief has a `Builds on:` line that names that row before a colon and what of its work it starts from after it, as `$T/brief.md` shows.
