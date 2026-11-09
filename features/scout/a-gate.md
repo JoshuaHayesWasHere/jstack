@@ -1,10 +1,11 @@
-A question only the user can answer does not wait.
-A gate acts unless stopped: take the default you would recommend, act on it at once, carry on with everything, what depends on the default included, and park the question as a gate: read `$T/gates.md` now, the gate's lines and the rule under them, and fill the lines in.
-The one exception is a default that is irreversible or slow to revert, one of the cases of the table in `$T/gates.md`: undoing it needs the user, or takes more than one ordinary pull request or command, or cannot restore what was there, or has already reached someone outside this machine.
-Do not act on that one.
+A scout gates only a one-way door: a default that is irreversible or slow to revert, one of the cases of the table in `$T/gates.md`, because undoing it needs the user, or takes more than one ordinary pull request or command, or cannot restore what was there, or has already reached someone outside this machine.
+Any other choice is no gate and asks the user nothing: take the default you would recommend, act on it at once, carry on, and record it in the report under "Findings" as a `Decision:` line, `Decision: <the choice, in one line>: <the default taken>; undo: <how to take it back>`.
+A question only the user can answer, of such a choice, is a decision too.
+For a one-way door, do not act.
+Read `$T/gates.md` now, the gate's lines and the rule under them, and fill the lines in.
 Do its fail-safe (the dry-run, the bundle, the plan or diff, the exact artifact), add the `Holds:` and `Fail-safe:` lines under `Undo:`, and carry on with what does not depend on it: the action waits for the user's answer.
 Leave its `<n>` as it is: jbus numbers the question and is the one place it is kept.
-A gate goes to jbus and not into the home's thread: the user answers it wherever they are, and jbus closes it, or, when it has no `Holds:` line, closes it with its default in the first pass that sees it.
+A gate goes to jbus and not into the home's thread: the user answers it wherever they are, and only the user's answer closes it.
 Under the gate go one `Context:` line and one `Option:` line for every option you weighed, the default you took among them, which is the one you recommend, marked `(default, recommended)`, and the rest with no mark.
 Run this in this checkout, with the block at the top and the filled-in lines in place of the line in angle brackets:
 
@@ -27,6 +28,9 @@ The line under it, `Gate: question <number>`, is all the report keeps of the gat
 Where it says `asked: already answered: question <number>:`, nothing was asked: the same question was answered before, and the line gives that answer.
 Go by it, and take the default back where it differs.
 On `not asked: not sent:`, nothing was queued: fill in the line it names and run it again.
+On `decided:`, the gate had no `Holds:` line, so it was no one-way door: jbus wrote it to the request as a `## Decision:` section and asked nobody.
+Send the home nothing, keep no `Gate:` line of it, and add its `Decision:` line to the report under "Findings".
+On `not asked: settled:`, a rule already answers the question, and the line names the rule and what to do instead: do that, and send nothing to the home and no gate line to the report.
 On any other `not asked`, jbus holds nothing: send the lines, under a first line `<slug>: gate`, to the thread the block in step 3 of "End" prints, and with no home there put them in the report under "Findings", the one place left that can hold them.
 An answer that differs from the default comes back as a message here, from jbus.
 The cases of `$T/gates.md`, which "Carry on" never does on a default, are such gates, each one that holds.

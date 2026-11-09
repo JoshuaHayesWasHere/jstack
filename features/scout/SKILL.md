@@ -85,7 +85,7 @@ When in doubt, act and write down what you did.
 
 | When | Do |
 |---|---|
-| A question only the user can answer, or one of the doors of "Carry on" | read `$T/../skills/scout/a-gate.md` now, and park it as a gate |
+| One of the doors of "Carry on", or a choice you would ask the user about | read `$T/../skills/scout/a-gate.md` now: a door is parked as a gate, and any other choice is a decision in the report |
 | The request asks you to run a command under a test slot | read `$T/../skills/scout/test-slot.md` now |
 | A search too wide to hold in this thread | use an Explore subagent and keep its conclusion, not its output; with no subagent tool, do it in this thread |
 | A loop of more than ten `gh` calls | read `$T/../skills/crew/gh-budget.md` now |
