@@ -23,6 +23,15 @@ and each file git does not track yet, and holds each root to these rules:
 A deleted file still has the tests that imported it, since the graph resolves against the files
 of the change as well as the tree's. Only the tests that exist print.
 
+Given `--e2e <json>`, the stack's `e2e:` part, it also prints the Playwright tests the change
+reaches, as `node_browser` reads them, each in Playwright's test-list form, or `all` when the
+change forces every browser test.
+
+`python3 scripts/node.py e2e --root <folder> --script <name> [--list <file>]` runs the root's npm
+script, which runs Playwright, with `--fail-on-flaky-tests`, so a test that passes only on a retry
+fails. Given a list, the ids `select` printed, one a line, it passes them on as `--test-list`, each
+spec's path made relative to the `testDir` of the config the script runs.
+
 `python3 scripts/node.py setup` prints, for `$GITHUB_OUTPUT`, `roots=` and each folder that holds a
 `package-lock.json` git tracks, and `version-file=` and the first such root's `.nvmrc`, or its
 `package.json` when that sets `engines.node`, or nothing.
@@ -35,9 +44,12 @@ import posixpath
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path, PurePosixPath
 
+import node_browser
 import node_graph
+import node_table
 from node_graph import Graph, within
 
 ALL = "all"
@@ -164,7 +176,20 @@ def select_root(changed: list[str], root: Root) -> set[str] | None:
     return {one for one in root.graph.reach(start) if root.is_test(one)}
 
 
-def select(roots: list[str], base: str) -> list[str]:
+def hunks(base: str, path: str) -> node_table.Hunks | None:
+    """The hunks of a file's change from `base`, or None when the file is new."""
+    if not git("ls-tree", "-z", "--name-only", base, "--", path):
+        return None
+    diff = subprocess.run(
+        ["git", "diff", "-U0", "--no-color", "--no-ext-diff", base, "--", path],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    return node_table.hunks_of(diff)
+
+
+def select(roots: list[str], base: str, e2e: dict | None = None) -> list[str]:
     changed = git("diff", "-z", "--name-only", "--no-renames", base, "--")
     changed += git("ls-files", "-z", "--others", "--exclude-standard")
     changed = sorted(set(changed))
@@ -176,7 +201,32 @@ def select(roots: list[str], base: str) -> list[str]:
         if mine is None:
             return [ALL]
         found |= mine
-    return sorted(one for one in found if Path(one).is_file())
+    found = {one for one in found if Path(one).is_file()}
+    if e2e is not None:
+        suite = node_browser.Suite(roots, e2e, files, read)
+        browser = suite.select(changed, lambda path: hunks(base, path))
+        if browser is None:
+            return [ALL]
+        found |= {one for one in browser if Path(one.split(" > ")[0]).is_file()}
+    return sorted(found)
+
+
+def e2e(root: str, script: str, listed: str | None) -> int:
+    """The exit code of the root's script, run on the listed tests, or on all of them."""
+    command = ["npm", "--prefix", root, "run", script, "--", "--fail-on-flaky-tests"]
+    if listed is None:
+        print(" ".join(command), flush=True)
+        return subprocess.run(command).returncode
+    files = set(git("ls-files", "-z", "--cached", "--others", "--exclude-standard"))
+    runner = node_browser.Runner(posixpath.normpath(root), script, files, read)
+    ids = [line.strip() for line in read(listed).splitlines() if line.strip()]
+    with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as file:
+        file.write("".join(f"{one}\n" for one in runner.listed(ids)))
+    print(f"{' '.join(command)} --test-list {file.name}", flush=True)
+    try:
+        return subprocess.run([*command, "--test-list", file.name]).returncode
+    finally:
+        Path(file.name).unlink()
 
 
 def node_version(root: str) -> str:
@@ -202,23 +252,45 @@ def setup() -> list[str]:
     return [f"roots={' '.join(roots)}", f"version-file={version}"]
 
 
+def options(argv: list[str], names: tuple[str, ...]) -> tuple[dict[str, list[str]], list[str]]:
+    """Each `--<name> <value>` at the front of the line, and the words after them."""
+    found: dict[str, list[str]] = {}
+    while len(argv) >= 2 and argv[0].removeprefix("--") in names:
+        found.setdefault(argv[0].removeprefix("--"), []).append(argv[1])
+        argv = argv[2:]
+    return found, argv
+
+
 def main(argv: list[str]) -> int:
-    usage = "usage: node.py select --roots <folder> [--roots <folder>]... <base> | node.py setup"
+    usage = (
+        "usage: node.py select --roots <folder> [--roots <folder>]... [--e2e <json>] <base>"
+        " | node.py e2e --root <folder> --script <name> [--list <file>] | node.py setup"
+    )
     if argv == ["setup"]:
         print("\n".join(setup()))
         return 0
+    if argv[:1] == ["e2e"]:
+        found, rest = options(argv[1:], ("root", "script", "list"))
+        if rest or [len(found.get(one, [])) for one in ("root", "script")] != [1, 1]:
+            print(usage, file=sys.stderr)
+            return 2
+        return e2e(found["root"][0], found["script"][0], (found.get("list") or [None])[-1])
     if not argv or argv[0] != "select":
         print(usage, file=sys.stderr)
         return 2
-    argv, roots = argv[1:], []
-    while len(argv) > 2 and argv[0] == "--roots":
-        roots.append(posixpath.normpath(argv[1]))
-        argv = argv[2:]
-    if len(argv) != 1 or not roots:
+    found, rest = options(argv[1:], ("roots", "e2e"))
+    roots = [posixpath.normpath(one) for one in found.get("roots", [])]
+    if len(rest) != 1 or not roots or len(found.get("e2e", [])) > 1:
         print(usage, file=sys.stderr)
         return 2
     try:
-        selection = select(roots, argv[0])
+        part = json.loads(found["e2e"][0]) if "e2e" in found else None
+    except ValueError:
+        print(usage, file=sys.stderr)
+        return 2
+    argv = rest
+    try:
+        selection = select(roots, argv[0], part)
     except subprocess.CalledProcessError as error:
         print(
             f"node.py: git cannot read the change from {argv[0]}: {error.stderr.strip()}",

@@ -14,7 +14,7 @@ ifneq ($(shell sed -n '/^stacks:/p' .repo-standard.yml),)
 STACK_LINT = $(REPO_STANDARD) stacks lint
 STACK_TEST = $(REPO_STANDARD) stacks test
 STACK_SELECT = $(REPO_STANDARD) stacks select
-test select: | $(REPO_STANDARD_HOME)
+test select e2e: | $(REPO_STANDARD_HOME)
 else
 include scripts/stack.mk
 endif
@@ -23,7 +23,7 @@ endif
 # that a test runs would take it for its own.
 unexport TESTS
 
-.PHONY: lint test check select check-fast borders generate
+.PHONY: lint test check select check-fast e2e borders generate
 
 $(REPO_STANDARD_HOME):
 	git -c advice.detachedHead=false clone -q --depth 1 --branch 'repo-standard-v$(STANDARD)' '$(REPO_STANDARD_UPSTREAM)' '$@'
@@ -42,6 +42,13 @@ check: lint test
 select:
 	@test -n '$(BASE)' || { echo 'make select needs BASE=<ref>' >&2; exit 2; }
 	@$(STACK_SELECT) '$(BASE)'
+
+# The browser tests of each stack whose config sets `e2e:`: its npm script runs Playwright on the
+# app it builds and serves with a mocked API, never on a live stage, and a test that passes only on
+# a retry fails. `make e2e E2E_LIST=<file>` runs only the ids in the file, one a line, as `make
+# select` prints them.
+e2e:
+	$(REPO_STANDARD) stacks e2e$(if $(E2E_LIST), '$(E2E_LIST)')
 
 check-fast: lint
 	@test -n '$(BASE)' || { echo 'make check-fast needs BASE=<ref>' >&2; exit 2; }

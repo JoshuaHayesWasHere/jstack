@@ -266,7 +266,7 @@ def test_every_job_of_every_workflow_runs_on_githubs_hosted_runner():
         "pstack-drift.yml": {"drift": HOSTED},
         "release.yml": {"release": HOSTED},
         "repo-standard-check.yml": dict.fromkeys(
-            ("plan", "lint", "test", "command", "passed"), CALLERS
+            ("plan", "lint", "test", "browser", "command", "passed"), CALLERS
         ),
     }
 
@@ -573,6 +573,7 @@ CAPS = {
     ("repo-standard-check.yml", "plan"): "10",
     ("repo-standard-check.yml", "lint"): "15",
     ("repo-standard-check.yml", "test"): "${{ inputs.timeout-minutes }}",
+    ("repo-standard-check.yml", "browser"): "${{ inputs.timeout-minutes }}",
     ("repo-standard-check.yml", "command"): "${{ inputs.timeout-minutes }}",
     ("repo-standard-check.yml", "passed"): "5",
 }

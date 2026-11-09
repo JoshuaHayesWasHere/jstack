@@ -20,6 +20,7 @@ A workflow that calls the standard's shared check at a version's tag runs what t
 from __future__ import annotations
 
 import fnmatch
+import importlib
 import json
 import re
 import sys
@@ -30,7 +31,7 @@ from typing import Any
 
 from repo_standard import borders, docs_true, size, stale
 from repo_standard.adapters import COMMANDS
-from repo_standard.config import Config, Refused
+from repo_standard.config import Config, Refused, Stack
 from repo_standard.tree import Fault
 
 WORKFLOWS = ".github/workflows/"
@@ -377,7 +378,38 @@ def tests_home(repo: Repo) -> list[str]:
 
 
 def selects(repo: Repo) -> list[str]:
-    return [] if "select" in repo.targets else ["Makefile: has no `select` target"]
+    faults = [] if "select" in repo.targets else ["Makefile: has no `select` target"]
+    for name, stack in repo.config.stacks.items():
+        if stack.adapter != "node-vite":
+            continue
+        if stack.e2e is None:
+            faults.append(
+                Advice(f"stack {name}: sets no `e2e:`, so no browser test runs on a pull request")
+            )
+        else:
+            faults += _browser(repo, stack)
+    return faults
+
+
+def _browser(repo: Repo, stack: Stack) -> list[str]:
+    """The browser tests of a node stack that no change reaches, as the repo's own selection,
+    `scripts/node_browser.py`, reads them."""
+    scripts = repo.root / "scripts"
+    if not (scripts / "node_browser.py").is_file():
+        return ["scripts/node_browser.py: is not there, so no change selects a browser test"]
+    names = ("node_browser", "node_graph", "node_table")
+    saved = {name: sys.modules.pop(name) for name in names if name in sys.modules}
+    sys.path.insert(0, str(scripts))
+    try:
+        module = importlib.import_module("node_browser")
+        assert stack.e2e is not None
+        suite = module.Suite(stack.roots, json.loads(stack.e2e.json()), repo.paths, repo.read)
+        return list(suite.faults)
+    finally:
+        sys.path.remove(str(scripts))
+        for name in names:
+            sys.modules.pop(name, None)
+        sys.modules.update(saved)
 
 
 def main_runs_all(repo: Repo) -> list[str]:

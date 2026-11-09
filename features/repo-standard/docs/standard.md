@@ -280,6 +280,14 @@ A test id is then a path from the repo's root, which the stack whose root holds 
 `all` still means every test of the repo, so a change that reaches a whole stack prints `stack:<name>` and never `all`.
 A stack's roots hold its own root files, such as its lock file, so a change to one reaches that stack and no other.
 
+Browser tests are selected from the change like any other test, down to the one test of a spec that the change reaches, and never from a hand-kept list of specs.
+A browser test's id is Playwright's test-list form, `<spec>` or `<spec> > <title>`, and the shared check runs those ids in its browser job and no others.
+A test is reached by the URLs it opens and by its spec's own imports.
+A URL maps to the files of its route: a SvelteKit page with every layout above it, or the row of a React router table with the components it names.
+The change reaches each test whose route files, or the files they import, hold a changed file, where an import of names from a barrel follows only those names.
+A spec that runs a table of screens is selected by row: a change inside one row selects that row, and a change to a helper selects the rows that name it.
+A spec that no path reaches, or that opens a URL that matches no route, fails conformance, unless the config names it as one that every change of the app selects.
+
 **In jstack** `make select BASE=<ref>` runs `python3 scripts/select_tests.py <ref> HEAD`, which prints test files, and `make check-fast BASE=<ref>` runs the lint and the files it prints.
 The script follows imports, fixtures, the names a test reads and the files a test includes, and its rules are in the script's docstring.
 
@@ -290,6 +298,16 @@ Enforced by: `scripts/select_tests.py`, `testing/tests/test_select_tests.py`, `t
 A change to a path that every test rests on selects `all`, whatever else it touches.
 In a repo of several stacks, so does a path outside every stack's roots, unless it is a page of Markdown, a file in a feature's `docs/` or its `feature.json`.
 A change to the selection itself, or to the files that run it, selects the tests that read it: a pull request's check selects its tests by its own new version of them, and main's run of the whole suite after each merge catches what that version missed.
+
+A browser test rests on more than its imports, so these force every browser test of a stack, by kind:
+
+- The app's shell and layouts: `app.html`, `index.html`, a React entry and its router file force every test, a root layout reaches every test through the graph, and a nested layout reaches the routes under it.
+- Global CSS: the root layout or the entry imports it, and the graph follows each `@import`, so a change to it reaches every test.
+- Tailwind: a class in markup reaches only the tests that reach its file, and the Tailwind, PostCSS, Vite and Svelte configs force every test.
+- The service worker and the files it imports reach each spec that runs with service workers allowed.
+- Static assets: a file under `static/` or `public/` is reached by URL, not by import, so it forces every test, and an asset imported from the source is reached through the graph.
+- i18n catalogs: a catalog the code imports is reached through the graph, and one loaded by URL sits in `static/` or `public/` and forces.
+- The test harness: the Playwright configs, the e2e package and its lockfile, the mock API, the server the tests run against and the shared fixture.
 
 **In jstack** the paths are `EVERY_RUN` in `scripts/select_tests.py`: `pyproject.toml`, `uv.lock` and the root `conftest.py`.
 The script itself, the `Makefile`, `.github/workflows/check.yml` and the plugins of `testing/` select the tests that import or name them instead, and the whole suite runs on main, nightly and before a release.
@@ -312,6 +330,8 @@ Enforced by: `.github/workflows/check.yml`, `testing/tests/test_workflows.py`
 
 A pull request's check selects its tests from the change, runs the lint, and runs the selected tests split into parts that run side by side.
 It needs no run of the whole suite, which main's run after the merge does.
+The selected browser tests run in a job of their own, on the built app with a mocked API and never on a live stage, and the job is skipped when the change selects none.
+A browser test that passes only on a retry fails the job: a retry may keep a trace, and never turns a flaky test green.
 
 **In jstack** `.github/workflows/check.yml` runs on each push of a pull request, a draft too, and a new push cancels the older run.
 Its `reuse` job runs `python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD`, which deals the selected files out to eight parts, or `all` where the change forces it.
