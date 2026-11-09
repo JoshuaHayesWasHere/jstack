@@ -91,11 +91,7 @@ class _File:
         return held[1] == 0 or held[2] == self.head
 
 
-def _open(stack: contextlib.ExitStack, path: Path) -> _File | None:
-    try:
-        handle = stack.enter_context(open(path, "rb"))
-    except OSError:
-        return None
+def _file(handle: BinaryIO) -> _File:
     stat = os.fstat(handle.fileno())
     return _File(handle, stat.st_ino, stat.st_size, cursors.head(handle))
 
@@ -118,17 +114,24 @@ def _lines(data: bytes) -> Iterator[dict]:
             yield line
 
 
-def read(connection: sqlite3.Connection, config: jbus.Config, built: Built, most: int | None) -> None:
+def read(
+    connection: sqlite3.Connection, config: jbus.Config, built: Built, most: int | None
+) -> None:
     """Add the lines the log gained since the last build to their hours, unless `most` bytes are
-    read already, which leaves the log to the next build."""
-    with contextlib.ExitStack() as stack:
-        new = _open(stack, config.state_dir / CALLS)
-        if new is None:
+    read already, which leaves the log to the next build. The new file is opened before the old,
+    so a rotation between the two opens both on the one file, and the old is left out."""
+    with contextlib.ExitStack() as opened:
+        try:
+            new = _file(opened.enter_context(open(config.state_dir / CALLS, "rb")))
+        except OSError:
             return
         if most is not None and built.bytes >= most:
             built.left += 1
             return
-        old = _open(stack, config.state_dir / OLD)
+        try:
+            old: _File | None = _file(opened.enter_context(open(config.state_dir / OLD, "rb")))
+        except OSError:
+            old = None
         if old is not None and old.inode == new.inode:
             old = None
         held = cursors.held(connection, values.MACHINE, TABLE)

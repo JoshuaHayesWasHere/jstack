@@ -91,8 +91,8 @@ def test_each_line_is_counted_once_across_a_rotation(machine):
 
 
 def test_the_two_measures_read_the_hours(machine):
-    """Hour 10 had 3 calls and hour 11 had 7: a mean of 5 over the 24 whole hours before 12:20,
-    and the lowest core allowance of the hours 11:00 to 12:59 was 800, under jbus budget's floor of 1,000."""
+    """Hour 10 had 3 calls and hour 11 had 7: a mean of 5 over the 24 whole hours before 12:20.
+    The lowest core allowance of the hours 11:00 to 12:59 was 800, under jbus budget's floor."""
     append(machine, *(call(f"2026-11-09T10:0{n}:00+00:00") for n in range(3)))
     append(machine, *(call(f"2026-11-09T11:0{n}:00+00:00", remaining=800 + n) for n in range(7)))
     machine.build()
