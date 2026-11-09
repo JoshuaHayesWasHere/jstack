@@ -1,0 +1,199 @@
+From 715ad3114507714ac44713225f5f5bb0ba24e9a7 Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@gmail.com>
+Date: Mon, 9 Nov 2026 14:37:13 -0500
+Subject: [PATCH 32/32] fix(server): the jstack tree places a row under the
+ home jbus writes on its work.json line, and reads no brief's Home: line
+
+---
+ apps/server/src/jstack/JbusWork.test.ts       | 14 +++++-
+ apps/server/src/jstack/JbusWork.ts            |  5 --
+ apps/server/src/jstack/jbusWork.logic.test.ts |  4 +-
+ apps/server/src/jstack/jbusWork.logic.ts      | 47 ++++---------------
+ 4 files changed, 25 insertions(+), 45 deletions(-)
+
+diff --git a/apps/server/src/jstack/JbusWork.test.ts b/apps/server/src/jstack/JbusWork.test.ts
+index b96bb4f3..eccd8763 100644
+--- a/apps/server/src/jstack/JbusWork.test.ts
++++ b/apps/server/src/jstack/JbusWork.test.ts
+@@ -12,7 +12,15 @@ import * as JbusWork from "./JbusWork.ts";
+ const workFile = (value: string) =>
+   JSON.stringify({
+     work: [
+-      { kind: "row", slug: "fix-it", value, lane: "running", thread: "mcp:crew", who: "crew" },
++      {
++        kind: "row",
++        slug: "fix-it",
++        value,
++        lane: "running",
++        thread: "mcp:crew",
++        who: "crew",
++        home: "uncategorized",
++      },
+     ],
+   });
+ 
+@@ -79,6 +87,10 @@ it.live("shows a work.json write while jbus writes its outbox.lock beside it wit
+     const fs = yield* FileSystem.FileSystem;
+     const path = yield* Path.Path;
+     const { roots, workPath } = yield* seed;
++    // jbus homes the row under `uncategorized`, so the tree draws it once that home has started.
++    const uncategorized = path.join(roots.home, "jstack", "uncategorized");
++    yield* fs.makeDirectory(uncategorized);
++    yield* fs.writeFileString(path.join(uncategorized, "home-id"), "mcp:uncategorized-home\n");
+     const service = yield* JbusWork.make(roots);
+     const { latest, changes } = yield* service.subscribe;
+     assert.deepEqual(
+diff --git a/apps/server/src/jstack/JbusWork.ts b/apps/server/src/jstack/JbusWork.ts
+index bd940a0a..f7efe596 100644
+--- a/apps/server/src/jstack/JbusWork.ts
++++ b/apps/server/src/jstack/JbusWork.ts
+@@ -33,7 +33,6 @@ import {
+   buildRepoWork,
+   mergeSnapshots,
+   readBriefTitle,
+-  readHomeLine,
+   slugsNeedingBriefs,
+   type JbusRepoFiles,
+ } from "./jbusWork.logic.ts";
+@@ -146,13 +145,10 @@ export const make = Effect.fn("JbusWork.make")(function* (roots: JbusWorkRoots)
+       const prefix = yield* readText(path.join(home, scope, "prefix"));
+       scopes.push({ scope, homeId, prefix: prefix === "" ? null : prefix });
+     }
+-    const briefHomes = new Map<string, string>();
+     const briefTitles = new Map<string, string>();
+     for (const [slug, folder] of slugsNeedingBriefs({ work })) {
+       const brief = yield* readText(path.join(home, folder, `${slug}.md`));
+       if (brief === null) continue;
+-      const line = readHomeLine(brief);
+-      if (line !== null) briefHomes.set(slug, line);
+       const title = readBriefTitle(brief);
+       if (title !== null) briefTitles.set(slug, title);
+     }
+@@ -168,7 +164,6 @@ export const make = Effect.fn("JbusWork.make")(function* (roots: JbusWorkRoots)
+         rootHomeId: yield* readText(path.join(home, "home-id")),
+         scopes: scopes.toSorted((a, b) => a.scope.localeCompare(b.scope)),
+         startingScopes: startingScopes.toSorted(),
+-        briefHomes,
+         briefTitles,
+       },
+       nowMs,
+diff --git a/apps/server/src/jstack/jbusWork.logic.test.ts b/apps/server/src/jstack/jbusWork.logic.test.ts
+index 8b55615f..cce53e9f 100644
+--- a/apps/server/src/jstack/jbusWork.logic.test.ts
++++ b/apps/server/src/jstack/jbusWork.logic.test.ts
+@@ -12,6 +12,7 @@ const row = (slug: string, value: string, lane: string, extra: Record<string, un
+   thread: `mcp:${slug}`,
+   pr: "",
+   who: "crew",
++  home: "flow",
+   ...extra,
+ });
+ 
+@@ -26,7 +27,6 @@ const files = (overrides: Partial<JbusRepoFiles> = {}): JbusRepoFiles => ({
+   waiting: [],
+   held: {},
+   relaunches: {},
+-  briefHomes: new Map(),
+   briefTitles: new Map(),
+   ...overrides,
+ });
+@@ -42,7 +42,7 @@ describe("buildRepoWork", () => {
+         row("in-flow", "running", "running", { home: "flow" }),
+         row("fl-uncategorized", "running", "running", { home: "uncategorized" }),
+         row("no-such-scope", "running", "running", { home: "winnifred" }),
+-        row("no-home", "running", "running"),
++        row("no-home", "running", "running", { home: undefined }),
+         row("scouted", "running", "running", { home: "flow", scout: "scouting" }),
+       ],
+     };
+diff --git a/apps/server/src/jstack/jbusWork.logic.ts b/apps/server/src/jstack/jbusWork.logic.ts
+index b779b311..29c42ab8 100644
+--- a/apps/server/src/jstack/jbusWork.logic.ts
++++ b/apps/server/src/jstack/jbusWork.logic.ts
+@@ -34,8 +34,6 @@ export interface JbusRepoFiles {
+   }>;
+   /** Scopes with `plan.md` and no `home-id`: made by the root home, their home not started. */
+   readonly startingScopes: ReadonlyArray<string>;
+-  /** The value of each brief's `Home:` line, by slug. Briefs with no line are absent. */
+-  readonly briefHomes: ReadonlyMap<string, string>;
+   /** Each brief's title, by slug, which an unfolded ask shows. */
+   readonly briefTitles: ReadonlyMap<string, string>;
+ }
+@@ -167,35 +165,14 @@ export const briefBody = (brief: string): string => {
+     .join("");
+ };
+ 
+-/** The first word of a brief's `Home:` line: `root`, a scope, or a home's thread id. */
+-const homeWord = (line: string): string => {
+-  const first = line.trim().split(/\s+/)[0] ?? "";
+-  return first.replace(/[.,;:)]+$/, "");
+-};
+-
+ /** A brief's title: its heading `# <slug>: <title>`, after the slug. */
+ export const readBriefTitle = (brief: string): string | null => {
+   const match = /^#\s+[^\s:]+:\s*(.+)$/m.exec(brief);
+   return match ? (match[1] ?? "").trim() || null : null;
+ };
+ 
+-export const readHomeLine = (brief: string): string | null => {
+-  const match = /^Home:\s*(.*)$/m.exec(brief);
+-  return match ? (match[1] ?? "").trim() : null;
+-};
+-
+-const resolveHome = (
+-  rootId: ThreadId,
+-  scopeIds: ReadonlyMap<string, ThreadId>,
+-  word: string | null,
+-): ThreadId | null => {
+-  if (word === "root") return rootId;
+-  if (word === null || word === "") return null;
+-  const scoped = scopeIds.get(word);
+-  if (scoped !== undefined) return scoped;
+-  if (word.startsWith("mcp:")) return ThreadId.make(word);
+-  return null;
+-};
++/** The scope jbus gives a row whose brief names no scope (`jbriefs.home.home_of`). */
++const UNCATEGORIZED = "uncategorized";
+ 
+ export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnapshot => {
+   const rootId = threadIdOf(files.rootHomeId);
+@@ -211,28 +188,24 @@ export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnap
+       prefix: each.prefix,
+     })),
+   ];
+-  const prefixed = files.scopes.filter((each) => each.prefix !== null);
+-  // A brief or scout that names no home belongs to the scope whose prefix its slug carries.
+-  const homeOf = (slug: string, word: string | null) =>
+-    resolveHome(rootId, scopeIds, word) ??
+-    scopeIds.get(prefixed.find((each) => slug.startsWith(each.prefix ?? ""))?.scope ?? "") ??
+-    rootId;
+-  const homeOfSlug = (slug: string) => {
+-    const line = files.briefHomes.get(slug);
+-    return homeOf(slug, line === undefined ? null : homeWord(line));
+-  };
++  // jbus writes each row's home on its line, a scope's name or `uncategorized`, never the root,
++  // and is the one place that reads a brief's `Home:` line. A name no started home has falls to
++  // `uncategorized`; until that home starts, the row is not drawn.
++  const homeOf = (row: Record<string, unknown>): ThreadId | undefined =>
++    scopeIds.get(text(row.home) ?? UNCATEGORIZED) ?? scopeIds.get(UNCATEGORIZED);
+ 
+   const tasks: Array<JbusTask> = [];
+   const holds = holdsOf(files);
+   const rows = isRecord(files.work) ? records(files.work.work) : [];
+   for (const row of rows) {
+     const slug = text(row.slug);
+-    if (slug === null || row.kind !== "row" || !shown(row)) continue;
++    const homeThreadId = homeOf(row);
++    if (slug === null || row.kind !== "row" || !shown(row) || homeThreadId === undefined) continue;
+     const shared = {
+       repo,
+       slug,
+       threadId: threadIdOf(row.thread),
+-      homeThreadId: homeOfSlug(slug),
++      homeThreadId,
+       waitsOn: waitsOnOf(text(row.value) ?? "", row.who),
+       who: text(row.who) ?? "",
+       waits: text(row.waits) ?? "",
+-- 
+2.56.0
+
