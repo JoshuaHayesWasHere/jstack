@@ -10,7 +10,14 @@ thread for every merge kept, under the key `reload|<commit 12>...|<thread>`, and
 `reload|<commit 12>|<thread>` marked in `sent.json` once T3 Code took it. Once every one is
 told, the merge itself is marked, `reload|<commit 12>`, and a `merged` line printed again for it
 adds nothing. So a thread hears of a merge once, but for the case below, and a send that got no
-answer, or that the outbox held, goes on a later pass. A send T3 Code took with no answer,
+answer, or that the outbox held, goes on a later pass.
+
+The notice goes only into a turn the thread already runs, as a steer (T3 Code's mode `auto`,
+`t3.STEERS`), and never starts one: the outbox's `idle` rule holds it while the thread has no
+turn running, since a thread woken only to read a skill again ends its turn having done nothing
+else. The merge stays owed in `reload.json` until the thread runs a turn, and leaves it once no
+thread that owes it is still out: a thread settled, archived or gone is not listed, and is owed
+nothing. A send T3 Code took with no answer,
 retried once another merge has landed, goes under a new key and may tell that thread of the
 first merge twice: a key of the first merges alone would let T3 Code drop the message as a
 repeat, and the later merge with it. A thread started after the merge loaded the new text and is

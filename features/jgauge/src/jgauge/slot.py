@@ -15,19 +15,22 @@ is free. Since that group is out of the terminal's group, an interrupt reaches t
 through this process, which passes it on.
 
 A thread that cannot wait in a call long does not wait long. In the full lane,
-`jgauge test-slot --thread <id>` tries once. In the short lane it waits in the call for up to
-`SHORT_WAIT_SECONDS`, the short lane's time limit, since every short slot held is free again by
-then unless the callers ahead of it take it. The callers that wait in the call take the slots
-freed in the order they came (`_line`), and jbus does not know of them, so it wakes none of
-them. With every slot of its lane still taken, the call registers the thread as a waiter
-(`jgauge.waiters`), with the time the call came as its place, and exits with code 76.
-
-`jbus poll` sends the oldest waiter of a lane one message when a slot of the lane is free. That
-wake claims the slot for the thread for `waiters.HOLDS`, and another thread with `--thread` takes
-a slot only while the free slots outnumber the claims of other threads: with none to spare it
+`jgauge test-slot --thread <id>` tries once. With every full slot taken, the call registers the
+thread as a waiter (`jgauge.waiters`), with the time the call came as its place, and exits with
+code 76. `jbus poll` sends the oldest waiter one message when a full slot is free. That wake
+claims the slot for the thread for `waiters.HOLDS`, and another thread with `--thread` takes a
+full slot only while the free slots outnumber the claims of other threads: with none to spare it
 registers as a waiter, as it does with every slot taken. The woken thread then runs its command
 again. That run takes the slot and takes the thread out of the waiters file, and with it its
 claim.
+
+In the short lane the call waits for a slot in the call, for up to `SHORT_WAIT_SECONDS`, and
+registers nothing. The callers that wait take the slots freed in the order they came (`_line`),
+and jbus does not know of them. A short slot is held for seconds, so the wait is short; a call
+still waiting at the ceiling ends 76 and says to run the same command again at once, in the same
+turn. No model turn is started to hand a thread a short slot. The ceiling, the lane's run
+limit, the stop's grace and the sweep's 60 s fit in the 10 minutes the crew skill gives a slot
+call.
 
 A run with `--thread` is on record as its thread's while its command runs, and its end is on
 record once the command ends, however it ends (`jgauge.holders`). So jbus counts a thread whose
@@ -79,7 +82,8 @@ from pathlib import Path
 from jgauge import holders, sizes, slotlog, waiters
 
 SHORT_LIMIT_SECONDS = 120.0
-SHORT_WAIT_SECONDS = SHORT_LIMIT_SECONDS
+SHORT_WAIT_SECONDS = 300.0
+AGAIN = "run the same command again now, in this turn"
 WAIT_FOR = "JGAUGE_SHORT_WAIT_SECONDS"
 LINE = "test-slot-short.line"
 LOOK_EVERY_SECONDS = 0.2
@@ -225,31 +229,21 @@ def _line(locks: Path) -> Iterator[Callable[[], bool]]:
         os.close(fd)
 
 
-def _wait_in_call(
-    locks: Path, lane: Lane, thread: str, came: datetime
-) -> tuple[tuple[int, Path] | None, bool]:
-    """Wait in the line for up to the short lane's wait for a spare slot, and take it. A thread
-    whose woken wait holds a slot (`waiters.claimed`) takes it whatever its place in the line,
-    since no other caller may. After its first look, the first caller leaves a freed slot to a
-    thread that registered before it came and that jbus has not woken yet (`waiters.before`):
-    jbus wakes that thread, which then holds a claim on the slot."""
-    limit = float(os.environ.get(WAIT_FOR) or SHORT_WAIT_SECONDS)
+def _ceiling() -> float:
+    return float(os.environ.get(WAIT_FOR) or SHORT_WAIT_SECONDS)
+
+
+def _wait_in_call(locks: Path, lane: Lane, limit: float) -> tuple[int, Path] | None:
+    """Wait in the line for up to `limit` for a slot of the lane, and take it. Only the first
+    caller in the line takes a slot, so the slots freed go in the order the calls came."""
     until = time.monotonic() + limit
     said = False
-    looked = False
     with _line(locks) as first:
         while True:
-            held, any_free = None, False
-            mine = waiters.claimed(locks, name(lane), thread, datetime.now(UTC))
-            if mine or (
-                first() and not (looked and waiters.before(locks, name(lane), thread, came))
-            ):
-                held, any_free = _spare(locks, lane, thread)
-                if held is not None:
-                    return held, True
-            looked = True
+            if first() and (held := _first_free(locks, lane)) is not None:
+                return held
             if time.monotonic() >= until:
-                return None, any_free
+                return None
             if not said:
                 print(
                     f"test-slot: waiting up to {limit:g} s for one of {lane.called}",
@@ -261,19 +255,27 @@ def _wait_in_call(
 
 
 def take(lane: Lane, thread: str = "", command: list[str] | None = None) -> tuple[int, Path] | None:
-    """Wait for a slot and take it, and give the held lock and its file. With a `thread` it
-    leaves the free slots that woken waiters of other threads claim to them, and waits in the
-    call only in the short lane and only for up to its wait: when no slot is free for it then,
-    it registers the thread as a waiter on the lane, says so in one line, and takes no slot. A
-    thread that takes a slot is no longer a waiter."""
+    """Wait for a slot and take it, and give the held lock and its file. With a `thread`, the
+    short lane waits in the call for up to its ceiling and, with no slot by then, says in one
+    line to run the command again now and takes none. The full lane leaves the free slots that
+    woken waiters of other threads claim to them and waits for none: with no slot free for it,
+    it registers the thread as a waiter, says so in one line, and takes none. A thread that
+    takes a full slot is no longer a waiter."""
     locks = locks_dir()
     locks.mkdir(parents=True, exist_ok=True)
+    if thread and lane.limit is not None:
+        limit = _ceiling()
+        held = _wait_in_call(locks, lane, limit)
+        if held is None:
+            print(
+                f"test-slot: every one of {lane.called} was still taken after {limit:g} s and"
+                f" nothing ran: {AGAIN}.",
+                flush=True,
+            )
+        return held
     if thread:
         now = datetime.now(UTC)
-        if lane.limit is None:
-            held, any_free = _spare(locks, lane, thread)
-        else:
-            held, any_free = _wait_in_call(locks, lane, thread, now)
+        held, any_free = _spare(locks, lane, thread)
         if held is not None:
             return held
         waiters.register(locks, thread, name(lane), lane.slots, command or [], now)
@@ -362,8 +364,9 @@ def _stop(child: subprocess.Popen, program: str, lane: Lane) -> int:
 
 
 def run(command: list[str], lane: Lane, thread: str = "", wake: list[str] | None = None) -> int:
-    """Run `command` under a slot of `lane`. A waiter registers `wake`, what the thread runs
-    again once jbus wakes it, which is `command` itself unless the caller names another."""
+    """Run `command` under a slot of `lane`. A waiter of the full lane registers `wake`, what the
+    thread runs again once jbus wakes it, which is `command` itself unless the caller names
+    another."""
     asked = time.monotonic()
     took = take(lane, thread, wake or command)
     if took is None:

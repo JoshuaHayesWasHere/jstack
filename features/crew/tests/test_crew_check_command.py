@@ -211,10 +211,11 @@ def slot_script(text, home):
 
 
 def test_with_every_slot_taken_the_blocks_register_the_thread_and_end_76(tmp_path, monkeypatch):
-    """When every slot is taken, the blocks register the thread in the file, and the thread's
-    turn ends after the blocks print their one line. jbus wakes the thread later because the
-    file lists it. The lanes are the 4 full and 3 short slots that a machine with 24
-    processors and 62 GiB gets, whatever `TEST_SLOTS` the machine sets."""
+    """When every slot is taken, the blocks end 76. A targeted run in the short lane registers
+    nothing and says to run it again now; the check, in the full lane, registers the thread in
+    the file, and jbus wakes the thread later because the file lists it. The lanes are the 4
+    full and 3 short slots that a machine with 24 processors and 62 GiB gets, whatever
+    `TEST_SLOTS` the machine sets."""
     monkeypatch.delenv("TEST_SLOTS", raising=False)
     monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
     monkeypatch.setenv("PROC", str(fake_proc(tmp_path / "proc", 24, 62)))
@@ -237,8 +238,9 @@ def test_with_every_slot_taken_the_blocks_register_the_thread_and_end_76(tmp_pat
             ),
             home,
         )
-        assert (ran.returncode, ran.stderr) == (76, "")
-        assert "mcp:thread-1 is registered as a waiter" in ran.stdout
+        assert ran.returncode == 76
+        assert "run the same command again now, in this turn" in ran.stdout
+        assert not (locks / "test-slot-waiters.json").exists()
         said, code, _ = checked(tmp_path, "echo ran")
         assert (said[-1].split(":")[0], code) == ("waiting", 76)
         assert "mcp:thread-1 is registered as a waiter" in "\n".join(said)
@@ -602,8 +604,8 @@ def test_a_branch_that_adds_a_line_no_test_runs_fails_the_desk_check(tmp_path, u
 def test_with_every_short_slot_taken_the_check_waits_and_writes_no_checked_line(
     tmp_path, monkeypatch
 ):
-    """A step that finds no short slot registers the thread as a waiter and ends the block 76,
-    with no `Checked:` line: a wait is no verdict either."""
+    """A step that finds no short slot by the lane's ceiling ends the block 76 and says to run it
+    again now, with no `Checked:` line: a wait is no verdict either."""
     monkeypatch.setenv("JGAUGE_SHORT_WAIT_SECONDS", "0")
     monkeypatch.delenv("TEST_SLOTS", raising=False)
     monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
@@ -628,7 +630,8 @@ def test_with_every_short_slot_taken_the_check_waits_and_writes_no_checked_line(
             os.close(fd)
     assert code == 76
     assert not log.exists()
-    assert "mcp:thread-1 is registered as a waiter" in "\n".join(said)
+    assert "run the same command again now, in this turn" in "\n".join(said)
+    assert not (locks / "test-slot-waiters.json").exists()
     assert brief.read_text() == "# a-task: a task\n\n## Result\n"
 
 
