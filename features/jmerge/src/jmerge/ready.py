@@ -150,6 +150,9 @@ PROVED_NOT_EXEMPT = Reason(
     "result", "its Proved: line says it changes no test, and it changes {tests}"
 )
 _PROVED_CODE = "says tests only, and it changes {path}, which is no test file, docs or config"
+_PROVED_NOT_FORK = (
+    "says fork patches, and it changes {path}, which is no fork patch, docs or config"
+)
 PROVED_NOT_KIND = Reason("result", "its Proved: line says none, {kinds}, and it changes {path}")
 PROVED_UNNAMED = Reason("result", "its Proved: line does not name {tests}, which it changes")
 PROVED_BASE_PASSED = Reason(
@@ -946,16 +949,6 @@ def changed_tests(one: PullRequest) -> tuple[str, ...]:
     )
 
 
-def _of_kind(path: str, kind: str) -> bool:
-    parts = path.split("/")
-    return any(
-        any(fnmatchcase("/".join(parts[at:]), pattern) for at in range(len(parts)))
-        if "/" in pattern
-        else fnmatchcase(parts[-1], pattern)
-        for pattern in proved.EXEMPT[kind]
-    )
-
-
 def short_on_proved(
     text: str, one: PullRequest, carries: Callable[[str], bool] = lambda at: False
 ) -> str:
@@ -969,21 +962,38 @@ def short_on_proved(
     pass at its base as well: its `tests only` line needs only the run at its head, ending 0, and
     the same line on a pull request that changes anything else proves nothing. A pull request
     that removes tests is one, with the edit to the doc that named them, which the docs lint
-    makes it carry: a removal has no base run that fails. A line of another head holds
+    makes it carry: a removal has no base run that fails. One that adds or changes a fork's patch
+    (`proved.FORK_FILE`) needs a line as one that changes tests does, since its tests are inside
+    the patch; one that only edits the `PKGBUILD` or deletes a patch has no fork test to run, and
+    needs none. Where every file it changes is a
+    fork file or of an `EXEMPT` kind, its `fork patches` line names the fork's test files, with
+    the same base and head runs; the same line on a pull request that changes any other file, a
+    test of this repo too, proves nothing (`proved.outside_fork`). A line of another head holds
     where the head carries that head's patch unchanged (`carries`, the range-diff `jmerge` reads
     after a rebase or a merge of the base): a push that changed the patch, a fix for a review's
     finding most of all, may have changed the tests too."""
     tests = changed_tests(one)
     said = proved.proved(text)
     if said is None:
-        return PROVED_MISSING.format(tests=", ".join(tests)) if tests else ""
+        gone = set(one.removed)
+        fork = [
+            path
+            for path in one.files
+            if path not in gone and proved.FORK_FILE.search(path) and path.endswith(".patch")
+        ]
+        unproved = (*tests, *fork)
+        return PROVED_MISSING.format(tests=", ".join(unproved)) if unproved else ""
     if said.fault:
         return PROVED_UNREAD.format(fault=said.fault)
     if said.kinds:
         if tests:
             return PROVED_NOT_EXEMPT.format(tests=", ".join(tests))
         other = next(
-            (path for path in one.files if not any(_of_kind(path, kind) for kind in said.kinds)),
+            (
+                path
+                for path in one.files
+                if not any(proved.of_kind(path, kind) for kind in said.kinds)
+            ),
             "",
         )
         kinds = " and ".join(said.kinds)
@@ -994,12 +1004,16 @@ def short_on_proved(
                 path
                 for path in one.files
                 if not proved.TEST_FILE.search(path)
-                and not any(_of_kind(path, kind) for kind in proved.EXEMPT)
+                and not any(proved.of_kind(path, kind) for kind in proved.EXEMPT)
             ),
             "",
         )
         if code:
             return PROVED_UNREAD.format(fault=_PROVED_CODE.format(path=code))
+    if said.fork:
+        code = proved.outside_fork(one.files)
+        if code:
+            return PROVED_UNREAD.format(fault=_PROVED_NOT_FORK.format(path=code))
     unnamed = [path for path in tests if path not in said.tests]
     if unnamed:
         return PROVED_UNNAMED.format(tests=", ".join(unnamed))

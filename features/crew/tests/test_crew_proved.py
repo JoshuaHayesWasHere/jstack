@@ -8,7 +8,12 @@ The tests run the block in a real repo whose `origin/main` is the base, on macOS
 the command, and syncs nothing. Each run leaves `git worktree list` as it found it, whether its
 tests pass, fail or are cut off, and each that ends leaves no copy of the base in its temp
 directory, whether its tests pass, fail, hit the lane's time limit or are stopped with TERM. The
-block is one command that runs `$T/proved.sh`, so the command a crew sends holds no `rm`."""
+block is one command that runs `$T/proved.sh`, so the command a crew sends holds no `rm`.
+
+A branch that changes only a fork's `packaging/` folder has its tests inside its patches: the
+block lays each side's series over its PKGBUILD's tag, here a tarball fetched by `file://` URL whose
+package's `test` script passes where the patched code says `new`, with a `vp` that installs
+nothing."""
 
 import os
 import re
@@ -16,6 +21,7 @@ import shlex
 import signal
 import subprocess
 import sys
+import tarfile
 import time
 
 import pytest
@@ -147,7 +153,7 @@ def worktrees(tree):
 
 
 def copies(tree):
-    return sorted(path.name for path in tree.parent.glob("base.*"))
+    return sorted(path.name for kind in ("base", "fork") for path in tree.parent.glob(f"{kind}.*"))
 
 
 def proof(tree, shell="", **more):
@@ -465,3 +471,99 @@ def test_a_side_kept_at_one_head_runs_again_at_another(repo):
     assert "head exit 0: 2 passed" in said
     assert line == proved.Proved(("tests/test_calc.py",), 1, base, 0, head)
     assert len((repo.parent / "pytest-args").read_text().splitlines()) == 3
+
+
+PACKAGING = "features/fork/packaging"
+FORK_PATCH = """diff --git a/pkg/lib.txt b/pkg/lib.txt
+--- a/pkg/lib.txt
++++ b/pkg/lib.txt
+@@ -1 +1 @@
+-old
++new
+diff --git a/pkg/a.test.ts b/pkg/a.test.ts
+new file mode 100644
+--- /dev/null
++++ b/pkg/a.test.ts
+@@ -0,0 +1 @@
++it says new
+"""
+NO_TEST_PATCH = FORK_PATCH.split("diff --git a/pkg/a.test.ts")[0]
+
+
+def pkgbuild(tarball, *patches):
+    return (
+        '_tag="${T3CODE_JSTACK_TAG:-v1}"\n'
+        f"_patches=({' '.join(patches)})\n"
+        f'source=("up.tar.gz::file://{tarball}" "${{_patches[@]}}")\n'
+    )
+
+
+def forked(repo):
+    """The repo with a fork at `origin/main`: its PKGBUILD names a tag, a tarball whose package's
+    tests pass only where its `lib.txt` says `new`, and no patch. Returns the tarball."""
+    upstream = repo.parent / "up"
+    (upstream / "pkg").mkdir(parents=True)
+    (upstream / "pkg" / "lib.txt").write_text("old\n")
+    (upstream / "pkg" / "check.sh").write_text('test -f "$1" && grep -q new lib.txt\n')
+    (upstream / "pkg" / "package.json").write_text('{"scripts": {"test": "sh check.sh"}}\n')
+    tarball = repo.parent / "up.tar.gz"
+    with tarfile.open(tarball, "w:gz") as made:
+        made.add(upstream, arcname="up-1")
+    stub = repo.parent / "stub"
+    (stub / "vp").write_text('#!/bin/sh\n[ "$1" = i ] || exit 64\n')
+    (stub / "vp").chmod(0o755)
+    commit(repo, {f"{PACKAGING}/PKGBUILD": pkgbuild(tarball)})
+    git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    return tarball
+
+
+def test_a_fork_patch_is_proved_by_its_own_test_failing_over_the_base_s_series(repo):
+    """sidebar-home-start-says changed only patch 0030 and the PKGBUILD, with its tests inside
+    the patch, and the block said no test changed. It now runs the test the patch adds with the
+    head's series, then over the base's, and writes the `fork patches` line."""
+    tarball = forked(repo)
+    base = git(repo, "rev-parse", "HEAD")
+    head = commit(
+        repo,
+        {
+            f"{PACKAGING}/0001-new.patch": FORK_PATCH,
+            f"{PACKAGING}/PKGBUILD": pkgbuild(tarball, "0001-new.patch"),
+        },
+    )
+    said, line = proof(repo)
+    assert "head exit 0" in said
+    assert "base exit 1" in said
+    assert (
+        f"Proved: pkg/a.test.ts base exit 1 at {base}, head exit 0 at {head}, fork patches\n"
+        in said
+    )
+    assert line == proved.Proved(("pkg/a.test.ts",), 1, base, 0, head, fork=True)
+
+
+def test_a_fork_patch_that_adds_no_test_is_not_proved(repo):
+    tarball = forked(repo)
+    commit(
+        repo,
+        {
+            f"{PACKAGING}/0001-new.patch": NO_TEST_PATCH,
+            f"{PACKAGING}/PKGBUILD": pkgbuild(tarball, "0001-new.patch"),
+        },
+    )
+    said, line = proof(repo)
+    assert said.startswith("no proof: the fork patches it changes add or change no vitest file")
+    assert line is None
+
+
+def test_a_fork_patch_with_a_change_to_other_code_is_no_fork_proof(repo):
+    tarball = forked(repo)
+    commit(
+        repo,
+        {
+            f"{PACKAGING}/0001-new.patch": FORK_PATCH,
+            f"{PACKAGING}/PKGBUILD": pkgbuild(tarball, "0001-new.patch"),
+            "util.py": "",
+        },
+    )
+    said, line = proof(repo)
+    assert said.startswith("no test changed")
+    assert line is None
