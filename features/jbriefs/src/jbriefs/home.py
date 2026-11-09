@@ -72,18 +72,24 @@ def home_of(state: Path, brief: str) -> Path:
 
 
 def reader(state: Path) -> Callable[[str], Path]:
-    """`home_of` for many briefs: the root's ids and the scopes of `state` are read once, here,
-    so a home that changes after this call is not seen by the function it returns."""
-    root = ids(state)
-    homes: dict[str, Path] = {}
-    for scope, now, was in scopes(state):
-        homes |= {key: scope for key in (scope.name, now, was) if key}
+    """`home_of` for many briefs: the root's ids and the scopes of `state` are read once, at the
+    first brief whose `Home:` line names something other than `root`, so a home that changes
+    after that is not seen by the function this returns. A brief with no `Home:` line, or one
+    that names `root`, reads neither."""
+    known: tuple[tuple[str, str], dict[str, Path]] | None = None
 
     def home(brief: str) -> Path:
+        nonlocal known
         name = named(brief)
-        if not name or name == ROOT or name in root:
+        if not name or name == ROOT:
             return state
-        return homes.get(name, state)
+        if known is None:
+            homes: dict[str, Path] = {}
+            for scope, now, was in scopes(state):
+                homes |= {key: scope for key in (scope.name, now, was) if key}
+            known = ids(state), homes
+        root, homes = known
+        return state if name in root else homes.get(name, state)
 
     return home
 
