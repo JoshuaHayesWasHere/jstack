@@ -224,6 +224,9 @@ def test_the_tools_own_upgrade_keeps_the_runner_and_gives_local_mk_an_owner(v1_r
     assert OWNS_LOCAL_MAKE in config.read_text()
     caller = (root / ".github/workflows/check.yml").read_text()
     assert f"runner: {RUNNER}" in caller and f"runs-on: {RUNNER}" in caller
+    main(["conform", "--root", str(root), "--upstream", ""])
+    drift = "warn a-file-a-version-owns-is-that-versions-copy"
+    assert not [line for line in capsys.readouterr().out.splitlines() if line.startswith(drift)]
     assert main(["upgrade", "--to", str(VERSION), "--root", str(root), "--upstream", ""]) == 0
     assert (
         capsys.readouterr().out.splitlines()[-1].endswith("nothing to write; run `make lint` next")
