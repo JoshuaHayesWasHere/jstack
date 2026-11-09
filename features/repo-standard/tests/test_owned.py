@@ -66,3 +66,13 @@ def test_upgrade_writes_the_versions_caller_with_the_repos_own_inputs_kept(repo,
     assert f"wrote {CALLER}" in capsys.readouterr().out.splitlines()
     assert caller.read_text() == MINE
     assert drift(repo, capsys) == []
+
+
+def test_upgrade_writes_the_versions_caller_whole_over_a_call_with_no_with(repo, capsys):
+    """A caller whose call of the shared check has no `with:` has no inputs of its own to keep."""
+    caller = repo / CALLER
+    block = "    with:\n" + OWN + "      command: 'make check'\n"
+    caller.write_text(caller.read_text().replace(block, ""))
+    assert "with:" not in caller.read_text()
+    assert main(["upgrade", "--to", str(VERSION), "--root", str(repo), "--upstream", ""]) == 0
+    assert caller.read_text() == SKELETON
