@@ -22,7 +22,9 @@ def test_each_new_section_is_one_event_and_a_second_pass_sends_nothing(kitchen):
         n="<n>", asked="in the brief?", status="open", slug="alpha"
     )
     brief.write_text(brief.read_text() + RESULT + review + follow + gate)
-    request.write_text(request.read_text() + "\n## Report\nStatus: done\nFindings:\n- one\n")
+    reports = "\n## Report\nStatus: blocked\nFindings:\n- one\n"
+    reports += "\n## Report, follow-up (2026-10-12, unblocked)\nStatus: done\n"
+    request.write_text(request.read_text() + reports)
     gates.write_text(
         GATE.format(n=1, asked="an old one?", status="answered 2026-10-12: yes", slug="alpha")
         + "\n"
@@ -34,6 +36,7 @@ def test_each_new_section_is_one_event_and_a_second_pass_sends_nothing(kitchen):
         ("gate", "gate alpha: in the brief?"),
         ("gate", "gate beta: a new one?"),
         ("gate answered", "gate alpha: gate 1 answered"),
+        ("report", "report look: blocked"),
         ("report", "report look: done"),
         ("result", "result alpha: done"),
         ("result", "result alpha: not done"),
@@ -43,7 +46,7 @@ def test_each_new_section_is_one_event_and_a_second_pass_sends_nothing(kitchen):
     (review_event,) = kitchen.events("review")
     assert review_event["text"] == review.strip()
     kitchen.poll(NOW + timedelta(minutes=3))
-    assert len(kitchen.events()) == 8
+    assert len(kitchen.events()) == 9
     assert {path: path.read_bytes() for path in before} == before
     assert sorted(p.name for p in kitchen.home.iterdir()) == ["gates.md", "scouts", "tasks"]
 

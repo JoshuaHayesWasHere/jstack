@@ -61,9 +61,9 @@ def scout_thread(kitchen, slug):
     return thread
 
 
-def reported(kitchen, slug, status="done"):
+def reported(kitchen, slug, status="done", heading="## Report"):
     path = kitchen.home / "scouts" / f"{slug}.md"
-    path.write_text(path.read_text() + f"\n## Report\nStatus: {status}\nFindings: X calls Y.\n")
+    path.write_text(path.read_text() + f"\n{heading}\nStatus: {status}\nFindings: X calls Y.\n")
 
 
 def test_a_request_is_queued_as_a_scout_row_and_waits_for_a_go(kitchen):
@@ -293,6 +293,28 @@ def test_a_scout_row_in_work_json_is_queued_then_scouting_then_report_in(kitchen
         "report in",
         "done",
     )
+
+
+def test_a_scout_row_whose_followup_report_says_done_is_done_and_report_in(kitchen):
+    """A home closes a scout whose Report was blocked by appending `## Report, follow-up (…)`, as
+    jbus's leftover message tells it to. That last Report is the one the row is judged by, as a
+    crew's follow-up Result is, so the row ends done and its scout state is report in."""
+    add(kitchen, "look")
+    assert go(kitchen, "look")[0] == 0
+    kitchen.poll()
+    scout_thread(kitchen, "look")["status"] = "running"
+    reported(kitchen, "look", status="blocked, the bench is down")
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert (judged(kitchen, "look")["scout"], rows(kitchen)["look"]["status"]) == (
+        "scouting",
+        "left",
+    )
+
+    reported(kitchen, "look", heading="## Report, follow-up (2026-11-08, the bench is back)")
+    kitchen.poll(NOW + timedelta(minutes=6))
+    line = judged(kitchen, "look")
+    assert (line["scout"], line["value"], line["who"]) == ("report in", "done", "ok")
+    assert rows(kitchen)["look"]["status"] == "done"
 
 
 def test_a_scout_row_a_crewmates_brief_took_over_has_no_scout_state(kitchen):
