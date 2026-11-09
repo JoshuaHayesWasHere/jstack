@@ -1,8 +1,8 @@
 """jbus sends nothing into a usage cap (sends-hold-capped). A message sent while its thread's
 instance is capped starts a turn that ends at once on the limit, so it is spent: on 2026-10-26, 105
 runs ended so (day-audit-1026-2). Each send below waits instead in `jbus.outbox`, under its usual
-key, with one `wait` line a pass that names its template, and the first pass after the reset sends
-it once. The tests
+key, with one `wait` line that names its template the first pass it waits and none after, and
+the first pass after the reset sends it once. The tests
 replay small made-up rows through the real pass against the kitchen's fakes, with the cap written
 in the ledger (`jroles.ledger`) as the usage hooks write it."""
 
@@ -74,11 +74,11 @@ def ended(kitchen):
 
 
 def holds_then_sends_once(kitchen, kind, slug, what):
-    """Two passes in the cap send nothing of the kind and each says once that it waits; the
+    """Two passes in the cap send nothing of the kind, and the first says once that it waits; the
     first pass after the reset sends it once, and the next sends it no more."""
-    for said in until(kitchen, 0, 3):
+    for said, says in zip(until(kitchen, 0, 3), (1, 0), strict=True):
         assert sent(kitchen, kind) == []
-        assert len(waits(said, slug, what)) == 1, said
+        assert len(waits(said, slug, what)) == says, said
     until(kitchen, 41, 44)
     assert len(sent(kitchen, kind)) == 1
 
@@ -153,10 +153,9 @@ def test_a_hold_stall_line_waits_for_the_reset(kitchen):
     a pass at the minutes the test reads stands for one a minute."""
     held = Held(kitchen)
     cap("claudeAgent")
-    until(kitchen, 0, 31)
-    for said in until(kitchen, 32, 35):
-        rows = "one (#11), two (#12), three (#13), four (#14)"
-        assert len(waits(said, rows, "its hold-stall message")) == 1, said
+    rows = "one (#11), two (#12), three (#13), four (#14)"
+    for said, says in zip(until(kitchen, 0, 31, 32, 35), (0, 1, 0, 0), strict=True):
+        assert len(waits(said, rows, "its hold-stall message")) == says, said
     until(kitchen, 36, 39)
     assert held.told() == [] and kitchen.lines("hold-stall") == []
     until(kitchen, 40, 44)
@@ -175,10 +174,11 @@ def test_with_the_whole_pool_capped_a_quiet_child_is_neither_nudged_nor_logged(k
     kitchen.forget()
     patience = children.PATIENCE
     cap("claudeAgent", PRIME, resets=NOW + timedelta(minutes=patience + 30))
-    for said in until(kitchen, patience, patience + 10, patience + 20):
+    passes = until(kitchen, patience, patience + 10, patience + 20)
+    for said, says in zip(passes, (1, 0, 0), strict=True):
         assert sent(kitchen, children.STALL) == []
         assert kitchen.events(children.STALL) == []
-        assert len(waits(said, "sc")) == 1, said
+        assert len(waits(said, "sc")) == says, said
     until(kitchen, patience + 31, patience + 35)
     (nudge,) = sends(kitchen, children.STALL)
     assert nudge["threadId"] == found["threadId"]
@@ -191,9 +191,9 @@ def test_a_leftover_waits_for_its_home_s_reset_and_is_not_the_users_meanwhile(ki
     home(kitchen)
     leaves(kitchen)
     cap("claudeAgent")
-    for said in until(kitchen, 0, 3):
+    for said, says in zip(until(kitchen, 0, 3), (1, 0), strict=True):
         assert sent(kitchen, "wakes") == []
-        assert len(waits(said, "demo", "its wakes message")) == 1, said
+        assert len(waits(said, "demo", "its wakes message")) == says, said
         assert listed(kitchen) == []
     until(kitchen, 41, 44)
     assert len(sent(kitchen, "wakes")) == 1
