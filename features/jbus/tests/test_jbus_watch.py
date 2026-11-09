@@ -6,14 +6,16 @@ against the fakes.
 
 import json
 import re
+import subprocess
 from datetime import timedelta
 
 import pytest
 
 import jbus
 import jbus.queue
-from jbus import poll, watch
+from jbus import culprits, poll, watch
 from jmerge import judgement, ready, reverts
+from repo_template import IDENTITY
 from test_jbus_kitchen import NOW, RESULT, TOKEN, filed_as, iso
 from test_jbus_queue import add, rows
 
@@ -70,6 +72,31 @@ def test_the_merged_list_is_asked_for_only_once_a_base_branch_moved(kitchen):
     assert kitchen.lines("merged") == ["merged beta #8 bbbbbbbbbbbb"]
     kitchen.poll(NOW + timedelta(minutes=9))
     assert listed(kitchen) == []
+    assert kitchen.lines("merged") == ["merged beta #8 bbbbbbbbbbbb"]
+
+
+def test_a_base_tip_that_moved_under_the_kept_tips_asks_for_the_merged_list(kitchen):
+    """The tips a pass kept stand beside the tips `git ls-remote origin` gives now: a merge that
+    moved origin's main, with the kept tips still on disk, gets the merged list asked for and its
+    merge sent."""
+    kitchen.brief("beta", RESULT)
+    kitchen.set("merged.json", [kitchen.merged("alpha", 7, "a" * 40)])
+    kitchen.quiet()
+    kitchen.poll(NOW + timedelta(minutes=3))
+    listed(kitchen)
+    assert (kitchen.state / watch.BASES).exists()
+    beta = kitchen.merged("beta", 8, "b" * 40, ago=timedelta(0))
+    (kitchen.stub / "merged.json").write_text(json.dumps([beta]))
+    origin = ["git", f"--git-dir={kitchen.origin}"]
+    moved = subprocess.run(
+        [*origin, *IDENTITY, "commit-tree", "main^{tree}", "-p", "main", "-m", "merge #8"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    subprocess.run([*origin, "update-ref", "refs/heads/main", moved], check=True)
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert len(listed(kitchen)) == 1
     assert kitchen.lines("merged") == ["merged beta #8 bbbbbbbbbbbb"]
 
 
@@ -400,13 +427,27 @@ def test_a_removed_row_is_not_filed_again(kitchen):
     assert main_red(kitchen) == []
 
 
-def test_a_first_pass_over_a_red_main_files_no_brief(kitchen):
+def test_a_first_pass_over_a_red_main_files_its_row_for_the_catchall(kitchen):
+    """A red main always has its row, owned by `uncategorized`, so no home is woken of the red
+    (the user, 2026-11-08: "jbus always files it"). The first pass reverts nothing."""
     main_after_alpha(kitchen, "failure")
     (kitchen.state / "wake.json").unlink()
     kitchen.poll()
-    assert list((kitchen.home / "tasks").glob("main-red-*")) == []
-    assert main_red(kitchen) == []
-    assert kitchen.lines("retro") == []
+    assert [row["slug"] for row in main_red(kitchen)] == ["main-red-dddddddddddd"]
+    text = (kitchen.home / "tasks" / "main-red-dddddddddddd.md").read_text()
+    assert "Home: uncategorized\n" in text
+    assert culprits.FIRST in text
+
+
+def test_a_red_main_after_a_removed_merge_files_its_row(kitchen):
+    """A merge whose row was removed turned main red: jbus reverts nothing of it, and still files
+    the fix row."""
+    main_after_alpha(kitchen, "failure")
+    jbus.write_json(kitchen.state / "removed.json", {"alpha": {"at": iso(NOW), "by": "user"}})
+    kitchen.poll()
+    assert [row["slug"] for row in main_red(kitchen)] == ["main-red-dddddddddddd"]
+    text = (kitchen.home / "tasks" / "main-red-dddddddddddd.md").read_text()
+    assert culprits.REMOVED.format(slug="alpha") in text
 
 
 def test_a_green_main_files_no_brief(kitchen):

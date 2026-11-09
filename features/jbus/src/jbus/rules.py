@@ -15,10 +15,10 @@ file that holds one goes stale, and nothing runs it. So a rule file is any of:
 
 Two agent homes can hold the same file, as one mounted on the other does: it is listed once.
 
-`found` lists a project's rule files. Each is an item of the one list (`jbus.wakes`), the root
-home's, keyed `rulefile:<path>`, which asks for its rules to move to code, a skill's text or a
-queued row and for the file to go. `jbus rules` prints every project's and exits 1 when there is
-one.
+`found` lists a project's rule files. Each is an item of the one list (`jbus.wakes`), the
+catch-all's, `uncategorized`, keyed `rulefile:<path>`, told once while the file stays, which asks
+for its rules to move to code, a skill's text or a queued row and for the file to go. `jbus
+rules` prints every project's and exits 1 when there is one.
 """
 
 from __future__ import annotations

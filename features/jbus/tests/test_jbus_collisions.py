@@ -1,4 +1,4 @@
-"""Once a week the root home hears which files pull requests kept conflicting in.
+"""Once a week the catch-all's home hears which files pull requests kept conflicting in.
 
 On the first pass on or after Monday in the user's zone, the pass runs
 `features/jmerge/scripts/force_pushes.py <state> --since <7 days back> --until <now> --files --json`
@@ -16,6 +16,7 @@ import pytest
 import jsettings
 from jbus import collisions
 from test_jbus_kitchen import HOME, NOW, Kitchen
+from test_jbus_leftover import home
 from testing.paths import REPO
 
 DAY, WEEK = timedelta(days=1), timedelta(days=7)
@@ -128,6 +129,16 @@ def test_the_top_ten_by_insert_and_renumber_hunks_go_to_the_home_once_a_week(kit
     assert list(reports(kitchen)) == ["2026-10-12"]
     assert len(kitchen.log("collisions")) == 1
     assert kept(kitchen)["2026-10-12"]["message"] == message
+
+
+def test_the_report_goes_to_the_catchalls_home_and_not_the_root(kitchen):
+    """The root home hears of a one-way door alone (the user, 2026-11-08): a report no row owns
+    is the catch-all's, `uncategorized`, once its home has a thread of its own."""
+    root, catchall = home(kitchen)["threadId"], home(kitchen, "uncategorized")["threadId"]
+    stand_in(kitchen, FILES)
+    kitchen.poll()
+    assert [thread for thread, _ in reports(kitchen).values()] == [catchall]
+    assert root != catchall
 
 
 def test_next_weeks_report_names_the_files_new_to_the_top_ten(kitchen):
