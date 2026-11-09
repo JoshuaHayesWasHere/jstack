@@ -36,6 +36,8 @@ builds() {
     if [ -n "${1}" ]; then printf ", and the judge's verdict in its Result"; fi
     printf '\n'
 }
+# The skill of the home's table for new or changed behaviour: `tdd` at S, `architect` at M or L.
+built() { if [ "$size" = S ]; then echo tdd; else echo architect; fi; }
 runner() {
     cat << EOF
 # $slug-${1}: runner ${1} of the arena $slug, made apart from runner ${2}
@@ -51,7 +53,8 @@ Where: $where
 Design: none, each runner makes the design itself, and the graft row $slug picks between the two
 Pull request: none
 Review: none
-Playbook: none
+Playbook: feature
+Skills: $(built)
 $(home)
 EOF
 }
@@ -71,7 +74,8 @@ Where: $where
 Design: none, it reads the candidates and makes none
 Pull request: none
 Review: none
-Playbook: none
+Playbook: autonomous-run
+Skills: benchmark-checklist
 Read: $(reads)
 $(builds)
 $(home)
@@ -97,7 +101,8 @@ Design: none, the candidates $(words) are the design
 Decisions: none, the user asked for the arena, and its graft is the one pull request, reviewed once with every finding fixed
 Pull request: open one when done
 Review: review
-Playbook: none
+Playbook: feature
+Skills: $(built)
 Read: first $(reads); only after the scores are written, the judge's Result in \`$H/tasks/$slug-judge.md\`
 $(builds judge)
 $(home)

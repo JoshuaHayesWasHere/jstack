@@ -7,7 +7,7 @@ from datetime import timedelta
 
 import pytest
 
-from jbriefs import meaning, parse
+from jbriefs import meaning, parse, skills
 from jbus import dispatch, queue
 from jmerge import judgement
 from test_jbus_kitchen import NOW, Kitchen
@@ -28,6 +28,7 @@ Where: `src/jbus/queue.py`, `src/jbriefs/`
 Do not touch: `~/.config/`
 Decisions: "review it once and fix every finding"
 Design: none, the Done when list pins it
+Skills: tdd
 Pull request: open one when done
 Review: review
 Playbook: feature
@@ -208,7 +209,7 @@ def test_an_approved_brief_whose_goal_or_scope_changed_asks_again_and_names_the_
         ("Size: M\n", "brief has no Size: line (S, M or L)"),
         (
             "Playbook: feature\n",
-            "brief has no Playbook: line",
+            f"brief has no Playbook: line {skills.TABLE}",
         ),
         ("Proves it: `make check` runs the tests above\n", "brief has no Proves it: line"),
     ],
@@ -234,16 +235,17 @@ def test_queue_add_says_every_fault_one_line_each(kitchen):
     code, said = add(kitchen, text)
     assert code == 1
     assert said.splitlines() == [
-        "refused: alpha's brief has 8 faults, and nothing is queued",
+        "refused: alpha's brief has 9 faults, and nothing is queued",
         "- brief's Task: line is the template's own text",
         "- brief's Done when: line is empty",
         "- brief's Proves it: line names the crewmate, the agent's own word (name a test, a "
         "command, a metric, a dataset, an external judge or the user)",
         "- brief's Size: line says medium (S, M or L)",
         "- brief's Review: line says after (review or none)",
-        "- brief's Playbook: line names autopilot-full, which is not a crewmate's playbook (name a "
-        "file in playbooks/, without its .md, or none)",
+        "- brief's Playbook: line names autopilot-full, which is not a crewmate's playbook "
+        f"{skills.TABLE}",
         f"- {parse.NO_DESIGN}",
+        f"- brief has no Skills: line {skills.TABLE}",
         "- brief has no Home: line: name uncategorized or the row's scope (flow)",
     ]
     assert not queue.brief_path(kitchen.state, "alpha").exists()
@@ -294,7 +296,7 @@ def test_a_batch_whose_add_has_a_faulty_brief_applies_nothing(kitchen):
     code, said = kitchen.main("queue", "apply", stdin=text)
     assert code == 1
     assert said.startswith(
-        "refused: line 2: beta's brief has 8 faults, and nothing is queued, and nothing in the "
+        "refused: line 2: beta's brief has 9 faults, and nothing is queued, and nothing in the "
         "batch was applied\n- brief has no Task: line\n"
     ), said
     assert (kitchen.state / "queue.json").read_text() == before

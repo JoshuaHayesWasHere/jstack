@@ -248,6 +248,7 @@ REQUIRED = (
     "Where",
     "Pull request",
     "Review",
+    "Playbook",
 )
 
 
@@ -635,16 +636,14 @@ _SAYS_MISSING = ("Design", "Size", "Skills", "Playbook", "Instruments", "Builds 
 def faults(text: str) -> list[str]:
     """Every reason a brief may not be queued, one line for each field at fault.
 
-    It checks that each field of `REQUIRED` is filled in, then runs every check of each
-    filled field (`CHECKS`), the first fault of a field the one it gives, but a check of `WARNED`,
-    which only warns. It leaves `Design`, `Size`, `Skills`, `Playbook`, `Instruments`, `Builds on`
-    and `Load` to their own checks. Those of `Size`, `Skills` and `Playbook` report a missing
-    line, the last two with the home's table that picks them (`skills.TABLE`), while a brief with
-    no `Design:` line needs no design, as `none` would say, `Instruments:` is needed only for the
-    deeper work (`instrumented`), and `Builds on` and `Load` need no line. A
-    brief with no fault is complete. This check runs when a row is first queued and does not run
-    again at a launch, so a brief that already has a go launches without being checked again
-    (`jbus.queue`).
+    It checks that each field of `REQUIRED` but those of `_SAYS_MISSING` is filled in, then runs
+    every check of each field (`CHECKS`), the first fault of a field the one it gives, but a check
+    of `WARNED`, which only warns. The checks of `Size`, `Skills` and `Playbook` report a missing
+    line themselves, the last two with the home's table (`skills.TABLE`). A brief needs no
+    `Design:` line, as `none` would say, `Instruments:` only for the deeper work (`instrumented`),
+    and no `Builds on` or `Load` line. A brief with no fault is complete. This check runs when a
+    row is first queued and not again at a launch, so a brief that already has a go launches
+    without being checked again (`jbus.queue`).
     """
     labels = dict.fromkeys((*REQUIRED, *(label for label, _ in CHECKS)))
     found = []

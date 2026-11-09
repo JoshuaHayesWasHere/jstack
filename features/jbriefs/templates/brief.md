@@ -17,15 +17,16 @@ Shown: <the path of each picture the user sent with the request, as `jbriefs --s
 Holds: <a case of gates.md the task walks through, word for word, several split by commas>
 <The line above is left out when the task walks through no door.>
 <A row whose `Done when:` or `Proves it:` runs a door's command holds for that door all the same, and `jbus queue add` prints `holds: <case>, from <the command>` for one no `Holds:` line names.>
-<The line below is there only where `/architect` wrote a design for this task, and the one under it may be left out where it would say none.>
+<The line below is there only where `/architect` wrote a design for this task.>
 Design: <the path of the design `/architect` wrote for this task>
-Skills: <the skills and principles the crewmate runs, comma-separated, by pstack's names: a skill's directory of `skills/`, `architect`, and a principle's directory of `features/principles/skills/`, `principle-model-the-domain`> | none
+<Every brief has the `Skills:` and `Playbook:` lines, picked together by the kind of task from the table in the home skill's handing-a-task-to-a-crewmate.md: `jbus queue add` refuses a brief with no line, or one that says none.>
+Skills: <at least one skill or principle the crewmate runs, comma-separated, by pstack's names: a skill's directory of `skills/`, `architect`, and a principle's directory of `features/principles/skills/`, `principle-model-the-domain`>
 Pull request: open one when done | ask first
 Review: review | none
 <`review`: one review round, launched by jbus at the desk proof, before the pull request opens, whose blocking findings, each with a proof, are answered in the pull request, a fix for them getting no review, and which an old `twice` reads as.>
 <`none`: no reviewer, and `jmerge` leaves the pull request to wait for the user's word, so `jbus queue add` warns of it beside `Pull request: open one when done`.>
 <`jbus queue add` refuses any other word on the `Review:` line, and `cleanup` on any brief but the day's warnings row, which jbus files.>
-Playbook: <a row `a crewmate` runs, from the home skill's block that prints a row for each playbook> | none
+Playbook: <a row `a crewmate` runs, from the home skill's block that prints a row for each playbook>
 <Every brief has the line below, and it names the home the row is for: `uncategorized` where no scope owns the work, and the scope's name for a scoped home, never `root` or a thread id, since the root home owns no row and `jbus queue add` refuses a brief with no such line, one that names `root`, or one that names no home of the project.>
 Home: <uncategorized, or the scope's name>
 <The line below is there only for a row queued with `--depends`, and names each row it depends on before a colon with what of its work this row starts from after it, the code this row changes, calls or imports, one item for each and `;` between them, while a plan layer, docs order or a shared file is no such need and an order that is only about merging is `--merge-after` with no line.>

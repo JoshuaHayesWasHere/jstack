@@ -1694,6 +1694,7 @@ def fix_brief(
             f"Pull request: {pull}",
             "Review: review",
             "Playbook: bug-fix",
+            "Skills: tdd",
             f"Home: {home or homes.UNCATEGORIZED}",
             *([f"Follows: {follows}"] if follows else []),
             "Read:",

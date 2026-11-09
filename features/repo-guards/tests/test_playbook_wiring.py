@@ -302,9 +302,12 @@ def offered(template):
 
 
 @pytest.mark.parametrize("skill", READERS)
-def test_each_value_a_template_offers_opens_a_playbook_or_is_none(skill, tmp_path):
+def test_each_value_a_template_offers_opens_a_playbook_and_only_a_request_offers_none(
+    skill, tmp_path
+):
+    """A brief always names a crewmate's playbook, and only a scout's request may say none."""
     values = offered(READERS[skill][1])
-    assert "none" in values
+    assert ("none" in values) == (skill == "scout")
     for n, value in enumerate(values):
         said = opened(skill, written(skill, f"Playbook: {value}"), tmp_path / str(n))
         assert said[:1] == ([] if value == "none" else [str(PLAYBOOK[value].resolve())])

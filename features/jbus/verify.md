@@ -103,7 +103,7 @@ Preconditions:
 
 - **Add the row.**
   Pipe a brief in.
-  Run `printf '# alpha: a demo task\nTask: alpha, a demo task\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/alpha/`\nDesign: none, a demo\nReview: none\nPlaybook: none\nPull request: none\nHome: uncategorized\n' | record queue-row jbus queue add alpha --priority 1`.
+  Run `printf '# alpha: a demo task\nTask: alpha, a demo task\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/alpha/`\nDesign: none, a demo\nReview: none\nPlaybook: feature\nSkills: tdd\nPull request: none\nHome: uncategorized\n' | record queue-row jbus queue add alpha --priority 1`.
   The table has one row, `alpha`, priority 1, status `queued`, with `approved` and `brief_sha` empty.
 - **Try a derived column.** Run `record queue-row jbus queue add gamma --priority 2 --status launched`. It prints `refused: status is derived from T3 Code and GitHub, and no command writes it` and exits 2. No `gamma` row is added.
 - **Keep a word, and approve it.**

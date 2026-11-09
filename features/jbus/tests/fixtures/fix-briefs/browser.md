@@ -12,6 +12,7 @@ Design: none, a fix to what the failed run names
 Pull request: open one when done
 Review: review
 Playbook: bug-fix
+Skills: tdd
 Home: uncategorized
 Read:
 - the job `browser`, https://example.test/o/r/actions/runs/88/job/911: `tests/test_jbus_view_page.py::test_one`

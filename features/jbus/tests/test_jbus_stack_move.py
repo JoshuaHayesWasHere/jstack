@@ -238,7 +238,11 @@ def test_a_link_whose_reviewer_is_still_out_is_left_and_moved_once_its_review_is
     it, with no send."""
     kitchen = stack.kitchen
     path = kitchen.home / "tasks" / "two.md"
-    path.write_text(path.read_text() + "\n## Result\nReviewer: mcp:a-reviewer #1\n")
+    path.write_text(
+        path.read_text()
+        + "\n## Result\nSkills run:\n- tdd: a failing test, then the fix\n"
+        + "Reviewer: mcp:a-reviewer #1\n"
+    )
     said = kitchen.poll(NOW)
     assert stack.origin("two") == stack.head and asks(kitchen) == []
     assert any("held by the review rule" in line for line in said)
