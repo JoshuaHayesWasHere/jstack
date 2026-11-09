@@ -2,7 +2,7 @@
 
 A repo starts on [the repo standard](standard.md) from two folders of this feature.
 `features/repo-standard/skeleton/` holds what every repo has, whatever its stack.
-An adapter, `features/repo-standard/adapters/python-uv/` or `features/repo-standard/adapters/go/`, holds what one stack adds: the commands under the make targets, its selection of tests, and an example feature.
+An adapter, `features/repo-standard/adapters/python-uv/`, `features/repo-standard/adapters/go/` or `features/repo-standard/adapters/node-vite/`, holds what one stack adds: the commands under the make targets, its selection of tests, and an example feature.
 Both folders mirror the new repo's root, and neither sits under a `templates/` folder, so no harness installs them.
 
 ## Start a repo
@@ -89,7 +89,7 @@ stacks:
     roots: [tools/capture]
 ```
 
-`adapter` is `go` or `python-uv`, and `roots` lists the folders the stack owns, from the repo's root.
+`adapter` is `go`, `python-uv` or `node-vite`, and `roots` lists the folders the stack owns, from the repo's root.
 The config refuses an adapter it does not know, a stack with no root, and a root that sits in another root or holds one.
 Such a repo copies each of its adapters' scripts into `scripts/`, and no `stack.mk`: the Makefile sees `stacks:` and hands `lint`, `test` and `select` to the standard's driver, `python3 -m repo_standard stacks`, at the tag the config pins.
 The targets keep their names and what they print.
@@ -109,6 +109,7 @@ Each stack's own selection places the paths under its roots and ignores the rest
 A stack's roots own its root files: a lock file sits in the root, so a change to it selects that stack alone.
 The `owners` of the config name each root, as any other path.
 The adapters' scripts the driver runs may be named in `enforced-by`.
+The repo keeps one setup action, `.github/actions/setup/action.yml`, which holds the steps of each of its adapters' actions.
 
 ### python-uv
 
@@ -172,3 +173,45 @@ The selection ignores a path outside the roots that no `reads` matches, and a pa
 `reads`, a key of the core manifest schema, lists the files a feature's tests read that its imports do not show, such as a page another feature owns, which a test opens.
 Each entry is a glob from the repo's root, in which `*` crosses folders, and `repo-standard conform` fails a glob that matches no file.
 A file a test reads that no `reads` names is still caught by main's full run after each merge.
+
+### node-vite
+
+A node stack is a client built with Vite and tested with Vitest, as an npm package.
+It runs only in a repo with `stacks:`, which declares it like any other stack:
+
+```yaml
+stacks:
+  client:
+    adapter: node-vite
+    roots: [client]
+```
+
+Each root is an npm package of its own, with its `package.json` and its `package-lock.json` in the root.
+The adapter runs the package's own scripts, so each repo keeps its own lint and test commands:
+
+| Target | What the driver runs in each root |
+|---|---|
+| `lint` | `npm run check`, the package's `check` script. |
+| `test` | `npm test`, the package's `test` script, or `npm test -- <files>` with the ids under that root, each a path from the root. |
+| `select BASE=<ref>` | `node.py select --roots <root> <ref>`, from the repo's `scripts/`. |
+
+`repo-standard conform` fails a root whose `package.json` has no `check` or no `test` script, under the rule [Each check has one make target](standard.md#each-check-has-one-make-target).
+It warns of a root that pins no Node version, in an `.nvmrc` or in the `engines.node` of its `package.json`, since CI then runs the runner's Node.
+The repo copies the adapter's two scripts, `features/repo-standard/adapters/node-vite/scripts/node.py` and `features/repo-standard/adapters/node-vite/scripts/node_graph.py`, into its `scripts/`, and adds `node_modules/` to its `.gitignore`, as the skeleton's does.
+
+Its setup action, `.github/actions/setup/action.yml`, finds each folder whose `package-lock.json` git tracks, installs Node with `actions/setup-node` at the version the first such root pins, with npm's cache, and runs `npm ci` in each.
+The shared check's plan selects before it, in `python3` alone.
+
+A unit test is a file the root's Vitest config includes: the globs of a literal `include` in the `test` block of `vite.config.*` or `vitest.config.*`, or, with none, a file named `*.test.<ext>`.
+A Playwright `*.spec.ts` beside it is no unit test.
+The selection reads the import graph of the root, as `node_graph.py` says, and holds each root to these rules:
+
+- `package.json`, the lockfile, `.nvmrc`, `.npmrc`, a Vite, Vitest, Svelte, TypeScript, PostCSS or Tailwind config, each setup file the Vitest config names, each file the `test` script names, and every file those import select the whole stack.
+- A page of Markdown selects nothing.
+- A source file, or a file a source file reaches, selects each test that reaches it through imports: relative paths, `$lib`, the `paths` of a `tsconfig.json`, `vi.mock`, a literal or template `import()`, and `import.meta.glob`.
+- A string in a test that names a file of the repo, such as one the test reads, counts as an import, so a change to that file selects the test, even in another stack.
+- Any other path under the root, such as a file under `static/` or `index.html`, selects the whole stack.
+
+Its example feature, `hello-client`, is an npm package, `features/repo-standard/adapters/node-vite/features/hello-client/package.json`, whose `check` script runs `tsc --noEmit` and whose `test` script runs `vitest run`.
+Its stack's root is the feature's folder.
+`features/repo-standard/tests/test_node_adapter.py` makes a repo of it, installs it with `npm ci` and runs its make targets, and runs the selection on a Svelte client and a React client.

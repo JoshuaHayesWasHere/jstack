@@ -84,9 +84,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 "$RUNNER_TEMP/repo-standard/scripts/green_tree.py"
-      - name: setup
-        if: steps.standard.outputs.mode == 'standard' && github.event_name == 'pull_request' && steps.reuse.outputs.reused != 'true' && hashFiles('.github/actions/setup/action.yml') != ''
-        uses: ./.github/actions/setup
       - name: select
         if: steps.standard.outputs.mode == 'standard' && github.event_name == 'pull_request' && steps.reuse.outputs.reused != 'true'
         run: make -s select BASE=HEAD^1 > "$RUNNER_TEMP/selection.txt" && cat "$RUNNER_TEMP/selection.txt"

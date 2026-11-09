@@ -11,6 +11,8 @@ tracks it, and something the checks run reaches it. A test file, a workflow, and
 the Makefile or a make file it includes names by its path are reached, and so is a script the
 adapter of one of the config's `stacks` runs, so a page or a file nothing runs does not meet it.
 
+A check may return an `Advice`, a fault that warns whatever its rule's level and fails nothing.
+
 A workflow that calls the standard's shared check at a version's tag runs what that workflow runs:
 `make select`, `make lint` and the selected tests on a pull request, and `make check` on main.
 """
@@ -46,6 +48,10 @@ SHARED_CHECK = re.compile(
     r"@repo-standard-v\d+['\"]?\s*(?:#.*)?$",
     re.M,
 )
+
+
+class Advice(str):
+    """A fault that `conform` prints as a warning, whatever the level of its rule."""
 
 
 @dataclass
@@ -275,7 +281,42 @@ def docs_true_(repo: Repo) -> list[str]:
 
 def make_targets(repo: Repo) -> list[str]:
     lacking = [one for one in ("lint", "test", "check") if one not in repo.targets]
-    return [f"Makefile: has no `{one}` target" for one in lacking]
+    faults = [f"Makefile: has no `{one}` target" for one in lacking]
+    for root in (
+        r for one in repo.config.stacks.values() if one.adapter == "node-vite" for r in one.roots
+    ):
+        faults += _npm_root(repo, root)
+    return faults
+
+
+def _npm_root(repo: Repo, root: str) -> list[str]:
+    """A node-vite root's faults: `make lint` runs its package's `check` script and `make test`
+    its `test` script, and CI's setup reads its Node version from `.nvmrc` or `engines.node`."""
+    where = "package.json" if root == "." else f"{root}/package.json"
+    try:
+        package = json.loads(repo.read(where))
+    except json.JSONDecodeError:
+        package = None
+    if not isinstance(package, dict):
+        return [f"{where}: is not there, or is not a JSON object, so the stack has no scripts"]
+    scripts = package.get("scripts")
+    scripts = scripts if isinstance(scripts, dict) else {}
+    faults: list[str] = [
+        f"{where}: has no `{name}` script, which `make {target}` runs"
+        for name, target in (("check", "lint"), ("test", "test"))
+        if not isinstance(scripts.get(name), str) or not scripts[name].strip()
+    ]
+    engines = package.get("engines")
+    pinned = isinstance(engines, dict) and bool(engines.get("node"))
+    nvmrc = ".nvmrc" if root == "." else f"{root}/.nvmrc"
+    if not pinned and nvmrc not in repo.paths:
+        faults.append(
+            Advice(
+                f"{root}: pins no Node version, in `.nvmrc` or package.json `engines.node`,"
+                " so CI runs the runner's Node"
+            )
+        )
+    return faults
 
 
 def scripts_home(repo: Repo) -> list[str]:

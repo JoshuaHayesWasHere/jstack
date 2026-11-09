@@ -3,7 +3,7 @@
 `RULES` has one entry for each `###` rule of `features/repo-standard/docs/standard.md`, in its
 order. A rule's id is its heading's anchor, so `standard.md#<id>` is the rule's text. Each rule has
 a level: a fault of an `error` rule fails the run, and a fault of a `warn` rule is printed and
-fails nothing.
+fails nothing. A fault a check returns as an `Advice` warns under either level.
 
 The repo's `.repo-standard.yml` may waive a rule with a reason. A waived rule still runs, its
 faults print as `waived`, and they fail nothing. Every waiver prints with its reason, a waiver
@@ -30,7 +30,7 @@ from typing import Literal
 
 from repo_standard import rules
 from repo_standard.config import Config, Refused
-from repo_standard.rules import Repo, enforcer
+from repo_standard.rules import Advice, Repo, enforcer
 from repo_standard.tree import Unreadable
 
 VERSION = 1
@@ -151,10 +151,12 @@ def run(
             faults = rule.check(repo)
         except (Refused, Unreadable) as refused:
             faults = [str(refused)]
-        kind = "waived" if rule.id in waived else rule.level
-        counts[COUNTED[kind]] += len(faults)
-        failed = failed or (kind == "error" and bool(faults))
-        lines += [f"{kind} {rule.id}: {fault}" for fault in faults]
+        for fault in faults:
+            kind = "waived" if rule.id in waived else rule.level
+            kind = "warn" if kind == "error" and isinstance(fault, Advice) else kind
+            counts[COUNTED[kind]] += 1
+            failed = failed or kind == "error"
+            lines.append(f"{kind} {rule.id}: {fault}")
         if rule.id in waived and not faults:
             lines.append(f"note {rule.id}: passes, so its waiver can go")
     for waiver in config.waivers:
