@@ -26,22 +26,22 @@ Each thing the probe made is closed, or named for the home.
    ```sh
    R=~/.local/state/home/$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")/reports/<slug>
    r=$(date -u +%Y%m%dT%H%M%SZ)
-   mkdir -p "$R" && ls -la "$R" && echo "$r" | tee "$R/$r-run-start.txt"
+   mkdir -p "$R" && ls -la "$R" && echo "$r" | tee "$R/$r-run-start.log"
    ```
 
-   Then run each command on the brief's `Instruments:` line once, as it is worded, into `"$R/$r-before-<name>.txt"`, and read the number off that file.
-   An instrument that reads only after the event has as its before the brief's dated baseline: copy it, with its date, into `"$R/$r-baseline.txt"`.
+   Then run each command on the brief's `Instruments:` line once, as it is worded, into `"$R/$r-before-<name>.log"`, and read the number off that file.
+   An instrument that reads only after the event has as its before the brief's dated baseline: copy it, with its date, into `"$R/$r-baseline.log"`.
    A command that picks the wrong item keeps its worded output beside a fixed one, with a `Decision:` line for the Result.
 3. Take the measurement, one round at a time, each into its own file under `$R`, and wait for each inside this turn.
    A shot is taken with the state it shows, at the same second, under one stamp: `s=$(date -u +%Y%m%dT%H%M%S)`, then `"$R/$s-<what>.png"` beside `"$R/$s-<what>.<state file>"` (a `jq` of `work.json`, a `t3_thread_read`).
    A probe left running starts from the main checkout, as its docstring says, or jbus's sweep stops it as an orphan of a worktree.
-   Write each throwaway thing the run makes (a branch, a pull request, a thread, a process) to `"$R/made.txt"` as you make it, one line each.
+   Write each throwaway thing the run makes (a branch, a pull request, a thread, a process) to `"$R/made.log"` as you make it, one line each.
    A loop of more than ten `gh` calls reads `skills/crew/gh-budget.md` first.
 4. Read every number from the machine's record and vet it (`principles/principle-explain-the-number.md`).
    The record is a transcript's `usage` lines (`jq 'select(.type=="assistant")|.message.usage' <transcript>`), the telemetry store (`sqlite3 -readonly`, and on `malformed` a copy taken with `.backup` first), the probe's own lines, or a shot read beside its state file.
    Answer questions 4 and 7 of `skills/benchmark-checklist/SKILL.md` for each number, and give its run count, its range and the path it was read from.
    A number reasoned from the code is not a result.
-5. Close each line of `"$R/made.txt"` and see it closed (`principles/principle-prove-it-works.md`).
+5. Close each line of `"$R/made.log"` and see it closed (`principles/principle-prove-it-works.md`).
    Stop the processes, and `gh pr close <n>` each throwaway pull request unmerged, then `gh pr view <n> --json state,mergedAt` shows `CLOSED`.
    A branch on origin is left there: its deletion deletes data, a gate parked by `skills/crew/a-gate.md`, with a bundle of it under `$R` (`git bundle create "$R/<branch>.bundle" <branch>`).
    Each line goes on the Result's `Left:` line with its state, so the home leaves a probe's red checks out of the week's counts.
