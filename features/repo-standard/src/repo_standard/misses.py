@@ -114,7 +114,7 @@ def kind(passed_again: bool, selected: bool, marker: bool) -> Kind:
 def chosen(one: str, selection: Iterable[str], stacks: dict[str, Stack]) -> bool:
     """Whether a selection, as `make select` prints it, runs the test `one`."""
     found = set(selection)
-    if ALL in found or one in found:
+    if ALL in found or one in found or path_of(one) in found:
         return True
     name = owner(path_of(one), stacks)
     return name is not None and f"{WHOLE}{name}" in found

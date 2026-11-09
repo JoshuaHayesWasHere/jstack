@@ -5,12 +5,13 @@ The fixture is a small git repo that is not jstack, with a `.repo-standard.yml`,
 `repo-standard-v1` that holds the repo-standard and jmerge code the workflow takes from jstack.
 `run_job` runs a job of the workflow as GitHub would, step by step: it evaluates each step's `if:`,
 with `success()` in front of one that names no status function, and the `${{ }}` of its job's and
-its own `env:`, runs its `run:` under bash with `$GITHUB_OUTPUT` and `$GITHUB_STEP_SUMMARY`, and
-records what an `upload-artifact` step would upload. Given a `store`, a dict, an upload copies its
-path there under its name, the last upload of a name kept, and a `download-artifact` step copies
-each stored artifact its pattern matches back, each to a folder of its name, as GitHub does with no
-`merge-multiple`. A `gh` on the path that always fails stands in for GitHub,
-so a lookup of a marker cannot ask and runs the tests, as the workflow does with no network.
+its own `env:`, runs its `run:` under bash in the repo, its `$GITHUB_WORKSPACE`, with
+`$GITHUB_OUTPUT` and `$GITHUB_STEP_SUMMARY`, and records what an `upload-artifact` step would
+upload, a relative path read from the workspace. Given a `store`, a dict, an upload copies its path
+there under its name, the last upload of a name kept, and a `download-artifact` step copies each
+stored artifact its pattern matches back, each to a folder of its name, as GitHub does with no
+`merge-multiple`. A `gh` on the path that always fails stands in for GitHub, so a lookup of a
+marker cannot ask and runs the tests, as the workflow does with no network.
 
 The workflow and /new-home's template, the caller every repo starts from, are read with the
 standard's own YAML reader, `repo_standard.config.parse`, which refuses what it cannot read.
@@ -186,6 +187,7 @@ def run_job(name, repo, env, context, top=None, store=None):
         {key: substitute(value, context, repo) for key, value in job.get("env", {}).items()}
     )
     base["RUNNER_TEMP"] = str(temp)
+    base["GITHUB_WORKSPACE"] = str(repo)
     context["runner"] = {"temp": str(temp)}
     for at, step in enumerate(job["steps"]):
         key = step.get("id") or step.get("name") or f"step{at}"
@@ -202,7 +204,7 @@ def run_job(name, repo, env, context, top=None, store=None):
         if action.startswith("actions/upload-artifact@"):
             artifact = substitute(step["with"]["name"], context, repo)
             uploaded.append(artifact)
-            path = substitute(step["with"]["path"], context, repo)
+            path = os.path.join(repo, substitute(step["with"]["path"], context, repo))
             if store is not None and os.path.exists(path):
                 kept = repo.parent / "store" / artifact
                 shutil.rmtree(kept, ignore_errors=True)
@@ -258,7 +260,7 @@ def run_job(name, repo, env, context, top=None, store=None):
 
 
 def github(event):
-    return {"event_name": event, "token": "a-token"}
+    return {"event_name": event, "token": "a-token", "run_id": "1"}
 
 
 def planned(repo, env, event, inputs=None):
@@ -739,7 +741,7 @@ def test_the_browser_job_runs_the_routed_ids_in_the_pinned_playwright_image(call
     assert done["steps"]["browser version"]["outcome"] == "skipped"
     logged = (repo.parent / "make.log").read_text().splitlines()
     assert logged == ["make e2e E2E_LIST=given", *BROWSER_IDS]
-    assert done["uploaded"] == ["playwright-report", "test-results"]
+    assert done["uploaded"] == ["failed-1-browser", "playwright-report", "test-results"]
 
 
 def test_on_main_the_browser_job_runs_every_test_with_no_list(caller):

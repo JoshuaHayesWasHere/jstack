@@ -321,8 +321,8 @@ Each push to main runs every test, so a test a selection missed fails on main wi
 A test that failed on main joins the selection of every pull request until it passes again.
 
 The shared check keeps this record as data, not as a log.
-Each part's `make test` writes the id of each test that failed to `$REPO_STANDARD_FAILED`, in the form `make select` prints, which each adapter reads from its test runner's own report.
-On a push to main a failed part runs those ids once more, and the run's `passed` job writes one ledger row per failed id to the artifact `miss-ledger-<run id>`, kept 90 days.
+Each part's `make test`, and the browser job's target `e2e`, writes the id of each test that failed to `$REPO_STANDARD_FAILED`, in the form `make select` prints, which each adapter reads from its test runner's own report.
+On a push to main a failed part or browser job runs those ids once more, and the run's `passed` job writes one ledger row per failed id to the artifact `miss-ledger-<run id>`, kept 90 days.
 A row holds the id, the merged pull request, whether `make select BASE=HEAD^1` on the main commit selects it, and a class: `flaky` where it passed when run again, `miss` where the selection did not reach it, `race` where it did but no passed check of the pull request left the marker of the two trees that merged, and `env` otherwise.
 A pull request's plan then adds each id a ledger of main's runs of the last 30 days names, unless it was `flaky`, a later green run of main passed it, or its path is gone.
 Runs are ordered by run id, and a lookup that cannot ask GitHub warns and adds nothing.

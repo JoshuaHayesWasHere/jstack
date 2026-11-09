@@ -21,13 +21,20 @@ from test_check_workflow import caller, commit, git, makefile, run_job
 
 caller = caller
 SUITE = ["tests/test_a.py", "tests/test_b.py", "tests/test_c.py"]
+BROWSER = "web/e2e/pets.spec.ts > pets > shows a pet"
 FAKE_TEST = """import os, sys
 from pathlib import Path
 
-ran = sys.argv[1:] or SUITE
+if sys.argv[1:2] == ["--e2e"]:
+    listed = sys.argv[2:]
+    ran = Path(listed[0]).read_text().splitlines() if listed else [BROWSER]
+    fails = os.environ.get("E2E_FAILS", "").split("|")
+else:
+    ran = sys.argv[1:] or SUITE
+    fails = os.environ.get("FAILS", "").split()
 seen = Path(os.environ["FLAKY_SEEN"])
 seen.mkdir(exist_ok=True)
-failed = [one for one in ran if one in os.environ.get("FAILS", "").split()]
+failed = [one for one in ran if one in fails]
 for one in ran:
     if one in os.environ.get("FLAKY", "").split():
         mark = seen / one.replace("/", "_")
@@ -38,7 +45,7 @@ with open(os.environ["REPO_STANDARD_FAILED"], "a") as out:
     out.write("".join(one + "\\n" for one in failed))
 print("ran", *ran, "failed", *failed)
 sys.exit(1 if failed else 0)
-""".replace("SUITE", repr(SUITE))
+""".replace("SUITE", repr(SUITE)).replace("BROWSER", repr(BROWSER))
 GH = """import io, json, os, re, sys, zipfile
 from pathlib import Path
 
@@ -92,6 +99,9 @@ def merge(repo, subject, selection, files=None):
     text = makefile(selection).replace(
         "test:\n\t@echo", 'test:\n\t@python3 "$(FAKE_TEST)" $(TESTS)\n\t@echo'
     )
+    text = text.replace(
+        "e2e:\n\t@echo", 'e2e:\n\t@python3 "$(FAKE_TEST)" --e2e $(E2E_LIST)\n\t@echo'
+    )
     commit(repo, {"Makefile": text, **(files or {})}, subject)
 
 
@@ -117,20 +127,24 @@ def github(event, run=1):
 def check(repo, env, store, event, run=1, **outcomes):
     """The run of the check: plan, the one part of the tests, and passed. Lint passes."""
     env = {**env, "GITHUB_EVENT_NAME": event, **outcomes}
-    context = {"github": github(event, run), "inputs": {"runner": "ubuntu-24.04", "command": ""}}
+    inputs = {"runner": "ubuntu-24.04", "command": "", "browser-channel": ""}
+    context = {"github": github(event, run), "inputs": inputs}
     plan = run_job("plan", repo, env, context, store=store)
     assert plan["result"] == "success", plan["steps"]
     needs = {"plan": {"result": "success", "outputs": plan["outputs"]}}
     part = {**context, "needs": needs, "matrix": {"shard": 1}, "strategy": {"job-total": 1}}
     tests = run_job("test", repo, env, part, store=store)
+    browser = {"result": "skipped"}
+    if plan["outputs"]["browser"] != "none":
+        browser = run_job("browser", repo, env, {**context, "needs": needs}, store=store)
     needs |= {
         "lint": {"result": "success"},
         "test": {"result": tests["result"]},
-        "browser": {"result": "skipped"},
+        "browser": {"result": browser["result"]},
         "command": {"result": "skipped"},
     }
     passed = run_job("passed", repo, env, {**context, "needs": needs}, store=store)
-    return plan, tests, passed
+    return plan, tests, passed, browser
 
 
 def selected(plan):
@@ -155,11 +169,11 @@ def ran_on_main(env, *runs):
 def test_a_test_the_selection_skipped_fails_on_main_and_joins_the_next_selection(loop):
     repo, env, store = loop
     merge(repo, "a change to a (#7)", ["tests/test_a.py"])
-    plan, tests, passed = check(repo, env, store, "pull_request")
+    plan, tests, passed, _ = check(repo, env, store, "pull_request")
     assert selected(plan) == ["tests/test_a.py"]
     assert passed["result"] == "success"
 
-    plan, tests, passed = check(repo, env, store, "push", run=101, FAILS="tests/test_b.py")
+    plan, tests, passed, _ = check(repo, env, store, "push", run=101, FAILS="tests/test_b.py")
     assert tests["result"] == "failure"
     assert "- tests/test_b.py" in tests["summary"]
     assert "failed: tests/test_b.py" in passed["steps"]["every job passed"]["said"]
@@ -168,19 +182,52 @@ def test_a_test_the_selection_skipped_fails_on_main_and_joins_the_next_selection
 
     ran_on_main(env, (101, "failure"))
     merge(repo, "another change to a (#8)", ["tests/test_a.py"])
-    plan, _, _ = check(repo, env, store, "pull_request")
+    plan, _, _, _ = check(repo, env, store, "pull_request")
     assert selected(plan) == ["tests/test_a.py", "tests/test_b.py"]
 
     ran_on_main(env, (101, "failure"), (102, "success"))
-    plan, _, _ = check(repo, env, store, "pull_request")
+    plan, _, _, _ = check(repo, env, store, "pull_request")
     assert selected(plan) == ["tests/test_a.py"]
+
+
+E2E = {
+    ".repo-standard.yml": "standard: 1\nstacks:\n  web:\n    adapter: node-vite\n    roots: [web]\n"
+    "    e2e:\n      root: web\n      script: test:e2e\n",
+    "web/package-lock.json": json.dumps(
+        {"packages": {"node_modules/@playwright/test": {"version": "1.64.1"}}}
+    ),
+    "web/e2e/pets.spec.ts": "",
+}
+
+
+def test_a_browser_test_the_selection_skipped_fails_on_main_and_joins_the_next_browser_run(loop):
+    repo, env, store = loop
+    merge(repo, "a change to the pets page (#9)", ["tests/test_a.py"], E2E)
+    plan, _, passed, browser = check(repo, env, store, "pull_request")
+    assert (plan["outputs"]["browser"], browser["result"]) == ("none", "skipped")
+    assert passed["result"] == "success"
+
+    _, tests, passed, browser = check(repo, env, store, "push", run=101, E2E_FAILS=BROWSER)
+    assert (tests["result"], browser["result"]) == ("success", "failure")
+    assert browser["steps"]["again"]["outcome"] == "success"
+    assert f"- {BROWSER}" in browser["summary"]
+    said = passed["steps"]["every job passed"]["said"]
+    assert f"the browser tests ended failure, and failed: {BROWSER}" in said
+    assert ledger(store, 101) == [Row(BROWSER, "#9", False, "miss", head(repo))]
+
+    ran_on_main(env, (101, "failure"))
+    merge(repo, "another change to a (#10)", ["tests/test_a.py"])
+    plan, _, _, browser = check(repo, env, store, "pull_request")
+    assert selected(plan) == ["tests/test_a.py"]
+    assert json.loads(plan["outputs"]["browser-ids"]) == [BROWSER]
+    assert browser["result"] == "success"
 
 
 def test_a_test_that_passes_when_run_again_is_flaky_and_joins_no_selection(loop):
     repo, env, store = loop
     merge(repo, "a change to a (#7)", ["tests/test_a.py"])
     outcomes = {"FAILS": "tests/test_b.py", "FLAKY": "tests/test_c.py"}
-    _, tests, passed = check(repo, env, store, "push", run=101, **outcomes)
+    _, tests, passed, _ = check(repo, env, store, "push", run=101, **outcomes)
     assert tests["steps"]["again"]["outcome"] == "success"
     assert {row.id: row.kind for row in ledger(store, 101)} == {
         "tests/test_b.py": "miss",
@@ -191,7 +238,7 @@ def test_a_test_that_passes_when_run_again_is_flaky_and_joins_no_selection(loop)
 
     ran_on_main(env, (101, "failure"))
     merge(repo, "another change to a (#8)", ["tests/test_a.py"])
-    plan, _, _ = check(repo, env, store, "pull_request")
+    plan, _, _, _ = check(repo, env, store, "pull_request")
     assert selected(plan) == ["tests/test_a.py", "tests/test_b.py"]
 
 
@@ -201,7 +248,7 @@ def test_a_selected_test_main_fails_is_a_race_where_the_base_moved_after_the_che
 ):
     repo, env, store = loop
     merge(repo, "a change to b (#7)", ["tests/test_b.py"])
-    plan, _, passed = check(repo, env, store, "pull_request")
+    plan, _, passed, _ = check(repo, env, store, "pull_request")
     assert passed["uploaded"] == [plan["outputs"]["checked"]]
     if moved:
         git(repo, "reset", "-q", "--hard", "HEAD^1")
@@ -216,7 +263,7 @@ def test_a_lookup_that_fails_warns_and_adds_nothing(loop):
     repo, env, store = loop
     with open(env["RUNS"], "w") as out:
         out.write("not json")
-    plan, _, _ = check(repo, env, store, "pull_request")
+    plan, _, _, _ = check(repo, env, store, "pull_request")
     assert plan["steps"]["failed on main"]["outcome"] == "success"
     assert (
         "::warning::misses: could not read main's ledgers"

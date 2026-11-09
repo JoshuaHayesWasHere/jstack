@@ -63,8 +63,8 @@ It reads the version `.repo-standard.yml` pins and clones jstack at the tag `rep
 | `plan` | Asks `jmerge.reuse` whether a passed check of the same two trees is reused, runs `make select BASE=HEAD^1`, and adds the tests main failed (`repo-standard misses failing --days 30`) | Asks `scripts/green_tree.py` whether a green run left a marker for the tree, except on a nightly run |
 | `lint` | `make lint BASE=HEAD^1`, then `repo-standard conform` | The same |
 | `test` | Each part runs what `plan` dealt it: `make test TESTS=<ids>`, its share of the whole suite, or nothing | Each part runs its share of the whole suite, and on a push to main a failed part runs its failed tests once more |
-| `browser` | The target `e2e`, given `E2E_LIST=<file>` with the browser ids `plan` routed it, or given none on `all`, and skipped when `plan` routed it no id | The target `e2e`, every browser test |
-| `passed` | Passes when `plan`, `lint` and every part passed, and `browser` passed or was skipped, or the pair of trees was reused | Passes when every job passed, or the tree's marker skipped the tests, and on a push to main whose tests failed first writes the ledger |
+| `browser` | The target `e2e`, given `E2E_LIST=<file>` with the browser ids `plan` routed it, or given none on `all`, and skipped when `plan` routed it no id | The target `e2e`, every browser test, and on a push to main a failed run runs its failed tests once more |
+| `passed` | Passes when `plan`, `lint` and every part passed, and `browser` passed or was skipped, or the pair of trees was reused | Passes when every job passed, or the tree's marker skipped the tests, and on a push to main whose tests or browser tests failed first writes the ledger |
 
 `repo-standard plan` deals a selection out to the parts in turn, and starts no more parts than the selection has ids.
 A part dealt the whole suite runs `make test` with one part, and `make test SHARD=<part>/<parts>` with more.
@@ -86,8 +86,9 @@ A reuse of a passed pair of trees, a tree a green run already passed, and a nigh
 Each part runs `make test` with `REPO_STANDARD_FAILED=$RUNNER_TEMP/failed/failed.txt`, and each adapter's test command writes there the id of each test that failed, one a line, in the form `make select` prints.
 A repo whose Makefile is not the skeleton's does the same, or its failed parts name no test.
 A part that failed lists its ids in the job's summary, and every part uploads the folder as `failed-<run id>-<part>`, so a part run again replaces what it said; `passed` names the ids in its error line.
+The job `browser` does the same with the target `e2e`: it writes the failed browser tests to `repo-standard-failed/failed.txt` in the checkout, each as `<spec> > <title>` read from Playwright's JSON report, and uploads the folder as `failed-<run id>-browser`.
 
-On a push to the default branch a failed part runs its failed ids once more, `make test TESTS=<ids>`, and writes those that failed again to `again.txt`.
+On a push to the default branch a failed part runs its failed ids once more, `make test TESTS=<ids>`, and writes those that failed again to `again.txt`; a failed `browser` runs the target `e2e` once more on its failed ids.
 `passed` then checks out the commit, runs `repo-standard misses record`, and uploads the ledger `miss-ledger-<run id>`, kept 90 days, one JSON row a failed test: its id, the merged pull request, whether `make select BASE=HEAD^1` selects it, and its class, `flaky`, `miss`, `race` or `env`, as [the standard's rule](standard.md#main-runs-the-whole-suite-after-each-merge) says.
 The rows go to the job's summary too.
 
