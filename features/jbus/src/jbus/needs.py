@@ -4,10 +4,13 @@ It is the one answer to "what needs me". It reads the list the last pass wrote
 (`waiting-on-user.json`) and keeps only what the user has to decide, by the one rule that also
 raises a decision and wakes a home with it (`blockers.deciding`): a gate whose `Holds:` line holds
 it, a gate with no default or one that names a door, a go gate whose silence starts nothing, a row
-whose brief has no go, a pull request `jmerge` holds for the user's word, and a setup only the user
-can give. A row a home can clear by itself (a row at `gate`, a leftover its home still has, a hold
-a thread works on) is not on it, and neither is a refused go: a refusal is an act of the home's
-(`acts.jsonl`), most of them a sha that did not match, and the home tries again by itself.
+whose brief has no go, a pull request `jmerge` holds for the user's word, a setup only the user
+can give, and an approved row that waits for room on a full /tmp after the pass removed what
+finished crews left there (`room`): its row's `why` says so, `waiting: /tmp at <n>% of its quota`,
+from the first pass it waits. A row a home can clear by itself (a row at `gate`, a leftover its
+home still has, a hold a thread works on) is not on it, and neither is a refused go: a refusal is
+an act of the home's (`acts.jsonl`), most of them a sha that did not match, and the home tries
+again by itself.
 
 Each item is one line with what it holds, then a plain hint for the reply, the same `Reply:` a
 decision carries (`blockers.reply`), and, for a gate that holds, the fail-safe to read first. A
@@ -32,7 +35,10 @@ from pathlib import Path
 
 import jbus
 from jbriefs import home as homes
-from jbus import blockers, passes, questions, queue, verbs, waiting
+from jbus import blockers, cleanup, passes, questions, queue, verbs, waiting
+
+FREE = "nothing to reply: free room on it, and the next pass launches the row"
+"""The hint a row that waits for /tmp ends in: no word of the user's frees it."""
 
 
 @dataclass(frozen=True)
@@ -104,17 +110,36 @@ def of(
         found = blockers.deciding(run, listed)
     except questions.Unparsable:
         raise Unknown(f"{project.name}: {questions.path(run.state)} does not parse") from None
+    needs = [
+        (
+            _slug(run, one),
+            Need(project.name, said, blockers.reply(one), str(one.get("fail_safe") or "")),
+        )
+        for one, said in found
+    ]
+    needs += [(slug, Need(project.name, f"row {slug}: {why}", FREE)) for slug, why in room(run)]
     if home is not None:
         root = config.home(project)
-        found = [
-            (one, said)
-            for one, said in found
-            if (at := home_of(run.state, root, _slug(run, one))) == home
-            or home == root == at.parent
+        needs = [
+            (slug, need)
+            for slug, need in needs
+            if (at := home_of(run.state, root, slug)) == home or home == root == at.parent
         ]
+    return [need for _, need in needs]
+
+
+def room(run: passes.Pass) -> list[tuple[str, str]]:
+    """Return each approved row the last pass held back for a full /tmp, with its `why`
+    (`cleanup.WAITING`)."""
+    try:
+        rows = queue.load(run.state)
+    except queue.Unparsable:
+        return []
     return [
-        Need(project.name, said, blockers.reply(one), str(one.get("fail_safe") or ""))
-        for one, said in found
+        (row["slug"], str(row["why"]))
+        for row in sorted(rows, key=queue.order)
+        if row.get("status") in queue.UNLAUNCHED
+        and cleanup.WAITING.match(str(row.get("why") or ""))
     ]
 
 
