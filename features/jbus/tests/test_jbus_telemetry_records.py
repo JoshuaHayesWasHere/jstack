@@ -307,8 +307,9 @@ def test_a_line_written_before_pull_reads_it_from_its_kept_text_or_as_empty(mach
 
 def test_the_queue_keeps_who_queued_each_row_and_the_message_its_go_rests_on(machine):
     """`jbus.telemetry.records` fills `queued_by_session` and `approval_message` for each basis,
-    and a store built before `jbus.telemetry.migrations.v014_queue_joins` gains both columns on
-    its next build, and the queue's rows it already holds are read again to fill them."""
+    as the text columns `jbus.telemetry.values` types them, and a store built before
+    `jbus.telemetry.migrations.v014_queue_joins` gains both columns on its next build, and the
+    queue's rows it already holds are read again to fill them."""
     home = {"directory": "/home/u/repo", "session": "home-session"}
     jbus = {"by": "jbus", "session": ""}
     goes = {
@@ -337,6 +338,8 @@ def test_the_queue_keeps_who_queued_each_row_and_the_message_its_go_rests_on(mac
     machine.build()
     with contextlib.closing(machine.store()) as store:
         assert store.execute(query).fetchall() == want
+        types = {name: kind for _, name, kind, *_ in store.execute("PRAGMA table_info(queue)")}
+        assert (types["queued_by_session"], types["approval_message"]) == ("TEXT", "TEXT")
         views = [
             name for (name,) in store.execute("SELECT name FROM sqlite_master WHERE type = 'view'")
         ]
