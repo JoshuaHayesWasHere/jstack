@@ -211,7 +211,7 @@ The section "Protected paths" describes one more hold.
   When the queue exists but cannot be read, every pull request waits with `its queue cannot be read, so its holds and merge order are not known`.
   A repo with no jbus config, or that no project names, has no queue and no such wait.
   `jmerge` judges these after the review and rebase gates, so it reports a missing review or rebase line first.
-  A held row and a `merges after` wait come before GitHub's waits too: a pull request whose row says either waits on it whatever GitHub says of its mergeability or its check, in place of `GitHub has not decided whether it merges`, `<check> has failed`, `<check> has not passed` and `<check>'s run at <head12> is <state>` (`Repo.short_on_github`).
+  A held row and a `merges after` wait come before GitHub's waits too: a pull request whose row says either waits on it whatever GitHub says of its mergeability or its check, in place of `GitHub has not decided whether it merges`, `<check> has failed`, `<check> has not passed` and `<check>'s run at <head12> is <state>` (`Repo.row_first`).
   GitHub's state comes and goes each time main moves, and the row's wait stands until the row changes, so the pull request keeps one `wait` line for as long as its row holds it.
   A check with no run at the head, and a conflict while no required check waits, keep their place before the queue's waits: they are the crew's to act on.
   GitHub names a waiting check before a conflict, so a held row on a pull request that conflicts and has a failed check reads `row-held`, as it read `<check> has failed` before.

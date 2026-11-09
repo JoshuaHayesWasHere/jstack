@@ -111,7 +111,7 @@ def patterns(path: Path) -> tuple[str, ...]:
 
 QUEUE_WAITS = frozenset({ready.ROW_HELD.code, ready.MERGES_AFTER.code})
 """The codes of the queue's waits that GitHub's passing state does not replace
-(`Repo.short_on_github`)."""
+(`Repo.row_first`)."""
 QUEUE_OUTRANKS = frozenset(
     one.code for one in (ready.UNDECIDED, ready.CHECK_FAILED, ready.NOT_PASSED, ready.LIVE_RUN)
 )
@@ -965,7 +965,8 @@ class Repo:
                 lost = found
         if rebase is None and covered is None:
             lost = ready.answered(text, one.head)
-        short = short or self.short_on_github(one, brief.stem)
+        short = short or ready.short_on_github(one)
+        short = self.row_first(brief.stem, short)
         note = ""
         silent = ready.unexplained(lost, text, one.head)
         if (
@@ -1027,19 +1028,18 @@ class Repo:
             self.through = one.number
         return Judgement(brief.stem, "", "", note, judged)
 
-    def short_on_github(self, one: ready.PullRequest, slug: str) -> str:
-        """GitHub's wait on the pull request, unless its queue row is held or merges after a row
-        not merged yet. That wait stands as long as the row does, while GitHub's state comes and
-        goes under it: its mergeability is undecided each time main moves, and a check fails or
-        runs again. Said in the row's place, it drew a `wait` line on each change, and #1335 went
-        from `row-held` to `undecided` and back all night. A check with no run at the head, and a
-        conflict where `ready.short_on_github` names one (no required check waits), are work for
-        the crew, and keep their place."""
-        github = ready.short_on_github(one)
-        if ready.code_of(github) not in QUEUE_OUTRANKS:
-            return github
+    def row_first(self, slug: str, short: str) -> str:
+        """`short`, unless it is one of GitHub's waits that come and go (`QUEUE_OUTRANKS`) and the
+        queue row of `slug` is held or merges after a row not merged yet. That wait stands as long
+        as the row does, while GitHub's state moves under it: its mergeability is undecided each
+        time main moves, and a check fails or runs again. Said in the row's place, it drew a `wait`
+        line on each change, and #1335 went from `row-held` to `undecided` and back all night. A
+        check with no run at the head, and a conflict where `ready.short_on_github` names one (no
+        required check waits), are work for the crew, and keep their place."""
+        if not isinstance(short, ready.Reason) or short.code not in QUEUE_OUTRANKS:
+            return short
         queued = rows.short(self.queue, slug, brief=self.stored(slug))
-        return queued if ready.code_of(queued) in QUEUE_WAITS else github
+        return queued if ready.code_of(queued) in QUEUE_WAITS else short
 
     def unbriefed(self, one: ready.PullRequest, default: str, red: str) -> Judgement:
         """The judgement of a pull request no brief names, which the user's own message accepts
