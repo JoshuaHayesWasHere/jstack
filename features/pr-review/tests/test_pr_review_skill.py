@@ -711,7 +711,9 @@ def test_the_proof_runs_the_real_code_and_prints_its_exit_code_and_last_lines(pr
     assert proof.out.read_text().count("\n") == 23
 
 
-def test_a_proof_with_every_short_slot_taken_registers_the_thread_and_ends_76(proof, tmp_path):
+def test_a_proof_with_every_short_slot_taken_registers_nothing_and_ends_76(proof, tmp_path):
+    """A proof waits for a short slot in its own run and registers nothing: at the lane's ceiling
+    `jgauge.runner.proof` says `waiting` and to send the block again now, and jbus wakes no one."""
     home = tmp_path / "taken"
     locks = home / ".local" / "state" / "locks"
     locks.mkdir(parents=True)
@@ -729,9 +731,9 @@ def test_a_proof_with_every_short_slot_taken_registers_the_thread_and_ends_76(pr
             os.close(fd)
     assert (printed[-1].split(":")[0], code) == ("waiting", 76)
     assert "exit" not in [line.split()[0] for line in printed]
-    assert "mcp:thread-1 is registered as a waiter" in proof.out.read_text()
-    waiting = json.loads((locks / "test-slot-waiters.json").read_text())
-    assert [one["thread"] for one in waiting] == ["mcp:thread-1"]
+    assert "send this block again now, in this turn" in printed[-1]
+    assert "run the same command again now, in this turn" in proof.out.read_text()
+    assert not (locks / "test-slot-waiters.json").exists()
     printed, code = proof.ends("echo the fact holds\n")
     assert (printed[0].split(":")[0], printed[1], code) == ("started", "exit 0", 0)
 

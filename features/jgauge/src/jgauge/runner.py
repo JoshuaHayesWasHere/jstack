@@ -18,9 +18,10 @@ tree of the worktree as it is now, written with an index of its own. `jgauge pro
 pr-review block's `proof.*` files beside the prompt, and its key is a hash of the proof and of
 `proof.sh`.
 
-A run that finds every slot taken registers its thread with what the thread runs again once jbus
-wakes it, `jgauge check` or `jgauge proof`: the check removes its folder then, and a run file run
-by hand would hold no slot.
+A check that finds every full slot taken registers its thread with what the thread runs again
+once jbus wakes it, `jgauge check`: the check removes its folder then, and a run file run by hand
+would hold no slot. A proof waits in the short lane and registers nothing: one that got no slot
+by the lane's ceiling says to send its block again at once.
 
 The run starts with `python -P`, which keeps the worktree off `sys.path`, so a module of the repo
 under check that has a stdlib name is never imported in place of the stdlib's.
@@ -144,7 +145,8 @@ class Run:
             time.sleep(min(LOOK_EVERY_SECONDS, left))
 
     def waited_for_a_slot(self) -> bool:
-        return self.code() == slot.WAITING and WAITER in "\n".join(self.files.lines())
+        said = "\n".join(self.files.lines())
+        return self.code() == slot.WAITING and (WAITER in said or slot.AGAIN in said)
 
 
 def git(*args: str, env: dict[str, str] | None = None) -> str:
@@ -272,8 +274,8 @@ def proof(command: str, folder: Path, kept: str, thread: str, limit: float) -> i
         run.files.tell()
         say(
             *run.files.lines(),
-            "waiting: no short test slot is free and nothing ran: end your turn now with the one"
-            " line, and send this block again when jbus wakes this thread",
+            "waiting: no short test slot came free and nothing ran: send this block again now,"
+            " in this turn",
         )
         return slot.WAITING
     if run.ended() and run.files.read("key") != key:
