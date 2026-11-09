@@ -416,7 +416,16 @@ def lint_steps():
 
 
 def test_the_lint_job_that_check_needs_runs_conform_and_fails_when_it_does(repo, capsys):
-    (step,) = [one for one in lint_steps() if "repo-standard conform" in one]
+    """The lint job runs conform inside its `make lint` step, so the command is make's."""
+    assert any(run.startswith("make lint") for run in lint_steps())
+    planned = subprocess.run(
+        ["make", "-n", "--no-print-directory", "lint"],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.splitlines()
+    (step,) = [one for one in planned if "repo-standard conform" in one]
     passed = subprocess.run(step, shell=True, cwd=REPO, capture_output=True, text=True)
     assert passed.returncode == 0, passed.stdout + passed.stderr
     BREAKS["a-change-selects-its-tests"](repo)

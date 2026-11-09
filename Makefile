@@ -59,8 +59,8 @@ PYTEST = $(if $(NEW_LINES_PART),NEW_LINES_PART='$(NEW_LINES_PART)' PYTHONPATH='$
 # pyrefly type-checks each feature's src at the settings of [tool.pyrefly] in pyproject.toml, and
 # fails on an error. The paths are given here, not in that table: pyrefly's default excludes
 # drop every path under a dot directory, which a worktree such as ~/.t3/worktrees/... sits in.
-# `repo-standard conform` runs last, as CI's lint job runs it after `make lint`, so a desk check
-# fails on a rule of the standard (a file over its size cap, say) where CI will.
+# `repo-standard conform` runs last, and CI's lint job runs it only here, so a desk check fails on
+# a rule of the standard (a file over its size cap, say) where CI does.
 BASE ?= origin/main
 
 .PHONY: lint
