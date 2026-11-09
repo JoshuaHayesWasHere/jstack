@@ -392,7 +392,7 @@ It reads that from the marker `green-tree-<tree>`, and, where the marker expired
 It exits 1 with each of the three that failed, and 2 when it cannot ask the remote or GitHub.
 The shared check workflow keeps the marker 90 days, which is as long as GitHub keeps a run by default.
 
-**In jstack** the one deploy entry is the release, and it is waived: `make release` checks main, a clean tree and `origin/main` itself, then runs `make release-green`, which fails unless a green run of `check.yml` left the marker for the tree of `HEAD`.
+**In jstack** the one deploy entry is the release: `make release` runs `repo-standard green` first, then checks the tag and pushes it.
 `.github/workflows/release.yml` runs only on a pushed `v*` tag, and runs `make release-green` again on the tag's own checkout before `make dist` and the release.
 
 Enforced by: `features/repo-standard/src/repo_standard/green.py`, `features/repo-standard/src/repo_standard/rules.py`, `.github/workflows/release.yml`
