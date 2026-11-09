@@ -85,7 +85,8 @@ A reuse of a passed pair of trees, a tree a green run already passed, and a nigh
 - `checked-tree-<base tree>-<merge tree>`, after a pull request's check passed, which a later run of the same two trees reuses.
 - `green-tree-<tree>`, after the whole suite passed on the tree: on main, on a nightly run, and on a pull request whose selection was `all`.
 
-A deploy entry refuses a tree with no `green-tree` marker, as the standard's rule says.
+A deploy entry refuses a tree with no `green-tree` marker through `repo-standard green`, as the standard's rule says, so the workflow keeps that marker 90 days, as long as GitHub keeps a run by default.
+Where the marker has gone, `repo-standard green` reads the push run of `check.yml` on main for the commit.
 `jmerge.green` reads a marker only from a run of `.github/workflows/check.yml`, so the caller keeps that name.
 
 ## Before the standard

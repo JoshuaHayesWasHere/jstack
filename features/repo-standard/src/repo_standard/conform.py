@@ -57,12 +57,6 @@ def _version(repo: Repo) -> list[str]:
     return [f"the config pins v{pin}, and this tool is {TAG}{VERSION}: run the tool at {TAG}{pin}"]
 
 
-def _deploy_refuses(repo: Repo) -> list[str]:
-    if not rules.deploys(repo):
-        return []
-    return enforcer("every-deploy-entry-refuses-a-tree-that-is-not-green-main")(repo)
-
-
 def _named(rule: str, level: Level = "error") -> Rule:
     return Rule(rule, level, enforcer(rule))
 
@@ -104,7 +98,8 @@ RULES: tuple[Rule, ...] = (
     Rule("one-required-check-gathers-the-rest", "error", rules.gathers),
     _named("a-pair-of-trees-passes-once", "warn"),
     _named("a-passing-tree-leaves-a-marker", "warn"),
-    Rule("every-deploy-entry-refuses-a-tree-that-is-not-green-main", "error", _deploy_refuses),
+    Rule("every-deploy-entry-refuses-a-tree-that-is-not-green-main", "error", rules.green_first),
+    Rule("only-a-deploy-entry-runs-a-deploy-command", "error", rules.deploy_commands),
     Rule("a-deploy-is-behind-the-touches-prod-gate", "error", rules.gated),
     Rule("the-standard-is-versioned-by-a-tag", "error", rules.pinned),
     Rule("a-breaking-change-takes-a-new-version", "error", _version),

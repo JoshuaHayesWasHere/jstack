@@ -107,6 +107,20 @@ The standard's guards come from jstack at the tag `.repo-standard.yml` pins.
 The Makefile clones that tag into `.cache/` the first time a target needs it, and runs the guards with `python3`, so a repo of any stack needs only git and python3 for them.
 `REPO_STANDARD_UPSTREAM` names another place to clone from, as the test does.
 
+## A deploy entry
+
+The skeleton deploys nothing, so its config sets `deploy: []`.
+A repo that deploys adds one target for it, lists it in the config as `deploy: [make deploy]`, and starts its recipe with `$(REPO_STANDARD) green`, which refuses a tree that is not green main:
+
+```make
+.PHONY: deploy
+deploy: | $(REPO_STANDARD_HOME)
+	$(REPO_STANDARD) green
+	aws s3 sync dist s3://<bucket>
+```
+
+The clone is an order-only prerequisite, which `conform` lets run first, and the target has no other.
+
 ## An adapter
 
 An adapter gives the Makefile three commands, in the file `stack.mk` of its `scripts/` folder, which the Makefile includes, as python-uv's `features/repo-standard/adapters/python-uv/scripts/stack.mk` does:

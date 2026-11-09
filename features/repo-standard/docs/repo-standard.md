@@ -28,15 +28,17 @@ CI's `lint` job in `.github/workflows/check.yml` runs it there, so the required 
 | `plan` | Prints what the jobs of [the shared check workflow](check-workflow.md) run, and checks nothing. |
 | `stacks` | Runs `lint`, `test`, `select` or `e2e` over each stack of a repo whose config sets `stacks:`, as [the skeleton's page](skeleton.md#several-stacks) says. |
 | `upgrade` | Moves the repo to another version of the standard, as [upgrade](#upgrade) says. |
+| `green` | Says whether the checkout may deploy: it exits 0 on a clean checkout of the remote's main whose tree passed `check.yml`, as [the standard's rule](standard.md#every-deploy-entry-refuses-a-tree-that-is-not-green-main) says. |
 
 `repo-standard stacks lint` runs every stack's lint, `repo-standard stacks test [ids]` runs every stack's tests or the ids it is given, `repo-standard stacks select <base>` prints the ids the change from `<base>` reaches, and `repo-standard stacks e2e [<file>]` runs the browser tests of each stack with `e2e:`, or only the ids in the file, one a line.
 The skeleton's Makefile runs them from the repo's root, and they take no flag.
 
-Every verb but `stacks` takes `--root` for another checkout, and `--config` for another config file than `<root>/.repo-standard.yml`.
+Every verb but `stacks` takes `--root` for another checkout, and every verb but `stacks` and `green` takes `--config` for another config file than `<root>/.repo-standard.yml`.
 `borders` alone reads `--base <ref>`, `--labels a,b` and `--hard`, which [the guards' page](guards.md) explains.
 `conform` and `upgrade` read `--upstream`, `conform` alone reads `--list`, and `upgrade` alone reads `--to N`.
 `plan` alone reads `--event`, by default `$GITHUB_EVENT_NAME`, and `--selection <file>`, the test ids the repo's select target printed.
 A verb exits 2 when it cannot read the config or the tree.
+`green` reads no config, exits 1 with each reason the checkout may not deploy, and exits 2 when it cannot ask the remote's main or GitHub's API, which it asks through `gh`.
 
 ## conform
 
@@ -78,7 +80,6 @@ The rules met this way are these:
 - `a-shared-path-forces-the-whole-suite`
 - `a-pair-of-trees-passes-once`
 - `a-passing-tree-leaves-a-marker`
-- `every-deploy-entry-refuses-a-tree-that-is-not-green-main`, which also needs the config's `deploy` part
 
 ### Waivers
 
@@ -141,7 +142,8 @@ waivers:
 
 `local` and a waiver's `until` are read as [Files a version owns](#files-a-version-owns) and [Waivers](#waivers) say.
 `deploy` lists each deploy entry, and `deploy: []` says the repo deploys nothing.
-Each entry names `deploy` or `release`, so the `touches prod` gate stops an agent that runs it.
+Each entry is `make <target>` and names `deploy` or `release`, so the `touches prod` gate stops an agent that runs it.
+Its recipe runs `repo-standard green` first, and only such a recipe, or a script that runs `repo-standard green` first, runs a deploy command, as [the standard's rules](standard.md#deploy) say.
 
 ## upgrade
 

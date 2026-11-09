@@ -36,7 +36,6 @@ ENFORCED = {
     "a-shared-path-forces-the-whole-suite": "features/beta/tests/test_beta.py",
     "a-pair-of-trees-passes-once": ".github/workflows/check.yml",
     "a-passing-tree-leaves-a-marker": ".github/workflows/check.yml",
-    "every-deploy-entry-refuses-a-tree-that-is-not-green-main": ".github/workflows/check.yml",
 }
 CONFIG = """\
 standard: 1
@@ -111,7 +110,7 @@ Path("INDEX.md").write_text(text)
 MAKEFILE = (
     "lint:\n\tpython3 scripts/gen.py --check\ntest check: lint\n\ttrue\nselect:\n\techo all\n"
 )
-MAKEFILE += "deploy:\n\ttrue\n"
+MAKEFILE += "deploy:\n\t@repo-standard green\n\ttrue\n"
 
 
 def git(root, *args):
@@ -244,6 +243,12 @@ BREAKS = {
     ),
     "one-required-check-gathers-the-rest": lambda r: edit(
         r / ".github/workflows/check.yml", "  check:\n    needs:", "  gather:\n    needs:"
+    ),
+    "every-deploy-entry-refuses-a-tree-that-is-not-green-main": lambda r: edit(
+        r / "Makefile", "\t@repo-standard green\n", ""
+    ),
+    "only-a-deploy-entry-runs-a-deploy-command": lambda r: write(
+        r, {"scripts/ship.sh": "#!/bin/sh\naws s3 sync dist s3://site\n"}
     ),
     "a-deploy-is-behind-the-touches-prod-gate": lambda r: edit(
         r / ".repo-standard.yml", "deploy: [make deploy]", "deploy: [./ship.sh]"
@@ -443,11 +448,16 @@ def test_the_pinned_version_as_the_newest_or_no_upstream_reports_nothing_and_fai
     assert "note: cannot list the standard's versions: git ls-remote" in said
 
 
-def test_jstack_meets_the_standard_with_no_waiver(capsys):
+def test_jstack_meets_the_standard_waiving_only_its_release(capsys):
+    """jstack's `make release` checks main, the tree and origin's main itself before
+    `release-green`, so it alone is waived until its own row moves it onto `repo-standard
+    green`."""
+    rule = "every-deploy-entry-refuses-a-tree-that-is-not-green-main"
     code, lines = conform(REPO, capsys)
     assert code == 0, "\n".join(lines)
-    assert lines[-1].endswith(", waived 0"), lines
-    assert not [line for line in lines if line.startswith(("waived ", "waiver "))], lines
+    assert lines[-1].endswith(", waived 1"), lines
+    waived = [line for line in lines if line.startswith(("waived ", "waiver "))]
+    assert [line.split(":")[0] for line in waived] == [f"waived {rule}", f"waiver {rule}"], lines
 
 
 EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
@@ -612,10 +622,9 @@ def no_owners(repo):
 
 
 def deploys_nothing(repo):
-    """`deploy: []` says the repo deploys nothing, so no file need enforce a deploy's refusal."""
-    rule = "every-deploy-entry-refuses-a-tree-that-is-not-green-main"
+    """`deploy: []` says the repo deploys nothing, so no recipe need refuse a tree."""
     edit(repo / ".repo-standard.yml", "deploy: [make deploy]", "deploy: []")
-    edit(repo / ".repo-standard.yml", f"  {rule}: [{ENFORCED[rule]}]\n", "")
+    edit(repo / "Makefile", "\t@repo-standard green\n", "")
 
 
 def one_feature_only(repo):
@@ -678,7 +687,7 @@ def selects_in_an_included_make_file(repo):
     [
         (
             calls_the_shared_check,
-            "conform repo-standard-v1, 35 rules: errors 0, warnings 0, waived 0",
+            "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0",
         ),
         (
             lambda r: calls_the_shared_check(r, at="main"),
@@ -686,7 +695,7 @@ def selects_in_an_included_make_file(repo):
         ),
         (
             selects_in_an_included_make_file,
-            "conform repo-standard-v1, 35 rules: errors 0, warnings 0, waived 0",
+            "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0",
         ),
         (
             lambda r: write(r, {"schemas/feature.core.schema.json": "{not json"}),
@@ -734,10 +743,87 @@ def selects_in_an_included_make_file(repo):
             lambda r: write(
                 r, {"features/beta/feature.json": manifest("beta", reads=["features/alpha/*.md"])}
             ),
-            "conform repo-standard-v1, 35 rules: errors 0, warnings 0, waived 0",
+            "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0",
         ),
-        (deploys_nothing, "conform repo-standard-v1, 35 rules: errors 0, warnings 0, waived 0"),
-        (one_feature_only, "conform repo-standard-v1, 35 rules: errors 0, warnings 0, waived 0"),
+        (deploys_nothing, "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0"),
+        (
+            lambda r: write(
+                r,
+                {
+                    "scripts/ship.sh": "#!/bin/sh\n# aws s3 sync in a comment runs nothing\n"
+                    "repo-standard green || exit 1\naws --profile prod s3 sync dist s3://site\n"
+                    "aws cloudfront create-invalidation --distribution-id X --paths '/*'\n"
+                },
+            ),
+            "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0",
+        ),
+        (
+            lambda r: write(r, {"scripts/ship": "#!/usr/bin/env bash\nnpx cdk deploy --all\n"}),
+            "error only-a-deploy-entry-runs-a-deploy-command: scripts/ship:2: runs cdk deploy "
+            "before any `repo-standard green`",
+        ),
+        (
+            lambda r: edit(
+                r / ".github/workflows/check.yml",
+                "      - run: make check\n",
+                "      - run: make check\n      - run: |\n          cd infra\n"
+                "          terraform -chdir=prod apply -auto-approve\n",
+            ),
+            "error only-a-deploy-entry-runs-a-deploy-command: .github/workflows/check.yml:23: "
+            "runs terraform apply, where a step runs a deploy entry instead",
+        ),
+        (
+            lambda r: edit(r / "Makefile", "deploy:\n", "upload:\n\tsam deploy\ndeploy:\n"),
+            "error only-a-deploy-entry-runs-a-deploy-command: Makefile:8: target upload runs "
+            "sam deploy, and only a deploy entry's recipe may",
+        ),
+        (
+            lambda r: edit(
+                r / "Makefile",
+                "deploy:\n",
+                "upload:\nifeq ($(ENV),prod)\n\taws s3 sync dist s3://x\nendif\ndeploy:\n",
+            ),
+            "error only-a-deploy-entry-runs-a-deploy-command: Makefile:9: target upload runs "
+            "aws s3 sync, and only a deploy entry's recipe may",
+        ),
+        (
+            lambda r: edit(r / "Makefile", "deploy:\n", "deploy: build\n"),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: Makefile:7: deploy "
+            "entry `make deploy` has prerequisites (build), which make runs before its recipe",
+        ),
+        (
+            lambda r: edit(
+                r / "Makefile",
+                "deploy:\n\t@repo-standard green\n",
+                "deploy:\n\ttrue && repo-standard green\n",
+            ),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: Makefile:7: deploy "
+            "entry `make deploy` does not run `repo-standard green` before its first command",
+        ),
+        (
+            lambda r: edit(
+                r / "Makefile",
+                "deploy:\n\t@repo-standard green\n\ttrue\n",
+                "define SHIP\ndeploy:\n\tnothing\nendef\n"
+                "deploy: | .cache\n\t$(REPO_STANDARD) green && \\\n\t  aws s3 sync dist s3://x\n",
+            ),
+            "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0",
+        ),
+        (
+            lambda r: edit(
+                r / ".repo-standard.yml", "deploy: [make deploy]", "deploy: [make ship]"
+            ),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: deploy entry "
+            "`make ship`: the Makefile has no target ship",
+        ),
+        (
+            lambda r: edit(
+                r / ".repo-standard.yml", "deploy: [make deploy]", "deploy: [./ship.sh]"
+            ),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: deploy entry "
+            "`./ship.sh` is not `make <target>`",
+        ),
+        (one_feature_only, "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0"),
     ],
 )
 def test_each_way_a_rule_is_broken_is_named(repo, capsys, change, said):

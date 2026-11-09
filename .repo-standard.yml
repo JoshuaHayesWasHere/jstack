@@ -108,6 +108,6 @@ enforced-by:
     - testing/tests/test_select_tests_rules.py
   a-pair-of-trees-passes-once: [.github/workflows/check.yml]
   a-passing-tree-leaves-a-marker: [scripts/green_tree.py]
-  every-deploy-entry-refuses-a-tree-that-is-not-green-main:
-    - .github/workflows/release.yml
-    - testing/tests/test_workflows.py
+waivers:
+  - rule: every-deploy-entry-refuses-a-tree-that-is-not-green-main
+    reason: make release checks main, a clean tree and origin's main itself, then release-green looks up the same marker before the tag; a row of its own moves it onto repo-standard green
