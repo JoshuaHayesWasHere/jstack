@@ -39,7 +39,7 @@ from repo_standard.tree import Unreadable, matches, tracked
 CLONE_SECONDS = 60
 STACK_MK = "scripts/stack.mk"
 CALLER = ".github/workflows/check.yml"
-LABEL = re.compile(r"^(\s*(?:runner|runs-on):[ \t]*)(\S.*)$", re.M)
+LABEL = re.compile(r"^(\s*runner:[ \t]*)(\S.*)$", re.M)
 
 
 class Kind(Enum):
@@ -105,12 +105,13 @@ def files(feature: Path, config: Config, paths: list[str], want: Kind) -> dict[s
 
 def masked(path: str, text: str) -> str:
     """The text as the drift rule compares it: in the caller's check.yml, the runner's label is
-    the repo's own, so the values of `runner:` and `runs-on:` read as one placeholder."""
+    the repo's own, so the value of `runner:` reads as a placeholder. The job check's `runs-on:`
+    takes that label from the call, and is the version's."""
     return LABEL.sub(r"\1<label>", text) if path == CALLER else text
 
 
 def carried(path: str, mine: str, theirs: str) -> str:
-    """The version's copy `theirs`, with the runner's labels of the repo's copy `mine` kept."""
+    """The version's copy `theirs`, with the runner's label of the repo's copy `mine` kept."""
     if path != CALLER:
         return theirs
     labels = iter(found[2] for found in LABEL.finditer(mine))

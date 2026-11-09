@@ -1,8 +1,8 @@
 # The shared check of the repo standard (features/repo-standard/docs/check-workflow.md). A repo
 # calls it from its own .github/workflows/check.yml at the tag of the version it pins, and that
 # caller's job `check` gathers it into the one check jmerge and the ruleset wait on. It takes the
-# repo-standard and jmerge code it runs from jstack at the tag `.repo-standard.yml` pins, in the
-# runner's python3, before any setup. A repo with no `.repo-standard.yml` yet runs its check
+# repo-standard and jmerge code it runs from jstack at the tag `.repo-standard.yml` pins, or at
+# the ref `ref` names, in the runner's python3, before any setup. A repo with no `.repo-standard.yml` yet runs its check
 # command alone. The file stays in the YAML subset `repo_standard.config` reads, so its test reads
 # it with the standard's own reader: no block scalar, no flow map.
 name: repo-standard check
@@ -26,6 +26,14 @@ on:
         description: A browser the runner has, such as chrome, for the browser tests to run in, in place of the Playwright image of the version the e2e lockfile pins. The tests read it as $REPO_STANDARD_BROWSER_CHANNEL.
         type: string
         default: ""
+      ref:
+        description: The ref of jstack the jobs and the repo's make take the standard's code from, such as a branch of a version not yet tagged, named as well in the caller's uses line. Empty takes repo-standard-v<N>, the tag of the version .repo-standard.yml pins.
+        type: string
+        default: ""
+    outputs:
+      runner:
+        description: The runner input, for the caller's job check to run on the same label.
+        value: ${{ inputs.runner }}
 
 permissions:
   contents: read
@@ -41,6 +49,9 @@ env:
   # The version this file is: a repo whose .repo-standard.yml pins another fails the plan, since
   # the jobs here and the code they run come from one version.
   REPO_STANDARD_VERSION: 1
+  # The ref the plan and the lint clone, and the skeleton's Makefile clones into .cache/: empty
+  # takes the tag of the version the repo pins.
+  REPO_STANDARD_REF: ${{ inputs.ref }}
 
 jobs:
   # What the run tests, asked once: the version the repo pins, whether a passed check of the same
@@ -52,7 +63,7 @@ jobs:
     timeout-minutes: 10
     outputs:
       mode: ${{ steps.standard.outputs.mode }}
-      tag: ${{ steps.standard.outputs.tag }}
+      ref: ${{ steps.standard.outputs.ref }}
       run: ${{ steps.plan.outputs.run }}
       selection: ${{ steps.plan.outputs.selection }}
       shards: ${{ steps.plan.outputs.shards }}
@@ -71,7 +82,7 @@ jobs:
           fetch-depth: 2
       - name: standard
         id: standard
-        run: 'if [ ! -f .repo-standard.yml ]; then echo "mode=command" >> "$GITHUB_OUTPUT"; echo "no .repo-standard.yml, so the check runs the repo''s check command"; exit 0; fi; N=$(sed -n "s/^standard:[[:space:]]*\([0-9][0-9]*\)[[:space:]]*\(#.*\)\{0,1\}$/\1/p" .repo-standard.yml); [ -n "$N" ] || { echo "::error::.repo-standard.yml pins no version: give it a line standard: <N>"; exit 1; }; [ "$N" = "$REPO_STANDARD_VERSION" ] || { echo "::error::.repo-standard.yml pins v$N, and check.yml calls the shared check at repo-standard-v$REPO_STANDARD_VERSION: move both to one version"; exit 1; }; git clone -q --depth 1 --branch "repo-standard-v$N" "$REPO_STANDARD_UPSTREAM" "$RUNNER_TEMP/repo-standard" && printf "mode=standard\ntag=repo-standard-v%s\n" "$N" >> "$GITHUB_OUTPUT"'
+        run: 'if [ ! -f .repo-standard.yml ]; then echo "mode=command" >> "$GITHUB_OUTPUT"; echo "no .repo-standard.yml, so the check runs the repo''s check command"; exit 0; fi; N=$(sed -n "s/^standard:[[:space:]]*\([0-9][0-9]*\)[[:space:]]*\(#.*\)\{0,1\}$/\1/p" .repo-standard.yml); [ -n "$N" ] || { echo "::error::.repo-standard.yml pins no version: give it a line standard: <N>"; exit 1; }; [ "$N" = "$REPO_STANDARD_VERSION" ] || { echo "::error::.repo-standard.yml pins v$N, and check.yml calls the shared check at repo-standard-v$REPO_STANDARD_VERSION: move both to one version"; exit 1; }; REF=${REPO_STANDARD_REF:-repo-standard-v$N}; git clone -q --depth 1 --branch "$REF" "$REPO_STANDARD_UPSTREAM" "$RUNNER_TEMP/repo-standard" && printf "mode=standard\nref=%s\n" "$REF" >> "$GITHUB_OUTPUT"'
       - name: reuse
         id: reuse
         if: steps.standard.outputs.mode == 'standard' && github.event_name == 'pull_request'
@@ -108,7 +119,7 @@ jobs:
         id: plan
         if: steps.standard.outputs.mode == 'standard'
         run: 'if [ -f "$RUNNER_TEMP/selection.txt" ]; then set -- --selection "$RUNNER_TEMP/selection.txt"; fi; PYTHONPATH="$RUNNER_TEMP/repo-standard/features/repo-standard/src" python3 -m repo_standard plan "$@" | tee -a "$GITHUB_OUTPUT"'
-  # The lint of the tree and the standard's conformance, at the version the repo pins. It needs no
+  # The lint of the tree and the standard's conformance, at the ref the plan cloned. It needs no
   # selection, so it runs beside the tests, on a reuse too.
   lint:
     needs: plan
@@ -127,8 +138,8 @@ jobs:
         run: make lint BASE=HEAD^1
       - name: repo-standard conform
         env:
-          TAG: ${{ needs.plan.outputs.tag }}
-        run: git clone -q --depth 1 --branch "$TAG" "$REPO_STANDARD_UPSTREAM" "$RUNNER_TEMP/repo-standard" && PYTHONPATH="$RUNNER_TEMP/repo-standard/features/repo-standard/src" python3 -m repo_standard conform
+          REF: ${{ needs.plan.outputs.ref }}
+        run: git clone -q --depth 1 --branch "$REF" "$REPO_STANDARD_UPSTREAM" "$RUNNER_TEMP/repo-standard" && PYTHONPATH="$RUNNER_TEMP/repo-standard/features/repo-standard/src" python3 -m repo_standard conform
   # The tests, in the parts `check.shards` sets, each with what `plan` dealt it. A reuse of a
   # passed pair of trees, and a tree a green run already passed, run none. Each part writes the ids
   # that failed to failed.txt ($REPO_STANDARD_FAILED), and on a push to the default branch runs

@@ -188,6 +188,27 @@ def test_a_planted_unowned_file_fails_the_lint(new_repo):
     assert "notes/stray.txt" in out
 
 
+@pytest.mark.parametrize("ref", ["", "repo-standard-rc"])
+def test_make_clones_the_ref_it_is_given_or_the_pinned_tag(new_repo, upstream, ref):
+    """REPO_STANDARD_REF names the ref of jstack the guards come from, as the shared check sets
+    it from its `ref` input, and empty, as that input is by default, it is the pinned tag."""
+    root, env = new_repo
+    tip = git(upstream, "commit-tree", "HEAD^{tree}", "-p", "HEAD", "-m", "a later commit").strip()
+    git(upstream, "branch", "-f", "repo-standard-rc", tip)
+    make(root, {**env, "REPO_STANDARD_REF": ref}, "-s", "borders")
+    home = root / ".cache" / (ref or f"{TAG}{VERSION}")
+    assert [one.name for one in (root / ".cache").iterdir()] == [home.name]
+    assert git(home, "rev-parse", "HEAD") == git(
+        upstream, "rev-parse", f"{ref or TAG + str(VERSION)}^{{commit}}"
+    )
+
+
+def test_make_fails_on_a_ref_the_upstream_does_not_have(new_repo):
+    root, env = new_repo
+    make(root, {**env, "REPO_STANDARD_REF": "no-such-ref"}, "-s", "borders", ok=False)
+    assert not (root / ".cache" / "no-such-ref").exists()
+
+
 def test_select_needs_a_base(new_repo):
     root, env = new_repo
     make(root, env, "select", ok=False)
