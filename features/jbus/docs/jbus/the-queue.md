@@ -182,6 +182,8 @@ A row keeps its item, and `add` refuses an `--item` that names another.
 `jbus queue add <slug> --from <thread id>` says which home adds the row, and an empty id is the root home.
 `add` refuses a brief or a request with no `Home:` line, or one whose line names `root`, which owns no row, or names neither `uncategorized` nor a scope of the project's homes, as a fault of the brief beside its other faults, and queues nothing.
 A row already queued is not checked again.
+Each pass names a row's home on its line of `work.json`, `home`, as `jbriefs.home.home_of` resolves it: a scope's name or `uncategorized`, never the root, so a row queued before `add` refused `root` is the catch-all's there.
+`jbus queue move <slug> --home <scope>` names the home on the `Home:` line of both copies of the brief, jbus's under `briefs/` and the home's under `tasks/`, also for a row already in that home whose line says otherwise.
 `add` refuses a row whose brief's `Home:` line names a home other than the one adding it, and queues nothing, so two homes do not brief the same fix unseen.
 `jbus queue add --for <home>`, `root` or a scope's name, hands the row over on purpose, and `add` refuses a `--for` that is not the brief's home.
 `jbus queue add <slug> --message <thread id>/<message id>` approves the row on that message of yours in the same write, as `jbus queue approve --message` does ([The bases](#the-bases)).
