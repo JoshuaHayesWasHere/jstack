@@ -1214,10 +1214,11 @@ def test_an_answer_into_a_capped_thread_is_held_then_sent_once_after_the_reset(k
     def answers():
         return [one for one in sends(kitchen) if one["clientRequestId"] == "answer|alpha|1"]
 
-    for minute in (10, 20):
+    for minute, says in ((10, True), (20, False)):
         lines = kitchen.poll(NOW + timedelta(minutes=minute))
         assert answers() == []
-        assert [one for one in lines if one.startswith("wait alpha: ") and "capped" in one]
+        capped = [one for one in lines if one.startswith("wait alpha: ") and "capped" in one]
+        assert bool(capped) is says
     kitchen.poll(NOW + timedelta(minutes=41))
     kitchen.poll(NOW + timedelta(minutes=44))
     assert [one["threadId"] for one in answers()] == [crew["threadId"]]
@@ -1229,7 +1230,6 @@ def test_an_answer_into_a_capped_thread_is_held_then_sent_once_after_the_reset(k
         if one["key"] == "answer|alpha|1"
     ] == [
         ("2026-10-12T15:10", crew["threadId"], "alpha", "answer", "act", "held"),
-        ("2026-10-12T15:20", crew["threadId"], "alpha", "answer", "act", "held"),
         ("2026-10-12T15:41", crew["threadId"], "alpha", "answer", "act", "sent"),
     ]
     assert [one["rule"] for one in went if one["went"] == "held"][0].startswith("cap: ")
@@ -1304,9 +1304,7 @@ def test_a_crew_that_waits_on_a_slot_while_main_moves_twice_is_told_to_rebase_on
     ]
     assert rebase == [
         ("15:00", "held", "slot"),
-        ("15:03", "held", "slot"),
         ("15:06", "held", "busy"),
-        ("15:09", "held", "busy"),
         ("15:12", "sent", ""),
     ]
 

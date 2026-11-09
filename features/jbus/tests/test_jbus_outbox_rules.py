@@ -65,7 +65,7 @@ def test_a_conflict_while_the_reviewer_is_out_is_held_and_the_state_after_the_re
     launched.set("open.json", [pull(launched, mergeable="CONFLICTING")])
     at(launched, 0, 3)
     assert keys(launched) == []
-    assert held(launched) == [("conflict", "review"), ("conflict", "review")]
+    assert held(launched) == [("conflict", "review")]
     brief.write_text(brief.read_text() + WRITTEN)
     at(launched, 6, 9)
     assert keys(launched) == ["rebase|alpha|cccccccccccc"]
