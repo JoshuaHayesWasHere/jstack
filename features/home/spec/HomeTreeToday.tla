@@ -180,7 +180,7 @@ After(k) ==
       [] OTHER -> "asked"
 \* The question is an item of Josh's list of what needs him (jbus/waiting.py
 \* `found += stalls.stalled(run.state)`), which wakes no thread (jbus/wakes.py
-\* `to = "" if one["kind"] == "stalled" else thread_of(homes.home_of(run.home, text)) or root`),
+\* `to="" if one["kind"] in ("approve", "stalled") else root,`),
 \* so Josh has it in the pass that writes it, and no home thread carries it. With needs dropped
 \* it is sent the root's home thread, as an alert once was.
 Notice(k) ==
