@@ -13,11 +13,11 @@ import pytest
 
 import jbus
 import jsettings
-from jbus import project, t3
+from jbus import project, questions, t3
 from jbus.view import state as view_state
 from jmerge import judgement
 from test_jbus_kitchen import NOW, PROJECT, complete, sends
-from test_jbus_questions import held
+from test_jbus_questions import go_gate, held
 
 HOME_1, HOME_2, CREW_2 = "home-1", "home-2", "mcp:other-crew"
 REFUSED = "refused: project other is closed: jbus project open other first"
@@ -383,3 +383,31 @@ def test_a_merge_base_added_to_a_closed_project_keeps_it_closed(kitchen, two):
     assert table(kitchen, "other")["merge_bases"] == ["release"]
     assert table(kitchen, "other")["closed"] == today()
     assert kitchen.main("project", "bases", "other") == (0, "release\n")
+
+
+def test_a_closed_projects_go_gate_whose_row_was_removed_is_closed_as_moot_by_the_pass(
+    kitchen, two
+):
+    """A closed project gets no pass, yet a door question whose row is gone has nothing left to
+    decide: the pass closes it as moot there too, and still launches, merges and sends nothing
+    for the closed project."""
+    gate = ["--project", "other", "gate", "beta"]
+    assert kitchen.main(*gate, stdin=go_gate("beta"))[0] == 0
+    remove = ["--project", "other", "queue", "remove", "beta", "--by", "user"]
+    code, out = kitchen.main(*remove, "--at", "2026-10-12 11:00 ET")
+    assert code == 0, out
+    assert kitchen.main("project", "close", "other")[0] == 0
+
+    kitchen.t3.calls.clear()
+    said = kitchen.poll()
+    words = questions.MOOT["removed"].format(slug="beta")
+    assert f"note beta: question 2 closed, {words}" in said
+    kept = jbus.read_json(two.state / "questions.json", {})["records"]
+    (gone,) = [one for one in kept if one["slug"] == "beta"]
+    assert (gone["answer"]["closed_by"], gone["answer"]["words"]) == ("cleared", words)
+    (waits,) = [one for one in kept if one["slug"] == "gamma"]
+    assert waits["answer"] is None, "a held question on a row that did not end stays open"
+    assert [one["title"] for one in kitchen.t3.launches] == ["crew: alpha"]
+    assert all(one["threadId"] not in (HOME_2, CREW_2) for one in sends(kitchen))
+    assert two.wakes.listed == []
+    assert all(given.get("projectId") != two.project for _, given in kitchen.t3.calls)
