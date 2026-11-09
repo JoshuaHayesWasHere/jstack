@@ -6,7 +6,7 @@ import os
 import sqlite3
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from jbriefs import findings, home, meets, page, parse, pick, propose, proved, shown, skills
@@ -133,7 +133,7 @@ def proved_none_main(base: str, head: str) -> int:
 def store_time(said: str) -> str:
     """An ISO time in T3's store's own form, UTC with milliseconds and a `Z`
     (`2026-11-09T19:11:15.428Z`), so it compares as a string. A time with no zone is local."""
-    when = datetime.fromisoformat(said).astimezone(timezone.utc)
+    when = datetime.fromisoformat(said).astimezone(UTC)
     return when.isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 

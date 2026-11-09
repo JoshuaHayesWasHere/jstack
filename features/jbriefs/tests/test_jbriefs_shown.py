@@ -5,7 +5,7 @@ id, its first words and each picture's absolute path, or `gone` where the file i
 
 import json
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -64,7 +64,13 @@ def t3(tmp_path):
                 ),
             ),
             ("m-words", THREAD, "user", "2026-11-09T16:20:00.000Z", _said("go")),
-            ("m-agent", THREAD, "user", "2026-11-09T16:21:00.000Z", _said("x", PICTURE, by="agent")),
+            (
+                "m-agent",
+                THREAD,
+                "user",
+                "2026-11-09T16:21:00.000Z",
+                _said("x", PICTURE, by="agent"),
+            ),
             ("m-reply", THREAD, "assistant", "2026-11-09T16:22:00.000Z", _said("y", PICTURE)),
             ("m-other", "mcp:another", "user", "2026-11-09T16:23:00.000Z", _said("z", PICTURE)),
         ],
@@ -93,7 +99,7 @@ def test_shown_prints_the_path_of_each_picture_the_user_sent_in_the_thread(t3, c
 
 def test_shown_with_since_leaves_out_what_came_before(t3, capsys):
     store, attachments = t3
-    later = datetime(2026, 11, 9, 16, 16, tzinfo=timezone.utc).astimezone().replace(tzinfo=None)
+    later = datetime(2026, 11, 9, 16, 16, tzinfo=UTC).astimezone().replace(tzinfo=None)
     for since in ("2026-11-09T16:16:00Z", later.isoformat()):
         code, lines, _ = _run(
             capsys,
