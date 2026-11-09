@@ -297,7 +297,7 @@ jobs:
       # pin stays written in one place and a new one looks for an entry of its own.
       - name: tla2tools pin
         id: tla2tools
-        run: 'pin=$(sed -n "s/^TLA2TOOLS_\(VERSION\|SHA256\) = \"\(.*\)\"$/\L\1\E=\2/p" features/skill-library/skills/statechart/scripts/statechart/tools.py) && [ "$(printf "%s\n" "$pin" | wc -l)" = 2 ] && printf "%s\n" "$pin" | tee -a "$GITHUB_OUTPUT" || { echo "::error::tools.py pins no TLA2TOOLS_VERSION and TLA2TOOLS_SHA256 this step reads"; exit 1; }'
+        run: 'pin=$(sed -n -e "s/^TLA2TOOLS_VERSION = \"\(.*\)\"$/version=\1/p" -e "s/^TLA2TOOLS_SHA256 = \"\(.*\)\"$/sha256=\1/p" features/skill-library/skills/statechart/scripts/statechart/tools.py) && [ "$(printf "%s\n" "$pin" | wc -l)" -eq 2 ] && printf "%s\n" "$pin" | tee -a "$GITHUB_OUTPUT" || { echo "::error::tools.py pins no TLA2TOOLS_VERSION and TLA2TOOLS_SHA256 this step reads"; exit 1; }'
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/jstack/tla2tools/${{ steps.tla2tools.outputs.version }}/tla2tools.jar
@@ -599,7 +599,7 @@ jobs:
       - name: tla2tools pin
         id: tla2tools
         if: steps.tree.outputs.marker != 'green'
-        run: 'pin=$(sed -n "s/^TLA2TOOLS_\(VERSION\|SHA256\) = \"\(.*\)\"$/\L\1\E=\2/p" features/skill-library/skills/statechart/scripts/statechart/tools.py) && [ "$(printf "%s\n" "$pin" | wc -l)" = 2 ] && printf "%s\n" "$pin" | tee -a "$GITHUB_OUTPUT" || { echo "::error::tools.py pins no TLA2TOOLS_VERSION and TLA2TOOLS_SHA256 this step reads"; exit 1; }'
+        run: 'pin=$(sed -n -e "s/^TLA2TOOLS_VERSION = \"\(.*\)\"$/version=\1/p" -e "s/^TLA2TOOLS_SHA256 = \"\(.*\)\"$/sha256=\1/p" features/skill-library/skills/statechart/scripts/statechart/tools.py) && [ "$(printf "%s\n" "$pin" | wc -l)" -eq 2 ] && printf "%s\n" "$pin" | tee -a "$GITHUB_OUTPUT" || { echo "::error::tools.py pins no TLA2TOOLS_VERSION and TLA2TOOLS_SHA256 this step reads"; exit 1; }'
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: steps.tree.outputs.marker != 'green'
         with:

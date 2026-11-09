@@ -11,27 +11,32 @@ import pytest
 
 from jsettings import budget, proc
 
-RESET = datetime.now(UTC).replace(microsecond=0) + timedelta(minutes=30)
 
-
-def answer(left):
-    """What `gh api rate_limit` prints when both windows have `left` calls."""
-    reset = int(RESET.timestamp())
-    window = {"limit": 5000, "used": 5000 - left, "remaining": left, "reset": reset}
+def answer(left, reset):
+    """What `gh api rate_limit` prints when both windows have `left` calls until `reset`."""
+    window = {
+        "limit": 5000,
+        "used": 5000 - left,
+        "remaining": left,
+        "reset": int(reset.timestamp()),
+    }
     return json.dumps({"resources": {"core": window, "graphql": window}})
 
 
 class GitHub:
-    """A `gh api rate_limit` that answers `left` calls after `slow` seconds, and counts its asks."""
+    """A `gh api rate_limit` that answers `left` calls after `slow` seconds, and counts its asks.
+    Its windows start again half an hour after the test made it: a time fixed when the module is
+    imported has passed by the time a long run reaches it (macos-nightly run 42593535428)."""
 
     def __init__(self, left=4000, slow=0.0):
         self.left, self.slow, self.asks = left, slow, 0
+        self.reset = datetime.now(UTC).replace(microsecond=0) + timedelta(minutes=30)
 
     def __call__(self, command):
         assert command == budget.ASK
         self.asks += 1
         time.sleep(self.slow)
-        return answer(self.left)
+        return answer(self.left, self.reset)
 
 
 def logs(state, resource, remaining, ago=0, **more):
@@ -87,7 +92,7 @@ def test_a_fresh_line_for_each_window_answers_with_no_call(state):
     logs(state, "core", None, status=127)
     read = budget.logged(state, asked=github)
     assert remaining(read) == {"core": 3980, "graphql": 4800}
-    assert read.low.reset == RESET and read.low.limit == 5000
+    assert read.low.reset == github.reset and read.low.limit == 5000
     assert github.asks == 1
 
 
