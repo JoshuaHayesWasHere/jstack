@@ -184,6 +184,7 @@ BEFORE = {
             ("review", "review alpha: findings"),
             ("rebase", "rebase alpha: told the crew (#7, <head>)"),
             ("queue", "queue demo: the table changed"),
+            ("illegal-move", "illegal-move alpha: launched to pr"),
         ],
     ),
     "t3 down": (

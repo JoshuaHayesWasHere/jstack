@@ -445,3 +445,17 @@ def test_pass_steps_gives_each_step_of_each_pass_its_wall_and_cpu_seconds(machin
     ]
     assert {when[:16] for _, when, *_ in steps} == {at[:16]}
     assert children == [(None,), (9.75,)]
+
+
+def test_transitions_carry_whether_the_move_table_holds_the_move(machine):
+    machine.append(
+        "alpha",
+        "transitions.jsonl",
+        {"slug": "one", "from": "pr", "to": "merged", "at": iso(NOW)},
+        {"slug": "two", "from": "merged", "to": "gate", "at": iso(NOW), "legal": False},
+    )
+    machine.build()
+    query = "SELECT slug, from_status, to_status, legal FROM transitions ORDER BY slug"
+    with contextlib.closing(machine.store()) as store:
+        rows = store.execute(query).fetchall()
+    assert rows == [("one", "pr", "merged", 1), ("two", "merged", "gate", 0)]

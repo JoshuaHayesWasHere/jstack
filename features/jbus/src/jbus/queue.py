@@ -181,6 +181,58 @@ STATUSES = (
     "done",
     "left",
 )
+_QUESTION_CLOSED = "the question on the row closes, and the row's"
+MOVES: dict[tuple[str, str], str] = {
+    ("queued", "launched"): "a launch record names a thread for the row",
+    ("queued", "gate"): "jbus opens a question on the row",
+    ("queued", "removed"): "the `remove` verb takes the row out",
+    ("gate", "queued"): f"{_QUESTION_CLOSED} launch has no record",
+    ("gate", "launched"): f"{_QUESTION_CLOSED} launch has no thread yet",
+    ("gate", "pr"): f"{_QUESTION_CLOSED} pull request is open",
+    ("gate", "done"): f"{_QUESTION_CLOSED} Result says done",
+    ("gate", "merged"): f"{_QUESTION_CLOSED} pull request merged",
+    ("launched", "running"): "T3 Code lists the thread at work",
+    ("launched", "failed"): "the thread fails before a pass sees it at work",
+    ("launched", "left"): "the thread ends with work left before a pass sees it at work",
+    ("launched", "done"): "the thread ends with a clean Result before a pass sees it at work",
+    ("failed", "running"): "the failed thread works again",
+    ("failed", "left"): "the failed thread leaves its work to its home",
+    ("failed", "done"): "a Result says done after the thread failed",
+    ("running", "pr"): "a pull request opens",
+    ("running", "left"): "the Result leaves work, or the pull request closes",
+    ("running", "done"): "the thread ends with a clean Result and no pull request",
+    ("running", "waiting"): "the thread asks for an answer to its request",
+    ("running", "stale"): "the turn hangs, or the thread ends with nothing written",
+    ("running", "failed"): "the thread fails",
+    ("running", "merged"): "the pull request opens and merges between two passes",
+    ("waiting", "running"): "the request is answered and the thread works again",
+    ("waiting", "left"): "the thread ends after its request with work left",
+    ("waiting", "failed"): "the thread fails while it waits",
+    ("stale", "running"): "the thread works again",
+    ("stale", "left"): "the thread stays quiet with nothing written for long enough, or "
+    "writes a leftover",
+    ("left", "pr"): "a pull request opens for what was left",
+    ("left", "done"): "a follow-up Result says done",
+    ("left", "running"): "the thread works again on what was left",
+    ("left", "waiting"): "the thread asks for an answer again",
+    ("left", "launched"): "the row is launched again for what was left",
+    ("left", "removed"): "the `remove` verb takes the row out",
+    ("pr", "merged"): "the pull request merges",
+    ("pr", "gate"): "jbus opens a question on the row",
+    ("pr", "left"): "the pull request closes unmerged",
+    ("pr", "done"): "the pull request leaves the open list, and the Result says done and owes none",
+    ("pr", "removed"): "the `remove` verb takes the row out",
+}
+"""Every move of a row's status that the work makes, one entry each: from a status, to a status
+(or `removed`, the line `remove` writes), with the one change of facts that makes it. No verb
+moves a row: each pass works the status out again from the facts (`work.status`), so the table
+cannot drive a row as `item.MOVES` drives an item. It judges a move after the facts made it:
+`derive` marks each line of `transitions.jsonl` whose move it does not hold, and writes the
+status all the same, since the status is what the facts say. A final row that leaves `merged`
+or `done`, a Result that says done before its pull request opens, and a pull request read in
+neither of GitHub's lists for one pass are the faults the table leaves out. `derive` never
+judges a move to `removed`: those entries name the removals the work was seen to make.
+`features/jbus/docs/jbus/row-moves.md` lists it."""
 FINAL = judgement.FINAL
 UNLAUNCHED = ("queued", "gate")
 LIVE = (*UNLAUNCHED, "launched", "running", "waiting", "pr")
@@ -2660,10 +2712,12 @@ def _blank() -> Row:
 @dataclass(frozen=True)
 class Change:
     """`Change` is a row in which one of the columns in `SEEN` changed. It holds the row as it is
-    now, and each such column with what it held before and what it holds now."""
+    now, and each such column with what it held before and what it holds now. `illegal` is the
+    move of its status that `derive` marked on its line of `transitions.jsonl`, if it marked one."""
 
     row: Row
     columns: dict[str, tuple[str, str]]
+    illegal: tuple[str, str] | None = None
 
 
 def derive(
@@ -2676,12 +2730,13 @@ def derive(
     of the two counts as a change of the table.
 
     Each status that changed becomes one line of `transitions.jsonl`: the slug, from, to,
-    and `at`. Each `why` that changed, to a reason or to none, becomes one line of
-    `waits.jsonl`: the slug, the new `why`, and `at`, so the reasons a row waited between its
-    go and its launch stay after the table moves on. The pass that starts `waits.jsonl` writes
-    each open row's `why` as it stands, so a row that already waited has a line before its reason
-    next changes. The pass appends the lines before it writes the table, so a pass that dies
-    between the two reports a change twice and loses none.
+    and `at`, and `"legal": false` when `MOVES` does not hold the move. Each `why` that changed,
+    to a reason or to none, becomes one line of `waits.jsonl`: the slug, the new `why`, and `at`,
+    so the reasons a row waited between its go and its launch stay after the table moves on. The
+    pass that starts `waits.jsonl` writes each open row's `why` as it stands, so a row that
+    already waited has a line before its reason next changes. The pass appends the lines before
+    it writes the table, so a pass that dies between the two reports a change twice and loses
+    none.
     """
     changed = []
     moved = []
@@ -2690,9 +2745,12 @@ def derive(
     with _changing(state) as rows:
         for row in rows:
             new = {**_blank(), **facts(row)}
-            was = row.get("status", "queued")
+            was, illegal = row.get("status", "queued"), None
             if was != new["status"]:
-                moved.append({"slug": row["slug"], "from": was, "to": new["status"], "at": at})
+                line = {"slug": row["slug"], "from": was, "to": new["status"], "at": at}
+                if (was, new["status"]) not in MOVES:
+                    illegal, line = (was, new["status"]), line | {"legal": False}
+                moved.append(line)
             columns = {
                 column: (row.get(column, ""), new[column])
                 for column in SEEN
@@ -2700,7 +2758,7 @@ def derive(
             }
             if columns:
                 row.update({column: new[column] for column in SEEN}, updated=stamp)
-                changed.append(Change(row, columns))
+                changed.append(Change(row, columns, illegal))
             if row.get("why", "") != new["why"]:
                 row.update(why=new["why"], since=stamp if new["why"] else "")
                 waited.append({"slug": row["slug"], "why": new["why"], "at": at})

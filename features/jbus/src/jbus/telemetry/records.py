@@ -138,6 +138,7 @@ def _transitions(one: Row, zone: tzinfo | None) -> Row:
         "to_status": _text(one.get("to")),
         "by": _text(one.get("by")),
         "why_len": _length(one.get("why")),
+        "legal": 0 if one.get("legal") is False else 1,
     }
 
 
@@ -479,7 +480,7 @@ SOURCES: tuple[Source, ...] = (
         "transitions",
         "transitions.jsonl",
         "log",
-        _columns("at", "slug", "from_status", "to_status", "by", "why_len"),
+        _columns("at", "slug", "from_status", "to_status", "by", "why_len", "legal"),
         _transitions,
     ),
     Source("row_waits", "waits.jsonl", "log", _columns("at", "slug", "kind", "why_len"), waits.row),

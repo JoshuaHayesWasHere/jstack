@@ -41,7 +41,8 @@ if TYPE_CHECKING:
     from jbus.poll import Half
 
 DRIFT = "work-drift"
-EVENTS = {"work-drift": "quiet"}
+ILLEGAL = "illegal-move"
+EVENTS = {"work-drift": "quiet", "illegal-move": "quiet"}
 
 
 def judged(half: Half) -> None:
@@ -91,6 +92,10 @@ def derive(half: Half) -> None:
     if half.changed:
         line = f"queue {run.project.name}: the table changed"
         run.box.send("", "queue", line, queue.changes(half.changed))
+    for change in half.changed:
+        if move := change.illegal:
+            slug = change.row["slug"]
+            run.box.send(slug, ILLEGAL, f"{ILLEGAL} {slug}: {move[0]} to {move[1]}")
 
 
 def unplaced(half: Half) -> None:
