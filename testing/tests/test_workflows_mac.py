@@ -347,7 +347,6 @@ def test_make_release_tags_a_clean_main_that_is_origins_and_refuses_anything_els
     subprocess.run([*git, "-C", repo, "push", "-q", "origin", "main"], check=True)
     assert tags() == []
     assert subprocess.run([*git, "-C", repo, "tag"], capture_output=True, text=True).stdout == ""
-    # The tag needs no marker on the desk: release.yml runs the whole suite on its tree first.
     done, asked = make(repo, "release", answers={"actions/artifacts": {"artifacts": []}})
     assert done.returncode == 0, done.stdout + done.stderr
     assert asked == []

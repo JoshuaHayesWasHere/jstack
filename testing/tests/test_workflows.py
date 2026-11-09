@@ -282,7 +282,6 @@ def test_no_file_under_github_names_a_runner_of_the_owners_machine_or_its_variab
 def test_every_workflow_may_read_the_contents_and_no_more_and_none_runs_for_a_fork_with_secrets():
     for path in sorted(WORKFLOWS.glob("*.yml")):
         more = {"actions": "read"} if path in (CHECK, MAC, SHARED) else {}
-        # A release starts check.yml's full run on its tag where no run left the tree's marker.
         more = {"actions": "write"} if path == RELEASE else more
         contents = "write" if path == RELEASE else "read"
         assert block("permissions", path) == {"contents": contents} | more, path.name
