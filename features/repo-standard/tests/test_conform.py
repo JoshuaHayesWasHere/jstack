@@ -14,6 +14,7 @@ it, and the command as `uvx` runs it from a tag of a jstack checkout.
 import json
 import os
 import re
+import runpy
 import shutil
 import subprocess
 import sys
@@ -21,7 +22,7 @@ import textwrap
 
 import pytest
 
-from repo_standard import TAG, VERSION
+from repo_standard import PYTHON, TAG, VERSION, too_old
 from repo_standard import conform as conform_module
 from repo_standard.cli import main
 from repo_standard.config import Refused, Stack, build, parse
@@ -598,6 +599,28 @@ def test_a_local_part_conform_cannot_read_exits_2_and_says_why(repo, capsys, loc
     config.write_text(re.sub(r"^local:\n(?:  .*\n)*", local, config.read_text(), flags=re.M))
     assert main(["conform", "--root", str(repo), "--upstream", ""]) == 2
     assert said in capsys.readouterr().err
+
+
+def test_a_python3_under_the_floor_is_refused_by_name_before_any_verb(monkeypatch, capsys):
+    """`python -m repo_standard` in a python3 one minor version under `PYTHON` exits with the
+    reason, naming the floor and the version it found, and `floor` at or past it says so."""
+    floor = ".".join(map(str, PYTHON))
+    under = (PYTHON[0], PYTHON[1] - 1, 9)
+    said = (
+        f"repo-standard needs python3 {floor} or later, the floor of {TAG}{VERSION}, "
+        f"and this python3 is {'.'.join(map(str, under))}: put a newer python3 first on PATH"
+    )
+    assert too_old(under) == said
+    assert too_old((*PYTHON, 0)) is None
+    monkeypatch.setattr(sys, "version_info", under)
+    monkeypatch.setattr(sys, "argv", ["repo_standard", "floor"])
+    with pytest.raises(SystemExit) as refused:
+        runpy.run_module("repo_standard", run_name="__main__")
+    assert refused.value.code == said
+    monkeypatch.undo()
+    assert main(["floor"]) == 0
+    found = ".".join(map(str, sys.version_info[:3]))
+    assert capsys.readouterr().out == f"python3 {found}, at or past the floor {floor}\n"
 
 
 def test_python_m_repo_standard_runs_the_command(repo):
