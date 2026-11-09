@@ -53,6 +53,17 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
            if [ ! -f "$H/plan.md" ]; then
                mkdir -p "$H" && touch "$H/plan.md" && echo "first home: made $H"
            fi
+           U=$H/uncategorized
+           if [ -f "$H/plan.md" ] && [ ! -f "$U/plan.md" ]; then
+               if [ -f "$U/plan-archived.md" ]; then
+                   mv "$U/plan-archived.md" "$U/plan.md"
+               else
+                   mkdir -p "$U" && printf '# %s, uncategorized: plan\n\nGoal: every row of %s that no other child home'"'"'s goal claims\n' "$R" "$R" > "$U/plan.md"
+               fi
+               if [ -f "$U/plan.md" ]; then
+                   echo "catch-all: made $U, the child home of every row no other child claims"
+               fi
+           fi
        fi ;;
    esac
    ```
@@ -65,6 +76,7 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
    `scope <word>`: that scope's home, and what follows the word is the user's opening request.
    On `no scope:`, one word was typed and it names no scope: tell the user what the line says and stop, this thread is no home.
    When it prints `first home`, say this is the repo's first home.
+   On `catch-all:`, the root has made its child `uncategorized` beside it, once for the project: launch nothing, since jbus's keep-alive starts its home (`keep_alive` in `features/jbus/src/jbus/children.py`).
    On `reopened:`, the scope was archived and is a home again: its briefs whose `Home:` line names it are this home's again, and the root home's no more.
    On `not reopened:`, tell the user the line and stop.
    What was in `$H` before stays: a home in another repo may have kept briefs and notes there.
@@ -171,8 +183,9 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
    The merge step runs no `jmerge`, and the sweep runs one only while `$H/home-thread` holds an id.
    A message sent while this directory had no home reached nobody, a `fixed and green` line among them, and step 4 has already read what landed.
    Then do what "Its thread" says, under "The home before this one".
+   The root home then reads its children with the block of "Reading the scopes" (`scoped-homes.md`): it waits on no message from them, and none is pushed to it.
    Then end the start.
-   A start the user began by typing `/home` asks where things stand: open with what `## waiting on you` printed, as it printed it, then tell them in at most six lines what crewmates and scouts finished since the last home, what this start merged, swept and launched, what is still out, what is next in the plan, any open decision, and the open questions step 4 printed, as "Show the open ones" ("Gates") says, by its block.
+   A start the user began by typing `/home` asks where things stand: open with what `## waiting on you` printed, as it printed it, then tell them in at most six lines what crewmates and scouts finished since the last home, what this start merged, swept and launched, what is still out, what is next in the plan, each child of the root's in a line from what it read, any open decision, and the open questions step 4 printed, as "Show the open ones" ("Gates") says, by its block.
    A start that a launch began, such as the one "Making a scope" makes, asks nothing of the user: it ends by "How a turn ends", with what it did as the lines, and only a decision or a stop among them reaches the user.
 
 ### On the bus
