@@ -567,3 +567,23 @@ def test_a_fork_patch_with_a_change_to_other_code_is_no_fork_proof(repo):
     said, line = proof(repo)
     assert said.startswith("no test changed")
     assert line is None
+
+
+def test_a_branch_that_changes_two_forks_packaging_is_not_proved(repo):
+    """Each side lays one fork's series over one PKGBUILD, so a branch that changes patches of two
+    forks has no proof: the refusal names both folders and no `Proved:` line is written."""
+    tarball = forked(repo)
+    commit(
+        repo,
+        {
+            f"{PACKAGING}/0001-new.patch": FORK_PATCH,
+            f"{PACKAGING}/PKGBUILD": pkgbuild(tarball, "0001-new.patch"),
+            "features/other/packaging/0001-new.patch": FORK_PATCH,
+        },
+    )
+    said, line = proof(repo)
+    assert said.startswith("no proof: the branch changes more than one fork's packaging: ")
+    assert PACKAGING in said
+    assert "features/other/packaging" in said
+    assert "Proved:" not in said
+    assert line is None
