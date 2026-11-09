@@ -511,6 +511,49 @@ def test_a_catch_all_waits_when_no_instance_of_the_home_pool_can_run(started, js
     assert any("wait home uncategorized: no launch: " in one for one in said)
 
 
+SIGNED_OUT = ["Provider is not authenticated."]
+
+
+def test_a_catch_all_launches_on_the_first_instance_of_the_home_pool_that_can_sign_in(
+    started, jstack_config
+):
+    """claudeAgent is first in the pool and signed out: the home starts on the next instance on
+    its first try, and on claudeAgent again once it signs in."""
+    kitchen = started
+    (jstack_config.parent / "roles").write_text(
+        f"home: claudeAgent claude-opus-5-5 claudeAgent,{PRIME}\n"
+    )
+    kitchen.t3.constraints["claudeAgent"] = SIGNED_OUT
+    kitchen.poll(NOW)
+    (launch,) = homes(kitchen)
+    assert launch["modelSelection"]["instanceId"] == PRIME
+    (thread,) = [one for one in kitchen.t3.threads if one["title"] == launch["title"]]
+    thread["status"] = "failed"
+    kitchen.t3.at_work.discard(thread["threadId"])
+    kitchen.t3.constraints["claudeAgent"] = []
+    kitchen.poll(minutes(P + 1))
+    assert [one["modelSelection"]["instanceId"] for one in homes(kitchen)] == [PRIME, "claudeAgent"]
+
+
+def test_a_catch_all_launches_nothing_while_no_instance_of_the_home_pool_can_sign_in(
+    started, jstack_config
+):
+    kitchen = started
+    (jstack_config.parent / "roles").write_text(
+        f"home: claudeAgent claude-opus-5-5 claudeAgent,{PRIME}\n"
+    )
+    for instance in ("claudeAgent", PRIME):
+        kitchen.t3.constraints[instance] = SIGNED_OUT
+    for n in (0, P + 1):
+        said = kitchen.poll(minutes(n))
+        assert homes(kitchen) == []
+        assert any(
+            "wait home uncategorized: no launch: claudeAgent cannot sign in" in one for one in said
+        )
+    key = f"signed-out claudeAgent,{PRIME}"
+    assert key in alert.streaks(kitchen.state_dir)
+
+
 def test_a_catch_all_waits_when_the_role_map_gives_the_home_no_model(started, jstack_config):
     kitchen = started
     (jstack_config.parent / "roles").write_text("home: nobody\n")
