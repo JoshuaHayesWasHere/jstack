@@ -1,0 +1,32 @@
+# The step every job of the shared check runs before a make target: Go, and go's build and test
+# cache from the newest run, so `go test` runs again only a package whose inputs changed
+# (https://pkg.go.dev/cmd/go#hdr-Build_and_test_caching). Each job restores the cache, and only the
+# job `test` saves it after, keyed by its run, since it alone adds test results.
+name: setup
+description: Install Go and restore its build and test cache.
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version: "1.27.2"
+        cache: false
+    - id: go
+      shell: bash
+      run: printf 'cache=%s\nmodules=%s\n' "$(go env GOCACHE)" "$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+    - if: github.job == 'test'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ${{ steps.go.outputs.cache }}
+          ${{ steps.go.outputs.modules }}
+        key: go-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: go-${{ runner.os }}-
+    - if: github.job != 'test'
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ${{ steps.go.outputs.cache }}
+          ${{ steps.go.outputs.modules }}
+        key: go-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: go-${{ runner.os }}-

@@ -2,12 +2,12 @@
 
 A repo starts on [the repo standard](standard.md) from two folders of this feature.
 `features/repo-standard/skeleton/` holds what every repo has, whatever its stack.
-An adapter, such as `features/repo-standard/adapters/python-uv/`, holds what one stack adds: the commands under the make targets, its selection of tests, and an example feature.
+An adapter, `features/repo-standard/adapters/python-uv/` or `features/repo-standard/adapters/go/`, holds what one stack adds: the commands under the make targets, its selection of tests, and an example feature.
 Both folders mirror the new repo's root, and neither sits under a `templates/` folder, so no harness installs them.
 
 ## Start a repo
 
-Copy the skeleton, then the adapter over it, write the generated files, and commit:
+Copy the skeleton, then the stack's adapter over it, write the generated files, and commit:
 
 ```sh
 cp -R features/repo-standard/skeleton/. ../new-repo/
@@ -20,7 +20,7 @@ git commit -m "start from the repo standard's skeleton"
 ```
 
 The example feature, `hello`, shows where a feature's parts go: rename it for the repo's first feature, or delete its folder and run the target `generate` again.
-`features/repo-standard/tests/test_skeleton_python.py` makes a repo this way, outside jstack, and runs its make targets.
+`features/repo-standard/tests/test_skeleton_python.py` and `features/repo-standard/tests/test_go_adapter.py` each make a repo this way, outside jstack, and run its make targets.
 
 ## What the skeleton holds
 
@@ -92,3 +92,36 @@ It reads the change from the base to the working tree, and each file git does no
 
 A test whose imports do not show what it runs, such as one that runs a module in a subprocess, is not selected.
 Main's full run after each merge runs it, as the standard's rule [Main runs the whole suite after each merge](standard.md#main-runs-the-whole-suite-after-each-merge) says.
+
+### go
+
+The go adapter runs Go modules wherever they sit in the tree, with no go.work, through one script, `features/repo-standard/adapters/go/scripts/go.py`, which runs in `python3` alone:
+
+| Command | What it runs |
+|---|---|
+| `go.py lint` | `gofmt -l` on the `.go` files go builds, so none under `testdata/` or `vendor/`, and `go vet ./...`, in each module, and fails when gofmt names a file. |
+| `go.py test [ids]` | `go test ./...` in each module, or `go test` on the packages it is given, a run per module. |
+| `go.py select <base>` | The selection. |
+
+A test id is the folder of a package that has a test, as a path from the repo's root.
+Its example feature, `hello`, is a module of its own, `features/repo-standard/adapters/go/features/hello/go.mod`, with its test beside its code.
+The adapter replaces the skeleton's `.repo-standard.yml` with its own, which owns no root file in `STACK` and sets the size and comment limits over `*.go` files, read as `script` with `//go:` lines allowed.
+Its test holds every other part equal to the skeleton's.
+A `_test.go` file's name is the repo's one, as for every test, so two packages give their tests names of their own.
+
+Its setup action, `.github/actions/setup/action.yml`, installs Go and restores go's build and test cache from the newest run, so `go test` in CI runs again only a package whose inputs changed.
+Only the job `test` saves the cache it leaves.
+A test that opens a file reads it again after a fresh checkout, since go's cache keys on the file's time as well as its size.
+
+Its selection adds up what each changed path selects, and prints the packages with a test, or `all`:
+
+- A shared path selects `all`: the `Makefile`, `.repo-standard.yml`, and anything under `scripts/`, `.github/` or `schemas/`.
+- A path a glob of a feature's `reads` matches selects the feature's packages.
+- A path inside a module selects every package of the module, and of each module that takes it by a `replace` onto a local folder.
+  go test's cache skips the packages whose inputs did not change.
+- Outside a module, a Markdown page, a feature's `docs/` and its `feature.json` select nothing.
+- Any other path selects `all`.
+
+`reads`, a key of the core manifest schema, lists the files a feature's tests read that its imports do not show, such as a page another feature owns, which a test opens.
+Each entry is a glob from the repo's root, in which `*` crosses folders, and `repo-standard conform` fails a glob that matches no file.
+A file a test reads that no `reads` names is still caught by main's full run after each merge.

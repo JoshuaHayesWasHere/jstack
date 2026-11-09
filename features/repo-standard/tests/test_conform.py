@@ -591,6 +591,19 @@ def selects_in_an_included_make_file(repo):
             no_owners,
             "error every-path-has-one-owner: the config sets no `owners`",
         ),
+        (
+            lambda r: write(
+                r, {"features/beta/feature.json": manifest("beta", reads=["features/*/gone.sql"])}
+            ),
+            "error a-manifest-declares-only-what-exists: features/beta/feature.json: reads "
+            "features/*/gone.sql, which matches no file",
+        ),
+        (
+            lambda r: write(
+                r, {"features/beta/feature.json": manifest("beta", reads=["features/alpha/*.md"])}
+            ),
+            "conform repo-standard-v1, 34 rules: errors 0, warnings 0, waived 0",
+        ),
         (deploys_nothing, "conform repo-standard-v1, 34 rules: errors 0, warnings 0, waived 0"),
         (one_feature_only, "conform repo-standard-v1, 34 rules: errors 0, warnings 0, waived 0"),
     ],
