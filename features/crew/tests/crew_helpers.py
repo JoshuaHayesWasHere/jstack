@@ -265,20 +265,20 @@ def covers(main, brief, head):
     return covered, rangediff.verdict(main, covered, head, "main").clean
 
 
-def run(conclusion, job=None):
+def run(conclusion, job=None, of=5):
     """One run of a check, as `gh pr view --json statusCheckRollup` lists the run, with its job
-    if the run has one."""
+    of workflow run `of` if the run has one."""
     one = {"__typename": "CheckRun", "status": "COMPLETED", "conclusion": conclusion}
     if job:
-        one["detailsUrl"] = f"https://github.com/someone/repo/actions/runs/5/job/{job}"
+        one["detailsUrl"] = f"https://github.com/someone/repo/actions/runs/{of}/job/{job}"
     return one
 
 
-def ran(conclusion, started, completed, name="check", job=None):
+def ran(conclusion, started, completed, name="check", job=None, of=5):
     """A run of the check `name` that ran on 2026-10-18 from `started` to `completed`."""
     day = "2026-10-18T{}Z"
     return {
-        **run(conclusion, job),
+        **run(conclusion, job, of),
         "name": name,
         "startedAt": day.format(started),
         "completedAt": day.format(completed),

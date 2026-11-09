@@ -21,6 +21,7 @@ Its first word is one of four answers:
 `jmerge --checks` is the one reading of a pull request's checks: the pr-review skill and jbus call the same one.
 A failed check whose job GitHub will not give counts as one that ran.
 A check run more than once at the head, one cancelled and run again included, counts by its latest run, the one that started last: `jmerge` reads it the same way.
+The block of "A failed check" reads each check by its latest run too, so a run that failed and was passed since is never run again, and it runs nothing again while the workflow run of a failed check still has a job going.
 The merge goes by the checks the repo names: `jmerge` merges only when each check its `$H/required-checks` file names passed at the head, or the check named `check` where there is no such file (features/jmerge/docs/jmerge.md, "Name the checks a merge waits for").
 
 **A failed check** is the change's own, a base that moved, or a flake, and this says which. Run it in this worktree with the block at the top, after the check command, with what the check command did here in place of the words in angle brackets, `failed` or `passed`:
@@ -37,9 +38,16 @@ elif ! view=$(gh pr view --json headRefOid,baseRefName,statusCheckRollup); then
 else
     head=$(printf %s "$view" | jq -r .headRefOid)
     base=$(printf %s "$view" | jq -r .baseRefName)
-    runs=$(printf %s "$view" |
-        jq -r '.statusCheckRollup[]? | select(.status == "COMPLETED" and (.conclusion | IN("SUCCESS", "NEUTRAL", "SKIPPED") | not)) | .detailsUrl // empty' |
-        sed -n 's|^https://[^/]*/[^/]*/[^/]*/actions/runs/\([0-9]*\)/job/[0-9]*$|\1|p' | sort -u | paste -sd' ' -)
+    picked=$(printf %s "$view" | jq -r '
+        def at: if (. // "") == "" or startswith("0001-") then "~" else . end;
+        def run: (.detailsUrl // "") | capture("^https://[^/]*/[^/]*/[^/]*/actions/runs/(?<id>[0-9]+)/job/[0-9]+$").id;
+        [.statusCheckRollup[]? | {one: ., key: (.name // .context), when: [(.startedAt | at), (.completedAt | at)]}]
+        | group_by(.key) | map((max_by(.when).when) as $last | .[] | select(.when == $last) | .one)
+        | ([.[] | select(.status == "COMPLETED" and (.conclusion | IN("SUCCESS", "NEUTRAL", "SKIPPED") | not)) | run] | unique) as $failed
+        | ([.[] | select(.status != "COMPLETED") | run | select(IN($failed[]))] | unique) as $going
+        | "\($failed | join(" "))|\($going | join(" "))"')
+    runs=${picked%%|*}
+    going=${picked#*|}
     if [ "$(git rev-parse HEAD)" != "$head" ] && [ -z "$(git status --porcelain)" ] && git fetch -q origin "$head" 2> /dev/null && git merge-base --is-ancestor HEAD "$head"; then
         echo "wait: the pushed head $head is ahead of this worktree, which jmerge's merge of origin/$base on GitHub does: run git merge --ff-only $head, then the check command again"
     elif [ "$(git rev-parse HEAD)" != "$head" ] || [ -n "$(git status --porcelain)" ]; then
@@ -52,6 +60,8 @@ else
         echo "stale: the check command passes here at $head, and the branch does not hold the tip of origin/$base: no rerun, no commit, no rebase"
     elif command grep -q "^Rerun: at $head," "$B"; then
         echo "stuck: a fresh run at $head failed again while the check command passes here: not a flake, no second rerun"
+    elif [ -n "$going" ]; then
+        echo "wait: workflow run $going of a failed check at $head is still running, so it has not ended: no rerun until it has, end your turn"
     elif [ -z "$runs" ]; then
         echo "stuck: the failed check at $head is not a workflow run, so there is nothing to run again"
     else
