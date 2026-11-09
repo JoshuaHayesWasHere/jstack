@@ -16,7 +16,8 @@ from jbus.view import state
 from jmerge import ready
 from jroles import ledger
 from test_jbus_expedite import NO_REVIEW, Short, later
-from test_jbus_github import JOB, launched, passes
+from test_jbus_github import JOB, launched
+from test_jbus_github import passes as run_at
 from test_jbus_kitchen import NOW, sends
 from test_jbus_leftover import home
 from test_jbus_queue import gates, rows
@@ -237,7 +238,7 @@ def red(launched):
     """Alpha's pull request #7 is red at `A`, on a green main, in job 11. A first pass told the
     crew of it (`jbus.rebase`'s fix message), and the crew's thread is idle."""
     red_at(launched, A, "11")
-    passes(launched, 0)
+    run_at(launched, 0)
     assert told(launched) == ["failed|alpha|aaaaaaaaaaaa"]
     return launched
 
@@ -247,7 +248,7 @@ def spell(kitchen, minute):
     (crew,) = [one for one in kitchen.t3.threads if one["title"] == "crew: alpha"]
     crew["status"] = "running"
     kitchen.t3.at_work.add(crew["threadId"])
-    passes(kitchen, minute)
+    run_at(kitchen, minute)
     crew["status"] = "completed"
     kitchen.t3.at_work.discard(crew["threadId"])
 
@@ -259,7 +260,7 @@ def restarts(kitchen):
 def test_an_idle_crew_with_a_red_head_is_restarted_on_the_first_pass_its_turn_has_ended(red):
     spell(red, 1)
     assert restarts(red) == []
-    passes(red, 2)
+    run_at(red, 2)
     (restart,) = restarts(red)
     assert restart["threadId"] == "mcp:thread-1"
     assert restart["clientRequestId"] == "restart|alpha|aaaaaaaaaaaa 1"
@@ -275,12 +276,12 @@ def test_a_turn_that_ran_between_passes_starts_a_spell_by_the_thread_s_item_coun
     (crew,) = launched.t3.threads
     crew["itemCount"] = 4
     red_at(launched, A, "11")
-    passes(launched, 0, 1)
+    run_at(launched, 0, 1)
     assert told(launched) == ["failed|alpha|aaaaaaaaaaaa"]
     crew["itemCount"] = 9
-    passes(launched, 2)
+    run_at(launched, 2)
     assert len(restarts(launched)) == 1
-    passes(launched, 3, 4)
+    run_at(launched, 3, 4)
     assert len(restarts(launched)) == 1
 
 
@@ -288,61 +289,61 @@ def test_a_crew_at_work_is_sent_no_restart(red):
     (crew,) = red.t3.threads
     crew["status"] = "running"
     red.t3.at_work.add(crew["threadId"])
-    passes(red, *range(1, 3 * N))
+    run_at(red, *range(1, 3 * N))
     assert restarts(red) == []
 
 
 def test_a_crew_gets_one_restart_an_idle_spell_and_its_second_miss_goes_to_its_home(red):
     desk = home(red)
     spell(red, 1)
-    passes(red, *range(2, 2 + N))
+    run_at(red, *range(2, 2 + N))
     assert len(restarts(red)) == 1 and to(red, desk) == []
     spell(red, 20)
-    passes(red, *range(21, 21 + N))
+    run_at(red, *range(21, 21 + N))
     assert [one["clientRequestId"] for one in restarts(red)] == [
         "restart|alpha|aaaaaaaaaaaa 1",
         "restart|alpha|aaaaaaaaaaaa 2",
     ]
     assert to(red, desk) == []
     spell(red, 40)
-    passes(red, *range(41, 41 + N))
+    run_at(red, *range(41, 41 + N))
     assert len(restarts(red)) == 2
     (stall,) = [one for one in red.lines("stall") if one.startswith("stall alpha: #7 is red")]
     assert "restarted its crew 2 times" in stall
     (told_home,) = to(red, desk)
     assert "alpha" in told_home and "#7" in told_home
     spell(red, 60)
-    passes(red, *range(61, 61 + N))
+    run_at(red, *range(61, 61 + N))
     assert len(restarts(red)) == 2 and len(to(red, desk)) == 1
     assert loud(red) == [] and gates(red) == []
 
 
 def test_a_row_held_by_check_failed_twice_is_not_restarted(red):
     red_at(red, B, "12")
-    passes(red, 1)
+    run_at(red, 1)
     assert rows(red)["alpha"]["held"] is True
     for minute in range(2, 40, 4):
         spell(red, minute)
-        passes(red, minute + 1)
+        run_at(red, minute + 1)
     assert restarts(red) == []
 
 
 def test_a_head_red_on_main_s_red_tip_is_not_restarted(launched):
     red_at(launched, A, "11", main=RED)
-    passes(launched, 0)
+    run_at(launched, 0)
     for minute in range(1, 40, 4):
         spell(launched, minute)
-        passes(launched, minute + 1)
+        run_at(launched, minute + 1)
     assert restarts(launched) == []
 
 
 def test_a_head_red_only_on_a_shared_flake_is_not_restarted(launched):
     red_elsewhere(launched, ("beta", "gamma"))
     red_at(launched, A, "11")
-    passes(launched, 0)
+    run_at(launched, 0)
     for minute in range(1, 40, 4):
         spell(launched, minute)
-        passes(launched, minute + 1)
+        run_at(launched, minute + 1)
     assert restarts(launched) == []
 
 
@@ -350,7 +351,7 @@ def test_a_crew_on_a_capped_instance_is_restarted_only_after_the_reset(red):
     spell(red, 1)
     resets = NOW + timedelta(minutes=10)
     ledger.file_of("claudeAgent").write_text(f"five_hour 100 {int(resets.timestamp())}\n")
-    passes(red, *range(2, 10))
+    run_at(red, *range(2, 10))
     assert restarts(red) == []
-    passes(red, 11)
+    run_at(red, 11)
     assert len(restarts(red)) == 1
