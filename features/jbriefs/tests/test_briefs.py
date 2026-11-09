@@ -288,7 +288,8 @@ def written(*, by_a_scout):
 
 
 def test_jbriefs_reads_the_lines_a_scout_fills_as_the_last_fields_of_the_template():
-    labels = [label for label, _ in parse.fields(TEMPLATE.read_text()) if label not in ("", parse.REST)]
+    fields = parse.fields(TEMPLATE.read_text())
+    labels = [label for label, _ in fields if label not in ("", parse.REST)]
     after = labels.index("Builds on") + 1
     assert tuple(f"{label}:" for label in labels[after:]) == FINDINGS
 
