@@ -278,6 +278,9 @@ def test_each_stored_brief_keeps_what_its_pull_request_line_asks(machine):
 
 
 def test_a_line_written_before_pull_reads_it_from_its_kept_text_or_as_empty(machine):
+    """A store read to the end of a log before `jbus.telemetry.migrations.v015_brief_pull` reads
+    it again, and `jbus.telemetry.records` takes each old line's `pull` from its kept text, or
+    keeps none where that text is gone."""
     path = machine.state_dir / telemetry.FILE
     counted(path, list(migrations.MIGRATIONS).index("v015_brief_pull"))
     state = machine.state("alpha")
