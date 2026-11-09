@@ -132,7 +132,8 @@ What the three views and `row_spend` leave unjoined:
 - `queue.queued_by_session` is the session of the last `jbus queue add` of a slug, so a row a crewmate or a reviewer briefed again names that session (`queued_by_role` says which), and a row jbus's pass or a Codex home queued names none and is not in `row_causes`.
 - A home's call after the last row its thread queued, or in a thread that queued none, is no row's; a row briefed again keeps its first version as `briefed`, so a home's calls on it go to the next row first briefed after them.
 - A scout's call whose entry has no merged row yet is no row's, and its share of each merged row falls as more rows of its entry merge, so a week's `row_spend` can move after the week ends.
-- `row_outcomes` reads `follows` as the queue keeps it: a row whose work a later row carried with no `follows` naming it reads `ended without one`. The store keeps no `why`, so a `done` row still waiting on one counts as over, and a brief version kept before `pull` was asks for nothing.
+- `row_outcomes` reads `follows` as the queue keeps it: a row whose work a later row carried with no `follows` naming it reads `ended without one`.
+- The store keeps no `why`, so a `done` row still waiting on one counts as over in `row_outcomes`, and a brief version kept before `pull` was asks for nothing there.
 
 `jgauge spend` reads T3 Code's own count of each run, which leaves out the calls of a run's subagents.
 A day of it is the day's Claude calls with no `agent`:
