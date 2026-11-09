@@ -106,17 +106,6 @@ spells no path and is on no list. A change it reads in some other way (a glob, a
 with it unrun. So every change also runs each such test, the catch-all, and the summary counts
 it with the cross-cutting tests.
 
-A change of the tests alone runs a narrow check. Where every changed path is a module of a
-folder of tests that the head still holds (a test file, a helper of the tests or a `conftest.py`),
-the selection is the changed test files, the model checks they reach, the tests that import
-or name a helper they changed, the cross-cutting tests and the tests that failed on main: no
-feature's tests and no catch-all. Such a change alters no code but the tests', and the nightly
-full run catches what a narrow check misses. A test that failed on main still runs: the lookup
-below reads a green push run of main as one that passed it. The cross-cutting tests still run,
-since they read the text of every file, the changed tests among them: a plain comment added to a
-test fails `test_no_comments.py`. A change that also touches a fixture, deletes a file or touches
-any path outside the tests selects by all the rules above.
-
 It prints `all` only for a change to the dependencies, `pyproject.toml` and `uv.lock`, or to the
 root `conftest.py` (`EVERY_RUN`), and never for the size of what it selected: a selection of
 nearly every test file still names its files. The whole suite runs nightly, before a release,
@@ -1602,34 +1591,18 @@ def unowned():
     return frozenset(collected() - owned)
 
 
-def tests_alone(changed):
-    """Whether every changed path is a module of a folder of tests that is still there: a test
-    file, a helper of the tests or a `conftest.py`. A fixture, a deleted file or a module of
-    `testing/` outside its tests is not."""
-    return bool(changed) and all(
-        TESTS.match(path) and path.endswith(".py") and (ROOT / path).is_file() for path in changed
-    )
-
-
 def selection(changed, failed=(), edited=None):
     """`(tests, why)`: the sorted test files the changed paths need, or `["all"]`, and for
     each cause the sorted files it selected, or the path that forced `all`. They are what the
     rules select, the test files no rule owns (`catch-all`), and the `failed` test files that
-    the check runs. `why["added"]` lists the failed ones nothing else selected. A change of the
-    tests alone selects only what its imports and names reach, the cross-cutting tests and the
-    failed ones.
-    With `edited`, imports reach as on a pull request's check (`ruled`)."""
+    the check runs. `why["added"]` lists the failed ones nothing else selected. With `edited`,
+    imports reach as on a pull request's check (`ruled`)."""
     tests, why = ruled(changed, edited=edited)
     if tests == ["all"]:
         return tests, why
-    if tests_alone(changed):
-        kept = ("imports", "names", "models", "cross-cutting")
-        chosen = set().union(*(why[key] for key in kept))
-        why = {**{key: why[key] for key in kept}, "features": [], "catch-all": []}
-    else:
-        lone = unowned()
-        chosen = set(tests) | lone
-        why = {**why, "catch-all": sorted(lone)}
+    lone = unowned()
+    chosen = set(tests) | lone
+    why = {**why, "catch-all": sorted(lone)}
     added = set(failed) & collected() - chosen
     return sorted(chosen | added), {**why, "added": sorted(added)}
 
