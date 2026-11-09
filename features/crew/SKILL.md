@@ -93,8 +93,13 @@ On the user's own word to merge, given in this thread, `jmerge --accept <number>
 - The brief is trusted.
   Read the files it names; where it names none, read only what the task needs.
   Do not check its findings again, and do not explore beyond it.
+- When a scout wrote the brief, start from the files on its `Read:` line, measure with the commands on `Instruments:`, and change where `Change:` names.
+  Do not try again what `Ruled out:` names.
 - Stay inside **Where** and out of **Do not touch**. If the task cannot be done without crossing that line, stop and say so.
-- Keep the proof as you go: for each **Done when** line, the command you ran and what it printed, or what you looked at. It goes on the Result's `Proof:` line, and a **Done when** line with no proof there is "does not hold".
+- Keep the proof as you go: for each **Done when** line, the command you ran and what it printed, or what you looked at.
+  Run the brief's `Proves it:` check as it is worded, not a variant or a part of it.
+  This proof and the check's output go on the Result's `Proof:` line, or the Result says why the check could not run here.
+  A **Done when** line with no proof there is "does not hold".
 - When every **Done when** line holds, stop.
   A leftover of the task inside **Where** is cleared in this pull request before the Result.
 - The user may steer in this thread at any time.

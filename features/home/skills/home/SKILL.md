@@ -165,7 +165,8 @@ When the shape of the work is not settled (more than one task, or a design choic
 
 - One entry per task. A task is one pull request's worth of work. If it is larger, split it before anything starts.
 - Every entry has a **Done when** list: checks a person or a command can run. It is the stopping rule. Without one, do not start.
-- A UI change's **Done when** asks for shots at the real Safari viewport (iPhone landscape about 844x300, portrait about 390x664, which Categories' `~/categories-playtest/lib.mjs` exports as `SAFARI`) and for a probe that fails on main, the old code, before it passes on the branch.
+- A UI change's **Done when** asks for a check a command runs, a test or a live read of the data the UI draws, at the real Safari viewport (iPhone landscape about 844x300, portrait about 390x664, which Categories' `~/categories-playtest/lib.mjs` exports as `SAFARI`), and for a probe that fails on main, the old code, before it passes on the branch.
+  A shot is evidence in the Result, never a **Done when** line: `jbus queue add` refuses a **Done when** item that asks for a screenshot, a shot or a recording as proof.
 - Record a decision the user makes in the entry it belongs to, in their words, above its `Done when:` list.
   A line added inside that list, or a changed heading, voids the entry's go and every row under it waits for the user again: after a plan edit, `jbus plan` says `go void` for such an entry.
 - Write no status in an entry, and change none by hand. An entry has a `Stage:` line, which says where the planning is: `proposed`, `planned`, `parked` or `scouting`. Once a brief of the entry is queued, its status is counted from its queue rows by `jbus plan`, and the `Stage:` line is not read.
