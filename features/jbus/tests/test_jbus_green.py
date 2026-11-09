@@ -22,6 +22,13 @@ from test_jbus_queue import gates
 REPO = Path(__file__).resolve().parents[3]
 BROKEN = 'raise ImportError("jbus.telemetry.migrations: v007_drift is migration 8")\n'
 REINSTALL = green._reinstall
+SYSTEMD = pytest.mark.skipif(
+    sys.platform == "darwin",
+    reason="systemd: the move puts the units to work through jinstall's own Machine.here(), "
+    "whose platform no test can set, so on macOS it makes launchd agents of the test's units",
+)
+"""A test whose move reaches `jinstall.green.live` with units to put to work: it holds where
+systemd runs the units, and `launchd.manager` pinned to systemd does not reach jinstall."""
 DEMO = """[project]
 name = "greendemo"
 version = "0"
@@ -237,6 +244,7 @@ FOLLOWER = (
 )
 
 
+@SYSTEMD
 def test_a_move_to_a_main_that_adds_a_unit_links_enables_and_starts_it_once(
     copied, systemd, systemctl, tmp_path, monkeypatch
 ):
@@ -277,6 +285,7 @@ def test_a_move_to_a_main_that_adds_a_unit_links_enables_and_starts_it_once(
     assert not [line for line in said if "linked, enabled" in line]
 
 
+@SYSTEMD
 def test_a_pass_at_a_tip_whose_move_did_not_put_the_units_to_work_does_it_once(
     copied, systemd, systemctl, tmp_path, monkeypatch
 ):
@@ -313,6 +322,7 @@ def test_a_pass_at_a_tip_whose_move_did_not_put_the_units_to_work_does_it_once(
     assert not [line for line in said if "linked, enabled" in line]
 
 
+@SYSTEMD
 def test_a_new_unit_the_manager_will_not_enable_raises_a_condition_and_the_copy_still_moves(
     copied, systemd, systemctl, tmp_path, monkeypatch
 ):
@@ -335,6 +345,7 @@ def test_a_new_unit_the_manager_will_not_enable_raises_a_condition_and_the_copy_
     assert not [line for line in said if "linked, enabled" in line]
 
 
+@SYSTEMD
 def test_a_manager_that_reads_another_home_is_asked_for_no_reload(copied, systemd, systemctl):
     """A test or a sandbox runs a move under a HOME of its own, whose units link through its
     copy, while `systemctl --user` reaches the account's manager, which reads another HOME: the
@@ -352,6 +363,7 @@ def test_a_manager_that_reads_another_home_is_asked_for_no_reload(copied, system
     assert not [line for line in said if "systemd" in line]
 
 
+@SYSTEMD
 def test_a_reload_systemd_refuses_raises_a_condition_and_restarts_no_timer(copied, systemctl):
     copied.stub.joinpath("systemctl").write_text(
         f'#!/bin/sh\necho "$*" >> {systemctl}\n'
@@ -366,6 +378,7 @@ def test_a_reload_systemd_refuses_raises_a_condition_and_restarts_no_timer(copie
     assert not [line for line in said if "systemd reloaded" in line]
 
 
+@SYSTEMD
 def test_a_reload_systemd_refused_is_tried_again_by_each_pass_until_it_holds(copied, systemctl):
     """A move reloads once, so a reload systemd refused left the stale timer running, and every
     later pass found the copy at green and never asked again: the day of #1240 until a hand
