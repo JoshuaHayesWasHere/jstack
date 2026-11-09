@@ -9,9 +9,18 @@ on:
     # (`reuse`). `ready_for_review` stays for browser.yml, which has these types and skips a
     # draft, so a draft someone opened by hand runs its browser tests once it is marked ready.
     types: [opened, synchronize, reopened, ready_for_review]
+  # A push to main runs what the merges since main's last checked commit reach, in the check's
+  # parts (`reuse`, `check-shard`, `check`), not the whole suite: the owner's word of 2026-11-08,
+  # "we should only be running the full test suite before releases and nightly - not every CI
+  # run". The whole suite ran 31.6 job-minutes on 431 of 474 pushes in 7 days.
   push:
     branches: [main]
-  # A manual run always runs the suite, whatever marker the tree has.
+  # The whole suite (`full-shard`, `full`), nightly at 01:00 ET, an hour before browser.yml and
+  # two before macos-nightly. GitHub runs a schedule only from the default branch's file.
+  schedule:
+    - cron: '0 6 * * *'
+  # A manual run always runs the whole suite, whatever marker the tree has: a release starts one
+  # for its tag where the tag's tree has no marker (`make release-green`).
   workflow_dispatch:
 
 permissions:
@@ -20,11 +29,15 @@ permissions:
   actions: read
 
 concurrency:
-  # A push's run and a manual run are each a group of their own. In a shared group one run
-  # waits at most, and the next one cancels it, whatever cancel-in-progress says: a burst of
-  # merges left commits of main with no check at all.
-  group: check-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
-  # Only a pull request shares a group, its ref, and there a new push cancels the older run.
+  # Every push to main shares the group `check-main`: one run goes on, and one waits at most,
+  # since GitHub cancels a waiting run, before it has a job, when a newer push displaces it,
+  # whatever cancel-in-progress says. So a burst of merges is checked by a few runs, each over
+  # every merge since the last run that ran (`green_tree.py --last-checked`), and the commit a
+  # cancelled run waited on is in the next run's range (`jbus.watch._check` reads it as
+  # `batched`). A nightly and a manual run are each a group of their own.
+  group: check-${{ github.event_name == 'pull_request' && github.ref || github.event_name == 'push' && 'main' || github.run_id }}
+  # A pull request's group is its ref, and there a new push cancels the older run. A running
+  # push run is never cancelled: it checks merges no later run selects again.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -53,9 +66,10 @@ jobs:
   # `selection-<attempt>`: the parts start with this job, set up while it runs, and wait for that
   # file alone. A job of its own for the selection, after this one, held the parts back about
   # 40 s more, and parts that waited for this job's end started their tests 32 s after the run's
-  # creation (median of 24 runs, 2026-11-08), their own setup 12 s of it.
+  # creation (median of 24 runs, 2026-11-08), their own setup 12 s of it. A push to main asks
+  # for no reuse: it selects over main's last checked commit and its own (`last checked`).
   reuse:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -82,10 +96,20 @@ jobs:
           fetch-depth: 2
       - name: reuse
         id: reuse
+        if: github.event_name == 'pull_request'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: PYTHONPATH=features/jmerge/src python3 -m jmerge.reuse
+      # A push's base: the newest commit of main under this one whose push run of check.yml ran
+      # to an end, fetched, so the selection covers every merge a displaced run waited on. Where
+      # GitHub does not say, the base is git's empty tree and the selection is the whole suite.
+      - name: last checked
+        id: base
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/green_tree.py --last-checked check.yml
       # The tests that failed on main in the last 30 days and that no later green run of main
       # passed, which every part adds to what it selects (`select_tests.py --failed-on-main`):
       # timing tests no pull request reached broke main in 8 of the audit's 15 reds. The lookup
@@ -139,7 +163,8 @@ jobs:
         env:
           FAILED_ON_MAIN: ${{ steps.failed.outputs.tests }}
           SELECTED: ${{ runner.temp }}/selected-tests.txt
-        run: python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD
+          BASE: ${{ steps.base.outputs.base || 'HEAD^1' }}
+        run: python3 scripts/select_tests.py --parts 8 "$BASE" HEAD
       # What the parts read of this job, its selection and whether it reused a pass, as one
       # artifact the moment the selection is made: the parts start with this job and set up
       # while it runs, and wait for this file, not for the job's end (`check-shard`). It is
@@ -180,9 +205,10 @@ jobs:
       # that keeps the trees can still change. It reads no test, so it runs here, once, and
       # `check` fails when this job did. The commits come from GitHub's compare API, not this
       # checkout's two commits of history, and the patterns need only the runner's python3. It
-      # runs also where the selection failed, so a red check names both.
+      # runs also where the selection failed, so a red check names both. A push to main has no
+      # pull request: its pull request's check ran it.
       - name: no AI co-author trailer
-        if: "!cancelled()"
+        if: "!cancelled() && github.event_name == 'pull_request'"
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: PYTHONPATH=features/jmerge/src:features/jleak/src python3 scripts/no_ai_trailers.py
@@ -219,9 +245,10 @@ jobs:
   # A part needs no job: it sets up while `reuse` selects, then waits for the selection's
   # artifact (`selection`), so its setup is off the path to its first test. It runs whatever
   # `reuse` did, so that a trailer that failed there still runs the tests, a reuse passes it
-  # with no test run, and a part that got no files fails before `make test`.
+  # with no test run, and a part that got no files fails before `make test`. A push to main
+  # runs its selection in the same eight parts.
   check-shard:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
     name: check ${{ matrix.shard }} of 8
     # Every job of every workflow runs on GitHub's hosted runner, by the owner's word ("all
     # jstack CI can be done on via github", 2026-10-22): the repo is public, so its minutes
@@ -364,9 +391,10 @@ jobs:
   # The check the ruleset requires, and jmerge's REQUIRED, so its name stays `check`. It runs
   # whatever the parts did, and passes only when `reuse`, `lint` and all eight parts passed: a
   # job that failed, was cancelled or never ran fails it, where a skipped required check would
-  # count as passed.
+  # count as passed. On a push to main it is main's check: there `lint` is skipped, since the
+  # pull request's lint passed on the same files, and so is the guard of the added lines.
   check:
-    if: always() && github.event_name == 'pull_request'
+    if: always() && (github.event_name == 'pull_request' || github.event_name == 'push')
     needs: [reuse, lint, check-shard]
     runs-on: ubuntu-24.04
     # The guard of the added lines runs here, and a line no part ran in a test that names its
@@ -382,7 +410,8 @@ jobs:
           LINT: ${{ needs.lint.result }}
           REUSE: ${{ needs.reuse.result }}
           REUSED: ${{ needs.reuse.outputs.reused }}
-        run: '[ "$REUSE $LINT" = "success success" ] && { [ "$REUSED" = true ] || [ "$PARTS" = success ]; } || { echo "::error::the reuse job ended $REUSE, the lint $LINT, and the parts of the check $PARTS, not success"; exit 1; }'
+          EVENT: ${{ github.event_name }}
+        run: '[ "$REUSE" = success ] && { [ "$LINT" = success ] || [ "$EVENT $LINT" = "push skipped" ]; } && { [ "$REUSED" = true ] || [ "$PARTS" = success ]; } || { echo "::error::the reuse job ended $REUSE, the lint $LINT, and the parts of the check $PARTS, not success"; exit 1; }'
       # The guard of test_new_lines_run.py, which the parts skip: each line this change adds to a
       # feature's code ran in a test that names its module, read from what the parts recorded
       # (`NEW_LINES_PARTS`, a folder for each part's upload, whose files are named alike), so no
@@ -390,13 +419,13 @@ jobs:
       # passed, and only where the change touches a feature's src/ or scripts/, so any other
       # change pays for the checkout and no more.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        if: needs.check-shard.result == 'success'
+        if: needs.check-shard.result == 'success' && github.event_name == 'pull_request'
         with:
           persist-credentials: false
           fetch-depth: 2
       - name: feature code
         id: code
-        if: needs.check-shard.result == 'success'
+        if: needs.check-shard.result == 'success' && github.event_name == 'pull_request'
         run: 'git diff --quiet HEAD^1 HEAD -- "features/*/src/*.py" "features/*/scripts/*.py" || echo changed=true >> "$GITHUB_OUTPUT"'
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         if: steps.code.outputs.changed == 'true'
@@ -439,11 +468,13 @@ jobs:
         run: echo "::warning::the lookup of the tests that failed on main failed, so the check added none of them"
       # As `full` does: a run that ran the whole suite and passed leaves a marker named by the
       # tree, and a fast run leaves none, since a marker says the full suite passed. A later
-      # run of the same tree, main's after a squash merge, skips the suite on it. A marker that
-      # cannot be kept costs that skip and nothing else.
+      # run of the same tree, main's after a squash merge, skips the suite on it. A push to main
+      # whose selection was the whole suite leaves one too: its lint is skipped, since its pull
+      # request's passed on the same files. A marker that cannot be kept costs that skip and
+      # nothing else.
       - name: green tree marker
         id: marker
-        if: needs.check-shard.result == 'success' && needs.lint.result == 'success' && needs.reuse.result == 'success' && needs.reuse.outputs.selection == 'all'
+        if: needs.check-shard.result == 'success' && (needs.lint.result == 'success' || github.event_name == 'push' && needs.lint.result == 'skipped') && needs.reuse.result == 'success' && needs.reuse.outputs.selection == 'all'
         env:
           NAME: ${{ needs.reuse.outputs.tree }}
         run: mkdir -p "$RUNNER_TEMP/green-tree" && touch "$RUNNER_TEMP/green-tree/$NAME"
@@ -479,13 +510,13 @@ jobs:
       # Only the facts, not a selection: a selection would write its list into the run's summary.
       - name: facts
         run: python3 -c 'import sys; sys.path[0] = "scripts"; import select_tests; select_tests.facts()'
-  # The full suite, on each push to main, after the merge, and by hand. The tests that open a
-  # real browser are not in it: browser.yml runs them, nightly and on a release. It runs as
-  # four jobs side by side, split by time as the check's eight are, and the job `full` below
-  # passes only when all four did. Four, not eight: it is off the merge path, and its jobs share
-  # the account's 40 with the pull requests' checks.
+  # The full suite, nightly and by hand, which a release starts for its tag where the tag's tree
+  # has no marker. The tests that open a real browser are not in it: browser.yml runs them,
+  # nightly and on a release. It runs as four jobs side by side, split by time as the check's
+  # eight are, and the job `full` below passes only when all four did. Four, not eight: it is off
+  # the merge path, and its jobs share the account's 40 with the pull requests' checks.
   full-shard:
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     name: full ${{ matrix.shard }} of 4
     # GitHub's hosted runner, as the check's. The job took 9 and 15 minutes on two runs of
     # 2026-10-22, the same suite on runners of the same image: 30 leaves room for a slow one,
@@ -511,7 +542,7 @@ jobs:
           persist-credentials: false
       # A run that ends green leaves a marker named by the tree it checked out, and a run whose
       # tree has one skips the suite: it would test the same files again. The skip is on the
-      # steps, and the job's `if` is the event's alone, so a push to main always reports
+      # steps, and the job's `if` is the event's alone, so a nightly run always reports
       # `full`. A run that cannot ask runs the suite. A marker is a green run's artifact and
       # nothing else: a ref under refs/jstack/green-tree/, which anybody with write could push,
       # skips nothing.
@@ -630,10 +661,10 @@ jobs:
           path: ${{ runner.temp }}/junit.xml
           retention-days: 30
           if-no-files-found: error
-  # What a push's run reports, as `check` does for a pull request: it passes only when all four
-  # parts passed, and fails on a part that failed, was cancelled or never ran.
+  # What a nightly or manual run reports, as `check` does for a pull request: it passes only when
+  # all four parts passed, and fails on a part that failed, was cancelled or never ran.
   full:
-    if: always() && github.event_name != 'pull_request'
+    if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     needs: full-shard
     runs-on: ubuntu-24.04
     timeout-minutes: 5

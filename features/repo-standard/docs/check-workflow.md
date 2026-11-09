@@ -37,7 +37,8 @@ The plan fails when the config pins another version than the workflow's own.
 The label of a runner on the repo's own machines goes in `runner`, and in the caller's job `check` as its `runs-on`.
 
 A step that the make targets need first, such as a toolchain the runner lacks or a cache of dependencies, goes in a composite action at `.github/actions/setup/action.yml` in the repo.
-Each job that runs a make target runs that action after its checkout, where the file exists.
+The jobs `lint` and `test` run that action after their checkout, where the file exists.
+The job `plan` runs `make select` before any setup, in the runner's `python3` alone.
 
 ## The config's part for the check
 

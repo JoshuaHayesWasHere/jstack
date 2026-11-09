@@ -7,8 +7,8 @@ conform lists are the standard's headings, so a new rule with no check, or no ca
 
 The cases run `repo_standard.cli.main`, the entry point of the command, which runs
 `repo_standard.conform` over the checks of `repo_standard.rules`. Further cases hold its waivers
-and versions, jstack itself, the step of CI's `lint` job that runs it, and the command as `uvx`
-runs it from a tag of a jstack checkout.
+and versions, the config's `stacks:` part, jstack itself, the step of CI's `lint` job that runs
+it, and the command as `uvx` runs it from a tag of a jstack checkout.
 """
 
 import json
@@ -23,6 +23,7 @@ import pytest
 
 from repo_standard import conform as conform_module
 from repo_standard.cli import main
+from repo_standard.config import Refused, Stack, build, parse
 from testing.paths import REPO
 
 STANDARD = REPO / "features" / "repo-standard" / "docs" / "standard.md"
@@ -474,6 +475,41 @@ def test_a_config_conform_cannot_read_exits_2_and_says_why(repo, capsys, line, s
     edit(repo / ".repo-standard.yml", "standard: 1\n", line)
     assert main(["conform", "--root", str(repo), "--upstream", ""]) == 2
     assert said in capsys.readouterr().err
+
+
+def stacks(*rows):
+    """A `stacks:` config of one stack to a row: its name, adapter and the line of its roots."""
+    text = "stacks:\n"
+    for name, adapter, roots in rows:
+        text += f"  {name}:\n    adapter: {adapter}\n" + (f"    {roots}\n" if roots else "")
+    return text
+
+
+def test_a_config_of_two_stacks_over_their_own_roots_loads_into_both():
+    text = stacks(("api", "go", "roots: [api]"), ("capture", "python-uv", "roots: [tools/capture]"))
+    assert build(parse(text)).stacks == {
+        "api": Stack("go", ("api",)),
+        "capture": Stack("python-uv", ("tools/capture",)),
+    }
+
+
+@pytest.mark.parametrize(
+    "rows",
+    [
+        [("api", "rust", "roots: [api]")],
+        [("api", "go", "roots: []")],
+        [("api", "go", None)],
+        [("api", "go", "roots: [api]"), ("x", "python-uv", "roots: [api/x]")],
+        [("all", "go", "roots: [.]"), ("x", "python-uv", "roots: [x]")],
+        [("api", "go", "roots: [../x]")],
+    ],
+    ids=["unknown-adapter", "empty-roots", "no-roots", "nested-roots", "dot-root", "outside-root"],
+)
+def test_a_stacks_config_the_stacks_cannot_run_is_refused(rows):
+    """Each stack runs its adapter over folders of the repo that no other stack owns."""
+    keys = parse(stacks(*rows))
+    with pytest.raises(Refused):
+        build(keys)
 
 
 def test_python_m_repo_standard_runs_the_command(repo):

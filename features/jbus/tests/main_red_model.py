@@ -31,8 +31,9 @@ Each kind of step matches the code as follows:
 - **lands**: a merge, by jmerge, by hand or by `--accept`. No read of the record stops one.
 - **settles**: a pending tip's check ends with one of the answers of `watch._check`
   (`features/jbus/src/jbus/watch.py`): `green`, `failed`, `cancelled` (a later attempt that
-  was cancelled too), `refused` (a run GitHub did not start again) or `nojob` (each failed check
-  run's job ran no step, `watch.NO_JOB`). `main_check` asks without `again`
+  was cancelled too), `refused` (a run GitHub did not start again), `nojob` (each failed check
+  run's job ran no step, `watch.NO_JOB`) or `batched` (a newer push displaced its run before it
+  had a job, `watch.BATCHED`). `main_check` asks without `again`
   (`features/jbus/src/jbus/mainmoved.py`). So `cancelled` and `refused` reach `tell` only
   through `checks.json`, where watch's retro writes them (`_check(..., again=True)`). No `settles`
   event reaches a tip whose check never ends, and that tip stays `pending`. A failed push run at
@@ -81,7 +82,7 @@ RULE = "features/jmerge/docs/jmerge.md"
 TIPS = 4
 EVENTS = 10
 NOW = datetime(2026, 10, 20, 12, 0, tzinfo=UTC)
-SETTLES = ("green", "failed", "cancelled", "refused", "nojob")
+SETTLES = ("green", "failed", "cancelled", "refused", "nojob", "batched")
 TEST_FILE = "features/m/tests/test_m.py"
 
 

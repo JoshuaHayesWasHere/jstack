@@ -151,11 +151,12 @@ pstack-drift:
 # A release. Its version is pyproject.toml's, and plugin.json's, which the generator holds to
 # it. A bump is an ordinary pull request: `uv version --bump <major|minor|patch>`, then
 # `make trees`. `make release`, on a clean main that is origin/main, runs `make release-tag`,
-# runs `make release-green`, tags `v<version>` and pushes the tag, dropping it again where the
-# push fails, and .github/workflows/release.yml does the rest: `make release-tag`, `make
-# release-green` again on the tag's own checkout, `make dist`, an install of the wheel in a HOME
-# of its own, and the GitHub release. The tag runs no check of its own: main's already passed on
-# the same tree.
+# tags `v<version>` and pushes the tag, dropping it again where the push fails, and
+# .github/workflows/release.yml does the rest: `make release-tag`, `make release-green REF=<tag>`
+# on the tag's own checkout, which waits for the whole suite on the tag's tree, `make dist`, an
+# install of the wheel in a HOME of its own, and the GitHub release. A push to main runs only
+# what its merges reach, so the whole suite runs nightly and before a release (the owner's word,
+# 2026-11-08).
 VERSION = $(shell uv version --short)
 
 # Fails unless TAG is `v<version>` of both pyproject.toml and plugin.json.
@@ -169,20 +170,24 @@ release-tag:
 
 # Fails unless a green run of check.yml in this repo left the marker `green-tree-<tree>` for the
 # tree of HEAD (jmerge.green.green_run), so a release ships only files the whole suite passed.
-# The tree is the key, not the commit: a tag on main has main's tree. Main's full run leaves the
-# marker, kept 7 days, once its suite passed. Anything else fails closed, naming the fix: no
-# marker yet, a red or a fork's run, or no answer from GitHub. It asks through `gh`, which fills
-# in the repo from GH_REPO or the checkout's origin, and runs on a bare python3.
+# The tree is the key, not the commit: a tag on main has main's tree. A full run, nightly or by
+# hand, leaves the marker, kept 7 days, once its suite passed, and so does a pull request's or a
+# push's check whose selection was the whole suite. With REF, where no run left one, it starts
+# check.yml's full run on REF (`gh workflow run`), waits up to `WAIT` for it, and asks again, so
+# the release workflow runs the whole suite for a tag whose tree has none. Anything else fails
+# closed, naming the fix: no marker, a red or a fork's run, a full run that failed, or no answer
+# from GitHub. It asks through `gh`, which fills in the repo from GH_REPO or the checkout's
+# origin, and runs on a bare python3.
 define RELEASE_GREEN
-import json, subprocess, sys
+import json, os, subprocess, sys, time
 from jmerge import green
 
-tree = sys.argv[1]
+tree, head = sys.argv[1], sys.argv[2]
+ref = os.environ.get("REF", "")
 name = green.ARTIFACT + tree
-fix = (
-    "wait for main's full run of check.yml to pass and leave it, or, where the marker expired"
-    " after its 7 days, run `gh workflow run check.yml --ref main`, then run this again"
-)
+fix = "run `make release-green REF=<the tag>`, or `gh workflow run check.yml --ref <the tag>` and this again"
+# EVERY, the seconds between two asks of the full run, is 30 unless the tests set it.
+WAIT, EVERY = 60 * 60, int(os.environ.get("EVERY", "30"))
 
 
 def ask(path):
@@ -195,8 +200,39 @@ def ask(path):
     return json.loads(done.stdout)
 
 
+def started():
+    """The ids of check.yml's manual runs of `head`."""
+    runs = ask(f"actions/workflows/check.yml/runs?event=workflow_dispatch&head_sha={head}")
+    return {one["id"] for one in runs["workflow_runs"]}
+
+
+def full_run():
+    """Start check.yml's full run on `ref` and wait for it to end: its conclusion."""
+    before = started()
+    done = subprocess.run(["gh", "workflow", "run", "check.yml", "--ref", ref], capture_output=True, text=True)
+    if done.returncode:
+        return (done.stderr.strip() or "gh exited " + str(done.returncode)).splitlines()[0]
+    print(f"release-green: no marker for tree {tree}, so check.yml's full run started on {ref}")
+    for _ in range(WAIT // max(EVERY, 1)):
+        time.sleep(EVERY)
+        new = started() - before
+        if new:
+            one = ask(f"actions/runs/{max(new)}")
+            if one["status"] == "completed":
+                print(f"release-green: {one['html_url']} ended {one['conclusion']}")
+                return one["conclusion"]
+    return f"no end in {WAIT // 60} minutes"
+
+
 try:
     run, fork = green.green_run(ask, name)
+    if not run and ref:
+        ended = full_run()
+        run, fork = green.green_run(ask, name)
+        fix = (
+            f"check.yml's full run on {ref} ended {ended}: delete the tag"
+            f" (`git push origin :refs/tags/{ref}` and `git tag -d {ref}`), fix main, then tag again"
+        )
 except Exception as error:
     print(f"release-green: could not ask GitHub for {name} ({error}), so no release: {fix}")
     sys.exit(1)
@@ -210,7 +246,7 @@ export RELEASE_GREEN
 
 .PHONY: release-green
 release-green:
-	@tree=$$(git rev-parse 'HEAD^{tree}') && PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=features/jmerge/src python3 -c "$$RELEASE_GREEN" "$$tree"
+	@tree=$$(git rev-parse 'HEAD^{tree}') && head=$$(git rev-parse HEAD) && PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=features/jmerge/src python3 -c "$$RELEASE_GREEN" "$$tree" "$$head"
 
 # DIST, dist/ by default: the wheel, the sdist, and install.sh with the version written in, so
 # that piped to `sh` it installs that release's wheel.
@@ -230,6 +266,5 @@ release:
 	@git fetch -q origin main
 	@[ "$$(git rev-parse HEAD)" = "$$(git rev-parse origin/main)" ] || { echo "release: main is not origin/main"; exit 1; }
 	@$(MAKE) -s release-tag TAG='v$(VERSION)'
-	@$(MAKE) -s release-green
 	git tag -a 'v$(VERSION)' -m 'jstack $(VERSION)'
 	git push origin 'v$(VERSION)' || { git tag -d 'v$(VERSION)'; exit 1; }

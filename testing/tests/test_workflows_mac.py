@@ -296,7 +296,7 @@ def test_a_release_passes_on_a_tree_main_s_green_run_of_the_check_left_a_marker_
     assert asked[0] == f"{ASKED}actions/artifacts?name=green-tree-{tree}&per_page=100"
 
 
-FIX = "gh workflow run check.yml --ref main"
+FIX = "make release-green REF=<the tag>"
 
 
 @pytest.mark.parametrize(
@@ -322,7 +322,7 @@ def test_a_release_fails_closed_naming_the_fix_on_a_tree_with_no_green_marker(
     assert "Traceback" not in said, said
 
 
-def test_make_release_tags_a_clean_main_that_is_origins_and_green_and_refuses_anything_else(
+def test_make_release_tags_a_clean_main_that_is_origins_and_refuses_anything_else(
     tmp_path,
 ):
     repo, origin, git = released(tmp_path)
@@ -345,10 +345,9 @@ def test_make_release_tags_a_clean_main_that_is_origins_and_green_and_refuses_an
     subprocess.run([*git, "-C", repo, "commit", "-q", "--allow-empty", "-m", "two"], check=True)
     assert "release: main is not origin/main" in release().stdout
     subprocess.run([*git, "-C", repo, "push", "-q", "origin", "main"], check=True)
-    red = release({"actions/artifacts": {"artifacts": []}})
-    assert red.returncode != 0 and "no green run of check.yml left" in red.stdout, red.stdout
     assert tags() == []
     assert subprocess.run([*git, "-C", repo, "tag"], capture_output=True, text=True).stdout == ""
-    done = release()
+    done, asked = make(repo, "release", answers={"actions/artifacts": {"artifacts": []}})
     assert done.returncode == 0, done.stdout + done.stderr
+    assert asked == []
     assert tags() == [f"v{VERSION}", f"v{VERSION}^{{}}"]
