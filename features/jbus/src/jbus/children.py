@@ -2,37 +2,38 @@
 with work out.
 
 A child home is a scope of the repo's home: a directory of the state with a `home-id` or a
-`Was home:` line. The root home, the state directory itself, is watched as a child is, under the
-key `/` in `stalls.json`, which no scope's name can be. What a home has out (`out`) is read
-from jbus's own records, never from the home: each queue row of a brief of its that is not over,
-each entry of its plan whose go holds with no live row (`plan.owed`), each crew or reviewer
-thread of such a brief that the last pass found unsettled, each question jbus holds for it, and
-each open gate of its `gates.md`. A row that is queued and not launched is out, and it has no
-crew yet.
+`Was home:` line. The root home owns no row: what it once had out is the catch-all's,
+`uncategorized` (`jbriefs.home.catchall`), which is watched under its name whether its
+directory is made or not, with the entries of the root's plan whose go holds. While the root
+stands in for it (`jbriefs.home.stands_in`), the root's thread is nudged for it and reads the
+root's plan. What a home has out (`out`) is read from jbus's own records, never from the
+home: each queue row of a brief of its that is not over, each entry of its plan whose go holds
+with no live row (`plan.owed`), each crew or reviewer thread of such a brief that the last pass
+found unsettled, each question jbus holds for it, and each open gate of its `gates.md`. A row
+that is queued and not launched is out, and it has no crew yet.
 
 `jbus out --scope <scope>` prints one line for each, and nothing when nothing is out. The
-handoff skill lists it in the note of a scope it archives, whose work is the root home's from
-then on (`RetireHandsOver` in `features/home/spec/HomeTree.tla`). It prints `unknown:` and ends
-1 when jbus's last pass is too old for its list of threads to be trusted.
+handoff skill lists it in the note of a scope it archives, whose work is the uncategorized
+home's from then on (`RetireHandsOver` in `features/home/spec/HomeTree.tla`). It prints
+`unknown:` and ends 1 when jbus's last pass is too old for its list of threads to be trusted.
 
-`watch`, a step of each pass, flags a home that has been quiet for its patience with work out, or
-a routine that missed its beat (`StallFlagged`). A routine is a scope whose directory has a
-`rhythm` file, its beat in minutes, and it is watched whatever it has out. Any other home, the
-root included, is watched while it has a crew, a pull request or an owed entry out: a question or
-a gate waits on the user, and the home can do nothing for it until the user answers. A home is
-quiet from the last thing it did that jbus can see: a write of one of its crew or reviewer
-threads, a change in what it has out, or, before jbus nudged it in this spell, a write of its
-home thread. A message queued to the home thread is no write (`threads`). A turn jbus's own nudge
-started is no progress, so once nudged the home thread's writes do not end the spell. At its
-patience (`PATIENCE`, or the routine's beat) jbus nudges the home thread and the user hears of
-it at once, the first strike (`FirstStrike`); a patience after that nudge it nudges it again; a
-patience after the second it asks the user, and nudges no more (`NudgesBounded`,
-`AsksAfterTwo`). Each step waits a patience after the last, so a home first checked long after it
-went quiet still gets that time to act on a nudge. `stalls.json` keeps each spell: when it
-began, how far it went, when it took its last step, and what the home had out. It holds a key only
-for a home that is watched, so it is no list of the child homes. It was `children.json`, and a
-state that holds only that is moved to the new name on the first pass.
-"""
+`watch`, a step of each pass, flags a home that has been quiet for its patience with work out, or a
+routine that missed its beat (`StallFlagged`). A routine is a scope whose directory has a `rhythm`
+file, its beat in minutes, and it is watched whatever it has out. Any other home, the catch-all
+included, is watched while it has a crew, a pull request or an owed entry out: a question or a gate
+waits on the user, and the home can do nothing for it until the user answers. A home is quiet from
+the last thing it did that jbus can see: a write of one of its crew or reviewer threads, a change in
+what it has out, or, before jbus nudged it in this spell, a write of its home thread. A message
+queued to the home thread is no write (`threads`). A turn jbus's own nudge started is no progress,
+so once nudged the home thread's writes do not end the spell. At its patience (`PATIENCE`, or the
+routine's beat) jbus nudges the home thread and the user hears of it at once, the first strike
+(`FirstStrike`); a patience after that nudge it nudges it again; a patience after the second it asks
+the user, and nudges no more (`NudgesBounded`, `AsksAfterTwo`). Each step waits a patience after the
+last, so a home first checked long after it went quiet still gets that time to act on a nudge.
+`stalls.json` keeps each spell: when it began, how far it went, when it took its last step, and what
+the home had out. It holds a key only for a home that is watched, so it is no list of the child
+homes. It was `children.json`, and a state that holds only that is moved to the new name on the
+first pass."""
 
 from __future__ import annotations
 
@@ -76,8 +77,6 @@ USERS = ("out question ", "out gate ")
 """What waits on the user and not on the home: no home is watched for it, since a nudge cannot
 get it going."""
 STEPS_OF = ("calm", "nudged1", "nudged2", "asked")
-ROOT = "/"
-"""The root home's key in `stalls.json`: a scope is a directory, so none is named `/`."""
 NUDGE = (
     "jbus: {home} has had {what} out and has done nothing jbus can see for {minutes} "
     "minutes. Carry on with your plan: read `{plan}` and your briefs' last "
@@ -116,10 +115,11 @@ def out(
         for row in rows
         if row["slug"] in mine and not queue.over(row)
     ]
+    plans = {"", scope.name} if scope == homes.catchall(root) else {_scope(root, scope)}
     found += [
         f"out entry {made.entry}: go holds, no live row"
         for made in plan.owed(state, root, rows)
-        if made.scope == ("" if scope == root else scope.name)
+        if made.scope in plans
     ]
     found += [
         f"out {one['slug']}: {one['role']} thread {one['id']} is not settled"
@@ -138,6 +138,11 @@ def out(
         if below.line(body, "Status:").startswith("open")
     ]
     return found
+
+
+def _scope(root: Path, scope: Path) -> str:
+    """The scope's name as jbus's plan records keep it, empty for the root's own plan."""
+    return "" if scope == root else scope.name
 
 
 def _read(path: Path) -> str:
@@ -248,7 +253,8 @@ def watch(run: Pass, client: Client, threads: list[dict[str, Any]] | None) -> No
     was: dict[str, Any] = read_json(run.state / FILE, {})
     kept: dict[str, Any] = {}
     known = whose(run.home, run.state, rows)
-    for scope in [run.home, *(one for one, _, _ in homes.scopes(run.home))]:
+    catchall = homes.catchall(run.home)
+    for scope in watched(run.home):
         thread = homes.thread_of(scope)
         lines = [
             line
@@ -259,7 +265,7 @@ def watch(run: Pass, client: Client, threads: list[dict[str, Any]] | None) -> No
         beat = _rhythm(scope)
         if not thread or not (launched or beat):
             continue
-        name = ROOT if scope == run.home else scope.name
+        name = scope.name
         seen = hashlib.sha256("\n".join(line.split(": ")[0] for line in launched).encode())
         sig = seen.hexdigest()[:12]
         prev = was.get(name, {})
@@ -288,7 +294,9 @@ def watch(run: Pass, client: Client, threads: list[dict[str, Any]] | None) -> No
             spell["at"] = last.isoformat()
         if step != "asked" and run.now - start >= timedelta(minutes=patience):
             what = f"{len(launched)} things" if launched else "its beat"
-            if _act(run, client, name, thread, spell, quiet, what):
+            standing = scope == catchall and homes.stands_in(run.home)
+            plan = "jbus plan" if standing else f"jbus plan --scope {name}"
+            if _act(run, client, (name, plan), thread, spell, quiet, what):
                 spell["step"] = STEPS_OF[rank + 1]
                 spell["at"] = run.now.isoformat()
         kept[name] = spell
@@ -299,23 +307,36 @@ def watch(run: Pass, client: Client, threads: list[dict[str, Any]] | None) -> No
         write_json(run.state / FILE, kept)
 
 
+def watched(home: Path) -> list[Path]:
+    """The homes `watch` watches, each under its directory's name in `stalls.json`: the
+    catch-all's, made or not, and each other scope. The root owns no row, so it is none of them."""
+    catchall = homes.catchall(home)
+    return [catchall, *(one for one, _, _ in homes.scopes(home) if one != catchall)]
+
+
 def _stall(run: Pass, name: str) -> str:
     """The key of the alert a home's stall raises, which ends when its spell does."""
     return f"{STALL} {run.project.name} {name}"
 
 
 def _act(
-    run: Pass, client: Client, name: str, thread: str, spell: dict[str, Any], quiet: int, what: str
+    run: Pass,
+    client: Client,
+    named: tuple[str, str],
+    thread: str,
+    spell: dict[str, Any],
+    quiet: int,
+    what: str,
 ) -> bool:
     """Take the next step of a child's spell: a nudge, with the first strike told to the user,
     a second nudge, or the question to the user. Return whether it is done. While the home's
     instance is capped no step is taken: the home could not act on it, so the step waits for the
-    reset. The outbox holds a nudge, and the question waits here."""
-    step, since = spell["step"], spell["since"]
-    home = "the root home" if name == ROOT else f"the home {name}"
+    reset. The outbox holds a nudge, and the question waits here. `named` is the home's name and
+    the command that prints its plan: the root's own while it stands in for the catch-all."""
+    (name, plan), (step, since) = named, (spell["step"], spell["since"])
+    home = f"the home {name}"
     if step in ("calm", "nudged1"):
         n = 1 if step == "calm" else 2
-        plan = "jbus plan" if name == ROOT else f"jbus plan --scope {name}"
         text = NUDGE.format(home=home, what=what, minutes=quiet, plan=plan, n=n)
         if not _send(run, client, thread, text, f"{STALL}|{name}|{since} {n}"):
             return False

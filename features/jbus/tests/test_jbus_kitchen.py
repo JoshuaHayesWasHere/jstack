@@ -34,6 +34,7 @@ import pytest
 
 import jbus
 import jsettings
+import origin_tips
 import repo_template
 from jbriefs import meaning
 from jbus import acts, cli, live, outbox, party, poll, queue, rebase, t3, tick, verbs, wake, word
@@ -825,7 +826,7 @@ class Kitchen:
         `mainmoved`, which reads the tip from git, and `watch.retro`, which reads the list, see one
         main.
         """
-        listed = self.listed_tip(command)
+        listed = origin_tips.listed_tip(self.stub, self.started, command)
         if listed is not None:
             return listed
         fake = None
@@ -848,21 +849,6 @@ class Kitchen:
         if not how.get("text"):
             out, err = out.encode(), err.encode()
         return subprocess.CompletedProcess(command, code, out, err)
-
-    def listed_tip(self, command):
-        """What `git ls-remote origin <ref>` answers where `commits.json` lists commits, or None."""
-        if not isinstance(command, (list, tuple)) or list(command[:3]) != [
-            "git",
-            "ls-remote",
-            "origin",
-        ]:
-            return None
-        kept = self.stub / "commits.json"
-        commits = json.loads(kept.read_text()) if kept.exists() else []
-        if not isinstance(commits, list) or not commits:
-            return None
-        ref = command[3] if len(command) > 3 else "HEAD"
-        return subprocess.CompletedProcess(command, 0, f"{commits[0]['sha']}\t{ref}\n", "")
 
     def machine(self, plan=FRESH, **readings):
         """Write the machine and the plan that `jgauge room` reads: idle and under its limits, or
@@ -955,7 +941,11 @@ class Kitchen:
         subprocess.run(["git", *IDENTITY, *args], cwd=cwd or self.checkout, check=True)
 
     def set(self, name, value):
+        """Write a fake's answer. A merged list moves a base branch, as a merge does, so `look`
+        reads it again (`watch.BASES`)."""
         (self.stub / name).write_text(value if isinstance(value, str) else json.dumps(value))
+        if name == "merged.json":
+            (self.state / "bases.json").unlink(missing_ok=True)
 
     def log(self, name):
         path = self.stub / f"{name}.log"

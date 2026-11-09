@@ -13,7 +13,7 @@ The homes of a repo do not plan each other's work, and they are quiet towards ea
   Every other decision is the scope's and the user's: the home tells the user directly from its own thread, parks it as a gate where only the user can make it, and stops.
 - Nothing else is sent: not a launch, a merge, a pull request opened, a score, a status, or that a scope has ended.
   The root home reads the scope's files, its plan and its queue rows, when the user asks for status ("Reading the scopes").
-  A scope that ends is archived by its home's `/handoff`, which hands what it has out to the root home.
+  A scope that ends is archived by its home's `/handoff`, which hands what it has out to the `uncategorized` home.
 - A standing rule from the user becomes code, a lint, a script or a check, queued as a task by the home that heard it, and never a line in a file a thread reads at its start.
   It is relayed to no home: each home meets the rule in the code it runs.
 - A fault one home finds in another's work, with a known fix, is a queued row of that home's and never a send: `jbus queue add` with `--for <its home>`, its brief's `Decisions:` saying `noticed in <slug>`, unapproved, where approval by rule or the user's go takes it as any row.
@@ -22,6 +22,12 @@ The homes of a repo do not plan each other's work, and they are quiet towards ea
   `jmerge --claims` prints it.
 
 A scoped home gives each brief and request a slug that starts with its prefix, the one line of `$M/prefix`.
+
+**`uncategorized`** is the scope name reserved for the catch-all.
+The root home owns no row: every brief whose `Home:` line names no live scope, `root`, or none at all, is `uncategorized`'s, and so is every slug no other scope's prefix claims (`features/jbriefs/src/jbriefs/home.py`).
+It has no `prefix` file, so it overlaps no other scope's prefix, and two other scopes still may not overlap each other.
+It is made like any scope ("Making a scope"), with nothing in place of `<prefix>`, and its home starts with `/home uncategorized` like any scoped home's.
+Until it has a home of its own, the root home's thread stands in for it: jbus sends the root what it would send `uncategorized`, and `jbus clear` and the root's start list its rows.
 
 **Stopping on the root** is a scoped home's, only for a one-way door, and the only way it reaches the root.
 A stop is a fact of the queue that jbus checks: one of this home's own open rows is held at a one-way door, one case of `features/home/templates/gates.md` word for word, by another home's open row or by something no home owns, and this home cannot clear it.
@@ -85,12 +91,17 @@ if [ -z "$why" ]; then
             why="$scope is already a scope of $R: its home starts with /home $scope"
         elif [ -f "$H/$scope/plan-archived.md" ]; then
             why="$scope is an archived scope of $R: /home $scope starts its home again"
-        elif [ -e "$H/$scope" ]; then
+        elif [ "$scope" != uncategorized ] && [ -e "$H/$scope" ]; then
             why="$scope is there already, as $H/$scope, and is no scope"
         fi ;;
     esac
 fi
-if [ -z "$why" ]; then
+if [ -z "$why" ] && [ "$scope" = uncategorized ]; then
+    if [ -n "$prefix" ]; then
+        why="uncategorized takes no prefix: it owns every slug no other scope's prefix claims, so put nothing in place of the prefix"
+    fi
+    if [ -z "$owns" ]; then owns="every row no other scope of $R claims"; fi
+elif [ -z "$why" ]; then
     case $prefix in
     '' | *'<'* | *'>'*) why="the slug prefix is not filled in" ;;
     *[!abcdefghijklmnopqrstuvwxyz0123456789-]* | -* | *[!-]) why="the slug prefix $prefix is not lower-case letters and digits that end in a dash, as rs- is" ;;
@@ -119,13 +130,22 @@ if [ -n "$why" ]; then
     echo "not made: $why. Nothing is written."
 else
     day=$(date +%F)
-    if mkdir "$H/$scope" 2> /dev/null &&
+    if [ -d "$H/$scope" ]; then had=yes; else had=; fi
+    if { [ -n "$had" ] || mkdir "$H/$scope" 2> /dev/null; } &&
         printf '# %s, %s: plan\n\nGoal (%s, the user): %s\n' "$R" "$scope" "$day" "$owns" 2> /dev/null > "$H/$scope/plan.md" &&
-        printf '%s\n' "$prefix" 2> /dev/null > "$H/$scope/prefix"; then
-        echo "made: scope $scope, with $H/$scope/plan.md and its prefix $prefix in $H/$scope/prefix"
+        { [ -z "$prefix" ] || printf '%s\n' "$prefix" 2> /dev/null > "$H/$scope/prefix"; }; then
+        if [ -n "$prefix" ]; then
+            echo "made: scope $scope, with $H/$scope/plan.md and its prefix $prefix in $H/$scope/prefix"
+        else
+            echo "made: scope $scope, with $H/$scope/plan.md and no prefix: it owns every slug no other scope's prefix claims"
+        fi
         printf 'launch: {"title": "home: %s %s", "workspaceStrategy": {"type": "root"}, "message": "/home %s"}\n' "$(printf '%s' "$R" | sed 's/[\\"]/\\&/g')" "$scope" "$scope"
     else
-        uv run --project "$T/../source" jbus forget --dir "$H/$scope/plan.md" "$H/$scope/prefix" "$H/$scope" > /dev/null 2>&1
+        if [ -n "$had" ]; then
+            uv run --project "$T/../source" jbus forget "$H/$scope/plan.md" > /dev/null 2>&1
+        else
+            uv run --project "$T/../source" jbus forget --dir "$H/$scope/plan.md" "$H/$scope/prefix" "$H/$scope" > /dev/null 2>&1
+        fi
         echo "not made: $H/$scope/plan.md or $H/$scope/prefix could not be written, and what was made is taken back. Nothing is written."
     fi
 fi
@@ -139,6 +159,7 @@ Give the user the link.
 With no such tool, tell the user to open a new thread in this project and type `/home <scope>`.
 
 On `not made:` nothing is written: tell the user what the line says. A name or a prefix that is taken needs another from them.
+For `uncategorized`, put nothing in place of `<prefix>`, and nothing in place of `<what the scope owns>` to have the plan say it owns every row no other scope claims; its directory may be there already, with jbus's files for its rows, and the block keeps them.
 
 **Reading the scopes** is the root home's too, when the user asks for status. In one call with the block at the top and the block that finds this home:
 

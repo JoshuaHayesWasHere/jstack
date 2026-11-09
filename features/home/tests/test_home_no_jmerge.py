@@ -294,21 +294,22 @@ NAMED = {
 
 
 OWNERS = {
-    "none": claims.ROOT,
-    "root": claims.ROOT,
-    "root-before": claims.ROOT,
+    "none": claims.UNCATEGORIZED,
+    "root": claims.UNCATEGORIZED,
+    "root-before": claims.UNCATEGORIZED,
     "scoped": "billing",
     "scope": "billing",
     "scoped-before": "billing",
-    "no-scope": claims.ROOT,
-    "tasks": claims.ROOT,
-    "nobody": claims.ROOT,
+    "no-scope": claims.UNCATEGORIZED,
+    "tasks": claims.UNCATEGORIZED,
+    "nobody": claims.UNCATEGORIZED,
 }
 
 
 def test_whose_a_brief_is_agrees_with_jmerge(repo):
     """Three readers agree on each case: the skill's `whose`, the `homes` of `jmerge --claims`, and
-    the `others` of `jmerge --home`. A `Home:` line that names no home is the root's."""
+    the `others` of `jmerge --home`. A `Home:` line that names no home is the catch-all's,
+    `uncategorized`, and the root asks for it while it stands in for it."""
     scope = repo.state / "billing"
     scope.mkdir()
     (scope / "home-id").write_text("mcp:scoped\n")
@@ -323,7 +324,11 @@ def test_whose_a_brief_is_agrees_with_jmerge(repo):
     repo.log(*(MERGED.replace("beta", slug) for slug in NAMED))
     homes = cli.Repo(repo.main, repo.state, None, False, user=jsettings.DEFAULTS).homes.known
     assert {slug: claims.of_brief(slug, NAMED[slug], {}, homes).home for slug in NAMED} == OWNERS
-    for me, name in ((ME, claims.ROOT), ("mcp:scoped", "billing"), (None, claims.ROOT)):
+    for me, name in (
+        (ME, claims.UNCATEGORIZED),
+        ("mcp:scoped", "billing"),
+        (None, claims.UNCATEGORIZED),
+    ):
         theirs = [slug for slug in NAMED if OWNERS[slug] == name]
         assert mine(repo, me) == theirs
         if me:

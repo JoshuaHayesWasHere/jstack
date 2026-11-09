@@ -14,7 +14,7 @@ step `check` waits on, the outcome `checked.outcome` gives it (`failing`, `waiti
 `stacked`, or None where it has none), in `check`, in `stacked` and in `you` alike, so a stacked
 row the user holds still counts as stacked, and None for a row on any other step. Its
 `home` is its brief's, as `homes.Homes` gives it from `jbriefs.home_of`: a row whose brief names
-no home is the root's, `root`, whatever rows it links to.
+no home is the catch-all's, `uncategorized`, whatever rows it links to.
 
 A row waits on each row its `depends` and `merge_after` name that is still open: a task of its
 project, so not merged, done or judged through. `waited_by` is the reverse, among the rows the
@@ -23,9 +23,10 @@ more than the deepest row it waits on, and head is that row's head, the oldest a
 rows of a loop count as one row: each has the loop's depth and head, and a loop that waits on
 nothing outside it is depth 1, with its oldest row as head.
 
-`homes` gives each home of each project its row of the stage x home matrix: the root first, then
-each scope (`homes.Homes.scopes`), a scope with no open row included, and any other home a row
-names, the one with the most open rows first and by name among equals. Each has `open`, how
+`homes` gives each home of each project its row of the stage x home matrix: the catch-all first,
+made or not, then each other scope (`homes.Homes.scopes`), a scope with no open row included, and
+any other home a row names, the one with the most open rows first and by name among equals. The
+root owns no row, so it has none. Each has `open`, how
 many rows the board places in it, its `colour` (`homes.Homes.colours`, None for a home that is
 no scope now), its `last` act (`state.acts`, the newest whose home it is),
 and a cell for each stage a row can be in (`CELLS`):
@@ -54,6 +55,7 @@ from typing import Any
 
 from jbus.view import cause as causes
 from jbus.view import checked
+from jbus.view.homes import CATCHALL
 from jbus.view.state import (
     MOVES_FILE,
     PASS_FILE,
@@ -70,7 +72,6 @@ from jbus.view.state import (
 
 FIRST = False
 ALONE = True
-ROOT_NAME = "root"
 LINKS = ("depends", "merge_after")
 OLD = timedelta(hours=1)
 _ORDER = {one.key: at for at, one in enumerate(STAGES)}
@@ -180,7 +181,7 @@ def cards(read: Read) -> list[Card]:
             Card(
                 task["slug"],
                 read.name,
-                task["home"] or ROOT_NAME,
+                task["home"] or CATCHALL,
                 stage,
                 task["since"],
                 said,
@@ -258,10 +259,10 @@ def _homes(read: Read, placed: list[Card], now: datetime) -> list[dict[str, Any]
     """The project's row of the matrix for each of its homes, in the order `homes` names."""
     mine = [card for card in placed if card.project == read.name]
     scopes = [one.name for one, _, _ in read.homes.scopes]
-    names = {ROOT_NAME, *scopes, *(card.home for card in mine)} - {ROOT_NAME}
+    names = {*scopes, *(card.home for card in mine)} - {CATCHALL}
     count = {name: sum(1 for card in mine if card.home == name) for name in names}
-    names = [ROOT_NAME, *sorted(names, key=lambda name: (-count[name], name))]
-    last = {one["home"] or ROOT_NAME: one for one in read.acts if one["home"] is not None}
+    names = [CATCHALL, *sorted(names, key=lambda name: (-count[name], name))]
+    last = {one["home"]: one for one in read.acts if one["home"]}
     found = []
     for name in names:
         rows = [card for card in mine if card.home == name]
@@ -271,7 +272,7 @@ def _homes(read: Read, placed: list[Card], now: datetime) -> list[dict[str, Any]
                 "project": read.name,
                 "name": name,
                 "open": len(rows),
-                "colour": read.homes.colours.get("" if name == ROOT_NAME else name),
+                "colour": read.homes.colours.get(name),
                 "last": act and {"at": act["at"], "what": act["what"]},
                 "cells": {
                     key: _cell([card for card in rows if card.stage == key], now) for key in CELLS

@@ -348,13 +348,13 @@ MATRIX = (Path(__file__).parent / "matrix.js").read_text()
 
 def test_the_matrix_reads_the_t_moment_and_a_cell_filters_the_columns_till_esc_or_back(tmp_path):
     """Over the T moment at 1440 the Homes page draws the matrix above its map, its legend before
-    its table: a line per home, the root 20, jview 15, flow 8 and macos 1, and infra with no open
-    row, the totals of each stage, a dot per row, square and shaded by what it waits on in Check,
-    and the Chains line. A cell is a link to `#/?home=<project>/<home>&stage=<s>`, which leaves
-    that home's rows of that stage alone in the board's columns under a "Showing <home>,
-    <stage> ✕" bar scrolled into view; Esc and the browser's back each undo it, back to the Homes
-    page. After a drawer opened and shut over the cell's rows, Esc still undoes it, to the whole
-    board."""
+    its table: a line per home but the root, which owns no row: the catch-all `uncategorized` 20
+    first, jview 15, flow 8 and macos 1, and infra with no open row, the totals of each stage, a dot
+    per row, square and shaded by what it waits on in Check, and the Chains line. A cell is a link
+    to `#/?home=<project>/<home>&stage=<s>`, which leaves that home's rows of that stage alone in
+    the board's columns under a "Showing <home>, <stage> ✕" bar scrolled into view; Esc and the
+    browser's back each undo it, back to the Homes page. After a drawer opened and shut over the
+    cell's rows, Esc still undoes it, to the whole board."""
     from view.days import t_moment
     from view.scene import briefed
 
@@ -366,7 +366,7 @@ def test_the_matrix_reads_the_t_moment_and_a_cell_filters_the_columns_till_esc_o
     steps = [
         "cell:demo/jview/check",
         "esc",
-        "cell:demo/root/stacked",
+        "cell:demo/uncategorized/stacked",
         "back",
         "cell:demo/jview/check",
         "help",
@@ -404,7 +404,7 @@ def test_the_matrix_reads_the_t_moment_and_a_cell_filters_the_columns_till_esc_o
     ]
     heads = [(one["home"], one["head"].split(" last act")[0]) for one in first["homes"]]
     assert heads == [
-        ("demo/root", "root 20"),
+        ("demo/uncategorized", "uncategorized 20"),
         ("demo/jview", "jview 15"),
         ("demo/flow", "flow 8"),
         ("demo/macos", "macos 1"),
@@ -432,7 +432,7 @@ def test_the_matrix_reads_the_t_moment_and_a_cell_filters_the_columns_till_esc_o
     assert [one["text"] for one in cell["chips"] if one["pressed"]] == ["jview 15"]
     assert cell["bar"] == "Showing jview, Check ✕"
     assert cell["barSeen"], cell
-    assert cell2["hash"] == "#/?home=demo/root&stage=stacked"
+    assert cell2["hash"] == "#/?home=demo/uncategorized&stage=stacked"
     assert [one["key"] for one in cell2["stages"]] == ["stacked"]
     assert shut["hash"] == "#/?home=demo/jview&stage=check"
     for home in (esc, back):
@@ -444,8 +444,9 @@ def test_the_matrix_reads_the_t_moment_and_a_cell_filters_the_columns_till_esc_o
 
 
 def two_roots(scene):
-    """Two projects, each with only its root home: jstack has 12 open rows, ten queued and two
-    at a gate no one lists, so in Crew, and infra has one, stt-bench-run, in Crew the same way."""
+    """Two projects, each with only its root home, so every row is its catch-all's,
+    `uncategorized`: jstack has 12 open rows, ten queued and two at a gate no one lists, so in
+    Crew, and infra has one, stt-bench-run, in Crew the same way."""
     rows = [row(f"js-row-{n}", since=stamp(10 + n)) for n in range(10)]
     rows += [
         row(f"js-gate-{n}", "gate", why="a gate the Chef has", since=stamp(30 + n))
@@ -461,15 +462,18 @@ def two_roots(scene):
     (infra / "work.json").write_text(json.dumps(work))
 
 
-def test_two_projects_each_with_a_root_are_two_homes_in_every_chip_card_link_and_filter(tmp_path):
-    """jstack's root and infra's root are two homes: two chips, "infra·root 1" and
-    "jstack·root 12", a card meta that names the project, a matrix line each, and
-    infra's Crew cell on the Homes page lists infra's row alone, under "Showing infra·root,
-    Crew ✕". The bar's ✕ gives every row back, on the board."""
+def test_two_projects_each_with_a_catchall_are_two_homes_in_every_chip_card_link_and_filter(
+    tmp_path,
+):
+    """jstack's catch-all and infra's are two homes: two chips, "infra·uncategorized 1" and
+    "jstack·uncategorized 12", a card meta that names the project, a matrix line each and none for
+    either project's root, which owns no row, and infra's Crew cell on the Homes page lists infra's
+    row alone, under "Showing infra·uncategorized, Crew ✕". The bar's ✕ gives every row back, on
+    the board."""
     scene = Scene(tmp_path / "scene", pytest.MonkeyPatch(), name="jstack")
     two_roots(scene)
     served = Served(scene)
-    walk = 'window.__cells = ["cell:infra/root/crew", "clear"];\n'
+    walk = 'window.__cells = ["cell:infra/uncategorized/crew", "clear"];\n'
     try:
         seen = look(
             scene,
@@ -486,19 +490,22 @@ def test_two_projects_each_with_a_root_are_two_homes_in_every_chip_card_link_and
     first, cell, cleared = seen["seen"]
     chips = [one["text"] for one in cleared["chips"]]
     assert chips[0] == "All homes 13"
-    assert sorted(chips[1:-1]) == ["infra·root 1", "jstack·root 12"]
-    assert sorted(one["home"] for one in first["homes"]) == ["infra/root", "jstack/root"]
+    assert sorted(chips[1:-1]) == ["infra·uncategorized 1", "jstack·uncategorized 12"]
+    assert sorted(one["home"] for one in first["homes"]) == [
+        "infra/uncategorized",
+        "jstack/uncategorized",
+    ]
     metas = {one["slug"]: one["meta"] for one in cleared["cards"]}
-    assert metas["stt-bench-run"].startswith("infra·root · ")
-    assert metas["js-gate-0"].startswith("jstack·root · ")
-    infra = next(one for one in first["homes"] if one["home"] == "infra/root")
+    assert metas["stt-bench-run"].startswith("infra·uncategorized · ")
+    assert metas["js-gate-0"].startswith("jstack·uncategorized · ")
+    infra = next(one for one in first["homes"] if one["home"] == "infra/uncategorized")
     crew = [one["href"] for one in infra["cells"] if one["href"]]
-    assert crew == ["#/?home=infra/root&stage=crew"]
+    assert crew == ["#/?home=infra/uncategorized&stage=crew"]
 
-    assert cell["hash"] == "#/?home=infra/root&stage=crew"
+    assert cell["hash"] == "#/?home=infra/uncategorized&stage=crew"
     assert [(one["key"], one["slugs"]) for one in cell["stages"]] == [("crew", ["stt-bench-run"])]
-    assert [one["text"] for one in cell["chips"] if one["pressed"]] == ["infra·root 1"]
-    assert cell["bar"] == "Showing infra·root, Crew ✕"
+    assert [one["text"] for one in cell["chips"] if one["pressed"]] == ["infra·uncategorized 1"]
+    assert cell["bar"] == "Showing infra·uncategorized, Crew ✕"
     assert cell["barSeen"], cell
     assert cleared["hash"] in ("", "#/")
     assert cleared["bar"] == ""
@@ -531,12 +538,15 @@ def walk_two_roots(tmp_path, route, steps):
     ("route", "said", "slugs"),
     [
         ("#/?home=jstack", "Showing jstack ✕", 12),
-        ("#/?home=root", "Showing root ✕", 13),
+        ("#/?home=uncategorized", "Showing uncategorized ✕", 13),
     ],
 )
-def test_a_project_alone_or_an_older_bare_home_filters_the_two_roots(tmp_path, route, said, slugs):
+def test_a_project_alone_or_an_older_bare_home_filters_the_two_catchalls(
+    tmp_path, route, said, slugs
+):
     """`?home=jstack` names a project and keeps its rows alone, with no infra row; an older
-    link's bare `?home=root` names no project, so it keeps the root of each project."""
+    link's bare `?home=uncategorized` names no project, so it keeps the catch-all of each
+    project."""
     (seen,) = walk_two_roots(tmp_path, route, [])
     cards = [one["slug"] for one in seen["cards"]]
     assert len(cards) == slugs
@@ -549,17 +559,17 @@ def test_the_bars_x_shows_every_home_and_esc_or_x_clears_a_chip_alone(tmp_path):
     and stage, as its label says, and does not step back to the Homes page. Esc and ✕ clear a
     chip alone."""
     steps = [
-        "cell:infra/root/crew",
+        "cell:infra/uncategorized/crew",
         "clear",
-        "chip:infra/root",
+        "chip:infra/uncategorized",
         "esc",
-        "chip:infra/root",
+        "chip:infra/uncategorized",
         "clear",
     ]
     _, cell, cleared, chip, esced, chip2, unchipped = walk_two_roots(tmp_path, "#/homes", steps)
-    assert chip["hash"] == chip2["hash"] == "#/?home=infra/root"
-    assert chip["bar"] == "Showing infra·root ✕"
-    assert cell["hash"] == "#/?home=infra/root&stage=crew"
+    assert chip["hash"] == chip2["hash"] == "#/?home=infra/uncategorized"
+    assert chip["bar"] == "Showing infra·uncategorized ✕"
+    assert cell["hash"] == "#/?home=infra/uncategorized&stage=crew"
     for after in (cleared, esced, unchipped):
         assert after["hash"] in ("", "#/"), after["hash"]
         assert after["bar"] == ""

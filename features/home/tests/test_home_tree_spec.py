@@ -155,11 +155,12 @@ def retiring(kitchen, tmp_path):
     return Retiring(kitchen, tmp_path / "retiring")
 
 
-def test_retire_hands_over_a_child_archived_with_its_crew_out_leaves_it_to_the_root(retiring):
+def test_retire_hands_over_a_child_archived_with_its_crew_out_to_uncategorized(retiring):
     """RetireHandsOver, along bug 1 of the chart. 1. The root makes child a: the scope `sc` has
     its home. 2. Child a launches a crew: a jbus pass launches the scope's approved row. 3. You
-    retire child a: its home is archived while its crew is out, the note lists the row as moved
-    to the root, and the row's brief is the root home's by the rule every thread and jbus ask."""
+    retire child a: its home is archived while its crew is out, the note lists the row under
+    "Moved to uncategorized:", and the row's brief is the `uncategorized` home's by the rule every
+    thread and jbus ask: the root home owns no row."""
     from jbriefs import home as homes
     from test_jbus_queue import add, brief, rows
 
@@ -175,12 +176,13 @@ def test_retire_hands_over_a_child_archived_with_its_crew_out_leaves_it_to_the_r
     said = retiring.retires()
 
     assert said[0].startswith(
-        "archived: scope sc is closed, and what it had out is the root home's"
+        "archived: scope sc is closed, and what it had out is the uncategorized home's"
     )
-    assert "- out sc-crew: row launched" in said, said
+    moved = said.index("Moved to uncategorized:")
+    assert said[moved + 1] == "- out sc-crew: row launched", said
     assert not (retiring.scope / "plan.md").exists()
     assert not (retiring.scope / "home-id").exists()
-    assert homes.home_of(kitchen.home, text) == kitchen.home
+    assert homes.home_of(kitchen.home, text) == homes.catchall(kitchen.home)
 
 
 def test_stall_flagged_a_quiet_child_with_its_crew_out_is_flagged(kitchen):

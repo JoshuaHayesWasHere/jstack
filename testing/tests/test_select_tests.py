@@ -6,8 +6,8 @@ It runs it in a temporary git repo that holds a copy of the script, a copy of th
 the script imports from this checkout to read the map's patterns, and a few modules, docs and
 tests of its own: the folders its `READ_SET` names, so a change runs these tests only where it
 reaches the selector. The tests that run the selector on this repo's own tree, its table of
-rules, their mutants and the map's tests, are in test_select_tests_rules.py, which every change
-runs."""
+rules and the map's tests, are in test_select_tests_rules.py, which every change runs, and the
+rules' mutants in test_select_tests_mutants.py."""
 
 import importlib.util
 import re

@@ -166,10 +166,13 @@ def test_the_overview_of_a_day_of_todays_size_is_no_more_than_250_words(scene, t
 
 def test_a_bare_link_shows_every_project_once_from_one_request_a_poll(scene, tmp_path):
     """The overview has the machine as one word, one bar of what waits on the user across the
-    projects, and a card for each project. larder's CI could not be read, so it is first, and
-    demo and pantry have what waits on the user. The bar draws no list of what waits: it opens
-    the triage tab. The page asks `/stack.json` once a poll, and `/panel/pipeline.json` for the
-    matrix above the map, and nothing else. After a poll that changed nothing, the page draws
+    projects, and a card for each project. larder's CI could not be read, so it is first, and demo
+    and pantry have what waits on the user. A card's first line is its root's: the root owns no row,
+    but while the catch-all has no thread of its own the root's line stands for it, with its open
+    rows and what waits on the user beside the gate of the root's `gates.md` on its default. The
+    bar draws no list of what waits: it
+    opens the triage tab. The page asks `/stack.json` once a poll, and `/panel/pipeline.json` for
+    the matrix above the map, and nothing else. After a poll that changed nothing, the page draws
     nothing again."""
     stacked(scene)
     seen = look(scene, tmp_path, route="#/homes", at=33000, budget=40000)
@@ -544,16 +547,17 @@ def test_on_a_phone_the_overview_is_one_column_in_the_order_of_the_wireframe(sce
 
 
 def test_every_home_is_a_line_with_its_open_rows_its_check_and_its_last_act(scene, tmp_path):
-    """Over the T moment, each home of the project is one line, the root first and then by its
-    open rows: its name, its open count, a bar of its rows in check by outcome beside the rest,
-    and how long ago it last acted, on one line. Each line opens the board's rows of that home,
-    keyed by its project and its name, `#/?home=demo/root`. The legend names only the kinds a bar
-    draws, each in its own paint."""
+    """Over the T moment, each home of the project but the root, which owns no row, is one line,
+    the catch-all `uncategorized` first and then by its open rows: its name, its open count, a bar
+    of its rows in check by outcome beside the rest, and how long ago it last acted, on one line.
+    Each line opens the board's rows of that home, keyed by its project and its name,
+    `#/?home=demo/uncategorized`. The legend names only the kinds a bar draws, each in its own
+    paint."""
     DAYS["t"](scene)
     seen = desk(scene, tmp_path, screen=PHONE)
     homes = seen["homes"]
     assert [(one["home"], one["text"].split()[:2]) for one in homes] == [
-        ("demo/root", ["root", "20"]),
+        ("demo/uncategorized", ["uncategorized", "20"]),
         ("demo/jview", ["jview", "15"]),
         ("demo/flow", ["flow", "8"]),
         ("demo/macos", ["macos", "1"]),
@@ -589,7 +593,7 @@ def test_on_a_phone_the_probe_waits_for_every_home_when_the_board_answers_last(s
     DAYS["t"](scene)
     seen = desk(scene, tmp_path, screen=PHONE, script=LATE_BOARD + OVERVIEW)
     assert [one["home"] for one in seen["homes"]] == [
-        "demo/root",
+        "demo/uncategorized",
         "demo/jview",
         "demo/flow",
         "demo/macos",

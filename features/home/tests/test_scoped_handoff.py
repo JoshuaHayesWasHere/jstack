@@ -1,7 +1,7 @@
 """A handoff in a repo with a root home and a scoped one: each home's `/handoff` archives it in its
 own directory and starts no home after it. A scoped home's scope is closed, and what it had out is
-listed as the root home's. Each test takes every block from the handoff skill and runs it in a
-temporary repo that has both homes."""
+listed as the `uncategorized` home's: the root home owns no row. Each test takes every block from
+the handoff skill and runs it in a temporary repo that has both homes."""
 
 import os
 import re
@@ -23,8 +23,8 @@ from test_scoped_home import (
 OPEN = "## sc-next: a task still to do\nStage: planned\nDone when:\n- it works\n"
 NOTE = "Why: the user archived it\nOut, not on the bus: none\nUncommitted: none\n"
 ARCHIVED_SCOPE = (
-    f"archived: scope {SCOPE} is closed, and what it had out is the root home's. Start no home:"
-    " switch off its scheduled tasks, tell the user, then rename and settle this thread"
+    f"archived: scope {SCOPE} is closed, and what it had out is the uncategorized home's. Start no"
+    " home: switch off its scheduled tasks, tell the user, then rename and settle this thread"
 )
 ARCHIVED_ROOT = (
     f"archived: the root home is archived, and {NAME} has no home until someone types /home."
@@ -98,7 +98,7 @@ def test_a_scoped_home_is_archived_in_its_own_directory_and_its_scope_closed(hom
     assert said == [
         ARCHIVED_SCOPE,
         f"note: {homes.home_dir / kept}",
-        "Moved to the root: none",
+        "Moved to uncategorized: none",
         f"title: home: {NAME} {SCOPE}",
     ]
     assert own(homes.home_dir) == root
@@ -150,7 +150,7 @@ def test_the_root_home_is_archived_and_the_repo_has_no_home(homes, monkeypatch):
             "out sc-crew: row launched\nout question 4: tea or coffee?",
             0,
             [
-                "Moved to the root:",
+                "Moved to uncategorized:",
                 "- out sc-crew: row launched",
                 "- out question 4: tea or coffee?",
             ],
@@ -158,7 +158,7 @@ def test_the_root_home_is_archived_and_the_repo_has_no_home(homes, monkeypatch):
         (
             "unknown: the last pass is old",
             1,
-            ["Moved to the root:", "- not known, jbus said: unknown: the last pass is old"],
+            ["Moved to uncategorized:", "- not known, jbus said: unknown: the last pass is old"],
         ),
     ],
     ids=["something out", "jbus cannot say"],
@@ -310,15 +310,15 @@ def jbus_takes_gates(homes, monkeypatch, gate_code=0):
     return log
 
 
-def test_an_open_gate_of_an_archived_scope_becomes_a_question_of_the_root_home(homes, monkeypatch):
+def test_an_open_gate_of_an_archived_scope_becomes_a_question_of_uncategorized(homes, monkeypatch):
     log = jbus_takes_gates(homes, monkeypatch)
     (homes.scope_dir / "gates.md").write_text(GATE)
     _, said = homes.archives(SCOPED, homes.scope_dir)
     assert said[0] == ARCHIVED_SCOPE
-    assert "- gate 3 of gates.md is the root home's, queued: question 9" in said
+    assert "- gate 3 of gates.md is the uncategorized home's, queued: question 9" in said
     assert log.read_text() == (
-        "slug: home\n## Gate 3: tea or coffee?\nStatus: open\nDefault: tea\nAsked by: home\n"
-        "Undo: pour it\n\n"
+        "slug: home-uncategorized\n## Gate 3: tea or coffee?\nStatus: open\nDefault: tea\n"
+        "Asked by: home\nUndo: pour it\n\n"
     )
     assert not (homes.scope_dir / "gates.md").exists()
     assert (homes.scope_dir / "gates-moved.md").read_text() == GATE

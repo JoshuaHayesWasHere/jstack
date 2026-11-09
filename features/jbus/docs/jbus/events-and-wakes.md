@@ -28,7 +28,8 @@ A line of a home's `plan.md` that defers an action on an event no code watches, 
 A home's notes file that takes a new dated line is an item of that home's too (`jbus.notes`), named by the newest such line, since a home adds no entries there.
 A stall is how a step hands a row to its home: the clock's second miss, a check cancelled twice, a decline the scoped pass did not uphold.
 An item's key is what it is, with no run and no time in it: a red is its failing tests, so one red is one item whatever runs or branches show it.
-A row to approve is the item of the home whose brief it is, as `jbus home` says, and any other need is the root home's.
+A row to approve wakes no thread: a home approves a row on your word as it queues it (`jbus queue add --message`), so a go still owed waits on you alone, on `jbus needs` and the view.
+Any other need is the root home's.
 An item whose cause is another open item folds into that item, as the stall of a row whose pull request is red, unless the row is that item's fix.
 An item that leaves the list wakes no one.
 A pass sends each home thread at most one `wakes` message, and `wakes.json` in the project's state keeps what each home was told.

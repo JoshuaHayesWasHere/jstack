@@ -151,14 +151,10 @@ def account(run: Pass, unrun: str, passed: str) -> None:
 def tell(run: Pass) -> None:
     """Judge each tip main went through since the last pass, and write `main.json`: the red tip,
     the last green one and the tips still pending. A pass whose GitHub budget is at jbus's floor,
-    or not known, runs no `tell` (`jbus.budget`)."""
-    asked = run.run("git", "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD")
-    default = asked.stdout.strip().removeprefix("origin/")
-    if not default:
-        return
-    asked = run.run("git", "ls-remote", "origin", f"refs/heads/{default}")
-    main = (asked.stdout.split() or [""])[0]
-    if asked.returncode != 0 or not main:
+    or not known, runs no `tell` (`jbus.budget`). Main's tip is the one `git ls-remote` gives
+    the pass (`Pass.tip`)."""
+    main = run.tip()
+    if not main:
         return
     was = mainjson.load(run.state) or {}
     last, broken = was.get("main"), was.get("broken", "")

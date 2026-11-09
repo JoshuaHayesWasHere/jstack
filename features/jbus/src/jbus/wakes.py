@@ -187,11 +187,13 @@ def read(run: Pass) -> state.Read:
 
 
 def _hung(one: dict) -> bool:
-    """Whether the entry is a crew of the root home's whose turn hung: `jbus.stall.hung` only
-    logs it. A home's own thread is no crew, and a crew a child home owns is left to
-    `jbus.children`, whose nudge to that home counts all it has out."""
+    """Whether the entry is a crew of the catch-all's, `uncategorized`, whose turn hung, which
+    the root home's once were: `jbus.stall.hung` only logs it. A home's own thread is no crew,
+    and a crew another child home owns is left to `jbus.children`, whose nudge to that home
+    counts all it has out."""
     hung = one["cause"].startswith(state.QUIET_OR_HUNG["hung"])
-    crew = one["subj"].startswith(CREW.prefix) and one["owner"] == state.ROOT_HOME
+    owners = (state.ROOT_HOME, f"home {homes.UNCATEGORIZED}")
+    crew = one["subj"].startswith(CREW.prefix) and one["owner"] in owners
     return one["kind"] == "thread" and hung and crew
 
 
@@ -319,17 +321,19 @@ def root_of(run: Pass) -> str:
 
 def need_items(run: Pass, listed: list | None) -> list[Item]:
     """The needs of the user that a home passes on: each item of the list that the user has to
-    decide (`blockers.deciding`). A row to approve is the item of the home whose brief or scout's
-    request it is (`jbriefs.home`), as `jbus home` says, and any other need, or a home with no
-    thread, the root's (`root_of`)."""
-    root, items = root_of(run), []
-    for one, line in blockers.deciding(run, listed):
-        files = (run.home / kind / f"{one.get('slug')}.md" for kind in ("tasks", "scouts"))
-        brief = next((file for file in files if file.exists()), None)
-        text = brief.read_text(errors="replace") if one["kind"] == "approve" and brief else ""
-        to = thread_of(homes.home_of(run.home, text)) or root
-        items.append(Item(key=one["key"], to=to, line=line, row=one.get("slug") or ""))
-    return items
+    decide (`blockers.deciding`), the root's (`root_of`). A row to approve is no thread's: a home
+    approves a row on the user's word as it queues it (`queue add --message`), so a go still owed
+    waits on the user alone, on `jbus needs` and the view, and wakes no home."""
+    root = root_of(run)
+    return [
+        Item(
+            key=one["key"],
+            to="" if one["kind"] == "approve" else root,
+            line=line,
+            row=one.get("slug") or "",
+        )
+        for one, line in blockers.deciding(run, listed)
+    ]
 
 
 def alert_items(run: Pass) -> list[Item]:

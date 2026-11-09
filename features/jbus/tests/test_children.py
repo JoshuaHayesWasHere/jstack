@@ -117,9 +117,10 @@ def test_a_child_with_nothing_out_is_not_watched(kitchen):
 
 @pytest.fixture
 def root(kitchen):
-    """A root home with no scope, its thread quiet for six hours, and a crew of its launched at
-    NOW that writes nothing after. Its thread keeps its count of items, so a wake queued to it is
-    no write, as in T3 Code (`test_a_message_queued_to_a_silent_thread_is_no_write`)."""
+    """A root home with no scope, its thread quiet for six hours, and a crew of the catch-all's,
+    which the root stands in for, launched at NOW that writes nothing after. Its thread keeps its
+    count of items, so a wake queued to it is no write, as in T3 Code
+    (`test_a_message_queued_to_a_silent_thread_is_no_write`)."""
     found = home(kitchen, idle=timedelta(hours=6), itemCount=40)
     add(kitchen, "alpha")
     kitchen.poll(NOW)
@@ -129,8 +130,9 @@ def root(kitchen):
     return kitchen, found
 
 
-def test_a_quiet_root_home_is_nudged_twice_then_the_user_is_asked(root):
-    """The root home is watched as a scoped home is: its nudge names no scope."""
+def test_a_quiet_catch_all_the_root_stands_in_for_is_nudged_twice_then_the_user_is_asked(root):
+    """The catch-all, `uncategorized`, is watched as a scoped home is. While it has no thread of
+    its own, the root's thread is nudged for it, and its nudge names the root's plan, no scope."""
     kitchen, found = root
     for n in range(10, 5 * P, 10):
         kitchen.poll(minutes(n))
@@ -140,7 +142,8 @@ def test_a_quiet_root_home_is_nudged_twice_then_the_user_is_asked(root):
         )
         assert len(told(kitchen)) == (0 if n < P else 1 if n < 3 * P else 2)
     first = nudges[0]
-    assert "the root home has had" in first["message"] and "`jbus plan`" in first["message"]
+    assert "the home uncategorized has had" in first["message"]
+    assert "`jbus plan`" in first["message"]
     assert "--scope" not in first["message"]
     stalled, asked = told(kitchen)
     assert "nudged it" in stalled and "after two nudges" in asked
@@ -153,7 +156,7 @@ def test_a_spell_kept_under_the_old_name_is_read_once_and_moved(root):
     kitchen.poll(minutes(P + 10))
     assert len(told(kitchen)) == 1
     spell = json.loads((kitchen.state / "stalls.json").read_text())
-    assert spell[children.ROOT]["step"] == "nudged1"
+    assert spell["uncategorized"]["step"] == "nudged1"
     (kitchen.state / "stalls.json").replace(kitchen.state / "children.json")
     kitchen.poll(minutes(P + 20))
     assert not (kitchen.state / "children.json").exists()
