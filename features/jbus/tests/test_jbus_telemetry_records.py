@@ -17,7 +17,7 @@ import sqlite3
 from datetime import timedelta
 
 from jbus import history, queue, telemetry
-from jbus.telemetry import cursors, migrations
+from jbus.telemetry import cursors, migrations, records
 from test_jbus_telemetry import NOW, SECRET, counted, iso, machine
 
 __all__ = ["machine"]
@@ -352,3 +352,58 @@ def test_the_queue_keeps_who_queued_each_row_and_the_message_its_go_rests_on(mac
     machine.build()
     with contextlib.closing(machine.store()) as store:
         assert store.execute(query).fetchall() == want
+
+
+def test_launch_waits_splits_a_rows_go_to_launch_by_the_kind_of_each_reason(machine):
+    """`one`'s go is at NOW, after `zero`'s line began the log: a minute with no line, ten on a
+    slug it depends on, ten on a full /tmp, ten on its home's cap, then its launch. Its line
+    after the launch, and `zero`, which never launched, count nothing."""
+    from jbus import dispatch
+
+    minute = timedelta(minutes=1)
+    machine.append(
+        "alpha",
+        "items.jsonl",
+        {"id": "i1", "at": iso(NOW), "item": "i1", "verb": "approved", "slug": "one"},
+    )
+    machine.append(
+        "alpha",
+        "transitions.jsonl",
+        {"slug": "one", "from": "queued", "to": "launched", "at": iso(NOW + 31 * minute)},
+    )
+    whys = (
+        (-60, "zero", "not approved"),
+        (1, "one", "depends on two"),
+        (11, "one", "waiting: /tmp at 92% of its quota"),
+        (21, "one", "max_per_home is 2 in the root home"),
+        (31, "one", ""),
+    )
+    machine.append(
+        "alpha",
+        "waits.jsonl",
+        *({"slug": slug, "why": why, "at": iso(NOW + at * minute)} for at, slug, why in whys),
+    )
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        split = store.execute(
+            "SELECT slug, kind, seconds FROM launch_waits WHERE project = 'alpha' ORDER BY kind"
+        ).fetchall()
+        kept = store.execute("SELECT slug, kind, why_len FROM row_waits ORDER BY at").fetchall()
+    assert split == [
+        ("one", "cap", 600.0),
+        ("one", "depends", 600.0),
+        ("one", "none", 60.0),
+        ("one", "room", 600.0),
+    ]
+    assert kept[0] == ("zero", "hold", len("not approved"))
+    assert kept[-1] == ("one", "none", 0)
+    said = {
+        dispatch.ROOM: "room",
+        "no launch: claudeAgent is capped until 2026-11-09T22:00:00+00:00": "room",
+        f"{dispatch.HELD}: a settled thread already has this slug": "hold",
+        "max_running is 4 across all projects": "cap",
+        "max_per_project is 6 in jstack": "cap",
+        "main is red: waits for green": "red main",
+        dispatch.UNKNOWN: "none",
+    }
+    assert {why: records.wait_kind(why) for why in said} == said

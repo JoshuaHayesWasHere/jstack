@@ -9,11 +9,13 @@ import pytest
 
 import jbus
 from jbus import poll, rotation
+from jbus.dispatch import HELD
 from test_jbus_kitchen import NOW, RESULT
 from test_jbus_queue import add, brief, go, queued_before, rows, sha12, widened
 
 FIRST, SECOND = "2026-10-12 11:00 ET", "2026-10-12 11:03 ET"
 LATER = NOW + timedelta(minutes=3)
+MAX = "max_running is 1 across all projects"
 NO_REVIEW = "wait 8 https://example.test/pull/8: it has no review yet\n"
 
 
@@ -110,16 +112,16 @@ def test_a_row_not_launched_says_which_of_the_reasons_stopped_it(kitchen):
     kitchen.poll()
     assert waits(kitchen) == {
         "alpha": (f"brief changed after approval, now {sha12(changed)}", FIRST),
-        "beta": ("no slot", FIRST),
+        "beta": (MAX, FIRST),
         "gamma": ("a gate the Chef has", FIRST),
     }
 
 
-def test_in_a_full_pass_a_row_says_no_slot_only_where_a_slot_is_all_that_stops_it(kitchen):
+def test_in_a_full_pass_each_row_says_what_holds_it(kitchen):
     """`other` holds the one slot, so `alpha` is the first row that cannot launch for want of a
-    slot. The pass reads the rows after `alpha` without sending a gate for any of them. Of those,
-    `gamma` and `delta` wait for a slot. `gamma`'s brief has no `Design:` line, which a launch no
-    longer asks for, so its go is still valid."""
+    slot. The pass reads the rows after `alpha` without sending a gate for any of them: `beta`
+    says the gate it is owed waits, and `gamma` and `delta` wait for the slot. `gamma`'s brief
+    has no `Design:` line, which a launch no longer asks for, so its go is still valid."""
     kitchen.brief("other")
     kitchen.t3.thread("other", "running")
     add(kitchen, "alpha", priority=1)
@@ -130,10 +132,10 @@ def test_in_a_full_pass_a_row_says_no_slot_only_where_a_slot_is_all_that_stops_i
     kitchen.poll()
     assert kitchen.lines("gate") == []
     assert {slug: (row["status"], row["why"]) for slug, row in rows(kitchen).items()} == {
-        "alpha": ("queued", "no slot"),
-        "beta": ("queued", ""),
-        "gamma": ("queued", "no slot"),
-        "delta": ("queued", "no slot"),
+        "alpha": ("queued", MAX),
+        "beta": ("queued", f"{HELD}: a settled thread already has this slug"),
+        "gamma": ("queued", MAX),
+        "delta": ("queued", MAX),
     }
 
 

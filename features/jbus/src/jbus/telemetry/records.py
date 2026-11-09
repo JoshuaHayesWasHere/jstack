@@ -7,7 +7,8 @@ each text of a record into its length (`<name>_len`), so no table holds what a m
 
 A source is a `log` or a `snapshot`:
 
-- A log only grows: `events.jsonl`, `acts.jsonl`, `items.jsonl`, `transitions.jsonl`,
+- A log only grows: `events.jsonl`, `acts.jsonl`, `items.jsonl`, `transitions.jsonl`, `waits.jsonl`
+  (each change of a row's reason to wait, `jbus.queue.derive`, kept as the kind of the reason),
   `outbox.jsonl`, `ci.jsonl`, `review-rounds.jsonl` (`jbus.reviewed`), the home's `merge.log`
   and `merge-waits.jsonl` (`jmerge.waits`), `stalls.jsonl`, each spell a row's thread was quiet
   or hung (`jbus.stall.spells`) after the line of when the record began, and the machine's
@@ -173,6 +174,41 @@ def _transitions(one: Row, zone: tzinfo | None) -> Row:
         "to_status": _text(one.get("to")),
         "by": _text(one.get("by")),
         "why_len": _length(one.get("why")),
+    }
+
+
+WAITS: tuple[tuple[str, re.Pattern[str]], ...] = tuple(
+    (kind, re.compile(pattern))
+    for kind, pattern in (
+        ("depends", r"depends on "),
+        ("red main", r"main is red"),
+        ("cap", r"max_(per_home|per_project|running) is "),
+        ("room", r"waiting(: \S+ at \d+% of its | for room )|no launch: "),
+        (
+            "hold",
+            r"not approved$|brief changed after approval|a gate |check failed twice$"
+            r"|dispatch is off$|the stop file is there$|your go was taken back"
+            r"|waits for the user's go|main is green again at ",
+        ),
+    )
+)
+"""The kind of each reason a row waits (`jbus.watch.why`, `jbus.dispatch`), by the start of its
+text: on a slug it depends on, on a red main, on a cap of jbus's config, on room on the machine
+or for a crew model, or on the user. A row with no reason, or one this table does not know, is
+`none`."""
+
+
+def wait_kind(why: str) -> str:
+    return next((kind for kind, pattern in WAITS if pattern.match(why)), "none")
+
+
+def _row_waits(one: Row, zone: tzinfo | None) -> Row:
+    why = one.get("why")
+    return {
+        "at": utc(one.get("at"), zone),
+        "slug": _text(one.get("slug")),
+        "kind": wait_kind(why if isinstance(why, str) else ""),
+        "why_len": _length(why),
     }
 
 
@@ -516,6 +552,9 @@ SOURCES: tuple[Source, ...] = (
         "log",
         _columns("at", "slug", "from_status", "to_status", "by", "why_len"),
         _transitions,
+    ),
+    Source(
+        "row_waits", "waits.jsonl", "log", _columns("at", "slug", "kind", "why_len"), _row_waits
     ),
     Source(
         "outbox",

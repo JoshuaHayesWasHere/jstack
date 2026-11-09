@@ -406,7 +406,12 @@ def no_room(run: Pass, slug: str, why: str, waited: dict[str, Any]) -> None:
 
 
 LAUNCHED, NOTHING, NO_ROOM = "launched", "nothing", "no room"
-SLOT = "no slot"
+ROOM = "waiting for room on the machine"
+"""What a row waits on where `jgauge room` said no for anything but a full /tmp: its why holds
+numbers that move each pass (the load, the busiest processes), which `no_room` says instead."""
+UNKNOWN = "the crews out are not known"
+HELD = "a gate held back while every slot is taken"
+"""What a row waits on where a full pass read it and held back the gate it is owed (`Pass.held`)."""
 
 
 @dataclass
@@ -466,6 +471,7 @@ class Turns:
     caps: Caps
     reported: frozenset[str] = frozenset()
     capped: list[queue.Row] = field(default_factory=list)
+    room: str = ""
     waited: dict[str, Any] = field(default_factory=dict)
     checked: dict[str, bool] = field(default_factory=dict)
 
@@ -508,11 +514,12 @@ class Turns:
                 run.reasons[slug] = Rerun(rerun)
                 continue
             if slug in world.settled:
+                what = "a settled thread already has this slug"
                 if not full:
-                    thread = world.settled[slug]["threadId"]
-                    run.gate(slug, "a settled thread already has this slug", thread)
+                    run.gate(slug, what, world.settled[slug]["threadId"])
                 else:
                     run.held.add(slug)
+                    run.reasons[slug] = Slot(f"{HELD}: {what}")
                 continue
             brief = queue.brief(run.state, slug)
             if brief is None or not judgement.approved_text(row, brief):
@@ -530,6 +537,8 @@ class Turns:
             if (unhome := unhomed(slug, brief))[0]:
                 if not full:
                     run.gate(slug, *unhome)
+                else:
+                    run.reasons[slug] = Slot(f"{HELD}: {unhome[0]}")
                 continue
             met = merged | {
                 other for other in row.get("depends", []) if ended(run, world, other) == End("done")
@@ -626,7 +635,8 @@ class Turns:
                     )
                 ):
                     run.say(line)
-                run.reasons[slug] = Slot()
+                self.room = f"no launch: {choice.why}"
+                run.reasons[slug] = Slot(self.room)
                 return NO_ROOM
             why, notes = room(run, choice.instance)
             if why and cleanup.waiting(why) and cleanup.sweep(run, self.live()):
@@ -637,7 +647,8 @@ class Turns:
                 run.find("", "note", f"note {name}: {note}", key=f"room {day}")
             if why:
                 no_room(run, slug, why, self.waited)
-                run.reasons[slug] = Slot(cleanup.waiting(why))
+                self.room = cleanup.waiting(why) or ROOM
+                run.reasons[slug] = Slot(self.room)
                 return NO_ROOM
             again = queue.fresh(run.state, slug) or {}
             same = all(again.get(column) == row.get(column) for column in ("approved", "brief_sha"))
@@ -705,28 +716,27 @@ class Turns:
             return LAUNCHED
         return NOTHING
 
-    def rest(self, *, cap: bool) -> None:
+    def rest(self, *, cap: str, room: str) -> None:
         """Once the pass makes no more launches, read each remaining row to find why it waits.
 
         For the rows ahead of the first row that waits for a slot, the pass still sends the
-        gates those rows are owed, whether or not a slot is free. `cap` means the machine's
-        slots ran out. Then the pass names each row that waits, with the first cap that holds
-        it, the project's, its home's or the machine's, and the time it began to wait for a
-        slot: its `since`, or now for a new wait. A row that waits only for room is not named.
+        gates those rows are owed, whether or not a slot is free. `cap` is the machine's cap
+        where its slots ran out, and `room` what every row waits on where the machine has no
+        room for one. Each row that waits keeps the first that holds it as its reason: the
+        project's cap, its home's, the machine's, or the room. The pass names each row a cap
+        holds, and the time it began to wait for that cap: its `since`, or now for a new wait.
+        A row that waits only for room is not named.
         """
         waits = list(self.capped)
         waits += [row for row, _, _ in itertools.islice(self._ready(full=False), 1)]
         waits += [row for row, _, _ in self._ready(full=True)]
         waits.sort(key=queue.order)
-        limit = self.run.config.max_running
         for row in waits:
-            self.run.reasons[row["slug"]] = Slot()
             brief = queue.brief(self.run.state, row["slug"]) or ""
-            why = self.caps.full(home_of(self.run.home, brief))
-            if not why and cap:
-                why = f"max_running is {limit} across all projects"
+            why = self.caps.full(home_of(self.run.home, brief)) or cap
+            self.run.reasons[row["slug"]] = Slot(why or room)
             if why:
-                held = row.get("why") == SLOT and row.get("since")
+                held = row.get("why") == why and row.get("since")
                 since = held or self.run.user.stamp(self.run.now)
                 self.run.say(f"{why}: {row['slug']} waits, since {since}")
 
@@ -776,8 +786,10 @@ def dispatch(projects: list[Turns], slots: int | None) -> list[str]:
         if took == LAUNCHED:
             made.append(one.run.project.name)
             waiting.append(one)
+    machine = next((one.room for one in projects if one.room), UNKNOWN)
+    cap = f"max_running is {config.max_running} across all projects"
     for one in projects:
-        one.rest(cap=took != NO_ROOM and slots is not None)
+        one.rest(cap="" if took == NO_ROOM or slots is None else cap, room=machine)
     return made
 
 
