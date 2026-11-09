@@ -407,11 +407,9 @@ def no_room(run: Pass, slug: str, why: str, waited: dict[str, Any]) -> None:
 
 LAUNCHED, NOTHING, NO_ROOM = "launched", "nothing", "no room"
 ROOM = "waiting for room on the machine"
-"""What a row waits on where `jgauge room` said no for anything but a full /tmp: its why holds
-numbers that move each pass (the load, the busiest processes), which `no_room` says instead."""
+"""A row's reason where `jgauge room` said no for all but /tmp, whose why `no_room` says."""
 UNKNOWN = "the crews out are not known"
 HELD = "a gate held back while every slot is taken"
-"""What a row waits on where a full pass read it and held back the gate it is owed (`Pass.held`)."""
 
 
 @dataclass

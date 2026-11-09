@@ -17,7 +17,7 @@ import sqlite3
 from datetime import timedelta
 
 from jbus import history, queue, telemetry
-from jbus.telemetry import cursors, migrations, records
+from jbus.telemetry import cursors, migrations, waits
 from test_jbus_telemetry import NOW, SECRET, counted, iso, machine
 
 __all__ = ["machine"]
@@ -406,4 +406,4 @@ def test_launch_waits_splits_a_rows_go_to_launch_by_the_kind_of_each_reason(mach
         "main is red: waits for green": "red main",
         dispatch.UNKNOWN: "none",
     }
-    assert {why: records.wait_kind(why) for why in said} == said
+    assert {why: waits.kind(why) for why in said} == said

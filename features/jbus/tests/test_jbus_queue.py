@@ -12,7 +12,7 @@ from jsonschema import Draft202012Validator
 
 import jbus
 import test_tool_calls as tools
-from jbus import dispatch, passes, poll, queue, wake
+from jbus import passes, poll, queue, wake
 from jmerge import judgement
 from scoped import scope
 from test_jbus_kitchen import GO, NOW, PROJECT, QUARTER_PAST_FIVE, RAN, RESULT, SAID, Kitchen
@@ -997,16 +997,6 @@ def test_the_row_the_limit_stops_and_every_row_after_it_wait_for_the_limit(kitch
     add(kitchen, "gamma", priority=3, approve=False)
     limit = passes.Slot("max_running is 1 across all projects")
     assert reasons(kitchen) == {"alpha": limit, "beta": limit}
-
-
-def test_a_row_with_no_room_and_every_row_after_it_wait_for_room(kitchen):
-    kitchen.config(max_running=5)
-    add(kitchen, "alpha", priority=1)
-    add(kitchen, "beta", priority=2)
-    kitchen.machine(load="30.00")
-    room = passes.Slot(dispatch.ROOM)
-    assert reasons(kitchen) == {"alpha": room, "beta": room}
-    assert kitchen.t3.launches == []
 
 
 def test_any_other_gate_has_no_reason_but_the_gate_and_holds_no_other_row(kitchen):

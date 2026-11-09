@@ -41,7 +41,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from jbus import history
-from jbus.telemetry import asks
+from jbus.telemetry import asks, waits
 from jbus.telemetry.readers import json_lines, keyed, listed, questions
 from jbus.telemetry.values import (
     KINDS,
@@ -177,37 +177,12 @@ def _transitions(one: Row, zone: tzinfo | None) -> Row:
     }
 
 
-WAITS: tuple[tuple[str, re.Pattern[str]], ...] = tuple(
-    (kind, re.compile(pattern))
-    for kind, pattern in (
-        ("depends", r"depends on "),
-        ("red main", r"main is red"),
-        ("cap", r"max_(per_home|per_project|running) is "),
-        ("room", r"waiting(: \S+ at \d+% of its | for room )|no launch: "),
-        (
-            "hold",
-            r"not approved$|brief changed after approval|a gate |check failed twice$"
-            r"|dispatch is off$|the stop file is there$|your go was taken back"
-            r"|waits for the user's go|main is green again at ",
-        ),
-    )
-)
-"""The kind of each reason a row waits (`jbus.watch.why`, `jbus.dispatch`), by the start of its
-text: on a slug it depends on, on a red main, on a cap of jbus's config, on room on the machine
-or for a crew model, or on the user. A row with no reason, or one this table does not know, is
-`none`."""
-
-
-def wait_kind(why: str) -> str:
-    return next((kind for kind, pattern in WAITS if pattern.match(why)), "none")
-
-
 def _row_waits(one: Row, zone: tzinfo | None) -> Row:
     why = one.get("why")
     return {
         "at": utc(one.get("at"), zone),
         "slug": _text(one.get("slug")),
-        "kind": wait_kind(why if isinstance(why, str) else ""),
+        "kind": waits.kind(why if isinstance(why, str) else ""),
         "why_len": _length(why),
     }
 
