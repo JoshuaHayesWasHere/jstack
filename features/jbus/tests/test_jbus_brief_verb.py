@@ -28,11 +28,6 @@ Left: some
 Verdict: clean
 """
 
-# A child blocks opening the go pipe for reading, and the one open of it for writing frees all of
-# them at the same moment. That open is read-write, which Linux never blocks, so that a child that
-# died before it opened the pipe does not hang the test. Its disk is slow: each write of the brief
-# starts 50 ms after its read, so that without the lock every child reads the brief before any
-# writes it. Then it runs the verb.
 CHILD = """
 import os, sys, time
 from jbus import brief, cli
@@ -63,8 +58,14 @@ def started(brief):
 
 
 def at_once(brief, writes):
-    """Start one process per write, its stdin a file it can read at once, each blocked until all
-    are up, then let them all go."""
+    """Start one process per write, its stdin a file it can read at once, and let them all go at
+    the same moment.
+
+    A child (`CHILD`) blocks opening the go pipe for reading, and the one open of it for writing
+    frees all of them together. That open is read-write, which Linux never blocks, so a child that
+    died before it opened the pipe does not hang the test. A child's disk is slow: each write of the
+    brief starts 50 ms after its read, so without the lock every child reads the brief before any
+    writes it."""
     go = brief.parent.parent / "go"
     os.mkfifo(go)
     children = []

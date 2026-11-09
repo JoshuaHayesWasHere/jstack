@@ -96,9 +96,6 @@ class Wrote:
     said: str
 
 
-# The pure core: each takes a brief's text and returns the new text.
-
-
 def _head_end(lines: list[str]) -> int:
     return next((at for at, one in enumerate(lines) if one.startswith("## ")), len(lines))
 
@@ -191,9 +188,6 @@ def appended(text: str, block: str) -> str:
     after = lines[at:]
     gap = [""] if after and after[0].startswith("## ") else []
     return _text([*lines[:at], *added, *gap, *after])
-
-
-# The shell: the lock, the read under it, and the write through a temp file.
 
 
 @contextmanager
