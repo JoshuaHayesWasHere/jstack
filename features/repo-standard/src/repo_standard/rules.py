@@ -27,7 +27,7 @@ import importlib
 import json
 import re
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import cached_property
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -47,6 +47,28 @@ FRONT_NAME = re.compile(
     r"\A---\n(?:.*\n)*?name:\s*['\"]?([^'\"\n]+?)['\"]?\s*\n(?:.*\n)*?---", re.M
 )
 GATED = ("deploy", "release")
+GREEN = re.compile(
+    r"(?:\brepo-standard|-m\s+repo_standard|\$[({]REPO_STANDARD[)}])\s+green(?![\w-])"
+)
+"""A command that runs `repo-standard green`: the command, `python3 -m repo_standard`, or the
+skeleton Makefile's `$(REPO_STANDARD)`."""
+_FLAGS = r"(?:\s+--?[\w-]+(?:[= ](?!-)\S+)?)*"
+DEPLOY = {
+    "aws s3 sync": rf"\baws{_FLAGS}\s+s3{_FLAGS}\s+sync\b",
+    "aws cloudfront create-invalidation": (
+        rf"\baws{_FLAGS}\s+cloudfront{_FLAGS}\s+create-invalidation\b"
+    ),
+    "sam deploy": rf"\bsam{_FLAGS}\s+deploy\b",
+    "terraform apply": rf"\bterraform{_FLAGS}\s+apply\b",
+    "cdk deploy": rf"\bcdk{_FLAGS}\s+deploy\b",
+}
+"""The deploy commands conform looks for, each with the pattern that finds it: the AWS CLI's S3
+sync and CloudFront invalidation, and the deploy or apply of SAM, Terraform and CDK. A global
+flag may stand between the tool and its verb, as in `aws --profile prod s3 sync`."""
+DEPLOYS = re.compile("|".join(f"(?P<d{at}>{one})" for at, one in enumerate(DEPLOY.values())))
+SHELL_SUFFIXES = (".sh", ".bash", ".zsh", ".ksh")
+SHEBANG = re.compile(r"^#!.*\b(?:ba|z|k|da)?sh\b")
+COMMAND_END = re.compile(r"&&|\|\||[;|]")
 SHARED_CHECK = re.compile(
     r"^\s*uses:\s*['\"]?[\w.-]+/[\w.-]+/\.github/workflows/repo-standard-check\.yml"
     r"@repo-standard-v\d+['\"]?\s*(?:#.*)?$",
@@ -456,6 +478,176 @@ def gated(repo: Repo) -> list[str]:
         for entry in deploys(repo)
         if not any(word in entry.lower().replace("-", " ").split() for word in GATED)
     ]
+
+
+@dataclass(frozen=True)
+class Recipe:
+    """One target of a make file: where its rule is, the prerequisites make runs before it (its
+    order-only ones apart), and each command of its recipe with the line it starts on."""
+
+    path: str
+    line: int
+    target: str
+    prerequisites: tuple[str, ...]
+    commands: tuple[tuple[int, str], ...]
+
+
+def recipes(path: str, text: str) -> list[Recipe]:
+    """The targets of one make file and their recipes. A `define` block is text, not a rule, a
+    line that ends in `\\` goes on to the next, and a command's `@`, `-` and `+` are dropped. A
+    target-specific variable adds no recipe."""
+    found: list[Recipe] = []
+    lines = text.splitlines()
+    at, defining, current = 0, False, []
+    while at < len(lines):
+        start, line = at + 1, lines[at]
+        while line.endswith("\\") and at + 1 < len(lines):
+            at += 1
+            line = line[:-1] + " " + lines[at].lstrip("\t ")
+        at += 1
+        if defining:
+            defining = not re.match(r"^\s*endef\b", line)
+            continue
+        if re.match(r"^\s*define\b", line):
+            defining, current = True, []
+            continue
+        if line.startswith("\t") and current:
+            command = line[1:].lstrip(" @-+")
+            if command.strip() and not command.lstrip().startswith("#"):
+                for one in current:
+                    found[one] = replace(
+                        found[one], commands=(*found[one].commands, (start, command))
+                    )
+            continue
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        rule = docs_true.RULE.match(line)
+        rest = line[rule.end() :] if rule else ""
+        if not rule or "$" in rule[1] or "=" in rest.split(";")[0]:
+            current = []
+            continue
+        given, _, inline = rest.partition(";")
+        normal = tuple(given.split("|")[0].split())
+        current = []
+        for target in rule[1].split():
+            current.append(len(found))
+            commands = ((start, inline.strip().lstrip("@-+")),) if inline.strip() else ()
+            found.append(Recipe(path, start, target, normal, commands))
+    return found
+
+
+def _recipes(repo: Repo) -> dict[str, Recipe]:
+    """Each target of the Makefile and the make files it includes. A target named by several
+    rules has the prerequisites of all of them and the recipe of the one that has it."""
+    merged: dict[str, Recipe] = {}
+    for path, text in repo.makefiles.items():
+        for one in recipes(path, text):
+            had = merged.get(one.target)
+            if had is None:
+                merged[one.target] = one
+                continue
+            ran = one if one.commands else had
+            given = (*had.prerequisites, *one.prerequisites)
+            merged[one.target] = replace(ran, prerequisites=given)
+    return merged
+
+
+def _deploy(text: str) -> str:
+    """The deploy command a line runs, by its name in `DEPLOY`, or ``""``."""
+    hit = DEPLOYS.search(text)
+    return list(DEPLOY)[int(hit.lastgroup[1:])] if hit and hit.lastgroup else ""
+
+
+def _entry_target(entry: str) -> str | None:
+    """The one make target a deploy entry `make [flags] [VAR=value] <target>` runs, or None."""
+    words = entry.split()
+    if words[:1] != ["make"]:
+        return None
+    named = [one for one in words[1:] if not one.startswith("-") and "=" not in one]
+    return named[0] if len(named) == 1 else None
+
+
+def green_first(repo: Repo) -> list[str]:
+    """Each deploy entry runs `repo-standard green` before any other command."""
+    faults = []
+    known = _recipes(repo)
+    for entry in deploys(repo):
+        target = _entry_target(entry)
+        if target is None:
+            faults.append(
+                f"deploy entry `{entry}` is not `make <target>`, so conform cannot read its recipe"
+            )
+            continue
+        recipe = known.get(target)
+        if recipe is None:
+            faults.append(f"deploy entry `{entry}`: the Makefile has no target {target}")
+            continue
+        where = f"{recipe.path}:{recipe.line}: deploy entry `{entry}`"
+        if recipe.prerequisites:
+            names = ", ".join(recipe.prerequisites)
+            faults.append(f"{where} has prerequisites ({names}), which make runs before its recipe")
+        first = recipe.commands[0][1] if recipe.commands else ""
+        if not GREEN.search(COMMAND_END.split(first)[0]):
+            faults.append(f"{where} does not run `repo-standard green` before its first command")
+    return faults
+
+
+def _deploy_lines(text: str) -> list[tuple[int, str, str]]:
+    """Each line of a script or workflow that is not a comment, with its number, and the deploy
+    command it runs or ``""``."""
+    found = []
+    for at, line in enumerate(text.splitlines(), 1):
+        if line.lstrip().startswith("#"):
+            continue
+        found.append((at, line, _deploy(line)))
+    return found
+
+
+def _is_shell(repo: Repo, path: str) -> bool:
+    if path.endswith(SHELL_SUFFIXES):
+        return True
+    if "." in PurePosixPath(path).name or path.startswith(WORKFLOWS):
+        return False
+    try:
+        with (repo.root / path).open("rb") as file:
+            first = file.readline(200).decode("utf-8", "replace")
+    except OSError:
+        return False
+    return SHEBANG.match(first) is not None
+
+
+def deploy_commands(repo: Repo) -> list[str]:
+    """Only a deploy entry's recipe, or a script that runs `repo-standard green` first, runs a
+    deploy command."""
+    faults = []
+    entries = {_entry_target(one) for one in repo.config.deploy or ()}
+    for recipe in _recipes(repo).values():
+        if recipe.target in entries:
+            continue
+        for line, command in recipe.commands:
+            said = _deploy(command)
+            if said:
+                faults.append(
+                    f"{recipe.path}:{line}: target {recipe.target} runs {said}, "
+                    "and only a deploy entry's recipe may"
+                )
+    for path, text in sorted(repo.workflows.items()):
+        faults += [
+            f"{path}:{line}: runs {said}, where a step runs a deploy entry instead"
+            for line, _, said in _deploy_lines(text)
+            if said
+        ]
+    for path in sorted(repo.paths):
+        if path in repo.workflows or not _is_shell(repo, path):
+            continue
+        green_at = None
+        for line, text, said in _deploy_lines(repo.read(path)):
+            if green_at is None and GREEN.search(text):
+                green_at = line
+            if said and green_at is None:
+                faults.append(f"{path}:{line}: runs {said} before any `repo-standard green`")
+                break
+    return faults
 
 
 def pinned(repo: Repo) -> list[str]:

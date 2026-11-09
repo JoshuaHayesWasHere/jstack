@@ -372,14 +372,37 @@ Enforced by: `scripts/green_tree.py`, `.github/workflows/check.yml`
 
 ### Every deploy entry refuses a tree that is not green main
 
-A repo ships through its deploy entries alone, and each one refuses a tree that is not main's, clean, and marked green by main's full run.
+A repo ships through its deploy entries alone, and each one refuses a tree that is not main's, clean, and marked green by main's check.
 It refuses before it builds, tags or uploads anything, and its refusal names the fix.
 
-**In jstack** the one deploy entry is the release.
-`make release` refuses a checkout that is not main, not clean or not `origin/main`, and runs `make release-green`, which fails unless a green run of `check.yml` left the marker for the tree of `HEAD`.
+Each entry is a make target, listed in the config's `deploy` part, whose recipe runs `repo-standard green` before its first other command, and which has no prerequisite that make would run first.
+`repo-standard green` exits 0 only when the checkout is clean, `HEAD` is main on the remote now, as `git ls-remote origin refs/heads/main` gives it and not a local `origin/main` that may be stale, and a run of `check.yml` passed the tree of `HEAD`.
+It reads that from the marker `green-tree-<tree>`, and, where the marker expired or is missing, from the push run of `check.yml` on main for `HEAD`'s commit, when its conclusion is success.
+It exits 1 with each of the three that failed, and 2 when it cannot ask the remote or GitHub.
+The shared check workflow keeps the marker 90 days, which is as long as GitHub keeps a run by default.
+
+**In jstack** the one deploy entry is the release, and it is waived: `make release` checks main, a clean tree and `origin/main` itself, then runs `make release-green`, which fails unless a green run of `check.yml` left the marker for the tree of `HEAD`.
 `.github/workflows/release.yml` runs only on a pushed `v*` tag, and runs `make release-green` again on the tag's own checkout before `make dist` and the release.
 
-Enforced by: `.github/workflows/release.yml`, `features/jmerge/src/jmerge/green.py`, `testing/tests/test_workflows.py`
+Enforced by: `features/repo-standard/src/repo_standard/green.py`, `features/repo-standard/src/repo_standard/rules.py`, `.github/workflows/release.yml`
+
+### Only a deploy entry runs a deploy command
+
+A deploy command runs only in a deploy entry's recipe, or in a script that runs `repo-standard green` before it, so no path to prod steps around the refusal above.
+Conform looks for these deploy commands in each tracked shell script, each make recipe and each workflow, with any global flags between the tool and its verb:
+
+- `aws s3 sync` and `aws cloudfront create-invalidation`
+- `sam deploy`
+- `terraform apply`
+- `cdk deploy`
+
+A workflow step runs a deploy entry rather than a deploy command, and a make target that is not a deploy entry runs none.
+A comment line is not read.
+The list is kept beside the rule, in `features/repo-standard/src/repo_standard/rules.py`, and it does not see a deploy run from Python, through a package script such as `npm run deploy`, or by a workflow's `uses:` action.
+
+**In jstack** no script, recipe or workflow runs one: the release builds and publishes through `make dist` and GitHub's release, which are not deploy commands.
+
+Enforced by: `features/repo-standard/src/repo_standard/rules.py`
 
 ### A deploy is behind the `touches prod` gate
 

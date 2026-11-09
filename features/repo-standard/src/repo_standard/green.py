@@ -24,6 +24,7 @@ feature, and an install of jstack has it as a package.
 
 from __future__ import annotations
 
+import importlib
 import json
 import os
 import subprocess
@@ -39,7 +40,7 @@ _JMERGE = Path(__file__).resolve().parents[3] / "jmerge" / "src"
 if _JMERGE.is_dir() and str(_JMERGE) not in sys.path:
     sys.path.append(str(_JMERGE))
 
-from jmerge import green as marker  # noqa: E402
+marker = importlib.import_module("jmerge.green")
 
 ASK_SECONDS = 30
 Ask = Callable[[str], Any]
