@@ -34,6 +34,7 @@ Do not report and do not fix a bug or weakness in code this pull request did not
 Do not ask for work beyond what the task above needed.
 Read the changed code the way a tech lead would, and answer these about it:
 1. Does it meet the task and every "Done when" line above? Name each line it does not meet.
+   Does the brief's `Proves it:` check above hold at this head? The proof of step 5 runs that check as the brief words it, or the part of it that can run at a review, and the `Proof:` line names the part that cannot run and why, such as a check that needs the merge.
 2. Is it tested properly? A test must execute something. A new or changed test that only matches wording and executes nothing is a warning, and the remedy to name is a test that executes (one that runs the shell, parses the block and checks it, or runs the script), not deleting the test.
 3. Does it do what the user wanted, not only what the words of the task say?
 4. Is it correct? Look for these too, in the changed lines:
@@ -218,6 +219,9 @@ THE_PROOF_ENDS_HERE
 - The proof command enters the reviewed repo's own environment by itself: in a `uv` repo it is `uv run pytest <the test>` from this worktree, never a bare `pytest`.
   The block's own `uv run --project "$T/../source"` leaves the environment of the repo this skill lives in first on `PATH`, and a bare command would run there.
 - The reviewer changes no file in the worktree. The script and what it printed are under `/tmp`, beside the prompt, and the last line of the block shows the worktree: it prints nothing. If it prints a file, the proof wrote there: say so in the section, and its `Unchanged by the review:` is `no`.
+- The proof runs the brief's `Proves it:` check as the brief words it, in the same `$D/proof.sh` as the safety fact's script, so a failure of either fails the proof.
+  Run the part of the check that can run at this head. A part that cannot run is one that needs the merge, the base branch, a live service, or the repo's whole suite or its check command, which CI runs.
+  Name that part and why after the last lines on the `Proof:` line, as `not run: <the part>, <why>`. A brief with no `Proves it:` line, or one whose check cannot run at all, leaves the safety fact alone in the proof, and the `Proof:` line says `not run: <the check>, <why>`.
 - What ran and its last lines go on the section's `Proof:` line, in the one form `$T/review.md` shows, with a comma between its parts: the command, `exit <code>`, and the last line or two it printed. A passed proof names no failed exit code in its command or its fact, since any `exit <n>` with n not 0 refuses the line: write `the hook ended with status 1`, not `the hook said exit 1`, and put a command that holds one in `$D/proof.sh`, so that the line names the script.
 - Read `$D/proof.out` before judging a proof that did not exit 0. One that ran the real code and failed has found the fact false: that is a finding, an `error` against the changed line that breaks it. One that never reached the real code (a command not found, an import that failed, a usage error) proved nothing either way: fix the proof and run it again, and if it still cannot run, the fact is unproven. A fact that could not be proven by running code is written `Proof: unproven, <the fact>`, and that is itself a finding: `warning - the one fact the change is safe because of is unproven: <the fact>`.
 

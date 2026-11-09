@@ -3,7 +3,7 @@ By: <the line Start printed: the provider, the model and the effort, or inherit,
 Verdict: clean | findings
 Head: <the pull request's head commit, in full>   Unchanged by the review: yes | no
 Patch-id: <`git patch-id --stable` of the diff from the base to that head>
-Reviewers: 1, <how many findings the reading gave>   Proof: <the command that ran>, exit <its exit code>, <the last line or two it printed> | unproven, <the fact>
+Reviewers: 1, <how many findings the reading gave>   Proof: <the command that ran: the brief's Proves it check as it words it, and the safety fact's>, exit <its exit code>, <the last line or two it printed>, <not run: the part of the Proves it check that cannot run at a review, and why, or nothing> | unproven, <the fact>
 Meets the brief: yes, <n> of <n> | no, <m> of <n>
 - unmet <k>: <a Done when line the change does not meet, k its number in the brief's list, as the brief words it>
 - after-merge <k>: <a Done when line only provable once the pull request is merged>
