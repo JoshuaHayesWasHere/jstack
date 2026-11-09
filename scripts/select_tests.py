@@ -87,19 +87,20 @@ of every file, the changed tests among them: a plain comment added to a test fai
 `test_no_comments.py`. A change that also touches a fixture, deletes a file or touches any path
 outside the tests selects by all the rules above.
 
-It prints `all` when a changed path is one that every test depends on, and never for the size of
-what it selected: a selection of nearly every test file still names its files, and main's full
-run catches what a selection misses. Those paths are `pyproject.toml`, `uv.lock` and the root
-`conftest.py`. They are also this script, the `Makefile` and `.github/workflows/check.yml`,
-since a pull request's check picks and runs its tests by its own new version of them: a change
-that made the script pick fewer tests would otherwise pick fewer for itself. They also include
-each plugin of `testing/` that the root `conftest.py` names in `pytest_plugins` (as
-`testing/jstack_fixtures.py`), with the modules that plugin uses at its top level. And they
-include each module that a plugin uses in an autouse fixture.
+It prints `all` only for a change to the dependencies, `pyproject.toml` and `uv.lock`, or to the
+root `conftest.py` (`EVERY_RUN`), and never for the size of what it selected: a selection of
+nearly every test file still names its files. The whole suite runs nightly, before a release,
+in main's full run and for such a change: those runs catch what a pull request's selection
+misses. Every other path a test reads selects as any path does, through the tests that import or
+name it: this script, the `Makefile`, `.github/workflows/check.yml` and each plugin of `testing/`
+that the root `conftest.py` names in `pytest_plugins` (as `testing/jstack_fixtures.py`). A pull
+request's check picks its tests by its own new version of this script, so a change that made it
+pick fewer would pick fewer for itself too: the tests of the script, which spell it, run on that
+change, and main's full run runs the rest.
 
-When `pytest_plugins` names a test module, pytest loads that module for its fixtures. A module
-that only other fixtures use selects the tests that ask for those fixtures, directly or
-through fixtures that use them. A plugin's own module counts as one its fixtures use. The
+The plugins `pytest_plugins` names are modules of `testing/` and test modules, which pytest
+loads for their fixtures. A module that a plugin's fixture uses, the plugin itself among them,
+selects the tests that ask for that fixture, directly or through fixtures that use it. The
 script does not print a test file the change deleted. It never prints a test module that marks
 itself `browser`, because that module runs in the browser job.
 
@@ -159,17 +160,16 @@ or a folder of tests that ends in `/`), the ones the change reaches on a Mac: th
 only from a changed module of the tests, or of one whose text names Darwin (`DARWIN`): nearly
 every test imports the CLI of a feature, so through any other module a change would reach nearly
 the whole list, though its code runs the same on a Mac. And the tests that read the whole tree,
-cross-cutting and the catch-all, do not count, since Linux runs them. It prints `all` when a
-changed path is one every test depends on, or the list itself. It writes nothing to the
+cross-cutting and the catch-all, do not count, since Linux runs them. It prints `all` for a
+changed path of `EVERY_RUN`, or the list itself. It writes nothing to the
 summary or the outputs. `--within <list> --strict <base> <head>` prints a part of that: a
 module counts only where the diff's lines, in its base or its head, fall in a function that asks
 for Darwin in code (`sys.platform`, `platform.system`, the string `darwin`, a name such as
 `on_darwin`), not in a docstring or a comment; a file that is no Python counts where its text
 names Darwin. A name reaches a test only from a changed path of the tests or one that counts, as
 an import does, a feature's paths reach none of its tests, and only `EVERY_RUN`, which changes
-every run, and the list itself print `all`: the rest of what every test depends on, such as the
-fixtures, the Makefile and check.yml, reaches the tests that import or name it. A pull request's
-macOS job selects so, and the run on each merge commit into main runs the whole `--within`.
+every run, and the list itself print `all`, as they do without it. A pull request's macOS job
+selects so, and the run on each merge commit into main runs the whole `--within`.
 
 Every test that failed on main in the last 30 days, and that main has not passed since, runs on each
 pull request's check, whatever the rules select: timing tests that no pull request reached broke
@@ -180,11 +180,13 @@ already. Where the variable is not set, as on a desk, the selection and the summ
 rules make.
 
 `select_tests.py --failed-on-main <days> <kept>` prints those test files, sorted and one per line:
-the files a `FAILED` or `ERROR` line of pytest's names in the log of a red job of a push's run of
-`check.yml` on main, created in the last `<days>` days, with every attempt of a run that was run
-again, and that no later green run of main in those days has passed. A green run ran the whole
-suite, a rerun that passed is one, and runs are ordered by id: GitHub numbers them as they are
-created, so a green run of an older commit that ends after a red one passes nothing of it. A test
+the files a `FAILED` or `ERROR` line of pytest's names in the log of a red job of a push's run or
+a nightly run of `check.yml` on main, created in the last `<days>` days, with every attempt of a
+run that was run again, and that no later green run of main in those days has passed. A push's run
+checks what the merges since main's last checked commit reach, with these tests added, and the
+nightly run the whole suite, so a green run of either passed every test still red when it started.
+A rerun that passed is one, and runs are ordered by id: GitHub numbers them as they are created,
+so a green run of an older commit that ends after a red one passes nothing of it. A test
 that fails and then passes on main drops out at the first green run after its failure. It reads
 GitHub's REST API at `$GITHUB_API_URL` for `$GITHUB_REPOSITORY` with `$GITHUB_TOKEN`, and fails,
 naming the answer, where GitHub refuses. A completed job and its log never change, so the JSON file
@@ -255,14 +257,8 @@ change reaches these tests through an import or a name, so this table alone sele
 Main's full run and the nightly run them whatever changed."""
 CITED = re.compile(r"features/[\w-]+/src/[\w/]+\.py")
 EVERY_RUN = ("pyproject.toml", "uv.lock", "conftest.py")
-"""The files that change every run of the tests, on a Mac too: the dependencies and the root
-`conftest.py`, which loads the plugins. A change to one selects `all`, with `strict` too."""
-EVERYTHING = (
-    *EVERY_RUN,
-    "scripts/select_tests.py",
-    "Makefile",
-    ".github/workflows/check.yml",
-)
+"""The files that change every run of the tests: the dependencies and the root `conftest.py`,
+which loads the plugins. A change to one selects `all`, and no other path does."""
 BACKTICKED = re.compile(r"`([^`]+)`")
 DARWIN = re.compile(r"[Dd]arwin|sys\.platform|platform\.system")
 HUNK = re.compile(r"@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
@@ -284,6 +280,8 @@ KEPT = "select_tests.facts"
 next, by its path and a hash of its text: a module that has not changed is not parsed again."""
 FAILED_ON_MAIN = "FAILED_ON_MAIN"
 WORKFLOW = "check.yml"
+RUN_EVENTS = ("push", "schedule")
+"""The runs of `WORKFLOW` on main that judge main: each push's, and the nightly whole suite."""
 PER_PAGE = 100
 READS = 8
 SETTLED = 4
@@ -1225,16 +1223,13 @@ def used(node, bound):
 
 @cache
 def conftest():
-    """Which of the tests' modules the plugins of the root `conftest.py` load, as `(global,
-    fixtures)`. The first is the set of modules every test loads. It holds each plugin of `testing/`
-    (such as `testing.jstack_fixtures`) with the modules its top level uses. It also holds each
-    other plugin that has an autouse fixture, with the modules that fixture uses. Any other plugin
-    is a test module that the tests of other features import. pytest loads it for its fixtures, and
-    a test that does not import it gets only those fixtures from it. The second maps each other
-    fixture to the modules it uses and to the fixtures it asks for. If the fixture's plugin is a
-    test module, the fixture's modules include that test module. So a change to a module selects
-    every test that asks for a fixture that uses the module."""
-    everyone, fixtures = set(), {}
+    """Each fixture the plugins of the root `conftest.py` define but an autouse one, with the
+    modules it uses and the fixtures it asks for. A plugin is a module of `testing/`, such as
+    `testing.jstack_fixtures`, or a test module that the tests of other features import: pytest
+    loads it for its fixtures, and a test that does not import it gets only those fixtures from
+    it, so such a fixture's modules include that test module. A change to a module selects every
+    test that asks for a fixture that uses the module."""
+    fixtures = {}
     for plugin in plugins():
         tree = ast.parse((ROOT / modules()[plugin]).read_text())
         bound = modules_named(tree)
@@ -1246,23 +1241,7 @@ def conftest():
             if "fixture" in decorators and "autouse=True" not in decorators:
                 asks = {arg.arg for arg in node.args.args}
                 fixtures[node.name] = (used(node, bound) | (set() if whole else {plugin}), asks)
-            elif whole or "autouse=True" in decorators:
-                everyone |= used(node, bound) | (set() if whole else {plugin})
-    return everyone, fixtures
-
-
-@cache
-def shared():
-    """The files every test loads: `EVERYTHING`, the plugins of `testing/`, and the modules
-    the plugins use at their top level or in an autouse fixture, and those they import."""
-    found, todo = set(), list(conftest()[0])
-    while todo:
-        one = todo.pop()
-        if one not in found and of_tests(modules()[one]):
-            found.add(one)
-            todo += edges()[one]
-    whole = {modules()[one] for one in plugins() if plumbing(modules()[one])}
-    return {modules()[one] for one in found} | whole | set(EVERYTHING)
+    return fixtures
 
 
 def defined(name):
@@ -1288,10 +1267,12 @@ def own(name):
 
 def asking(module):
     """The test files that ask for a plugin's fixture that reaches `module`. The fixture
-    reaches it when it uses `module`, uses a module that imports `module`, or asks for another
-    fixture that reaches it. This leaves out a test file with its own fixture of that name."""
-    fixtures = conftest()[1]
+    reaches it when `module` is its plugin, when it uses `module` or a module that imports
+    `module`, or when it asks for another fixture that reaches it. This leaves out a test file
+    with its own fixture of that name."""
+    fixtures = conftest()
     hit = {name for name, one in reaches_through().items() if module in one}
+    hit |= fixtures.keys() & defined(module) if module in plugins() else set()
     while more := {name for name, (_, asks) in fixtures.items() if asks & hit} - hit:
         hit |= more
     return {test for test, asks in askers().items() if hit & asks}
@@ -1301,9 +1282,7 @@ def asking(module):
 def reaches_through():
     """Each fixture of a plugin, with the modules it reaches through those it uses: each of
     them, and what each imports through any chain."""
-    return {
-        name: frozenset().union(*map(imported, used)) for name, (used, _) in conftest()[1].items()
-    }
+    return {name: frozenset().union(*map(imported, used)) for name, (used, _) in conftest().items()}
 
 
 @cache
@@ -1339,13 +1318,12 @@ def ruled(changed, follows=everywhere, cross=True, strict=False):
     `["all"]`, and for each cause the sorted files it selected, or the path that forced
     `all`. An import reaches a test only from a changed path that `follows` holds for, and the
     cross-cutting tests count only with `cross`. With `strict` a name reaches a test only from
-    such a path too, a feature's paths reach none of its tests, and only `EVERY_RUN` forces
-    `all`: the rest of `shared()` reaches tests through its importers and names, as any path
-    does."""
+    such a path too, and a feature's paths reach none of its tests. Only `EVERY_RUN` forces
+    `all`, and so does a module that does not parse (`Unread`), which `facts` reads first."""
     ready()
-    forcing = shared() & set(EVERY_RUN) if strict else shared()
+    facts()
     for path in changed:
-        if path in forcing:
+        if path in EVERY_RUN:
             return ["all"], {"forced-by": path}
     by_path = {path: name for name, path in modules().items()}
     found = {"imports": set(), "names": set(), "features": set()}
@@ -1491,17 +1469,18 @@ def side_by_side(read, items):
 
 
 def red_runs(day):
-    """The completed push runs of `WORKFLOW` on main created on a UTC `day`: `red`, the ones
-    that failed or were run again, and `green`, the newest that passed, or `None`. Each is
-    `<id>/<attempt>`, and `later` orders them. GitHub gives a filtered list 1,000 runs at most,
-    and main has more in a month, so a day is listed at a time."""
+    """The completed push and nightly runs of `WORKFLOW` on main created on a UTC `day`: `red`,
+    the ones that failed or were run again, and `green`, the newest that passed, or `None`. Each
+    is `<id>/<attempt>`, and `later` orders them. GitHub gives a filtered list 1,000 runs at most,
+    and of one event only, and main has more in a month, so a day is listed at a time, for each
+    event."""
 
-    def page(number):
+    def page(event, number):
         return json.loads(
             ask(
                 f"actions/workflows/{WORKFLOW}/runs",
                 branch="main",
-                event="push",
+                event=event,
                 status="completed",
                 created=day,
                 exclude_pull_requests="true",
@@ -1510,9 +1489,12 @@ def red_runs(day):
             )
         )
 
-    first = page(1)
-    rest = [page(number) for number in range(2, -(-first["total_count"] // PER_PAGE) + 1)]
-    runs = [run for one in (first, *rest) for run in one["workflow_runs"]]
+    runs = []
+    for event in RUN_EVENTS:
+        first = page(event, 1)
+        pages = range(2, -(-first["total_count"] // PER_PAGE) + 1)
+        rest = [page(event, number) for number in pages]
+        runs += [run for one in (first, *rest) for run in one["workflow_runs"]]
     green = [f"{run['id']}/{run['run_attempt']}" for run in runs if run["conclusion"] == "success"]
     return {
         "red": sorted(
@@ -1800,8 +1782,9 @@ def listing(lines):
 def unmapped(changed):
     """The changed `.py` files of this tree that are in no module set, so that no import of one
     selects a test, sorted. A path every test rests on, as the root `conftest.py`, selects
-    them all."""
-    known = set(modules().values()) | set(EVERYTHING)
+    them all, and this script reaches its tests through their names: neither is named."""
+    itself = Path(__file__).resolve().relative_to(ROOT).as_posix()
+    known = set(modules().values()) | set(EVERY_RUN) | {itself}
     return sorted(
         one
         for one in changed

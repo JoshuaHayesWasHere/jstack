@@ -28,7 +28,8 @@ def test_the_walk_reaches_every_event_the_model_has():
     found = walk(EVERY)
     kinds = {"merge", "pass", "rerun passes"}
     kinds |= {
-        f"settles {answer}" for answer in ("green", "failed", "cancelled", "refused", "nojob")
+        f"settles {answer}"
+        for answer in ("green", "failed", "cancelled", "refused", "nojob", "batched")
     }
     assert found.events == kinds
 
