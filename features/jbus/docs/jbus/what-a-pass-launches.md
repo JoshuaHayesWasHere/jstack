@@ -136,5 +136,6 @@ jbus holds a home's next launch for `PATIENCE` (60 minutes), the time its start 
 A start whose run ended is over at once, and the next pass launches the home again.
 jbus reads what the run failed on: `not signed in` for a login lapse, a usage limit, which it writes to the ledger so the next launch goes to another instance or waits for the reset, or else the run's end.
 A second start in a row that fails on the cause the first failed on waits for that cause to clear (the instance it ran on signed in again, the limit's reset, or `PATIENCE` for any other cause) and says so once, a quiet `home-start` event in the digest.
-The home's entry keeps the failure and `says`, the words the sidebar shows for a home with no `home-id` yet, such as `start failed: not signed in`.
+The home's entry keeps the failure and `says`, why a home has no `home-id` yet, such as `start failed: not signed in`.
+The T3 Code fork's sidebar still shows such a home as `starting...`, and does not read `says`.
 No home launches while the dispatch is off or stopped.
