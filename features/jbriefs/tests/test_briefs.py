@@ -287,11 +287,10 @@ def written(*, by_a_scout):
     return "\n".join([*lines, "Thread: mcp:1111-aaaa", ""])
 
 
-def test_the_template_keeps_for_a_scout_the_lines_a_scout_fills():
-    lines = TEMPLATE.read_text().splitlines()
-    after = next(n for n, line in enumerate(lines) if line.startswith("Builds on:")) + 1
-    labels = tuple(line.split(":")[0] + ":" for line in lines[after:] if not line.startswith("<"))
-    assert labels == FINDINGS
+def test_jbriefs_reads_the_lines_a_scout_fills_as_the_last_fields_of_the_template():
+    labels = [label for label, _ in parse.fields(TEMPLATE.read_text()) if label not in ("", parse.REST)]
+    after = labels.index("Builds on") + 1
+    assert tuple(f"{label}:" for label in labels[after:]) == FINDINGS
 
 
 @pytest.mark.parametrize("by_a_scout", [True, False])
