@@ -1,0 +1,62 @@
+From 92d65ea2cc91482e755e1f57545cc1f8e75b67b8 Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@gmail.com>
+Date: Mon, 9 Nov 2026 12:00:16 -0500
+Subject: [PATCH 31/31] fix(server): the jstack tree places a row whose brief
+ names root, no home, or no scope under uncategorized, as jbus does
+
+---
+ apps/server/src/jstack/jbusWork.logic.ts | 29 ++++++++++++------------
+ 1 file changed, 14 insertions(+), 15 deletions(-)
+
+diff --git a/apps/server/src/jstack/jbusWork.logic.ts b/apps/server/src/jstack/jbusWork.logic.ts
+index 6228074a16..c77391f34e 100644
+--- a/apps/server/src/jstack/jbusWork.logic.ts
++++ b/apps/server/src/jstack/jbusWork.logic.ts
+@@ -182,18 +182,8 @@ export const readHomeLine = (brief: string): string | null => {
+   return match ? (match[1] ?? "").trim() : null;
+ };
+ 
+-const resolveHome = (
+-  rootId: ThreadId,
+-  scopeIds: ReadonlyMap<string, ThreadId>,
+-  word: string | null,
+-): ThreadId | null => {
+-  if (word === "root") return rootId;
+-  if (word === null || word === "") return null;
+-  const scoped = scopeIds.get(word);
+-  if (scoped !== undefined) return scoped;
+-  if (word.startsWith("mcp:")) return ThreadId.make(word);
+-  return null;
+-};
++/** The scope jbus gives a row whose brief names `root`, no home, or no scope (`jbriefs.home`). */
++const CATCH_ALL = "uncategorized";
+ 
+ export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnapshot => {
+   const rootId = threadIdOf(files.rootHomeId);
+@@ -210,11 +200,20 @@ export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnap
+     })),
+   ];
+   const prefixed = files.scopes.filter((each) => each.prefix !== null);
++  // A home is named by its scope or its thread id. The root holds no row: a brief that names it,
++  // or names no scope, is the catch-all's, as jbus's `home_of` says. Until the catch-all's home
++  // starts, the root's thread stands in for it.
++  const named = new Map([
++    ...scopeIds,
++    ...files.scopes.map((each) => [each.homeId, ThreadId.make(each.homeId)] as const),
++  ]);
++  const catchAll = scopeIds.get(CATCH_ALL) ?? rootId;
+   // A brief or scout that names no home belongs to the scope whose prefix its slug carries.
+   const homeOf = (slug: string, word: string | null) =>
+-    resolveHome(rootId, scopeIds, word) ??
+-    scopeIds.get(prefixed.find((each) => slug.startsWith(each.prefix ?? ""))?.scope ?? "") ??
+-    rootId;
++    word === null || word === ""
++      ? (scopeIds.get(prefixed.find((each) => slug.startsWith(each.prefix ?? ""))?.scope ?? "") ??
++        catchAll)
++      : (named.get(word) ?? catchAll);
+   const homeOfSlug = (slug: string) => {
+     const line = files.briefHomes.get(slug);
+     return homeOf(slug, line === undefined ? null : homeWord(line));
+-- 
+2.56.0
+
