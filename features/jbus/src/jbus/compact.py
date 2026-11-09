@@ -54,10 +54,9 @@ def key(slug: str) -> str:
 
 def last_call(run: Pass, thread: str) -> int | None:
     """Return the tokens the thread's last call sent, as the telemetry store holds it, or None
-    where the store holds no call of the thread or cannot be read."""
+    where the store holds no call of the thread, or is not there or cannot be read: opened read
+    only, a store that is not there raises as one that cannot be read does."""
     where = telemetry.path(run.config)
-    if not where.is_file():
-        return None
     try:
         with sqlite3.connect(f"file:{where}?mode=ro", uri=True, timeout=1) as store:
             found = store.execute(_LAST, (jsettings.thread_id(thread),)).fetchone()

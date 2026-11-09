@@ -114,6 +114,43 @@ def test_a_crew_whose_last_call_is_not_in_the_store_yet_is_not_compacted(kitchen
     assert sent(kitchen) == []
 
 
+def test_no_store_to_read_sends_nothing_and_fails_no_pass(kitchen):
+    """The pass builds the store after the steps run, so a machine's first pass has none."""
+    opened(kitchen)
+    ends(kitchen)
+    for one in kitchen.state_dir.glob(telemetry.FILE + "*"):
+        one.unlink()
+    kitchen.poll(NOW)
+    assert compacts(kitchen) == []
+
+
+def test_a_thread_t3_code_could_not_read_is_compacted_at_a_later_pass(kitchen):
+    opened(kitchen)
+    ends(kitchen)
+    last_call(kitchen, "mcp:thread-1", 160_000)
+    kitchen.t3.lose_read = True
+    kitchen.poll(NOW)
+    assert compacts(kitchen) == []
+    kitchen.t3.lose_read = False
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert compacts(kitchen) == [("sent", "")]
+
+
+def test_a_send_t3_code_lost_goes_again_and_one_it_refused_does_not(kitchen):
+    opened(kitchen)
+    ends(kitchen)
+    last_call(kitchen, "mcp:thread-1", 160_000)
+    kitchen.t3.lose_send = True
+    said = kitchen.poll(NOW)
+    assert "wait alpha: its crew could not be compacted" in "\n".join(said)
+    kitchen.t3.lose_send, kitchen.t3.refuse_send = False, True
+    said = kitchen.poll(NOW + timedelta(minutes=3))
+    assert any(line.startswith("compact alpha: T3 Code refused it") for line in said)
+    kitchen.t3.refuse_send = False
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert compacts(kitchen) == []
+
+
 def test_a_pull_request_no_longer_open_gets_none(kitchen):
     opened(kitchen)
     kitchen.set("open.json", [])
