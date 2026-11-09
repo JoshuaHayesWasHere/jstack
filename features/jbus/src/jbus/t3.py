@@ -471,21 +471,18 @@ def names(text: str, slug: str, numbers: Collection[int]) -> bool:
 def asks(
     text: str, slug: str, numbers: Collection[int], doors: Mapping[str, Collection[int]]
 ) -> bool:
-    """Whether a home's ask `text` is about this door and no other: the row `slug`, or its open
-    gates `numbers`, among the open doors `doors` (each row's slug with its open door gates, none
-    for a row whose brief holds and has no gate yet). The ask names a gate by its number, and a
-    row by its slug, which stands for each of its open gates the ask does not name by number. So
-    "question 250 stays held; question 251: may it go?" names two doors and binds a plain reply
-    to neither, and a "yes" never opens two doors."""
+    """Whether a home's ask `text` is about this door: the row `slug`, or one of its open gates
+    `numbers`, whether or not it names other open doors too. `doors` holds each row's slug with
+    its open door gates. The ask names a gate by its number, and a row by its slug, which stands
+    for each of its open gates the ask does not name by number. So "question 250 stays held;
+    question 251: may it go?" names both doors, and a plain reply to it opens each of them: a
+    home asks about a door it does not want opened in a message of its own."""
     lowered = text.lower()
-    named: set[str | int] = set()
-    for row, gates in {**doors, slug: {*doors.get(slug, ()), *numbers}}.items():
-        by_number = {one for one in gates if re.search(_question(one), lowered)}
-        if by_number:
-            named |= by_number
-        elif re.search(_row(row), lowered):
-            named |= set(gates) or {row}
-    return bool(named) and named <= (set(numbers) or {slug})
+    gates = {*doors.get(slug, ()), *numbers}
+    named: set[str | int] = {one for one in gates if re.search(_question(one), lowered)}
+    if not named and re.search(_row(slug), lowered):
+        named = set[str | int](gates or [slug])
+    return bool(named & (set(numbers) or {slug}))
 
 
 def _near(word: str) -> str:

@@ -1134,7 +1134,8 @@ def test_a_store_built_before_the_labels_gains_them_as_a_rebuild_has_them(machin
         store.executescript(
             f"{views}{later}ALTER TABLE messages DROP COLUMN asks; "
             f"ALTER TABLE acts DROP COLUMN asks; ALTER TABLE queue DROP COLUMN follows; "
-            f"ALTER TABLE calls DROP COLUMN effort; {unrun}"
+            f"ALTER TABLE calls DROP COLUMN effort; ALTER TABLE brief_versions DROP COLUMN pull; "
+            f"{unrun}"
         )
         store.execute(
             "UPDATE meta SET value = ? WHERE name = 'messages'",
