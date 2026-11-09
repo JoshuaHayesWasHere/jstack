@@ -32,6 +32,7 @@ from repo_standard.conform import TAG, UPSTREAM, VERSION
 from repo_standard.plan import ALL, NONE
 from testing.paths import REPO
 
+READ_SET = ("features/repo-standard/adapters/node-vite/scripts/",)
 WORKFLOW = REPO / ".github" / "workflows" / "repo-standard-check.yml"
 TEMPLATE = REPO / "features" / "home" / "templates" / "check.yml"
 CALLED = f"JoshuaHayesWasHere/jstack/.github/workflows/repo-standard-check.yml@{TAG}{VERSION}"
