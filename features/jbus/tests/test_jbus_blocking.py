@@ -336,6 +336,7 @@ def test_each_case_of_the_blocking_test(kitchen, second):
         made("approve", "approve:alpha", slug="alpha"),
         made("left", "left:beta", slug="beta"),
         made("config", "config:demo"),
+        made("stalled", "stalled:sc", slug="home-sc"),
         made("row", "row:gamma", slug="gamma"),
     ]
     rows = [{"slug": "delta", "status": "queued"}]
@@ -346,6 +347,7 @@ def test_each_case_of_the_blocking_test(kitchen, second):
         "brief:delta": ("b", "a row with no brief"),
         "left:beta": ("d", "a leftover no home closed"),
         "config:demo": ("d", "jbus cannot go on"),
+        "stalled:sc": ("d", "a home stalled again after jbus started it again"),
     }
 
 

@@ -15,7 +15,8 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import alert, children, passes, questions, watch
+from jbus import alert, blockers, children, passes, questions, stalls, watch
+from jroles import ledger
 from test_jbus_kitchen import GATE, NOW, PROJECT
 from test_jbus_leftover import home
 from test_jbus_queue import add, brief
@@ -107,7 +108,12 @@ def test_a_home_jbus_started_again_that_stalls_again_is_on_needs_and_not_started
     nudged = [one for one in sends(kitchen) if one["threadId"] == fresh["threadId"]]
     assert len([one for one in nudged if one["clientRequestId"].startswith(STALL)]) == 2
     assert len(homes(kitchen)) == 1
-    assert "stalled" in needs(kitchen)
+    (item,) = stalls.stalled(kitchen.state)
+    assert item["slug"] == "home-sc"
+    said = needs(kitchen)
+    assert item["line"] in said
+    assert blockers.needs(item) in said
+    assert blockers.reply(item) in said
 
 
 def test_no_home_stall_reaches_the_root(child):
@@ -408,6 +414,87 @@ def test_a_catch_all_whose_thread_is_live_launches_nothing(started):
     for n in (0, 10, P + 10, 3 * P):
         kitchen.poll(minutes(n))
     assert homes(kitchen) == []
+
+
+@pytest.mark.parametrize("answer", ["refused", "lost"])
+def test_a_catch_all_whose_thread_cannot_be_read_is_not_launched_again(started, answer):
+    """A read T3 Code refuses for a reason other than a gone thread, or whose reply is lost, says
+    nothing of whether the thread is live, so the pass launches nothing and says why."""
+    kitchen = started
+    (kitchen.home / "uncategorized").mkdir()
+    (kitchen.home / "uncategorized" / "home-id").write_text("mcp:unread\n")
+    (kitchen.home / "uncategorized" / "plan.md").write_text("# uncategorized: plan\n")
+    if answer == "lost":
+        kitchen.t3.lose_read = True
+    else:
+        result = kitchen.t3.result
+
+        def refusing(asked):
+            if asked.get("params", {}).get("name") == "t3_thread_read":
+                return {"isError": True, "content": [{"type": "text", "text": "not allowed"}]}
+            return result(asked)
+
+        kitchen.t3.result = refusing
+    said = kitchen.poll(NOW)
+    assert homes(kitchen) == []
+    assert any("wait home: its thread mcp:unread could not be read" in one for one in said)
+
+
+def test_a_launch_whose_reply_is_lost_is_not_launched_again_within_its_patience(started):
+    kitchen = started
+    kitchen.t3.lose = "after"
+    said = kitchen.poll(NOW)
+    assert any("launch home uncategorized: no reply" in one for one in said)
+    kitchen.t3.lose = None
+    kitchen.poll(minutes(10))
+    assert len(homes(kitchen)) == 1
+    kitchen.poll(minutes(P + 10))
+    assert len(homes(kitchen)) == 2
+
+
+def test_a_catch_all_is_not_launched_while_the_dispatch_is_stopped(started):
+    kitchen = started
+    kitchen.state_dir.mkdir(parents=True, exist_ok=True)
+    (kitchen.state_dir / "stop").write_text("")
+    said = kitchen.poll(NOW)
+    assert homes(kitchen) == []
+    assert any("the dispatch is off or stopped" in one for one in said)
+
+
+PRIME = "claudeAgent_claude_prime"
+
+
+def test_a_catch_all_launches_on_the_model_the_role_map_gives_the_home(started, jstack_config):
+    kitchen = started
+    (jstack_config.parent / "roles").write_text(
+        f"home: claudeAgent claude-opus-5-5 claudeAgent,{PRIME}\n"
+    )
+    kitchen.poll(NOW)
+    (launch,) = homes(kitchen)
+    assert launch["modelSelection"]["model"] == "claude-opus-5-5"
+    assert launch["modelSelection"]["instanceId"] == "claudeAgent"
+
+
+def test_a_catch_all_waits_when_no_instance_of_the_home_pool_can_run(started, jstack_config):
+    kitchen = started
+    (jstack_config.parent / "roles").write_text(
+        f"home: claudeAgent claude-opus-5-5 claudeAgent,{PRIME}\n"
+    )
+    kitchen.machine(plan=None)
+    weekly = "You've hit your weekly limit · resets Oct 18, 4pm (America/New_York)"
+    for instance in ("claudeAgent", PRIME):
+        ledger.write(ledger.cap_of([{"text": weekly}], NOW).record(instance))
+    said = kitchen.poll(NOW)
+    assert homes(kitchen) == []
+    assert any("wait home uncategorized: no launch: " in one for one in said)
+
+
+def test_a_catch_all_waits_when_the_role_map_gives_the_home_no_model(started, jstack_config):
+    kitchen = started
+    (jstack_config.parent / "roles").write_text("home: nobody\n")
+    said = kitchen.poll(NOW)
+    assert homes(kitchen) == []
+    assert any("the role map gives the home no model" in one for one in said)
 
 
 def test_a_project_whose_home_has_not_started_launches_no_catch_all(kitchen):
