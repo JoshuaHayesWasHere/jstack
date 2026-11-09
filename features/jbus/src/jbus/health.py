@@ -369,7 +369,9 @@ def relays(relay: Relay | None, now: datetime) -> list[Reading]:
     and a restart does not reset that time. `started` counts only for a relay that has never
     heard a body, so a relay that restarts often still reads as silent."""
     if relay is None:
-        return [Reading.flag("relay", "the config posts nothing to 127.0.0.1", "not watched", False)]
+        return [
+            Reading.flag("relay", "the config posts nothing to 127.0.0.1", "not watched", False)
+        ]
     found = [
         Reading.flag(
             "relay",
