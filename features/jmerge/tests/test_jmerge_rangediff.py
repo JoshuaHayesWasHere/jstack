@@ -887,7 +887,7 @@ def test_a_ci_fix_that_changed_the_content_waits_for_one_scoped_review(proven_me
     number, _, ask = asks.content(fix.waits())
     old, new = fix.ranges().split()
     assert (number, ask.kind, ask.head) == (7, "rereview", fix.head)
-    assert f"`/pr-review run {{slug}} scoped {old} {new}`" in ask.message
+    assert ask.message == f"/pr-review run {{slug}} scoped {old} {new}"
     fix.brief(merge.review("clean", fix.before) + run.proven("clean", fix.head), "")
     assert run.jmerge(proven_merged, rules, "--check") == [f"ready 7 {fix.head} alpha alpha"]
 
