@@ -19,6 +19,8 @@ from pathlib import Path
 from jbus.dispatch import scratch
 from jbus.passes import Pass
 
+ROOT = Path("/proc")
+
 
 def scratchpad(worktree: str) -> Path:
     """Return the folder Claude Code keeps the scratchpads of a session in `worktree` under:
@@ -31,7 +33,7 @@ def scratchpad(worktree: str) -> Path:
 def in_use() -> set[Path]:
     """Return the working directory of each process this user can read."""
     found: set[Path] = set()
-    for proc in Path("/proc").glob("[0-9]*"):
+    for proc in ROOT.glob("[0-9]*"):
         try:
             found.add(Path(os.readlink(proc / "cwd")))
         except OSError:

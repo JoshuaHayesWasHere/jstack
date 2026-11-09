@@ -13,7 +13,7 @@ import pytest
 
 from jbriefs.home import home_of
 from jbriefs.parse import thread_of
-from jbus import children
+from jbus import children, cleanup
 from jmerge import judgement
 from test_jbus_kitchen import NOW, RESULT, approved, complete, go, queued, review, sends
 from test_room import FRESH
@@ -285,13 +285,20 @@ def test_a_queue_that_does_not_parse_is_a_gate_and_nothing_is_launched(kitchen, 
     assert (kitchen.state / "queue.json").read_text() == written
 
 
+@pytest.mark.parametrize("procfs", [True, False], ids=["proc", "no-proc"])
 def test_a_settled_crew_leaves_no_worktree_in_its_claude_scratchpad_but_one_in_use_or_another_s(
-    kitchen, monkeypatch
+    kitchen, monkeypatch, procfs
 ):
     """Settling a crew runs `jbus.cleanup.clear_scratch`, which removes the crew's scratch folder
     and the worktrees under its Claude scratchpad, and keeps one a process works in and one under
-    another crew's."""
-    monkeypatch.setenv("CLAUDE_CODE_TMPDIR", str(kitchen.root / "tmp"))
+    another crew's. The temporary folder is reached through a link, as macOS's /tmp and /var are,
+    while git lists each worktree at its resolved path; and with no /proc, as on macOS, `lsof`
+    says which folder a process works in."""
+    if not procfs:
+        monkeypatch.setattr(cleanup, "ROOT", kitchen.root / "no-proc")
+    (kitchen.root / "tmp").mkdir()
+    (kitchen.root / "linked").symlink_to(kitchen.root / "tmp")
+    monkeypatch.setenv("CLAUDE_CODE_TMPDIR", str(kitchen.root / "linked"))
     claude = kitchen.root / "tmp" / f"claude-{os.getuid()}"
 
     def scratchpad(slug):
