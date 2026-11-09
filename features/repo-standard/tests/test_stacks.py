@@ -105,6 +105,40 @@ def test_the_driver_refuses_what_it_cannot_run_and_exits_2(here, capsys, monkeyp
     assert "uv is not installed" in capsys.readouterr().err
 
 
+SUITE = (
+    "api/handlers",
+    "api/store",
+    "tools/capture/tests/test_main.py",
+    "tools/capture/tests/test_shadow.py",
+)
+
+
+@needs_go
+def test_the_driver_runs_each_part_of_the_listed_suite_as_the_plan_deals_it(here, capfd):
+    """`stacks test --shard K/N` runs the ids `stacks.deal`, the plan's rule, gives part K of the
+    stacks' listed suite, a part dealt no id runs nothing, and a list that fails refuses."""
+    for part in (1, 2):
+        capfd.readouterr()
+        assert cli.main(["stacks", "test", "--shard", f"{part}/2"]) == 0
+        out = capfd.readouterr().out
+        mine = stacks.deal(SUITE, part, 2)
+        for one in SUITE:
+            ran = f"example.com/{one}" in out if one.startswith("api/") else f" {one}" in out
+            assert ran == (one in mine), (one, out)
+
+    assert cli.main(["stacks", "test", "--shard", "5/5"]) == 0
+    assert "part 5/5 of the suite is dealt no test" in capfd.readouterr().out
+    for bad in ("0/2", "3/2", "a/b"):
+        assert cli.main(["stacks", "test", "--shard", bad]) == 2
+    assert cli.main(["stacks", "test", "--shard", "1/2", "api/store"]) == 2
+
+    git(here, "rm", "-q", "scripts/go.py")
+    git(here, "commit", "-qm", "the go adapter's script is gone")
+    capfd.readouterr()
+    assert cli.main(["stacks", "test", "--shard", "1/2"]) == 2
+    assert "the list of stack api failed" in capfd.readouterr().err
+
+
 def test_the_driver_outside_a_checkout_exits_2(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.parent))

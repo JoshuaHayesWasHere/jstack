@@ -9,8 +9,10 @@ pull request's selection is what `make select` printed: the test ids its change 
 line, or the word `all`. Every other run, and a pull request whose selection the workflow did not
 make, tests the whole suite, and a selection of no id runs `none` in each part. The ids are dealt
 out to the parts in turn, in the order `make select` printed them, to no more parts than there
-are ids. Where the selection is `all`, every part runs `all`, and the workflow runs
-`make test SHARD=<part>/<parts>` in each.
+are ids (`repo_standard.stacks.deal`). Where the selection is `all`, every part is dealt `all`,
+and the workflow runs `make test SHARD=<part>/<parts>` in each, which runs that part's share of
+the ids the stack lists, dealt by the same rule: the whole suite is split across the parts and
+not run in each.
 
 The browser ids go to the browser job and not to the parts: an id with a title,
 `<spec> > <title>`, and a `*.spec.*` file of a stack whose config sets `e2e:`. An id
@@ -28,7 +30,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from repo_standard.config import Config, Refused, Stack
-from repo_standard.stacks import TITLE, WHOLE, owner
+from repo_standard.stacks import TITLE, WHOLE, deal, owner
 
 ALL = "all"
 NONE = "none"
@@ -131,5 +133,5 @@ def plan(config: Config, event: str, selection: tuple[str, ...] | None, root: Pa
     if not tests:
         return Plan(run, NONE, (NONE,) * check.shards, *ran)
     parts = min(check.shards, len(tests))
-    dealt = tuple(" ".join(tests[at::parts]) for at in range(parts))
+    dealt = tuple(" ".join(deal(tests, at, parts)) for at in range(1, parts + 1))
     return Plan(run, SOME, dealt, *ran)

@@ -12,7 +12,8 @@ request's selection from `--selection`, the file `make select` wrote.
 
 The verb `stacks` runs the targets `lint`, `test`, `select` and `e2e` of a repo whose config sets
 `stacks:`, each stack over its own roots (`repo_standard.stacks`), and takes the rest of the line
-as its own: `stacks lint`, `stacks test [ids]`, `stacks select <base>` or `stacks e2e [<file>]`.
+as its own: `stacks lint`, `stacks test [ids]`, `stacks test --shard K/N`, `stacks select <base>`
+or `stacks e2e [<file>]`.
 
 The verb `upgrade --to N` moves the repo to version N of the standard
 (`repo_standard.upgrade`): its pin, its call of the shared check and every file the version owns.
@@ -65,10 +66,12 @@ def main(argv: list[str] | None = None) -> int:
         parser = argparse.ArgumentParser(prog="repo-standard stacks", description=stacks.__doc__)
         parser.add_argument("verb", choices=stacks.VERBS, help="the target to run")
         parser.add_argument("rest", nargs="*", help="test: the ids to run; select: the base")
-        args = parser.parse_args(argv[1:])
+        parser.add_argument("--shard", help="test: run part K/N of the whole suite")
+        args = parser.parse_intermixed_args(argv[1:])
+        shard = ["--shard", args.shard] if args.shard is not None else []
         try:
             root = _root(None)
-            return stacks.main(root, load(root), [args.verb, *args.rest])
+            return stacks.main(root, load(root), [args.verb, *shard, *args.rest])
         except (Refused, Unreadable) as refused:
             print(f"repo_standard stacks: {refused}", file=sys.stderr)
             return 2

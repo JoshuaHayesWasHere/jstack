@@ -32,6 +32,7 @@ CI's `lint` job in `.github/workflows/check.yml` runs it there, so the required 
 | `routes` | Fails on each route a mock API answers that the real API lacks, as [the skeleton's page](skeleton.md#the-mock-api-and-its-contract) says. |
 
 `repo-standard stacks lint` runs every stack's lint, `repo-standard stacks test [ids]` runs every stack's tests or the ids it is given, `repo-standard stacks select <base>` prints the ids the change from `<base>` reaches, and `repo-standard stacks e2e [<file>]` runs the browser tests of each stack with `e2e:`, or only the ids in the file, one a line.
+`repo-standard stacks test --shard K/N` runs part K of N of the whole suite: each stack's listed ids, dealt to the parts in turn.
 The skeleton's Makefile runs them from the repo's root, and they take no flag.
 
 `repo-standard routes --producer <cmd> --mock <cmd>` runs each command in a shell and reads no config.
