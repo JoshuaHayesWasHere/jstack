@@ -1,4 +1,4 @@
-"""`repo-standard routes`, the reference contract of a mock API, run in this process.
+"""`repo-standard routes`, the reference contract of a mock API (`repo_standard.routes`), run here.
 
 `test_mock_contract.py` runs the contract on a Go router and a TypeScript mock, where go and node
 run. These cases call `repo_standard.cli.main` with `echo` commands for each side, so the verb's
