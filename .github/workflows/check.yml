@@ -324,24 +324,27 @@ jobs:
       # and every fifth time whether this attempt's `reuse` has ended or is not of this attempt,
       # as when only the failed jobs run again: then the newest selection of the run is the one,
       # the one `reuse` left in the attempt it ran, and where there is none the part fails, so no
-      # part waits out its timeout. The run's token reads the run's artifacts (`actions: read`).
+      # part waits out its timeout. A listed artifact whose download fails, as when GitHub answers
+      # it 404 just after the upload, is not there yet: the part asks again in the same wait, and
+      # fails only where `reuse` has ended and the newest selection still does not download.
+      # The run's token reads the run's artifacts (`actions: read`).
       - name: selection
         id: selection
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
           runs="repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"; asks="$runs/artifacts?name=selection-$GITHUB_RUN_ATTEMPT";
-          tries=0; while :; do id=$(gh api "$asks" --jq '[.artifacts[] | select(.expired | not)][0].id // empty') || id=; [ -n "$id" ] && break;
+          zip="$RUNNER_TEMP/selection.zip"; get() { [ -n "$id" ] && gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "$zip"; };
+          tries=0; while :; do id=$(gh api "$asks" --jq '[.artifacts[] | select(.expired | not)][0].id // empty') || id=; get && break;
           tries=$((tries + 1));
           if [ $((tries % 5)) = 0 ]; then
           reuse=$(gh api "$runs/attempts/$GITHUB_RUN_ATTEMPT/jobs?per_page=100" --jq '[.jobs[] | select(.name == "reuse") | .status][0] // "none"') || reuse=unknown;
           if [ "$reuse" = completed ] || [ "$reuse" = none ]; then
           id=$(gh api "$runs/artifacts?per_page=100" --jq '[.artifacts[] | select((.name | startswith("selection-")) and (.expired | not))] | max_by(.name | ltrimstr("selection-") | tonumber) | .id // empty') || id=;
-          [ -n "$id" ] && break;
+          get && break;
           echo "::error::the job reuse ended with no selection for this part"; exit 1; fi; fi;
           sleep 1; done;
-          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "$RUNNER_TEMP/selection.zip"
-          && unzip -p "$RUNNER_TEMP/selection.zip" selection.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> "$GITHUB_OUTPUT"
+          unzip -p "$zip" selection.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> "$GITHUB_OUTPUT"
       # The part's files, or `none` where the selection left this part empty, which passes. A
       # part that got nothing, as when the selection failed before its outputs, fails: with no
       # files `make test` would run the whole suite. A reuse runs neither this nor the tests.
