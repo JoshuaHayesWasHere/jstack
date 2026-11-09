@@ -8,11 +8,11 @@ stall 10, rulefile 8, prose 3, main 2, brief 2, unasked 1. A kind's route does n
 many of it there are, so one of each stands for its count.
 
 The replay places ten of the kinds in one kitchen, by the source jbus reads each from (approve,
-left, stale, home-stall, question, ci, alert, rulefile, prose, main), beside a gate that holds,
-and runs the real pass over it past `leftover.CLOSE_MINUTES`, when the late copies went out. The
-other four are shown by a test of their own: owed (`test_jbus_entry_go.py`), stall
-(`test_jbus_clock.py`), unasked (`view/test_view_owner.py`), and brief, an entry of a plan
-routed as owed is (`wakes._plan_home`).
+which wakes no thread since #1292, left, stale, home-stall, question, ci, alert, rulefile, prose,
+main), beside a gate that holds, and runs the real pass over it past `leftover.CLOSE_MINUTES`,
+when the late copies went out. The other four are shown by a test of their own: owed
+(`test_jbus_entry_go.py`), stall (`test_jbus_clock.py`), unasked (`view/test_view_owner.py`),
+and brief, an entry of a plan routed as owed is (`wakes._plan_home`).
 """
 
 import json
@@ -102,23 +102,26 @@ def test_the_seven_day_mix_wakes_the_root_of_its_one_way_doors_alone(kitchen):
     for said in ("ci dependabot", "rulefile ", "home pantry is quiet", "not pulled", "install.sh"):
         assert [line for line in told if said in line], said
     told = items(kitchen, pantry)
-    for said in ("approve pa-approve", ASKED[:-1], "left pa-left", "prose:pantry/plan.md"):
+    for said in (ASKED[:-1], "left pa-left", "prose:pantry/plan.md"):
         assert [line for line in told if said in line], said
+    every = [line for thread in (root, catchall, pantry) for line in items(kitchen, thread)]
+    assert not [line for line in every if line.startswith("- approve ")]
     quiet = json.loads(config.status_path.read_text())["projects"]["demo"]["quiet"]
     assert [line for line in quiet if line.startswith("jbus stale: ")]
 
 
 @pytest.mark.parametrize(
-    ("need", "door"),
+    ("need", "woken"),
     [
-        ({"kind": "hold", "key": "#5", "number": 5, "line": "hold #5: a protected path"}, True),
-        ({"kind": "config", "key": "config:token", "line": "config: no token"}, True),
-        ({"kind": "approve", "key": "approve:pa-approve", "slug": "pa-approve"}, False),
+        ({"kind": "hold", "key": "#5", "number": 5, "line": "hold #5: a protected path"}, (1, 0)),
+        ({"kind": "config", "key": "config:token", "line": "config: no token"}, (1, 0)),
+        ({"kind": "approve", "key": "approve:pa-approve", "slug": "pa-approve"}, (0, 0)),
     ],
 )
-def test_a_hold_and_a_config_need_are_the_roots_and_a_row_to_approve_is_its_homes(
-    kitchen, need, door
+def test_a_hold_and_a_config_need_are_the_roots_and_a_row_to_approve_wakes_no_home(
+    kitchen, need, woken
 ):
+    """A row to approve waits on the user alone (#1292), and the root hears of the doors."""
     root = home(kitchen)["threadId"]
     pantry = home(kitchen, "pantry")["threadId"]
     text = brief("pa-approve").replace("Home: root\n", "Home: pantry\n")
@@ -130,4 +133,4 @@ def test_a_hold_and_a_config_need_are_the_roots_and_a_row_to_approve_is_its_home
     config = jbus.load()
     run = passes.Pass(config, config.projects[0], NOW)
     wakes.tell(run, t3.Client(config.server, config.token_path), listed)
-    assert (len(items(kitchen, root)), len(items(kitchen, pantry))) == ((1, 0) if door else (0, 1))
+    assert (len(items(kitchen, root)), len(items(kitchen, pantry))) == woken
