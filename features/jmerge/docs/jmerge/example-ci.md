@@ -18,7 +18,8 @@ A lookup that fails adds no test, and the job `check` warns of it.
 The same job fails a pull request whose title, body or commits credit an AI tool as a co-author (`scripts/no_ai_trailers.py`).
 
 Without a reuse, the same job `reuse` selects once for the whole check.
-It runs `python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD` in the runner's own Python, with no `uv sync` and no pytest: it selects the tests the change needs and deals their files out to eight parts by each file's time in `testing/shard-file-times.tsv` (`testing/split.py`), with no collection.
+It runs `python3 scripts/select_tests.py --pull-request --parts 8 HEAD^1 HEAD` in the runner's own Python, with no `uv sync` and no pytest: it selects the tests the change needs and deals their files out to eight parts by each file's time in `testing/shard-file-times.tsv` (`testing/split.py`), with no collection.
+With `select_tests.py --pull-request` an import reaches only the tests near the change: the tests that import a changed module, and those that import a module that names a name the diff touched.
 A file whose tests sum past a part's share is cut by test, from its rows in `testing/shard-times.tsv`, and each part that holds a piece gets, beside the file, a word that picks the piece's tests by their keys in that table (`testing/shard.py`).
 It gives each part its words as the job's output `part1` to `part8`, or `none` for a part the selection left empty.
 The job `lint` runs the lint, `python3 features/writing/scripts/prose_lint.py HEAD^1` and `make lint BASE=HEAD^1`, beside `reuse`, from the start of the run.

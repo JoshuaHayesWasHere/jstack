@@ -1,7 +1,9 @@
 """What changes only when main moves is read once for each tip of main, not on every pass: main's
 newest commits, which `watch.retro` and `jbus.reverts.macos` both read, and the files of
 `.github/workflows/`, which `watch.watched` reads. Within one pass, a path GitHub already answered
-is not asked again, so `watch._judged` reads a commit's runs and check runs once."""
+is not asked again, so `watch._judged` reads a commit's runs and check runs once. A commit that
+nothing judges, with no push run and no check run, is read for a quarter hour and then only as
+main's tip."""
 
 import json
 from collections import Counter
@@ -10,7 +12,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import watch
+from jbus import mainmoved, watch
 from jbus.passes import Pass
 from test_jbus_kitchen import NOW
 from test_jbus_reverts import mac_flow
@@ -89,3 +91,49 @@ def test_a_failed_or_garbled_answer_is_kept_for_no_tip_and_asked_again(kitchen, 
     (kitchen.stub / "gh-down").unlink()
     assert watch.watched(run) == list(watch.NIGHTLIES)
     assert json.loads((run.state / watch.WORKFLOW_FILES).read_text())["tip"] == run.tip()
+
+
+def judged_reads(kitchen, sha, minutes, again=False):
+    """Judge `sha` in a pass `minutes` after `NOW`, and return its answer and the reads of its
+    runs and check runs that the pass made."""
+    log = kitchen.stub / "gh.log"
+    before = len(log.read_text().splitlines()) if log.exists() else 0
+    config = jbus.load()
+    run = Pass(config, config.projects[0], NOW + timedelta(minutes=minutes))
+    answer = mainmoved.main_check(run, sha, again=again)
+    asked = log.read_text().splitlines()[before:]
+    return answer, [line for line in asked if sha in line]
+
+
+def test_a_commit_nothing_judges_is_read_for_a_quarter_hour_then_only_as_mains_tip(kitchen):
+    """cs-shelf's check.yml was disabled, so 17 of its merges had no run at all, and each pass
+    read the runs and check runs of each: 35 of a pass's 62 calls to GitHub."""
+    sha = "5" * 40
+    for minutes in (0, 14, 15):
+        answer, reads = judged_reads(kitchen, sha, minutes)
+        assert (answer, len(reads)) == ("pending", 2)
+    assert judged_reads(kitchen, sha, 16) == ("pending", [])
+    answer, reads = judged_reads(kitchen, sha, 17, again=True)
+    assert (answer, len(reads)) == ("pending", 2)
+
+
+def test_a_commit_first_read_before_its_run_is_listed_is_judged_however_late_the_next_read(
+    kitchen,
+):
+    """A pass may read a tip seconds after its push, before GitHub lists its run, and no pass
+    may read it again for longer than the quarter hour: only a read that late settles it."""
+    sha = "7" * 40
+    assert judged_reads(kitchen, sha, 0)[0] == "pending"
+    kitchen.set("check-runs.json", {sha: [{"status": "completed", "conclusion": "success"}]})
+    answer, reads = judged_reads(kitchen, sha, 60)
+    assert (answer, len(reads)) == ("green", 2)
+
+
+def test_a_commit_whose_run_comes_within_the_quarter_hour_is_judged_and_kept(kitchen):
+    sha = "6" * 40
+    assert judged_reads(kitchen, sha, 0)[0] == "pending"
+    kitchen.set("check-runs.json", {sha: [{"status": "completed", "conclusion": "success"}]})
+    answer, reads = judged_reads(kitchen, sha, 5)
+    assert (answer, len(reads)) == ("green", 2)
+    assert judged_reads(kitchen, sha, 30) == ("green", [])
+    assert sha not in jbus.read_json(kitchen.state / mainmoved.UNJUDGED, {})
