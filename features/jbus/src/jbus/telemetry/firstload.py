@@ -164,7 +164,7 @@ skill the slash command expands and the files it reads at every start, by the pa
 named in the first tool calls of its sessions."""
 
 BUDGET = {
-    "crew": 10_000,
+    "crew": 10_500,
     "reviewer": 19_500,
     "scout": 9_500,
     "home": 35_000,
