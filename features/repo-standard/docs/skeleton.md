@@ -101,7 +101,7 @@ The go adapter runs Go modules wherever they sit in the tree, with no go.work, t
 
 | Command | What it runs |
 |---|---|
-| `go.py lint` | `gofmt -l` and `go vet ./...` in each module, and fails when gofmt names a file. |
+| `go.py lint` | `gofmt -l` on the `.go` files go builds, so none under `testdata/` or `vendor/`, and `go vet ./...`, in each module, and fails when gofmt names a file. |
 | `go.py test [ids]` | `go test ./...` in each module, or `go test` on the packages it is given, a run per module. |
 | `go.py select <base>` | The selection. |
 

@@ -165,8 +165,10 @@ def test_a_shared_or_unplaced_path_selects_all_and_a_page_outside_a_module_nothi
 
 
 @needs_go
-def test_an_unformatted_file_fails_the_lint(go_repo):
+def test_an_unformatted_file_fails_the_lint_and_one_go_skips_does_not(go_repo):
     root, env = go_repo
+    write(root, {"features/alpha/core/testdata/fixture.go": "package fixture\nconst   Bad=1\n"})
+    git(root, "add", "-A")
     make(root, env, "lint")
     write(root, {"features/alpha/core/core.go": "package core\nconst Value=1\n"})
     out = make(root, env, "lint", ok=False)

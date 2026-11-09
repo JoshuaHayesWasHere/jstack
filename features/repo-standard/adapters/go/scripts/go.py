@@ -5,8 +5,8 @@ folder from the repo's root, such as `features/alpha/core`, and the package is o
 `*_test.go` file. `go` skips a folder named `testdata` or `vendor`, or one whose name starts with
 `.` or `_`, and so does this script.
 
-- `python3 scripts/go.py lint` runs `gofmt -l` and `go vet ./...` in each module, and fails when
-  gofmt names a file.
+- `python3 scripts/go.py lint` runs `gofmt -l` on the `.go` files go sees and `go vet ./...` in
+  each module, and fails when gofmt names a file.
 - `python3 scripts/go.py test [ids]` runs `go test ./...` in each module, or, given ids, `go test`
   on those packages, a run per module. It runs every module before it fails.
 - `python3 scripts/go.py select <base>` prints the test ids the change from `<base>` reaches, one a
@@ -94,10 +94,14 @@ class Layout:
             reverse=True,
         )
         self.packages: dict[str, set[str]] = defaultdict(set)
+        self.sources: dict[str, list[str]] = defaultdict(list)
         for path in paths:
-            if path.endswith("_test.go") and seen_by_go(path):
+            if path.endswith(".go") and seen_by_go(path):
                 module = self.module_of(path)
-                if module is not None:
+                if module is None:
+                    continue
+                self.sources[module].append(path)
+                if path.endswith("_test.go"):
                     self.packages[module].add(folder(path))
         self.takers: dict[str, set[str]] = defaultdict(set)
         for module in self.modules:
@@ -172,8 +176,9 @@ def run(command: list[str], where: str) -> int:
 def lint(layout: Layout) -> int:
     failed = 0
     for module in sorted(layout.modules):
-        unformatted = subprocess.run(["gofmt", "-l", module], capture_output=True, text=True)
-        if unformatted.returncode or unformatted.stdout.strip():
+        sources = layout.sources.get(module, [])
+        unformatted = subprocess.run(["gofmt", "-l", *sources], capture_output=True, text=True)
+        if sources and (unformatted.returncode or unformatted.stdout.strip()):
             print(f"{module}: gofmt -l names files to format:")
             print(f"{unformatted.stdout}{unformatted.stderr}".rstrip())
             failed = 1
