@@ -2678,13 +2678,15 @@ def derive(
     Each status that changed becomes one line of `transitions.jsonl`: the slug, from, to,
     and `at`. Each `why` that changed, to a reason or to none, becomes one line of
     `waits.jsonl`: the slug, the new `why`, and `at`, so the reasons a row waited between its
-    go and its launch stay after the table moves on. The pass appends the lines before it
-    writes the table, so a pass that dies between the two reports a change twice and loses
-    none.
+    go and its launch stay after the table moves on. The pass that starts `waits.jsonl` writes
+    each row's `why` as it stands, so a row that already waited has a line before its reason
+    next changes. The pass appends the lines before it writes the table, so a pass that dies
+    between the two reports a change twice and loses none.
     """
     changed = []
     moved = []
     waited = []
+    begins = not waits_path(state).exists()
     with _changing(state) as rows:
         for row in rows:
             new = {**_blank(), **facts(row)}
@@ -2701,6 +2703,8 @@ def derive(
                 changed.append(Change(row, columns))
             if row.get("why", "") != new["why"]:
                 row.update(why=new["why"], since=stamp if new["why"] else "")
+                waited.append({"slug": row["slug"], "why": new["why"], "at": at})
+            elif begins:
                 waited.append({"slug": row["slug"], "why": new["why"], "at": at})
         if moved:
             store.append_jsonl(transitions_path(state), moved)

@@ -38,6 +38,19 @@ def test_a_reason_that_stays_adds_no_line(kitchen):
     assert lines(kitchen) == [{"slug": "alpha", "why": "depends on beta", "at": AT}]
 
 
+def test_the_pass_that_starts_the_log_writes_each_rows_reason_as_it_stands(kitchen):
+    """A table kept before `waits.jsonl` was: `alpha` already waited, so its reason is in the log
+    from the first pass, though the pass did not change it."""
+    add(kitchen, "alpha", approve=False)
+    derive(kitchen, "depends on beta")
+    (kitchen.state / "waits.jsonl").unlink()
+    derive(kitchen, "depends on beta", "2026-11-09T21:05:00+00:00")
+    derive(kitchen, "depends on beta", "2026-11-09T21:10:00+00:00")
+    assert lines(kitchen) == [
+        {"slug": "alpha", "why": "depends on beta", "at": "2026-11-09T21:05:00+00:00"}
+    ]
+
+
 def test_each_row_behind_a_row_with_no_room_says_it_waits_for_room(kitchen):
     """The load is over the machine's limit, so `first` meets no room, and the three rows queued
     behind it are read only for their reason, which is the room too, and is kept in the log."""
