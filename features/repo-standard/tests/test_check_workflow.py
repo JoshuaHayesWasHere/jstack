@@ -713,7 +713,7 @@ def test_channel_mode_runs_on_the_runner_and_prints_the_browsers_version(caller,
     assert done["result"] == "success"
     assert done["steps"]["tools"]["outcome"] == "skipped"
     assert "Google Chrome 142.0.7444.59" in done["steps"]["browser version"]["said"]
-    chrome.unlink()
-    _, done = browser_job(repo, env, planned(repo, env, "pull_request"), channel="chrome")
+    said = planned(repo, env, "pull_request")
+    _, done = browser_job(repo, env, said, channel="chrome-nowhere")
     assert done["result"] == "failure"
-    assert "the runner has no google-chrome" in done["steps"]["browser version"]["said"]
+    assert "the runner has no google-chrome-nowhere" in done["steps"]["browser version"]["said"]
