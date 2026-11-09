@@ -11,6 +11,7 @@ from datetime import date
 import pytest
 
 import test_home_thread
+from jbriefs.home import scopes
 from jbriefs.skills import listed
 from test_home_thread import NAME, Scene
 from test_scoped_home import ROOT, SCOPE, SCOPED, Homes
@@ -240,6 +241,35 @@ def test_on_status_a_root_with_no_other_child_reads_its_catch_all_alone(tmp_path
         "=== scope uncategorized: queue rows\n"
         "no jbus: jbus is not installed here, so it holds no row\n",
     )
+
+
+def test_the_scopes_the_root_reads_on_status_are_the_scopes_jbus_queues_for(no_jbus):
+    """One rule says what a scope is: a directory of the state with a `plan.md`, but for the
+    directories every home shares. A scope just made, with no thread yet, is one; an archived
+    scope and a directory with only a `home-id` are none."""
+    homes = no_jbus
+    state = homes.home_dir
+    made = {
+        "just-made": {"plan.md": "# a plan\n"},
+        "handed-off": {"plan.md": "# a plan\n", "handoff.md": "Was home: mcp:gone\n"},
+        "archived": {"plan-archived.md": "# a plan\n", "handoff.md": "Was home: mcp:old\n"},
+        "no-plan": {"home-id": "mcp:stray\n"},
+        **{
+            shared: {"plan.md": "# plan: a file with that name\n"}
+            for shared in ("tasks", "scouts", "reports", "log")
+        },
+    }
+    for name, files in made.items():
+        (state / name).mkdir(exist_ok=True)
+        for file, text in files.items():
+            (state / name / file).write_text(text)
+    read = [
+        line.removeprefix("=== scope ").removesuffix(": open plan entries")
+        for line in status(homes).splitlines()
+        if line.endswith(": open plan entries")
+    ]
+    assert read == [scope.name for scope, _, _ in scopes(state)]
+    assert read == sorted(["handed-off", "just-made", SCOPE])
 
 
 def test_on_status_a_scoped_home_reads_no_other_scope(homes):

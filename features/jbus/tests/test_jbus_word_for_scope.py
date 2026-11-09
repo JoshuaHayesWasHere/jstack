@@ -32,6 +32,7 @@ def homes(kitchen):
     (kitchen.home / "home-id").write_text(f"{ROOT}\n")
     for scope, thread in (("cicd", CICD), ("docs", DOCS), ("lab", "home-lab")):
         (kitchen.home / scope).mkdir()
+        (kitchen.home / scope / "plan.md").write_text("# a plan\n")
         (kitchen.home / scope / "home-id").write_text(f"{thread}\n")
 
 

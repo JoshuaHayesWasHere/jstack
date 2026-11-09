@@ -29,6 +29,7 @@ def kitchen(tmp_path, monkeypatch):
     (made.home / "home-id").write_text(f"{ROOT}\n")
     for scope, id in ((SCOPE, FLOW), (OTHER, VIEW)):
         (made.home / scope).mkdir()
+        (made.home / scope / "plan.md").write_text("# a plan\n")
         (made.home / scope / "home-id").write_text(f"{id}\n")
     rows(
         made,

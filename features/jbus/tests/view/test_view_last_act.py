@@ -38,6 +38,7 @@ def glance(scene):
     (home / "handoff.md").write_text(f"Was home: {kept['root']['was']}\n")
     for name, ids in kept["scopes"].items():
         (home / name).mkdir()
+        (home / name / "plan.md").write_text("# a plan\n")
         (home / name / "home-id").write_text(ids["home-id"] + "\n")
         if ids["was"]:
             (home / name / "handoff.md").write_text(f"Was home: {ids['was']}\n")

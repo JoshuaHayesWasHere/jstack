@@ -2,10 +2,12 @@
 module is the one copy of that rule.
 
 A repo's state directory holds the root home's files, and a directory beside them for each
-scoped home. A scope is such a directory whose `home-id` holds an id or whose `handoff.md` has a
-`Was home:` line, and whose plan is not archived: a `plan-archived.md` and no `plan.md`, as
-`/handoff` leaves a scope it closes, is no scope whatever ids it kept, as the home skill counts
-it (`scopes`).
+scoped home. A scope is such a directory with a `plan.md`, the file a home writes when it makes
+one, but for the directories every home of the repo shares (`SHARED`): the home skill's
+scoped-homes.md reads its scopes by the same rule (`scopes`). A scope is one from the moment it
+is made, before its thread starts and writes its `home-id`: jbus queues its rows at once and
+tells it of them once that id is there (`thread_of`). `/handoff` keeps the plan of a scope it
+closes as `plan-archived.md`, so that scope is no scope, whatever ids it kept.
 
 The root home owns no row. `uncategorized` (`UNCATEGORIZED`) is the scope reserved as the
 catch-all: it owns every brief no other scope claims (`catchall`). A brief names its home on a
@@ -40,6 +42,7 @@ from jsettings.paths import homes_dir as homes_dir
 WAS = re.compile(r"^Was home:[ \t]*(\S+)", re.M)
 ROOT = "root"
 UNCATEGORIZED = "uncategorized"
+SHARED = frozenset({"tasks", "scouts", "reports", "log"})
 
 
 def _read(file: Path) -> str:
@@ -62,20 +65,11 @@ def named(brief: str) -> str:
     return "".join((head(brief, "Home:") or "").split()[:1])
 
 
-def archived(directory: Path) -> bool:
-    """Whether a directory's plan is archived: a `plan-archived.md` and no `plan.md`."""
-    return (directory / "plan-archived.md").is_file() and not (directory / "plan.md").is_file()
-
-
 def scopes(state: Path) -> list[tuple[Path, str, str]]:
-    """Each scope of the state, by its name, with its `ids`: a directory with ids whose plan is
-    not archived."""
-    found = []
-    for one in sorted(path for path in state.glob("*") if path.is_dir()):
-        now, was = ids(one)
-        if (now or was) and not archived(one):
-            found.append((one, now, was))
-    return found
+    """Each scope of the state, by its name, with its `ids`, either of which is empty where there
+    is none."""
+    found = (plan.parent for plan in sorted(state.glob("*/plan.md")))
+    return [(one, *ids(one)) for one in found if one.name not in SHARED]
 
 
 def catchall(state: Path) -> Path:

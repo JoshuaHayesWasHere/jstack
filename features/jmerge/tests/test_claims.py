@@ -115,6 +115,7 @@ def test_a_paused_brief_still_holds_its_files_with_and_without_a_pull_request(cl
 def test_a_scoped_home_is_also_known_by_its_directory_and_by_the_home_it_took_over_from(claims):
     scope = claims.home.state / "review-speed"
     scope.mkdir()
+    (scope / "plan.md").write_text("# a plan\n")
     (scope / "home-id").write_text("mcp:the-next-one\n")
     (scope / "handoff.md").write_text(f"# Handoff\nWas home: {OTHER}\n")
     (claims.home.state / "handoff.md").write_text("# Handoff\nWas home: mcp:the-root-before\n")
