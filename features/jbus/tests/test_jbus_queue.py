@@ -12,7 +12,6 @@ from jsonschema import Draft202012Validator
 
 import jbus
 import test_tool_calls as tools
-from jbriefs import home as homes
 from jbus import passes, poll, queue, wake
 from jmerge import judgement
 from scoped import scope
@@ -1275,13 +1274,11 @@ def test_a_launch_sends_no_line_the_approved_sha_leaves_out(kitchen):
     """jbus does not hash what follows `Home:` or `Thread:`, so jbus neither sends nor writes
     that text: a launch sends and writes only the home the `Home:` line names."""
     add(kitchen, "alpha")
-    unsaid = readdressed(
-        "alpha", home="uncategorized and more", thread="mcp:a-thread and also this"
-    )
+    unsaid = readdressed("alpha", home="flow and more", thread="mcp:a-thread and also this")
     add(kitchen, "alpha", approve=False, text=unsaid)
     kitchen.poll()
     (given,) = kitchen.t3.launches
-    written = judgement.body(brief("alpha")) + "Home: uncategorized\n"
+    written = judgement.body(brief("alpha")) + "Home: flow\n"
     assert "and more" not in written
     assert given["message"] == f"/crew alpha\n\n{written}"
     assert (kitchen.home / "tasks/alpha.md").read_text() == written + "Thread: mcp:thread-1\n"
@@ -1501,44 +1498,3 @@ def test_a_where_of_the_whole_repo_is_no_shared_path(kitchen):
 def test_a_parent_whose_where_is_the_whole_repo_shares_no_path(kitchen):
     add(kitchen, "alpha", text=brief("alpha").replace("`src/alpha/`, a new test", "`.`"))
     assert " shares " not in stacks_on(kitchen, "beta", "alpha", "`src/beta/`")
-
-
-def test_a_brief_whose_home_line_names_the_root_is_refused(kitchen):
-    """The root home owns no row, so a brief queued with `Home: root` would show under it: `add`
-    refuses it, as it refuses one with no `Home:` line, and names the homes to write instead."""
-    code, said = kitchen.main(
-        "--project",
-        "demo",
-        "queue",
-        "add",
-        "rooted",
-        "--priority",
-        "1",
-        stdin=brief("rooted").replace("Home: uncategorized\n", "Home: root\n"),
-    )
-    assert (code, said.splitlines()[:2]) == (
-        1,
-        [
-            "refused: rooted's brief has 1 fault, and nothing is queued",
-            "- brief's Home: line names root, which owns no row: name uncategorized or the "
-            "row's scope (flow)",
-        ],
-    )
-    assert not (kitchen.state / "queue.json").exists() or "rooted" not in rows(kitchen)
-
-
-def test_a_move_of_a_row_from_before_rewrites_both_copies_of_its_brief(kitchen):
-    """A row queued before `add` refused the root still says `Home: root`. jbus already reads it
-    as the catch-all's, and a move to `uncategorized` names that home in jbus's copy under
-    `briefs/` and in the home's copy under `tasks/` alike."""
-    add(kitchen, "rooted")
-    stored = queue.brief_path(kitchen.state, "rooted")
-    stored.write_text(stored.read_text().replace("Home: uncategorized\n", "Home: root\n"))
-    copy = kitchen.home / "tasks" / "rooted.md"
-    copy.parent.mkdir(exist_ok=True)
-    copy.write_text(stored.read_text())
-    code, _ = kitchen.main(
-        "--project", "demo", "queue", "move", "rooted", "--home", "uncategorized"
-    )
-    assert code == 0
-    assert [homes.named(one.read_text()) for one in (stored, copy)] == ["uncategorized"] * 2

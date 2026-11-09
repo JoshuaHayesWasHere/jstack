@@ -1,10 +1,10 @@
 """`jbus queue add` refuses a brief that does not say which home it is for.
 
 A brief with no `Home:` line once landed in a home without a word, so work meant for a scope ran
-in the wrong place. The line is required: it names `uncategorized`, the catch-all, `root`, which
-is the catch-all's too, or a scope of the project's homes, and `--for`, where it is given, names
-the home it resolves to. The root home owns no row, so a row it adds goes over with `--for`. A row
-already queued is not checked again.
+in the wrong place. The line is required: it names `uncategorized`, the catch-all, or a scope of
+the project's homes, and `--for`, where it is given, names the home it resolves to. The root home
+owns no row, so a line that names `root` is refused, and a row the root adds goes over with
+`--for`. A row already queued is not checked again.
 
 The tests run the real command against the kitchen.
 """
@@ -79,6 +79,21 @@ def test_a_home_line_that_names_no_scope_is_refused(kitchen):
             "row's scope (flow)",
         ],
     )
+
+
+def test_a_home_line_that_names_the_root_is_refused(kitchen):
+    """A row queued with `Home: root` would show under the root in T3 Code's sidebar, which owns
+    no row: `add` refuses it, as it refuses a brief with no line, and names the homes to write."""
+    code, out = adds(kitchen, "rooted", complete("rooted", "Home: root\n"))
+    assert (code, out.splitlines()[:2]) == (
+        1,
+        [
+            "refused: rooted's brief has 1 fault, and nothing is queued",
+            "- brief's Home: line names root, which owns no row: name uncategorized or the "
+            "row's scope (flow)",
+        ],
+    )
+    assert not (kitchen.state / "queue.json").exists() or "rooted" not in queued(kitchen)
 
 
 def test_a_home_line_that_gives_a_thread_id_is_refused(kitchen):

@@ -215,6 +215,28 @@ def test_a_brief_that_names_no_home_gets_the_line_above_its_first_section(kitche
     assert stored(kitchen, "beta").endswith("\nHome: flow\n")
 
 
+def test_a_row_from_before_that_names_the_root_has_both_copies_named_for_its_home(
+    kitchen, homes_of
+):
+    """A row queued before `add` refused `Home: root` still says it. jbus reads it as the
+    catch-all's, and a move there names that home in jbus's copy under `briefs/` and in the
+    home's copy under `tasks/` alike, its go untouched; run again, it moves nothing."""
+    add(kitchen, "alpha")
+    path = queue.brief_path(kitchen.state, "alpha")
+    path.write_text(stored(kitchen, "alpha").replace("Home: uncategorized\n", "Home: root\n"))
+    copy = kitchen.home / "tasks/alpha.md"
+    copy.write_text(stored(kitchen, "alpha"))
+    was = verified(kitchen, "alpha")
+    assert move(kitchen, "alpha", "uncategorized")[0] == 0
+    assert [homes.named(one.read_text()) for one in (path, copy)] == ["uncategorized"] * 2
+    assert verified(kitchen, "alpha")["approved"] == was["approved"]
+    code, said = move(kitchen, "alpha", "uncategorized")
+    assert (code, said.splitlines()[0]) == (
+        0,
+        "alpha is the uncategorized home's already: nothing is moved",
+    )
+
+
 def test_a_row_with_no_brief_is_refused(kitchen, homes_of):
     add(kitchen, "alpha")
     queue.brief_path(kitchen.state, "alpha").unlink()
