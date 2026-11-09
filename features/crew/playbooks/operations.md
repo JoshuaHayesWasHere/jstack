@@ -12,7 +12,9 @@ Report a step you do not do as `skip: <reason>`.
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo.
 Read a principle in full when a step you are doing names it.
 
-**You own the state of the machine before and after.** The brief says what to change, and the machine says what is there now. Act on what the machine says, change only what the brief asks, and record how to put each change back.
+**You own the state of the machine before and after.**
+The brief says what to change, and the machine says what is there now.
+Act on what the machine says, change only what the brief asks, and record how to put each change back.
 
 1. Check the state the brief names, by a command, before anything is done (`principles/principle-make-operations-idempotent.md`).
    Run the brief's `Proves it:` command, and one command for each thing the operation needs: the target is there, the build is installed, the merge is on the green main.
