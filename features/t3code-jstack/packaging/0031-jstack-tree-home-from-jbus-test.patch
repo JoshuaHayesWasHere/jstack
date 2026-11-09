@@ -1,0 +1,54 @@
+From e85a44f572c1817f2be79510fd6c4ca4483120ec Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@gmail.com>
+Date: Mon, 9 Nov 2026 14:36:14 -0500
+Subject: [PATCH 31/32] test(server): a jstack row sits under the home jbus
+ names on its work.json line, never under the root
+
+---
+ apps/server/src/jstack/jbusWork.logic.test.ts | 30 +++++++++++++++++++
+ 1 file changed, 30 insertions(+)
+
+diff --git a/apps/server/src/jstack/jbusWork.logic.test.ts b/apps/server/src/jstack/jbusWork.logic.test.ts
+index 51a43107..8b55615f 100644
+--- a/apps/server/src/jstack/jbusWork.logic.test.ts
++++ b/apps/server/src/jstack/jbusWork.logic.test.ts
+@@ -32,6 +32,36 @@ const files = (overrides: Partial<JbusRepoFiles> = {}): JbusRepoFiles => ({
+ });
+ 
+ describe("buildRepoWork", () => {
++  it("places a row under the home jbus names on its work.json line, never under the root", () => {
++    const scopes = [
++      { scope: "flow", homeId: "mcp:flow-home", prefix: "fl-" },
++      { scope: "uncategorized", homeId: "mcp:uncategorized-home", prefix: null },
++    ];
++    const work = {
++      work: [
++        row("in-flow", "running", "running", { home: "flow" }),
++        row("fl-uncategorized", "running", "running", { home: "uncategorized" }),
++        row("no-such-scope", "running", "running", { home: "winnifred" }),
++        row("no-home", "running", "running"),
++        row("scouted", "running", "running", { home: "flow", scout: "scouting" }),
++      ],
++    };
++    const result = buildRepoWork(files({ scopes, work }), NOW);
++    expect(result.tasks.map((task) => [task.slug, task.homeThreadId])).toEqual([
++      ["in-flow", "mcp:flow-home"],
++      ["fl-uncategorized", "mcp:uncategorized-home"],
++      ["no-such-scope", "mcp:uncategorized-home"],
++      ["no-home", "mcp:uncategorized-home"],
++      ["scouted", "mcp:flow-home"],
++    ]);
++  });
++
++  it("draws no row under the root while the uncategorized home has not started", () => {
++    const work = { work: [row("waiting", "running", "running", { home: "uncategorized" })] };
++    const result = buildRepoWork(files({ work, startingScopes: ["uncategorized"] }), NOW);
++    expect(result.tasks.map((task) => task.homeThreadId)).not.toContain("mcp:root");
++  });
++
+   it("waits on the user only for a question, an approval or a hold", () => {
+     const lost = (slug: string, thread: string) =>
+       row(slug, "lost", "running", {
+-- 
+2.56.0
+
