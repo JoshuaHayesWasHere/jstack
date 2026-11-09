@@ -14,7 +14,7 @@ import jbus
 import jbus.queue
 from jbus import poll, watch
 from jmerge import judgement, ready, reverts
-from test_jbus_kitchen import NOW, RESULT, TOKEN, filed_as, iso
+from test_jbus_kitchen import NOW, RESULT, TOKEN, filed_as, iso, sends
 from test_jbus_queue import add, rows
 
 
@@ -1410,3 +1410,42 @@ def test_a_completed_job_is_read_once_and_only_for_a_row_s_pull_request(kitchen)
     assert [line.split()[-1] for line in job_reads(kitchen)] == ["repos/o/r/actions/jobs/901"]
     kitchen.poll(NOW + timedelta(minutes=2))
     assert len(job_reads(kitchen)) == 1
+
+
+PROVED = "Proved: proved.sh passed at cccccccccccc"
+
+
+def told_rewritten(kitchen):
+    return [s for s in sends(kitchen) if s["clientRequestId"].startswith("rewritten|")]
+
+
+@pytest.fixture
+def written(kitchen):
+    """Launch alpha, whose crew has ended its turn on a Result with a `Proved:` line."""
+    add(kitchen, "alpha")
+    assert "launched alpha: mcp:thread-1" in kitchen.poll(NOW - timedelta(minutes=30))
+    kitchen.t3.threads[0]["status"] = "completed"
+    path = kitchen.home / "tasks" / "alpha.md"
+    path.write_text(path.read_text() + f"\n{RESULT}{PROVED}\n")
+    kitchen.poll(NOW - timedelta(minutes=20))
+    return path
+
+
+def test_a_brief_that_only_grows_tells_its_crew_nothing(written, kitchen):
+    """The head above the first `## ` is the home's and jbus's, which write lines into it in
+    place (`watch._add_tip`, `dispatch.write_thread`), so only the sections must grow."""
+    head = written.read_text().replace("Where:", "Read: main is red again\nWhere:", 1)
+    written.write_text(head + "\n## Result, follow-up (2026-11-08, rebased)\n")
+    kitchen.poll(NOW - timedelta(minutes=10))
+    assert told_rewritten(kitchen) == []
+
+
+def test_a_cut_proved_line_is_told_to_the_crew_once_word_for_word(written, kitchen):
+    written.write_text(written.read_text().replace(f"{PROVED}\n", ""))
+    said = kitchen.poll(NOW - timedelta(minutes=10))
+    kitchen.poll(NOW)
+    told = told_rewritten(kitchen)
+    assert [one["threadId"] for one in told] == ["mcp:thread-1"]
+    assert f"```\n{PROVED}\n```" in told[0]["message"]
+    assert "a new `## Result, follow-up (<date>, <why>)` section" in told[0]["message"]
+    assert "rewritten alpha: told its crew the brief lost 1 line" in said
