@@ -1,5 +1,5 @@
 """`jbus telemetry` keeps the gh calls of each hour past the call log's rotation
-(`jbus.telemetry.ghcalls`).
+(`jbus.telemetry.ghcalls`), in the table `jbus.telemetry.migrations.v016_gh_hours` makes.
 
 `jsettings.proc` appends one line a call to `gh-calls.jsonl` in jbus's state directory, and at
 16 MiB moves it to `gh-calls.old.jsonl` with `os.replace` and starts a new one. The test writes
