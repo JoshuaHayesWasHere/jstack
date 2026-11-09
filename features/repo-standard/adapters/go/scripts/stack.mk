@@ -4,3 +4,4 @@
 STACK_LINT = python3 scripts/go.py lint
 STACK_TEST = python3 scripts/go.py test
 STACK_SELECT = python3 scripts/go.py select
+STACK_LIST = python3 scripts/go.py list
