@@ -67,10 +67,12 @@ Such a row is the one left row that still reaches the user: jbus's list of what 
 A thread at work on what the row left holds it instead.
 A gate of the user's that holds a row, one `jbus needs` lists, makes any row the user's, `waits: your answer`.
 A row that waits on one word of the user's that the sidebar can send is the user's at any stage, and its line names that word in `lift` (`work.Lift`):
-- `lift: approve`: its go does not hold for the brief jbus keeps, queued or launched, up to its merge. That is a row never approved, one whose go was taken back (`jbus queue hold`), or one whose brief changed after the go.
+- `lift: approve`: its go does not hold for the brief jbus keeps, queued or launched, up to its merge.
+  That is a row never approved, one whose go was taken back (`jbus queue hold`), or one whose brief changed after the go.
   Its `waits` is `your go for its brief at <sha12>`, and its `why` says which of the three in plain words, with the lines that changed for a changed brief (`queue.changed`), such as `its brief changed after your go: Done when: the sidebar shows the row`.
   The word is `jbus queue approve <slug> --sha <sha12>` on the user's message.
-- `lift: accept`: `jmerge` holds its pull request for a reason `jmerge --accept` lifts (`judgement.lifted_by`). Its `waits` is `your accept of #<n> (jmerge --accept <n>)`, and its `why` is `jmerge`'s hold.
+- `lift: accept`: `jmerge` holds its pull request for a reason `jmerge --accept` lifts (`judgement.lifted_by`).
+  Its `waits` is `your accept of #<n> (jmerge --accept <n>)`, and its `why` is `jmerge`'s hold.
 
 A gate, a hung thread, a thread's own request and a lost thread ask the user something else first, and carry no `lift`.
 A line with no `lift` that is the user's waits on a word no button sends, such as `/nohome merge on`.
