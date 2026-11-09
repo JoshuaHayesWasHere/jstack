@@ -122,8 +122,8 @@ def held() -> Held | None:
             return None
         listed = proc.run("ps", "-A", "-ww", "-o", "command=", errors="replace", timeout=30)
         args = [arg for line in listed.stdout.splitlines() for arg in line.split()]
-        proving = None if any(arg.endswith(f"/{PROVED}") for arg in args) else frozenset()
-        return Held(frozenset(cwds | _resolved(args)), proving)
+        running = any(arg.endswith(f"/{PROVED}") for arg in args)
+        return Held(frozenset(cwds | _resolved(args)), None if running else frozenset())
     paths: set[Path] = set()
     proving: set[Path] = set()
     for one in ROOT.glob("[0-9]*"):
@@ -137,10 +137,8 @@ def held() -> Held | None:
             continue
         paths |= _resolved([cwd, *args])
         if any(arg.endswith(f"/{PROVED}") or arg == PROVED for arg in args[:3]):
-            pairs = dict(
-                item.decode(errors="replace").partition("=")[::2] for item in env if b"=" in item
-            )
-            proving.add(Path(pairs.get("TMPDIR") or "/tmp").resolve())
+            given = [item.partition(b"=")[2] for item in env if item.startswith(b"TMPDIR=")]
+            proving.add(Path(given[0].decode(errors="replace") if given else "/tmp").resolve())
     return Held(frozenset(paths), frozenset(proving)) if paths else None
 
 
