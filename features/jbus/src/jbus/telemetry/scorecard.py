@@ -121,10 +121,8 @@ def _amount(value: float | None, unit: str) -> str:
 
 
 def _note(reading: Reading) -> str:
-    """Why a reading is `none` where it says: the record a measure lacks, or the kind of error
-    of a query that failed, never the error's message, which can carry the SQL's values."""
-    if reading.note.startswith("needs "):
-        return reading.note
+    """The kind of error of a query that failed, never its message, which can carry the SQL's
+    values; a measure that `Lacks` its record says so in its row instead."""
     if reading.note:
         return f"its query failed ({reading.note.split(':', 1)[0]})"
     return ""
