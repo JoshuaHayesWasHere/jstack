@@ -456,21 +456,26 @@ class Directory:
     path: Path
 
     @property
+    def works(self) -> frozenset[Path]:
+        """The homes whose rows these are (`jbriefs.home.works`)."""
+        return homes.works(self.root, self.path)
+
+    @property
     def own(self) -> str:
         return "home" if self.path == self.root else f"home-{self.path.name}"
 
     def has(self, slug: str) -> bool:
         """Say whether a slug is this home's: its own, or by the home of its brief or request,
-        and the root home's when it has neither."""
-        if slug == self.own:
+        and the catch-all's (`uncategorized`) when it has neither, as `jbus needs` reads it."""
+        if slug == self.own or (slug.startswith("home-") and self.root / slug[5:] in self.works):
             return True
         if slug == "home" or (slug.startswith("home-") and (self.root / slug[5:]).is_dir()):
             return False
         for kind in ("tasks", "scouts"):
             file = self.root / kind / f"{slug}.md"
             if file.exists():
-                return homes.home_of(self.root, file.read_text(errors="replace")) == self.path
-        return self.path == self.root
+                return homes.home_of(self.root, file.read_text(errors="replace")) in self.works
+        return (homes.catchall(self.root) if slug else self.root) in self.works
 
 
 def _gates(run: Pass, home: Directory) -> list[str]:
@@ -497,7 +502,7 @@ def _rows(run: Pass, home: Directory) -> list[str]:
     mine = [
         row
         for row in rows
-        if homes.home_of(home.root, texts[row["slug"]]) == home.path
+        if homes.home_of(home.root, texts[row["slug"]]) in home.works
         and row.get("status") not in queue.FINAL
     ]
     open_fixes: dict[str, list[str]] = {}
@@ -523,7 +528,7 @@ def _rows(run: Pass, home: Directory) -> list[str]:
         if key in seen:
             continue
         seen.add(key)
-        had = tries(home.path, key)
+        had = tries(homes.home_of(home.root, texts[slug]), key)
         at_work = [one for one in open_fixes.get(key, []) if one != slug]
         merged = pending(run, {one["slug"]: one for one in rows}, had, row)
         if at_work:

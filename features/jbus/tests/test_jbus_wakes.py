@@ -105,7 +105,8 @@ def test_with_no_root_home_a_red_run_no_row_owns_is_the_users_and_told_to_nobody
 def test_a_hung_crew_no_step_works_is_told_to_the_root_home_once(tmp_path, monkeypatch):
     """No other step tells a home of a crew that hangs at work with no queued row: `stall.hung`
     only logs it, and `jbus.watch.unwritten` works only a row. The review of #563 found the
-    hang went to nobody."""
+    hang went to nobody. The crew is the catch-all's, and the root's thread hears of it while
+    it stands in for the catch-all."""
     kitchen = Kitchen(tmp_path, monkeypatch)
     kitchen.quiet()
     root = home(kitchen)["threadId"]
@@ -115,7 +116,7 @@ def test_a_hung_crew_no_step_works_is_told_to_the_root_home_once(tmp_path, monke
     (sent,) = [given for given in sends(kitchen) if given["threadId"] == root]
     assert sent["message"].startswith("jbus: 1 new for this home in demo")
     (one,) = [one for one in wrongs(kitchen, NOW + 6 * MIN) if one["kind"] == "thread"]
-    assert (one["owner"], one["fixing"]["what"]) == ("root home", wakes.KIND)
+    assert (one["owner"], one["fixing"]["what"]) == ("home uncategorized", wakes.KIND)
     kitchen.close()
 
 

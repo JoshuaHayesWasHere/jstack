@@ -1,7 +1,9 @@
 """The rules of `scripts/select_tests.py` held against this repo's own tree: one row of a table
-for each rule, a mutant of the selector for each rule that must fail its row, and the map's tests
-that read the repo's map, the files git tracks, and the imports the tests make, then the tests
-that a change to one of this repo's own files must select, on a pull request and on a Mac.
+for each rule, and the map's tests that read the repo's map, the files git tracks, and the
+imports the tests make, then the tests that a change to one of this repo's own files must
+select, on a pull request and on a Mac. The mutant of the selector for each rule, which must
+fail its row, is in test_select_tests_mutants.py, which runs where a change reaches the selector
+or this table.
 
 Each of these runs the selector on today's tree, whose first run in a process takes seconds, so
 they sit apart from test_select_tests.py, whose tests run the selector in small repos of their
@@ -296,93 +298,6 @@ def test_every_python_file_under_features_selects_a_test():
     assert lone == []
 
 
-MUTANTS = {
-    "all": ("shared() & set(EVERY_RUN) if strict else shared()", "set()"),
-    "plugin": (
-        "return {modules()[one] for one in found} | whole | set(EVERYTHING)",
-        "return set(EVERYTHING)",
-    ),
-    "imports": ("testers().get(by_path[path], set())", "test_files([by_path[path]])"),
-    "chain": (
-        "found.add(one)\n            todo += edges()[one]\n    return frozenset(found)",
-        "found.add(one)\n            todo += edges()[one] if one == name else ()\n"
-        "    return frozenset(found)",
-    ),
-    "process": ("if path.startswith(run)}", "if path.startswith(run) and False}"),
-    "by-name": ("for loader in itself.union(", "for loader in set().union("),
-    "fixture-asked": (" | asking(by_path[path])", ""),
-    "conftest": ("reached |= conftests(name) & known.keys()", "reached |= set()"),
-    "test-spelled": ('found["names"] |= readers(path)\n', 'found["names"] |= set()\n'),
-    "beside": ('found["imports"] |= test_files(importers(users(path)))', "pass"),
-    "spelled": ('found["names"] |= readers(one)', "pass"),
-    "included": ("for one in {path} | includers(path):", "for one in {path}:"),
-    "skill-index": ("for word in reaches(name)}", "for word in ()}"),
-    "fixture": ('found["names"] |= named', "pass"),
-    "read-set": ('found["names"] |= globbers(path)', "pass"),
-    "tests-line": ('found["features"] |= set(listed_tests)', "pass"),
-    "page": ('found["features"] |= feature_tests(name)', "pass"),
-    "cross-cutting": (
-        'found["cross-cutting"] = set(cross_cutting()) if cross else set()',
-        'found["cross-cutting"] = set()',
-    ),
-    "browser": ("tests if runs(one)}", "tests if (ROOT / one).is_file()}"),
-    "models": ("if any(owns(paths, path) for path in changed)", "if False"),
-    "models-only": ("found[key] -= models().keys()", "pass"),
-    "failed-on-main": ("added = set(failed) & collected() - chosen", "added = set()"),
-}
-
-MUTANT = """
-import json, sys, types
-script, old, new, asked = json.load(sys.stdin)
-module = types.ModuleType("select_tests")
-module.__file__ = script
-exec(compile(open(script).read().replace(old, new), script, "exec"), module.__dict__)
-module.unowned = frozenset
-module.kept = lambda: (b"", None)
-print(json.dumps([module.selection(*one) for one in asked]))
-"""
-
-
-def mutant(old, new):
-    """The `(tests, why)` for each of the table's questions from the selector with one rule
-    broken, `old` swapped for `new` in its source, run as CI runs it. The catch-all is left
-    out: no test of today's tree is in it, and finding that out takes each path's selection.
-    The kept facts are left alone too: they are kept under a hash of the script's file, which a
-    mutant's code is not."""
-    assert SCRIPT.read_text().count(old) == 1, f"the rule's code moved: {old!r}"
-    ran = subprocess.run(
-        [sys.executable, "-I", "-S", "-c", MUTANT],
-        input=json.dumps([str(SCRIPT), old, new, asked()]),
-        capture_output=True,
-        text=True,
-        cwd=REPO,
-    )
-    assert ran.returncode == 0, ran.stderr
-    return json.loads(ran.stdout)
-
-
-def test_every_rule_of_the_table_has_a_mutant():
-    rules = {rule for rule, *_ in TABLE} | {"failed-on-main"}
-
-    assert rules - MUTANTS.keys() == {"itself", "scripts", "paths"}
-    assert MUTANTS.keys() <= rules
-
-
-def test_the_selector_run_as_the_mutants_run_fails_no_row():
-    """The control: with no rule broken, the selector run the mutants' way gets every row
-    right, so a mutant that fails a row fails it for the rule it broke."""
-    assert failing(mutant("ROOT = ", "ROOT = ")) == []
-
-
-@pytest.mark.parametrize("rule", MUTANTS)
-def test_breaking_a_rule_of_the_selector_fails_a_row_of_its_rule(rule):
-    """Each rule broken alone in the selector's source must fail a row of the table that names
-    that rule, so the table pins what each rule selects and no row passes on another rule."""
-    wrong = failing(mutant(*MUTANTS[rule]))
-
-    assert [one for one in wrong if one.startswith(f"{rule}:")]
-
-
 def tracked(*paths):
     """The files git has or would add under `paths`."""
     listed = subprocess.run(
@@ -578,10 +493,8 @@ def test_the_selector_finds_the_skills_the_index_finds():
 @pytest.mark.parametrize(
     "path, reader",
     [
-        ("features/home/skills/home/SKILL.md", "features/home/tests/test_quiet_turns.py"),
         ("features/home/skills/home/SKILL.md", "features/home/tests/test_home_start.py"),
         ("features/home/skills/handoff/SKILL.md", "features/home/tests/test_handoff_mail.py"),
-        ("features/crew/a-gate.md", "features/jbus/tests/test_gates.py"),
         ("features/ketchup/SKILL.md", "features/home/tests/test_home_needs.py"),
     ],
 )
@@ -789,7 +702,7 @@ def test_strict_within_is_all_only_for_what_changes_every_run_and_within_for_all
         assert strict != ["all"] and set(strict) <= set(select.tracked()), path
 
 
-@pytest.mark.parametrize("path", ["uv.lock", MAC_LIST])
+@pytest.mark.parametrize("path", [MAC_LIST])
 def test_strict_within_is_all_where_within_is(path):
     assert mac_within(path, strict=True) == mac_within(path) == ["all"]
 

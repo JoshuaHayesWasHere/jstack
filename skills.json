@@ -448,7 +448,7 @@
       "kind": "skill",
       "path": "features/home/skills/handoff/SKILL.md",
       "source": "jstack",
-      "description": "Archive this home - stop what runs, keep a note of ten lines at most in its log, hand what it has out to the root home, close its scope, switch off its scheduled tasks, and rename and settle this thread. It starts no next home. Use when the user invokes /handoff or $handoff, archives a home from the jstack tree, or says to archive or close this home.",
+      "description": "Archive this home - stop what runs, keep a note of ten lines at most in its log, hand what it has out to the uncategorized home, close its scope, switch off its scheduled tasks, and rename and settle this thread. It starts no next home. Use when the user invokes /handoff or $handoff, archives a home from the jstack tree, or says to archive or close this home.",
       "hidden": true
     },
     {

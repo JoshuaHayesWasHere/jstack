@@ -4,10 +4,11 @@ request belongs to.
 The file is `<state>/tasks/<slug>.md` or `<state>/scouts/<slug>.md`, and its state is the directory
 two levels above it. The command reads the `home-id` of the home of the brief or request now, and
 prints the thread that the `home-id` names. It prints nothing where that home has no thread: between
-a handoff and the next start, or in a repo with no home. With `--directory` it prints the home's
-directory instead, and a home compares that directory with its own. A file that does not exist names
-no home, so the command counts it as the root home's. The rule is `jbriefs.home`, which the
-skills, jbus and `jmerge` share.
+a handoff and the next start, or in a repo with no home. With `--directory` it prints the directory
+of the home that works it instead, and a home compares that directory with its own: the brief's
+home's, and the root's for a brief of the catch-all, `uncategorized`, while the root stands in for
+it (`jbriefs.home.worked_by`). A file that does not exist names no home, so the command counts it
+as the catch-all's. The rule is `jbriefs.home`, which the skills, jbus and `jmerge` share.
 
 `jbus home status --home <directory>` prints where things stand for that home, at its start, and
 with `--gates` what the home skill's blocks of "Gates" read (`jbus.homestatus`). It asks whose
@@ -65,7 +66,8 @@ def _directory(brief: Path) -> Path:
         text = brief.read_text(errors="replace")
     except OSError:
         text = ""
-    return home.home_of(brief.parent.parent, text)
+    state = brief.parent.parent
+    return home.worked_by(state, home.home_of(state, text))
 
 
 def was_home(directory: Path) -> str:

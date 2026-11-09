@@ -187,11 +187,13 @@ def read(run: Pass) -> state.Read:
 
 
 def _hung(one: dict) -> bool:
-    """Whether the entry is a crew of the root home's whose turn hung: `jbus.stall.hung` only
-    logs it. A home's own thread is no crew, and a crew a child home owns is left to
-    `jbus.children`, whose nudge to that home counts all it has out."""
+    """Whether the entry is a crew of the catch-all's, `uncategorized`, whose turn hung, which
+    the root home's once were: `jbus.stall.hung` only logs it. A home's own thread is no crew,
+    and a crew another child home owns is left to `jbus.children`, whose nudge to that home
+    counts all it has out."""
     hung = one["cause"].startswith(state.QUIET_OR_HUNG["hung"])
-    crew = one["subj"].startswith(CREW.prefix) and one["owner"] == state.ROOT_HOME
+    owners = (state.ROOT_HOME, f"home {homes.UNCATEGORIZED}")
+    crew = one["subj"].startswith(CREW.prefix) and one["owner"] in owners
     return one["kind"] == "thread" and hung and crew
 
 

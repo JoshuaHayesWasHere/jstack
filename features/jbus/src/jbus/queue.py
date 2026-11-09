@@ -319,9 +319,10 @@ def owned(
 ) -> str:
     """Refuse a row that a home adds for a brief whose home is another (`jbriefs.home.home_of`),
     so that two homes do not brief the same fix unseen. `adder` is the thread of the home that
-    adds it (`--from`), the root home's when it is empty, and None when no home said it adds it.
-    `given` is the home the row is handed over to on purpose (`--for`): `root` or a scope's name,
-    which must be the brief's home.
+    adds it (`--from`), the catch-all's (`uncategorized`) when it is empty, and None when no home
+    said it adds it. `given` is the home the row is handed over to on purpose (`--for`): a
+    scope's name, `uncategorized` included, which must be the brief's home. The root home owns no
+    row, so a root that adds one hands it over with `--for <child>`.
 
     Return why the brief names no home of the project (`jbriefs.home.fault`), or nothing: such a
     brief has no home to own it, and `add` refuses it for that fault beside its fields' own,
@@ -341,7 +342,7 @@ def owned(
         return ""
     if adder is None:
         return ""
-    mine = home if not adder else None
+    mine = homes.catchall(home) if not adder else None
     for where in (home, *(scope for scope, _, _ in homes.scopes(home))):
         if adder and thread_of(where) == adder:
             mine = where
@@ -349,6 +350,11 @@ def owned(
         raise Refused(
             f"refused: --from {adder} is no home of {project} now, its id is in no home-id: "
             "nothing is queued"
+        )
+    if mine == home:
+        raise Refused(
+            f"refused: the root home owns no row, and {slug}'s brief is the {theirs} home's: "
+            f"hand it over with --for {theirs}, and nothing is queued"
         )
     if _home_name(home, mine) != theirs:
         raise Refused(

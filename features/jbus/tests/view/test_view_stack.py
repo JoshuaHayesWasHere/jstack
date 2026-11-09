@@ -52,16 +52,17 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
         "threads": None,
         "homes": [
             {
-                "name": "",
+                "name": name,
                 "open": 0,
                 "waits": 0,
-                "colour": 1,
+                "colour": colour,
                 "in_check": {"failing": 0, "waiting": 0, "passed": 0, "stacked": 0},
-                "health": "unknown",
+                "health": health,
                 "since": None,
                 "started": None,
                 "last": None,
             }
+            for name, colour, health in (("", 1, "unknown"), ("uncategorized", 2, "none"))
         ],
         "last": None,
         "health": {

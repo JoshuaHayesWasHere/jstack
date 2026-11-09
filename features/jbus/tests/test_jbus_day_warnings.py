@@ -65,7 +65,7 @@ def merged(kitchen, *pulls):
     """Say that GitHub lists `pulls`, each a slug and its number, as merged ten minutes before
     the kitchen's clock."""
     made = [kitchen.merged(slug, number, f"{number:040d}") for slug, number in pulls]
-    (kitchen.stub / "merged.json").write_text(json.dumps(made))
+    kitchen.set("merged.json", made)
 
 
 def filed(kitchen):
@@ -148,7 +148,7 @@ def test_the_days_rows_own_review_an_open_pull_request_and_one_before_since_keep
         kitchen.merged("early", 5, "5" * 40),
     ]
     pulls[1]["mergedAt"] = "2026-09-01T12:00:00Z"
-    (kitchen.stub / "merged.json").write_text(json.dumps(pulls))
+    kitchen.set("merged.json", pulls)
     (kitchen.stub / "open.json").write_text(json.dumps([kitchen.opened("alpha", 7)]))
     for days in range(3):
         kitchen.poll(NOW + days * DAY)

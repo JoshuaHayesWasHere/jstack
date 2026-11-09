@@ -925,6 +925,7 @@ def folder(process, name, script=LINKED, data=SAMPLE):
 
 
 ROOT, SHELF, RACK, OLD = "", "pantry-shelf", "spice-rack", "old-shelf"
+CATCHALL = "uncategorized"
 HOMES = {
     "tea-kettle": None,
     "tea-tray": OLD,

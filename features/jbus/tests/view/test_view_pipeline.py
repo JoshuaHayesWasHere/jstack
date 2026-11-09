@@ -3,6 +3,7 @@ chains its rows make and what holds the line, as `/panel/pipeline.json` answers 
 
 import pytest
 
+from jbus.view.panels.pipeline import panel
 from view.days import t_moment
 from view.scene import (
     CAPTURED,
@@ -133,13 +134,13 @@ def test_the_board_of_two_projects_and_three_homes_reads_every_field(scene):
     ]
     saucer = rows["demo", "tea-saucer"]
     assert (saucer["home"], saucer["head"], saucer["depth"], saucer["waited_by"]) == (
-        "root",
+        "uncategorized",
         "tea-pot",
         3,
         [],
     )
     cleanup = rows["demo", "cleanup-ux-look-pr"]
-    assert cleanup["home"] == "root"
+    assert cleanup["home"] == "uncategorized"
     assert cleanup["waits_on"] == [{"slug": "ux-look-pr", "project": "demo", "kind": "merge_after"}]
     assert (cleanup["head"], cleanup["depth"]) == ("ux-look-pr", 2)
     look = rows["demo", "ux-look-pr"]
@@ -150,11 +151,13 @@ def test_the_board_of_two_projects_and_three_homes_reads_every_field(scene):
         since(15),
     )
     assert look["waited_by"] == ["cleanup-ux-look-pr"]
-    assert rows["demo", "oat-lid"]["home"] == "root"
+    assert rows["demo", "oat-lid"]["home"] == "uncategorized"
     assert rows["demo", "oat-lid"]["cause"] == "asks you: which lid?"
     scout = rows["demo", "look"]
     assert (scout["home"], scout["since"], scout["moving"]) == ("jview", since(45), True)
-    assert rows["pantry", "fig-tart"]["home"] == rows["pantry", "fig-jam"]["home"] == "root"
+    assert (
+        rows["pantry", "fig-tart"]["home"] == rows["pantry", "fig-jam"]["home"] == "uncategorized"
+    )
 
     assert got["unplaced"] == [
         {"slug": "bad-row", "project": "demo", "cause": "jmerge said: draft"}
@@ -232,7 +235,7 @@ def test_the_scouts_capture_is_stuck_in_check_and_its_longest_chain_is_two_deep(
     }
     assert got["longest_wait"]["slug"] == "bl-lands"
     rows = {one["slug"]: one for one in got["rows"]}
-    assert rows["cleanup-ux-look-pr"]["home"] == "root"
+    assert rows["cleanup-ux-look-pr"]["home"] == "uncategorized"
     assert rows["mac-sync-main-7"]["home"] == "macos"
 
 
@@ -349,8 +352,9 @@ def cells(home):
 
 
 def test_the_t_moments_matrix_has_a_line_for_every_home_an_empty_one_too(scene):
-    """The T moment over the root, jview, flow and macos, as build/wire-1440.png draws it, and
-    `infra`, a scope with no open row, which has its line all the same: each home's open rows,
+    """The T moment over the catch-all `uncategorized`, jview, flow and macos, as
+    build/wire-1440.png draws it, with no line for the root, which owns no row, and `infra`, a
+    scope with no open row, which has its line all the same: each home's open rows,
     its last act, and a cell per stage with its rows, the ones an hour old or more and what the
     rows in check, stacked and needs you wait on. The longest chain is two deep, a stacked row
     behind the first failing check, and 6 stacked rows merge after 6 parents whose checks
@@ -361,14 +365,15 @@ def test_the_t_moments_matrix_has_a_line_for_every_home_an_empty_one_too(scene):
     got = board(scene)["data"]
     homes = {one["name"]: one for one in got["homes"]}
     assert [(one["name"], one["open"]) for one in got["homes"]] == [
-        ("root", 20),
+        (panel.CATCHALL, 20),
         ("jview", 15),
         ("flow", 8),
         ("macos", 1),
         ("infra", 0),
     ]
     assert {one["project"] for one in got["homes"]} == {"demo"}
-    assert cells(homes["root"]) == {
+    assert "root" not in homes
+    assert cells(homes["uncategorized"]) == {
         "crew": (4, 0, {}),
         "you": (2, 0, {"stacked": 2}),
         "review2": (1, 0, {}),
@@ -389,7 +394,7 @@ def test_the_t_moments_matrix_has_a_line_for_every_home_an_empty_one_too(scene):
         "at": iso(ago(minutes=10)),
         "what": f"hold 103 {PULL.format(103)}: needs user, touches skills/crew/SKILL.md",
     }
-    oldest = homes["root"]["cells"]["stacked"]["oldest"]
+    oldest = homes["uncategorized"]["cells"]["stacked"]["oldest"]
     assert (oldest["slug"], oldest["project"]) == ("oat-platter", "demo")
     rows = {one["slug"]: one for one in got["rows"]}
     for home in got["homes"]:

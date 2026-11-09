@@ -52,6 +52,46 @@ def test_every_merge_a_pass_sees_is_kept_and_known_once_github_lists_it_no_more(
     assert [line for line in kitchen.log("gh") if "--head" in line] == []
 
 
+def test_the_merged_list_is_asked_for_only_once_a_base_branch_moved(kitchen):
+    """A merge moves the branch it went into, which one `git ls-remote origin` sees, so a pass
+    whose base branches stand where they stood asks GitHub for no merged list (10.71 GraphQL calls
+    a pass for 5 projects on 2026-11-08, half of them this list) and reads `merged.json`."""
+    kitchen.brief("alpha", RESULT)
+    kitchen.brief("beta", RESULT)
+    kitchen.set("merged.json", [kitchen.merged("alpha", 7, "a" * 40)])
+    kitchen.quiet()
+    listed(kitchen)
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert listed(kitchen) == []
+    beta = kitchen.merged("beta", 8, "b" * 40, ago=timedelta(0))
+    kitchen.set("merged.json", [kitchen.merged("alpha", 7, "a" * 40), beta])
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert len(listed(kitchen)) == 1
+    assert kitchen.lines("merged") == ["merged beta #8 bbbbbbbbbbbb"]
+    kitchen.poll(NOW + timedelta(minutes=9))
+    assert listed(kitchen) == []
+    assert kitchen.lines("merged") == ["merged beta #8 bbbbbbbbbbbb"]
+
+
+def test_a_pass_that_cannot_read_the_base_tips_asks_for_the_merged_list(kitchen):
+    """With no answer from `git ls-remote origin`, no base is known to stand still, so each pass
+    asks GitHub for the merged list as it did before the tips were kept."""
+    kitchen.set("merged.json", [kitchen.merged("alpha", 7, "a" * 40)])
+    kitchen.quiet()
+    kitchen.git("remote", "set-url", "origin", str(kitchen.root / "gone.git"))
+    listed(kitchen)
+    for minutes in (3, 6):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+        assert len(listed(kitchen)) == 1
+
+
+def listed(kitchen):
+    """Return the merged lists asked of the fake `gh` since the last call, and forget them."""
+    said = [line for line in kitchen.log("gh") if line.startswith("pr list --state merged")]
+    (kitchen.stub / "gh.log").unlink(missing_ok=True)
+    return said
+
+
 def heads(kitchen):
     return [line for line in kitchen.log("gh") if "--head alpha" in line]
 
@@ -1099,7 +1139,7 @@ def test_a_red_browser_run_and_a_red_macos_nightly_of_one_night_file_a_brief_eac
     kitchen.set("logs.json", {"712": MACOS_LOG, "911": BROWSER_LOG})
     kitchen.poll()
     tasks = kitchen.home / "tasks"
-    assert "\nHome: root\n" in (tasks / "browser-red-2026-10-12.md").read_text()
+    assert "\nHome: uncategorized\n" in (tasks / "browser-red-2026-10-12.md").read_text()
     assert (
         "tests/test_jbus_view_page.py::test_one"
         in (tasks / "browser-red-2026-10-12.md").read_text()
@@ -1283,7 +1323,7 @@ def test_a_red_run_of_any_scheduled_workflow_on_main_files_one_row_a_day(kitchen
         "the drift run 66 failed on 2026-10-12, 1 test named",
         "features/jdrift/tests/test_pin.py::test_pin",
         DRIFT_JOB,
-        "\nHome: root\n",
+        "\nHome: uncategorized\n",
         f"\nDecisions: {jbus.queue.RED_DECIDED}scheduled run ",
     ):
         assert said in text

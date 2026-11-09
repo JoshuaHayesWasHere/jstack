@@ -182,7 +182,7 @@ def test_the_band_is_calm_while_every_fault_has_an_agent_owner(tmp_path, monkeyp
     scene.passed(20, threads=[out("crew: jam-jar", "hung", minutes=25)])
     scene.write("main.json", {"at": iso(ago(minutes=12)), "main": RED, "check": "failed"})
     (scene.home / "home-id").write_text("mcp:root\n")
-    assert {one["owner"] for one in wrongs(scene)} == {"root home"}
+    assert {one["owner"] for one in wrongs(scene)} == {"root home", "home uncategorized"}
     given = stack(scene)
     assert given["wrong"] == []
     assert given["glance"]["calm"]
@@ -252,18 +252,19 @@ def _idle(scene):
         (_unasked_github, "unasked", "root home"),
         (_unasked_t3, "unasked", "user"),
         (_thread, "thread", "home pantry-shelf"),
-        (_stall, "stall", "root home"),
+        (_stall, "stall", "home uncategorized"),
         (_stall_gated, "stall", "user"),
         (_stall_capped, "stall", "user"),
-        (_idle, "idle", "root home"),
+        (_idle, "idle", "home uncategorized"),
     ],
 )
 def test_each_row_of_the_owner_table_names_who_fixes_its_kind(
     tmp_path, monkeypatch, made, kind, owner
 ):
     """Each row of `state.OWNERS`: a fault of the project or the machine is the root home's, a
-    fault of a row is its home's, and the user's only where no agent can fix it: a wake the home
-    thread does not take, T3 Code not answering, a fix that is a case of `gates.md`, or a cap."""
+    fault of a row is its home's, the catch-all's for a row whose brief names no home, and the
+    user's only where no agent can fix it: a wake the home thread does not take, T3 Code not
+    answering, a fix that is a case of `gates.md`, or a cap."""
     scene = Scene(tmp_path, monkeypatch)
     (scene.home / "home-id").write_text("mcp:root\n")
     made(scene)

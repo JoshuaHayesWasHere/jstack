@@ -1,10 +1,13 @@
 """Homes: each task, thread and need of a project carries the home it belongs to, and the
-summary has the project's homes, the root first, each with its open count and its waits.
+summary has the project's homes, the root first and the catch-all `uncategorized` second, each
+with its open count and its waits.
 
 A home is what `jbriefs.home_of` says of a brief's `Home:` line. The scene has the root and
 two child homes, `pantry-shelf` by its name and `spice-rack` by its thread id, and a brief
-that names `old-shelf`, a scope that has retired: jbriefs puts its row under the root, and the
-row says which scope it named.
+that names `old-shelf`, a scope that has retired: jbriefs puts its row under the catch-all, and
+the row says which scope it named. A brief with no `Home:` line, and a task with no brief, are
+the catch-all's too. The root owns no row: only its own thread, its own gates and the needs
+about itself.
 """
 
 import os
@@ -12,7 +15,21 @@ import os
 import pytest
 
 from jbus.view import state as built
-from view.scene import IN_CHECK, NOW, OLD, RACK, ROOT, SHELF, Scene, ago, homed, in_check, iso, out
+from view.scene import (
+    CATCHALL,
+    IN_CHECK,
+    NOW,
+    OLD,
+    RACK,
+    ROOT,
+    SHELF,
+    Scene,
+    ago,
+    homed,
+    in_check,
+    iso,
+    out,
+)
 from view.walk import runs, sources
 
 
@@ -27,13 +44,13 @@ def test_each_task_carries_its_home_from_its_briefs_home_line(tmp_path, monkeypa
     _, state = answers(scene)
     got = {one["slug"]: (one["home"], one["retired"]) for one in state["tasks"]}
     assert got == {
-        "tea-kettle": (ROOT, ""),
-        "tea-cups": (ROOT, ""),
-        "tea-tray": (ROOT, OLD),
+        "tea-kettle": (CATCHALL, ""),
+        "tea-cups": (CATCHALL, ""),
+        "tea-tray": (CATCHALL, OLD),
         "jam-jar": (SHELF, ""),
         "jam-lid": (SHELF, ""),
-        "oat-bowl": (ROOT, ""),
-        "oat-spoon": (ROOT, ""),
+        "oat-bowl": (CATCHALL, ""),
+        "oat-spoon": (CATCHALL, ""),
         "oat-milk": (RACK, ""),
         "oat-honey": (RACK, ""),
     }
@@ -48,7 +65,7 @@ def test_each_thread_carries_its_home_where_it_has_one(tmp_path, monkeypatch):
         "crew: jam-jar": (SHELF, ""),
         "review: oat-milk": (RACK, ""),
         "scout: look": (RACK, ""),
-        "crew: tea-cups": (ROOT, ""),
+        "crew: tea-cups": (CATCHALL, ""),
         "home: demo": (ROOT, ""),
         "home: demo pantry-shelf": (SHELF, ""),
         "a thread he opened": (None, ""),
@@ -56,7 +73,8 @@ def test_each_thread_carries_its_home_where_it_has_one(tmp_path, monkeypatch):
 
 
 def test_the_summary_groups_the_project_by_home_the_root_first(tmp_path, monkeypatch):
-    """The root has its five open tasks, the retired scope's among them, and the approval of
+    """The root comes first and owns none of the rows. The catch-all comes next with the five
+    open tasks no live scope claims, the retired scope's among them, and the approval of
     tea-kettle. Each child home has its two tasks. `pantry-shelf` waits on the user for the
     gate of jam-lid, and `spice-rack` for the held pull request of oat-honey and the gate of
     its own `gates.md`. The counts add up to the project's."""
@@ -64,7 +82,8 @@ def test_the_summary_groups_the_project_by_home_the_root_first(tmp_path, monkeyp
     homed(scene)
     stack, state = answers(scene)
     want = [
-        {"name": ROOT, "open": 5, "waits": 1},
+        {"name": ROOT, "open": 0, "waits": 0},
+        {"name": CATCHALL, "open": 5, "waits": 1},
         {"name": SHELF, "open": 2, "waits": 1},
         {"name": RACK, "open": 2, "waits": 2},
     ]
@@ -76,18 +95,24 @@ def test_the_summary_groups_the_project_by_home_the_root_first(tmp_path, monkeyp
     assert sum(one["open"] for one in want) == project["open"]
     assert sum(one["waits"] for one in want) == project["waits"] == len(stack["needs"])
     needs = {one["key"]: one["home"] for one in stack["needs"]}
-    assert sorted(needs.values()) == sorted([ROOT, SHELF, RACK, RACK])
-    assert needs["approve:tea-kettle"] == ROOT
+    assert sorted(needs.values()) == sorted([CATCHALL, SHELF, RACK, RACK])
+    assert needs["approve:tea-kettle"] == CATCHALL
     assert needs["row:jam-lid"] == SHELF
 
 
-def test_a_project_with_no_child_home_has_the_root_alone(tmp_path, monkeypatch):
+def test_a_project_with_no_child_home_has_the_root_and_the_catchall_alone(tmp_path, monkeypatch):
+    """The catch-all is a home of every project, made or not, and owns every row there."""
     scene = Scene(tmp_path, monkeypatch)
     stack, state = answers(scene)
     (project,) = stack["projects"]
-    (root,) = project["homes"]
-    assert (root["name"], root["open"], root["waits"]) == (ROOT, project["open"], project["waits"])
-    assert {(one["home"], one["retired"]) for one in state["tasks"]} == {(ROOT, "")}
+    root, catchall = project["homes"]
+    assert (root["name"], root["open"], root["waits"]) == (ROOT, 0, 0)
+    assert (catchall["name"], catchall["open"], catchall["waits"]) == (
+        CATCHALL,
+        project["open"],
+        project["waits"],
+    )
+    assert {(one["home"], one["retired"]) for one in state["tasks"]} == {(CATCHALL, "")}
 
 
 def healths(scene):
@@ -99,14 +124,22 @@ def healths(scene):
 def test_each_home_says_how_its_own_thread_is_and_since_when_it_hung_or_went_quiet(
     tmp_path, monkeypatch
 ):
-    """A home's health is its own thread's: moving while a turn writes, waiting while it waits
-    on a request, quiet or hung with the time it last wrote, ended where its turn ended with a
-    task of its own open, and at rest where it ended with nothing open. A home no thread of the
-    last pass is, `spice-rack` here, has none: a repo may run with no home at all. Where the
-    pass left no list of threads, no home's health is known."""
+    """A home's health is its own thread's: moving while a turn writes, waiting while it waits on a
+    request, quiet or hung with the time it last wrote, ended where its turn ended with a task of
+    its own open, and at rest where it ended with nothing open. A home no thread of the last pass
+    is, `spice-rack` and the catch-all here, has none: a repo may run with no home at all. Where the
+    pass left no list of threads, no home's health is known but the catch-all's: it has no thread of
+    its own whatever the pass listed. The root owns no row, but until the catch-all's home starts,
+    the root's thread stands in for it (`jbriefs.home.stands_in`) and works its rows: its turn ended
+    with those open is ended, not at rest."""
     scene = Scene(tmp_path, monkeypatch)
     homed(scene)
-    assert healths(scene) == {ROOT: ("moving", None), SHELF: ("moving", None), RACK: ("none", None)}
+    assert healths(scene) == {
+        ROOT: ("moving", None),
+        CATCHALL: ("none", None),
+        SHELF: ("moving", None),
+        RACK: ("none", None),
+    }
     for live, minutes, health in (("hung", 25, "hung"), ("quiet", 12, "quiet")):
         scene.passed(
             20,
@@ -118,6 +151,7 @@ def test_each_home_says_how_its_own_thread_is_and_since_when_it_hung_or_went_qui
         wrote = iso(ago(minutes=minutes))
         assert healths(scene) == {
             ROOT: ("waiting", None),
+            CATCHALL: ("none", None),
             SHELF: (health, wrote),
             RACK: ("none", None),
         }
@@ -133,7 +167,15 @@ def test_each_home_says_how_its_own_thread_is_and_since_when_it_hung_or_went_qui
         (scene.home / "tasks" / f"{slug}.md").write_text(f"# {slug}\nHome: {RACK}\nTask: x\n")
     assert healths(scene)[SHELF] == ("rest", None)
     scene.passed(20, threads=None)
-    assert set(healths(scene).values()) == {("unknown", None)}
+    assert healths(scene) == {
+        ROOT: ("unknown", None),
+        CATCHALL: ("none", None),
+        SHELF: ("unknown", None),
+        RACK: ("unknown", None),
+    }
+    (scene.home / CATCHALL).mkdir()
+    (scene.home / CATCHALL / "home-id").write_text("mcp:catchall\n")
+    assert healths(scene)[CATCHALL] == ("unknown", None)
 
 
 def test_a_home_with_two_threads_is_the_one_that_is_out(tmp_path, monkeypatch):
@@ -168,7 +210,7 @@ def test_a_child_home_is_as_old_as_the_goal_line_that_made_its_scope(
 ):
     """The block that makes a scope writes its `plan.md` with the goal and the day as its first
     lines. A plan with no such line, or no plan, gives no start: nothing kept says. The root is
-    no scope and has none."""
+    no scope and has none, and the catch-all, never made here, has none either."""
     scene = Scene(tmp_path, monkeypatch)
     homed(scene)
     if plan is not None:
@@ -178,14 +220,15 @@ def test_a_child_home_is_as_old_as_the_goal_line_that_made_its_scope(
     stack, _ = answers(scene)
     (project,) = stack["projects"]
     got = {one["name"]: one["started"] for one in project["homes"]}
-    assert got == {ROOT: None, SHELF: started, RACK: None}
+    assert got == {ROOT: None, CATCHALL: None, SHELF: started, RACK: None}
 
 
 def test_each_home_counts_its_rows_in_check_as_failing_running_or_queued_and_passed(
     tmp_path, monkeypatch
 ):
-    """pie-1 to pie-3 are pantry-shelf's: two red and one that passed. The root has the rest:
-    one red, one running, and one with no check reported yet, which waits for a runner."""
+    """pie-1 to pie-3 are pantry-shelf's: two red and one that passed. The catch-all has the
+    rest: one red, one running, and one with no check reported yet, which waits for a runner.
+    The root has none."""
     scene = Scene(tmp_path, monkeypatch)
     in_check(scene, ["failed", "failed", "passed", "failed", "pending", "none"])
     (scene.home / SHELF).mkdir()
@@ -197,7 +240,8 @@ def test_each_home_counts_its_rows_in_check_as_failing_running_or_queued_and_pas
     stack, state = answers(scene)
     (project,) = stack["projects"]
     assert {one["name"]: one["in_check"] for one in project["homes"]} == {
-        ROOT: {"failing": 1, "waiting": 2, "passed": 0, "stacked": 0},
+        ROOT: {"failing": 0, "waiting": 0, "passed": 0, "stacked": 0},
+        CATCHALL: {"failing": 1, "waiting": 2, "passed": 0, "stacked": 0},
         SHELF: {"failing": 2, "waiting": 0, "passed": 1, "stacked": 0},
     }
     assert state["summary"]["homes"] == project["homes"]
@@ -212,22 +256,25 @@ def colours(scene):
     found = sources(scene)
     read = built.Read(found, scene.name, NOW, runs)
     matrix = read.asked("pipeline")["data"]["homes"]
-    assert {("" if one["name"] == "root" else one["name"]): one["colour"] for one in matrix} == got
+    assert {one["name"]: one["colour"] for one in matrix} == {
+        name: colour for name, colour in got.items() if name != ""
+    }
     return got
 
 
 def test_each_home_has_a_colour_by_the_order_its_scope_was_made(tmp_path, monkeypatch):
-    """The root is 1, and the two child homes, made with no goal day kept, follow by name."""
+    """The root is 1, the catch-all 2, and the two child homes, made with no goal day kept,
+    follow by name."""
     scene = Scene(tmp_path, monkeypatch)
     homed(scene)
-    assert colours(scene) == {ROOT: 1, SHELF: 2, RACK: 3}
+    assert colours(scene) == {ROOT: 1, CATCHALL: 2, SHELF: 3, RACK: 4}
 
 
 def test_a_home_made_last_takes_the_next_colour_and_moves_no_other_whatever_its_name(
     tmp_path, monkeypatch
 ):
     """`apple-crate` sorts first by name, and its plan's goal day says it was made last: it
-    takes 4, and the root and the two child homes keep theirs."""
+    takes 5, and the root, the catch-all and the two child homes keep theirs."""
     scene = Scene(tmp_path, monkeypatch)
     homed(scene)
     before = colours(scene)
@@ -235,7 +282,7 @@ def test_a_home_made_last_takes_the_next_colour_and_moves_no_other_whatever_its_
     crate.mkdir()
     (crate / "home-id").write_text("mcp:crate\n")
     (crate / "plan.md").write_text("# apple-crate home: plan\nGoal (2026-10-28, x): crates\n")
-    assert colours(scene) == before | {"apple-crate": 4}
+    assert colours(scene) == before | {"apple-crate": 5}
 
 
 def made(scene, name, day, at):
@@ -252,15 +299,15 @@ def test_two_homes_made_the_same_day_take_their_colours_in_the_order_they_were_m
     tmp_path, monkeypatch
 ):
     """`zeta-box` and `alpha-box` are made on one day, then `aardvark-box` on the same day:
-    the last made takes 6, though it sorts first by name, and moves neither of the others."""
+    the last made takes 7, though it sorts first by name, and moves neither of the others."""
     scene = Scene(tmp_path, monkeypatch)
     homed(scene)
     made(scene, "zeta-box", "2026-10-28", 1000)
     made(scene, "alpha-box", "2026-10-28", 2000)
     before = colours(scene)
-    assert (before["zeta-box"], before["alpha-box"]) == (4, 5)
+    assert (before["zeta-box"], before["alpha-box"]) == (5, 6)
     made(scene, "aardvark-box", "2026-10-28", 3000)
-    assert colours(scene) == before | {"aardvark-box": 6}
+    assert colours(scene) == before | {"aardvark-box": 7}
 
 
 def test_past_eight_homes_the_colours_count_round_from_1(tmp_path, monkeypatch):
@@ -273,5 +320,5 @@ def test_past_eight_homes_the_colours_count_round_from_1(tmp_path, monkeypatch):
         (made / "home-id").write_text(f"mcp:bin-{day}\n")
         (made / "plan.md").write_text(f"# bin home: plan\nGoal (2026-10-0{day}, x): bins\n")
     got = colours(scene)
-    assert [got[name] for name in (ROOT, SHELF, RACK)] == [1, 2, 3]
-    assert [got[f"bin-{day}"] for day in range(1, 7)] == [4, 5, 6, 7, 8, 1]
+    assert [got[name] for name in (ROOT, CATCHALL, SHELF, RACK)] == [1, 2, 3, 4]
+    assert [got[f"bin-{day}"] for day in range(1, 7)] == [5, 6, 7, 8, 1, 2]

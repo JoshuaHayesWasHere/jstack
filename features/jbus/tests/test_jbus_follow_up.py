@@ -8,7 +8,6 @@ the real `jbus queue add` and `approve`, and a pass, against the kitchen's fakes
 approvals are in `test_jbus_follow_up_pass.py`.
 """
 
-import json
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -69,7 +68,7 @@ def test_three_follow_ups_queued_overnight_launch_and_only_the_new_rows_decision
     assert add(kitchen, "alpha") == []
     assert go(kitchen, "alpha")[0] == 0
     merged = [kitchen.merged("alpha", 7, "a" * 40, ago=timedelta(hours=-2))]
-    (kitchen.stub / "merged.json").write_text(json.dumps(merged))
+    kitchen.set("merged.json", merged)
     kitchen.quiet()
     kitchen.poll(NIGHT - timedelta(hours=2))
     assert rows(kitchen)["alpha"]["status"] == "merged"

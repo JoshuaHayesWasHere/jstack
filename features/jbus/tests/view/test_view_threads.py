@@ -60,7 +60,7 @@ def test_the_state_has_every_thread_out_and_each_task_its_threads_liveness(scene
         "queued": 2,
         "pending": 0,
         "rank": 0,
-        "home": "",
+        "home": "uncategorized",
         "retired": "",
         "open": 0,
     }
