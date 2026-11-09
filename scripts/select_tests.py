@@ -228,6 +228,7 @@ TESTS = re.compile(r"((features/[^/]+|testing)/)?tests/")
 SOURCE = re.compile(r"(features/[^/]+/)?src/")
 TEST = re.compile(TESTS.pattern + r"(\w+/)*test_\w+\.py")
 FIXTURES = re.compile(TESTS.pattern + "fixtures/")
+WILD = re.compile(r"[*?[]")
 SHARED = "testing/"
 SHARED_TESTS = "testing/tests"
 SCRIPTS = "scripts"
@@ -375,7 +376,41 @@ def models():
 
 
 def owns(patterns, path):
+    if path in tracked():
+        return any(path in owned(pattern) for pattern in patterns)
     return any(ready().protects(pattern, path) for pattern in patterns)
+
+
+@cache
+def owned(pattern):
+    """The tracked paths a pattern protects, as jmerge reads it. Its leading parts with no `*`,
+    `?` or `[` match only themselves, so jmerge is asked only of the paths that hold them."""
+    wanted = pattern.strip("/").split("/")
+    if "/" in pattern.removesuffix("/"):
+        fixed = []
+        for part in wanted:
+            if WILD.search(part):
+                break
+            fixed.append(part)
+        where = ("at", "/".join(fixed)) if fixed else None
+    else:
+        where = None if WILD.search(wanted[0]) else (pattern.endswith("/"), wanted[0])
+    could = tracked() if where is None else holders().get(where, ())
+    return frozenset(one for one in could if ready().protects(pattern, one))
+
+
+@cache
+def holders():
+    """The tracked paths by each run of their leading parts (`("at", "a/b")`), by each directory
+    above them (`(True, "b")`) and by their file name (`(False, "c.md")`)."""
+    found = {}
+    for path in tracked():
+        *directories, name = parts = path.split("/")
+        keys = {("at", "/".join(parts[:end])) for end in range(1, len(parts) + 1)}
+        keys |= {(True, one) for one in directories} | {(False, name)}
+        for key in keys:
+            found.setdefault(key, []).append(path)
+    return found
 
 
 def of_tests(path):
