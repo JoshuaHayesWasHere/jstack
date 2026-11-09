@@ -86,7 +86,8 @@ That part runs its share of the suite, not the whole of it: the skeleton's `test
 A part dealt no id runs no test.
 A repo whose Makefile is not the skeleton's and that sets `shards` above 1 gives its `test` target a `SHARD` variable that does the same.
 An id `make select` prints holds no space, since the part passes its ids to `TESTS` with a space between each.
-A browser id is the exception, and `plan` routes it to `browser` instead of a part: an id `<spec> > <title>`, or a `*.spec.*` file of a stack whose config sets `e2e:`.
+A browser id is the exception, and `plan` routes it to `browser` instead of a part: an id `<spec> > <title>`, or a `*.spec.*` file under the `testDir` of the Playwright config of a stack whose config sets `e2e:`, as the node adapter's browser selection in the repo reads it.
+A `*.spec.*` file outside that `testDir`, such as a unit spec Vitest's `include` names, goes to a part.
 An id `stack:<name>` of such a stack goes to both, as that stack's whole suite.
 
 The job `browser` runs in the container `mcr.microsoft.com/playwright:v<version>-noble`, the version the e2e root's `package-lock.json` pins, and the plan fails where it pins none or two e2e roots pin two.
