@@ -98,8 +98,10 @@ Code. A row held before holds named their party has no `hold`, and any party app
 A word of the user's is acted on by one party. An approve on a word, a message or a bot-chat
 message (`WORD_BASES`) that another party already approved a row on is refused, naming that
 party and its rows, since two parties reading one word queued duplicate rows and misread short
-replies. A word and the message it was said in are one word, so the bot's go on its chat
-message and a home's `--word` on the word kept for that message meet. The same party approves as
+replies. A word and the message it was said in are one word. A word from the bot's chat keeps
+only the chat, which every message in it shares, so each such word is its own: the bot's go on
+its chat and a home's `--word` on a word kept for that chat meet, and two words kept for one
+chat do not. The same party approves as
 many rows on its word as it likes, a go by the follow-up rule or a plan entry is no act on a
 word, and the user's own message in T3 Code that names the row is never refused by it.
 
@@ -1747,9 +1749,16 @@ def _words(state: Path) -> dict[str, dict[str, Any]]:
     return {one["id"]: one["evidence"] for one in kept if one["action"]["verb"] == "word"}
 
 
-def _word_refs(state: Path) -> dict[str, str]:
-    """Return the message each kept word was said in, by the word's id, where it names one."""
-    return {name: said["ref"] for name, said in _words(state).items() if said.get("ref")}
+def _word_refs(state: Path) -> tuple[dict[str, str], dict[str, str]]:
+    """Return the message each kept word was said in, by the word's id, where it names one, and
+    the bot's chat of each word from it. A word from the bot's chat names no message of its own:
+    its evidence is the chat, `<address>/<device>`, which two of the user's messages share."""
+    refs: dict[str, str] = {}
+    chats: dict[str, str] = {}
+    for name, said in _words(state).items():
+        if said.get("ref"):
+            (chats if said.get("source") == BOT_CHAT else refs)[name] = said["ref"]
+    return refs, chats
 
 
 def bare(words: str, answers: str, slugs: Iterable[str]) -> bool:
@@ -1773,7 +1782,9 @@ def _bare(
 def _one_party(batch: _Batch, verb: Approve, rests: Said, ran_by: dict[str, str]) -> None:
     """Refuse a go on a word of the user's (`WORD_BASES`) that another party already approved a
     row on, naming that party and its rows. A word is the message it was said in, where it names
-    one. The user's own message in T3 Code that names the row is never refused here."""
+    one. A word from the bot's chat is itself, since its chat holds many of the user's messages,
+    and it meets the bot's go on that chat. The user's own message in T3 Code that names the row
+    is never refused here."""
     if verb.basis not in WORD_BASES:
         return
     if verb.basis != BOT_CHAT and rests.checked and names(rests.words, verb.slug):
@@ -1782,16 +1793,26 @@ def _one_party(batch: _Batch, verb: Approve, rests: Said, ran_by: dict[str, str]
     on = [(row, kept) for row, kept in made if kept.basis in WORD_BASES]
     if not on:
         return
-    refs = _word_refs(batch.state) if "word" in {verb.basis, *(k.basis for _, k in on)} else {}
+    words = "word" in {verb.basis, *(k.basis for _, k in on)}
+    refs, chats = _word_refs(batch.state) if words else ({}, {})
 
     def heard(basis: str, ref: str) -> str:
         return refs.get(ref, f"word:{ref}") if basis == "word" else ref
 
-    mine, me = heard(verb.basis, verb.ref), party_of(ran_by)
+    def chat(basis: str, ref: str) -> str:
+        return chats.get(ref, "") if basis == "word" else ref if basis == BOT_CHAT else ""
+
+    def same(basis: str, ref: str) -> bool:
+        if heard(basis, ref) == heard(verb.basis, verb.ref):
+            return True
+        bot = BOT_CHAT in {basis, verb.basis}
+        return bot and chat(basis, ref) == chat(verb.basis, verb.ref) != ""
+
+    me = party_of(ran_by)
     theirs: dict[tuple[str, str, str], list[tuple[str, Approval]]] = {}
     for row, kept in on:
         them = party_of(kept.ran_by)
-        if heard(kept.basis, kept.ref) == mine and them != me:
+        if same(kept.basis, kept.ref) and them != me:
             theirs.setdefault(them, []).append((row["slug"], kept))
     if theirs:
         first = min(theirs.values(), key=lambda acted: min(kept.ran_at for _, kept in acted))

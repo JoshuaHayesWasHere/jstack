@@ -199,9 +199,9 @@ VERSION = tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["versi
 
 
 def released(tmp_path, plugin=VERSION):
-    """A repo of the Makefile, pyproject.toml, jmerge's green-tree lookup and a plugin.json, on
-    main, pushed to a bare origin, for `make release`, `make release-tag` and `make
-    release-green` to run in."""
+    """A repo of the Makefile, pyproject.toml, jmerge's green-tree lookup, `repo-standard
+    green` and a plugin.json, on main, pushed to a bare origin, for `make release`, `make
+    release-tag` and `make release-green` to run in."""
     origin, repo = tmp_path / "origin.git", tmp_path / "repo"
     git = ["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "init.defaultBranch=main"]
     subprocess.run([*git, "init", "-q", "--bare", origin], check=True)
@@ -212,6 +212,8 @@ def released(tmp_path, plugin=VERSION):
     (repo / lookup).mkdir(parents=True)
     for name in ("__init__.py", "green.py"):
         shutil.copy(REPO / lookup / name, repo / lookup)
+    standard = Path("features", "repo-standard", "src", "repo_standard")
+    shutil.copytree(REPO / standard, repo / standard, ignore=shutil.ignore_patterns("__pycache__"))
     (repo / "plugin.json").write_text(json.dumps({"version": plugin}))
     for args in (["add", "."], ["commit", "-qm", "one"], ["remote", "add", "origin", origin]):
         subprocess.run([*git, "-C", repo, *args], check=True)
@@ -322,9 +324,7 @@ def test_a_release_fails_closed_naming_the_fix_on_a_tree_with_no_green_marker(
     assert "Traceback" not in said, said
 
 
-def test_make_release_tags_a_clean_main_that_is_origins_and_refuses_anything_else(
-    tmp_path,
-):
+def test_make_release_runs_repo_standard_green_first_and_tags_only_a_tree_it_passed(tmp_path):
     repo, origin, git = released(tmp_path)
 
     def tags():
@@ -333,21 +333,23 @@ def test_make_release_tags_a_clean_main_that_is_origins_and_refuses_anything_els
         )
         return [line.split("refs/tags/")[1] for line in listed.stdout.splitlines()]
 
-    def release(answers=None):
-        return make(repo, "release", answers=answers or green())[0]
+    def refused(answers=None):
+        done = make(repo, "release", answers=answers or green())[0]
+        assert done.returncode != 0, done.stdout + done.stderr
+        return done.stdout
 
-    subprocess.run([*git, "-C", repo, "checkout", "-qb", "side"], check=True)
-    assert "release: not on main" in release().stdout
-    subprocess.run([*git, "-C", repo, "checkout", "-q", "main"], check=True)
     (repo / "loose").write_text("")
-    assert "release: the checkout is not clean" in release().stdout
+    assert "repo-standard green: refused: the checkout is not clean" in refused()
     (repo / "loose").unlink()
     subprocess.run([*git, "-C", repo, "commit", "-q", "--allow-empty", "-m", "two"], check=True)
-    assert "release: main is not origin/main" in release().stdout
+    assert "is not origin's main" in refused()
     subprocess.run([*git, "-C", repo, "push", "-q", "origin", "main"], check=True)
+    none = {"actions/artifacts": {"artifacts": []}, "actions/workflows/check.yml/runs": {}}
+    assert "has not passed the check" in refused(none)
     assert tags() == []
     assert subprocess.run([*git, "-C", repo, "tag"], capture_output=True, text=True).stdout == ""
-    done, asked = make(repo, "release", answers={"actions/artifacts": {"artifacts": []}})
+    done, asked = make(repo, "release", answers=green())
     assert done.returncode == 0, done.stdout + done.stderr
-    assert asked == []
+    assert done.stdout.startswith("repo-standard green: green: "), done.stdout
+    assert asked[0] == f"{ASKED}actions/artifacts?name=green-tree-{tree_of(repo)}&per_page=100"
     assert tags() == [f"v{VERSION}", f"v{VERSION}^{{}}"]

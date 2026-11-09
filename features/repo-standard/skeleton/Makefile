@@ -3,12 +3,14 @@
 # scripts/stack.mk, from the stack's adapter, fills in the commands: STACK_LINT, STACK_TEST,
 # STACK_SELECT and STACK_LIST. A repo of several stacks sets `stacks:` in .repo-standard.yml
 # instead, and the standard's driver runs each stack over its own roots and joins them. The standard's guards run
-# from jstack at the tag .repo-standard.yml pins, cloned once into .cache/, with no tool but git
-# and python3. The standard's version owns this file, so the repo's own targets, such as a deploy
+# from jstack at the tag .repo-standard.yml pins, or at the ref REPO_STANDARD_REF names, such as a
+# branch of a version not yet tagged, cloned once into .cache/<ref>, with no tool but git and
+# python3. The standard's version owns this file, so the repo's own targets, such as a deploy
 # entry, go in local.mk, included at the end when it is there.
 STANDARD := $(shell sed -n 's/^standard:[[:space:]]*\([0-9][0-9]*\).*/\1/p' .repo-standard.yml)
 REPO_STANDARD_UPSTREAM ?= https://github.com/JoshuaHayesWasHere/jstack
-REPO_STANDARD_HOME := .cache/repo-standard-v$(STANDARD)
+REPO_STANDARD_REF := $(or $(REPO_STANDARD_REF),repo-standard-v$(STANDARD))
+REPO_STANDARD_HOME := .cache/$(REPO_STANDARD_REF)
 REPO_STANDARD := PYTHONPATH=$(REPO_STANDARD_HOME)/features/repo-standard/src python3 -m repo_standard
 
 ifneq ($(shell sed -n '/^stacks:/p' .repo-standard.yml),)
@@ -40,7 +42,7 @@ DEAL = awk -v shard='$(SHARD)' 'BEGIN { split(shard, s, "/"); k = s[1] + 0; n = 
 .PHONY: lint test check select check-fast e2e borders generate
 
 $(REPO_STANDARD_HOME):
-	git -c advice.detachedHead=false clone -q --depth 1 --branch 'repo-standard-v$(STANDARD)' '$(REPO_STANDARD_UPSTREAM)' '$@'
+	git -c advice.detachedHead=false clone -q --depth 1 --branch '$(REPO_STANDARD_REF)' '$(REPO_STANDARD_UPSTREAM)' '$@'
 
 lint: | $(REPO_STANDARD_HOME)
 	$(STACK_LINT)
