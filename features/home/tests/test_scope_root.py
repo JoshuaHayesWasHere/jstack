@@ -307,6 +307,15 @@ def test_the_blocks_run_in_zsh_where_a_pattern_that_matches_nothing_stops_a_call
 CATCHALL = "uncategorized"
 
 
+@pytest.fixture
+def older(homes):
+    """A repo whose root home started before the root's start made `uncategorized`, so the
+    catch-all is still to be made by the block that makes a scope."""
+    (homes.home_dir / CATCHALL / "plan.md").unlink()
+    return homes
+
+
+@pytest.mark.usefixtures("older")
 def test_uncategorized_is_made_with_no_prefix_and_owns_every_slug_no_other_prefix_claims(homes):
     """The catch-all takes no prefix: the block writes its plan, says what it owns, and writes no
     `prefix` file. jbus may have made its directory already, for the files of its rows, and the
@@ -314,7 +323,7 @@ def test_uncategorized_is_made_with_no_prefix_and_owns_every_slug_no_other_prefi
     no other scope claims is its own."""
     from jbriefs import home as rule
 
-    (homes.home_dir / CATCHALL).mkdir()
+    (homes.home_dir / CATCHALL).mkdir(exist_ok=True)
     (homes.home_dir / CATCHALL / "blockers.json").write_text("{}\n")
     before = homes.state()
     made, launch = make(homes, scope=CATCHALL, prefix="", owns="")
@@ -335,6 +344,7 @@ def test_uncategorized_is_made_with_no_prefix_and_owns_every_slug_no_other_prefi
         assert rule.home_of(homes.home_dir, f"# rl-x\n{line}") == homes.home_dir / CATCHALL
 
 
+@pytest.mark.usefixtures("older")
 def test_uncategorized_given_a_prefix_is_refused_and_nothing_is_written(homes):
     before = homes.state()
     (said,) = make(homes, scope=CATCHALL, prefix="un-")
@@ -342,6 +352,7 @@ def test_uncategorized_given_a_prefix_is_refused_and_nothing_is_written(homes):
     assert homes.changed(before) == []
 
 
+@pytest.mark.usefixtures("older")
 def test_with_uncategorized_made_two_other_scopes_still_may_not_overlap(homes):
     """The catch-all's missing prefix overlaps no other, and the rule between the other scopes
     holds as it did."""
