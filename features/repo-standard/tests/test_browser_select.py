@@ -17,6 +17,7 @@ Playwright's own form. The module skips where npm does not run.
 
 import json
 import os
+import re
 import shutil
 import subprocess
 
@@ -37,6 +38,9 @@ STACK = """stacks:
     e2e:
       root: client
       script: test:e2e
+      mock:
+        path: client/e2e/mock-api.ts
+        contract: "true"
       table:
         - file: client/e2e/screens.spec.ts
           export: screenFlows
@@ -383,6 +387,86 @@ def test_a_node_stack_with_no_browser_tests_is_warned_of_and_another_stack_is_no
     commit_all(root, "no e2e part, and a Go stack beside the client")
     found = reach_faults(root)
     assert found == ["stack client: sets no `e2e:`, so no browser test runs on a pull request"]
+    assert isinstance(found[0], rules.Advice)
+
+
+MOCK = "      mock:\n        path: client/e2e/mock-api.ts\n"
+
+
+def declare(root, mock, every=""):
+    """The config's `mock:` part replaced by `mock`, and `every` set, committed."""
+    config = (root / ".repo-standard.yml").read_text()
+    assert MOCK in config
+    config = config.replace(MOCK, mock).replace(
+        "      script: test:e2e\n", f"      script: test:e2e\n{every}"
+    )
+    (root / ".repo-standard.yml").write_text(config)
+
+
+def test_a_change_to_the_real_api_selects_no_browser_test_and_its_unit_tests_still_run(
+    browser_repo,
+):
+    root, env = browser_repo
+    declare(
+        root,
+        MOCK + "        producer: [client/server]\n",
+        every=f"      every: [{CALENDAR}]\n",
+    )
+    write(
+        root,
+        {
+            "client/server/pets.ts": "export const pets = [];\n",
+            "client/server/pets.test.ts": "import { pets } from './pets';\n",
+        },
+    )
+    commit_all(root, "a server beside the app, and a spec every change of the app selects")
+    change(root, "client/server/pets.ts")
+    assert selected(root, env) == ["client/server/pets.test.ts"]
+    git(root, "checkout", "-q", "--", ".")
+    change(root, "client/src/lib/offline.ts")
+    assert CALENDAR in selected(root, env)
+
+
+def test_a_declared_mock_forces_the_stack_whatever_its_name(browser_repo):
+    root, env = browser_repo
+    declare(root, "      mock:\n        path: client/e2e/handlers\n")
+    write(root, {f"{E2E}/handlers/pets.ts": "export const handlers = [];\n"})
+    commit_all(root, "the mock is a folder of handlers")
+    change(root, f"{E2E}/handlers/pets.ts")
+    assert selected(root, env) == ["stack:client"]
+
+
+@pytest.mark.parametrize(
+    ("mock", "fault"),
+    [
+        (
+            "      mock:\n        path: client/e2e/msw\n",
+            "client/e2e/msw: e2e.mock names it, and it holds no file",
+        ),
+        (
+            MOCK + f"        producer: [{UI}/PetCard.svelte]\n",
+            f"{PETS}: reaches {UI}/PetCard.svelte, which e2e.mock.producer says no browser test",
+        ),
+    ],
+)
+def test_the_reach_rule_fails_a_mock_it_cannot_hold(browser_repo, mock, fault):
+    root, _ = browser_repo
+    declare(root, mock)
+    commit_all(root, "a mock the rule cannot hold")
+    found = reach_faults(root)
+    assert len(found) == 1 and found[0].startswith(fault), found
+
+
+def test_a_browser_stack_with_no_mock_is_warned_of(browser_repo):
+    root, _ = browser_repo
+    config = (root / ".repo-standard.yml").read_text()
+    (root / ".repo-standard.yml").write_text(re.sub(r"      mock:\n(        .*\n)+", "", config))
+    commit_all(root, "no mock")
+    found = reach_faults(root)
+    assert found == [
+        "stack client: its e2e sets no `mock:`, so no contract holds the API its browser tests"
+        " run on to the real one"
+    ]
     assert isinstance(found[0], rules.Advice)
 
 

@@ -154,7 +154,7 @@ The targets keep their names and what they print.
 
 | Target | What the driver does |
 |---|---|
-| `lint` | Runs every stack's lint, and fails when any failed. |
+| `lint` | Runs every stack's lint, then each stack's [mock contract](#the-mock-api-and-its-contract), and fails when any failed. |
 | `test` | Runs every stack's suite, or, given ids in `TESTS`, each path in the stack whose root holds it, and `stack:<name>` as that stack's whole suite. |
 | `select BASE=<ref>` | Joins the stacks' selections, as below. |
 | `e2e` | Runs the browser tests of each stack with `e2e:`, or, given `E2E_LIST`, each stack the ids reach, as [Browser tests](#browser-tests) says. |
@@ -287,6 +287,10 @@ stacks:
       every: [e2e/page-layout.spec.ts]
       routes:
         e2e/public.spec.ts: [/pantries, /about]
+      mock:
+        path: e2e/mock-api.ts
+        contract: python3 -m repo_standard routes --producer "cd api && go run ./cmd/routes" --mock "node e2e/mock-routes.ts"
+        producer: [api]
       table:
         - file: e2e/screens.spec.ts
           export: screenFlows
@@ -300,6 +304,7 @@ stacks:
 | `every` | The specs any change of the app selects, such as one that reads every page's built CSS. |
 | `routes` | The URLs a spec opens that its text does not name, such as ones it builds in a loop. |
 | `table` | The specs that run one test a row of an array: the spec, the array's name, and the title of a row's test, in which `{name}` stands for the row's `name:`. |
+| `mock` | The API the tests run on, its contract and the real API it mirrors, as [The mock API and its contract](#the-mock-api-and-its-contract) says. |
 
 Each path is from the repo's root, and the config refuses a key it does not know and a path outside the stack's roots.
 A spec is a `*.spec.<ext>` file under the `testDir` of the Playwright config the script runs.
@@ -307,6 +312,37 @@ The selection prints a browser test as Playwright's test-list form with the spec
 Playwright still runs a setup project the selected tests depend on.
 `features/repo-standard/adapters/node-vite/scripts/node_browser.py` holds the rules: a URL a spec opens maps to its route's files, a SvelteKit page with every layout above it or a React router table's row, and the change reaches each test whose route files, and the files they import, hold it.
 `repo-standard conform` fails a spec or a row that no path reaches, and a URL that matches no route of the app, under the rule [A change selects its tests](standard.md#a-change-selects-its-tests).
+
+##### The mock API and its contract
+
+The browser tests run on a mock of the API, and `mock:` holds that mock to the real API, so a route the real API drops or renames fails the lint instead of passing every browser test.
+
+| Key | What it sets |
+|---|---|
+| `path` | The mock's file, or a folder of its files, inside the stack's roots. |
+| `contract` | The shell command that fails when the mock answers what the real API does not. The config refuses a `mock:` with none. |
+| `producer` | The paths of the real API the mock mirrors, usually another stack's roots. A path that holds the mock or the e2e root is refused. |
+
+`make lint` runs each stack's contract from the repo's root after every stack's lint, with the standard's `src` on `PYTHONPATH`, so `python3 -m repo_standard routes` is the version the config pins.
+It fails when the contract fails.
+
+The standard's reference contract is `repo-standard routes --producer <cmd> --mock <cmd>`.
+Each command prints the routes of its side as a JSON list of `{"method": ..., "path": ...}`, with a path parameter written `{name}`.
+The contract fails on each mock route the producer lacks, and names it.
+The producer may serve routes the mock does not.
+A producer parameter matches any one segment of a mock route, a mock parameter matches only a parameter, and the names of parameters do not count.
+The contract refuses a route it cannot compare, such as one with no method or a `{name...}` segment: the command that prints it writes it the way the contract reads it.
+
+Each side writes its own printer.
+A Go API whose routes are `net/http` ServeMux patterns, such as `mux.HandleFunc("GET /pets/{id}", ...)`, can register them through a function that takes the mux, and a small command can pass that function a recorder that prints each pattern.
+A repo whose router has no table, such as one that routes by a `switch` on the path inside each handler, writes its own producer command, for example one that probes the router through its handler tests.
+A mock that keeps its routes in a list prints that list, and a mock that matches a URL by a regular expression keeps its routes as data the printer can read.
+
+A change under `producer` selects no browser test: the tests run on the mock, and the contract holds the mock to the producer.
+The producer's own stack still selects its tests, and a producer path under no stack's roots selects `all`, as any such path does.
+A change to the mock forces every browser test of the stack, whatever the mock's file is named.
+`repo-standard conform` fails a `mock.path` that holds no file and a browser test that reaches a producer file, and warns of a stack whose `e2e:` sets no `mock:`.
+`features/repo-standard/tests/test_mock_contract.py` makes a repo of a Go API and a node client, and runs the contract alone and in `make lint`.
 
 The shared check runs the browser tests in the Playwright image of the version the e2e root's `package-lock.json` pins.
 A caller that sets the input `browser-channel`, such as `chrome`, runs them on the runner's own browser instead, and the job prints its version; the Playwright config reads the channel as `process.env.REPO_STANDARD_BROWSER_CHANNEL`.

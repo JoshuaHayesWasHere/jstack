@@ -414,6 +414,13 @@ def selects(repo: Repo) -> list[str]:
                 Advice(f"stack {name}: sets no `e2e:`, so no browser test runs on a pull request")
             )
         else:
+            if stack.e2e.mock is None:
+                faults.append(
+                    Advice(
+                        f"stack {name}: its e2e sets no `mock:`, so no contract holds the API its"
+                        " browser tests run on to the real one"
+                    )
+                )
             faults += _browser(repo, stack)
     return faults
 

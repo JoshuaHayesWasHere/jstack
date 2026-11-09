@@ -2,8 +2,8 @@
 
 `scripts/node.py select --e2e <json>` asks it which browser tests a change reaches, and the
 standard's conformance asks it which test no path reaches. The JSON is the stack's `e2e:` part of
-`.repo-standard.yml`: the npm `root` whose `script` runs Playwright, and `every`, `routes` and
-`table`, each path from the repo's root.
+`.repo-standard.yml`: the npm `root` whose `script` runs Playwright, and `every`, `routes`,
+`table` and `mock`, each path from the repo's root.
 
 A spec is a `*.spec.<ext>` file under Playwright's `testDir`, as the config the `script` runs sets
 it (`-c <file>`, or else `playwright.config.*` in the root). A test's id is Playwright's test-list
@@ -37,14 +37,19 @@ What reaches a test:
   it imports, reach each spec that runs with it: one whose text sets `serviceWorkers: 'allow'`, or
   that sets nothing while no Playwright config of the root sets `serviceWorkers: 'block'`.
 
+A path under `mock.producer`, the real API the mock mirrors, reaches no browser test: the tests run
+on the mock, and the mock's contract holds it to the producer. A producer file that a test does
+reach, such as one the app imports, is a fault.
+
 A change that every browser test rests on forces the whole stack: the e2e root's `package.json`
 and lockfile, a Playwright config (`playwright*.config.*`, or a `*.config.*` that imports
 `@playwright/test`) and each file it imports, a file its `webServer` command or the `script`
-names, a `mock*` file and the shared fixture (`test.*`, `fixture.*`, `fixtures.*` or `support.*`)
-under `testDir`; and, in each root of the stack, `index.html`, `src/app.html`, `src/hooks.*`,
-React's `src/main.*` and each router file, `static/**` and `public/**`, and the Vite, Svelte,
-Tailwind and PostCSS configs. Global CSS needs no entry: the root layout or `main.*` imports it,
-and the graph follows each `@import`, so it reaches every test.
+names, each file under `mock.path`, and a `mock*` file and the shared fixture (`test.*`,
+`fixture.*`, `fixtures.*` or `support.*`) under `testDir`; and, in each root of the stack,
+`index.html`, `src/app.html`, `src/hooks.*`, React's `src/main.*` and each router file,
+`static/**` and `public/**`, and the Vite, Svelte, Tailwind and PostCSS configs. Global CSS
+needs no entry: the root layout or `main.*` imports it, and the graph follows each `@import`, so
+it reaches every test.
 """
 
 from __future__ import annotations
@@ -350,6 +355,9 @@ class Suite:
             posixpath.normpath(spec): list(urls) for spec, urls in e2e.get("routes", {}).items()
         }
         self.table_rows = {posixpath.normpath(one["file"]): one for one in e2e.get("table", ())}
+        mock = e2e.get("mock") or {}
+        self.mock_path = mock.get("path")
+        self.producer = [posixpath.normpath(one) for one in mock.get("producer", ())]
         self.files = set(files)
         self.read = read
         self.deps = Deps(self.roots, self.files, read)
@@ -382,6 +390,23 @@ class Suite:
                 self.faults.append(
                     f"{named}: e2e names it, and it is no spec under {self.test_dir}"
                 )
+        if self.mock_path is not None and not self.mocked():
+            self.faults.append(f"{self.mock_path}: e2e.mock names it, and it holds no file")
+        for test in self.tests:
+            for path in sorted(one for one in test.reach if self.produced(one)):
+                self.faults.append(
+                    f"{test.id}: reaches {path}, which e2e.mock.producer says no browser test"
+                    " reaches"
+                )
+
+    def mocked(self) -> set[str]:
+        """The files of the declared mock."""
+        if self.mock_path is None:
+            return set()
+        return {path for path in self.files if within(path, self.mock_path)}
+
+    def produced(self, path: str) -> bool:
+        return any(within(path, one) for one in self.producer)
 
     def inner(self, path: str) -> str:
         root = next((one for one in self.roots if within(path, one)), ".")
@@ -413,6 +438,7 @@ class Suite:
     def find_forcing(self) -> set[str]:
         imported = self.deps.closure(self.configs)
         forcing = set(self.configs) | {path for path in imported if not self.is_app(path)}
+        forcing |= self.mocked()
         for path in self.files:
             if within(path, self.root) and ROOT_FORCING.fullmatch(
                 posixpath.relpath(path, self.root)
@@ -593,7 +619,7 @@ class Suite:
         for path in changed:
             if path in self.forcing:
                 return None
-            if path.endswith(".md"):
+            if path.endswith(".md") or self.produced(path):
                 continue
             if path in self.worker:
                 selected |= {spec for spec in self.specs if self.allows_worker(spec)}
