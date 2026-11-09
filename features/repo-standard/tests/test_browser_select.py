@@ -183,19 +183,18 @@ ABOUT = f"{E2E}/screens.spec.ts > screen: about"
 HELP = f"{E2E}/screens.spec.ts > screen: help"
 
 
-@pytest.fixture
-def browser_repo(tmp_path, upstream):
+def new_repo(tmp_path, upstream, files, stack):
     repo = tmp_path / "repo"
     shutil.copytree(SKELETON, repo, ignore=shutil.ignore_patterns("__pycache__", ".cache"))
     shutil.copytree(ADAPTER / "scripts", repo / "scripts", dirs_exist_ok=True)
-    write(repo, APP)
+    write(repo, files)
     config = (repo / ".repo-standard.yml").read_text()
     config = config.replace("layout: [", "layout: [client/, ")
     config = config.replace(
         "  STACK: [pyproject.toml, uv.lock, conftest.py]", '  STACK: []\n  CLIENT: ["client/**"]'
     )
     config = config.replace("[scripts/stack.mk]", "[scripts/node.py]")
-    (repo / ".repo-standard.yml").write_text(config + STACK)
+    (repo / ".repo-standard.yml").write_text(config + stack)
     env = {k: v for k, v in os.environ.items() if k not in INHERITED}
     env["REPO_STANDARD_UPSTREAM"] = str(upstream)
     make(repo, env, "generate")
@@ -203,6 +202,11 @@ def browser_repo(tmp_path, upstream):
     git(repo, "add", "-A")
     git(repo, "commit", "-qm", "start from the skeleton, with a client and its browser tests")
     return repo, env
+
+
+@pytest.fixture
+def browser_repo(tmp_path, upstream):
+    return new_repo(tmp_path, upstream, APP, STACK)
 
 
 def selected(root, env):
@@ -227,6 +231,7 @@ def edit(root, path, old, new):
         (PETS, [PETS]),
         (f"{E2E}/screens.spec.ts", [f"{E2E}/screens.spec.ts"]),
         ("client/src/lib/offline.ts", [OFFLINE, "client/src/service-worker.test.ts"]),
+        ("client/src/service-worker.ts", [OFFLINE, "client/src/service-worker.test.ts"]),
         (f"{E2E}/mock-api.ts", ["stack:client"]),
         (f"{E2E}/serve.mjs", ["stack:client"]),
         ("client/playwright.config.ts", ["stack:client"]),
@@ -317,3 +322,84 @@ def test_conform_fails_a_spec_whose_url_has_no_route(browser_repo):
     git(root, "commit", "-qm", "a spec of a page the app does not have")
     out = skeleton_conform(root, env, ok=False)
     assert f"{E2E}/gone.spec.ts: opens /kennel, which matches no route of the app" in out
+
+
+def spec(url):
+    return (
+        "import { test } from '@playwright/test';\n\n"
+        f"test('opens {url}', async ({{ page }}) => {{\n  await page.goto(`{url}`);\n}});\n"
+    )
+
+
+REACT = {
+    **{path: text for path, text in APP.items() if not path.startswith(("client/src", E2E))},
+    "client/index.html": '<script type="module" src="/src/main.tsx"></script>\n',
+    "client/src/main.tsx": (
+        "import { createBrowserRouter, Outlet } from 'react-router-dom';\n"
+        "import { PublicPage } from './components/PublicPage';\n"
+        "import LandingPage from './pages/LandingPage';\n"
+        "import { PantriesPage, PantryPage } from './pages';\n"
+        "import AdminDashboard from './admin/AdminDashboard';\n\n"
+        "const routes = [\n  // The public pages share one frame.\n  {\n    element: (\n"
+        "      <PublicPage>\n        <Outlet />\n      </PublicPage>\n    ),\n"
+        "    children: [\n      { path: '/', element: <LandingPage /> },\n"
+        "      { path: '/pantries', element: <PantriesPage /> },\n"
+        "      { path: '/pantries/:id', element: <PantryPage /> },\n    ],\n  },\n"
+        "  { path: '/admin/*', element: <AdminDashboard /> },\n];\n\n"
+        "routes.push({\n  path: '/system',\n"
+        "  lazy: async () => ({ Component: (await import('./pages/SystemPage.tsx')).default }),\n"
+        "});\n\nexport const router = createBrowserRouter(routes);\n"
+    ),
+    "client/src/components/PublicPage.tsx": (
+        "export const PublicPage = () => <nav>Don't go</nav>;\n"
+    ),
+    "client/src/pages/index.ts": (
+        "export { PantriesPage } from './PantriesPage';\n"
+        "export { PantryPage } from './PantryPage';\n"
+    ),
+    "client/src/pages/PantriesPage.tsx": "export const PantriesPage = () => <ul />;\n",
+    "client/src/pages/PantryPage.tsx": "export const PantryPage = () => <p />;\n",
+    "client/src/pages/LandingPage.tsx": "export default () => <h1 />;\n",
+    "client/src/pages/SystemPage.tsx": "export default () => <main />;\n",
+    "client/src/admin/AdminDashboard.tsx": "export default () => <aside />;\n",
+    f"{E2E}/sign-in.setup.ts": APP[f"{E2E}/sign-in.setup.ts"],
+    f"{E2E}/mock-api.ts": APP[f"{E2E}/mock-api.ts"],
+    f"{E2E}/serve.mjs": APP[f"{E2E}/serve.mjs"],
+    f"{E2E}/landing.spec.ts": spec("/"),
+    f"{E2E}/pantries.spec.ts": spec("/pantries"),
+    f"{E2E}/pantry.spec.ts": spec("/pantries/${pantry.id}"),
+    f"{E2E}/admin.spec.ts": spec("/admin/reports"),
+    f"{E2E}/system.spec.ts": spec("/system"),
+}
+REACT_STACK = STACK.split("      table:")[0]
+
+
+@pytest.fixture
+def react_repo(tmp_path, upstream):
+    return new_repo(tmp_path, upstream, REACT, REACT_STACK)
+
+
+@pytest.mark.parametrize(
+    ("path", "selection"),
+    [
+        ("client/src/pages/PantryPage.tsx", ["pantry"]),
+        ("client/src/pages/PantriesPage.tsx", ["pantries"]),
+        ("client/src/components/PublicPage.tsx", ["landing", "pantries", "pantry"]),
+        ("client/src/admin/AdminDashboard.tsx", ["admin"]),
+        ("client/src/pages/SystemPage.tsx", ["system"]),
+        ("client/src/main.tsx", None),
+        ("client/index.html", None),
+    ],
+)
+def test_a_react_change_selects_the_specs_whose_router_rows_reach_it(react_repo, path, selection):
+    root, env = react_repo
+    change(root, path)
+    expected = (
+        ["stack:client"] if selection is None else [f"{E2E}/{one}.spec.ts" for one in selection]
+    )
+    assert selected(root, env) == sorted(expected)
+
+
+def test_a_react_app_passes_the_reach_check(react_repo):
+    root, env = react_repo
+    assert "errors 0, warnings 0" in skeleton_conform(root, env)
