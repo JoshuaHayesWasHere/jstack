@@ -38,7 +38,13 @@ Each pass rewrites the list. An item is one thing only the user can do,
 - `stalled`: a home jbus nudged twice and started again on a fresh thread that is still quiet with
   work out (`stalls.stalled`), with its own slug `home-<scope>`. It wakes no thread, since the
   home is the one that stalled, and it blocks as a stall (d). It leaves the list once the home
-  does something jbus can see.
+  does something jbus can see;
+- `install`: T3 Code runs a jstack build whose patch series is not the series of the patches in
+  the green checkout, or in the project's checkout where it has no green copy (`t3build`). The
+  line names both series, how many changes to the patches merged since the build's, and
+  `jinstall --setup`, which only the user runs, since it needs sudo and a restart of T3 Code. It
+  leaves the list on the first pass that reads the series match, and a machine with no jstack
+  build never lists it. It never blocks.
 
 No list holds an item of a slug that was removed from the queue (`queue.removed`). `read` leaves
 such an item out of what the last pass left, and `keep` leaves it out of what the pass finds. So the
@@ -110,6 +116,7 @@ from jbus import (
     read_json,
     redact,
     stalls,
+    t3build,
     verbs,
     write_json,
 )
@@ -147,6 +154,7 @@ KINDS = (
     Kind("config", "Setup jbus lacks", "Set up", 6),
     Kind("github", "GitHub's API allowance spent", "See when it resets", 8),
     Kind("stalled", "Homes stalled after jbus started them again", "Get it going", 9),
+    Kind("install", "A T3 Code build behind main's patches", "Install it", 10),
 )
 
 Item = dict[str, Any]
@@ -425,6 +433,7 @@ def keep(
     found += holds(run, world, pulls, had("hold"))
     found += held(run.state)
     found += stalls.stalled(run.state)
+    found += t3build.behind(run)
     if spent is None:
         found += had("github")
     elif spent:

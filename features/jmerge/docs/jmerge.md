@@ -181,7 +181,7 @@ The section "Protected paths" describes one more hold.
   One that changes only test files, and files of a kind `jbriefs.proved.EXEMPT` names (docs, config), needs only the run at its head, its `tests only` line: a removal of tests with the edit to the doc that named them is one.
   A `tests only` line on one that changes any other file holds it, and one that changes no test needs no line.
   One that adds or changes a fork's patch (a `.patch` under a feature's `packaging/` folder, `jbriefs.proved.FORK_FILE`) needs a line all the same, since its tests are inside the patch, and one that only edits the `PKGBUILD` or deletes a patch needs none: where every file it changes is a fork file, docs or config, its `fork patches` line names the fork's test files, with their run ending 1 over the base's series and 0 over the head's, and the same line on one that changes any other file holds it (`jbriefs.proved.outside_fork`).
-  The last `Checked:` line names the desk's whole check, `make check-fast BASE=<sha> PART=touched` (the lint and the touched tests), `make check-fast BASE=<sha> PART=guards` (the desk's check before 2026-11-05) or `jgauge check`, ending 0 at the head, or at a head whose patch the head carries unchanged.
+  The last `Checked:` line names the desk's whole check, `make check-fast BASE=<sha> PART=touched` (the lint, the touched tests and the repo-guards tests), `make check-fast BASE=<sha> PART=guards` (the desk's check before 2026-11-05) or `jgauge check`, ending 0 at the head, or at a head whose patch the head carries unchanged.
   An exit of 124 is a time limit, and holds the pull request like any other exit but 0.
   On the two-step line the crew's check block once wrote, only the guards' step counts.
   Each line it waits with is a `Reason` in `features/jmerge/src/jmerge/ready.py`, from `SKILLS_UNRUN` to `CHECKED_PART`.
@@ -195,6 +195,7 @@ The section "Protected paths" describes one more hold.
   A check that the repo's workflows never run then blocks no merge.
   A pull request waits with `<check> has failed` for the first required check that has not passed where its latest run failed, with `<check> has not passed` where it has not, and with `it conflicts with its base` for a conflict.
   Where GitHub lists no run of that check at the head, the line is `<check> has no run at <head12>` instead: no runner is at work on it, as for a workflow that reached the base after the head's checks ran.
+  A held queue row, or one that merges after a row not merged yet, comes before `<check> has failed`, `<check> has not passed` and a running check, and a check with no run at the head comes before it ("Its queue row lets it merge").
 - **Its queue row lets it merge.**
   Once each run, `jmerge` reads the `queue.json` of the jbus project that the current checkout belongs to (`features/jmerge/src/jmerge/rows.py`).
   It looks up the row whose slug is the brief's slug.
@@ -210,6 +211,10 @@ The section "Protected paths" describes one more hold.
   When the queue exists but cannot be read, every pull request waits with `its queue cannot be read, so its holds and merge order are not known`.
   A repo with no jbus config, or that no project names, has no queue and no such wait.
   `jmerge` judges these after the review and rebase gates, so it reports a missing review or rebase line first.
+  A held row and a `merges after` wait come before GitHub's waits too: a pull request whose row says either waits on it whatever GitHub says of its mergeability or its check, in place of `GitHub has not decided whether it merges`, `<check> has failed`, `<check> has not passed` and `<check>'s run at <head12> is <state>` (`Repo.row_first`).
+  GitHub's state comes and goes each time main moves, and the row's wait stands until the row changes, so the pull request keeps one `wait` line for as long as its row holds it.
+  A check with no run at the head, and a conflict while no required check waits, keep their place before the queue's waits: they are the crew's to act on.
+  GitHub names a waiting check before a conflict, so a held row on a pull request that conflicts and has a failed check reads `row-held`, as it read `<check> has failed` before.
   It judges them before today's main, so a run never asks GitHub to update a pull request that must wait.
 - **Main is not red: a red main holds no pull request.**
   jbus records main's red tip as `broken` in `main.json` beside the queue, and that file is the one record of it (`features/jbus/docs/jbus.md`).

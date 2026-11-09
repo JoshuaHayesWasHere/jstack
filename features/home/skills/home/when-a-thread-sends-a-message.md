@@ -17,9 +17,12 @@ These are all of them, and the last column says on which state of that file each
 | `jbus: this is <name>'s own word, said <time> and carried to this home by jbus.`, then the words | jbus | the user said it elsewhere and `jbus word` carried it: act on it as said here ("The user's word, carried by jbus") | both |
 
 One more comes from jbus, whatever `home-thread` holds: `jbus: <slug> ended with something left, and it is this home's to close.`, with the pull request and whether it merged, the `Left:` line whole, and each question the slug asked with its answer.
-Read the last Result of `$H/tasks/<slug>.md` and those answers, then end it one of two ways.
-Where something is still to do, write a brief for what is left and queue it as a follow-up.
-Then, or at once where nothing more is wanted or the rest is already somebody's, append `## Result, follow-up (<date>, <the reason>)` to `$H/tasks/<slug>.md`, the brief of the task that ended, with three lines: `Status: done`, `Branch: <its branch>   Pull request: none` and `Left: none`.
+Read the last Result of `$H/tasks/<slug>.md` and those answers, then end it one of three ways.
+Where something is still to do, write a brief for what is left with `Follows: <slug>` in its head, and queue it as a follow-up.
+Where the rest is already another row's, add `Follows: <slug>` to the head of that row's brief and queue it again with `jbus queue add`.
+The line is how the store joins a closed row to the row that carried its work: a row closed with no merge and no `Follows:` line on its successor reads as one that ended without one.
+It also gives a new row its go by the follow-up rule, on the closed row's go ("A follow-up approved by the follow-up rule"), and a row queued again keeps the go it had.
+Then, or at once where nothing more is wanted or the rest is somebody's outside the queue, append `## Result, follow-up (<date>, <the reason>)` to `$H/tasks/<slug>.md`, the brief of the task that ended, with three lines: `Status: done`, `Branch: <its branch>   Pull request: none` and `Left: none`.
 Only those three end it.
 Send the user nothing about it: a question only they can answer is a gate ("Gates"), and the row stays this home's while it is open: jbus tells no other home of it.
 

@@ -67,8 +67,9 @@ Ask about the row alone there, in plain words, and approve it on their reply, an
 jbus --project <project> queue approve <slug> --sha <sha12> --message <thread id>/<message id>
 ```
 
-The user's plain reply in this home's thread is the way a door opens: "yes, go" or "drop it" opens the door this home's last message before it named, by the row's slug or its gate as `question 3`, when that message named no other open door.
-A message that names two or more open doors opens none on a plain reply, so ask about one door in a message; a reply that names its row or gate itself (`question 3` and its slips, `q3`, `#3`, or the slug with spaces for its hyphens) binds to that one.
+The user's plain reply in this home's thread is the way a door opens: "yes, go" or "drop it" opens every door this home's last message before it named, by the row's slug or its gate as `question 3`.
+So ask about a door you do not want opened in a message of its own: a plain "yes" to "question 250 stays held; question 251: may it go?" opens both.
+A reply that names its row or gate itself (`question 3` and its slips, `q3`, `#3`, or the slug with spaces for its hyphens) binds only to the doors it names.
 A reply said before the brief was stored, or before the ask, opens nothing.
 On a refusal, ask about the one row again in plain words and approve on their next reply: never hand them words to send, and never ask them to send a message again once they have answered.
 This home never runs a door's command itself, a prod migration or deploy, a force-push, a release, a tailnet or DNS change, or a delete: the `door-command` hook refuses it, and the row's crew runs it on the user's own go.
@@ -145,6 +146,8 @@ It also checks the waiting rows that name P when P gets its go.
 It prints one line for each row it approved, and one for each row that names a parent and still waits, with why.
 `jbus queue add --help` gives the same rule.
 To queue a follow-up, write `Follows: <parent>` in its brief's head and queue it: no `--entry` is needed.
+A row that carries the work of a row closed with no merge names that row with `Follows:`, new or already queued: a row closed `done` and kept in the queue is a parent whatever its status, and the line is how the store joins the two.
+A row queued again with the line added keeps the go it had: jbus judges a go by what the brief asks for, and the line changes none of it.
 A row that names no parent, or whose parent has no approval of the user's own, or whose parent was removed before it merged, is new work, and it waits for the user's go, or for its plan entry's ("A plan entry's go" above).
 The one exception is a fix jbus's own pass filed from a red check, which names no parent and is approved by the rule on its red run, as above.
 A row queued again keeps what it had: a row that waited for the user is not approved by rule because a later add named a parent, and a held row stays held.
