@@ -524,20 +524,8 @@ class Lift(StrEnum):
 
 
 GOES = frozenset(
-    {
-        "unapproved",
-        "launching",
-        "working",
-        "quiet",
-        "result",
-        "review",
-        "findings",
-        "second",
-        "check",
-        "stacked",
-        "rebase",
-        "hold",
-    }
+    "unapproved launching working quiet result review findings second check stacked rebase "
+    "hold".split()
 )
 """The values on which a go that does not hold puts the row before the user: an unstarted row,
 and a launched one at any stage up to its merge, since no launch nor merge goes on without it. A
