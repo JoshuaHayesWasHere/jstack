@@ -41,6 +41,7 @@ from typing import Any, Literal
 
 from jbus import history
 from jbus.telemetry import asks, waits
+from jbus.telemetry.machine import capped_reads, drift, passes
 from jbus.telemetry.readers import json_lines, keyed, listed, questions
 from jbus.telemetry.values import (
     KINDS,
@@ -105,55 +106,6 @@ def _asks(verb: object, words: object) -> str | None:
     if verb != "word":
         return None
     return asks.label(words if isinstance(words, str) else None)
-
-
-def _seconds(given: object) -> float | None:
-    return given if isinstance(given, int | float) and not isinstance(given, bool) else None
-
-
-def _passes(one: Row, zone: tzinfo | None) -> Row:
-    """A pass: its seconds, the CPU seconds of its children, and `step_times`, each step's
-    `[wall, cpu]` as JSON, which the view `pass_steps` reads a row a step. A step whose figures
-    are not two numbers is left out."""
-    steps = {
-        name: [_seconds(took[0]), _seconds(took[1])]
-        for name, took in sorted(_dict(one.get("steps")).items())
-        if isinstance(took, list) and len(took) == 2 and None not in map(_seconds, took)
-    }
-    return {
-        "at": utc(one.get("at"), zone),
-        "seconds": _seconds(one.get("seconds")),
-        "step_times": json.dumps(steps) if steps else None,
-        "children": _seconds(one.get("children")),
-    }
-
-
-def _drift(one: Row, zone: tzinfo | None) -> Row:
-    return {
-        "at": utc(one.get("at"), zone),
-        "probe": _text(one.get("probe")),
-        "word": _text(one.get("word")),
-        "status": _text(one.get("status")),
-        "found": _number(one.get("found")),
-        "sha": _text(one.get("sha")),
-        "error": _text(one.get("error")),
-    }
-
-
-def _capped_reads(one: Row, zone: tzinfo | None) -> Row:
-    """A read of which instances the ledger has capped (`jgauge.limits.note`): how many it read,
-    how many were capped, and, where every one was, `ends_at`, the first time one is free again."""
-    instances, capped = one.get("instances"), _dict(one.get("capped"))
-    count = _count(instances)
-    frees = [found for found in (utc(at) for at in capped.values()) if found is not None]
-    every = bool(count) and len(frees) == len(capped) >= count
-    return {
-        "at": utc(one.get("at"), zone),
-        "reader": _text(one.get("reader")),
-        "instances": count,
-        "capped": len(capped),
-        "ends_at": min(frees) if every else None,
-    }
 
 
 def _stalls(one: Row, zone: tzinfo | None) -> Row:
@@ -736,7 +688,7 @@ SOURCES: tuple[Source, ...] = (
         "passes.jsonl",
         "log",
         _columns("at", "seconds", "step_times", "children"),
-        _passes,
+        passes,
         where="machine",
     ),
     Source(
@@ -763,7 +715,7 @@ SOURCES: tuple[Source, ...] = (
         "drift.jsonl",
         "log",
         _columns("at", "probe", "word", "status", "found", "sha", "error"),
-        _drift,
+        drift,
         where="machine",
     ),
     Source(
@@ -771,7 +723,7 @@ SOURCES: tuple[Source, ...] = (
         "capped.jsonl",
         "log",
         _columns("at", "reader", "instances", "capped", "ends_at"),
-        _capped_reads,
+        capped_reads,
         where="machine",
     ),
     Source("merge_waits", "merge-waits.jsonl", "log", _WAITS, _merge_waits, where="home"),
