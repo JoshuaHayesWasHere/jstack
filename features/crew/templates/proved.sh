@@ -11,6 +11,93 @@
 B=$1
 thread=$2
 T=$(dirname "$0")
+exempt='(^|/)(docs|\.github)/|(^|/)\.[^/]*$|\.(md|txt|rst|toml|json|yml|yaml|cfg|ini|lock)$'
+fork='^features/[^/]+/packaging/'
+# A branch whose every file is under a fork's `packaging/` folder, or docs or config, changes only
+# the fork's patches, whose tests are inside them. Each side lays its own series over its own
+# PKGBUILD's tag, the base's with the head's test files over it, installs, and runs the vitest
+# files the changed patches add or change, each with its package's own `test` script.
+prove_fork() {
+    local dir patches files side rev at file list ran at_head at_base
+    dir=$(printf '%s\n' "$changed" | command grep -E "$fork" | sed -E 's|^(features/[^/]+/packaging)/.*|\1|' | sort -u)
+    if [ "$(printf '%s\n' "$dir" | wc -l)" != 1 ]; then
+        echo "no proof: the branch changes more than one fork's packaging: $(printf '%s\n' "$dir" | paste -sd ' ' -)"
+        return
+    fi
+    patches=$(git diff --name-only --diff-filter=d "$base" HEAD -- "$dir" | command grep -E '\.patch$')
+    files=$(printf '%s\n' "$patches" | while read -r file; do
+        [ -n "$file" ] && git show "HEAD:$file" | sed -n 's|^+++ b/||p'
+    done | command grep -E '\.test\.[cm]?[jt]sx?$' | sort -u)
+    if [ -z "$files" ]; then
+        echo "no proof: the fork patches it changes add or change no vitest file, so the fork's tests prove nothing: add one in the patch"
+        return
+    fi
+    if ! tree=$(mktemp -d "${TMPDIR:-/tmp}/fork.XXXXXX"); then
+        echo "no proof: no fork tree could be made in ${TMPDIR:-/tmp}"
+        return
+    fi
+    trap 'rm -rf "$tree"' EXIT
+    for side in head base; do
+        if [ "$side" = head ]; then rev=$head; else rev=$base; fi
+        at=$tree/$side
+        mkdir -p "$at"
+        git show "$rev:$dir/PKGBUILD" > "$tree/PKGBUILD.$side"
+        set -- $(env -u T3CODE_JSTACK_TAG bash -c 'source "$1" > /dev/null && printf "%s %s\n" "$_tag" "${source[0]#*::}" && printf "%s\n" "${_patches[@]}"' _ "$tree/PKGBUILD.$side")
+        echo "$side: $dir at ${rev:0:12}, $1 and $(($# - 2)) patches"
+        [ -f "$tree/$1.tar.gz" ] || curl -fsSL -o "$tree/$1.tar.gz" "$2" || {
+            echo "no proof: $2 could not be fetched"
+            return
+        }
+        tar -xzf "$tree/$1.tar.gz" -C "$at" --strip-components=1
+        shift 2
+        for file in "$@"; do
+            git show "$rev:$dir/$file" | patch -d "$at" -p1 --forward --quiet || {
+                echo "no proof: $file of the $side does not apply"
+                return
+            }
+        done
+    done
+    printf '%s\n' "$files" | while read -r file; do
+        mkdir -p "$tree/base/$(dirname "$file")"
+        cp "$tree/head/$file" "$tree/base/$file"
+    done
+    list=$(printf '%s\n' "$files" | paste -sd ' ' -)
+    PROOF_TREE=$tree PROOF_TESTS=$list uv run --project "$T/../source" jgauge test-slot --thread "$thread" -- bash -c '
+        for side in head base; do
+            at=$PROOF_TREE/$side
+            (cd "$at" && vp i --frozen-lockfile) > "$PROOF_TREE/.install-$side" 2>&1 || {
+                echo "$side install failed: $(tail -n 1 "$PROOF_TREE/.install-$side")"
+                continue
+            }
+            worst=0
+            for pkg in $(for file in $PROOF_TESTS; do
+                d=$(dirname "$file")
+                while [ "$d" != . ] && [ ! -f "$at/$d/package.json" ]; do d=$(dirname "$d"); done
+                echo "$d"
+            done | sort -u); do
+                group=
+                for file in $PROOF_TESTS; do
+                    case $file in "$pkg"/*) group="$group ${file#"$pkg"/}" ;; esac
+                done
+                script=$(jq -r ".scripts.test // \"vp test run\"" "$at/$pkg/package.json")
+                (cd "$at/$pkg" && bash -c "$script \"\$@\"" _ $group) >> "$PROOF_TREE/.proof-$side" 2>&1
+                code=$?
+                [ "$code" -gt "$worst" ] && worst=$code
+            done
+            echo "$side exit $worst: $(command grep -E "^ *Tests +[0-9]" "$PROOF_TREE/.proof-$side" | tr -s " " | paste -sd ";" -)"
+        done
+    ' | tee "$tree/.proof-said"
+    ran=${PIPESTATUS[0]}
+    at_head=$(sed -n 's/^head exit \([0-9]*\):.*/\1/p' "$tree/.proof-said")
+    at_base=$(sed -n 's/^base exit \([0-9]*\):.*/\1/p' "$tree/.proof-said")
+    if [ "$ran" != 0 ] || [ -z "$at_head" ] || [ -z "$at_base" ]; then
+        echo "no proof: the slot's run ended $ran"
+        return
+    fi
+    line="Proved: $list base exit $at_base at $base, head exit $at_head at $head, fork patches"
+    echo "$line"
+    if command grep -q '^## Result' "$B"; then printf '%s\n' "$line" >> "$B"; fi
+}
 on=$(awk '/^## / {exit} /^Stacked on:/ {print $(4); exit}' "$B" 2> /dev/null)
 on=origin/${on:-main}
 git rev-parse -q --verify "$on^{commit}" > /dev/null || on=origin/main
@@ -19,11 +106,15 @@ if [ -n "$(git status --porcelain)" ]; then
     echo "no proof: commit the work first"
 elif ! base=$(git merge-base "$on" HEAD); then
     echo "no proof: the branch shares no commit with $on"
-elif ! tests=$(git diff --name-only --diff-filter=d "$base" HEAD | command grep -E '(^|/)(test_[^/]*|[^/]*_test)\.py$'); then
+elif ! tests=$(git diff --name-only --diff-filter=d "$base" HEAD | command grep -E '(^|/)(test_[^/]*|[^/]*_test)\.py$') &&
+    changed=$(git diff --name-only --no-renames "$base" HEAD) &&
+    printf '%s\n' "$changed" | command grep -E "$fork" | command grep -qvE "$exempt" &&
+    ! printf '%s\n' "$changed" | command grep -vE "$fork" | command grep -qvE "$exempt"; then
+    prove_fork
+elif [ -z "$tests" ]; then
     echo "no test changed: the Result says Proved: none, <kind>, where every file it changes is of that kind"
 else
     kept='(^|/)tests?/|(^|/)(test_[^/]*|[^/]*_test|conftest)\.py$'
-    exempt='(^|/)(docs|\.github)/|(^|/)\.[^/]*$|\.(md|txt|rst|toml|json|yml|yaml|cfg|ini|lock)$'
     if ! tree=$(mktemp -d "${TMPDIR:-/tmp}/base.XXXXXX"); then
         echo "no proof: no copy of the base could be made in ${TMPDIR:-/tmp}"
         exit 1

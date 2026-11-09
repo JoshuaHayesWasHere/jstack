@@ -26,6 +26,18 @@ def proved(base_exit=1, head_exit=0, tests=TEST, head=HEAD):
     return f"Proved: {tests} base exit {base_exit} at {BASE}, head exit {head_exit} at {head}\n"
 
 
+PATCH = "features/t3code-jstack/packaging/0030-jstack-tree-home-start-says.patch"
+PKGBUILD = "features/t3code-jstack/packaging/PKGBUILD"
+FORK_TEST = "apps/server/src/jstack/JbusWork.test.ts"
+
+
+def fork(base_exit=1, head_exit=0, tests=FORK_TEST, head=HEAD):
+    return (
+        f"Proved: {tests} base exit {base_exit} at {BASE}, head exit {head_exit} at {head}, "
+        "fork patches\n"
+    )
+
+
 def head_alone(head_exit=0, tests=TEST, head=HEAD):
     return f"Proved: {tests} head exit {head_exit} at {head}, tests only\n"
 
@@ -92,6 +104,20 @@ def test_a_pull_request_that_changes_tests_docs_and_config_merges_on_its_head_ru
     the doc that named them: docs and config change no code, so its head run proves it."""
     files = (TEST, "features/x/docs/x.md", "pyproject.toml")
     opened(merged, files, head_alone(head=merged.head))
+    (said,) = merged.run()
+    assert said.startswith("merged 7 alpha ")
+
+
+def test_a_fork_patch_pull_request_waits_until_its_fork_line_binds_its_head(merged):
+    """A fork's tests are inside its patches, so no repo test changes: jmerge still waits for the
+    line that runs them over the base's patches and the head's, and merges once it binds."""
+    opened(merged, (PATCH, PKGBUILD))
+    (said,) = merged.run()
+    assert (
+        said == f"wait 7 {merge.URL}: {ready.PROVED_MISSING.format(tests=f'{PATCH}, {PKGBUILD}')}"
+    )
+    assert merged.untouched()
+    opened(merged, (PATCH, PKGBUILD), fork(head=merged.head))
     (said,) = merged.run()
     assert said.startswith("merged 7 alpha ")
 
@@ -216,6 +242,33 @@ def result(line=""):
                 "config"
             ),
         ),
+        (one(PATCH, PKGBUILD), fork(), ""),
+        (one(PATCH, PKGBUILD, "features/t3code-jstack/docs/t3code-jstack.md"), fork(), ""),
+        (one(PATCH, PKGBUILD), "", ready.PROVED_MISSING.format(tests=f"{PATCH}, {PKGBUILD}")),
+        (one(PATCH, removed=(PATCH,)), "", ""),
+        (
+            one(PATCH),
+            "Proved: none, config\n",
+            ready.PROVED_NOT_KIND.format(kinds="config", path=PATCH),
+        ),
+        (
+            one(PATCH, "features/jbus/src/jbus/a.py"),
+            fork(),
+            ready.PROVED_UNREAD.format(
+                fault="says fork patches, and it changes features/jbus/src/jbus/a.py, which is no "
+                "fork patch, docs or config"
+            ),
+        ),
+        (
+            one(PATCH, TEST),
+            fork(),
+            ready.PROVED_UNREAD.format(
+                fault=f"says fork patches, and it changes {TEST}, which is no fork patch, docs or "
+                "config"
+            ),
+        ),
+        (one(PATCH), fork(base_exit=0), ready.PROVED_BASE_PASSED.format(exit=0, base=BASE[:12])),
+        (one(PATCH), fork(head_exit=1), ready.PROVED_HEAD_FAILED.format(exit=1, head=HEAD[:12])),
         (
             one(TEST),
             head_alone(head_exit=1),
@@ -237,7 +290,10 @@ def test_the_line_holds_only_where_the_tests_it_names_fail_at_the_base_and_pass_
         assert ready.step_of(ready.code_of(short)) == "result"
 
 
-@pytest.mark.parametrize(("line", "pull"), [(proved, one("a.py", TEST)), (head_alone, one(TEST))])
+@pytest.mark.parametrize(
+    ("line", "pull"),
+    [(proved, one("a.py", TEST)), (head_alone, one(TEST)), (fork, one(PATCH, PKGBUILD))],
+)
 def test_a_line_of_another_head_holds_only_where_the_head_carries_its_patch(line, pull):
     earlier = "e" * 40
     text = result(line(head=earlier))
