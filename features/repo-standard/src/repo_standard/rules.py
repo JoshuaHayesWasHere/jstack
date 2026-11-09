@@ -30,6 +30,7 @@ import sys
 from dataclasses import dataclass, field, replace
 from functools import cached_property
 from pathlib import Path, PurePosixPath
+from types import ModuleType
 from typing import Any
 
 from repo_standard import TAG, VERSION, borders, docs_true, owned, size, stale
@@ -425,25 +426,34 @@ def selects(repo: Repo) -> list[str]:
     return faults
 
 
-def _browser(repo: Repo, stack: Stack) -> list[str]:
-    """The browser tests of a node stack that no change reaches, as the repo's own selection,
-    `scripts/node_browser.py`, reads them."""
-    scripts = repo.root / "scripts"
+def node_browser(root: Path) -> ModuleType | None:
+    """The repo's own `scripts/node_browser.py`, which reads its browser tests as its selection
+    does, or None where the repo has none. The import leaves `sys.modules` as it found it, so a
+    second repo's script is read afresh."""
+    scripts = root / "scripts"
     if not (scripts / "node_browser.py").is_file():
-        return ["scripts/node_browser.py: is not there, so no change selects a browser test"]
+        return None
     names = ("node_browser", "node_graph", "node_table")
     saved = {name: sys.modules.pop(name) for name in names if name in sys.modules}
     sys.path.insert(0, str(scripts))
     try:
-        module = importlib.import_module("node_browser")
-        assert stack.e2e is not None
-        suite = module.Suite(stack.roots, json.loads(stack.e2e.json()), repo.paths, repo.read)
-        return list(suite.faults)
+        return importlib.import_module("node_browser")
     finally:
         sys.path.remove(str(scripts))
         for name in names:
             sys.modules.pop(name, None)
         sys.modules.update(saved)
+
+
+def _browser(repo: Repo, stack: Stack) -> list[str]:
+    """The browser tests of a node stack that no change reaches, as the repo's own selection,
+    `scripts/node_browser.py`, reads them."""
+    module = node_browser(repo.root)
+    if module is None:
+        return ["scripts/node_browser.py: is not there, so no change selects a browser test"]
+    assert stack.e2e is not None
+    suite = module.Suite(stack.roots, json.loads(stack.e2e.json()), repo.paths, repo.read)
+    return list(suite.faults)
 
 
 def main_runs_all(repo: Repo) -> list[str]:

@@ -647,6 +647,30 @@ def test_a_pull_requests_plan_routes_its_browser_ids_to_the_browser_job(caller):
     assert said["playwright"] == "1.64.1"
 
 
+def test_a_unit_spec_outside_playwrights_test_dir_goes_to_a_part(caller):
+    repo, env = caller
+    scripts = REPO / "features" / "repo-standard" / "adapters" / "node-vite" / "scripts"
+    config = E2E_CONFIG.replace("roots: [web]", "roots: [.]").replace("root: web", "root: .")
+    commit(
+        repo,
+        {
+            ".repo-standard.yml": config,
+            "Makefile": makefile(["src/a.spec.ts", "e2e/b.spec.ts"]),
+            "package-lock.json": E2E_LOCK,
+            "package.json": json.dumps({"scripts": {"test:e2e": "playwright test"}}),
+            "playwright.config.ts": "export default { testDir: './e2e' }\n",
+            "vite.config.ts": "export default { test: { include: ['src/**/*.spec.ts'] } }\n",
+            "src/a.spec.ts": "it('adds', () => {})\n",
+            "e2e/b.spec.ts": "test('opens', async ({ page }) => page.goto('/'))\n",
+            **{f"scripts/{one.name}": one.read_text() for one in scripts.glob("node_*.py")},
+        },
+        "a Vitest spec beside a Playwright testDir",
+    )
+    said = planned(repo, env, "pull_request")
+    assert json.loads(said["parts"]) == {"1": "src/a.spec.ts"}
+    assert (said["browser"], json.loads(said["browser-ids"])) == ("some", ["e2e/b.spec.ts"])
+
+
 @pytest.mark.parametrize(
     "selection, parts, browser, ids",
     [

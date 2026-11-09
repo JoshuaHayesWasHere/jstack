@@ -15,8 +15,11 @@ the ids the stack lists, dealt by the same rule: the whole suite is split across
 not run in each.
 
 The browser ids go to the browser job and not to the parts: an id with a title,
-`<spec> > <title>`, and a `*.spec.*` file of a stack whose config sets `e2e:`. An id
-`stack:<name>` of such a stack goes to both, as that stack's whole suite. The browser job runs
+`<spec> > <title>`, and a `*.spec.*` file under the `testDir` of the Playwright config of a stack
+whose config sets `e2e:`, as the repo's own `scripts/node_browser.py` reads it (`Runner`), or under
+its e2e root where the repo has no such script. A `*.spec.*` file elsewhere, such as a unit spec
+Vitest's `include` names, goes to the parts. An id `stack:<name>` of such a stack goes to both, as
+that stack's whole suite. The browser job runs
 `all` wherever the parts do, `some` given browser ids, and `none` given none or where no stack
 sets `e2e:`, and it runs in the Playwright image of the version the e2e roots' lockfiles pin.
 """
@@ -30,7 +33,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from repo_standard.config import Config, Refused, Stack
-from repo_standard.stacks import TITLE, WHOLE, deal, owner
+from repo_standard.rules import node_browser
+from repo_standard.stacks import TITLE, WHOLE, deal, within
+from repo_standard.tree import tracked
 
 ALL = "all"
 NONE = "none"
@@ -71,8 +76,32 @@ def browsers(config: Config) -> dict[str, Stack]:
     return {name: one for name, one in config.stacks.items() if one.e2e is not None}
 
 
-def split(ids: tuple[str, ...], config: Config) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    """The ids the parts run, and the ids the browser job runs."""
+def test_dirs(config: Config, root: Path) -> tuple[str, ...]:
+    """The folders whose `*.spec.*` files are browser tests: each e2e stack's `testDir`, as the
+    repo's own `scripts/node_browser.py` reads it, or its e2e root where the repo has none."""
+    roots = {
+        posixpath.normpath(one.e2e.root): one.e2e.script
+        for one in browsers(config).values()
+        if one.e2e is not None
+    }
+    module = node_browser(root) if roots else None
+    if module is None:
+        return tuple(roots)
+    files = set(tracked(root))
+
+    def read(path: str) -> str:
+        try:
+            return (root / path).read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            return ""
+
+    return tuple(module.Runner(at, script, files, read).test_dir for at, script in roots.items())
+
+
+def split(
+    ids: tuple[str, ...], config: Config, dirs: tuple[str, ...]
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """The ids the parts run, and the ids the browser job runs, given the browser tests' folders."""
     mine = browsers(config)
     tests, browser = [], []
     for one in ids:
@@ -82,7 +111,7 @@ def split(ids: tuple[str, ...], config: Config) -> tuple[tuple[str, ...], tuple[
                 browser.append(one)
             continue
         spec = posixpath.normpath(one.split(TITLE)[0])
-        if TITLE in one or (SPEC.search(spec) and owner(spec, mine) is not None):
+        if TITLE in one or (SPEC.search(spec) and any(within(spec, at) for at in dirs)):
             browser.append(one)
         else:
             tests.append(one)
@@ -128,7 +157,7 @@ def plan(config: Config, event: str, selection: tuple[str, ...] | None, root: Pa
     whole = NONE if not browsers(config) else ALL
     if selection is None or selection == (ALL,):
         return Plan(run, ALL, (ALL,) * check.shards, whole, (), version)
-    tests, browser = split(selection, config)
+    tests, browser = split(selection, config, test_dirs(config, root))
     ran = (SOME if browser else NONE, browser, version)
     if not tests:
         return Plan(run, NONE, (NONE,) * check.shards, *ran)
