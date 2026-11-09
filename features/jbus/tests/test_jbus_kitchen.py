@@ -860,9 +860,30 @@ class Kitchen:
         kept = self.stub / "commits.json"
         commits = json.loads(kept.read_text()) if kept.exists() else []
         if not isinstance(commits, list) or not commits:
-            return None
+            return self.merged_tips(command)
         ref = command[3] if len(command) > 3 else "HEAD"
         return subprocess.CompletedProcess(command, 0, f"{commits[0]['sha']}\t{ref}\n", "")
+
+    def merged_tips(self, command):
+        """What `git ls-remote origin` answers where the fake `gh` lists merges, or None.
+
+        A merge moves the branch it went into, so a branch that merged pull requests went into
+        (`baseRefName`, `main` where a test gives none) has a tip made of those merges: the tip
+        moves when a test adds a merge, as on GitHub. Other refs are origin's own.
+        """
+        listed = json.loads((self.stub / "merged.json").read_text())
+        merges = [p for p in listed if not p.get("old")]
+        if not merges:
+            return None
+        said = self.started(command, capture_output=True, text=True)
+        lines = []
+        for line in said.stdout.splitlines():
+            sha, _, ref = line.partition("\t")
+            into = [p for p in merges if f"refs/heads/{p.get('baseRefName') or 'main'}" == ref]
+            if into:
+                sha = hashlib.sha1(json.dumps(into, sort_keys=True).encode()).hexdigest()
+            lines.append(f"{sha}\t{ref}\n")
+        return subprocess.CompletedProcess(command, said.returncode, "".join(lines), said.stderr)
 
     def machine(self, plan=FRESH, **readings):
         """Write the machine and the plan that `jgauge room` reads: idle and under its limits, or
