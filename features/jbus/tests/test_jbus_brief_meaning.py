@@ -16,7 +16,7 @@ from testing.paths import REPO
 
 APPROVED = """\
 # alpha: a brief whose go is kept
-Home: root
+Home: uncategorized
 Task: "make the queue check a brief"
 Done when:
 - `jbus queue add` refuses an incomplete brief, with one line per fault
@@ -340,7 +340,7 @@ def old_go(kitchen):
     assert (code, json.loads(said)["holds"]) == (0, True)
 
 
-MOVED = APPROVED.replace("Home: root", "Home: flow\nThread: mcp:a-crew")
+MOVED = APPROVED.replace("Home: uncategorized", "Home: flow\nThread: mcp:a-crew")
 LONGER = "`make check` exits 0, in 5 minutes or less"
 
 
@@ -544,7 +544,7 @@ def test_the_lines_a_launch_writes_keep_the_go(kitchen):
     what was approved: its go holds, and it launches with no `Thread:` line and its new
     `Home:`."""
     approved(kitchen)
-    again = APPROVED.replace("Home: root", "Home: flow\nThread: mcp:a-launched-thread")
+    again = APPROVED.replace("Home: uncategorized", "Home: flow\nThread: mcp:a-launched-thread")
     code, said = add(kitchen, again)
     assert code == 0 and "does not hold" not in said, said
     assert judgement.brief_sha(again) == judgement.brief_sha(APPROVED)

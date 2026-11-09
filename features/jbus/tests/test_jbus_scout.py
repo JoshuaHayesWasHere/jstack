@@ -32,8 +32,8 @@ def kitchen(tmp_path, monkeypatch, jstack_config):
 
 def request(slug, more="", asked="find out what X does", title="what X does"):
     """Return a request in the shape of `features/scout/templates/scout-request.md`, with
-    `Home: root` unless `more` names a home of its own."""
-    home = "" if "Home:" in more else "Home: root\n"
+    `Home: uncategorized` unless `more` names a home of its own."""
+    home = "" if "Home:" in more else "Home: uncategorized\n"
     return (
         f"# {slug}: {title}\n"
         f'Request: "{asked}"\n'

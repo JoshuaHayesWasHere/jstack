@@ -87,7 +87,7 @@ One feature, start to finish: a row of the jbus queue from `add` to a launched t
 The other features are in each `features/<name>/verify.md`, and the shared test tooling's in [`testing/verify/`](../../../testing/verify/).
 
 ```sh
-printf '# alpha: a demo task\nTask: alpha, a demo task\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/alpha/`\nDesign: none, a demo\nReview: none\nPlaybook: none\nPull request: none\nHome: root\n' | record queue-row jbus queue add alpha --priority 1
+printf '# alpha: a demo task\nTask: alpha, a demo task\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/alpha/`\nDesign: none, a demo\nReview: none\nPlaybook: none\nPull request: none\nHome: uncategorized\n' | record queue-row jbus queue add alpha --priority 1
 printf '{"mcp:sandbox-chat": [{"itemId": "turn-item:message:m1", "messageId": "m1", "text": "go", "type": "user_message", "createdBy": "user", "updatedAt": "%s"}]}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$VERIFY_JSTACK_SANDBOX/t3/messages.json"
 word=$(record queue-row jbus word --to demo --message mcp:sandbox-chat/m1 | awk '{print $NF}')
 sha=$(command grep -v '^Home:' "$JBUS_STATE_DIR/demo/briefs/alpha.md" | shasum -a 256 | cut -c1-12)
@@ -107,7 +107,7 @@ The open pull request makes the pass ask GitHub who owns the repo, and it prints
 ```sh
 mkdir -p "$VERIFY_JSTACK_SANDBOX/home/.config/jstack"
 echo 'crew: claudeAgent claude-sonnet-5-5 claudeAgent,claudeAgent_sandbox' > "$VERIFY_JSTACK_SANDBOX/home/.config/jstack/roles"
-printf '# alpha: a demo task\nTask: alpha, a demo task\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/alpha/`\nDesign: none, a demo\nReview: none\nPlaybook: none\nPull request: none\nHome: root\n' | record usage-limit jbus queue add alpha --priority 1
+printf '# alpha: a demo task\nTask: alpha, a demo task\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/alpha/`\nDesign: none, a demo\nReview: none\nPlaybook: none\nPull request: none\nHome: uncategorized\n' | record usage-limit jbus queue add alpha --priority 1
 printf '{"mcp:sandbox-chat": [{"itemId": "turn-item:message:m1", "messageId": "m1", "text": "go", "type": "user_message", "createdBy": "user", "updatedAt": "%s"}]}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$VERIFY_JSTACK_SANDBOX/t3/messages.json"
 word=$(record usage-limit jbus word --to demo --message mcp:sandbox-chat/m1 | awk '{print $NF}')
 sha=$(command grep -v '^Home:' "$JBUS_STATE_DIR/demo/briefs/alpha.md" | shasum -a 256 | cut -c1-12)
@@ -129,7 +129,7 @@ A pass after it sends nothing more.
 Leave the pull request out of this drive: a pass tells the crew of a green one, and that send is not the carry-on.
 
 ```sh
-printf '# alpha: a demo task\nTask: alpha, a demo task\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/alpha/`\nDesign: none, a demo\nReview: none\nPlaybook: none\nPull request: none\nHome: root\n' | record login-lapse jbus queue add alpha --priority 1
+printf '# alpha: a demo task\nTask: alpha, a demo task\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/alpha/`\nDesign: none, a demo\nReview: none\nPlaybook: none\nPull request: none\nHome: uncategorized\n' | record login-lapse jbus queue add alpha --priority 1
 printf '{"mcp:sandbox-chat": [{"itemId": "turn-item:message:m1", "messageId": "m1", "text": "go", "type": "user_message", "createdBy": "user", "updatedAt": "%s"}]}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$VERIFY_JSTACK_SANDBOX/t3/messages.json"
 word=$(record login-lapse jbus word --to demo --message mcp:sandbox-chat/m1 | awk '{print $NF}')
 sha=$(command grep -v '^Home:' "$JBUS_STATE_DIR/demo/briefs/alpha.md" | shasum -a 256 | cut -c1-12)

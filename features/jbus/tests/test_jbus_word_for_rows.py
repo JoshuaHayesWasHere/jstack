@@ -27,7 +27,7 @@ def homes(kitchen):
         (kitchen.home / scope / "plan.md").write_text("# a plan\n")
         (kitchen.home / scope / "home-id").write_text(f"{thread}\n")
     for slug in ("vv-noise-architect", "vv-noise-writing"):
-        text = brief(slug).replace("Home: root\n", "Home: verify\n")
+        text = brief(slug).replace("Home: uncategorized\n", "Home: verify\n")
         add(kitchen, slug, approve=False, text=text)
         assert not (kitchen.home / "tasks" / f"{slug}.md").exists()
 

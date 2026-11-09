@@ -18,6 +18,7 @@ from test_jbus_kitchen import GATE, NOW, RESULT
 from test_jbus_leftover import home
 from test_jbus_questions import held
 from test_jbus_queue import add, brief, go, sha12
+from test_jbus_scout import request
 
 HOLDS = "hold 9 https://example.test/pull/9: needs user, touches skills/crew/SKILL.md"
 
@@ -214,9 +215,9 @@ def scoped(kitchen, scope):
     return kitchen.home / scope
 
 
-def unsaid(kitchen, slug, where="root", project="demo"):
+def unsaid(kitchen, slug, where="uncategorized", project="demo"):
     """Queue a row of the home `where` with no go, so it waits on the user's word."""
-    text = brief(slug).replace("Home: root", f"Home: {where}")
+    text = brief(slug).replace("Home: uncategorized", f"Home: {where}")
     add(kitchen, slug, approve=False, text=text, project=project)
 
 
@@ -288,7 +289,7 @@ def test_a_held_pull_request_is_the_home_of_its_row_and_the_roots_where_the_queu
     kitchen,
 ):
     sc = scoped(kitchen, "sc")
-    add(kitchen, "held", text=brief("held").replace("Home: root", "Home: sc"))
+    add(kitchen, "held", text=brief("held").replace("Home: uncategorized", "Home: sc"))
     kitchen.brief("held", "Home: sc\n" + RESULT)
     kitchen.set("open.json", [kitchen.opened("held", 9)])
     kitchen.set("jmerge.txt", HOLDS + "\n")
@@ -324,3 +325,45 @@ def test_a_question_whose_brief_only_the_queue_stored_is_its_scopes_in_needs_and
 
     assert asked(sc) == ["stored"]
     assert asked(kitchen.home) == []
+
+
+def test_the_sidebar_file_names_rows_from_before_that_say_root_under_uncategorized(kitchen):
+    """T3 Code's sidebar draws `work.json`, and `jbus.states.keep_work` names each row's home
+    there as jbus resolves it (`jbriefs.home.home_of`): a brief or a scout's request queued
+    before `add` refused `Home: root` is the catch-all's, `uncategorized`, never the root's, and a
+    scout's request with no copy under `scouts/` is read from jbus's own."""
+    scoped(kitchen, "sc")
+    add(kitchen, "old-row", approve=False)
+    add(kitchen, "old-ask", approve=False, text=request("old-ask"))
+    add(
+        kitchen,
+        "sc-ask",
+        approve=False,
+        text=request("sc-ask", "Home: sc\n", asked="find out what Y does"),
+    )
+    add(
+        kitchen,
+        "sc-row",
+        approve=False,
+        text=brief("sc-row").replace("Home: uncategorized", "Home: sc"),
+    )
+    for kind in ("tasks", "scouts"):
+        (kitchen.home / kind).mkdir(exist_ok=True)
+    rooted = (
+        (kitchen.state / "briefs" / "old-row.md")
+        .read_text()
+        .replace("Home: uncategorized\n", "Home: root\n")
+    )
+    (kitchen.state / "briefs" / "old-row.md").write_text(rooted)
+    (kitchen.home / "tasks" / "old-row.md").write_text(rooted)
+    asked = request("old-ask").replace("Home: uncategorized\n", "Home: root\n")
+    (kitchen.home / "scouts" / "old-ask.md").write_text(asked)
+    kitchen.poll()
+    lines = json.loads((kitchen.state / work.NAME).read_text())["work"]
+    homes = {one["key"]: one["home"] for one in lines if one.get("kind") == "row"}
+    assert homes == {
+        "old-row": "uncategorized",
+        "old-ask": "uncategorized",
+        "sc-ask": "sc",
+        "sc-row": "sc",
+    }

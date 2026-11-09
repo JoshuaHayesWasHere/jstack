@@ -71,7 +71,7 @@ def test_the_seven_day_mix_wakes_the_root_of_its_one_way_doors_alone(kitchen):
     pantry = home(kitchen, "pantry")["threadId"]
     kitchen.quiet()
     for slug in ("pa-approve", "pa-name"):
-        text = brief(slug).replace("Home: root\n", "Home: pantry\n")
+        text = brief(slug).replace("Home: uncategorized\n", "Home: pantry\n")
         add(kitchen, slug, approve=False, text=text)
         kitchen.brief(slug, "Home: pantry\n")
     (kitchen.home / "gates.md").write_text(GATES)
@@ -124,7 +124,7 @@ def test_a_hold_and_a_config_need_are_the_roots_and_a_row_to_approve_wakes_no_ho
     """A row to approve waits on the user alone (#1292), and the root hears of the doors."""
     root = home(kitchen)["threadId"]
     pantry = home(kitchen, "pantry")["threadId"]
-    text = brief("pa-approve").replace("Home: root\n", "Home: pantry\n")
+    text = brief("pa-approve").replace("Home: uncategorized\n", "Home: pantry\n")
     add(kitchen, "pa-approve", approve=False, text=text)
     kitchen.brief("pa-approve", "Home: pantry\n")
     since = (NOW - 30 * MIN).isoformat()

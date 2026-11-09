@@ -36,7 +36,7 @@ def queue(kitchen, slug, home="", priority=1, approve=True):
     `uncategorized`."""
     text = brief(slug)
     if home:
-        text = text.replace("Home: root", f"Home: {home}")
+        text = text.replace("Home: uncategorized", f"Home: {home}")
     add(kitchen, slug, priority=priority, approve=approve, text=text)
 
 

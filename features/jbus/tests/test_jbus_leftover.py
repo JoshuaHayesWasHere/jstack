@@ -314,7 +314,7 @@ def test_a_child_made_before_its_thread_takes_its_row_and_is_told_once_its_home_
     root = home(kitchen)
     (kitchen.home / "pages").mkdir()
     (kitchen.home / "pages" / "plan.md").write_text("# demo, pages: plan\n")
-    text = brief("alpha").replace("Home: root\n", "Home: pages\n")
+    text = brief("alpha").replace("Home: uncategorized\n", "Home: pages\n")
     argv = ["--project", "demo", "queue", "add", "alpha", "--priority", "1"]
     code, said = kitchen.main(*argv, "--from", root["threadId"], "--for", "pages", stdin=text)
     assert code == 0, said

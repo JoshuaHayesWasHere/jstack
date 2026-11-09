@@ -74,7 +74,9 @@ def test_a_stacked_on_line_naming_a_row_its_depends_does_not_is_refused_and_noth
     kitchen,
 ):
     assert queue_add(kitchen, "alpha")[0] == 0
-    stacked = brief("beta").replace("Home: root\n", "Home: root\nStacked on: alpha alpha\n")
+    stacked = brief("beta").replace(
+        "Home: uncategorized\n", "Home: uncategorized\nStacked on: alpha alpha\n"
+    )
     code, said = queue_add(kitchen, "beta", text=stacked)
     assert code != 0
     assert HAND_STACK in said
@@ -84,7 +86,7 @@ def test_a_stacked_on_line_naming_a_row_its_depends_does_not_is_refused_and_noth
 def test_a_stacked_on_line_naming_a_row_its_depends_names_is_queued(kitchen):
     assert queue_add(kitchen, "alpha")[0] == 0
     stacked = brief("beta", "Builds on: alpha: the parser alpha adds\n").replace(
-        "Home: root\n", "Home: root\nStacked on: alpha alpha\n"
+        "Home: uncategorized\n", "Home: uncategorized\nStacked on: alpha alpha\n"
     )
     code, said = queue_add(kitchen, "beta", "--depends", "alpha", text=stacked)
     assert code == 0, said

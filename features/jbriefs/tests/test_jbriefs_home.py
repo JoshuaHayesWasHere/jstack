@@ -80,9 +80,15 @@ def test_an_archived_scope_is_no_scope_as_the_home_skill_counts_it(state):
     assert home.home_of(state, brief("Home: duet")) == state / "duet"
 
 
-@pytest.mark.parametrize("name", ["root", "uncategorized", "cicd"])
-def test_root_uncategorized_and_a_scope_are_names_a_brief_may_be_queued_with(state, name):
+@pytest.mark.parametrize("name", ["uncategorized", "cicd"])
+def test_uncategorized_and_a_scope_are_names_a_brief_may_be_queued_with(state, name):
     assert home.fault(state, brief(f"Home: {name}"), "demo") == ""
+
+
+def test_the_root_owns_no_row_so_a_brief_may_not_name_it(state):
+    assert home.fault(state, brief("Home: root"), "demo") == (
+        "Home: line names root, which owns no row: name uncategorized or the row's scope (cicd)"
+    )
 
 
 def test_a_name_that_is_no_scope_is_refused_and_the_fault_names_uncategorized(state):

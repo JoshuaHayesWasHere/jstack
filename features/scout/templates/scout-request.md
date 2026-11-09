@@ -7,5 +7,5 @@ Deliver:
 - <a brief for the crewmate, at `tasks/<slug>.md` | a visual, an HTML file saved under `reports/` | leave this line out>
 Playbook: <a row `a scout` runs, from the home skill's block that prints a row for each playbook> | none
 Out of bounds: read-only. <what the scout must not run, start or touch>
-<Every request has the line below, and it names the home the scout reports to: `root` for the root home, and the scope's name for a scoped home, never a thread id, since `jbus queue add` refuses a request with no such line, or one that names no home of the project.>
-Home: <root, or the scope's name>
+<Every request has the line below, and it names the home the scout reports to: `uncategorized` where no scope owns the work, and the scope's name for a scoped home, never `root` or a thread id, since the root home owns no row and `jbus queue add` refuses a request with no such line, one that names `root`, or one that names no home of the project.>
+Home: <uncategorized, or the scope's name>

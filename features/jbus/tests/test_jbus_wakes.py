@@ -263,15 +263,17 @@ def test_a_row_to_approve_wakes_no_thread_and_waits_on_needs_and_the_tree(
 ):
     """A home approves a row on the user's word as it queues it (`queue add --message`), so a go
     still owed is the user's alone: it wakes neither the home whose brief or scout's request it
-    is, nor the uncategorized home a root brief belongs to, nor the root, and `jbus needs` and
+    is, nor the uncategorized home, nor the root, and `jbus needs` and
     the view's tree of homes still show it, each under the home whose row it is."""
     kitchen = Kitchen(tmp_path, monkeypatch)
     homes = [home(kitchen, *name)["threadId"] for name in ((), ("sidebar",), ("uncategorized",))]
     for slug, named, where in (
         ("sb-rows-build", "sidebar", kind),
-        ("alpha", "root", "tasks"),
+        ("alpha", "uncategorized", "tasks"),
     ):
-        given = (request(slug) if where == "scouts" else brief(slug)).replace("Home: root\n", "")
+        given = (request(slug) if where == "scouts" else brief(slug)).replace(
+            "Home: uncategorized\n", ""
+        )
         add(kitchen, slug, approve=False, text=f"{given}Home: {named}\n")
         kitchen.brief(slug, f"Home: {named}\n", kind=where)
     for minutes in (0, 5, 10):

@@ -12,10 +12,12 @@ a line while `jbus follow` follows T3 Code's events (`restated.following`).
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import jsettings
-from jbriefs.home import home_of, thread_of
+from jbriefs.home import home_of, reader, thread_of
 from jbus import (
     blockers,
     cancelled,
@@ -108,14 +110,35 @@ def unplaced(half: Half) -> None:
         merge.unplaced(run, client, slug, number, said, thread)
 
 
+def _home(run: Pass, owner: Callable[[str], Path], slug: str, scout: bool) -> str:
+    """The name of the home a row is, by its brief or a scout's request (`jbriefs.home.home_of`):
+    a scope's or `uncategorized`, never the root, whatever the text's `Home:` line says. A
+    scout's request is its home's copy under `scouts/`, else the one jbus keeps."""
+    if not scout:
+        return owner(watch.brief_of(run, slug)).name
+    found = ""
+    for path in (run.home / "scouts" / f"{slug}.md", queue.brief_path(run.state, slug)):
+        try:
+            found = path.read_text(errors="replace")
+            break
+        except OSError:
+            continue
+    return owner(found).name
+
+
 def keep_work(half: Half) -> None:
     """Write `work.json`. The file holds the state of every row, and of every thread out that
     belongs to no row, and says who holds each one (`work.holder`). When the pass has no list of the
-    threads out, the file keeps the threads of the last pass, which this pass has not confirmed."""
+    threads out, the file keeps the threads of the last pass, which this pass has not confirmed.
+    Each row's line names its `home` as jbus resolves it (`_home`), so the sidebar that draws the
+    file groups the row under a child home and never under the root: a row queued before `queue
+    add` refused `Home: root` shows under `uncategorized`. A write of the queue between passes
+    keeps a line's `home` as it was until the next pass."""
     run, rows, states = half.run, half.table or [], half.states
     if states is None:
         return
     held, gated = leftover.read(run.state), blockers.holding(run)
+    owner = reader(run.home)
     listed = []
     for row in rows:
         slug = row["slug"]
@@ -134,6 +157,7 @@ def keep_work(half: Half) -> None:
             thread=row.get("thread", ""),
             pr=row.get("pr", ""),
             why=why,
+            home=_home(run, owner, slug, bool(role)),
             **scout,
         )
         listed.append(line)

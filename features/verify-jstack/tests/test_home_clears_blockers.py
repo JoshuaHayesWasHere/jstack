@@ -109,7 +109,7 @@ def brief(slug, *head):
         "Review: none",
         "Playbook: none",
         "Pull request: none",
-        *([] if any(line.startswith("Home:") for line in head) else ["Home: root"]),
+        *([] if any(line.startswith("Home:") for line in head) else ["Home: uncategorized"]),
         *head,
         "",
     ]

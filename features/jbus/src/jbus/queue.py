@@ -2491,7 +2491,10 @@ def move(state: Path, home: Path, slug: str, scope: str, at: str, by: str) -> Mo
 
     Refuse a row that is over, `root` or any name the root goes by, and a name that is no scope of
     the home. A row already in that home, in both copies, is moved nowhere, and its line says so.
-    Run again, a move cut short between its two writes finishes."""
+    A row whose home is that home already, by a line in either copy that names it otherwise (a
+    brief from before `add` refused `Home: root`, which `home_of` reads as the catch-all's), has
+    both copies named for it, and its go stays as it is. Run again, a move cut short between its
+    two writes finishes."""
     if scope == homes.ROOT or scope in homes.ids(home):
         raise Refused(
             f"refused: {scope} is the root home, and a row moves only to a child home: "
@@ -2509,18 +2512,22 @@ def move(state: Path, home: Path, slug: str, scope: str, at: str, by: str) -> Mo
             raise Refused(f"refused: {slug} has no brief, add it again")
         was = homes.home_of(home, text).name
         copy = home / ("scouts" if role(row) == SCOUT else "tasks") / f"{slug}.md"
-        if was == scope:
-            if _write_home_copy(copy, scope):
-                return Moved(f"moved {slug}'s copy at {copy} to the {scope} home", was, was, text)
-            return Moved(f"{slug} is the {scope} home's already: nothing is moved", was, was, text)
         now = rehomed(text, scope)
         holds = judgement.has_go(row, text)
-        if holds and row.get("brief_sha") == judgement.sha(text):
-            row["brief_sha"] = judgement.brief_sha(now)
-        stored = brief_path(state, slug).stat()
-        _store(state, slug, now)
-        os.utime(brief_path(state, slug), ns=(stored.st_atime_ns, stored.st_mtime_ns))
-        _write_home_copy(copy, scope)
+        if now != text:
+            if holds and row.get("brief_sha") == judgement.sha(text):
+                row["brief_sha"] = judgement.brief_sha(now)
+            stored = brief_path(state, slug).stat()
+            _store(state, slug, now)
+            os.utime(brief_path(state, slug), ns=(stored.st_atime_ns, stored.st_mtime_ns))
+        copied = _write_home_copy(copy, scope)
+        if was == scope:
+            pairs = ((brief_path(state, slug), now != text), (copy, copied))
+            wrote = [str(where) for where, did in pairs if did]
+            if wrote:
+                line = f"moved {slug}'s copy at {' and '.join(wrote)} to the {scope} home"
+                return Moved(line, was, was, now)
+            return Moved(f"{slug} is the {scope} home's already: nothing is moved", was, was, now)
         go = ", it has no go to carry"
         if holds:
             row[CARRIED] = {"from": was, "to": scope, "at": at, "by": by}
