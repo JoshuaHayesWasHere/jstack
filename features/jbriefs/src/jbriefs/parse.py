@@ -195,8 +195,7 @@ def playbook(text: str) -> str:
     it names one.
 
     The name is the line's first word, as `jbus playbook` reads it. It must be a crewmate's
-    file of `playbooks/` without its `.md`: a brief with no line, or one that says `none`, names
-    none, and the fault points at the home's table that picks one for each kind of task.
+    file of `playbooks/` without its `.md`, never `none`: its fault names the home's table.
     """
     said = head(text, "Playbook:")
     name = playbook_named(text)
