@@ -80,7 +80,8 @@ def test_the_state_has_every_thread_out_and_each_task_its_threads_liveness(scene
 
 def test_each_scouts_request_says_researching_reported_or_blocked(scene, served):
     """A scout's request is the one source the view reads that jbus does not write. The view
-    reads its last `## Report` and the `Status:` line under it. Only `done` counts as
+    reads its last `## Report`, a follow-up (`## Report, follow-up (…)`) as much as the first,
+    and the `Status:` line under it. Only `done` counts as
     reported. When a scout's last Report says it is not done, the view says the scout is not
     done, whatever an earlier Report said. A Report with a gate in it still has its Status
     line. When a request is not there, the view says it is missing, never that there is
@@ -90,7 +91,8 @@ def test_each_scouts_request_says_researching_reported_or_blocked(scene, served)
         tea_tin=REQUEST.format(slug="tea-tin"),
         jam_tin=REPORTED.format(slug="jam-tin", status="done"),
         oat_tin=REPORTED.format(slug="oat-tin", status="blocked (the tin is welded shut)"),
-        rye_tin=REPORTED.format(slug="rye-tin", status="not done") + "\n## Report\nStatus: done\n",
+        rye_tin=REPORTED.format(slug="rye-tin", status="not done")
+        + "\n## Report, follow-up (2026-11-08, the tin opened)\nStatus: done\n",
         kale_tin=REPORTED.format(slug="kale-tin", status="done")
         + "\n## Report\nStatus: not done\n",
         fig_tin=REQUEST.format(slug="fig-tin")

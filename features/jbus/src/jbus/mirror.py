@@ -139,7 +139,7 @@ def _found(kind: str, slug: str, heading: str, body: str) -> tuple[str, str, str
         return "result", f"result {slug}: {below.line(body, 'Status:') or heading[3:]}", ""
     if kind == "tasks" and heading == "## Review":
         return "review", f"review {slug}: {below.line(body, 'Verdict:') or 'written'}", ""
-    if kind == "scouts" and heading == "## Report":
+    if kind == "scouts" and heading.startswith("## Report"):
         return "report", f"report {slug}: {below.line(body, 'Status:') or 'written'}", ""
     return None
 

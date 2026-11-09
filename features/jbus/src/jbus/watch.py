@@ -854,12 +854,13 @@ OVER = (work.Thread.COMPLETED, work.Thread.FAILED)
 def owed(run: Pass, role: str, slug: str) -> work.Written:
     """Return what a thread that belongs to no row has written of the output that its role
     owes.
-    A scout owes its last Report, which jbus reads as it reads a Result. A reviewer owes a
+    A scout owes its last Report, a follow-up (`## Report, follow-up (…)`) as much as the
+    first, which jbus reads as it reads a Result. A reviewer owes a
     Review with a verdict in the brief. A home or any other thread owes nothing, so it has
     always written all it owes."""
     if role == "scout":
         text = _read(run.home / "scouts" / f"{slug}.md")
-        reports = [body for head, body in sections(text) if head == "## Report"]
+        reports = [body for head, body in sections(text) if head.startswith("## Report")]
         if not reports:
             return work.Written.NONE
         status = below.line(reports[-1], "Status:")

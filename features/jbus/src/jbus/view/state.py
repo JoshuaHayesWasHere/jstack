@@ -895,7 +895,8 @@ def request(home: Path, slug: str) -> dict[str, str]:
     view only reads the file.
 
     The state is `researching` while the request has no `## Report`, and `reported` where
-    the `Status:` of its last Report is `done`. It is `blocked` where that line says so, and
+    the `Status:` of its last Report, a follow-up (`## Report, follow-up (…)`) as much as the
+    first, is `done`. It is `blocked` where that line says so, and
     `not done` for any other line, because the scout skill counts a Report that is not done
     as unfinished. It is `missing` where there is no request to read. `status` is the words
     of that line, and `asks` is the request's title. A gate that a scout wrote in its Report
@@ -906,7 +907,7 @@ def request(home: Path, slug: str) -> dict[str, str]:
         return {"state": "missing", "status": "", "asks": ""}
     lines = whole.splitlines()
     asks = text(lines[0].removeprefix("# ") if lines else "", 160)
-    reports = [body for heading, body in mirror.sections(whole) if heading == REPORT]
+    reports = [body for heading, body in mirror.sections(whole) if heading.startswith(REPORT)]
     if not reports:
         return {"state": "researching", "status": "", "asks": asks}
     status = text(briefs.head(reports[-1], "Status:") or "", 160)
