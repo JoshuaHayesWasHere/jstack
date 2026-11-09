@@ -111,7 +111,7 @@ Answer(c) ==
 \* the quiet spell. Retiring it instead is Retire.
 Steps(k) ==
     /\ watch[k] = "asked"     \* jbus/children.py `line = f"{STALL} {name}: {home} is still quiet after jbus started it again, {quiet} min"`
-    /\ msg[NoticeOf(k)] = "told"     \* jbus/waiting.py `found += children.stalled(run.state)`
+    /\ msg[NoticeOf(k)] = "told"     \* jbus/waiting.py `found += stalls.stalled(run.state)`
     /\ life' = Set(life, k, IF life[k] = "stuck" THEN "working" ELSE life[k]) /\ Calm(k)
     /\ UNCHANGED <<launches, work, up, broke, tip, seen, blind, lock, mode>>
 \* A pass sends each home thread the items of the one list new to it, its one route to Josh. Only a
@@ -179,7 +179,7 @@ After(k) ==
       [] watch[k] = "relaunched" -> IF Kept("ask") THEN "asked" ELSE "relaunched"
       [] OTHER -> "asked"
 \* The question is an item of Josh's list of what needs him (jbus/waiting.py
-\* `found += children.stalled(run.state)`), which wakes no thread (jbus/wakes.py
+\* `found += stalls.stalled(run.state)`), which wakes no thread (jbus/wakes.py
 \* `to = "" if one["kind"] == "stalled" else thread_of(homes.home_of(run.home, text)) or root`),
 \* so Josh has it in the pass that writes it, and no home thread carries it. With needs dropped
 \* it is sent the root's home thread, as an alert once was.

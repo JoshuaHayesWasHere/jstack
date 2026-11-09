@@ -36,7 +36,7 @@ Each pass rewrites the list. An item is one thing only the user can do,
   that reads calls left again, and a pass that could not read the allowance keeps it as it was.
   It clears by itself, so it never blocks;
 - `stalled`: a home jbus nudged twice and started again on a fresh thread that is still quiet with
-  work out (`children.stalled`), with its own slug `home-<scope>`. It wakes no thread, since the
+  work out (`stalls.stalled`), with its own slug `home-<scope>`. It wakes no thread, since the
   home is the one that stalled, and it blocks as a stall (d). It leaves the list once the home
   does something jbus can see.
 
@@ -101,7 +101,6 @@ import jsettings
 from jbriefs import below
 from jbus import (
     alert,
-    children,
     leftover,
     locked,
     merge,
@@ -111,6 +110,7 @@ from jbus import (
     queue,
     read_json,
     redact,
+    stalls,
     verbs,
     write_json,
 )
@@ -426,7 +426,7 @@ def keep(
     found += unapproved(run, rows) if rows is not None else had("approve")
     found += holds(run, world, pulls, had("hold"))
     found += held(run.state)
-    found += children.stalled(run.state)
+    found += stalls.stalled(run.state)
     if spent is None:
         found += had("github")
     elif spent:

@@ -29,8 +29,8 @@ so once nudged the home thread's writes do not end the spell. At its patience (`
 routine's beat) jbus nudges the home thread and logs the first strike; a patience after that nudge
 it nudges it again; a patience after the second it launches the home again on a fresh thread
 (`launch`), and a patience after that, still quiet, the home is the user's: an item of `jbus needs`
-(`stalled`), which wakes no thread. A home whose thread is the one jbus launched for it is not
-launched again: its spell goes from the second nudge to `jbus needs`. Each step waits a patience
+(`stalls.stalled`), which wakes no thread. A home whose thread is the one jbus launched for it is
+not launched again: its spell goes from the second nudge to `jbus needs`. Each step waits a patience
 after the last, so a home first checked long after it went quiet still gets that time to act on a
 nudge. No step raises an alert, so no home's stall reaches the root; an alert a stall raised before
 is retired. `stalls.json` keeps each spell: when it began, how far it went, when it took its last
@@ -75,12 +75,11 @@ from jbus import (
     write_json,
 )
 from jbus.passes import Pass
+from jbus.stalls import FILE, STALL
 from jbus.t3 import GONE, Client, T3Error, T3Refused
 from jroles import pool
 
 EVENTS = {"home-stall": "quiet"}
-STALL = "home-stall"
-FILE = "stalls.json"
 WAS_FILE = "children.json"
 """The name `FILE` had before, moved on the first pass that finds it with no `FILE`."""
 PATIENCE = 60
@@ -338,24 +337,6 @@ def _stall(run: Pass, name: str) -> str:
     """The key of the alert a home's stall raised before a stall went on `jbus needs`, which each
     pass retires: no home-stall alert is open, so none reaches the root."""
     return f"{STALL} {run.project.name} {name}"
-
-
-def stalled(state: Path) -> list[dict[str, str]]:
-    """The items of `waiting-on-user.json` for each home whose spell came to `asked`: a home jbus
-    started again on a fresh thread that stalled again. Each is the user's, on `jbus needs`, and
-    wakes no thread (`jbus.wakes.need_items`)."""
-    kept: dict[str, Any] = read_json(state / FILE, {})
-    return [
-        {
-            "kind": "stalled",
-            "key": f"stalled:{name}",
-            "line": f"{STALL} {name}: the home {name} is quiet with work out after jbus nudged it "
-            f"twice and started it again on a fresh thread, since {spell.get('since', '')}",
-            "slug": f"home-{name}",
-        }
-        for name, spell in sorted(kept.items())
-        if isinstance(spell, dict) and spell.get("step") == "asked"
-    ]
 
 
 def _act(
