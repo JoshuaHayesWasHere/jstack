@@ -2,8 +2,9 @@
 # https://github.com/JoshuaHayesWasHere/jstack/blob/main/features/repo-standard/docs/skeleton.md
 # scripts/stack.mk, from the stack's adapter, fills in the commands: STACK_LINT, STACK_TEST and
 # STACK_SELECT. A repo of several stacks sets `stacks:` in .repo-standard.yml instead, and the
-# standard's driver runs each stack over its own roots and joins them. The standard's guards run from jstack at the tag .repo-standard.yml pins, cloned
-# once into .cache/, with no tool but git and python3.
+# standard's driver runs each stack over its own roots and joins them. The standard's guards run
+# from jstack at the tag .repo-standard.yml pins, cloned once into .cache/, with no tool but git
+# and python3.
 STANDARD := $(shell sed -n 's/^standard:[[:space:]]*\([0-9][0-9]*\).*/\1/p' .repo-standard.yml)
 REPO_STANDARD_UPSTREAM ?= https://github.com/JoshuaHayesWasHere/jstack
 REPO_STANDARD_HOME := .cache/repo-standard-v$(STANDARD)
