@@ -1135,8 +1135,8 @@ def why(run: Pass, row: dict[str, Any], found: dict[str, str], waits: Waits, unr
             return f"brief changed after approval, now {sha}"
         case Depends(slugs):
             return f"depends on {', '.join(slugs)}"
-        case Slot():
-            return "no slot"
+        case Slot(why=said):
+            return said or "no slot"
         case Rerun(sha):
             return f"main is green again at {sha}, its own commit, so it has no red to fix"
         case Red():

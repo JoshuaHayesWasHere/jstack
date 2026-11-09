@@ -54,7 +54,10 @@ class Depends:
 
 @dataclass(frozen=True)
 class Slot:
-    """A `Slot` is a row that waits only for a slot or room on the machine."""
+    """A `Slot` is a row that waits only for a slot or room on the machine. `why` says what it
+    waits on where that is a full /tmp (`jbus.cleanup.waiting`), which only the user can free."""
+
+    why: str = ""
 
 
 @dataclass(frozen=True)

@@ -60,6 +60,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from jbus import queue, read_json, threads, verbs, write_json
+from jbus.cleanup import WORKTREES
 from jbus.passes import Pass
 from jbus.watch import at_work
 from jgauge import slot
@@ -70,7 +71,6 @@ if TYPE_CHECKING:
 
 ROOT = Path("/proc")
 LAUNCHD = 1
-WORKTREES = Path.home() / ".t3" / "worktrees"
 TEMP = (Path("/tmp"), Path("/var/tmp"))
 GAP = 1.0
 GRACE = 3.0
