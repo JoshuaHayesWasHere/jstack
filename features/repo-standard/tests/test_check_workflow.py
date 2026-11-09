@@ -107,7 +107,11 @@ def caller(tmp_path):
         "MAKE_LOG": str(tmp_path / "make.log"),
         "REPO_STANDARD_UPSTREAM": str(upstream),
     }
-    for inherited in ("PYTHONPATH", "MAKEFLAGS", "MFLAGS", "MAKELEVEL"):
+    # A make that runs this suite, as CI's `make check SHARD=K/4` does, exports each variable of
+    # its command line, which MAKEFLAGS lists after `--`: the caller's own make must not see them.
+    _, _, overrides = os.environ.get("MAKEFLAGS", "").partition("--")
+    on_make_line = [word.split("=", 1)[0] for word in overrides.split() if "=" in word]
+    for inherited in ("PYTHONPATH", "MAKEFLAGS", "MFLAGS", "MAKELEVEL", *on_make_line):
         env.pop(inherited, None)
     return repo, env
 
