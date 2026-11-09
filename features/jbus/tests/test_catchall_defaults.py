@@ -3,6 +3,7 @@ the catch-all, `uncategorized`, instead: the root home owns no row. One table ru
 a repo's state with one live scope, `flow`, and reads the home it gives through
 `jbriefs.home.home_of`, the one rule every thread and jbus ask."""
 
+import argparse
 from datetime import UTC, date, datetime
 
 import pytest
@@ -10,7 +11,9 @@ import pytest
 import jsettings
 from jbriefs import home as homes
 from jbus import blockers, children, daywarnings, homestatus, needs, queue, reverts, watch
+from jbus import home as jhome
 from jbus.ci import wrongcloses
+from jbus.view import homes as viewed
 
 
 @pytest.fixture
@@ -107,3 +110,48 @@ def test_while_the_root_stands_in_its_clear_and_its_start_read_the_catch_all_s_r
     (catchall / "home-id").write_text("mcp:the-catch-all\n")
     assert views(state) == (False, False, False, False)
     assert views(catchall) == (True, True, True, True)
+
+
+def test_jbus_home_directory_names_the_root_while_it_stands_in_and_the_catch_all_after(
+    state, capsys
+):
+    """`jbus home --directory` of a brief no scope claims prints the directory of the home that
+    works it (`jbus.home`): the root's while it stands in, and the catch-all's once that home has
+    a thread of its own."""
+    (state / "tasks").mkdir()
+    brief = state / "tasks" / "alpha.md"
+    brief.write_text("# alpha\nHome: root\n")
+    catchall = homes.catchall(state)
+    (verb,) = jhome.VERBS
+    parser = argparse.ArgumentParser()
+    verb.arguments(parser)
+
+    def directory():
+        assert verb.run(parser.parse_args(["--directory", str(brief)]), None) == 0
+        return capsys.readouterr().out.strip()
+
+    assert directory() == str(state)
+    catchall.mkdir()
+    (catchall / "home-id").write_text("mcp:the-catch-all\n")
+    assert directory() == str(catchall)
+
+
+def test_the_view_reads_the_catch_all_as_a_home_and_the_root_s_line_while_it_stands_in(state):
+    """`jbus.view.homes`: a brief that names a retired scope is the catch-all's and says the
+    name, a row of no brief is the catch-all's, the root works the catch-all's rows while it
+    stands in, a gate of the catch-all's directory is its, and the summary draws the root, then
+    the catch-all, then each other scope, with the catch-all's health `none` while the root
+    stands in for it."""
+    found = viewed.Homes(state, state)
+    assert found.owner("# x\nHome: old-shelf\n") == viewed.Owner(viewed.CATCHALL, "old-shelf")
+    assert found.of_key("no-brief", {}, {"no-brief"}) == viewed.CATCHALL
+    assert found.works(viewed.ROOT) == {viewed.ROOT, viewed.CATCHALL}
+    assert found.of_gate(viewed.CATCHALL) == viewed.CATCHALL
+    assert found.of_gate("gone") == viewed.ROOT
+    assert list(found.colours) == [viewed.ROOT, viewed.CATCHALL, "flow"]
+    group = found.group([], [])
+    assert [(one["name"], one["health"]) for one in group] == [
+        (viewed.ROOT, "unknown"),
+        (viewed.CATCHALL, "none"),
+        ("flow", "unknown"),
+    ]
