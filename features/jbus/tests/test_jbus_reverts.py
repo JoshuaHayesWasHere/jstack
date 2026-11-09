@@ -14,8 +14,10 @@ from datetime import timedelta
 
 import pytest
 
+import jbus
 import jbus.queue
 from jbus import reverts
+from jbus.passes import Pass
 from jbus.watch import World
 from jmerge import mainjson
 from jmerge import reverts as kept
@@ -468,11 +470,22 @@ def test_a_red_run_s_culprit_is_its_oldest_where_no_later_tip_fails_another_test
 MAC_FLOW = ".github/workflows/macos.yml"
 
 
-def mac_red_merges(kitchen, *merges, attempt=2):
+def mac_flow(kitchen):
+    """Push macos.yml to origin's main from the main checkout, so its `origin/main` holds it."""
+    (kitchen.checkout / ".github" / "workflows").mkdir(parents=True, exist_ok=True)
+    (kitchen.checkout / MAC_FLOW).write_text("on: push\n")
+    kitchen.git("add", MAC_FLOW)
+    kitchen.git("commit", "-q", "-m", "macos.yml")
+    kitchen.git("push", "-q", "origin", "main")
+
+
+def mac_red_merges(kitchen, *merges, attempt=2, flow=True):
     """Land the merges of `red_merges`, oldest first, on a commit where main's check and
     macos.yml's push run passed, its job `macos` run. At each merge main's check passes, and
     macos.yml's push run failed at `attempt`, its job `macos` with `TEST` failed in its log.
-    Return the merges."""
+    Where `flow`, macos.yml is on the default branch first (`mac_flow`). Return the merges."""
+    if flow:
+        mac_flow(kitchen)
     reds = red_merges(kitchen, *merges)
     green = json.loads((kitchen.stub / "commits.json").read_text())[-1]["sha"]
     mac = {"path": MAC_FLOW, "event": "push", "head_branch": "main", **DONE}
@@ -531,6 +544,24 @@ def test_a_macos_red_on_main_never_makes_main_red_and_reverts_its_one_clear_culp
     assert f"which turned main's macOS red at {red[:12]}" in text
     assert mac_state(kitchen) | {"reverted": [red]} == mac_state(kitchen)
     assert mac_rows(kitchen) == []
+
+
+@pytest.mark.parametrize("flow", [False, True])
+def test_macos_asks_github_nothing_where_the_default_branch_has_no_macos_yml(kitchen, flow):
+    """Where the default branch has no macos.yml there is no Mac to judge: `macos` reads none of
+    main's commits and no commit's runs, and keeps no Mac record. With macos.yml it reads main's
+    commits and the Mac run of each, as before."""
+    (red,) = mac_red_merges(kitchen, ("alpha", 7, None), flow=flow)
+    log = kitchen.stub / "gh.log"
+    log.write_text("")
+    reverts.macos(Pass(jbus.load(), jbus.load().projects[0], NOW), World())
+    said = log.read_text().splitlines()
+    if not flow:
+        assert said == [] and not (kitchen.state / reverts.MAC_MAIN).exists()
+        return
+    assert said[0] == "api repos/{owner}/{repo}/commits?sha=main&per_page=50"
+    assert f"api repos/{{owner}}/{{repo}}/actions/runs?head_sha={red}&per_page=100" in said
+    assert mac_state(kitchen)["red"] == red
 
 
 def test_a_macos_red_at_its_first_attempt_is_rerun_once_before_it_is_judged(kitchen):
