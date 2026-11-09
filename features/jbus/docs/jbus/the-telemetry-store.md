@@ -58,7 +58,7 @@ The file is readable by you alone.
 ## The context budget
 
 `first_loads` keeps the crew's first load as a record.
-Beside it, `uv run python -m jbus.telemetry.firstload` counts the start of each role, crew, reviewer, scout and home, against a budget, and `make lint` runs it with `--check`, so CI's `make lint` step, `make check-fast` and jmerge's guards fail a change that grows a start past its budget.
+Beside it, `uv run python -m jbus.telemetry.firstload` counts the start of each role, crew, reviewer, scout and home, against a budget, and `make lint` runs it as `uv run python -m jbus.telemetry.firstload --check`, so CI's `make lint` step, `make check-fast` and jmerge's guards fail a change that grows a start past its budget.
 
 It counts jstack's own text that a role holds before its first act:
 
