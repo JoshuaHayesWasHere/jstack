@@ -833,8 +833,8 @@ def test_while_no_instance_of_the_pool_can_sign_in_nothing_is_sent_and_the_user_
 
 
 def test_a_lapsed_thread_waits_while_t3_code_does_not_say_which_instances_sign_in(kitchen):
-    """`jbus.dispatch.cannot_run` gets no answer from T3 Code, so the failover cannot tell where
-    the thread could go: it sends nothing and says why."""
+    """`jbus.dispatch.cannot_run` gets no answer from T3 Code, so `jbus.failover.signed_in`
+    cannot tell where the thread could go: the failover sends nothing and says why."""
     thread = crew(kitchen)
     lapsed_on(thread)
     result = kitchen.t3.result
