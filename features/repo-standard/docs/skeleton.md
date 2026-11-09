@@ -129,7 +129,7 @@ An adapter gives the Makefile four commands, in the file `stack.mk` of its `scri
 | Variable | What it runs |
 |---|---|
 | `STACK_LINT` | The stack's own lint. |
-| `STACK_TEST` | The test runner, to which the target `test` appends the ids of `TESTS`. |
+| `STACK_TEST` | The test runner, to which the target `test` appends the ids of `TESTS`. Given `REPO_STANDARD_FAILED=<file>`, it appends to the file the id of each test that failed, one a line. |
 | `STACK_SELECT` | The selection, given the base as its one argument. |
 | `STACK_LIST` | Every test id of the stack, one a line, sorted: the whole suite, which `SHARD` deals out. |
 

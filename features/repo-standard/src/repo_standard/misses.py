@@ -185,9 +185,6 @@ def table(rows: list[Row]) -> str:
     return head + body
 
 
-# GitHub, through `gh api`.
-
-
 def gh(path: str, raw: bool = False) -> Any:
     done = subprocess.run(["gh", "api", path], capture_output=True, timeout=60)
     if done.returncode:
