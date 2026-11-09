@@ -1024,7 +1024,6 @@ def spells(name):
 
 
 @cache
-@cache
 def walked(name):
     """The read set a module holds by naming a package's `__path__`, as `jbus.pages` does to build
     the-verbs.md from the source of each verb: the modules under the folder of each package it
@@ -1042,6 +1041,7 @@ def walked(name):
     return ready().patterns_of("\n".join(f"{one}/*.py" for one in sorted(folders)))
 
 
+@cache
 def read_sets():
     """Each test file, with the patterns of its read set and of the read sets of the modules of
     the tests it imports, and the folders of the packages it or any module it imports walks
