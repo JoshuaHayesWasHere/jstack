@@ -116,6 +116,12 @@ def _after_text(lines: list[str], start: int, end: int) -> int:
     return next((at + 1 for at in range(end - 1, start - 1, -1) if lines[at].strip()), start)
 
 
+def _lines(text: str) -> list[str]:
+    """The brief's lines, split at newlines alone, as its `awk` readers split it: a carriage
+    return or a line separator inside a line stays in it."""
+    return text.removesuffix("\n").split("\n") if text else []
+
+
 def _labelled(line: str, label: str) -> bool:
     return line == label or line.startswith(label + " ")
 
@@ -128,7 +134,7 @@ def _text(lines: list[str]) -> str:
 
 def taken(text: str) -> bool:
     """Whether a thread has taken the brief up: a `Thread:` line in its head, or a section."""
-    lines = text.splitlines()
+    lines = _lines(text)
     end = _head_end(lines)
     return end < len(lines) or any(_labelled(one, "Thread:") for one in lines[:end])
 
@@ -137,7 +143,7 @@ def with_line(text: str, label: str, value: str, *, result: bool = False) -> str
     """The text with `<label> <value>` in its head, or in its last Result with `result`: in place
     of the line of that label (in the head the first, in the Result the last), or after the
     place's last line that is not blank."""
-    lines = text.splitlines()
+    lines = _lines(text)
     if result:
         span = last_result(lines)
         if span is None:
@@ -160,7 +166,7 @@ def with_line(text: str, label: str, value: str, *, result: bool = False) -> str
 
 def _block(text: str) -> list[str]:
     """The lines of an append, with no blank lines before or after them."""
-    lines = text.splitlines()
+    lines = _lines(text)
     while lines and not lines[0].strip():
         lines.pop(0)
     while lines and not lines[-1].strip():
@@ -178,10 +184,10 @@ def _block(text: str) -> list[str]:
 def appended(text: str, block: str) -> str:
     """The text with the lines of `block` at the end of its last Result, before any section after
     it, or at the end of the brief where `block` starts with `## ` or there is no Result."""
-    lines, added = text.splitlines(), _block(block)
+    lines, added = _lines(text), _block(block)
     span = None if added[0].startswith("## ") else last_result(lines)
     if span is None:
-        kept = _text(lines).splitlines()
+        kept = _lines(_text(lines))
         gap = [""] if kept and added[0].startswith("## ") else []
         return _text([*kept, *gap, *added])
     at = _after_text(lines, span[0] + 1, span[1])
@@ -227,7 +233,7 @@ def _change(one: Brief, edit: Callable[[str | None], str | None], *, create: boo
         _there(one, None if not one.path.exists() else "")
     with _locked(one):
         try:
-            was: str | None = one.path.read_text()
+            was: str | None = one.path.read_bytes().decode()
         except FileNotFoundError:
             was = None
         text = edit(was)
@@ -248,7 +254,7 @@ def new(path: str | Path, text: str) -> Wrote:
     one = Brief.at(path)
     if not text.strip():
         raise Malformed("refused: stdin holds no brief")
-    whole = _text(text.splitlines())
+    whole = _text(_lines(text))
 
     def edit(was: str | None) -> str:
         if was is not None and was != whole and taken(was):
@@ -256,7 +262,7 @@ def new(path: str | Path, text: str) -> Wrote:
         return whole
 
     changed = _change(one, edit, create=True)
-    lines = len(whole.splitlines())
+    lines = len(_lines(whole))
     if not changed:
         return Wrote(False, f"unchanged: {one.named} holds these {lines} lines")
     return Wrote(True, f"wrote: {one.named}, {lines} lines")
@@ -276,7 +282,7 @@ def set_line(path: str | Path, label: str, value: str, *, result: bool = False) 
 
     def edit(was: str | None) -> str:
         text = _there(one, was)
-        lines = text.splitlines()
+        lines = _lines(text)
         span = last_result(lines) if result else None
         where.append(f"in {lines[span[0]]}" if span else "in the head")
         return with_line(text, label, value, result=result)
@@ -296,7 +302,7 @@ def append(path: str | Path, block: str) -> Wrote:
 
     def edit(was: str | None) -> str:
         text = _there(one, was)
-        lines = text.splitlines()
+        lines = _lines(text)
         span = None if added[0].startswith("## ") else last_result(lines)
         where.append(f"to {lines[span[0]]}" if span else "at the end")
         return appended(text, block)

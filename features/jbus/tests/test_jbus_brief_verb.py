@@ -192,6 +192,20 @@ def test_new_trims_blank_lines_at_the_end_and_says_unchanged_for_the_same_brief(
     )
 
 
+@pytest.mark.parametrize(
+    ("argv", "stdin"),
+    [(("set", "--result", "Left:", "none"), ""), (("append",), "Checked: a\n")],
+    ids=["set", "append"],
+)
+def test_a_write_keeps_a_line_that_holds_a_carriage_return_or_a_line_separator(brief, argv, stdin):
+    """Readers split a brief at newlines alone, so a write leaves every other line as it was."""
+    odd = "Proof: bar\r50% done \x0c\u2028 and on"
+    brief.write_text(STARTED.replace("Status: done\n", f"Status: done\n{odd}\n"))
+    form, rest = argv[0], argv[1:]
+    assert jbus("brief", form, str(brief), *rest, stdin=stdin)[0] == 0
+    assert odd in brief.read_text(newline="").split("\n")
+
+
 def test_append_drops_blank_lines_around_its_lines(brief):
     started(brief)
     assert jbus("brief", "append", str(brief), stdin="\n\nChecked: a\n\n")[0] == 0
