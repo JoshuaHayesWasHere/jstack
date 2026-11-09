@@ -10,7 +10,8 @@ Do not touch: <what is out of bounds>
 <Each Done when item ends with (in `<path>`), the file the goal needs changed, or (in none) where it changes none: `jbus queue add` refuses a file outside `Where:` or under `Do not touch:`, so that goal goes to a follow-up brief with a `Follows: <slug>` line, and warns of an item with neither.>
 Decisions: <any the user already made, in their words>
 Asked: $H/asked/<entry>.md
-<The line above names the file the home wrote once, when it took the request: the user's messages of it, word for word, which every brief cut from that request names. It is left out where the brief comes from no message of the user's.>
+<The line above names the file the home wrote once, when it took the request, with the user's messages of it word for word: every brief cut from that request names the same file.>
+<A brief that comes from no message of the user's has no `Asked:` line.>
 Holds: <a case of gates.md the task walks through, word for word, several split by commas>
 <The line above is left out when the task walks through no door.>
 <A row whose `Done when:` or `Proves it:` runs a door's command holds for that door all the same, and `jbus queue add` prints `holds: <case>, from <the command>` for one no `Holds:` line names.>
