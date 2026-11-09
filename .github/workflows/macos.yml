@@ -37,16 +37,15 @@ name: macos
 # concluded success (scripts/green_tree.py), so a slow macOS job there would hold up every
 # marker. Its run is no part of main's check (`jbus.watch._judged` leaves it out), so a Mac red
 # never holds a pull request: jbus reverts its one clear culprit or files a `macos-red-` row for
-# it. `macos` is skipped only for an empty selection, or for two trees a passed macos job ran
-# before (`reuse`): after a failed `macos-select` its parts run and fail their first step, and so
-# `macos` fails, a red jbus reads.
+# it. `macos` is skipped only for an empty selection: after a failed `macos-select` its parts run
+# and fail their first step, and so `macos` fails, a red jbus reads.
 on:
   push:
     branches: [main]
 
 permissions:
   contents: read
-  # To read the marker a passed macos job of the same two trees left: another run's artifact.
+  # To list macos.yml's push runs on main, for the last checked commit (`last checked`).
   actions: read
 
 # Pushes to main share the group `macos-main`, where a running run is never cancelled and only
@@ -70,8 +69,6 @@ jobs:
       run: ${{ steps.reached.outputs.run }}
       parts: ${{ steps.reached.outputs.parts }}
       tests: ${{ steps.reached.outputs.tests }}
-      name: ${{ steps.reuse.outputs.name }}
-      reused: ${{ steps.reuse.outputs.reused }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         # The pushed commit and its parent; the selection reads the diff from the last checked one.
@@ -85,48 +82,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 scripts/green_tree.py --last-checked macos.yml
-      # Whether a passed macos job already ran the two trees this run checks, the merge's and its
-      # base's, as check.yml's `reuse` asks of the check (`jmerge.reuse`): the pair fixes the
-      # tests the selection hands on and the files they run on. On a hit the selection is skipped
-      # and so is `macos`, so no Mac starts, and the summary names the run it reuses. The name is
-      # `macos-checked-<base tree>-<merge tree>` (`jmerge.green.macos_checked`), so a pair whose
-      # trees differ in any way names another marker. Only a successful macos.yml run of this
-      # repo, not a fork's, counts. A run again, a push to main, or a lookup that fails, runs the
-      # Mac. A push run's marker names its base's tree, main's last checked commit's, and its own.
-      - name: reuse
-        id: reuse
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BASE: ${{ steps.base.outputs.base || 'HEAD^1' }}
-        run: |
-          PYTHONPATH=features/jmerge/src python3 - << 'EOF'
-          import os, subprocess
-          from jmerge import green, reuse
-
-          trees = [os.environ["BASE"] + "^{tree}", "HEAD^{tree}"]
-          got = subprocess.run(["git", "rev-parse", *trees], capture_output=True, text=True)
-          name = green.macos_checked(*got.stdout.split()) if got.returncode == 0 else ""
-          if name:
-              reused, why, warn = reuse.answer(name, os.environ)
-          else:
-              reused, why, warn = False, "the merge or its base has no tree here", True
-          print(f"{'::warning::' if warn else ''}reuse: {name}: {why}")
-          if reused:
-              with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
-                  summary.write(f"macOS: {name}: {why}, and no Mac starts\n")
-          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
-              output.write(f"name={name}\nreused={'true' if reused else 'false'}\n")
-          EOF
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
-        if: steps.reuse.outputs.reused != 'true'
         with:
           version: ${{ env.UV_VERSION }}
       - run: uv sync --locked
-        if: steps.reuse.outputs.reused != 'true'
       - name: reached tests
         id: reached
-        if: steps.reuse.outputs.reused != 'true'
         env:
           BASE: ${{ steps.base.outputs.base || 'HEAD^1' }}
         run: |
@@ -174,8 +135,8 @@ jobs:
   macos-part:
     needs: macos-select
     # Not the implicit `success()`: it would skip the job after a failed selection, and a skip
-    # reads as a pass. A reuse of a passed macos job of the same trees skips it too.
-    if: "!cancelled() && needs.macos-select.outputs.run != 'false' && needs.macos-select.outputs.reused != 'true'"
+    # reads as a pass.
+    if: "!cancelled() && needs.macos-select.outputs.run != 'false'"
     name: macos ${{ matrix.part }} of ${{ strategy.job-total }}
     runs-on: macos-15
     timeout-minutes: 25
@@ -258,10 +219,10 @@ jobs:
   # The job jbus reads (`jbus.watch`'s MAC_JOBS), so its name stays `macos`. It runs where the
   # parts may run, with their `if:`, and passes only when every part passed: a part that failed,
   # was cancelled or never ran fails it. So it is skipped, which passes, only for an empty
-  # selection or a reuse, as the parts are.
+  # selection, as the parts are.
   macos:
     needs: [macos-select, macos-part]
-    if: "!cancelled() && needs.macos-select.outputs.run != 'false' && needs.macos-select.outputs.reused != 'true'"
+    if: "!cancelled() && needs.macos-select.outputs.run != 'false'"
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -269,20 +230,3 @@ jobs:
         env:
           PARTS: ${{ needs.macos-part.result }}
         run: '[ "$PARTS" = success ] || { echo "::error::the parts of the macos job ended $PARTS, not success"; exit 1; }'
-      # The pass of the two trees, for a later run of them to reuse (`reuse` in `macos-select`):
-      # only parts that all passed leave it. One that cannot be kept costs that reuse and nothing
-      # else.
-      - name: checked trees marker
-        id: checked
-        if: needs.macos-part.result == 'success' && needs.macos-select.outputs.name != ''
-        env:
-          NAME: ${{ needs.macos-select.outputs.name }}
-        run: mkdir -p "$RUNNER_TEMP/macos-checked" && touch "$RUNNER_TEMP/macos-checked/$NAME"
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: steps.checked.outcome == 'success'
-        continue-on-error: true
-        with:
-          name: ${{ needs.macos-select.outputs.name }}
-          path: ${{ runner.temp }}/macos-checked/${{ needs.macos-select.outputs.name }}
-          retention-days: 7
-          if-no-files-found: error
