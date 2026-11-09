@@ -6,7 +6,8 @@ The scratchpad is in /tmp whatever the crew's `TMPDIR` says, and a crew makes a 
 there for A/B timing that the door hook will not let it remove, so these stayed registered and
 helped fill the tmpfs quota. Only the crew's own scratchpad is searched, so another crew's
 worktrees and T3 Code's own under `~/.t3/worktrees` are out of reach, and a worktree that holds
-some process's working directory stays (`in_use`).
+some process's working directory stays (`in_use`). Paths are compared resolved, since git lists
+a worktree at its resolved path and macOS's /tmp and /var are links into /private.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from pathlib import Path
 
 from jbus.dispatch import scratch
 from jbus.passes import Pass
+from jsettings import proc
 
 ROOT = Path("/proc")
 
@@ -30,15 +32,25 @@ def scratchpad(worktree: str) -> Path:
     return root / re.sub("[^A-Za-z0-9]", "-", worktree)
 
 
-def in_use() -> set[Path]:
-    """Return the working directory of each process this user can read."""
-    found: set[Path] = set()
-    for proc in ROOT.glob("[0-9]*"):
-        try:
-            found.add(Path(os.readlink(proc / "cwd")))
-        except OSError:
-            continue
-    return found
+def in_use() -> set[Path] | None:
+    """Return the resolved working directory of each process this user can read: from /proc
+    (`ROOT`), or from `lsof` where there is none, as on macOS. None when neither says, since
+    this very process works in a folder: then no worktree is known to be idle."""
+    if ROOT.is_dir():
+        found: set[Path] = set()
+        for one in ROOT.glob("[0-9]*"):
+            try:
+                found.add(Path(os.readlink(one / "cwd")).resolve())
+            except OSError:
+                continue
+    else:
+        listed = proc.run(
+            "lsof", "-a", "-d", "cwd", "-Fn", "-u", str(os.getuid()), errors="replace"
+        )
+        found = {
+            Path(line[1:]).resolve() for line in listed.stdout.splitlines() if line[:2] == "n/"
+        }
+    return found or None
 
 
 def clear_scratch(run: Pass, slug: str, worktree: str = "") -> None:
@@ -49,11 +61,11 @@ def clear_scratch(run: Pass, slug: str, worktree: str = "") -> None:
     if folder.exists():
         shutil.rmtree(folder, ignore_errors=True)
         cleared.append(f"its scratch folder {folder}")
-    if worktree:
-        pad, busy = scratchpad(worktree), in_use()
+    if worktree and (busy := in_use()) is not None:
+        pad = scratchpad(worktree).resolve()
         listed = run.run("git", "worktree", "list", "--porcelain").stdout.splitlines()
         for line in listed:
-            tree = Path(line.removeprefix("worktree "))
+            tree = Path(line.removeprefix("worktree ")).resolve()
             if not line.startswith("worktree ") or not tree.is_relative_to(pad):
                 continue
             if any(cwd.is_relative_to(tree) for cwd in busy):
