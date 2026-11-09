@@ -44,6 +44,14 @@ case " $* " in
         echo "every slot of the lane is taken: this thread waits"
         exit 76
     fi
+    if [ -n "$SLOTS" ]; then
+        taken=$(cat "$TMPDIR/slots-taken" 2> /dev/null || echo 0)
+        if [ "$taken" -ge "$SLOTS" ]; then
+            echo "every slot of the lane is taken: this thread waits"
+            exit 76
+        fi
+        echo $((taken + 1)) > "$TMPDIR/slots-taken"
+    fi
     limit=$FULL_LIMIT
     case " $* " in *" --short "*) limit=$LIMIT ;; esac
     while [ "$1" != -- ]; do shift; done
@@ -72,8 +80,9 @@ exit 64
 """
 """`uv` as the block calls it. A short test-slot run is stopped at `LIMIT` seconds, exit 124, as
 the short lane stops one at its limit, and a full one at `FULL_LIMIT` seconds; each pytest run
-takes `SLOW` seconds more, `NO_XDIST` stands for a repo whose venv has no pytest-xdist, and the
-side `BUSY` names finds every slot taken, exit 76."""
+takes `SLOW` seconds more, `NO_XDIST` stands for a repo whose venv has no pytest-xdist, the
+side `BUSY` names finds every slot taken, exit 76, and with `SLOTS` set only that many test-slot
+calls get a slot, and every one after them finds every slot taken."""
 BUGGY = "def add(a, b):\n    return a - b\n"
 FIXED = "def add(a, b):\n    return a + b\n"
 OLD_TEST = "from calc import add\n\n\ndef test_zero():\n    assert add(0, 0) == 0\n"
@@ -407,6 +416,29 @@ def test_a_repo_without_pytest_xdist_is_proved_on_one_process(repo):
     assert line == proved.Proved(("tests/test_calc.py",), 1, base, 0, head)
     runs = (repo.parent / "pytest-args").read_text().splitlines()
     assert not any("-n " in run for run in runs)
+
+
+def test_one_free_slot_runs_the_head_side_and_the_base_side(repo):
+    """On a busy machine a wake frees one slot: the block took it for the head side, gave it
+    back and asked again for the base side, which found every slot taken, so gs-scratch-prune's
+    proof ran its head side four wakes in a row and never its base side. Both sides run in the
+    one slot the block gets."""
+    base = git(repo, "rev-parse", "HEAD")
+    head = commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
+    said, line = proof(repo, SLOTS="1")
+    assert "head exit 0: 2 passed" in said
+    assert "base exit 1: 1 failed, 1 passed" in said
+    assert "no proof" not in said
+    assert line == proved.Proved(("tests/test_calc.py",), 1, base, 0, head)
+
+
+def test_no_free_slot_runs_no_side_and_ends_76(repo):
+    commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
+    said, line = proof(repo, SLOTS="0")
+    assert "exit" not in said.replace("ended 76", "")
+    assert "no proof: the slot's run ended 76" in said
+    assert line is None
+    assert not (repo.parent / "pytest-args").exists()
 
 
 def test_a_wake_after_the_base_side_waited_runs_the_base_side_alone(repo):
