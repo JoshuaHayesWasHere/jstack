@@ -71,7 +71,7 @@ def _days(
     if measure.window != "day" or not isinstance(measure.source, Sql):
         return ()
     owner = measures.MACHINE if measure.source.machine else project
-    before = []
+    before: list[float | None] = []
     for back in range(DAYS - 1, 0, -1):
         begins, ends = measures.bounds("day", now, user, back)
         try:
