@@ -54,14 +54,17 @@ A held message is not queued: its key stays unsent, and the sender, which asks a
 sends the message the state then calls for, under that state's key, the first pass no rule holds.
 So nothing is lost and nothing stale is sent.
 
-Each send and each hold is one line of `outbox.jsonl` in the project's state: the time, the thread,
-the row, the template, what the message needs, its key, `sent` or `held`, and the rule that held it.
-A census of what jbus sent is a read of that one file. It is not `outbox.json`, the queue of events
-that waits for the home thread's wake (`jbus.wake`).
+Each send is one line of `outbox.jsonl` in the project's state: the time, the thread, the row, the
+template, what the message needs, its key, `sent` or `held`, and the rule that held it. A hold is
+one such line the first pass a rule holds the key, and none after while that rule still holds it,
+so a key held pass after pass is one `held` line, then a `sent` line or a `held` line of another
+rule. A census of what jbus sent is a read of that one file. It is not `outbox.json`, the queue of
+events that waits for the home thread's wake (`jbus.wake`).
 """
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -293,22 +296,43 @@ def hold(
 ) -> bool:
     """Say whether the outbox holds this message now: the thread's instance is capped, or a rule of
     `RULES` holds it. A held message gets one `wait` line and one `held` line in `outbox.jsonl`
-    with its rule. `send` asks this first, and so does a sender that asks GitHub something before
-    it sends (`rebase.held`), so it asks nothing for a message the outbox would hold."""
+    with its rule, the first pass that rule holds its key, and none on a pass after while the same
+    rule still holds it: a thread that sits idle, busy or waiting does not grow the log each pass.
+    `send` asks this first, and so does a sender that asks GitHub something before it sends
+    (`rebase.held`), so it asks nothing for a message the outbox would hold."""
     until = capped(run, client, thread, template, row)
     if until:
         at = datetime.fromtimestamp(until, UTC).isoformat()
-        run.say(
-            f"wait {row}: {thread} is capped until {at}, so its {template} message waits for the "
-            "reset"
-        )
-        _log(run, thread, row, key, template, needs, "held", f"cap: until {at}")
-        return True
-    rule = held(run, client, thread, row, template, needs)
-    if rule:
-        run.say(f"wait {row}: {thread} is held by the {rule} rule, so its {template} message waits")
+        why = f"is capped until {at}, so its {template} message waits for the reset"
+        rule = f"cap: until {at}"
+    else:
+        rule = held(run, client, thread, row, template, needs)
+        why = f"is held by the {rule} rule, so its {template} message waits"
+    if rule and _last(run, key) != ("held", rule):
+        run.say(f"wait {row}: {thread} {why}")
         _log(run, thread, row, key, template, needs, "held", rule)
     return bool(rule)
+
+
+def _last(run: Pass, key: str) -> tuple[str, str]:
+    """Return what the last line of the key in `outbox.jsonl` says, `sent` or `held`, and its rule,
+    or two empty strings where it has none. A line that does not parse is skipped."""
+    path = run.state / FILE
+    if not path.exists():
+        return "", ""
+    quoted = json.dumps(key)
+    last = ("", "")
+    with path.open(encoding="utf-8") as lines:
+        for line in lines:
+            if quoted not in line:
+                continue
+            try:
+                one = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(one, dict) and one.get("key") == key:
+                last = (one.get("went", ""), one.get("rule", ""))
+    return last
 
 
 def send(

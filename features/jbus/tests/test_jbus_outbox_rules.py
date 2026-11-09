@@ -65,7 +65,7 @@ def test_a_conflict_while_the_reviewer_is_out_is_held_and_the_state_after_the_re
     launched.set("open.json", [pull(launched, mergeable="CONFLICTING")])
     at(launched, 0, 3)
     assert keys(launched) == []
-    assert held(launched) == [("conflict", "review"), ("conflict", "review")]
+    assert held(launched) == [("conflict", "review")]
     brief.write_text(brief.read_text() + WRITTEN)
     at(launched, 6, 9)
     assert keys(launched) == ["rebase|alpha|cccccccccccc"]
@@ -146,6 +146,18 @@ def test_a_thread_at_work_is_held_but_the_user_s_word_to_it_is_not(launched):
     assert send(run, client, home, "word", row="demo")
     assert send(run, client, home, "item", row="demo")
     assert held(launched) == [("answer", "busy")]
+
+
+def test_a_torn_line_of_the_log_holds_no_send_and_hides_no_hold(launched):
+    """A line of `outbox.jsonl` cut off mid-write is skipped, so the outbox still holds the
+    message and logs its hold, and `send` raises nothing."""
+    home = launched.t3.thread("home", "running")["threadId"]
+    with (launched.state / outbox.FILE).open("a") as log:
+        log.write('{"key": "answer|alpha|0", "went": "held", "rule": "busy"\n')
+    run, client = run_of(launched)
+    assert not send(run, client, home, "answer")
+    last = json.loads((launched.state / outbox.FILE).read_text().splitlines()[-1])
+    assert (last["key"], last["went"], last["rule"]) == ("answer|alpha|0", "held", "busy")
 
 
 def test_a_spared_template_is_one_its_sender_sends():

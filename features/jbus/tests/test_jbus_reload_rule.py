@@ -44,6 +44,29 @@ def test_a_crew_with_no_turn_running_hears_of_a_changed_skill_in_its_next_turn(k
     assert owed(kitchen) == []
 
 
+def went(kitchen, template):
+    """Return what `outbox.jsonl` says of each message of the template, in order."""
+    lines = (kitchen.state / outbox.FILE).read_text().splitlines()
+    return [one["went"] for one in map(json.loads, lines) if one["template"] == template]
+
+
+def test_a_reload_held_pass_after_pass_is_logged_once_and_sent_once(kitchen):
+    """A crew that sits idle unarchived owes the notice on every pass. The `idle` rule holds it on
+    each, and `outbox.jsonl` keeps the first hold and no repeat of it, then the one send."""
+    crew = kitchen.t3.thread("alpha", "completed", idle=timedelta(minutes=30))
+    kitchen.set("jmerge.txt", CHANGED)
+    kitchen.poll()
+    kitchen.set("jmerge.txt", "")
+    kitchen.poll(NOW + timedelta(minutes=1))
+    kitchen.poll(NOW + timedelta(minutes=2))
+    assert went(kitchen, "reload") == ["held"]
+    assert owed(kitchen) == [7]
+    crew["status"] = "running"
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert went(kitchen, "reload") == ["held", "sent"]
+    assert len(sends(kitchen)) == 1
+
+
 def test_a_merge_whose_only_thread_is_archived_leaves_reload_json(kitchen):
     crew = kitchen.t3.thread("alpha", "completed", idle=timedelta(minutes=30))
     kitchen.set("jmerge.txt", CHANGED)
