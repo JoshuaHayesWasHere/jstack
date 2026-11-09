@@ -82,7 +82,7 @@ uvx --from git+https://github.com/JoshuaHayesWasHere/jstack@repo-standard-v2 rep
 make lint
 ```
 
-It writes the `standard:` line, the caller's tag of the shared check and every owned file as version N's copy, keeping the caller's runner, and leaves the `local:` and seeded files, printing each it left.
+It writes the `standard:` line, `local.mk` beside the `Makefile` in `owners`, the caller's tag of the shared check and every owned file as version N's copy, keeping the caller's runner, and leaves the `local:` and seeded files, printing each it left.
 A second run writes nothing.
 [The command's page](repo-standard.md#upgrade) gives the rest.
 

@@ -154,5 +154,6 @@ make lint
 
 It runs from the tool at version N, since only that version's tool reads that version's config, and it refuses any other N, and an N below the repo's pin.
 It writes the `standard:` line of `.repo-standard.yml`, the tag of each workflow's call of the shared check, and every file version N owns as N's copy, with the runner's labels of the caller kept.
+Where no glob of the config's `owners` names `local.mk`, it adds `local.mk` to the list that names the `Makefile`, or prints that the repo must name it.
 It leaves the `local:` files and the seeded ones as they are, and prints each it left with why, and each waiver whose `until` version N reaches.
 It writes only a file whose text differs, so a second run writes nothing, and a run after one that stopped part way writes what is left.

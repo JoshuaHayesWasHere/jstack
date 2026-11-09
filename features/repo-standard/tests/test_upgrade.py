@@ -2,9 +2,10 @@
 
 The fixture is an upstream that stands in for jstack, with two tags. `repo-standard-v2` is this
 tree, with its version set to 2 as the release of v2 sets it. `repo-standard-v1` is the same tree
-set to version 1, with the skeleton's Makefile as v1 had it, before `-include local.mk`. A repo is
-made from v1 with the python-uv adapter, as `features/repo-standard/docs/skeleton.md` says, on a
-runner of its own. The tool of the v2 clone upgrades it, and one `make lint` passes conform at v2.
+set to version 1, with the skeleton's Makefile and owners as v1 had them, before `local.mk`. A
+repo is made from v1 with the python-uv adapter, as `features/repo-standard/docs/skeleton.md`
+says, on a runner of its own. The tool of the v2 clone upgrades it, and one `make lint` passes
+conform at v2.
 
 The rule of which files a version owns (`repo_standard.owned.RULES`) places every file of the
 skeleton and of each adapter, or the first case fails.
@@ -25,6 +26,7 @@ from test_skeleton_python import ADAPTER, INHERITED, SKELETON, STANDARD, git, ma
 from testing.paths import REPO
 
 LOCAL_MAKE = "\n-include local.mk\n"
+OWNS_LOCAL_MAKE = "    - Makefile\n    - local.mk\n"
 RUNNER = "self-hosted-builder"
 
 
@@ -87,6 +89,14 @@ def upstream(tmp_path_factory):
     v2_makefile = makefile.read_text()
     assert v2_makefile.endswith(LOCAL_MAKE)
     makefile.write_text(v2_makefile.removesuffix(LOCAL_MAKE))
+    configs = [
+        root / "features/repo-standard" / one / ".repo-standard.yml"
+        for one in ("skeleton", "adapters/go")
+    ]
+    v2_configs = [one.read_text() for one in configs]
+    for one, text in zip(configs, v2_configs, strict=True):
+        assert OWNS_LOCAL_MAKE in text
+        one.write_text(text.replace(OWNS_LOCAL_MAKE, "    - Makefile\n"))
     at_version(root, 1)
     git(root, "add", "-A")
     git(root, "commit", "-qm", "v1")
@@ -94,6 +104,8 @@ def upstream(tmp_path_factory):
     v1 = tmp_path_factory.mktemp("v1")
     shutil.copytree(root / "features", v1 / "features")
     makefile.write_text(v2_makefile)
+    for one, text in zip(configs, v2_configs, strict=True):
+        one.write_text(text)
     at_version(root, 2)
     git(root, "add", "-A")
     git(root, "commit", "-qm", "v2")
@@ -148,7 +160,9 @@ def test_a_repo_made_from_v1_passes_conform_at_v2_after_one_upgrade_and_one_lint
     for path in (".repo-standard.yml", ".github/workflows/check.yml", "Makefile"):
         assert f"wrote {path}" in lines, said
     assert lines[-1] == "upgrade to repo-standard-v2: 3 files written; run `make lint` next"
-    assert "standard: 2\n" in (root / ".repo-standard.yml").read_text()
+    config = (root / ".repo-standard.yml").read_text()
+    assert "standard: 2\n" in config
+    assert OWNS_LOCAL_MAKE in config, config
     caller = (root / ".github/workflows/check.yml").read_text()
     assert "repo-standard-check.yml@repo-standard-v2" in caller
     assert f"runner: {RUNNER}" in caller and f"runs-on: {RUNNER}" in caller

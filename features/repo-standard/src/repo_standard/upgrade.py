@@ -8,7 +8,9 @@ from the clone in the repo's `.cache/` (`repo_standard.owned.tree`). It then wri
 - every file the version owns (`repo_standard.owned`), as the version's copy, keeping the labels
   of the runner in the caller's `.github/workflows/check.yml`;
 - the tag of each workflow's `uses:` of the shared check, as `@repo-standard-vN`, which reaches a
-  caller the repo keeps as its own too.
+  caller the repo keeps as its own too;
+- `local.mk` in the config's `owners`, beside the `Makefile`, where no owner's glob names it yet,
+  so the repo's own make file, which the owned Makefile includes, has a place and an owner.
 
 It leaves each `local:` file as it is, and every seeded file, and prints each with why, and each
 waiver whose `until` version N reaches. It writes a file only where its text differs, through a
@@ -27,15 +29,29 @@ from pathlib import Path
 from repo_standard import TAG, VERSION, owned
 from repo_standard.config import NAME, Config, Refused
 from repo_standard.rules import SHARED_CHECK, WORKFLOWS
+from repo_standard.tree import matches
 
 STANDARD_LINE = re.compile(r"^standard:[ \t]*\d+", re.M)
 CALLED_TAG = re.compile(rf"@{re.escape(TAG)}\d+")
+LOCAL_MK = "local.mk"
+OWNED_MAKEFILE = re.compile(r"^([ \t]*- )(['\"]?)Makefile\2[ \t]*$", re.M)
 
 
 def _pinned(text: str, to: int) -> str:
     if STANDARD_LINE.search(text):
         return STANDARD_LINE.sub(f"standard: {to}", text, count=1)
     return f"standard: {to}\n{text}"
+
+
+def _owns_local_mk(text: str, config: Config) -> str | None:
+    """The config's text with `local.mk` named in `owners` beside the `Makefile`, as it is when
+    an owner's glob names it already, or None when no list item names the `Makefile`."""
+    if any(matches(LOCAL_MK, globs) for globs in config.owners.values()):
+        return text
+    found = OWNED_MAKEFILE.search(text)
+    if found is None:
+        return None
+    return f"{text[: found.end()]}\n{found[1]}{LOCAL_MK}{text[found.end() :]}"
 
 
 def _called(text: str, to: int) -> str:
@@ -86,7 +102,11 @@ def run(root: Path, config: Config, paths: list[str], to: int, upstream: str | N
         text, mode = wanted.get(path, (read(path), None))
         if text is not None and path.startswith(WORKFLOWS):
             wanted[path] = (_called(text, to), mode)
-    wanted[NAME] = (_pinned(read(NAME) or "", to), None)
+    pinned = _pinned(read(NAME) or "", to)
+    owning = _owns_local_mk(pinned, config)
+    if owning is None:
+        lines.append(f"left {NAME}: name {LOCAL_MK} in `owners`, beside the Makefile")
+    wanted[NAME] = (owning or pinned, None)
 
     wrote = 0
     for path, (text, mode) in sorted(wanted.items()):
