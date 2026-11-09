@@ -606,6 +606,17 @@ def test_the_template_is_a_caller_of_the_shared_workflow_at_the_pinned_tag(calle
         assert run_job("check", repo, env, context, top)["result"] == ends
 
 
+def cut(tag, root=REPO):
+    """Whether `tag` is in the git repo `root`: CI fetches no tags, and there no pin is cut."""
+    return (
+        subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "-q", "--verify", f"refs/tags/{tag}"],
+            capture_output=True,
+        ).returncode
+        == 0
+    )
+
+
 def unread(caller, root):
     """The outputs `caller`, the text of a check.yml, reads of its job that calls the shared
     workflow and the workflow at the tag that job pins, in the git repo `root`, does not declare.
@@ -617,13 +628,7 @@ def unread(caller, root):
     (name,) = [name for name, job in jobs.items() if job.get("uses", "").startswith(SHARED + "@")]
     tag = jobs[name]["uses"].split("@")[1]
     path = WORKFLOW.relative_to(REPO).as_posix()
-    if (
-        subprocess.run(
-            ["git", "-C", str(root), "rev-parse", "-q", "--verify", f"refs/tags/{tag}"],
-            capture_output=True,
-        ).returncode
-        == 0
-    ):
+    if cut(tag, root):
         text = subprocess.run(
             ["git", "-C", str(root), "show", f"{tag}:{path}"],
             check=True,
@@ -656,10 +661,24 @@ def test_a_caller_reads_only_outputs_the_workflow_at_its_pinned_tag_declares(tmp
     assert unread(pinned.replace("@{}", f"@{TAG}3"), root) == []
 
 
-def test_the_template_reads_only_outputs_its_pinned_tag_gives():
-    """The skeleton's caller is held here once rt-release-v2 moves its pin with VERSION: until
-    then it is the copy of v1, whose workflow gives no runner."""
-    assert unread(TEMPLATE.read_text(), REPO) == []
+@pytest.mark.parametrize(
+    "path",
+    [
+        pytest.param(
+            SKELETON_CALLER,
+            marks=pytest.mark.xfail(
+                cut(f"{TAG}1"),
+                reason="the skeleton pins repo-standard-v1, whose workflow gives no runner, "
+                "until rt-release-v2 moves its pin with VERSION",
+                strict=True,
+            ),
+        ),
+        TEMPLATE,
+    ],
+    ids=["skeleton", "template"],
+)
+def test_the_skeleton_and_the_template_read_only_outputs_their_pinned_tag_gives(path):
+    assert unread(path.read_text(), REPO) == []
 
 
 def plan_of(root, capsys, *args):
