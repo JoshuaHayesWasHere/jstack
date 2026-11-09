@@ -62,12 +62,15 @@ It reads the version `.repo-standard.yml` pins and clones jstack at the tag `rep
 |---|---|---|
 | `plan` | Asks `jmerge.reuse` whether a passed check of the same two trees is reused, and runs `make select BASE=HEAD^1` | Asks `scripts/green_tree.py` whether a green run left a marker for the tree, except on a nightly run |
 | `lint` | `make lint BASE=HEAD^1`, then `repo-standard conform` | The same |
-| `test` | Each part runs what `plan` dealt it: `make test TESTS=<ids>`, the whole suite, or nothing | Each part runs the whole suite |
+| `test` | Each part runs what `plan` dealt it: `make test TESTS=<ids>`, its share of the whole suite, or nothing | Each part runs its share of the whole suite |
 | `browser` | The target `e2e`, given `E2E_LIST=<file>` with the browser ids `plan` routed it, or given none on `all`, and skipped when `plan` routed it no id | The target `e2e`, every browser test |
 | `passed` | Passes when `plan`, `lint` and every part passed, and `browser` passed or was skipped, or the pair of trees was reused | Passes when every job passed, or the tree's marker skipped the tests |
 
 `repo-standard plan` deals a selection out to the parts in turn, and starts no more parts than the selection has ids.
-A part dealt the whole suite runs `make test` with one part, and `make test SHARD=<part>/<parts>` with more, so a repo that sets `shards` above 1 gives its `test` target a `SHARD` variable.
+A part dealt the whole suite runs `make test` with one part, and `make test SHARD=<part>/<parts>` with more.
+That part runs its share of the suite, not the whole of it: the skeleton's `test` target lists every test id the stacks know and deals them to the parts in turn, by the rule `plan` deals a selection, so across the parts each test runs once.
+A part dealt no id runs no test.
+A repo whose Makefile is not the skeleton's and that sets `shards` above 1 gives its `test` target a `SHARD` variable that does the same.
 An id `make select` prints holds no space, since the part passes its ids to `TESTS` with a space between each.
 A browser id is the exception, and `plan` routes it to `browser` instead of a part: an id `<spec> > <title>`, or a `*.spec.*` file of a stack whose config sets `e2e:`.
 An id `stack:<name>` of such a stack goes to both, as that stack's whole suite.

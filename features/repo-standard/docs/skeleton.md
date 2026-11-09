@@ -93,7 +93,7 @@ Each target runs as `make <target>` in the new repo.
 | Target | What it runs |
 |---|---|
 | `lint` | The stack's lint, then `repo-standard conform`. |
-| `test` | The whole suite, or only the ids `TESTS` names. |
+| `test` | The whole suite, only the ids `TESTS` names, or, with `SHARD=<part>/<parts>` and no `TESTS`, that part of the whole suite: the ids `STACK_LIST` prints, dealt to the parts in turn. |
 | `check` | `lint` and `test`. |
 | `select BASE=<ref>` | The test ids the change from `<ref>` reaches, one a line, or `all`, and nothing else. |
 | `check-fast BASE=<ref>` | `lint`, then `test` with the ids `select` prints, the whole suite on `all`, and no test on an empty selection. |
@@ -106,6 +106,7 @@ The repo's own targets go in `local.mk`, as [What a version owns](#what-a-versio
 The standard's guards come from jstack at the tag `.repo-standard.yml` pins.
 The Makefile clones that tag into `.cache/` the first time a target needs it, and runs the guards with `python3`, so a repo of any stack needs only git and python3 for them.
 `REPO_STANDARD_UPSTREAM` names another place to clone from, as the test does.
+Neither `TESTS` nor `SHARD` reaches a test: the Makefile keeps both out of the environment of what it runs, and out of the `MAKEFLAGS` a make that a test starts reads, so a test that runs make sees only what it passes.
 
 ## A deploy entry
 
@@ -123,13 +124,14 @@ The clone is an order-only prerequisite, which `conform` lets run first, and the
 
 ## An adapter
 
-An adapter gives the Makefile three commands, in the file `stack.mk` of its `scripts/` folder, which the Makefile includes, as python-uv's `features/repo-standard/adapters/python-uv/scripts/stack.mk` does:
+An adapter gives the Makefile four commands, in the file `stack.mk` of its `scripts/` folder, which the Makefile includes, as python-uv's `features/repo-standard/adapters/python-uv/scripts/stack.mk` does:
 
 | Variable | What it runs |
 |---|---|
 | `STACK_LINT` | The stack's own lint. |
 | `STACK_TEST` | The test runner, to which the target `test` appends the ids of `TESTS`. |
 | `STACK_SELECT` | The selection, given the base as its one argument. |
+| `STACK_LIST` | Every test id of the stack, one a line, sorted: the whole suite, which `SHARD` deals out. |
 
 Its root files, such as a lock file, are owned in the config's `STACK` group of `owners`, and each adapter names its own there.
 
@@ -155,7 +157,7 @@ The targets keep their names and what they print.
 | Target | What the driver does |
 |---|---|
 | `lint` | Runs every stack's lint, then each stack's [mock contract](#the-mock-api-and-its-contract), and fails when any failed. |
-| `test` | Runs every stack's suite, or, given ids in `TESTS`, each path in the stack whose root holds it, and `stack:<name>` as that stack's whole suite. |
+| `test` | Runs every stack's suite, or, given ids in `TESTS`, each path in the stack whose root holds it, and `stack:<name>` as that stack's whole suite. With `SHARD=<part>/<parts>` and no `TESTS`, it lists each stack's ids, in the config's order of stacks, and runs that part of them. |
 | `select BASE=<ref>` | Joins the stacks' selections, as below. |
 | `e2e` | Runs the browser tests of each stack with `e2e:`, or, given `E2E_LIST`, each stack the ids reach, as [Browser tests](#browser-tests) says. |
 
