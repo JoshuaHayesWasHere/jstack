@@ -38,6 +38,7 @@ import origin_tips
 import repo_template
 from jbriefs import meaning
 from jbus import acts, cli, live, outbox, party, poll, queue, rebase, t3, tick, verbs, wake, word
+from jbus.watch import BASES
 from jgauge import slot, waiters
 from jmerge import judgement
 from jroles import ledger
@@ -941,7 +942,11 @@ class Kitchen:
         subprocess.run(["git", *IDENTITY, *args], cwd=cwd or self.checkout, check=True)
 
     def set(self, name, value):
+        """Write a fake's answer. A merged list moves a base branch, as a merge does, so `look`
+        reads it again (`BASES`)."""
         (self.stub / name).write_text(value if isinstance(value, str) else json.dumps(value))
+        if name == "merged.json":
+            (self.state / BASES).unlink(missing_ok=True)
 
     def log(self, name):
         path = self.stub / f"{name}.log"
