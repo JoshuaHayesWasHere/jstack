@@ -269,13 +269,14 @@ def test_docs_fails_a_page_that_names_a_path_or_a_make_target_the_tree_lacks(rep
 
 def test_docs_reads_the_targets_of_the_make_files_the_makefile_includes(repo, capsys):
     """An included make file's targets count, an include back is read once, and one with a
-    variable in its path is not read."""
+    variable in its path is not read, even where a file of that literal name defines a target."""
     makefile = repo / "Makefile"
     makefile.write_text(f"include scripts/stack.mk $(EXTRA).mk\n{makefile.read_text()}")
     write(
         repo,
         {
             "scripts/stack.mk": "-include Makefile\ndeploy:\n\ttrue\n",
+            "$(EXTRA).mk": "release:\n\ttrue\n",
             "features/alpha/docs/b.md": "Run `make deploy`, then `make release`.\n",
         },
     )
@@ -362,7 +363,7 @@ def test_yaml_and_toml_open_a_quote_only_where_a_value_or_key_starts(repo, capsy
             "features/beta/src/quoted.yaml": "- 'it''s # no'\n- [\"#\", '#'] # why\n",
             "features/beta/src/table.toml": 'k = "it\'s # no"\nv = [\'a\', "#"] # why\n',
             "features/beta/src/triple.toml": "t = '''a # no\n'''\n# why\nu = 'open # no\n",
-            "features/beta/src/escaped.yml": "a: '''x'\n# why\n",
+            "features/beta/src/escaped.yml": "a: '''x'\n# why\nb: '''y'\n",
         },
     )
     assert run(repo, "comments", capsys=capsys)[1] == [
