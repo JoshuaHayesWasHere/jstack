@@ -103,6 +103,23 @@ def test_one_clear_culprit_red_after_its_one_rerun_is_reverted_and_its_crew_and_
     assert not [line for line in asked(kitchen, "api") if "git/refs" in line]
 
 
+@pytest.mark.parametrize(
+    ("culprit", "revert"),
+    [("Home: root\n", "uncategorized"), ("", "uncategorized"), ("Home: beta\n", "beta")],
+)
+def test_the_revert_s_brief_names_the_culprit_s_child_home_and_never_the_root(
+    kitchen, culprit, revert
+):
+    """No row may start under a root home (Josh, 2026-11-09), so a culprit queued under root, or
+    under none, gets a revert under the catch-all."""
+    red_merges(kitchen, ("alpha", 7, None))
+    result = f"\n## Result\nStatus: done\nBranch: alpha   Pull request: {url(7)}\n"
+    kitchen.brief("alpha", f"Thread: mcp:alpha-crew\n{culprit}{result}")
+    passes(kitchen)
+    text = (kitchen.home / "tasks" / "revert-7-alpha.md").read_text()
+    assert [line for line in text.splitlines() if line.startswith("Home:")] == [f"Home: {revert}"]
+
+
 def test_the_revert_of_a_red_tip_is_opened_once(kitchen):
     red_merges(kitchen, ("alpha", 7, None))
     passes(kitchen, 6)

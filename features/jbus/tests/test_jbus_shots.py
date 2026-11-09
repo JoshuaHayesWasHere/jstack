@@ -39,7 +39,7 @@ def _warnings():
 
 def _revert():
     culprit = reverts.Culprit("a" * 40, "alpha", {"number": 7, "headRefName": "alpha"})
-    home = reverts.home_of_revert("# alpha: a brief with no Home: line\n")
+    home = reverts.home_of_revert("# alpha: a brief queued under the root\nHome: root\n")
     return reverts.brief("revert-7-alpha", culprit, "https://example.test/pull/8", home)
 
 

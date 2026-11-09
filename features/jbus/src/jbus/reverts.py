@@ -273,9 +273,10 @@ def opened(run: Pass, red: Culprit) -> dict[str, str]:
 
 
 def home_of_revert(culprit: str) -> str:
-    """The `Home:` line of a revert's brief: the one of the brief of the row it reverts, and the
-    catch-all's, `uncategorized`, where that names none. The root home owns no row."""
-    return below.line(culprit, "Home:") or homes.UNCATEGORIZED
+    """The `Home:` line of a revert's brief: the scope the brief of the row it reverts names, and
+    the catch-all's, `uncategorized`, where that names none or the root, which owns no row."""
+    named = below.line(culprit, "Home:")
+    return named if named and named != homes.ROOT else homes.UNCATEGORIZED
 
 
 def revert(run: Pass, red: Culprit, where: str = MAIN) -> bool:
