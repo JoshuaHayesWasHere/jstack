@@ -8,6 +8,7 @@ from collections import Counter
 from datetime import timedelta
 
 from test_jbus_kitchen import NOW
+from test_jbus_reverts import mac_flow
 from test_jbus_watch import main_of
 
 COMMITS = "/commits?sha="
@@ -36,6 +37,9 @@ def tip_reads(asked):
 def test_a_second_pass_at_the_same_tip_reads_neither_and_one_after_main_moved_reads_each_once(
     kitchen,
 ):
+    """`watch.retro` and `jbus.reverts.macos`, which reads main's commits where the default branch
+    holds macos.yml, share one read of them."""
+    mac_flow(kitchen)
     (tip,) = main_of(kitchen, "success")
     first = calls(kitchen, NOW)
     assert tip_reads(first) == {"commits": 1, "workflows": 1}
@@ -53,7 +57,9 @@ def test_a_second_pass_at_the_same_tip_reads_neither_and_one_after_main_moved_re
 
 def test_a_pass_asks_github_for_a_commits_runs_and_check_runs_once(kitchen):
     """`mainmoved.tell` and `watch.retro` both judge commits of main in one pass, through
-    `watch._judged`: each path is asked once a pass."""
+    `watch._judged`, and `jbus.reverts.macos` reads the same runs of each commit: each path is
+    asked once a pass."""
+    mac_flow(kitchen)
     main_of(kitchen, "failure", "success")
     for minutes in (0, 3):
         asked = calls(kitchen, NOW + timedelta(minutes=minutes))
