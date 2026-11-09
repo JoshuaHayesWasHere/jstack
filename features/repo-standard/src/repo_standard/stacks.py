@@ -5,7 +5,9 @@ own roots (`repo_standard.config.Stack`). The skeleton's Makefile hands `lint`, 
 `select` to this driver, which runs each stack's commands (`repo_standard.adapters`) from the
 repo's root and joins what they do.
 
-- `lint` runs every stack, and fails when any failed.
+- `lint` runs every stack's lint, then the contract of each stack whose `e2e:` sets `mock:`, a
+  shell command run from the repo's root with this standard's `src` on `PYTHONPATH`, so that
+  `python3 -m repo_standard routes` is the version the config pins. It fails when any failed.
 - `test` with no id runs every stack's whole suite. Given ids, it runs each path id in the stack
   whose root holds it, and an id `stack:<name>` as that stack's whole suite.
 - `select <base>` prints the ids the change from `<base>` reaches, one a line, or `all`. A shared
@@ -81,9 +83,14 @@ def git(*args: str) -> list[str]:
     return [one for one in out.split("\0") if one]
 
 
-def run(command: Argv, quiet: bool = False) -> subprocess.CompletedProcess[str]:
-    """The command, run from the repo's root without the PYTHONPATH that reached this driver."""
+def run(
+    command: Argv, quiet: bool = False, path: str | None = None
+) -> subprocess.CompletedProcess[str]:
+    """The command, run from the repo's root without the PYTHONPATH that reached this driver,
+    or with `path` as its PYTHONPATH."""
     env = {key: value for key, value in os.environ.items() if key != "PYTHONPATH"}
+    if path is not None:
+        env["PYTHONPATH"] = path
     if quiet:
         return subprocess.run(command, env=env, capture_output=True, text=True)
     print(" ".join(command), flush=True)
@@ -95,6 +102,10 @@ def lint(config: Config) -> int:
     for one in config.stacks.values():
         for command in COMMANDS[one.adapter].lint(one.roots):
             failed |= run(command).returncode != 0
+    for one in config.stacks.values():
+        if one.e2e is not None and one.e2e.mock is not None:
+            contract = ["sh", "-c", one.e2e.mock.contract]
+            failed |= run(contract, path=str(Path(__file__).resolve().parents[1])).returncode != 0
     return failed
 
 

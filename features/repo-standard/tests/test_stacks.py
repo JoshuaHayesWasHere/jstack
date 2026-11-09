@@ -165,7 +165,7 @@ def test_the_config_reads_a_node_stacks_browser_tests():
                 "      table:\n        - file: e2e/screens.spec.ts\n          export: screenFlows\n"
                 '          title: "screen: {name}"\n'
                 "      mock:\n        path: e2e/mock-api.ts\n"
-                '        contract: make routes\n        producer: [api/, cmd/routes]\n'
+                "        contract: make routes\n        producer: [api/, cmd/routes]\n"
             )
         )
         .stacks["web"]

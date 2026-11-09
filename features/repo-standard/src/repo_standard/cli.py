@@ -23,6 +23,10 @@ The verb `green` says whether the checkout may deploy (`repo_standard.green`): i
 clean checkout of the remote's main whose tree passed the check, 1 with each reason it may not,
 and 2 when it cannot ask the remote or GitHub. It reads no config.
 
+The verb `routes --producer <cmd> --mock <cmd>` is the reference contract of a stack's mock API
+(`repo_standard.routes`): it fails on each route the mock answers that the real API lacks. It
+reads no config, and a stack's `mock.contract` runs it from the repo's root during `make lint`.
+
 The guards are `borders`, `stale`, `docs`, `size` and `comments`. Each reads the repo's
 `.repo-standard.yml`, prints one line for each fault it finds, and exits 1 on any. `borders`
 prints each fault as a warning GitHub reads and exits 0 when it warns, or 1 under `--hard`. Every
@@ -38,12 +42,12 @@ import subprocess
 import sys
 from pathlib import Path
 
-from repo_standard import borders, conform, docs_true, plan, size, stacks, stale, upgrade
+from repo_standard import borders, conform, docs_true, plan, routes, size, stacks, stale, upgrade
 from repo_standard.config import Refused, load
 from repo_standard.tree import Unreadable, tracked
 
 GUARDS = ("borders", "stale", "docs", "size", "comments")
-VERBS = (*GUARDS, "conform", "plan", "stacks", "upgrade", "green")
+VERBS = (*GUARDS, "conform", "plan", "stacks", "upgrade", "green", "routes")
 
 
 def _root(given: str | None) -> Path:
@@ -68,6 +72,16 @@ def main(argv: list[str] | None = None) -> int:
         except (Refused, Unreadable) as refused:
             print(f"repo_standard stacks: {refused}", file=sys.stderr)
             return 2
+    if argv[:1] == ["routes"]:
+        parser = argparse.ArgumentParser(prog="repo-standard routes", description=routes.__doc__)
+        parser.add_argument("--producer", required=True, help="prints the real API's routes")
+        parser.add_argument("--mock", required=True, help="prints the mock API's routes")
+        args = parser.parse_args(argv[1:])
+        lines, code = routes.check(args.producer, args.mock)
+        print(
+            "".join(f"{line}\n" for line in lines), end="", file=sys.stderr if code == 2 else None
+        )
+        return code
     parser = argparse.ArgumentParser(prog="repo-standard", description=__doc__)
     parser.add_argument("guard", choices=VERBS, help="a guard to run, or conform")
     parser.add_argument("--root", help="the repo's root; by default the checkout here")
