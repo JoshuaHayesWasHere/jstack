@@ -2,7 +2,8 @@
 on one reason for longer than `clock.HOLD_MINUTES`, with no thread at work on the cause, wake the
 home that owns the rows once, and the hold is on what waits on the user until it clears or a
 thread takes it up. The tests replay small made-up rows through the real pass against the
-kitchen's fakes, a pass a minute."""
+kitchen's fakes. A hold's age is minutes since a pass first saw it, not passes, so a pass at each
+minute a test reads stands for one a minute."""
 
 from datetime import timedelta
 
@@ -10,8 +11,13 @@ import pytest
 
 import jbus
 from jmerge import ready
+from test_jbus_expedite import host_unread
 from test_jbus_kitchen import NOW, sends
 from test_jbus_leftover import home
+
+pytestmark = pytest.mark.usefixtures(host_unread.__name__)
+"""What a pass reads of the machine is none of what these tests assert
+(`test_jbus_expedite.host_unread`)."""
 
 ROWS = ("one", "two", "three", "four")
 SHA = "abcdef123456"
@@ -44,7 +50,6 @@ class Held:
         kitchen.set("open.json", opened)
         kitchen.quiet()
         self.say(reason)
-        self.minute = 0
 
     def say(self, reason):
         lines = [f"wait {n} {url(n)}: {reason}\n" for n, _ in enumerate(ROWS, start=11)]
@@ -52,11 +57,10 @@ class Held:
             lines.insert(0, f"wait 10 {url(10)}: {ready.NOT_PASSED.format(check='check')}\n")
         self.kitchen.set("jmerge.txt", "".join(lines) if reason else "")
 
-    def until(self, minute):
-        """Run a pass a minute, up to and with `minute`."""
-        while self.minute <= minute:
-            self.kitchen.poll(NOW + timedelta(minutes=self.minute))
-            self.minute += 1
+    def at(self, *minutes):
+        """Run a pass at each of `minutes`."""
+        for minute in minutes:
+            self.kitchen.poll(NOW + timedelta(minutes=minute))
 
     def told(self):
         return [one["message"] for one in sends(self.kitchen) if one["threadId"] == self.home_id]
@@ -72,50 +76,39 @@ class Held:
 
 def test_four_rows_held_31_minutes_with_nobody_at_work_wake_their_home_once(kitchen):
     held = Held(kitchen)
-    held.until(31)
+    held.at(0, 30)
+    assert held.told() == [] and held.needs() == []
+    held.at(31)
     (told,) = held.told()
     assert REASON in told and "31 minutes" in told
     assert all(f"{slug} (#{n})" in told for n, slug in enumerate(ROWS, start=11))
     (need,) = held.needs()
     assert need["rows"] == list(ROWS) and REASON in need["line"]
-    held.until(60)
+    held.at(60)
     assert len(held.told()) == 1 and len(held.needs()) == 1
-
-
-def test_the_same_at_29_minutes_wakes_nobody_and_needs_nothing(kitchen):
-    held = Held(kitchen)
-    held.until(29)
-    assert held.told() == [] and held.needs() == []
-
-
-def test_a_running_crew_of_a_held_row_wakes_nobody(kitchen):
-    held = Held(kitchen)
-    crew = held.crews["two"]
-    crew["status"] = "running"
-    kitchen.t3.at_work.add(crew["threadId"])
-    held.until(45)
-    assert held.told() == [] and held.needs() == []
 
 
 def test_a_wait_on_the_merge_runner_wakes_nobody(kitchen):
     held = Held(kitchen, ready.UNDECIDED)
-    held.until(45)
+    held.at(0, 45)
     assert held.told() == [] and held.needs() == []
 
 
 def test_the_hold_leaves_what_waits_on_the_user_once_it_clears_or_a_thread_takes_it_up(kitchen):
+    """The hold that starts again at minute 33 is due at 64, and a crew of one of its rows is at
+    work from then on: a running crew keeps it from waking anyone."""
     held = Held(kitchen)
-    held.until(31)
+    held.at(0, 31)
     assert len(held.needs()) == 1
     held.say("")
-    held.until(32)
+    held.at(32)
     assert held.needs() == []
     held.say(REASON)
-    held.until(33)
+    held.at(33)
     crew = held.crews["two"]
     crew["status"] = "running"
     kitchen.t3.at_work.add(crew["threadId"])
-    held.until(70)
+    held.at(70)
     assert held.needs() == [] and len(held.told()) == 1
 
 
@@ -134,16 +127,17 @@ def test_rows_that_wait_on_an_open_row_ahead_in_ci_wake_nobody(kitchen, reason):
     """The row ahead is open and in CI, so its own wait is what holds them, and the merge runner
     is on it: the rows behind it are no hold of their own."""
     held = Held(kitchen, reason, ahead=True)
-    held.until(45)
+    held.at(0, 45)
     assert held.told() == [] and held.needs() == []
 
 
-@pytest.mark.parametrize("reason", FOLLOWS)
+@pytest.mark.parametrize("reason", (FOLLOWS[0], FOLLOWS[-1]))
 def test_rows_that_wait_on_a_row_ahead_with_no_open_pull_request_wake_their_home(kitchen, reason):
     """The row ahead has no open pull request, closed with no merge or not opened yet, so no wait
-    of its own is watched: the rows behind it are a hold, and wake their home."""
+    of its own is watched: the rows behind it are a hold, and wake their home. A reason names the
+    row ahead by its slug or by its number (`clock.AHEAD`): one case of each."""
     held = Held(kitchen, reason)
-    held.until(31)
+    held.at(0, 31)
     (told,) = held.told()
     assert reason in told and "31 minutes" in told
     (need,) = held.needs()

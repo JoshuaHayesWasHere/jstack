@@ -495,9 +495,11 @@ NO_REVIEWER = {
 def test_a_pull_request_the_crew_skill_leaves_with_no_reviewer_is_not_the_crew_s_to_fix(
     why, short, kitchen
 ):
-    """Each of these already has its own gate or message, so the desk gets nothing more."""
+    """Each of these already has its own gate or message, so the desk gets nothing more. A row
+    jbus would tell its crew of is told on its `expedite.AFTER`th pass, and a stall or a gate
+    comes only after that."""
     short.out(NO_REVIEW, result=NO_REVIEWER[why].format(head=short.head), review=False)
-    short.passes(16)
+    short.passes(expedite.AFTER)
     assert sends(kitchen) == [] and kitchen.lines("stall") == [] and gates(kitchen) == []
     assert kitchen.events("expedite") == []
 

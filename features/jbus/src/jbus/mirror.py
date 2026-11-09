@@ -168,9 +168,13 @@ def home_gates(home: Path) -> Iterator[tuple[Path, str, str, str, str]]:
             yield file, number, asked, body, gate_key(asker(body), asked)
 
 
+HOME = "home"
+"""The asker of a gate a home wrote itself, with no row's slug on its `Asked by:` line."""
+
+
 def asker(body: str) -> str:
-    """Return the slug on a gate's `Asked by:` line, or `home`."""
-    return below.line(body, "Asked by:").split(",")[0].strip() or "home"
+    """Return the slug on a gate's `Asked by:` line, or `HOME`."""
+    return below.line(body, "Asked by:").split(",")[0].strip() or HOME
 
 
 def _gates(

@@ -23,13 +23,23 @@ from jbus.watch import RedTip, _file, checks, when
 from jmerge import mainjson
 from jmerge import reverts as kept
 
+FIRST = "this is the project's first pass, which reverts nothing"
+REMOVED = "{slug}, the merge that turned it red, was removed from the queue"
+
 
 def judge(run: Pass) -> None:
     """Revert the one clear culprit of the red tip `watch` handed over (`jbus.reverts`), or file
     its fix row, which says why nothing was reverted. A tip whose revert is open, or whose failed
-    tests the next pass reads, gets neither yet."""
+    tests the next pass reads, gets neither yet. On a project's first pass, and for a merge whose
+    row was removed, jbus reverts nothing and files the fix row at once: a red main always has
+    its row, and no home is woken of it."""
     if run.red is not None:
-        why = kept_why(run, run.red)
+        if run.first:
+            why: str | None = FIRST
+        elif run.red.slug and run.red.slug in run.removed:
+            why = REMOVED.format(slug=run.red.slug)
+        else:
+            why = kept_why(run, run.red)
         if why is not None:
             _file(run, run.red.slug, run.red.sha, run.red.red, why)
 
