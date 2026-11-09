@@ -128,7 +128,8 @@ def test_a_pull_request_no_longer_open_gets_none(kitchen):
 def test_a_result_that_names_no_pull_request_gets_none(kitchen):
     kitchen.set("open.json", [kitchen.opened("alpha", 7)])
     brief = kitchen.home / "tasks" / "alpha.md"
-    brief.write_text(brief.read_text() + "\n## Result\nStatus: done\nPull request: after the review\n")
+    result = "\n## Result\nStatus: done\nPull request: after the review\n"
+    brief.write_text(brief.read_text() + result)
     ends(kitchen)
     last_call(kitchen, "mcp:thread-1", 160_000)
     kitchen.poll(NOW)
