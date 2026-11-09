@@ -7,5 +7,5 @@ KPI = Kpi(
     "KB",
     16,
     "lower",
-    Measured("weekly_first_load", "kb", "installs"),
+    Measured("weekly_first_load", "kb", "installs", machine=True),
 )

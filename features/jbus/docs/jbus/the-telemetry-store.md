@@ -192,11 +192,14 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 | `weekly_stall` | each week's rows `merged` since `stalls_since`, the `minutes` and `spells` of `stall_spells`, the spells that ended in the week, and `per_row` |
 
 A week starts on Sunday.
+Each `weekly_*` view gives a row per `project` and `week`, so a week of one project counts no other's: filter by `project` to read one.
+The pass time, the capped minutes, the crew first load and the drift probes are the machine's, under the project `''`.
+A gate's label counts under the gate's project, the part of its key before `#`, whichever home labelled it.
 The median and the 85th percentile are the scorecard's (`reports/week-audit/scorecard.py` in the home).
 To read one, open the file with any SQLite reader:
 
 ```sh
-sqlite3 ~/.local/state/jbus/telemetry.sqlite 'SELECT * FROM weekly_lead_time ORDER BY week'
+sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT * FROM weekly_lead_time WHERE project = 'jstack' ORDER BY week"
 ```
 
 What a message asks is one label: `needs` where it asks what needs you, else `other`.
@@ -226,17 +229,18 @@ A shorter stretch between two passes counts whole, so a slow pass, or one that f
 
 ## The KPI page
 
-`jbus kpis` writes `kpis.html` in jbus's state directory: one static page that answers "is the vision met this week".
+`jbus kpis` writes `kpis.html` in jbus's state directory: one static page that answers "is the vision met this week" for one project, the one `jbus --project <name> kpis` names, or the config's only one.
 It reads the store alone, calls no `gh` and runs no service, so it costs nothing to build again.
 
 ```sh
-jbus telemetry && jbus kpis
+jbus telemetry && jbus --project jstack kpis
 ```
 
 Each of the 24 KPIs is a row: what it counts, its target, and last week and this week so far, each with its value, the count `n` it is of, and `met`, `missed`, `tracked` where it has no target yet, `no data` where nothing in the week counts, or `not covered` where the week begins before the records the KPI reads do, with a note that says when they begin.
 The capped minutes are read for the week the reads begin in, from that day, and say so.
 A KPI the store has no instrument for yet says so, and names what it needs.
 A week starts on Sunday, as the views' does.
+A KPI of the machine as a whole, the pass time, the capped minutes, the crew first load and the drift probes, reads the machine's rows, the same on every project's page.
 The page names no row, path or thread, and no project but those the change failure rate says it covers.
 The store holds no text of a message.
 

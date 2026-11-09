@@ -81,10 +81,13 @@ any other way or still open, which S8 counts in neither share; `beta#1`, a gate 
 project labelled in alpha's home."""
 
 
-def weekly(machine, week=WEEK):
+def weekly(machine, week=WEEK, project="alpha"):
+    """A project's week of S8: the labels of its own gates, whichever home labelled them."""
     with contextlib.closing(machine.store()) as store:
         store.row_factory = sqlite3.Row
-        found = store.execute("SELECT * FROM weekly_wrong_closes WHERE week = ?", (week,))
+        found = store.execute(
+            "SELECT * FROM weekly_wrong_closes WHERE project = ? AND week = ?", (project, week)
+        )
         row = found.fetchone()
     return dict(row) if row else None
 
@@ -111,19 +114,25 @@ def test_s8_counts_corrected_and_other_done_over_the_known_outcomes_each_closer_
     machine.build()
 
     found = weekly(machine)
+    beta = weekly(machine, project="beta")
 
     assert found == {
+        "project": "alpha",
         "week": WEEK,
-        "labels": 13,
-        "silence": 5,
-        "silence_wrong": 3,
-        "silence_share": 60.0,
+        "labels": 12,
+        "silence": 4,
+        "silence_wrong": 2,
+        "silence_share": 50.0,
         "word": 2,
         "word_wrong": 1,
         "word_share": 50.0,
     }
+    assert (beta["labels"], beta["silence"], beta["silence_wrong"]) == (1, 1, 1)
     report = wrongcloses.week(path, date.fromisoformat(WEEK), wrongcloses.gates(jbus.load()))
-    assert (report.silence.wrong, report.silence.of) == (found["silence_wrong"], found["silence"])
+    assert (report.silence.wrong, report.silence.of) == (
+        found["silence_wrong"] + beta["silence_wrong"],
+        found["silence"] + beta["silence"],
+    )
     assert (report.user.wrong, report.user.of) == (found["word_wrong"], found["word"])
 
 
@@ -181,7 +190,9 @@ def test_the_labels_in_each_projects_home_count_in_their_week(machine):
     machine.build()
 
     found = weekly(machine)
-    assert (found["labels"], found["silence"], found["silence_wrong"]) == (2, 2, 1)
+    beta = weekly(machine, project="beta")
+    assert (found["labels"], found["silence"], found["silence_wrong"]) == (1, 1, 1)
+    assert (beta["labels"], beta["silence"], beta["silence_wrong"]) == (1, 1, 0)
     assert labels.FOLDER.as_posix() == wrongcloses.LABELS.as_posix()
 
 

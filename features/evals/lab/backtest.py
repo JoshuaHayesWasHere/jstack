@@ -206,29 +206,33 @@ def run(f: Fit, w: Week, seed: int, override: dict | None = None) -> dict:
 
 
 def real(db: sqlite3.Connection, span: Span, week: str) -> dict:
-    """The week's KPIs from the rows of the store's views, merged before `--end`: for a week
-    `--end` does not cut, the numbers `weekly_pr_to_merge`, `weekly_lead_time`,
-    `weekly_change_failure` and `weekly_merges` give."""
-    cut = {"w": week, "end": minutes(db, span.end)}
+    """The week's KPIs of `PROJECT` from the rows of the store's views, merged before `--end`: for
+    a week `--end` does not cut, the numbers `weekly_pr_to_merge`, `weekly_lead_time`,
+    `weekly_change_failure` and `weekly_merges` give for `PROJECT`."""
+    cut = {"w": week, "end": minutes(db, span.end), "p": PROJECT}
     before = f"{em('merged_at')} < :end"
     pr = [
         r[0]
         for r in db.execute(
-            f"SELECT minutes FROM pr_times WHERE week = :w AND minutes >= 0 AND {before}", cut
+            "SELECT minutes FROM pr_times WHERE project = :p AND week = :w AND minutes >= 0 "
+            f"AND {before}",
+            cut,
         )
     ]
     lead = [
         r[0]
         for r in db.execute(
-            f"SELECT minutes FROM lead_times WHERE week = :w AND minutes >= 0 AND {before}", cut
+            "SELECT minutes FROM lead_times WHERE project = :p AND week = :w AND minutes >= 0 "
+            f"AND {before}",
+            cut,
         )
     ]
     merges = db.execute(
-        f"SELECT count(*) FROM lead_times WHERE week = :w AND {before}", cut
+        f"SELECT count(*) FROM lead_times WHERE project = :p AND week = :w AND {before}", cut
     ).fetchone()[0]
     failures, kept = db.execute(
-        "SELECT coalesce(sum(opened_spell), 0), count(*) FROM change_failures WHERE week = :w "
-        f"AND {before}",
+        "SELECT coalesce(sum(opened_spell), 0), count(*) FROM change_failures "
+        f"WHERE project = :p AND week = :w AND {before}",
         cut,
     ).fetchone()
     return {

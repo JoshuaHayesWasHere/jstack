@@ -210,7 +210,7 @@ def test_the_pass_runs_the_probes_at_most_once_a_users_day(machine, monkeypatch)
 
 def page_row(machine, week):
     out = machine.root / "page.html"
-    code, said = run("--week", week, "--out", str(out))
+    code, said = run("--week", week, "--out", str(out), project="alpha")
     assert code == 0, said
     cells = Cells()
     cells.feed(out.read_text())

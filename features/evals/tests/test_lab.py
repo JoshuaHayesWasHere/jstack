@@ -277,7 +277,9 @@ def repo_name():
 def views(store, view, column, week):
     db = sqlite3.connect(f"file:{store}?mode=ro", uri=True)
     try:
-        return db.execute(f"SELECT {column} FROM {view} WHERE week = ?", (week,)).fetchone()[0]
+        return db.execute(
+            f"SELECT {column} FROM {view} WHERE project = 'jstack' AND week = ?", (week,)
+        ).fetchone()[0]
     finally:
         db.close()
 

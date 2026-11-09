@@ -4,7 +4,7 @@ it ran, those not held, broken or unrun, and those unrun (S4)."""
 from jbus.telemetry.schema import WEEK
 
 SQL = (
-    f"SELECT {WEEK.format(day='day')} AS week, at, count(*) AS probes, "
+    f"SELECT project, {WEEK.format(day='day')} AS week, at, count(*) AS probes, "
     "sum(status <> 'held') AS broken, sum(status = 'unrun') AS unrun FROM drift "
-    "WHERE day IS NOT NULL GROUP BY 1, at"
+    "WHERE day IS NOT NULL GROUP BY 1, 2, at"
 )

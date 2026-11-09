@@ -2,7 +2,7 @@
 were kept."""
 
 SQL = (
-    "SELECT week, count(first_round) AS n, sum(first_round) AS first_round, "
+    "SELECT project, week, count(first_round) AS n, sum(first_round) AS first_round, "
     "100.0 * sum(first_round) / nullif(count(first_round), 0) AS share FROM pr_times "
-    "GROUP BY week"
+    "GROUP BY project, week"
 )

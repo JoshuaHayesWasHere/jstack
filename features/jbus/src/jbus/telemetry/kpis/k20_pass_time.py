@@ -7,5 +7,5 @@ KPI = Kpi(
     "s",
     30,
     "lower",
-    Measured("weekly_pass_time", "median", "n"),
+    Measured("weekly_pass_time", "median", "n", machine=True),
 )

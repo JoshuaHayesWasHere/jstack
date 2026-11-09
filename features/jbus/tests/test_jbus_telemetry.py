@@ -990,7 +990,8 @@ def test_each_typed_message_joins_a_row_an_answer_or_a_reply_or_is_a_lost_ask(ma
             "SELECT project, id, kind, joined, link FROM ask_ledger ORDER BY id"
         ).fetchall()
         weeks = store.execute(
-            "SELECT week, typed, lost, waiting FROM weekly_lost_asks ORDER BY week"
+            "SELECT week, typed, lost, waiting FROM weekly_lost_asks WHERE project = 'alpha' "
+            "ORDER BY week"
         ).fetchall()
     assert ledger == [
         ("alpha", "m-answer", "text", "answer", "act-m-answer"),
@@ -1001,7 +1002,7 @@ def test_each_typed_message_joins_a_row_an_answer_or_a_reply_or_is_a_lost_ask(ma
         ("scratch-id", "m-scratch", "resume", "reply", "r-scratch"),
         ("alpha", "m-waiting", "text", "waiting", None),
     ]
-    assert weeks[0] == ("2026-10-25", 6, 2, 0)
+    assert weeks[0] == ("2026-10-25", 5, 2, 0)
     assert weeks[-1][1:] == (0, 0, 1)
 
 
@@ -1034,7 +1035,9 @@ def test_a_word_said_in_the_bots_chat_is_a_typed_message_and_joins_like_one(mach
         ledger = store.execute(
             "SELECT project, id, kind, joined, link FROM ask_ledger ORDER BY at"
         ).fetchall()
-        weeks = store.execute("SELECT week, typed, lost, waiting FROM weekly_lost_asks").fetchall()
+        weeks = store.execute(
+            "SELECT project, week, typed, lost, waiting FROM weekly_lost_asks ORDER BY 1, 2"
+        ).fetchall()
     assert rows == [
         ("beta", "word:w-answer", None, "user", "user", "word:view", "text", len(SECRET)),
         ("alpha", "word:w-lost", home, "user", "user", "word:bot-chat", "text", len(SECRET)),
@@ -1049,7 +1052,8 @@ def test_a_word_said_in_the_bots_chat_is_a_typed_message_and_joins_like_one(mach
         ("alpha", "w-lost", "text", "unanswered", None),
         ("alpha", "w-waiting", "text", "waiting", None),
     ]
-    assert weeks[0] == ("2026-10-25", 4, 1, 0)
+    assert weeks[0] == ("alpha", "2026-10-25", 3, 1, 0)
+    assert ("beta", "2026-10-25", 1, 0, 0) in weeks
 
 
 ASKS = "Does anything need me? Is everything moving?"
@@ -1384,7 +1388,7 @@ def spent(day, at, units, sends=0, homes=0, capped=0):
 
 
 def test_the_weeks_spend_gives_the_coordination_and_capped_shares_of_each_days_last_line(machine):
-    """Each week of the days spent, by every project's last line of each day: jbus's sends and
+    """Each project's week of the days spent, by its last line of each day: jbus's sends and
     the homes over all units, and the runs that failed on a cap over all units. A week of days
     with no run has no share."""
     later = NOW + timedelta(days=2)
@@ -1401,12 +1405,13 @@ def test_the_weeks_spend_gives_the_coordination_and_capped_shares_of_each_days_l
 
     with contextlib.closing(machine.store()) as store:
         weeks = store.execute(
-            "SELECT week, units, coordination, capped FROM weekly_spend ORDER BY week"
+            "SELECT project, week, units, coordination, capped FROM weekly_spend ORDER BY 1, 2"
         ).fetchall()
     assert weeks == [
-        ("2026-10-11", 0, None, None),
-        ("2026-10-18", 500, 0, 10),
-        ("2026-10-25", 3000, pytest.approx(100 * 400 / 3000), pytest.approx(100 * 20 / 3000)),
+        ("alpha", "2026-10-11", 0, None, None),
+        ("alpha", "2026-10-18", 500, 0, 10),
+        ("alpha", "2026-10-25", 2000, pytest.approx(100 * 300 / 2000), pytest.approx(1)),
+        ("beta", "2026-10-25", 1000, pytest.approx(10), 0),
     ]
 
 

@@ -12,7 +12,7 @@ from jbus.telemetry.schema import WEEK
 
 SQL = (
     "WITH reads AS (SELECT *, lead(at) OVER (ORDER BY at, key) AS next_at FROM capped_reads "
-    "WHERE at IS NOT NULL) SELECT at, day, "
+    "WHERE at IS NOT NULL) SELECT project, at, day, "
     f"{WEEK.format(day='day')} AS week, reader, instances, capped, ends_at, next_at, "
     "CASE WHEN ends_at IS NULL THEN 0 ELSE round(max(0, julianday(min(coalesce(next_at, "
     "(SELECT max(at) FROM builds), ends_at), ends_at)) - julianday(at)) * 1440.0, 4) END "

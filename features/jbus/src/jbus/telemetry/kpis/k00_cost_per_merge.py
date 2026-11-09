@@ -15,7 +15,8 @@ BY = (
     "'by role, model and effort a merge: ' || (SELECT group_concat(name || ' $' || "
     "printf('%.2f', dollars / weekly_merge_cost.merges), ', ') FROM (SELECT role || ' ' || "
     "model || ' ' || coalesce(effort, 'no effort') AS name, sum(dollars) AS dollars "
-    "FROM merge_cost WHERE week = weekly_merge_cost.week AND dollars IS NOT NULL "
+    "FROM merge_cost WHERE project = weekly_merge_cost.project "
+    "AND week = weekly_merge_cost.week AND dollars IS NOT NULL "
     "GROUP BY role, model, effort ORDER BY sum(dollars) DESC, name))"
 )
 """Each role, model and effort's own-thread dollars of the week's successful merges, a merge, the

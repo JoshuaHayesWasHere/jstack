@@ -2,9 +2,10 @@
 week and last.
 
 The tests write two projects' records as jbus writes them, compile them with the real
-`jbus telemetry`, build the page with the real `jbus kpis`, and read the page as its reader
-does: its table's cells. A KPI the store measures shows its target, each week's value and
-whether it met the target; one the store has no instrument for says so. The page holds no text a
+`jbus telemetry`, build the page of one project with the real `jbus kpis --project`, and read
+the page as its reader does: its table's cells. A project's page counts only its own rows. A
+KPI the store measures shows its target, each week's value and whether it met the target; one
+the store has no instrument for says so. The page holds no text a
 record carried, no row and no path, and names only the projects a KPI says it covers, the projects
 whose push checks of main the change failure rate counts. `jleak` finds nothing else in it, and
 building it calls no `gh`.
@@ -84,10 +85,10 @@ class Cells(HTMLParser):
             self._cell.append(data)
 
 
-def run(*argv):
+def run(*argv, project=None):
     out = io.StringIO()
     with contextlib.redirect_stdout(out):
-        code = cli.main(["kpis", *argv])
+        code = cli.main([*(("--project", project) if project else ()), "kpis", *argv])
     return code, out.getvalue()
 
 
@@ -125,13 +126,13 @@ def machine(tmp_path, monkeypatch):
     return found
 
 
-def page(machine):
-    return page_of(machine, THIS)
+def page(machine, project="alpha"):
+    return page_of(machine, THIS, project)
 
 
-def page_of(machine, week):
+def page_of(machine, week, project="alpha"):
     out = machine.root / "page" / "kpis.html"
-    code, said = run("--week", week, "--out", str(out))
+    code, said = run("--week", week, "--out", str(out), project=project)
     assert code == 0, said
     cells = Cells()
     cells.feed(out.read_text())
@@ -206,15 +207,18 @@ def test_a_module_not_named_as_a_kpis_is_refused(tmp_path, monkeypatch):
 
 def test_the_page_shows_each_kpi_with_its_target_this_week_last_week_and_met_or_not(machine):
     _, rows, said = page(machine)
+    _, of_beta, _ = page(machine, "beta")
 
     assert list(rows) == [kpi.name for kpi in kpis.KPIS]
     lead = rows["Lead time, go to merge, median (DORA)"]
     assert lead[3] == "≤ 30 min"
-    assert lead[4] == "59 min n 1 missed"
+    assert lead[4] == "n/a n 0 no data"
     assert lead[5].endswith("n 1 missed")
+    assert of_beta["Lead time, go to merge, median (DORA)"][4] == "59 min n 1 missed"
+    assert of_beta["Lead time, go to merge, median (DORA)"][5] == "n/a n 0 no data"
     opened = rows["PR open to merge, median"]
-    assert opened[4] == "0 min n 1 met"
     assert opened[5] == "0 min n 1 met"
+    assert of_beta["PR open to merge, median"][4] == "0 min n 1 met"
     doors = rows["Doors opened without your own word"]
     assert doors[3] == "≤ 0"
     assert doors[4] == "0 n 0 met"
@@ -228,6 +232,7 @@ def test_the_page_shows_each_kpi_with_its_target_this_week_last_week_and_met_or_
         "n/a n 0 not covered: jmerge's waits labelled as a crew's fix round have no line yet"
     )
     assert "2026-10-25" in said
+    assert "alpha" in said
 
 
 def fix_round(machine, at, number=99):
@@ -255,8 +260,9 @@ def test_a_pull_request_with_a_red_check_or_a_wait_on_a_crews_fix_is_not_first_r
     machine.build()
 
     _, rows, _ = page(machine)
+    _, of_beta, _ = page(machine, "beta")
 
-    assert rows["Crew first-round share"][4] == "0% n 1 missed"
+    assert of_beta["Crew first-round share"][4] == "0% n 1 missed"
     assert rows["Crew first-round share"][5] == "0% n 1 missed"
 
 
@@ -329,7 +335,9 @@ def test_the_jmerge_wait_is_each_weeks_median_of_jmerge_records_or_else_of_the_c
 
     waiting = rows["Waiting for jmerge, PR p50 minutes"]
     assert waiting[3] == "≤ 0.2 min"
-    assert waiting[4] == "0.7 min n 1 missed"
+    assert page(machine, "beta")[1]["Waiting for jmerge, PR p50 minutes"][4] == (
+        "0.7 min n 1 missed"
+    )
     assert waiting[5] == "0.6 min n 4 missed"
     with machine.store() as store:
         held = store.execute(
@@ -360,7 +368,7 @@ def test_the_ask_ledger_gives_typed_messages_per_merged_row_and_the_lost_asks(ma
     _, rows, _ = page(machine)
 
     typed = rows["Your typed messages per merged row"]
-    assert typed[4] == "0 n 1 met"
+    assert page(machine, "beta")[1]["Your typed messages per merged row"][4] == "0 n 1 met"
     assert typed[5] == "2 n 1 missed"
     lost = rows["Lost asks (S3)"]
     assert lost[4] == "0 n 0 met"
@@ -477,8 +485,9 @@ def test_stall_minutes_are_each_weeks_ended_spells_over_its_merged_rows_since_th
     stall = rows["Stall minutes per merged row"]
     assert stall[3] == "none yet"
     assert stall[5] == "45 min n 1 tracked: covers alpha"
-    assert stall[4] == (
-        "n/a n 0 no data: covers alpha; no stall record kept for 1 merged row, on 2026-10-21"
+    assert stall[4] == "n/a n 0 no data: covers alpha"
+    assert page(machine, "beta")[1]["Stall minutes per merged row"][4] == (
+        "n/a n 0 no data: covers no project, since the store keeps no stall record"
     )
 
 
@@ -546,7 +555,7 @@ def test_with_no_store_it_refuses_and_writes_nothing(tmp_path, monkeypatch):
     Machine(tmp_path, monkeypatch)
     out = tmp_path / "kpis.html"
 
-    code, said = run("--out", str(out))
+    code, said = run("--out", str(out), project="alpha")
 
     assert code == 2
     assert said.startswith("refused: no telemetry store")
@@ -554,7 +563,7 @@ def test_with_no_store_it_refuses_and_writes_nothing(tmp_path, monkeypatch):
 
 
 def test_a_week_that_begins_before_the_row_records_shows_no_value_and_says_why(machine):
-    _, rows, _ = page_of(machine, "2026-10-21")
+    _, rows, _ = page_of(machine, "2026-10-21", "beta")
 
     why = "n/a n 0 not covered: jbus's row records begin on 2026-10-14, after the week does"
     for name in (
@@ -631,7 +640,7 @@ def test_the_redo_rate_counts_the_rows_whose_7_days_end_in_the_week_a_later_row_
     )
     machine.build()
 
-    _, rows, _ = page(machine)
+    _, rows, _ = page(machine, "beta")
 
     redo = rows["Redo rate"]
     assert redo[3] == "≤ 5%"
@@ -664,3 +673,13 @@ def test_the_redo_rate_says_how_many_rows_of_the_week_it_cannot_judge_yet(machin
     assert waiting >= 1
     shown = f"{waiting} merged row{'s' * (waiting != 1)} not yet judged"
     assert rows["Redo rate"][5].endswith(shown)
+
+
+def test_with_two_projects_and_none_named_it_refuses_and_writes_nothing(machine):
+    out = machine.root / "page" / "kpis.html"
+
+    code, said = run("--out", str(out))
+
+    assert code != 0
+    assert said.startswith("refused: no project (name one with --project), have alpha, beta")
+    assert not out.exists()

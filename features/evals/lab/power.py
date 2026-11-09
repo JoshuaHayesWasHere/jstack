@@ -24,6 +24,7 @@ import statistics as st
 from collections import Counter, defaultdict
 from datetime import date, timedelta
 
+from backtest import PROJECT
 from span import add_flags, connect, em, from_args, minutes
 
 NORMAL = st.NormalDist()
@@ -226,10 +227,11 @@ def measure(db, span) -> dict:
         vals = [
             v
             for (v,) in db.execute(
-                f"SELECT {col} FROM {view} WHERE week >= date(:lo, '-6 days', 'weekday 0') AND "
+                f"SELECT {col} FROM {view} WHERE project = :p "
+                "AND week >= date(:lo, '-6 days', 'weekday 0') AND "
                 "week <= :w "
                 f"AND {em("datetime(date(week, '+7 days'), 'utc')")} <= :end ORDER BY week",
-                {"lo": span.fit_start, "w": span.week, "end": w["end"]},
+                {"lo": span.fit_start, "w": span.week, "end": w["end"], "p": PROJECT},
             )
             if v is not None
         ]
