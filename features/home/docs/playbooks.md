@@ -4,7 +4,7 @@ A playbook is the numbered steps for one kind of task, and nothing in `playbooks
 A brief names one playbook on its `Playbook:` line, such as `Playbook: bug-fix`, and a scout's request does the same.
 The thread that takes the brief works the playbook's steps in order, and reports a step it does not do as `skip: <reason>`.
 Every brief names a crewmate's playbook and at least one skill, picked by the kind of task from the table in `features/home/skills/home/handing-a-task-to-a-crewmate.md`, and `jbus queue add` refuses one with no line or `none`.
-A brief for an operation that changes no tracked file and opens no pull request, such as a cleanup, a tag or a setting, names `Playbook: operations` (`features/crew/playbooks/operations.md`).
+A brief for an operation that changes no tracked file and opens no pull request, such as a cleanup, a tag or a setting, names `Playbook: operations` (`features/crew/playbooks/operations.md`), not `none`.
 A scout's request may still say `Playbook: none`, or have no line: the scout then works by its skill alone.
 Where a playbook and the skill disagree, the skill wins.
 
