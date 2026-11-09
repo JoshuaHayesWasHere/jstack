@@ -17,6 +17,7 @@ from jbus import blockers, queue
 from jmerge import judgement
 from test_jbus_kitchen import NOW, RAN, SAID, Kitchen
 from test_jbus_queue import brief, rows, sha12
+from test_jbus_row_ends import result
 
 BY_RULE = (
     "the follow-up rule, follow-up of {parent}; run {ran} by the demo home; you did not speak of "
@@ -295,3 +296,22 @@ def test_a_follow_up_with_no_entry_gets_its_go_when_its_parent_does(kitchen):
     assert code == 0
     assert said.splitlines()[0].startswith("approved beta: brief ")
     assert rows(kitchen)["beta"]["approval"]["follows"] == "alpha"
+
+
+def test_a_row_that_follows_a_row_closed_done_with_no_merge_is_approved_by_rule(kitchen):
+    """A home closes alpha `done` with no pull request, its work carried by beta: beta, queued with
+    `Follows: alpha`, is approved by the follow-up rule on alpha's go in the same write, since a
+    closed row kept in the queue is a parent whatever its status."""
+    kitchen.quiet()
+    add(kitchen, "alpha")
+    kitchen.brief("alpha", result())
+    kitchen.t3.thread("alpha", "completed")
+    kitchen.poll()
+    assert go(kitchen, "alpha")[0] == 0
+    alpha = rows(kitchen)["alpha"]
+    assert (alpha["status"], alpha["pr"], alpha["approval"]["basis"]) == ("done", "", "word")
+    said = unit(kitchen, "beta", "alpha")
+    line = BY_RULE.format(parent="alpha", ran=RAN)
+    assert said == [f"approved beta: brief {sha12(brief_of(kitchen, 'beta'))}, {line}"]
+    made = rows(kitchen)["beta"]["approval"]
+    assert (made["basis"], made["ref"], made["follows"]) == ("rule", "follow-up", "alpha")

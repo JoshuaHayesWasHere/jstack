@@ -349,3 +349,52 @@ def test_a_line_written_before_pull_reads_it_from_its_kept_text_or_as_empty(mach
     with contextlib.closing(machine.store()) as store:
         rows = store.execute("SELECT slug, pull FROM brief_versions ORDER BY slug").fetchall()
     assert rows == [("gone", None), ("kept", "open")]
+
+
+def test_the_queue_keeps_who_queued_each_row_and_the_message_its_go_rests_on(machine):
+    """`jbus.telemetry.records` fills `queued_by_session` and `approval_message` for each basis,
+    as the text columns `jbus.telemetry.values` types them, and a store built before
+    `jbus.telemetry.migrations.v014_queue_joins` gains both columns on its next build, and the
+    queue's rows it already holds are read again to fill them."""
+    home = {"directory": "/home/u/repo", "session": "home-session"}
+    jbus = {"by": "jbus", "session": ""}
+    goes = {
+        "entry": ({"ref": "plan-entry", "message": "mcp:home/m-entry"}, "mcp:home/m-entry"),
+        "message": ({"ref": "mcp:home/m-said"}, "mcp:home/m-said"),
+        "pick": ({"ref": "mcp:home/m-picked"}, "mcp:home/m-picked"),
+        "word": ({"ref": "w1", "message": "mcp:home/m-not"}, ""),
+        "answer": ({"ref": "3"}, ""),
+        "rule": ({"ref": "follow-up", "follows": "parent"}, ""),
+        "page": ({"ref": "p1"}, ""),
+        "bot-chat": ({"ref": "w2"}, ""),
+    }
+    rows = [
+        {"slug": basis, "status": "queued", "queued_by": home, "approval": {"basis": basis, **go}}
+        for basis, (go, _) in goes.items()
+    ]
+    rows.append({"slug": "filed", "status": "queued", "queued_by": jbus, "approval": {}})
+    machine.write("alpha", "queue.json", rows)
+    want = sorted(
+        [
+            *((basis, "home-session", message) for basis, (_, message) in goes.items()),
+            ("filed", "", ""),
+        ]
+    )
+    query = "SELECT slug, queued_by_session, approval_message FROM queue ORDER BY slug"
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        assert store.execute(query).fetchall() == want
+        types = {name: kind for _, name, kind, *_ in store.execute("PRAGMA table_info(queue)")}
+        assert (types["queued_by_session"], types["approval_message"]) == ("TEXT", "TEXT")
+        views = [
+            name for (name,) in store.execute("SELECT name FROM sqlite_master WHERE type = 'view'")
+        ]
+        store.executescript(
+            "".join(f"DROP VIEW {name};" for name in views)
+            + "ALTER TABLE queue DROP COLUMN queued_by_session;"
+            + "ALTER TABLE queue DROP COLUMN approval_message;"
+            + "DELETE FROM migrations WHERE name = 'v014_queue_joins';"
+        )
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        assert store.execute(query).fetchall() == want

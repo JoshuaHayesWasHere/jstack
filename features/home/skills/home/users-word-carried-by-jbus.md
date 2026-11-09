@@ -144,6 +144,8 @@ It also checks the waiting rows that name P when P gets its go.
 It prints one line for each row it approved, and one for each row that names a parent and still waits, with why.
 `jbus queue add --help` gives the same rule.
 To queue a follow-up, write `Follows: <parent>` in its brief's head and queue it: no `--entry` is needed.
+A row that carries the work of a row closed with no merge names that row with `Follows:`, new or already queued: a row closed `done` and kept in the queue is a parent whatever its status, and the line is how the store joins the two.
+A row queued again with the line added keeps the go it had: jbus judges a go by what the brief asks for, and the line changes none of it.
 A row that names no parent, or whose parent has no approval of the user's own, or whose parent was removed before it merged, is new work, and it waits for the user's go, or for its plan entry's ("A plan entry's go" above).
 The one exception is a fix jbus's own pass filed from a red check, which names no parent and is approved by the rule on its red run, as above.
 A row queued again keeps what it had: a row that waited for the user is not approved by rule because a later add named a parent, and a held row stays held.

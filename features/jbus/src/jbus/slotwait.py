@@ -1,15 +1,18 @@
 """This module wakes a thread that waits on a test slot once a slot of its lane is free, and a
 thread that waits on a capped pool once the cap has ended.
 
-A thread that finds every slot taken registers in `test-slot-waiters.json` (`jgauge.waiters`,
-which `jgauge test-slot --thread` writes) and ends its turn. Nothing in T3 Code resumes that
-thread, so each pass of `jbus poll` resumes it, in `wake`:
+A thread that finds every full slot taken registers in `test-slot-waiters.json`
+(`jgauge.waiters`, which `jgauge test-slot --thread` writes) and ends its turn. Nothing in T3
+Code resumes that thread, so each pass of `jbus poll` resumes it, in `wake`:
 
 - `wake` drops a waiter whose thread is gone, settled, archived or ended (`dead`). A thread
   that ended its turn to wait has the status `completed`, and counts as alive. A wait whose
   read or send T3 Code answers with a gone thread is dropped with one line, and not tried again.
 - `wake` drops a woken waiter that jbus told long ago and that has done nothing since.
-- For each lane that has a slot free, `wake` wakes the oldest waiters on it, one for each free
+- `wake` wakes only waiters of the full lane. A short call waits in its call and registers
+  nothing (`jgauge.slot`), so a short-lane waiter is one an older jgauge left: `wake` drops it
+  with one line and wakes no one for it.
+- When the full lane has a slot free, `wake` wakes the oldest waiters on it, one for each free
   slot that a woken waiter has not claimed already. A woken waiter claims its slot for
   `waiters.HOLDS`: jbus has told the waiter, and the waiter has not taken the slot yet.
 - A wake is one queued message (`jbus.outbox.send`), keyed by the wait, so a retry sends the same
@@ -113,6 +116,13 @@ def wake(run: Pass, client: Client) -> None:
     alive: list[Waiter] = []
     for one in held:
         if one.id in gone:
+            continue
+        if one.lane != "full":
+            run.say(
+                f"wait {one.thread}: its {one.lane} slot wait is dropped, a short call waits in"
+                " its call and jbus wakes no one for it"
+            )
+            gone.add(one.id)
             continue
         if dead(run, client, one):
             gone.add(one.id)

@@ -42,13 +42,13 @@ The outbox also holds a rebase or fix message while its row is held, and a messa
 
 ### A leftover
 
-The leftover's text names the slug, the pull request and whether it merged, the `Left:` line whole, each question the slug asked with its answer or that it is open, and the two ways to end it.
+The leftover's text names the slug, the pull request and whether it merged, the `Left:` line whole, each question the slug asked with its answer or that it is open, and the three ways to end it: queue a follow-up for what is left, its brief's head naming the slug with `Follows: <slug>`; add `Follows: <slug>` to the brief of a row that already carries the rest and queue it again; or write the three-line Result.
 The home is the one the brief's `Home:` line names, and its thread is the one in that home's `home-id`.
 
 A row whose thread ended or hung with no Result at all is a leftover too.
 It becomes one after it has been `stale` for 15 minutes (`UNWRITTEN_MINUTES` in `features/jbus/src/jbus/watch.py`), or at once for a hung turn.
 Its status is `left`, and its text says `its thread completed with nothing written`.
-The home's message gives three ways to end it: carry the thread on, stopping a hung turn first; remove the row and queue it again; or write the three-line Result.
+The home's message gives four ways to end it: carry the thread on, stopping a hung turn first; remove the row and queue it again with `Follows: <slug>` in the new brief's head; add `Follows: <slug>` to the brief of a row that already carries the work and queue it again; or write the three-line Result.
 The row drops out of `left` when the home ends it, the thread goes on, or the row is removed.
 
 ### A slot wake

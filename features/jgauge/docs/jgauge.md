@@ -85,8 +85,8 @@ To change how many slots there are, see [The limits and how to change them](jgau
 | `jgauge sizes` | Prints the machine's three sizes, `test_slots`, `short_slots` and `max_running`, each as its caller gets it and where it came from (a flag or `TEST_SLOTS`, `~/.config/jstack/machine.toml` or jbus's config, else derived from the processors of `/proc/stat` and `MemTotal`, or on macOS `hw.ncpu` and `hw.memsize` of `sysctl`), with the derived value beside an override, then room's six lines. [The limits and how to change them](jgauge/change-a-limit.md) has each one. |
 | `jgauge test-slot [--slots N] -- <command>` | Runs the command while it holds one of N machine-wide test slots, and ends with the command's exit code. A slot is a lock file, `~/.local/state/locks/test-slot.<n>.lock`. When all are held it prints `test-slot: waiting for one of <N> slots` on stderr and waits. N is `--slots`, else `TEST_SLOTS`, else `test_slots` in `~/.config/jstack/machine.toml`, else what the machine derives: every slot at once runs at most one desk worker a processor, 4 on most machines of 8 cores or more, 5 on 10, 11 or 15. |
 | `jgauge test-slot --short -- <command>` | The same, in the short lane: one of the slots of its own (`short_slots`, which `jgauge sizes` prints), lock files `~/.local/state/locks/test-slot-short.<n>.lock`, which no full run takes, so a short run never waits behind a full suite. When all are held it prints `test-slot: waiting for one of <n> short slots`. `jgauge` stops a command still running at the lane's time limit (`SHORT_LIMIT_SECONDS`), and the run ends 124 and says so on stderr. It does not take `--slots`. |
-| `jgauge test-slot [--short \| --slots N] --thread <id> -- <command>` | The same, for a thread that must not wait in a call long. In the full lane it tries once; in the short lane it waits up to 120 s in the call. It ends 76 when it has to wait longer ([jgauge test-slot --thread](#jgauge-test-slot---thread)). |
-| `jgauge test-slot --waiters` | Prints the registered waiters, oldest wait first: the thread, the lane, since when, when it was woken, and its command. |
+| `jgauge test-slot [--short \| --slots N] --thread <id> -- <command>` | The same, for a thread that must not wait in a call long. In the full lane it tries once, and with no slot registers the thread as a waiter jbus wakes and ends 76; in the short lane it waits up to 300 s in the call, registers nothing, and with no slot by then ends 76 and says to run it again now ([jgauge test-slot --thread](#jgauge-test-slot---thread)). |
+| `jgauge test-slot --waiters` | Prints the registered waiters of the full lane, oldest wait first: the thread, the lane, since when, when it was woken, and its command. |
 | `jgauge check [--thread <id>] [--wait <seconds>] < <the check command>` | Runs the check command it reads from stdin under a slot of the full lane, and waits on it for up to 540 s ([jgauge check](#jgauge-check)). |
 | `jgauge proof --dir <dir> --kept <head> [--thread <id>] [--wait <seconds>] < <the proof>` | The same for a reviewer's proof, in the short lane, only while the checkout is at `<head>` with no rebase going on (else `unproven:`, exit 1); it runs the proof with `D` set to `<dir>`, prints `exit <n>`, the last 5 lines, `unproven: the head moved under the proof` when the head moved, and `git status --porcelain`, ends 0 on that answer, and keeps `proof.pid`, `proof.out`, `proof.exit`, `proof.key`, `proof.told` and `proof.cmd` in `<dir>`. |
 
@@ -119,13 +119,18 @@ On macOS `jgauge room` and `jgauge test-slot` also skip their sweep of stale pyt
 ### jgauge test-slot --thread
 
 `jgauge test-slot --thread <id>` tries for a slot of the full lane once and never waits in the call.
-In the short lane it waits in the call for up to `SHORT_WAIT_SECONDS`, the lane's time limit of 120 s, the calls that wait take the slots freed in the order they came, and jbus wakes none of them.
 With a slot free, it runs the command as `jgauge test-slot` does and takes the thread out of the waiters.
-A lane can be full, or each free slot can be held for a woken waiter of another thread.
-When that is still so once the call has stopped waiting, it registers the thread as a waiter (thread id, lane, command) in `~/.local/state/locks/test-slot-waiters.json`.
-It prints one line that says it waits and that jbus will wake it, and ends 76.
-When a slot of the lane is free, `jbus poll` sends the oldest waiter on that lane one message (`slotwait.wake`, [jbus](../../jbus/docs/jbus.md)).
+The lane can be full, or each free slot can be held for a woken waiter of another thread.
+Then it registers the thread as a waiter (thread id, lane, command) in `~/.local/state/locks/test-slot-waiters.json`, prints one line that says it waits and that jbus will wake it, and ends 76.
+When a slot of the full lane is free, `jbus poll` sends the oldest waiter one message (`slotwait.wake`, [jbus](../../jbus/docs/jbus.md)).
 The thread then runs the same command again.
+
+In the short lane the call waits for a slot in the call, for up to `SHORT_WAIT_SECONDS`, 300 s, and registers nothing.
+The calls that wait take the slots freed in the order they came, and jbus knows nothing of them and wakes none of them.
+A short slot is held for seconds, so the wait is short.
+A call that has no slot at the ceiling prints one line, that nothing ran and to run the same command again now, in this turn, and ends 76.
+The ceiling, the lane's 120 s run limit and the stop's grace fit in the 10 minutes a thread gives a slot call.
+A short-lane waiter left in the waiters file by an older jgauge is dropped by jbus with one line.
 
 A run that takes its slot is on record in `~/.local/state/locks/test-slot-holders.json` while its command runs.
 The record holds the thread id, the command's pid, the lane, the command and the start.
@@ -140,7 +145,7 @@ If an earlier call started the same check, it joins that run instead.
 It waits on the run for up to 540 s.
 It first prints `started`, `joined` or `checked`, and then one of these:
 
-- `waiting`, exit 76: every slot is taken, and the thread is registered as a waiter, as with `test-slot --thread`.
+- `waiting`, exit 76: every slot is taken, and the thread is registered as a waiter, as with `test-slot --thread` in the full lane.
 - `stale`, exit 75: the worktree changed while the check ran.
 - `done: the check exited <n>`, exit n.
 - `running` or `lost`.
@@ -227,7 +232,7 @@ For each lane it prints:
 ### The slot log
 
 `jgauge test-slot` appends one JSON row to `jgauge/slots.jsonl` beside the lock files' directory, `~/.local/state/jgauge/slots.jsonl`, each time it takes a slot and each time it lets one go, in both lanes, and it moves with the lock files when `JGAUGE_LOCKS_DIR` is set.
-A run with `--thread` that finds no slot and registers as a waiter takes nothing and writes no row.
+A run with `--thread` that finds no slot, and registers as a waiter or ends at the short lane's ceiling, takes nothing and writes no row.
 Each row has:
 
 - `at`, the time in UTC, and `event`, `take` or `release`

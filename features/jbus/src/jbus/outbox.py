@@ -4,7 +4,8 @@ scans the package for any other module that names the tool.
 A sender names the thread, the row the message is about, its retry key, its text, the name of its
 template, and what it needs of the receiver: `act`, where the receiver has work, or `decide`, where
 a person or a home must choose. There is no third kind, since a message that needs neither is not
-sent.
+sent. A message goes in T3 Code's mode `queue`, which starts a turn, but for a template of
+`jbus.t3.STEERS`, which goes in mode `auto`: into a turn the thread already runs, as a steer.
 
 A thread whose instance is capped (`jroles.ledger`) moves to the first instance of its pool with
 headroom, as `jbus.failover` moves a thread that failed, and the message goes there. Asking `capped`
@@ -21,7 +22,8 @@ what the user said. If the account is in fact capped, the turn stops on the limi
 written from that, and `jbus.owed` keeps the ask and sends it again when the account frees.
 
 `send` also holds a message that needs `act` while its receiver cannot act on it now, by the rules
-of `RULES`, the one table of them. A new rule is a row of that table, and no sender checks it:
+of `RULES`, the one table of them, and a message of a template a rule names as the only ones it
+holds, whatever it needs. A new rule is a row of that table, and no sender checks it:
 
 - `held`: the row is held in the queue (`jbus queue hold`, or jbus's own at a check that failed
   at two heads, `jbus.stall.twice`), so its crew gets no rebase, no fix message and no restart
@@ -33,9 +35,13 @@ of `RULES`, the one table of them. A new rule is a row of that table, and no sen
   (`ready.short_of`). A crew puts off what it is told while its review is out (the crew skill's
   "A conflict"), and a home told of the row is not the crew;
 - `busy`: the thread has a turn running (`watch.at_work`), or this pass already sent it a message
-  that needs `act` (`Pass.told`), so a thread gets at most one such message a pass.
+  that needs `act` (`Pass.told`), so a thread gets at most one such message a pass;
+- `idle`: the thread has no turn running. It holds only the templates of `STEERS`, whatever they
+  need: the notice that a merge changed a skill the thread loaded (`jbus.reload`), which asks
+  nothing of the thread but to read the skill again before it next follows it, so it goes only
+  into a turn the thread already runs and never starts one.
 
-The three that read local files come first, and `busy`, which asks T3 Code, last.
+The three that read local files come first, and `busy` and `idle`, which ask T3 Code, last.
 
 A row spares what the receiver must still get while it waits. `slot` and `review` spare the wakes:
 a slot's wake and a pool's (`jbus.slotwait`) and the stall clock's line (`jbus.clock`), so a waiting
@@ -65,7 +71,7 @@ import jsettings
 from jbriefs import meets
 from jbriefs.home import thread_of
 from jbus import dispatch, queue, review, roles
-from jbus.t3 import Client, T3Error
+from jbus.t3 import STEERS, Client, T3Error
 from jbus.watch import at_work, task_brief
 from jgauge import limits, slot, waiters
 from jmerge import ready, rows
@@ -199,12 +205,22 @@ def busy(run: Pass, client: Client, thread: str, row: str = "") -> bool:
     """Say whether the thread has a turn running, as T3 Code says of it now, or was sent a
     message that needs `act` in this pass (`Pass.told`). A thread that T3 Code says nothing of is
     not busy: the send that follows says what T3 Code said of it."""
-    if jsettings.thread_id(thread) in run.told:
-        return True
+    return jsettings.thread_id(thread) in run.told or _turning(client, thread) is True
+
+
+def idle(run: Pass, client: Client, thread: str, row: str = "") -> bool:
+    """Say whether the thread has no turn running, as T3 Code says of it now. A thread that T3
+    Code says nothing of is not idle: the send that follows says what T3 Code said of it."""
+    return _turning(client, thread) is False
+
+
+def _turning(client: Client, thread: str) -> bool | None:
+    """Say whether the thread has a turn running, as T3 Code says of it now, or None where it
+    says nothing of it."""
     try:
         read = client.call("t3_thread_read", {"threadId": thread, "limit": 1})
     except T3Error:
-        return False
+        return None
     return at_work([(read or {}).get("thread") or {}], settled_too=True)
 
 
@@ -252,19 +268,22 @@ RULES = (
     Rule("slot", waiting, WAKES | USERS),
     Rule("review", reviewing, WAKES | ASKS | USERS),
     Rule("busy", busy, USERS),
+    Rule("idle", idle, frozenset(), STEERS),
 )
 """Every rule that holds a message that needs `act`, in the order `send` asks them."""
 
 
 def held(run: Pass, client: Client, thread: str, row: str, template: str, needs: Needs) -> str:
     """Return the name of the first rule of `RULES` that holds a message of this template to the
-    thread about the row now, or nothing. A message that needs `decide` is held by none."""
-    if needs != "act" or not thread:
+    thread about the row now, or nothing. A message that needs `decide` is held only by a rule that
+    names its template in `only`."""
+    if not thread:
         return ""
     rules = (
         rule
         for rule in RULES
-        if template not in rule.spares and (rule.only is None or template in rule.only)
+        if template not in rule.spares
+        and (template in rule.only if rule.only is not None else needs == "act")
     )
     return next((rule.name for rule in rules if rule.holds(run, client, thread, row)), "")
 
@@ -312,7 +331,8 @@ def send(
     if hold(run, client, thread=thread, row=row, key=key, template=template, needs=needs):
         return False
     client.recipients = client.recipients | {thread}
-    asked = {"threadId": thread, "message": text, "mode": "queue", "clientRequestId": key}
+    mode = "auto" if template in STEERS else "queue"
+    asked = {"threadId": thread, "message": text, "mode": mode, "clientRequestId": key}
     client.call("t3_thread_send", asked)
     if needs == "act":
         run.told.add(jsettings.thread_id(thread))

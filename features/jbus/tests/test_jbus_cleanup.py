@@ -13,6 +13,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import time
 
 import pytest
@@ -204,3 +205,31 @@ def test_a_pass_waiting_on_tmp_clears_the_main_checkout_session_folders_that_end
         "1 folders finished crews left, 1 of sessions ended in a main checkout" in line
         for line in said
     ), said
+
+
+@pytest.mark.parametrize("procfs", [True, False], ids=["proc", "no-proc"])
+@pytest.mark.parametrize(
+    "names", [["--resume={}"], ["--session-id", "{}"]], ids=["resume=id", "session-id id"]
+)
+def test_a_pass_waiting_on_tmp_keeps_the_folder_of_a_session_a_running_process_resumes(
+    kitchen, tmp, monkeypatch, procfs, names
+):
+    """T3 Code runs a session in the main checkout with its cwd at the checkout and
+    `--resume=<session id>`, so no path names its folder. The sweep keeps the folder of a session a
+    process resumes, however long nothing wrote in it, and removes an ended one as old; with no
+    /proc, as on macOS, `ps` gives the arguments."""
+    if not procfs:
+        monkeypatch.setattr(cleanup, "ROOT", kitchen.root / "no-proc")
+    old = cleanup.IDLE + 3_600
+    ended = session(tmp, kitchen, "ended", 100_000, old)
+    resumed = session(tmp, kitchen, "resumed", 5_000, old)
+    approved(kitchen, "alpha")
+    given = [name.format(resumed.name) for name in names]
+    command = [sys.executable, "-c", "import time; time.sleep(60)", *given]
+    with subprocess.Popen(command, cwd=kitchen.root) as running:
+        try:
+            said = kitchen.poll()
+        finally:
+            running.kill()
+    assert not ended.exists(), said
+    assert (resumed / "scratchpad" / "blob").exists(), said
