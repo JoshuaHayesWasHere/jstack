@@ -332,3 +332,13 @@ def test_github_s_deleted_files_are_the_ones_it_removes():
         [{"filename": TEST, "status": "removed"}, {"filename": "a.py"}],
     )
     assert full.removed == (TEST,)
+
+
+def test_a_py_file_git_does_not_show_at_both_sides_is_no_docs_and_waits(merged):
+    """jmerge asks git for the base and the head of each `.py` file a `none, docs` line covers:
+    a file the pull request adds has no base, so its change is no docstring's alone."""
+    opened(merged, ("a.py",), "Proved: none, docs\n")
+    (said,) = merged.run()
+    why = ready.PROVED_NOT_KIND.format(kinds="docs", path="a.py")
+    assert said == f"wait 7 {merge.URL}: {why}"
+    assert merged.untouched()

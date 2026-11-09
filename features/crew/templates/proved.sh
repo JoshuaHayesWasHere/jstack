@@ -114,7 +114,7 @@ elif ! tests=$(git diff --name-only --diff-filter=d "$base" HEAD | command grep 
 elif [ -z "$tests" ]; then
     # A .py file whose change is to its docstrings and comments alone is docs, which only its
     # parsed code can tell, so jbriefs names the kinds (`jbriefs.proved.none_kinds`).
-    if line=$(uv run --project "$T/../source" jbriefs --proved-none "$base" "$head"); then
+    if line=$(uv run --project "$T/../source" jbriefs --proved-none "$base..$head"); then
         echo "$line"
         if command grep -q '^## Result' "$B"; then printf '%s\n' "$line" >> "$B"; fi
     else

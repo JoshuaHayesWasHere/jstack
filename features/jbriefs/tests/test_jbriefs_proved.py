@@ -5,7 +5,7 @@ own tests over its base's patches and its head's."""
 
 import subprocess
 
-from jbriefs import proved
+from jbriefs import cli, proved
 from jmerge import ready
 
 HEAD = "d" * 40
@@ -173,3 +173,46 @@ def test_a_docstring_only_py_change_is_no_config():
     )
     said = ready.short_on_proved(result("Proved: none, config"), pull, prose=lambda path: True)
     assert said == ready.PROVED_NOT_KIND.format(kinds="config", path="children.py")
+
+
+def test_a_file_added_deleted_or_unparsable_is_not_prose():
+    assert not proved.prose_only(None, CHILDREN)
+    assert not proved.prose_only(CHILDREN, None)
+    assert not proved.prose_only("def (:\n", "def (:\n")
+
+
+def test_a_statement_that_is_a_call_and_not_a_string_is_code():
+    assert not proved.prose_only(CHILDREN, CHILDREN + "\nprint(LIMIT)\n")
+    assert proved.prose_only(CHILDREN + "\nprint(LIMIT)\n", CHILDREN + "\nprint(LIMIT)  # it\n")
+
+
+def test_a_head_that_shares_no_commit_with_its_base_is_not_prose(tmp_path):
+    pull, _ = _changed(tmp_path, DOCS_ONLY)
+    assert not proved.prose_in(str(tmp_path), "origin/gone", pull.head)("children.py")
+
+
+def test_none_kinds_names_each_kind_in_order_or_the_first_file_of_none():
+    assert proved.none_kinds(["pyproject.toml", "README.md"]) == (("docs", "config"), "")
+    assert proved.none_kinds(["README.md", "a.py", "b.py"]) == ((), "a.py")
+    assert proved.none_kinds(["a.py"], lambda path: True) == (("docs",), "")
+
+
+def test_proved_none_prints_the_line_of_a_docstring_change(tmp_path, monkeypatch, capsys):
+    pull, _ = _changed(tmp_path, DOCS_ONLY)
+    monkeypatch.chdir(tmp_path)
+    assert cli.main(["--proved-none", f"origin/main..{pull.head}"]) == 0
+    assert capsys.readouterr().out == "Proved: none, docs\n"
+
+
+def test_proved_none_names_the_file_of_no_kind_and_exits_1(tmp_path, monkeypatch, capsys):
+    pull, _ = _changed(tmp_path, DOCS_ONLY.replace("[:LIMIT]", "[: LIMIT + 1]"))
+    monkeypatch.chdir(tmp_path)
+    assert cli.main(["--proved-none", f"origin/main..{pull.head}"]) == 1
+    assert capsys.readouterr().out == "no kind: children.py\n"
+
+
+def test_proved_none_of_a_range_git_cannot_read_exits_1(tmp_path, monkeypatch, capsys):
+    _changed(tmp_path, DOCS_ONLY)
+    monkeypatch.chdir(tmp_path)
+    assert cli.main(["--proved-none", "origin/gone..HEAD"]) == 1
+    assert capsys.readouterr().out.startswith("no kind: git diff origin/gone HEAD failed")

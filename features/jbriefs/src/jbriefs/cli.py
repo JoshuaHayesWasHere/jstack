@@ -202,8 +202,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--proved-none",
-        nargs=2,
-        metavar=("BASE", "HEAD"),
+        metavar="BASE..HEAD",
         help="print the `Proved: none, <kinds>` line of the change from BASE to HEAD in this "
         "repo, a .py file whose change is to its docstrings and comments alone being docs, or, "
         "exiting 1, the first file of no kind; write no page",
@@ -225,7 +224,8 @@ def main(argv: list[str] | None = None) -> int:
     if (args.left or args.rounds) and not args.findings:
         parser.error("--left and --rounds go with --findings")
     if args.proved_none:
-        return proved_none_main(*args.proved_none)
+        base, _, head = args.proved_none.partition("..")
+        return proved_none_main(base, head)
     if args.propose:
         return propose_main(args.propose.expanduser())
     if args.runnable:
