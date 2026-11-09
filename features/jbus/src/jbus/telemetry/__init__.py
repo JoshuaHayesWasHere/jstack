@@ -6,7 +6,8 @@ the jbus logs, the CI ledger, the home's `merge.log`, the records `jbus.history`
 `jbus.spent` keep, six snapshots, the machine's log of its passes, each
 launch's arm (`jbus.telemetry.launches`), the messages of T3 Code's threads
 (`jbus.telemetry.messages`), the gate labels a scout writes each week
-(`jbus.telemetry.labels`), and the crew first load of each install it saw
+(`jbus.telemetry.labels`), the gh calls of each hour from the machine's call log
+(`jbus.telemetry.ghcalls`), and the crew first load of each install it saw
 (`jbus.telemetry.firstload`). Its views give the KPIs (`jbus.telemetry.views`). It keeps a row
 forever, save a gate label its week's file replaces, and keeps no text of a message: ids, times,
 counts, labels and the length of each text.
@@ -54,6 +55,7 @@ from jbus import verbs
 from jbus.telemetry import (
     cursors,
     firstload,
+    ghcalls,
     kpis,
     labels,
     launches,
@@ -337,6 +339,7 @@ def build(config: jbus.Config, where: Path | None = None, most: int | None = Non
             read(connection, name, source, file, zone, built)
         messages.read(connection, config, zone, built, most)
         launches.read(connection, config, zone, built)
+        ghcalls.read(connection, config, built, most)
         labels.read(connection, config, built)
         _tokens(config, connection, zone, most, built)
         built.rows[firstload.TABLE] += firstload.keep(connection, zone)
