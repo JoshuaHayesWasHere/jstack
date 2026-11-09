@@ -33,7 +33,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from repo_standard.config import Config, Refused, Stack
-from repo_standard.rules import node_browser
+from repo_standard.rules import Repo, node_browser
 from repo_standard.stacks import TITLE, WHOLE, deal, within
 from repo_standard.tree import tracked
 
@@ -87,15 +87,11 @@ def test_dirs(config: Config, root: Path) -> tuple[str, ...]:
     module = node_browser(root) if roots else None
     if module is None:
         return tuple(roots)
-    files = set(tracked(root))
-
-    def read(path: str) -> str:
-        try:
-            return (root / path).read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
-            return ""
-
-    return tuple(module.Runner(at, script, files, read).test_dir for at, script in roots.items())
+    repo = Repo(root, config, tracked(root))
+    return tuple(
+        module.Runner(at, script, set(repo.paths), repo.read).test_dir
+        for at, script in roots.items()
+    )
 
 
 def split(
