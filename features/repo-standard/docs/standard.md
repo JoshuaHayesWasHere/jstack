@@ -343,7 +343,9 @@ The selected browser tests run in a job of their own, on the built app with a mo
 A browser test that passes only on a retry fails the job: a retry may keep a trace, and never turns a flaky test green.
 
 **In jstack** `.github/workflows/check.yml` runs on each push of a pull request, a draft too, and a new push cancels the older run.
-Its `reuse` job runs `python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD`, which deals the selected files out to eight parts, or `all` where the change forces it.
+Its `reuse` job runs `python3 scripts/select_tests.py --pull-request --parts 8 HEAD^1 HEAD`, which deals the selected files out to eight parts, or `all` where the change forces it.
+`--pull-request` has an import reach only the tests near the change: the tests that import a changed module, and those that import a module that names a name the diff touched.
+A push to main keeps the wide rule, and the nightly full suite catches what either leaves out.
 Its `lint` job runs `features/writing/scripts/prose_lint.py HEAD^1` and `make lint BASE=HEAD^1`.
 Its `check-shard` job runs `make test TESTS=<part>` in each of the eight parts.
 
