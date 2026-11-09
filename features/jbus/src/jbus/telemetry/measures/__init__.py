@@ -202,14 +202,10 @@ def _state(measure: Measure, value: float | None, n: int, mean: float | None) ->
                 return "none"
             past = _worse(measure.better, value, at)
         case Trend(by):
-            if n == 0:
-                return "none"
-            line = (
-                None
-                if mean is None
-                else mean * (1 + by / 100 if measure.better == "lower" else 1 - by / 100)
+            step = by / 100 if measure.better == "lower" else -by / 100
+            past = (
+                mean is not None and mean != 0 and _worse(measure.better, value, mean * (1 + step))
             )
-            past = line is not None and mean != 0 and _worse(measure.better, value, line)
     if past:
         return "bad"
     return "watch" if _worse(measure.better, value, measure.baseline) else "ok"
