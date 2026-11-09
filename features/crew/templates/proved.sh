@@ -84,7 +84,7 @@ prove_fork() {
                 code=$?
                 [ "$code" -gt "$worst" ] && worst=$code
             done
-            echo "$side exit $worst: $(command grep -E "^ *Tests +[0-9]" "$PROOF_TREE/.proof-$side" | tr -s " " | paste -sd ";" -)"
+            echo "$side exit $worst: $(command grep -E "^ *Tests +[0-9]" "$PROOF_TREE/.proof-$side" | tr -s " " | paste -sd , -)"
         done
     ' | tee "$tree/.proof-said"
     ran=${PIPESTATUS[0]}
