@@ -26,6 +26,7 @@ from test_portable_shell import GNU_SED
 from testing.paths import REPO
 
 RUNS = {"run", "Popen", "check_call", "check_output", "call", "getoutput", "getstatusoutput"}
+READ_SET = ("features/*/tests/", "testing/tests/")
 LOADERS = {"CDLL", "PyDLL", "LoadLibrary"}
 SED_RULES = [re.compile(pattern) for pattern, _ in GNU_SED]
 PLATFORM = re.compile(r"\bplatform\b|\bMAC\b|\bwhich\(")
