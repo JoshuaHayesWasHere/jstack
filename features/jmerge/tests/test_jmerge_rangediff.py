@@ -978,9 +978,14 @@ def test_a_tests_only_push_on_the_reviewed_head_keeps_its_review(proven_merged, 
 
 def test_a_tests_only_push_still_waits_on_its_proved_line(proven_merged, rules):
     fix = CiFix(proven_merged, {15: "what the check asked for"}, files=(FILE, TEST), path=TEST)
-    (said,) = run.jmerge(proven_merged, rules)
-    assert said.startswith(f"wait 7 {merge.URL}: ") and "Proved" in said
+    assert run.jmerge(proven_merged, rules) == [
+        f"wait 7 {merge.URL}: it changes {TEST}, and its Result has no Proved: line that "
+        "shows them fail at its base and pass at its head"
+    ]
     assert run.merges(proven_merged) == []
+    fix.brief(run.proven("clean", fix.before), proved(fix.before, fix.base, (TEST,)))
+    (said,) = run.jmerge(proven_merged, rules)
+    assert said.startswith(f"wait 7 {merge.URL}: its Proved: line ")
 
 
 def test_a_tests_only_push_with_one_code_file_waits_for_a_scoped_review(proven_merged, rules):
