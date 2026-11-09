@@ -1,0 +1,795 @@
+From 87b6834dec53fcbfb3f1527690589c220a9b3b9d Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@gmail.com>
+Date: Mon, 9 Nov 2026 14:50:07 -0500
+Subject: [PATCH] feat(web): a jstack task held for your go or your accept,
+ launched or not, unfolds why with read and approve or read and accept
+
+jbus's work.json names the word that lifts a row in `lift` (approve, accept) and why it holds in `why`, so the tree reads both and keeps no rule of its own. A launched task whose brief changed after the go shows the lines that changed, and Approve sends the go for the sha the user read; a pull request jmerge holds for --accept gets Accept the same way.
+---
+ apps/server/src/jstack/jbusWork.logic.test.ts |  17 +-
+ apps/server/src/jstack/jbusWork.logic.ts      |  20 +-
+ apps/web/src/components/Sidebar.tsx           |  11 +-
+ .../components/sidebar/JstackBriefDialog.tsx  |  66 +++++--
+ .../sidebar/JstackTreeRows.browser.test.tsx   | 177 +++++++++++++++++-
+ .../src/components/sidebar/JstackTreeRows.tsx |  32 +++-
+ .../components/sidebar/jstackHomeActions.ts   |   2 +-
+ .../sidebar/jstackTree.logic.test.ts          |  24 ++-
+ .../components/sidebar/jstackTree.logic.ts    |  27 ++-
+ packages/contracts/src/jbusWork.ts            |  21 ++-
+ 10 files changed, 348 insertions(+), 49 deletions(-)
+
+diff --git a/apps/server/src/jstack/jbusWork.logic.test.ts b/apps/server/src/jstack/jbusWork.logic.test.ts
+index cce53e9fd6..cf4b79453d 100644
+--- a/apps/server/src/jstack/jbusWork.logic.test.ts
++++ b/apps/server/src/jstack/jbusWork.logic.test.ts
+@@ -62,7 +62,7 @@ describe("buildRepoWork", () => {
+     expect(result.tasks.map((task) => task.homeThreadId)).not.toContain("mcp:root");
+   });
+ 
+-  it("waits on the user only for a question, an approval or a hold", () => {
++  it("waits on the user only for a question, the word jbus names in `lift`, or a hold", () => {
+     const lost = (slug: string, thread: string) =>
+       row(slug, "lost", "running", {
+         who: "user",
+@@ -72,7 +72,15 @@ describe("buildRepoWork", () => {
+     const work = {
+       work: [
+         row("asking", "asking", "gate", { who: "user", waits: "your answer" }),
+-        row("unapproved", "unapproved", "queued", { thread: "", who: "user" }),
++        row("unapproved", "unapproved", "queued", { thread: "", who: "user", lift: "approve" }),
++        // Launched, its brief changed after the go: jbus names the go, whatever the stage.
++        row("changed", "hold", "hold", {
++          who: "user",
++          lift: "approve",
++          waits: "your go for its brief at 3f2a9c01b7de",
++          why: "its brief changed after your go: Done when: the sidebar shows it",
++        }),
++        row("accept", "hold", "hold", { who: "user", lift: "accept", pr: "#9" }),
+         row("held", "hold", "hold", { who: "user", waits: "your word" }),
+         // jbus reads a launched thread T3 does not list yet as starting, held by the crew.
+         row("launching", "launching", "running", { facts: { thread: "starting" } }),
+@@ -90,6 +98,8 @@ describe("buildRepoWork", () => {
+     expect(result.tasks.map((task) => [task.slug, task.waitsOn])).toEqual([
+       ["asking", "answer"],
+       ["unapproved", "approval"],
++      ["changed", "approval"],
++      ["accept", "accept"],
+       ["held", "word"],
+       ["launching", null],
+       ["leftover", null],
+@@ -100,6 +110,9 @@ describe("buildRepoWork", () => {
+       ["unknown", null],
+       ["ended", null],
+     ]);
++    expect(result.tasks.find((task) => task.slug === "changed")?.why).toBe(
++      "its brief changed after your go: Done when: the sidebar shows it",
++    );
+   });
+ 
+   it("carries who holds each row's next move, so the tree says stalled only of a crew that owes it", () => {
+diff --git a/apps/server/src/jstack/jbusWork.logic.ts b/apps/server/src/jstack/jbusWork.logic.ts
+index 29c42ab8c3..bde6068bff 100644
+--- a/apps/server/src/jstack/jbusWork.logic.ts
++++ b/apps/server/src/jstack/jbusWork.logic.ts
+@@ -139,12 +139,17 @@ const holdsOf = (files: Pick<JbusRepoFiles, "waiting" | "held">): Holds => {
+   return { bySlug, byPull };
+ };
+ 
+-/** What a row waits on the user for, from jbus's `value` and `who` (features/jbus/src/jbus/work.py). */
+-const waitsOnOf = (value: string, who: unknown): JbusWaitsOn | null => {
+-  if (who !== "user") return null;
+-  if (value === "unapproved") return "approval";
+-  if (value === "asking") return "answer";
+-  if (value === "hold") return "word";
++/**
++ * What a row waits on the user for, from jbus's `who`, `lift` and `value`
++ * (features/jbus/src/jbus/work.py): the word jbus names in `lift` first, which the sidebar draws
++ * as a button, then a gate's answer, then another hold no button lifts.
++ */
++const waitsOnOf = (row: Record<string, unknown>): JbusWaitsOn | null => {
++  if (row.who !== "user") return null;
++  if (row.lift === "approve") return "approval";
++  if (row.lift === "accept") return "accept";
++  if (row.value === "asking") return "answer";
++  if (row.value === "hold") return "word";
+   return null;
+ };
+ 
+@@ -206,9 +211,10 @@ export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnap
+       slug,
+       threadId: threadIdOf(row.thread),
+       homeThreadId,
+-      waitsOn: waitsOnOf(text(row.value) ?? "", row.who),
++      waitsOn: waitsOnOf(row),
+       who: text(row.who) ?? "",
+       waits: text(row.waits) ?? "",
++      why: text(row.why) ?? "",
+       brief: files.briefTitles.get(slug) ?? null,
+     };
+     const scouting = scoutingOf(row);
+diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
+index aa16c62399..83d96c4584 100644
+--- a/apps/web/src/components/Sidebar.tsx
++++ b/apps/web/src/components/Sidebar.tsx
+@@ -1550,7 +1550,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+       }
+     });
+   };
+-  // A row's approve, remove or answer, told to the task's home as the user's own message.
++  // A row's approve, accept, remove or answer, told to the task's home as the user's own message.
+   const sendJstackRowWord = async (
+     homeThreadId: ThreadId,
+     homeName: string,
+@@ -1670,6 +1670,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+         homeThreadId: row.homeThreadId,
+         homeName: row.homeName,
+         approvable: row.approvable,
++        accepts: row.acceptable ? row.pullRequest : null,
++        why: row.ask?.why ?? null,
+       });
+     },
+     onRemoveTask: (row) => {
+@@ -4068,6 +4070,13 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+             sha,
+           })
+         }
++        onAccept={(target, pullRequest) =>
++          sendJstackRowWord(target.homeThreadId, target.homeName, {
++            kind: "accept",
++            slug: target.slug,
++            pullRequest,
++          })
++        }
+       />
+     </>
+   );
+diff --git a/apps/web/src/components/sidebar/JstackBriefDialog.tsx b/apps/web/src/components/sidebar/JstackBriefDialog.tsx
+index 6b7aaa10bb..d471093a8a 100644
+--- a/apps/web/src/components/sidebar/JstackBriefDialog.tsx
++++ b/apps/web/src/components/sidebar/JstackBriefDialog.tsx
+@@ -16,9 +16,10 @@ import {
+ import { JstackBriefView } from "./JstackBriefView";
+ import { jstackTaskRowKey } from "./jstackTree.logic";
+ 
+-// jstack fork: "Open brief" on a tree row. It shows the copy of the brief jbus keeps, which an
+-// approval is checked against, drawn as what it says, and approves that copy by its sha through
+-// the task's home. A row it links to is shown in the tree as the dialog closes.
++// jstack fork: "Open brief" on a tree row shows the copy of the brief jbus keeps, under why jbus
++// waits on the user, and approves that copy by its sha through the task's home, queued or
++// launched; a pull request jmerge holds for an accept gets Accept the same way. A row it links to
++// is shown in the tree as the dialog closes.
+ 
+ export interface JstackBriefTarget {
+   readonly environmentId: EnvironmentId;
+@@ -31,6 +32,10 @@ export interface JstackBriefTarget {
+   readonly homeName: string;
+   /** jbus waits on the user's approval of this brief. */
+   readonly approvable: boolean;
++  /** jbus waits on the user's accept of this pull request, `#<n>`; null for none. */
++  readonly accepts: string | null;
++  /** Why jbus waits on the user, in its words, such as the lines that changed since the go. */
++  readonly why: string | null;
+ }
+ 
+ type Read =
+@@ -72,23 +77,24 @@ function describe(shown: JstackBriefShown): string {
+   if (read.brief.text === null) return "jbus keeps no brief for this task.";
+   if (target.kind === "scout") return "The brief its home wrote for this scout.";
+   const approve = target.approvable ? ` Approve sends ${target.homeName} your go for it.` : "";
+-  return `The copy jbus keeps, brief sha ${read.brief.sha}.${approve}`;
++  const accept =
++    target.accepts === null
++      ? ""
++      : ` Accept sends ${target.homeName} your accept of ${target.accepts}, which jmerge merges.`;
++  return `The copy jbus keeps, brief sha ${read.brief.sha}.${approve}${accept}`;
+ }
+ 
+-/** Approve, which waits on its send; a new brief draws a new one. */
+-function ApproveButton(props: {
+-  sha: string | null;
+-  onApprove: (sha: string) => Promise<boolean>;
+-}) {
+-  const [approving, setApproving] = useState(false);
+-  const approve = async () => {
+-    if (props.sha === null || approving) return;
+-    setApproving(true);
+-    if (!(await props.onApprove(props.sha))) setApproving(false);
++/** A button that waits on its send; a new brief draws a new one. */
++function SendButton(props: { label: string; ready: boolean; onSend: () => Promise<boolean> }) {
++  const [sending, setSending] = useState(false);
++  const send = async () => {
++    if (!props.ready || sending) return;
++    setSending(true);
++    if (!(await props.onSend())) setSending(false);
+   };
+   return (
+-    <Button size="row" disabled={props.sha === null || approving} onClick={() => void approve()}>
+-      {approving ? "Sending..." : "Approve this brief"}
++    <Button size="row" disabled={!props.ready || sending} onClick={() => void send()}>
++      {sending ? "Sending..." : props.label}
+     </Button>
+   );
+ }
+@@ -98,6 +104,8 @@ export function JstackBriefDialog(props: {
+   onClose: () => void;
+   /** Sends the task's home its approval of the brief with this sha; true once sent. */
+   onApprove: (target: JstackBriefTarget, sha: string) => Promise<boolean>;
++  /** Sends the task's home its accept of the pull request `#<n>`; true once sent. */
++  onAccept: (target: JstackBriefTarget, pullRequest: string) => Promise<boolean>;
+   /** The tree has this task of the repo, so a link can show it. */
+   revealable: (repo: string, slug: string) => boolean;
+   /** Unfolds the tree to this task and selects its row. */
+@@ -105,6 +113,7 @@ export function JstackBriefDialog(props: {
+ }) {
+   const { shown } = props;
+   const brief = shown?.read.status === "read" ? shown.read.brief : null;
++  const sha = brief?.sha ?? null;
+   const target = shown?.target ?? null;
+   // The row a link showed, which takes the focus as the dialog closes.
+   const revealed = useRef<string | null>(null);
+@@ -131,6 +140,9 @@ export function JstackBriefDialog(props: {
+           <DialogDescription size="compact">
+             {shown === null ? "" : describe(shown)}
+           </DialogDescription>
++          {target?.why ? (
++            <p className="text-xs text-warning-foreground">Waits on you: {target.why}</p>
++          ) : null}
+         </DialogHeader>
+         <DialogPanel>
+           {brief?.text && target ? (
+@@ -146,11 +158,25 @@ export function JstackBriefDialog(props: {
+           <Button variant="outline" size="row" onClick={props.onClose}>
+             Close
+           </Button>
++          {target !== null && target.accepts !== null ? (
++            <SendButton
++              key={`accept ${target.repo}/${target.slug}`}
++              label={`Accept ${target.accepts}`}
++              ready={brief !== null}
++              onSend={async () => {
++                const sent = await props.onAccept(target, target.accepts ?? "");
++                if (sent) props.onClose();
++                return sent;
++              }}
++            />
++          ) : null}
+           {target?.approvable ? (
+-            <ApproveButton
+-              key={`${target.repo}/${target.slug}`}
+-              sha={brief?.sha ?? null}
+-              onApprove={async (sha) => {
++            <SendButton
++              key={`approve ${target.repo}/${target.slug}`}
++              label="Approve this brief"
++              ready={sha !== null}
++              onSend={async () => {
++                if (sha === null) return false;
+                 const sent = await props.onApprove(target, sha);
+                 if (sent) props.onClose();
+                 return sent;
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+index 3afda4861f..d064929363 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+@@ -19,6 +19,7 @@ import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
+ import { makeThreadFixture } from "../../test-fixtures";
+ import { buildJstackTree, childHomeMessage, type JstackAnswering } from "./jstackTree.logic";
+ import { useJstackPinnedHomes } from "./jstackPinnedHomes";
++import { JstackBriefDialog, type JstackBriefTarget } from "./JstackBriefDialog";
+ import { JstackTreeRowView, type JstackTreeRowActions } from "./JstackTreeRows";
+ 
+ const environmentId = EnvironmentId.make("environment-local");
+@@ -124,6 +125,7 @@ const crewTask = (slug: string, home: string) => ({
+   waitsOn: null,
+   who: "crew",
+   waits: "",
++  why: "",
+   brief: null,
+   held: null,
+ });
+@@ -307,8 +309,13 @@ const ASKING: JbusWorkSnapshot = {
+ };
+ 
+ /** The tree with the sidebar home open, as the user had it, and a flow home that asks. */
+-function AskingTree(props: { spies: JstackTreeRowActions }) {
++function AskingTree(props: {
++  spies: JstackTreeRowActions;
++  snapshot?: JbusWorkSnapshot;
++  more?: ReadonlyArray<ReturnType<typeof makeThreadFixture>>;
++}) {
+   const threads = [
++    ...(props.more ?? []),
+     rootThread,
+     { ...flowThread, hasPendingUserInput: true },
+     makeThreadFixture({ environmentId, projectId, id: sidebarHome }),
+@@ -324,7 +331,7 @@ function AskingTree(props: { spies: JstackTreeRowActions }) {
+     folderRowId: "folder:jstack",
+     noProject: false,
+     memberProjectRefs: [{ environmentId, projectId }],
+-    snapshot: ASKING,
++    snapshot: props.snapshot ?? ASKING,
+     threadsById: new Map(threads.map((thread) => [thread.id, thread] as const)),
+     folderThreads: [],
+     hiddenThreads: [],
+@@ -459,6 +466,171 @@ const homeItem = (screen: Screen, scope: string) =>
+ const homeLine = (screen: Screen, scope: string) =>
+   homeItem(screen, scope).element().closest("li")!;
+ 
++/**
++ * What jbus said on 2026-11-09 of sidebar-home-from-jbus: it launched and opened its pull
++ * request, then its brief changed after the user's go, so jmerge held it for no go. Beside it, a
++ * pull request jmerge holds for the user's `--accept`.
++ */
++const CHANGED_WHY = "its brief changed after your go: Done when: the tree reads homes from jbus";
++const HELD: JbusWorkSnapshot = {
++  ...ASKING,
++  tasks: [
++    {
++      ...crewTask("sb-home-from-jbus", "sidebar"),
++      stage: "review",
++      pullRequest: "#1421",
++      waitsOn: "approval",
++      who: "user",
++      waits: "your go for its brief at 3f2a9c01b7de",
++      why: CHANGED_WHY,
++    },
++    {
++      ...crewTask("sb-prod-touch", "sidebar"),
++      stage: "review",
++      pullRequest: "#9",
++      waitsOn: "accept",
++      who: "user",
++      waits: "your accept of #9 (jmerge --accept 9)",
++      why: "hold: needs joshua, touches infra/prod.tf",
++    },
++  ],
++  gates: [],
++};
++const heldThreads = ["sb-home-from-jbus", "sb-prod-touch"].map((slug) =>
++  makeThreadFixture({ environmentId, projectId, id: ThreadId.make(`crew-${slug}`) }),
++);
++
++const BRIEF_TEXT = [
++  "# sb-home-from-jbus: the tree reads homes from jbus",
++  'Task: "read homes from jbus"',
++  "Done when:",
++  "- the tree reads homes from jbus",
++  "",
++].join("\n");
++
++function BriefDialog(props: {
++  target: JstackBriefTarget;
++  onApprove: (target: JstackBriefTarget, sha: string) => Promise<boolean>;
++  onAccept: (target: JstackBriefTarget, pullRequest: string) => Promise<boolean>;
++}) {
++  return (
++    <JstackBriefDialog
++      shown={{
++        target: props.target,
++        read: {
++          status: "read",
++          brief: { repo: "jstack", slug: props.target.slug, text: BRIEF_TEXT, sha: "9e1d0c4b7a21" },
++        },
++      }}
++      onClose={() => undefined}
++      onApprove={props.onApprove}
++      onAccept={props.onAccept}
++      revealable={() => false}
++      onReveal={() => undefined}
++    />
++  );
++}
++
++describe("JstackTreeRowView a launched task held for your word", () => {
++  it("unfolds why a launched task waits on your go, with read and approve, as a queued one does", async () => {
++    const spies = actions();
++    await using screen = await render(
++      <AskingTree spies={spies} snapshot={HELD} more={heldThreads} />,
++      { router: false },
++    );
++    const row = screen.getByRole("button", { name: /^sb-home-from-jbus asks you/ });
++    await userEvent.click(row);
++    await expect.element(row).toHaveAttribute("aria-expanded", "true");
++    expect(spies.onOpenThread).not.toHaveBeenCalled();
++    await expect
++      .element(screen.getByText("waits on your go for its brief at 3f2a9c01b7de"))
++      .toBeVisible();
++    await expect.element(screen.getByText(`Why: ${CHANGED_WHY}`)).toBeVisible();
++    expect(screen.getByText("read and accept").elements()).toHaveLength(0);
++    await userEvent.click(screen.getByText("read and approve"));
++    expect(spies.onOpenBrief).toHaveBeenLastCalledWith(
++      expect.objectContaining({
++        slug: "home-from-jbus",
++        prefix: "sb-",
++        approvable: true,
++        acceptable: false,
++        pullRequest: "#1421",
++        ask: expect.objectContaining({ why: CHANGED_WHY }),
++      }),
++    );
++  });
++
++  it("unfolds a pull request held for your accept, with read and accept", async () => {
++    const spies = actions();
++    await using screen = await render(
++      <AskingTree spies={spies} snapshot={HELD} more={heldThreads} />,
++      { router: false },
++    );
++    await userEvent.click(screen.getByRole("button", { name: /^sb-prod-touch asks you/ }));
++    await expect
++      .element(screen.getByText("Why: hold: needs joshua, touches infra/prod.tf"))
++      .toBeVisible();
++    await userEvent.click(screen.getByText("read and accept"));
++    expect(spies.onOpenBrief).toHaveBeenLastCalledWith(
++      expect.objectContaining({
++        slug: "prod-touch",
++        approvable: false,
++        acceptable: true,
++        pullRequest: "#9",
++      }),
++    );
++  });
++
++  it("shows what changed since the go above the brief, and Approve sends the sha the user read", async () => {
++    const onApprove = vi.fn(async () => true);
++    const onAccept = vi.fn(async () => true);
++    const target: JstackBriefTarget = {
++      environmentId,
++      repo: "jstack",
++      kind: "crew",
++      slug: "sb-home-from-jbus",
++      homeThreadId: sidebarHome,
++      homeName: "the sidebar home",
++      approvable: true,
++      accepts: null,
++      why: CHANGED_WHY,
++    };
++    await using screen = await render(
++      <BriefDialog target={target} onApprove={onApprove} onAccept={onAccept} />,
++      { router: false },
++    );
++    await expect.element(screen.getByText(`Waits on you: ${CHANGED_WHY}`)).toBeVisible();
++    expect(screen.getByRole("button", { name: /^Accept/ }).elements()).toHaveLength(0);
++    await userEvent.click(screen.getByRole("button", { name: "Approve this brief" }));
++    expect(onApprove).toHaveBeenCalledWith(target, "9e1d0c4b7a21");
++    expect(onAccept).not.toHaveBeenCalled();
++  });
++
++  it("Accept sends the accept of the pull request jmerge holds", async () => {
++    const onApprove = vi.fn(async () => true);
++    const onAccept = vi.fn(async () => true);
++    const target: JstackBriefTarget = {
++      environmentId,
++      repo: "jstack",
++      kind: "crew",
++      slug: "sb-prod-touch",
++      homeThreadId: sidebarHome,
++      homeName: "the sidebar home",
++      approvable: false,
++      accepts: "#9",
++      why: "hold: needs joshua, touches infra/prod.tf",
++    };
++    await using screen = await render(
++      <BriefDialog target={target} onApprove={onApprove} onAccept={onAccept} />,
++      { router: false },
++    );
++    expect(screen.getByRole("button", { name: "Approve this brief" }).elements()).toHaveLength(0);
++    await userEvent.click(screen.getByRole("button", { name: "Accept #9" }));
++    expect(onAccept).toHaveBeenCalledWith(target, "#9");
++    expect(onApprove).not.toHaveBeenCalled();
++  });
++});
++
+ describe("JstackTreeRowView idle homes", () => {
+   it("lists nothing an idle home merged, and opens the home by keyboard, from its menu and by mouse", async () => {
+     const spies = actions();
+@@ -524,6 +696,7 @@ const scoutTask = (slug: string, scouting: "queued" | "scouting" | "report in")
+   waitsOn: null,
+   who: "scout",
+   waits: "",
++  why: "",
+   brief: null,
+   held: null,
+ });
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+index f49726ebdd..9eae0c0f4f 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+@@ -61,7 +61,7 @@ export interface JstackTreeRowActions {
+   readonly onSendChildHome: (row: NewHomeRow, scope: string, owns: string) => Promise<boolean>;
+   /** Forgets a scope the sidebar asked for that the root home has not made. */
+   readonly onDismissStartingHome: (repo: string, scope: string) => void;
+-  /** Shows the brief jbus keeps for a task, with Approve while jbus waits on it. */
++  /** Shows the brief jbus keeps for a task, with Approve or Accept while jbus waits on it. */
+   readonly onOpenBrief: (row: WorkerRow) => void;
+   /** Asks the user, then tells the task's home to remove it from the queue. */
+   readonly onRemoveTask: (row: WorkerRow) => void;
+@@ -765,6 +765,14 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+         ...(row.waited?.kind === "held"
+           ? [{ label: capitalized(waitedText(row.waited)), header: true, run: () => undefined }]
+           : []),
++        ...(row.ask !== null && threadId !== null
++          ? [
++              {
++                label: unfolded ? "Hide what it asks" : "Show what it asks",
++                run: () => setUnfolded(!unfolded),
++              },
++            ]
++          : []),
+         ...(threadId !== null
+           ? [{ label: "Open thread", run: () => actions.onOpenThread(threadId) }]
+           : row.ask === null
+@@ -782,6 +790,7 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+         // The brief is what a go names, so approving it is done where it is read.
+         { label: "Open brief", separatorBefore: true, run: () => actions.onOpenBrief(row) },
+         ...(row.approvable ? [{ label: "Approve...", run: () => actions.onOpenBrief(row) }] : []),
++        ...(row.acceptable ? [{ label: "Accept...", run: () => actions.onOpenBrief(row) }] : []),
+         ...(row.gate === null
+           ? []
+           : [{ label: "Answer...", run: () => actions.onOpenAnswer(row) }]),
+@@ -863,6 +872,9 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+             {row.ask !== null && unfolded ? (
+               <div className="mb-1 ml-2 border-l border-warning/50 py-0.5 pr-2 pl-2 text-2xs">
+                 <p className="text-sidebar-foreground/75">{row.ask.what}</p>
++                {row.ask.why === null ? null : (
++                  <p className="text-sidebar-muted-foreground">Why: {row.ask.why}</p>
++                )}
+                 {row.ask.default === null ? null : (
+                   <p className="text-sidebar-muted-foreground">Default: {row.ask.default}</p>
+                 )}
+@@ -876,9 +888,13 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+                     onClick={() => actions.onOpenThread(row.openThreadId)}
+                     className="text-sidebar-muted-foreground underline-offset-2 hover:text-sidebar-foreground hover:underline"
+                   >
+-                    {row.ask.askedIn === null ? "open its home" : `asked in ${row.ask.askedIn}`}
++                    {threadId !== null
++                      ? "open its thread"
++                      : row.ask.askedIn === null
++                        ? "open its home"
++                        : `asked in ${row.ask.askedIn}`}
+                   </button>
+-                  {/* For the pointer: the row's menu has Answer and Approve for the keyboard. */}
++                  {/* For the pointer: the row's menu has Answer, Approve and Accept for the keyboard. */}
+                   {row.gate !== null && !row.answering ? (
+                     <button
+                       type="button"
+@@ -899,6 +915,16 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+                       read and approve
+                     </button>
+                   ) : null}
++                  {row.acceptable ? (
++                    <button
++                      type="button"
++                      tabIndex={-1}
++                      onClick={() => actions.onOpenBrief(row)}
++                      className="text-sidebar-muted-foreground underline-offset-2 hover:text-sidebar-foreground hover:underline"
++                    >
++                      read and accept
++                    </button>
++                  ) : null}
+                 </span>
+               </div>
+             ) : null}
+diff --git a/apps/web/src/components/sidebar/jstackHomeActions.ts b/apps/web/src/components/sidebar/jstackHomeActions.ts
+index a3a364329a..f917aa1be0 100644
+--- a/apps/web/src/components/sidebar/jstackHomeActions.ts
++++ b/apps/web/src/components/sidebar/jstackHomeActions.ts
+@@ -52,7 +52,7 @@ export interface JstackHomeSends {
+     thread: EnvironmentThreadShell | null,
+     text: string,
+   ) => Promise<boolean>;
+-  /** Tells a task's home the user's approve, remove or answer, as their own message to it. */
++  /** Tells a task's home the user's approve, accept, remove or answer, as their own message to it. */
+   readonly sendRowWord: (
+     environmentId: EnvironmentId,
+     homeThreadId: ThreadId,
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+index 1ddfe588d3..e3168e9ff6 100644
+--- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
++++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+@@ -10,7 +10,7 @@ import {
+ import { describe, expect, it } from "vite-plus/test";
+ 
+ import { makeThreadFixture, type ThreadFixtureOverrides } from "../../test-fixtures";
+-import { buildJstackTree, type JstackTreeInput } from "./jstackTree.logic";
++import { buildJstackTree, rowWordMessage, type JstackTreeInput } from "./jstackTree.logic";
+ 
+ const environmentId = EnvironmentId.make("environment-local");
+ const projectId = ProjectId.make("project-jstack");
+@@ -38,6 +38,7 @@ const task = (slug: string, overrides: Partial<JbusCrewTask> = {}): JbusCrewTask
+   waitsOn: null,
+   who: "crew",
+   waits: "",
++  why: "",
+   brief: null,
+   held: null,
+   ...overrides,
+@@ -128,11 +129,18 @@ describe("buildJstackTree", () => {
+           default: null,
+           brief: "the pump stops at the line",
+           askedIn: "root",
++          why: null,
+         },
+       ],
+       [
+         "gated",
+-        { what: "Approve?", default: "it waits for your word", brief: null, askedIn: null },
++        {
++          what: "Approve?",
++          default: "it waits for your word",
++          brief: null,
++          askedIn: null,
++          why: null,
++        },
+       ],
+       ["ready", null],
+     ]);
+@@ -241,6 +249,7 @@ describe("buildJstackTree", () => {
+       waitsOn: null,
+       who: "scout",
+       waits: "its thread",
++      why: "",
+       brief: null,
+       held: null,
+     } as const;
+@@ -251,3 +260,14 @@ describe("buildJstackTree", () => {
+     expect(idleScout).toMatchObject({ waited: { kind: "stalled", age: "45m" } });
+   });
+ });
++
++describe("rowWordMessage", () => {
++  it("tells the home the go for the sha the user read, and the accept of the pull request", () => {
++    expect(rowWordMessage({ kind: "approve", slug: "sb-x", sha: "9e1d0c4b7a21" })).toBe(
++      "approve sb-x (brief sha 9e1d0c4b7a21)",
++    );
++    expect(rowWordMessage({ kind: "accept", slug: "sb-x", pullRequest: "#9" })).toBe(
++      "accept pull request #9 (sb-x)",
++    );
++  });
++});
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
+index 843857a0de..9a18a16f1c 100644
+--- a/apps/web/src/components/sidebar/jstackTree.logic.ts
++++ b/apps/web/src/components/sidebar/jstackTree.logic.ts
+@@ -27,6 +27,8 @@ export interface JstackAsk {
+   readonly brief: string | null;
+   /** The title of the thread it was asked in, which `openThreadId` opens. */
+   readonly askedIn: string | null;
++  /** Why jbus waits on the user, in its words, such as the brief's lines that changed. */
++  readonly why: string | null;
+ }
+ 
+ /** The jbus question a task waits on, which its row's Answer replies to. */
+@@ -183,7 +185,10 @@ export type JstackTreeRow =
+       readonly threadId: ThreadId | null;
+       /** What a click opens: the task's thread, else the thread that asks about it, else its home. */
+       readonly openThreadId: ThreadId;
+-      /** What a task with no thread asks the user, which a click unfolds under the row. */
++      /**
++       * What the task asks the user, which a click unfolds under the row: a task with no thread,
++       * and a launched one that waits on a word the tree sends (`approvable`, `acceptable`).
++       */
+       readonly ask: JstackAsk | null;
+       readonly thread: EnvironmentThreadShell | null;
+       readonly pullRequest: string | null;
+@@ -194,8 +199,10 @@ export type JstackTreeRow =
+       readonly homeName: string;
+       /** In jbus's queue and not launched, so it can be removed. */
+       readonly queued: boolean;
+-      /** jbus waits on the user's approval of its brief. */
++      /** jbus waits on the user's approval of its brief, queued or launched. */
+       readonly approvable: boolean;
++      /** jbus waits on the user's accept of its pull request, which jmerge holds. */
++      readonly acceptable: boolean;
+       /** The open jbus question about the task, or null. */
+       readonly gate: JstackGate | null;
+       /** The answer row is open under it. */
+@@ -437,6 +444,10 @@ const toWorker = (
+   const waits = task.waits === "" ? null : `waits on ${task.waits}`;
+   const what =
+     gate !== undefined && gate.question !== "" ? gate.question : (waits ?? "waits on you");
++  const pullRequest = task.kind === "crew" ? task.pullRequest : null;
++  // A word the tree sends for the user, which jbus names: it unfolds as a queued ask does.
++  const approvable = task.waitsOn === "approval";
++  const acceptable = task.waitsOn === "accept" && pullRequest !== null;
+   return {
+     rank,
+     row: {
+@@ -459,16 +470,17 @@ const toWorker = (
+       threadId: task.threadId,
+       openThreadId,
+       ask:
+-        asks && task.threadId === null
++        asks && (task.threadId === null || approvable || acceptable)
+           ? {
+               what,
+               default: gate !== undefined && gate.default !== "" ? gate.default : null,
+               brief: task.brief,
+               askedIn: input.threadsById.get(openThreadId)?.title ?? null,
++              why: task.why === "" ? null : task.why,
+             }
+           : null,
+       thread,
+-      pullRequest: task.kind === "crew" ? task.pullRequest : null,
++      pullRequest,
+       selected:
+         input.selection?.kind === "task"
+           ? input.selection.repo === task.repo && input.selection.slug === task.slug
+@@ -476,7 +488,8 @@ const toWorker = (
+       homeThreadId: home.threadId,
+       homeName: home.scope === null ? "the root home" : `the ${home.scope} home`,
+       queued: task.threadId === null && stage.group === "queue",
+-      approvable: task.waitsOn === "approval",
++      approvable,
++      acceptable,
+       gate: question === null ? null : { number: question.number, question: question.question },
+       answering:
+         input.answering !== null &&
+@@ -941,6 +954,8 @@ export const HOME_WORK_PROMPT = {
+ export type JstackRowWord =
+   /** `sha` names the brief the user read, which jbus refuses to approve once it changed. */
+   | { readonly kind: "approve"; readonly slug: string; readonly sha: string }
++  /** `pullRequest` is the row's, `#<n>`, which the home lifts with `jmerge --accept <n>`. */
++  | { readonly kind: "accept"; readonly slug: string; readonly pullRequest: string }
+   | { readonly kind: "remove"; readonly slug: string }
+   | {
+       readonly kind: "answer";
+@@ -954,6 +969,8 @@ export function rowWordMessage(word: JstackRowWord): string {
+   switch (word.kind) {
+     case "approve":
+       return `approve ${word.slug} (brief sha ${word.sha})`;
++    case "accept":
++      return `accept pull request ${word.pullRequest} (${word.slug})`;
+     case "remove":
+       return `remove ${word.slug}`;
+     case "answer":
+diff --git a/packages/contracts/src/jbusWork.ts b/packages/contracts/src/jbusWork.ts
+index c3935f57f4..4dc773c37a 100644
+--- a/packages/contracts/src/jbusWork.ts
++++ b/packages/contracts/src/jbusWork.ts
+@@ -22,8 +22,12 @@ export const JbusWorkStage = Schema.Literals([
+ ]);
+ export type JbusWorkStage = typeof JbusWorkStage.Type;
+ 
+-/** What a task waits on the user for, from jbus's row value (features/jbus/src/jbus/work.py). */
+-export const JbusWaitsOn = Schema.Literals(["approval", "answer", "word"]);
++/**
++ * What a task waits on the user for, from its row of jbus's `work.json`
++ * (features/jbus/src/jbus/work.py): the `lift` jbus names, `approve` as `approval` and `accept`
++ * as `accept`, else an `answer` to a gate or a `word` on a hold no button lifts.
++ */
++export const JbusWaitsOn = Schema.Literals(["approval", "accept", "answer", "word"]);
+ export type JbusWaitsOn = typeof JbusWaitsOn.Type;
+ 
+ export const JbusHome = Schema.Struct({
+@@ -58,9 +62,9 @@ const JbusTaskFields = {
+   threadId: Schema.NullOr(ThreadId),
+   homeThreadId: ThreadId,
+   /**
+-   * What jbus waits on the user for, null for nothing: `approval` of a queued row's brief, an
+-   * `answer` to its open question, or a `word` on a hold. A leftover, a closed pull request, a
+-   * hung or lost thread is owed by a home or a thread first, so it is null.
++   * What jbus waits on the user for, null for nothing: `approval` of its brief whenever its go
++   * does not hold, `accept` of a pull request jmerge holds, an `answer` to its open question, or
++   * a `word` on another hold. A leftover, closed, hung or lost task is owed elsewhere: null.
+    */
+   waitsOn: Schema.NullOr(JbusWaitsOn),
+   /**
+@@ -70,8 +74,13 @@ const JbusTaskFields = {
+    * jbus or `user` for you (features/jbus/src/jbus/work.py). Empty when its row names none.
+    */
+   who: Schema.String,
+-  /** What jbus waits on, in its words, such as `your approval`. */
++  /** What jbus waits on, in its words, such as `your go for its brief at 3f2a9c01b7de`. */
+   waits: Schema.String,
++  /**
++   * Why it waits, in jbus's plain words: for a go that does not hold, whether it never had one,
++   * was held, or its brief changed since, with the lines that changed. Empty when jbus says none.
++   */
++  why: Schema.String,
+   /** The brief's title, after its slug; null with no brief. */
+   brief: Schema.NullOr(Schema.String),
+   /** null unless jmerge (`waiting-on-user.json`) or jbus (`held.json`) holds it. */
+-- 
+2.56.0
+

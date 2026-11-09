@@ -30,8 +30,10 @@ from jbus import locked, read_json, write_json
 from jbus.work import (
     APPROVED,
     LOCK,
+    UNHELD,
     Answered,
     Facts,
+    Go,
     Launch,
     Pull,
     Question,
@@ -115,9 +117,11 @@ def queued(
     facet: Callable[[dict[str, Any]], Row],
     scout: Callable[[dict[str, Any]], bool],
     moved: set[str],
+    unheld: Callable[[dict[str, Any]], Go | None] = lambda row: None,
 ) -> None:
     """Restate the line of `work.json` of each row of `moved` from the queue as it is now: the
-    `Row` facet that `facet` gives the row. A row the queue no longer has loses its line, and a
+    `Row` facet that `facet` gives the row, and why its go does not hold where it does not, which
+    `unheld` gives (`jbus.queue.unheld`). A row the queue no longer has loses its line, and a
     row with no line yet gets one judged with nothing launched, written or open (`fresh`), which
     the next pass judges in full. Each write of the queue calls this under the queue's lock once
     it wrote (`queue._changing`), so the view shows a change of the queue at once."""
@@ -134,17 +138,23 @@ def queued(
                 if one["key"] not in moved:
                     work.append(one)
                     continue
-                one = restate(one, row=facet(row))
+                made = facet(row)
+                one = restate(one, row=made, go=unheld(row) if made in UNHELD else None)
             work.append(one)
         at = max((n for n, one in enumerate(work) if _is_row(one)), default=-1) + 1
-        work[at:at] = [fresh(row, facet(row), scout(row)) for row in rows if row["slug"] not in had]
+        work[at:at] = [
+            fresh(row, made, scout(row), unheld(row) if made in UNHELD else None)
+            for row in rows
+            if row["slug"] not in had and (made := facet(row))
+        ]
         return work
 
     _rewrite(state_dir, change)
 
 
-def fresh(row: dict[str, Any], facet: Row, scout: bool) -> dict[str, Any]:
-    """Return the line of a row that no pass judged yet: nothing launched, written or open."""
+def fresh(row: dict[str, Any], facet: Row, scout: bool, go: Go | None = None) -> dict[str, Any]:
+    """Return the line of a row that no pass judged yet: nothing launched, written or open, and
+    `go`, why its go does not hold, where it does not."""
     facts = Facts(
         facet, Thread.NONE, Launch.NONE, Written.NONE, Pull.NONE, Question.NONE, Answered.BOTH
     )
@@ -152,7 +162,8 @@ def fresh(row: dict[str, Any], facet: Row, scout: bool) -> dict[str, Any]:
     slug = row["slug"]
     about = {"key": slug, "kind": "row", "slug": slug, **{name: row.get(name, "") for name in SEEN}}
     said = {"scout": str(scouting(state))} if scout else {}
-    return entry(state, holder(state, role="scout" if scout else ""), **about, **said)
+    held = holder(state, role="scout" if scout else "", go=go, pr=str(row.get("pr", "")))
+    return entry(state, held, **about, **said)
 
 
 def pending(state_dir: Path) -> dict[int, str]:

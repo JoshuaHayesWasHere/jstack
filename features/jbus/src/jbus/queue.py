@@ -700,6 +700,7 @@ def _restate_work(state: Path, was: list[Row], briefed: set[str]) -> None:
         lambda row: standing(state, row, done),
         lambda row: role(row) == SCOUT,
         moved,
+        lambda row: unheld(state, row),
     )
 
 
@@ -712,6 +713,23 @@ def facet(state: Path, row: Row, unmet: list[str]) -> work.Row:
     if text is None or not judgement.approved_text(row, text):
         return work.Row.CHANGED
     return work.Row.BEHIND if unmet else work.Row.FREE
+
+
+def unheld(state: Path, row: Row) -> work.Go:
+    """Return why a row whose go does not hold (its facet is in `work.UNHELD`) waits on the user's
+    go (`work.Go`): it was never approved, its go was taken back (`hold`), or its brief changed
+    after the go, with the lines that changed (`changed`). work.json says it as the row's `why`
+    (`work.holder`), and the sidebar shows it."""
+    text = brief(state, row["slug"])
+    sha = judgement.brief_sha(text)[:12] if text is not None else ""
+    if row.get("held"):
+        hold = row.get("hold") or {}
+        by = f" by {who(hold['ran_by'])}" if hold.get("ran_by") else ""
+        when = f" at {hold['ran_at']}" if hold.get("ran_at") else ""
+        return work.Go(sha, f"your go was taken back{by}{when}, and it waits for your go again")
+    if not row.get("approved"):
+        return work.Go(sha, "it has no go of yours yet")
+    return work.Go(sha, f"its brief changed after your go: {'; '.join(changed(row, text))}")
 
 
 def final(rows: list[Row]) -> frozenset[str]:
