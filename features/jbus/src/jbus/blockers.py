@@ -51,7 +51,7 @@ ends with `Reply: <hint>` (`reply`): the user replies in their own words, which 
 the user's word (`jbus word`), and the home turns them into a verb. No line gives the user words
 to send. A pass raises one for each item of the list of what waits that the user
 has to decide (`needs`): a question or a gate that holds, has no default or names one of
-`waiting.PAUSE`, a go gate whose silence starts nothing, a row to approve, a pull request `jmerge`
+`party.PAUSE`, a go gate whose silence starts nothing, a row to approve, a pull request `jmerge`
 holds, and a config item. `jbus decide` raises one by hand, for a scope change. A project's first
 pass raises none, as it sends nothing else.
 
@@ -89,6 +89,7 @@ from jbus import (
     cancelled,
     dispatch,
     locked,
+    party,
     questions,
     queue,
     read_json,
@@ -339,7 +340,7 @@ def needs(one: waiting.Item, context: str = "", known: frozenset[str] = frozense
         return "a gate with no default"
     if one.get("waits"):
         return f"its silence starts nothing, since {one['waits']}"
-    named = waiting.paused(f"{one.get('question', '')} {context}", known | {one.get("slug") or ""})
+    named = party.paused(f"{one.get('question', '')} {context}", known | {one.get("slug") or ""})
     return f"it names {named}" if named else ""
 
 

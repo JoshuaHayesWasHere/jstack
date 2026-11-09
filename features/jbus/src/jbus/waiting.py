@@ -62,10 +62,10 @@ What blocks is a part of this list, and `blocking` is the one function that deci
 blocks when it is open and nothing can move without the user. That is the design's Blocking test
 (`features/jbus/docs/jbus.md`, "What blocks"), applied to these fields:
 
-- (a) a `gate` whose `default` is empty, or whose question or context names one of `PAUSE`. Only a
-  gate in a home's `gates.md` can have an empty default, since `jbus gate` refuses a question with
-  none. `PAUSE` is the door table's words (`party.DOORS`), each by its case, matched against the
-  gate's words;
+- (a) a `gate` whose `default` is empty, or whose question or context names one of
+  `party.PAUSE`. Only a gate in a home's `gates.md` can have an empty default, since `jbus gate`
+  refuses a question with none. `party.PAUSE` is the door table's words (`party.DOORS`), each by
+  its case, matched against the gate's words;
 - (b) an `approve` item, which is a row whose `brief_sha` is empty because nobody approved it or
   because its brief changed after the go, and a row of the queue that waits with no brief in
   `briefs/<slug>.md`;
@@ -90,7 +90,6 @@ its number. A pass that cannot judge a stall, or that is blind, closes no item t
 from __future__ import annotations
 
 import hashlib
-import re
 from collections.abc import Callable, Collection
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
@@ -156,7 +155,6 @@ Item = dict[str, Any]
 NAME = "waiting-on-user.json"
 LOCK = "waiting.lock"
 BLOCKS = "blocking.json"
-PAUSE = {one.case: one.named for one in party.DOORS if one.named}
 KEEP_REMINDED = timedelta(days=14)
 
 
@@ -523,13 +521,6 @@ def _waits(run: Pass, one: Item) -> bool:
     return slug not in run.removed and there and not gone_ahead
 
 
-def paused(text: str, slugs: Collection[str] = ()) -> str:
-    """Return the always-pause name that matches a text, or nothing. The `slugs` are the ones
-    jbus knows, which the text may name with no door meant."""
-    words = party.prose(text, slugs)
-    return next((name for name, rule in PAUSE.items() if re.search(rule, words, re.I)), "")
-
-
 def _last_events(run: Pass) -> dict[str, datetime]:
     """Return when each slug last had an event in the log."""
     last: dict[str, datetime] = {}
@@ -571,7 +562,7 @@ def _why(
     if not str(one.get("default") or "").strip():
         return "a", "a gate with no default"
     slug = one.get("slug") or ""
-    named = paused(f"{one.get('question', '')} {one.get('context', '')}", known | {slug})
+    named = party.paused(f"{one.get('question', '')} {one.get('context', '')}", known | {slug})
     if named:
         return "a", f"always-pause: {named}"
     if not slug or slug == "home":

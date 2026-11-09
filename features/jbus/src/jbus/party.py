@@ -149,6 +149,18 @@ def prose(words: str, slugs: Collection[str] = ()) -> str:
     return words
 
 
+PAUSE = {one.case: one.named for one in DOORS if one.named}
+"""The door table's words, each by its case: a gate whose words match one names a one-way door,
+whether or not it has a `Holds:` line."""
+
+
+def paused(text: str, slugs: Collection[str] = ()) -> str:
+    """Return the case whose words of `PAUSE` a text matches, or nothing. The `slugs` are the
+    ones jbus knows, which the text may name with no door meant (`prose`)."""
+    words = prose(text, slugs)
+    return next((name for name, rule in PAUSE.items() if re.search(rule, words, re.I)), "")
+
+
 SOURCE = {
     "word": "typed",
     "answer": "answer",

@@ -439,13 +439,10 @@ def test_findings_of_a_pull_request_opened_later_reach_its_crew_once(kitchen):
 
 
 def asked(kitchen, words="red?"):
-    """Pipe a question from alpha to `jbus gate`, with its thread in the home's brief."""
+    """Keep a question of alpha's, as a pass raises one, with its thread in the home's brief."""
     kitchen.brief("alpha", "Thread: mcp:a-crew\n")
     asks = GATE.format(n="<n>", asked=words, status="open", slug="alpha")
-    assert kitchen.main("gate", "alpha", stdin=asks) == (
-        0,
-        "asked: queued: question 1\nGate: question 1\n",
-    )
+    assert kitchen.raises("alpha", asks)[0].number == 1
 
 
 def test_a_removed_slug_asks_nothing_and_its_open_question_is_on_no_list(kitchen):

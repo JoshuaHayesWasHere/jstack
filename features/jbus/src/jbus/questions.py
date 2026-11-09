@@ -78,6 +78,13 @@ for a gate that a home's `gates.md` numbered), more than one `## ` line, a missi
 placeholder. jbus reads the labels from the template, the one copy, so a skill pipes the gate
 and checks none of this itself.
 
+A crew's or a scout's gate with no `Holds:` line is no one-way door, so `jbus gate` asks the user
+nothing of it (`decides`): it appends the gate to the row's brief under `tasks/` or request under
+`scouts/` as a `## Decision:` section, once (`decide`), keeps no record, and queues no event. It
+still asks a go gate, a home's own gate, a gate whose words name a door of `party.PAUSE`, one
+that names a risk-tagged finding of the brief's review by its id, and a question that it
+already holds under that slug.
+
 `jbus gate` also asks nothing that a rule already settles (`refusal`). A gate with no `Holds:`
 line whose question is a shape of `SETTLED` (a swarm, a `Review: none` merge, exit 124's
 `Fixed:` line, a merge base, a cross-cutting label, a red that is its base's) says `settled:`
@@ -133,7 +140,7 @@ from typing import Any
 
 import jbus
 import jsettings
-from jbriefs import below, skills
+from jbriefs import below, findings, skills
 from jbriefs.home import thread_of
 from jbus import (
     END_TURN,
@@ -143,6 +150,7 @@ from jbus import (
     locked,
     mirror,
     outbox,
+    party,
     queue,
     t3,
     verbs,
@@ -183,6 +191,13 @@ _NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 COMMAND, HOME, SILENCE, CLEARED = "jbus answer", "gates.md", "silence", "cleared"
 QUIET = timedelta(0)
 UNANSWERED = "settled at once"
+DECISION = "## Decision:"
+DECIDES = ("Default:", "Built on it:", "Undo:")
+DECIDED_BY = "by jbus gate: no Holds: line, so no one-way door, and the user is not asked"
+DECIDED_WHY = (
+    "a gate with no Holds: line is no one-way door, so jbus asks the user nothing and lists "
+    "nothing; it is a decision, and stands as the brief now says"
+)
 REFUSED = "T3 Code refused the answer to question {number}, so its thread was not told"
 FORM = (
     'each option you weighed is one line, the default you took among them: "Option: <short '
@@ -1054,6 +1069,58 @@ def propose(run: Pass, client: Client) -> None:
         run.say(line)
 
 
+def decides(run: Pass, slug: str, lines: str) -> Path | None:
+    """Return the file a gate with no `Holds:` line is a decision on: the brief under `tasks/` of a
+    crew's row, or the request under `scouts/` of a scout's. Return None, so the gate is asked,
+    for a go gate, whose default waits for its close; for a gate whose question or context names
+    a one-way door in the words of `party.PAUSE`, which it is whatever its lines say; for a gate
+    that names, by its id, a finding of the brief's review tagged `(risk: <area>)`, which the
+    crew declines only on the user's answer (`jbriefs.findings`, `UNASKED`); for a home's
+    own slug (`home`, or `home-<scope>` of a scope it has), whatever brief has that name; and for
+    a slug with neither file."""
+    if below.line(lines, "Default:").strip().lower() == queue.GO_DEFAULT:
+        return None
+    said = f"{mirror.question(lines)} {mirror.context(lines)}"
+    if party.paused(said, queue.known(run.state) | {slug}):
+        return None
+    if slug == "home" or (slug.startswith("home-") and (run.home / slug[5:]).is_dir()):
+        return None
+    files = (run.home / kind / f"{slug}.md" for kind in ("tasks", "scouts"))
+    file = next((file for file in files if file.is_file()), None)
+    if file is None:
+        return None
+    risky = (one.id for one in findings.triage(file.read_text()).findings if one.risk)
+    if any(re.search(rf"\b{re.escape(id)}\b", said) for id in risky):
+        return None
+    return file
+
+
+def decide(state: Path, file: Path, lines: str, now: datetime) -> Decided:
+    """Append the gate to `file` as a `## Decision:` section: its question, its default, built-on
+    and undo lines, and when jbus wrote it. The same question is written once. It appends, so a
+    Result that its thread appends meanwhile is kept."""
+    heading = f"{DECISION} {mirror.question(lines)}"
+    with locked(state, LOCK):
+        text = file.read_text()
+        if heading in text.splitlines():
+            return Decided(file, False)
+        said = [f"{label} {below.line(lines, label)}" for label in DECIDES]
+        block = "\n".join([heading, *said, f"Decided: {jsettings.stamp(now)}, {DECIDED_BY}"])
+        gap = "\n" if text.endswith("\n") or not text else "\n\n"
+        with file.open("a") as out:
+            out.write(f"{gap}{block}\n")
+    return Decided(file, True)
+
+
+@dataclass(frozen=True)
+class Decided:
+    """A gate that `jbus gate` wrote to `file` as a decision, and no question: `new` is false
+    where the file had the same decision already."""
+
+    file: Path
+    new: bool
+
+
 def _gate(args: argparse.Namespace, _: None) -> int:
     """`jbus gate`: keep a thread's question for the user as a record with a number.
 
@@ -1064,7 +1131,8 @@ def _gate(args: argparse.Namespace, _: None) -> int:
 
     It prints every line the asking thread acts on, so a skill's block only pipes the gate:
     `asked: <what jbus did>: question <n>` and under it `Gate: question <n>`, the line a
-    thread keeps in its Result or report, or `not asked: <why>` and exit 1, with `not asked:
+    thread keeps in its Result or report, `decided: <where jbus wrote it>` for a gate that is a
+    decision (`decides`), or `not asked: <why>` and exit 1, with `not asked:
     not sent:` for lines to mend and run again, and any other `not asked` for a gate that jbus
     holds nothing of.
     """
@@ -1073,6 +1141,9 @@ def _gate(args: argparse.Namespace, _: None) -> int:
     except (Refused, T3Error) as error:
         print(f"not asked: {error}")
         return 1
+    if isinstance(one, Decided):
+        print(f"decided: {'written' if new else 'already written'} to {one.file}: {DECIDED_WHY}")
+        return 0
     if one.answer:
         print(f"asked: already answered: question {one.number}: {one.answer.line()}")
     else:
@@ -1081,7 +1152,7 @@ def _gate(args: argparse.Namespace, _: None) -> int:
     return 0
 
 
-def _asked(args: argparse.Namespace, config: Config) -> tuple[Question, bool]:
+def _asked(args: argparse.Namespace, config: Config) -> tuple[Question | Decided, bool]:
     """Park the gate on stdin under `args.slug`, written onto its `Asked by:` line, or raise
     `Refused` with why it is not asked."""
     if not _NAME.fullmatch(args.slug):
@@ -1099,6 +1170,14 @@ def _asked(args: argparse.Namespace, config: Config) -> tuple[Question, bool]:
     why = refusal(mirror.question(text), below.line(text, "Default:"), holds)
     if why:
         raise Refused(why)
+    brief = None if holds else decides(run, args.slug, text)
+    key = mirror.gate_key(args.slug, mirror.question(text))
+    if brief and not any(one.key == key for one in read(run.state)):
+        _shaped(text)
+        _proposed(text)
+        _held(text)
+        made = decide(run.state, brief, text, run.now)
+        return made, made.new
     return park(run, args.slug, text)
 
 
