@@ -135,6 +135,13 @@ by test, and an `all` lists every file of the suite with its part, after its fir
 rest of the script it needs no pytest, so it runs in the runner's own `python3`, before any `uv
 sync`: `python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD`.
 
+`select_tests.py --part guards <base> <head>` prints only the guards of the selection: the
+cross-cutting tests, the catch-all and the changed test files. `--part rest` prints the rest of
+it, the files the rules reached through imports, names and features alone. Where the selection
+is `all`, `--part guards` still prints those guards, never `all`, and `--part rest` prints `all`.
+The home's `merged-tree-guards` file names them; jmerge runs nothing on a merged tree, and the part
+goes once that file is removed.
+
 `select_tests.py --part touched <base> <head>` prints the test files the change itself adds or
 edits, each one the check runs, and never `all`: a change that selects every test still names
 its own. It needs no selection, so it is quick. They are the desk's check, with the lint (the
@@ -1403,9 +1410,32 @@ def selection(changed, failed=()):
     return sorted(chosen | added), {**why, "catch-all": sorted(lone), "added": sorted(added)}
 
 
+DESK_PARTS = ("guards", "rest", "touched")
+
+
 def touched(changed):
     """The test files of `changed` that the check runs: the desk's own share of a change."""
     return sorted(set(changed) & collected())
+
+
+def guards(changed, tests):
+    """Of a selection's `tests`, the ones a desk runs first and must pass: the cross-cutting
+    tests, the catch-all and the changed test files. A selection of `["all"]` gives them all the
+    same, never the whole suite, which outran jmerge's 600 s on a merged tree: CI's check of the
+    pull request runs the rest."""
+    first = set(cross_cutting()) | unowned() | set(changed)
+    if tests == ["all"]:
+        return sorted(first & collected())
+    return sorted(set(tests) & first)
+
+
+def desk_part(name, changed, tests):
+    """The `guards` or the `rest` of a selection's `tests`. The rest of `["all"]` is `["all"]`."""
+    if name == "guards":
+        return guards(changed, tests)
+    if tests == ["all"]:
+        return tests
+    return sorted(set(tests) - set(guards(changed, tests)))
 
 
 def ask(path, gone=None, **query):
@@ -1852,8 +1882,7 @@ def main(argv):
     if argv[:1] == ["--failed-on-main"] and len(argv) == 3:
         print("\n".join(failed_on_main(int(argv[1]), Path(argv[2]))))
         return
-    listed = count = None
-    desk = False
+    listed = count = cut = None
     strict = argv[2:3] == ["--strict"] and argv[:1] == ["--within"] and len(argv) == 5
     if strict:
         argv = argv[:2] + argv[3:]
@@ -1861,12 +1890,12 @@ def main(argv):
         listed, argv = argv[1], argv[2:]
     elif argv[:1] == ["--parts"] and len(argv) == 4 and argv[1].isdigit() and int(argv[1]) > 0:
         count, argv = int(argv[1]), argv[2:]
-    elif argv[:2] == ["--part", "touched"] and len(argv) == 4:
-        desk, argv = True, argv[2:]
+    elif argv[:1] == ["--part"] and len(argv) == 4 and argv[1] in DESK_PARTS:
+        cut, argv = argv[1], argv[2:]
     if len(argv) != 2:
         sys.exit(
             "usage: select_tests.py [--within <list> [--strict] | --parts <n>] <base> <head>\n"
-            "       select_tests.py --part touched <base> <head>\n"
+            "       select_tests.py --part guards|rest|touched <base> <head>\n"
             "       select_tests.py --failed-on-main <days> <kept>"
         )
     diff = subprocess.run(
@@ -1889,7 +1918,7 @@ def main(argv):
             tests = ["all"]
         print("\n".join(tests))
         return
-    if desk:
+    if cut == "touched":
         print("\n".join(touched(changed)))
         return
     failed = os.environ.get(FAILED_ON_MAIN)
@@ -1899,6 +1928,9 @@ def main(argv):
     except Unread as error:
         print(f"select_tests.py: nothing can be read ({error}), so all", file=sys.stderr)
         tests, why = ["all"], {"forced-by": "unread"}
+    if cut is not None:
+        print("\n".join(desk_part(cut, changed, tests)))
+        return
     print("\n".join(tests))
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as file:

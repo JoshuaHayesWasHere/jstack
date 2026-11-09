@@ -656,6 +656,58 @@ def test_a_test_no_rule_selects_runs_beside_what_a_change_selects(tmp_path):
     ]
 
 
+@pytest.mark.parametrize(
+    ("changed", "guards", "rest"),
+    [
+        (["src/beta/plug.py"], ["test_lone.py", "test_tree.py"], ["test_beta.py"]),
+        (
+            ["src/beta/plug.py", "testing/tests/test_beta.py"],
+            ["test_beta.py", "test_lone.py", "test_tree.py"],
+            [],
+        ),
+    ],
+    ids=["a module", "a module and its test"],
+)
+def test_the_guards_are_the_cross_cutting_the_catch_all_and_the_changed_tests(
+    tmp_path, changed, guards, rest
+):
+    """`--part guards` and `--part rest` split the selection, and the guards are the
+    cross-cutting tests, the catch-all and the changed test files, never a file the change
+    reaches by an import alone."""
+    repo = Repo(tmp_path, files={**FILES, **LONE})
+    head = repo.change(changed)
+    parts = [repo.run("--part", part, repo.base, head) for part in ("guards", "rest")]
+
+    assert [ran.returncode for ran in parts] == [0, 0], [ran.stderr for ran in parts]
+    said = [ran.stdout.split() for ran in parts]
+    assert said == [[f"testing/tests/{one}" for one in names] for names in (guards, rest)]
+    assert sorted(said[0] + said[1]) == repo.selected(head)
+
+
+@pytest.mark.parametrize(
+    ("changed", "guards"),
+    [
+        (["pyproject.toml"], ["test_lone.py", "test_tree.py"]),
+        (
+            ["pyproject.toml", "testing/tests/test_beta.py"],
+            ["test_beta.py", "test_lone.py", "test_tree.py"],
+        ),
+    ],
+    ids=["a shared file", "a shared file and a test"],
+)
+def test_the_guards_of_a_selection_of_every_test_are_still_the_guards(tmp_path, changed, guards):
+    """A change that selects every test, as a deleted fixture or a change to select_tests.py
+    does, still gives the cross-cutting tests, the catch-all and the changed test files as its
+    guards, never `all`: the whole suite ran 9 to 10 min on jmerge's merged trees, past the
+    guards' 600 s, and held the merge line on 2026-11-05 (#1103, #1118). The rest is `all`."""
+    repo = Repo(tmp_path, files={**FILES, **LONE})
+    head = repo.change(changed)
+
+    assert repo.selected(head) == ["all"]
+    said = [repo.run("--part", part, repo.base, head).stdout.split() for part in ("guards", "rest")]
+    assert said == [[f"testing/tests/{one}" for one in guards], ["all"]]
+
+
 TEE = """\
 # Tee
 

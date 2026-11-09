@@ -412,27 +412,67 @@ def test_check_fast_runs_the_lint_and_only_the_tests_the_change_reaches(tmp_path
     assert tests == kept.read_text().split()
 
 
-@pytest.mark.parametrize(
-    "tests",
-    [["testing/tests/test_a.py", "testing/tests/test_b.py"], []],
-    ids=["two touched files", "none touched"],
-)
-def test_the_touched_part_of_check_fast_is_the_lint_and_only_the_touched_tests(
-    tmp_path, step_files, tests
+PARTS = [
+    ("guards", ["testing/tests/test_a.py", "testing/tests/test_b.py"], LINT),
+    ("rest", ["testing/tests/test_c.py"], []),
+    ("rest", [], None),
+    ("rest", ["all"], []),
+]
+
+
+@pytest.mark.parametrize(("part", "tests", "lint"), PARTS)
+def test_a_desk_part_of_check_fast_runs_only_its_own_tests_and_the_rest_no_lint(
+    tmp_path, step_files, part, tests, lint
 ):
-    """`PART=touched`, a desk's check, is the lint and the test files the change adds or edits,
-    and the lint alone where it touched none. The selector here is a stand-in that prints `tests`:
-    the files it prints are `test_select_tests.py`'s."""
+    """`PART=guards` is the lint and the guard tests, and `PART=rest` the other tests the change
+    reaches, with no lint: the desk ran the lint with the guards. A rest of `all` is the whole
+    suite, and an empty rest runs nothing. The selector here is a stand-in that prints `tests`
+    for whatever part it is asked: the parts it prints are `test_select_tests.py`'s, and the real
+    one, run twice over a copy of the tree, takes most of a test's time limit on a runner."""
     copy, path, asked = changed_copy(tmp_path, "features/jdrift/src/jdrift/__init__.py")
     argv = tmp_path / "argv"
     (copy / "scripts" / "select_tests.py").write_text(
         f"import sys\nopen({str(argv)!r}, 'w').write(' '.join(sys.argv[1:]))\n"
         f"print({chr(10).join(tests)!r})\n"
     )
-    check_fast(copy, path, "PART=touched")
-    assert argv.read_text() == "--part touched HEAD^1 HEAD"
-    run = [" ".join(["run pytest -n 6", *SCHEDULE, *OFF, *tests])] if tests else []
-    assert asked.read_text().splitlines() == [*LINT, *run]
+    check_fast(copy, path, f"PART={part}")
+    assert argv.read_text() == f"--part {part} HEAD^1 HEAD"
+    run = " ".join(["run pytest -n 6", *SCHEDULE, *OFF, *(t for t in tests if t != "all")])
+    said = asked.read_text().splitlines() if asked.exists() else []
+    assert said == ([] if lint is None else [*lint, run])
+
+
+def test_928s_807_line_module_fails_the_desks_guard_part_with_neither_0_nor_124(tmp_path):
+    """#928's head, 969738d2d, grew `jbus/telemetry/records.py` to 807 lines, over the module cap,
+    and its desk check ended 124: the short lane stopped it a third of the way into some 356
+    selected files, before the size guard had run. The desk now runs `PART=guards` first, under a
+    full slot, as a step that must pass, so the check fails on the guard with an exit that is
+    neither 0 nor the lane's 124. The real selector picks the parts; the fake `uv` runs the size
+    guard for real wherever a call names it, and a call that names a test the change reaches by
+    import stands for the slow rest: it ends 124 at once, as the lane would stop it."""
+    records = "features/jbus/src/jbus/telemetry/records.py"
+    padding = "\n" * (807 - len((REPO / records).read_text().splitlines()))
+    copy, path, asked = changed_copy(tmp_path, records, padding)
+    guard = "features/repo-guards/tests/test_module_size.py"
+    reached = "features/jbus/tests/test_jbus_telemetry.py"
+    real = f"{sys.executable} -m pytest -q -p no:cacheprovider {guard}"
+    (tmp_path / "bin" / "uv").write_text(
+        f'#!/bin/sh\necho "$*" >> {asked}\n'
+        f'case " $* " in *" {reached} "*) exit 124 ;; *" {guard} "*) exec {real} ;; esac\n'
+    )
+    env = {name: value for name, value in os.environ.items() if name not in SET_BY_A_RUN}
+    made = subprocess.run(
+        ["make", "check-fast", "BASE=HEAD^1", "CORES=24", "PART=guards"],
+        cwd=copy,
+        env=env | {"PATH": path},
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    assert made.returncode not in (0, 124), made.stdout
+    assert f"{records}: has 807 lines, over 800" in made.stdout
+    runs = [line for line in asked.read_text().splitlines() if line.startswith("run pytest")]
+    assert len(runs) == 1 and f" {guard}" in runs[0] and reached not in runs[0], runs
 
 
 def test_check_fast_is_make_check_when_the_change_is_one_the_whole_suite_rests_on(
