@@ -1,4 +1,4 @@
-"""`repo-standard green` lets only a tree that is green main deploy.
+"""`repo-standard green`, `repo_standard.green`, lets only a tree that is green main deploy.
 
 Each case is a clone of a bare origin, and a `gh` on the path stands in for GitHub: it answers the
 artifacts lookup, a run by its id, and the list of check.yml's runs from files the case writes,
@@ -8,10 +8,12 @@ its exit code and what it printed.
 
 import json
 import os
+import shutil
 import subprocess
 
 import pytest
 
+from repo_standard import green as green_module
 from repo_standard.cli import main
 
 STUB = """\
@@ -188,3 +190,56 @@ def test_an_origin_that_cannot_be_reached_exits_2(checkout, capsys):
     code, out = green(root, capsys)
     assert code == 2, out
     assert "cannot ask: git ls-remote origin:" in out
+
+
+def test_an_origin_that_does_not_answer_in_time_exits_2(checkout, capsys, monkeypatch):
+    root, answers = checkout
+    marker(answers, root)
+    git(root, "remote", "set-url", "origin", "ssh://git.invalid/repo.git")
+    monkeypatch.setenv("GIT_SSH_COMMAND", "sleep 5; :")
+    monkeypatch.setattr(green_module, "ASK_SECONDS", 0.5)
+    code, out = green(root, capsys)
+    assert code == 2, out
+    assert "cannot ask: git ls-remote origin took over 0.5s" in out
+
+
+def test_an_origin_with_no_main_is_refused(checkout, capsys):
+    root, answers = checkout
+    marker(answers, root)
+    other = root.parent / "trunk.git"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "trunk", str(other)], check=True)
+    git(root, "remote", "set-url", "origin", str(other))
+    git(root, "push", "-q", "origin", "main:trunk")
+    code, out = green(root, capsys)
+    assert code == 1, out
+    assert "refused: origin has no main: push main first" in out
+
+
+def test_a_folder_that_is_no_git_checkout_exits_2(tmp_path, capsys):
+    code = main(["green", "--root", str(tmp_path)])
+    said = capsys.readouterr()
+    assert code == 2
+    assert "repo_standard green: git status --porcelain:" in said.err
+
+
+def test_no_gh_on_the_path_exits_2(checkout, capsys, monkeypatch):
+    root, _ = checkout
+    only = root.parent / "only-git"
+    only.mkdir()
+    (only / "git").symlink_to(shutil.which("git"))
+    monkeypatch.setenv("PATH", str(only))
+    code, out = green(root, capsys)
+    assert code == 2, out
+    assert "cannot ask: gh api actions/artifacts?name=green-tree-" in out
+
+
+@pytest.mark.parametrize(
+    ("body", "said"),
+    [("not json", "not JSON"), ("{}", "GitHub's answer has no 'artifacts'")],
+)
+def test_an_answer_github_did_not_give_in_its_shape_exits_2(checkout, capsys, body, said):
+    root, answers = checkout
+    (answers / "artifacts.json").write_text(body)
+    code, out = green(root, capsys)
+    assert code == 2, out
+    assert said in out

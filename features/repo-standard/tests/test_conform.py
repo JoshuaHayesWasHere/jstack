@@ -811,6 +811,13 @@ def selects_in_an_included_make_file(repo):
         ),
         (
             lambda r: edit(
+                r / ".repo-standard.yml", "deploy: [make deploy]", "deploy: [make ship]"
+            ),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: deploy entry "
+            "`make ship`: the Makefile has no target ship",
+        ),
+        (
+            lambda r: edit(
                 r / ".repo-standard.yml", "deploy: [make deploy]", "deploy: [./ship.sh]"
             ),
             "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: deploy entry "

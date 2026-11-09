@@ -37,7 +37,7 @@ from typing import Any
 from repo_standard.tree import Unreadable
 
 _JMERGE = Path(__file__).resolve().parents[3] / "jmerge" / "src"
-if _JMERGE.is_dir() and str(_JMERGE) not in sys.path:
+if _JMERGE.is_dir():
     sys.path.append(str(_JMERGE))
 
 marker = importlib.import_module("jmerge.green")
@@ -72,18 +72,11 @@ class Passed:
     fork: bool = False
 
 
-def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+def _git(root: Path, *args: str, timeout: float | None = None) -> subprocess.CompletedProcess[str]:
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
-    try:
-        return subprocess.run(
-            ["git", "-C", str(root), *args],
-            capture_output=True,
-            text=True,
-            env=env,
-            timeout=ASK_SECONDS,
-        )
-    except subprocess.TimeoutExpired as error:
-        raise CannotAsk(f"git {args[0]} took over {ASK_SECONDS}s") from error
+    return subprocess.run(
+        ["git", "-C", str(root), *args], capture_output=True, text=True, env=env, timeout=timeout
+    )
 
 
 def _local(root: Path, *args: str) -> str:
@@ -98,9 +91,10 @@ def read(root: Path) -> Read:
     head = _local(root, "rev-parse", "HEAD")
     tree = _local(root, "rev-parse", "HEAD^{tree}")
     try:
-        listed = _git(root, "ls-remote", "origin", "refs/heads/main")
-    except CannotAsk as error:
-        return Read(len(dirty.splitlines()), head, tree, None, unasked=str(error))
+        listed = _git(root, "ls-remote", "origin", "refs/heads/main", timeout=ASK_SECONDS)
+    except subprocess.TimeoutExpired:
+        why = f"git ls-remote origin took over {ASK_SECONDS}s"
+        return Read(len(dirty.splitlines()), head, tree, None, unasked=why)
     if listed.returncode:
         said = listed.stderr.strip().splitlines()
         why = f"git ls-remote origin: {said[-1] if said else listed.returncode}"

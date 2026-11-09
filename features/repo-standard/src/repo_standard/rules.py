@@ -610,12 +610,7 @@ def _is_shell(repo: Repo, path: str) -> bool:
         return True
     if "." in PurePosixPath(path).name or path.startswith(WORKFLOWS):
         return False
-    try:
-        with (repo.root / path).open("rb") as file:
-            first = file.readline(200).decode("utf-8", "replace")
-    except OSError:
-        return False
-    return SHEBANG.match(first) is not None
+    return SHEBANG.match(repo.read(path)) is not None
 
 
 def deploy_commands(repo: Repo) -> list[str]:
