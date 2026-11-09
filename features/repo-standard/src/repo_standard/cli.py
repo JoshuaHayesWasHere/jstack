@@ -67,7 +67,7 @@ def main(argv: list[str] | None = None) -> int:
         parser.add_argument("verb", choices=stacks.VERBS, help="the target to run")
         parser.add_argument("rest", nargs="*", help="test: the ids to run; select: the base")
         parser.add_argument("--shard", help="test: run part K/N of the whole suite")
-        args = parser.parse_args(argv[1:])
+        args = parser.parse_intermixed_args(argv[1:])
         shard = ["--shard", args.shard] if args.shard is not None else []
         try:
             root = _root(None)
