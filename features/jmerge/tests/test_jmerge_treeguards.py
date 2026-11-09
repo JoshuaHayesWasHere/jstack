@@ -219,6 +219,30 @@ def test_merged_tree_records_of_pull_requests_no_longer_open_are_dropped(tmp_pat
     assert treeguards.Guards(tree.main, tree.state, True, unchecked).kept(tree.one, tree.tip) == ""
 
 
+def test_merged_tree_guards_see_none_of_the_environment_jbus_service_gives_jmerge(
+    tmp_path, monkeypatch
+):
+    """jbus.service gives `jmerge` its unit's variables, and systemd its own: a guard test that
+    reads one, as `JBUS_TICK_TIMER` held #1283 and `INVOCATION_ID` #1159, fails on the merged
+    tree alone. The guards see the machine's login, their `BASE` and their slot, and no more."""
+    monkeypatch.setenv("JBUS_TICK_TIMER", "jbus-merge.timer")
+    monkeypatch.setenv("INVOCATION_ID", "0123456789abcdef")
+    command = 'test -z "$JBUS_TICK_TIMER$INVOCATION_ID" && test "$BASE" = tip && test -n "$HOME"'
+    ran = treeguards.run_guards(command, tmp_path, {"BASE": "tip"}, 60)
+    assert ran.code == 0, ran.said
+
+
+def test_merged_tree_guards_that_fail_keep_the_end_of_what_they_printed(tmp_path):
+    """A hold names one guard, or the last line printed where none is named, as `lint` held
+    #1290 and #1298: the record keeps the last `TAIL` lines, which say why."""
+    tree = Tree(tmp_path)
+    printed = "; ".join(f"echo line {n}" for n in range(1, 61))
+    held, _ = tree.guards(f"{printed}; exit 1").of(tree.one, tree.tip)
+    kept = json.loads((tree.state / treeguards.KEPT).read_text())["7"]
+    assert kept["said"] == held
+    assert kept["tail"] == "\n".join(f"line {n}" for n in range(21, 61))
+
+
 HOLDS_THE_SLOT = (
     f'test "$JGAUGE_TEST_SLOT" = full && "{sys.executable}" -c'
     ' "from jgauge import slot; raise SystemExit(slot.free(slot.full(1)))"'
