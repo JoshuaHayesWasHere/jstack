@@ -219,6 +219,20 @@ def test_make_clones_the_ref_it_is_given_or_the_pinned_tag(new_repo, upstream, r
     )
 
 
+def test_make_clones_the_ref_the_caller_calls_the_shared_check_at(new_repo, upstream):
+    """With no REPO_STANDARD_REF, as in the borders workflow and on a checkout, make takes the ref
+    of the caller's `uses:` line, so a caller at a branch of a version not yet tagged runs every
+    target from that branch and not from the pinned tag."""
+    root, env = new_repo
+    tip = git(upstream, "commit-tree", "HEAD^{tree}", "-p", "HEAD", "-m", "a later commit").strip()
+    git(upstream, "branch", "-f", "repo-standard-v1-rc", tip)
+    caller = root / ".github/workflows/check.yml"
+    caller.write_text(caller.read_text().replace(f"@{TAG}{VERSION}\n", "@repo-standard-v1-rc\n"))
+    make(root, env, "-s", "borders")
+    assert [one.name for one in (root / ".cache").iterdir()] == ["repo-standard-v1-rc"]
+    assert git(root / ".cache" / "repo-standard-v1-rc", "rev-parse", "HEAD").strip() == tip
+
+
 def test_make_fails_on_a_ref_the_upstream_does_not_have(new_repo):
     root, env = new_repo
     make(root, {**env, "REPO_STANDARD_REF": "no-such-ref"}, "-s", "borders", ok=False)

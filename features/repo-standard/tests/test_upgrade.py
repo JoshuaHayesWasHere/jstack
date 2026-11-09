@@ -250,6 +250,26 @@ def test_the_tools_own_upgrade_keeps_the_runner_and_gives_local_mk_an_owner(v1_r
     )
 
 
+@pytest.mark.parametrize("ref", ["repo-standard-v2-rc", '"repo-standard-v2-rc"  # candidate'])
+def test_upgrade_moves_a_caller_off_a_candidate_branch_to_the_tag(v1_repo, ref):
+    """A workflow of the repo's own that calls the shared check at a branch of a version not yet
+    tagged, in `uses` and `ref`, is moved to the tag, and its `ref` dropped, quoted or with a
+    trailing comment too, so the branch can go once the tag is out."""
+    root, _ = v1_repo
+    config = root / ".repo-standard.yml"
+    config.write_text(re.sub(r"(?m)^standard: \d+$", f"standard: {VERSION}", config.read_text()))
+    text = (root / ".github/workflows/check.yml").read_text()
+    text = re.sub(r"@repo-standard-v\d+", "@repo-standard-v2-rc", text)
+    text = text.replace(f"runner: {RUNNER}\n", f"runner: {RUNNER}\n      ref: {ref}\n")
+    caller = root / ".github/workflows/candidate.yml"
+    caller.write_text(text)
+    assert main(["upgrade", "--to", str(VERSION), "--root", str(root), "--upstream", ""]) == 0
+    moved = caller.read_text()
+    assert f"repo-standard-check.yml@repo-standard-v{VERSION}\n" in moved, moved
+    assert "repo-standard-v2-rc" not in moved and "ref:" not in moved, moved
+    assert f"runner: {RUNNER}" in moved
+
+
 def test_upgrade_never_moves_a_pin_down(v1_repo):
     root, _ = v1_repo
     config = load(root)
