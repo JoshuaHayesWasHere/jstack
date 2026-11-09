@@ -712,8 +712,7 @@ def test_the_proof_runs_the_real_code_and_prints_its_exit_code_and_last_lines(pr
 
 
 def test_a_proof_with_every_short_slot_taken_registers_nothing_and_ends_76(proof, tmp_path):
-    """A proof waits for a short slot in its own run and registers nothing: at the lane's ceiling
-    `jgauge.runner.proof` says `waiting` and to send the block again now, and jbus wakes no one."""
+    """With no short slot, `jgauge.runner.proof` registers nothing and says to send again now."""
     home = tmp_path / "taken"
     locks = home / ".local" / "state" / "locks"
     locks.mkdir(parents=True)

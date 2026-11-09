@@ -213,8 +213,9 @@ def slot_script(text, home):
 def test_with_every_slot_taken_the_blocks_register_the_thread_and_end_76(tmp_path, monkeypatch):
     """When every slot is taken, the blocks end 76. A targeted run in the short lane registers
     nothing and says to run it again now; the check, in the full lane, registers the thread in
-    the file, and jbus wakes the thread later because the file lists it. The lanes are the 4 full and 3 short slots that a machine with 24
-    processors and 62 GiB gets, whatever `TEST_SLOTS` the machine sets."""
+    the file, and jbus wakes the thread later because the file lists it. The lanes are the 4
+    full and 3 short slots that a machine with 24 processors and 62 GiB gets, whatever
+    `TEST_SLOTS` the machine sets."""
     monkeypatch.delenv("TEST_SLOTS", raising=False)
     monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
     monkeypatch.setenv("PROC", str(fake_proc(tmp_path / "proc", 24, 62)))

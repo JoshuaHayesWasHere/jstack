@@ -180,9 +180,7 @@ def test_a_waiter_woken_long_ago_with_nothing_come_of_it_is_dropped(kitchen, slo
     assert waiters.read(slot.locks_dir()) == [] and told(kitchen) == [thread]
 
 
-def test_only_a_full_lane_waiter_is_woken_and_a_short_one_is_dropped_with_one_line(
-    kitchen, slots
-):
+def test_only_a_full_lane_waiter_is_woken_and_a_short_one_is_dropped_with_one_line(kitchen, slots):
     """A short call waits in its call and registers nothing, so a short-lane waiter in the file
     is one an older jgauge left: it gets no wake, whatever slot is free, and leaves the file."""
     slots.hold("short")

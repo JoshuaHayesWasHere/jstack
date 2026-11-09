@@ -2,8 +2,8 @@
 thread that waits on a capped pool once the cap has ended.
 
 A thread that finds every full slot taken registers in `test-slot-waiters.json`
-(`jgauge.waiters`, which `jgauge test-slot --thread` writes) and ends its turn. Nothing in T3 Code resumes that
-thread, so each pass of `jbus poll` resumes it, in `wake`:
+(`jgauge.waiters`, which `jgauge test-slot --thread` writes) and ends its turn. Nothing in T3
+Code resumes that thread, so each pass of `jbus poll` resumes it, in `wake`:
 
 - `wake` drops a waiter whose thread is gone, settled, archived or ended (`dead`). A thread
   that ended its turn to wait has the status `completed`, and counts as alive. A wait whose

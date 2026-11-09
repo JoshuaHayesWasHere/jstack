@@ -1,9 +1,10 @@
 """The threads that wait on a full test slot. The module keeps them in one file, the queue of
 the test slots. A short call waits in its call and registers nothing (`jgauge.slot`).
 
-A thread that finds every full slot taken does not poll and does not end its turn silent. It registers here, through `jgauge test-slot --thread <id>`, and ends its turn with
-one line. `jbus poll` reads this file, and when a lane has a slot free it sends the oldest
-waiter on that lane one message (`jbus.slotwait`). This module handles the file and nothing
+A thread that finds every full slot taken does not poll and does not end its turn silent. It
+registers here, through `jgauge test-slot --thread <id>`, and ends its turn with one line.
+`jbus poll` reads this file, and when a lane has a slot free it sends the oldest waiter on that
+lane one message (`jbus.slotwait`). This module handles the file and nothing
 else: it knows nothing of T3 Code, and jbus calls it for every change.
 
 `test-slot-waiters.json` is beside the slots' lock files and is a list of `Waiter`. Each

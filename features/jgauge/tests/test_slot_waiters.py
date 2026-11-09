@@ -1,7 +1,7 @@
 """A thread that finds every full slot taken registers as a waiter in the slot queue's file,
 and says so in one line, instead of waiting in the call. A short call waits in the call, in the
-order the calls came, and registers nothing. The tests run as `test_slot.py` does: the real `jgauge test-slot`, against lock files
-in a temporary home that each test makes."""
+order the calls came, and registers nothing. The tests run as `test_slot.py` does: the real
+`jgauge test-slot`, against lock files in a temporary home that each test makes."""
 
 import fcntl
 import json
