@@ -1649,12 +1649,17 @@ MAC_LIST = "testing/macos-quick.txt"
 
 
 CLI = "features/jmerge/src/jmerge/cli.py"
-TREEGUARDS = "features/jmerge/src/jmerge/treeguards.py"
+STOPS = "features/jmerge/src/jmerge/stops.py"
 ON_A_MAC = {
     "conftest.py": "",
-    MAC_LIST: "testing/tests/test_cli_on_a_mac.py\ntesting/tests/test_guards_on_a_mac.py\n",
+    MAC_LIST: "testing/tests/test_cli_on_a_mac.py\ntesting/tests/test_stops_on_a_mac.py\n",
     "testing/tests/test_cli_on_a_mac.py": "from jmerge import cli\n",
-    "testing/tests/test_guards_on_a_mac.py": "from jmerge import treeguards\n",
+    STOPS: (
+        "import os\n\n\ndef stop(group):\n"
+        '    """Kill the group: a group gone gives ESRCH on Linux, and EPERM on Darwin."""\n'
+        "    os.killpg(group, 9)\n"
+    ),
+    "testing/tests/test_stops_on_a_mac.py": "from jmerge import stops\n",
 }
 
 
@@ -1683,7 +1688,7 @@ def on_a_mac(repo, head, *strict):
 @pytest.mark.parametrize(
     ("path", "line", "reached"),
     [
-        (TREEGUARDS, "EPERM on Darwin", []),
+        (STOPS, "EPERM on Darwin", []),
         (CLI, "def _cwds_from_lsof", []),
         (CLI, "on_a_mac = sys.platform", ["testing/tests/test_cli_on_a_mac.py"]),
         (
@@ -1708,7 +1713,7 @@ def test_strict_darwin_counts_a_change_only_inside_code_that_branches_on_darwin(
     head = edit_line(mac_repo, path, line)
 
     assert on_a_mac(mac_repo, head, "--strict") == reached
-    own = "cli" if path == CLI else "guards"
+    own = "cli" if path == CLI else "stops"
     assert f"testing/tests/test_{own}_on_a_mac.py" in on_a_mac(mac_repo, head)
 
 
