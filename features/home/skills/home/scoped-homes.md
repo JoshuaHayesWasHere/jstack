@@ -18,6 +18,7 @@ The homes of a repo do not plan each other's work, and they are quiet towards ea
   It is relayed to no home: each home meets the rule in the code it runs.
 - A fault one home finds in another's work, with a known fix, is a queued row of that home's and never a send: `jbus queue add` with `--for <its home>`, its brief's `Decisions:` saying `noticed in <slug>`, unapproved, where approval by rule or the user's go takes it as any row.
   One with no known fix is nothing.
+- A row changes home only by a move, never by an edit of its brief's `Home:` line or a second row ("Moving a row" below).
 - No home asks another what it has out.
   `jmerge --claims` prints it.
 
@@ -64,6 +65,18 @@ jbus --project "$P" stop answer '<scope>' '<own row>' '<the answer>' --from "$ME
 
 `--from` comes last.
 jbus closes the stop and carries the answer to the scope's home, once.
+
+**Moving a row** to another child home is the root home's: a row in `uncategorized`, the home of every row no scope claims, or in another child home goes to the scope whose work it is, at any status short of merged or done.
+In one call with the block at the top and the block that reads jbus, with the row's slug in place of `<slug>` and the scope's name in place of `<scope>`:
+
+```sh
+: "${P:?run the block that reads jbus first}"
+jbus --project "$P" queue move '<slug>' --home '<scope>'
+```
+
+On `moved` jbus has rewritten the brief's `Home:` line, in its stored brief and in `$H/tasks/<slug>.md`, kept the row's go by rule (its line says `carried`), and logged the move: the crew's next Result, each wake and each stall go to the scope's home, and nothing is sent to anyone now.
+Ask the user for no new go, and send the scope's home nothing: it meets the row on its next wake.
+On `refused:` nothing moved: the root is never a target, and a name that is no scope needs one made first ("Making a scope").
 
 **Making a scope** is the root home's, and only on the user's word. In one call with the block at the top and the block that finds this home, with the scope's name in place of `<scope>`, the prefix its slugs and branches will start with, such as `rs-`, in place of `<prefix>`, and what the scope owns, in the user's words, in place of `<what the scope owns>`:
 

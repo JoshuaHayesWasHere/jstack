@@ -71,6 +71,9 @@ whole text.
 When a go no longer holds, `changed` names the lines of the brief that differ from what was
 approved (`meaning.changed`), and the pass's gate says them.
 
+`move` gives a row to another child home with its go (`move`): it rewrites the brief's `Home:`
+line, which no go covers, and keeps the move in `carried`, which the go's line says.
+
 `remove` takes a row out for good. The slug then goes into `removed.json` beside the table,
 with who said so and when, and a pass reads that file to decide that a slug is gone: it sends
 no finding for a slug the file names, and tells no thread of that slug to carry on. `remove`
@@ -157,7 +160,7 @@ from jmerge.judgement import bound
 from jsettings import brief as brief_head
 from jsettings import store
 
-EVENTS = {"queue": "quiet"}
+EVENTS = {"queue": "quiet", "move": "quiet"}
 CHEF = ("slug", "priority", "depends", "merge_after", "approved", "brief_sha", "entry")
 CREW = "crew"
 SCOUT = "scout"
@@ -523,10 +526,10 @@ def record(row: Row) -> Approval | None:
 
 def approval(row: Row) -> str:
     """Return what jbus says of a row's go: the record's line, the typed string of an older row
-    with what it is, or nothing for a row with no go."""
+    with what it is, or nothing for a row with no go. A go a move carried says so (`carried`)."""
     kept, typed = record(row), row.get("approved", "")
     if kept:
-        return kept.line()
+        return kept.line() + carried(row)
     return f"{typed} (typed, not checked)" if typed else ""
 
 
@@ -747,7 +750,7 @@ def _handed(row: Row, made: str) -> bool:
 def _hand_over(row: Row) -> None:
     """Make a scout's finished row a crewmate's: it is queued again with no go, since its go was
     for the request and not the brief."""
-    for column in ("role", "approval", "held", "hold"):
+    for column in ("role", "approval", "held", "hold", CARRIED):
         row.pop(column, None)
     row.update(approved="", brief_sha="", **_blank())
 
@@ -1832,6 +1835,7 @@ def _grant(
     )
     row.pop("held", None)
     row.pop("hold", None)
+    row.pop(CARRIED, None)
     row.update(approved=made.line(), approval=held(made), brief_sha=stored)
     return f"approved {row['slug']}: brief {stored[:12]}, {made.line()}"
 
@@ -2389,6 +2393,119 @@ def rename(state: Path, slug: str, new: str, at: str, by: str, asks: Asks | None
     """Move a row that never launched, and that no other row names, to the slug `new`, keeping
     its priority, depends, merge_after, entry and go, and return the line that says so."""
     return _run(state, [(0, Rename(slug, new, at, by))], asks=asks)[0]
+
+
+MOVE_RULE = "a move keeps the go: a row's home is whom its brief is sent to, and no go covers it"
+CARRIED = "carried"
+"""The Chef's column that only `move` writes: the last move that carried the row's go, as
+`{"from", "to", "at", "by"}`. Any new go drops it, since that go was given where the row is."""
+
+
+def carried(row: Row) -> str:
+    """Return what the row's go line says of the move that carried it, or nothing."""
+    made = row.get(CARRIED)
+    if not isinstance(made, dict):
+        return ""
+    return (
+        f"; carried from the {made['from']} home to the {made['to']} home by a move, "
+        f"{made['at']} by {made['by']}: {MOVE_RULE}"
+    )
+
+
+def rehomed(text: str, scope: str) -> str:
+    """Return the brief with its head's `Home:` line naming `scope`, or with one added as the
+    head's last line where it has none. Nothing else of the brief changes."""
+    lines = text.splitlines(keepends=True)
+    at = len(lines)
+    for number, line in enumerate(lines):
+        if line.startswith(brief_head.HEADING):
+            at = number
+            break
+        if line.startswith("Home:"):
+            lines[number] = f"Home: {scope}\n"
+            return "".join(lines)
+    if at == len(lines) and lines and not lines[-1].endswith("\n"):
+        lines[-1] += "\n"
+    lines.insert(at, f"Home: {scope}\n")
+    return "".join(lines)
+
+
+@dataclass(frozen=True)
+class Moved:
+    """What `move` did: its `line`, the homes it moved the row `was` in and `to` by name (the
+    same where it moved nothing), and the stored brief as it now is."""
+
+    line: str
+    was: str
+    to: str
+    text: str
+
+    @property
+    def moved(self) -> bool:
+        return self.was != self.to
+
+
+def _write_home_copy(path: Path, scope: str) -> bool:
+    """Name `scope` on the `Home:` line of the home's copy of a brief, read again just before,
+    and swap it in whole, so a Result a crew appends is not cut. Return whether it changed."""
+    try:
+        text = path.read_text()
+    except OSError:
+        return False
+    if homes.named(text) == scope:
+        return False
+    spare = path.with_name(f".{path.name}.move")
+    spare.write_text(rehomed(text, scope))
+    os.replace(spare, path)
+    return True
+
+
+def move(state: Path, home: Path, slug: str, scope: str, at: str, by: str) -> Moved:
+    """Give a row to the home of the scope `scope`, with its go. The row's home is its brief's
+    `Home:` line, and every reader that routes a send reads it again from the brief, so the move
+    rewrites that line in the brief jbus stores and in the home's copy under `tasks/` (a scout's
+    under `scouts/`). A go binds the brief with no `Home:` line (`judgement.body`), so it holds for
+    the moved brief as it held before, by `MOVE_RULE`, and the row keeps the move in `CARRIED`.
+    The stored brief keeps the time it was stored at, which a door's go is held to.
+
+    Refuse a row that is over, `root` or any name the root goes by, and a name that is no scope of
+    the home. A row already in that home, in both copies, is moved nowhere, and its line says so.
+    Run again, a move cut short between its two writes finishes."""
+    if scope == homes.ROOT or scope in homes.ids(home):
+        raise Refused(
+            f"refused: {scope} is the root home, and a row moves only to a child home: "
+            "name one of its scopes"
+        )
+    fault = homes.fault(home, f"Home: {scope}\n", home.name)
+    if fault:
+        raise Refused(f"refused: {fault}: nothing is moved")
+    with _changing(state, {slug}) as rows:
+        row = _row(rows, slug, removed(state))
+        if over(row):
+            raise Refused(f"refused: {slug} is {row.get('status')}, and a row that is over stays")
+        text = brief(state, slug)
+        if text is None:
+            raise Refused(f"refused: {slug} has no brief, add it again")
+        was = homes.home_of(home, text).name
+        copy = home / ("scouts" if role(row) == SCOUT else "tasks") / f"{slug}.md"
+        if was == scope:
+            if _write_home_copy(copy, scope):
+                return Moved(f"moved {slug}'s copy at {copy} to the {scope} home", was, was, text)
+            return Moved(f"{slug} is the {scope} home's already: nothing is moved", was, was, text)
+        now = rehomed(text, scope)
+        holds = judgement.has_go(row, text)
+        if holds and row.get("brief_sha") == judgement.sha(text):
+            row["brief_sha"] = judgement.brief_sha(now)
+        stored = brief_path(state, slug).stat()
+        _store(state, slug, now)
+        os.utime(brief_path(state, slug), ns=(stored.st_atime_ns, stored.st_mtime_ns))
+        _write_home_copy(copy, scope)
+        go = ", it has no go to carry"
+        if holds:
+            row[CARRIED] = {"from": was, "to": scope, "at": at, "by": by}
+            go = f", its go carried: {MOVE_RULE}"
+        line = f"moved {slug} from the {was} home to the {scope} home, {at} by {by}{go}"
+        return Moved(line, was, scope, now)
 
 
 def _options(verb: str, words: list[str]) -> dict[str, str]:

@@ -219,6 +219,26 @@ def _release(directory: Path, key: str, sha: str = "", slug: str = "") -> None:
         write_json(directory / LEDGER, kept)
 
 
+def rehome(was: Path, to: Path, slug: str, text: str) -> None:
+    """Carry the tries a fix row counts from the ledger of the home it was in, `was`, to that of
+    the home `jbus queue move` gave it, `to`, so its new home's cap counts them and `forgo` finds
+    them there. A brief that is no fix, or a try already carried, carries nothing."""
+    key = head(text, FIX_OF)
+    if not key or was == to:
+        return
+    with locked(was, LOCK), locked(to, LOCK):
+        old, new = ledger(was), ledger(to)
+        going = [one for one in old.get(key, []) if one.get("slug") == slug]
+        if not going:
+            return
+        old[key] = [one for one in old[key] if one.get("slug") != slug]
+        if not old[key]:
+            del old[key]
+        new[key] = [*new.get(key, []), *going]
+        write_json(to / LEDGER, new)
+        write_json(was / LEDGER, old)
+
+
 def forgo(run: Pass, move: dict[str, Any]) -> None:
     """Give back the try of a fix whose row `jbus queue remove` took out before it launched: no
     thread, no pull request and no launch record. `move` is the removal's line of
