@@ -13,7 +13,7 @@ import pytest
 
 import jbus
 import jsettings
-from jbus import questions, queue, word
+from jbus import acts, questions, queue, word
 from jbus.view import state as view_state
 from test_jbus_kitchen import ASK, GO, NOW, RAN, SAID, SAID_AT, SESSION, bound
 from test_jbus_queue import NO_BASIS, add, brief, rows, sha12
@@ -124,6 +124,70 @@ def test_a_message_that_is_not_the_users_own_approves_nothing(kitchen, more, wro
         f"refused: message {REF} is not user's own: T3 Code has it as a {wrote}\n",
     )
     assert rows(kitchen)["alpha"]["approved"] == ""
+
+
+def queued(kitchen, slug, *more, text=None):
+    """Run `queue add` for the row, with its brief on stdin and `more` options."""
+    given = text or brief(slug)
+    return kitchen.main("queue", "add", slug, "--priority", "1", *more, stdin=given)
+
+
+def test_a_row_queued_with_the_users_message_is_approved_on_it_in_the_same_write(kitchen):
+    """`queue add --message` records the go `approve --message` would, for the brief it adds,
+    and `jbus.asks` logs it as a go of the home's."""
+    kitchen.t3.says(HOME, MESSAGE, "yes,\n  launch alpha")
+    code, said = queued(kitchen, "alpha", "--message", REF)
+    assert code == 0, said
+    assert f"approved alpha: brief {sha12(brief('alpha'))}, {HEARD}" in said.splitlines()
+    row = rows(kitchen)["alpha"]
+    assert row["approval"] == {
+        "basis": "message",
+        "ref": REF,
+        "words": "yes, launch alpha",
+        "said_at": HEARD_AT,
+        "said_in": "home: demo",
+        "checked": True,
+        "ran_by": {"session": SESSION, "directory": str(kitchen.checkout)},
+        "ran_at": RAN,
+        **bound(kitchen, "alpha"),
+    }
+    assert (row["approved"], cell(kitchen, "alpha")) == (HEARD, HEARD)
+    (went,) = [one for one in acts.read(kitchen.state) if one["action"]["verb"] == "go"]
+    assert (went["action"]["subject"], went["outcome"]) == ("alpha", "done")
+    kitchen.poll()
+    assert [launch["title"] for launch in kitchen.t3.launches] == ["crew: alpha"]
+
+
+@pytest.mark.parametrize(
+    "more, wrote",
+    [
+        ({"createdBy": "agent", "creationSource": "mcp"}, "user_message by agent, from mcp"),
+        (
+            {"type": "assistant_message", "createdBy": "agent", "creationSource": "provider"},
+            "assistant_message by agent, from provider",
+        ),
+    ],
+)
+def test_a_row_queued_with_a_message_that_is_not_the_users_own_is_not_queued(kitchen, more, wrote):
+    kitchen.t3.says(HOME, MESSAGE, "yes, launch alpha", **more)
+    assert queued(kitchen, "alpha", "--message", REF) == (
+        1,
+        f"refused: message {REF} is not user's own: T3 Code has it as a {wrote}\n",
+    )
+    assert [row["slug"] for row in queue.load(kitchen.state)] == []
+
+
+def test_a_row_whose_brief_holds_for_a_door_is_not_queued_with_a_message(kitchen):
+    """A door's go goes by `queue approve` alone, which binds it to a word after the brief."""
+    kitchen.t3.says(HOME, MESSAGE, "yes, launch alpha")
+    text = brief("alpha", "Holds: deletes data\n")
+    code, said = queued(kitchen, "alpha", "--message", REF, text=text)
+    assert (code, said) == (
+        1,
+        "refused: alpha's brief holds for deletes data, so its go goes by jbus queue approve "
+        "alone, and nothing is queued\n",
+    )
+    assert [row["slug"] for row in queue.load(kitchen.state)] == []
 
 
 def test_a_message_t3_code_does_not_have_and_a_reference_that_is_not_one_are_refused(kitchen):
