@@ -16,7 +16,7 @@ import test_jmerge_run as run
 from jbus import rebase as asks
 from jmerge import rangediff, ready
 
-FILE = "f.txt"
+FILE = "f.py"
 LINES = [f"line {number}" for number in range(1, 31)]
 LATER = {**merge.PASSED, "startedAt": f"{date.today().year + 1}-01-01T00:00:00Z"}
 
@@ -986,9 +986,9 @@ def test_a_tests_only_push_still_waits_on_its_proved_line(proven_merged, rules):
 def test_a_tests_only_push_with_one_code_file_waits_for_a_scoped_review(proven_merged, rules):
     fix = CiFix(proven_merged, {15: "what the check asked for"}, files=(FILE, TEST), path=TEST)
     tree = proven_merged.tree
-    code = commit(tree, "and the code", {15: "the code"}, "f.py")
+    code = commit(tree, "and the code", {15: "the code"}, "g.py")
     merge.git(tree, "push", "-q", "origin", "alpha")
-    proven_merged.home.open_pull_request(code, checks=(LATER,), files=[FILE, TEST, "f.py"])
+    proven_merged.home.open_pull_request(code, checks=(LATER,), files=[FILE, TEST, "g.py"])
     fix.brief(run.proven("clean", fix.before), proved(code, fix.base, (TEST,)))
     assert run.jmerge(proven_merged, rules) == [fix.waits().replace(fix.head, code)]
     assert run.merges(proven_merged) == []
