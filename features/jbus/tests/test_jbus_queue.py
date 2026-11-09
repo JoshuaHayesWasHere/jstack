@@ -257,7 +257,8 @@ def test_no_verb_sets_a_derived_column(kitchen, column):
 
 def test_a_go_on_the_users_word_needs_no_sha_and_is_for_the_brief_as_stored(kitchen):
     add(kitchen, "alpha", approve=False)
-    assert kitchen.main("queue", "approve", "alpha", "--word", kitchen.word())[0] == 0
+    code, said = kitchen.main("queue", "approve", "alpha", "--word", kitchen.word())
+    assert code == 0, said
     assert rows(kitchen)["alpha"]["approved"] == GO
     assert rows(kitchen)["alpha"]["brief_sha"] == judgement.brief_sha(brief("alpha"))
 
