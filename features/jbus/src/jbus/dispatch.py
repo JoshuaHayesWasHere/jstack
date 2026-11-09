@@ -674,7 +674,7 @@ class Turns:
             ):
                 target.write_text(put)
             key = f"{run.project.name}/{slug}/{sha[:12]}"
-            intent = {"key": key, "state": "intent", "at": run.now.isoformat()}
+            intent: dict[str, Any] = {"key": key, "state": "intent", "at": run.now.isoformat()}
             if retried:
                 intent["retried"] = True
             write_json(path, intent)

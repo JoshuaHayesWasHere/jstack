@@ -47,7 +47,8 @@ def kept(run: Pass, slug: str, sha: str) -> bool:
     if not sha or listed.returncode:
         return False
     for entry in listed.stdout.split("\n\n"):
-        lines = dict(line.partition(" ")[::2] for line in entry.splitlines())
+        parts = (line.partition(" ") for line in entry.splitlines())
+        lines = {key: value for key, _, value in parts}
         if Path(lines.get("worktree", "/")).resolve() == tree:
             if lines.get("branch") != f"refs/heads/{slug}" or lines.get("HEAD") != sha:
                 return False
