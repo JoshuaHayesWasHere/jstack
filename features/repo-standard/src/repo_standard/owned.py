@@ -39,7 +39,10 @@ from repo_standard.tree import Unreadable, matches, tracked
 CLONE_SECONDS = 60
 STACK_MK = "scripts/stack.mk"
 CALLER = ".github/workflows/check.yml"
-LABEL = re.compile(r"^(\s*runner:[ \t]*)(\S.*)$", re.M)
+SHARED = "/repo-standard-check.yml@"
+OWN_INPUTS = ("runner", "browser-channel", "timeout-minutes")
+"""The inputs of the call of the shared check that are the repo's own: its runner, and what that
+runner needs, a browser it has in place of Docker or a longer cap."""
 
 
 class Kind(Enum):
@@ -103,19 +106,55 @@ def files(feature: Path, config: Config, paths: list[str], want: Kind) -> dict[s
     return found
 
 
+def _inputs(lines: list[str]) -> tuple[int, int] | None:
+    """The span of the lines of the `with:` under the call of the shared check, or None where the
+    text has no such call with a `with:`."""
+    for at, line in enumerate(lines):
+        if line.lstrip().startswith("uses:") and SHARED in line:
+            indent = len(line) - len(line.lstrip())
+            for start in range(at + 1, len(lines)):
+                depth = len(lines[start]) - len(lines[start].lstrip())
+                if lines[start].strip() and depth <= indent:
+                    if depth < indent or lines[start].strip() != "with:":
+                        break
+                    end = start + 1
+                    while end < len(lines) and (
+                        not lines[end].strip() or len(lines[end]) - len(lines[end].lstrip()) > depth
+                    ):
+                        end += 1
+                    return start + 1, end
+    return None
+
+
+def _own(line: str) -> bool:
+    return line.strip().split(":", 1)[0] in OWN_INPUTS
+
+
 def masked(path: str, text: str) -> str:
-    """The text as the drift rule compares it: in the caller's check.yml, the runner's label is
-    the repo's own, so the value of `runner:` reads as a placeholder. The job check's `runs-on:`
-    takes that label from the call, and is the version's."""
-    return LABEL.sub(r"\1<label>", text) if path == CALLER else text
+    """The text as the drift rule compares it: in the caller's check.yml, the inputs of the call
+    that are the repo's own, `OWN_INPUTS`, are left out. The job check's `runs-on:` takes the
+    runner's label from the call, and is the version's."""
+    lines = text.splitlines(keepends=True)
+    span = _inputs(lines) if path == CALLER else None
+    if span is None:
+        return text
+    start, end = span
+    return "".join(lines[:start] + [one for one in lines[start:end] if not _own(one)] + lines[end:])
 
 
 def carried(path: str, mine: str, theirs: str) -> str:
-    """The version's copy `theirs`, with the runner's label of the repo's copy `mine` kept."""
-    if path != CALLER:
+    """The version's copy `theirs`, with the inputs of the repo's copy `mine` that are its own,
+    `OWN_INPUTS`, in place of the version's, where both call the shared check with a `with:`."""
+    ours, new = mine.splitlines(keepends=True), theirs.splitlines(keepends=True)
+    kept = _inputs(ours) if path == CALLER else None
+    span = _inputs(new) if kept else None
+    if kept is None or span is None:
         return theirs
-    labels = iter(found[2] for found in LABEL.finditer(mine))
-    return LABEL.sub(lambda found: found[1] + next(labels, found[2]), theirs)
+    start, end = span
+    own = [one for one in ours[kept[0] : kept[1]] if _own(one)]
+    at = next((i for i in range(start, end) if _own(new[i])), start)
+    rest = [one for one in new[at:end] if not _own(one)]
+    return "".join(new[:at] + own + rest + new[end:])
 
 
 def tree(version: int, root: Path, upstream: str | None) -> Path:
