@@ -12,7 +12,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import questions, queue, t3
+from jbus import cleanup, questions, queue, t3
 from jbus.passes import Pass
 from test_jbus_kitchen import FIXTURE, GATE, NOW, PROJECT, RESULT, queued, review, settles
 
@@ -295,6 +295,33 @@ def test_a_held_crew_s_scratch_is_cleared_once_a_run_of_its_thread_and_a_freed_w
     crew["latestRunId"] = "run-2"
     kitchen.poll(NOW + timedelta(minutes=9))
     assert not folder.exists() and "archived" not in crew
+
+
+@pytest.mark.parametrize("why", ["unknown", "locked"])
+def test_a_scratch_worktree_that_could_not_go_is_tried_again_on_the_next_pass(
+    kitchen, monkeypatch, why
+):
+    """A held crew's scratch worktree that a pass leaves, since `cleanup.in_use` could not say
+    which folders are in use or git would not remove it, goes on the next pass that can."""
+    monkeypatch.setenv("CLAUDE_CODE_TMPDIR", str(kitchen.root / "tmp"))
+    home = kitchen.root / "worktrees" / "alpha"
+    kitchen.t3.thread("alpha", "completed", worktreePath=str(home))
+    kitchen.brief("alpha", RESULT)
+    a_follower(kitchen)
+    claude = kitchen.root / "tmp" / f"claude-{os.getuid()}"
+    base = claude / re.sub("[^A-Za-z0-9]", "-", str(home)) / "session" / "scratchpad" / "base"
+    kitchen.git("worktree", "add", "-q", "--detach", str(base))
+    with monkeypatch.context() as patched:
+        if why == "unknown":
+            patched.setattr(cleanup, "in_use", lambda: None)
+        else:
+            kitchen.git("worktree", "lock", str(base))
+        kitchen.poll()
+    assert base.exists()
+    if why == "locked":
+        kitchen.git("worktree", "unlock", str(base))
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert not base.exists()
 
 
 def git_fails(kitchen, monkeypatch):
