@@ -961,9 +961,7 @@ def test_a_moot_go_gate_of_a_removed_row_closes_as_no_row_to_go(kitchen):
 
 
 @pytest.mark.parametrize("status", ["done", "pr", "left", "running"])
-def test_a_held_question_on_a_row_that_did_not_merge_is_not_moot_and_stays_open(
-    kitchen, status
-):
+def test_a_held_question_on_a_row_that_did_not_merge_is_not_moot_and_stays_open(kitchen, status):
     moot_row(kitchen, "alpha", status)
     assert kitchen.main("gate", "alpha", stdin=held())[0] == 0
     kitchen.poll(later(10))
