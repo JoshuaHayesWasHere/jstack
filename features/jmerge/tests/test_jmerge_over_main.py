@@ -14,7 +14,7 @@ from dataclasses import replace
 
 import pytest
 
-from jmerge import ready, treeguards
+from jmerge import cli, ready, treeguards
 from test_jmerge_cli_merged_tree import MAKEFILE, runs
 from test_jmerge_fresh import LINES, Kitchen, asked, git, repo, url
 from test_jmerge_in_line import behind
@@ -116,6 +116,27 @@ def test_over_main_an_overlapping_revert_still_takes_the_line(kitchen):
     assert second.startswith("merged 7 two ")
     assert kitchen.updates() == ["9"]
     assert runs(kitchen) == 1
+
+
+def test_over_main_one_no_brief_names_waits_on_guards_that_failed_on_its_merged_tree(
+    kitchen, monkeypatch
+):
+    """A pull request no brief names, as a dependabot bump is, which only the user's accept
+    merges (`Repo.unbriefed`), merges on the guards over today's tip as a briefed one does, and
+    where they failed on its head over that tip, GitHub is to merge the tip into its branch."""
+    head = kitchen.crew("bump", 7, OURS)
+    tip = kitchen.on_main(THEIRS)
+    one = ready.pull_request(kitchen.pulls["bump"])
+    here = repo(kitchen, monkeypatch)
+    assert here.unbriefed(one, "main", "") == cli.Judgement(
+        "", "", "", "", ready.Judged(tip, overlaps=True)
+    )
+    failed = ready.MERGED_TREE_FAILS.format(base="main", tip=tip[:12], guard="guards")
+    record = {"head": head, "tip": tip, "said": failed, "note": ""}
+    (kitchen.home.state / treeguards.KEPT).write_text(json.dumps({"7": record}))
+    here = repo(kitchen, monkeypatch)
+    moved = ready.BASE_MOVED_DUE.format(base="main", tip=tip[:12])
+    assert here.unbriefed(one, "main", "") == cli.Judgement("", "wait", moved, "", None)
 
 
 def test_over_main_a_base_that_cannot_be_fetched_waits_saying_so(kitchen, monkeypatch):
