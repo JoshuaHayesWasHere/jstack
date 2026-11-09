@@ -23,7 +23,9 @@ import subprocess
 import pytest
 
 import test_skeleton_python as skeleton
-from repo_standard.config import parse
+from repo_standard.adapters import COMMANDS
+from repo_standard.config import Config, Stack, parse
+from repo_standard.rules import Advice, Repo, make_targets
 from test_skeleton_python import INHERITED, SKELETON, STANDARD, git, make, write
 from testing.paths import REPO
 
@@ -313,6 +315,58 @@ def test_make_test_runs_the_selected_files_from_the_root(react_repo):
     assert "vitest ran src/utils/hours.test.ts src/components/Chart.test.tsx" in out
     assert "vitest ran every test" in make(root, env, "test", "TESTS=stack:client")
     make(root, env, "test", "TESTS=client/src/gone.test.ts", ok=False)
+
+
+def test_the_driver_runs_each_roots_own_scripts_and_only_the_roots_the_ids_reach():
+    node = COMMANDS["node-vite"]
+    roots = ("client", "admin")
+    assert node.lint(roots) == [
+        ["npm", "--prefix", "client", "run", "check"],
+        ["npm", "--prefix", "admin", "run", "check"],
+    ]
+    assert node.test(roots, []) == [
+        ["npm", "--prefix", "client", "test"],
+        ["npm", "--prefix", "admin", "test"],
+    ]
+    assert node.test(roots, ["client/src/a.test.ts", "client/b.test.ts"]) == [
+        ["npm", "--prefix", "client", "test", "--", "src/a.test.ts", "b.test.ts"]
+    ]
+    assert node.test((".",), ["src/a.test.ts"]) == [
+        ["npm", "--prefix", ".", "test", "--", "src/a.test.ts"]
+    ]
+    assert node.select(roots, "HEAD") == [
+        "python3",
+        "scripts/node.py",
+        "select",
+        "--roots",
+        "client",
+        "--roots",
+        "admin",
+        "HEAD",
+    ]
+
+
+def test_conform_holds_each_node_root_to_its_scripts_and_its_node_version(tmp_path):
+    files = {
+        "Makefile": "lint:\n\ntest:\n\ncheck:\n",
+        "pinned/package.json": package(engines={"node": "24"}),
+        "nvm/package.json": package(),
+        "nvm/.nvmrc": "24\n",
+        "bare/package.json": json.dumps({"scripts": {"check": " "}}),
+        "broken/package.json": "{",
+    }
+    write(tmp_path, files)
+    roots = ("pinned", "nvm", "bare", "broken")
+    config = Config(stacks={"web": Stack("node-vite", roots), "api": Stack("go", ("api",))})
+    faults = make_targets(Repo(tmp_path, config, sorted(files)))
+    assert faults == [
+        "bare/package.json: has no `check` script, which `make lint` runs",
+        "bare/package.json: has no `test` script, which `make test` runs",
+        "bare: pins no Node version, in `.nvmrc` or package.json `engines.node`, so CI runs the"
+        " runner's Node",
+        "broken/package.json: is not there, or is not a JSON object, so the stack has no scripts",
+    ]
+    assert [isinstance(one, Advice) for one in faults] == [False, False, True, False]
 
 
 def test_a_failing_check_script_fails_the_lint(svelte_repo):
