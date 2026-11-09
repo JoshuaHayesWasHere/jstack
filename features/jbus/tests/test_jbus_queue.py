@@ -12,7 +12,7 @@ from jsonschema import Draft202012Validator
 
 import jbus
 import test_tool_calls as tools
-from jbus import passes, poll, queue, wake
+from jbus import cleanup, passes, poll, queue, wake
 from jmerge import judgement
 from scoped import scope
 from test_jbus_kitchen import GO, NOW, PROJECT, QUARTER_PAST_FIVE, RAN, RESULT, SAID, Kitchen
@@ -552,10 +552,9 @@ def test_an_approved_row_is_launched_as_the_home_launches_a_crewmate(kitchen, js
         "projectId": PROJECT,
         "title": "crew: alpha",
         "workspaceStrategy": {
-            "type": "worktree",
-            "baseRef": "main",
+            "type": "existing_worktree",
+            "worktreePath": str(cleanup.worktrees() / kitchen.checkout.name / "alpha"),
             "branch": "alpha",
-            "startFromOrigin": True,
         },
         "message": f"/crew alpha\n\n{written}",
         "runtimeMode": "full-access",
@@ -687,10 +686,11 @@ def test_a_row_waits_silently_until_what_it_depends_on_opens_its_pull_request(ki
     kitchen.poll()
     kitchen.poll(NOW + timedelta(minutes=3))
     assert kitchen.t3.launches == [] and kitchen.lines() == []
+    kitchen.pushed("alpha")
     kitchen.set("open.json", [kitchen.opened("alpha", 7)])
     kitchen.poll(NOW + timedelta(minutes=6))
     assert [given["title"] for given in kitchen.t3.launches] == ["crew: beta"]
-    assert kitchen.t3.launches[0]["workspaceStrategy"]["baseRef"] == "alpha"
+    assert kitchen.started_on("beta") == "alpha"
 
 
 def test_a_dependency_merged_into_another_branch_than_main_counts_as_merged(kitchen):

@@ -20,7 +20,7 @@ from types import SimpleNamespace
 import pytest
 
 from jbriefs import below
-from jbus import mirror, queue, strays
+from jbus import cleanup, mirror, queue, strays
 from test_jbus_kitchen import NOW, RESULT, Kitchen
 from test_jbus_queue import add
 
@@ -104,11 +104,14 @@ def temp(request, kitchen, monkeypatch):
 
 
 def ended_crew(kitchen, tmp_path, status="completed", under="trees"):
-    """A row whose crew jbus launched into its worktree, and whose turn then ended."""
+    """A row whose crew jbus launched into its worktree, moved to `under`, and whose turn then
+    ended."""
     tree = tmp_path / under / "alpha"
     add(kitchen, "alpha")
     kitchen.poll(NOW - timedelta(minutes=3))
-    kitchen.git("worktree", "add", "-q", "-b", "alpha", str(tree))
+    made = cleanup.worktrees() / kitchen.checkout.name / "alpha"
+    tree.parent.mkdir(parents=True, exist_ok=True)
+    kitchen.git("worktree", "move", str(made), str(tree))
     thread = kitchen.t3.threads[-1]
     thread.update({"status": status, "updatedAt": thread["createdAt"]})
     kitchen.t3.at_work.discard(thread["threadId"])
@@ -177,7 +180,7 @@ def test_the_line_waits_for_a_result_and_goes_under_it_once_written(kitchen, tmp
 def test_a_worktree_removed_under_a_busy_process_still_counts(
     kitchen, tmp_path, stray, monkeypatch
 ):
-    monkeypatch.setattr(strays, "WORKTREES", tmp_path / "worktrees")
+    monkeypatch.setattr(strays, "worktrees", lambda: tmp_path / "worktrees")
     tree, _ = ended_crew(kitchen, tmp_path, under="worktrees/demo")
     stray.append(orphan(tree, "yes"))
     kitchen.git("worktree", "remove", "--force", str(tree))
@@ -379,7 +382,7 @@ def end(kitchen, tree, how):
 def test_an_idle_process_a_crew_left_in_its_worktree_is_stopped_once_its_row_ended(
     kitchen, tmp_path, stray, monkeypatch, how
 ):
-    monkeypatch.setattr(strays, "WORKTREES", tmp_path / "worktrees")
+    monkeypatch.setattr(strays, "worktrees", lambda: tmp_path / "worktrees")
     tree, _ = ended_crew(kitchen, tmp_path, under="worktrees/demo")
     stray.append(orphan(tree, "sleep", "300"))
     said = end(kitchen, tree, how) + kitchen.poll()
@@ -396,7 +399,7 @@ def test_an_idle_process_a_crew_left_in_its_worktree_is_stopped_once_its_row_end
 def test_an_idle_process_a_crew_left_is_stopped_once_its_row_ended(
     kitchen, tmp_path, stray, monkeypatch, temp, how
 ):
-    monkeypatch.setattr(strays, "WORKTREES", tmp_path / "worktrees")
+    monkeypatch.setattr(strays, "worktrees", lambda: tmp_path / "worktrees")
     tree, _ = ended_crew(kitchen, tmp_path, under="worktrees/demo")
     stray.append(orphan(tree, "sleep", "300"))
     stray.append(orphan(temp, "sleep", "301", env=session_of(tmp_path, tree)))
@@ -465,7 +468,7 @@ def test_the_homes_idle_processes_are_left_when_a_crews_turn_ended(
 def at_its_pull_request(kitchen, tmp_path, monkeypatch):
     """A crew whose turn ended with its pull request open and its Result written: its row stays
     at `pr` while the pull request waits on review, a red main or the base it merges after."""
-    monkeypatch.setattr(strays, "WORKTREES", tmp_path / "worktrees")
+    monkeypatch.setattr(strays, "worktrees", lambda: tmp_path / "worktrees")
     tree, thread = ended_crew(kitchen, tmp_path, under="worktrees/demo")
     brief = kitchen.home / "tasks" / "alpha.md"
     url = "https://example.test/pull/7"

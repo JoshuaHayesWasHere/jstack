@@ -4,7 +4,7 @@ A pass launches a row only when all of these hold:
 
 - the row has an `approved` value, and its go holds for its brief ([What an approval is bound to](the-queue.md#what-an-approval-is-bound-to));
 - every slug in `depends` is merged, or every one but one, whose pull request is open: the row then launches stacked on that pull request's branch;
-- no branch of its name exists, and no settled thread has its slug;
+- no branch of its name exists, save the one jbus made for a launch whose connection dropped (below), and no settled thread has its slug;
 - main is not red, as `main.json` reads it, or the row fixes main (jbus filed it for the red, or its heading says it fixes main), or it launches stacked on an open row it depends on; any other row waits as `main is red: waits for green`, and launches on the first pass that reads main as green ([A red main](a-red-main.md));
 - fewer than `max_running` crewmates are out across every project in the config (`jgauge sizes` prints `max_running`, which jbus derives from the machine unless the config sets it);
 - fewer than `max_per_project` crewmates are out in the row's project, 24 unless the config sets it;
@@ -85,6 +85,25 @@ max_per_home is 6 in the flow home: <slug> waits, since <time>
 max_per_project is 24 in jstack: <slug> waits, since <time>
 max_running is 24 across all projects: <slug> waits, since <time>
 ```
+
+## A crew's worktree
+
+jbus makes the crew's worktree itself, before the launch, and launches the crew into it with `existing_worktree` (`jbus.crewtree`).
+It fetches the row's base from origin (the default branch, the branch its `Pull request:` line names, or the branch of the pull request it is stacked on) and runs `git worktree add --no-track -b <slug>` at that commit, at the path T3 Code would have used: `$T3CODE_HOME/worktrees/<checkout>/<slug>`, `~/.t3` when `T3CODE_HOME` is not set.
+In the worktree it writes two files that are in no commit:
+
+- `.claude/settings.json`, from `jroles.mirror.crew_settings`: `permissions.deny` of `Artifact` and `AskUserQuestion`, and `skillOverrides` that lists by name only each skill of `~/.claude/skills` other than `crew` and `pr-review`, the two a crew and its reviewer invoke. Claude Code reads it from the session's folder before the first request and merges it key by key over the instance's own settings, so a crew's first request carries neither tool's schema (about 14,000 tokens on 2026-11-09) and no description of a skill it does not use.
+- `.claude/.gitignore`, holding `*`, so neither file shows in `git status` and neither can be committed. The repo's `.gitignore` and the shared `info/exclude` stay as they are.
+
+The reviewer launches into the crew's worktree, so it reads the same file.
+A home and a scout work in the project's own checkout, which has no such file, so they keep both tools: a home publishes pages and asks the user in a question box.
+
+The launch record keeps the commit the branch was made at.
+A launch whose reply is lost is looked up and adopted as before, since the thread is on the branch `<slug>`.
+A launch whose connection dropped and that made no thread is tried once more into the same worktree, where the branch is still at that commit and nothing in it changed, so no second worktree or branch is made.
+A worktree jbus cannot make (origin lacks the base, or the worktree is not clean once its files are written) is a condition, `jbus could not make the crew's worktree`, and the row does not launch.
+A launch T3 Code refuses removes the worktree and the branch with it.
+T3 Code's storage cleanup removes a finished crew's worktree by its thread's path under its worktrees folder, whoever made it, as it did when T3 Code made it.
 
 ## What a rebase asks of its crew
 

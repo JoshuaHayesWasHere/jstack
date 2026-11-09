@@ -49,7 +49,7 @@ def tmp(kitchen, monkeypatch):
     monkeypatch.setenv("PATH", f"{stub}:{os.environ['PATH']}")
     monkeypatch.setenv("QUOTA", str(where))
     monkeypatch.setenv("CLAUDE_CODE_TMPDIR", str(where))
-    monkeypatch.setattr(cleanup, "WORKTREES", kitchen.root / "worktrees", raising=False)
+    monkeypatch.setattr(cleanup, "worktrees", lambda: kitchen.root / "worktrees")
     return where
 
 

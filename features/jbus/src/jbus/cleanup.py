@@ -13,7 +13,7 @@ path and macOS's /tmp and /var are links into /private.
 
 A launch that `jgauge room` holds back for /tmp (`waiting` reads its line) first gets `sweep`: it
 removes the Claude scratch folder of each T3 Code worktree that is gone and is no live row's
-(`WORKTREES`), each session folder of a session started in a configured project's main checkout
+(`worktrees`), each session folder of a session started in a configured project's main checkout
 (a home's, a scout's, the user's own) whose newest entry is older than `IDLE`, and each copy of the
 base that `proved.sh` made (`BASE`) and that its run, killed before its EXIT trap, left behind. A
 folder a process works in or names stays, so does the session folder of a session a process
@@ -37,7 +37,6 @@ from jbus.passes import Pass
 from jsettings import proc
 
 ROOT = Path("/proc")
-WORKTREES = Path.home() / ".t3" / "worktrees"
 BASE = "base.*"
 PROVED = "proved.sh"
 IDLE = 12 * 60 * 60
@@ -66,6 +65,14 @@ def claude_root() -> Path:
     """Return `claude-<uid>` in `CLAUDE_CODE_TMPDIR` or /tmp, where Claude Code keeps the scratch
     folder of each folder a session starts in."""
     return Path(os.environ.get("CLAUDE_CODE_TMPDIR") or "/tmp") / f"claude-{os.getuid()}"
+
+
+def worktrees() -> Path:
+    """Return the folder T3 Code makes its worktrees in, `$T3CODE_HOME/worktrees` (`~/.t3` by
+    default), as T3 Code's own `worktreesDir` is: one folder per repo, named for its checkout,
+    and one worktree per branch in it. It is read from jbus's own environment, so jbus and T3
+    Code must agree on `T3CODE_HOME`."""
+    return Path(os.environ.get("T3CODE_HOME") or Path.home() / ".t3") / "worktrees"
 
 
 def scratchpad(worktree: str) -> Path:
@@ -188,7 +195,7 @@ def newest(folder: Path) -> float:
 
 def sweep(run: Pass, live: Iterable[Path]) -> list[Path]:
     """Remove what finished crews and ended sessions left in /tmp: the Claude scratch folder of
-    each worktree under `WORKTREES` that is gone and is none of `live`, the worktrees of the rows
+    each worktree under `worktrees` that is gone and is none of `live`, the worktrees of the rows
     still out, each session folder in the Claude scratch folder of a configured project's main
     checkout that nothing wrote in for `IDLE`, and each copy of the base `proved.sh` made in
     `TMPFS` (or /tmp) or in `claude_root`. Keep each that a process holds, each session folder whose
@@ -197,12 +204,12 @@ def sweep(run: Pass, live: Iterable[Path]) -> list[Path]:
     known = held()
     if known is None:
         return []
-    root = claude_root()
-    trees = [tree for repo in WORKTREES.glob("*") for tree in repo.glob("*") if tree.is_dir()]
+    root, made = claude_root(), worktrees()
+    trees = [tree for repo in made.glob("*") for tree in repo.glob("*") if tree.is_dir()]
     kept = {mangled(tree) for tree in (*trees, *live)}
     pads = [
         pad
-        for pad in root.glob(f"{mangled(WORKTREES)}-*")
+        for pad in root.glob(f"{mangled(made)}-*")
         if not any(pad.name == one or pad.name.startswith(f"{one}-") for one in kept)
     ]
     mains = {root / mangled(one.checkout) for one in run.config.projects}

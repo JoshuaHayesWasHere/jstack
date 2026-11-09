@@ -10,9 +10,9 @@ for each task whose threads are not at work:
   session of that worktree. A temporary folder is one under /tmp or /var/tmp (`TEMP`), or under
   `jgauge.slot.locks_dir()`, where `jgauge test-slot` makes each slot's own TMPDIR, read when
   `stop` runs. The worktree is the one git lists for the task's branch in the main checkout, or
-  `WORKTREES/<project>/<slug>`, where T3 Code makes it. A worktree or a slot's folder that was
-  removed still counts: its processes have a working directory that ends ` (deleted)`. A task
-  counts while a thread of it is listed, and while it is a row of the queue.
+  `worktrees()/<project>/<slug>`, where jbus makes it (`jbus.crewtree`). A worktree or a slot's
+  folder that was removed still counts: its processes have a working directory that ends
+  ` (deleted)`. A task counts while a thread of it is listed, and while it is a row of the queue.
 - A scout works in the main checkout, beside its home, so a folder alone does not tell its
   processes from the home's. A scout's processes are those under the main checkout or a
   temporary folder that its own session started: a session whose first message from the user
@@ -60,7 +60,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from jbus import queue, read_json, threads, verbs, write_json
-from jbus.cleanup import WORKTREES
+from jbus.cleanup import worktrees
 from jbus.passes import Pass
 from jbus.watch import at_work
 from jgauge import slot
@@ -481,8 +481,8 @@ def tasks(run: Pass, out: list[threads.Out], rows: Iterable[queue.Row]) -> list[
     for slug in sorted(found):
         if not slug or ("crew", slug) in busy:
             continue
-        places = [trees.get(slug), WORKTREES / run.project.name / slug]
-        places.append(WORKTREES / run.project.checkout.name / slug)
+        places = [trees.get(slug), worktrees() / run.project.name / slug]
+        places.append(worktrees() / run.project.checkout.name / slug)
         made.append(Task(slug, tuple(dict.fromkeys(one for one in places if one is not None))))
     return made
 
