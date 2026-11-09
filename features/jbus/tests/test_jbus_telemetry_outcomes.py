@@ -1,7 +1,8 @@
-"""What each done row, scout and home turn came to, from the store's views: `row_outcomes` names
-how each row that is over ended, `scout_rows` how the rows of a scout's entry stand, `row_causes`
-the message a queued row came of, and `row_spend` counts a home's and a scout's units on the merged
-rows they led to.
+"""What each done row, scout and home turn came to, from the store's views:
+`jbus.telemetry.views.row_outcomes` names how each row that is over ended,
+`jbus.telemetry.views.scout_rows` how the rows of a scout's entry stand,
+`jbus.telemetry.views.row_causes` the message a queued row came of, and
+`jbus.telemetry.views.row_spend` counts a home's and a scout's units on the merged rows they led to.
 
 The test writes what jbus and the agents write: the queue, the merged rows and the brief versions
 under jbus's state, a home's and a scout's and a crewmate's transcripts, and T3 Code's threads and
