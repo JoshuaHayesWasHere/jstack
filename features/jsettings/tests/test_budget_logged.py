@@ -115,6 +115,7 @@ def test_each_line_names_the_count_it_spent_by_github_s_window_and_reset():
     assert budget.count({"resource": "core", "reset": int(reset.timestamp())}) == ("core", reset)
     assert budget.count({"resource": "core", "remaining": 4000}) is None
     assert budget.count({"remaining": None}) is None
+    assert budget.count({"resource": "core", "reset": 10**20}) is None
 
 
 def test_the_lowest_count_answers_with_its_own_reset(state):
