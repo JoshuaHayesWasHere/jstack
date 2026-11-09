@@ -92,8 +92,10 @@ jbus makes the crew's worktree itself, before the launch, and launches the crew 
 It fetches the row's base from origin (the default branch, the branch its `Pull request:` line names, or the branch of the pull request it is stacked on) and runs `git worktree add --no-track -b <slug>` at that commit, at the path T3 Code would have used: `$T3CODE_HOME/worktrees/<checkout>/<slug>`, `~/.t3` when `T3CODE_HOME` is not set.
 In the worktree it writes two files that are in no commit:
 
-- `.claude/settings.json`, from `jroles.mirror.crew_settings`: `permissions.deny` of `Artifact` and `AskUserQuestion`, and `skillOverrides` that lists by name only each skill of `~/.claude/skills` other than `crew` and `pr-review`, the two a crew and its reviewer invoke. Claude Code reads it from the session's folder before the first request and merges it key by key over the instance's own settings, so a crew's first request carries neither tool's schema (about 14,000 tokens on 2026-11-09) and no description of a skill it does not use.
-- `.claude/.gitignore`, holding `*`, so neither file shows in `git status` and neither can be committed. The repo's `.gitignore` and the shared `info/exclude` stay as they are.
+- `.claude/settings.json`, from `jroles.mirror.crew_settings`: `permissions.deny` of `Artifact` and `AskUserQuestion`, and `skillOverrides` that lists by name only each skill of `~/.claude/skills` other than `crew` and `pr-review`, the two a crew and its reviewer invoke.
+  Claude Code reads it from the session's folder before the first request and merges it key by key over the instance's own settings, so a crew's first request carries neither tool's schema (about 14,000 tokens on 2026-11-09) and no description of a skill it does not use.
+- `.claude/.gitignore`, holding `*`, so neither file shows in `git status` and neither can be committed.
+  The repo's `.gitignore` and the shared `info/exclude` stay as they are.
 
 The reviewer launches into the crew's worktree, so it reads the same file.
 A home and a scout work in the project's own checkout, which has no such file, so they keep both tools: a home publishes pages and asks the user in a question box.
