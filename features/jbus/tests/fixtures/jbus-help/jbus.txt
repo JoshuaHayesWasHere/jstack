@@ -45,8 +45,8 @@ No model reads anything.
 positional arguments:
   {poll,alarm,status,events,digest,view,word,queue,plan,gate,answer,done,project,t3}
     poll                one pass over every project
-    alarm               count a pass that did not finish: the third in a row
-                        alerts
+    alarm               count a pass that did not finish: three in a row over
+                        two minutes alert
     status              what the last pass left: the status file and pass.json
     events              every event jbus sent, JSON lines
     digest              what waits and what moved, over every project

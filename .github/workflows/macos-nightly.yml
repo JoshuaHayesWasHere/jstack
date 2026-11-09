@@ -10,9 +10,11 @@ name: macos-nightly
 #
 # A red run is not told from here: jbus reads this workflow's runs and files and queues the
 # brief for the fix, `macos-red-<date>`, under the macos home (features/jbus/src/jbus/watch.py).
-# A manual run on a fix's branch runs from main all the same, so the run's title names the ref it
+# A manual run checks out the `ref` it names, or else the branch it was started on, so
+# `gh workflow run macos-nightly --ref <branch>` tests that branch: with a `ref` that defaulted
+# to main, two runs meant to prove a fix tested main instead. The run's title names the ref it
 # checked out, and jbus files a brief only for a red run of main's.
-run-name: macos-nightly on ${{ inputs.ref || 'main' }}
+run-name: macos-nightly on ${{ inputs.ref || github.ref_name }}
 
 on:
   schedule:
@@ -20,8 +22,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: The branch, tag or commit whose suite runs
-        default: main
+        description: The branch, tag or commit whose suite runs, else the branch the run is on
 
 permissions:
   contents: read
@@ -39,7 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.ref || 'main' }}
+          ref: ${{ inputs.ref || github.ref_name }}
           persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:

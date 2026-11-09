@@ -4,8 +4,9 @@ instance capped.
 A read that found every instance capped holds until the next read, of either reader, or until its
 `ends_at`, the first reset the ledger gives, whichever is first. The last read holds up to the last
 build. Reads are ordered by time and each counts only up to the next, so two readers' reads of the
-same minutes count it once. The pass reads every minute and `jgauge limits` every 2, so a spell's
-minutes are right to about a minute at each end. A read's minutes count in the week of the read.
+same minutes count it once. The pass reads about twice a minute, 10 s after the last pass ended,
+and `jgauge limits` every 2, so a spell's minutes are right to about a minute at each end. A
+read's minutes count in the week of the read.
 """
 
 from jbus.telemetry.schema import WEEK

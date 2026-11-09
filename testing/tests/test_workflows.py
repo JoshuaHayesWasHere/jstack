@@ -2703,6 +2703,14 @@ def test_the_browser_job_runs_only_the_marked_tests_and_the_checks_jobs_never_na
 
 
 NIGHTLY_REF = "main"
+NIGHTLY_RUNS = (
+    ({"inputs.ref": "", "github.ref_name": NIGHTLY_REF}, NIGHTLY_REF),
+    ({"inputs.ref": "", "github.ref_name": "fix-branch"}, "fix-branch"),
+    ({"inputs.ref": "fix-branch", "github.ref_name": NIGHTLY_REF}, "fix-branch"),
+)
+"""What each run of the nightly checks out: the schedule's, on main with no inputs; a manual
+run on a branch with no `ref` (`gh workflow run macos-nightly --ref <branch>`), which tests
+that branch; and a manual run on main that names a `ref` (`-f ref=<branch>`)."""
 
 
 def dispatch_inputs(path):
@@ -2733,23 +2741,25 @@ def test_the_macos_nightly_runs_every_day_an_hour_after_the_browser_run():
     assert browser["cron"].split()[:2] == [minute, str(int(hour) - 1)]
 
 
-def test_the_macos_nightly_checks_out_main_unless_a_manual_run_names_another_ref():
-    """A scheduled run has no inputs, so the checkout's own fallback is the input's default."""
+def test_the_macos_nightly_checks_out_the_ref_a_run_names_or_else_the_branch_it_runs_on():
+    """A scheduled run has no inputs and runs on main. A manual run on a fix's branch that names
+    no `ref` checks out that branch: with a `ref` that defaults to main, two runs that were
+    meant to prove a fix on macOS tested main instead."""
     assert list(dispatch_inputs(NIGHTLY)) == ["ref"]
-    assert dispatch_inputs(NIGHTLY)["ref"]["default"] == NIGHTLY_REF
+    assert "default" not in dispatch_inputs(NIGHTLY)["ref"]
     found, _ = steps(NIGHTLY.read_text(), "macos")
     checkout = found[0]
     assert checkout["uses"].partition("@")[0] == "actions/checkout"
     assert checkout["with"]["persist-credentials"] is False
     ref = checkout["with"]["ref"].removeprefix("${{").removesuffix("}}")
-    assert [worked(ref, {"inputs.ref": given}) for given in ("", "fix-branch")] == [
-        NIGHTLY_REF,
-        "fix-branch",
+    assert [worked(ref, values) for values, _ in NIGHTLY_RUNS] == [
+        checked for _, checked in NIGHTLY_RUNS
     ]
 
 
 def test_a_run_of_main_is_titled_as_jbus_files_it_and_a_run_on_another_ref_is_not():
-    """Every run of the nightly is on main, so the title is what tells jbus which ref it ran."""
+    """Every scheduled run of the nightly is on main, so the title is what tells jbus which ref
+    it ran."""
     from jbus import watch
 
     lines = NIGHTLY.read_text().splitlines()
@@ -2757,8 +2767,9 @@ def test_a_run_of_main_is_titled_as_jbus_files_it_and_a_run_on_another_ref_is_no
     title = named.removeprefix("run-name: ")
     head, _, rest = title.partition("${{")
     expression = rest.removesuffix("}}")
-    titled = [head + worked(expression, {"inputs.ref": given}) for given in ("", "fix-branch")]
-    assert titled[0] == watch.MACOS.title and titled[1] != watch.MACOS.title
+    titled = [head + worked(expression, values) for values, _ in NIGHTLY_RUNS]
+    assert titled == [f"macos-nightly on {checked}" for _, checked in NIGHTLY_RUNS]
+    assert titled[0] == watch.MACOS.title and watch.MACOS.title not in titled[1:]
     assert watch.MACOS.file == NIGHTLY.name and watch.MACOS in watch.NIGHTLIES
 
 
@@ -3156,6 +3167,17 @@ def test_borders_fails_a_pull_request_that_changes_a_kept_shot_and_another_file_
     assert names[-2:] == ["lint borders", "kept shots"]
     assert found[-1]["run"] == "python3 features/jbus/scripts/kept_shots.py --base HEAD^1"
     assert found[-1]["if"] == "${{ !cancelled() }}"
+
+
+def test_a_label_flipped_during_a_push_never_leaves_a_cancelled_borders_as_the_newest_run():
+    """A push and a label on one pull request in the same second make two runs of borders. In a
+    concurrency group one of them is cancelled, by cancel-in-progress or by displacing a waiting
+    run, and GitHub may order the cancelled one newest: the ruleset then reads `borders` as not
+    passed (#1405). Borders takes seconds, so it has no group at all and every run ends."""
+    text = BORDERS.read_text()
+    assert {"labeled", "unlabeled", "synchronize"} <= set(triggers(text)["pull_request"]["types"])
+    said = [line for line in text.splitlines() if not line.lstrip().startswith("#")]
+    assert not [line for line in said if "concurrency" in line or "cancel-in-progress" in line]
 
 
 NO_AI_TRAILERS = REPO / "scripts" / "no_ai_trailers.py"

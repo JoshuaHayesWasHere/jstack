@@ -2,10 +2,11 @@
 ending, apart from the pass.
 
 A green pull request merges on the first run of `jmerge` after its last check ended, and the pass
-runs it once a pass, which is a minute or more apart. `jbus-merge.timer` runs a tick every 2 seconds
-while the last pass saw a row's pull request open or a check going, and the pass stops it while it
-saw neither (`_timer`). A tick asks GitHub nothing unless the last pass saw an open pull request
-that a row's line names, or another whose checks were still going (`PENDING`, written by the pass's
+runs it once a pass, which starts 10 s after the last one ended. `jbus-merge.timer` runs a tick
+every 2 seconds while the last pass saw a row's pull request open or a check going, and the pass
+stops it while it saw neither (`_timer`). A tick asks GitHub nothing unless the last pass saw an
+open pull request that a row's line names, or another whose checks were still going (`PENDING`,
+written by the pass's
 step `tick.pending`). It asks GitHub for the check runs at the head of every such pull request at
 once, at most `proc.GH_CAP` at a time, so one more pending pull request adds no wait to the
 others' reads. It asks for each head as it is now, by the pull request's ref and not by the sha
@@ -44,7 +45,7 @@ pass's own run, or one that failed leaves the verdict to the next tick's `jmerge
 restates nothing twice. While a run of `jmerge` it started is going, which a merge's guards
 make a minute or more (`jmerge.treeguards`), the tick reads on every 2 seconds in its own
 process (`tick`), since the timer starts no tick until it ends. The pass runs
-`jmerge --if-free` each minute too, so what the tick misses the next pass with the run lock free
+`jmerge --if-free` each pass too, so what the tick misses the next pass with the run lock free
 does. A merge of the tick's that changed a skill is kept for the next pass's `reload.tell`
 before the ETag is (`reload.keep`), since `jmerge` prints its `merged` line once. One run of
 `jmerge` runs at a time, by its run lock (`jmerge.lock`). A tick reads GitHub's API budget before

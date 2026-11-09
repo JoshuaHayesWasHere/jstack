@@ -43,11 +43,19 @@ project's home has started (a root `plan.md`): when the catch-all's `home-id` na
 one T3 Code has archived or does not know, and the thread jbus last launched for it is not at
 work, it makes `uncategorized/` with an empty plan where there is none and launches `/home
 uncategorized` in the project's own checkout. `relaunches.json` keeps the last launch of each home,
-its thread, when and why, and `launch` launches a home at most once in `PATIENCE`, which is the
-time its start has to write its `home-id`, a lost reply included. A launched thread whose start
-failed or went idle with no `home-id` written is not at work, so it is launched again once that
-time is up. A launch waits while the dispatch is off or stopped. The model is the one the role
-map's `home` line gives."""
+its thread, when and why. `launch` holds a home's next launch for `PATIENCE`, the time its start has
+to write its `home-id`, only while that start may still write it: its thread is at work, T3 Code
+does not list it yet, or the reply that names it was lost. A start whose run ended, failed or idle
+with no `home-id` written, is over at once, and the next pass launches the home again. It reads
+what the run failed on: `not signed in` for a login lapse (`jbus.failover.LAPSE`), a usage limit,
+which it writes to the ledger so the next launch goes to another instance or waits for the reset,
+or else the run's end. A second start in a row that fails on the cause the first failed on waits
+for that cause to clear: the instance it ran on signed in again (`jgauge.limits.renewed`), the
+limit's reset, or for any other cause `PATIENCE` after it. It says so once in the digest
+(`home-start`). The home's entry keeps the failure and `says`, why the home has no `home-id` yet,
+such as `start failed: not signed in`, until its home starts. The T3 Code fork's sidebar still
+shows such a home as `starting...`, and does not read `says`. A launch waits while the dispatch
+is off or stopped. The model is the one the role map's `home` line gives."""
 
 from __future__ import annotations
 
@@ -81,9 +89,14 @@ from jbus.passes import Pass
 from jbus.stalls import FILE, STALL
 from jbus.t3 import GONE, Client, T3Error, T3Refused
 from jbus.watch import at_work
-from jroles import pool
+from jgauge import limits
+from jroles import ledger, pool
 
-EVENTS = {"home-stall": "quiet"}
+START = "home-start"
+EVENTS = {"home-stall": "quiet", "home-start": "quiet"}
+NOT_SIGNED_IN = "not signed in"
+STARTED = ("failed", "says")
+"""What a launch keeps of the failed starts before it, dropped once its home has started."""
 WAS_FILE = "children.json"
 """The name `FILE` had before, moved on the first pass that finds it with no `FILE`."""
 PATIENCE = 60
@@ -318,7 +331,7 @@ def watch(run: Pass, client: Client, threads: list[dict[str, Any]] | None) -> No
             what = f"{len(launched)} things" if launched else "its beat"
             standing = scope == catchall and homes.stands_in(run.home)
             plan = "jbus plan" if standing else f"jbus plan --scope {name}"
-            went = _act(run, client, (name, plan), thread, spell, quiet, what)
+            went = _act(run, client, (name, plan), thread, spell, quiet, what, threads)
             if went:
                 spell["step"] = went
                 spell["at"] = run.now.isoformat()
@@ -351,6 +364,7 @@ def _act(
     spell: dict[str, Any],
     quiet: int,
     what: str,
+    threads: list[dict[str, Any]],
 ) -> str:
     """Take the next step of a home's spell: a nudge, a second nudge, a launch of the home on a
     fresh thread, or the item on `jbus needs`. Return the step the spell is at once it is taken,
@@ -372,7 +386,7 @@ def _act(
     ours = read_json(run.state / LAUNCHES, {}).get(name, {}).get("thread")
     if step == "nudged2" and not (ours and ours == homes.ids(run.home / name)[0]):
         why = f"quiet {quiet} min after two nudges, thread {thread}"
-        return "relaunched" if launch(run, client, name, why) else ""
+        return "relaunched" if launch(run, client, name, why, threads) else ""
     line = f"{STALL} {name}: {home} is still quiet after jbus started it again, {quiet} min"
     run.find(name, STALL, f"{line}: on jbus needs; thread {thread}", key=f"{since} ask")
     return "asked"
@@ -400,16 +414,20 @@ def keep_alive(run: Pass, client: Client, threads: list[dict[str, Any]] | None) 
     """Keep the catch-all's home running: launch `/home uncategorized` when its `home-id` names
     no live thread, none, an archived one or one T3 Code does not know, and the thread jbus last
     launched for it is not at work. A launched thread stands for the home only while its start
-    runs: one whose start failed or went idle with no `home-id` written is launched again once
-    `launch`'s `PATIENCE` is up. A project whose home has not started, with no root `plan.md`, has
+    runs: one whose start failed or went idle with no `home-id` written is launched again on the
+    next pass (`launch`). A project whose home has not started, with no root `plan.md`, has
     no catch-all to keep: `/home` makes the scopes under it."""
     if threads is None or not (run.home / "plan.md").exists():
         return
     catchall = homes.catchall(run.home)
     now, was = homes.ids(catchall)
+    kept: dict[str, Any] = read_json(run.state / LAUNCHES, {})
+    ours = kept.get(catchall.name, {}).get("thread", "")
     if now and now != was and live(run, client, now, threads) is not False:
+        if now == ours and "failed" in kept[catchall.name]:
+            kept[catchall.name] = {k: v for k, v in kept[catchall.name].items() if k not in STARTED}
+            write_json(run.state / LAUNCHES, kept)
         return
-    ours = read_json(run.state / LAUNCHES, {}).get(catchall.name, {}).get("thread", "")
     if ours and ours != now and at_work([one for one in threads if one.get("id") == ours]):
         return
     if ours and ours != now:
@@ -418,19 +436,33 @@ def keep_alive(run: Pass, client: Client, threads: list[dict[str, Any]] | None) 
         why = f"its thread {now} is archived or gone"
     else:
         why = "it has no thread"
-    launch(run, client, catchall.name, why)
+    launch(run, client, catchall.name, why, threads)
 
 
-def launch(run: Pass, client: Client, name: str, why: str) -> bool:
+def launch(run: Pass, client: Client, name: str, why: str, threads: list[dict[str, Any]]) -> bool:
     """Launch `/home <name>` on a fresh thread in the project's own checkout, making the
     catch-all's directory and plan where there are none. Return whether the home has a launch: one
-    now, or one in the last `PATIENCE` minutes, whose start writes its `home-id`. So the keep-alive
-    and a stall launch a home at most once in that time, also when a reply was lost."""
+    now, or one in the last `PATIENCE` minutes whose start may still write its `home-id` (`_going`).
+    So the keep-alive and a stall launch a home at most once while a start runs, also when a reply
+    was lost, and at once after a start that ended, unless it is the second in a row to fail on one
+    cause that has not cleared (`_waits`)."""
     path = run.state / LAUNCHES
     kept: dict[str, Any] = read_json(path, {})
-    last = _at(str(kept.get(name, {}).get("at", "")))
-    if last and run.now - last < timedelta(minutes=PATIENCE):
+    entry = kept.get(name, {})
+    if _going(run, entry, threads):
         return True
+    failed = _failed(run, client, entry, threads)
+    waits = _waits(run, failed)
+    if failed:
+        says = f"start failed: {failed['cause']}" + (f": waits for {waits}" if waits else "")
+        if failed != entry.get("failed") or says != entry.get("says"):
+            kept[name] = entry = {**entry, "failed": failed, "says": says}
+            write_json(path, kept)
+    if failed and waits:
+        line = f"its start failed twice in a row: {failed['cause']}: it waits for {waits}"
+        run.find(name, START, f"{START} {name}: {line}", key=f"{failed['thread']} waits")
+        run.say(f"wait home {name}: {line}")
+        return False
     if not run.config.dispatch or run.config.stop_path.exists():
         run.say(f"wait home {name}: the dispatch is off or stopped: it is not launched")
         return False
@@ -466,6 +498,8 @@ def launch(run: Pass, client: Client, name: str, why: str) -> bool:
     if routed is not None:
         asked["modelSelection"] = routed.as_json()
     kept[name] = {"at": run.now.isoformat(), "why": why}
+    if failed:
+        kept[name] |= {"failed": failed, "says": entry["says"]}
     write_json(path, kept)
     try:
         thread = (client.call("t3_thread_launch", asked) or {}).get("threadId") or ""
@@ -476,6 +510,72 @@ def launch(run: Pass, client: Client, name: str, why: str) -> bool:
     write_json(path, kept)
     run.say(f"launched home {name}: {thread}, since {why}")
     return True
+
+
+def _going(run: Pass, entry: dict[str, Any], threads: list[dict[str, Any]]) -> bool:
+    """Say whether a home's last launch may still write its `home-id`: launched less than
+    `PATIENCE` ago, with its thread at work, not listed by T3 Code yet, or no reply that named it.
+    A launch whose run already ended is over at once, whenever it was made."""
+    last = _at(str(entry.get("at", "")))
+    if not last or run.now - last >= timedelta(minutes=PATIENCE):
+        return False
+    listed = [one for one in threads if entry.get("thread") and one.get("id") == entry["thread"]]
+    return at_work(listed) or not listed
+
+
+def _failed(
+    run: Pass, client: Client, entry: dict[str, Any], threads: list[dict[str, Any]]
+) -> dict[str, Any] | None:
+    """Return what the home's last failed start failed on, with how many starts in a row failed
+    on it, reading the last launch's run once it has ended. A cause it cannot read is the run's
+    end: failed, or idle with no `home-id`."""
+    was = entry.get("failed")
+    thread = str(entry.get("thread", ""))
+    listed = [one for one in threads if thread and one.get("id") == thread]
+    if not listed or (was and was.get("thread") == thread):
+        return was
+    ended = "its run failed" if listed[0].get("status") == "failed" else "it ended with no home-id"
+    found: dict[str, Any] = {"cause": ended, "at": run.now.isoformat()}
+    try:
+        read = (client.call("t3_thread_read", {"threadId": thread, "limit": 1}) or {}).get("thread")
+        failure = failover.failure_of(client, {**(read or {}), "threadId": thread}, run)
+    except T3Error as error:
+        run.say(f"wait home: the start on thread {thread} could not be read ({error})")
+        failure = None
+    what, on = failure or (None, "")
+    if isinstance(what, failover.Lapse):
+        found = {"cause": NOT_SIGNED_IN, "at": what.ended.isoformat(), "on": on}
+    elif isinstance(what, ledger.Cap):
+        if on:
+            ledger.write(what.record(on))
+        found = {
+            "cause": f"{what.window} limit",
+            "at": run.now.isoformat(),
+            "until": what.resets.isoformat(),
+        }
+    times = was["times"] + 1 if was and was.get("cause") == found["cause"] else 1
+    return {**found, "thread": thread, "times": times}
+
+
+def _waits(run: Pass, failed: dict[str, Any] | None) -> str:
+    """Return what a home whose start failed twice in a row on one cause waits for before it is
+    launched again, or nothing once that cause has cleared: an instance signed in again after a
+    login lapse, the reset of a usage limit, and for any other cause `PATIENCE` after the
+    failure. A home whose last start alone failed waits for nothing."""
+    if not failed or failed["times"] < 2:
+        return ""
+    since = _at(str(failed["at"])) or run.now
+    if failed["cause"] == NOT_SIGNED_IN:
+        try:
+            known = {one.instance: one for one in limits.homes()}
+        except limits.Stale:
+            known = {}
+        on = str(failed.get("on", ""))
+        if on in known:
+            renewed = limits.renewed(known[on], since, run.now)
+            return "" if renewed else f"{on} to be signed in again"
+    until = _at(str(failed.get("until", ""))) or since + timedelta(minutes=PATIENCE)
+    return "" if run.now >= until else f"{until.isoformat()}"
 
 
 def _watch(half: Any) -> None:
