@@ -9,11 +9,6 @@ CHECKED = "checked-tree-"
 """The artifact a pull request's passed check leaves for the trees it checked: GitHub's merge of
 the head over its base, and that base (`checked`). A later run of the same two trees selects the
 same tests on the same files, so it reuses the pass (`jmerge.reuse`)."""
-MACOS = ".github/workflows/macos.yml"
-MACOS_CHECKED = "macos-checked-"
-"""The artifact a pull request's passed macos job leaves for the same two trees (`macos_checked`).
-The pair fixes the tests `macos-select` hands on and the files they run on, so a later run of it
-starts no Mac."""
 
 Ask = Callable[[str], Any]
 
@@ -30,17 +25,9 @@ def checked(base: str, tree: str) -> str:
     return f"{CHECKED}{base}-{tree}"
 
 
-def macos_checked(base: str, tree: str) -> str:
-    """The name of the artifact a passed macos job of the pull request leaves, of the two trees
-    `checked` names."""
-    return f"{MACOS_CHECKED}{base}-{tree}"
-
-
 def green_run(ask: Ask, name: str) -> tuple[str | None, bool]:
-    """The address of a successful run in this repo of the workflow that leaves the artifact
-    `name`, macos.yml for a `macos_checked` name and the check for any other, and whether a fork's
-    run left one."""
-    workflow = MACOS if name.startswith(MACOS_CHECKED) else WORKFLOW
+    """The address of a successful run in this repo of the check (check.yml) that left the
+    artifact `name`, and whether a fork's run left one."""
     fork = False
     found = ask(f"actions/artifacts?name={name}&per_page=100")
     for artifact in found["artifacts"]:
@@ -58,6 +45,6 @@ def green_run(ask: Ask, name: str) -> tuple[str | None, bool]:
         if read != "repo":
             fork = fork or read == "fork"
             continue
-        if ran.get("conclusion") == "success" and ran.get("path") == workflow:
+        if ran.get("conclusion") == "success" and ran.get("path") == WORKFLOW:
             return ran["html_url"], fork
     return None, fork
