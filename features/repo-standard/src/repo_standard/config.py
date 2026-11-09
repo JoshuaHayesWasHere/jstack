@@ -79,16 +79,29 @@ class Table:
 
 
 @dataclass(frozen=True)
+class Mock:
+    """The API a stack's browser tests run on: its files (`path`, a file or a folder in the
+    stack's roots), the shell command that holds it to the real API (`contract`), and the paths
+    of that real API (`producer`), whose change selects no browser test."""
+
+    path: str
+    contract: str
+    producer: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class E2E:
     """A node stack's browser tests: the npm `root` whose `script` runs Playwright, the specs any
     change of the app selects (`every`), the URLs a spec opens that its text does not name
-    (`routes`), and the specs that run a table (`table`). Each path is from the repo's root."""
+    (`routes`), the specs that run a table (`table`), and the API they run on (`mock`). Each path
+    is from the repo's root."""
 
     root: str
     script: str
     every: tuple[str, ...] = ()
     routes: dict[str, tuple[str, ...]] = field(default_factory=dict)
     table: tuple[Table, ...] = ()
+    mock: Mock | None = None
 
     def json(self) -> str:
         """The part as the node-vite adapter's scripts read it, on their command line."""
@@ -99,6 +112,9 @@ class E2E:
                 "every": list(self.every),
                 "routes": {spec: list(urls) for spec, urls in self.routes.items()},
                 "table": [vars(one) for one in self.table],
+                "mock": None
+                if self.mock is None
+                else {"path": self.mock.path, "producer": list(self.mock.producer)},
             },
             sort_keys=True,
         )
@@ -431,7 +447,7 @@ def _path(value: Any, roots: tuple[str, ...], where: str) -> str:
 def _e2e(value: Any, roots: tuple[str, ...], stack: str) -> E2E:
     """A node stack's `e2e:` part, refused when a path falls outside the stack's roots."""
     where = f"{stack}.e2e"
-    part = _closed(value, {"root", "script", "every", "routes", "table"}, where)
+    part = _closed(value, {"root", "script", "every", "routes", "table", "mock"}, where)
     root = _path(part.get("root"), roots, f"{where}.root")
     script = part.get("script")
     if not isinstance(script, str) or not script.strip():
@@ -461,7 +477,38 @@ def _e2e(value: Any, roots: tuple[str, ...], stack: str) -> E2E:
             raise Refused(f"{NAME}: {where}.table[{at}].title has no {{name}} for a row's name")
         spec = _path(row.get("file"), roots, f"{where}.table[{at}].file")
         rows.append(Table(spec, export, title))
-    return E2E(root, script.strip(), every, found_routes, tuple(rows))
+    mock = part.get("mock")
+    return E2E(
+        root,
+        script.strip(),
+        every,
+        found_routes,
+        tuple(rows),
+        None if mock is None else _mock(mock, roots, root, where),
+    )
+
+
+def _mock(value: Any, roots: tuple[str, ...], e2e_root: str, stack: str) -> Mock:
+    """The `mock:` of an `e2e:` part, refused with no contract, or with a producer path that
+    holds the mock or the e2e root, or sits in the mock, since its change selects no browser
+    test."""
+    where = f"{stack}.mock"
+    part = _closed(value, {"path", "contract", "producer"}, where)
+    path = _path(part.get("path"), roots, f"{where}.path")
+    contract = part.get("contract")
+    if not isinstance(contract, str) or not contract.strip():
+        raise Refused(f"{NAME}: {where}.contract names no command that holds the mock to the API")
+    producer = []
+    for one in _strings(part.get("producer", []), f"{where}.producer"):
+        clean = posixpath.normpath(one)
+        if one.startswith("/") or clean.startswith(".."):
+            raise Refused(f"{NAME}: {where}.producer has {one}, not a path of the repo")
+        if clean == "." or _inside(clean, path) or _inside(path, clean):
+            raise Refused(f"{NAME}: {where}.producer has {one}, inside or around {path}")
+        if _inside(e2e_root, clean):
+            raise Refused(f"{NAME}: {where}.producer has {one}, around the e2e root {e2e_root}")
+        producer.append(clean)
+    return Mock(path, contract.strip(), tuple(producer))
 
 
 def _check(value: Any) -> Check:

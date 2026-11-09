@@ -18,7 +18,7 @@ import pytest
 import test_multi_stack
 from repo_standard import cli, stacks
 from repo_standard.adapters import COMMANDS
-from repo_standard.config import E2E, Config, Refused, Stack, Table, build, parse
+from repo_standard.config import E2E, Config, Mock, Refused, Stack, Table, build, parse
 from test_go_adapter import needs_go
 from test_multi_stack import STACKS
 from test_skeleton_python import STANDARD, git, write
@@ -152,6 +152,7 @@ def test_the_config_refuses_a_stacks_part_it_cannot_hold(stacks_part, said):
 
 
 NODE = "stacks:\n  web:\n    adapter: node-vite\n    roots: [web, e2e]\n    e2e:\n"
+MOCK = "      root: e2e\n      script: e2e\n      mock:\n"
 
 
 def test_the_config_reads_a_node_stacks_browser_tests():
@@ -163,6 +164,8 @@ def test_the_config_reads_a_node_stacks_browser_tests():
                 "      routes:\n        e2e/a.spec.ts: [/pets, /pets/1]\n"
                 "      table:\n        - file: e2e/screens.spec.ts\n          export: screenFlows\n"
                 '          title: "screen: {name}"\n'
+                "      mock:\n        path: e2e/mock-api.ts\n"
+                '        contract: make routes\n        producer: [api/, cmd/routes]\n'
             )
         )
         .stacks["web"]
@@ -174,6 +177,7 @@ def test_the_config_reads_a_node_stacks_browser_tests():
         ("e2e/layout.spec.ts",),
         {"e2e/a.spec.ts": ("/pets", "/pets/1")},
         (Table("e2e/screens.spec.ts", "screenFlows", "screen: {name}"),),
+        Mock("e2e/mock-api.ts", "make routes", ("api", "cmd/routes")),
     )
 
 
@@ -203,6 +207,15 @@ def test_the_config_reads_a_node_stacks_browser_tests():
             "          export: flows\n          title: '{name}'\n          path: x",
             "has path, which the standard",
         ),
+        (MOCK + "        path: e2e/mock.ts", "mock.contract names no command"),
+        (MOCK + "        path: e2e/mock.ts\n        contract: ' '", "names no command"),
+        (MOCK + "        contract: x", "mock.path is not a path"),
+        (MOCK + "        path: api/mock.ts\n        contract: x", "outside the stack's roots"),
+        (MOCK + "        path: e2e/m.ts\n        contract: x\n        url: /", "has url, which"),
+        (MOCK + "        path: e2e/mocks\n        contract: x\n        producer: [e2e]", "around"),
+        (MOCK + "        path: e2e/m\n        contract: x\n        producer: [e2e/m/a]", "inside"),
+        (MOCK + "        path: e2e/m.ts\n        contract: x\n        producer: [.]", "around"),
+        (MOCK + "        path: e2e/m.ts\n        contract: x\n        producer: [../a]", "not a"),
     ],
 )
 def test_the_config_refuses_an_e2e_part_it_cannot_hold(e2e, said):
