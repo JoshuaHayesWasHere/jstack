@@ -3,12 +3,13 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sqlite3
 import subprocess
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
-from jbriefs import findings, home, meets, page, parse, pick, propose, proved, skills
+from jbriefs import findings, home, meets, page, parse, pick, propose, proved, shown, skills
 from jsettings.paths import common_dir, jbus_state_dir
 
 
@@ -129,6 +130,24 @@ def proved_none_main(base: str, head: str) -> int:
     return 0
 
 
+def store_time(said: str) -> str:
+    """An ISO time in T3's store's own form, UTC with milliseconds and a `Z`
+    (`2026-11-09T19:11:15.428Z`), so it compares as a string. A time with no zone is local."""
+    when = datetime.fromisoformat(said).astimezone(timezone.utc)
+    return when.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def shown_main(thread: str, since: str, store: Path, attachments: Path) -> int:
+    try:
+        found = shown.pictures(store, attachments, thread, since)
+    except sqlite3.Error as error:
+        print(f"jbriefs: {store} cannot be read: {error}", file=sys.stderr)
+        return 1
+    for one in found:
+        print(one.line())
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if argv[:1] == ["pick"]:
@@ -207,6 +226,30 @@ def main(argv: list[str] | None = None) -> int:
         "repo, a .py file whose change is to its docstrings and comments alone being docs, or, "
         "exiting 1, the first file of no kind; write no page",
     )
+    parser.add_argument(
+        "--shown",
+        metavar="THREAD",
+        help="print, for each message of the T3 thread in which the user sent a picture, its "
+        "time, its id, its first words and each picture's file, or `gone` where it is not on "
+        "disk, for a brief's Shown: line; read T3's store read-only and write nothing",
+    )
+    parser.add_argument(
+        "--since",
+        metavar="ISO",
+        help="with --shown, only the messages from this time on (with no zone, local time)",
+    )
+    parser.add_argument(
+        "--store",
+        type=Path,
+        default=shown.STORE,
+        help="with --shown, T3 Code's store (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--attachments",
+        type=Path,
+        default=shown.ATTACHMENTS,
+        help="with --shown, T3 Code's attachments directory (default: %(default)s)",
+    )
     told = parser.add_mutually_exclusive_group()
     told.add_argument(
         "--left",
@@ -223,6 +266,19 @@ def main(argv: list[str] | None = None) -> int:
 
     if (args.left or args.rounds) and not args.findings:
         parser.error("--left and --rounds go with --findings")
+    if args.since and not args.shown:
+        parser.error("--since goes with --shown")
+    if args.shown:
+        try:
+            since = store_time(args.since) if args.since else ""
+        except ValueError:
+            parser.error(f"--since {args.since} is no ISO time")
+        return shown_main(
+            args.shown,
+            since,
+            args.store.expanduser(),
+            args.attachments.expanduser().resolve(),
+        )
     if args.proved_none:
         base, _, head = args.proved_none.partition("..")
         return proved_none_main(base, head)
