@@ -4,6 +4,8 @@ when its page has ended. Like `test_jbus_kitchen.py`, the tests run the real pas
 """
 
 import json
+import os
+import re
 import subprocess
 from datetime import timedelta
 
@@ -243,6 +245,56 @@ def test_a_finished_slug_with_work_still_open_is_settled_and_archived_once_it_cl
         close()
         kitchen.poll(NOW + timedelta(minutes=6))
         assert crew["archived"] and put_away(kitchen) == ["crew: alpha"]
+
+
+def test_a_held_crew_s_scratch_is_cleared_once_a_run_of_its_thread_and_a_freed_worktree_after(
+    kitchen, monkeypatch
+):
+    """A crew whose slug still has work open is settled and stays listed, so every pass sees its
+    thread. Its scratch is cleared once per run of the thread: a worktree kept in use goes on the
+    first pass after it frees, then no pass asks T3 Code for the thread again until a message
+    wakes it, and its next run's scratch goes too."""
+    monkeypatch.setenv("CLAUDE_CODE_TMPDIR", str(kitchen.root / "tmp"))
+    home = kitchen.root / "worktrees" / "alpha"
+    crew = kitchen.t3.thread("alpha", "completed", worktreePath=str(home))
+    kitchen.brief("alpha", RESULT)
+    a_follower(kitchen)
+    claude = kitchen.root / "tmp" / f"claude-{os.getuid()}"
+    busy = claude / re.sub("[^A-Za-z0-9]", "-", str(home)) / "session" / "scratchpad" / "busy"
+    kitchen.git("worktree", "add", "-q", "--detach", str(busy))
+    folder = kitchen.root / "scratch" / kitchen.checkout.name / "alpha"
+
+    def reads():
+        return sum(
+            tool == "t3_thread_read" and given["threadId"] == crew["threadId"]
+            for tool, given in kitchen.t3.calls
+        )
+
+    def listed():
+        return subprocess.run(
+            ["git", "worktree", "list", "--porcelain"],
+            cwd=kitchen.checkout,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+
+    with subprocess.Popen(["sleep", "60"], cwd=busy) as process:
+        try:
+            kitchen.poll()
+        finally:
+            process.kill()
+    assert crew["settled"] and "archived" not in crew
+    assert f"worktree {busy}\n" in listed()
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert f"worktree {busy}\n" not in listed()
+    before = reads()
+    folder.mkdir(parents=True)
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert reads() == before and folder.exists()
+    crew["latestRunId"] = "run-2"
+    kitchen.poll(NOW + timedelta(minutes=9))
+    assert not folder.exists() and "archived" not in crew
 
 
 def git_fails(kitchen, monkeypatch):

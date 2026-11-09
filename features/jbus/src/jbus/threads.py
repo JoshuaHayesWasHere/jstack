@@ -476,6 +476,21 @@ def _put_away(
     return True
 
 
+def _clear(run: Pass, client: Client, thread: dict[str, Any], slug: str) -> None:
+    """Clear the scratch of a crew whose thread is put away (`cleanup.clear_scratch`), once per
+    run of the thread, as `_put_away` keys its actions. The key is recorded only once T3 Code
+    named the thread's worktree, or said it has none, and nothing stayed behind, so a worktree
+    in use is tried again on the next pass and a thread that a message woke is cleared again
+    once that run ends."""
+    at = thread["threadId"]
+    key = f"cleared|{slug}|{at}|{_ran(thread)}"
+    if _done(run, key):
+        return
+    tree = rebase.worktree(client, at)
+    if cleanup.clear_scratch(run, slug, tree or "") and tree != "":
+        run.box.mark(key)
+
+
 def settle(run: Pass, client: Client, world: World) -> None:
     """Put away each thread that has no work left, on every pass, once per run of the thread.
 
@@ -497,7 +512,8 @@ def settle(run: Pass, client: Client, world: World) -> None:
     `settle` skips a thread that is still at work, settled or not, since T3 Code leaves a thread
     settled while it takes up a message, with the threads under it and the threads above it, so a
     running subagent keeps its parent too, until the next pass.
-    Once a crew's thread is put away, its scratch folder goes (`cleanup.clear_scratch`).
+    Once a crew's thread is put away, its scratch folder goes, once per run of the thread
+    (`_clear`).
     """
     over = finished(run, world)
     slug_of: dict[str, str] = {}
@@ -547,7 +563,7 @@ def settle(run: Pass, client: Client, world: World) -> None:
         actions = ("settle",) if slug in open_work else ("settle", "archive")
         done = _put_away(run, client, thread, slug, actions)
         if done and str(thread.get("title", "")).startswith(watch.TITLE):
-            cleanup.clear_scratch(run, slug, rebase.worktree(client, at) or "")
+            _clear(run, client, thread, slug)
     by_id = {t["threadId"]: t for t in every}
     working: set[str] = set()
     for thread in every:
