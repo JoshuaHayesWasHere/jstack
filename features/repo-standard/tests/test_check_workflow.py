@@ -288,7 +288,7 @@ def test_a_pull_requests_plan_selects_its_tests_and_deals_them_to_the_parts_the_
     )
     said = planned(repo, env, "pull_request")
     assert said["mode"] == "standard"
-    assert said["tag"] == f"{TAG}{VERSION}"
+    assert said["ref"] == f"{TAG}{VERSION}"
     assert said["run"] == "true"
     assert said["selection"] == "some"
     assert json.loads(said["shards"]) == [1, 2]
@@ -368,6 +368,29 @@ def test_a_config_the_plan_cannot_follow_fails_it(caller, config, step, said):
     done = run_job("plan", repo, {**env, "GITHUB_EVENT_NAME": "push"}, {"github": github("push")})
     assert done["result"] == "failure"
     assert said in done["steps"][step]["said"]
+
+
+def test_the_plan_and_the_lint_clone_the_ref_the_caller_gives_or_the_pinned_tag(caller):
+    """A caller runs a branch of jstack before its version is tagged: `ref` names it, and both
+    clones take it. The repo's make reads it as REPO_STANDARD_REF, empty by default."""
+    repo, env = caller
+    upstream = repo.parent / "upstream"
+    commit(upstream, {"rc.txt": "the next version\n"}, "a commit after the tag")
+    git(upstream, "branch", "repo-standard-rc")
+    for given, cloned in (("", f"{TAG}{VERSION}"), ("repo-standard-rc", "repo-standard-rc")):
+        inputs = {"runner": "ubuntu-24.04", "command": "", "ref": given}
+        context = {"github": github("pull_request"), "inputs": inputs}
+        plan = run_job("plan", repo, {**env, "GITHUB_EVENT_NAME": "pull_request"}, context)
+        assert plan["result"] == "success", plan["steps"]
+        assert plan["outputs"]["ref"] == cloned
+        temp = sorted(repo.parent.glob("temp-plan-*"))[-1]
+        assert (temp / "repo-standard" / "rc.txt").exists() == bool(given)
+        needs = {"plan": {"result": "success", "outputs": plan["outputs"]}}
+        lint = run_job("lint", repo, env, {**context, "needs": needs})
+        temp = sorted(repo.parent.glob("temp-lint-*"))[-1]
+        assert (temp / "repo-standard" / "rc.txt").exists() == bool(given)
+        assert f"conform {TAG}{VERSION}, " in lint["steps"]["repo-standard conform"]["said"]
+    assert workflow()["env"]["REPO_STANDARD_REF"] == "${{ inputs.ref }}"
 
 
 def test_a_selection_of_fewer_ids_than_parts_starts_no_empty_part(caller):
@@ -525,7 +548,9 @@ def test_every_job_runs_on_the_callers_runner_and_takes_the_pinned_actions():
         "command",
         "timeout-minutes",
         "browser-channel",
+        "ref",
     }
+    assert top["on"]["workflow_call"]["inputs"]["ref"]["default"] == ""
     assert top["permissions"] == {"contents": "read", "actions": "read"}
     assert top["env"]["REPO_STANDARD_UPSTREAM"] == UPSTREAM
     assert top["env"]["REPO_STANDARD_VERSION"] == VERSION
@@ -541,6 +566,19 @@ def test_every_job_runs_on_the_callers_runner_and_takes_the_pinned_actions():
     assert set(pinned.findall(WORKFLOW.read_text())) <= ours
 
 
+def test_every_output_a_job_reads_is_one_a_job_it_needs_gives():
+    """GitHub reads an output no job gives as empty, so a renamed output leaves its reader
+    cloning or deciding on nothing, with no error."""
+    jobs = workflow()["jobs"]
+    read = re.compile(r"needs\.([\w-]+)\.outputs\.([\w-]+)")
+    for name, job in jobs.items():
+        needs = job.get("needs", [])
+        needs = [needs] if isinstance(needs, str) else needs
+        for upstream, output in read.findall(json.dumps(job)):
+            assert upstream in needs, (name, upstream)
+            assert output in jobs[upstream].get("outputs", {}), (name, upstream, output)
+
+
 def test_the_template_is_a_caller_of_the_shared_workflow_at_the_pinned_tag(caller):
     repo, env = caller
     top = template("npm test")
@@ -552,6 +590,12 @@ def test_the_template_is_a_caller_of_the_shared_workflow_at_the_pinned_tag(calle
     assert standard["with"] == {"runner": "ubuntu-24.04", "command": "npm test"}
     check = top["jobs"]["check"]
     assert (check["needs"], check["if"]) == ("standard", "always()")
+    given = {"runner": "a-repos-own-label", "command": "npm test"}
+    runner = substitute(
+        workflow()["on"]["workflow_call"]["outputs"]["runner"]["value"], {"inputs": given}, repo
+    )
+    needs = {"standard": {"outputs": {"runner": runner}}}
+    assert substitute(check["runs-on"], {"needs": needs}, repo) == "a-repos-own-label"
     assert "name" not in check and "strategy" not in check
     for result, ends in (("success", "success"), ("failure", "failure"), ("skipped", "failure")):
         context = {"needs": {"standard": {"result": result}}}

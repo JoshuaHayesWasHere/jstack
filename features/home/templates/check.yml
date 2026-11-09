@@ -4,7 +4,7 @@
 # While the repo has no .repo-standard.yml, it runs the command below alone. A step the check
 # needs before any make target, such as a toolchain the runner lacks, goes in the composite
 # action .github/actions/setup/action.yml, which every job runs when it is there. The label of a
-# runner on the repo's own machines goes in `runner` and in the job check's `runs-on`.
+# runner on the repo's own machines goes in `runner`, and the job check runs on the same label.
 name: check
 
 on:
@@ -33,7 +33,7 @@ jobs:
   check:
     if: always()
     needs: standard
-    runs-on: ubuntu-24.04
+    runs-on: ${{ needs.standard.outputs.runner }}
     timeout-minutes: 5
     steps:
       - name: the shared check passed

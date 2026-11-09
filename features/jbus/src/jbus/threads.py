@@ -27,11 +27,13 @@ from jbriefs import findings, skills
 from jbriefs.home import home_of, thread_of
 from jbus import (
     END_TURN,
+    cleanup,
     dispatch,
     mirror,
     outbox,
     questions,
     queue,
+    rebase,
     record,
     review,
     stall,
@@ -495,7 +497,7 @@ def settle(run: Pass, client: Client, world: World) -> None:
     `settle` skips a thread that is still at work, settled or not, since T3 Code leaves a thread
     settled while it takes up a message, with the threads under it and the threads above it, so a
     running subagent keeps its parent too, until the next pass.
-    Once a crew's thread is put away, its scratch folder goes (`dispatch.clear_scratch`).
+    Once a crew's thread is put away, its scratch folder goes (`cleanup.clear_scratch`).
     """
     over = finished(run, world)
     slug_of: dict[str, str] = {}
@@ -545,7 +547,7 @@ def settle(run: Pass, client: Client, world: World) -> None:
         actions = ("settle",) if slug in open_work else ("settle", "archive")
         done = _put_away(run, client, thread, slug, actions)
         if done and str(thread.get("title", "")).startswith(watch.TITLE):
-            dispatch.clear_scratch(run, slug)
+            cleanup.clear_scratch(run, slug, rebase.worktree(client, at) or "")
     by_id = {t["threadId"]: t for t in every}
     working: set[str] = set()
     for thread in every:

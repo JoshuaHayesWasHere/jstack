@@ -40,9 +40,13 @@ exit 124."""
 UV = f"""#!/bin/bash
 case " $* " in
 *" jgauge test-slot "*)
-    if [ -n "$BUSY" ] && [ "$PROOF_SIDE" = "$BUSY" ]; then
-        echo "every slot of the lane is taken: this thread waits"
-        exit 76
+    if [ -n "$SLOTS" ]; then
+        taken=$(cat "$TMPDIR/slots-taken" 2> /dev/null || echo 0)
+        if [ "$taken" -ge "$SLOTS" ]; then
+            echo "every slot of the lane is taken: this thread waits"
+            exit 76
+        fi
+        echo $((taken + 1)) > "$TMPDIR/slots-taken"
     fi
     limit=$FULL_LIMIT
     case " $* " in *" --short "*) limit=$LIMIT ;; esac
@@ -72,8 +76,9 @@ exit 64
 """
 """`uv` as the block calls it. A short test-slot run is stopped at `LIMIT` seconds, exit 124, as
 the short lane stops one at its limit, and a full one at `FULL_LIMIT` seconds; each pytest run
-takes `SLOW` seconds more, `NO_XDIST` stands for a repo whose venv has no pytest-xdist, and the
-side `BUSY` names finds every slot taken, exit 76."""
+takes `SLOW` seconds more, `NO_XDIST` stands for a repo whose venv has no pytest-xdist, and with
+`SLOTS` set only that many test-slot calls get a slot, and every one after them finds every slot
+taken, exit 76."""
 BUGGY = "def add(a, b):\n    return a - b\n"
 FIXED = "def add(a, b):\n    return a + b\n"
 OLD_TEST = "from calc import add\n\n\ndef test_zero():\n    assert add(0, 0) == 0\n"
@@ -355,8 +360,8 @@ def test_a_change_to_source_and_tests_runs_at_the_base_where_grep_is_claude_code
 def test_a_slow_test_file_is_proved_where_the_head_and_the_base_each_fit_the_lane(repo):
     """A test file that takes over half the short lane's limit, as
     `testing/tests/test_select_tests.py` did before its tests of the real tree moved out, fits it
-    at the head and at the base, but not both in one run: each runs in a slot of its own, and the
-    block still writes one `Proved:` line."""
+    at the head and at the base, but not both in one run: the side the lane's limit cuts runs
+    again alone in a full slot, and the block still writes one `Proved:` line."""
     base = git(repo, "rev-parse", "HEAD")
     head = commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
     said, line = proof(repo, LIMIT="7", SLOW="4")
@@ -409,15 +414,38 @@ def test_a_repo_without_pytest_xdist_is_proved_on_one_process(repo):
     assert not any("-n " in run for run in runs)
 
 
-def test_a_wake_after_the_base_side_waited_runs_the_base_side_alone(repo):
-    """Each side takes a slot of its own, and on a busy machine the one slot a wake frees went to
-    the head side again, so the base side waited on every run: rt-multi-stack lost that race five
-    times at one head on 2026-11-08. A side that exited 0 at a head and base is kept, and the run
-    after the wait runs only the side still owed."""
+def test_one_free_slot_runs_the_head_side_and_the_base_side(repo):
+    """On a busy machine a wake frees one slot: the block took it for the head side, gave it
+    back and asked again for the base side, which found every slot taken, so gs-scratch-prune's
+    proof ran its head side four wakes in a row and never its base side. Both sides run in the
+    one slot the block gets."""
     base = git(repo, "rev-parse", "HEAD")
     head = commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
-    said, line = proof(repo, BUSY="base")
+    said, line = proof(repo, SLOTS="1")
     assert "head exit 0: 2 passed" in said
+    assert "base exit 1: 1 failed, 1 passed" in said
+    assert "no proof" not in said
+    assert line == proved.Proved(("tests/test_calc.py",), 1, base, 0, head)
+
+
+def test_no_free_slot_runs_no_side_and_ends_76(repo):
+    commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
+    said, line = proof(repo, SLOTS="0")
+    assert "exit" not in said.replace("ended 76", "")
+    assert "no proof: the slot's run ended 76" in said
+    assert line is None
+    assert not (repo.parent / "pytest-args").exists()
+
+
+def test_a_wake_after_the_base_side_waited_runs_the_base_side_alone(repo):
+    """A base side the short lane's limit cut asks for a full slot, and on a busy machine finds
+    every one taken. A side that exited 0 at a head and base is kept, and the run after the wait
+    runs only the side still owed."""
+    base = git(repo, "rev-parse", "HEAD")
+    head = commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
+    said, line = proof(repo, SLOTS="1", LIMIT="5", SLOW="3")
+    assert "head exit 0: 2 passed" in said
+    assert "base: stopped at the short lane's limit" in said
     assert "no proof: the slot's run ended 76" in said
     assert line is None
     said, line = proof(repo)
@@ -429,7 +457,7 @@ def test_a_wake_after_the_base_side_waited_runs_the_base_side_alone(repo):
 
 def test_a_side_kept_at_one_head_runs_again_at_another(repo):
     commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
-    proof(repo, BUSY="base")
+    proof(repo, SLOTS="1", LIMIT="5", SLOW="3")
     base = git(repo, "rev-parse", "HEAD~1")
     head = commit(repo, {"util.py": ""})
     said, line = proof(repo)

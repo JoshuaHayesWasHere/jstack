@@ -14,7 +14,7 @@ test appends every id it ran, so a failed run always names what to run again.
 - go runs `scripts/go.py` once over all the stack's roots, each a folder of whole Go modules. It
   reads the failed packages from `go test -json`.
 - python-uv takes each root as a uv project of its own, whose `pyproject.toml` and `uv.lock` sit
-  in the root and whose dev group holds pytest and ruff. `scripts/select.py --test` runs pytest
+  in the root and whose dev group holds pytest and ruff. `scripts/uv_select.py --test` runs pytest
   with the root as its rootdir and the root's `pyproject.toml` as its config, so the repo's own
   config never reaches it, and reads the failed files from pytest's `lastfailed` cache.
 - node-vite takes each root as an npm package of its own and runs the package's own scripts:
@@ -61,6 +61,9 @@ def _go(verb: str, roots: tuple[str, ...], rest: list[str]) -> Argv:
     return ["python3", "scripts/go.py", verb, *_roots(roots), *rest]
 
 
+UV_SELECT = "scripts/uv_select.py"
+
+
 def _uv(root: str, *command: str) -> Argv:
     return ["uv", "run", "--locked", "--project", root, *command]
 
@@ -82,10 +85,10 @@ COMMANDS: dict[str, Commands] = {
                 _uv(root, "ruff", "format", "--check", root),
             )
         ],
-        test=lambda roots, ids: [["python3", "scripts/select.py", *_roots(roots), "--test", *ids]],
-        select=lambda roots, base, e2e: ["python3", "scripts/select.py", *_roots(roots), base],
-        list=lambda roots: ["python3", "scripts/select.py", *_roots(roots), "--list"],
-        scripts=("scripts/select.py",),
+        test=lambda roots, ids: [["python3", UV_SELECT, *_roots(roots), "--test", *ids]],
+        select=lambda roots, base, e2e: ["python3", UV_SELECT, *_roots(roots), base],
+        list=lambda roots: ["python3", UV_SELECT, *_roots(roots), "--list"],
+        scripts=(UV_SELECT,),
     ),
     "node-vite": Commands(
         lint=lambda roots: [["npm", "--prefix", root, "run", "check"] for root in roots],

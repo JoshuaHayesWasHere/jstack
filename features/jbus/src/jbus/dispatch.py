@@ -46,7 +46,8 @@ Each crew gets a scratch folder on disk, `~/.cache/jstack/scratch/<repo>/<slug>`
 (`features/home/hooks/home-start.sh`) points the thread's `TMPDIR` at the folder it finds for its
 worktree's repo and branch, and every `mktemp`, clone and worktree the thread makes goes there and
 not in /tmp, whose tmpfs quota full repo copies filled. `jbus.threads.settle` removes the folder,
-and prunes the worktrees that were in it, once it settles the crew's thread (`clear_scratch`).
+and prunes the worktrees that were in it, once it settles the crew's thread
+(`jbus.cleanup.clear_scratch`).
 
 jbus never holds back a launch because another brief names the same file, since each crew
 has its own worktree and branch. The crew of the pull request that merges second rebases that
@@ -58,7 +59,6 @@ from __future__ import annotations
 import itertools
 import os
 import re
-import shutil
 from collections import Counter
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
@@ -90,16 +90,6 @@ def scratch(run: Pass, slug: str) -> Path:
     """Return the scratch folder of the slug's crew, which is its thread's `TMPDIR`."""
     root = os.environ.get("JSTACK_SCRATCH_DIR") or Path.home() / ".cache" / "jstack" / "scratch"
     return Path(root) / run.project.checkout.name / slug
-
-
-def clear_scratch(run: Pass, slug: str) -> None:
-    """Remove the slug's scratch folder, then the registrations of the worktrees made in it."""
-    folder = scratch(run, slug)
-    if not folder.exists():
-        return
-    shutil.rmtree(folder, ignore_errors=True)
-    run.run("git", "worktree", "prune")
-    run.say(f"cleared {slug}: its scratch folder {folder}")
 
 
 def write_thread(

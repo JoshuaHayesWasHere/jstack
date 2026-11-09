@@ -30,11 +30,15 @@ ASK = (
 
 
 def home(kitchen, scope="", **more):
-    """Start a home: make its thread, as T3 Code lists it, and write its `home-id`."""
+    """Start a home: make its thread, as T3 Code lists it, and write its `home-id`. A scope gets
+    its `plan.md` too, which makes it a scope (`jbriefs.home.scopes`). The root gets none: its
+    `plan.md` says the project's home has started, so `children.keep_alive` launches the catch-all,
+    and only a test of that (`test_children.started`) writes it."""
     thread = kitchen.t3.thread("demo", "completed", title=f"home: demo {scope}".strip(), **more)
     where = kitchen.home / scope
     where.mkdir(exist_ok=True)
-    (where / "plan.md").write_text("# a plan\n")
+    if scope:
+        (where / "plan.md").write_text("# a plan\n")
     (where / "home-id").write_text(thread["threadId"] + "\n")
     return thread
 

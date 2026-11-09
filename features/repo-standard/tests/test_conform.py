@@ -393,11 +393,10 @@ def test_a_waiver_until_the_pinned_version_warns_that_it_is_due(repo, capsys):
 
 def test_an_owned_file_that_differs_or_is_gone_warns(repo, capsys, tmp_path):
     """The repo made from the skeleton keeps its owned files as they are, but for the runner's
-    labels in its caller, and conform warns of one changed and one gone."""
+    label in its caller, and conform warns of one changed and one gone."""
     skeleton = REPO / "features" / "repo-standard" / "skeleton"
     caller = (skeleton / ".github/workflows/check.yml").read_text()
     caller = caller.replace("runner: ubuntu-24.04", "runner: self-hosted-a")
-    caller = caller.replace("runs-on: ubuntu-24.04", "runs-on: self-hosted-a")
     write(
         repo,
         {
@@ -448,16 +447,13 @@ def test_the_pinned_version_as_the_newest_or_no_upstream_reports_nothing_and_fai
     assert "note: cannot list the standard's versions: git ls-remote" in said
 
 
-def test_jstack_meets_the_standard_waiving_only_its_release(capsys):
-    """jstack's `make release` checks main, the tree and origin's main itself before
-    `release-green`, so it alone is waived until its own row moves it onto `repo-standard
-    green`."""
-    rule = "every-deploy-entry-refuses-a-tree-that-is-not-green-main"
+def test_jstack_meets_the_standard_with_no_waiver(capsys):
+    """jstack waives no rule: its one deploy entry, `make release`, runs `repo-standard green`
+    first like any other repo's."""
     code, lines = conform(REPO, capsys)
     assert code == 0, "\n".join(lines)
-    assert lines[-1].endswith(", waived 1"), lines
-    waived = [line for line in lines if line.startswith(("waived ", "waiver "))]
-    assert [line.split(":")[0] for line in waived] == [f"waived {rule}", f"waiver {rule}"], lines
+    assert lines[-1].endswith(", waived 0"), lines
+    assert not [line for line in lines if line.startswith(("waived ", "waiver "))], lines
 
 
 EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
