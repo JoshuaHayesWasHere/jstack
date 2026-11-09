@@ -24,6 +24,7 @@ def homes(kitchen):
     (kitchen.home / "home-id").write_text(f"{ROOT}\n")
     for scope, thread in (("cicd", CICD), ("verify", VERIFY)):
         (kitchen.home / scope).mkdir()
+        (kitchen.home / scope / "plan.md").write_text("# a plan\n")
         (kitchen.home / scope / "home-id").write_text(f"{thread}\n")
     for slug in ("vv-noise-architect", "vv-noise-writing"):
         text = brief(slug).replace("Home: root\n", "Home: verify\n")

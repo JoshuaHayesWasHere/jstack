@@ -133,7 +133,7 @@ def test_the_figures_the_jbus_page_gives_are_the_ones_the_code_and_the_timer_hav
     said = page("jbus.md")
     timer = configparser.ConfigParser(interpolation=None)
     timer.read(REPO / "features/jbus/units/jbus.timer")
-    assert f"(`OnUnitActiveSec={timer['Timer']['OnUnitActiveSec']}`)" in said
+    assert f"(`OnUnitInactiveSec={timer['Timer']['OnUnitInactiveSec']}`" in said
     assert f"after {alert.AFTER} failures in a row" in said
     assert f"`Authorization: Bearer` and `{wake.HEADER}`" in said
 

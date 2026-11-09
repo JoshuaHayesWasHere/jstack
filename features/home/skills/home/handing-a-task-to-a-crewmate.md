@@ -1,8 +1,10 @@
 ## Handing a task to a crewmate
 
+The root home does step 1 and no other: it queues the brief by "Queueing a row in a child" (`scoped-homes.md`), and jbus's pass launches it.
+
 1. Write the brief, `tasks/<slug>.md`, from the plan entry, in the shape of `$T/brief.md`: read it first.
-   Its `Home:` line names this home and never a thread.
-   A scoped home writes `Home: <scope>`, the word step 1 of "When a home starts" printed after `scope`, and the root home writes `Home: root`: `jbus queue add` refuses a brief with no `Home:` line, or one that names no home of the project.
+   Its `Home:` line names a home and never a thread.
+   A scoped home writes `Home: <scope>`, the word step 1 of "When a home starts" printed after `scope`, and the root home writes `Home: <child>`, the scope whose goal the work serves or `uncategorized`: `jbus queue add` refuses a brief with no `Home:` line, or one that names no home of the project.
    The crewmate, and its reviewer when it must, read the id in that home's `home-id` each time they send, so the brief is not changed when the home hands off.
    A brief a scout wrote is already there: check that its `Home:` line is as this says and that its `Size:` line is its plan entry's size, set each if not, and go to step 2.
 

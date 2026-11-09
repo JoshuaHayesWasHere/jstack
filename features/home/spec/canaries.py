@@ -34,12 +34,13 @@ SCENES = {
 INVARIANTS = [
     "RetireHandsOver",
     "StallFlagged",
-    "FirstStrike",
+    "StallOnNeeds",
     "NudgesBounded",
+    "RelaunchOnce",
     "OneMerger",
     "NoBlindMerge",
 ]
-PROPERTIES = ["CallsReachJosh", "AsksAfterTwo", "ReadyMerges"]
+PROPERTIES = ["CallsReachJosh", "AsksAfterRelaunch", "ReadyMerges"]
 RULES = INVARIANTS + PROPERTIES
 
 # Each guard, the rule that rests on it, and the scene that shows it.
@@ -48,9 +49,10 @@ CANARIES = {
     "keep-on-fail": ("CallsReachJosh", "a"),
     "flag": ("StallFlagged", "a"),
     "beat": ("StallFlagged", "b"),
-    "strike": ("FirstStrike", "a"),
+    "needs": ("StallOnNeeds", "a"),
     "nudge-cap": ("NudgesBounded", "a"),
-    "ask": ("AsksAfterTwo", "a"),
+    "relaunch-once": ("RelaunchOnce", "a"),
+    "ask": ("AsksAfterRelaunch", "a"),
     "one-merger": ("OneMerger", "a"),
     "lock": ("NoBlindMerge", "siblings"),
     "all-homes": ("ReadyMerges", "a"),

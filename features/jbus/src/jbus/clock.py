@@ -12,6 +12,12 @@ launched a crew for, and sorts the wait into one of three classes:
   not ruled;
 - `result`: no Result names the pull request, so the crew stopped before it wrote one.
 
+A fourth class, `check`, is read from GitHub and not from `jmerge`: a required check failed at the
+pull request's head, and `jbus.stall.twice` counted that head as the row's own red (`fails.json`),
+so a head whose check ran on main's red tip (`main.json`'s `broken`) or failed only on a shared
+flake (`reverts.flaky`) is none. It waits on the crew, and acts at once instead of at `PASSES`, see
+below. While a row has one, it is the row's wait, and `held` leaves its pull request to it.
+
 Each wait has one thread it waits on. For `review` and `scoped` that is the reviewer the brief's
 last `Reviewer:` or `Scoped reviewer:` line names, and the crew where the brief
 names none, or where jbus cannot work out a scoped pass's two ranges. For `result` it is the crew
@@ -39,6 +45,17 @@ the one try waits for the reset, and the count stops at `PASSES` while it waits.
 of jbus nudges the crew about the same head just as the clock is due (an expedite the outbox held
 until the reset), the clock starts again, so the reviewer is not asked twice at once. A thread that
 ended with no Result and no pull request is `threads.resume`'s.
+
+A `check` wait has no pass count. Its first word is `jbus.rebase`'s fix message for the head (or
+its rebase message), which goes as today. After it, each idle spell of the crew at that head gets
+one `RESTART`, on the first pass of the spell: it names the pull request, the head and each failed
+job with its log link. A spell starts on a pass that finds the crew's thread not at work (its turn
+ended, no pending request) after the last word went, once T3 Code saw the thread at work since,
+or its item count moved. A spell gets one restart however many passes it lasts. After `RESTARTS`
+restarts at one head with nothing pushed, the next spell is one quiet `stall` for the home, as
+for the other classes. A push is a new head, and so a new wait. A row held in the queue (`jbus
+queue hold`, or `check failed twice`) has no `check` wait, and the outbox holds a restart as it
+holds any fix message (`outbox.FIXES`) and any line to a capped instance.
 
 `held` watches the waits no clock above takes, by their reason. Rows whose pull requests `jmerge`
 holds on one reason, with no thread at work on the cause, wake the home that owns them once the
@@ -69,11 +86,13 @@ from typing import Any
 from jbriefs import below, findings
 from jbriefs.home import home_of, thread_of
 from jbus import (
+    END_TURN,
     dispatch,
     expedite,
     merge,
     mirror,
     outbox,
+    queue,
     read_json,
     rebase,
     review,
@@ -87,6 +106,7 @@ from jbus.review import FIXES, class_of, matches
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import World, task_brief
 from jmerge import ready
+from jmerge.checks import check_state, latest_of_each
 
 HELD = "hold-stall"
 EVENTS = {"clock": "quiet", "hold-stall": "quiet"}
@@ -110,6 +130,17 @@ ROOTED = (
 )
 """What the crew is told, once per head, of a scoped reviewer that T3 Code says has no
 worktree, in place of sending that reviewer its line again."""
+RESTART = (
+    "jbus: {checks} failed on your pull request #{number} at {short}, and your thread stopped "
+    "with nothing pushed. The failed jobs: {jobs}. Carry on from where you stopped: read "
+    "`tasks/{slug}.md` and your worktree's `git status` and `git log` first, keep what is "
+    'committed, then run the block of "The checks" in your own worktree and do what it prints. '
+    "{end}"
+)
+"""What the crew is told, once per idle spell, of a required check that failed at its head."""
+RESTARTS = 2
+"""The restarts at one head a crew gets before its next idle spell goes to its home."""
+RESTARTED = "restart"
 HOLD_MINUTES = 30
 """The minutes rows may be held by one reason with no thread at work on it before jbus wakes their
 home and lists the hold on what waits on the user."""
@@ -277,7 +308,11 @@ def _home(run: Pass, slug: str, wait: dict[str, Any], brief: str) -> None:
     home = thread_of(home_of(run.home, brief))
     why = "it is its home's from here" if home else "it has no home to tell"
     key = f"{wait['kind']} {wait['head'][:12]} {wait['thread']}"
-    line = f"{STALL} {slug}: #{wait['number']} waited {wait['passes']} passes after jbus {did}"
+    if wait["kind"] == "check":
+        waited = f"is red on {wait['head'][:12]} after jbus restarted its crew {RESTARTS} times"
+    else:
+        waited = f"waited {wait['passes']} passes after jbus {did}"
+    line = f"{STALL} {slug}: #{wait['number']} {waited}"
     line += f", {wait['reason']}, with {wait['thread']} not at work, and {why}"
     run.find(slug, STALL, f"{line}; its crew's thread is {crew}", key=f"{CLOCK} {key}")
 
@@ -299,8 +334,10 @@ def tick(
         return
     live = {one["id"]: one["live"] for one in out}
     reviewing = {one["slug"] for one in out if one["role"] == "reviewer" and one["live"] in AT_WORK}
-    kept: dict[str, Any] = {}
+    kept = _checks(run, client, world, out, was)
     for slug, number, reason, head in _waiting(run, world, waits.said):
+        if slug in kept:
+            continue
         kind = class_of(reason)
         if not kind or not head:
             continue
@@ -334,6 +371,104 @@ def tick(
             wait["home"] = True
     if kept != was:
         write_json(run.state / FILE, kept)
+
+
+def _red(run: Pass, world: World, slug: str, pull: dict[str, Any]) -> list[tuple[str, str]]:
+    """Return each required check that failed at the pull request's head, with its log link, where
+    `jbus.stall.twice` counted the head as the row's own red, or nothing."""
+    head = str(pull.get("headRefOid") or "")
+    kept = read_json(run.state / watch.FAILS, {})
+    one = kept.get(slug) if isinstance(kept, dict) else None
+    counted = ((one or {}).get("heads") or {}).get(head) if isinstance(one, dict) else None
+    if not head or not isinstance(counted, dict):
+        return []
+    names = set(counted.get("checks") or ())
+    never = frozenset(pull.get(watch.NEVER) or ())
+    return [
+        (str(check.get("name") or check.get("context")), str(check.get("detailsUrl") or ""))
+        for check in latest_of_each(pull.get("statusCheckRollup") or [])
+        if (check.get("name") or check.get("context")) in names
+        and check_state(check, never) == "failed"
+    ]
+
+
+def _told(run: Pass, slug: str, head: str) -> bool:
+    """Say whether `jbus.rebase` gave the crew its word on this head: the fix message of its failed
+    check, or of a rerun, or the rebase that stands in for both."""
+    sent = run.box.sent()
+    return any(rebase.mark(kind, slug, head) in sent for kind in ("failed", "refailed", "rebase"))
+
+
+def _checks(
+    run: Pass, client: Client, world: World, out: list[dict[str, Any]], was: dict[str, Any]
+) -> dict[str, Any]:
+    """Keep each `check` wait, and restart a crew whose idle spell is new. See the module."""
+    seen = {one["id"]: one for one in out}
+    kept: dict[str, Any] = {}
+    for slug, pull in sorted(world.open.items()):
+        crew, head = dispatch.launched(run, slug), str(pull.get("headRefOid") or "")
+        if not crew or slug in run.limited or slug in run.gated:
+            continue
+        jobs = _red(run, world, slug, pull)
+        if not jobs or (queue.fresh(run.state, slug) or {}).get("held"):
+            continue
+        reason = f"{', '.join(dict.fromkeys(name for name, _ in jobs))} failed"
+        before = was.get(slug, {})
+        same = [before.get(field) for field in ("kind", "head", "thread")] == ["check", head, crew]
+        wait: dict[str, Any] = before if same else {"restarts": 0, "worked": False, "home": False}
+        wait = {**wait, "kind": "check", "head": head, "thread": crew, "line": RESTARTED}
+        wait |= {"number": pull["number"], "reason": reason, "passes": 0}
+        kept[slug] = wait
+        thread = seen.get(crew, {})
+        items = thread.get("items")
+        if wait["home"]:
+            continue
+        if thread.get("live") in AT_WORK:
+            wait["worked"] = True
+            continue
+        if not _told(run, slug, head):
+            wait |= {"items": items, "worked": False}
+            continue
+        moved = items is not None and wait.get("items") not in (None, items)
+        if "items" in wait and not wait["worked"] and not moved:
+            continue
+        if wait["restarts"] >= RESTARTS:
+            _home(run, slug, wait, task_brief(run, slug))
+            wait["home"] = True
+            continue
+        if _restart(run, client, slug, wait, jobs):
+            wait |= {"restarts": wait["restarts"] + 1, "items": items, "worked": False}
+    return kept
+
+
+def _restart(
+    run: Pass, client: Client, slug: str, wait: dict[str, Any], jobs: list[tuple[str, str]]
+) -> bool:
+    """Send the crew one restart for its idle spell at the head. Return whether it went."""
+    head, number, n = wait["head"], wait["number"], wait["restarts"] + 1
+    named = "; ".join(f"{name}, {link}" if link else name for name, link in jobs)
+    text = threads.resume_message(
+        RESTART,
+        f"crew: {slug}",
+        run.home,
+        checks=", ".join(dict.fromkeys(name for name, _ in jobs)),
+        number=number,
+        short=head[:12],
+        jobs=named,
+        slug=slug,
+        end=END_TURN,
+    )
+    key = f"{RESTARTED}|{slug}|{head[:12]} {n}"
+    went = _send(run, client, wait["thread"], text, key, needs="act")
+    if not went:
+        return False
+    did = f"restarted its crew ({n} of {RESTARTS})"
+    did += ", and T3 Code refused it" if went == "refused" else ""
+    said = f"{CLOCK} {slug}: #{number} is red on {head[:12]}, {wait['reason']}; {did}"
+    run.find(slug, CLOCK, f"{said}, {wait['thread']}", text, key=key.split("|", 2)[2])
+    run.say(f"{said}, {wait['thread']}")
+    wait["did"] = "restarted its crew"
+    return True
 
 
 def _waiting(run: Pass, world: World, said: dict[str, str]) -> list[tuple[str, int, str, str]]:
@@ -398,9 +533,13 @@ def held(
     if waits.failed or out is None:
         return
     was: dict[str, Any] = read_json(run.state / HELD_FILE, {})
+    clocks: dict[str, Any] = read_json(run.state / FILE, {})
+    checked = {slug for slug, one in clocks.items() if one.get("kind") == "check"}
     groups: dict[str, dict[str, Any]] = {}
     for slug, number in _rows(run, world, waits.said):
         word, _, reason = waits.said.get(str(number), "").partition(": ")
+        if slug in checked:
+            continue
         if word != "wait" or not reason or class_of(reason) or matches(reason, RUNNER):
             continue
         if _ahead(reason, world):

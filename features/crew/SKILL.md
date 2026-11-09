@@ -106,7 +106,7 @@ On the user's own word to merge, given in this thread, `jmerge --accept <number>
 
 | When | Do |
 |---|---|
-| A question only the user can answer, or one of the doors of "Carry on" | read `$T/../skills/crew/a-gate.md` now, and park it as a gate |
+| One of the doors of "Carry on", or a choice you would ask the user about | read `$T/../skills/crew/a-gate.md` now: a door is parked as a gate, and any other choice is a decision in the Result |
 | A fault outside the task | leave it out of the diff, and read `$T/a-fault-outside.md`, which makes it a queued row or nothing |
 | A loop of more than ten `gh` calls | read `$T/../skills/crew/gh-budget.md` now |
 | Reporting or acting on a number you measured | read `$T/../skills/benchmark-checklist/SKILL.md` now |

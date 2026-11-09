@@ -1,20 +1,30 @@
 # The targets of the repo standard, the same in every stack:
 # https://github.com/JoshuaHayesWasHere/jstack/blob/main/features/repo-standard/docs/skeleton.md
 # scripts/stack.mk, from the stack's adapter, fills in the commands: STACK_LINT, STACK_TEST and
-# STACK_SELECT. The standard's guards run from jstack at the tag .repo-standard.yml pins, cloned
-# once into .cache/, with no tool but git and python3.
+# STACK_SELECT. A repo of several stacks sets `stacks:` in .repo-standard.yml instead, and the
+# standard's driver runs each stack over its own roots and joins them. The standard's guards run
+# from jstack at the tag .repo-standard.yml pins, cloned once into .cache/, with no tool but git
+# and python3. The standard's version owns this file, so the repo's own targets, such as a deploy
+# entry, go in local.mk, included at the end when it is there.
 STANDARD := $(shell sed -n 's/^standard:[[:space:]]*\([0-9][0-9]*\).*/\1/p' .repo-standard.yml)
 REPO_STANDARD_UPSTREAM ?= https://github.com/JoshuaHayesWasHere/jstack
 REPO_STANDARD_HOME := .cache/repo-standard-v$(STANDARD)
 REPO_STANDARD := PYTHONPATH=$(REPO_STANDARD_HOME)/features/repo-standard/src python3 -m repo_standard
 
+ifneq ($(shell sed -n '/^stacks:/p' .repo-standard.yml),)
+STACK_LINT = $(REPO_STANDARD) stacks lint
+STACK_TEST = $(REPO_STANDARD) stacks test
+STACK_SELECT = $(REPO_STANDARD) stacks select
+test select e2e: | $(REPO_STANDARD_HOME)
+else
 include scripts/stack.mk
+endif
 
 # `make test TESTS=<ids>` runs only those tests. TESTS stays out of the environment, where a make
 # that a test runs would take it for its own.
 unexport TESTS
 
-.PHONY: lint test check select check-fast borders generate
+.PHONY: lint test check select check-fast e2e borders generate
 
 $(REPO_STANDARD_HOME):
 	git -c advice.detachedHead=false clone -q --depth 1 --branch 'repo-standard-v$(STANDARD)' '$(REPO_STANDARD_UPSTREAM)' '$@'
@@ -33,6 +43,13 @@ check: lint test
 select:
 	@test -n '$(BASE)' || { echo 'make select needs BASE=<ref>' >&2; exit 2; }
 	@$(STACK_SELECT) '$(BASE)'
+
+# The browser tests of each stack whose config sets `e2e:`: its npm script runs Playwright on the
+# app it builds and serves with a mocked API, never on a live stage, and a test that passes only on
+# a retry fails. `make e2e E2E_LIST=<file>` runs only the ids in the file, one a line, as `make
+# select` prints them.
+e2e:
+	$(REPO_STANDARD) stacks e2e$(if $(E2E_LIST), '$(E2E_LIST)')
 
 check-fast: lint
 	@test -n '$(BASE)' || { echo 'make check-fast needs BASE=<ref>' >&2; exit 2; }
@@ -54,3 +71,5 @@ borders: | $(REPO_STANDARD_HOME)
 # lint runs the same generators with --check, which fails on a stale file.
 generate:
 	python3 scripts/generate-index.py
+
+-include local.mk

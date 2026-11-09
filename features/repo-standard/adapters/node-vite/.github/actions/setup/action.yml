@@ -1,0 +1,21 @@
+# The step every job of the shared check runs before a make target: Node, at the version the first
+# npm root pins in its .nvmrc or its package.json `engines.node`, npm's cache keyed on every
+# lockfile, and `npm ci` in each folder whose package-lock.json git tracks. scripts/node.py finds
+# them in python3 alone. A repo of several stacks keeps one setup action, with each adapter's steps.
+name: setup
+description: Install Node at the pinned version, and each npm root's packages from its lockfile.
+runs:
+  using: composite
+  steps:
+    - id: node
+      shell: bash
+      run: python3 scripts/node.py setup >> "$GITHUB_OUTPUT"
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version-file: ${{ steps.node.outputs.version-file }}
+        cache: npm
+        cache-dependency-path: "**/package-lock.json"
+    - shell: bash
+      env:
+        ROOTS: ${{ steps.node.outputs.roots }}
+      run: for root in $ROOTS; do (cd "$root" && npm ci --no-audit --no-fund) || exit 1; done

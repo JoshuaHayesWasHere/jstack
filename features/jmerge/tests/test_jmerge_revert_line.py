@@ -4,7 +4,9 @@ number it lined up last: on a red main other pull requests keep merging (#862), 
 past the revert's check, and the revert waited a turn behind every one of them. Now it takes the
 line from the pull request that holds it, which waits behind the revert and keeps its record of
 the update GitHub was asked for. Every other pull request lines up as before, migrations in their
-declared order."""
+declared order. A green one that is no revert merges on its existing check where it merges cleanly
+(`test_jmerge_over_main.py`), so those behind the revert here are red ones whose check failed
+before main moved."""
 
 import json
 
@@ -12,7 +14,7 @@ import pytest
 
 from jmerge import rejudge, reverts
 from test_jmerge_fresh import AFTER, LINES, Kitchen, asked, url
-from test_jmerge_in_line import behind
+from test_jmerge_in_line import RED, behind, red_asked
 from test_jmerge_order import BETA_URL, DIRECTORY, GAMMA_URL, pulls, queue_of, starts, three_in_line
 
 
@@ -39,8 +41,8 @@ def kitchen(tmp_path):
 
 
 def test_a_revert_main_moved_past_is_updated_first_and_the_others_wait_behind_it(kitchen):
-    kitchen.crew("two", 7, {"b.txt": "ours\n" + LINES})
-    kitchen.crew("three", 8, {"c.txt": "ours\n" + LINES})
+    kitchen.crew("two", 7, {"b.txt": "ours\n" + LINES}, checks=(RED,))
+    kitchen.crew("three", 8, {"c.txt": "ours\n" + LINES}, checks=(RED,))
     kitchen.crew("revert-it", 9, {"a.txt": "ours\n" + LINES})
     named(kitchen.jbus, ("revert-it", url(9)))
     tip = kitchen.on_main({"d.txt": "theirs\n"})
@@ -50,14 +52,14 @@ def test_a_revert_main_moved_past_is_updated_first_and_the_others_wait_behind_it
     kitchen.updated("revert-it", AFTER)
     first, second, third = kitchen.run()
     assert first.startswith("merged 9 revert-it ")
-    assert (second, third) == (asked(7, kitchen.tip()), behind(8, 7))
+    assert (second, third) == (red_asked(7, kitchen.tip()), behind(8, 7))
 
 
 def test_a_revert_takes_the_line_from_the_one_that_holds_it_which_keeps_its_record(kitchen):
-    kitchen.crew("two", 7, {"b.txt": "ours\n" + LINES})
-    kitchen.crew("three", 8, {"c.txt": "ours\n" + LINES})
+    kitchen.crew("two", 7, {"b.txt": "ours\n" + LINES}, checks=(RED,))
+    kitchen.crew("three", 8, {"c.txt": "ours\n" + LINES}, checks=(RED,))
     tip = kitchen.on_main({"d.txt": "theirs\n"})
-    assert kitchen.run() == [asked(7, tip), behind(8, 7)]
+    assert kitchen.run() == [red_asked(7, tip), behind(8, 7)]
     held = json.loads((kitchen.home.state / rejudge.NAME).read_text())["7"]
     assert held["line"] is True
 
@@ -73,11 +75,11 @@ def test_a_revert_takes_the_line_from_the_one_that_holds_it_which_keeps_its_reco
 
 
 def test_a_pull_request_reverts_json_does_not_name_lines_up_by_number_as_before(kitchen):
-    kitchen.crew("two", 7, {"b.txt": "ours\n" + LINES})
-    kitchen.crew("three", 8, {"c.txt": "ours\n" + LINES})
+    kitchen.crew("two", 7, {"b.txt": "ours\n" + LINES}, checks=(RED,))
+    kitchen.crew("three", 8, {"c.txt": "ours\n" + LINES}, checks=(RED,))
     named(kitchen.jbus, ("revert-gone", url(5)))
     tip = kitchen.on_main({"d.txt": "theirs\n"})
-    assert kitchen.run() == [asked(7, tip), behind(8, 7)]
+    assert kitchen.run() == [red_asked(7, tip), behind(8, 7)]
 
 
 def test_a_revert_comes_before_the_migrations_which_keep_their_declared_order(lined):

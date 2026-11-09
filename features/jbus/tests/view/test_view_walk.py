@@ -10,7 +10,6 @@ that names its finding (`walk.KNOWN`).
 """
 
 import json
-import resource
 import subprocess
 import time
 
@@ -27,64 +26,64 @@ BUILT = {}
 
 ROUNDS = 3
 
-SLOWER = {"in process": 12, "in its shells": 60}
+SLOWER = 12
 
-
-def cpu():
-    """The CPU seconds this process has used, and those of the children it waited on: a
-    runner whose cores are busy makes the views wait longer, and does not make them use more."""
-    children = resource.getrusage(resource.RUSAGE_CHILDREN)
-    return time.process_time(), children.ru_utime + children.ru_stime
-
-
-def spent(began):
-    return tuple(now - then for now, then in zip(cpu(), began, strict=True))
+SHELLS = 18
 
 
 def reference(folder):
-    """The CPU seconds of fixed work of each kind the views do, JSON written to files and read
-    back in this process and shells run as children: the yardstick of this machine. Each kind
-    is held to its own, since a loaded runner slows the start of a shell more than it slows
-    the work of this process."""
+    """The CPU seconds of fixed work of the kind the views do in this process, JSON written to
+    files and read back: the yardstick of this machine. A runner whose cores are busy makes
+    the views wait longer, and does not make them use more."""
     data = {f"k{n}": {"n": n, "text": "x" * 50, "list": list(range(20))} for n in range(400)}
-    began = cpu()
+    began = time.process_time()
     for n in range(40):
         file = folder / f"reference-{n % 5}.json"
         file.write_text(json.dumps(data))
         json.loads(file.read_text())
-    for _ in range(8):
-        subprocess.run(["sh", "-c", ":"], check=True)
-    return spent(began)
+    return time.process_time() - began
 
 
 def viewed(scene):
-    """The three answers over the scene, and the CPU seconds of each kind they took."""
-    began = cpu()
-    seen = {}
-    for who in ("", work.T3, work.GITHUB):
-        walk.silent(scene, who)
-        seen[who] = walk.view(scene)
-    return seen, spent(began)
+    """The three answers over the scene, the CPU seconds this process took for them, and the
+    commands they started."""
+    started = []
+    start = subprocess.Popen.__init__
+
+    def counted(self, args, *rest, **named):
+        started.append(args)
+        start(self, args, *rest, **named)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(subprocess.Popen, "__init__", counted)
+        began = time.process_time()
+        seen = {}
+        for who in ("", work.T3, work.GITHUB):
+            walk.silent(scene, who)
+            seen[who] = walk.view(scene)
+        took = time.process_time() - began
+    return seen, took, started
 
 
 @pytest.fixture
 def walked(tmp_path, monkeypatch):
-    """The walk's project and the three answers over it, with the CPU time of each kind they
-    took and the reference's, the least of `ROUNDS` rounds that run one of each in turn, so
-    that a burst of load on the runner has to fall on every round to count. The first test
-    that asks builds them, under the isolation every test has (the zone of
-    `testing/jstack_fixtures.py` among it), and the tests after it read the same answers."""
+    """The walk's project and the three answers over it, with the CPU time this process took
+    for them and the reference's, the least of `ROUNDS` rounds that run one of each in turn, so
+    that a burst of load on the runner has to fall on every round to count, and the commands
+    each round started. The first test that asks builds them, under the isolation every test
+    has (the zone of `testing/jstack_fixtures.py` among it), and the tests after it read the
+    same answers."""
     if not BUILT:
         scene = Scene(tmp_path, monkeypatch)
         made = walk.build(scene)
         (tmp_path / "reference").mkdir()
-        took, yardstick = [], []
+        took, yardstick, shells = [], [], []
         for _ in range(ROUNDS):
             yardstick.append(reference(tmp_path / "reference"))
-            seen, cost = viewed(scene)
+            seen, cost, started = viewed(scene)
             took.append(cost)
-        least = [tuple(map(min, zip(*one, strict=True))) for one in (took, yardstick)]
-        BUILT["walk"] = made, seen, least
+            shells.append(started)
+        BUILT["walk"] = made, seen, (min(took), min(yardstick), shells)
     return BUILT["walk"]
 
 
@@ -106,9 +105,12 @@ def test_a_state_with_no_entry_fails_the_walk():
 
 
 def test_the_walk_has_each_state_and_its_views_cost_few_references(walked):
-    """The views are held to `SLOWER` times the reference of each kind: about 5 times it in
-    process and 36 times it in shells, so views built twice over fail in shells."""
-    made, _, (took, yardstick) = walked
+    """The views are held to `SLOWER` times the reference in this process, where they take
+    about 5 times it, and to the `SHELLS` commands a round they start: views built twice over
+    start twice as many. Their shells are counted, not timed, since a loaded runner
+    swells the CPU a shell takes to start (0.33 to 1.33 s for the views' shells on CI, against
+    0.17 s at the desk) and leaves their number as it was."""
+    made, _, (took, yardstick, shells) = walked
     pairs = walk.reached()
     assert set(made.rows) == set(pairs)
     assert {value for value, _ in pairs} == set(work.VALUES)
@@ -116,15 +118,13 @@ def test_the_walk_has_each_state_and_its_views_cost_few_references(walked):
     assert set(made.items) == walk.states()["kind"]
     assert len(made.gates) == 12
     assert set(made.owners) == walk.states()["owner"]
-    over = []
-    for kind, cost, unit in zip(SLOWER, took, yardstick, strict=True):
-        times = cost / unit
-        if times >= SLOWER[kind]:
-            over.append(
-                f"{kind} the views took {cost:.3f} CPU s, {times:.1f} times the reference's"
-                f" {unit:.4f} s, {times / SLOWER[kind]:.1f} times the limit of {SLOWER[kind]}"
-            )
-    assert not over, "; ".join(over)
+    times = took / yardstick
+    assert times < SLOWER, (
+        f"the views took {took:.3f} CPU s, {times:.1f} times the reference's {yardstick:.4f} s,"
+        f" {times / SLOWER:.1f} times the limit of {SLOWER}"
+    )
+    most = max(shells, key=len)
+    assert len(most) <= SHELLS, f"the views started {len(most)} commands, not {SHELLS}: {most}"
 
 
 def needed(stack, slug, pr):

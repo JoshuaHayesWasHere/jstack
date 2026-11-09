@@ -126,6 +126,7 @@ SURFACES = {
     ("kind", "config"): Surface(needs=True),
     ("kind", "held"): Surface(needs=True),
     ("kind", "github"): Surface(needs=True),
+    ("kind", "stalled"): Surface(needs=True),
     ("source", "ok"): Surface(),
     ("source", "missing"): Surface(),
     ("source", "unreadable"): Surface(broken="unread"),
@@ -334,6 +335,8 @@ def build(scene):
     spent = "GitHub's API allowance is spent: its core window has 0 of 5000 calls left"
     listed.append(item("github", "github:demo", spent, hours=1))
     items["github"] = ["github:demo"]
+    listed.append(item("stalled", "stalled:sc", "home-stall sc: quiet after a relaunch", hours=1))
+    items["stalled"] = ["stalled:sc"]
     scene.waiting(listed)
     alone = {}
     for role, liveness in itertools.product(threads.ROLES, live.LIVENESS):
@@ -354,8 +357,8 @@ def build(scene):
 
 def _gates(scene):
     """The twelve gates, each in the `gates.md` of its home: the root's, a live scope's that
-    has a `home-id`, and a retired scope's, which has a handoff and no id, so that jbriefs
-    no longer counts it as a scope."""
+    has a `plan.md` and a `home-id`, and a retired scope's, which has a handoff and no plan, so
+    that jbriefs no longer counts it as a scope."""
     homes = {
         "root": scene.home,
         "live scope": scene.home / "pantry-shelf",
@@ -363,6 +366,7 @@ def _gates(scene):
     }
     homes["live scope"].mkdir()
     homes["retired scope"].mkdir()
+    (homes["live scope"] / "plan.md").write_text("# demo, pantry-shelf: plan\n")
     (homes["live scope"] / "home-id").write_text("mcp:shelf\n")
     (homes["retired scope"] / "handoff.md").write_text("Status: retired\n")
     asked, files = {}, {}

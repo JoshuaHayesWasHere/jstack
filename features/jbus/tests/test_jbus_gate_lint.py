@@ -114,9 +114,11 @@ def test_exit_124_never_passes(kitchen):
         "Should the Cross-cutting tests stay in the quick list?",
     ),
 )
-def test_a_choice_that_only_names_a_shapes_word_is_asked(kitchen, asked):
+def test_a_choice_that_only_names_a_shapes_word_is_not_refused(kitchen, asked):
+    """No rule settles it, so jbus takes it: from a crew's row with no `Holds:` line, as a
+    decision on the brief."""
     code, said = kitchen.main("gate", "alpha", stdin=lines(asked))
-    assert (code, said.splitlines()[0]) == (0, "asked: queued: question 1")
+    assert (code, said.startswith("decided: written to ")) == (0, True), said
 
 
 @pytest.mark.parametrize("shape", SHAPES)
@@ -162,6 +164,6 @@ def test_a_default_that_waits_for_the_users_word_and_holds_is_asked(kitchen, def
         "wait once GitHub's merge lands",
     ),
 )
-def test_a_default_that_waits_on_anything_but_the_users_word_is_asked(kitchen, default):
+def test_a_default_that_waits_on_anything_but_the_users_word_is_not_refused(kitchen, default):
     code, said = kitchen.main("gate", "alpha", stdin=lines("tea or coffee?", default))
-    assert (code, said.splitlines()[0]) == (0, "asked: queued: question 1")
+    assert (code, said.startswith("decided: written to ")) == (0, True), said

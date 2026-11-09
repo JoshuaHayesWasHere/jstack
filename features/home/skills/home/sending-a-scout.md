@@ -21,11 +21,12 @@ When in doubt between the two, any one of the durable column's conditions decide
    A request that measures jstack's own spend asks for the waste inside it, such as rework and needless load, and not for its upkeep weighed against what it saves: the user counts that as an investment while jbus is built (2026-11-02).
    Its `Playbook:` line is a row `a scout` runs whose kind of question this is, from what the block in "Handing a task to a crewmate" that prints a row for each playbook prints, or `none`.
    Then run the block in "Handing a task to a crewmate" that asks for the deeper version, and write what it says into the request.
-   Its `Home:` line is as "Handing a task to a crewmate" says for a brief's: the scope's name for a scoped home, and `Home: root` for the root home.
+   Its `Home:` line is as "Handing a task to a crewmate" says for a brief's: the scope's name for a scoped home, and the child's for the root home.
    A scout that waits on another row's work has a `Builds on: <slug>: <what it uses>` line for each.
    Its `Out of bounds:` line also says: no loop of more than ten `gh` calls until `uv run --project "$T/../source" jbus budget --calls <n>` says `ok`, and none while it says `held`.
    GitHub's API allowance is one for jbus, `jmerge` and every thread, and a scout's fetch for each job once spent all of it and stalled every merge for an hour.
 2. Queue it: `jbus --project <project> queue add <slug> --priority <n> --entry <entry> [--depends <slug>,...] < scouts/<slug>.md`.
+   The root home queues it by "Queueing a row in a child" (`scoped-homes.md`) instead.
    A text with a `Request:` line and no `Task:` line is a request, so the row is a scout's, and `add` refuses one with a crewmate's line (`Size:`, `Pull request:`) or not in the template's shape.
    It is approved as any row is, the entry's go included, and waits on its `--depends` as any row does.
    A pass launches it as `scout: <slug>` with the message `/scout <slug>`, in the project's own checkout and with no branch, writes the request back to `scouts/<slug>.md` with its `Thread:` line, and marks the row done once its Report says `Status: done`.

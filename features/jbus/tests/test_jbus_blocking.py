@@ -172,7 +172,7 @@ def test_the_second_target_gets_what_blocks_and_nothing_quiet(kitchen, second):
     relayed(kitchen, second)
     kitchen.brief("alpha", "Thread: mcp:crew-alpha\n")
     kitchen.brief("beta", "Thread: mcp:crew-beta\n")
-    assert kitchen.main("gate", "alpha", stdin=gate("tea or coffee?", "alpha"))[0] == 0
+    assert kitchen.raises("alpha", gate("tea or coffee?", "alpha"))[1]
     config = jbus.load()
     wake.Box(kitchen.state, config.project("demo")).send("alpha", "result", "result alpha: done")
     asked = gate("may I deploy the site tonight?", "beta")
@@ -194,7 +194,7 @@ def test_a_slug_the_queue_knows_names_no_door_in_a_pass_in_clear_or_in_a_risk(ki
         assert said[0] == 0, said
     kitchen.brief("beta", "Thread: mcp:crew-beta\n")
     known = gate("may drop-old-tables and token-one-findings-route merge first?", "beta")
-    assert kitchen.main("gate", "beta", stdin=known)[0] == 0
+    assert kitchen.raises("beta", known)[1]
     assert (
         kitchen.main("gate", "beta", stdin=gate("may I drop-and-recreate the tables?", "beta"))[0]
         == 0
@@ -216,7 +216,7 @@ def test_a_defaulted_gate_whose_slug_goes_silent_becomes_a_stall(kitchen, second
     kitchen.monkeypatch.setattr(wake.Box, "clock", staticmethod(lambda: NOW))
     relayed(kitchen, second)
     kitchen.brief("alpha", "Thread: mcp:crew-alpha\n")
-    kitchen.main("gate", "alpha", stdin=gate("tea or coffee?", "alpha"))
+    kitchen.raises("alpha", gate("tea or coffee?", "alpha"))
     kitchen.poll(later(10))
     assert second.bodies == []
     kitchen.poll(later(31))
@@ -312,7 +312,7 @@ def test_a_defaulted_gate_is_no_stall_while_two_threads_of_its_slug_are_at_work(
     kitchen.brief("alpha", "Thread: mcp:crew-alpha\n")
     kitchen.t3.thread("alpha")
     kitchen.t3.thread("alpha")
-    kitchen.main("gate", "alpha", stdin=gate("tea or coffee?", "alpha"))
+    kitchen.raises("alpha", gate("tea or coffee?", "alpha"))
     kitchen.poll(later(31))
     assert second.bodies == []
 
@@ -336,6 +336,7 @@ def test_each_case_of_the_blocking_test(kitchen, second):
         made("approve", "approve:alpha", slug="alpha"),
         made("left", "left:beta", slug="beta"),
         made("config", "config:demo"),
+        made("stalled", "stalled:sc", slug="home-sc"),
         made("row", "row:gamma", slug="gamma"),
     ]
     rows = [{"slug": "delta", "status": "queued"}]
@@ -346,6 +347,7 @@ def test_each_case_of_the_blocking_test(kitchen, second):
         "brief:delta": ("b", "a row with no brief"),
         "left:beta": ("d", "a leftover no home closed"),
         "config:demo": ("d", "jbus cannot go on"),
+        "stalled:sc": ("d", "a home stalled again after jbus started it again"),
     }
 
 

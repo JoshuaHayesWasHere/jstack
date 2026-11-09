@@ -137,6 +137,7 @@ def day(kitchen, monkeypatch):
         (state / "ci.jsonl").write_text(cut.read())
     shutil.copy(DAY / "ci-prs.jsonl", state / "ci-prs.jsonl")
     (kitchen.home / "cicd").mkdir(parents=True)
+    (kitchen.home / "cicd" / "plan.md").write_text("# a plan\n")
     (kitchen.home / "cicd" / "home-id").write_text("mcp:launch:cicd\n")
     kitchen.git("remote", "set-url", "origin", "https://github.com/JoshuaHayesWasHere/jstack.git")
     monkeypatch.setattr(verbs, "clock", lambda: NOW.astimezone(UTC))

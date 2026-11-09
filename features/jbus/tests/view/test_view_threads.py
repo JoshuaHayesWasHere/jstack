@@ -279,6 +279,7 @@ def test_a_home_names_its_scope_and_one_that_ended_with_its_own_tasks_open_asks(
     it waits on the user to start it again, so it ranks with what asks. A home with no open task
     of its own ended with nothing out."""
     (scene.home / "second").mkdir()
+    (scene.home / "second" / "plan.md").write_text("# a plan\n")
     (scene.home / "second" / "home-id").write_text("mcp:home: demo second\n")
     (scene.home / "tasks").mkdir(exist_ok=True)
     (scene.home / "tasks" / "jam-jar.md").write_text("# jam-jar: a jar\nHome: second\n")

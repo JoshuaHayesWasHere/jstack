@@ -50,12 +50,12 @@ It prints only the rows still open.
 It leaves out a row that is `merged` or `done` with no reason to wait.
 A last line counts the rows it left out, as `<n> finished rows not shown: jbus queue show --all`, or `1 finished row not shown: jbus queue show --all` for one.
 `jbus queue show --all` prints every row.
-`add`, `approve`, `hold`, `remove`, `withdraw` and `rename` print the open rows after they run, with the same last line.
+`add`, `approve`, `hold`, `remove`, `withdraw`, `rename` and `move` print the open rows after they run, with the same last line.
 Each column has one writer.
 
 | Columns | Written by |
 |---|---|
-| `slug`, `priority`, `depends`, `merge_after`, `approved`, `approval`, `brief_sha`, `held`, `entry`, `item`, `role` | `jbus queue add`, `approve`, `hold`, `remove`, `withdraw` and `rename`, run by a home, the Chef or you. The Chef never runs `remove`, since a removal needs your word. Only `add` writes `entry`, `item`, `merge_after` and `role`, which is `scout` for a scout's request ([What a pass launches](what-a-pass-launches.md#a-scout)) and empty for a crewmate's brief. `hold` sets `held`, and `approve` clears it. |
+| `slug`, `priority`, `depends`, `merge_after`, `approved`, `approval`, `brief_sha`, `held`, `entry`, `item`, `role`, `carried` | `jbus queue add`, `approve`, `hold`, `remove`, `withdraw`, `rename` and `move`, run by a home, the Chef or you. The Chef never runs `remove`, since a removal needs your word. Only `add` writes `entry`, `item`, `merge_after` and `role`, which is `scout` for a scout's request ([What a pass launches](what-a-pass-launches.md#a-scout)) and empty for a crewmate's brief. `hold` sets `held`, and `approve` clears it. Only `move` writes `carried`, the last move that carried the row's go, and any new go drops it ([A row moves to another home](#a-row-moves-to-another-home)). |
 | `status`, `thread`, `pr`, `checks`, `updated` | A pass, from T3 Code and GitHub. No command takes one, and a pass rewrites a hand edit. |
 
 `jbus queue apply` reads a batch on stdin, one verb to a line.
@@ -515,3 +515,20 @@ It refuses a row that launched, a row whose slug another row names in its depend
 If `removed.json` does not parse, jbus treats it as it treats a `queue.json` that does not parse.
 jbus refuses every `queue` verb until you mend the file, and a pass records `condition <project>: removed.json does not parse`.
 Such a pass cannot tell which slugs were removed, so it launches nothing, reads no brief, acts on no thread or pull request except through `jmerge`, and leaves `waiting-on-user.json` as it was.
+
+## A row moves to another home
+
+`jbus queue move <slug> --home <scope>` gives a row to the home of another scope, with its go, at any status but merged or done: a row in `uncategorized`, the home of every row no scope claims, goes to the child home that owns its work.
+A row's home is its brief's `Home:` line, and every send about the row reads it again: the crew's next Result (`jbus home`), each wake of the one list, a stall and a leftover.
+So the move rewrites that line, in the brief jbus stores and in the home's copy under `tasks/` (a scout's under `scouts/`), and nothing else of the brief.
+A go covers what a brief asks and not whom it is sent to (`Home:` and `Thread:` are left out of its sha and its fingerprint), so the go holds for the moved brief by rule, and needs no new word.
+The go's line says so: `; carried from the <was> home to the <scope> home by a move, <time> by <who>: a move keeps the go: a row's home is whom its brief is sent to, and no go covers it`.
+A new go drops that clause.
+A fix row takes the tries it counts to its new home's `blockers.json`.
+
+It prints `moved <slug> from the <was> home to the <scope> home, <time> by <who>, its go carried: <the rule>`, or `, it has no go to carry` for a row with none, and logs the line as one quiet `move` event.
+A row already in that home moves nowhere: `<slug> is the <scope> home's already: nothing is moved`.
+A move cut short between its two writes finishes when it is run again.
+
+It refuses the root as the target, by `root` or by the root's thread id, as `refused: root is the root home, and a row moves only to a child home: name one of its scopes`.
+It refuses a name that is no scope as `add` refuses that `Home:` line, ending `: nothing is moved`, and a row that merged or is done, as `refused: <slug> is merged, and a row that is over stays`.

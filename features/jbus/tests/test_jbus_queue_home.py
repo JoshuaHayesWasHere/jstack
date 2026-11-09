@@ -27,6 +27,7 @@ def kitchen(tmp_path, monkeypatch):
     made = Kitchen(tmp_path, monkeypatch)
     (made.home / "home-id").write_text(f"{ROOT}\n")
     (made.home / SCOPE).mkdir()
+    (made.home / SCOPE / "plan.md").write_text("# a plan\n")
     (made.home / SCOPE / "home-id").write_text(f"{FLOW}\n")
     yield made
     made.close()

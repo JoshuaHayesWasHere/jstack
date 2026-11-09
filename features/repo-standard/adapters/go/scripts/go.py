@@ -24,6 +24,11 @@ folder from the repo's root, such as `features/alpha/core`, and the package is o
 
   It selects whole modules and leaves the rest to go test's cache, which runs again only a package
   whose inputs changed. It runs in python3 alone, so CI's plan selects before any setup.
+
+Given `--roots <folder>` once or more, before the other arguments, each command works as a stack
+of a repo with `stacks:`: it sees only the modules under those roots, and its select ignores a path
+outside them that no `reads` names, since the repo's driver places that one. A path under the roots
+that the rules above cannot place still selects `all`, which the driver reads as the whole stack.
 """
 
 from __future__ import annotations
@@ -83,13 +88,22 @@ def replaced(text: str) -> list[str]:
     return found
 
 
+def under(path: str, roots: list[str] | None) -> bool:
+    return roots is None or any(within(path, root) for root in roots)
+
+
 class Layout:
     """The repo's modules, each one's test packages, who takes each by `replace`, and the
-    features' `reads`, from the files git lists."""
+    features' `reads`, from the files git lists. Given roots, only the modules under them."""
 
-    def __init__(self, paths: list[str]) -> None:
+    def __init__(self, paths: list[str], roots: list[str] | None = None) -> None:
+        self.roots = roots
         self.modules = sorted(
-            {folder(p) for p in paths if PurePosixPath(p).name == "go.mod" and seen_by_go(p)},
+            {
+                folder(p)
+                for p in paths
+                if PurePosixPath(p).name == "go.mod" and seen_by_go(p) and under(p, roots)
+            },
             key=len,
             reverse=True,
         )
@@ -148,12 +162,13 @@ def select(paths: list[str], layout: Layout) -> list[str]:
         if module is not None:
             modules.add(module)
             continue
+        if placed or not under(path, layout.roots):
+            continue
         parts = PurePosixPath(path).parts
         in_feature = len(parts) >= 3 and parts[0] == FEATURES
         if path.endswith(".md") or (in_feature and parts[2] in ("docs", "feature.json")):
             continue
-        if not placed:
-            return [ALL]
+        return [ALL]
     found |= layout.reach(modules)
     return sorted(one for one in found if Path(one).is_dir())
 
@@ -202,8 +217,20 @@ def test(layout: Layout, ids: list[str]) -> int:
     return failed
 
 
+def split_roots(argv: list[str]) -> tuple[list[str] | None, list[str]]:
+    """The `--roots <folder>` pairs that open the arguments, and the rest."""
+    roots = []
+    while len(argv) > 2 and argv[1] == "--roots":
+        roots.append(posixpath.normpath(argv[2]))
+        argv = [argv[0], *argv[3:]]
+    return roots or None, argv
+
+
 def main(argv: list[str]) -> int:
-    usage = "usage: go.py lint | go.py test [ids] | go.py select <base>"
+    usage = (
+        "usage: go.py lint | go.py test [ids] | go.py select <base>, each verb then [--roots R]..."
+    )
+    roots, argv = split_roots(argv)
     if not argv or argv[0] not in ("lint", "test", "select"):
         print(usage, file=sys.stderr)
         return 2
@@ -215,10 +242,10 @@ def main(argv: list[str]) -> int:
                 return 2
             changed = git("diff", "-z", "--name-only", "--no-renames", rest[0], "--")
             changed += git("ls-files", "-z", "--others", "--exclude-standard")
-            for line in select(sorted(set(changed)), Layout(files())):
+            for line in select(sorted(set(changed)), Layout(files(), roots)):
                 print(line)
             return 0
-        layout = Layout(files())
+        layout = Layout(files(), roots)
     except subprocess.CalledProcessError as error:
         print(f"go.py: git cannot read the tree: {error.stderr.strip()}", file=sys.stderr)
         return 2

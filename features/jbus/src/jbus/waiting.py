@@ -34,7 +34,11 @@ Each pass rewrites the list. An item is one thing only the user can do,
   pass's own reading says so (`watch.Look.spent`): a window that `gh api rate_limit` says has no
   call left, or a call GitHub refused for its rate limit. It leaves the list on the first pass
   that reads calls left again, and a pass that could not read the allowance keeps it as it was.
-  It clears by itself, so it never blocks.
+  It clears by itself, so it never blocks;
+- `stalled`: a home jbus nudged twice and started again on a fresh thread that is still quiet with
+  work out (`stalls.stalled`), with its own slug `home-<scope>`. It wakes no thread, since the
+  home is the one that stalled, and it blocks as a stall (d). It leaves the list once the home
+  does something jbus can see.
 
 No list holds an item of a slug that was removed from the queue (`queue.removed`). `read` leaves
 such an item out of what the last pass left, and `keep` leaves it out of what the pass finds. So the
@@ -58,17 +62,18 @@ What blocks is a part of this list, and `blocking` is the one function that deci
 blocks when it is open and nothing can move without the user. That is the design's Blocking test
 (`features/jbus/docs/jbus.md`, "What blocks"), applied to these fields:
 
-- (a) a `gate` whose `default` is empty, or whose question or context names one of `PAUSE`. Only a
-  gate in a home's `gates.md` can have an empty default, since `jbus gate` refuses a question with
-  none. `PAUSE` is the door table's words (`party.DOORS`), each by its case, matched against the
-  gate's words;
+- (a) a `gate` whose `default` is empty, or whose question or context names one of
+  `party.PAUSE`. Only a gate in a home's `gates.md` can have an empty default, since `jbus gate`
+  refuses a question with none. `party.PAUSE` is the door table's words (`party.DOORS`), each by
+  its case, matched against the gate's words;
 - (b) an `approve` item, which is a row whose `brief_sha` is empty because nobody approved it or
   because its brief changed after the go, and a row of the queue that waits with no brief in
   `briefs/<slug>.md`;
 - (c) a `hold`, which is a pull request that `jmerge` holds;
 - (d) a stall, which is any of these: a `left` item, a leftover that is the user's because the row
   has no home or its home's thread is not one to tell (`leftover.his`); a `config` item; a streak of
-  `alert` that alerted, of this project or of the pass, except the second target's own; and a gate
+  `alert` that alerted, of this project or of the pass, except the second target's own; a `stalled`
+  item; and a gate
   that has a default, whose slug wrote no event for `CLOSE_MINUTES` and has no thread at work.
 
 None of these blocks: a gate with a default whose thread still writes, a `row` that jbus put at
@@ -85,7 +90,6 @@ its number. A pass that cannot judge a stall, or that is blind, closes no item t
 from __future__ import annotations
 
 import hashlib
-import re
 from collections.abc import Callable, Collection
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
@@ -105,6 +109,7 @@ from jbus import (
     queue,
     read_json,
     redact,
+    stalls,
     verbs,
     write_json,
 )
@@ -141,6 +146,7 @@ KINDS = (
     Kind("held", "Holds no thread works on", "Pick it up", 7),
     Kind("config", "Setup jbus lacks", "Set up", 6),
     Kind("github", "GitHub's API allowance spent", "See when it resets", 8),
+    Kind("stalled", "Homes stalled after jbus started them again", "Get it going", 9),
 )
 
 Item = dict[str, Any]
@@ -149,7 +155,6 @@ Item = dict[str, Any]
 NAME = "waiting-on-user.json"
 LOCK = "waiting.lock"
 BLOCKS = "blocking.json"
-PAUSE = {one.case: one.named for one in party.DOORS if one.named}
 KEEP_REMINDED = timedelta(days=14)
 
 
@@ -419,6 +424,7 @@ def keep(
     found += unapproved(run, rows) if rows is not None else had("approve")
     found += holds(run, world, pulls, had("hold"))
     found += held(run.state)
+    found += stalls.stalled(run.state)
     if spent is None:
         found += had("github")
     elif spent:
@@ -515,13 +521,6 @@ def _waits(run: Pass, one: Item) -> bool:
     return slug not in run.removed and there and not gone_ahead
 
 
-def paused(text: str, slugs: Collection[str] = ()) -> str:
-    """Return the always-pause name that matches a text, or nothing. The `slugs` are the ones
-    jbus knows, which the text may name with no door meant."""
-    words = party.prose(text, slugs)
-    return next((name for name, rule in PAUSE.items() if re.search(rule, words, re.I)), "")
-
-
 def _last_events(run: Pass) -> dict[str, datetime]:
     """Return when each slug last had an event in the log."""
     last: dict[str, datetime] = {}
@@ -556,12 +555,14 @@ def _why(
         return "b", "a row with no approval of its brief"
     if kind in ("left", "config"):
         return "d", "a leftover no home closed" if kind == "left" else "jbus cannot go on"
+    if kind == "stalled":
+        return "d", "a home stalled again after jbus started it again"
     if kind != "gate":
         return None
     if not str(one.get("default") or "").strip():
         return "a", "a gate with no default"
     slug = one.get("slug") or ""
-    named = paused(f"{one.get('question', '')} {one.get('context', '')}", known | {slug})
+    named = party.paused(f"{one.get('question', '')} {one.get('context', '')}", known | {slug})
     if named:
         return "a", f"always-pause: {named}"
     if not slug or slug == "home":

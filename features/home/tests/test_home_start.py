@@ -174,20 +174,52 @@ def first_step(typed=""):
 
 
 ROOT = f"root\ntitle: home: {NAME}\n"
+CATCH_ALL = "uncategorized"
+
+
+def made(scene):
+    """The line the root's first step prints when it makes `uncategorized` beside it."""
+    return (
+        f"catch-all: made {scene.home_dir / CATCH_ALL}, the child home of every row no other "
+        "child claims\n"
+    )
 
 
 def test_the_home_skills_first_step_makes_the_home_the_hook_said_it_would(scene):
     assert scene.start() == scene.said(first=True)
-    assert scene.run("home", first_step()) == f"{ROOT}first home: made {scene.home_dir}\n"
-    assert sorted(path.name for path in scene.home_dir.iterdir()) == ["plan.md"]
+    assert scene.run("home", first_step()) == (
+        f"{ROOT}first home: made {scene.home_dir}\n{made(scene)}"
+    )
+    assert sorted(path.name for path in scene.home_dir.iterdir()) == ["plan.md", CATCH_ALL]
     assert scene.start() == scene.said(first=False)
     assert scene.run("home", first_step()) == ROOT
+
+
+def test_the_root_makes_uncategorized_once_and_launches_no_home_of_it(scene):
+    """A project whose root started before the catch-all gets it at the root's next start. The
+    start prints no launch, since jbus's keep-alive starts the catch-all's home, and the message
+    that home starts with, `/home uncategorized`, is read by step 1 as that scope's home."""
+    scene.home_dir.mkdir(parents=True)
+    (scene.home_dir / "plan.md").write_text("# plan\n")
+    assert scene.run("home", first_step()) == f"{ROOT}{made(scene)}"
+    assert scene.run("home", first_step(CATCH_ALL)) == (
+        f"scope {CATCH_ALL}\ntitle: home: {NAME} {CATCH_ALL}\n"
+    )
+    assert scene.run("home", first_step()) == ROOT
+    assert (
+        (scene.home_dir / CATCH_ALL / "plan.md")
+        .read_text()
+        .startswith(f"# {NAME}, {CATCH_ALL}: plan\n")
+    )
+    assert not (scene.home_dir / CATCH_ALL / "prefix").exists()
 
 
 def test_the_home_skills_first_step_keeps_the_files_that_are_there(scene):
     scene.home_dir.mkdir(parents=True)
     (scene.home_dir / "fresh-check").write_text("make check\n")
-    assert scene.run("home", first_step()) == f"{ROOT}first home: made {scene.home_dir}\n"
+    assert scene.run("home", first_step()) == (
+        f"{ROOT}first home: made {scene.home_dir}\n{made(scene)}"
+    )
     assert (scene.home_dir / "fresh-check").read_text() == "make check\n"
     assert (scene.home_dir / "plan.md").read_text() == ""
 
@@ -383,7 +415,7 @@ def test_a_start_prints_this_homes_part_of_the_bus_and_what_came_in_since_the_no
     (bus.dir / "handoff.next.md").write_text("Next: cut off before it was put in place\n")
     bus.kitchen.brief("speedy", "Home: speed\n\n## Result\nStatus: done\n")
     rows(bus, ("speedy", "running", "", ""))
-    assert bus.kitchen.main("gate", "alpha", stdin=bus.whole())[0] == 0
+    assert bus.kitchen.raises("alpha", bus.whole())[1]
     a_note(bus, "read-before")
     bus.kitchen.brief("alpha", "\n## Result\nStatus: done\n\n## Result, follow-up (today, why)\n")
     (bus.dir / "merge.log").write_text(
@@ -453,7 +485,7 @@ def test_however_much_is_there_a_start_prints_under_6000_characters(bus):
     rows(bus, *((f"row-{n:02}", "queued", "", LONG) for n in range(40)))
     for n in range(12):
         question = f"question {n}: {'a long question that goes on, ' * 6}?"
-        assert bus.kitchen.main("gate", "alpha", stdin=bus.whole(question))[0] == 0
+        assert bus.kitchen.raises("alpha", bus.whole(question))[1]
     a_note(bus)
     (bus.dir / "read-seen").write_text("")
     for n in range(30):

@@ -38,6 +38,10 @@ holds this many bytes."""
 MADE = "<!-- jstack: made by the install from "
 WEEKDAYS = ("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
 SECONDS = {"s": 1, "sec": 1, "m": 60, "min": 60, "h": 3600, "hour": 3600}
+AFTER_END = 60
+"""The StartInterval of a timer whose `OnUnitInactiveSec=` counts from the end of a run: launchd
+counts only from a start, so the agent starts once a minute, or once a gap where the gap is
+longer."""
 CALENDAR = re.compile(r"(?:(?P<day>[A-Z][a-z]{2}) )?\*-\*-\* (?P<h>\d\d):(?P<m>\d\d)(?::00)?")
 
 CARRIED = {
@@ -50,6 +54,7 @@ CARRIED = {
     ("Service", "TimeoutStartSec"): "the shell stops the command and says so as systemd does",
     ("Unit", "OnFailure"): "the failure service's command runs when the command fails",
     ("Timer", "OnUnitActiveSec"): "StartInterval",
+    ("Timer", "OnUnitInactiveSec"): "StartInterval of AFTER_END, or of the gap where longer",
     ("Timer", "OnCalendar"): "StartCalendarInterval",
     ("Install", "WantedBy"): "default.target makes the service an agent of its own",
 }
@@ -234,11 +239,14 @@ def _kept(service: dict) -> dict:
 
 def _timed(timer: dict) -> dict:
     interval = _one(timer, ("Timer", "OnUnitActiveSec"))
+    gap = _one(timer, ("Timer", "OnUnitInactiveSec"))
     days = timer.get(("Timer", "OnCalendar"), [])
-    if bool(interval) == bool(days):
-        raise ValueError("a timer has one of OnUnitActiveSec= and OnCalendar=")
+    if [bool(interval), bool(gap), bool(days)].count(True) != 1:
+        raise ValueError("a timer has one of OnUnitActiveSec=, OnUnitInactiveSec= and OnCalendar=")
     if interval:
         return {"StartInterval": seconds(interval)}
+    if gap:
+        return {"StartInterval": max(AFTER_END, seconds(gap))}
     return {"StartCalendarInterval": [calendar(one) for one in days]}
 
 

@@ -21,7 +21,8 @@ WATCH = {
     "nudged1": "the root nudged {k} once",
     "nudged2": "the root nudged {k} twice",
     "nudged3": "the root nudged {k} three times",
-    "asked": "the root asks you about {k}",
+    "relaunched": "jbus started {k}'s home again on a fresh thread",
+    "asked": "{k} is on your list of what needs you",
 }
 
 
@@ -101,7 +102,9 @@ def step(action, before, after):
     if action == "Check":
         nudged = [x for x in ("a", "b") if before["watch"][x] != after["watch"][x]]
         if any(after["watch"][x] == "asked" for x in nudged):
-            return "the root's check asks you"
+            return "the root's check puts a stalled child on your list"
+        if any(after["watch"][x] == "relaunched" for x in nudged):
+            return "the root's check starts a stalled child's home again"
         if nudged and after["watch"][nudged[0]] != "calm":
             return "the root's check nudges a quiet child"
         return "the root's check runs"

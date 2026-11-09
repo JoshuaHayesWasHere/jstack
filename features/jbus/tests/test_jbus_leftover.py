@@ -15,7 +15,7 @@ import jbus
 import jsettings
 from jbus import leftover, prereview, threads, view
 from test_jbus_kitchen import NOW
-from test_jbus_queue import add
+from test_jbus_queue import add, brief, go
 from test_jbus_row_ends import PULL, column, listed, result, sends
 from test_work import judged
 from view.scene import Served
@@ -34,6 +34,7 @@ def home(kitchen, scope="", **more):
     thread = kitchen.t3.thread("demo", "completed", title=f"home: demo {scope}".strip(), **more)
     where = kitchen.home / scope
     where.mkdir(exist_ok=True)
+    (where / "plan.md").write_text("# a plan\n")
     (where / "home-id").write_text(thread["threadId"] + "\n")
     return thread
 
@@ -95,8 +96,8 @@ def state(kitchen, now=NOW):
 def test_three_passes_send_the_home_one_message_and_a_new_left_text_a_second(kitchen):
     at = home(kitchen)
     merged(kitchen, left=NOTE)
-    assert kitchen.main("gate", "alpha", stdin=ASK)[0] == 0
-    assert kitchen.main("gate", "alpha", stdin=ASK.replace("tea or coffee", "milk"))[0] == 0
+    assert kitchen.raises("alpha", ASK)[1]
+    assert kitchen.raises("alpha", ASK.replace("tea or coffee", "milk"))[1]
     kitchen.clock_reads("2026-10-12 10:00 ET")
     answered = kitchen.main(
         "answer", "1", "--by", "user", "--at", "2026-10-12 10:00 ET", "--default", "tea it is"
@@ -301,6 +302,28 @@ def test_a_scoped_homes_brief_goes_to_that_scope_by_its_name_or_its_thread(kitch
     }
 
 
+def test_a_child_made_before_its_thread_takes_its_row_and_is_told_once_its_home_id_is_written(
+    kitchen,
+):
+    """The root home makes a child with its `plan.md` and launches its thread, and queues a row
+    for it at once: the row is the child's before its thread has written its `home-id`."""
+    root = home(kitchen)
+    (kitchen.home / "pages").mkdir()
+    (kitchen.home / "pages" / "plan.md").write_text("# demo, pages: plan\n")
+    text = brief("alpha").replace("Home: root\n", "Home: pages\n")
+    argv = ["--project", "demo", "queue", "add", "alpha", "--priority", "1"]
+    code, said = kitchen.main(*argv, "--from", root["threadId"], "--for", "pages", stdin=text)
+    assert code == 0, said
+    assert go(kitchen, "alpha")[0] == 0
+    kitchen.t3.thread("alpha", "completed")
+    kitchen.brief("alpha", "Home: pages\n" + result("the docs"))
+    kitchen.poll()
+    assert sends(kitchen) == []
+    child = home(kitchen, "pages")
+    kitchen.poll(later(50))
+    assert [one["threadId"] for one in sends(kitchen)] == [child["threadId"]]
+
+
 def test_a_message_t3_code_does_not_take_is_sent_on_the_next_pass(kitchen):
     at = home(kitchen)["threadId"]
     ended(kitchen)
@@ -450,8 +473,10 @@ def test_a_home_told_and_then_settled_is_the_users_with_that_reason_and_not_rais
     assert stalls(kitchen) == []
     at["settled"] = False
     kitchen.poll(later(61))
-    raised = [one for one in sends(kitchen) if not one["clientRequestId"].startswith("home-stall|")]
-    assert stalls(kitchen) == [] and len(raised) == 2
+    told, nudged = sends(kitchen)
+    assert stalls(kitchen) == []
+    assert told["clientRequestId"].startswith("wakes|demo|") and "left alpha" in told["message"]
+    assert nudged["clientRequestId"].startswith("home-stall|uncategorized|")
 
 
 def test_a_pass_that_cannot_list_the_threads_out_leaves_an_untold_row_the_users(kitchen):

@@ -12,7 +12,7 @@ import pytest
 
 import jbus
 import jsettings
-from jbus import acts, blockers, item, party, questions, queue, t3, waiting, wake, word
+from jbus import acts, blockers, item, party, questions, queue, t3, wake, word
 from jbus import view as jview
 from jbus.view import state as view_state
 from test_jbus_kitchen import ASK, RAN, SAID, Kitchen, sends
@@ -133,20 +133,22 @@ def gate(kitchen, holds=False):
         lines = ASK.replace("which one?", "which history?").replace(
             "Option:", f"{HOLDS}{SAFE}Option:", 1
         )
+    if not holds:
+        return kitchen.raises("alpha", lines)[0].number
     code, said = kitchen.main("gate", "alpha", stdin=lines)
     assert code == 0, said
     return questions.read(kitchen.state)[-1].number
 
 
 def test_the_door_table_names_what_pauses_and_what_is_a_review():
-    assert waiting.paused("then force-push main") == "rewrites history"
-    assert waiting.paused("deploy the site tonight") == "touches prod or real users"
-    assert waiting.paused("drop the old tables") == "deletes data"
-    assert waiting.paused("rotate the api key") == "changes access or secrets"
+    assert party.paused("then force-push main") == "rewrites history"
+    assert party.paused("deploy the site tonight") == "touches prod or real users"
+    assert party.paused("drop the old tables") == "deletes data"
+    assert party.paused("rotate the api key") == "changes access or secrets"
     asked = questions.Question(1, "alpha", "", "rotate the api key?", "", "", "", "", "")
     assert item.risk("", [asked]) is item.Risk.REVIEW
     edit = questions.Question(2, "alpha", "", "edit the config?", "", "", "", "", "")
-    assert (item.risk("", [edit]), waiting.paused("edit the config")) == (item.Risk.REVIEW, "")
+    assert (item.risk("", [edit]), party.paused("edit the config")) == (item.Risk.REVIEW, "")
 
 
 def _gate(question, context, known=("token-one-findings-route",)):
@@ -165,14 +167,14 @@ def test_a_slug_that_holds_a_door_word_does_not_make_its_gate_hold():
         )
         == ""
     )
-    assert waiting.paused("Asked by: scout-token-review, thread mcp:a-thread") == ""
+    assert party.paused("Asked by: scout-token-review, thread mcp:a-thread") == ""
 
 
 def test_a_gate_whose_prose_names_a_token_still_holds():
     asked = "Should the crew rotate the API token?"
     assert _gate(asked, "token-no-cleanup-rows asked it") == "it names changes access or secrets"
-    assert waiting.paused("then force-push main, and e-mail the api-key") == "rewrites history"
-    assert waiting.paused("e-mail the api-key") == "changes access or secrets"
+    assert party.paused("then force-push main, and e-mail the api-key") == "rewrites history"
+    assert party.paused("e-mail the api-key") == "changes access or secrets"
 
 
 @pytest.mark.parametrize(
@@ -187,7 +189,7 @@ def test_a_gate_whose_prose_names_a_token_still_holds():
     ],
 )
 def test_a_door_word_that_ends_a_hyphenated_compound_still_holds(words, case):
-    assert waiting.paused(words) == case
+    assert party.paused(words) == case
 
 
 @pytest.mark.parametrize(
@@ -199,7 +201,7 @@ def test_a_door_word_that_ends_a_hyphenated_compound_still_holds(words, case):
     ],
 )
 def test_a_door_word_that_leads_a_hyphenated_compound_still_holds(words, case):
-    assert waiting.paused(words) == case
+    assert party.paused(words) == case
 
 
 def test_only_a_slug_the_queue_knows_is_left_out_of_the_door_match(kitchen):
@@ -213,9 +215,9 @@ def test_only_a_slug_the_queue_knows_is_left_out_of_the_door_match(kitchen):
         3, "alpha", "", "token-one-findings-route waits, go on?", "", "", "", ""
     )
     assert item.risk("", [asked], known) is item.Risk.ROUTINE
-    assert waiting.paused("drop-old-tables is gone, so go on", known) == ""
-    assert waiting.paused("drop-old-tables is gone, so go on") == "deletes data"
-    assert waiting.paused("deploy the site", known | {"deploy"}) == "touches prod or real users"
+    assert party.paused("drop-old-tables is gone, so go on", known) == ""
+    assert party.paused("drop-old-tables is gone, so go on") == "deletes data"
+    assert party.paused("deploy the site", known | {"deploy"}) == "touches prod or real users"
     unknown = "the cleanup-token-rows-fix row"
     assert _gate(unknown, "", known) == "it names changes access or secrets"
 

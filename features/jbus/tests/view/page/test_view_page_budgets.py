@@ -395,6 +395,7 @@ def quiet_homes(scene, many=3):
     busy(scene)
     for n in range(many):
         (scene.home / f"shelf-{n}").mkdir()
+        (scene.home / f"shelf-{n}" / "plan.md").write_text("# a plan\n")
         (scene.home / f"shelf-{n}" / "home-id").write_text(f"mcp:shelf-{n}\n")
 
 

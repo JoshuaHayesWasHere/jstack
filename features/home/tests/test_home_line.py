@@ -89,10 +89,10 @@ SETTLED = {
         (f"Home: {OTHER}",),
         f"{OTHER}\n",
     ),
-    "an empty Was home: line is none": (
+    "an empty Was home: line is none, and the scope's brief waits for its thread": (
         {"home-id": f"{THREAD}\n", f"{SCOPE}/handoff.md": "# handoff\n\nWas home:  \n"},
         (f"Home: {SCOPE}",),
-        f"{THREAD}\n",
+        "",
     ),
 }
 
@@ -240,14 +240,14 @@ def test_the_start_of_a_second_home_changes_no_brief_and_no_request(homes):
 
 
 @pytest.mark.parametrize("reader", READERS)
-def test_a_scope_no_home_has_run_in_is_no_home_and_its_brief_is_the_roots(homes, reader):
-    """`jmerge` counts no home in a directory with a plan, no `home-id` and no `Was home:` line.
-    It counts a brief of that scope as the root's, so a thread that reads the brief tells the root
-    home."""
+def test_a_scope_no_home_has_run_in_is_a_home_and_its_brief_waits_for_its_thread(homes, reader):
+    """A directory with a plan is a scope from the moment the root home makes it, before its
+    thread starts: a thread that reads a brief of that scope tells nobody, not the root home, until
+    the scope's `home-id` names its thread."""
     slug = homes.sent(reader, "a-task", f"Home: {SCOPE}")
     (homes.home_dir / SCOPE / "handoff.md").write_text("# the second home: handoff\n")
     homes.home_starts(THREAD)
-    assert homes.reports_to(reader, slug) == f"{THREAD}\n"
+    assert homes.reports_to(reader, slug) == ""
     (homes.home_dir / SCOPE / "home-id").write_text(f"{OTHER} \n")
     assert homes.reports_to(reader, slug) == f"{OTHER}\n"
 

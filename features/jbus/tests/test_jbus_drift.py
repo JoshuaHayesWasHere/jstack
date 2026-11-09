@@ -80,6 +80,7 @@ def test_d4_breaks_on_a_dated_line_in_a_homes_notes_or_a_scopes(machine):
     assert status("D4", ground(machine)) == "held"
     scope = machine.home_dir / "beta" / "web"
     scope.mkdir()
+    (scope / "plan.md").write_text("# a plan\n")
     (scope / "home-id").write_text("mcp:1\n")
     (scope / "notes.md").write_text("- 2026-11-02: always do the thing\n")
     assert status("D4", ground(machine)) == "broken"

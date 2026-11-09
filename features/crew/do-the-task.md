@@ -5,7 +5,7 @@
   A step the short lane stops at its time limit (exit 124) runs again alone in a full test slot, which has no time limit, so every step reaches a verdict however loaded the machine is.
   A 124 is never a pass and never a failure: it is no verdict.
   The cross-cutting tests, the catch-all and the tests the change reaches through imports, names and features are CI's to run: the desk does not run them.
-  A change of the tests alone, where every changed path is a module of a folder of tests that the head still holds, selects only the changed test files and the tests that import or name a helper they changed, so CI runs no catch-all for it, and a cross-cutting test only where it is one of those.
+  A change of the tests alone, where every changed path is a module of a folder of tests that the head still holds, selects the changed test files, the tests that import or name a helper they changed and the cross-cutting tests, which read the changed tests' text, so CI runs no catch-all for it.
   The base is the branch the pull request goes on, as the block that opens it reads it from the brief: the branch of a `Stacked on:` line, and `origin/main` for a brief with none.
   A base branch that is gone, as one is once it merged, is `origin/main` too.
   In any other repo the check is the repo's check command, the first line of `$H/fresh-check` with its `jgauge test-slot --` left off (the block takes the slot itself), under a full test slot, and it is that command and no other, whatever command a brief's **Done when** names for it.
@@ -135,7 +135,9 @@
   For it the block prints `tests only:`, makes no copy, runs the tests at the head alone, and prints `Proved: <tests> head exit <n> at <head>, tests only`; its `exempt` pattern matches the files `EXEMPT` covers.
   `jmerge` takes that line only where every file the pull request changes is such a file, or of a kind `jbriefs.proved.EXEMPT` names (docs, config), and the head exit is 0 (`jbriefs.proved.TEST_FILE`): a change to code still needs its base run to fail.
   At the base a test that cannot import what the change adds counts as failed, not as a collection error (`--continue-on-collection-errors`).
-  A slot run that ends 76 is a wait for a slot, as in "test slots"; a side that ends 124 in the short lane prints `<side>: stopped at the short lane's limit, no verdict: it runs again alone in a full slot`, and the `Proved:` line is of the full slot's run; one that ends 124 there too reached no verdict, the run after it does not start, and the block prints `no proof: the slot's run ended 124`: run it again.
+  A slot run that ends 76 is a wait for a slot, as in "test slots".
+  A side that exited 0 at a committed head and base is kept in the worktree's `crew-proof-sides` (`git rev-parse --git-path crew-proof-sides`), and a run of the block at the same head and base prints `<side>: exited 0 at this head and base already, <its line>` and runs only the side still owed, so the one slot a wake frees goes to the base side and not to the head side again; a run at another head or base runs both.
+  A side that ends 124 in the short lane prints `<side>: stopped at the short lane's limit, no verdict: it runs again alone in a full slot`, and the `Proved:` line is of the full slot's run; one that ends 124 there too reached no verdict, the run after it does not start, and the block prints `no proof: the slot's run ended 124`: run it again.
   It proves the change where the base run exits 1 and the head run exits 0, and only then: an exit 2, 4 or 5 at the base (an error, a usage fault, no test collected) or a 124 proves nothing.
   On anything else, fix the tests until they fail without the change, commit, and run it again.
   The `Proved:` line it prints goes, as printed, on the Result between `Proof:` and `Branch:`; once the brief has a Result, the block appends it itself.

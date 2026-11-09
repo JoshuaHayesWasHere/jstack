@@ -2,8 +2,9 @@ name: release
 
 # A release, cut by a pushed `v*` tag and by nothing else: `make release` on a clean main
 # pushes the tag `v<version>`. The tag must be pyproject.toml's version and plugin.json's,
-# its tree must have passed main's check, and the wheel must install with no checkout and check
-# ok in a HOME of its own before the release is made. Its assets are what `make dist` writes:
+# its tree must have passed the whole suite, which this workflow starts where no run left the
+# marker, and the wheel must install with no checkout and check ok in a HOME of its own before
+# the release is made. Its assets are what `make dist` writes:
 # the wheel, the sdist, and install.sh with that version written in, which a user fetches as
 # `curl -fsSL .../releases/latest/download/install.sh | sh`.
 on:
@@ -11,10 +12,10 @@ on:
     tags: ['v*']
 
 # Making the release writes to the repo: nothing else does. `make release-green` reads the
-# check's artifacts.
+# check's artifacts and runs, and starts check.yml's full run on the tag (`actions: write`).
 permissions:
   contents: write
-  actions: read
+  actions: write
 
 env:
   # The uv every setup-uv step installs: with none setup-uv fetches the latest release on
@@ -24,10 +25,11 @@ env:
 
 jobs:
   release:
-    # GitHub's hosted runner, as in check.yml. It runs no suite, since main's full run already
-    # passed the tag's tree: it only builds, installs and publishes.
+    # GitHub's hosted runner, as in check.yml. It runs no suite itself: check.yml's full run
+    # passes the tag's tree, and this job builds, installs and publishes. The cap holds the wait
+    # for that run, `make release-green`'s hour, and the rest.
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -39,14 +41,16 @@ jobs:
         env:
           TAG: ${{ github.ref_name }}
         run: make release-tag TAG="$TAG"
-      # The check of this tree is main's: a green run of check.yml left the marker
+      # The whole suite on this tree: a green full run of check.yml left the marker
       # `green-tree-<tree>` for it, which `make release-green` asks for through
-      # jmerge.green.green_run. With none it fails, naming the fix, and nothing is published. A
-      # run again of this job asks again, so it passes once main's marker is there.
+      # jmerge.green.green_run. Where none did, it starts check.yml's full run on the tag, a
+      # manual run, which always runs the suite, waits for it and asks again. A red run fails
+      # it, naming the run, and nothing is published.
       - name: make release-green
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          REF: ${{ github.ref_name }}
         run: make release-green
       - name: make dist
         run: make dist

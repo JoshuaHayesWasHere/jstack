@@ -106,6 +106,7 @@ def test_check_gives_every_fault_add_gives_the_home_line_included(kitchen):
 
 def test_check_refuses_a_for_that_is_not_the_briefs_home(kitchen):
     (kitchen.home / "flow").mkdir()
+    (kitchen.home / "flow" / "plan.md").write_text("# a plan\n")
     (kitchen.home / "flow" / "home-id").write_text("t3:flow\n")
     code, out = checks(kitchen, complete("alpha"), "--for", "flow")
     assert (code, out) == (1, "--for flow, and alpha's brief is the uncategorized home's\n")
@@ -118,6 +119,7 @@ def test_check_refuses_a_for_that_is_not_the_briefs_home(kitchen):
 
 def test_check_reads_the_slug_from_the_title_or_takes_one_given(kitchen):
     (kitchen.home / "flow").mkdir()
+    (kitchen.home / "flow" / "plan.md").write_text("# a plan\n")
     (kitchen.home / "flow" / "home-id").write_text("t3:flow\n")
     text = complete("alpha")
     assert checks(kitchen, text, "--for", "flow") == (

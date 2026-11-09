@@ -20,8 +20,8 @@
 \* round itself is no variable: no rule reads it, and the merge waits on the passed check and the
 \* round before it. A history bit for it took today's model from 7.9M to 12.9M states.
 \* Since vision-merge-overlap-no-rerun (Josh's vision of 2026-11-06, item F) a green pull request
-\* main moved past merges on its pass where its head merges cleanly over main's tip and the
-\* merged-tree guards pass there, whether or not it shares a file with main's changes: see Merges.
+\* main moved past merges on its pass where its head merges cleanly over main's tip, whether or
+\* not it shares a file with main's changes, with nothing run on its merged tree: see Merges.
 EXTENDS Naturals
 
 \* Gap: what jbus.strays stops of what a finished turn left running.
@@ -168,14 +168,14 @@ Merges(p) ==
     /\ go[p]                                \* features/jmerge/src/jmerge/rows.py `if row.get("held"):`, features/jmerge/src/jmerge/rows.py `if row and not judgement.has_go(row, brief):`
     /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py `(CHECK_FAILED if failed else NOT_PASSED).format(check=one.waiting[0])`
     \* A pass over a main that moved since it started counts, with no branch update and no rerun:
-    \* for one that shares no file with main's changes (#847), and for one that shares a file, merges
-    \* cleanly over main's tip and passes the merged-tree guards at its head over that tip (item F,
-    \* features/jmerge/src/jmerge/cli.py `return "", ready.Judged(tip, overlaps=True)`). One that
-    \* conflicts waits for its rebase, and one that shares a file and whose guards failed has GitHub
-    \* merge main into its branch and its check run again (features/jmerge/src/jmerge/cli.py
-    \* `guarded = self.base_moved(one, tip)`). The model keeps no record of the main a check ran over:
-    \* what the guards and the check both miss of such a merge is breaks[p] with missed[p], which main's
-    \* own run and jbus's revert of its one clear culprit catch (RevertMerges).
+    \* for one that shares no file with main's changes (#847), and for one that shares a file and
+    \* merges cleanly over main's tip (item F, features/jmerge/src/jmerge/cli.py
+    \* `return "", ready.Judged(tip)`). One that conflicts waits for its rebase, and a revert jbus
+    \* opened that shares a file has GitHub merge main into its branch and its check run again
+    \* (features/jmerge/src/jmerge/cli.py `return self.base_moved(one, tip), ready.Judged()`). The
+    \* model keeps no record of the main a check ran over: what the check misses of such a merge is
+    \* breaks[p] with missed[p], which main's own run and jbus's revert of its one clear culprit
+    \* catch (RevertMerges).
     \* Its one review round came before it opened, at the head its desk proof binds, and a fix its
     \* crew pushes for the findings gets no review (review-after-green-one-round,
     \* vision-review-before-pr): the merge waits on that pass and the round's verdict at the head.

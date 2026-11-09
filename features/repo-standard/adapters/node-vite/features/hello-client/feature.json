@@ -1,0 +1,6 @@
+{
+  "$schema": "../../schemas/feature.core.schema.json",
+  "name": "hello-client",
+  "description": "An example client: an npm package, its module, its unit test and its page, to rename or delete.",
+  "docs": ["docs/hello-client.md"]
+}
