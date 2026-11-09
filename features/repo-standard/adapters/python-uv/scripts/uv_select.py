@@ -1,6 +1,6 @@
 """Print the tests a change reaches, one a line, or `all`: the selection of the python-uv adapter.
 
-`python3 scripts/select.py <base>` reads each path that differs between `<base>` and the working
+`python3 scripts/uv_select.py <base>` reads each path that differs between `<base>` and the working
 tree, committed or not, and each file git does not track yet. Each path selects by these rules:
 
 - A shared path selects `all`: a root file the tests rest on (`SHARED`), anything under a folder
@@ -17,9 +17,9 @@ and git alone, so CI runs it in the runner's python3 before any setup. A test th
 show, such as one that runs a module in a subprocess, is not selected: main's full run after the
 merge is the net that catches it.
 
-`python3 scripts/select.py --roots <folder> [--roots <folder>]... <base>` selects for a stack of a
-repo with `stacks:`, whose roots are each a uv project of its own. It ignores a path outside the
-roots, which the repo's driver places, and holds each root to these rules:
+`python3 scripts/uv_select.py --roots <folder> [--roots <folder>]... <base>` selects for a stack
+of a repo with `stacks:`, whose roots are each a uv project of its own. It ignores a path outside
+the roots, which the repo's driver places, and holds each root to these rules:
 
 - The root's `pyproject.toml`, `uv.lock` and `conftest.py` select `all`, which the driver reads as
   the whole stack, and so does any path the rules below cannot place, such as a `Dockerfile`.
@@ -29,12 +29,12 @@ roots, which the repo's driver places, and holds each root to these rules:
 - Any other file under a `tests/` folder, such as a `conftest.py`, a helper or data, selects each
   test of the root.
 
-`python3 scripts/select.py [--roots <folder>]... --list` prints every test file, one a line,
+`python3 scripts/uv_select.py [--roots <folder>]... --list` prints every test file, one a line,
 sorted: the whole suite, which `make test SHARD=<part>/<parts>` deals out to the parts. A test file
 is a file git lists, `test_*.py` or `*_test.py`, under `features/`, where the skeleton's pytest
 collects, or under the roots. A test pytest is set to find by another name is not listed.
 
-`python3 scripts/select.py [--roots <folder>]... --test [ids]` runs the tests: `uv run --locked
+`python3 scripts/uv_select.py [--roots <folder>]... --test [ids]` runs the tests: `uv run --locked
 pytest`, over the ids or the whole suite, and with roots a run per root the ids reach, each with
 the root as its rootdir and its `pyproject.toml` as its config. Given `REPO_STANDARD_FAILED=<file>`,
 it appends to the file each test file that failed, one a line, as `--list` prints it: the files
@@ -287,10 +287,11 @@ def main(argv: list[str]) -> int:
         try:
             return test(roots, argv[1:])
         except subprocess.CalledProcessError as error:
-            print(f"select.py: git cannot read the tree: {error.stderr.strip()}", file=sys.stderr)
+            said = f"uv_select.py: git cannot read the tree: {error.stderr.strip()}"
+            print(said, file=sys.stderr)
             return 2
     if len(argv) != 1:
-        usage = "usage: select.py [--roots <folder>]... <base> | --list | --test [ids]"
+        usage = "usage: uv_select.py [--roots <folder>]... <base> | --list | --test [ids]"
         print(usage, file=sys.stderr)
         return 2
     try:
@@ -301,7 +302,7 @@ def main(argv: list[str]) -> int:
         changed += git("ls-files", "-z", "--others", "--exclude-standard")
     except subprocess.CalledProcessError as error:
         print(
-            f"select.py: git cannot read the change from {argv[0]}: {error.stderr.strip()}",
+            f"uv_select.py: git cannot read the change from {argv[0]}: {error.stderr.strip()}",
             file=sys.stderr,
         )
         return 2

@@ -40,12 +40,14 @@ on the first pass.
 
 `keep_alive`, in the same step before `watch`, keeps the catch-all's home running once the
 project's home has started (a root `plan.md`): when the catch-all's `home-id` names no thread, or
-one T3 Code has archived or does not know, and the thread jbus last launched for it is not live
-either, it makes `uncategorized/` with an empty plan where there is none and launches `/home
+one T3 Code has archived or does not know, and the thread jbus last launched for it is not at
+work, it makes `uncategorized/` with an empty plan where there is none and launches `/home
 uncategorized` in the project's own checkout. `relaunches.json` keeps the last launch of each home,
 its thread, when and why, and `launch` launches a home at most once in `PATIENCE`, which is the
-time its start has to write its `home-id`, a lost reply included. A launch waits while the dispatch
-is off or stopped. The model is the one the role map's `home` line gives."""
+time its start has to write its `home-id`, a lost reply included. A launched thread whose start
+failed or went idle with no `home-id` written is not at work, so it is launched again once that
+time is up. A launch waits while the dispatch is off or stopped. The model is the one the role
+map's `home` line gives."""
 
 from __future__ import annotations
 
@@ -77,6 +79,7 @@ from jbus import (
 from jbus.passes import Pass
 from jbus.stalls import FILE, STALL
 from jbus.t3 import GONE, Client, T3Error, T3Refused
+from jbus.watch import at_work
 from jroles import pool
 
 EVENTS = {"home-stall": "quiet"}
@@ -395,8 +398,10 @@ def live(run: Pass, client: Client, thread: str, threads: list[dict[str, Any]]) 
 def keep_alive(run: Pass, client: Client, threads: list[dict[str, Any]] | None) -> None:
     """Keep the catch-all's home running: launch `/home uncategorized` when its `home-id` names
     no live thread, none, an archived one or one T3 Code does not know, and the thread jbus last
-    launched for it is not live either. A project whose home has not started, with no root
-    `plan.md`, has no catch-all to keep: `/home` makes the scopes under it."""
+    launched for it is not at work. A launched thread stands for the home only while its start
+    runs: one whose start failed or went idle with no `home-id` written is launched again once
+    `launch`'s `PATIENCE` is up. A project whose home has not started, with no root `plan.md`, has
+    no catch-all to keep: `/home` makes the scopes under it."""
     if threads is None or not (run.home / "plan.md").exists():
         return
     catchall = homes.catchall(run.home)
@@ -404,9 +409,14 @@ def keep_alive(run: Pass, client: Client, threads: list[dict[str, Any]] | None) 
     if now and now != was and live(run, client, now, threads) is not False:
         return
     ours = read_json(run.state / LAUNCHES, {}).get(catchall.name, {}).get("thread", "")
-    if ours and ours != now and live(run, client, ours, threads) is not False:
+    if ours and ours != now and at_work([one for one in threads if one.get("id") == ours]):
         return
-    why = f"its thread {now} is archived or gone" if now and now != was else "it has no thread"
+    if ours and ours != now:
+        why = f"its last launch, thread {ours}, is not at work and wrote no home-id"
+    elif now and now != was:
+        why = f"its thread {now} is archived or gone"
+    else:
+        why = "it has no thread"
     launch(run, client, catchall.name, why)
 
 

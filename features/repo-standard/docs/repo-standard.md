@@ -112,7 +112,7 @@ Once the repo pins version N or a later one, the waiver prints a warning that it
 
 Some files a repo takes from the skeleton and its adapters belong to the version it pins, as [the skeleton's page](skeleton.md#what-a-version-owns) says.
 The rule `a-file-a-version-owns-is-that-versions-copy` warns of each that differs from its copy at the pinned tag, or is missing.
-In the caller, `.github/workflows/check.yml`, the values of `runner:` and `runs-on:` are left out of the comparison, since the runner is the repo's own.
+In the caller, `.github/workflows/check.yml`, the value of `runner:` is left out of the comparison, since the runner is the repo's own; the job `check` takes its `runs-on:` from it.
 The tool reads the tag's copies from its own tree when that tree holds the skeleton, as a clone of the tag does, and otherwise from the clone in the repo's `.cache/`, which it makes from `--upstream` when it is not there.
 
 The config's `local:` keeps an owned file as the repo's own, with the reason:

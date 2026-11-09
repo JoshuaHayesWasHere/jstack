@@ -343,7 +343,9 @@ The selected browser tests run in a job of their own, on the built app with a mo
 A browser test that passes only on a retry fails the job: a retry may keep a trace, and never turns a flaky test green.
 
 **In jstack** `.github/workflows/check.yml` runs on each push of a pull request, a draft too, and a new push cancels the older run.
-Its `reuse` job runs `python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD`, which deals the selected files out to eight parts, or `all` where the change forces it.
+Its `reuse` job runs `python3 scripts/select_tests.py --pull-request --parts 8 HEAD^1 HEAD`, which deals the selected files out to eight parts, or `all` where the change forces it.
+`--pull-request` has an import reach only the tests near the change: the tests that import a changed module, and those that import a module that names a name the diff touched.
+A push to main keeps the wide rule, and the nightly full suite catches what either leaves out.
 Its `lint` job runs `features/writing/scripts/prose_lint.py HEAD^1` and `make lint BASE=HEAD^1`.
 Its `check-shard` job runs `make test TESTS=<part>` in each of the eight parts.
 
@@ -385,12 +387,14 @@ A repo ships through its deploy entries alone, and each one refuses a tree that 
 It refuses before it builds, tags or uploads anything, and its refusal names the fix.
 
 Each entry is a make target, listed in the config's `deploy` part, whose recipe runs `repo-standard green` before its first other command, and which has no prerequisite that make would run first.
+Its failure stops the recipe: the call ends its command line or is followed by `&&`, never by `|`, and no `||`, `;` or `&` comes anywhere later on its line, since a failed call skips only the `&&` part after it.
+Its line has no `-` prefix, the entry runs make with neither `-i` nor `-k` (`--ignore-errors`, `--keep-going`), the Makefile's `MAKEFLAGS` sets neither, and no `.IGNORE:` rule names the entry's target or names no target at all, since make goes on past a failing line under each of them.
 `repo-standard green` exits 0 only when the checkout is clean, `HEAD` is main on the remote now, as `git ls-remote origin refs/heads/main` gives it and not a local `origin/main` that may be stale, and a run of `check.yml` passed the tree of `HEAD`.
 It reads that from the marker `green-tree-<tree>`, and, where the marker expired or is missing, from the push run of `check.yml` on main for `HEAD`'s commit, when its conclusion is success.
 It exits 1 with each of the three that failed, and 2 when it cannot ask the remote or GitHub.
 The shared check workflow keeps the marker 90 days, which is as long as GitHub keeps a run by default.
 
-**In jstack** the one deploy entry is the release, and it is waived: `make release` checks main, a clean tree and `origin/main` itself, then runs `make release-green`, which fails unless a green run of `check.yml` left the marker for the tree of `HEAD`.
+**In jstack** the one deploy entry is the release: `make release` runs `repo-standard green` first, then checks the tag and pushes it.
 `.github/workflows/release.yml` runs only on a pushed `v*` tag, and runs `make release-green` again on the tag's own checkout before `make dist` and the release.
 
 Enforced by: `features/repo-standard/src/repo_standard/green.py`, `features/repo-standard/src/repo_standard/rules.py`, `.github/workflows/release.yml`

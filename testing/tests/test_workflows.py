@@ -601,9 +601,10 @@ ZSH = (
     ' && sudo dpkg -i "$2" "$4" && zsh --version'
 )
 TLA2TOOLS_PIN = (
-    'pin=$(sed -n "s/^TLA2TOOLS_\\(VERSION\\|SHA256\\) = \\"\\(.*\\)\\"$/\\L\\1\\E=\\2/p"'
+    'pin=$(sed -n -e "s/^TLA2TOOLS_VERSION = \\"\\(.*\\)\\"$/version=\\1/p"'
+    ' -e "s/^TLA2TOOLS_SHA256 = \\"\\(.*\\)\\"$/sha256=\\1/p"'
     " features/skill-library/skills/statechart/scripts/statechart/tools.py)"
-    ' && [ "$(printf "%s\\n" "$pin" | wc -l)" = 2 ]'
+    ' && [ "$(printf "%s\\n" "$pin" | wc -l)" -eq 2 ]'
     ' && printf "%s\\n" "$pin" | tee -a "$GITHUB_OUTPUT"'
     ' || { echo "::error::tools.py pins no TLA2TOOLS_VERSION and TLA2TOOLS_SHA256 this step'
     ' reads"; exit 1; }'

@@ -170,7 +170,7 @@ def three_stacks(tmp_path, upstream):
     """A repo of a Go, a python-uv and a node-vite stack, its env, and the log its tests write."""
     root = tmp_path / "repo"
     shutil.copytree(SKELETON, root, ignore=shutil.ignore_patterns("__pycache__", ".cache"))
-    for script in ("go/scripts/go.py", "python-uv/scripts/select.py"):
+    for script in ("go/scripts/go.py", "python-uv/scripts/uv_select.py"):
         shutil.copy(ADAPTERS / script, root / "scripts")
     shutil.copytree(ADAPTERS / "node-vite" / "scripts", root / "scripts", dirs_exist_ok=True)
     write(root, {"api/go.mod": "module example.com/api\n\ngo 1.24\n", **CLIENT})

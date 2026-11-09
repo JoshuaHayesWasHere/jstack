@@ -17,11 +17,18 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
+
 from checks_bound_probe import round_end
 
 REQUIRED = ("check", "borders", "macos")
 WORKFLOW_OF = {"1": "check", "2": "borders", "3": "macos", "4": "browser"}
 RUN_OF = {workflow: run for run, workflow in WORKFLOW_OF.items()}
+INOTIFY = pytest.mark.skipif(
+    not sys.platform.startswith("linux"),
+    reason="inotify: the probe watches work.json through libc.so.6's inotify, which only Linux has",
+)
+"""A test that runs the probe itself, which only runs on Linux, beside a jbus that runs there."""
 
 
 def job(name: str, workflow: str, ended: str = "", conclusion: str = "success") -> dict:
@@ -180,6 +187,7 @@ class Probe:
         return [json.loads(one) for one in self.out.read_text().splitlines()], said
 
 
+@INOTIFY
 def test_a_probe_started_after_a_head_settled_records_the_next_heads_round(tmp_path):
     """On #1264 the probe started after head 1's checks had settled, and recorded nothing."""
     probe = Probe(tmp_path)
@@ -200,6 +208,7 @@ def test_a_probe_started_after_a_head_settled_records_the_next_heads_round(tmp_p
     assert 1 <= rounds[0]["delay"] < 5, said
 
 
+@INOTIFY
 def test_a_round_ends_at_the_first_write_that_names_its_head_as_ended(tmp_path):
     """On #1271, 8 of 12 failed rounds were timed to a pass's write at its start, which named no
     verdict, before the tick had read the head at all (sa-checks-bound-measure-8)."""
@@ -219,6 +228,7 @@ def test_a_round_ends_at_the_first_write_that_names_its_head_as_ended(tmp_path):
     assert 2.5 <= rounds[0]["delay"] < 6, said
 
 
+@INOTIFY
 def test_a_round_that_ended_before_the_line_had_the_pull_request_is_not_recorded(tmp_path):
     """On #1271 round 1 counted the 14 s before the row's line had `pr #1271` at all."""
     probe = Probe(tmp_path)

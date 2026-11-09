@@ -109,7 +109,7 @@ DOORS = (
         r"|\b(message|e-?mail|post|reply)\w*\b[^.]*\b(customers?|outside|external|public)\b",
         r"\b(DSQL_STAGE|STAGE|AWS_PROFILE)=[\w-]*prod\b"
         r"|[\w./-]*\bdeploy\b[\w.-]*\s+(--?\S+\s+)*prod\b"
-        r"|`(\s*[A-Z_][A-Z0-9_]*=\S*)*\s*(sudo\s+|env\s+|ba?sh\s+|make\s+|just\s+"
+        r"|`(\s*[A-Z_][A-Z0-9_]*=[^\s`]*\s)*\s*(sudo\s+|env\s+|ba?sh\s+|make\s+|just\s+"
         r"|(npm|pnpm|yarn|bun)\s+run\s+|uv\s+run\s+)?[\w./-]*\bdeploy\b[\w.-]*"
         rf"(?!{_IN}*(\bdev\b|--help))"
         r"|\b(sam|cdk|serverless|wrangler|fly|flyctl|vercel)\s+deploy\b"

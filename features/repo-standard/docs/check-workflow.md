@@ -19,7 +19,7 @@ jobs:
   check:
     if: always()
     needs: standard
-    runs-on: ubuntu-24.04
+    runs-on: ${{ needs.standard.outputs.runner }}
 ```
 
 The caller also sets the triggers, the permissions and the concurrency, since a called workflow cannot.
@@ -34,8 +34,22 @@ The plan fails when the config pins another version than the workflow's own.
 | `command` | The repo's check command, which runs alone while the repo has no `.repo-standard.yml` | none |
 | `timeout-minutes` | The cap of each part of the tests, of the browser tests, and of the check command | 30 |
 | `browser-channel` | A browser the runner has, such as `chrome`, for the browser tests to run in, in place of the Playwright image | none |
+| `ref` | The ref of jstack the jobs and the repo's make take the standard's code from, such as a branch of a version not yet tagged | `repo-standard-vN`, the tag of the version `.repo-standard.yml` pins |
 
-The label of a runner on the repo's own machines goes in `runner`, and in the caller's job `check` as its `runs-on`.
+The label of a runner on the repo's own machines goes in `runner`.
+The workflow gives it back as its output `runner`, and the caller's job `check` runs on it, so a repo whose account cannot start hosted jobs names its own label once.
+
+To run a branch of jstack before its version is tagged, a caller names the branch in both the `uses:` line and `ref`:
+
+```yaml
+    uses: JoshuaHayesWasHere/jstack/.github/workflows/repo-standard-check.yml@repo-standard-v2-rc
+    with:
+      ref: repo-standard-v2-rc
+```
+
+The `uses:` line picks the workflow's own file, and `ref` the code its jobs clone, which the workflow cannot learn from the `uses:` line.
+The workflow hands `ref` to the repo's make as `REPO_STANDARD_REF`, and the skeleton's Makefile clones that ref into `.cache/<ref>` once; a branch that moves on is taken again after that folder is deleted.
+`make lint REPO_STANDARD_REF=<ref>` does the same on a checkout.
 
 A step that the make targets need first, such as a toolchain the runner lacks or a cache of dependencies, goes in a composite action at `.github/actions/setup/action.yml` in the repo.
 The jobs `lint`, `test` and `browser` run that action after their checkout, where the file exists.
@@ -56,7 +70,7 @@ Both are optional, and a config with no `check` part runs the tests in one part 
 ## What a run does
 
 The workflow's first job, `plan`, asks once what the run tests, and the other jobs read its answer.
-It reads the version `.repo-standard.yml` pins and clones jstack at the tag `repo-standard-vN`, which holds the code the workflow runs in the runner's `python3` before any setup.
+It reads the version `.repo-standard.yml` pins and clones jstack at the tag `repo-standard-vN`, or at the ref `ref` names, which holds the code the workflow runs in the runner's `python3` before any setup.
 
 | Job | On a pull request | On a push to main, a nightly run, a manual run |
 |---|---|---|
@@ -72,7 +86,8 @@ That part runs its share of the suite, not the whole of it: the skeleton's `test
 A part dealt no id runs no test.
 A repo whose Makefile is not the skeleton's and that sets `shards` above 1 gives its `test` target a `SHARD` variable that does the same.
 An id `make select` prints holds no space, since the part passes its ids to `TESTS` with a space between each.
-A browser id is the exception, and `plan` routes it to `browser` instead of a part: an id `<spec> > <title>`, or a `*.spec.*` file of a stack whose config sets `e2e:`.
+A browser id is the exception, and `plan` routes it to `browser` instead of a part: an id `<spec> > <title>`, or a `*.spec.*` file under the `testDir` of the Playwright config of a stack whose config sets `e2e:`, as the node adapter's browser selection in the repo reads it.
+A `*.spec.*` file outside that `testDir`, such as a unit spec Vitest's `include` names, goes to a part.
 An id `stack:<name>` of such a stack goes to both, as that stack's whole suite.
 
 The job `browser` runs in the container `mcr.microsoft.com/playwright:v<version>-noble`, the version the e2e root's `package-lock.json` pins, and the plan fails where it pins none or two e2e roots pin two.

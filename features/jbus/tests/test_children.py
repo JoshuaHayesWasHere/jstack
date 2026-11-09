@@ -452,6 +452,28 @@ def test_a_launch_whose_reply_is_lost_is_not_launched_again_within_its_patience(
     assert len(homes(kitchen)) == 2
 
 
+@pytest.mark.parametrize("ended", ["failed", "completed"])
+def test_a_catch_all_whose_launch_wrote_no_home_id_in_its_patience_is_launched_again(
+    started, ended
+):
+    """A launch whose thread T3 Code still lists, but whose start failed or went idle with no
+    `home-id` written, is launched again once it is older than `PATIENCE`, and at most once in
+    that time."""
+    kitchen = started
+    kitchen.poll(NOW)
+    (launch,) = homes(kitchen)
+    (thread,) = [one for one in kitchen.t3.threads if one["title"] == launch["title"]]
+    thread["status"] = ended
+    kitchen.t3.at_work.discard(thread["threadId"])
+    kitchen.poll(minutes(10))
+    assert len(homes(kitchen)) == 1
+    kitchen.poll(minutes(P + 10))
+    assert len(homes(kitchen)) == 2
+    assert not (kitchen.home / "uncategorized" / "home-id").exists()
+    kitchen.poll(minutes(P + 20))
+    assert len(homes(kitchen)) == 2
+
+
 def test_a_catch_all_is_not_launched_while_the_dispatch_is_stopped(started):
     kitchen = started
     kitchen.state_dir.mkdir(parents=True, exist_ok=True)

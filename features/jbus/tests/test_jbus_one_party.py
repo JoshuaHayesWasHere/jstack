@@ -151,6 +151,31 @@ def test_the_bots_go_on_its_chat_message_is_an_act_on_the_word_kept_for_it(kitch
     assert (code, out) == (1, f"refused: word {said} was acted on by the bot: alpha\n")
 
 
+def test_two_messages_in_one_bot_chat_are_two_words_each_with_its_own_party(kitchen):
+    """On 2026-11-09 the user said two messages in one bot chat. A shell approved a row on the
+    first, and every approve on the second was refused as acted on by that shell, since both
+    words kept the chat's evidence. Each message is its own word: another party approves the
+    second's rows, and the first is still the shell's alone."""
+    rt, gs, ps = "rt-node-adapter", "gs-walk-under-part-lines", "proved-side-resume"
+    for slug in (rt, gs, ps):
+        add(kitchen, slug, approve=False)
+    land = "ensure the currenlty briefed and in progress task land"
+    chat = ("--evidence", "bot-chat:jstack-chef/t194u", "--answers", "a go waits")
+    first = keep(kitchen, *chat, "--words", f"{land} [for: {rt}]")
+    second = keep(kitchen, *chat, "--words", f"{land} [for: {gs}, {ps}]")
+    assert first != second
+    desk = shell(kitchen)
+    assert approve(kitchen, rt, "--word", first)[0] == 0
+    home(kitchen)
+    code, out = approve(kitchen, gs, "--word", first)
+    assert (code, out) == (1, f"refused: word {first} was acted on by a shell in {desk}: {rt}\n")
+    for slug in (gs, ps):
+        code, out = approve(kitchen, slug, "--word", second)
+        assert code == 0, out
+    table = rows(kitchen)
+    assert [table[slug]["approval"]["ref"] for slug in (rt, gs, ps)] == [first, second, second]
+
+
 def test_tm_drift_s4_held_by_the_home_is_not_approved_by_a_shell(kitchen):
     add(kitchen, "tm-drift-s4")
     held = f"held tm-drift-s4; run {RAN} by the demo home"

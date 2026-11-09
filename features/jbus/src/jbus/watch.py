@@ -1458,7 +1458,7 @@ def _judged(run: Pass, sha: str) -> tuple[list[dict], list[dict]]:
     every check run counts. macos.yml's push run is never main's check, nor are its jobs by
     their names where GitHub lists no run: a Mac red has its own path (`mac_check`,
     `jbus.reverts.macos`), and never makes main red."""
-    said = _api(run, f"repos/{{owner}}/{{repo}}/actions/runs?head_sha={sha}&per_page=100")
+    said = _api(run, _runs_of(sha))
     listed = (said if isinstance(said, dict) else {}).get("workflow_runs") or []
     branch = _default_branch(run)
     pushed = [
@@ -1467,13 +1467,31 @@ def _judged(run: Pass, sha: str) -> tuple[list[dict], list[dict]]:
         if r.get("event") == "push" and r.get("head_branch") == branch and not _of_mac(r)
     ]
     other = {r.get("check_suite_id") for r in listed if r not in pushed} - {None}
-    said = _api(run, f"repos/{{owner}}/{{repo}}/commits/{sha}/check-runs")
+    said = _api(run, _check_runs_of(sha))
     runs = (said if isinstance(said, dict) else {}).get("check_runs") or []
     return [
         r
         for r in runs
         if (r.get("check_suite") or {}).get("id") not in other and not mac_job(r.get("name"))
     ], pushed
+
+
+def unjudged(run: Pass, sha: str) -> bool:
+    """Return whether GitHub answered both of `_judged`'s reads of a commit in this pass, and
+    they give it no check run that judges it and no push run, as for a commit pushed while
+    check.yml is disabled, a commit that rode in on a later push, or a pull request's head.
+    `_check` answers such a commit `pending`. It asks GitHub nothing: only the pass's own answers
+    count (`Pass.answers`)."""
+    answered = all(isinstance(run.answers.get(at(sha)), dict) for at in (_runs_of, _check_runs_of))
+    return answered and _judged(run, sha) == ([], [])
+
+
+def _runs_of(sha: str) -> str:
+    return f"repos/{{owner}}/{{repo}}/actions/runs?head_sha={sha}&per_page=100"
+
+
+def _check_runs_of(sha: str) -> str:
+    return f"repos/{{owner}}/{{repo}}/commits/{sha}/check-runs"
 
 
 MAC_FLOW = ".github/workflows/macos.yml"
@@ -1498,7 +1516,7 @@ def _of_mac(one: dict) -> bool:
 def mac_runs(run: Pass, sha: str) -> list[dict] | None:
     """The runs of macos.yml for the push of a commit to the default branch, or None where GitHub
     does not list the commit's runs."""
-    said = _api(run, f"repos/{{owner}}/{{repo}}/actions/runs?head_sha={sha}&per_page=100")
+    said = _api(run, _runs_of(sha))
     if not isinstance(said, dict):
         return None
     branch = _default_branch(run)
@@ -1532,7 +1550,7 @@ def mac_check(run: Pass, known: dict[str, str], sha: str) -> str:
     if failed or stopped:
         known[sha] = "failed" if failed else "cancelled"
         return known[sha]
-    said = _api(run, f"repos/{{owner}}/{{repo}}/commits/{sha}/check-runs")
+    said = _api(run, _check_runs_of(sha))
     if not isinstance(said, dict):
         return "pending"
     suites = {r.get("check_suite_id") for r in runs} - {None}
@@ -1552,7 +1570,7 @@ def mac_jobs(run: Pass, sha: str) -> list[tuple[str, str, Failed]] | None:
     names, or None where GitHub gives no answer or a log could not be read. The gate `macos`
     fails whenever a part did and names no test, so it is left out where a part failed."""
     runs = mac_runs(run, sha)
-    said = _api(run, f"repos/{{owner}}/{{repo}}/commits/{sha}/check-runs")
+    said = _api(run, _check_runs_of(sha))
     if runs is None or not isinstance(said, dict):
         return None
     suites = {r.get("check_suite_id") for r in runs} - {None}

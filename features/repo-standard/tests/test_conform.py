@@ -393,11 +393,10 @@ def test_a_waiver_until_the_pinned_version_warns_that_it_is_due(repo, capsys):
 
 def test_an_owned_file_that_differs_or_is_gone_warns(repo, capsys, tmp_path):
     """The repo made from the skeleton keeps its owned files as they are, but for the runner's
-    labels in its caller, and conform warns of one changed and one gone."""
+    label in its caller, and conform warns of one changed and one gone."""
     skeleton = REPO / "features" / "repo-standard" / "skeleton"
     caller = (skeleton / ".github/workflows/check.yml").read_text()
     caller = caller.replace("runner: ubuntu-24.04", "runner: self-hosted-a")
-    caller = caller.replace("runs-on: ubuntu-24.04", "runs-on: self-hosted-a")
     write(
         repo,
         {
@@ -448,16 +447,13 @@ def test_the_pinned_version_as_the_newest_or_no_upstream_reports_nothing_and_fai
     assert "note: cannot list the standard's versions: git ls-remote" in said
 
 
-def test_jstack_meets_the_standard_waiving_only_its_release(capsys):
-    """jstack's `make release` checks main, the tree and origin's main itself before
-    `release-green`, so it alone is waived until its own row moves it onto `repo-standard
-    green`."""
-    rule = "every-deploy-entry-refuses-a-tree-that-is-not-green-main"
+def test_jstack_meets_the_standard_with_no_waiver(capsys):
+    """jstack waives no rule: its one deploy entry, `make release`, runs `repo-standard green`
+    first like any other repo's."""
     code, lines = conform(REPO, capsys)
     assert code == 0, "\n".join(lines)
-    assert lines[-1].endswith(", waived 1"), lines
-    waived = [line for line in lines if line.startswith(("waived ", "waiver "))]
-    assert [line.split(":")[0] for line in waived] == [f"waived {rule}", f"waiver {rule}"], lines
+    assert lines[-1].endswith(", waived 0"), lines
+    assert not [line for line in lines if line.startswith(("waived ", "waiver "))], lines
 
 
 EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
@@ -799,6 +795,200 @@ def selects_in_an_included_make_file(repo):
             ),
             "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: Makefile:7: deploy "
             "entry `make deploy` does not run `repo-standard green` before its first command",
+        ),
+        (
+            lambda r: edit(
+                r / "Makefile",
+                "deploy:\n\t@repo-standard green\n",
+                "deploy:\n\trepo-standard green || true\n",
+            ),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: Makefile:7: deploy "
+            "entry `make deploy` follows `repo-standard green` with `||`, so its recipe goes on "
+            "when it fails",
+        ),
+        (
+            lambda r: edit(
+                r / "Makefile",
+                "deploy:\n\t@repo-standard green\n",
+                "deploy:\n\trepo-standard green ; aws s3 sync dist s3://x\n",
+            ),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: Makefile:7: deploy "
+            "entry `make deploy` follows `repo-standard green` with `;`, so its recipe goes on "
+            "when it fails",
+        ),
+        (
+            lambda r: edit(
+                r / "Makefile",
+                "deploy:\n\t@repo-standard green\n",
+                "deploy:\n\trepo-standard green | tee green.log\n",
+            ),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: Makefile:7: deploy "
+            "entry `make deploy` follows `repo-standard green` with `|`, so its recipe goes on "
+            "when it fails",
+        ),
+        (
+            lambda r: edit(
+                r / "Makefile",
+                "deploy:\n\t@repo-standard green\n",
+                "deploy:\n\trepo-standard green & aws s3 sync dist s3://x\n",
+            ),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: Makefile:7: deploy "
+            "entry `make deploy` follows `repo-standard green` with `&`, so its recipe goes on "
+            "when it fails",
+        ),
+        (
+            lambda r: edit(r / "Makefile", "\t@repo-standard green\n", "\t@-repo-standard green\n"),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: Makefile:7: deploy "
+            "entry `make deploy` runs `repo-standard green` on a `-` line, which make goes on past "
+            "when it fails",
+        ),
+        (
+            lambda r: edit(
+                r / "Makefile",
+                "deploy:\n\t@repo-standard green\n",
+                "deploy:\n\trepo-standard green && echo ok ; aws s3 sync dist s3://x\n",
+            ),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: Makefile:7: deploy "
+            "entry `make deploy` follows `repo-standard green` with `;`, so its recipe goes on "
+            "when it fails",
+        ),
+        (
+            lambda r: edit(
+                r / "Makefile",
+                "deploy:\n\t@repo-standard green\n",
+                "deploy:\n\trepo-standard green && true || true\n",
+            ),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: Makefile:7: deploy "
+            "entry `make deploy` follows `repo-standard green` with `||`, so its recipe goes on "
+            "when it fails",
+        ),
+        (
+            lambda r: edit(
+                r / "Makefile",
+                "deploy:\n\t@repo-standard green\n",
+                "deploy:\n\trepo-standard green && x & aws s3 sync dist s3://x\n",
+            ),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: Makefile:7: deploy "
+            "entry `make deploy` follows `repo-standard green` with `&`, so its recipe goes on "
+            "when it fails",
+        ),
+        (
+            lambda r: edit(
+                r / "Makefile",
+                "deploy:\n\t@repo-standard green\n",
+                "deploy:\n\trepo-standard green && a && b\n",
+            ),
+            "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0",
+        ),
+        (
+            lambda r: edit(
+                r / "Makefile",
+                "deploy:\n\t@repo-standard green\n",
+                "deploy:\n\trepo-standard green && aws s3 sync dist s3://x | tee sync.log\n",
+            ),
+            "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0",
+        ),
+        (
+            lambda r: edit(
+                r / ".repo-standard.yml", "deploy: [make deploy]", "deploy: [make -i deploy]"
+            ),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: deploy entry "
+            "`make -i deploy` runs make with `-i`, "
+            "which goes on past a failing `repo-standard green`",
+        ),
+        (
+            lambda r: edit(
+                r / ".repo-standard.yml", "deploy: [make deploy]", "deploy: [make -k deploy]"
+            ),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: deploy entry "
+            "`make -k deploy` runs make with `-k`, "
+            "which goes on past a failing `repo-standard green`",
+        ),
+        (
+            lambda r: edit(
+                r / ".repo-standard.yml", "deploy: [make deploy]", "deploy: [make -sk deploy]"
+            ),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: deploy entry "
+            "`make -sk deploy` runs make with `-k`, "
+            "which goes on past a failing `repo-standard green`",
+        ),
+        (
+            lambda r: edit(
+                r / ".repo-standard.yml",
+                "deploy: [make deploy]",
+                "deploy: [make --ignore-errors deploy]",
+            ),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: deploy entry "
+            "`make --ignore-errors deploy` runs make with `--ignore-errors`, "
+            "which goes on past a failing `repo-standard green`",
+        ),
+        (
+            lambda r: edit(
+                r / ".repo-standard.yml",
+                "deploy: [make deploy]",
+                "deploy: [make --keep-going deploy]",
+            ),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: deploy entry "
+            "`make --keep-going deploy` runs make with `--keep-going`, "
+            "which goes on past a failing `repo-standard green`",
+        ),
+        (
+            lambda r: edit(
+                r / ".repo-standard.yml", "deploy: [make deploy]", "deploy: [make -s deploy]"
+            ),
+            "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0",
+        ),
+        (
+            lambda r: edit(r / "Makefile", "green\n\ttrue\n", "green\n\ttrue\n.IGNORE:\n"),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: Makefile:10: "
+            "`.IGNORE` covers deploy entry `make deploy`, so make goes on past its failing "
+            "`repo-standard green`",
+        ),
+        (
+            lambda r: edit(
+                r / "Makefile", "green\n\ttrue\n", "green\n\ttrue\n.IGNORE: lint deploy\n"
+            ),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: Makefile:10: "
+            "`.IGNORE` covers deploy entry `make deploy`, so make goes on past its failing "
+            "`repo-standard green`",
+        ),
+        (
+            lambda r: edit(r / "Makefile", "green\n\ttrue\n", "green\n\ttrue\n.IGNORE: lint\n"),
+            "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0",
+        ),
+        (
+            lambda r: edit(r / "Makefile", "lint:\n", "MAKEFLAGS += -i\nlint:\n"),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: Makefile:1: "
+            "`MAKEFLAGS` sets `-i`, so make goes on past a deploy entry's failing "
+            "`repo-standard green`",
+        ),
+        (
+            lambda r: edit(
+                r / "Makefile", "lint:\n", "override MAKEFLAGS += --keep-going\nlint:\n"
+            ),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: Makefile:1: "
+            "`MAKEFLAGS` sets `--keep-going`, so make goes on past a deploy entry's failing "
+            "`repo-standard green`",
+        ),
+        (
+            lambda r: edit(r / "Makefile", "lint:\n", "MAKEFLAGS := k\nlint:\n"),
+            "error every-deploy-entry-refuses-a-tree-that-is-not-green-main: Makefile:1: "
+            "`MAKEFLAGS` sets `-k`, so make goes on past a deploy entry's failing "
+            "`repo-standard green`",
+        ),
+        (
+            lambda r: edit(
+                r / "Makefile", "lint:\n", "MAKEFLAGS += -s --no-print-directory\nlint:\n"
+            ),
+            "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0",
+        ),
+        (
+            lambda r: edit(
+                r / "Makefile",
+                "deploy:\n\t@repo-standard green\n",
+                "deploy:\n\trepo-standard green 2>&1\n",
+            ),
+            "conform repo-standard-v1, 36 rules: errors 0, warnings 0, waived 0",
         ),
         (
             lambda r: edit(
