@@ -6,13 +6,13 @@ and note, and exits 1 on an error. `--upstream` names the repo whose `repo-stand
 lists for a newer version, and `--list` prints each rule's level and id and checks nothing.
 
 The verb `plan` prints, as `key=value` lines for `$GITHUB_OUTPUT`, what the shared check
-workflow's jobs run (`repo_standard.plan`): it reads the config's `check` part, the event from
-`--event` or `$GITHUB_EVENT_NAME`, and a pull request's selection from `--selection`, the file
-`make select` wrote.
+workflow's jobs run (`repo_standard.plan`): it reads the config's `check` and `stacks` parts, the
+lockfile of each stack's e2e root, the event from `--event` or `$GITHUB_EVENT_NAME`, and a pull
+request's selection from `--selection`, the file `make select` wrote.
 
-The verb `stacks` runs the targets `lint`, `test` and `select` of a repo whose config sets
+The verb `stacks` runs the targets `lint`, `test`, `select` and `e2e` of a repo whose config sets
 `stacks:`, each stack over its own roots (`repo_standard.stacks`), and takes the rest of the line
-as its own: `stacks lint`, `stacks test [ids]` or `stacks select <base>`.
+as its own: `stacks lint`, `stacks test [ids]`, `stacks select <base>` or `stacks e2e [<file>]`.
 
 The guards are `borders`, `stale`, `docs`, `size` and `comments`. Each reads the repo's
 `.repo-standard.yml`, prints one line for each fault it finds, and exits 1 on any. `borders`
@@ -85,7 +85,7 @@ def main(argv: list[str] | None = None) -> int:
                     chosen = plan.selected(Path(args.selection).read_text(encoding="utf-8"))
                 except OSError as error:
                     raise Unreadable(f"cannot read {args.selection}: {error.strerror}") from error
-            outputs = plan.plan(config.check, event, chosen).outputs()
+            outputs = plan.plan(config, event, chosen, root).outputs()
             print("".join(f"{key}={value}\n" for key, value in outputs.items()), end="")
             return 0
         paths = tracked(root)

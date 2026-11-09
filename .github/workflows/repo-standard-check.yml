@@ -19,9 +19,13 @@ on:
         type: string
         default: ""
       timeout-minutes:
-        description: The cap of each part of the tests, and of the check command.
+        description: The cap of each part of the tests, of the browser tests, and of the check command.
         type: number
         default: 30
+      browser-channel:
+        description: A browser the runner has, such as chrome, for the browser tests to run in, in place of the Playwright image of the version the e2e lockfile pins. The tests read it as $REPO_STANDARD_BROWSER_CHANNEL.
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -41,7 +45,8 @@ env:
 jobs:
   # What the run tests, asked once: the version the repo pins, whether a passed check of the same
   # two trees is reused, the tree's marker, the selection `make select` prints for a pull request,
-  # and the parts it is dealt to (`repo-standard plan`). The other jobs read its outputs.
+  # the parts it is dealt to, and the browser ids and Playwright version of the browser job
+  # (`repo-standard plan`). The other jobs read its outputs.
   plan:
     runs-on: ${{ inputs.runner }}
     timeout-minutes: 10
@@ -52,6 +57,9 @@ jobs:
       selection: ${{ steps.plan.outputs.selection }}
       shards: ${{ steps.plan.outputs.shards }}
       parts: ${{ steps.plan.outputs.parts }}
+      browser: ${{ steps.plan.outputs.browser }}
+      browser-ids: ${{ steps.plan.outputs.browser-ids }}
+      playwright: ${{ steps.plan.outputs.playwright }}
       reused: ${{ steps.reuse.outputs.reused }}
       checked: ${{ steps.reuse.outputs.name }}
       tree: ${{ steps.tree.outputs.name }}
@@ -136,6 +144,51 @@ jobs:
           REPO_STANDARD_PART: ${{ fromJSON(needs.plan.outputs.parts)[format('{0}', matrix.shard)] }}
           REPO_STANDARD_SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
         run: 'case $REPO_STANDARD_PART in none) echo "the selection dealt this part no test";; all) if [ "${REPO_STANDARD_SHARD#*/}" = 1 ]; then make test; else make test SHARD="$REPO_STANDARD_SHARD"; fi;; *) make test TESTS="$REPO_STANDARD_PART";; esac'
+  # The browser tests of each stack whose config sets `e2e:`: on a pull request only the ids the plan
+  # routed here, skipped when it routed none, and on main and nightly every one. They run in the
+  # Playwright image of the version the e2e lockfile pins, or with `browser-channel` on the
+  # runner's own browser, whose version the job prints. A test that passes only on a retry fails
+  # the job, and its report and traces are kept unless the run was cancelled.
+  browser:
+    needs: plan
+    if: needs.plan.outputs.mode == 'standard' && needs.plan.outputs.run == 'true' && needs.plan.outputs.reused != 'true' && needs.plan.outputs.marker != 'green' && needs.plan.outputs.browser != 'none'
+    runs-on: ${{ inputs.runner }}
+    container: ${{ inputs.browser-channel == '' && format('mcr.microsoft.com/playwright:v{0}-noble', needs.plan.outputs.playwright) || '' }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    env:
+      REPO_STANDARD_BROWSER_CHANNEL: ${{ inputs.browser-channel }}
+    steps:
+      - name: tools
+        if: inputs.browser-channel == ''
+        run: 'command -v git > /dev/null && command -v make > /dev/null && command -v python3 > /dev/null || { apt-get update -q && apt-get install -yq --no-install-recommends git make python3; }'
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: setup
+        if: hashFiles('.github/actions/setup/action.yml') != ''
+        uses: ./.github/actions/setup
+      - name: browser version
+        if: inputs.browser-channel != ''
+        run: 'case $REPO_STANDARD_BROWSER_CHANNEL in chrome*) browser="google-$REPO_STANDARD_BROWSER_CHANNEL";; msedge*) browser="microsoft-edge${REPO_STANDARD_BROWSER_CHANNEL#msedge}";; *) browser=$REPO_STANDARD_BROWSER_CHANNEL;; esac; command -v "$browser" > /dev/null || { echo "::error::browser-channel is $REPO_STANDARD_BROWSER_CHANNEL, and the runner has no $browser"; exit 1; }; "$browser" --version'
+      - name: make e2e
+        env:
+          BROWSER: ${{ needs.plan.outputs.browser }}
+          IDS: ${{ needs.plan.outputs.browser-ids }}
+        run: 'if [ "$BROWSER" = all ]; then make e2e; else printf ''%s'' "$IDS" | python3 -c "import json, sys; [print(one) for one in json.load(sys.stdin)]" > "$RUNNER_TEMP/e2e-list.txt" && cat "$RUNNER_TEMP/e2e-list.txt" && make e2e E2E_LIST="$RUNNER_TEMP/e2e-list.txt"; fi'
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: "!cancelled()"
+        with:
+          name: playwright-report
+          path: "**/playwright-report/"
+          retention-days: 14
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: "!cancelled()"
+        with:
+          name: test-results
+          path: "**/test-results/"
+          retention-days: 14
+          if-no-files-found: ignore
   # A repo with no .repo-standard.yml yet: its check command, alone.
   command:
     needs: plan
@@ -155,11 +208,12 @@ jobs:
           REPO_STANDARD_COMMAND: ${{ inputs.command }}
         run: '[ -n "$REPO_STANDARD_COMMAND" ] || { echo "::error::the repo has no .repo-standard.yml and its caller gives no command"; exit 1; }; eval "$REPO_STANDARD_COMMAND"'
   # Passes only when every job the plan asked for passed: a job that failed, was cancelled or never
-  # ran fails it, where a skipped job would count as passed. Then it leaves the markers a later run
+  # ran fails it, where a skipped job would count as passed. The browser job counts as passed when
+  # skipped, which it is when the plan routed it no id. Then it leaves the markers a later run
   # reads: the pair of trees a pull request's check passed, and the tree the whole suite passed.
   passed:
     if: always()
-    needs: [plan, lint, test, command]
+    needs: [plan, lint, test, browser, command]
     runs-on: ${{ inputs.runner }}
     timeout-minutes: 5
     steps:
@@ -173,8 +227,9 @@ jobs:
           EVENT: ${{ github.event_name }}
           LINT: ${{ needs.lint.result }}
           TESTS: ${{ needs.test.result }}
+          BROWSER: ${{ needs.browser.result }}
           COMMAND: ${{ needs.command.result }}
-        run: 'fail() { echo "::error::$1"; exit 1; }; [ "$PLAN" = success ] || fail "the plan ended $PLAN"; if [ "$MODE" = command ]; then [ "$EVENT" = schedule ] || [ "$COMMAND" = success ] || fail "the check command ended $COMMAND"; elif [ "$RUN" = false ] && [ "$EVENT" = schedule ]; then echo "check.nightly is off in .repo-standard.yml, so the nightly run tests nothing"; elif [ "$RUN" != true ]; then fail "the plan said nothing of what to run"; else [ "$LINT" = success ] || fail "the lint ended $LINT"; [ "$TESTS" = success ] || [ "$REUSED" = true ] || [ "$MARKER" = green ] || fail "the tests ended $TESTS"; fi'
+        run: 'fail() { echo "::error::$1"; exit 1; }; [ "$PLAN" = success ] || fail "the plan ended $PLAN"; if [ "$MODE" = command ]; then [ "$EVENT" = schedule ] || [ "$COMMAND" = success ] || fail "the check command ended $COMMAND"; elif [ "$RUN" = false ] && [ "$EVENT" = schedule ]; then echo "check.nightly is off in .repo-standard.yml, so the nightly run tests nothing"; elif [ "$RUN" != true ]; then fail "the plan said nothing of what to run"; else [ "$LINT" = success ] || fail "the lint ended $LINT"; [ "$TESTS" = success ] || [ "$REUSED" = true ] || [ "$MARKER" = green ] || fail "the tests ended $TESTS"; [ "$BROWSER" = success ] || [ "$BROWSER" = skipped ] || fail "the browser tests ended $BROWSER"; fi'
       - name: checked trees marker
         id: checked
         if: github.event_name == 'pull_request' && needs.plan.outputs.mode == 'standard' && needs.plan.outputs.run == 'true' && needs.plan.outputs.checked != '' && needs.plan.outputs.reused != 'true'
