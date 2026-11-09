@@ -291,6 +291,17 @@ jobs:
           key: zsh-debs-${{ env.ZSH_DEBS }}
       - name: zsh
         run: 'mkdir -p "$RUNNER_TEMP/zsh-debs" && cd "$RUNNER_TEMP/zsh-debs" && set -- $ZSH_DEBS && printf "%s  %s\n" $ZSH_DEBS > ../zsh.sha256 && { sha256sum --status -c ../zsh.sha256 && echo "zsh: the .debs from the cache" || { curl -fsSL --retry 5 --retry-all-errors --remote-name-all "$ZSH_POOL/$2" "$ZSH_POOL/$4" && sha256sum -c ../zsh.sha256; }; } && sudo dpkg -i "$2" "$4" && zsh --version'
+      # The pinned tla2tools.jar, where statechart's `cached_jar` looks for it, so a run after
+      # the first fetches nothing from GitHub's release download, which answered a part 504
+      # (run 42584414866). The key is the version and sha256 tools.py pins, read from it, so the
+      # pin stays written in one place and a new one looks for an entry of its own.
+      - name: tla2tools pin
+        id: tla2tools
+        run: 'pin=$(sed -n "s/^TLA2TOOLS_\(VERSION\|SHA256\) = \"\(.*\)\"$/\L\1\E=\2/p" features/skill-library/skills/statechart/scripts/statechart/tools.py) && [ "$(printf "%s\n" "$pin" | wc -l)" = 2 ] && printf "%s\n" "$pin" | tee -a "$GITHUB_OUTPUT" || { echo "::error::tools.py pins no TLA2TOOLS_VERSION and TLA2TOOLS_SHA256 this step reads"; exit 1; }'
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/jstack/tla2tools/${{ steps.tla2tools.outputs.version }}/tla2tools.jar
+          key: tla2tools-${{ steps.tla2tools.outputs.version }}-${{ steps.tla2tools.outputs.sha256 }}
       # TLC's output for each run of the specs, kept by the sha256 of what the run reads
       # (statechart's `kept`): a run whose spec, config, script, jar and Java are those of a run
       # kept here starts no Java. One cache serves every part, since which part a test lands in
@@ -581,6 +592,19 @@ jobs:
       - name: zsh
         if: steps.tree.outputs.marker != 'green'
         run: 'mkdir -p "$RUNNER_TEMP/zsh-debs" && cd "$RUNNER_TEMP/zsh-debs" && set -- $ZSH_DEBS && printf "%s  %s\n" $ZSH_DEBS > ../zsh.sha256 && { sha256sum --status -c ../zsh.sha256 && echo "zsh: the .debs from the cache" || { curl -fsSL --retry 5 --retry-all-errors --remote-name-all "$ZSH_POOL/$2" "$ZSH_POOL/$4" && sha256sum -c ../zsh.sha256; }; } && sudo dpkg -i "$2" "$4" && zsh --version'
+      # The pinned tla2tools.jar, where statechart's `cached_jar` looks for it, so a run after
+      # the first fetches nothing from GitHub's release download, which answered a part 504
+      # (run 42584414866). The key is the version and sha256 tools.py pins, read from it, so the
+      # pin stays written in one place and a new one looks for an entry of its own.
+      - name: tla2tools pin
+        id: tla2tools
+        if: steps.tree.outputs.marker != 'green'
+        run: 'pin=$(sed -n "s/^TLA2TOOLS_\(VERSION\|SHA256\) = \"\(.*\)\"$/\L\1\E=\2/p" features/skill-library/skills/statechart/scripts/statechart/tools.py) && [ "$(printf "%s\n" "$pin" | wc -l)" = 2 ] && printf "%s\n" "$pin" | tee -a "$GITHUB_OUTPUT" || { echo "::error::tools.py pins no TLA2TOOLS_VERSION and TLA2TOOLS_SHA256 this step reads"; exit 1; }'
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: steps.tree.outputs.marker != 'green'
+        with:
+          path: ~/.cache/jstack/tla2tools/${{ steps.tla2tools.outputs.version }}/tla2tools.jar
+          key: tla2tools-${{ steps.tla2tools.outputs.version }}-${{ steps.tla2tools.outputs.sha256 }}
       # TLC's kept output, restored as in the check's parts. Main's entries are those a pull
       # request restores, and it restores only the newest, so no part saves one: each part's runs
       # go up as an artifact, and `full` saves them together as one entry. A part's own entry

@@ -600,6 +600,14 @@ ZSH = (
     " && sha256sum -c ../zsh.sha256; }; }"
     ' && sudo dpkg -i "$2" "$4" && zsh --version'
 )
+TLA2TOOLS_PIN = (
+    'pin=$(sed -n "s/^TLA2TOOLS_\\(VERSION\\|SHA256\\) = \\"\\(.*\\)\\"$/\\L\\1\\E=\\2/p"'
+    " features/skill-library/skills/statechart/scripts/statechart/tools.py)"
+    ' && [ "$(printf "%s\\n" "$pin" | wc -l)" = 2 ]'
+    ' && printf "%s\\n" "$pin" | tee -a "$GITHUB_OUTPUT"'
+    ' || { echo "::error::tools.py pins no TLA2TOOLS_VERSION and TLA2TOOLS_SHA256 this step'
+    ' reads"; exit 1; }'
+)
 SUITE = 'make check JUNIT="$RUNNER_TEMP/junit.xml" SHARD=${{ matrix.shard }}/4'
 TLC = "~/.cache/jstack/tlc"
 KEPT = (
@@ -1474,19 +1482,21 @@ def test_the_fast_check_selects_in_reuse_and_lints_beside_it_and_runs_neither_in
     assert "select_tests" not in said and "check-fast" not in said and "lint" not in said
     assert [
         step.get("uses", step.get("name", step.get("run"))).partition("@")[0] for step in parts
-    ][:9] == [
+    ][:11] == [
         "actions/checkout",
         "astral-sh/setup-uv",
         "uv sync --locked",
         "actions/cache",
         "zsh",
+        "tla2tools pin",
+        "actions/cache",
         "actions/cache/restore",
         "selection",
         "part",
         "make test",
     ]
     assert parts[0]["with"] == {"persist-credentials": False, "fetch-depth": "2"}
-    assert parts[8]["id"] == "suite"
+    assert parts[10]["id"] == "suite"
 
 
 def test_the_select_step_starts_from_the_facts_a_run_of_the_same_selector_kept():
@@ -2002,6 +2012,46 @@ def test_the_zsh_steps_install_from_their_cache_and_fetch_with_a_retry_on_any_er
         assert sorted(p.name for p in debs.iterdir()) == sorted(names), job
 
 
+def test_the_test_jobs_keep_the_pinned_tla2tools_jar_in_a_cache_keyed_by_its_pin(tmp_path):
+    """A part fetched tla2tools.jar from GitHub's release download on every run, and a 504 there
+    failed one (run 42584414866). Each job that runs the suite restores the jar where
+    statechart's `cached_jar` looks for it, from a cache keyed by the version and sha256 that
+    tools.py pins, which a step reads from tools.py itself, so the pin is written once."""
+    sys.path.insert(0, str(REPO / "features/skill-library/skills/statechart/scripts"))
+    try:
+        from statechart import tools
+    finally:
+        sys.path.pop(0)
+    output = tmp_path / "output"
+    env = {"PATH": os.environ["PATH"], "GITHUB_OUTPUT": str(output)}
+    ran = subprocess.run(
+        ["bash", "-c", TLA2TOOLS_PIN], cwd=REPO, env=env, capture_output=True, text=True
+    )
+    assert ran.returncode == 0, ran.stderr
+    assert output.read_text().splitlines() == [
+        f"version={tools.TLA2TOOLS_VERSION}",
+        f"sha256={tools.TLA2TOOLS_SHA256}",
+    ]
+    cached = Path("~/.cache/jstack/tla2tools/${{ steps.tla2tools.outputs.version }}/tla2tools.jar")
+    assert cached.parts[-4:] == tools.cached_jar().parts[-4:-2] + (
+        "${{ steps.tla2tools.outputs.version }}",
+        "tla2tools.jar",
+    )
+    for job in ("check-shard", "full-shard"):
+        found, _ = steps(CHECK.read_text(), job)
+        at = [step.get("id") for step in found].index("tla2tools")
+        pin, cache = found[at], found[at + 1]
+        assert pin["run"] == TLA2TOOLS_PIN, job
+        assert re.fullmatch(r"actions/cache@[0-9a-f]{40}", cache.get("uses", "")), job
+        assert cache["with"] == {
+            "path": str(cached),
+            "key": "tla2tools-${{ steps.tla2tools.outputs.version }}"
+            "-${{ steps.tla2tools.outputs.sha256 }}",
+        }, job
+        assert cache.get("if") == pin.get("if"), job
+        assert at < [step.get("id") for step in found].index("suite"), job
+
+
 def test_only_full_asks_for_a_marker_and_both_jobs_leave_one():
     """A pull request's check skips nothing: its own run is the proof that the suite passed,
     and a marker records that. The parts ask, and the one job over them leaves it."""
@@ -2130,7 +2180,11 @@ def test_a_pull_requests_check_keeps_the_list_of_tests_it_selected_as_an_artifac
 def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
     found, keys = steps(CHECK.read_text(), "full-shard")
     assert "if" in keys and ran_on("full-shard") == ["schedule", "workflow_dispatch"]
-    assert [step.get("uses", step.get("run")).partition("@")[0] for step in found] == [
+    assert [
+        step.get("uses", step.get("run")).partition("@")[0]
+        for step in found
+        if step.get("id") != "tla2tools"
+    ] == [
         "actions/checkout",
         "python3 scripts/green_tree.py",
         'echo "::warning::green-tree, the lookup ended failure, so the suite runs and a later run'
@@ -2139,6 +2193,7 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
         "uv sync --locked",
         "actions/cache",
         ZSH,
+        "actions/cache",
         "actions/cache/restore",
         SUITE,
         "actions/upload-artifact",
@@ -2165,10 +2220,12 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
         'echo "::warning::green-tree, the upload ended failure, so a later run of this tree may'
         ' not skip the suite"',
     ]
-    checkout, ask, _, setup, sync, cache, zsh, kept, suite, *_ = found
+    checkout, ask, _, setup, sync, cache, zsh, pin, jar, kept, suite, *_ = found
     assert "if" not in checkout
     assert (ask.get("if"), ask["id"], ask["continue-on-error"]) == (None, "tree", True)
-    assert [step["if"] for step in (setup, sync, cache, zsh, kept, suite)] == [
+    assert [step["if"] for step in (setup, sync, cache, zsh, pin, jar, kept, suite)] == [
+        UNLESS_GREEN,
+        UNLESS_GREEN,
         UNLESS_GREEN,
         UNLESS_GREEN,
         UNLESS_GREEN,
