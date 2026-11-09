@@ -38,7 +38,7 @@ REF_INPUT = re.compile(rf"^{REF}", re.M)
 """The caller's `ref` input of a branch of a version not yet tagged, which the move to a tag drops,
 since an empty `ref` takes the tag the config pins."""
 WITH_REF_ALONE = re.compile(
-    rf"^(?P<indent>[ \t]*)with:[ \t]*(?:#.*)?\n{REF}(?!(?P=indent)[ \t]+\S)", re.M
+    rf"^(?P<indent>[ \t]*)with:[ \t]*(?:#.*)?\n{REF}(?!(?:[ \t]*\n)*(?P=indent)[ \t]+\S)", re.M
 )
 """A `with:` whose one input is that `ref`, which the move drops whole, `with:` and all."""
 LOCAL_MK = "local.mk"
