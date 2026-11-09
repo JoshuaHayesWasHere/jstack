@@ -146,7 +146,7 @@
   A pull request that changes no test file writes `Proved: none, <kind>`, with `docs`, `config`, or `docs and config`, and is exempt.
   The kinds that are exempt, and the files each covers (`jbriefs.proved.EXEMPT`), are these:
   - `docs`: `*.md`, `*.txt`, `*.rst`, and anything under a `docs/` directory.
-  - `config`: `*.toml`, `*.json`, `*.yml`, `*.yaml`, `*.cfg`, `*.ini`, `*.lock`, a dotfile such as `.gitignore`, and anything under `.github/`.
+  - `config`: `*.toml`, `*.json`, `*.yml`, `*.yaml`, `*.cfg`, `*.ini`, `*.conf`, `*.lock`, a dotfile such as `.gitignore`, and anything under `.github/`.
 
   `jmerge` waits on a `none` line where the pull request changes a test or a file of no kind the line names.
   A change to code is none of these: it adds or changes a test that fails without it.
