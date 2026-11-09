@@ -156,7 +156,7 @@ Hold back what a reading that finds nothing critical fills itself with:
 - A finding that says only that the change touches a file outside the brief's `Where` is the section's `Outside Where:` line, which "Wider than the brief" writes from `jmerge --scope`: dismiss it, with that as the reason.
 - A finding of a class a check owns, a guard test of `features/repo-guards/tests` or a lint of `make lint` that fails on it, as a doc naming a module or a path the tree lacks (`test_names_resolve.py`) or an added line no test runs (`test_new_lines_run.py`), is that check's to fail before a reviewer sees it: dismiss it, with "the check owns it" as the reason.
 - A finding that flags a pattern the rest of the repo follows, or asks for what the brief's decisions rule out, missed context: dismiss it.
-- A finding of a class a check owns, such as lint, formatting, types, a guard test or a test the suite runs, is the check's: the desk's lint and touched tests passed before this review, and CI's `check` runs the rest on the pull request, so dismiss it, with `the check owns it` as the reason.
+- A finding of a class a check owns, such as lint, formatting, types, a guard test or a test the suite runs, is the check's: the desk's lint, touched tests and repo-guards tests passed before this review, and CI's `check` runs the rest on the pull request, so dismiss it, with `the check owns it` as the reason.
   A check that misses a case is a guard to add, not a finding of this pull request.
 - More than five **Act on** findings is a sign the list is not filtered hard enough.
 
@@ -200,7 +200,7 @@ THE_PROOF_ENDS_HERE
 ```
 
 - The proof is one targeted run that fails loud when the fact is false: a test file or a single test of the repo that executes it, or a script you write as `$D/proof.sh` that calls the real code, run as `sh "$D/proof.sh"`.
-  It is never the repo's whole suite and never its check command: the crewmate's desk proof ran the lint and the touched tests before jbus launched this reviewer, and CI's `check` runs the rest on the pull request that opens after the review.
+  It is never the repo's whole suite and never its check command: the crewmate's desk proof ran the lint, the touched tests and the repo-guards tests before jbus launched this reviewer, and CI's `check` runs the rest on the pull request that opens after the review.
 - The block starts the proof on its own, under `jgauge test-slot --short`, which holds one of the slots of the short lane: no full suite takes those, so it waits only behind other short runs.
   `<thread id>` is this review thread's own id: the `t3-code` server's `t3_thread_configure` with no arguments gives it as `threadId` (if your harness defers it, load it first).
   Send the block as a foreground command with a time limit of 10 minutes (600000 ms), and never as a background command.
