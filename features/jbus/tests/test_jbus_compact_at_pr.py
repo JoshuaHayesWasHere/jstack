@@ -10,7 +10,7 @@ from datetime import timedelta
 
 import pytest
 
-from jbus import telemetry
+from jbus import compact, telemetry
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_queue import add
 
@@ -100,7 +100,7 @@ def test_a_crew_at_work_is_not_compacted_until_its_turn_ends(kitchen):
 def test_a_crew_whose_last_call_was_small_is_not_compacted(kitchen):
     opened(kitchen)
     ends(kitchen)
-    last_call(kitchen, "mcp:thread-1", 99_000)
+    last_call(kitchen, "mcp:thread-1", compact.FLOOR - 1)
     kitchen.poll(NOW)
     assert compacts(kitchen) == []
     assert sent(kitchen) == []
