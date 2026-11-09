@@ -4,16 +4,15 @@ name: borders
 # default types leave those two out. It is a workflow of its own and not a job of check.yml,
 # since a label event there would cancel the running `check` in its concurrency group and
 # leave a skipped `check` as the newest run of that name, which jmerge reads as not passed.
+# For the same reason it has no concurrency group: a push and a label in one second make two
+# runs, a group cancels one of them, and GitHub may order the cancelled one newest, which its
+# ruleset then reads as `borders` not passed (#1405). The job takes seconds, so every run ends.
 on:
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
 
 permissions:
   contents: read
-
-concurrency:
-  group: borders-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   # Fails, with an annotation for each, on a path with no owner or two, a path outside the
