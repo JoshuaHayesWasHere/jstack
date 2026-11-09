@@ -35,9 +35,8 @@ crewmate and `jmerge` also use.
 
 `his` says whose a leftover is: a home's while `his` returns nothing, and the user's with
 the reason `his` gives. A leftover is the user's when it has a `why`, while jbus has told no
-home. Once `CLOSE_MINUTES` have passed since jbus told the home, it is an item of the root home's
-too, keyed `left-late <slug>: <left>` (`raised`): it reaches the user only where no root home is
-listed to tell (`NO_ROOT`). The list of what waits on the user
+home. A home that leaves it open is not told of it a second time, and no other home is told
+of it. The list of what waits on the user
 (`waiting.left`) and the view read the same record. The pass that writes the list judges
 every row on it, so each record the list reads has `told` or `why`.
 
@@ -75,17 +74,6 @@ OPENING_MINUTES = 5
 NO_HOME = "it has no home: no home-id names a thread for the home of its brief"
 UNLISTED = "its home's thread {thread} is not one T3 Code lists as not settled"
 UNSEEN = "its home is not told yet: T3 Code did not list the threads that are out"
-LATE = "its home, thread {thread}, has not closed it {minutes} min after jbus told it"
-NO_ROOT = LATE + ", and no root home is listed to tell"
-RAISED = (
-    "jbus: {slug} ended with something left, and {late}. It is the root home's now: {user} is "
-    "not asked.\n\n"
-    "Left: {left}\n\n"
-    "Close it as jbus's message to its home says, from the last Result of `tasks/{slug}.md`: a "
-    "follow-up brief for what is left, or a `## Result, follow-up` section that ends `Left: "
-    "none`. Or tell its home to. A question only {user} can answer is a gate: take the default "
-    "and pipe it to `jbus gate {slug}`. Send {user} nothing about it."
-)
 MESSAGE = (
     "jbus: {slug} ended with something left, and it is this home's to close. {user} is not "
     "asked: it waits on this home.\n\n"
@@ -101,8 +89,7 @@ MESSAGE = (
     "`Status: done`, `Branch: <its branch>   Pull request: none` and `Left: none`. Only "
     "those three end it.\n\n"
     "Send {user} nothing about it. A question only {user} can answer is a gate: take the "
-    "default and pipe it to `jbus gate {slug}`. jbus says this row to the root home once if it "
-    "is still open {minutes} min from now."
+    "default and pipe it to `jbus gate {slug}`."
 )
 UNWRITTEN = (
     "jbus: {slug} ended with nothing written, and it is this home's to close. {user} is not "
@@ -120,8 +107,7 @@ UNWRITTEN = (
     "`Status: done`, `Branch: <its branch>   Pull request: none` and `Left: none`. Only "
     "those three end it.\n\n"
     "Send {user} nothing about it. A question only {user} can answer is a gate: take the "
-    "default and pipe it to `jbus gate {slug}`. jbus says this row to the root home once if it "
-    "is still open {minutes} min from now."
+    "default and pipe it to `jbus gate {slug}`."
 )
 
 
@@ -158,16 +144,8 @@ def _write(state: Path, records: dict[str, Record]) -> None:
     write_json(path(state), {slug: asdict(one) for slug, one in sorted(records.items())})
 
 
-def late(record: Record, now: datetime) -> bool:
-    """Return whether jbus told the home `CLOSE_MINUTES` ago or more."""
-    if not record.told:
-        return False
-    return (now - datetime.fromisoformat(record.told)).total_seconds() >= CLOSE_MINUTES * 60
-
-
 def his(record: Record, now: datetime) -> str:
-    """Return why a leftover is the user's, or nothing while a home has it: its own, or the
-    root home once its own has not closed it in time."""
+    """Return why a leftover is the user's, or nothing while its home has it."""
     return record.why
 
 
@@ -265,7 +243,6 @@ def message(run: Pass, world: World, slug: str, brief: str, why: str = "") -> st
             thread=(world.thread(slug) or {}).get("threadId", "not listed"),
             pull=_pull(world, slug, brief),
             asked=_asked(run, slug),
-            minutes=CLOSE_MINUTES,
         )
     return MESSAGE.format(
         slug=slug,
@@ -273,19 +250,12 @@ def message(run: Pass, world: World, slug: str, brief: str, why: str = "") -> st
         pull=_pull(world, slug, brief),
         left=note(brief),
         asked=_asked(run, slug),
-        minutes=CLOSE_MINUTES,
     )
 
 
-def key_of(slug: str, left: str, kind: str = "left") -> str:
+def key_of(slug: str, left: str) -> str:
     """The key of a leftover's item on the one list: its row and its `Left:` text."""
-    return f"{kind} {slug}: {left}"
-
-
-def raised(run: Pass, slug: str, record: Record) -> str:
-    """What the root home is told of a leftover its own home did not close in time."""
-    late_now = LATE.format(thread=record.thread, minutes=CLOSE_MINUTES)
-    return RAISED.format(slug=slug, late=late_now, user=run.user.user, left=record.left)
+    return f"left {slug}: {left}"
 
 
 def _judge(
@@ -303,13 +273,7 @@ def _judge(
     if thread not in out:
         return replace(record, why=UNLISTED.format(thread=thread))
     text = message(run, world, slug, brief, record.left)
-    record = replace(record, thread=thread, told=at, why="", text=text)
-    if not late(record, run.now):
-        return record
-    root = thread_of(run.home)
-    if not root or root not in out:
-        return replace(record, why=NO_ROOT.format(thread=thread, minutes=CLOSE_MINUTES))
-    return record
+    return replace(record, thread=thread, told=at, why="", text=text)
 
 
 def tell(

@@ -42,6 +42,7 @@ import jsettings
 from jbriefs.home import thread_of
 from jbus import Config, alert, owed, passes, project, read_json, signin, wake, write_json
 from jbus.queue import Row
+from jbus.told import FILE as TOLD
 from jbus.watch import NEVER, World, checks
 from jsettings import store, t3
 
@@ -243,7 +244,10 @@ def status(config: Config, now: datetime) -> dict[str, Any]:
     The rest is the homes not on the bus, which no pass writes (`project.missing`), and each
     scratch home, with the thread in its `home-id` and none of a repo's fields. A project's
     streak and last error are its home thread's, and the second target, where the config sets one,
-    has its own beside them, with its `outbox`."""
+    has its own beside them, with its `outbox`. A project's `quiet` is the line of each item of
+    the one list that wakes no home, as the last pass found it open (`jbus.wakes.Item.quiet`): the
+    count of what is stale, a source that cannot be read or was not asked, a red main before its
+    row is filed."""
     expires = t3.expiry(config.token_path)
     projects = {}
     for one in config.projects:
@@ -253,6 +257,7 @@ def status(config: Config, now: datetime) -> dict[str, Any]:
             "sign_in": signin.expiring(config, now),
             "sweep": box.marks().get("sweep", ""),
             "capped": owed.blocked(config.state(one), config.user, now, box.sent()),
+            "quiet": read_json(config.state(one) / TOLD, {}).get("quiet", []),
         }
         if box.blocking is not None:
             key = alert.blocking(one.name)

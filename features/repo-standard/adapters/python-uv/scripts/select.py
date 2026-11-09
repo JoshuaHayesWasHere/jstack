@@ -16,6 +16,18 @@ It prints the test files that exist, sorted, or the one word `all`. It reads the
 and git alone, so CI runs it in the runner's python3 before any setup. A test the imports do not
 show, such as one that runs a module in a subprocess, is not selected: main's full run after the
 merge is the net that catches it.
+
+`python3 scripts/select.py --roots <folder> [--roots <folder>]... <base>` selects for a stack of a
+repo with `stacks:`, whose roots are each a uv project of its own. It ignores a path outside the
+roots, which the repo's driver places, and holds each root to these rules:
+
+- The root's `pyproject.toml`, `uv.lock` and `conftest.py` select `all`, which the driver reads as
+  the whole stack, and so does any path the rules below cannot place, such as a `Dockerfile`.
+- A page of Markdown selects nothing, and a test file selects itself.
+- Any other `.py` outside a `tests/` folder is a module, named from the root, or from its `src/`
+  when it sits there, and selects each test of the root that imports it.
+- Any other file under a `tests/` folder, such as a `conftest.py`, a helper or data, selects each
+  test of the root.
 """
 
 from __future__ import annotations
@@ -28,6 +40,7 @@ from pathlib import Path, PurePosixPath
 
 SHARED = {"pyproject.toml", "uv.lock", "conftest.py", "Makefile", ".repo-standard.yml"}
 SHARED_FOLDERS = ("scripts/", ".github/", "schemas/")
+ROOT_FILES = {"pyproject.toml", "uv.lock", "conftest.py"}
 ALL = "all"
 
 
@@ -70,32 +83,68 @@ def imported(path: Path, module: str | None) -> set[str]:
     }
 
 
-class Tree:
-    """The features' modules and tests, and who imports each module."""
+def within(path: str, root: str) -> bool:
+    return root == "." or path == root or path.startswith(f"{root}/")
 
-    def __init__(self, root: Path) -> None:
+
+def rooted_module(inner: PurePosixPath) -> str | None:
+    """The dotted name of a module at `inner` in a root, or None for a test or a file of tests/."""
+    if inner.suffix != ".py" or is_test(inner.name) or "tests" in inner.parts[:-1]:
+        return None
+    names = [*inner.parts[:-1], inner.stem]
+    if names[0] == "src":
+        names.pop(0)
+    if names and names[-1] == "__init__":
+        names.pop()
+    return ".".join(names) or None
+
+
+class Tree:
+    """The modules and tests of each feature, or of each root, and who imports each module."""
+
+    def __init__(self, files: dict[str, tuple[str, str | None]]) -> None:
+        """`files` maps each module and test file to its feature or root, and its module name,
+        which is None for a test."""
         self.modules: dict[str, set[str]] = defaultdict(set)
         self.tests: dict[str, set[str]] = defaultdict(set)
         self.importers: dict[str, set[str]] = defaultdict(set)
-        for path in sorted(root.glob("features/*/*/**/*.py")):
+        self.module: dict[str, str | None] = {}
+        for relative, (unit, module) in sorted(files.items()):
+            if module:
+                self.modules[unit].add(module)
+            else:
+                self.tests[unit].add(relative)
+            self.module[relative] = module
+            for name in imported(Path(relative), module):
+                self.importers[name].add(relative)
+
+    @classmethod
+    def of_features(cls, root: Path) -> Tree:
+        files: dict[str, tuple[str, str | None]] = {}
+        for path in root.glob("features/*/*/**/*.py"):
             relative = path.relative_to(root).as_posix()
             feature, part = PurePosixPath(relative).parts[1:3]
             module = module_of(relative)
-            if module:
-                self.modules[feature].add(module)
-            elif part == "tests" and is_test(path.name):
-                self.tests[feature].add(relative)
-            else:
-                continue
-            for name in imported(path, module):
-                self.importers[name].add(relative)
+            if module or (part == "tests" and is_test(path.name)):
+                files[relative] = (feature, module)
+        return cls(files)
+
+    @classmethod
+    def of_root(cls, root: str, paths: list[str]) -> Tree:
+        files: dict[str, tuple[str, str | None]] = {}
+        for path in paths:
+            inner = PurePosixPath(path).relative_to(root) if root != "." else PurePosixPath(path)
+            module = rooted_module(inner)
+            if module or (inner.suffix == ".py" and is_test(inner.name)):
+                files[path] = (root, module)
+        return cls(files)
 
     def reach(self, modules: set[str]) -> set[str]:
         """The tests that import any of these modules, directly or through other modules."""
         seen, todo, found = set(modules), list(modules), set()
         while todo:
             for path in self.importers.get(todo.pop(), ()):
-                module = module_of(path)
+                module = self.module[path]
                 if module is None:
                     found.add(path)
                 elif module not in seen:
@@ -132,14 +181,44 @@ def select(paths: list[str], tree: Tree) -> list[str]:
     return sorted(path for path in found if Path(path).is_file())
 
 
+def select_rooted(paths: list[str], trees: dict[str, Tree]) -> list[str]:
+    """The selection of a stack whose roots are the keys of `trees`, one tree a root."""
+    found: set[str] = set()
+    for root, tree in trees.items():
+        modules: set[str] = set()
+        for path in paths:
+            if not within(path, root):
+                continue
+            inner = PurePosixPath(path).relative_to(root) if root != "." else PurePosixPath(path)
+            if str(inner) in ROOT_FILES:
+                return [ALL]
+            if inner.suffix == ".md":
+                continue
+            module = rooted_module(inner)
+            if module:
+                modules.add(module)
+            elif inner.suffix == ".py" and is_test(inner.name):
+                found.add(path)
+            elif "tests" in inner.parts[:-1]:
+                found |= tree.tests[root]
+            else:
+                return [ALL]
+        found |= tree.reach(modules)
+    return sorted(path for path in found if Path(path).is_file())
+
+
 def git(*args: str) -> list[str]:
     out = subprocess.run(["git", *args], capture_output=True, text=True, check=True).stdout
     return [one for one in out.split("\0") if one]
 
 
 def main(argv: list[str]) -> int:
+    roots = []
+    while len(argv) > 2 and argv[0] == "--roots":
+        roots.append(str(PurePosixPath(argv[1])))
+        argv = argv[2:]
     if len(argv) != 1:
-        print("usage: select.py <base>", file=sys.stderr)
+        print("usage: select.py [--roots <folder>]... <base>", file=sys.stderr)
         return 2
     try:
         changed = git("diff", "-z", "--name-only", "--no-renames", argv[0], "--")
@@ -150,7 +229,16 @@ def main(argv: list[str]) -> int:
             file=sys.stderr,
         )
         return 2
-    for line in select(sorted(set(changed)), Tree(Path("."))):
+    changed = sorted(set(changed))
+    if roots:
+        listed = git("ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", *roots)
+        trees = {
+            root: Tree.of_root(root, [one for one in listed if within(one, root)]) for root in roots
+        }
+        selection = select_rooted(changed, trees)
+    else:
+        selection = select(changed, Tree.of_features(Path(".")))
+    for line in selection:
         print(line)
     return 0
 
