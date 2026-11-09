@@ -26,7 +26,6 @@ the skeleton's Makefile includes when it is there, so they need no edit of the o
 from __future__ import annotations
 
 import os
-import re
 import subprocess
 from enum import Enum
 from pathlib import Path
