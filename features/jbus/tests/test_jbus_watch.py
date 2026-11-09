@@ -836,6 +836,10 @@ def test_a_red_browser_run_whose_failures_are_kept_shots_files_the_shots_row_and
     line = "retro shots-2026-10-12: the browser run 88 failed on 2026-10-12, 2 shots moved"
     assert kitchen.lines("retro") == [line]
     assert json.loads((kitchen.state / "browser-runs.json").read_text()) == {"88": ""}
+    assert "\nHome: uncategorized\n" in text
+    kitchen.poll(NOW + timedelta(minutes=3))
+    (launch,) = [one for one in kitchen.t3.launches if one["title"] == "crew: shots-2026-10-12"]
+    assert "\nHome: uncategorized\n" in launch["message"]
 
 
 def test_a_red_browser_run_whose_log_says_the_browser_moved_files_the_shots_row_saying_so(

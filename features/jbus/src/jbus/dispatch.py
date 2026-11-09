@@ -42,6 +42,8 @@ launches stacked on an open row it depends on. Every other approved row waits wi
 a crew launched onto a red main finds its check failed on main's break. A red main holds no pull
 request (`jmerge.mainjson`); this rule holds back launches only.
 
+A row whose queued brief names no child home is a gate and does not launch (`launchhome`).
+
 Each crew gets a scratch folder on disk, `~/.cache/jstack/scratch/<repo>/<slug>`
 (`JSTACK_SCRATCH_DIR` in place of `~/.cache/jstack/scratch`), made before its launch (`scratch`).
 `t3_thread_launch` takes no environment, so the session-start hook
@@ -69,9 +71,10 @@ from typing import Any
 
 import jroles
 import jroles.mirror
-from jbriefs.home import home_of, named
+from jbriefs.home import home_of
 from jbus import cleanup, queue, read_json, watch, write_json
 from jbus.launches import record_path, records
+from jbus.launchhome import homed, unhomed
 from jbus.passes import Changed, Depends, Pass, Red, Rerun, Slot
 from jbus.t3 import Client, T3Dropped, T3Error, T3Refused
 from jbus.watch import TITLE, End, World, against, crew_threads, ended
@@ -524,6 +527,10 @@ class Turns:
                     run.gate(slug, what, key=f"brief changed, now {now}")
                 run.reasons[slug] = Changed(now, row.get("brief_sha", "")[:12], lines)
                 continue
+            if (unhome := unhomed(slug, brief))[0]:
+                if not full:
+                    run.gate(slug, *unhome)
+                continue
             met = merged | {
                 other for other in row.get("depends", []) if ended(run, world, other) == End("done")
             }
@@ -781,19 +788,3 @@ def _rerun(run: Pass, slug: str) -> str:
     needless, and leaves this one, so the launch is where it stops."""
     green = mainjson.read(run.state).green
     return green[:12] if green and green.startswith(slug.removeprefix(mainjson.FIX)) else ""
-
-
-def homed(text: str, brief: str) -> str:
-    """Return `text` with the `Home:` line of `brief`, the queued brief, last in its head, when
-    `brief` names a home and the head of `text` names none. Every message about a launched row is
-    routed by its copy in `tasks/`, so the copy names the home its row belongs to. `judgement.body`
-    leaves the line out, so the brief's sha stays the same."""
-    home = named(brief)
-    if not home or named(text):
-        return text
-    lines = text.splitlines(keepends=True)
-    place = next((n for n, line in enumerate(lines) if line.startswith("## ")), len(lines))
-    if place and not lines[place - 1].endswith("\n"):
-        lines[place - 1] += "\n"
-    lines.insert(place, f"Home: {home}\n")
-    return "".join(lines)
