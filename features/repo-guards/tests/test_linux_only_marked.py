@@ -278,6 +278,12 @@ def test_a_planted_test_that_reaches_each_facility_unmarked_is_named_and_marked_
         def test_edit(tmp_path):
             subprocess.run(f"sed -i 's/a/b/' {tmp_path}/f", shell=True)
 
+        def test_start(unit="jbus.timer"):
+            subprocess.run(["systemctl", "--user", "start", unit], check=True)
+
+        def test_edit_argv(tmp_path):
+            subprocess.run(["sed", "-i", "s/a/b/", str(tmp_path / "f")], check=True)
+
         def test_watch():
             subprocess.run([sys.executable, str(Path(__file__).with_name("watch.py"))])
 
@@ -293,6 +299,8 @@ def test_a_planted_test_that_reaches_each_facility_unmarked_is_named_and_marked_
         "features/demo/tests/test_demo.py::test_probe: inotify, libc.so.6",
         "features/demo/tests/test_demo.py::test_units: systemctl",
         "features/demo/tests/test_demo.py::test_edit: GNU-only sed",
+        "features/demo/tests/test_demo.py::test_start: systemctl",
+        "features/demo/tests/test_demo.py::test_edit_argv: GNU-only sed",
         "features/demo/tests/test_demo.py::test_watch: libc.so.6",
     ]
     (tmp_path / "features" / "demo" / "tests" / "test_demo.py").write_text(
