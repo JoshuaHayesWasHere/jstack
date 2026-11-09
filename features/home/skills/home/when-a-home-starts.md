@@ -62,7 +62,6 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
                fi
                if [ -f "$U/plan.md" ]; then
                    echo "catch-all: made $U, the child home of every row no other child claims"
-                   printf 'launch: {"title": "home: %s uncategorized", "workspaceStrategy": {"type": "root"}, "message": "/home uncategorized"}\n' "$(printf '%s' "$R" | sed 's/[\\"]/\\&/g')"
                fi
            fi
        fi ;;
@@ -77,7 +76,7 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
    `scope <word>`: that scope's home, and what follows the word is the user's opening request.
    On `no scope:`, one word was typed and it names no scope: tell the user what the line says and stop, this thread is no home.
    When it prints `first home`, say this is the repo's first home.
-   On `catch-all:`, the root has made its child `uncategorized` beside it, once for the project: start its home by sending what the line after it printed after `launch: `, as it is, with `t3_thread_launch` on `go` from `room`, as "Making a scope" (`scoped-homes.md`) does, and look for a lost reply by that title first.
+   On `catch-all:`, the root has made its child `uncategorized` beside it, once for the project: launch nothing, since jbus's keep-alive starts its home (`keep_alive` in `features/jbus/src/jbus/children.py`).
    On `reopened:`, the scope was archived and is a home again: its briefs whose `Home:` line names it are this home's again, and the root home's no more.
    On `not reopened:`, tell the user the line and stop.
    What was in `$H` before stays: a home in another repo may have kept briefs and notes there.
