@@ -13,6 +13,7 @@ import json
 import os
 import re
 import subprocess
+import time
 
 import pytest
 
@@ -165,3 +166,41 @@ def test_a_pass_that_knows_no_process_removes_nothing_and_waits(kitchen, tmp, mo
     kitchen.poll()
     assert gone.exists()
     assert kitchen.t3.launches == []
+
+
+def session(tmp, kitchen, name, size, idle):
+    """Leave a session folder in the Claude scratch folder of the main checkout, holding `size`
+    bytes, whose entries were last written `idle` seconds ago, and return it."""
+    folder = tmp / f"claude-{os.getuid()}" / mangled(kitchen.checkout) / name
+    (folder / "scratchpad").mkdir(parents=True)
+    (folder / "scratchpad" / "blob").write_bytes(b"x" * size)
+    then = time.time() - idle
+    for one in (folder / "scratchpad" / "blob", folder / "scratchpad", folder):
+        os.utime(one, (then, then))
+    return folder
+
+
+def test_a_pass_waiting_on_tmp_clears_the_main_checkout_session_folders_that_ended(kitchen, tmp):
+    """A home's, a scout's or the user's own session in the main checkout leaves its scratch folder
+    when it ends. The sweep removes one nothing wrote in for `IDLE` and no process holds, beside a
+    finished crew's, and keeps a live one and one written in lately."""
+    old = cleanup.IDLE + 3_600
+    ended = session(tmp, kitchen, "ended", 60_000, old)
+    fresh = session(tmp, kitchen, "fresh", 5_000, 60)
+    alive = session(tmp, kitchen, "alive", 5_000, old)
+    finished = pad(tmp, kitchen, "done-1", 30_000)
+    approved(kitchen, "alpha")
+    with subprocess.Popen(["sleep", "60"], cwd=alive / "scratchpad") as working:
+        try:
+            said = kitchen.poll()
+        finally:
+            working.kill()
+    assert not ended.exists()
+    assert not finished.exists()
+    assert (fresh / "scratchpad" / "blob").exists()
+    assert (alive / "scratchpad" / "blob").exists()
+    assert [given["title"] for given in kitchen.t3.launches] == ["crew: alpha"], said
+    assert any(
+        "1 folders finished crews left, 1 of sessions ended in a main checkout" in line
+        for line in said
+    ), said

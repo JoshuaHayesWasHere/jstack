@@ -266,6 +266,29 @@ def test_a_pull_request_with_a_red_check_or_a_wait_on_a_crews_fix_is_not_first_r
     assert rows["Crew first-round share"][5] == "0% n 1 missed"
 
 
+@pytest.mark.parametrize(
+    ("part", "share"), [("cancelled", "100% n 1 met"), ("failure", "0% n 1 missed")]
+)
+def test_a_roll_up_red_only_because_a_newer_push_cancelled_its_parts_keeps_first_round(
+    machine, part, share
+):
+    """check.yml's roll-up `check` fails when a part was cancelled. `jbus.telemetry.views.pr_times`
+    reads that roll-up as no failed check where no other job of its attempt failed, and as one
+    where a part failed."""
+    fix_round(machine, NOW - timedelta(days=20))
+    for at, (name, conclusion) in enumerate(
+        [*((f"check {n} of 8", part) for n in range(1, 9)), ("check", "failure")]
+    ):
+        one = {**job(4, "c4", 10, conclusion, NOW, name=name), "job": 400 + at}
+        machine.append("alpha", "ci.jsonl", {**one, "event": "pull_request", "branch": "pr-10"})
+    checked(machine, "alpha", 5, 10, "success", NOW)
+    machine.build()
+
+    _, rows, _ = page(machine)
+
+    assert rows["Crew first-round share"][5] == share
+
+
 def test_a_week_that_begins_before_the_first_fix_round_label_shows_no_value_and_says_why(machine):
     fix_round(machine, NOW - timedelta(days=6))
     checked(machine, "alpha", 4, 10, "success", NOW)
