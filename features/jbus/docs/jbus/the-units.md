@@ -22,7 +22,7 @@ On macOS a move reloads no agent.
 
 | Unit | Runs | When | Enabled by the install |
 |---|---|---|---|
-| `jbus.timer`, `jbus.service` | `jbus poll`, one pass | 25 seconds after the last pass ended (`OnUnitInactiveSec=25s`, `AccuracySec=1s`), from 2 minutes after boot; on macOS every 60 seconds (`StartInterval=60`), since launchd counts only from a start | Always |
+| `jbus.timer`, `jbus.service` | `jbus poll`, one pass | 10 seconds after the last pass ended (`OnUnitInactiveSec=10s`, `AccuracySec=1s`), from 2 minutes after boot; on macOS every 60 seconds (`StartInterval=60`), since launchd counts only from a start | Always |
 | `jbus-merge.timer`, `jbus-merge.service` | `jbus tick`, `jmerge` where a check ended | Every 2 seconds (`OnUnitActiveSec=2s`, `AccuracySec=200ms`) while the last pass saw a row's pull request open or a check going, and 2 seconds after it starts (`OnActiveSec=2s`) | Always, and the pass starts and stops it |
 | `jbus-failed.service` | `jbus alarm` | When a pass fails (`OnFailure=` of `jbus.service`) | Started by `jbus.service` |
 | `jbus-stale.timer`, `jbus-stale.service` | `jbus alarm --stale 2h` | Every 15 minutes | Always |
