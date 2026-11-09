@@ -5,11 +5,11 @@ sit in the repo's `scripts/`, copied from `features/repo-standard/adapters/<name
 take `--roots`, so each places only the paths under its stack's roots. Each lists the stack's whole
 suite as ids, sorted, which `repo_standard.stacks` deals out to the parts of a sharded run.
 
-Each test command, given `REPO_STANDARD_FAILED=<file>` in its environment, appends to the file the
-id of each test that failed, one a line, in the form its select and list print, read from its test
-runner's own report: the shared check names them, reruns them on main and keeps them in a ledger
-(`repo_standard.misses`). A run that fails and names no test appends every id it ran, so a failed
-run always names what to run again.
+Each test command, and node-vite's e2e command, given `REPO_STANDARD_FAILED=<file>` in its
+environment, appends to the file the id of each test that failed, one a line, in the form its
+select and list print, read from its test runner's own report: the shared check names them, reruns
+them on main and keeps them in a ledger (`repo_standard.misses`). A run that fails and names no
+test appends every id it ran, so a failed run always names what to run again.
 
 - go runs `scripts/go.py` once over all the stack's roots, each a folder of whole Go modules. It
   reads the failed packages from `go test -json`.

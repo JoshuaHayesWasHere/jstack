@@ -318,6 +318,52 @@ def test_the_selected_ids_are_the_tests_playwright_lists(browser_repo, tmp_path)
     assert "--fail-on-flaky-tests" in out
 
 
+def test_a_failed_browser_test_is_written_as_the_id_that_runs_it_alone(browser_repo, tmp_path):
+    """Given `REPO_STANDARD_FAILED`, `make e2e` reads Playwright's JSON report and writes the test
+    that failed as the id `make select` would print for it, and that id, handed back as a list,
+    runs that test alone. Its tests open no page, so no browser is needed."""
+    root, env = browser_repo
+    subprocess.run(
+        ["npm", "ci", "--no-audit", "--no-fund"],
+        cwd=root / "client",
+        check=True,
+        capture_output=True,
+        timeout=300,
+    )
+    edit(
+        root,
+        "client/playwright.config.ts",
+        "  webServer: { command: 'node e2e/serve.mjs', port },\n",
+        "",
+    )
+    write(
+        root,
+        {
+            f"{E2E}/cart.spec.ts": (
+                "import { expect, test } from '@playwright/test';\n\n"
+                "test('holds', () => {});\n\n"
+                "test.describe('cart', () => {\n"
+                "  test('adds an item', () => {\n    expect(1).toBe(2);\n  });\n});\n"
+            )
+        },
+    )
+    listed, failed, again = (tmp_path / name for name in ("ids.txt", "failed.txt", "again.txt"))
+    listed.write_text(f"{E2E}/cart.spec.ts\n")
+    out = make(
+        root, {**env, "REPO_STANDARD_FAILED": str(failed)}, "e2e", f"E2E_LIST={listed}", ok=False
+    )
+    assert "1 failed" in out
+    assert "holds" in out
+    assert failed.read_text().splitlines() == [f"{E2E}/cart.spec.ts > cart > adds an item"]
+
+    out = make(
+        root, {**env, "REPO_STANDARD_FAILED": str(again)}, "e2e", f"E2E_LIST={failed}", ok=False
+    )
+    assert "1 failed" in out
+    assert "holds" not in out
+    assert again.read_text() == failed.read_text()
+
+
 def reach_faults(root):
     """The faults of the rule a browser test no path reaches breaks, as conform reads them."""
     paths = subprocess.run(

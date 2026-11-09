@@ -35,7 +35,12 @@ the browser job runs it.
 `python3 scripts/node.py e2e --root <folder> --script <name> [--list <file>]` runs the root's npm
 script, which runs Playwright, with `--fail-on-flaky-tests`, so a test that passes only on a retry
 fails. Given a list, the ids `select` printed, one a line, it passes them on as `--test-list`, each
-spec's path made relative to the `testDir` of the config the script runs.
+spec's path made relative to the `testDir` of the config the script runs. Given
+`REPO_STANDARD_FAILED=<file>`, it runs Playwright's list, HTML and JSON reporters in place of the
+config's, and appends to the file each test the JSON report says failed or passed only on a retry,
+one a line, as `<spec> > <title>` with the spec's path from the repo's root and each `describe`'s
+title before the test's. A run that fails and names no test appends every id it was given, or
+every spec under `testDir` when it was given none.
 
 `python3 scripts/node.py test --roots <folder> [--roots <folder>]... [ids]` runs each root's own
 `npm test`, from the repo's root as `npm --prefix` runs it: with no id every root's, and given ids,
@@ -227,20 +232,58 @@ def select(roots: list[str], base: str, e2e: dict | None = None) -> list[str]:
 
 def e2e(root: str, script: str, listed: str | None) -> int:
     """The exit code of the root's script, run on the listed tests, or on all of them."""
+    report = os.environ.get("REPO_STANDARD_FAILED")
     command = ["npm", "--prefix", root, "run", script, "--", "--fail-on-flaky-tests"]
-    if listed is None:
-        print(" ".join(command), flush=True)
-        return subprocess.run(command).returncode
     files = set(git("ls-files", "-z", "--cached", "--others", "--exclude-standard"))
     runner = node_browser.Runner(posixpath.normpath(root), script, files, read)
-    ids = [line.strip() for line in read(listed).splitlines() if line.strip()]
-    with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as file:
-        file.write("".join(f"{one}\n" for one in runner.listed(ids)))
-    print(f"{' '.join(command)} --test-list {file.name}", flush=True)
+    ids = [line.strip() for line in read(listed).splitlines() if line.strip()] if listed else []
+    with tempfile.TemporaryDirectory() as temp:
+        out = Path(temp) / "playwright.json"
+        if report:
+            command.append("--reporter=list,html,json")
+        if listed is not None:
+            tests = Path(temp) / "tests.txt"
+            tests.write_text("".join(f"{one}\n" for one in runner.listed(ids)))
+            command += ["--test-list", str(tests)]
+        print(" ".join(command), flush=True)
+        env = {
+            **os.environ,
+            "PLAYWRIGHT_JSON_OUTPUT_NAME": str(out),
+            "PLAYWRIGHT_HTML_OPEN": "never",
+        }
+        code = subprocess.run(command, env=env if report else None).returncode
+        named = failed_specs(out)
+    if code and report:
+        ran = ids or sorted(
+            one
+            for one in files
+            if within(one, runner.test_dir)
+            and node_browser.SPEC.search(one)
+            and Path(one).is_file()
+        )
+        with open(report, "a", encoding="utf-8") as written:
+            written.write("".join(f"{one}\n" for one in named or ran))
+    return code
+
+
+def failed_specs(report: Path) -> list[str]:
+    """Each test Playwright's JSON report says failed, or passed only on a retry, as an id from
+    the repo's root: `<spec> > <title>`, with the title of each `describe` around it first."""
     try:
-        return subprocess.run([*command, "--test-list", file.name]).returncode
-    finally:
-        Path(file.name).unlink()
+        found = json.loads(report.read_text())
+        top = Path(found["config"]["rootDir"])
+        suites = [(suite, []) for suite in found.get("suites") or []]
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return []
+    here, failed = Path.cwd(), []
+    while suites:
+        suite, titles = suites.pop(0)
+        for spec in suite.get("specs") or []:
+            if any(one.get("status") in ("unexpected", "flaky") for one in spec.get("tests") or []):
+                path = Path(os.path.relpath(top / spec["file"], here)).as_posix()
+                failed.append(" > ".join([path, *titles, spec["title"]]))
+        suites += [(inner, [*titles, inner["title"]]) for inner in suite.get("suites") or []]
+    return list(dict.fromkeys(failed))
 
 
 def listed(roots: list[str]) -> list[str]:
