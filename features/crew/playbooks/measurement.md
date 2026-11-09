@@ -21,15 +21,16 @@ Each thing the probe made is closed, or named for the home.
    Where it is not there, take nothing: a shot of the old build proves nothing.
    Write the Result with `Status: paused`, a `Proof:` line of what each command printed, and a `Left:` line of what it waits on and who gives it, then go to the last step.
 2. Open the row's folder and write down today's number before the run (`principles/principle-explain-the-number.md`).
-   Run the block below with the slug in place of `<slug>`: every file this row keeps goes there, and a file an earlier round left keeps its name.
+   Run the block below with the slug in place of `<slug>`: each file goes there under this round's stamp `$r`, so no round overwrites another.
 
    ```sh
    R=~/.local/state/home/$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")/reports/<slug>
-   mkdir -p "$R" && ls -la "$R" && date -u +%Y-%m-%dT%H:%M:%SZ | tee "$R/run-start.txt"
+   r=$(date -u +%Y%m%dT%H%M%SZ)
+   mkdir -p "$R" && ls -la "$R" && echo "$r" | tee "$R/$r-run-start.txt"
    ```
 
-   Then run each command on the brief's `Instruments:` line once, as it is worded, into `"$R/before-<name>.txt"`, and read the number off that file.
-   An instrument that reads only after the event has as its before the brief's dated baseline: copy it, with its date, into `"$R/baseline.txt"`.
+   Then run each command on the brief's `Instruments:` line once, as it is worded, into `"$R/$r-before-<name>.txt"`, and read the number off that file.
+   An instrument that reads only after the event has as its before the brief's dated baseline: copy it, with its date, into `"$R/$r-baseline.txt"`.
    A command that picks the wrong item keeps its worded output beside a fixed one, with a `Decision:` line for the Result.
 3. Take the measurement, one round at a time, each into its own file under `$R`, and wait for each inside this turn.
    A shot is taken with the state it shows, at the same second, under one stamp: `s=$(date -u +%Y%m%dT%H%M%S)`, then `"$R/$s-<what>.png"` beside `"$R/$s-<what>.<state file>"` (a `jq` of `work.json`, a `t3_thread_read`).
