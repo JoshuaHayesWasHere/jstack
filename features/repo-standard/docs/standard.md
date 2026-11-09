@@ -333,7 +333,7 @@ Enforced by: `.github/workflows/check.yml`, `features/repo-guards/main-ruleset.j
 A check that passed on a head merged over its base passes again for the same two trees without running its tests.
 So a stacked change that moves onto main, where the move replays the same trees, adds no round of the suite.
 
-**In jstack** the `reuse` job asks `jmerge.reuse` whether a passed check already checked GitHub's merge of the head and that base, and on a yes the parts are skipped and `check` passes on the reuse.
+**In jstack** the `reuse` job asks `jmerge.reuse` whether a passed check already checked GitHub's merge of the head and that base, and on a yes each part of `check-shard` still starts, reads the `selection` artifact and skips its `part` and `make test` steps, so the parts run no tests, and `check` passes on the reuse.
 
 Enforced by: `features/jmerge/src/jmerge/reuse.py`, `.github/workflows/check.yml`
 

@@ -73,11 +73,16 @@ def walked(tmp_path, monkeypatch):
     took and the reference's, the least of `ROUNDS` rounds that run one of each in turn, so
     that a burst of load on the runner has to fall on every round to count. The first test
     that asks builds them, under the isolation every test has (the zone of
-    `testing/jstack_fixtures.py` among it), and the tests after it read the same answers."""
+    `testing/jstack_fixtures.py` among it), and the tests after it read the same answers.
+
+    The rounds run without `COVERAGE_PROCESS_START`, which `-p part_lines` sets so that every
+    Python process a test starts starts coverage: the views' shells run `python3 -c` (in
+    `room.sh`), and the start of coverage in each is the plugin's cost, not the views'."""
     if not BUILT:
         scene = Scene(tmp_path, monkeypatch)
         made = walk.build(scene)
         (tmp_path / "reference").mkdir()
+        monkeypatch.delenv("COVERAGE_PROCESS_START", raising=False)
         took, yardstick = [], []
         for _ in range(ROUNDS):
             yardstick.append(reference(tmp_path / "reference"))

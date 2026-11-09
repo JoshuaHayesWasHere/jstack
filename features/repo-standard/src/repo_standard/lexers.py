@@ -6,7 +6,8 @@ any other extension to one of them in its config (`.go: script`).
 - `python` reads the file with `tokenize`, so a `#` in a string is no comment.
 - `shell` reads it character by character, so a `#` in quotes or inside a word is no comment.
 - `config` reads YAML and TOML as `shell` does, but opens a quote only where a value or a key
-  starts, so the apostrophe of a plain scalar such as `name: don't` opens none.
+  starts, so the apostrophe of a plain scalar such as `name: don't` opens none, and a triple
+  quote only after TOML's `=`.
 - `script` finds `//` and `/* */`, skipping strings, template strings, regular expressions and a
   `://`, as JavaScript, TypeScript, Go, C and CSS write them.
 - `page` reads the `<script>` and `<style>` of an HTML page as `script`.
@@ -58,8 +59,11 @@ def _starts_a_value(text: str, at: int) -> bool:
 
 
 def _config_quoted_end(text: str, at: int) -> int:
+    """The end of the quoted value at `at`. Only TOML has a triple-quoted string, and only TOML
+    writes a value after `=`, so a triple quote opens one only there: YAML's `'''x'` is `'x`."""
     quote = text[at]
-    end = text.find(quote * 3, at + 3) if text.startswith(quote * 3, at) else -1
+    toml = text[text.rfind("\n", 0, at) + 1 : at].rstrip(" \t").endswith("=")
+    end = text.find(quote * 3, at + 3) if toml and text.startswith(quote * 3, at) else -1
     if end >= 0:
         return end + 3
     at += 1
