@@ -227,7 +227,7 @@ def test_a_scope_just_made_has_no_handoff_yet(no_jbus):
 def test_on_status_a_root_with_no_other_child_reads_its_catch_all_alone(tmp_path, monkeypatch):
     monkeypatch.setenv("PATH", "/usr/bin:/bin")
     scene = Scene(tmp_path)
-    for shared in ("tasks", "scouts", "reports", "log"):
+    for shared in ("asked", "tasks", "scouts", "reports", "log"):
         (scene.home_dir / shared).mkdir()
         (scene.home_dir / shared / "plan.md").write_text("# plan: a file with that name\n")
     scene.home_starts(ROOT, "")
@@ -256,7 +256,7 @@ def test_the_scopes_the_root_reads_on_status_are_the_scopes_jbus_queues_for(no_j
         "no-plan": {"home-id": "mcp:stray\n"},
         **{
             shared: {"plan.md": "# plan: a file with that name\n"}
-            for shared in ("tasks", "scouts", "reports", "log")
+            for shared in ("asked", "tasks", "scouts", "reports", "log")
         },
     }
     for name, files in made.items():

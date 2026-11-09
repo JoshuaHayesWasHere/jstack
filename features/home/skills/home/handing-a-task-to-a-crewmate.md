@@ -10,7 +10,7 @@ The root home does step 1 and no other: it queues the brief by "Queueing a row i
 
    Its `Proves it:` line, under the "Done when" list, names what outside the agent shows the task is done: a test or a command, a metric, a dataset, an external judge or the user.
    `jbus queue add` queues no brief whose line names only the crew, the crewmate, the reviewer, the agent, the model or a review, or is empty.
-   A crewmate's desk check is the crew skill's touched check, `make check-fast BASE=<base> PART=touched`: the lint and the test files the branch adds or edits.
+   A crewmate's desk check is the crew skill's touched check, `make check-fast BASE=<base> PART=touched`: the lint, the test files the branch adds or edits, and the repo-guards tests the selection names (`select_tests.py --part guards`).
    The whole suite, `make check-fast BASE=origin/main` with no `PART=` or `make check`, is CI's check on the pull request, never a desk step a brief asks for: it holds a full test slot for about 9 minutes, and CI runs it again.
    Write the line to name the touched check and the test the task adds, as `Proves it: the touched check passes, with the test the task adds, <its test file>`.
    `jbus queue add` warns of a brief whose `Proves it:` or **Done when** runs the whole suite at the desk, and queues it all the same: a task about the suite itself may need the whole run.
@@ -19,6 +19,7 @@ The root home does step 1 and no other: it queues the brief by "Queueing a row i
    A line that lands outside **Where**, or under **Do not touch**, is not this brief's: widen **Where** when the file is this change's, and otherwise move the line to a follow-up brief with a `Follows: <slug>` line, queued with `jbus queue add`, where it is approved on this row's go.
    Do it now, before the go: an edit of **Done when** or **Where** after it voids the go.
    `jbus queue add` refuses such a line and warns of a line with no marker.
+   It also warns of a **Done when** list of 5 or more items (``warning: <slug>'s brief's Done when: lists <n> items``) and queues the brief all the same: split the row as "One entry per task" says (`SKILL.md`), and never fold items into fewer lines.
 
    A **Done when** line that asks for the check names it as "the check command (`$H/fresh-check`)", never as a literal `make check`: the crewmate runs the command `fresh-check` names, once, or, in a repo whose check selects its tests, the lint and the tests its change touches, and CI's check runs it whole.
    `jbus queue add` prints a line that begins ``warning: <slug>'s brief's Done when: asks for `make check` `` for a brief whose **Done when** asks for a bare `make check` while `fresh-check` names another check command, one that is no `make check-fast`, which the warning of the whole suite above covers: mend the line and add the brief again.
@@ -39,7 +40,7 @@ The root home does step 1 and no other: it queues the brief by "Queueing a row i
    No reviewer runs a test step or a suite: the desk's one run of the check is the crewmate's, and CI's check on the pull request is the check of record.
 
    A brief is checked when it is queued, not when it launches.
-   `jbus queue add` refuses a brief that is short of anything a launch asks: a `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:` line, each filled in; a `Proves it:` line that names something outside the agent; a t-shirt size; a crewmate's playbook or `none`; a `Design:` line, where the brief has one, that names the design or says `none, <why>`; and a `Skills:` line, where the brief has one, whose every name is a skill of `skills/` or a principle of `principles/`.
+   `jbus queue add` refuses a brief that is short of anything a launch asks: a `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:` line, each filled in; a `Proves it:` line that names something outside the agent; a t-shirt size; a crewmate's playbook or `none`; a `Design:` line, written only where `/architect` wrote a design, that names that design; and a `Skills:` line, where the brief has one, whose every name is a skill of `skills/` or a principle of `principles/`.
    It prints `refused: <slug>'s brief has <n> faults, and nothing is queued` and one line under it for each fault: mend the brief and add it again.
    Nothing is queued, so the user is never asked to approve a brief that cannot launch.
    It also refuses a brief that asks for a load on every core (`stress-ng --cpu 0`, `--cpu $(nproc)`) instead of a bounded one inside `jgauge test-slot`, and one whose `Done when:` asks for a screenshot, a shot or a recording as proof.

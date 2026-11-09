@@ -5,8 +5,8 @@ It is deterministic and asks no model. An approval binds to the goal, the scope 
 done-when of a brief, and to nothing else: the fields of `MEANING` (the title, Task, Done
 when, Where, Do not touch and Size). Every other field says how the work is done or who
 runs it. Those are the fields of `NOT_MEANING`: Skills, Decisions, Design, Proves it,
-Review, Playbook, Pull request, Builds on, Read, Instruments, Change, Rests on, Sources,
-Ruled out, and `Home:` and `Thread:`, which say whom a brief is sent to. A field that the
+Review, Playbook, Pull request, Builds on, Read, Instruments, Change, Rests on, Ruled
+out, and `Home:` and `Thread:`, which say whom a brief is sent to. A field that the
 template does not name, and anything under a `## ` in the brief, count the same way. An edit to
 any of them keeps the go.
 
@@ -73,7 +73,6 @@ NOT_MEANING = (
     "Instruments",
     "Change",
     "Rests on",
-    "Sources",
     "Ruled out",
 )
 LEGACY = tuple(label for label in MEANING if label not in (parse.TITLE, "Task"))

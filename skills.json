@@ -112,6 +112,12 @@
       "source": "jstack"
     },
     {
+      "name": "operations",
+      "kind": "playbook",
+      "path": "features/crew/playbooks/operations.md",
+      "source": "jstack"
+    },
+    {
       "name": "orchestrate",
       "kind": "playbook",
       "path": "features/home/skills/home/playbooks/orchestrate.md",

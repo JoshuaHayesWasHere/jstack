@@ -132,7 +132,6 @@ else
         echo "Where: \`$dir/\`"
         echo "Do not touch: product code, and anything outside \`$dir/\`"
         echo "Decisions: none"
-        echo "Design: none, the scouts' reports are the source reading and the map is the shape"
         echo "Skills: blast-radius, prove-it-works"
         echo "Pull request: open one when done"
         echo "Review: review"
@@ -140,7 +139,6 @@ else
         if [ -n "$scope" ]; then echo "Home: $scope"; fi
         echo "Read: \`$dir/SKILL.md\` and \`$dir/features/\`${read}"
         echo "Rests on: the scouts' reports above${gaps:+; no report for:$gaps, which you read from source yourself}"
-        echo "Sources: \`features/skill-library/skills/maintain-verification-skill/SKILL.md\`, the steps this brief carries"
         echo "Ruled out: a subagent per feature (not durable), driving the app from the home or a scout"
     } > "$B"
     echo "wrote: tasks/$run.md"

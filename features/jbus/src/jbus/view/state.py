@@ -169,11 +169,19 @@ CLOSES = (
     "The home closes it with one of two things: a follow-up task for what was left, "
     "a Left: none line in its brief with the reason"
 )
-READY = {
-    "no slot": "a slot",
-    "dispatch is off": "dispatch to be turned on",
-    "the stop file is there": "the stop file to go",
-}
+READY = (
+    ("no slot", "a slot"),
+    ("max_per_home is ", "a slot"),
+    ("max_per_project is ", "a slot"),
+    ("max_running is ", "a slot"),
+    ("a gate held back while every slot is taken: ", "a slot"),
+    ("waiting for room on the machine", "room on the machine"),
+    ("waiting: ", "room on the machine"),
+    ("no launch: ", "room on the machine"),
+    ("dispatch is off", "dispatch to be turned on"),
+    ("the stop file is there", "the stop file to go"),
+)
+"""What a ready row waits on, by the start of the reason the pass gave it (`dispatch`)."""
 DEPENDS = "depends on "
 SAYS = {
     "launching": "a thread was started and has not reported yet",
@@ -664,7 +672,8 @@ def _saying(row: queue.Row, line: dict[str, Any] | None, about: About) -> dict[s
         say = f"{', '.join(about.blockers) or first} {'come' if many else 'comes'} first"
         waits = f"{first} to merge"
     elif value == "ready":
-        say, waits = (why, READY[why]) if why in READY else ("nothing is in front of it", waits)
+        held = next((on for start, on in READY if why.startswith(start)), "")
+        say, waits = (why, held) if held else ("nothing is in front of it", waits)
     elif value in ("leftover", "quiet") and line.get("who") == "rev":
         say = AWAITS_REVIEW
     elif value in SAYS:

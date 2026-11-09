@@ -38,6 +38,7 @@ The plan fails when the config pins another version than the workflow's own.
 
 The label of a runner on the repo's own machines goes in `runner`.
 The workflow gives it back as its output `runner`, and the caller's job `check` runs on it, so a repo whose account cannot start hosted jobs names its own label once.
+The inputs `runner`, `browser-channel` and `timeout-minutes` are the repo's own: `repo-standard conform` leaves them out when it compares the caller with the version's copy, and `repo-standard upgrade` keeps them in the copy it writes, so a runner with Chrome and no Docker sets `browser-channel: chrome` with no `local:` entry for the caller.
 
 To run a branch of jstack before its version is tagged, a caller names the branch in both the `uses:` line and `ref`:
 
