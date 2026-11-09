@@ -14,7 +14,7 @@ The store has one table for each record file of each project, with a `project` c
 | `acts` | `acts.jsonl` | an act: a go, hold, word, answer, withdraw or remove |
 | `items` | `items.jsonl` | a work item's record |
 | `transitions` | `transitions.jsonl` | a row's move from one status to another |
-| `row_waits` | `waits.jsonl` | a change of a row's reason to wait, to a reason or to none: its `kind` (`hold`, `depends`, `red main`, `room`, `cap` or `none`, `jbus.telemetry.waits`) and `why_len`, never the reason's text |
+| `row_waits` | `waits.jsonl` | a change of a row's reason to wait, to a reason or to none: its `kind` (`hold`, `depends`, `red main`, `room`, `cap` or `none`) and `why_len`, never the reason's text |
 | `outbox` | `outbox.jsonl` | a message jbus sent or held |
 | `ci_jobs` | `ci.jsonl` | a job of a GitHub Actions run, for a project whose table says `ci_report = true` |
 | `merges` | the home's `merge.log` | a line `jmerge` logged: its verb, its pull request, a merge's slug and a wait's label |
