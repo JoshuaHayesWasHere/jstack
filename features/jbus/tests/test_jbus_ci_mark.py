@@ -105,3 +105,44 @@ def test_a_rerun_of_a_run_kept_before_the_mark_is_kept_by_the_next_pass_that_lis
         (11, 1),
         (11, 2),
     }
+
+
+class Asks(Window):
+    """The window, counting every ask: a run in `empty` has no jobs, and an attempt in
+    `cancelled` started none of its own, so GitHub lists only its run's earlier attempts' jobs."""
+
+    def __init__(self, many, empty=(), cancelled=()):
+        super().__init__(many)
+        self.empty, self.cancelled = set(empty), set(cancelled)
+        self.asked = []
+
+    def pages(self, path, key=None):
+        self.asked.append(path)
+        found = super().pages(path, key)
+        if "/actions/runs?" in path:
+            return found
+        run = next(one for one in self.runs if path.endswith(f"/runs/{one['id']}/jobs?filter=all"))
+        if run["id"] in self.empty:
+            return []
+        if (run["id"], run["run_attempt"]) in self.cancelled:
+            return [one | {"id": run["id"] * 10 + 1, "run_attempt": 1} for one in found]
+        return found
+
+    def page(self, path, key=None):
+        self.asked.append(path)
+        return []
+
+
+def test_a_pass_with_nothing_new_asks_for_no_run_it_has_read(tmp_path):
+    """A run that completed with no jobs, and a rerun's attempt that was cancelled before it
+    started a job of its own, add no job to the ledger: the pass that read them does not read
+    them again, while a run still going keeps the mark back over both."""
+    gh = Asks(10, empty={4}, cancelled={(6, 2)})
+    gh.runs[1]["status"] = "in_progress"
+    gh.runs[5]["run_attempt"] = 2
+    first = collect.keep(gh, REPO, tmp_path, NOW)
+    assert first.jobs == 8
+    gh.asked = []
+    again = collect.keep(gh, REPO, tmp_path, NOW + timedelta(minutes=1))
+    assert again.jobs == 0
+    assert sorted(path.split("?")[0].rsplit("/", 1)[1] for path in gh.asked) == ["pulls", "runs"]
