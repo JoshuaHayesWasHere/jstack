@@ -339,6 +339,9 @@ def needs(one: waiting.Item, context: str = "", known: frozenset[str] = frozense
         return "a home that stalled again after jbus started it again"
     if kind == "install":
         return "a T3 Code build only you can install"
+    if kind == "held" and one.get("lift"):
+        numbers = " ".join(str(number) for number in one.get("numbers", []))
+        return f"no crew clears it, and your word lifts it: {one['lift']} {numbers}".rstrip()
     if kind != "gate":
         return ""
     if one.get("holds"):
@@ -363,6 +366,9 @@ def reply(one: waiting.Item) -> str:
         return OWN_WORDS.format(what="hold it")
     if kind == "hold":
         return OWN_WORDS.format(what=f"merge #{one['number']}")
+    if kind == "held" and one.get("lift"):
+        numbers = " and ".join(f"#{number}" for number in one.get("numbers", []))
+        return OWN_WORDS.format(what=f"merge {numbers}")
     if kind == "approve":
         return OWN_WORDS.format(what=f"give {one['slug']} its go")
     if kind == "stalled":

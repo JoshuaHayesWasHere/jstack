@@ -49,7 +49,7 @@ For each such row, it holds the `Left:` text, the home's thread, when jbus told 
 
 ## A wait only its crew clears
 
-A pull request `jmerge` waits on for a `Proved:` or `Checked:` line is its crew's, not yours and not its home's.
+A pull request `jmerge` waits on for a `Proved:` or `Checked:` line is its crew's first, not yours and not its home's.
 Its reason starts `proved-` or `checked-`, such as a `Proved:` line of a head from before a rebase, or one that names no test the branch changes, and only the crew's own proof or check block writes the line that clears it.
 
 jbus tells an idle crew on the first pass that sees the wait, with what to run (`expedite.tell`).
@@ -57,9 +57,25 @@ It tells the crew once more at the same head when a new idle spell starts: the f
 It tells a crew at work nothing, and sends no third message at that head.
 A new head is a new wait, told afresh.
 
-`held.json` names who owns each hold it keeps, `who: "crew"` for a wait `expedite` owns and `who: "user"` for the rest.
-The home hears of a crew's wait only once its crew was told twice at that head, stayed idle, and the hold is older than 30 minutes with no thread at work on it (`clock.held`).
-A wait of the user's wakes the home after those 30 minutes, as before.
+Each such wait ends one of four ways, and the first that fits is the one:
+
+- **By rule.**
+  `jmerge` holds nothing that no one needs to fix.
+  A `Proved:` line whose tests pass at the base holds no pull request that changes no code, since its base runs the head's own code ([jmerge](../../../jmerge/docs/jmerge.md)).
+  No crew is told and nobody is asked.
+- **By its crew.**
+  While jbus still owes the crew a message at that head, or the crew is at work, the wait is the crew's, and the sidebar says `crew owes`.
+- **By your word.**
+  Once the crew was told twice, worked, and then sat idle 10 passes after the second message with the same reason at the same head, it had its turns.
+  Where your accept lifts the reason, as it lifts each `proved-` wait, the wait is yours.
+  `jbus needs` lists it at once with its reason and `jmerge --accept <number>`, the row's line in `work.json` says it waits on your accept, and the sidebar says `held`.
+- **By its home.**
+  Any other wait whose crew had its turns stays its crew's, a `checked-` wait above all, since no word of yours makes a check pass.
+  The home hears of it once the hold is older than 30 minutes with no thread at work on it (`clock.held`), and picks it up or briefs its fix.
+
+`held.json` names who owns each hold it keeps: `who: "crew"` for a wait the crew still owes, and `who: "user"` for the rest.
+A hold of yours that your accept lifts also names the word, `lift: "jmerge --accept"`, and is on what waits on you in the pass that files it, with no 30 minutes to wait and no wake of the home, which hears of it from that list.
+Any other `who: "user"` hold wakes the home after those 30 minutes, as before.
 
 ## A home that stalls
 
@@ -75,7 +91,7 @@ It leaves the list once the home does something jbus can see.
 
 `jbus needs` prints what of that list only you can do, for every project, or for one with `--project`.
 It keeps an item by the rule that raises a decision and wakes a home with it (`blockers.needs`).
-That rule keeps a gate that holds, a gate with no default or one that names a door, a go gate whose silence starts nothing, a row with no go, a pull request `jmerge` holds for your word, a setup only you can give and a T3 Code build to install.
+That rule keeps a gate that holds, a gate with no default or one that names a door, a go gate whose silence starts nothing, a row with no go, a pull request `jmerge` holds for your word, a wait its crew had its turns at that your accept lifts ([A wait only its crew clears](#a-wait-only-its-crew-clears)), a setup only you can give and a T3 Code build to install.
 
 A pull request `jmerge` holds for your word is any on its `hold` step, whatever word starts its line: a `hold`, or a `wait` whose code is on that step.
 So a row held for `check failed twice`, which `jmerge` says as `wait <n> <url>: its queue row is held: approve it again to let it merge`, is on the list, and so is a row whose go does not hold, a brief that says `Review: none`, and a change to a protected path.

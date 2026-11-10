@@ -4,7 +4,8 @@ It is the one answer to "what needs me". It reads the list the last pass wrote
 (`waiting-on-user.json`) and keeps only what the user has to decide, by the one rule that also
 raises a decision and wakes a home with it (`blockers.deciding`): a gate whose `Holds:` line holds
 it, a gate with no default or one that names a door, a go gate whose silence starts nothing, a row
-whose brief has no go, a pull request `jmerge` holds for the user's word, a setup only the user
+whose brief has no go, a pull request `jmerge` holds for the user's word, a hold no crew
+clears that the user's word lifts (`jbus.clock.held`), a setup only the user
 can give, and an approved row that waits for room on a full /tmp after the pass removed what
 finished crews left there (`room`): its row's `why` says so, `waiting: /tmp at <n>% of its quota`,
 from the first pass it waits. A hold of GitHub's budget at or under its floor is one item for
@@ -89,6 +90,8 @@ def _slug(run: passes.Pass, one: waiting.Item) -> str:
             return ""
         pr = f"#{one.get('number')}"
         return next((row["slug"] for row in rows if row.get("pr") == pr), "")
+    if one["kind"] == "held" and not one.get("slug"):
+        return str(next(iter(one.get("rows", [])), ""))
     return str(one.get("slug") or "")
 
 

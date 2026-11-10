@@ -442,7 +442,8 @@ def kitchen(tmp_path, monkeypatch):
 def test_who_holds_a_state_is_its_patterns_holder_but_for_a_leftover_and_a_thread_by_role():
     """A row that ended with something left is never the user's but where a gate of the user's
     holds it: its home closes it, or a thread at work on it, or its review is still to come. A
-    row whose go does not hold is the user's at any stage up to its merge."""
+    row whose go does not hold is the user's at any stage up to its merge, and so is one a hold
+    no crew clears holds for the user's accept (`Closer.WORD`)."""
     holders = {"user", "crew", "rev", "ci", "bus", "dep", "ok", "home", "unknown"}
     roles = {"crew", "rev", "scout", "home", "other"}
     for facts in work.every():
@@ -455,6 +456,8 @@ def test_who_holds_a_state_is_its_patterns_holder_but_for_a_leftover_and_a_threa
                     assert held == work.Holder("user", "your answer", "gate")
                 elif state.value in ("leftover", "closed"):
                     assert held.who != "user"
+                elif closer == work.Closer.WORD:
+                    assert (held.who, held.lift) == ("user", work.Lift.ACCEPT)
                 elif work.lift(state) is not None:
                     assert (held.who, held.lift) == ("user", work.lift(state))
                 elif closer != work.Closer.REVIEW or state.value != "quiet":
@@ -914,9 +917,9 @@ def test_drift_is_what_a_writer_should_have_kept_right_and_not_what_the_pass_alo
 
 def test_an_act_leaves_a_line_it_cannot_read_as_it_is_and_an_asking_row_still_asking():
     unread = {"key": "alpha", "kind": "row", "value": "unapproved", "facts": "lost"}
-    assert work.restate(unread, work.Row.FREE) == unread
+    assert restated.restate(unread, work.Row.FREE) == unread
     half = {**unread, "facts": {"row": "unapproved", "thread": "none"}}
-    assert work.restate(half, work.Row.FREE) == half
+    assert restated.restate(half, work.Row.FREE) == half
     facts = work.Facts(
         work.Row.UNAPPROVED,
         work.Thread.NONE,
@@ -927,7 +930,7 @@ def test_an_act_leaves_a_line_it_cannot_read_as_it_is_and_an_asking_row_still_as
         work.Answered.BOTH,
     )
     asking = work.entry(work.judge(facts), key="alpha", kind="row", slug="alpha")
-    went = work.restate(asking, work.Row.FREE)
+    went = restated.restate(asking, work.Row.FREE)
     assert (went["value"], went["who"]) == ("asking", asking["who"])
     assert went["facts"]["row"] == "approved and free"
 

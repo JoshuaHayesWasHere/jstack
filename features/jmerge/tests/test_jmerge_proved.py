@@ -17,7 +17,7 @@ import pytest
 import jsettings
 import test_home_merge as merge
 from jbriefs import proved as proved_line
-from jmerge import cli, ready
+from jmerge import cli, forktests, ready
 
 TEST = "features/x/tests/test_x.py"
 BASE = "c" * 40
@@ -384,3 +384,186 @@ def test_jmerge_cli_asks_git_whether_a_py_file_changes_in_its_docstrings_alone(t
     repo = cli.Repo(tmp_path, tmp_path / "state", None, False, user=jsettings.DEFAULTS)
     prose = repo.prose(one)
     assert (prose("a.py"), prose("b.py"), repo.fetched) == (True, False, True)
+
+
+FORK_DOC = "features/t3code-jstack/docs/t3code-jstack.md"
+TEST_PATCH = "features/t3code-jstack/packaging/0036-jstack-tree-scouts-from-work-test.patch"
+CODE_PATCH = "features/t3code-jstack/packaging/0035-jstack-tree-held-owner.patch"
+BASE_HELD = ready.PROVED_BASE_PASSED.format(exit=0, base=BASE[:12])
+
+
+def patch(*paths, binary=False):
+    """A fork patch as `git format-patch` writes it, touching `paths`."""
+    body = "".join(
+        f"diff --git a/{path} b/{path}\nnew file mode 100644\n--- /dev/null\n+++ b/{path}\n"
+        "@@ -0,0 +1 @@\n+one line\n"
+        for path in paths
+    )
+    binary_part = "GIT binary patch\nliteral 3\nKcmZ?wnK\n" if binary else ""
+    return f"From 0 Mon Sep 17 00:00:00 2001\nSubject: [PATCH] x\n\n---\n{body}{binary_part}-- \n"
+
+
+def pkgbuild(*series, tag="v0.1.7", ver="8f9a6c2e02", prepare="patch -p1"):
+    names = "\n          ".join(series)
+    sums = "\n            ".join("'SKIP'" for _ in ("tag", *series))
+    return (
+        f'_tag="${{T3CODE_JSTACK_TAG:-{tag}}}"\npkgver="0.1.7.jstack.{ver}"\npkgrel=1\n'
+        f"_patches=({names})\nsha256sums=({sums})\nprepare() {{\n  {prepare}\n}}\n"
+    )
+
+
+def commit(merged, files, push_to="alpha"):
+    """Write `files` in the crewmate's worktree, commit them and push them to `push_to`."""
+    for path, text in files.items():
+        (merged.tree / path).parent.mkdir(parents=True, exist_ok=True)
+        (merged.tree / path).write_text(text)
+    merge.git(merged.tree, "add", "-A")
+    merge.git(merged.tree, "commit", "-q", "-m", "change")
+    merge.git(merged.tree, "push", "-q", "origin", f"HEAD:{push_to}")
+    return merge.git(merged.tree, "rev-parse", "HEAD")
+
+
+def test_a_pull_request_of_tests_and_docs_whose_tests_pass_at_its_base_merges(merged):
+    """A pull request that adds only a test of behaviour main already has passes at its base as
+    at its head, since both run the same code: its proof block's line with base exit 0 is no
+    hold, and it merges with no word of the user's."""
+    files = (TEST, "features/x/docs/x.md")
+    opened(merged, files, proved(base_exit=0, head=merged.head))
+    (said,) = merged.run()
+    assert said.startswith("merged 7 alpha ")
+
+
+def test_a_fork_patch_of_tests_alone_whose_tests_pass_at_its_base_merges(merged):
+    """#1535: a fork patch that adds a test of behaviour the fork already has, put on the series,
+    with the doc that names it. Its fork line says base exit 0, as the base's series runs the same
+    code, and jmerge reads the patch and the PKGBUILD from git, and merges it."""
+    base = commit(
+        merged,
+        {
+            PKGBUILD: pkgbuild(CODE_PATCH.rsplit("/", 1)[-1]),
+            CODE_PATCH: patch("apps/web/src/tree.ts"),
+        },
+        push_to="main",
+    )
+    merged.start = base
+    merge.git(merged.home.main, "fetch", "-q", "origin")
+    merge.git(merged.home.main, "merge", "-q", "--ff-only", "origin/main")
+    merged.head = commit(
+        merged,
+        {
+            PKGBUILD: pkgbuild(
+                CODE_PATCH.rsplit("/", 1)[-1], TEST_PATCH.rsplit("/", 1)[-1], ver="6ddbc07fb3"
+            ),
+            TEST_PATCH: patch(FORK_TEST),
+            FORK_DOC: "the tree reads a scout from its work.json row\n",
+        },
+    )
+    files = (FORK_DOC, TEST_PATCH, PKGBUILD)
+    opened(merged, files, fork(base_exit=0, head=merged.head))
+    (said,) = merged.run()
+    assert said.startswith("merged 7 alpha ")
+
+
+def test_a_fork_patch_that_changes_code_and_passes_at_its_base_still_waits(merged):
+    merged.head = commit(
+        merged, {TEST_PATCH: patch(FORK_TEST, "apps/server/src/jstack/JbusWork.ts")}
+    )
+    opened(merged, (TEST_PATCH, PKGBUILD), fork(base_exit=0, head=merged.head))
+    (said,) = merged.run()
+    why = ready.PROVED_BASE_PASSED.format(exit=0, base=BASE[:12])
+    assert said == f"wait 7 {merge.URL}: {why}"
+    assert merged.untouched()
+
+
+@pytest.mark.parametrize(
+    ("pull", "fork_tests", "short"),
+    [
+        (one(TEST, "README.md"), lambda path: False, ""),
+        (one(TEST, "a.py"), lambda path: False, BASE_HELD),
+        (one(TEST, "a.py"), lambda path: path == "a.py", BASE_HELD),
+        (one(PATCH, PKGBUILD, FORK_DOC), lambda path: True, ""),
+        (one(PATCH, PKGBUILD), lambda path: path == PATCH, BASE_HELD),
+    ],
+)
+def test_a_line_that_passes_at_its_base_holds_only_where_the_pull_request_changes_code(
+    pull, fork_tests, short
+):
+    """`fork_tests` speaks only for a fork's files: a `.py` file of this repo is code whatever it
+    says, and a fork file it does not clear is code too."""
+    line = fork(base_exit=0) if PATCH in pull.files else proved(base_exit=0, tests=TEST)
+    assert ready.short_on_proved(result(line), pull, fork_tests=fork_tests) == short
+
+
+def _side(files):
+    return lambda path: files.get(path)
+
+
+SERIES = ("0035-jstack-tree-held-owner.patch",)
+ADDED = "0036-jstack-tree-scouts-from-work-test.patch"
+DIR = "features/t3code-jstack/packaging/"
+
+
+@pytest.mark.parametrize(
+    ("base", "head", "alone"),
+    [
+        ({}, {TEST_PATCH: patch(FORK_TEST)}, True),
+        ({}, {TEST_PATCH: patch(FORK_TEST, "docs/how.md")}, True),
+        ({}, {TEST_PATCH: patch(FORK_TEST, "apps/server/src/a.ts")}, False),
+        ({}, {TEST_PATCH: patch(FORK_TEST, "apps/web/package.json")}, False),
+        ({}, {TEST_PATCH: patch(FORK_TEST, binary=True)}, False),
+        ({}, {TEST_PATCH: "no diff here\n"}, False),
+        ({TEST_PATCH: patch(FORK_TEST)}, {}, False),
+        ({TEST_PATCH: patch("apps/server/src/a.ts")}, {TEST_PATCH: patch(FORK_TEST)}, False),
+    ],
+)
+def test_a_fork_patch_changes_tests_alone_where_it_touches_tests_and_docs_at_both_sides(
+    base, head, alone
+):
+    assert forktests.fork_tests_alone(TEST_PATCH, _side(base), _side(head)) is alone
+
+
+def _fork(pkg, *added):
+    return {
+        DIR + "PKGBUILD": pkg,
+        DIR + SERIES[0]: patch("apps/web/src/tree.ts"),
+        **{DIR + name: patch(FORK_TEST) for name in added},
+    }
+
+
+@pytest.mark.parametrize(
+    ("before", "after", "alone"),
+    [
+        (_fork(pkgbuild(*SERIES)), _fork(pkgbuild(*SERIES, ADDED, ver="6ddbc07fb3"), ADDED), True),
+        (_fork(pkgbuild(*SERIES)), _fork(pkgbuild(*SERIES, ADDED, tag="v0.1.8"), ADDED), False),
+        (_fork(pkgbuild(*SERIES)), _fork(pkgbuild(*SERIES, ADDED, prepare="true"), ADDED), False),
+        (_fork(pkgbuild(*SERIES)), _fork(pkgbuild()), False),
+        (_fork(pkgbuild(*SERIES, ADDED), ADDED), _fork(pkgbuild(*SERIES)), True),
+        (
+            _fork(pkgbuild(*SERIES)),
+            {**_fork(pkgbuild(*SERIES, ADDED), ADDED), DIR + ADDED: patch("apps/a.ts")},
+            False,
+        ),
+        (_fork(pkgbuild(*SERIES)), _fork(pkgbuild(*SERIES, "0037-gone.patch")), False),
+    ],
+)
+def test_a_pkgbuild_changes_tests_alone_where_only_its_series_gains_or_loses_test_patches(
+    before, after, alone
+):
+    assert forktests.fork_tests_alone(DIR + "PKGBUILD", _side(before), _side(after)) is alone
+
+
+def test_any_other_fork_file_is_code():
+    files = {DIR + "jstack.install": "post_install() { :; }\n"}
+    assert not forktests.fork_tests_alone(DIR + "jstack.install", _side({}), _side(files))
+
+
+def test_a_fork_file_of_a_head_with_no_merge_base_is_code(tmp_path):
+    """With no merge-base there is no base to read the change from, so nothing is cleared."""
+    git = ["git", "-C", str(tmp_path)]
+    subprocess.run([*git, "init", "-q"], check=True)
+    (tmp_path / "PKGBUILD").write_text(pkgbuild(TEST_PATCH.rsplit("/", 1)[-1]))
+    subprocess.run([*git, "add", "-A"], check=True)
+    subprocess.run(
+        [*git, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "head"], check=True
+    )
+    assert not forktests.in_repo(str(tmp_path), "no-such-base", "HEAD")(DIR + "PKGBUILD")
