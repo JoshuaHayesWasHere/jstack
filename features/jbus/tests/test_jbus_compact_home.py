@@ -171,7 +171,8 @@ def test_a_send_t3_code_refused_is_not_sent_again_for_that_call(kitchen):
 
 
 def test_the_last_call_of_a_thread_is_read_through_the_index_of_sessions_by_thread(kitchen):
-    """`v018_sessions_thread` adds the index, and the read of `compact.last_call` takes it."""
+    """`jbus.telemetry.migrations.v018_sessions_thread` adds the index, and the read of
+    `compact.last_call` takes it."""
     assert "sessions_thread" in migrations.MIGRATIONS["v018_sessions_thread"]
     store = telemetry.connect(kitchen.state_dir / telemetry.FILE)
     plan = store.execute("EXPLAIN QUERY PLAN " + compact._LAST, ("mcp:x",)).fetchall()
