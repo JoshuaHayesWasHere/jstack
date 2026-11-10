@@ -1549,9 +1549,9 @@ def request_faults(slug: str, text: str) -> list[str]:
     A request is in the template's shape when its first line is `# <slug>: <what to find out>`,
     each label of `labels` has a field whose lines are filled in (not the template's own
     placeholders), its `Questions:` has at least one item, its `Out of bounds:` starts
-    `read-only`, and a `Model:` line, which it may leave out, names one model id. It has no line that only a crewmate's brief has, and its `Request:` line is no
-    longer than `jbriefs.parse.LONGEST`. It does not have its scout ask the user mid-task
-    (`asks`).
+    `read-only`, and a `Model:` line, which it may leave out, names one model id. It has no line
+    that only a crewmate's brief has, and its `Request:` line is no longer than
+    `jbriefs.parse.LONGEST`. It does not have its scout ask the user mid-task (`asks`).
     """
     found = []
     held = briefs.fields(text)
