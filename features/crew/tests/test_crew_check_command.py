@@ -310,11 +310,13 @@ def test_a_failed_check_on_the_pull_request_runs_the_check_block_it_names(tmp_pa
     assert (said[-2:], code) == (["held", "done: the check exited 3"], 3)
 
 
-def lanes(stub, locks, log, exits=None):
+def lanes(stub, locks, log, exits=None, takes=None):
     """A `make` on the path that records its arguments, and which lane's slot was held while it
     ran: `short` when any slot of the short lane was, `full` when any of the full lane's were. It
     asks with `TAKEN`, by Python's fcntl, since macOS has no `flock` command. It ends with the
-    code of the first of `exits` whose shell pattern matches what it records, and 0 by default."""
+    code of the first of `exits` whose shell pattern matches what it records, and 0 by default.
+    With `takes`, each run moves the clock of `clocked` on by that many seconds and records the
+    wait for a short slot it was given, in `waits` beside the clock."""
     ends = "".join(
         f"{pattern.replace(' ', chr(92) + ' ')}) exit {code} ;; "
         for pattern, code in (exits or {}).items()
@@ -330,12 +332,30 @@ def lanes(stub, locks, log, exits=None):
         "&& full=held; done\n"
         'said="$* short=$short full=$full"\n'
         f'echo "$said" >> {log}\n'
-        f'case "$said" in {ends}esac\n'
+        + (
+            f'echo "${{JGAUGE_SHORT_WAIT_SECONDS-unset}}" >> {stub / "waits"}\n'
+            f'echo $(($(cat {stub / "clock"}) + {takes})) > {stub / "clock"}\n'
+            if takes
+            else ""
+        )
+        + f'case "$said" in {ends}esac\n'
     )
     (stub / "make").chmod(0o755)
+    if takes:
+        clocked(stub)
 
 
-def selected(tmp_path, repo, on="origin/main", exits=None):
+def clocked(stub):
+    """A `date` on the path whose `+%s` is the clock in `stub/clock`, which only the `make` of
+    `lanes` moves, so a step takes the time the test says and no more."""
+    (stub / "clock").write_text("1000\n")
+    (stub / "date").write_text(
+        f'#!/bin/sh\n[ "$*" = +%s ] && exec cat {stub / "clock"}\nexec /bin/date "$@"\n'
+    )
+    (stub / "date").chmod(0o755)
+
+
+def selected(tmp_path, repo, on="origin/main", exits=None, takes=None):
     """Run the check block once in `repo`, a worktree whose `origin/main` the test has set, with
     a `make` that records each run. It returns what the block printed, its exit code, the runs of
     `make` and the commit the branch left `origin/main` at."""
@@ -346,7 +366,7 @@ def selected(tmp_path, repo, on="origin/main", exits=None):
     )
     stub.mkdir(exist_ok=True)
     room.uv(stub)
-    lanes(stub, locks, log, exits)
+    lanes(stub, locks, log, exits, takes)
     said, code, _ = checked(tmp_path, "echo the full lane")
     base = subprocess.run(
         ["git", "merge-base", on, "HEAD"], cwd=repo, capture_output=True, text=True
@@ -647,6 +667,53 @@ def test_with_every_short_slot_taken_the_check_waits_and_writes_no_checked_line(
     assert "run the same command again now, in this turn" in "\n".join(said)
     assert not (locks / "test-slot-waiters.json").exists()
     assert brief.read_text() == "# a-task: a task\n\n## Result\n"
+
+
+FOUR = ("tests/test_a.py", "tests/test_b.py", "tests/test_c.py", "tests/test_d.py")
+
+
+def test_the_block_starts_no_step_it_cannot_end_in_its_call(tmp_path, monkeypatch):
+    """A call ends at 600 s, and past it the harness moves the block to the background, where
+    each step's end wakes the thread. So the block starts no step with less of its 540 s left
+    than the short lane's 120 s limit: with each step taking 150 s, the third step ends at
+    450 s and the fourth is not started. It says how many steps are left, ends 76 as a wait
+    does, and writes no `Checked:` line, since nothing reached a verdict for the whole check."""
+    monkeypatch.delenv("JGAUGE_SHORT_WAIT_SECONDS", raising=False)
+    repo = stubbed(tmp_path, touching(*FOUR))
+    brief = a_brief(tmp_path)
+    said, code, ran, base = selected(tmp_path, repo, takes=150)
+    assert ran == [lint(base), alone(FOUR[0], base), alone(FOUR[1], base)]
+    assert (said[-1], code) == ("running: 3 steps left", 76), said
+    assert brief.read_text() == "# a-task: a task\n\n## Result\n"
+
+
+def test_a_step_waits_no_longer_than_the_call_has_left(tmp_path, monkeypatch):
+    """A step's wait for a short slot is the time left of the 540 s less the 120 s the step may
+    then run, and never more than the lane's own ceiling of 300 s: 300 s at 0 s and 150 s, and
+    120 s at 300 s."""
+    monkeypatch.delenv("JGAUGE_SHORT_WAIT_SECONDS", raising=False)
+    repo = stubbed(tmp_path, touching(*FOUR))
+    a_brief(tmp_path)
+    selected(tmp_path, repo, takes=150)
+    assert (tmp_path / "stub" / "waits").read_text().split() == ["300", "300", "120"]
+
+
+def test_a_block_run_again_ends_the_steps_left(tmp_path, monkeypatch):
+    """On `running:` the block is run again in the turn: at the same head it skips the steps
+    that passed, runs the rest in a call of its own, and writes the `Checked:` line once the
+    last has passed."""
+    monkeypatch.delenv("JGAUGE_SHORT_WAIT_SECONDS", raising=False)
+    repo = stubbed(tmp_path, touching(*FOUR))
+    brief = a_brief(tmp_path)
+    said, code, ran, base = selected(tmp_path, repo, takes=150)
+    assert code == 76
+    said, code, ran, base = selected(tmp_path, repo, takes=150)
+    head = git(repo, "rev-parse", "HEAD")
+    assert ran == [alone(FOUR[2], base), alone(FOUR[3], base)]
+    assert code == 0, said
+    assert brief.read_text().endswith(
+        f"Checked: make check-fast BASE={base} PART=touched exit 0 at {head}\n"
+    )
 
 
 def test_a_change_that_touches_no_test_runs_only_the_lint(tmp_path):
