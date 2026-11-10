@@ -43,7 +43,7 @@ T=$(realpath ~/.claude/skills/crew/../../templates)
 
    On `go` or `no jbus`, go on.
    On `stop`, the block has written the Result: say its line here and do nothing else, not even "End".
-2. Check where you are: `git status -sb`. A home that launched this thread gave it a worktree and a branch named for the task: work there. If this is instead the repo's main checkout on its default branch, make a branch first. Never commit on the default branch.
+2. Check where you are: `git status -sb`. A home that launched this thread has already given it a worktree and a branch named for the task: work there. If this is instead the repo's main checkout on its default branch, make a branch first. Never commit on the default branch.
 3. See whether the brief names a playbook.
    Run this in a call of its own, with the block at the top and nothing else in it: a call that also prints another file can come back cut off, and the steps with it:
 
