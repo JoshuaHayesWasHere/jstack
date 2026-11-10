@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from jmerge import bus, ready
+from jmerge import ready
 from jsettings import store
 
 BRANCH = "jmerge/batch"
@@ -90,7 +90,7 @@ class Batch:
     tree: str
     commit: str
     members: tuple[Member, ...]
-    at: str
+    at: datetime
 
     def holds(self, one: ready.PullRequest) -> bool:
         return Member(one.number, one.head) in self.members
@@ -117,7 +117,7 @@ class Record:
                 str(kept["tree"]),
                 str(kept["commit"]),
                 tuple(Member(int(m["number"]), str(m["head"])) for m in kept["members"]),
-                str(kept.get("at") or ""),
+                datetime.fromisoformat(str(kept["at"])),
             )
         except (KeyError, TypeError, ValueError):
             made = None
@@ -132,7 +132,7 @@ class Record:
                 "tree": made.tree,
                 "commit": made.commit,
                 "members": [{"number": m.number, "head": m.head} for m in made.members],
-                "at": made.at,
+                "at": made.at.isoformat(),
             }
         store.write_json(self.path, {**kept, "failed": self.failed})
 
@@ -152,17 +152,9 @@ def state_of(
         return NONE
     if run:
         return PROVEN
-    if pull.failed or not pull.waiting or late(batch.at, now):
+    if pull.failed or not pull.waiting or now - batch.at > timedelta(minutes=PENDING_MINUTES):
         return FAILED
     return PENDING
-
-
-def late(at: str, now: datetime) -> bool:
-    try:
-        pushed = datetime.fromisoformat(at)
-    except ValueError:
-        return True
-    return now - pushed > timedelta(minutes=PENDING_MINUTES)
 
 
 def _git(main: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -181,34 +173,25 @@ class Built:
     members: tuple[Member, ...]
 
 
-def build(main: Path, base: str, tip: str, heads: list[Member]) -> Built | str | None:
+def build(main: Path, base: str, tip: str, heads: list[Member]) -> Built:
     """Merge each head over `tip` in turn with `git merge-tree`, as GitHub's squashes will land
     them: each step a commit of one parent over the last, so each head merges from its own fork
-    point, as its squash does. A head that conflicts with those before it is left out, and
-    `MOST` heads at most go in. The batch is one commit of the last tree, whose one parent is the
-    tip. Return it, why it could not be built, or None where no head went in."""
+    point, as its squash does. A head that does not merge over those before it (a conflict, or a
+    head git cannot read) is left out, and `MOST` heads at most go in. The batch is one commit of
+    the last tree, whose one parent is the tip. A commit git could not make is empty, and the
+    push of it fails and says why (`push`)."""
     at, tree, members = tip, "", []
     for one in heads:
-        if len(members) == MOST:
-            break
         merged = _git(main, "merge-tree", "--write-tree", at, one.head)
         found = merged.stdout.split()[:1]
-        if merged.returncode == 1 and found:
+        if merged.returncode or not found or len(members) == MOST:
             continue
-        if merged.returncode or not found:
-            return f"#{one.number} could not be merged in ({_said(merged)})"
         step = _git(main, *_IDENTITY, "commit-tree", found[0], "-p", at, "-m", f"#{one.number}")
-        if step.returncode:
-            return _said(step)
         at, tree = step.stdout.strip(), found[0]
         members.append(one)
-    if not members:
-        return None
     numbers = " ".join(f"#{one.number}" for one in members)
     message = f"jmerge: batch of {numbers} over {base} at {tip[:SHA]}"
     made = _git(main, *_IDENTITY, "commit-tree", tree, "-p", tip, "-m", message)
-    if made.returncode:
-        return _said(made)
     return Built(tree, made.stdout.strip(), tuple(members))
 
 
@@ -233,19 +216,6 @@ class Batching:
     run: str
     pull: ready.PullRequest | None
     members: list[Judged] = field(default_factory=list)
-    migration: int | None = None
-    """The member that adds a migration, which a batch holds one of at most."""
-
-    def migrating(self, one: ready.PullRequest, settings: bus.Migrations | None) -> int:
-        """The member ahead that adds a migration, where `one` adds one too, or 0. A second
-        migration waits for the first to merge, so the two land in their order and a clash of
-        their numbers shows to the second's own check, as when they merge alone."""
-        if settings is None or not ready.migrations(one, settings.directory):
-            return 0
-        if self.migration is None or self.migration == one.number:
-            self.migration = one.number
-            return 0
-        return self.migration
 
     def takes(self, one: ready.PullRequest, default: str, revert: bool) -> bool:
         """Whether `one`, ready but for main moving under its check, is a member: a pull request

@@ -16,7 +16,8 @@ import pytest
 import test_home_merge as merge
 from jmerge import batch, green, ready, treeguards
 from jmerge.lock import MergeLock
-from test_jmerge_fresh import GH, LINES, Kitchen, git, url
+from test_jmerge_fresh import AFTER as LATER
+from test_jmerge_fresh import CONFLICT, GH, LINES, Kitchen, git, url
 from test_jmerge_order import DIRECTORY, queue_of, row
 from test_jmerge_revert_line import named
 
@@ -39,12 +40,24 @@ CREATE = """\
             *) exit 64 ;;
         esac ;;
 """
-BATCH_GH = GH.replace('case "$1 $2" in\n', 'case "$1 $2" in\n' + CREATE, 1).replace(
-    'if [ -e "$STUB/merge-refused" ]; then',
-    'if [ -e "$STUB/merge-refused" ] || [ -e "$STUB/refuse-$3" ]; then',
-    1,
+BATCH_GH = (
+    GH.replace('case "$1 $2" in\n', 'case "$1 $2" in\n' + CREATE, 1)
+    .replace(
+        'if [ -e "$STUB/merge-refused" ]; then',
+        'if [ -e "$STUB/merge-refused" ] || [ -e "$STUB/refuse-$3" ]; then',
+        1,
+    )
+    .replace(
+        'echo "$commit" > "$STUB/merged-$3" ;;',
+        'echo "$commit" > "$STUB/merged-$3"\n'
+        '        if [ -e "$STUB/also-$3" ]; then\n'
+        '            again=$(git -C "$ORIGIN" commit-tree "$tree" -p "$commit" -m "by hand")\n'
+        '            git -C "$ORIGIN" update-ref refs/heads/main "$again"\n'
+        "        fi ;;",
+        1,
+    )
 )
-assert BATCH_GH.count("pr create") == 1 and "refuse-$3" in BATCH_GH
+assert BATCH_GH.count("pr create") == 1 and "refuse-$3" in BATCH_GH and "also-$3" in BATCH_GH
 MAKEFILE = "guards:\n\t@echo ran >> {ran}\n"
 OURS = "ours\n" + LINES
 
@@ -245,10 +258,13 @@ def test_a_batch_still_checked_holds_its_members_and_the_rest_wait_for_it(kitche
     kitchen.run()
     listed(kitchen, (merge.RUNNING,))
     kitchen.crew("four", 9, {"e.txt": OURS})
+    kitchen.crew("five", 10, {"f.txt": OURS}, checks=(LATER,))
     listed(kitchen, (merge.RUNNING,))
     after = batch.AFTER.format(base="main", tip=tip[:12])
-    assert kitchen.run() == [in_batch(number, tip) for number in (6, 7, 8)] + [
-        f"wait 9 {url(9)}: {after}"
+    assert kitchen.run() == [
+        f"wait 10 {url(10)}: {after}",
+        *(in_batch(number, tip) for number in (6, 7, 8)),
+        f"wait 9 {url(9)}: {after}",
     ]
     assert kitchen.calls() == [] and runs(kitchen) == 0
 
@@ -299,3 +315,109 @@ def test_a_pull_request_whose_merge_after_is_unmet_stays_out_of_the_batch(kitche
     assert first.startswith(f"wait 7 {url(7)}: merges after one ")
     assert second == in_batch(6, tip)
     assert [one["number"] for one in record(kitchen)["members"]] == [6]
+
+
+def test_a_batch_whose_check_runs_past_its_limit_sends_each_member_down_the_single_path(kitchen):
+    three(kitchen)
+    kitchen.run()
+    kept = record(kitchen)
+    (kitchen.home.state / batch.KEPT).write_text(
+        json.dumps({**kept, "at": "2000-01-01T00:00:00+00:00"})
+    )
+    listed(kitchen, (merge.RUNNING,))
+    said = kitchen.run()
+    assert [line.split()[:2] for line in said] == [
+        ["merged", "6"],
+        ["merged", "7"],
+        ["merged", "8"],
+    ]
+    assert runs(kitchen) == 3
+
+
+def test_a_member_that_conflicts_with_one_before_it_waits_for_the_batch(kitchen):
+    kitchen.crew("one", 6, {"a.txt": OURS})
+    kitchen.crew("two", 7, {"a.txt": "theirs too\n" + LINES})
+    tip = kitchen.on_main({"d.txt": "theirs\n"})
+    after = batch.AFTER.format(base="main", tip=tip[:12])
+    assert kitchen.run() == [in_batch(6, tip), f"wait 7 {url(7)}: {after}"]
+    assert [one["number"] for one in record(kitchen)["members"]] == [6]
+
+
+def test_a_batch_holds_its_most_members_and_leaves_the_rest_out(kitchen, monkeypatch):
+    heads = three(kitchen)
+    tip = kitchen.tip()
+    git(kitchen.home.main, "fetch", "-q", "origin")
+    monkeypatch.setattr(batch, "MOST", 2)
+    members = [batch.Member(n, head) for n, head in zip((6, 7, 8), heads, strict=True)]
+    built = batch.build(kitchen.home.main, "main", tip, members)
+    assert built.members == tuple(members[:2])
+    assert git(kitchen.home.main, "show", f"{built.commit}:b.txt") == OURS.strip()
+    assert git(kitchen.home.main, "show", f"{built.commit}:c.txt") == LINES.strip()
+
+
+def test_a_batch_the_origin_refuses_sends_each_member_down_the_single_path(kitchen):
+    hook = kitchen.origin / "hooks" / "pre-receive"
+    hook.write_text(
+        "#!/bin/sh\n"
+        "while read -r old new ref; do\n"
+        f'    [ "$ref" = refs/heads/{batch.BRANCH} ] && echo "no batch here" >&2 && exit 1\n'
+        "done\n"
+        "exit 0\n"
+    )
+    hook.chmod(0o755)
+    three(kitchen)
+    tip = kitchen.tip()
+    unmade, *said = kitchen.run()
+    assert unmade.startswith(f"batch: not made over main at {tip[:12]} (")
+    assert [line.split()[:2] for line in said] == [
+        ["merged", "6"],
+        ["merged", "7"],
+        ["merged", "8"],
+    ]
+    assert runs(kitchen) == 3
+
+
+def test_a_batch_no_member_merges_into_any_more_sends_them_down_the_single_path(kitchen):
+    """#7 merges alone on its check, which ran over today's main, after #6 joined the batch, and
+    its line clashes with #6's: no member is left to build over the new tip."""
+    kitchen.crew("one", 6, {"a.txt": OURS})
+    kitchen.crew("two", 7, {"a.txt": "theirs too\n" + LINES}, checks=(LATER,))
+    kitchen.on_main({"d.txt": "theirs\n"})
+    merged, unmade, waits = kitchen.run()
+    assert merged.startswith("merged 7 two ")
+    tip = kitchen.tip()[:12]
+    assert unmade == batch.UNMADE.format(
+        base="main", tip=tip, why=f"no member merges over main at {tip}"
+    )
+    assert waits == f"wait 6 {url(6)}: {CONFLICT}"
+
+
+def test_a_proven_batch_stops_at_a_member_no_longer_ready_at_its_head(kitchen):
+    three(kitchen)
+    tip = kitchen.tip()
+    kitchen.run()
+    tree = kitchen.tmp / "trees" / "two"
+    (tree / "b.txt").write_text("changed after the review\n" + LINES)
+    git(tree, "commit", "-qam", "late")
+    git(tree, "push", "-q")
+    kitchen.pulls["two"]["headRefOid"] = git(tree, "rev-parse", "HEAD")
+    proven(kitchen)
+    own, merged, stopped = kitchen.run()
+    assert own.startswith(f"wait 7 {url(7)}: ")
+    assert merged.startswith("merged 6 one ")
+    assert stopped == f"wait 8 {url(8)}: " + batch.STOPPED.format(
+        base="main", tip=tip[:12], number=7
+    )
+    assert [call.split()[2] for call in kitchen.calls()] == ["6"]
+
+
+def test_a_proven_batch_stops_where_another_hand_moved_main_between_its_merges(kitchen):
+    three(kitchen)
+    kitchen.run()
+    proven(kitchen)
+    (kitchen.home.stub / "also-6").write_text("")
+    merged, *said = kitchen.run()
+    assert merged.startswith("merged 6 one ")
+    moved = ready.MAIN_MOVED.format(base="main")
+    assert said == [f"wait {n} {url(n)}: {moved}" for n in (7, 8)]
+    assert [call.split()[2] for call in kitchen.calls()] == ["6"]

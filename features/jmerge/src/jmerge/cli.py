@@ -785,9 +785,6 @@ class Repo:
             return ready.UNMERGED.format(why=lines.said(merged)), ready.Judged()
         overlaps = left is None or bool({*one.files, *left} & set(paths))
         if self.batching is not None and self.batching.takes(one, self.trunk, self.is_revert(one)):
-            first = self.batching.migrating(one, self.migrations)
-            if first:
-                return ready.MIGRATION_MERGING.format(number=first), ready.Judged()
             return "", ready.Judged(tip, overlaps=overlaps, batch=True)
         if not overlaps:
             return "", ready.Judged(tip)
@@ -1535,8 +1532,6 @@ class Repo:
             rebase, judged = again_judged.note, again_judged.judged
         else:
             return lines.waits("wait", number, one.url, ready.MERGING)
-        if self.messages(one) is None:
-            return lines.waits("wait", number, one.url, ready.NO_MESSAGES)
         tip = judged.tip or _run(self.main, "git", "rev-parse", f"origin/{one.base}").stdout.strip()
         guarded, passed = self.guards.of(one, tip)
         if guarded and judged.overlaps and self.guards.kept(one, tip):
@@ -1725,26 +1720,21 @@ class Repo:
         if not members:
             on.record.write()
             return []
-        fetched = _run(self.main, "git", "fetch", "-q", "origin", default)
+        _run(self.main, "git", "fetch", "-q", "origin", default)
         tip = _run(self.main, "git", "rev-parse", f"origin/{default}").stdout.strip()
         heads = [batch.Member(one.number, one.head) for one, *_ in members if self.has(one)]
-        made: batch.Built | str | None = f"{default} could not be fetched"
-        if not fetched.returncode and tip:
-            made = batch.build(self.main, default, tip, heads)
-        if made is None:
-            made = "no member merges cleanly over its tip"
-        why = made if isinstance(made, str) else batch.push(self.main, made.commit)
+        made = batch.build(self.main, default, tip, heads)
+        why = "" if made.members else f"no member merges over {default} at {tip[: batch.SHA]}"
+        why = why or batch.push(self.main, made.commit)
         if not why and on.pull is None:
             why = self.open_batch(default)
-        if why or isinstance(made, str):
+        if why:
             on.record.write()
             said = [batch.UNMADE.format(base=default, tip=tip[: batch.SHA], why=why)]
             for one, slug, note, judged in members:
                 said.append(self.merge(one, slug, note, replace(judged, batch=False)))
             return said
-        on.record.batch = batch.Batch(
-            tip, made.tree, made.commit, made.members, datetime.now(UTC).isoformat()
-        )
+        on.record.batch = batch.Batch(tip, made.tree, made.commit, made.members, datetime.now(UTC))
         on.record.write()
         return self.waiting(on.record.batch, default, members)
 
