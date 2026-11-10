@@ -285,7 +285,7 @@ What a message you typed is about is one label too, its `surface`, kept in `mess
 
 Each label but `needs` and `other` is a pattern of words, tried in the order of the table (`approval` reads a message's start, where an answer's word is, and `my pick` anywhere), over the first 400 characters with a mention in quotes or backticks and a link's target left out.
 A word of `acts` has no `surface`: an act keeps no text past its read.
-The measures `merge-asks` and `approval-reasks` read it; `merge` counts every message that names a pull request, a new piece of work as much as a complaint, and `approval` every approval typed in T3, a re-ask or not, and no word said through the bots' chat or the view.
+The measures `merge-asks` and `approval-reasks` read it, each as a day's rate: the count of the week so far over its days, against a seventh of its weekly baseline, so a Monday and a Saturday are judged alike; `merge` counts every message that names a pull request, a new piece of work as much as a complaint, and `approval` every approval typed in T3, a re-ask or not, and no word said through the bots' chat or the view.
 `sidebar-friction`, `status-asks`, `wrong-home` and `friction-by-surface`, the share of typed messages that are not `other`, lack it: on a held-out 100 of the audit of 2026-11-09, the label agreed with its hand label under 80% of the time, and each measure's `needs` gives by how much.
 `reply-corrections` and `visual-misses` lack it too: no pattern of the words tells a correction from a request.
 `asks.py` gives each pattern and what it misses.
