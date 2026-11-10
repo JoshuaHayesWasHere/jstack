@@ -229,7 +229,8 @@ For each lane it prints:
 - the wait in the call, p50 and p90, of the holds taken in the span
 - when a thread of the lane waited for a slot in the span, by jbus's `slot-wake` events, the mean occupancy over the time it waited, and its share of the lane's slots
 
-Then it prints the CPU of the holds released in the span, from the release rows' `cpu_user` and `cpu_system`: the total CPU seconds by lane and by repo, user plus system, and the mean cores the total comes to over the span. A release written before the log recorded the CPU is counted apart.
+Then it prints the CPU of the holds released in the span, from the release rows' `cpu_user` and `cpu_system`: the total CPU seconds by lane and by repo, user plus system, and the mean cores the total comes to over the span.
+A release written before the log recorded the CPU is counted apart.
 
 ### The slot log
 
@@ -242,7 +243,7 @@ Each row has:
 - `lane`, `slot`, the slot's number, and `slots`, the lane's size as the caller counted it
 - `thread`, empty with no `--thread`, `command` and `cwd`, which name the caller
 - on a take, `waited`, the seconds the call waited for the slot, and `repo`, the name of the directory that holds the git repository `cwd` is in (for a worktree, its main checkout's), or empty outside a repository
-- on a release, `code`, the command's exit code, `hold`, the seconds it held the slot, and `cpu_user` and `cpu_system`, the CPU seconds that the command and every process it waited for used, in user mode and in system mode. A process the command left running when it ended is not counted
+- on a release, `code`, the command's exit code, `hold`, the seconds it held the slot, and `cpu_user` and `cpu_system`, the CPU seconds that the command and every process it waited for used, in user mode and in system mode, and not a process the command left running when it ended
 
 The release row is written before the lock is let go, so a slot's next take comes after it in the log.
 A log that cannot be written stops no run.
