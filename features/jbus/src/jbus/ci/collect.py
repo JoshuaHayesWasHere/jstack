@@ -197,23 +197,23 @@ class Cli:
 
     def annotations(self, jobs: list[dict[str, Any]]) -> dict[int, list[dict[str, Any]]]:
         """One GraphQL call for each `PAGE` jobs. GitHub answers a node it cannot read with null
-        and an error, and gh then exits 1: the other nodes' annotations still count."""
+        and an error, and gh then exits 1: the other nodes' annotations still count. A call that
+        gives no nodes costs its own jobs their annotations, and a node of another shape its own
+        job's, and no other's."""
         ids = [job["node_id"] for job in jobs if job.get("node_id")]
         given: dict[int, list[dict[str, Any]]] = {}
         for at in range(0, len(ids), PAGE):
             fields = [part for one in ids[at : at + PAGE] for part in ("-f", f"ids[]={one}")]
-            asked = self.ask(["gh", "api", "graphql", "-f", f"query={NOTES}", *fields])
             try:
+                asked = self.ask(["gh", "api", "graphql", "-f", f"query={NOTES}", *fields])
                 nodes = json.loads(asked.stdout)["data"]["nodes"]
-            except (ValueError, KeyError, TypeError):
-                nodes = None
-            if not isinstance(nodes, list):
-                self._given(asked)
-                raise Unavailable("GitHub gave no nodes")
-            for node in nodes:
-                if isinstance(node, dict) and isinstance(node.get("databaseId"), int):
-                    found = (node.get("annotations") or {}).get("nodes")
-                    given[node["databaseId"]] = _listed(found, None)
+            except (Unavailable, ValueError, KeyError, TypeError):
+                continue
+            for node in nodes if isinstance(nodes, list) else []:
+                notes = node.get("annotations") if isinstance(node, dict) else None
+                found = notes.get("nodes") if isinstance(notes, dict) else None
+                if isinstance(found, list) and isinstance(node.get("databaseId"), int):
+                    given[node["databaseId"]] = [one for one in found if isinstance(one, dict)]
         return given
 
     def log(self, repo: str, job: int) -> str:
@@ -310,13 +310,10 @@ def notice(found: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def notes(gh: Gh, jobs: list[dict[str, Any]]) -> dict[int, list[dict[str, Any]]]:
-    """Return the annotations of each job that ran a step, read in one ask for them all, or none
-    where GitHub did not answer: those jobs are kept with no telemetry."""
+    """Return the annotations of each job that ran a step, read in one ask for them all. A job
+    whose annotations GitHub did not give is kept with no telemetry."""
     stepped = [job for job in jobs if job.get("steps")]
-    try:
-        return gh.annotations(stepped) if stepped else {}
-    except Unavailable:
-        return {}
+    return gh.annotations(stepped) if stepped else {}
 
 
 def row(
