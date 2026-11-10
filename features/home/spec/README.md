@@ -3,6 +3,7 @@
 A root home and two sibling child homes on one repo, with the rules Josh set for them on 2026-10-23.
 Child a is short-lived, does one feature and is archived, and child b is a routine with a declared rhythm.
 Each child has a pull request, a crew thread and two calls to Josh, and a call reaches Josh through the root's home thread, which can fail.
+The root owns no row: what a retired child had out is the catch-all's, `uncategorized`, whose home jbus keeps running (`keep_alive` in `jbus/children.py`).
 
 - `HomeTree.tla` holds the variables, the start, and the rules, each with its sentence.
 - `HomeTreeToday.tla` models today's code, and each of its conditions names the file that checks it and quotes the code, with no line number.
@@ -28,6 +29,7 @@ The scene `a` is child a alone with both its calls and a home thread that can fa
 The scene `siblings` is both children, with no calls of their own and a home thread that never fails.
 One call never waits on another, and what the siblings share is main, the merge lock and the home thread, so the siblings' scene checks what they share.
 In the siblings' scene the rules on calls hold with little to check, since only the root's notices are calls there and the home thread never fails: the scenes `a` and `b` check those rules.
+The catch-all's thread shares nothing with what the siblings share, so in their scene it moves only before the root makes a child (`CatchallFirst`), and the scenes `a` and `b` check it beside every step of a child.
 The failed route, `RouteFails` and `RouteMends`, steps only where `MayFail` is `TRUE`, which is the scenes `a` and `b` of `canaries.py` and not `HomeTreeToday.cfg`.
 The canary `keep-on-fail` breaks `CallsReachJosh` in scene `a` only after a post to the home thread fails, so it shows the failed route steps there.
 The run of every invariant checks `SceneStill` on the whole model: no child, call or notice outside the scene ever leaves its start.
@@ -45,10 +47,12 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --p
 It writes `HomeTreeToday-statechart/`: `chart.mmd` and `chart.png`, `stories.md` and `summary.json`.
 Today's code breaks no rule, so it draws no `bug-N` chart and `stories.md` is empty.
 Its `tlc/` folder holds TLC's output, which is not committed.
-The chart's scene, in `HomeTreeToday.cfg`, is child a alone with one call, a home thread that never fails, K at 1, and no guard dropped.
+The chart's scene, in `HomeTreeToday.cfg`, is child a alone with one call, a home thread that never fails, K at 1, no guard dropped, and the catch-all's thread moving only before the root makes child a (`CatchallFirst`).
 TLC 2.19 fails in a run of one worker with `-continue` once a rule breaks in some thousands of states, and the statechart command runs one worker, so the chart's scene is small.
 The home thread never fails in the chart's scene, and can fail in the scenes `a` and `b` of `canaries.py`.
-With it able to fail, the chart's scene has 4002 states and not 1334, and Mermaid's PNG of it comes out mostly blank.
+With it able to fail, the chart's scene has some three times the states, and Mermaid's PNG of it comes out mostly blank.
+So it is with the catch-all's thread moving beside child a: the chart has 240 states and not 76, and Mermaid draws only "Maximum text size in diagram exceeded".
+In the chart's scene the catch-all's story comes first, its start, a start that ends with no `home-id`, its own thread, and you archiving it, and the children's after it.
 The chart draws only the rules that are invariants.
 A ready pull request that never merges (`ReadyMerges`) is a property, and today's code keeps it since pull request 357 let jbus merge a child's pull request, which the chart draws as a step of today's code.
 Stranding (`CallsReachJosh`) is a property too, and today's code keeps it: jbus has one route to Josh, the home thread, and a post to it that fails leaves the call in its outbox.
@@ -59,8 +63,8 @@ The merge race (`NoBlindMerge`) needs two pull requests, so it is in the sibling
 Until the branch hometree-rules, today's code broke four rules, each along a story of the chart.
 Each now holds by the guard the design names for it, and a test in `features/home/tests/test_home_tree_spec.py` drives the real code along that story and fails on the code before it.
 
-1. `RetireHandsOver`, by the hand-over: the handoff skill archives a scope whatever it has out, starts no home after it, and removes its `home-id` and moves its plan out, so what `jbus out --scope <scope>` printed for it is the root home's (`jbriefs/home.py`, `jbus/children.py`).
-   The test is `test_retire_hands_over_a_child_archived_with_its_crew_out_leaves_it_to_the_root`, where the handoff archives the scope while a crew jbus launched for it is out, and the crew's brief is the root home's from then on.
+1. `RetireHandsOver`, by the hand-over: the handoff skill archives a scope whatever it has out, starts no home after it, and removes its `home-id` and moves its plan out, so what `jbus out --scope <scope>` printed for it is the catch-all's, `uncategorized` (`jbriefs/home.py`, `jbus/children.py`).
+   The test is `test_retire_hands_over_a_child_archived_with_its_crew_out_to_uncategorized`, where the handoff archives the scope while a crew jbus launched for it is out, and the crew's brief is the catch-all's from then on.
 2. `StallFlagged`, with `NudgesBounded` and `AsksAfterRelaunch`, by the root's watch of its children: a jbus pass nudges a child that has been quiet for its patience with work out, nudges it once more, launches its home on a fresh thread, and then puts it on the user's list of what needs them (`jbus/children.py`, `watch`).
    The test is `test_stall_flagged_a_quiet_child_with_its_crew_out_is_flagged`, where real jbus passes nudge the child's home thread an hour after its crew stopped, and send the root's thread nothing.
    Two rules of 2026-11-08 (the root-hierarchy home's plan, rh-keepalive) came with the launch: `StallOnNeeds`, that a stall goes to no home thread, the root's included, and reaches the user on `jbus needs`, and `RelaunchOnce`, that jbus launches a home again at most once; a home it launched that stalls again goes on `jbus needs`.
@@ -74,6 +78,8 @@ Each now holds by the guard the design names for it, and a test in `features/hom
 ## What the model leaves out
 
 - A third child.
+- That a stalled handed child's launch on a fresh thread is a launch of the catch-all, which shares the keep-alive's record of its last launch.
+- A start of the catch-all that fails twice on one cause and waits for it to clear (`_waits`): the model's fairness says a start launched again and again writes its `home-id` in the end.
 - What one home leaves for another: a queued row `--for` that home, the user's word the root carries to a scope by `jbus word --scope`, and `jbus stop`, by which a scoped home reaches the root (#553, #567, #578).
 - A pull request that stops being ready a second time, and a push to main by anything but a merge.
 - The crew's own stalls, which the crew skill and jbus's waits cover.
