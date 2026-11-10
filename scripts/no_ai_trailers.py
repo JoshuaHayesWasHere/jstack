@@ -1,16 +1,15 @@
 """Does the pull request carry a line that credits an AI tool as a co-author?
 
 A pull request's check runs this. It reads the title and the body from the event that started
-the run, and every commit from base to head from GitHub's compare API, which the run's
-`contents: read` token may ask. Each line that `jmerge.trailers` finds is printed as an error
-on the run, naming the title, the body or the commit, and the line, and the script then exits
-1. A pull request with none exits 0. A run that cannot read the commits exits 2: an unread
-range is not a clean one.
+the run, and every commit from base to head with the checkout's git, from `origin`. Each line
+that `jmerge.trailers` finds is printed as an error on the run, naming the title, the body or the
+commit, and the line, and the script then exits 1. A pull request with none exits 0. A run that
+cannot read the commits exits 2: an unread range is not a clean one.
 
-Where GitHub answers 403 or 429, as it does once the hourly allowance of the run's token is
-spent, it reads the same commits with the checkout's git instead, from `origin`, which a git
-fetch reaches without that allowance: on 2026-11-09 a spent allowance failed every pull request
-checked in that hour. It says so in one line, and a commit with a trailer still fails.
+The commits come from a git fetch and not GitHub's compare API: a fetch spends none of the
+hourly allowance of the run's token (1,000 calls for the repo), which on 2026-11-09 ran out and
+failed every pull request checked in that hour, and a compare cost a call a page. The checkout
+is shallow, so the fetch reads the history with no trees, about a second.
 
 The patterns are `jmerge.trailers`, the ones jmerge strips from the squash commit it writes.
 """
@@ -20,38 +19,15 @@ import json
 import os
 import subprocess
 import sys
-import urllib.error
-import urllib.request
 
 from jmerge import trailers
 
-PAGE = 100
-SPENT = (403, 429)
-
-
-def commits(base, head, env):
-    """Each commit from base to head, as GitHub's compare API gives it."""
-    api = env.get("GITHUB_API_URL", "https://api.github.com")
-    url = f"{api}/repos/{env['GITHUB_REPOSITORY']}/compare/{base}...{head}?per_page={PAGE}"
-    headers = {"Accept": "application/vnd.github+json"}
-    if env.get("GITHUB_TOKEN"):
-        headers["Authorization"] = f"Bearer {env['GITHUB_TOKEN']}"
-    found, page = [], 1
-    while True:
-        request = urllib.request.Request(f"{url}&page={page}", headers=headers)
-        with urllib.request.urlopen(request, timeout=30) as answer:
-            compared = json.load(answer)
-        found += compared["commits"]
-        if not compared["commits"] or len(found) >= compared["total_commits"]:
-            return found
-        page += 1
-
 
 def fetched(base, head, env):
-    """Each commit from base to head, as `commits` gives them, read with the checkout's git. The
-    checkout is shallow and keeps no credentials, so it fetches the two commits' history, with
-    no trees, from `origin` with the run's token, which reaches git and not the token's
-    allowance of the API."""
+    """Each commit from base to head, oldest first, as `{"sha", "commit": {"message"}}`, read
+    with the checkout's git. The checkout is shallow and keeps no credentials, so it fetches the
+    two commits' history, with no trees, from `origin` with the run's token, which reaches git
+    and not the token's allowance of the API."""
     shallow = git("rev-parse", "--is-shallow-repository").strip() == "true"
     config = {}
     if env.get("GITHUB_TOKEN"):
@@ -95,16 +71,7 @@ def main(env=os.environ):
         pull = json.load(event)["pull_request"]
     base, head = pull["base"]["sha"], pull["head"]["sha"]
     try:
-        try:
-            listed = commits(base, head, env)
-        except urllib.error.HTTPError as error:
-            if error.code not in SPENT:
-                raise
-            print(
-                f"no-ai-trailers: GitHub answered {error.code}, its allowance spent, so git reads"
-                " the commits"
-            )
-            listed = fetched(base, head, env)
+        listed = fetched(base, head, env)
     except (OSError, KeyError, ValueError) as error:
         print(f"::error::no-ai-trailers: the commits could not be read: {error}")
         return 2

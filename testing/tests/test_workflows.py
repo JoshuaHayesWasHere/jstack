@@ -2839,84 +2839,40 @@ def test_every_pull_request_run_checks_for_an_ai_trailer_a_reuse_included():
     assert "no_ai_trailers" not in " ".join(map(str, steps(CHECK.read_text(), "check-shard")[0]))
 
 
-class Compare:
-    """GitHub's compare API for one range, served on localhost a page at a time. It records
-    the requests for that range's path and answers 404 to any other, such as a stray probe of
-    local ports from another process on the desk. It looks for its shutdown every 10 ms: at the
-    default half second, the wait for it was most of each test that serves it."""
-
-    def __init__(self, messages, path, code=200):
-        import http.server
-        import threading
-        from urllib.parse import parse_qs, urlsplit
-
-        listed = [{"sha": f"{at:040x}", "commit": {"message": m}} for at, m in enumerate(messages)]
-        self.asked = []
-        asked = self.asked
-
-        class Handler(http.server.BaseHTTPRequestHandler):
-            def do_GET(self):
-                url = urlsplit(self.path)
-                if url.path != path:
-                    self.send_error(404)
-                    return
-                asked.append((url.path, self.headers.get("Authorization")))
-                if code != 200:
-                    self.send_response(code)
-                    self.send_header("x-ratelimit-remaining", "0")
-                    self.end_headers()
-                    self.wfile.write(b'{"message": "API rate limit exceeded for installation."}')
-                    return
-                query = parse_qs(url.query)
-                size, page = int(query["per_page"][0]), int(query["page"][0])
-                body = {"total_commits": len(listed), "commits": listed[(page - 1) * size :][:size]}
-                self.send_response(200)
-                self.end_headers()
-                self.wfile.write(json.dumps(body).encode())
-
-            def log_message(self, *args):
-                pass
-
-        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-        polled = {"poll_interval": 0.01}
-        threading.Thread(target=self.server.serve_forever, kwargs=polled, daemon=True).start()
-        self.url = f"http://127.0.0.1:{self.server.server_port}"
-
-    def close(self):
-        self.server.shutdown()
-
-
-def no_ai_trailers(tmp_path, messages, title="feat: a change", body="Why it changed.", strays=()):
-    """Run the check's script on a pull request with these commits, as the step runs it, after
-    the fake server is sent a GET for each stray path, as another process on the desk may."""
-    import urllib.error
-    import urllib.request
-
-    event = tmp_path / "event.json"
-    base, head = "b" * 40, "h" * 40
-    pull = {"title": title, "body": body, "base": {"sha": base}, "head": {"sha": head}}
-    event.write_text(json.dumps({"pull_request": pull}))
-    compare = Compare(messages, f"/repos/owner/repo/compare/{base}...{head}")
-    try:
-        for stray in strays:
-            with pytest.raises(urllib.error.HTTPError) as refused:
-                urllib.request.urlopen(compare.url + stray, timeout=10)
-            assert refused.value.code == 404
-        ran = subprocess.run(
-            [sys.executable, str(NO_AI_TRAILERS)],
-            capture_output=True,
-            text=True,
-            env={
-                **os.environ,
-                "GITHUB_EVENT_PATH": str(event),
-                "GITHUB_API_URL": compare.url,
-                "GITHUB_REPOSITORY": "owner/repo",
-                "GITHUB_TOKEN": "t0ken",
-            },
+def no_ai_trailers(tmp_path, messages, title="feat: a change", body="Why it changed."):
+    """Run the check's script as the step runs it, in a shallow checkout of a pull request's
+    merge, on a pull request with these commits, which are on `origin` and not in the checkout,
+    as in the step's. Return how it ended, what it printed, and the commits' shas."""
+    origin, work = tmp_path / "origin", tmp_path / "work"
+    run = {"check": True, "capture_output": True, "text": True}
+    subprocess.run(["git", "init", "-q", "-b", "main", origin], **run)
+    who = ["-c", "user.name=t", "-c", "user.email=t@t"]
+    for message in ["chore: base", *messages]:
+        subprocess.run(
+            ["git", *who, "commit", "-q", "--allow-empty", "-m", message], cwd=origin, **run
         )
-    finally:
-        compare.close()
-    return ran.returncode, ran.stdout.splitlines(), compare.asked
+    shas = subprocess.run(
+        ["git", "rev-list", "--reverse", "HEAD"], cwd=origin, **run
+    ).stdout.split()
+    subprocess.run(["git", "config", "uploadpack.allowAnySHA1InWant", "true"], cwd=origin, **run)
+    subprocess.run(["git", "clone", "-q", "--depth=1", f"file://{origin}", work], **run)
+    event = tmp_path / "event.json"
+    pull = {"title": title, "body": body, "base": {"sha": shas[0]}, "head": {"sha": shas[-1]}}
+    event.write_text(json.dumps({"pull_request": pull}))
+    ran = subprocess.run(
+        [sys.executable, str(NO_AI_TRAILERS)],
+        cwd=work,
+        capture_output=True,
+        text=True,
+        env={
+            **os.environ,
+            "PYTHONPATH": f"{REPO}/features/jmerge/src:{REPO}/features/jleak/src",
+            "GITHUB_EVENT_PATH": str(event),
+            "GITHUB_REPOSITORY": "owner/repo",
+            "GITHUB_TOKEN": "t0ken",
+        },
+    )
+    return ran.returncode, ran.stdout.splitlines(), shas[1:]
 
 
 @pytest.mark.parametrize(
@@ -2933,28 +2889,10 @@ def no_ai_trailers(tmp_path, messages, title="feat: a change", body="Why it chan
     ],
 )
 def test_a_commit_with_an_ai_trailer_fails_the_check_naming_the_commit_and_the_line(tmp_path, line):
-    code, printed, asked = no_ai_trailers(tmp_path, ["feat: one", f"fix: two\n\nWhy.\n\n{line}"])
+    code, printed, shas = no_ai_trailers(tmp_path, ["feat: one", f"fix: two\n\nWhy.\n\n{line}"])
     assert code == 1
-    sha = f"{1:040x}"[:12]
-    assert printed[0] == f"::error title=AI co-author trailer::commit {sha} line 5: {line}"
+    assert printed[0] == f"::error title=AI co-author trailer::commit {shas[1][:12]} line 5: {line}"
     assert len(printed) == 2
-    path = f"/repos/owner/repo/compare/{'b' * 40}...{'h' * 40}"
-    assert asked == [(path, "Bearer t0ken")]
-
-
-def test_a_stray_local_request_to_the_fake_compare_server_leaves_the_ai_trailer_check_alone(
-    tmp_path,
-):
-    """A bare `GET /` from another process probing local ports is answered 404 and not
-    recorded, so the check still reads the one compare request it made."""
-    code, printed, asked = no_ai_trailers(
-        tmp_path, ["feat: one", f"fix: two\n\nWhy.\n\n{CLAUDE}"], strays=["/"]
-    )
-    assert code == 1
-    sha = f"{1:040x}"[:12]
-    assert printed[0] == f"::error title=AI co-author trailer::commit {sha} line 5: {CLAUDE}"
-    path = f"/repos/owner/repo/compare/{'b' * 40}...{'h' * 40}"
-    assert asked == [(path, "Bearer t0ken")]
 
 
 def test_a_title_or_a_body_with_an_ai_trailer_fails_the_check_naming_where(tmp_path):
@@ -2967,85 +2905,27 @@ def test_a_title_or_a_body_with_an_ai_trailer_fails_the_check_naming_where(tmp_p
     )
 
 
-def test_a_clean_range_with_a_human_co_author_passes_and_every_page_is_read(tmp_path):
+def test_a_clean_range_with_a_human_co_author_passes_and_every_commit_is_read(tmp_path):
     messages = [f"feat: {at}" for at in range(150)] + [f"fix: last\n\n{HUMAN}"]
-    code, printed, asked = no_ai_trailers(tmp_path, messages, body=f"Paired.\n\n{HUMAN}")
+    code, printed, _ = no_ai_trailers(tmp_path, messages, body=f"Paired.\n\n{HUMAN}")
     assert (code, printed) == (
         0,
         ["no-ai-trailers: the title, the body and 151 commits carry none"],
     )
-    assert len(asked) == 2
-
-
-def spent_allowance(tmp_path, last):
-    """Run the check's script as the step runs it, in a shallow checkout of a pull request's
-    merge, with GitHub's API answering 403, as it does once the hourly allowance is spent. The
-    pull request's commits are on `origin` and not in the checkout, as in the step's."""
-    origin, work = tmp_path / "origin", tmp_path / "work"
-    run = {"check": True, "capture_output": True, "text": True}
-    subprocess.run(["git", "init", "-q", "-b", "main", origin], **run)
-    who = ["-c", "user.name=t", "-c", "user.email=t@t"]
-    shas = []
-    for message in ["chore: base", "feat: one", f"fix: two\n\nWhy.\n\n{last}"]:
-        subprocess.run(
-            ["git", *who, "commit", "-q", "--allow-empty", "-m", message], cwd=origin, **run
-        )
-        shas.append(subprocess.run(["git", "rev-parse", "HEAD"], cwd=origin, **run).stdout.strip())
-    subprocess.run(["git", "config", "uploadpack.allowAnySHA1InWant", "true"], cwd=origin, **run)
-    subprocess.run(["git", "clone", "-q", "--depth=1", f"file://{origin}", work], **run)
-    event = tmp_path / "event.json"
-    base, head = shas[0], shas[-1]
-    pull = {"title": "feat: a change", "body": "Why.", "base": {"sha": base}, "head": {"sha": head}}
-    event.write_text(json.dumps({"pull_request": pull}))
-    compare = Compare([], f"/repos/owner/repo/compare/{base}...{head}", code=403)
-    try:
-        ran = subprocess.run(
-            [sys.executable, str(NO_AI_TRAILERS)],
-            cwd=work,
-            capture_output=True,
-            text=True,
-            env={
-                **os.environ,
-                "PYTHONPATH": f"{REPO}/features/jmerge/src:{REPO}/features/jleak/src",
-                "GITHUB_EVENT_PATH": str(event),
-                "GITHUB_API_URL": compare.url,
-                "GITHUB_REPOSITORY": "owner/repo",
-                "GITHUB_TOKEN": "t0ken",
-            },
-        )
-    finally:
-        compare.close()
-    return ran.returncode, ran.stdout.splitlines(), shas
-
-
-def test_a_spent_allowance_reads_the_commits_with_git_and_passes_a_clean_range(tmp_path):
-    """On 2026-11-09 the API's 403 for a spent allowance failed every pull request checked in
-    that hour. The commits are read with the checkout's git instead."""
-    code, printed, _ = spent_allowance(tmp_path, HUMAN)
-    assert (code, printed[-1]) == (
-        0,
-        "no-ai-trailers: the title, the body and 2 commits carry none",
-    )
-    assert any("403" in line and "git" in line for line in printed[:-1]), printed
-
-
-def test_a_spent_allowance_still_fails_a_commit_with_an_ai_trailer(tmp_path):
-    code, printed, shas = spent_allowance(tmp_path, CLAUDE)
-    assert code == 1
-    line = f"::error title=AI co-author trailer::commit {shas[-1][:12]} line 5: {CLAUDE}"
-    assert line in printed
 
 
 def test_a_range_that_cannot_be_read_fails_the_check(tmp_path):
+    """A checkout whose `origin` does not serve the two commits leaves the range unread."""
+    work = tmp_path / "work"
+    subprocess.run(["git", "init", "-q", work], check=True)
+    subprocess.run(["git", "-C", work, "remote", "add", "origin", f"file://{tmp_path}/none"])
     event = tmp_path / "event.json"
-    pull = {"title": "t", "body": None, "base": {"sha": "b"}, "head": {"sha": "h"}}
+    pull = {"title": "t", "body": None, "base": {"sha": "b" * 40}, "head": {"sha": "h" * 40}}
     event.write_text(json.dumps({"pull_request": pull}))
     env = {**os.environ, "GITHUB_EVENT_PATH": str(event), "GITHUB_REPOSITORY": "owner/repo"}
+    env["PYTHONPATH"] = f"{REPO}/features/jmerge/src:{REPO}/features/jleak/src"
     ran = subprocess.run(
-        [sys.executable, str(NO_AI_TRAILERS)],
-        capture_output=True,
-        text=True,
-        env=env | {"GITHUB_API_URL": "http://127.0.0.1:9"},
+        [sys.executable, str(NO_AI_TRAILERS)], cwd=work, capture_output=True, text=True, env=env
     )
     assert ran.returncode == 2
     assert ran.stdout.startswith("::error::no-ai-trailers: the commits could not be read: ")

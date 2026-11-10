@@ -209,9 +209,9 @@ jobs:
       # co-author fails here, with each line named. It runs on every run, a reuse included: the
       # two trees fix the files, and not the title, the body or a commit's message, which a push
       # that keeps the trees can still change. It reads no test, so it runs here, once, and
-      # `check` fails when this job did. The commits come from GitHub's compare API, not this
-      # checkout's two commits of history, and where the API answers 403 or 429, its allowance
-      # spent, from a git fetch of `origin`. The patterns need only the runner's python3. It
+      # `check` fails when this job did. The commits come from a git fetch of `origin`, with no
+      # trees, not this checkout's two commits of history and not GitHub's compare API: a fetch
+      # spends none of the run's token's allowance. The patterns need only the runner's python3. It
       # runs also where the selection failed, so a red check names both. A push to main has no
       # pull request: its pull request's check ran it.
       - name: no AI co-author trailer
