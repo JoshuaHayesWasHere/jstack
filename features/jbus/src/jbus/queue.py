@@ -61,12 +61,14 @@ line names (`filed_ground`): each warning in it is of a pull request that merged
 A row whose go an edit voided is approved again only where its edit kept the parent its go named,
 and a row the user's word approved waits for the user again.
 
-A follow-up the rule does not approve, such as one whose parent has no go, is approved at the same
-point on its home's standing word for follow-ups (`STANDING`, `standing_words`, kept by
-`jbus standing`), where the home its brief's `Home:` line names holds one, or the root home does:
-its brief names a parent on a `Follows:` line, holds no case of gates.md, and no go of the user's
-was voided on it. The go's record keeps the word's id as `ref`, the user's words, and the parent as
-`follows`, and its line names the word. A row with no `Follows:` line is never such a follow-up.
+A follow-up the rule refuses only because its parent, a row of the queue or one that went merged,
+has no go (`ParentWaits`) is approved at the same point on its home's standing word for follow-ups
+(`STANDING`, `standing_words`, kept by `jbus standing`), where the home its brief's `Home:` line
+names holds one, or the root home does. Every other check of the rule holds for it: its brief
+names a parent on a `Follows:` line other than itself, holds no case of gates.md, and no go of the
+user's was voided on it. The go's record keeps the word's id as `ref`, the user's words, and the
+parent as `follows`, and its line names the word. A row with no `Follows:` line is never such a
+follow-up, and nor is one whose parent is no row, went unmerged, or changed after its go.
 
 `brief_sha` gives the sha of a brief. It leaves out the `Home:` and `Thread:` lines of the brief's
 head, which say whom the brief is sent to and not what it asks for: a launch writes `Thread:` in,
@@ -262,9 +264,10 @@ STANDING = "standing"
 word's id, `follows` the parent its brief names, and the words are the user's."""
 RULED = (RULE, STANDING)
 """The bases of a go jbus gives by itself, which no one typed for the row."""
-STANDS = "standing:"
-WITHDRAWN = "withdrawn:"
-"""How the line of a `standing` act begins: the home holds the word from then, or no more."""
+WITHDRAW = "withdraw"
+"""The `pre` of a `standing` act that ends the home's standing word; one that makes it stand has
+`STAND`. `standing_words` reads the act's action, never its line."""
+STAND = "stand"
 ENTRY = "entry"
 ANSWER = "answer"
 GO_DEFAULT = "approve"
@@ -1084,6 +1087,11 @@ def _went(batch: _Batch, slug: str) -> Row | None:
     return None
 
 
+class ParentWaits(Refused):
+    """The follow-up rule's refusal of a row whose parent, a row of the queue or one that went
+    merged, has no go: the one refusal a home's standing word answers (`_standing_for`)."""
+
+
 def _parent(batch: _Batch, slug: str, follows: str) -> Row:
     """Return the parent's row, or refuse a follow-up whose parent has no go that holds.
 
@@ -1099,7 +1107,7 @@ def _parent(batch: _Batch, slug: str, follows: str) -> Row:
         raise Refused(f"{cannot} itself")
     row, here = _parent_row(batch, slug, follows)
     if not row.get("approved"):
-        raise Refused(f"{cannot} {follows}: {follows} has no approval")
+        raise ParentWaits(f"{cannot} {follows}: {follows} has no approval")
     mine = batch.brief(slug)
     why = unsilenced(mine) if mine is not None and _silence_led(batch, row) else ""
     if why:
@@ -1284,7 +1292,7 @@ def _by_rule(
         parent = named_parent(slug, text)
         if not parent:
             return ""
-        stands = _standing_for(batch, row, text)
+        stands = _standing_for(batch, text) if isinstance(error, ParentWaits) else None
         if stands is not None:
             verb = Approve(slug, STANDING, stands[0], "", parent, stands[1])
             return _do(verb, batch, user, None, {}, {}, ran_by)
@@ -1312,7 +1320,7 @@ def standing_words(state: Path) -> dict[str, tuple[str, Said]]:
         if one.get("action", {}).get("verb") != STANDING:
             continue
         scope, said = one["action"]["subject"], one["evidence"]
-        if one["line"].startswith(WITHDRAWN):
+        if one["action"]["pre"] == WITHDRAW:
             held.pop(scope, None)
         else:
             words = Said(said["words"], said["said_at"], said["said_in"], said["checked"])
@@ -1320,14 +1328,10 @@ def standing_words(state: Path) -> dict[str, tuple[str, Said]]:
     return held
 
 
-def _standing_for(batch: _Batch, row: Row, text: str) -> tuple[str, Said] | None:
-    """Return the standing word that approves a follow-up the follow-up rule does not, or
-    nothing. The row names a parent, its brief holds no case of gates.md, and no go of the
-    user's was voided on it. The word is the one the home its brief's `Home:` line names holds,
-    else the root home's, which stands for every home of the project."""
-    made = record(row)
-    if case(text) or (row.get("approved") and (made is None or made.basis not in RULED)):
-        return None
+def _standing_for(batch: _Batch, text: str) -> tuple[str, Said] | None:
+    """Return the standing word that approves a follow-up the rule refused only for its parent's
+    missing go (`ParentWaits`), or nothing. The word is the one the home its brief's `Home:` line
+    names holds, else the root home's, which stands for every home of the project."""
     held = standing_words(batch.state)
     return held.get(homes.named(text)) or held.get("")
 
