@@ -13,10 +13,10 @@ found is built again whole over today's tip, once (`again`): a timeout is no evi
 member. One whose check failed has the failed jobs of its workflow run started again, once
 (`Rerun`), for a flake or a runner fault is no evidence against a member either. One whose check
 failed after its rerun, whose rerun GitHub refused, or that timed out twice in a row, keeps its
-members as `suspects`, and the next batch is the first half of them (`narrow`), so CI's checks of halves
-find the member that failed it. Where a half proved and one suspect is left, that one failed
-it. A failed batch of one, or that last suspect, goes down the single path of today at its head
-(`failed`), whose guards name the failing test for its crew.
+members as `suspects`, and the next batch is the first half of them (`narrow`), so CI's checks
+of halves find the member that failed it. Where a half proved and one suspect is left, that one
+failed it. A failed batch of one, or that last suspect, goes down the single path of today at
+its head (`failed`), whose guards name the failing test for its crew.
 
 The batch pull request is jmerge's own: it is never judged as a row's, and never merged.
 """

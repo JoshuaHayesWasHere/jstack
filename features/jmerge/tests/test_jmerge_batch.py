@@ -487,9 +487,7 @@ def test_a_failed_batch_reruns_its_failed_jobs_once_and_merges_by_batch_when_the
     assert runs(kitchen) == 0 and suspects(kitchen) == [] and record(kitchen)["failed"] == {}
 
 
-@pytest.mark.parametrize(
-    "case", ["fails again", "rerun refused", "first attempt still listed"]
-)
+@pytest.mark.parametrize("case", ["fails again", "rerun refused", "first attempt still listed"])
 def test_a_batch_that_fails_again_after_its_rerun_keeps_its_members_as_suspects(kitchen, case):
     """A second failure, a new job of the run, and a rerun GitHub refuses each fail the batch as
     a failed check did before the rerun: its members are suspects and the next batch is the first
