@@ -128,6 +128,16 @@ def test_the_new_repo_passes_its_own_check(new_repo):
     assert "errors 0, warnings 0" in out
 
 
+def test_a_shard_given_to_the_make_that_runs_these_tests_does_not_reach_the_new_repo(
+    monkeypatch, request
+):
+    """The nightly full run's `make check SHARD=K/N` exports SHARD to these tests: the new repo's
+    `make test` still runs its whole suite, not the part K of it."""
+    monkeypatch.setenv("SHARD", "2/2")
+    root, env = request.getfixturevalue("new_repo")
+    assert "1 passed" in make(root, env, "test")
+
+
 def test_check_fast_runs_the_tests_its_change_selects(new_repo):
     root, env = new_repo
     hello = root / "features/hello/src/hello/__init__.py"
