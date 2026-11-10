@@ -144,6 +144,7 @@ ORDER = [
     "close 45 green.move",
     "close 50 chores.daily",
     "close 55 daywarnings.keep (sight, world)",
+    "close 56 flakerow.keep (sight)",
     "close 57 collisions.weekly (client, budget)",
     "close 60 chores.sweep (budget)",
     "close 70 packs.check",

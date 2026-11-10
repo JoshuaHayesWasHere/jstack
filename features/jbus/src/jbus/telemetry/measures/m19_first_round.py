@@ -1,4 +1,6 @@
-from jbus.telemetry.measures import Limit, Measure, Sql
+from datetime import date
+
+from jbus.telemetry.measures import Measure, Over, Sql, Week
 
 MEASURE = Measure(
     name="first-round",
@@ -11,9 +13,9 @@ MEASURE = Measure(
         " where project = :project and week in (date(:begins), date(:begins, '+1 day'))"
     ),
     window="week",
-    baseline=29.9,
-    baseline_of="last week's weekly_first_round, the week of 2026-11-01",
-    kind=Limit(23.9, 5),
+    baseline=Week(date(2026, 11, 1)),
+    baseline_of="the same query over the week of 2026-11-01",
+    kind=Over(20, 5),
     tier="page",
     audit=(4,),
 )

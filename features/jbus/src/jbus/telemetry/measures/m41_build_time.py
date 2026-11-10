@@ -1,4 +1,6 @@
-from jbus.telemetry.measures import Limit, Measure, Sql
+from datetime import date
+
+from jbus.telemetry.measures import Measure, Over, Sql, Week
 
 MEASURE = Measure(
     name="build-time",
@@ -12,8 +14,8 @@ MEASURE = Measure(
         machine=True,
     ),
     window="day",
-    baseline=0.33,
-    baseline_of="builds last week",
-    kind=Limit(0.4, 10),
+    baseline=Week(date(2026, 11, 1)),
+    baseline_of="the same query over the week of 2026-11-01",
+    kind=Over(21, 10),
     tier="page",
 )

@@ -8,6 +8,7 @@ again on every pass, and every red pull request's run lists and logs read again 
 The tests run the command against a real origin and a fake `gh`, as `test_jmerge_rejudge` does."""
 
 import json
+import os
 import sys
 from datetime import UTC, datetime, timedelta
 
@@ -15,7 +16,7 @@ import pytest
 
 import test_jmerge_rejudge as rejudging
 from jmerge import backoff, rejudge
-from jsettings import budget
+from jsettings import budget, paths, proc
 from test_jmerge_fresh import url
 from test_jmerge_rejudge import BROKE, FIXED, OURS, THEIRS, WHOLE_TREE, Replay, checked
 
@@ -215,3 +216,23 @@ def test_an_answer_github_left_unsettled_is_not_kept_and_the_next_run_reads_agai
     assert "repeated" not in records.get("333", {})
     replay.run()
     assert lists() == first + first
+
+
+def asks_github():
+    """A function of jmerge's that builds its own `gh` command, as `jmerge.cli` does."""
+    return backoff.run("gh", "pr", "list", timeout=10)
+
+
+def test_a_gh_call_is_logged_under_the_function_that_asked(tmp_path, monkeypatch):
+    """The call log names who asked for a call, so the budget is read by caller: every jmerge call
+    was once logged as the gate's own `Gate.run`, which asks for nothing."""
+    bin = tmp_path / "bin"
+    bin.mkdir()
+    (bin / "gh").write_text("#!/bin/sh\necho []\n")
+    (bin / "gh").chmod(0o755)
+    monkeypatch.setenv("PATH", f"{bin}:{os.environ['PATH']}")
+    assert asks_github().stdout == "[]\n"
+    [line] = (paths.jbus_state_dir() / proc.CALLS).read_text().splitlines()
+    caller, _, above = json.loads(line)["caller"].partition(" < ")
+    assert caller == f"{__name__}.asks_github"
+    assert above == f"{__name__}.{test_a_gh_call_is_logged_under_the_function_that_asked.__name__}"

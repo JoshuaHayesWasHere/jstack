@@ -372,11 +372,11 @@ def stubbed(tmp_path, selector):
     return repo
 
 
-def touching(*files, guards=()):
-    """A selector that prints `files` for `--part touched` and `guards` for `--part guards`, and
+def touching(*files, cross=()):
+    """A selector that prints `files` for `--part touched` and `cross` for `--part cross`, and
     fails on any other ask."""
     return (
-        f"import sys\nparts = {{'touched': {list(files)!r}, 'guards': {list(guards)!r}}}\n"
+        f"import sys\nparts = {{'touched': {list(files)!r}, 'cross': {list(cross)!r}}}\n"
         "assert sys.argv[1] == '--part' and sys.argv[2] in parts, sys.argv\n"
         "print('\\n'.join(parts[sys.argv[2]]))\n"
     )
@@ -406,25 +406,25 @@ def cloned(tmp_path):
     return repo
 
 
-def guarded(repo, base):
-    """The guard tests the real selector names for the branch: its files under
-    features/repo-guards/tests."""
+def guarded(repo, base, touched=()):
+    """The guard tests the real selector names for the branch: the cross-cutting tests of its
+    selection, wherever they live, less the `touched` ones."""
     printed = subprocess.run(
-        [sys.executable, "scripts/select_tests.py", "--part", "guards", base, "HEAD"],
+        [sys.executable, "scripts/select_tests.py", "--part", "cross", base, "HEAD"],
         cwd=repo,
         capture_output=True,
         text=True,
         check=True,
     ).stdout.split()
-    return [one for one in printed if one.startswith("features/repo-guards/tests/")]
+    return [one for one in printed if one not in touched]
 
 
 def test_a_change_runs_the_lint_and_each_touched_test_alone_in_the_short_lane(tmp_path):
     """In jstack, the desk's check is the lint, the test files the change touches and the
     repo's guard tests, each its own call of the short lane, and never the selection: CI's check
     is the check of record and runs the rest. The real selector names the touched tests: a test
-    file the branch edits, and not the crew tests the edited doc reaches, nor the cross-cutting
-    tests outside features/repo-guards/tests."""
+    file the branch edits, and not the crew tests the edited doc reaches. The guard tests are the
+    cross-cutting tests of the selection, and not the catch-all."""
     repo = cloned(tmp_path)
     with (repo / "features" / "crew" / "the-checks.md").open("a") as page:
         page.write("\nA line the test adds.\n")
@@ -437,7 +437,7 @@ def test_a_change_runs_the_lint_and_each_touched_test_alone_in_the_short_lane(tm
     guards = guarded(repo, base)
     assert "features/repo-guards/tests/test_new_lines_run.py" in guards
     assert said[0].startswith(
-        f"touched: 1 test files, then {len(guards)} guard tests of features/repo-guards/tests, "
+        f"touched: 1 test files, then {len(guards)} cross-cutting guard tests, "
         "each alone in the short lane"
     ), said
     assert re.fullmatch(r"lint: exit 0 in \d+ s, short lane", said[1]), said
@@ -524,17 +524,17 @@ def test_a_failed_step_ends_the_check_and_a_run_again_skips_what_passed_at_the_h
 
 
 def test_the_guard_tests_run_after_the_touched_ones_and_a_failed_one_fails_the_check(tmp_path):
-    """After the touched tests the block runs each guard test the selector names under
-    features/repo-guards/tests, alone, and none of its other guards: those are CI's. A guard the
-    change touches runs once, as a touched test. A failed guard is the check's exit, as a failed
-    touched test is, and a run again at the same head runs only the steps that did not pass."""
+    """After the touched tests the block runs each cross-cutting test the selector names, alone.
+    A guard the change touches runs once, as a touched test. A failed guard is the check's exit,
+    as a failed touched test is, and a run again at the same head runs only the steps that did
+    not pass."""
     g, h = "features/repo-guards/tests/test_g.py", "features/repo-guards/tests/test_h.py"
-    selector = touching("tests/test_a.py", h, guards=(g, h, "testing/tests/test_x.py"))
+    selector = touching("tests/test_a.py", h, cross=(g, h))
     repo = stubbed(tmp_path, selector)
     brief = a_brief(tmp_path)
     said, code, ran, base = selected(tmp_path, repo, exits={"*test_g.py*": 1})
     head = git(repo, "rev-parse", "HEAD")
-    assert said[0].startswith("touched: 2 test files, then 1 guard tests"), said
+    assert said[0].startswith("touched: 2 test files, then 1 cross-cutting guard tests"), said
     assert ran == [lint(base), alone("tests/test_a.py", base), alone(h, base), alone(g, base)]
     assert re.search(rf"^{g}: exit 1 in \d+ s, short lane$", "\n".join(said), re.M), said
     assert code == 1
@@ -545,6 +545,20 @@ def test_the_guard_tests_run_after_the_touched_ones_and_a_failed_one_fails_the_c
     assert (ran, code) == ([alone(g, base)], 0)
     assert f"{h}: passed at this head already" in said
     assert ready.short_on_checked(brief.read_text(), head) == ""
+
+
+def test_a_cross_cutting_guard_outside_repo_guards_is_a_desk_step(tmp_path):
+    """A cross-cutting guard that lives in a feature, as the home tree's spec does, is a desk
+    step like one under features/repo-guards/tests: dropped at the desk, it failed first in CI
+    (8 of 51 failed attempts on a `make test` part, 2026-11-09). The catch-all stays CI's."""
+    repo = cloned(tmp_path)
+    with (repo / "features" / "crew" / "the-checks.md").open("a") as page:
+        page.write("\nA line the test adds.\n")
+    git(repo, "commit", "-qam", "a change to the crew feature")
+    a_brief(tmp_path)
+    said, code, ran, base = selected(tmp_path, repo)
+    assert alone("features/home/tests/test_home_tree_spec.py", base) in ran, said
+    assert code == 0
 
 
 NEW_LINES = "features/repo-guards/tests/test_new_lines_run.py"

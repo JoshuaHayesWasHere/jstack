@@ -1,4 +1,6 @@
-from jbus.telemetry.measures import Limit, Measure, Sql
+from datetime import date
+
+from jbus.telemetry.measures import Measure, Over, Sql, Week
 
 MEASURE = Measure(
     name="typed-per-row",
@@ -11,8 +13,8 @@ MEASURE = Measure(
         " where project = :project and week in (date(:begins), date(:begins, '+1 day'))"
     ),
     window="week",
-    baseline=1.07,
-    baseline_of="last week's weekly_typed_per_row, the week of 2026-11-01",
-    kind=Limit(1.28, 5),
+    baseline=Week(date(2026, 11, 1)),
+    baseline_of="the same query over the week of 2026-11-01",
+    kind=Over(20, 5),
     tier="page",
 )

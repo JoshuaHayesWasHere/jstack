@@ -15,6 +15,11 @@ jbus removes it itself (`remove_scout`) once the scout's Report says `Status: do
 of the scout is at work (`jbus.scouts`). With no launch record there is no thread in it, so a
 launch removes whatever an earlier pass left at the path and makes it again.
 
+A row launched again on its branch (`jbus.dispatch`, a resume) gets the worktree of that branch
+(`reopen`): the one still at `path`, as the crew before left it, its uncommitted work too, or a
+new one made from the branch, never with `-b`, from origin's copy where only origin has it. A
+resume that fails removes neither the worktree nor the branch.
+
 T3 Code's storage cleanup removes a worktree by its thread's `worktreePath` under its own
 worktrees folder, whoever made it, so a finished crew's worktree goes as it did when T3 Code
 made it.
@@ -114,6 +119,32 @@ def make(run: Pass, slug: str, base: str, sha: str = "") -> tuple[str, str]:
     return sha, ""
 
 
+def reopen(run: Pass, slug: str) -> tuple[str, str]:
+    """Give a resumed row the worktree of its branch `slug`, at `path`: the one there, or a new
+    one made from the branch. Write its two files, and return the commit the branch is at, and
+    nothing, or nothing and why not. A worktree of the branch elsewhere is why not."""
+    tree = path(run, slug).resolve()
+    run.run("git", "worktree", "prune")
+    listed = run.run("git", "worktree", "list", "--porcelain").stdout.split("\n\n")
+    held = ({k: v for k, _, v in (x.partition(" ") for x in one.splitlines())} for one in listed)
+    there = next((one["worktree"] for one in held if one.get("branch") == f"refs/heads/{slug}"), "")
+    elsewhere = there and Path(there).resolve() != tree
+    why = f"the branch {slug} is checked out at {there}, not at {tree}" if elsewhere else ""
+    if not there:
+        ref = f"refs/remotes/origin/{slug}"
+        run.run("git", "fetch", "-q", "origin", f"+refs/heads/{slug}:{ref}")
+        tree.parent.mkdir(parents=True, exist_ok=True)
+        added = run.run("git", "worktree", "add", "-q", str(tree), slug)
+        why = (
+            f"the worktree {tree} could not be made: {added.stderr.strip()}"
+            if added.returncode
+            else ""
+        )
+    why = why or _fill(run, tree, "crew", clean=False)
+    head = "" if why else run.run("git", "-C", str(tree), "rev-parse", "HEAD").stdout.strip()
+    return head, why
+
+
 def make_scout(run: Pass, slug: str, base: str) -> tuple[str, str]:
     """Make the scout's worktree, detached at origin's `base`, and write its two files, in place
     of any an earlier pass left. Return the commit it is at, and nothing, or nothing and why no
@@ -164,15 +195,18 @@ def _fetched(run: Pass, base: str) -> tuple[str, str]:
     return (sha, "") if sha else ("", f"origin's {base} names no commit")
 
 
-def _fill(run: Pass, tree: Path, role: str) -> str:
+def _fill(run: Pass, tree: Path, role: str, *, clean: bool = True) -> str:
     """Write the role's two files in `tree`, and return why the worktree is not fit to launch
-    into, or nothing."""
+    into, or nothing. With `clean`, a worktree with changes is not fit: a resumed one keeps the
+    work its crew left."""
     try:
         settings = jroles.mirror.worktree_settings(jroles.mirror.Main.of(Path.home()), role)
     except jroles.Refused as error:
         return f"its settings file could not be made: {error}"
     _write(tree / SETTINGS, json.dumps(settings, indent=2) + "\n")
     _write(tree / IGNORE, "*\n")
+    if not clean:
+        return ""
     status = run.run("git", "-C", str(tree), "status", "--porcelain")
     if status.returncode or status.stdout.strip():
         return f"the worktree {tree} is not clean once its files are written"

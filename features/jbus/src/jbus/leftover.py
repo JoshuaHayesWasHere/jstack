@@ -9,6 +9,12 @@ too, once its crew has had its carry-ons (`watch.unwritten`). For such a row, th
 states that reason, and the message says to carry the thread on, to remove the row, or to end it
 with a Result.
 
+A row whose branch has commits of its own (`watch.own`) is told neither way to a new brief:
+`RESUMES` says that jbus launches it again on its slug, branch and worktree once a cause it waits
+on clears (`jbus.pausedon.cleared`), names the rows its Result waits on, and says how the home
+makes a wait jbus cannot read into one it can, or closes the row where nothing more is wanted. A
+row with no commits on its branch may still take a new brief, as `MESSAGE` and `UNWRITTEN` say.
+
 jbus closes no leftover and starts no thread for one. `tell` writes each leftover's record, and
 the record is an item of the one list that wakes a home (`jbus.wakes`), keyed `left:<slug>`: its
 home is told of it once while it stays open. The record keeps the text the home is told: the
@@ -59,11 +65,11 @@ from typing import Any
 import jsettings
 from jbriefs import below
 from jbriefs.home import home_of, thread_of
-from jbus import mirror, prereview, questions, queue, read_json, review, verbs, write_json
+from jbus import mirror, pausedon, prereview, questions, queue, read_json, review, verbs, write_json
 from jbus.passes import Pass
 from jbus.told import FILE as TOLD
 from jbus.told import told_to
-from jbus.watch import World, at_work, brief_of, last_result, named
+from jbus.watch import World, at_work, brief_of, last_result, named, own
 
 KIND = "leftover"
 NAME = "leftover.json"
@@ -124,6 +130,31 @@ UNWRITTEN = (
     "`Status: done`, `Branch: <its branch>   Pull request: none`, `Outcome: <how it ended>` and "
     "`Left: none`. Only those four end it, and the outcome is one of three: "
     "`carried by <slug>`, `nothing to change, <why>` or `dropped, <why>`.\n\n"
+    "Send {user} nothing about it. A question only {user} can answer is a gate: take the "
+    "default and pipe it to `jbus gate {slug}`."
+)
+
+RESUMES = (
+    "jbus: {slug} ended with something left on its branch, and it is this home's to see to. "
+    "{user} is not asked: it waits on this home.\n\n"
+    "{pull}.\n"
+    "Left: {left}\n"
+    "{asked}\n\n"
+    "Its branch {slug} has commits, so it is not carried on under a new brief: jbus launches it "
+    "again on its own slug, branch and worktree, with a `Resume:` line in its brief that names "
+    "the cause, once for each cause that clears: {waits}a review with findings written after its "
+    "last Result, or a new go for its brief.\n\n"
+    "Read the last Result of `tasks/{slug}.md` and the answers above, then do one of three:\n"
+    "- it waits on one of those: leave it, and write no new brief for it;\n"
+    "- it waits on rows that must land first and its Result does not name them: append a "
+    "section `## Result, follow-up (<date>, <the reason>)` to `tasks/{slug}.md` with "
+    "`Status: paused`, `Waits on: <their slugs>`, `Branch: {slug}   Pull request: none` and "
+    "`Left: <what is left>`; where its `Where:` or `Done when:` is too narrow, widen them in "
+    "`tasks/{slug}.md`, queue it again with `jbus queue add`, and its new go launches it;\n"
+    "- nothing more is wanted, or the rest is somebody's outside the queue: close it, appending "
+    "a section `## Result, follow-up (<date>, <the reason>)` to `tasks/{slug}.md` with four "
+    "lines: `Status: done`, `Branch: {slug}   Pull request: none`, `Outcome: <how it ended>` "
+    "and `Left: none`, the outcome `dropped, <why>` or `nothing to change, <why>`.\n\n"
     "Send {user} nothing about it. A question only {user} can answer is a gate: take the "
     "default and pipe it to `jbus gate {slug}`."
 )
@@ -252,7 +283,24 @@ def _asked(run: Pass, slug: str) -> str:
 
 def message(run: Pass, world: World, slug: str, brief: str, why: str = "") -> str:
     """Write the one message a home gets about a leftover. `why` is the row's `left` text, which a
-    row with no Result has in place of a `Left:` line."""
+    row with no Result has in place of a `Left:` line. A row whose branch has commits of its own
+    gets `RESUMES`."""
+    if slug not in world.merged and own(run, slug):
+        slugs = {row["slug"] for row in queue.load(run.state)}
+        named = pausedon.waits_on(run, world, slug, slugs)
+        waits = (
+            f"the rows `{'`, `'.join(named)}` landing, the rows its `Waits on:` names, "
+            if named
+            else ""
+        )
+        return RESUMES.format(
+            slug=slug,
+            user=run.user.user,
+            pull=_pull(world, slug, brief),
+            left=note(brief) or why,
+            asked=_asked(run, slug),
+            waits=waits,
+        )
     if not mirror.last_result(brief):
         return UNWRITTEN.format(
             slug=slug,

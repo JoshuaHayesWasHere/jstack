@@ -1,4 +1,6 @@
-from jbus.telemetry.measures import Limit, Measure, Sql
+from datetime import date
+
+from jbus.telemetry.measures import Measure, Over, Sql, Week
 
 MEASURE = Measure(
     name="drift-broken",
@@ -13,8 +15,8 @@ MEASURE = Measure(
         machine=True,
     ),
     window="now",
-    baseline=3,
-    baseline_of="drift last week",
-    kind=Limit(3.6, 1),
+    baseline=Week(date(2026, 11, 1)),
+    baseline_of="the same query over the week of 2026-11-01",
+    kind=Over(20, 1),
     tier="page",
 )
