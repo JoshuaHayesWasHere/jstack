@@ -841,11 +841,10 @@ def test_the_macos_job_fails_its_run_when_the_suite_fails_so_jbus_reads_the_red(
     """A Mac red on main is the push run's failed `macos` job, which jbus reads to revert its
     culprit (`jbus.reverts.macos`). A job's or a step's `continue-on-error` reports the job as
     passed whatever the suite did, so neither a part nor `macos` nor any step that sets up or
-    runs the tests carries it. Only the part's step that lists the failed tests does, and the
-    upload of the marker of passed parts, which run after the tests and change nothing they
-    decided. A part's tests' step cap is then a failure of the run too, so it leaves the slowest
-    run of the whole list on one Mac twice its time: the step took 423 to 639 s on twelve runs,
-    and the list grows with each mac- fix."""
+    runs the tests carries it. Only the part's step that lists the failed tests does, which runs
+    after the tests and changes nothing they decided. A part's tests' step cap is then a failure
+    of the run too, so it leaves the slowest run of the whole list on one Mac twice its time: the
+    step took 423 to 639 s on twelve runs, and the list grows with each mac- fix."""
     text = MAC.read_text()
     assert job_value(text, "macos", "continue-on-error") is None
     assert job_value(text, "macos-part", "continue-on-error") is None
@@ -853,9 +852,7 @@ def test_the_macos_job_fails_its_run_when_the_suite_fails_so_jbus_reads_the_red(
     held = [step.get("name", step.get("uses")) for step in found if "continue-on-error" in step]
     assert held == ["failed tests"]
     gate, _ = steps(text, "macos")
-    held = [step.get("name", step.get("uses")) for step in gate if "continue-on-error" in step]
-    assert held == [gate[-1]["uses"]]
-    assert gate[-1]["uses"].startswith("actions/upload-artifact@")
+    assert [step for step in gate if "continue-on-error" in step] == []
     (suite,) = [step for step in found if step.get("id") == "suite"]
     assert 2 * 639 <= 60 * int(suite["timeout-minutes"]) < 60 * int(cap(text, "macos-part")) - 120
 
@@ -1021,28 +1018,24 @@ def test_the_macos_job_runs_the_whole_list_where_the_selection_is_all(merged, pa
 
 def test_the_macos_job_runs_only_where_the_selection_handed_on_a_test_or_failed():
     """The parts and `macos` wait on `macos-select`, and their `if:` skips them, with no Mac
-    started, only where the selection ended with no test or reused a passed macos job of the same
-    two trees: a skip passes the required check. A failed or cancelled selection gives no `run`
-    and no `reused`, so they run then, unless the run was cancelled, and a part's first step
-    fails it. Every step of a part that sets up or runs the tests runs once it starts."""
+    started, only where the selection ended with no test: a skip reads as a pass. A failed or
+    cancelled selection gives no `run`, so they run then, unless the run was cancelled, and a
+    part's first step fails it. Every step of a part that sets up or runs the tests runs once it
+    starts."""
     text = MAC.read_text()
     assert job_value(text, "macos-part", "needs") == "macos-select"
     assert job_value(text, "macos", "needs") == ["macos-select", "macos-part"]
     assert job_value(text, "macos-select", "runs-on") == HOSTED
     when = job_value(text, "macos-part", "if")
     assert job_value(text, "macos", "if") == when
-    for run, reused, cancelled, runs in (
-        ("true", "false", False, True),
-        ("false", "false", False, False),
-        ("", "", False, True),
-        ("", "false", False, True),
-        ("", "true", False, False),
-        ("true", "true", False, False),
-        ("true", "false", True, False),
+    for run, cancelled, runs in (
+        ("true", False, True),
+        ("false", False, False),
+        ("", False, True),
+        ("true", True, False),
     ):
         values = {"!cancelled()": not cancelled, "needs.macos-select.outputs.run": run}
-        values["needs.macos-select.outputs.reused"] = reused
-        assert worked(when, values) is runs, (run, reused, cancelled)
+        assert worked(when, values) is runs, (run, cancelled)
     found, _ = steps(text, "macos-part")
     assert found[0]["name"] == "handed tests"
     assert [step["name"] for step in found if "if" in step] == ["failed tests"]
@@ -1098,118 +1091,35 @@ def test_macos_deals_the_selection_into_up_to_three_parts_and_fails_when_one_par
     assert all("::error::" in ran[result].stdout for result in RESULTS[1:])
 
 
-MAC_WORKFLOW = ".github/workflows/macos.yml"
 EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
-OTHER_TREE = "0" * 40
 
 
-def mac_reuse(tmp_path, left, **env):
-    """Run the `reuse` step of `macos-select`, as the runner does, in a repo of two commits, a
-    base and a merge over it, against a `gh` that answers as GitHub does: `left(base, merge)`, of
-    the two trees, maps each artifact run 7 left to that run's answer, and a name it does not map
-    has no artifact. Return the step's outputs, what it printed, its summary, the name of this
-    pair's marker, and the paths it asked."""
-    repo, bin = tmp_path / "repo", tmp_path / "bin"
-    for made in (repo, bin):
-        made.mkdir()
-    git = ["git", "-c", "user.name=a", "-c", "user.email=a@example.com", "-C", str(repo)]
-    subprocess.run([*git, "init", "-q"], check=True)
-    for text in ("base\n", "merge\n"):
-        (repo / "file").write_text(text)
-        subprocess.run([*git, "add", "file"], check=True)
-        subprocess.run([*git, "commit", "-q", "-m", text.strip()], check=True)
-    trees = subprocess.run(
-        [*git, "rev-parse", "HEAD^1^{tree}", "HEAD^{tree}"],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.split()
-    (repo / "features").symlink_to(REPO / "features")
-    answers = {}
-    for name, ran in left(*trees).items():
-        answers[f"{ARTIFACTS}?name={name}&per_page=100"] = marker()
-        if ran is not None:
-            answers[RUN] = ran
-    (tmp_path / "answers.json").write_text(json.dumps(answers))
-    (bin / "python3").symlink_to(sys.executable)
-    (bin / "git").symlink_to(shutil.which("git"))
-    (bin / "gh").write_text(
-        f"#!{sys.executable}\n"
-        "import json, pathlib, sys\n"
-        f"here = pathlib.Path({str(tmp_path)!r})\n"
-        "with open(here / 'asked', 'a') as asked:\n"
-        "    asked.write(sys.argv[2] + '\\n')\n"
-        "answers = json.loads((here / 'answers.json').read_text())\n"
-        "if sys.argv[2] in answers:\n"
-        "    print(json.dumps(answers[sys.argv[2]]))\n"
-        "elif '/artifacts?' in sys.argv[2]:\n"
-        "    print(json.dumps({'total_count': 0, 'artifacts': []}))\n"
-        "else:\n"
-        "    sys.exit('HTTP 404: Not Found')\n"
-    )
-    (bin / "gh").chmod(0o755)
-    out = {name: tmp_path / name for name in ("summary", "output")}
-    for one in out.values():
-        one.write_text("")
-    ran = subprocess.run(
-        ["bash", "-e", "-c", summary_step("reuse", MAC)],
-        cwd=repo,
-        capture_output=True,
-        text=True,
-        env={
-            "PATH": f"{bin}:/usr/bin:/bin",
-            "GITHUB_OUTPUT": str(out["output"]),
-            "GITHUB_STEP_SUMMARY": str(out["summary"]),
-            "GITHUB_REPOSITORY": "owner/repo",
-            "GITHUB_EVENT_NAME": "pull_request",
-            "GITHUB_RUN_ATTEMPT": "1",
-            "BASE": "HEAD^1",
-            **env,
-        },
-    )
-    assert ran.returncode == 0, ran.stderr
-    asked = tmp_path / "asked"
-    return (
-        outputs(out["output"].read_text()),
-        ran.stdout.strip(),
-        out["summary"].read_text(),
-        "macos-checked-{}-{}".format(*trees),
-        asked.read_text().splitlines() if asked.exists() else [],
-    )
-
-
-def test_the_macos_reuse_skips_the_mac_for_the_two_trees_a_passed_macos_job_ran():
-    """The reuse step looks up `macos-checked-<base tree>-<merge tree>` before any `uv sync`, on
-    the checkout of two commits the selection reads, with the run's token, which may read
-    another run's artifacts. A successful macos.yml run of this repo that left it is a hit: the
-    step gives `reused` true, the selection's steps are skipped, and so is the Mac."""
+def test_the_macos_selection_reads_from_main_s_last_checked_commit_and_reuses_no_pass():
+    """`macos-select` checks out two commits, asks GitHub for main's last checked commit with the
+    run's token, which may list macos.yml's runs, and sets up and selects with no `if:`: every
+    push run selects. It reuses no earlier pass of the same two trees and leaves no marker of
+    one: `jmerge.reuse.answer` reuses only for a pull request's run, and macos.yml runs on pushes
+    to main alone, so a `reuse` step could never hit and a marker would have no reader."""
     found, _ = steps(MAC.read_text(), "macos-select")
-    checkout, base, look, *rest = found
+    checkout, base, *rest = found
     assert checkout["with"] == {"fetch-depth": "2", "persist-credentials": False}
     assert (base["name"], base["id"], base.get("if")) == ("last checked", "base", None)
     assert base["env"] == {"GH_TOKEN": "${{ github.token }}"}
     assert base["run"] == "python3 scripts/green_tree.py --last-checked macos.yml"
-    assert (look["name"], look["id"], look["continue-on-error"]) == ("reuse", "reuse", True)
-    assert look["env"] == {
-        "GH_TOKEN": "${{ github.token }}",
-        "BASE": "${{ steps.base.outputs.base || 'HEAD^1' }}",
-    }
     assert block("permissions", MAC) == {"contents": "read", "actions": "read"}
     assert [step.get("uses", step.get("run")).partition("@")[0] for step in rest] == [
         "astral-sh/setup-uv",
         "uv sync --locked",
         "|",
     ]
-    for step in rest:
-        reused = {r: {"steps.reuse.outputs.reused": r} for r in ("true", "false", "")}
-        assert [r for r in reused if worked(step["if"], reused[r])] == ["false", ""]
+    assert [step for step in rest if "if" in step] == []
     assert step_outputs(MAC, "macos-select") == {
         "run": "${{ steps.reached.outputs.run }}",
         "parts": "${{ steps.reached.outputs.parts }}",
         "tests": "${{ steps.reached.outputs.tests }}",
-        "name": "${{ steps.reuse.outputs.name }}",
-        "reused": "${{ steps.reuse.outputs.reused }}",
     }
+    gate, _ = steps(MAC.read_text(), "macos")
+    assert [step.get("name") for step in gate] == ["every part passed"]
 
 
 def step_outputs(path, job):
@@ -1227,121 +1137,6 @@ def step_outputs(path, job):
             key, _, value = line.strip().partition(":")
             found[key] = scalar(value)
     return found
-
-
-def test_a_pair_a_passed_macos_job_ran_is_reused_and_the_summary_names_its_run(tmp_path):
-    outputs, printed, summary, name, asked = mac_reuse(
-        tmp_path, lambda base, merge: {f"macos-checked-{base}-{merge}": run(path=MAC_WORKFLOW)}
-    )
-    assert outputs == {"name": name, "reused": "true"}
-    assert printed == f"reuse: {name}: passed the check in {URL}, so the suite is skipped"
-    assert summary == (
-        f"macOS: {name}: passed the check in {URL}, so the suite is skipped, and no Mac starts\n"
-    )
-    assert asked == [f"{ARTIFACTS}?name={name}&per_page=100", RUN]
-
-
-@pytest.mark.parametrize(
-    "left",
-    [
-        lambda base, merge: {f"macos-checked-{OTHER_TREE}-{merge}": run(path=MAC_WORKFLOW)},
-        lambda base, merge: {f"macos-checked-{base}-{OTHER_TREE}": run(path=MAC_WORKFLOW)},
-        lambda base, merge: {f"macos-checked-{merge}-{base}": run(path=MAC_WORKFLOW)},
-        lambda base, merge: {f"checked-tree-{base}-{merge}": run()},
-        lambda base, merge: {f"checked-tree-{base}-{merge}": run(path=MAC_WORKFLOW)},
-        lambda base, merge: {f"macos-checked-{base}-{merge}": run()},
-        lambda base, merge: {
-            f"macos-checked-{base}-{merge}": run(path=MAC_WORKFLOW, conclusion="failure")
-        },
-        lambda base, merge: {
-            f"macos-checked-{base}-{merge}": run(path=MAC_WORKFLOW, head_repository={"id": 2})
-        },
-    ],
-    ids=[
-        "another base tree",
-        "another merge tree",
-        "the trees swapped",
-        "the check's marker of the pair",
-        "the check's name from a macos run",
-        "the pair's name from a check run",
-        "a failed macos run",
-        "a fork's macos run",
-    ],
-)
-def test_a_pair_whose_trees_differ_or_no_passed_macos_run_of_this_repo_left_runs_the_mac(
-    tmp_path, left
-):
-    """A marker of trees that differ in any way, the check's own marker of the same pair, or the
-    pair's name from any run that is not a successful macos.yml run of this repo, is no hit: the
-    step gives `reused` false and the Mac runs, and the summary is the selection's alone."""
-    outputs, printed, summary, name, _ = mac_reuse(tmp_path, left)
-    assert outputs == {"name": name, "reused": "false"}
-    assert printed.startswith(f"reuse: {name}: "), printed
-    assert summary == ""
-
-
-@pytest.mark.parametrize(
-    "env",
-    [
-        {"GITHUB_RUN_ATTEMPT": "2"},
-        {"GITHUB_EVENT_NAME": "workflow_dispatch"},
-        {"GITHUB_EVENT_NAME": "push"},
-    ],
-)
-def test_a_macos_run_again_never_reuses_and_asks_nothing(tmp_path, env):
-    """A run again, and a push to main, run the Mac: a push run selects over every merge since
-    main's last checked commit, and asks for no pull request's marker."""
-
-    def left(base, merge):
-        return {f"macos-checked-{base}-{merge}": run(path=MAC_WORKFLOW)}
-
-    outputs, _, summary, name, asked = mac_reuse(tmp_path, left, **env)
-    assert (outputs, summary, asked) == ({"name": name, "reused": "false"}, "", [])
-
-
-def test_a_push_names_its_marker_by_its_base_s_tree_main_s_last_checked_commit(tmp_path):
-    """A push's run checked `BASE`..HEAD, so the marker it leaves names `BASE`'s tree, here git's
-    empty tree, the lookup's answer where no run was in reach, and not the merge's parent's."""
-    outputs, _, _, name, _ = mac_reuse(
-        tmp_path, lambda base, merge: {}, GITHUB_EVENT_NAME="push", BASE=EMPTY_TREE
-    )
-    merge = name.rpartition("-")[2]
-    assert outputs == {"name": f"macos-checked-{EMPTY_TREE}-{merge}", "reused": "false"}
-
-
-def test_a_macos_lookup_that_cannot_ask_runs_the_mac_and_warns(tmp_path):
-    """Here the marker is listed and its run cannot be read."""
-    outputs, printed, summary, name, _ = mac_reuse(
-        tmp_path, lambda base, merge: {f"macos-checked-{base}-{merge}": None}
-    )
-    assert (outputs, summary) == ({"name": name, "reused": "false"}, "")
-    assert printed.startswith(f"::warning::reuse: {name}: could not ask (HTTP 404"), printed
-
-
-def test_a_passed_macos_job_leaves_the_marker_of_its_two_trees():
-    """Only parts that all passed leave `macos-checked-<base tree>-<merge tree>`, the name the
-    selection's lookup gave, for a later run of the pair to reuse: `macos` leaves it, on the
-    parts' result. A marker that cannot be kept costs that reuse and nothing else."""
-    found, _ = steps(MAC.read_text(), "macos")
-    mark, upload = found[-2:]
-    assert mark["name"] == "checked trees marker"
-    assert [
-        (result, name)
-        for result in RESULTS
-        for name in ("macos-checked-a-b", "")
-        if worked(
-            mark["if"],
-            {"needs.macos-part.result": result, "needs.macos-select.outputs.name": name},
-        )
-    ] == [("success", "macos-checked-a-b")]
-    assert mark["env"] == {"NAME": "${{ needs.macos-select.outputs.name }}"}
-    assert upload["uses"].partition("@")[0] == "actions/upload-artifact"
-    assert [o for o in OUTCOMES if worked(upload["if"], {"steps.checked.outcome": o})] == [
-        "success"
-    ]
-    assert upload["continue-on-error"] is True
-    assert upload["with"]["name"] == "${{ needs.macos-select.outputs.name }}"
-    assert upload["with"]["if-no-files-found"] == "error"
 
 
 def test_every_path_in_the_macos_quick_list_is_a_test_file_or_a_tests_directory_of_the_repo():
