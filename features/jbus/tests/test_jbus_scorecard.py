@@ -17,7 +17,7 @@ import pytest
 
 import jsettings
 from jbus import cli, telemetry
-from jbus.telemetry import measures, values
+from jbus.telemetry import measures, scorecard, values
 from jgauge import spend as jgauge_spend
 from test_jbus_telemetry import Machine
 
@@ -88,6 +88,7 @@ MODULES = (
     "jbus.telemetry.measures.m64_merges_per_session_hour",
     "jbus.telemetry.measures.m65_units_per_merge",
     "jbus.telemetry.measures.m66_rework_per_merge",
+    "jbus.telemetry.measures.m67_units_vs_capped_line",
 )
 """Each measure's module by its dotted name, so a new measure is named by a test that reads it."""
 
@@ -253,7 +254,9 @@ def test_jbus_scorecard_prints_each_measure_and_writes_nothing(tmp_path, monkeyp
     read = json.loads(out)
     assert [item["name"] for item in read] == [each.name for each in measures.MEASURES]
     for item in read:
-        assert {"name", "group", "value", "n", "baseline", "state", "tier", "audit"} <= set(item)
+        assert {"name", "group", "value", "n", "baseline", "state", "tier", "audit", "each"} <= set(
+            item
+        )
     macos = next(item for item in read if item["name"] == "macos-on-prs")
     assert (macos["value"], macos["state"], macos["tier"]) == (1, "bad", "wake")
 
@@ -404,3 +407,71 @@ def test_exactly_three_measures_wake_and_no_other_alert_raises_them():
     assert wakes["failed-launches"].kind == measures.Limit(20, 5)
     assert wakes["held-ready-pr"].kind == measures.Limit(2, 0)
     assert wakes["held-ready-pr"].unit == "h"
+
+
+def ran(store, instance: str, *made) -> None:
+    """A crew session on `instance` and its calls, each `(at, units)`, all of it plain input on
+    Sonnet, so a call's units are its tokens."""
+    store.execute(
+        "insert into sessions (provider, session, instance, project, role)"
+        " values ('claude', ?, ?, 'jstack', 'crew')",
+        (instance, instance),
+    )
+    for i, (at, units) in enumerate(made):
+        store.execute(
+            "insert into calls (provider, call, session, at, model, input, cache_write,"
+            " cache_read, output, final, day) values ('claude', ?, ?, ?, 'claude-sonnet-5-5', ?,"
+            " 0, 0, 0, 1, ?)",
+            (f"{instance}.{i}", instance, stamp(at), units, at.date().isoformat()),
+        )
+
+
+def quota(store, instance: str, window: str, *readings) -> None:
+    """The health look's readings of `instance`'s `window`, each `(at, percent used)`."""
+    for at, value in readings:
+        store.execute(
+            "insert into health_readings (project, key, at, reading, value, over)"
+            " values ('', ?, ?, ?, ?, 0)",
+            (f"{instance} {window} {stamp(at)}", stamp(at), f"quota {instance} {window}", value),
+        )
+
+
+def test_units_an_hour_read_against_each_accounts_capped_line(store):
+    """claudeAgent's seven-day window rose 10 points over 168 M units, so 100 points, its whole
+    week, is 1,680 M units, and its capped line is 10 M an hour; it ran 5 M in the last hour, 50%
+    of its line. prime's rose 10 points over 84 M, a line of 5 M an hour, and it ran 10 M, 200%:
+    the measure is past its line at the account nearest its cap, and shows each account."""
+    hours = [NOW - timedelta(hours=back) for back in (6, 1)]
+    quota(store, "claudeAgent", "seven_day", (hours[0], 30), (hours[1], 40))
+    quota(store, "claudeAgent", "five_hour", (hours[0], 0), (hours[1], 0))
+    quota(store, "prime", "seven_day", (hours[0], 10), (hours[1], 20))
+    ran(
+        store,
+        "claudeAgent",
+        (hours[0] + timedelta(hours=2), 168_000_000),
+        (NOW - timedelta(minutes=30), 5_000_000),
+    )
+    ran(
+        store,
+        "prime",
+        (hours[0] + timedelta(hours=2), 84_000_000),
+        (NOW - timedelta(minutes=30), 10_000_000),
+    )
+    reading = measures.read(store, measure("units-vs-capped-line"), "jstack", NOW, USER)
+    assert (reading.value, reading.n, reading.state) == (200.0, 2, "bad")
+    assert reading.each == (
+        measures.Part("claudeAgent", 5.0, 10.0),
+        measures.Part("prime", 10.0, 5.0),
+    )
+    page = scorecard.page([scorecard.Line(measure("units-vs-capped-line"), reading)], NOW)
+    shown = "M units an hour against its capped line"
+    assert f"claudeAgent 5 of 10 {shown}" in page and f"prime 10 of 5 {shown}" in page
+
+
+def test_an_account_whose_quota_rose_too_little_has_no_capped_line(store):
+    """A rise of a point or two says more about where the percent rounds than about the account:
+    its line would swing tenfold, so the measure leaves the account out."""
+    quota(store, "claudeAgent", "seven_day", (NOW - timedelta(hours=3), 30), (NOW, 31))
+    ran(store, "claudeAgent", (NOW - timedelta(minutes=30), 5_000_000))
+    reading = measures.read(store, measure("units-vs-capped-line"), "jstack", NOW, USER)
+    assert (reading.value, reading.state, reading.each) == (None, "none", ())
