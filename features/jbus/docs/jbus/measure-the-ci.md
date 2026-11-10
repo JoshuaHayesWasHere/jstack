@@ -127,7 +127,8 @@ The figures the cicd plan started from, 64% red and 5.6 shas per pull request, c
   Main-red is not under the floor, since `gh` gives it.
 - **A wave day** is a day whose shard wait p90 is over 300 s, and its column reads `wave`.
   A wave confounds a before and after: Nov 3 and 4 measure #970 and #1009, not the rows that merged then.
-- **jmerge's shadow pull requests**, whose branch starts `jstack/line/`, are left out of every count.
+- **jmerge's own branches** are left out of every count: its shadow pull requests, whose branch starts `jstack/line/`, and its standing batch pull request, whose branch is `jmerge/batch`.
+  The rule is `jbus.ci.ledger.ours`, and every count of `numbers.Facts` reads the ledger through it.
 - **A review launch** is a thread of the project's T3 Code project that jbus titled `review: <slug>, <round>`, `<round>` being `1` or `scoped`, of any model.
   A launch that failed on its provider and was launched again on another counts twice, its tokens with it.
   Its day is the local day its first run started.
