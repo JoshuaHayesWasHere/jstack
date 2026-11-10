@@ -6,6 +6,7 @@ Proof:
 - <a "Done when" line, in a few words>: <the command run and what it printed, or what was looked at>
 Branch: <name>   Pull request: <url or none>
 Stacked on: <the slug and the branch the brief's Stacked on: line names, and that row's pull request url>   <this line only for a brief with a Stacked on: line>
+Outcome: <carried by <slug> | nothing to change, <why> | dropped, <why>>   <this line only for a Result whose Pull request: is none on a brief that asks for one: without it jbus keeps the row at left for its home to close>
 Changed: <one or two lines on what changed>
 Playbook: <the playbook the step-3 block opened, or none>; <each of its steps in order, as <n> done or <n> skip: <reason>, with no ; in a reason>
 Skills run:   <one item for each name on the brief's Skills: line, or none when it names none; jmerge waits on a named one with no artifact>
