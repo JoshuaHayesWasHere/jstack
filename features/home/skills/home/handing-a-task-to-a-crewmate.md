@@ -60,6 +60,7 @@ The root home does step 1 and no other: it queues the brief by "Queueing a row i
    Its order behind other rows is one of two kinds, and one rule tells them apart from the plan alone: does this row's crew need another row's code in hand when it starts, code it changes, calls or imports?
    Where it does, the row is queued with `--depends <that row>`, and the brief has a `Builds on:` line that names that row before a colon and what of its work it starts from after it, as `$T/brief.md` shows.
    The row launches once that row has merged, or once it has opened its pull request: jbus then launches it stacked on that pull request's branch, writes its `Stacked on:` line, and moves it onto the default branch once that row merged.
+   A row whose brief opens no pull request (no `Pull request: open one`), such as a measure or a proof of that row's merged runs, changes no code, so jbus never stacks it: it launches once that row has merged, from the default branch, and a scout's row waits the same way.
    A stack is made by a `--depends` only: the home never writes a `Stacked on:` line, and `jbus queue add` refuses a brief whose `Stacked on:` line names a row its depends does not, and says to add the depends.
    A stacked row stays on its stack until that row merged.
    A row that builds on two rows whose pull requests are both open waits until one of them merged, since a stack sits on one branch.
