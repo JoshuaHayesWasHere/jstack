@@ -40,7 +40,14 @@ ifeq ($(GITHUB_ACTIONS) $(RUNNER_ENVIRONMENT),true github-hosted)
 JGAUGE_TEST_SLOT ?= runner
 export JGAUGE_TEST_SLOT
 endif
-TEST_WORKERS ?= $(shell n=$$(($(or $(strip $(CORES)),2) * $(PER_CORE))); [ "$$n" -ge 2 ] || n=2; echo "$$n")
+# A run in jgauge's short lane (`JGAUGE_TEST_SLOT=short`: one test file, a step of a crew's
+# check) takes SHORT_WORKERS and not the desk's quarter: the short slots are sized beside the full
+# lane and outside its core budget (`short_slots` in features/jgauge/src/jgauge/sizes.py, whose
+# SHORT_WORKERS is this count), and a one-file run spends its CPU on starting workers.
+# Four workers spend 9% less CPU than six on five test files a crew runs alone, and 46% less
+# than `-n auto`, for 13% more wall time (the measure is in sizes.py).
+SHORT_WORKERS = 4
+TEST_WORKERS ?= $(if $(filter short,$(JGAUGE_TEST_SLOT)),$(SHORT_WORKERS),$(shell n=$$(($(or $(strip $(CORES)),2) * $(PER_CORE))); [ "$$n" -ge 2 ] || n=2; echo "$$n"))
 # Workers take the next test as each finishes (`worksteal`), so a slow file does not hold up
 # the tests queued behind it. The 25 slowest tests are printed at the end, and `JUNIT=<file>`
 # writes every test's time there, which CI's summary line reads. `SHARD=K/N` runs only the K-th

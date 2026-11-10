@@ -48,7 +48,9 @@ def _split(args):
 
 def started(machine, *args, thread=THREAD, wait="0"):
     """`jgauge test-slot` with these arguments started, with the thread's option placed before
-    the `--`. A short call waits `wait` seconds in the call, none unless a test says."""
+    the `--`. A short call waits `wait` seconds in the call, none unless a test says. It runs in
+    the test's own directory, a repo that selects no tests, so `make check` is a command a thread
+    may run (jgauge.whole)."""
     head, dashes, command = (list(part) for part in _split(args))
     return subprocess.Popen(
         [
@@ -60,6 +62,7 @@ def started(machine, *args, thread=THREAD, wait="0"):
             *command,
         ],
         env={**os.environ, "HOME": str(machine.home), slot.WAIT_FOR: wait},
+        cwd=machine.home.parent,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,

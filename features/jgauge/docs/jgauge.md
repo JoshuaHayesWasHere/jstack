@@ -68,6 +68,18 @@ It is not beside the lock file, since a `TMPDIR` with a hidden directory in it, 
 Once it lets the slot go, it sweeps `/tmp` (`TMPFS`) as `jgauge room` does when `/tmp` is full, whatever share of its file slots is used: each `pytest-of-<user>/pytest-<n>` run of yours over 20 minutes old that no live process holds is removed, and stderr says `test-slot: removed <n> stale pytest directories under /tmp`.
 A run outside any slot, or one that was killed, leaves its basetemp there, and pytest's own retention keeps a killed run's for days.
 
+### What each lane holds
+
+The short lane holds a run of one test file, the lint, a step of a crew's check, a reviewer's proof and a crew's proof of its tests: each a second or a minute.
+It runs on the lane's own worker count, which `make test` takes under `JGAUGE_TEST_SLOT=short` and `proved.sh` takes in place of `-n auto`, not the desk's quarter of the processors.
+Its slots are sized beside the full lane and outside its core budget (`short_slots` in `jgauge.sizes`), so a short run that took a full lane's workers would put the machine over its cores.
+
+The full lane holds a short step's rerun after the short lane stopped it at its limit (exit 124), and another repo's check command, the one its `fresh-check` names, through `jgauge check`; `jmerge`'s guards of a merged tree take it too, with no `--thread`.
+It never holds the whole suite of a repo whose check selects its tests (`scripts/select_tests.py`): CI's check runs the selection on every pull request, and the whole suite nightly and before a release.
+`jgauge test-slot --thread` refuses one in such a repo, in either lane, runs nothing, ends 2 and names the touched check instead.
+A whole suite is `make check`, `make check-fast` with no `PART=`, `make test` with no `TESTS=`, and `pytest` with no path, as the command's own words say (`jgauge.whole`): a command inside `sh -c` is not read.
+A run with no `--thread`, by hand or by `jmerge`, is not refused.
+
 To change how many slots there are, see [The limits and how to change them](jgauge/change-a-limit.md).
 
 ## The commands
@@ -253,7 +265,7 @@ Once the first row is over 30 days old, the next row written first rewrites the 
 ## How jstack uses it
 
 The `home` skill runs `jgauge room` before a launch, the `pr-review` skill runs it before a review, and `jbus` runs it before each launch.
-A crewmate runs the check command that the repo's `fresh-check` names.
+A crewmate in a repo whose check selects no tests runs the check command that the repo's `fresh-check` names.
 It runs that command once, under a test slot, as `jgauge check`, with the check command on stdin.
 In a repo whose check selects its tests, as jstack's does, the crewmate's check is instead the lint and the tests its change touches, each step its own `jgauge test-slot --short` call, and a step the short lane stops at its limit runs again alone in a full slot (`features/crew/do-the-task.md`).
 A reviewer's proof runs in the short lane as `jgauge proof`, with the proof on stdin.

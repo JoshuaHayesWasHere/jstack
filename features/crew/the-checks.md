@@ -10,9 +10,11 @@ Its first word is one of four answers:
 
 - `passed`: every check passed. The pull request is green.
 - `failed`: a check ran and failed.
-  Run the check command in this worktree (the first line of `$H/fresh-check`) with the block of "Do the task" that runs it, until it prints `done`, in this turn.
-  On `waiting`, stop as "Do the task" says.
-  Then run the block of "A failed check" below, and do what its first word says.
+  Run the check in this worktree with the block of "Do the task" that runs it, in this turn, as that step says: in a repo whose check selects its tests (`scripts/select_tests.py`) it is the touched check, a step to a short slot, and in any other repo the check command.
+  On a full lane's `waiting`, stop as "Do the task" says.
+  In a repo whose check selects its tests, then run each test file CI's failed parts name, alone in the short lane, with the block of "The failed files" below.
+  Never the whole suite and never the first line of `$H/fresh-check` there: CI's check runs the selection, and `jgauge test-slot --thread` refuses a whole suite in such a repo.
+  Then run the block of "A failed check" below, with `failed` where the check or a failed file failed here, and do what its first word says.
 - `wait`: a check is still running, none is reported yet, or GitHub could not be asked.
   End your turn: jbus sends this thread a message when a check ran and failed at this head, and none when every check passed, since the review came before the pull request.
 - `unrun`: no check ran. Every check either failed with no step run or was skipped, which is a repo whose CI starts no job (no runner, a failed payment), and nothing a push repairs. It is not green, and nothing stands in for a check that did not run: the check command passing in this worktree does not, and no line in the Result does. If the Result has no `Unrun:` line for this head, add `Unrun: at <head>, no check ran` and park a gate ("Do the task") that says `no check ran at <head>` and asks what to do, with the default that the pull request waits. Launch no reviewer and send no `fixed and green` line. Then end your turn: the gate's answer wakes this thread, or jbus's message when a check runs and fails.
@@ -23,6 +25,49 @@ A failed check whose job GitHub will not give counts as one that ran.
 A check run more than once at the head, one cancelled and run again included, counts by its latest run, the one that started last: `jmerge` reads it the same way.
 The block of "A failed check" reads each check by its latest run too, so a run that failed and was passed since is never run again, and it runs nothing again while the workflow run of a failed check still has a job going.
 The merge goes by the checks the repo names: `jmerge` merges only when each check its `$H/required-checks` file names passed at the head, or the check named `check` where there is no such file (features/jmerge/docs/jmerge.md, "Name the checks a merge waits for").
+
+**The failed files** are the test files that the logs of CI's failed jobs name on a `FAILED` or `ERROR` line, read from the latest run of each failed check.
+Run this in this worktree with the block at the top and this thread's id in place of the words in angle brackets:
+
+```sh
+if [ ! -f scripts/select_tests.py ]; then
+    echo "none: this repo's check selects no tests, so the check command ran them all"
+elif ! said=$(uv run --project "$T/../source" jbus budget --wait 540 --calls 10); then
+    echo "$said"
+elif ! view=$(gh pr view --json statusCheckRollup); then
+    echo "wait: could not ask GitHub"
+else
+    runs=$(printf %s "$view" | jq -r '
+        def at: if (. // "") == "" or startswith("0001-") then "~" else . end;
+        def run: (.detailsUrl // "") | capture("^https://[^/]*/[^/]*/[^/]*/actions/runs/(?<id>[0-9]+)/job/[0-9]+$").id;
+        [.statusCheckRollup[]? | {one: ., key: (.name // .context), when: [(.startedAt | at), (.completedAt | at)]}]
+        | group_by(.key) | map((max_by(.when).when) as $last | .[] | select(.when == $last) | .one)
+        | [.[] | select(.status == "COMPLETED" and (.conclusion | IN("SUCCESS", "NEUTRAL", "SKIPPED") | not)) | run] | unique | .[]')
+    files=$(for run in $runs; do gh run view "$run" --log-failed; done | sed -n 's/.* \(FAILED\|ERROR\) \([^ :]*\.py\).*/\2/p' | sort -u)
+    ran=0
+    for file in $files; do
+        [ -f "$file" ] || { echo "$file: not in this worktree, so not run"; continue; }
+        lane=short
+        uv run --project "$T/../source" jgauge test-slot --short --thread '<thread id>' -- make test TESTS="$file"
+        said=$?
+        if [ "$said" = 124 ]; then
+            lane=full
+            uv run --project "$T/../source" jgauge test-slot --thread '<thread id>' -- make test TESTS="$file"
+            said=$?
+        fi
+        echo "$file: exit $said, $lane lane"
+        [ "$said" = 0 ] || [ "$ran" != 0 ] || ran=$said
+        [ "$said" != 76 ] || break
+    done
+    [ -n "$files" ] || echo "none: CI's failed jobs name no test file"
+    echo "failed files: exit $ran"
+fi
+```
+
+Its last line is `failed files: exit <n>`: 0 where each named file passed here, and the first failure's exit otherwise, which is `failed` for "A failed check".
+A `76` in the short lane is no slot by the ceiling: run the block again at once.
+A `76` in the full lane is a wait for a slot: end the turn as "test slots" says, and on jbus's message run the block again.
+A `none` line runs nothing: the check of "Do the task" is the whole of what runs here, and its lint covers a failed lint job.
 
 **A failed check** is the change's own, a base that moved, or a flake, and this says which. Run it in this worktree with the block at the top, after the check command, with what the check command did here in place of the words in angle brackets, `failed` or `passed`:
 

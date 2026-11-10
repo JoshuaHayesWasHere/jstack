@@ -57,6 +57,19 @@ CREW_GIB = 2
 """Memory a crew is given room for: an agent is 0.3 GB idle, plus the builds, servers and
 short runs it starts outside the slots."""
 
+SHORT_WORKERS = 4
+"""The workers of a run in the short lane: the Makefile's `SHORT_WORKERS` under
+`JGAUGE_TEST_SLOT=short`, and the crew's proved.sh in a short slot, which
+testing/tests/test_check_command.py and features/crew/tests/test_crew_proved.py hold to this.
+Measured on yelena, 24 processors at load 11 to 27, 2026-11-09: five test files a crew runs
+alone (test_docs_tree, test_bash32, test_jbus_telemetry, test_jbus_steps, test_jbus_queue),
+5 rounds each, each run in a short slot, the sums of the medians in CPU and wall seconds:
+`-n auto` 147.7 and 31.1, 6 workers 87.7 and 33.6, 4 workers 79.9 and 37.9, 3 workers 77.3 and
+44.0, 2 workers 74.5 and 57.9, no xdist 71.6 and 100.6. Each worker spends about 3 CPU s
+importing and collecting. Four keeps 9% of 6's CPU for 13% more wall time, and 46% of
+`-n auto`'s; 2 saves 5% more CPU for 69% more wall time, which would hold the short slots, 55%
+taken in the 2026-11-09 push at 6, near all the time."""
+
 SHORT_PER_CORES = 8
 SHORT_FLOOR = 2
 SHORT_CEILING = 8

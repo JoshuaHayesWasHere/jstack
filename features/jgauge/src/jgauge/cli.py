@@ -24,6 +24,7 @@ from jgauge import (
     spend,
     transcript,
     waiters,
+    whole,
 )
 from jgauge.transcript import TranscriptError
 from jroles import ledger, pool
@@ -203,6 +204,9 @@ def cmd_test_slot(args: argparse.Namespace) -> int:
     command = args.argv[1:] if args.argv[:1] == ["--"] else args.argv
     if not command:
         args.usage("no command to run")
+    if args.thread and (said := whole.refusal(command, Path.cwd(), os.environ)):
+        print(said, file=sys.stderr)
+        return 2
     if args.short:
         if args.slots is not None:
             args.usage("--short takes a slot of the short lane, and --slots counts the full lane")
