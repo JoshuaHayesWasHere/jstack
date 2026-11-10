@@ -8,8 +8,11 @@ keeps the tip, the tree, the commit and the members in `KEPT`. CI's check of tha
 runs on GitHub's merge of its head over main, whose tree is the batch's, since the head holds the
 tip, and leaves the artifact of the two trees (`green.checked`). On it, with the tip unmoved,
 `jmerge` squash-merges each member at its own head, in order, with no guards run
-(`cli.Repo.merge_batch`). A batch whose check failed, or that went `PENDING_MINUTES` with no
-artifact found, sends each member down the single path of today at that head (`failed`).
+(`cli.Repo.merge_batch`). A batch of two or more whose check failed, or that went
+`PENDING_MINUTES` with no artifact found, keeps its members as `suspects`, and the next batch is
+the first half of them (`narrow`), so CI's checks of halves find the member that failed it. A
+failed batch of one sends that member down the single path of today at its head (`failed`),
+whose guards name the failing test for its crew.
 
 The batch pull request is jmerge's own: it is never judged as a row's, and never merged.
 """
@@ -75,14 +78,25 @@ class Batch:
         return Member(one.number, one.head) in self.members
 
 
+def narrow(members: tuple[Member, ...]) -> tuple[Member, ...]:
+    """The first half of `members`, the larger half where their count is odd."""
+    return members[: (len(members) + 1) // 2]
+
+
+def _members(listed: list[dict]) -> tuple[Member, ...]:
+    return tuple(Member(int(m["number"]), str(m["head"])) for m in listed)
+
+
 @dataclass
 class Record:
-    """`KEPT`: the batch out, if any, and the heads of the members of a batch that failed, which
-    go the single path at those heads."""
+    """`KEPT`: the batch out, if any; the heads of the members of a failed batch of one, which go
+    the single path at those heads; and the suspects, the members of the last failed batch of two
+    or more that have not merged, in merge order, of which the next batch takes the first half."""
 
     path: Path
     batch: Batch | None = None
     failed: dict[str, str] = field(default_factory=dict)
+    suspects: tuple[Member, ...] = ()
 
     @classmethod
     def read(cls, state: Path) -> Record:
@@ -90,17 +104,19 @@ class Record:
         kept = store.read_dict(path)
         failed = kept.get("failed")
         failed = {str(k): str(v) for k, v in failed.items()} if isinstance(failed, dict) else {}
+        suspects = kept.get("suspects")
+        suspects = _members(suspects) if isinstance(suspects, list) else ()
         try:
             made = Batch(
                 str(kept["tip"]),
                 str(kept["tree"]),
                 str(kept["commit"]),
-                tuple(Member(int(m["number"]), str(m["head"])) for m in kept["members"]),
+                _members(kept["members"]),
                 datetime.fromisoformat(str(kept["at"])),
             )
         except (KeyError, TypeError, ValueError):
             made = None
-        return cls(path, made, failed)
+        return cls(path, made, failed, suspects)
 
     def write(self) -> None:
         kept: dict = {}
@@ -113,7 +129,26 @@ class Record:
                 "members": [{"number": m.number, "head": m.head} for m in made.members],
                 "at": made.at.isoformat(),
             }
-        store.write_json(self.path, {**kept, "failed": self.failed})
+        suspects = [{"number": m.number, "head": m.head} for m in self.suspects]
+        store.write_json(self.path, {**kept, "failed": self.failed, "suspects": suspects})
+
+    def fail(self) -> None:
+        """End the batch out as failed: one of two or more members makes them the suspects, and
+        a suspect of an earlier batch not in it is one no more; one of one member puts its head
+        under `failed` and takes it from the suspects."""
+        members = self.batch.members if self.batch else ()
+        if len(members) > 1:
+            self.suspects = members
+        else:
+            self.failed |= {str(one.number): one.head for one in members}
+            self.suspects = tuple(one for one in self.suspects if one not in members)
+        self.batch = None
+
+    def keep(self, heads: dict[str, str]) -> None:
+        """Keep the failed heads and the suspects still open at the same head (`heads`, by
+        number): one whose head moved, or that merged or closed, is judged again from the start."""
+        self.failed = {n: head for n, head in self.failed.items() if heads.get(n) == head}
+        self.suspects = tuple(m for m in self.suspects if heads.get(str(m.number)) == m.head)
 
 
 def state_of(
@@ -204,6 +239,14 @@ class Batching:
         was no member of a failed batch at this head."""
         failed = self.record.failed.get(str(one.number)) == one.head
         return not revert and bool(default) and one.base == default and not failed
+
+    def chosen(self, members: list[Judged]) -> list[Judged]:
+        """The members the next batch takes, of those this run judged: the first half of the
+        suspects that are still judged members at their heads (`narrow`), and every member where
+        no suspect is left. A suspect not among `members` is one no more."""
+        judged = {Member(found[0].number, found[0].head): found for found in members}
+        self.record.suspects = tuple(one for one in self.record.suspects if one in judged)
+        return [judged[one] for one in narrow(self.record.suspects)] or members
 
     @property
     def first(self) -> bool:

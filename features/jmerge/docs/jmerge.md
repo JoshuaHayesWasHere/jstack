@@ -466,9 +466,14 @@ Like the guards, the batch runs no browser tests: browser.yml skips a draft.
 **What a failed batch does.**
 A batch whose check failed, or that went 30 minutes from its push with no artifact found (`batch.PENDING_MINUTES`), has failed.
 A check that passed with no artifact found waits for that limit, its members still `in jmerge's batch`: the lookup reads a gh error, or a run not yet concluded a moment after its last job passed, as none, and the next run that finds the artifact merges the batch.
-Each of its members then goes the single path of today, in that run, at the head the batch held: its merged tree's guards, or the line ("The guards on the merged tree"), and `batch.json` keeps those heads under `failed` until each one's head moves.
-A batch that cannot be made, whose push or pull request GitHub refused, sends its members down the same path in that run, after a line that starts `batch: not made`.
-Splitting a failed batch in halves to find the member that failed it is a later row (po-batch-split-halves).
+A failed batch of two or more runs no guards: `batch.json` keeps its members, in merge order, under `suspects`, and the next batch, built in that run over today's tip on the same branch and pull request, is the first half of them (the larger half where their count is odd, `batch.narrow`).
+So CI's checks of halves find the member that failed it, where the guards of every member ran one at a time on this machine.
+A proven half merges as any batch does, and the next batch is the first half of the suspects that are left.
+A failed half of two or more becomes the suspects in turn, and a suspect of the batch before that is not in it is one no more.
+While suspects are kept, every other member waits as `batch-first`, and a suspect outside the half waits the same way.
+A failed batch of one sends its member down the single path of today, in that run, at the head the batch held: its merged tree's guards, which name the failing test for its crew, or the line ("The guards on the merged tree"); `batch.json` keeps that head under `failed` until it moves.
+A suspect whose head moved, that is no longer open, or that is no longer judged a member leaves the suspects.
+A batch that cannot be made, whose push or pull request GitHub refused, sends every member down the single path in that run, after a line that starts `batch: not made`, and drops the suspects.
 
 ## A failed check over a base that moved
 

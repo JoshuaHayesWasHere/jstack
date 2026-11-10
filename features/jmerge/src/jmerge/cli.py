@@ -1658,21 +1658,20 @@ class Repo:
         self, pull: ready.PullRequest | None, default: str, listed: list[ready.PullRequest]
     ) -> None:
         """Read where the batch stands before this run judges anything (`batch.state_of`). A
-        failed batch's members go alone at the heads it held, and a pull request that would merge
-        alone waits while a batch is out (`batch.Batching.first`)."""
+        failed batch of two or more keeps its members as suspects, and one of one sends its member
+        alone at the head it held (`batch.Record.fail`); a pull request that would merge alone
+        waits while a batch is out (`batch.Batching.first`)."""
         record = batch.Record.read(self.state)
-        heads = {str(one.number): one.head for one in listed}
-        record.failed = {n: head for n, head in record.failed.items() if heads.get(n) == head}
+        record.keep({str(one.number): one.head for one in listed})
         _run(self.main, "git", "fetch", "-q", "origin", default)
         tip = self.tip_of(default)
         kept, run = record.batch, None
         if kept and pull and (kept.tip, kept.commit) == (tip, pull.head):
             run = self.guards.checked(kept.tip, kept.tree)
         state = batch.state_of(kept, pull, tip, run, datetime.now(UTC))
-        if state == batch.FAILED and kept is not None:
-            record.failed |= {str(member.number): member.head for member in kept.members}
-        if state in (batch.NONE, batch.FAILED):
-            record.batch = None
+        if state == batch.FAILED:
+            record.fail()
+        record.batch = None if state == batch.NONE else record.batch
         record.write()
         self.batching = batch.Batching(record, state, run or "", pull)
 
@@ -1753,22 +1752,26 @@ class Repo:
     def build_batch(
         self, on: batch.Batching, default: str, members: list[batch.Judged]
     ) -> list[str]:
-        """Build the batch of `members` over today's tip, push it to `batch.BRANCH`, open its
-        draft pull request where GitHub lists none, and keep it. A batch that cannot be made
-        sends each member down the single path of today in this run, and says why first."""
+        """Build the batch of the members it takes (`batch.Batching.chosen`, the first half of
+        the suspects where any are left) over today's tip, push it to `batch.BRANCH`, open its
+        draft pull request where GitHub lists none, and keep it; each other member waits for it.
+        A batch that cannot be made sends each member down the single path of today in this run,
+        drops the suspects, and says why first."""
         on.record.batch = None
+        chosen = on.chosen(members)
         if not members:
             on.record.write()
             return []
         _run(self.main, "git", "fetch", "-q", "origin", default)
         tip = _run(self.main, "git", "rev-parse", f"origin/{default}").stdout.strip()
-        heads = [batch.Member(one.number, one.head) for one, *_ in members if self.has(one)]
+        heads = [batch.Member(one.number, one.head) for one, *_ in chosen if self.has(one)]
         made = batch.build(self.main, default, tip, heads)
         why = "" if made.members else f"no member merges over {default} at {tip[: batch.SHA]}"
         why = why or batch.push(self.main, made.commit)
         if not why and on.pull is None:
             why = self.open_batch(default)
         if why:
+            on.record.suspects = ()
             on.record.write()
             said = [batch.UNMADE.format(base=default, tip=tip[: batch.SHA], why=why)]
             for one, slug, note, judged in members:
