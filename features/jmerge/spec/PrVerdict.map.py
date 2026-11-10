@@ -88,7 +88,8 @@ def step(action, before, after):
             return STEPS["MainMoves"]
         return STEPS["OtherMerges"] if before["ahead"] == "other" else STEPS["AcceptOther"]
     if action == "NewHead":
-        return STEPS["CrewFix"] if before["reviewed"] and not after["reviewed"] else STEPS["GitHubMergesBase"]
+        crew = before["reviewed"] and not after["reviewed"]
+        return STEPS["CrewFix"] if crew else STEPS["GitHubMergesBase"]
     if action == "CheckEnds":
         return "its check passes" if after["ci"] == "pass" else "its check fails"
     return STEPS.get(action, action)
