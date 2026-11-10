@@ -855,6 +855,18 @@ class Approve:
 
 @dataclass(frozen=True)
 class Hold:
+    """`Hold` takes the row's go back. With `keep`, the hold keeps the go it took (`TOOK`), so
+    `Lift` can put that go back."""
+
+    slug: str
+    keep: bool = False
+
+
+@dataclass(frozen=True)
+class Lift:
+    """`Lift` ends a hold that kept the go it took (`Hold.keep`) and puts that go back, where the
+    row's brief is still the one the go was for."""
+
     slug: str
 
 
@@ -889,7 +901,7 @@ class Rename:
     by: str
 
 
-Verb = Add | Approve | Hold | Remove | Withdraw | Rename
+Verb = Add | Approve | Hold | Lift | Remove | Withdraw | Rename
 EntryGo = Callable[[str, str], Said | None]
 
 
@@ -1218,6 +1230,36 @@ def _hold(row: Row, by: dict[str, Any] | None = None) -> None:
     row.pop("hold", None)
     if by:
         row["hold"] = by
+
+
+TOOK = "took"
+"""The key of a row's `hold` under which a hold that keeps its go (`Hold.keep`) keeps the go it
+took: the row's `approved`, `approval` and `brief_sha` as they were. A later hold, by anyone,
+writes a `hold` of its own, so a row held again since keeps nothing `Lift` can put back."""
+GO_COLUMNS = ("approved", "approval", "brief_sha")
+"""The columns of a row's go, which a hold takes."""
+
+
+def _lift(batch: _Batch, slug: str) -> str:
+    """Put back the go a hold kept (`TOOK`) and end the hold, and return the line that says so.
+    Refuse a row that is not held or whose hold kept no go, and one whose stored brief is not the
+    one that go was for, by its sha: each stays held until it is approved again."""
+    row = batch.row(slug)
+    took = (row.get("hold") or {}).get(TOOK) if row.get("held") else None
+    if not isinstance(took, dict) or not took.get("approved"):
+        raise Refused(f"refused: {slug} has no hold that kept a go to put back")
+    text = batch.brief(slug)
+    if text is None or took.get("brief_sha") not in (
+        judgement.brief_sha(text),
+        judgement.sha(text),
+    ):
+        raise Refused(f"refused: {slug}'s brief changed since the go its hold took")
+    row.pop("held", None)
+    row.pop("hold", None)
+    row.update({column: took.get(column, "") for column in GO_COLUMNS if column != "approval"})
+    if "approval" in took:
+        row["approval"] = took["approval"]
+    return f"lifted {slug}'s hold, and its go is back: {approval(row)}"
 
 
 def _unfollow(
@@ -1584,11 +1626,17 @@ def _do(
     rows = batch.rows
     if isinstance(verb, Hold):
         by = {"ran_by": ran_by or runner(), "ran_at": _stamp(user)}
-        _hold(batch.row(verb.slug), by)
+        row = batch.row(verb.slug)
+        took = {column: row[column] for column in GO_COLUMNS if row.get(column)}
+        _hold(row, by)
+        if verb.keep and took.get("approved"):
+            row["hold"] = {**by, TOOK: took}
         also = _unfollow(rows, verb.slug, by=by)
         return f"held {verb.slug}; run {by['ran_at']} by {who(by['ran_by'])}" + (
             f", and {', '.join(also)} with it: {FOLLOWED}" if also else ""
         )
+    if isinstance(verb, Lift):
+        return _lift(batch, verb.slug)
     if isinstance(verb, Add):
         if not _SLUG.fullmatch(verb.slug):
             raise Refused(f"refused: {verb.slug} is not a slug")
@@ -2408,10 +2456,17 @@ def _follow_ups(half: Any) -> None:
 STEPS = (verbs.Step("before-watch", 8, "queue.follow_ups", _follow_ups),)
 
 
-def hold(state: Path, slug: str, user: jsettings.Settings | None = None) -> str:
+def hold(state: Path, slug: str, user: jsettings.Settings | None = None, keep: bool = False) -> str:
     """Take the row's go back, keeping who held it and when, and return the line that says
-    what was held and by whom."""
-    return _run(state, [(0, Hold(slug))], user)[0]
+    what was held and by whom. With `keep`, the hold keeps the go it took, for `lift`."""
+    return _run(state, [(0, Hold(slug, keep))], user)[0]
+
+
+def lift(state: Path, slug: str) -> str:
+    """Put back the go a hold kept (`hold` with `keep`) and end the hold, and return the line
+    that says so. A row held again since, or whose brief changed since that go, is refused and
+    stays held."""
+    return _run(state, [(0, Lift(slug))])[0]
 
 
 def remove(state: Path, slug: str, by: str, at: str, asks: Asks) -> str:
