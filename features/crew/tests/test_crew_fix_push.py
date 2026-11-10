@@ -1,9 +1,13 @@
 """The crew skill's push of a fix: a new commit on the head GitHub has, never a rewrite."""
 
 import os
+import shlex
 import subprocess
+import sys
 
+import test_room as room
 from crew_helpers import PullRequest, block, git
+from testing.layouts import assembled
 
 ABOUT = "a rebase is not pushed yet"
 
@@ -102,3 +106,74 @@ def test_the_way_back_from_an_amend_keeps_the_fix_and_needs_no_force(tmp_path):
     git(pr.work, "commit", "-q", "-m", "the fix")
     assert pushes(pr) == f"pushed {pr.head()}\n"
     assert git(pr.work, "show", f"{origin(pr)}:fix.txt") == "the fix"
+
+
+HOOK = """#!/bin/sh
+exec {python} -c '
+import sys
+from jleak import crewpush
+found = crewpush.refused(sys.stdin.read().splitlines())
+print("\\n".join(found), file=sys.stderr)
+sys.exit(1 if found else 0)'
+"""
+SELECTOR = "import sys\nassert sys.argv[1:3] in (['--part', 'touched'], ['--part', 'cross'])\n"
+
+
+def checks(pr, tmp_path, red):
+    """Run the check block of "Do the task" in the crewmate's worktree, with a `make` that fails
+    the test file CI failed on while `red`, and passes every other step."""
+    stub = tmp_path / "check-stub"
+    stub.mkdir(exist_ok=True)
+    room.uv(stub)
+    fails = 'case "$*" in *test_ci.py*) exit 1 ;; esac\n' if red else ""
+    (stub / "make").write_text("#!/bin/sh\n" + fails)
+    (stub / "make").chmod(0o755)
+    script = block("Do the task", "<check command>")
+    script = script.replace("<thread id>", "mcp:thread-1").replace("<slug>", "a-task")
+    return subprocess.run(
+        ["sh", "-c", script],
+        capture_output=True,
+        text=True,
+        cwd=pr.work,
+        env={
+            **os.environ,
+            "HOME": str(tmp_path / "home"),
+            "TEST_SLOTS": "3",
+            "PATH": f"{stub}:{room.BIN}:{os.environ['PATH']}",
+            "T": str(assembled() / "templates"),
+            "H": str(tmp_path / "state"),
+        },
+    ).returncode
+
+
+def test_a_fix_whose_failed_file_is_still_red_is_not_pushed(tmp_path, monkeypatch):
+    """CI failed on `tests/test_ci.py`, which the fix only reaches, and the block of "The failed
+    files" kept its name. The check block at the fix head runs it, and while it fails the
+    `Checked:` line binds no pass, so jleak's crew rule at `pre-push` (`jleak.crewpush`) refuses
+    the fix. Once it passes at the head, the same fix goes out."""
+    pr = PullRequest(tmp_path, None, "other.txt")
+    was = pr.head()
+    homes = tmp_path / "homes"
+    monkeypatch.setenv("JBUS_HOME_DIR", str(homes))
+    tasks = tmp_path / "state" / "tasks"
+    tasks.mkdir(parents=True)
+    (tasks / "a-task.md").write_text("# a-task: a task\nThread: mcp:thread-1\n\n## Result\n")
+    (homes / "main").mkdir(parents=True)
+    (homes / "main" / "tasks").symlink_to(tasks)
+    hooks = tmp_path / "main" / ".git" / "hooks"
+    (hooks / "pre-push").write_text(HOOK.format(python=shlex.quote(sys.executable)))
+    (hooks / "pre-push").chmod(0o755)
+    (pr.work / "scripts").mkdir()
+    (pr.work / "scripts" / "select_tests.py").write_text(SELECTOR)
+    (pr.work / "tests").mkdir()
+    (pr.work / "tests" / "test_ci.py").write_text("")
+    git(pr.work, "add", "-A")
+    pr.commit(pr.work, "fix.txt", "the fix\n", "the fix")
+    (pr.git_dir / "crew-failed-files").write_text("tests/test_ci.py\n")
+
+    assert checks(pr, tmp_path, red=True) == 1
+    assert pushes(pr) == "the push was refused: origin did not take a plain push of a-task\n"
+    assert origin(pr) == was
+
+    assert checks(pr, tmp_path, red=False) == 0
+    assert pushes(pr) == f"pushed {pr.head()}\n"

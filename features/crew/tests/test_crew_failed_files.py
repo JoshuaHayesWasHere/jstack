@@ -26,10 +26,13 @@ case "$*" in *test_b.py*) exit 1 ;; esac
 """
 
 
-def files_block(tmp_path, selects=True):
+def files_block(tmp_path, selects=True, kept=""):
     """Run the block of "The failed files" in a pull request's worktree whose failed check is
-    job 2 of run 5, with the log above, and return what it printed and the runs of `make`."""
+    job 2 of run 5, with the log above, and return what it printed and the runs of `make`.
+    `kept` is what the worktree's `crew-failed-files` held before, from an earlier red."""
     failed = Failed(tmp_path)
+    if kept:
+        (failed.git_dir / "crew-failed-files").write_text(kept)
     if selects:
         (failed.work / "scripts").mkdir()
         (failed.work / "scripts" / "select_tests.py").write_text("")
@@ -77,3 +80,17 @@ def test_a_repo_that_selects_no_tests_runs_nothing_more(tmp_path):
     said, made = files_block(tmp_path, selects=False)
     assert made == []
     assert said[-1].startswith("none: ")
+
+
+def test_the_failed_files_are_kept_for_the_check(tmp_path):
+    """The block keeps each name it read, beside `crew-check-steps`, where the check block of
+    "Do the task" takes them as steps, and an earlier red's name not passed since stays."""
+    files_block(tmp_path, kept="tests/test_old.py\n")
+    work = tmp_path / "trees" / "a-task"
+    kept = work / git(work, "rev-parse", "--git-path", "crew-failed-files")
+    assert kept.read_text().splitlines() == [
+        "tests/test_a.py",
+        "tests/test_b.py",
+        "tests/test_gone.py",
+        "tests/test_old.py",
+    ]
