@@ -362,6 +362,31 @@ def test_a_pull_request_held_for_an_accept_waits_on_the_users_accept(kitchen):
     assert "touches infra/prod.tf" in line["why"]
 
 
+@pytest.mark.parametrize("word", ["wait", "hold"])
+def test_a_question_asked_of_a_row_whose_pull_request_is_open_is_on_the_list_once(kitchen, word):
+    """A lost launch reply is a question on a row whose pull request is open. While `jmerge` only
+    waits on the pull request, the question is the row's one item; while `jmerge` holds it, the
+    hold is its one item."""
+    add(kitchen, "alpha")
+    kitchen.t3.status = 503
+    kitchen.poll()
+    kitchen.t3.status = 200
+    kitchen.brief("alpha", result(branch=f"alpha   Pull request: {PULL}"))
+    kitchen.set("open.json", [kitchen.opened("alpha", 9)])
+    reason = ready.NO_REVIEW if word == "wait" else ready.TOUCHES.format(user="u", path="x.tf")
+    kitchen.set("jmerge.txt", f"{word} 9 {PULL}: {reason}\n")
+    kitchen.poll(NOW + timedelta(minutes=3))
+    asked = "launch reply lost, 0 matching threads"
+    listed = jbus.read_json(kitchen.state / waiting.NAME, [])
+    mine = [one for one in listed if one.get("slug") == "alpha" or one.get("number") == 9]
+    if word == "wait":
+        assert [(one["key"], one["line"]) for one in mine] == [
+            ("row:alpha", f"{waiting.CONDITION} alpha: {asked}")
+        ]
+    else:
+        assert [one["key"] for one in mine] == ["#9"]
+
+
 def test_a_pass_that_could_not_ask(kitchen):
     add(kitchen, "alpha")
     kitchen.t3.thread("alpha", "running")

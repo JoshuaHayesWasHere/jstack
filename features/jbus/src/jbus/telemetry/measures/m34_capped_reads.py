@@ -1,20 +1,22 @@
 from jbus.telemetry.measures import Limit, Measure, Sql
 
 MEASURE = Measure(
-    name="capped-reads",
+    name="capped-any-minutes",
     group="machinery",
-    says="share of today's limit reads with an account capped",
-    unit="%",
+    says=(
+        "minutes with an account capped this week, while launches ran on the others; "
+        "the capped minutes KPI counts every account capped"
+    ),
+    unit="min",
     better="lower",
     source=Sql(
-        "select 100.0 * sum(capped > 0) / nullif(count(*), 0) as value, count(*) as n"
-        " from capped_reads where project = :project and at >= :begins and at < :ends",
+        "select coalesce(sum(minutes), 0) as value, coalesce(sum(reads), 0) as n"
+        " from weekly_capped_any where project = :project and week = date(:begins, 'weekday 0')",
         machine=True,
     ),
-    window="day",
-    baseline=100,
-    baseline_of="capped_reads on 2026-11-05 to 07",
-    kind=Limit(100, 10),
+    window="week",
+    baseline=5585,
+    baseline_of="weekly_capped_any, the week of 2026-11-01",
+    kind=Limit(5585, 1),
     tier="page",
-    wired="capped, every instance capped over 30 min a day (jbus.kpis)",
 )

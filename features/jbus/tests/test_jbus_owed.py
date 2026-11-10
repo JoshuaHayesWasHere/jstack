@@ -391,6 +391,30 @@ def test_jbus_status_shows_a_held_message_and_a_launch_held_by_a_cap(kitchen):
     assert record.status(config, AFTER)["projects"]["demo"]["capped"] == []
 
 
+def test_a_cap_hold_stays_in_jbus_status_however_many_lines_come_after_it(kitchen):
+    state, config = kitchen.state, jbus.load()
+    state.mkdir(parents=True, exist_ok=True)
+    hold = {
+        "row": "alpha",
+        "template": "rebase",
+        "key": "k",
+        "went": "held",
+        "rule": f"cap: until {RESETS.isoformat()}",
+    }
+    later = [
+        {"row": "beta", "template": "nudge", "key": f"other-{n}", "went": "sent", "rule": ""}
+        for n in range(2000)
+    ]
+    lines = [json.dumps(one) for one in (hold, *later)] + ['{"row": "gamma", "key": "cut']
+    (state / "outbox.jsonl").write_text("\n".join(lines) + "\n")
+    (held,) = owed.blocked(state, config.user, NOW, [])
+    assert (held["row"], held["cause"], held["frees"]) == (
+        "alpha",
+        "usage cap",
+        config.user.stamp(RESETS),
+    )
+
+
 WEEK_AUDIT = {
     "62108874": (auth(), owed.AUTH, ""),
     "0f8b3189": (limit(at=datetime.fromtimestamp(1793044800, UTC)), owed.LIMIT, "1793044800"),
