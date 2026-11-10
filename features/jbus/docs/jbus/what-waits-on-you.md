@@ -47,6 +47,20 @@ When a home takes over from the one that jbus told, jbus tells the new home too.
 `~/.local/state/jbus/<project>/leftover.json` is the record.
 For each such row, it holds the `Left:` text, the home's thread, when jbus told the home, and when jbus sent the `stall` event.
 
+## A wait only its crew clears
+
+A pull request `jmerge` waits on for a `Proved:` or `Checked:` line is its crew's, not yours and not its home's.
+Its reason starts `proved-` or `checked-`, such as a `Proved:` line of a head from before a rebase, or one that names no test the branch changes, and only the crew's own proof or check block writes the line that clears it.
+
+jbus tells an idle crew on the first pass that sees the wait, with what to run (`expedite.tell`).
+It tells the crew once more at the same head when a new idle spell starts: the first pass that finds the crew's thread not at work after a pass that saw it at work since the first message.
+It tells a crew at work nothing, and sends no third message at that head.
+A new head is a new wait, told afresh.
+
+`held.json` names who owns each hold it keeps, `who: "crew"` for a wait `expedite` owns and `who: "user"` for the rest.
+The home hears of a crew's wait only once its crew was told twice at that head, stayed idle, and the hold is older than 30 minutes with no thread at work on it (`clock.held`).
+A wait of the user's wakes the home after those 30 minutes, as before.
+
 ## A home that stalls
 
 A home that has had work out and done nothing jbus can see for its patience (60 minutes, or a routine's beat) is nudged in its thread, and nudged again a patience later.
