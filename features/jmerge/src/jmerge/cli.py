@@ -1659,8 +1659,10 @@ class Repo:
     ) -> None:
         """Read where the batch stands before this run judges anything (`batch.state_of`). A
         failed batch of two or more keeps its members as suspects, and one of one sends its member
-        alone at the head it held (`batch.Record.fail`); a pull request that would merge alone
-        waits while a batch is out (`batch.Batching.first`)."""
+        alone at the head it held (`batch.Record.fail`); one that timed out is built again whole
+        once before it fails (`batch.Record.late`); a proven half sends the one suspect left alone
+        (`batch.Record.prove`); a pull request that would merge alone waits while a batch is out
+        (`batch.Batching.first`)."""
         record = batch.Record.read(self.state)
         record.keep({str(one.number): one.head for one in listed})
         _run(self.main, "git", "fetch", "-q", "origin", default)
@@ -1671,6 +1673,10 @@ class Repo:
         state = batch.state_of(kept, pull, tip, run, datetime.now(UTC))
         if state == batch.FAILED:
             record.fail()
+        elif state == batch.LATE:
+            record.late()
+        elif state == batch.PROVEN:
+            record.prove()
         record.batch = None if state == batch.NONE else record.batch
         record.write()
         self.batching = batch.Batching(record, state, run or "", pull)
@@ -1756,10 +1762,12 @@ class Repo:
         the suspects where any are left) over today's tip, push it to `batch.BRANCH`, open its
         draft pull request where GitHub lists none, and keep it; each other member waits for it.
         A batch that cannot be made sends each member down the single path of today in this run,
-        drops the suspects, and says why first."""
+        drops the suspects, and says why first. Where no member is left to build, or the batch
+        cannot be made, no batch is built again after a timeout."""
         on.record.batch = None
         chosen = on.chosen(members)
         if not members:
+            on.record.again = False
             on.record.write()
             return []
         _run(self.main, "git", "fetch", "-q", "origin", default)
@@ -1771,7 +1779,7 @@ class Repo:
         if not why and on.pull is None:
             why = self.open_batch(default)
         if why:
-            on.record.suspects = ()
+            on.record.suspects, on.record.again = (), False
             on.record.write()
             said = [batch.UNMADE.format(base=default, tip=tip[: batch.SHA], why=why)]
             for one, slug, note, judged in members:
