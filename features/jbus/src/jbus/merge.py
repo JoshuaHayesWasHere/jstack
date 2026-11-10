@@ -198,10 +198,10 @@ def start(run: Pass) -> str:
 
 
 def keep(where: str | Path, checkout: str | Path, *more: str) -> None:
-    """Run `jmerge --if-free`, with `more`, in `checkout` as the process of one of the pass's runs, holding
-    `GOING` for the whole run, and keep what it printed as a record in `where`, written whole
-    before the lock is given back. A process that dies first leaves no record, and the next pass
-    counts it (`merge`)."""
+    """Run `jmerge --if-free`, with `more` (`handed`), in `checkout` as the process of one of the
+    pass's runs, holding `GOING` for the whole run, and keep what it printed as a record in
+    `where`, written whole before the lock is given back. A process that dies first leaves no
+    record, and the next pass counts it (`merge`)."""
     where = Path(where)
     with open(where / GOING, "a") as going:
         fcntl.flock(going, fcntl.LOCK_EX)
