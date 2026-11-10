@@ -17,8 +17,13 @@ from testing.paths import skills
 
 SKILL = skills()["home"] / "SKILL.md"
 RULES = {
-    "restates the ask": r"A visual .*opens with one line of what it shows and its shape, in the user's words of the ask",
-    "looks before it shows": r"looks at its own render, the preview's picture, before it shows a visual, and redraws",
+    "restates the ask": (
+        r"A visual .*opens with one line of what it shows and its shape, "
+        r"in the user's words of the ask"
+    ),
+    "looks before it shows": (
+        r"looks at its own render, the preview's picture, before it shows a visual, and redraws"
+    ),
     "ends with its path": r"A reply with a visual ends with the visual's file path",
 }
 
