@@ -444,7 +444,7 @@ Each member waits as `it is in jmerge's batch over <base> at <tip12>, whose chec
 **What proves it.**
 CI's check of the batch's pull request runs on GitHub's merge of its head over main, whose tree is the batch's tree, since the head holds the tip.
 A pass leaves the artifact `checked-tree-<tip tree>-<batch tree>` (`green.checked`), and a later run of the same two trees that reuses the pass finds the artifact the first one left.
-A run of `jmerge` that finds that artifact from a successful run of this repo, with main still at the batch's tip, takes the merge lock once and squash-merges each member at its own head (`--match-head-commit`), in the batch's order, with no guards run.
+A run of `jmerge` that finds that artifact from a successful run of this repo, with main still at the batch's tip, takes the merge lock once and squash-merges each member at its own head, which GitHub must still have, in the batch's order, with no guards run.
 Before each merge, main must be at the tip the merge before it left.
 Each merge's line says `CI's check passed jmerge's batch over <base> at <tip12> in <run url>, so no guards ran`.
 The merges stop at the first that does not land: GitHub refused it (`the merge failed`), it is no longer judged a member at that head, or another hand moved main.
