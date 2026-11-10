@@ -12,6 +12,12 @@ One function decides it, `waiting.blocking` in `features/jbus/src/jbus/waiting.p
 
 These do not block: a gate with a default whose thread still writes, a row that jbus put at `gate`, and a leftover that its home has.
 
+A hold of GitHub's budget does not block either, since it lifts by itself at the reset, but it shows in two places.
+While GitHub's core or GraphQL budget is at or under the floor of 1000 calls kept for merges, a pass asks GitHub nothing and launches nothing.
+Each approved row it would otherwise launch says so in its why column: `GitHub's budget: <left> of <limit> calls, launches wait until <reset, in your time>`.
+`jbus needs` lists the hold as one item for the whole project once it has lasted over 10 minutes, whatever the rows it holds.
+The first pass that reads the budget above the floor clears both, and the rows launch or take their own reason (`features/jbus/src/jbus/budgethold.py`).
+
 `features/jbus/src/jbus/leftover.py` sets two more timers beside `CLOSE_MINUTES`.
 An item that still blocks `REMIND_MINUTES` (15) after it began to block gets one reminder, and never a second.
 An item that closes within those 15 minutes gets no reminder.

@@ -229,7 +229,8 @@ class Look:
     GitHub nothing to save its API budget, or why it could not tell what is left of it.
     `spent` is the line that says GitHub's API allowance is spent: a window with no call left,
     or a call GitHub refused for its rate limit (`jsettings.budget`). It is empty where neither,
-    and None where the pass could not tell, since GitHub did not say what is left.
+    and None where the pass could not tell, since GitHub did not say what is left. `left` is
+    what the pass read of the budget, or None where GitHub did not say.
     """
 
     world: World | None = None
@@ -237,6 +238,7 @@ class Look:
     why: str = ""
     held: str = ""
     spent: str | None = None
+    left: budget.Budget | None = None
 
 
 def when(stamp: str) -> datetime:
@@ -420,7 +422,9 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     rate_limit` once between them at most. Every `Look` it returns holds it, T3 Code silent or
     not: a step that spends the budget needs it. With no answer, or
     with the budget at or under its floor, `look` asks GitHub nothing else, and the pass has no
-    world, as when GitHub is silent: no row changes. `jmerge` ran before, so a merge still goes.
+    world, as when GitHub is silent: no row's status changes, and under the floor each approved
+    row it would have launched says why (`jbus.budgethold`). `jmerge` ran before, so a merge
+    still goes.
     """
     asked: list[subprocess.CompletedProcess[str]] = []
 
@@ -432,13 +436,15 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     held = budget.held(left)
     spent = None if left is None else allowance.spent(left)
     if client is None:
-        return replace(_silent(run, "no token: run `jbus t3 login`"), held=held, spent=spent)
+        return replace(
+            _silent(run, "no token: run `jbus t3 login`"), held=held, spent=spent, left=left
+        )
     locks = slot.locks_dir()
     world = World(awaiting=owned_waits(locks))
     try:
         listed = crew_threads(client, run.project.project_id)
     except T3Error as error:
-        return replace(_silent(run, str(error)), held=held, spent=spent)
+        return replace(_silent(run, str(error)), held=held, spent=spent, left=left)
     slug_of = tied(run)
     url_of = {slug: url for url, slug in slug_of.items()}
     world.results = {row["slug"]: last_result(brief_of(run, row["slug"])) for row in rows}
@@ -459,7 +465,7 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
         run.say(f"wait {run.project.name}: GitHub not asked: {held}")
         key = f"budget {left.low.name} {left.low.reset.isoformat()}"
         run.condition(run.project.name, "GitHub's API budget is under the floor", held, key=key)
-        return Look(out=out, held=held, spent=spent)
+        return Look(out=out, held=held, spent=spent, left=left)
     kept: dict[str, dict[str, Any]] = read_json(run.state / "merged.json", {})
     named = {slug for row in rows for slug in (row["slug"], *row.get("depends", []))}
     queued = {row["slug"] for row in rows}
@@ -502,8 +508,8 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     except Silent as silent:
         run.say(f"wait {run.project.name}: could not ask GitHub{silent}")
         said = str(silent).removeprefix(": ")
-        return Look(out=out, spent=said if allowance.is_named(said) else spent)
-    return Look(world, out, spent=spent)
+        return Look(out=out, spent=said if allowance.is_named(said) else spent, left=left)
+    return Look(world, out, spent=spent, left=left)
 
 
 def checks(pull: dict[str, Any]) -> str:
