@@ -37,7 +37,9 @@ no one of a job that ended sooner without a webhook, which jbus does not have.
 A round costs the counted calls of its 200s: at most one a tick for each head, and at most one
 for each change of a job's status at it (queued, in progress, completed), whichever is fewer,
 plus one read of the workflow runs a check suite, and `jmerge`'s own once a verdict is new
-(`docs/jbus/the-units.md`). Every other tick answers 304.
+(`docs/jbus/the-units.md`). Every other tick answers 304. A pull request that neither a read
+nor the pass saw change for 15 minutes is settled, and asked about once a minute, not every
+tick (`_due`), until a 200, a push, a check run or a move of main the pass sees wakes it.
 
 The tick keeps a head's ETag with the verdict read under it at once, and the verdict `jmerge` ran
 for only once `jmerge` ran to its end, so a tick that dies, a `jmerge` that was busy with the
@@ -55,17 +57,18 @@ budget says (`jbus.budget`): a 304 spends none of it, and what a job that ended 
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import time
 from concurrent import futures
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import jbus
 from jbus import cancelled, launchd, merge, passes, reload, restated, verbs, watch
-from jmerge import ready
+from jmerge import mainjson, ready
 from jsettings import proc, store
 
 if TYPE_CHECKING:
@@ -76,8 +79,9 @@ SEEN = "tick.json"
 """What the tick read of each pending pull request (`pulls`, by its number): the ETag of the
 check runs at its head (`etag`), the head they named (`head`), the workflow run of each of the
 head's check suites (`suites`, each `[name, run id]`), the verdict read under that ETag
-(`verdict`), and the verdict `jmerge` last ran to its end for at that head (`ran`). Only the
-tick writes it."""
+(`verdict`), the verdict `jmerge` last ran to its end for at that head (`ran`), what the pass
+saw of it (`mark`), when the tick last saw it change (`since`) and when it last asked GitHub of
+it (`asked`). Only the tick writes it."""
 CHECK_RUNS = "repos/{owner}/{repo}/commits/pull/%s/head/check-runs?per_page=100"
 """The check runs at a pull request's head as it is now, the latest of each name, which are the
 jobs of its workflow runs. Each names the head it ran at (`head_sha`)."""
@@ -92,6 +96,12 @@ TIMER = "JBUS_TICK_TIMER"
 """The variable that names the timer the pass runs the tick by, `jbus-merge.timer`. Only
 `jbus.service` sets it, so a pass that a test, a sandbox or a hand starts leaves the machine's
 timer as it is."""
+SETTLED = timedelta(minutes=15)
+"""How long a pull request's head and checks go unchanged before the tick asks of it only once
+`SETTLED_EVERY`: on 2026-11-09, 60% of the tick's asks were of such a head (po-subtract)."""
+SETTLED_EVERY = timedelta(minutes=1)
+"""How often the tick asks of a settled pull request, so that one whose checks end while settled
+still merges within a minute with no pass between."""
 PASS = frozenset({"success", "neutral", "skipped"})
 """The conclusions of a required check's own job that pass it, as `jmerge` reads them."""
 FAIL = "failure"
@@ -107,7 +117,9 @@ def _pending(half: Half) -> None:
     end of its last head and whatever its rollup said: no check listed yet, as in the seconds
     after a push, `passed` before a required job that is still to start is in it (#1246), or
     `failed` at a failed shard while the others still run. A row's pull request whose head did
-    not change costs the tick a 304 a tick, which spends none of the API allowance."""
+    not change costs the tick a 304 a tick, which spends none of the API allowance, and once a
+    minute once it has not changed for 15 minutes (`SETTLED`). Each keeps a digest of the checks
+    the pass saw (`checks`), so that the tick sees a check run the pass saw change."""
     world = half.seen.world
     assert world is not None
     rows = restated.ended(half.run.state)
@@ -115,10 +127,15 @@ def _pending(half: Half) -> None:
     for pull in world.open.values():
         number, head = pull["number"], pull.get("headRefOid", "")
         if head and (number in rows or watch.checks(pull) == "pending"):
-            going.append({"number": number, "head": head})
+            going.append({"number": number, "head": head, "checks": _rollup(pull)})
     going.sort(key=lambda one: one["number"])
     if store.read_json(half.run.state / PENDING, None) != going:
         store.write_json(half.run.state / PENDING, going)
+
+
+def _rollup(pull: dict[str, Any]) -> str:
+    rollup = json.dumps(pull.get("statusCheckRollup") or [], sort_keys=True)
+    return hashlib.sha256(rollup.encode()).hexdigest()[:12]
 
 
 def _timer(half: Half) -> None:
@@ -257,11 +274,15 @@ def _reads(run: passes.Pass) -> Wanted:
     kept = _pulls(run.state)
     names = cancelled.required(run)
     pending = list(restated.pending(run.state).items())
+    marks = _marks(run.state)
     pulls = {}
     if pending:
         with futures.ThreadPoolExecutor(max_workers=min(proc.GH_CAP, len(pending))) as pool:
             read = pool.map(
-                lambda one: _read(run, names, one[0], one[1], kept.get(str(one[0]))), pending
+                lambda one: _due(
+                    run, names, one[0], one[1], kept.get(str(one[0])), marks.get(one[0], [])
+                ),
+                pending,
             )
             pulls = {str(number): one for (number, _), one in zip(pending, read, strict=True)}
     if pulls != kept:
@@ -271,6 +292,36 @@ def _reads(run: passes.Pass) -> Wanted:
         for key, one in pulls.items()
         if one.get("verdict") is not None and one["verdict"] != one.get("ran")
     }
+
+
+def _marks(state: Path) -> dict[int, list[str]]:
+    """Return, by number, what the pass saw of each pending pull request: its head, the digest
+    of its checks, and main's tip, so that a change of any of them is a change the tick sees."""
+    main = str((mainjson.load(state) or {}).get("main", ""))
+    return {
+        one["number"]: [str(one.get("head", "")), str(one.get("checks", "")), main]
+        for one in store.read_json(state / PENDING, [])
+        if isinstance(one, dict) and isinstance(one.get("number"), int)
+    }
+
+
+def _due(
+    run: passes.Pass, names: tuple[str, ...], number: int, seen: str, found: Any, mark: list[str]
+) -> dict[str, Any]:
+    """Read pull request `number` (`_read`) unless it is settled: nothing the tick read of it and
+    nothing the pass saw of it (`mark`) changed for `SETTLED`, and the tick asked of it less than
+    `SETTLED_EVERY` ago. Keep when it last changed (`since`), a new ETag or a new `mark`, and when
+    the tick last asked (`asked`)."""
+    was: dict[str, Any] = found if isinstance(found, dict) else {}
+    now = run.now
+    since = _at(was.get("since")) if was.get("mark") == mark else None
+    asked = _at(was.get("asked"))
+    if since and asked and now - since >= SETTLED and now - asked < SETTLED_EVERY:
+        return was
+    read = _read(run, names, number, seen, was)
+    changed = since is None or read.get("etag") != was.get("etag")
+    stamp = restated.moment(now)
+    return {**read, "mark": mark, "since": stamp if changed else was["since"], "asked": stamp}
 
 
 def _read(

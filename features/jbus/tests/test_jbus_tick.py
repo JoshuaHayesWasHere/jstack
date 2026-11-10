@@ -95,7 +95,7 @@ def ended(kitchen, second):
 @pytest.fixture
 def watched(kitchen):
     going(kitchen)
-    assert json.loads((kitchen.state / tick.PENDING).read_text()) == [{"number": 7, "head": HEAD}]
+    assert restated.pending(kitchen.state) == {7: HEAD}
     ended(kitchen, 1)
     ticks(kitchen)
     kitchen.set("jmerge.txt", f"{MERGED}\n")
@@ -432,7 +432,9 @@ def test_a_job_with_no_time_it_ended_leaves_the_line_to_jmerge(on_check):
 
 
 def watching(kitchen):
-    return json.loads((kitchen.state / tick.PENDING).read_text())
+    """The pull requests the tick watches, each by its number and the head the pass saw."""
+    kept = json.loads((kitchen.state / tick.PENDING).read_text())
+    return [{"number": one["number"], "head": one["head"]} for one in kept]
 
 
 def test_a_rollup_that_says_passed_before_its_check_appears_keeps_the_pull_request_pending(
@@ -443,7 +445,7 @@ def test_a_rollup_that_says_passed_before_its_check_appears_keeps_the_pull_reque
     which asks GitHub and restates the line once the run ends."""
     on_check.set("open.json", [on_check.opened("alpha", 7, "SUCCESS")])
     on_check.poll()
-    assert watching(on_check) == [{"number": 7, "head": HEAD}]
+    assert restated.pending(on_check.state) == {7: HEAD}
     check_ended(on_check, 1, "success")
     before = len(asked(on_check))
     assert ticks(on_check)[0] == "tick demo: a check ended, and alpha's line says so"
@@ -462,7 +464,7 @@ def test_a_rows_pull_request_stays_watched_after_its_verdict_so_a_later_push_rea
     ticks(on_check)
     on_check.set("open.json", [on_check.opened("alpha", 7, "FAILURE")])
     on_check.poll()
-    assert watching(on_check) == [{"number": 7, "head": HEAD}]
+    assert restated.pending(on_check.state) == {7: HEAD}
     ran = runs(on_check)
     assert ticks(on_check) == []
     assert runs(on_check) == ran and "If-None-Match: " in asked(on_check)[-1]
@@ -481,7 +483,7 @@ def test_a_verdict_jmerge_gives_before_it_reads_the_checks_keeps_the_head(on_che
     on_check.set("open.json", [on_check.opened("alpha", 7, "SUCCESS")])
     on_check.set("jmerge.txt", f"wait 7 {PULL}: {ready.NO_REVIEW}\n")
     on_check.poll()
-    assert watching(on_check) == [{"number": 7, "head": HEAD}]
+    assert restated.pending(on_check.state) == {7: HEAD}
 
 
 MOVING = "e" * 40
@@ -534,15 +536,18 @@ def pushed(kitchen):
     kitchen.set("check-runs.json", {later: [job("check", suite=12)]})
 
 
-def rerun(kitchen):
-    kitchen.set("open.json", [kitchen.opened("alpha", 7, "FAILURE")])
+def check_run(kitchen):
+    """A second check run at #7's head, one that passed, beside the one still going."""
+    pull = kitchen.opened("alpha", 7, None)
+    done = {"status": "COMPLETED", "conclusion": "SUCCESS"}
+    kitchen.set("open.json", [{**pull, "statusCheckRollup": [*pull["statusCheckRollup"], done]}])
 
 
 def main_merged(kitchen):
     kitchen.set("commits.json", [kitchen.commit("f" * 40)])
 
 
-@pytest.mark.parametrize("change", [pushed, rerun, main_merged])
+@pytest.mark.parametrize("change", [pushed, check_run, main_merged])
 def test_any_change_the_pass_sees_has_a_settled_head_asked_about_every_tick_again(
     settled, change
 ):
@@ -833,7 +838,7 @@ def test_a_head_whose_rollup_lists_no_checks_yet_stays_pending(on_check):
     tick, which reads its first job within 10 s of GitHub listing it."""
     on_check.set("open.json", [{**on_check.opened("alpha", 7), "statusCheckRollup": []}])
     on_check.poll()
-    assert watching(on_check) == [{"number": 7, "head": HEAD}]
+    assert restated.pending(on_check.state) == {7: HEAD}
     assert ticks(on_check) == []
     check_ended(on_check, 1, "failure")
     assert ticks(on_check)[0] == "tick demo: a check ended, and alpha's line says so"
