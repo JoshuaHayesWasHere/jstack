@@ -3,6 +3,7 @@ import subprocess
 
 import pytest
 
+from jgauge import cli, whole
 from test_machine_sizes import fake_proc
 from test_room import BIN
 
@@ -59,12 +60,15 @@ def repo(tmp_path):
 @pytest.mark.parametrize("command", WHOLE, ids=" ".join)
 @pytest.mark.parametrize("lane", [["--short"], []], ids=["short", "full"])
 def test_a_thread_in_a_selecting_repo_is_refused_a_whole_suite_and_told_the_touched_check(
-    repo, command, lane
+    repo, command, lane, monkeypatch, capsys
 ):
-    ran = repo(*lane, "--thread", "t1", "--", *command)
-    assert ran.returncode == 2
-    assert "runs the whole suite" in ran.stderr
-    assert "make check-fast BASE=<base> PART=touched" in ran.stderr
+    monkeypatch.chdir(repo.top)
+    for name in ("PART", "TESTS"):
+        monkeypatch.delenv(name, raising=False)
+    assert cli.main(["test-slot", *lane, "--thread", "t1", "--", *command]) == 2
+    said = capsys.readouterr().err
+    assert "runs the whole suite" in said
+    assert whole.TOUCHED in said
     assert not (repo.top / "ran").exists()
 
 
