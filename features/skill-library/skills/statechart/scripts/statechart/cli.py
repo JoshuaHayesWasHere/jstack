@@ -1288,10 +1288,11 @@ def from_spec(given, flags):
     out = out_dir(flags.get("out"), given, name)
     snapshot(local_modules(given), inputs)
     if second:
-        snapshot(local_modules(second["model"]["spec"]), inputs)
+        other_spec = second["model"]["spec"]
+        snapshot(local_modules(other_spec), inputs)
         if second["role"] == "against":
-            beside = os.path.dirname(second["model"]["spec"])
-            snapshot([os.path.join(beside, f) for f in expectations(second["model"]["spec"])], inputs)
+            beside = os.path.dirname(other_spec)
+            snapshot([os.path.join(beside, f) for f in expectations(other_spec)], inputs)
     if not os.path.exists(map_file):
         with open(map_file, "w", encoding="utf-8") as handle:
             handle.write(scaffold(name, given))
