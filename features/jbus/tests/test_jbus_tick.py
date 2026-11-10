@@ -548,9 +548,7 @@ def main_merged(kitchen):
 
 
 @pytest.mark.parametrize("change", [pushed, check_run, main_merged])
-def test_any_change_the_pass_sees_has_a_settled_head_asked_about_every_tick_again(
-    settled, change
-):
+def test_any_change_the_pass_sees_has_a_settled_head_asked_about_every_tick_again(settled, change):
     """The pass sees #7's head pushed, its checks change, or main move: from the next tick on, #7
     is asked about every 10 s again, though GitHub's answer for its check runs is the same."""
     settled.at(0)
