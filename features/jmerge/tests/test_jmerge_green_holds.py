@@ -1,8 +1,8 @@
-"""Green means five things, and `jmerge` holds a pull request that lacks any one of them (Josh,
-2026-11-05): `borders` passed, `macos` passed, every context the live ruleset on main requires
-passed, a revert jbus opened is at the head it opened it at, and a review round was written at
-the head. Each test takes one away from a pull request that is otherwise ready, sees `jmerge`
-print the hold and leave main as it was, gives it back, and sees the same run merge it.
+"""Green means four things, and `jmerge` holds a pull request that lacks any one of them (Josh,
+2026-11-05): `borders` passed, every context the live ruleset on main requires passed, a revert
+jbus opened is at the head it opened it at, and a review round was written at the head. Each
+test takes one away from a pull request that is otherwise ready, sees `jmerge` print the hold and
+leave main as it was, gives it back, and sees the same run merge it.
 
 The ruleset's contexts are read from `features/repo-guards/main-ruleset.json`, the body PUT to
 ruleset 25665226, so a context added there is held here with no edit. `jmerge` reads its required
@@ -78,8 +78,11 @@ def merges(merged):
     assert commit != merged.start
 
 
-def test_the_ruleset_requires_borders_and_macos_beside_check_so_they_hold():
-    assert {"check", "borders", "macos"} <= set(CONTEXTS), CONTEXTS
+def test_the_ruleset_requires_borders_beside_check_and_not_macos():
+    """`macos` runs on pushes to main alone, so no pull request posts it, and a ruleset that
+    required it would hold every pull request (2026-11-09: "remove the trigger, we don't have any
+    macos users today")."""
+    assert sorted(CONTEXTS) == ["borders", "check"], CONTEXTS
 
 
 @pytest.mark.parametrize("name", CONTEXTS)
@@ -100,6 +103,10 @@ def test_each_ruleset_context_that_failed_holds_until_it_passed(merged, name):
 
 
 def test_a_macos_skipped_with_no_select_that_passed_holds_and_one_beside_it_merges(merged):
+    """A repo whose `required-checks` names `macos`, as jstack's did before 2026-11-09: a skip of
+    it passes only beside a `macos-select` that passed (`ready.passed`)."""
+    required = "".join(f"{c}\n" for c in [*CONTEXTS, "macos"])
+    (merged.home.state / "required-checks").write_text(required)
     skipped = {**merge.run("SKIPPED", "macos"), "workflowName": "macos"}
     others = [one for one in all_green() if one["workflowName"] != "macos"]
     selected = {**merge.run("FAILURE", "macos-select"), "workflowName": "macos"}

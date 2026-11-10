@@ -31,7 +31,7 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
    typed=$(the_text)
    word=$(printf '%s\n' "$typed" | awk 'NF {print $(1); exit}')
    case $word in
-   '' | .* | *[!A-Za-z0-9._-]* | tasks | scouts | reports | log) scope= ;;
+   '' | .* | *[!A-Za-z0-9._-]* | asked | tasks | scouts | reports | log) scope= ;;
    *) scope=$word ;;
    esac
    case $typed in
@@ -106,7 +106,7 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
    M=
    case $home in
    root) M=$H ;;
-   'scope '.* | 'scope '*[!A-Za-z0-9._-]* | 'scope tasks' | 'scope scouts' | 'scope reports' | 'scope log') ;;
+   'scope '.* | 'scope '*[!A-Za-z0-9._-]* | 'scope asked' | 'scope tasks' | 'scope scouts' | 'scope reports' | 'scope log') ;;
    'scope '?*) M=$H/${home#scope } ;;
    esac
    case $ME in

@@ -1,6 +1,7 @@
 """The outbox holds a message that needs `act` while its receiver cannot act on it now, by the rules
 of `jbus.outbox.RULES`: `held`, `busy`, `slot` and `review`. A wake still reaches a waiting
-thread, and a message that needs `decide` is held by no rule. The tests send through the real
+thread, and a message that needs `decide` is held by no rule but `idle`, which holds only the
+notice of `jbus.reload` (`test_jbus_reload_rule.py`). The tests send through the real
 outbox against the kitchen's fakes, and run the real pass where a sender's next message is what
 they are about."""
 
@@ -9,7 +10,7 @@ import json
 import os
 
 import jbus
-from jbus import clock, expedite, outbox, passes, queue, slotwait, t3, watch, word
+from jbus import clock, expedite, outbox, passes, queue, reload, slotwait, t3, watch, word
 from jgauge import slot, waiters
 from test_jbus_github import failed, keys, launched, pull
 from test_jbus_github import passes as at
@@ -64,7 +65,7 @@ def test_a_conflict_while_the_reviewer_is_out_is_held_and_the_state_after_the_re
     launched.set("open.json", [pull(launched, mergeable="CONFLICTING")])
     at(launched, 0, 3)
     assert keys(launched) == []
-    assert held(launched) == [("conflict", "review"), ("conflict", "review")]
+    assert held(launched) == [("conflict", "review")]
     brief.write_text(brief.read_text() + WRITTEN)
     at(launched, 6, 9)
     assert keys(launched) == ["rebase|alpha|cccccccccccc"]
@@ -100,11 +101,11 @@ def test_a_review_out_holds_only_the_crew_and_not_a_home_told_of_its_row(launche
 
 
 def waiting(kitchen):
-    """Return the thread of alpha's crew, whose turn ended to wait on the short lane."""
+    """Return the thread of alpha's crew, whose turn ended to wait on the full lane."""
     (crew,) = kitchen.t3.threads
-    lane = slot.short()
+    lane = slot.full(2)
     command = ["uv", "run", "pytest", "tests/test_alpha.py"]
-    waiters.register(slot.locks_dir(), crew["threadId"], "short", lane.slots, command, NOW)
+    waiters.register(slot.locks_dir(), crew["threadId"], "full", lane.slots, command, NOW)
     return crew["threadId"]
 
 
@@ -147,12 +148,25 @@ def test_a_thread_at_work_is_held_but_the_user_s_word_to_it_is_not(launched):
     assert held(launched) == [("answer", "busy")]
 
 
+def test_a_torn_line_of_the_log_holds_no_send_and_hides_no_hold(launched):
+    """A line of `outbox.jsonl` cut off mid-write is skipped, so the outbox still holds the
+    message and logs its hold, and `send` raises nothing."""
+    home = launched.t3.thread("home", "running")["threadId"]
+    with (launched.state / outbox.FILE).open("a") as log:
+        log.write('{"key": "answer|alpha|0", "went": "held", "rule": "busy"\n')
+    run, client = run_of(launched)
+    assert not send(run, client, home, "answer")
+    last = json.loads((launched.state / outbox.FILE).read_text().splitlines()[-1])
+    assert (last["key"], last["went"], last["rule"]) == ("answer|alpha|0", "held", "busy")
+
+
 def test_a_spared_template_is_one_its_sender_sends():
     """Each name a rule spares is the template its sender gives the outbox, so a renamed template
     is not held by accident."""
     assert set(slotwait.EVENTS) | {clock.CLOCK} == outbox.WAKES
     assert {word.KIND, "item"} == outbox.USERS
     assert clock.RESTARTED in outbox.FIXES
+    assert {reload.TEMPLATE} == outbox.STEERS
     kinds = {row.kind for row in expedite.TABLE}
     asked = {"rereview"}
     assert kinds | asked >= outbox.ASKS and asked <= outbox.ASKS
@@ -163,7 +177,7 @@ def test_a_pass_that_finds_a_held_message_due_no_more_sends_nothing_late(launche
     nothing of it. Here the crew pushed a new head while it waited on a slot, every slot of the
     lane taken, and the failed check of the old head is never told."""
     crew = waiting(launched)
-    taken = take(slot.short())
+    taken = take(slot.full(2))
     try:
         launched.set("open.json", [pull(launched, [failed()])])
         at(launched, 0)

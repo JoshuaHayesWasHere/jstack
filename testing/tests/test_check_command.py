@@ -391,6 +391,7 @@ LINT = [
     "run ruff check .",
     "run ruff format --check .",
     " ".join(["run pyrefly check --summary=none", *SRC]),
+    "run python -W ignore::RuntimeWarning:runpy -m jbus.telemetry.firstload --check",
     "run repo-standard conform",
 ]
 OFF = ["-m", "not", "browser"]

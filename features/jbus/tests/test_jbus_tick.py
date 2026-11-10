@@ -4,7 +4,7 @@ none of GitHub's API allowance while no job at the head changes (`jbus.tick`). I
 --if-free`, so one merger runs at a time (`features/jmerge/tests/test_jmerge_one_run.py`). It
 keeps each head's ETag and verdict as it reads them, and the verdict `jmerge` ran for only once
 `jmerge` ran to its end, so a tick that dies or finds `jmerge` busy loses no merge. While its
-`jmerge` runs, it reads on every 2 s. The pass runs `jmerge --if-free` too. The tests run the
+`jmerge` runs, it reads on every 10 s. The pass runs `jmerge --if-free` too. The tests run the
 real tick and pass against the fakes (`test_jbus_kitchen.py`).
 """
 
@@ -126,29 +126,19 @@ def test_with_no_check_going_a_tick_asks_github_nothing(kitchen):
     assert len(kitchen.log("gh")) == before and runs(kitchen) == 0
 
 
-def test_with_the_budget_held_a_tick_backs_off_to_asking_once_in_5_s_and_says_so(
-    kitchen, monkeypatch
-):
-    """A held budget slows the tick to the 5 s it ran at before, not to nothing: a 304 still
-    spends nothing, and a run that ended still gets its `jmerge`, which the floor is kept for."""
+def test_with_the_budget_held_a_tick_asks_github_as_usual(kitchen, monkeypatch):
+    """A held budget leaves the tick as it is: a 304 spends none of the allowance, and a run that
+    ended still gets its `jmerge`, which the floor is kept for. Each tick asks, and says nothing
+    of the budget."""
     going(kitchen)
     kitchen.set("rate-limit.json", rate_limit(10))
     now = [NOW]
     monkeypatch.setattr(verbs, "clock", lambda: now[0])
     ended(kitchen, 1)
-    (said, ran) = ticks(kitchen)
-    assert said.startswith(
-        "tick: the budget is held, so the tick asks GitHub once in 5 s, not 2 s: "
-    )
-    assert ran == "tick demo: a check ended, and jmerge ran"
+    assert ticks(kitchen) == ["tick demo: a check ended, and jmerge ran"]
     assert (len(asked(kitchen)), runs(kitchen)) == (1, 1)
-    for seconds in (2, 4):
-        now[0] = NOW + timedelta(seconds=seconds)
-        assert ticks(kitchen) == []
-    assert len(asked(kitchen)) == 1
-    now[0] = NOW + timedelta(seconds=5)
-    (said,) = ticks(kitchen)
-    assert said.startswith("tick: the budget is held")
+    now[0] = NOW + timedelta(seconds=1)
+    assert ticks(kitchen) == []
     assert len(asked(kitchen)) == 2 and runs(kitchen) == 1
 
 
@@ -530,13 +520,13 @@ def switched(kitchen):
     return [call for call in kitchen.log("systemctl") if "jbus-merge.timer" in call]
 
 
-def test_the_tick_runs_only_while_a_pass_saw_a_check_going_and_starts_within_2_s(
+def test_the_tick_runs_only_while_a_pass_saw_a_check_going_and_starts_within_10_s(
     manager, monkeypatch
 ):
     """The install leaves `jbus-merge.timer` running. A pass of `jbus.service`, which names the
     timer, stops it while no project's `checks-pending.json` holds a pull request, so no tick
     starts, and starts it once one does. The timer's first tick then comes `OnActiveSec=` after
-    the start, within 2 s, and the next ones every 2 s. A pass that changes nothing leaves it."""
+    the start, within 10 s, and the next ones every 10 s. A pass that changes nothing leaves it."""
     kitchen = manager
     monkeypatch.setenv(tick.TIMER, "jbus-merge.timer")
     said = kitchen.poll()
@@ -559,7 +549,7 @@ def test_the_tick_runs_only_while_a_pass_saw_a_check_going_and_starts_within_2_s
     unit = configparser.ConfigParser(interpolation=None)
     unit.optionxform = str
     unit.read(REPO / "features" / "jbus" / "units" / "jbus-merge.timer")
-    assert unit["Timer"]["OnActiveSec"] == unit["Timer"]["OnUnitActiveSec"] == "2s"
+    assert unit["Timer"]["OnActiveSec"] == unit["Timer"]["OnUnitActiveSec"] == "10s"
     service = (REPO / "features" / "jbus" / "units" / "jbus.service").read_text()
     assert f"Environment={tick.TIMER}=jbus-merge.timer" in service.splitlines()
 
@@ -677,7 +667,7 @@ def test_the_tick_reads_on_while_its_jmerge_runs(two_on_check, monkeypatch):
     """sa-tick-jmerge-apart: a `jmerge` that merges first runs the merged-tree guards, which took
     68 to 86 s on 2026-11-08, and the tick read nothing for as long. #7's check passed, so the
     tick runs `jmerge`; #8's check fails while that run is still going. The tick reads on every
-    2 s (`EVERY`, short here), so #8's line says it failed before #7's `jmerge` ends."""
+    10 s (`EVERY`, short here), so #8's line says it failed before #7's `jmerge` ends."""
     monkeypatch.setattr(tick, "EVERY", 0.05, raising=False)
     at_both(two_on_check, [job("check", "success", 1)], [job("check", suite=SUITE + 1)])
     seen, ran = [], merge.tick
@@ -739,7 +729,7 @@ def test_a_read_that_fails_while_jmerge_runs_still_keeps_that_runs_merge(two_on_
 
 def test_a_head_pushed_after_the_passs_read_is_read_by_the_next_tick(pushed):
     """The pass read #7 at an older head, and kept it for the tick. `HEAD` is pushed after that
-    read, and its check fails before the next pass. The tick, which the timer runs every 2 s
+    read, and its check fails before the next pass. The tick, which the timer runs every 10 s
     while #7 is pending, asks for the check runs at #7's head as it is now, not at the head the
     pass saw, so its next read puts `failed` on the line at `HEAD`, with no pass between."""
     pushed.set("jmerge.txt", f"wait 7 {PULL}: {ready.CHECK_FAILED.format(check='check')}\n")
@@ -749,7 +739,7 @@ def test_a_head_pushed_after_the_passs_read_is_read_by_the_next_tick(pushed):
 
 def test_a_head_whose_rollup_lists_no_checks_yet_stays_pending(on_check):
     """#7's head was just pushed, and GitHub lists no check at it yet: the pass keeps it for the
-    tick, which reads its first job within 2 s of GitHub listing it."""
+    tick, which reads its first job within 10 s of GitHub listing it."""
     on_check.set("open.json", [{**on_check.opened("alpha", 7), "statusCheckRollup": []}])
     on_check.poll()
     assert watching(on_check) == [{"number": 7, "head": HEAD}]
@@ -827,7 +817,9 @@ def test_reads_of_one_pull_request_are_at_most_every_plus_1_s_apart_with_10_pend
     """sa-checks-bound-measure-9 read #7 every 4 to 5 s with ten pull requests pending, since the
     tick asked for them one at a time. GitHub answers each read here in 0.4 s, and the timer
     starts a tick every `EVERY` seconds, or as soon as the last one ended where it ran longer:
-    #7's reads are at most `EVERY` plus 1 s apart."""
+    #7's reads are at most `EVERY` plus 1 s apart. `EVERY` is short here, since the 1 s is the
+    tick's own part."""
+    monkeypatch.setattr(tick, "EVERY", 1)
     read, asked_of = [], tick._asked
 
     def slow(run, path, etag=""):

@@ -95,6 +95,7 @@ It is in the log, which `jbus events` prints and the view shows.
 - `home-stall`
 - `home-start`
 - `hook`
+- `illegal-move`
 - `item.approved`
 - `item.done`
 - `item.dropped`
@@ -150,6 +151,8 @@ A crew whose Result opens its pull request after its review gets its reviewers f
 `prereview` is the launch of its reviewers, and `prereviewed` the one message that tells the crew its review is written.
 A review jbus does not launch, since the desk proof does not hold at the pushed head, origin has no branch, or T3 Code names no worktree, is a `condition` and a `prereview-refused` event: the crew is sent the reason once for its head, under `prereview-refused|<slug>|<head 12>`, so it fixes it, pushes and writes a follow-up Result.
 While that review is due, running, or refused and told to the crew, the row runs and is held by its review, whatever its Result's `Left:` line names (`jbus.watch.owes_pull`).
+A `slot-wake` is jbus's one message to a thread that waits on a full test slot, once one is free (`jbus.slotwait.wake`).
+A short call waits for its slot in its own call and registers nothing, so no `slot-wake` goes for the short lane, and a short-lane waiter an older jgauge left in the waiters file is dropped with one line.
 
 jbus logs a `snapshot` event once a day, on the first pass at or after 5:15 PM in your time zone.
 With the snapshot jbus runs `jmerge --sweep --check`, which removes nothing, and logs its lines as one `sweep` event when there are any.

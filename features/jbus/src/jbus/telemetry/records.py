@@ -7,12 +7,12 @@ each text of a record into its length (`<name>_len`), so no table holds what a m
 
 A source is a `log` or a `snapshot`:
 
-- A log only grows: `events.jsonl`, `acts.jsonl`, `items.jsonl`, `transitions.jsonl`,
-  `outbox.jsonl`, `ci.jsonl`, `review-rounds.jsonl` (`jbus.reviewed`), the home's `merge.log`
-  and `merge-waits.jsonl` (`jmerge.waits`), `stalls.jsonl`, each spell a row's thread was quiet
-  or hung (`jbus.stall.spells`) after the line of when the record began, and the machine's
-  `passes.jsonl`, the seconds of each pass (`jbus.record`), and `drift.jsonl`, each probe of a
-  standing word in each run (`jbus.drift`).
+- A log only grows: `events.jsonl`, `acts.jsonl`, `items.jsonl`, `transitions.jsonl`, `waits.jsonl`
+  (`jbus.telemetry.waits`), `outbox.jsonl`, `ci.jsonl`, `review-rounds.jsonl` (`jbus.reviewed`), the
+  home's `merge.log` and `merge-waits.jsonl` (`jmerge.waits`), `stalls.jsonl`, each spell a row's
+  thread was quiet or hung (`jbus.stall.spells`) after the line of when the record began, and the
+  machine's `passes.jsonl`, the seconds of each pass, of each of its steps and of its children
+  (`jbus.record`), and `drift.jsonl`, each probe of a standing word in each run (`jbus.drift`).
   A row's key is the hash of the line, as JSON with sorted keys (as text for `merge.log`), and
   of how many equal lines come before it, as `jbus.wake.entries` names an event. So two equal
   lines are two rows, and a line read again, as after the daily trim rewrites `events.jsonl`, is
@@ -40,9 +40,23 @@ from pathlib import Path
 from typing import Any, Literal
 
 from jbus import history
-from jbus.telemetry import asks
+from jbus.telemetry import asks, waits
+from jbus.telemetry.machine import capped_reads, drift, passes
 from jbus.telemetry.readers import json_lines, keyed, listed, questions
-from jbus.telemetry.values import Row, _count, _dict, _length, _number, _pull, _text, utc
+from jbus.telemetry.values import (
+    KINDS,
+    SEVERITIES,
+    SPENT,
+    Row,
+    _columns,
+    _count,
+    _dict,
+    _length,
+    _number,
+    _pull,
+    _text,
+    utc,
+)
 
 _MERGE_LINE = re.compile(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}) (\S+)(?: #?(\d+))?(?: (\S+))?")
 _LABEL = re.compile(r"\[([\w-]+)\]\s*$")
@@ -94,42 +108,6 @@ def _asks(verb: object, words: object) -> str | None:
     return asks.label(words if isinstance(words, str) else None)
 
 
-def _passes(one: Row, zone: tzinfo | None) -> Row:
-    seconds = one.get("seconds")
-    return {
-        "at": utc(one.get("at"), zone),
-        "seconds": seconds if isinstance(seconds, int | float) else None,
-    }
-
-
-def _drift(one: Row, zone: tzinfo | None) -> Row:
-    return {
-        "at": utc(one.get("at"), zone),
-        "probe": _text(one.get("probe")),
-        "word": _text(one.get("word")),
-        "status": _text(one.get("status")),
-        "found": _number(one.get("found")),
-        "sha": _text(one.get("sha")),
-        "error": _text(one.get("error")),
-    }
-
-
-def _capped_reads(one: Row, zone: tzinfo | None) -> Row:
-    """A read of which instances the ledger has capped (`jgauge.limits.note`): how many it read,
-    how many were capped, and, where every one was, `ends_at`, the first time one is free again."""
-    instances, capped = one.get("instances"), _dict(one.get("capped"))
-    count = _count(instances)
-    frees = [found for found in (utc(at) for at in capped.values()) if found is not None]
-    every = bool(count) and len(frees) == len(capped) >= count
-    return {
-        "at": utc(one.get("at"), zone),
-        "reader": _text(one.get("reader")),
-        "instances": count,
-        "capped": len(capped),
-        "ends_at": min(frees) if every else None,
-    }
-
-
 def _stalls(one: Row, zone: tzinfo | None) -> Row:
     times = {name: utc(one.get(name), zone) for name in ("at", "since", "until")}
     texts = {name: _text(one.get(name)) for name in ("thread", "role", "slug", "became")}
@@ -160,6 +138,7 @@ def _transitions(one: Row, zone: tzinfo | None) -> Row:
         "to_status": _text(one.get("to")),
         "by": _text(one.get("by")),
         "why_len": _length(one.get("why")),
+        "legal": 0 if one.get("legal") is False else 1,
     }
 
 
@@ -280,7 +259,18 @@ def _queue(one: Row, zone: tzinfo | None) -> Row:
         "approval_said_at": utc(approval.get("said_at"), zone),
         "approval_ran_at": utc(approval.get("ran_at"), zone),
         "follows": _text(approval.get("follows")) or None,
+        "queued_by_session": _text(_dict(one.get("queued_by")).get("session")),
+        "approval_message": _approval_message(approval),
     }
+
+
+def _approval_message(approval: Row) -> str | None:
+    """The `<thread id>/<message id>` a row's go rests on: an entry's go keeps it in `message`,
+    a go on the user's message or pick in `ref`, and any other go names none."""
+    basis = approval.get("basis")
+    if basis == "entry":
+        return _text(approval.get("message"))
+    return _text(approval.get("ref")) if basis in ("message", "pick") else ""
 
 
 def _merged(one: Row, zone: tzinfo | None) -> Row:
@@ -371,11 +361,6 @@ def _runs(one: Row, zone: tzinfo | None) -> Row:
     }
 
 
-SPENT = ("units", "runs", "input", "cached", "written", "output")
-KINDS = ("first", "reviews", "fixes", "sends", "homes", "scouts", "capped")
-"""The units of a day's spend by kind, as `jgauge.spend.COLUMNS` names them."""
-
-
 def _spend_days(one: Row, zone: tzinfo | None) -> Row:
     spent_on = _text(one.get("day"))
     return {
@@ -402,11 +387,6 @@ def _word_sends(one: Row, zone: tzinfo | None) -> Row:
         "sent_at": utc(one.get("sent_at"), zone),
         "waiting": bool(one.get("waits")),
     }
-
-
-SEVERITIES = ("errors", "warnings", "infos", "others", "dismissed")
-"""The counts of a review round's findings by severity, as `jbus.reviewed.round_lines` writes
-them: `others` of a severity none of the three, and `dismissed` those its lead dismissed."""
 
 
 def _review_rounds(one: Row, zone: tzinfo | None) -> Row:
@@ -449,55 +429,6 @@ class Source:
     records: Callable[[str], Iterable[Row]] = json_lines
     natural: str = ""
     beside: Callable[[Row, Path], Row] | None = None
-
-
-def _columns(*names: str) -> tuple[tuple[str, str], ...]:
-    """Columns by name, typed by their suffix: `_len`, counts and numbers are INTEGER."""
-    whole = {
-        "gate",
-        "doors",
-        "picks",
-        "run",
-        "job",
-        "attempt",
-        "pr",
-        "steps",
-        "workers",
-        "tests",
-        "signs",
-        "number",
-        "options",
-        "priority",
-        "pushes",
-        "holds",
-        "on_hold",
-        "keeps",
-        "bytes",
-        "waiting",
-        "instances",
-        *SPENT,
-        *KINDS,
-        "checked",
-        "round_number",
-        "scoped",
-        "sections",
-        "met",
-        "done_when",
-        *SEVERITIES,
-        "found",
-    }
-    real = {"slowest_s", "tail_s", "seconds", "minutes"}
-    return tuple(
-        (
-            name,
-            "INTEGER"
-            if name.endswith("_len") or name in whole
-            else "REAL"
-            if name in real
-            else "TEXT",
-        )
-        for name in names
-    )
 
 
 _WAITS = _columns("at", "number", "head", "ready", "ready_by", "seconds", "blocker", "blockers")
@@ -549,9 +480,10 @@ SOURCES: tuple[Source, ...] = (
         "transitions",
         "transitions.jsonl",
         "log",
-        _columns("at", "slug", "from_status", "to_status", "by", "why_len"),
+        _columns("at", "slug", "from_status", "to_status", "by", "why_len", "legal"),
         _transitions,
     ),
+    Source("row_waits", "waits.jsonl", "log", _columns("at", "slug", "kind", "why_len"), waits.row),
     Source(
         "outbox",
         "outbox.jsonl",
@@ -645,6 +577,8 @@ SOURCES: tuple[Source, ...] = (
             "approval_said_at",
             "approval_ran_at",
             "follows",
+            "queued_by_session",
+            "approval_message",
         ),
         _queue,
         at="approval_ran_at",
@@ -750,7 +684,14 @@ SOURCES: tuple[Source, ...] = (
         records=keyed("red"),
         natural="red",
     ),
-    Source("passes", "passes.jsonl", "log", _columns("at", "seconds"), _passes, where="machine"),
+    Source(
+        "passes",
+        "passes.jsonl",
+        "log",
+        _columns("at", "seconds", "step_times", "children"),
+        passes,
+        where="machine",
+    ),
     Source(
         "review_rounds",
         "review-rounds.jsonl",
@@ -775,7 +716,7 @@ SOURCES: tuple[Source, ...] = (
         "drift.jsonl",
         "log",
         _columns("at", "probe", "word", "status", "found", "sha", "error"),
-        _drift,
+        drift,
         where="machine",
     ),
     Source(
@@ -783,7 +724,7 @@ SOURCES: tuple[Source, ...] = (
         "capped.jsonl",
         "log",
         _columns("at", "reader", "instances", "capped", "ends_at"),
-        _capped_reads,
+        capped_reads,
         where="machine",
     ),
     Source("merge_waits", "merge-waits.jsonl", "log", _WAITS, _merge_waits, where="home"),

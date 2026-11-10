@@ -119,6 +119,7 @@ ORDER = [
     "after-expedite 25 cancelled.rerun (world)",
     "after-expedite 27 stack.move (client, world)",
     "after-expedite 30 rebase.github (client, world)",
+    "after-expedite 35 compact.tell (client, world)",
     "after-expedite 40 scouts.launch (client, world)",
     "derive 5 merge.shown",
     "derive 10 states.judged (sight)",
@@ -183,6 +184,7 @@ BEFORE = {
             ("review", "review alpha: findings"),
             ("rebase", "rebase alpha: told the crew (#7, <head>)"),
             ("queue", "queue demo: the table changed"),
+            ("illegal-move", "illegal-move alpha: launched to pr"),
         ],
     ),
     "t3 down": (

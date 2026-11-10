@@ -17,7 +17,7 @@ import sqlite3
 from datetime import timedelta
 
 from jbus import history, queue, telemetry
-from jbus.telemetry import cursors, migrations
+from jbus.telemetry import cursors, migrations, waits
 from test_jbus_telemetry import NOW, SECRET, counted, iso, machine
 
 __all__ = ["machine"]
@@ -303,3 +303,170 @@ def test_a_line_written_before_pull_reads_it_from_its_kept_text_or_as_empty(mach
     with contextlib.closing(machine.store()) as store:
         rows = store.execute("SELECT slug, pull FROM brief_versions ORDER BY slug").fetchall()
     assert rows == [("gone", None), ("kept", "open")]
+
+
+def test_the_queue_keeps_who_queued_each_row_and_the_message_its_go_rests_on(machine):
+    """`jbus.telemetry.records` fills `queued_by_session` and `approval_message` for each basis,
+    as the text columns `jbus.telemetry.values` types them, and a store built before
+    `jbus.telemetry.migrations.v014_queue_joins` gains both columns on its next build, and the
+    queue's rows it already holds are read again to fill them."""
+    home = {"directory": "/home/u/repo", "session": "home-session"}
+    jbus = {"by": "jbus", "session": ""}
+    goes = {
+        "entry": ({"ref": "plan-entry", "message": "mcp:home/m-entry"}, "mcp:home/m-entry"),
+        "message": ({"ref": "mcp:home/m-said"}, "mcp:home/m-said"),
+        "pick": ({"ref": "mcp:home/m-picked"}, "mcp:home/m-picked"),
+        "word": ({"ref": "w1", "message": "mcp:home/m-not"}, ""),
+        "answer": ({"ref": "3"}, ""),
+        "rule": ({"ref": "follow-up", "follows": "parent"}, ""),
+        "page": ({"ref": "p1"}, ""),
+        "bot-chat": ({"ref": "w2"}, ""),
+    }
+    rows = [
+        {"slug": basis, "status": "queued", "queued_by": home, "approval": {"basis": basis, **go}}
+        for basis, (go, _) in goes.items()
+    ]
+    rows.append({"slug": "filed", "status": "queued", "queued_by": jbus, "approval": {}})
+    machine.write("alpha", "queue.json", rows)
+    want = sorted(
+        [
+            *((basis, "home-session", message) for basis, (_, message) in goes.items()),
+            ("filed", "", ""),
+        ]
+    )
+    query = "SELECT slug, queued_by_session, approval_message FROM queue ORDER BY slug"
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        assert store.execute(query).fetchall() == want
+        types = {name: kind for _, name, kind, *_ in store.execute("PRAGMA table_info(queue)")}
+        assert (types["queued_by_session"], types["approval_message"]) == ("TEXT", "TEXT")
+        views = [
+            name for (name,) in store.execute("SELECT name FROM sqlite_master WHERE type = 'view'")
+        ]
+        store.executescript(
+            "".join(f"DROP VIEW {name};" for name in views)
+            + "ALTER TABLE queue DROP COLUMN queued_by_session;"
+            + "ALTER TABLE queue DROP COLUMN approval_message;"
+            + "DELETE FROM migrations WHERE name = 'v014_queue_joins';"
+        )
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        assert store.execute(query).fetchall() == want
+
+
+def test_launch_waits_splits_a_rows_go_to_launch_by_the_kind_of_each_reason(machine):
+    """The source `row_waits` of `jbus.telemetry.records`, its table in
+    `jbus.telemetry.migrations.v014_row_waits` and the view `jbus.telemetry.views.launch_waits`.
+    `one`'s go is at NOW, after `zero`'s line began the log:
+    a minute with no line, ten on a slug it depends on, ten on a full /tmp, ten on its home's cap,
+    then its launch. Its line after the launch, and `zero`, which never launched, count nothing."""
+    from jbus import dispatch
+
+    minute = timedelta(minutes=1)
+    machine.append(
+        "alpha",
+        "items.jsonl",
+        {"id": "i1", "at": iso(NOW), "item": "i1", "verb": "approved", "slug": "one"},
+    )
+    machine.append(
+        "alpha",
+        "transitions.jsonl",
+        {"slug": "one", "from": "queued", "to": "launched", "at": iso(NOW + 31 * minute)},
+    )
+    whys = (
+        (-60, "zero", "not approved"),
+        (1, "one", "depends on two"),
+        (11, "one", "waiting: /tmp at 92% of its quota"),
+        (21, "one", "max_per_home is 2 in the root home"),
+        (31, "one", ""),
+    )
+    machine.append(
+        "alpha",
+        "waits.jsonl",
+        *({"slug": slug, "why": why, "at": iso(NOW + at * minute)} for at, slug, why in whys),
+    )
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        split = store.execute(
+            "SELECT slug, kind, seconds FROM launch_waits WHERE project = 'alpha' ORDER BY kind"
+        ).fetchall()
+        kept = store.execute("SELECT slug, kind, why_len FROM row_waits ORDER BY at").fetchall()
+    assert split == [
+        ("one", "cap", 600.0),
+        ("one", "depends", 600.0),
+        ("one", "none", 60.0),
+        ("one", "room", 600.0),
+    ]
+    assert kept[0] == ("zero", "hold", len("not approved"))
+    assert kept[-1] == ("one", "none", 0)
+    said = {
+        dispatch.ROOM: "room",
+        "no launch: claudeAgent is capped until 2026-11-09T22:00:00+00:00": "room",
+        f"{dispatch.HELD}: a settled thread already has this slug": "hold",
+        "max_running is 4 across all projects": "cap",
+        "max_per_project is 6 in jstack": "cap",
+        "main is red: waits for green": "red main",
+        dispatch.UNKNOWN: "none",
+    }
+    assert {why: waits.kind(why) for why in said} == said
+
+
+def test_pass_steps_gives_each_step_of_each_pass_its_wall_and_cpu_seconds(machine):
+    """A pass's line names each step's `[wall, cpu]` seconds; a step whose figures are not two
+    numbers is left out, and a line from before the steps were timed has no step. The code is the
+    migration `jbus.telemetry.migrations.v014_pass_steps`, the rows of `jbus.telemetry.machine`
+    and the view `jbus.telemetry.views.pass_steps`."""
+    lines = [
+        {"at": iso(NOW), "seconds": 30.2},
+        {
+            "at": iso(NOW + timedelta(minutes=1)),
+            "seconds": 31.0,
+            "steps": {
+                "first halves": [20.5, 18.25],
+                "first halves/watch.look": [12.0, 1.5],
+                "broken": [1.0],
+            },
+            "children": 9.75,
+        },
+    ]
+    (machine.state_dir / "passes.jsonl").write_text(
+        "".join(f"{json.dumps(one)}\n" for one in lines)
+    )
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        steps = store.execute(
+            "SELECT project, at, step, seconds, cpu FROM pass_steps ORDER BY step"
+        ).fetchall()
+        children = store.execute("SELECT children FROM passes ORDER BY at").fetchall()
+    at = iso(NOW + timedelta(minutes=1))
+    assert [(project, step, seconds, cpu) for project, _, step, seconds, cpu in steps] == [
+        ("", "first halves", 20.5, 18.25),
+        ("", "first halves/watch.look", 12.0, 1.5),
+    ]
+    assert {when[:16] for _, when, *_ in steps} == {at[:16]}
+    assert children == [(None,), (9.75,)]
+
+
+def test_transitions_carry_whether_the_move_table_holds_the_move(machine):
+    """A line `jbus.queue.derive` marked `"legal": false` reads 0 and any other 1, and a store
+    built before `jbus.telemetry.migrations.v014_transitions_legal` gains the column on its next
+    build, with each line it already holds read as 1, as a rebuild reads an unmarked line."""
+    log = "transitions.jsonl"
+    machine.append("alpha", log, {"slug": "one", "from": "pr", "to": "merged", "at": iso(NOW)})
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        views = [
+            name for (name,) in store.execute("SELECT name FROM sqlite_master WHERE type = 'view'")
+        ]
+        store.executescript(
+            "".join(f"DROP VIEW {name};" for name in views)
+            + "ALTER TABLE transitions DROP COLUMN legal;"
+            + "DELETE FROM migrations WHERE name = 'v014_transitions_legal';"
+        )
+    marked = {"slug": "two", "from": "merged", "to": "gate", "at": iso(NOW), "legal": False}
+    machine.append("alpha", log, marked)
+    machine.build()
+    query = "SELECT slug, from_status, to_status, legal FROM transitions ORDER BY slug"
+    with contextlib.closing(machine.store()) as store:
+        rows = store.execute(query).fetchall()
+    assert rows == [("one", "pr", "merged", 1), ("two", "merged", "gate", 0)]
