@@ -194,6 +194,19 @@ def test_a_key_sent_once_is_never_sent_again_by_this_process_or_another(tmp_path
     assert [one["line"] for one in made.log()] == ["first", "tick two", "pass three"]
 
 
+def test_an_unmarked_key_is_sent_again_and_the_other_keys_keep_their_order(tmp_path):
+    """A launch marked before it ran that T3 Code then refused forgets its key, so the next
+    pass launches it; a key never marked is no error."""
+    made = box(tmp_path)
+    for key in ("one", "two", "three"):
+        made.mark(key)
+    made.unmark("two")
+    made.unmark("never")
+    assert made.sent() == ["one", "three"]
+    assert made.send("s", "merged", "again", key="two") is True
+    assert made.sent() == ["one", "three", "two"]
+
+
 def test_a_keyed_send_parses_sent_json_again_only_once_another_process_wrote_it(
     tmp_path, monkeypatch
 ):
