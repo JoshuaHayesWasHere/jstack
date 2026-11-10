@@ -19,6 +19,7 @@ import pytest
 
 from testing.paths import REPO
 
+READ_SET = ("features/*/spec/",)
 CHARTS = sorted(REPO.glob("features/*/spec/*-statechart"))
 
 
