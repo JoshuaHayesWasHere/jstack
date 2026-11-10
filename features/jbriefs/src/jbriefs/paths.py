@@ -107,3 +107,22 @@ def covers(patterns: tuple[str, ...], path: str) -> bool:
     parts = path.split("/")
     parents = ["/".join(parts[: n + 1]) for n in range(len(parts))]
     return any(_glob(pattern).fullmatch(parent) for pattern in patterns for parent in parents)
+
+
+_SOURCE = re.compile(r"^features/(?P<feature>[^/]+)/src(?:/|$)")
+_LANDS = re.compile(r"\(in (?P<named>none|`[^()]*)\)\W*$")
+
+
+def reach(inside: tuple[str, ...], kept: tuple[str, ...]) -> tuple[str, ...]:
+    """The paths of `inside`, a brief's `Where:`, and the `docs/` of each feature whose source
+    under `features/<f>/src/` they name, where `kept`, its `Do not touch:`, does not cover it. A
+    doc line a change makes wrong is fixed in the same pull request, not queued as a row."""
+    docs = (f"features/{hit['feature']}/docs" for path in inside if (hit := _SOURCE.match(path)))
+    return tuple(dict.fromkeys((*inside, *(doc for doc in docs if not covers(kept, doc)))))
+
+
+def lands_in(item: str) -> tuple[str, ...] | None:
+    """The files a `Done when:` item says it lands in, from the `(in `<path>`, ...)` or
+    `(in none)` that ends it, or None when it ends with no such marker."""
+    marker = _LANDS.search(item)
+    return None if marker is None else named(marker["named"])

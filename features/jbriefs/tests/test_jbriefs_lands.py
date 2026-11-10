@@ -85,3 +85,44 @@ def test_1177s_goals_outside_where_are_refused_with_the_follow_up_to_queue():
         'with a "Follows: ci2m-select-graph-cache" line and queue it with jbus queue add, '
         "where it is approved on this row's go"
     ) in faults
+
+
+FEATURE = (
+    '# beta: a task\nTask: "do beta"\nDone when:\n- the queue says so {marker}\n'
+    "Proves it: `make check`\nSize: S\nWhere: `features/jbus/src/jbus/queue.py`, `docs/x.md`\n"
+    "Do not touch: {kept}\nPull request: open one when done\nReview: review\n"
+    "Playbook: feature\nSkills: tdd\n"
+)
+
+
+def test_a_doc_of_the_feature_whose_source_where_names_is_inside():
+    """A doc line a change makes wrong, in the docs of the feature whose source `Where:` names,
+    is the crew's to fix in the same pull request: 10 of the 11 rows that only fixed such a line
+    between #1440 and #1629 had a parent whose `Where:` named the feature's source and not its
+    `docs/`."""
+    text = FEATURE.format(marker="(in `features/jbus/docs/jbus/the-queue.md`)", kept="jmerge")
+    assert parse.where(text) == ("features/jbus/src/jbus/queue.py", "docs/x.md")
+    assert parse.reach(text) == (
+        "features/jbus/src/jbus/queue.py",
+        "docs/x.md",
+        "features/jbus/docs",
+    )
+    assert parse.covers(parse.reach(text), "features/jbus/docs/jbus/the-queue.md")
+    assert parse.faults(text) == []
+    assert parse.shared_where(text, text.replace("queue.py", "asks.py")) == ("docs/x.md",)
+
+
+@pytest.mark.parametrize(
+    ("kept", "path", "said"),
+    [
+        ("jmerge", "features/jmerge/docs/jmerge.md", "outside Where"),
+        ("jmerge", "features/jbus/README.md", "outside Where"),
+        ("`features/jbus/docs/`", "features/jbus/docs/jbus/the-queue.md", "outside Where"),
+        ("`features/jbus/docs/jbus/x.md`", "features/jbus/docs/jbus/x.md", "under Do not touch"),
+    ],
+)
+def test_a_doc_of_another_feature_or_under_do_not_touch_is_outside(kept, path, said):
+    text = FEATURE.format(marker=f"(in `{path}`)", kept=kept)
+    assert "features/jmerge/docs" not in parse.reach(text)
+    (fault,) = parse.faults(text)
+    assert fault.startswith(f"brief's Done when 1 lands in {path}, {said}")

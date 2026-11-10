@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from jbriefs import asks, below, findings, skills, standing
+from jbriefs import asks, below, findings, paths, skills, standing
 from jbriefs.crowded import crowded
 from jbriefs.meets import done_when
 from jbriefs.paths import covers, named
@@ -415,6 +415,11 @@ def where(text: str, label: str = "Where") -> tuple[str, ...]:
     return () if line is None else named(line)
 
 
+def reach(text: str) -> tuple[str, ...]:
+    """The paths a brief may change: its `Where:` and the docs it reaches (`paths.reach`)."""
+    return paths.reach(where(text), where(text, "Do not touch"))
+
+
 def shared_where(text: str, other: str) -> tuple[str, ...]:
     """The paths that both briefs' `Where:` lines cover (`covers`), the narrower where one names a
     directory and the other a file under it. A brief whose `Where:` is the whole repo (`.`) says
@@ -441,27 +446,19 @@ def wheres(text: str) -> str:
     )
 
 
-_LANDS = re.compile(r"\(in (?P<named>none|`[^()]*)\)\W*$")
 _SLUG = re.compile(r"^# (?P<slug>[A-Za-z0-9][A-Za-z0-9._-]*):", re.MULTILINE)
-
-
-def _lands_in(item: str) -> tuple[str, ...] | None:
-    """The files a `Done when:` item says it lands in, from the `(in `<path>`, ...)` or
-    `(in none)` that ends it, or None when it ends with no such marker."""
-    marker = _LANDS.search(item)
-    return None if marker is None else named(marker["named"])
 
 
 def lands(text: str) -> str:
     """Why a `Done when:` item cannot be met inside the brief, as one line: the first item whose
-    `(in ...)` marker names a file that `Where:` does not cover, or one that `Do not touch:`
-    covers (`covers`). It is an empty string when every marked file is inside, and for a brief
-    whose `Where:` names no path, which `wheres` refuses.
+    `(in ...)` marker names a file outside `reach`, or one that `Do not touch:` covers. It is an
+    empty string when every marked file is inside, and for a brief whose `Where:` names no path,
+    which `wheres` refuses.
 
     The marker is the writer's word for the file the goal lands in: the check reads nothing else
     of the item, since most items name files they only read or run.
     """
-    inside, kept = where(text), where(text, "Do not touch")
+    inside, kept = reach(text), where(text, "Do not touch")
     if not inside:
         return ""
     slug = found["slug"] if (found := _SLUG.search(text)) else "<this row's slug>"
@@ -470,7 +467,7 @@ def lands(text: str) -> str:
         "jbus queue add, where it is approved on this row's go"
     )
     for number, item in enumerate(done_when(text.splitlines()), 1):
-        for path in _lands_in(item) or ():
+        for path in paths.lands_in(item) or ():
             said = f"brief's Done when {number} lands in {path}"
             if not covers(inside, path):
                 return (
@@ -488,7 +485,7 @@ def unmarked(text: str) -> str:
     """Why items of a brief's `Done when:` list say no file they land in (`lands`), as one line:
     how many, and the first. It is an empty string when every item ends with its marker."""
     items = done_when(text.splitlines())
-    bare = [item for item in items if _lands_in(item) is None]
+    bare = [item for item in items if paths.lands_in(item) is None]
     if not bare:
         return ""
     return (

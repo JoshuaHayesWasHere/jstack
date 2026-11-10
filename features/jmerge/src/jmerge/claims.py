@@ -43,7 +43,7 @@ def branch_of(slug: str, text: str) -> tuple[str, str]:
 
 
 def scope(text: str, changed: list[str]) -> list[str]:
-    inside = parse.where(text)
+    inside = parse.reach(text)
     return [f"outside: {path}" for path in changed if not parse.covers(inside, path)]
 
 
