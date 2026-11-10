@@ -244,7 +244,7 @@ def test_each_new_row_as_jmerge_gives_it_tells_the_crew_once_in_words_it_can_run
 ):
     """Each sentence is formatted with the pull request's own fields, so a stray brace would fail
     the pass. A scoped review whose reason names no range-diff takes its ranges from the head the
-    crew kept before its rebase, as the `unruled` row does."""
+    crew kept before its rebase, as the `unruled` row does (`jbus.review.ranges`)."""
     short.out(reason, word)
     said = short.passes(3)
     assert not [line for line in said if line.startswith("pass failed")]

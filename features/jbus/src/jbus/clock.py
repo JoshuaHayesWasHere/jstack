@@ -531,16 +531,13 @@ def _rows(run: Pass, world: World, said: dict[str, str]) -> list[tuple[str, int]
     return sorted(rows, key=lambda row: row[1])
 
 
-def _tells_left(was: dict[str, Any], slug: str, number: int, reason: str, head: str) -> int | None:
-    """Return how many messages `expedite.tell` still owes the crew about a wait at the head, from
+def _tells_left(was: dict[str, Any], slug: str, number: int, reason: str) -> int | None:
+    """Return how many messages `expedite.tell` still owes the crew about a wait at its head, from
     `expedite.json` as `was` holds it, or None where `tell` does not own the wait: no row of
-    `expedite.TABLE` is its reason, `tell` keeps no count of it at that head, or it is the
-    user's."""
+    `expedite.TABLE` is its reason, `tell` keeps no count of it this pass, or it is the user's."""
     row = expedite.short_of(merge.Line("wait", number, "", reason))
     entry = was.get(slug)
     if row is None or not isinstance(entry, dict) or entry.get("users"):
-        return None
-    if not head or (entry.get("head"), entry.get("reason")) != (head, reason):
         return None
     _, tells = row.spells or (expedite.AFTER, 1)
     return max(tells - entry.get("tells", 1 if "told" in entry else 0), 0)
@@ -575,8 +572,7 @@ def held(
         )
         group["rows"].append(slug)
         group["numbers"].append(number)
-        head = str(world.open.get(slug, {}).get("headRefOid") or "")
-        left = _tells_left(told, slug, number, reason, head)
+        left = _tells_left(told, slug, number, reason)
         if left is None:
             group["who"] = "user"
         elif left:
