@@ -14,7 +14,9 @@ Each fault has one query, the one the store's page (`the-telemetry-store.md`) gi
 import contextlib
 import json
 import sqlite3
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
+
+import pytest
 
 from jbus import history, queue, telemetry
 from jbus.telemetry import cursors, migrations, waits
@@ -553,3 +555,55 @@ def test_a_stall_spell_is_kept_with_its_times_and_minutes(machine):
         ).fetchall()
     since = "2026-10-28T15:00:00.000000Z"
     assert found == [("t-1", "one", since, None, None), ("t-1", "one", since, 9, "hung")]
+
+
+def test_held_now_holds_each_open_wait_with_its_row_held_seconds_up_to_the_last_build(machine):
+    """A spell open on `row-held` counts its open segment up to the last build; a pull request
+    whose merge began at its head, or whose spell left `merge-waits.json`, waits no more. The
+    spells are read by `jbus.telemetry.records.open_waits` into the table that
+    `jbus.telemetry.migrations.v017_open_waits` makes, and `jbus.telemetry.views.held_now` reads
+    it."""
+    seen = (datetime.now(UTC) - timedelta(minutes=10)).replace(microsecond=0)
+    spells = {
+        str(number): {
+            "head": head,
+            "ready": iso(seen - timedelta(hours=1)),
+            "ready_by": "check",
+            "seen": iso(seen),
+            "code": code,
+            "blockers": {"row-held": 100, "undecided": 40},
+        }
+        for number, head, code in ((1, "h1", "row-held"), (2, "h2", "undecided"), (3, "h3", ""))
+    }
+    waits_file = machine.home_dir / "alpha" / "merge-waits.json"
+    waits_file.write_text(json.dumps(spells))
+    machine.append(
+        "alpha",
+        "merge-waits.jsonl",
+        {
+            "at": iso(seen),
+            "number": 2,
+            "head": "h2",
+            "ready": iso(seen),
+            "ready_by": "check",
+            "began": iso(seen),
+            "seconds": 140,
+            "blockers": {},
+        },
+        home=True,
+    )
+    machine.build()
+    query = "SELECT pr, held FROM held_now WHERE project = 'alpha' ORDER BY pr"
+    with contextlib.closing(machine.store()) as store:
+        (built,) = store.execute("SELECT max(at) FROM builds").fetchone()
+        found = store.execute(query).fetchall()
+    open_for = (datetime.fromisoformat(built.replace("Z", "+00:00")) - seen).total_seconds()
+    assert [pr for pr, _ in found] == [1, 3]
+    assert found[0][1] == pytest.approx(100 + open_for, abs=0.01)
+    assert found[1][1] == 100
+
+    del spells["3"]
+    waits_file.write_text(json.dumps(spells))
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        assert [pr for pr, _ in store.execute(query)] == [1]
