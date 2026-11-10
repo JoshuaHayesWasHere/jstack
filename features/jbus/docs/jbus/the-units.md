@@ -34,6 +34,11 @@ On macOS a move reloads no agent.
 | `jbus-view.service` | `jbus view` | Always on | Never: on Linux `systemctl --user enable --now jbus-view.service` starts it, and on macOS the view gets no agent, so you run `jbus view` yourself |
 
 `jbus.service` stops a pass after 20 minutes (`TimeoutStartSec=20min`).
+A pass starts about every 25 seconds, so it reads GitHub over and over: its reads through `watch._api`, the project's runs (`wakes.read`), each nightly's completed runs and the workflow runs and check runs of main's tip (`watch._judged`), are conditional (`jbus.conditional.read`).
+Each is asked with the ETag of the answer it got last, kept in the project's state, a file a path under `gh-answers/` with the path, the ETag, the answer and when it was last asked, each written whole.
+GitHub answers 304 while the answer has not changed, and the pass reads the kept answer then; a 304 to an authorized request spends none of the API allowance, so a pass over an unchanged GitHub spends none, where on 2026-11-10 its 14 reads cost about 2,000 core calls an hour.
+A 200 replaces what was kept, a path GitHub does not answer reads as no answer, never the kept one, and a file not asked about for 7 days is removed, since the paths of `_judged` name a commit.
+The tick's reads of a head's check runs and workflow runs ask through the same `jbus.conditional.ask`, so `jbus budget --callers` names both `jbus.conditional.ask`: the pass's reads `< jbus.conditional.read`, and the tick's `< jbus.tick._read` or `< jbus.tick._suites`.
 `jbus-merge.timer` is the bound on how soon a check that ends on GitHub reaches jbus: a tick every 10 seconds, where the pass alone would take a minute or more.
 The tick runs only while some project's `checks-pending.json` names a pull request: each open one that a row's line names, whatever its checks say, and any other whose checks are going.
 The pass is that file's only writer, and each pass sets the timer from every project's file as it finds them (the step `tick.timer`): it starts `jbus-merge.timer` while one names a pull request and stops it while all are `[]`, so no tick starts while no row's pull request is open and no check is going, and a stopped timer costs nothing.

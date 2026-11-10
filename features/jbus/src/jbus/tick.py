@@ -67,7 +67,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import jbus
-from jbus import cancelled, launchd, merge, passes, reload, restated, verbs, watch
+from jbus import cancelled, conditional, launchd, merge, passes, reload, restated, verbs, watch
 from jmerge import mainjson, ready
 from jsettings import proc, store
 
@@ -88,7 +88,6 @@ jobs of its workflow runs. Each names the head it ran at (`head_sha`)."""
 RUNS_AT = "repos/{owner}/{repo}/actions/runs?head_sha=%s&per_page=100"
 """A head's workflow runs, asked for only when its check runs name a check suite the tick does
 not know the workflow of yet."""
-OK = "200"
 EVERY = 10
 """The seconds between the tick's reads while a run of `jmerge` it started is still going, the
 interval of `jbus-merge.timer`, which starts no tick while one runs."""
@@ -167,22 +166,6 @@ def _timer(half: Half) -> None:
         half.run.say(f"tick: the tick watches no pull request, so {unit} stops")
 
 
-def _asked(run: passes.Pass, path: str, etag: str = "") -> tuple[str, dict[str, Any]] | None:
-    """Return the ETag of GitHub's answer to `path`, with the answer, or None where GitHub
-    answered 304 to `etag`, which spends none of the API allowance, or did not answer."""
-    asked = run.run("gh", "api", path, "-i", *(("-H", f"If-None-Match: {etag}") if etag else ()))
-    head, _, body = asked.stdout.replace("\r", "").partition("\n\n")
-    status, *headers = head.splitlines() or [""]
-    if status.split()[1:2] != [OK]:
-        return None
-    tags = [line.split(":", 1)[1].strip() for line in headers if line.lower().startswith("etag:")]
-    try:
-        given = json.loads(body)
-    except ValueError:
-        given = {}
-    return (tags[0] if tags else ""), given if isinstance(given, dict) else {}
-
-
 def _suite(job: dict[str, Any]) -> str:
     return str((job.get("check_suite") or {}).get("id", ""))
 
@@ -197,8 +180,9 @@ def _suites(
     suites = {k: list(one) for k, one in known.items() if isinstance(one, list) and len(one) == 2}
     if all(_suite(job) in suites for job in jobs):
         return suites
-    asked = _asked(run, RUNS_AT % head)
-    listed = (asked[1] if asked else {}).get("workflow_runs") or []
+    asked = conditional.ask(run, RUNS_AT % head)
+    given = asked.body if isinstance(asked, conditional.Fresh) else None
+    listed = (given if isinstance(given, dict) else {}).get("workflow_runs") or []
     for one in listed:
         if isinstance(one, dict) and one.get("check_suite_id") is not None:
             suites[str(one["check_suite_id"])] = [str(one.get("name", "")), one.get("id") or 0]
@@ -334,10 +318,10 @@ def _read(
     return what the tick keeps of it. A read GitHub answered 304, or did not answer, keeps what
     the tick had."""
     was: dict[str, Any] = found if isinstance(found, dict) else {}
-    asked = _asked(run, CHECK_RUNS % number, str(was.get("etag", "")))
-    if asked is None:
+    asked = conditional.ask(run, CHECK_RUNS % number, str(was.get("etag", "")))
+    if not isinstance(asked, conditional.Fresh):
         return was
-    etag, given = asked
+    etag, given = asked.etag, asked.body if isinstance(asked.body, dict) else {}
     jobs = [job for job in given.get("check_runs") or [] if isinstance(job, dict)]
     head = next((str(job["head_sha"]) for job in jobs if job.get("head_sha")), seen)
     jobs = [job for job in jobs if job.get("head_sha", head) == head]

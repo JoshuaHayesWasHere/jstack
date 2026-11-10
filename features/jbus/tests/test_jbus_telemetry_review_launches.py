@@ -3,13 +3,17 @@ with the state of `check` at its head when it launched, so how many reviews laun
 head, and the lag from push to launch, is one query.
 
 The test writes what the agents and jbus write: a reviewer's transcript under a T3 thread titled
-`review: <slug>`, and jbus's `ci-prs.jsonl`, `row-pulls.jsonl` and `runs.jsonl`. It runs the real
+`review: <slug>`, and jbus's `ci-prs.jsonl`, `row-pulls.jsonl`, `runs.jsonl` and
+`review-launches.jsonl`. It runs the real
 `jbus telemetry` and reads the view as a reader would.
 """
 
 import json
-from datetime import timedelta
+from datetime import UTC, timedelta
 
+import jsettings
+from jbus.telemetry import measures
+from jbus.telemetry.measures import m49_duplicate_reviews as duplicates
 from test_jbus_telemetry_tokens import NOW, iso, machine, said
 
 __all__ = ["machine"]
@@ -102,6 +106,14 @@ def test_each_reviewer_launch_has_its_pull_request_and_checks_state_at_its_head(
         ),
         check("busy", 4, "d" * 40, NOW + 25 * minute, "success", NOW + 37 * minute),
     )
+    lines(
+        machine,
+        "review-launches.jsonl",
+        launch("early", "mcp:review-early", "e" * 40, NOW),
+        launch("green", "mcp:review-green", "b" * 40, NOW + 30 * minute),
+        launch("red", "mcp:review-red", "c" * 40, NOW + 30 * minute),
+        launch("busy", "mcp:review-busy", "d" * 40, NOW + 30 * minute),
+    )
 
     machine.run()
 
@@ -119,36 +131,62 @@ def test_each_reviewer_launch_has_its_pull_request_and_checks_state_at_its_head(
 
     assert rows == [
         ("busy", 4, at(30), at(32), 340, "d" * 40, "running", 5.0),
-        ("early", None, at(0), at(2), 340, None, None, None),
+        ("early", None, at(0), at(2), 340, "e" * 40, None, None),
         ("green", 2, at(30), at(33), 340, "b" * 40, "success", 18.0),
         ("red", 3, at(30), at(31), 340, "c" * 40, "failure", 20.0),
     ]
     assert green == (1,)
 
 
-def test_a_launch_repeats_another_only_where_both_have_the_same_head(machine):
-    """Two reviewers of a slug launched before its pull request opened have no head, and are no
-    repeat of each other; a second reviewer at the head the first one judged is one."""
+def launch(slug, thread, head, at, kind="first", n=1):
+    """A line of `review-launches.jsonl`, as `jbus.reviewlaunch.record` writes it."""
+    return {"at": iso(at), "slug": slug, "thread": thread, "head": head, "kind": kind, "n": n}
+
+
+def test_duplicate_reviews_counts_the_launches_at_a_head_jbus_recorded(machine):
+    """Two reviewers launched before their pull request, with no head on record, are no repeat of
+    each other. Of three launches with a head on record, the second at the head the first was
+    launched at is a repeat, and the third, at a head whose `check` run had not started when it
+    launched, is none: the measure reads 1 of 3, and says 2 launches had no head on record.
+    The heads are read by `jbus.telemetry.records.review_heads` into the table that
+    `jbus.telemetry.migrations.v018_review_heads` makes."""
     minute = timedelta(minutes=1)
     reviewed(machine, "early", "s1", NOW, NOW + minute, "mcp:early-1")
     reviewed(machine, "early", "s2", NOW + 10 * minute, NOW + 11 * minute, "mcp:early-2")
-    reviewed(machine, "twice", "s3", NOW + 10 * minute, NOW + 11 * minute, "mcp:twice-1")
-    reviewed(machine, "twice", "s4", NOW + 20 * minute, NOW + 21 * minute, "mcp:twice-2")
+    reviewed(machine, "twice", "s3", NOW + 2 * minute, NOW + 3 * minute, "mcp:twice-1")
+    reviewed(machine, "twice", "s4", NOW + 10 * minute, NOW + 11 * minute, "mcp:twice-2")
+    reviewed(machine, "twice", "s5", NOW + 21 * minute, NOW + 22 * minute, "mcp:twice-3")
     lines(machine, "ci-prs.jsonl", opened(1, "early", NOW + 30 * minute), opened(2, "twice", NOW))
-    lines(machine, "runs.jsonl", check("twice", 2, "a" * 40, NOW, "success", NOW + 5 * minute))
+    lines(
+        machine,
+        "runs.jsonl",
+        check("twice", 2, "a" * 40, NOW + 5 * minute, "success", NOW + 8 * minute),
+        check("twice", 2, "b" * 40, NOW + 25 * minute, "success", NOW + 28 * minute),
+    )
+    lines(
+        machine,
+        "review-launches.jsonl",
+        launch("twice", "mcp:twice-1", "a" * 40, NOW + 2 * minute),
+        launch("twice", "mcp:twice-2", "a" * 40, NOW + 10 * minute),
+        launch("twice", "mcp:twice-3", "b" * 40, NOW + 21 * minute, kind="scoped"),
+    )
 
     machine.run()
 
     with machine.store() as store:
         rows = store.execute(
-            "SELECT thread, head, again FROM review_launches ORDER BY thread"
+            "SELECT thread, head, check_state, again FROM review_launches ORDER BY thread"
         ).fetchall()
-        repeats = store.execute("SELECT count(*) FROM review_launches WHERE again > 0").fetchone()
+        reading = measures.read(
+            store, duplicates.MEASURE, "alpha", NOW + 60 * minute, jsettings.Settings(zone=UTC)
+        )
 
     assert rows == [
-        ("mcp:early-1", None, 0),
-        ("mcp:early-2", None, 0),
-        ("mcp:twice-1", "a" * 40, 0),
-        ("mcp:twice-2", "a" * 40, 1),
+        ("mcp:early-1", None, None, 0),
+        ("mcp:early-2", None, None, 0),
+        ("mcp:twice-1", "a" * 40, "queued", 0),
+        ("mcp:twice-2", "a" * 40, "success", 1),
+        ("mcp:twice-3", "b" * 40, "queued", 0),
     ]
-    assert repeats == (1,)
+    assert (reading.value, reading.n) == (1, 3)
+    assert reading.note == "2 of 5 launches have no recorded head"

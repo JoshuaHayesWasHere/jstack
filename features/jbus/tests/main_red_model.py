@@ -154,7 +154,8 @@ class FakePass:
             commits = [
                 {"sha": sha(n), "parents": [{"sha": sha(n - 1)}] if n else []} for n in landed
             ]
-            return Asked(json.dumps(commits[::-1]))
+            head = "HTTP/2.0 200 OK\r\n\r\n" if "-i" in command else ""
+            return Asked(head + json.dumps(commits[::-1]))
         return Asked(f"{self.main}\trefs/heads/main\n")
 
 
