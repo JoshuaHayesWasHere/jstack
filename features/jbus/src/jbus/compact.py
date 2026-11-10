@@ -43,6 +43,7 @@ already told something waits for the next pass."""
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
@@ -67,6 +68,8 @@ _LAST = (
     "JOIN calls c USING (provider, session) WHERE s.thread = ? "
     "AND c.agent IS NULL ORDER BY c.at DESC LIMIT 1"
 )
+
+_AT = re.compile(r'"at": "([^"]+)"')
 
 
 @dataclass(frozen=True)
@@ -110,31 +113,23 @@ def idle(client: Client, thread: str, role: str) -> bool:
     return titled == role and bool(found.get("status")) and not at_work([found], settled_too=True)
 
 
-def _when(stamp: str) -> datetime | None:
-    try:
-        return datetime.fromisoformat(stamp.replace("Z", "+00:00"))
-    except ValueError:
-        return None
+def _when(stamp: str) -> datetime:
+    """A time as the store (`...Z`) or the outbox (`+00:00`) writes it."""
+    return datetime.fromisoformat(stamp.replace("Z", "+00:00"))
 
 
 def compacted(run: Pass, thread: str) -> datetime | None:
-    """Return when this project's outbox last sent the home thread `/compact`, or None."""
+    """Return when this project's outbox last sent the home thread `/compact`, or None. A line of
+    `outbox.jsonl` is read only where it holds the key's prefix, `went` `sent` and its `at`."""
     path = run.state / outbox.FILE
-    if not path.exists():
-        return None
-    thread, last = jsettings.thread_id(thread), None
-    prefix = json.dumps(f"{TEMPLATE}|home|{thread}|")[:-1]
-    with path.open(encoding="utf-8") as lines:
-        for line in lines:
-            if prefix not in line:
-                continue
-            try:
-                one = json.loads(line)
-            except ValueError:
-                continue
-            if isinstance(one, dict) and one.get("went") == "sent":
-                last = _when(str(one.get("at", ""))) or last
-    return last
+    prefix = json.dumps(home_key(thread, ""))[:-1]
+    text = path.read_text(encoding="utf-8") if path.exists() else ""
+    found = [
+        at[1]
+        for line in text.splitlines()
+        if prefix in line and '"went": "sent"' in line and (at := _AT.search(line))
+    ]
+    return _when(found[-1]) if found else None
 
 
 def tell(run: Pass, client: Client, world: World) -> None:
@@ -188,8 +183,8 @@ def tell_homes(run: Pass, client: Client) -> None:
         mark = home_key(thread, last.at)
         if mark in sent:
             continue
-        at, was = _when(last.at), compacted(run, thread)
-        if at is not None and was is not None and at <= was:
+        was = compacted(run, thread)
+        if was is not None and _when(last.at) <= was:
             continue
         if not idle(client, thread, "home"):
             continue

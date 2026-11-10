@@ -12,6 +12,7 @@ from datetime import timedelta
 import pytest
 
 from jbus import compact, telemetry
+from jbus.telemetry import migrations
 from test_jbus_kitchen import NOW, Kitchen
 
 MIN = timedelta(minutes=1)
@@ -159,7 +160,19 @@ def test_a_call_the_store_reads_late_from_before_the_compaction_sends_none_again
     assert sent(kitchen) == [(kitchen.thread, key(kitchen, 0))]
 
 
+def test_a_send_t3_code_refused_is_not_sent_again_for_that_call(kitchen):
+    calls(kitchen, (0, 200_000))
+    kitchen.t3.refuse_send = True
+    said = kitchen.poll(NOW + MIN)
+    assert any("T3 Code refused" in line for line in said)
+    kitchen.t3.refuse_send = False
+    kitchen.poll(NOW + 4 * MIN)
+    assert sent(kitchen) == []
+
+
 def test_the_last_call_of_a_thread_is_read_through_the_index_of_sessions_by_thread(kitchen):
+    """`v018_sessions_thread` adds the index, and the read of `compact.last_call` takes it."""
+    assert "sessions_thread" in migrations.MIGRATIONS["v018_sessions_thread"]
     store = telemetry.connect(kitchen.state_dir / telemetry.FILE)
     plan = store.execute("EXPLAIN QUERY PLAN " + compact._LAST, ("mcp:x",)).fetchall()
     store.close()
