@@ -1288,9 +1288,70 @@ def from_chart(given, flags):
     return in_work_folder(body, flags.get("keep-work"))
 
 
+SITE = """Usage: statechart site --out FILE [--root DIR] [--check]
+
+Writes one self-contained HTML page that explores every features/*/spec/*-statechart/chart.mmd
+under DIR, with the stories.md and summary.json beside each: pick a chart, pan and zoom it, tap a
+state for its whole label, the code line it cites and its steps in and out. The page fetches
+nothing when it is viewed.
+
+  --out FILE   Where the page goes.
+  --root DIR   The repo whose charts it draws. Default: the git repo of the current folder.
+  --check      Writes nothing, and exits 1 when FILE is not the page the charts make now.
+
+Exit codes: 0 written (or current, with --check), 1 stale, 2 a chart it cannot read or a wrong
+argument."""
+
+
+def site_main(argv):
+    from statechart import site
+
+    flags = {}
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a in ("-h", "--help"):
+            print(SITE)
+            return 0
+        if a == "--check":
+            flags["check"] = True
+        elif a in ("--out", "--root"):
+            if i + 1 == len(argv):
+                raise CannotFinish(f"{a} needs a value. Run statechart site --help for the flags.")
+            i += 1
+            flags[a[2:]] = argv[i]
+        else:
+            raise CannotFinish(f"unknown argument {a}. Run statechart site --help for the flags.")
+        i += 1
+    if "out" not in flags:
+        raise CannotFinish(SITE.split("\n", 1)[0])
+    root = flags.get("root") or site.repo_root(os.getcwd())
+    try:
+        if flags.get("check"):
+            fresh = site.render(root, flags["out"])
+            try:
+                with open(flags["out"], encoding="utf-8") as handle:
+                    now = handle.read()
+            except OSError:
+                now = None
+            if now != fresh:
+                print(f"{flags['out']} is stale: run statechart site --out {flags['out']}")
+                return 1
+            print(f"{flags['out']} is current")
+            return 0
+        charts = site.build(root, flags["out"])
+    except ChartError as e:
+        raise CannotFinish(str(e)) from e
+    states = sum(len(r.states) for c in charts for r in c.regions)
+    print(f"wrote {flags['out']}: {len(charts)} charts, {states} states")
+    return 0
+
+
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     try:
+        if argv and argv[0] == "site":
+            return site_main(argv[1:])
         parsed = parse_args(argv)
         if "help" in parsed:
             print(parsed["help"])
