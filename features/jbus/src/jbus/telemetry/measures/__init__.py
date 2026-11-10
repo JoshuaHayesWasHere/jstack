@@ -33,10 +33,11 @@ Better = Literal["lower", "higher"]
 Tier = Literal["page", "wake"]
 """`wake` is a measure whose crossing is to wake the user; `page` is shown, never raised."""
 State = Literal["ok", "watch", "bad", "none"]
-Window = Literal["hour", "day", "week", "now"]
+Window = Literal["hour", "day", "72h", "week", "now"]
 """The span a measure reads, each ending now: the last hour; the user's day so far, from their
-midnight; the user's week so far, from the midnight that begins its Sunday, as the weekly views'
-`week`; and now alone, for a reading of the store's present state, such as the queue."""
+midnight; the last 72 h, so a count over it is a rate per 72 h that no midnight resets; the
+user's week so far, from the midnight that begins its Sunday, as the weekly views' `week`; and
+now alone, for a reading of the store's present state, such as the queue."""
 
 MEASURE_MODULE = r"m\d\d_[a-z0-9_]+"
 """The name of a measure's module: its place, two digits, and its slug."""
@@ -168,6 +169,8 @@ def bounds(
             begins = ends - timedelta(hours=1)
         case "day":
             begins = _midnight(user, local)
+        case "72h":
+            begins = ends - timedelta(hours=72)
         case "week":
             begins = _midnight(user, local - timedelta(days=(local.weekday() + 1) % 7))
         case "now":
