@@ -2,7 +2,8 @@
 `jbus.telemetry.views.row_outcomes` names how each row that is over ended,
 `jbus.telemetry.views.scout_rows` how the rows of a scout's entry stand,
 `jbus.telemetry.views.row_causes` the message a queued row came of, and
-`jbus.telemetry.views.row_spend` counts a home's and a scout's units on the merged rows they led to.
+`jbus.telemetry.views.row_spend` counts a home's and a scout's units on the merged rows they led to,
+and `jbus.telemetry.views.weekly_unpriced` names the unpriced calls among them.
 
 The test writes what jbus and the agents write: the queue, the merged rows and the brief versions
 under jbus's state, a home's and a scout's and a crewmate's transcripts, and T3 Code's threads and
@@ -18,6 +19,7 @@ from jgauge import spend as jgauge_spend
 from test_jbus_telemetry_tokens import NOW, iso, said
 
 SONNET = "claude-sonnet-5-5"
+UNPRICED = "claude-unpriced-0-1"
 MESSAGES = (
     "CREATE TABLE orchestration_v2_projection_messages (message_id TEXT PRIMARY KEY, "
     "thread_id TEXT NOT NULL, role TEXT NOT NULL, created_at TEXT NOT NULL, "
@@ -34,7 +36,8 @@ def say(tokens, message, thread, at, role="user", by="user"):
 
 
 def spends(tokens, session, title, *calls):
-    """A thread titled `title` on `session`, whose calls are (minutes after NOW, plain tokens)."""
+    """A thread titled `title` on `session`, whose calls are (minutes after NOW, plain tokens),
+    or (minutes, plain tokens, model) for a model other than Sonnet."""
     tokens.thread(f"mcp:{session}", title, "claudeAgent", session)
     tokens.claude(
         session,
@@ -43,10 +46,10 @@ def spends(tokens, session, title, *calls):
                 NOW + timedelta(minutes=at),
                 f"m-{session}-{at}",
                 (plain, 0, 0, 0),
-                SONNET,
+                model,
                 session=session,
             )
-            for at, plain in calls
+            for at, plain, model in ((*call, SONNET)[:3] for call in calls)
         ),
     )
 
@@ -54,11 +57,12 @@ def spends(tokens, session, title, *calls):
 @pytest.fixture
 def store(tmp_path, monkeypatch, t3_settings):
     """A home that queues two rows on one plan entry, after a typed message; a scout of that entry;
-    and a row of each way a row ends."""
+    and a row of each way a row ends. The home's turn that led to `row-also` is of a model
+    `jgauge.spend.PRICES` does not price."""
     machine = token_records.Machine(tmp_path, monkeypatch, t3_settings)
     state = machine.state_dir / "alpha"
     machine.t3.execute(MESSAGES)
-    spends(machine, "home", "home: alpha", (1, 1_000), (12, 2_000), (40, 9_000))
+    spends(machine, "home", "home: alpha", (1, 1_000), (12, 2_000, UNPRICED), (40, 9_000))
     spends(machine, "scout", "scout: scout-a", (0, 600))
     spends(machine, "crew", "crew: row-merged", (15, 5_000))
     say(machine, "m-early", "mcp:home", NOW - timedelta(hours=1))
@@ -156,3 +160,12 @@ def test_a_merged_row_counts_the_home_turn_and_the_scout_that_led_to_it(store):
         ("row-also", "scout"): 300,
         ("row-merged", "crew"): 5_000,
     }
+
+
+def test_a_merged_rows_unpriced_home_call_is_named_beside_its_dollars(store):
+    """The calls the dollars leave out are the row's as `row_spend` counts them, a home's too."""
+    assert UNPRICED not in jgauge_spend.PRICES
+    unpriced = store.execute("SELECT slug, role, unpriced FROM row_spend WHERE unpriced > 0")
+    assert unpriced.fetchall() == [("row-also", "home", 1)]
+    named = store.execute("SELECT name, count FROM weekly_unpriced").fetchall()
+    assert named == [(UNPRICED, 1)]
