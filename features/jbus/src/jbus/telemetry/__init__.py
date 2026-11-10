@@ -33,7 +33,10 @@ reads everything, prints what it added and how long it took, and `builds` record
 itself is never rebuilt, since the sources no longer have every row it keeps.
 
 `jbus scorecard` reads each measure of `jbus.telemetry.measures` from the store, read only, and
-prints one line a measure, or with `--json` a list of them. It writes nothing.
+prints one line a measure, or with `--json` a list of them; with `--out <path>` it writes the
+scorecard's page there (`jbus.telemetry.scorecard`) and prints the count of each state. It
+writes nothing to the store. A pass starts that page for the config's first project at most
+each `SCORECARD_EVERY`, as a child it does not wait for.
 """
 
 from __future__ import annotations
