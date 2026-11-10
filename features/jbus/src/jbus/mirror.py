@@ -82,14 +82,16 @@ _WORDS = re.compile(r"[\s,;`]+")
 
 
 def paused_on(result: str, slugs: Collection[str]) -> tuple[str, ...]:
-    """The rows a paused Result waits on: each word of its `Paused on:` line that is one of
-    `slugs`, sorted (`jbus.pausedon`). Empty for a Result whose `Status:` is not `paused` as the
-    crew skill's blocks read it: `paused`, `paused,` or `paused:` and the rest of the line."""
+    """The rows a paused Result waits on: the words of its `Paused on:` line, sorted, where each
+    is one of `slugs` (`jbus.pausedon`). Empty where a word is no slug of `slugs`, since a row
+    dropped from the list would let the carry-on go before it merged, and for a Result whose
+    `Status:` is not `paused` as the crew skill's blocks read it: `paused`, `paused,` or `paused:`
+    and the rest of the line."""
     status = (below.line(result, "Status:").split() or [""])[0].rstrip(",.:;")
     if status != "paused":
         return ()
-    words = _WORDS.split(below.line(result, PAUSED_ON))
-    return tuple(sorted({word for word in words if word in slugs}))
+    words = {word for word in _WORDS.split(below.line(result, PAUSED_ON)) if word}
+    return tuple(sorted(words)) if words <= set(slugs) else ()
 
 
 def delivered(text: str) -> bool:

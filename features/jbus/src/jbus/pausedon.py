@@ -6,8 +6,9 @@ pass reads the last Result of each queued row (`World.result`), and where it is 
 row its `Paused on:` line names has landed, sends the row's crew one message to carry on, under the
 key `paused-on|<slug>|<the rows, sorted>`, marked in `sent.json` once T3 Code took it. A row lands
 by the rule `dispatch` launches a depending row on (`watch.final`): its pull request merged, or it
-ended `done` with none. Only a word of the line that is a slug of the queue counts, so a word that
-is no row's waits on nothing and asks GitHub nothing. `watch.look` asks GitHub after each slug a
+ended `done` with none. A line with a word that is no slug of the queue, a typo or a slug with
+a full stop on it, waits on nothing: jbus sends no carry-on for it, rather than one for the rows
+that did parse before the one the crew meant merged. `watch.look` asks GitHub after each slug a
 paused Result names, as it asks after a row's depends, so a merge older than GitHub's list of the
 last merges still counts.
 
