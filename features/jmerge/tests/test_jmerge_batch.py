@@ -3,7 +3,8 @@ together: it builds main's tip with each of them merged in, force-pushes that co
 `jmerge/batch` branch under one standing draft pull request, and keeps the tip, the tree and the
 members in `batch.json`. CI's check of that pull request leaves the artifact of the two trees
 (`green.checked`), and on it `jmerge` squash-merges each member at its own head, in merge order,
-with no guards run. A batch whose check failed sends each member down the single path of today.
+with no guards run. A failed batch of two or more is narrowed in halves by the checks of the
+next batches, and a failed batch of one sends its member down the single path of today.
 
 The tests run the `jmerge` command (`jmerge.cli`) against a real origin and the fake `gh` of
 `test_jmerge_fresh.Kitchen`, which also opens a pull request, refuses one merge by number, and
@@ -377,7 +378,7 @@ def test_a_pull_request_whose_merge_after_is_unmet_stays_out_of_the_batch(kitche
     assert [one["number"] for one in record(kitchen)["members"]] == [6]
 
 
-def test_a_batch_whose_check_runs_past_its_limit_sends_each_member_down_the_single_path(kitchen):
+def test_a_batch_whose_check_runs_past_its_limit_is_narrowed_as_a_failed_one(kitchen):
     three(kitchen)
     kitchen.run()
     kept = record(kitchen)
@@ -385,13 +386,9 @@ def test_a_batch_whose_check_runs_past_its_limit_sends_each_member_down_the_sing
         json.dumps({**kept, "at": "2000-01-01T00:00:00+00:00"})
     )
     listed(kitchen, (merge.RUNNING,))
-    said = kitchen.run()
-    assert [line.split()[:2] for line in said] == [
-        ["merged", "6"],
-        ["merged", "7"],
-        ["merged", "8"],
-    ]
-    assert runs(kitchen) == 3
+    tip = kitchen.tip()
+    assert kitchen.run() == [in_batch(6, tip), in_batch(7, tip), first(8, tip)]
+    assert runs(kitchen) == 0 and suspects(kitchen) == [6, 7, 8]
 
 
 def test_a_batch_that_passed_with_no_artifact_found_waits_and_merges_once_it_is_found(kitchen):
@@ -419,14 +416,9 @@ def test_a_batch_that_passed_with_no_artifact_found_at_its_limit_has_failed(kitc
     kept = record(kitchen)
     (kitchen.home.state / batch.KEPT).write_text(json.dumps({**kept, "at": late.isoformat()}))
     listed(kitchen, (merge.PASSED,))
-    said = kitchen.run()
-    assert [line.split()[:2] for line in said] == [
-        ["merged", "6"],
-        ["merged", "7"],
-        ["merged", "8"],
-    ]
-    assert all(", the guards passed on its tree merged over main at " in line for line in said)
-    assert runs(kitchen) == 3
+    tip = kitchen.tip()
+    assert kitchen.run() == [in_batch(6, tip), in_batch(7, tip), first(8, tip)]
+    assert runs(kitchen) == 0 and suspects(kitchen) == [6, 7, 8]
 
 
 def test_a_member_that_conflicts_with_one_before_it_waits_for_the_batch(kitchen):
