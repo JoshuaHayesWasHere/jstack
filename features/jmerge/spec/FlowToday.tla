@@ -209,7 +209,7 @@ Member(p) ==
 \* What p merges on alone, the batch aside: while a batch is out on a green main, a pull request that
 \* would merge alone waits for it, since its merge would move the tip the batch's check ran over.
 Alone(p) ==
-    /\ mainRed \/ batch = {}                \* features/jmerge/src/jmerge/cli.py `elif on is not None and on.record.batch and on.first and not repo.is_revert(one):`
+    /\ mainRed \/ batch = {}                \* features/jmerge/src/jmerge/cli.py `elif on is not None and on.first and not repo.is_revert(one):`
     /\ ~Member(p)                           \* features/jmerge/src/jmerge/cli.py `elif on is not None and found.judged.batch:`
 
 \* A merge of pull request p into main, alone, on its check, by jmerge on its own or on your word.
@@ -269,7 +269,7 @@ Accept(p) ==
 \* GitHub is asked nothing for it until its turn (#1009). Its check at the new head decides.
 InLine(p) ==
     /\ Ready(p)                             \* features/jmerge/src/jmerge/cli.py `found = repo.waits(one, default)`
-    /\ Alone(p)                             \* features/jmerge/src/jmerge/cli.py `elif on is not None and on.record.batch and on.first and not repo.is_revert(one):`
+    /\ Alone(p)                             \* features/jmerge/src/jmerge/cli.py `elif on is not None and on.first and not repo.is_revert(one):`
     /\ moved[p]                             \* features/jmerge/src/jmerge/cli.py `if not self.guards.command or self.is_revert(one) or self.guards.kept(one, tip): return self.base_moved(one, tip), ready.Judged()`
     /\ line \in {"none", p}                 \* features/jmerge/src/jmerge/cli.py `if ahead != one.number: return ready.IN_LINE.format(number=ahead, base=one.base)`
     /\ line' = p
@@ -280,13 +280,16 @@ InLine(p) ==
 
 \* The holder of main's line gives it up once it waits on anything but jmerge, GitHub and its
 \* check (cli.IN_LINE): it merged, its check failed, it waits on its crew, on you or on another pull
-\* request, or it is a member of the batch. The next one in merge order then takes it.
+\* request, or it is a member of the batch. The next one in merge order then takes it. Since #1644
+\* a rebase that changed the content, said while its check can still pass, keeps the line as that
+\* check's wait would (features/jmerge/src/jmerge/cli.py `if code == ready.CONTENT_CHANGED.code and found.note:`),
+\* which the model leaves out with the rebase.
 KeepsLine(p) ==
     /\ st[p] = "open"
     /\ ci[p] # "fail"                       \* features/jmerge/src/jmerge/cli.py `if one.failed: return ready.code_of(found.why) in UPDATING_RED`
     /\ ~Member(p)                           \* features/jmerge/src/jmerge/cli.py `return not found.judged.batch`
-    /\ go[p] /\ ~needs[p] /\ meets[p] /\ ~brFail[p] /\ on[p] = "main"   \* features/jmerge/src/jmerge/cli.py `return ready.code_of(found.why) in IN_LINE`
-    /\ (p = "b" /\ link = "after") => st["a"] = "merged"   \* features/jmerge/src/jmerge/cli.py `return ready.code_of(found.why) in IN_LINE`
+    /\ go[p] /\ ~needs[p] /\ meets[p] /\ ~brFail[p] /\ on[p] = "main"   \* features/jmerge/src/jmerge/cli.py `return code in IN_LINE`
+    /\ (p = "b" /\ link = "after") => st["a"] = "merged"   \* features/jmerge/src/jmerge/cli.py `return code in IN_LINE`
 
 GiveUpLine ==
     /\ line # "none"
@@ -300,7 +303,11 @@ GiveUpLine ==
 \* from the members left, when one of the batch out is no longer a member at its head, as a held
 \* row or a new head makes it. Each member waits on the batch's check, and each pull request that
 \* would merge alone waits for it too (Alone). The most a batch takes (#1613) is 12 or more, and
-\* the model has two.
+\* the model has two. Since #1642 a batch holds three at least (features/jmerge/src/jmerge/batch.py `LEAST = 3`):
+\* fewer judged in a run each merge alone, a failed batch narrows in halves only while a half holds
+\* three, and a smaller half sends each suspect alone when the next batch is chosen, not when the
+\* proven half merges. The model's batch of two stands for one of three or more, and its one
+\* suspect left, which BatchPasses sends alone, for a half under three.
 Narrow(s) == IF s = PRs THEN {"a"} ELSE s
 
 BuildBatch ==
@@ -309,7 +316,7 @@ BuildBatch ==
        \/ \E m \in batch : ~Member(m)       \* features/jmerge/src/jmerge/cli.py `if set(kept.members) <= judged:`
     /\ LET members == {p \in PRs : Member(p)}
            kept == suspects \cap members
-       IN /\ batch' = IF kept # {} THEN Narrow(kept) ELSE members   \* features/jmerge/src/jmerge/batch.py `return [judged[one] for one in narrow(self.record.suspects)] or members`
+       IN /\ batch' = IF kept # {} THEN Narrow(kept) ELSE members   \* features/jmerge/src/jmerge/batch.py `half = narrow(record.suspects) if len(half) >= LEAST: return [judged[one] for one in half], []`
           /\ suspects' = kept
     /\ batch' # batch
     /\ UNCHANGED <<st, ci, missed, breaks, Main, outsideLeft, link, on, Machine, moved, Fix, Browser, Row,
@@ -337,7 +344,7 @@ BatchPasses ==
           /\ on' = on
           /\ MainMoves
           /\ line' = IF line \in batch THEN "none" ELSE line
-          /\ IF Cardinality(left) = 1 /\ left # suspects   \* features/jmerge/src/jmerge/batch.py `if len(left) == 1 and len(left) < len(self.suspects):`
+          /\ IF Cardinality(left) = 1 /\ left # suspects   \* features/jmerge/src/jmerge/batch.py `left = tuple(one for one in self.suspects if one not in members)`, features/jmerge/src/jmerge/batch.py `record.alone(suspects)`
                THEN /\ alone' = (alone \ batch) \cup left
                     /\ suspects' = {}
                ELSE /\ alone' = alone \ batch
