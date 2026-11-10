@@ -14,6 +14,7 @@ import json
 import pytest
 
 import test_home_merge as merge
+import test_jmerge_fresh as fresh
 from jmerge import batch, green, ready, treeguards
 from jmerge.lock import MergeLock
 from test_jmerge_fresh import AFTER as LATER
@@ -421,3 +422,15 @@ def test_a_proven_batch_stops_where_another_hand_moved_main_between_its_merges(k
     moved = ready.MAIN_MOVED.format(base="main")
     assert said == [f"wait {n} {url(n)}: {moved}" for n in (7, 8)]
     assert [call.split()[2] for call in kitchen.calls()] == ["6"]
+
+
+def test_a_squash_whose_messages_cannot_be_read_waits_and_gives_no_commit(kitchen, monkeypatch):
+    """`Repo.squash`, which a single merge and each merge of a batch end in, merges nothing
+    where git cannot list the branch's messages for the squash's body, and gives no commit, so
+    a batch stops there."""
+    kitchen.crew("one", 6, {"a.txt": OURS})
+    here = fresh.repo(kitchen, monkeypatch)
+    monkeypatch.setattr(here, "messages", lambda one: None)
+    one = ready.pull_request(kitchen.pulls["one"])
+    assert here.squash(one, "one", []) == (f"wait 6 {url(6)}: {ready.NO_MESSAGES}", "")
+    assert not (kitchen.home.stub / "calls").exists()
