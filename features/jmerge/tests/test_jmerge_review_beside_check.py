@@ -44,7 +44,7 @@ def scoped(rebased):
 
 
 def judged(proven_merged, monkeypatch):
-    """The judgement `jmerge` makes of the one pull request, in this process."""
+    """The one pull request and the judgement `jmerge` makes of it, in this process."""
     home = proven_merged.home
     monkeypatch.setenv("PATH", f"{home.stub}:{os.environ['PATH']}")
     monkeypatch.setenv("STUB", str(home.stub))
@@ -52,7 +52,8 @@ def judged(proven_merged, monkeypatch):
     home.desk_checked()
     repo = cli.Repo(home.main, home.state, merge.ME, False, PROTECTED, user=run.ET)
     (listed,) = merge.json.loads((home.stub / "list.json").read_text())
-    return repo.judge(ready.pull_request(listed), "main")
+    one = ready.pull_request(listed)
+    return one, repo.judge(one, "main")
 
 
 @pytest.mark.parametrize("state", STILL_TO_PASS, ids=list(STILL_TO_PASS))
@@ -64,9 +65,10 @@ def test_a_changed_rebase_is_said_while_its_check_can_still_pass(
     (line,) = run.jmerge(proven_merged, rules)
     assert line == rebased.waits()
     assert run.merges(proven_merged) == []
-    found = judged(proven_merged, monkeypatch)
+    one, found = judged(proven_merged, monkeypatch)
     assert ready.code_of(found.why) == ready.CONTENT_CHANGED.code
     assert said in found.note
+    assert cli.in_line(one, found), "at the head of the line it keeps its turn while its check runs"
     number, _, ask = asks.content(line)
     assert (number, ask.kind, ask.head) == (7, "rereview", rebased.head)
 
