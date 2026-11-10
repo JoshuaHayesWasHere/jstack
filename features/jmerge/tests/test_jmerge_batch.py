@@ -541,19 +541,19 @@ def test_a_member_that_conflicts_with_one_before_it_waits_for_the_batch(kitchen)
     assert [one["number"] for one in record(kitchen)["members"]] == [6]
 
 
-def test_a_batch_holds_its_most_members_and_leaves_the_rest_out(kitchen, monkeypatch):
+def test_a_batch_holds_its_most_members_and_leaves_the_rest_out(kitchen):
     heads = three(kitchen)
     tip = kitchen.tip()
     git(kitchen.home.main, "fetch", "-q", "origin")
-    monkeypatch.setattr(batch, "MOST", 2)
     members = [batch.Member(n, head) for n, head in zip((6, 7, 8), heads, strict=True)]
-    built = batch.build(kitchen.home.main, "main", tip, members)
+    built = batch.build(kitchen.home.main, "main", tip, members, 2)
     assert built.members == tuple(members[:2])
     assert git(kitchen.home.main, "show", f"{built.commit}:b.txt") == OURS.strip()
     assert git(kitchen.home.main, "show", f"{built.commit}:c.txt") == LINES.strip()
 
 
-def test_a_batch_the_origin_refuses_sends_each_member_down_the_single_path(kitchen):
+def refuses_batches(kitchen):
+    """The origin refuses every push to the batch's branch."""
     hook = kitchen.origin / "hooks" / "pre-receive"
     hook.write_text(
         "#!/bin/sh\n"
@@ -563,6 +563,10 @@ def test_a_batch_the_origin_refuses_sends_each_member_down_the_single_path(kitch
         "exit 0\n"
     )
     hook.chmod(0o755)
+
+
+def test_a_batch_the_origin_refuses_sends_each_member_down_the_single_path(kitchen):
+    refuses_batches(kitchen)
     three(kitchen)
     tip = kitchen.tip()
     unmade, *said = kitchen.run()
@@ -649,3 +653,53 @@ def test_a_batch_wait_as_jmerge_prints_it_is_on_the_step_of_a_wait_on_its_own_ch
     """CI's check of the batch decides its members' merge, so a wait on the batch is on the step
     of a pull request that waits on its own check, and a rule of `rules` names it."""
     assert ready.step_of(ready.code_of(said)) == ready.LIVE_RUN.step == "check"
+
+
+def most(kitchen):
+    return record(kitchen)["most"]
+
+
+def ends(kitchen, size, how, narrowed=False):
+    """The batch out holds `size` members and ends `how` (a method of `batch.Record`), in a run
+    that reads `batch.json` and writes it back."""
+    kept = batch.Record.read(kitchen.home.state)
+    members = tuple(batch.Member(n, f"{n:040x}") for n in range(1, size + 1))
+    at = datetime.now(UTC)
+    kept.batch = batch.Batch("1" * 40, "2" * 40, "3" * 40, members, at, narrowed=narrowed)
+    getattr(kept, how)()
+    kept.write()
+    return most(kitchen)
+
+
+def test_the_most_a_batch_takes_doubles_after_a_pass_and_halves_after_a_fail(kitchen):
+    """The most starts at 12. A batch of that many doubles it when it proves, to 48 at most, and
+    halves it when it fails after its rerun, to 2 at least. A batch of fewer, a narrowed batch of
+    suspects, a timeout and a batch never made leave it, and a proven batch that waits for the
+    merge lock across runs counts once."""
+    assert batch.Record.read(kitchen.home.state).most == 12
+    assert ends(kitchen, 12, "prove") == 24
+    assert ends(kitchen, 24, "prove") == 24 * 2 == ends(kitchen, 24, "prove")
+    assert ends(kitchen, 48, "prove") == 48
+    assert ends(kitchen, 47, "fail") == 48
+    assert ends(kitchen, 48, "fail") == 24
+    assert ends(kitchen, 23, "prove") == 24
+    assert ends(kitchen, 24, "late") == 24 == ends(kitchen, 24, "late")
+    assert ends(kitchen, 24, "fail", narrowed=True) == 24
+    assert ends(kitchen, 24, "prove", narrowed=True) == 24
+    assert [ends(kitchen, n, "fail") for n in (24, 12, 6, 3, 2)] == [12, 6, 3, 2, 2]
+    refuses_batches(kitchen)
+    three(kitchen)
+    unmade, *_ = kitchen.run()
+    assert unmade.startswith("batch: not made over main ")
+    assert most(kitchen) == 2
+
+
+def test_building_a_batch_says_its_size_and_the_most(kitchen):
+    """The line is about no pull request, so jbus reads nothing of it, and merge.log keeps it."""
+    (kitchen.home.state / batch.KEPT).write_text(json.dumps({"most": 2}))
+    three(kitchen)
+    tip = kitchen.tip()
+    built = f"batch: 2 members of 2 at most over main at {tip[:12]}"
+    assert kitchen.run() == [built, in_batch(6, tip), in_batch(7, tip), first(8, tip)]
+    log = (kitchen.home.state / "merge.log").read_text().splitlines()
+    assert sum(line.endswith(" " + built) for line in log) == 1
