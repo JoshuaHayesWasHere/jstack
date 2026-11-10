@@ -121,7 +121,7 @@ QUEUE_WAITS = frozenset({ready.ROW_HELD.code, ready.MERGES_AFTER.code})
 """The codes of the queue's waits that GitHub's passing state does not replace
 (`Repo.row_first`)."""
 QUEUE_OUTRANKS = frozenset(
-    one.code for one in (ready.UNDECIDED, ready.CHECK_FAILED, ready.NOT_PASSED, ready.LIVE_RUN)
+    one.code for one in (ready.CHECK_FAILED, ready.NOT_PASSED, ready.LIVE_RUN)
 )
 """The codes of GitHub's waits that a queue wait of `QUEUE_WAITS` comes before."""
 
@@ -955,6 +955,12 @@ class Repo:
         return self.judged(replace(one, waiting=(), unrun=()), default, found.why)
 
     def judged(self, one: ready.PullRequest, default: str, red: str = "") -> Judgement:
+        """The judgement of the pull request, by its brief. Where all GitHub says is that it has
+        not decided whether the pull request merges (`ready.UNDECIDED`), it is judged on as if it
+        merged, and `UNDECIDED` is said only where nothing before the merge itself is short:
+        GitHub decides afresh each time main moves, and a wait its answer cannot change, said in
+        its place, came and went with it. #1440 went `dropped`, `undecided`, `dropped` on
+        2026-11-09, and 57 of that evening's 107 `undecided` lines sat between two of one text."""
         brief = ready.brief_of(one.url, self.state / "tasks")
         if brief is None and not one.draft and self.accepted == (one.number, one.head):
             return self.unbriefed(one, default, red)
@@ -1001,7 +1007,9 @@ class Repo:
                 lost = found
         if rebase is None and covered is None:
             lost = ready.answered(text, one.head)
-        short = short or ready.short_on_github(one)
+        github = ready.short_on_github(one)
+        undecided = github == ready.UNDECIDED
+        short = short or ("" if undecided else github)
         short = self.row_first(brief.stem, short)
         note = ""
         silent = ready.unexplained(lost, text, one.head)
@@ -1051,6 +1059,8 @@ class Repo:
             return Judgement(brief.stem, "wait", self.again(one, red), note, None)
         if one.draft:
             return Judgement(brief.stem, "wait", ready.HAND_DRAFT, note, None)
+        if undecided:
+            return Judgement(brief.stem, "wait", ready.UNDECIDED, note, None)
         short, judged = self.over_main(one, left)
         short = short or self.guards.kept(one, judged.tip)
         if short:
@@ -1067,11 +1077,11 @@ class Repo:
     def row_first(self, slug: str, short: str) -> str:
         """`short`, unless it is one of GitHub's waits that come and go (`QUEUE_OUTRANKS`) and the
         queue row of `slug` is held or merges after a row not merged yet. That wait stands as long
-        as the row does, while GitHub's state moves under it: its mergeability is undecided each
-        time main moves, and a check fails or runs again. Said in the row's place, it drew a `wait`
-        line on each change, and #1335 went from `row-held` to `undecided` and back all night. A
-        check with no run at the head, and a conflict where `ready.short_on_github` names one (no
-        required check waits), are work for the crew, and keep their place."""
+        as the row does, while a check fails or runs again. Said in the row's place, it drew a
+        `wait` line on each change, and #1335 went from `row-held` to `undecided` and back all
+        night; `undecided` itself no longer reaches here, since `judged` says it last. A check with
+        no run at the head, and a conflict where `ready.short_on_github` names one (no required
+        check waits), are work for the crew, and keep their place."""
         if not isinstance(short, ready.Reason) or short.code not in QUEUE_OUTRANKS:
             return short
         queued = rows.short(self.queue, slug, brief=self.stored(slug))
@@ -1082,17 +1092,21 @@ class Repo:
         (`accept`), by every rule that needs no brief: its base is one jmerge merges into, its
         required checks passed at its head, a protected path is a hold the accept lifts, and a
         door the user's word opens, it merges over today's base in its turn, as `judged` has it,
-        and `merge-off` holds it. With no brief, no review, Result or queue row is there to judge,
-        and its slug is empty."""
+        and `merge-off` holds it. GitHub's `UNDECIDED` is said last, as in `judged`. With no
+        brief, no review, Result or queue row is there to judge, and its slug is empty."""
         self.trunk = default
         self.lifts = []
-        short = ready.held(one, default, None, self.bases) or ready.short_on_github(one)
+        github = ready.short_on_github(one)
+        undecided = github == ready.UNDECIDED
+        short = ready.held(one, default, None, self.bases) or ("" if undecided else github)
         if short:
             return Judgement("", judgement.verb(short), short, "", None)
         left = self.left(one)
         needs = ready.needs_the_user(one, self.protected, left, user=self.user)
         if short := self.lift(needs, self.lifted(one)) or red:
             return Judgement("", judgement.verb(short), short, "", None)
+        if undecided:
+            return Judgement("", "wait", ready.UNDECIDED, "", None)
         short, judged = self.over_main(one, left)
         short = (
             short or self.guards.kept(one, judged.tip) or self.short_on_migrations(one, one.base)
