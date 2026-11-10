@@ -52,6 +52,7 @@ LIST = (
     "number,url,title,headRefName,headRefOid,baseRefName,mergeable,statusCheckRollup,"
     "files,changedFiles,isDraft"
 )
+UNREAD = "the open pull requests jbus handed could not be read"
 LIMIT = 100
 """The most open pull requests `gh pr list` is asked for, the cap jbus's own lists use. Left
 unsaid, `gh` gives 30."""
@@ -2260,6 +2261,15 @@ def parser() -> argparse.ArgumentParser:
         "waiting for it to end (jbus's merge tick)",
     )
     top.add_argument(
+        "--pulls",
+        metavar="PATH",
+        help="take the open pull requests and the default branch from the file jbus's pass read "
+        "them into, where it holds the stamp of --pulls-at, in place of asking GitHub for them",
+    )
+    top.add_argument(
+        "--pulls-at", metavar="STAMP", help="with --pulls: the stamp of the pass that read them"
+    )
+    top.add_argument(
         "--home",
         metavar="ID",
         help="the home that is asking: say what jmerge would do of its own pull requests, as "
@@ -2384,29 +2394,39 @@ def _merging(
     if args.sweep:
         return Sweep(repo).run(say, check)
 
-    asked = _run(
-        main_checkout,
-        "gh",
-        "pr",
-        "list",
-        "--state",
-        "open",
-        "--limit",
-        str(LIMIT),
-        "--json",
-        LIST,
-        *repo.about,
-    )
+    given, kept = None, handed(args.pulls, args.pulls_at)
+    if kept is None:
+        given = _run(
+            main_checkout,
+            "gh",
+            "pr",
+            "list",
+            "--state",
+            "open",
+            "--limit",
+            str(LIMIT),
+            "--json",
+            LIST,
+            *repo.about,
+        )
     try:
-        listed = [with_browser(repo, one) for one in json.loads(asked.stdout)]
+        gave = kept[0] if kept is not None else json.loads(given.stdout if given else "")
+        listed = [with_browser(repo, one) for one in gave]
     except (ValueError, KeyError, TypeError, AttributeError):
         listed = None
     batched = next((one for one in listed or () if one.branch == batch.BRANCH), None)
     if listed is not None:
         listed = [one for one in listed if one.branch != batch.BRANCH]
-    default, silent = repo.default() if listed else ("", "")
-    if asked.returncode or listed is None:
-        silent = _why(main_checkout, asked)
+    if not listed:
+        default, silent = "", ""
+    elif kept is not None and kept[1]:
+        default, silent = kept[1], ""
+    else:
+        default, silent = repo.default()
+    if given is not None and (given.returncode or listed is None):
+        silent = _why(main_checkout, given)
+    elif listed is None:
+        silent = f": {UNREAD}"
     if silent or listed is None:
         say(f"wait: could not ask GitHub{silent}")
         return 1
@@ -2517,6 +2537,19 @@ def in_line(one: ready.PullRequest, found: Judgement) -> bool:
     if found.judged is not None:
         return not found.judged.batch
     return ready.code_of(found.why) in IN_LINE
+
+
+def handed(path: str | None, stamp: str | None) -> tuple[list, str] | None:
+    """The open pull requests and the default branch jbus's pass handed the run (`--pulls PATH
+    --pulls-at STAMP`), from the file it kept them in (`jbus.pulls`), or None where it handed
+    none, or where the file is not that pass's: then the run asks GitHub, as one by hand does."""
+    if not path or not stamp:
+        return None
+    kept = store.read_dict(Path(path))
+    listed = kept.get("pulls")
+    if kept.get("at") != stamp or not isinstance(listed, list):
+        return None
+    return listed, str(kept.get("default") or "")
 
 
 def with_browser(repo: Repo, listed: dict) -> ready.PullRequest:

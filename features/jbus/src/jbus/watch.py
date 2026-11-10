@@ -66,6 +66,8 @@ from jbus.judged import Said, parse
 from jbus.launches import records
 from jbus.mirror import last_result, paused_on, sections
 from jbus.passes import Changed, Depends, Pass, Red, Rerun, Slot, side_by_side
+from jbus.pulls import OPEN
+from jbus.pulls import read as read_open
 from jbus.t3 import Client, T3Error
 from jbus.wake import cut
 from jgauge import holders, slot, waiters
@@ -110,7 +112,6 @@ NIGHTLY_GRACE = timedelta(hours=1)
 GREEN = "passed"
 """What a nightly's `seen` keeps for a run of it that passed on its `branch`."""
 _TIMEBOX = re.compile(r"^TIMEBOX:\s*(\d+(?:\.\d+)?)\s*(?:h\b|hours?\b)", re.M)
-OPEN = "number,url,title,headRefName,headRefOid,baseRefName,mergeable,statusCheckRollup,updatedAt"
 JOBS, KEPT_JOBS = "completed-jobs.json", 1000
 """The file of the project's state where `ran` keeps completed jobs, and how many it keeps."""
 NEVER = "neverStarted"
@@ -475,7 +476,8 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     tips = base_tips(run)
     unmoved = tips is not None and read_json(run.state / BASES, None) == tips
     try:
-        for pull in pulls(run, "open", OPEN, "--limit", "100"):
+        for listed in read_open(run).pulls:
+            pull = {key: listed[key] for key in OPEN.split(",") if key in listed}
             slug = slug_of.get(pull.get("url", "").rstrip("/"), pull["headRefName"])
             if slug in queued or records(run, slug, queue.CREW):
                 rollup = pull.get("statusCheckRollup") or []

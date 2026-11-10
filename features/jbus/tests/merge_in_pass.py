@@ -9,7 +9,7 @@ from jbus import merge
 
 
 def start(run):
-    merge.keep(merge.runs(run), run.project.checkout)
+    merge.keep(merge.runs(run), run.project.checkout, *merge.handed(run))
     return ""
 
 

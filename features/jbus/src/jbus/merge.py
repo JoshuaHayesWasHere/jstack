@@ -44,16 +44,17 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from jbus import alert, outbox, restated, verbs, work
+from jbus import alert, outbox, pulls, restated, verbs, work
 from jbus.judged import Said, parse
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
 from jbus.wake import JMERGE_TIMEOUT
 from jmerge import lines as lines_of
 from jmerge import lock, ready
+from jmerge.asked import Silent
 from jmerge.judgement import step
 from jmerge.lines import Line as Line
-from jsettings import proc
+from jsettings import budget, paths, proc
 from jsettings.store import read_json, write_json
 
 if TYPE_CHECKING:
@@ -68,6 +69,8 @@ NO_LIST = "jmerge has no readable protected-paths list, nothing merges"
 RUN = ("jmerge", "--if-free")
 """The run of `jmerge` the pass and the tick make: with `--if-free`, a run that finds the run lock
 held does nothing and exits `lock.BUSY`, rather than wait inside `JMERGE_TIMEOUT`."""
+KNOWN = 600
+"""How old, in seconds, what GitHub said of its API budget may be for `handed` to go by it."""
 SWEEP = ("jmerge", "--sweep", "--check")
 UNRULED = re.compile(
     re.escape(ready.UNRULED_DROPS)
@@ -158,8 +161,8 @@ def runs(run: Pass) -> Path:
 
 
 def start(run: Pass) -> str:
-    """Start `keep` for the project in a process that outlives the pass, and return why it could
-    not start, or nothing.
+    """Start `keep` for the project in a process that outlives the pass, with the pass's list for
+    `jmerge` (`handed`), and return why it could not start, or nothing.
 
     A pass that systemd runs is a oneshot unit, and systemd ends every process left in it when the
     pass ends, a new session or not: the run is then a transient unit of its own (`UNIT`), with the
@@ -167,7 +170,7 @@ def start(run: Pass) -> str:
     """
     where = runs(run)
     child = (sys.executable, "-c", "import sys; from jbus import merge; merge.keep(*sys.argv[1:])")
-    child += (str(where), str(run.project.checkout))
+    child += (str(where), str(run.project.checkout), *handed(run))
     if os.environ.get("INVOCATION_ID"):
         name = re.sub(r"[^A-Za-z0-9_.-]", "-", run.project.name)
         digest = hashlib.sha256(str(where.resolve()).encode()).hexdigest()[:8]
@@ -194,15 +197,15 @@ def start(run: Pass) -> str:
     return ""
 
 
-def keep(where: str | Path, checkout: str | Path) -> None:
-    """Run `jmerge --if-free` in `checkout` as the process of one of the pass's runs, holding
-    `GOING` for the whole run, and keep what it printed as a record in `where`, written whole
-    before the lock is given back. A process that dies first leaves no record, and the next pass
-    counts it (`merge`)."""
+def keep(where: str | Path, checkout: str | Path, *more: str) -> None:
+    """Run `jmerge --if-free`, with `more` (`handed`), in `checkout` as the process of one of the
+    pass's runs, holding `GOING` for the whole run, and keep what it printed as a record in
+    `where`, written whole before the lock is given back. A process that dies first leaves no
+    record, and the next pass counts it (`merge`)."""
     where = Path(where)
     with open(where / GOING, "a") as going:
         fcntl.flock(going, fcntl.LOCK_EX)
-        ran = proc.run(*RUN, cwd=checkout, timeout=JMERGE_TIMEOUT)
+        ran = proc.run(*RUN, *more, cwd=checkout, timeout=JMERGE_TIMEOUT)
         at = restated.moment(verbs.clock())
         record = {
             "returncode": ran.returncode,
@@ -272,6 +275,22 @@ def _judged(run: Pass, ran: subprocess.CompletedProcess[str], at: str) -> Said:
     else:
         _unrun(run, why)
     return lines
+
+
+def handed(run: Pass) -> tuple[str, ...]:
+    """The flags that hand `jmerge` the pass's read of the open pull requests (`pulls.read`), so
+    it asks GitHub for no list of its own: `--pulls <path> --pulls-at <stamp>`. Nothing where the
+    read raised `Silent`, and nothing where what GitHub said of its API budget in the last `KNOWN`
+    seconds (`budget.logged`, which asks nothing here) does not leave it above the floor: a pass
+    asks GitHub nothing under the floor, and `watch.look`, after the run, reads the budget for
+    the pass. `jmerge` then asks for its own list, or says why it waits, as a run by hand does."""
+    if budget.held(budget.logged(paths.jbus_state_dir(), KNOWN, asked=lambda _: None)):
+        return ()
+    try:
+        opened = pulls.read(run)
+    except Silent:
+        return ()
+    return ("--pulls", str(opened.path), "--pulls-at", opened.at)
 
 
 def _unrun(run: Pass, why: str) -> None:
