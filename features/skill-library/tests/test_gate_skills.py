@@ -457,7 +457,10 @@ def test_accept_says_and_logs_every_hold_it_lifts(proven_merged):
         f"at {rebased.head[:12]}: the task replaces it\n"
     )
     rebased.brief(proven("clean", rebased.before) + proven("clean", rebased.head), ack)
-    drop = f"needs user, the review of {rebased.head[:12]} did not rule on the drops in f.txt"
+    drop = (
+        f"needs user, the review of {rebased.head[:12]} did not rule on the drops in "
+        f"{rangediff.FILE}"
+    )
     assert proven_merged.run() == [f"hold 7 {merge.URL}: {drop}"]
     both = f"{drop} and {HOLD}"
     assert (
