@@ -430,6 +430,12 @@ Where the state has a `merge-batch` file, `jmerge` proves the pull requests main
 A repo with no such file merges each one alone, as "Merges cleanly over today's main" and "The guards on the merged tree" say.
 A batch of any size costs one CI run and no guards, where the guards ran one tree at a time in the merge lock, 98 s each on 2026-11-09, and main's merge rate stopped at 24 an hour.
 
+**Three members at least.**
+A batch's passed check took 209 s at the median (p90 301 s), the guards on one merged tree about 98 s, so a batch costs the time of about two guards runs and pays from three members (`batch.LEAST`).
+Before this rule every member became a batch, also alone: 27 of 42 batches held one member, and each pull request that would merge alone waited `batch-first` behind it; the median wait was 3.46 min on the guards path (2026-11-06 to 2026-11-09) and 16.78 with the batch on (2026-11-10 12:09 to 16:00 EST, the scout po-merge-slower).
+So where a run judges fewer than three members, it builds no batch: each takes the single path of that run, at once, as in a repo with no `merge-batch` file (its own check where it ran over today's main, the artifact of its trees, or the guards on its merged tree), and no pull request waits `batch-first`.
+Three or more make a batch, which keeps main's rate above the guards' 24 an hour.
+
 **When a batch forms.**
 A member is a pull request into the default branch that is ready by every rule but two: main moved after its check started, and the guards on its merged tree.
 Its review, findings, Result lines, `Checked:` and `Proved:` lines, own required checks at its head, queue go, holds, protected paths and `merge-off` are all judged first, as for any merge, and a head that conflicts with today's main waits for its rebase.
@@ -442,8 +448,9 @@ These stay out, and take the path of today:
 - one accepted with `--accept`, and every pull request while `main.json` names main red.
 
 Once every pull request is judged, `jmerge` builds main's tip with each member merged in, in merge order, with `git merge-tree`, each one over the last as its squash will land it, and leaves out one that conflicts with a member before it.
+Where fewer than three are left in, it pushes nothing and sends every member down the single path, as a batch that cannot be made does.
 A batch holds the most that `batch.json` keeps (`most`, `batch.Record.most`) at most.
-The most starts at 12 (`batch.START`), doubles when a batch of that many proves, to 48 at most (`batch.MOST`), and halves when a batch of that many fails after its rerun, to 2 at least (`batch.LEAST`).
+The most starts at 12 (`batch.START`), doubles when a batch of that many proves, to 48 at most (`batch.MOST`), and halves when a batch of that many fails after its rerun, to 3 at least (`batch.LEAST`, which a most kept under it is read as).
 A batch of fewer, a timeout, a batch that could not be made, and the first half of the suspects leave it: the half is sized by its suspects, not by the most.
 A batch proven again in a later run, while another run held the merge lock, is no longer of that many, so it doubles the most once.
 Setting both bounds to 12 undoes the rule.
@@ -463,13 +470,14 @@ Each member after it waits as `jmerge's batch over <base> at <tip12> stopped at 
 Where another run holds the merge lock, the batch stays proven for the next run.
 
 While a batch is out (checked, or proven and not merged yet), a pull request that would merge alone waits as `jmerge's batch over <base> at <tip12> is checked and merges first: a merge before it would undo that check`, with the code `batch-first`, and so does a member that came ready after the batch was built.
+`jmerge` decides that wait once every pull request is judged (`batch.Batching.held`): where a checked batch is not kept, since a member is no longer judged one at its head, the pull request merges alone in that run, before any batch is built again.
 A revert still merges first, and its merge ends the batch, which is built again over the new tip.
 A batch still checked whose tip moved, whose pull request GitHub no longer lists at its commit, or whose member is no longer judged one at its head, is built again in that run, over today's tip.
 The batch's pull request is `jmerge`'s own: it has no brief and no row, `jmerge` never judges it and never merges it, and it stays open from one batch to the next.
 Like the guards, the batch runs no browser tests: browser.yml skips a draft.
 
 **What a failed batch does.**
-A flake or a runner fault is no evidence against a member either, so a batch of two or more whose check failed for the first time is not failed yet: in that run `jmerge` asks GitHub to start the failed jobs of its workflow run again, `gh run rerun <id> --failed`, once (`cli.Repo.rerun_batch`).
+A flake or a runner fault is no evidence against a member either, so a batch of two or more (every batch built since the rule of three) whose check failed for the first time is not failed yet: in that run `jmerge` asks GitHub to start the failed jobs of its workflow run again, `gh run rerun <id> --failed`, once (`cli.Repo.rerun_batch`).
 `batch.json` keeps the rerun with the batch, under `rerun`: the links of the failed jobs it was started for, each in the run it reran, and when it was started (`batch.Rerun`), kept before GitHub is asked, so a run that stops between the two never asks twice.
 The batch is pending while the rerun runs, its members still `in jmerge's batch`, and its pass merges every member by batch with no suspects kept.
 A listing whose failed jobs are all of those the rerun was started for is GitHub still showing the first attempt, since a job of a new attempt has a link of its own, so the batch stays pending.
@@ -478,15 +486,17 @@ A batch whose check failed after its rerun, whose rerun GitHub refused, whose fa
 One that went 30 minutes from its push, or from its rerun, with no artifact found (`batch.PENDING_MINUTES`) timed out: a check that passed with no artifact found waits for that limit, its members still `in jmerge's batch`, since the lookup reads a gh error, or a run not yet concluded a moment after its last job passed, as none, and the next run that finds the artifact merges the batch.
 A timeout is no evidence against a member, as a GitHub or lookup outage times out every batch: a batch of two or more that timed out is built again whole (a half of the suspects as that same half), in that run, over today's tip, once (`again` in `batch.json`, `batch.Record.late`), and its pass merges every member by batch with no suspects kept.
 Only a second timeout in a row has failed it, so an outage costs one more check limit before the narrowing, and a batch that never gets an artifact still ends; a batch of one that timed out has failed.
-A failed batch of two or more runs no guards: `batch.json` keeps its members, in merge order, under `suspects`, and the next batch, built in that run over today's tip on the same branch and pull request, is the first half of them (the larger half where their count is odd, `batch.narrow`).
+A failed batch of two or more runs no guards: `batch.json` keeps its members, in merge order, under `suspects` (`batch.Record.fail`).
+The next batch, built in that run over today's tip on the same branch and pull request, is the first half of them (the larger half where their count is odd, `batch.narrow`), but only while that half holds three or more (`batch.Batching.chosen`).
 So CI's checks of halves find the member that failed it, where the guards of every member ran one at a time on this machine.
 A proven half merges as any batch does, and the next batch is the first half of the suspects that are left.
-Where one suspect is left, it is the member that failed the batch: `batch.json` keeps its head under `failed`, and it waits as `batch-first` while the proven half merges, then goes down the single path as a failed batch of one does, with no batch built for it alone, saving a check (`batch.Record.prove`).
-A failed half of two or more becomes the suspects in turn, and a suspect of the batch before that is not in it is one no more.
+A failed half becomes the suspects in turn, and a suspect of the batch before that is not in it is one no more.
 While suspects are kept, every other member waits as `batch-first`, and a suspect outside the half waits the same way.
-A failed batch of one sends its member down the single path of today, in that run, at the head the batch held: its merged tree's guards, which name the failing test for its crew, or the line ("The guards on the merged tree"); `batch.json` keeps that head under `failed` until it moves.
+Where the half would hold fewer than three, as for a failed batch of three or four, or the one to four suspects a proven half leaves, every suspect goes down the single path in that run, in merge order: its merged tree's guards, which name the failing test for its crew, or the line ("The guards on the merged tree").
+`batch.json` keeps the head of each under `failed` until it moves (`batch.Record.alone`), so none joins a batch again at that head, and the other members are judged as where no suspect is left: a batch where three or more remain.
+A failed batch of one, kept from before the rule of three, does the same with its member.
 A suspect whose head moved, that is no longer open, or that is no longer judged a member leaves the suspects.
-A batch that cannot be made, whose push or pull request GitHub refused, sends every member down the single path in that run, after a line that starts `batch: not made`, and drops the suspects.
+A batch that cannot be made, whose push or pull request GitHub refused, or that holds fewer than three once the members that conflict are left out, sends every member down the single path in that run, after a line that starts `batch: not made`, and keeps the suspects' heads under `failed`.
 
 ## A failed check over a base that moved
 

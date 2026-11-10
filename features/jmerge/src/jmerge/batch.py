@@ -8,15 +8,16 @@ keeps the tip, the tree, the commit and the members in `KEPT`. CI's check of tha
 runs on GitHub's merge of its head over main, whose tree is the batch's, since the head holds the
 tip, and leaves the artifact of the two trees (`green.checked`). On it, with the tip unmoved,
 `jmerge` squash-merges each member at its own head, in order, with no guards run
-(`cli.Repo.merge_batch`). A batch of two or more that went `PENDING_MINUTES` with no artifact
-found is built again whole over today's tip, once (`again`): a timeout is no evidence against a
-member. One whose check failed has the failed jobs of its workflow run started again, once
-(`Rerun`), for a flake or a runner fault is no evidence against a member either. One whose check
-failed after its rerun, whose rerun GitHub refused, or that timed out twice in a row, keeps its
-members as `suspects`, and the next batch is the first half of them (`narrow`), so CI's checks
-of halves find the member that failed it. Where a half proved and one suspect is left, that one
-failed it. A failed batch of one, or that last suspect, goes down the single path of today at
-its head (`failed`), whose guards name the failing test for its crew.
+(`cli.Repo.merge_batch`). A batch holds `LEAST` members at least: fewer judged in a run each go
+the single path of today in that run, which costs less than a batch's check. A batch that went
+`PENDING_MINUTES` with no artifact found is built again whole over today's tip, once (`again`):
+a timeout is no evidence against a member. One whose check failed has the failed jobs of its
+workflow run started again, once (`Rerun`), for a flake or a runner fault is no evidence against
+a member either. One whose check failed after its rerun, whose rerun GitHub refused, or that
+timed out twice in a row, keeps its members as `suspects`, and the next batch is the first half
+of them (`narrow`) while that half holds `LEAST` or more, so CI's checks of halves narrow the
+member that failed it. A smaller half sends each suspect down the single path of today at its
+head (`failed`), whose guards name the failing test for its crew.
 
 The batch pull request is jmerge's own: it is never judged as a row's, and never merged.
 """
@@ -38,11 +39,15 @@ SWITCH = "merge-batch"
 START = 12
 """The most members a batch takes where `KEPT` keeps none: the scout's first cap, above which a
 failed batch costs too many members a round of their own (scouts/po-batched-merge-scout.md)."""
-LEAST = 2
+LEAST = 3
+"""The fewest members a batch holds: fewer judged in a run each take the single path of that run.
+A batch's passed check took 209 s at the median, the guards on one merged tree about 98 s, so a
+batch pays from three members (the scout po-merge-slower). It is also the least `Record.most`
+halves to, so where the most is three, one member left out for a conflict leaves no batch."""
 MOST = 48
-"""The bounds of the most a batch takes (`Record.most`), which doubles after a batch of that many
-proves and halves after one fails: at a failure share of 2.8% a member, 74% of batches of 48 fail
-(the scout po-better-further). Setting both to `START` undoes the rule."""
+"""The most of `Record.most`, which doubles after a batch of that many proves and halves after one
+fails: at a failure share of 2.8% a member, 74% of batches of 48 fail (the scout
+po-better-further). Setting it and `LEAST` to `START` undoes the rule."""
 PENDING_MINUTES = 30
 """How long a batch may go from its push with no artifact found before it counts as failed: above
 the p90 of 387 s of the pull request check, so a run GitHub left queued or never started, or a
@@ -176,7 +181,7 @@ class Record:
         except (KeyError, TypeError, ValueError):
             made = None
         most = kept.get("most")
-        most = most if isinstance(most, int) and LEAST <= most <= MOST else START
+        most = min(max(most, LEAST), MOST) if isinstance(most, int) else START
         return cls(path, made, failed, suspects, kept.get("again") is True, most)
 
     def write(self) -> None:
@@ -241,18 +246,22 @@ class Record:
 
     def prove(self) -> None:
         """Double the most where the proven batch out was full (`_full`), to `MOST` at most, and
-        take its members from the suspects. Where it held suspects and one is left, that one
-        failed the batch they were suspects of: its head goes under `failed`, so it takes the
-        single path with no batch built for it alone. A batch proven again in a later run, as
-        one whose merge lock another run held is, is full no more, so it doubles the most once."""
+        take its members from the suspects: those left are narrowed by the next batch, or go
+        alone where their half is under `LEAST` (`Batching.chosen`). A batch proven again in a
+        later run, as one whose merge lock another run held is, is full no more, so it doubles
+        the most once."""
         if self._full():
             self.most = min(self.most * 2, MOST)
         members = self.batch.members if self.batch else ()
         left = tuple(one for one in self.suspects if one not in members)
-        if len(left) == 1 and len(left) < len(self.suspects):
-            self.failed |= {str(left[0].number): left[0].head}
-            left = ()
         self.suspects, self.again = left, False
+
+    def alone(self, members: tuple[Member, ...]) -> None:
+        """Send `members`, suspects whose half is under `LEAST` or of a batch not made, down the
+        single path: their heads go under `failed`, so none joins a batch again at that head, and
+        they are suspects no more."""
+        self.failed |= {str(one.number): one.head for one in members}
+        self.suspects = tuple(one for one in self.suspects if one not in members)
 
     def keep(self, heads: dict[str, str]) -> None:
         """Keep the failed heads and the suspects still open at the same head (`heads`, by
@@ -345,14 +354,16 @@ Judged = tuple[ready.PullRequest, str, str, ready.Judged]
 @dataclass
 class Batching:
     """One run's batching: the record, where the batch it holds stands (`state_of`), the run that
-    proved it, the batch pull request GitHub lists, and the members this run judged, in merge
-    order, each with its slug and its note."""
+    proved it, the batch pull request GitHub lists, the members this run judged, in merge order,
+    each with its slug and its note, and those held for the batch out (`first`) that would merge
+    alone, which wait for it where it stays out and merge first where it is built again."""
 
     record: Record
     state: str
     run: str
     pull: ready.PullRequest | None
     members: list[Judged] = field(default_factory=list)
+    held: list[Judged] = field(default_factory=list)
 
     def takes(self, one: ready.PullRequest, default: str, revert: bool) -> bool:
         """Whether `one`, ready but for main moving under its check, is a member: a pull request
@@ -361,16 +372,28 @@ class Batching:
         failed = self.record.failed.get(str(one.number)) == one.head
         return not revert and bool(default) and one.base == default and not failed
 
-    def chosen(self, members: list[Judged]) -> list[Judged]:
-        """The members the next batch takes, of those this run judged: the first half of the
-        suspects that are still judged members at their heads (`narrow`), and every member where
-        no suspect is left. A suspect not among `members` is one no more."""
+    def chosen(self, members: list[Judged]) -> tuple[list[Judged], list[Judged]]:
+        """The members the next batch takes, of those this run judged, and those that go alone,
+        each in merge order. A suspect not among `members` is one no more. The first half of the
+        suspects (`narrow`) is the batch where it holds `LEAST` or more, and the rest wait for
+        it; a smaller half sends every suspect alone (`Record.alone`), and the other members are
+        judged as where no suspect is left: a batch of all of them where they are `LEAST` or
+        more, and each alone otherwise."""
         judged = {Member(found[0].number, found[0].head): found for found in members}
-        self.record.suspects = tuple(one for one in self.record.suspects if one in judged)
-        return [judged[one] for one in narrow(self.record.suspects)] or members
+        record = self.record
+        record.suspects = tuple(one for one in record.suspects if one in judged)
+        half = narrow(record.suspects)
+        if len(half) >= LEAST:
+            return [judged[one] for one in half], []
+        suspects = record.suspects
+        record.alone(suspects)
+        rest = [found for one, found in judged.items() if one not in suspects]
+        if len(rest) < LEAST:
+            return [], members
+        return rest, [found for one, found in judged.items() if one in suspects]
 
     @property
     def first(self) -> bool:
         """Whether a batch is out, so that a pull request that would merge alone waits for it:
         its merge would move the tip the batch's check ran over."""
-        return self.state in (PENDING, PROVEN)
+        return self.record.batch is not None and self.state in (PENDING, PROVEN)
