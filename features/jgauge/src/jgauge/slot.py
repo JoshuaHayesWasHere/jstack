@@ -59,8 +59,8 @@ that were killed leave, go whatever share of the file slots is used.
 
 Every take and every release, in both lanes, appends one row to the slot log (`jgauge.slotlog`):
 the lane, the slot, the thread, the command and its directory, the wait in the call, and on a
-release the exit code and the CPU seconds the command used. The release row is written before the lock is let go, so a slot's next
-take always comes after it in the log.
+release the exit code and the CPU seconds the command used. The release row is written before
+the lock is let go, so a slot's next take always comes after it in the log.
 """
 
 from __future__ import annotations
