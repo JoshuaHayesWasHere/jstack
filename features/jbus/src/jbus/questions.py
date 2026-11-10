@@ -824,10 +824,9 @@ closes it with."""
 
 def moot(run: Pass) -> None:
     """Close each door question that still waits, where its row's end leaves nothing to decide
-    (`MOOT`): one that holds or a go gate, on a row that merged, and a go gate whose row was
-    removed. On a merged row it closes only a question with no answer at all: one that silence
-    closed may have started its row, so its door did not stay shut. The close is `clear`'s, not
-    the user's word."""
+    (`MOOT`): one that holds or a go gate, on a row that merged or was removed. On a merged row
+    it closes only a question with no answer at all: one that silence closed may have started its
+    row, so its door did not stay shut. The close is `clear`'s, not the user's word."""
     if not path(run.state).exists():
         return
     try:
@@ -838,7 +837,7 @@ def moot(run: Pass) -> None:
     ends |= dict.fromkeys(queue.removed_slugs(run.state), "removed")
     for one in records:
         end = ends.get(one.slug)
-        door = go_gate(one) or (bool(one.holds) and end == "merged")
+        door = go_gate(one) or bool(one.holds)
         shut = one.answer is None if end == "merged" else _open(one)
         if shut and door and end in MOOT:
             clear(run, one.number, MOOT[end].format(slug=one.slug))
