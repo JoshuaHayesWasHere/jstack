@@ -88,7 +88,7 @@ def test_1177s_goals_outside_where_are_refused_with_the_follow_up_to_queue():
 
 
 FEATURE = (
-    "# beta: a task\nTask: \"do beta\"\nDone when:\n- the queue says so {marker}\n"
+    '# beta: a task\nTask: "do beta"\nDone when:\n- the queue says so {marker}\n'
     "Proves it: `make check`\nSize: S\nWhere: `features/jbus/src/jbus/queue.py`, `docs/x.md`\n"
     "Do not touch: {kept}\nPull request: open one when done\nReview: review\n"
     "Playbook: feature\nSkills: tdd\n"

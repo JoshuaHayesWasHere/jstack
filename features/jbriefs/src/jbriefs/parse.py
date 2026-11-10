@@ -424,9 +424,7 @@ def reach(text: str) -> tuple[str, ...]:
     line a change makes wrong is fixed in the same pull request, not queued as a row."""
     inside, kept = where(text), where(text, "Do not touch")
     docs = (
-        f"features/{found['feature']}/docs"
-        for path in inside
-        if (found := _SOURCE.match(path))
+        f"features/{found['feature']}/docs" for path in inside if (found := _SOURCE.match(path))
     )
     return tuple(dict.fromkeys((*inside, *(doc for doc in docs if not covers(kept, doc)))))
 
