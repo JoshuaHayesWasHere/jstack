@@ -10,7 +10,7 @@ import pytest
 
 from jbus import watch
 from test_jbus_kitchen import NOW, RESULT, sends
-from test_jbus_queue import add
+from test_jbus_queue import add, gates
 
 PROVED = "Proved: proved.sh passed at cccccccccccc"
 
@@ -70,3 +70,61 @@ def test_a_cut_line_t3_code_refuses_to_send_is_told_on_a_later_pass(written, kit
     said = kitchen.poll(NOW)
     assert "rewritten alpha: told its crew the brief lost 1 line" in said
     assert f"```\n{PROVED}\n```" in told_rewritten(kitchen)[-1]["message"]
+
+
+FINDING = "- warning src/alpha/a.py:3 the sum is off by one"
+
+
+def reviewed(kitchen, written, seat=1):
+    """A reviewer thread on seat `#1` of alpha, named by the Result's `Reviewer:` line, and the
+    `## Review` section it wrote with `seat` on its `By:` line, seen by a pass."""
+    made = kitchen.t3.thread("alpha", "completed")["threadId"]
+    section = (
+        f"\n## Review\nBy: claude opus high #{seat}\nVerdict: findings\n"
+        f"Head: {'c' * 40}   Unchanged by the run: yes\nFindings:\n{FINDING}\n"
+    )
+    written.write_text(written.read_text() + f"Reviewer: {made} #1\n" + section)
+    kitchen.poll(NOW - timedelta(minutes=15))
+    return made
+
+
+def asked_of_reviewer(kitchen):
+    return [s for s in sends(kitchen) if s["clientRequestId"].startswith("rewritten-review|")]
+
+
+def test_a_line_a_reviewer_took_out_of_its_own_review_is_not_told_to_the_crew(written, kitchen):
+    """In #1586 a reviewer corrected its own `## Review`, jbus told the crew to put the lines
+    back, and the restored lines left the verdict unread. Only a reviewer writes that section, so
+    the crew is never the one to restore it, while a cut from a Result is still the crew's."""
+    reviewed(kitchen, written)
+    written.write_text(written.read_text().replace(f"{FINDING}\n", ""))
+    kitchen.poll(NOW - timedelta(minutes=10))
+    assert told_rewritten(kitchen) == []
+    written.write_text(written.read_text().replace(f"{PROVED}\n", ""))
+    kitchen.poll(NOW)
+    told = told_rewritten(kitchen)
+    assert len(told) == 1
+    assert f"```\n{PROVED}\n```" in told[0]["message"]
+    assert FINDING not in told[0]["message"]
+
+
+def test_a_line_cut_from_a_review_is_asked_of_its_reviewer_once(written, kitchen):
+    made = reviewed(kitchen, written)
+    written.write_text(written.read_text().replace(f"{FINDING}\n", ""))
+    kitchen.poll(NOW - timedelta(minutes=10))
+    kitchen.poll(NOW)
+    asked = asked_of_reviewer(kitchen)
+    assert [one["threadId"] for one in asked] == [made]
+    assert f"```\n{FINDING}\n```" in asked[0]["message"]
+    assert "your own correction" in asked[0]["message"]
+    assert gates(kitchen) == []
+
+
+def test_a_line_cut_from_a_review_no_reviewer_line_names_is_a_condition(written, kitchen):
+    reviewed(kitchen, written, seat=2)
+    written.write_text(written.read_text().replace(f"{FINDING}\n", ""))
+    kitchen.poll(NOW - timedelta(minutes=10))
+    kitchen.poll(NOW)
+    assert asked_of_reviewer(kitchen) == told_rewritten(kitchen) == []
+    named = [one for one in gates(kitchen) if "lost lines of its review" in one]
+    assert named == ["condition alpha: its brief lost lines of its review by seat #2"]
