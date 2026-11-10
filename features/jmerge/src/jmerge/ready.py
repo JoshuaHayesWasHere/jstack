@@ -1515,6 +1515,23 @@ class Judged:
 
 
 MERGING = Reason("check", "another run of jmerge is merging into its base")
+IN_BATCH = Reason(
+    "check", "it is in jmerge's batch over {base} at {tip}, whose check decides its merge"
+)
+"""The wait of a member of jmerge's batch whose check runs (`jmerge.batch`). CI's check of the
+batch decides its merge, so it is on the step of a pull request that waits on its own check."""
+BATCH_FIRST = Reason(
+    "check",
+    "jmerge's batch over {base} at {tip} is checked and merges first: a merge before it would "
+    "undo that check",
+)
+"""The wait of a pull request that would merge while a batch is checked: a member that joined
+after it was built, one the batch had no room for, and one that would merge alone."""
+BATCH_STOPPED = Reason(
+    "check",
+    "jmerge's batch over {base} at {tip} stopped at #{number}, which did not merge: the next "
+    "batch takes it",
+)
 BROWSER = "browser"
 """The check browser.yml's job reports. It runs on a pull request into main that changes the view,
 and is no required check: a head with no run of it waits for none (`browser`)."""

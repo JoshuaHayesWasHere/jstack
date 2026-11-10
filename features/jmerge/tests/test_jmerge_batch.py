@@ -96,7 +96,7 @@ def record(kitchen):
 
 
 def in_batch(number, tip):
-    return f"wait {number} {url(number)}: " + batch.IN_BATCH.format(base="main", tip=tip[:12])
+    return f"wait {number} {url(number)}: " + ready.IN_BATCH.format(base="main", tip=tip[:12])
 
 
 def show(kitchen, commit, path):
@@ -202,7 +202,7 @@ def test_a_proven_batch_stops_at_the_first_merge_github_refuses(kitchen):
     first, second, third = kitchen.run()
     assert first.startswith("merged 6 one ")
     assert second.startswith(f"wait 7 {url(7)}: {ready.MERGE_FAILED}: GraphQL")
-    stopped = batch.STOPPED.format(base="main", tip=tip[:12], number=7)
+    stopped = ready.BATCH_STOPPED.format(base="main", tip=tip[:12], number=7)
     assert third == f"wait 8 {url(8)}: {stopped}"
     assert [call.split()[2] for call in kitchen.calls()] == ["6", "7"]
     assert runs(kitchen) == 0
@@ -262,7 +262,7 @@ def test_a_batch_still_checked_holds_its_members_and_the_rest_wait_for_it(kitche
     kitchen.crew("four", 9, {"e.txt": OURS})
     kitchen.crew("five", 10, {"f.txt": OURS}, checks=(LATER,))
     listed(kitchen, (merge.RUNNING,))
-    after = batch.AFTER.format(base="main", tip=tip[:12])
+    after = ready.BATCH_FIRST.format(base="main", tip=tip[:12])
     assert kitchen.run() == [
         f"wait 10 {url(10)}: {after}",
         *(in_batch(number, tip) for number in (6, 7, 8)),
@@ -375,7 +375,7 @@ def test_a_member_that_conflicts_with_one_before_it_waits_for_the_batch(kitchen)
     kitchen.crew("one", 6, {"a.txt": OURS})
     kitchen.crew("two", 7, {"a.txt": "theirs too\n" + LINES})
     tip = kitchen.on_main({"d.txt": "theirs\n"})
-    after = batch.AFTER.format(base="main", tip=tip[:12])
+    after = ready.BATCH_FIRST.format(base="main", tip=tip[:12])
     assert kitchen.run() == [in_batch(6, tip), f"wait 7 {url(7)}: {after}"]
     assert [one["number"] for one in record(kitchen)["members"]] == [6]
 
@@ -442,7 +442,7 @@ def test_a_proven_batch_stops_at_a_member_no_longer_ready_at_its_head(kitchen):
     own, merged, stopped = kitchen.run()
     assert own.startswith(f"wait 7 {url(7)}: ")
     assert merged.startswith("merged 6 one ")
-    assert stopped == f"wait 8 {url(8)}: " + batch.STOPPED.format(
+    assert stopped == f"wait 8 {url(8)}: " + ready.BATCH_STOPPED.format(
         base="main", tip=tip[:12], number=7
     )
     assert [call.split()[2] for call in kitchen.calls()] == ["6"]
@@ -470,3 +470,21 @@ def test_a_squash_whose_messages_cannot_be_read_waits_and_gives_no_commit(kitche
     one = ready.pull_request(kitchen.pulls["one"])
     assert here.squash(one, "one", []) == (f"wait 6 {url(6)}: {ready.NO_MESSAGES}", "")
     assert not (kitchen.home.stub / "calls").exists()
+
+
+PRINTED = (
+    "it is in jmerge's batch over main at eca6f811b913, whose check decides its merge",
+    "jmerge's batch over main at eca6f811b913 is checked and merges first: a merge before it "
+    "would undo that check",
+    "jmerge's batch over main at eca6f811b913 stopped at #7, which did not merge: the next batch "
+    "takes it",
+)
+"""Each wait jmerge prints of a pull request held by a batch, as `jmerge` printed the first of
+#1574 on 2026-11-10: a printed line has no code, so jbus reads its step off the text."""
+
+
+@pytest.mark.parametrize("said", PRINTED)
+def test_a_batch_wait_as_jmerge_prints_it_is_on_the_step_of_a_wait_on_its_own_check(said):
+    """CI's check of the batch decides its members' merge, so a wait on the batch is on the step
+    of a pull request that waits on its own check, and a rule of `rules` names it."""
+    assert ready.step_of(ready.code_of(said)) == ready.LIVE_RUN.step == "check"
