@@ -167,9 +167,10 @@ def test_a_page_the_pass_left_runs_of_is_asked_again_without_its_etag(tmp_path):
 
 class Partly(GitHub):
     """GitHub's GraphQL cannot read the check runs in `lost`: it answers each with null and an
-    error, and gh exits 1. With `down`, it answers no GraphQL call at all."""
+    error, and gh exits 1. With `down`, gh exits 1 with the error and no answer, or 0 with an
+    answer of another shape."""
 
-    def __init__(self, many, lost=(), down=False):
+    def __init__(self, many, lost=(), down=None):
         super().__init__(many)
         self.lost, self.down = set(lost), down
 
@@ -177,7 +178,7 @@ class Partly(GitHub):
         if command[2] != "graphql":
             return super().__call__(command)
         if self.down:
-            return subprocess.CompletedProcess(command, 1, "", "gh: Bad Gateway (HTTP 502)")
+            return subprocess.CompletedProcess(command, *self.down)
         said = json.loads(super().__call__(command).stdout)
         nodes = said["data"]["nodes"]
         said["data"]["nodes"] = [None if one["databaseId"] in self.lost else one for one in nodes]
@@ -186,11 +187,16 @@ class Partly(GitHub):
 
 def test_a_job_whose_annotations_github_does_not_give_is_kept_with_no_telemetry(tmp_path):
     """A check run GitHub's GraphQL cannot read costs that job its telemetry and no other's, and
-    a GraphQL that does not answer costs the pass its jobs' telemetry, never the jobs."""
+    a GraphQL that does not answer, or answers no nodes, costs the pass its jobs' telemetry, never
+    the jobs."""
     collect.keep(collect.Cli(Partly(2, lost={11})), REPO, tmp_path / "lost", NOW)
     rows = ledger.read(tmp_path / "lost" / ledger.JOBS)
     assert {one["job"]: one["selection"] for one in rows} == {11: None, 12: 12, 21: 21, 22: 22}
 
-    collect.keep(collect.Cli(Partly(2, down=True)), REPO, tmp_path / "down", NOW)
-    rows = ledger.read(tmp_path / "down" / ledger.JOBS)
-    assert {one["job"]: one["selection"] for one in rows} == dict.fromkeys((11, 12, 21, 22))
+    for name, down in {
+        "down": (1, "", "gh: Bad Gateway (HTTP 502)"),
+        "shape": (0, '{"data": null}', ""),
+    }.items():
+        collect.keep(collect.Cli(Partly(2, down=down)), REPO, tmp_path / name, NOW)
+        rows = ledger.read(tmp_path / name / ledger.JOBS)
+        assert {one["job"]: one["selection"] for one in rows} == dict.fromkeys((11, 12, 21, 22))
