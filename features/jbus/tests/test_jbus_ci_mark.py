@@ -5,6 +5,7 @@ page once the pass before it kept every run, and every run of the pass's hours o
 from datetime import UTC, datetime, timedelta
 
 import jsettings
+from jsettings import store
 from jbus.ci import collect, ledger
 from jbus.ci.collect import Unavailable
 
@@ -146,3 +147,19 @@ def test_a_pass_with_nothing_new_asks_for_no_run_it_has_read(tmp_path):
     again = collect.keep(gh, REPO, tmp_path, NOW + timedelta(minutes=1))
     assert again.jobs == 0
     assert sorted(path.split("?")[0].rsplit("/", 1)[1] for path in gh.asked) == ["pulls", "runs"]
+
+
+def test_a_mark_whose_read_list_is_garbled_reads_the_runs_again(tmp_path):
+    """An entry of the mark's `read` that is not `[run, attempt, created]` is dropped, and the
+    pass reads that run's jobs as if no pass had."""
+    gh = Asks(3, empty={2})
+    gh.runs[0]["status"] = "in_progress"
+    collect.keep(gh, REPO, tmp_path, NOW)
+    mark = store.read_dict(tmp_path / collect.MARK)
+    others = [one for one in mark["read"] if one[0] != 2]
+    store.write_json(tmp_path / collect.MARK, mark | {"read": [[2, 1], *others]})
+    gh.asked = []
+    collect.keep(gh, REPO, tmp_path, NOW + timedelta(minutes=1))
+    assert [path for path in gh.asked if "/jobs" in path] == [
+        f"repos/{REPO}/actions/runs/2/jobs?filter=all"
+    ]
