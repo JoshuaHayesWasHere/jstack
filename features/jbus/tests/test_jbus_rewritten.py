@@ -128,3 +128,20 @@ def test_a_line_cut_from_a_review_no_reviewer_line_names_is_a_condition(written,
     assert asked_of_reviewer(kitchen) == told_rewritten(kitchen) == []
     named = [one for one in gates(kitchen) if "lost lines of its review" in one]
     assert named == ["condition alpha: its brief lost lines of its review by seat #2"]
+
+
+def test_a_reviewer_that_cannot_be_told_yet_leaves_the_crew_told_once(written, kitchen):
+    """A pass that told the crew of its lines but not the reviewer of its own tells the reviewer
+    on a later pass, and does not tell the crew a second time."""
+    made = reviewed(kitchen, written)
+    cut = written.read_text().replace(f"{FINDING}\n", "").replace(f"{PROVED}\n", "")
+    written.write_text(cut)
+    kitchen.t3.forgot.add(made)
+    said = kitchen.poll(NOW - timedelta(minutes=10))
+    assert any(line.startswith("wait alpha: its reviewer #1 could not be told") for line in said)
+    kitchen.t3.forgot.discard(made)
+    said = kitchen.poll(NOW)
+    assert "rewritten alpha: told its reviewer #1 the brief lost 1 line" in said
+    assert len(told_rewritten(kitchen)) == 1
+    refused, sent = asked_of_reviewer(kitchen)
+    assert refused["clientRequestId"] == sent["clientRequestId"]
