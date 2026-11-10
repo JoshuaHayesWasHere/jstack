@@ -268,9 +268,6 @@ def said_to(short, kind, reason, sentence):
         ("meets-no", MEETS_NO),
         ("meets-unread", MEETS_UNREAD),
         ("meets-miscounted", MEETS_MISCOUNTED),
-        ("checked-missing", CHECKED_MISSING),
-        ("checked-cut", CHECKED_CUT),
-        ("checked-stale", CHECKED_STALE),
     ],
 )
 def test_the_third_pass_of_one_reason_at_one_head_tells_the_crew_once(kind, reason, short, kitchen):
@@ -293,6 +290,8 @@ def test_the_third_pass_of_one_reason_at_one_head_tells_the_crew_once(kind, reas
 def test_a_fix_whose_review_is_owed_asks_the_crew_for_the_scoped_reviewer_with_its_ranges(
     short, kitchen
 ):
+    """The ranges are `jbus.review.ranges`': from where the branch left main to the head the
+    `Scoped review: needed since` line names, and to the head."""
     owed = f"Scoped review: needed since {short.saw}, the fix changed a.py\n"
     short.out(NO_FIX_REVIEW, result=owed)
     short.passes(2)

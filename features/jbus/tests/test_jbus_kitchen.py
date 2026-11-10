@@ -1323,14 +1323,14 @@ ASK = asking()
 
 def complete(slug, more=""):
     """Return a brief with every field that `jbus queue add` asks for, and `more` under them:
-    `Home: uncategorized`, the catch-all's, unless `more` names a home of its own: the root home
-    owns no row, and a pass launches none that names it."""
-    home = "" if "Home:" in more else "Home: uncategorized\n"
+    `Home: uncategorized`, the catch-all's, and `Skills: tdd`, unless `more` has its own: the root
+    home owns no row, and a pass launches none that names it."""
+    own = "".join(x for x in ("Home: uncategorized\n", "Skills: tdd\n") if x.split()[0] not in more)
     return (
         f'# {slug}: a task\nTask: "do {slug}"\nDone when:\n- `make check` passes (in none)\n'
         f"Proves it: `make check`\nSize: S\nWhere: `src/{slug}/`\nDesign: none, a test\n"
         'Decisions: "review it once", the user\'s word in a test\n'
-        f"Pull request: open one when done\nReview: review\nPlaybook: feature\n{home}{more}"
+        f"Pull request: open one when done\nReview: review\nPlaybook: feature\n{own}{more}"
     )
 
 

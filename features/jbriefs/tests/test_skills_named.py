@@ -99,10 +99,14 @@ def test_a_later_result_can_write_the_artifact_an_earlier_one_left_out(home):
 @pytest.mark.parametrize(
     "line", ["", "Skills: none\n", "Skills: none.\n", "Skills: None.\n", "Skills: none, docs\n"]
 )
-def test_a_brief_that_names_no_skill_owes_no_artifact_and_has_no_fault(line):
+def test_a_brief_that_names_no_skill_owes_no_artifact_and_is_refused_with_the_homes_table(line):
+    """A brief approved before the queue refused it still says `none` or has no line, and owes no
+    artifact; a brief queued now is refused, with the home's table that picks a skill."""
     assert skills.missing(merge.brief(merge.review("clean"), "", line)) == ()
-    assert skills.unknown(line) == ""
-    assert parse.faults(brief("alpha", line)) == []
+    said = " has no Skills: line" if not line else "'s Skills: line says none"
+    assert skills.fault(line) == f"brief{said} {skills.TABLE}"
+    text = brief("alpha", line) if line else brief("alpha").replace("Skills: tdd\n", "")
+    assert parse.faults(text) == [f"brief{said} {skills.TABLE}"]
 
 
 def test_an_artifact_that_says_it_skipped_part_of_the_work_is_still_one():
@@ -139,7 +143,7 @@ def test_a_row_queued_before_with_an_unknown_name_is_grandfathered_and_launches(
     queued_before(kitchen, "alpha", brief("alpha", UNKNOWN))
     add(kitchen, "beta", priority=2)
     kitchen.poll()
-    assert "poteto-mode, principle-made-up" in skills.unknown(UNKNOWN)
+    assert "poteto-mode, principle-made-up" in skills.fault(UNKNOWN)
     assert gates(kitchen) == []
     assert [given["title"] for given in kitchen.t3.launches] == ["crew: alpha", "crew: beta"]
 
@@ -155,7 +159,7 @@ def test_a_row_queued_before_with_an_unknown_name_is_grandfathered_and_launches(
     ],
 )
 def test_a_name_in_any_other_spelling_is_a_fault(line, fault):
-    assert fault in skills.unknown(line)
+    assert fault in skills.fault(line)
     assert any(fault in each for each in parse.faults(brief("alpha", line)))
 
 
@@ -269,7 +273,7 @@ def test_a_name_that_resolves_to_nothing_owes_no_artifact_at_the_merge():
 
 def test_a_line_of_prose_is_gated_with_the_first_five_names_it_does_not_resolve():
     line = "Skills: in-your-own-words, then sharpen; before done, prove-it-works against the app\n"
-    why = skills.unknown(line)
+    why = skills.fault(line)
     assert "names then, before, done, against, the and 1 more, which are no skill" in why
 
 

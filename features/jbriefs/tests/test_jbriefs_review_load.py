@@ -13,7 +13,7 @@ def brief(review="Review: review\n", more=""):
         '# alpha: a task\nTask: "do alpha"\nDone when:\n- it is done\n'
         "Proves it: `make check`\nSize: S\nWhere: `src/alpha/`\n"
         "Design: none, a test\nPull request: open one when done\n"
-        f"{review}Playbook: feature\n{more}"
+        f"{review}Playbook: feature\nSkills: tdd\n{more}"
     )
 
 

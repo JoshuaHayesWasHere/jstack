@@ -10,8 +10,10 @@ from datetime import timedelta
 import pytest
 
 import jbus
+from jbus import clock
 from jmerge import ready
-from test_jbus_expedite import host_unread
+from test_jbus_expedite import Short, host_unread
+from test_jbus_expedite_result import PROVED_MISSING
 from test_jbus_kitchen import NOW, sends
 from test_jbus_leftover import home
 
@@ -86,6 +88,46 @@ def test_four_rows_held_31_minutes_with_nobody_at_work_wake_their_home_once(kitc
     assert need["rows"] == list(ROWS) and REASON in need["line"]
     held.at(60)
     assert len(held.told()) == 1 and len(held.needs()) == 1
+    assert [one["who"] for one in kept(kitchen)] == ["user"]
+
+
+def kept(kitchen):
+    return list(jbus.read_json(kitchen.state / clock.HELD_FILE, {}).values())
+
+
+def test_a_wait_only_its_crew_clears_wakes_its_home_once_the_crew_was_told_twice_and_stopped(
+    kitchen,
+):
+    """A `Proved:` wait is the crew's: jbus tells it on the first pass and once more when a new
+    idle spell starts. Told once and idle past `clock.HOLD_MINUTES`, it wakes nobody. Told twice,
+    and idle past `clock.HOLD_MINUTES` after that, it wakes the home once."""
+    short = Short(kitchen)
+    desk = home(kitchen)
+
+    def woke():
+        held = [one for one in sends(kitchen) if one["clientRequestId"].startswith(clock.HELD)]
+        assert all(one["threadId"] == desk["threadId"] for one in held)
+        return held
+
+    short.out(PROVED_MISSING)
+    short.passes(40)
+    (hold,) = kept(kitchen)
+    assert (hold["who"], hold["woke"], hold["rows"]) == ("crew", False, ["alpha"])
+    assert woke() == []
+    short.thread["status"] = "running"
+    short.passes(1)
+    short.thread["status"] = "completed"
+    short.passes(1)
+    told = f"proved-missing|alpha|{short.head[:12]}"
+    crew = [one for one in sends(kitchen) if one["threadId"] == short.thread["threadId"]]
+    assert [one["clientRequestId"] for one in crew] == [told, f"{told}|2"]
+    short.passes(29)
+    assert woke() == []
+    short.passes(2)
+    (sent,) = woke()
+    assert PROVED_MISSING in sent["message"] and "alpha (#7)" in sent["message"]
+    (hold,) = kept(kitchen)
+    assert (hold["who"], hold["woke"]) == ("crew", True)
 
 
 def test_a_wait_on_the_merge_runner_wakes_nobody(kitchen):

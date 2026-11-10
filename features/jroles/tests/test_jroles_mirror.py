@@ -544,28 +544,34 @@ def test_a_missing_claude_json_is_no_drift_a_run_could_never_clear(home, capsys)
     assert not any(str(home / ".claude.json") in line for line in said)
 
 
-def test_a_crews_worktree_settings_deny_two_tools_and_list_every_other_skill_by_name(home, skills):
-    """`crew_settings` is the file jbus writes in a crew's worktree: it takes Artifact and
-    AskUserQuestion out, and lists by name only each skill of `~/.claude/skills` that neither a
-    crew nor its reviewer invokes. A skill `~/.claude` already overrides keeps its own value, so
-    no skill the mirror turns off is listed again."""
+@pytest.mark.parametrize(
+    "role, outside", [("crew", {"scout", "teach", "why"}), ("scout", {"pr-review", "teach", "why"})]
+)
+def test_a_worktrees_settings_deny_two_tools_and_list_every_skill_its_role_skips_by_name(
+    home, skills, role, outside
+):
+    """`worktree_settings` is the file jbus writes in a crew's or a scout's worktree: it takes
+    Artifact and AskUserQuestion out, and lists by name only each skill of `~/.claude/skills`
+    the role does not invoke, a crew and its reviewer `crew` and `pr-review`, a scout `scout`. A
+    skill `~/.claude` already overrides, here `crew`, keeps its own value, so no skill the mirror
+    turns off is listed again."""
     main = home / ".claude"
-    for name in ("pr-review", "teach", "why"):
+    for name in ("pr-review", "scout", "teach", "why"):
         write(main / "skills" / name / "SKILL.md", f"{name}\n")
     write(main / "skills" / "notes.md", "no skill\n")
-    made = mirror_module.crew_settings(mirror_module.Main.of(home))
-    assert made["permissions"] == {"deny": ["Artifact", "AskUserQuestion"]}
-    listed_skills = {at.parent.name for at in (main / "skills").glob("*/SKILL.md")}
-    outside = listed_skills - {"crew", "pr-review"} - set(skills["skillOverrides"])
-    assert outside == {"teach", "why"}
-    assert made["skillOverrides"] == dict.fromkeys(sorted(outside), "name-only")
+    made = mirror_module.worktree_settings(mirror_module.Main.of(home), role)
+    assert made == {
+        "permissions": {"deny": ["Artifact", "AskUserQuestion"]},
+        "skillOverrides": dict.fromkeys(sorted(outside), "name-only"),
+    }
 
 
-def test_a_crews_worktree_settings_need_no_settings_or_skills_in_main(home):
+@pytest.mark.parametrize("role", ["crew", "scout"])
+def test_a_worktrees_settings_need_no_settings_or_skills_in_main(home, role):
     main = home / ".claude"
     (main / "settings.json").unlink()
     shutil.rmtree(main / "skills")
-    assert mirror_module.crew_settings(mirror_module.Main.of(home)) == {
+    assert mirror_module.worktree_settings(mirror_module.Main.of(home), role) == {
         "permissions": {"deny": ["Artifact", "AskUserQuestion"]},
         "skillOverrides": {},
     }

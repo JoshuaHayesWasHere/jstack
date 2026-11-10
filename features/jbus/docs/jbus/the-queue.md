@@ -109,7 +109,7 @@ The other twelve and the three of `conduct` are these:
 - `Task:` is 2,000 characters or fewer.
 - `Design:` names a file, or says `none, <why>`.
 - `Proves it:` names something outside the agent.
-- `Skills:` names only skills and principles that exist, or says `none`.
+- `Skills:` names at least one skill or principle, and only ones that exist: a brief with no line, or one that says `none`, is refused with a pointer to the home's table that picks one for each kind of task.
 - `Size:` is a t-shirt size.
 - `Where:` names at least one path under the repo.
   A path is in backticks, or is a word that has a `/`, a glob character or a file extension.
@@ -119,7 +119,7 @@ The other twelve and the three of `conduct` are these:
   The fault names the item and the file, and says to widen `Where:` or to move the item to a follow-up brief with a `Follows: <slug>` line, which is approved on this row's go by the follow-up rule ([The bases](#the-bases)).
   Move it before the go: an edit of `Done when:` or `Where:` after the go voids it.
 - `Review:` is one word, `twice`, `review` or `none`, and nothing more: the crew reads any other word as `review`, so `Review: standard` would launch a reviewer nobody asked for.
-- `Playbook:` names a crewmate's file of `playbooks/`, or `none`.
+- `Playbook:` names a crewmate's file of `playbooks/`: a brief with no line, or one that says `none`, is refused with the same pointer.
 - A brief for research, perf, analysis or outcome work has a filled-in `Read:` line and `Instruments:` line, as the home skill's deeper step writes them.
   It is such work when its `Playbook:` line names `perf-issue`, `hillclimb`, `runtime-forensics` or `eval`, or when its `Task:` line names research, perf, performance, analysis or outcome.
 - `Builds on:` gives no plan layer as a reason: a row builds on another only for code it changes, calls or imports.
@@ -134,7 +134,7 @@ The other twelve and the three of `conduct` are these:
 ```text
 refused: alpha's brief has 2 faults, and nothing is queued
 - brief has no Size: line (S, M or L)
-- brief's Playbook: line names autopilot-full, which is not a crewmate's playbook (name a file in playbooks/, without its .md, or none)
+- brief's Playbook: line names autopilot-full, which is not a crewmate's playbook (a brief names a crewmate's playbook and at least one skill: pick both by the kind of task, from the table in the home skill's handing-a-task-to-a-crewmate.md)
 ```
 
 In a batch, the line is `refused: line <n>: <slug>'s brief has <k> faults, and nothing is queued, and nothing in the batch was applied`, with the same lines under it.
@@ -215,7 +215,9 @@ A head whose check ran on main's red tip, the `broken` tip of `main.json`, is no
 A head whose failed tests each failed on two other branches in `jbus ci`'s window, its flake rule (`jbus.reverts.flaky`), is not counted either: the red is shared, not the row's.
 Nor is a head at which each failed job failed at an infra step, one whose log shows a download or network failure (a `curl` error, an HTTP 5xx, a host that did not resolve, a connection reset or timed out, an artifact download that failed) and names no failed test and no make target, such as a package's download: that step ran nothing of the row's.
 A lint step, such as `prose lint`, also runs no test and no make target, but shows no fetch failure: it failed on the row's own work, and its head counts.
-Each sign is searched in the failed step's own part of the log, from the step's `##[group]Run` line to the `##[error]Process completed with exit code` line that ends it: a passed step's retried download is no sign, and neither is a lint line that quotes the words in prose.
+Each sign is searched in the own part of the log of the step that failed the job: the last `##[error]Process completed with exit code` line ends it, and the last `##[group]Run` line before that starts it.
+A passed step's retried download is no sign, and neither is a lint line that quotes the words in prose.
+Nor is a 503 of a step that runs with `continue-on-error: true`, such as check.yml's `failed on main`: it fails first, the job goes on, and a later step, such as `no AI co-author trailer`, fails the job on the row's own work.
 jbus asks GitHub for a job's failed step once, and keeps it with the job.
 At the second head jbus runs the same `hold` as `jbus queue hold <slug>`, keeping the go it takes, and pages the Chef once, with the gate `condition <slug>: check failed twice`, whose text names the row, the pull request, both heads and the failed jobs at each.
 The row's `why` says `check failed twice` while it is held.

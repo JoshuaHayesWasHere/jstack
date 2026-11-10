@@ -12,6 +12,7 @@ Design: none, a fix to what the failed run names
 Pull request: open one when done
 Review: review
 Playbook: bug-fix
+Skills: tdd
 Home: macos
 Read:
 - the job `macos`, https://example.test/o/r/actions/runs/77/job/712: its log names no failed test, read it

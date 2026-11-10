@@ -30,7 +30,7 @@ When in doubt between the two, any one of the durable column's conditions decide
    The root home queues it by "Queueing a row in a child" (`scoped-homes.md`) instead.
    A text with a `Request:` line and no `Task:` line is a request, so the row is a scout's, and `add` refuses one with a crewmate's line (`Size:`, `Pull request:`) or not in the template's shape.
    It is approved as any row is, the entry's go included, and waits on its `--depends` as any row does.
-   A pass launches it as `scout: <slug>` with the message `/scout <slug>`, in the project's own checkout and with no branch, writes the request back to `scouts/<slug>.md` with its `Thread:` line, and marks the row done once its Report says `Status: done`.
+   A pass launches it as `scout: <slug>` with the message `/scout <slug>`, in a detached worktree jbus makes for it, with no branch, removed once its Report says done, writes the request back to `scouts/<slug>.md` with its `Thread:` line, and marks the row done once its Report says `Status: done`.
    `jbus queue show` lists it with `scout` in its `role` column, and the view shows it.
    Once its Report says done, `jbus queue add <slug>` of the brief it delivered at `tasks/<slug>.md` makes the row the crewmate's, with no go.
 

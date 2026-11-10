@@ -107,12 +107,14 @@ DENIED_TOOLS = ("Workflow", "ScheduleWakeup", "ReportFindings")
 takes the tool's schema out of every request. No thread on the machine called one of these in
 the week up to 2026-11-09, and together their schemas were about 10,000 tokens of each request
 a crew, reviewer, scout or home sent. `~/.claude` keeps them for the user's own sessions."""
-CREW_DENIED_TOOLS = ("Artifact", "AskUserQuestion")
-"""The tools a crew and its reviewer do without, denied in the crew's worktree only
-(`crew_settings`): their schemas were about 14,000 tokens of each first request on 2026-11-09,
-and only a home publishes a page or asks the user in a box."""
-CREW_SKILLS = ("crew", "pr-review")
-"""The skills a crew (`/crew`) and its reviewer (`/pr-review`) invoke, listed in full."""
+WORKTREE_DENIED_TOOLS = ("Artifact", "AskUserQuestion")
+"""The tools a crew, its reviewer and a scout do without, denied in the worktree jbus makes for
+each (`worktree_settings`): their schemas were about 14,000 tokens of each first request on
+2026-11-09, and only a home publishes a page or asks the user in a box."""
+ROLE_SKILLS = {"crew": ("crew", "pr-review"), "scout": ("scout",)}
+"""The skills each role that works in a worktree jbus makes invokes, listed in full there: a
+crew (`/crew`) and its reviewer (`/pr-review`), who share the crew's worktree, and a scout
+(`/scout`)."""
 DRIFT, BROKEN = 1, 2
 USAGE = "skillUsage"
 PERIOD = (5 + 1 + 1) * 60
@@ -273,16 +275,17 @@ def trimmed(main: Main) -> dict | None:
     }
 
 
-def crew_settings(main: Main) -> dict:
-    """The `.claude/settings.json` jbus writes in a crew's worktree, which the crew and its
-    reviewer read on top of their home's settings, key by key: `CREW_DENIED_TOOLS` denied, and
-    each skill of `~/.claude/skills`, the folders `trimmed` keeps listed, listed by name only,
-    save `CREW_SKILLS` and a skill `trimmed` already overrides, which keeps that value."""
+def worktree_settings(main: Main, role: str) -> dict:
+    """The `.claude/settings.json` jbus writes in the worktree of a `role` of `ROLE_SKILLS`,
+    which the threads there read on top of their home's settings, key by key:
+    `WORKTREE_DENIED_TOOLS` denied, and each skill of `~/.claude/skills`, the folders `trimmed`
+    keeps listed, listed by name only, save the role's own skills and a skill `trimmed` already
+    overrides, which keeps that value."""
     kept = (trimmed(main) or {}).get("skillOverrides", {})
     names = {skill.parent.name for skill in (main.home / "skills").glob("*/SKILL.md")}
-    cut = sorted(names - set(CREW_SKILLS) - set(kept))
+    cut = sorted(names - set(ROLE_SKILLS[role]) - set(kept))
     return {
-        "permissions": {"deny": list(CREW_DENIED_TOOLS)},
+        "permissions": {"deny": list(WORKTREE_DENIED_TOOLS)},
         "skillOverrides": dict.fromkeys(cut, "name-only"),
     }
 

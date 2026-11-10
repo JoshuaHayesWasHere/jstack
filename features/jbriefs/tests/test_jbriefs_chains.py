@@ -15,10 +15,10 @@ Proves it: `make check` prints 0 failures
 Size: S
 Where: `src/`
 Design: none, a one-line fix
-Skills: none
+Skills: tdd
 Pull request: open one when done
 Review: twice
-Playbook: none
+Playbook: feature
 """
 
 

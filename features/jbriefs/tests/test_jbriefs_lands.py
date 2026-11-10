@@ -17,7 +17,7 @@ BRIEF = (
     '# alpha: a task\nTask: "do alpha"\nDone when:\n- `make check` passes {marker}\n'
     "Proves it: `make check`\nSize: S\nWhere: `src/alpha/`, `docs/alpha.md`\n"
     "Do not touch: `src/alpha/vendor/`, jmerge\nPull request: open one when done\n"
-    "Review: review\nPlaybook: none\n"
+    "Review: review\nPlaybook: feature\nSkills: tdd\n"
 )
 REMEDY = (
     'move the line to a follow-up brief with a "Follows: alpha" line and queue it with '

@@ -98,6 +98,8 @@ A check added after a row got its go does not apply to that row, so it refuses n
 ## Skills a brief names
 
 A brief's `Skills:` line names skills and principles by pstack's names, so that a name reads the same in pstack and in jstack.
+Every brief names at least one, and its `Playbook:` line a crewmate's playbook: `jbus queue add` refuses a brief with no such line, or one that says `none` (`skills.fault`, `parse.playbook`), and the fault points at the table in the home skill's `handing-a-task-to-a-crewmate.md`, which picks both for each kind of task.
+A row approved before this rule keeps its go, and an old `Skills: none` still names no skill and owes no artifact.
 `skills.json`, at the root of jstack's source tree, lists the names, and the resolver reads them from that file, not from the directories.
 The canonical form of a skill is the name of the directory that holds its `SKILL.md`, such as `architect`.
 The canonical form of a principle is its directory under `features/principles/skills/`, such as `principle-model-the-domain`.

@@ -50,7 +50,7 @@ The root home does step 1 and no other: it queues the brief by "Queueing a row i
    No reviewer runs a test step or a suite: the desk's one run of the check is the crewmate's, and CI's check on the pull request is the check of record.
 
    A brief is checked when it is queued, not when it launches.
-   `jbus queue add` refuses a brief that is short of anything a launch asks: a `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:` line, each filled in; a `Proves it:` line that names something outside the agent; a t-shirt size; a crewmate's playbook or `none`; a `Design:` line, written only where `/architect` wrote a design, that names that design; and a `Skills:` line, where the brief has one, whose every name is a skill of `skills/` or a principle of `principles/`.
+   `jbus queue add` refuses a brief that is short of anything a launch asks: a `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:` line, each filled in; a `Proves it:` line that names something outside the agent; a t-shirt size; a crewmate's playbook; a `Design:` line, written only where `/architect` wrote a design, that names that design; and a `Skills:` line that names at least one skill, whose every name is a skill of `skills/` or a principle of `principles/`.
    It prints `refused: <slug>'s brief has <n> faults, and nothing is queued` and one line under it for each fault: mend the brief and add it again.
    Nothing is queued, so the user is never asked to approve a brief that cannot launch.
    It also refuses a brief that asks for a load on every core (`stress-ng --cpu 0`, `--cpu $(nproc)`) instead of a bounded one inside `jgauge test-slot`, and one whose `Done when:` asks for a screenshot, a shot or a recording as proof.
@@ -87,12 +87,34 @@ The root home does step 1 and no other: it queues the brief by "Queueing a row i
    Put each path it printed for the brief's messages on `Shown:`, with what the picture shows in a few words, and leave the line out where the user sent none.
    The paths are T3 Code's own files, which stay until the thread is deleted: never copy or move one.
 
-   Its `Skills:` line names what the crewmate runs besides the playbook, or says `none`, and a brief with no line names nothing.
+   Its `Playbook:` and `Skills:` lines are picked together, by the kind of task, from this table.
+   Every brief names a crewmate's playbook and at least one skill: `jbus queue add` refuses a brief with no line, or one that says `none`, and its fault names this table.
+
+   | Kind of task | Playbook | Skills | Their tokens |
+   |---|---|---|---|
+   | A bug fix | `bug-fix` | `tdd` | 850 |
+   | New or changed behaviour | `feature` | `tdd` at size S, `architect` at M or L | 850, 2,000 |
+   | A change of shape that keeps behaviour | `refactoring` | `blast-radius` | 1,400 |
+   | A `SKILL.md`, or a template a skill reads | `authoring-a-skill` | `technical-writing` | 2,400 |
+   | Other docs | `autonomous-run` | `technical-writing` | 2,400 |
+   | Tests only | `autonomous-run` | `principle-test-behavior-not-implementation` | 1,050 |
+   | Too slow | `perf-issue` | `principle-explain-the-number` | 550 |
+   | A number toward a target | `hillclimb` | `benchmark-checklist` | 1,800 |
+   | An operation that changes no file | `autonomous-run` | `principle-make-operations-idempotent` | 540 |
+   | A measurement with no fix and no target | `autonomous-run` | `benchmark-checklist` | 1,800 |
+
+   A skill's tokens are its file's bytes divided by 4: the crewmate loads each named file in full at its start, and its Result owes one artifact for each.
+   Name what the playbook does not already cite, and no more.
+   A playbook is 900 to 1,400 tokens and brings each principle a step of it cites (`feature` cites 11, `perf-issue` cites `benchmark-checklist`), so a `Skills:` line that repeats one adds its tokens and nothing else.
+   A kind the table does not name takes the crewmate's playbook whose row in the block below fits it, and the skill of the table's nearest kind.
+   Name more than the table gives only where the task needs it: a skill on top costs its tokens and an artifact.
    Write each name in its canonical form, pstack's, so it reads the same in Grok Bot and in T3: a skill as its directory, `architect`, and a principle as its file without `.md`, `principle-model-the-domain`.
    `features/jbriefs/docs/jbriefs.md` "Skills a brief names" says which aliases resolve.
    The crewmate loads each file in full at its start, and its Result owes one artifact for each, the one `templates/skill-artifacts.md` names: `jmerge` merges no pull request whose Result leaves one out.
 
-   Its `Playbook:` line names the steps the crewmate works through: one file in `$T/../playbooks/`, without its `.md`. Run this with the block at the top. It prints a row for each playbook, its name and then who runs it and for what kind of task, and a last row for `none`:
+   Its `Playbook:` line names the steps the crewmate works through: one file in `$T/../playbooks/`, without its `.md`.
+   Run this with the block at the top.
+   It prints a row for each playbook, its name and then who runs it and for what kind of task, and a last row for `none`, which only a scout's request may take:
 
    ```sh
    for f in "$T"/../playbooks/*.md; do
@@ -103,7 +125,13 @@ The root home does step 1 and no other: it queues the brief by "Queueing a row i
    echo "none | nothing above fits"
    ```
 
-   Pick from what it prints, by who runs the row. A brief takes a row `a crewmate` runs whose kind of task this is, or `none`. A scout's request takes a row `a scout` runs, or `none`. A row `the home` runs goes on no brief and no request: "A playbook of the home's own" opens it. A brief with no line counts as `none`, and the crewmate works by the crew skill alone. jbus launches no brief whose line names a playbook that is no file there, such as `fix` or `feature.`: it is a gate that says why. A row that ends `in a brief with` some lines asks for those lines in the brief: write them. Do not read the playbook to pick it: its row is enough.
+   Pick from what it prints, by who runs the row.
+   A brief takes a row `a crewmate` runs, the one the table above gives for its kind of task, and never `none`.
+   A scout's request takes a row `a scout` runs, or `none`.
+   A row `the home` runs goes on no brief and no request: "A playbook of the home's own" opens it.
+   jbus launches no brief whose line names a playbook that is no file there, such as `fix` or `feature.`: it is a gate that says why.
+   A row that ends `in a brief with` some lines asks for those lines in the brief: write them.
+   Do not read the playbook to pick it: its row is enough.
 
    Then ask for the deeper version of the task, not a bigger one (`$T/../principles/principle-depth-over-breadth.md`). Run this, for a brief or a scout's request alike, with the playbook you picked in place of the words in angle brackets. Put the kind of work there instead, `research`, `perf`, `analysis`, `outcome` or `other`, where you picked `none`, and where the playbook hides the kind: an outcome under `feature` or `autonomous-run` is `outcome`, and a bug whose cause is not proven is `analysis`, whatever the playbook:
 

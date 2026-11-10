@@ -13,7 +13,8 @@ def brief(playbook, more="", pull_request="Pull request: open one when done\n"):
     return (
         '# alpha: a task\nTask: "find out why alpha spins"\nDone when:\n- the cause is named\n'
         "Proves it: `make check`\nSize: S\nWhere: `src/alpha/`\n"
-        f"Design: none, a read\n{pull_request}Review: twice\nPlaybook: {playbook}\n{READ}{more}"
+        f"Design: none, a read\n{pull_request}Review: twice\nPlaybook: {playbook}\n"
+        f"Skills: tdd\n{READ}{more}"
     )
 
 
