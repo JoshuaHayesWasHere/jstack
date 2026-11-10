@@ -278,9 +278,9 @@ def _judged(run: Pass, ran: subprocess.CompletedProcess[str], at: str) -> Said:
 
 
 def handed(run: Pass) -> tuple[str, ...]:
-    """The flag that hands `jmerge` the pass's read of the open pull requests (`pulls.read`), so
-    it asks GitHub for no list of its own: `--pulls <path> <stamp>`. Nothing where the read
-    raised `Silent`, and nothing where what GitHub said of its API budget in the last `KNOWN`
+    """The flags that hand `jmerge` the pass's read of the open pull requests (`pulls.read`), so
+    it asks GitHub for no list of its own: `--pulls <path> --pulls-at <stamp>`. Nothing where the
+    read raised `Silent`, and nothing where what GitHub said of its API budget in the last `KNOWN`
     seconds (`budget.logged`, which asks nothing here) does not leave it above the floor: a pass
     asks GitHub nothing under the floor, and `watch.look`, after the run, reads the budget for
     the pass. `jmerge` then asks for its own list, or says why it waits, as a run by hand does."""
@@ -290,7 +290,7 @@ def handed(run: Pass) -> tuple[str, ...]:
         opened = pulls.read(run)
     except Silent:
         return ()
-    return ("--pulls", str(opened.path), opened.at)
+    return ("--pulls", str(opened.path), "--pulls-at", opened.at)
 
 
 def _unrun(run: Pass, why: str) -> None:

@@ -2255,10 +2255,12 @@ def parser() -> argparse.ArgumentParser:
     )
     top.add_argument(
         "--pulls",
-        nargs=2,
-        metavar=("PATH", "STAMP"),
+        metavar="PATH",
         help="take the open pull requests and the default branch from the file jbus's pass read "
-        "them into, where the file holds that pass's STAMP, in place of asking GitHub for them",
+        "them into, where it holds the stamp of --pulls-at, in place of asking GitHub for them",
+    )
+    top.add_argument(
+        "--pulls-at", metavar="STAMP", help="with --pulls: the stamp of the pass that read them"
     )
     top.add_argument(
         "--home",
@@ -2385,7 +2387,7 @@ def _merging(
     if args.sweep:
         return Sweep(repo).run(say, check)
 
-    given, kept = None, handed(args.pulls)
+    given, kept = None, handed(args.pulls, args.pulls_at)
     if kept is None:
         given = _run(
             main_checkout,
@@ -2530,13 +2532,12 @@ def in_line(one: ready.PullRequest, found: Judgement) -> bool:
     return ready.code_of(found.why) in IN_LINE
 
 
-def handed(pulls: list[str] | None) -> tuple[list, str] | None:
+def handed(path: str | None, stamp: str | None) -> tuple[list, str] | None:
     """The open pull requests and the default branch jbus's pass handed the run (`--pulls PATH
-    STAMP`), from the file it kept them in (`jbus.pulls`), or None where it handed none, or where
-    the file is not that pass's: then the run asks GitHub, as one by hand does."""
-    if not pulls:
+    --pulls-at STAMP`), from the file it kept them in (`jbus.pulls`), or None where it handed
+    none, or where the file is not that pass's: then the run asks GitHub, as one by hand does."""
+    if not path or not stamp:
         return None
-    path, stamp = pulls
     kept = store.read_dict(Path(path))
     listed = kept.get("pulls")
     if kept.get("at") != stamp or not isinstance(listed, list):

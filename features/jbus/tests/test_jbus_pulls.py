@@ -140,6 +140,7 @@ def test_the_jmerge_a_pass_starts_is_handed_its_read_where_the_budget_is_known(k
     (kitchen.state_dir / budget.KEPT).write_text(json.dumps(known))
     merge.merge(run)
     handed = kitchen.log("jmerge")[-1].split()
-    assert handed == ["--if-free", "--pulls", str(kitchen.state / pulls.FILE), run.now.isoformat()]
+    path = str(kitchen.state / pulls.FILE)
+    assert handed == ["--if-free", "--pulls", path, "--pulls-at", run.now.isoformat()]
     assert json.loads((kitchen.state / pulls.FILE).read_text())["at"] == run.now.isoformat()
     assert asked(kitchen) == 1

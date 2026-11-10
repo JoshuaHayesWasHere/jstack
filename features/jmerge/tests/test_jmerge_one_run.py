@@ -67,7 +67,7 @@ def handed(kitchen, stamp):
     path = kitchen.tmp / "pulls.json"
     kept = {"at": stamp, "default": "main", "pulls": list(kitchen.pulls.values())}
     path.write_text(json.dumps(kept))
-    return f"--pulls {path} 2026-11-10T15:00:00+00:00"
+    return f"--pulls {path} --pulls-at 2026-11-10T15:00:00+00:00"
 
 
 def test_a_run_jbus_hands_its_passs_list_asks_github_for_no_list_and_merges(kitchen):
