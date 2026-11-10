@@ -269,8 +269,9 @@ What a message you typed is about is one label too, its `surface`, kept in `mess
 
 Each label but `needs` and `other` is a pattern of words, tried in the order of the table (`approval` reads a message's start, where an answer's word is, and `my pick` anywhere), over the first 400 characters with a mention in quotes or backticks and a link's target left out.
 A word of `acts` has no `surface`: an act keeps no text past its read.
-The measures `merge-per-day` and `approval-per-day` read it; `merge` counts every message that names a pull request, a new piece of work as much as a complaint, and `approval` no word said through the bots' chat or the view.
-`sidebar-per-day`, `status-per-day`, `routing-per-day` and `friction-share`, the share of typed messages that are not `other`, lack it: on a held-out 100 of the audit of 2026-11-09, the label agreed with its hand label under 80% of the time, and each measure's `needs` gives by how much.
+The measures `merge-asks` and `approval-reasks` read it; `merge` counts every message that names a pull request, a new piece of work as much as a complaint, and `approval` every approval typed in T3, a re-ask or not, and no word said through the bots' chat or the view.
+`sidebar-friction`, `status-asks`, `wrong-home` and `friction-by-surface`, the share of typed messages that are not `other`, lack it: on a held-out 100 of the audit of 2026-11-09, the label agreed with its hand label under 80% of the time, and each measure's `needs` gives by how much.
+`reply-corrections` and `visual-misses` lack it too: no pattern of the words tells a correction from a request.
 `asks.py` gives each pattern and what it misses.
 
 A lost ask is an `unanswered` message: no act cites it, and no reply came in its thread within the wait.
@@ -383,7 +384,7 @@ A reading has one of four states:
 - `ok`: neither.
 - `none`: a `Lacks`, no baseline, no value, `n` under the floor, or a query that failed, whose error is its note.
 
-The first 41 are the rows of the scorecard scout's visual of 2026-11-09, in its order; from 42 on, the measures of `messages.surface`.
+The first 41 are the rows of the scorecard scout's visual of 2026-11-09, in its order.
 Where it named a line the measure has it as written; where it named none, a `page` measure's `Limit` is 20% past its baseline in the worse direction.
 To add a measure, add a module with the next free `NN`; no list names it.
 To measure one that `Lacks` its record, add the record and its table as "Change the store" says, then give the measure a `Sql` in place of its `Lacks`.

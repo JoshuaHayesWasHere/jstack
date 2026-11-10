@@ -7,8 +7,9 @@ MEASURE = Measure(
     unit="messages",
     better="lower",
     source=Lacks(
-        "messages.surface, the label po-sc-ask-labels puts on each typed message by the surface"
-        " it is friction with: messages.asks holds needs or other only"
+        "a rule whose other agrees with the audit's hand label: asks.surface and scout 2 agreed"
+        " on other or not on 73 of a held-out 100 of the audit's typed messages"
+        " (2026-11-02 to 11-09), under the 80% to show it"
     ),
     window="week",
     baseline=256,
