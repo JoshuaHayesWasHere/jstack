@@ -23,9 +23,12 @@ sys.path.insert(0, str(STATECHART))
 lib = importlib.import_module("statechart.lib")
 tools = importlib.import_module("statechart.tools")
 
+READ_SET = ("features/jbus/src/", "features/jmerge/src/")
+"""The code MainRed.tla quotes, each file as `<package>/<file>.py`."""
+
 QUOTE = re.compile(r"([\w./-]+\.(?:py|md))\s*`([^`]+)`")
 """A cite of MainRed.tla by the code it quotes, with no line number:
-mainmoved.py `*([stands] if stands else []),`, so a line that only moves needs no edit."""
+jbus/mainmoved.py `*([stands] if stands else []),`, so a line that only moves needs no edit."""
 
 AGREES = {
     "S1": "KnownRedReadAsRed",
@@ -45,13 +48,10 @@ def quoted():
     them that holds the quote."""
     text = (SPEC / "MainRed.tla").read_text()
     flat = re.sub(r"\s*\n\s*(?:\\\*)?\s*", " ", text)
-    files = subprocess.run(
-        ["git", "ls-files", "features"], cwd=REPO, capture_output=True, text=True, check=True
-    ).stdout.split()
     assert not re.search(r"\.(?:py|md):\d", flat)
     for path, quote in QUOTE.findall(flat):
-        (found,) = [one for one in files if one.endswith(f"/{path}") and "/src/" in one]
-        lines = (REPO / found).read_text().splitlines()
+        package = path.split("/")[0]
+        lines = (REPO / "features" / package / "src" / path).read_text().splitlines()
         yield path, quote, lines, lib.located(lines, quote)
 
 
