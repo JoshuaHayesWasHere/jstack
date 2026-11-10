@@ -15,6 +15,14 @@ when the tip landed, and no second red tip either. It keeps the last tip whose c
 run's logs once for each red tip: `jbus.reverts` reads them to tell a flake from a culprit's own
 red.
 
+`tell` writes why main went red once for each tip it judges `failed`, as one line of
+`main-reds.jsonl` in the project's state: the tip, the pull requests landed since the last green
+tip, the step each failed part of the run failed at, the tests the run failed, and a `Verdict`,
+`change`, `flake` or `infra`. It is the one owner of main's red, so its readers take the cause from
+the ledger and keep no rule of their own: the store reads it for `main_spells.cause`, and
+`change-failure` counts only the spells a change caused. A tip whose logs could not be read gets
+its line on a later pass that judges it, and a tip with a line gets no second one.
+
 `landed` lists each tip main went through since the last pass, and `tell` looks at them in
 order. A tip still counts when it failed or passed before any pass looked at it, even with a
 newer tip on top of it. `tell` keeps a tip whose check has not ended as `pending`, and looks
@@ -43,11 +51,26 @@ runs start no job, and closes it (`questions.clear`) when a tip whose check ran 
 
 from __future__ import annotations
 
+import json
+import re
+from collections.abc import Collection, Sequence
 from datetime import timedelta
+from enum import StrEnum
 
-from jbus import Refused, questions, read_json, verbs, watch, write_json
+from jbus import Refused, questions, read_json, reverts, verbs, watch, write_json
+from jbus.ci.ledger import read as ledger
 from jbus.passes import Pass
-from jbus.watch import NO_JOB, NOT_RED, _api, _check, _judged, _log_failed, unjudged, when
+from jbus.watch import (
+    NO_JOB,
+    NOT_RED,
+    _api,
+    _check,
+    _judged,
+    _log_failed,
+    job_log,
+    unjudged,
+    when,
+)
 from jmerge import mainjson
 from jmerge.mainjson import SETTLED
 
@@ -60,6 +83,43 @@ UNJUDGED_WAIT = timedelta(minutes=15)
 """How far apart two reads that find nothing judges a commit settle it: GitHub lists a push run
 within seconds of the push, so a commit that has none this long after it was first read never
 will."""
+REDS = "main-reds.jsonl"
+"""Why main went red: one line for each tip `tell` judged `failed`, as `red_line` writes it."""
+TESTS, LINT = "test", "lint"
+"""The last word of a failed step that ran the tests (`make test`, `make check: test`), and of one
+that linted the tree (`make lint`, `prose lint`, `make check: lint`), as `jbus.ci.collect.step`
+names a step: GitHub's name, with the make target that failed where the log names one."""
+PULL = re.compile(r"\(#(\d+)\)$")
+"""A squash merge's subject ends in its pull request's number."""
+
+
+class Verdict(StrEnum):
+    """Why main's check went red at a tip.
+
+    `CHANGE`: the code is wrong, a test or the lint fails on it, and only a change to the code ends
+    it. `FLAKE`: each test that failed is one `jbus ci` counts as a flake (`reverts.flaky`).
+    `INFRA`: the run failed outside the code's own checks, at a step that is neither the tests nor
+    the lint, or at the tests with no test named, as when the coverage file or the runner breaks."""
+
+    CHANGE = "change"
+    FLAKE = "flake"
+    INFRA = "infra"
+
+
+def verdict(steps: Collection[str], failed: Collection[str], flakes: Collection[str]) -> Verdict:
+    """The rule: why a red run failed, from the step each failed part failed at, the tests the run
+    failed (`mainjson.failures`: none where any part fails no test it names) and the tests
+    `reverts.flaky` names. A step not known, "", says nothing either way."""
+    targets = {step.rsplit(" ", 1)[-1] for step in steps if step}
+    if LINT in targets:
+        return Verdict.CHANGE
+    if not failed or targets - {TESTS}:
+        return Verdict.INFRA
+    if all(test in flakes for test in failed):
+        return Verdict.FLAKE
+    return Verdict.CHANGE
+
+
 ACCOUNT, ACCOUNT_FILE = "ci-account", "account.json"
 DECISION = (
     "## Gate <n>: CI on main started no job at {sha}: put the GitHub account's Actions limit "
@@ -125,6 +185,76 @@ def failed_at(run: Pass, sha: str) -> list[str] | None:
     return mainjson.failures(jobs)
 
 
+def _failed_parts(run: Pass, sha: str) -> list[dict]:
+    """The check runs that failed at a commit on main, less a run that only gathers others, as
+    `full` gathers `full 1 of 4` (`mainjson.failures`)."""
+    runs = [
+        one
+        for one in _judged(run, sha)[0]
+        if one.get("status") == "completed" and one.get("conclusion") not in NOT_RED
+    ]
+    names = [str(one.get("name") or "") for one in runs]
+    return [
+        one
+        for one, name in zip(runs, names, strict=True)
+        if not any(other.startswith(f"{name} ") for other in names)
+    ]
+
+
+def failed_steps(run: Pass, sha: str) -> list[str]:
+    """Return the step each failed part of main's check failed at, as `jbus ci` names it in
+    `ci.jsonl` (`collect.step`), each once, "" where GitHub does not say."""
+    from jbus.ci.collect import evidence, failed_step, step
+
+    steps = []
+    for one in _failed_parts(run, sha):
+        job = watch.job(run, "{owner}/{repo}", str(one.get("id")))
+        log = job_log(run, "{owner}/{repo}", one.get("id")) or ""
+        steps.append(step(failed_step(job), evidence(log)) or "")
+    return list(dict.fromkeys(steps))
+
+
+def pulls(run: Pass, tips: Sequence[str]) -> list[tuple[int, str]]:
+    """Return the pull request merged at each tip, with its branch, as `merged.json` keeps them,
+    else the number its commit's subject ends in, as GitHub lists main's commits."""
+    merged: dict[str, dict] = read_json(run.state / "merged.json", {})
+    kept = {
+        (one.get("mergeCommit") or {}).get("oid"): (one.get("number"), one.get("headRefName", ""))
+        for one in merged.values()
+        if isinstance(one, dict)
+    }
+    said = _api(run, f"repos/{{owner}}/{{repo}}/commits?sha={tips[-1]}&per_page={WAITING}")
+    subjects = {
+        one.get("sha"): str((one.get("commit") or {}).get("message", "")).split("\n")[0]
+        for one in (said if isinstance(said, list) else [])
+        if isinstance(one, dict)
+    }
+    found = []
+    for tip in tips:
+        number, branch = kept.get(tip, (None, ""))
+        if number is None and (named := PULL.search(subjects.get(tip, ""))):
+            number = named[1]
+        if number is not None:
+            found.append((int(number), str(branch or "")))
+    return found
+
+
+def red_line(run: Pass, tip: str, green: str, failed: list[str]) -> dict:
+    """The line of `REDS` for a tip judged `failed`, with `green` the last green tip before it
+    and `failed` the tests that failed there."""
+    landed_ = pulls(run, landed(run, green, tip) if green else [tip])
+    flakes = reverts.flaky(run, landed_[0][1]) if landed_ and failed else frozenset[str]()
+    steps = failed_steps(run, tip)
+    return {
+        "at": run.now.isoformat(),
+        "sha": tip,
+        "prs": [number for number, _ in landed_],
+        "step": ", ".join(steps),
+        "failed": failed,
+        "verdict": str(verdict(steps, failed, flakes)),
+    }
+
+
 def landed(run: Pass, last: str, main: str) -> list[str]:
     """Return the tips main went through since `last`, along first parents, as GitHub lists
     main's commits. The oldest comes first, and `main` is the newest.
@@ -185,6 +315,7 @@ def tell(run: Pass) -> None:
     if was.get("fixed") or was.get("check") == "green":
         broken = ""
     green, check, waiting, stands, unrun = "", "", [], broken, ""
+    under, tests, judged = mainjson.of(was).green, {}, None
     for tip in dict.fromkeys(
         (
             *([stands] if stands else []),
@@ -194,9 +325,15 @@ def tell(run: Pass) -> None:
     ):
         check = main_check(run, tip, again=tip in (main, stands), rerun=tip == main)
         if check == "green":
-            green, broken, waiting, unrun = tip, "", [], ""
+            green, broken, waiting, unrun, under = tip, "", [], "", tip
         elif check == "failed":
             broken, waiting, unrun = tip, [], ""
+            if judged is None:
+                judged = {str(one.get("sha")) for one in ledger(run.state / REDS)}
+            if tip not in judged and (read := failed_at(run, tip)) is not None:
+                tests[tip] = read
+                with open(run.state / REDS, "a") as handle:
+                    handle.write(json.dumps(red_line(run, tip, under, read)) + "\n")
         elif check == "pending":
             waiting.append(tip)
         elif check == NO_JOB:
@@ -204,12 +341,14 @@ def tell(run: Pass) -> None:
     account(run, unrun, green)
     at = (was.get("at") if main == last else "") or run.now.isoformat()
     failed = was.get("failed") if broken == was.get("broken") else None
+    if failed is None and broken:
+        failed = tests[broken] if broken in tests else failed_at(run, broken)
     record = mainjson.record(
         main=main,
         at=at,
         check=check,
         broken=broken,
-        failed=failed if failed is not None or not broken else failed_at(run, broken),
+        failed=failed,
         pending=waiting[-WAITING:],
         green=green or mainjson.of(was).green,
     )

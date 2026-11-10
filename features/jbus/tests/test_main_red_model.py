@@ -56,3 +56,11 @@ def test_s3_the_tests_kept_are_the_red_tip_s_own_one_at_a_time():
 
 def test_s3_the_tests_kept_are_the_red_tip_s_own_in_every_order():
     holds(EVERY, "S3")
+
+
+def test_s4_each_red_tip_has_one_line_in_the_ledger_one_at_a_time():
+    holds(ONE_AT_A_TIME, "S4")
+
+
+def test_s4_each_red_tip_has_one_line_in_the_ledger_in_every_order():
+    holds(EVERY, "S4")
