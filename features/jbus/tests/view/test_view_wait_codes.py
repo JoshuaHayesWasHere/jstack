@@ -147,3 +147,13 @@ def test_a_check_cancelled_twice_is_on_the_check_step_with_its_reason(
     scene.queue([row("oat-bowl", "pr", pr="#11", checks="failed", why=why)])
     found = tasks(served.json("/state.json?project=demo"))["oat-bowl"]
     assert (found["step"], found["reason"]) == ("check", reason)
+
+
+def test_a_pull_request_in_jmerges_batch_is_in_the_check_lane_not_unknown(scene, served):
+    """#1574's row, as the pass wrote it from what `jmerge` printed of it on 2026-11-10: a member
+    of jmerge's batch waits on CI's check of the batch, so it is in the lane of a pull request
+    whose own check runs."""
+    why = "wait: it is in jmerge's batch over main at eca6f811b913, whose check decides its merge"
+    scene.queue([row("po-crew-owes-ends", "pr", pr="#1574", checks="passed", why=why)])
+    found = tasks(served.json("/state.json?project=demo"))["po-crew-owes-ends"]
+    assert found["step"] == "check"

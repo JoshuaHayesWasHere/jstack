@@ -470,3 +470,21 @@ def test_a_squash_whose_messages_cannot_be_read_waits_and_gives_no_commit(kitche
     one = ready.pull_request(kitchen.pulls["one"])
     assert here.squash(one, "one", []) == (f"wait 6 {url(6)}: {ready.NO_MESSAGES}", "")
     assert not (kitchen.home.stub / "calls").exists()
+
+
+PRINTED = (
+    "it is in jmerge's batch over main at eca6f811b913, whose check decides its merge",
+    "jmerge's batch over main at eca6f811b913 is checked and merges first: a merge before it "
+    "would undo that check",
+    "jmerge's batch over main at eca6f811b913 stopped at #7, which did not merge: the next batch "
+    "takes it",
+)
+"""Each wait jmerge prints of a pull request held by a batch, as `jmerge` printed the first of
+#1574 on 2026-11-10: a printed line has no code, so jbus reads its step off the text."""
+
+
+@pytest.mark.parametrize("said", PRINTED)
+def test_a_batch_wait_as_jmerge_prints_it_is_on_the_step_of_a_wait_on_its_own_check(said):
+    """CI's check of the batch decides its members' merge, so a wait on the batch is on the step
+    of a pull request that waits on its own check, and a rule of `rules` names it."""
+    assert ready.step_of(ready.code_of(said)) == ready.LIVE_RUN.step == "check"
