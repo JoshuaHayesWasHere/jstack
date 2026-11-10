@@ -47,7 +47,7 @@ def _waits(v, p):
         return "stacked on the other"
     if "link" in v and p == "b" and v["link"] == "after" and v["st"]["a"] != "merged":
         return "merges after the other"
-    if p in _of(v, "batch", []):
+    if p in _of(v, "batch", []) and not v["mainRed"]:
         return "in jmerge's batch"
     suspect = ", a suspect" if p in _of(v, "suspects", []) else ""
     if _of(v, "batch", None) and not v["mainRed"]:

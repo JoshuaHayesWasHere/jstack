@@ -121,7 +121,7 @@ The cut, 1.19M states at #946, 1.04M since fl-no-draft and 0.97M since st-flow, 
 TLC also keeps a disk queue of states under `TMPDIR`, and the cut's queue outgrew a `/tmp` tmpfs the machine's other work had filled, so the block puts `TMPDIR` on a disk with room (`$HOME/.cache` here).
 With an edit and an outside break both in the cut, TLC 2.19 threw while its `-continue` run printed a path of the rule then named `NoMergeTurnsMainRed`.
 `flow_canaries.py` checks every rule on the whole model.
-The chart has no red path: since #946 no state of the cut breaks a rule, and at st-flow's head its CHART_PLACEHOLDER states all work.
+The chart has no red path: since #946 no state of the cut breaks a rule, and at st-flow's head its 69 states all work.
 The design starts with both pull requests open, so a story, when the chart has one, says the design starts on another screen.
 
 ## What the code model leaves out
