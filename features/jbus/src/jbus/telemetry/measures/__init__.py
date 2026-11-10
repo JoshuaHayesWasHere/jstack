@@ -47,6 +47,20 @@ MACHINE = ""
 PRIOR_DAYS = 7
 """How many days before a `Trend` reads its own windows over, for their mean."""
 
+SPANS = (
+    "with spans as (select coalesce(s.thread, c.provider || ':' || c.session) as thread,"
+    " min(c.at) as first, max(c.at) as last"
+    " from calls c left join sessions s on s.provider = c.provider and s.session = c.session"
+    " where c.day >= date(:begins, '-1 day') and c.day <= date(:ends, '+1 day')"
+    " and c.at >= :begins and c.at < :ends group by 1)"
+)
+"""A CTE of each live session in the window: a thread from its first model call to its last, of
+any session of it, as the window holds them. A call whose session no record names is a thread of
+its own. `day`, the call's local day, lets the read use `calls_day` before it bounds `at`."""
+
+SESSION_HOURS = "(select sum(julianday(last) - julianday(first)) * 24 from spans)"
+"""The hours the window's live sessions were live, summed, read after `SPANS`."""
+
 
 @dataclass(frozen=True)
 class Sql:
