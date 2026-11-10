@@ -120,5 +120,6 @@ def test_a_git_that_cannot_read_the_commits_is_named_a_runner_fault_jbus_counts_
     git(work, "remote", "set-url", "origin", f"file://{tmp_path}/gone")
     code, printed = step(work, base, head)
     assert code == 2
-    assert printed[0].startswith("::error::no-ai-trailers: a runner fault, not this pull request's")
+    assert printed[0].startswith("::error::no-ai-trailers: the commits could not be read")
+    assert "a runner fault, not this pull request's" in printed[0]
     assert stall.FETCH.search(printed[0])
