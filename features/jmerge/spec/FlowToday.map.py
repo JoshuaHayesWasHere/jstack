@@ -3,8 +3,9 @@ reader_actions = ["Approve", "HoldRow", "Accept", "HomeEdits"]
 
 
 def _of(v, key, default):
-    """v[key] where the model has the variable: FlowDesign has no batch, line, mend or heard."""
-    return v[key] if key in v else default
+    """v[key] where the model has the variable: FlowDesign has no batch, line, mend or heard. The
+    chart command reads v.get(key) as a read of a variable the design lacks, so the test stays."""
+    return v[key] if key in v else default  # noqa: SIM401
 
 
 def _kind(v, p):
