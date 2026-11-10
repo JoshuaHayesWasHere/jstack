@@ -193,13 +193,10 @@ def settle_lost(run: Pass, client: Client) -> None:
             or record.get("state") == "retry"
         ):
             continue
-        held = {str(one.get("thread")) for _, one in records(run, slug) if one.get("thread")}
         try:
             listed = crew_threads(client, run.project.project_id, f"{TITLE}{slug}")
             matching = []
             for thread in (t for t in listed if t["title"] == f"{TITLE}{slug}"):
-                if thread["threadId"] in held:
-                    continue
                 read = client.call("t3_thread_read", {"threadId": thread["threadId"], "limit": 1})
                 if (read.get("thread") or {}).get("branch") == slug:
                     matching.append(thread["threadId"])
@@ -514,16 +511,10 @@ class Turns:
                 else:
                     run.reasons[slug] = Slot(f"{HELD}: {unhome[0]}")
                 continue
-            if cause is not None:
-                if red and not fixes_main(slug, brief):
-                    run.reasons[slug] = Red()
-                    continue
-                yield row, brief, None, cause
-                continue
             met = merged | {
                 other for other in row.get("depends", []) if ended(run, world, other) == End("done")
             }
-            unmerged = [other for other in row.get("depends", []) if other not in met]
+            unmerged = [o for o in row.get("depends", []) if o not in met and cause is None]
             on = world.stack_on(run, unmerged, brief)
             if unmerged and on is None:
                 run.reasons[slug] = Depends(tuple(unmerged))
@@ -531,7 +522,7 @@ class Turns:
             if red and on is None and not fixes_main(slug, brief):
                 run.reasons[slug] = Red()
                 continue
-            yield row, brief, on, None
+            yield row, brief, on, cause
 
     def live(self) -> list[Path]:
         """Return the worktrees jbus makes for the project's rows still out, whose Claude
@@ -654,7 +645,7 @@ class Turns:
                 target.write_text(text)
             elif (kept := target.read_text(errors="replace")) != (
                 put := resumed(homed(launched_text(kept, green, on), brief), line)
-                if line
+                if cause
                 else homed(launched_text(kept, green, on), brief)
             ):
                 target.write_text(put)

@@ -1,8 +1,9 @@
 """jbus tells a crew thread that ended with no Result to carry on. It queues one message for each
 ended run, at most two for a thread, and then a gate. A row left with work on its branch is
 launched again on its own slug, branch and worktree once a cause it waited on clears
-(`jbus.pausedon.cleared`, `jbus.crewtree.reopen`). Like `test_jbus_queue.py`, the tests run the
-real pass against the fakes."""
+(`jbus.pausedon.cleared`), by `jbus.dispatch`, in the worktree `jbus.crewtree.reopen` gives it,
+with the `Resume:` line of `jbus.launchtext`. Like `test_jbus_queue.py`, the tests run the real
+pass against the fakes."""
 
 import os
 from datetime import timedelta
@@ -14,7 +15,7 @@ import jbus
 from crew_branches import git_said
 from jbus import crewtree, leftover, threads
 from jgauge import holders, slot
-from test_jbus_kitchen import NOW, RESULT, TOKEN, Kitchen, asks, sends
+from test_jbus_kitchen import NOW, RESULT, TOKEN, Kitchen, asks, review, sends
 from test_jbus_leftover import home
 from test_jbus_queue import add, gates, go
 from testing.paths import skills
@@ -378,6 +379,9 @@ def relaunches(kitchen):
 
 def test_a_left_row_launches_again_on_its_own_branch_once_its_cause_clears(left):
     left.poll(NOW - timedelta(minutes=20))
+    left.set("open.json", [left.opened("two", 11)])
+    left.set("merged.json", [left.merged("one", 10, "a" * 40)])
+    left.poll(NOW - timedelta(minutes=15))
     assert relaunches(left) == []
 
     landed(left)
@@ -440,3 +444,43 @@ def test_the_leftover_message_offers_no_new_brief_for_a_branch_with_commits(left
     assert "carried by" not in said
     assert "launches it again on its own slug, branch and worktree" in said
     assert "the rows `one`, `two` landing" in said
+
+
+def test_a_crew_carried_on_in_place_is_not_launched_again_for_the_same_rows(left):
+    crew_of(left, "three")["settled"] = False
+    left.poll(NOW - timedelta(minutes=20))
+    landed(left)
+    left.poll(NOW)
+    (told,) = [ask for ask in asks(left) if ask["clientRequestId"].startswith("paused-on|")]
+    assert told["threadId"] == crew_of(left, "three")["threadId"]
+    crew_of(left, "three").update(status="running", settled=True)
+    left.poll(NOW + timedelta(minutes=3))
+    crew_of(left, "three").update(status="completed")
+    for minute in (6, 9):
+        left.poll(NOW + timedelta(minutes=minute))
+    assert relaunches(left) == []
+
+
+def test_a_review_with_findings_after_the_last_result_launches_it_again_once(left):
+    left.poll(NOW - timedelta(minutes=20))
+    path = left.home / "tasks" / "three.md"
+    path.write_text(path.read_text() + review())
+    left.poll(NOW)
+    (again,) = relaunches(left)
+    assert f"the findings of the review at {'c' * 12}" in again["message"]
+    crew_of(left, "three").update(status="completed", settled=True)
+    for minute in (3, 6):
+        left.poll(NOW + timedelta(minutes=minute))
+    assert len(relaunches(left)) == 1
+
+
+def test_a_brief_on_disk_its_go_does_not_hold_for_is_a_gate_and_no_launch(left):
+    path = left.home / "tasks" / "three.md"
+    path.write_text(path.read_text().replace("Where: `src/three/`", "Where: `src/other/`"))
+    left.poll(NOW - timedelta(minutes=20))
+    landed(left)
+    left.poll(NOW)
+    assert relaunches(left) == []
+    assert "condition three: tasks/three.md is not the brief its go holds for" in left.lines(
+        "condition"
+    )

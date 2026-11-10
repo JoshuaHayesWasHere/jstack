@@ -49,20 +49,12 @@ RESUMED = (
 
 
 def resumed(brief: str, line: str) -> str:
-    """Return the brief with `line`, its `Resume:` line, above its first `## `, in place of any
-    `Resume:` line its head had, or with no such line where `line` is empty."""
-    kept, head, put = [], True, False
-    for one in brief.splitlines(keepends=True):
-        if head and one.startswith("## "):
-            head = False
-            if line:
-                kept.append(f"{line}\n")
-                put = True
-        if not (head and one.startswith(RESUME)):
-            kept.append(one)
-    if line and not put:
-        kept.append(("" if not kept or kept[-1].endswith("\n") else "\n") + f"{line}\n")
-    return "".join(kept)
+    """Return the brief with `line`, its `Resume:` line, last in its head, above its first `## `,
+    in place of any `Resume:` line its head had."""
+    top, mark, rest = brief.partition("\n## ")
+    kept = "".join(one for one in top.splitlines(keepends=True) if not one.startswith(RESUME))
+    put = f"{kept.rstrip()}\n{line}"
+    return f"{put}{mark}{rest}" if mark else f"{put}\n"
 
 
 def launched_text(brief: str, green: str, on: stacks.Stacked | None) -> str:
@@ -83,7 +75,5 @@ def stacked(brief: str, on: stacks.Stacked | None) -> str:
         head = head and not line.startswith("## ")
         if not (head and line.startswith(stacks.LINE)):
             kept.append(line)
-    if on is None:
-        return "".join(kept)
     first, _, rest = "".join(kept).partition("\n")
-    return f"{first}\n{stacks.line(on)}\n{rest}"
+    return f"{first}\n{stacks.line(on)}\n{rest}" if on else "".join(kept)
