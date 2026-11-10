@@ -1663,9 +1663,9 @@ class Repo:
         batch of two or more has its failed jobs started again once (`rerun_batch`); one
         that failed after that keeps its members as suspects, and one of one sends its member
         alone at the head it held (`batch.Record.fail`); one that timed out is built again whole
-        once before it fails (`batch.Record.late`); a proven half sends the one suspect left alone
-        (`batch.Record.prove`); a pull request that would merge alone waits while a batch is out
-        (`batch.Batching.first`)."""
+        once before it fails (`batch.Record.late`); a proven half leaves the suspects it did not
+        hold (`batch.Record.prove`); a pull request that would merge alone waits while a batch is
+        out (`batch.Batching.first`)."""
         record = batch.Record.read(self.state)
         record.keep({str(one.number): one.head for one in listed})
         _run(self.main, "git", "fetch", "-q", "origin", default)
@@ -1705,14 +1705,16 @@ class Repo:
     def batched(self, default: str) -> list[str]:
         """What this run does with the members it judged, once every other pull request was
         judged: merge a proven batch, keep a pending one whose members all still stand at their
-        heads, and otherwise build a batch of them over today's tip."""
+        heads, and otherwise build the next over today's tip (`build_batch`). A pull request
+        held for the batch out (`batch.Batching.held`) waits for a proven one, and for a pending
+        one kept, and merges alone first where a pending one is built again."""
         on = self.batching
         assert on is not None
         kept = on.record.batch
         members = on.members
         said: list[str] = []
         if on.state == batch.PROVEN and kept is not None:
-            said = self.merge_batch(on, kept, default)
+            said = self.waiting(kept, default, on.held) + self.merge_batch(on, kept, default)
             numbers = {member.number for member in kept.members}
             members = [found for found in members if found[0].number not in numbers]
             if on.record.batch is not None:
@@ -1720,7 +1722,8 @@ class Repo:
         elif on.state == batch.PENDING and kept is not None:
             judged = {batch.Member(one.number, one.head) for one, *_ in members}
             if set(kept.members) <= judged:
-                return self.waiting(kept, default, members)
+                return self.waiting(kept, default, on.held + members)
+            said = [self.merge(one, slug, note, found) for one, slug, note, found in on.held]
         return said + self.build_batch(on, default, members)
 
     def waiting(self, kept: batch.Batch, default: str, members: list[batch.Judged]) -> list[str]:
@@ -1779,43 +1782,54 @@ class Repo:
     def build_batch(
         self, on: batch.Batching, default: str, members: list[batch.Judged]
     ) -> list[str]:
-        """Build the batch of the members it takes (`batch.Batching.chosen`, the first half of
-        the suspects where any are left, and otherwise `batch.Record.most` at most) over today's
-        tip, push it to `batch.BRANCH`, open its draft pull request where GitHub lists none, keep
-        it, and say its size and the most (`batch.BUILT`); each other member waits for it.
-        A batch that cannot be made sends each member down the single path of today in this run,
-        drops the suspects, and says why first. Where no member is left to build, or the batch
-        cannot be made, no batch is built again after a timeout."""
+        """Send the members that go alone (`batch.Batching.chosen`: each, where fewer than
+        `batch.LEAST` are judged, and the suspects whose half is under it) down the single path
+        of today in this run, and build the batch of those it takes (the first half of the
+        suspects where any are left, and otherwise `batch.Record.most` at most) over the tip they
+        leave, push it to `batch.BRANCH`, open its draft pull request where GitHub lists none,
+        keep it, and say its size and the most (`batch.BUILT`); each other member waits for it.
+        A batch that cannot be made, or that holds fewer than `batch.LEAST` once the members that
+        do not merge over the tip are left out, sends each member left down the single path in
+        this run, keeps the suspects' heads under `failed` (`batch.Record.alone`), and says why
+        first. Where no batch is built, no batch is built again after a timeout."""
         on.record.batch = None
-        chosen = on.chosen(members)
-        if not members:
+        chosen, alone = on.chosen(members)
+        said = [
+            self.merge(one, slug, note, replace(found, batch=False))
+            for one, slug, note, found in alone
+        ]
+        if not chosen:
             on.record.again = False
             on.record.write()
-            return []
+            return said
         _run(self.main, "git", "fetch", "-q", "origin", default)
         tip = _run(self.main, "git", "rev-parse", f"origin/{default}").stdout.strip()
         heads = [batch.Member(one.number, one.head) for one, *_ in chosen if self.has(one)]
         narrowed = bool(on.record.suspects)
         most = len(heads) if narrowed else on.record.most
         made = batch.build(self.main, default, tip, heads, most)
-        why = "" if made.members else f"no member merges over {default} at {tip[: batch.SHA]}"
+        size, at = len(made.members), tip[: batch.SHA]
+        why = "" if size else f"no member merges over {default} at {at}"
+        if size and size < batch.LEAST:
+            why = f"{size} merge over {default} at {at}, and a batch holds {batch.LEAST} at least"
         why = why or batch.push(self.main, made.commit)
         if not why and on.pull is None:
             why = self.open_batch(default)
         if why:
-            on.record.suspects, on.record.again = (), False
+            on.record.alone(on.record.suspects)
+            on.record.again = False
             on.record.write()
-            said = [batch.UNMADE.format(base=default, tip=tip[: batch.SHA], why=why)]
-            for one, slug, note, judged in members:
+            said.append(batch.UNMADE.format(base=default, tip=at, why=why))
+            for one, slug, note, judged in (found for found in members if found not in alone):
                 said.append(self.merge(one, slug, note, replace(judged, batch=False)))
             return said
         now = datetime.now(UTC)
         kept = batch.Batch(tip, made.tree, made.commit, made.members, now, narrowed=narrowed)
         on.record.batch = kept
         on.record.write()
-        size, most = len(made.members), on.record.most
-        built = batch.BUILT.format(size=size, most=most, base=default, tip=tip[: batch.SHA])
-        return [built, *self.waiting(kept, default, members)]
+        built = batch.BUILT.format(size=size, most=on.record.most, base=default, tip=at)
+        waits = [found for found in members if found not in alone]
+        return [*said, built, *self.waiting(kept, default, waits)]
 
     def open_batch(self, default: str) -> str:
         """Open the batch's standing draft pull request, and say why where GitHub would not."""
@@ -2477,13 +2491,8 @@ def _merging(
             say(lines.ready(one.number, one.head, one.branch, found.slug, notes))
         elif on is not None and found.judged.batch:
             on.members.append((one, found.slug, found.note, found.judged))
-        elif on is not None and on.record.batch and on.first and not repo.is_revert(one):
-            tip = on.record.batch.tip[: batch.SHA]
-            say(
-                lines.waits(
-                    "wait", one.number, one.url, ready.BATCH_FIRST.format(base=default, tip=tip)
-                )
-            )
+        elif on is not None and on.first and not repo.is_revert(one):
+            on.held.append((one, found.slug, found.note, found.judged))
         else:
             say(repo.merge(one, found.slug, found.note, found.judged))
     if on is not None:
