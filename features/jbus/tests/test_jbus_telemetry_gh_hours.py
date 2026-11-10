@@ -31,14 +31,21 @@ def machine(tmp_path, monkeypatch):
     return Machine(tmp_path, monkeypatch)
 
 
-def call(at, caller="jbus.tick._asked < jbus.tick._read", status=0, remaining=4000, http=None):
+def call(
+    at,
+    caller="jbus.tick._asked < jbus.tick._read",
+    status=0,
+    remaining=4000,
+    http=None,
+    resource="core",
+):
     line = {
         "at": at,
         "caller": caller,
         "endpoint": "/repos/o/r/pulls?secret=1",
         "status": status,
         "remaining": remaining,
-        "resource": "core",
+        "resource": resource,
         "reset": 1794268902,
     }
     if http:
@@ -105,6 +112,21 @@ def test_the_two_measures_read_the_hours(machine):
         least = measures.read(store, by["gh-allowance"], "alpha", NOW, USER)
     assert (rate.value, rate.n) == (5, 2)
     assert (least.value, least.n, least.state) == (800, 7, "bad")
+
+
+def test_the_allowance_is_the_lower_of_core_and_graphql(machine):
+    """GraphQL is a wall of its own, and the nearer one while the machine idles: 900 points left
+    of it is the reading, under the 3,000 core calls left."""
+    append(machine, *(call(f"2026-11-09T11:0{n}:00+00:00", remaining=3000 + n) for n in range(4)))
+    append(
+        machine,
+        *(call(f"2026-11-09T11:1{n}:00+00:00", remaining=900 + n, resource="graphql") for n in range(2)),
+    )
+    machine.build()
+    by = {each.name: each for each in measures.MEASURES}
+    with machine.store() as store:
+        least = measures.read(store, by["gh-allowance"], "alpha", NOW, USER)
+    assert (least.value, least.n, least.state) == (900, 6, "bad")
 
 
 def test_a_log_of_neither_inode_is_read_from_its_start(machine):
