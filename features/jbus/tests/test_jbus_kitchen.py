@@ -771,14 +771,9 @@ class Kitchen:
         self.signed_in(timedelta(0))
         self.fakes = {}
         for name, fake in FAKES.items():
-            script, text = (
-                self.stub / name,
-                SCRIPT.format(
-                    python=sys.executable,
-                    source=inspect.getsource(fake),
-                    name=fake.__name__,
-                    stub=str(self.stub),
-                ),
+            script, source = self.stub / name, inspect.getsource(fake)
+            text = SCRIPT.format(
+                python=sys.executable, source=source, name=fake.__name__, stub=str(self.stub)
             )
             script.write_text(text)
             script.chmod(0o755)
@@ -788,15 +783,9 @@ class Kitchen:
         merge_in_pass.patch(monkeypatch)
         scorecard_in_pass.patch(monkeypatch)
         monkeypatch.setattr(verbs, "clock", lambda: NOW)
-        for name, text in (
-            ("open.json", "[]"),
-            ("merged.json", "[]"),
-            ("commits.json", "[]"),
-            ("check-runs.json", "{}"),
-            ("jmerge.txt", ""),
-            ("sweep.txt", ""),
-            ("jmerge-sleep", "0"),
-        ):
+        stubs = {"open.json": "[]", "merged.json": "[]", "commits.json": "[]"}
+        stubs |= {"check-runs.json": "{}", "jmerge.txt": "", "sweep.txt": "", "jmerge-sleep": "0"}
+        for name, text in stubs.items():
             (self.stub / name).write_text(text)
         self.origin = tmp_path / "origin.git"
         self.repo(self.checkout, self.origin)
@@ -1160,12 +1149,11 @@ def test_a_fake_run_through_jsettings_proc_is_called_here_and_starts_no_process(
 
 
 def test_a_pass_has_built_the_scorecard_page_and_said_its_line_when_it_returns(kitchen):
-    """The kitchen builds the page inside the pass (`scorecard_in_pass`), so no child the pass
-    started writes after a test looks at the state."""
+    """The kitchen builds the page inside the pass, so no child writes after a test looks."""
     kitchen.poll()
     page = kitchen.state_dir / "scorecard.html"
-    said = page.with_name(".scorecard.html.log").read_text().splitlines()
-    assert page.is_file() and said[-1].startswith(f"scorecard: {page}: demo: ")
+    said = page.with_name(".scorecard.html.log").read_text()
+    assert page.is_file() and said.startswith(f"scorecard: {page}: demo: ")
 
 
 def test_a_fake_asked_with_no_text_answers_in_bytes_as_the_command_does(kitchen):
