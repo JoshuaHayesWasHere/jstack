@@ -378,8 +378,8 @@ Each measure is a module of its own in `jbus.telemetry.measures`, `m<NN>_<slug>.
 | `better` | `lower` or `higher` |
 | `source` | `Sql(query, machine)`, or `Lacks(needs)` where the store has no record for it yet |
 | `window` | `hour` (the last hour), `day` (the user's day so far), `72h` (the last 72 h, which no midnight resets, so a count over it is its rate per 72 h, as `closed-unmerged` counts the pull requests closed with no merge where a row asked for one, no probe whose row asked for none and no revert of jbus's, against the 3 abandoned rows of the audit of 2026-11-09), `week` (the user's week so far, from the midnight that begins its Sunday) or `now` |
-| `baseline`, `baseline_of` | the value it is judged against, or None, and where that value is from |
-| `kind` | `Zero()`, `Limit(at, floor)` or `Trend(by)` |
+| `baseline`, `baseline_of` | the value it is judged against, a `Week` or None, and where that value is from |
+| `kind` | `Zero()`, `Limit(at, floor)`, `Trend(by)` or `Over(by, floor)` |
 | `tier` | `wake` where a crossing is to wake the user, `page` where it is only shown |
 | `wired` | the alert that already raises it, or empty, so nothing raises it twice |
 | `audit` | the ranks of the counters of the audit of 2026-11-09 it carries |
@@ -389,11 +389,15 @@ It takes only the named parameters `:project`, `:begins` and `:ends`: the window
 A `machine` query reads the machine's rows, with `:project` the empty project.
 A weekly view is read at `week in (date(:begins), date(:begins, '+1 day'))`, the Sunday the window begins on in any zone.
 
-The three kinds say where a value is past its line:
+A `Week(sunday)` baseline is the measure's own query read over the whole user's week of that Sunday, from its midnight to the next Sunday's, each time the measure is read, and the reading's `baseline` is that value.
+A change of what the query counts, such as a new share of a row's dollars or a new price, so moves the baseline with the value, where a number typed in once stays in the definition it was read under.
+
+The four kinds say where a value is past its line:
 
 - `Zero()`: any value above 0, a count that should never happen.
 - `Limit(at, floor)`: a value beyond `at` in the worse direction, read only with `n` at least `floor`.
 - `Trend(by)`: a value worse than the mean of its own seven days before, each the same window that many days earlier, by more than `by` percent.
+- `Over(by, floor)`: a value worse than the baseline by more than `by` percent, read only with `n` at least `floor`: the line of a `Week` baseline, which moves with it.
 
 A reading has one of four states:
 
@@ -439,8 +443,8 @@ Each measure is a module of its own in `jbus.telemetry.measures`, `m<NN>_<slug>.
 | `better` | `lower` or `higher` |
 | `source` | `Sql(query, machine)`, or `Lacks(needs)` where the store has no record for it yet |
 | `window` | `hour` (the last hour), `day` (the user's day so far), `72h` (the last 72 h, which no midnight resets, so a count over it is its rate per 72 h, as `closed-unmerged` counts the pull requests closed with no merge where a row asked for one, no probe whose row asked for none and no revert of jbus's, against the 3 abandoned rows of the audit of 2026-11-09), `week` (the user's week so far, from the midnight that begins its Sunday) or `now` |
-| `baseline`, `baseline_of` | the value it is judged against, or None, and where that value is from |
-| `kind` | `Zero()`, `Limit(at, floor)` or `Trend(by)` |
+| `baseline`, `baseline_of` | the value it is judged against, a `Week` or None, and where that value is from |
+| `kind` | `Zero()`, `Limit(at, floor)`, `Trend(by)` or `Over(by, floor)` |
 | `tier` | `wake` where a crossing is to wake the user, `page` where it is only shown |
 | `wired` | the alert that already raises it, or empty, so nothing raises it twice |
 | `audit` | the ranks of the counters of the audit of 2026-11-09 it carries |
@@ -450,11 +454,15 @@ It takes only the named parameters `:project`, `:begins` and `:ends`: the window
 A `machine` query reads the machine's rows, with `:project` the empty project.
 A weekly view is read at `week in (date(:begins), date(:begins, '+1 day'))`, the Sunday the window begins on in any zone.
 
-The three kinds say where a value is past its line:
+A `Week(sunday)` baseline is the measure's own query read over the whole user's week of that Sunday, from its midnight to the next Sunday's, each time the measure is read, and the reading's `baseline` is that value.
+A change of what the query counts, such as a new share of a row's dollars or a new price, so moves the baseline with the value, where a number typed in once stays in the definition it was read under.
+
+The four kinds say where a value is past its line:
 
 - `Zero()`: any value above 0, a count that should never happen.
 - `Limit(at, floor)`: a value beyond `at` in the worse direction, read only with `n` at least `floor`.
 - `Trend(by)`: a value worse than the mean of its own seven days before, each the same window that many days earlier, by more than `by` percent.
+- `Over(by, floor)`: a value worse than the baseline by more than `by` percent, read only with `n` at least `floor`: the line of a `Week` baseline, which moves with it.
 
 A reading has one of four states, shown on the page in words and colour:
 

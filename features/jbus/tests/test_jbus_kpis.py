@@ -11,7 +11,7 @@ look at it.
 
 import json
 import sqlite3
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -519,3 +519,30 @@ def test_a_wake_measure_of_the_machine_is_read_once_and_alerts_the_machine(machi
         "the seven days before"
     ]
     assert machine.alerts() == said
+
+
+def test_a_wake_measure_over_its_week_baseline_alerts_with_that_line(machine, monkeypatch):
+    """A `Week` baseline is the measure's own query over that whole week, here 1, and `Over` is
+    past where today's 5 is more than 20% worse than it."""
+    today = (NOW - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S")
+    over = measures.Measure(
+        name="an-over",
+        group="cost",
+        says="a count of the machine's",
+        unit="",
+        better="lower",
+        source=measures.Sql(
+            f"select case when :ends > '{today}' then 5 else 1 end as value, 1 as n",
+            machine=True,
+        ),
+        window="hour",
+        baseline=measures.Week(date(2026, 10, 25)),
+        baseline_of="a test",
+        kind=measures.Over(20, 1),
+        tier="wake",
+    )
+    monkeypatch.setattr(kpis, "WAKES", (over,))
+    said = machine.look()
+    assert said == [
+        "alert: score an-over: a count of the machine's: 5, more than 20% worse than its baseline"
+    ]
