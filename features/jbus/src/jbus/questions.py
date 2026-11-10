@@ -66,8 +66,9 @@ a question the user answered keeps the answer.
 
 A pass closes the same way a door question whose row has ended so that nothing is left to decide
 (`moot`). A question that holds, or a go gate, whose row merged closes with the words `kept the
-fail-safe: <slug> merged, and the door stayed shut`: the fail-safe is what ran. A go gate whose
-row was removed closes with `<slug> was removed, so there is no row to go`. A row that is `done`
+fail-safe: <slug> merged, and the door stayed shut`: the fail-safe is what ran. A question that
+holds, or a go gate, whose row was removed closes with `<slug> was removed, so there is no row to
+go`: a removed row never launches, so its door can never open. A row that is `done`
 with no merge, `left`, or still live closes nothing, since its door may still be taken up.
 
 A gate whose default is irreversible or slow to revert holds: its thread does not act, and the
