@@ -38,6 +38,7 @@ The store has one table for each record file of each project, with a `project` c
 | `capped_reads` | the machine's `capped.jsonl` | a read of which Claude instances the ledger has capped, by `jgauge limits` or the pass (`jgauge.limits.note`): its `reader`, how many `instances` and how many `capped`, and, where every one was, `ends_at`, the first reset |
 | `messages` | T3 Code's store, read only, and the `word` acts of `acts` | a message of a T3 Code thread, the user's or the assistant's, keyed by its id, or a word you said with no T3 message, keyed `word:<id>` |
 | `first_loads` | the installed crew `SKILL.md` and `jbus playbook crewmate`'s print of each playbook, read from the jstack source jbus runs from | an install's crew first load, under the project `''`, written when its `hash` is not the latest row's: `bytes`, the skill and the largest print, and in `files` the bytes of each text counted |
+| `gh_hours` | the machine's gh call log, `gh-calls.jsonl` and `gh-calls.old.jsonl` | the gh calls of one hour (UTC), caller and resource: `calls`, `not_modified` (an `http` of 304), `failed` (a `status` other than 0 with no 304) and `least`, the lowest `remaining` they gave |
 
 Each time is in UTC, written `YYYY-MM-DDTHH:MM:SS.ffffffZ`, so that text order is time order.
 Each table also has `day`, the local date of its main time in the zone that `jsettings` gives.
@@ -49,6 +50,12 @@ A user's message has a `kind`: `text`, `command`, `answer`, `resume`, or `droppe
 A word you said through the bots' chat or the view, which `jbus word` keeps as an act, is a message of yours too, of kind `text`.
 Each build writes it from the store's `acts`, at the time you said it, in the thread jbus carried it to, with `creation_source` `word:` and the act's source, such as `word:bot-chat`.
 A word recorded from your own T3 message is that message, and the message jbus carries a word in is T3 Code's, so each word is one ask.
+
+`gh_hours` keeps the gh call log past the 9 hours its two files hold: `jsettings.proc` appends a line a call to `gh-calls.jsonl` and moves it to `gh-calls.old.jsonl` at 16 MiB.
+Its `caller` is the first function of the line's `caller`, the one before ` < `, and its `resource` is empty for a line that names none; it keeps no endpoint and no line.
+Each build adds the lines past its cursor to their rows and moves the cursor in one transaction, so a line is counted once.
+Where the file the cursor names has become the old one, the build reads the rest of it and then the new file; where it is neither, both are read from their start.
+The scorecard reads it as `gh-calls-per-hour` and `gh-allowance`.
 
 No table holds the text of a message.
 A row keeps ids, times, counts and labels, and in place of each text, its length in a column that ends `_len`, such as `acts.words_len`.

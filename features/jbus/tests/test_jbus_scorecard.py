@@ -81,6 +81,7 @@ MODULES = (
     "jbus.telemetry.measures.m58_visual_misses",
     "jbus.telemetry.measures.m59_wrong_home",
     "jbus.telemetry.measures.m60_schema_files",
+    "jbus.telemetry.measures.m61_gh_calls_per_hour",
 )
 """Each measure's module by its dotted name, so a new measure is named by a test that reads it."""
 

@@ -1,4 +1,4 @@
-from jbus.telemetry.measures import Lacks, Limit, Measure
+from jbus.telemetry.measures import Limit, Measure, Sql
 
 MEASURE = Measure(
     name="gh-allowance",
@@ -6,13 +6,16 @@ MEASURE = Measure(
     says="the lowest core allowance of gh calls left in the last hour",
     unit="calls",
     better="higher",
-    source=Lacks(
-        "an hourly roll-up of gh-calls.jsonl into the store before the log rotates at 16 MB"
+    source=Sql(
+        "select min(least) as value, sum(calls) as n from gh_hours"
+        " where resource = 'core'"
+        " and hour >= substr(:begins, 1, 13) and hour <= substr(:ends, 1, 13)",
+        machine=True,
     ),
     window="hour",
-    baseline=None,
-    baseline_of="none yet: the audit counted about 10,000 calls an hour, not the allowance left",
-    kind=Limit(500, 1),
-    tier="wake",
-    audit=(36,),
+    baseline=1000,
+    baseline_of="jsettings.budget.FLOOR, the allowance jbus budget holds callers at",
+    kind=Limit(1000, 1),
+    tier="page",
+    wired="jbus budget, which holds every caller at 1,000 calls left (jsettings.budget.FLOOR)",
 )
