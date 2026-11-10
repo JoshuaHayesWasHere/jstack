@@ -87,13 +87,12 @@ def derive(half: Half) -> None:
         launched = dispatch.launched(run, slug, queue.role(row))
         found = watch.status(run, world, slug, states.of(row, launched), launched)
         said = cancelled.why(run, slug) if found["status"] == "pr" else ""
+        if found["status"] == "done" != row.get("status"):
+            closed(run, slug)
         return {**found, "why": said or watch.why(run, row, found, waits, unread)}
 
     at = jsettings.stamp(run.now)
     half.table, half.changed = queue.derive(run.state, facts, run.user.stamp(run.now), at)
-    for change in half.changed:
-        if change.columns.get("status", ("", ""))[1] == "done":
-            closed(run, change.row["slug"])
     if half.changed:
         line = f"queue {run.project.name}: the table changed"
         run.box.send("", "queue", line, queue.changes(half.changed))
@@ -106,7 +105,9 @@ def derive(half: Half) -> None:
 def closed(run: Pass, slug: str) -> None:
     """Keep the version of the brief that closed a row (`history.brief`): the home's copy, whose
     last Result names how the row ended (`jbus.outcome`), which the store reads as the row's
-    outcome (`row_outcomes`)."""
+    outcome (`row_outcomes`). `derive` calls it as it judges the row's move to done, before the
+    table is written, as its other logs are: a pass that dies between the two logs it again on
+    the next pass, and `history.brief` writes no line whose sha is the slug's last already."""
     stored = queue.brief_path(run.state, slug)
     was = stored.read_text(errors="replace") if stored.exists() else None
     if text := watch.brief_of(run, slug):
