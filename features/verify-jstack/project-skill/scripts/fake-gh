@@ -9,8 +9,9 @@
 #   logs/<id>    the log of the job whose id is <id>, which is not found when the file is not
 #   rate-limit.json  what `gh api rate_limit` gives, GitHub's API budget: a full one when it is not
 #   runs.json    the repo's workflow runs, as `gh api .../actions/runs` gives them: none when it is
-#                not. With `-i` the answer has its status and an ETag first, and with
-#                `-H 'If-None-Match: <that ETag>'` it is a 304 and nothing more, exit 1, as gh's.
+#                not
+# With `-i` an answer of `gh api` has its status and an ETag first, and with
+# `-H 'If-None-Match: <that ETag>'` it is a 304 and nothing more, exit 1, as gh's.
 # A commit asked for by its sha lists no changed files. The repo's owner is sandbox-owner, and a
 # pull request has no comment, line comment or review.
 # `gh pr edit <number> --base <branch>` bases that pull request of open.json on the branch.
@@ -28,6 +29,32 @@ arg_after() {
     fi
     shift
   done
+}
+api() {
+  case $2 in
+  rate_limit)
+    cat "$G/rate-limit.json" 2>/dev/null || {
+      full='{"limit": 5000, "used": 0, "remaining": 5000, "reset": 1791824400}'
+      printf '{"resources": {"core": %s, "graphql": %s}}\n' "$full" "$full"
+    }
+    ;;
+  'repos/{owner}/{repo}') echo '{"name": "demo", "owner": {"login": "sandbox-owner"}}' ;;
+  */issues/*/comments* | */pulls/*/comments* | */pulls/*/reviews*) echo '[]' ;;
+  */actions/runs\?*) cat "$G/runs.json" 2>/dev/null || echo '{"workflow_runs": []}' ;;
+  */check-runs)
+    sha=${2%/check-runs}
+    jq -c --arg sha "${sha##*/}" '{check_runs: (.[$sha] // [])}' "$G/checks.json"
+    ;;
+  */commits/*) echo '{"files": []}' ;;
+  */actions/jobs/*/logs)
+    job=${2%/logs}
+    cat "$G/logs/${job##*/}" 2>/dev/null || {
+      echo "gh: Not Found (HTTP 404)" >&2
+      return 1
+    }
+    ;;
+  *) cat "$G/commits.json" ;;
+  esac
 }
 case "$1 $2" in
 "pr list")
@@ -58,43 +85,18 @@ case "$1 $2" in
 "repo view") echo main ;;
 "api --paginate") ;;
 api\ *)
-  case $2 in
-  rate_limit)
-    cat "$G/rate-limit.json" 2>/dev/null || {
-      full='{"limit": 5000, "used": 0, "remaining": 5000, "reset": 1791824400}'
-      printf '{"resources": {"core": %s, "graphql": %s}}\n' "$full" "$full"
-    }
-    ;;
-  'repos/{owner}/{repo}') echo '{"name": "demo", "owner": {"login": "sandbox-owner"}}' ;;
-  */issues/*/comments* | */pulls/*/comments* | */pulls/*/reviews*) echo '[]' ;;
-  */actions/runs\?*)
-    runs=$(cat "$G/runs.json" 2>/dev/null || echo '{"workflow_runs": []}')
-    case " $* " in
-    *" -i "*)
-      etag="W/\"$(printf '%s' "$runs" | shasum -a 256 | cut -c1-40)\""
-      if [ "$(arg_after -H "$@")" = "If-None-Match: $etag" ]; then
-        printf 'HTTP/2.0 304 Not Modified\r\n\r\n'
-        echo "gh: HTTP 304" >&2
-        exit 1
-      fi
-      printf 'HTTP/2.0 200 OK\r\nEtag: %s\r\n\r\n%s\n' "$etag" "$runs"
-      ;;
-    *) echo "$runs" ;;
-    esac
-    ;;
-  */check-runs)
-    sha=${2%/check-runs}
-    jq -c --arg sha "${sha##*/}" '{check_runs: (.[$sha] // [])}' "$G/checks.json"
-    ;;
-  */commits/*) echo '{"files": []}' ;;
-  */actions/jobs/*/logs)
-    job=${2%/logs}
-    cat "$G/logs/${job##*/}" 2>/dev/null || {
-      echo "gh: Not Found (HTTP 404)" >&2
+  case " $* " in
+  *" -i "*)
+    body=$(api "$@") || exit
+    etag="W/\"$(printf '%s' "$body" | shasum -a 256 | cut -c1-40)\""
+    if [ "$(arg_after -H "$@")" = "If-None-Match: $etag" ]; then
+      printf 'HTTP/2.0 304 Not Modified\r\n\r\n'
+      echo "gh: HTTP 304" >&2
       exit 1
-    }
+    fi
+    printf 'HTTP/2.0 200 OK\r\nEtag: %s\r\n\r\n%s\n' "$etag" "$body"
     ;;
-  *) cat "$G/commits.json" ;;
+  *) api "$@" ;;
   esac
   ;;
 *) exit 64 ;;

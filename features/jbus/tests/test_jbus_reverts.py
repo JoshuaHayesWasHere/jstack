@@ -602,8 +602,8 @@ def test_macos_asks_github_nothing_where_the_default_branch_has_no_macos_yml(kit
         assert said == [] and not (kitchen.state / reverts.MAC_MAIN).exists()
         return
     tip = json.loads((kitchen.stub / "commits.json").read_text())[0]["sha"]
-    assert said[0] == f"api repos/{{owner}}/{{repo}}/commits?sha={tip}&per_page=50"
-    assert f"api repos/{{owner}}/{{repo}}/actions/runs?head_sha={red}&per_page=100" in said
+    assert said[0] == f"api repos/{{owner}}/{{repo}}/commits?sha={tip}&per_page=50 -i"
+    assert f"api repos/{{owner}}/{{repo}}/actions/runs?head_sha={red}&per_page=100 -i" in said
     assert mac_state(kitchen)["red"] == red
 
 

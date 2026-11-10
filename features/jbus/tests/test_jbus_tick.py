@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 
 import jbus
-from jbus import alert, budget, launchd, merge, restated, states, tick, verbs, work
+from jbus import alert, budget, conditional, launchd, merge, restated, states, tick, verbs, work
 from jmerge import ready
 from test_jbus_kitchen import NOW, Kitchen, rate_limit
 from test_jbus_merge import LOCKING, held
@@ -160,11 +160,11 @@ def test_a_304_to_the_ticks_conditional_read_is_not_counted_against_the_budget(w
         assert ticks(watched) == []
     since = NOW - timedelta(days=3650)
     lines = budget.callers(watched.state_dir, since).splitlines()
-    tick_lines = [line.split() for line in lines if "jbus.tick._asked" in line]
+    tick_lines = [line.split() for line in lines if "< jbus.tick." in line]
     assert tick_lines == [
-        ["1", "jbus.tick._asked", "<", "jbus.tick._read", "(0", "failed)"],
-        ["1", "jbus.tick._asked", "<", "jbus.tick._suites", "(0", "failed)"],
-        ["3", "jbus.tick._asked", "<", "jbus.tick._read"],
+        ["1", "jbus.conditional.ask", "<", "jbus.tick._read", "(0", "failed)"],
+        ["1", "jbus.conditional.ask", "<", "jbus.tick._suites", "(0", "failed)"],
+        ["3", "jbus.conditional.ask", "<", "jbus.tick._read"],
     ]
     assert "and 3 answered 304, which spend nothing:" in lines
 
@@ -900,7 +900,7 @@ def test_a_check_that_ends_reaches_its_line_before_the_other_reads_answer(ten_pe
     )
     ten_pending.set("jmerge.txt", f"wait 7 {PULL}: {ready.CHECK_FAILED.format(check='check')}\n")
     others = {tick.CHECK_RUNS % n for n in NINE}
-    written, asked_of, until = {}, tick._asked, time.monotonic() + 3
+    written, asked_of, until = {}, conditional.ask, time.monotonic() + 3
 
     def held(run, path, etag=""):
         if path in others:
@@ -909,7 +909,7 @@ def test_a_check_that_ends_reaches_its_line_before_the_other_reads_answer(ten_pe
             written[path] = line(ten_pending)["why"] == FAILED
         return asked_of(run, path, etag)
 
-    monkeypatch.setattr(tick, "_asked", held)
+    monkeypatch.setattr(conditional, "ask", held)
     said = ticks(ten_pending)
     assert "tick demo: a check ended, and alpha's line says so" in said
     assert written == dict.fromkeys(others, True)
@@ -924,7 +924,7 @@ def test_reads_of_one_pull_request_are_at_most_every_plus_1_s_apart_with_10_pend
     #7's reads are at most `EVERY` plus 1 s apart. `EVERY` is short here, since the 1 s is the
     tick's own part."""
     monkeypatch.setattr(tick, "EVERY", 1)
-    read, asked_of = [], tick._asked
+    read, asked_of = [], conditional.ask
 
     def slow(run, path, etag=""):
         time.sleep(0.4)
@@ -932,7 +932,7 @@ def test_reads_of_one_pull_request_are_at_most_every_plus_1_s_apart_with_10_pend
             read.append(time.monotonic())
         return asked_of(run, path, etag)
 
-    monkeypatch.setattr(tick, "_asked", slow)
+    monkeypatch.setattr(conditional, "ask", slow)
     for _ in range(3):
         started = time.monotonic()
         assert ticks(ten_pending) == []
