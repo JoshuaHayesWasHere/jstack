@@ -253,6 +253,13 @@ def test_no_record_is_its_own_reason_and_not_counted_as_unexplained():
         ("wait: its base is release/macos, not main", "", "base is not main"),
         ("wait: the merge failed: GitHub said 405", "", "merge call failed"),
         ("wait: GitHub has not decided whether it merges", "", "GitHub merge"),
+        ("max_running is 1 across all projects", "", "slot cap"),
+        ("max_per_home is 2 in jstack polish", "", "slot cap"),
+        ("max_per_project is 3 in jstack", "", "slot cap"),
+        ("a gate held back while every slot is taken: po-go-setting", "", "slot cap"),
+        ("waiting for room on the machine", "", "no room"),
+        ("waiting: /tmp at 81% of its quota", "", "no room"),
+        ("no launch: load 30.1 is at or over 85% of 24 cores", "", "no room"),
     ],
 )
 def test_why_a_row_waits_names_its_class(why, checks, named):

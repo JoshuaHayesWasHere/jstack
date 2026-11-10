@@ -11,10 +11,10 @@ Each pass rewrites the list. An item is one thing only the user can do,
   says. When jbus holds a gate from a
   `gates.md` as a question, open or closed, the item is that question, and this module skips the
   copy of the gate in the file;
-- `row`: a row of the queue at `gate` that has no open pull request, with its `slug`. The line is
-  the condition that jbus recorded for the row. jbus records a condition about a pull request once,
-  for the pull request's crew or for the message to that crew, and the row is at `gate` for that one
-  pass;
+- `row`: a row of the queue at `gate` or `pr` for which this pass recorded a condition, with its
+  `slug`. The line is that condition. A row whose open pull request `jmerge` holds is left out,
+  since the `hold` is already its item. jbus records a condition about a pull request once, for the
+  pull request's crew or for the message to that crew, so the row is listed for that one pass;
 - `left`: a row whose thread ended with a Result that leaves something, with its `slug`. The line is
   the row's `why`. The row stays one item until the Result leaves nothing or the row is gone. A row
   that merged with something left is listed while its thread is not at work, starting with the pass
@@ -290,10 +290,11 @@ def unapproved(run: Pass, rows: list[queue.Row]) -> list[Item]:
     return found
 
 
-def gated(run: Pass, world: World, rows: list[queue.Row]) -> list[Item]:
-    """Return the rows at `gate` that have no open pull request and for which this pass recorded a
-    condition. When a reply from T3 Code is lost, a row stays at `gate` for one pass with no
-    condition recorded, and that row asks nothing of the user."""
+def gated(run: Pass, world: World, rows: list[queue.Row], holding: set[Any]) -> list[Item]:
+    """Return the rows at `gate` or `pr` for which this pass recorded a condition. A row whose open
+    pull request `jmerge` holds (`holding`, the numbers of the holds) is left out, since that hold
+    is already its item. When a reply from T3 Code is lost, a row stays at `gate` for one pass
+    with no condition recorded, and that row asks nothing of the user."""
     return [
         {
             "kind": "row",
@@ -302,8 +303,8 @@ def gated(run: Pass, world: World, rows: list[queue.Row]) -> list[Item]:
             "slug": row["slug"],
         }
         for row in sorted(rows, key=queue.order)
-        if row.get("status") == "gate" and row["slug"] in run.asked
-        if row["slug"] not in world.open
+        if row.get("status") in ("gate", "pr") and row["slug"] in run.asked
+        if world.open.get(row["slug"], {}).get("number") not in holding
     ]
 
 
@@ -417,6 +418,7 @@ def keep(
         found = gates(run.home, asked, run.removed, questions.waits(run.state, run.user))
     except questions.Unparsable:
         found = had("gate")
+    kept = holds(run, world, pulls, had("hold"))
     if rows is not None and world is not None and derived:
         waits = {row["slug"] for row in rows if row.get("status") in ("queued", "gate")}
 
@@ -425,12 +427,15 @@ def keep(
             full = slug in run.held or isinstance(run.reasons.get(slug), Slot)
             return slug in waits and slug not in run.asked and (unread or full)
 
-        found += gated(run, world, rows) + [one for one in had("row") if unjudged(one["slug"])]
+        holding = {one["number"] for one in kept}
+        found += gated(run, world, rows, holding) + [
+            one for one in had("row") if unjudged(one["slug"])
+        ]
         found += left(run, world, rows)
     else:
         found += had("row") + had("left")
     found += unapproved(run, rows) if rows is not None else had("approve")
-    found += holds(run, world, pulls, had("hold"))
+    found += kept
     found += held(run.state)
     found += stalls.stalled(run.state)
     found += t3build.behind(run)

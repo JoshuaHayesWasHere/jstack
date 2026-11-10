@@ -518,11 +518,15 @@ def checks(pull: dict[str, Any]) -> str:
 
 
 def ran(run: Pass, world: World, repo: str, number: str) -> dict:
-    """Return what `never_started` and `rebase.ran_and_failed` read of a job: `steps`, which is
-    `[]` where the job ran no step, and `run_attempt`. A completed job's steps and attempt never
-    change (a rerun is a new job id), so `ran` keeps them by repo and job id in the project's
-    `JOBS`, the last `KEPT_JOBS` of them, and asks GitHub for a job id it keeps no more. A job
-    that is not completed is not kept, and is given as GitHub gives it, or {}."""
+    """Return what `never_started`, `rebase.ran_and_failed` and `jbus.stall.infra` read of a job:
+    `steps`, which is `[]` where the job ran no step, `run_attempt`, and `failed_step`, the name of
+    its first step that failed (`collect.failed_step`), or nothing. A completed job's steps and
+    attempt never change (a rerun is a new job id), so `ran` keeps them by repo and job id in the
+    project's `JOBS`, the last `KEPT_JOBS` of them, and asks GitHub for a job id it keeps no more.
+    A job kept before `failed_step` was gives none. A job that is not completed is not kept, and
+    is given as GitHub gives it, or {}, with its `failed_step`."""
+    from jbus.ci.collect import failed_step
+
     if world.jobs is None:
         world.jobs = read_json(run.state / JOBS, {})
     key = f"{repo}/{number}"
@@ -530,12 +534,20 @@ def ran(run: Pass, world: World, repo: str, number: str) -> dict:
     if kept is None:
         given = job(run, repo, number)
         if given.get("status") != "completed":
-            return given
-        kept = {"steps_empty": given.get("steps") == [], "run_attempt": given.get("run_attempt")}
+            return {**given, "failed_step": failed_step(given) or ""}
+        kept = {
+            "steps_empty": given.get("steps") == [],
+            "run_attempt": given.get("run_attempt"),
+            "failed_step": failed_step(given) or "",
+        }
         world.jobs[key] = kept
         world.jobs = dict(list(world.jobs.items())[-KEPT_JOBS:])
         write_json(run.state / JOBS, world.jobs)
-    return {"steps": [] if kept["steps_empty"] else None, "run_attempt": kept["run_attempt"]}
+    return {
+        "steps": [] if kept["steps_empty"] else None,
+        "run_attempt": kept["run_attempt"],
+        "failed_step": kept.get("failed_step", ""),
+    }
 
 
 def job(run: Pass, repo: str, number: str) -> dict:
@@ -1125,23 +1137,25 @@ def why(run: Pass, row: dict[str, Any], found: dict[str, str], waits: Waits, unr
     """Return why a row waits, or nothing. `found` is its derived columns, as `status` gave them.
 
     A held row whose check failed at two heads waits for `TWICE` (`jbus.stall.twice`). A row with
-    a pull request waits for what `jmerge` says of it. A row that was not launched waits
-    for what `dispatch` recorded (`Pass.reasons`), or for its approval. Where `dispatch` read no
-    row, it recorded nothing, and an approved row waits for what is `unread`: dispatch that is off,
-    or the stop file. A pass that is `UNREAD` says nothing of the row, so the row's stored reason
-    stays, unless the row has got its approval since. The same holds for a pass in which `jmerge`
-    failed and printed no line for the pull request. A row that ended, or that merged with work left
-    for after it, takes its reason from `status`.
+    a pull request waits for what `jmerge` says of it, after the question this pass asked of it
+    (`Pass.asked`) where there is one, as in the pass that holds it for `TWICE`. A row that was not
+    launched waits for what `dispatch` recorded (`Pass.reasons`), or for its approval. Where
+    `dispatch` read no row, it recorded nothing, and an approved row waits for what is `unread`:
+    dispatch that is off, or the stop file. A pass that is `UNREAD` says nothing of the row, so
+    the row's stored reason stays, unless the row has got its approval since. The same holds for a
+    pass in which `jmerge` failed and printed no line for the pull request. A row that ended, or
+    that merged with work left for after it, takes its reason from `status`.
     """
     if found.get("why"):
         return found["why"]
-    if row.get("held") and failed_twice(run, row["slug"]):
+    asked = run.asked.get(row["slug"], "") if found["status"] == "pr" else ""
+    if row.get("held") and failed_twice(run, row["slug"]) and not asked:
         return TWICE
     if found["status"] == "pr":
         said = waits.said.get(found["pr"].removeprefix("#"))
         if said is None and waits.failed and row.get("status") == "pr":
             return row.get("why", "")
-        return said or ""
+        return "; ".join(one for one in (asked, said) if one)
     if found["status"] not in ("queued", "gate"):
         return ""
     match run.reasons.get(row["slug"]):

@@ -33,7 +33,10 @@ Every block below is sh, and its last line makes zsh read them so: without it zs
 
 `$T` is the `templates/` directory of the repo this skill lives in. Each template there is the one copy of its text: read it when a step names it, not before.
 
-A repo has one root home, and may have scoped homes beside it, each for one goal. A scope is a directory under `$H` that holds a `plan.md`, and never `tasks`, `scouts`, `reports` or `log`. `$M` is this home's own directory: `$H` for the root home, `$H/<scope>` for a scoped one. **The block that finds this home** sets it, from the one `home-id` that holds this thread's id:
+A repo has one root home, and may have scoped homes beside it, each for one goal.
+A scope is a directory under `$H` that holds a `plan.md`, and never `asked`, `tasks`, `scouts`, `reports` or `log`.
+`$M` is this home's own directory: `$H` for the root home, `$H/<scope>` for a scoped one.
+**The block that finds this home** sets it, from the one `home-id` that holds this thread's id:
 
 ```sh
 ME='<threadId>'
@@ -164,6 +167,9 @@ Planning is a conversation with the user. Its result goes in `plan.md`, not in t
 When the shape of the work is not settled (more than one task, or a design choice the user has not made), plan by the grilling skill: read `$T/../skills/grilling/SKILL.md` and work its rounds before writing an entry. A single task the user has already described in full needs no round.
 
 - One entry per task. A task is one pull request's worth of work. If it is larger, split it before anything starts.
+  `jbus queue add` warns of a brief whose **Done when** list has 5 or more items (``warning: <slug>'s brief's Done when: lists <n> items``), since such a brief took a second review round about twice as often as one of 1 or 2.
+  On it, split the row: one brief per pull request's worth, the rest on a brief with a `Follows: <slug>` line or queued with `--depends`.
+  Never join two items into one line to get under 5: that keeps the size and hides it.
 - Every entry has a **Done when** list: checks a person or a command can run. It is the stopping rule. Without one, do not start.
 - A UI change's **Done when** asks for a check a command runs, a test or a live read of the data the UI draws, at the real Safari viewport (iPhone landscape about 844x300, portrait about 390x664, which Categories' `~/categories-playtest/lib.mjs` exports as `SAFARI`), and for a probe that fails on main, the old code, before it passes on the branch.
   A shot is evidence in the Result, never a **Done when** line: `jbus queue add` refuses a **Done when** item that asks for a screenshot, a shot or a recording as proof.

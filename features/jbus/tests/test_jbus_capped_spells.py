@@ -1,18 +1,22 @@
-"""The capped minutes KPI: each read of which instances are capped is a line of a log, and the KPI
-page sums the minutes in which every instance was capped from those lines.
+"""The capped minutes: each read of which instances are capped is a line of a log, the KPI page sums
+the minutes in which every instance was capped from those lines, and the store's
+`jbus.telemetry.views.weekly_capped_any` the minutes in which one or more was.
 
 `jgauge limits` and jbus's pass each read the ledger and append the read
 (`jgauge.limits.note`). The tests run the real `jgauge limits` reader against a stand-in for the
-usage endpoint, and the pass's own chore, then build the store with the real `jbus telemetry` and
-read the page `jbus kpis` makes, as its reader does.
+usage endpoint, and the pass's own chore, then build the store with the real `jbus telemetry`, whose
+`jbus.telemetry.machine` makes a row of each read, and read the page `jbus kpis` makes, as its
+reader does.
 """
 
+import contextlib
 import json
 from datetime import timedelta
 
 import pytest
 
 from jbus import kpis as pass_kpis
+from jbus.telemetry.views import capped_any_spells
 from jgauge import limits
 from test_jbus_kpi_page import Cells, run
 from test_jbus_telemetry import NOW, Machine
@@ -161,3 +165,26 @@ def test_with_no_read_yet_neither_week_is_covered(machine):
     row = cells(machine)
 
     assert row[5] == "n/a n 0 not covered: the reads of which instances are capped have no line yet"
+
+
+def weekly(machine, view):
+    """Each week's capped minutes in the store's `view`, as a reader of the store reads them."""
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        return dict(store.execute(f"SELECT week, minutes FROM {view} WHERE project = ''"))
+
+
+def test_a_read_with_one_account_capped_holds_at_most_5_minutes_up_to_a_read_an_hour_on(machine):
+    machine.accounts.read(NOW, main=100, prime=40)
+    machine.accounts.read(NOW + timedelta(hours=1), main=5, prime=40)
+
+    assert weekly(machine, "weekly_capped_any") == {"2026-10-25": capped_any_spells.HOLD}
+
+
+def test_reads_2_minutes_apart_with_one_account_capped_count_each_minute_once(machine):
+    for read in range(30):
+        machine.accounts.read(NOW + timedelta(minutes=2 * read), main=100, prime=40)
+    machine.accounts.read(NOW + timedelta(hours=1), main=5, prime=40)
+
+    assert weekly(machine, "weekly_capped_any") == {"2026-10-25": 60}
+    assert weekly(machine, "weekly_capped") == {"2026-10-25": 0}

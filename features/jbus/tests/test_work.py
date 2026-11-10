@@ -11,15 +11,20 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import passes, queue, restated, states, tick, verbs, waiting, work
+from jbus import needs, passes, queue, restated, states, tick, verbs, waiting, watch, work
 from jmerge import ready
+from test_jbus_github import launched
+from test_jbus_github import passes as polls
 from test_jbus_kitchen import ASK, NOW, REPO, SAID_AT, Kitchen, iso
 from test_jbus_queue import add, adds, approves, batch, brief, go, rows, sha12, widened
 from test_jbus_row_ends import branched
+from test_jbus_twice import A, B, red_at
 
 PULL = "https://example.test/pull/9"
 AT = "2026-10-12 10:00 ET"
 TYPED_AT = "2026-10-12 10:58 ET"
+
+__all__ = ["launched"]
 
 
 def result(left="none", status="done", branch="alpha   Pull request: none"):
@@ -94,9 +99,48 @@ def test_a_row_that_is_over_stays_over_while_a_question_is_open_on_it():
     assert [work.status(state) for state in (merged, done, open_, unwritten)] == [
         "merged",
         "done",
-        "gate",
+        "pr",
         "gate",
     ]
+
+
+@pytest.mark.parametrize("pull", sorted(work.OPEN))
+def test_a_question_keeps_pr_on_a_row_whose_pull_request_is_open(pull):
+    """A question on a row with an open pull request moved the row from `pr` to `gate` 30 times in
+    72 hours, and hid the pull request. The row stays `pr`, and a row with no open pull request is
+    still at its gate."""
+
+    def status(pull):
+        made = work.Facts(
+            work.Row.FREE,
+            work.Thread.COMPLETED,
+            work.Launch.LAUNCHED,
+            work.Written.NONE,
+            pull,
+            work.Question.OPEN,
+            work.Answered.BOTH,
+        )
+        return work.status(work.judge(made))
+
+    assert (status(pull), status(work.Pull.NONE)) == ("pr", "gate")
+
+
+def test_a_question_keeps_pr_and_leads_the_why_and_the_user_sees_it_once(launched):
+    """The pass that holds a row whose check failed at two heads asks of it (`stall.twice`), with
+    its pull request open. The row stays `pr`, its why says the question and then what jmerge says,
+    and the user's list has one item for it: jmerge's hold of its pull request."""
+    held = f"hold 7 https://example.test/pull/7: {ready.NO_GO}"
+    launched.set("jmerge.txt", held + "\n")
+    red_at(launched, A, "11")
+    polls(launched, 0)
+    red_at(launched, B, "12")
+    polls(launched, 3)
+    row = rows(launched)["alpha"]
+    assert (row["status"], row["held"]) == ("pr", True)
+    assert row["why"] == f"{watch.TWICE}; hold: {ready.NO_GO}"
+    listed = jbus.read_json(launched.state / waiting.NAME, [])
+    run = passes.Pass(jbus.load(), jbus.load().project("demo"), NOW)
+    assert [one["line"] for one in listed if needs._slug(run, one) == "alpha"] == [held]
 
 
 def test_merged(kitchen):
@@ -316,6 +360,31 @@ def test_a_pull_request_held_for_an_accept_waits_on_the_users_accept(kitchen):
     assert (line["value"], line["who"], line["lift"]) == ("hold", "user", "accept")
     assert line["waits"] == "your accept of #9 (jmerge --accept 9)"
     assert "touches infra/prod.tf" in line["why"]
+
+
+@pytest.mark.parametrize("word", ["wait", "hold"])
+def test_a_question_asked_of_a_row_whose_pull_request_is_open_is_on_the_list_once(kitchen, word):
+    """A lost launch reply is a question on a row whose pull request is open. While `jmerge` only
+    waits on the pull request, the question is the row's one item; while `jmerge` holds it, the
+    hold is its one item."""
+    add(kitchen, "alpha")
+    kitchen.t3.status = 503
+    kitchen.poll()
+    kitchen.t3.status = 200
+    kitchen.brief("alpha", result(branch=f"alpha   Pull request: {PULL}"))
+    kitchen.set("open.json", [kitchen.opened("alpha", 9)])
+    reason = ready.NO_REVIEW if word == "wait" else ready.TOUCHES.format(user="u", path="x.tf")
+    kitchen.set("jmerge.txt", f"{word} 9 {PULL}: {reason}\n")
+    kitchen.poll(NOW + timedelta(minutes=3))
+    asked = "launch reply lost, 0 matching threads"
+    listed = jbus.read_json(kitchen.state / waiting.NAME, [])
+    mine = [one for one in listed if one.get("slug") == "alpha" or one.get("number") == 9]
+    if word == "wait":
+        assert [(one["key"], one["line"]) for one in mine] == [
+            ("row:alpha", f"{waiting.CONDITION} alpha: {asked}")
+        ]
+    else:
+        assert [one["key"] for one in mine] == ["#9"]
 
 
 def test_a_pass_that_could_not_ask(kitchen):
@@ -698,10 +767,10 @@ def test_a_ticks_verdict_shows_before_any_pass_and_the_next_pass_keeps_it(kitche
     assert said(kitchen) == ("merged", True)
 
 
-def test_a_check_that_ends_on_github_reaches_its_rows_line_on_the_next_2_s_tick(kitchen):
+def test_a_check_that_ends_on_github_reaches_its_rows_line_on_the_next_10_s_tick(kitchen):
     """The pass saw #9's check going, and `jmerge` waited on it. GitHub's check then passes: its
     job is among the head's check runs, and `jmerge` moves #9 on to review. The next tick, at
-    most 2 s later (`jbus-merge.timer`), restates the row's line, with no pass between."""
+    most 10 s later (`jbus-merge.timer`), restates the row's line, with no pass between."""
     on_review(kitchen)
     going = ready.NOT_PASSED.format(check="check")
     kitchen.set("jmerge.txt", f"wait 9 {PULL}: {going}\n")
@@ -714,7 +783,7 @@ def test_a_check_that_ends_on_github_reaches_its_rows_line_on_the_next_2_s_tick(
     timer = configparser.ConfigParser(interpolation=None)
     timer.optionxform = str
     timer.read(REPO / "features" / "jbus" / "units" / "jbus-merge.timer")
-    assert timer["Timer"]["OnUnitActiveSec"] == "2s"
+    assert timer["Timer"]["OnUnitActiveSec"] == "10s"
 
 
 def test_a_ticks_stacked_verdict_shows_its_parent_as_the_holder_before_any_pass(kitchen):

@@ -209,10 +209,9 @@ THE_PROOF_ENDS_HERE
   The call waits on the proof for up to 9 minutes, and a proof holds the short lane for 2 minutes at most, so one call usually has its `exit` line.
   On `running`, send the block again, in this turn, as many times as it takes, until it prints `exit`.
 - **Never end your turn while your own proof waits or runs, and never say you will go on once it finishes**: nothing wakes a reviewer when a command ends, only a message does, and the Review would never be written. A proof an earlier call or an earlier turn started is joined (`joined`), not started again, and one that ended after the last call gives what it said (`checked`). A proof sent again after it gave its answer runs afresh, so fix `$D/proof.sh` and send the block again. On `stale`, the proof ran for a command that has changed since and is no proof: send the block again.
-- The one time the turn ends is when the block prints `waiting` and ends 76: with `--thread` the proof waits in the call for a short slot for up to the lane's time limit and no longer, so with every slot of the lane still taken it registers this thread as a waiter, writes one line saying so into `$D/proof.out`, and nothing runs.
-  End your turn with one line, `Waiting on a test slot: jbus will wake this thread when one is free.`, and send the block again when jbus wakes you with its one message.
-  Never poll for a slot, and never end the turn with nothing said.
-  On a machine with no jbus nothing wakes a waiter: leave `--thread <thread id>` off, and the proof waits for its slot in place, on `running`.
+- With `--thread` the proof waits for a short slot in its own run, in the order the calls came, for up to 5 minutes, and registers nothing: jbus wakes no reviewer for a short slot.
+  With every slot of the lane still taken by then nothing ran, `$D/proof.out` says so, and the block prints `waiting` and ends 76: send the block again at once, in this turn.
+  Never end the turn on that 76.
   A proof still running at the short lane's time limit (`jgauge test-slot --help` gives it) is stopped, exit 124, and `$D/proof.out` says so: it proved nothing, so make it smaller, a single test, and send the block again.
   Never take the `--short` off to get past the limit.
   An `exit 76` or `waiting` proved nothing either.

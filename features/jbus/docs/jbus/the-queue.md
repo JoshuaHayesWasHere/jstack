@@ -213,11 +213,16 @@ jbus holds a row itself when its pull request fails a required check at two head
 Each head counts once, a push or GitHub's merge of main alike, and a required check is one the home's `required-checks` names.
 A head whose check ran on main's red tip, the `broken` tip of `main.json`, is not counted: main failed there, not the row.
 A head whose failed tests each failed on two other branches in `jbus ci`'s window, its flake rule (`jbus.reverts.flaky`), is not counted either: the red is shared, not the row's.
-At the second head jbus runs the same `hold` as `jbus queue hold <slug>`, and pages the Chef once, with the gate `condition <slug>: check failed twice`, whose text names the row, the pull request, both heads and the failed jobs at each.
+Nor is a head at which each failed job failed at a step whose log names no failed test and no make target, such as a package's download: that step ran nothing of the row's.
+jbus asks GitHub for a job's failed step once, and keeps it with the job.
+At the second head jbus runs the same `hold` as `jbus queue hold <slug>`, keeping the go it takes, and pages the Chef once, with the gate `condition <slug>: check failed twice`, whose text names the row, the pull request, both heads and the failed jobs at each.
 The row's `why` says `check failed twice` while it is held.
 A held row's crewmate gets no rebase and no fix message from jbus, at the second head or a third, any held row alike (`jbus.outbox.FIXES`); your answers, its review's findings and its wakes still reach it.
-The hold is lifted as any hold is, with `jbus queue approve`, and the count then starts again from none.
-The heads are kept in `fails.json` in the project's state.
+jbus lifts the hold itself in the pass that sees every required check passed at the pull request's head: the row gets back the go the hold took, with no approve from anyone.
+It does so only where the row's brief is still the one that go was for, by its sha, and the hold is still its own: a row held again since, by anyone, or whose brief changed since, stays held.
+Such a row is lifted as any hold is, with `jbus queue approve`.
+Either way, the count then starts again from none.
+The heads are kept in `fails.json` in the project's state, the counted ones apart from those of a red main, a shared flake and an infra step.
 
 An approval names its brief.
 `--sha` is required with a basis of your word, and it is the first 12 characters of the sha256 of the brief you were shown.
@@ -417,13 +422,13 @@ Nothing is pushed: the bot has no endpoint, and you want no webhook alarms.
 ### What an approval is bound to
 
 A go is bound to the goal, the scope and the done-when of the brief, and to nothing else.
-A typo fixed, a line re-wrapped, or an edit to `Skills`, `Decisions`, `Design`, `Proves it`, `Review`, `Playbook`, `Pull request` or a note keeps the go.
+A typo fixed, a line re-wrapped, or an edit to `Skills`, `Decisions`, `Asked`, `Design`, `Proves it`, `Review`, `Playbook`, `Pull request` or a note keeps the go.
 A change to the title, the `Task`, `Done when`, `Where`, `Do not touch` or `Size` asks you again.
 `approve` records the brief's meaning fingerprint (`features/jbriefs/src/jbriefs/meaning.py`), and a later brief keeps the go when its fingerprint is the same.
 It is deterministic and asks no model.
 
 The fingerprint reads six fields (`MEANING` in `features/jbriefs/src/jbriefs/meaning.py`): the title, `Task` (the goal), `Done when`, `Where`, `Do not touch` and `Size`.
-It leaves out every other (`NOT_MEANING`): `Skills`, `Decisions`, `Design`, `Proves it`, `Review`, `Playbook`, `Pull request`, `Holds`, `Builds on`, `Read`, `Instruments`, `Change`, `Rests on`, `Sources`, `Ruled out`, `Home` and `Thread`, a field the template does not name, and anything under a `## ` in the brief.
+It leaves out every other (`NOT_MEANING`): `Skills`, `Decisions`, `Asked`, `Design`, `Proves it`, `Review`, `Playbook`, `Pull request`, `Holds`, `Builds on`, `Read`, `Instruments`, `Change`, `Rests on`, `Ruled out`, `Home` and `Thread`, a field the template does not name, and anything under a `## ` in the brief.
 These say how the work is done or who runs it, not what it is for.
 A field starts at a line `<Label>: ` of the head, and runs to the next one.
 The fingerprint normalises each field in these steps:

@@ -4,8 +4,8 @@
 Each probe is run on a tree that keeps its word and on one that breaks it. A probe that raises is
 `unrun`, never `held`, and keeps the name of what it raised and no word of its message. A run
 appends one line a probe to `drift.jsonl`, all under one `at`, and a pass runs the probes at most
-once a day of the user's. The real `jbus telemetry` keeps the lines, and the real `jbus kpis`
-shows the week's last run on the page.
+once a day of the user's. The real `jbus telemetry` keeps the lines (`jbus.telemetry.machine`), and
+the real `jbus kpis` shows the week's last run on the page.
 """
 
 import json

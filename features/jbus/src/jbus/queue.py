@@ -4,8 +4,8 @@ A row has two kinds of column, and each kind has one writer. Only the verbs here
 columns: `add`, `approve`, `hold` and `remove`. Only a pass writes the derived columns, using what
 T3 Code and GitHub say (`derive`), and no verb takes a derived column as input. Two derived columns
 are a pair: `why` is the reason a row waits, and `since` is when that reason first held. jbus also
-keeps each change of a row's status as one line of `transitions.jsonl` beside the table, and only
-ever appends to that file.
+keeps each change of a row's status as one line of `transitions.jsonl` beside the table, and
+each change of its `why` as one line of `waits.jsonl`, and only ever appends to those files.
 
 When a row is first queued, `add` refuses a brief that a launch would refuse
 (`jbriefs.parse.faults`), so nobody asks the user for a go on a brief that cannot launch. It also
@@ -181,6 +181,58 @@ STATUSES = (
     "done",
     "left",
 )
+_QUESTION_CLOSED = "the question on the row closes, and the row's"
+MOVES: dict[tuple[str, str], str] = {
+    ("queued", "launched"): "a launch record names a thread for the row",
+    ("queued", "gate"): "jbus opens a question on the row",
+    ("queued", "removed"): "the `remove` verb takes the row out",
+    ("gate", "queued"): f"{_QUESTION_CLOSED} launch has no record",
+    ("gate", "launched"): f"{_QUESTION_CLOSED} launch has no thread yet",
+    ("gate", "pr"): f"{_QUESTION_CLOSED} pull request is open",
+    ("gate", "done"): f"{_QUESTION_CLOSED} Result says done",
+    ("gate", "merged"): f"{_QUESTION_CLOSED} pull request merged",
+    ("launched", "running"): "T3 Code lists the thread at work",
+    ("launched", "failed"): "the thread fails before a pass sees it at work",
+    ("launched", "left"): "the thread ends with work left before a pass sees it at work",
+    ("launched", "done"): "the thread ends with a clean Result before a pass sees it at work",
+    ("failed", "running"): "the failed thread works again",
+    ("failed", "left"): "the failed thread leaves its work to its home",
+    ("failed", "done"): "a Result says done after the thread failed",
+    ("running", "pr"): "a pull request opens",
+    ("running", "left"): "the Result leaves work, or the pull request closes",
+    ("running", "done"): "the thread ends with a clean Result and no pull request",
+    ("running", "waiting"): "the thread asks for an answer to its request",
+    ("running", "stale"): "the turn hangs, or the thread ends with nothing written",
+    ("running", "failed"): "the thread fails",
+    ("running", "merged"): "the pull request opens and merges between two passes",
+    ("waiting", "running"): "the request is answered and the thread works again",
+    ("waiting", "left"): "the thread ends after its request with work left",
+    ("waiting", "failed"): "the thread fails while it waits",
+    ("stale", "running"): "the thread works again",
+    ("stale", "left"): "the thread stays quiet with nothing written for long enough, or "
+    "writes a leftover",
+    ("left", "pr"): "a pull request opens for what was left",
+    ("left", "done"): "a follow-up Result says done",
+    ("left", "running"): "the thread works again on what was left",
+    ("left", "waiting"): "the thread asks for an answer again",
+    ("left", "launched"): "the row is launched again for what was left",
+    ("left", "removed"): "the `remove` verb takes the row out",
+    ("pr", "merged"): "the pull request merges",
+    ("pr", "gate"): "jbus opens a question on the row",
+    ("pr", "left"): "the pull request closes unmerged",
+    ("pr", "done"): "the pull request leaves the open list, and the Result says done and owes none",
+    ("pr", "removed"): "the `remove` verb takes the row out",
+}
+"""Every move of a row's status that the work makes, one entry each: from a status, to a status
+(or `removed`, the line `remove` writes), with the one change of facts that makes it. No verb
+moves a row: each pass works the status out again from the facts (`work.status`), so the table
+cannot drive a row as `item.MOVES` drives an item. It judges a move after the facts made it:
+`derive` marks each line of `transitions.jsonl` whose move it does not hold, and writes the
+status all the same, since the status is what the facts say. A final row that leaves `merged`
+or `done`, a Result that says done before its pull request opens, and a pull request read in
+neither of GitHub's lists for one pass are the faults the table leaves out. `derive` never
+judges a move to `removed`: those entries name the removals the work was seen to make.
+`features/jbus/docs/jbus/row-moves.md` lists it."""
 FINAL = judgement.FINAL
 UNLAUNCHED = ("queued", "gate")
 LIVE = (*UNLAUNCHED, "launched", "running", "waiting", "pr")
@@ -264,6 +316,10 @@ def path(state: Path) -> Path:
 
 def transitions_path(state: Path) -> Path:
     return state / "transitions.jsonl"
+
+
+def waits_path(state: Path) -> Path:
+    return state / "waits.jsonl"
 
 
 def brief_path(state: Path, slug: str) -> Path:
@@ -851,6 +907,18 @@ class Approve:
 
 @dataclass(frozen=True)
 class Hold:
+    """`Hold` takes the row's go back. With `keep`, the hold keeps the go it took (`TOOK`), so
+    `Lift` can put that go back."""
+
+    slug: str
+    keep: bool = False
+
+
+@dataclass(frozen=True)
+class Lift:
+    """`Lift` ends a hold that kept the go it took (`Hold.keep`) and puts that go back, where the
+    row's brief is still the one the go was for."""
+
     slug: str
 
 
@@ -885,7 +953,7 @@ class Rename:
     by: str
 
 
-Verb = Add | Approve | Hold | Remove | Withdraw | Rename
+Verb = Add | Approve | Hold | Lift | Remove | Withdraw | Rename
 EntryGo = Callable[[str, str], Said | None]
 
 
@@ -1214,6 +1282,36 @@ def _hold(row: Row, by: dict[str, Any] | None = None) -> None:
     row.pop("hold", None)
     if by:
         row["hold"] = by
+
+
+TOOK = "took"
+"""The key of a row's `hold` under which a hold that keeps its go (`Hold.keep`) keeps the go it
+took: the row's `approved`, `approval` and `brief_sha` as they were. A later hold, by anyone,
+writes a `hold` of its own, so a row held again since keeps nothing `Lift` can put back."""
+GO_COLUMNS = ("approved", "approval", "brief_sha")
+"""The columns of a row's go, which a hold takes."""
+
+
+def _lift(batch: _Batch, slug: str) -> str:
+    """Put back the go a hold kept (`TOOK`) and end the hold, and return the line that says so.
+    Refuse a row that is not held or whose hold kept no go, and one whose stored brief is not the
+    one that go was for, by its sha: each stays held until it is approved again."""
+    row = batch.row(slug)
+    took = (row.get("hold") or {}).get(TOOK) if row.get("held") else None
+    if not isinstance(took, dict) or not took.get("approved"):
+        raise Refused(f"refused: {slug} has no hold that kept a go to put back")
+    text = batch.brief(slug)
+    if text is None or took.get("brief_sha") not in (
+        judgement.brief_sha(text),
+        judgement.sha(text),
+    ):
+        raise Refused(f"refused: {slug}'s brief changed since the go its hold took")
+    row.pop("held", None)
+    row.pop("hold", None)
+    row.update({column: took.get(column, "") for column in GO_COLUMNS if column != "approval"})
+    if "approval" in took:
+        row["approval"] = took["approval"]
+    return f"lifted {slug}'s hold, and its go is back: {approval(row)}"
 
 
 def _unfollow(
@@ -1580,11 +1678,17 @@ def _do(
     rows = batch.rows
     if isinstance(verb, Hold):
         by = {"ran_by": ran_by or runner(), "ran_at": _stamp(user)}
-        _hold(batch.row(verb.slug), by)
+        row = batch.row(verb.slug)
+        took = {column: row[column] for column in GO_COLUMNS if row.get(column)}
+        _hold(row, by)
+        if verb.keep and took.get("approved"):
+            row["hold"] = {**by, TOOK: took}
         also = _unfollow(rows, verb.slug, by=by)
         return f"held {verb.slug}; run {by['ran_at']} by {who(by['ran_by'])}" + (
             f", and {', '.join(also)} with it: {FOLLOWED}" if also else ""
         )
+    if isinstance(verb, Lift):
+        return _lift(batch, verb.slug)
     if isinstance(verb, Add):
         if not _SLUG.fullmatch(verb.slug):
             raise Refused(f"refused: {verb.slug} is not a slug")
@@ -2404,10 +2508,17 @@ def _follow_ups(half: Any) -> None:
 STEPS = (verbs.Step("before-watch", 8, "queue.follow_ups", _follow_ups),)
 
 
-def hold(state: Path, slug: str, user: jsettings.Settings | None = None) -> str:
+def hold(state: Path, slug: str, user: jsettings.Settings | None = None, keep: bool = False) -> str:
     """Take the row's go back, keeping who held it and when, and return the line that says
-    what was held and by whom."""
-    return _run(state, [(0, Hold(slug))], user)[0]
+    what was held and by whom. With `keep`, the hold keeps the go it took, for `lift`."""
+    return _run(state, [(0, Hold(slug, keep))], user)[0]
+
+
+def lift(state: Path, slug: str) -> str:
+    """Put back the go a hold kept (`hold` with `keep`) and end the hold, and return the line
+    that says so. A row held again since, or whose brief changed since that go, is refused and
+    stays held."""
+    return _run(state, [(0, Lift(slug))])[0]
 
 
 def remove(state: Path, slug: str, by: str, at: str, asks: Asks) -> str:
@@ -2656,10 +2767,12 @@ def _blank() -> Row:
 @dataclass(frozen=True)
 class Change:
     """`Change` is a row in which one of the columns in `SEEN` changed. It holds the row as it is
-    now, and each such column with what it held before and what it holds now."""
+    now, and each such column with what it held before and what it holds now. `illegal` is the
+    move of its status that `derive` marked on its line of `transitions.jsonl`, if it marked one."""
 
     row: Row
     columns: dict[str, tuple[str, str]]
+    illegal: tuple[str, str] | None = None
 
 
 def derive(
@@ -2672,17 +2785,27 @@ def derive(
     of the two counts as a change of the table.
 
     Each status that changed becomes one line of `transitions.jsonl`: the slug, from, to,
-    and `at`. The pass appends the line before it writes the table, so a pass that dies
-    between the two reports a change twice and loses none.
+    and `at`, and `"legal": false` when `MOVES` does not hold the move. Each `why` that changed,
+    to a reason or to none, becomes one line of `waits.jsonl`: the slug, the new `why`, and `at`,
+    so the reasons a row waited between its go and its launch stay after the table moves on. The
+    pass that starts `waits.jsonl` writes each open row's `why` as it stands, so a row that
+    already waited has a line before its reason next changes. The pass appends the lines before
+    it writes the table, so a pass that dies between the two reports a change twice and loses
+    none.
     """
     changed = []
     moved = []
+    waited = []
+    begins = not waits_path(state).exists()
     with _changing(state) as rows:
         for row in rows:
             new = {**_blank(), **facts(row)}
-            was = row.get("status", "queued")
+            was, illegal = row.get("status", "queued"), None
             if was != new["status"]:
-                moved.append({"slug": row["slug"], "from": was, "to": new["status"], "at": at})
+                line = {"slug": row["slug"], "from": was, "to": new["status"], "at": at}
+                if (was, new["status"]) not in MOVES:
+                    illegal, line = (was, new["status"]), line | {"legal": False}
+                moved.append(line)
             columns = {
                 column: (row.get(column, ""), new[column])
                 for column in SEEN
@@ -2690,11 +2813,16 @@ def derive(
             }
             if columns:
                 row.update({column: new[column] for column in SEEN}, updated=stamp)
-                changed.append(Change(row, columns))
+                changed.append(Change(row, columns, illegal))
             if row.get("why", "") != new["why"]:
                 row.update(why=new["why"], since=stamp if new["why"] else "")
+                waited.append({"slug": row["slug"], "why": new["why"], "at": at})
+            elif begins and not over(row):
+                waited.append({"slug": row["slug"], "why": new["why"], "at": at})
         if moved:
             store.append_jsonl(transitions_path(state), moved)
+        if waited:
+            store.append_jsonl(waits_path(state), waited)
     return rows, changed
 
 
