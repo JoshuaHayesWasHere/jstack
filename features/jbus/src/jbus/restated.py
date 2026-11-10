@@ -278,8 +278,10 @@ def pulled(
     """Restate the `Pull` facet of the line of each pull request that a run of `jmerge` judged,
     by its number, as `jmerge` judged it, with its reason as the line's `why`, and mark the line
     `PULLED` at `at`, when the run ended (`Said.at`). The pass and the merge tick both call this
-    as their run of `jmerge` ends (`merge._sent`), so a verdict reaches the view at once. The
-    pass keeps a facet that a run after its own restated (`kept`).
+    as they read a run of `jmerge` that ended (`merge._sent`), so a verdict reaches the view at
+    once. A line a run that ended after `at` restated is left as it is: the pass reads its run a
+    pass late, and a merge tick's may have ended in between. The pass keeps a facet that a run
+    after its own restated (`kept`).
 
     A line the merge tick restated (`CHECKED`) loses the mark, and where the run judged it
     otherwise than the tick (`corrects`), the run's verdict stands and the line is returned by key
@@ -295,7 +297,7 @@ def pulled(
         work = []
         for one in lines:
             number = str(one.get("pr", "")).removeprefix("#") if _is_row(one) else ""
-            if number.isdigit() and int(number) in said:
+            if number.isdigit() and int(number) in said and not _later(one, at):
                 pull, why = said[int(number)]
                 tick = str(one.get(CHECKED, ""))
                 if stands(one, pull, why):
@@ -317,6 +319,13 @@ def pulled(
 
 
 TICKS = frozenset({CHECKED, CHECKED_HEAD})
+
+
+def _later(one: dict[str, Any], at: str) -> bool:
+    """Whether the line `one` was marked `PULLED` after `at`, by a run of `jmerge` or a tick's
+    read of a check (`checked`): the pass reads its run a pass late, and a merge tick may have
+    restated the line in between."""
+    return str(one.get(PULLED, "")) > at
 
 
 def stands(one: dict[str, Any], pull: Pull, why: str) -> bool:
