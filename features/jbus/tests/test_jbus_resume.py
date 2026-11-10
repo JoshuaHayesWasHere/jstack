@@ -1,6 +1,8 @@
 """jbus tells a crew thread that ended with no Result to carry on. It queues one message for each
-ended run, at most two for a thread, and then a gate. Like `test_jbus_queue.py`, the tests run
-the real pass against the fakes."""
+ended run, at most two for a thread, and then a gate. A row left with work on its branch is
+launched again on its own slug, branch and worktree once a cause it waited on clears
+(`jbus.pausedon.cleared`, `jbus.crewtree.reopen`). Like `test_jbus_queue.py`, the tests run the
+real pass against the fakes."""
 
 import os
 from datetime import timedelta
@@ -316,9 +318,6 @@ def test_a_crew_told_of_its_merge_is_told_to_read_its_skill_file_too(kitchen):
         "crew", home=kitchen.home
     )
 
-
-# A row left with work on its branch launches again on its own slug, branch and worktree once a
-# cause it waited on clears (`jbus.pausedon.cleared`, `jbus.dispatch`, `jbus.crewtree.reopen`).
 
 PAUSED = (
     "\n## Result\nStatus: paused, at {head}\nDone when: the table: does not hold\n"

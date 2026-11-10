@@ -55,12 +55,8 @@ not in /tmp, whose tmpfs quota full repo copies filled. `jbus.threads.settle` re
 and prunes the worktrees that were in it, once it settles the crew's thread
 (`jbus.cleanup.clear_scratch`).
 
-A row left with work on its branch is launched again, on its own slug, branch and worktree, once
-a cause it waited on clears (`jbus.pausedon.cleared`): a new thread in the old worktree
-(`crewtree.reopen`), told by a `Resume:` line in its brief what it carries on from (`resumed`). Its
-launch record holds the cause as `cause`, so a cause launches it once. A row whose thread is still
-listed and not settled is `pausedon.tell`'s to carry on in place instead, and so is a row whose
-old thread this pass already sent a message, which would start that thread's turn.
+A row left with work on its branch launches again, a new thread on its slug, branch and worktree
+(`crewtree.reopen`), with a `Resume:` line, once for each cause that clears (`pausedon.cleared`).
 
 jbus never holds back a launch because another brief names the same file, since each crew
 has its own worktree and branch. The crew of the pull request that merges second rebases that
@@ -71,7 +67,6 @@ from __future__ import annotations
 
 import itertools
 import os
-import re
 from collections import Counter
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
@@ -85,6 +80,7 @@ from jbriefs.home import home_of
 from jbus import cleanup, crewtree, pausedon, queue, read_json, watch, write_json
 from jbus.launches import record_path, records
 from jbus.launchhome import homed, unhomed
+from jbus.launchtext import RESUMED, fixes_main, launched_text, resumed
 from jbus.passes import Changed, Depends, Pass, Red, Rerun, Slot
 from jbus.t3 import Client, T3Dropped, T3Error, T3Refused
 from jbus.watch import TITLE, End, World, against, at_work, crew_threads, ended
@@ -102,8 +98,7 @@ def launched(run: Pass, slug: str, role: str = queue.CREW) -> str:
 
 
 def newest(found: list[tuple[Path, dict[str, Any]]]) -> list[tuple[Path, dict[str, Any]]]:
-    """Return the launch records oldest first by when each was made, so a resume, whose file name
-    sorts anywhere among them, is the newest."""
+    """Return the launch records in the order they were made: a resume's name sorts anywhere."""
     return sorted(found, key=lambda one: str(one[1].get("at") or ""))
 
 
@@ -159,83 +154,6 @@ def write_missing(run: Pass) -> None:
         if found:
             kind = "scouts" if found[0].get("role") == queue.SCOUT else "tasks"
             write_thread(run, slug, found[0]["thread"], replace=False, kind=kind)
-
-
-GREEN_MAIN = "Green main:"
-
-_FIXES_MAIN = re.compile(r"\bfix(?:es|ing)?\s+(?:the\s+)?(?:red\s+)?main\b", re.IGNORECASE)
-
-
-def fixes_main(slug: str, brief: str) -> bool:
-    """Whether the row fixes a red main: jbus filed it for one (`mainjson.fix_of`), or the first
-    line of its brief, its heading, says it fixes main, as `# x: fix main's red test` does."""
-    heading = "".join(brief.splitlines()[:1])
-    return mainjson.fix_of(slug) or bool(_FIXES_MAIN.search(heading))
-
-
-def green_main(brief: str, green: str) -> str:
-    """Return the brief with `Green main: <sha>` under its first line, in place of any such
-    line its head had. The sha is the last commit of main whose check passed
-    (`jmerge.mainjson`). When main is red, a crew rebases onto that commit. When no green
-    main is known, the brief gets no such line."""
-    kept, head = [], True
-    for line in brief.splitlines(keepends=True):
-        head = head and not line.startswith("## ")
-        if not (head and line.startswith(GREEN_MAIN)):
-            kept.append(line)
-    plain = "".join(kept)
-    if not green:
-        return plain
-    first, _, rest = plain.partition("\n")
-    return f"{first}\n{GREEN_MAIN} {green}\n{rest}"
-
-
-RESUME = "Resume:"
-RESUMED = (
-    "Resume: {date}, the thread before this one stopped. Its work is in this worktree and in the "
-    "last Result below: redo nothing that is there, and carry on from {says}"
-)
-
-
-def resumed(brief: str, line: str) -> str:
-    """Return the brief with `line`, its `Resume:` line, above its first `## `, in place of any
-    `Resume:` line its head had, or with no such line where `line` is empty."""
-    kept, head, put = [], True, False
-    for one in brief.splitlines(keepends=True):
-        if head and one.startswith("## "):
-            head = False
-            if line:
-                kept.append(f"{line}\n")
-                put = True
-        if not (head and one.startswith(RESUME)):
-            kept.append(one)
-    if line and not put:
-        kept.append(("" if not kept or kept[-1].endswith("\n") else "\n") + f"{line}\n")
-    return "".join(kept)
-
-
-def launched_text(brief: str, green: str, on: stacks.Stacked | None) -> str:
-    """Return the brief a launch sends: with the `Green main:` line (`green_main`), or for a row
-    that launches stacked, with its `Stacked on:` line in that place and no `Green main:`. A
-    stacked crew starts from its base's branch, never from main, so the line that tells a crew
-    which main to rebase onto has no place in its brief."""
-    if on is None:
-        return green_main(brief, green)
-    return stacked(green_main(brief, ""), on)
-
-
-def stacked(brief: str, on: stacks.Stacked | None) -> str:
-    """Return the brief with `on`'s `Stacked on:` line under its first line, in place of any such
-    line its head had, or with no such line where `on` is None."""
-    kept, head = [], True
-    for line in brief.splitlines(keepends=True):
-        head = head and not line.startswith("## ")
-        if not (head and line.startswith(stacks.LINE)):
-            kept.append(line)
-    if on is None:
-        return "".join(kept)
-    first, _, rest = "".join(kept).partition("\n")
-    return f"{first}\n{stacks.line(on)}\n{rest}"
 
 
 def arguments(run: Pass, slug: str, brief: str, routed: pool.Route | None) -> dict[str, Any]:
