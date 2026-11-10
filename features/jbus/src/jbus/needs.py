@@ -21,9 +21,9 @@ the same lines for its own project (`jbus.homestatus`).
 
 With no `--home` the list also has each ask a home of the project made of the user itself that
 is still open in its `told` file (`asks`), the root's and each scope's, named with its home, so
-the project-wide "nothing waits" means no home has an ask open either. A closed home's (a scope
-whose plan is archived) stay on it and on the root home's list until cleared. `jbus home status` counts
-them in its line of what waits in other projects.
+the project-wide "nothing waits" means no home has an ask open either. A closed home's asks (a
+scope whose plan is archived) stay on it and on the root home's list until cleared. `jbus home
+status` counts them in its line of what waits in other projects.
 
 `--home <directory>` keeps one home's items of its project: a scope's directory keeps that
 scope's, and the root home's keeps its own and every scope's. Every home's list also has each item
