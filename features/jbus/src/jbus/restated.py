@@ -4,7 +4,7 @@ the view shows a change within milliseconds and not at the next pass (`jbus.work
 A write of the queue restates the `Row` facet of each row it reaches (`queued`, from
 `queue._changing`), and a run of `jmerge`, the tick's or the pass's, restates the `Pull` facet and
 the `why` of each pull request it judged (`pulled`, from `merge._sent`), each judged again from the
-facts the last pass kept (`work.restate`). Before its run of `jmerge`, and also where `jmerge` is
+facts the last pass kept (`restate`). Before its run of `jmerge`, and also where `jmerge` is
 busy, the merge tick restates the `why` of each pull request on the check step whose required checks
 failed or ended at its head, from the head's check runs (`checked`, from `jbus.tick`). The next run
 of `jmerge` restates that line again, and where it judges otherwise its verdict stands and the line
@@ -22,6 +22,7 @@ thread's facet as drift too.
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -35,6 +36,7 @@ from jbus.work import (
     Facts,
     Go,
     Launch,
+    Lift,
     Pull,
     Question,
     Row,
@@ -43,11 +45,12 @@ from jbus.work import (
     entry,
     holder,
     judge,
+    lift,
     path,
     read,
-    restate,
     scouting,
     stored,
+    unforeseen,
 )
 from jmerge import ready
 
@@ -150,6 +153,75 @@ def queued(
         return work
 
     _rewrite(state_dir, change)
+
+
+def restate(
+    one: dict[str, Any],
+    row: Row | None = None,
+    pull: Pull | None = None,
+    why: str | None = None,
+    thread: Thread | None = None,
+    go: Go | None = None,
+) -> dict[str, Any]:
+    """Return a line of `work.json` judged again from its stored facts, with `row` as the new `Row`
+    facet, `pull` as the new `Pull` facet and `thread` as the new `Thread` facet where given, as the
+    writer of that input knows it. A new approved facet beside an approved one is the pass's to tell
+    apart, since only the pass sees which depends merged; and a state that keeps its value and its
+    word of the user's (`lift`) keeps its holder and its `why`, which the pass worked out from more
+    than the facts. An accept the pass gave a line for a hold no crew clears (`Closer.WORD`), which
+    no fact says, is kept while the line keeps its value and its `why`. A state whose value changed
+    has no `why` until the next pass judges one, since the one it had was judged for the old state,
+    and so has a line whose go holds again (`lifted`), unless the writer gives one (`why`), as a run
+    of `jmerge` does with its reason. A write of the queue gives why the row's go does not hold
+    (`go`, `jbus.queue.unheld`), which the line says while it waits on the user's go; a writer that
+    gives none keeps what the line said of the go. A line restated with the facets, the `why` and
+    the go it has comes back as it is, so a writer that runs twice writes nothing the second
+    time."""
+    facts = stored(one)
+    if facts is None:
+        return one
+    made = facts
+    if row is not None and not {facts.row, row} <= APPROVED:
+        made = replace(made, row=row)
+    if pull is not None:
+        made = replace(made, pull=pull)
+    if thread is not None:
+        made = replace(made, thread=thread, seen="")
+    had = str(one.get("why", ""))
+    said = had if why is None else why
+    asked = made.question == Question.OPEN
+    state = unforeseen(made) if made.seen and not asked else judge(made)
+    word = lift(state, said)
+    if not word and one.get("lift") == Lift.ACCEPT and (state.value, said) == (one["value"], had):
+        word = Lift.ACCEPT
+    kept = str(word or "") == one.get("lift", "") and (go is None or word != Lift.APPROVE)
+    if made == facts and said == had and kept:
+        return one
+    if state.value == one["value"] and said == had and kept:
+        return {**one, "confirmed": state.confirmed, "facts": state.facts.said()}
+    about = {name: value for name, value in one.items() if name not in _JUDGED}
+    if why is not None:
+        about["why"] = why
+    elif "why" in about and (state.value != one["value"] or lifted(one, word)):
+        about["why"] = ""
+    role = "scout" if "scout" in one else ""
+    scout = {"scout": str(scouting(state))} if role else {}
+    pr = str(one.get("pr", ""))
+    held = holder(state, role=role, why=str(about.get("why", "")), go=go, pr=pr)
+    if go is None and held.lift == Lift.APPROVE and one.get("lift") == Lift.APPROVE:
+        held = replace(held, waits=str(one.get("waits", "")), why=one.get("why"))
+    line = entry(state, held, **about, **scout)
+    return one if line == one else line
+
+
+def lifted(one: dict[str, Any], word: Lift | None) -> bool:
+    """Return whether a line that waited on the user's go no longer does, so its `why` is gone."""
+    return one.get("lift") == Lift.APPROVE and word != Lift.APPROVE
+
+
+_JUDGED = frozenset(
+    {"value", "name", "who", "waits", "lane", "lift", "confirmed", "facts", "scout"}
+)
 
 
 def fresh(row: dict[str, Any], facet: Row, scout: bool, go: Go | None = None) -> dict[str, Any]:

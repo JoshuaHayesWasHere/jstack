@@ -26,6 +26,7 @@ from jmerge import (
     bus,
     checks,
     claims,
+    forktests,
     judgement,
     lines,
     lock,
@@ -627,6 +628,19 @@ class Repo:
 
         return lambda path: asked()(path)
 
+    def fork_tests(self, one: ready.PullRequest) -> Callable[[str], bool]:
+        """Whether a fork file of the pull request changes the fork's tests alone
+        (`forktests.in_repo`), read as `prose` reads a `.py` file."""
+
+        @functools.cache
+        def asked() -> Callable[[str], bool]:
+            if not self.fetched:
+                self.fetched = True
+                _run(self.main, "git", "fetch", "-q", "origin")
+            return forktests.in_repo(str(self.main), f"origin/{one.base}", one.head)
+
+        return lambda path: asked()(path)
+
     def as_fixed(self, slug: str, text: str, one: ready.PullRequest) -> str:
         """The brief's text as `jmerge` judges it: with the `Fixed:` line a crew did not write
         (`ready.unwritten_fixed`), where git gives the commit it names, the newest of the head
@@ -997,10 +1011,12 @@ class Repo:
             def carries(at: str) -> bool:
                 return self.range_diff(at, one.head, one.base, stacked).clean
 
-            prose = self.prose(one)
-            proven = ready.proves(text, one, carries, prose)
+            prose, fork = self.prose(one), self.fork_tests(one)
+            proven = ready.proves(text, one, carries, prose, fork)
             short = self.lift(ready.short_of(text, one.head, heard, proven), lifted)
-            short = short or self.lift(ready.short_on_proved(text, one, carries, prose), lifted)
+            short = short or self.lift(
+                ready.short_on_proved(text, one, carries, prose, fork), lifted
+            )
             short = short or ready.short_on_checked(text, one.head, carries)
         rebase: ready.Rebase | None = None
         unreviewed = ready.said_of(text).mode == ready.NONE

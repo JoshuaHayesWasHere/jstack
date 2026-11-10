@@ -53,7 +53,7 @@ from jbus import END_TURN, dispatch, mirror, outbox, rebase, review, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import World, _default_branch, at_work, task_brief
-from jmerge import ready
+from jmerge import forktests, ready
 from jroles import pool
 
 EVENTS = {"prereview": "quiet", "prereviewed": "quiet", "prereview-refused": "quiet"}
@@ -141,10 +141,12 @@ def _on(run: Pass, brief: str) -> str:
 def proved(run: Pass, brief: str, head: str) -> str:
     """Why the brief's desk proof does not bind `head`, or nothing: `jmerge`'s rules of the
     `Checked:` and `Proved:` lines, with no other head carried, and a `.py` file whose change is
-    to its docstrings and comments alone counted as docs (`proved.prose_in`)."""
-    prose = jproved.prose_in(str(run.project.checkout), f"origin/{_on(run, brief)}", head)
+    to its docstrings and comments alone counted as docs (`proved.prose_in`), and a fork file
+    whose change is to the fork's tests alone counted as no code (`forktests.in_repo`)."""
+    root, on = str(run.project.checkout), f"origin/{_on(run, brief)}"
+    prose, fork = jproved.prose_in(root, on, head), forktests.in_repo(root, on, head)
     return ready.short_on_checked(brief, head) or ready.short_on_proved(
-        brief, changes(run, brief, head), prose=prose
+        brief, changes(run, brief, head), prose=prose, fork_tests=fork
     )
 
 

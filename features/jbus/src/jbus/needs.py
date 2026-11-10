@@ -4,7 +4,8 @@ It is the one answer to "what needs me". It reads the list the last pass wrote
 (`waiting-on-user.json`) and keeps only what the user has to decide, by the one rule that also
 raises a decision and wakes a home with it (`blockers.deciding`): a gate whose `Holds:` line holds
 it, a gate with no default or one that names a door, a go gate whose silence starts nothing, a row
-whose brief has no go, a pull request `jmerge` holds for the user's word, a setup only the user
+whose brief has no go, a pull request `jmerge` holds for the user's word, a hold no crew
+clears that the user's word lifts (`jbus.clock.held`), a setup only the user
 can give, and an approved row that waits for room on a full /tmp after the pass removed what
 finished crews left there (`room`): its row's `why` says so, `waiting: /tmp at <n>% of its quota`,
 from the first pass it waits. A hold of GitHub's budget at or under its floor is one item for
@@ -18,6 +19,11 @@ Each item is one line with what it holds, then a plain hint for the reply, the s
 decision carries (`blockers.reply`), and, for a gate that holds, the fail-safe to read first. A
 project no pass has listed yet says so, since nothing is known of it. `jbus home status` opens with
 the same lines for its own project (`jbus.homestatus`).
+
+With no `--home` the list also has each ask a home of the project made of the user itself that
+is still open in its `told` file (`asks`), the root's and each scope's, named with its home, so
+the project-wide "nothing waits" means no home has an ask open either. `jbus home status` counts
+them in its line of what waits in other projects.
 
 `--home <directory>` keeps one home's items of its project: a scope's directory keeps that
 scope's, and the root home's keeps its own and every scope's. Every home's list also has each item
@@ -84,6 +90,8 @@ def _slug(run: passes.Pass, one: waiting.Item) -> str:
             return ""
         pr = f"#{one.get('number')}"
         return next((row["slug"] for row in rows if row.get("pr") == pr), "")
+    if one["kind"] == "held" and not one.get("slug"):
+        return str(next(iter(one.get("rows", [])), ""))
     return str(one.get("slug") or "")
 
 
@@ -108,9 +116,10 @@ def home_of(state: Path, root: Path, slug: str) -> Path:
 def of(
     config: jbus.Config, project: jbus.Project, now: datetime, home: Path | None = None
 ) -> list[Need]:
-    """Return what waits on the user in one project at `now`, in the list's order: with `home`,
-    only that home's, and a root home's scopes' with the root's. Raise `Unknown` where nothing
-    is known."""
+    """Return what waits on the user in one project at `now`, in the list's order, then the asks
+    still open in its homes' `told` files (`asks`): with `home`, only that home's, and a root
+    home's scopes' with the root's, and with none, every home's. Raise `Unknown` where nothing is
+    known."""
     run = passes.Pass(config, project, now)
     listed = waiting.read(run.state)
     if listed is None or run.first:
@@ -129,9 +138,9 @@ def of(
     needs += [(slug, Need(project.name, f"row {slug}: {why}", FREE)) for slug, why in room(run)]
     if held := budgethold.needed(run):
         needs.append((None, Need(project.name, held, HELD)))
-    if home is None:
-        return [need for _, need in needs]
     root = config.home(project)
+    if home is None:
+        return [need for _, need in needs] + asks(project, root, root)
     kept = [
         need
         for slug, need in needs
@@ -145,7 +154,10 @@ def of(
 def asks(project: jbus.Project, root: Path, home: Path) -> list[Need]:
     """Return each ask a home made of the user itself that is still open: a `decision local` or
     `stop local` line of its `told` file, which `jbus told` keeps until a `cleared local` line ends
-    it (`jbus.turnend`). With the root home, its scopes' too."""
+    it (`jbus.turnend`). With the root home, its scopes' too, and none where the root home has no
+    directory yet."""
+    if not root.is_dir():
+        return []
     scopes = sorted(one for one in root.iterdir() if (one / "plan.md").is_file())
     found = []
     for at in [root, *scopes] if home == root else [home]:

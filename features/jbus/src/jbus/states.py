@@ -21,6 +21,7 @@ from jbriefs.home import home_of, reader, thread_of
 from jbus import (
     blockers,
     cancelled,
+    clock,
     dispatch,
     leftover,
     locked,
@@ -142,7 +143,7 @@ def keep_work(half: Half) -> None:
     run, rows, states = half.run, half.table or [], half.states
     if states is None:
         return
-    held, gated = leftover.read(run.state), blockers.holding(run)
+    held, gated, words = leftover.read(run.state), blockers.holding(run), clock.lifted(run.state)
     owner = reader(run.home)
     listed = []
     for row in rows:
@@ -154,7 +155,7 @@ def keep_work(half: Half) -> None:
         why = str(row.get("why", ""))
         unhomed = leftover.his(record, run.now) if record else ""
         unheld = queue.unheld(run.state, row) if state.facts.row in work.UNHELD else None
-        closer = _closer(run, slug, record, gated)
+        closer = _closer(run, slug, record, gated, words)
         line = work.entry(
             state,
             work.holder(state, role, why, closer, unhomed, unheld, str(row.get("pr", ""))),
@@ -182,11 +183,17 @@ def keep_work(half: Half) -> None:
 
 
 def _closer(
-    run: Pass, slug: str, record: leftover.Record | None, gated: frozenset[str]
+    run: Pass,
+    slug: str,
+    record: leftover.Record | None,
+    gated: frozenset[str],
+    words: frozenset[str],
 ) -> work.Closer:
     """Return who closes a row where its facts alone do not say (`work.Closer`)."""
     if slug in gated:
         return work.Closer.USER
+    if slug in words:
+        return work.Closer.WORD
     brief = watch.brief_of(run, slug)
     if review.awaited(brief, mirror.last_result(brief)):
         return work.Closer.REVIEW
@@ -234,7 +241,7 @@ def _since(run: Pass, listed: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 continue
             facet = queue.standing(run.state, row, done)
             go = queue.unheld(run.state, row) if facet in work.UNHELD else None
-            one = work.restate(one, row=facet, go=go)
+            one = restated.restate(one, row=facet, go=go)
         kept.append(one)
     return kept
 

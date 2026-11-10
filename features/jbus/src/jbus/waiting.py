@@ -375,7 +375,8 @@ def _users(line: merge.Line) -> bool:
 
 
 def held(state: Path) -> list[Item]:
-    """Return the holds that woke their home and that no thread works on yet (`clock.held`)."""
+    """Return the holds that woke their home and that no thread works on yet (`clock.held`), with
+    the word that lifts one the user's word lifts (`lift`) and its pull requests' numbers."""
     kept = read_json(state / "held.json", {})
     return [
         {
@@ -385,6 +386,7 @@ def held(state: Path) -> list[Item]:
             "and no thread is at work on it",
             "rows": one["rows"],
             "home": one["home"],
+            **({"lift": one["lift"], "numbers": one["numbers"]} if one.get("lift") else {}),
         }
         for key, one in sorted(kept.items())
         if isinstance(one, dict) and one.get("woke")

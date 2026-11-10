@@ -33,11 +33,11 @@ state, so every reader of the queue still finds the same words as before. `scout
 scout's row one of queued, scouting and report in, which the sidebar's tree draws. `write` keeps
 every state of a pass, whole, in `work.json` in the project's state directory, and the view
 draws that file. Between passes, each writer of a row's inputs restates that row's line, judged
-again from the facts the last pass kept for it with the facet that writer knows (`restate`), as
-`jbus.restated` says: a write of the queue restates each row's `Row` facet, and a run of `jmerge`
-the `Pull` facet of each pull request it judged. So the view shows a change within
-milliseconds, not at the next pass. The pass still judges every row, and logs each line it
-corrects as drift. Every writer holds `LOCK`.
+again from the facts the last pass kept for it with the facet that writer knows, as
+`jbus.restated` says (`restated.restate`): a write of the queue restates each row's `Row` facet,
+and a run of `jmerge` the `Pull` facet of each pull request it judged. So the view shows a
+change within milliseconds, not at the next pass. The pass still judges every row, and logs each
+line it corrects as drift. Every writer holds `LOCK`.
 """
 
 from __future__ import annotations
@@ -586,12 +586,14 @@ class Closer(StrEnum):
     them. One value holds for a row, and the pass picks it in this order:
 
     - `user`: a gate of the user's holds the row, one `jbus needs` lists (`blockers.holding`);
+    - `word`: a hold no crew clears holds the row for the user's accept (`jbus.clock.lifted`);
     - `review`: the row's last Result opens its pull request after a review that is not written
       (`review.awaited`), so the row waits on that review, whatever its `Left:` line says;
     - `busy`: a thread is at work on what the row left (`leftover.json`);
     - `home`: anything else, and a row that ended with something left is its home's to close."""
 
     USER = "user"
+    WORD = "word"
     REVIEW = "review"
     BUSY = "busy"
     HOME = "home"
@@ -613,15 +615,16 @@ def holder(
     """Return who holds a state, which is its pattern's holder except where `closer` says
     otherwise (`Closer`), and in two other cases.
 
-    A gate of the user's holds the row for the user, whatever else holds, so `who` is `user`
-    on a row `jbus needs` lists. Next, a row that waits on one word of the user's (`lift`) is
-    held by the user at any stage, and says the word in `waits`. A row that waits on its go says
-    why in `why`: `go` is why its go does not hold, from the queue (`jbus.queue.unheld`). `pr` is
-    its pull request, as the queue names it, and a pull request held for an accept keeps
-    `jmerge`'s hold as its `why`. A row whose Result waits on its review (`Closer.REVIEW`) and
-    that ended or is quiet is held by its reviewer. A row that ended with something left, or
-    whose pull request closed, is its home's to close: jbus tells the home, and the user is not
-    asked (`jbus.leftover`). A thread at work on the leftover holds it instead (`Closer.BUSY`).
+    A gate of the user's holds the row for the user, whatever else holds, so `who` is `user` on a
+    row `jbus needs` lists. Next, a row that waits on one word of the user's (`lift`, or
+    `Closer.WORD` for a hold no crew clears) is held by the user at any stage, and says the word in
+    `waits`. A row that waits on its go says why in `why`: `go` is why its go does not hold, from
+    the queue (`jbus.queue.unheld`). `pr` is its pull request, as the queue names it, and a pull
+    request held for an accept keeps `jmerge`'s hold as its `why`. A row whose Result waits on its
+    review (`Closer.REVIEW`) and that ended or is quiet is held by its reviewer. A row that ended
+    with something left, or whose pull request closed, is its home's to close: jbus tells the home,
+    and the user is not asked (`jbus.leftover`). A thread at work on the leftover holds it instead
+    (`Closer.BUSY`).
     `unhomed` is why no home has it yet (`leftover.his`): the row still waits on a home, and
     `waits` says why.
 
@@ -637,7 +640,7 @@ def holder(
     pattern = state.pattern
     if closer == Closer.USER:
         return Holder("user", "your answer", "gate")
-    word = lift(state, why)
+    word = Lift.ACCEPT if closer == Closer.WORD and state.value not in ENDED else lift(state, why)
     if word == Lift.APPROVE:
         at = f" at {go.sha}" if go and go.sha else ""
         lane = "" if role else pattern.lane
@@ -708,72 +711,6 @@ def stored(one: dict[str, Any]) -> Facts | None:
         )
     except (KeyError, ValueError):
         return None
-
-
-def restate(
-    one: dict[str, Any],
-    row: Row | None = None,
-    pull: Pull | None = None,
-    why: str | None = None,
-    thread: Thread | None = None,
-    go: Go | None = None,
-) -> dict[str, Any]:
-    """Return a line of `work.json` judged again from its stored facts, with `row` as the new `Row`
-    facet, `pull` as the new `Pull` facet and `thread` as the new `Thread` facet where given, as
-    the writer of that input knows it. A new approved facet beside an approved one is the pass's
-    to tell apart, since only the pass sees which depends merged; and a state that keeps its
-    value and its word of the user's (`lift`) keeps its holder and its `why`, which the pass
-    worked out from more than the facts. A state whose value changed has no `why` until the next
-    pass judges one, since the one it had was judged for the old state, and so has a line whose
-    go holds again (`lifted`), unless the writer gives one (`why`), as a run of `jmerge` does
-    with its reason. A write of the queue gives why the row's go does not hold (`go`,
-    `jbus.queue.unheld`), which the line says while it waits on the user's go; a writer that
-    gives none keeps what the line said of the go. A line restated with the facets, the `why`
-    and the go it has comes back as it is, so a writer that runs twice writes nothing the second
-    time."""
-    facts = stored(one)
-    if facts is None:
-        return one
-    made = facts
-    if row is not None and not {facts.row, row} <= APPROVED:
-        made = replace(made, row=row)
-    if pull is not None:
-        made = replace(made, pull=pull)
-    if thread is not None:
-        made = replace(made, thread=thread, seen="")
-    had = str(one.get("why", ""))
-    said = had if why is None else why
-    asked = made.question == Question.OPEN
-    state = unforeseen(made) if made.seen and not asked else judge(made)
-    word = lift(state, said)
-    kept = str(word or "") == one.get("lift", "") and (go is None or word != Lift.APPROVE)
-    if made == facts and said == had and kept:
-        return one
-    if state.value == one["value"] and said == had and kept:
-        return {**one, "confirmed": state.confirmed, "facts": state.facts.said()}
-    about = {name: value for name, value in one.items() if name not in _JUDGED}
-    if why is not None:
-        about["why"] = why
-    elif "why" in about and (state.value != one["value"] or lifted(one, word)):
-        about["why"] = ""
-    role = "scout" if "scout" in one else ""
-    scout = {"scout": str(scouting(state))} if role else {}
-    pr = str(one.get("pr", ""))
-    held = holder(state, role=role, why=str(about.get("why", "")), go=go, pr=pr)
-    if go is None and held.lift == Lift.APPROVE and one.get("lift") == Lift.APPROVE:
-        held = replace(held, waits=str(one.get("waits", "")), why=one.get("why"))
-    line = entry(state, held, **about, **scout)
-    return one if line == one else line
-
-
-def lifted(one: dict[str, Any], word: Lift | None) -> bool:
-    """Return whether a line that waited on the user's go no longer does, so its `why` is gone."""
-    return one.get("lift") == Lift.APPROVE and word != Lift.APPROVE
-
-
-_JUDGED = frozenset(
-    {"value", "name", "who", "waits", "lane", "lift", "confirmed", "facts", "scout"}
-)
 
 
 def path(state_dir: Path) -> Path:
