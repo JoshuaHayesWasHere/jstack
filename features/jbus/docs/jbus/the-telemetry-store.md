@@ -147,7 +147,7 @@ The spells an account was signed out have no record yet.
 `spend_rows` is Claude's alone, by day, from T3 Code's count of each run; each call's tokens to its row and role, Codex's too, are in `call_rows` and `row_spend` ("Token usage" below).
 
 A crew line's class is what woke its runs, not what they did (`row_spend.CLASSES`): `prereview fix`, `wake` (a slot or stall clock's wake, before the first prereview or after it), `build` for any other run before the row's first prereview, a `lapse` resume and a word of the user's too, then `failed check`, `stale base` or `other`.
-A line kept before the trigger was has no class, and no dollars to give one.
+A row with any crew line kept before the trigger was has no class, since its first prereview may be on such a line.
 `dollars-per-row` shows a part for each role, in dollars a row, which sum to its value, and one for each class of the crew's dollars: the class's share of the crew dollars `spend_rows` holds for the week's merged rows, times the crew's part, so the classes sum to the crew's.
 
 ## Token usage

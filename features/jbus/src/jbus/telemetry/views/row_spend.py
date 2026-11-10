@@ -86,7 +86,8 @@ def _keys(keys: tuple[str, ...]) -> str:
 CLASSES = (
     "crew_lines AS (SELECT s.project, s.slug, s.spent_on, s.trigger AS woke, s.reviewed, "
     "s.dollars FROM spend_rows s WHERE s.role = 'crew' AND s.slug IS NOT NULL "
-    "AND s.trigger IS NOT NULL), "
+    "AND NOT EXISTS (SELECT 1 FROM spend_rows o WHERE o.project = s.project "
+    "AND o.slug = s.slug AND o.role = 'crew' AND o.trigger IS NULL)), "
     "first_prereview AS (SELECT project, slug, min(spent_on) AS spent_on FROM crew_lines "
     "WHERE woke = 'prereviewed' GROUP BY project, slug), "
     "crew_classes AS (SELECT c.project, c.slug, CASE "
@@ -100,7 +101,8 @@ CLASSES = (
 )
 """The CTEs that give each crew line of `spend_rows` its class, what woke its runs:
 `prereview fix`, `wake`, `build` for any other before the row's first prereview (a `lapse` resume
-too), then `failed check`, `stale base` or `other`. A line kept before the trigger was has no
-class, and no dollars to give one. A line is after the first prereview where its runs came after
-one that day (`reviewed`), or its day is after the first day a prereview woke the row's crew. A
-run the user or a harness notice woke has no send key, and is `build` or `other` by when it ran."""
+too), then `failed check`, `stale base` or `other`. A row with any crew line kept before the
+trigger was has no class at all, since its first prereview may be on such a line. A line is
+after the first prereview where its runs came after one that day (`reviewed`), or its day is
+after the first day a prereview woke the row's crew. A run the user or a harness notice woke has
+no send key, and is `build` or `other` by when it ran."""
