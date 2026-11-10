@@ -35,13 +35,16 @@ def test_the_log_keeps_the_last_29_days_once_its_first_row_is_over_30_days_old(t
     assert (take["event"], take["lane"], take["slot"], take["slots"]) == ("take", "full", 3, 4)
     assert (take["thread"], take["command"], take["waited"]) == ("mcp:t", ["make", "check"], 1.235)
     assert (take["pid"], take["cwd"]) == (os.getpid(), os.getcwd())
-    shared = {key: value for key, value in take.items() if key not in ("at", "event", "waited")}
+    skipped = ("at", "event", "waited", "repo")
+    shared = {key: value for key, value in take.items() if key not in skipped}
     assert release == {
         **shared,
         "at": release["at"],
         "event": "release",
         "code": 2,
         "hold": release["hold"],
+        "cpu_user": release["cpu_user"],
+        "cpu_system": release["cpu_system"],
     }
     assert 0 <= release["hold"] < 5
 
@@ -83,6 +86,22 @@ def test_a_take_from_a_directory_since_removed_logs_an_empty_cwd(tmp_path, monke
     slotlog.release(slotlog.take(log, "short", 1, 3, "", ["true"], 0), 0)
 
     assert [row["cwd"] for row in rows(log)] == ["", ""]
+
+
+@pytest.mark.parametrize("where", ["outside a repository", "with no git to ask"])
+def test_a_take_names_no_repo_outside_one_or_with_no_git_and_still_logs(
+    tmp_path, monkeypatch, where
+):
+    log = slotlog.path(tmp_path / "locks")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.parent))
+    if where == "with no git to ask":
+        monkeypatch.setenv("PATH", str(tmp_path / "empty"))
+
+    slotlog.release(slotlog.take(log, "short", 1, 3, "", ["true"], 0), 0)
+
+    take, release = rows(log)
+    assert (take["repo"], release["event"]) == ("", "release")
 
 
 @pytest.mark.parametrize("blocked", ["parent is a file", "log is a directory"])
@@ -143,3 +162,47 @@ def test_a_log_whose_first_line_is_not_a_row_is_appended_to_as_it_is(tmp_path):
     slotlog.take(log, "full", 1, 4, "", ["true"], 0)
     first, take = log.read_text().splitlines()
     assert first == "not a row" and json.loads(take)["event"] == "take"
+
+
+def test_the_report_sums_the_cpu_of_the_holds_released_in_the_span_by_lane_and_by_repo(
+    tmp_path, monkeypatch
+):
+    """A release before the span counts nothing, one written before the log had the CPU is
+    counted apart, and 600 CPU seconds over a 10 minute span is one core."""
+    monkeypatch.setenv("JBUS_STATE_DIR", str(tmp_path / "jbus"))
+    log = slotlog.path(tmp_path / "locks")
+    log.parent.mkdir()
+
+    def hold(key, lane, repo, taken, released, cpu=None):
+        take = {"event": "take", "id": key, "pid": 1, "lane": lane, "slot": 1, "slots": 3}
+        take |= {"thread": "", "command": ["make"], "cwd": "/", "waited": 0, "repo": repo}
+        end = {"event": "release", "id": key, "code": 0}
+        if cpu:
+            end |= {"cpu_user": cpu[0], "cpu_system": cpu[1]}
+        return [{"at": stamp(taken), **take}, {"at": stamp(released), **end}]
+
+    log.write_text(
+        "".join(
+            json.dumps(row) + "\n"
+            for row in [
+                *hold("before", "full", "jstack", -3, -1, (999, 0)),
+                *hold("a", "full", "jstack", 0, 4, (400, 50)),
+                *hold("b", "short", "jstack", 1, 2, (20, 10)),
+                *hold("c", "full", "cs-shelf", 2, 6, (100, 20)),
+                *hold("old", "short", "", 3, 5),
+            ]
+        )
+    )
+    start, until = NOON.timestamp(), (NOON + timedelta(minutes=10)).timestamp()
+
+    assert slotlog.report(log, start, until, until)[-5:] == [
+        "  CPU of the 3 holds released in the span, user + system seconds, and the mean cores"
+        " over the span: (1 more released with no CPU on record)",
+        "    lane full: 570.0 s (500.0 + 70.0), 0.95 cores",
+        "    lane short: 30.0 s (20.0 + 10.0), 0.05 cores",
+        "    repo jstack: 480.0 s (420.0 + 60.0), 0.80 cores",
+        "    repo cs-shelf: 120.0 s (100.0 + 20.0), 0.20 cores",
+    ]
+
+    log.write_text("".join(json.dumps(row) + "\n" for row in hold("old", "short", "", 3, 5)))
+    assert not any("CPU" in line for line in slotlog.report(log, start, until, until))

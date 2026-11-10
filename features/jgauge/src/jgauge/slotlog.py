@@ -16,8 +16,12 @@ A row is one JSON object:
   caller counted it, so a run with `--slots 5` shows as one;
 - `thread`, the thread id or nothing, `command` and `cwd`, which name the caller, `cwd` empty
   when the caller's directory was removed before the call;
-- on a take, `waited`, the seconds the call waited for the slot;
-- on a release, `code`, the command's exit code, and `hold`, the seconds the slot was held.
+- on a take, `waited`, the seconds the call waited for the slot, and `repo`, the name of the
+  directory that holds the git repository `cwd` is in, its main checkout's for a worktree, or
+  nothing outside one;
+- on a release, `code`, the command's exit code, `hold`, the seconds the slot was held, and
+  `cpu_user` and `cpu_system`, the CPU seconds the command and every process it waited for used,
+  in user and in system mode. A process the command left running when it ended is not counted.
 
 A row is one `write` with `O_APPEND`, under the lock on the log's directory that `jgauge sample`
 also takes. Once the first row is over 30 days old, the writer keeps the last 29 days, as the
@@ -27,7 +31,8 @@ The report pairs takes with releases into holds. A take with no release is held 
 the span while its pid lives, and is counted as lost otherwise: a holder killed outright leaves
 no release, and its slot was free once it died. For each lane it prints the holds, the mean
 occupancy (slot-seconds held in the span over the span), Little's law from the same holds (takes
-per second times the mean hold), and the wait in the call at p50 and p90. Then, from jbus's
+per second times the mean hold), and the wait in the call at p50 and p90. It then prints the CPU
+seconds of the holds released in the span, by lane and by repo. Then, from jbus's
 `slot-wake` events, it prints the mean occupancy over the time a thread of that lane waited for
 a slot: with a waiter waiting every slot should be taken, so that share near 100% says the log
 sees every holder, and a low one says some holder takes slots this log does not see.
@@ -39,8 +44,10 @@ import fcntl
 import json
 import os
 import re
+import resource
 import secrets
 import statistics
+import subprocess
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -115,6 +122,25 @@ class Taken:
     log: Path
     at: datetime
     fields: dict
+    used: resource.struct_rusage
+
+
+def _repo(cwd: str) -> str:
+    """The name of the directory that holds the repository `cwd` is in, so every worktree of a
+    repository has one name, and nothing outside a repository."""
+    if not cwd:
+        return ""
+    try:
+        found = subprocess.run(
+            ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    return Path(found.stdout.strip()).parent.name if found.returncode == 0 else ""
 
 
 def take(
@@ -135,13 +161,17 @@ def take(
         "command": command,
         "cwd": cwd,
     }
-    _append(log, {"at": _stamp(now), "event": "take", **fields, "waited": round(waited, 3)})
-    return Taken(log, now, fields)
+    row = {"at": _stamp(now), "event": "take", **fields, "waited": round(waited, 3)}
+    _append(log, {**row, "repo": _repo(cwd)})
+    return Taken(log, now, fields, resource.getrusage(resource.RUSAGE_CHILDREN))
 
 
 def release(taken: Taken, code: int) -> None:
+    """Write the release row. The CPU is what this process's children that ended and were waited
+    for used since the take, which is the command's alone: the sweep runs after the release."""
     now = datetime.now(UTC)
     held = (now - taken.at).total_seconds()
+    used = resource.getrusage(resource.RUSAGE_CHILDREN)
     _append(
         taken.log,
         {
@@ -150,6 +180,8 @@ def release(taken: Taken, code: int) -> None:
             **taken.fields,
             "code": code,
             "hold": round(held, 3),
+            "cpu_user": round(used.ru_utime - taken.used.ru_utime, 3),
+            "cpu_system": round(used.ru_stime - taken.used.ru_stime, 3),
         },
     )
 
@@ -162,6 +194,8 @@ class Hold:
     end: float | None
     pid: int
     waited: float
+    repo: str = ""
+    cpu: tuple[float, float] | None = None
 
 
 def _rows(log: Path) -> Iterator[dict]:
@@ -179,16 +213,29 @@ def _rows(log: Path) -> Iterator[dict]:
 def holds(log: Path) -> list[Hold]:
     """Every take in the log with the time of its release, or None for a take with none."""
     taken: dict[str, dict] = {}
-    ended: dict[str, float] = {}
+    ended: dict[str, dict] = {}
     for row in _rows(log):
         if row.get("event") == "take":
             taken[row["id"]] = row
         elif row.get("event") == "release":
-            ended[row["id"]] = row["at"]
-    return [
-        Hold(row["lane"], row["slots"], row["at"], ended.get(key), row["pid"], row["waited"])
-        for key, row in taken.items()
-    ]
+            ended[row["id"]] = row
+    found = []
+    for key, row in taken.items():
+        end = ended.get(key, {})
+        cpu = (end["cpu_user"], end["cpu_system"]) if "cpu_user" in end else None
+        found.append(
+            Hold(
+                row["lane"],
+                row["slots"],
+                row["at"],
+                end.get("at"),
+                row["pid"],
+                row["waited"],
+                row.get("repo", ""),
+                cpu,
+            )
+        )
+    return found
 
 
 def _alive(pid: int) -> bool:
@@ -234,6 +281,34 @@ def _union(spans: list[tuple[float, float]]) -> list[tuple[float, float]]:
         else:
             merged.append((a, b))
     return merged
+
+
+def _cpu(released: list[Hold], span: float) -> list[str]:
+    """The CPU seconds of the holds released in the span, by lane and by repo, each with the mean
+    cores it comes to over the span. A release written before the log had the CPU has none, and
+    is counted apart, and a span with no release that has the CPU prints no CPU lines."""
+    measured = [(one, one.cpu) for one in released if one.cpu is not None]
+    if not measured:
+        return []
+    lines = [
+        f"  CPU of the {len(measured)} holds released in the span, user + system seconds, and the"
+        " mean cores over the span:"
+    ]
+    if len(measured) < len(released):
+        lines[0] += f" ({len(released) - len(measured)} more released with no CPU on record)"
+    for by, key in (("lane", lambda one: one.lane), ("repo", lambda one: one.repo or "(none)")):
+        totals: dict[str, list[float]] = {}
+        for one, (user, system) in measured:
+            total = totals.setdefault(key(one), [0.0, 0.0])
+            total[0] += user
+            total[1] += system
+        ranked = sorted(totals.items(), key=lambda item: -sum(item[1]))
+        lines += [
+            f"    {by} {name}: {user + system:.1f} s ({user:.1f} + {system:.1f}),"
+            f" {(user + system) / span:.2f} cores"
+            for name, (user, system) in ranked
+        ]
+    return lines
 
 
 def report(log: Path, start: float | None, until: float | None, now: float) -> list[str]:
@@ -287,4 +362,7 @@ def report(log: Path, start: float | None, until: float | None, now: float) -> l
                 f" {len(waited_for[lane])} slot-wake events): mean occupancy"
                 f" {occupied:.2f}{share}"
             )
+    released = [one for one in every if one.end is not None and start <= one.end < end]
+    if released:
+        lines += _cpu(released, span)
     return lines
