@@ -236,11 +236,29 @@ def test_load_over_cores_is_the_share_of_todays_load_samples_above_the_cores(tmp
     assert (reading.value, reading.n, reading.state) == (25.0, 120, "bad")
 
 
-def test_jbus_scorecard_prints_each_measure_and_writes_nothing(tmp_path, monkeypatch):
+MIDNIGHT = datetime(2026, 11, 10, 0, 0, 30, tzinfo=USER.zone)
+"""30 seconds into a New York day, when a minute before now is the user's day before."""
+
+
+@pytest.mark.parametrize("clock", [None, MIDNIGHT], ids=["now", "first-minute"])
+def test_jbus_scorecard_prints_each_measure_and_writes_nothing(tmp_path, monkeypatch, clock):
+    """A macOS run on a pull request today reads 1 and bad at any time of the user's day."""
     Machine(tmp_path, monkeypatch)
+    settings = tmp_path / "x" / "jstack" / "config.toml"
+    settings.parent.mkdir(parents=True)
+    settings.write_text('timezone = "America/New_York"\n')
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(settings.parent.parent))
+    now = clock or datetime.now(UTC)
+
+    class Frozen(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return now.astimezone(tz)
+
+    monkeypatch.setattr(telemetry, "datetime", Frozen)
     path = tmp_path / "store.sqlite"
     writer = telemetry.connect(path)
-    created = stamp(datetime.now(UTC) - timedelta(minutes=1))
+    created = stamp(now - timedelta(minutes=1))
     for project in ("alpha", "beta"):
         writer.execute(
             "insert into runs (project, key, workflow, event, created)"
