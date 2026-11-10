@@ -1652,6 +1652,8 @@ class Repo:
             said = self.merge_batch(on, kept, default)
             numbers = {member.number for member in kept.members}
             members = [found for found in members if found[0].number not in numbers]
+            if on.record.batch is not None:
+                return said + self.waiting(kept, default, members)
         elif on.state == batch.PENDING and kept is not None:
             judged = {batch.Member(one.number, one.head) for one, *_ in members}
             if set(kept.members) <= judged:
@@ -1673,7 +1675,8 @@ class Repo:
         merge lock held, each over the tip the one before it left, and stop at the first that
         does not merge: one GitHub refused, one no longer judged a member at that head, or a tip
         another hand moved. Each merge's line names the run that proved the batch, and each
-        member after the stop waits for the next batch. The batch is over after."""
+        member after the stop waits for the next batch. The batch is over after, unless another
+        run held the merge lock: then it stays proven for the next run."""
         judged = {one.number: (one, slug, note) for one, slug, note, _ in on.members}
         passed = batch.PASSED.format(base=default, tip=kept.tip[: batch.SHA], run=on.run)
         said: list[str] = []
@@ -1681,9 +1684,13 @@ class Repo:
         from jmerge.lock import MergeLock
 
         lock = MergeLock(self.state)
+        if not lock.take():
+            return [
+                lines.waits("wait", one.number, one.url, ready.MERGING)
+                for one, *_ in on.members
+                if kept.holds(one)
+            ]
         try:
-            if not lock.take():
-                stop = (0, ready.MERGING)
             expected = kept.tip
             for member in kept.members:
                 found = judged.get(member.number)

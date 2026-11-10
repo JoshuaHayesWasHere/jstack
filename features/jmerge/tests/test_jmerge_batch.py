@@ -15,6 +15,7 @@ import pytest
 
 import test_home_merge as merge
 from jmerge import batch, green, ready, treeguards
+from jmerge.lock import MergeLock
 from test_jmerge_fresh import GH, LINES, Kitchen, git, url
 from test_jmerge_order import DIRECTORY, queue_of, row
 from test_jmerge_revert_line import named
@@ -190,6 +191,25 @@ def test_a_proven_batch_stops_at_the_first_merge_github_refuses(kitchen):
     assert third == f"wait 8 {url(8)}: {stopped}"
     assert [call.split()[2] for call in kitchen.calls()] == ["6", "7"]
     assert runs(kitchen) == 0
+
+
+def test_a_proven_batch_whose_merge_lock_another_run_holds_stays_proven_for_the_next_run(kitchen):
+    three(kitchen)
+    kitchen.run()
+    proven(kitchen)
+    held = MergeLock(kitchen.home.state)
+    assert held.take()
+    try:
+        merging = f"{ready.MERGING}"
+        assert kitchen.run() == [f"wait {n} {url(n)}: {merging}" for n in (6, 7, 8)]
+    finally:
+        held.give()
+    assert kitchen.calls() == []
+    assert [line.split()[:2] for line in kitchen.run()] == [
+        ["merged", "6"],
+        ["merged", "7"],
+        ["merged", "8"],
+    ]
 
 
 def test_a_batch_whose_tip_moved_merges_nothing_and_is_built_again_over_the_new_tip(kitchen):
