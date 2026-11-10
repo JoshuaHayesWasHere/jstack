@@ -5,6 +5,7 @@ run is `flow_canaries.py`, and it skips where no Java runs TLC."""
 
 import importlib
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -21,7 +22,33 @@ sys.path.insert(0, str(SPEC))
 
 flow = importlib.import_module("flow_canaries")
 tools = importlib.import_module("statechart.tools")
+lib = importlib.import_module("statechart.lib")
 find_java = tools.find_java
+
+READ_SET = ("features/jmerge/spec/", "features/jbus/src/", "features/jmerge/src/")
+"""The flow specs, and the code their cites quote."""
+
+CITE = re.compile(r"(features/[\w./-]+\.py)\s*`([^`]+)`")
+"""A cite of a flow spec: the path of the file it names and the code it quotes, with no line
+number."""
+
+
+def test_each_cite_of_a_flow_spec_quotes_code_its_file_holds():
+    """Each backticked quote after a features/ .py path in a spec's .tla stands in the file it
+    names, white space aside, so a change to the code a condition cites fails here, also where no
+    Java runs TLC: six cites of FlowToday.tla went stale unseen (ci-flow-close-cite,
+    ci-flow-stale-cites)."""
+    cites = []
+    for tla in sorted(SPEC.glob("*.tla")):
+        flat = re.sub(r"\s*\n\s*(?:\\\*)?\s*", " ", tla.read_text())
+        cites += [(tla.name, path, quote) for path, quote in CITE.findall(flat)]
+    assert len(cites) > 50
+    missing = [
+        f"{tla}: {path} `{quote}`"
+        for tla, path, quote in cites
+        if not lib.located((REPO / path).read_text().splitlines(), quote)
+    ]
+    assert not missing, "stale cites:\n" + "\n".join(missing)
 
 
 @pytest.mark.skipif(not find_java(), reason="no Java to run TLC")
