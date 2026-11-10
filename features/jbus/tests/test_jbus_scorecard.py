@@ -205,6 +205,44 @@ def test_a_trend_is_past_its_line_above_the_mean_of_its_seven_days_before(store,
     assert (reading.value, reading.state) == (today, state)
 
 
+def closed_unmerged(store, number: int, branch: str, closed: datetime) -> None:
+    store.execute(
+        "insert into ci_prs (project, key, number, branch, created, closed, day)"
+        " values ('jstack', ?, ?, ?, ?, ?, ?)",
+        (
+            str(number),
+            number,
+            branch,
+            stamp(closed - timedelta(hours=1)),
+            stamp(closed),
+            closed.date().isoformat(),
+        ),
+    )
+
+
+def test_closed_unmerged_counts_abandoned_pull_requests_of_the_last_72_hours(store):
+    """A probe whose row asked for no pull request and a revert jbus opened and closed are never
+    meant to merge, so neither counts; a pull request closed 60 h ago, before the week began at
+    2026-11-08 05:00 UTC, by a branch that is no row, does, and the value is the count itself."""
+    store.execute(
+        "insert into queue (project, key, slug, status) values ('jstack', 'probe', 'probe', 'done')"
+    )
+    store.execute(
+        "insert into brief_versions (project, key, at, slug, pull)"
+        " values ('jstack', 'probe', ?, 'probe', 'none')",
+        (stamp(NOW - timedelta(hours=4)),),
+    )
+    closed_unmerged(store, 1, "probe", NOW - timedelta(hours=2))
+    store.execute(
+        "insert into reverts (project, key, branch) values ('jstack', 'r', 'revert-9-main-x')"
+    )
+    closed_unmerged(store, 2, "revert-9-main-x", NOW - timedelta(hours=1))
+    closed_unmerged(store, 3, "abandoned", NOW - timedelta(hours=60))
+    closed_unmerged(store, 4, "too-old", NOW - timedelta(hours=73))
+    reading = measures.read(store, measure("closed-unmerged"), "jstack", NOW, USER)
+    assert (reading.value, reading.n) == (1, 1)
+
+
 def scorecard(*argv):
     out = io.StringIO()
     with contextlib.redirect_stdout(out):
