@@ -749,7 +749,9 @@ def test_the_cross_part_is_the_cross_cutting_tests_of_the_selection(tmp_path, ch
         "alpha.md": ALPHA,
         "beta.md": BETA,
     }
-    repo = Repo(tmp_path, features=features, files={**FILES, **LONE, FAR: "def test_far():\n    pass\n"})
+    repo = Repo(
+        tmp_path, features=features, files={**FILES, **LONE, FAR: "def test_far():\n    pass\n"}
+    )
     head = repo.change(changed)
     ran = repo.run("--part", "cross", repo.base, head)
 
