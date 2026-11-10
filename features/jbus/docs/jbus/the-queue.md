@@ -404,13 +404,13 @@ Nothing is pushed: the bot has no endpoint, and you want no webhook alarms.
 ### What an approval is bound to
 
 A go is bound to the goal, the scope and the done-when of the brief, and to nothing else.
-A typo fixed, a line re-wrapped, or an edit to `Skills`, `Decisions`, `Design`, `Proves it`, `Review`, `Playbook`, `Pull request` or a note keeps the go.
+A typo fixed, a line re-wrapped, or an edit to `Skills`, `Decisions`, `Asked`, `Design`, `Proves it`, `Review`, `Playbook`, `Pull request` or a note keeps the go.
 A change to the title, the `Task`, `Done when`, `Where`, `Do not touch` or `Size` asks you again.
 `approve` records the brief's meaning fingerprint (`features/jbriefs/src/jbriefs/meaning.py`), and a later brief keeps the go when its fingerprint is the same.
 It is deterministic and asks no model.
 
 The fingerprint reads six fields (`MEANING` in `features/jbriefs/src/jbriefs/meaning.py`): the title, `Task` (the goal), `Done when`, `Where`, `Do not touch` and `Size`.
-It leaves out every other (`NOT_MEANING`): `Skills`, `Decisions`, `Design`, `Proves it`, `Review`, `Playbook`, `Pull request`, `Holds`, `Builds on`, `Read`, `Instruments`, `Change`, `Rests on`, `Ruled out`, `Home` and `Thread`, a field the template does not name, and anything under a `## ` in the brief.
+It leaves out every other (`NOT_MEANING`): `Skills`, `Decisions`, `Asked`, `Design`, `Proves it`, `Review`, `Playbook`, `Pull request`, `Holds`, `Builds on`, `Read`, `Instruments`, `Change`, `Rests on`, `Ruled out`, `Home` and `Thread`, a field the template does not name, and anything under a `## ` in the brief.
 These say how the work is done or who runs it, not what it is for.
 A field starts at a line `<Label>: ` of the head, and runs to the next one.
 The fingerprint normalises each field in these steps:
