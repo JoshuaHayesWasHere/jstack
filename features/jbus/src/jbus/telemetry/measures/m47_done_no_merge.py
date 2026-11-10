@@ -4,8 +4,8 @@ MEASURE = Measure(
     name="done-no-merge",
     group="cost",
     says=(
-        "crew units in the last 72 h on rows that ended done with no merge and bought none: nothing to"
-        " change, dropped, or ended with no outcome named (`row_outcomes`), in millions"
+        "crew units in the last 72 h on rows that ended done with no merge and bought none:"
+        " nothing to change, dropped, or ended with no outcome named (`row_outcomes`), in millions"
     ),
     unit="M units per 72 h",
     better="lower",

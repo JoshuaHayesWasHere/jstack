@@ -10,13 +10,21 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from jbus import telemetry
 from jbus.telemetry import measures
-from test_jbus_scorecard import USER, calls, measure, stamp, store  # noqa: F401
+from test_jbus_scorecard import USER, calls, measure, stamp
 
 MONDAY = datetime(2026, 11, 9, 21, 20, tzinfo=UTC)
 """16:20 on a Monday in New York, 40 h 20 m after the week began at Sunday's midnight."""
 SATURDAY = datetime(2026, 11, 14, 21, 20, tzinfo=UTC)
 """16:20 on a Saturday in New York, 6 days and 16 h 20 m after the week began."""
+
+
+@pytest.fixture
+def store(tmp_path):
+    connection = telemetry.connect(tmp_path / telemetry.FILE)
+    yield connection
+    connection.close()
 
 
 def ended_with_no_merge(store, slug: str, at: datetime) -> None:
