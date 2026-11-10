@@ -1,8 +1,8 @@
 """Main's red as a TLA+ spec, `features/jbus/spec/MainRed.tla`: each condition quotes the code that
 checks it, and the quote stands once in its file; the spec checks each property
 `main_red_model.py` walks over the real `mainmoved.tell`; and TLC says what each rule of
-`MainRed.cfg` does on today's code: every rule holds but `OneRevertOpen`, which the code breaks.
-The TLC runs skip where no Java runs TLC."""
+`MainRed.cfg` does on today's code: every rule holds, and `BREAKS` names a rule only while the
+code breaks it. The TLC runs skip where no Java runs TLC."""
 
 import importlib
 import re
@@ -39,9 +39,9 @@ AGREES = {
 }
 """Each property `main_red_model.py` walks, and the rule of MainRed.tla that says it."""
 
-BREAKS = {"OneRevertOpen"}
-"""The rules today's code breaks: a revert stays open when main goes green and red again
-between two passes, and `culprits.judge` opens a second one for the new red."""
+BREAKS: set[str] = set()
+"""The rules today's code breaks, none: `reverts.close` closes a revert whose red main passed
+at or above even where a newer tip is red, so `OneRevertOpen` holds."""
 
 
 def quoted():
@@ -143,9 +143,10 @@ def without(cfg, names):
 @pytest.mark.skipif(not tools.find_java(), reason="no Java to run TLC")
 @pytest.mark.timeout(600)
 @pytest.mark.parametrize("cfg", ["MainRed.cfg", "MainRed.chart.cfg"])
-def test_today_s_code_holds_every_rule_but_the_one_it_breaks(cfg):
-    """TLC on today's code: with the rule it breaks left out, every other rule of the config
-    holds, the property that red ends only by a merge among them; and that rule alone breaks."""
+def test_today_s_code_holds_every_rule_but_the_ones_it_breaks(cfg):
+    """TLC on today's code: with the rules it breaks left out, every other rule of the config
+    holds, the property that red ends only by a merge among them; and each of those alone
+    breaks."""
     text = (SPEC / cfg).read_text()
     found = tools.find_tlc()
     held = tlc(found, without(text, BREAKS))

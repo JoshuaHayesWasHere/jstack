@@ -1,12 +1,12 @@
 {
   "view": "customer",
-  "modelStates": 7177,
-  "modelTransitions": 18430,
-  "chartStates": 12,
-  "chartTransitions": 51,
+  "modelStates": 6145,
+  "modelTransitions": 14950,
+  "chartStates": 10,
+  "chartTransitions": 44,
   "chartStatus": {
     "works": 10,
-    "wrong": 2,
+    "wrong": 0,
     "fixed": 0
   },
   "chartGroups": [
@@ -18,7 +18,7 @@
     {
       "name": "Red, its fix on its way",
       "color": "#fdebd0",
-      "states": 5
+      "states": 3
     },
     {
       "name": "Red, nothing open yet",
@@ -29,20 +29,8 @@
   "mixedGroups": [],
   "regions": {
     "drawn": false,
-    "why": "the regions do not combine into the flat chart, with 2 difference(s), such as transitions only in EXPECTED (a guard in the spec blocks them, or the spec renamed the step): Main red | a revert open and a fix row out --> Main's run going | nothing open to fix it : jbus's pass sees main green and closes the revert"
+    "why": "the regions do not combine into the flat chart, with 7 difference(s), such as transitions only in EXPECTED (a guard in the spec blocks them, or the spec renamed the step): Main red | a revert open --> Main green | a fix row out : jbus's pass sees main green and closes the revert"
   },
-  "classes": [
-    {
-      "n": 1,
-      "end": "Main red: two reverts open",
-      "invariant": "OneRevertOpen",
-      "rule": "At most one revert of jbus's is open at a time.",
-      "cause": "main went green at a later commit and red again before a pass saw the green alone, so reverts.close, which waits for a green main, left the first revert open while culprits.judge opened a second for the new red",
-      "readerSteps": 3,
-      "modelSteps": 8,
-      "counterexamples": 108,
-      "fix": null
-    }
-  ],
+  "classes": [],
   "codeLike": []
 }

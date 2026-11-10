@@ -209,11 +209,10 @@ def test_a_revert_jbus_opened_is_closed_once_main_is_green_without_it(kitchen):
     assert list(kept.read(kitchen.state)) == [red], "the pass that closes it keeps its record"
 
 
-def test_a_revert_is_closed_once_main_is_green_above_its_red_though_a_newer_tip_is_red(kitchen):
-    """MainRed.tla's OneRevertOpen: alpha's revert is open, a fix lands green, and beta's merge
-    lands red on it, all before the next pass. That pass sees main green at the fix and red at
-    beta: alpha's red is older than the green, so its revert is closed, and beta's is the one
-    revert open."""
+def green_then_red(kitchen):
+    """`fixed_first`, then beta's merge lands red on the green fix before the next pass, red
+    again after its one rerun with `TEST` failed. Return alpha's red tip, its revert on record,
+    the green fix and beta's red tip."""
     red, made, fixed = fixed_first(kitchen)
     brief(kitchen, "beta", 8)
     again = move(kitchen, "failure")
@@ -237,6 +236,15 @@ def test_a_revert_is_closed_once_main_is_green_above_its_red_though_a_newer_tip_
     kitchen.set("push-runs.json", pushed)
     logs = json.loads((kitchen.stub / "logs.json").read_text())
     kitchen.set("logs.json", {**logs, "95": LOG})
+    return red, made, fixed, again
+
+
+def test_a_revert_is_closed_once_main_is_green_above_its_red_though_a_newer_tip_is_red(kitchen):
+    """MainRed.tla's OneRevertOpen: alpha's revert is open, a fix lands green, and beta's merge
+    lands red on it, all before the next pass. That pass sees main green at the fix and red at
+    beta: alpha's red is older than the green, so its revert is closed, and beta's is the one
+    revert open."""
+    red, made, fixed, again = green_then_red(kitchen)
     kitchen.poll(NOW + timedelta(minutes=30))
     main = mainjson.read(kitchen.state)
     assert (main.green, main.red) == (fixed, again)
@@ -246,6 +254,19 @@ def test_a_revert_is_closed_once_main_is_green_above_its_red_though_a_newer_tip_
     assert set(record) == {red, again}, "beta's red got its revert"
     opened = {pull["url"] for pull in json.loads((kitchen.stub / "open.json").read_text())}
     assert [one.slug for one in record.values() if one.pull in opened] == ["beta"]
+
+
+def test_a_revert_under_a_newer_red_stays_open_while_github_does_not_order_its_red(kitchen):
+    """While a newer tip is red, only GitHub's compare says alpha's red is under the green: where
+    it gives no answer, alpha's revert stays open, and the next pass that gets one closes it."""
+    red, made, fixed, _ = green_then_red(kitchen)
+    kitchen.set("compare.json", {f"{red}...{fixed}": "no answer"})
+    kitchen.poll(NOW + timedelta(minutes=30))
+    assert asked(kitchen, "pr close") == []
+    kitchen.set("compare.json", {})
+    kitchen.poll(NOW + timedelta(minutes=33))
+    (closed,) = asked(kitchen, "pr close")
+    assert closed.startswith(f"pr close {made.pull} --comment ")
 
 
 def test_a_closed_revert_whose_culprit_is_over_is_dropped_on_the_next_pass(kitchen):

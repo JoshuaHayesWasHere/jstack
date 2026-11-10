@@ -110,13 +110,11 @@ It also checks that the spec states each property `features/jbus/tests/main_red_
 ### The rules of main's red
 
 - `OneRevertOpen`: at most one of jbus's reverts is open at a time.
-  **Today's code breaks it.**
   Main can go green at a later commit and then red again before a pass sees the green on its own.
-  When that happens, `reverts.close` does nothing, because it acts only once main is green (`if main.red or not main.green: return`).
-  The first revert stays open, and in the same pass `culprits.judge` reads only the commits since that green, so it opens a second revert for the new red.
-  The green can come from a fix row's merge, or from a red of two flakes that a later merge made green.
+  In that pass `culprits.judge` reads only the commits since that green, and may open a revert for the new red.
+  `reverts.close` then closes each revert whose red is the green or older, even though main's tip is red (`cleared`), so the first revert never waits for jmerge beside the second.
+  The green can come from a fix row's merge, from a red of two flakes that a later merge made green, or from a rerun by hand that turned the red commit itself green.
   The red can come from two merges between passes, where the older failed one is never rerun, or from a rerun that GitHub refused.
-  The open revert then still waits for jmerge, which merges reverts first.
 - `RedEndsOnlyByAMerge`: a red whose code is broken ends only at a green commit that a later merge made.
   No step of jbus's ends a red.
   Only a run that failed twice by chance turns green at its own commit, through a rerun by hand that `tell` reads again (`again=tip in (main, stands)`).
@@ -135,9 +133,8 @@ Run it from this folder, with the pinned jar copied in:
 cp ~/.cache/jstack/tla2tools/1.7.4/tla2tools.jar . && java -cp tla2tools.jar tlc2.TLC -config MainRed.cfg MainRed.tla; rm -rf tla2tools.jar states
 ```
 
-It exits 12 and prints the shortest path that breaks `OneRevertOpen`, about 4,000 states in.
-With `OneRevertOpen` taken out of the config, every other rule holds over 146k states (MaxTips 4), in about a minute on two workers.
-The test runs both: the model without that rule must hold, and that rule alone must break.
+It exits 0: every rule holds over 113,042 distinct states (MaxTips 4), in about a minute on two workers.
+The test runs TLC on both configs, and on each rule of `BREAKS` alone, which is empty while the code breaks no rule.
 
 ### Draw the chart of main's red
 
@@ -146,15 +143,15 @@ S=$PWD/features/skill-library/skills/statechart/scripts
 D=$HOME/.cache/jstack/tlc-tmp && mkdir -p "$D"
 W=$(TMPDIR=$D mktemp -d) && cp features/jbus/spec/MainRed.* "$W"
 (cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
-    statechart from-spec MainRed.tla --config MainRed.chart.cfg --expect-broken OneRevertOpen \
+    statechart from-spec MainRed.tla --config MainRed.chart.cfg \
     --title "Main went red: what fixes it?" --out out --png)
 ```
 
 Run it from the repo root.
 Then copy the files of `$W/out` into `MainRed-statechart/`, all except `tlc/`.
-`MainRed.chart.cfg` has the same rules on up to three commits (7,177 states), and it draws 12 chart states and 51 steps.
-The four commits of `MainRed.cfg` draw 32 states and 164 steps, which Mermaid could not render as a PNG.
-`bug-1` is the shortest path that breaks `OneRevertOpen`.
+`MainRed.chart.cfg` has the same rules on up to three commits (6,145 states), and it draws 10 chart states and 44 steps.
+The four commits of `MainRed.cfg` draw too many states and steps for Mermaid to render as a PNG.
+No state breaks a rule, so it draws no `bug-N` chart.
 
 ### What the main-red model leaves out
 

@@ -211,14 +211,20 @@ def tested(run: Pass, found: Culprit, under: str, age: timedelta) -> Culprit | K
     lacks it, and `UNREAD`, then `UNANSWERED` once the tip is older than `READ_WAIT`, where
     GitHub does not say."""
     head = str(found.pull.get("headRefOid", ""))
-    asked = run.run("gh", "api", f"repos/{{owner}}/{{repo}}/compare/{under}...{head}")
-    try:
-        status = json.loads(asked.stdout).get("status") if asked.returncode == 0 else None
-    except (ValueError, AttributeError):
-        status = None
+    status = compared(run, under, head)
     if not (under and head) or status not in ("ahead", "identical", "behind", "diverged"):
         return Keep.UNANSWERED if age > READ_WAIT else Keep.UNREAD
     return found if status in ("ahead", "identical") else Keep.SKEW
+
+
+def compared(run: Pass, base: str, head: str) -> str | None:
+    """GitHub's status of `head` against `base`, such as `ahead` where `head` holds `base`, or
+    None where GitHub does not say."""
+    asked = run.run("gh", "api", f"repos/{{owner}}/{{repo}}/compare/{base}...{head}")
+    try:
+        return json.loads(asked.stdout).get("status") if asked.returncode == 0 else None
+    except (ValueError, AttributeError):
+        return None
 
 
 def flaky(run: Pass, branch: str) -> frozenset[str]:
@@ -357,14 +363,17 @@ def close(run: Pass, world: World, rows: list[dict[str, Any]] | None) -> None:
     """Close each revert jbus opened that is still open once main's check passed at a later tip
     without it, with a comment that names that tip; a revert of a Mac red (`macos`) once main's
     macOS run passed at a later commit too. `main.json` keeps the red tip until a later
-    tip is green, and a revert is opened only while it does, so its `green` is then the later
-    tip. A pull request GitHub would not close is a condition, and the next pass tries again.
-    A revert no longer open whose culprit's slug is over is dropped from the record (`over`);
-    with no queue read (`rows` is None) none is. A revert of a Mac red is neither closed nor
-    dropped while the Mac is red: `macos` may have opened it in this pass, after `world` was
-    read."""
+    tip is green, and a revert is opened only while it does, so once main is green its `green`
+    is the later tip. Main may also be red again at a newer tip by the time a pass sees that
+    green, and `culprits.judge` then opens the revert of the new red: a revert whose red is
+    `green` or older (`cleared`) is closed all the same, so one revert is open at a time
+    (`MainRed.tla`'s `OneRevertOpen`). A pull request GitHub would not close is a condition,
+    and the next pass tries again. While main is green, a revert no longer open whose
+    culprit's slug is over is dropped from the record (`over`); with no queue read (`rows` is
+    None) none is. A revert of a Mac red is neither closed nor dropped while the Mac is red,
+    nor while main is: `macos` may have opened it in this pass, after `world` was read."""
     main = mainjson.read(run.state)
-    if main.red or not main.green:
+    if not main.green:
         return
     mac = read_json(run.state / MAC_MAIN, {})
     of_mac = set(mac.get("reverted", ()))
@@ -374,7 +383,11 @@ def close(run: Pass, world: World, rows: list[dict[str, Any]] | None) -> None:
     ended = [
         red for red, one in made.items() if red not in held and one.pull.rstrip("/") not in urls
     ]
-    gone = [red for red in ended if rows is not None and over(made[red].slug, world, rows)]
+    gone = [
+        red
+        for red in ended
+        if not main.red and rows is not None and over(made[red].slug, world, rows)
+    ]
     if gone:
         write_json(
             run.state / kept.NAME,
@@ -383,12 +396,14 @@ def close(run: Pass, world: World, rows: list[dict[str, Any]] | None) -> None:
     for one in made.values():
         if one.red in ended or one.red in held:
             continue
+        if main.red and (one.red in of_mac or not cleared(run, one.red, main.green)):
+            continue
         green, where = main.green, "main's check"
         if one.red in of_mac:
             green, where = mac["green"], "main's macOS run"
         comment = (
             f"jbus closes this: {where} passed at {green[:12]}, a later tip than the "
-            f"red {one.red[:12]} it reverts, so main is green without it."
+            f"red {one.red[:12]} it reverts, so main passed without it."
         )
         asked = run.run("gh", "pr", "close", one.pull, "--comment", comment)
         if asked.returncode != 0:
@@ -398,6 +413,12 @@ def close(run: Pass, world: World, rows: list[dict[str, Any]] | None) -> None:
         line = f"revert {one.slug}: {where} passed at {green[:12]}, jbus closed {one.pull}"
         run.find(one.slug, "revert", line, key=f"closed {one.red}")
         run.say(line)
+
+
+def cleared(run: Pass, red: str, green: str) -> bool:
+    """Whether main's check passed at `red` itself or at a later commit, `green`, as GitHub
+    compares them. Where GitHub does not say, it did not, and the next pass asks again."""
+    return compared(run, red, green) in ("ahead", "identical")
 
 
 def over(slug: str, world: World, rows: list[dict[str, Any]]) -> bool:

@@ -200,16 +200,18 @@ Pass ==
     /\ rec' = [broken |-> red, green |-> green, failed |-> IF red = 0 THEN {} ELSE Tests(red)]
     \* jbus/mainmoved.py `if tip not in judged and (read := failed_at(run, tip)) is not None:`
     /\ reds' = IF red # 0 /\ red \notin Range(reds) THEN Append(reds, red) ELSE reds
-    \* jbus/reverts.py `if main.red or not main.green: return` comes after judge, which acts only on a
-    \* red tip: close closes every revert still open once main is green.
-    /\ reverts' =
-        IF verdict = "revert"
-        THEN reverts @@ (oldest :> [row |-> by[oldest], st |-> "open"])
-        ELSE IF red = 0
-        THEN [k \in DOMAIN reverts |->
-                IF reverts[k].st \in {"open", "stuck"} THEN [reverts[k] EXCEPT !.st = "closed"]
-                ELSE reverts[k]]
-        ELSE reverts
+    \* close comes after judge, which acts only on a red tip, and closes each revert still open
+    \* whose red is the green or older: every one once main is green, and while a newer tip is
+    \* red, those at or under the green (jbus/reverts.py `if main.red and (one.red in of_mac or
+    \* not cleared(run, one.red, main.green)):`), never the one judge opened above it.
+    /\ LET judged == IF verdict = "revert"
+                     THEN reverts @@ (oldest :> [row |-> by[oldest], st |-> "open"])
+                     ELSE reverts
+       IN reverts' =
+            [k \in DOMAIN judged |->
+                IF judged[k].st \in {"open", "stuck"} /\ (red = 0 \/ k <= green)
+                THEN [judged[k] EXCEPT !.st = "closed"]
+                ELSE judged[k]]
     \* jbus/watch.py `if fixes and tip and main.green == tip:` and `if row.get("thread") or
     \* row.get("status") not in queue.UNLAUNCHED:`: a row filed for the tip itself is left, as
     \* is one that launched.
