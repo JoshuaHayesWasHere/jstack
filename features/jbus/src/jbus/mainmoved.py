@@ -91,27 +91,38 @@ that linted the tree (`make lint`, `prose lint`, `make check: lint`), as `jbus.c
 names a step: GitHub's name, with the make target that failed where the log names one."""
 PULL = re.compile(r"\(#(\d+)\)$")
 """A squash merge's subject ends in its pull request's number."""
+UNCOLLECTED = re.compile(r"\bERROR collecting \S|\b\d+ errors? during collection\b")
+"""pytest's word that it could not collect a test file, as on an ImportError or a syntax error in
+the code: `ERROR collecting <path>`, and `Interrupted: <n> error during collection`."""
 
 
 class Verdict(StrEnum):
     """Why main's check went red at a tip.
 
-    `CHANGE`: the code is wrong, a test or the lint fails on it, and only a change to the code ends
-    it. `FLAKE`: each test that failed is one `jbus ci` counts as a flake (`reverts.flaky`).
+    `CHANGE`: the code is wrong, a test or the lint fails on it, or pytest could not collect a test
+    file, and only a change to the code ends it. `FLAKE`: each test that failed is one `jbus ci`
+    counts as a flake (`reverts.flaky`).
     `INFRA`: the run failed outside the code's own checks, at a step that is neither the tests nor
-    the lint, or at the tests with no test named, as when the coverage file or the runner breaks."""
+    the lint, or at the tests with no test named and every test file collected, as when the
+    coverage file or the runner breaks."""
 
     CHANGE = "change"
     FLAKE = "flake"
     INFRA = "infra"
 
 
-def verdict(steps: Collection[str], failed: Collection[str], flakes: Collection[str]) -> Verdict:
+def verdict(
+    steps: Collection[str],
+    failed: Collection[str],
+    flakes: Collection[str],
+    uncollected: bool = False,
+) -> Verdict:
     """The rule: why a red run failed, from the step each failed part failed at, the tests the run
-    failed (`mainjson.failures`: none where any part fails no test it names) and the tests
-    `reverts.flaky` names. A step not known, "", says nothing either way."""
+    failed (`mainjson.failures`: none where any part fails no test it names), the tests
+    `reverts.flaky` names, and whether pytest could not collect a test file (`uncollected`). A
+    step not known, "", says nothing either way."""
     targets = {step.rsplit(" ", 1)[-1] for step in steps if step}
-    if LINT in targets:
+    if LINT in targets or uncollected:
         return Verdict.CHANGE
     if not failed or targets - {TESTS}:
         return Verdict.INFRA
@@ -214,6 +225,15 @@ def failed_steps(run: Pass, sha: str) -> list[str]:
     return list(dict.fromkeys(steps))
 
 
+def uncollected(run: Pass, sha: str) -> bool:
+    """Return whether the log of a failed part of main's check says pytest could not collect a
+    test file (`UNCOLLECTED`)."""
+    return any(
+        UNCOLLECTED.search(job_log(run, "{owner}/{repo}", one.get("id")) or "")
+        for one in _failed_parts(run, sha)
+    )
+
+
 def pulls(run: Pass, tips: Sequence[str]) -> list[tuple[int, str]]:
     """Return the pull request merged at each tip, with its branch, as `merged.json` keeps them,
     else the number its commit's subject ends in, as GitHub lists main's commits."""
@@ -251,7 +271,7 @@ def red_line(run: Pass, tip: str, green: str, failed: list[str]) -> dict:
         "prs": [number for number, _ in landed_],
         "step": ", ".join(steps),
         "failed": failed,
-        "verdict": str(verdict(steps, failed, flakes)),
+        "verdict": str(verdict(steps, failed, flakes, uncollected(run, tip))),
     }
 
 
