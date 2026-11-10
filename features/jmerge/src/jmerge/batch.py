@@ -35,9 +35,14 @@ from jsettings import store
 BRANCH = "jmerge/batch"
 KEPT = "batch.json"
 SWITCH = "merge-batch"
-MOST = 12
-"""The most members a batch takes: the scout's cap, above which a failed batch costs too many
-members a round of their own (scouts/po-batched-merge-scout.md)."""
+START = 12
+"""The most members a batch takes where `KEPT` keeps none: the scout's first cap, above which a
+failed batch costs too many members a round of their own (scouts/po-batched-merge-scout.md)."""
+LEAST = 2
+MOST = 48
+"""The bounds of the most a batch takes (`Record.most`), which doubles after a batch of that many
+proves and halves after one fails: at a failure share of 2.8% a member, 74% of batches of 48 fail
+(the scout po-better-further). Setting both to `START` undoes the rule."""
 PENDING_MINUTES = 30
 """How long a batch may go from its push with no artifact found before it counts as failed: above
 the p90 of 387 s of the pull request check, so a run GitHub left queued or never started, or a
@@ -45,6 +50,9 @@ pass whose artifact is never found, does not hold its members for ever."""
 SHA = 12
 _IDENTITY = ("-c", "user.name=jmerge", "-c", "user.email=jmerge@localhost")
 
+BUILT = "batch: built over {base} at {tip}, {size} of {most} members at most"
+"""The line of a batch built, its size and the most it could take (`Record.most`), which merge.log
+keeps. It is about no pull request, so jbus reads nothing of it."""
 UNMADE = "batch: not made over {base} at {tip} ({why}), so its members go alone"
 """The line of a batch that could not be built, pushed or opened: each member goes the single
 path of today in the same run. It is about no pull request, so jbus reads nothing of it."""
@@ -101,8 +109,9 @@ def failed_jobs(rollup: list[dict], required: tuple[str, ...]) -> tuple[str, ...
 @dataclass(frozen=True)
 class Batch:
     """A batch as `KEPT` keeps it: the tip it was built over, its tree, the commit pushed to
-    `BRANCH`, its members in merge order, when it was pushed, and the rerun of its failed check
-    where one was started (`rerun`)."""
+    `BRANCH`, its members in merge order, when it was pushed, the rerun of its failed check
+    where one was started (`rerun`), and whether it is the first half of the suspects (`narrow`),
+    sized by them and not by `Record.most`, which its end then leaves."""
 
     tip: str
     tree: str
@@ -110,6 +119,7 @@ class Batch:
     members: tuple[Member, ...]
     at: datetime
     rerun: Rerun | None = None
+    narrowed: bool = False
 
     def holds(self, one: ready.PullRequest) -> bool:
         return Member(one.number, one.head) in self.members
@@ -130,14 +140,15 @@ class Record:
     the last suspect of a proven half, which go the single path at those heads; the suspects, the
     members of the last failed batch of two or more that have not merged, in merge order, of which
     the next batch takes the first half; and whether the batch out, or the next one built, is
-    built again after a timeout (`again`). The batch out keeps its own rerun (`Batch.rerun`), so
-    a batch built anew has none."""
+    built again after a timeout (`again`); and the most members the next batch takes (`most`).
+    The batch out keeps its own rerun (`Batch.rerun`), so a batch built anew has none."""
 
     path: Path
     batch: Batch | None = None
     failed: dict[str, str] = field(default_factory=dict)
     suspects: tuple[Member, ...] = ()
     again: bool = False
+    most: int = START
 
     @classmethod
     def read(cls, state: Path) -> Record:
@@ -160,10 +171,13 @@ class Record:
                 _members(kept["members"]),
                 datetime.fromisoformat(str(kept["at"])),
                 rerun,
+                kept.get("narrowed") is True,
             )
         except (KeyError, TypeError, ValueError):
             made = None
-        return cls(path, made, failed, suspects, kept.get("again") is True)
+        most = kept.get("most")
+        most = most if isinstance(most, int) and LEAST <= most <= MOST else START
+        return cls(path, made, failed, suspects, kept.get("again") is True, most)
 
     def write(self) -> None:
         kept: dict = {}
@@ -179,15 +193,28 @@ class Record:
             if made.rerun is not None:
                 jobs = list(made.rerun.jobs)
                 kept["rerun"] = {"jobs": jobs, "at": made.rerun.at.isoformat()}
+            if made.narrowed:
+                kept["narrowed"] = True
         suspects = [{"number": m.number, "head": m.head} for m in self.suspects]
-        store.write_json(
-            self.path, {**kept, "failed": self.failed, "suspects": suspects, "again": self.again}
-        )
+        rest = {"failed": self.failed, "suspects": suspects, "again": self.again}
+        store.write_json(self.path, {**kept, **rest, "most": self.most})
+
+    def _full(self) -> bool:
+        """Whether the batch out is one of `most` members, sized by the rule and not narrowed."""
+        made = self.batch
+        return made is not None and not made.narrowed and len(made.members) == self.most
 
     def fail(self) -> None:
-        """End the batch out as failed: one of two or more members makes them the suspects, and
-        a suspect of an earlier batch not in it is one no more; one of one member puts its head
-        under `failed` and takes it from the suspects."""
+        """End the batch out as failed after its rerun, and halve the most where it was full
+        (`_full`), to `LEAST` at least."""
+        if self._full():
+            self.most = max(self.most // 2, LEAST)
+        self._suspect()
+
+    def _suspect(self) -> None:
+        """End the batch out: one of two or more members makes them the suspects, and a suspect
+        of an earlier batch not in it is one no more; one of one member puts its head under
+        `failed` and takes it from the suspects."""
         members = self.batch.members if self.batch else ()
         if len(members) > 1:
             self.suspects = members
@@ -204,17 +231,22 @@ class Record:
     def late(self) -> None:
         """End the batch out that went `PENDING_MINUTES` with no artifact found: one of two or
         more not yet built again is built again whole (`again`), with the suspects it had, and
-        any other fails (`fail`)."""
+        any other makes its members suspects as a failure does, but leaves the most: a timeout is
+        no evidence of the failure share."""
         members = self.batch.members if self.batch else ()
         if len(members) > 1 and not self.again:
             self.batch, self.again = None, True
         else:
-            self.fail()
+            self._suspect()
 
     def prove(self) -> None:
-        """Take the members of the proven batch out from the suspects. Where it held suspects and
-        one is left, that one failed the batch they were suspects of: its head goes under
-        `failed`, so it takes the single path with no batch built for it alone."""
+        """Double the most where the proven batch out was full (`_full`), to `MOST` at most, and
+        take its members from the suspects. Where it held suspects and one is left, that one
+        failed the batch they were suspects of: its head goes under `failed`, so it takes the
+        single path with no batch built for it alone. A batch proven again in a later run, as
+        one whose merge lock another run held is, is full no more, so it doubles the most once."""
+        if self._full():
+            self.most = min(self.most * 2, MOST)
         members = self.batch.members if self.batch else ()
         left = tuple(one for one in self.suspects if one not in members)
         if len(left) == 1 and len(left) < len(self.suspects):
@@ -278,18 +310,18 @@ class Built:
     members: tuple[Member, ...]
 
 
-def build(main: Path, base: str, tip: str, heads: list[Member]) -> Built:
+def build(main: Path, base: str, tip: str, heads: list[Member], most: int) -> Built:
     """Merge each head over `tip` in turn with `git merge-tree`, as GitHub's squashes will land
     them: each step a commit of one parent over the last, so each head merges from its own fork
     point, as its squash does. A head that does not merge over those before it (a conflict, or a
-    head git cannot read) is left out, and `MOST` heads at most go in. The batch is one commit of
+    head git cannot read) is left out, and `most` heads at most go in. The batch is one commit of
     the last tree, whose one parent is the tip. A commit git could not make is empty, and the
     push of it fails and says why (`push`)."""
     at, tree, members = tip, "", []
     for one in heads:
         merged = _git(main, "merge-tree", "--write-tree", at, one.head)
         found = merged.stdout.split()[:1]
-        if merged.returncode or not found or len(members) == MOST:
+        if merged.returncode or not found or len(members) == most:
             continue
         step = _git(main, *_IDENTITY, "commit-tree", found[0], "-p", at, "-m", f"#{one.number}")
         at, tree = step.stdout.strip(), found[0]
