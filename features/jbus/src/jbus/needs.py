@@ -151,7 +151,10 @@ def of(
 def asks(project: jbus.Project, root: Path, home: Path) -> list[Need]:
     """Return each ask a home made of the user itself that is still open: a `decision local` or
     `stop local` line of its `told` file, which `jbus told` keeps until a `cleared local` line ends
-    it (`jbus.turnend`). With the root home, its scopes' too."""
+    it (`jbus.turnend`). With the root home, its scopes' too, and none where the root home has no
+    directory yet."""
+    if not root.is_dir():
+        return []
     scopes = sorted(one for one in root.iterdir() if (one / "plan.md").is_file())
     found = []
     for at in [root, *scopes] if home == root else [home]:
