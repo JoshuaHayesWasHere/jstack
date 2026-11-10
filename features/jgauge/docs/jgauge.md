@@ -231,6 +231,7 @@ For each lane it prints:
 
 Then it prints the CPU of the holds released in the span, from the release rows' `cpu_user` and `cpu_system`: the total CPU seconds by lane and by repo, user plus system, and the mean cores the total comes to over the span.
 A release written before the log recorded the CPU is counted apart.
+A span with no release that has the CPU prints no CPU lines.
 
 ### The slot log
 

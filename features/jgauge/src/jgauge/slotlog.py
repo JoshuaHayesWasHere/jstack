@@ -286,8 +286,10 @@ def _union(spans: list[tuple[float, float]]) -> list[tuple[float, float]]:
 def _cpu(released: list[Hold], span: float) -> list[str]:
     """The CPU seconds of the holds released in the span, by lane and by repo, each with the mean
     cores it comes to over the span. A release written before the log had the CPU has none, and
-    is counted apart."""
+    is counted apart, and a span with no release that has the CPU prints no CPU lines."""
     measured = [(one, one.cpu) for one in released if one.cpu is not None]
+    if not measured:
+        return []
     lines = [
         f"  CPU of the {len(measured)} holds released in the span, user + system seconds, and the"
         " mean cores over the span:"

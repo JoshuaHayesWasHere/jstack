@@ -203,3 +203,6 @@ def test_the_report_sums_the_cpu_of_the_holds_released_in_the_span_by_lane_and_b
         "    repo jstack: 480.0 s (420.0 + 60.0), 0.80 cores",
         "    repo cs-shelf: 120.0 s (100.0 + 20.0), 0.20 cores",
     ]
+
+    log.write_text("".join(json.dumps(row) + "\n" for row in hold("old", "short", "", 3, 5)))
+    assert not any("CPU" in line for line in slotlog.report(log, start, until, until))
