@@ -258,7 +258,7 @@ def test_jbus_scorecard_prints_each_measure_and_writes_nothing(tmp_path, monkeyp
     monkeypatch.setattr(telemetry, "datetime", Frozen)
     path = tmp_path / "store.sqlite"
     writer = telemetry.connect(path)
-    created = stamp(now - timedelta(minutes=1))
+    created, _ = measures.bounds("day", now, USER)
     for project in ("alpha", "beta"):
         writer.execute(
             "insert into runs (project, key, workflow, event, created)"
