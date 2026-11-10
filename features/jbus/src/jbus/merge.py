@@ -150,7 +150,7 @@ def merge(run: Pass) -> Said:
             (where / STARTED).unlink()
             _unrun(run, f"its run ended with no record: {_last(where / CHILD_LOG)}")
         (where / STARTED).write_text(restated.moment(verbs.clock()) + "\n")
-        if why := start(run, handed(run)):
+        if why := start(run):
             (where / STARTED).unlink(missing_ok=True)
             _unrun(run, why)
     return _records(run, where)
@@ -160,9 +160,9 @@ def runs(run: Pass) -> Path:
     return run.state / RUNS
 
 
-def start(run: Pass, more: tuple[str, ...] = ()) -> str:
-    """Start `keep` for the project in a process that outlives the pass, with `more` for `jmerge`
-    (`handed`), and return why it could not start, or nothing.
+def start(run: Pass) -> str:
+    """Start `keep` for the project in a process that outlives the pass, with the pass's list for
+    `jmerge` (`handed`), and return why it could not start, or nothing.
 
     A pass that systemd runs is a oneshot unit, and systemd ends every process left in it when the
     pass ends, a new session or not: the run is then a transient unit of its own (`UNIT`), with the
@@ -170,7 +170,7 @@ def start(run: Pass, more: tuple[str, ...] = ()) -> str:
     """
     where = runs(run)
     child = (sys.executable, "-c", "import sys; from jbus import merge; merge.keep(*sys.argv[1:])")
-    child += (str(where), str(run.project.checkout), *more)
+    child += (str(where), str(run.project.checkout), *handed(run))
     if os.environ.get("INVOCATION_ID"):
         name = re.sub(r"[^A-Za-z0-9_.-]", "-", run.project.name)
         digest = hashlib.sha256(str(where.resolve()).encode()).hexdigest()[:8]
