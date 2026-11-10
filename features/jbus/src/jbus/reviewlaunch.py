@@ -40,7 +40,6 @@ from jbriefs import below
 from jbus import history, verbs
 from jbus.passes import Pass
 from jbus.watch import World, task_brief
-from jmerge import ready
 
 LAUNCHES = "review-launches.jsonl"
 SCOPED = "Scoped reviewer"
@@ -75,14 +74,9 @@ def claim(run: Pass, slug: str, head: str, kind: Kind) -> None:
 def release(run: Pass, slug: str, head: str, kind: Kind) -> None:
     """Take back the claim of a launch T3 Code refused, so that the next pass asks again."""
     path = run.state / LAUNCHES
-    try:
-        lines = path.read_text(errors="replace").splitlines(keepends=True)
-    except FileNotFoundError:
-        return
     gone = ("claim", slug, head, kind)
+    lines = path.read_text(errors="replace").splitlines(keepends=True)
     kept = [line for line in lines if _key(_parsed(line)) != gone]
-    if len(kept) == len(lines):
-        return
     temporary = path.with_name(f"{path.name}.{os.getpid()}.tmp")
     temporary.write_text("".join(kept))
     os.replace(temporary, path)
@@ -96,12 +90,6 @@ def has(run: Pass, slug: str, head: str) -> bool:
         return True
     sent = run.box.sent()
     return any(f"{kind}|{slug}|{short}" in sent for kind in _MARKED)
-
-
-def judged(run: Pass, slug: str, head: str) -> bool:
-    """Whether the last review the brief has written judged `head`: a reviewer asked for there
-    would read what that review read, so `expedite` asks a crew for none."""
-    return ready.said_of(task_brief(run, slug)).reviewed == head
 
 
 def _key(one: dict[str, Any]) -> Any:

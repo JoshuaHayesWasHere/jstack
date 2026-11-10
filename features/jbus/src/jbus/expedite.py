@@ -21,7 +21,7 @@ crew's own proof or check clears (`Short.spells`, `TELLS`). `TABLE` holds every 
 - `fix`, `the scoped review of it is not written`: launch the scoped reviewer of the fix
   with the two ranges, the patch the last review saw and the patch at the head, owed only after
   a `Meets the brief: no` and while no `Proved:` line holds at the head, and never at the head a
-  written review judged (`reviewlaunch.judged`). Where the crew cannot work out a range, run the
+  written review judged, which it would read again. Where the crew cannot work out a range, run the
   crew skill's block, which says what to do;
 - `meets-no`, `meets-unread` and `meets-miscounted`, the last review round's `Meets the brief:`
   line (`jbriefs.meets`) says `no`, has no shape `jmerge` reads, or counts other lines than the
@@ -117,7 +117,6 @@ from jbriefs.home import thread_of
 from jbus import END_TURN, dispatch, merge, outbox, read_json, rebase, verbs, write_json
 from jbus.passes import Pass
 from jbus.review import ranges
-from jbus.reviewlaunch import judged
 from jbus.stall import PASSES, REVIEWING
 from jbus.t3 import Client, T3Error
 from jbus.watch import World, at_work, task_brief
@@ -682,7 +681,7 @@ def tell(run: Pass, client: Client, world: World, pulls: merge.Said) -> set[int]
         if due and _capped(run, client, slug):
             entry["passes"] = after
         passes = entry["passes"]
-        seen = row.kind == "fix" and judged(run, slug, head)
+        seen = row.kind == "fix" and ready.said_of(task_brief(run, slug)).reviewed == head
         if due and (rebase.mark(row.kind, slug, head) in sent or seen):
             entry["told"], entry["tells"], due = passes, 1, False
         asked = "told" in entry and not entry.get("users")

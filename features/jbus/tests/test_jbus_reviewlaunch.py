@@ -70,6 +70,8 @@ def test_a_launch_is_claimed_before_it_is_asked_for_so_one_with_no_reply_is_not_
 def test_a_launch_t3_code_refuses_takes_its_claim_back_and_the_next_pass_launches(
     launched,
 ):
+    """A line of the ledger that is no JSON is kept as it is, and the claim is still taken back."""
+    (launched.state / reviewlaunch.LAUNCHES).write_text("not a line jbus wrote\n")
     out(launched)
     launched.t3.refuse = "no more threads"
     launched.poll(NOW)
@@ -81,6 +83,8 @@ def test_a_launch_t3_code_refuses_takes_its_claim_back_and_the_next_pass_launche
     assert len(scoped(launched)) == 2
     assert keys(launched) == [HEAD[:12]]
     assert recorded(launched) == [("alpha", made, HEAD, "scoped", 1)]
+    ledger = (launched.state / reviewlaunch.LAUNCHES).read_text()
+    assert ledger.startswith("not a line jbus wrote\n")
 
 
 def test_no_other_module_names_a_launch_key():

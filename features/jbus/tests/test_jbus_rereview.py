@@ -46,7 +46,8 @@ def scoped(kitchen):
 
 def lines(kitchen):
     path = kitchen.state / reviewlaunch.LAUNCHES
-    return list(map(json.loads, path.read_text().splitlines())) if path.exists() else []
+    text = path.read_text() if path.exists() else ""
+    return [json.loads(line) for line in text.splitlines() if line.startswith("{")]
 
 
 def keys(kitchen):
