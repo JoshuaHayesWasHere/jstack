@@ -100,11 +100,26 @@ A row's "Open brief" draws the brief as what it says: its one line, chips for Si
 A Builds on or Follows link in it selects that row in the tree.
 A task says "stalled" and for how long, beside its stage, only when its crew sits idle past the quiet threshold while jbus's `work.json` says the crew owes its pull request's next move (`who` is `crew`), and a crew idle while CI, jmerge or another row holds its pull request is not stalled.
 A row's hover and the head of its menu say what jbus says it waits on, such as "waits on the check runner".
-A task jmerge or jbus holds is shown with "held" and for how long, its reason on hover and at the head of its menu.
+A task jmerge or jbus holds is shown with "held", or "crew owes" where only its own crew lifts the hold, and for how long, its reason on hover and at the head of its menu.
 Every other T3 project is a root row of the same size over its threads, and "No project" is pinned last.
 A project added to T3 is a root row at once, before it has a thread, and asks once whether to start a jstack home for it.
 Root rows sort into an active group and an idle one below a divider, on their own, and within each group a root row keeps the place you drag it to, or move it to with Alt+ArrowUp and Alt+ArrowDown.
 A row's menu, by right-click, the ContextMenu key or Shift+F10, holds what the row can do, and a home's actions go to the home as your own message: New crew task and New scout fill its composer, New child home asks the root home for a scope, Archive home sends `/handoff`, and Start a home starts a root home in a project with none.
+
+### The tags on a row
+
+A task's row ends in at most two tags, "asks you" first, then how long it has waited.
+A hold is always tagged; "quiet" and "stalled" only with the tree's attention set to gates and quiet.
+
+| Tag | What it means | Whose move |
+|---|---|---|
+| `asks you` | jbus's `work.json` names you as the task's holder (`who: user`), a gate asks about it, or its thread waits on your input | yours |
+| `quiet <age>` | the crew stopped writing before its pull request, for longer than the quiet threshold | the crew's, which its home may nudge |
+| `stalled <age>` | the crew sits idle past the quiet threshold while `work.json` says it owes its pull request's next move | the crew's |
+| `crew owes <age>` | jbus holds the pull request on a wait only its crew clears, such as a `Proved:` line to rerun (`held.json`'s `who: crew`) | the crew's; jbus tells it, and wakes its home only after two tells |
+| `held <age>` | jmerge or jbus holds the pull request on anything else, such as a go to give again or a `--accept` | yours |
+
+A row that asks you and is held shows both, "asks you" first.
 
 ### What the tree puts before you
 
