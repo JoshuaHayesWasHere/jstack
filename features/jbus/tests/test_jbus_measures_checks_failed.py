@@ -97,8 +97,9 @@ def checks_failed(machine) -> dict:
 
 
 def test_the_store_keeps_a_failed_jobs_step(machine):
-    """A build keeps the step each failed job failed at and the attempt it was, and a store
-    built before it kept the step has it after its next build, read from `ci.jsonl` again."""
+    """A build keeps the step each failed job failed at and the attempt it was, and a store that
+    held the jobs before `jbus.telemetry.migrations.v019_ci_jobs_step`, read to the end of
+    `ci.jsonl`, has their steps after its next build, which reads the log again."""
     job(machine, 1, 2, "check 3 of 8", "make test")
     job(machine, 1, 2, "check", "every part passed")
     machine.build()
