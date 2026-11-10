@@ -205,6 +205,44 @@ def test_a_trend_is_past_its_line_above_the_mean_of_its_seven_days_before(store,
     assert (reading.value, reading.state) == (today, state)
 
 
+def closed_unmerged(store, number: int, branch: str, closed: datetime) -> None:
+    store.execute(
+        "insert into ci_prs (project, key, number, branch, created, closed, day)"
+        " values ('jstack', ?, ?, ?, ?, ?, ?)",
+        (
+            str(number),
+            number,
+            branch,
+            stamp(closed - timedelta(hours=1)),
+            stamp(closed),
+            closed.date().isoformat(),
+        ),
+    )
+
+
+def test_closed_unmerged_counts_abandoned_pull_requests_of_the_last_72_hours(store):
+    """A probe whose row asked for no pull request and a revert jbus opened and closed are never
+    meant to merge, so neither counts; a pull request closed 60 h ago, before the week began at
+    2026-11-08 05:00 UTC, by a branch that is no row, does, and the value is the count itself."""
+    store.execute(
+        "insert into queue (project, key, slug, status) values ('jstack', 'probe', 'probe', 'done')"
+    )
+    store.execute(
+        "insert into brief_versions (project, key, at, slug, pull)"
+        " values ('jstack', 'probe', ?, 'probe', 'none')",
+        (stamp(NOW - timedelta(hours=4)),),
+    )
+    closed_unmerged(store, 1, "probe", NOW - timedelta(hours=2))
+    store.execute(
+        "insert into reverts (project, key, branch) values ('jstack', 'r', 'revert-9-main-x')"
+    )
+    closed_unmerged(store, 2, "revert-9-main-x", NOW - timedelta(hours=1))
+    closed_unmerged(store, 3, "abandoned", NOW - timedelta(hours=60))
+    closed_unmerged(store, 4, "too-old", NOW - timedelta(hours=73))
+    reading = measures.read(store, measure("closed-unmerged"), "jstack", NOW, USER)
+    assert (reading.value, reading.n) == (1, 1)
+
+
 def scorecard(*argv):
     out = io.StringIO()
     with contextlib.redirect_stdout(out):
@@ -401,6 +439,35 @@ def test_the_three_weekly_reads_of_calls_give_these_values(store):
     opus = jgauge_spend.PRICES["claude-opus-5-5"].plain / 1e6
     spent = (40_000 + 80_000) + (500 + 1_000) + 2_000
     assert read("dollars-per-row") == (pytest.approx(spent * opus), 1)
+
+
+def test_a_week_baseline_is_the_measures_own_query_over_that_week(store):
+    """dollars-per-row's baseline is the week of 2026-11-01 read by the same view as the value,
+    so a change of what a row's dollars count moves the baseline with the value. Each week has a
+    merged row with a crew call and the home call that led to it."""
+    for slug, home_session, monday, crew, home in (
+        ("row-l", "h1", datetime(2026, 11, 2, tzinfo=UTC), 90_000, 6_000),
+        ("row-a", "h2", datetime(2026, 11, 9, tzinfo=UTC), 50_000, 2_000),
+    ):
+        noon = monday + timedelta(hours=12)
+        calls(store, "jstack", "home", "jstack", home_session, "mcp:home", (noon, home))
+        queued(store, slug, None, noon + timedelta(hours=1))
+        calls(store, "jstack", "crew", slug, f"c-{slug}", f"mcp:{slug}", (noon, crew))
+        store.execute(
+            "insert into transitions (project, key, at, slug, from_status, to_status, day)"
+            " values ('jstack', ?, ?, ?, 'pr', 'merged', ?)",
+            (f"t-{slug}", stamp(noon + timedelta(hours=3)), slug, monday.date().isoformat()),
+        )
+    (last,) = store.execute(
+        "select dollars_per_row from weekly_row_spend"
+        " where project = 'jstack' and week = '2026-11-01'"
+    ).fetchone()
+    opus = jgauge_spend.PRICES["claude-opus-5-5"].plain / 1e6
+    assert last == pytest.approx(96_000 * opus)
+
+    reading = measures.read(store, measure("dollars-per-row"), "jstack", NOW, USER)
+
+    assert (reading.value, reading.baseline) == (pytest.approx(52_000 * opus), pytest.approx(last))
 
 
 @pytest.mark.parametrize("name", ["crew-context", "first-call-context", "dollars-per-row"])
