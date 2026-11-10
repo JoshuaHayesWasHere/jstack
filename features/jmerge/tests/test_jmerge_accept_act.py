@@ -480,3 +480,13 @@ def test_an_accept_that_is_ready_merges_once_github_decides_after_the_run_it_wai
     assert out[0].startswith(f"accepted 7 {url(7)}: "), out
     assert out[-1].startswith("merged 7 beta "), out
     assert [call.split()[2] for call in kitchen.calls()] == ["7"]
+
+
+def test_an_accept_whose_list_github_garbles_waits_on_github_and_merges_nothing(kitchen):
+    """An accept that cannot read GitHub's list asks no more and says so, as a plain run does."""
+    held(kitchen, "beta", 7, {"a.txt": "ours\n" + LINES}, mode="none")
+    (kitchen.home.stub / "list.json").write_text("not json\n")
+    out = accept(kitchen, 7)
+    assert kitchen.home.code == 1, (out, kitchen.home.stderr)
+    assert out == ["wait: could not ask GitHub: gh exited 0: its output was not JSON"], out
+    assert kitchen.calls() == []
