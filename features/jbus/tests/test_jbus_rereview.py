@@ -8,7 +8,6 @@ from datetime import timedelta
 
 import pytest
 
-import jbus
 import jsettings
 from jbus import rebase, reviewlaunch
 from jmerge import rangediff, ready
