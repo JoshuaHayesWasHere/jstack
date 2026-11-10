@@ -4,31 +4,34 @@
     "role": "against",
     "label": "the design",
     "lacks": [
-      "rerun",
-      "culprit",
       "idle",
+      "moved",
+      "suspects",
+      "line",
       "link",
       "on",
+      "heard",
       "viewBroken",
       "editsLeft",
-      "revert",
       "missed",
       "go",
+      "alone",
       "brBreaks",
       "brHold",
-      "judged",
       "brFail",
       "needs",
       "busy",
-      "meets"
+      "batch",
+      "meets",
+      "mend"
     ]
   },
-  "modelStates": 1038568,
-  "modelTransitions": 6760904,
-  "chartStates": 65,
-  "chartTransitions": 64,
+  "modelStates": 973396,
+  "modelTransitions": 5993744,
+  "chartStates": 69,
+  "chartTransitions": 68,
   "chartStatus": {
-    "works": 65,
+    "works": 69,
     "wrong": 0,
     "fixed": 0
   },
@@ -41,7 +44,7 @@
     {
       "name": "Moving",
       "color": "#e8eef9",
-      "states": 41
+      "states": 42
     }
   ],
   "mixedGroups": [
@@ -55,12 +58,15 @@
     "Main green: 1 passed, its row held, 1 passed, merges after the other",
     "Main green: 1 passed, its row held, 1 passed, stacked on the other",
     "Main green: 1 passed, its row held, 1 passed, waiting on your word",
+    "Main green: 1 passed, its row held, 1 red only from main's break",
     "Main green: 1 passed, merges after the other, 1 passed, waiting on your word",
     "Main green: 1 passed, stacked on the other, 1 passed, waiting on your word",
+    "Main green: 1 passed, waiting on your word, 1 red only from main's break",
     "Main green: 2 its row held",
     "Main green: 2 passed, its row held",
     "Main green: 2 passed, waiting on your word",
     "Main red from a merge: 1 merged, 1 passed, holds main's fix, waiting to merge",
+    "Main red from merges: 1 merged, 1 passed, holds main's fix, waiting to merge",
     "Main red from outside: 1 its row held, 1 passed, holds main's fix, waiting to merge",
     "Main red from outside: 1 merged, 1 passed, holds main's fix, waiting to merge",
     "Main red from outside: 1 passed, holds main's fix, waiting to merge, 1 passed, its row held",
@@ -71,7 +77,7 @@
   ],
   "regions": {
     "drawn": false,
-    "why": "the regions do not combine into the flat chart, with 72 difference(s), such as states only in EXPECTED (no path from the start reaches them in the spec, or the spec renamed them): Main green | 1 holds main's fix, red from its own break, 1 merged"
+    "why": "the regions do not combine into the flat chart, with 5939 difference(s), such as states only in EXPECTED (no path from the start reaches them in the spec, or the spec renamed them): Main green | 1 holds main's fix, red from its own break, 1 merged"
   },
   "classes": [],
   "codeLike": [],
