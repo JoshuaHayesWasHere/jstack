@@ -445,7 +445,7 @@ Once every pull request is judged, `jmerge` builds main's tip with each member m
 A batch holds 12 members at most (`batch.MOST`).
 It makes the last tree one commit whose parent is the tip, force-pushes it to its own branch `jmerge/batch`, and opens one draft pull request for it where GitHub lists none open.
 `batch.json` in the state directory keeps the tip, the tree, the commit, the members with their heads, and when it was pushed.
-Each member waits as `it is in jmerge's batch over <base> at <tip12>, whose check decides its merge`, with the code `merging`: jmerge's own work, which no crew can fix.
+Each member waits as `it is in jmerge's batch over <base> at <tip12>, whose check decides its merge`, with the code `in-batch`: jmerge's own work, which no crew can fix.
 
 **What proves it.**
 CI's check of the batch's pull request runs on GitHub's merge of its head over main, whose tree is the batch's tree, since the head holds the tip.
@@ -454,10 +454,10 @@ A run of `jmerge` that finds that artifact from a successful run of this repo, w
 Before each merge, main must be at the tip the merge before it left.
 Each merge's line says `CI's check passed jmerge's batch over <base> at <tip12> in <run url>, so no guards ran`.
 The merges stop at the first that does not land: GitHub refused it (`the merge failed`), it is no longer judged a member at that head, or another hand moved main.
-Each member after it waits as `jmerge's batch over <base> at <tip12> stopped at #<n>, which did not merge: the next batch takes it`.
+Each member after it waits as `jmerge's batch over <base> at <tip12> stopped at #<n>, which did not merge: the next batch takes it`, with the code `batch-stopped`.
 Where another run holds the merge lock, the batch stays proven for the next run.
 
-While a batch is out (checked, or proven and not merged yet), a pull request that would merge alone waits as `jmerge's batch over <base> at <tip12> is checked and merges first: a merge before it would undo that check`, and so does a member that came ready after the batch was built.
+While a batch is out (checked, or proven and not merged yet), a pull request that would merge alone waits as `jmerge's batch over <base> at <tip12> is checked and merges first: a merge before it would undo that check`, with the code `batch-first`, and so does a member that came ready after the batch was built.
 A revert still merges first, and its merge ends the batch, which is built again over the new tip.
 A batch still checked whose tip moved, whose pull request GitHub no longer lists at its commit, or whose member is no longer judged one at its head, is built again in that run, over today's tip.
 The batch's pull request is `jmerge`'s own: it has no brief and no row, `jmerge` never judges it and never merges it, and it stays open from one batch to the next.
