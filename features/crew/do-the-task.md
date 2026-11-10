@@ -36,14 +36,16 @@
           false
       else
           guards=$(printf '%s\n' "$guards" | command grep -vxF -e "$touched")
+          kept=$(git rev-parse --git-path crew-failed-files)
+          failed=$(cat "$kept" 2> /dev/null | while read -r one; do [ ! -f "$one" ] || echo "$one"; done | command grep -vxF -e "$touched" -e "$guards")
           printf 'make check-fast BASE=%s PART=touched\n' "$base" > "$code.command"
           steps=$(git rev-parse --git-path crew-check-steps)
           [ "$(sed -n 1p "$steps" 2> /dev/null)" = "$head $base" ] || printf '%s %s\n' "$head" "$base" > "$steps"
-          echo "touched: $(printf '%s' "$touched" | command grep -c .) test files, then $(printf '%s' "$guards" | command grep -c .) cross-cutting guard tests, each alone in the short lane after the lint; CI's check runs the rest of the selection"
+          echo "touched: $(printf '%s' "$touched" | command grep -c .) test files, then $(printf '%s' "$guards" | command grep -c .) cross-cutting guard tests, then $(printf '%s' "$failed" | command grep -c .) test files CI failed on, each alone in the short lane after the lint; CI's check runs the rest of the selection"
           ran=0
           ceiling=${JGAUGE_SHORT_WAIT_SECONDS:-300}
           left=
-          for step in lint $touched $guards; do
+          for step in lint $touched $guards $failed; do
               if command grep -qxF "passed $step" "$steps"; then
                   [ -n "$left" ] || echo "$step: passed at this head already"
                   continue
@@ -85,6 +87,12 @@
                   ;;
               esac
           done
+          if [ -s "$kept" ]; then
+              while read -r one; do
+                  command grep -qxF "passed $one" "$steps" || echo "$one"
+              done < "$kept" > "$kept.new"
+              mv "$kept.new" "$kept"
+          fi
           if [ -n "$left" ]; then
               echo "running: $left steps left"
               ran=76
@@ -114,8 +122,10 @@
   A `no check:` line ends the block 1: nothing was checked, and it is no proof.
   The block adds `Checked: <the command> exit <its exit> at <the full head>` to the brief for a check that ran to its end on a committed head, which `jmerge` reads, and nobody writes that line by hand.
   It does so from the first head on, whether or not the brief has a Result yet, so the first head's check is on record too.
-  For a selected check the line reads `Checked: make check-fast BASE=<base> PART=touched exit <n> at <head>`, and the block prints each step as `<step>: exit <n> in <s> s, <lane> lane`, the step `lint`, a touched test file or a cross-cutting guard test file.
+  For a selected check the line reads `Checked: make check-fast BASE=<base> PART=touched exit <n> at <head>`, and the block prints each step as `<step>: exit <n> in <s> s, <lane> lane`, the step `lint`, a touched test file, a cross-cutting guard test file or a test file CI failed on.
   The block's exit is the first step's failure where one failed, and it stops there; else 76 where steps are left or a lane had no slot; else 124 where a step reached no verdict even in a full slot; else 0.
+  The steps after the guards are the test files CI failed on that the block of "The failed files" kept in the worktree's `crew-failed-files` and that are in the worktree, so a fix head's `Checked:` line says exit 0 only once they pass there.
+  A name leaves that list once its step passed at a committed head.
   A step that passed at a committed head is kept in the worktree's `crew-check-steps` (`git rev-parse --git-path crew-check-steps`), and a run of the block at the same head and base skips it, so a wait for a slot, or a call cut at its time limit, never starts the check over.
   `jmerge` merges a pull request only once its last `Checked:` line says the desk's check (`PART=touched`, a `PART=guards` line of an earlier head, or another repo's `jgauge check`) exited 0 at its head, or at a head whose patch the head carries unchanged (`ready.short_on_checked`): a missing line, a failure, a 124 and a line of a head whose patch changed since each hold it, until this block runs again at the head.
   Give the call a time limit of 10 minutes (`timeout: 600000` in Claude Code), and never send it to the background: a call that outlives 10 minutes is moved to the background, and each step's end then wakes the thread.
