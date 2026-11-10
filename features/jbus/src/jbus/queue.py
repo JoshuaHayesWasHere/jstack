@@ -1836,7 +1836,7 @@ def _do(
             row["item"] = verb.item
         if verb.entry:
             row["entry"] = verb.entry
-        elif "entry" not in row and asks is not None:
+        elif not found and asks is not None:
             crews = _filed_by_crew(batch, asks.crew, verb)
             if crews:
                 row["entry"] = crews
