@@ -195,7 +195,8 @@ pull request's check, whatever the rules select: timing tests that no pull reque
 main in 8 of the audit's 15 reds. `$FAILED_ON_MAIN` names them, space-separated, and the selection
 adds each one that is a test file the check runs. The summary then gets one more line: `failed on
 main: <n> test files, <k> added to the selection: <the files>`, the files the rules had not selected
-already. Where the variable is not set, as on a desk, the selection and the summary are what the
+already. Where it is `all`, the lookup could not read them, and the selection is the whole
+suite. Where the variable is not set, as on a desk, the selection and the summary are what the
 rules make.
 
 `select_tests.py --failed-on-main <days> <kept>` prints those test files, sorted and one per line:
@@ -208,7 +209,10 @@ A rerun that passed is one, and runs are ordered by id: GitHub numbers them as t
 so a green run of an older commit that ends after a red one passes nothing of it. A test
 that fails and then passes on main drops out at the first green run after its failure. It reads
 GitHub's REST API at `$GITHUB_API_URL` for `$GITHUB_REPOSITORY` with `$GITHUB_TOKEN`, and fails,
-naming the answer, where GitHub refuses. A completed job and its log never change, so the JSON file
+naming the answer, where GitHub refuses. Where GitHub answers 403 or 429, as it does once the
+hourly allowance of the run's token is spent, it cannot say which tests failed on main, so it
+prints `all`, says so in one line on stderr, and passes, and the selection then runs the whole
+suite, `forced-by=failed-on-main`. A completed job and its log never change, so the JSON file
 `<kept>` keeps the red jobs of each run's attempt and the files each one's log named, for the runs
 still in the window. GitHub gives a filtered list of runs 1,000 at most, and main has more in a
 month, so the lookup lists a day at a time. It keeps each day's red runs and newest green run too,
@@ -307,6 +311,15 @@ READS = 8
 SETTLED = 4
 FAILING = re.compile(r"^(?:\S+Z )?(?:FAILED|ERROR) (\S+?\.py)(?:::|\s|$)", re.M)
 COLOR = re.compile(r"\x1b\[[0-9;]*m")
+
+
+SPENT = (403, 429)
+"""GitHub's answers once the allowance of the run's token is spent (`Spent`)."""
+
+
+class Spent(Exception):
+    """GitHub answered `SPENT`: the hourly allowance of the run's token is spent, and a later
+    hour's run reads again."""
 
 
 class Unread(Exception):
@@ -1594,9 +1607,12 @@ def selection(changed, failed=(), edited=None):
     """`(tests, why)`: the sorted test files the changed paths need, or `["all"]`, and for
     each cause the sorted files it selected, or the path that forced `all`. They are what the
     rules select, the test files no rule owns (`catch-all`), and the `failed` test files that
-    the check runs. `why["added"]` lists the failed ones nothing else selected. With `edited`,
-    imports reach as on a pull request's check (`ruled`)."""
+    the check runs. `why["added"]` lists the failed ones nothing else selected. A `failed` of
+    `all`, from a lookup GitHub refused for a spent allowance, selects the whole suite. With
+    `edited`, imports reach as on a pull request's check (`ruled`)."""
     tests, why = ruled(changed, edited=edited)
+    if "all" in failed and tests != ["all"]:
+        return ["all"], {"forced-by": "failed-on-main"}
     if tests == ["all"]:
         return tests, why
     lone = unowned()
@@ -1650,6 +1666,8 @@ def ask(path, gone=None, **query):
     except urllib.error.HTTPError as error:
         if error.code == 404 and gone is not None:
             return gone
+        if error.code in SPENT:
+            raise Spent(f"GitHub answered {error.code} to {path}") from error
         sys.exit(f"select_tests.py: GitHub answered {error.code} to {path}: {error.read()[:200]!r}")
     except urllib.error.URLError as error:
         sys.exit(f"select_tests.py: GitHub did not answer {path}: {error.reason}")
@@ -1759,6 +1777,8 @@ def failed_on_main(days, kept_path):
 
 def told(tests, why, failed):
     """The summary's line on the tests that failed on main."""
+    if failed == ["all"]:
+        return "failed on main: unknown, GitHub's allowance spent, and the whole suite runs"
     if tests == ["all"]:
         return f"failed on main: {len(failed)} test files, and the whole suite runs"
     added = why["added"]
@@ -2081,7 +2101,16 @@ def handed(tests, count):
 
 def main(argv):
     if argv[:1] == ["--failed-on-main"] and len(argv) == 3:
-        print("\n".join(failed_on_main(int(argv[1]), Path(argv[2]))))
+        try:
+            failed = failed_on_main(int(argv[1]), Path(argv[2]))
+        except Spent as error:
+            print(
+                f"::warning::select_tests.py: {error}, its allowance spent, so the tests that"
+                " failed on main are unknown and the whole suite runs",
+                file=sys.stderr,
+            )
+            failed = ["all"]
+        print("\n".join(failed))
         return
     listed = count = cut = None
     pull_request = argv[:1] == ["--pull-request"]
