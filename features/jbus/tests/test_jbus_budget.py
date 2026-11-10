@@ -2,9 +2,9 @@
 
 This is the replay of the rule PassesNeverStarve of the flow-blockers spec (S12Budget.tla): a fake
 `gh` whose rate_limit falls to 0. A pass at or under the floor makes no call that can wait, `jmerge`
-still runs, and no row changes, and a pass that gets no answer about the budget changes no row
-either. The tool's half of the rule is `test_jobs_are_refused_when_they_would_spend_half_the_budget`
-in `test_jbus_flow.py`.
+still runs, and no row changes but for its why, and a pass that gets no answer about the budget
+changes no row either. The tool's half of the rule is
+`test_jobs_are_refused_when_they_would_spend_half_the_budget` in `test_jbus_flow.py`.
 """
 
 import json
@@ -14,12 +14,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from jbus import budget, queue, waiting
+import jbus
+from jbus import budget, needs, queue, waiting
 from jbus.flow import records
 from jsettings import paths
 from jsettings.proc import CALLS
 from test_jbus_kitchen import NOW, PROJECT, Kitchen, rate_limit
-from test_jbus_queue import add, launches, two
+from test_jbus_queue import add, go, launches, two
 from test_jbus_tick import going, ticks
 
 
@@ -42,6 +43,18 @@ def passed(kitchen, minutes, left):
     return said, kitchen.log("gh")[calls:], kitchen.log("jmerge")[merges:], table, after
 
 
+def unchanged(table, after):
+    """Whether the table is as it was but for the rows' why and its since, which a hold of the
+    budget writes (`jbus.budgethold`)."""
+
+    def seen(text):
+        return [
+            {k: v for k, v in row.items() if k not in ("why", "since")} for row in json.loads(text)
+        ]
+
+    return seen(table) == seen(after)
+
+
 def test_a_pass_whose_budget_falls_to_zero_makes_no_call_that_can_wait_and_changes_no_row(
     kitchen,
 ):
@@ -52,7 +65,7 @@ def test_a_pass_whose_budget_falls_to_zero_makes_no_call_that_can_wait_and_chang
         assert calls == ["api rate_limit"]
         assert merges, "the merge is urgent, and jmerge runs under the floor"
         assert "--sweep --check" not in merges
-        assert after == table and launches(kitchen) == []
+        assert unchanged(table, after) and launches(kitchen) == []
         assert (
             f"wait demo: GitHub not asked: GitHub's core budget has {left} of 5000 calls left, "
             f"at or under the floor of {budget.FLOOR} kept for merges, until 2026-10-12 16:00 UTC"
@@ -82,7 +95,7 @@ def test_a_pass_that_sees_no_world_still_spends_no_budget_under_the_floor(kitche
         queue.removed_path(kitchen.state).write_text("not json")
     said, calls, merges, table, after = passed(kitchen, 0, 0)
     assert calls == ["api rate_limit"] and merges and "--sweep --check" not in merges
-    assert after == table
+    assert unchanged(table, after)
 
 
 def test_a_pass_under_the_floor_records_it_once_a_window_as_a_quiet_condition(kitchen):
@@ -212,3 +225,55 @@ def test_a_tick_reads_the_budget_from_the_last_minute_s_calls(kitchen):
     logged(kitchen, "core", "graphql")
     ticks(kitchen)
     assert asks(kitchen) == before
+
+
+def whys(kitchen):
+    return {row["slug"]: row.get("why", "") for row in queue.load(kitchen.state)}
+
+
+def budget_why(left):
+    until = jbus.load().user.stamp(NOW + timedelta(hours=1))
+    return f"GitHub's budget: {left} of 5000 calls, launches wait until {until}"
+
+
+def test_a_budget_hold_says_so_in_each_approved_row_s_why_until_the_reset(kitchen):
+    """A pass at or under the floor launches nothing, and each approved row it would have
+    launched says why, with what is left and the reset in the user's time. A row with no go keeps
+    its own reason, and the first pass after the reset launches the row and clears its why."""
+    add(kitchen, "alpha")
+    add(kitchen, "beta", approve=False)
+    unapproved = whys(kitchen)["beta"]
+    for minutes, left in enumerate((budget.FLOOR, 970)):
+        said, calls, merges, table, after = passed(kitchen, 3 * minutes, left)
+        assert calls == ["api rate_limit"] and launches(kitchen) == []
+        assert whys(kitchen) == {"alpha": budget_why(left), "beta": unapproved}
+        assert {row["slug"]: row["status"] for row in queue.load(kitchen.state)} == {
+            "alpha": "queued",
+            "beta": "queued",
+        }
+    passed(kitchen, 61, budget.FLOOR + 1)
+    assert launches(kitchen) == ["alpha"]
+    assert not whys(kitchen)["alpha"].startswith("GitHub's budget")
+
+
+def budget_needs(kitchen, minutes):
+    config = jbus.load()
+    found = needs.of(config, config.project("demo"), NOW + timedelta(minutes=minutes))
+    return [one.said for one in found if "GitHub's budget" in one.said]
+
+
+def test_jbus_needs_lists_a_budget_hold_once_for_the_project_after_ten_minutes(kitchen):
+    """A hold of the budget is one item of `jbus needs` for the whole project, however many rows
+    it holds, once it has lasted over ten minutes, and none once the budget is back."""
+    for slug in ("alpha", "gamma"):
+        add(kitchen, slug, approve=False)
+    passed(kitchen, -5, 5000)
+    for slug in ("alpha", "gamma"):
+        assert go(kitchen, slug)[0] == 0
+    for minutes in (0, 5, 10):
+        passed(kitchen, minutes, 970)
+        assert budget_needs(kitchen, minutes) == []
+    passed(kitchen, 11, 970)
+    assert budget_needs(kitchen, 11) == [budget_why(970)]
+    passed(kitchen, 61, budget.FLOOR + 1)
+    assert budget_needs(kitchen, 61) == []

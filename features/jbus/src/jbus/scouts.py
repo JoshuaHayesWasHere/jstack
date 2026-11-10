@@ -18,9 +18,12 @@ the project's own checkout. The scout still reads and writes the home's state di
 finds from the repo's shared git folder. Once its Report says `Status: done` and no thread of it is
 at work, or its row is removed, a pass removes its worktree (`clear`). The launch writes the request
 to `scouts/<slug>.md` in the home's state directory, where the scout writes its Report, or checks
-that the one there is the request queued. The model is the one the role map's `scout` line gives,
-and the launch waits, as a crewmate's does, for the dispatch to be on and for `jgauge room`. A scout
-takes no crew slot of `max_running`. Once launched, a scout's thread is the pass's like any other:
+that the one there is the request queued. The model is the one the request's `Model:` line names
+(`queue.model`), on the provider, pool and options of the role map's `scout` line, or the one that
+line gives when the request has no `Model:` line. A request that names a model while the role map
+has no `scout` line has no provider to launch on: the pass records a condition. The launch waits,
+as a crewmate's does, for the dispatch to be on and for `jgauge room`. A scout takes no crew slot of
+`max_running`. Once launched, a scout's thread is the pass's like any other:
 `jbus.threads` settles it once its Report is written, and the row is `done` once that Report says
 `Status: done` (`watch.facts`).
 
@@ -32,6 +35,7 @@ user. jbus records a scout's trouble with `Pass.condition` and never with `Pass.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 
 import jroles
@@ -132,6 +136,12 @@ def _launch(half: Any) -> None:
         except jroles.Refused as error:
             run.condition(slug, "the role map gives the scout no model", str(error))
             return
+        if named := queue.model(text):
+            if routed is None:
+                what = "the request names a model and the role map has no scout line"
+                run.condition(slug, what, f"Model: {named}")
+                continue
+            routed = pool.Route(replace(routed.selection, model=named), routed.choice)
         if routed:
             instances = routed.selection.instances
             skip = pool.signed_out(instances, out)

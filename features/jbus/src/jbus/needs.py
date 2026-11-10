@@ -7,7 +7,9 @@ it, a gate with no default or one that names a door, a go gate whose silence sta
 whose brief has no go, a pull request `jmerge` holds for the user's word, a setup only the user
 can give, and an approved row that waits for room on a full /tmp after the pass removed what
 finished crews left there (`room`): its row's `why` says so, `waiting: /tmp at <n>% of its quota`,
-from the first pass it waits. A row a home can clear by itself (a row at `gate`, a leftover its
+from the first pass it waits. A hold of GitHub's budget at or under its floor is one item for
+the whole project once it has lasted over ten minutes (`budgethold.needed`), since no row
+launches until its reset. A row a home can clear by itself (a row at `gate`, a leftover its
 home still has, a hold a thread works on) is not on it, and neither is a refused go: a refusal is
 an act of the home's (`acts.jsonl`), most of them a sha that did not match, and the home tries
 again by itself.
@@ -35,10 +37,12 @@ from pathlib import Path
 
 import jbus
 from jbriefs import home as homes
-from jbus import blockers, cleanup, passes, questions, queue, verbs, waiting
+from jbus import blockers, budgethold, cleanup, passes, questions, queue, verbs, waiting
 
 FREE = "nothing to reply: free room on it, and the next pass launches the row"
 """The hint a row that waits for /tmp ends in: no word of the user's frees it."""
+HELD = "nothing to reply: the launches start again at the reset, and merges still go"
+"""The hint a hold of GitHub's budget ends in: no word of the user's lifts it."""
 
 
 @dataclass(frozen=True)
@@ -118,6 +122,8 @@ def of(
         for one, said in found
     ]
     needs += [(slug, Need(project.name, f"row {slug}: {why}", FREE)) for slug, why in room(run)]
+    if held := budgethold.needed(run):
+        needs.append(("", Need(project.name, held, HELD)))
     if home is not None:
         root = config.home(project)
         needs = [
@@ -154,18 +160,37 @@ def lines(
     items, and a line for each project nothing is known of. `scope` names the projects in the
     line that says nothing waits, and `home` keeps one home's items (`of`)."""
     user, found, unknown = config.user.user, [], []
+    stands = [line for project in projects for line in standing(config, project, home)]
     for project in projects:
         try:
             found += of(config, project, now, home)
         except Unknown as why:
             unknown.append(f"not known: {why}")
     if not found and unknown:
-        return [*unknown, f"nothing else known waits on {user} in {scope}"]
+        return [*unknown, f"nothing else known waits on {user} in {scope}", *stands]
     if not found:
-        return [f"nothing waits on {user} in {scope}"]
+        return [f"nothing waits on {user} in {scope}", *stands]
     names = sorted({one.project for one in found}, key=[p.name for p in projects].index)
     head = f"waiting on {user}: {len(found)}, in {', '.join(names)}"
-    return [head, *(line for one in found for line in one.lines()), *unknown]
+    return [head, *(line for one in found for line in one.lines()), *unknown, *stands]
+
+
+def standing(config: jbus.Config, project: jbus.Project, home: Path | None = None) -> list[str]:
+    """Return a line for each home of the project that holds a standing word for follow-ups
+    (`jbus.standing`), naming the word and the user's words: with `home`, only that home's, and
+    a root home's scopes' with the root's. What it approves waits on nobody, so the user sees
+    here what is approved in their name."""
+    root = config.home(project)
+    lines = []
+    for scope, (word, said) in sorted(queue.standing_words(config.state(project)).items()):
+        if home is not None and home not in (root, root / scope):
+            continue
+        name = scope or "root"
+        lines.append(
+            f"{project.name} {name} home standing word {word} for follow-ups that open no door: "
+            f'"{said.words}"'
+        )
+    return lines
 
 
 def _arguments(parser: argparse.ArgumentParser) -> None:

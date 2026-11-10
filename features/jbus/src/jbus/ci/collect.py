@@ -31,6 +31,11 @@ every page of the hours. A rerun keeps its run's creation time, so a run kept be
 not listed again when it is rerun: a pass lists all the `PASS_HOURS` again once `SWEEP` has gone
 by since the last pass that did, and keeps the rerun's attempt then.
 
+The mark also keeps each run attempt whose jobs a pass read (`read`, each `[run, attempt,
+created]`), for the `PASS_HOURS`, and a pass reads no attempt's jobs twice. A run that completed
+with no jobs, or a rerun's attempt cancelled before it started a job of its own, adds no job to the
+ledger, so without it every pass would read its jobs, and their annotations and logs, again.
+
 The collector reads a job's telemetry from its check run's annotations. Of a job's own words, the
 API returns only its annotations, since the API cannot read a job summary. The telemetry is an
 annotation titled `jstack-ci` whose message is a JSON object (`jbus.ci.notice` writes it).
@@ -354,12 +359,32 @@ def keep(gh: Gh, repo: str, state: Path, now: datetime) -> Counts | None:
             mark, swept = _time(held.get("mark")), _time(held.get("swept"))
             sweep = swept is None or now - swept >= SWEEP
             start = since if sweep or mark is None else max(mark, since)
-            counts, mark = _collect(gh, repo, state, since, PASS_RUNS, now - CATCH_UP, start)
+            read = _read(held.get("read"), since)
+            counts, mark, asked = _collect(
+                gh, repo, state, since, PASS_RUNS, now - CATCH_UP, start, read
+            )
             swept = now if sweep else swept
-            store.write_json(state / MARK, {"mark": _stamp(mark), "swept": _stamp(swept)})
+            read = [[one, attempt, made] for (one, attempt), made in read.items()]
+            store.write_json(
+                state / MARK,
+                {"mark": _stamp(mark), "swept": _stamp(swept), "read": read + asked},
+            )
             return counts
     except BlockingIOError:
         return None
+
+
+def _read(given: Any, since: datetime) -> dict[tuple[int, int], str]:
+    """The run attempts whose jobs the mark says a pass read, each with its run's creation time,
+    of the runs created since `since`."""
+    kept: dict[tuple[int, int], str] = {}
+    for one in given if isinstance(given, list) else []:
+        if not (isinstance(one, list) and len(one) == 3 and isinstance(one[2], str)):
+            continue
+        made = _time(one[2])
+        if made is not None and made >= since:
+            kept[(one[0], one[1])] = one[2]
+    return kept
 
 
 def _stamp(when: datetime | None) -> str | None:
@@ -374,10 +399,13 @@ def _collect(
     most: int | None = None,
     back: datetime | None = None,
     start: datetime | None = None,
-) -> tuple[Counts, datetime]:
+    read: dict[tuple[int, int], str] | None = None,
+) -> tuple[Counts, datetime, list[list[Any]]]:
     """Keep the pull requests and the jobs of the runs created since `start`, or `since` where
     it is None, of at most `most` new runs, and return the mark: the creation time of the oldest
-    run listed that was not kept, or of the newest where all were, or `start` where none was.
+    run listed that was not kept, or of the newest where all were, or `start` where none was,
+    and the run attempts whose jobs it read, each `[run, attempt, created]`. It reads no jobs of
+    an attempt in `read`.
     With `back`, the pull requests are those updated since the newest update the ledger holds
     where that is earlier than `since`, and not before `back`. The pull requests' file is
     written only where one of them changed. The pull requests and the runs are read side
@@ -398,6 +426,7 @@ def _collect(
     if now_held != held:
         ledger.rewrite(state / ledger.PULLS, everyone)
     seen = {(one["run"], one["attempt"]) for one in ledger.read(state / ledger.JOBS)}
+    seen |= set(read or {})
     unseen = [
         run
         for run in runs
@@ -420,7 +449,8 @@ def _collect(
     rows = side_by_side(lambda one: row(gh, repo, *one, everyone), done)
     added = ledger.add(state / ledger.JOBS, rows)
     _reread(gh, repo, state, since)
-    return Counts(len(runs), added, len(everyone)), mark
+    asked = [[run["id"], run.get("run_attempt") or 1, run.get("created_at")] for run in new]
+    return Counts(len(runs), added, len(everyone)), mark, asked
 
 
 def _steps(gh: Gh, repo: str, run: int) -> dict[int, str | None]:

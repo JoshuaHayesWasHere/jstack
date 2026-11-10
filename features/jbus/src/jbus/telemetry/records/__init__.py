@@ -18,6 +18,8 @@ A source is a `log` or a `snapshot`:
 - A snapshot is written whole each time. A row's key is the record's own, the column `natural`
   names, and a newer snapshot updates the row and never deletes one, so a record that leaves the
   file stays in the store.
+  A `whole` snapshot, `merge-waits.json` (`open_waits`), is the file's present state instead:
+  each read deletes the project's rows the file no longer holds.
 
 Each time is kept in UTC, in one form of fixed width (`utc`), so that text order is time order,
 and each table has the local `day` of its `at` column in the user's zone, since SQLite has no
@@ -51,7 +53,8 @@ class Source:
     True where its lines are text, not JSON. A snapshot's `records` reads its records from the
     file, and `natural` names the column that is its key. `at` names the column whose local date
     is `day`. A log's `beside`, where given, adds to each record what the files in its file's
-    directory hold, before `row`; the row's key is still of the line as written."""
+    directory hold, before `row`; the row's key is still of the line as written. A `whole`
+    snapshot deletes, on each read, the project's rows its file no longer holds."""
 
     table: str
     file: str
@@ -64,6 +67,7 @@ class Source:
     records: Callable[[str], Iterable[Row]] = json_lines
     natural: str = ""
     beside: Callable[[Row, Path], Row] | None = None
+    whole: bool = False
 
 
 SOURCES: tuple[Source, ...] = tuple(

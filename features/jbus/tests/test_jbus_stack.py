@@ -112,7 +112,7 @@ def test_a_base_that_merged_moves_its_link_onto_main_once(stacked, on):
     assert keys(stacked) == [f"restack|two|{LINK[:12]}|{MERGE[:12]}"]
     (said,) = [given["message"] for given in asks(stacked)]
     assert "one merged as aaaaaaaaaaaa" in said and "now based on main" in said
-    assert f"with {LAST} as the branch it sat on" in said and "again with one" in said
+    assert f"run its block with {LAST} as `was`" in said and "again with one" in said
     assert head_line(stacked) == stacks.Stacked("one", "main", MERGE)
 
 
