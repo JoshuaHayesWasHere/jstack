@@ -26,7 +26,8 @@ A check run more than once at the head, one cancelled and run again included, co
 The block of "A failed check" reads each check by its latest run too, so a run that failed and was passed since is never run again, and it runs nothing again while the workflow run of a failed check still has a job going.
 The merge goes by the checks the repo names: `jmerge` merges only when each check its `$H/required-checks` file names passed at the head, or the check named `check` where there is no such file (features/jmerge/docs/jmerge.md, "Name the checks a merge waits for").
 
-**The failed files** are the test files that the logs of CI's failed jobs name on a `FAILED` or `ERROR` line, read from the latest run of each failed check. Run this in this worktree with the block at the top and this thread's id in place of the words in angle brackets:
+**The failed files** are the test files that the logs of CI's failed jobs name on a `FAILED` or `ERROR` line, read from the latest run of each failed check.
+Run this in this worktree with the block at the top and this thread's id in place of the words in angle brackets:
 
 ```sh
 if [ ! -f scripts/select_tests.py ]; then
@@ -64,7 +65,8 @@ fi
 ```
 
 Its last line is `failed files: exit <n>`: 0 where each named file passed here, and the first failure's exit otherwise, which is `failed` for "A failed check".
-A `76` in the short lane is no slot by the ceiling: run the block again at once. A `76` in the full lane is a wait for a slot: end the turn as "test slots" says, and on jbus's message run the block again.
+A `76` in the short lane is no slot by the ceiling: run the block again at once.
+A `76` in the full lane is a wait for a slot: end the turn as "test slots" says, and on jbus's message run the block again.
 A `none` line runs nothing: the check of "Do the task" is the whole of what runs here, and its lint covers a failed lint job.
 
 **A failed check** is the change's own, a base that moved, or a flake, and this says which. Run it in this worktree with the block at the top, after the check command, with what the check command did here in place of the words in angle brackets, `failed` or `passed`:
