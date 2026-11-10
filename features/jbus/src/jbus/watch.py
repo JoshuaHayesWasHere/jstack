@@ -1332,7 +1332,7 @@ def dropped(old: str, new: str) -> list[tuple[str | None, str]]:
 
 
 def _reviewer_on(brief: str, seat: str) -> str:
-    """The thread of the last `Reviewer: <thread> #<n>` line of the brief on this seat, or nothing."""
+    """The thread of the brief's last `Reviewer: <thread> #<n>` line on this seat, or nothing."""
     named = [
         said
         for said in below.reviewers(brief, "Reviewer")
@@ -1373,26 +1373,25 @@ def rewritten(run: Pass, client: Client, rows: list[dict[str, Any]] | None) -> N
         if old is None or not cut:
             continue
         sha = hashlib.sha256((old + new).encode()).hexdigest()[:16]
-        crews = [line for seat, line in cut if seat is None]
-        by_seat: dict[str, list[str]] = {}
+        groups: dict[str | None, list[str]] = {}
         for seat, line in cut:
-            if seat is not None:
-                by_seat.setdefault(seat, []).append(line)
-        tells = []
-        if crews:
-            text = REWRITTEN.format(slug=slug, lines="\n".join(crews))
-            tells.append((thread, f"rewritten|{slug}|{sha}", text, "rewritten", "its crew", len(crews)))
-        for seat, lines in by_seat.items():
-            reviewer = _reviewer_on(brief, seat) if seat else ""
-            if not reviewer:
-                what = f"its brief lost lines of its review by seat #{seat or '?'}"
-                run.condition(slug, what, "\n".join(lines), key=f"review cut {sha} #{seat}")
-                continue
-            text = REVIEW_CUT.format(slug=slug, seat=seat, lines="\n".join(lines))
-            key = f"rewritten-review|{slug}|#{seat}|{sha}"
-            tells.append((reviewer, key, text, "rewritten-review", f"its reviewer #{seat}", len(lines)))
+            groups.setdefault(seat, []).append(line)
         went = True
-        for to, key, text, template, who, many in tells:
+        for seat, lines in groups.items():
+            said = "\n".join(lines)
+            if seat is None:
+                to, key = thread, f"rewritten|{slug}|{sha}"
+                template, who = "rewritten", "its crew"
+                text = REWRITTEN.format(slug=slug, lines=said)
+            else:
+                to = _reviewer_on(brief, seat) if seat else ""
+                key = f"rewritten-review|{slug}|#{seat}|{sha}"
+                template, who = "rewritten-review", f"its reviewer #{seat}"
+                text = REVIEW_CUT.format(slug=slug, seat=seat, lines=said)
+                if not to:
+                    what = f"its brief lost lines of its review by seat #{seat or '?'}"
+                    run.condition(slug, what, said, key=f"review cut {sha} #{seat}")
+                    continue
             if outbox._last(run, key)[0] == "sent":
                 continue
             try:
@@ -1410,7 +1409,7 @@ def rewritten(run: Pass, client: Client, rows: list[dict[str, Any]] | None) -> N
                 run.say(f"wait {slug}: {who} could not be told its brief lost lines ({error})")
                 sent = False
             if sent:
-                lost = f"{many} line{'' if many == 1 else 's'}"
+                lost = f"{len(lines)} line{'' if len(lines) == 1 else 's'}"
                 run.say(f"rewritten {slug}: told {who} the brief lost {lost}")
             went = went and sent
         if not went:
