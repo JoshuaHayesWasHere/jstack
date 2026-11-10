@@ -1658,7 +1658,8 @@ class Repo:
         self, pull: ready.PullRequest | None, default: str, listed: list[ready.PullRequest]
     ) -> None:
         """Read where the batch stands before this run judges anything (`batch.state_of`). A
-        failed batch of two or more keeps its members as suspects, and one of one sends its member
+        failed batch of two or more has its failed jobs started again once (`rerun_batch`); one
+        that failed after that keeps its members as suspects, and one of one sends its member
         alone at the head it held (`batch.Record.fail`); one that timed out is built again whole
         once before it fails (`batch.Record.late`); a proven half sends the one suspect left alone
         (`batch.Record.prove`); a pull request that would merge alone waits while a batch is out
@@ -1670,7 +1671,12 @@ class Repo:
         kept, run = record.batch, None
         if kept and pull and (kept.tip, kept.commit) == (tip, pull.head):
             run = self.guards.checked(kept.tip, kept.tree)
-        state = batch.state_of(kept, pull, tip, run, datetime.now(UTC))
+        rollup = self.reds.get(ROLLUP.format(number=pull.number), []) if pull else []
+        jobs = batch.failed_jobs(rollup, self.required)
+        now = datetime.now(UTC)
+        state = batch.state_of(kept, pull, tip, run, now, jobs)
+        if state == batch.RERUN:
+            state = self.rerun_batch(record, jobs, now)
         if state == batch.FAILED:
             record.fail()
         elif state == batch.LATE:
@@ -1680,6 +1686,19 @@ class Repo:
         record.batch = None if state == batch.NONE else record.batch
         record.write()
         self.batching = batch.Batching(record, state, run or "", pull)
+
+    def rerun_batch(self, record: batch.Record, jobs: tuple[str, ...], now: datetime) -> str:
+        """Start the failed `jobs` of the batch out again, once, in each workflow run they are of,
+        and say where the batch stands: pending, or failed where GitHub refused a rerun. The
+        rerun is kept before it is asked for, so a run that stops between the two never asks
+        twice: the batch it kept is pending on the first attempt's jobs until it is late."""
+        record.rerun(jobs, now)
+        record.write()
+        made = record.batch.rerun if record.batch else None
+        for one in made.runs if made else ():
+            if _run(self.main, "gh", "run", "rerun", one, "--failed", *self.about).returncode:
+                return batch.FAILED
+        return batch.PENDING
 
     def batched(self, default: str) -> list[str]:
         """What this run does with the members it judged, once every other pull request was

@@ -60,7 +60,10 @@ A word recorded from your own T3 message is that message, and the message jbus c
 Its `caller` is the first function of the line's `caller`, the one before ` < `, and its `resource` is empty for a line that names none; it keeps no endpoint and no line.
 Each build adds the lines past its cursor to their rows and moves the cursor in one transaction, so a line is counted once.
 Where the file the cursor names has become the old one, the build reads the rest of it and then the new file; where it is neither, both are read from their start.
-The scorecard reads it as `gh-calls-per-hour` and `gh-allowance`.
+The scorecard reads it as `gh-calls-per-hour`, `gh-allowance`, `gh-calls-per-session-hour` and `gh-idle-calls-per-hour`.
+`gh-allowance` is the lower of the core and the graphql allowance left, whichever wall is nearer.
+`gh-idle-calls-per-hour` is the floor: the costed core calls (a 304 is not one) an hour, over today's whole hours with under half a live session-hour in them, a thread live in an hour from its first to its last model call in that hour, so a home left open all day is not at work in the hours it is quiet.
+`gh-calls-per-session-hour` reads nothing under 20 session-hours, where that floor is most of its numerator.
 
 No table holds the text of a message.
 A row keeps ids, times, counts and labels, and in place of each text, its length in a column that ends `_len`, such as `acts.words_len`.
@@ -289,7 +292,7 @@ What a message you typed is about is one label too, its `surface`, kept in `mess
 
 Each label but `needs` and `other` is a pattern of words, tried in the order of the table (`approval` reads a message's start, where an answer's word is, and `my pick` anywhere), over the first 400 characters with a mention in quotes or backticks and a link's target left out.
 A word of `acts` has no `surface`: an act keeps no text past its read.
-The measures `merge-asks` and `approval-reasks` read it; `merge` counts every message that names a pull request, a new piece of work as much as a complaint, and `approval` every approval typed in T3, a re-ask or not, and no word said through the bots' chat or the view.
+The measures `merge-asks` and `approval-reasks` read it, each as a day's rate: the count of the week so far over its days, against a seventh of its weekly baseline, so a Monday and a Saturday are judged alike; `merge` counts every message that names a pull request, a new piece of work as much as a complaint, and `approval` every approval typed in T3, a re-ask or not, and no word said through the bots' chat or the view.
 `sidebar-friction`, `status-asks`, `wrong-home` and `friction-by-surface`, the share of typed messages that are not `other`, lack it: on a held-out 100 of the audit of 2026-11-09, the label agreed with its hand label under 80% of the time, and each measure's `needs` gives by how much.
 `reply-corrections` and `visual-misses` lack it too: no pattern of the words tells a correction from a request.
 `asks.py` gives each pattern and what it misses.
