@@ -555,3 +555,15 @@ def test_a_pkgbuild_changes_tests_alone_where_only_its_series_gains_or_loses_tes
 def test_any_other_fork_file_is_code():
     files = {DIR + "jstack.install": "post_install() { :; }\n"}
     assert not forktests.fork_tests_alone(DIR + "jstack.install", _side({}), _side(files))
+
+
+def test_a_fork_file_of_a_head_with_no_merge_base_is_code(tmp_path):
+    """With no merge-base there is no base to read the change from, so nothing is cleared."""
+    git = ["git", "-C", str(tmp_path)]
+    subprocess.run([*git, "init", "-q"], check=True)
+    (tmp_path / "PKGBUILD").write_text(pkgbuild(TEST_PATCH.rsplit("/", 1)[-1]))
+    subprocess.run([*git, "add", "-A"], check=True)
+    subprocess.run(
+        [*git, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "head"], check=True
+    )
+    assert not forktests.in_repo(str(tmp_path), "no-such-base", "HEAD")(DIR + "PKGBUILD")
