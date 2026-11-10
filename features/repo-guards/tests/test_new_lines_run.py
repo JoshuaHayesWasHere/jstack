@@ -585,3 +585,48 @@ def test_a_part_folds_no_data_file_a_process_still_writes(tmp_path):
         ]
     finally:
         subprocess.run(["pkill", "-f", str(ready)])
+
+
+def test_a_part_folds_no_data_file_a_killed_process_left_without_its_schema(tmp_path):
+    """A process killed as it saves its coverage, once SQLite has made its data file and before
+    the schema is in it, leaves an empty file under a pid that is gone, as CI's `coverage_schema`
+    and `readonly database` failures after #1399 show: the part folds the lines of every other
+    process, those of a process its test started among them, and leaves that file out."""
+    repo = tmp_path / "repo"
+    code = repo / "features/pkg/src/pkg"
+    tests = repo / "features/pkg/tests"
+    code.mkdir(parents=True)
+    tests.mkdir(parents=True)
+    (code / "__init__.py").write_text("")
+    (code / "held.py").write_text("def held(row):\n    return row == 'held'\n")
+    killed = (
+        "import coverage, os, signal, sqlite3\n"
+        "path = coverage.Coverage.current().get_data().data_filename()\n"
+        "os.remove(path)\n"
+        "sqlite3.connect(path)\n"
+        "os.kill(os.getpid(), signal.SIGKILL)\n"
+    )
+    runs = tmp_path / "runs"
+    (tests / "test_held.py").write_text(
+        "import subprocess\n"
+        "import sys\n"
+        "sys.path.insert(0, 'features/pkg/src')\n"
+        "from pkg import held\n\n"
+        f"KILLED = {killed!r}\n\n\n"
+        "def test_a_held_row():\n"
+        f"    open({str(runs)!r}, 'a').write('ran\\n')\n"
+        "    assert held.held('held')\n"
+        "    code = 'import sys; sys.path.insert(0, \"features/pkg/src\"); from pkg import held'\n"
+        "    subprocess.run([sys.executable, '-c', code + '; assert held.held(None) is False'],"
+        " check=True)\n"
+        "    assert subprocess.run([sys.executable, '-c', KILLED]).returncode == -9\n"
+    )
+    for args in (["init", "-q"], ["add", "."], ["commit", "-qm", "base"]):
+        git("-c", "user.name=t", "-c", "user.email=t@t", *args, repo=repo)
+    since = git("rev-parse", "HEAD", repo=repo)
+    (code / "held.py").write_text(
+        "def held(row):\n    if row is None:\n        return False\n    return row == 'held'\n"
+    )
+    a_part(repo, since, tmp_path / "parts/1")
+    assert faults(added(since, repo), tmp_path / "check", repo, tmp_path / "parts") == []
+    assert runs.read_text() == "ran\n", "the check ran the test again for a line the part ran"

@@ -346,6 +346,50 @@ def test_a_scout_launches_on_the_first_instance_of_its_pool_that_can_sign_in(
     assert made["modelSelection"]["instanceId"] == PRIME
 
 
+FABLE = "claude-fable-5-2"
+
+
+@pytest.mark.parametrize(("more", "model"), [(f"Model: {FABLE}\n", FABLE), ("", "claude-opus-5-5")])
+def test_a_requests_model_line_sets_the_model_its_scout_launches_on(
+    kitchen, jstack_config, more, model
+):
+    """A request's `Model:` line names the model its scout launches on, over the role map's
+    `scout` line, which still gives the provider, the pool and the options. A request without the
+    line launches on the role map's model."""
+    (jstack_config.parent / "roles").write_text(
+        f"scout: claudeAgent claude-opus-5-5 claudeAgent,{PRIME} effort=low\n"
+    )
+    assert add(kitchen, "alpha", text=request("alpha", more=more))[0] == 0
+    assert go(kitchen, "alpha")[0] == 0
+    kitchen.poll()
+    (made,) = launches(kitchen)
+    assert made["modelSelection"] == {
+        "provider": "claudeAgent",
+        "model": model,
+        "instanceId": "claudeAgent",
+        "options": [{"id": "effort", "value": "low"}],
+    }
+
+
+def test_a_requests_model_line_with_no_scout_line_in_the_role_map_launches_nothing(kitchen):
+    """With no `scout` line the role map names no provider, so the model a request names has
+    nothing to launch on: the pass records a condition and launches nothing."""
+    assert add(kitchen, "alpha", text=request("alpha", more=f"Model: {FABLE}\n"))[0] == 0
+    assert go(kitchen, "alpha")[0] == 0
+    kitchen.poll()
+    assert launches(kitchen) == []
+    assert kitchen.lines("condition") == [
+        "condition alpha: the request names a model and the role map has no scout line"
+    ]
+
+
+@pytest.mark.parametrize("line", ["Model:\n", f"Model: {FABLE} please\n"])
+def test_a_requests_model_line_that_is_not_one_model_is_refused(kitchen, line):
+    code, said = add(kitchen, "alpha", text=request("alpha", more=line))
+    assert code == 1
+    assert "Model: line is not one model id" in said
+
+
 def test_a_scout_row_waits_on_its_depends_and_launches_on_the_first_pass_after_it_merges(kitchen):
     """The Done when of scout-row: a design pass queued with `--depends a` under an entry with a
     go launches `/scout <slug>` on the first pass after `a` merges, and not before."""

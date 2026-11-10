@@ -378,13 +378,13 @@ def text(given: Any, cap: int = LINE) -> str:
 
 
 def by_rule(row: queue.Row) -> dict[str, str] | None:
-    """The rule and the parent of a row approved by the follow-up rule. The page
-    marks the row with them. The function gives None for a row the user gave their own word
-    for, and for a row with no approval."""
+    """The rule and the parent of a row approved by the follow-up rule or by its home's standing
+    word (`queue.ruled_by`). The page marks the row with them. The function gives None for a row
+    the user gave their own word for, and for a row with no approval."""
     made = queue.record(row)
-    if not made or made.basis != queue.RULE:
+    if not made or made.basis not in queue.RULED:
         return None
-    return {"rule": text(made.ref, 20), "follows": text(made.follows, 80)}
+    return {"rule": text(queue.ruled_by(made), 30), "follows": text(made.follows, 80)}
 
 
 def count(given: Any) -> int:

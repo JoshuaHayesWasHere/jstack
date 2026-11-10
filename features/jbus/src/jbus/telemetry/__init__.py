@@ -18,10 +18,11 @@ still being written waits for the next build. A log whose inode or first line ch
 is shorter than the offset, is read again from the start: its rows are keyed by their content
 (`values.key`), so a line read twice is one row, the one today's `records` makes of it, and a
 row that would not change is not written. A snapshot is read again when its inode, size
-or time changed. Each file's rows and its cursor are written in one transaction, so a build
-stopped at any point leaves each file either read or not, and the next build reads on from
-there. So a build run twice adds nothing the second time, and a build run each pass ends as a
-build from nothing would (`--rebuild`), apart from the rows the sources have since dropped.
+or time changed, and a `whole` one then deletes the rows of the records it no longer has.
+Each file's rows and its cursor are written in one transaction, so a build stopped at any
+point leaves each file either read or not, and the next build reads on from there. So a build
+run twice adds nothing the second time, and a build run each pass ends as a build from nothing
+would (`--rebuild`), apart from the rows the sources have since dropped.
 
 Each pass runs a build after the launches (`CHORES`), before any project's second half, where
 `jbus.chores.daily` trims `events.jsonl` to 14 days. The trim drops only the lines this store
@@ -321,6 +322,12 @@ def _snapshot(connection, project: str, source: Source, file: Path, zone, built:
     connection.execute("BEGIN")
     before = connection.total_changes
     connection.executemany(_insert(source), rows)
+    if source.whole:
+        connection.execute(
+            f"DELETE FROM {source.table} WHERE project = ? "
+            "AND key NOT IN (SELECT value FROM json_each(?))",
+            (project, json.dumps([row[1] for row in rows])),
+        )
     built.rows[source.table] += connection.total_changes - before
     cursors.keep(
         connection, project, source.table, stat.st_ino, None, None, stat.st_size, stat.st_mtime_ns

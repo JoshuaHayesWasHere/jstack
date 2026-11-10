@@ -15,6 +15,6 @@ MEASURE = Measure(
     baseline=33.8,
     baseline_of="the audit of 2026-11-09: 33.8 to 48%; 5.4% on 2026-11-05",
     kind=Limit(30, 10),
-    tier="wake",
+    tier="page",
     audit=(29,),
 )

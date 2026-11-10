@@ -18,8 +18,9 @@ no `jmerge`, no GitHub, no T3 Code. It takes no lock and writes no file. The dic
     request and is not merged. Its `waits` is the last line `jmerge` logged for it, as
     `<wait or hold>: <why>`, from `merge.log.last`, or empty where `jmerge` logged none.
   - `by_rule` holds `{"slug", "rule", "follows", "at"}` for each row of the queue, open or
-    not, that a home or a pass approved by the follow-up rule at or after `since`, oldest
-    first. The user said nothing about such a row. The list's length is the count jbus tells
+    not, that a home or a pass approved by the follow-up rule, or on its home's standing word
+    (`rule` is then `standing word <id>`), at or after `since`, oldest first. The user said
+    nothing about such a row. The list's length is the count jbus tells
     the user. `follows` is the parent row whose go is the ground. `at` is when the approval
     ran, to the minute, as the row has it. `_by_rule` rounds a `since` down to its minute, so
     the digest lists a row twice at worst and never misses it.
@@ -161,7 +162,8 @@ def _pulls(config: Config, project: Project, rows: list[queue.Row]) -> list[dict
 
 
 def _by_rule(config: Config, table: list[queue.Row], start: datetime) -> list[dict[str, str]]:
-    """Return each row a home or a pass approved by the follow-up rule at or after `start`, and
+    """Return each row a home or a pass approved by the follow-up rule, or on its home's standing
+    word, at or after `start`, and
     skip a row whose record has no time jbus stamped.
 
     A record's time is to the minute, so this rounds `start` down to its minute. A row that a
@@ -171,14 +173,14 @@ def _by_rule(config: Config, table: list[queue.Row], start: datetime) -> list[di
     found = []
     for row in table:
         made = queue.record(row)
-        if not made or made.basis != queue.RULE:
+        if not made or made.basis not in queue.RULED:
             continue
         try:
             ran = config.user.local(datetime.fromisoformat(made.ran_at[:16]))
         except ValueError:
             continue
         if ran >= start:
-            one = {"slug": row["slug"], "rule": made.ref, "follows": made.follows}
+            one = {"slug": row["slug"], "rule": queue.ruled_by(made), "follows": made.follows}
             found.append((ran, one | {"at": made.ran_at}))
     return [one for _, one in sorted(found, key=lambda pair: (pair[0], pair[1]["slug"]))]
 

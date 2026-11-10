@@ -474,6 +474,25 @@ def test_a_calls_dollars_are_its_tokens_times_the_price_table(machine):
     assert week == [(1, pytest.approx(priced), 1, pytest.approx(priced))]
 
 
+def test_a_fable_call_has_dollars_and_is_not_named_unpriced(machine):
+    """A Fable 5.2 call on a merged row is priced: `call_rows` gives it dollars, and
+    `weekly_unpriced` names no model for its week."""
+    machine.thread("mcp:crew-a", "crew: row-a", "claudeAgent", "s1")
+    machine.merged("row-a")
+    machine.claude("s1", said(NOW, "m1", (7, 300, 9000, 41), model="claude-fable-5-2"))
+    machine.run()
+
+    with machine.store() as store:
+        calls = store.execute("SELECT model, dollars FROM call_rows").fetchall()
+        unpriced = store.execute("SELECT name, count FROM weekly_unpriced").fetchall()
+    assert len(calls) == 1
+    model, dollars = calls[0]
+    assert model == "claude-fable-5-2"
+    assert dollars is not None
+    assert dollars > 0
+    assert unpriced == []
+
+
 def test_a_call_written_across_two_builds_is_one_row_with_its_final_counts(machine):
     machine.thread("mcp:crew-a", "crew: row-a", "claudeAgent", "s1")
     machine.thread("mcp:review-a", "review: row-a", "codex", C1)
