@@ -13,10 +13,11 @@ for each task whose threads are not at work:
   `worktrees()/<project>/<slug>`, where jbus makes it (`jbus.crewtree`). A worktree or a slot's
   folder that was removed still counts: its processes have a working directory that ends
   ` (deleted)`. A task counts while a thread of it is listed, and while it is a row of the queue.
-- A scout works in the main checkout, beside its home, so a folder alone does not tell its
-  processes from the home's. A scout's processes are those under the main checkout or a
-  temporary folder that its own session started: a session whose first message from the user
-  is `/scout <slug>`. jbus settles a scout once its Report is written, so a scout counts
+- A scout works in a worktree jbus makes for it (`jbus.crewtree.make_scout`), and one launched
+  before that in the main checkout, beside its home, where a folder alone does not tell its
+  processes from the home's. A scout's processes are those under its worktree, the main checkout or
+  a temporary folder that its own session started: a session in that folder whose first message from
+  the user is `/scout <slug>`. jbus settles a scout once its Report is written, so a scout counts
   whether T3 Code lists it or not, while no thread of that scout is at work.
 
 A session is the process's `queue.SESSION`, and its transcript is `<the agent's config
@@ -59,7 +60,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from jbus import queue, read_json, threads, verbs, write_json
+from jbus import crewtree, queue, read_json, threads, verbs, write_json
 from jbus.cleanup import worktrees
 from jbus.passes import Pass
 from jbus.watch import at_work
@@ -397,19 +398,23 @@ def _asked(path: Path) -> str:
     return ""
 
 
-def scout_of(proc: Proc, checkout: Path, made: bool) -> str:
-    """The slug of the scout whose session started the process under the main checkout or, where
-    `made`, a temporary folder, or nothing."""
-    if not made and not within(proc, (checkout,)):
-        return ""
-    kept = transcript(proc, checkout)
-    asked = _asked(kept) if kept else ""
-    found = re.match(
-        r"\s*(?:/scout\s+|<command-message>scout</command-message>\s*"
-        r"<command-name>/scout</command-name>\s*<command-args>)([A-Za-z0-9][A-Za-z0-9-]*)",
-        asked,
-    )
-    return found[1] if found else ""
+def scout_of(proc: Proc, folders: tuple[Path, ...], made: bool) -> str:
+    """The slug of the scout whose session, in one of `folders` (the main checkout and the
+    scouts' worktrees), started the process under that folder or, where `made`, a temporary
+    folder, or nothing."""
+    for folder in folders:
+        if not made and not within(proc, (folder,)):
+            continue
+        kept = transcript(proc, folder)
+        asked = _asked(kept) if kept else ""
+        found = re.match(
+            r"\s*(?:/scout\s+|<command-message>scout</command-message>\s*"
+            r"<command-name>/scout</command-name>\s*<command-args>)([A-Za-z0-9][A-Za-z0-9-]*)",
+            asked,
+        )
+        if found:
+            return found[1]
+    return ""
 
 
 def owns(task: Task, proc: Proc, made: bool) -> bool:
@@ -501,8 +506,12 @@ def stop(run: Pass, out: list[threads.Out], rows: Iterable[queue.Row]) -> None:
         claimed[("crew", task.slug)] = [one for one in left if owns(task, one, made[one.pid])]
     taken = {one.pid for found in claimed.values() for one in found}
     at_work = working(out)
+    folders = (
+        run.project.checkout,
+        *(crewtree.scout_path(run, one) for one in crewtree.scouts(run)),
+    )
     for one in left:
-        slug = "" if one.pid in taken else scout_of(one, run.project.checkout, made[one.pid])
+        slug = "" if one.pid in taken else scout_of(one, folders, made[one.pid])
         if slug and ("scout", slug) not in at_work:
             claimed.setdefault(("scout", slug), []).append(one)
     scouts = (one for (role, _), found in claimed.items() if role == "scout" for one in found)

@@ -1,15 +1,20 @@
-"""A scout's request is a row of the queue: `jbus queue add` takes it when its text is a request
-(a `Request:` line and no `Task:` line), checks it against the template, and keeps it as a row of
+"""A scout's request is a row of the queue: `jbus queue add` takes it when its text is a request (a
+`Request:` line and no `Task:` line), checks it against the template, and keeps it as a row of
 role `scout`. It is approved as any row is, the entry's go included, and waits on its `--depends`
-as any row does. A pass launches it read-only, as `/scout <slug>` in the main checkout with no
-branch, and the row is done once its Report says so. Like `test_jbus_kitchen.py`, the tests run
-the real commands and the real pass against a faked T3 Code server, `gh` and `jmerge`."""
+as any row does. A pass launches it read-only, as `/scout <slug>` in a detached worktree jbus
+makes, with no branch, and the row is done once its Report says so. Like `test_jbus_kitchen.py`,
+the tests run the real commands and the real pass against a faked T3 Code server, `gh` and
+`jmerge`."""
 
 import json
+import os
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
 
+import jroles.mirror
+from crew_branches import git_said
 from jbriefs import parse
 from jbus import queue
 from jgauge import slot, waiters
@@ -190,7 +195,7 @@ def test_a_pass_launches_an_approved_scout_read_only_with_no_branch(kitchen):
 
     (made,) = launches(kitchen)
     assert made["title"] == "scout: alpha"
-    assert made["workspaceStrategy"] == {"type": "root"}
+    assert made["workspaceStrategy"] == strategy(kitchen, "alpha")
     assert made["message"] == "/scout alpha"
     thread = scout_thread(kitchen, "alpha")
     assert thread["branch"] is None
@@ -205,6 +210,116 @@ def test_a_pass_launches_an_approved_scout_read_only_with_no_branch(kitchen):
 
     kitchen.poll(NOW + timedelta(minutes=3))
     assert len(launches(kitchen)) == 1
+
+
+def scout_tree(kitchen, slug):
+    """The scout's worktree `jbus.crewtree` makes, beside the crews' under T3 Code's home."""
+    return Path(os.environ["T3CODE_HOME"]) / "worktrees" / kitchen.checkout.name / f"scout+{slug}"
+
+
+def strategy(kitchen, slug):
+    return {"type": "existing_worktree", "worktreePath": str(scout_tree(kitchen, slug))}
+
+
+def listed_trees(kitchen):
+    """Each worktree git lists, as its path and its HEAD line or `detached`."""
+    listed = git_said(kitchen, "worktree", "list", "--porcelain").split("\n\n")
+    return {one.splitlines()[0].removeprefix("worktree "): one.splitlines()[2:] for one in listed}
+
+
+def test_a_scout_launches_into_a_detached_worktree_with_its_settings_and_loses_it_once_done(
+    kitchen,
+):
+    """jbus makes the scout's worktree before its launch: detached at origin's main, with no
+    branch, holding the scout's settings file and the `.gitignore` that keeps it out of git, and
+    launches into it with `existing_worktree`. The scout still writes its Report under the home's
+    state directory, and once that Report says `Status: done` and the thread is no longer at
+    work, the next pass removes the worktree. A pass after that changes nothing."""
+    add(kitchen, "alpha")
+    assert go(kitchen, "alpha")[0] == 0
+    kitchen.poll()
+
+    (made,) = launches(kitchen)
+    tree = scout_tree(kitchen, "alpha")
+    assert made["workspaceStrategy"] == strategy(kitchen, "alpha")
+    assert listed_trees(kitchen)[str(tree)] == ["detached"]
+    assert git_said(kitchen, "-C", str(tree), "rev-parse", "HEAD") == git_said(
+        kitchen, "rev-parse", "origin/main"
+    )
+    settings = jroles.mirror.worktree_settings(jroles.mirror.Main.of(Path.home()), "scout")
+    assert json.loads((tree / ".claude" / "settings.json").read_text()) == settings
+    assert settings["permissions"] == {"deny": ["Artifact", "AskUserQuestion"]}
+    assert (tree / ".claude" / ".gitignore").read_text() == "*\n"
+    assert git_said(kitchen, "-C", str(tree), "status", "--porcelain") == ""
+    assert git_said(kitchen, "branch", "--list", "--format=%(refname)", "alpha") == ""
+
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert tree.is_dir() and len(launches(kitchen)) == 1
+
+    reported(kitchen, "alpha")
+    scout_thread(kitchen, "alpha")["status"] = "running"
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert tree.is_dir()
+
+    scout_thread(kitchen, "alpha")["status"] = "completed"
+    scout_thread(kitchen, "alpha")["settled"] = True
+    said = kitchen.poll(NOW + timedelta(minutes=9))
+    assert rows(kitchen)["alpha"]["status"] == "done"
+    assert not tree.exists() and str(tree) not in listed_trees(kitchen)
+    assert "removed scout alpha's worktree" in said
+    assert kitchen.lines("condition") == []
+
+    said = kitchen.poll(NOW + timedelta(minutes=12))
+    assert not any("removed scout" in line for line in said)
+    assert len(launches(kitchen)) == 1
+
+
+def test_a_scout_launch_t3_code_refuses_leaves_no_worktree(kitchen):
+    add(kitchen, "alpha")
+    go(kitchen, "alpha")
+    kitchen.t3.refuse = "no"
+    kitchen.poll()
+    assert kitchen.lines("condition") == ["condition alpha: T3 Code refused the scout's launch"]
+    assert not scout_tree(kitchen, "alpha").exists()
+    assert str(scout_tree(kitchen, "alpha")) not in listed_trees(kitchen)
+
+
+def tracked_settings(kitchen):
+    """Commit a `.claude/settings.json` of the project's own to origin's main."""
+    clone = kitchen.root / "elsewhere"
+    git_said(kitchen, "clone", "-q", str(kitchen.origin), str(clone))
+    (clone / ".claude").mkdir()
+    (clone / ".claude" / "settings.json").write_text("{}\n")
+    git_said(kitchen, "-C", str(clone), "add", "-f", ".claude/settings.json")
+    git_said(kitchen, "-C", str(clone), "commit", "-q", "-m", "its own settings")
+    git_said(kitchen, "-C", str(clone), "push", "-q", "origin", "main")
+
+
+def gone_default(kitchen):
+    git_said(kitchen, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/gone")
+
+
+def no_default(kitchen):
+    git_said(kitchen, "symbolic-ref", "--delete", "refs/remotes/origin/HEAD")
+
+
+@pytest.mark.parametrize(
+    "breaks",
+    [tracked_settings, gone_default, no_default],
+    ids=["the base tracks its settings file", "origin lacks the default branch", "no default"],
+)
+def test_a_scout_whose_worktree_cannot_be_made_is_a_condition_and_launches_nothing(kitchen, breaks):
+    """A scout's worktree that cannot be made, or would show jbus's file as a change, launches
+    no scout, writes no request under `scouts/`, and leaves no worktree."""
+    breaks(kitchen)
+    add(kitchen, "alpha")
+    go(kitchen, "alpha")
+    kitchen.poll()
+    assert launches(kitchen) == []
+    assert kitchen.lines("condition") == ["condition alpha: the scout's worktree could not be made"]
+    assert not scout_tree(kitchen, "alpha").exists()
+    assert str(scout_tree(kitchen, "alpha")) not in listed_trees(kitchen)
+    assert not (kitchen.home / "scouts" / "alpha.md").exists()
 
 
 PRIME = "claudeAgent_claude_prime"
@@ -256,7 +371,7 @@ def test_a_scout_row_waits_on_its_depends_and_launches_on_the_first_pass_after_i
     kitchen.poll(NOW + timedelta(minutes=6))
     (made,) = launches(kitchen)
     assert (made["title"], made["message"]) == ("scout: look", "/scout look")
-    assert made["workspaceStrategy"] == {"type": "root"}
+    assert made["workspaceStrategy"] == strategy(kitchen, "look")
 
 
 def test_a_scout_row_is_done_on_its_report_and_a_row_that_depends_on_it_then_launches(kitchen):

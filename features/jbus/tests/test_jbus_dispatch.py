@@ -387,7 +387,7 @@ def test_a_crew_launches_into_the_one_worktree_jbus_made_with_its_settings_in_it
     tree = t3_tree(kitchen, "alpha")
     strategy = {"type": "existing_worktree", "worktreePath": str(tree), "branch": "alpha"}
     assert kitchen.t3.launches[0]["workspaceStrategy"] == strategy
-    settings = jroles.mirror.crew_settings(jroles.mirror.Main.of(Path.home()))
+    settings = jroles.mirror.worktree_settings(jroles.mirror.Main.of(Path.home()), "crew")
     assert json.loads((tree / ".claude" / "settings.json").read_text()) == settings
     assert (tree / ".claude" / ".gitignore").read_text() == "*\n"
     assert git_said(kitchen, "-C", str(tree), "status", "--porcelain") == ""

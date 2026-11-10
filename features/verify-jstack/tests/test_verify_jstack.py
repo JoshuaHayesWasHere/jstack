@@ -327,7 +327,10 @@ def test_a_scout_goes_from_its_request_to_a_launched_thread_with_no_branch(sandb
     assert ran.stdout.splitlines()[-3:] == refs
     calls = (sandbox.parent / "t3" / "calls.jsonl").read_text().splitlines()
     (launch,) = [json.loads(line) for line in calls if '"t3_thread_launch"' in line]
-    assert launch["arguments"]["workspaceStrategy"] == {"type": "root"}
+    tree = launch["arguments"]["workspaceStrategy"]
+    assert (tree["type"], set(tree)) == ("existing_worktree", {"type", "worktreePath"})
+    assert Path(tree["worktreePath"]).name == "scout+alpha"
+    assert (Path(tree["worktreePath"]) / ".claude" / "settings.json").is_file()
     assert launch["arguments"]["message"] == "/scout alpha"
     (thread,) = json.loads((sandbox.parent / "t3" / "threads.json").read_text())
     assert (thread["title"], thread["branch"]) == ("scout: alpha", None)
