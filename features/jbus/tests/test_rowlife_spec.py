@@ -1,0 +1,78 @@
+"""The row's life as a TLA+ spec, `features/jbus/spec/RowLife.tla`: its table of moves is
+`queue.MOVES`, move for move, and TLC finds that a row that merged or is done never leaves.
+The TLC runs skip where no Java runs TLC."""
+
+import importlib
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from jbus import queue
+from testing.paths import REPO
+
+SPEC = REPO / "features" / "jbus" / "spec"
+STATECHART = REPO / "features" / "skill-library" / "skills" / "statechart" / "scripts"
+sys.path.insert(0, str(STATECHART))
+tools = importlib.import_module("statechart.tools")
+
+MOVE = re.compile(r'<<"(\w+)",\s*"(\w+)">>')
+
+
+def spec_moves() -> set[tuple[str, str]]:
+    """The moves of the spec's `Moves` table, each a pair of statuses."""
+    text = (SPEC / "RowLife.tla").read_text()
+    table = re.search(r"^Moves ==\n(.*?)^\s*}", text, re.S | re.M)
+    assert table, "RowLife.tla has no `Moves ==` table"
+    return set(MOVE.findall(table.group(1)))
+
+
+def test_the_spec_moves_a_row_as_queue_moves_does():
+    """Each move of `queue.MOVES` is a move of the spec and the spec has no other, so a move the
+    code gains or drops fails here until the spec takes it in."""
+    assert spec_moves() == set(queue.MOVES)
+
+
+def test_the_spec_has_each_status_of_the_queue():
+    """The spec's statuses are `queue.STATUSES` and the `removed` line of `remove`."""
+    text = (SPEC / "RowLife.tla").read_text()
+    (listed,) = re.findall(r"^Statuses ==\s*\{([^}]*)\}", text, re.M)
+    assert set(re.findall(r'"(\w+)"', listed)) == {*queue.STATUSES, "removed"}
+
+
+def tlc(cfg: str) -> subprocess.CompletedProcess:
+    """TLC's run of RowLife.tla with the config `cfg`, in a copy of the spec's folder."""
+    found = tools.find_tlc()
+    with tempfile.TemporaryDirectory(prefix="rowlife-") as folder:
+        work = Path(folder)
+        shutil.copy(SPEC / "RowLife.tla", work)
+        (work / "run.cfg").write_text(cfg)
+        command = [found.java, "-Xmx512m", "-cp", found.jar, "tlc2.TLC", "-workers", "1"]
+        command += ["-metadir", str(work / "meta"), "-config", "run.cfg", "RowLife.tla"]
+        return subprocess.run(
+            tools.in_test_slot(command), cwd=work, capture_output=True, text=True, timeout=300
+        )
+
+
+@pytest.mark.skipif(not tools.find_java(), reason="no Java to run TLC")
+def test_tlc_finds_that_merged_and_done_never_leave():
+    """TLC checks the spec's own config, and every rule in it holds."""
+    ran = tlc((SPEC / "RowLife.cfg").read_text())
+    assert ran.returncode == 0, ran.stdout[-4000:]
+    assert "No error has been found" in ran.stdout
+
+
+@pytest.mark.skipif(not tools.find_java(), reason="no Java to run TLC")
+def test_a_move_out_of_done_breaks_the_rule():
+    """The canary: the spec with the fault `done` to `pr` added, a Result that says done before
+    its pull request opens, breaks `FinalStays`, so the rule holds by the table and not by
+    construction."""
+    cfg = (SPEC / "RowLife.cfg").read_text().replace('Fault = "none"', 'Fault = "done-pr"')
+    assert 'Fault = "done-pr"' in cfg
+    ran = tlc(cfg)
+    assert ran.returncode != 0
+    assert "FinalStays is violated" in ran.stdout, ran.stdout[-4000:]

@@ -1,0 +1,112 @@
+---
+title: "A row's life"
+config:
+  markdownAutoWrap: false
+  state:
+    useMaxWidth: false
+---
+stateDiagram-v2
+  classDef plain fill:#f4f6f7,stroke:#566573,color:#1b2631
+  classDef group0 fill:#fdebd0,stroke:#7f7668,color:#1b2631
+  classDef group1 fill:#d6eaf8,stroke:#6b757c,color:#1b2631
+  classDef group2 fill:#d1f2eb,stroke:#697976,color:#1b2631
+  classDef group3 fill:#e5e8e8,stroke:#737474,color:#1b2631
+  state "Legend" as legend {
+    state "Not launched" as legendGroup0
+    state "Launched" as legendGroup1
+    state "Final" as legendGroup2
+    state "Removed" as legendGroup3
+  }
+  class legendGroup0 group0
+  class legendGroup1 group1
+  class legendGroup2 group2
+  class legendGroup3 group3
+  state "At the same time" as regions {
+    state "The go" as region0 {
+      [*] --> r0s3
+      state "Approved" as r0s0
+      state "Held" as r0s1
+      state "Held, its go kept" as r0s2
+      state "No go" as r0s3
+      r0s0 --> r0s3 : its go no longer holds, and it<br/>waits for yours [when gate<br/>(work.py:460, a question is<br/>open) or queued (work.py:491,<br/>no thread yet)]
+      %% when r1s2, r1s7
+      r0s0 --> r0s1 : you hold the approved row
+      r0s0 --> r0s2 : you hold the row, keeping its<br/>go
+      r0s1 --> r0s0 : you approve the held row, and<br/>the hold ends
+      r0s2 --> r0s0 : you approve the row over the<br/>hold that kept its go
+      r0s2 --> r0s0 : you lift the hold, and its go<br/>comes back
+      r0s3 --> r0s0 : you approve the row, or a rule<br/>gives its go
+      r0s3 --> r0s1 : you hold the row
+    }
+    --
+    state "The row's status" as region1 {
+      [*] --> r1s7
+      state "done (work.py:456, the<br/>Result says done)" as r1s0
+      state "failed (work.py:498, the<br/>thread failed)" as r1s1
+      state "gate (work.py:460, a<br/>question is open)" as r1s2
+      state "launched (work.py:466, a<br/>launch with no thread yet)" as r1s3
+      state "left (work.py:462, the<br/>Result leaves work)" as r1s4
+      state "merged (work.py:453, its<br/>pull request merged)" as r1s5
+      state "pr (work.py:458, its pull<br/>request is open)" as r1s6
+      state "queued (work.py:491, no<br/>thread yet)" as r1s7
+      state "removed (queue.py<br/>`remove`, no pass sets it)" as r1s8
+      state "running (work.py:493, the<br/>thread at work)" as r1s9
+      state "stale (work.py:464, a hung<br/>turn or nothing written)" as r1s10
+      state "waiting (work.py:496, the<br/>thread asks you)" as r1s11
+      r1s1 --> r1s0 : a Result says done after the<br/>thread failed
+      r1s1 --> r1s4 : the failed thread leaves its<br/>work to its home
+      r1s1 --> r1s9 : the failed thread works again
+      r1s2 --> r1s7 : the question closes, and the<br/>row's launch has no record
+      r1s2 --> r1s3 : the question closes, and the<br/>row's launch has no thread yet
+      r1s2 --> r1s6 : the question closes, and the<br/>row's pull request is open
+      r1s2 --> r1s5 : the question closes, and the<br/>row's pull request merged
+      r1s2 --> r1s0 : the question closes, and the<br/>row's Result says done
+      r1s3 --> r1s9 : T3 Code lists the thread at<br/>work
+      r1s3 --> r1s0 : the thread ends with a clean<br/>Result before a pass sees it<br/>at work
+      r1s3 --> r1s4 : the thread ends with work left<br/>before a pass sees it at work
+      r1s3 --> r1s1 : the thread fails before a pass<br/>sees it at work
+      r1s4 --> r1s0 : a follow-up Result says done
+      r1s4 --> r1s6 : a pull request opens for what<br/>was left
+      r1s4 --> r1s3 : jbus launches the row again<br/>for what was left
+      r1s4 --> r1s11 : the thread asks for an answer<br/>again
+      r1s4 --> r1s9 : the thread works again on what<br/>was left
+      r1s4 --> r1s8 : you remove the row from left
+      r1s6 --> r1s2 : jbus opens a question on the<br/>row with its pull request open
+      r1s6 --> r1s4 : the pull request closes<br/>unmerged
+      r1s6 --> r1s0 : the pull request leaves the<br/>open list, and the Result says<br/>done
+      r1s6 --> r1s5 : the pull request merges
+      r1s6 --> r1s8 : you remove the row from pr
+      r1s7 --> r1s3 : a launch record names a thread<br/>for the row [when Approved]
+      %% when r0s0
+      r1s7 --> r1s2 : jbus opens a question on the<br/>row
+      r1s7 --> r1s8 : you remove the row from queued
+      r1s9 --> r1s6 : a pull request opens
+      r1s9 --> r1s5 : the pull request opens and<br/>merges between two passes
+      r1s9 --> r1s4 : the Result leaves work, or the<br/>pull request closes
+      r1s9 --> r1s11 : the thread asks for an answer<br/>to its request
+      r1s9 --> r1s0 : the thread ends with a clean<br/>Result and no pull request
+      r1s9 --> r1s1 : the thread fails
+      r1s9 --> r1s10 : the turn hangs, or the thread<br/>ends with nothing written
+      r1s10 --> r1s4 : the thread stays quiet with<br/>nothing written, or writes a<br/>leftover
+      r1s10 --> r1s9 : the thread works again
+      r1s11 --> r1s9 : the request is answered and<br/>the thread works again
+      r1s11 --> r1s4 : the thread ends after its<br/>request with work left
+      r1s11 --> r1s1 : the thread fails while it<br/>waits
+    }
+  }
+  class r0s0 plain
+  class r0s1 plain
+  class r0s2 plain
+  class r0s3 plain
+  class r1s0 group2
+  class r1s1 group1
+  class r1s2 group0
+  class r1s3 group1
+  class r1s4 group1
+  class r1s5 group2
+  class r1s6 group1
+  class r1s7 group0
+  class r1s8 group3
+  class r1s9 group1
+  class r1s10 group1
+  class r1s11 group1
