@@ -383,10 +383,15 @@ RevertMerges ==
     /\ UNCHANGED <<st, ci, ranRed, missed, breaks, told, outsideLeft, link, on, Machine, Browser, Row,
                    editsLeft>>
 
-\* jbus closes its revert still open once main's check passed at a later tip without it (#899).
+\* jbus closes its revert still open once main's check passed at a later tip without it (#899),
+\* also where main is red again at a newer tip, so long as main passed at or above the revert's red
+\* (#1643). The model keeps ~mainRed for that check: it keeps one red at a time and no record of
+\* the greens before it, so a revert's red is passed at or above only at a green main. TLC finds no
+\* state with a revert open on a green main (an invariant ~(revert = "open" /\ ~mainRed) holds over
+\* all 7,853,736 states of today's model, 2026-11-10): in the model a revert ends by RevertMerges.
 RevertCloses ==
     /\ revert = "open"                      \* features/jbus/src/jbus/reverts.py `asked = run.run("gh", "pr", "close", one.pull, "--comment", comment)`
-    /\ ~mainRed                             \* features/jbus/src/jbus/reverts.py `if main.red or not main.green:`
+    /\ ~mainRed                             \* features/jbus/src/jbus/reverts.py `if main.red and (one.red in of_mac or not cleared(run, one.red, main.green)):`
     /\ revert' = "none"
     /\ UNCHANGED <<st, ci, ranRed, missed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on, Machine,
                    Fix, Browser, Row, rerun, culprit, judged, editsLeft>>
