@@ -83,6 +83,12 @@ UNJUDGED_WAIT = timedelta(minutes=15)
 """How far apart two reads that find nothing judges a commit settle it: GitHub lists a push run
 within seconds of the push, so a commit that has none this long after it was first read never
 will."""
+UNJUDGED_OLD = timedelta(days=1)
+"""How long a commit has been found unjudged before `again` reads it only once an
+`UNJUDGED_EVERY`: a tip of main nothing has judged for a day is a project with no check to run."""
+UNJUDGED_EVERY = timedelta(hours=1)
+"""How often `again` reads a commit unjudged for `UNJUDGED_OLD`, so that a run that comes late, as
+after check.yml is switched on again, is still judged."""
 REDS = "main-reds.jsonl"
 """Why main went red: one line for each tip `tell` judged `failed`, as `red_line` writes it."""
 TESTS, LINT = "test", "lint"
@@ -164,13 +170,16 @@ def main_check(run: Pass, sha: str, again: bool = False, rerun: bool = False) ->
     A commit nothing judges, with no push run and no check run of one (`watch.unjudged`), is
     `pending`. Passes read it again until a read `UNJUDGED_WAIT` after the first still finds it
     so, as `unjudged.json` keeps, and after that only with `again`, at main's tip or the red
-    tip kept."""
+    tip kept. Once a commit has been found so for `UNJUDGED_OLD`, `again` reads it at most once
+    an `UNJUDGED_EVERY`, and it is `pending` between."""
     known: dict[str, str] = read_json(run.state / CHECKS, {})
     if again and known.get(sha) in ("failed", NO_JOB):
         del known[sha]
     seen: dict[str, list[str]] = read_json(run.state / UNJUDGED, {})
     first, last = seen.get(sha) or [run.now.isoformat()] * 2
     if not again and when(last) - when(first) >= UNJUDGED_WAIT:
+        return "pending"
+    if when(last) - when(first) >= UNJUDGED_OLD and run.now - when(last) < UNJUDGED_EVERY:
         return "pending"
     answer = _check(run, known, sha, again=again, rerun=rerun)
     write_json(run.state / CHECKS, known)
