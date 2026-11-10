@@ -1138,6 +1138,7 @@ def test_a_store_built_before_the_labels_gains_them_as_a_rebuild_has_them(machin
             f"ALTER TABLE queue DROP COLUMN approval_message; "
             f"ALTER TABLE calls DROP COLUMN effort; ALTER TABLE brief_versions DROP COLUMN pull; "
             f"ALTER TABLE passes DROP COLUMN step_times; ALTER TABLE passes DROP COLUMN children; "
+            f"ALTER TABLE transitions DROP COLUMN legal; "
             f"{unrun}"
         )
         store.execute(

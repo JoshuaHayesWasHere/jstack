@@ -95,6 +95,7 @@ It is in the log, which `jbus events` prints and the view shows.
 - `home-stall`
 - `home-start`
 - `hook`
+- `illegal-move`
 - `item.approved`
 - `item.done`
 - `item.dropped`

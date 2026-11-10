@@ -445,3 +445,28 @@ def test_pass_steps_gives_each_step_of_each_pass_its_wall_and_cpu_seconds(machin
     ]
     assert {when[:16] for _, when, *_ in steps} == {at[:16]}
     assert children == [(None,), (9.75,)]
+
+
+def test_transitions_carry_whether_the_move_table_holds_the_move(machine):
+    """A line `jbus.queue.derive` marked `"legal": false` reads 0 and any other 1, and a store
+    built before `jbus.telemetry.migrations.v014_transitions_legal` gains the column on its next
+    build, with each line it already holds read as 1, as a rebuild reads an unmarked line."""
+    log = "transitions.jsonl"
+    machine.append("alpha", log, {"slug": "one", "from": "pr", "to": "merged", "at": iso(NOW)})
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        views = [
+            name for (name,) in store.execute("SELECT name FROM sqlite_master WHERE type = 'view'")
+        ]
+        store.executescript(
+            "".join(f"DROP VIEW {name};" for name in views)
+            + "ALTER TABLE transitions DROP COLUMN legal;"
+            + "DELETE FROM migrations WHERE name = 'v014_transitions_legal';"
+        )
+    marked = {"slug": "two", "from": "merged", "to": "gate", "at": iso(NOW), "legal": False}
+    machine.append("alpha", log, marked)
+    machine.build()
+    query = "SELECT slug, from_status, to_status, legal FROM transitions ORDER BY slug"
+    with contextlib.closing(machine.store()) as store:
+        rows = store.execute(query).fetchall()
+    assert rows == [("one", "pr", "merged", 1), ("two", "merged", "gate", 0)]
