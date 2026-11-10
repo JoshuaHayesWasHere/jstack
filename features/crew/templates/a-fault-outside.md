@@ -13,6 +13,14 @@ A fault the filing task's own change caused, one that exists only because of tha
 Then run this in this worktree, with the block at the top and the new slug and the brief's file in place of the words in angle brackets:
 
 ```sh
+uv run --project "$T/../source" jbus queue check '<new slug>' < '<the brief file>'
+```
+
+It writes nothing, and it prints a `may be the fault <slug> (<status>, <pull request>) holds` line for each live row whose brief shares a `Where:` path and a code token with this one.
+Read that row's brief: where it holds this fault, the fault is one the queue already holds, so drop the brief and queue nothing.
+Otherwise, and once `check` names no fault, run this the same way:
+
+```sh
 uv run --project "$T/../source" jbus queue add '<new slug>' --priority 50 < '<the brief file>'
 ```
 
