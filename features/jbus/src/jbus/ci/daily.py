@@ -10,7 +10,7 @@ definition. In short:
   reads `no data` for every number from the ledger, its n still shown, since the ledger misses
   runs while jbus is down.
 - Every number but main-red and the review step's comes from the ledger the passes keep
-  (`ci.jsonl`, `ci-prs.jsonl`), with jmerge's own branches (`numbers.jmerges`) left out. `--day`
+  (`ci.jsonl`, `ci-prs.jsonl`), with jmerge's own branches (`ledger.ours`) left out. `--day`
   collects nothing.
 - Main-red is the spell method (`spells`): from a failed run of check.yml on a push to main to the
   next success's last update, split at local midnight. It reads main's runs from one
@@ -655,6 +655,16 @@ def body(
     )
 
 
+def facts_of(state: Path, now: datetime) -> numbers.Facts:
+    """The ledger's facts, which leave out jmerge's own branches (`jbus.ci.ledger.ours`)."""
+    return numbers.Facts(
+        ledger.read(state / ledger.JOBS),
+        ledger.read(state / ledger.PULLS),
+        ledger.read(state / "events.jsonl"),
+        now,
+    )
+
+
 def reviewed(
     config: jbus.Config, project: jbus.Project, now: datetime
 ) -> tuple[list[spend.Launch] | None, str, dict[str, int]]:
@@ -696,9 +706,7 @@ def one(config: jbus.Config, project: jbus.Project, now: datetime, repo: str | N
     user = config.user
     runs, said = main_runs(repo) if repo else (None, "the checkout has no GitHub origin")
     launches, unread, pulls = reviewed(config, project, now)
-    given = Ledger(
-        numbers.Facts.read(config.state(project), now), runs, said, launches, unread, pulls
-    )
+    given = Ledger(facts_of(config.state(project), now), runs, said, launches, unread, pulls)
     by_day = Days(given, user)
     newest = user.local(now).date() - timedelta(days=1)
     shown = [by_day[when] for when, _, _ in days(user, newest - timedelta(days=DAYS - 1), newest)]

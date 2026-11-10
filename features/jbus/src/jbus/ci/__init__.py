@@ -117,7 +117,7 @@ def one(args: argparse.Namespace, config: jbus.Config, project: jbus.Project) ->
         print(f"ci: {project.name}: {error}")
         return 1
     print(f"ci: {counts.runs} runs seen, {counts.jobs} jobs added, {counts.pulls} pull requests")
-    facts = numbers.Facts.read(state, now)
+    facts = daily.facts_of(state, now)
     start = now - timedelta(days=args.days)
     nine = numbers.compute(facts, start, now)
     print(f"ci: {project.name}, the last {args.days} days to {config.user.stamp(now)}")
