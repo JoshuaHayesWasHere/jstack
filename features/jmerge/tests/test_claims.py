@@ -6,6 +6,7 @@ import json
 
 import pytest
 
+from jmerge import claims as jmerge_claims
 from test_home_merge import ME, OTHER, Home, git
 from test_home_thread import READERS, about_the_home_id, paths
 
@@ -278,6 +279,8 @@ def test_scope_holds_the_docs_of_a_feature_whose_source_where_names_inside(
     claims.write("alpha", where="`features/jbus/src/jbus/queue.py`")
     scope.branch("alpha", "features/jbus/src/jbus/queue.py", doc)
     assert scope.run() == (outside, 0, "")
+    text = (claims.home.tasks / "alpha.md").read_text()
+    assert jmerge_claims.scope(text, [doc]) == outside
 
 
 def test_scope_goes_by_the_branch_the_last_result_names(claims, scope):
