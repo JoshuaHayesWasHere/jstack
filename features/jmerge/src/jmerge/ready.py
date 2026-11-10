@@ -950,17 +950,44 @@ def changed_tests(one: PullRequest) -> tuple[str, ...]:
     )
 
 
+def changed_code(
+    one: PullRequest,
+    prose: Callable[[str], bool] = lambda path: False,
+    fork_tests: Callable[[str], bool] = lambda path: False,
+) -> str:
+    """The first file whose change changes code, or nothing where none does: every file is a
+    `proved.TEST_FILE`, of an `EXEMPT` kind, a `.py` file whose change `prose` says is to its
+    docstrings and comments alone, or a fork file whose change `fork_tests` says is to the fork's
+    tests alone (`forktests.fork_tests_alone`). A pull request that changes no code runs its tests
+    over the same code at its base as at its head, so a base run that passes is no fault of
+    theirs (`short_on_proved`)."""
+    return next(
+        (
+            path
+            for path in one.files
+            if not proved.TEST_FILE.search(path)
+            and not any(proved.of_kind(path, kind, prose) for kind in proved.EXEMPT)
+            and not (proved.FORK_FILE.search(path) and fork_tests(path))
+        ),
+        "",
+    )
+
+
 def short_on_proved(
     text: str,
     one: PullRequest,
     carries: Callable[[str], bool] = lambda at: False,
     prose: Callable[[str], bool] = lambda path: False,
+    fork_tests: Callable[[str], bool] = lambda path: False,
 ) -> str:
     """Why the brief's `Proved:` line does not prove the pull request, or nothing
     (`proved.proved`). A pull request that changes tests needs the line to name each of them,
     with their run over its merge-base's code ending 1, a failure, and at its head ending 0. A
     run that passes at the base, or ends on anything but a failure there (no test collected, a
-    time limit), passes vacuously. One that changes no test needs no line, and where it says
+    time limit), passes vacuously, unless the pull request changes no code (`changed_code`): its
+    base then runs the head's own code, the base run has nothing to fail on, and the run at the
+    head is the proof, as on a `tests only` line. A fork patch that adds a test of behaviour the
+    fork already has is one (#1535, held 76 minutes on a base run that passed). One that changes no test needs no line, and where it says
     `none, <kind>` each file it changes is of a kind it names, a `.py` file whose change `prose`
     says is to its docstrings and comments alone being `docs` (`proved.prose_in`). One whose
     every file, a deleted one too, is a `proved.TEST_FILE` or of a `proved.EXEMPT` kind changes
@@ -1014,7 +1041,7 @@ def short_on_proved(
     unnamed = [path for path in tests if path not in said.tests]
     if unnamed:
         return PROVED_UNNAMED.format(tests=", ".join(unnamed))
-    if said.base_exit != 1 and not said.tests_only:
+    if said.base_exit != 1 and not said.tests_only and changed_code(one, prose, fork_tests):
         return PROVED_BASE_PASSED.format(exit=said.base_exit, base=said.base[:12])
     if said.head_exit != 0:
         return PROVED_HEAD_FAILED.format(exit=said.head_exit, head=said.head[:12])
@@ -1028,10 +1055,13 @@ def proves(
     one: PullRequest,
     carries: Callable[[str], bool] = lambda at: False,
     prose: Callable[[str], bool] = lambda path: False,
+    fork_tests: Callable[[str], bool] = lambda path: False,
 ) -> bool:
     """Whether the brief has a `Proved:` line and it holds at the pull request's head
     (`short_on_proved`): a fix whose line holds merges with no scoped review of it."""
-    return proved.proved(text) is not None and not short_on_proved(text, one, carries, prose)
+    return proved.proved(text) is not None and not short_on_proved(
+        text, one, carries, prose, fork_tests
+    )
 
 
 _CHECK_LINE = re.compile(r"Checked: (.+) exit (\d+) at ([0-9a-f]{40})")
