@@ -55,6 +55,9 @@ not in /tmp, whose tmpfs quota full repo copies filled. `jbus.threads.settle` re
 and prunes the worktrees that were in it, once it settles the crew's thread
 (`jbus.cleanup.clear_scratch`).
 
+A row left with work on its branch launches again, a new thread on its slug, branch and worktree
+(`crewtree.reopen`), with a `Resume:` line, once for each cause that clears (`pausedon.cleared`).
+
 jbus never holds back a launch because another brief names the same file, since each crew
 has its own worktree and branch. The crew of the pull request that merges second rebases that
 pull request, and `jbus.rebase` tells that crew to.
@@ -64,7 +67,6 @@ from __future__ import annotations
 
 import itertools
 import os
-import re
 from collections import Counter
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
@@ -73,13 +75,15 @@ from typing import Any
 
 import jroles
 import jroles.mirror
+import jsettings
 from jbriefs.home import home_of
-from jbus import cleanup, crewtree, queue, read_json, watch, write_json
+from jbus import cleanup, crewtree, pausedon, queue, read_json, watch, write_json
 from jbus.launches import record_path, records
 from jbus.launchhome import homed, unhomed
+from jbus.launchtext import RESUMED, fixes_main, launched_text, resumed
 from jbus.passes import Changed, Depends, Pass, Red, Rerun, Slot
 from jbus.t3 import Client, T3Dropped, T3Error, T3Refused
-from jbus.watch import TITLE, End, World, against, crew_threads, ended
+from jbus.watch import TITLE, End, World, against, at_work, crew_threads, ended
 from jmerge import judgement, mainjson
 from jmerge import stacked as stacks
 from jroles import ledger, pool
@@ -89,8 +93,13 @@ def launched(run: Pass, slug: str, role: str = queue.CREW) -> str:
     """Return the thread id of the slug's launch of `role`, or nothing if it has none. A scout's
     row taken over by the crewmate's brief it delivered keeps the scout's record beside the
     crewmate's."""
-    found = records(run, slug, role)
+    found = newest(records(run, slug, role))
     return next((r["thread"] for _, r in reversed(found) if r.get("thread")), "")
+
+
+def newest(found: list[tuple[Path, dict[str, Any]]]) -> list[tuple[Path, dict[str, Any]]]:
+    """Return the launch records in the order they were made: a resume's name sorts anywhere."""
+    return sorted(found, key=lambda one: str(one[1].get("at") or ""))
 
 
 def scratch(run: Pass, slug: str) -> Path:
@@ -141,63 +150,10 @@ def write_missing(run: Pass) -> None:
     """
     directory = run.config.state_dir / "launches" / run.project.name
     for slug in sorted(path.name for path in directory.glob("*") if path.is_dir()):
-        found = [record for _, record in reversed(records(run, slug)) if record.get("thread")]
+        found = [r for _, r in reversed(newest(records(run, slug))) if r.get("thread")]
         if found:
             kind = "scouts" if found[0].get("role") == queue.SCOUT else "tasks"
             write_thread(run, slug, found[0]["thread"], replace=False, kind=kind)
-
-
-GREEN_MAIN = "Green main:"
-
-_FIXES_MAIN = re.compile(r"\bfix(?:es|ing)?\s+(?:the\s+)?(?:red\s+)?main\b", re.IGNORECASE)
-
-
-def fixes_main(slug: str, brief: str) -> bool:
-    """Whether the row fixes a red main: jbus filed it for one (`mainjson.fix_of`), or the first
-    line of its brief, its heading, says it fixes main, as `# x: fix main's red test` does."""
-    heading = "".join(brief.splitlines()[:1])
-    return mainjson.fix_of(slug) or bool(_FIXES_MAIN.search(heading))
-
-
-def green_main(brief: str, green: str) -> str:
-    """Return the brief with `Green main: <sha>` under its first line, in place of any such
-    line its head had. The sha is the last commit of main whose check passed
-    (`jmerge.mainjson`). When main is red, a crew rebases onto that commit. When no green
-    main is known, the brief gets no such line."""
-    kept, head = [], True
-    for line in brief.splitlines(keepends=True):
-        head = head and not line.startswith("## ")
-        if not (head and line.startswith(GREEN_MAIN)):
-            kept.append(line)
-    plain = "".join(kept)
-    if not green:
-        return plain
-    first, _, rest = plain.partition("\n")
-    return f"{first}\n{GREEN_MAIN} {green}\n{rest}"
-
-
-def launched_text(brief: str, green: str, on: stacks.Stacked | None) -> str:
-    """Return the brief a launch sends: with the `Green main:` line (`green_main`), or for a row
-    that launches stacked, with its `Stacked on:` line in that place and no `Green main:`. A
-    stacked crew starts from its base's branch, never from main, so the line that tells a crew
-    which main to rebase onto has no place in its brief."""
-    if on is None:
-        return green_main(brief, green)
-    return stacked(green_main(brief, ""), on)
-
-
-def stacked(brief: str, on: stacks.Stacked | None) -> str:
-    """Return the brief with `on`'s `Stacked on:` line under its first line, in place of any such
-    line its head had, or with no such line where `on` is None."""
-    kept, head = [], True
-    for line in brief.splitlines(keepends=True):
-        head = head and not line.startswith("## ")
-        if not (head and line.startswith(stacks.LINE)):
-            kept.append(line)
-    if on is None:
-        return "".join(kept)
-    first, _, rest = "".join(kept).partition("\n")
-    return f"{first}\n{stacks.line(on)}\n{rest}"
 
 
 def arguments(run: Pass, slug: str, brief: str, routed: pool.Route | None) -> dict[str, Any]:
@@ -466,13 +422,33 @@ class Turns:
     room: str = ""
     waited: dict[str, Any] = field(default_factory=dict)
     checked: dict[str, bool] = field(default_factory=dict)
+    slugs: set[str] = field(default_factory=set)
+    landed: frozenset[str] = frozenset()
 
-    def _ready(self, full: bool) -> Iterator[tuple[queue.Row, str, stacks.Stacked | None]]:
-        """Read rows off `left`, and yield each row, with its brief and the stack it launches
-        on, that waits only for a free slot.
+    def _resume(self, row: queue.Row) -> pausedon.Cause | None:
+        """Return the cause a left row launches again for (`pausedon.cleared`), or None. Its
+        thread is not listed unsettled (`pausedon.live`), is not at work, and was sent nothing this
+        pass, since a message starts the old thread's turn."""
+        run, world, slug = self.run, self.world, row["slug"]
+        if row.get("status") != "left" or pausedon.live(world, slug) or not launched(run, slug):
+            return None
+        old = world.thread(slug)
+        if old and (
+            at_work([old], settled_too=True)
+            or jsettings.thread_id(str(old.get("threadId", ""))) in run.told
+        ):
+            return None
+        return pausedon.cleared(run, world, row, self.slugs, self.landed)
 
-        The method skips every other row. jbus never launches a row again once the row's thread
-        has ended with a Result, nor a fix row of a red main whose own commit went green on a
+    def _ready(
+        self, full: bool
+    ) -> Iterator[tuple[queue.Row, str, stacks.Stacked | None, pausedon.Cause | None]]:
+        """Read rows off `left`, and yield each row, with its brief, the stack it launches on and
+        the cause it launches again for, that waits only for a free slot.
+
+        The method skips every other row. jbus launches a row again once the row's thread has
+        ended with a Result only where the row is `left` and a cause it waited on cleared
+        (`_resume`), nor ever a fix row of a red main whose own commit went green on a
         rerun (`_rerun`). When a row waits because its brief changed, waits on a slug
         it depends on, or waits for a red main to be green, the method adds the reason to
         `Pass.reasons`. While main is red, only a row that fixes main (`fixes_main`) or launches
@@ -495,17 +471,20 @@ class Turns:
         while self.left:
             row = self.left.pop(0)
             slug = row["slug"]
-            known = (run.gated, world.threads, world.open, world.merged)
-            if any(slug in place for place in known) or launched(run, slug):
+            known = (run.gated, world.open, world.merged)
+            if any(slug in place for place in known):
                 continue
-            if ended(run, world, slug):
-                continue
+            cause = None
+            if slug in world.threads or launched(run, slug) or ended(run, world, slug):
+                cause = self._resume(row)
+                if cause is None:
+                    continue
             if not row.get("approved"):
                 continue
             if mainjson.fix_of(slug) and (rerun := _rerun(run, slug)):
                 run.reasons[slug] = Rerun(rerun)
                 continue
-            if slug in world.settled:
+            if slug in world.settled and cause is None:
                 what = "a settled thread already has this slug"
                 if not full:
                     run.gate(slug, what, world.settled[slug]["threadId"])
@@ -535,7 +514,7 @@ class Turns:
             met = merged | {
                 other for other in row.get("depends", []) if ended(run, world, other) == End("done")
             }
-            unmerged = [other for other in row.get("depends", []) if other not in met]
+            unmerged = [o for o in row.get("depends", []) if o not in met and cause is None]
             on = world.stack_on(run, unmerged, brief)
             if unmerged and on is None:
                 run.reasons[slug] = Depends(tuple(unmerged))
@@ -543,7 +522,7 @@ class Turns:
             if red and on is None and not fixes_main(slug, brief):
                 run.reasons[slug] = Red()
                 continue
-            yield row, brief, on
+            yield row, brief, on, cause
 
     def live(self) -> list[Path]:
         """Return the worktrees jbus makes for the project's rows still out, whose Claude
@@ -566,7 +545,7 @@ class Turns:
         run, client = self.run, self.client
         if self.caps.full():
             return NOTHING
-        for row, brief, on in self._ready(full=False):
+        for row, brief, on, cause in self._ready(full=False):
             slug = row["slug"]
             home = home_of(run.home, brief)
             if self.caps.full(home):
@@ -585,9 +564,11 @@ class Turns:
                 continue
             sha = judgement.brief_sha(brief)
             path = record_path(run, slug, sha)
+            if cause is not None:
+                path = path.with_name(f"{path.stem}-{pausedon.digest(cause.key)}.json")
             before = read_json(path, {})
-            made = crewtree.kept(run, slug, before)
-            if (refs.stdout.strip() and not made) or remote.stdout.strip():
+            made = crewtree.kept(run, slug, before) if cause is None else ""
+            if cause is None and ((refs.stdout.strip() and not made) or remote.stdout.strip()):
                 there = refs.stdout.strip() or f"refs/heads/{slug} on origin"
                 run.gate(slug, f"branch {slug} is there with no launch record", there)
                 continue
@@ -602,7 +583,15 @@ class Turns:
             target = run.home / "tasks" / f"{slug}.md"
             wrote = not target.exists()
             on_disk = "" if wrote else judgement.body(target.read_text(errors="replace"))
-            if not wrote and on_disk.strip() != plain.strip():
+            line = ""
+            if cause is not None:
+                line = RESUMED.format(date=run.now.date().isoformat(), says=cause.says)
+                text = resumed(text, line)
+                if not wrote and not judgement.approved_text(row, on_disk):
+                    what = f"tasks/{slug}.md is not the brief its go holds for"
+                    run.gate(slug, what, str(target))
+                    continue
+            elif not wrote and on_disk.strip() != plain.strip():
                 run.gate(slug, f"tasks/{slug}.md differs from the approved brief", str(target))
                 continue
             out = cannot_sign_in(run, client)
@@ -655,12 +644,17 @@ class Turns:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text(text)
             elif (kept := target.read_text(errors="replace")) != (
-                put := homed(launched_text(kept, green, on), brief)
+                put := resumed(homed(launched_text(kept, green, on), brief), line)
+                if cause
+                else homed(launched_text(kept, green, on), brief)
             ):
                 target.write_text(put)
             scratch(run, slug).mkdir(parents=True, exist_ok=True)
             base = on.branch if on else against(brief) or default
-            made, why = crewtree.make(run, slug, base, made)
+            if cause is None:
+                made, why = crewtree.make(run, slug, base, made)
+            else:
+                made, why = crewtree.reopen(run, slug)
             if why:
                 if wrote:
                     target.unlink()
@@ -669,12 +663,16 @@ class Turns:
             key = f"{run.project.name}/{slug}/{sha[:12]}"
             retried = before.get("state") == "retry"
             intent = {"key": key, "state": "intent", "at": run.now.isoformat(), "sha": made}
+            intent["go"] = str(row.get("brief_sha") or "")
+            if cause is not None:
+                intent["cause"] = cause.key
             write_json(path, {**intent, "retried": True} if retried else intent)
             try:
                 reply = client.call("t3_thread_launch", arguments(run, slug, text, routed))
             except T3Refused as error:
                 path.unlink()
-                crewtree.remove(run, slug)
+                if cause is None:
+                    crewtree.remove(run, slug)
                 if wrote:
                     target.unlink()
                 run.gate(slug, "T3 Code refused the launch", str(error))
@@ -693,19 +691,11 @@ class Turns:
                 )
                 run.gated.add(slug)
                 return LAUNCHED
-            write_json(
-                path,
-                {
-                    "key": key,
-                    "state": "launched",
-                    "thread": reply["threadId"],
-                    "at": run.now.isoformat(),
-                    "sha": made,
-                },
-            )
+            write_json(path, {**intent, "state": "launched", "thread": reply["threadId"]})
             write_thread(run, slug, reply["threadId"])
             where = f" on {choice.instance}, {choice.why}" if choice.why else ""
             where += f", stacked on {on.slug}'s branch {on.branch}" if on else ""
+            where += f", resumed on its branch: {cause.says}" if cause else ""
             run.say(f"launched {slug}: {reply['threadId']}{where}")
             return LAUNCHED
         return NOTHING
@@ -722,8 +712,8 @@ class Turns:
         A row that waits only for room is not named.
         """
         waits = list(self.capped)
-        waits += [row for row, _, _ in itertools.islice(self._ready(full=False), 1)]
-        waits += [row for row, _, _ in self._ready(full=True)]
+        waits += [row for row, *_ in itertools.islice(self._ready(full=False), 1)]
+        waits += [row for row, *_ in self._ready(full=True)]
         waits.sort(key=queue.order)
         for row in waits:
             brief = queue.brief(self.run.state, row["slug"]) or ""
@@ -745,6 +735,8 @@ def turns(
     crew = sorted((row for row in rows if queue.role(row) == queue.CREW), key=queue.order)
     made = Turns(run, client, world, crew, caps(run, out))
     made.reported = watch.reported(run, rows)
+    made.slugs = {row["slug"] for row in rows}
+    made.landed = watch.final(run, world, rows)
     return made
 
 
