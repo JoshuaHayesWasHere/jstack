@@ -27,6 +27,18 @@ RUN = {
     "completed_at": None,
     "details_url": "https://example.test/job/1",
 }
+ENDED = {
+    **RUN,
+    "status": "completed",
+    "conclusion": "success",
+    "completed_at": "2026-10-12T15:01:00Z",
+}
+
+
+def rolled(run):
+    """A REST check run as GraphQL's `statusCheckRollup` names it."""
+    said = {"status": run["status"].upper(), "conclusion": (run["conclusion"] or "").upper()}
+    return {"__typename": "CheckRun", "name": run["name"], **said}
 
 
 @pytest.fixture
@@ -48,6 +60,7 @@ def opened(kitchen, number, head, **more):
         "files": [{"path": "a.txt", "additions": 1, "deletions": 0}],
         "changedFiles": 1,
         "isDraft": False,
+        "statusCheckRollup": [rolled(RUN)],
         **more,
     }
 
@@ -89,10 +102,8 @@ def change_head(kitchen):
 
 
 def end_check(kitchen):
-    ended = {**RUN, "status": "completed", "conclusion": "success"}
-    kitchen.set("check-runs.json", {HEAD: [{**ended, "completed_at": "2026-10-12T15:01:00Z"}]})
-    rollup = [{"status": "COMPLETED", "conclusion": "SUCCESS"}]
-    kitchen.set("open.json", [opened(kitchen, 7, HEAD, statusCheckRollup=rollup)])
+    kitchen.set("check-runs.json", {HEAD: [ENDED]})
+    kitchen.set("open.json", [opened(kitchen, 7, HEAD, statusCheckRollup=[rolled(ENDED)])])
 
 
 def open_one(kitchen):
@@ -112,7 +123,10 @@ def move_main(kitchen):
 
 def set_status(kitchen):
     kitchen.set("statuses.json", {HEAD: [{"context": "ci/other", "state": "pending"}]})
-    rollup = [{"context": "ci/other", "state": "PENDING"}]
+    rollup = [
+        rolled(RUN),
+        {"__typename": "StatusContext", "context": "ci/other", "state": "PENDING"},
+    ]
     kitchen.set("open.json", [opened(kitchen, 7, HEAD, statusCheckRollup=rollup)])
 
 
@@ -177,6 +191,30 @@ def test_a_list_no_read_vouches_for_is_asked_again_on_each_pass(kitchen, unread)
         unread(kitchen)
         assert [pull["number"] for pull in pulls.read(a_pass(minutes)).pulls] == [7]
     assert asked(kitchen) == 3
+
+
+def test_a_rollup_that_lags_the_check_runs_is_asked_again(kitchen):
+    """GitHub's GraphQL rollup can lag its REST check runs: a list kept while it still says
+    IN_PROGRESS of a run REST says completed would hold the merge it gates for `FRESH`."""
+    kitchen.set("check-runs.json", {HEAD: [ENDED]})
+    for minutes in range(3):
+        pulls.read(a_pass(minutes))
+    assert asked(kitchen) == 3
+    kitchen.set("open.json", [opened(kitchen, 7, HEAD, statusCheckRollup=[rolled(ENDED)])])
+    for minutes in range(3, 6):
+        assert pulls.read(a_pass(minutes)).pulls[0]["statusCheckRollup"] == [rolled(ENDED)]
+    assert asked(kitchen) == 4
+    kitchen.set("statuses.json", {HEAD: [{"context": "ci/other", "state": "success"}]})
+    pending = {"__typename": "StatusContext", "context": "ci/other", "state": "PENDING"}
+    kitchen.set("open.json", [opened(kitchen, 7, HEAD, statusCheckRollup=[rolled(ENDED), pending])])
+    for minutes in range(6, 8):
+        pulls.read(a_pass(minutes))
+    assert asked(kitchen) == 6
+    agreed = [rolled(ENDED), {**pending, "state": "SUCCESS"}]
+    kitchen.set("open.json", [opened(kitchen, 7, HEAD, statusCheckRollup=agreed)])
+    for minutes in range(8, 10):
+        pulls.read(a_pass(minutes))
+    assert asked(kitchen) == 7
 
 
 def test_a_kept_list_is_asked_again_once_it_is_ten_minutes_old(kitchen):
