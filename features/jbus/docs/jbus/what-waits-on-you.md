@@ -89,8 +89,13 @@ A row a home can clear by itself is left out, such as a row at `gate` or a lefto
 A gate that holds, or a go gate, whose row merged or was removed is left out too: a pass closes each as `cleared`, an answer that is jbus's and not yours ([Questions](questions.md#act-unless-stopped-and-the-gates-that-hold)).
 A refused go is left out too: most refusals are a sha that did not match, and the home tries again by itself.
 
+The project-wide list, with no `--home`, also holds every home's open asks: each `decision local <slug>` or `stop local <slug>` line still open in the `told` file of the project's root home and of each of its scopes, named with its home as `--home` prints it below.
+This is the list a thread outside a home and the root home read, so a scope's open ask is never behind its "nothing waits".
+A cleared ask and a `question` line are left out.
+`jbus home status` counts these asks too, in its `elsewhere:` line of what waits in other projects.
+
 With nothing open it prints `nothing waits on <you> in any project`.
-"Nothing waits" means that none of the items above is open: no gate, no row, no hold and no setup or install waits on you.
+"Nothing waits" means that none of the items above is open: no gate, no row, no hold, no setup or install, and no home's ask waits on you.
 A project no pass has listed yet is a `not known:` line, and the line that follows it says `nothing else known waits`, so it never reads as nothing waiting.
 
 `jbus needs --home <directory>`, with `--project <name>`, keeps one home's items: a scope's directory keeps that scope's, and the root home's keeps its own and every scope's.
