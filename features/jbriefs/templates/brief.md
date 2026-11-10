@@ -7,7 +7,7 @@ Proves it: <what outside the agent shows it holds: a test or a command, a metric
 Size: S | M | L
 Where: <files or areas it concerns>
 Do not touch: <what is out of bounds>
-<Each Done when item ends with (in `<path>`), the file the goal needs changed, or (in none) where it changes none: `jbus queue add` refuses a file outside `Where:` or under `Do not touch:`, so that goal goes to a follow-up brief with a `Follows: <slug>` line, and warns of an item with neither.>
+<Each Done when item ends with (in `<path>`), the file the goal needs changed, or (in none) where it changes none: `jbus queue add` refuses a file outside `Where:` or under `Do not touch:`, where `Where:` also holds `features/<f>/docs/` for each `features/<f>/src/` path it names, unless `Do not touch:` covers it, so that goal goes to a follow-up brief with a `Follows: <slug>` line, and warns of an item with neither.>
 Decisions: <any the user already made, in their words>
 Asked: $H/asked/<entry>.md
 <The line above names the file the home wrote once, when it took the request, with the user's messages of it word for word: every brief cut from that request names the same file.>

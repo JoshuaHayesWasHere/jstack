@@ -100,6 +100,7 @@ On the user's own word to merge, given in this thread, `jmerge --accept <number>
 - When a scout wrote the brief, start from the files on its `Read:` line, measure with the commands on `Instruments:`, and change where `Change:` names.
   Do not try again what `Ruled out:` names.
 - Stay inside **Where** and out of **Do not touch**. If the task cannot be done without crossing that line, stop and say so.
+  The `docs/` of a feature whose source **Where** names, under `features/<f>/src/`, are inside it unless **Do not touch** covers them: a doc line the change makes wrong there is fixed in this pull request, not queued as a row.
 - Keep the proof as you go: for each **Done when** line, the command you ran and what it printed, or what you looked at.
   Run the brief's `Proves it:` check as it is worded, not a variant or a part of it.
   This proof and the check's output go on the Result's `Proof:` line, or the Result says why the check could not run here.

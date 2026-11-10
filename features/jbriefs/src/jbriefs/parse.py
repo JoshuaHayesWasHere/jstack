@@ -415,6 +415,22 @@ def where(text: str, label: str = "Where") -> tuple[str, ...]:
     return () if line is None else named(line)
 
 
+_SOURCE = re.compile(r"^features/(?P<feature>[^/]+)/src(?:/|$)")
+
+
+def reach(text: str) -> tuple[str, ...]:
+    """The paths a brief may change: those `where` gives, and the `docs/` of each feature whose
+    source under `features/<f>/src/` they name, where `Do not touch:` does not cover it. A doc
+    line a change makes wrong is fixed in the same pull request, not queued as a row."""
+    inside, kept = where(text), where(text, "Do not touch")
+    docs = (
+        f"features/{found['feature']}/docs"
+        for path in inside
+        if (found := _SOURCE.match(path))
+    )
+    return tuple(dict.fromkeys((*inside, *(doc for doc in docs if not covers(kept, doc)))))
+
+
 def shared_where(text: str, other: str) -> tuple[str, ...]:
     """The paths that both briefs' `Where:` lines cover (`covers`), the narrower where one names a
     directory and the other a file under it. A brief whose `Where:` is the whole repo (`.`) says
@@ -454,14 +470,14 @@ def _lands_in(item: str) -> tuple[str, ...] | None:
 
 def lands(text: str) -> str:
     """Why a `Done when:` item cannot be met inside the brief, as one line: the first item whose
-    `(in ...)` marker names a file that `Where:` does not cover, or one that `Do not touch:`
+    `(in ...)` marker names a file outside `reach`, or one that `Do not touch:`
     covers (`covers`). It is an empty string when every marked file is inside, and for a brief
     whose `Where:` names no path, which `wheres` refuses.
 
     The marker is the writer's word for the file the goal lands in: the check reads nothing else
     of the item, since most items name files they only read or run.
     """
-    inside, kept = where(text), where(text, "Do not touch")
+    inside, kept = reach(text), where(text, "Do not touch")
     if not inside:
         return ""
     slug = found["slug"] if (found := _SLUG.search(text)) else "<this row's slug>"
