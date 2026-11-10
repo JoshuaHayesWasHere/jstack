@@ -8,6 +8,7 @@ own branch carries on from. A `fixes_main` row launches while main is red.
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 from jmerge import mainjson
 from jmerge import stacked as stacks
@@ -55,6 +56,15 @@ def resumed(brief: str, line: str) -> str:
     kept = "".join(one for one in top.splitlines(keepends=True) if not one.startswith(RESUME))
     put = f"{kept.rstrip()}\n{line}"
     return f"{put}{mark}{rest}" if mark else f"{put}\n"
+
+
+def resumed_on(home: Path, slug: str) -> stacks.Stacked | None:
+    """Return the stack a resume of `slug` launches on: the `Stacked on:` line of its brief in
+    `home`'s `tasks/`, the copy its launches wrote, which `jbus.stack` moves when its base
+    merges. A resume does not judge its depends again, so a link whose base is still open keeps
+    its line, and gets no `Green main:`."""
+    path = home / "tasks" / f"{slug}.md"
+    return stacks.of(path.read_text(errors="replace")) if path.is_file() else None
 
 
 def launched_text(brief: str, green: str, on: stacks.Stacked | None) -> str:

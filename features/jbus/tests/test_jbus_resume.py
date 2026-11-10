@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 import jbus
-from crew_branches import git_said
+from crew_branches import git_said, pushed
 from jbus import crewtree, leftover, threads
 from jgauge import holders, slot
 from test_jbus_kitchen import NOW, RESULT, TOKEN, Kitchen, asks, review, sends
@@ -484,3 +484,51 @@ def test_a_brief_on_disk_its_go_does_not_hold_for_is_a_gate_and_no_launch(left):
     assert "condition three: tasks/three.md is not the brief its go holds for" in left.lines(
         "condition"
     )
+
+
+def head_lines(text):
+    return text.split("\n## ", 1)[0].splitlines()
+
+
+def test_a_resumed_stacked_row_keeps_its_stack(tmp_path, monkeypatch):
+    """`three` builds on `one` and launched stacked on its open pull request. Its crew paused on
+    `two`, and `two` merged while `one` is still open: the resume starts from `one`'s branch as
+    before, so its brief keeps `Stacked on:` and gets no `Green main:`."""
+    made = Kitchen(tmp_path, monkeypatch)
+    made.word()
+    made.config(max_running=8)
+    for slug in ("one", "two"):
+        add(made, slug)
+    add(made, "three", depends="one")
+    made.poll(NOW - timedelta(minutes=30))
+    pushed(made, "one")
+    made.set("open.json", [made.opened("one", 10), made.opened("two", 11)])
+    made.poll(NOW - timedelta(minutes=27))
+    assert [given["title"] for given in made.t3.launches][-1] == "crew: three"
+    path = made.home / "tasks" / "three.md"
+    assert "Stacked on: one one" in head_lines(path.read_text())
+    for thread in made.t3.threads:
+        thread["status"] = "completed"
+    crew_of(made, "three")["settled"] = True
+    committed(made, "three")
+    paused = PAUSED.replace("`one`, `two`", "`two`").format(head="c" * 12)
+    path.write_text(path.read_text() + paused)
+    made.poll(NOW - timedelta(minutes=20))
+    made.set("open.json", [made.opened("one", 10)])
+    made.set("merged.json", [made.merged("two", 11, "b" * 40)])
+    made.poll(NOW)
+    (again,) = relaunches(made)
+    for text in (again["message"], path.read_text()):
+        head = head_lines(text)
+        assert "Stacked on: one one" in head
+        assert not [line for line in head if line.startswith("Green main:")]
+    made.close()
+
+
+def test_a_row_whose_thread_was_archived_is_not_resumed(left):
+    crew_of(left, "three")["archived"] = True
+    left.poll(NOW - timedelta(minutes=20))
+    landed(left)
+    left.poll(NOW)
+    left.poll(NOW + timedelta(minutes=3))
+    assert relaunches(left) == []
