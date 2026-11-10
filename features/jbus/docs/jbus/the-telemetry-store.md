@@ -124,7 +124,11 @@ Two more records are what an A/B or a simulator of a dial needs (the kpi-lab bui
   crew-router-pilot was that dial, and it ended with its read, so a record jbus writes now names none.
   The store reads the records whose time is at or after the newest it read, keeps the launched ones once by their key and dial, and never updates a row (`jbus.telemetry.launches`).
   A record from before `arms` that names `priming` gives that arm of `crew-router-pilot`; one that names neither, from before the store could tell or after the pilot ended, reads `covered` 0, with no arm guessed.
-- `review-launches.jsonl`: one line a reviewer thread, with the full head it was launched at, written by `jbus.reviewlaunch.record` alone: `prereview.launch` and `rebase.scope` as they launch it, and a pass for each `Scoped reviewer: <thread>, of <head>` line a crew wrote under an open pull request's Result, once by thread.
+- `review-launches.jsonl`: a line for each reviewer thread, with the full head it was launched at, once by thread: `prereview.launch` and `rebase.scope` write it as they launch the reviewer, and a pass writes it for each `Scoped reviewer: <thread>, of <head>` line a crew wrote under an open pull request's Result.
+  The file also holds claims, once by slug, head and kind.
+  A claim is a line with no thread: `jbus.reviewlaunch.claim` writes it before `t3_thread_launch`, so a pass that crashes after the launch does not launch a second reviewer of the head.
+  `jbus.reviewlaunch.release` takes the claim back where T3 Code refuses the launch, and a claim stays once the launch's own line follows it.
+  `review_heads` reads no claim.
   A thread launched before the file was kept, or a first reviewer jbus did not launch, has no line, and its head in `review_launches` is none.
 - `review-rounds.jsonl`: a pass adds a line for each review round of an open pull request's brief once the round is settled, that is a later round began or no reviewer the crew launched still owes its section (`jbus.reviewed.rounds`), once by row, pull request and round number.
   A round is the sections in a row that ran at one head, and a scoped pass is a round of its own.
