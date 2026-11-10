@@ -7,6 +7,10 @@ an edit of its brief too, while the go holds. The go stops holding when the head
 entry closes, or on `jbus plan stop`. A row whose brief names a case of `gates.md` on a `Holds:`
 line waits for the user under every setting.
 
+A home that adds a new row with `--from` files it under an entry of its plan: `jbus.asks` asks
+`jbus.plan.filed_under`, which refuses a row filed under no entry, or under one the plan does not
+have, unless the row is in the queue already, follows another, or is one jbus filed.
+
 Under `go = "silence"`, a home parks its pick for a row as a gate whose default is `approve`. The
 gate stays open for `go_quiet_minutes`, and its close by silence approves a row of size S or M with
 one pull request. The tests run the real commands and the real pass against the kitchen's fakes.
