@@ -444,3 +444,39 @@ def test_an_accept_that_will_not_merge_says_why_at_once_and_not_after_the_run_it
     assert kitchen.home.code == 1, (out, kitchen.home.stderr)
     assert took < 3, f"the accept waited {took:.1f} s for the run lock"
     assert kitchen.calls() == []
+
+
+def test_an_accept_that_is_ready_merges_once_github_decides_after_the_run_it_waited_on(kitchen):
+    """An accept of a ready, held pull request that waited for the run lock while that run's
+    merges moved main asks GitHub again until it has decided whether the pull request merges,
+    and merges in that one run. On 2026-11-09 #1504 ended `GitHub has not decided whether it
+    merges` three times after `--check` printed `ready`, and merged on a fourth run. Here a run
+    holds the lock and moves main, GitHub answers the first ask after the lock "undecided"
+    (`once/`, which the fake `gh` gives once) and the next "mergeable"."""
+    head = held(kitchen, "beta", 7, {"a.txt": "ours\n" + LINES}, mode="none")
+    checked = check(kitchen, 7)
+    assert kitchen.home.code == 0, (checked, kitchen.home.stderr)
+    assert checked[-1].startswith(f"ready 7 {head} "), checked
+    run = (kitchen.home.state / lock.RUN).open("a")
+    fcntl.flock(run, fcntl.LOCK_EX)
+
+    def main_moved():
+        kitchen.on_main({"b.txt": "theirs\n"})
+        undecided = [{**pull, "mergeable": "UNKNOWN"} for pull in kitchen.pulls.values()]
+        (kitchen.home.stub / "once").mkdir()
+        (kitchen.home.stub / "once" / "1.json").write_text(json.dumps(undecided))
+        run.close()
+
+    ends = threading.Timer(2, main_moved)
+    ends.start()
+    try:
+        out = accept(kitchen, 7)
+    finally:
+        ends.cancel()
+        ends.join()
+        run.close()
+    assert ready.UNDECIDED not in "\n".join(out), out
+    assert kitchen.home.code == 0, (out, kitchen.home.stderr)
+    assert out[0].startswith(f"accepted 7 {url(7)}: "), out
+    assert out[-1].startswith("merged 7 beta "), out
+    assert [call.split()[2] for call in kitchen.calls()] == ["7"]
