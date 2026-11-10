@@ -1,0 +1,77 @@
+From 64d9f51c6b5c98dd2ad472945510d5c94783c5f9 Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@gmail.com>
+Date: Mon, 9 Nov 2026 21:13:32 -0500
+Subject: [PATCH] test(server): a scout's stage and thread come from its
+ work.json row, and no scouts.json is read
+
+jbus stopped writing scouts.json, and patch 0018 moved the tree onto each scout's row of
+work.json and its `scout` (queued, scouting or report in). This test guards that: with a stale
+scouts.json beside work.json, in the shape jbus last wrote, the served scout has its row's
+stage, thread and request title, and a slug only scouts.json names shows nowhere.
+---
+ apps/server/src/jstack/JbusWork.test.ts | 52 +++++++++++++++++++++++++
+ 1 file changed, 52 insertions(+)
+
+diff --git a/apps/server/src/jstack/JbusWork.test.ts b/apps/server/src/jstack/JbusWork.test.ts
+index eccd8763..f2b2da42 100644
+--- a/apps/server/src/jstack/JbusWork.test.ts
++++ b/apps/server/src/jstack/JbusWork.test.ts
+@@ -160,3 +160,55 @@ it.live("says why a starting scope's home did not start, from jbus's relaunches.
+     );
+   }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+ );
++
++it.live("takes a scout's stage and thread from its work.json row, and reads no scouts.json", () =>
++  Effect.gen(function* () {
++    const fs = yield* FileSystem.FileSystem;
++    const path = yield* Path.Path;
++    const { roots, workPath } = yield* seed;
++    const uncategorized = path.join(roots.home, "jstack", "uncategorized");
++    yield* fs.makeDirectory(uncategorized);
++    yield* fs.writeFileString(path.join(uncategorized, "home-id"), "mcp:uncategorized-home\n");
++    yield* fs.makeDirectory(path.join(roots.home, "jstack", "scouts"));
++    yield* fs.writeFileString(
++      path.join(roots.home, "jstack", "scouts", "look-around.md"),
++      "# look-around: what the sidebar reads\n",
++    );
++    yield* fs.writeFileString(
++      workPath,
++      JSON.stringify({
++        work: [
++          {
++            kind: "row",
++            slug: "look-around",
++            value: "running",
++            lane: "running",
++            thread: "mcp:scout",
++            who: "crew",
++            home: "uncategorized",
++            scout: "scouting",
++          },
++        ],
++      }),
++    );
++    // A stale scouts.json beside work.json, as jbus left it once it stopped writing the file.
++    yield* fs.writeFileString(
++      path.join(roots.jbus, "jstack", "scouts.json"),
++      JSON.stringify([
++        { slug: "look-around", launch: { thread: "mcp:stale" }, approval: { scope: "" } },
++        { slug: "only-in-scouts-json", launch: { thread: "mcp:gone" }, approval: { scope: "" } },
++      ]),
++    );
++    const service = yield* JbusWork.make(roots);
++    const { latest } = yield* service.subscribe;
++    assert.deepEqual(
++      latest.tasks.map((task) => [
++        task.slug,
++        task.kind === "scout" ? task.scouting : null,
++        task.threadId,
++        task.brief,
++      ]),
++      [["look-around", "scouting", "mcp:scout", "what the sidebar reads"]],
++    );
++  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
++);
+-- 
+2.56.0
+
