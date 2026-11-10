@@ -11,7 +11,8 @@ OPENS = "# alpha: a task\nPull request: open one when done\n"
 
 def closed(*lines, head=OPENS):
     body = "".join(f"{one}\n" for one in lines)
-    return f"{head}\n## Result\nStatus: done\nBranch: alpha   Pull request: none\n{body}Left: none\n"
+    result = "\n## Result\nStatus: done\nBranch: alpha   Pull request: none\n"
+    return f"{head}{result}{body}Left: none\n"
 
 
 @pytest.mark.parametrize(
@@ -19,7 +20,7 @@ def closed(*lines, head=OPENS):
     [
         ("Outcome: carried by alpha-2", CarriedBy("alpha-2")),
         ("Outcome: carried by `alpha-2`.", CarriedBy("alpha-2")),
-        ("Outcome: nothing to change, main already does it", NothingToChange("main already does it")),
+        ("Outcome: nothing to change, main does it", NothingToChange("main does it")),
         ("Outcome: dropped, the user no longer wants it", Dropped("the user no longer wants it")),
         ("Outcome: dropped", None),
         ("Outcome: finished somehow", None),

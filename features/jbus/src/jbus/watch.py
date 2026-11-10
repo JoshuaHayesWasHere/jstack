@@ -914,9 +914,9 @@ def facts(
             said = work.Thread.STARTING
     number = str((world.open.get(slug) or {}).get("number", "")) if world else ""
     wrote = work.Written.NONE if owes else written(result)
-    if wrote == work.Written.CLEAN and world is not None and slug not in world.open:
-        if slug not in world.merged and closes(run, slug, brief_of(run, slug), result):
-            wrote = work.Written.LEFTOVER
+    unmerged = world is not None and slug not in world.open and slug not in world.merged
+    if wrote == work.Written.CLEAN and unmerged and closes(run, slug, brief_of(run, slug), result):
+        wrote = work.Written.LEFTOVER
     made = work.Facts(
         row=queue.facet(run.state, row, unmet(run, world, row, seen.final)),
         thread=said or work.Thread.NONE,
