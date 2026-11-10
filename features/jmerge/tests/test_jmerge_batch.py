@@ -96,7 +96,7 @@ def record(kitchen):
 
 
 def in_batch(number, tip):
-    return f"wait {number} {url(number)}: " + batch.IN_BATCH.format(base="main", tip=tip[:12])
+    return f"wait {number} {url(number)}: " + ready.IN_BATCH.format(base="main", tip=tip[:12])
 
 
 def show(kitchen, commit, path):
@@ -202,7 +202,7 @@ def test_a_proven_batch_stops_at_the_first_merge_github_refuses(kitchen):
     first, second, third = kitchen.run()
     assert first.startswith("merged 6 one ")
     assert second.startswith(f"wait 7 {url(7)}: {ready.MERGE_FAILED}: GraphQL")
-    stopped = batch.STOPPED.format(base="main", tip=tip[:12], number=7)
+    stopped = ready.BATCH_STOPPED.format(base="main", tip=tip[:12], number=7)
     assert third == f"wait 8 {url(8)}: {stopped}"
     assert [call.split()[2] for call in kitchen.calls()] == ["6", "7"]
     assert runs(kitchen) == 0
@@ -262,7 +262,7 @@ def test_a_batch_still_checked_holds_its_members_and_the_rest_wait_for_it(kitche
     kitchen.crew("four", 9, {"e.txt": OURS})
     kitchen.crew("five", 10, {"f.txt": OURS}, checks=(LATER,))
     listed(kitchen, (merge.RUNNING,))
-    after = batch.AFTER.format(base="main", tip=tip[:12])
+    after = ready.BATCH_FIRST.format(base="main", tip=tip[:12])
     assert kitchen.run() == [
         f"wait 10 {url(10)}: {after}",
         *(in_batch(number, tip) for number in (6, 7, 8)),
@@ -375,7 +375,7 @@ def test_a_member_that_conflicts_with_one_before_it_waits_for_the_batch(kitchen)
     kitchen.crew("one", 6, {"a.txt": OURS})
     kitchen.crew("two", 7, {"a.txt": "theirs too\n" + LINES})
     tip = kitchen.on_main({"d.txt": "theirs\n"})
-    after = batch.AFTER.format(base="main", tip=tip[:12])
+    after = ready.BATCH_FIRST.format(base="main", tip=tip[:12])
     assert kitchen.run() == [in_batch(6, tip), f"wait 7 {url(7)}: {after}"]
     assert [one["number"] for one in record(kitchen)["members"]] == [6]
 
@@ -442,7 +442,7 @@ def test_a_proven_batch_stops_at_a_member_no_longer_ready_at_its_head(kitchen):
     own, merged, stopped = kitchen.run()
     assert own.startswith(f"wait 7 {url(7)}: ")
     assert merged.startswith("merged 6 one ")
-    assert stopped == f"wait 8 {url(8)}: " + batch.STOPPED.format(
+    assert stopped == f"wait 8 {url(8)}: " + ready.BATCH_STOPPED.format(
         base="main", tip=tip[:12], number=7
     )
     assert [call.split()[2] for call in kitchen.calls()] == ["6"]

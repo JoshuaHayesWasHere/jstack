@@ -1703,7 +1703,7 @@ class Repo:
         tip = kept.tip[: batch.SHA]
         said = []
         for one, *_ in members:
-            why = batch.IN_BATCH if kept.holds(one) else batch.AFTER
+            why = ready.IN_BATCH if kept.holds(one) else ready.BATCH_FIRST
             said.append(lines.waits("wait", one.number, one.url, why.format(base=default, tip=tip)))
         return said
 
@@ -1732,14 +1732,14 @@ class Repo:
             for member in kept.members:
                 found = judged.get(member.number)
                 if stop is None and (found is None or found[0].head != member.head):
-                    stop = (member.number, batch.STOPPED)
+                    stop = (member.number, ready.BATCH_STOPPED)
                 elif stop is None and self.tip_of(default) != expected:
                     stop = (member.number, ready.MAIN_MOVED)
                 elif stop is None and found is not None:
                     line, expected = self.squash(found[0], found[1], [found[2], passed])
                     said.append(line)
                     if not expected:
-                        stop = (member.number, batch.STOPPED)
+                        stop = (member.number, ready.BATCH_STOPPED)
                     continue
                 if found is None or stop is None:
                     continue
@@ -2421,7 +2421,11 @@ def _merging(
             on.members.append((one, found.slug, found.note, found.judged))
         elif on is not None and on.record.batch and on.first and not repo.is_revert(one):
             tip = on.record.batch.tip[: batch.SHA]
-            say(lines.waits("wait", one.number, one.url, batch.AFTER.format(base=default, tip=tip)))
+            say(
+                lines.waits(
+                    "wait", one.number, one.url, ready.BATCH_FIRST.format(base=default, tip=tip)
+                )
+            )
         else:
             say(repo.merge(one, found.slug, found.note, found.judged))
     if on is not None:

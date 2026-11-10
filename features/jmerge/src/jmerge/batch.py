@@ -37,27 +37,6 @@ pass whose artifact is never found, does not hold its members for ever."""
 SHA = 12
 _IDENTITY = ("-c", "user.name=jmerge", "-c", "user.email=jmerge@localhost")
 
-IN_BATCH = ready.Reason(
-    "check",
-    "it is in jmerge's batch over {base} at {tip}, whose check decides its merge",
-    ready.MERGING.code,
-)
-"""The wait of a member of a batch whose check runs. Its code is `merging`, jmerge's own merge at
-work, which no crew can fix: jbus sorts the codes of `ready` alone."""
-AFTER = ready.Reason(
-    "check",
-    "jmerge's batch over {base} at {tip} is checked and merges first: a merge before it would "
-    "undo that check",
-    ready.MERGING.code,
-)
-"""The wait of a pull request that would merge while a batch is checked: a member that joined
-after it was built, one the batch had no room for, and one that would merge alone."""
-STOPPED = ready.Reason(
-    "check",
-    "jmerge's batch over {base} at {tip} stopped at #{number}, which did not merge: the next "
-    "batch takes it",
-    ready.MERGING.code,
-)
 UNMADE = "batch: not made over {base} at {tip} ({why}), so its members go alone"
 """The line of a batch that could not be built, pushed or opened: each member goes the single
 path of today in the same run. It is about no pull request, so jbus reads nothing of it."""

@@ -579,7 +579,8 @@ UNTOLD = {
         code: why
         for codes, why in (
             (
-                "main-moved merging merge-failed no-messages undecided not-passed live-run "
+                "main-moved merging in-batch batch-first batch-stopped merge-failed no-messages "
+                "undecided not-passed live-run "
                 "queue-unreadable carries-unknown base-merge-asked base-merge-due "
                 "base-merge-refused base-moved-asked base-moved-due in-line queued-restarted "
                 "queued-unopened queued-unclosed queued-gave-up queued-unrestarted "
