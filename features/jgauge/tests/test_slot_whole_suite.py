@@ -92,5 +92,6 @@ def test_a_whole_suite_runs_with_no_thread_or_in_a_repo_that_selects_nothing(rep
     assert repo("--", "make", "check").returncode == 0
     (repo.top / "ran").unlink()
     (repo.top / "scripts" / "select_tests.py").unlink()
+    assert whole.refusal(["make", "check"], repo.top / "tests", {}) == ""
     assert repo("--thread", "t1", "--", "make", "check").returncode == 0
     assert (repo.top / "ran").exists()
