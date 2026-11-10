@@ -442,9 +442,14 @@ These stay out, and take the path of today:
 - one accepted with `--accept`, and every pull request while `main.json` names main red.
 
 Once every pull request is judged, `jmerge` builds main's tip with each member merged in, in merge order, with `git merge-tree`, each one over the last as its squash will land it, and leaves out one that conflicts with a member before it.
-A batch holds 12 members at most (`batch.MOST`).
+A batch holds the most that `batch.json` keeps (`most`, `batch.Record.most`) at most.
+The most starts at 12 (`batch.START`), doubles when a batch of that many proves, to 48 at most (`batch.MOST`), and halves when a batch of that many fails after its rerun, to 2 at least (`batch.LEAST`).
+A batch of fewer, a timeout, a batch that could not be made, and the first half of the suspects leave it: the half is sized by its suspects, not by the most.
+A batch proven again in a later run, while another run held the merge lock, is no longer of that many, so it doubles the most once.
+Setting both bounds to 12 undoes the rule.
 It makes the last tree one commit whose parent is the tip, force-pushes it to its own branch `jmerge/batch`, and opens one draft pull request for it where GitHub lists none open.
-`batch.json` in the state directory keeps the tip, the tree, the commit, the members with their heads, and when it was pushed, and the rerun of its failed check where one was started.
+`batch.json` in the state directory keeps the tip, the tree, the commit, the members with their heads, when it was pushed, the rerun of its failed check where one was started, whether it is the first half of the suspects, and the most.
+The run says `batch: built over <base> at <tip12>, <size> of <most> members at most`, a line about no pull request, which merge.log keeps.
 Each member waits as `it is in jmerge's batch over <base> at <tip12>, whose check decides its merge`, with the code `in-batch`: jmerge's own work, which no crew can fix.
 
 **What proves it.**

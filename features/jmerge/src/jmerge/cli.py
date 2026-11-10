@@ -1778,8 +1778,9 @@ class Repo:
         self, on: batch.Batching, default: str, members: list[batch.Judged]
     ) -> list[str]:
         """Build the batch of the members it takes (`batch.Batching.chosen`, the first half of
-        the suspects where any are left) over today's tip, push it to `batch.BRANCH`, open its
-        draft pull request where GitHub lists none, and keep it; each other member waits for it.
+        the suspects where any are left, and otherwise `batch.Record.most` at most) over today's
+        tip, push it to `batch.BRANCH`, open its draft pull request where GitHub lists none, keep
+        it, and say its size and the most (`batch.BUILT`); each other member waits for it.
         A batch that cannot be made sends each member down the single path of today in this run,
         drops the suspects, and says why first. Where no member is left to build, or the batch
         cannot be made, no batch is built again after a timeout."""
@@ -1792,7 +1793,9 @@ class Repo:
         _run(self.main, "git", "fetch", "-q", "origin", default)
         tip = _run(self.main, "git", "rev-parse", f"origin/{default}").stdout.strip()
         heads = [batch.Member(one.number, one.head) for one, *_ in chosen if self.has(one)]
-        made = batch.build(self.main, default, tip, heads)
+        narrowed = bool(on.record.suspects)
+        most = len(heads) if narrowed else on.record.most
+        made = batch.build(self.main, default, tip, heads, most)
         why = "" if made.members else f"no member merges over {default} at {tip[: batch.SHA]}"
         why = why or batch.push(self.main, made.commit)
         if not why and on.pull is None:
@@ -1804,9 +1807,13 @@ class Repo:
             for one, slug, note, judged in members:
                 said.append(self.merge(one, slug, note, replace(judged, batch=False)))
             return said
-        on.record.batch = batch.Batch(tip, made.tree, made.commit, made.members, datetime.now(UTC))
+        now = datetime.now(UTC)
+        kept = batch.Batch(tip, made.tree, made.commit, made.members, now, narrowed=narrowed)
+        on.record.batch = kept
         on.record.write()
-        return self.waiting(on.record.batch, default, members)
+        size, most = len(made.members), on.record.most
+        built = batch.BUILT.format(size=size, most=most, base=default, tip=tip[: batch.SHA])
+        return [built, *self.waiting(kept, default, members)]
 
     def open_batch(self, default: str) -> str:
         """Open the batch's standing draft pull request, and say why where GitHub would not."""
