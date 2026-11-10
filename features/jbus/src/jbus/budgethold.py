@@ -51,7 +51,8 @@ def _waits(row: queue.Row) -> bool:
 
 
 def hold(half: Half) -> None:
-    """Keep the budget's hold, and write its why on each row it holds (`_waits`)."""
+    """Keep the budget's hold, and write its why on each row it holds (`_waits`). A held pass has
+    no world, and its rows are judged (`states.judged`), so the table parses."""
     run, seen = half.run, half.seen
     path = run.state / FILE
     if seen.left is None:
@@ -70,8 +71,6 @@ def hold(half: Half) -> None:
     }
     if record != kept:
         write_json(path, record)
-    if half.rows is None or seen.world is not None:
-        return
 
     def facts(row: queue.Row) -> queue.Row:
         same = {column: row.get(column, "") for column in queue.SEEN}
@@ -95,4 +94,4 @@ def needed(run: Pass) -> str:
     return said if run.now - since > LISTED and run.now < reset else ""
 
 
-STEPS = (verbs.Step("derive", 25, "budgethold.hold", hold, ("sight",)),)
+STEPS = (verbs.Step("derive", 25, "budgethold.hold", hold, ("sight", "rows")),)

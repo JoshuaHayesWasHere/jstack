@@ -50,7 +50,6 @@ from jbriefs.home import thread_of
 from jbus import (
     Refused,
     budget,
-    budgethold,
     history,
     queue,
     read_json,
@@ -1181,7 +1180,7 @@ def why(run: Pass, row: dict[str, Any], found: dict[str, str], waits: Waits, unr
     if unread != UNREAD:
         return unread
     kept = row.get("why", "") if row.get("status") in ("queued", "gate") else ""
-    return "" if kept == "not approved" or budgethold.held_why(kept) else kept
+    return "" if kept == "not approved" else kept
 
 
 def watch(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:

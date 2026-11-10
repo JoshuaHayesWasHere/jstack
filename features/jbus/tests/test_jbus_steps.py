@@ -124,7 +124,7 @@ ORDER = [
     "derive 5 merge.shown",
     "derive 10 states.judged (sight)",
     "derive 20 states.derive (client, world, rows)",
-    "derive 25 budgethold.hold (sight)",
+    "derive 25 budgethold.hold (sight, rows)",
     "after-derive 10 leftover.tell (world, rows)",
     "after-derive 15 prose.tell",
     "after-derive 16 notes.tell",
