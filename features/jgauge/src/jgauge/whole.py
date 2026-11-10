@@ -29,7 +29,7 @@ def selecting_repo(here: Path) -> Path | None:
         if (at / SELECTS).is_file():
             return at
         if (at / ".git").exists():
-            return None
+            break
     return None
 
 
