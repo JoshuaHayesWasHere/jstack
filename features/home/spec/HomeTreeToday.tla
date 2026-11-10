@@ -47,7 +47,7 @@ LaunchCrew(k) ==
 OpenPr(k) ==
     /\ work[k] = "crew" /\ work' = Set(work, k, "open")
     /\ UNCHANGED <<launches, life, msg, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
-\* Its checks pass (jmerge/cli.py `short = short or ready.short_on_github(`) and its
+\* Its checks pass (jmerge/cli.py `short = short or ("" if undecided else github)`) and its
 \* review is written (jmerge/cli.py
 \* `short = self.lift(ready.short_of(text, one.head, heard, proven), lifted)`).
 PrReady(k) ==
@@ -55,7 +55,7 @@ PrReady(k) ==
     /\ work' = Set(work, k, IF work[k] = "open" THEN "ready" ELSE "back")
     /\ UNCHANGED <<launches, life, msg, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
 \* A check turns red or a review goes stale (jmerge/cli.py
-\* `short = short or ready.short_on_github(`, jmerge/cli.py
+\* `short = short or ("" if undecided else github)`, jmerge/cli.py
 \* `short = self.lift(ready.short_of(text, one.head, heard, proven), lifted)`): the
 \* pull request is not ready, and jmerge judges it again. A merge it had begun fails at the head
 \* it checked, and its run gives the merge lock back as it returns (jmerge/cli.py
