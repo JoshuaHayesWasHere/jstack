@@ -8,8 +8,11 @@ Each comes from what jbus already holds, and none asks GitHub anything:
   the brief's sha (`judgement.brief_sha`) changes, and a line with no sha when the brief is taken
   away. It writes the line before the brief, and no line whose sha is the slug's last already, so
   a store that dies between the two loses no version and writes none twice. The text of each
-  version is kept once, by its sha, in `brief-versions/`, and the line holds the sha, the size
-  and what the version's `Pull request:` line asks (`pull`): the store keeps no text.
+  version is kept once, by its sha, in `brief-versions/`, and the line holds the sha, the size,
+  what the version's `Pull request:` line asks (`pull`) and how its last Result ended the row
+  (`outcome`, `jbus.outcome.kind`, null where it names none): the store keeps no text. A row's
+  close is written in the home's copy of its brief, which `queue._store` never stores, so the
+  pass also adds a line of that copy when it moves a row to `done` (`states.derive`).
 - `row-pulls.jsonl`: the step `history.pulls` adds a line the first time the pass's world shows a
   pull request under a row's slug as open, and again the first time it shows it merged. A row
   whose pull request was closed and opened again, or redone, has a line for each.
@@ -26,13 +29,12 @@ from __future__ import annotations
 
 import json
 import os
-import re
 from collections.abc import Callable, Iterable
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
-from jbus import verbs
+from jbus import outcome, verbs
 from jmerge import judgement
 from jsettings import store
 
@@ -45,21 +47,6 @@ PULLS = "row-pulls.jsonl"
 RUNS = "runs.jsonl"
 TAIL = 256 * 1024
 """How much of the end of `runs.jsonl` holds the keys a list of the last runs can repeat."""
-OPENS = re.compile(r"^Pull request:[ \t]*open one\b", re.M)
-"""A brief's `Pull request:` line that asks its crewmate to open one, of the brief above its
-first `## ` section (`pull`)."""
-_ASKS_FIRST = re.compile(r"^Pull request:[ \t]*ask first\b", re.M)
-
-Pull = Literal["open", "ask", "none"]
-
-
-def pull(text: str) -> Pull:
-    """What a brief's `Pull request:` line asks, of the brief above its first `## ` section:
-    `open` for `open one`, `ask` for `ask first`, and `none` for any other text or no line."""
-    head = text.split("\n## ")[0]
-    if OPENS.search(head):
-        return "open"
-    return "ask" if _ASKS_FIRST.search(head) else "none"
 
 
 def _lines(path: Path, tail: int | None = None) -> list[dict[str, Any]]:
@@ -116,7 +103,8 @@ def brief(state: Path, slug: str, was: str | None, text: str | None, at: datetim
         "sha": after,
         "was": before,
         "bytes": len(text.encode()) if text is not None else 0,
-        "pull": pull(text) if text is not None else "none",
+        "pull": outcome.pull(text) if text is not None else "none",
+        "outcome": outcome.kind(outcome.read(text)) if text is not None else None,
     }
     store.append_jsonl(state / BRIEFS, [line])
 

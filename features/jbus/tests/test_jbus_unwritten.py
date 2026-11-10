@@ -103,7 +103,11 @@ def test_a_row_drops_out_of_stale_when_its_home_writes_the_result_that_ends_it(k
     kitchen.poll(NOW)
     assert "alpha" in leftover.read(kitchen.state)
     with (kitchen.home / "tasks/alpha.md").open("a") as brief:
-        brief.write(result().replace("## Result", "## Result, follow-up (2026-10-17, dropped)"))
+        brief.write(
+            result(outcome="dropped, its thread was lost").replace(
+                "## Result", "## Result, follow-up (2026-10-17, dropped)"
+            )
+        )
     kitchen.poll(NOW + MIN)
     assert column(kitchen)[0] == "done" and listed(kitchen) == []
     assert "alpha" not in leftover.read(kitchen.state) and len(told(kitchen, at)) == 1

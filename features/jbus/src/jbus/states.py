@@ -23,6 +23,7 @@ from jbus import (
     cancelled,
     clock,
     dispatch,
+    history,
     leftover,
     locked,
     merge,
@@ -90,6 +91,9 @@ def derive(half: Half) -> None:
 
     at = jsettings.stamp(run.now)
     half.table, half.changed = queue.derive(run.state, facts, run.user.stamp(run.now), at)
+    for change in half.changed:
+        if change.columns.get("status", ("", ""))[1] == "done":
+            closed(run, change.row["slug"])
     if half.changed:
         line = f"queue {run.project.name}: the table changed"
         run.box.send("", "queue", line, queue.changes(half.changed))
@@ -97,6 +101,18 @@ def derive(half: Half) -> None:
         if move := change.illegal:
             slug = change.row["slug"]
             run.box.send(slug, ILLEGAL, f"{ILLEGAL} {slug}: {move[0]} to {move[1]}")
+
+
+def closed(run: Pass, slug: str) -> None:
+    """Keep the version of the brief that closed a row (`history.brief`): the home's copy, whose
+    last Result names how the row ended (`jbus.outcome`), which the store reads as the row's
+    outcome (`row_outcomes`)."""
+    try:
+        was: str | None = queue.brief_path(run.state, slug).read_text(errors="replace")
+    except OSError:
+        was = None
+    if text := watch.brief_of(run, slug):
+        history.brief(run.state, slug, was, text, run.now)
 
 
 def unplaced(half: Half) -> None:

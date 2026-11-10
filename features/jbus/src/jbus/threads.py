@@ -46,7 +46,7 @@ from jbus.live import Facts, judge
 from jbus.passes import Pass
 from jbus.roles import PREFIXES, role_of, slug_in
 from jbus.t3 import Client, T3Error, T3Refused
-from jbus.watch import ENDED, STARTING, World, after_merge, at_work, owes_pull, unfinished, when
+from jbus.watch import ENDED, STARTING, World, after_merge, at_work, closes, owes_pull, when
 
 if TYPE_CHECKING:
     from jbus.poll import Half
@@ -186,7 +186,8 @@ def finished(run: Pass, world: World, reviews: set[str] | None = None) -> dict[s
     reviewer is over.
 
     A task is over when its pull request merged, or when its last Result says `Status: done` and
-    `Left: none` and names no pull request. Under the crew skill, a thread that has something left
+    `Left: none`, names no pull request and names the row's `Outcome:` where its brief asks for a
+    pull request (`watch.closes`). Under the crew skill, a thread that has something left
     stays where the user sees it. A reviewer is over when the brief's last Review has a verdict and
     either the reviewer's pull request merged or closed or the reviewer's task is over. A reviewer
     that stopped early stays. A scout is over when its last Report says `Status: done`. A slug
@@ -198,7 +199,7 @@ def finished(run: Pass, world: World, reviews: set[str] | None = None) -> dict[s
         result = mirror.last_result(text)
         if (
             result
-            and not unfinished(result)
+            and not closes(run, slug, text, result)
             and not owes_pull(run, slug, text, result)
             and slug not in world.open
         ):

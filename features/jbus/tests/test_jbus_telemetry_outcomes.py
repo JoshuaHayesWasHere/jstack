@@ -10,14 +10,20 @@ under jbus's state, a home's and a scout's and a crewmate's transcripts, and T3 
 messages, then runs `jbus telemetry` and reads the views as any reader would."""
 
 import json
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 
+import jsettings
 import test_jbus_telemetry_tokens as token_records
+from jbus.telemetry import measures
+from jbus.telemetry.measures import m47_done_no_merge as done_no_merge
+from jbus.telemetry.values import STAMP
 from jgauge import spend as jgauge_spend
 from test_jbus_telemetry_tokens import NOW, iso, said
 
+USER = jsettings.Settings(zone=ZoneInfo("America/New_York"))
 SONNET = "claude-sonnet-5-5"
 UNPRICED = "claude-unpriced-0-1"
 MESSAGES = (
@@ -65,6 +71,8 @@ def store(tmp_path, monkeypatch, t3_settings):
     spends(machine, "home", "home: alpha", (1, 1_000), (12, 2_000, UNPRICED), (40, 9_000))
     spends(machine, "scout", "scout: scout-a", (0, 600))
     spends(machine, "crew", "crew: row-merged", (15, 5_000))
+    for at, slug in enumerate(("row-none", "row-carried", "row-dropped"), 50):
+        spends(machine, slug, f"crew: {slug}", (at, 1_000 * (at - 49)))
     say(machine, "m-early", "mcp:home", NOW - timedelta(hours=1))
     say(machine, "m-typed", "mcp:home", NOW)
     say(machine, "m-reply", "mcp:home", NOW + timedelta(minutes=5), role="assistant")
@@ -85,19 +93,25 @@ def store(tmp_path, monkeypatch, t3_settings):
         {"slug": "row-probe", "status": "done"},
         {"slug": "row-parent", "status": "done"},
         {"slug": "row-child", "status": "running", "approval": {"follows": "row-parent"}},
+        {"slug": "row-none", "status": "done"},
+        {"slug": "row-carried", "status": "done"},
+        {"slug": "row-carried-2", "status": "merged"},
+        {"slug": "row-dropped", "status": "done"},
     ]
     (state / "queue.json").write_text(json.dumps(rows))
     (state / "merged.json").write_text(
         json.dumps(
             {
                 slug: {"number": n, "mergedAt": iso(NOW + timedelta(hours=n))}
-                for n, slug in enumerate(("row-merged", "row-also"), 1)
+                for n, slug in enumerate(("row-merged", "row-also", "row-carried-2"), 1)
             }
         )
     )
     briefs = [("row-merged", 10, "open"), ("row-merged", 30, "none"), ("row-also", 20, "open")]
     briefs += [(slug, 0, "open") for slug in ("row-ended", "row-parent", "row-child")]
-    briefs += [("row-probe", 0, "open"), ("row-probe", 1, "none")]
+    briefs += [("row-probe", 0, "open"), ("row-probe", 1, "none"), ("row-none", 0, "none")]
+    briefs += [("row-carried-2", 0, "open"), ("row-dropped", 0, "open")]
+    briefs += [("row-carried", 0, "open", "carried"), ("row-dropped", 60, "open", "dropped")]
     with open(state / "brief-versions.jsonl", "w") as handle:
         handle.writelines(
             json.dumps(
@@ -109,9 +123,10 @@ def store(tmp_path, monkeypatch, t3_settings):
                     "bytes": 80,
                     "pull": pull,
                 }
+                | ({"outcome": ended[0]} if ended else {})
             )
             + "\n"
-            for slug, at, pull in briefs
+            for slug, at, pull, *ended in briefs
         )
     machine.run()
     with machine.store() as store:
@@ -122,12 +137,36 @@ def test_each_row_that_is_over_says_what_it_came_to(store):
     outcomes = store.execute("SELECT slug, outcome FROM row_outcomes ORDER BY slug").fetchall()
     assert outcomes == [
         ("row-also", "merged"),
+        ("row-carried", "carried"),
+        ("row-carried-2", "merged"),
+        ("row-dropped", "dropped"),
         ("row-ended", "ended without one"),
         ("row-merged", "merged"),
+        ("row-none", "no pull request asked"),
         ("row-parent", "carried"),
         ("row-probe", "no pull request asked"),
         ("scout-a", "ended without one"),
     ]
+
+
+def test_done_no_merge_counts_only_the_rows_that_ended_without_buying_a_merge(store):
+    """A row that asked for no pull request, and one whose close names the row that carried its
+    work on to a merge, bought what they were for: only the dropped row's crew units count. The
+    rows from before the outcome was kept, `row-ended` and `row-parent`, have no crew calls."""
+    units = dict(
+        store.execute(
+            "SELECT slug, sum(units) FROM call_rows WHERE role = 'crew' GROUP BY slug"
+        ).fetchall()
+    )
+    assert {"row-none", "row-carried", "row-dropped"} <= set(units)
+    at = NOW + timedelta(hours=2)
+    begins, ends = (
+        datetime.strptime(one, STAMP).replace(tzinfo=UTC)
+        for one in measures.bounds("week", at, USER)
+    )
+    days = max(1.0, (ends - begins) / timedelta(days=1))
+    reading = measures.read(store, done_no_merge.MEASURE, "alpha", at, USER)
+    assert (reading.value, reading.n) == (pytest.approx(units["row-dropped"] / 1e6 * 3 / days), 1)
 
 
 def test_a_scout_counts_the_rows_of_its_entry_by_how_they_stand(store):

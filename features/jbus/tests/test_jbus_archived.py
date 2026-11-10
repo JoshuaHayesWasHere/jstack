@@ -24,7 +24,8 @@ def result(left="none", status="done"):
     follow-up does: here the home's close (`watch.owes_pull`)."""
     return (
         f"\n## Result, follow-up (2026-10-17, nothing more wanted)\nStatus: {status}\n"
-        f"Branch: alpha   Pull request: none\nLeft: {left}\n"
+        f"Branch: alpha   Pull request: none\nOutcome: dropped, nothing more wanted\n"
+        f"Left: {left}\n"
     )
 
 

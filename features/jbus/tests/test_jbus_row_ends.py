@@ -18,8 +18,16 @@ from test_jbus_queue import add, brief, rows
 PULL = "https://example.test/pull/9"
 
 
-def result(left="none", status="done", pull="none"):
-    return f"\n## Result\nStatus: {status}\nBranch: a-branch   Pull request: {pull}\nLeft: {left}\n"
+def result(left="none", status="done", pull="none", outcome=""):
+    """A crew's Result, with the line `Outcome: <outcome>` where `outcome` names one."""
+    said = f"Outcome: {outcome}\n" if outcome else ""
+    return (
+        f"\n## Result\nStatus: {status}\nBranch: a-branch   Pull request: {pull}\n"
+        f"{said}Left: {left}\n"
+    )
+
+
+NOTHING = "nothing to change, the code already does it"
 
 
 def branched(kitchen, branch="a-branch", start="main", commits=1):
@@ -112,10 +120,33 @@ def test_a_done_result_naming_no_pull_request_with_no_commit_of_its_own_is_done(
     elif made == "from main":
         branched(kitchen, commits=0)
     add(kitchen, "alpha")
-    kitchen.brief("alpha", "Pull request: open one when done\n" + result())
+    kitchen.brief("alpha", "Pull request: open one when done\n" + result(outcome=NOTHING))
     kitchen.t3.thread("alpha", "completed")
     kitchen.poll()
     assert column(kitchen) == ("done", "", "") and asks(kitchen) == []
+
+
+def test_a_done_result_of_a_row_that_owes_a_pull_request_and_names_no_outcome_is_left(kitchen):
+    """How a row that owed a merge ended with none is told, not guessed: a clean close that names
+    no `Outcome:` line keeps the row at left, for its home to close (`jbus.leftover`), and the line
+    ends it."""
+    branched(kitchen, commits=0)
+    add(kitchen, "alpha")
+    kitchen.brief("alpha", "Pull request: open one when done\n" + result())
+    kitchen.t3.thread("alpha", "completed")
+    kitchen.poll()
+    assert column(kitchen) == ("left", "", watch.NO_OUTCOME)
+    path = kitchen.home / "tasks" / "alpha.md"
+    path.write_text(path.read_text() + result(outcome="carried by alpha-2"))
+    kitchen.poll(NOW + timedelta(minutes=1))
+    assert column(kitchen) == ("done", "", "")
+    versions = (kitchen.state / "brief-versions.jsonl").read_text().splitlines()
+    assert json.loads(versions[-1]) | {"at": ""} == json.loads(versions[-1]) | {
+        "at": "",
+        "slug": "alpha",
+        "pull": "open",
+        "outcome": "carried",
+    }
 
 
 def test_a_held_row_that_ended_with_no_commit_of_its_own_comes_back_to_done(kitchen):
@@ -123,7 +154,7 @@ def test_a_held_row_that_ended_with_no_commit_of_its_own_comes_back_to_done(kitc
     and leaves the table `jbus queue show` prints."""
     add(kitchen, "alpha")
     branched(kitchen, commits=0)
-    kitchen.brief("alpha", "Pull request: open one when done\n" + result())
+    kitchen.brief("alpha", "Pull request: open one when done\n" + result(outcome=NOTHING))
     kitchen.t3.thread("alpha", "completed")
     assert kitchen.main("--project", "demo", "queue", "hold", "alpha")[0] == 0
     kitchen.poll()
