@@ -444,7 +444,7 @@ These stay out, and take the path of today:
 Once every pull request is judged, `jmerge` builds main's tip with each member merged in, in merge order, with `git merge-tree`, each one over the last as its squash will land it, and leaves out one that conflicts with a member before it.
 A batch holds 12 members at most (`batch.MOST`).
 It makes the last tree one commit whose parent is the tip, force-pushes it to its own branch `jmerge/batch`, and opens one draft pull request for it where GitHub lists none open.
-`batch.json` in the state directory keeps the tip, the tree, the commit, the members with their heads, and when it was pushed.
+`batch.json` in the state directory keeps the tip, the tree, the commit, the members with their heads, and when it was pushed, and the rerun of its failed check where one was started.
 Each member waits as `it is in jmerge's batch over <base> at <tip12>, whose check decides its merge`, with the code `in-batch`: jmerge's own work, which no crew can fix.
 
 **What proves it.**
@@ -464,8 +464,13 @@ The batch's pull request is `jmerge`'s own: it has no brief and no row, `jmerge`
 Like the guards, the batch runs no browser tests: browser.yml skips a draft.
 
 **What a failed batch does.**
-A batch whose check failed has failed.
-One that went 30 minutes from its push with no artifact found (`batch.PENDING_MINUTES`) timed out: a check that passed with no artifact found waits for that limit, its members still `in jmerge's batch`, since the lookup reads a gh error, or a run not yet concluded a moment after its last job passed, as none, and the next run that finds the artifact merges the batch.
+A flake or a runner fault is no evidence against a member either, so a batch of two or more whose check failed for the first time is not failed yet: in that run `jmerge` asks GitHub to start the failed jobs of its workflow run again, `gh run rerun <id> --failed`, once (`cli.Repo.rerun_batch`).
+`batch.json` keeps the rerun with the batch, under `rerun`: the links of the failed jobs it was started for, each in the run it reran, and when it was started (`batch.Rerun`), kept before GitHub is asked, so a run that stops between the two never asks twice.
+The batch is pending while the rerun runs, its members still `in jmerge's batch`, and its pass merges every member by batch with no suspects kept.
+A listing whose failed jobs are all of those the rerun was started for is GitHub still showing the first attempt, since a job of a new attempt has a link of its own, so the batch stays pending.
+A batch built anew has no rerun, as `rerun` goes with the batch it was started for.
+A batch whose check failed after its rerun, whose rerun GitHub refused, whose failed check has no workflow run to rerun, or of one member, has failed.
+One that went 30 minutes from its push, or from its rerun, with no artifact found (`batch.PENDING_MINUTES`) timed out: a check that passed with no artifact found waits for that limit, its members still `in jmerge's batch`, since the lookup reads a gh error, or a run not yet concluded a moment after its last job passed, as none, and the next run that finds the artifact merges the batch.
 A timeout is no evidence against a member, as a GitHub or lookup outage times out every batch: a batch of two or more that timed out is built again whole (a half of the suspects as that same half), in that run, over today's tip, once (`again` in `batch.json`, `batch.Record.late`), and its pass merges every member by batch with no suspects kept.
 Only a second timeout in a row has failed it, so an outage costs one more check limit before the narrowing, and a batch that never gets an artifact still ends; a batch of one that timed out has failed.
 A failed batch of two or more runs no guards: `batch.json` keeps its members, in merge order, under `suspects`, and the next batch, built in that run over today's tip on the same branch and pull request, is the first half of them (the larger half where their count is odd, `batch.narrow`).

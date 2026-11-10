@@ -56,3 +56,20 @@ A move to `removed` is the line the `remove` verb writes, and `derive` never jud
 | `pr` | `left` | the pull request closes unmerged |
 | `pr` | `done` | the pull request leaves the open list, and the Result says done and owes none |
 | `pr` | `removed` | the `remove` verb takes the row out |
+
+## The resume: `left` to `launched`
+
+A row left with work on its branch is launched again by jbus on its own slug, branch and worktree (`jbus.dispatch`), never carried on under a new slug.
+The thread before it ended, so the resume is a new thread in the old worktree (`jbus.crewtree.reopen`): the worktree still there as its crew left it, or one made from the branch, never with `-b`.
+Its brief gets a `Resume:` line above its first `## `, the line the home skill writes by hand, naming the cause it carries on from; its brief, its Result so far and its commits are what it starts from.
+It launches once a cause the row waited on clears, each read from the state (`jbus.pausedon.cleared`):
+
+| Cause | Read from | Once-key |
+|---|---|---|
+| the rows it waits on landed | the last Result's `Status: paused` and `Waits on:` rows, all merged or done (`watch.final`) | `paused-on\|<slug>\|<rows>\|<the Result's digest>` |
+| its review was written | a `## Review` with `Verdict: findings` below its last `## Result`, at a head | `review\|<slug>\|<head 12>` |
+| its brief was approved again | the row's `brief_sha` is not the `go` its newest crew launch record was made under; a record with no `go`, from before, is none | `brief\|<slug>\|<brief_sha 12>` |
+
+A gate's answer is no cause of a resume: `questions.carry` sends it to the thread on the brief's `Thread:` line, the old thread until a resume moves the line to the new one.
+The once-key goes into the resume's launch record as `cause`, so each cause launches the row once.
+A row whose thread is still listed and not settled is carried on in place instead (`jbus.pausedon.tell`), under the same key, and a row whose old thread this pass already sent a message is left for that thread's turn.
