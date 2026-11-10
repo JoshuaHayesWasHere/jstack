@@ -5,18 +5,17 @@ what jbus asked, not guessed from CI.
 A line is a `Launch`: the row's slug, the reviewer's thread, the full head it was asked to read,
 its kind (`first`, a reviewer of the review before the pull request, `jbus.prereview`, or
 `scoped`, a reviewer of a change since a review, `jbus.rebase.scope` or one a crew launched), its
-seat `n` (the `#<n>` of a `Reviewer:` line, 1 for a scoped one) and when it launched. `record` is
-the one writer, and writes no second line for a thread the file holds.
+seat `n` (the `#<n>` of a `Reviewer:` line, 1 for a scoped one, 0 for a claim) and when it
+launched. `record` is the one writer, and writes no second line for a thread the file holds.
 
 `prereview.launch` and `rebase.scope` ask `has` before they launch, `claim` the head before
 `t3_thread_launch`, `release` it where T3 Code refuses the launch, and `record` each reviewer they
 launch, as they launch it. A claim is a line with no thread, written before the launch since a
 launch has no retry key: a pass that crashes after it launches no reviewer of the head twice. The
-claim stays once the launch's own line follows it. A crew
-that launches a scoped reviewer itself writes `Scoped reviewer: <thread>, of <head>` under its
-Result, and `scoped` records each such line of an open pull request's brief that the file lacks,
-at the time the pass first reads it. A `Reviewer:` line names no head, so a first reviewer jbus
-did not launch has no line.
+claim stays once the launch's own line follows it. A crew that launches a scoped reviewer itself
+writes `Scoped reviewer: <thread>, of <head>` under its Result, and `scoped` records each such
+line of an open pull request's brief that the file lacks, at the time the pass first reads it. A
+`Reviewer:` line names no head, so a first reviewer jbus did not launch has no line.
 
 `has` is the one answer to whether a head has a review asked for: a line of the file at the head,
 claim or launch, or a key `sent.json` holds of it. Before the claim, a launch marked
