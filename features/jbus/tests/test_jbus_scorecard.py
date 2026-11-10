@@ -441,6 +441,36 @@ def test_the_three_weekly_reads_of_calls_give_these_values(store):
     assert read("dollars-per-row") == (pytest.approx(spent * opus), 1)
 
 
+def test_a_week_baseline_is_the_measures_own_query_over_that_week(store):
+    """dollars-per-row's baseline is the week of 2026-11-01 read by the same view as the value,
+    so a change of what a row's dollars count moves the baseline with the value. Each week has a
+    merged row with a crew call and the home call that led to it."""
+    for slug, home_session, monday, crew, home in (
+        ("row-l", "h1", datetime(2026, 11, 2, tzinfo=UTC), 90_000, 6_000),
+        ("row-a", "h2", datetime(2026, 11, 9, tzinfo=UTC), 50_000, 2_000),
+    ):
+        noon = monday + timedelta(hours=12)
+        calls(store, "jstack", "home", "jstack", home_session, "mcp:home", (noon, home))
+        queued(store, slug, None, noon + timedelta(hours=1))
+        calls(store, "jstack", "crew", slug, f"c-{slug}", f"mcp:{slug}", (noon, crew))
+        store.execute(
+            "insert into transitions (project, key, at, slug, from_status, to_status, day)"
+            " values ('jstack', ?, ?, ?, 'pr', 'merged', ?)",
+            (f"t-{slug}", stamp(noon + timedelta(hours=3)), slug, monday.date().isoformat()),
+        )
+    (last,) = store.execute(
+        "select dollars_per_row from weekly_row_spend"
+        " where project = 'jstack' and week = '2026-11-01'"
+    ).fetchone()
+    opus = jgauge_spend.PRICES["claude-opus-5-5"].plain / 1e6
+    assert last == pytest.approx(96_000 * opus)
+
+    reading = measures.read(store, measure("dollars-per-row"), "jstack", NOW, USER)
+
+    assert (reading.value, reading.baseline) == (pytest.approx(52_000 * opus), pytest.approx(last))
+    assert reading.state == "ok"
+
+
 @pytest.mark.parametrize("name", ["crew-context", "first-call-context", "dollars-per-row"])
 def test_no_weekly_read_of_calls_walks_every_call_of_a_provider(store, name):
     """A store made by `telemetry.connect` gives SQLite's planner the shape of `calls`
