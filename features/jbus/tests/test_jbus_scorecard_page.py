@@ -49,6 +49,7 @@ def seed(path, now):
         [(f"{SLUG}.run{i}", at, at) for i in range(120)],
     )
     store.executemany("insert into builds (at, ms) values (?, 500)", [(at,) for _ in range(10)])
+    store.execute("insert into builds (at, ms) values ('2026-11-04T12:00:00.000000Z', 330)")
     for key, (begins, ends) in enumerate([("queued", "launched"), ("launched", "failed")]):
         store.execute(
             "insert into transitions (project, key, at, slug, from_status, to_status)"

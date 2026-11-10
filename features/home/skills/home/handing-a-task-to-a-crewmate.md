@@ -73,6 +73,8 @@ The root home does step 1 and no other: it queues the brief by "Queueing a row i
    `jbus queue add` and `jbus queue check` print `warning: <slug> shares <paths> with <row>, which it builds on` for each `Where:` path the brief shares with a row its `Builds on:` line names.
    Where the two are one change, join the rows, and where the row has no need of the other's code, take the shared path out of one of them.
    Where it does need that code, leave it: the row is queued all the same and stays stacked.
+   For a follow-up, a brief with a `Follows:` line or with `noticed in` on its `Task:` or `Decisions:` line, `jbus queue add` and `jbus queue check` also print `warning: <slug> may be the fault <row> (<status>, <pull request>) holds: both name <paths> and <tokens>: drop this row where <row> holds the fault` for each other live row whose brief shares a `Where:` path and a code token of its title and `Task:` with it.
+   It is a warning, never a refusal or a hold: read that row's brief, and drop this row where that row already holds the fault, since a shared path and token are no proof of one fault.
    `jbus queue add` refuses a brief whose `Builds on:` line gives a plan layer as its reason, such as `launch-caps: its merged code, the base of layer 2`.
    `jbus queue add` refuses a `--depends` that the brief's `Builds on:` line does not name, and queues nothing: write the line, or make the order `--merge-after`.
    A `--merge-after` names a row that is already queued, so a chain is queued from its first link up.

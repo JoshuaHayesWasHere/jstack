@@ -1,4 +1,6 @@
-from jbus.telemetry.measures import Limit, Measure, Sql
+from datetime import date
+
+from jbus.telemetry.measures import Measure, Over, Sql, Week
 
 WEEK = "week in (date(:begins), date(:begins, '+1 day'))"
 """The week the window begins, a Sunday in the user's zone, whose start `:begins` holds in UTC."""
@@ -24,9 +26,9 @@ MEASURE = Measure(
         ),
     ),
     window="week",
-    baseline=3.0,
-    baseline_of="last week's weekly_change_failure, the week of 2026-11-01",
-    kind=Limit(3.6, 20),
+    baseline=Week(date(2026, 11, 1)),
+    baseline_of="the same query over the week of 2026-11-01",
+    kind=Over(20, 20),
     tier="page",
     each_unit="counted, 1, or not, 0",
 )

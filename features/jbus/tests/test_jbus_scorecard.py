@@ -90,6 +90,7 @@ MODULES = (
     "jbus.telemetry.measures.m65_units_per_merge",
     "jbus.telemetry.measures.m66_rework_per_merge",
     "jbus.telemetry.measures.m67_units_vs_capped_line",
+    "jbus.telemetry.measures.m68_gh_idle_calls_per_hour",
 )
 """Each measure's module by its dotted name, so a new measure is named by a test that reads it."""
 

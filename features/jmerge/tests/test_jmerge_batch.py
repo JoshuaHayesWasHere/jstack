@@ -42,6 +42,11 @@ CREATE = """\
             *actions/runs/*) cat "$STUB/run-${2##*/}" ;;
             *) exit 64 ;;
         esac ;;
+    "run rerun")
+        if [ -e "$STUB/rerun-refused" ]; then
+            echo "run 5 cannot be rerun; its workflow file may be broken" >&2
+            exit 1
+        fi ;;
 """
 BATCH_GH = (
     GH.replace('case "$1 $2" in\n', 'case "$1 $2" in\n' + CREATE, 1)
@@ -449,6 +454,64 @@ def test_a_batch_that_timed_out_twice_in_a_row_keeps_its_members_as_suspects(kit
     late(kitchen, checks)
     assert kitchen.run() == [in_batch(6, tip), in_batch(7, tip), first(8, tip)]
     assert runs(kitchen) == 0 and suspects(kitchen) == [6, 7, 8]
+
+
+def failed_in(job):
+    """The batch's check failed in job `job` of its workflow run 5: a new attempt of the run gives
+    its jobs new ids."""
+    return {**merge.FAILED, "detailsUrl": f"https://github.com/o/r/actions/runs/5/job/{job}"}
+
+
+def reruns(kitchen):
+    return [call.split()[:4] for call in kitchen.calls("run rerun")]
+
+
+def test_a_failed_batch_reruns_its_failed_jobs_once_and_merges_by_batch_when_they_pass(kitchen):
+    """A flake is no evidence against a member: the failed jobs of the batch's run are started
+    again once, the batch is pending while they run, from the rerun and not its push, and on
+    their pass its members merge by the batch with no suspects kept."""
+    three(kitchen)
+    tip = kitchen.tip()
+    kitchen.run()
+    late(kitchen, (failed_in(1),))
+    assert kitchen.run() == [in_batch(number, tip) for number in (6, 7, 8)]
+    assert reruns(kitchen) == [["run", "rerun", "5", "--failed"]]
+    listed(kitchen, (merge.RUNNING,))
+    assert kitchen.run() == [in_batch(number, tip) for number in (6, 7, 8)]
+    assert reruns(kitchen) == [["run", "rerun", "5", "--failed"]]
+    assert suspects(kitchen) == [] and record(kitchen)["again"] is False
+    proven(kitchen)
+    said = kitchen.run()
+    assert [line.split()[:2] for line in said] == [["merged", n] for n in ("6", "7", "8")]
+    assert all("so no guards ran" in line for line in said)
+    assert runs(kitchen) == 0 and suspects(kitchen) == [] and record(kitchen)["failed"] == {}
+
+
+@pytest.mark.parametrize("case", ["fails again", "rerun refused", "first attempt still listed"])
+def test_a_batch_that_fails_again_after_its_rerun_keeps_its_members_as_suspects(kitchen, case):
+    """A second failure, a new job of the run, and a rerun GitHub refuses each fail the batch as
+    a failed check did before the rerun: its members are suspects and the next batch is the first
+    half of them. A listing that still shows the first attempt's failed job is no second failure:
+    the batch stays pending, and is not rerun again."""
+    three(kitchen)
+    tip = kitchen.tip()
+    kitchen.run()
+    if case == "rerun refused":
+        (kitchen.home.stub / "rerun-refused").write_text("")
+    listed(kitchen, (failed_in(1),))
+    said = kitchen.run()
+    if case != "rerun refused":
+        assert said == [in_batch(number, tip) for number in (6, 7, 8)]
+        listed(kitchen, (failed_in(2 if case == "fails again" else 1),))
+        said = kitchen.run()
+    assert reruns(kitchen) == [["run", "rerun", "5", "--failed"]]
+    if case == "first attempt still listed":
+        assert said == [in_batch(number, tip) for number in (6, 7, 8)]
+        assert suspects(kitchen) == []
+    else:
+        assert said == [in_batch(6, tip), in_batch(7, tip), first(8, tip)]
+        assert suspects(kitchen) == [6, 7, 8]
+    assert runs(kitchen) == 0 and kitchen.calls() == []
 
 
 def test_a_batch_that_passed_with_no_artifact_found_waits_and_merges_once_it_is_found(kitchen):
