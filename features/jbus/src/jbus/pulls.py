@@ -86,14 +86,7 @@ def read(run: Pass) -> Open:
     kept = kept if isinstance(kept, dict) else {}
     probed = probe(run)
     now = run.now.isoformat()
-    if (
-        probed.seen is not None
-        and kept.get("fields") == FIELDS
-        and kept.get("seen") == probed.seen
-        and kept.get("settled")
-        and _fresh(run, kept)
-        and isinstance(kept.get("pulls"), list)
-    ):
+    if _reusable(run, kept, probed.seen):
         pulls = kept["pulls"]
         kept = {**kept, "at": now}
     else:
@@ -114,6 +107,14 @@ def read(run: Pass) -> Open:
         }
     write_json(path, kept, indent=None)
     return Open(pulls, probed.default, path, now)
+
+
+def _reusable(run: Pass, kept: dict[str, Any], seen: str | None) -> bool:
+    """Whether the kept answer stands for this read: the probes said `seen` when it was asked, it
+    was kept as settled, and it was asked less than `FRESH` ago."""
+    if seen is None or kept.get("seen") != seen or kept.get("fields") != FIELDS:
+        return False
+    return bool(kept.get("settled")) and isinstance(kept.get("pulls"), list) and _fresh(run, kept)
 
 
 def _fresh(run: Pass, kept: dict[str, Any]) -> bool:

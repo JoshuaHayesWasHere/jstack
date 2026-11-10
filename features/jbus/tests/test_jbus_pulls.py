@@ -131,16 +131,62 @@ def test_each_change_github_can_make_is_read_on_the_next_pass(kitchen, change):
     assert asked(kitchen) == 3
 
 
+def known(kitchen):
+    """What GitHub said of its API budget a moment ago, well above the floor."""
+    now = datetime.now(UTC)
+    said = {**rate_limit(4000, reset=now + timedelta(hours=1)), "at": now.isoformat()}
+    kitchen.state_dir.mkdir(parents=True, exist_ok=True)
+    (kitchen.state_dir / budget.KEPT).write_text(json.dumps(said))
+
+
 def test_the_jmerge_a_pass_starts_is_handed_its_read_where_the_budget_is_known(kitchen):
     run = a_pass()
     merge.merge(run)
     assert kitchen.log("jmerge") == ["--if-free"] and asked(kitchen) == 0
-    now = datetime.now(UTC)
-    known = {**rate_limit(4000, reset=now + timedelta(hours=1)), "at": now.isoformat()}
-    (kitchen.state_dir / budget.KEPT).write_text(json.dumps(known))
+    known(kitchen)
     merge.merge(run)
     handed = kitchen.log("jmerge")[-1].split()
     path = str(kitchen.state / pulls.FILE)
     assert handed == ["--if-free", "--pulls", path, "--pulls-at", run.now.isoformat()]
     assert json.loads((kitchen.state / pulls.FILE).read_text())["at"] == run.now.isoformat()
     assert asked(kitchen) == 1
+
+
+def no_rest_list(kitchen):
+    """A pull request REST's list cannot give: the kitchen's REST view needs its title."""
+    kitchen.set("open.json", [{k: v for k, v in opened(kitchen, 7, HEAD).items() if k != "title"}])
+
+
+def no_check_runs(kitchen):
+    kitchen.set("check-runs.json", {HEAD: [{"name": "check"}]})
+
+
+def no_origin(kitchen):
+    kitchen.git("remote", "set-url", "origin", str(kitchen.root / "gone.git"))
+
+
+def unread_kept(kitchen):
+    path = kitchen.state / pulls.FILE
+    if path.exists():
+        path.write_text(json.dumps({**json.loads(path.read_text()), "asked": "never"}))
+
+
+@pytest.mark.parametrize("unread", [no_rest_list, no_check_runs, no_origin, unread_kept])
+def test_a_list_no_read_vouches_for_is_asked_again_on_each_pass(kitchen, unread):
+    for minutes in range(3):
+        unread(kitchen)
+        assert [pull["number"] for pull in pulls.read(a_pass(minutes)).pulls] == [7]
+    assert asked(kitchen) == 3
+
+
+def test_a_kept_list_is_asked_again_once_it_is_ten_minutes_old(kitchen):
+    for minutes in (0, 1, 9, 10, 11):
+        pulls.read(a_pass(minutes))
+    assert asked(kitchen) == 2
+
+
+def test_a_silent_github_hands_the_jmerge_of_the_pass_nothing(kitchen):
+    known(kitchen)
+    kitchen.set("gh-list-down", "gh: Bad Gateway (HTTP 502)\n")
+    merge.merge(a_pass())
+    assert kitchen.log("jmerge") == ["--if-free"]
