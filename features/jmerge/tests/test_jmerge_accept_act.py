@@ -515,3 +515,21 @@ def test_an_accept_that_cannot_read_githubs_answer_again_says_it_has_not_decided
     assert out == [f"wait 7 {url(7)}: {ready.UNDECIDED}"], out
     assert len(kitchen.calls(ASKED_AGAIN)) == 1
     assert kitchen.calls() == []
+
+
+def test_the_users_word_on_a_pull_request_with_no_brief_github_has_not_decided_merges_nothing(
+    kitchen,
+):
+    """An accept of a pull request no brief names, short of nothing but GitHub's answer, says
+    GitHub has not decided once its ask again comes back unreadable, and merges nothing."""
+    unbriefed(kitchen, "bump", 9)
+    undecided = [{**pull, "mergeable": "UNKNOWN"} for pull in kitchen.pulls.values()]
+    (kitchen.home.stub / "once").mkdir()
+    (kitchen.home.stub / "once" / "1.json").write_text(json.dumps(undecided))
+    (kitchen.home.stub / "list.json").write_text("not json\n")
+    ref = said(kitchen, "merge 9")
+    out = jmerge(kitchen, "--accept", "9", "--as", "user", "--message", ref)
+    assert kitchen.home.code == 1, (out, kitchen.home.stderr)
+    assert out[-1] == f"wait 9 {url(9)}: {ready.UNDECIDED}", out
+    assert len(kitchen.calls(ASKED_AGAIN)) == 1
+    assert kitchen.calls() == []
