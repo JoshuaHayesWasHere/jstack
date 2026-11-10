@@ -22,8 +22,9 @@ the same lines for its own project (`jbus.homestatus`).
 
 With no `--home` the list also has each ask a home of the project made of the user itself that
 is still open in its `told` file (`asks`), the root's and each scope's, named with its home, so
-the project-wide "nothing waits" means no home has an ask open either. `jbus home status` counts
-them in its line of what waits in other projects.
+the project-wide "nothing waits" means no home has an ask open either. A closed home's asks (a
+scope whose plan is archived) stay on it and on the root home's list until cleared. `jbus home
+status` counts them in its line of what waits in other projects.
 
 `--home <directory>` keeps one home's items of its project: a scope's directory keeps that
 scope's, and the root home's keeps its own and every scope's. Every home's list also has each item
@@ -155,17 +156,28 @@ def asks(project: jbus.Project, root: Path, home: Path) -> list[Need]:
     """Return each ask a home made of the user itself that is still open: a `decision local` or
     `stop local` line of its `told` file, which `jbus told` keeps until a `cleared local` line ends
     it (`jbus.turnend`). With the root home, its scopes' too, and none where the root home has no
-    directory yet."""
+    directory yet. A closed scope, whose plan is archived (`plan-archived.md`, no `plan.md`), has
+    no thread to ask, but its open asks still wait on the user: the root home's list keeps them,
+    named with the closed home, until a `cleared local` line in its `told` ends them."""
     if not root.is_dir():
         return []
-    scopes = sorted(one for one in root.iterdir() if (one / "plan.md").is_file())
+    scopes = sorted(one for one in root.iterdir() if (one / "plan.md").is_file() or closed(one))
     found = []
     for at in [root, *scopes] if home == root else [home]:
         name = "root" if at == root else at.name
         for line in turnend.open_asks(at):
-            reply = f"reply to the {name} home in your own words"
-            found.append(Need(project.name, f"{name} home {line}", reply))
+            if closed(at):
+                reply = f"reply to the root home in your own words: the {name} home is closed"
+                found.append(Need(project.name, f"{name} home (closed) {line}", reply))
+            else:
+                reply = f"reply to the {name} home in your own words"
+                found.append(Need(project.name, f"{name} home {line}", reply))
     return found
+
+
+def closed(scope: Path) -> bool:
+    """Whether a scope's directory is a closed home: its plan archived, with no plan open."""
+    return (scope / "plan-archived.md").is_file() and not (scope / "plan.md").is_file()
 
 
 def room(run: passes.Pass) -> list[tuple[str, str]]:

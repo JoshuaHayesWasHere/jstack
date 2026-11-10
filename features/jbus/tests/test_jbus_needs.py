@@ -435,3 +435,24 @@ def test_the_project_wide_list_has_every_homes_open_asks_and_home_status_counts_
     assert elsewhere() == []
     other.home.rename(other.home.with_name("moved"))
     assert needs(kitchen) == ["nothing waits on user in any project"]
+
+
+def test_a_closed_homes_open_asks_stay_listed_until_cleared(kitchen):
+    """A scope whose plan is archived is a closed home, with no thread to ask. Each ask it left
+    open in its `told` still waits on the user, so the project-wide list and the root home's list
+    keep it, named with the closed home, until a `cleared local` line in its `told` ends it."""
+    sc = scoped(kitchen, "sc")
+    turn = "decision local alpha: which way?\nstop local gamma: say which way\n"
+    assert kitchen.main("told", str(sc), stdin=turn)[0] == 0
+    assert kitchen.main("told", str(sc), stdin="cleared local gamma: answered\n")[0] == 0
+    (sc / "plan.md").rename(sc / "plan-archived.md")
+    kitchen.poll()
+    listed = [
+        "waiting on user: 1, in demo",
+        "demo sc home (closed) decision local alpha: which way?",
+        "  answer: reply to the root home in your own words: the sc home is closed",
+    ]
+    assert needs(kitchen) == listed
+    assert needs(kitchen, "--project", "demo", home=kitchen.home) == listed
+    assert kitchen.main("told", str(sc), stdin="cleared local alpha: moot\n")[0] == 0
+    assert needs(kitchen) == ["nothing waits on user in any project"]
