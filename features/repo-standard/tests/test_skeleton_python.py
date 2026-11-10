@@ -40,7 +40,16 @@ script, sys.argv = sys.argv[1], sys.argv[1:]
 sys.path.insert(0, os.path.dirname(os.path.abspath(script)))
 runpy.run_path(script, run_name="__main__")
 """
-INHERITED = ("PYTHONPATH", "VIRTUAL_ENV", "MAKEFLAGS", "MFLAGS", "MAKELEVEL", "BASE", "TESTS")
+INHERITED = (
+    "PYTHONPATH",
+    "VIRTUAL_ENV",
+    "MAKEFLAGS",
+    "MFLAGS",
+    "MAKELEVEL",
+    "BASE",
+    "TESTS",
+    "SHARD",
+)
 PLANTED = {
     "features/alpha/feature.json": '{"name": "alpha", "description": "Alpha."}\n',
     "features/alpha/src/alpha/__init__.py": "",
@@ -126,6 +135,16 @@ def test_the_new_repo_passes_its_own_check(new_repo):
     assert "1 passed" in out
     assert f"conform {TAG}{VERSION}" in out
     assert "errors 0, warnings 0" in out
+
+
+def test_a_shard_given_to_the_make_that_runs_these_tests_does_not_reach_the_new_repo(
+    monkeypatch, request
+):
+    """The nightly full run's `make check SHARD=K/N` exports SHARD to these tests: the new repo's
+    `make test` still runs its whole suite, not the part K of it."""
+    monkeypatch.setenv("SHARD", "2/2")
+    root, env = request.getfixturevalue("new_repo")
+    assert "1 passed" in make(root, env, "test")
 
 
 def test_check_fast_runs_the_tests_its_change_selects(new_repo):
