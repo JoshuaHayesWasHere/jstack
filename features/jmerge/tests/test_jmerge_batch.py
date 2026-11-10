@@ -301,6 +301,31 @@ def test_a_failed_batch_of_four_is_narrowed_in_halves_to_the_member_that_failed_
     assert runs(kitchen) == 1 and suspects(kitchen) == []
 
 
+def test_the_last_suspect_of_a_failed_batch_of_two_whose_first_member_proves_goes_alone(kitchen):
+    """#6's half proves, so #7 is the member that failed the batch: it goes under `failed` and
+    down the single path, with no batch built for it alone."""
+    kitchen.crew("one", 6, {"a.txt": OURS})
+    seven = kitchen.crew("two", 7, {"b.txt": OURS})
+    kitchen.on_main({"d.txt": "theirs\n"})
+    kitchen.run()
+    listed(kitchen, (merge.FAILED,))
+    tip = kitchen.tip()
+    assert kitchen.run() == [in_batch(6, tip), first(7, tip)]
+    built = git(kitchen.origin, "rev-parse", f"refs/heads/{batch.BRANCH}")
+    proven(kitchen)
+    said = kitchen.run()
+    assert [line.split()[:2] for line in said] == [["wait", "7"], ["merged", "6"]]
+    assert "so no guards ran" in said[1]
+    assert record(kitchen)["failed"] == {"7": seven} and suspects(kitchen) == []
+    listed(kitchen, (merge.PASSED,))
+    (alone,) = kitchen.run()
+    assert alone.startswith("merged 7 two ")
+    assert ", the guards passed on its tree merged over main at " in alone
+    assert runs(kitchen) == 1
+    assert git(kitchen.origin, "rev-parse", f"refs/heads/{batch.BRANCH}") == built
+    assert record(kitchen).get("members") is None
+
+
 def test_a_failed_batch_of_one_keeps_its_head_under_failed(kitchen):
     kitchen.crew("one", 6, {"a.txt": OURS})
     kitchen.on_main({"d.txt": "theirs\n"})
@@ -378,15 +403,50 @@ def test_a_pull_request_whose_merge_after_is_unmet_stays_out_of_the_batch(kitche
     assert [one["number"] for one in record(kitchen)["members"]] == [6]
 
 
-def test_a_batch_whose_check_runs_past_its_limit_is_narrowed_as_a_failed_one(kitchen):
+def late(kitchen, checks):
+    """The batch out was pushed `PENDING_MINUTES` and a second ago, with no artifact found, and
+    GitHub lists its pull request with these checks."""
+    at = datetime.now(UTC) - timedelta(minutes=batch.PENDING_MINUTES, seconds=1)
+    kept = record(kitchen)
+    (kitchen.home.state / batch.KEPT).write_text(json.dumps({**kept, "at": at.isoformat()}))
+    listed(kitchen, checks)
+
+
+TIMED_OUT = pytest.mark.parametrize(
+    "checks",
+    [(merge.RUNNING,), (merge.PASSED,)],
+    ids=["check still running", "passed, no artifact"],
+)
+
+
+@TIMED_OUT
+def test_a_batch_that_timed_out_is_built_again_whole_and_merges_by_batch_once_proven(
+    kitchen, checks
+):
+    """A timeout is no evidence against a member: the batch is built again whole over today's
+    tip, keeps no suspects, and merges by batch on its pass."""
     three(kitchen)
     kitchen.run()
-    kept = record(kitchen)
-    (kitchen.home.state / batch.KEPT).write_text(
-        json.dumps({**kept, "at": "2000-01-01T00:00:00+00:00"})
-    )
-    listed(kitchen, (merge.RUNNING,))
+    late(kitchen, checks)
     tip = kitchen.tip()
+    assert kitchen.run() == [in_batch(number, tip) for number in (6, 7, 8)]
+    assert [one["number"] for one in record(kitchen)["members"]] == [6, 7, 8]
+    assert suspects(kitchen) == [] and record(kitchen)["failed"] == {}
+    proven(kitchen)
+    said = kitchen.run()
+    assert [line.split()[:2] for line in said] == [["merged", n] for n in ("6", "7", "8")]
+    assert all("so no guards ran" in line for line in said)
+    assert runs(kitchen) == 0 and suspects(kitchen) == []
+
+
+@TIMED_OUT
+def test_a_batch_that_timed_out_twice_in_a_row_keeps_its_members_as_suspects(kitchen, checks):
+    three(kitchen)
+    kitchen.run()
+    late(kitchen, checks)
+    tip = kitchen.tip()
+    kitchen.run()
+    late(kitchen, checks)
     assert kitchen.run() == [in_batch(6, tip), in_batch(7, tip), first(8, tip)]
     assert runs(kitchen) == 0 and suspects(kitchen) == [6, 7, 8]
 
@@ -407,18 +467,6 @@ def test_a_batch_that_passed_with_no_artifact_found_waits_and_merges_once_it_is_
         ["merged", "8"],
     ]
     assert runs(kitchen) == 0
-
-
-def test_a_batch_that_passed_with_no_artifact_found_at_its_limit_has_failed(kitchen):
-    three(kitchen)
-    kitchen.run()
-    late = datetime.now(UTC) - timedelta(minutes=batch.PENDING_MINUTES, seconds=1)
-    kept = record(kitchen)
-    (kitchen.home.state / batch.KEPT).write_text(json.dumps({**kept, "at": late.isoformat()}))
-    listed(kitchen, (merge.PASSED,))
-    tip = kitchen.tip()
-    assert kitchen.run() == [in_batch(6, tip), in_batch(7, tip), first(8, tip)]
-    assert runs(kitchen) == 0 and suspects(kitchen) == [6, 7, 8]
 
 
 def test_a_member_that_conflicts_with_one_before_it_waits_for_the_batch(kitchen):
