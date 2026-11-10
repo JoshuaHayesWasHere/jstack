@@ -6,23 +6,27 @@ A part of the check (check.yml, `check-shard`) sets up while `reuse` selects, th
     python3 scripts/selection_wait.py
 
 `reuse` uploads its selection as the artifact `selection-<attempt>`, a zip of one file,
-`selection.json`, the moment it has one. This asks GitHub's REST API for that artifact once a
-second until it is listed, downloads it, and writes each key of the file to `$GITHUB_OUTPUT` as
-`key=value`: `reused`, `tree`, `selection`, `files`, `forced_by` and `part1` to `part8`.
+`selection.json`, the moment it has one. This asks GitHub's REST API for the run's artifacts once
+a second until that one is listed, downloads it, and writes each key of the file to
+`$GITHUB_OUTPUT` as `key=value`: `reused`, `tree`, `selection`, `files`, `forced_by` and `part1` to
+`part8`.
 
 Every ask after the first carries the ETag of the answer before it (`If-None-Match`), and GitHub
 answers an unchanged list `304 Not Modified`, which costs none of the run's token's allowance (1,000
-calls an hour for the repo, spent at 22:47 UTC on 2026-11-09). So a part makes three costed calls:
-the first list, the list that names the artifact, and its download; two where the artifact is
-already there. Each costed call is printed with its URL, and the 304s are counted in one line.
+calls an hour for the repo, spent at 22:47 UTC on 2026-11-09). `reuse`'s selection is the first
+artifact an attempt uploads, so a part makes three costed calls: the first list, the list that
+names the artifact, and its download; two where the artifact is already there. That holds for an
+attempt after the first where every job runs again. Each costed call is printed with its URL, and
+the 304s are counted in one line.
 
-A part of an attempt after the first asks first, once, whether this attempt runs `reuse`: where
-only the failed jobs run again, `reuse` is carried over from the attempt it ran in and leaves no
-`selection-<attempt>`, so the part takes the newest selection of the run. A part still waiting
-after `STALL` asks, as when `reuse` ended before its upload, asks the same once, and again every
-`AGAIN` asks after: a `reuse` that ended with no selection fails the part then, not at its
-timeout. A listed selection whose download GitHub answers 404, as it can just after the upload,
-is not there yet. `$SELECTION_PAUSE` is the seconds between two asks, 1 where unset.
+A part still waiting after `STALL` asks whether this attempt's `reuse` has ended or is not of this
+attempt, and again every `AGAIN` asks after. Where it has, the part takes the newest selection of
+the run the list it holds names: where only the failed jobs run again, `reuse` is carried over
+from the attempt it ran in and leaves no `selection-<attempt>`, and the part takes that attempt's,
+in three costed calls as well. A `reuse` that ended with no selection anywhere fails the part
+then, not at its timeout. A listed selection whose download GitHub answers 404, as it can just
+after the upload, is not there yet. `$SELECTION_PAUSE` is the seconds between two asks, 1 where
+unset.
 """
 
 import io
@@ -74,18 +78,21 @@ class GitHub:
         return status, body, tag
 
 
-def listed(body, newest=False):
-    """The id of the artifact a list names, the newest `selection-<attempt>` of a run's list
-    where `newest`, or None."""
+def listed(body, attempt=None):
+    """The id of the run's `selection-<attempt>` a list names, or of its newest selection of any
+    attempt where `attempt` is None; None where it names none."""
     try:
         artifacts = [one for one in json.loads(body)["artifacts"] if not one.get("expired")]
+        selections = {
+            int(one["name"].removeprefix("selection-")): one["id"]
+            for one in artifacts
+            if one["name"].startswith("selection-")
+        }
     except (ValueError, KeyError, TypeError):
         return None
-    if newest:
-        artifacts = [one for one in artifacts if one["name"].startswith("selection-")]
-        artifacts.sort(key=lambda one: int(one["name"].removeprefix("selection-")))
-        return artifacts[-1]["id"] if artifacts else None
-    return artifacts[0]["id"] if artifacts else None
+    if attempt is None:
+        return selections[max(selections)] if selections else None
+    return selections.get(attempt)
 
 
 def selection(github, artifact):
@@ -106,32 +113,25 @@ def ended(github, runs, attempt):
     return not jobs or jobs[0]["status"] == "completed"
 
 
-def newest(github, runs):
-    """The newest selection of the run, of any attempt, or None."""
-    status, body, _ = github.get(f"{runs}/artifacts?per_page=100")
-    artifact = listed(body, newest=True) if status == 200 else None
-    return selection(github, artifact) if artifact else None
-
-
 def wait(github, env, pause):
     """The selection this part runs, or None where `reuse` ended with none."""
     runs = f"actions/runs/{env['GITHUB_RUN_ID']}"
-    attempt = env.get("GITHUB_RUN_ATTEMPT", "1")
-    if attempt != "1" and ended(github, runs, attempt):
-        return newest(github, runs)
-    asks = f"{runs}/artifacts?name=selection-{attempt}"
-    etag, artifact, tries = None, None, 0
+    attempt = int(env.get("GITHUB_RUN_ATTEMPT", "1"))
+    asks = f"{runs}/artifacts?per_page=100"
+    etag, body, tries = None, b"", 0
     while True:
-        status, body, etag = github.get(asks, etag)
+        status, answer, etag = github.get(asks, etag)
         if status == 200:
-            artifact = listed(body)
+            body = answer
+        artifact = listed(body, attempt)
         if artifact:
             found = selection(github, artifact)
             if found is not None:
                 return found
         tries += 1
         if tries >= STALL and (tries - STALL) % AGAIN == 0 and ended(github, runs, attempt):
-            return newest(github, runs)
+            newest = listed(body)
+            return selection(github, newest) if newest else None
         pause()
 
 

@@ -129,14 +129,16 @@ def handed(tmp_path, select, reused):
 
 
 def run_answers(zipped, ready, status, attempt=1, newest=None, missing=0):
-    """The answers for run 9's artifacts and jobs: `selection-<attempt>` is listed from the
-    `ready`th ask on, its first `missing` downloads answer 404, `reuse` in this attempt is
-    `status` (`none` where it is not of this attempt), and `newest` names the run's newest
-    selection of any attempt."""
+    """The answers for run 9's artifacts and jobs: `selection-<attempt>` (id 77) is listed from
+    the `ready`th ask of a list on, its first `missing` downloads answer 404, `reuse` in this
+    attempt is `status` (`none` where it is not of this attempt), and `newest` names a selection
+    of an earlier attempt (id 76), listed from the start. Each artifact downloads `zipped`."""
     artifact = {"id": 77, "name": f"selection-{attempt}", "expired": False}
+    earlier = [{"id": 76, "name": newest, "expired": False}] if newest else []
 
-    def the_list(asked):
-        return 200, json.dumps({"artifacts": [artifact] if asked >= ready else []}).encode()
+    def every(asked):
+        listed = earlier + ([artifact] if asked >= ready else [])
+        return 200, json.dumps({"artifacts": listed}).encode()
 
     def the_zip(asked):
         if asked <= missing:
@@ -144,12 +146,11 @@ def run_answers(zipped, ready, status, attempt=1, newest=None, missing=0):
         return 302, b"", [("Location", "/blob/77")]
 
     jobs = [] if status == "none" else [{"name": "reuse", "status": status}]
-    every = [{"id": 77, "name": newest, "expired": False}] if newest else []
     return {
-        f"{RUNS}/artifacts?name=selection-{attempt}": the_list,
         "/repos/o/r/actions/artifacts/77/zip": the_zip,
+        "/repos/o/r/actions/artifacts/76/zip": lambda asked: (302, b"", [("Location", "/blob/77")]),
         f"{RUNS}/attempts/{attempt}/jobs?per_page=100": ok({"jobs": jobs}),
-        f"{RUNS}/artifacts?per_page=100": ok({"artifacts": every}),
+        f"{RUNS}/artifacts?per_page=100": every,
         "/blob/77": lambda: zipped,
     }
 
@@ -212,15 +213,15 @@ def part_waits(tmp_path, answers, attempt=1):
 
 @pytest.mark.parametrize("ready", [1, 4, 12])
 def test_a_part_waits_for_its_selection_with_at_most_three_costed_calls(tmp_path, ready):
-    """A part asks for `selection-<attempt>` once a second until `reuse` uploads it: the first
-    list, the one that names it and its download are costed, and every ask between them carries
-    the ETag of the first and is answered 304. Where the selection is there at the first ask the
-    part makes two costed calls."""
+    """A part asks for the run's artifacts once a second until `reuse` uploads
+    `selection-<attempt>`: the first list, the one that names it and its download are costed, and
+    every ask between them carries the ETag of the first and is answered 304. Where the selection
+    is there at the first ask the part makes two costed calls."""
     zipped = handed(tmp_path, SELECTED, "false")
     ran, outputs, github = part_waits(tmp_path, run_answers(zipped, ready, "in_progress"))
     assert ran.returncode == 0, ran.stdout + ran.stderr
     assert outputs == SELECTED | {"tree": "green-tree-ab", "reused": "false"}
-    asks = f"{RUNS}/artifacts?name=selection-1"
+    asks = f"{RUNS}/artifacts?per_page=100"
     zip_ = "/repos/o/r/actions/artifacts/77/zip"
     assert github.costed == ([asks, zip_] if ready == 1 else [asks, asks, zip_])
     assert len(github.costed) <= BUDGET
@@ -291,17 +292,34 @@ def test_a_part_run_again_alone_reads_the_selection_reuse_left_in_its_own_attemp
     """Where only the failed jobs run again, `reuse` is carried over from the attempt it ran in,
     and no `selection-<attempt>` of this attempt comes: the part of attempt 3 asks once whether
     `reuse` is of its attempt, finds it ended or not, and takes the newest selection of the
-    run, attempt 2's here, in three costed calls."""
+    run, attempt 2's here, in at most three costed calls."""
     zipped = handed(tmp_path, SELECTED, "false")
     answers = run_answers(zipped, 10**6, status, attempt=3, newest="selection-2")
     ran, outputs, github = part_waits(tmp_path, answers, attempt=3)
     assert ran.returncode == 0, ran.stdout + ran.stderr
     assert outputs == SELECTED | {"tree": "green-tree-ab", "reused": "false"}
-    assert github.costed == [
-        f"{RUNS}/attempts/3/jobs?per_page=100",
-        f"{RUNS}/artifacts?per_page=100",
-        "/repos/o/r/actions/artifacts/77/zip",
+    assert [key for key in github.costed if key.endswith("/zip")] == [
+        "/repos/o/r/actions/artifacts/76/zip"
     ]
+    assert len([key for key in github.costed if key.endswith("/jobs?per_page=100")]) == 1
+    assert len(github.costed) <= BUDGET, github.costed
+
+
+@pytest.mark.parametrize("ready", [1, 4, 12])
+def test_a_part_of_a_run_all_again_makes_at_most_three_costed_calls(tmp_path, ready):
+    """Where every job runs again, `reuse` runs in this attempt too and uploads its own
+    `selection-<attempt>`, while the run still lists attempt 2's: the part of attempt 3 waits for
+    its own, and asks no more than a part of a first attempt does, whether or not it is there at
+    the first ask."""
+    zipped = handed(tmp_path, SELECTED, "false")
+    answers = run_answers(zipped, ready, "in_progress", attempt=3, newest="selection-2")
+    ran, outputs, github = part_waits(tmp_path, answers, attempt=3)
+    assert ran.returncode == 0, ran.stdout + ran.stderr
+    assert outputs == SELECTED | {"tree": "green-tree-ab", "reused": "false"}
+    assert [key for key in github.costed if key.endswith("/zip")] == [
+        "/repos/o/r/actions/artifacts/77/zip"
+    ]
+    assert len(github.costed) <= BUDGET, github.costed
 
 
 def test_a_part_fails_soon_when_reuse_ended_with_no_selection(tmp_path):
@@ -314,9 +332,8 @@ def test_a_part_fails_soon_when_reuse_ended_with_no_selection(tmp_path):
     assert "::error::the job reuse ended with no selection for this part" in ran.stdout
     assert outputs == {}
     assert github.costed == [
-        f"{RUNS}/artifacts?name=selection-1",
-        f"{RUNS}/attempts/1/jobs?per_page=100",
         f"{RUNS}/artifacts?per_page=100",
+        f"{RUNS}/attempts/1/jobs?per_page=100",
     ]
     assert len(github.free) == 59
 
