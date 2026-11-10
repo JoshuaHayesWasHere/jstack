@@ -10,8 +10,10 @@ tip, and leaves the artifact of the two trees (`green.checked`). On it, with the
 `jmerge` squash-merges each member at its own head, in order, with no guards run
 (`cli.Repo.merge_batch`). A batch of two or more that went `PENDING_MINUTES` with no artifact
 found is built again whole over today's tip, once (`again`): a timeout is no evidence against a
-member. One whose check failed, or that timed out twice in a row, keeps its members as
-`suspects`, and the next batch is the first half of them (`narrow`), so CI's checks of halves
+member. One whose check failed has the failed jobs of its workflow run started again, once
+(`Rerun`), for a flake or a runner fault is no evidence against a member either. One whose check
+failed after its rerun, whose rerun GitHub refused, or that timed out twice in a row, keeps its
+members as `suspects`, and the next batch is the first half of them (`narrow`), so CI's checks of halves
 find the member that failed it. Where a half proved and one suspect is left, that one failed
 it. A failed batch of one, or that last suspect, goes down the single path of today at its head
 (`failed`), whose guards name the failing test for its crew.
@@ -21,8 +23,9 @@ The batch pull request is jmerge's own: it is never judged as a row's, and never
 
 from __future__ import annotations
 
+import re
 import subprocess
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -58,6 +61,9 @@ PENDING = "pending"
 PROVEN = "proven"
 FAILED = "failed"
 LATE = "late"
+RERUN = "rerun"
+
+_RUN = re.compile(r"/actions/runs/(\d+)/")
 
 
 @dataclass(frozen=True)
@@ -67,15 +73,43 @@ class Member:
 
 
 @dataclass(frozen=True)
+class Rerun:
+    """The one rerun of a failed batch's check: the links of the failed jobs it was started for,
+    each in the workflow run it reran, and when it was started."""
+
+    jobs: tuple[str, ...]
+    at: datetime
+
+    @property
+    def runs(self) -> tuple[str, ...]:
+        """The workflow runs of `jobs`, by id, each once, in order."""
+        return tuple(dict.fromkeys(m[1] for job in self.jobs if (m := _RUN.search(job))))
+
+
+def failed_jobs(rollup: list[dict], required: tuple[str, ...]) -> tuple[str, ...]:
+    """The links of the jobs of the required checks whose latest run failed (`ready.failed`), in
+    order: GitHub gives a job of a new attempt of the run a link of its own."""
+    return tuple(
+        sorted(
+            str(one.get("detailsUrl") or "")
+            for name in ready.failed(rollup, required)
+            for one in ready.latest(rollup, name)
+        )
+    )
+
+
+@dataclass(frozen=True)
 class Batch:
     """A batch as `KEPT` keeps it: the tip it was built over, its tree, the commit pushed to
-    `BRANCH`, its members in merge order, and when it was pushed."""
+    `BRANCH`, its members in merge order, when it was pushed, and the rerun of its failed check
+    where one was started (`rerun`)."""
 
     tip: str
     tree: str
     commit: str
     members: tuple[Member, ...]
     at: datetime
+    rerun: Rerun | None = None
 
     def holds(self, one: ready.PullRequest) -> bool:
         return Member(one.number, one.head) in self.members
@@ -90,13 +124,23 @@ def _members(listed: list[dict]) -> tuple[Member, ...]:
     return tuple(Member(int(m["number"]), str(m["head"])) for m in listed)
 
 
+def _rerun(kept: object) -> Rerun | None:
+    if not isinstance(kept, dict) or not isinstance(kept.get("jobs"), list):
+        return None
+    try:
+        return Rerun(tuple(map(str, kept["jobs"])), datetime.fromisoformat(str(kept.get("at"))))
+    except ValueError:
+        return None
+
+
 @dataclass
 class Record:
     """`KEPT`: the batch out, if any; the heads of the members of a failed batch of one, and of
     the last suspect of a proven half, which go the single path at those heads; the suspects, the
     members of the last failed batch of two or more that have not merged, in merge order, of which
     the next batch takes the first half; and whether the batch out, or the next one built, is
-    built again after a timeout (`again`)."""
+    built again after a timeout (`again`). The batch out keeps its own rerun (`Batch.rerun`), so
+    a batch built anew has none."""
 
     path: Path
     batch: Batch | None = None
@@ -119,6 +163,7 @@ class Record:
                 str(kept["commit"]),
                 _members(kept["members"]),
                 datetime.fromisoformat(str(kept["at"])),
+                _rerun(kept.get("rerun")),
             )
         except (KeyError, TypeError, ValueError):
             made = None
@@ -135,6 +180,9 @@ class Record:
                 "members": [{"number": m.number, "head": m.head} for m in made.members],
                 "at": made.at.isoformat(),
             }
+            if made.rerun is not None:
+                jobs = list(made.rerun.jobs)
+                kept["rerun"] = {"jobs": jobs, "at": made.rerun.at.isoformat()}
         suspects = [{"number": m.number, "head": m.head} for m in self.suspects]
         store.write_json(
             self.path, {**kept, "failed": self.failed, "suspects": suspects, "again": self.again}
@@ -151,6 +199,11 @@ class Record:
             self.failed |= {str(one.number): one.head for one in members}
             self.suspects = tuple(one for one in self.suspects if one not in members)
         self.batch, self.again = None, False
+
+    def rerun(self, jobs: tuple[str, ...], now: datetime) -> None:
+        """Keep the rerun of the batch out's failed `jobs`, started at `now`."""
+        if self.batch is not None:
+            self.batch = replace(self.batch, rerun=Rerun(jobs, now))
 
     def late(self) -> None:
         """End the batch out that went `PENDING_MINUTES` with no artifact found: one of two or
@@ -186,20 +239,28 @@ def state_of(
     tip: str,
     run: str | None,
     now: datetime,
+    jobs: tuple[str, ...] = (),
 ) -> str:
     """Where the batch stands: none out, or one stale (the tip moved, or its pull request is not
     open at its commit); proven, where `run` is the run that left the artifact of the tip's tree
-    and its tree; failed, where its check failed; late, where `PENDING_MINUTES` went by from its
-    push with no artifact found; and pending otherwise. A check that passed with no artifact
-    found is pending: the lookup turns a gh error, or a run not yet concluded after its last job
-    passed, into none, and the next run looks again."""
+    and its tree; to rerun, where its check failed in `jobs`, each a job of a workflow run, and a
+    batch of two or more had no rerun; failed, where its check failed otherwise; late, where
+    `PENDING_MINUTES` went by from its push, or from its rerun, with no artifact found; and
+    pending otherwise. A check that passed with no artifact found is pending: the lookup turns a
+    gh error, or a run not yet concluded after its last job passed, into none, and the next run
+    looks again. A failed check whose jobs are all of those its rerun was started for is the
+    first attempt GitHub still lists, so it is pending too."""
     if batch is None or tip != batch.tip or pull is None or pull.head != batch.commit:
         return NONE
     if run:
         return PROVEN
-    if pull.failed:
+    again = batch.rerun
+    if pull.failed and again is None:
+        rerunnable = bool(jobs) and all(_RUN.search(job) for job in jobs)
+        return RERUN if rerunnable and len(batch.members) > 1 else FAILED
+    if pull.failed and (not jobs or not set(jobs) <= set(again.jobs if again else ())):
         return FAILED
-    if now - batch.at >= timedelta(minutes=PENDING_MINUTES):
+    if now - (again.at if again else batch.at) >= timedelta(minutes=PENDING_MINUTES):
         return LATE
     return PENDING
 
