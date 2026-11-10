@@ -40,6 +40,7 @@ import os
 import re
 import subprocess
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -95,10 +96,12 @@ GOING = "going.lock"
 """Held by a run's process (`keep`) from its start to its end, so a pass starts no second run.
 The kernel gives it back when the process dies."""
 STARTED = "started"
-"""Written by the pass that starts a run and removed by the run once its record is written: a
-stamp the run's lock no longer covers is a run that ended with no record. A run takes its lock
-within a second of its start, and passes are seconds apart under one lock, so no pass reads the
-stamp of a run that has not yet taken it."""
+"""Written by the pass that starts a run, with when, and removed by the run once its record is
+written: a stamp older than `STARTING` that the run's lock does not cover is a run that ended with
+no record. A younger one is a run that may not yet hold its lock, and is left to start."""
+STARTING = timedelta(minutes=1)
+"""How long a run's process has to take `GOING` from its start: a Python's start and an import of
+jbus, a second or two on a loaded machine."""
 READ = "read.json"
 CHILD_LOG = "child.log"
 """What the run's process printed itself, outside the record: the one place a process that died
@@ -139,7 +142,7 @@ def merge(run: Pass) -> Said:
     """
     where = runs(run)
     where.mkdir(parents=True, exist_ok=True)
-    if not _going(where):
+    if not _going(where) and not _starting(where):
         if (where / STARTED).exists():
             (where / STARTED).unlink()
             _unrun(run, f"its run ended with no record: {_last(where / CHILD_LOG)}")
@@ -220,6 +223,16 @@ def _going(where: Path) -> bool:
         except BlockingIOError:
             return True
     return False
+
+
+def _starting(where: Path) -> bool:
+    """Whether a pass started a run within `STARTING`, which may not yet hold `GOING`. A stamp
+    that does not parse is no start."""
+    try:
+        at = datetime.fromisoformat((where / STARTED).read_text().strip())
+    except (OSError, ValueError):
+        return False
+    return verbs.clock() - at < STARTING
 
 
 def _records(run: Pass, where: Path) -> Said:

@@ -97,12 +97,18 @@ def test_the_next_pass_reads_a_finished_runs_lines_once(off):
 
 
 def test_a_run_that_ended_with_no_record_counts_as_a_failure(off):
-    """A run whose process died before it kept a record, as one systemd stopped, is a failure of
-    the `jmerge` streak, said with the last line it printed, and the next pass starts another."""
+    """A run started under `STARTING` ago whose lock is free may not have taken it yet: the pass
+    counts nothing and starts no second run. Once the stamp is older, the run died before it kept a
+    record, as one systemd stopped: a failure of the `jmerge` streak, said with the last line it
+    printed, and the pass starts another."""
     runs = off.state / merge.RUNS
     runs.mkdir(parents=True, exist_ok=True)
-    (runs / merge.STARTED).write_text("")
     (runs / merge.CHILD_LOG).write_text("Traceback\nImportError: no jbus\n")
+    (runs / merge.STARTED).write_text(restated.moment(NOW - merge.STARTING / 2))
+    printed = off.poll()
+    assert not [line for line in printed if "jmerge did not run" in line]
+    assert off.log("jmerge") == [] and (runs / merge.STARTED).exists()
+    (runs / merge.STARTED).write_text(restated.moment(NOW - merge.STARTING))
     printed = off.poll()
     why = "its run ended with no record: ImportError: no jbus"
     assert f"wait demo: jmerge did not run ({why})" in printed
