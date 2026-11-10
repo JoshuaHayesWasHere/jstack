@@ -1,0 +1,5 @@
+{
+  "$schema": "../../schemas/feature.schema.json",
+  "name": "promo",
+  "description": "jstack's promo film, a Remotion project of ten scenes in film/."
+}

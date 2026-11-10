@@ -11,7 +11,7 @@ const sceneIds = Array.from({length: 10}, (_, i) => `Scene${String(i + 1).padSta
 const seconds = [4, 6, 5, 5, 5, 6, 8, 9, 7, 5];
 
 const compositions = async () => {
-  const serveUrl = await bundle({entryPoint: path.join(root, 'src/index.jsx')});
+  const serveUrl = await bundle({entryPoint: path.join(root, 'src/index.js')});
   return getCompositions(serveUrl);
 };
 
