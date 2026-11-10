@@ -458,7 +458,7 @@ def test_a_change_runs_the_lint_and_each_touched_test_alone_in_the_short_lane(tm
     assert "features/repo-guards/tests/test_new_lines_run.py" in guards
     assert said[0].startswith(
         f"touched: 1 test files, then {len(guards)} cross-cutting guard tests, "
-        "each alone in the short lane"
+        "then 0 test files CI failed on, each alone in the short lane"
     ), said
     assert re.fullmatch(r"lint: exit 0 in \d+ s, short lane", said[1]), said
     assert re.fullmatch(rf"{mine}: exit 0 in \d+ s, short lane", said[2]), said
@@ -565,6 +565,53 @@ def test_the_guard_tests_run_after_the_touched_ones_and_a_failed_one_fails_the_c
     assert (ran, code) == ([alone(g, base)], 0)
     assert f"{h}: passed at this head already" in said
     assert ready.short_on_checked(brief.read_text(), head) == ""
+
+
+def test_a_file_ci_failed_on_is_a_step_until_it_passes(tmp_path):
+    """A test file CI failed on, kept by the block of "The failed files", runs after the guards,
+    alone, though the change only reached it. It stays kept while it fails, and while it passes
+    on a worktree with work not committed, and leaves the kept list once it passes at a committed
+    head. A kept name that is not in the worktree runs nothing, and one a step already runs runs
+    once."""
+    g = "features/repo-guards/tests/test_g.py"
+    repo = stubbed(tmp_path, touching("tests/test_a.py", cross=(g,)))
+    (repo / "tests").mkdir()
+    (repo / "tests" / "test_ci.py").write_text("")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "the test CI failed on")
+    kept = repo / ".git" / "crew-failed-files"
+    kept.write_text("tests/test_a.py\ntests/test_ci.py\ntests/test_gone.py\n")
+    brief = a_brief(tmp_path)
+    head = git(repo, "rev-parse", "HEAD")
+
+    said, code, ran, base = selected(tmp_path, repo, exits={"*test_ci.py*": 1})
+    assert said[0].startswith(
+        "touched: 1 test files, then 1 cross-cutting guard tests, then 1 test files CI failed on,"
+    ), said
+    assert ran == [
+        lint(base),
+        alone("tests/test_a.py", base),
+        alone(g, base),
+        alone("tests/test_ci.py", base),
+    ]
+    assert code == 1
+    assert brief.read_text().endswith(
+        f"Checked: make check-fast BASE={base} PART=touched exit 1 at {head}\n"
+    )
+    assert kept.read_text() == "tests/test_ci.py\ntests/test_gone.py\n"
+
+    (repo / "scratch.txt").write_text("work not committed\n")
+    said, code, ran, base = selected(tmp_path, repo)
+    assert (ran[-1], code) == (alone("tests/test_ci.py", base), 0)
+    assert kept.read_text() == "tests/test_ci.py\ntests/test_gone.py\n"
+    (repo / "scratch.txt").unlink()
+
+    said, code, ran, base = selected(tmp_path, repo)
+    assert (ran, code) == ([alone("tests/test_ci.py", base)], 0)
+    assert brief.read_text().endswith(
+        f"Checked: make check-fast BASE={base} PART=touched exit 0 at {head}\n"
+    )
+    assert kept.read_text() == "tests/test_gone.py\n"
 
 
 def test_a_cross_cutting_guard_outside_repo_guards_is_a_desk_step(tmp_path):

@@ -44,6 +44,10 @@ else
         | group_by(.key) | map((max_by(.when).when) as $last | .[] | select(.when == $last) | .one)
         | [.[] | select(.status == "COMPLETED" and (.conclusion | IN("SUCCESS", "NEUTRAL", "SKIPPED") | not)) | run] | unique | .[]')
     files=$(for run in $runs; do gh run view "$run" --log-failed; done | sed -n 's/.* \(FAILED\|ERROR\) \([^ :]*\.py\).*/\2/p' | sort -u)
+    kept=$(git rev-parse --git-path crew-failed-files)
+    if [ -n "$files" ]; then
+        { printf '%s\n' "$files"; cat "$kept" 2> /dev/null; } | sort -u > "$kept.new" && mv "$kept.new" "$kept"
+    fi
     ran=0
     for file in $files; do
         [ -f "$file" ] || { echo "$file: not in this worktree, so not run"; continue; }
@@ -65,6 +69,7 @@ fi
 ```
 
 Its last line is `failed files: exit <n>`: 0 where each named file passed here, and the first failure's exit otherwise, which is `failed` for "A failed check".
+The block keeps the names in the worktree's `crew-failed-files` (`git rev-parse --git-path crew-failed-files`), and the check block of "Do the task" runs each one in the worktree as a step after the guards, until it passes at a committed head: a fix whose failed file is still red has no `Checked:` line of exit 0, so it is not pushed.
 A `76` in the short lane is no slot by the ceiling: run the block again at once.
 A `76` in the full lane is a wait for a slot: end the turn as "test slots" says, and on jbus's message run the block again.
 A `none` line runs nothing: the check of "Do the task" is the whole of what runs here, and its lint covers a failed lint job.
