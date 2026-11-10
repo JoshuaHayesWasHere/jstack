@@ -99,3 +99,16 @@ def test_a_carry_on_t3_code_refused_goes_on_a_later_pass(paused):
     assert "told three: one, two landed, the rows it waits on" in said
     keys = {given["clientRequestId"] for given in carry_ons(paused)}
     assert keys == {"paused-on|three|one|two"}
+
+
+def test_a_waits_on_line_with_a_word_that_is_no_queued_row_sends_no_carry_on(paused):
+    path = paused.home / "tasks" / "three.md"
+    path.write_text(path.read_text() + PAUSED.format(head="f" * 12, rows="one two."))
+    paused.set("open.json", [])
+    paused.set(
+        "merged.json",
+        [paused.merged("one", 10, "a" * 40), paused.merged("two", 11, "b" * 40)],
+    )
+    for minute in (0, 3):
+        paused.poll(NOW + timedelta(minutes=minute))
+    assert carry_ons(paused) == []
