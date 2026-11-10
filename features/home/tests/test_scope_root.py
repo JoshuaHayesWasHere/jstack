@@ -422,7 +422,7 @@ def queues(homes, thread=ROOT, kind="tasks", slug="sc-row", child=SCOPE, message
         "<child>": child,
         "<n>": "3",
         "<entry>": "epic",
-        "<thread id>/<message id>": message,
+        "<thread id>/last": message,
     }
     return homes.step(QUEUES, thread, **filled).stdout
 
@@ -446,7 +446,7 @@ def test_the_root_queues_a_row_in_its_child_with_for_and_the_users_message(stubb
         (ROOT, "nosuch", "nosuch", WORD, "nosuch is no child home of"),
         (ROOT, SCOPE, "root", WORD, f"has Home: root, not {SCOPE}: write Home: {SCOPE}"),
         (ROOT, SCOPE, SCOPE, "msg-7", "msg-7 is not the user's message"),
-        (ROOT, SCOPE, SCOPE, "<thread id>/<message id>", "is not filled in"),
+        (ROOT, SCOPE, SCOPE, "<thread id>/last", "is not filled in"),
         (SCOPED, SCOPE, SCOPE, WORD, f"this is the home of the scope {SCOPE}"),
     ],
 )

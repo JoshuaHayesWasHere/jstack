@@ -688,7 +688,8 @@ def _down(down: argparse.ArgumentParser) -> None:
     down.add_argument(
         "--message",
         metavar="THREAD/MESSAGE",
-        help="the user's own message in T3 Code, which jbus reads for the words and the time",
+        help="the user's own message in T3 Code, which jbus reads for the words and the time"
+        "; THREAD/last is the user's newest message there",
     )
     down.add_argument(
         "--evidence",

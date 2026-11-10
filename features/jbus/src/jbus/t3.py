@@ -68,7 +68,7 @@ from typing import Any
 import jroles
 import jsettings
 from jbriefs.home import scopes, thread_of
-from jbus import Config, Refused, alert, queue, verbs, write_json
+from jbus import Config, Refused, alert, queue, threadview, verbs, write_json
 from jbus.bind import NoLookup
 from jroles import pool
 from jsettings.t3 import PROTOCOL as PROTOCOL
@@ -217,6 +217,11 @@ class Message:
     def own(self) -> bool:
         """Say whether the user wrote the message: a user message that no agent sent."""
         return self.kind == "user_message" and self.by == "user"
+
+    @property
+    def ref(self) -> str:
+        """The message as `--message` names it: `<thread id>/<message id>`."""
+        return f"{self.thread}/{self.id}"
 
 
 class Client(Session):
@@ -413,15 +418,39 @@ def heard(config: Config, ref: str) -> queue.Said:
     return its text on one line, its time in the user's zone, and the title of its thread."""
     found = own(config, ref)
     words = " ".join(found.text.split())
-    return queue.Said(words, config.user.stamp(found.at), found.title, True, ref)
+    return queue.Said(words, config.user.stamp(found.at), found.title, True, found.ref)
+
+
+LAST = "last"
+"""The message id that names the user's newest message of a thread: `<thread id>/last`."""
+
+
+def resolved(ref: str) -> str:
+    """The `--message` `ref` with `<thread id>/last` turned into `<thread id>/<message id>`, the
+    newest message of the thread that T3 Code's store has as the user's own
+    (`threadview.newest_own`). Any other ref is returned as it is. Raise `Refused` where the
+    thread has no message of the user's.
+
+    `own` calls it, and so does each place a ref is taken in and kept (`jbus.cli.main`, a batch
+    of `jbus queue apply`), so no record ever keeps `last`, which names another message once the
+    user writes again."""
+    thread, _, message = ref.partition("/")
+    if message != LAST or not thread:
+        return ref
+    newest = threadview.newest_own(threadview.store(), thread)
+    if newest is None:
+        raise Refused(f"refused: thread {thread} has no message of the user's")
+    return f"{thread}/{newest}"
 
 
 def own(config: Config, ref: str) -> Message:
     """Read the user's own message `<thread id>/<message id>` from T3 Code now, and return it.
+    `<thread id>/last` names the user's newest message of the thread (`resolved`).
 
     A message that an agent or jbus sent into a thread is not the user's, and `own` refuses
     it. It also refuses a message that T3 Code does not return, and one with no words.
     """
+    ref = resolved(ref)
     thread, _, message = ref.partition("/")
     if not thread or not message:
         raise Refused(f'refused: --message is "<thread id>/<message id>", not {ref}')

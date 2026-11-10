@@ -44,8 +44,10 @@ Run this in the same call as the block at the top and those two:
 
 ```sh
 : "${ME:?run the block that finds this home first}" "${P:?run the block that reads jbus first}"
-jbus word --to "$P" --from "$ME" --message '<thread id>/<message id>'
+jbus word --to "$P" --from "$ME" --message '<thread id>/last'
 ```
+
+`<thread id>/last` names the user's newest message in that thread, which jbus finds in T3 Code's own store, so no `t3_thread_read` looks for an id: use it for the message that started this turn, since a newer one of the user's would take its place, and an older message by its id.
 
 It prints `kept: <project>, not posted, ..., word <id>`.
 `jbus queue approve --word` takes that id.
@@ -64,7 +66,7 @@ Then answer through the bot with one line: this is a door, and their own reply i
 Ask about the row alone there, in plain words, and approve it on their reply, and jbus closes the gate the word parked:
 
 ```sh
-jbus --project <project> queue approve <slug> --message <thread id>/<message id>
+jbus --project <project> queue approve <slug> --message <thread id>/last
 ```
 
 There is no sha to read first: the go is for the brief as jbus stores it, which the row keeps.
@@ -83,11 +85,10 @@ The answer is the go: never ask the user to say it again in chat, and never ask 
 Ask for a go in the box only with labels that name the rows by slug, one row to a label, such as `cite-renumber (M)`, and a question that asks which rows to start.
 A multi-select box takes several rows in one answer, which is one go for every row it picked.
 T3 Code keeps the box as an item of the home's thread of the type `user_input_request`, with an id that begins `turn-item:runtime-request:`.
-Once the user answered, read this thread with T3 Code's `t3_thread_read`, `view` `activity`, with a small `limit` and `afterPosition` near the end, and take the `itemId` of the last `user_input_request` whose text holds the question you asked.
-Approve each row its labels name with that item and this home's thread, `$ME` of the block that finds this home:
+Once the user answered, approve each row its labels name on `$ME/last`, the box of this home's thread answered last, which jbus finds in T3 Code's own store with no `t3_thread_read`; `$ME` is of the block that finds this home:
 
 ```sh
-jbus --project <project> queue approve <slug> --pick "$ME/<item id>"
+jbus --project <project> queue approve <slug> --pick "$ME/last"
 ```
 
 jbus reads the box from T3 Code, and who answered it, when and with which labels from T3 Code's own store, and approves only on the user's own answer.
@@ -104,7 +105,7 @@ When this home files the first rows of an entry, it asks the user for the entry'
 When the user's word is a go for an entry, record it with the reference of their own message:
 
 ```sh
-jbus --project <project> plan go <entry> --message <thread>/<message>
+jbus --project <project> plan go <entry> --message <thread>/last
 ```
 
 A scoped home adds `--scope <scope>`.

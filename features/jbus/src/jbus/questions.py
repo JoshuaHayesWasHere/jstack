@@ -1241,7 +1241,8 @@ def closes(closes: argparse.ArgumentParser) -> None:
     closes.add_argument(
         "--message",
         metavar="THREAD/MESSAGE",
-        help="the user's own message in T3 Code, in place of --by, --at and the words",
+        help="the user's own message in T3 Code, in place of --by, --at and the words"
+        "; THREAD/last is the user's newest message there",
     )
     which = closes.add_mutually_exclusive_group(required=True)
     which.add_argument(

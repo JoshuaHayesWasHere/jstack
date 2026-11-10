@@ -115,7 +115,8 @@ def _arguments(parser: argparse.ArgumentParser) -> None:
         "--message",
         required=True,
         metavar="THREAD/MESSAGE",
-        help="the user's own reply in a home's thread to the home's ask that named the lines",
+        help="the user's own reply in a home's thread to the home's ask that named the lines"
+        "; THREAD/last is the user's newest message there",
     )
     parser.add_argument("--as", dest="as_", choices=party.CLI_PARTIES, default="home")
 

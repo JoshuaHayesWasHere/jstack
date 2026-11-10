@@ -584,7 +584,8 @@ def _planned(planned: argparse.ArgumentParser) -> None:
     planned.add_argument(
         "--message",
         metavar="THREAD/MESSAGE",
-        help="with go: the user's own message in T3 Code that gives the entry its go",
+        help="with go: the user's own message in T3 Code that gives the entry its go"
+        "; THREAD/last is the user's newest message there",
     )
     planned.add_argument("--scope", help="a scoped home's plan, in place of the root home's")
 

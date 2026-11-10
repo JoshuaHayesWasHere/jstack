@@ -127,12 +127,11 @@ A command for the user to paste is none: offer to run it, as an option the user 
 A finished or superseded row is none: once nothing of it is left to land, remove it with `jbus queue remove` on a message of the user's that covers it.
 A go the user already gave is none: record that message with `jbus word --from "$ME"` and approve the row on it, and never pass on jbus's `approve` line for work they approved.
 A waiver is asked once, in plain words: name each row by its slug with the numbers of the Done when lines it would waive, as `alpha: lines 2 and 3`, in this home's own thread.
-The user's plain reply to that message ("yes", "clear them") is the waiver: bind it with `jbus waive <slug> <line number>... --message <thread id>/<message id>` for each row, which writes the brief's `Waived:` lines that jmerge counts.
+The user's plain reply to that message ("yes", "clear them") is the waiver: bind it with `jbus waive <slug> <line number>... --message <thread id>/last` for each row, `last` their newest message, which writes the brief's `Waived:` lines that jmerge counts.
 Never ask the user to quote a line or send exact words.
 A reply jbus refuses (not the user's own, said before the ask, or to an ask that did not name the row and its lines) is asked again in one plain sentence.
 A row this home would advise against is none: never pass on jbus's `approve` line for it.
-Remove it with `jbus queue remove <slug> --message <thread id>/<message id>` on the user's standing word for such rows (Josh, 2026-11-07: "just drop it in the future").
-Find that message in a home's thread with `t3_thread_search` for its words, and its id with `t3_thread_read` of that thread.
+Remove it with `jbus queue remove <slug> --message <thread id>/<message id>` on the user's standing word for such rows (Josh, 2026-11-07), its id from `jbus thread --said 'just drop it in the future'`.
 Then write `handled: dropped <slug>: <why>`, and say the same where you list what waits on the user.
 A blocker `jbus clear` prints as `decision` is jbus's own, and its wake brings it: write no line for it until then.
 A wait, a hold and a stalled thread are no stop while jbus or a thread is at work on them: jbus lists each on "Needs you".
@@ -187,7 +186,7 @@ When the shape of the work is not settled (more than one task, or a design choic
   The root home queues by "Queueing a row in a child" (`scoped-homes.md`), which adds `--for <child>` and the user's message.
 - The user gives the go once per entry, never per row, and to an entry that has a row.
   When this home files the first rows of an entry, it queues them, a scout's first if the entry needs design, and then asks the user for the entry's go once, in one message that names the entry and its rows.
-  It records the user's answer with `jbus plan go <entry> --message <thread>/<message>`, which refuses an entry with no row.
+  It records the user's answer with `jbus plan go <entry> --message <thread>/last`, which refuses an entry with no row.
   Each later row of the entry is approved by that go as it is queued, and the user is asked nothing for it.
   Under `go = "silence"` park each pick as a gate instead ("The user's word, carried by jbus" says how).
 
@@ -288,7 +287,7 @@ At every home's start (step 5), on a `fixed and green` line, and whenever a pull
 ## Picking up a thread that stopped
 
 A thread that stopped with its task unfinished is picked up, not started over: a turn a T3 Code restart cancelled, one that failed at the plan's limit, one jbus's nudge names.
-Its worktree and its brief hold what it did.
+Its worktree and its brief hold what it did, and `jbus thread <slug>` what it last said.
 The playbook `session-pickup` has the steps: open it with the block of "A playbook of the home's own".
 It ends in one of two calls.
 

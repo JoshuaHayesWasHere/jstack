@@ -75,6 +75,7 @@ command grep -E '^(decision|stop) local ' "${M:?run the block that finds this ho
 
 The root home then runs the block of "Scoped homes" that reads the scopes.
 Do not read a crewmate's timeline unless the user asks what it is doing.
+To see what a thread last said, after a jbus wake or when the user asks, run `jbus thread <slug>`: it prints the thread's status, its last run, its pull requests and its last message, cut at 2,000 characters, from T3 Code's own store, in place of `t3_thread_read`.
 
 Once a week the root home's status also says where changes collide.
 Run this with the block at the top, in the main checkout: when the stamp in `$H` is over 7 days old, or missing, it prints the top 5 files of the last week's three tables (merged pull requests, pairs open at once, rebases that dropped lines) and stamps the run, and otherwise it prints nothing.

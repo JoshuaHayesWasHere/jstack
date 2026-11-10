@@ -44,4 +44,5 @@ options:
   --message THREAD/MESSAGE
                         the user's own message in T3 Code that gives the go
                         for this brief: the row is approved on it in the same
-                        write, as queue approve --message approves it
+                        write, as queue approve --message approves it;
+                        THREAD/last is the user's newest message there

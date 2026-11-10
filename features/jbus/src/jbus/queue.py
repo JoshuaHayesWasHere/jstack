@@ -2850,6 +2850,12 @@ def parse(text: str) -> list[tuple[int, Verb]]:
             if verb == "hold":
                 verbs.append((number, Hold(slug)))
             elif verb == "approve":
+                if given.get("message") or given.get(PICK):
+                    from jbus import boxes, t3
+
+                    for name, resolve in (("message", t3.resolved), (PICK, boxes.resolved)):
+                        if given.get(name):
+                            given[name] = resolve(given[name])
                 said, follows = basis(given)
                 verbs.append((number, Approve(slug, said.basis, said.ref, "", follows)))
             elif verb == "remove":

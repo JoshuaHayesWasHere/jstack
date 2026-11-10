@@ -139,12 +139,12 @@ class Port:
         if message:
             heard = t3.heard(config, message)
             said = party.Evidence(
-                "t3-message", message, heard.words, heard.said_at, heard.said_in, heard.checked
+                "t3-message", heard.ref, heard.words, heard.said_at, heard.said_in, heard.checked
             )
         else:
             said = party.Evidence("typed", "", f"accept, by {user.user}", at or "")
         who = acts.cli_party(argparse.Namespace(as_=as_), said)
-        return bus.Acting(said.said_at, Acting(run, who, said))
+        return bus.Acting(said.said_at, Acting(run, who, said), said.ref)
 
     def accept(
         self,

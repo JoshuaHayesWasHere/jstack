@@ -12,10 +12,12 @@ options:
   --word ID             a word `jbus word` kept, by its id
   --answer NUMBER       the answer that closed a question
   --message THREAD/MESSAGE
-                        the user's own message in T3 Code
+                        the user's own message in T3 Code; THREAD/last is the
+                        user's newest message there
   --pick THREAD/ITEM    the user's own answer to a question box in T3 Code, by
                         its thread and its user_input_request item: it
-                        approves the row a picked label names
+                        approves the row a picked label names; THREAD/last is
+                        the box answered last there
   --rule N              taken beside --follows and not read: the follow-up
                         rule is known by what it says
   --follows SLUG        the approved row that this one follows up: its go is

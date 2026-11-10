@@ -7,6 +7,7 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   --message THREAD/MESSAGE
-                        the user's own message in T3 Code
+                        the user's own message in T3 Code; THREAD/last is the
+                        user's newest message there
   --by BY               the user's name, with --at, for words that were typed
   --at AT               "<YYYY-MM-DD HH:MM ZONE>", when the user said it

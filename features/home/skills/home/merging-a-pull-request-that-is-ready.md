@@ -3,14 +3,14 @@
 A pull request that is reviewed, fixed and green is merged, and the user is told of it when they ask for status, as "How a turn ends" says.
 Nobody has to give the word for that one.
 A pull request that is anything short of ready is never merged without the user's word.
-On that word, the one way a home merges it is `jmerge --accept <number> --as user --message <thread id>/<message id>`, run from the main checkout with the id of the user's own message in T3 Code: it lifts the hold, merges, and writes the `merged` line with that message to `$H/merge.log`.
+On that word, the one way a home merges it is `jmerge --accept <number> --as user --message <thread id>/last`, run from the main checkout on the user's own message in T3 Code, `last` their newest there: it lifts the hold, merges, and writes the `merged` line with that message to `$H/merge.log`.
 A home's own `gh pr merge`, `gh api .../pulls/<number>/merge` or GraphQL `mergePullRequest` is refused by the `merge-command` hook, which prints that line in its place ([The merge hook](../../docs/hooks.md#the-merge-hook)).
 Where the accept refuses, its line says why and what to do; relay it to the user, and merge nothing by hand.
 A pull request whose last review round says `Meets the brief: no` is short of ready, and so is one whose round has no such typed line or a count that is not its brief's: `jmerge` holds it by its own reason (`meets-no`, `meets-unread`, `meets-miscounted`), on every path that merges, a follow-up row's included.
 Its way out is its crew's fix and a scoped review whose own line says `yes`, or the user's `Waived: <the Done when line>, <thread>/<message>` line in the brief, which jbus checks rests on the user's own message, or the bot's word, in one of two ways.
 The first is a message that names the row, says it waives, and quotes that line: a home writes the line from such a message.
 The second is the user's plain reply ("yes", "clear them") in a home's own thread to that home's last message, which asked once, naming the row by its slug and the numbers of the lines it would waive, as `alpha: lines 2 and 3`.
-A home records that reply with `jbus waive <slug> <line number>... --message <thread id>/<message id>` for each row, which checks the reply and the ask and writes the `Waived:` lines itself.
+A home records that reply with `jbus waive <slug> <line number>... --message <thread id>/last` for each row, which checks the reply and the ask and writes the `Waived:` lines itself.
 A home never has the user quote a line or type exact words, and its own word waives nothing.
 Neither is one that changes a protected path (a secret, or the list of protected paths itself), nor any pull request of a repo whose merge is switched off: those are the user's to merge, ready or not.
 
@@ -110,7 +110,7 @@ Two more things keep a ready pull request from the command, and only the user li
   To protect another path, a pull request adds a line to `protected.txt`, and since it changes the list the user merges it;
 - the repo's merge is on. Every repo is on until `$H/merge-off` is there: `/nohome merge` makes the file and `/nohome merge on` removes it. With it, the line is `wait <number> <url>: auto-merge is off for this repo`, whoever runs the command, a home or `jbus`.
 
-A pull request that is held (`hold`) is merged on the user's word, through `jmerge --accept <number> --as user --message <thread id>/<message id>`.
+A pull request that is held (`hold`) is merged on the user's word, through `jmerge --accept <number> --as user --message <thread id>/last`.
 A pull request of a repo whose merge is off is the user's to merge themselves: the accept waits on `merge-off` too.
 The sweep below then removes what its thread left.
 

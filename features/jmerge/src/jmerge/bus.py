@@ -47,10 +47,12 @@ class Place:
 @dataclass(frozen=True)
 class Acting:
     """Who accepts, on what: `said_at` is when the evidence was said, and `kept` is what the bus
-    keeps for the act."""
+    keeps for the act. `ref` is the message the bus read, as `<thread id>/<message id>`, where
+    `--message` named one, a `<thread id>/last` resolved to the message it named."""
 
     said_at: str
     kept: object
+    ref: str = ""
 
 
 class Bus(Protocol):

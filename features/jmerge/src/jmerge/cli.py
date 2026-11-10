@@ -2243,7 +2243,7 @@ def parser() -> argparse.ArgumentParser:
         "--message",
         metavar="THREAD/MESSAGE",
         help="with --accept: the user's own message in T3 Code, which jbus reads, in place of "
-        "--by and --at",
+        "--by and --at; THREAD/last is the user's newest message there",
     )
     top.add_argument(
         "--as",
@@ -2437,10 +2437,10 @@ def _merging(
             if acting is None and args.message:
                 say(f"refused {args.accept}: --message is read by jbus, which has no project here")
                 return 1
-        by, at = args.by, args.at
+        by, at, message = args.by, args.at, args.message
         if acting is not None and args.message:
-            by, at = user.user, acting.said_at
-        return repo.accept(found, default, by, at, say, check, acting, args.message)
+            by, at, message = user.user, acting.said_at, acting.ref or args.message
+        return repo.accept(found, default, by, at, say, check, acting, message)
 
     if not check and (state / batch.SWITCH).exists() and default and not repo.main_state.red:
         repo.start_batch(batched, default, listed)
