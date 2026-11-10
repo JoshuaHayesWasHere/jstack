@@ -3,7 +3,7 @@
 A pass launches a row only when all of these hold:
 
 - the row has an `approved` value, and its go holds for its brief ([What an approval is bound to](the-queue.md#what-an-approval-is-bound-to));
-- every slug in `depends` is merged, or every one but one, whose pull request is open: the row then launches stacked on that pull request's branch;
+- every slug in `depends` is merged, or every one but one, whose pull request is open: the row then launches stacked on that pull request's branch, unless its brief opens no pull request (a measure or a proof row), which is never stacked and waits for that slug's merge;
 - no branch of its name exists, save the one jbus made for a launch whose connection dropped (below), and no settled thread has its slug;
 - main is not red, as `main.json` reads it, or the row fixes main (jbus filed it for the red, or its heading says it fixes main), or it launches stacked on an open row it depends on; any other row waits as `main is red: waits for green`, and launches on the first pass that reads main as green ([A red main](a-red-main.md));
 - fewer than `max_running` crewmates are out across every project in the config (`jgauge sizes` prints `max_running`, which jbus derives from the machine unless the config sets it);
