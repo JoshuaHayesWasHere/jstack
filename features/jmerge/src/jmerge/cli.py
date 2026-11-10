@@ -1662,9 +1662,9 @@ class Repo:
         failed batch of two or more has its failed jobs started again once (`rerun_batch`); one
         that failed after that keeps its members as suspects, and one of one sends its member
         alone at the head it held (`batch.Record.fail`); one that timed out is built again whole
-        once before it fails (`batch.Record.late`); a proven half sends the one suspect left alone
-        (`batch.Record.prove`); a pull request that would merge alone waits while a batch is out
-        (`batch.Batching.first`)."""
+        once before it fails (`batch.Record.late`); a proven half leaves the suspects it did not
+        hold (`batch.Record.prove`); a pull request that would merge alone waits while a batch is
+        out (`batch.Batching.first`)."""
         record = batch.Record.read(self.state)
         record.keep({str(one.number): one.head for one in listed})
         _run(self.main, "git", "fetch", "-q", "origin", default)

@@ -453,7 +453,7 @@ A batch holds the most that `batch.json` keeps (`most`, `batch.Record.most`) at 
 The most starts at 12 (`batch.START`), doubles when a batch of that many proves, to 48 at most (`batch.MOST`), and halves when a batch of that many fails after its rerun, to 3 at least (`batch.LEAST`, which a most kept under it is read as).
 A batch of fewer, a timeout, a batch that could not be made, and the first half of the suspects leave it: the half is sized by its suspects, not by the most.
 A batch proven again in a later run, while another run held the merge lock, is no longer of that many, so it doubles the most once.
-Setting both bounds to 12 undoes the rule.
+Setting `MOST` to 3 holds the most at 3; no setting holds it at 12 and still lets a batch of three form, since `batch.LEAST` is also the fewest a batch holds.
 It makes the last tree one commit whose parent is the tip, force-pushes it to its own branch `jmerge/batch`, and opens one draft pull request for it where GitHub lists none open.
 `batch.json` in the state directory keeps the tip, the tree, the commit, the members with their heads, when it was pushed, the rerun of its failed check where one was started, whether it is the first half of the suspects, and the most.
 The run says `batch: built over <base> at <tip12>, <size> of <most> members at most`, a line about no pull request, which merge.log keeps.

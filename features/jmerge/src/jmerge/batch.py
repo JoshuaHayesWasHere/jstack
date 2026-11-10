@@ -47,7 +47,8 @@ halves to, so where the most is three, one member left out for a conflict leaves
 MOST = 48
 """The most of `Record.most`, which doubles after a batch of that many proves and halves after one
 fails: at a failure share of 2.8% a member, 74% of batches of 48 fail (the scout
-po-better-further). Setting it and `LEAST` to `START` undoes the rule."""
+po-better-further). Setting it to `LEAST` keeps the most there; no setting holds the most at
+`START` and still lets a batch of fewer form, since `LEAST` is also the fewest a batch holds."""
 PENDING_MINUTES = 30
 """How long a batch may go from its push with no artifact found before it counts as failed: above
 the p90 of 387 s of the pull request check, so a run GitHub left queued or never started, or a
@@ -142,10 +143,11 @@ def _members(listed: list[dict]) -> tuple[Member, ...]:
 @dataclass
 class Record:
     """`KEPT`: the batch out, if any; the heads of the members of a failed batch of one, and of
-    the last suspect of a proven half, which go the single path at those heads; the suspects, the
+    the suspects sent alone (`alone`), which go the single path at those heads; the suspects, the
     members of the last failed batch of two or more that have not merged, in merge order, of which
-    the next batch takes the first half; and whether the batch out, or the next one built, is
-    built again after a timeout (`again`); and the most members the next batch takes (`most`).
+    the next batch takes the first half while it holds `LEAST`; and whether the batch out, or the
+    next one built, is built again after a timeout (`again`); and the most members the next batch
+    takes (`most`).
     The batch out keeps its own rerun (`Batch.rerun`), so a batch built anew has none."""
 
     path: Path
