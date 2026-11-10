@@ -52,7 +52,7 @@ from jbus import (
     Refused,
     budget,
     conditional,
-    history,
+    outcome,
     queue,
     read_json,
     review,
@@ -628,9 +628,9 @@ def unfinished(result: str) -> str:
     """Return what keeps a Result with no merge from ending its task, or nothing.
 
     The answer is what the Result leaves, or a `Branch:` line that is missing or that ends on
-    an address. An address there means a pull request that is neither open nor merged. This
-    function is the one rule for a task that ended with no pull request: `ended` and
-    `threads.finished` both call it.
+    an address. An address there means a pull request that is neither open nor merged. `closes`
+    adds to it what the close of a row owes, and is the one rule for a task that ended with no
+    pull request.
     """
     short, words = left(result), below.line(result, "Branch:").split()
     if short:
@@ -641,6 +641,23 @@ def unfinished(result: str) -> str:
         number = named(result)[1]
         return f"pull request{f' #{number}' if number else ''} is not open and not merged"
     return ""
+
+
+NO_OUTCOME = "its Result names no Outcome line"
+
+
+def closes(run: Pass, slug: str, brief: str, result: str) -> str:
+    """Return what keeps a Result with no merge from ending its row, or nothing: what it leaves
+    (`unfinished`), or, where its brief asks for a pull request, that its last Result names no
+    `Outcome:` line (`jbus.outcome`), so how the row ended is told and not guessed. A row the
+    table had at done when the pass began (`Pass.done`) ended already and owes no line. `ended`,
+    `threads.finished`, the facts of a row with no pull request (`facts`) and the reason of a row
+    at `left` all call it."""
+    if short := unfinished(result):
+        return short
+    if slug in run.done or outcome.read(brief) is not None:
+        return ""
+    return NO_OUTCOME
 
 
 def owes_pull(run: Pass, slug: str, brief: str, result: str) -> bool:
@@ -671,7 +688,7 @@ def owes_pull(run: Pass, slug: str, brief: str, result: str) -> bool:
         return False
     if awaits or after:
         return True
-    if history.pull(brief) != "open":
+    if outcome.pull(brief) != "open":
         return False
     return own(run, below.line(result, "Branch:").split()[0])
 
@@ -716,10 +733,10 @@ def ended(run: Pass, world: World, slug: str) -> End | None:
         return None
     if thread is None or at_work([thread]):
         return None
-    result = world.result(run, slug)
-    if not result or owes_pull(run, slug, brief_of(run, slug), result):
+    result, brief = world.result(run, slug), brief_of(run, slug)
+    if not result or owes_pull(run, slug, brief, result):
         return None
-    short = unfinished(result)
+    short = closes(run, slug, brief, result)
     return End("left", short) if short else End("done")
 
 
@@ -869,7 +886,8 @@ def facts(
     narrows it. A thread whose turn ended on a wait that jbus owns (`World.awaits`) is `quiet`,
     since jbus wakes it, so its row is running and nobody is told it ended. So is one whose Result
     still owes its pull request (`owes_pull`), which counts as nothing written: `threads.resume`
-    tells it once."""
+    tells it once. A clean Result of a row with no pull request open or merged that `closes` holds
+    open, since it names no `Outcome:` line, is a leftover."""
     slug = row["slug"]
     if queue.role(row) == queue.SCOUT:
         return _scouted(run, world, row, seen, launched, last)
@@ -895,12 +913,16 @@ def facts(
         elif slug not in seen.gone:
             said = work.Thread.STARTING
     number = str((world.open.get(slug) or {}).get("number", "")) if world else ""
+    wrote = work.Written.NONE if owes else written(result)
+    unmerged = world is not None and slug not in world.open and slug not in world.merged
+    if wrote == work.Written.CLEAN and unmerged and closes(run, slug, brief_of(run, slug), result):
+        wrote = work.Written.LEFTOVER
     made = work.Facts(
         row=queue.facet(run.state, row, unmet(run, world, row, seen.final)),
         thread=said or work.Thread.NONE,
         seen="" if said else str((found or {}).get("status", "")),
         launch=work.Launch.LAUNCHED if launched else work.Launch.NONE,
-        written=work.Written.NONE if owes else written(result),
+        written=wrote,
         pull=pull(world, slug, result, seen.said.get(number, "")) if world else work.Pull.NONE,
         question=work.Question.OPEN if slug in run.gated else work.Question.NONE,
         answered=answered,
@@ -1098,7 +1120,12 @@ def status(
         word, reason = "left", why
     elif word in ("merged", "left", "done"):
         result = world.result(run, slug)
-        reason = (left(result) if word == "merged" else unfinished(result)) if result else ""
+        if not result:
+            reason = ""
+        elif word == "merged":
+            reason = left(result)
+        else:
+            reason = closes(run, slug, brief_of(run, slug), result)
     return {
         "thread": (found or {}).get("threadId") or launched,
         "pr": f"#{pull['number']}" if pull else "",

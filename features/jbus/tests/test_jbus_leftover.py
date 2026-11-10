@@ -536,10 +536,12 @@ def test_a_pass_that_cannot_list_the_threads_out_leaves_an_untold_row_the_users(
     ],
 )
 def test_a_row_the_home_closes_as_the_message_says_is_done(kitchen, made, why):
+    """The close the message spells out ends a row that owed a pull request, its `Outcome:` line
+    included."""
     kitchen.quiet()
     home(kitchen)
     add(kitchen, "alpha")
-    kitchen.brief("alpha", made)
+    kitchen.brief("alpha", "Pull request: open one when done\n" + made)
     kitchen.t3.thread("alpha", "completed")
     kitchen.poll()
     assert column(kitchen) == ("left", "", "left: the docs")
@@ -550,9 +552,13 @@ def test_a_row_the_home_closes_as_the_message_says_is_done(kitchen, made, why):
     path.write_text(path.read_text() + follow + "\n".join([*copied, "Left: none"]) + "\n")
     kitchen.poll(later(1))
     assert column(kitchen) == ("left", "", why)
-    closing = re.search(r"with three lines: `([^`]+)`, `([^`]+)` and `([^`]+)`", sent["message"])
-    status, branch, left = (one.replace("<its branch>", "alpha") for one in closing.groups())
-    path.write_text(path.read_text() + follow + f"{status}\n{branch}\n{left}\n")
+    closing = re.search(
+        r"with four lines: `([^`]+)`, `([^`]+)`, `([^`]+)` and `([^`]+)`", sent["message"]
+    )
+    status, branch, ended, left = closing.groups()
+    branch = branch.replace("<its branch>", "alpha")
+    ended = ended.replace("<how it ended>", "dropped, nothing more is wanted")
+    path.write_text(path.read_text() + follow + f"{status}\n{branch}\n{ended}\n{left}\n")
     kitchen.poll(later(2))
     assert column(kitchen) == ("done", "", "")
     assert listed(kitchen) == [] and leftover.read(kitchen.state) == {}
