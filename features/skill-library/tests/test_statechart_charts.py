@@ -820,7 +820,8 @@ def test_png_renders_each_chart_with_the_pinned_mermaid_cli_and_never_npxs_lates
     tmp_path, monkeypatch
 ):
     """--png runs @mermaid-js/mermaid-cli at the version pinned in tools.py, through npx, with
-    each chart in and its PNG out: a bare package name would let npx take its latest."""
+    each chart in, first to an SVG that sizes it and then to its PNG at scale 2, which a small chart
+    keeps: a bare package name would let npx take its latest."""
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     calls = tmp_path / "calls"
@@ -829,7 +830,12 @@ def test_png_renders_each_chart_with_the_pinned_mermaid_cli_and_never_npxs_lates
         f"""#!/bin/sh
 printf '%s\\n' "$*" >> '{calls}'
 while [ $# -gt 0 ]; do
-  case "$1" in -o) touch "$2" ;; esac
+  case "$1" in
+    -o) case "$2" in
+      *.svg) echo '<svg viewBox="0 0 400 300"></svg>' > "$2" ;;
+      *) touch "$2" ;;
+    esac ;;
+  esac
   shift
 done
 """,
@@ -843,6 +849,10 @@ done
     assert re.fullmatch(r"@mermaid-js/mermaid-cli@\d+\.\d+\.\d+", pinned)
     pngs = statechart_cli.render(charts, str)
     assert pngs == [chart.replace(".mmd", ".png") for chart in charts]
-    assert read(calls).splitlines() == [
+    said = read(calls).splitlines()
+    assert [re.sub(r" -o \S+\.svg$", " -o SVG", c) for c in said[::2]] == [
+        f"-y {pinned} -i {chart} -o SVG" for chart in charts
+    ]
+    assert [re.sub(r" -p \S+\.json$", "", c) for c in said[1::2]] == [
         f"-y {pinned} -i {chart} -o {chart.replace('.mmd', '.png')} -s 2" for chart in charts
     ]
