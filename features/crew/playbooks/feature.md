@@ -29,7 +29,8 @@ Verify skill: `.claude/skills/verify-*/`, else a `verify-*` item of `skills.json
    An improvement to a shared primitive goes to every consumer inside the brief's **Where**, each one verified, with the old form deleted in the same change (`principles/principle-migrate-callers-then-delete-legacy-apis.md`).
    A consumer outside **Where** is a row, queued as `templates/a-fault-outside.md` says.
    Commit as you go.
-   Before step 7, say for each thing the change reads, writes or starts what it does with: a line that does not parse, a file or folder that is not there, a call that hangs (give it a timeout), a process that dies between two writes, and each other reader of a string or shape you changed (`rg` for it). These five are what reviews found most in the 215 merged rows to 2026-11-10.
+   Before step 7, say for each thing the change reads, writes or starts what it does with: a line that does not parse, a file or folder that is not there, a call that hangs (give it a timeout), a process that dies between two writes, and each other reader of a string or shape you changed (`rg` for it).
+   These five are what reviews found most in the 215 merged rows to 2026-11-10.
 7. Verify on the surface the user will meet: the repo's verify skill where it has one, and its check command (`principles/principle-prove-it-works.md`). "Inconclusive", or a pass on another surface, is not a pass: say so.
 8. Stop when every "Done when" line holds.
    What else you saw stays out of the diff: it is a queued row or nothing (`templates/a-fault-outside.md`).
