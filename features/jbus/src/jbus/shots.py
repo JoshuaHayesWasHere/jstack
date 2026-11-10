@@ -111,7 +111,8 @@ def brief(
             f"Design: none, the shots are the run's `{ARTIFACT}` artifact",
             "Pull request: open one when done",
             "Review: review",
-            "Playbook: none",
+            "Playbook: autonomous-run",
+            "Skills: principle-test-behavior-not-implementation",
             f"Home: {UNCATEGORIZED}",
             "Read:",
             *(

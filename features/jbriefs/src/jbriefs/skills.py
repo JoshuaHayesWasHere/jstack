@@ -189,7 +189,8 @@ def resolve(said: str) -> Named:
 
 def _none(line: str) -> bool:
     """Whether a `Skills:` line names nothing, which it does when its first word is `none`, as
-    in `none.` or `none, <why>`, the form a `Design:` line takes."""
+    in `none.` or `none, <why>`. The queue refuses such a line (`fault`), but a brief approved
+    before it did, and the review that judges a change without its skills, still say it."""
     first = line.split(maxsplit=1)[0] if line.strip() else ""
     return first.rstrip(".,;:").lower() == "none"
 
@@ -214,30 +215,39 @@ def named(text: str) -> tuple[Named, ...]:
     return tuple(found.values())
 
 
-_NAMES = "(name a skill or principle that skills.json lists, without its path, or none)"
+TABLE = (
+    "(a brief names a crewmate's playbook and at least one skill: pick both by the kind of task, "
+    "from the table in the home skill's handing-a-task-to-a-crewmate.md)"
+)
+"""The pointer that ends the fault of a brief with no playbook or no skill (`parse.playbook`,
+`fault`): the home's table picks both for each kind of task."""
+_NAMES = "(name a skill or principle that skills.json lists, without its path)"
 
 
-def unknown(text: str) -> str:
-    """Why a brief's `Skills:` line names something that is no skill or principle. The answer
-    is one line that names the bad name, or an empty string when every name resolves. A brief
-    with no `Skills:` line names no skill, and passes."""
+def fault(text: str) -> str:
+    """Why a brief's `Skills:` line names no skill, or something that is no skill or principle,
+    as one line that names the bad name, or an empty string when it names one and every name
+    resolves. A brief with no `Skills:` line, or one that says `none`, names no skill, and is at
+    fault: the home's table names one for each kind of task (`TABLE`)."""
     line = _head(text)
-    if line is None or _none(line):
+    if line is None:
+        return f"brief has no Skills: line {TABLE}"
+    if not line or _none(line) or line.startswith("<") or "|" in line:
+        said = (
+            "is empty" if not line else "says none" if _none(line) else "is the template's own text"
+        )
+        return f"brief's Skills: line {said} {TABLE}"
+    bad = [one.said for one in named(text) if one.path is None]
+    if not bad:
         return ""
-    if not line:
-        fault = "is empty"
-    elif line.startswith("<") or "|" in line:
-        fault = "is the template's own text"
-    else:
-        bad = [one.said for one in named(text) if one.path is None]
-        if not bad:
-            return ""
-        listed = ", ".join(bad[:SHOWN])
-        if len(bad) > SHOWN:
-            listed += f" and {len(bad) - SHOWN} more"
-        which = "which is" if len(bad) == 1 else "which are"
-        fault = f"names {listed}, {which} no skill and no principle that skills.json lists"
-    return f"brief's Skills: line {fault} {_NAMES}"
+    listed = ", ".join(bad[:SHOWN])
+    if len(bad) > SHOWN:
+        listed += f" and {len(bad) - SHOWN} more"
+    which = "which is" if len(bad) == 1 else "which are"
+    return (
+        f"brief's Skills: line names {listed}, {which} no skill and no principle that skills.json "
+        f"lists {_NAMES}"
+    )
 
 
 def artifacts(path: Path | None = None) -> dict[str, str]:
@@ -319,7 +329,7 @@ def missing(text: str) -> tuple[str, ...]:
     an empty one or a placeholder. It returns the names as the brief spells them, in the
     line's order. The match goes by canonical name, so `build-the-lever` in the brief and
     `principle-build-the-lever` under `Skills run:` are one name. The queue and the launch
-    refuse a name that resolves to no file (`unknown`), so this function asks no artifact
+    refuse a name that resolves to no file (`fault`), so this function asks no artifact
     for it."""
     have = run(text)
     return tuple(

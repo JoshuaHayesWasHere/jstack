@@ -18,7 +18,7 @@ from test_jbus_kitchen import NOW
 
 __all__ = ["launched"]
 
-OUT = "\n## Result\nReviewer: mcp:a-reviewer #1\n"
+OUT = "\n## Result\nSkills run:\n- tdd: a failing test, then the fix\nReviewer: mcp:a-reviewer #1\n"
 WRITTEN = f"\n## Review\nBy: mcp:a-reviewer #1\nVerdict: clean\nHead: {'c' * 40}\n"
 
 
