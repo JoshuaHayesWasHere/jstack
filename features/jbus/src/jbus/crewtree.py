@@ -49,6 +49,16 @@ def path(run: Pass, slug: str) -> Path:
     return cleanup.worktrees() / run.project.checkout.name / slug.replace("/", "-")
 
 
+def holding(run: Pass, directory: Path) -> str:
+    """Return the slug whose crew's or scout's worktree holds `directory`, at its top or in a
+    folder of it, or nothing for a directory in no such worktree."""
+    try:
+        parts = directory.resolve().relative_to(path(run, "").resolve()).parts
+    except ValueError:
+        return ""
+    return parts[0].removeprefix(SCOUT) if parts else ""
+
+
 def scout_path(run: Pass, slug: str) -> Path:
     """Return the path of the scout `slug`'s worktree, beside the crews'."""
     return cleanup.worktrees() / run.project.checkout.name / f"{SCOUT}{slug}"
