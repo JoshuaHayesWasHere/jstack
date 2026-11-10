@@ -33,12 +33,14 @@ VIEW = "features/jbus/tests/view/"
 
 FLOW_SPEC = "features/jmerge/tests/test_flow_spec.py"
 
+PR_VERDICT = "features/jmerge/tests/test_pr_verdict_spec.py"
+
 STATECHART_RUNS = (
     "features/skill-library/tests/test_statechart_runs.py",
     "features/skill-library/tests/test_statechart_specs.py",
 )
 
-MODEL_CHECKS = (FLOW_SPEC, *STATECHART_RUNS)
+MODEL_CHECKS = (FLOW_SPEC, PR_VERDICT, *STATECHART_RUNS)
 
 TABLE = [
     ("all", ["pyproject.toml"], {"all"}, ()),
@@ -166,14 +168,17 @@ TABLE = [
         {"features/skill-library/tests/test_statechart_charts.py"},
         (),
     ),
-    ("models", ["features/jmerge/spec/FlowToday.tla"], {FLOW_SPEC}, STATECHART_RUNS),
+    ("models", ["features/jmerge/spec/FlowToday.tla"], {FLOW_SPEC}, (PR_VERDICT, *STATECHART_RUNS)),
     (
         "models",
         ["features/skill-library/skills/statechart/scripts/statechart/lib.py"],
-        {FLOW_SPEC, *STATECHART_RUNS},
+        {FLOW_SPEC, PR_VERDICT, *STATECHART_RUNS},
         (),
     ),
-    ("models", ["features/jbus/src/jbus/watch.py"], {FLOW_SPEC}, STATECHART_RUNS),
+    ("models", ["features/jbus/src/jbus/watch.py"], {FLOW_SPEC}, (PR_VERDICT, *STATECHART_RUNS)),
+    ("models", ["features/jmerge/spec/PrVerdict.cfg"], {PR_VERDICT}, STATECHART_RUNS),
+    ("models", ["features/jmerge/src/jmerge/batch.py"], {PR_VERDICT}, STATECHART_RUNS),
+    ("models", ["features/jbus/src/jbus/rebase.py"], {PR_VERDICT, FLOW_SPEC}, STATECHART_RUNS),
     ("models-only", ["features/jgauge/docs/limits.md"], set(), MODEL_CHECKS),
     ("models-only", ["features/jbus/src/jbus/boxes.py"], set(), MODEL_CHECKS),
     ("models-only", ["features/jmerge/verify.md"], set(), MODEL_CHECKS),
