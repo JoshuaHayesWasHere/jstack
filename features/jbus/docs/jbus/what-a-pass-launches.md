@@ -109,17 +109,19 @@ T3 Code's storage cleanup removes a finished crew's worktree by its thread's pat
 
 ## What a rebase asks of its crew
 
-`rebase.tell` reads three kinds of `wait` line `jmerge` prints about a rebase, and sends the crew one message for each head, keyed `<kind>|<slug>|<head 12>`.
+`rebase.tell` reads three kinds of `wait` line `jmerge` prints about a rebase, and acts once for each head, keyed `<kind>|<slug>|<head 12>`.
 
-| `jmerge` waits on | jbus sends | Key |
+| `jmerge` waits on | jbus does | Key |
 |---|---|---|
-| main moving under the pull request, or a conflict with its base | an ask to rebase, with a backup ref and a lease | `rebase` |
-| a rebase that changed the content after its review (`scoped review of <range-diff>`) | an ask for one scoped review of that range-diff | `rereview` |
-| lines the rebase dropped with no `Dropped on rebase:` line at the head | an ask to put the lines back or explain each file | `drops` |
+| main moving under the pull request, or a conflict with its base | sends an ask to rebase, with a backup ref and a lease | `rebase` |
+| a rebase that changed the content after its review (`scoped review of <range-diff>`) | launches one scoped reviewer of that range-diff in the crew's worktree, and writes its `Scoped reviewer:` line; the crew is sent nothing | `rereview` |
+| lines the rebase dropped with no `Dropped on rebase:` line at the head | sends an ask to put the lines back or explain each file | `drops` |
 
-The third kind ends in a scoped-review ask too.
-Once the Result explains each drop, `jmerge` waits with `the scoped review has not ruled on the drops in <files>; scoped review of <range-diff>`, and jbus asks the crew for that scoped review under the `rereview` key.
-A head with a `rereview` mark already, or whose Result has a `Scoped reviewer:` line of it, is asked nothing more.
+The third kind ends in a scoped review too.
+Once the Result explains each drop, `jmerge` waits with `the scoped review has not ruled on the drops in <files>; scoped review of <range-diff>`, and jbus launches that scoped reviewer under the `rereview` key.
+A head with a `rereview` mark already, or whose Result has a `Scoped reviewer:` line of it, gets no other reviewer.
+The key is marked before the launch, so a pass that crashes launches no second one; a capped review pool, no worktree for the crew, or T3 Code refusing the launch marks nothing and is a gate once for the head.
+The crew hears of the scoped review from `jbus.reviewed` once it is written, with its findings by id, and of a clean one not at all.
 
 ## A crew is compacted at its pull request
 

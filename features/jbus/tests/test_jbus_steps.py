@@ -63,10 +63,9 @@ from jbus import (
 from test_jbus_clock import NO_FIX_REVIEW, N, to
 from test_jbus_expedite import NO_FIXED, URL, Short
 from test_jbus_fresh_head import Due
-from test_jbus_kitchen import NOW, PROJECT, sends
+from test_jbus_kitchen import NOW, PROJECT
 from test_jbus_questions import answer, ask
 from test_jbus_remarks import OWNER, one
-from test_jbus_rereview import out as rereview_out
 from test_jbus_unlock import CHANGED
 from test_jbus_verbs import fresh
 
@@ -609,13 +608,3 @@ def rooted(kitchen, crew, reviewer):
     """Return each message the crew got that names its scoped reviewer, which only the clock's
     line on a reviewer with no worktree does."""
     return [one for one in to(kitchen, crew) if reviewer["threadId"] in one]
-
-
-def test_the_rereview_message_names_the_crew_s_worktree_to_launch_the_scoped_reviewer_in(kitchen):
-    short = Short(kitchen)
-    short.thread["worktreePath"] = "/worktrees/alpha"
-    rereview_out(kitchen)
-    kitchen.poll()
-    (given,) = sends(kitchen)
-    assert "launch ONE scoped reviewer, not a full review, in your worktree, " in given["message"]
-    assert "`/worktrees/alpha`" in given["message"]

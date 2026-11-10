@@ -18,17 +18,28 @@ resolves a conflict.
 
 `tell` also reads a second kind of `wait` line, about a rebase that changed what the patch says.
 `jmerge` keeps a review valid across a rebase whose range-diff changes no content, and waits on a
-rebase whose range-diff changes content. jbus then asks the crew for one scoped review of that
-range-diff, under the key `rereview|<slug>|<head 12>`. jbus asks once for each head, so it never
-asks for a second review of the same head.
+rebase whose range-diff changes content. jbus then launches one scoped reviewer of that range-diff
+itself (`scope`), and asks the crew nothing: a thread titled `review: <slug>, scoped` in the
+crew's worktree, told `/pr-review run <slug> scoped <old> <new>`, with the arguments of a first
+review's launch (`prereview.arguments`), and a `Scoped reviewer: <thread>, of <head>` line added
+under the Result (`prereview._record`). Its key, `rereview|<slug>|<head 12>`, is marked before the
+launch, since a launch has no retry key: a pass that crashes after it launches no second reviewer
+of the head. The same key tells `expedite` the head is asked for. A launch waits while the crew is
+at work, since the reviewer reads the crew's worktree, and while GitHub has the pull request at
+another head. A pass that finds the review pool capped, no worktree for the crew, or T3 Code
+refusing the launch launches nothing, leaves the key unmarked so the next pass tries again, and
+is a gate once for the head. A launch that got no reply keeps its key, since it may have made the
+thread, and is a condition once, as `prereview`'s is. The crew hears of the scoped review once it
+is written, from `jbus.reviewed`, with its findings by id, as of any review round, and hears
+nothing of one that is clean.
 
 The third kind of `wait` line is about a rebase that dropped lines nobody explained. `jmerge` waits
 on such a rebase, and jbus tells the crew once per head, under the key `drops|<slug>|<head 12>`. The
 crew puts the lines back, or says for each file why the lines are gone. `jmerge` then waits on the
 scoped review that rules on those reasons, and its line names the range-diff, as the changed-content
-line does. So the third kind ends in a scoped-review ask too: jbus asks the crew for that review
-once per head, under `rereview|<slug>|<head 12>`. A head that already has that mark, or whose
-Result has a `Scoped reviewer:` line of it, is asked nothing more.
+line does. So the third kind ends in a scoped review too, launched as above, once per head, under
+`rereview|<slug>|<head 12>`. A head that already has that mark, or whose Result has a `Scoped
+reviewer:` line of it, gets no other reviewer.
 
 `once` is the one function that sends these messages, and `jbus.culprits`' too, and writes
 their keys, which `mark` is the one function to word. `deliver` is `post` with the event that says
@@ -70,14 +81,16 @@ import re
 from dataclasses import dataclass, replace
 from urllib.parse import urlsplit
 
+import jroles
 from jbriefs import below
 from jbriefs.home import thread_of
-from jbus import END_TURN, cancelled, dispatch, outbox, queue, review, verbs
+from jbus import END_TURN, cancelled, dispatch, outbox, prereview, queue, review, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import (
     NEVER,
     World,
+    at_work,
     checks,
     failed_in,
     job_log,
@@ -89,6 +102,7 @@ from jmerge import ready
 from jmerge import stacked as stacks
 from jmerge.checks import check_state, latest_of_each
 from jmerge.lines import Line
+from jroles import pool
 
 EVENTS = {
     "rebase": "quiet",
@@ -114,23 +128,15 @@ MESSAGE = (
 )
 
 
-_RANGES = re.compile(r"(git range-diff --no-color (\S+\.\.[0-9a-f]{40}) (\S+\.\.([0-9a-f]{40})))$")
-REREVIEW = (
-    "jbus: your rebase of pull request #{number} changed its content after its review ({command})."
-)
-UNRULED = (
-    "jbus: your Result explains the lines the rebase of pull request #{number} dropped, and no "
-    "scoped review has ruled on them yet ({command})."
-)
-SCOPED = (
-    " If the Result already has a `Scoped reviewer:` line that names this head, launch nothing "
-    "more. Otherwise launch ONE scoped reviewer, not a full review, in {{worktree}}: the same way "
-    'the crew skill\'s "The review" launches a reviewer, with `workspaceStrategy` '
-    "`existing_worktree` on that worktree and the message `/pr-review run {slug} scoped {old} "
-    "{new}`. Add `Scoped reviewer: <threadId>, of {head}` to the Result, in place of a `Scoped "
-    "reviewer:` line that names another head no `## Review` has. Do not rebase again until its "
-    "`## Review` is written. Handle its findings as a review's: a `Finding:` line for each."
-)
+_RANGES = re.compile(r"git range-diff --no-color (\S+\.\.[0-9a-f]{40}) (\S+\.\.([0-9a-f]{40}))$")
+SCOPED = (ready.CONTENT_CHANGED.code, ready.SCOPED_UNRULED.code)
+"""The codes of the `wait` reasons that a scoped review of the reason's range-diff lifts."""
+SCOPED_TITLE = "review: {slug}, scoped"
+SCOPED_ASK = "/pr-review run {slug} scoped {old} {new}"
+NO_TREE = "its scoped review was not launched: T3 Code names no worktree for its crew"
+CAPPED = "its scoped review was not launched: every instance of the review pool is capped"
+LAUNCH_REFUSED = "T3 Code refused the launch of its scoped reviewer"
+LAUNCH_LOST = "the launch of its scoped reviewer got no reply"
 
 
 _AT = re.compile(r" at ([0-9a-f]{12})$")
@@ -184,25 +190,17 @@ def _waits(line: str) -> tuple[Line, str] | None:
 
 def content(line: str) -> tuple[int, str, Ask] | None:
     """Return the number of the pull request, the reason that `jmerge` gives, and the scoped review
-    that jbus requests. `content` reads a line that waits on a scoped review: of a rebase that
-    changed the content, or of drops the Result explains that no review has ruled on. The two
-    ranges of the review are the ones the reason's range-diff names."""
+    that jbus launches. `content` reads a line that waits on a scoped review: of a rebase that
+    changed the content, or of drops the Result explains that no review has ruled on. The ask's
+    message is the reviewer's, with the two ranges the reason's range-diff names, and its head is
+    the head that range-diff ends on."""
     found = _waits(line)
-    scoped = {ready.CONTENT_CHANGED.code: REREVIEW, ready.SCOPED_UNRULED.code: UNRULED}
-    why = scoped.get(found[1], "") if found else ""
-    named = _RANGES.search(found[0].reason) if found and why else None
+    named = _RANGES.search(found[0].reason) if found and found[1] in SCOPED else None
     if not found or not named:
         return None
-    asked = _scoped(why.replace("{command}", named[1]), named[2], named[3])
-    return found[0].number, found[0].reason, Ask("rereview", *asked, named[4])
-
-
-def _scoped(why: str, old: str, new: str) -> tuple[str, str, str]:
-    """Return what an ask for a scoped review says when it is done, what it says when it could not
-    be done, and its message."""
-    message = (why + SCOPED).replace("{old}", old).replace("{new}", new)
-    message = message.replace("{head}", new.rpartition("..")[2])
-    return "asked the crew for a scoped review", "asked for a scoped review", message
+    message = SCOPED_ASK.replace("{old}", named[1]).replace("{new}", named[2])
+    ask = Ask("rereview", "launched the scoped reviewer", "given a reviewer", message, named[3])
+    return found[0].number, found[0].reason, ask
 
 
 def drops(line: str) -> tuple[int, str, str] | None:
@@ -233,19 +231,64 @@ def asks(line: str) -> tuple[int, str, Ask] | None:
 
 
 def tell(run: Pass, client: Client, world: World, lines: list[str]) -> None:
-    """Send one message, once per head, to each crew whose pull request `jmerge` calls stale,
-    rebased with its content changed, or short of lines nobody explained or ruled on. A scoped
-    review the Result already names a reviewer of at its head is asked for no more."""
+    """Send one message, once per head, to each crew whose pull request `jmerge` calls stale or
+    short of lines nobody explained, and launch one scoped reviewer, once per head, of each pull
+    request whose rebase changed its content or whose drops no review ruled on."""
     for number, reason, ask in filter(None, map(asks, lines)):
-        if ask.kind == "rereview" and scoping(run, world, number, ask.head):
-            continue
-        deliver(run, client, world, number, reason, ask)
+        if ask.kind == "rereview":
+            scope(run, client, world, number, reason, ask)
+        else:
+            deliver(run, client, world, number, reason, ask)
 
 
-def scoping(run: Pass, world: World, number: int, head: str) -> bool:
-    """Say whether the brief of the pull request has a `Scoped reviewer:` line of this head."""
+def scope(run: Pass, client: Client, world: World, number: int, reason: str, ask: Ask) -> None:
+    """Launch the one scoped reviewer that `ask` owes the pull request at its head: see the
+    module. Nothing is launched where the Result already names a scoped reviewer of the head."""
     slug = next((slug for slug, pull in world.open.items() if pull["number"] == number), "")
-    return bool(slug and below.reviewers(task_brief(run, slug), "Scoped reviewer", head))
+    head = world.open[slug].get("headRefOid", "") if slug else ""
+    if not head or head != ask.head or not crew(run, slug):
+        return
+    key = mark(ask.kind, slug, head)
+    if key in run.box.sent() or below.reviewers(task_brief(run, slug), "Scoped reviewer", head):
+        return
+    thread = thread_of(run.home, slug)
+    if not thread:
+        run.gate(slug, NO_THREAD, f"#{number}: {reason}", key=f"{NO_THREAD} {head[:12]}")
+        return
+    if at_work(world.threads.get(slug, [])) or moved(run, slug, number, head):
+        return
+    tree = worktree(client, thread)
+    if not tree:
+        run.gate(slug, NO_TREE, f"#{number}: {thread}", key=f"{NO_TREE} {head[:12]}")
+        return
+    try:
+        routes = list(pool.routes("review", run.now, dispatch.cannot_sign_in(run, client)))
+    except jroles.Refused as error:
+        run.say(f"note {slug}: the role map gives the review no model ({error}): it inherits")
+        routes = []
+    routed = routes[0] if routes else None
+    if routed is not None and routed.choice.instance is None:
+        run.gate(slug, CAPPED, f"#{number}: {routed.choice.why}", key=f"{CAPPED} {head[:12]}")
+        return
+    branch = str(world.open[slug].get("headRefName") or slug)
+    asked = prereview.arguments(run, slug, 1, tree, branch, routed)
+    asked |= {"title": SCOPED_TITLE.format(slug=slug), "message": ask.message.format(slug=slug)}
+    run.box.mark(key)
+    try:
+        made, why = (client.call("t3_thread_launch", asked) or {}).get("threadId"), ""
+    except T3Refused as error:
+        run.box.unmark(key)
+        run.gate(slug, LAUNCH_REFUSED, f"#{number} at {head}: {error}", key=f"{key} refused")
+        return
+    except T3Error as error:
+        made, why = None, f": {error}"
+    if not made:
+        run.condition(slug, LAUNCH_LOST, f"#{number} at {head}{why}", key=f"{key} lost")
+        return
+    prereview._record(run, slug, [f"Scoped reviewer: {made}, of {head}\n"])
+    line = f"{ask.kind} {slug}: {ask.did} {made} (#{number}, {head[:12]})"
+    run.find(slug, ask.kind, line, asked["message"], key=f"{head[:12]} launched")
+    run.say(line)
 
 
 def github(run: Pass, client: Client, world: World) -> None:
@@ -534,6 +577,11 @@ def held(
     """
     if outbox.hold(run, client, thread=thread, row=slug, key=key, template=kind, needs="act"):
         return True
+    return moved(run, slug, number, head)
+
+
+def moved(run: Pass, slug: str, number: int, head: str) -> bool:
+    """Say whether GitHub has the pull request at a head other than `head`, or did not say."""
     asked = run.run("gh", "pr", "view", str(number), "--json", "headRefOid")
     try:
         now = json.loads(asked.stdout).get("headRefOid", "") if asked.returncode == 0 else ""

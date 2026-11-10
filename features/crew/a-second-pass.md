@@ -104,7 +104,7 @@ The only other way out is the user's `Waived:` line ("The review").
   A reviewer whose review could not be done says so in its message and writes a section with `Verdict: not run`.
   That section is not a review, and the block still prints this line for it: add one line to the Result saying why the review was not done, and park a gate ("Do the task"), with the default that the pull request waits.
   A `Scoped reviewer:` line counts for the head it names after `of` and for no other.
-  A rebase's scoped reviewer is written the same way, `Scoped reviewer: <threadId>, of <head>`, as the message from jbus says.
+  A rebase's scoped reviewer has a line of the same shape, which jbus writes when it launches it ("A conflict").
 - `had`: the scoped review is in the brief, and its findings are handled as above.
   No reviewer is launched again, whatever a fix for its findings changed.
 - `scoped: the head the review saw ... is not a commit here`, or `scoped: this worktree does not know its default branch`: no range can be given. Add what it printed to the Result and park a gate ("Do the task"), with the default that the pull request waits.
@@ -116,4 +116,4 @@ A `Meets the brief: no` still waits for the scoped review that says `yes`, as th
 Where that review stays unwritten, jbus says so in a message here that begins `jbus: pull request #<n> waits on you`.
 
 A rebase waits for a review that is running, and for nothing else: the first block of "A conflict" does nothing while a reviewer this thread launched has not written its section, so the head does not move from under it.
-A rebase starts a review only as "A conflict" says: a scoped review on the message that the rebase changed the content after its review.
+A rebase starts a review only as "A conflict" says: one scoped review, which jbus launches, where the rebase changed the content after its review.

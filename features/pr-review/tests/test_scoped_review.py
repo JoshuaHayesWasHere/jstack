@@ -24,12 +24,12 @@ SKILL = reviews.SKILL
 
 
 SECTION = as_read(SKILL).split("\n### A scoped pass\n")[-1].split("\n## ")[0]
-MESSAGE = re.compile(r"`(/pr-review run (\S+) scoped (\S+) (\S+))`")
+MESSAGE = re.compile(r"^(/pr-review run (\S+) scoped (\S+) (\S+))$")
 
 
 def asked(number, command):
-    """The launch message jbus gives the crew for the line `jmerge` prints. The match that
-    this returns holds the message's parts as its groups."""
+    """The message jbus launches the scoped reviewer with for the line `jmerge` prints. The match
+    that this returns holds the message's parts as its groups."""
     line = (
         f"wait {number} https://example.test/pull/{number}: the rebase changed the content "
         f"after its review; scoped review of {command}"
