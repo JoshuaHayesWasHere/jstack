@@ -449,10 +449,11 @@ def test_an_accept_that_will_not_merge_says_why_at_once_and_not_after_the_run_it
 def test_an_accept_that_is_ready_merges_once_github_decides_after_the_run_it_waited_on(kitchen):
     """An accept of a ready, held pull request that waited for the run lock while that run's
     merges moved main asks GitHub again until it has decided whether the pull request merges,
-    and merges in that one run. On 2026-11-09 #1504 ended `GitHub has not decided whether it
-    merges` three times after `--check` printed `ready`, and merged on a fourth run. Here a run
-    holds the lock and moves main, GitHub answers the first ask after the lock "undecided"
-    (`once/`, which the fake `gh` gives once) and the next "mergeable"."""
+    within `jmerge.cli.DECIDING`, and merges in that one run. On 2026-11-09 #1504 ended
+    `GitHub has not decided whether it merges` three times after `--check` printed `ready`, and
+    merged on a fourth run. Here a run holds the lock and moves main, GitHub answers the first
+    ask after the lock "undecided" (`once/`, which the fake `gh` gives once) and the next
+    "mergeable"."""
     head = held(kitchen, "beta", 7, {"a.txt": "ours\n" + LINES}, mode="none")
     checked = check(kitchen, 7)
     assert kitchen.home.code == 0, (checked, kitchen.home.stderr)
@@ -483,7 +484,8 @@ def test_an_accept_that_is_ready_merges_once_github_decides_after_the_run_it_wai
 
 
 def test_an_accept_whose_list_github_garbles_waits_on_github_and_merges_nothing(kitchen):
-    """An accept that cannot read GitHub's list asks no more and says so, as a plain run does."""
+    """An accept that cannot read GitHub's list asks no more (`jmerge.cli.undecided`) and says
+    so, as a plain run does."""
     held(kitchen, "beta", 7, {"a.txt": "ours\n" + LINES}, mode="none")
     (kitchen.home.stub / "list.json").write_text("not json\n")
     out = accept(kitchen, 7)
