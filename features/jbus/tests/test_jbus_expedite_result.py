@@ -68,20 +68,66 @@ def test_a_line_jmerge_prints_for_a_result_reason_finds_its_row_by_its_text(reas
     assert row is not None and row.reason.code == reason.code
 
 
-def test_a_pull_request_with_no_proved_line_tells_its_crew_once_per_head(short, kitchen):
-    short.out(PROVED_MISSING)
-    short.passes(2)
-    assert sends(kitchen) == []
+ON_SIGHT = [
+    ("proved-missing", PROVED_MISSING),
+    ("proved-stale", ready.PROVED_STALE.format(at="a" * 12, head="b" * 12)),
+    ("checked-missing", ready.CHECKED_MISSING.format(head="c" * 12)),
+    ("checked-cut", ready.CHECKED_CUT.format(at="c" * 12, head="c" * 12)),
+    ("checked-stale", ready.CHECKED_STALE.format(at="a" * 12, head="c" * 12)),
+]
+"""Waits only the crew's own proof or check clears, told on sight (`Short.spells`)."""
+
+
+def keys(kitchen):
+    return [one["clientRequestId"] for one in sends(kitchen)]
+
+
+@pytest.mark.parametrize(("kind", "reason"), ON_SIGHT)
+def test_a_proof_or_check_wait_tells_the_idle_crew_at_once_and_once_more_per_idle_spell(
+    kind, reason, short, kitchen
+):
+    """#1490, #1483, #1472 and #1514 sat green on a `Proved:` line of an older head, with their
+    crews idle and told nothing. The first pass that sees the wait tells the crew. A crew that
+    went to work on it and stopped short at the same head is told once more, and no more."""
+    short.out(reason)
     said = short.passes(1)
-    assert sends(kitchen) == [said_to(short, "proved-missing", PROVED_MISSING, SAYS_MISSING)]
-    line = f"expedite alpha: told the crew what #7 is short of (proved-missing, {short.head[:12]})"
-    assert line in said
-    short.passes(6)
+    told = f"{kind}|alpha|{short.head[:12]}"
+    assert keys(kitchen) == [told]
+    assert f"expedite alpha: told the crew what #7 is short of ({kind}, {short.head[:12]})" in said
+    short.passes(2)
+    short.thread["status"] = "running"
+    short.passes(3)
+    assert keys(kitchen) == [told]
+    short.thread["status"] = "completed"
+    short.passes(1)
+    assert keys(kitchen) == [told, f"{told}|2"]
+    assert sends(kitchen)[1]["message"] == sends(kitchen)[0]["message"]
+    short.thread["status"] = "running"
+    short.passes(2)
+    short.thread["status"] = "completed"
+    short.passes(3)
+    assert keys(kitchen) == [told, f"{told}|2"]
+
+
+def test_a_proof_wait_is_not_told_while_its_crew_is_at_work(short, kitchen):
+    short.thread["status"] = "running"
+    short.out(PROVED_MISSING)
+    short.passes(5)
+    assert sends(kitchen) == []
+    short.thread["status"] = "completed"
+    short.passes(1)
+    assert keys(kitchen) == [f"proved-missing|alpha|{short.head[:12]}"]
+    short.passes(3)
     assert len(sends(kitchen)) == 1
+
+
+def test_a_proof_wait_at_a_new_head_is_told_afresh(short, kitchen):
+    short.out(PROVED_MISSING)
+    short.passes(1)
     head = short.commit("a new head")
     short.out(PROVED_MISSING, head=head)
-    short.passes(3)
-    assert [one["clientRequestId"] for one in sends(kitchen)] == [
+    short.passes(1)
+    assert keys(kitchen) == [
         f"proved-missing|alpha|{short.head[:12]}",
         f"proved-missing|alpha|{head[:12]}",
     ]

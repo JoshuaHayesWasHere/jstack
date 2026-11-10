@@ -268,9 +268,6 @@ def said_to(short, kind, reason, sentence):
         ("meets-no", MEETS_NO),
         ("meets-unread", MEETS_UNREAD),
         ("meets-miscounted", MEETS_MISCOUNTED),
-        ("checked-missing", CHECKED_MISSING),
-        ("checked-cut", CHECKED_CUT),
-        ("checked-stale", CHECKED_STALE),
     ],
 )
 def test_the_third_pass_of_one_reason_at_one_head_tells_the_crew_once(kind, reason, short, kitchen):
