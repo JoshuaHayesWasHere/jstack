@@ -43,7 +43,7 @@ A scout's request, from add to launch (`scout-path`):
 
 - `scout-add` stores a request in the template's shape in the home's `scouts/`, and refuses one with a crewmate's line, naming the line.
 - `scout-approve` records the user's go for the request's sha, on a word that `jbus word` kept.
-- `scout-launch` launches one `scout: <slug>` thread on the next pass, in the project's own checkout, with no branch.
+- `scout-launch` launches one `scout: <slug>` thread on the next pass, with `existing_worktree` into `$T3CODE_HOME/worktrees/<checkout>/scout+<slug>`, a worktree jbus made detached, with no branch, that holds `.claude/settings.json` and `.claude/.gitignore`, and removes it once its Report says done and no scout thread is at work.
 - `scout-show` prints each request's state, its thread and what its last Report says.
 
 A decision wakes the home thread (`home-wake`):
@@ -145,7 +145,10 @@ Preconditions:
   It prints `launched scout alpha: mcp:sandbox-thread-1`.
 - **Check the launch itself.**
   Run `record scout-path jq -c 'select(.tool == "t3_thread_launch") | .arguments' "$VERIFY_JSTACK_SANDBOX/t3/calls.jsonl"`.
-  There is one line, titled `scout: alpha`, with the message `/scout alpha` and the workspace `{"type": "root"}`, and `t3/threads.json` gives its thread the branch `null`.
+  There is one line, titled `scout: alpha`, with the message `/scout alpha` and the workspace `{"type": "existing_worktree", "worktreePath": "<the worktree>"}`, and `t3/threads.json` gives its thread the branch `null`.
+  The worktree is `$T3CODE_HOME/worktrees/demo/scout+alpha`, which jbus made: the sandbox leaves `T3CODE_HOME` unset, so it is `$HOME/.t3/worktrees/demo/scout+alpha`.
+  Run `record scout-path git -C "$HOME/.t3/worktrees/demo/scout+alpha" status -sb` and `record scout-path ls -A "$HOME/.t3/worktrees/demo/scout+alpha/.claude"`.
+  The worktree is detached, `## HEAD (no branch)`, with nothing to commit, and its `.claude` holds `settings.json` and `.gitignore`.
   The request is in `$HOME/.local/state/home/demo/scouts/alpha.md`, with the line `Thread: mcp:sandbox-thread-1` added.
 - **Check the repo.**
   Run `record scout-path git -C "$VERIFY_JSTACK_SANDBOX/demo" for-each-ref --format='%(refname)'`.
@@ -156,6 +159,9 @@ Preconditions:
 - **Write a Report.**
   Append `## Report` with `Status: done` to `scouts/alpha.md`, run `record scout-path jbus poll`, then `record scout-path jbus --project demo queue show --all`.
   The row's `status` is `done`.
+- **Settle the scout, and pass.**
+  Run `jq 'map(.settled = true)' "$VERIFY_JSTACK_SANDBOX/t3/threads.json" > "$VERIFY_JSTACK_SANDBOX/t3/t" && mv "$VERIFY_JSTACK_SANDBOX/t3/t" "$VERIFY_JSTACK_SANDBOX/t3/threads.json"`, then `record scout-path jbus poll`.
+  It prints `removed scout alpha's worktree`, and `record scout-path git -C "$VERIFY_JSTACK_SANDBOX/demo" worktree list` lists the main checkout only.
 - **Proof.**
   Copy `t3/calls.jsonl`, `t3/threads.json`, the request and `$JBUS_STATE_DIR/demo/queue.json` into `$VERIFY_JSTACK_EVIDENCE`.
 
