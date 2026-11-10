@@ -1,0 +1,218 @@
+---
+title: "What does jbus do with a thread, launch to archive?"
+config:
+  markdownAutoWrap: false
+  state:
+    useMaxWidth: false
+---
+stateDiagram-v2
+  classDef plain fill:#f4f6f7,stroke:#566573,color:#1b2631
+  classDef group0 fill:#eaf2f8,stroke:#75797c,color:#1b2631
+  classDef group1 fill:#fdebd0,stroke:#7f7668,color:#1b2631
+  classDef group2 fill:#ffffff,stroke:#808080,color:#1b2631
+  classDef group3 fill:#e8daef,stroke:#746d78,color:#1b2631
+  classDef group4 fill:#d1f2eb,stroke:#697976,color:#1b2631
+  state "Legend" as legend {
+    state "Launching" as legendGroup0
+    state "Gated" as legendGroup1
+    state "Out" as legendGroup2
+    state "Its home's" as legendGroup3
+    state "Put away" as legendGroup4
+  }
+  class legendGroup0 group0
+  class legendGroup1 group1
+  class legendGroup2 group2
+  class legendGroup3 group3
+  class legendGroup4 group4
+  state "At the same time" as regions {
+    [*] --> r0s3
+    state "Gated" as r0s0
+    state "Its home's" as r0s1
+    state "Launching" as r0s2
+    state "Not launched" as r0s3
+    state "Out" as r0s4
+    state "Put away" as r0s5
+    r0s1 --> r0s5 : jbus archives the thread [when<br/>a Result that ends it or its<br/>pull request merged or closed]
+    %% when r1s0, r1s10
+    r0s1 --> r0s5 : jbus settles the thread, its<br/>work held [when a Result that<br/>ends it or its pull request<br/>merged or closed]
+    %% when r1s0, r1s10
+    r0s2 --> r0s0 : T3 Code refuses the launch: a<br/>gate [when the record says<br/>intent or the record says<br/>intent, a retry]
+    %% when r1s36, r1s37
+    r0s2 --> r0s0 : the lookup finds no one<br/>thread: a gate [when the reply<br/>is lost, T3 Code made no<br/>thread or the reply is lost,<br/>T3 Code made the thread or the<br/>reply is lost, the connection<br/>dropped, T3 Code made the<br/>thread]
+    %% when r1s39, r1s40, r1s42
+    r0s2 --> r0s4 : the next pass adopts the one<br/>thread that matches [when the<br/>reply is lost, T3 Code made<br/>the thread or the reply is<br/>lost, the connection dropped,<br/>T3 Code made the thread]
+    %% when r1s40, r1s42
+    r0s2 --> r0s4 : the reply names the thread<br/>[when the record says intent<br/>or the record says intent, a<br/>retry]
+    %% when r1s36, r1s37
+    r0s3 --> r0s2 : jbus writes the launch record
+    r0s4 --> r0s5 : jbus archives the thread [when<br/>a Result that ends it or its<br/>pull request merged or closed]
+    %% when r1s0, r1s10
+    r0s4 --> r0s5 : jbus settles the thread, its<br/>work held [when a Result that<br/>ends it or its pull request<br/>merged or closed]
+    %% when r1s0, r1s10
+    r0s4 --> r0s1 : jbus tells the home the crew<br/>stopped after two carry-ons<br/>[when its turn failed, no<br/>Result, 2 of 2 carry-ons sent]
+    %% when r1s17
+    r0s4 --> r0s1 : jbus tells the home the row is<br/>left [when a Result that<br/>leaves something or its turn<br/>completed, no Result or its<br/>turn completed, no Result, 1<br/>of 2 carry-ons sent or its<br/>turn completed, no Result, 2<br/>of 2 carry-ons sent or its<br/>turn is hung, no Result or its<br/>turn is hung, no Result, 1 of<br/>2 carry-ons sent or its turn<br/>is hung, no Result, 2 of 2<br/>carry-ons sent]
+    %% when r1s1, r1s12, r1s13, r1s14, r1s18, r1s19, r1s20
+    r0s4 --> r0s1 : the home's stall ladder nudges<br/>the home [unless a Result that<br/>ends it or a Result that owes<br/>its pull request, told once to<br/>open it, its turn writes or<br/>its pull request merged or<br/>closed or its turn writes, no<br/>Result or its turn writes, no<br/>Result, 1 of 2 carry-ons sent<br/>or its turn writes, no Result,<br/>2 of 2 carry-ons sent]
+    %% when not r1s0, r1s7, r1s10, r1s27, r1s28, r1s29
+    --
+    [*] --> r1s30
+    state "a Result that ends it" as r1s0
+    state "a Result that leaves<br/>something" as r1s1
+    state "a Result that owes its<br/>pull request, ended" as r1s2
+    state "a Result that owes its<br/>pull request, told once to<br/>open it, ended" as r1s3
+    state "a Result that owes its<br/>pull request, told once to<br/>open it, its turn is hung" as r1s4
+    state "a Result that owes its<br/>pull request, told once to<br/>open it, its turn is quiet" as r1s5
+    state "a Result that owes its<br/>pull request, told once to<br/>open it, its turn waits on<br/>a request" as r1s6
+    state "a Result that owes its<br/>pull request, told once to<br/>open it, its turn writes" as r1s7
+    state "archived, scratch cleared" as r1s8
+    state "archived, scratch kept" as r1s9
+    state "its pull request merged or<br/>closed" as r1s10
+    state "its pull request open" as r1s11
+    state "its turn completed, no<br/>Result" as r1s12
+    state "its turn completed, no<br/>Result, 1 of 2 carry-ons<br/>sent" as r1s13
+    state "its turn completed, no<br/>Result, 2 of 2 carry-ons<br/>sent" as r1s14
+    state "its turn failed, no Result" as r1s15
+    state "its turn failed, no<br/>Result, 1 of 2 carry-ons<br/>sent" as r1s16
+    state "its turn failed, no<br/>Result, 2 of 2 carry-ons<br/>sent" as r1s17
+    state "its turn is hung, no<br/>Result" as r1s18
+    state "its turn is hung, no<br/>Result, 1 of 2 carry-ons<br/>sent" as r1s19
+    state "its turn is hung, no<br/>Result, 2 of 2 carry-ons<br/>sent" as r1s20
+    state "its turn is quiet, no<br/>Result" as r1s21
+    state "its turn is quiet, no<br/>Result, 1 of 2 carry-ons<br/>sent" as r1s22
+    state "its turn is quiet, no<br/>Result, 2 of 2 carry-ons<br/>sent" as r1s23
+    state "its turn waits on a<br/>request, no Result" as r1s24
+    state "its turn waits on a<br/>request, no Result, 1 of 2<br/>carry-ons sent" as r1s25
+    state "its turn waits on a<br/>request, no Result, 2 of 2<br/>carry-ons sent" as r1s26
+    state "its turn writes, no Result" as r1s27
+    state "its turn writes, no<br/>Result, 1 of 2 carry-ons<br/>sent" as r1s28
+    state "its turn writes, no<br/>Result, 2 of 2 carry-ons<br/>sent" as r1s29
+    state "no launch record" as r1s30
+    state "settled, nothing held,<br/>scratch cleared" as r1s31
+    state "settled, nothing held,<br/>scratch kept" as r1s32
+    state "settled, work held,<br/>scratch cleared" as r1s33
+    state "settled, work held,<br/>scratch kept" as r1s34
+    state "the launch is your gate" as r1s35
+    state "the record says intent" as r1s36
+    state "the record says intent, a<br/>retry" as r1s37
+    state "the record says launch it<br/>once more" as r1s38
+    state "the reply is lost, T3 Code<br/>made no thread" as r1s39
+    state "the reply is lost, T3 Code<br/>made the thread" as r1s40
+    state "the reply is lost, the<br/>connection dropped, T3<br/>Code made no thread" as r1s41
+    state "the reply is lost, the<br/>connection dropped, T3<br/>Code made the thread" as r1s42
+    r1s0 --> r1s9 : jbus archives the thread
+    r1s0 --> r1s34 : jbus settles the thread, its<br/>work held
+    r1s2 --> r1s7 : jbus tells the crew once to<br/>open its pull request [when<br/>Out]
+    %% when r0s4
+    r1s5 --> r1s4 : 20 min with nothing written
+    r1s7 --> r1s5 : 10 min with nothing written
+    r1s7 --> r1s6 : the crew asks you something
+    r1s7 --> r1s3 : the turn ends
+    r1s9 --> r1s8 : jbus clears its scratch
+    r1s10 --> r1s9 : jbus archives the thread
+    r1s10 --> r1s34 : jbus settles the thread, its<br/>work held
+    r1s11 --> r1s10 : the pull request merges or<br/>closes
+    r1s15 --> r1s28 : jbus tells the crew to carry<br/>on [when Out]
+    %% when r0s4
+    r1s16 --> r1s29 : jbus tells the crew to carry<br/>on [when Out]
+    %% when r0s4
+    r1s21 --> r1s18 : 20 min with nothing written
+    r1s21 --> r1s27 : the turn writes again
+    r1s22 --> r1s19 : 20 min with nothing written
+    r1s23 --> r1s20 : 20 min with nothing written
+    r1s24 --> r1s27 : you answer its request
+    r1s27 --> r1s21 : 10 min with nothing written
+    r1s27 --> r1s24 : the crew asks you something
+    r1s27 --> r1s12 : the turn ends
+    r1s27 --> r1s0 : the turn ends
+    r1s27 --> r1s2 : the turn ends
+    r1s27 --> r1s11 : the turn ends
+    r1s27 --> r1s1 : the turn ends
+    r1s27 --> r1s15 : the turn ends
+    r1s28 --> r1s22 : 10 min with nothing written
+    r1s28 --> r1s25 : the crew asks you something
+    r1s28 --> r1s13 : the turn ends
+    r1s28 --> r1s16 : the turn ends
+    r1s29 --> r1s23 : 10 min with nothing written
+    r1s29 --> r1s26 : the crew asks you something
+    r1s29 --> r1s14 : the turn ends
+    r1s29 --> r1s17 : the turn ends
+    r1s30 --> r1s36 : jbus writes the launch record
+    r1s32 --> r1s31 : jbus clears its scratch
+    r1s34 --> r1s33 : jbus clears its scratch
+    r1s34 --> r1s32 : the work held closes
+    r1s36 --> r1s39 : no reply, or one that names no<br/>thread
+    r1s36 --> r1s41 : no reply, or one that names no<br/>thread
+    r1s36 --> r1s40 : no reply, or one that names no<br/>thread
+    r1s36 --> r1s42 : no reply, or one that names no<br/>thread
+    r1s36 --> r1s35 : T3 Code refuses the launch: a<br/>gate
+    r1s36 --> r1s27 : the reply names the thread
+    r1s37 --> r1s35 : T3 Code refuses the launch: a<br/>gate
+    r1s37 --> r1s27 : the reply names the thread
+    r1s38 --> r1s37 : jbus writes the launch record
+    r1s39 --> r1s35 : the lookup finds no one<br/>thread: a gate
+    r1s40 --> r1s35 : the lookup finds no one<br/>thread: a gate
+    r1s40 --> r1s27 : the next pass adopts the one<br/>thread that matches
+    r1s41 --> r1s38 : no thread, the connection<br/>dropped: launch once more
+    r1s42 --> r1s35 : the lookup finds no one<br/>thread: a gate
+    r1s42 --> r1s27 : the next pass adopts the one<br/>thread that matches
+    r1s42 --> r1s21 : the next pass adopts the one<br/>thread that matches
+    r1s42 --> r1s24 : the next pass adopts the one<br/>thread that matches
+    r1s42 --> r1s12 : the next pass adopts the one<br/>thread that matches
+    r1s42 --> r1s0 : the next pass adopts the one<br/>thread that matches
+    r1s42 --> r1s2 : the next pass adopts the one<br/>thread that matches
+    r1s42 --> r1s11 : the next pass adopts the one<br/>thread that matches
+    r1s42 --> r1s1 : the next pass adopts the one<br/>thread that matches
+    r1s42 --> r1s15 : the next pass adopts the one<br/>thread that matches
+    r1s42 --> r1s18 : the next pass adopts the one<br/>thread that matches
+    r1s42 --> r1s10 : the next pass adopts the one<br/>thread that matches
+  }
+  class r0s0 group1
+  class r0s1 group3
+  class r0s2 group0
+  class r0s3 group0
+  class r0s4 group2
+  class r0s5 group4
+  class r1s0 plain
+  class r1s1 plain
+  class r1s2 plain
+  class r1s3 plain
+  class r1s4 plain
+  class r1s5 plain
+  class r1s6 plain
+  class r1s7 plain
+  class r1s8 group4
+  class r1s9 group4
+  class r1s10 plain
+  class r1s11 plain
+  class r1s12 plain
+  class r1s13 plain
+  class r1s14 plain
+  class r1s15 plain
+  class r1s16 plain
+  class r1s17 plain
+  class r1s18 plain
+  class r1s19 plain
+  class r1s20 plain
+  class r1s21 plain
+  class r1s22 plain
+  class r1s23 plain
+  class r1s24 plain
+  class r1s25 plain
+  class r1s26 plain
+  class r1s27 plain
+  class r1s28 plain
+  class r1s29 plain
+  class r1s30 group0
+  class r1s31 group4
+  class r1s32 group4
+  class r1s33 group4
+  class r1s34 group4
+  class r1s35 group1
+  class r1s36 group0
+  class r1s37 group0
+  class r1s38 group0
+  class r1s39 group0
+  class r1s40 group0
+  class r1s41 group0
+  class r1s42 group0
