@@ -36,25 +36,11 @@ import jbus
 import jbus.passes
 import jbus.questions
 import jsettings
+import merge_in_pass
 import origin_tips
 import repo_template
 from jbriefs import meaning
-from jbus import (
-    acts,
-    cli,
-    live,
-    merge,
-    outbox,
-    party,
-    poll,
-    queue,
-    rebase,
-    t3,
-    tick,
-    verbs,
-    wake,
-    word,
-)
+from jbus import acts, cli, live, outbox, party, poll, queue, rebase, t3, tick, verbs, wake, word
 from jgauge import slot, waiters
 from jmerge import judgement
 from jroles import ledger
@@ -800,7 +786,7 @@ class Kitchen:
             self.fakes[str(script)] = fake, text
         self.started = subprocess.run
         monkeypatch.setattr(subprocess, "run", self.run)
-        monkeypatch.setattr(merge, "start", self.merge_at_once)
+        merge_in_pass.patch(monkeypatch)
         monkeypatch.setattr(verbs, "clock", lambda: NOW)
         for name, text in (
             ("open.json", "[]"),
@@ -827,14 +813,6 @@ class Kitchen:
         monkeypatch.setattr(queue, "clock", lambda: NOW)
         self.monkeypatch = monkeypatch
         self.machine()
-
-    def merge_at_once(self, run):
-        """This function takes the place of `merge.start` while the kitchen exists: the pass's run
-        of `jmerge` runs to its end before the pass reads what ended, so a pass reads the lines of
-        the run it started, as when the pass waited on it. `test_jbus_merge_off_pass.py` runs the
-        real start."""
-        merge.keep(merge.runs(run), run.project.checkout)
-        return ""
 
     def run(self, command, **how):
         """This function takes the place of `subprocess.run` while the kitchen exists, and answers a

@@ -1,6 +1,6 @@
 """A pass starts its run of `jmerge` and does not wait for it: the run is a process of its own, and
 the first pass after it ended reads what it printed, once (`jbus.merge.merge`). The kitchen runs
-`jmerge` inside the pass (`Kitchen.merge_at_once`), so these tests put the real start back, and
+`jmerge` inside the pass (`merge_in_pass.py`), so these tests put the real start back, and
 the kitchen's `jmerge` runs as a command on PATH, sleeping as long as `jmerge-sleep` says.
 """
 
