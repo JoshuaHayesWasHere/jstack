@@ -81,7 +81,6 @@ MODULES = (
     "jbus.telemetry.measures.m58_visual_misses",
     "jbus.telemetry.measures.m59_wrong_home",
     "jbus.telemetry.measures.m60_schema_files",
-||||||| parent of 31986c95a (feat(jbus): gh calls an hour and the lowest core allowance read gh_hours; the cap leaves no absent log)
     "jbus.telemetry.measures.m61_gh_calls_per_hour",
 )
 """Each measure's module by its dotted name, so a new measure is named by a test that reads it."""
