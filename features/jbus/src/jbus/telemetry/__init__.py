@@ -44,6 +44,7 @@ each `SCORECARD_EVERY`, as a child it does not wait for.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sqlite3
@@ -75,6 +76,8 @@ from jbus.telemetry import (
     views,
 )
 from jbus.telemetry.records import SOURCES, Source
+from jmerge import lines as lines_of
+from jsettings import proc
 
 FILE = "telemetry.sqlite"
 PAGE = "kpis.html"
@@ -82,6 +85,11 @@ SCORECARD = "scorecard.html"
 SCORECARD_EVERY = timedelta(minutes=15)
 """How old the pass's scorecard page may be before a pass builds it again: a pass runs about
 twice a minute, and the page is not worth its queries each time."""
+UNIT = "jbus-scorecard-{}"
+"""The transient unit of a build started from a pass that systemd runs (`_scorecard_chore`). The
+digest of the state directory keeps a sandbox's builds apart from the machine's."""
+SYSTEMD = ("INVOCATION_ID", "JOURNAL_STREAM", "SYSTEMD_EXEC_PID", "MANAGERPID")
+"""The variables systemd sets for one unit, which the build's unit gets of its own."""
 PASS_BYTES = 16 * 2**20
 """How much of the record files a pass reads at most; a file is read whole once begun."""
 BUSY_MS = 30_000
@@ -565,8 +573,11 @@ def _scorecard_chore(config: jbus.Config, now: datetime, say: Callable[[str], No
     """Start the page of the config's first project where it is absent or older than
     `SCORECARD_EVERY`, and no build was started within that time. The build is a child of its
     own, `jbus scorecard --out`, which the pass does not wait for: the registry's reads take
-    longer than a pass may. The child's output is kept beside the page, and a build that did not
-    end in its line is said here once, as one line, with no alert."""
+    longer than a pass may. A pass that systemd runs is a oneshot unit, and systemd ends every
+    process left in it when the pass ends, a new session or not: the build is then a transient unit
+    of its own (`UNIT`), with the pass's environment. A pass run by hand starts it in a session of
+    its own. The child's output is kept beside the page, and a build that did not end in its line,
+    or a unit systemd would not start, is said here once, as one line, with no alert."""
     if not config.projects:
         return
     out = config.state_dir / SCORECARD
@@ -581,20 +592,22 @@ def _scorecard_chore(config: jbus.Config, now: datetime, say: Callable[[str], No
     out.parent.mkdir(parents=True, exist_ok=True)
     started.touch()
     os.utime(started, (now.timestamp(), now.timestamp()))
-    project = config.projects[0].name
+    child = [sys.executable, "-m", "jbus", "--project", config.projects[0].name]
+    child += ["scorecard", "--out", str(out)]
+    if os.environ.get("INVOCATION_ID"):
+        digest = hashlib.sha256(str(config.state_dir.resolve()).encode()).hexdigest()[:8]
+        command = ["systemd-run", "--user", "--quiet", "--collect", f"--unit={UNIT.format(digest)}"]
+        command += [
+            f"--property={each}=truncate:{log}" for each in ("StandardOutput", "StandardError")
+        ]
+        command += [f"--setenv={key}" for key in os.environ if key not in SYSTEMD]
+        if (ran := proc.run(*command, "--", *child)).returncode:
+            say(f"scorecard: no page: {lines_of.said(ran)}")
+        return
     with log.open("w") as output:
         try:
             subprocess.Popen(
-                [
-                    sys.executable,
-                    "-m",
-                    "jbus",
-                    "--project",
-                    project,
-                    "scorecard",
-                    "--out",
-                    str(out),
-                ],
+                child,
                 stdin=subprocess.DEVNULL,
                 stdout=output,
                 stderr=subprocess.STDOUT,
