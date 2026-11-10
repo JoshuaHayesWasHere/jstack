@@ -126,11 +126,20 @@ class GitHub:
     now: Any = NOW
     answers: dict[str, Any] = field(default_factory=dict)
     world: Any = None
+    logs: dict[int, str] = field(default_factory=lambda: LOGS)
+    steps: dict[int, str] = field(default_factory=lambda: STEPS)
 
     def tip(self) -> str:
         return LINTED
 
     def run(self, *command: str) -> Asked:
+        """GitHub's answer to `command`, behind the status line `gh api -i` prints before it."""
+        asked = self.answer(*command)
+        if "-i" in command and asked.returncode == 0:
+            return Asked("HTTP/2.0 200 OK\r\n\r\n" + asked.stdout)
+        return asked
+
+    def answer(self, *command: str) -> Asked:
         path = command[2] if command[:2] == ("gh", "api") else ""
         commits = [
             {"sha": LINTED, "parents": [{"sha": TESTED}], "commit": {"message": "fix: x (#12)"}},
@@ -149,10 +158,12 @@ class GitHub:
             run = {"id": number, "name": name, "status": "completed", "conclusion": "failure"}
             return Asked(json.dumps({"check_runs": [{**run, "check_suite": {"id": 1}}]}))
         if path.endswith("/logs"):
-            return Asked(LOGS[int(path.split("/")[-2])])
+            return Asked(self.logs[int(path.split("/")[-2])])
         if "/actions/jobs/" in path:
             number = int(path.split("/")[-1])
-            return Asked(json.dumps({"steps": [{"name": STEPS[number], "conclusion": "failure"}]}))
+            return Asked(
+                json.dumps({"steps": [{"name": self.steps[number], "conclusion": "failure"}]})
+            )
         if command[:2] == ("git", "symbolic-ref"):
             return Asked("origin/main\n")
         return Asked("", 1)
@@ -191,3 +202,38 @@ def test_tell_writes_why_main_went_red_once_and_the_store_reads_it_as_the_spells
     with contextlib.closing(machine.store()) as store:
         spells = store.execute("SELECT start_pr, cause FROM main_spells").fetchall()
     assert spells == [(11, "change")]
+
+
+UNCOLLECTED = (
+    "_____ ERROR collecting features/m/tests/test_m.py _____\n"
+    "ImportError while importing test module 'features/m/tests/test_m.py'.\n"
+    "E   ModuleNotFoundError: No module named 'm.gone'\n"
+    "ERROR features/m/tests/test_m.py\n"
+    "!!!!! Interrupted: 1 error during collection !!!!!\n"
+    "===== 1 error in 0.5s =====\nmake: *** [Makefile:85: test] Error 1\n"
+)
+COVERAGE = (
+    "===== 9 passed in 1.0s =====\n"
+    "sqlite3.OperationalError: no such table: coverage_schema\n"
+    "make: *** [Makefile:85: test] Error 1\n"
+)
+
+
+def test_tell_calls_a_red_whose_tests_could_not_be_collected_a_change_and_a_coverage_fault_infra(
+    machine, monkeypatch
+):
+    """A test file pytest could not collect (an ImportError, a syntax error) is the code's own
+    fault, though the run names no failed test; a fault of the coverage file names none either,
+    and is not the code's."""
+    state = machine.state("alpha")
+    record = mainjson.record(main=GREEN, at=iso(NOW), check="green", broken="", green=GREEN)
+    (state / mainjson.NAME).write_text(json.dumps(record))
+    said = {GREEN: "green", TESTED: "failed", LINTED: "failed"}
+    monkeypatch.setattr(mainmoved, "main_check", lambda run, at, **_: said[at])
+    logs, steps = {101: UNCOLLECTED, 102: COVERAGE}, {101: "make test", 102: "make test"}
+    mainmoved.tell(GitHub(state, logs=logs, steps=steps))
+    lines = [json.loads(line) for line in (state / mainmoved.REDS).read_text().splitlines()]
+    assert [(line["sha"], line["failed"], line["verdict"]) for line in lines] == [
+        (TESTED, [], "change"),
+        (LINTED, [], "infra"),
+    ]
