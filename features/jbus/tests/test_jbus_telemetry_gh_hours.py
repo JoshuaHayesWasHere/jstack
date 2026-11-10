@@ -118,10 +118,11 @@ def test_the_allowance_is_the_lower_of_core_and_graphql(machine):
     """GraphQL is a wall of its own, and the nearer one while the machine idles: 900 points left
     of it is the reading, under the 3,000 core calls left."""
     append(machine, *(call(f"2026-11-09T11:0{n}:00+00:00", remaining=3000 + n) for n in range(4)))
-    append(
-        machine,
-        *(call(f"2026-11-09T11:1{n}:00+00:00", remaining=900 + n, resource="graphql") for n in range(2)),
+    graphql = (
+        call(f"2026-11-09T11:1{n}:00+00:00", remaining=900 + n, resource="graphql")
+        for n in range(2)
     )
+    append(machine, *graphql)
     machine.build()
     by = {each.name: each for each in measures.MEASURES}
     with machine.store() as store:
