@@ -5,6 +5,7 @@ run is `flow_canaries.py`, and it skips where no Java runs TLC."""
 
 import importlib
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -48,6 +49,45 @@ def test_today_and_the_design_hold_their_rules_and_each_canary_breaks_its_own():
     assert "FixAfterARedCheckWaitsOnlyOnYou" in flow.PROBES
     for probe in flow.PROBES:
         assert any(line.startswith(f"ok    today: {probe} holds") for line in lines)
+
+
+STALE_CITES = {
+    ("scripts/select_tests.py", "if owns(patterns, path)"),
+    (
+        "features/jmerge/src/jmerge/cli.py",
+        "if judgement.verb(why) == judgement.HOLD and ready.code_of(why) in lifted:",
+    ),
+    (
+        "features/jmerge/src/jmerge/cli.py",
+        "said = self.merge(one, found.slug, found.note, found.judged)",
+    ),
+    (
+        "features/jbus/src/jbus/rebase.py",
+        "sent = run.box.sent() for slug, pull in world.open.items():",
+    ),
+    (
+        "features/jmerge/src/jmerge/cli.py",
+        "moved = None if one.started is None else self.moved(one.base, one.started)"
+        " if ( moved is None",
+    ),
+    ("features/jbus/src/jbus/queue.py", "_hold(batch.row(verb.slug), by)"),
+}
+
+
+def test_each_cite_of_today_s_model_quotes_code_that_stands():
+    """A step of FlowToday.tla cites the code it models as a path and a backticked quote, and the
+    quote stands in that file: #1643 rewrote reverts.close's check, and RevertCloses quoted the
+    line it removed. STALE_CITES are the quotes known gone, which ci-flow-stale-cites re-cites: a
+    re-cited one leaves the set too, so it only shrinks."""
+    text = (SPEC / "FlowToday.tla").read_text()
+    cites = re.findall(r"([\w./-]+\.(?:py|yml|yaml|sh|md|toml)) `([^`]+)`", text)
+    assert cites
+    stale = {
+        (path, quote)
+        for path, quote in cites
+        if not (REPO / path).is_file() or quote not in (REPO / path).read_text()
+    }
+    assert stale == STALE_CITES
 
 
 def test_a_desk_record_writes_the_tlc_test_at_the_table_s_warm_time():
