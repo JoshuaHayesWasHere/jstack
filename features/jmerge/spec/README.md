@@ -220,6 +220,7 @@ The chart has 19 states and 24 steps, and no state breaks the rule.
 - A required check with no run at its head (`NO_RUN`), the restart of a queued run, and `repeats`, which only saves a CI round.
 - GitHub's merge state and `merge-tree` disagreeing (`FRESH_CONFLICT`): `CONFLICTS` stands for both.
 - Main moving between the verdict and the merge (`merge_holding`'s judge again): each step is atomic.
-- A batch of two or more: its timeout, its rerun, its narrowing to suspects, and `BATCH_FIRST`. The model's batch is of one, and proves or fails on the tree merged over main.
+- A batch of two or more: its timeout, its rerun, its narrowing to suspects, and `BATCH_FIRST`.
+  The model's batch is of one, and proves or fails on the tree merged over main.
 - A crew's fix that fails again, and a review round that says the brief is not met: one fix makes the change good, and one round holds.
 - Whose your accept is: the bus's doors and `--message` (`Repo.accept`).
