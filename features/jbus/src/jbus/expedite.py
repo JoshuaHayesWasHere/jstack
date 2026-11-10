@@ -4,12 +4,8 @@ longer does.
 A crew ends its turn, and nothing wakes it for what it left undone. `jmerge` reports a wait
 in a line that nobody reads. `tell` reads those lines. When a line gives the same
 crew-fixable reason for the same head for `AFTER` passes, `tell` sends the crew one
-message that says what to do, under the key `<kind>|<slug>|<head 12>`. A `proved-` or `checked-`
-reason is one only the crew's own proof or check clears (`Short.spells`): `tell` sends it on the
-first pass that sees it, and once more at the same head when a new idle spell of the crew starts,
-that is, on the first pass with the crew not at work after a pass that saw it at work since the
-message. That second message goes under `<kind>|<slug>|<head 12>|2`, and there is no third
-(`TELLS`). `TABLE` holds every reason with its sentence:
+message that says what to do, under the key `<kind>|<slug>|<head 12>`, but for the rows only the
+crew's own proof or check clears (`Short.spells`, `TELLS`). `TABLE` holds every reason:
 
 - `unfixed`, `the Result has no Fixed line`: write an answer for each finding, by id, and
   the `Fixed:` line. The line is `Fixed: none needed` when the crew declines every finding,
@@ -118,6 +114,7 @@ from jbriefs import below, findings, skills
 from jbriefs.home import thread_of
 from jbus import END_TURN, dispatch, merge, outbox, read_json, rebase, verbs, write_json
 from jbus.passes import Pass
+from jbus.review import ranges
 from jbus.stall import PASSES, REVIEWING
 from jbus.t3 import Client, T3Error
 from jbus.watch import World, at_work, task_brief
@@ -132,15 +129,15 @@ STALL = "stall"
 AFTER = 3
 LAPSE = AFTER + PASSES
 TELLS = 2
-"""The messages a crew gets at one head for a row only its own proof or check clears
-(`Short.spells`): one on the first pass that sees it, and one more when a new idle spell starts."""
+"""What `tell` sends a crew at one head for a `proved-` or `checked-` row (`Short.spells`): one
+message on the first pass that sees it, and one more, under `<key>|2`, on the first pass the crew
+is idle after a pass that saw it at work since."""
 NO_THREAD = "short pull request with no thread to tell"
 REFUSED = "T3 Code refused the message about what a pull request is short of"
 FILE = "expedite.json"
 REVIEW = "review: "
 NO_RANGE = "its crew kept no head before its rebase, so the hold is the user's"
 NO_RANGES = "jmerge names no range-diff and its crew kept no head before its rebase to ask for"
-_OWED = re.compile(r"^Scoped review: needed since ([0-9a-f]{40}),", re.M)
 SECOND_PASS = (
     'Run the block of the crew skill\'s "A second pass" in your worktree and do what it prints: '
 )
@@ -216,20 +213,10 @@ class Short:
     rerun: bool = False
 
     @property
-    def spells(self) -> bool:
-        """Say whether only the crew's own proof or check clears the row, so `tell` sends it on
-        the first pass that sees it, and once more when a new idle spell of the crew starts."""
-        return self.kind.startswith(("proved-", "checked-"))
-
-    @property
-    def after(self) -> int:
-        """The passes of one reason at one head before `tell` sends the row."""
-        return 1 if self.spells else AFTER
-
-    @property
-    def tells(self) -> int:
-        """The messages `tell` sends a crew of the row at one head."""
-        return TELLS if self.spells else 1
+    def spells(self) -> tuple[int, int] | None:
+        """Return the passes before the first message and the messages per head (`TELLS`) of a
+        row only the crew's own proof or check clears, or None for any other row."""
+        return (1, TELLS) if self.kind.startswith(("proved-", "checked-")) else None
 
 
 def no_reviewer_by_rule(brief: str, head: str) -> bool:
@@ -623,36 +610,6 @@ def short_of(said: merge.Line) -> Short | None:
     return next((row for row in TABLE if row.word == said.word and row.reason.code == code), None)
 
 
-def _kept(run: Pass, slug: str) -> str:
-    """Return the head the crew kept before its last rebase, or nothing where it kept none.
-    That head is the newest commit under the slug's `refs/jstack/pre-rebase/` directory."""
-    ref = f"refs/jstack/pre-rebase/{slug}/"
-    asked = ("git", "for-each-ref", "--sort=-committerdate", "--count=1", "--format=%(objectname)")
-    kept = run.run(*asked, ref)
-    return "" if kept.returncode else kept.stdout.strip()
-
-
-def ranges(run: Pass, slug: str, head: str, kind: str) -> tuple[str, str] | None:
-    """Return the two ranges of a scoped review that ends on `head`: the patch before it and
-    the patch after. Each patch starts where its branch left the default branch.
-
-    The patch before ends on one commit. For a rebase, that commit is the newest head the crew
-    kept under `refs/jstack/pre-rebase/<slug>/`, which `jmerge` reads too: the crew's keep step
-    writes the ref, and a `Rebase:` line an older brief has is read as no line. For a fix, it is
-    the head the last `Scoped review: needed since` line names, the one the last review saw."""
-    if kind == "fix":
-        before = (_OWED.findall(task_brief(run, slug)) or [""])[-1]
-    else:
-        before = _kept(run, slug)
-    default = run.run("git", "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD")
-    if not before or default.returncode:
-        return None
-    old, new = (run.run("git", "merge-base", default.stdout.strip(), to) for to in (before, head))
-    if old.returncode or new.returncode:
-        return None
-    return f"{old.stdout.strip()}..{before}", f"{new.stdout.strip()}..{head}"
-
-
 def _reviewing(run: Pass, client: Client, slug: str) -> bool | None:
     """Say whether a reviewer of the slug is at work, or return None where T3 Code did not
     say."""
@@ -724,18 +681,18 @@ def tell(run: Pass, client: Client, world: World, pulls: merge.Said) -> set[int]
         entry = {**seen, "passes": seen["passes"] + 1} if same else {"passes": 1}
         entry |= {"head": head, "reason": reason, "number": number}
         kept[slug] = entry
-        due = not entry.keys() & {"told", "users"} and entry["passes"] >= row.after
+        after, tells = row.spells or (AFTER, 1)
+        due = not entry.keys() & {"told", "users"} and entry["passes"] >= after
         if due and _capped(run, client, slug):
-            entry["passes"] = row.after
+            entry["passes"] = after
         passes = entry["passes"]
         if due and rebase.mark(row.kind, slug, head) in sent:
-            entry |= {"told": passes, "tells": 1}
-            due = False
+            entry["told"], entry["tells"], due = passes, 1, False
         asked = "told" in entry and not entry.get("users")
         busy = _busy(run, client, world, slug, row) if due or asked else None
         if asked and busy:
             entry["worked"] = True
-        again = asked and entry.get("worked") and entry.get("tells", 1) < row.tells
+        again = asked and entry.get("worked") and entry.get("tells", 1) < tells
         if (due or again) and busy is False:
             n = entry.get("tells", 0) + 1 if again else 1
             went = _tell(run, client, world, number, slug, row, entry, n)
@@ -778,14 +735,14 @@ def _tell(
     entry: dict,
     n: int = 1,
 ) -> str:
-    """Send the message that is due, the `n`th at the head, and return how it went: `told`,
-    `users` for a hold no message can lift, or nothing when the next pass must try the message
-    again. A message after the first goes under its own key, `<kind>|<slug>|<head 12>|<n>`."""
+    """Send the `n`th message at the head, and return how it went: `told`, `users` for a hold no
+    message can lift, or nothing when the next pass must try the message again."""
     head = entry["head"]
     sentence, sent = row.sentence, row.sends.replace("{slug}", slug)
     if row.kind in ("unruled", "fix", "rereview"):
         named = _RANGE_DIFF.search(entry["reason"]) if row.kind == "rereview" else None
-        found = named.groups() if named else ranges(run, slug, head, row.kind)
+        brief = task_brief(run, slug)
+        found = named.groups() if named else ranges(run, slug, head, row.kind, brief)
         if not found and row.kind != "fix":
             run.say(f"wait {slug}: {NO_RANGE if row.word == 'hold' else NO_RANGES}")
             return "users"
@@ -815,23 +772,10 @@ def _tell(
         return ""
     line = f"{EXPEDITE} {slug}: told the crew what #{number} is short of ({row.kind}, {head[:12]})"
     line += f", sent `{sent}`" if sent else ""
-    line += f", again at a new idle spell ({n} of {row.tells})" if n > 1 else ""
+    line += f", again at a new idle spell ({n} of {TELLS})" if n > 1 else ""
     run.find(slug, EXPEDITE, line, went[2], key=f"{row.kind} {head[:12]} {window}".strip())
     run.say(line)
     return "told"
-
-
-def tells_left(was: dict[str, Any], slug: str, number: int, reason: str, head: str) -> int | None:
-    """Return how many messages `tell` still owes the crew about a wait at the head, from
-    `expedite.json` as `was` holds it, or None where `tell` does not own the wait: no row of
-    `TABLE` is its reason, `tell` keeps no count of it at that head, or the wait is the user's."""
-    row = short_of(merge.Line("wait", number, "", reason))
-    entry = was.get(slug)
-    if row is None or not isinstance(entry, dict) or entry.get("users"):
-        return None
-    if (entry.get("head"), entry.get("reason")) != (head, reason) or not head:
-        return None
-    return max(row.tells - entry.get("tells", 1 if "told" in entry else 0), 0)
 
 
 def _step(half: Half) -> None:

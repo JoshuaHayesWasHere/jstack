@@ -76,7 +76,7 @@ on, `waiting.keep` lists the hold on what waits on the user (`waiting.held`).
 
 Each hold in `held.json` names who owns it, `who`. It is `crew` where `expedite.tell` owns the wait
 of every row it holds: a row of `expedite.TABLE` that `tell` counts at the row's head and has not
-given to the user (`expedite.tells_left`). It is `user` for the rest. A `crew` hold wakes the home
+given to the user (`_tells_left`). It is `user` for the rest. A `crew` hold wakes the home
 only once `tell` has sent each row every message it owes at that head, two for a `proved-` or
 `checked-` wait, and the hold is older than `HOLD_MINUTES` with nobody at work on it after that.
 """
@@ -225,7 +225,7 @@ def _ask(run: Pass, slug: str, kind: str, reason: str, head: str, brief: str) ->
         return thread_of(run.home, slug), ""
     if kind == "review":
         return named, expedite.AGAIN.format(slug=slug)
-    found = expedite.ranges(run, slug, head, "fix" if matches(reason, FIXES) else "rebase")
+    found = review.ranges(run, slug, head, "fix" if matches(reason, FIXES) else "rebase", brief)
     if not found:
         return thread_of(run.home, slug), ""
     return named, expedite.SCOPED.format(slug=slug, old=found[0], new=found[1])
@@ -531,6 +531,21 @@ def _rows(run: Pass, world: World, said: dict[str, str]) -> list[tuple[str, int]
     return sorted(rows, key=lambda row: row[1])
 
 
+def _tells_left(was: dict[str, Any], slug: str, number: int, reason: str, head: str) -> int | None:
+    """Return how many messages `expedite.tell` still owes the crew about a wait at the head, from
+    `expedite.json` as `was` holds it, or None where `tell` does not own the wait: no row of
+    `expedite.TABLE` is its reason, `tell` keeps no count of it at that head, or it is the
+    user's."""
+    row = expedite.short_of(merge.Line("wait", number, "", reason))
+    entry = was.get(slug)
+    if row is None or not isinstance(entry, dict) or entry.get("users"):
+        return None
+    if not head or (entry.get("head"), entry.get("reason")) != (head, reason):
+        return None
+    _, tells = row.spells or (expedite.AFTER, 1)
+    return max(tells - entry.get("tells", 1 if "told" in entry else 0), 0)
+
+
 def held(
     run: Pass, client: Client, world: World, pulls: merge.Said, out: list[dict[str, Any]] | None
 ) -> None:
@@ -561,7 +576,7 @@ def held(
         group["rows"].append(slug)
         group["numbers"].append(number)
         head = str(world.open.get(slug, {}).get("headRefOid") or "")
-        left = expedite.tells_left(told, slug, number, reason, head)
+        left = _tells_left(told, slug, number, reason, head)
         if left is None:
             group["who"] = "user"
         elif left:
