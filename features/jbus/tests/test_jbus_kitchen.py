@@ -1157,6 +1157,15 @@ def test_a_fake_run_through_jsettings_proc_is_called_here_and_starts_no_process(
     assert started == [("gh", "pr", "list")]
 
 
+def test_a_pass_has_built_the_scorecard_page_and_said_its_line_when_it_returns(kitchen):
+    """The kitchen builds the page inside the pass (`scorecard_in_pass`), so no child the pass
+    started writes after a test looks at the state."""
+    kitchen.poll()
+    page = kitchen.state_dir / "scorecard.html"
+    said = page.with_name(".scorecard.html.log").read_text().splitlines()
+    assert page.is_file() and said[-1].startswith(f"scorecard: {page}: demo: ")
+
+
 def test_a_fake_asked_with_no_text_answers_in_bytes_as_the_command_does(kitchen):
     command, started = ["jmerge", "--sweep", "--check"], kitchen.started
     kitchen.set("jmerge-dies", "jmerge: it broke")
