@@ -731,6 +731,32 @@ def test_the_guards_of_a_selection_of_every_test_are_still_the_guards(tmp_path, 
     assert said == [[f"testing/tests/{one}" for one in guards], ["all"]]
 
 
+FAR = "features/far/tests/test_far.py"
+
+
+@pytest.mark.parametrize(
+    "changed",
+    [["src/beta/plug.py", "testing/tests/test_beta.py"], ["pyproject.toml"]],
+    ids=["a module and its test", "a shared file"],
+)
+def test_the_cross_part_is_the_cross_cutting_tests_of_the_selection(tmp_path, changed):
+    """`--part cross` prints the cross-cutting tests the selection names, wherever their files
+    live, and neither the catch-all (`test_lone.py`) nor a test the change reaches or edits
+    (`test_beta.py`): the desk runs each of them alone, and CI runs the rest. A selection of
+    every test gives them all the same, never `all`."""
+    features = {
+        "README.md": f"{README}- `{FAR}`\n",
+        "alpha.md": ALPHA,
+        "beta.md": BETA,
+    }
+    repo = Repo(tmp_path, features=features, files={**FILES, **LONE, FAR: "def test_far():\n    pass\n"})
+    head = repo.change(changed)
+    ran = repo.run("--part", "cross", repo.base, head)
+
+    assert ran.returncode == 0, ran.stderr
+    assert ran.stdout.split() == [FAR, "testing/tests/test_tree.py"]
+
+
 TEE = """\
 # Tee
 
