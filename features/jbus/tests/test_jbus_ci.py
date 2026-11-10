@@ -23,6 +23,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+import jbus
 import jsettings
 from ci_replay import FOLDER, Replay
 from jbus import ci, passes
@@ -153,6 +154,17 @@ def test_a_test_that_failed_on_one_branch_is_no_flake_beside_one_that_failed_on_
     jobs = [red(1, "beta", "test_both", "test_beta_only"), red(2, "gamma", "test_both")]
     found = numbers.flaky(numbers.Facts(jobs, [], [], NOW), START, NOW)
     assert (found.value, found.shown, found.n) == (1.0, "1", 2)
+
+
+@pytest.mark.parametrize("branch", [jbus.BATCH, "jstack/line/7"])
+def test_a_pull_requests_own_red_is_no_flake_where_jmerge_failed_the_same_test(branch):
+    """jmerge's batch and shadow pull requests test pull requests already counted on their own
+    branches: a test that failed on one of them and on the pull request failed on one branch."""
+    jobs = [red(1, "beta", "test_both"), red(2, branch, "test_both")]
+    facts = numbers.Facts(jobs, [], [], NOW)
+    assert facts.causes == {1: "own"}
+    assert numbers.flaky(facts, START, NOW).shown == "0"
+    assert numbers.own(facts, START, NOW).n == 1
 
 
 def test_no_inode_figure_is_kept_until_a_job_writes_one(nine):

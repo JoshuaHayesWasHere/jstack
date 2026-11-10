@@ -133,6 +133,10 @@ MAX_PER_HOME, MAX_PER_PROJECT = 6, 24
 `max_per_home` or `max_per_project`. `max_running` is the third cap, for the whole machine."""
 INFRA = "infra"
 """The project whose home gets what the machine owns, where the config sets no `infra`."""
+BATCH = "jmerge/batch"
+"""The branch of jmerge's standing batch pull request, kept while the state has a `merge-batch`
+file. It has no brief and no row, and tests pull requests that have their own: it is no gate,
+the tick does not watch it, its red wakes no home, and the CI ledger does not count its runs."""
 
 
 def _cap(raw: dict[str, Any], key: str, default: int, path: Path) -> int:

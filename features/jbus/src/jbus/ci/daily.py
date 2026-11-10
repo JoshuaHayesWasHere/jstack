@@ -10,7 +10,7 @@ definition. In short:
   reads `no data` for every number from the ledger, its n still shown, since the ledger misses
   runs while jbus is down.
 - Every number but main-red and the review step's comes from the ledger the passes keep
-  (`ci.jsonl`, `ci-prs.jsonl`), with jmerge's shadow pull requests (`LINE`) left out. `--day`
+  (`ci.jsonl`, `ci-prs.jsonl`), with jmerge's own branches (`ledger.ours`) left out. `--day`
   collects nothing.
 - Main-red is the spell method (`spells`): from a failed run of check.yml on a push to main to the
   next success's last update, split at local midnight. It reads main's runs from one
@@ -61,8 +61,6 @@ REACH = timedelta(days=DAYS) + BACK + LOOKBACK
 """How far back the review launches are read: as far as a day the report gives or a before and
 after counts."""
 SCOPE = "cicd"
-LINE = "jstack/line/"
-"""The branches of jmerge's shadow pull requests, which test the line and are no crew's work."""
 TRANSITIONS = "transitions.jsonl"
 FIRES = time(6, 45)
 """When `jbus-ci-day.timer` fires: a report older than the last of these is stale."""
@@ -658,14 +656,10 @@ def body(
 
 
 def facts_of(state: Path, now: datetime) -> numbers.Facts:
-    """The ledger's facts, without jmerge's shadow pull requests."""
-
-    def ours(one: dict[str, Any]) -> bool:
-        return not str(one.get("branch") or "").startswith(LINE)
-
+    """The ledger's facts, which leave out jmerge's own branches (`jbus.ci.ledger.ours`)."""
     return numbers.Facts(
-        [one for one in ledger.read(state / ledger.JOBS) if ours(one)],
-        [one for one in ledger.read(state / ledger.PULLS) if ours(one)],
+        ledger.read(state / ledger.JOBS),
+        ledger.read(state / ledger.PULLS),
         ledger.read(state / "events.jsonl"),
         now,
     )

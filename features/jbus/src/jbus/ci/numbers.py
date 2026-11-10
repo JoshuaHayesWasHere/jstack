@@ -53,7 +53,7 @@ from functools import cached_property
 from typing import Any
 
 import jsettings
-from jbus.ci import cancels, macjobs
+from jbus.ci import cancels, ledger, macjobs
 from jbus.watch import mac_job
 
 LOOKBACK = timedelta(hours=2)
@@ -173,10 +173,10 @@ def _in(stamp: str | None, start: datetime, end: datetime) -> bool:
 
 
 class Facts:
-    """`Facts` reads the ledger once, each roll-up `check` of a run a newer push cancelled as
-    `cancelled` (`jbus.ci.cancels`), and works out these facts from it, once each: the pull request
-    each jbus event is about, the runs of main in order, the intervals main was red, the cause
-    of each red, and the cause of each force-push."""
+    """`Facts` reads the ledger once, without jmerge's own branches (`ledger.ours`) and with each
+    roll-up `check` of a run a newer push cancelled as `cancelled` (`jbus.ci.cancels`), and works
+    out these facts from it, once each: the pull request each jbus event is about, the runs of main
+    in order, the intervals main was red, and the cause of each red and of each force-push."""
 
     def __init__(
         self,
@@ -185,6 +185,7 @@ class Facts:
         events: list[dict[str, Any]],
         now: datetime,
     ) -> None:
+        jobs, pulls = ledger.ours(jobs), ledger.ours(pulls)
         cancelled = cancels.replaced(jobs)
         self.jobs: list[dict[str, Any]] = [
             {**j, "conclusion": "cancelled"} if j["job"] in cancelled else j for j in jobs

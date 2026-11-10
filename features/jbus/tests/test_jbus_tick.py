@@ -117,6 +117,16 @@ def test_a_tick_with_no_check_ended_runs_no_jmerge_and_gets_a_304(watched):
     assert all("If-None-Match: " in call for call in asked(watched)[1:])
 
 
+def test_the_tick_does_not_watch_the_pending_checks_of_jmerges_batch(kitchen):
+    """jmerge judges its batch (`jbus.BATCH`) on its own run: no row's line names it, so a
+    check of it that ends is nothing for the tick to restate."""
+    kitchen.set(
+        "open.json", [kitchen.opened(jbus.BATCH, 9, None), kitchen.opened("stray", 12, None)]
+    )
+    kitchen.poll()
+    assert [one["number"] for one in watching(kitchen)] == [12]
+
+
 def test_with_no_check_going_a_tick_asks_github_nothing(kitchen):
     going(kitchen, "SUCCESS")
     assert json.loads((kitchen.state / tick.PENDING).read_text()) == []

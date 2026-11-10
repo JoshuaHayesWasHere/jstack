@@ -36,9 +36,12 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
+from jbus import BATCH
 from jsettings import store
 
 JOBS, PULLS, LOCK = "ci.jsonl", "ci-prs.jsonl", "ci.lock"
+LINE = "jstack/line/"
+"""The branches of jmerge's shadow pull requests, which test the line and are no crew's work."""
 TELEMETRY = (
     "full",
     "tree",
@@ -51,6 +54,17 @@ TELEMETRY = (
     "workers",
     "tmp_inode_pct",
 )
+
+
+def ours(kept: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The jobs or pull requests of the list that are not on jmerge's own branches: its shadow
+    pull requests' (`LINE`) and its batch's (`jbus.BATCH`). Each tests pull requests that have
+    runs of their own, so a red of one is no own red, and no second branch that makes a flake."""
+    return [
+        one
+        for one in kept
+        if not (one.get("branch") == BATCH or str(one.get("branch") or "").startswith(LINE))
+    ]
 
 
 def read(path: Path) -> list[dict[str, Any]]:

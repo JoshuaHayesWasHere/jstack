@@ -98,6 +98,18 @@ def test_a_red_run_no_row_owns_is_told_to_the_catchall_once_and_not_the_root(lau
     assert (ci["owner"], ci["fixing"]["what"]) == ("home uncategorized", wakes.KIND)
 
 
+def test_a_red_run_of_jmerges_batch_is_no_fault_and_wakes_no_home(launched):
+    """jmerge's standing batch pull request (`jbus.BATCH`) has no row: its red is jmerge's to
+    judge, not a fault of the project for the catch-all's home."""
+    catchall = home(launched, "uncategorized")["threadId"]
+    runs(launched, jbus.BATCH)
+    for minutes in (0, 3, 6):
+        launched.poll(NOW + minutes * MIN)
+    assert [one for one in wrongs(launched, NOW + 6 * MIN) if one["kind"] == "ci"] == []
+    assert told(launched) == []
+    assert [given for given in sends(launched) if given["threadId"] == catchall] == []
+
+
 def test_with_no_root_home_a_red_run_no_row_owns_is_the_users_and_told_to_nobody(launched):
     runs(launched, "dependabot/pip/oat")
     launched.poll(NOW)

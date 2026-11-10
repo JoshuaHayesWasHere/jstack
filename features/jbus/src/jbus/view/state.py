@@ -111,6 +111,7 @@ from jbriefs import below
 from jbriefs import parse as briefs
 from jbriefs.home import thread_of
 from jbus import (
+    BATCH,
     expedite,
     item,
     leftover,
@@ -1918,6 +1919,8 @@ def wrongs(read: Read) -> list[dict[str, Any]]:
     else:
         for at in checks["now"]["failed"]:
             run = checks["runs"][at]
+            if run["branch"] == BATCH:
+                continue
             cause, row = f"{run['name']} failed", run["branch"]
             task = next((task for task in read.tasks if task["slug"] == row), None)
             mine, home = (row, task["home"]) if task else ("", "")
