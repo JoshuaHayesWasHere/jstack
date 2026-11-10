@@ -63,8 +63,8 @@ hold is older than `HOLD_MINUTES`, once for the hold, with the reason, the rows 
 have been held. A thread is at work on the cause when it is a held row's crew or reviewer, or when
 the reason names its slug. A wait on the merge runner (`RUNNER`), a wait on a row ahead (`AHEAD`)
 whose pull request is open, since that row's own wait is what holds it, a hold that is the user's
-(step `hold`, already on what waits on the user) and a wait with its own clock above are no such
-hold.
+(a `wait` or `hold` on step `hold`, such as a queue row held for `check failed twice`, which
+`waiting.holds` lists from its first pass) and a wait with its own clock above are no such hold.
 A required check with no run at the head (`ready.NO_RUN`) is no wait on the merge runner: no
 runner is at work on it, so it is a hold. One whose workflow GitHub runs there (`ready.LIVE_RUN`)
 is such a wait.
@@ -113,6 +113,7 @@ from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import World, task_brief
 from jmerge import ready
 from jmerge.checks import check_state, latest_of_each
+from jmerge.judgement import step
 
 HELD = "hold-stall"
 EVENTS = {"clock": "quiet", "hold-stall": "quiet"}
@@ -557,8 +558,9 @@ def held(
     groups: dict[str, dict[str, Any]] = {}
     owed: set[str] = set()
     for slug, number in _rows(run, world, waits.said):
-        word, _, reason = waits.said.get(str(number), "").partition(": ")
-        if slug in checked:
+        said = waits.said.get(str(number), "")
+        word, _, reason = said.partition(": ")
+        if slug in checked or step(said) == "hold":
             continue
         if word != "wait" or not reason or class_of(reason) or matches(reason, RUNNER):
             continue

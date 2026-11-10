@@ -77,6 +77,11 @@ It leaves the list once the home does something jbus can see.
 It keeps an item by the rule that raises a decision and wakes a home with it (`blockers.needs`).
 That rule keeps a gate that holds, a gate with no default or one that names a door, a go gate whose silence starts nothing, a row with no go, a pull request `jmerge` holds for your word, a setup only you can give and a T3 Code build to install.
 
+A pull request `jmerge` holds for your word is any on its `hold` step, whatever word starts its line: a `hold`, or a `wait` whose code is on that step.
+So a row held for `check failed twice`, which `jmerge` says as `wait <n> <url>: its queue row is held: approve it again to let it merge`, is on the list, and so is a row whose go does not hold, a brief that says `Review: none`, and a change to a protected path.
+Each is on the list from the pass in which `jmerge` first says it until the pass in which `jmerge` says something else of that pull request, whether or not a thread works on the row and whether or not its home was woken.
+A hold that `jbus` has asked the crew to lift first is the crew's while it is asked, and is not on the list.
+
 Each item is one line with what it holds, then its fail-safe where it has one, then a plain hint for your reply: `answer: reply in your own words to keep the default (<default, cut short>) or say what to do instead`.
 You reply to the home in your own words, and the home turns them into the verb: nothing here is a line to send as it is.
 
@@ -85,10 +90,15 @@ A gate that holds, or a go gate, whose row merged or was removed is left out too
 A refused go is left out too: most refusals are a sha that did not match, and the home tries again by itself.
 
 With nothing open it prints `nothing waits on <you> in any project`.
+"Nothing waits" means that none of the items above is open: no gate, no row, no hold and no setup or install waits on you.
 A project no pass has listed yet is a `not known:` line, and the line that follows it says `nothing else known waits`, so it never reads as nothing waiting.
 
 `jbus needs --home <directory>`, with `--project <name>`, keeps one home's items: a scope's directory keeps that scope's, and the root home's keeps its own and every scope's.
 An item is a home's by the slug it is about, by its brief's or request's `Home:` line, and a gate is the home's whose `gates.md` holds it.
+Every home's list also has the items about the whole project, no row and no home: a T3 Code build to install, a setup only you can give, and a hold of GitHub's budget.
+It also has each ask the home made of you itself that is still open: each `decision local <slug>` or `stop local <slug>` line in the home's `told` file, which `jbus told` keeps until a `cleared local <slug>` line ends it.
+Such a line prints as `<project> <home> home decision local <slug>: ...`, with `answer: reply to the <home> home in your own words`.
+So `nothing waits on <you> in <project>'s <home> home` means that none of these is open either.
 The ketchup skill runs it in a home, so a home's catch-up names no other project's items.
 
 `jbus queue show` prints the same lines above the table, a home's start opens its status with them for its own project, and the home and ketchup skills open a status reply with them.

@@ -13,6 +13,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
+import test_jbus_build_behind as build_behind
 from jbus import acts, homestatus, questions, verbs, work
 from test_jbus_build_behind import machine, patched  # noqa: F401
 from test_jbus_kitchen import GATE, NOW, RESULT
@@ -369,15 +370,16 @@ def test_the_sidebar_file_names_rows_from_before_that_say_root_under_uncategoriz
 
 
 def test_a_scopes_list_has_the_projects_own_items_and_the_asks_still_open_in_its_told(
-    kitchen, machine
+    kitchen, request
 ):
     """`jbus needs --home` keeps one home's items, and with them each item about no row and no
     home, such as a T3 Code build to install, and each `decision local` or `stop local` line
     still in the home's `told`: an ask of the home's own, open until a `cleared` line ends it."""
+    answer = request.getfixturevalue(build_behind.machine.__name__)
     sc = scoped(kitchen, "sc")
     old = patched(kitchen, "0001-tree.patch", "one\n")
     patched(kitchen, "0002-rows.patch", "two\n")
-    machine(f"t3 v0.1.7+jstack.{old}")
+    answer(f"t3 v0.1.7+jstack.{old}")
     turn = (
         "decision local alpha: run the install at a quiet time and tell me\n"
         "stop local beta: lift the hold on beta\n"
