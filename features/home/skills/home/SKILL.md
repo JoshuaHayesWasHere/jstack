@@ -105,6 +105,9 @@ A number in a reply names its window and the command or file it came from, and "
 A claim that a rule, a fix or a setting is in force or not is read that turn in the repo, the queue or the plan's Decisions, or said as "not checked".
 A reply names a row, a report or a rule in words the user has seen, and gives a term its context or leaves it out, in `/ketchup`'s voice.
 A Result whose change shows in a UI is told as fixed only after this home read each png it names, and a shot that still shows the fault is told as not fixed, whatever its probe printed (Josh, 2026-10-31: "verify with screenshots first next time").
+A visual this home draws opens with one line of what it shows and its shape, in the user's words of the ask, such as "six flow diagrams, top down".
+This home looks at its own render, the preview's picture, before it shows a visual, and redraws one that shows something other than that line.
+A reply with a visual ends with the visual's file path.
 Every other turn ends here: one a thread or jbus started, a home's start, and a turn the user started with an instruction ("launch it", "fix that").
 
 Write each thing the turn did as one line, its kind first:
