@@ -242,7 +242,7 @@ class Batching:
         their numbers shows to the second's own check, as when they merge alone."""
         if settings is None or not ready.migrations(one, settings.directory):
             return 0
-        if self.migration in (None, one.number):
+        if self.migration is None or self.migration == one.number:
             self.migration = one.number
             return 0
         return self.migration
