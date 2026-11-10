@@ -155,3 +155,71 @@ The design also has both pull requests open from the start, so it has no launch 
 - The model has one main, and the code reads each pull request's own base (`baseRefName`).
 - The model leaves out a GitHub that refuses the update.
 - The code checks no room before it judges again: GitHub runs the check at the updated head and nothing runs on this machine, so the model's `Rejudge` has no `~full`.
+
+# Why a pull request is not merging: PrVerdict.tla
+
+`PrVerdict.tla` follows one pull request into main through jmerge's verdict, in the order `Repo.judged` (`features/jmerge/src/jmerge/cli.py`) checks it: its review, GitHub's waits, its row's go, a drop or decline, a protected path, a failed check judged again over today's main (`Repo.judge`, `Repo.again`), GitHub's undecided, `Repo.over_main` with the batch and the guards, and merge-off.
+Then the run acts on the verdict: it merges, the guards fail on its tree over main's tip, or it joins the batch, and a pull request whose turn GitHub's merge of main waits on stands in its base's line (`IN_LINE`) behind the one ahead.
+Each condition quotes its code with no line number, and `features/jmerge/tests/test_pr_verdict_spec.py` finds each quote once in its file.
+It models the code as of main 21112eba8, and came in with st-pr, the pull request chart of the scout st-map.
+
+The rule, `MergesOrWaitsOnYou`: "a ready pull request with a green check and a go merges or waits on the user's word".
+It has two halves: a merge leaves no hold of yours outstanding but those your accept lifted at its head (`MergesOnlyOnYourWord`), and a pull request whose review holds, whose check passed and whose row has its go goes on to merge or to wait on your word.
+The second half is a leads-to under weak fairness of every step that happens by itself, and not an invariant on settled states, since one canary's break is a loop with no settled state: a batch of one that fails, and takes the pull request again at the same head.
+Your word has no fairness, and other work moves main at most `Moves` times.
+
+`pr_canaries.py` runs TLC on today's code and on nine canaries, each the code with one hold taken out (`Drop`):
+
+```sh
+S=features/skill-library/skills/statechart/scripts
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+    python features/jmerge/spec/pr_canaries.py
+```
+
+At st-pr's head it prints:
+
+```text
+ok    today: MergesOrWaitsOnYou holds (599971 distinct states found, 31.0 s)
+ok    canary go: MergesOrWaitsOnYou breaks (67005 distinct states found, 2.8 s)
+ok    canary touches: MergesOrWaitsOnYou breaks (67141 distinct states found, 2.7 s)
+ok    canary declines: MergesOrWaitsOnYou breaks (67051 distinct states found, 2.6 s)
+ok    canary mergeoff: MergesOrWaitsOnYou breaks (67106 distinct states found, 2.5 s)
+ok    canary head: MergesOrWaitsOnYou breaks (560711 distinct states found, 25.1 s)
+ok    canary release: MergesOrWaitsOnYou breaks (599962 distinct states found, 26.7 s)
+ok    canary rejudge: MergesOrWaitsOnYou breaks (589302 distinct states found, 29.7 s)
+ok    canary again: MergesOrWaitsOnYou breaks (594998 distinct states found, 30.9 s)
+ok    canary batch-failed: MergesOrWaitsOnYou breaks (599470 distinct states found, 25.0 s)
+every run says what it should
+```
+
+`go`, `touches`, `declines`, `mergeoff` and `head` break the first half: the pull request merges past a hold of yours, and with `head` past one your accept gave at an earlier head.
+`release`, `rejudge`, `again` and `batch-failed` break the second: it waits for ever behind a line's holder that waits on its user, on a check that failed only over main's red, or in a batch of one that fails again and again.
+`rejudge` and `again` break on the same story, since with no unrun check modelled both rest on one path; they are two lines of code, so each keeps its canary.
+
+The first run found a story the code does not have: a check that failed over a red main, then a conflict with main, said `check has failed` for ever, as GitHub's failed check outranks its conflict.
+jbus tells the crew of a conflict from GitHub's `CONFLICTING` whatever jmerge says (`features/jbus/src/jbus/rebase.py`), so the model's crew rebases on a conflict it is told of alone, and the rule holds.
+
+## Draw the chart
+
+```sh
+S=$PWD/features/skill-library/skills/statechart/scripts
+W=$(mktemp -d) && cp features/jmerge/spec/PrVerdict.* "$W"
+(cd "$W" && UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+    statechart from-spec PrVerdict.tla --config PrVerdict.chart.cfg \
+    --title "Why isn't my pull request merging?" --out out --png)
+```
+
+Run it from the repo root, and copy the files of `$W/out`, but its `tlc/`, into `PrVerdict-statechart/`.
+`PrVerdict.chart.cfg` moves main once (263,292 model states, about a minute and a half), and `PrVerdict.map.py` labels each state by main and what jmerge last said.
+The chart has 19 states and 24 steps, and no state breaks the rule.
+
+## What PrVerdict leaves out
+
+- A stacked link, a base other than main, another home's pull request, one no brief names, and a draft opened by hand.
+- The browser run, migrations, `merge_after`, and `row_first`'s order among GitHub's waits.
+- A required check with no run at its head (`NO_RUN`), the restart of a queued run, and `repeats`, which only saves a CI round.
+- GitHub's merge state and `merge-tree` disagreeing (`FRESH_CONFLICT`): `CONFLICTS` stands for both.
+- Main moving between the verdict and the merge (`merge_holding`'s judge again): each step is atomic.
+- A batch of two or more: its timeout, its rerun, its narrowing to suspects, and `BATCH_FIRST`. The model's batch is of one, and proves or fails on the tree merged over main.
+- A crew's fix that fails again, and a review round that says the brief is not met: one fix makes the change good, and one round holds.
+- Whose your accept is: the bus's doors and `--message` (`Repo.accept`).
