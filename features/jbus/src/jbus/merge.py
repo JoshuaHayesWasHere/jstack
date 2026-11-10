@@ -44,13 +44,14 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from jbus import alert, outbox, restated, verbs, work
+from jbus import alert, outbox, pulls, restated, verbs, work
 from jbus.judged import Said, parse
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
 from jbus.wake import JMERGE_TIMEOUT
 from jmerge import lines as lines_of
-from jmerge import lock, ready
+from jmerge import backoff, lock, ready
+from jmerge.asked import Silent
 from jmerge.judgement import step
 from jmerge.lines import Line as Line
 from jsettings import proc
@@ -147,7 +148,7 @@ def merge(run: Pass) -> Said:
             (where / STARTED).unlink()
             _unrun(run, f"its run ended with no record: {_last(where / CHILD_LOG)}")
         (where / STARTED).write_text(restated.moment(verbs.clock()) + "\n")
-        if why := start(run):
+        if why := start(run, handed(run)):
             (where / STARTED).unlink(missing_ok=True)
             _unrun(run, why)
     return _records(run, where)
@@ -157,9 +158,9 @@ def runs(run: Pass) -> Path:
     return run.state / RUNS
 
 
-def start(run: Pass) -> str:
-    """Start `keep` for the project in a process that outlives the pass, and return why it could
-    not start, or nothing.
+def start(run: Pass, more: tuple[str, ...] = ()) -> str:
+    """Start `keep` for the project in a process that outlives the pass, with `more` for `jmerge`
+    (`handed`), and return why it could not start, or nothing.
 
     A pass that systemd runs is a oneshot unit, and systemd ends every process left in it when the
     pass ends, a new session or not: the run is then a transient unit of its own (`UNIT`), with the
@@ -167,7 +168,7 @@ def start(run: Pass) -> str:
     """
     where = runs(run)
     child = (sys.executable, "-c", "import sys; from jbus import merge; merge.keep(*sys.argv[1:])")
-    child += (str(where), str(run.project.checkout))
+    child += (str(where), str(run.project.checkout), *more)
     if os.environ.get("INVOCATION_ID"):
         name = re.sub(r"[^A-Za-z0-9_.-]", "-", run.project.name)
         digest = hashlib.sha256(str(where.resolve()).encode()).hexdigest()[:8]
@@ -194,15 +195,15 @@ def start(run: Pass) -> str:
     return ""
 
 
-def keep(where: str | Path, checkout: str | Path) -> None:
-    """Run `jmerge --if-free` in `checkout` as the process of one of the pass's runs, holding
+def keep(where: str | Path, checkout: str | Path, *more: str) -> None:
+    """Run `jmerge --if-free`, with `more`, in `checkout` as the process of one of the pass's runs, holding
     `GOING` for the whole run, and keep what it printed as a record in `where`, written whole
     before the lock is given back. A process that dies first leaves no record, and the next pass
     counts it (`merge`)."""
     where = Path(where)
     with open(where / GOING, "a") as going:
         fcntl.flock(going, fcntl.LOCK_EX)
-        ran = proc.run(*RUN, cwd=checkout, timeout=JMERGE_TIMEOUT)
+        ran = proc.run(*RUN, *more, cwd=checkout, timeout=JMERGE_TIMEOUT)
         at = restated.moment(verbs.clock())
         record = {
             "returncode": ran.returncode,
@@ -272,6 +273,21 @@ def _judged(run: Pass, ran: subprocess.CompletedProcess[str], at: str) -> Said:
     else:
         _unrun(run, why)
     return lines
+
+
+def handed(run: Pass) -> tuple[str, ...]:
+    """The flag that hands `jmerge` the pass's read of the open pull requests (`pulls.read`), so
+    it asks GitHub for no list of its own: `--pulls <path> <stamp>`. Nothing where the read
+    raised `Silent`, or where `jmerge` would ask GitHub nothing for its rate limit
+    (`backoff.Gate`): `jmerge` then asks for its own list, or says why it waits, as a run by hand
+    does."""
+    if backoff.Gate(run.config.home(run.project)).held(run.now):
+        return ()
+    try:
+        opened = pulls.read(run)
+    except Silent:
+        return ()
+    return ("--pulls", str(opened.path), opened.at)
 
 
 def _unrun(run: Pass, why: str) -> None:

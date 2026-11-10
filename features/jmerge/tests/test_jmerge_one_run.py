@@ -5,6 +5,7 @@ real origin and a fake `gh` (`test_jmerge_fresh.py`), while the test holds the r
 another run would."""
 
 import fcntl
+import json
 import os
 import sys
 import threading
@@ -59,3 +60,32 @@ def test_a_check_takes_no_lock(kitchen):
     (ready,) = kitchen.run("--check")
     assert ready.startswith("ready 6 ")
     os.close(other)
+
+
+def handed(kitchen, stamp):
+    """The open list jbus's pass kept for this run (`jbus.pulls`), read at the pass `stamp`."""
+    path = kitchen.tmp / "pulls.json"
+    kept = {"at": stamp, "default": "main", "pulls": list(kitchen.pulls.values())}
+    path.write_text(json.dumps(kept))
+    return f"--pulls {path} 2026-11-10T15:00:00+00:00"
+
+
+def test_a_run_jbus_hands_its_passs_list_asks_github_for_no_list_and_merges(kitchen):
+    kitchen.crew("one", 6, {"a.txt": "ours\n" + LINES})
+    (merged,) = kitchen.run("--if-free", handed(kitchen, "2026-11-10T15:00:00+00:00"))
+    assert merged.startswith("merged 6 one ")
+    assert kitchen.calls("pr list --state open") == [] and kitchen.calls("repo view") == []
+
+
+def test_a_run_handed_a_list_another_pass_read_asks_github_for_its_own(kitchen):
+    kitchen.crew("one", 6, {"a.txt": "ours\n" + LINES})
+    (merged,) = kitchen.run("--if-free", handed(kitchen, "2026-11-10T14:59:00+00:00"))
+    assert merged.startswith("merged 6 one ")
+    assert len(kitchen.calls("pr list --state open")) == 1
+
+
+def test_a_run_by_hand_asks_github_for_its_list(kitchen):
+    kitchen.crew("one", 6, {"a.txt": "ours\n" + LINES})
+    (merged,) = kitchen.run()
+    assert merged.startswith("merged 6 one ")
+    assert len(kitchen.calls("pr list --state open")) == 1
