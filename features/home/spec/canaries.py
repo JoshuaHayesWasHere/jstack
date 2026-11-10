@@ -24,12 +24,15 @@ sys.path.insert(
 
 tools = importlib.import_module("statechart.tools")
 
-# A scene is the children the root makes in one run, the calls they raise, and whether the
-# home thread may fail. Two siblings that both raise calls are too many states for one run.
+# A scene is the children the root makes in one run, the calls they raise, whether the home
+# thread may fail, and whether the catch-all's thread moves only before the root makes a child.
+# Two siblings that both raise calls are too many states for one run. The catch-all's thread
+# shares nothing with what the siblings share, so their scene keeps it out of their steps, and
+# the scenes a and b check it beside every step of a child.
 SCENES = {
-    "a": ('{"a"}', '{"a1", "a2"}', "TRUE"),
-    "b": ('{"b"}', '{"b1", "b2"}', "TRUE"),
-    "siblings": ('{"a", "b"}', "{}", "FALSE"),
+    "a": ('{"a"}', '{"a1", "a2"}', "TRUE", "FALSE"),
+    "b": ('{"b"}', '{"b1", "b2"}', "TRUE", "FALSE"),
+    "siblings": ('{"a", "b"}', "{}", "FALSE", "TRUE"),
 }
 INVARIANTS = [
     "RetireHandsOver",
@@ -37,10 +40,11 @@ INVARIANTS = [
     "StallOnNeeds",
     "NudgesBounded",
     "RelaunchOnce",
+    "OneStart",
     "OneMerger",
     "NoBlindMerge",
 ]
-PROPERTIES = ["CallsReachJosh", "AsksAfterRelaunch", "ReadyMerges"]
+PROPERTIES = ["CallsReachJosh", "AsksAfterRelaunch", "ReadyMerges", "CatchallRuns"]
 RULES = INVARIANTS + PROPERTIES
 
 # Each guard, the rule that rests on it, and the scene that shows it.
@@ -57,6 +61,8 @@ CANARIES = {
     "lock": ("NoBlindMerge", "siblings"),
     "all-homes": ("ReadyMerges", "a"),
     "drop-release": ("ReadyMerges", "siblings"),
+    "keep-alive": ("CatchallRuns", "a"),
+    "going": ("OneStart", "a"),
 }
 
 # Today's code keeps every rule in every scene: the four it broke (RetireHandsOver, StallFlagged,
@@ -76,7 +82,7 @@ SCENE_ALONE = ["    Kids <- Made", "    Calls <- Raised", "    Notices <- SceneN
 
 
 def config(scene, rules, modes, drop="none"):
-    made, raised, may_fail = SCENES[scene]
+    made, raised, may_fail, first = SCENES[scene]
     alone = any(rule in PROPERTIES for rule in rules)
     lines = [
         "CONSTANTS",
@@ -86,6 +92,7 @@ def config(scene, rules, modes, drop="none"):
         f"    Made = {made}",
         f"    Raised = {raised}",
         f"    MayFail = {may_fail}",
+        f"    CatchallFirst = {first}",
         f'    Drop = "{drop}"',
         *(SCENE_ALONE if alone else []),
         "SPECIFICATION Spec",
