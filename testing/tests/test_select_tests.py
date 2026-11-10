@@ -1639,6 +1639,50 @@ def test_a_change_of_the_tests_alone_still_runs_each_test_that_failed_on_main(tm
     assert "testing/tests/test_b.py" in printed
 
 
+@pytest.mark.parametrize("code", [403, 429])
+def test_a_spent_allowance_runs_the_whole_suite_and_says_so_in_one_line(tmp_path, code):
+    """GitHub answers 403 or 429 once the installation's hourly allowance is spent. The lookup
+    of the tests that failed on main cannot then say which they are, so it passes and asks for
+    the whole suite, and the selection runs it: on 2026-11-09 such a lookup ended red."""
+    import http.server
+    import threading
+
+    class Spent(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(code)
+            self.send_header("x-ratelimit-remaining", "0")
+            self.end_headers()
+            self.wfile.write(b'{"message": "API rate limit exceeded for installation."}')
+
+        def log_message(self, *args):
+            pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Spent)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    repo = Repo(tmp_path / "repo", files=SMALL)
+    try:
+        looked = repo.run(
+            "--failed-on-main",
+            "30",
+            str(tmp_path / "failed-on-main.json"),
+            env={
+                "PATH": "/usr/bin:/bin",
+                "GITHUB_API_URL": f"http://127.0.0.1:{server.server_port}",
+                "GITHUB_REPOSITORY": "owner/repo",
+                "GITHUB_TOKEN": "t0ken",
+            },
+        )
+    finally:
+        server.shutdown()
+
+    assert (looked.returncode, looked.stdout) == (0, "all\n"), looked.stderr
+    said = looked.stderr.splitlines()
+    assert len(said) == 1 and f"GitHub answered {code}" in said[0] and "whole suite" in said[0]
+    head = repo.change(["testing/tests/test_tree.py"])
+    printed, kept, _ = listed_selection(repo, head, tmp_path, failed=looked.stdout.strip())
+    assert (printed, kept) == (["all"], ["all forced-by=failed-on-main"])
+
+
 def test_an_all_lists_the_path_that_forced_it(tmp_path):
     repo = Repo(tmp_path / "repo", files=SMALL)
     head = repo.change(["pyproject.toml"], text="# changed\n")
