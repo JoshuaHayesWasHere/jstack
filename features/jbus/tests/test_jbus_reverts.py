@@ -209,6 +209,45 @@ def test_a_revert_jbus_opened_is_closed_once_main_is_green_without_it(kitchen):
     assert list(kept.read(kitchen.state)) == [red], "the pass that closes it keeps its record"
 
 
+def test_a_revert_is_closed_once_main_is_green_above_its_red_though_a_newer_tip_is_red(kitchen):
+    """MainRed.tla's OneRevertOpen: alpha's revert is open, a fix lands green, and beta's merge
+    lands red on it, all before the next pass. That pass sees main green at the fix and red at
+    beta: alpha's red is older than the green, so its revert is closed, and beta's is the one
+    revert open."""
+    red, made, fixed = fixed_first(kitchen)
+    brief(kitchen, "beta", 8)
+    again = move(kitchen, "failure")
+    merged = json.loads((kitchen.stub / "merged.json").read_text())
+    kitchen.set("merged.json", [*merged, kitchen.merged("beta", 8, again, ago=timedelta(0))])
+    fix, *commits = json.loads((kitchen.stub / "commits.json").read_text())
+    beta = kitchen.commit(again, "feat: beta (#8)", ago=timedelta(0))
+    kitchen.set(
+        "commits.json",
+        [
+            {**beta, "parents": [{"sha": fixed}]},
+            {**fix, "parents": [{"sha": red}]},
+            *commits,
+        ],
+    )
+    runs = json.loads((kitchen.stub / "check-runs.json").read_text())
+    runs[again] = [{**DONE, "conclusion": "failure", "name": "check", "id": 95}]
+    kitchen.set("check-runs.json", runs)
+    pushed = json.loads((kitchen.stub / "push-runs.json").read_text())
+    pushed[again] = [{**DONE, "id": 505, "conclusion": "failure", "run_attempt": 2}]
+    kitchen.set("push-runs.json", pushed)
+    logs = json.loads((kitchen.stub / "logs.json").read_text())
+    kitchen.set("logs.json", {**logs, "95": LOG})
+    kitchen.poll(NOW + timedelta(minutes=30))
+    main = mainjson.read(kitchen.state)
+    assert (main.green, main.red) == (fixed, again)
+    (closed,) = asked(kitchen, "pr close")
+    assert closed.startswith(f"pr close {made.pull} --comment ") and fixed[:12] in closed
+    record = kept.read(kitchen.state)
+    assert set(record) == {red, again}, "beta's red got its revert"
+    opened = {pull["url"] for pull in json.loads((kitchen.stub / "open.json").read_text())}
+    assert [one.slug for one in record.values() if one.pull in opened] == ["beta"]
+
+
 def test_a_closed_revert_whose_culprit_is_over_is_dropped_on_the_next_pass(kitchen):
     """alpha merged, has no pull request open, no thread unsettled and no row: it merges nothing
     more, so the record of its closed revert holds nothing and goes, and a later red that alpha's
