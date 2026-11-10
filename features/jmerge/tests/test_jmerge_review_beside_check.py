@@ -112,4 +112,3 @@ def test_the_scoped_review_in_first_still_waits_for_the_check(proven_merged, rul
     (said,) = run.jmerge(proven_merged, rules)
     assert said.startswith("merged 7 alpha ")
     assert len(run.merges(proven_merged)) == 1
-

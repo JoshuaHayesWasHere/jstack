@@ -993,7 +993,8 @@ class Repo:
         A required check that can still pass (`ready.still_to_pass`) is said after the range-diff,
         so a rebase that changed the content is said while the check runs, with the check's wait
         as the note, and jbus launches its scoped review beside the check: said after it, the two
-        ran one after the other, 4.18 minutes at the median of 148 merges, 2026-11-03 to 11-10."""
+        ran one after the other, 4.18 minutes at the median of 148 merges, 2026-11-03 to 11-10.
+        The range-diff then runs on each run while the check does."""
         brief = ready.brief_of(one.url, self.state / "tasks")
         if brief is None and not one.draft and self.accepted == (one.number, one.head):
             return self.unbriefed(one, default, red)
@@ -1068,7 +1069,7 @@ class Repo:
             if kept:
                 short, note = "", kept
             elif short and beside:
-                note = beside
+                note = self.row_first(brief.stem, beside)
         short = short or self.row_first(brief.stem, beside)
         if short:
             return Judgement(brief.stem, judgement.verb(short), short, note, None)

@@ -1460,7 +1460,8 @@ def still_to_pass(one: PullRequest) -> str:
     changed the content is said beside this wait (`Repo.judged`), with it as the note, so the
     scoped review runs while the check does and not after it."""
     github = short_on_github(one)
-    if one.failed or one.mergeable == "CONFLICTING" or not any(code_of(github) == one.code for one in STILL_TO_PASS):
+    can_pass = {reason.code for reason in STILL_TO_PASS}
+    if one.failed or one.mergeable == "CONFLICTING" or code_of(github) not in can_pass:
         return ""
     return github
 
