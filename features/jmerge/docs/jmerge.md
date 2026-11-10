@@ -580,8 +580,13 @@ One that would not merge ends there, at once, and exits 1.
 It prints the line its `--check` prints: the `refused` line, or the `wait` or `hold` line of the reason it falls short of, such as `wait <number> <url>: the scoped review has not ruled on the drops in <paths>`.
 That run writes nothing to `merge.log` and records no act.
 Only an accept that would merge waits for the run lock, which jbus's merge run holds for as long as it runs, and is judged again once it holds the lock.
-When that run merged other pull requests, main moved, and the accept can then print `GitHub has not decided whether it merges` (`undecided`).
-Run it again a minute later, when GitHub has decided.
+When that run merged other pull requests, main moved, and GitHub has not yet decided whether the accepted pull request merges.
+
+**An accept waits for GitHub to decide.**
+Before it judges, on its first look and again once it holds the lock, an accept asks GitHub again while GitHub lists the pull request's mergeability as neither mergeable nor conflicting: after 1, 2, 4, 8, 15 and 30 seconds, about a minute in all.
+It judges on the first answer that decides, so a ready pull request merges in that one run.
+When GitHub has still not decided after the last ask, the accept prints `wait <number> <url>: GitHub has not decided whether it merges` (`undecided`), merges nothing, and exits 1: run it again.
+`jmerge --accept <number> --check` asks once and does not wait.
 
 **A pull request no brief names.**
 A dependabot bump, or a pull request opened by hand, has no brief, and a plain `jmerge` waits on it with `no brief has a Result that names it`.
