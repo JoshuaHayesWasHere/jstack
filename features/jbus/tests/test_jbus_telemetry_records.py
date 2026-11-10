@@ -14,7 +14,9 @@ Each fault has one query, the one the store's page (`the-telemetry-store.md`) gi
 import contextlib
 import json
 import sqlite3
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
+
+import pytest
 
 from jbus import history, queue, telemetry
 from jbus.telemetry import cursors, migrations, waits
@@ -529,6 +531,31 @@ def test_each_of_the_machines_logs_is_read_as_the_machines_rows(machine):
         ).fetchall() == [("pass", 1, 1, 1)]
 
 
+def test_a_store_from_before_load_samples_gains_the_table_and_reads_jgauges_load_log(
+    machine, monkeypatch
+):
+    """A store migrated up to `jbus.telemetry.migrations.v017_load_samples` gains its table, and
+    a build reads jgauge's load.tsv where `JGAUGE_LOAD_LOG` names it, outside jbus's state, as
+    the machine's rows (`jbus.telemetry.records.load_samples`): each row's time, cores and
+    1-minute load, the header as a row with none, and an empty load as null."""
+    path = machine.state_dir / telemetry.FILE
+    counted(path, list(migrations.MIGRATIONS).index("v017_load_samples"))
+    log = machine.root / "jgauge" / "load.tsv"
+    log.parent.mkdir()
+    monkeypatch.setenv("JGAUGE_LOAD_LOG", str(log))
+    log.write_text("time\tcores\tload1\n1794278012\t24\t21.61\n1794278027\t24\t\n")
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        rows = store.execute(
+            "SELECT project, at, cores, load1 FROM load_samples ORDER BY at NULLS FIRST"
+        ).fetchall()
+    assert rows == [
+        ("", None, None, None),
+        ("", "2026-11-10T02:33:32.000000Z", 24, 21.61),
+        ("", "2026-11-10T02:33:47.000000Z", 24, None),
+    ]
+
+
 def test_each_source_is_the_module_named_for_its_table():
     """A source is a module of `jbus.telemetry.records` named for its table, so a new source is
     a new file, and `SOURCES` holds one source of each module, in the order of their names."""
@@ -553,3 +580,55 @@ def test_a_stall_spell_is_kept_with_its_times_and_minutes(machine):
         ).fetchall()
     since = "2026-10-28T15:00:00.000000Z"
     assert found == [("t-1", "one", since, None, None), ("t-1", "one", since, 9, "hung")]
+
+
+def test_held_now_holds_each_open_wait_with_its_row_held_seconds_up_to_the_last_build(machine):
+    """A spell open on `row-held` counts its open segment up to the last build; a pull request
+    whose merge began at its head, or whose spell left `merge-waits.json`, waits no more. The
+    spells are read by `jbus.telemetry.records.open_waits` into the table that
+    `jbus.telemetry.migrations.v017_open_waits` makes, and `jbus.telemetry.views.held_now` reads
+    it."""
+    seen = (datetime.now(UTC) - timedelta(minutes=10)).replace(microsecond=0)
+    spells = {
+        str(number): {
+            "head": head,
+            "ready": iso(seen - timedelta(hours=1)),
+            "ready_by": "check",
+            "seen": iso(seen),
+            "code": code,
+            "blockers": {"row-held": 100, "undecided": 40},
+        }
+        for number, head, code in ((1, "h1", "row-held"), (2, "h2", "undecided"), (3, "h3", ""))
+    }
+    waits_file = machine.home_dir / "alpha" / "merge-waits.json"
+    waits_file.write_text(json.dumps(spells))
+    machine.append(
+        "alpha",
+        "merge-waits.jsonl",
+        {
+            "at": iso(seen),
+            "number": 2,
+            "head": "h2",
+            "ready": iso(seen),
+            "ready_by": "check",
+            "began": iso(seen),
+            "seconds": 140,
+            "blockers": {},
+        },
+        home=True,
+    )
+    machine.build()
+    query = "SELECT pr, held FROM held_now WHERE project = 'alpha' ORDER BY pr"
+    with contextlib.closing(machine.store()) as store:
+        (built,) = store.execute("SELECT max(at) FROM builds").fetchone()
+        found = store.execute(query).fetchall()
+    open_for = (datetime.fromisoformat(built.replace("Z", "+00:00")) - seen).total_seconds()
+    assert [pr for pr, _ in found] == [1, 3]
+    assert found[0][1] == pytest.approx(100 + open_for, abs=0.01)
+    assert found[1][1] == 100
+
+    del spells["3"]
+    waits_file.write_text(json.dumps(spells))
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        assert [pr for pr, _ in store.execute(query)] == [1]

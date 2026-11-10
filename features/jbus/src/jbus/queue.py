@@ -61,6 +61,15 @@ line names (`filed_ground`): each warning in it is of a pull request that merged
 A row whose go an edit voided is approved again only where its edit kept the parent its go named,
 and a row the user's word approved waits for the user again.
 
+A follow-up the rule refuses only because its parent, a row of the queue or one that went merged,
+has no go (`ParentWaits`) is approved at the same point on its home's standing word for follow-ups
+(`STANDING`, `standing_words`, kept by `jbus standing`), where the home its brief's `Home:` line
+names holds one, or the root home does. Every other check of the rule holds for it: its brief
+names a parent on a `Follows:` line other than itself, holds no case of gates.md, and no go of the
+user's was voided on it. The go's record keeps the word's id as `ref`, the user's words, and the
+parent as `follows`, and its line names the word. A row with no `Follows:` line is never such a
+follow-up, and nor is one whose parent is no row, went unmerged, or changed after its go.
+
 `brief_sha` gives the sha of a brief. It leaves out the `Home:` and `Thread:` lines of the brief's
 head, which say whom the brief is sent to and not what it asks for: a launch writes `Thread:` in,
 and a brief queued again under another home is the same brief. jbus stores the brief whole, those
@@ -250,6 +259,15 @@ BASIS = (
 _SLUG_IN = r"(?<![a-z0-9._-]){}(?![a-z0-9_-]|\.[a-z0-9])"
 PLAN_GO = "jbus plan go <entry> --message <thread>/<message>"
 RULE = "rule"
+STANDING = "standing"
+"""The basis of a go on a home's standing word for follow-ups (`jbus.standing`): `ref` is the
+word's id, `follows` the parent its brief names, and the words are the user's."""
+RULED = (RULE, STANDING)
+"""The bases of a go jbus gives by itself, which no one typed for the row."""
+WITHDRAW = "withdraw"
+"""The `pre` of a `standing` act that ends the home's standing word; one that makes it stand has
+`STAND`. `standing_words` reads the act's action, never its line."""
+STAND = "stand"
 ENTRY = "entry"
 ANSWER = "answer"
 GO_DEFAULT = "approve"
@@ -540,8 +558,10 @@ class Approval(judgement.Go):
     place of the parent, `jbus filed it from the red run "<the run>"`, and its `words` end with
     the same. A record from before the rule was known by what it says has the number the rule had
     then as its `ref`, and that rule's text as its `words`. The user said
-    nothing of the row, so `said_at` and `said_in` are empty. No other basis has a `follows` or a
-    `ground`, and the record of such a basis has neither.
+    nothing of the row, so `said_at` and `said_in` are empty. With the basis `STANDING`, `ref` is
+    the id of the home's standing word, the words and their time are the user's, and `follows` is
+    the parent the brief names. No other basis has a `follows` or a `ground`, and the record of
+    such a basis has neither.
 
     `brief_sha` is the stored brief's sha at the go, `meaning` is its fingerprint and `scope`
     is the sha256 of that fingerprint (`jbriefs.meaning`): the go holds for a brief that means
@@ -560,6 +580,12 @@ class Approval(judgement.Go):
             return (
                 f"question {self.ref} closed on its default, {GO_DEFAULT}, by {self.closed_by}, "
                 f"{self.said_at}; {ran}; you did not speak of this row"
+            )
+        if self.basis == STANDING:
+            where = f", in {self.said_in}" if self.said_in else ""
+            return (
+                f"your standing word {self.ref} for follow-ups, {self.said_at}{where}, follow-up "
+                f"of {self.follows}; {ran}; you did not speak of this row"
             )
         if self.basis == RULE:
             ruled = "the follow-up rule" if self.ref == FOLLOW_REF else f"rule {self.ref}"
@@ -1061,6 +1087,11 @@ def _went(batch: _Batch, slug: str) -> Row | None:
     return None
 
 
+class ParentWaits(Refused):
+    """The follow-up rule's refusal of a row whose parent, a row of the queue or one that went
+    merged, has no go: the one refusal a home's standing word answers (`_standing_for`)."""
+
+
 def _parent(batch: _Batch, slug: str, follows: str) -> Row:
     """Return the parent's row, or refuse a follow-up whose parent has no go that holds.
 
@@ -1076,7 +1107,7 @@ def _parent(batch: _Batch, slug: str, follows: str) -> Row:
         raise Refused(f"{cannot} itself")
     row, here = _parent_row(batch, slug, follows)
     if not row.get("approved"):
-        raise Refused(f"{cannot} {follows}: {follows} has no approval")
+        raise ParentWaits(f"{cannot} {follows}: {follows} has no approval")
     mine = batch.brief(slug)
     why = unsilenced(mine) if mine is not None and _silence_led(batch, row) else ""
     if why:
@@ -1171,9 +1202,10 @@ def _inherit(batch: _Batch) -> None:
 
 
 def _ruled(row: Row) -> bool:
-    """Return whether the row's go is the follow-up rule's."""
+    """Return whether the row's go is one jbus gave by itself: the follow-up rule's, or a home's
+    standing word's."""
     made = record(row)
-    return made is not None and made.basis == RULE
+    return made is not None and made.basis in RULED
 
 
 def _decided(text: str) -> str:
@@ -1219,7 +1251,7 @@ def follow_up(batch: _Batch, slug: str) -> str:
     named = named_parent(slug, text)
     row = batch.row(slug)
     made = record(row)
-    if row.get("approved") and (made is None or made.basis != RULE):
+    if row.get("approved") and (made is None or made.basis not in RULED):
         raise Refused(f"refused: {slug} had the user's go, which its brief no longer holds")
     if case(text):
         raise Refused(f"refused: {slug}'s brief holds a case of gates.md, {case(text)}")
@@ -1257,10 +1289,51 @@ def _by_rule(
         verb = Approve(slug, RULE, FOLLOW_REF, "", parent)
         return _do(verb, batch, user, None, {}, {}, ran_by)
     except Refused as error:
-        if not named_parent(slug, text):
+        parent = named_parent(slug, text)
+        if not parent:
             return ""
+        stands = _standing_for(batch, text) if isinstance(error, ParentWaits) else None
+        if stands is not None:
+            verb = Approve(slug, STANDING, stands[0], "", parent, stands[1])
+            return _do(verb, batch, user, None, {}, {}, ran_by)
         why = str(error).removeprefix("refused: ")
         return f"{slug} waits for the user's go, not a follow-up: {why}"
+
+
+def ruled_by(made: Approval) -> str:
+    """Return what gave a go jbus gave by itself, as the page and the digest name it: the rule's
+    reference, or `standing word <id>`."""
+    return f"standing word {made.ref}" if made.basis == STANDING else made.ref
+
+
+def standing_words(state: Path) -> dict[str, tuple[str, Said]]:
+    """Return the standing word for follow-ups each home holds, by the home's scope (empty for
+    the root home): the word's id and the user's words. It is the last `standing` act of the
+    scope in `acts.jsonl` (`jbus.standing`), and a scope whose last one withdrew it holds none."""
+    try:
+        text = (state / "acts.jsonl").read_text()
+    except FileNotFoundError:
+        return {}
+    held: dict[str, tuple[str, Said]] = {}
+    for line in text.splitlines():
+        one = json.loads(line) if line.strip() else {}
+        if one.get("action", {}).get("verb") != STANDING:
+            continue
+        scope, said = one["action"]["subject"], one["evidence"]
+        if one["action"]["pre"] == WITHDRAW:
+            held.pop(scope, None)
+        else:
+            words = Said(said["words"], said["said_at"], said["said_in"], said["checked"])
+            held[scope] = (said["ref"], words)
+    return held
+
+
+def _standing_for(batch: _Batch, text: str) -> tuple[str, Said] | None:
+    """Return the standing word that approves a follow-up the rule refused only for its parent's
+    missing go (`ParentWaits`), or nothing. The word is the one the home its brief's `Home:` line
+    names holds, else the root home's, which stands for every home of the project."""
+    held = standing_words(batch.state)
+    return held.get(homes.named(text)) or held.get("")
 
 
 def _followers(batch: _Batch) -> list[str]:
@@ -1428,7 +1501,8 @@ _ASKS = re.compile(
 _GATED = "jbus gate"
 REQUEST_TEMPLATE = "scout-request.md"
 CREWMATE_ONLY = ("Task", "Size", "Pull request")
-REQUEST_OPTIONAL = ("Home",)
+MODEL = "Model"
+REQUEST_OPTIONAL = ("Home", MODEL)
 READ_ONLY = "read-only"
 _PLACEHOLDER = re.compile(r"<[^<>\n]* [^<>\n]*>")
 _ITEM = re.compile(r"^\s*[-*+]\s+")
@@ -1547,10 +1621,10 @@ def request_faults(slug: str, text: str) -> list[str]:
 
     A request is in the template's shape when its first line is `# <slug>: <what to find out>`,
     each label of `labels` has a field whose lines are filled in (not the template's own
-    placeholders), its `Questions:` has at least one item, and its `Out of bounds:` starts
-    `read-only`. It has no line that only a crewmate's brief has, and its `Request:` line is no
-    longer than `jbriefs.parse.LONGEST`. It does not have its scout ask the user mid-task
-    (`asks`).
+    placeholders), its `Questions:` has at least one item, its `Out of bounds:` starts
+    `read-only`, and a `Model:` line, which it may leave out, names one model id. It has no line
+    that only a crewmate's brief has, and its `Request:` line is no longer than
+    `jbriefs.parse.LONGEST`. It does not have its scout ask the user mid-task (`asks`).
     """
     found = []
     held = briefs.fields(text)
@@ -1572,6 +1646,8 @@ def request_faults(slug: str, text: str) -> list[str]:
             found.append(f"{label}: line is the template's own text")
         elif label == "Out of bounds" and not first.strip().startswith(READ_ONLY):
             found.append(f"Out of bounds: line does not start {READ_ONLY}")
+    if MODEL in fields and len(fields[MODEL][0].split()) != 1:
+        found.append(f"{MODEL}: line is not one model id")
     found += [
         f"a {label}: line, which only a crewmate's brief has"
         for label in CREWMATE_ONLY
@@ -1580,6 +1656,13 @@ def request_faults(slug: str, text: str) -> list[str]:
     if long := briefs.overlong(text, "Request"):
         found.append(long)
     return [*found, *asks(text, "request")]
+
+
+def model(text: str) -> str:
+    """Return the model id a request's `Model:` line names, or an empty string for a request with
+    no such line. `request_faults` refuses a line that is not one id."""
+    named = dict(reversed(briefs.fields(text))).get(MODEL)
+    return named[0].strip() if named else ""
 
 
 def faults(text: str, slug: str = "") -> list[str]:
@@ -1748,7 +1831,7 @@ def _do(
             row["entry"] = verb.entry
         was = batch.brief(verb.slug)
         kept = record(row)
-        if not found or handed or (kept and kept.basis == RULE):
+        if not found or handed or (kept and kept.basis in RULED):
             batch.queued.append(verb.slug)
         batch.added.append(verb.slug)
         if not found:
@@ -1775,7 +1858,7 @@ def _do(
                 )
         return f"added {verb.slug}: priority {verb.priority}{depends}{of}, brief {shown}{go}"
     if isinstance(verb, Approve):
-        ruled = verb.basis == RULE
+        ruled = verb.basis in RULED
         if user is None or (not ruled and (verb.basis, verb.ref) not in said):
             raise Refused("refused: approve was given nothing to read the user's word with")
         row = batch.row(verb.slug)
@@ -1794,7 +1877,9 @@ def _do(
                 "would write over it"
             )
         ground = ""
-        if ruled and verb.follows:
+        if verb.basis == STANDING and verb.heard is not None:
+            rests = verb.heard
+        elif ruled and verb.follows:
             their = approval(_parent(batch, verb.slug, verb.follows))
             rests = Said(f"{FOLLOW_RULE}; {verb.follows}'s go: {their}", "", "", True)
         elif ruled:
@@ -1814,7 +1899,7 @@ def _do(
             _bare(batch.state, verb, rests, ran_by or runner(), user)
             _held_by_another(row, verb, rests, ran_by or runner(), user)
             _one_party(batch, verb, rests, ran_by or runner())
-        ref = FOLLOW_REF if ruled else verb.ref
+        ref = FOLLOW_REF if verb.basis == RULE else verb.ref
         return _grant(
             batch, row, text, verb.basis, ref, rests, user, ran_by, verb.follows, ground=ground
         )
@@ -2348,7 +2433,11 @@ def _run(
                 out[verb.slug] = error
     said_by: dict[tuple[str, str], Said | Refused] = {}
     for _, verb in verbs:
-        asked = [(verb.basis, verb.ref)] if isinstance(verb, Approve) and verb.basis != RULE else []
+        asked = (
+            [(verb.basis, verb.ref)]
+            if isinstance(verb, Approve) and verb.basis not in RULED
+            else []
+        )
         if isinstance(verb, Approve) and verb.heard is not None:
             said_by[verb.basis, verb.ref] = verb.heard
             asked = []

@@ -18,6 +18,7 @@ import pytest
 import jsettings
 from jbus import cli, telemetry
 from jbus.telemetry import measures, values
+from jbus.telemetry import scorecard as card
 from jgauge import spend as jgauge_spend
 from test_jbus_telemetry import Machine
 
@@ -83,6 +84,12 @@ MODULES = (
     "jbus.telemetry.measures.m59_wrong_home",
     "jbus.telemetry.measures.m60_schema_files",
     "jbus.telemetry.measures.m61_gh_calls_per_hour",
+    "jbus.telemetry.measures.m62_live_sessions",
+    "jbus.telemetry.measures.m63_gh_calls_per_session_hour",
+    "jbus.telemetry.measures.m64_merges_per_session_hour",
+    "jbus.telemetry.measures.m65_units_per_merge",
+    "jbus.telemetry.measures.m66_rework_per_merge",
+    "jbus.telemetry.measures.m67_units_vs_capped_line",
 )
 """Each measure's module by its dotted name, so a new measure is named by a test that reads it."""
 
@@ -205,6 +212,30 @@ def scorecard(*argv):
     return code, out.getvalue()
 
 
+def test_load_over_cores_is_the_share_of_todays_load_samples_above_the_cores(tmp_path, monkeypatch):
+    """jgauge's load.tsv, its header and a row each 15 s, reaches the store through a build, and
+    `load-over-cores` reads the share of today's rows whose 1-minute load is above their cores:
+    30 of today's 120, so 25%, past its line. A load equal to the cores is not above them, and
+    yesterday's rows over the cores are not today's."""
+    machine = Machine(tmp_path, monkeypatch)
+    log = tmp_path / "load.tsv"
+    monkeypatch.setenv("JGAUGE_LOAD_LOG", str(log))
+    yesterday = [(NOW - timedelta(days=1, seconds=15 * i), "40.00") for i in range(10)]
+    today = [
+        (
+            NOW - timedelta(seconds=15 * (i + 1)),
+            "30.52" if i < 30 else "24.00" if i < 60 else "3.10",
+        )
+        for i in range(120)
+    ]
+    lines = [f"{int(at.timestamp())}\t24\t{load}\t1.00\t1.00" for at, load in yesterday + today]
+    log.write_text("\n".join(["time\tcores\tload1\tload5\tload15", *lines]) + "\n")
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        reading = measures.read(store, measure("load-over-cores"), "alpha", NOW, USER)
+    assert (reading.value, reading.n, reading.state) == (25.0, 120, "bad")
+
+
 def test_jbus_scorecard_prints_each_measure_and_writes_nothing(tmp_path, monkeypatch):
     Machine(tmp_path, monkeypatch)
     path = tmp_path / "store.sqlite"
@@ -224,7 +255,9 @@ def test_jbus_scorecard_prints_each_measure_and_writes_nothing(tmp_path, monkeyp
     read = json.loads(out)
     assert [item["name"] for item in read] == [each.name for each in measures.MEASURES]
     for item in read:
-        assert {"name", "group", "value", "n", "baseline", "state", "tier", "audit"} <= set(item)
+        assert {"name", "group", "value", "n", "baseline", "state", "tier", "audit", "each"} <= set(
+            item
+        )
     macos = next(item for item in read if item["name"] == "macos-on-prs")
     assert (macos["value"], macos["state"], macos["tier"]) == (1, "bad", "wake")
 
@@ -362,3 +395,120 @@ def test_no_weekly_read_of_calls_walks_every_call_of_a_provider(store, name):
     bound = {"project": "jstack", "begins": stamp(NOW), "ends": stamp(NOW)}
     plan = [row[3] for row in store.execute(f"EXPLAIN QUERY PLAN {query}", bound)]
     assert not [step for step in plan if step.endswith("USING PRIMARY KEY (provider=?)")], plan
+
+
+def test_exactly_three_measures_wake_and_no_other_alert_raises_them():
+    """A wake opens an alert on jbus's list (`jbus.kpis`), so a fourth is a change someone chose,
+    and each of the three keeps the line it was chosen with."""
+    wakes = {
+        each.name: each for each in measures.MEASURES if each.tier == "wake" and not each.wired
+    }
+    assert sorted(wakes) == ["failed-launches", "held-ready-pr", "macos-on-prs"]
+    assert (wakes["macos-on-prs"].kind, wakes["macos-on-prs"].window) == (measures.Zero(), "day")
+    assert wakes["failed-launches"].kind == measures.Limit(20, 5)
+    assert wakes["held-ready-pr"].kind == measures.Limit(2, 0)
+    assert wakes["held-ready-pr"].unit == "h"
+
+
+def ran(store, instance: str, *made) -> None:
+    """A crew session on `instance` and its calls, each `(at, units)`, all of it plain input on
+    Sonnet, so a call's units are its tokens."""
+    store.execute(
+        "insert into sessions (provider, session, instance, project, role)"
+        " values ('claude', ?, ?, 'jstack', 'crew')",
+        (instance, instance),
+    )
+    for i, (at, units) in enumerate(made):
+        store.execute(
+            "insert into calls (provider, call, session, at, model, input, cache_write,"
+            " cache_read, output, final, day) values ('claude', ?, ?, ?, 'claude-sonnet-5-5', ?,"
+            " 0, 0, 0, 1, ?)",
+            (f"{instance}.{i}", instance, stamp(at), units, at.date().isoformat()),
+        )
+
+
+def quota(store, instance: str, window: str, *readings) -> None:
+    """The health look's readings of `instance`'s `window`, each `(at, percent used)`."""
+    for at, value in readings:
+        store.execute(
+            "insert into health_readings (project, key, at, reading, value, over)"
+            " values ('', ?, ?, ?, ?, 0)",
+            (f"{instance} {window} {stamp(at)}", stamp(at), f"quota {instance} {window}", value),
+        )
+
+
+def test_units_an_hour_read_against_each_accounts_capped_line(store):
+    """claudeAgent's seven-day window rose 10 points over 168 M units, so 100 points, its whole
+    week, is 1,680 M units, and its capped line is 10 M an hour; it ran 5 M in the last hour, 50%
+    of its line. prime's rose 10 points over 84 M, a line of 5 M an hour, and it ran 10 M, 200%:
+    the measure is past its line at the account nearest its cap, and shows each account."""
+    hours = [NOW - timedelta(hours=back) for back in (6, 1)]
+    quota(store, "claudeAgent", "seven_day", (hours[0], 30), (hours[1], 40))
+    quota(store, "claudeAgent", "five_hour", (hours[0], 0), (hours[1], 0))
+    quota(store, "prime", "seven_day", (hours[0], 10), (hours[1], 20))
+    ran(
+        store,
+        "claudeAgent",
+        (hours[0] + timedelta(hours=2), 168_000_000),
+        (NOW - timedelta(minutes=30), 5_000_000),
+    )
+    ran(
+        store,
+        "prime",
+        (hours[0] + timedelta(hours=2), 84_000_000),
+        (NOW - timedelta(minutes=30), 10_000_000),
+    )
+    reading = measures.read(store, measure("units-vs-capped-line"), "jstack", NOW, USER)
+    assert (reading.value, reading.n, reading.state) == (200.0, 2, "bad")
+    assert reading.each == (
+        measures.Part("claudeAgent", 5.0, 10.0),
+        measures.Part("prime", 10.0, 5.0),
+    )
+    page = card.page([card.Line(measure("units-vs-capped-line"), reading)], NOW)
+    assert "claudeAgent 5 of 10 M units an hour" in page and "prime 10 of 5 M units an hour" in page
+
+
+def test_an_account_whose_quota_rose_too_little_has_no_capped_line_yet(store):
+    """A rise of a point or two says more about where the percent rounds than about the account:
+    its line would swing tenfold, so the account is shown with its units an hour alone."""
+    quota(store, "claudeAgent", "seven_day", (NOW - timedelta(hours=3), 30), (NOW, 31))
+    ran(store, "claudeAgent", (NOW - timedelta(minutes=30), 5_000_000))
+    reading = measures.read(store, measure("units-vs-capped-line"), "jstack", NOW, USER)
+    assert (reading.value, reading.state) == (None, "none")
+    assert reading.each == (measures.Part("claudeAgent", 5.0, None),)
+    page = card.page([card.Line(measure("units-vs-capped-line"), reading)], NOW)
+    assert "claudeAgent 5 M units an hour, no line yet" in page
+
+
+def test_a_quota_rise_across_a_reset_counts_the_new_share_alone(store):
+    """The view `quota_rises` (`jbus.telemetry.views.quota_rises`) steps from reading to reading;
+    where the window reset between two, its share fell, and the points it gained are the new
+    share."""
+    quota(
+        store,
+        "claudeAgent",
+        "seven_day",
+        (NOW - timedelta(hours=2), 95),
+        (NOW - timedelta(hours=1), 98),
+        (NOW, 4),
+    )
+    rows = store.execute("select span, rise from quota_rises order by at").fetchall()
+    assert rows == [("seven_day", 3.0), ("seven_day", 4.0)]
+
+
+def test_a_measure_whose_each_query_fails_keeps_its_value_and_shows_no_part(store):
+    each = measures.Measure(
+        name="probe",
+        group="machinery",
+        says="a probe",
+        unit="%",
+        better="lower",
+        source=measures.Sql("select 7 as value, 1 as n", each="select label from nowhere"),
+        window="hour",
+        baseline=10,
+        baseline_of="a test",
+        kind=measures.Limit(100),
+        tier="page",
+    )
+    reading = measures.read(store, each, "jstack", NOW, USER)
+    assert (reading.value, reading.state, reading.each) == (7.0, "ok", ())

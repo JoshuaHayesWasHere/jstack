@@ -483,8 +483,9 @@ def fake_gh(stub, args, cwd):
     `head_sha`, by the sha or by a pull request's ref (`pull/<number>/head`, the head the open pull
     request has now), its runs for a push, who owns the repo (with no `repo.json`, GitHub does not
     say), the commits, and a pull request's comments, line comments and reviews. Asked for every
-    page (`--paginate --slurp`), it gives a list of pages, here two, and for the runs, a run's jobs
-    and a check run's annotations (none), one. A job comes from `jobs.json` by its id, or is one
+    page (`--paginate --slurp`), it gives a list of pages, here two, and for the runs and a run's
+    jobs, one. Check runs' annotations, asked for in GraphQL by their node ids, are none: each node
+    is null. A job comes from `jobs.json` by its id, or is one
     step at the first attempt where `jobs.json` has none for it. Its log comes from `logs.json` by
     its id, or is not found, and a log with an escape sequence in it is refused unless asked for
     with `--allow-escape-sequences`, as gh 2.102 does. A commit asked for by its sha lists the files
@@ -577,8 +578,9 @@ def fake_gh(stub, args, cwd):
         if (stub / "gh-edit-refused").exists():
             return 1, "", ""
         said = ""
-    elif args[0] == "api" and args[1].split("?")[0].endswith("/annotations"):
-        said = "[[]]" if "--slurp" in args else "[]"
+    elif args[:2] == ["api", "graphql"] and "annotations(first:" in args[3]:
+        ids = [one.split("=", 1)[1] for one in args if one.startswith("ids[]=")]
+        said = json.dumps({"data": {"nodes": [None for _ in ids]}})
     elif args[0] == "api" and "/check-runs" in args[1]:
         runs = json.loads((stub / "check-runs.json").read_text())
         ref = args[1].split("?")[0].split("/commits/")[-1].removesuffix("/check-runs")

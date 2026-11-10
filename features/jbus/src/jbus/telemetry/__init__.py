@@ -18,10 +18,11 @@ still being written waits for the next build. A log whose inode or first line ch
 is shorter than the offset, is read again from the start: its rows are keyed by their content
 (`values.key`), so a line read twice is one row, the one today's `records` makes of it, and a
 row that would not change is not written. A snapshot is read again when its inode, size
-or time changed. Each file's rows and its cursor are written in one transaction, so a build
-stopped at any point leaves each file either read or not, and the next build reads on from
-there. So a build run twice adds nothing the second time, and a build run each pass ends as a
-build from nothing would (`--rebuild`), apart from the rows the sources have since dropped.
+or time changed, and a `whole` one then deletes the rows of the records it no longer has.
+Each file's rows and its cursor are written in one transaction, so a build stopped at any
+point leaves each file either read or not, and the next build reads on from there. So a build
+run twice adds nothing the second time, and a build run each pass ends as a build from nothing
+would (`--rebuild`), apart from the rows the sources have since dropped.
 
 Each pass runs a build after the launches (`CHORES`), before any project's second half, where
 `jbus.chores.daily` trims `events.jsonl` to 14 days. The trim drops only the lines this store
@@ -222,7 +223,8 @@ def _files(config: jbus.Config) -> Iterator[tuple[str, Source, Path]]:
                 yield project.name, source, _file(config, project, source)
     for source in SOURCES:
         if source.where == "machine":
-            yield values.MACHINE, source, config.state_dir / source.file
+            file = source.located() if source.located else config.state_dir / source.file
+            yield values.MACHINE, source, file
 
 
 def _insert(source: Source) -> str:
@@ -321,6 +323,12 @@ def _snapshot(connection, project: str, source: Source, file: Path, zone, built:
     connection.execute("BEGIN")
     before = connection.total_changes
     connection.executemany(_insert(source), rows)
+    if source.whole:
+        connection.execute(
+            f"DELETE FROM {source.table} WHERE project = ? "
+            "AND key NOT IN (SELECT value FROM json_each(?))",
+            (project, json.dumps([row[1] for row in rows])),
+        )
     built.rows[source.table] += connection.total_changes - before
     cursors.keep(
         connection, project, source.table, stat.st_ino, None, None, stat.st_size, stat.st_mtime_ns
@@ -519,6 +527,9 @@ def _reading(measure: measures.Measure, reading: measures.Reading) -> dict[str, 
         "wired": measure.wired,
         "audit": list(measure.audit),
         "note": reading.note,
+        "each": [
+            {"label": part.label, "value": part.value, "line": part.line} for part in reading.each
+        ],
     }
 
 
@@ -526,9 +537,10 @@ def _line(measure: measures.Measure, reading: measures.Reading) -> str:
     value = "-" if reading.value is None else f"{round(reading.value, 2):g}"
     baseline = "-" if reading.baseline is None else f"{reading.baseline:g}"
     note = f"  {reading.note}" if reading.note else ""
+    each = "".join(f"; {said}" for said in scorecard.parts(measure, reading))
     return (
         f"{reading.state:<5}  {measure.group:<9}  {measure.name:<22}  {value} {measure.unit}"
-        f" of {reading.n}, baseline {baseline}, {measure.tier}{note}"
+        f" of {reading.n}, baseline {baseline}, {measure.tier}{note}{each}"
     )
 
 

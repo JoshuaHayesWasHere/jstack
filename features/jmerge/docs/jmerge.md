@@ -196,6 +196,8 @@ The section "Protected paths" describes one more hold.
   A check that the repo's workflows never run then blocks no merge.
   A pull request waits with `<check> has failed` for the first required check that has not passed where its latest run failed, with `<check> has not passed` where it has not, and with `it conflicts with its base` for a conflict.
   Where GitHub lists no run of that check at the head, the line is `<check> has no run at <head12>` instead: no runner is at work on it, as for a workflow that reached the base after the head's checks ran.
+  Where GitHub has not yet decided whether the pull request merges, `GitHub has not decided whether it merges` (`undecided`) is said last, after every reason that does not wait on GitHub: a review, a rebase that changed the content or dropped a line, a go, a scoped ruling, a queue row, a hold and a draft each say their own line first, since GitHub's answer would not change them (`Repo.judged`).
+  GitHub decides afresh each time main moves, and #1440 went `dropped`, `undecided`, `dropped` while its rebase's drop stood.
   A held queue row, or one that merges after a row not merged yet, comes before `<check> has failed`, `<check> has not passed` and a running check, and a check with no run at the head comes before it ("Its queue row lets it merge").
 - **Its queue row lets it merge.**
   Once each run, `jmerge` reads the `queue.json` of the jbus project that the current checkout belongs to (`features/jmerge/src/jmerge/rows.py`).
@@ -212,7 +214,7 @@ The section "Protected paths" describes one more hold.
   When the queue exists but cannot be read, every pull request waits with `its queue cannot be read, so its holds and merge order are not known`.
   A repo with no jbus config, or that no project names, has no queue and no such wait.
   `jmerge` judges these after the review and rebase gates, so it reports a missing review or rebase line first.
-  A held row and a `merges after` wait come before GitHub's waits too: a pull request whose row says either waits on it whatever GitHub says of its mergeability or its check, in place of `GitHub has not decided whether it merges`, `<check> has failed`, `<check> has not passed` and `<check>'s run at <head12> is <state>` (`Repo.row_first`).
+  A held row and a `merges after` wait come before GitHub's waits too: a pull request whose row says either waits on it whatever GitHub says of its mergeability or its check, in place of `<check> has failed`, `<check> has not passed` and `<check>'s run at <head12> is <state>` (`Repo.row_first`).
   GitHub's state comes and goes each time main moves, and the row's wait stands until the row changes, so the pull request keeps one `wait` line for as long as its row holds it.
   A check with no run at the head, and a conflict while no required check waits, keep their place before the queue's waits: they are the crew's to act on.
   GitHub names a waiting check before a conflict, so a held row on a pull request that conflicts and has a failed check reads `row-held`, as it read `<check> has failed` before.

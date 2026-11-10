@@ -690,7 +690,7 @@ SHORT = {
         "it conflicts with its base",
     ),
     "UNKNOWN": (
-        FIXED,
+        CHECKED_ALONE,
         {"head": PUSHED, "mergeable": "UNKNOWN"},
         "GitHub has not decided whether it merges",
     ),

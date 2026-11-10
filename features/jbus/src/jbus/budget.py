@@ -3,8 +3,9 @@
 through the one runner (`jsettings.proc`); this module re-exports them under their old names.
 
 A pass of jbus reads the budget before it asks GitHub for its world (`jbus.watch.look`). When it
-is held, the pass asks GitHub nothing and has no world, as when GitHub is silent, so no row
-changes; `jmerge` still runs. `jbus flow --jobs` refuses a call per run that would take the
+is held, the pass asks GitHub nothing and has no world, as when GitHub is silent, so no row's
+status changes, and each approved row it would have launched says why (`jbus.budgethold`);
+`jmerge` still runs. `jbus flow --jobs` refuses a call per run that would take the
 budget to the floor (`jbus.flow.records.affordable`). A thread runs `jbus budget` before a loop
 of `gh` calls, with `--wait` to wait in its turn, and refuses while it ends 75 (`TEMPFAIL`). The
 skills name each loop.

@@ -115,7 +115,10 @@ jobs:
       # timing tests no pull request reached broke main in 8 of the audit's 15 reds. The lookup
       # reads the logs of main's red jobs, and the cache keeps what each log named, so a run lists
       # the last 4 days of main's runs and reads the logs of new reds only. A cache saved on main,
-      # by `full`, is one every pull request can restore. The key's `2` is the form of the file,
+      # by `full`, is one every pull request can restore. It keeps each list's ETag too, and asks
+      # with it, so a list that did not change is answered 304 at no cost: a warm lookup pays
+      # only for the lists a new run of main changed, where it paid 8 calls or more on every
+      # run (testing/tests/test_ci_api_calls.py). The key's `2` is the form of the file,
       # whose days keep their newest green run: a file of the old form is never restored. A
       # lookup that fails adds no test, and `check` warns of it. One GitHub answers 403 or 429,
       # its allowance spent, prints `all` and passes, and `select` runs the whole suite.
@@ -209,9 +212,9 @@ jobs:
       # co-author fails here, with each line named. It runs on every run, a reuse included: the
       # two trees fix the files, and not the title, the body or a commit's message, which a push
       # that keeps the trees can still change. It reads no test, so it runs here, once, and
-      # `check` fails when this job did. The commits come from GitHub's compare API, not this
-      # checkout's two commits of history, and where the API answers 403 or 429, its allowance
-      # spent, from a git fetch of `origin`. The patterns need only the runner's python3. It
+      # `check` fails when this job did. The commits come from a git fetch of `origin`, with no
+      # trees, not this checkout's two commits of history and not GitHub's compare API: a fetch
+      # spends none of the run's token's allowance. The patterns need only the runner's python3. It
       # runs also where the selection failed, so a red check names both. A push to main has no
       # pull request: its pull request's check ran it.
       - name: no AI co-author trailer
@@ -322,31 +325,19 @@ jobs:
             tlc-
       # The selection `reuse` uploads as `selection-<attempt>`, waited for here with the part's
       # setup done, and given as this step's outputs: `reused`, `tree`, `selection`, `files`,
-      # `forced_by` and `part1` to `part8`. It asks for this attempt's artifact once a second,
-      # and every fifth time whether this attempt's `reuse` has ended or is not of this attempt,
-      # as when only the failed jobs run again: then the newest selection of the run is the one,
-      # the one `reuse` left in the attempt it ran, and where there is none the part fails, so no
-      # part waits out its timeout. A listed artifact whose download fails, as when GitHub answers
-      # it 404 just after the upload, is not there yet: the part asks again in the same wait, and
-      # fails only where `reuse` has ended and the newest selection still does not download.
-      # The run's token reads the run's artifacts (`actions: read`).
+      # `forced_by` and `part1` to `part8` (scripts/selection_wait.py). It asks for this
+      # attempt's artifact once a second, each ask after the first with the ETag of the answer
+      # before it, which GitHub answers 304 at no cost while nothing changed: a part makes 3
+      # costed calls of the run's token's 1,000 an hour, where the old loop made one an ask
+      # (testing/tests/test_ci_api_calls.py). A part of a run again whose `reuse` is not of its
+      # attempt, as when only the failed jobs run again, takes the newest selection of the run,
+      # and a part still waiting after a minute asks whether `reuse` ended with none, and fails
+      # then, not at its timeout. The run's token reads the run's artifacts (`actions: read`).
       - name: selection
         id: selection
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: >-
-          runs="repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"; asks="$runs/artifacts?name=selection-$GITHUB_RUN_ATTEMPT";
-          zip="$RUNNER_TEMP/selection.zip"; get() { [ -n "$id" ] && gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "$zip"; };
-          tries=0; while :; do id=$(gh api "$asks" --jq '[.artifacts[] | select(.expired | not)][0].id // empty') || id=; get && break;
-          tries=$((tries + 1));
-          if [ $((tries % 5)) = 0 ]; then
-          reuse=$(gh api "$runs/attempts/$GITHUB_RUN_ATTEMPT/jobs?per_page=100" --jq '[.jobs[] | select(.name == "reuse") | .status][0] // "none"') || reuse=unknown;
-          if [ "$reuse" = completed ] || [ "$reuse" = none ]; then
-          id=$(gh api "$runs/artifacts?per_page=100" --jq '[.artifacts[] | select((.name | startswith("selection-")) and (.expired | not))] | max_by(.name | ltrimstr("selection-") | tonumber) | .id // empty') || id=;
-          get && break;
-          echo "::error::the job reuse ended with no selection for this part"; exit 1; fi; fi;
-          sleep 1; done;
-          unzip -p "$zip" selection.json | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> "$GITHUB_OUTPUT"
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/selection_wait.py
       # The part's files, or `none` where the selection left this part empty, which passes. A
       # part that got nothing, as when the selection failed before its outputs, fails: with no
       # files `make test` would run the whole suite. A reuse runs neither this nor the tests.
