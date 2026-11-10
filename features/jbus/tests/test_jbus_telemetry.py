@@ -1133,6 +1133,7 @@ def test_a_store_built_before_the_labels_gains_them_as_a_rebuild_has_them(machin
         unrun = "".join(f"DELETE FROM migrations WHERE name = '{name}';" for name in rewound)
         store.executescript(
             f"{views}{later}ALTER TABLE messages DROP COLUMN asks; "
+            f"ALTER TABLE messages DROP COLUMN surface; "
             f"ALTER TABLE acts DROP COLUMN asks; ALTER TABLE queue DROP COLUMN follows; "
             f"ALTER TABLE queue DROP COLUMN queued_by_session; "
             f"ALTER TABLE queue DROP COLUMN approval_message; "

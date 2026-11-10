@@ -7,9 +7,9 @@ MEASURE = Measure(
     unit="messages",
     better="lower",
     source=Lacks(
-        "messages.surface, the label po-sc-ask-labels puts on each typed message,"
-        " here 'routing':"
-        " messages.asks holds needs or other only"
+        "a rule that tells a message about routing: asks.surface agreed with the audit's"
+        " hand label on 1 of 2 (50%) on a held-out 100 of the audit's typed messages"
+        " (2026-11-02 to 11-09), under the 80% to show it"
     ),
     window="week",
     baseline=9,

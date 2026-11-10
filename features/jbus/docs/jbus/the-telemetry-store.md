@@ -255,6 +255,25 @@ What a message asks is one label: `needs` where it asks what needs you, else `ot
 A build works the label out of the text as it reads it and keeps only the label, in `messages.asks` and in `acts.asks` for a word.
 `features/jbus/src/jbus/telemetry/asks.py` writes the rule, what it leaves out on purpose and what it misses.
 
+What a message you typed is about is one label too, its `surface`, kept in `messages.surface` for a message of kind `text` and empty for any other:
+
+| `surface` | The message is about |
+|---|---|
+| `needs` | what needs you: `needs` exactly where `asks` is `needs` |
+| `approval` | a go, an approve, or an answer by word to a gate or a pick (`go`, `approve <slug>`, `yes to question 12`, `<slug>: go`) |
+| `sidebar` | the sidebar or a thread's state: stalled, stale, still open, settled, `jview` |
+| `merge` | a pull request, merging, CI, checks or a red main |
+| `routing` | the home a row or thread is in: the wrong home, a child home, moving a row |
+| `status` | how the work stands: status, progress, what is left, `ketchup` |
+| `other` | none of these |
+
+Each label but `needs` and `other` is a pattern of words, tried in the order of the table (`approval` reads a message's start, where an answer's word is, and `my pick` anywhere), over the first 400 characters with a mention in quotes or backticks and a link's target left out.
+A word of `acts` has no `surface`: an act keeps no text past its read.
+The measures `merge-asks` and `approval-reasks` read it; `merge` counts every message that names a pull request, a new piece of work as much as a complaint, and `approval` every approval typed in T3, a re-ask or not, and no word said through the bots' chat or the view.
+`sidebar-friction`, `status-asks`, `wrong-home` and `friction-by-surface`, the share of typed messages that are not `other`, lack it: on a held-out 100 of the audit of 2026-11-09, the label agreed with its hand label under 80% of the time, and each measure's `needs` gives by how much.
+`reply-corrections` and `visual-misses` lack it too: no pattern of the words tells a correction from a request.
+`asks.py` gives each pattern and what it misses.
+
 A lost ask is an `unanswered` message: no act cites it, and no reply came in its thread within the wait.
 The wait is counted to the last build, so a view read twice gives the same answer.
 A reply counts as an answer, so a message answered in words whose work never became a row is not lost here.

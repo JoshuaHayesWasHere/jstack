@@ -7,9 +7,8 @@ MEASURE = Measure(
     unit="messages",
     better="lower",
     source=Lacks(
-        "messages.surface, the label po-sc-ask-labels puts on each typed message,"
-        " here 'visual':"
-        " messages.asks holds needs or other only"
+        "a rule that tells a correction from a request: no pattern of the words does,"
+        " so asks.surface has no label for one"
     ),
     window="week",
     baseline=13,
