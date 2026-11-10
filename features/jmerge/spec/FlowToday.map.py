@@ -2,6 +2,11 @@
 reader_actions = ["Approve", "HoldRow", "Accept", "HomeEdits"]
 
 
+def _of(v, key, default):
+    """v[key] where the model has the variable: FlowDesign has no batch, line, mend or heard."""
+    return v[key] if key in v else default
+
+
 def _kind(v, p):
     if v["st"][p] == "merged":
         return "merged"
@@ -12,7 +17,8 @@ def _kind(v, p):
     fix = ", holds main's fix" if v["fixes"][p] else ""
     ci = v["ci"][p]
     if ci == "none":
-        return "waiting for a check" + fix
+        holds = ", holds main's line" if _of(v, "line", None) == p else ""
+        return "waiting for a check" + fix + holds
     if "brFail" in v and v["brFail"][p]:
         return "its browser run red"
     if ci == "pass" and v["fixes"][p]:
@@ -25,39 +31,59 @@ def _kind(v, p):
         return "passed, " + _waits(v, p)
     if v["fixes"][p]:
         return "holds main's fix, red from its own break"
-    if v["told"].get(p, False):
+    if _of(v, "told", {}).get(p, False):
         return "red, its crew told"
     if not v["breaks"][p]:
         return "red only from main's break"
-    if v["ranRed"][p]:
+    if _of(v, "ranRed", {}).get(p, False):
         return "red, its own break hidden behind main's"
     return "red, its own break"
 
 
 def _waits(v, p):
-    """What a passed pull request waits on: FlowDesign has no row order and no stack."""
+    """What a passed pull request waits on: FlowDesign has no row order, no stack, no batch and no
+    line."""
     if "on" in v and v["on"][p] != "main":
         return "stacked on the other"
     if "link" in v and p == "b" and v["link"] == "after" and v["st"]["a"] != "merged":
         return "merges after the other"
-    return "waiting to merge"
+    if p in _of(v, "batch", []):
+        return "in jmerge's batch"
+    suspect = ", a suspect" if p in _of(v, "suspects", []) else ""
+    if _of(v, "batch", None) and not v["mainRed"]:
+        return "waits for jmerge's batch" + suspect
+    if not _of(v, "moved", {}).get(p, False):
+        return "waiting to merge" + suspect
+    if _of(v, "line", None) == p:
+        return "main moved past its check, holds main's line"
+    alone = p in _of(v, "alone", [])
+    if alone or v["mainRed"]:
+        lead = "its batch failed, " if alone else ""
+        if _of(v, "line", None) not in (None, "none", p):
+            return lead + "main moved past its check, in line behind the other"
+        return lead + "main moved past its check, goes alone"
+    return "main moved past its check" + suspect
 
 
 def _main(v):
     if not v["mainRed"]:
         where = "Main green"
-    elif v["redBy"] == "merge":
-        where = "Main red from a merge"
+    elif v["redBy"] in ("merge", "many"):
+        where = "Main red from a merge" if v["redBy"] == "merge" else "Main red from merges"
+    elif v["redBy"] == "flake":
+        where = "Main red from a flake"
     else:
         where = "Main red from outside"
-    if "rerun" in v and v["rerun"]:
-        where += ", its run rerun"
-    if v["fixRow"]:
+    if _of(v, "mend", None) == "judging" or _of(v, "rerun", None):
+        where += ", its run rerun and judged"
+    if _of(v, "mend", None) == "row" or _of(v, "fixRow", None):
         where += ", its fix row filed"
-    if "revert" in v and v["revert"] == "open":
+    if _of(v, "mend", None) == "revert" or _of(v, "revert", None) == "open":
         where += ", a revert open"
     if "brHold" in v and v["brHold"]:
         where += ", its browser red"
+    if "heard" in v and not v["heard"]:
+        where += ", jmerge's last lines unread"
     return where + (", machine full" if v["full"] else "")
 
 
@@ -100,11 +126,15 @@ group_colors = {
 
 STEPS = {
     "FixMain": "jbus approves main's fix row by rule, and its crew fixes main",
+    "BuildBatch": "jmerge builds its batch of what main moved past",
+    "BatchPasses": "CI's check passes jmerge's batch, and jmerge merges every member",
+    "BatchFails": "CI's check fails jmerge's batch",
+    "InLine": "GitHub merges main into it, in its turn in main's line",
+    "GiveUpLine": "it waits on more than its check, and gives up main's line",
+    "Hear": "jmerge's run ends off the pass, and the next pass reads its lines",
     "FixBrowser": "jbus approves the browser run's fix row by rule, and its crew fixes main's view",
-    "RerunEnds": "jbus reruns main's failed run, and it fails again",
-    "JudgeRed": "jbus judges main's red, and files its fix row",
+    "JudgeRed": "jbus reruns main's failed run and judges it, and files its fix row",
     "RevertMerges": "jmerge merges jbus's revert, and main is green",
-    "RevertCloses": "main is green without it, and jbus closes its revert",
     "MeetsFix": "jbus tells its crew the brief is not met, and its crew meets it",
     "HomeEdits": "you have its brief edited so it no longer builds on the other",
     "BrowserFix": "its crew fixes what its browser run found",
@@ -129,11 +159,16 @@ def step(action, before, after):
             "jbus approves main's fix row by rule, "
             "and its crew puts the fix in an open pull request"
         )
-    if action == "RerunEnds" and not after["mainRed"]:
+    if action == "JudgeRed" and not after["mainRed"]:
         return "jbus reruns main's failed run, and it passes: a flake"
-    opened = "revert" in after and after["revert"] == "open" and before["revert"] != "open"
-    if action == "JudgeRed" and opened:
-        return "jbus reverts the one merge that turned main red"
+    if action == "JudgeRed" and _of(after, "mend", None) == "revert":
+        return "jbus reruns main's failed run, and reverts the one merge that turned it red"
+    if action == "RevertMerges" and after["mainRed"]:
+        return "jmerge merges jbus's revert, and main is still red from another merge"
+    if action == "BatchFails" and _of(after, "alone", None) != _of(before, "alone", None):
+        return "CI's check fails jmerge's batch of one, and its member goes alone"
+    if action == "BatchFails":
+        return "CI's check fails jmerge's batch of two, and both are its suspects"
     moved = [p for p in ("a", "b") if action == "Restack" and after["on"][p] != before["on"][p]]
     if moved and after["ci"][moved[0]] == "pass":
         return "the one it is stacked on merged, and jbus moves it onto main, its pass kept"
