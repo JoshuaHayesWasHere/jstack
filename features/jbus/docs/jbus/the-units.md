@@ -43,9 +43,14 @@ The install enables the timer, so a boot or an install starts it, and the first 
 A pass that starts or stops it says so in its log, `tick: ... so jbus-merge.timer runs` or `... stops`.
 A tick asks GitHub nothing while that file is `[]` in every project.
 Otherwise it reads the heads: for every pull request in it at once, at most 16 at a time (`GH_CAP`, the `gh` processes the machine runs at one moment), it asks for the check runs at its head as it is now, the jobs of its workflow runs, by the pull request's ref (`commits/pull/<number>/head/check-runs`), with the ETag it kept, which GitHub answers with a 304 that spends no API allowance until a job at that head changes or a push moves the head.
-So ten pending pull requests cost a tick about one read's time, not ten, and each is read every 10 seconds.
+So ten pending pull requests cost a tick about one read's time, not ten, and each is read every 10 seconds until it settles.
 So a head pushed after the pass read the pull request reaches the next tick, within 10 seconds, at no call of its own, and the tick stops reading a head that a newer push superseded.
 A row's pull request stays in it however long ago a verdict named its last head's end, so a push to it any time later reaches the next tick too, and while nothing changes at its head it costs a 304 a tick.
+A pull request is settled once neither the tick's read nor the pass has seen it change for 15 minutes (`SETTLED` in `jbus.tick`), and the tick asks about a settled one once a minute, not every 10 seconds, on whichever tick comes first a minute or more after its last ask.
+What wakes it is any change jbus sees: a read that GitHub answers 200, or a pass that sees its head pushed, its checks' rollup change (a check run queued, started or ended) or main's tip move.
+From the next tick on it is asked about every 10 seconds again, for another 15 minutes at least.
+So a pull request whose checks end while it is settled still merges within a minute, with no pass between.
+On 2026-11-09, 60% of the tick's 304s asked about a head that had not changed for 15 minutes, so asking those once a minute brings the tick from about 310 304s an hour for each open pull request to about 0.4 × 330 + 0.6 × 60, near 170: a prediction from that count, which the rate a day after the change measures.
 A head's check suite the tick has not seen yet costs one more read, of the head's workflow runs, so the tick knows which workflow each job belongs to.
 So a 10 second tick costs no allowance while nothing changes, and `jbus budget --callers` counts its 304s apart, as free.
 A round, a head's checks from the push to their end, costs a counted read of its check runs for each 10 second window in which a job at the head was queued, started or ended, plus one read of its workflow runs and the tick's run of `jmerge` once the verdict is in.
@@ -88,7 +93,7 @@ each run of `jmerge`, the tick's and the pass's, restates the step of each pull 
 So a check that ends reaches its line without waiting on `jmerge`'s own run of seconds.
 `jmerge` reads a check as failed only once the check's own job ends, which waits on every job it needs, so while it says that check is still going at the same head, the tick's `failed` stands.
 Where the next run of `jmerge` judges the line otherwise than the tick, its verdict stands and the line is logged as drift (`work-drift`), quietly.
-What is left of the wait from GitHub ending a job to its line is the tick's own part, 10 seconds at most and about 5 on average, and GitHub's lag in listing the job, which only a webhook would take away.
+What is left of the wait from GitHub ending a job to its line is the tick's own part, 10 seconds at most and about 5 on average (a minute at most for a settled pull request with no pass between), and GitHub's lag in listing the job, which only a webhook would take away.
 `features/jbus/tests/checks_bound_probe.py` times it live, and no figure here claims the total.
 So a change reaches `work.json` within milliseconds of its write: `features/jbus/tests/work_live_probe.py` times it.
 A thread's state has a writer too: `jbus follow` follows T3 Code's events and restates the line of each thread whose turn started, ended or waits on you, or that was settled or archived.
