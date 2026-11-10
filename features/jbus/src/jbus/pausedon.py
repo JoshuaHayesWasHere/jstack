@@ -18,9 +18,10 @@ its thread waits on a slot, and the key stays unsent until a pass sends it. A th
 row gated, or a Result that no longer says `paused` is told nothing.
 
 That carry-on is the live case: the crew's thread is listed and not settled (`live`). A row whose
-thread T3 Code settled or archived is `left`, and `jbus.dispatch` launches it again on its own
-branch and worktree once a cause it waits on clears (`cleared`), so no carry-on goes to a thread
-that has ended. The causes, each read from the state, are a table (`CAUSES`):
+thread T3 Code settled is `left`, and `jbus.dispatch` launches it again on its own branch and
+worktree once a cause it waits on clears (`cleared`), so no carry-on goes to a thread that has
+ended. A row whose thread T3 Code archived is launched again by nobody, as `tell` carries it on to
+nobody: the thread was put away. The causes, each read from the state, are a table (`CAUSES`):
 
 - `waits`: its paused Result's `Waits on:` rows all landed, as above;
 - `review`: a `## Review` with findings was written after its last Result, at a head, so the
