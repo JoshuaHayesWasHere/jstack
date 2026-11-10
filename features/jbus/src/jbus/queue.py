@@ -1497,7 +1497,8 @@ _ASKS = re.compile(
 _GATED = "jbus gate"
 REQUEST_TEMPLATE = "scout-request.md"
 CREWMATE_ONLY = ("Task", "Size", "Pull request")
-REQUEST_OPTIONAL = ("Home",)
+MODEL = "Model"
+REQUEST_OPTIONAL = ("Home", MODEL)
 READ_ONLY = "read-only"
 _PLACEHOLDER = re.compile(r"<[^<>\n]* [^<>\n]*>")
 _ITEM = re.compile(r"^\s*[-*+]\s+")
@@ -1616,10 +1617,10 @@ def request_faults(slug: str, text: str) -> list[str]:
 
     A request is in the template's shape when its first line is `# <slug>: <what to find out>`,
     each label of `labels` has a field whose lines are filled in (not the template's own
-    placeholders), its `Questions:` has at least one item, and its `Out of bounds:` starts
-    `read-only`. It has no line that only a crewmate's brief has, and its `Request:` line is no
-    longer than `jbriefs.parse.LONGEST`. It does not have its scout ask the user mid-task
-    (`asks`).
+    placeholders), its `Questions:` has at least one item, its `Out of bounds:` starts
+    `read-only`, and a `Model:` line, which it may leave out, names one model id. It has no line
+    that only a crewmate's brief has, and its `Request:` line is no longer than
+    `jbriefs.parse.LONGEST`. It does not have its scout ask the user mid-task (`asks`).
     """
     found = []
     held = briefs.fields(text)
@@ -1641,6 +1642,8 @@ def request_faults(slug: str, text: str) -> list[str]:
             found.append(f"{label}: line is the template's own text")
         elif label == "Out of bounds" and not first.strip().startswith(READ_ONLY):
             found.append(f"Out of bounds: line does not start {READ_ONLY}")
+    if MODEL in fields and len(fields[MODEL][0].split()) != 1:
+        found.append(f"{MODEL}: line is not one model id")
     found += [
         f"a {label}: line, which only a crewmate's brief has"
         for label in CREWMATE_ONLY
@@ -1649,6 +1652,13 @@ def request_faults(slug: str, text: str) -> list[str]:
     if long := briefs.overlong(text, "Request"):
         found.append(long)
     return [*found, *asks(text, "request")]
+
+
+def model(text: str) -> str:
+    """Return the model id a request's `Model:` line names, or an empty string for a request with
+    no such line. `request_faults` refuses a line that is not one id."""
+    named = dict(reversed(briefs.fields(text))).get(MODEL)
+    return named[0].strip() if named else ""
 
 
 def faults(text: str, slug: str = "") -> list[str]:
