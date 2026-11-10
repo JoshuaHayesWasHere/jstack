@@ -152,7 +152,7 @@ def _says_done(report: str) -> bool:
     return bool(said) and said[-1] == ["done"]
 
 
-def _scouts(run: Pass) -> set[str]:
+def over_scouts(run: Pass) -> set[str]:
     """Return each scout that is over: its last Report, a follow-up (`## Report, follow-up (…)`)
     as much as the first, says `Status: done`. Any other stays, as the scout skill's End keeps
     it."""
@@ -212,7 +212,7 @@ def finished(run: Pass, world: World, reviews: set[str] | None = None) -> dict[s
     return {
         "crew: ": tasks,
         "review: ": reviewed,
-        "scout: ": _scouts(run) | run.removed,
+        "scout: ": over_scouts(run) | run.removed,
     }
 
 

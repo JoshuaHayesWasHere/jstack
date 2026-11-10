@@ -1,12 +1,19 @@
-"""A crew's worktree, which jbus makes itself before it launches the crew into it.
+"""A crew's or a scout's worktree, which jbus makes itself before it launches the thread into it.
 
 jbus makes it where T3 Code would have: `<cleanup.worktrees()>/<checkout name>/<slug>`, on a new
 branch named for the slug, made with no upstream from the base's commit as `git fetch` just
 brought it from origin. In it jbus writes `.claude/settings.json`, from
-`jroles.mirror.crew_settings`, and `.claude/.gitignore`, which holds `*` and so keeps both files
+`jroles.mirror.worktree_settings`, and `.claude/.gitignore`, which holds `*` and so keeps both files
 out of `git status`. The crew launches with `existing_worktree`, and its reviewer launches into
-the same worktree, so both read the file before their first request. Homes and scouts launch in
-the main checkout, which has no such file, and keep every tool.
+the same worktree, so both read the file before their first request. A home launches in the main
+checkout, which has no such file, and keeps every tool.
+
+A scout gets a worktree too (`make_scout`), beside a crew's at `scout+<slug>`, a name no slug can
+have: detached at the default branch as `git fetch` just brought it, with no branch, since a
+scout commits nothing, and with the same two files, the skills listed in full being a scout's.
+jbus removes it itself (`remove_scout`) once the scout's Report says `Status: done` and no thread
+of the scout is at work (`jbus.scouts`). With no launch record there is no thread in it, so a
+launch removes whatever an earlier pass left at the path and makes it again.
 
 T3 Code's storage cleanup removes a worktree by its thread's `worktreePath` under its own
 worktrees folder, whoever made it, so a finished crew's worktree goes as it did when T3 Code
@@ -33,12 +40,23 @@ from jbus import cleanup
 from jbus.passes import Pass
 
 SETTINGS = Path(".claude") / "settings.json"
+SCOUT = "scout+"
 IGNORE = Path(".claude") / ".gitignore"
 
 
 def path(run: Pass, slug: str) -> Path:
     """Return the path of the slug's worktree, the one T3 Code would have made for its branch."""
     return cleanup.worktrees() / run.project.checkout.name / slug.replace("/", "-")
+
+
+def scout_path(run: Pass, slug: str) -> Path:
+    """Return the path of the scout `slug`'s worktree, beside the crews'."""
+    return cleanup.worktrees() / run.project.checkout.name / f"{SCOUT}{slug}"
+
+
+def scout_strategy(run: Pass, slug: str) -> dict[str, str]:
+    """Return the `workspaceStrategy` of the scout's launch: the detached worktree jbus made."""
+    return {"type": "existing_worktree", "worktreePath": str(scout_path(run, slug))}
 
 
 def strategy(run: Pass, slug: str) -> dict[str, str]:
@@ -71,28 +89,39 @@ def make(run: Pass, slug: str, base: str, sha: str = "") -> tuple[str, str]:
     or nothing and why no worktree was made; a worktree that failed partway is removed."""
     tree = path(run, slug)
     if not sha:
-        run.run("git", "worktree", "prune")
-        ref = f"refs/remotes/origin/{base}"
-        fetched = run.run("git", "fetch", "-q", "origin", f"+refs/heads/{base}:{ref}")
-        if fetched.returncode:
-            return "", f"origin's {base} could not be fetched: {fetched.stderr.strip()}"
-        sha = run.run("git", "rev-parse", "-q", "--verify", f"{ref}^{{commit}}").stdout.strip()
+        sha, why = _fetched(run, base)
+        if why:
+            return "", why
         tree.parent.mkdir(parents=True, exist_ok=True)
         added = run.run("git", "worktree", "add", "-q", "--no-track", "-b", slug, str(tree), sha)
-        if not sha or added.returncode:
+        if added.returncode:
             remove(run, slug)
             return "", f"the worktree {tree} could not be made: {added.stderr.strip()}"
-    try:
-        settings = jroles.mirror.crew_settings(jroles.mirror.Main.of(Path.home()))
-    except jroles.Refused as error:
+    why = _fill(run, tree, "crew")
+    if why:
         remove(run, slug)
-        return "", f"its settings file could not be made: {error}"
-    _write(tree / SETTINGS, json.dumps(settings, indent=2) + "\n")
-    _write(tree / IGNORE, "*\n")
-    status = run.run("git", "-C", str(tree), "status", "--porcelain")
-    if status.returncode or status.stdout.strip():
-        remove(run, slug)
-        return "", f"the worktree {tree} is not clean once its files are written"
+        return "", why
+    return sha, ""
+
+
+def make_scout(run: Pass, slug: str, base: str) -> tuple[str, str]:
+    """Make the scout's worktree, detached at origin's `base`, and write its two files, in place
+    of any an earlier pass left. Return the commit it is at, and nothing, or nothing and why no
+    worktree was made; a worktree that failed partway is removed."""
+    tree = scout_path(run, slug)
+    remove_scout(run, slug)
+    sha, why = _fetched(run, base)
+    if why:
+        return "", why
+    tree.parent.mkdir(parents=True, exist_ok=True)
+    added = run.run("git", "worktree", "add", "-q", "--detach", str(tree), sha)
+    why = (
+        f"the worktree {tree} could not be made: {added.stderr.strip()}" if added.returncode else ""
+    )
+    why = why or _fill(run, tree, "scout")
+    if why:
+        remove_scout(run, slug)
+        return "", why
     return sha, ""
 
 
@@ -100,6 +129,44 @@ def remove(run: Pass, slug: str) -> None:
     """Remove the slug's worktree and its branch, which jbus made and no thread has used."""
     run.run("git", "worktree", "remove", "--force", str(path(run, slug)))
     run.run("git", "branch", "-D", slug)
+
+
+def remove_scout(run: Pass, slug: str) -> None:
+    """Remove the scout's worktree, and forget it where its folder is already gone."""
+    run.run("git", "worktree", "remove", "--force", str(scout_path(run, slug)))
+    run.run("git", "worktree", "prune")
+
+
+def scouts(run: Pass) -> list[str]:
+    """Return the slug of each scout's worktree there is a folder for."""
+    trees = scout_path(run, "").parent.glob(f"{SCOUT}*")
+    return sorted(tree.name.removeprefix(SCOUT) for tree in trees if tree.is_dir())
+
+
+def _fetched(run: Pass, base: str) -> tuple[str, str]:
+    """Fetch origin's `base` and return its commit, and nothing, or nothing and why not."""
+    run.run("git", "worktree", "prune")
+    ref = f"refs/remotes/origin/{base}"
+    fetched = run.run("git", "fetch", "-q", "origin", f"+refs/heads/{base}:{ref}")
+    if fetched.returncode:
+        return "", f"origin's {base} could not be fetched: {fetched.stderr.strip()}"
+    sha = run.run("git", "rev-parse", "-q", "--verify", f"{ref}^{{commit}}").stdout.strip()
+    return (sha, "") if sha else ("", f"origin's {base} names no commit")
+
+
+def _fill(run: Pass, tree: Path, role: str) -> str:
+    """Write the role's two files in `tree`, and return why the worktree is not fit to launch
+    into, or nothing."""
+    try:
+        settings = jroles.mirror.worktree_settings(jroles.mirror.Main.of(Path.home()), role)
+    except jroles.Refused as error:
+        return f"its settings file could not be made: {error}"
+    _write(tree / SETTINGS, json.dumps(settings, indent=2) + "\n")
+    _write(tree / IGNORE, "*\n")
+    status = run.run("git", "-C", str(tree), "status", "--porcelain")
+    if status.returncode or status.stdout.strip():
+        return f"the worktree {tree} is not clean once its files are written"
+    return ""
 
 
 def _write(at: Path, text: str) -> None:

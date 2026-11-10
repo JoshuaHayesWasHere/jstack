@@ -10,10 +10,13 @@ its plan entry's go (`jbus.queue.entered`), and it waits on its `--depends` as a
 does.
 
 A pass launches each scout row whose go holds for its queued request and whose depends are over
-(`watch.final`): one `t3_thread_launch` titled `scout: <slug>`, with the message `/scout <slug>`
-and the project's own checkout as its workspace. That checkout is the main one, as it stands: the
-scout gets no worktree and no branch, so it has nothing to commit and no pull request to open. The
-launch writes the request to `scouts/<slug>.md` in the home's state directory, where the scout
+(`watch.final`): one `t3_thread_launch` titled `scout: <slug>`, with the message `/scout <slug>`,
+into a worktree jbus makes first (`jbus.crewtree.make_scout`): detached at origin's default branch,
+with no branch, so the scout has nothing to commit and no pull request to open, and with the
+settings file that takes from its first request the tools only a home uses. A home still launches
+in the project's own checkout. The scout still reads and writes the home's state directory, which
+it finds from the repo's shared git folder. Once its Report says `Status: done` and no thread of it
+is at work, or its row is removed, a pass removes its worktree (`clear`). The launch writes the request to `scouts/<slug>.md` in the home's state directory, where the scout
 writes its Report, or checks that the one there is the request queued. The model is the one the
 role map's `scout` line gives, and the launch waits, as a crewmate's does, for the dispatch to be
 on and for `jgauge room`. A scout takes no crew slot of `max_running`. Once launched, a scout's
@@ -31,7 +34,7 @@ from __future__ import annotations
 from typing import Any
 
 import jroles
-from jbus import dispatch, queue, t3, verbs, watch, write_json
+from jbus import crewtree, dispatch, queue, strays, t3, threads, verbs, watch, write_json
 from jbus.passes import Changed, Depends
 from jbus.t3 import Client, T3Error, T3Refused
 from jmerge import judgement
@@ -42,11 +45,11 @@ TITLE = "scout: "
 
 def arguments(run: Any, slug: str, routed: pool.Route | None) -> dict[str, Any]:
     """Return the arguments for `t3_thread_launch`: a thread titled `scout: <slug>` in the
-    project's own checkout, with no worktree and no branch, told `/scout <slug>`."""
+    detached worktree jbus made for it, told `/scout <slug>`."""
     made: dict[str, Any] = {
         "projectId": run.project.project_id,
         "title": f"{TITLE}{slug}",
-        "workspaceStrategy": {"type": "root"},
+        "workspaceStrategy": crewtree.scout_strategy(run, slug),
         "message": f"/scout {slug}",
     }
     if run.config.runtime_mode:
@@ -146,6 +149,13 @@ def _launch(half: Any) -> None:
         if not same or not judgement.approved_text(row, queue.brief(run.state, slug) or ""):
             run.say(f"wait scout {slug}: its row changed during the pass")
             continue
+        base = run.run("git", "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD")
+        default = base.stdout.strip().removeprefix("origin/") if base.returncode == 0 else ""
+        made, why = crewtree.make_scout(run, slug, default) if default else ("", "")
+        if not made:
+            why = why or "the default branch is not known in the main checkout"
+            run.condition(slug, "the scout's worktree could not be made", why)
+            continue
         if wrote:
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(dispatch.homed(plain, text))
@@ -156,12 +166,14 @@ def _launch(half: Any) -> None:
             "role": queue.SCOUT,
             "state": "intent",
             "at": run.now.isoformat(),
+            "sha": made,
         }
         write_json(path, launch)
         try:
             reply = client.call("t3_thread_launch", arguments(run, slug, routed))
         except T3Refused as error:
             path.unlink()
+            crewtree.remove_scout(run, slug)
             if wrote:
                 target.unlink()
             run.condition(slug, "T3 Code refused the scout's launch", str(error))
@@ -179,4 +191,24 @@ def _launch(half: Any) -> None:
         run.say(f"launched scout {slug}: {thread}{on}")
 
 
-STEPS = (verbs.Step("after-expedite", 40, "scouts.launch", _launch, ("client", "world")),)
+def clear(run: Any, out: list[threads.Out]) -> None:
+    """Remove each scout's worktree whose Report says `Status: done`, or whose row was removed,
+    once no thread of that scout is at work, so no turn loses its folder mid-way. A worktree
+    already gone, or one a crash left half removed, is removed again on the next pass."""
+    over = threads.over_scouts(run) | run.removed
+    busy = strays.working(out)
+    for slug in crewtree.scouts(run):
+        if slug in over and (queue.SCOUT, slug) not in busy:
+            crewtree.remove_scout(run, slug)
+            run.say(f"removed scout {slug}'s worktree")
+
+
+def _clear(half: Any) -> None:
+    if half.out is not None and not half.blind:
+        clear(half.run, half.out)
+
+
+STEPS = (
+    verbs.Step("after-expedite", 38, "scouts.clear", _clear, ("client", "world")),
+    verbs.Step("after-expedite", 40, "scouts.launch", _launch, ("client", "world")),
+)
