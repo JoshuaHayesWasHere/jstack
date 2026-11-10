@@ -88,6 +88,22 @@ def test_a_take_from_a_directory_since_removed_logs_an_empty_cwd(tmp_path, monke
     assert [row["cwd"] for row in rows(log)] == ["", ""]
 
 
+@pytest.mark.parametrize("where", ["outside a repository", "with no git to ask"])
+def test_a_take_names_no_repo_outside_one_or_with_no_git_and_still_logs(
+    tmp_path, monkeypatch, where
+):
+    log = slotlog.path(tmp_path / "locks")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.parent))
+    if where == "with no git to ask":
+        monkeypatch.setenv("PATH", str(tmp_path / "empty"))
+
+    slotlog.release(slotlog.take(log, "short", 1, 3, "", ["true"], 0), 0)
+
+    take, release = rows(log)
+    assert (take["repo"], release["event"]) == ("", "release")
+
+
 @pytest.mark.parametrize("blocked", ["parent is a file", "log is a directory"])
 def test_a_log_that_cannot_be_written_stops_nothing(tmp_path, blocked):
     log = slotlog.path(tmp_path / "locks")
