@@ -42,6 +42,12 @@ class MergeLock:
             os.close(self.held)
             self.held = None
 
+    def __enter__(self) -> MergeLock:
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        self.give()
+
 
 RUN = "run.lock"
 BUSY = 75

@@ -1685,7 +1685,7 @@ class Repo:
                 for one, *_ in on.members
                 if kept.holds(one)
             ]
-        try:
+        with lock:
             expected = kept.tip
             for member in kept.members:
                 found = judged.get(member.number)
@@ -1704,8 +1704,6 @@ class Repo:
                 number, why = stop
                 text = why.format(base=default, tip=kept.tip[: batch.SHA], number=number)
                 said.append(lines.waits("wait", found[0].number, found[0].url, text))
-        finally:
-            lock.give()
         on.record.batch = None
         on.record.write()
         return said
