@@ -437,8 +437,14 @@ def test_a_fork_patch_of_tests_alone_whose_tests_pass_at_its_base_merges(merged)
     """#1535: a fork patch that adds a test of behaviour the fork already has, put on the series,
     with the doc that names it. Its fork line says base exit 0, as the base's series runs the same
     code, and jmerge reads the patch and the PKGBUILD from git, and merges it."""
-    base = commit(merged, {PKGBUILD: pkgbuild(CODE_PATCH.rsplit("/", 1)[-1]),
-                           CODE_PATCH: patch("apps/web/src/tree.ts")}, push_to="main")
+    base = commit(
+        merged,
+        {
+            PKGBUILD: pkgbuild(CODE_PATCH.rsplit("/", 1)[-1]),
+            CODE_PATCH: patch("apps/web/src/tree.ts"),
+        },
+        push_to="main",
+    )
     merged.start = base
     merge.git(merged.home.main, "fetch", "-q", "origin")
     merge.git(merged.home.main, "merge", "-q", "--ff-only", "origin/main")
@@ -486,7 +492,6 @@ def test_a_line_that_passes_at_its_base_holds_only_where_the_pull_request_change
     says, and a fork file it does not clear is code too."""
     line = fork(base_exit=0) if PATCH in pull.files else proved(base_exit=0, tests=TEST)
     assert ready.short_on_proved(result(line), pull, fork_tests=fork_tests) == short
-
 
 
 def _side(files):

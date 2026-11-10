@@ -753,10 +753,8 @@ def restate(
     asked = made.question == Question.OPEN
     state = unforeseen(made) if made.seen and not asked else judge(made)
     word = lift(state, said)
-    if word is None and one.get("lift") == Lift.ACCEPT and (state.value, said) == (
-        one["value"],
-        had,
-    ):
+    same = state.value == one["value"] and said == had
+    if word is None and one.get("lift") == Lift.ACCEPT and same:
         word = Lift.ACCEPT
     kept = str(word or "") == one.get("lift", "") and (go is None or word != Lift.APPROVE)
     if made == facts and said == had and kept:

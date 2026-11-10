@@ -987,9 +987,10 @@ def short_on_proved(
     time limit), passes vacuously, unless the pull request changes no code (`changed_code`): its
     base then runs the head's own code, the base run has nothing to fail on, and the run at the
     head is the proof, as on a `tests only` line. A fork patch that adds a test of behaviour the
-    fork already has is one (#1535, held 76 minutes on a base run that passed). One that changes no test needs no line, and where it says
-    `none, <kind>` each file it changes is of a kind it names, a `.py` file whose change `prose`
-    says is to its docstrings and comments alone being `docs` (`proved.prose_in`). One whose
+    fork already has is one (#1535, held 76 minutes on a base run that passed). One that changes
+    no test needs no line, and where it says `none, <kind>` each file it changes is of a kind it
+    names, a `.py` file whose change `prose` says is to its docstrings and comments alone being
+    `docs` (`proved.prose_in`). One whose
     every file, a deleted one too, is a `proved.TEST_FILE` or of a `proved.EXEMPT` kind changes
     no code, so its tests pass at its base as well: its `tests only` line needs only the run at
     its head, ending 0, and the same line on a pull request that changes anything else proves
