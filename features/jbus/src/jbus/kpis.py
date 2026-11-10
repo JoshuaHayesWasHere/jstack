@@ -283,6 +283,9 @@ def _line(measure: measures.Measure) -> str:
             return f"{side} its line of {_figure(at, measure.unit)}{counted}"
         case measures.Trend(by):
             return f"more than {by:g}% worse than its mean of the seven days before"
+        case measures.Over(by, floor):
+            counted = f", read once {floor} are counted" if floor > 1 else ""
+            return f"more than {by:g}% worse than its baseline{counted}"
 
 
 def _score(
