@@ -51,6 +51,7 @@ from jbus import (
     BATCH,
     Refused,
     budget,
+    conditional,
     history,
     queue,
     read_json,
@@ -1328,14 +1329,12 @@ def rewritten(run: Pass, client: Client, rows: list[dict[str, Any]] | None) -> N
 
 def _api(run: Pass, path: str) -> Any:
     """Return what GitHub answers a GET of `path`, or None where it gives no answer. A path the
-    pass already read is answered from `Pass.answers`, without a call."""
+    pass already read is answered from `Pass.answers`, without a call, and any other is asked
+    with the ETag of the answer kept for it (`jbus.conditional.read`), so an unchanged answer
+    costs a 304, which spends none of the API allowance."""
     if path in run.answers:
         return run.answers[path]
-    asked = run.run("gh", "api", path)
-    try:
-        said = json.loads(asked.stdout) if asked.returncode == 0 else None
-    except ValueError:
-        said = None
+    said = conditional.read(run, path)
     if said is not None:
         run.answers[path] = said
     return said
