@@ -283,6 +283,44 @@ def test_a_scout_launch_t3_code_refuses_leaves_no_worktree(kitchen):
     assert str(scout_tree(kitchen, "alpha")) not in listed_trees(kitchen)
 
 
+def tracked_settings(kitchen):
+    """Commit a `.claude/settings.json` of the project's own to origin's main."""
+    clone = kitchen.root / "elsewhere"
+    git_said(kitchen, "clone", "-q", str(kitchen.origin), str(clone))
+    (clone / ".claude").mkdir()
+    (clone / ".claude" / "settings.json").write_text("{}\n")
+    git_said(kitchen, "-C", str(clone), "add", "-f", ".claude/settings.json")
+    git_said(kitchen, "-C", str(clone), "commit", "-q", "-m", "its own settings")
+    git_said(kitchen, "-C", str(clone), "push", "-q", "origin", "main")
+
+
+def gone_default(kitchen):
+    git_said(kitchen, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/gone")
+
+
+def no_default(kitchen):
+    git_said(kitchen, "symbolic-ref", "--delete", "refs/remotes/origin/HEAD")
+
+
+@pytest.mark.parametrize(
+    "breaks",
+    [tracked_settings, gone_default, no_default],
+    ids=["the base tracks its settings file", "origin lacks the default branch", "no default"],
+)
+def test_a_scout_whose_worktree_cannot_be_made_is_a_condition_and_launches_nothing(kitchen, breaks):
+    """A scout's worktree that cannot be made, or would show jbus's file as a change, launches
+    no scout, writes no request under `scouts/`, and leaves no worktree."""
+    breaks(kitchen)
+    add(kitchen, "alpha")
+    go(kitchen, "alpha")
+    kitchen.poll()
+    assert launches(kitchen) == []
+    assert kitchen.lines("condition") == ["condition alpha: the scout's worktree could not be made"]
+    assert not scout_tree(kitchen, "alpha").exists()
+    assert str(scout_tree(kitchen, "alpha")) not in listed_trees(kitchen)
+    assert not (kitchen.home / "scouts" / "alpha.md").exists()
+
+
 PRIME = "claudeAgent_claude_prime"
 
 
