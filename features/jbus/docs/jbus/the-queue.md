@@ -202,6 +202,7 @@ A head whose check ran on main's red tip, the `broken` tip of `main.json`, is no
 A head whose failed tests each failed on two other branches in `jbus ci`'s window, its flake rule (`jbus.reverts.flaky`), is not counted either: the red is shared, not the row's.
 Nor is a head at which each failed job failed at an infra step, one whose log shows a download or network failure (a `curl` error, an HTTP 5xx, a host that did not resolve, a connection reset or timed out, an artifact download that failed) and names no failed test and no make target, such as a package's download: that step ran nothing of the row's.
 A lint step, such as `prose lint`, also runs no test and no make target, but shows no fetch failure: it failed on the row's own work, and its head counts.
+Each sign is searched in the failed step's own part of the log, from the step's `##[group]Run` line to the `##[error]Process completed with exit code` line that ends it: a passed step's retried download is no sign, and neither is a lint line that quotes the words in prose.
 jbus asks GitHub for a job's failed step once, and keeps it with the job.
 At the second head jbus runs the same `hold` as `jbus queue hold <slug>`, keeping the go it takes, and pages the Chef once, with the gate `condition <slug>: check failed twice`, whose text names the row, the pull request, both heads and the failed jobs at each.
 The row's `why` says `check failed twice` while it is held.
