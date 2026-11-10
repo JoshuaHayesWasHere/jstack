@@ -481,8 +481,9 @@ def test_an_account_whose_quota_rose_too_little_has_no_capped_line_yet(store):
 
 
 def test_a_quota_rise_across_a_reset_counts_the_new_share_alone(store):
-    """`quota_rises` steps from reading to reading; where the window reset between two, its share
-    fell, and the points it gained are the new share."""
+    """The view `quota_rises` (`jbus.telemetry.views.quota_rises`) steps from reading to reading;
+    where the window reset between two, its share fell, and the points it gained are the new
+    share."""
     quota(
         store,
         "claudeAgent",
