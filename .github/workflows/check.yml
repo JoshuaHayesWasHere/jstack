@@ -115,7 +115,10 @@ jobs:
       # timing tests no pull request reached broke main in 8 of the audit's 15 reds. The lookup
       # reads the logs of main's red jobs, and the cache keeps what each log named, so a run lists
       # the last 4 days of main's runs and reads the logs of new reds only. A cache saved on main,
-      # by `full`, is one every pull request can restore. The key's `2` is the form of the file,
+      # by `full`, is one every pull request can restore. It keeps each list's ETag too, and asks
+      # with it, so a list that did not change is answered 304 at no cost: a warm lookup pays
+      # only for the lists a new run of main changed, where it paid 8 calls or more on every
+      # run (testing/tests/test_ci_api_calls.py). The key's `2` is the form of the file,
       # whose days keep their newest green run: a file of the old form is never restored. A
       # lookup that fails adds no test, and `check` warns of it. One GitHub answers 403 or 429,
       # its allowance spent, prints `all` and passes, and `select` runs the whole suite.
