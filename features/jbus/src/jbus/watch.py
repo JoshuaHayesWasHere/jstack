@@ -422,7 +422,9 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     rate_limit` once between them at most. Every `Look` it returns holds it, T3 Code silent or
     not: a step that spends the budget needs it. With no answer, or
     with the budget at or under its floor, `look` asks GitHub nothing else, and the pass has no
-    world, as when GitHub is silent: no row changes. `jmerge` ran before, so a merge still goes.
+    world, as when GitHub is silent: no row's status changes, and under the floor each approved
+    row it would have launched says why (`jbus.budgethold`). `jmerge` ran before, so a merge
+    still goes.
     """
     asked: list[subprocess.CompletedProcess[str]] = []
 
