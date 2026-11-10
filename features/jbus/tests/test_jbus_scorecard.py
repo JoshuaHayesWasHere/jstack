@@ -16,9 +16,9 @@ from zoneinfo import ZoneInfo
 import pytest
 
 import jsettings
-from jgauge import spend as jgauge_spend
 from jbus import cli, telemetry
 from jbus.telemetry import measures, values
+from jgauge import spend as jgauge_spend
 from test_jbus_telemetry import Machine
 
 MODULES = (
