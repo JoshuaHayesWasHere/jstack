@@ -1,5 +1,4 @@
-"""Tell a crew what its pull request is short of. A home used to send this wake, and no
-longer does.
+"""Tell a crew what its pull request is short of. A home used to send this wake, and no longer does.
 
 A crew ends its turn, and nothing wakes it for what it left undone. `jmerge` reports a wait
 in a line that nobody reads. `tell` reads those lines. When a line gives the same
@@ -580,11 +579,11 @@ UNTOLD = {
         for codes, why in (
             (
                 "main-moved merging in-batch batch-first batch-stopped merge-failed no-messages "
-                "undecided not-passed live-run "
-                "queue-unreadable carries-unknown base-merge-asked base-merge-due "
-                "base-merge-refused base-moved-asked base-moved-due in-line queued-restarted "
-                "queued-unopened queued-unclosed queued-gave-up queued-unrestarted "
-                "merged-tree-unended merged-tree-unbuilt merged-tree-no-time merged-tree-no-slot",
+                "undecided not-passed live-run queue-unreadable carries-unknown base-merge-asked "
+                "base-merge-due base-merge-refused base-moved-asked base-moved-due in-line "
+                "queued-restarted queued-unopened queued-unclosed queued-gave-up "
+                "queued-unrestarted merged-tree-unended merged-tree-unbuilt merged-tree-no-time "
+                "merged-tree-no-slot",
                 _RUNNER,
             ),
             ("merges-after carries-after stacked-on migration-merging migration-rebasing", _AHEAD),
