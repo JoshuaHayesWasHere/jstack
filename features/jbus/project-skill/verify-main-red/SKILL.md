@@ -10,7 +10,7 @@ description: Rerun the exhaustive check of main.json's red-main contract, the re
 A red main holds no pull request, so the record stops no merge.
 `jmerge.cli.Repo.again` reads it to ask GitHub for no merge of a red main into a red pull request, and `jbus.culprits` reads its `failed` to tell a flake from a culprit's own red (`jbus.reverts`).
 A test runs the orders someone wrote down.
-This check runs every order of merges, check answers, reruns and passes within its bounds, through the real `tell` and the real `mainjson.read`, and checks three properties after every pass:
+This check runs every order of merges, check answers, reruns and passes within its bounds, through the real `tell` and the real `mainjson.read`, and checks four properties after every pass:
 
 - **S1, a known red is read as red.**
   When the newest tip whose check has settled (`green` or `failed`, `mainjson.SETTLED`) failed, `read` names a red tip.
@@ -21,6 +21,9 @@ This check runs every order of merges, check answers, reruns and passes within i
 - **S3, the red tip's own tests.**
   When the record keeps `failed` beside `broken`, those are the tests that failed at that tip.
   Broken, `jbus.reverts` judges a red tip by another tip's tests, so a revert is a wrong one or a culprit escapes.
+- **S4, each red judged once.**
+  `main-reds.jsonl` (`mainmoved.REDS`), the ledger of reds `tell` writes, has a line for the red tip the record names, with that tip's own tests, and no tip has two lines.
+  Broken, a spell of main's red reads `unjudged` and counts as a change failure whatever caused it, or two lines give one red two causes.
 
 The model is `features/jbus/tests/main_red_model.py`, standard library only (a `collections.deque` walk, states kept by a `json` key).
 Its docstring says what each step is, the code line that backs it, what is stubbed and what is not covered.
@@ -30,7 +33,7 @@ Its docstring says what each step is, the code line that backs it, what is stubb
 
 Rerun it when the diff touches any of these:
 
-- `features/jbus/src/jbus/mainmoved.py` (`tell`, `main_check`, `failed_at`, `landed`, the `STEPS` slot);
+- `features/jbus/src/jbus/mainmoved.py` (`tell`, `main_check`, `failed_at`, `failed_steps`, `red_line`, `REDS`, `landed`, the `STEPS` slot);
 - `features/jmerge/src/jmerge/mainjson.py` (`Record`, `record`, `SETTLED`, `of`, `read`, `typed`, `FIX`, `failures`);
 - `features/jmerge/src/jmerge/cli.py` (`Repo.again`, which reads `main_state`) and `features/jmerge/src/jmerge/rows.py` (`main`);
 - `features/jbus/src/jbus/culprits.py` (`kept_why`) where it reads `failed` for `jbus.reverts`;
@@ -49,8 +52,8 @@ Run it by hand anyway when you change the contract on purpose: what it prints is
 uv run pytest features/jbus/tests/test_main_red_model.py -q
 ```
 
-It takes a few seconds (5,449 states in the widest world).
-On the code as it is today it prints `7 passed`.
+It takes a few seconds (6,183 states in the widest world).
+On the code as it is today it prints `9 passed`.
 To print every world:
 
 ```sh
@@ -58,7 +61,7 @@ uv run python features/jbus/tests/main_red_model.py
 ```
 
 It prints both worlds, how many states each walks, and for each property `holds` or the number of states that break it with a trace.
-On the code as it is today, every order walks 5,449 states and one tip at a time walks 1,029, and S1, S2 and S3 hold in both.
+On the code as it is today, every order walks 6,183 states and one tip at a time walks 1,154, and S1 to S4 hold in both.
 
 The model has two worlds:
 
@@ -76,6 +79,8 @@ The tests and the world each walks:
 | `test_s2_a_green_tip_ends_the_red_in_every_order` | every order | passes |
 | `test_s3_the_tests_kept_are_the_red_tip_s_own_one_at_a_time` | one tip at a time | passes |
 | `test_s3_the_tests_kept_are_the_red_tip_s_own_in_every_order` | every order | passes |
+| `test_s4_each_red_tip_has_one_line_in_the_ledger_one_at_a_time` | one tip at a time | passes |
+| `test_s4_each_red_tip_has_one_line_in_the_ledger_in_every_order` | every order | passes |
 
 Each finding's world is cut from a world that passes, so a break there points at that finding's cause.
 S1 holds one tip at a time, so S1 breaking over every order needs a tip no pass saw (F2).
@@ -130,7 +135,7 @@ Check every step against this table; a step no line backs is a modeling error, a
 | `Mn's check settles: <answer>` | an answer `watch._check` gives, `features/jbus/src/jbus/watch.py`; `pending` is a check not ended |
 | `Mn's check is rerun and passes` | a rerun of a failed check on the same tip, which `main_check` asks again about (`again=tip in (main, stands)`), `features/jbus/src/jbus/mainmoved.py` |
 
-The stubs are the other place a model can lie: `mainmoved.main_check`, `mainmoved.failed_at` and `mainmoved.account` (`stubbed()` in the model), and `FakePass.run`'s answer to GitHub's list of main's commits, which `landed` asks for.
+The stubs are the other place a model can lie: `mainmoved.main_check`, `mainmoved.failed_at`, `mainmoved.failed_steps` and `mainmoved.account` (`stubbed()` in the model), and `FakePass.run`'s answer to GitHub's list of main's commits, which `landed` asks for.
 If one of them is no longer what `tell` calls, the step it stands for is not the code's.
 `mock.patch.object` fails on an attribute that is gone, but a name `tell` imports with `from ... import` is not patched by a module attribute: then the real function runs and asks GitHub.
 
@@ -147,9 +152,10 @@ When every step is backed, the trace is a real bug: report it with the trace, in
 - **A module moves** (as unit 6 moved `jbus.mainstate` to `jmerge.mainjson`): change the model's imports and the stub targets to the new module, rerun, and expect the same counts.
   Different counts after a pure move mean the move changed behavior.
 - **The property changes.**
-  Change `s1`, `s2` or `s3` and the sentence in the docstring and here, and show the new property failing on a scratch break before trusting a pass: break the line it guards in your own worktree, uncommitted, run the check, see the trace, `git restore` the file, and see the check back at `7 passed` (or the new count).
+  Change `s1`, `s2`, `s3` or `s4` and the sentence in the docstring and here, and show the new property failing on a scratch break before trusting a pass: break the line it guards in your own worktree, uncommitted, run the check, see the trace, `git restore` the file, and see the check back at `9 passed` (or the new count).
 
 Two breaks it was shown to catch on the code before the fix, on 2026-10-20: `if False:` for `if check == "failed":` in `mainmoved.py` breaks S1 in the one-tip-at-a-time world (a failed M1 seen by a pass, then M2 lands pending and the pass drops the red), and `if broken:` in `mainmoved.py` breaks S2 (the pass at green M2 keeps `broken: M1`, and the pass at pending M3 reads red again).
 On the fixed code, dropping `broken, waiting, unrun = tip, [], ""` for `waiting, unrun = [], ""` in `mainmoved.py` breaks S1 one tip at a time and over every order.
 Dropping `was.get("fixed") or` in `mainmoved.py` passes the walk, since the model writes no `fixed`, and fails `test_a_record_left_owing_a_message_ends_the_red_at_its_fixed_tip` in `features/jbus/tests/test_jbus_main_moved.py`, an older record with `fixed` where GitHub lists no tips.
 A break it was shown to catch on the code as it is today, on 2026-11-03: dropping `broken` from `green, broken, waiting, unrun = tip, "", [], ""` in `mainmoved.py` breaks S2 over every order (the trace above).
+A break S4 was shown to catch, on 2026-11-10: dropping `tip not in judged and` from `if tip not in judged and (read := failed_at(run, tip)) is not None:` in `mainmoved.tell` breaks S4 one tip at a time and over every order, since a second pass at a failed M1 writes M1's line to `main-reds.jsonl` again.
