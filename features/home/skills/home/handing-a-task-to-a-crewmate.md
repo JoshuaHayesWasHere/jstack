@@ -100,8 +100,8 @@ The root home does step 1 and no other: it queues the brief by "Queueing a row i
    | Tests only | `autonomous-run` | `principle-test-behavior-not-implementation` | 1,050 |
    | Too slow | `perf-issue` | `principle-explain-the-number` | 550 |
    | A number toward a target | `hillclimb` | `benchmark-checklist` | 1,800 |
-   | An operation that changes no file | `autonomous-run` | `principle-make-operations-idempotent` | 540 |
-   | A measurement with no fix and no target | `autonomous-run` | `benchmark-checklist` | 1,800 |
+   | An operation that changes no file | `operations` | `principle-make-operations-idempotent` | 540 |
+   | A measurement with no fix and no target | `measurement` | `benchmark-checklist` | 1,800 |
 
    A skill's tokens are its file's bytes divided by 4: the crewmate loads each named file in full at its start, and its Result owes one artifact for each.
    Name what the playbook does not already cite, and no more.
