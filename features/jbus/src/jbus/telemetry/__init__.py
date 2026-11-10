@@ -570,14 +570,10 @@ def _scorecard_page(
 
 
 def _scorecard_chore(config: jbus.Config, now: datetime, say: Callable[[str], None]) -> None:
-    """Start the page of the config's first project where it is absent or older than
-    `SCORECARD_EVERY`, and no build was started within that time. The build is a child of its
-    own, `jbus scorecard --out`, which the pass does not wait for: the registry's reads take
-    longer than a pass may. A pass that systemd runs is a oneshot unit, and systemd ends every
-    process left in it when the pass ends, a new session or not: the build is then a transient unit
-    of its own (`UNIT`), with the pass's environment. A pass run by hand starts it in a session of
-    its own. The child's output is kept beside the page, and a build that did not end in its line,
-    or a unit systemd would not start, is said here once, as one line, with no alert."""
+    """Start the page of the config's first project (`start`) where it is absent or older than
+    `SCORECARD_EVERY`, and no build was started within that time. The child's output is kept
+    beside the page, and a build that did not end in its line, or a build that could not start, is
+    said here once, as one line, with no alert."""
     if not config.projects:
         return
     out = config.state_dir / SCORECARD
@@ -592,6 +588,21 @@ def _scorecard_chore(config: jbus.Config, now: datetime, say: Callable[[str], No
     out.parent.mkdir(parents=True, exist_ok=True)
     started.touch()
     os.utime(started, (now.timestamp(), now.timestamp()))
+    if why := start(config, out):
+        say(f"scorecard: no page: {why}")
+
+
+def start(config: jbus.Config, out: Path) -> str:
+    """Start the build of the page of the config's first project at `out`, `jbus scorecard
+    --out`, in a process that outlives the pass, its output kept beside the page, and return why
+    it could not start, or nothing. The pass does not wait for it: the registry's reads take
+    longer than a pass may.
+
+    A pass that systemd runs is a oneshot unit, and systemd ends every process left in it when the
+    pass ends, a new session or not: the build is then a transient unit of its own (`UNIT`), with
+    the pass's environment. A pass run by hand starts it in a session of its own.
+    """
+    log = out.with_name(f".{SCORECARD}.log")
     child = [sys.executable, "-m", "jbus", "--project", config.projects[0].name]
     child += ["scorecard", "--out", str(out)]
     if os.environ.get("INVOCATION_ID"):
@@ -601,9 +612,8 @@ def _scorecard_chore(config: jbus.Config, now: datetime, say: Callable[[str], No
             f"--property={each}=truncate:{log}" for each in ("StandardOutput", "StandardError")
         ]
         command += [f"--setenv={key}" for key in os.environ if key not in SYSTEMD]
-        if (ran := proc.run(*command, "--", *child)).returncode:
-            say(f"scorecard: no page: {lines_of.said(ran)}")
-        return
+        ran = proc.run(*command, "--", *child)
+        return lines_of.said(ran) if ran.returncode else ""
     with log.open("w") as output:
         try:
             subprocess.Popen(
@@ -614,7 +624,8 @@ def _scorecard_chore(config: jbus.Config, now: datetime, say: Callable[[str], No
                 start_new_session=True,
             )
         except OSError as error:
-            say(f"scorecard: no page: {sys.executable} could not be run: {error.strerror}")
+            return f"{sys.executable} could not be run: {error.strerror}"
+    return ""
 
 
 def _younger(file: Path, now: datetime) -> bool:

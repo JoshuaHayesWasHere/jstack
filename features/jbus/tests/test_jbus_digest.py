@@ -6,13 +6,12 @@ Code server, `gh` and `jmerge`. Nothing reaches the network.
 """
 
 import json
-import time
 from datetime import datetime, timedelta
 
 import pytest
 
 import jbus
-from jbus import digest, telemetry, waiting
+from jbus import digest, waiting
 from test_jbus_kitchen import FIXTURE, GATE, KEY, NOW, RESULT, TOKEN
 from test_jbus_main_moved import checks, move, red_since, tip
 from test_jbus_one_wake import box
@@ -83,19 +82,6 @@ def tree(root):
         str(path): (path.stat().st_mtime_ns, path.read_bytes() if path.is_file() else None)
         for path in sorted(root.rglob("*"))
     }
-
-
-def scorecard_built():
-    """Wait, for up to a minute, until the scorecard child a pass starts and does not wait for
-    has written its page and said its line: until then it may write after a test looks."""
-    page = jbus.load().state_dir / telemetry.SCORECARD
-    log = page.with_name(f".{telemetry.SCORECARD}.log")
-    for _ in range(600):
-        said = log.read_text() if log.is_file() else ""
-        if said.endswith("\n") or (not said and page.is_file()):
-            return
-        time.sleep(0.1)
-    raise AssertionError(f"the pass's scorecard child wrote no page at {page}")
 
 
 def printed(kitchen, *argv):
@@ -426,7 +412,6 @@ def test_the_command_prints_what_the_builder_gives(kitchen):
 
 def test_jbus_digest_writes_nothing(kitchen):
     scene(kitchen)
-    scorecard_built()
     before = tree(kitchen.root)
     assert printed(kitchen)["projects"]["demo"]["rows"]
     assert printed(kitchen, "--since", "2026-10-12")
