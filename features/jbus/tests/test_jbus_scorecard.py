@@ -17,7 +17,8 @@ import pytest
 
 import jsettings
 from jbus import cli, telemetry
-from jbus.telemetry import measures, scorecard, values
+from jbus.telemetry import measures, values
+from jbus.telemetry import scorecard as card
 from jgauge import spend as jgauge_spend
 from test_jbus_telemetry import Machine
 
@@ -463,15 +464,17 @@ def test_units_an_hour_read_against_each_accounts_capped_line(store):
         measures.Part("claudeAgent", 5.0, 10.0),
         measures.Part("prime", 10.0, 5.0),
     )
-    page = scorecard.page([scorecard.Line(measure("units-vs-capped-line"), reading)], NOW)
-    shown = "M units an hour against its capped line"
-    assert f"claudeAgent 5 of 10 {shown}" in page and f"prime 10 of 5 {shown}" in page
+    page = card.page([card.Line(measure("units-vs-capped-line"), reading)], NOW)
+    assert "claudeAgent 5 of 10 M units an hour" in page and "prime 10 of 5 M units an hour" in page
 
 
-def test_an_account_whose_quota_rose_too_little_has_no_capped_line(store):
+def test_an_account_whose_quota_rose_too_little_has_no_capped_line_yet(store):
     """A rise of a point or two says more about where the percent rounds than about the account:
-    its line would swing tenfold, so the measure leaves the account out."""
+    its line would swing tenfold, so the account is shown with its units an hour alone."""
     quota(store, "claudeAgent", "seven_day", (NOW - timedelta(hours=3), 30), (NOW, 31))
     ran(store, "claudeAgent", (NOW - timedelta(minutes=30), 5_000_000))
     reading = measures.read(store, measure("units-vs-capped-line"), "jstack", NOW, USER)
-    assert (reading.value, reading.state, reading.each) == (None, "none", ())
+    assert (reading.value, reading.state) == (None, "none")
+    assert reading.each == (measures.Part("claudeAgent", 5.0, None),)
+    page = card.page([card.Line(measure("units-vs-capped-line"), reading)], NOW)
+    assert "claudeAgent 5 M units an hour, no line yet" in page

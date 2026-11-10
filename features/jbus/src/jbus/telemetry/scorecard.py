@@ -128,6 +128,18 @@ def _note(reading: Reading) -> str:
     return ""
 
 
+def parts(measure: Measure, reading: Reading) -> list[str]:
+    """Each part the reading is the worst of, with its value and its line: `prime 10 of 5 M
+    units an hour`, or `prime 10 M units an hour, no line yet`."""
+    return [
+        f"{part.label} {kpis.amount(part.value, '')} {measure.each_unit}, no line yet"
+        if part.line is None
+        else f"{part.label} {kpis.amount(part.value, '')} of {kpis.amount(part.line, '')} "
+        f"{measure.each_unit}"
+        for part in reading.each
+    ]
+
+
 def sparkline(days: tuple[float | None, ...], state: State) -> str:
     """Six lines of SVG: the days that have a value, scaled from their least to their most, and a
     dot on the last."""
@@ -181,6 +193,7 @@ def _row(each: Line) -> str:
             f"<td><b>{e(shown)}</b> <span class=quiet>of {reading.n}, "
             f"{WINDOWS[measure.window]}</span>"
             + (f"<div class=quiet>{e(note)}</div>" if note else "")
+            + "".join(f"<div>{e(said)}</div>" for said in parts(measure, reading))
             + "</td>"
         )
         query = f"<pre>{e(measure.source.query)}</pre>"
