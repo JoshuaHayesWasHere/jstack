@@ -13,12 +13,14 @@ A pass runs its projects side by side, and the health look is a step of the firs
 so two pages one pass logs from two projects come in no set order: a test sorts them."""
 
 import json
+import sqlite3
 from datetime import timedelta
 
 import pytest
 
 import jbus
-from jbus import health, merge, poll, wake
+import jsettings
+from jbus import health, merge, poll, telemetry, wake
 from jroles import ledger
 from test_jbus_blocking import Second
 from test_jbus_kitchen import KEY, NOW, approved
@@ -360,6 +362,58 @@ def test_jbus_health_prints_each_check_with_its_number_and_limit_and_pages_nothi
         "ok   health capped claudeAgent: no window full, pauses its launches at 100% of a window",
     ]
     assert pages(kitchen) == []
+    assert not (jbus.load().state_dir / health.LOG).exists()
+
+
+def kept_lines(config, key):
+    """The lines of `key` in the health log, past any line that is not JSON."""
+    found = []
+    for line in (config.state_dir / health.LOG).read_text().splitlines():
+        try:
+            one = json.loads(line)
+        except ValueError:
+            continue
+        if one["key"] == key:
+            found.append(one)
+    return found
+
+
+def test_the_look_keeps_a_reading_on_a_change_or_each_15_minutes_and_the_store_reads_it(
+    kitchen, senses, tmp_path
+):
+    config = jbus.load()
+    for minute, used in ((0, 40), (1, 40), (2, 41)):
+        senses.disks = {"/home": (used * GIB, (100 - used) * GIB, 0, 0)}
+        health.watch(config, NOW + timedelta(minutes=minute), lambda line: None)
+    assert [(one["value"], one["over"]) for one in kept_lines(config, "disk /home")] == [
+        (40, False),
+        (41, False),
+    ]
+    health.watch(config, NOW + timedelta(minutes=17), lambda line: None)
+    assert [one["value"] for one in kept_lines(config, "disk /home")] == [40, 41, 41]
+    store = tmp_path / "store.sqlite"
+    telemetry.build(config, store)
+    with sqlite3.connect(store) as connection:
+        rows = connection.execute(
+            "select value, over from health_readings where reading = 'disk /home' order by at"
+        ).fetchall()
+    assert rows == [(40.0, 0), (41.0, 0), (41.0, 0)]
+
+
+def test_a_look_after_a_torn_or_timeless_last_line_keeps_its_reading_again(kitchen, senses):
+    """A pass stopped halfway through its write leaves a torn line, and a line whose time cannot
+    be read cannot say how old it is: the next look writes the key's reading again."""
+    config = jbus.load()
+    senses.disks = {"/home": (40 * GIB, 60 * GIB, 0, 0)}
+    log = config.state_dir / health.LOG
+    log.parent.mkdir(parents=True, exist_ok=True)
+    log.write_text(
+        json.dumps({"at": "when", "key": "disk /home", "value": 40, "over": False}) + "\n{"
+    )
+    health.watch(config, NOW, lambda line: None)
+    assert [one["at"] for one in kept_lines(config, "disk /home")[1:]] == [
+        jsettings.stamp(NOW, z=True)
+    ]
 
 
 def test_a_pass_in_which_a_project_raises_still_looks_at_the_machine_and_pages(
