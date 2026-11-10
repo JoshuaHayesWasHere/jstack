@@ -70,17 +70,35 @@ RAN = ("success", "failure")
 """The conclusions of a run whose jobs ran to an end."""
 
 
-def last_checked(ask, workflow, head):
-    """The newest commit under `head` whose push run of `workflow` on main ran to an end, or None
-    where none of the last `REACH` commits has one. `ask` gives GitHub's answer for a path of the
-    repo's API."""
+def last_checked(ask, workflow, commits):
+    """The newest of `commits`, main's from the head down, the head first, whose push run of
+    `workflow` on main ran to an end, the head's own left out, or None where none has one. `ask`
+    gives GitHub's answer for a path of the repo's API."""
     runs = ask(
         f"actions/workflows/{workflow}/runs?branch=main&event=push&status=completed"
         f"&per_page={REACH}"
     )["workflow_runs"]
     checked = {run["head_sha"] for run in runs if run.get("conclusion") in RAN}
-    commits = ask(f"commits?sha={head}&per_page={REACH}")
-    return next((c["sha"] for c in commits if c["sha"] != head and c["sha"] in checked), None)
+    return next((sha for sha in commits[1:] if sha in checked), None)
+
+
+def under(head):
+    """Main's newest `REACH` commits from `head` down, read with git: the checkout holds two,
+    so it fetches the rest from `origin`, with no trees, which spends none of the run's token's
+    allowance of the API, where a list of them cost a call."""
+    fetched = subprocess.run(
+        ["git", "fetch", "-q", "--no-tags", "--filter=tree:0", f"--depth={REACH}", "origin", head],
+        capture_output=True,
+        text=True,
+    )
+    if fetched.returncode:
+        raise RuntimeError(f"git fetch failed: {fetched.stderr.strip()}")
+    return subprocess.run(
+        ["git", "rev-list", f"--max-count={REACH}", head],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.split()
 
 
 def base(workflow, env):
@@ -91,7 +109,7 @@ def base(workflow, env):
     ).stdout.strip()
     repo = env["GITHUB_REPOSITORY"]
     try:
-        found = last_checked(lambda path: gh(f"repos/{repo}/{path}"), workflow, head)
+        found = last_checked(lambda path: gh(f"repos/{repo}/{path}"), workflow, under(head))
     except Exception as error:
         return EMPTY_TREE, f"::warning::last checked: could not ask ({error}), so the whole list"
     if found is None:

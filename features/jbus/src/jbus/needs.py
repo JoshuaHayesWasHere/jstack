@@ -7,7 +7,9 @@ it, a gate with no default or one that names a door, a go gate whose silence sta
 whose brief has no go, a pull request `jmerge` holds for the user's word, a setup only the user
 can give, and an approved row that waits for room on a full /tmp after the pass removed what
 finished crews left there (`room`): its row's `why` says so, `waiting: /tmp at <n>% of its quota`,
-from the first pass it waits. A row a home can clear by itself (a row at `gate`, a leftover its
+from the first pass it waits. A hold of GitHub's budget at or under its floor is one item for
+the whole project once it has lasted over ten minutes (`budgethold.needed`), since no row
+launches until its reset. A row a home can clear by itself (a row at `gate`, a leftover its
 home still has, a hold a thread works on) is not on it, and neither is a refused go: a refusal is
 an act of the home's (`acts.jsonl`), most of them a sha that did not match, and the home tries
 again by itself.
@@ -35,10 +37,12 @@ from pathlib import Path
 
 import jbus
 from jbriefs import home as homes
-from jbus import blockers, cleanup, passes, questions, queue, verbs, waiting
+from jbus import blockers, budgethold, cleanup, passes, questions, queue, verbs, waiting
 
 FREE = "nothing to reply: free room on it, and the next pass launches the row"
 """The hint a row that waits for /tmp ends in: no word of the user's frees it."""
+HELD = "nothing to reply: the launches start again at the reset, and merges still go"
+"""The hint a hold of GitHub's budget ends in: no word of the user's lifts it."""
 
 
 @dataclass(frozen=True)
@@ -118,6 +122,8 @@ def of(
         for one, said in found
     ]
     needs += [(slug, Need(project.name, f"row {slug}: {why}", FREE)) for slug, why in room(run)]
+    if held := budgethold.needed(run):
+        needs.append(("", Need(project.name, held, HELD)))
     if home is not None:
         root = config.home(project)
         needs = [

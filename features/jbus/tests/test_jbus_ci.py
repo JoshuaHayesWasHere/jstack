@@ -896,7 +896,7 @@ def test_a_pass_asks_for_the_runs_of_its_last_hours_and_keeps_at_most_its_share_
     asked = Replay()
     counts = collect.keep(asked, REPO, tmp_path, NOW)
     since = (NOW - timedelta(hours=collect.PASS_HOURS)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    (runs,) = [path for path in asked.asked if "/actions/runs?" in path]
+    (runs,) = {path for path in asked.asked if "/actions/runs?" in path}
     assert runs.endswith(f"&created=%3E%3D{since}")
     jobs = [path for path in asked.asked if path.endswith("/jobs?filter=all")]
     assert len(jobs) == collect.PASS_RUNS
@@ -1010,6 +1010,12 @@ class Paged:
 
     def pages(self, path, key=None):
         return []
+
+    def tagged(self, path, key=None, etag=""):
+        return "", self.page(path, key) if "/pulls?" in path else []
+
+    def annotations(self, jobs):
+        return {}
 
 
 @pytest.mark.parametrize(

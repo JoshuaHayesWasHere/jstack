@@ -474,6 +474,23 @@ def test_a_calls_dollars_are_its_tokens_times_the_price_table(machine):
     assert week == [(1, pytest.approx(priced), 1, pytest.approx(priced))]
 
 
+def test_a_sonnet_call_costs_anthropics_published_prices(machine):
+    """A Sonnet 5.5 call of a million tokens of each class costs what Anthropic's pricing page,
+    https://platform.claude.com/docs/en/about-claude/pricing, read on 2026-11-09, gives per
+    million: $2 input, $4 one-hour cache write, $0.10 cache hit and $10 output."""
+    machine.thread("mcp:crew-a", "crew: row-a", "claudeAgent", "s1")
+    machine.merged("row-a")
+    million = 1_000_000
+    machine.claude(
+        "s1", said(NOW, "m1", (million, million, million, million), model="claude-sonnet-5-5")
+    )
+    machine.run()
+
+    with machine.store() as store:
+        calls = store.execute("SELECT model, dollars FROM call_rows").fetchall()
+    assert calls == [("claude-sonnet-5-5", pytest.approx(2 + 4 + 0.10 + 10))]
+
+
 def test_a_fable_call_has_dollars_and_is_not_named_unpriced(machine):
     """A Fable 5.2 call on a merged row is priced: `call_rows` gives it dollars, and
     `weekly_unpriced` names no model for its week."""

@@ -656,3 +656,23 @@ def test_a_waiter_that_takes_no_slot_writes_no_row(slots):
     ran = slots("--slots", "1", "--thread", "mcp:thread-7", command=["true"])
     assert ran.wait(timeout=5) == slot.WAITING
     assert not (Path(slots.env["HOME"]) / ".local" / "state" / "jgauge" / "slots.jsonl").exists()
+
+
+def test_a_release_row_carries_the_cpu_seconds_its_command_and_what_it_waited_for_used(slots):
+    """The CPU is the command's and its descendants', here a Python under `sh` that spins until
+    it has used 0.5 s, so a lane's or a repo's share of the machine can be read from the log.
+    The spin asks the kernel for its CPU time, so much of it is system time."""
+    spin = "import time\nwhile time.process_time() < 0.5: pass"
+    ran = slots("--short", command=["sh", "-c", f'"$1" -c "{spin}"', "sh", sys.executable])
+    assert ran.wait(timeout=10) == 0
+
+    take, release = slot_log(slots)
+    assert 0.5 <= release["cpu_user"] + release["cpu_system"] <= release["hold"]
+    assert release["cpu_user"] > 0 and release["cpu_system"] >= 0
+    common = subprocess.run(
+        ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert take["repo"] == Path(common.stdout.strip()).parent.name

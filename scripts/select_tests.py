@@ -1650,20 +1650,28 @@ def desk_part(name, changed, tests):
     return sorted(set(tests) - set(guards(changed, tests)))
 
 
-def ask(path, gone=None, **query):
+def ask(path, gone=None, etag=None, **query):
     """The answer GitHub's REST API gives to a GET of the repo's `path`, or `gone` where it
     answers 404 and `gone` is given. A log's answer is a redirect to storage that refuses the
-    token, so the token goes to GitHub alone."""
+    token, so the token goes to GitHub alone. With `etag`, the answer is `(etag, body)`, and
+    `(etag, None)` where GitHub answers `304 Not Modified` to the ask that names it, which costs
+    none of the run's token's allowance. Each costed answer is printed to stderr with its URL."""
     api = os.environ.get("GITHUB_API_URL", "https://api.github.com")
     url = f"{api}/repos/{os.environ['GITHUB_REPOSITORY']}/{path}"
     if query:
         url += "?" + urllib.parse.urlencode(query)
     request = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json"})
     request.add_unredirected_header("Authorization", f"Bearer {os.environ['GITHUB_TOKEN']}")
+    if etag:
+        request.add_unredirected_header("If-None-Match", etag)
     try:
         with urllib.request.urlopen(request, timeout=60) as answer:
-            return answer.read()
+            body = answer.read()
+            print(f"github: GET {url} answered {answer.status}", file=sys.stderr)
+            return body if etag is None else (answer.headers.get("ETag") or "", body)
     except urllib.error.HTTPError as error:
+        if error.code == 304 and etag:
+            return etag, None
         if error.code == 404 and gone is not None:
             return gone
         if error.code in SPENT:
@@ -1673,31 +1681,52 @@ def ask(path, gone=None, **query):
         sys.exit(f"select_tests.py: GitHub did not answer {path}: {error.reason}")
 
 
+def kept_list(path, was, pages, **query):
+    """A list GitHub gives for `path`, asked with the ETag `was`, what the lookup before read,
+    keeps for it: where GitHub answers that it did not change, a 304 that costs nothing, it is
+    `was`'s, so a lookup pays only for the lists that changed since. Each list read goes into
+    `pages`, as its ETag, its `total_count` and its runs' `id`, `run_attempt` and
+    `conclusion`, all `red_runs` reads."""
+    key = f"{path}?{urllib.parse.urlencode(query)}"
+    before = was.get(key) or {}
+    etag, body = ask(path, etag=before.get("etag", ""), **query)
+    if body is None:
+        pages[key] = before
+        return before["list"]
+    answer = json.loads(body)
+    fields = ("id", "run_attempt", "conclusion")
+    runs = [{field: run[field] for field in fields} for run in answer["workflow_runs"]]
+    listed = {"total_count": answer["total_count"], "workflow_runs": runs}
+    pages[key] = {"etag": etag, "list": listed}
+    return listed
+
+
 def side_by_side(read, items):
     """`{item: read(item)}`, the reads made at once: each is a wait on GitHub."""
     with ThreadPoolExecutor(max_workers=READS) as pool:
         return dict(zip(items, pool.map(read, items), strict=True))
 
 
-def red_runs(day):
+def red_runs(day, was, read):
     """The completed push and nightly runs of `WORKFLOW` on main created on a UTC `day`: `red`,
     the ones that failed or were run again, and `green`, the newest that passed, or `None`. Each
     is `<id>/<attempt>`, and `later` orders them. GitHub gives a filtered list 1,000 runs at most,
     and of one event only, and main has more in a month, so a day is listed at a time, for each
-    event."""
+    event, each page through `kept_list`: `was` holds the ETags of the lookup before, and `read`
+    takes this lookup's."""
 
     def page(event, number):
-        return json.loads(
-            ask(
-                f"actions/workflows/{WORKFLOW}/runs",
-                branch="main",
-                event=event,
-                status="completed",
-                created=day,
-                exclude_pull_requests="true",
-                per_page=PER_PAGE,
-                page=number,
-            )
+        return kept_list(
+            f"actions/workflows/{WORKFLOW}/runs",
+            was,
+            read,
+            branch="main",
+            event=event,
+            status="completed",
+            created=day,
+            exclude_pull_requests="true",
+            per_page=PER_PAGE,
+            page=number,
         )
 
     runs = []
@@ -1748,22 +1777,26 @@ def failed_on_main(days, kept_path):
     since each selection adds them, so a test it passed is red on main no more, and a rerun that
     passed counts as one, since its red jobs are an earlier attempt's. `kept` holds what earlier
     lookups read, and is left with the days, runs and jobs still in the window. The last
-    `SETTLED` days are listed again, and an older one only when `kept` lacks it."""
-    kept = {"days": {}, "runs": {}, "jobs": {}}
+    `SETTLED` days are listed again, and an older one only when `kept` lacks it: each list is
+    asked with the ETag `kept` holds for it (`pages`), and one that did not change costs nothing
+    (`kept_list`)."""
+    kept = {"days": {}, "runs": {}, "jobs": {}, "pages": {}}
     if kept_path.is_file():
         kept |= json.loads(kept_path.read_text())
+    pages = {}
     today = datetime.now(UTC).date()
     window = [(today - timedelta(days=back)).isoformat() for back in range(days + 1)]
     listed = dict.fromkeys(window[:SETTLED])
     listed |= {day: kept["days"].get(day) for day in window[SETTLED:]}
-    listed |= side_by_side(red_runs, [day for day, runs in listed.items() if runs is None])
+    asked = [day for day, runs in listed.items() if runs is None]
+    listed |= side_by_side(lambda day: red_runs(day, kept["pages"], pages), asked)
     runs = {run: kept["runs"].get(run) for day in window for run in listed[day]["red"]}
     runs |= side_by_side(red_jobs, [run for run, jobs in runs.items() if jobs is None])
     red = sorted({job for jobs in runs.values() for job in jobs})
     jobs = {job: kept["jobs"].get(job) for job in red}
     jobs |= side_by_side(logged, [job for job, tests in jobs.items() if tests is None])
     kept_path.parent.mkdir(parents=True, exist_ok=True)
-    kept = {"days": listed, "runs": runs, "jobs": jobs}
+    kept = {"days": listed, "runs": runs, "jobs": jobs, "pages": pages}
     kept_path.write_text(json.dumps(kept, indent=1, sort_keys=True) + "\n")
     last = {}
     for run in sorted(runs, key=later):

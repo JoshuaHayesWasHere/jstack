@@ -53,6 +53,7 @@ REPO_OWNERS: dict[str, tuple[str, ...]] = {
         "scripts/no_ai_trailers.py",
         "scripts/fresh-host.sh",
         "scripts/select_tests.py",
+        "scripts/selection_wait.py",
         "scripts/hot_files.py",
         "conftest.py",
         "testing/**",
