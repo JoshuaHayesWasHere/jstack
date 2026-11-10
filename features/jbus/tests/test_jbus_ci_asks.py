@@ -79,7 +79,9 @@ class GitHub:
                 for one in ids
             ]
             self.asked.append((path, False))
-            return subprocess.CompletedProcess(command, 0, json.dumps({"data": {"nodes": nodes}}), "")
+            return subprocess.CompletedProcess(
+                command, 0, json.dumps({"data": {"nodes": nodes}}), ""
+            )
         if "/actions/runs?" in path:
             since = jsettings.when(path.rsplit("&created=%3E%3D", 1)[1])
             listed = [one for one in self.runs if jsettings.when(one["created_at"]) >= since]
@@ -121,12 +123,12 @@ def test_a_pass_reads_the_annotations_of_all_its_new_jobs_in_one_ask_that_spends
     github = GitHub(3)
     kept = collect.keep(collect.Cli(github), REPO, tmp_path, NOW)
     assert kept.jobs == 6
-    assert sorted(github.costed()) == ["jobs", "jobs", "jobs", "pulls", "runs"] + [
-        "timeline"
-    ] * 2
+    assert sorted(github.costed()) == ["jobs", "jobs", "jobs", "pulls", "runs"] + ["timeline"] * 2
     assert [path for path, _ in github.asked].count("graphql") == 1
     rows = ledger.read(tmp_path / ledger.JOBS)
-    assert {one["job"]: one["selection"] for one in rows} == {one["job"]: one["job"] for one in rows}
+    assert {one["job"]: one["selection"] for one in rows} == {
+        one["job"]: one["job"] for one in rows
+    }
 
 
 def test_a_pass_whose_pages_github_answers_304_asks_no_costed_call(tmp_path):
@@ -141,7 +143,7 @@ def test_a_pass_whose_pages_github_answers_304_asks_no_costed_call(tmp_path):
     assert (kept.jobs, github.costed(), len(github.asked)) == (0, [], 2)
     assert len(ledger.read(tmp_path / ledger.PULLS)) == 2
 
-    github.runs[1]["run_attempt"] = 2
+    github.runs.append(github.runs[-1] | {"id": 4, "created_at": stamp(NOW + timedelta(minutes=2))})
     github.pulls[0]["updated_at"] = stamp(NOW + timedelta(minutes=2))
     kept = collect.keep(gh, REPO, tmp_path, NOW + timedelta(minutes=3))
     assert kept.jobs == 2

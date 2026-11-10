@@ -45,13 +45,27 @@ class Window:
                 for run in self.runs
                 if path.endswith(f"/runs/{run['id']}/jobs?filter=all")
             ]
-        since = jsettings.when(path.rsplit("&created=%3E%3D", 1)[1])
-        found = [one for one in self.runs if jsettings.when(one["created_at"]) >= since]
+        found = self.listed(path)
         self.read += max(1, -(-len(found) // collect.PAGE))
-        return found[::-1]
+        return found
+
+    def listed(self, path):
+        since = jsettings.when(path.rsplit("&created=%3E%3D", 1)[1])
+        return [one for one in self.runs if jsettings.when(one["created_at"]) >= since][::-1]
 
     def page(self, path, key=None):
-        return []
+        """A page of runs after the first, a page read, and of pull requests, none."""
+        if "/actions/runs?" not in path:
+            return []
+        path, number = path.rsplit("&page=", 1)
+        self.read += 1
+        return self.listed(path)[(int(number) - 1) * collect.PAGE :][: collect.PAGE]
+
+    def tagged(self, path, key=None, etag=""):
+        return "", self.page(f"{path}&page=1", key)
+
+    def annotations(self, jobs):
+        return {}
 
     def log(self, repo, job):
         raise Unavailable(str(job))
@@ -130,8 +144,8 @@ class Asks(Window):
         return found
 
     def page(self, path, key=None):
-        self.asked.append(path)
-        return []
+        self.asked.append(path.split("&page=")[0])
+        return super().page(path, key)
 
 
 def test_a_pass_with_nothing_new_asks_for_no_run_it_has_read(tmp_path):
