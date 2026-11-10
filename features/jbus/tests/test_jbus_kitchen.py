@@ -483,7 +483,11 @@ def fake_gh(stub, args, cwd):
     `api` picks its answer by the end of the path. It gives a commit's check runs, each naming its
     `head_sha`, by the sha or by a pull request's ref (`pull/<number>/head`, the head the open pull
     request has now), its runs for a push, who owns the repo (with no `repo.json`, GitHub does not
-    say), the commits, and a pull request's comments, line comments and reviews. Asked for every
+    say), the commits, and a pull request's comments, line comments and reviews. REST's list of
+    the open pull requests is `open.json` as REST shapes it, its `updated_at` the entry's
+    `updatedAt`, or a digest of the entry, so that any change a test makes to a pull request moves
+    it, as a change GitHub makes moves what one of `jbus.pulls`'s reads gives; a commit's statuses
+    come from `statuses.json` by its sha. Asked for every
     page (`--paginate --slurp`), it gives a list of pages, here two, and for the runs and a run's
     jobs, one. Check runs' annotations, asked for in GraphQL by their node ids, are none: each node
     is null. A job comes from `jobs.json` by its id, or is one
@@ -610,6 +614,27 @@ def fake_gh(stub, args, cwd):
         full = {"limit": 5000, "used": 0, "remaining": 5000, "reset": 1791824400}
         given = {"resources": {"core": full, "graphql": full}}
         said = kept.read_text() if kept.exists() else json.dumps(given)
+    elif args[0] == "api" and args[1].startswith("repos/{owner}/{repo}/pulls?state=open"):
+        opened = [p for p in json.loads((stub / "open.json").read_text()) if not p.get("old")]
+        said = json.dumps(
+            [
+                {
+                    "number": p["number"],
+                    "html_url": p["url"],
+                    "title": p["title"],
+                    "head": {"ref": p["headRefName"], "sha": p["headRefOid"]},
+                    "base": {"ref": p["baseRefName"]},
+                    "draft": p.get("isDraft", False),
+                    "updated_at": p.get("updatedAt")
+                    or hashlib.sha256(json.dumps(p, sort_keys=True).encode()).hexdigest(),
+                }
+                for p in opened
+            ]
+        )
+    elif args[0] == "api" and args[1].endswith("/status") and "/commits/" in args[1]:
+        kept = stub / "statuses.json"
+        every = json.loads(kept.read_text()) if kept.exists() else {}
+        said = json.dumps({"statuses": every.get(args[1].split("/")[-2], [])})
     elif args[0] == "api" and args[1] == "repos/{owner}/{repo}":
         said = (stub / "repo.json").read_text()
     elif args[0] == "api" and args[1].split("?")[0].endswith(("/comments", "/reviews")):

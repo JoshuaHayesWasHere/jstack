@@ -3,20 +3,19 @@ the `jmerge` the pass starts both take. The list is a GraphQL ask, and GraphQL i
 nearest its wall, so it is asked only where REST's open list, a head's check runs or statuses,
 or a base's tip changed: those reads answer 304, which costs nothing, while they are unchanged.
 
-The kitchen's `gh` gives the GraphQL list from `open.json` and each head's check runs from
-`check-runs.json`; `github` lays over it REST's view of the same pull requests, and their
-statuses from `statuses.json`."""
+The kitchen's `gh` gives the GraphQL list and REST's list from `open.json`, each head's check
+runs from `check-runs.json` and its statuses from `statuses.json`."""
 
-import hashlib
 import json
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 import jbus
-from jbus import passes, pulls, t3, watch
+from jbus import merge, passes, pulls, t3, watch
 from jmerge.cli import LIST
-from test_jbus_kitchen import NOW, Kitchen, fake_gh
+from jsettings import budget
+from test_jbus_kitchen import NOW, Kitchen, rate_limit
 
 HEAD, NEXT = "c" * 40, "d" * 40
 RUN = {
@@ -30,43 +29,9 @@ RUN = {
 }
 
 
-def github(stub, args, cwd):
-    """The kitchen's `gh`, with REST's list of the open pull requests and a head's statuses."""
-    path = args[1] if args[:1] == ["api"] else ""
-    if path.startswith("repos/{owner}/{repo}/pulls?state=open"):
-        opened = json.loads((stub / "open.json").read_text())
-        said = [
-            {
-                "number": one["number"],
-                "html_url": one["url"],
-                "title": one["title"],
-                "head": {"ref": one["headRefName"], "sha": one["headRefOid"]},
-                "base": {"ref": one["baseRefName"]},
-                "draft": one.get("isDraft", False),
-                "updated_at": one.get("updatedAt", ""),
-            }
-            for one in opened
-        ]
-    elif path.endswith("/status"):
-        kept = stub / "statuses.json"
-        every = json.loads(kept.read_text()) if kept.exists() else {}
-        said = {"statuses": every.get(path.split("/")[-2], [])}
-    else:
-        return fake_gh(stub, args, cwd)
-    with open(stub / "gh.log", "a") as log:
-        log.write(" ".join(args) + "\n")
-    said = json.dumps(said)
-    etag = f'W/"{hashlib.sha256(said.encode()).hexdigest()}"'
-    if "-H" in args and args[args.index("-H") + 1] == f"If-None-Match: {etag}":
-        return 1, "HTTP/2.0 304 Not Modified\r\n\r\n", "gh: HTTP 304\n"
-    return 0, f"HTTP/2.0 200 OK\r\nEtag: {etag}\r\n\r\n{said}\n", ""
-
-
 @pytest.fixture
 def kitchen(tmp_path, monkeypatch):
     made = Kitchen(tmp_path, monkeypatch)
-    gh = str(made.stub / "gh")
-    made.fakes[gh] = (github, made.fakes[gh][1])
     made.set("open.json", [opened(made, 7, HEAD)])
     made.set("check-runs.json", {HEAD: [RUN]})
     yield made
@@ -164,3 +129,17 @@ def test_each_change_github_can_make_is_read_on_the_next_pass(kitchen, change):
     (kitchen.state / pulls.FILE).unlink()
     assert after == looked(3) != before
     assert asked(kitchen) == 3
+
+
+def test_the_jmerge_a_pass_starts_is_handed_its_read_where_the_budget_is_known(kitchen):
+    run = a_pass()
+    merge.merge(run)
+    assert kitchen.log("jmerge") == ["--if-free"] and asked(kitchen) == 0
+    now = datetime.now(UTC)
+    known = {**rate_limit(4000, reset=now + timedelta(hours=1)), "at": now.isoformat()}
+    (kitchen.state_dir / budget.KEPT).write_text(json.dumps(known))
+    merge.merge(run)
+    handed = kitchen.log("jmerge")[-1].split()
+    assert handed == ["--if-free", "--pulls", str(kitchen.state / pulls.FILE), run.now.isoformat()]
+    assert json.loads((kitchen.state / pulls.FILE).read_text())["at"] == run.now.isoformat()
+    assert asked(kitchen) == 1

@@ -12,16 +12,17 @@ over an unchanged GitHub asks GraphQL nothing and gives the kept answer.
 
 The kept answer is `FILE` in the project's state. It is not reused, and the next read asks again:
 - where a probe gave no answer, since nothing then says the list is unchanged;
+- where the list names other pull requests or heads than REST's did, as when one of the two
+  read GitHub before a change and the other after it;
 - where a pull request's `mergeable` is `UNKNOWN`, which GitHub decides a while later with no
   change any probe sees;
 - where it was asked just after a base tip moved, since GitHub may give the `mergeable` it had
-  before the move once more, though a second read in the same pass takes it, the first having
-  been asked seconds before;
+  before the move once more;
 - once it is `FRESH` old, so a change no probe sees (the required checks of a branch's rules,
   which add `EXPECTED` checks) is read within that time.
 
-A read takes about one REST call for each open head and two more, each a 304 while nothing
-changed, and one `git ls-remote`. `jbus.merge` hands `jmerge` the kept answer's path and the
+A read takes two REST calls for each open head and one more, each a 304 while nothing changed,
+and one `git ls-remote`. `jbus.merge` hands `jmerge` the kept answer's path and the
 pass's stamp (`Open.at`), and `jmerge` takes its list and default branch from it only where the
 stamp is this pass's.
 """
@@ -36,8 +37,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from jbus import conditional, read_json, write_json
-from jmerge.asked import Silent
-from jmerge.asked import why as asked_why
 from jmerge.cli import LIST
 
 if TYPE_CHECKING:
@@ -70,11 +69,13 @@ class Open:
 @dataclass(frozen=True)
 class Probe:
     """What the free reads said: `seen`, a digest of all of it, or None where one gave no
-    answer, the default branch, and the tip of each base by name."""
+    answer, the default branch, the tip of each base by name, and each open pull request as
+    `heads` gives it."""
 
     seen: str | None
     default: str
     tips: dict[str, str]
+    pulls: list[list[Any]]
 
 
 def read(run: Pass) -> Open:
@@ -89,7 +90,7 @@ def read(run: Pass) -> Open:
         probed.seen is not None
         and kept.get("fields") == FIELDS
         and kept.get("seen") == probed.seen
-        and (kept.get("settled") or kept.get("asked") == now)
+        and kept.get("settled")
         and _fresh(run, kept)
         and isinstance(kept.get("pulls"), list)
     ):
@@ -100,11 +101,12 @@ def read(run: Pass) -> Open:
         was = kept.get("tips") if isinstance(kept.get("tips"), dict) else {}
         moved = any(was.get(base, tip) != tip for base, tip in probed.tips.items())
         decided = all(pull.get("mergeable") != "UNKNOWN" for pull in pulls)
+        agrees = heads(pulls) == probed.pulls
         kept = {
             "fields": FIELDS,
             "seen": probed.seen,
             "tips": probed.tips,
-            "settled": probed.seen is not None and not moved and decided,
+            "settled": probed.seen is not None and agrees and not moved and decided,
             "asked": now,
             "at": now,
             "default": probed.default,
@@ -142,7 +144,8 @@ def probe(run: Pass) -> Probe:
             for one in listed
         )
     except (KeyError, TypeError):
-        return Probe(None, *_tips(run, ()))
+        return Probe(None, *_tips(run, ()), [])
+    opened = [[number, head, sha, base] for number, _, _, head, sha, base, _, _ in pulls]
     default, tips = _tips(run, sorted({pull[5] for pull in pulls}))
     checks = {}
     for head in sorted({pull[4] for pull in pulls}):
@@ -161,11 +164,20 @@ def probe(run: Pass) -> Probe:
                 ),
             ]
         except (KeyError, TypeError):
-            return Probe(None, default, tips)
+            return Probe(None, default, tips, opened)
     if not default:
-        return Probe(None, default, tips)
+        return Probe(None, default, tips, opened)
     said = json.dumps([pulls, default, tips, checks], sort_keys=True, default=str)
-    return Probe(hashlib.sha256(said.encode()).hexdigest(), default, tips)
+    return Probe(hashlib.sha256(said.encode()).hexdigest(), default, tips, opened)
+
+
+def heads(pulls: list[dict[str, Any]]) -> list[list[Any]]:
+    """Each pull request of a GraphQL list as REST's list names it: its number, head branch,
+    head and base branch, in order."""
+    return sorted(
+        [one.get("number"), one.get("headRefName"), one.get("headRefOid"), one.get("baseRefName")]
+        for one in pulls
+    )
 
 
 def _tips(run: Pass, bases: list[str] | tuple[str, ...]) -> tuple[str, dict[str, str]]:
@@ -191,13 +203,8 @@ def _tips(run: Pass, bases: list[str] | tuple[str, ...]) -> tuple[str, dict[str,
 
 
 def _ask(run: Pass) -> list[dict[str, Any]]:
-    """The one GraphQL ask: the open pull requests with `FIELDS`. Raise `Silent` where `gh` gave
-    no list."""
-    asked = run.run("gh", "pr", "list", "--state", "open", "--limit", str(LIMIT), "--json", FIELDS)
-    try:
-        pulls = json.loads(asked.stdout) if asked.returncode == 0 else None
-    except ValueError:
-        pulls = None
-    if not isinstance(pulls, list):
-        raise Silent(asked_why(asked, run.run))
-    return pulls
+    """The one GraphQL ask: the open pull requests with `FIELDS`, through `watch.pulls`, which
+    asks every list of pull requests the pass makes. Raise `Silent` where `gh` gave no list."""
+    from jbus import watch
+
+    return watch.pulls(run, "open", FIELDS, "--limit", str(LIMIT))

@@ -50,11 +50,11 @@ from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
 from jbus.wake import JMERGE_TIMEOUT
 from jmerge import lines as lines_of
-from jmerge import backoff, lock, ready
+from jmerge import lock, ready
 from jmerge.asked import Silent
 from jmerge.judgement import step
 from jmerge.lines import Line as Line
-from jsettings import proc
+from jsettings import budget, paths, proc
 from jsettings.store import read_json, write_json
 
 if TYPE_CHECKING:
@@ -69,6 +69,8 @@ NO_LIST = "jmerge has no readable protected-paths list, nothing merges"
 RUN = ("jmerge", "--if-free")
 """The run of `jmerge` the pass and the tick make: with `--if-free`, a run that finds the run lock
 held does nothing and exits `lock.BUSY`, rather than wait inside `JMERGE_TIMEOUT`."""
+KNOWN = 600
+"""How old, in seconds, what GitHub said of its API budget may be for `handed` to go by it."""
 SWEEP = ("jmerge", "--sweep", "--check")
 UNRULED = re.compile(
     re.escape(ready.UNRULED_DROPS)
@@ -278,10 +280,11 @@ def _judged(run: Pass, ran: subprocess.CompletedProcess[str], at: str) -> Said:
 def handed(run: Pass) -> tuple[str, ...]:
     """The flag that hands `jmerge` the pass's read of the open pull requests (`pulls.read`), so
     it asks GitHub for no list of its own: `--pulls <path> <stamp>`. Nothing where the read
-    raised `Silent`, or where `jmerge` would ask GitHub nothing for its rate limit
-    (`backoff.Gate`): `jmerge` then asks for its own list, or says why it waits, as a run by hand
-    does."""
-    if backoff.Gate(run.config.home(run.project)).held(run.now):
+    raised `Silent`, and nothing where what GitHub said of its API budget in the last `KNOWN`
+    seconds (`budget.logged`, which asks nothing here) does not leave it above the floor: a pass
+    asks GitHub nothing under the floor, and `watch.look`, after the run, reads the budget for
+    the pass. `jmerge` then asks for its own list, or says why it waits, as a run by hand does."""
+    if budget.held(budget.logged(paths.jbus_state_dir(), KNOWN, asked=lambda _: None)):
         return ()
     try:
         opened = pulls.read(run)
