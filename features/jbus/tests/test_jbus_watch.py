@@ -630,6 +630,14 @@ def test_a_pull_request_with_no_brief_is_a_gate(kitchen):
     assert kitchen.lines() == ["condition stray: pull request #12 has no brief"]
 
 
+def test_jmerges_batch_pull_request_is_no_gate(kitchen):
+    """jmerge keeps one standing pull request on `jbus.BATCH`, which no brief is for."""
+    kitchen.set("open.json", [kitchen.opened(jbus.BATCH, 12)])
+    kitchen.poll()
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert kitchen.lines() == []
+
+
 def test_two_threads_for_one_slug_are_a_gate_and_nothing_else_is_said_of_it(kitchen):
     kitchen.brief("alpha")
     kitchen.t3.thread("alpha", "failed")

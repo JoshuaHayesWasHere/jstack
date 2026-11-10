@@ -280,11 +280,14 @@ def test_a_tip_whose_failed_tests_are_flakes_by_jbus_ci_s_rule_is_not_reverted(k
 
 
 @pytest.mark.parametrize(
-    "beside", [("gamma", [OTHER]), ("alpha", [TEST])], ids=["one-branch", "own-branch"]
+    "beside",
+    [("gamma", [OTHER]), ("alpha", [TEST]), (jbus.BATCH, [TEST])],
+    ids=["one-branch", "own-branch", "jmerge-batch"],
 )
 def test_a_tip_whose_failed_test_failed_on_one_other_branch_alone_is_reverted(kitchen, beside):
     """`TEST` shares beta's red with `OTHER`, a flake of two branches, or its second branch is
-    alpha's own: it failed on one branch besides the culprit's, so it is no flake."""
+    alpha's own, or jmerge's batch, which tests pull requests counted on their own branches: it
+    failed on one branch besides the culprit's, so it is no flake."""
     flaky_elsewhere(kitchen, beside)
     red_merges(kitchen, ("alpha", 7, None))
     passes(kitchen)
