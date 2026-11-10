@@ -217,3 +217,94 @@ def test_a_part_waits_for_its_selection_with_at_most_three_costed_calls(tmp_path
     printed = [line for line in ran.stdout.splitlines() if line.startswith("github: GET ")]
     assert len(printed) == len(github.costed)
     assert all(github.url + "/repos/o/r/" in line for line in printed)
+
+
+def test_reuse_hands_its_selection_over_as_an_artifact_and_a_part_asks_with_the_run_s_token():
+    """`reuse` writes its selection the moment it has one, also where it failed, and uploads it
+    as `selection-<attempt>`; a part's `selection` step reads it with the run's token."""
+    found, _ = steps(CHECK.read_text(), "reuse")
+    (wrote,) = [s for s in found if s.get("name") == "selection"]
+    assert wrote["if"] == "!cancelled()"
+    assert wrote["env"] == {
+        "SELECT": "${{ toJSON(steps.select.outputs) }}",
+        "TREE": "${{ steps.tree.outputs.name }}",
+        "REUSED": "${{ steps.reuse.outputs.reused }}",
+    }
+    (upload,) = [s for s in found if "selection-" in str(s.get("with"))]
+    assert upload["with"]["name"] == "selection-${{ github.run_attempt }}"
+    assert upload["with"]["path"] == "${{ runner.temp }}/selection/selection.json"
+    (asks,) = [
+        s for s in steps(CHECK.read_text(), "check-shard")[0] if s.get("name") == "selection"
+    ]
+    assert asks["env"] == {"GITHUB_TOKEN": "${{ github.token }}"}
+    assert asks["run"] == "python3 scripts/selection_wait.py"
+
+
+@pytest.mark.parametrize("missing", [1, 3])
+def test_a_part_downloads_a_listed_selection_again_where_github_answers_404(tmp_path, missing):
+    """GitHub can list `selection-<attempt>` and still answer its download `Not Found (HTTP
+    404)` for a while: the part reads that as not there yet, asks again within the same wait,
+    and takes the selection once it downloads. Only the downloads GitHub refused cost more."""
+    zipped = handed(tmp_path, SELECTED, "false")
+    answers = run_answers(zipped, 1, "in_progress", missing=missing)
+    ran, outputs, github = part_waits(tmp_path, answers)
+    assert ran.returncode == 0, ran.stdout + ran.stderr
+    assert outputs == SELECTED | {"tree": "green-tree-ab", "reused": "false"}
+    zips = [key for key in github.costed if key.endswith("/zip")]
+    assert len(zips) == missing + 1
+    assert len(github.costed) == len(zips) + 1
+
+
+def test_a_part_fails_once_reuse_ended_and_its_selection_never_downloads(tmp_path):
+    """A selection GitHub lists and never serves fails the part where the wait's bound is spent:
+    once a minute of asks has passed with `reuse` ended, and not at its timeout."""
+    zipped = handed(tmp_path, SELECTED, "false")
+    answers = run_answers(zipped, 1, "completed", newest="selection-1", missing=10**6)
+    ran, outputs, github = part_waits(tmp_path, answers)
+    assert ran.returncode == 1
+    assert "::error::the job reuse ended with no selection for this part" in ran.stdout
+    assert outputs == {}
+    assert len([key for key in github.costed if key.endswith("/jobs?per_page=100")]) == 1
+
+
+def test_a_reuse_hands_the_parts_no_files_and_says_it_reused(tmp_path):
+    zipped = handed(tmp_path, {}, "true")
+    ran, outputs, github = part_waits(tmp_path, run_answers(zipped, 1, "in_progress"))
+    assert ran.returncode == 0, ran.stdout + ran.stderr
+    assert outputs == {"tree": "green-tree-ab", "reused": "true"}
+    assert len(github.costed) == 2
+
+
+@pytest.mark.parametrize("status", ["completed", "none"])
+def test_a_part_run_again_alone_reads_the_selection_reuse_left_in_its_own_attempt(tmp_path, status):
+    """Where only the failed jobs run again, `reuse` is carried over from the attempt it ran in,
+    and no `selection-<attempt>` of this attempt comes: the part of attempt 3 asks once whether
+    `reuse` is of its attempt, finds it ended or not, and takes the newest selection of the
+    run, attempt 2's here, in three costed calls."""
+    zipped = handed(tmp_path, SELECTED, "false")
+    answers = run_answers(zipped, 10**6, status, attempt=3, newest="selection-2")
+    ran, outputs, github = part_waits(tmp_path, answers, attempt=3)
+    assert ran.returncode == 0, ran.stdout + ran.stderr
+    assert outputs == SELECTED | {"tree": "green-tree-ab", "reused": "false"}
+    assert github.costed == [
+        f"{RUNS}/attempts/3/jobs?per_page=100",
+        f"{RUNS}/artifacts?per_page=100",
+        "/repos/o/r/actions/artifacts/77/zip",
+    ]
+
+
+def test_a_part_fails_soon_when_reuse_ended_with_no_selection(tmp_path):
+    """A `reuse` that ended before it uploaded its selection, as when its checkout failed, and
+    left none in an earlier attempt, fails the part once a minute of asks has passed, not at its
+    timeout. The asks before cost nothing."""
+    zipped = handed(tmp_path, SELECTED, "false")
+    ran, outputs, github = part_waits(tmp_path, run_answers(zipped, 10**6, "completed"))
+    assert ran.returncode == 1
+    assert "::error::the job reuse ended with no selection for this part" in ran.stdout
+    assert outputs == {}
+    assert github.costed == [
+        f"{RUNS}/artifacts?name=selection-1",
+        f"{RUNS}/attempts/1/jobs?per_page=100",
+        f"{RUNS}/artifacts?per_page=100",
+    ]
+    assert len(github.free) == 59
