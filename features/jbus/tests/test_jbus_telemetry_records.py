@@ -139,6 +139,10 @@ def kept(machine, project, at):
 
 
 def test_the_store_reads_each_record_and_a_rebuild_reads_the_same(machine):
+    """The records of what jbus's snapshots overwrite, each read by its source:
+    `jbus.telemetry.records.brief_versions`, `jbus.telemetry.records.row_pulls`,
+    `jbus.telemetry.records.runs`, `jbus.telemetry.records.spend_days`,
+    `jbus.telemetry.records.spend_rows` and `jbus.telemetry.records.word_sends`."""
     kept(machine, "alpha", NOW)
     kept(machine, "beta", NOW)
     machine.build()
@@ -227,6 +231,7 @@ def test_launch_arms_keeps_each_launchs_arm_once_and_an_older_launch_reads_not_c
 
 
 def test_review_rounds_keeps_each_round_once_with_its_verdict_and_counts(machine):
+    """`jbus.telemetry.records.review_rounds` keeps a round's verdict and its counts."""
     line = {
         "at": iso(NOW),
         "slug": "one",
@@ -355,7 +360,7 @@ def test_the_queue_keeps_who_queued_each_row_and_the_message_its_go_rests_on(mac
 
 
 def test_launch_waits_splits_a_rows_go_to_launch_by_the_kind_of_each_reason(machine):
-    """The source `row_waits` of `jbus.telemetry.records`, its table in
+    """The source `jbus.telemetry.records.row_waits`, its table in
     `jbus.telemetry.migrations.v014_row_waits` and the view `jbus.telemetry.views.launch_waits`.
     `one`'s go is at NOW, after `zero`'s line began the log:
     a minute with no line, ten on a slug it depends on, ten on a full /tmp, ten on its home's cap,
@@ -475,7 +480,8 @@ def test_transitions_carry_whether_the_move_table_holds_the_move(machine):
 def test_a_store_from_before_health_readings_gains_the_table_and_reads_the_machines_log(machine):
     """A store migrated up to `jbus.telemetry.migrations.v016_health_readings` gains its table,
     and `jbus.telemetry.machine` reads each line of the machine's `health.jsonl` as the
-    machine's row: a fraction of a quota as it is, a reading jbus could not take as null."""
+    machine's row (`jbus.telemetry.records.health_readings`): a fraction of a quota as it is,
+    a reading jbus could not take as null."""
     path = machine.state_dir / telemetry.FILE
     counted(path, list(migrations.MIGRATIONS).index("v016_health_readings"))
     with open(machine.state_dir / "health.jsonl", "w") as log:
@@ -499,7 +505,9 @@ def test_a_store_from_before_health_readings_gains_the_table_and_reads_the_machi
 
 def test_each_of_the_machines_logs_is_read_as_the_machines_rows(machine):
     """`jbus.telemetry.machine` reads the passes, the drift probes and the capped reads of jbus's
-    own state as rows of the project `''`, each column as its writer gave it."""
+    own state as rows of the project `''`, each column as its writer gave it
+    (`jbus.telemetry.records.passes`, `jbus.telemetry.records.drift` and
+    `jbus.telemetry.records.capped_reads`)."""
     later = iso(NOW + timedelta(hours=2))
     for name, line in (
         ("passes.jsonl", {"at": iso(NOW), "seconds": 21.5}),
@@ -530,3 +538,18 @@ def test_each_source_is_the_module_named_for_its_table():
 
     modules = sorted(found.name for found in pkgutil.iter_modules(records.__path__))
     assert [source.table for source in records.SOURCES] == modules
+
+
+def test_a_stall_spell_is_kept_with_its_times_and_minutes(machine):
+    """`jbus.telemetry.records.stalls` keeps a spell's thread, its times and its minutes, and a
+    line with no minutes, as the line a spell begins with, as null minutes."""
+    began = {"at": iso(NOW), "thread": "t-1", "role": "crew", "slug": "one", "since": iso(NOW)}
+    ended = {**began, "at": iso(NOW + timedelta(minutes=9)), "minutes": 9, "became": "hung"}
+    machine.append("alpha", "stalls.jsonl", began, ended)
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        found = store.execute(
+            "SELECT thread, slug, since, minutes, became FROM stalls ORDER BY at"
+        ).fetchall()
+    since = "2026-10-28T15:00:00.000000Z"
+    assert found == [("t-1", "one", since, None, None), ("t-1", "one", since, 9, "hung")]

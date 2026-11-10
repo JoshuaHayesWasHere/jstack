@@ -522,6 +522,14 @@ def test_with_no_store_the_trim_keeps_every_event(machine):
 
 
 def test_no_table_and_no_byte_of_the_file_holds_the_text_of_a_message(machine):
+    """Each source's `row` is its table's allow-list, so a text of a record is kept as its length
+    and never as itself: `jbus.telemetry.records.events`, `jbus.telemetry.records.acts`,
+    `jbus.telemetry.records.items`, `jbus.telemetry.records.transitions`,
+    `jbus.telemetry.records.outbox`, `jbus.telemetry.records.ci_jobs`,
+    `jbus.telemetry.records.merges`, `jbus.telemetry.records.questions`,
+    `jbus.telemetry.records.queue`, `jbus.telemetry.records.merged`,
+    `jbus.telemetry.records.ci_prs`, `jbus.telemetry.records.reverts` and
+    `jbus.telemetry.records.merge_waits`."""
     for place, project in enumerate(("alpha", "beta")):
         records(machine, project, NOW, f"{project}-one", 10 + place)
         snapshots(machine, project, [(f"{project}-one", 10 + place, NOW + timedelta(hours=1))])
