@@ -9,7 +9,7 @@ It reads the repo's `.repo-standard.yml` and uses the Python standard library al
 A repo needs no copy of the tool: `uvx` runs it from jstack at the tag the repo pins.
 
 ```sh
-uvx --from git+https://github.com/JoshuaHayesWasHere/jstack@repo-standard-v2 repo-standard conform
+uvx --from git+https://github.com/JoshuaHayesWasHere/jstack@repo-standard-v3 repo-standard conform
 ```
 
 In jstack, the command is on the path of the project's environment, so `uv run repo-standard conform` runs it.
@@ -62,8 +62,8 @@ It prints one line for each fault, each waiver and each note, then a count:
 ```text
 error a-change-selects-its-tests: Makefile: has no `select` target
 waiver every-file-has-a-place: the layout moves into this file in the next pull request
-note: repo-standard-v2 is out, and this repo pins v1: move the pin when ready
-conform repo-standard-v1, 35 rules: errors 1, warnings 0, waived 1
+note: repo-standard-v3 is out, and this repo pins v2: move the pin when ready
+conform repo-standard-v2, 35 rules: errors 1, warnings 0, waived 1
 ```
 
 ### Levels
@@ -142,7 +142,7 @@ When the tags cannot be listed, the tool prints a note and goes on.
 Beside the guards' parts, which [the guards' page](guards.md) lists, `conform` reads these keys of `.repo-standard.yml`:
 
 ```yaml
-standard: 2
+standard: 3
 deploy: [make release]
 enforced-by:
   a-test-runs-the-code: [tests/test_run_not_read.py]
@@ -161,7 +161,7 @@ Its recipe runs `repo-standard green` first, and only such a recipe, or a script
 `repo-standard upgrade --to N` moves the repo to version N of the standard:
 
 ```sh
-uvx --from git+https://github.com/JoshuaHayesWasHere/jstack@repo-standard-v2 repo-standard upgrade --to 2
+uvx --from git+https://github.com/JoshuaHayesWasHere/jstack@repo-standard-v3 repo-standard upgrade --to 3
 make lint
 ```
 

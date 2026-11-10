@@ -78,7 +78,7 @@ local:
 It runs from the tool at version N, never the repo's current one, since only version N's tool reads version N's config:
 
 ```sh
-uvx --from git+https://github.com/JoshuaHayesWasHere/jstack@repo-standard-v2 repo-standard upgrade --to 2
+uvx --from git+https://github.com/JoshuaHayesWasHere/jstack@repo-standard-v3 repo-standard upgrade --to 3
 make lint
 ```
 

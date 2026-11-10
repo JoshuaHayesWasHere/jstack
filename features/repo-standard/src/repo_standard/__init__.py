@@ -10,7 +10,7 @@ before it imports anything else, so this module holds to syntax an older python3
 import sys
 
 TAG = "repo-standard-v"
-VERSION = 2
+VERSION = 3
 PYTHON = (3, 12)
 
 

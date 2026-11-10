@@ -82,7 +82,7 @@ ARGUMENT_FLAGS = "CfIjloWOE"
 CONDITIONAL = re.compile(r"^\s*(?:ifeq|ifneq|ifdef|ifndef|else|endif)\b")
 CALLED_VERSION = rf"{re.escape(TAG)}\d+(?:-[\w.]+)?"
 """The ref a caller of the shared check names: a version's tag, or a branch of a version not yet
-tagged, such as repo-standard-v2-rc, which the workflow's `ref` input names as well."""
+tagged, such as repo-standard-v3-rc, which the workflow's `ref` input names as well."""
 SHARED_CHECK = re.compile(
     r"^\s*uses:\s*['\"]?[\w.-]+/[\w.-]+/\.github/workflows/repo-standard-check\.yml"
     rf"@{CALLED_VERSION}['\"]?\s*(?:#.*)?$",

@@ -48,7 +48,7 @@ env:
   REPO_STANDARD_UPSTREAM: https://github.com/JoshuaHayesWasHere/jstack
   # The version this file is: a repo whose .repo-standard.yml pins another fails the plan, since
   # the jobs here and the code they run come from one version.
-  REPO_STANDARD_VERSION: 2
+  REPO_STANDARD_VERSION: 3
   # The ref the plan and the lint clone, and the skeleton's Makefile clones into .cache/: empty
   # takes the tag of the version the repo pins.
   REPO_STANDARD_REF: ${{ inputs.ref }}
