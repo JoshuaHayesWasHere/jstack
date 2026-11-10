@@ -12,7 +12,7 @@ The caller's job `standard` calls the shared workflow, and its job `check` passe
 ```yaml
 jobs:
   standard:
-    uses: JoshuaHayesWasHere/jstack/.github/workflows/repo-standard-check.yml@repo-standard-v2
+    uses: JoshuaHayesWasHere/jstack/.github/workflows/repo-standard-check.yml@repo-standard-v3
     with:
       runner: ubuntu-24.04
       command: 'make check'
@@ -43,9 +43,9 @@ The inputs `runner`, `browser-channel` and `timeout-minutes` are the repo's own:
 To run a branch of jstack before its version is tagged, a caller names the branch in both the `uses:` line and `ref`:
 
 ```yaml
-    uses: JoshuaHayesWasHere/jstack/.github/workflows/repo-standard-check.yml@repo-standard-v2-rc
+    uses: JoshuaHayesWasHere/jstack/.github/workflows/repo-standard-check.yml@repo-standard-v3-rc
     with:
-      ref: repo-standard-v2-rc
+      ref: repo-standard-v3-rc
 ```
 
 The `uses:` line picks the workflow's own file, and `ref` the code its jobs clone, which the workflow cannot learn from the `uses:` line.

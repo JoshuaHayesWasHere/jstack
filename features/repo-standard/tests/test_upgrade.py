@@ -1,12 +1,14 @@
 """`repo-standard upgrade --to N` moves a repo made from one version of the standard to the next.
 
-The fixture is an upstream that stands in for jstack, with two tags. `repo-standard-v2` is this
-tree, with its version set to 2 as the release of v2 sets it. `repo-standard-v1` is the same tree
-set to version 1, with the skeleton's Makefile and owners as v1 had them, before `local.mk`. A
-repo is made from v1 with the python-uv adapter, as `features/repo-standard/docs/skeleton.md`
-says, on a runner of its own, and passes conform at v1, pinned `standard: 1` and calling the
-shared check at `@repo-standard-v1`. The tool of the v2 clone upgrades it, and one `make lint`
-passes conform at v2.
+The fixture is an upstream that stands in for jstack, with three tags. `repo-standard-v3` is this
+tree. `repo-standard-v2` is the same tree set to version 2, as the release of v2 sets it, with a
+node_table.py that is not v3's, as v2's was before the fix v3 carries. `repo-standard-v1` is the
+same tree set to version 1, with the skeleton's Makefile and owners as v1 had them, before
+`local.mk`. A repo is made from v1 with the python-uv adapter, as
+`features/repo-standard/docs/skeleton.md` says, on a runner of its own, and passes conform at v1,
+pinned `standard: 1` and calling the shared check at `@repo-standard-v1`. The tool of the v2 clone
+upgrades it, and one `make lint` passes conform at v2. A repo made from v2 that keeps its caller
+and node_table.py under `local:` drops those two lines, and this tree's tool upgrades it to v3.
 
 The rule of which files a version owns (`repo_standard.owned.RULES`) places every file of the
 skeleton and of each adapter, or the first case fails.
@@ -32,6 +34,10 @@ LOCAL_MAKE = "\n-include local.mk\n"
 OWNS_LOCAL_MAKE = "    - Makefile\n    - local.mk\n"
 RUNNER = "self-hosted-builder"
 RUNS_ON = "${{ needs.standard.outputs.runner }}"
+NODE = STANDARD / "adapters" / "node-vite"
+NODE_TABLE = "scripts/node_table.py"
+V2_NODE_TABLE = "\n\nV2 = True\n"
+CHANNEL = "browser-channel: chrome"
 
 
 def test_every_file_of_the_skeleton_and_each_adapter_has_a_kind():
@@ -98,7 +104,8 @@ def at_version(root, version):
 
 @pytest.fixture(scope="module")
 def upstream(tmp_path_factory):
-    """jstack with the tags of v1 and v2, and a copy of the tree at v1 to make a repo from."""
+    """jstack with the tags of v1, v2 and v3, a copy of the tree at v1 and at v2 to make a repo
+    from, and a clone of the tool at v2."""
     root = tmp_path_factory.mktemp("upstream")
     ignore = shutil.ignore_patterns("__pycache__", ".venv", ".cache", ".ruff_cache")
     for part in ("src", "skeleton", "adapters"):
@@ -125,20 +132,30 @@ def upstream(tmp_path_factory):
     makefile.write_text(v2_makefile)
     for one, text in zip(configs, v2_configs, strict=True):
         one.write_text(text)
+    table = root / "features/repo-standard/adapters/node-vite" / NODE_TABLE
+    v3_table = table.read_text()
+    table.write_text(v3_table + V2_NODE_TABLE)
     at_version(root, 2)
     git(root, "add", "-A")
     git(root, "commit", "-qm", "v2")
     git(root, "tag", "repo-standard-v2")
+    v2 = tmp_path_factory.mktemp("v2")
+    shutil.copytree(root / "features", v2 / "features")
     tool = tmp_path_factory.mktemp("tool") / "repo-standard-v2"
     git(root, "clone", "-q", "--depth", "1", "--branch", "repo-standard-v2", str(root), str(tool))
-    return root, v1 / "features" / "repo-standard", tool
+    table.write_text(v3_table)
+    at_version(root, 3)
+    git(root, "add", "-A")
+    git(root, "commit", "-qm", "v3")
+    git(root, "tag", "repo-standard-v3")
+    return root, v1 / "features" / "repo-standard", tool, v2 / "features" / "repo-standard"
 
 
 @pytest.fixture
 def v1_repo(tmp_path, upstream):
     """A repo made from v1's skeleton and python-uv adapter, on a runner of its own, written in
     `runner:` and, as v1's caller had it, in the job check's `runs-on:`."""
-    source, v1, _ = upstream
+    source, v1, _, _ = upstream
     root = tmp_path / "repo"
     shutil.copytree(v1 / "skeleton", root)
     shutil.copytree(v1 / "adapters" / ADAPTER.name, root, dirs_exist_ok=True)
@@ -151,6 +168,34 @@ def v1_repo(tmp_path, upstream):
     git(root, "init", "-q", "-b", "main")
     git(root, "add", "-A")
     git(root, "commit", "-qm", "start from repo-standard-v1")
+    return root, env
+
+
+@pytest.fixture
+def v2_repo(tmp_path, upstream):
+    """A repo made from v2's skeleton, python-uv adapter and node-vite scripts, whose caller passes
+    the shared check a runner and a browser channel of its own, and whose config keeps the caller
+    and node_table.py under `local:`, as a repo did while v2's copies of them did not serve it."""
+    source, _, _, v2 = upstream
+    root = tmp_path / "repo"
+    shutil.copytree(v2 / "skeleton", root)
+    shutil.copytree(v2 / "adapters" / ADAPTER.name, root, dirs_exist_ok=True)
+    shutil.copytree(v2 / "adapters" / NODE.name / "scripts", root / "scripts", dirs_exist_ok=True)
+    caller = root / ".github/workflows/check.yml"
+    text = caller.read_text().replace("runner: ubuntu-24.04", f"runner: {RUNNER}\n      {CHANNEL}")
+    caller.write_text(text)
+    config = root / ".repo-standard.yml"
+    config.write_text(
+        config.read_text() + "local:\n"
+        "  .github/workflows/check.yml: the caller passes its own runner and browser channel\n"
+        f"  {NODE_TABLE}: v2's copy misreads a regular expression literal\n"
+    )
+    env = {k: v for k, v in os.environ.items() if k not in INHERITED}
+    env["REPO_STANDARD_UPSTREAM"] = str(source)
+    make(root, env, "generate")
+    git(root, "init", "-q", "-b", "main")
+    git(root, "add", "-A")
+    git(root, "commit", "-qm", "start from repo-standard-v2")
     return root, env
 
 
@@ -173,7 +218,7 @@ def snapshot(root):
 
 def test_a_repo_made_from_v1_passes_conform_at_v2_after_one_upgrade_and_one_lint(v1_repo, upstream):
     root, env = v1_repo
-    _, _, tool = upstream
+    _, _, tool, _ = upstream
     assert "standard: 1\n" in (root / ".repo-standard.yml").read_text()
     assert "@repo-standard-v1\n" in (root / ".github/workflows/check.yml").read_text()
     out = make(root, env, "lint")
@@ -207,9 +252,44 @@ def test_a_repo_made_from_v1_passes_conform_at_v2_after_one_upgrade_and_one_lint
     assert snapshot(root) == before
 
 
+def test_a_repo_at_v2_that_drops_its_two_local_lines_passes_conform_at_v3_after_one_upgrade(
+    v2_repo, capsys
+):
+    """The move of a repo that kept its caller and node_table.py as its own while v2's copies did
+    not serve it: v3's copies do, so a config edit drops the two `local:` lines, and upgrade alone
+    writes the rest, with no file copied by hand."""
+    root, env = v2_repo
+    upstream = env["REPO_STANDARD_UPSTREAM"]
+    config = root / ".repo-standard.yml"
+    caller = root / ".github/workflows/check.yml"
+    assert "standard: 2\n" in config.read_text()
+    assert "@repo-standard-v2\n" in caller.read_text()
+    assert (root / NODE_TABLE).read_text().endswith(V2_NODE_TABLE)
+    out = make(root, env, "lint")
+    assert "note: repo-standard-v3 is out, and this repo pins v2: move the pin when ready" in out
+    assert re.search(r"(?m)^conform repo-standard-v2, \d+ rules: errors 0, warnings 0,", out), out
+
+    text = config.read_text()
+    kept = text.split("local:\n", 1)[0]
+    config.write_text(kept)
+    assert main(["upgrade", "--to", "3", "--root", str(root), "--upstream", upstream]) == 0
+    said = capsys.readouterr().out.splitlines()
+    for path in (".repo-standard.yml", ".github/workflows/check.yml", NODE_TABLE):
+        assert f"wrote {path}" in said, said
+    assert said[-1] == "upgrade to repo-standard-v3: 3 files written; run `make lint` next", said
+    assert config.read_text() == kept.replace("standard: 2\n", "standard: 3\n")
+    assert (root / NODE_TABLE).read_bytes() == (NODE / NODE_TABLE).read_bytes()
+    called = caller.read_text()
+    assert "repo-standard-check.yml@repo-standard-v3\n" in called
+    assert f"runner: {RUNNER}\n      {CHANNEL}\n" in called and f"runs-on: {RUNS_ON}" in called
+    out = make(root, env, "lint")
+    assert re.search(r"(?m)^conform repo-standard-v3, \d+ rules: errors 0, warnings 0,", out), out
+    assert "note:" not in out, out
+
+
 def test_an_owned_file_the_repo_keeps_local_is_left_and_said(v1_repo, upstream):
     root, env = v1_repo
-    _, _, tool = upstream
+    _, _, tool, _ = upstream
     config = root / ".repo-standard.yml"
     config.write_text(config.read_text() + "local:\n  Makefile: the deploy targets live here\n")
     makefile = (root / "Makefile").read_text()
@@ -221,7 +301,7 @@ def test_an_owned_file_the_repo_keeps_local_is_left_and_said(v1_repo, upstream):
 
 def test_upgrade_runs_only_from_the_tool_of_the_version_it_moves_to(v1_repo, upstream):
     root, env = v1_repo
-    _, _, tool = upstream
+    _, _, tool, _ = upstream
     code, said = upgrade(root, env, tool, 3)
     assert code == 2
     assert "this tool is repo-standard-v2: run upgrade from the tool at repo-standard-v3" in said
@@ -310,7 +390,7 @@ def test_a_repo_of_several_stacks_owns_each_adapters_scripts_and_no_stack_mk():
 
 
 def test_another_versions_tree_is_cloned_once_into_the_cache(tmp_path, upstream, monkeypatch):
-    source, _, _ = upstream
+    source, _, _, _ = upstream
     other = 2 if VERSION == 1 else 1
     with pytest.raises(Unreadable, match="no upstream to clone it from"):
         owned.tree(other, tmp_path, None)

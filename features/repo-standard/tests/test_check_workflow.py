@@ -735,7 +735,7 @@ def test_a_caller_reads_only_outputs_the_workflow_at_its_pinned_tag_declares(tmp
     git(root, "tag", f"{TAG}1")
     commit(root, {path: full}, "a workflow that gives the runner")
     git(root, "tag", f"{TAG}2")
-    pinned = TEMPLATE.read_text().replace(f"@{TAG}2", "@{}")
+    pinned = re.sub(rf"@{TAG}\d+\b", "@{}", TEMPLATE.read_text())
     assert pinned.count("@{}") == 1
     assert unread(pinned.replace("@{}", f"@{TAG}1"), root) == ["runner"]
     assert unread(pinned.replace("@{}", f"@{TAG}2"), root) == []

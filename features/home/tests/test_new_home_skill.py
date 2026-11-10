@@ -344,7 +344,7 @@ def test_a_fresh_repo_gets_its_check_workflow_on_a_branch_and_its_fresh_check(ma
     assert machine.sha("jstack-check^") == machine.sha("wip")
     called = re.findall(r"^\s*uses: (\S+)$", machine.scaffold(), re.M)
     assert called == [
-        "JoshuaHayesWasHere/jstack/.github/workflows/repo-standard-check.yml@repo-standard-v2"
+        "JoshuaHayesWasHere/jstack/.github/workflows/repo-standard-check.yml@repo-standard-v3"
     ]
     assert (machine.state / "fresh-check").read_text() == "make check\n"
     assert not (machine.repo / ".github").exists()

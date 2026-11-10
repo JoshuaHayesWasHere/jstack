@@ -1,7 +1,7 @@
 # jstack's own config for the repo standard's guards (features/repo-standard/docs/guards.md).
 # The guards read jstack's layout, owners, generators, docs and caps from here, not from code.
 # `owners` is scripts/jtrees/crawl.py's REPO_OWNERS, and test_lint_borders.py holds them equal.
-standard: 2
+standard: 3
 features: features
 manifest-schema: schemas/feature.schema.json
 layout: [features/, schemas/, scripts/, testing/, .github/]

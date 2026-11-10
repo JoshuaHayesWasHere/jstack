@@ -26,7 +26,7 @@ concurrency:
 
 jobs:
   standard:
-    uses: JoshuaHayesWasHere/jstack/.github/workflows/repo-standard-check.yml@repo-standard-v2
+    uses: JoshuaHayesWasHere/jstack/.github/workflows/repo-standard-check.yml@repo-standard-v3
     with:
       runner: ubuntu-24.04
       command: 'make check'
