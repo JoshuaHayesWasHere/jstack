@@ -815,7 +815,7 @@ def test_the_pkgbuild_builds_upstreams_stable_release_with_every_patch_and_the_n
             "bash",
             "-c",
             'source ./PKGBUILD && printf "%s\\n" "$_tag" "$pkgver" "$pkgdesc" "${provides[*]}"'
-            ' "${conflicts[*]}" "${_patches[*]}" "${#sha256sums[@]}" && declare -f package',
+            ' "${conflicts[*]}" "${_patches[*]}" "${sha256sums[*]}" && declare -f package',
         ],
         cwd=PACKAGING,
         env=env,
@@ -832,7 +832,7 @@ def test_the_pkgbuild_builds_upstreams_stable_release_with_every_patch_and_the_n
     assert provides == f"t3code={tag[1:]}"
     assert conflicts.split()[:2] == ["t3code-bin", "t3code"]
     assert patches.split() == sorted(one.name for one in PACKAGING.glob("*.patch"))
-    assert int(sums) == len(patches.split()) + 1
+    assert sums.split() == ["SKIP"] * (len(patches.split()) + 1)
     for link in ("t3code", "t3-code-desktop", "t3code-nightly", "t3-code-nightly-desktop"):
         assert f'ln -s t3code-jstack "$pkgdir/usr/bin/{link}"' in package
 

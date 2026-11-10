@@ -103,3 +103,12 @@ def test_a_crew_that_queues_its_own_row_again_keeps_it_under_its_entry(kitchen):
     assert plan_go(kitchen)[0] == 0
     from_crew(kitchen, "alpha", "alpha")
     assert basis(kitchen, "alpha") == (queue.ENTRY, "epic")
+
+
+def test_a_crew_that_queues_a_home_rows_slug_again_does_not_file_it_under_its_entry(kitchen):
+    queued(kitchen, "alpha")
+    queued(kitchen, "beta", entry="")
+    assert plan_go(kitchen)[0] == 0
+    from_crew(kitchen, "alpha", "beta")
+    assert not rows(kitchen)["beta"].get("entry")
+    assert basis(kitchen, "beta") == ()
