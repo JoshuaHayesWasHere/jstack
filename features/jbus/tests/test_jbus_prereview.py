@@ -17,6 +17,7 @@ from jroles import ledger
 from repo_template import IDENTITY
 from test_jbus_kitchen import NOW
 from test_jbus_queue import add, rows
+from test_jbus_rereview import recorded
 from test_jbus_stack_move import signed
 
 DESK = "make check-fast BASE=" + "e" * 40 + " PART=touched"
@@ -110,6 +111,7 @@ def test_a_crew_whose_desk_proof_holds_gets_its_review_launched_by_jbus_with_no_
     )
     assert kitchen.lines("prereview") == [f"launched review alpha: {made} at {head[:12]}"]
     assert not any("pr create" in line for line in kitchen.log("gh"))
+    assert recorded(kitchen) == [("alpha", made, head, "first", 1)]
 
 
 @pytest.mark.parametrize(

@@ -11,18 +11,21 @@ check state: `check` runs on a pull request's pushes, not a bare branch's. `pr` 
 `ci-prs.jsonl` holds no pull request of the project, which is every project but those `jbus ci`
 keeps.
 
-`head` is the sha of the newest `check` run of the pull request's branch, since it opened, that
-had started by launch; `pushed` is when that run was created, the push, and `lag_minutes` the
-minutes from it to launch. `check_state` is that run's conclusion where it ended by launch, and
-`running` where it ended after. A run is matched on its branch, not its `pr`, which GitHub leaves
-out of some `pull_request` runs. A rerun counts from when it started, so one started after the
-launch leaves the state at launch the earlier attempt's. `check_state` is none for a pull request
-with no such run in the store.
+`head` is the head jbus recorded the thread was launched at (`review_heads`, which
+`jbus.reviewlaunch` writes), and none where no record names the thread, as for a thread launched
+before jbus kept the record. `number` is its seat, `#<n>`, as the record gives it. The `check`
+run of the pull request's branch at that sha says how it stood: `pushed` is when the run was
+created, the push, and `lag_minutes` the minutes from it to launch, none where the run was created
+after. `check_state` is the run's conclusion where it ended by launch, `running` where it had
+started and not ended, and `queued` where it had not started, as a review asked the moment a head
+is pushed is. The run is the newest attempt started by launch, or else the first to start. A run
+is matched on its branch, not its `pr`, which GitHub leaves out of some `pull_request` runs.
+`check_state` is none where the store has no such run.
 
-`again` is how many reviewer threads of the slug launched before this one at the same `head`, so
-a launch at a head a reviewer had already judged is one where `again > 0`. It is 0 where `head` is
-none: a launch with no head on record, such as one before its pull request opened, is no repeat of
-another, whose head is unknown too.
+`again` is how many reviewer threads of the slug, at the same seat, launched before this one at
+the same `head`, so a launch at a head a reviewer of that seat had already been launched at is
+one where `again > 0`. It is 0 where `head` is none: a launch with no head on record is no repeat
+of another, whose head is unknown too.
 
 The threads are read from `calls` first, a `CROSS JOIN` fixing the order: the store keeps no
 statistics, and SQLite would otherwise read every call of a provider for each reviewer session,
@@ -41,21 +44,30 @@ SQL = (
     "JOIN ci_prs p ON p.project = l.project AND p.number = l.number "
     "WHERE julianday(p.created) <= julianday(t.launched) "
     "AND (p.closed IS NULL OR julianday(p.closed) > julianday(t.launched))), "
-    "headed AS (SELECT o.project, o.thread, r.sha, r.created, r.updated, r.conclusion, "
-    "row_number() OVER (PARTITION BY o.project, o.thread "
-    "ORDER BY julianday(r.started) DESC, r.attempt DESC) AS newest "
-    "FROM opened o JOIN threads t ON t.project = o.project AND t.thread = o.thread "
-    "JOIN runs r ON r.project = o.project AND r.branch = o.branch "
-    "WHERE o.newest = 1 AND r.workflow = 'check' AND r.event = 'pull_request' "
-    "AND julianday(r.created) >= julianday(o.created) "
-    "AND julianday(r.started) <= julianday(t.launched)) "
+    "headed AS (SELECT t.project, t.thread, h.head AS sha, h.number AS seat "
+    "FROM threads t JOIN review_heads h ON h.project = t.project AND h.thread = t.thread "
+    "WHERE h.head IS NOT NULL), "
+    "checked AS (SELECT h.project, h.thread, r.created, r.started, r.updated, r.conclusion, "
+    "row_number() OVER (PARTITION BY h.project, h.thread "
+    "ORDER BY julianday(r.started) <= julianday(t.launched) DESC, "
+    "CASE WHEN julianday(r.started) <= julianday(t.launched) THEN -julianday(r.started) "
+    "ELSE julianday(r.started) END, r.attempt DESC) AS newest "
+    "FROM headed h JOIN threads t ON t.project = h.project AND t.thread = h.thread "
+    "JOIN opened o ON o.project = h.project AND o.thread = h.thread AND o.newest = 1 "
+    "JOIN runs r ON r.project = h.project AND r.branch = o.branch AND r.sha = h.sha "
+    "WHERE r.workflow = 'check' AND r.event = 'pull_request') "
     "SELECT t.project, t.slug, t.thread, o.number AS pr, t.launched, t.ended, t.tokens, "
-    "t.output, h.sha AS head, h.created AS pushed, CASE WHEN h.sha IS NULL THEN NULL "
-    "WHEN julianday(h.updated) <= julianday(t.launched) THEN h.conclusion ELSE 'running' END "
-    "AS check_state, round((julianday(t.launched) - julianday(h.created)) * 1440.0, 2) "
-    "AS lag_minutes, CASE WHEN h.sha IS NULL THEN 0 ELSE count(*) OVER (PARTITION BY t.project, "
-    "t.slug, h.sha ORDER BY t.launched, t.thread ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) "
+    "t.output, h.sha AS head, h.seat AS number, "
+    "CASE WHEN julianday(k.created) <= julianday(t.launched) THEN k.created END AS pushed, "
+    "CASE WHEN k.started IS NULL THEN NULL "
+    "WHEN julianday(k.started) > julianday(t.launched) THEN 'queued' "
+    "WHEN julianday(k.updated) <= julianday(t.launched) THEN k.conclusion ELSE 'running' END "
+    "AS check_state, CASE WHEN julianday(k.created) <= julianday(t.launched) THEN "
+    "round((julianday(t.launched) - julianday(k.created)) * 1440.0, 2) END AS lag_minutes, "
+    "CASE WHEN h.sha IS NULL THEN 0 ELSE count(*) OVER (PARTITION BY t.project, t.slug, h.sha, "
+    "h.seat ORDER BY t.launched, t.thread ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) "
     "END AS again FROM threads t "
     "LEFT JOIN opened o ON o.project = t.project AND o.thread = t.thread AND o.newest = 1 "
-    "LEFT JOIN headed h ON h.project = t.project AND h.thread = t.thread AND h.newest = 1"
+    "LEFT JOIN headed h ON h.project = t.project AND h.thread = t.thread "
+    "LEFT JOIN checked k ON k.project = t.project AND k.thread = t.thread AND k.newest = 1"
 )

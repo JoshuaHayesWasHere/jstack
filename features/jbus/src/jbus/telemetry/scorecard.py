@@ -123,10 +123,11 @@ def _amount(value: float | None, unit: str) -> str:
 
 def _note(reading: Reading) -> str:
     """The kind of error of a query that failed, never its message, which can carry the SQL's
-    values; a measure that `Lacks` its record says so in its row instead."""
-    if reading.note:
+    values, or else what the source's `note` says; a measure that `Lacks` its record says so in
+    its row instead."""
+    if reading.failed:
         return f"its query failed ({reading.note.split(':', 1)[0]})"
-    return ""
+    return reading.note
 
 
 def parts(measure: Measure, reading: Reading) -> list[str]:
