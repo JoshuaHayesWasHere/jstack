@@ -367,7 +367,7 @@ An alert whose count falls back under its limit, or a measure no longer `bad`, e
 `--json` prints a list instead, each item with `name`, `group`, `value`, `unit`, `n`, `baseline`, `state`, `tier`, `wired`, `audit` and `note`.
 It writes no page, raises no alert and changes nothing in the store.
 
-A KPI is a weekly value against a target for the vision; a measure is a reading of an hour, a day or a week so far against a baseline, to say whether jstack is healthy now.
+A KPI is a weekly value against a target for the vision; a measure is a reading of an hour, a day, the last 72 h or a week so far against a baseline, to say whether jstack is healthy now.
 Each measure is a module of its own in `jbus.telemetry.measures`, `m<NN>_<slug>.py`, whose `MEASURE` is one `Measure` and holds no function:
 
 | Field | What it is |
@@ -377,7 +377,7 @@ Each measure is a module of its own in `jbus.telemetry.measures`, `m<NN>_<slug>.
 | `says`, `unit` | what it counts, and its value's unit |
 | `better` | `lower` or `higher` |
 | `source` | `Sql(query, machine)`, or `Lacks(needs)` where the store has no record for it yet |
-| `window` | `hour` (the last hour), `day` (the user's day so far), `week` (the user's week so far, from the midnight that begins its Sunday) or `now` |
+| `window` | `hour` (the last hour), `day` (the user's day so far), `72h` (the last 72 h, which no midnight resets, so a count over it is its rate per 72 h, as `closed-unmerged` counts the pull requests closed with no merge where a row asked for one, no probe whose row asked for none and no revert of jbus's, against the 3 abandoned rows of the audit of 2026-11-09), `week` (the user's week so far, from the midnight that begins its Sunday) or `now` |
 | `baseline`, `baseline_of` | the value it is judged against, or None, and where that value is from |
 | `kind` | `Zero()`, `Limit(at, floor)` or `Trend(by)` |
 | `tier` | `wake` where a crossing is to wake the user, `page` where it is only shown |
@@ -428,7 +428,7 @@ Each day's point is the same part of that day as today so far, so today compares
 A `Lacks` measure says the record it needs; a query that failed shows its error's kind and never its message.
 The page names no row, path, thread or pull request.
 
-A KPI is a weekly value against a target for the vision; a measure is a reading of an hour, a day or a week so far against a baseline, to say whether jstack is healthy now.
+A KPI is a weekly value against a target for the vision; a measure is a reading of an hour, a day, the last 72 h or a week so far against a baseline, to say whether jstack is healthy now.
 Each measure is a module of its own in `jbus.telemetry.measures`, `m<NN>_<slug>.py`, whose `MEASURE` is one `Measure` and holds no function:
 
 | Field | What it is |
@@ -438,7 +438,7 @@ Each measure is a module of its own in `jbus.telemetry.measures`, `m<NN>_<slug>.
 | `says`, `unit` | what it counts, and its value's unit |
 | `better` | `lower` or `higher` |
 | `source` | `Sql(query, machine)`, or `Lacks(needs)` where the store has no record for it yet |
-| `window` | `hour` (the last hour), `day` (the user's day so far), `week` (the user's week so far, from the midnight that begins its Sunday) or `now` |
+| `window` | `hour` (the last hour), `day` (the user's day so far), `72h` (the last 72 h, which no midnight resets, so a count over it is its rate per 72 h, as `closed-unmerged` counts the pull requests closed with no merge where a row asked for one, no probe whose row asked for none and no revert of jbus's, against the 3 abandoned rows of the audit of 2026-11-09), `week` (the user's week so far, from the midnight that begins its Sunday) or `now` |
 | `baseline`, `baseline_of` | the value it is judged against, or None, and where that value is from |
 | `kind` | `Zero()`, `Limit(at, floor)` or `Trend(by)` |
 | `tier` | `wake` where a crossing is to wake the user, `page` where it is only shown |
