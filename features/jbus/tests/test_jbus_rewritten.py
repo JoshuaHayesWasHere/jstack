@@ -78,7 +78,7 @@ FINDING = "- warning src/alpha/a.py:3 the sum is off by one"
 def reviewed(kitchen, written, seat=1):
     """A reviewer thread on seat `#1` of alpha, named by the Result's `Reviewer:` line, and the
     `## Review` section it wrote with `seat` on its `By:` line, seen by a pass."""
-    made = kitchen.t3.thread("alpha", "completed")["threadId"]
+    made = kitchen.t3.thread("alpha", "completed", title="review: alpha")["threadId"]
     section = (
         f"\n## Review\nBy: claude opus high #{seat}\nVerdict: findings\n"
         f"Head: {'c' * 40}   Unchanged by the run: yes\nFindings:\n{FINDING}\n"
