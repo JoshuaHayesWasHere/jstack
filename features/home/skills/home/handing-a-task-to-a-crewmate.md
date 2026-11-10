@@ -81,6 +81,12 @@ The root home does step 1 and no other: it queues the brief by "Queueing a row i
    Where it cannot, give the plan entry its own `Builds on:` line, in the brief's form, naming the rows or entries it starts from.
    Once every one of them has merged and the entry has no row, jbus wakes its home once with `brief <entry>: <them> merged`: brief it then.
 
+   Its `Shown:` line names each picture the user sent with the request, so the crewmate sees what the user saw.
+   Where a message the brief comes from had a picture, run `uv run --project "$T/../source" jbriefs --shown <this home's thread id> --since <a time just before that message>`: this home's thread id is `threadId` from the `t3-code` server's `t3_thread_configure` with no arguments.
+   It prints one line for each message of that thread in which the user sent a picture: its time, its id, its first words, and each picture's path, or `gone` where the file is not on disk.
+   Put each path it printed for the brief's messages on `Shown:`, with what the picture shows in a few words, and leave the line out where the user sent none.
+   The paths are T3 Code's own files, which stay until the thread is deleted: never copy or move one.
+
    Its `Skills:` line names what the crewmate runs besides the playbook, or says `none`, and a brief with no line names nothing.
    Write each name in its canonical form, pstack's, so it reads the same in Grok Bot and in T3: a skill as its directory, `architect`, and a principle as its file without `.md`, `principle-model-the-domain`.
    `features/jbriefs/docs/jbriefs.md` "Skills a brief names" says which aliases resolve.

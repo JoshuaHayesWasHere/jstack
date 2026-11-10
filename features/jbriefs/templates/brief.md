@@ -12,6 +12,8 @@ Decisions: <any the user already made, in their words>
 Asked: $H/asked/<entry>.md
 <The line above names the file the home wrote once, when it took the request, with the user's messages of it word for word: every brief cut from that request names the same file.>
 <A brief that comes from no message of the user's has no `Asked:` line.>
+Shown: <the path of each picture the user sent with the request, as `jbriefs --shown` printed it, and what it shows in a few words, several split by `;`>
+<The line above is left out where the user sent no picture.>
 Holds: <a case of gates.md the task walks through, word for word, several split by commas>
 <The line above is left out when the task walks through no door.>
 <A row whose `Done when:` or `Proves it:` runs a door's command holds for that door all the same, and `jbus queue add` prints `holds: <case>, from <the command>` for one no `Holds:` line names.>
