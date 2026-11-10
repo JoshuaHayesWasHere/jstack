@@ -22,14 +22,15 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timedelta
+from itertools import pairwise
 from typing import TYPE_CHECKING, Any
 
 from jbus import Refused, mainmoved, queue, read_json, verbs, watch, write_json
 from jbus.ci.ledger import read as reds
 
 if TYPE_CHECKING:
-    from jbus.poll import Half
     from jbus.passes import Pass
+    from jbus.poll import Half
 
 PREFIX = "flake-"
 WINDOW = timedelta(days=7)
@@ -71,7 +72,7 @@ def twice(seen: list[Seen], now: datetime) -> tuple[Seen, Seen] | None:
     of `now`, or None where there are none."""
     pairs = [
         (first, then)
-        for first, then in zip(seen, seen[1:])
+        for first, then in pairwise(seen)
         if then[0] - first[0] <= WINDOW and now - then[0] <= WINDOW
     ]
     return pairs[-1] if pairs else None
@@ -94,7 +95,10 @@ def brief(name: str, test: str, pair: tuple[Seen, Seen]) -> str:
         "the commit that merges the fix",
         f"main's ledger, which called `{test}` a flake twice in seven days,",
         [],
-        [f"- main's red at {sha}, judged {at.isoformat()}: `{test}` failed as a flake" for at, sha in pair],
+        [
+            f"- main's red at {sha}, judged {at.isoformat()}: `{test}` failed as a flake"
+            for at, sha in pair
+        ],
         files=[test.partition("::")[0]],
         nowhere="`.`",
     )
