@@ -22,4 +22,4 @@ Not driven yet: no recipe drives this feature. The `home` seed is the sandbox's 
 
 ## Gotchas
 
-Not driven yet.
+- When GitHub's hourly allowance for the run's token is spent, the API answers 403 or 429, and a run still ends green on its own merits. The lookup of the tests that failed on main cannot read main's runs, so it prints `all` and a warning, and `reuse` selects the whole suite (`forced-by=failed-on-main`). The AI co-author trailer check reads the pull request's commits with the checkout's git from `origin`, which spends none of that allowance, says so in one line, and fails only on a real trailer. A run that cannot reach GitHub at all, with no answer, still fails the trailer check: an unread range is not a clean one.

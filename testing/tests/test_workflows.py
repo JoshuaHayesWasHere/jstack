@@ -2985,7 +2985,7 @@ class Compare:
     local ports from another process on the desk. It looks for its shutdown every 10 ms: at the
     default half second, the wait for it was most of each test that serves it."""
 
-    def __init__(self, messages, path):
+    def __init__(self, messages, path, code=200):
         import http.server
         import threading
         from urllib.parse import parse_qs, urlsplit
@@ -3001,6 +3001,12 @@ class Compare:
                     self.send_error(404)
                     return
                 asked.append((url.path, self.headers.get("Authorization")))
+                if code != 200:
+                    self.send_response(code)
+                    self.send_header("x-ratelimit-remaining", "0")
+                    self.end_headers()
+                    self.wfile.write(b'{"message": "API rate limit exceeded for installation."}')
+                    return
                 query = parse_qs(url.query)
                 size, page = int(query["per_page"][0]), int(query["page"][0])
                 body = {"total_commits": len(listed), "commits": listed[(page - 1) * size :][:size]}
@@ -3109,6 +3115,65 @@ def test_a_clean_range_with_a_human_co_author_passes_and_every_page_is_read(tmp_
         ["no-ai-trailers: the title, the body and 151 commits carry none"],
     )
     assert len(asked) == 2
+
+
+def spent_allowance(tmp_path, last):
+    """Run the check's script as the step runs it, in a shallow checkout of a pull request's
+    merge, with GitHub's API answering 403, as it does once the hourly allowance is spent. The
+    pull request's commits are on `origin` and not in the checkout, as in the step's."""
+    origin, work = tmp_path / "origin", tmp_path / "work"
+    run = {"check": True, "capture_output": True, "text": True}
+    subprocess.run(["git", "init", "-q", "-b", "main", origin], **run)
+    who = ["-c", "user.name=t", "-c", "user.email=t@t"]
+    shas = []
+    for message in ["chore: base", "feat: one", f"fix: two\n\nWhy.\n\n{last}"]:
+        subprocess.run(
+            ["git", *who, "commit", "-q", "--allow-empty", "-m", message], cwd=origin, **run
+        )
+        shas.append(subprocess.run(["git", "rev-parse", "HEAD"], cwd=origin, **run).stdout.strip())
+    subprocess.run(["git", "config", "uploadpack.allowAnySHA1InWant", "true"], cwd=origin, **run)
+    subprocess.run(["git", "clone", "-q", "--depth=1", f"file://{origin}", work], **run)
+    event = tmp_path / "event.json"
+    base, head = shas[0], shas[-1]
+    pull = {"title": "feat: a change", "body": "Why.", "base": {"sha": base}, "head": {"sha": head}}
+    event.write_text(json.dumps({"pull_request": pull}))
+    compare = Compare([], f"/repos/owner/repo/compare/{base}...{head}", code=403)
+    try:
+        ran = subprocess.run(
+            [sys.executable, str(NO_AI_TRAILERS)],
+            cwd=work,
+            capture_output=True,
+            text=True,
+            env={
+                **os.environ,
+                "PYTHONPATH": f"{REPO}/features/jmerge/src:{REPO}/features/jleak/src",
+                "GITHUB_EVENT_PATH": str(event),
+                "GITHUB_API_URL": compare.url,
+                "GITHUB_REPOSITORY": "owner/repo",
+                "GITHUB_TOKEN": "t0ken",
+            },
+        )
+    finally:
+        compare.close()
+    return ran.returncode, ran.stdout.splitlines(), shas
+
+
+def test_a_spent_allowance_reads_the_commits_with_git_and_passes_a_clean_range(tmp_path):
+    """On 2026-11-09 the API's 403 for a spent allowance failed every pull request checked in
+    that hour. The commits are read with the checkout's git instead."""
+    code, printed, _ = spent_allowance(tmp_path, HUMAN)
+    assert (code, printed[-1]) == (
+        0,
+        "no-ai-trailers: the title, the body and 2 commits carry none",
+    )
+    assert any("403" in line and "git" in line for line in printed[:-1]), printed
+
+
+def test_a_spent_allowance_still_fails_a_commit_with_an_ai_trailer(tmp_path):
+    code, printed, shas = spent_allowance(tmp_path, CLAUDE)
+    assert code == 1
+    line = f"::error title=AI co-author trailer::commit {shas[-1][:12]} line 5: {CLAUDE}"
+    assert line in printed
 
 
 def test_a_range_that_cannot_be_read_fails_the_check(tmp_path):

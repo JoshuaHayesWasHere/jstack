@@ -7,17 +7,26 @@ on the run, naming the title, the body or the commit, and the line, and the scri
 1. A pull request with none exits 0. A run that cannot read the commits exits 2: an unread
 range is not a clean one.
 
+Where GitHub answers 403 or 429, as it does once the hourly allowance of the run's token is
+spent, it reads the same commits with the checkout's git instead, from `origin`, which a git
+fetch reaches without that allowance: on 2026-11-09 a spent allowance failed every pull request
+checked in that hour. It says so in one line, and a commit with a trailer still fails.
+
 The patterns are `jmerge.trailers`, the ones jmerge strips from the squash commit it writes.
 """
 
+import base64
 import json
 import os
+import subprocess
 import sys
+import urllib.error
 import urllib.request
 
 from jmerge import trailers
 
 PAGE = 100
+SPENT = (403, 429)
 
 
 def commits(base, head, env):
@@ -38,6 +47,39 @@ def commits(base, head, env):
         page += 1
 
 
+def fetched(base, head, env):
+    """Each commit from base to head, as `commits` gives them, read with the checkout's git. The
+    checkout is shallow and keeps no credentials, so it fetches the two commits' history, with
+    no trees, from `origin` with the run's token, which reaches git and not the token's
+    allowance of the API."""
+    shallow = git("rev-parse", "--is-shallow-repository").strip() == "true"
+    config = {}
+    if env.get("GITHUB_TOKEN"):
+        basic = base64.b64encode(f"x-access-token:{env['GITHUB_TOKEN']}".encode()).decode()
+        config = {
+            "GIT_CONFIG_COUNT": "1",
+            "GIT_CONFIG_KEY_0": "http.extraheader",
+            "GIT_CONFIG_VALUE_0": f"AUTHORIZATION: basic {basic}",
+        }
+    unshallow = ["--unshallow"] if shallow else []
+    fetch = ["fetch", "-q", "--no-tags", "--filter=tree:0", *unshallow, "origin", base, head]
+    git(*fetch, env={**os.environ, **config})
+    log = git("log", "-z", "--format=%H%n%B", f"{base}..{head}")
+    found = []
+    for entry in filter(None, log.split("\0")):
+        sha, _, message = entry.partition("\n")
+        found.append({"sha": sha, "commit": {"message": message}})
+    return found[::-1]
+
+
+def git(*args, env=None):
+    """What git printed, or an `OSError` naming what it said where it failed."""
+    ran = subprocess.run(["git", *args], capture_output=True, text=True, env=env)
+    if ran.returncode:
+        raise OSError(f"git {args[0]} failed: {ran.stderr.strip()}")
+    return ran.stdout
+
+
 def lines(pull, listed):
     """One line for each AI co-author line of the pull request, saying where it is."""
     said = [f"title: {line}" for _, line in trailers.found(pull.get("title") or "")]
@@ -51,8 +93,18 @@ def lines(pull, listed):
 def main(env=os.environ):
     with open(env["GITHUB_EVENT_PATH"]) as event:
         pull = json.load(event)["pull_request"]
+    base, head = pull["base"]["sha"], pull["head"]["sha"]
     try:
-        listed = commits(pull["base"]["sha"], pull["head"]["sha"], env)
+        try:
+            listed = commits(base, head, env)
+        except urllib.error.HTTPError as error:
+            if error.code not in SPENT:
+                raise
+            print(
+                f"no-ai-trailers: GitHub answered {error.code}, its allowance spent, so git reads"
+                " the commits"
+            )
+            listed = fetched(base, head, env)
     except (OSError, KeyError, ValueError) as error:
         print(f"::error::no-ai-trailers: the commits could not be read: {error}")
         return 2
