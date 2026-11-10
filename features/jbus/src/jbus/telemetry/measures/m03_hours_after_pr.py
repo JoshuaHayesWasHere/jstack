@@ -23,5 +23,5 @@ MEASURE = Measure(
     baseline_of="the audit of 2026-11-09",
     kind=Limit(62.4, 5),
     tier="page",
-    audit=(4,),
+    audit=(2,),
 )
