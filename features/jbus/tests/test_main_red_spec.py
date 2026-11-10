@@ -26,9 +26,10 @@ tools = importlib.import_module("statechart.tools")
 READ_SET = ("features/jbus/src/", "features/jmerge/src/")
 """The code MainRed.tla quotes, each file as `<package>/<file>.py`."""
 
-QUOTE = re.compile(r"([\w./-]+\.(?:py|md))\s*`([^`]+)`")
+QUOTE = re.compile(r"([\w./-]+\.(?:py|md))((?:\s*(?:,|and)?\s*`[^`]+`)+)")
 """A cite of MainRed.tla by the code it quotes, with no line number:
-jbus/mainmoved.py `*([stands] if stands else []),`, so a line that only moves needs no edit."""
+jbus/mainmoved.py `*([stands] if stands else []),`, so a line that only moves needs no edit. Each
+quote after it joined by a comma or "and", as in `a` and `b`, is a quote of the same file."""
 
 AGREES = {
     "S1": "KnownRedReadAsRed",
@@ -49,10 +50,10 @@ def quoted():
     text = (SPEC / "MainRed.tla").read_text()
     flat = re.sub(r"\s*\n\s*(?:\\\*)?\s*", " ", text)
     assert not re.search(r"\.(?:py|md):\d", flat)
-    for path, quote in QUOTE.findall(flat):
-        package = path.split("/")[0]
-        lines = (REPO / "features" / package / "src" / path).read_text().splitlines()
-        yield path, quote, lines, lib.located(lines, quote)
+    for path, quotes in QUOTE.findall(flat):
+        lines = (REPO / "features" / path.split("/")[0] / "src" / path).read_text().splitlines()
+        for quote in re.findall(r"`([^`]+)`", quotes):
+            yield path, quote, lines, lib.located(lines, quote)
 
 
 def test_each_quote_of_the_spec_stands_once_in_its_file():
