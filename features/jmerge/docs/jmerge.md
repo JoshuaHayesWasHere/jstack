@@ -460,7 +460,8 @@ The batch's pull request is `jmerge`'s own: it has no brief and no row, `jmerge`
 Like the guards, the batch runs no browser tests: browser.yml skips a draft.
 
 **What a failed batch does.**
-A batch whose check failed, passed with no artifact found, or went 30 minutes from its push with no end (`batch.PENDING_MINUTES`), has failed.
+A batch whose check failed, or that went 30 minutes from its push with no artifact found (`batch.PENDING_MINUTES`), has failed.
+A check that passed with no artifact found waits for that limit, its members still `in jmerge's batch`: the lookup reads a gh error, or a run not yet concluded a moment after its last job passed, as none, and the next run that finds the artifact merges the batch.
 Each of its members then goes the single path of today, in that run, at the head the batch held: its merged tree's guards, or the line ("The guards on the merged tree"), and `batch.json` keeps those heads under `failed` until each one's head moves.
 A batch that cannot be made, whose push or pull request GitHub refused, sends its members down the same path in that run, after a line that starts `batch: not made`.
 Splitting a failed batch in halves to find the member that failed it is a later row (po-batch-split-halves).

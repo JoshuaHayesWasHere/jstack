@@ -8,8 +8,8 @@ keeps the tip, the tree, the commit and the members in `KEPT`. CI's check of tha
 runs on GitHub's merge of its head over main, whose tree is the batch's, since the head holds the
 tip, and leaves the artifact of the two trees (`green.checked`). On it, with the tip unmoved,
 `jmerge` squash-merges each member at its own head, in order, with no guards run
-(`cli.Repo.merge_batch`). A batch whose check failed, passed with no artifact, or ran past
-`PENDING_MINUTES`, sends each member down the single path of today at that head (`failed`).
+(`cli.Repo.merge_batch`). A batch whose check failed, or that went `PENDING_MINUTES` with no
+artifact found, sends each member down the single path of today at that head (`failed`).
 
 The batch pull request is jmerge's own: it is never judged as a row's, and never merged.
 """
@@ -31,9 +31,9 @@ MOST = 12
 """The most members a batch takes: the scout's cap, above which a failed batch costs too many
 members a round of their own (scouts/po-batched-merge-scout.md)."""
 PENDING_MINUTES = 30
-"""How long a batch's check may go without an end before the batch counts as failed: above the
-p90 of 387 s of the pull request check, so a run GitHub left queued or never started does not
-hold its members for ever."""
+"""How long a batch may go from its push with no artifact found before it counts as failed: above
+the p90 of 387 s of the pull request check, so a run GitHub left queued or never started, or a
+pass whose artifact is never found, does not hold its members for ever."""
 SHA = 12
 _IDENTITY = ("-c", "user.name=jmerge", "-c", "user.email=jmerge@localhost")
 
@@ -146,13 +146,15 @@ def state_of(
 ) -> str:
     """Where the batch stands: none out, or one stale (the tip moved, or its pull request is not
     open at its commit); proven, where `run` is the run that left the artifact of the tip's tree
-    and its tree; failed, where its check failed, passed with no artifact, or ran past
-    `PENDING_MINUTES`; and pending otherwise."""
+    and its tree; failed, where its check failed, or `PENDING_MINUTES` went by from its push with
+    no artifact found; and pending otherwise. A check that passed with no artifact found is
+    pending: the lookup turns a gh error, or a run not yet concluded after its last job passed,
+    into none, and the next run looks again."""
     if batch is None or tip != batch.tip or pull is None or pull.head != batch.commit:
         return NONE
     if run:
         return PROVEN
-    if pull.failed or not pull.waiting or now - batch.at > timedelta(minutes=PENDING_MINUTES):
+    if pull.failed or now - batch.at >= timedelta(minutes=PENDING_MINUTES):
         return FAILED
     return PENDING
 
