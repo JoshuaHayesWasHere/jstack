@@ -45,7 +45,7 @@ def test_each_cite_of_a_flow_spec_quotes_code_its_file_holds():
         for tla, path, quote in cites
         if not lib.located((REPO / path).read_text().splitlines(), quote)
     ]
-    assert missing == []
+    assert not missing, "stale cites:\n" + "\n".join(missing)
 
 
 @pytest.mark.skipif(not find_java(), reason="no Java to run TLC")
