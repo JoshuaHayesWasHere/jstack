@@ -147,7 +147,9 @@ def test_duplicate_reviews_counts_the_launches_at_a_head_jbus_recorded(machine):
     """Two reviewers launched before their pull request, with no head on record, are no repeat of
     each other. Of three launches with a head on record, the second at the head the first was
     launched at is a repeat, and the third, at a head whose `check` run had not started when it
-    launched, is none: the measure reads 1 of 3, and says 2 launches had no head on record."""
+    launched, is none: the measure reads 1 of 3, and says 2 launches had no head on record.
+    The heads are read by `jbus.telemetry.records.review_heads` into the table that
+    `jbus.telemetry.migrations.v018_review_heads` makes."""
     minute = timedelta(minutes=1)
     reviewed(machine, "early", "s1", NOW, NOW + minute, "mcp:early-1")
     reviewed(machine, "early", "s2", NOW + 10 * minute, NOW + 11 * minute, "mcp:early-2")
