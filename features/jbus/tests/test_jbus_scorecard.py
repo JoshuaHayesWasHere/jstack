@@ -16,6 +16,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 import jsettings
+from jgauge import spend as jgauge_spend
 from jbus import cli, telemetry
 from jbus.telemetry import measures, values
 from test_jbus_telemetry import Machine
@@ -252,3 +253,99 @@ def test_every_finding_of_the_audit_is_carried_by_a_measure():
     ranked, and no measure names a rank the audit does not have."""
     carried = {rank for each in measures.MEASURES for rank in each.audit}
     assert carried == set(AUDIT)
+
+
+def calls(store, project: str, role: str, slug: str, session: str, thread: str, *made) -> None:
+    """A session of `role` on `slug` and its calls, each `(at, tokens of context)`, all of it as
+    input on Opus, so a call's dollars are its tokens at Opus's plain price."""
+    store.execute(
+        "insert into sessions (provider, session, thread, project, role, slug)"
+        " values ('claude', ?, ?, ?, ?, ?)",
+        (session, thread, project, role, slug),
+    )
+    for i, (at, tokens) in enumerate(made):
+        store.execute(
+            "insert into calls (provider, call, session, at, model, input, cache_write,"
+            " cache_read, output, final, day) values ('claude', ?, ?, ?, 'claude-opus-5-5', ?,"
+            " 0, 0, 0, 1, ?)",
+            (f"{session}.{i}", session, stamp(at), tokens, at.date().isoformat()),
+        )
+
+
+def queued(store, slug: str, entry: str | None, briefed: datetime) -> None:
+    store.execute(
+        "insert into queue (project, key, slug, status, entry, queued_by_session)"
+        " values ('jstack', ?, ?, 'launched', ?, 'h1')",
+        (slug, slug, entry),
+    )
+    store.execute(
+        "insert into brief_versions (project, key, at, slug) values ('jstack', ?, ?, ?)",
+        (slug, stamp(briefed), slug),
+    )
+
+
+def test_the_three_weekly_reads_of_calls_give_these_values(store):
+    """The week began at Sunday's midnight in New York, 2026-11-08 05:00 UTC. Crew-context is the
+    mean context of this week's crew calls of the project, a call of a session begun last week
+    among them; first-call-context is the mean of the first call of each crew session begun this
+    week; dollars-per-row is what the week's one merged row spent: its crew's calls, the home's
+    calls whose next brief was its own, and its scout's whole share, since its entry has no other
+    merged row. A home call whose next brief is a row that has not merged, and one after the last
+    brief, are no merged row's."""
+    week = datetime(2026, 11, 8, 5, tzinfo=UTC)
+    monday = datetime(2026, 11, 9, tzinfo=UTC)
+    calls(
+        store,
+        "jstack",
+        "crew",
+        "row-old",
+        "c0",
+        "mcp:c0",
+        (week - timedelta(days=3), 100_000),
+        (week + timedelta(hours=7), 30_000),
+    )
+    calls(
+        store,
+        "jstack",
+        "crew",
+        "row-a",
+        "c1",
+        "mcp:c1",
+        (monday + timedelta(hours=14), 40_000),
+        (monday + timedelta(hours=15), 80_000),
+    )
+    calls(store, "jstack", "crew", "row-b", "c2", "mcp:c2", (monday + timedelta(hours=16), 60_000))
+    calls(
+        store, "elsewhere", "crew", "row-e", "e1", "mcp:e1", (monday + timedelta(hours=16), 900_000)
+    )
+    calls(store, "jstack", "home", "jstack", "h1", "mcp:home", (monday + timedelta(hours=12), 500))
+    calls(
+        store,
+        "jstack",
+        "home",
+        "jstack",
+        "h2",
+        "mcp:home",
+        (monday + timedelta(hours=13), 1_000),
+        (monday + timedelta(hours=14), 3_000),
+        (monday + timedelta(hours=20), 7_000),
+    )
+    calls(store, "jstack", "scout", "scout-x", "s1", "mcp:s1", (week + timedelta(hours=5), 2_000))
+    queued(store, "row-a", "scout-x", monday + timedelta(hours=13, minutes=30))
+    queued(store, "row-b", None, monday + timedelta(hours=14, minutes=30))
+    store.execute(
+        "insert into transitions (project, key, at, slug, from_status, to_status, day)"
+        " values ('jstack', 't1', ?, 'row-a', 'pr', 'merged', '2026-11-09')",
+        (stamp(monday + timedelta(hours=18)),),
+    )
+
+    def read(name: str) -> tuple[float | None, int]:
+        reading = measures.read(store, measure(name), "jstack", NOW, USER)
+        assert reading.note == "", reading.note
+        return reading.value, reading.n
+
+    assert read("crew-context") == (pytest.approx((30 + 40 + 80 + 60) / 4), 4)
+    assert read("first-call-context") == (pytest.approx((40 + 60) / 2), 2)
+    opus = jgauge_spend.PRICES["claude-opus-5-5"].plain / 1e6
+    spent = (40_000 + 80_000) + (500 + 1_000) + 2_000
+    assert read("dollars-per-row") == (pytest.approx(spent * opus), 1)
