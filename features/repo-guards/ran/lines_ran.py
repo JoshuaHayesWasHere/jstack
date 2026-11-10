@@ -1,17 +1,20 @@
 """A pytest plugin that stops a run under coverage once every file it waits on is decided.
 
-`test_new_lines_run.unrun` loads it into the run of the tests that name the code a branch adds,
-with `NEW_LINES_RAN` the path of a JSON file: `{"lines": {<absolute path>: [<line>, ...]},
-"reach": {<absolute path>: [<absolute test file>, ...]}, "data": <coverage's data file>,
-"stopped": <a path>}`. A file is decided once each of its lines has run, or once every test of the
-test files that can reach it, its `reach`, has ended. After each test, a process that runs tests
-reads what coverage has measured in it so far and the tests it has ended, writes that to a file of
-its own beside the data file, and reads the same from every other process: the other workers, and
-each process a test started that has ended and saved its data. Once every file waited on is
-decided, it writes the `stopped` file and stops the run, and pytest ends 2. It waits only for the
-lines coverage counts as statements, so a line a pragma excludes holds no run to its end. Lines
-seen here did run, so a stop never hides a line no test runs: the verdict is still the data
-coverage combines once the run ends.
+`test_new_lines_run.unrun` loads it, beside `part_lines`, into the run of the tests that name the
+code a branch adds, with `NEW_LINES_RAN` the path of a JSON file: `{"lines": {<absolute path>:
+[<line>, ...]}, "names": {<absolute path>: [<test file from the repo's root>, ...]}, "reach":
+{<absolute path>: [<absolute test file>, ...]}, "data": <coverage's data file>, "stopped": <a
+path>}`. A line has run here only where one of the test files that names its module, its `names`,
+ran it: the context `part_lines` gives each line, the rule the guard counts by, so the run never
+stops on a line another module's test ran and the guard would not count. A file is decided once
+each of its lines has run so, or once every test of the test files that can reach it, its
+`reach`, has ended. After each test, a process that runs tests reads what coverage has measured
+in it so far and the tests it has ended, writes that to a file of its own beside the data file,
+and reads the same from every other process: the other workers, and each process a test started
+that has ended and saved its data. Once every file waited on is decided, it writes the `stopped`
+file and stops the run, and pytest ends 2. It waits only for the lines coverage counts as
+statements, so a line a pragma excludes holds no run to its end. Lines seen here did run, so a
+stop never hides a line no test runs: the verdict is still the data the run folds once it ends.
 """
 
 import json
@@ -30,6 +33,7 @@ class Waiting:
             Path(path).resolve(): set(lines) & set(cov.analysis2(path)[1])
             for path, lines in said["lines"].items()
         }
+        self.names = {Path(path).resolve(): set(tests) for path, tests in said["names"].items()}
         self.reach = {
             Path(path).resolve(): {Path(test).resolve() for test in tests}
             for path, tests in said["reach"].items()
@@ -55,7 +59,11 @@ class Waiting:
         for name in data.measured_files():
             path = Path(name).resolve()
             if path in self.lines:
-                self.seen.setdefault(path, set()).update(data.lines(name) or ())
+                self.seen.setdefault(path, set()).update(
+                    number
+                    for number, contexts in data.contexts_by_lineno(name).items()
+                    if self.names[path] & set(contexts)
+                )
 
     def others(self) -> None:
         """The lines in each data file of an ended process, and the lines and ended tests in each
