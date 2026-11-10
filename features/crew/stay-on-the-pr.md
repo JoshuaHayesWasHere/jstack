@@ -40,7 +40,11 @@ awk '
     }' "$B"
 ```
 
-On `paused`, do what it says and nothing more, whatever the message was, the review's findings included: nothing is fixed, pushed, rebased or launched. The one exception is jbus's message that the rows on the last Result's `Paused on:` line landed: it ends the pause, and the round goes on as it says. Otherwise the user or the home says when the task goes on, and that round reads those lines, handles what they name, and ends the pause with a follow-up Result that has another status. On `not paused`, go by the message. jbus sends each of these once for a head:
+On `paused`, do what it says and nothing more, whatever the message was, the review's findings included: nothing is fixed, pushed, rebased or launched.
+The one exception is jbus's message that the rows on the last Result's `Paused on:` line landed: it ends the pause, and the round goes on as it says.
+Otherwise the user or the home says when the task goes on, and that round reads those lines, handles what they name, and ends the pause with a follow-up Result that has another status.
+On `not paused`, go by the message.
+jbus sends each of these once for a head:
 
 - `jbus: <check> failed on your pull request`: a check ran and failed at that head, and it comes once more when a rerun of it fails again at the same head. One that failed with no step run is not told. Run the block of "The checks" and go by what it prints, not by the message. On `failed`, `wait` or `unrun`, do what "The checks" says, then end your turn again.
 - `jbus: your pull request ... is in conflict with its base`, which comes before its review is written, or a message that jbus or `jmerge` sends for a conflict or a failed check over the default branch, which comes after: do what "A conflict" below says, then end your turn again.
