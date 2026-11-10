@@ -247,25 +247,21 @@ def read(
                 before, _ = _value(store, query, owner, *bounds(measure.window, now, user, back))
                 if before is not None:
                     prior.append(before)
+        told = _note(store, note, owner, *span)
     except sqlite3.Error as error:
         said = f"{type(error).__name__}: {error}"
         return Reading(None, 0, fixed, "none", said, failed=True)
     mean = sum(prior) / len(prior) if prior else None
     state = _state(measure, value, n, baseline, mean)
-    told = _note(store, note, owner, *span)
     return Reading(value, n, baseline, state, told, _parts(store, each, owner, *span))
 
 
 def _note(store: sqlite3.Connection, query: str, project: str, begins: str, ends: str) -> str:
-    """What a source's `note` says, or nothing where it has none, gives no row or fails: the
-    value the measure read stands either way."""
+    """What a source's `note` says, or nothing where it has none or it gives no row."""
     if not query:
         return ""
     params = {"project": project, "begins": begins, "ends": ends}
-    try:
-        row = store.execute(query, params).fetchone()
-    except sqlite3.Error:
-        return ""
+    row = store.execute(query, params).fetchone()
     return "" if row is None or row[0] is None else str(row[0])
 
 
