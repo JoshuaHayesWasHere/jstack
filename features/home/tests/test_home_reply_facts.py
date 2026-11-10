@@ -8,13 +8,12 @@ the view's own `Read.day`, in a zone where UTC's day and the user's differ.
 """
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from zoneinfo import ZoneInfo
 
 import jsettings
 from jbus.view import state
-
 from test_home_thread import as_read
 from testing.paths import skills
 
@@ -35,6 +34,6 @@ def the_views_day(now, tmp_path):
 def test_a_replys_today_starts_where_the_views_merged_today_does(tmp_path):
     ends = re.search(r"^## How a turn ends\n(.*?)(?=^## )", as_read(SKILL), re.M | re.S)
     assert ends and TODAY.search(ends.group(1)), "'How a turn ends' lost its rule for a number"
-    late = datetime(2026, 11, 9, 3, 30, tzinfo=timezone.utc)
+    late = datetime(2026, 11, 9, 3, 30, tzinfo=UTC)
     assert the_views_day(late, tmp_path) == datetime(2026, 11, 8, tzinfo=ZONE)
-    assert the_views_day(late, tmp_path) != datetime(2026, 11, 9, tzinfo=timezone.utc)
+    assert the_views_day(late, tmp_path) != datetime(2026, 11, 9, tzinfo=UTC)
