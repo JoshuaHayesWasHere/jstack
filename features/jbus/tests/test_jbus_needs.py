@@ -405,7 +405,8 @@ def test_the_project_wide_list_has_every_homes_open_asks_and_home_status_counts_
     """`jbus needs` with no `--home` is what a thread outside a home and the root home read, so
     it lists each ask still open in the `told` of every home of the project, each named with its
     home, and `jbus home status` counts them in its line of what waits in other projects: a
-    scope's ask never hides behind "nothing waits"."""
+    scope's ask never hides behind "nothing waits". A project whose root home has no directory
+    has no asks, and the list still reads every project."""
     sc, ops = scoped(kitchen, "sc"), scoped(kitchen, "ops")
     other = kitchen.second()
     turn = "decision local alpha: which way?\ndecision question 3: drop the old branch\n"
@@ -432,3 +433,5 @@ def test_the_project_wide_list_has_every_homes_open_asks_and_home_status_counts_
     assert kitchen.main("told", str(ops), stdin="cleared local beta: lifted\n")[0] == 0
     assert needs(kitchen) == ["nothing waits on user in any project"]
     assert elsewhere() == []
+    other.home.rename(other.home.with_name("moved"))
+    assert needs(kitchen) == ["nothing waits on user in any project"]
