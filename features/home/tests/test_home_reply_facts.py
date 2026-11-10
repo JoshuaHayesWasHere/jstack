@@ -19,7 +19,7 @@ from testing.paths import skills
 
 SKILL = skills()["home"] / "SKILL.md"
 ZONE = ZoneInfo("America/New_York")
-TODAY = re.compile(r'"today" counts from the user\'s local midnight, as the view\'s "Merged today"')
+TODAY = re.compile(r'"today" starts at the user\'s local midnight, as in the view\'s "Merged today"')
 
 
 def the_views_day(now, tmp_path):
