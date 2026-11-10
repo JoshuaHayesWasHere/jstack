@@ -410,7 +410,8 @@ To measure one that `Lacks` its record, add the record and its table as "Change 
 ## The scorecard
 
 `jbus --project <name> scorecard` reads each health measure of one project from the store, opened read only, and prints one line a measure: its state, group, name, value, unit, the count it is of, its baseline and its tier.
-`--json` prints a list instead, each item with `name`, `group`, `value`, `unit`, `n`, `baseline`, `state`, `tier`, `wired`, `audit` and `note`.
+`--json` prints a list instead, each item with `name`, `group`, `value`, `unit`, `n`, `baseline`, `state`, `tier`, `wired`, `audit`, `note` and `each`.
+`each` lists the parts a measure's value is the worst of, each with its `label`, `value` and `line` (null where it has no line yet), as `units-vs-capped-line` lists each account's units an hour against its capped line; it is empty for every other measure, and the line and the page show the same parts after the value.
 `jbus scorecard --out <path>` writes the scorecard's page there in place of the lines, through a draft file renamed over it, and prints one line with the count of each state.
 It raises no alert and changes nothing in the store.
 
