@@ -190,9 +190,8 @@ def josh(kitchen, words, name="josh-go", at=None):
 
 
 def approve(kitchen, slug, *basis, user=False):
-    sha = sha12(stored(kitchen, slug))
     who = ("--as", "user") if user else ()
-    return kitchen.main(*who, "queue", "approve", slug, *basis, "--sha", sha)
+    return kitchen.main(*who, "queue", "approve", slug, *basis)
 
 
 def test_queue_add_says_which_door_the_commands_imply_and_the_brief_does_not_declare(kitchen):
@@ -228,7 +227,7 @@ def bot_route_answer(kitchen, route, slug):
 
 
 def batch(kitchen, route, slug):
-    return kitchen.main("queue", "apply", stdin=approves(slug, sha12(stored(kitchen, slug))))[1]
+    return kitchen.main("queue", "apply", stdin=approves(slug))[1]
 
 
 def entry_go(kitchen, route, slug):
@@ -323,12 +322,11 @@ def test_a_message_of_joshs_that_names_another_row_is_refused_and_says_what_to_a
     queued(kitchen)
     ref = josh(kitchen, "go on the skills")
     code, said = approve(kitchen, "deploy-prod", "--message", ref, user=True)
-    sha = sha12(stored(kitchen, "deploy-prod"))
     assert (code, said) == (
         1,
         f"refused: deploy-prod's brief holds for {PROD}, and message {ref} (\"go on the "
         f'skills") names neither deploy-prod nor its gate: ask user about deploy-prod alone, '
-        f"in plain words, and pass their reply: jbus queue approve deploy-prod --sha {sha} "
+        "in plain words, and pass their reply: jbus queue approve deploy-prod "
         "--message <thread>/<message>, on user's own reply in T3 Code said after its brief was "
         "stored, opens it\n",
     )
@@ -397,7 +395,7 @@ def test_a_carried_go_on_winnifreds_prod_deploy_brief_is_gated_and_launches_noth
     assert said.startswith(
         f"gated qw-deploy-main-to-prod: its brief holds for {PROD}, so it waits for user's own "
         f"word: question {asked.number}; ask user about qw-deploy-main-to-prod alone, in plain "
-        "words, and pass their reply: jbus queue approve qw-deploy-main-to-prod --sha "
+        "words, and pass their reply: jbus queue approve qw-deploy-main-to-prod --message "
     )
     assert asked.holds == PROD
     assert rows(kitchen)["qw-deploy-main-to-prod"]["approved"] == ""
@@ -456,12 +454,12 @@ def test_a_bot_carried_word_naming_the_row_opens_no_door(kitchen):
 
 
 def test_the_homes_approve_on_a_message_said_before_the_brief_was_stored_opens_no_door(kitchen):
-    sha = deletes(kitchen)
+    deletes(kitchen)
     ref = josh(kitchen, f"go {STALE}", at=datetime.now(UTC) - timedelta(days=1))
     code, said = approve(kitchen, STALE, "--message", ref)
     assert code == 1
     assert f"before {STALE}'s brief was stored at " in said, said
-    assert f"jbus queue approve {STALE} --sha {sha} --message <thread>/<message>" in said
+    assert f"jbus queue approve {STALE} --message <thread>/<message>" in said
     assert "--as user" not in said and f'sends "go {STALE}"' not in said
     assert rows(kitchen)[STALE]["approved"] == ""
 
@@ -469,11 +467,11 @@ def test_the_homes_approve_on_a_message_said_before_the_brief_was_stored_opens_n
 def test_a_gated_go_names_the_command_that_opens_it_and_the_users_approve_closes_its_gate(
     kitchen,
 ):
-    sha = deletes(kitchen)
+    deletes(kitchen)
     said = typed_word(kitchen, None, STALE)
     (asked,) = questions.read(kitchen.state)
     assert said.startswith(f"gated {STALE}: its brief holds for {DELETES}"), said
-    assert f"jbus queue approve {STALE} --sha {sha} --message <thread>/<message>" in said
+    assert f"jbus queue approve {STALE} --message <thread>/<message>" in said
     shown = f"{asked.undo}\n{asked.context}\n" + "\n".join(one.follows for one in asked.options)
     assert "--as user" not in shown and '"go ' not in shown
     code, said = approve(kitchen, STALE, "--message", josh(kitchen, f"approve {STALE}"))

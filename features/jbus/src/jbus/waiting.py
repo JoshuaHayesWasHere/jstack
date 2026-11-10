@@ -238,9 +238,9 @@ def read(state: Path) -> list[Item] | None:
 
 
 def approve(name: str, slug: str, sha: str, user: jsettings.Settings) -> str:
-    """Return the command that records the user's go for the brief whose sha256 starts with `sha`,
-    with the three things that the go is based on."""
-    return f"jbus --project {name} queue approve {slug} --sha {sha} with {queue.BASIS}"
+    """Return the command that records the user's go for the brief as it is stored, whose sha256
+    starts with `sha` now, with the things that the go is based on."""
+    return f"jbus --project {name} queue approve {slug} with {queue.BASIS}, for its brief {sha}"
 
 
 def gates(

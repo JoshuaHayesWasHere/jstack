@@ -64,8 +64,10 @@ Then answer through the bot with one line: this is a door, and their own reply i
 Ask about the row alone there, in plain words, and approve it on their reply, and jbus closes the gate the word parked:
 
 ```sh
-jbus --project <project> queue approve <slug> --sha <sha12> --message <thread id>/<message id>
+jbus --project <project> queue approve <slug> --message <thread id>/<message id>
 ```
+
+There is no sha to read first: the go is for the brief as jbus stores it, which the row keeps.
 
 The user's plain reply in this home's thread is the way a door opens: "yes, go" or "drop it" opens every door this home's last message before it named, by the row's slug or its gate as `question 3`.
 So ask about a door you do not want opened in a message of its own: a plain "yes" to "question 250 stays held; question 251: may it go?" opens both.
@@ -82,10 +84,10 @@ Ask for a go in the box only with labels that name the rows by slug, one row to 
 A multi-select box takes several rows in one answer, which is one go for every row it picked.
 T3 Code keeps the box as an item of the home's thread of the type `user_input_request`, with an id that begins `turn-item:runtime-request:`.
 Once the user answered, read this thread with T3 Code's `t3_thread_read`, `view` `activity`, with a small `limit` and `afterPosition` near the end, and take the `itemId` of the last `user_input_request` whose text holds the question you asked.
-Approve each row its labels name with that item, the row's sha and this home's thread, `$ME` of the block that finds this home:
+Approve each row its labels name with that item and this home's thread, `$ME` of the block that finds this home:
 
 ```sh
-jbus --project <project> queue approve <slug> --sha <sha12> --pick "$ME/<item id>"
+jbus --project <project> queue approve <slug> --pick "$ME/<item id>"
 ```
 
 jbus reads the box from T3 Code, and who answered it, when and with which labels from T3 Code's own store, and approves only on the user's own answer.
@@ -153,7 +155,7 @@ A follow-up of a follow-up is approved on its parent's go, so a chain goes back 
 Where jbus did not approve a follow-up whose parent has a go, the home may still name the parent itself:
 
 ```sh
-jbus --project <project> queue approve <slug> --sha <sha12> --follows <parent>
+jbus --project <project> queue approve <slug> --follows <parent>
 ```
 
 `jbus` refuses a parent that is not a row of this queue, a parent with no approval, and a parent whose brief changed after its go.

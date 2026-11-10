@@ -15,7 +15,6 @@ import jbus
 import jsettings
 from jbus import project, t3
 from jbus.view import state as view_state
-from jmerge import judgement
 from test_jbus_kitchen import NOW, PROJECT, complete, sends
 from test_jbus_questions import held
 
@@ -71,9 +70,8 @@ def queued(kitchen, name, slug):
     text = complete(slug)
     add = ["--project", name, "queue", "add", slug, "--priority", "1"]
     assert kitchen.main(*add, stdin=text)[0] == 0, kitchen.main(*add, stdin=text)
-    sha = judgement.brief_sha(text)[:12]
     approve = ["--project", name, "queue", "approve", slug, "--word", kitchen.word(name)]
-    assert kitchen.main(*approve, "--sha", sha)[0] == 0
+    assert kitchen.main(*approve)[0] == 0
 
 
 def thread(kitchen, at):

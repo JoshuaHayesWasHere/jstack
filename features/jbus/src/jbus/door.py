@@ -342,7 +342,7 @@ def refusal(homes: Path, buses: Path, thread: str, command: str) -> str:
         )
     row = (
         f"the door goes in a row whose brief has Holds: {case}; ask {user} about that row alone, "
-        "in plain words, and pass their reply: jbus queue approve <slug> --sha <sha12> --message "
+        "in plain words, and pass their reply: jbus queue approve <slug> --message "
         f"<thread>/<message>, on {user}'s own reply in T3 Code, opens it for that row's crew"
     )
     if any(one.holds(thread) for one in sends.homes(homes)):
@@ -356,7 +356,7 @@ def refusal(homes: Path, buses: Path, thread: str, command: str) -> str:
     return (
         f"{door}, and the go of {crew.slug} is not {user}'s own word read in T3 Code: ask "
         f"{user} about {crew.slug} alone, in plain words, and pass their reply: jbus queue "
-        f"approve {crew.slug} --sha <sha12> --message <thread>/<message>, on {user}'s own reply "
+        f"approve {crew.slug} --message <thread>/<message>, on {user}'s own reply "
         "in T3 Code, records it"
     )
 

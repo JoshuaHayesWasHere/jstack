@@ -66,7 +66,7 @@ def approving(slug):
     """Return the decision line of a row that waits for the user's approval of its brief."""
     state = jbus.load().state(jbus.load().project("demo"))
     sha = judgement.brief_sha(queue.brief(state, slug))[:12]
-    command = f"jbus --project demo queue approve {slug} --sha {sha} with {queue.BASIS}"
+    command = f"jbus --project demo queue approve {slug} with {queue.BASIS}, for its brief {sha}"
     reply = f"Reply: reply in your own words to give {slug} its go or say what to do instead"
     return f"decision {slug}: approve {slug}: {command}, {WHY_APPROVE}. {reply}"
 

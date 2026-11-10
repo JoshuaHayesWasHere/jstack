@@ -43,8 +43,7 @@ def add(kitchen, slug, *more, text=None):
 
 
 def go(kitchen, slug):
-    sha = sha12((kitchen.state / "briefs" / f"{slug}.md").read_text())
-    return kitchen.main("queue", "approve", slug, "--word", SAID, "--sha", sha)
+    return kitchen.main("queue", "approve", slug, "--word", SAID)
 
 
 def follows(parent):
@@ -186,7 +185,7 @@ def test_a_batch_approves_a_follow_up_whose_parent_gets_its_go_later_in_the_batc
         f"add alpha --priority 1\n--- brief alpha\n{brief('alpha')}--- end\n"
         f"add alpha-2 --priority 1 --entry alpha\n--- brief alpha-2\n"
         f"{brief('alpha-2', follows('alpha'))}--- end\n"
-        f"approve alpha --word {SAID} --sha {sha12(brief('alpha'))}\n"
+        f"approve alpha --word {SAID}\n"
     )
     code, said = kitchen.main("queue", "apply", stdin=text)
     assert code == 0, said

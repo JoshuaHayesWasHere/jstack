@@ -31,10 +31,6 @@ NO_BASIS = (
     "no --by and no --at: jbus writes who ran it and when; the user's go on a plan entry is "
     "jbus plan go <entry> --message <thread>/<message>"
 )
-NO_SHA = (
-    "approve on the user's word needs --sha <sha12>, the first 12 of the sha256 of the brief "
-    "they were shown; a go by --follows needs none"
-)
 
 
 @pytest.fixture
@@ -70,10 +66,10 @@ def sha12(text):
 
 
 def go(kitchen, slug, sha=None, project="demo"):
-    """Give the user's go for the brief that is stored now, or for the one whose sha is given."""
-    sha = sha or sha12((kitchen.state_dir / project / "briefs" / f"{slug}.md").read_text())
-    argv = ["--project", project, "queue", "approve", slug]
-    return kitchen.main(*argv, "--word", kitchen.word(project), "--sha", sha)
+    """Give the user's go, as a home types it, for the brief that is stored now; a `sha` is
+    passed as `--sha`, which jbus takes and does not read."""
+    argv = ["--project", project, "queue", "approve", slug, "--word", kitchen.word(project)]
+    return kitchen.main(*argv, *(["--sha", sha] if sha else []))
 
 
 def add(kitchen, slug, priority=1, depends="", approve=True, text=None, project="demo"):
@@ -133,7 +129,7 @@ def test_add_approve_and_hold_write_the_chefs_columns_and_show_prints_the_table(
         "why": "",
         "since": "",
     }
-    code, said = go(kitchen, "alpha", sha[:12])
+    code, said = go(kitchen, "alpha")
     assert code == 0
     assert (rows(kitchen)["alpha"]["approved"], rows(kitchen)["alpha"]["brief_sha"]) == (
         GO,
@@ -259,36 +255,23 @@ def test_no_verb_sets_a_derived_column(kitchen, column):
     assert (kitchen.state / "queue.json").read_text() == before
 
 
-def test_an_approval_is_refused_unless_it_names_the_sha_of_the_stored_brief(kitchen):
+def test_a_go_on_the_users_word_needs_no_sha_and_is_for_the_brief_as_stored(kitchen):
     add(kitchen, "alpha", approve=False)
-    shown = sha12(brief("alpha"))
-    before = (kitchen.state / "queue.json").read_text()
-    assert go(kitchen, "alpha", "0" * 12) == (
-        1,
-        f"refused: alpha's brief is {shown}, not 000000000000\n",
-    )
-    assert (kitchen.state / "queue.json").read_text() == before
-    assert go(kitchen, "alpha", shown)[0] == 0
+    code, said = kitchen.main("queue", "approve", "alpha", "--word", kitchen.word())
+    assert code == 0, said
     assert rows(kitchen)["alpha"]["approved"] == GO
     assert rows(kitchen)["alpha"]["brief_sha"] == judgement.brief_sha(brief("alpha"))
 
 
-def test_an_approval_on_the_users_word_with_no_sha_is_refused(kitchen):
+def test_a_wrong_sha_beside_a_typed_go_is_taken_and_not_read(kitchen):
     add(kitchen, "alpha", approve=False)
-    code, said = kitchen.main("queue", "approve", "alpha", "--word", kitchen.word())
-    assert (code, said) == (1, f"refused: {NO_SHA}\n")
-    assert rows(kitchen)["alpha"]["approved"] == ""
-
-
-def test_a_brief_replaced_after_the_user_saw_it_is_not_the_brief_their_go_approves(kitchen):
-    add(kitchen, "alpha", approve=False)
-    shown = sha12(brief("alpha"))
-    add(kitchen, "alpha", approve=False, text=brief("alpha", "And one thing nobody showed.\n"))
-    stored = sha12(brief("alpha", "And one thing nobody showed.\n"))
-    assert go(kitchen, "alpha", shown) == (1, f"refused: alpha's brief is {stored}, not {shown}\n")
-    assert (rows(kitchen)["alpha"]["approved"], rows(kitchen)["alpha"]["brief_sha"]) == ("", "")
-    kitchen.poll()
-    assert kitchen.t3.launches == []
+    newer = brief("alpha", "And one thing added after.\n")
+    add(kitchen, "alpha", approve=False, text=newer)
+    assert go(kitchen, "alpha", "0" * 12)[0] == 0
+    assert (rows(kitchen)["alpha"]["approved"], rows(kitchen)["alpha"]["brief_sha"]) == (
+        GO,
+        judgement.brief_sha(newer),
+    )
 
 
 def batch(*parts):
@@ -299,8 +282,8 @@ def adds(slug, more="", text=None):
     return f"add {slug} {more}\n--- brief {slug}\n{text or brief(slug)}--- end\n"
 
 
-def approves(slug, sha):
-    return f"approve {slug} --word {SAID} --sha {sha}\n"
+def approves(slug):
+    return f"approve {slug} --word {SAID}\n"
 
 
 def stored(kitchen):
@@ -320,7 +303,7 @@ def test_a_batch_applies_every_verb_and_prints_one_line_for_each(kitchen):
             adds("alpha", "--priority 1"),
             "\n",
             adds("beta", "--priority 2 --depends alpha,old", built),
-            approves("alpha", alpha),
+            approves("alpha"),
             "hold old\n",
         ),
     )
@@ -349,34 +332,25 @@ def test_a_batch_applies_every_verb_and_prints_one_line_for_each(kitchen):
     assert [given["title"] for given in kitchen.t3.launches] == ["crew: alpha"]
 
 
-def test_an_approve_in_a_batch_names_the_brief_added_earlier_in_the_same_batch(kitchen):
+def test_an_approve_in_a_batch_is_for_the_brief_added_earlier_in_the_same_batch(kitchen):
     add(kitchen, "alpha", approve=False)
     newer = brief("alpha", "As the user was shown it.\n")
-    text = batch(adds("alpha", "--priority 3", newer), approves("alpha", sha12(newer)))
+    text = batch(adds("alpha", "--priority 3", newer), approves("alpha"))
     assert kitchen.main("queue", "apply", stdin=text)[0] == 0
     row = rows(kitchen)["alpha"]
-    assert (row["priority"], row["brief_sha"]) == (3, judgement.brief_sha(newer))
-    older = batch(adds("alpha", "--priority 3"), approves("alpha", sha12(newer)))
-    assert kitchen.main("queue", "apply", stdin=older) == (
-        1,
-        f"refused: line 17: alpha's brief is {sha12(brief('alpha'))}, not {sha12(newer)},"
-        " and nothing in the batch was applied\n",
+    assert (row["priority"], row["approved"], row["brief_sha"]) == (
+        3,
+        GO,
+        judgement.brief_sha(newer),
     )
-    assert (kitchen.state / "briefs/alpha.md").read_text() == newer
 
 
 @pytest.mark.parametrize(
     "bad, says",
     [
         ("hold nope\n", "line 18: the queue has no row nope"),
-        (
-            approves("alpha", "0" * 12),
-            f"line 18: alpha's brief is {sha12(brief('alpha'))}, not 0000",
-        ),
         (f'approve alpha --by user --at "{AT}" --sha 0\n', f"line 18: {NO_BASIS}"),
         ("approve alpha --sha 0\n", f"line 18: {NO_BASIS}"),
-        ("approve alpha --word nope --sha 0\n", "line 18: alpha's brief is"),
-        (f"approve alpha --word {SAID}\n", f"line 18: {NO_SHA}"),
         ("add gamma --priority 1\nhold alpha\n", "line 18: add gamma has no --- brief gamma"),
         (
             "add gamma --priority 1\n--- brief gamma\nA brief.\n",
@@ -1298,10 +1272,8 @@ def test_the_sha_a_brief_is_approved_by_is_the_one_add_prints_and_every_list_sho
     )
     kitchen.poll()
     listed = json.loads((kitchen.state / "waiting-on-user.json").read_text())
-    assert [one["line"].partition(" --sha ")[2].split()[0] for one in listed] == [shown]
-    whole = hashlib.sha256(text.encode()).hexdigest()[:12]
-    assert go(kitchen, "alpha", whole) == (1, f"refused: alpha's brief is {shown}, not {whole}\n")
-    assert go(kitchen, "alpha", shown)[0] == 0
+    assert [one["line"].rpartition(", for its brief ")[2] for one in listed] == [shown]
+    assert go(kitchen, "alpha")[0] == 0
     assert rows(kitchen)["alpha"]["brief_sha"] == judgement.brief_sha(text)
     assert judgement.approved_text(rows(kitchen)["alpha"], brief("alpha"))
     assert not judgement.approved_text(rows(kitchen)["alpha"], widened("alpha", "More."))

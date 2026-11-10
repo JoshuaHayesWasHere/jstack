@@ -105,12 +105,13 @@ def test_a_chain_that_ends_at_a_row_with_no_approval_is_one_root_to_approve_it(k
     add(kitchen, "beta", depends="gamma")
     add(kitchen, "gamma", approve=False)
     kitchen.poll()
-    command = f"jbus --project demo queue approve gamma --sha {sha12(brief('gamma'))} {BASES}"
+    sha = sha12(brief("gamma"))
+    command = f"jbus --project demo queue approve gamma {BASES}, for its brief {sha}"
     assert waits(kitchen) == [
         f"waiting-on-user demo: approve gamma: {command} · unblocks alpha, beta · since 11:00 ET"
     ]
     assert [event["slug"] for event in kitchen.events("waiting-on-user")] == ["approve:gamma"]
-    typed = [*shlex.split(command.removesuffix(BASES)), "--word", kitchen.word()]
+    typed = [*shlex.split(command.partition(BASES)[0]), "--word", kitchen.word()]
     assert kitchen.main(*typed[1:])[0] == 0
     assert "cleared approve:gamma" in kitchen.poll(later(3))
     assert [given["title"] for given in kitchen.t3.launches] == ["crew: gamma"]
@@ -126,7 +127,7 @@ def test_a_brief_changed_after_the_go_is_a_root_to_approve_it_again(kitchen):
     assert waits(kitchen) == [
         f"waiting-on-user demo: re-approve alpha (brief now {now}, approved {was}; "
         "changed: Done when: One more line.): "
-        f"jbus --project demo queue approve alpha --sha {now} {BASES}"
+        f"jbus --project demo queue approve alpha {BASES}, for its brief {now}"
         " · unblocks alpha, beta · since 11:00 ET"
     ]
     assert [event["slug"] for event in kitchen.events("waiting-on-user")] == ["re-approve:alpha"]

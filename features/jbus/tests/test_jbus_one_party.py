@@ -13,7 +13,7 @@ import pytest
 from jbus import acts, queue, word
 from test_jbus_acts import CHAT, Route, bot_go
 from test_jbus_kitchen import RAN, SESSION, sends
-from test_jbus_queue import add, brief, rows, sha12
+from test_jbus_queue import add, rows
 
 ASKED = "Which of the KPIs with no instrument yet do you want first: Telemetry or cap spells?"
 TELEMETRY = ("--evidence", "bot-chat:t107u/bf6bc991", "--words", "Telemetry", "--answers", ASKED)
@@ -58,7 +58,7 @@ def home(kitchen):
 
 
 def approve(kitchen, slug, *basis):
-    argv = ("--project", "demo", "queue", "approve", slug, *basis, "--sha", sha12(brief(slug)))
+    argv = ("--project", "demo", "queue", "approve", slug, *basis)
     return kitchen.main(*argv)
 
 

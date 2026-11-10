@@ -17,7 +17,7 @@ from jbus import acts, homestatus, questions, verbs, work
 from test_jbus_kitchen import GATE, NOW, RESULT
 from test_jbus_leftover import home
 from test_jbus_questions import held
-from test_jbus_queue import add, brief, go, sha12
+from test_jbus_queue import add, brief, go
 from test_jbus_scout import request
 
 HOLDS = "hold 9 https://example.test/pull/9: needs user, touches skills/crew/SKILL.md"
@@ -56,7 +56,7 @@ def test_a_row_awaiting_the_users_word_and_a_held_pull_request_are_listed(kitche
     kitchen.set("open.json", [kitchen.opened("held", 9)])
     kitchen.set("jmerge.txt", HOLDS + "\n")
     kitchen.poll()
-    command = f"jbus --project demo queue approve unsaid --sha {sha12(brief('unsaid'))} with"
+    command = "jbus --project demo queue approve unsaid with"
     said = needs(kitchen)
     assert said[0] == "waiting on user: 2, in demo"
     assert said[1].startswith(f"demo approve unsaid: {command}")
@@ -112,12 +112,10 @@ def test_with_nothing_open_it_says_nothing_waits(kitchen):
     assert needs(kitchen, "--project", "demo") == ["nothing waits on user in demo"]
 
 
-def test_a_refused_go_whose_sha_did_not_match_is_not_listed(kitchen):
+def test_a_go_typed_with_a_stale_sha_is_done_and_nothing_is_listed(kitchen):
     add(kitchen, "retried", approve=False)
-    code, said = go(kitchen, "retried", sha="0" * 12)
-    assert code != 0 and "000000000000" in said
-    assert go(kitchen, "retried")[0] == 0
-    assert [one["outcome"] for one in acts.read(kitchen.state)][-2:] == ["refused", "done"]
+    assert go(kitchen, "retried", sha="0" * 12)[0] == 0
+    assert [one["outcome"] for one in acts.read(kitchen.state)][-1:] == ["done"]
     kitchen.poll()
     assert needs(kitchen) == ["nothing waits on user in any project"]
 

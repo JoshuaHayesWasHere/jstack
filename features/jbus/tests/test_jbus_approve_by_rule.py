@@ -50,8 +50,7 @@ def kitchen(tmp_path, monkeypatch):
 
 
 def go(kitchen, slug, *basis):
-    sha = sha12((kitchen.state / "briefs" / f"{slug}.md").read_text())
-    return kitchen.main("queue", "approve", slug, *basis, "--sha", sha)
+    return kitchen.main("queue", "approve", slug, *basis)
 
 
 def follow(kitchen, slug, parent, rule="6"):
@@ -269,7 +268,7 @@ def test_a_batch_takes_the_rule_and_the_parent_and_a_parent_approved_in_the_same
     add(kitchen, "beta", approve=False)
     kitchen.word()
     text = (
-        f"approve alpha --word {SAID} --sha {sha12(brief('alpha'))}\n"
+        f"approve alpha --word {SAID}\n"
         f"approve beta --rule 6 --follows=alpha --sha {sha12(brief('beta'))}\n"
     )
     code, said = kitchen.main("queue", "apply", stdin=text)
@@ -278,7 +277,7 @@ def test_a_batch_takes_the_rule_and_the_parent_and_a_parent_approved_in_the_same
         f"approved beta: brief {sha12(brief('beta'))}, {BY_RULE}",
     )
     assert queue.parse("approve beta --rule 6 --follows alpha --sha 0\n") == [
-        (1, queue.Approve("beta", "rule", queue.FOLLOW_REF, "0", "alpha"))
+        (1, queue.Approve("beta", "rule", queue.FOLLOW_REF, "", "alpha"))
     ]
     with pytest.raises(jbus.Refused, match="line 1: approve takes one basis"):
         queue.parse(f"approve beta --rule 6 --follows alpha --word {SAID} --sha 0\n")

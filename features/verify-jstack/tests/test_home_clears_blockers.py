@@ -13,7 +13,6 @@ from pathlib import Path
 import pytest
 
 from jbus.health import PREFIX
-from jmerge import judgement
 from test_verify_jstack import SCRIPTS, inside, launch, says
 
 GATE = """## Gate <n>: tea or coffee?
@@ -126,19 +125,11 @@ def at_zoned():
     return datetime.now().astimezone().strftime("%Y-%m-%d %H:%M %Z")
 
 
-def brief_sha(sandbox, slug):
-    """The first 12 hex of the sha of the slug's brief in jbus's state, as `--sha` takes it: of
-    its text less its `Home:` line (`jmerge.judgement.brief_sha`)."""
-    kept = sandbox.parent / "state" / "demo" / "briefs" / f"{slug}.md"
-    return judgement.brief_sha(kept.read_text())[:12]
-
-
 def approve(sandbox, slug):
     """Approve a row on the user's word, as `jbus word` keeps it from the user's message."""
     ref = says(sandbox, f"go {slug}", message=f"m-go-{slug}")
     said = run(sandbox, f"jbus word --to demo --message {ref}").stdout.split()
-    sha = brief_sha(sandbox, slug)
-    return run(sandbox, f"jbus queue approve {slug} --sha {sha} --word {said[-1]}")
+    return run(sandbox, f"jbus queue approve {slug} --word {said[-1]}")
 
 
 def test_a_gate_the_user_need_not_decide_is_closed_by_the_pass_with_no_event(demo):
@@ -170,8 +161,7 @@ def test_a_red_check_gets_a_fix_row_with_no_event(demo):
 
     cleared = run(demo, "jbus clear")
     added = run(demo, "jbus queue add beta-fix --priority 1", fix("beta-fix", "check:beta"))
-    sha = brief_sha(demo, "beta-fix")
-    ruled = run(demo, f"jbus queue approve beta-fix --sha {sha} --rule 1 --follows beta")
+    ruled = run(demo, "jbus queue approve beta-fix --rule 1 --follows beta")
     run(demo, "jbus poll")
 
     assert cleared.stdout.startswith("fix check:beta: its check failed, brief a fix")
@@ -406,8 +396,7 @@ def red_fix(sandbox, slug, key, path):
     """Queue a fix of the key, approve it by the follow-up rule, launch it and fail its check."""
     added = run(sandbox, f"jbus queue add {slug} --priority 1", fix(slug, key))
     assert added.returncode == 0, added.stdout + added.stderr
-    sha = brief_sha(sandbox, slug)
-    ruled = run(sandbox, f"jbus queue approve {slug} --sha {sha} --rule 1 --follows rho")
+    ruled = run(sandbox, f"jbus queue approve {slug} --rule 1 --follows rho")
     assert ruled.returncode == 0, ruled.stdout + ruled.stderr
     assert f"launched {slug}" in run(sandbox, "jbus poll").stdout
     red_pull(sandbox, slug, path)

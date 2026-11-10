@@ -17,7 +17,6 @@ import jbus
 import jsettings
 from jbus import questions, queue, verbs
 from jbus.questions import Answer, Question
-from jmerge import judgement
 from test_jbus_ci import service
 from test_jbus_kitchen import Kitchen
 from test_jbus_queue import brief
@@ -177,8 +176,7 @@ def test_the_scout_row_is_approved_by_rule_as_a_follow_up_of_the_rows_go(kitchen
     parent = brief("scorecard-s8")
     add = ["queue", "add", "scorecard-s8", "--priority", "1", "--entry", "gate-quality-rows"]
     assert kitchen.main(*add, stdin=parent)[0] == 0
-    sha = judgement.brief_sha(parent)[:12]
-    approve = ["queue", "approve", "scorecard-s8", "--word", kitchen.word(), "--sha", sha]
+    approve = ["queue", "approve", "scorecard-s8", "--word", kitchen.word()]
     assert kitchen.main(*approve)[0] == 0
     gates(kitchen.state, [(1, "2026-11-02T16:00:00+00:00", questions.SILENCE)])
 

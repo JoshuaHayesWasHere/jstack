@@ -307,13 +307,11 @@ def test_a_scout_goes_from_its_request_to_a_launched_thread_with_no_branch(sandb
     )
     assert added.returncode == 0, added.stdout + added.stderr
     assert "| scout |" in added.stdout
-    stored = 'grep -v "^Home:" "$JBUS_STATE_DIR/demo/briefs/alpha.md" | shasum -a 256 | cut -c1-12'
-    sha = inside(sandbox, stored).stdout.strip()
     said = inside(sandbox, f"jbus word --to demo --message {says(sandbox, 'go')}")
     word = said.stdout.split()[-1]
 
     steps = [
-        f"jbus --project demo queue approve alpha --sha {sha} --word {word}",
+        f"jbus --project demo queue approve alpha --word {word}",
         "jbus poll",
         "jbus poll",
         "jbus --project demo queue show",

@@ -231,12 +231,7 @@ def test_each_go_and_each_answer_is_one_act_and_each_basis_is_its_source(kitchen
     kitchen.t3.says(HOME, MESSAGE, "yes")
     add(kitchen, "alpha")
     add(kitchen, "beta", approve=False)
-    assert (
-        kitchen.main(
-            "queue", "approve", "beta", "--message", REF, "--sha", sha12(stored(kitchen, "beta"))
-        )[0]
-        == 0
-    )
+    assert kitchen.main("queue", "approve", "beta", "--message", REF)[0] == 0
     number = gate(kitchen)
     assert kitchen.main("answer", str(number), "--message", REF, "--default")[0] == 0
     add(kitchen, "gamma", approve=False)
@@ -247,8 +242,6 @@ def test_each_go_and_each_answer_is_one_act_and_each_basis_is_its_source(kitchen
             "gamma",
             "--answer",
             str(number),
-            "--sha",
-            sha12(stored(kitchen, "gamma")),
         )[0]
         == 0
     )
@@ -293,8 +286,6 @@ def test_the_bots_route_takes_its_key_alone_and_nothing_else(kitchen, route):
         "alpha",
         "--word",
         kitchen.word(),
-        "--sha",
-        sha12(stored(kitchen, "alpha")),
     )
     assert code == 2
     assert said.splitlines()[-1] == (
@@ -325,6 +316,36 @@ def test_a_bot_go_approves_a_row_that_names_no_door_and_the_pass_launches_it(kit
     assert [launch["title"] for launch in kitchen.t3.launches] == ["crew: alpha"]
 
 
+def test_a_bot_go_for_a_brief_the_page_showed_that_is_no_longer_stored_is_refused(kitchen, route):
+    add(kitchen, "alpha", approve=False)
+    shown = sha12(stored(kitchen, "alpha"))
+    add(kitchen, "alpha", approve=False, text=brief("alpha", "And one thing added after.\n"))
+    status, said = bot_go(route, kitchen, "alpha", sha12=shown)
+    now = sha12(stored(kitchen, "alpha"))
+    assert (status, said["error"]) == (409, f"refused: alpha's brief is {now}, not {shown}")
+    assert rows(kitchen)["alpha"]["approved"] == ""
+
+
+@pytest.mark.parametrize("fresh", [True, False])
+def test_a_go_on_the_sidebars_message_is_held_to_the_brief_it_showed(kitchen, fresh):
+    add(kitchen, "alpha", approve=False)
+    shown = sha12(stored(kitchen, "alpha"))
+    if not fresh:
+        add(kitchen, "alpha", approve=False, text=brief("alpha", "And one thing added after.\n"))
+    now(kitchen, f"approve alpha (brief sha {shown})")
+    code, said = kitchen.main("queue", "approve", "alpha", "--message", REF)
+    if fresh:
+        assert (code, rows(kitchen)["alpha"]["approved"] != "") == (0, True), said
+    else:
+        held = sha12(stored(kitchen, "alpha"))
+        assert (code, said) == (
+            1,
+            f"refused: the sidebar showed alpha's brief {shown}, and jbus holds {held}: open "
+            "the brief again and approve what it holds now\n",
+        )
+        assert rows(kitchen)["alpha"]["approved"] == ""
+
+
 def test_a_bot_go_on_a_brief_that_holds_parks_a_gate_for_the_user_and_approves_nothing(
     kitchen, route
 ):
@@ -345,39 +366,32 @@ def test_a_bot_go_on_a_brief_that_holds_parks_a_gate_for_the_user_and_approves_n
     kitchen.poll()
     assert kitchen.t3.launches == []
     assert questions.read(kitchen.state)[0].answer is None
-    sha = sha12(stored(kitchen, "alpha"))
-    code, said = kitchen.main("queue", "approve", "alpha", "--word", kitchen.word(), "--sha", sha)
+    code, said = kitchen.main("queue", "approve", "alpha", "--word", kitchen.word())
     assert (code, said.splitlines()[0]) == (
         0,
         "gated alpha: its brief holds for rewrites history, so it waits for user's own word: "
         f"question {asked.number}; ask user about alpha alone, in plain words, and pass their "
-        f"reply: jbus queue approve alpha --sha {sha} --message <thread>/<message>, on user's "
+        "reply: jbus queue approve alpha --message <thread>/<message>, on user's "
         "own reply in T3 Code said after its brief was stored, opens it",
     )
     now(kitchen, "yes, rewrite alpha")
-    code, said = kitchen.main(
-        "--as", "user", "queue", "approve", "alpha", "--message", REF, "--sha", sha
-    )
+    code, said = kitchen.main("--as", "user", "queue", "approve", "alpha", "--message", REF)
     assert code == 0, said
     assert rows(kitchen)["alpha"]["approval"]["checked"] is True
     assert questions.read(kitchen.state)[0].answer.closed_by == questions.CLEARED
     assert [one["outcome"] for one in logged(kitchen)] == ["gated", "gated", "done"]
 
 
-def test_a_follow_up_on_a_door_parks_a_gate_whose_command_names_the_stored_briefs_sha(kitchen):
-    """A go by --follows takes no sha, so the gate it parks names the sha the user is shown: the
-    command its Undo line gives the user is one `approve` takes."""
+def test_a_follow_up_on_a_door_parks_a_gate_whose_command_approve_takes(kitchen):
+    """The gate a go by --follows parks gives in its Undo line a command `approve` takes."""
     add(kitchen, "alpha")
     add(kitchen, "beta", approve=False, text=brief("beta", HOLDS))
     code, said = kitchen.main("queue", "approve", "beta", "--follows", "alpha")
     assert code == 0 and said.startswith("gated beta: its brief holds for rewrites history")
     (asked,) = questions.read(kitchen.state)
-    sha = sha12(stored(kitchen, "beta"))
-    assert f"queue approve beta --sha {sha} --message <thread>/<message>" in asked.undo
+    assert "queue approve beta --message <thread>/<message>" in asked.undo
     now(kitchen, "yes, rewrite beta")
-    code, said = kitchen.main(
-        "--as", "user", "queue", "approve", "beta", "--message", REF, "--sha", sha
-    )
+    code, said = kitchen.main("--as", "user", "queue", "approve", "beta", "--message", REF)
     assert code == 0, said
     assert rows(kitchen)["beta"]["approval"]["checked"] is True
 
@@ -563,7 +577,7 @@ def test_an_agents_session_cannot_make_the_bots_key(kitchen, route):
 def test_a_batch_that_adds_a_brief_that_holds_and_approves_it_is_refused(kitchen):
     add(kitchen, "alpha", approve=False)
     held = brief("gamma", HOLDS)
-    text = batch(adds("gamma", "--priority 1", held), approves("gamma", sha12(held)))
+    text = batch(adds("gamma", "--priority 1", held), approves("gamma"))
     code, said = kitchen.main("queue", "apply", stdin=text)
     assert (code, said) == (
         1,
@@ -733,13 +747,12 @@ def test_a_plain_reply_older_than_the_homes_ask_answers_nothing(kitchen):
 
 def test_a_plain_reply_to_the_homes_ask_that_named_the_row_opens_its_door(kitchen):
     add(kitchen, "alpha", approve=False, text=brief("alpha", HOLDS))
-    sha = sha12(stored(kitchen, "alpha"))
     ref = plain(kitchen, "early", "go ahead")
-    code, said = kitchen.main("queue", "approve", "alpha", "--message", ref, "--sha", sha)
+    code, said = kitchen.main("queue", "approve", "alpha", "--message", ref)
     assert code == 1 and "names neither alpha nor its gate" in said, said
     home_asks(kitchen, "ask", "May alpha go? It rewrites history on main.")
     code, said = kitchen.main(
-        "queue", "approve", "alpha", "--message", plain(kitchen, "yes", "go ahead"), "--sha", sha
+        "queue", "approve", "alpha", "--message", plain(kitchen, "yes", "go ahead")
     )
     assert code == 0, said
     assert rows(kitchen)["alpha"]["approval"]["checked"] is True
@@ -790,8 +803,7 @@ def test_a_plain_reply_to_an_ask_that_names_two_rows_approves_each(kitchen):
     home_asks(kitchen, "ask", "May alpha go? And beta? Each rewrites history on main.")
     ref = plain(kitchen, "yes", "go ahead")
     for slug in ("alpha", "beta"):
-        sha = sha12(stored(kitchen, slug))
-        code, said = kitchen.main("queue", "approve", slug, "--message", ref, "--sha", sha)
+        code, said = kitchen.main("queue", "approve", slug, "--message", ref)
         assert code == 0, said
         assert rows(kitchen)[slug]["approval"]["checked"] is True
 
@@ -835,10 +847,9 @@ def test_a_reply_names_the_question_in_the_forms_a_person_writes(kitchen, named)
 
 def test_an_ask_names_a_row_with_spaces_for_its_hyphens(kitchen):
     add(kitchen, "old-history", approve=False, text=brief("old-history", HOLDS))
-    sha = sha12(stored(kitchen, "old-history"))
     home_asks(kitchen, "ask", "Old history waits on you: it rewrites history on main.")
     ref = plain(kitchen, "yes", "go ahead")
-    code, said = kitchen.main("queue", "approve", "old-history", "--message", ref, "--sha", sha)
+    code, said = kitchen.main("queue", "approve", "old-history", "--message", ref)
     assert code == 0, said
 
 
