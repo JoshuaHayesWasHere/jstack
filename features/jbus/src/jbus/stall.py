@@ -37,7 +37,9 @@ kept apart too and counted for nothing: the red is shared, not the row's (#1219 
 make target and shows a download or network failure (`infra`, `FETCH`), such as a package's
 download, is kept apart too and counted for nothing: that step ran nothing of the row's
 (2026-11-09). A lint step, which also runs no test and no make target, shows no fetch failure and
-counts. At the second head, a push or a merge of main alike,
+counts. Each sign is searched in the own part of the log of the step that failed the job, the
+last one to fail (`failed_step`), not the whole log. At the second head, a push or a merge of
+main alike,
 `twice` holds the row (`jbus queue hold`), keeping the go the hold takes, and pages the Chef once, a
 gate `check failed twice` that names the row, the pull request, both heads and the failed jobs at
 each. The outbox then sends the crew of a held row no rebase and no fix message (`outbox.FIXES`), so
@@ -417,31 +419,50 @@ FETCH = re.compile(
     r"(?im)curl: \(\d+\)|Could not resolve host|Temporary failure in name resolution"
     r"|\b(?:HTTP(?:/[\d.]+)?|returned error:|status(?: code)?:?) ?5\d\d\b"
     r"|\b5\d\d (?:Service Unavailable|Bad Gateway|Gateway Time-?out|Internal Server Error)"
-    r"|Connection (?:reset|refused|timed out)|Operation timed out|ECONNRESET|ETIMEDOUT|EAI_AGAIN"
+    r"|(?-i:Connection (?:reset by peer|refused|timed out))|Operation timed out"
+    r"|ECONNRESET|ETIMEDOUT|EAI_AGAIN"
     r"|(?:Failed|Unable) to download|artifact[^\n]{0,60}download[^\n]{0,40}fail"
 )
 """The sign of a download or network failure in a job's log, beside `collect.SIGNS`: a `curl`
 error, an HTTP 5xx, a host that did not resolve, a connection reset or timed out, or an artifact
-download that failed."""
+download that failed. The connection's words are matched as the system prints them, so a lint
+line that quotes them in prose is no sign."""
+
+RUN = re.compile(r"(?m)^(?:\S+ )?##\[group\]Run ")
+EXITED = re.compile(r"(?m)^(?:\S+ )?##\[error\]Process completed with exit code .*$")
+
+
+def failed_step(log: str) -> str:
+    """Return the own part of a job's log of the step that failed the job: from the last
+    `##[group]Run` line before the last `##[error]Process completed with exit code` line, to that
+    line. An earlier error line is a step's that ran with `continue-on-error: true`, failed, and
+    let the job go on. Where no such error line is given, the part runs to the log's end, and where
+    no `Run` line comes before it, from the log's start."""
+    exits = list(EXITED.finditer(log))
+    end = exits[-1].end() if exits else len(log)
+    starts = [run.start() for run in RUN.finditer(log, 0, end)]
+    return log[starts[-1] if starts else 0 : end]
 
 
 def infra(run: Pass, world: World, red: rebase.Red) -> list[str]:
     """Return the step each failed job failed at, where every one failed at a step whose log names
     no failed test (`failed_in`) and no make target (`collect.TARGET`), and shows a download or
     network failure (`FETCH`): a step that failed to fetch what the check needs, such as a
-    package. Return nothing where a failed check gives no job, or a job's failed step or log is
-    not given, or a log names a failed test or a make target or shows no fetch failure, as a lint
-    step's does: that red is the row's own. The step comes from `watch.ran`, which keeps it with
-    the job."""
+    package. Each sign is searched in the failed step's own part of the log (`failed_step`), so a
+    passed step's retried download is no sign. Return nothing where a failed check gives no job,
+    or a job's failed step or log is not given, or the step's part names a failed test or a make
+    target or shows no fetch failure, as a lint step's does: that red is the row's own. The step
+    comes from `watch.ran`, which keeps it with the job."""
     if len(red.jobs) < len(red.names):
         return []
     steps: list[str] = []
     for repo, job in red.jobs:
         step = str(ran(run, world, repo, job).get("failed_step") or "")
         log = job_log(run, repo, job)
-        if not step or log is None or failed_in(log).count or not FETCH.search(log):
+        own = failed_step(log) if log is not None else ""
+        if not step or log is None or failed_in(own).count or not FETCH.search(own):
             return []
-        if any(collect.TARGET.match(line) for line in collect.evidence(log)):
+        if any(collect.TARGET.match(line) for line in collect.evidence(own)):
             return []
         steps.append(step)
     return steps

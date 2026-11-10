@@ -438,4 +438,4 @@ A migration that has merged is never edited, renamed or removed.
 The first migration is written out as SQL, so a column a `Source` gains is a later migration and never an edit of it.
 A new view is a module of its own in `jbus.telemetry.views`, named as the view, whose `SQL` is its `SELECT`, with a test beside it, and no migration: the views hold no rows, so each build makes them again.
 The SQL the views share, such as `WEEK` and `TYPED`, is in `jbus.telemetry.schema`.
-A new record file is a `Source` in `jbus.telemetry.records`, with its allow-list of columns, and a migration that makes its table.
+A new record file is a module of its own in `jbus.telemetry.records`, named as its table, whose `SOURCE` is its `Source` with its allow-list of columns, and a migration that makes its table.

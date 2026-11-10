@@ -522,6 +522,13 @@ def test_with_no_store_the_trim_keeps_every_event(machine):
 
 
 def test_no_table_and_no_byte_of_the_file_holds_the_text_of_a_message(machine):
+    """No source keeps a text of a record, only its length: jbus.telemetry.records.events,
+    jbus.telemetry.records.acts, jbus.telemetry.records.items,
+    jbus.telemetry.records.transitions, jbus.telemetry.records.outbox,
+    jbus.telemetry.records.ci_jobs, jbus.telemetry.records.merges,
+    jbus.telemetry.records.questions, jbus.telemetry.records.queue,
+    jbus.telemetry.records.merged, jbus.telemetry.records.ci_prs,
+    jbus.telemetry.records.reverts, jbus.telemetry.records.merge_waits."""
     for place, project in enumerate(("alpha", "beta")):
         records(machine, project, NOW, f"{project}-one", 10 + place)
         snapshots(machine, project, [(f"{project}-one", 10 + place, NOW + timedelta(hours=1))])
@@ -1130,18 +1137,14 @@ def test_a_store_built_before_the_labels_gains_them_as_a_rebuild_has_them(machin
                 r"CREATE TABLE (?:IF NOT EXISTS )?(\w+)", migrations.MIGRATIONS[name]
             )
         )
-        unrun = "".join(f"DELETE FROM migrations WHERE name = '{name}';" for name in rewound)
-        store.executescript(
-            f"{views}{later}ALTER TABLE messages DROP COLUMN asks; "
-            f"ALTER TABLE messages DROP COLUMN surface; "
-            f"ALTER TABLE acts DROP COLUMN asks; ALTER TABLE queue DROP COLUMN follows; "
-            f"ALTER TABLE queue DROP COLUMN queued_by_session; "
-            f"ALTER TABLE queue DROP COLUMN approval_message; "
-            f"ALTER TABLE calls DROP COLUMN effort; ALTER TABLE brief_versions DROP COLUMN pull; "
-            f"ALTER TABLE passes DROP COLUMN step_times; ALTER TABLE passes DROP COLUMN children; "
-            f"ALTER TABLE transitions DROP COLUMN legal; "
-            f"{unrun}"
+        sql = "".join(migrations.MIGRATIONS[name] for name in rewound)
+        added = "".join(
+            f"ALTER TABLE {table} DROP COLUMN {column};"
+            for table, column in re.findall(r"ALTER TABLE (\w+) ADD COLUMN (\w+)", sql)
+            if table not in re.findall(r"DROP TABLE (\w+);", later)
         )
+        unrun = "".join(f"DELETE FROM migrations WHERE name = '{name}';" for name in rewound)
+        store.executescript(f"{views}{later}{added}{unrun}")
         store.execute(
             "UPDATE meta SET value = ? WHERE name = 'messages'",
             ("1 " + signed.split(" ", 1)[1],),
