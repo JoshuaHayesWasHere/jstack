@@ -1755,9 +1755,8 @@ class Repo:
         """Build the batch of the members it takes (`batch.Batching.chosen`, the first half of
         the suspects where any are left) over today's tip, push it to `batch.BRANCH`, open its
         draft pull request where GitHub lists none, and keep it; each other member waits for it.
-        Where no suspect of the half merges over the tip, the suspects are dropped and every
-        member is built. A batch that cannot be made sends each member down the single path of
-        today in this run, and says why first."""
+        A batch that cannot be made sends each member down the single path of today in this run,
+        drops the suspects, and says why first."""
         on.record.batch = None
         chosen = on.chosen(members)
         if not members:
@@ -1765,15 +1764,8 @@ class Repo:
             return []
         _run(self.main, "git", "fetch", "-q", "origin", default)
         tip = _run(self.main, "git", "rev-parse", f"origin/{default}").stdout.strip()
-
-        def built(chosen: list[batch.Judged]) -> batch.Built:
-            heads = [batch.Member(one.number, one.head) for one, *_ in chosen if self.has(one)]
-            return batch.build(self.main, default, tip, heads)
-
-        made = built(chosen)
-        if not made.members and on.record.suspects:
-            on.record.suspects = ()
-            made = built(members)
+        heads = [batch.Member(one.number, one.head) for one, *_ in chosen if self.has(one)]
+        made = batch.build(self.main, default, tip, heads)
         why = "" if made.members else f"no member merges over {default} at {tip[: batch.SHA]}"
         why = why or batch.push(self.main, made.commit)
         if not why and on.pull is None:

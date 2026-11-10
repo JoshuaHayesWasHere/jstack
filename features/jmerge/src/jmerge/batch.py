@@ -104,10 +104,8 @@ class Record:
         kept = store.read_dict(path)
         failed = kept.get("failed")
         failed = {str(k): str(v) for k, v in failed.items()} if isinstance(failed, dict) else {}
-        try:
-            suspects = _members(kept.get("suspects", []))
-        except (KeyError, TypeError, ValueError):
-            suspects = ()
+        suspects = kept.get("suspects")
+        suspects = _members(suspects) if isinstance(suspects, list) else ()
         try:
             made = Batch(
                 str(kept["tip"]),
@@ -138,9 +136,7 @@ class Record:
         """End the batch out as failed: one of two or more members makes them the suspects, and
         a suspect of an earlier batch not in it is one no more; one of one member puts its head
         under `failed` and takes it from the suspects."""
-        if self.batch is None:
-            return
-        members = self.batch.members
+        members = self.batch.members if self.batch else ()
         if len(members) > 1:
             self.suspects = members
         else:

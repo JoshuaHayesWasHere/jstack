@@ -472,7 +472,7 @@ A proven half merges as any batch does, and the next batch is the first half of 
 A failed half of two or more becomes the suspects in turn, and a suspect of the batch before that is not in it is one no more.
 While suspects are kept, every other member waits as `batch-first`, and a suspect outside the half waits the same way.
 A failed batch of one sends its member down the single path of today, in that run, at the head the batch held: its merged tree's guards, which name the failing test for its crew, or the line ("The guards on the merged tree"); `batch.json` keeps that head under `failed` until it moves.
-A suspect whose head moved, that is no longer open, or that is no longer judged a member leaves the suspects, and so do the suspects of a half of which no member merges over today's tip, whose run builds every member instead.
+A suspect whose head moved, that is no longer open, or that is no longer judged a member leaves the suspects.
 A batch that cannot be made, whose push or pull request GitHub refused, sends every member down the single path in that run, after a line that starts `batch: not made`, and drops the suspects.
 
 ## A failed check over a base that moved
