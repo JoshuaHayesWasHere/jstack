@@ -171,7 +171,10 @@ jbus queue approve <slug> --word <id>
   The scout still reads and writes the home's state directory, which it finds from the repo's shared git folder.
   Any folder an earlier pass left at that path, before it wrote a launch record, is removed and made again; a worktree jbus cannot make is the condition `the scout's worktree could not be made`, and a launch T3 Code refuses removes the worktree.
   Once the scout's last Report says `Status: done`, or its row is removed, the first pass on which no thread of the scout is at work removes the worktree (`scouts.clear`) and says `removed scout <slug>'s worktree`.
-  Its model is the role map's `scout` line, it waits for `jgauge room --light`, and it takes no slot of `max_running`.
+  Its model is the one the request's `Model:` line names (`jbus.queue.model`), on the provider, pool and options of the role map's `scout` line.
+  A request with no `Model:` line launches on the model of the role map's `scout` line.
+  A request that names a model while the role map has no `scout` line launches nothing: the pass records the condition `the request names a model and the role map has no scout line`.
+  The scout waits for `jgauge room --light`, and it takes no slot of `max_running`.
   jbus writes the queued request to `scouts/<slug>.md` in the home's state directory, or holds the launch with a condition where the file there is another request, and writes `Thread: <id>` into it.
   The next pass adopts the thread of a lost reply, so no request launches twice.
 - **`jbus queue show`** lists the row with `scout` in its `role` column.
