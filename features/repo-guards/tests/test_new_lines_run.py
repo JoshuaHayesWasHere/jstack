@@ -10,12 +10,18 @@ The lines are those the worktree adds to a Python file of a feature's `src/` or 
 the merge-base with the base ref (`BASE`, else `origin/main`, as `test_run_not_read.base` finds
 it), a new file's every line among them. The tests are each test file that names the file's
 module: one that imports it, or spells its dotted name, as `jbus.stall` or `jbus.stall.twice`, or,
-for a script, spells its file name, as `force_pushes.py`. The test runs those under coverage,
-with the processes they start, and fails on each added line that is a statement none of them ran.
-The run stops once each file's lines have run, or once every test that names the file has ended
-(`features/repo-guards/ran/lines_ran.py`), so a branch whose lines a few tests run pays for those
-and not for every test that names its module, and a line no test runs is listed once the tests
-that name its module have ended, not the tests that name every other module the branch touches.
+for a script, spells its file name, as `force_pushes.py`. A line counts only where a test file
+that names its module ran it, in the test's own process or one it started: a line another
+module's test runs, through that module's code or a `python -m`, does not count. The one rule
+holds in CI's check and at a desk alike, since both count through `unread` what
+`features/repo-guards/ran/part_lines.py` recorded, the test file that ran each line: in CI each
+part records its own tests, and at a desk `unrun` runs the tests that name the code the same way.
+The test fails on each added line that is a statement no test file that names its module ran.
+The desk's run stops once each file's lines have run so, or once every test that names the file
+has ended (`features/repo-guards/ran/lines_ran.py`), so a branch whose lines a few tests run pays
+for those and not for every test that names its module, and a line no test runs is listed once
+the tests that name its module have ended, not the tests that name every other module the branch
+touches.
 
 An exception is coverage's own pragma on the line, with its reason and the user's word:
 `# pragma: no cover, <reason> (the user, <when>: "<their words>")`. An added pragma without them
@@ -47,9 +53,6 @@ RAN = Path(__file__).parents[1] / "ran"
 SPEC = importlib.util.spec_from_file_location("new_lines_rounds", RAN / "new_lines_rounds.py")
 rounds = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(rounds)
-DATA_SPEC = importlib.util.spec_from_file_location("data_files", RAN / "data_files.py")
-data_files = importlib.util.module_from_spec(DATA_SPEC)
-DATA_SPEC.loader.exec_module(data_files)
 
 
 def added(since: str, repo: Path = REPO) -> dict[str, set[int]]:
@@ -129,30 +132,30 @@ def unrun(
     scratch: Path,
     repo: Path = REPO,
 ) -> dict[str, set[int]]:
-    """The lines of `lines` that `tests` do not run. The run stops early once each file's lines
-    have run, or once the tests among `tests` that name it (`naming`), all of `tests` when none
+    """The lines of `lines` that `tests` do not run in a test file that names their module. The
+    tests run as one of CI's parts runs its own, with `part_lines` recording the test file that
+    ran each line, into a part of its own under `scratch`, and `unread` counts what it recorded,
+    so the desk and CI count a line by the one rule. The run stops early once each file's lines
+    have run so, or once the tests among `tests` that name it (`naming`), all of `tests` when none
     does, have ended. A run that breaks, not one whose tests fail, fails the test with what pytest
     printed."""
-    scratch.mkdir(parents=True, exist_ok=True)
-    config = scratch / "coveragerc"
-    config.write_text(
-        "[run]\npatch = subprocess\n"
-        f"data_file = {scratch / 'data'}\n"
-        f"include =\n{''.join(f'    {repo / path}\n' for path in lines)}"
-    )
+    parts = scratch / "parts"
+    part = parts / "1"
+    part.mkdir(parents=True, exist_ok=True)
     waited = scratch / "waited.json"
     stopped = scratch / "stopped"
     waited.write_text(
         json.dumps(
             {
                 "lines": {str(repo / path): sorted(numbers) for path, numbers in lines.items()},
+                "names": {str(repo / path): naming[path] for path in lines},
                 "reach": {
                     str(repo / path): [
                         str(repo / one) for one in [t for t in naming[path] if t in tests] or tests
                     ]
                     for path in lines
                 },
-                "data": str(scratch / "data"),
+                "data": str(part / "data"),
                 "stopped": str(stopped),
             }
         )
@@ -160,52 +163,24 @@ def unrun(
     env = {
         key: value
         for key, value in os.environ.items()
-        if not key.startswith("PYTEST_") and key not in ("COVERAGE_PROCESS_START", "NEW_LINES_TEST")
+        if not key.startswith(("PYTEST_", "NEW_LINES_")) and key != "COVERAGE_PROCESS_START"
     }
-    env["NEW_LINES_RAN"] = str(waited)
+    env |= {
+        "NEW_LINES_RAN": str(waited),
+        "NEW_LINES_PART": str(part),
+        "NEW_LINES_FILES": os.pathsep.join(str(repo / path) for path in lines),
+    }
     env["PYTHONPATH"] = os.pathsep.join(filter(None, [str(RAN), env.get("PYTHONPATH")]))
-    coverage = [sys.executable, "-m", "coverage"]
-    pytest_run = [
-        "-m",
-        "pytest",
-        "-q",
-        "-p",
-        "no:cacheprovider",
-        "-p",
-        "lines_ran",
-        "-n",
-        WORKERS,
-        "--dist",
-        "worksteal",
-    ]
+    run = [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", f"--rootdir={repo}"]
+    run += ["-p", "part_lines", "-p", "lines_ran", "-n", WORKERS, "--dist", "worksteal"]
     ran = subprocess.run(
-        [*coverage, "run", f"--rcfile={config}", *pytest_run, "-m", "not browser", *tests],
-        cwd=repo,
-        env=env,
-        capture_output=True,
-        text=True,
+        [*run, "-m", "not browser", *tests], cwd=repo, env=env, capture_output=True, text=True
     )
     if ran.returncode not in (0, 1) and not (ran.returncode == 2 and stopped.exists()):
         pytest.fail(
             f"the tests that name the code did not run (exit {ran.returncode}):\n{ran.stdout}"
         )
-    report = scratch / "coverage.json"
-    folded = f"--data-file={scratch / 'folded'}"
-    for step in (
-        ["combine", "-q", f"--rcfile={config}", folded, *data_files.ended(scratch)],
-        ["json", "-q", "-o", str(report), f"--rcfile={config}", folded],
-    ):
-        subprocess.run([*coverage, *step], cwd=repo, env=env, check=True)
-    measured = {
-        (repo / name).resolve(): data
-        for name, data in json.loads(report.read_text())["files"].items()
-    }
-    found = {}
-    for path, numbers in lines.items():
-        data = measured.get((repo / path).resolve())
-        if left := numbers & set(data["missing_lines"]) if data else numbers:
-            found[path] = left
-    return found
+    return unread(lines, naming, parts)
 
 
 def unread(
@@ -236,26 +211,30 @@ def unread(
 
 
 def statements(file: Path) -> set[int]:
-    """The line each statement of `file` starts on, a docstring's left out: the lines coverage can
-    say ran or not, so a branch that changes only words runs no test here."""
+    """The line each statement of `file` starts on, a docstring's left out, and those a pragma
+    excludes from coverage: the lines coverage can say ran or not, so a branch that changes only
+    words runs no test here."""
+    excluded = coverage.Coverage(config_file=False, data_file=None).analysis2(str(file))[2]
     return {
         node.lineno
         for node in ast.walk(ast.parse(file.read_text()))
         if isinstance(node, ast.stmt)
         and not (isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant))
-    }
+    } - set(excluded)
 
 
 def faults(
     lines: dict[str, set[int]], scratch: Path, repo: Path = REPO, parts: Path | None = None
 ) -> list[str]:
-    """What is wrong with the lines a branch adds: an unexcused pragma, or a statement no test that
-    names its module runs. With `parts`, the folder of what CI's parts ran (`unread`), a line they
-    ran in a test that names its module runs no test here. The tests run for the lines still
-    unrun, in two rounds, so a module many tests name costs little when its own tests run its
-    lines: first each module's own test files, those whose name holds the module's file name
+    """What is wrong with the lines a branch adds: an unexcused pragma, or a statement no test file
+    that names its module runs, by the one rule, with `parts` and without. With `parts`, the
+    folder of what CI's parts ran (`unread`), a line they ran in a test that names its module runs
+    no test here. The tests run for the lines still unrun, each round counted by `unread` too, in
+    two rounds, so a module many tests name costs little when its own tests run its lines: first
+    each module's own test files, those whose name holds the module's file name
     (`test_jbus_remarks.py` for `remarks.py`), then, for the lines still unrun, every other test
     that names the module."""
+    pragmas = unexcused(lines, repo)
     lines = {path: numbers & statements(repo / path) for path, numbers in lines.items()}
     lines = {path: numbers for path, numbers in lines.items() if numbers}
     tests = {path: naming([path], repo) for path in lines}
@@ -286,7 +265,7 @@ def faults(
         for path, numbers in sorted(left.items())
         for number in sorted(numbers)
     ]
-    return unexcused(lines, repo) + said
+    return pragmas + said
 
 
 @pytest.mark.timeout(900)
@@ -355,38 +334,57 @@ def test_an_added_branch_no_test_runs_fails_and_one_a_test_runs_passes(tmp_path)
     assert (tmp_path / "ran/own/stopped").exists(), "the run went on after every line had run"
 
 
-def test_a_line_only_another_modules_own_test_runs_counts_as_run(tmp_path):
+def test_the_desk_and_ci_give_the_same_answer_for_a_line_only_another_modules_test_runs(tmp_path):
+    """A line of `rows` that only `queue`'s own test runs, through `queue`'s code, is a fault
+    whether the check reads what CI's parts ran or runs the tests itself, as a desk does: that
+    test does not name `rows`, so its run of the line does not count either way."""
     repo = tmp_path / "repo"
     code = repo / "features/pkg/src/pkg"
     tests = repo / "features/pkg/tests"
     code.mkdir(parents=True)
     tests.mkdir(parents=True)
     (code / "__init__.py").write_text("")
-    (code / "proved.py").write_text("def proved(row):\n    return row == 'proved'\n")
-    (code / "ready.py").write_text("def ready(row):\n    return row == 'ready'\n")
-    (tests / "test_proved.py").write_text(
+    (code / "rows.py").write_text("def rows(row):\n    return row\n")
+    (code / "queue.py").write_text(
+        "from pkg import rows\n\n\ndef queue(row):\n    return rows.rows(row)\n"
+    )
+    (tests / "test_rows.py").write_text(
         "import sys\n"
         "sys.path.insert(0, 'features/pkg/src')\n"
-        "from pkg import proved, ready\n\n\n"
-        "def test_a_proved_row_is_ready():\n"
-        "    assert not proved.proved(None)\n"
-        "    assert not ready.ready(None)\n"
+        "from pkg import rows\n\n\n"
+        "def test_a_row():\n"
+        "    assert rows.rows(1) == 1\n"
+    )
+    (tests / "test_queue.py").write_text(
+        "import sys\n"
+        "sys.path.insert(0, 'features/pkg/src')\n"
+        "from pkg import queue\n\n\n"
+        "def test_a_queued_row():\n"
+        "    assert queue.queue(None) == 0\n"
+        "    assert queue.queue('held') == 'held'\n"
     )
     for args in (["init", "-q"], ["add", "."], ["commit", "-qm", "base"]):
         git("-c", "user.name=t", "-c", "user.email=t@t", *args, repo=repo)
     since = git("rev-parse", "HEAD", repo=repo)
-    (code / "proved.py").write_text(
-        "def proved(row):\n    if row is None:\n        return False\n    return row == 'proved'\n"
+    (code / "rows.py").write_text(
+        "def rows(row):\n    if row is None:\n        return 0\n    return row\n"
     )
-    (code / "ready.py").write_text(
-        "def ready(row):\n    if row is None:\n        return False\n    return row == 'ready'\n"
+    (code / "queue.py").write_text(
+        "from pkg import rows\n\n\n"
+        "def queue(row):\n    if row == 'held':\n        return row\n    return rows.rows(row)\n"
     )
     lines = added(since, repo)
     assert lines == {
-        "features/pkg/src/pkg/proved.py": {2, 3},
-        "features/pkg/src/pkg/ready.py": {2, 3},
+        "features/pkg/src/pkg/rows.py": {2, 3},
+        "features/pkg/src/pkg/queue.py": {5, 6},
     }
-    assert faults(lines, tmp_path / "unrun", repo) == []
+    fault = [
+        "features/pkg/src/pkg/rows.py:3 is a line this branch adds that no test runs: add a test "
+        "that runs it, among the tests that name its module (1 of them ran)",
+    ]
+    a_part(repo, since, tmp_path / "parts/1")
+    assert faults(lines, tmp_path / "ci", repo, tmp_path / "parts") == fault
+    assert faults(lines, tmp_path / "desk", repo) == fault
 
 
 def test_an_untested_line_is_listed_once_its_own_tests_end_not_another_modules(tmp_path):
