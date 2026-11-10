@@ -17,6 +17,7 @@ import sys
 import tempfile
 import time
 
+from statechart import excalidraw
 from statechart.lib import (
     BROKEN_PROPERTY,
     FIRST_ONLY,
@@ -1368,6 +1369,8 @@ def from_chart(given, flags):
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["excalidraw"]:
+        return excalidraw.main(argv[1:])
     try:
         parsed = parse_args(argv)
         if "help" in parsed:
