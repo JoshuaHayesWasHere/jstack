@@ -51,18 +51,23 @@ class Price:
 
 PRICED_ON = date(2026, 10, 6)
 """The date of the price list `PRICES` is copied from: the claude-api skill's model table,
-cached 2026-10-06, read on 2026-11-03."""
+cached 2026-10-06, read on 2026-11-03. The Fable row alone was read later, from the page the
+`PRICES` docstring names."""
 PRICES: dict[str, Price] = {
     "claude-opus-5-5": Price(4, 8, 0.20, 20),
     "claude-sonnet-5-5": Price(2, 4, 0.20, 10),
     "claude-haiku-5-5": Price(0.10, 0.20, 0.01, 0.50),
+    "claude-fable-5-2": Price(8, 16, 0.20, 40),
 }
 """Each priced model's list price, by its exact id, the one place a price is named. A cache write
 is priced at the one-hour cache's 2x input, not the five-minute 1.25x: the store keeps one count
 of written tokens, and of the cache writes in 200 Claude Code transcripts read on 2026-11-03,
 98.9% were to the one-hour cache. Haiku's higher price for a prompt over 100K tokens is not
 counted. A model not here, every Codex model among them, is unpriced: its calls have no dollars.
-What a subscription bills is not per token, so a sum of these is an estimate at API list prices."""
+What a subscription bills is not per token, so a sum of these is an estimate at API list prices.
+Fable 5.2's row is from Anthropic's pricing page,
+https://platform.claude.com/docs/en/about-claude/pricing, read on 2026-11-09: $8 input, $16 for
+a one-hour cache write, $0.20 for a cache hit and $40 output per million tokens."""
 
 
 def dollars(model: str, plain: int, written: int, cached: int, output: int) -> float | None:
