@@ -73,7 +73,7 @@ from typing import Any
 
 from jbriefs import below
 from jbriefs.home import thread_of
-from jbus import END_TURN, dispatch, mirror, queue, rebase, review, verbs
+from jbus import END_TURN, launchtext, mirror, queue, rebase, review, verbs
 from jbus.launches import records
 from jbus.passes import Pass
 from jbus.prereview import pushed
@@ -400,7 +400,7 @@ def _rewrite(
     whether it was written."""
     path = run.home / "tasks" / f"{slug}.md"
     try:
-        text = dispatch.stacked(path.read_text(errors="replace"), stacked)
+        text = launchtext.stacked(path.read_text(errors="replace"), stacked)
         if was is not None:
             old = f"{stacks.LINE} {was.slug} {was.branch}".split()
             head, mark, body = text.partition("\n## ")
