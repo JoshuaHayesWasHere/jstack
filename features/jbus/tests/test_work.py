@@ -442,7 +442,8 @@ def kitchen(tmp_path, monkeypatch):
 def test_who_holds_a_state_is_its_patterns_holder_but_for_a_leftover_and_a_thread_by_role():
     """A row that ended with something left is never the user's but where a gate of the user's
     holds it: its home closes it, or a thread at work on it, or its review is still to come. A
-    row whose go does not hold is the user's at any stage up to its merge."""
+    row whose go does not hold is the user's at any stage up to its merge, and so is one a hold
+    no crew clears holds for the user's accept (`Closer.WORD`)."""
     holders = {"user", "crew", "rev", "ci", "bus", "dep", "ok", "home", "unknown"}
     roles = {"crew", "rev", "scout", "home", "other"}
     for facts in work.every():
@@ -455,6 +456,8 @@ def test_who_holds_a_state_is_its_patterns_holder_but_for_a_leftover_and_a_threa
                     assert held == work.Holder("user", "your answer", "gate")
                 elif state.value in ("leftover", "closed"):
                     assert held.who != "user"
+                elif closer == work.Closer.WORD:
+                    assert (held.who, held.lift) == ("user", work.Lift.ACCEPT)
                 elif work.lift(state) is not None:
                     assert (held.who, held.lift) == ("user", work.lift(state))
                 elif closer != work.Closer.REVIEW or state.value != "quiet":

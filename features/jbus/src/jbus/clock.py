@@ -79,6 +79,13 @@ of every row it holds: a row of `expedite.TABLE` that `tell` counts at the row's
 given to the user (`_tells_left`). It is `user` for the rest. A `crew` hold wakes the home
 only once `tell` has sent each row every message it owes at that head, two for a `proved-` or
 `checked-` wait, and the hold is older than `HOLD_MINUTES` with nobody at work on it after that.
+
+A `user` hold that a word of the user's lifts (`judgement.accepted`: `jmerge --accept`) names that
+word as its `lift`. Its crew had its turns and gave it to the user (`expedite.tell`), or no crew of
+jbus's has it, so nothing but that word moves it: it is listed on what waits on the user in the
+pass that files it, with no `HOLD_MINUTES` to wait and no wake of the home, which hears of it from
+that list. `jbus needs` lists it with the word (`blockers.needs`), and `work.json` says its rows
+wait on the user (`lifted`).
 """
 
 from __future__ import annotations
@@ -87,6 +94,7 @@ import hashlib
 import re
 import string
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from jbriefs import below, findings
@@ -111,7 +119,7 @@ from jbus.passes import Pass
 from jbus.review import FIXES, class_of, matches
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import World, task_brief
-from jmerge import ready
+from jmerge import judgement, ready
 from jmerge.checks import check_state, latest_of_each
 
 HELD = "hold-stall"
@@ -543,6 +551,18 @@ def _tells_left(was: dict[str, Any], slug: str, number: int, reason: str) -> int
     return max(tells - entry.get("tells", 1 if "told" in entry else 0), 0)
 
 
+def lifted(state: Path) -> frozenset[str]:
+    """The rows of each hold `held` gave the user with the word that lifts it (`lift`): the rows
+    `jbus needs` lists for it, and `work.json` says wait on the user."""
+    kept: dict[str, Any] = read_json(state / HELD_FILE, {})
+    return frozenset(
+        slug
+        for one in kept.values()
+        if isinstance(one, dict) and one.get("woke") and one.get("lift")
+        for slug in one.get("rows", [])
+    )
+
+
 def held(
     run: Pass, client: Client, world: World, pulls: merge.Said, out: list[dict[str, Any]] | None
 ) -> None:
@@ -568,13 +588,15 @@ def held(
         name = "" if scope == run.home else scope.name
         key = hashlib.sha256(f"{name}\n{reason}".encode()).hexdigest()[:12]
         group = groups.setdefault(
-            key, {"reason": reason, "home": name, "rows": [], "numbers": [], "who": "crew"}
+            key,
+            {"reason": reason, "home": name, "rows": [], "numbers": [], "who": "crew", "lift": ""},
         )
         group["rows"].append(slug)
         group["numbers"].append(number)
         left = _tells_left(told, slug, number, reason)
         if left is None:
             group["who"] = "user"
+            group["lift"] = judgement.ACCEPT if judgement.accepted(reason) else ""
         elif left:
             owed.add(key)
     busy = [one["slug"] for one in out if one.get("live") in AT_WORK and one.get("slug")]
@@ -586,7 +608,20 @@ def held(
         minutes = int((run.now - datetime.fromisoformat(hold["since"])).total_seconds() // 60)
         hold["minutes"] = minutes
         kept[key] = hold
-        if hold["woke"] or minutes <= HOLD_MINUTES:
+        if hold["woke"]:
+            continue
+        if hold["lift"]:
+            hold["woke"] = True
+            pairs = zip(hold["rows"], hold["numbers"], strict=True)
+            rows = ", ".join(f"{slug} (#{number})" for slug, number in pairs)
+            said = (
+                f"{HELD} {run.project.name}: {rows} held by {hold['reason']}, which no crew "
+                f"clears: it is the user's, and {hold['lift']} lifts it"
+            )
+            run.find("", HELD, said, key=f"{key} {hold['since']}")
+            run.say(said)
+            continue
+        if minutes <= HOLD_MINUTES:
             continue
         if hold["who"] == "crew" and key in owed:
             continue

@@ -10,12 +10,13 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import clock
-from jmerge import ready
-from test_jbus_expedite import Short, host_unread
+from jbus import clock, stall, work
+from jmerge import judgement, ready
+from test_jbus_expedite import Short, host_unread, later
 from test_jbus_expedite_result import PROVED_MISSING
 from test_jbus_kitchen import NOW, sends
 from test_jbus_leftover import home
+from test_jbus_needs import needs
 
 pytestmark = pytest.mark.usefixtures(host_unread.__name__)
 """What a pass reads of the machine is none of what these tests assert
@@ -95,12 +96,11 @@ def kept(kitchen):
     return list(jbus.read_json(kitchen.state / clock.HELD_FILE, {}).values())
 
 
-def test_a_wait_only_its_crew_clears_wakes_its_home_once_the_crew_was_told_twice_and_stopped(
-    kitchen,
-):
-    """A `Proved:` wait is the crew's: jbus tells it on the first pass and once more when a new
-    idle spell starts. Told once and idle past `clock.HOLD_MINUTES`, it wakes nobody. Told twice,
-    and idle past `clock.HOLD_MINUTES` after that, it wakes the home once."""
+def _twice(kitchen, reason):
+    """Alpha's pull request #7 waits on `reason`, a wait only its crew's own run clears: jbus
+    tells the crew on the first pass, and once more when the crew worked and ended its turn
+    again. Told once and idle past `clock.HOLD_MINUTES`, it is the crew's and wakes nobody. Return
+    the `Short` and a reader of what woke its home, after the second tell."""
     short = Short(kitchen)
     desk = home(kitchen)
 
@@ -109,7 +109,7 @@ def test_a_wait_only_its_crew_clears_wakes_its_home_once_the_crew_was_told_twice
         assert all(one["threadId"] == desk["threadId"] for one in held)
         return held
 
-    short.out(PROVED_MISSING)
+    short.out(reason)
     short.passes(40)
     (hold,) = kept(kitchen)
     assert (hold["who"], hold["woke"], hold["rows"]) == ("crew", False, ["alpha"])
@@ -118,16 +118,54 @@ def test_a_wait_only_its_crew_clears_wakes_its_home_once_the_crew_was_told_twice
     short.passes(1)
     short.thread["status"] = "completed"
     short.passes(1)
-    told = f"proved-missing|alpha|{short.head[:12]}"
+    kind = ready.code_of(reason)
+    told = f"{kind}|alpha|{short.head[:12]}"
     crew = [one for one in sends(kitchen) if one["threadId"] == short.thread["threadId"]]
     assert [one["clientRequestId"] for one in crew] == [told, f"{told}|2"]
+    return short, woke
+
+
+def test_a_held_wait_its_crew_was_told_twice_and_left_is_the_users_with_the_word_that_lifts_it(
+    kitchen,
+):
+    """A `Proved:` wait the crew could not clear after both its tells, as #1535's base run that
+    passed was, is filed as the user's once the crew sat `stall.PASSES` passes idle after the
+    second: `held.json` says `who` `user` and the word that lifts it, `jbus needs` lists it with
+    its reason and that word in the pass that files it, and `work.json` says alpha waits on the
+    user's accept. No home is woken to pick it up, since nothing but that word moves it."""
+    short, woke = _twice(kitchen, PROVED_MISSING)
+    short.passes(stall.PASSES - 1)
+    (hold,) = kept(kitchen)
+    assert (hold["who"], hold["woke"]) == ("crew", False)
+    short.passes(2)
+    (hold,) = kept(kitchen)
+    assert (hold["who"], hold["lift"], hold["woke"]) == ("user", judgement.ACCEPT, True)
+    assert woke() == []
+    assert needs(kitchen, at=later(short.minute)) == [
+        "waiting on user: 1, in demo",
+        f"demo held alpha: {hold['minutes']} minutes by {PROVED_MISSING}, and no thread is at "
+        "work on it, no crew clears it, and your word lifts it: jmerge --accept 7",
+        "  answer: reply in your own words to merge #7 or say what to do instead",
+    ]
+    lines = {one["key"]: one for one in jbus.read_json(kitchen.state / work.NAME, {})["work"]}
+    alpha = lines["alpha"]
+    assert (alpha["who"], alpha["lift"]) == ("user", work.Lift.ACCEPT)
+    assert alpha["waits"] == "your accept of #7 (jmerge --accept 7)"
+
+
+def test_a_held_wait_no_word_of_the_users_lifts_stays_its_crews_and_wakes_its_home(kitchen):
+    """A failed check is no wait an accept lifts, so a crew told twice keeps it: it wakes the
+    home once it is older than `clock.HOLD_MINUTES` with nobody at work, and is not the user's."""
+    reason = ready.CHECKED_FAILED.format(exit=1, at="c" * 12, head="c" * 12)
+    short, woke = _twice(kitchen, reason)
     short.passes(29)
     assert woke() == []
     short.passes(2)
     (sent,) = woke()
-    assert PROVED_MISSING in sent["message"] and "alpha (#7)" in sent["message"]
+    assert reason in sent["message"] and "alpha (#7)" in sent["message"]
     (hold,) = kept(kitchen)
-    assert (hold["who"], hold["woke"]) == ("crew", True)
+    assert (hold["who"], hold["woke"], hold["lift"]) == ("crew", True, "")
+    assert needs(kitchen, at=later(short.minute)) == ["nothing waits on user in any project"]
 
 
 def test_a_wait_on_the_merge_runner_wakes_nobody(kitchen):

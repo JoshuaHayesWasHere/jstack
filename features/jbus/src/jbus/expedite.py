@@ -99,7 +99,11 @@ thread stays at work or the message is not delivered. A hold that its crew did n
 user too. Starting with the pass after a stall that finds nobody at work, that hold is an item of
 the user's list, until the reason or the head changes. A stall that jbus sends while work is still
 going on does not make the hold the user's. The hold becomes the user's once that work has ended and
-`PASSES` idle passes have gone by. A pass that could not ask T3 Code or GitHub has no crew to ask.
+`PASSES` idle passes have gone by. A wait that a word of the user's lifts (`judgement.accepted`,
+the `proved-` reasons) becomes the user's the same way, once `tell` has sent the crew every
+message it owes at the head and the crew sat idle `PASSES` passes after the last: the crew had its
+turns, and only the user's accept is left (`clock.held` files it so). Any other wait stays the
+crew's, and its home hears of it. A pass that could not ask T3 Code or GitHub has no crew to ask.
 Then `told` keeps in hand the holds `tell` had in hand, and every other hold is the user's.
 """
 
@@ -118,7 +122,7 @@ from jbus.review import ranges
 from jbus.stall import PASSES, REVIEWING
 from jbus.t3 import Client, T3Error
 from jbus.watch import World, at_work, task_brief
-from jmerge import ready
+from jmerge import judgement, ready
 
 if TYPE_CHECKING:
     from jbus.poll import Half
@@ -719,11 +723,22 @@ def tell(run: Pass, client: Client, world: World, pulls: merge.Said) -> set[int]
                 f"crew was told{work}, at {head[:12]}, {reason}; its crew's thread is {thread}"
             )
             run.find(slug, STALL, line, key=f"{head[:12]} {row.kind}")
-            if row.word == "hold" and busy is False and entry.get("idle", 0) >= PASSES:
+            if busy is False and entry.get("idle", 0) >= PASSES and _given(row, reason, entry):
                 entry["users"] = True
     if kept != was:
         write_json(run.state / FILE, kept)
     return hand
+
+
+def _given(row: Short, reason: str, entry: dict[str, Any]) -> bool:
+    """Whether a stall with nobody at work makes what the crew is short of the user's: a hold
+    always, and a wait that a word of the user's lifts (`judgement.accepted`) once `tell` has sent
+    the crew every message it owes at the head (`Short.spells`). Any other wait stays the crew's,
+    and its home hears of it (`clock.held`)."""
+    if row.word == "hold":
+        return True
+    _, tells = row.spells or (AFTER, 1)
+    return judgement.accepted(reason) and entry.get("tells", 1) >= tells
 
 
 def _tell(

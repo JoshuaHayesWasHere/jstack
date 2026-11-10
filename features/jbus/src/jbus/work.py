@@ -586,12 +586,15 @@ class Closer(StrEnum):
     them. One value holds for a row, and the pass picks it in this order:
 
     - `user`: a gate of the user's holds the row, one `jbus needs` lists (`blockers.holding`);
+    - `word`: a hold no crew clears holds the row, which the user's accept lifts and `jbus needs`
+      lists (`jbus.clock.lifted`), unless the row ended;
     - `review`: the row's last Result opens its pull request after a review that is not written
       (`review.awaited`), so the row waits on that review, whatever its `Left:` line says;
     - `busy`: a thread is at work on what the row left (`leftover.json`);
     - `home`: anything else, and a row that ended with something left is its home's to close."""
 
     USER = "user"
+    WORD = "word"
     REVIEW = "review"
     BUSY = "busy"
     HOME = "home"
@@ -614,8 +617,9 @@ def holder(
     otherwise (`Closer`), and in two other cases.
 
     A gate of the user's holds the row for the user, whatever else holds, so `who` is `user`
-    on a row `jbus needs` lists. Next, a row that waits on one word of the user's (`lift`) is
-    held by the user at any stage, and says the word in `waits`. A row that waits on its go says
+    on a row `jbus needs` lists. Next, a row that waits on one word of the user's (`lift`, or
+    `Closer.WORD` for a hold no crew clears) is held by the user at any stage, and says the word
+    in `waits`. A row that waits on its go says
     why in `why`: `go` is why its go does not hold, from the queue (`jbus.queue.unheld`). `pr` is
     its pull request, as the queue names it, and a pull request held for an accept keeps
     `jmerge`'s hold as its `why`. A row whose Result waits on its review (`Closer.REVIEW`) and
@@ -637,7 +641,8 @@ def holder(
     pattern = state.pattern
     if closer == Closer.USER:
         return Holder("user", "your answer", "gate")
-    word = lift(state, why)
+    worded = closer == Closer.WORD and state.value not in ENDED
+    word = Lift.ACCEPT if worded else lift(state, why)
     if word == Lift.APPROVE:
         at = f" at {go.sha}" if go and go.sha else ""
         lane = "" if role else pattern.lane
@@ -723,7 +728,9 @@ def restate(
     the writer of that input knows it. A new approved facet beside an approved one is the pass's
     to tell apart, since only the pass sees which depends merged; and a state that keeps its
     value and its word of the user's (`lift`) keeps its holder and its `why`, which the pass
-    worked out from more than the facts. A state whose value changed has no `why` until the next
+    worked out from more than the facts. An accept the pass gave a line for a hold no crew clears
+    (`Closer.WORD`), which no fact says, is kept while the line keeps its value and its `why`. A
+    state whose value changed has no `why` until the next
     pass judges one, since the one it had was judged for the old state, and so has a line whose
     go holds again (`lifted`), unless the writer gives one (`why`), as a run of `jmerge` does
     with its reason. A write of the queue gives why the row's go does not hold (`go`,
@@ -746,6 +753,11 @@ def restate(
     asked = made.question == Question.OPEN
     state = unforeseen(made) if made.seen and not asked else judge(made)
     word = lift(state, said)
+    if word is None and one.get("lift") == Lift.ACCEPT and (state.value, said) == (
+        one["value"],
+        had,
+    ):
+        word = Lift.ACCEPT
     kept = str(word or "") == one.get("lift", "") and (go is None or word != Lift.APPROVE)
     if made == facts and said == had and kept:
         return one
