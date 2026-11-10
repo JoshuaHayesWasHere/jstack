@@ -193,11 +193,13 @@ def heads(pulls: list[dict[str, Any]]) -> list[list[Any]]:
 def rollup(pull: dict[str, Any]) -> list[list[Any]]:
     """A GraphQL pull request's `statusCheckRollup` as its head's check runs and statuses: each
     run by name, whether it completed and its conclusion, and each status by context and state.
-    A rollup that is no list says no check at all, and an entry that is no object is none."""
+    A rollup that is no list says no check at all, and an entry that is no object is none. An
+    `EXPECTED` entry, a required check that has not reported, is left out: no probe sees it, and
+    `FRESH` reads a change to it."""
     listed = pull.get("statusCheckRollup")
     given = [one for one in listed if isinstance(one, dict)] if isinstance(listed, list) else []
     runs = [one for one in given if "context" not in one]
-    statuses = [one for one in given if "context" in one]
+    statuses = [one for one in given if "context" in one and one.get("state") != "EXPECTED"]
     return _checks(
         [(one.get("name"), one.get("status"), one.get("conclusion")) for one in runs],
         [(one.get("context"), one.get("state")) for one in statuses],

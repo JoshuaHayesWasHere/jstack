@@ -210,7 +210,8 @@ def test_a_rollup_that_lags_the_check_runs_is_asked_again(kitchen):
     for minutes in range(6, 8):
         pulls.read(a_pass(minutes))
     assert asked(kitchen) == 6
-    agreed = [rolled(ENDED), {**pending, "state": "SUCCESS"}]
+    required = {**pending, "context": "ci/required", "state": "EXPECTED"}
+    agreed = [rolled(ENDED), {**pending, "state": "SUCCESS"}, required]
     kitchen.set("open.json", [opened(kitchen, 7, HEAD, statusCheckRollup=agreed)])
     for minutes in range(8, 10):
         pulls.read(a_pass(minutes))
