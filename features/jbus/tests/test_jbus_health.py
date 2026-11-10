@@ -346,6 +346,7 @@ def test_jbus_health_prints_each_check_with_its_number_and_limit_and_pages_nothi
 ):
     senses.disks = {"/home": (85 * GIB, 15 * GIB, 0, 0), "/tmp": (GIB, 9 * GIB, 10, 100)}
     used("claudeAgent", "seven_day", 40)
+    unread = ledger.file_of(PRIME)
     code, out = kitchen.main("health")
     assert code == 1
     assert out.splitlines() == [
@@ -357,9 +358,16 @@ def test_jbus_health_prints_each_check_with_its_number_and_limit_and_pages_nothi
         "ok   health timeout jmerge: jmerge stopped at its 17 min timeout 0 times in the last "
         "60 min, alerts at 1",
         "ok   health relay: the config posts nothing to 127.0.0.1, not watched",
+        "ok   health quota claudeAgent five_hour: the five_hour window is not open, paged when "
+        "full, as capped claudeAgent",
         "ok   health quota claudeAgent seven_day: 40% of the seven_day window used, resets "
         "2026-10-12 14:00 ET, alerts at 80%",
         "ok   health capped claudeAgent: no window full, pauses its launches at 100% of a window",
+        f"?    health quota {PRIME} five_hour: the five_hour window is unread: no line of it in "
+        f"{unread}, paged when full, as capped {PRIME}",
+        f"?    health quota {PRIME} seven_day: the seven_day window is unread: no line of it in "
+        f"{unread}, alerts at 80%",
+        f"ok   health capped {PRIME}: no window full, pauses its launches at 100% of a window",
     ]
     assert pages(kitchen) == []
     assert not (jbus.load().state_dir / health.LOG).exists()
