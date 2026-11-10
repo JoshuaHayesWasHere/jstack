@@ -1,7 +1,16 @@
 from jbus.telemetry.measures import Limit, Measure, Sql
 from jbus.telemetry.schema import RED
 
-OWN = ("make *", "new lines", "prose lint", "lint *", "quick tests*", "handed tests", "test", "check")
+OWN = (
+    "make *",
+    "new lines",
+    "prose lint",
+    "lint *",
+    "quick tests*",
+    "handed tests",
+    "test",
+    "check",
+)
 """The failed steps that are a change's own defect, as GLOB patterns: a make target (`make test`,
 `make check-fast: lint`, and the bare target a log names where the step has no name), the guard
 of the added lines, and a lint. Any other step a failed job names is the runner's fault: the
@@ -41,6 +50,9 @@ head, passed, and the change's own defect where none did. A failed run whose fai
 step, or that has none in the store, is `unknown`: it counts in the value and in no part."""
 
 CLASSES = ("own defect", "runner fault", "flake")
+"""The parts, in the order the scorecard shows them, each shown at 0 where no run is of it."""
+
+_CLASSES = " UNION ALL ".join(f"SELECT {i} AS i, '{c}' AS label" for i, c in enumerate(CLASSES))
 
 MEASURE = Measure(
     name="pr-checks-failed",
@@ -55,11 +67,9 @@ MEASURE = Measure(
     source=Sql(
         RUNS + "SELECT 100.0 * sum(failed) / nullif(count(*), 0) AS value, count(*) AS n "
         "FROM classed",
-        each=RUNS
-        + "SELECT k.label, 100.0 * (SELECT count(*) FROM classed WHERE class = k.label) "
-        "/ (SELECT count(*) FROM classed) AS value, NULL AS line FROM (SELECT "
-        + " UNION ALL SELECT ".join(f"{i} AS i, '{label}' AS label" for i, label in enumerate(CLASSES))
-        + ") k WHERE EXISTS (SELECT 1 FROM classed) ORDER BY k.i",
+        each=RUNS + "SELECT k.label, 100.0 * (SELECT count(*) FROM classed WHERE class = k.label) "
+        f"/ (SELECT count(*) FROM classed) AS value, NULL AS line FROM ({_CLASSES}) k "
+        "WHERE EXISTS (SELECT 1 FROM classed) ORDER BY k.i",
     ),
     window="day",
     baseline=33.8,
