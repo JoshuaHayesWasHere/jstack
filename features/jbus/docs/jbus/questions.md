@@ -72,6 +72,7 @@ A go gate whose row was removed is closed with `<slug> was removed, so there is 
 The record then holds `closed_by: cleared`, `by: jbus`, the time of that pass and `where: a jbus pass`, the log has one quiet `note`, and nothing is sent.
 That answer is jbus's, not yours: it records what happened to the row, and opens no door.
 A row that is `done` with no merge, `left`, or still live closes nothing, and a question you answered keeps your answer.
+A closed project (`jbus project close`) gets no pass, but these questions of its close all the same: a chore of each pass runs the same close over every closed project, and launches, merges and sends nothing there.
 
 ### Answers
 

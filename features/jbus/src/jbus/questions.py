@@ -844,6 +844,15 @@ def moot(run: Pass) -> None:
             clear(run, one.number, MOOT[end].format(slug=one.slug))
 
 
+def moot_closed(config: jbus.Config, now: datetime, say: Callable[[str], None]) -> None:
+    """Run `moot` for each closed project, which gets no pass of its own (`jbus.load`): its rows
+    stay as they are, but a door question whose row merged or was removed has nothing left to
+    decide. `moot` only closes questions through `clear`, which sends nothing and writes one quiet
+    `note`, so a closed project still gets no launch, merge or message."""
+    for project in config.closed:
+        moot(Pass(config, project, now, say))
+
+
 def go_gate(one: Question) -> bool:
     """Return whether the question's default is to approve its row: a go gate."""
     return one.default.strip().lower() == queue.GO_DEFAULT
@@ -1275,5 +1284,13 @@ STEPS = (
         "questions.propose",
         lambda half: propose(half.run, half.client),
         ("sight", "client"),
+    ),
+)
+
+CHORES = (
+    verbs.Chore(
+        23,
+        "the moot questions of the closed projects",
+        lambda config, _, now, say: moot_closed(config, now, say),
     ),
 )
