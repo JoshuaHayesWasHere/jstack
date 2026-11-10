@@ -213,6 +213,7 @@ def test_a_pass_launches_an_approved_scout_read_only_with_no_branch(kitchen):
 
 
 def scout_tree(kitchen, slug):
+    """The scout's worktree `jbus.crewtree` makes, beside the crews' under T3 Code's home."""
     return Path(os.environ["T3CODE_HOME"]) / "worktrees" / kitchen.checkout.name / f"scout+{slug}"
 
 
