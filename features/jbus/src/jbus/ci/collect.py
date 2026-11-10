@@ -127,6 +127,13 @@ def _run(command: list[str]) -> subprocess.CompletedProcess[str]:
     return done
 
 
+def _parsed(said: str) -> Any:
+    try:
+        return json.loads(said)
+    except ValueError as error:
+        raise Unavailable("GitHub gave no JSON") from error
+
+
 def _listed(page: Any, key: str | None) -> list[dict[str, Any]]:
     """The list of one page, under `key` where the page is an object."""
     found = (page.get(key) if isinstance(page, dict) else None) if key else page
@@ -162,10 +169,7 @@ class Cli:
         return asked.stdout
 
     def _json(self, *args: str) -> Any:
-        try:
-            return json.loads(self._said(*args))
-        except ValueError as error:
-            raise Unavailable("GitHub gave no JSON") from error
+        return _parsed(self._said(*args))
 
     def pages(self, path: str, key: str | None = None) -> list[dict[str, Any]]:
         every = self._json(path, "--paginate", "--slurp")
@@ -189,11 +193,7 @@ class Cli:
         tags = [
             line.split(":", 1)[1].strip() for line in headers if line.lower().startswith("etag:")
         ]
-        try:
-            given = json.loads(body)
-        except ValueError as error:
-            raise Unavailable("GitHub gave no JSON") from error
-        return (tags[0] if tags else ""), _listed(given, key)
+        return (tags[0] if tags else ""), _listed(_parsed(body), key)
 
     def annotations(self, jobs: list[dict[str, Any]]) -> dict[int, list[dict[str, Any]]]:
         """One GraphQL call for each `PAGE` jobs. GitHub answers a node it cannot read with null
