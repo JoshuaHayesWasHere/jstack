@@ -93,7 +93,7 @@ Its approved column says `your go for the plan entry <entry>, <when you said it>
 
 These always ask you, and reach `jbus needs`:
 
-- a row whose brief holds a case of gates.md, on a `Holds:` line or in a command it runs: one of the six one-way doors, deleting data, rewriting history, spending money, touching prod or real users, changing access or secrets, and publishing. Only your own message or pick in T3 Code opens one ([Doors](the-queue.md#doors));
+- a row whose brief holds a case of gates.md, on a `Holds:` line or in a command it runs: one of the six one-way doors, deleting data, rewriting history, spending money, touching prod or real users, changing access or secrets, and publishing, which only your own message or pick in T3 Code opens ([Doors](the-queue.md#doors));
 - a row under no entry with a go: new work the home files outside one, a row a crew of such a row queues, and a row a crew queues for another home, which waits for that home's entry;
 - a row your own go approved before an edit voided it, and a held row.
 
