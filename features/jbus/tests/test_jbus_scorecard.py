@@ -349,3 +349,15 @@ def test_the_three_weekly_reads_of_calls_give_these_values(store):
     opus = jgauge_spend.PRICES["claude-opus-5-5"].plain / 1e6
     spent = (40_000 + 80_000) + (500 + 1_000) + 2_000
     assert read("dollars-per-row") == (pytest.approx(spent * opus), 1)
+
+
+@pytest.mark.parametrize("name", ["crew-context", "first-call-context", "dollars-per-row"])
+def test_no_weekly_read_of_calls_walks_every_call_of_a_provider(store, name):
+    """A store made by `telemetry.connect` gives SQLite's planner the shape of `calls`
+    (`jbus.telemetry.migrations.v016_calls_stats`), so a read joins a session to its own calls by
+    `calls_session` and never reads `calls` by its provider alone, once a session: on the store of
+    311756 calls that walk made crew-context and first-call-context about 30 s each."""
+    query = measure(name).source.query
+    bound = {"project": "jstack", "begins": stamp(NOW), "ends": stamp(NOW)}
+    plan = [row[3] for row in store.execute(f"EXPLAIN QUERY PLAN {query}", bound)]
+    assert not [step for step in plan if step.endswith("USING PRIMARY KEY (provider=?)")], plan
