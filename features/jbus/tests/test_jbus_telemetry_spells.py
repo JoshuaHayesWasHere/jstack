@@ -133,6 +133,13 @@ class GitHub:
         return LINTED
 
     def run(self, *command: str) -> Asked:
+        """GitHub's answer to `command`, behind the status line `gh api -i` prints before it."""
+        asked = self.answer(*command)
+        if "-i" in command and asked.returncode == 0:
+            return Asked("HTTP/2.0 200 OK\r\n\r\n" + asked.stdout)
+        return asked
+
+    def answer(self, *command: str) -> Asked:
         path = command[2] if command[:2] == ("gh", "api") else ""
         commits = [
             {"sha": LINTED, "parents": [{"sha": TESTED}], "commit": {"message": "fix: x (#12)"}},
