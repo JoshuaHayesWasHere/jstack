@@ -114,7 +114,8 @@ The other twelve and the three of `conduct` are these:
 - `Where:` names at least one path under the repo.
   A path is in backticks, or is a word that has a `/`, a glob character or a file extension.
   Prose and a flag are not paths.
-- A `Done when:` item that ends with ``(in `<path>`)``, the file the goal lands in, names a file that `Where:` covers and `Do not touch:` does not.
+- A `Done when:` item that ends with ``(in `<path>`)``, the file the goal lands in, names a file inside the brief and not under `Do not touch:` (`jbriefs.parse.reach`).
+  A file is inside when `Where:` covers it, or when it is under the `docs/` of a feature whose source under `features/<f>/src/` `Where:` names, unless `Do not touch:` covers that `docs/`.
   `(in none)` says the goal changes no file, and an item with neither only warns.
   The fault names the item and the file, and says to widen `Where:` or to move the item to a follow-up brief with a `Follows: <slug>` line, which is approved on this row's go by the follow-up rule ([The bases](#the-bases)).
   Move it before the go: an edit of `Done when:` or `Where:` after the go voids it.
