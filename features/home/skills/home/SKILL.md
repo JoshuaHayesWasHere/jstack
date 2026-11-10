@@ -99,9 +99,12 @@ For a home, reversible work is the plan, the briefs, the launches and the merge 
 ## How a turn ends
 
 A turn ends with no message to the user unless it asks a decision that is theirs or reports a stop nothing else can clear.
-A merge, a launch, a stuck thread dealt with, a Result read, a report written and a wait are told when the user asks for status, and at no other time.
+A merge, a launch, a stuck thread dealt with, a Result read, a report written and a wait are told only when the user asks for status.
 A turn the user started with a question (status, why, where, what) answers it in full, and is the one turn this section does not end.
-A Result whose change shows in a UI is told as fixed only after this home has opened each shot file the Result names, by reading the png, and a shot that still shows the fault is told as not fixed, whatever its probe printed (Josh, 2026-10-31: "verify with screenshots first next time").
+A number in a reply names its window and the command or file it came from, and "today" starts at the user's local midnight, as in the view's "Merged today".
+A claim that a rule, a fix or a setting is in force or not is read that turn in the repo, the queue or the plan's Decisions, or said as "not checked".
+A reply names a row, a report or a rule in words the user has seen, and gives a term its context or leaves it out, in `/ketchup`'s voice.
+A Result whose change shows in a UI is told as fixed only after this home read each png it names, and a shot that still shows the fault is told as not fixed, whatever its probe printed (Josh, 2026-10-31: "verify with screenshots first next time").
 Every other turn ends here: one a thread or jbus started, a home's start, and a turn the user started with an instruction ("launch it", "fix that").
 
 Write each thing the turn did as one line, its kind first:
