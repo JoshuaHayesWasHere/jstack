@@ -10,6 +10,7 @@ The tests run the `jmerge` command (`jmerge.cli`) against a real origin and the 
 answers the artifact and run lookups from files of the stub."""
 
 import json
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -332,6 +333,33 @@ def test_a_batch_whose_check_runs_past_its_limit_sends_each_member_down_the_sing
         ["merged", "7"],
         ["merged", "8"],
     ]
+    assert runs(kitchen) == 3
+
+
+def test_a_batch_that_passed_with_no_artifact_found_waits_and_merges_once_it_is_found(kitchen):
+    three(kitchen)
+    tip = kitchen.tip()
+    kitchen.run()
+    listed(kitchen, (merge.PASSED,))
+    assert kitchen.run() == [in_batch(number, tip) for number in (6, 7, 8)]
+    assert kitchen.calls() == [] and runs(kitchen) == 0
+    assert record(kitchen)["failed"] == {}
+    proven(kitchen)
+    said = kitchen.run()
+    assert [line.split()[:2] for line in said] == [["merged", "6"], ["merged", "7"], ["merged", "8"]]
+    assert runs(kitchen) == 0
+
+
+def test_a_batch_that_passed_with_no_artifact_found_at_its_limit_has_failed(kitchen):
+    three(kitchen)
+    kitchen.run()
+    late = datetime.now(UTC) - timedelta(minutes=batch.PENDING_MINUTES, seconds=1)
+    kept = record(kitchen)
+    (kitchen.home.state / batch.KEPT).write_text(json.dumps({**kept, "at": late.isoformat()}))
+    listed(kitchen, (merge.PASSED,))
+    said = kitchen.run()
+    assert [line.split()[:2] for line in said] == [["merged", "6"], ["merged", "7"], ["merged", "8"]]
+    assert all(", the guards passed on its tree merged over main at " in line for line in said)
     assert runs(kitchen) == 3
 
 
