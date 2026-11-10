@@ -30,6 +30,7 @@ The store has one table for each record file of each project, with a `project` c
 | `spend_days` | `spend.jsonl` | a project's Claude spend of one local day (`spent_on`), in units, tokens and units by kind |
 | `spend_rows` | `spend-rows.jsonl` | a day's spend of one role and row, by the title jbus gave the thread |
 | `word_sends` | `word-sends.json` | the thread a carried word went to and when, or that it still waits |
+| `main_reds` | `main-reds.jsonl` | a tip of main whose check `jbus.mainmoved.tell` judged `failed`, once: its `sha`, `pr`, the first pull request landed since the last green tip, the failed `step`, how many `tests` failed and the `verdict`, `change`, `flake` or `infra` (`mainmoved.Verdict`) |
 | `reverts` | `reverts.json` | a revert jbus opened for a red main, by its red tip: the culprit's `slug`, the revert's `branch` and its `pr` |
 | `drift` | the machine's `drift.jsonl` | a run of one drift probe: its `probe`, `word`, `status`, `found`, `sha` and `error` |
 | `stalls` | `stalls.jsonl` | a spell a running row's thread was quiet or hung: its line when a pass first saw it, and its line when a pass saw it end, with `until`, `minutes` and `became`; and the file's first line, `began`, when the first pass that ran `jbus.stall.spells` began the record |
@@ -193,11 +194,11 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 | `lead_times` | S5 for each merged row: minutes from its go to its merge, where the go is the earliest of its first approved item, its approval and its first launch |
 | `main_runs` | each push check on main in `ci.jsonl`: the latest attempt of each run, and its `state`, `red`, `green` or `pending`, read by `main_checks`, `ci_projects` and `ci_rows` |
 | `main_checks` | each commit of `main_runs` with its latest run of the `check` workflow (a run with a job named `check`), and `first`, when its first such run began, read by `main_spells` |
-| `main_spells` | each red spell of the push checks on main, from the first commit whose check failed to the next commit whose check passed, with `minutes_to_green` |
+| `main_spells` | each red spell of the push checks on main, from the first commit whose check failed to the next commit whose check passed, with `minutes_to_green`, and `cause`, the `verdict` of `main_reds` at its first red commit, or `unjudged` where the ledger has none |
 | `ci_projects` | each project whose push checks on main the store holds |
 | `ci_rows` | each merged row of a project in `ci_projects`, `kept` where the store holds a push check of main for its pull request |
 | `ci_gaps` | each day with merged rows that are not `kept`, and how many `rows` |
-| `change_failures` | S6 for each `kept` row of `ci_rows`: whether its pull request opened a spell |
+| `change_failures` | S6 for each `kept` row of `ci_rows`: whether its pull request opened a spell whose `cause` is `change` or `unjudged` |
 | `weekly_lead_time` | each week's S5: `n`, `median` and `p85` |
 | `weekly_change_failure` | each week's S6: `failures`, `merged` and `rate` |
 | `brief_at_launch` | each launch of a row: the sha of the brief stored then, and how many versions came after |
@@ -291,6 +292,10 @@ A reply counts as an answer, so a message answered in words whose work never bec
 
 The spells come from `ci.jsonl`, so S6 and S7 count only the projects whose table says `ci_report = true`, and only the runs their ledger holds.
 S6 counts a merged row only where the store holds a push check of main for its pull request, since a row with none could never fail.
+S6 counts a red spell of main's push check that a change caused: its first red commit's verdict in `main-reds.jsonl` is `change`, the tests or the lint failed on the code.
+A spell of a flake, where each failed test is one `jbus ci` counts as a flake, or of the infrastructure, a failed step that is neither the tests nor the lint or a test step that names no failed test, is no change failure.
+A spell with no line in the ledger, as each before `tell` began writing it on 2026-11-10, is `unjudged` and counts as before.
+S6 is not rework: a follow-up or a revert that never turned main red is not counted.
 The KPI page names the projects S6 covers and the days of the week with rows it left out.
 A merge line counts for a pull request only from a minute before it opened on, since `merge.log` can hold an older repo's lines of the same number, as jstack's does from 2026-10-10 to 10-14.
 `pr_times` reads `ci-prs.jsonl` too, so it has the same projects.

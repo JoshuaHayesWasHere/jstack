@@ -15,6 +15,10 @@ and `jbus.watch` still read the record, and each property below is about what th
 - **S3, the red tip's own tests.** When the record keeps `failed` beside `broken`, those are the
   tests that failed at that tip. The harm when it breaks: `jbus.reverts` judges a red tip by another
   tip's tests, and a flake's revert or a culprit's escape is a wrong one.
+- **S4, each red judged once.** `main-reds.jsonl` (`mainmoved.REDS`) has a line for the red tip the
+  record names, with that tip's own tests, and no tip has two lines. The harm when it breaks: a
+  spell of main's red reads `unjudged` and counts as a change failure whatever caused it, or two
+  lines give one red two causes.
 
 The model has at most `TIPS` tips on main and at most `EVENTS` events. The first tip, M0, is green
 and is there from the start. `tell` tells no crew anything, so no open pull request changes what it
@@ -44,10 +48,12 @@ Each kind of step matches the code as follows:
 
 The model stubs these, and only these. `mainmoved.main_check` returns the tip's check from the
 model, where the real one would ask GitHub. `mainmoved.failed_at` returns the one test that failed
-at a red tip (`failing`), where the real one reads the red run's logs. GitHub's list of main's
-commits is the model's tips, each the first parent of the next. `account` raises and closes no
-gate. `Pass` is a fake with only what `tell` reads. `main.json` is a real file in a temporary state
-directory, and the real code writes it.
+at a red tip (`failing`), where the real one reads the red run's logs, and `mainmoved.failed_steps`
+the step it failed at, `make test`. GitHub's list of main's commits is the model's tips, each the
+first parent of the next. `merged.json` and `jbus ci`'s ledgers are not there, so the ledger's
+lines name no pull request and no flake. `account` raises and closes no gate. `Pass` is a fake with
+only what `tell` reads. `main.json` and `main-reds.jsonl` are real files in a temporary state
+directory, and the real code writes them.
 
 The model does not cover a record written before `tell` stopped telling crews (`fixed` and `held`
 in `main.json`), a remote that cannot be read, `checks.json`'s cache, `jbus.reverts`'s own
@@ -108,15 +114,16 @@ class Options:
 @dataclass(frozen=True)
 class State:
     """`State` is the model's state between two steps. It holds each tip's check, the record
-    `tell` keeps, and whether a pass has run since the newest tip settled. Only `one_at_a_time`
-    reads `looked`."""
+    `tell` keeps, whether a pass has run since the newest tip settled, and the ledger of reds
+    `tell` writes. Only `one_at_a_time` reads `looked`."""
 
     checks: tuple[str, ...]
     record: str
     looked: bool
+    reds: str = ""
 
     def key(self) -> str:
-        return json.dumps([self.checks, self.record, self.looked])
+        return json.dumps([self.checks, self.record, self.looked, self.reds])
 
 
 class Asked:
@@ -163,23 +170,29 @@ def stubbed() -> Iterator[None]:
         mock.patch("os.fsync", lambda fd: None),
         mock.patch.object(mainmoved, "main_check", lambda run, at, **_: run.checks[at]),
         mock.patch.object(mainmoved, "failed_at", lambda run, at: [failing(int(at[0]))]),
+        mock.patch.object(mainmoved, "failed_steps", lambda run, at: ["make test"]),
         mock.patch.object(mainmoved, "account", lambda run, unrun, passed: None),
     ):
         yield
 
 
 class Files:
-    """`Files` is the model's state directory, with `main.json` as a state has it."""
+    """`Files` is the model's state directory, with `main.json` and `main-reds.jsonl` as a state
+    has them."""
 
     def __init__(self, root: Path) -> None:
         self.state = root
 
     def put(self, state: State) -> None:
-        path = self.state / mainjson.NAME
-        if state.record:
-            path.write_text(state.record)
-        else:
-            path.unlink(missing_ok=True)
+        for path, text in ((self.state / mainjson.NAME, state.record), (self.reds, state.reds)):
+            if text:
+                path.write_text(text)
+            else:
+                path.unlink(missing_ok=True)
+
+    @property
+    def reds(self) -> Path:
+        return self.state / mainmoved.REDS
 
     def red(self, state: State) -> str:
         """Return the red tip its readers read, `mainjson.read(state).red`."""
@@ -194,7 +207,8 @@ class Files:
         mainmoved.tell(run)  # type: ignore[arg-type]
         path = self.state / mainjson.NAME
         record = path.read_text() if path.exists() else ""
-        return State(state.checks, record, state.checks[-1] != "pending")
+        reds = self.reds.read_text() if self.reds.exists() else ""
+        return State(state.checks, record, state.checks[-1] != "pending", reds)
 
 
 def failing(tip: int) -> str:
@@ -225,7 +239,20 @@ def s3(state: State, files: Files) -> bool:
     return not broken or failed is None or failed == [failing(int(broken[0]))]
 
 
-PROPERTIES = {"S1": s1, "S2": s2, "S3": s3}
+def s4(state: State, files: Files) -> bool:
+    """Return whether S4 holds on the state that a pass leaves: the red tip the record names has
+    one line in the ledger, with its own tests, and no tip has two."""
+    lines = [json.loads(line) for line in state.reds.splitlines()]
+    shas = [line["sha"] for line in lines]
+    broken = (json.loads(state.record) if state.record else {}).get("broken")
+    if len(shas) != len(set(shas)):
+        return False
+    if any(line["failed"] != [failing(int(line["sha"][0]))] for line in lines):
+        return False
+    return not broken or broken in shas
+
+
+PROPERTIES = {"S1": s1, "S2": s2, "S3": s3, "S4": s4}
 
 
 @dataclass(frozen=True)
@@ -244,7 +271,7 @@ def steps(state: State, files: Files, options: Options) -> Iterator[Step]:
     landed = len(state.checks)
     ready = not options.one_at_a_time or (state.checks[-1] != "pending" and state.looked)
     if landed < TIPS and ready:
-        after = State((*state.checks, "pending"), state.record, False)
+        after = State((*state.checks, "pending"), state.record, False, state.reds)
         yield Step("merge", f"M{landed} lands: a merge", after)
     for tip, check in enumerate(state.checks):
         if check != "pending":
@@ -252,10 +279,10 @@ def steps(state: State, files: Files, options: Options) -> Iterator[Step]:
         for answer in SETTLES:
             checks = (*state.checks[:tip], answer, *state.checks[tip + 1 :])
             looked = state.looked and tip != landed - 1
-            after = State(checks, state.record, looked)
+            after = State(checks, state.record, looked, state.reds)
             yield Step(f"settles {answer}", f"M{tip}'s check settles: {answer}", after)
     if state.checks[-1] == "failed":
-        after = State((*state.checks[:-1], "green"), state.record, False)
+        after = State((*state.checks[:-1], "green"), state.record, False, state.reds)
         yield Step("rerun passes", f"M{landed - 1}'s check is rerun and passes", after)
     after = files.tell(state)
     main = mainjson.read(files.state)

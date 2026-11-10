@@ -1,5 +1,7 @@
 """Each red spell of main's push checks, from the first commit whose check failed to the next commit
-whose check passed (`minutes_to_green`)."""
+whose check passed (`minutes_to_green`), and its `cause`: the verdict `jbus.mainmoved.tell` wrote
+for the spell's first red commit in `main-reds.jsonl` (`change`, `flake` or `infra`), or
+`unjudged` where it wrote none, as for a spell before the ledger began."""
 
 from jbus.telemetry.schema import WEEK
 
@@ -17,7 +19,9 @@ SQL = (
     "g.completed AS first_fail_at, g.day, "
     f"{WEEK.format(day='g.day')} AS week, e.end_sha, e.green_at, "
     "round((julianday(e.green_at) - julianday(g.completed)) * 1440.0, 1) "
-    "AS minutes_to_green FROM grouped g "
+    "AS minutes_to_green, coalesce((SELECT r.verdict FROM main_reds r WHERE r.project = "
+    "g.project AND r.sha = g.sha ORDER BY r.at DESC LIMIT 1), 'unjudged') AS cause "
+    "FROM grouped g "
     "LEFT JOIN ends e ON e.project = g.project AND e.spell = g.spell AND e.place = 1 "
     "WHERE g.opens = 1"
 )
