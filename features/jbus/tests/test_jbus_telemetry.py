@@ -748,7 +748,8 @@ the failed step of each failed part of check's push run at the spell's first red
 tests the run named as failed, how many of those `reverts.flaky` named at the spell's first red,
 over `ci.jsonl` as it stood then, and the verdict. #1359 and #1358 failed on a 504 fetching
 tla2tools.jar, which no named test and no runner sign tells apart from a change; #1472 is #1519's
-race, which landed with no check of its own; #1553's timing test had failed on no other branch yet."""
+race, which landed with no check of its own; #1553's timing test had failed on no other branch
+yet."""
 
 
 @pytest.mark.parametrize(("pr", "steps", "failed", "flaky", "verdict"), SPELLS_OF_2026_11_08)

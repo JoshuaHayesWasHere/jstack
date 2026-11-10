@@ -48,12 +48,12 @@ Each kind of step matches the code as follows:
 
 The model stubs these, and only these. `mainmoved.main_check` returns the tip's check from the
 model, where the real one would ask GitHub. `mainmoved.failed_at` returns the one test that failed
-at a red tip (`failing`), where the real one reads the red run's logs, and
-`mainmoved.failed_steps` the step it failed at, `make test`. GitHub's list of main's
-commits is the model's tips, each the first parent of the next. `merged.json` and `jbus ci`'s
-ledgers are not there, so the ledger's lines name no pull request and no flake. `account` raises and closes no
-gate. `Pass` is a fake with only what `tell` reads. `main.json` and `main-reds.jsonl` are real files in
-a temporary state directory, and the real code writes them.
+at a red tip (`failing`), where the real one reads the red run's logs, and `mainmoved.failed_steps`
+the step it failed at, `make test`. GitHub's list of main's commits is the model's tips, each the
+first parent of the next. `merged.json` and `jbus ci`'s ledgers are not there, so the ledger's
+lines name no pull request and no flake. `account` raises and closes no gate. `Pass` is a fake with
+only what `tell` reads. `main.json` and `main-reds.jsonl` are real files in a temporary state
+directory, and the real code writes them.
 
 The model does not cover a record written before `tell` stopped telling crews (`fixed` and `held`
 in `main.json`), a remote that cannot be read, `checks.json`'s cache, `jbus.reverts`'s own
