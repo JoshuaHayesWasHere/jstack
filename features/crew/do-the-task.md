@@ -13,6 +13,8 @@
   Every run of the check this skill asks for, after a failed check, a rebase or a fix, is this block:
 
   ```sh
+  budget=540 reserve=120
+  began=$(date +%s)
   B="$H/tasks/<slug>.md"
   head=$(git rev-parse HEAD)
   clean=$(git status --porcelain)
@@ -39,11 +41,21 @@
           [ "$(sed -n 1p "$steps" 2> /dev/null)" = "$head $base" ] || printf '%s %s\n' "$head" "$base" > "$steps"
           echo "touched: $(printf '%s' "$touched" | command grep -c .) test files, then $(printf '%s' "$guards" | command grep -c .) cross-cutting guard tests, each alone in the short lane after the lint; CI's check runs the rest of the selection"
           ran=0
+          ceiling=${JGAUGE_SHORT_WAIT_SECONDS:-300}
+          left=
           for step in lint $touched $guards; do
               if command grep -qxF "passed $step" "$steps"; then
-                  echo "$step: passed at this head already"
+                  [ -n "$left" ] || echo "$step: passed at this head already"
                   continue
               fi
+              have=$((budget - $(date +%s) + began))
+              [ -n "$left" ] || [ "$have" -ge "$reserve" ] || left=0
+              if [ -n "$left" ]; then
+                  left=$((left + 1))
+                  continue
+              fi
+              wait=$((have - reserve))
+              [ "$wait" -le "$ceiling" ] || wait=$ceiling
               if [ "$step" = lint ]; then
                   set -- make check-fast BASE="$base" PYTEST=: PART=touched
               else
@@ -51,7 +63,7 @@
               fi
               started=$(date +%s)
               lane=short
-              uv run --project "$T/../source" jgauge test-slot --short --thread '<thread id>' -- "$@"
+              JGAUGE_SHORT_WAIT_SECONDS=$wait uv run --project "$T/../source" jgauge test-slot --short --thread '<thread id>' -- "$@"
               said=$?
               if [ "$said" = 124 ]; then
                   echo "$step: stopped at the short lane's limit, no verdict: it runs again alone in a full slot"
@@ -73,6 +85,10 @@
                   ;;
               esac
           done
+          if [ -n "$left" ]; then
+              echo "running: $left steps left"
+              ran=76
+          fi
           (exit "$ran")
       fi
   else
@@ -99,12 +115,16 @@
   The block adds `Checked: <the command> exit <its exit> at <the full head>` to the brief for a check that ran to its end on a committed head, which `jmerge` reads, and nobody writes that line by hand.
   It does so from the first head on, whether or not the brief has a Result yet, so the first head's check is on record too.
   For a selected check the line reads `Checked: make check-fast BASE=<base> PART=touched exit <n> at <head>`, and the block prints each step as `<step>: exit <n> in <s> s, <lane> lane`, the step `lint`, a touched test file or a cross-cutting guard test file.
-  The block's exit is the first step's failure where one failed, and it stops there; else 124 where a step reached no verdict even in a full slot; else 0.
+  The block's exit is the first step's failure where one failed, and it stops there; else 76 where steps are left or a lane had no slot; else 124 where a step reached no verdict even in a full slot; else 0.
   A step that passed at a committed head is kept in the worktree's `crew-check-steps` (`git rev-parse --git-path crew-check-steps`), and a run of the block at the same head and base skips it, so a wait for a slot, or a call cut at its time limit, never starts the check over.
   `jmerge` merges a pull request only once its last `Checked:` line says the desk's check (`PART=touched`, a `PART=guards` line of an earlier head, or another repo's `jgauge check`) exited 0 at its head, or at a head whose patch the head carries unchanged (`ready.short_on_checked`): a missing line, a failure, a 124 and a line of a head whose patch changed since each hold it, until this block runs again at the head.
-  Give the call a time limit of 10 minutes (`timeout: 600000` in Claude Code), and never send it to the background: a step that falls back to a full slot can take minutes on a busy machine.
+  Give the call a time limit of 10 minutes (`timeout: 600000` in Claude Code), and never send it to the background: a call that outlives 10 minutes is moved to the background, and each step's end then wakes the thread.
+  So the block counts the time since it began and starts no step with less than `reserve` (120 s, the short lane's limit) left of its `budget` (540 s).
+  A step waits for a short slot for what is left less `reserve`, and never longer than the lane's ceiling (`JGAUGE_SHORT_WAIT_SECONDS`, 300 s by default).
+  A step that falls back to a full slot can still take minutes on a busy machine.
+  With steps left, the block prints `running: <n> steps left`, writes no `Checked:` line and ends 76: run it again at once, in this turn.
   With no slot of a lane, it ends 76, as a targeted run does: where the short lane had none by its ceiling, run the block again at once, in this turn; where the full lane had none, the turn ends with the one line of "test slots", and on jbus's message run the block again.
-  Either way it goes on from the first step that has not passed.
+  Each run goes on from the first step that has not passed, and the run that passes the last step writes the `Checked:` line.
   It ends with the check's exit code, and on 0 the `touched:` line, each step's line and that exit code go on `Proof:`.
   A step that fails is the change's to fix, and every exit but 0 holds the pull request: a 124 reached no verdict, so run the block again.
   This desk proof, the `Checked:` line and the `Proved:` line below, is what jbus launches the review on, before the pull request opens.

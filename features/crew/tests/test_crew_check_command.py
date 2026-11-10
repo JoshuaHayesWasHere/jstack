@@ -676,26 +676,26 @@ def test_the_block_starts_no_step_it_cannot_end_in_its_call(tmp_path, monkeypatc
     """A call ends at 600 s, and past it the harness moves the block to the background, where
     each step's end wakes the thread. So the block starts no step with less of its 540 s left
     than the short lane's 120 s limit: with each step taking 150 s, the third step ends at
-    450 s and the fourth is not started. It says how many steps are left, ends 76 as a wait
-    does, and writes no `Checked:` line, since nothing reached a verdict for the whole check."""
+    450 s and the fourth and fifth are not started. It says how many steps are left, ends 76 as
+    a wait does, and writes no `Checked:` line, since the check as a whole reached no verdict."""
     monkeypatch.delenv("JGAUGE_SHORT_WAIT_SECONDS", raising=False)
     repo = stubbed(tmp_path, touching(*FOUR))
     brief = a_brief(tmp_path)
     said, code, ran, base = selected(tmp_path, repo, takes=150)
     assert ran == [lint(base), alone(FOUR[0], base), alone(FOUR[1], base)]
-    assert (said[-1], code) == ("running: 3 steps left", 76), said
+    assert (said[-1], code) == ("running: 2 steps left", 76), said
     assert brief.read_text() == "# a-task: a task\n\n## Result\n"
 
 
 def test_a_step_waits_no_longer_than_the_call_has_left(tmp_path, monkeypatch):
     """A step's wait for a short slot is the time left of the 540 s less the 120 s the step may
-    then run, and never more than the lane's own ceiling of 300 s: 300 s at 0 s and 150 s, and
-    120 s at 300 s."""
+    then run, and never more than the lane's own ceiling of 300 s: 300 s at 0 s, 270 s at 150 s
+    and 120 s at 300 s."""
     monkeypatch.delenv("JGAUGE_SHORT_WAIT_SECONDS", raising=False)
     repo = stubbed(tmp_path, touching(*FOUR))
     a_brief(tmp_path)
     selected(tmp_path, repo, takes=150)
-    assert (tmp_path / "stub" / "waits").read_text().split() == ["300", "300", "120"]
+    assert (tmp_path / "stub" / "waits").read_text().split() == ["300", "270", "120"]
 
 
 def test_a_block_run_again_ends_the_steps_left(tmp_path, monkeypatch):
