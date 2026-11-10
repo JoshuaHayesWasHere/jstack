@@ -99,6 +99,7 @@ ORDER = [
     "tellers 57 prereview.tell (client, world)",
     "tellers 60 threads.resume (client, world)",
     "tellers 70 threads.merged (client, world)",
+    "tellers 72 pausedon.tell (client, world)",
     "tellers 75 reload.tell (client)",
     "tellers 80 threads.out and stall.hung (client, world)",
     "tellers 90 stall.twice (world)",

@@ -62,7 +62,7 @@ from jbus import (
 )
 from jbus.judged import Said, parse
 from jbus.launches import records
-from jbus.mirror import last_result, sections
+from jbus.mirror import last_result, paused_on, sections
 from jbus.passes import Changed, Depends, Pass, Red, Rerun, Slot, side_by_side
 from jbus.t3 import Client, T3Error
 from jbus.wake import cut
@@ -461,8 +461,9 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
         run.condition(run.project.name, "GitHub's API budget is under the floor", held, key=key)
         return Look(out=out, held=held, spent=spent)
     kept: dict[str, dict[str, Any]] = read_json(run.state / "merged.json", {})
-    named = {slug for row in rows for slug in (row["slug"], *row.get("depends", []))}
     queued = {row["slug"] for row in rows}
+    named = {slug for row in rows for slug in (row["slug"], *row.get("depends", []))}
+    named |= {one for result in world.results.values() for one in paused_on(result, queued)}
     tips = base_tips(run)
     unmoved = tips is not None and read_json(run.state / BASES, None) == tips
     try:

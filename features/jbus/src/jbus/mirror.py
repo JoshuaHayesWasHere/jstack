@@ -18,7 +18,7 @@ from __future__ import annotations
 import hashlib
 import itertools
 import re
-from collections.abc import Iterator
+from collections.abc import Collection, Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -75,6 +75,21 @@ def last_result(text: str) -> str:
     whole = sections(text)
     results = [f"{h}\n{b}" for h, b in whole if h.startswith("## Result")]
     return results[-1] if results else ""
+
+
+PAUSED_ON = "Paused on:"
+_WORDS = re.compile(r"[\s,;`]+")
+
+
+def paused_on(result: str, slugs: Collection[str]) -> tuple[str, ...]:
+    """The rows a paused Result waits on: each word of its `Paused on:` line that is one of
+    `slugs`, sorted (`jbus.pausedon`). Empty for a Result whose `Status:` is not `paused` as the
+    crew skill's blocks read it: `paused`, `paused,` or `paused:` and the rest of the line."""
+    status = (below.line(result, "Status:").split() or [""])[0].rstrip(",.:;")
+    if status != "paused":
+        return ()
+    words = _WORDS.split(below.line(result, PAUSED_ON))
+    return tuple(sorted({word for word in words if word in slugs}))
 
 
 def delivered(text: str) -> bool:
