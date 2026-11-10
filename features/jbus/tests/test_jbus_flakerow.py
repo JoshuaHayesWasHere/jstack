@@ -12,7 +12,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import mainmoved, queue
+from jbus import flakerow, mainmoved, queue
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_queue import rows
 
@@ -49,7 +49,7 @@ def red(kitchen, sha, ago, failed, verdict="flake"):
 def filed(kitchen):
     if not (kitchen.state / "queue.json").exists():
         return []
-    return sorted(slug for slug in rows(kitchen) if slug.startswith("flake-"))
+    return sorted(slug for slug in rows(kitchen) if slug.startswith(flakerow.PREFIX))
 
 
 def test_a_test_that_flaked_twice_in_seven_days_gets_one_row(kitchen):
