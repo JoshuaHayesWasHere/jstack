@@ -334,7 +334,7 @@ def lanes(stub, locks, log, exits=None, takes=None):
         f'echo "$said" >> {log}\n'
         + (
             f'echo "${{JGAUGE_SHORT_WAIT_SECONDS-unset}}" >> {stub / "waits"}\n'
-            f'echo $(($(cat {stub / "clock"}) + {takes})) > {stub / "clock"}\n'
+            f"echo $(($(cat {stub / 'clock'}) + {takes})) > {stub / 'clock'}\n"
             if takes
             else ""
         )
