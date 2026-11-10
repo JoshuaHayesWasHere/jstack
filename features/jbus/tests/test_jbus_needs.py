@@ -14,6 +14,7 @@ import pytest
 
 import jbus
 from jbus import acts, homestatus, questions, verbs, work
+from test_jbus_build_behind import machine, patched  # noqa: F401
 from test_jbus_kitchen import GATE, NOW, RESULT
 from test_jbus_leftover import home
 from test_jbus_questions import held
@@ -365,3 +366,34 @@ def test_the_sidebar_file_names_rows_from_before_that_say_root_under_uncategoriz
         "sc-ask": "sc",
         "sc-row": "sc",
     }
+
+
+def test_a_scopes_list_has_the_projects_own_items_and_the_asks_still_open_in_its_told(
+    kitchen, machine
+):
+    """`jbus needs --home` keeps one home's items, and with them each item about no row and no
+    home, such as a T3 Code build to install, and each `decision local` or `stop local` line
+    still in the home's `told`: an ask of the home's own, open until a `cleared` line ends it."""
+    sc = scoped(kitchen, "sc")
+    old = patched(kitchen, "0001-tree.patch", "one\n")
+    patched(kitchen, "0002-rows.patch", "two\n")
+    machine(f"t3 v0.1.7+jstack.{old}")
+    turn = (
+        "decision local alpha: run the install at a quiet time and tell me\n"
+        "stop local beta: lift the hold on beta\n"
+        "decision question 3: drop the old branch\n"
+        "stop local gamma: say which way\n"
+    )
+    assert kitchen.main("told", str(sc), stdin=turn)[0] == 0
+    assert kitchen.main("told", str(sc), stdin="cleared local gamma: answered\n")[0] == 0
+    kitchen.poll()
+    said = needs(kitchen, "--project", "demo", home=sc)
+    assert said[0] == "waiting on user: 3, in demo"
+    assert said[1].startswith("demo install t3code-jstack: T3 Code runs the jstack build")
+    assert said[3:] == [
+        "demo sc home decision local alpha: run the install at a quiet time and tell me",
+        "  answer: reply to the sc home in your own words",
+        "demo sc home stop local beta: lift the hold on beta",
+        "  answer: reply to the sc home in your own words",
+    ]
+    assert needs(kitchen, "--project", "demo", home=kitchen.home)[3:] == said[3:]
