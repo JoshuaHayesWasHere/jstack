@@ -11,6 +11,7 @@ import pytest
 from statechart_support import statechart_cli
 from testing.paths import REPO
 
+READ_SET = ("features/*/spec/*-statechart/chart.mmd", "features/home/docs/charts/")
 CHARTS = sorted(REPO.glob("features/*/spec/*-statechart/chart.mmd"))
 DRAWN = REPO / "features" / "home" / "docs" / "charts"
 COMMON = {
