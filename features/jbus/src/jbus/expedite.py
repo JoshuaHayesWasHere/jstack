@@ -20,8 +20,9 @@ crew's own proof or check clears (`Short.spells`, `TELLS`). `TABLE` holds every 
   findings that have no answer that counts;
 - `fix`, `the scoped review of it is not written`: launch the scoped reviewer of the fix
   with the two ranges, the patch the last review saw and the patch at the head, owed only after
-  a `Meets the brief: no` and while no `Proved:` line holds at the head. Where the crew cannot
-  work out a range, run the crew skill's block, which says what to do;
+  a `Meets the brief: no` and while no `Proved:` line holds at the head, and never at the head a
+  written review judged, which it would read again. Where the crew cannot work out a range, run the
+  crew skill's block, which says what to do;
 - `meets-no`, `meets-unread` and `meets-miscounted`, the last review round's `Meets the brief:`
   line (`jbriefs.meets`) says `no`, has no shape `jmerge` reads, or counts other lines than the
   brief has: run the crew skill's block of "A second pass", which gives the scoped review the
@@ -148,16 +149,7 @@ NO_FIX_RANGE = (
     "ranges."
 )
 RERUN = "rerun.md"
-ANSWERED = (
-    "unfixed",
-    "unpushed",
-    "unended",
-    "unanswered",
-    "unproven",
-    "uncited",
-    "repeated",
-    "risky",
-)
+ANSWERED = tuple("unfixed unpushed unended unanswered unproven uncited repeated risky".split())
 AGAIN = "/pr-review run {slug} again"
 SCOPED = "/pr-review run {slug} scoped {old} {new}"
 PROVE_STEP = "Once the check passed, prove the change with the tests it changes"
@@ -689,7 +681,8 @@ def tell(run: Pass, client: Client, world: World, pulls: merge.Said) -> set[int]
         if due and _capped(run, client, slug):
             entry["passes"] = after
         passes = entry["passes"]
-        if due and rebase.mark(row.kind, slug, head) in sent:
+        seen = row.kind == "fix" and ready.said_of(task_brief(run, slug)).reviewed == head
+        if due and (rebase.mark(row.kind, slug, head) in sent or seen):
             entry["told"], entry["tells"], due = passes, 1, False
         asked = "told" in entry and not entry.get("users")
         busy = _busy(run, client, world, slug, row) if due or asked else None

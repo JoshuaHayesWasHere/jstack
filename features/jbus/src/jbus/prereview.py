@@ -25,10 +25,10 @@ which sends nothing to a crew whose review is awaited: only this pass knows the 
 it refused it. Meanwhile the row runs, waiting on its review (`watch.owes_pull`), whatever its
 Result's `Left:` line names, and the crew's follow-up Result is read like the first.
 
-The key `reviewers|<slug>|<head 12>` is marked before the first launch, since a launch has no
-retry key: a pass that crashes after it launches no reviewer twice. A pass that finds every
-instance of the review pool capped launches nothing and marks nothing, and the next pass asks
-again.
+A head that has a review asked for (`reviewlaunch.has`) gets no reviewer. The head is claimed
+(`reviewlaunch.claim`) before the first launch, since a launch has no retry key: a pass that
+crashes after it launches no reviewer twice. A pass that finds every instance of the review pool
+capped launches nothing and claims nothing, and the next pass asks again.
 
 `tell` reads the same rows once each reviewer jbus launched has written a `## Review` that ran
 (`review.ran`), and sends the crew one message under `prereviewed|<slug>|<head 12>`, the
@@ -190,8 +190,7 @@ def launch(run: Pass, client: Client, world: World) -> None:
             local = run.run("git", "rev-parse", "-q", "--verify", f"refs/heads/{branch}^{{commit}}")
             refuse(run, client, slug, thread, local.stdout.strip() or branch, why, "", sent)
             continue
-        key = f"reviewers|{slug}|{head[:12]}"
-        if key in sent:
+        if reviewlaunch.has(run, slug, head):
             continue
         short = proved(run, brief, head)
         if short:
@@ -213,7 +212,7 @@ def launch(run: Pass, client: Client, world: World) -> None:
         if capped:
             run.say(f"wait {slug}: no reviewer launched: {'; '.join(capped)}")
             continue
-        run.box.mark(key)
+        reviewlaunch.claim(run, slug, head, "first")
         lines = []
         for n, routed in enumerate(routes or [None], start=1):
             asked = arguments(run, slug, n, tree, branch, routed)
@@ -222,7 +221,7 @@ def launch(run: Pass, client: Client, world: World) -> None:
             except (T3Refused, T3Error) as error:
                 made, why = None, f": {error}"
             if not made:
-                run.condition(slug, LOST, f"reviewer #{n} at {head}{why}", key=f"lost {key}")
+                run.condition(slug, LOST, f"reviewer #{n} at {head}{why}", key=f"lost {head[:12]}")
                 break
             reviewlaunch.record(run, reviewlaunch.Launch(slug, made, head, "first", n, run.now))
             lines.append(f"Reviewer: {made} #{n}\n")

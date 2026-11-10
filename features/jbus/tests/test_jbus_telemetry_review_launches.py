@@ -147,7 +147,8 @@ def test_duplicate_reviews_counts_the_launches_at_a_head_jbus_recorded(machine):
     """Two reviewers launched before their pull request, with no head on record, are no repeat of
     each other. Of three launches with a head on record, the second at the head the first was
     launched at is a repeat, and the third, at a head whose `check` run had not started when it
-    launched, is none: the measure reads 1 of 3, and says 2 launches had no head on record.
+    launched, is none: the measure reads 1 of 3, and says 2 launches had no head on record. The
+    claim jbus writes before each launch it makes, a line that names no thread, is no launch.
     The heads are read by `jbus.telemetry.records.review_heads` into the table that
     `jbus.telemetry.migrations.v018_review_heads` makes."""
     minute = timedelta(minutes=1)
@@ -166,7 +167,9 @@ def test_duplicate_reviews_counts_the_launches_at_a_head_jbus_recorded(machine):
     lines(
         machine,
         "review-launches.jsonl",
+        launch("twice", "", "a" * 40, NOW + 2 * minute, n=0),
         launch("twice", "mcp:twice-1", "a" * 40, NOW + 2 * minute),
+        launch("twice", "", "a" * 40, NOW + 10 * minute, n=0),
         launch("twice", "mcp:twice-2", "a" * 40, NOW + 10 * minute),
         launch("twice", "mcp:twice-3", "b" * 40, NOW + 21 * minute, kind="scoped"),
     )
@@ -180,6 +183,7 @@ def test_duplicate_reviews_counts_the_launches_at_a_head_jbus_recorded(machine):
         reading = measures.read(
             store, duplicates.MEASURE, "alpha", NOW + 60 * minute, jsettings.Settings(zone=UTC)
         )
+        claims = store.execute("SELECT count(*) FROM review_heads WHERE thread = ''").fetchone()
 
     assert rows == [
         ("mcp:early-1", None, None, 0),
@@ -188,5 +192,5 @@ def test_duplicate_reviews_counts_the_launches_at_a_head_jbus_recorded(machine):
         ("mcp:twice-2", "a" * 40, "success", 1),
         ("mcp:twice-3", "b" * 40, "queued", 0),
     ]
-    assert (reading.value, reading.n) == (1, 3)
+    assert (reading.value, reading.n) == (1, 3) and claims == (0,)
     assert reading.note == "2 of 5 launches have no recorded head"

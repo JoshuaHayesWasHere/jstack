@@ -8,7 +8,6 @@ from datetime import timedelta
 
 import pytest
 
-import jbus
 import jsettings
 from jbus import rebase, reviewlaunch
 from jmerge import rangediff, ready
@@ -45,17 +44,24 @@ def scoped(kitchen):
     ]
 
 
+def lines(kitchen):
+    path = kitchen.state / reviewlaunch.LAUNCHES
+    text = path.read_text() if path.exists() else ""
+    return [json.loads(line) for line in text.splitlines() if line.startswith("{")]
+
+
 def keys(kitchen):
-    """The launch keys `sent.json` holds: `rereview|<slug>|<head 12>`, and no event's key."""
-    sent = jbus.read_json(kitchen.state / "sent.json", [])
-    return [key for key in sent if key.startswith("rereview|") and " " not in key]
+    """The heads, by 12, `review-launches.jsonl` holds a claim of: a line with no thread, written
+    before the launch."""
+    return [one["head"][:12] for one in lines(kitchen) if not one["thread"]]
 
 
 def recorded(kitchen):
-    """Each line of `review-launches.jsonl`: its slug, thread, head, kind and seat."""
+    """Each launch `review-launches.jsonl` holds: its slug, thread, head, kind and seat."""
     return [
         (one["slug"], one["thread"], one["head"], one["kind"], one["n"])
-        for one in map(json.loads, (kitchen.state / reviewlaunch.LAUNCHES).read_text().splitlines())
+        for one in lines(kitchen)
+        if one["thread"]
     ]
 
 
@@ -90,7 +96,7 @@ def test_a_changed_rebase_launches_one_scoped_reviewer_and_sends_its_crew_nothin
     }
     made = launched.t3.threads[-1]["threadId"]
     assert brief(launched).endswith(f"Scoped reviewer: {made}, of {head}\n")
-    assert keys(launched) == ["rereview|alpha|cccccccccccc"]
+    assert keys(launched) == ["c" * 12]
     line = f"rereview alpha: launched the scoped reviewer {made} (#7, cccccccccccc)"
     assert launched.lines("rereview") == [line]
     assert sends(launched) == [] and gates(launched) == []
@@ -105,7 +111,7 @@ def test_a_head_gets_one_reviewer_and_a_new_head_after_another_rebase_one_more(l
     for minutes in (9, 12):
         launched.poll(NOW + timedelta(minutes=minutes))
     assert [given["message"][-12:] for given in scoped(launched)] == ["c" * 12, "d" * 12]
-    assert keys(launched) == ["rereview|alpha|cccccccccccc", "rereview|alpha|dddddddddddd"]
+    assert keys(launched) == ["c" * 12, "d" * 12]
     assert sends(launched) == []
 
 
@@ -155,7 +161,7 @@ def test_a_range_diff_of_a_head_the_crew_has_pushed_past_waits_for_the_next_pass
     assert scoped(launched) == [] and launched.lines("rereview") == []
     out(launched, head="d" * 40)
     launched.poll(NOW + timedelta(minutes=3))
-    assert keys(launched) == ["rereview|alpha|dddddddddddd"] and len(scoped(launched)) == 1
+    assert keys(launched) == ["d" * 12] and len(scoped(launched)) == 1
 
 
 def test_a_head_github_has_moved_past_since_the_list_gets_no_reviewer(launched):
@@ -219,7 +225,7 @@ def test_a_capped_review_pool_launches_nothing_and_is_a_gate_once_until_it_has_r
     assert gates(launched) == [f"condition alpha: {rebase.CAPPED}"]
     full.unlink()
     launched.poll(NOW + timedelta(minutes=6))
-    assert len(scoped(launched)) == 1 and keys(launched) == ["rereview|alpha|cccccccccccc"]
+    assert len(scoped(launched)) == 1 and keys(launched) == ["c" * 12]
 
 
 def test_a_role_map_that_gives_the_review_no_model_launches_one_reviewer_that_inherits(
@@ -245,15 +251,15 @@ def test_a_launch_t3_code_refuses_marks_nothing_is_a_gate_once_and_goes_when_tak
     launched.poll(NOW + timedelta(minutes=6))
     made = launched.t3.threads[-1]["threadId"]
     assert brief(launched).endswith(f"Scoped reviewer: {made}, of {'c' * 40}\n")
-    assert keys(launched) == ["rereview|alpha|cccccccccccc"] and sends(launched) == []
+    assert keys(launched) == ["c" * 12] and sends(launched) == []
 
 
-def test_a_launch_with_no_answer_keeps_its_key_and_is_not_tried_again(launched):
+def test_a_launch_with_no_answer_keeps_its_claim_and_is_not_tried_again(launched):
     out(launched)
     launched.t3.lose = "after"
     for minutes in (0, 3):
         launched.poll(NOW + timedelta(minutes=minutes))
-    assert len(scoped(launched)) == 1 and keys(launched) == ["rereview|alpha|cccccccccccc"]
+    assert len(scoped(launched)) == 1 and keys(launched) == ["c" * 12]
     assert gates(launched) == [f"condition alpha: {rebase.LAUNCH_LOST}"]
     assert sends(launched) == []
 
@@ -386,7 +392,7 @@ def test_drops_of_a_head_already_given_its_reviewer_get_no_other(launched):
     launched.poll()
     out(launched, reason=ruled("c" * 40))
     launched.poll(NOW + timedelta(minutes=3))
-    assert len(scoped(launched)) == 1 and keys(launched) == ["rereview|alpha|cccccccccccc"]
+    assert len(scoped(launched)) == 1 and keys(launched) == ["c" * 12]
 
 
 def test_the_unruled_line_jbus_reads_is_the_line_jmerge_prints():
