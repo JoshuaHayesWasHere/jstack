@@ -123,3 +123,20 @@ def test_the_idle_floor_counts_only_hours_with_no_session_live(day):
     reading = read(day, "gh-idle-calls-per-hour")
     assert (reading.value, reading.n, reading.baseline) == (800, 3, 2_130)
     assert reading.state == "bad"
+
+
+def test_merges_per_session_hour_counts_every_project(day):
+    """The machine's sessions merge for every project it serves."""
+    reading = read(day, "merges-per-session-hour")
+    assert (reading.value, reading.n, reading.baseline) == (pytest.approx(3 / HOURS), 3, 0.71)
+
+
+def test_units_per_merge_is_every_unit_spent_today_over_its_merges(day):
+    reading = read(day, "units-per-merge")
+    assert (reading.value, reading.n, reading.baseline) == (pytest.approx(9 / 3), 3, 3.76)
+
+
+def test_rework_per_merge_counts_the_five_waits_that_redo_a_pull_request(day):
+    """A live run or a fresh conflict is not rework, nor another project's wait."""
+    reading = read(day, "rework-per-merge")
+    assert (reading.value, reading.n, reading.baseline) == (pytest.approx(5 / 2), 2, 2.1)
