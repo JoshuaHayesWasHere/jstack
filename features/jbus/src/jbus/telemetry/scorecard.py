@@ -33,6 +33,7 @@ WORDS: dict[State, str] = {
 WINDOWS: dict[measures.Window, str] = {
     "hour": "the last hour",
     "day": "today so far",
+    "72h": "the last 72 h",
     "week": "this week so far",
     "now": "now",
 }
