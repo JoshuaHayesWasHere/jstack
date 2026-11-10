@@ -83,6 +83,11 @@ MODULES = (
     "jbus.telemetry.measures.m59_wrong_home",
     "jbus.telemetry.measures.m60_schema_files",
     "jbus.telemetry.measures.m61_gh_calls_per_hour",
+    "jbus.telemetry.measures.m62_live_sessions",
+    "jbus.telemetry.measures.m63_gh_calls_per_session_hour",
+    "jbus.telemetry.measures.m64_merges_per_session_hour",
+    "jbus.telemetry.measures.m65_units_per_merge",
+    "jbus.telemetry.measures.m66_rework_per_merge",
 )
 """Each measure's module by its dotted name, so a new measure is named by a test that reads it."""
 
@@ -362,3 +367,16 @@ def test_no_weekly_read_of_calls_walks_every_call_of_a_provider(store, name):
     bound = {"project": "jstack", "begins": stamp(NOW), "ends": stamp(NOW)}
     plan = [row[3] for row in store.execute(f"EXPLAIN QUERY PLAN {query}", bound)]
     assert not [step for step in plan if step.endswith("USING PRIMARY KEY (provider=?)")], plan
+
+
+def test_exactly_three_measures_wake_and_no_other_alert_raises_them():
+    """A wake opens an alert on jbus's list (`jbus.kpis`), so a fourth is a change someone chose,
+    and each of the three keeps the line it was chosen with."""
+    wakes = {
+        each.name: each for each in measures.MEASURES if each.tier == "wake" and not each.wired
+    }
+    assert sorted(wakes) == ["failed-launches", "held-ready-pr", "macos-on-prs"]
+    assert (wakes["macos-on-prs"].kind, wakes["macos-on-prs"].window) == (measures.Zero(), "day")
+    assert wakes["failed-launches"].kind == measures.Limit(20, 5)
+    assert wakes["held-ready-pr"].kind == measures.Limit(2, 0)
+    assert wakes["held-ready-pr"].unit == "h"

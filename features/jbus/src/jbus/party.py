@@ -48,7 +48,9 @@ Source = Literal[
     "plan-entry",
     "view",
 ]
-Verb = Literal["go", "answer", "hold", "remove", "withdraw", "accept", "word", "item", "waive"]
+Verb = Literal[
+    "go", "answer", "hold", "remove", "withdraw", "accept", "word", "item", "waive", "standing"
+]
 Outcome = Literal["done", "gated", "refused", "noop"]
 RECORDED = "lavish-page"
 """The source of an old approval's words, which `acts.jsonl` keeps and no verb is given now."""
