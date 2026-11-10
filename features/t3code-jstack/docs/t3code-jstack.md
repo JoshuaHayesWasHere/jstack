@@ -93,7 +93,7 @@ A task in review says which part it is in, "review 1", "fixing", "review 2", "ch
 A crew task's row draws its stage as one ring filled by thirds, crew, review and merge, empty while it is queued.
 A scout's row draws a diamond, hollow while queued, half filled while it scouts and filled once its report is in, beside the word "queued", "scouting" or "report in".
 The tree reads a scout from its row of jbus's `work.json`, the same rows it reads for crews: the row's `scout` is its stage and its `thread` the scout's thread, and its title is the heading of its request in the home's `scouts` folder, after `<slug>:`.
-It reads no `scouts.json`; patch 0018 dropped that read once jbus stopped writing the file, so the `scouts.json` in jbus's state folder is stale and nothing in the fork reads it.
+It reads no `scouts.json`: patch 0018 dropped that read once jbus stopped writing the file, and patch 0036's test, in `JbusWork.test.ts`, holds it there: a stale `scouts.json` beside `work.json` changes no scout. The `scouts.json` in jbus's state folder is left over, and nothing in the fork reads it.
 One colour, sky, marks live work only: a ring or diamond at work, and the badge of a project with live work under it.
 Live is a launched task that does not ask you, is not quiet, stalled or held, and is not a scout whose report is in.
 Amber marks what asks you, and every other mark and badge is neutral.
