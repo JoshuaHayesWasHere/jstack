@@ -70,7 +70,10 @@ subprocess.Popen(sys.argv[1:], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNU
 
 @pytest.fixture(autouse=True)
 def no_user_units(tmp_path_factory, monkeypatch):
-    """The directory of the fake `systemd-run`, first on PATH."""
+    """The directory of the fake `systemd-run`, first on PATH. A pass the test runs is one by
+    hand, with no `INVOCATION_ID`, wherever the test runner itself runs under systemd: a test of a
+    pass that systemd runs sets it again itself."""
+    monkeypatch.delenv("INVOCATION_ID", raising=False)
     bin = tmp_path_factory.mktemp("units")
     (bin / "systemd-run").write_text(SYSTEMD_RUN)
     (bin / "systemd-run").chmod(0o755)
