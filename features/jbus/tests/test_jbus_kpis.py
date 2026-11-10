@@ -18,6 +18,7 @@ import pytest
 
 import jbus
 from jbus import alert, kpis, telemetry, wake
+from jbus.telemetry import measures
 
 NOW = datetime(2026, 11, 2, 20, 0, tzinfo=UTC)
 """15:00 in New York, the user's zone: the local day began at 05:00 UTC."""
@@ -381,8 +382,140 @@ def test_with_no_store_and_no_t3_store_nothing_is_read_and_nothing_alerts(machin
     assert machine.alerts() == []
 
 
-def test_the_stores_doc_lists_each_kpi_alert_the_code_has_and_no_other():
+def test_the_stores_doc_lists_each_alert_of_both_registries_and_no_other():
     doc = Path(__file__).resolve().parents[3] / "features/jbus/docs/jbus/the-telemetry-store.md"
     section = doc.read_text().split("\n## The KPI alerts\n", 1)[1].split("\n## ", 1)[0]
     rows = [line for line in section.splitlines() if line.startswith("| `")]
-    assert [row.split("`")[1] for row in rows] == [t.name for t in kpis.THRESHOLDS]
+    names = [t.name for t in kpis.THRESHOLDS] + [m.name for m in kpis.WAKES]
+    assert [row.split("`")[1] for row in rows] == names
+
+
+def macos_run(at, key):
+    """A run of the macOS workflow on a pull request, as `jbus.ci` logs it."""
+    return {
+        "at": iso(at),
+        "run": key,
+        "attempt": 1,
+        "workflow": "macos",
+        "sha": "s",
+        "branch": "b",
+        "event": "pull_request",
+        "pr": 7,
+        "created": iso(at),
+        "conclusion": "success",
+    }
+
+
+def test_a_macos_run_on_a_pull_request_wakes_once_and_ends_with_its_day(machine):
+    machine.append("runs.jsonl", macos_run(NOW - timedelta(hours=1), 1), project="alpha")
+    first = machine.look()
+    second = machine.look(NOW + timedelta(minutes=1))
+
+    key = "score macos-on-prs alpha 2026-11-02"
+    assert alert.streak(machine.state_dir, key).alerted
+    assert [line for line in first + second if "alert:" in line] == [
+        "alpha: alert: score macos-on-prs alpha: runs today of the macOS workflow on a pull "
+        "request, which runs nightly only: 1 runs, and its line alerts on any above 0"
+    ]
+    assert machine.alerts(NOW + timedelta(minutes=1)) == [first[0].removeprefix("alpha: ")]
+    assert machine.logged("alpha") == [first[0].removeprefix("alpha: ")]
+
+    tomorrow = NOW + timedelta(days=1)
+    assert machine.look(tomorrow) == []
+    assert machine.alerts(tomorrow) == []
+
+
+def launches(machine, at, count, failed, first=0):
+    """`count` rows launched at `at`, the first `failed` of them failing, as `jbus.queue` logs
+    each move of a row."""
+    for i in range(first, first + count):
+        machine.append(
+            "transitions.jsonl",
+            {
+                "at": iso(at + timedelta(seconds=i)),
+                "slug": f"row{i}",
+                "from": "queued",
+                "to": "launched",
+            },
+            project="alpha",
+        )
+        if i - first < failed:
+            machine.append(
+                "transitions.jsonl",
+                {
+                    "at": iso(at + timedelta(seconds=i, milliseconds=500)),
+                    "slug": f"row{i}",
+                    "from": "launched",
+                    "to": "failed",
+                },
+                project="alpha",
+            )
+
+
+def test_failed_launches_wake_over_a_fifth_of_the_hour_once_five_are_counted(machine):
+    launches(machine, NOW - timedelta(minutes=30), 4, 3)
+    assert machine.look() == []
+
+    launches(machine, NOW - timedelta(minutes=20), 2, 0, first=4)
+    said = machine.look()
+    assert said == [
+        "alpha: alert: score failed-launches alpha: share of the last hour's first launches "
+        "that failed: 50% of 6, over its line of 20%, read once 5 are counted"
+    ]
+    assert len(machine.alerts()) == 1
+
+
+def spell(blockers, code="undecided", seen=NOW - timedelta(minutes=1)):
+    """A spell of `merge-waits.json`, as `jmerge.waits` keeps it."""
+    return {
+        "head": "h1",
+        "ready": iso(NOW - timedelta(hours=3)),
+        "ready_by": "check",
+        "seen": iso(seen),
+        "code": code,
+        "blockers": blockers,
+    }
+
+
+def test_a_ready_pull_request_held_over_two_hours_by_a_held_row_wakes_until_it_leaves(machine):
+    waits = machine.home_dir / "alpha" / "merge-waits.json"
+    waits.write_text(json.dumps({"1500": spell({"row-held": 7300, "undecided": 50})}))
+    said = machine.look()
+    assert said == [
+        "alpha: alert: score held-ready-pr alpha: hours the longest-held ready pull request has "
+        "waited on a held row: 2.03 h of 1, over its line of 2 h"
+    ]
+
+    waits.write_text("{}")
+    said = machine.look(NOW + timedelta(minutes=1))
+    assert [line.split(":", 2)[1] for line in said] == [" recovered"]
+    assert machine.alerts(NOW + timedelta(minutes=1)) == []
+
+
+def test_a_wake_measure_of_the_machine_is_read_once_and_alerts_the_machine(machine, monkeypatch):
+    """A machine measure reads the machine's rows, so it is read once, not for each project, and
+    its alert is the machine's. This one is a trend: five today against one on each day before."""
+    today = (NOW - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S")
+    trend = measures.Measure(
+        name="a-trend",
+        group="machinery",
+        says="a count of the machine's",
+        unit="",
+        better="lower",
+        source=measures.Sql(
+            f"select case when :ends > '{today}' then 5 else 1 end as value, 1 as n",
+            machine=True,
+        ),
+        window="hour",
+        baseline=1,
+        baseline_of="a test",
+        kind=measures.Trend(20),
+        tier="wake",
+    )
+    monkeypatch.setattr(kpis, "WAKES", (trend,))
+    said = machine.look()
+    assert said == [
+        "alert: score a-trend: a count of the machine's: 5, more than 20% worse than its mean of "
+        "the seven days before"
+    ]
+    assert machine.alerts() == said
