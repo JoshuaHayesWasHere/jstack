@@ -100,13 +100,16 @@ class Rerun:
         return tuple(dict.fromkeys(m[1] for job in self.jobs if (m := _RUN.search(job))))
 
 
-def failed_jobs(rollup: list[dict], required: tuple[str, ...]) -> tuple[str, ...]:
-    """The links of the jobs of the required checks whose latest run failed (`ready.failed`), in
-    order: GitHub gives a job of a new attempt of the run a link of its own."""
+def failed_jobs(rollup: list[dict]) -> tuple[str, ...]:
+    """The links of the jobs of the batch's checks whose latest run failed (`ready.failed`), in
+    order: GitHub gives a job of a new attempt of the run a link of its own. The batch's checks
+    are `ready.REQUIRED`, whose run leaves the artifact of its tree, and never the rest of a
+    repo's `required-checks`: such a check, as `borders` is, judges the batch's own diff, which
+    each member's passed at its own head, and not its tree."""
     return tuple(
         sorted(
             str(one.get("detailsUrl") or "")
-            for name in ready.failed(rollup, required)
+            for name in ready.failed(rollup, ready.REQUIRED)
             for one in ready.latest(rollup, name)
         )
     )
@@ -282,8 +285,9 @@ def state_of(
 ) -> str:
     """Where the batch stands: none out, or one stale (the tip moved, or its pull request is not
     open at its commit); proven, where `run` is the run that left the artifact of the tip's tree
-    and its tree; to rerun, where its check failed in `jobs`, each a job of a workflow run, and a
-    batch of two or more had no rerun; failed, where its check failed otherwise; late, where
+    and its tree; to rerun, where its check failed in `jobs` (`failed_jobs`), each a job of a
+    workflow run, and a batch of two or more had no rerun; failed, where its check failed
+    otherwise; late, where
     `PENDING_MINUTES` went by from its push, or from its rerun, with no artifact found; and
     pending otherwise. A check that passed with no artifact found is pending: the lookup turns a
     gh error, or a run not yet concluded after its last job passed, into none, and the next run
@@ -294,11 +298,11 @@ def state_of(
     if run:
         return PROVEN
     again = batch.rerun
-    if pull.failed:
+    if jobs:
         if again is None:
-            rerunnable = bool(jobs) and all(_RUN.search(job) for job in jobs)
+            rerunnable = all(_RUN.search(job) for job in jobs)
             return RERUN if rerunnable and len(batch.members) > 1 else FAILED
-        if not jobs or not set(jobs) <= set(again.jobs):
+        if not set(jobs) <= set(again.jobs):
             return FAILED
     if now - (again.at if again else batch.at) >= timedelta(minutes=PENDING_MINUTES):
         return LATE

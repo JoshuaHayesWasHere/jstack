@@ -15,10 +15,16 @@ Verify skill: `.claude/skills/verify-*/`, else a `verify-*` item of `skills.json
 
 **You own the design and the code.** The brief's "Done when" list is the target and its **Decisions** are settled: build to them. If you think a decision is wrong, say so in this thread with your reason and carry on with what does not depend on it.
 
-1. Learn the subsystem from what the brief names: its `Read:` and `Rests on:` lines when a scout wrote it, otherwise the files the task needs and no more. The scout's report is the walkthrough. Do not research again what it found.
+1. Learn the subsystem from what the brief names: its `Read:` and `Rests on:` lines when a scout wrote it, otherwise the files the task needs and no more.
 2. Name the data shape and its organizing structure before you write logic (`principles/principle-model-the-domain.md`, `principles/principle-foundational-thinking.md`): a state machine over scattered booleans, a table or registry over branching, a typed model over a shape assumed in several files. Write the choice down in one or two lines. A new requirement is built in as if it had been there from the first day (`principles/principle-redesign-from-first-principles.md`).
 3. Where the shape has more than one sound form and the brief does not choose, write the two or three candidates down with what each costs and pick one yourself (`principles/principle-exhaust-the-design-space.md`). Record the pick and the reason for the pull request's Tradeoffs. Ask only for a product or preference call no experiment can settle (`principles/principle-never-block-on-the-human.md`), in this thread, once.
-4. For a task of size M and up, have the design read before you write tests or code. The size is the t-shirt size the brief names, which the home takes from the task's plan entry. A brief that names no size counts as S: write `skip: size S`. Start one read-only subagent (the Agent tool, `subagent_type` `Explore`) with the brief's path and your notes from steps 2 and 3: the plan, the data shape, the candidate shapes and your pick. Ask it what it would change and why. Take what you agree with. Record in the Result what you took and what you left, each with its reason.
+4. For a task of size M and up, have the design read before you write tests or code.
+   The size is the t-shirt size the brief names.
+   A brief that names no size counts as S: write `skip: size S`.
+   Start one read-only subagent (the Agent tool, `subagent_type` `Explore`) with the brief's path and your notes from steps 2 and 3: the plan, the data shape, the candidate shapes and your pick.
+   Ask it what it would change and why.
+   Take what you agree with.
+   Record in the Result what you took and what you left, each with its reason.
 5. Guard "Done when" in the agent-first order of `principles/principle-test-behavior-not-implementation.md`:
    CI, lint, deterministic scripts and validation pipelines come first, and a unit test is written first only for a keeper.
    A test you write drives the code through its users' interface and asserts what the contract promises, no less and no more, so it fails when that behavior breaks and keeps passing when only the internals change.
@@ -29,9 +35,10 @@ Verify skill: `.claude/skills/verify-*/`, else a `verify-*` item of `skills.json
    An improvement to a shared primitive goes to every consumer inside the brief's **Where**, each one verified, with the old form deleted in the same change (`principles/principle-migrate-callers-then-delete-legacy-apis.md`).
    A consumer outside **Where** is a row, queued as `templates/a-fault-outside.md` says.
    Commit as you go.
+   Before step 7, say for each thing the change reads, writes or starts what it does with: a line that does not parse, a file or folder that is not there, a call that hangs (give it a timeout), a process that dies between two writes, and each other reader of a string or shape you changed (`rg` for it).
+   These five are what reviews found most in the 215 merged rows to 2026-11-10.
 7. Verify on the surface the user will meet: the repo's verify skill where it has one, and its check command (`principles/principle-prove-it-works.md`). "Inconclusive", or a pass on another surface, is not a pass: say so.
 8. Stop when every "Done when" line holds.
-   What else you saw stays out of the diff: it is a queued row or nothing (`templates/a-fault-outside.md`).
 9. Run `features/writing/playbooks/opening-a-pr.md`.
 
 Never done here, and who does it:

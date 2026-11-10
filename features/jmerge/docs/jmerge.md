@@ -469,6 +469,12 @@ The merges stop at the first that does not land: GitHub refused it (`the merge f
 Each member after it waits as `jmerge's batch over <base> at <tip12> stopped at #<n>, which did not merge: the next batch takes it`, with the code `batch-stopped`.
 Where another run holds the merge lock, the batch stays proven for the next run.
 
+Only the checks of `ready.REQUIRED`, `check` today, decide a batch: their run leaves the artifact of its tree, so they are what proves it, what fails it, and what its rerun starts again (`batch.failed_jobs`, `batch.state_of`).
+The rest of a repo's `required-checks` file judges each member's own pull request, at its head, and never the batch's.
+`borders` is one of them: it judges a pull request's diff, which features it touches, and not its tree, and a batch's diff is its members' diffs together, so a batch whose members touch two features fails it every time, though each member passed it alone.
+Read as the batch's failure, it failed 13 of the 15 batches of two or more on 2026-11-10, and 14 of them merged no member.
+A batch whose pull request fails `borders` is pending while `check` runs, and proven once `check`'s artifact is found.
+
 While a batch is out (checked, or proven and not merged yet), a pull request that would merge alone waits as `jmerge's batch over <base> at <tip12> is checked and merges first: a merge before it would undo that check`, with the code `batch-first`, and so does a member that came ready after the batch was built.
 `jmerge` decides that wait once every pull request is judged (`batch.Batching.held`): where a checked batch is not kept, since a member is no longer judged one at its head, the pull request merges alone in that run, before any batch is built again.
 A revert still merges first, and its merge ends the batch, which is built again over the new tip.

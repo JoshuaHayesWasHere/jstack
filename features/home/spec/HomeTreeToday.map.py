@@ -1,11 +1,11 @@
 # Chart labels for HomeTreeToday: what Josh sees of the root and its children.
-reader_actions = ["Answer", "Retire", "Steps"]
+reader_actions = ["Answer", "Retire", "Steps", "CatchallGoes"]
 
 LIFE = {
     "working": "working",
     "stuck": "stuck",
     "retired": "retired",
-    "handed": "handed to the root",
+    "handed": "handed to the catch-all",
 }
 WORK = {
     "none": "",
@@ -32,11 +32,25 @@ def made(v):
 
 def children(v):
     kids = made(v)
-    if not kids:
-        return "No child yet"
-    return "; ".join(
-        f"Child {k} {LIFE[v['life'][k]]}{WORK[v['work'][k]]}{quiet(v, k)}" for k in kids
-    )
+    told = [f"Child {k} {LIFE[v['life'][k]]}{WORK[v['work'][k]]}{quiet(v, k)}" for k in kids]
+    # Once the root has made a child, the chart's scene keeps the catch-all's thread live
+    # (CatchallFirst in HomeTreeToday.cfg), so the label says it only before.
+    return "; ".join(told) if told else f"No child yet; {keeper(v)}"
+
+
+# The catch-all's own thread, and whether a start jbus launched for it may still write its home-id.
+KEEPER = {
+    ("root", False): "the root stands in for the catch-all",
+    ("root", True): "the root stands in while the catch-all starts",
+    ("live", False): "the catch-all has its own thread",
+    ("live", True): "the catch-all has its own thread",
+    ("gone", False): "the catch-all's thread is gone",
+    ("gone", True): "the catch-all starts again",
+}
+
+
+def keeper(v):
+    return KEEPER[(v["keeper"], v["starts"] > 0)]
 
 
 # K and Rhythm of the chart's scene, in HomeTreeToday.cfg.
@@ -136,6 +150,10 @@ def step(action, before, after):
         "Lost": "a failed post takes a call out of the outbox",
         "RouteFails": "the home thread fails",
         "RouteMends": "the home thread works again",
+        "KeepAlive": "jbus launches the catch-all's home",
+        "CatchallGoes": "you archive the catch-all's thread",
+        "StartWrites": "the catch-all's start writes its home-id",
+        "StartEnds": "the catch-all's start ends with no home-id",
     }.get(action, action)
 
 

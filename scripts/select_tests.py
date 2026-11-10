@@ -273,16 +273,28 @@ MODEL_CHECKS = {
         "features/jmerge/spec/",
         "features/skill-library/skills/statechart/scripts/",
     ),
+    "features/jmerge/tests/test_pr_verdict_spec.py": (
+        "features/jmerge/spec/PrVerdict.*",
+        "features/jmerge/spec/pr_canaries.py",
+        "features/skill-library/skills/statechart/scripts/",
+    ),
     "features/skill-library/tests/test_statechart_runs.py": STATECHART,
     "features/skill-library/tests/test_statechart_specs.py": STATECHART,
 }
 """The model checks, each a test file that runs TLC for minutes, and the paths, in jmerge's
 syntax, whose change runs it on a pull request's check: the spec or the charts it checks and
-the scripts that run TLC. Each file of a `src/` that a `.tla` file under those folders cites,
-as the code it models, runs it too, and so does a change to the test file itself. Nearly every
+the scripts that run TLC. Each file of a `src/` that a `.tla` file the row names cites, as the
+code it models, runs it too, and so does a change to the test file itself. A `.tla` file the row
+names is one under a folder of the row or one a pattern of the row matches. Nearly every
 change reaches these tests through an import or a name, so this table alone selects them.
 Main's full run and the nightly run them whatever changed."""
 CITED = re.compile(r"features/[\w-]+/src/[\w/]+\.py")
+SHORT_CITE = re.compile(r"(?<![\w/.-])(\w+\.py)\s*`")
+"""A cite by the file's name alone, as PrVerdict.tla's `cli.py `...``: the file of that name in
+the `src/` of the spec's own feature, or where that has none, each tracked file of that name
+in a `src/`."""
+FOLDED = re.compile(r"\s*\n\s*(?:\\\*)?\s*")
+"""A line break of a `.tla` file, with the `\\*` that opens the next line's comment."""
 EVERY_RUN = ("pyproject.toml", "uv.lock", "conftest.py")
 """The files that change every run of the tests: the dependencies and the root `conftest.py`,
 which loads the plugins. A change to one selects `all`, and no other path does."""
@@ -393,18 +405,32 @@ def cross_cutting():
 @cache
 def models():
     """Each model check, with the patterns of the paths that select it: its own path, its row
-    of `MODEL_CHECKS`, and each file of a `src/` that a `.tla` file under a folder of that row
-    cites."""
+    of `MODEL_CHECKS`, and each file of a `src/` that a `.tla` file the row names cites."""
     found = {}
     for test, patterns in MODEL_CHECKS.items():
-        specs = [
+        specs = {
             one
             for pattern in patterns
-            if pattern.endswith("/")
-            for one in ROOT.glob(f"{pattern}**/*.tla")
-        ]
-        cited = {cite for spec in specs for cite in CITED.findall(spec.read_text(encoding="utf-8"))}
+            for one in ROOT.glob(f"{pattern}**/*.tla" if pattern.endswith("/") else pattern)
+            if one.suffix == ".tla"
+        }
+        cited = {cite for spec in specs for cite in cites(spec)}
         found[test] = (test, *patterns, *sorted(cited))
+    return found
+
+
+def cites(spec):
+    """The files of a `src/` a `.tla` file cites, by their path or by their name alone."""
+    text = FOLDED.sub(" ", spec.read_text(encoding="utf-8"))
+    home = "/".join(spec.relative_to(ROOT).parts[:2]) + "/src/"
+    named = {}
+    for path in tracked():
+        if SOURCE.match(path):
+            named.setdefault(path.rsplit("/", 1)[-1], []).append(path)
+    found = set(CITED.findall(text))
+    for name in SHORT_CITE.findall(text):
+        files = named.get(name, [])
+        found |= {path for path in files if path.startswith(home)} or set(files)
     return found
 
 

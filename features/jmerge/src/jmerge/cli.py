@@ -1658,8 +1658,9 @@ class Repo:
     def start_batch(
         self, pull: ready.PullRequest | None, default: str, listed: list[ready.PullRequest]
     ) -> None:
-        """Read where the batch stands before this run judges anything (`batch.state_of`). A
-        failed batch of two or more has its failed jobs started again once (`rerun_batch`); one
+        """Read where the batch stands before this run judges anything (`batch.state_of`), by the
+        checks whose run leaves the artifact of its tree alone (`batch.failed_jobs`). A failed
+        batch of two or more has its failed jobs started again once (`rerun_batch`); one
         that failed after that keeps its members as suspects, and one of one sends its member
         alone at the head it held (`batch.Record.fail`); one that timed out is built again whole
         once before it fails (`batch.Record.late`); a proven half leaves the suspects it did not
@@ -1673,7 +1674,7 @@ class Repo:
         if kept and pull and (kept.tip, kept.commit) == (tip, pull.head):
             run = self.guards.checked(kept.tip, kept.tree)
         rollup = self.reds.get(ROLLUP.format(number=pull.number), []) if pull else []
-        jobs = batch.failed_jobs(rollup, self.required)
+        jobs = batch.failed_jobs(rollup)
         now = datetime.now(UTC)
         state = batch.state_of(kept, pull, tip, run, now, jobs)
         if state == batch.RERUN:

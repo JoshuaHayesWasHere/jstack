@@ -556,6 +556,43 @@ def test_a_batch_that_fails_again_after_its_rerun_fails_as_a_failed_check_does(k
         assert runs(kitchen) == 3 and suspects(kitchen) == []
 
 
+BORDERS_FAILED = {
+    **merge.run("FAILURE", "borders"),
+    "detailsUrl": "https://github.com/o/r/actions/runs/6/job/9",
+}
+
+
+@pytest.mark.parametrize("check", ["running", "passed", "failed"])
+def test_a_batch_is_judged_by_its_check_and_never_by_borders_on_its_own_diff(kitchen, check):
+    """The repo requires `check` and `borders`, and the batch's pull request fails `borders`, as
+    one whose members touch two features does: each member passed `borders` at its own head. The
+    batch waits while `check` runs or passed with no artifact found, and merges once the artifact
+    is found, with no rerun asked for. A failed `check` reruns its own run alone, once, and its
+    second failure makes the members suspects, as with no `borders` failure beside it."""
+    (kitchen.home.state / "required-checks").write_text("check\nborders\n")
+    three(kitchen)
+    tip = kitchen.tip()
+    kitchen.run()
+    waiting = [in_batch(number, tip) for number in (6, 7, 8)]
+    if check == "failed":
+        listed(kitchen, (BORDERS_FAILED, failed_in(1)))
+        assert kitchen.run() == waiting
+        assert reruns(kitchen) == [["run", "rerun", "5", "--failed"]]
+        listed(kitchen, (BORDERS_FAILED, failed_in(2)))
+        assert kitchen.run() == [built(2, tip), in_batch(6, tip), in_batch(7, tip), first(8, tip)]
+        assert reruns(kitchen) == [["run", "rerun", "5", "--failed"]]
+        assert suspects(kitchen) == [6, 7, 8]
+        return
+    listed(kitchen, (BORDERS_FAILED, merge.RUNNING if check == "running" else merge.PASSED))
+    assert kitchen.run() == waiting
+    assert reruns(kitchen) == [] and suspects(kitchen) == []
+    proven(kitchen)
+    listed(kitchen, (BORDERS_FAILED, merge.PASSED))
+    said = kitchen.run()
+    assert [line.split()[:2] for line in said] == [["merged", n] for n in ("6", "7", "8")]
+    assert reruns(kitchen) == [] and suspects(kitchen) == [] and runs(kitchen) == 0
+
+
 def test_a_batch_that_passed_with_no_artifact_found_waits_and_merges_once_it_is_found(kitchen):
     three(kitchen)
     tip = kitchen.tip()
