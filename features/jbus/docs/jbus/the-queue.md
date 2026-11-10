@@ -283,14 +283,18 @@ A row whose go an edit voided is approved again only where its brief still follo
 A held row stays held, and a `hold` of P takes back the go of every queued follow-up down the chain from P.
 The help that `jbus queue add` prints gives the rule.
 
+A home's standing word for follow-ups is the last such basis ([A standing word for follow-ups](your-word-to-a-home.md#a-standing-word-for-follow-ups)).
+Where the rule refuses a follow-up only because its parent, a row of the queue or one that went merged, has no go, `queue add` approves it on the standing word of the home its `Home:` line names, or the root home's, in the same write.
+Every other refusal stands: a row that follows itself, a parent that is no row, one removed unmerged, or one whose brief changed after its go still waits for your go.
+
 The row's `approval` field records the approval:
 
 | Field | What it holds |
 | --- | --- |
-| `basis`, `ref` | `word`, `answer`, `message`, `pick` or `bot-chat`, and the id, the number or the reference. `page` is the basis of a go from a page's send: no verb gives it, and such a go holds. By rule: `rule`, with `follow-up` or a rule's number as `ref`. |
-| `words`, `said_at`, `said_in` | Your words, when you said them, and the title of the thread you said them in, where jbus knows it. By rule: the follow-up rule's words and the line of the parent's go, or the line of the red run for a fix jbus filed, and the other two are empty, since you said nothing of the row. |
+| `basis`, `ref` | `word`, `answer`, `message`, `pick` or `bot-chat`, and the id, the number or the reference. `page` is the basis of a go from a page's send: no verb gives it, and such a go holds. By rule: `rule`, with `follow-up` or a rule's number as `ref`. On a home's standing word: `standing`, with the word's id as `ref`. |
+| `words`, `said_at`, `said_in` | Your words, when you said them, and the title of the thread you said them in, where jbus knows it. By rule: the follow-up rule's words and the line of the parent's go, or the line of the red run for a fix jbus filed, and the other two are empty, since you said nothing of the row. On a standing word: your words of that word, when and where you said them. |
 | `checked` | `true` when jbus read the words and the time from T3 Code, `false` for words it did not read itself: a typed answer, a word given on the page of `jbus view`, or a word whose text was typed and not read from T3 Code. For a row approved by rule it is `true`, since jbus read the rule itself. |
-| `follows` | By rule only: the slug of the parent row. |
+| `follows` | By rule or on a standing word only: the slug of the parent row. |
 | `ground` | By rule only, for a fix jbus filed from a red check, which names no parent: the words that name the red run, which the line says in place of the parent (above). |
 | `ran_by`, `ran_at` | The session that ran the command (`CLAUDE_CODE_SESSION_ID`) with its directory, and the time by the clock. No option gives either. |
 | `brief_sha` | The sha256 of the brief jbus stored at the go: what pins the go to one text. |
@@ -300,6 +304,7 @@ The row's `approval` field records the approval:
 `<who>` is `the <directory> home` for a session, and `a shell in <directory>` where no session ran it.
 The view's row says the same line.
 A row approved by rule prints `the follow-up rule, follow-up of <parent>; run <ran_at> by <who>; you did not speak of this row`, and the view's row says the same and carries a `by rule` mark.
+A row approved on a standing word prints `your standing word <id> for follow-ups, <said_at>, in <said_in>, follow-up of <parent>; run <ran_at> by <who>; you did not speak of this row`, and its mark is `by rule standing word <id>`.
 `jbus queue hold <parent>` takes back the parent's go and the go of each of its queued follow-ups.
 It prints their slugs on a line above the table, `held <parent>, and <slugs> with it: a follow-up approved by rule has no go without its parent's`.
 `jbus queue remove` of a parent that did not merge does the same.
