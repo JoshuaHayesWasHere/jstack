@@ -123,6 +123,18 @@ def test_make_check_runs_the_tests_on_a_number_of_workers_set_in_one_place():
     assert pytest_of("check", "CORES=24", "JUNIT=/x/junit.xml") == reported
 
 
+def test_a_run_in_the_short_lane_takes_the_lanes_worker_count_and_the_full_lane_the_desks():
+    """A one-file run in a short slot takes `sizes.SHORT_WORKERS`, whatever the processors; a
+    run in a full slot, and one outside any slot, the desk's quarter."""
+    short = pytest_of("test", "TESTS=t.py", "CORES=24", "JGAUGE_TEST_SLOT=short")
+    assert short[:2] == ["-n", str(sizes.SHORT_WORKERS)]
+    assert pytest_of("test", "TESTS=t.py", "CORES=64", "JGAUGE_TEST_SLOT=short")[:2] == short[:2]
+    assert pytest_of("test", "TESTS=t.py", "CORES=24", "JGAUGE_TEST_SLOT=full")[:2] == ["-n", "6"]
+    assert pytest_of("test", "TESTS=t.py", "CORES=24")[:2] == ["-n", "6"]
+    hand = pytest_of("test", "TESTS=t.py", "TEST_WORKERS=4", "JGAUGE_TEST_SLOT=short")
+    assert hand[:2] == ["-n", "4"]
+
+
 def workers(*args, **more):
     """The number of workers `make check` gives pytest."""
     (tests,) = [shlex.split(line) for line in check(*args, **more) if " pytest" in line]

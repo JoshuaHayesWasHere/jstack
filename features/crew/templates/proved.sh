@@ -159,12 +159,20 @@ else
     done
     for lane in --short ''; do
         [ -n "$owed" ] || break
-        PROOF_HEAD=$PWD PROOF_BASE=$tree PROOF_SIDES=$owed PROOF_TESTS=$list uv run --project "$T/../source" jgauge test-slot $lane --thread "$thread" -- bash -c '
+        # The short lane's worker count is the Makefile's SHORT_WORKERS; a full slot takes the
+        # desk's quarter of the processors, at least two, as the Makefile's PER_CORE does.
+        if [ -n "$lane" ]; then
+            proof_workers=4
+        else
+            proof_workers=$(($(getconf _NPROCESSORS_ONLN 2> /dev/null || echo 8) / 4))
+            [ "$proof_workers" -ge 2 ] || proof_workers=2
+        fi
+        PROOF_WORKERS=$proof_workers PROOF_HEAD=$PWD PROOF_BASE=$tree PROOF_SIDES=$owed PROOF_TESTS=$list uv run --project "$T/../source" jgauge test-slot $lane --thread "$thread" -- bash -c '
             for side in $PROOF_SIDES; do
                 if [ "$side" = head ]; then at=$PROOF_HEAD more=; else at=$PROOF_BASE more=--continue-on-collection-errors; fi
                 cd "$at" || exit
                 workers=
-                if env -u VIRTUAL_ENV uv run python -c "import xdist" > /dev/null 2>&1; then workers="-n auto --dist worksteal"; fi
+                if env -u VIRTUAL_ENV uv run python -c "import xdist" > /dev/null 2>&1; then workers="-n $PROOF_WORKERS --dist worksteal"; fi
                 env -u VIRTUAL_ENV uv run pytest -q -p no:cacheprovider $workers $more $PROOF_TESTS > "$PROOF_BASE/.proof-$side" 2>&1
                 echo "$side exit $?: $(tail -n 1 "$PROOF_BASE/.proof-$side")"
             done

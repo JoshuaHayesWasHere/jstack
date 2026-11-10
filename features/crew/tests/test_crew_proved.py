@@ -29,6 +29,7 @@ import pytest
 
 from crew_helpers import block, git
 from jbriefs import proved
+from jgauge import sizes
 from test_blocks_command_grep import UGREP
 from test_portable_shell import bsd_tools
 from testing.layouts import assembled
@@ -438,7 +439,15 @@ def test_the_head_and_the_base_run_on_pytests_workers_where_the_repo_has_them(re
     proof(repo)
     runs = (repo.parent / "pytest-args").read_text().splitlines()
     assert len(runs) == 2
-    assert all("-n auto" in run for run in runs)
+    assert all(f"-n {sizes.SHORT_WORKERS} " in run for run in runs)
+
+
+def test_a_side_the_short_lane_stopped_runs_again_on_the_desks_quarter_of_the_processors(repo):
+    commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
+    proof(repo, LIMIT="1", SLOW="3")
+    runs = (repo.parent / "pytest-args").read_text().splitlines()
+    desk = sizes.desk_workers(os.cpu_count() or 8)
+    assert [re.search(r"-n (\d+) ", run)[1] for run in runs[-2:]] == [str(desk), str(desk)]
 
 
 def test_a_repo_without_pytest_xdist_is_proved_on_one_process(repo):
