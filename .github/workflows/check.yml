@@ -319,9 +319,9 @@ jobs:
         id: tlc
         with:
           path: ~/.cache/jstack/tlc
-          key: tlc-${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
+          key: tlc-${{ hashFiles('features/home/spec/**', 'features/jbus/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
           restore-keys: |
-            tlc-${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
+            tlc-${{ hashFiles('features/home/spec/**', 'features/jbus/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
             tlc-
       # The selection `reuse` uploads as `selection-<attempt>`, waited for here with the part's
       # setup done, and given as this step's outputs: `reused`, `tree`, `selection`, `files`,
@@ -611,9 +611,9 @@ jobs:
         if: steps.tree.outputs.marker != 'green'
         with:
           path: ~/.cache/jstack/tlc
-          key: tlc-${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
+          key: tlc-${{ hashFiles('features/home/spec/**', 'features/jbus/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
           restore-keys: |
-            tlc-${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
+            tlc-${{ hashFiles('features/home/spec/**', 'features/jbus/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
             tlc-
       - name: make check
         id: suite
