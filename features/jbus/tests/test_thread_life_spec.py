@@ -19,6 +19,9 @@ SPEC = REPO / "features" / "jbus" / "spec"
 STATECHART = REPO / "features" / "skill-library" / "skills" / "statechart" / "scripts"
 sys.path.insert(0, str(STATECHART))
 
+READ_SET = ("features/jbus/spec/", "features/jbus/src/jbus/")
+"""The spec and the code its quotes cite: a change to either runs these tests."""
+
 lib = importlib.import_module("statechart.lib")
 tools = importlib.import_module("statechart.tools")
 
@@ -35,7 +38,11 @@ def quoted():
     text = (SPEC / "ThreadLife.tla").read_text()
     flat = re.sub(r"\s*\n\s*(?:\\\*)?\s*", " ", text)
     files = subprocess.run(
-        ["git", "ls-files", "features"], cwd=REPO, capture_output=True, text=True, check=True
+        ["git", "ls-files", "features/jbus/src/jbus"],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout.split()
     assert not re.search(r"\.(?:py|md):\d", flat)
     for path, quote in QUOTE.findall(flat):
