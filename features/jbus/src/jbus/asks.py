@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -41,6 +42,7 @@ from jbus import (
 )
 from jmerge import judgement
 from jmerge.asked import Silent
+from jsettings import brief as brief_head
 
 
 def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
@@ -261,12 +263,16 @@ def _warn(config: jbus.Config, project: jbus.Project, slug: str, text: str) -> N
     (`jbriefs.parse.warnings`), one `warning:` line each, and each door its commands walk through
     that no `Holds:` line names (`party.undeclared`), one `holds:` line each: the row holds for it
     all the same, and the line tells the home to write it. It warns as well of each `Where:` path
-    the brief shares with a queued row its `Builds on:` line names (`briefs.shared_where`)."""
+    the brief shares with a queued row its `Builds on:` line names (`briefs.shared_where`), and of
+    an `Asked:` line that names no file of the home's `asked/` or a `Task:` quote that file does not
+    hold (`_asked_warnings`)."""
     try:
         check = (config.home(project) / "fresh-check").read_text()
     except OSError:
         check = ""
     for warned in briefs.warnings(text, check):
+        print(f"warning: {slug}'s {warned}")
+    for warned in _asked_warnings(config.home(project), text):
         print(f"warning: {slug}'s {warned}")
     for case, command in party.undeclared(text):
         print(f"holds: {case}, from {command}")
@@ -278,6 +284,53 @@ def _warn(config: jbus.Config, project: jbus.Project, slug: str, text: str) -> N
                 "join the rows where they are one change, take the shared path out of one where "
                 f"{slug} has no need of {other}'s code, and leave it where it does"
             )
+
+
+_QUOTE = re.compile(r'"([^"\n]+)"|“([^”\n]+)”')
+_CUT = re.compile(r"\.\.\.|…|\[[^\]]*\]")
+_WORDS = re.compile(r"\w+(?:'\w+)*")
+
+
+def _words(text: str) -> str:
+    """The text as its words, lowercased, one space between each, with a space at each end: a
+    quote's words are the file's when this of the quote is in this of the file."""
+    said = text.replace("’", "'").replace("‘", "'").lower()
+    return f" {' '.join(_WORDS.findall(said))} "
+
+
+def _asked_warnings(home: Path, text: str) -> list[str]:
+    """What a brief's `Asked:` line is warned of: a path that is no file under the home's
+    `asked/`, where the home keeps each request of the user's once, and each quote on `Task:`
+    whose words that file does not hold, since a quote there holds only words the user typed.
+
+    The path may start with `$H` or `~`, and a relative one is read from the home. A quote is
+    one in straight or curly double quotes outside a code span, and a `...`, a `…` or a
+    bracketed insert cuts it into parts, each checked alone. A brief with no `Asked:` line is
+    warned of nothing here: it comes from no message of the user's."""
+    said = brief_head.head(text, "Asked:")
+    if not said:
+        return []
+    written = said.strip("`")
+    path = Path(written.replace("$H", str(home), 1)).expanduser()
+    path = (home / path).resolve()
+    kept = (home / "asked").resolve()
+    if not (path.is_relative_to(kept) and path.is_file()):
+        return [
+            f"brief's Asked: {written} is no file under the home's asked/: the home writes the "
+            "user's request there once, as $H/asked/<entry>.md"
+        ]
+    held = _words(path.read_text(errors="replace"))
+    task = " ".join(" ".join(lines) for label, lines in briefs.fields(text) if label == "Task")
+    warned = []
+    for quote in _QUOTE.finditer(re.sub(r"`[^`]*`", " ", task)):
+        words = quote[1] or quote[2]
+        parts = [_words(part) for part in _CUT.split(words)]
+        if any(part.strip() and part not in held for part in parts):
+            warned.append(
+                f'brief\'s Task: quotes "{words}", which {written} does not hold: a quote holds '
+                "only words the user typed"
+            )
+    return warned
 
 
 def _check(config: jbus.Config, project: jbus.Project, given: str | None, home: str | None) -> int:

@@ -93,6 +93,8 @@ On the user's own word to merge, given in this thread, `jmerge --accept <number>
 - The brief is trusted.
   Read the files it names; where it names none, read only what the task needs.
   Do not check its findings again, and do not explore beyond it.
+- A brief's `Asked:` line names the file that keeps the user's whole request, of which this brief is one slice.
+  Open it only before a choice that `Task:`, `Done when:` and `Decisions:` leave open, and before asking the home anything, and not otherwise.
 - When a scout wrote the brief, start from the files on its `Read:` line, measure with the commands on `Instruments:`, and change where `Change:` names.
   Do not try again what `Ruled out:` names.
 - Stay inside **Where** and out of **Do not touch**. If the task cannot be done without crossing that line, stop and say so.

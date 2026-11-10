@@ -54,6 +54,7 @@ TEXT = (".md", ".markdown", ".mdx", ".txt", ".prompt")
 FACTS = {
     "tasks/*.md": "a brief: one task, written by the home for one thread, and its Result",
     "scouts/*.md": "a scout request: one question, written by the home for one scout",
+    "asked/*.md": "the user's request, word for word, written once by the home for its briefs",
     "plan.md": "a home's plan: the tasks it holds and their order",
     "standing.md": "the user's standing rules, at most three, each coded or on its way to code"
     " (fl-standing-cap)",
