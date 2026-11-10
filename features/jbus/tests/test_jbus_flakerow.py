@@ -41,6 +41,7 @@ def red(kitchen, sha, ago, failed, verdict="flake"):
         "failed": failed,
         "verdict": verdict,
     }
+    kitchen.state.mkdir(parents=True, exist_ok=True)
     with open(kitchen.state / mainmoved.REDS, "a") as handle:
         handle.write(json.dumps(line) + "\n")
 
@@ -61,8 +62,8 @@ def test_a_test_that_flaked_twice_in_seven_days_gets_one_row(kitchen):
     assert brief == (kitchen.state / "briefs" / f"{SLUG}.md").read_text()
     task = next(line for line in brief.splitlines() if line.startswith("Task: "))
     assert f"`{TEST}`" in task
-    assert f"{'1' * 12} at {(NOW - 6 * DAY).isoformat()}" in task
-    assert f"{'3' * 12} at {(NOW - DAY).isoformat()}" in task
+    assert f"{'1' * 12} ({(NOW - 6 * DAY).isoformat()})" in task
+    assert f"{'3' * 12} ({(NOW - DAY).isoformat()})" in task
     assert "\nSize: S\n" in brief
     assert "\nReview: review\n" in brief
     assert "\nWhere: `features/jbus/tests/test_jbus_digest.py`\n" in brief
