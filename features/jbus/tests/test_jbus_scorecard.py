@@ -205,6 +205,31 @@ def scorecard(*argv):
     return code, out.getvalue()
 
 
+def test_load_over_cores_is_the_share_of_todays_load_samples_above_the_cores(
+    tmp_path, monkeypatch
+):
+    """jgauge's load.tsv, its header and a row each 15 s, reaches the store through a build, and
+    `load-over-cores` reads the share of today's rows whose 1-minute load is above their cores:
+    one of today's four, so 25%, past its line. Yesterday's row over the cores is not today's."""
+    machine = Machine(tmp_path, monkeypatch)
+    log = tmp_path / "load.tsv"
+    monkeypatch.setenv("JGAUGE_LOAD_LOG", str(log))
+    header = "time\tcores\tload1\tload5\tload15"
+    rows = [
+        (NOW - timedelta(days=1), "24", "40.00"),
+        (NOW - timedelta(minutes=60), "24", "3.10"),
+        (NOW - timedelta(minutes=45), "24", "24.00"),
+        (NOW - timedelta(minutes=30), "24", "30.52"),
+        (NOW - timedelta(minutes=15), "24", "12.00"),
+    ]
+    lines = [f"{int(at.timestamp())}\t{cores}\t{load}\t1.00\t1.00" for at, cores, load in rows]
+    log.write_text("\n".join([header, *lines]) + "\n")
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        reading = measures.read(store, measure("load-over-cores"), "alpha", NOW, USER)
+    assert (reading.value, reading.n, reading.state) == (25.0, 4, "bad")
+
+
 def test_jbus_scorecard_prints_each_measure_and_writes_nothing(tmp_path, monkeypatch):
     Machine(tmp_path, monkeypatch)
     path = tmp_path / "store.sqlite"
