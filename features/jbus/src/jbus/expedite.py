@@ -4,8 +4,12 @@ longer does.
 A crew ends its turn, and nothing wakes it for what it left undone. `jmerge` reports a wait
 in a line that nobody reads. `tell` reads those lines. When a line gives the same
 crew-fixable reason for the same head for `AFTER` passes, `tell` sends the crew one
-message that says what to do, under the key `<kind>|<slug>|<head 12>`. `TABLE` holds every
-reason with its sentence:
+message that says what to do, under the key `<kind>|<slug>|<head 12>`. A `proved-` or `checked-`
+reason is one only the crew's own proof or check clears (`Short.spells`): `tell` sends it on the
+first pass that sees it, and once more at the same head when a new idle spell of the crew starts,
+that is, on the first pass with the crew not at work after a pass that saw it at work since the
+message. That second message goes under `<kind>|<slug>|<head 12>|2`, and there is no third
+(`TELLS`). `TABLE` holds every reason with its sentence:
 
 - `unfixed`, `the Result has no Fixed line`: write an answer for each finding, by id, and
   the `Fixed:` line. The line is `Fixed: none needed` when the crew declines every finding,
@@ -127,6 +131,9 @@ EXPEDITE = "expedite"
 STALL = "stall"
 AFTER = 3
 LAPSE = AFTER + PASSES
+TELLS = 2
+"""The messages a crew gets at one head for a row only its own proof or check clears
+(`Short.spells`): one on the first pass that sees it, and one more when a new idle spell starts."""
 NO_THREAD = "short pull request with no thread to tell"
 REFUSED = "T3 Code refused the message about what a pull request is short of"
 FILE = "expedite.json"
@@ -207,6 +214,22 @@ class Short:
     unless: Callable[[str, str], bool] | None = None
     sends: str = ""
     rerun: bool = False
+
+    @property
+    def spells(self) -> bool:
+        """Say whether only the crew's own proof or check clears the row, so `tell` sends it on
+        the first pass that sees it, and once more when a new idle spell of the crew starts."""
+        return self.kind.startswith(("proved-", "checked-"))
+
+    @property
+    def after(self) -> int:
+        """The passes of one reason at one head before `tell` sends the row."""
+        return 1 if self.spells else AFTER
+
+    @property
+    def tells(self) -> int:
+        """The messages `tell` sends a crew of the row at one head."""
+        return TELLS if self.spells else 1
 
 
 def no_reviewer_by_rule(brief: str, head: str) -> bool:
@@ -701,17 +724,23 @@ def tell(run: Pass, client: Client, world: World, pulls: merge.Said) -> set[int]
         entry = {**seen, "passes": seen["passes"] + 1} if same else {"passes": 1}
         entry |= {"head": head, "reason": reason, "number": number}
         kept[slug] = entry
-        due = not entry.keys() & {"told", "users"} and entry["passes"] >= AFTER
+        due = not entry.keys() & {"told", "users"} and entry["passes"] >= row.after
         if due and _capped(run, client, slug):
-            entry["passes"] = AFTER
+            entry["passes"] = row.after
         passes = entry["passes"]
         if due and rebase.mark(row.kind, slug, head) in sent:
-            entry["told"], due = passes, False
+            entry |= {"told": passes, "tells": 1}
+            due = False
         asked = "told" in entry and not entry.get("users")
         busy = _busy(run, client, world, slug, row) if due or asked else None
-        if due and busy is False:
-            went = _tell(run, client, world, number, slug, row, entry)
-            entry |= {"told": passes} if went == "told" else {"users": True} if went else {}
+        if asked and busy:
+            entry["worked"] = True
+        again = asked and entry.get("worked") and entry.get("tells", 1) < row.tells
+        if (due or again) and busy is False:
+            n = entry.get("tells", 0) + 1 if again else 1
+            went = _tell(run, client, world, number, slug, row, entry, n)
+            told = {"told": passes, "tells": n, "worked": False, "idle": 0}
+            entry |= told if went == "told" else {"users": True} if went else {}
         if row.word == "hold" and due and "told" not in entry and passes >= LAPSE:
             run.say(
                 f"wait {slug}: its crew was not told in {passes} passes, so the hold is the user's"
@@ -747,9 +776,11 @@ def _tell(
     slug: str,
     row: Short,
     entry: dict,
+    n: int = 1,
 ) -> str:
-    """Send the message that is due, and return how it went: `told`, `users` for a hold no
-    message can lift, or nothing when the next pass must try the message again."""
+    """Send the message that is due, the `n`th at the head, and return how it went: `told`,
+    `users` for a hold no message can lift, or nothing when the next pass must try the message
+    again. A message after the first goes under its own key, `<kind>|<slug>|<head 12>|<n>`."""
     head = entry["head"]
     sentence, sent = row.sentence, row.sends.replace("{slug}", slug)
     if row.kind in ("unruled", "fix", "rereview"):
@@ -778,14 +809,29 @@ def _tell(
     ask = rebase.Ask(
         row.kind, "", "told what it is short of", message, no_thread=NO_THREAD, refused=REFUSED
     )
-    went = rebase.post(run, client, world, number, entry["reason"], ask)
+    window = str(n) if n > 1 else ""
+    went = rebase.post(run, client, world, number, entry["reason"], ask, window)
     if not went:
         return ""
     line = f"{EXPEDITE} {slug}: told the crew what #{number} is short of ({row.kind}, {head[:12]})"
     line += f", sent `{sent}`" if sent else ""
-    run.find(slug, EXPEDITE, line, went[2], key=f"{row.kind} {head[:12]}")
+    line += f", again at a new idle spell ({n} of {row.tells})" if n > 1 else ""
+    run.find(slug, EXPEDITE, line, went[2], key=f"{row.kind} {head[:12]} {window}".strip())
     run.say(line)
     return "told"
+
+
+def tells_left(was: dict[str, Any], slug: str, number: int, reason: str, head: str) -> int | None:
+    """Return how many messages `tell` still owes the crew about a wait at the head, from
+    `expedite.json` as `was` holds it, or None where `tell` does not own the wait: no row of
+    `TABLE` is its reason, `tell` keeps no count of it at that head, or the wait is the user's."""
+    row = short_of(merge.Line("wait", number, "", reason))
+    entry = was.get(slug)
+    if row is None or not isinstance(entry, dict) or entry.get("users"):
+        return None
+    if (entry.get("head"), entry.get("reason")) != (head, reason) or not head:
+        return None
+    return max(row.tells - entry.get("tells", 1 if "told" in entry else 0), 0)
 
 
 def _step(half: Half) -> None:

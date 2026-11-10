@@ -73,6 +73,12 @@ with nothing watching it, so that wait is a hold. `held.json`
 keeps each hold, from the first pass that saw it with nobody at work: a pass with a thread at work
 on it, or in which no row waits on it, drops it, and the next one starts afresh. From the wake
 on, `waiting.keep` lists the hold on what waits on the user (`waiting.held`).
+
+Each hold in `held.json` names who owns it, `who`. It is `crew` where `expedite.tell` owns the wait
+of every row it holds: a row of `expedite.TABLE` that `tell` counts at the row's head and has not
+given to the user (`expedite.tells_left`). It is `user` for the rest. A `crew` hold wakes the home
+only once `tell` has sent each row every message it owes at that head, two for a `proved-` or
+`checked-` wait, and the hold is older than `HOLD_MINUTES` with nobody at work on it after that.
 """
 
 from __future__ import annotations
@@ -534,8 +540,10 @@ def held(
         return
     was: dict[str, Any] = read_json(run.state / HELD_FILE, {})
     clocks: dict[str, Any] = read_json(run.state / FILE, {})
+    told: dict[str, Any] = read_json(run.state / expedite.FILE, {})
     checked = {slug for slug, one in clocks.items() if one.get("kind") == "check"}
     groups: dict[str, dict[str, Any]] = {}
+    owed: set[str] = set()
     for slug, number in _rows(run, world, waits.said):
         word, _, reason = waits.said.get(str(number), "").partition(": ")
         if slug in checked:
@@ -547,9 +555,17 @@ def held(
         scope = home_of(run.home, task_brief(run, slug))
         name = "" if scope == run.home else scope.name
         key = hashlib.sha256(f"{name}\n{reason}".encode()).hexdigest()[:12]
-        group = groups.setdefault(key, {"reason": reason, "home": name, "rows": [], "numbers": []})
+        group = groups.setdefault(
+            key, {"reason": reason, "home": name, "rows": [], "numbers": [], "who": "crew"}
+        )
         group["rows"].append(slug)
         group["numbers"].append(number)
+        head = str(world.open.get(slug, {}).get("headRefOid") or "")
+        left = expedite.tells_left(told, slug, number, reason, head)
+        if left is None:
+            group["who"] = "user"
+        elif left:
+            owed.add(key)
     busy = [one["slug"] for one in out if one.get("live") in AT_WORK and one.get("slug")]
     kept: dict[str, Any] = {}
     for key, group in groups.items():
@@ -560,6 +576,8 @@ def held(
         hold["minutes"] = minutes
         kept[key] = hold
         if hold["woke"] or minutes <= HOLD_MINUTES:
+            continue
+        if hold["who"] == "crew" and key in owed:
             continue
         pairs = zip(hold["rows"], hold["numbers"], strict=True)
         rows = ", ".join(f"{slug} (#{number})" for slug, number in pairs)
