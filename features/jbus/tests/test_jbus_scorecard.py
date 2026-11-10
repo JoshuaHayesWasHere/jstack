@@ -478,3 +478,36 @@ def test_an_account_whose_quota_rose_too_little_has_no_capped_line_yet(store):
     assert reading.each == (measures.Part("claudeAgent", 5.0, None),)
     page = card.page([card.Line(measure("units-vs-capped-line"), reading)], NOW)
     assert "claudeAgent 5 M units an hour, no line yet" in page
+
+
+def test_a_quota_rise_across_a_reset_counts_the_new_share_alone(store):
+    """`quota_rises` steps from reading to reading; where the window reset between two, its share
+    fell, and the points it gained are the new share."""
+    quota(
+        store,
+        "claudeAgent",
+        "seven_day",
+        (NOW - timedelta(hours=2), 95),
+        (NOW - timedelta(hours=1), 98),
+        (NOW, 4),
+    )
+    rows = store.execute("select span, rise from quota_rises order by at").fetchall()
+    assert rows == [("seven_day", 3.0), ("seven_day", 4.0)]
+
+
+def test_a_measure_whose_each_query_fails_keeps_its_value_and_shows_no_part(store):
+    each = measures.Measure(
+        name="probe",
+        group="machinery",
+        says="a probe",
+        unit="%",
+        better="lower",
+        source=measures.Sql("select 7 as value, 1 as n", each="select label from nowhere"),
+        window="hour",
+        baseline=10,
+        baseline_of="a test",
+        kind=measures.Limit(100),
+        tier="page",
+    )
+    reading = measures.read(store, each, "jstack", NOW, USER)
+    assert (reading.value, reading.state, reading.each) == (7.0, "ok", ())
