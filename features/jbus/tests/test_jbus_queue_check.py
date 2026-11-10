@@ -7,6 +7,9 @@ for the user's word with nobody told. Now `Review:` takes `twice`, `review` or `
 perf, analysis and outcome work carries `Read:` and `Instruments:`, and `none` with a pull
 request is a warning. `check` lets a home or a bot see that before it adds.
 
+A follow-up is also told of each live row that may already hold its fault (`jbus.asks._twins`):
+#1267 was filed and built while its twin stood at `pr`, and `add` refuses only the same text.
+
 The tests run the real command against the kitchen.
 """
 
@@ -399,3 +402,10 @@ def test_a_brief_that_follows_nothing_names_no_twin(kitchen):
 def test_a_finished_row_is_no_twin(kitchen):
     live(kitchen, "sa-follow-add-retries", RETRIES, status="merged", pr="#1262")
     assert twins(checks(kitchen, ENABLE)[1]) == []
+
+
+def test_a_queue_that_does_not_parse_names_no_twin_and_check_still_answers(kitchen):
+    kitchen.state.mkdir(parents=True, exist_ok=True)
+    (kitchen.state / "queue.json").write_text("not json")
+    code, out = checks(kitchen, ENABLE)
+    assert code == 0 and twins(out) == [], out
