@@ -223,7 +223,8 @@ def _files(config: jbus.Config) -> Iterator[tuple[str, Source, Path]]:
                 yield project.name, source, _file(config, project, source)
     for source in SOURCES:
         if source.where == "machine":
-            yield values.MACHINE, source, config.state_dir / source.file
+            file = source.located() if source.located else config.state_dir / source.file
+            yield values.MACHINE, source, file
 
 
 def _insert(source: Source) -> str:
