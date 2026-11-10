@@ -8,11 +8,13 @@ keeps the tip, the tree, the commit and the members in `KEPT`. CI's check of tha
 runs on GitHub's merge of its head over main, whose tree is the batch's, since the head holds the
 tip, and leaves the artifact of the two trees (`green.checked`). On it, with the tip unmoved,
 `jmerge` squash-merges each member at its own head, in order, with no guards run
-(`cli.Repo.merge_batch`). A batch of two or more whose check failed, or that went
-`PENDING_MINUTES` with no artifact found, keeps its members as `suspects`, and the next batch is
-the first half of them (`narrow`), so CI's checks of halves find the member that failed it. A
-failed batch of one sends that member down the single path of today at its head (`failed`),
-whose guards name the failing test for its crew.
+(`cli.Repo.merge_batch`). A batch of two or more that went `PENDING_MINUTES` with no artifact
+found is built again whole over today's tip, once (`again`): a timeout is no evidence against a
+member. One whose check failed, or that timed out twice in a row, keeps its members as
+`suspects`, and the next batch is the first half of them (`narrow`), so CI's checks of halves
+find the member that failed it. Where a half proved and one suspect is left, that one failed
+it. A failed batch of one, or that last suspect, goes down the single path of today at its head
+(`failed`), whose guards name the failing test for its crew.
 
 The batch pull request is jmerge's own: it is never judged as a row's, and never merged.
 """
@@ -55,6 +57,7 @@ NONE = "none"
 PENDING = "pending"
 PROVEN = "proven"
 FAILED = "failed"
+LATE = "late"
 
 
 @dataclass(frozen=True)
@@ -89,14 +92,17 @@ def _members(listed: list[dict]) -> tuple[Member, ...]:
 
 @dataclass
 class Record:
-    """`KEPT`: the batch out, if any; the heads of the members of a failed batch of one, which go
-    the single path at those heads; and the suspects, the members of the last failed batch of two
-    or more that have not merged, in merge order, of which the next batch takes the first half."""
+    """`KEPT`: the batch out, if any; the heads of the members of a failed batch of one, and of
+    the last suspect of a proven half, which go the single path at those heads; the suspects, the
+    members of the last failed batch of two or more that have not merged, in merge order, of which
+    the next batch takes the first half; and whether the batch out, or the next one built, is
+    built again after a timeout (`again`)."""
 
     path: Path
     batch: Batch | None = None
     failed: dict[str, str] = field(default_factory=dict)
     suspects: tuple[Member, ...] = ()
+    again: bool = False
 
     @classmethod
     def read(cls, state: Path) -> Record:
@@ -116,7 +122,7 @@ class Record:
             )
         except (KeyError, TypeError, ValueError):
             made = None
-        return cls(path, made, failed, suspects)
+        return cls(path, made, failed, suspects, kept.get("again") is True)
 
     def write(self) -> None:
         kept: dict = {}
@@ -130,7 +136,9 @@ class Record:
                 "at": made.at.isoformat(),
             }
         suspects = [{"number": m.number, "head": m.head} for m in self.suspects]
-        store.write_json(self.path, {**kept, "failed": self.failed, "suspects": suspects})
+        store.write_json(
+            self.path, {**kept, "failed": self.failed, "suspects": suspects, "again": self.again}
+        )
 
     def fail(self) -> None:
         """End the batch out as failed: one of two or more members makes them the suspects, and
@@ -142,7 +150,28 @@ class Record:
         else:
             self.failed |= {str(one.number): one.head for one in members}
             self.suspects = tuple(one for one in self.suspects if one not in members)
-        self.batch = None
+        self.batch, self.again = None, False
+
+    def late(self) -> None:
+        """End the batch out that went `PENDING_MINUTES` with no artifact found: one of two or
+        more not yet built again is built again whole (`again`), with the suspects it had, and
+        any other fails (`fail`)."""
+        members = self.batch.members if self.batch else ()
+        if len(members) > 1 and not self.again:
+            self.batch, self.again = None, True
+        else:
+            self.fail()
+
+    def prove(self) -> None:
+        """Take the members of the proven batch out from the suspects. Where it held suspects and
+        one is left, that one failed the batch they were suspects of: its head goes under
+        `failed`, so it takes the single path with no batch built for it alone."""
+        members = self.batch.members if self.batch else ()
+        left = tuple(one for one in self.suspects if one not in members)
+        if len(left) == 1 and len(left) < len(self.suspects):
+            self.failed |= {str(left[0].number): left[0].head}
+            left = ()
+        self.suspects, self.again = left, False
 
     def keep(self, heads: dict[str, str]) -> None:
         """Keep the failed heads and the suspects still open at the same head (`heads`, by
@@ -160,16 +189,18 @@ def state_of(
 ) -> str:
     """Where the batch stands: none out, or one stale (the tip moved, or its pull request is not
     open at its commit); proven, where `run` is the run that left the artifact of the tip's tree
-    and its tree; failed, where its check failed, or `PENDING_MINUTES` went by from its push with
-    no artifact found; and pending otherwise. A check that passed with no artifact found is
+    and its tree; failed, where its check failed; late, where `PENDING_MINUTES` went by from its
+    push with no artifact found; and pending otherwise. A check that passed with no artifact found is
     pending: the lookup turns a gh error, or a run not yet concluded after its last job passed,
     into none, and the next run looks again."""
     if batch is None or tip != batch.tip or pull is None or pull.head != batch.commit:
         return NONE
     if run:
         return PROVEN
-    if pull.failed or now - batch.at >= timedelta(minutes=PENDING_MINUTES):
+    if pull.failed:
         return FAILED
+    if now - batch.at >= timedelta(minutes=PENDING_MINUTES):
+        return LATE
     return PENDING
 
 

@@ -464,11 +464,14 @@ The batch's pull request is `jmerge`'s own: it has no brief and no row, `jmerge`
 Like the guards, the batch runs no browser tests: browser.yml skips a draft.
 
 **What a failed batch does.**
-A batch whose check failed, or that went 30 minutes from its push with no artifact found (`batch.PENDING_MINUTES`), has failed.
-A check that passed with no artifact found waits for that limit, its members still `in jmerge's batch`: the lookup reads a gh error, or a run not yet concluded a moment after its last job passed, as none, and the next run that finds the artifact merges the batch.
+A batch whose check failed has failed.
+One that went 30 minutes from its push with no artifact found (`batch.PENDING_MINUTES`) timed out: a check that passed with no artifact found waits for that limit, its members still `in jmerge's batch`, since the lookup reads a gh error, or a run not yet concluded a moment after its last job passed, as none, and the next run that finds the artifact merges the batch.
+A timeout is no evidence against a member, as a GitHub or lookup outage times out every batch: a batch of two or more that timed out is built again whole (a half of the suspects as that same half), in that run, over today's tip, once (`again` in `batch.json`, `batch.Record.late`), and its pass merges every member by batch with no suspects kept.
+Only a second timeout in a row has failed it, so an outage costs one more check limit before the narrowing, and a batch that never gets an artifact still ends; a batch of one that timed out has failed.
 A failed batch of two or more runs no guards: `batch.json` keeps its members, in merge order, under `suspects`, and the next batch, built in that run over today's tip on the same branch and pull request, is the first half of them (the larger half where their count is odd, `batch.narrow`).
 So CI's checks of halves find the member that failed it, where the guards of every member ran one at a time on this machine.
 A proven half merges as any batch does, and the next batch is the first half of the suspects that are left.
+Where one suspect is left, it is the member that failed the batch: `batch.json` keeps its head under `failed`, and it waits as `batch-first` while the proven half merges, then goes down the single path as a failed batch of one does, with no batch built for it alone, saving a check (`batch.Record.prove`).
 A failed half of two or more becomes the suspects in turn, and a suspect of the batch before that is not in it is one no more.
 While suspects are kept, every other member waits as `batch-first`, and a suspect outside the half waits the same way.
 A failed batch of one sends its member down the single path of today, in that run, at the head the batch held: its merged tree's guards, which name the failing test for its crew, or the line ("The guards on the merged tree"); `batch.json` keeps that head under `failed` until it moves.

@@ -317,6 +317,7 @@ def test_the_last_suspect_of_a_failed_batch_of_two_whose_first_member_proves_goe
     assert [line.split()[:2] for line in said] == [["wait", "7"], ["merged", "6"]]
     assert "so no guards ran" in said[1]
     assert record(kitchen)["failed"] == {"7": seven} and suspects(kitchen) == []
+    listed(kitchen, (merge.PASSED,))
     (alone,) = kitchen.run()
     assert alone.startswith("merged 7 two ")
     assert ", the guards passed on its tree merged over main at " in alone
