@@ -21,7 +21,7 @@ import jbus.queue
 import jbus.waiting
 import jbus.wake
 import test_jbus_main_moved
-from jbus import questions, watch
+from jbus import conditional, questions, watch
 from jbus.dispatch import fixes_main
 from jmerge import mainjson
 from jmerge import reverts as made
@@ -260,15 +260,20 @@ def test_main_json_is_the_one_record_of_the_red_tip_and_both_readers_agree(kitch
     same sha from the same file. `checks.json` holds the sha too, as the answer GitHub gave for
     that commit, but that is no record of which tip is red, and `bases.json` holds main's tip when
     the merged list was last read, red or not. `watch.MAIN_COMMITS` and `watch.WORKFLOW_FILES` keep
-    what GitHub gave for main's tip, of any color, under that tip. No other file of the project's
-    state names a red main."""
+    what GitHub gave for main's tip, of any color, under that tip, and `conditional.ANSWERS` what
+    GitHub answered each path the pass reads. No other file of the project's state names a red
+    main."""
     checks(kitchen, tip(kitchen), "success")
     kitchen.poll()
     red = move(kitchen, "failure")
     kitchen.poll(NOW + timedelta(minutes=3))
     record = json.loads((kitchen.state / "main.json").read_text())
     assert record["broken"] == red == mainjson.read(kitchen.state).red
-    named = {path.name for path in kitchen.state.rglob("*.json") if red in path.read_text()}
+    named = {
+        path.name
+        for path in kitchen.state.rglob("*.json")
+        if conditional.ANSWERS not in path.parts and red in path.read_text()
+    }
     tip_keyed = {watch.MAIN_COMMITS, watch.WORKFLOW_FILES}
     assert named - tip_keyed == {"main.json", "checks.json", watch.BASES}
     assert json.loads((kitchen.state / "checks.json").read_text())[red] == "failed"
