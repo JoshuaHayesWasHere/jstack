@@ -154,7 +154,9 @@ class GitHub:
             return Asked(self.logs[int(path.split("/")[-2])])
         if "/actions/jobs/" in path:
             number = int(path.split("/")[-1])
-            return Asked(json.dumps({"steps": [{"name": self.steps[number], "conclusion": "failure"}]}))
+            return Asked(
+                json.dumps({"steps": [{"name": self.steps[number], "conclusion": "failure"}]})
+            )
         if command[:2] == ("git", "symbolic-ref"):
             return Asked("origin/main\n")
         return Asked("", 1)
