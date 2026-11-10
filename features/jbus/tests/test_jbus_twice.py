@@ -462,3 +462,33 @@ def test_a_lint_step_is_no_infra_where_only_another_part_of_its_log_shows_a_fetc
     assert (list(kept["heads"]), kept["infra"]) == ([A, C], [B])
     assert rows(launched)["alpha"]["held"] is True
     assert len(pages(launched)) == 1
+
+
+TOLERATED = step_run(
+    "tests=$(python3 scripts/select_tests.py --failed-on-main 30 "
+    "~/.cache/jstack/failed-on-main.json)",
+    "curl: (22) The requested URL returned error: 503",
+    "##[error]Process completed with exit code 22.",
+)
+TRAILER = step_run(
+    "PYTHONPATH=features/jmerge/src:features/jleak/src python3 scripts/no_ai_trailers.py",
+    "##[error]AI co-author trailer: commit 5f16302 carries a Co-Authored-By trailer",
+    "Drop each line above: a commit and a pull request carry no AI co-author trailer.",
+)
+
+
+def test_a_trailer_step_is_no_infra_where_a_tolerated_step_before_it_failed_on_a_503(launched):
+    """check.yml's `failed on main` runs with `continue-on-error: true` and calls GitHub: its
+    `curl: (22)` on a 503 ends with an `##[error]Process completed` line of its own, and the job
+    goes on. The step that fails the job is the last one whose part ends in that line, here
+    `no AI co-author trailer`, failed on the row's own commits. Two heads that failed it count
+    and hold the row."""
+    trailer = "no AI co-author trailer"
+    infra_at(launched, A, "11", step=trailer, shows=TOLERATED + TRAILER)
+    passes(launched, 0)
+    infra_at(launched, B, "12", step=trailer, shows=TOLERATED + TRAILER)
+    passes(launched, 3, 6)
+    kept = fails(launched)
+    assert (list(kept["heads"]), kept.get("infra", [])) == ([A, B], [])
+    assert rows(launched)["alpha"]["held"] is True
+    assert len(pages(launched)) == 1
