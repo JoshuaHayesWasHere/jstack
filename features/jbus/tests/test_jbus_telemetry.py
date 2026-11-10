@@ -683,6 +683,82 @@ def test_main_spells_never_end_before_they_open_on_a_quick_green_macos_run(machi
     assert spells == [(1, "c3", 20.0)]
 
 
+def red(sha, prs, verdict, step="make test", failed=1):
+    """A line of `main-reds.jsonl` as `mainmoved.tell` writes it for a tip it judged failed."""
+    return {
+        "at": iso(NOW),
+        "sha": sha,
+        "prs": prs,
+        "step": step,
+        "failed": [f"features/m/tests/test_m.py::test_{n}" for n in range(failed)],
+        "verdict": verdict,
+    }
+
+
+def test_a_red_spell_the_ledger_calls_a_flake_or_infra_is_no_change_failure(machine):
+    at = NOW
+    checks = [(n, f"c{n}", "failure" if n % 2 == 0 else "success") for n in range(1, 10)]
+    machine.append(
+        "alpha",
+        "ci.jsonl",
+        *(job(n, sha, n, said, at + timedelta(minutes=10 * n)) for n, sha, said in checks),
+    )
+    machine.append(
+        "alpha",
+        "main-reds.jsonl",
+        red("c2", [2], "infra", step="selection", failed=0),
+        red("c4", [4], "flake"),
+        red("c6", [5, 6], "change"),
+    )
+    merged_rows(
+        machine,
+        "alpha",
+        [(f"row-{n}", n, at + timedelta(minutes=10 * n - 1)) for n in range(1, 10)],
+    )
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        failure = store.execute(
+            "SELECT week, failures, merged FROM weekly_change_failure"
+        ).fetchall()
+        assert failure == [("2026-10-25", 2, 9)]
+        spells = store.execute(
+            "SELECT start_pr, cause FROM main_spells ORDER BY first_fail_at"
+        ).fetchall()
+    assert spells == [(2, "infra"), (4, "flake"), (6, "change"), (8, "unjudged")]
+
+
+SPELLS_OF_2026_11_08 = (
+    (1258, ("make check: test",), 2, 1, "change"),
+    (1311, ("make check: test",), 2, 0, "change"),
+    (1355, ("make check: test",), 1, 1, "flake"),
+    (1359, ("make check: test",), 14, 11, "change"),
+    (1358, ("make test",), 1, 1, "flake"),
+    (1293, ("make test",), 0, 0, "infra"),
+    (1307, ("make test",), 8, 7, "change"),
+    (1403, ("make test",), 0, 0, "infra"),
+    (1418, ("selection",), 0, 0, "infra"),
+    (1435, ("selection",), 0, 0, "infra"),
+    (1520, ("make test",), 0, 0, "infra"),
+    (1472, ("make test",), 1, 0, "change"),
+    (1524, ("make test",), 1, 1, "flake"),
+    (1553, ("make test",), 1, 0, "change"),
+)
+"""The 14 spells of jstack's week of 2026-11-08, each by the pull request the store charged it to:
+the failed step of each failed part of check's push run at the spell's first red commit, how many
+tests the run named as failed, how many of those `reverts.flaky` named at the spell's first red,
+over `ci.jsonl` as it stood then, and the verdict. #1359 and #1358 failed on a 504 fetching
+tla2tools.jar, which no named test and no runner sign tells apart from a change; #1472 is #1519's
+race, which landed with no check of its own; #1553's timing test had failed on no other branch yet."""
+
+
+@pytest.mark.parametrize(("pr", "steps", "failed", "flaky", "verdict"), SPELLS_OF_2026_11_08)
+def test_the_weeks_spells_replayed_through_the_verdict(pr, steps, failed, flaky, verdict):
+    from jbus.mainmoved import verdict as judge
+
+    tests = [f"test_{n}" for n in range(failed)]
+    assert judge(steps, tests, frozenset(tests[:flaky])) == verdict
+
+
 def merged_rows(machine, project, rows):
     """Merged rows of (slug, number, merged time), each with its pull request in `ci-prs.jsonl`."""
     snapshots(machine, project, rows)
