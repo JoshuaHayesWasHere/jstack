@@ -3,7 +3,8 @@
 # v, before, and after map each variable to its value.
 # Strings, numbers, and booleans keep their kind.
 # Sequences, tuples, and sets become lists, indexed from 0. Records and functions become dicts.
-# One crew thread of jbus/spec/ThreadLife.tla. Variables: rec, lost, dropped, retried, gated, made, turn, result, carry, owed, told, held, put, scratch.
+# One crew thread of jbus/spec/ThreadLife.tla. Variables: rec, lost, dropped, retried, gated,
+# made, turn, result, carry, owed, told, held, put, scratch.
 # Each function may take fewer arguments than it is given, and gets only the first ones.
 # The actions the reader takes. facts.settled is True when only these are enabled, and the overview
 # keeps the shortest path to each settled state, plus every bug path.
