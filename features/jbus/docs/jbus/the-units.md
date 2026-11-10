@@ -50,7 +50,7 @@ A pull request is settled once neither the tick's read nor the pass has seen it 
 What wakes it is any change jbus sees: a read that GitHub answers 200, or a pass that sees its head pushed, its checks' rollup change (a check run queued, started or ended) or main's tip move.
 From the next tick on it is asked about every 10 seconds again, for another 15 minutes at least.
 So a pull request whose checks end while it is settled still merges within a minute, with no pass between.
-On 2026-11-09, 60% of the tick's 304s asked about a head that had not changed for 15 minutes, so asking those once a minute brings the tick from about 310 304s an hour for each open pull request to about 0.4 × 330 + 0.6 × 60, near 170.
+On 2026-11-09, 60% of the tick's 304s asked about a head that had not changed for 15 minutes, so asking those once a minute brings the tick from about 310 304s an hour for each open pull request to about 0.4 × 330 + 0.6 × 60, near 170: a prediction from that count, which the rate a day after the change measures.
 A head's check suite the tick has not seen yet costs one more read, of the head's workflow runs, so the tick knows which workflow each job belongs to.
 So a 10 second tick costs no allowance while nothing changes, and `jbus budget --callers` counts its 304s apart, as free.
 A round, a head's checks from the push to their end, costs a counted read of its check runs for each 10 second window in which a job at the head was queued, started or ended, plus one read of its workflow runs and the tick's run of `jmerge` once the verdict is in.
