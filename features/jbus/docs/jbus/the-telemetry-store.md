@@ -355,8 +355,6 @@ A new `wake` measure is a choice: a test holds the three, and the scorecard's ot
 
 A red main has no alert: jbus files a `main-red-*` row for every red tip, so an alert would say again what that row says.
 
-A red main has no alert: jbus files a `main-red-*` row for every red tip, so an alert would say again what that row says.
-
 An alert goes on jbus's one list of alerts, so the owner's home hears of it as it hears of any other.
 A crossing alerts once: a later pass that finds it still crossed sends nothing, whatever the count has become.
 A daily alert ends with its day, and a crossing the next day is a new alert.
