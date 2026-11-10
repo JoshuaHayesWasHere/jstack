@@ -124,15 +124,6 @@ def _members(listed: list[dict]) -> tuple[Member, ...]:
     return tuple(Member(int(m["number"]), str(m["head"])) for m in listed)
 
 
-def _rerun(kept: object) -> Rerun | None:
-    if not isinstance(kept, dict) or not isinstance(kept.get("jobs"), list):
-        return None
-    try:
-        return Rerun(tuple(map(str, kept["jobs"])), datetime.fromisoformat(str(kept.get("at"))))
-    except ValueError:
-        return None
-
-
 @dataclass
 class Record:
     """`KEPT`: the batch out, if any; the heads of the members of a failed batch of one, and of
@@ -157,13 +148,18 @@ class Record:
         suspects = kept.get("suspects")
         suspects = _members(suspects) if isinstance(suspects, list) else ()
         try:
+            again = kept.get("rerun")
+            rerun = None
+            if again is not None:
+                jobs = tuple(map(str, again["jobs"]))
+                rerun = Rerun(jobs, datetime.fromisoformat(str(again["at"])))
             made = Batch(
                 str(kept["tip"]),
                 str(kept["tree"]),
                 str(kept["commit"]),
                 _members(kept["members"]),
                 datetime.fromisoformat(str(kept["at"])),
-                _rerun(kept.get("rerun")),
+                rerun,
             )
         except (KeyError, TypeError, ValueError):
             made = None
