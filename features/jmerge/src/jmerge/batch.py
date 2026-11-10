@@ -251,11 +251,12 @@ def state_of(
     if run:
         return PROVEN
     again = batch.rerun
-    if pull.failed and again is None:
-        rerunnable = bool(jobs) and all(_RUN.search(job) for job in jobs)
-        return RERUN if rerunnable and len(batch.members) > 1 else FAILED
-    if pull.failed and (not jobs or not set(jobs) <= set(again.jobs if again else ())):
-        return FAILED
+    if pull.failed:
+        if again is None:
+            rerunnable = bool(jobs) and all(_RUN.search(job) for job in jobs)
+            return RERUN if rerunnable and len(batch.members) > 1 else FAILED
+        if not jobs or not set(jobs) <= set(again.jobs):
+            return FAILED
     if now - (again.at if again else batch.at) >= timedelta(minutes=PENDING_MINUTES):
         return LATE
     return PENDING
