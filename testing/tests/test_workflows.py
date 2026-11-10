@@ -2615,11 +2615,12 @@ def test_a_release_green_with_no_ref_starts_no_run(tmp_path):
     assert "make release-green REF=<the tag>" in done.stdout
 
 
-def last_checked(tmp_path, runs, listed=None, **env):
+def last_checked(tmp_path, runs, **env):
     """Run `green_tree.py --last-checked check.yml` in a shallow clone of a main of four
     commits, A to D, D the head, against a `gh` that lists `runs`, each `(commit letter,
-    conclusion)`, as the workflow's push runs, and main's commits from D down, or refuses where
-    `runs` is None. Return its outputs, what it printed, and the commits by letter."""
+    conclusion)`, as the workflow's push runs, or refuses where `runs` is None. Main's commits
+    from D down come from `origin` with git. Return its outputs, what it printed, and the
+    commits by letter."""
     origin, repo, bin = tmp_path / "origin", tmp_path / "repo", tmp_path / "bin"
     git = ["git", "-c", "user.name=a", "-c", "user.email=a@example.com"]
     subprocess.run([*git, "init", "-q", origin], check=True)
@@ -2643,7 +2644,6 @@ def last_checked(tmp_path, runs, listed=None, **env):
                     for letter, conclusion in runs
                 ]
             },
-            "repos/owner/repo/commits": [{"sha": commits[letter]} for letter in (listed or "DCBA")],
         }
     (tmp_path / "answers.json").write_text(json.dumps(answers))
     (bin / "gh").write_text(

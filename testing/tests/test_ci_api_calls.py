@@ -22,8 +22,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qsl, urlsplit
 
 import pytest
-from test_workflows import CHECK, steps
 
+from jmerge import green
+from test_workflows import CHECK, steps
 from testing.paths import REPO
 
 BUDGET = 3
@@ -34,9 +35,10 @@ TOKEN = "t0ken"
 class GitHub:
     """The REST API for the repo `o/r`, on a local port. `answers` maps a path and its query to
     a function of the times it was asked, or a path alone to a function of the query, which
-    gives `(status, body)` or `(status, body, headers)`. A list carries an ETag, the hash of its body, and an ask that names it is answered
-    304. `/blob/<name>` is storage: a redirect from the API leads there, and it refuses the
-    token, as GitHub's blob storage does. `costed` is each ask of the API GitHub would count."""
+    gives `(status, body)` or `(status, body, headers)`. A list carries an ETag, the hash of its
+    body, and an ask that names it is answered 304. `/blob/<name>` is storage: a redirect from
+    the API leads there, and it refuses the token, as GitHub's blob storage does. `costed` is
+    each ask of the API GitHub would count, and `free` each it answered 304."""
 
     def __init__(self, answers):
         self.answers = answers
@@ -344,7 +346,9 @@ def test_the_trailer_check_reads_the_commits_with_git_and_makes_no_costed_call(t
     compare = ok({"total_commits": len(shas), "commits": listed})
     github = GitHub({f"/repos/o/r/compare/{base}...{shas[-1]}?per_page=100&page=1": compare})
     (step,) = [
-        s for s in steps(CHECK.read_text(), "reuse")[0] if s.get("name") == "no AI co-author trailer"
+        s
+        for s in steps(CHECK.read_text(), "reuse")[0]
+        if s.get("name") == "no AI co-author trailer"
     ]
     try:
         ran = subprocess.run(
@@ -414,9 +418,10 @@ def failed_on_main(github, kept):
 
 def test_the_lookup_of_what_failed_on_main_asks_again_only_what_changed(tmp_path):
     """A cold lookup lists main's runs of each day of its window, a call for each day, event and
-    page, and a lookup after it the 4 newest days again: 8 costed calls where nothing changed. It keeps each list's ETag with what it read,
-    beside its cache, so a later lookup's ask of a list that did not change is answered 304 at no
-    cost, and one new run of main today costs the one list it is on."""
+    page, and a lookup after it the 4 newest days again: 8 costed calls where nothing changed.
+    It keeps each list's ETag with what it read, beside its cache, so a later lookup's ask of a
+    list that did not change is answered 304 at no cost, and one new run of main today costs
+    the one list it is on."""
     runs = [(n, "push", n % 4, "success") for n in range(1, 40)] + [(50, "schedule", 1, "success")]
     kept = tmp_path / "failed-on-main.json"
     github = GitHub(main_runs(runs))
@@ -479,7 +484,12 @@ def test_a_push_s_last_checked_commit_costs_one_call_and_reads_main_s_commits_wi
     env |= {"GH_TOKEN": TOKEN, "GITHUB_TOKEN": TOKEN, "GITHUB_API_URL": github.url}
     try:
         ran = subprocess.run(
-            [sys.executable, str(REPO / "scripts" / "green_tree.py"), "--last-checked", "check.yml"],
+            [
+                sys.executable,
+                str(REPO / "scripts" / "green_tree.py"),
+                "--last-checked",
+                "check.yml",
+            ],
             cwd=work,
             env=env,
             capture_output=True,
@@ -494,3 +504,28 @@ def test_a_push_s_last_checked_commit_costs_one_call_and_reads_main_s_commits_wi
     assert [key.partition("?")[0] for key in github.costed] == [
         "/repos/o/r/actions/workflows/check.yml/runs"
     ]
+
+
+@pytest.mark.parametrize(
+    "listed, costs",
+    [([], 1), ([{"expired": False, "workflow_run": {"id": 7, "repository_id": 1}}], 2)],
+    ids=["no pass to reuse", "a pass to reuse"],
+)
+def test_the_reuse_lookup_costs_one_call_and_one_more_for_a_pass_it_finds(listed, costs):
+    """`reuse` asks GitHub for the marker of the two trees, one call, and for the run that left a
+    marker it finds, one more; a run that reuses a pass looks up nothing else, so the job stays
+    within its 3 with the failed-on-main lookup skipped."""
+    asked = []
+    run = {"conclusion": "success", "path": green.WORKFLOW, "html_url": "u"}
+    run |= {"repository": {"id": 1}, "head_repository": {"id": 1}}
+
+    def ask(path):
+        asked.append(path)
+        return {"artifacts": listed} if "artifacts" in path else run
+
+    for one in listed:
+        one["workflow_run"]["head_repository_id"] = 1
+    green.green_run(ask, "checked-tree-a-b")
+    (step,) = [s for s in steps(CHECK.read_text(), "reuse")[0] if s.get("name") == "reuse"]
+    assert step["run"] == "PYTHONPATH=features/jmerge/src python3 -m jmerge.reuse"
+    assert len(asked) == costs <= BUDGET
