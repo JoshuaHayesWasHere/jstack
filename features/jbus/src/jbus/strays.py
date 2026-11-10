@@ -15,9 +15,9 @@ for each task whose threads are not at work:
   ` (deleted)`. A task counts while a thread of it is listed, and while it is a row of the queue.
 - A scout works in a worktree jbus makes for it (`jbus.crewtree.make_scout`), and one launched
   before that in the main checkout, beside its home, where a folder alone does not tell its
-  processes from the home's. A scout's processes are those under its worktree, the main checkout
-  or a temporary folder that its own session started: a session in that folder whose first
-  message from the user is `/scout <slug>`. jbus settles a scout once its Report is written, so a scout counts
+  processes from the home's. A scout's processes are those under its worktree, the main checkout or
+  a temporary folder that its own session started: a session in that folder whose first message from
+  the user is `/scout <slug>`. jbus settles a scout once its Report is written, so a scout counts
   whether T3 Code lists it or not, while no thread of that scout is at work.
 
 A session is the process's `queue.SESSION`, and its transcript is `<the agent's config

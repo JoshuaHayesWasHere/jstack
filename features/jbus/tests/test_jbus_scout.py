@@ -1,9 +1,10 @@
-"""A scout's request is a row of the queue: `jbus queue add` takes it when its text is a request
-(a `Request:` line and no `Task:` line), checks it against the template, and keeps it as a row of
+"""A scout's request is a row of the queue: `jbus queue add` takes it when its text is a request (a
+`Request:` line and no `Task:` line), checks it against the template, and keeps it as a row of
 role `scout`. It is approved as any row is, the entry's go included, and waits on its `--depends`
 as any row does. A pass launches it read-only, as `/scout <slug>` in a detached worktree jbus
-makes, with no branch, and the row is done once its Report says so. Like `test_jbus_kitchen.py`, the tests run
-the real commands and the real pass against a faked T3 Code server, `gh` and `jmerge`."""
+makes, with no branch, and the row is done once its Report says so. Like `test_jbus_kitchen.py`,
+the tests run the real commands and the real pass against a faked T3 Code server, `gh` and
+`jmerge`."""
 
 import json
 import os

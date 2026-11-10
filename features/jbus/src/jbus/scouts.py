@@ -13,15 +13,16 @@ A pass launches each scout row whose go holds for its queued request and whose d
 (`watch.final`): one `t3_thread_launch` titled `scout: <slug>`, with the message `/scout <slug>`,
 into a worktree jbus makes first (`jbus.crewtree.make_scout`): detached at origin's default branch,
 with no branch, so the scout has nothing to commit and no pull request to open, and with the
-settings file that takes from its first request the tools only a home uses. A home still launches
-in the project's own checkout. The scout still reads and writes the home's state directory, which
-it finds from the repo's shared git folder. Once its Report says `Status: done` and no thread of it
-is at work, or its row is removed, a pass removes its worktree (`clear`). The launch writes the request to `scouts/<slug>.md` in the home's state directory, where the scout
-writes its Report, or checks that the one there is the request queued. The model is the one the
-role map's `scout` line gives, and the launch waits, as a crewmate's does, for the dispatch to be
-on and for `jgauge room`. A scout takes no crew slot of `max_running`. Once launched, a scout's
-thread is the pass's like any other: `jbus.threads` settles it once its Report is written, and the
-row is `done` once that Report says `Status: done` (`watch.facts`).
+settings file that takes from its first request the tools only a home uses. A home still launches in
+the project's own checkout. The scout still reads and writes the home's state directory, which it
+finds from the repo's shared git folder. Once its Report says `Status: done` and no thread of it is
+at work, or its row is removed, a pass removes its worktree (`clear`). The launch writes the request
+to `scouts/<slug>.md` in the home's state directory, where the scout writes its Report, or checks
+that the one there is the request queued. The model is the one the role map's `scout` line gives,
+and the launch waits, as a crewmate's does, for the dispatch to be on and for `jgauge room`. A scout
+takes no crew slot of `max_running`. Once launched, a scout's thread is the pass's like any other:
+`jbus.threads` settles it once its Report is written, and the row is `done` once that Report says
+`Status: done` (`watch.facts`).
 
 As with a crewmate's launch, jbus keeps a record under `launches/` (`dispatch.record_path`), with
 `role` `scout`, at `intent` before the call, so a lost reply is never launched again: the next pass
