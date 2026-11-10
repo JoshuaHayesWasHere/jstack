@@ -484,6 +484,97 @@ def test_a_verdict_jmerge_gives_before_it_reads_the_checks_keeps_the_head(on_che
     assert watching(on_check) == [{"number": 7, "head": HEAD}]
 
 
+MOVING = "e" * 40
+"""The head of #8, a pull request whose checks change while #7's do not."""
+
+
+def asks(kitchen, number):
+    path = tick.CHECK_RUNS % number
+    return sum(call.startswith(f"api {path}") for call in kitchen.log("gh"))
+
+
+@pytest.fixture
+def settled(kitchen, monkeypatch):
+    """#7, whose check has run for 16 minutes with nothing new at its head, and #8, opened beside
+    it, whose check lists a new job on each tick. Both were read once 16 minutes ago. The clock
+    is the test's: `at(seconds)` sets it that long past 16 minutes after `NOW`."""
+    moving = {**kitchen.opened("beta", 8, None), "headRefOid": MOVING}
+    kitchen.set("open.json", [kitchen.opened("alpha", 7, None), moving])
+    kitchen.poll()
+    now = [NOW]
+    monkeypatch.setattr(verbs, "clock", lambda: now[0])
+    listed(kitchen, job("check"))
+    ticks(kitchen)
+    kitchen.at = lambda seconds: now.__setitem__(0, NOW + timedelta(minutes=16, seconds=seconds))
+    kitchen.set("jmerge.txt", f"{MERGED}\n")
+    return kitchen
+
+
+def moved(kitchen, step):
+    """#8's check lists one more job, as its shards start one by one."""
+    runs = json.loads((kitchen.stub / "check-runs.json").read_text())
+    runs[MOVING] = [job(f"check {n} of 10", suite=SUITE + 1) for n in range(step + 1)]
+    kitchen.set("check-runs.json", runs)
+
+
+def test_a_settled_head_is_asked_about_once_a_minute_and_a_moving_one_every_tick(settled):
+    """Ten ticks 10 s apart: #7, whose head and checks have not changed for 15 minutes, is asked
+    about on the first and on the one a minute after it; #8, whose checks change, on each."""
+    before = {7: asks(settled, 7), 8: asks(settled, 8)}
+    for step in range(10):
+        settled.at(10 * step)
+        moved(settled, step)
+        ticks(settled)
+    assert (asks(settled, 7) - before[7], asks(settled, 8) - before[8]) == (2, 10)
+
+
+def pushed(kitchen):
+    later = "d" * 40
+    kitchen.set("open.json", [{**kitchen.opened("alpha", 7, None), "headRefOid": later}])
+    kitchen.set("check-runs.json", {later: [job("check", suite=12)]})
+
+
+def rerun(kitchen):
+    kitchen.set("open.json", [kitchen.opened("alpha", 7, "FAILURE")])
+
+
+def main_merged(kitchen):
+    kitchen.set("commits.json", [kitchen.commit("f" * 40)])
+
+
+@pytest.mark.parametrize("change", [pushed, rerun, main_merged])
+def test_any_change_the_pass_sees_has_a_settled_head_asked_about_every_tick_again(
+    settled, change
+):
+    """The pass sees #7's head pushed, its checks change, or main move: from the next tick on, #7
+    is asked about every 10 s again, though GitHub's answer for its check runs is the same."""
+    settled.at(0)
+    ticks(settled)
+    settled.at(10)
+    before = asks(settled, 7)
+    ticks(settled)
+    assert asks(settled, 7) == before
+    change(settled)
+    settled.poll(NOW + timedelta(minutes=16, seconds=15))
+    for step in (20, 30, 40):
+        settled.at(step)
+        ticks(settled)
+    assert asks(settled, 7) == before + 3
+
+
+def test_a_settled_pull_request_that_turns_green_merges_within_a_minute(settled):
+    """#7's check passes a second after the tick asked about it: with no pass between, a tick
+    within the next minute asks again, reads it, and runs `jmerge`, which merges #7."""
+    settled.at(0)
+    ticks(settled)
+    ended(settled, 1)
+    for step in range(1, 7):
+        settled.at(10 * step)
+        if ticks(settled) == ["tick demo: a check ended, and jmerge ran"]:
+            break
+    assert 10 * step <= 60 and MERGED in settled.lines("jmerge")
+
+
 MANAGER = """#!/bin/sh
 echo "$*" >> "{stub}/systemctl.log"
 if [ "$2" != is-active ] && [ -f "{stub}/refused.txt" ]; then
