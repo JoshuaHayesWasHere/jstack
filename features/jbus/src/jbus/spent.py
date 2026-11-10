@@ -6,8 +6,10 @@ counts, as two append-only logs in each project's state, read by the telemetry s
 - `spend.jsonl`: one line for each local day, in the user's zone: its units, runs and tokens,
   and its units by kind (`jgauge.spend.COLUMNS`). A day with no run has a line of zeros.
 - `spend-rows.jsonl`: one line for each role and row of the day, by the title jbus gave the
-  thread (`crew: <slug>`, `review: <slug>`, `home: ...`, `scout: <slug>`). A thread jbus did not
-  name is `other`, with no slug, since its title is the user's.
+  thread (`crew: <slug>`, `review: <slug>`, `home: ...`, `scout: <slug>`), and for each send key
+  that woke its runs and whether the row's first prereview came before them that day
+  (`jgauge.spend.day_lines`), with their dollars. A thread jbus did not name is `other`, with no
+  slug, since its title is the user's. A line kept before the trigger was holds none.
 
 A run counts whole on the day it started, as `jgauge spend` counts it. A day is kept once it
 ended `SETTLE` ago, so the runs that started near its end have ended too, and never again. The
@@ -95,7 +97,13 @@ def _write(config: jbus.Config, project: jbus.Project, found, runs, now: datetim
         history.add(
             state / ROWS,
             [one | at for one in rows],
-            lambda one: (one.get("day"), one.get("role"), one.get("slug")),
+            lambda one: (
+                one.get("day"),
+                one.get("role"),
+                one.get("slug"),
+                one.get("trigger"),
+                one.get("reviewed"),
+            ),
             history.TAIL,
         )
         history.add(state / FILE, [total | at], lambda one: one.get("day"), history.TAIL)
