@@ -9,6 +9,7 @@ exit code.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
@@ -65,7 +66,8 @@ def ask(run: Pass, path: str, etag: str = "") -> Fresh | Same | None:
 def read(run: Pass, path: str) -> Any:
     """Return what GitHub answers a GET of `path`, asked with the ETag of the answer kept for it,
     so an answer that has not changed is the kept one, at no cost. None where GitHub gave no
-    answer, never a kept one. A 200 replaces what was kept, and one with no ETag keeps nothing."""
+    answer, never a kept one. A 200 replaces what was kept: one with no ETag is kept with none, so
+    the next ask sends no `If-None-Match` and gets a 200."""
     folder = run.state / ANSWERS
     _prune(folder)
     file = folder / f"{hashlib.sha256(path.encode()).hexdigest()[:32]}.json"
@@ -76,32 +78,20 @@ def read(run: Pass, path: str) -> Any:
         return None
     if isinstance(said, Same):
         etag, body = kept["etag"], kept["body"]
-    elif said.etag:
-        etag, body = said.etag, said.body
     else:
-        file.unlink(missing_ok=True)
-        return said.body
+        etag, body = said.etag, said.body
     temporary = file.with_name(f"{file.name}.{os.getpid()}.{threading.get_ident()}.tmp")
     answer = {"path": path, "etag": etag, "body": body, "asked": run.now.isoformat()}
     store.write_json(file, answer, indent=None, sort_keys=False, temporary=temporary)
     return body
 
 
-_pruned: set[Path] = set()
-
-
 def _prune(folder: Path) -> None:
-    """Remove the kept answers not asked about for `KEPT`, once a process. Each ask writes its file
-    whole, so a file's mtime is when it was last asked."""
-    if folder in _pruned:
-        return
-    _pruned.add(folder)
-    if not folder.is_dir():
-        return
+    """Remove the kept answers not asked about for `KEPT`, and any temporary file a write that
+    died left. Each ask writes its file whole, so a file's mtime is when it was last asked. A file
+    another thread removed first is gone already."""
     before = time.time() - KEPT.total_seconds()
-    for one in folder.iterdir():
-        try:
+    for one in folder.glob("*"):
+        with contextlib.suppress(FileNotFoundError):
             if one.stat().st_mtime < before:
-                one.unlink(missing_ok=True)
-        except FileNotFoundError:
-            continue
+                one.unlink()

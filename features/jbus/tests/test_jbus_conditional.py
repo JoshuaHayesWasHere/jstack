@@ -4,12 +4,15 @@ API allowance, and reads what it read before. A list that changed is read anew, 
 does not answer gives nothing, never a kept answer. The fake `gh` answers `-i` with an ETag and a
 matching `If-None-Match` with a 304 (`test_jbus_kitchen.fake_gh`)."""
 
+import json
+import os
+import time
 from datetime import timedelta
 
 import pytest
 
 import jbus
-from jbus import budget, passes, wakes, watch
+from jbus import budget, conditional, passes, wakes, watch
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_wakes import runs
 
@@ -83,3 +86,31 @@ def test_a_path_github_does_not_answer_gives_nothing_and_not_the_kept_answer(kit
     first, _ = a_pass(kitchen)
     again, asked = a_pass(kitchen)
     assert again == first and all("If-None-Match: " in call for call in asked)
+
+
+def test_a_200_that_is_not_json_gives_nothing_and_not_the_kept_answer(kitchen):
+    a_pass(kitchen)
+    kitchen.set("gh-down", "")
+    kitchen.set("gh-code", "0")
+    kitchen.set("gh-out", 'HTTP/2.0 200 OK\r\nEtag: W/"x"\r\n\r\n<html>unicorn</html>\n')
+    (_, nightlies, judged), _ = a_pass(kitchen)
+    assert nightlies == [None, None] and judged == ([], [])
+
+
+def test_an_answer_not_asked_about_for_7_days_is_dropped_and_its_path_asked_anew(kitchen):
+    first, _ = a_pass(kitchen)
+    kept = kitchen.state / conditional.ANSWERS
+    (old,) = [
+        one for one in kept.iterdir() if "macos-nightly" in json.loads(one.read_text())["path"]
+    ]
+    week = time.time() - conditional.KEPT.total_seconds() - 60
+    os.utime(old, (week, week))
+    stray = kept / "gone.json.1.2.tmp"
+    stray.write_text("{")
+    os.utime(stray, (week, week))
+    again, asked = a_pass(kitchen)
+    assert again == first and not stray.exists()
+    assert [call for call in asked if "If-None-Match" not in call] == [
+        "api repos/{owner}/{repo}/actions/workflows/macos-nightly.yml/runs"
+        "?status=completed&per_page=20 -i"
+    ]
