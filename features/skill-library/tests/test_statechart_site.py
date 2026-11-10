@@ -7,6 +7,9 @@ import re
 from statechart_support import node, read, write
 from testing.paths import REPO
 
+# The page reads every chart, and the code each chart's labels cite.
+READ_SET = ("features/*/spec/*-statechart/", "features/*/src/")
+
 CHARTS = sorted((REPO / "features").glob("*/spec/*-statechart/chart.mmd"))
 LEAF = re.compile(r'^\s*state "([^"]*)" as (\w+)\s*$', re.M)
 
