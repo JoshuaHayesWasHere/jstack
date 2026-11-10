@@ -1,4 +1,4 @@
-With no pull request, this thread is finished, and it settles itself when nothing of its work could be lost with it. After step 3, run this in this worktree, with the block at the top. It is the only check:
+With no pull request, this thread is finished, and it settles itself when nothing of its work could be lost with it. Where the brief asks for a pull request (`Pull request: open one`), the last Result names how the row ended on its `Outcome:` line, as `$T/result.md` shows: `carried by <slug>`, `nothing to change, <why>` or `dropped, <why>`. Without it jbus keeps a `done` row at left, for its home to close. After step 3, run this in this worktree, with the block at the top. It is the only check:
 
 ```sh
 B="$H/tasks/<slug>.md"
