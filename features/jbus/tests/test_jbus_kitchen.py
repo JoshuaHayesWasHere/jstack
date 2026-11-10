@@ -39,6 +39,7 @@ import jsettings
 import merge_in_pass
 import origin_tips
 import repo_template
+import scorecard_in_pass
 from jbriefs import meaning
 from jbus import acts, cli, live, outbox, party, poll, queue, rebase, t3, tick, verbs, wake, word
 from jgauge import slot, waiters
@@ -785,6 +786,7 @@ class Kitchen:
         self.started = subprocess.run
         monkeypatch.setattr(subprocess, "run", self.run)
         merge_in_pass.patch(monkeypatch)
+        scorecard_in_pass.patch(monkeypatch)
         monkeypatch.setattr(verbs, "clock", lambda: NOW)
         for name, text in (
             ("open.json", "[]"),
