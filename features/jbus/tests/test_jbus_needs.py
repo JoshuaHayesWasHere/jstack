@@ -373,7 +373,8 @@ def test_a_scopes_list_has_the_projects_own_items_and_the_asks_still_open_in_its
 ):
     """`jbus needs --home` keeps one home's items, and with them each item about no row and no
     home, such as a T3 Code build to install, and each `decision local` or `stop local` line
-    still in the home's `told`: an ask of the home's own, open until a `cleared` line ends it."""
+    still in the home's `told`: an ask of the home's own, open until a `cleared` line ends it
+    (`jbus.turnend`)."""
     answer = request.getfixturevalue(machine.__name__)
     sc = scoped(kitchen, "sc")
     old = patched(kitchen, "0001-tree.patch", "one\n")
