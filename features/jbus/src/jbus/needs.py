@@ -154,18 +154,37 @@ def lines(
     items, and a line for each project nothing is known of. `scope` names the projects in the
     line that says nothing waits, and `home` keeps one home's items (`of`)."""
     user, found, unknown = config.user.user, [], []
+    stands = [line for project in projects for line in standing(config, project, home)]
     for project in projects:
         try:
             found += of(config, project, now, home)
         except Unknown as why:
             unknown.append(f"not known: {why}")
     if not found and unknown:
-        return [*unknown, f"nothing else known waits on {user} in {scope}"]
+        return [*unknown, f"nothing else known waits on {user} in {scope}", *stands]
     if not found:
-        return [f"nothing waits on {user} in {scope}"]
+        return [f"nothing waits on {user} in {scope}", *stands]
     names = sorted({one.project for one in found}, key=[p.name for p in projects].index)
     head = f"waiting on {user}: {len(found)}, in {', '.join(names)}"
-    return [head, *(line for one in found for line in one.lines()), *unknown]
+    return [head, *(line for one in found for line in one.lines()), *unknown, *stands]
+
+
+def standing(config: jbus.Config, project: jbus.Project, home: Path | None = None) -> list[str]:
+    """Return a line for each home of the project that holds a standing word for follow-ups
+    (`jbus.standing`), naming the word and the user's words: with `home`, only that home's, and
+    a root home's scopes' with the root's. What it approves waits on nobody, so the user sees
+    here what is approved in their name."""
+    root = config.home(project)
+    lines = []
+    for scope, (word, said) in sorted(queue.standing_words(config.state(project)).items()):
+        if home is not None and home not in (root, root / scope):
+            continue
+        name = scope or "root"
+        lines.append(
+            f"{project.name} {name} home standing word {word} for follow-ups that open no door: "
+            f'"{said.words}"'
+        )
+    return lines
 
 
 def _arguments(parser: argparse.ArgumentParser) -> None:
