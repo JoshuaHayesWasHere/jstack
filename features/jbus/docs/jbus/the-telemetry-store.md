@@ -16,7 +16,7 @@ The store has one table for each record file of each project, with a `project` c
 | `transitions` | `transitions.jsonl` | a row's move from one status to another |
 | `row_waits` | `waits.jsonl` | a change of a row's reason to wait, to a reason or to none: its `kind` (`hold`, `depends`, `red main`, `room`, `cap` or `none`) and `why_len`, never the reason's text |
 | `outbox` | `outbox.jsonl` | a message jbus sent or held |
-| `ci_jobs` | `ci.jsonl` | a job of a GitHub Actions run, for a project whose table says `ci_report = true` |
+| `ci_jobs` | `ci.jsonl` | a job of a GitHub Actions run, for a project whose table says `ci_report = true`: its `attempt`, its `conclusion`, and from v019 the `step` a failed job failed at (`jbus.ci.collect.failed_step`) |
 | `merges` | the home's `merge.log` | a line `jmerge` logged: its verb, its pull request, a merge's slug and a wait's label |
 | `merge_waits` | the home's `merge-waits.jsonl` | a pull request `jmerge` merged: the second it was ready, the second its merge began, its `seconds` between, and the seconds each code held it (`blockers`), the longest of them `blocker` |
 | `open_waits` | the home's `merge-waits.json` | a ready pull request still open and its wait for `jmerge` at its `head`: `ready`, the `code` of its open segment since `seen`, and the seconds each code held its closed ones (`blockers`); the file's present state, so a pull request that leaves it leaves the table |
@@ -210,7 +210,7 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 | `weekly_change_failure` | each week's S6: `failures`, `merged` and `rate` |
 | `brief_at_launch` | each launch of a row: the sha of the brief stored then, and how many versions came after |
 | `launch_waits` | each launched row's `seconds` from its go to its launch, one row for each kind of reason it waited for in `row_waits`: `hold`, `depends`, `red main`, `room`, `cap` or `none`, the time before the row's first line; the go is the earlier of its first approved item and its queue approval, and the launch its first move to `launched`; counted from the project's first line of `waits.jsonl`, so a row that launched before it has no row |
-| `run_attempts` | each run: its attempts, when and at which attempt it first failed, and how its last attempt ended |
+| `run_attempts` | each run: its attempts, when it was `created`, when and at which attempt it first failed, at which attempt it last failed (`last_fail_attempt`), and how its last attempt ended |
 | `carried_words` | each word a home carried: from `acts.jsonl`, with the thread it went to from `word-sends.json` |
 | `weekly_restore` | each week's S7: `spells`, `median`, `most`, `still_open` and `negative` |
 | `ask_ledger` | each message you typed or word you said, what it `asks`, and what it joined: a `row` or an `answer`, an act that cites the message by id (a word by its own id), else a `reply` in its thread within 120 minutes; with none, `waiting`, then `unanswered` |
@@ -377,7 +377,10 @@ An alert whose count falls back under its limit, or a measure no longer `bad`, e
 
 `jbus --project <name> scorecard` reads each health measure of one project from the store, opened read only, and prints one line a measure: its state, group, name, value, unit, the count it is of, its baseline and its tier.
 `--json` prints a list instead, each item with `name`, `group`, `value`, `unit`, `n`, `baseline`, `state`, `tier`, `wired`, `audit`, `note` and `each`.
-`each` lists the parts a measure's value is the worst of, each with its `label`, `value` and `line` (null where it has no line yet), as `units-vs-capped-line` lists each account's units an hour against its capped line; it is empty for every other measure, and the line and the page show the same parts after the value.
+`each` lists the parts of a measure's value, each with its `label`, `value` and `line` (null where it has no line yet): the parts the value is the worst of, as `units-vs-capped-line` lists each account's units an hour against its capped line, or the parts it is made of, as `change-failure` lists each red spell of the week and `pr-checks-failed` each class of failure; it is empty for every other measure, and the line and the page show the same parts after the value.
+`pr-checks-failed` counts each check run on a pull request once: one that failed at any attempt, or whose last attempt passed, so a run whose last attempt was cancelled is left out.
+Its parts are the share of the runs that failed for each class, read from the failed jobs of a run's last failed attempt: `runner fault` where none failed at a step of the change's own (`OWN` in `m17_pr_checks_failed.py`: a make target, `new lines` or a lint) and one failed at another, such as the trailer fetch; otherwise `flake` where a later attempt of the run, or a later run at the same head, passed; and `own defect` where none did.
+A failed run whose jobs name no step is in the value and in no part.
 `jbus scorecard --out <path>` writes the scorecard's page there in place of the lines, through a draft file renamed over it, and prints one line with the count of each state.
 It raises no alert and changes nothing in the store.
 
