@@ -36,5 +36,15 @@
     }
   },
   "classes": [],
-  "codeLike": []
+  "codeLike": [],
+  "drawnFrom": {
+    "command": "statechart from-spec HomeTreeToday.tla --png",
+    "inputs": {
+      "HomeTree.tla": "e17215e84c80788eae10afa1a45e1a722c0ed82297cc554a65a6ece0c8b5ab1d",
+      "HomeTreeToday.cfg": "ab9baa6e2550151b54ed01521f096331858477cf36a47345cd19ff3bfc5b86ae",
+      "HomeTreeToday.map.py": "a10ab863aa2f2ef48d8f62b9d31f88639084d797bd231e51e335ffb0222a723d",
+      "HomeTreeToday.tla": "73ecc8a314c13978bad11522182d8c06b1601fe7c64da917f5d2933e4ee5e12a"
+    },
+    "chart": "80e7b299ea5fcaa65e52e4b801c772fc9199f40e2c79eed2f07b04868a8e1553"
+  }
 }

@@ -83,5 +83,16 @@
   "codeLike": [],
   "uncited": {
     "FlowToday.tla": []
+  },
+  "drawnFrom": {
+    "command": "statechart from-spec FlowToday.tla --config FlowToday.chart.cfg --against FlowDesign.tla --label 'the design' --title 'Does work keep flowing?' --png",
+    "inputs": {
+      "FlowDesign.cfg": "b6967b1301d5fe88460ce5c0488881755fddc904654f6098018ff516ccc0f870",
+      "FlowDesign.tla": "5d313ef072f071f86f9a319bd317941b0593fa52b7588e2e82350162e809c1a8",
+      "FlowToday.chart.cfg": "0c2e0c0bb2b62bac048928b2f9420a1d3fb06f49d91efabba997f5c73694c9b6",
+      "FlowToday.map.py": "a746f326d97f871e519d34c3d0b05ffe2f267c4ddef5014dd72c515c604a87e4",
+      "FlowToday.tla": "12193f6fdbb941b10319561126fdc8753afa574caa41eae4ccac070bf195c6aa"
+    },
+    "chart": "8017614fdd4e67b96a29b793d50752e32ad11718421fb08147ce416c807a0311"
   }
 }

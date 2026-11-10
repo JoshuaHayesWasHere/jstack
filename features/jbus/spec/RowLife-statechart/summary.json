@@ -46,5 +46,14 @@
     }
   },
   "classes": [],
-  "codeLike": []
+  "codeLike": [],
+  "drawnFrom": {
+    "command": "statechart from-spec RowLife.tla --title 'A row'\"'\"'s life' --png",
+    "inputs": {
+      "RowLife.cfg": "da82e095801109570160b22f7aca937566e6214193c82f7e6453ad07c05b4297",
+      "RowLife.map.py": "2101018d173fcdb6f23f29decb0477728184849cfbd6f485b4bfcb98ec847d10",
+      "RowLife.tla": "f2c6a3c69b194a6ca82f49ac970742910fb0b276f48da61ef8a50270bddb9cc3"
+    },
+    "chart": "5e44f5abf17a7c12236a78f8a34b894043222bde2fd39e002aadcda649045388"
+  }
 }
