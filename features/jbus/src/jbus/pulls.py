@@ -14,6 +14,8 @@ The kept answer is `FILE` in the project's state. It is not reused, and the next
 - where a probe gave no answer, since nothing then says the list is unchanged;
 - where the list names other pull requests or heads than REST's did, as when one of the two
   read GitHub before a change and the other after it;
+- where a pull request's `statusCheckRollup` says other of its head's checks than REST's check
+  runs and statuses did, as when GraphQL still says IN_PROGRESS of a run REST says completed;
 - where a pull request's `mergeable` is `UNKNOWN`, which GitHub decides a while later with no
   change any probe sees;
 - where it was asked just after a base tip moved, since GitHub may give the `mergeable` it had
@@ -69,13 +71,14 @@ class Open:
 @dataclass(frozen=True)
 class Probe:
     """What the free reads said: `seen`, a digest of all of it, or None where one gave no
-    answer, the default branch, the tip of each base by name, and each open pull request as
-    `heads` gives it."""
+    answer, the default branch, the tip of each base by name, each open pull request as
+    `heads` gives it, and each open head's checks as `rollup` gives them."""
 
     seen: str | None
     default: str
     tips: dict[str, str]
     pulls: list[list[Any]]
+    checks: dict[str, list[list[Any]]]
 
 
 def read(run: Pass) -> Open:
@@ -94,7 +97,9 @@ def read(run: Pass) -> Open:
         was = kept.get("tips") if isinstance(kept.get("tips"), dict) else {}
         moved = any(was.get(base, tip) != tip for base, tip in probed.tips.items())
         decided = all(pull.get("mergeable") != "UNKNOWN" for pull in pulls)
-        agrees = heads(pulls) == probed.pulls
+        agrees = heads(pulls) == probed.pulls and all(
+            rollup(pull) == probed.checks.get(str(pull.get("headRefOid"))) for pull in pulls
+        )
         kept = {
             "fields": FIELDS,
             "seen": probed.seen,
@@ -145,10 +150,10 @@ def probe(run: Pass) -> Probe:
             for one in listed
         )
     except (KeyError, TypeError):
-        return Probe(None, *_tips(run, ()), [])
+        return Probe(None, *_tips(run, ()), [], {})
     opened = [[number, head, sha, base] for number, _, _, head, sha, base, _, _ in pulls]
     default, tips = _tips(run, sorted({pull[5] for pull in pulls}))
-    checks = {}
+    checks, said = {}, {}
     for head in sorted({pull[4] for pull in pulls}):
         runs, statuses = conditional.read(run, RUNS % head), conditional.read(run, STATUS % head)
         try:
@@ -164,12 +169,16 @@ def probe(run: Pass) -> Probe:
                     for one in statuses["statuses"]
                 ),
             ]
+            said[head] = _checks(
+                [(one["name"], one["status"], one["conclusion"]) for one in runs["check_runs"]],
+                [(one["context"], one["state"]) for one in statuses["statuses"]],
+            )
         except (KeyError, TypeError):
-            return Probe(None, default, tips, opened)
+            return Probe(None, default, tips, opened, {})
     if not default:
-        return Probe(None, default, tips, opened)
-    said = json.dumps([pulls, default, tips, checks], sort_keys=True, default=str)
-    return Probe(hashlib.sha256(said.encode()).hexdigest(), default, tips, opened)
+        return Probe(None, default, tips, opened, said)
+    digest = json.dumps([pulls, default, tips, checks], sort_keys=True, default=str)
+    return Probe(hashlib.sha256(digest.encode()).hexdigest(), default, tips, opened, said)
 
 
 def heads(pulls: list[dict[str, Any]]) -> list[list[Any]]:
@@ -179,6 +188,34 @@ def heads(pulls: list[dict[str, Any]]) -> list[list[Any]]:
         [one.get("number"), one.get("headRefName"), one.get("headRefOid"), one.get("baseRefName")]
         for one in pulls
     )
+
+
+def rollup(pull: dict[str, Any]) -> list[list[Any]]:
+    """A GraphQL pull request's `statusCheckRollup` as its head's check runs and statuses: each
+    run by name, whether it completed and its conclusion, and each status by context and state.
+    A rollup that is no list says no check at all, and an entry that is no object is none. An
+    `EXPECTED` entry, a required check that has not reported, is left out: no probe sees it, and
+    `FRESH` reads a change to it."""
+    listed = pull.get("statusCheckRollup")
+    given = [one for one in listed if isinstance(one, dict)] if isinstance(listed, list) else []
+    runs = [one for one in given if "context" not in one]
+    statuses = [one for one in given if "context" in one and one.get("state") != "EXPECTED"]
+    return _checks(
+        [(one.get("name"), one.get("status"), one.get("conclusion")) for one in runs],
+        [(one.get("context"), one.get("state")) for one in statuses],
+    )
+
+
+def _checks(runs: list[tuple[Any, Any, Any]], statuses: list[tuple[Any, Any]]) -> list[list[Any]]:
+    """Check runs as (name, status, conclusion) and statuses as (context, state), in one form
+    REST's lower case and GraphQL's upper case both give: a run says only whether it completed
+    and its conclusion."""
+    said = [
+        ["run", name, str(status).lower() == "completed", str(conclusion or "").lower()]
+        for name, status, conclusion in runs
+    ]
+    said += [["status", context, str(state or "").lower()] for context, state in statuses]
+    return sorted(said, key=lambda one: json.dumps(one, default=str))
 
 
 def _tips(run: Pass, bases: list[str] | tuple[str, ...]) -> tuple[str, dict[str, str]]:
