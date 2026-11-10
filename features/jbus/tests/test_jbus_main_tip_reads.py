@@ -137,3 +137,35 @@ def test_a_commit_whose_run_comes_within_the_quarter_hour_is_judged_and_kept(kit
     assert (answer, len(reads)) == ("green", 2)
     assert judged_reads(kitchen, sha, 30) == ("green", [])
     assert sha not in jbus.read_json(kitchen.state / mainmoved.UNJUDGED, {})
+
+
+DAY = 24 * 60
+
+
+def test_a_tip_nothing_judged_for_a_day_is_read_once_an_hour(kitchen):
+    """cs-shelf's tip 3e530a9 has no run at all, and as main's tip each pass read it again, two
+    asks of GitHub a pass for as long as it stayed main's tip."""
+    sha = "8" * 40
+    for minutes in (0, 3, DAY):
+        answer, reads = judged_reads(kitchen, sha, minutes, again=True)
+        assert (answer, len(reads)) == ("pending", 2)
+    for minutes in (DAY + 3, DAY + 59):
+        assert judged_reads(kitchen, sha, minutes, again=True) == ("pending", [])
+    answer, reads = judged_reads(kitchen, sha, DAY + 60, again=True)
+    assert (answer, len(reads)) == ("pending", 2)
+    assert judged_reads(kitchen, sha, DAY + 63, again=True) == ("pending", [])
+
+
+def test_a_run_that_comes_late_to_an_old_tip_is_judged(kitchen):
+    """As when check.yml is switched on again: the hourly read finds the run, and a tip that
+    lands after it is read on every pass, as any new tip of main is."""
+    sha, new = "8" * 40, "4" * 40
+    for minutes in (0, DAY):
+        assert judged_reads(kitchen, sha, minutes, again=True)[0] == "pending"
+    kitchen.set("check-runs.json", {sha: [{"status": "completed", "conclusion": "success"}]})
+    assert judged_reads(kitchen, sha, DAY + 30, again=True) == ("pending", [])
+    answer, reads = judged_reads(kitchen, sha, DAY + 60, again=True)
+    assert (answer, len(reads)) == ("green", 2)
+    for minutes in (DAY + 63, DAY + 66):
+        answer, reads = judged_reads(kitchen, new, minutes, again=True)
+        assert (answer, len(reads)) == ("pending", 2)
