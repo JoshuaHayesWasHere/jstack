@@ -190,9 +190,9 @@ def state_of(
     """Where the batch stands: none out, or one stale (the tip moved, or its pull request is not
     open at its commit); proven, where `run` is the run that left the artifact of the tip's tree
     and its tree; failed, where its check failed; late, where `PENDING_MINUTES` went by from its
-    push with no artifact found; and pending otherwise. A check that passed with no artifact found is
-    pending: the lookup turns a gh error, or a run not yet concluded after its last job passed,
-    into none, and the next run looks again."""
+    push with no artifact found; and pending otherwise. A check that passed with no artifact
+    found is pending: the lookup turns a gh error, or a run not yet concluded after its last job
+    passed, into none, and the next run looks again."""
     if batch is None or tip != batch.tip or pull is None or pull.head != batch.commit:
         return NONE
     if run:

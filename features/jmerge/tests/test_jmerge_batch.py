@@ -413,7 +413,9 @@ def late(kitchen, checks):
 
 
 TIMED_OUT = pytest.mark.parametrize(
-    "checks", [(merge.RUNNING,), (merge.PASSED,)], ids=["check still running", "passed, no artifact"]
+    "checks",
+    [(merge.RUNNING,), (merge.PASSED,)],
+    ids=["check still running", "passed, no artifact"],
 )
 
 
