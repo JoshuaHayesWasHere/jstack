@@ -3,13 +3,14 @@ launches itself, once per head, in the crew's worktree, and of which it asks the
 `test_jbus_unlock.py`, the tests run the real pass against the fakes, with the line `jmerge` prints
 for such a pull request."""
 
+import json
 from datetime import timedelta
 
 import pytest
 
 import jbus
 import jsettings
-from jbus import rebase
+from jbus import rebase, reviewlaunch
 from jmerge import rangediff, ready
 from jroles import ledger
 from test_jbus_kitchen import NOW, asks
@@ -50,6 +51,14 @@ def keys(kitchen):
     return [key for key in sent if key.startswith("rereview|") and " " not in key]
 
 
+def recorded(kitchen):
+    """Each line of `review-launches.jsonl`: its slug, thread, head, kind and seat."""
+    return [
+        (one["slug"], one["thread"], one["head"], one["kind"], one["n"])
+        for one in map(json.loads, (kitchen.state / reviewlaunch.LAUNCHES).read_text().splitlines())
+    ]
+
+
 def brief(kitchen):
     return (kitchen.home / "tasks/alpha.md").read_text()
 
@@ -85,6 +94,7 @@ def test_a_changed_rebase_launches_one_scoped_reviewer_and_sends_its_crew_nothin
     line = f"rereview alpha: launched the scoped reviewer {made} (#7, cccccccccccc)"
     assert launched.lines("rereview") == [line]
     assert sends(launched) == [] and gates(launched) == []
+    assert recorded(launched) == [("alpha", made, head, "scoped", 1)]
 
 
 def test_a_head_gets_one_reviewer_and_a_new_head_after_another_rebase_one_more(launched):
@@ -104,7 +114,9 @@ def test_a_head_whose_result_names_its_scoped_reviewer_gets_no_other(launched):
     path.write_text(path.read_text() + f"Scoped reviewer: mcp:reviewer, of {'c' * 40}\n")
     out(launched)
     launched.poll()
+    launched.poll(NOW + timedelta(minutes=3))
     assert scoped(launched) == [] and sends(launched) == [] and keys(launched) == []
+    assert recorded(launched) == [("alpha", "mcp:reviewer", "c" * 40, "scoped", 1)]
 
 
 CARRIED = (

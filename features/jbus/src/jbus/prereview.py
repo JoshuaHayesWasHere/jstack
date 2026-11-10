@@ -6,24 +6,24 @@ the crew skill's check and proof blocks), the review, the pull request, the merg
 reads a head the desk proof passed, so it runs while nothing else does, and CI's check runs once,
 on the pull request that follows the review.
 
-A crew whose desk proof passed pushes its branch and writes its Result with `Branch: <branch>
-Pull request: after the review` (`review.AFTER`), then ends its turn. `launch` reads each such row
-on each pass: its crew's thread is not at work, it has no pull request, its brief asks for a review
-and has no reviewer yet. It asks origin for the branch's head, and `jmerge`'s own rules whether the
+A crew whose desk proof passed pushes its branch and writes its Result with `Branch: <branch> Pull
+request: after the review` (`review.AFTER`), then ends its turn. `launch` reads each such row on
+each pass: its crew's thread is not at work, it has no pull request, its brief asks for a review and
+has no reviewer yet. It asks origin for the branch's head, and `jmerge`'s own rules whether the
 brief's last `Checked:` line and its `Proved:` line bind that head (`ready.short_on_checked`,
 `ready.short_on_proved`, over the files the branch changes since its base). Where they do, it
 launches one reviewer for each line of the role map's review list (`jroles.pool.routes`), each a
 thread titled `review: <slug>, <n>` in the crew's worktree, told `/pr-review run <slug> <n>`, and
-adds a `Reviewer: <thread> #<n>` line for each under the Result, the line every reader of the
-roster parses. Where they do not, or origin has no such branch, or T3 Code names no worktree for
-the crew, the row is a condition, once for its head: the crew wrote that it waits on a review it
-has not earned. jbus also tells the crew, once for that head (the one origin has, else the
-branch's own), under `prereview-refused|<slug>|<head 12>` (`refuse`): what does not hold, and that
-it fixes it, pushes and writes a follow-up Result that still opens its pull request after the
-review. The message is sent here and not by `threads.resume`, which sends nothing to a crew whose
-review is awaited: only this pass knows the head it read and why it refused it. Meanwhile the row
-runs, waiting on its review (`watch.owes_pull`), whatever its Result's `Left:` line names, and
-the crew's follow-up Result is read like the first.
+adds a `Reviewer: <thread> #<n>` line for each under the Result, the line every reader of the roster
+parses, and records the head it launched each at (`jbus.reviewlaunch`). Where they do not, or origin
+has no such branch, or T3 Code names no worktree for the crew, the row is a condition, once for its
+head: the crew wrote that it waits on a review it has not earned. jbus also tells the crew, once for
+that head (the one origin has, else the branch's own), under `prereview-refused|<slug>|<head 12>`
+(`refuse`): what does not hold, and that it fixes it, pushes and writes a follow-up Result that
+still opens its pull request after the review. The message is sent here and not by `threads.resume`,
+which sends nothing to a crew whose review is awaited: only this pass knows the head it read and why
+it refused it. Meanwhile the row runs, waiting on its review (`watch.owes_pull`), whatever its
+Result's `Left:` line names, and the crew's follow-up Result is read like the first.
 
 The key `reviewers|<slug>|<head 12>` is marked before the first launch, since a launch has no
 retry key: a pass that crashes after it launches no reviewer twice. A pass that finds every
@@ -49,7 +49,7 @@ from typing import Any
 import jroles
 from jbriefs import below, findings
 from jbriefs import proved as jproved
-from jbus import END_TURN, dispatch, mirror, outbox, rebase, review, verbs
+from jbus import END_TURN, dispatch, mirror, outbox, rebase, review, reviewlaunch, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import World, _default_branch, at_work, task_brief
@@ -224,6 +224,7 @@ def launch(run: Pass, client: Client, world: World) -> None:
             if not made:
                 run.condition(slug, LOST, f"reviewer #{n} at {head}{why}", key=f"lost {key}")
                 break
+            reviewlaunch.record(run, reviewlaunch.Launch(slug, made, head, "first", n, run.now))
             lines.append(f"Reviewer: {made} #{n}\n")
         if lines:
             _record(run, slug, lines)

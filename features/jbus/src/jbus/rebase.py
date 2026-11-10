@@ -19,19 +19,19 @@ resolves a conflict.
 `tell` also reads a second kind of `wait` line, about a rebase that changed what the patch says.
 `jmerge` keeps a review valid across a rebase whose range-diff changes no content, and waits on a
 rebase whose range-diff changes content. jbus then launches one scoped reviewer of that range-diff
-itself (`scope`), and asks the crew nothing: a thread titled `review: <slug>, scoped` in the
-crew's worktree, told `/pr-review run <slug> scoped <old> <new>`, with the arguments of a first
-review's launch (`prereview.arguments`), and a `Scoped reviewer: <thread>, of <head>` line added
-under the Result (`prereview._record`). Its key, `rereview|<slug>|<head 12>`, is marked before the
-launch, since a launch has no retry key: a pass that crashes after it launches no second reviewer
-of the head. The same key tells `expedite` the head is asked for. A launch waits while the crew is
-at work, since the reviewer reads the crew's worktree, and while GitHub has the pull request at
-another head. A pass that finds the review pool capped, no worktree for the crew, or T3 Code
-refusing the launch launches nothing, leaves the key unmarked so the next pass tries again, and
-is a gate once for the head. A launch that got no reply keeps its key, since it may have made the
-thread, and is a condition once, as `prereview`'s is. The crew hears of the scoped review once it
-is written, from `jbus.reviewed`, with its findings by id, as of any review round, and hears
-nothing of one that is clean.
+itself (`scope`), and asks the crew nothing: a thread titled `review: <slug>, scoped` in the crew's
+worktree, told `/pr-review run <slug> scoped <old> <new>`, with the arguments of a first review's
+launch (`prereview.arguments`), and a `Scoped reviewer: <thread>, of <head>` line added under the
+Result (`prereview._record`), with the head recorded (`jbus.reviewlaunch`). Its key,
+`rereview|<slug>|<head 12>`, is marked before the launch, since a launch has no retry key: a pass
+that crashes after it launches no second reviewer of the head. The same key tells `expedite` the
+head is asked for. A launch waits while the crew is at work, since the reviewer reads the crew's
+worktree, and while GitHub has the pull request at another head. A pass that finds the review pool
+capped, no worktree for the crew, or T3 Code refusing the launch launches nothing, leaves the key
+unmarked so the next pass tries again, and is a gate once for the head. A launch that got no reply
+keeps its key, since it may have made the thread, and is a condition once, as `prereview`'s is. The
+crew hears of the scoped review once it is written, from `jbus.reviewed`, with its findings by id,
+as of any review round, and hears nothing of one that is clean.
 
 The third kind of `wait` line is about a rebase that dropped lines nobody explained. `jmerge` waits
 on such a rebase, and jbus tells the crew once per head, under the key `drops|<slug>|<head 12>`. The
@@ -84,7 +84,17 @@ from urllib.parse import urlsplit
 import jroles
 from jbriefs import below
 from jbriefs.home import thread_of
-from jbus import END_TURN, cancelled, dispatch, outbox, prereview, queue, review, verbs
+from jbus import (
+    END_TURN,
+    cancelled,
+    dispatch,
+    outbox,
+    prereview,
+    queue,
+    review,
+    reviewlaunch,
+    verbs,
+)
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import (
@@ -285,6 +295,7 @@ def scope(run: Pass, client: Client, world: World, number: int, reason: str, ask
     if not made:
         run.condition(slug, LAUNCH_LOST, f"#{number} at {head}{why}", key=f"{key} lost")
         return
+    reviewlaunch.record(run, reviewlaunch.Launch(slug, made, head, "scoped", 1, run.now))
     prereview._record(run, slug, [f"Scoped reviewer: {made}, of {head}\n"])
     line = f"{ask.kind} {slug}: {ask.did} {made} (#{number}, {head[:12]})"
     run.find(slug, ask.kind, line, asked["message"], key=f"{head[:12]} launched")

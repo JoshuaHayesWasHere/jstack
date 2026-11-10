@@ -73,11 +73,14 @@ class Sql:
     machine's rows: its `:project` is `MACHINE`, so it reads the same on every project. `each`,
     where a measure has it, is a second SELECT with the same parameters that gives a row
     `label, value, line` for each part the value is the worst of, such as each account, which
-    the scorecard shows beside the value (`Part`)."""
+    the scorecard shows beside the value (`Part`). `note`, where a measure has it, is a third
+    SELECT with the same parameters that gives one text or no row, which the reading carries as
+    its note, such as how many of what the window holds the value leaves out."""
 
     query: str
     machine: bool = False
     each: str = ""
+    note: str = ""
 
 
 @dataclass(frozen=True)
@@ -169,12 +172,16 @@ class Part:
 
 @dataclass(frozen=True)
 class Reading:
+    """`note` is what the source's `note` says, or why the reading is `none`; `failed` says the
+    query failed, and the note is its error."""
+
     value: float | None
     n: int
     baseline: float | None
     state: State
     note: str = ""
     each: tuple[Part, ...] = ()
+    failed: bool = False
 
 
 def bounds(
@@ -226,7 +233,7 @@ def read(
     match measure.source:
         case Lacks(needs):
             return Reading(None, 0, fixed, "none", f"needs {needs}")
-        case Sql(query, machine, each):
+        case Sql(query, machine, each, note):
             owner = MACHINE if machine else project
     span = bounds(measure.window, now, user)
     try:
@@ -241,10 +248,25 @@ def read(
                 if before is not None:
                     prior.append(before)
     except sqlite3.Error as error:
-        return Reading(None, 0, fixed, "none", f"{type(error).__name__}: {error}")
+        said = f"{type(error).__name__}: {error}"
+        return Reading(None, 0, fixed, "none", said, failed=True)
     mean = sum(prior) / len(prior) if prior else None
     state = _state(measure, value, n, baseline, mean)
-    return Reading(value, n, baseline, state, each=_parts(store, each, owner, *span))
+    told = _note(store, note, owner, *span)
+    return Reading(value, n, baseline, state, told, _parts(store, each, owner, *span))
+
+
+def _note(store: sqlite3.Connection, query: str, project: str, begins: str, ends: str) -> str:
+    """What a source's `note` says, or nothing where it has none, gives no row or fails: the
+    value the measure read stands either way."""
+    if not query:
+        return ""
+    params = {"project": project, "begins": begins, "ends": ends}
+    try:
+        row = store.execute(query, params).fetchone()
+    except sqlite3.Error:
+        return ""
+    return "" if row is None or row[0] is None else str(row[0])
 
 
 def _parts(
