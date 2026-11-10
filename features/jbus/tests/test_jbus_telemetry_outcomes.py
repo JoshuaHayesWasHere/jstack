@@ -10,7 +10,7 @@ under jbus's state, a home's and a scout's and a crewmate's transcripts, and T3 
 messages, then runs `jbus telemetry` and reads the views as any reader would."""
 
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -19,7 +19,6 @@ import jsettings
 import test_jbus_telemetry_tokens as token_records
 from jbus.telemetry import measures
 from jbus.telemetry.measures import m47_done_no_merge as done_no_merge
-from jbus.telemetry.values import STAMP
 from jgauge import spend as jgauge_spend
 from test_jbus_telemetry_tokens import NOW, iso, said
 
@@ -159,14 +158,8 @@ def test_done_no_merge_counts_only_the_rows_that_ended_without_buying_a_merge(st
         ).fetchall()
     )
     assert {"row-none", "row-carried", "row-dropped"} <= set(units)
-    at = NOW + timedelta(hours=2)
-    begins, ends = (
-        datetime.strptime(one, STAMP).replace(tzinfo=UTC)
-        for one in measures.bounds("week", at, USER)
-    )
-    days = max(1.0, (ends - begins) / timedelta(days=1))
-    reading = measures.read(store, done_no_merge.MEASURE, "alpha", at, USER)
-    assert (reading.value, reading.n) == (pytest.approx(units["row-dropped"] / 1e6 * 3 / days), 1)
+    reading = measures.read(store, done_no_merge.MEASURE, "alpha", NOW + timedelta(hours=2), USER)
+    assert (reading.value, reading.n) == (pytest.approx(units["row-dropped"] / 1e6), 1)
 
 
 def test_a_scout_counts_the_rows_of_its_entry_by_how_they_stand(store):
