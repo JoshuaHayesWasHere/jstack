@@ -38,6 +38,7 @@ The store has one table for each record file of each project, with a `project` c
 | `review_rounds` | `review-rounds.jsonl` | a settled review round of a row's pull request: its number, head, sections, `Meets the brief` verdict (`meets`, `met` of `done_when`) and its findings by severity (`errors`, `warnings`, `infos`, `others`, `dismissed`) |
 | `capped_reads` | the machine's `capped.jsonl` | a read of which Claude instances the ledger has capped, by `jgauge limits` or the pass (`jgauge.limits.note`): its `reader`, how many `instances` and how many `capped`, and, where every one was, `ends_at`, the first reset |
 | `health_readings` | the machine's `health.jsonl` | a reading of jbus's health look: its `at`, its key as `reading` (`key` is each table's own), its `value`, the percent of a `disk`, `inodes` or `quota` reading and 1 or 0 of the others, and whether it was `over` its limit, null where the look could not read it |
+| `load_samples` | jgauge's `load.tsv` (`JGAUGE_LOAD_LOG`, else `~/.local/state/jgauge/load.tsv`) | a row of the machine's load each 15 s (`jgauge.sample`): its `at`, its `cores` and its 1-minute `load1`, under the project `''`; the header is a row with no `at`. The scorecard reads it as `load-over-cores` |
 | `messages` | T3 Code's store, read only, and the `word` acts of `acts` | a message of a T3 Code thread, the user's or the assistant's, keyed by its id, or a word you said with no T3 message, keyed `word:<id>` |
 | `first_loads` | the installed crew `SKILL.md` and `jbus playbook crewmate`'s print of each playbook, read from the jstack source jbus runs from | an install's crew first load, under the project `''`, written when its `hash` is not the latest row's: `bytes`, the skill and the largest print, and in `files` the bytes of each text counted |
 | `gh_hours` | the machine's gh call log, `gh-calls.jsonl` and `gh-calls.old.jsonl` | the gh calls of one hour (UTC), caller and resource: `calls`, `not_modified` (an `http` of 304), `failed` (a `status` other than 0 with no 304) and `least`, the lowest `remaining` they gave |
@@ -409,7 +410,8 @@ To measure one that `Lacks` its record, add the record and its table as "Change 
 ## The scorecard
 
 `jbus --project <name> scorecard` reads each health measure of one project from the store, opened read only, and prints one line a measure: its state, group, name, value, unit, the count it is of, its baseline and its tier.
-`--json` prints a list instead, each item with `name`, `group`, `value`, `unit`, `n`, `baseline`, `state`, `tier`, `wired`, `audit` and `note`.
+`--json` prints a list instead, each item with `name`, `group`, `value`, `unit`, `n`, `baseline`, `state`, `tier`, `wired`, `audit`, `note` and `each`.
+`each` lists the parts a measure's value is the worst of, each with its `label`, `value` and `line` (null where it has no line yet), as `units-vs-capped-line` lists each account's units an hour against its capped line; it is empty for every other measure, and the line and the page show the same parts after the value.
 `jbus scorecard --out <path>` writes the scorecard's page there in place of the lines, through a draft file renamed over it, and prints one line with the count of each state.
 It raises no alert and changes nothing in the store.
 

@@ -54,7 +54,9 @@ class Source:
     file, and `natural` names the column that is its key. `at` names the column whose local date
     is `day`. A log's `beside`, where given, adds to each record what the files in its file's
     directory hold, before `row`; the row's key is still of the line as written. A `whole`
-    snapshot deletes, on each read, the project's rows its file no longer holds."""
+    snapshot deletes, on each read, the project's rows its file no longer holds. A machine
+    source another tool writes outside jbus's state directory names where it is in `located`,
+    as `load_samples` names `jgauge.sample.log_path`."""
 
     table: str
     file: str
@@ -68,6 +70,7 @@ class Source:
     natural: str = ""
     beside: Callable[[Row, Path], Row] | None = None
     whole: bool = False
+    located: Callable[[], Path] | None = None
 
 
 SOURCES: tuple[Source, ...] = tuple(

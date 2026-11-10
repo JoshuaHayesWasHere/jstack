@@ -1070,3 +1070,19 @@ def test_a_review_whose_findings_are_all_declined_is_read_as_fixed_none_needed(
     assert run.jmerge(proven_merged, rules, "--check") == [
         f"wait 7 {merge.URL}: its findings are not handled: the Result has no Fixed line"
     ]
+
+
+def test_a_pull_request_github_has_not_decided_on_says_first_what_its_answer_cannot_change(
+    proven_merged, rules
+):
+    """A rebase changed its content after its review: that wait holds whatever GitHub says of
+    its mergeability. GitHub decides afresh each time main moves, and a run in that while said
+    `GitHub has not decided whether it merges` in its place: #1440 flapped `dropped`,
+    `undecided`, `dropped` on 2026-11-09."""
+    rebased = Rebased(proven_merged, {11: "theirs 11"}, BOTH)
+    assert run.jmerge(proven_merged, rules) == [rebased.waits()]
+    proven_merged.home.open_pull_request(
+        rebased.head, checks=(LATER,), files=[FILE], mergeable="UNKNOWN"
+    )
+    assert run.jmerge(proven_merged, rules) == [rebased.waits()]
+    assert run.merges(proven_merged) == []

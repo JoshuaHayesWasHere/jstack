@@ -25,6 +25,7 @@ owners:
     - scripts/check-jstack-docs.py
     - scripts/green_tree.py
     - scripts/no_ai_trailers.py
+    - scripts/selection_wait.py
     - scripts/fresh-host.sh
     - scripts/select_tests.py
     - scripts/hot_files.py

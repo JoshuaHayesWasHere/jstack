@@ -35,8 +35,8 @@ The first word is `ok`, `over`, or `?` for a check that could not be read.
 | `relay silent` | How long since the relay last heard a body. | `RELAY_SILENT_MINUTES`, 90 |
 | `relay errors` | How long a route's POSTs have failed, and how many bodies wait. | 10 minutes |
 | `relay refused` | The bodies a target refused permanently in the last 60 minutes, and where the last is kept in `dead/`. | 1 |
-| `quota <instance> seven_day` | The share of the instance's seven-day window used, from the ledger. | 80% |
-| `quota <instance> five_hour` | The share of the five-hour window used. | paged only when full, as `capped` |
+| `quota <instance> seven_day` | The share of the instance's seven-day window used, from the ledger. Every instance has one: 0 where a Claude instance's ledger is fresh and has no line of the window, which is not open, and unread, null, where nobody reads the instance's use. | 80% |
+| `quota <instance> five_hour` | The share of the five-hour window used, read the same way. | paged only when full, as `capped` |
 | `capped <instance>` | The windows of the instance that are full, and until when. | 100% of a window |
 
 The mounts are those the stack writes: jbus's state and the homes, each project's checkout, the temp directory, your home directory, the ledger, and the relay's state.
@@ -58,7 +58,7 @@ Their numbers come from the ledger, which the threads' status lines and their us
 
 Each pass's look keeps its readings in `health.jsonl`, in jbus's state directory, one JSON line `{at, key, value, over}` a reading.
 `value` is the number alone: the percent of a `disk`, `inodes` or `quota` reading, 1 or 0 of the others, by whether the reading is over, and null where the look could not read it.
-A reading gets a line when its `value` or `over` differs from its key's last line, or when that line is 15 minutes old or more, so each key has a line at least every 15 minutes and at most one a pass.
+A reading gets a line when its `value` or `over` differs from its key's last line, or when that line is 5 minutes old or more, so each key has a line at most one a pass, and at least every 5 minutes and one pass: within 15 minutes, since the longest pass of the push of 2026-11-09 took 435 s.
 The look reads each key's last line from the file's last 64 KiB, so a look that ran twice writes nothing new, and a key whose last line is older than that gets one at once.
 `jbus health` keeps nothing.
 The telemetry store reads the file as the table `health_readings` ([The telemetry store](the-telemetry-store.md)), and the scorecard's `disk` measure reads the day's highest `disk` or `inodes` value from it.

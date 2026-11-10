@@ -3,6 +3,7 @@ not to its wording. Like `test_jbus_queue.py`, the tests run the real command an
 against a faked T3 Code server, `gh` and `jmerge`."""
 
 import json
+import re
 from datetime import timedelta
 
 import pytest
@@ -378,6 +379,35 @@ def test_the_two_lists_hold_every_field_the_template_names_once():
     assert set(labels) <= set(meaning.MEANING) | set(meaning.NOT_MEANING)
     assert set(meaning.MEANING) <= set(labels)
     assert [label for label, _ in meaning.meaning(template)] == list(meaning.MEANING)
+
+
+def _listed(text, start, end):
+    """The labels a prose list names between `start` and `end`, in the order it names them."""
+    span = " ".join(text.split(start, 1)[1].split(end, 1)[0].split())
+    return [part.strip("`:") for part in re.split(r",\s*(?:and\s+)?|\s+and\s+", span)]
+
+
+@pytest.mark.parametrize(
+    ("where", "start", "end"),
+    [
+        (
+            "features/jbus/docs/jbus/the-queue.md",
+            "It leaves out every other (`NOT_MEANING`): ",
+            ", a field the template does not name",
+        ),
+        (
+            "features/jbriefs/src/jbriefs/meaning.py",
+            "Those are the fields of `NOT_MEANING`: ",
+            ", which say whom a brief is sent to",
+        ),
+    ],
+)
+def test_the_prose_that_lists_the_fields_whose_edit_keeps_the_go_names_each_of_them(
+    where, start, end
+):
+    text = (REPO / where).read_text()
+    assert start in text and end in text, where
+    assert sorted(_listed(text, start, end)) == sorted(meaning.NOT_MEANING), where
 
 
 def test_a_go_recorded_before_the_title_and_task_were_read_holds_for_them_and_for_no_other_scope(

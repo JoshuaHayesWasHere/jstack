@@ -531,6 +531,31 @@ def test_each_of_the_machines_logs_is_read_as_the_machines_rows(machine):
         ).fetchall() == [("pass", 1, 1, 1)]
 
 
+def test_a_store_from_before_load_samples_gains_the_table_and_reads_jgauges_load_log(
+    machine, monkeypatch
+):
+    """A store migrated up to `jbus.telemetry.migrations.v017_load_samples` gains its table, and
+    a build reads jgauge's load.tsv where `JGAUGE_LOAD_LOG` names it, outside jbus's state, as
+    the machine's rows (`jbus.telemetry.records.load_samples`): each row's time, cores and
+    1-minute load, the header as a row with none, and an empty load as null."""
+    path = machine.state_dir / telemetry.FILE
+    counted(path, list(migrations.MIGRATIONS).index("v017_load_samples"))
+    log = machine.root / "jgauge" / "load.tsv"
+    log.parent.mkdir()
+    monkeypatch.setenv("JGAUGE_LOAD_LOG", str(log))
+    log.write_text("time\tcores\tload1\n1794278012\t24\t21.61\n1794278027\t24\t\n")
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        rows = store.execute(
+            "SELECT project, at, cores, load1 FROM load_samples ORDER BY at NULLS FIRST"
+        ).fetchall()
+    assert rows == [
+        ("", None, None, None),
+        ("", "2026-11-10T02:33:32.000000Z", 24, 21.61),
+        ("", "2026-11-10T02:33:47.000000Z", 24, None),
+    ]
+
+
 def test_each_source_is_the_module_named_for_its_table():
     """A source is a module of `jbus.telemetry.records` named for its table, so a new source is
     a new file, and `SOURCES` holds one source of each module, in the order of their names."""
