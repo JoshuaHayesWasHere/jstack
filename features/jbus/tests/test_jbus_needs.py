@@ -399,3 +399,39 @@ def test_a_scopes_list_has_the_projects_own_items_and_the_asks_still_open_in_its
         "  answer: reply to the sc home in your own words",
     ]
     assert needs(kitchen, "--project", "demo", home=kitchen.home)[3:] == said[3:]
+
+
+def test_the_project_wide_list_has_every_homes_open_asks_and_home_status_counts_them(kitchen):
+    """`jbus needs` with no `--home` is what a thread outside a home and the root home read, so
+    it lists each ask still open in the `told` of every home of the project, each named with its
+    home, and `jbus home status` counts them in its line of what waits in other projects: a
+    scope's ask never hides behind "nothing waits". A project whose root home has no directory
+    has no asks, and the list still reads every project."""
+    sc, ops = scoped(kitchen, "sc"), scoped(kitchen, "ops")
+    other = kitchen.second()
+    turn = "decision local alpha: which way?\ndecision question 3: drop the old branch\n"
+    assert kitchen.main("told", str(sc), stdin=turn)[0] == 0
+    assert kitchen.main("told", str(ops), stdin="stop local beta: lift the hold on beta\n")[0] == 0
+    kitchen.poll()
+    config = jbus.load()
+    there = next(one for one in config.projects if one.name == other.name)
+
+    def elsewhere():
+        bus = homestatus.Bus(there, config, "", ())
+        return [line for line in homestatus._needs(bus) if line.startswith("elsewhere:")]
+
+    assert needs(kitchen) == [
+        "waiting on user: 2, in demo",
+        "demo ops home stop local beta: lift the hold on beta",
+        "  answer: reply to the ops home in your own words",
+        "demo sc home decision local alpha: which way?",
+        "  answer: reply to the sc home in your own words",
+    ]
+    assert needs(kitchen, "--project", "demo")[1:] == needs(kitchen)[1:]
+    assert elsewhere() == ["elsewhere: demo 2: jbus needs"]
+    assert kitchen.main("told", str(sc), stdin="cleared local alpha: answered\n")[0] == 0
+    assert kitchen.main("told", str(ops), stdin="cleared local beta: lifted\n")[0] == 0
+    assert needs(kitchen) == ["nothing waits on user in any project"]
+    assert elsewhere() == []
+    other.home.rename(other.home.with_name("moved"))
+    assert needs(kitchen) == ["nothing waits on user in any project"]
