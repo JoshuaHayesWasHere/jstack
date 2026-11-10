@@ -7,14 +7,20 @@ message to the first brief version. A row queued by no session (jbus's pass, a C
 left out, and a thread with no such message, or a session the store has no transcript of, keeps
 NULL there."""
 
-SQL = (
-    "WITH briefs AS (SELECT project, slug, min(at) AS briefed FROM brief_versions "
+QUEUED = (
+    "briefs AS (SELECT project, slug, min(at) AS briefed FROM brief_versions "
     "GROUP BY project, slug), "
     "queued AS (SELECT q.project, q.slug, q.queued_by_session AS session, s.role AS "
     "queued_by_role, s.thread, b.briefed, q.approval_message FROM queue q "
     "LEFT JOIN sessions s ON s.session = q.queued_by_session "
     "LEFT JOIN briefs b ON b.project = q.project AND b.slug = q.slug "
-    "WHERE coalesce(q.queued_by_session, '') <> ''), "
+    "WHERE coalesce(q.queued_by_session, '') <> '')"
+)
+"""The CTEs of each queued row's session, thread and first brief version (`queued`), without the
+message before it, which `row_spend` reads without paying for the scan of `messages`."""
+
+SQL = (
+    f"WITH {QUEUED}, "
     "said AS (SELECT q.project, q.slug, m.thread || '/' || m.id AS message, m.at AS message_at, "
     "m.created_by, row_number() OVER (PARTITION BY q.project, q.slug ORDER BY m.at DESC, m.key "
     "DESC) AS place FROM queued q JOIN messages m ON m.thread = q.thread AND m.role = 'user' "
