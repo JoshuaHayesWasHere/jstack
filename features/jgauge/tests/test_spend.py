@@ -266,6 +266,21 @@ def test_one_instance_capped_leaves_no_capped_minute(store, capsys):
     assert section(lines, "every instance capped (claudeAgent, prime):") == ["2026-10-26    0 min"]
 
 
+def test_a_cap_ends_at_the_next_run_the_instance_completes(store, capsys):
+    """Both fail at 09:00 EDT on a reset days off; A completes a run at 09:05, so A was no
+    longer capped from then, and neither was every instance."""
+    capped(store, "crew: a", "claudeAgent", "2026-10-26T13:00:00.000Z", "2026-10-29T20:00:00.000Z")
+    capped(store, "crew: b", "prime", "2026-10-26T13:00:00.000Z", "2026-10-29T20:00:00.000Z")
+    store.run("crew: a", "2026-10-26T13:05:00.000Z", ordinal=3)
+
+    lines = spend(store, capsys, "--since", "2026-10-26 00:00", "--until", "2026-10-28 00:00")
+
+    assert section(lines, "every instance capped (claudeAgent, prime):") == [
+        "2026-10-26    5 min  09:00 to 09:05",
+        "2026-10-27    0 min",
+    ]
+
+
 def test_the_store_is_left_as_it_was(store, capsys):
     store.run("crew: a", "2026-10-26T14:00:00.000Z")
     store.close()
