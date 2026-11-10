@@ -70,7 +70,7 @@ A pull request that just turned ready often still has the `wait` from before its
 If jbus is stopped the lines stay as they were: `systemctl --user status jbus.timer` says whether it runs.
 
 jbus runs `jmerge` for the whole repo, and the block prints this home's lines alone: a `merged` line whose slug is a brief of this home's, and the line of an open pull request that one's `Branch:` line ends on, the first such brief by name in codepoint order, as `jmerge` finds it.
-A brief is the home's that its `Home:` line names: by its thread id, by the id on the `Was home:` line of its handoff, or by its scope, which is a directory of `$H` with a `plan.md`, but for `tasks`, `scouts`, `reports` and `log`.
+A brief is the home's that its `Home:` line names: by its thread id, by the id on the `Was home:` line of its handoff, or by its scope, which is a directory of `$H` with a `plan.md`, but for `asked`, `tasks`, `scouts`, `reports` and `log`.
 A brief is the root's when it has no such line, when its line names no such home, or when the pull request has no brief.
 That is `jmerge`'s one rule (`home_of` in `features/jmerge/src/jmerge/claims.py`, over `homes` in `features/jmerge/src/jmerge/cli.py`): `jmerge --claims` prints a brief's home by it, and `jmerge --home` leaves the others' out by it.
 
