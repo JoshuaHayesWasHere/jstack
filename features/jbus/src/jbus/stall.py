@@ -37,8 +37,9 @@ kept apart too and counted for nothing: the red is shared, not the row's (#1219 
 make target and shows a download or network failure (`infra`, `FETCH`), such as a package's
 download, is kept apart too and counted for nothing: that step ran nothing of the row's
 (2026-11-09). A lint step, which also runs no test and no make target, shows no fetch failure and
-counts. Each sign is searched in the failed step's own part of the log (`failed_step`), not the
-whole log. At the second head, a push or a merge of main alike,
+counts. Each sign is searched in the own part of the log of the step that failed the job, the
+last one to fail (`failed_step`), not the whole log. At the second head, a push or a merge of
+main alike,
 `twice` holds the row (`jbus queue hold`), keeping the go the hold takes, and pages the Chef once, a
 gate `check failed twice` that names the row, the pull request, both heads and the failed jobs at
 each. The outbox then sends the crew of a held row no rebase and no fix message (`outbox.FIXES`), so
@@ -432,12 +433,13 @@ EXITED = re.compile(r"(?m)^(?:\S+ )?##\[error\]Process completed with exit code 
 
 
 def failed_step(log: str) -> str:
-    """Return the failed step's own part of a job's log: from the last `##[group]Run` line before
-    the first `##[error]Process completed with exit code` line, to that line. Where no such error
-    line is given, the part runs to the log's end, and where no `Run` line comes before it, from
-    the log's start."""
-    exited = EXITED.search(log)
-    end = exited.end() if exited else len(log)
+    """Return the own part of a job's log of the step that failed the job: from the last
+    `##[group]Run` line before the last `##[error]Process completed with exit code` line, to that
+    line. An earlier error line is a step's that ran with `continue-on-error: true`, failed, and
+    let the job go on. Where no such error line is given, the part runs to the log's end, and where
+    no `Run` line comes before it, from the log's start."""
+    exits = list(EXITED.finditer(log))
+    end = exits[-1].end() if exits else len(log)
     starts = [run.start() for run in RUN.finditer(log, 0, end)]
     return log[starts[-1] if starts else 0 : end]
 
