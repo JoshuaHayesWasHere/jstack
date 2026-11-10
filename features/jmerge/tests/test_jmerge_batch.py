@@ -568,9 +568,10 @@ def test_a_batch_is_judged_by_its_check_and_never_by_borders_on_its_own_diff(kit
     one whose members touch two features does: each member passed `borders` at its own head. The
     batch waits while `check` runs or passed with no artifact found, and merges once the artifact
     is found, with no rerun asked for. A failed `check` reruns its own run alone, once, and its
-    second failure makes the members suspects, as with no `borders` failure beside it."""
+    second failure sends each of the three members down the single path, as with no `borders`
+    failure beside it."""
     (kitchen.home.state / "required-checks").write_text("check\nborders\n")
-    three(kitchen)
+    heads = three(kitchen)
     tip = kitchen.tip()
     kitchen.run()
     waiting = [in_batch(number, tip) for number in (6, 7, 8)]
@@ -579,9 +580,11 @@ def test_a_batch_is_judged_by_its_check_and_never_by_borders_on_its_own_diff(kit
         assert kitchen.run() == waiting
         assert reruns(kitchen) == [["run", "rerun", "5", "--failed"]]
         listed(kitchen, (BORDERS_FAILED, failed_in(2)))
-        assert kitchen.run() == [built(2, tip), in_batch(6, tip), in_batch(7, tip), first(8, tip)]
+        said = kitchen.run()
+        assert [alone(line, n) for line, n in zip(said, (6, 7, 8), strict=True)] == [True] * 3
         assert reruns(kitchen) == [["run", "rerun", "5", "--failed"]]
-        assert suspects(kitchen) == [6, 7, 8]
+        assert record(kitchen)["failed"] == dict(zip(("6", "7", "8"), heads, strict=True))
+        assert suspects(kitchen) == []
         return
     listed(kitchen, (BORDERS_FAILED, merge.RUNNING if check == "running" else merge.PASSED))
     assert kitchen.run() == waiting
