@@ -14,7 +14,7 @@ so two pages one pass logs from two projects come in no set order: a test sorts 
 
 import json
 import sqlite3
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -398,6 +398,48 @@ def test_the_look_keeps_a_reading_on_a_change_or_each_15_minutes_and_the_store_r
             "select value, over from health_readings where reading = 'disk /home' order by at"
         ).fetchall()
     assert rows == [(40.0, 0), (41.0, 0), (41.0, 0)]
+
+
+def test_each_look_keeps_a_five_hour_and_a_seven_day_reading_for_every_account(
+    kitchen, senses, pools
+):
+    """claudeAgent's fresh ledger holds no five_hour line, which `jgauge limits` writes for an
+    open window only, so its five_hour window reads 0; prime has no ledger file at all, so both
+    of its windows read as unread, and still have their lines."""
+    config = jbus.load()
+    used("claudeAgent", "seven_day", 40)
+    health.watch(config, NOW, lambda line: None)
+    kept = {
+        key: [(one["value"], one["over"]) for one in kept_lines(config, key)]
+        for key in (
+            f"quota {one} {window}" for one in ("claudeAgent", PRIME) for window in ledger.WINDOWS
+        )
+    }
+    assert kept == {
+        "quota claudeAgent five_hour": [(0.0, False)],
+        "quota claudeAgent seven_day": [(40.0, False)],
+        f"quota {PRIME} five_hour": [(None, None)],
+        f"quota {PRIME} seven_day": [(None, None)],
+    }
+
+
+def test_no_account_goes_15_minutes_without_a_quota_reading_while_passes_run_7_minutes_apart(
+    kitchen, senses, pools
+):
+    """The longest pass of the push took 435 s, so the looks here come 7 minutes apart."""
+    config = jbus.load()
+    used("claudeAgent", "seven_day", 40)
+    used(PRIME, "seven_day", 12)
+    for minute in range(0, 120, 7):
+        health.watch(config, NOW + timedelta(minutes=minute), lambda line: None)
+    for one in ("claudeAgent", PRIME):
+        for window in ledger.WINDOWS:
+            times = [
+                datetime.fromisoformat(line["at"])
+                for line in kept_lines(config, f"quota {one} {window}")
+            ]
+            gaps = [later - earlier for earlier, later in zip(times, times[1:], strict=False)]
+            assert times and max(gaps) <= timedelta(minutes=15), (one, window, gaps)
 
 
 def test_a_look_after_a_torn_or_timeless_last_line_keeps_its_reading_again(kitchen, senses):
