@@ -254,50 +254,74 @@ def test_an_approved_row_gets_no_new_fault_once_the_done_when_check_refuses(kitc
     assert "- brief's Done when: has 1 of 1 items that run nothing" in out
 
 
-RETRIES = """\
-# sa-follow-add-retries: the green move enables and starts a unit it linked whose enable was refused, so a refusal is retried by the next move
-Green main: 7c7c4fdb58eefdf2b21b1444b6a848d4cc3215b7
-Follows: sa-follow-runs-live
-Task: sa-follow-runs-live's Units.add (features/jinstall/src/jinstall/kinds.py, Units.add) picks the units to add by whether a link exists, and Agents.add (features/jinstall/src/jinstall/agents.py, Agents.add) by whether the plist exists. A move that linked a unit and then had daemon-reload or enable --now refused leaves a link that no later move enables again, so the follower stays stopped until a jinstall run. Fix: pick each unit that is to be on and is either unlinked, or linked as the install's and not enabled (systemctl is-enabled, where the manager answers), or for launchd has the install's plist and is not loaded; then link, daemon-reload and enable --now (bootstrap) those. A manager that does not answer keeps today's choice by the link alone.
-Done when:
-- a second Units.add after a refused enable --now enables and starts the unit, and one after a taken enable makes no enable call (in `features/jinstall/src/jinstall/kinds.py`)
-- Agents.add bootstraps an agent whose plist it wrote but whose bootstrap was refused, and does nothing on a second call (in `features/jinstall/src/jinstall/agents.py`)
-- tests for both (in `features/jinstall/tests`)
-- the check command passes (in none)
-Proves it: the tests failing at origin/main and passing on the branch
-Size: S
-Where: `features/jinstall/src/jinstall`, `features/jinstall/tests`
-Do not touch: `features/jbus/src/jbus/follow.py`, `features/jbus/src/jbus/threads.py`; run no systemctl, launchctl or jinstall on the live machine
-Decisions: noticed in sa-follow-runs-live, its review's F1 (Consider), left for a follow-up
-Design: none, Units.add and Agents.add are the shapes
-Skills: principle-make-operations-idempotent
-Pull request: open one when done
-Review: review
-Playbook: none
-Home: uncategorized
-"""
+RETRIES = (
+    "# sa-follow-add-retries: the green move enables and starts a unit it linked whose enable was "
+    "refused, so a refusal is retried by the next move\n"
+    "Green main: 7c7c4fdb58eefdf2b21b1444b6a848d4cc3215b7\n"
+    "Follows: sa-follow-runs-live\n"
+    "Task: sa-follow-runs-live's Units.add (features/jinstall/src/jinstall/kinds.py, Units.add) "
+    "picks the units to add by whether a link exists, and Agents.add "
+    "(features/jinstall/src/jinstall/agents.py, Agents.add) by whether the plist exists. A move "
+    "that linked a unit and then had daemon-reload or enable --now refused leaves a link that no "
+    "later move enables again, so the follower stays stopped until a jinstall run. Fix: pick each "
+    "unit that is to be on and is either unlinked, or linked as the install's and not enabled "
+    "(systemctl is-enabled, where the manager answers), or for launchd has the install's plist "
+    "and is not loaded; then link, daemon-reload and enable --now (bootstrap) those. A manager "
+    "that does not answer keeps today's choice by the link alone.\n"
+    "Done when:\n"
+    "- a second Units.add after a refused enable --now enables and starts the unit, and one after "
+    "a taken enable makes no enable call (in `features/jinstall/src/jinstall/kinds.py`)\n"
+    "- Agents.add bootstraps an agent whose plist it wrote but whose bootstrap was refused, and "
+    "does nothing on a second call (in `features/jinstall/src/jinstall/agents.py`)\n"
+    "- tests for both (in `features/jinstall/tests`)\n"
+    "- the check command passes (in none)\n"
+    "Proves it: the tests failing at origin/main and passing on the branch\n"
+    "Size: S\n"
+    "Where: `features/jinstall/src/jinstall`, `features/jinstall/tests`\n"
+    "Do not touch: `features/jbus/src/jbus/follow.py`, `features/jbus/src/jbus/threads.py`; run "
+    "no systemctl, launchctl or jinstall on the live machine\n"
+    "Decisions: noticed in sa-follow-runs-live, its review's F1 (Consider), left for a follow-up\n"
+    "Design: none, Units.add and Agents.add are the shapes\n"
+    "Skills: principle-make-operations-idempotent\n"
+    "Pull request: open one when done\n"
+    "Review: review\n"
+    "Playbook: none\n"
+    "Home: uncategorized\n"
+)
 """sa-follow-add-retries's brief as it was queued, its `Home:` the kitchen's catch-all: the row
 that stood at `pr` while its twin was filed and built."""
 
-ENABLE = """\
-# sa-follow-add-retries-enable: a unit whose enable the manager refused is linked, enabled and started again on the next pass
-Green main: 269cb479d9dac40eefc4eda2b4854d96a692cf1b
-Task: "Push + self-heal": `jinstall.kinds.Units.add` (features/jinstall/src/jinstall/kinds.py:1251) links each new unit into `~/.config/systemd/user` before it runs `systemctl --user enable --now`, and picks the units to add by whether that link exists. When the manager refuses the enable, the link stays, so every later call of `jinstall.green.live` (which `jbus.green` now asks on each pass until it holds) finds the unit linked and adds nothing: the follower stays stopped though jbus asks again. Fix: have `add` take back the link (and the wanted link) of a unit whose enable was refused, so the next call adds it again, and the same for `jinstall.agents.Agents.add` on launchd.
-Done when:
-- after an enable systemd refuses, the next `add` links, enables and starts that unit again (in `features/jinstall/src/jinstall/kinds.py`)
-- a test of it fails at main and passes at the head (in `features/jinstall/tests`)
-Proves it: the new test, base exit 1 and head exit 0, and CI's `check` job
-Size: S
-Where: `features/jinstall/src/jinstall/kinds.py`, `features/jinstall/src/jinstall/agents.py`, `features/jinstall/tests`
-Do not touch: run no jinstall, and no systemctl that starts, stops, enables or restarts a unit on this machine
-Decisions: noticed in sa-follow-live-each-pass
-Design: none, one unlink on a refused enable
-Skills: tdd
-Pull request: open one when done
-Review: review
-Playbook: feature
-Home: uncategorized
-"""
+ENABLE = (
+    "# sa-follow-add-retries-enable: a unit whose enable the manager refused is linked, enabled "
+    "and started again on the next pass\n"
+    "Green main: 269cb479d9dac40eefc4eda2b4854d96a692cf1b\n"
+    'Task: "Push + self-heal": `jinstall.kinds.Units.add` '
+    "(features/jinstall/src/jinstall/kinds.py:1251) links each new unit into "
+    "`~/.config/systemd/user` before it runs `systemctl --user enable --now`, and picks the units "
+    "to add by whether that link exists. When the manager refuses the enable, the link stays, so "
+    "every later call of `jinstall.green.live` (which `jbus.green` now asks on each pass until it "
+    "holds) finds the unit linked and adds nothing: the follower stays stopped though jbus asks "
+    "again. Fix: have `add` take back the link (and the wanted link) of a unit whose enable was "
+    "refused, so the next call adds it again, and the same for `jinstall.agents.Agents.add` on "
+    "launchd.\n"
+    "Done when:\n"
+    "- after an enable systemd refuses, the next `add` links, enables and starts that unit again "
+    "(in `features/jinstall/src/jinstall/kinds.py`)\n"
+    "- a test of it fails at main and passes at the head (in `features/jinstall/tests`)\n"
+    "Proves it: the new test, base exit 1 and head exit 0, and CI's `check` job\n"
+    "Size: S\n"
+    "Where: `features/jinstall/src/jinstall/kinds.py`, "
+    "`features/jinstall/src/jinstall/agents.py`, `features/jinstall/tests`\n"
+    "Do not touch: run no jinstall, and no systemctl that starts, stops, enables or restarts a "
+    "unit on this machine\n"
+    "Decisions: noticed in sa-follow-live-each-pass\n"
+    "Design: none, one unlink on a refused enable\n"
+    "Skills: tdd\n"
+    "Pull request: open one when done\n"
+    "Review: review\n"
+    "Playbook: feature\n"
+    "Home: uncategorized\n"
+)
 """sa-follow-add-retries-enable's brief, the follow-up filed and built as #1267 while its twin
 stood at `pr`, its `Home:` the kitchen's catch-all and its `Playbook:` and `Skills:` ones `add`
 takes."""
@@ -325,8 +349,9 @@ def twins(out):
     [
         pytest.param(ENABLE, id="noticed-in"),
         pytest.param(
-            ENABLE.replace("Decisions: noticed in sa-follow-live-each-pass", "Decisions: none")
-            .replace("Task:", "Follows: sa-follow-live-each-pass\nTask:"),
+            ENABLE.replace(
+                "Decisions: noticed in sa-follow-live-each-pass", "Decisions: none"
+            ).replace("Task:", "Follows: sa-follow-live-each-pass\nTask:"),
             id="follows",
         ),
     ],
