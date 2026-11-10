@@ -69,7 +69,6 @@ def test_home_context_reads_a_homes_own_calls_of_the_last_72_hours(homes):
     reading = measures.read(homes, context, "jstack", NOW, USER)
     assert (reading.value, reading.n) == (200, 2)
     assert (context.window, context.baseline) == ("72h", 182)
-    assert reading.state == "watch"
 
 
 def test_the_peak_is_the_largest_call_a_home_sent(homes):

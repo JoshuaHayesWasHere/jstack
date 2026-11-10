@@ -376,56 +376,6 @@ An alert whose count falls back under its limit, or a measure no longer `bad`, e
 ## The scorecard
 
 `jbus --project <name> scorecard` reads each health measure of one project from the store, opened read only, and prints one line a measure: its state, group, name, value, unit, the count it is of, its baseline and its tier.
-`--json` prints a list instead, each item with `name`, `group`, `value`, `unit`, `n`, `baseline`, `state`, `tier`, `wired`, `audit` and `note`.
-It writes no page, raises no alert and changes nothing in the store.
-
-A KPI is a weekly value against a target for the vision; a measure is a reading of an hour, a day, the last 72 h or a week so far against a baseline, to say whether jstack is healthy now.
-Each measure is a module of its own in `jbus.telemetry.measures`, `m<NN>_<slug>.py`, whose `MEASURE` is one `Measure` and holds no function:
-
-| Field | What it is |
-|---|---|
-| `name` | a slug, unique among the measures |
-| `group` | `flow`, `cost`, `quality`, `attention` or `machinery` |
-| `says`, `unit` | what it counts, and its value's unit |
-| `better` | `lower` or `higher` |
-| `source` | `Sql(query, machine)`, or `Lacks(needs)` where the store has no record for it yet |
-| `window` | `hour` (the last hour), `day` (the user's day so far), `72h` (the last 72 h, which no midnight resets, so a count over it is its rate per 72 h, as `closed-unmerged` counts the pull requests closed with no merge where a row asked for one, no probe whose row asked for none and no revert of jbus's, against the 3 abandoned rows of the audit of 2026-11-09), `week` (the user's week so far, from the midnight that begins its Sunday) or `now` |
-| `baseline`, `baseline_of` | the value it is judged against, a `Week` or None, and where that value is from |
-| `kind` | `Zero()`, `Limit(at, floor)`, `Trend(by)` or `Over(by, floor)` |
-| `tier` | `wake` where a crossing is to wake the user, `page` where it is only shown |
-| `wired` | the alert that already raises it, or empty, so nothing raises it twice |
-| `audit` | the ranks of the counters of the audit of 2026-11-09 it carries |
-
-A query is one SELECT that gives one row of `value` and `n`, how many the value is of.
-It takes only the named parameters `:project`, `:begins` and `:ends`: the window's bounds as UTC stamps, `begins` in it and `ends` not, so it filters on a stamp column such as `at`, never on `day`.
-A `machine` query reads the machine's rows, with `:project` the empty project.
-A weekly view is read at `week in (date(:begins), date(:begins, '+1 day'))`, the Sunday the window begins on in any zone.
-
-A `Week(sunday)` baseline is the measure's own query read over the whole user's week of that Sunday, from its midnight to the next Sunday's, each time the measure is read, and the reading's `baseline` is that value.
-A change of what the query counts, such as a new share of a row's dollars or a new price, so moves the baseline with the value, where a number typed in once stays in the definition it was read under.
-
-The four kinds say where a value is past its line:
-
-- `Zero()`: any value above 0, a count that should never happen.
-- `Limit(at, floor)`: a value beyond `at` in the worse direction, read only with `n` at least `floor`.
-- `Trend(by)`: a value worse than the mean of its own seven days before, each the same window that many days earlier, by more than `by` percent.
-- `Over(by, floor)`: a value worse than the baseline by more than `by` percent, read only with `n` at least `floor`: the line of a `Week` baseline, which moves with it.
-
-A reading has one of four states:
-
-- `bad`: past the kind's line.
-- `watch`: worse than the baseline, not past the line.
-- `ok`: neither.
-- `none`: a `Lacks`, no baseline, no value, `n` under the floor, or a query that failed, whose error is its note.
-
-The first 41 are the rows of the scorecard scout's visual of 2026-11-09, in its order.
-Where it named a line the measure has it as written; where it named none, a `page` measure's `Limit` is 20% past its baseline in the worse direction.
-To add a measure, add a module with the next free `NN`; no list names it.
-To measure one that `Lacks` its record, add the record and its table as "Change the store" says, then give the measure a `Sql` in place of its `Lacks`.
-
-## The scorecard
-
-`jbus --project <name> scorecard` reads each health measure of one project from the store, opened read only, and prints one line a measure: its state, group, name, value, unit, the count it is of, its baseline and its tier.
 `--json` prints a list instead, each item with `name`, `group`, `value`, `unit`, `n`, `baseline`, `state`, `tier`, `wired`, `audit`, `note` and `each`.
 `each` lists the parts a measure's value is the worst of, each with its `label`, `value` and `line` (null where it has no line yet), as `units-vs-capped-line` lists each account's units an hour against its capped line; it is empty for every other measure, and the line and the page show the same parts after the value.
 `jbus scorecard --out <path>` writes the scorecard's page there in place of the lines, through a draft file renamed over it, and prints one line with the count of each state.
@@ -487,6 +437,13 @@ The first 41 are the rows of the scorecard scout's visual of 2026-11-09, in its 
 Where it named a line the measure has it as written; where it named none, a `page` measure's `Limit` is 20% past its baseline in the worse direction.
 To add a measure, add a module with the next free `NN`; no list names it.
 To measure one that `Lacks` its record, add the record and its table as "Change the store" says, then give the measure a `Sql` in place of its `Lacks`.
+
+Two measures read a home's context over the last 72 h, the window its baseline was read over, on a home's own calls: a call whose `agent` names a subagent of the home's session is the subagent's, and neither counts it.
+
+| Measure | What it reads | Baseline | Line |
+|---|---|---|---|
+| `home-context` | the mean context a home's own call sent, in thousands of tokens | 182, the audit of 2026-11-09 | 218.4, with 20 calls |
+| `home-context-peak` | the most context one home call sent, in thousands of tokens, which a mean does not show | 630, the week's largest call, read on 2026-11-10 | 200, with 1 call |
 
 ## How it stays current
 
