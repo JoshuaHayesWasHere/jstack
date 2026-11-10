@@ -126,6 +126,8 @@ def _pending(half: Half) -> None:
     going = []
     for pull in world.open.values():
         number, head = pull["number"], pull.get("headRefOid", "")
+        if pull.get("headRefName") == jbus.BATCH:
+            continue
         if head and (number in rows or watch.checks(pull) == "pending"):
             going.append({"number": number, "head": head, "checks": _rollup(pull)})
     going.sort(key=lambda one: one["number"])

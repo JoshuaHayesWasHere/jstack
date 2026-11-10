@@ -50,12 +50,16 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta, tzinfo
 from functools import cached_property
+from pathlib import Path
 from typing import Any
 
 import jsettings
-from jbus.ci import cancels, macjobs
+from jbus import BATCH
+from jbus.ci import cancels, ledger, macjobs
 from jbus.watch import mac_job
 
+LINE = "jstack/line/"
+"""The branches of jmerge's shadow pull requests, which test the line and are no crew's work."""
 LOOKBACK = timedelta(hours=2)
 FALLBACK = timedelta(hours=24)
 KINDS = ("rebase", "conflict", "mainmoved", "failed", "refailed", "expedite", "review")
@@ -172,11 +176,21 @@ def _in(stamp: str | None, start: datetime, end: datetime) -> bool:
     return moment is not None and start <= moment < end
 
 
+def jmerges(branch: str | None) -> bool:
+    """Whether the branch is jmerge's own: a shadow pull request's (`LINE`) or its batch's
+    (`jbus.BATCH`)."""
+    return bool(branch) and (branch == BATCH or str(branch).startswith(LINE))
+
+
 class Facts:
     """`Facts` reads the ledger once, each roll-up `check` of a run a newer push cancelled as
     `cancelled` (`jbus.ci.cancels`), and works out these facts from it, once each: the pull request
     each jbus event is about, the runs of main in order, the intervals main was red, the cause
-    of each red, and the cause of each force-push."""
+    of each red, and the cause of each force-push.
+
+    It leaves out the jobs and pull requests of jmerge's own branches (`jmerges`), which test pull
+    requests that have runs of their own: a red of one is no own red, and no second branch that
+    makes a test a flake."""
 
     def __init__(
         self,
@@ -185,15 +199,27 @@ class Facts:
         events: list[dict[str, Any]],
         now: datetime,
     ) -> None:
+        jobs = [j for j in jobs if not jmerges(j.get("branch"))]
         cancelled = cancels.replaced(jobs)
         self.jobs: list[dict[str, Any]] = [
             {**j, "conclusion": "cancelled"} if j["job"] in cancelled else j for j in jobs
         ]
-        self.pulls, self.events, self.now = pulls, events, now
+        self.pulls = [one for one in pulls if not jmerges(one.get("branch"))]
+        self.events, self.now = events, now
         self.main = self._main()
         self.intervals = self._intervals()
         self.causes = self._causes()
         self.pushes = self._pushes()
+
+    @classmethod
+    def read(cls, state: Path, now: datetime) -> Facts:
+        """The facts of the ledger the passes keep in `state`."""
+        return cls(
+            ledger.read(state / ledger.JOBS),
+            ledger.read(state / ledger.PULLS),
+            ledger.read(state / "events.jsonl"),
+            now,
+        )
 
     def _main(self) -> list[tuple[datetime, str, str, datetime]]:
         """Return each run of main that ran, as (created, sha, state, completed), oldest first."""

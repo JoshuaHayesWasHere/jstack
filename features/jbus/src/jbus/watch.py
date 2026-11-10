@@ -48,6 +48,7 @@ from jbriefs import below, findings
 from jbriefs import home as homes
 from jbriefs.home import thread_of
 from jbus import (
+    BATCH,
     Refused,
     budget,
     history,
@@ -1200,7 +1201,7 @@ def watch(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
         elif live[0]["status"] not in KNOWN:
             run.gate(slug, f"thread state {live[0]['status']} jbus does not know")
     for branch, pull in world.open.items():
-        if not brief_of(run, branch):
+        if pull.get("headRefName") != BATCH and not brief_of(run, branch):
             run.gate(branch, f"pull request #{pull['number']} has no brief", pull.get("url", ""))
     for slug, live in world.threads.items():
         if slug in run.gated:

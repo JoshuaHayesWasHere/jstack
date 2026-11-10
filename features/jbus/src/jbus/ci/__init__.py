@@ -42,7 +42,7 @@ from typing import TYPE_CHECKING
 
 import jbus
 from jbus import verbs
-from jbus.ci import collect, daily, ledger, notice, numbers, report, ruleset, wrongcloses
+from jbus.ci import collect, daily, notice, numbers, report, ruleset, wrongcloses
 
 if TYPE_CHECKING:
     from jbus.poll import Half
@@ -63,15 +63,6 @@ def repo_of(checkout: Path) -> str:
     if asked.returncode or "github.com" not in url:
         raise jbus.Refused(f"refused: {checkout} has no GitHub origin")
     return "/".join(url.replace(":", "/").split("/")[-2:])
-
-
-def facts_of(state: Path, now: datetime) -> numbers.Facts:
-    return numbers.Facts(
-        ledger.read(state / ledger.JOBS),
-        ledger.read(state / ledger.PULLS),
-        ledger.read(state / "events.jsonl"),
-        now,
-    )
 
 
 def lines(nine: list[numbers.Number]) -> list[str]:
@@ -126,7 +117,7 @@ def one(args: argparse.Namespace, config: jbus.Config, project: jbus.Project) ->
         print(f"ci: {project.name}: {error}")
         return 1
     print(f"ci: {counts.runs} runs seen, {counts.jobs} jobs added, {counts.pulls} pull requests")
-    facts = facts_of(state, now)
+    facts = numbers.Facts.read(state, now)
     start = now - timedelta(days=args.days)
     nine = numbers.compute(facts, start, now)
     print(f"ci: {project.name}, the last {args.days} days to {config.user.stamp(now)}")
