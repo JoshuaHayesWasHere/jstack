@@ -42,3 +42,19 @@ def test_only_the_last_result_and_its_own_lines_name_the_outcome():
     review = "\n## Review\nOutcome: carried by alpha-2\n"
     assert outcome.read(first + later + review) is None
     assert outcome.read(first + review) == Dropped("an early guess")
+
+
+@pytest.mark.parametrize(
+    ("ended", "word"),
+    [
+        (CarriedBy("alpha-2"), "carried"),
+        (NothingToChange("main does it"), "nothing to change"),
+        (Dropped("unwanted"), "dropped"),
+        (NoPullOwed(), None),
+        (None, None),
+    ],
+)
+def test_the_store_keeps_the_end_a_close_names_and_nothing_for_none(ended, word):
+    """`brief-versions.jsonl` keeps the word `row_outcomes` names the row's end by; the version's
+    `pull` already says that a row owed no merge."""
+    assert outcome.kind(ended) == word
