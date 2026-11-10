@@ -1,0 +1,107 @@
+---
+title: "Main went red: what fixes it?"
+config:
+  markdownAutoWrap: false
+  state:
+    useMaxWidth: false
+---
+stateDiagram-v2
+  classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group0 fill:#d1f2eb,stroke:#697976,color:#1b2631
+  classDef group1 fill:#fdebd0,stroke:#7f7668,color:#1b2631
+  classDef group1Wrong fill:#fdebd0,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group2 fill:#f9d6d5,stroke:#7d6b6b,color:#1b2631
+  state "Legend" as legend {
+    state "Not red" as legendGroup0
+    state "Red, its fix on its way" as legendGroup1
+    state "Red, nothing open yet" as legendGroup2
+    state "Breaks a rule today" as legendWrong
+  }
+  class legendGroup0 group0
+  class legendGroup1 group1
+  class legendGroup2 group2
+  class legendWrong plainWrong
+  state "Main green" as g0 {
+    state "a fix row out" as s0
+    state "nothing open to fix it" as s1
+  }
+  state "Main red" as g1 {
+    state "a fix row out" as s2
+    state "a revert open" as s3
+    state "a revert open and a fix<br/>row out" as s4
+    state "nothing open to fix it" as s5
+    state "two reverts open" as s6
+    state "two reverts open and a fix<br/>row out" as s7
+  }
+  state "Main's run going" as g2 {
+    state "a fix row out" as s8
+    state "nothing open to fix it" as s9
+  }
+  state "jbus reruns main's failed<br/>run" as g3 {
+    state "a fix row out" as s10
+    state "nothing open to fix it" as s11
+  }
+  [*] --> s1
+  s1 --> s9 : a row's pull request merges or<br/>a row's pull request merges<br/>and breaks a test or something<br/>outside breaks main
+  s9 --> s1 : main's run passes
+  s9 --> s11 : jbus's pass reruns main's<br/>failed run once or jbus's pass
+  s9 --> s2 : jbus's pass files main's fix<br/>row
+  s9 --> s3 : jbus's pass reverts the one<br/>clear culprit
+  s9 --> s5 : jbus's pass reads main red or<br/>reruns main's failed run once
+  s11 --> s9 : a row's pull request merges or<br/>a row's pull request merges<br/>and breaks a test or something<br/>outside breaks main
+  s11 --> s1 : jbus's rerun passes: a flake
+  s2 --> s4 : jbus's pass reverts the one<br/>clear culprit
+  s3 --> s5 : the revert's check fails, it<br/>conflicts, or someone closes<br/>it or jmerge merges jbus's<br/>revert
+  s5 --> s2 : jbus's pass files main's fix<br/>row
+  s11 --> s2 : jbus's pass files main's fix<br/>row
+  s11 --> s3 : jbus's pass reverts the one<br/>clear culprit
+  s2 --> s0 : jbus's pass reads main green<br/>or sees main green and<br/>withdraws the fix row
+  s4 --> s2 : the revert's check fails, it<br/>conflicts, or someone closes<br/>it or jmerge merges jbus's<br/>revert
+  s3 --> s1 : jbus's pass sees main green<br/>and closes the revert
+  s3 --> s4 : jbus's pass files main's fix<br/>row
+  s5 --> s1 : jbus's pass reads main green
+  s5 --> s3 : jbus's pass reverts the one<br/>clear culprit
+  s5 --> s9 : jbus's pass reads main green
+  s11 --> s5 : jbus's pass reads main red
+  s2 --> s1 : jbus's pass sees main green<br/>and withdraws the fix row
+  s2 --> s8 : jbus's pass reads main green
+  s0 --> s8 : a row's pull request merges or<br/>a row's pull request merges<br/>and breaks a test or something<br/>outside breaks main
+  s4 --> s0 : jbus's pass sees main green<br/>and closes the revert
+  s2 --> s5 : the fix merges
+  s3 --> s9 : jbus's pass sees main green<br/>and closes the revert
+  s5 --> s11 : jbus's pass reads main green<br/>or reruns main's failed run<br/>once
+  s2 --> s10 : jbus's pass reruns main's<br/>failed run once or reads main<br/>green
+  s8 --> s0 : main's run passes
+  s4 --> s1 : jbus's pass sees main green<br/>and closes the revert
+  s4 --> s8 : jbus's pass sees main green<br/>and closes the revert
+  s4 --> s3 : the fix merges
+  s3 --> s11 : jbus's pass sees main green<br/>and closes the revert
+  s3 --> s6 : jbus's pass reverts the one<br/>clear culprit
+  s10 --> s0 : jbus's rerun passes: a flake
+  s0 --> s1 : jbus's pass sees main green<br/>and withdraws the fix row
+  s8 --> s10 : jbus's pass reruns main's<br/>failed run once
+  s8 --> s2 : jbus's pass files main's fix<br/>row or reads main red
+  s8 --> s4 : jbus's pass reverts the one<br/>clear culprit
+  s0 --> s9 : the fix merges
+  s4 --> s10 : jbus's pass sees main green<br/>and closes the revert
+  s4 --> s7 : jbus's pass reverts the one<br/>clear culprit
+  s6 --> s3 : the revert's check fails, it<br/>conflicts, or someone closes<br/>it
+  s10 --> s2 : jbus's pass files main's fix<br/>row or reads main red
+  s10 --> s4 : jbus's pass reverts the one<br/>clear culprit
+  s7 --> s4 : the revert's check fails, it<br/>conflicts, or someone closes<br/>it
+  s6 --> s1 : jbus's pass sees main green<br/>and closes the revert
+  s6 --> s7 : jbus's pass files main's fix<br/>row
+  s7 --> s1 : jbus's pass sees main green<br/>and closes the revert
+  s7 --> s0 : jbus's pass sees main green<br/>and closes the revert
+  class s0 group0
+  class s1 group0
+  class s2 group1
+  class s3 group1
+  class s4 group1
+  class s5 group2
+  class s6 group1Wrong
+  class s7 group1Wrong
+  class s8 group0
+  class s9 group0
+  class s10 group0
+  class s11 group0

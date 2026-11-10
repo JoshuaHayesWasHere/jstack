@@ -94,3 +94,74 @@ No state breaks a rule, so it draws no `bug-N` chart.
 - A thread made by a lost launch that the lookup does not find: that is a gate of yours, and jbus holds no thread for it.
 - A settled thread that a message wakes, a turn that waits on a test slot (`World.awaits`), a row removed from the queue, and the `MERGED` message to a crew whose Result leaves work for after the merge.
 - Scouts, reviewers, and failover to another instance.
+
+## Main's red, as a TLA+ spec
+
+`MainRed.tla` models what jbus does when main goes red, as the code of main 21112eba8 does it.
+Main's push run fails and jbus reruns it once (`watch._check`).
+If the rerun fails too, `mainmoved.tell` writes the red tip to `main.json`, and `watch.retro` hands main's tip to `culprits.judge`.
+`judge` reverts the tip's one clear culprit (`jbus.reverts`) or files main's fix row (`watch._file`).
+A later merge turns main green: the revert, the fix, or a merge that happens to fix it.
+After that, `reverts.close` closes a revert that is still open, and `watch._withdraw` takes out a fix row that never launched.
+Each condition of a step names the file of the code that checks it and quotes that code in backticks, with no line number.
+`features/jbus/tests/test_main_red_spec.py` finds each quote once in its file and checks that every condition is cited.
+It also checks that the spec states each property `features/jbus/tests/main_red_model.py` walks over the real `tell`, and it runs TLC on both configs.
+
+### The rules of main's red
+
+- `OneRevertOpen`: at most one of jbus's reverts is open at a time.
+  **Today's code breaks it.**
+  Main can go green at a later commit and then red again before a pass sees the green on its own.
+  When that happens, `reverts.close` does nothing, because it acts only once main is green (`if main.red or not main.green: return`).
+  The first revert stays open, and in the same pass `culprits.judge` reads only the commits since that green, so it opens a second revert for the new red.
+  The green can come from a fix row's merge, or from a red of two flakes that a later merge made green.
+  The red can come from two merges between passes, where the older failed one is never rerun, or from a rerun that GitHub refused.
+  The open revert then still waits for jmerge, which merges reverts first.
+- `RedEndsOnlyByAMerge`: a red whose code is broken ends only at a green commit that a later merge made.
+  No step of jbus's ends a red.
+  Only a run that failed twice by chance turns green at its own commit, through a rerun by hand that `tell` reads again (`again=tip in (main, stands)`).
+- The four properties `main_red_model.py` walks, here as the state a pass leaves:
+  - `KnownRedReadAsRed` (S1)
+  - `NoStuckRed` (S2)
+  - `RedTipsOwnTests` (S3)
+  - `EachRedJudgedOnce` (S4)
+
+### Check the rules of main's red
+
+The command below is the brief's check.
+Run it from this folder, with the pinned jar copied in:
+
+```sh
+cp ~/.cache/jstack/tla2tools/1.7.4/tla2tools.jar . && java -cp tla2tools.jar tlc2.TLC -config MainRed.cfg MainRed.tla; rm -rf tla2tools.jar states
+```
+
+It exits 12 and prints the shortest path that breaks `OneRevertOpen`, about 4,000 states in.
+With `OneRevertOpen` taken out of the config, every other rule holds over 146k states (MaxTips 4), in about a minute on two workers.
+The test runs both: the model without that rule must hold, and that rule alone must break.
+
+### Draw the chart of main's red
+
+```sh
+S=$PWD/features/skill-library/skills/statechart/scripts
+D=$HOME/.cache/jstack/tlc-tmp && mkdir -p "$D"
+W=$(TMPDIR=$D mktemp -d) && cp features/jbus/spec/MainRed.* "$W"
+(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+    statechart from-spec MainRed.tla --config MainRed.chart.cfg --expect-broken OneRevertOpen \
+    --title "Main went red: what fixes it?" --out out --png)
+```
+
+Run it from the repo root.
+Then copy the files of `$W/out` into `MainRed-statechart/`, all except `tlc/`.
+`MainRed.chart.cfg` has the same rules on up to three commits (7,177 states), and it draws 12 chart states and 51 steps.
+The four commits of `MainRed.cfg` draw 32 states and 164 steps, which Mermaid could not render as a PNG.
+`bug-1` is the shortest path that breaks `OneRevertOpen`.
+
+### What the main-red model leaves out
+
+- A cancelled, batched or job-less run (`watch.BATCHED`, `NO_JOB`, `cancelled`, `refused`): none of them is red.
+- Logs `tell` cannot read, a project's first pass, a culprit's row removed from the queue, and a GitHub that does not say what main a culprit's check passed over, which waits as `UNREAD` until `READ_WAIT`.
+  TLC's `skew` files the row at once.
+- `close` dropping the record of a revert whose culprit's slug is over (`over`), after which `OPENED` and `TWICE` no longer see it.
+- `main-reds.jsonl` keeps only the red tip of each pass, where `tell` writes a line for each failed commit it walks.
+- The Mac run (`reverts.macos`), the browser run, and the fix row's crew ending with no pull request.
+- Time: TLC chooses on each pass whether the red tip is older than `READ_WAIT` (`late`).
