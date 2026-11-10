@@ -312,6 +312,29 @@ def test_a_line_written_before_pull_reads_it_from_its_kept_text_or_as_empty(mach
     assert rows == [("gone", None), ("kept", "open")]
 
 
+def test_a_brief_version_keeps_the_outcome_its_close_names_and_an_older_line_none(machine):
+    """A store built before `jbus.telemetry.migrations.v018_brief_outcome` gains `outcome` on its
+    next build: a line `history.brief` wrote before it keeps none, and a version whose last Result
+    names its row's end (`jbus.outcome`) keeps that end beside its `pull`."""
+    counted(
+        machine.state_dir / telemetry.FILE, list(migrations.MIGRATIONS).index("v018_brief_outcome")
+    )
+    state = machine.state("alpha")
+    machine.append(
+        "alpha",
+        "brief-versions.jsonl",
+        {"at": iso(NOW), "slug": "old", "sha": "a" * 64, "was": "", "bytes": 80, "pull": "open"},
+    )
+    closed = (
+        "\n## Result\nStatus: done\nBranch: b   Pull request: none\nOutcome: dropped, unwanted\n"
+    )
+    queue._store(state, "new", brief("new", ASKED["opens"]) + closed)
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        rows = store.execute("SELECT slug, pull, outcome FROM brief_versions ORDER BY slug")
+        assert rows.fetchall() == [("new", "open", "dropped"), ("old", "open", None)]
+
+
 def test_the_queue_keeps_who_queued_each_row_and_the_message_its_go_rests_on(machine):
     """`jbus.telemetry.records.queue` fills `queued_by_session` and `approval_message` for each
     basis, as the text columns `jbus.telemetry.values` types them, and a store built before

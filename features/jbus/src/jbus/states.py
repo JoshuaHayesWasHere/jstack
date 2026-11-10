@@ -107,10 +107,8 @@ def closed(run: Pass, slug: str) -> None:
     """Keep the version of the brief that closed a row (`history.brief`): the home's copy, whose
     last Result names how the row ended (`jbus.outcome`), which the store reads as the row's
     outcome (`row_outcomes`)."""
-    try:
-        was: str | None = queue.brief_path(run.state, slug).read_text(errors="replace")
-    except OSError:
-        was = None
+    stored = queue.brief_path(run.state, slug)
+    was = stored.read_text(errors="replace") if stored.exists() else None
     if text := watch.brief_of(run, slug):
         history.brief(run.state, slug, was, text, run.now)
 
