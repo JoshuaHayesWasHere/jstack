@@ -308,6 +308,22 @@ def test_a_fix_whose_review_is_owed_asks_the_crew_for_the_scoped_reviewer_with_i
     assert len(sends(kitchen)) == 1 and kitchen.lines("stall") == [] and gates(kitchen) == []
 
 
+def test_a_fix_with_nothing_pushed_since_the_judged_head_asks_for_no_scoped_review(short, kitchen):
+    """gs-gh-unlogged's case: its review judged the head, `Meets the brief: no`, and nothing was
+    pushed after it, so a scoped reviewer of that head would read what the review read. Once
+    the fix is pushed, and its scoped reviewer ends its turn with no `## Review`, the crew is
+    told once, to put another in its place."""
+    owed = f"Meets the brief: no\nScoped review: needed since {short.saw}, the brief is not met\n"
+    short.out(NO_FIX_REVIEW, result=owed, head=short.saw)
+    short.passes(9)
+    assert sends(kitchen) == []
+    reviewer = kitchen.t3.thread("alpha", "completed", title="review: alpha, scoped")
+    named = f"Scoped reviewer: {reviewer['threadId']}, of {short.head}\n"
+    short.out(NO_FIX_REVIEW, result=owed + named)
+    short.passes(9)
+    assert [sent["clientRequestId"] for sent in sends(kitchen)] == [f"fix|alpha|{short.head[:12]}"]
+
+
 def test_a_fix_review_owed_is_not_asked_for_while_a_reviewer_is_at_work(short, kitchen):
     owed = f"Scoped review: needed since {short.saw}, the fix changed a.py\n"
     reviewer = kitchen.t3.thread("alpha", title="review: alpha, scoped")

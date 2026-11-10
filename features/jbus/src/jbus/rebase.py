@@ -22,14 +22,15 @@ rebase whose range-diff changes content. jbus then launches one scoped reviewer 
 itself (`scope`), and asks the crew nothing: a thread titled `review: <slug>, scoped` in the crew's
 worktree, told `/pr-review run <slug> scoped <old> <new>`, with the arguments of a first review's
 launch (`prereview.arguments`), and a `Scoped reviewer: <thread>, of <head>` line added under the
-Result (`prereview._record`), with the head recorded (`jbus.reviewlaunch`). Its key,
-`rereview|<slug>|<head 12>`, is marked before the launch, since a launch has no retry key: a pass
-that crashes after it launches no second reviewer of the head. The same key tells `expedite` the
-head is asked for. A launch waits while the crew is at work, since the reviewer reads the crew's
+Result (`prereview._record`), with the head recorded (`jbus.reviewlaunch`). A head that has a
+review asked for (`reviewlaunch.has`) gets none, and the head is claimed (`reviewlaunch.claim`)
+before the launch, since a launch has no retry key: a pass that crashes after it launches no second
+reviewer of the head. A launch waits while the crew is at work, since the reviewer reads the crew's
 worktree, and while GitHub has the pull request at another head. A pass that finds the review pool
-capped, no worktree for the crew, or T3 Code refusing the launch launches nothing, leaves the key
-unmarked so the next pass tries again, and is a gate once for the head. A launch that got no reply
-keeps its key, since it may have made the thread, and is a condition once, as `prereview`'s is. The
+capped or no worktree for the crew launches nothing and claims nothing, one that finds T3 Code
+refusing the launch takes its claim back (`reviewlaunch.release`), so the next pass tries again,
+and each is a gate once for the head. A launch that got no reply keeps its claim, since it may have
+made the thread, and is a condition once, as `prereview`'s is. The
 crew hears of the scoped review once it is written, from `jbus.reviewed`, with its findings by id,
 as of any review round, and hears nothing of one that is clean.
 
@@ -37,9 +38,9 @@ The third kind of `wait` line is about a rebase that dropped lines nobody explai
 on such a rebase, and jbus tells the crew once per head, under the key `drops|<slug>|<head 12>`. The
 crew puts the lines back, or says for each file why the lines are gone. `jmerge` then waits on the
 scoped review that rules on those reasons, and its line names the range-diff, as the changed-content
-line does. So the third kind ends in a scoped review too, launched as above, once per head, under
-`rereview|<slug>|<head 12>`. A head that already has that mark, or whose Result has a `Scoped
-reviewer:` line of it, gets no other reviewer.
+line does. So the third kind ends in a scoped review too, launched as above, once per head. A head
+that has a review asked for, or whose Result has a `Scoped reviewer:` line of it, gets no other
+reviewer.
 
 `once` is the one function that sends these messages, and `jbus.culprits`' too, and writes
 their keys, which `mark` is the one function to word. `deliver` is `post` with the event that says
@@ -258,8 +259,8 @@ def scope(run: Pass, client: Client, world: World, number: int, reason: str, ask
     head = world.open[slug].get("headRefOid", "") if slug else ""
     if not head or head != ask.head or not crew(run, slug):
         return
-    key = mark(ask.kind, slug, head)
-    if key in run.box.sent() or below.reviewers(task_brief(run, slug), "Scoped reviewer", head):
+    named = below.reviewers(task_brief(run, slug), "Scoped reviewer", head)
+    if named or reviewlaunch.has(run, slug, head):
         return
     thread = thread_of(run.home, slug)
     if not thread:
@@ -283,17 +284,19 @@ def scope(run: Pass, client: Client, world: World, number: int, reason: str, ask
     branch = str(world.open[slug].get("headRefName") or slug)
     asked = prereview.arguments(run, slug, 1, tree, branch, routed)
     asked |= {"title": SCOPED_TITLE.format(slug=slug), "message": ask.message.format(slug=slug)}
-    run.box.mark(key)
+    reviewlaunch.claim(run, slug, head, "scoped")
     try:
         made, why = (client.call("t3_thread_launch", asked) or {}).get("threadId"), ""
     except T3Refused as error:
-        run.box.unmark(key)
-        run.gate(slug, LAUNCH_REFUSED, f"#{number} at {head}: {error}", key=f"{key} refused")
+        reviewlaunch.release(run, slug, head, "scoped")
+        refused = f"{LAUNCH_REFUSED} {head[:12]}"
+        run.gate(slug, LAUNCH_REFUSED, f"#{number} at {head}: {error}", key=refused)
         return
     except T3Error as error:
         made, why = None, f": {error}"
     if not made:
-        run.condition(slug, LAUNCH_LOST, f"#{number} at {head}{why}", key=f"{key} lost")
+        lost = f"{LAUNCH_LOST} {head[:12]}"
+        run.condition(slug, LAUNCH_LOST, f"#{number} at {head}{why}", key=lost)
         return
     reviewlaunch.record(run, reviewlaunch.Launch(slug, made, head, "scoped", 1, run.now))
     prereview._record(run, slug, [f"Scoped reviewer: {made}, of {head}\n"])

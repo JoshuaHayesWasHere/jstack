@@ -8,11 +8,21 @@ its kind (`first`, a reviewer of the review before the pull request, `jbus.prere
 seat `n` (the `#<n>` of a `Reviewer:` line, 1 for a scoped one) and when it launched. `record` is
 the one writer, and writes no second line for a thread the file holds.
 
-`prereview.launch` and `rebase.scope` record each reviewer they launch, as they launch it. A crew
+`prereview.launch` and `rebase.scope` ask `has` before they launch, `claim` the head before
+`t3_thread_launch`, `release` it where T3 Code refuses the launch, and `record` each reviewer they
+launch, as they launch it. A claim is a line with no thread, written before the launch since a
+launch has no retry key: a pass that crashes after it launches no reviewer of the head twice. The
+claim stays once the launch's own line follows it. A crew
 that launches a scoped reviewer itself writes `Scoped reviewer: <thread>, of <head>` under its
 Result, and `scoped` records each such line of an open pull request's brief that the file lacks,
 at the time the pass first reads it. A `Reviewer:` line names no head, so a first reviewer jbus
 did not launch has no line.
+
+`has` is the one answer to whether a head has a review asked for: a line of the file at the head,
+claim or launch, or a key `sent.json` holds of it. Before the claim, a launch marked
+`reviewers|<slug>|<head 12>` or `rereview|<slug>|<head 12>` there, and `expedite` still sends its
+`rereview` row's message to the crew under the second, so a head whose crew was asked to launch
+the scoped reviewer itself gets none from `rebase.scope`. Keep reading both.
 
 The telemetry store reads the file into `review_heads` (`jbus.telemetry.records.review_heads`),
 whose head the view `review_launches` gives each reviewer thread.
@@ -20,6 +30,8 @@ whose head the view `review_launches` gives each reviewer thread.
 
 from __future__ import annotations
 
+import json
+import os
 import re
 from dataclasses import asdict, dataclass
 from datetime import datetime
@@ -33,6 +45,8 @@ from jbus.watch import World, task_brief
 LAUNCHES = "review-launches.jsonl"
 SCOPED = "Scoped reviewer"
 _HEAD = re.compile(r"[0-9a-f]{7,40}")
+_MARKED = ("reviewers", "rereview")
+Kind = Literal["first", "scoped"]
 
 
 @dataclass(frozen=True)
@@ -40,7 +54,7 @@ class Launch:
     slug: str
     thread: str
     head: str
-    kind: Literal["first", "scoped"]
+    kind: Kind
     n: int
     at: datetime
 
@@ -49,7 +63,56 @@ def record(run: Pass, launch: Launch) -> None:
     """Add the launch's line to the project's `review-launches.jsonl`, unless the file holds its
     thread."""
     line: dict[str, Any] = asdict(launch) | {"at": launch.at.isoformat()}
-    history.add(run.state / LAUNCHES, [line], lambda one: one.get("thread"))
+    history.add(run.state / LAUNCHES, [line], _key)
+
+
+def claim(run: Pass, slug: str, head: str, kind: Kind) -> None:
+    """Write that a reviewer of `head` is about to launch, before `t3_thread_launch`: a line
+    that names no thread."""
+    record(run, Launch(slug, "", head, kind, 0, run.now))
+
+
+def release(run: Pass, slug: str, head: str, kind: Kind) -> None:
+    """Take back the claim of a launch T3 Code refused, so that the next pass asks again."""
+    path = run.state / LAUNCHES
+    try:
+        lines = path.read_text(errors="replace").splitlines(keepends=True)
+    except FileNotFoundError:
+        return
+    gone = ("claim", slug, head, kind)
+    kept = [line for line in lines if _key(_parsed(line)) != gone]
+    if len(kept) == len(lines):
+        return
+    temporary = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+    temporary.write_text("".join(kept))
+    os.replace(temporary, path)
+
+
+def has(run: Pass, slug: str, head: str) -> bool:
+    """Whether `head` has a review asked for: see the module."""
+    short = head[:12]
+    held = history.held(run.state / LAUNCHES, lambda one: (one.get("slug"), _short(one)))
+    if (slug, short) in held:
+        return True
+    sent = run.box.sent()
+    return any(f"{kind}|{slug}|{short}" in sent for kind in _MARKED)
+
+
+def _key(one: dict[str, Any]) -> Any:
+    """A launch is its thread, and a claim its slug, head and kind."""
+    return one.get("thread") or ("claim", one.get("slug"), one.get("head"), one.get("kind"))
+
+
+def _short(one: dict[str, Any]) -> str:
+    return str(one.get("head") or "")[:12]
+
+
+def _parsed(line: str) -> dict[str, Any]:
+    try:
+        one = json.loads(line)
+    except ValueError:
+        return {}
+    return one if isinstance(one, dict) else {}
 
 
 def said(line: str) -> tuple[str, str] | None:

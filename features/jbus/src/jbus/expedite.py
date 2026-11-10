@@ -21,7 +21,8 @@ crew's own proof or check clears (`Short.spells`, `TELLS`). `TABLE` holds every 
 - `fix`, `the scoped review of it is not written`: launch the scoped reviewer of the fix
   with the two ranges, the patch the last review saw and the patch at the head, owed only after
   a `Meets the brief: no` and while no `Proved:` line holds at the head. Where the crew cannot
-  work out a range, run the crew skill's block, which says what to do;
+  work out a range, run the crew skill's block, which says what to do. A head the last review
+  judged, with nothing pushed after it, gets no such message (`_judged`);
 - `meets-no`, `meets-unread` and `meets-miscounted`, the last review round's `Meets the brief:`
   line (`jbriefs.meets`) says `no`, has no shape `jmerge` reads, or counts other lines than the
   brief has: run the crew skill's block of "A second pass", which gives the scoped review the
@@ -689,7 +690,7 @@ def tell(run: Pass, client: Client, world: World, pulls: merge.Said) -> set[int]
         if due and _capped(run, client, slug):
             entry["passes"] = after
         passes = entry["passes"]
-        if due and rebase.mark(row.kind, slug, head) in sent:
+        if due and (rebase.mark(row.kind, slug, head) in sent or _judged(row, slug, head, run)):
             entry["told"], entry["tells"], due = passes, 1, False
         asked = "told" in entry and not entry.get("users")
         busy = _busy(run, client, world, slug, row) if due or asked else None
@@ -726,6 +727,13 @@ def tell(run: Pass, client: Client, world: World, pulls: merge.Said) -> set[int]
     if kept != was:
         write_json(run.state / FILE, kept)
     return hand
+
+
+def _judged(row: Short, slug: str, head: str, run: Pass) -> bool:
+    """Whether the `fix` row would ask for a scoped reviewer of the head a written review
+    already judged: nothing was pushed after it, so the reviewer would read what the review
+    read, and the row counts as told."""
+    return row.kind == "fix" and ready.said_of(task_brief(run, slug)).reviewed == head
 
 
 def _given(row: Short, reason: str, entry: dict[str, Any]) -> bool:
