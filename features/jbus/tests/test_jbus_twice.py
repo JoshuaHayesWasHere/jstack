@@ -420,3 +420,75 @@ def test_a_lint_step_is_no_infra_and_two_heads_that_failed_it_hold_the_row(launc
     assert (list(kept["heads"]), kept["infra"]) == ([A, C], [B])
     assert rows(launched)["alpha"]["held"] is True
     assert len(pages(launched)) == 1
+
+
+def step_run(command, *lines):
+    """A step's own part of a job's log: GitHub opens it with the `##[group]Run` line that names
+    its command."""
+    out = [f"##[group]Run {command}", "##[endgroup]", *lines]
+    return "".join(f"2026-11-09T10:00:0{i % 10}.0000000Z {line}\n" for i, line in enumerate(out))
+
+
+RETRIED = step_run(
+    "uv sync --locked",
+    "curl: (56) Recv failure: Connection reset by peer",
+    "warning: retrying the download of ruff (attempt 2 of 3)",
+    "Installed 41 packages in 120ms",
+)
+QUOTES = step_run(
+    "python3 features/writing/scripts/prose_lint.py HEAD^1",
+    "features/x/README.md:3: more than one sentence, break it at sentence ends: The step failed "
+    "on a connection reset or timed out. It counts for nothing.",
+    "prose_lint.py: 1 new prose lines hold more than one sentence: one each",
+)
+
+
+def test_a_lint_step_is_no_infra_where_only_another_part_of_its_log_shows_a_fetch_failure(
+    launched,
+):
+    """A failed step is judged by its own part of the job's log, from its `##[group]Run` line to
+    the `##[error]` line that ends it. At each of two heads `prose lint` fails on the row's prose,
+    which quotes "connection reset", after a passed `uv sync` retried a `curl: (56)`: neither sign
+    is the lint step's fetch failure, so both heads count and hold the row. A head between them
+    whose own `zsh` step failed on a `curl: (56)` is kept apart and counted for nothing."""
+    infra_at(launched, A, "11", step="prose lint", shows=RETRIED + QUOTES)
+    passes(launched, 0)
+    zsh = step_run("mkdir -p zsh-debs", "curl: (56) Recv failure: Connection reset by peer")
+    infra_at(launched, B, "12", step="zsh", shows=RETRIED + zsh)
+    passes(launched, 3)
+    infra_at(launched, C, "13", step="prose lint", shows=RETRIED + QUOTES)
+    passes(launched, 6, 9)
+    kept = fails(launched)
+    assert (list(kept["heads"]), kept["infra"]) == ([A, C], [B])
+    assert rows(launched)["alpha"]["held"] is True
+    assert len(pages(launched)) == 1
+
+
+TOLERATED = step_run(
+    "tests=$(python3 scripts/select_tests.py --failed-on-main 30 "
+    "~/.cache/jstack/failed-on-main.json)",
+    "curl: (22) The requested URL returned error: 503",
+    "##[error]Process completed with exit code 22.",
+)
+TRAILER = step_run(
+    "PYTHONPATH=features/jmerge/src:features/jleak/src python3 scripts/no_ai_trailers.py",
+    "##[error]AI co-author trailer: commit 5f16302 carries a Co-Authored-By trailer",
+    "Drop each line above: a commit and a pull request carry no AI co-author trailer.",
+)
+
+
+def test_a_trailer_step_is_no_infra_where_a_tolerated_step_before_it_failed_on_a_503(launched):
+    """check.yml's `failed on main` runs with `continue-on-error: true` and calls GitHub: its
+    `curl: (22)` on a 503 ends with an `##[error]Process completed` line of its own, and the job
+    goes on. The step that fails the job is the last one whose part ends in that line, here
+    `no AI co-author trailer`, failed on the row's own commits. Two heads that failed it count
+    and hold the row."""
+    trailer = "no AI co-author trailer"
+    infra_at(launched, A, "11", step=trailer, shows=TOLERATED + TRAILER)
+    passes(launched, 0)
+    infra_at(launched, B, "12", step=trailer, shows=TOLERATED + TRAILER)
+    passes(launched, 3, 6)
+    kept = fails(launched)
+    assert (list(kept["heads"]), kept.get("infra", [])) == ([A, B], [])
+    assert rows(launched)["alpha"]["held"] is True
+    assert len(pages(launched)) == 1

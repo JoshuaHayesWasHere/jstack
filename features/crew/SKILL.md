@@ -95,6 +95,8 @@ On the user's own word to merge, given in this thread, `jmerge --accept <number>
   Do not check its findings again, and do not explore beyond it.
 - A brief's `Asked:` line names the file that keeps the user's whole request, of which this brief is one slice.
   Open it only before a choice that `Task:`, `Done when:` and `Decisions:` leave open, and before asking the home anything, and not otherwise.
+- Where the brief has a `Shown:` line, open each path on it with the Read tool before your first edit: it is a picture the user sent with the request.
+  Where it says `gone`, or the Read finds no file, go on without it, and say so on the Result's `Left:` line.
 - When a scout wrote the brief, start from the files on its `Read:` line, measure with the commands on `Instruments:`, and change where `Change:` names.
   Do not try again what `Ruled out:` names.
 - Stay inside **Where** and out of **Do not touch**. If the task cannot be done without crossing that line, stop and say so.
