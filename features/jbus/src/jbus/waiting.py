@@ -24,10 +24,14 @@ Each pass rewrites the list. An item is one thing only the user can do,
   leftover in time;
 - `approve`: a row with no approval, or a row whose brief changed after its approval, with its
   `slug`. The line is the command that approves it;
-- `hold`: a pull request that `jmerge` holds, with its `number` and `url`;
-- `held`: rows held by one reason with no thread at work on it, from the pass that woke their home
-  (`clock.held`), with their `rows` and the `home` that owns them. It leaves the list once the hold
-  clears or a thread takes it up;
+- `hold`: a pull request on `jmerge`'s `hold` step, with its `number` and `url`: a `hold` line, or
+  a `wait` whose code is on that step, such as a queue row held for `check failed twice`
+  (`ready.ROW_HELD`), a row whose go does not hold, or a brief that says `Review: none`. Only the
+  user's word lifts it, so it is listed from the pass `jmerge` first says it until a pass in which
+  `jmerge` says another line of it, whether or not a thread works on the row or its home was woken;
+- `held`: rows held by one other reason with no thread at work on it, from the pass that woke their
+  home (`clock.held`), with their `rows` and the `home` that owns them. It leaves the list once the
+  hold clears or a thread takes it up;
 - `config`: no sign-in to T3 Code;
 - `github`: GitHub's API allowance is spent, one item for the project whatever the calls it
   refused, with the line that names the window and when it starts again (`jsettings.budget`). The
@@ -324,10 +328,14 @@ def left(run: Pass, world: World, rows: list[queue.Row]) -> list[Item]:
     return found
 
 
-def holds(run: Pass, world: World | None, pulls: list[str], was: list[Item]) -> list[Item]:
-    """Return the open pull requests `jmerge` holds, by what it said in this pass (`merge.shown`),
-    also where the home merges. A pull request that is still open and that `jmerge` said nothing
-    about keeps its earlier hold, since in that case `jmerge` did not reach it.
+def holds(
+    run: Pass, world: World | None, pulls: list[str], was: list[Item], crews: Collection[int] = ()
+) -> list[Item]:
+    """Return the open pull requests on `jmerge`'s `hold` step (`_users`), by what it said in this
+    pass (`merge.shown`), also where the home merges. A hold of one of `crews` is its crew's to
+    lift for now, and `Said.crews` made its line a `wait`: it is not listed. A pull request that
+    is still open and that `jmerge` said nothing about keeps its earlier hold, since in that case
+    `jmerge` did not reach it.
 
     A pass that could not ask T3 Code or GitHub has no `world`, and trusts `jmerge`. Such a pass
     counts a pull request that `jmerge` holds in this pass as open. A pull request that `jmerge`
@@ -344,7 +352,8 @@ def holds(run: Pass, world: World | None, pulls: list[str], was: list[Item]) -> 
 
     found = []
     for text, line in parsed:
-        if line and line.word == "hold" and line.reason and there(line.number):
+        mine = line and line.number in crews and line.word == "wait"
+        if line and line.reason and not mine and _users(line) and there(line.number):
             found.append(
                 {
                     "kind": "hold",
@@ -356,6 +365,13 @@ def holds(run: Pass, world: World | None, pulls: list[str], was: list[Item]) -> 
             )
     found += [one for one in was if there(one.get("number")) and one.get("number") not in said]
     return sorted(found, key=lambda one: one["number"])
+
+
+def _users(line: merge.Line) -> bool:
+    """Say whether a line of `jmerge` puts its pull request on the `hold` step, which only the
+    user's word lifts: a `hold`, or a `wait` whose code is on that step, such as a queue row that
+    is held (`ready.ROW_HELD`) or has no go (`judgement.step`)."""
+    return judgement.step(f"{line.word}: {line.reason}", line.code) == "hold"
 
 
 def held(state: Path) -> list[Item]:
@@ -389,6 +405,7 @@ def keep(
     derived: bool,
     read_all: bool,
     spent: str | None = "",
+    crews: Collection[int] = (),
 ) -> list[Item]:
     """Rewrite the list, and log one quiet event when the new list's keys differ from the list
     the file holds as it is written (`_rewrite`).
@@ -418,7 +435,7 @@ def keep(
         found = gates(run.home, asked, run.removed, questions.waits(run.state, run.user))
     except questions.Unparsable:
         found = had("gate")
-    kept = holds(run, world, pulls, had("hold"))
+    kept = holds(run, world, pulls, had("hold"), crews)
     if rows is not None and world is not None and derived:
         waits = {row["slug"] for row in rows if row.get("status") in ("queued", "gate")}
 
@@ -760,6 +777,7 @@ def _keep(half: Half) -> None:
         derived=half.derived,
         read_all=half.read,
         spent=half.seen.spent,
+        crews=half.crews,
     )
 
 

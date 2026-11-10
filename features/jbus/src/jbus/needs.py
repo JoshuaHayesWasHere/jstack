@@ -20,7 +20,10 @@ project no pass has listed yet says so, since nothing is known of it. `jbus home
 the same lines for its own project (`jbus.homestatus`).
 
 `--home <directory>` keeps one home's items of its project: a scope's directory keeps that
-scope's, and the root home's keeps its own and every scope's. An item is a home's by the slug it
+scope's, and the root home's keeps its own and every scope's. Every home's list also has each item
+about the whole project, no row and no home (`WIDE`, and a hold of GitHub's budget), and each ask
+the home made of the user itself that is still open in its `told` file (`asks`), so a home's
+"nothing waits" means none of these is open either. An item is a home's by the slug it
 is about, by the one rule (`home_of`) that `jbus home status --home` reads questions by too: a
 home's own slug (`home`, `home-<scope>`), else the home of the slug's brief or request
 (`jbriefs.home.home_of`), in the home's files or as the queue stored it, else the catch-all's,
@@ -37,10 +40,12 @@ from pathlib import Path
 
 import jbus
 from jbriefs import home as homes
-from jbus import blockers, budgethold, cleanup, passes, questions, queue, verbs, waiting
+from jbus import blockers, budgethold, cleanup, passes, questions, queue, turnend, verbs, waiting
 
 FREE = "nothing to reply: free room on it, and the next pass launches the row"
 """The hint a row that waits for /tmp ends in: no word of the user's frees it."""
+WIDE = ("install", "config")
+"""The kinds of item about the whole project, no row and no home: every home's list has them."""
 HELD = "nothing to reply: the launches start again at the reset, and merges still go"
 """The hint a hold of GitHub's budget ends in: no word of the user's lifts it."""
 
@@ -114,24 +119,41 @@ def of(
         found = blockers.deciding(run, listed)
     except questions.Unparsable:
         raise Unknown(f"{project.name}: {questions.path(run.state)} does not parse") from None
-    needs = [
+    needs: list[tuple[str | None, Need]] = [
         (
-            _slug(run, one),
+            None if one["kind"] in WIDE else _slug(run, one),
             Need(project.name, said, blockers.reply(one), str(one.get("fail_safe") or "")),
         )
         for one, said in found
     ]
     needs += [(slug, Need(project.name, f"row {slug}: {why}", FREE)) for slug, why in room(run)]
     if held := budgethold.needed(run):
-        needs.append(("", Need(project.name, held, HELD)))
-    if home is not None:
-        root = config.home(project)
-        needs = [
-            (slug, need)
-            for slug, need in needs
-            if (at := home_of(run.state, root, slug)) == home or home == root == at.parent
-        ]
-    return [need for _, need in needs]
+        needs.append((None, Need(project.name, held, HELD)))
+    if home is None:
+        return [need for _, need in needs]
+    root = config.home(project)
+    kept = [
+        need
+        for slug, need in needs
+        if slug is None
+        or (at := home_of(run.state, root, slug)) == home
+        or home == root == at.parent
+    ]
+    return kept + asks(project, root, home)
+
+
+def asks(project: jbus.Project, root: Path, home: Path) -> list[Need]:
+    """Return each ask a home made of the user itself that is still open: a `decision local` or
+    `stop local` line of its `told` file, which `jbus told` keeps until a `cleared local` line ends
+    it (`jbus.turnend`). With the root home, its scopes' too."""
+    scopes = sorted(one for one in root.iterdir() if (one / "plan.md").is_file())
+    found = []
+    for at in [root, *scopes] if home == root else [home]:
+        name = "root" if at == root else at.name
+        for line in turnend.open_asks(at):
+            reply = f"reply to the {name} home in your own words"
+            found.append(Need(project.name, f"{name} home {line}", reply))
+    return found
 
 
 def room(run: passes.Pass) -> list[tuple[str, str]]:

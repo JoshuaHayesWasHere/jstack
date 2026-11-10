@@ -184,3 +184,35 @@ def test_rows_that_wait_on_a_row_ahead_with_no_open_pull_request_wake_their_home
     assert reason in told and "31 minutes" in told
     (need,) = held.needs()
     assert need["rows"] == list(ROWS)
+
+
+def test_a_hold_only_the_users_word_lifts_is_on_jbus_needs_from_its_first_pass_until_lifted(
+    kitchen,
+):
+    """A row held for `check failed twice` keeps its pull request waiting on the row's hold,
+    which only the user's word lifts: `jmerge` says it on the `hold` step whatever word starts
+    its line. `jbus needs` lists it from the pass that holds it, also while a crew of it is at
+    work and before its home was woken, and not once it is lifted. Held twice over, as #1486
+    was."""
+    from test_jbus_needs import needs
+
+    held = Held(kitchen, ready.ROW_HELD)
+    crew = held.crews["two"]
+    listed = [
+        f"demo wait {n} {url(n)}: {ready.ROW_HELD}, a pull request jmerge holds for your word"
+        for n in range(11, 15)
+    ]
+    for start in (0, 60):
+        held.say(ready.ROW_HELD)
+        for minute in range(start, start + 3):
+            busy = minute == start + 1
+            crew["status"] = "running" if busy else "completed"
+            (kitchen.t3.at_work.add if busy else kitchen.t3.at_work.discard)(crew["threadId"])
+            held.at(minute)
+            said = needs(kitchen, at=NOW + timedelta(minutes=minute))
+            assert [line for line in said if line.startswith("demo ")] == listed, minute
+        held.say(ready.UNDECIDED)
+        held.at(start + 3)
+        assert needs(kitchen, at=NOW + timedelta(minutes=start + 3)) == [
+            "nothing waits on user in any project"
+        ]

@@ -85,6 +85,12 @@ def _run(args: argparse.Namespace, _: jbus.Config) -> int:
     return 0
 
 
+def open_asks(home: Path) -> list[str]:
+    """Return each `decision local` or `stop local` line of the home's `told`, in its order: an
+    ask of the home's own that no `cleared local` line has ended."""
+    return [line for line in _lines(home / FILE) if key(line) and _words(line)[1] == "local"]
+
+
 def _lines(told: Path) -> list[str]:
     try:
         with open(told, newline="") as file:
