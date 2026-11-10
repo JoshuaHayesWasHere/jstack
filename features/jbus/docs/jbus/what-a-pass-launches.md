@@ -92,13 +92,14 @@ jbus makes the crew's worktree itself, before the launch, and launches the crew 
 It fetches the row's base from origin (the default branch, the branch its `Pull request:` line names, or the branch of the pull request it is stacked on) and runs `git worktree add --no-track -b <slug>` at that commit, at the path T3 Code would have used: `$T3CODE_HOME/worktrees/<checkout>/<slug>`, `~/.t3` when `T3CODE_HOME` is not set.
 In the worktree it writes two files that are in no commit:
 
-- `.claude/settings.json`, from `jroles.mirror.crew_settings`: `permissions.deny` of `Artifact` and `AskUserQuestion`, and `skillOverrides` that lists by name only each skill of `~/.claude/skills` other than `crew` and `pr-review`, the two a crew and its reviewer invoke.
+- `.claude/settings.json`, from `jroles.mirror.worktree_settings`: `permissions.deny` of `Artifact` and `AskUserQuestion`, and `skillOverrides` that lists by name only each skill of `~/.claude/skills` other than `crew` and `pr-review`, the two a crew and its reviewer invoke.
   Claude Code reads it from the session's folder before the first request and merges it key by key over the instance's own settings, so a crew's first request carries neither tool's schema (about 14,000 tokens on 2026-11-09) and no description of a skill it does not use.
 - `.claude/.gitignore`, holding `*`, so neither file shows in `git status` and neither can be committed.
   The repo's `.gitignore` and the shared `info/exclude` stay as they are.
 
 The reviewer launches into the crew's worktree, so it reads the same file.
-A home and a scout work in the project's own checkout, which has no such file, so they keep both tools: a home publishes pages and asks the user in a question box.
+A scout has a worktree of its own with the same two files ([A scout](#a-scout)).
+A home has none: it works in the project's own checkout, which has no such file, so it keeps both tools, since a home publishes pages and asks the user in a question box.
 
 The launch record keeps the commit the branch was made at.
 A launch whose reply is lost is looked up and adopted as before, since the thread is on the branch `<slug>`.
@@ -164,7 +165,12 @@ jbus queue approve <slug> --word <id>
 - **The go** is a row's go: your word with `jbus queue approve`, or the go of the row's plan entry under `go = "entry"`.
   The follow-up rule approves no request.
 - **A pass** launches each request whose go holds and whose depends are over (merged, a crewmate's row ended `done`, or a scout's row whose Report says `Status: done`), once, as a thread titled `scout: <slug>` whose message is `/scout <slug>`.
-  The thread works in the project's own checkout as it stands, with no worktree and no branch, so it has nothing to commit and no pull request to open.
+  Before the launch jbus makes the scout a worktree of its own (`jbus.crewtree.make_scout`): `git worktree add --detach` at origin's default branch, just fetched, at `$T3CODE_HOME/worktrees/<checkout>/scout+<slug>`, a name no slug can take, so it never meets a crew's worktree of the same slug.
+  It has no branch, so the scout has nothing to commit and no pull request to open.
+  jbus writes the two files of [A crew's worktree](#a-crews-worktree) in it, the skill listed in full being `scout`, and launches the thread into it with `existing_worktree`, so the scout's first request carries neither `Artifact` nor `AskUserQuestion`.
+  The scout still reads and writes the home's state directory, which it finds from the repo's shared git folder.
+  Any folder an earlier pass left at that path, before it wrote a launch record, is removed and made again; a worktree jbus cannot make is the condition `the scout's worktree could not be made`, and a launch T3 Code refuses removes the worktree.
+  Once the scout's last Report says `Status: done`, or its row is removed, the first pass on which no thread of the scout is at work removes the worktree (`scouts.clear`) and says `removed scout <slug>'s worktree`.
   Its model is the role map's `scout` line, it waits for `jgauge room --light`, and it takes no slot of `max_running`.
   jbus writes the queued request to `scouts/<slug>.md` in the home's state directory, or holds the launch with a condition where the file there is another request, and writes `Thread: <id>` into it.
   The next pass adopts the thread of a lost reply, so no request launches twice.
