@@ -4,6 +4,9 @@ the first pass after it ended reads what it printed, once (`jbus.merge.merge`). 
 the kitchen's `jmerge` runs as a command on PATH, sleeping as long as `jmerge-sleep` says.
 """
 
+import json
+import re
+import sys
 import time
 from datetime import UTC, datetime, timedelta
 
@@ -14,7 +17,7 @@ import jbus.passes
 from jbus import alert, merge, restated, states, verbs
 from jbus.merge import start
 from jmerge import ready
-from test_jbus_kitchen import NOW
+from test_jbus_kitchen import NOW, PASS
 from test_jbus_queue import add
 from test_jbus_row_ends import PULL
 from test_jbus_tick import RUNNING, going, line
@@ -140,3 +143,60 @@ def test_a_tick_that_judged_after_the_run_ended_keeps_its_verdict_over_the_read(
     assert merge.merge(a_pass(checking)) == [older]
     assert line(checking) == ticked
     assert checking.events(states.DRIFT) == []
+
+
+def test_a_run_whose_process_cannot_start_is_a_failure_and_the_next_pass_tries_again(
+    off, monkeypatch
+):
+    """A run whose process cannot start is said, and counted on the `jmerge` streak, and the
+    next pass starts it again."""
+    with monkeypatch.context() as patched:
+        patched.setattr(sys, "executable", str(off.root / "no-python"))
+        printed = off.poll()
+    assert any(
+        line.startswith("wait demo: jmerge did not run (") and "could not be run" in line
+        for line in printed
+    )
+    assert off.status()["streaks"][alert.jmerge("demo")]["count"] == 1
+    assert not [line for line in off.poll(NOW + PASS) if "jmerge did not run" in line]
+    assert started(off) == ["--if-free"]
+
+
+SYSTEMD_RUN = """\
+#!{python}
+import json, subprocess, sys
+from pathlib import Path
+
+stub = Path({stub!r})
+with open(stub / "systemd-run.log", "a") as log:
+    log.write(json.dumps(sys.argv[1:]) + "\\n")
+if (stub / "systemd-run-refuses").exists():
+    print((stub / "systemd-run-refuses").read_text(), file=sys.stderr)
+    sys.exit(1)
+child = sys.argv[sys.argv.index("--") + 1 :]
+subprocess.Popen(child, start_new_session=True, stdin=subprocess.DEVNULL)
+"""
+
+
+def test_a_pass_systemd_runs_starts_the_run_as_a_unit_of_its_own(off, monkeypatch):
+    """Under `jbus.service` a run left in the pass's unit would be stopped with it, so the pass
+    starts it with `systemd-run` as a transient unit named for the project and its state, with
+    the pass's environment by name. A refused start is a failure of the streak, in its words."""
+    script = off.stub / "systemd-run"
+    script.write_text(SYSTEMD_RUN.format(python=sys.executable, stub=str(off.stub)))
+    script.chmod(0o755)
+    monkeypatch.setenv("INVOCATION_ID", "the-pass-unit")
+    off.poll()
+    ended(off)
+    (asked,) = [json.loads(one) for one in off.log("systemd-run")]
+    assert asked[:4] == ["--user", "--quiet", "--collect", asked[3]]
+    assert re.fullmatch(r"--unit=jbus-jmerge-demo-[0-9a-f]{8}", asked[3])
+    assert f"--working-directory={off.checkout}" in asked
+    assert "--setenv=PATH" in asked and "--setenv=INVOCATION_ID" not in asked
+    off.poll(NOW + PASS)
+    assert off.lines("jmerge") == [LINE]
+    ended(off)
+    off.set("systemd-run-refuses", "Failed to start transient service unit: it exists")
+    printed = off.poll(NOW + 2 * PASS)
+    why = "Failed to start transient service unit: it exists"
+    assert f"wait demo: jmerge did not run ({why})" in printed

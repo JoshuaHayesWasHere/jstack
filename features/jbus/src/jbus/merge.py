@@ -194,14 +194,12 @@ def start(run: Pass) -> str:
 def keep(where: str | Path, checkout: str | Path) -> None:
     """Run `jmerge --if-free` in `checkout` as the process of one of the pass's runs, holding
     `GOING` for the whole run, and keep what it printed as a record in `where`, written whole
-    before the lock is given back."""
+    before the lock is given back. A process that dies first leaves no record, and the next pass
+    counts it (`merge`)."""
     where = Path(where)
     with open(where / GOING, "a") as going:
         fcntl.flock(going, fcntl.LOCK_EX)
-        try:
-            ran = proc.run(*RUN, cwd=checkout, timeout=JMERGE_TIMEOUT)
-        except Exception as error:
-            ran = proc.Unrun(RUN, 127, "", f"{type(error).__name__}: {error}")
+        ran = proc.run(*RUN, cwd=checkout, timeout=JMERGE_TIMEOUT)
         at = restated.moment(verbs.clock())
         record = {
             "returncode": ran.returncode,
@@ -271,10 +269,7 @@ def _unrun(run: Pass, why: str) -> None:
 
 def _last(path: Path) -> str:
     """The last line of `path`, or that it said nothing."""
-    try:
-        said = path.read_text(errors="replace").strip().splitlines()
-    except OSError:
-        said = []
+    said = path.read_text(errors="replace").strip().splitlines() if path.is_file() else []
     return said[-1].strip() if said else "it said nothing"
 
 
