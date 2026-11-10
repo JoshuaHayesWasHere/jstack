@@ -82,7 +82,7 @@ def test_the_extension_holds_jstack_manifests_to_the_core_rules_too():
 
 
 def test_every_jstack_manifest_holds_to_the_extension_and_names_its_folder():
-    assert len(MANIFESTS) == 42
+    assert len(MANIFESTS) == 43
     for path in MANIFESTS:
         manifest = json.loads(path.read_text())
         assert faults(manifest, FEATURE_PATH) == [], path
