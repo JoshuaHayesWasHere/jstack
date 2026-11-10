@@ -40,7 +40,16 @@ script, sys.argv = sys.argv[1], sys.argv[1:]
 sys.path.insert(0, os.path.dirname(os.path.abspath(script)))
 runpy.run_path(script, run_name="__main__")
 """
-INHERITED = ("PYTHONPATH", "VIRTUAL_ENV", "MAKEFLAGS", "MFLAGS", "MAKELEVEL", "BASE", "TESTS")
+INHERITED = (
+    "PYTHONPATH",
+    "VIRTUAL_ENV",
+    "MAKEFLAGS",
+    "MFLAGS",
+    "MAKELEVEL",
+    "BASE",
+    "TESTS",
+    "SHARD",
+)
 PLANTED = {
     "features/alpha/feature.json": '{"name": "alpha", "description": "Alpha."}\n',
     "features/alpha/src/alpha/__init__.py": "",
