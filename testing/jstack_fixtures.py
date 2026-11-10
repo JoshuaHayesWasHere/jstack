@@ -197,6 +197,14 @@ def jbus_dirs(tmp_path_factory, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def no_load_log(tmp_path_factory, monkeypatch):
+    """Point `JGAUGE_LOAD_LOG` at a file no test has written, so a telemetry build, which a pass
+    runs, never reads the machine's `load.tsv` (`jbus.telemetry.records.load_samples`). A test
+    that needs a log sets the variable again itself."""
+    monkeypatch.setenv("JGAUGE_LOAD_LOG", str(tmp_path_factory.mktemp("load") / "load.tsv"))
+
+
+@pytest.fixture(autouse=True)
 def no_step_files(monkeypatch):
     """Keep the step's own output and summary files, which GitHub Actions sets for the job that
     runs the suite, out of each test. A script a test runs, `select_tests.py` above all, writes to
