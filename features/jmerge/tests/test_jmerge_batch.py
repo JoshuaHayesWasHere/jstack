@@ -346,7 +346,11 @@ def test_a_batch_that_passed_with_no_artifact_found_waits_and_merges_once_it_is_
     assert record(kitchen)["failed"] == {}
     proven(kitchen)
     said = kitchen.run()
-    assert [line.split()[:2] for line in said] == [["merged", "6"], ["merged", "7"], ["merged", "8"]]
+    assert [line.split()[:2] for line in said] == [
+        ["merged", "6"],
+        ["merged", "7"],
+        ["merged", "8"],
+    ]
     assert runs(kitchen) == 0
 
 
@@ -358,7 +362,11 @@ def test_a_batch_that_passed_with_no_artifact_found_at_its_limit_has_failed(kitc
     (kitchen.home.state / batch.KEPT).write_text(json.dumps({**kept, "at": late.isoformat()}))
     listed(kitchen, (merge.PASSED,))
     said = kitchen.run()
-    assert [line.split()[:2] for line in said] == [["merged", "6"], ["merged", "7"], ["merged", "8"]]
+    assert [line.split()[:2] for line in said] == [
+        ["merged", "6"],
+        ["merged", "7"],
+        ["merged", "8"],
+    ]
     assert all(", the guards passed on its tree merged over main at " in line for line in said)
     assert runs(kitchen) == 3
 
