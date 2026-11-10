@@ -14,7 +14,8 @@ from datetime import timedelta
 
 import pytest
 
-from jbus import verbs
+import jbus
+from jbus import needs, queue, standing, verbs
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_queue import brief, rows
 
@@ -72,7 +73,7 @@ def test_a_follow_up_with_no_door_is_approved_on_the_homes_standing_word_as_it_i
     assert approved.startswith(f"your standing word {word} for follow-ups, ")
     assert "follow-up of alpha" in approved
     made = rows(kitchen)["alpha-2"]["approval"]
-    assert (made["basis"], made["ref"], made["follows"]) == ("standing", word, "alpha")
+    assert (made["basis"], made["ref"], made["follows"]) == (queue.STANDING, word, "alpha")
     assert made["words"] == SAID
 
 
@@ -113,8 +114,7 @@ def test_a_withdrawn_standing_word_approves_no_later_follow_up(kitchen):
 def test_a_word_jbus_did_not_read_from_the_users_own_message_does_not_stand(kitchen):
     kitchen.word()
     code, out = stand(kitchen, "--word", "said-by-user")
-    assert code == 1
-    assert out.startswith("refused: word said-by-user is not the user's own message")
+    assert (code, out) == (1, standing.NOT_OWN.format(id="said-by-user"))
 
 
 def test_jbus_needs_names_each_homes_standing_word_while_it_holds(kitchen):
@@ -127,5 +127,22 @@ def test_jbus_needs_names_each_homes_standing_word_while_it_holds(kitchen):
     assert code == 0, out
     line = f'demo polish home standing word {word} for follow-ups that open no door: "{SAID}"'
     assert line in out.splitlines()
+    config = jbus.load()
+    (demo,) = config.projects
+    other = needs.lines(config, [demo], "demo", at, kitchen.home / "uncategorized")
+    assert line in needs.lines(config, [demo], "demo", at, kitchen.home / "polish")
+    assert line not in other
     stand(kitchen, "--word", word, "--withdraw")
     assert line not in kitchen.main("needs")[1].splitlines()
+
+
+def test_a_second_run_changes_nothing_and_an_unknown_or_unheld_word_is_refused(kitchen):
+    word = said_in_polish(kitchen)
+    code, out = stand(kitchen, "--word", word, "--withdraw")
+    assert (code, out) == (1, f"refused: the polish home of demo holds no standing word {word}")
+    first = stand(kitchen, "--word", word)
+    acted = (kitchen.state / "acts.jsonl").read_text()
+    assert stand(kitchen, "--word", word) == first
+    assert (kitchen.state / "acts.jsonl").read_text() == acted
+    code, out = stand(kitchen, "--word", "nope")
+    assert (code, out) == (1, f"refused: {kitchen.state / 'acts.jsonl'} has no word nope")
