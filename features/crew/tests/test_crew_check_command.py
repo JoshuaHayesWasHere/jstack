@@ -534,7 +534,7 @@ def test_the_guard_tests_run_after_the_touched_ones_and_a_failed_one_fails_the_c
     brief = a_brief(tmp_path)
     said, code, ran, base = selected(tmp_path, repo, exits={"*test_g.py*": 1})
     head = git(repo, "rev-parse", "HEAD")
-    assert said[0].startswith("touched: 2 test files, then 1 guard tests"), said
+    assert said[0].startswith("touched: 2 test files, then 1 cross-cutting guard tests"), said
     assert ran == [lint(base), alone("tests/test_a.py", base), alone(h, base), alone(g, base)]
     assert re.search(rf"^{g}: exit 1 in \d+ s, short lane$", "\n".join(said), re.M), said
     assert code == 1
