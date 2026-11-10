@@ -24,6 +24,7 @@ from jbus import (
     acts,
     blockers,
     boxes,
+    crewtree,
     dispatch,
     item,
     needs,
@@ -53,7 +54,8 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
     answer of a closed question of its `questions.json`, a message read from T3 Code, the
     user's answer to a question box read from T3 Code and its store. A follow-up's go reads no
     file of the home: jbus knows the rule by what it says.
-    `entry_go` reads the go of a row's plan entry (`plan.holding`).
+    `entry_go` reads the go of a row's plan entry (`plan.holding`), and `crew` is the row whose
+    crew's or scout's worktree the command runs in (`crewtree.holding`).
 
     `out` asks T3 Code and GitHub now for a thread that is at work, `crew: <slug>` or
     `scout: <slug>`, an open pull request, or a merged one. A thread that ended or settled is
@@ -121,7 +123,7 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
         return (word.basis if basis == "word" else questions.basis)(run.state, ref)
 
     goes = plan.entry_go(run.state, config.home(project))
-    return queue.Asks(out, launched, told, said, goes)
+    return queue.Asks(out, launched, told, said, goes, crewtree.holding(run, Path.cwd()))
 
 
 READS = ("show", "verify", "check")

@@ -79,6 +79,26 @@ A scope that already holds the word, by any path, is not sent it again: that pri
 A word is no event, so it wakes no thread.
 The log still has a line for it, which `jbus events` prints.
 
+## What is approved by policy, and what always asks
+
+Your go on a plan entry, `jbus plan go <entry> --message <thread id>/<message id>`, is the go for every row of that entry while it holds, under the setting `go = "entry"`, the default.
+jbus approves on it, in the same `jbus queue add` or pass that queues the row, and you are not asked again:
+
+- a row the home files under the entry, `jbus queue add <slug> --entry <entry>`;
+- a row the crew or scout of such a row queues from its own worktree with no `--entry`, where its brief's `Home:` line names the same home as that row's: jbus files it under that row's entry, since it knows the crew from the worktree the command ran in and never from the brief, and its line shows `entry <entry>`;
+- a row the crew of that row queues in turn, and so on down: each is filed under the same entry;
+- a follow-up whose brief names a parent with a go on a `Follows:` line, by the follow-up rule, and one the rule does not approve, on a home's standing word (below).
+
+Its approved column says `your go for the plan entry <entry>, <when you said it>, in <where>; run <time> by <party>`.
+
+These always ask you, and reach `jbus needs`:
+
+- a row whose brief holds a case of gates.md, on a `Holds:` line or in a command it runs: one of the six one-way doors, deleting data, rewriting history, spending money, touching prod or real users, changing access or secrets, and publishing. Only your own message or pick in T3 Code opens one ([Doors](the-queue.md#doors));
+- a row under no entry with a go: new work the home files outside one, a row a crew of such a row queues, and a row a crew queues for another home, which waits for that home's entry;
+- a row your own go approved before an edit voided it, and a held row.
+
+When an entry's go stops holding, `jbus plan stop` or a change to the entry's head, each of its rows that has not launched waits for you again, and a launched one goes on.
+
 ## A standing word for follow-ups
 
 When you tell a home once that the follow-ups it queues need no go of yours, as "when new briefs need my approval, approve them", the home makes that word stand with `jbus standing --to <project> --word <id>`.

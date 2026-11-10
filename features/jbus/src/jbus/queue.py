@@ -133,9 +133,12 @@ counts an entry's status by the rows that name it (`jbus.plan`). A row with no `
 a parent, as a follow-up does (`named_parent`), does work for its parent's entry: jbus keeps that
 entry in the row's `parent_entry`, at the end of each batch and on each pass (`_inherit`), and
 counts the row for it (`entry`). Any other row with no `entry` is its own entry, and so is a row
-whose `entry` is its own slug, which `add --entry <its slug>` writes. The rules that
-approve a row by its entry read only the entry the home gave (`given_entry`), so an entry jbus
-inherited approves nothing.
+whose `entry` is its own slug, which `add --entry <its slug>` writes. A new row that the crew
+of another row queues from its worktree with no `--entry` is filed under the entry the home gave
+that row, where both briefs name one home (`_filed_by_crew`): jbus reads who queued it, never the
+brief, so it is the entry the home gave. The rules that approve a row by its entry read only
+that given entry (`given_entry`), so an entry jbus inherited from a `Follows:` line approves
+nothing.
 
 `item` is the other column only `add` writes: the id of the work item that the row
 represents (`jbus.item`). Once a row has one, jbus refuses an `add` that names another.
@@ -902,7 +905,8 @@ class Add:
     """`Add` is the verb that adds a new row, or gives a row its brief, priority, depends and
     merge_after again. It leaves the row's approval as it is, and its entry too where `entry`
     is empty. An `entry` that is the row's own slug makes the row its own entry, and it then
-    takes no entry from a parent it names."""
+    takes no entry from a parent it names. A new row given no `entry` by the crew of another row
+    is filed under that row's entry (`_filed_by_crew`)."""
 
     slug: str
     priority: int
@@ -998,6 +1002,9 @@ class Asks:
 
     `entry_go` gets a brief and its plan entry, and returns the user's go for that entry where it
     holds, with the message on `ref`, or None (`jbus.plan.holding`).
+
+    `crew` is the slug of the row whose crew's or scout's worktree the command runs in, or nothing
+    (`jbus.crewtree.holding`): a row it adds is filed under that row's entry (`_filed_by_crew`).
     """
 
     out: Callable[[str], str]
@@ -1005,6 +1012,7 @@ class Asks:
     told: Callable[[dict[str, Any]], None]
     said: Callable[[str, str], Said] | None = None
     entry_go: EntryGo | None = None
+    crew: str = ""
 
 
 _OPTIONS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
@@ -1191,6 +1199,19 @@ def _inherit(batch: _Batch) -> None:
             row["parent_entry"] = found
         else:
             row.pop("parent_entry", None)
+
+
+def _filed_by_crew(batch: _Batch, crew: str, verb: Add) -> str:
+    """Return the plan entry a row is filed under when the crew of the row `crew` queues it, or
+    nothing: the entry the home gave the crew's row (`given_entry`), where `crew` is another row
+    of the table and both briefs name one home. jbus knows the crew from the worktree the command
+    ran in, never from the brief, so an entry's go approves the work its crews find (`_entered`),
+    and a row a crew files for another home waits for that home's go."""
+    row = next((one for one in batch.rows if crew != verb.slug and one["slug"] == crew), None)
+    text = batch.brief(crew) if row is not None else None
+    if row is None or text is None or homes.named(text) != homes.named(verb.text):
+        return ""
+    return given_entry(row)
 
 
 def _ruled(row: Row) -> bool:
@@ -1815,6 +1836,10 @@ def _do(
             row["item"] = verb.item
         if verb.entry:
             row["entry"] = verb.entry
+        elif "entry" not in row and asks is not None:
+            crews = _filed_by_crew(batch, asks.crew, verb)
+            if crews:
+                row["entry"] = crews
         was = batch.brief(verb.slug)
         kept = record(row)
         if not found or handed or (kept and kept.basis in RULED):
