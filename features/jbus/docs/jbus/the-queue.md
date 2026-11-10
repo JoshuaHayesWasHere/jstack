@@ -163,6 +163,7 @@ The line ends `, its go holds` or `, its go does not hold for it: approve it aga
 
 `--priority` is an integer, and the lowest launches first.
 `--depends` is optional, and names the slugs that must end before this row launches, or, for the one slug left, open its pull request: the row then launches stacked on that pull request's branch ([What a pass launches](what-a-pass-launches.md)).
+A row whose brief opens no pull request, such as a measure or a proof row, is never stacked: it waits for that slug's merge.
 A depends is the only way to stack a row: `add` refuses a brief whose `Stacked on:` line names a row its `--depends` does not, and says to add the depends.
 A slug ends by a merge, or by a row that ended `done` with no pull request.
 Such a row's thread ended, and its last Result says `Status: done`, `Left: none` and a `Branch:` line that is not a URL, and, where its brief asks for a pull request, an `Outcome:` line that names how it ended: `carried by <slug>`, `nothing to change, <why>` or `dropped, <why>` (`jbus.outcome`, `watch.closes`).
