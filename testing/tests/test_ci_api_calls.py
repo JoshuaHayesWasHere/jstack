@@ -17,8 +17,9 @@ import subprocess
 import sys
 import threading
 import zipfile
+from datetime import UTC, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlsplit
 
 import pytest
 from test_workflows import CHECK, steps
@@ -32,8 +33,8 @@ TOKEN = "t0ken"
 
 class GitHub:
     """The REST API for the repo `o/r`, on a local port. `answers` maps a path and its query to
-    a function of the times it was asked, which gives `(status, body)` or `(status, body,
-    headers)`. A list carries an ETag, the hash of its body, and an ask that names it is answered
+    a function of the times it was asked, or a path alone to a function of the query, which
+    gives `(status, body)` or `(status, body, headers)`. A list carries an ETag, the hash of its body, and an ask that names it is answered
     304. `/blob/<name>` is storage: a redirect from the API leads there, and it refuses the
     token, as GitHub's blob storage does. `costed` is each ask of the API GitHub would count."""
 
@@ -64,6 +65,9 @@ class GitHub:
                 url = urlsplit(self.path)
                 key = f"{url.path}?{url.query}" if url.query else url.path
                 answer = github.answers.get(key)
+                if answer is None and url.path in github.answers:
+                    query = dict(parse_qsl(url.query))
+                    answer = lambda asked: github.answers[url.path](query)  # noqa: E731
                 if answer is None:
                     github.costed.append(key)
                     return self.reply(404, b'{"message": "Not Found"}')
@@ -365,3 +369,74 @@ def test_the_trailer_check_reads_the_commits_with_git_and_makes_no_costed_call(t
         "no-ai-trailers: the title, the body and 2 commits carry none",
     ), ran.stdout + ran.stderr
     assert github.costed == []
+
+
+TODAY = datetime.now(UTC)
+
+
+def main_runs(runs):
+    """GitHub's list of check.yml's completed runs on main, one event and one day a page, from
+    `runs`, each `(id, event, days ago, conclusion)`."""
+
+    def listed(query):
+        day, event = query["created"], query["event"]
+        found = [
+            {"id": id, "run_attempt": 1, "conclusion": conclusion}
+            for id, of, back, conclusion in sorted(runs, reverse=True)
+            if of == event and (TODAY - timedelta(days=back)).strftime("%Y-%m-%d") == day
+        ]
+        size, page = int(query["per_page"]), int(query.get("page", "1"))
+        body = {"total_count": len(found), "workflow_runs": found[(page - 1) * size :][:size]}
+        return 200, json.dumps(body).encode()
+
+    return {"/repos/o/r/actions/workflows/check.yml/runs": listed}
+
+
+def failed_on_main(github, kept):
+    """The `failed on main` step's lookup, as `reuse` runs it."""
+    (step,) = [s for s in steps(CHECK.read_text(), "reuse")[0] if s.get("name") == "failed on main"]
+    assert "select_tests.py --failed-on-main 30" in step["run"]
+    assert step["env"] == {"GITHUB_TOKEN": "${{ github.token }}"}
+    return subprocess.run(
+        [sys.executable, "-I", "-S", str(REPO / "scripts" / "select_tests.py")]
+        + ["--failed-on-main", "30", str(kept)],
+        env={
+            "PATH": "/usr/bin:/bin",
+            "GITHUB_API_URL": github.url,
+            "GITHUB_REPOSITORY": "o/r",
+            "GITHUB_TOKEN": TOKEN,
+        },
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+
+
+def test_the_lookup_of_what_failed_on_main_asks_again_only_what_changed(tmp_path):
+    """A cold lookup lists main's runs of each day of its window, a call for each day, event and
+    page, and a lookup after it the 4 newest days again: 8 costed calls where nothing changed. It keeps each list's ETag with what it read,
+    beside its cache, so a later lookup's ask of a list that did not change is answered 304 at no
+    cost, and one new run of main today costs the one list it is on."""
+    runs = [(n, "push", n % 4, "success") for n in range(1, 40)] + [(50, "schedule", 1, "success")]
+    kept = tmp_path / "failed-on-main.json"
+    github = GitHub(main_runs(runs))
+    try:
+        first = failed_on_main(github, kept)
+        assert first.returncode == 0, first.stderr
+        cold = list(github.costed)
+        github.costed.clear()
+        again = failed_on_main(github, kept)
+        assert again.returncode == 0, again.stderr
+        unchanged = list(github.costed)
+        github.costed.clear()
+        runs.append((60, "push", 0, "success"))
+        later = failed_on_main(github, kept)
+        assert later.returncode == 0, later.stderr
+        newer = list(github.costed)
+    finally:
+        github.close()
+    assert len(cold) == 31 * 2
+    assert unchanged == []
+    assert len(newer) == 1 and "event=push" in newer[0]
+    assert TODAY.strftime("%Y-%m-%d") in newer[0]
+    assert len(newer) <= BUDGET
