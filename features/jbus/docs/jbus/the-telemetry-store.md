@@ -328,7 +328,21 @@ An alert whose count falls back under its limit ends with a `recovered` line.
 
 `jbus --project <name> scorecard` reads each health measure of one project from the store, opened read only, and prints one line a measure: its state, group, name, value, unit, the count it is of, its baseline and its tier.
 `--json` prints a list instead, each item with `name`, `group`, `value`, `unit`, `n`, `baseline`, `state`, `tier`, `wired`, `audit` and `note`.
-It writes no page, raises no alert and changes nothing in the store.
+`jbus scorecard --out <path>` writes the scorecard's page there in place of the lines, through a draft file renamed over it, and prints one line with the count of each state.
+It raises no alert and changes nothing in the store.
+
+### The page
+
+A pass keeps the page at `scorecard.html` in jbus's state directory (`~/.local/state/jbus/scorecard.html`), for the config's first project.
+After the store's build and the KPI alerts, the pass starts `jbus --project <first> scorecard --out` there when the page is absent or older than 15 minutes and no build was started in that time, and does not wait for it: the measures' weekly reads over `call_rows` take longer than a pass may.
+The child's output is kept beside the page as `.scorecard.html.log`; a build that did not end in its line is one line in the next pass's output, and raises no alert.
+
+The page is one static file: no script and nothing fetched, readable at phone width and in dark mode.
+A band on top counts the measures worse than their baseline and names the worst three: `bad` before `watch`, a `wake` measure before a `page` one, then the farthest from its baseline.
+A table a group follows, in the order flow, cost, quality, attention, machinery, a row a measure with `data-measure="<name>"`: its value now with the count it is of and its window, a sparkline of its last seven days where its window is `day`, its baseline and where that is from, its state in words and colour, and its tier.
+Each day's point is the same part of that day as today so far, so today compares with them.
+A `Lacks` measure says the record it needs; a query that failed shows its error's kind and never its message.
+The page names no row, path, thread or pull request.
 
 A KPI is a weekly value against a target for the vision; a measure is a reading of an hour, a day or a week so far against a baseline, to say whether jstack is healthy now.
 Each measure is a module of its own in `jbus.telemetry.measures`, `m<NN>_<slug>.py`, whose `MEASURE` is one `Measure` and holds no function:
@@ -358,11 +372,11 @@ The three kinds say where a value is past its line:
 - `Limit(at, floor)`: a value beyond `at` in the worse direction, read only with `n` at least `floor`.
 - `Trend(by)`: a value worse than the mean of its own seven days before, each the same window that many days earlier, by more than `by` percent.
 
-A reading has one of four states:
+A reading has one of four states, shown on the page in words and colour:
 
-- `bad`: past the kind's line.
-- `watch`: worse than the baseline, not past the line.
-- `ok`: neither.
+- `bad` (red, "past its line"): past the kind's line.
+- `watch` (amber, "worse than its baseline"): worse than the baseline, not past the line.
+- `ok` (green, "at or better than its baseline"): neither.
 - `none`: a `Lacks`, no baseline, no value, `n` under the floor, or a query that failed, whose error is its note.
 
 The first 41 are the rows of the scorecard scout's visual of 2026-11-09, in its order.

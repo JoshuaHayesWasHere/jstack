@@ -33,7 +33,10 @@ reads everything, prints what it added and how long it took, and `builds` record
 itself is never rebuilt, since the sources no longer have every row it keeps.
 
 `jbus scorecard` reads each measure of `jbus.telemetry.measures` from the store, read only, and
-prints one line a measure, or with `--json` a list of them. It writes nothing.
+prints one line a measure, or with `--json` a list of them; with `--out <path>` it writes the
+scorecard's page there (`jbus.telemetry.scorecard`) and prints the count of each state. It
+writes nothing to the store. A pass starts that page for the config's first project at most
+each `SCORECARD_EVERY`, as a child it does not wait for.
 """
 
 from __future__ import annotations
@@ -42,11 +45,13 @@ import argparse
 import json
 import os
 import sqlite3
+import subprocess
+import sys
 import time
 from collections import Counter
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime, tzinfo
+from datetime import UTC, date, datetime, timedelta, tzinfo
 from pathlib import Path
 
 import jbus
@@ -61,6 +66,7 @@ from jbus.telemetry import (
     messages,
     migrations,
     records,
+    scorecard,
     tokens,
     values,
     views,
@@ -69,6 +75,10 @@ from jbus.telemetry.records import SOURCES, Source
 
 FILE = "telemetry.sqlite"
 PAGE = "kpis.html"
+SCORECARD = "scorecard.html"
+SCORECARD_EVERY = timedelta(minutes=15)
+"""How old the pass's scorecard page may be before a pass builds it again: a pass runs about
+twice a minute, and the page is not worth its queries each time."""
 PASS_BYTES = 16 * 2**20
 """How much of the record files a pass reads at most; a file is read whole once begun."""
 BUSY_MS = 30_000
@@ -455,6 +465,9 @@ def _scorecard_arguments(parser: argparse.ArgumentParser) -> None:
         "--store", metavar="path", help="the store to read, the machine's by default"
     )
     parser.add_argument("--json", action="store_true", help="print a JSON list of the readings")
+    parser.add_argument(
+        "--out", metavar="path", help="write the scorecard's page there, not a line a measure"
+    )
 
 
 def _scorecard(args: argparse.Namespace, config: jbus.Config) -> int:
@@ -462,6 +475,13 @@ def _scorecard(args: argparse.Namespace, config: jbus.Config) -> int:
     `--project` names, or the config's only one."""
     project = config.project(args.project).name
     store = Path(args.store) if args.store else path(config)
+    if args.out:
+        try:
+            print(_scorecard_page(config, project, store, Path(args.out), datetime.now(UTC)))
+        except sqlite3.Error as error:
+            print(f"refused: no telemetry store to read at {store}: {error}")
+            return 2
+        return 0
     try:
         connection = sqlite3.connect(f"file:{store}?mode=ro", uri=True, timeout=BUSY_MS / 1000)
     except sqlite3.Error as error:
@@ -509,6 +529,73 @@ def _line(measure: measures.Measure, reading: measures.Reading) -> str:
     )
 
 
+def _scorecard_page(
+    config: jbus.Config, project: str, store: Path, out: Path, now: datetime
+) -> str:
+    """Write the scorecard's page of `project` at `out`, read from `store` opened read only,
+    through a draft file renamed over it; say where, with the count of each state."""
+    connection = sqlite3.connect(f"file:{store}?mode=ro", uri=True, timeout=BUSY_MS / 1000)
+    try:
+        found = scorecard.lines(connection, project, now, config.user)
+    finally:
+        connection.close()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    draft = out.with_name(f".{out.name}.{os.getpid()}")
+    draft.write_text(scorecard.page(found, config.user.local(now)))
+    draft.replace(out)
+    return f"scorecard: {out}: {project}: {scorecard.line(found)}"
+
+
+def _scorecard_chore(config: jbus.Config, now: datetime, say: Callable[[str], None]) -> None:
+    """Start the page of the config's first project where it is absent or older than
+    `SCORECARD_EVERY`, and no build was started within that time. The build is a child of its
+    own, `jbus scorecard --out`, which the pass does not wait for: the registry's reads take
+    longer than a pass may. The child's output is kept beside the page, and a build that did not
+    end in its line is said here once, as one line, with no alert."""
+    if not config.projects:
+        return
+    out = config.state_dir / SCORECARD
+    started = out.with_name(f".{SCORECARD}.started")
+    log = out.with_name(f".{SCORECARD}.log")
+    if log.is_file() and (said := log.read_text().strip().splitlines()):
+        if not said[-1].startswith("scorecard: "):
+            say(f"scorecard: no page: {said[-1]}")
+        log.write_text("")
+    if _younger(out, now) or _younger(started, now):
+        return
+    out.parent.mkdir(parents=True, exist_ok=True)
+    started.touch()
+    os.utime(started, (now.timestamp(), now.timestamp()))
+    project = config.projects[0].name
+    with log.open("w") as output:
+        try:
+            subprocess.Popen(
+                [
+                    sys.executable,
+                    "-m",
+                    "jbus",
+                    "--project",
+                    project,
+                    "scorecard",
+                    "--out",
+                    str(out),
+                ],
+                stdin=subprocess.DEVNULL,
+                stdout=output,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+        except OSError as error:
+            say(f"scorecard: no page: {sys.executable} could not be run: {error.strerror}")
+
+
+def _younger(file: Path, now: datetime) -> bool:
+    """Whether `file` is there and was written within `SCORECARD_EVERY` of `now`."""
+    return (
+        file.exists() and now.timestamp() - file.stat().st_mtime < SCORECARD_EVERY.total_seconds()
+    )
+
+
 def _pass(config: jbus.Config, say: Callable[[str], None]) -> None:
     """The pass's build: at most `PASS_BYTES` read, and a line only where files were left."""
     built = build(config, most=PASS_BYTES)
@@ -536,4 +623,9 @@ VERBS = (
         _scorecard,
     ),
 )
-CHORES = (verbs.Chore(35, "the telemetry store", lambda config, _, __, say: _pass(config, say)),)
+CHORES = (
+    verbs.Chore(35, "the telemetry store", lambda config, _, __, say: _pass(config, say)),
+    verbs.Chore(
+        37, "the scorecard's page", lambda config, _, now, say: _scorecard_chore(config, now, say)
+    ),
+)
