@@ -21,8 +21,13 @@ with.
   Such a body stays in the relay's `dead/` and the relay never sends it (`jbus.relay`). jbus does
   not judge silence and errors from a heartbeat that is stale.
 - `quota <instance> <window>` and `capped <instance>` cover each instance of the role map's pools
-  and the built-in one. They read the ledger (`jroles.ledger`), which gets its entries from the
-  threads' status lines and from their limit failures. jbus pages for the seven-day window at
+  and the built-in one, with a `quota` reading of each window of `jroles.ledger.WINDOWS` for every
+  instance. They read the ledger (`jroles.ledger`), which gets its entries from `jgauge limits`,
+  the threads' status lines and their limit failures. `jgauge limits` writes no line for a window
+  no session has opened, so a window a fresh ledger of a Claude instance lacks reads 0. A window the
+  ledger lacks where nobody reads the instance's use (no file, a file older than
+  `jroles.ledger.FRESH`, or an instance of another provider) reads as unread: `value` and `over`
+  None. jbus pages for the seven-day window at
   `FULL`. The five-hour window fills and resets each day, so jbus pages for it only when it is full.
   A `capped` reading is over while `jroles.pool.choose` skips its instance. While the cap lasts, new
   launches go to the next instance of the pool, and with every instance capped no launch starts. The
@@ -38,7 +43,9 @@ is gone or the config no longer posts to a relay, jbus ends the incident with no
 The pass's look also keeps its readings (`keep`): one line `{at, key, value, over}` in
 `health.jsonl` of jbus's state for a reading whose value or `over` changed since its key's last
 line, or whose last line is `KEEP_EVERY` old, which the telemetry store reads as
-`health_readings`.
+`health_readings`. So no key goes longer than `KEEP_EVERY` and one pass unkept: 5 min, and the
+longest pass of the push of 2026-11-09 took 435 s, so each account's quota readings are on record
+at least every 15 minutes.
 
 `jbus poll` pages. Its look is the first step of the config's first project (rank 6 of
 `before-watch`, ahead of every other step), so the look runs in every pass before another
@@ -67,7 +74,7 @@ import jbus
 import jroles
 import jsettings
 from jbus import alert, launchd, read_json, relayenv, verbs, wake
-from jroles import ledger, pool
+from jroles import inventory, ledger, pool
 from jsettings import store
 
 FULL = 80
@@ -83,7 +90,7 @@ TIMED_OUT = "Failed with result 'timeout'"
 JMERGE_TIMED_OUT = "jmerge did not run (Command "
 GIB = 2**30
 LOG = "health.jsonl"
-KEEP_EVERY = timedelta(minutes=15)
+KEEP_EVERY = timedelta(minutes=5)
 TAIL = 64 * 1024
 
 
@@ -113,7 +120,8 @@ class Relay:
 @dataclass(frozen=True)
 class Machine:
     """A `Machine` is one look, as `gather` reads it from the system. `journal` is None where
-    `gather` could not read it."""
+    `gather` could not read it. `read` holds each instance whose use `jgauge limits` read within
+    `jroles.ledger.FRESH`, so a window its ledger lacks is not open."""
 
     mounts: tuple[Mount, ...] = ()
     journal: tuple[str, ...] | None = ()
@@ -121,6 +129,7 @@ class Machine:
     relay: Relay | None = None
     kept: ledger.Ledger = field(default_factory=dict)
     instances: tuple[str, ...] = ()
+    read: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -312,6 +321,18 @@ def gather(
         relay=relay,
         kept=ledger.read(named),
         instances=named,
+        read=fresh(named, now),
+    )
+
+
+def fresh(named: tuple[str, ...], now: datetime) -> frozenset[str]:
+    """Each Claude instance of `named` whose ledger file `jgauge limits` wrote within
+    `jroles.ledger.FRESH`. `jgauge limits` reads only Claude homes, so another provider's ledger
+    holds only its caps."""
+    listed = inventory.declared(inventory.path(), Path.home())
+    known = inventory.claude_instances({} if isinstance(listed, str) else listed, Path.home())
+    return frozenset(
+        one for one in named if one in known and ledger.stale(ledger.file_of(one), now) is None
     )
 
 
@@ -429,29 +450,22 @@ def relays(relay: Relay | None, now: datetime) -> list[Reading]:
 
 
 def quotas(
-    kept: ledger.Ledger, named: tuple[str, ...], now: datetime, user: jsettings.Settings
+    kept: ledger.Ledger,
+    named: tuple[str, ...],
+    now: datetime,
+    user: jsettings.Settings,
+    read: frozenset[str] = frozenset(),
 ) -> list[Reading]:
+    """Each instance's reading of each window, and whether it is capped: see the module."""
     found = []
     capped = {one: ledger.capped_until(kept, one, now) for one in named}
     every = all(capped.values())
     for one in named:
-        records = sorted((r for (i, _), r in kept.items() if i == one), key=lambda r: r.window)
-        if not records:
-            continue
-        for record in records:
-            resets = datetime.fromtimestamp(record.resets, UTC)
-            weekly = record.window == "seven_day"
-            if resets <= now:
-                said = f"the {record.window} window reset {user.stamp(resets)}"
-                over, share = False, 0.0
-            else:
-                used = f"{record.used:g}% of the {record.window} window used"
-                said = f"{used}, resets {user.stamp(resets)}"
-                over = record.used >= FULL if weekly else False
-                share = record.used
-            limit = f"alerts at {FULL}%" if weekly else f"paged when full, as capped {one}"
-            key = f"quota {one} {record.window}"
-            found.append(Reading(key, said, limit, over, value=share))
+        records = [kept[one, window] for window in ledger.WINDOWS if (one, window) in kept]
+        found += [
+            _quota(one, window, kept.get((one, window)), one in read, now, user)
+            for window in ledger.WINDOWS
+        ]
         until = capped[one]
         full = [r.window for r in records if r.full(now)]
         if until is None:
@@ -470,13 +484,41 @@ def quotas(
     return found
 
 
+def _quota(
+    one: str,
+    window: str,
+    record: ledger.Record | None,
+    read: bool,
+    now: datetime,
+    user: jsettings.Settings,
+) -> Reading:
+    """One instance's reading of one window: its share while the window is open, 0 once it
+    resets or where `read` says it is not open, and unread where nobody read it."""
+    weekly = window == "seven_day"
+    limit = f"alerts at {FULL}%" if weekly else f"paged when full, as capped {one}"
+    key = f"quota {one} {window}"
+    if record is None:
+        if read:
+            return Reading(key, f"the {window} window is not open", limit, False, value=0.0)
+        said = f"the {window} window is unread: no line of it in {ledger.file_of(one)}"
+        return Reading(key, said, limit, None)
+    resets = datetime.fromtimestamp(record.resets, UTC)
+    if resets <= now:
+        return Reading(
+            key, f"the {window} window reset {user.stamp(resets)}", limit, False, value=0.0
+        )
+    said = f"{record.used:g}% of the {window} window used, resets {user.stamp(resets)}"
+    over = record.used >= FULL if weekly else False
+    return Reading(key, said, limit, over, value=record.used)
+
+
 def readings(machine: Machine, now: datetime, user: jsettings.Settings) -> list[Reading]:
     """Return every check of one look, in the order `jbus health` prints them."""
     return [
         *disks(machine.mounts),
         *timeouts(machine.journal, machine.start_timeout),
         *relays(machine.relay, now),
-        *quotas(machine.kept, machine.instances, now, user),
+        *quotas(machine.kept, machine.instances, now, user, machine.read),
     ]
 
 

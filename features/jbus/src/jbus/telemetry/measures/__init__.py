@@ -67,10 +67,14 @@ class Sql:
     """One SELECT over the store that gives one row of `value` and `n`, how many the value is of,
     and takes only the named parameters `:project`, `:begins` and `:ends`, the window's bounds as
     UTC stamps (`values.STAMP`), `begins` in it and `ends` not. A `machine` measure reads the
-    machine's rows: its `:project` is `MACHINE`, so it reads the same on every project."""
+    machine's rows: its `:project` is `MACHINE`, so it reads the same on every project. `each`,
+    where a measure has it, is a second SELECT with the same parameters that gives a row
+    `label, value, line` for each part the value is the worst of, such as each account, which
+    the scorecard shows beside the value (`Part`)."""
 
     query: str
     machine: bool = False
+    each: str = ""
 
 
 @dataclass(frozen=True)
@@ -128,6 +132,18 @@ class Measure:
     tier: Tier
     wired: str = ""
     audit: tuple[int, ...] = ()
+    each_unit: str = ""
+    """What a `Part`'s value and line count, where the source has an `each`."""
+
+
+@dataclass(frozen=True)
+class Part:
+    """One row of a source's `each`: what it is of, its value, and the line it is held to, None
+    where it has none yet."""
+
+    label: str
+    value: float
+    line: float | None
 
 
 @dataclass(frozen=True)
@@ -137,6 +153,7 @@ class Reading:
     baseline: float | None
     state: State
     note: str = ""
+    each: tuple[Part, ...] = ()
 
 
 def bounds(
@@ -178,10 +195,11 @@ def read(
     match measure.source:
         case Lacks(needs):
             return Reading(None, 0, measure.baseline, "none", f"needs {needs}")
-        case Sql(query, machine):
+        case Sql(query, machine, each):
             owner = MACHINE if machine else project
+    span = bounds(measure.window, now, user)
     try:
-        value, n = _value(store, query, owner, *bounds(measure.window, now, user))
+        value, n = _value(store, query, owner, *span)
         prior: list[float] = []
         if isinstance(measure.kind, Trend) and value is not None:
             for back in range(1, PRIOR_DAYS + 1):
@@ -191,7 +209,27 @@ def read(
     except sqlite3.Error as error:
         return Reading(None, 0, measure.baseline, "none", f"{type(error).__name__}: {error}")
     mean = sum(prior) / len(prior) if prior else None
-    return Reading(value, n, measure.baseline, _state(measure, value, n, mean))
+    state = _state(measure, value, n, mean)
+    return Reading(value, n, measure.baseline, state, each=_parts(store, each, owner, *span))
+
+
+def _parts(
+    store: sqlite3.Connection, query: str, project: str, begins: str, ends: str
+) -> tuple[Part, ...]:
+    """The rows of a source's `each`, or none where it has none or its query fails: the value
+    the measure read stands either way."""
+    if not query:
+        return ()
+    params = {"project": project, "begins": begins, "ends": ends}
+    try:
+        rows = store.execute(query, params).fetchall()
+    except sqlite3.Error:
+        return ()
+    return tuple(
+        Part(str(label), float(value), None if line is None else float(line))
+        for label, value, line in rows
+        if value is not None
+    )
 
 
 def _value(

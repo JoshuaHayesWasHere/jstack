@@ -527,6 +527,9 @@ def _reading(measure: measures.Measure, reading: measures.Reading) -> dict[str, 
         "wired": measure.wired,
         "audit": list(measure.audit),
         "note": reading.note,
+        "each": [
+            {"label": part.label, "value": part.value, "line": part.line} for part in reading.each
+        ],
     }
 
 
@@ -534,9 +537,10 @@ def _line(measure: measures.Measure, reading: measures.Reading) -> str:
     value = "-" if reading.value is None else f"{round(reading.value, 2):g}"
     baseline = "-" if reading.baseline is None else f"{reading.baseline:g}"
     note = f"  {reading.note}" if reading.note else ""
+    each = "".join(f"; {said}" for said in scorecard.parts(measure, reading))
     return (
         f"{reading.state:<5}  {measure.group:<9}  {measure.name:<22}  {value} {measure.unit}"
-        f" of {reading.n}, baseline {baseline}, {measure.tier}{note}"
+        f" of {reading.n}, baseline {baseline}, {measure.tier}{note}{each}"
     )
 
 

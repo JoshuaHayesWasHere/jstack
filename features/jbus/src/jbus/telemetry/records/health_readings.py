@@ -1,4 +1,4 @@
-"""The machine's `health.jsonl`, each reading of jbus's health look on a change or each 15
+"""The machine's `health.jsonl`, each reading of jbus's health look on a change or each 5
 minutes (`jbus.health.keep`)."""
 
 from __future__ import annotations

@@ -474,6 +474,33 @@ def test_a_launch_with_the_whole_pool_capped_waits_and_says_so_once(kitchen):
     ]
 
 
+def reading(instance, share, at=NOW):
+    """`jgauge limits`'s latest reading of `instance`'s seven-day window, `share` percent used."""
+    resets = int((at + timedelta(days=3)).timestamp())
+    ledger.write(ledger.Record(instance, "seven_day", share, resets), read=True)
+
+
+def test_a_launch_starts_no_row_on_an_account_at_its_line_and_takes_one_with_room(
+    kitchen, jstack_config
+):
+    """The user's line is `headroom`, 90 here: an account read at 90% is at it though not capped,
+    and an account read at 89% has room."""
+    (jstack_config.parent / "config.toml").write_text("headroom = 90\n")
+    kitchen.config(max_running=3)
+    reading("claudeAgent", 90)
+    reading(PRIME, 89)
+    approved(kitchen, "alpha")
+    kitchen.poll()
+    reading(PRIME, 95)
+    approved(kitchen, "beta", priority=2)
+    said = kitchen.poll(NOW + timedelta(minutes=1))
+    assert [given["modelSelection"]["instanceId"] for given in kitchen.t3.launches] == [PRIME]
+    assert [line for line in said if line.startswith("wait beta")] == [
+        f"wait beta: no launch: claudeAgent and {PRIME} are both capped until "
+        f"{(NOW + timedelta(days=3)).isoformat()}"
+    ]
+
+
 def test_a_role_map_that_names_no_crew_line_launches_with_no_selection(kitchen, pools):
     pools.write_text("crew: inherit\n")
     approved(kitchen, "alpha")
