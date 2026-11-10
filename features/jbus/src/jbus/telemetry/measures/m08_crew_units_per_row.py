@@ -1,4 +1,6 @@
-from jbus.telemetry.measures import Limit, Measure, Sql
+from datetime import date
+
+from jbus.telemetry.measures import Measure, Over, Sql, Week
 
 MEASURE = Measure(
     name="crew-units-per-row",
@@ -13,9 +15,9 @@ MEASURE = Measure(
         " and merged_at >= :begins and merged_at < :ends"
     ),
     window="week",
-    baseline=3.86,
-    baseline_of="last week's row_spend, the week of 2026-11-01",
-    kind=Limit(4.63, 5),
+    baseline=Week(date(2026, 11, 1)),
+    baseline_of="the same query over the week of 2026-11-01",
+    kind=Over(20, 5),
     tier="page",
     audit=(1,),
 )

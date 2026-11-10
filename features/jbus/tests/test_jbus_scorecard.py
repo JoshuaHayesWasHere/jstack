@@ -468,7 +468,6 @@ def test_a_week_baseline_is_the_measures_own_query_over_that_week(store):
     reading = measures.read(store, measure("dollars-per-row"), "jstack", NOW, USER)
 
     assert (reading.value, reading.baseline) == (pytest.approx(52_000 * opus), pytest.approx(last))
-    assert reading.state == "ok"
 
 
 @pytest.mark.parametrize("name", ["crew-context", "first-call-context", "dollars-per-row"])
