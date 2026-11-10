@@ -34,8 +34,10 @@ row, whatever commit the head's branch was based on (#1177, 2026-11-06). A head 
 each failed on two other branches in `jbus ci`'s window (`reverts.flaky`, `jbus ci`'s flake rule) is
 kept apart too and counted for nothing: the red is shared, not the row's (#1219 and #1220,
 2026-11-07). A head at which each failed job failed at a step whose log names no failed test and no
-make target (`infra`), such as a package's download, is kept apart too and counted for nothing: that
-step ran nothing of the row's (2026-11-09). At the second head, a push or a merge of main alike,
+make target and shows a download or network failure (`infra`, `FETCH`), such as a package's
+download, is kept apart too and counted for nothing: that step ran nothing of the row's
+(2026-11-09). A lint step, which also runs no test and no make target, shows no fetch failure and
+counts. At the second head, a push or a merge of main alike,
 `twice` holds the row (`jbus queue hold`), keeping the go the hold takes, and pages the Chef once, a
 gate `check failed twice` that names the row, the pull request, both heads and the failed jobs at
 each. The outbox then sends the crew of a held row no rebase and no fix message (`outbox.FIXES`), so
@@ -411,19 +413,33 @@ def shared(run: Pass, pull: dict[str, Any], red: rebase.Red) -> list[str]:
     return sorted(tests)
 
 
+FETCH = re.compile(
+    r"(?im)curl: \(\d+\)|Could not resolve host|Temporary failure in name resolution"
+    r"|\b(?:HTTP(?:/[\d.]+)?|returned error:|status(?: code)?:?) ?5\d\d\b"
+    r"|\b5\d\d (?:Service Unavailable|Bad Gateway|Gateway Time-?out|Internal Server Error)"
+    r"|Connection (?:reset|refused|timed out)|Operation timed out|ECONNRESET|ETIMEDOUT|EAI_AGAIN"
+    r"|(?:Failed|Unable) to download|artifact[^\n]{0,60}download[^\n]{0,40}fail"
+)
+"""The sign of a download or network failure in a job's log, beside `collect.SIGNS`: a `curl`
+error, an HTTP 5xx, a host that did not resolve, a connection reset or timed out, or an artifact
+download that failed."""
+
+
 def infra(run: Pass, world: World, red: rebase.Red) -> list[str]:
     """Return the step each failed job failed at, where every one failed at a step whose log names
-    no failed test (`failed_in`) and no make target (`collect.TARGET`): a step that ran no check of
-    the row's, such as a package's download. Return nothing where a failed check gives no job, or
-    a job's failed step or log is not given, or a log names a failed test or a make target: that
-    red is the row's own. The step comes from `watch.ran`, which keeps it with the job."""
+    no failed test (`failed_in`) and no make target (`collect.TARGET`), and shows a download or
+    network failure (`FETCH`): a step that failed to fetch what the check needs, such as a
+    package. Return nothing where a failed check gives no job, or a job's failed step or log is
+    not given, or a log names a failed test or a make target or shows no fetch failure, as a lint
+    step's does: that red is the row's own. The step comes from `watch.ran`, which keeps it with
+    the job."""
     if len(red.jobs) < len(red.names):
         return []
     steps: list[str] = []
     for repo, job in red.jobs:
         step = str(ran(run, world, repo, job).get("failed_step") or "")
         log = job_log(run, repo, job)
-        if not step or log is None or failed_in(log).count:
+        if not step or log is None or failed_in(log).count or not FETCH.search(log):
             return []
         if any(collect.TARGET.match(line) for line in collect.evidence(log)):
             return []
@@ -511,7 +527,7 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
             infras.append(head)
             run.say(
                 f"failed {slug}: #{pull['number']} at {head[:12]} failed only at "
-                f"{', '.join(dict.fromkeys(steps))}, a step that ran no test and no make target, "
+                f"{', '.join(dict.fromkeys(steps))}, a step that failed to fetch and ran no test, "
                 "not counted"
             )
             continue

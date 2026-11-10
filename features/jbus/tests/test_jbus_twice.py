@@ -325,23 +325,32 @@ def test_a_row_whose_brief_changed_since_its_go_stays_held_on_a_green_head(launc
     assert not rows(launched)["alpha"]["approved"]
 
 
-def infra_at(kitchen, head, job, said=""):
-    """The pull request's check fails at `head`, at a step that downloads a package: GitHub names
-    the failed step, and its log names no failed test and, unless `said` does, no make target."""
+FETCH = "2026-11-09T10:00:05.0000000Z curl: (22) The requested URL returned error: 503\n"
+LINT = (
+    "2026-11-09T10:00:05.0000000Z features/x/README.md:3: more than one sentence, break it at "
+    "sentence ends: One. Two.\n"
+    "2026-11-09T10:00:05.0100000Z prose_lint.py: 1 new prose lines hold more than one sentence: "
+    "one each\n"
+)
+
+
+def infra_at(kitchen, head, job, said="", step="Install zsh", shows=FETCH):
+    """The pull request's check fails at `head`, at `step`, by default one that downloads a package
+    and fails on a 503: GitHub names the failed step, and its log shows `shows` and names no
+    failed test and, unless `said` does, no make target."""
     red_at(kitchen, head, job)
     logs = json.loads((kitchen.stub / "logs.json").read_text())
     log = (
         f"2026-11-09T10:00:00.0000000Z HEAD is now at 10f4a11 Merge {head} into {GREEN}\n"
-        "2026-11-09T10:00:05.0000000Z curl: (22) The requested URL returned error: 503\n"
-        f"{said}"
-        "2026-11-09T10:00:05.1000000Z ##[error]Process completed with exit code 22.\n"
+        f"{shows}{said}"
+        "2026-11-09T10:00:05.1000000Z ##[error]Process completed with exit code 1.\n"
     )
     kitchen.set("logs.json", {**logs, job: log})
     path = kitchen.stub / "jobs.json"
     jobs = json.loads(path.read_text()) if path.exists() else {}
     steps = [
         {"name": "Set up job", "conclusion": "success"},
-        {"name": "Install zsh", "conclusion": "failure"},
+        {"name": step, "conclusion": "failure"},
         {"name": "make check", "conclusion": "skipped"},
     ]
     kitchen.set(
@@ -394,3 +403,20 @@ def test_a_failed_check_that_gives_no_job_beside_an_infra_step_counts(launched):
         passes(launched, *at)
     assert fails(launched).get("infra", []) == []
     assert rows(launched)["alpha"]["held"] is True
+
+
+def test_a_lint_step_is_no_infra_and_two_heads_that_failed_it_hold_the_row(launched):
+    """check.yml's `prose lint` runs no test and no make target, and fails on the row's own
+    prose: it is no infra step, since its log shows no download or network failure. Two heads
+    that failed it hold the row; a head between them whose `Install zsh` failed on a 503 is kept
+    apart and counted for nothing."""
+    infra_at(launched, A, "11", step="prose lint", shows=LINT)
+    passes(launched, 0)
+    infra_at(launched, B, "12")
+    passes(launched, 3)
+    infra_at(launched, C, "13", step="prose lint", shows=LINT)
+    passes(launched, 6, 9)
+    kept = fails(launched)
+    assert (list(kept["heads"]), kept["infra"]) == ([A, C], [B])
+    assert rows(launched)["alpha"]["held"] is True
+    assert len(pages(launched)) == 1
