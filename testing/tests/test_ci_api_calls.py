@@ -308,3 +308,60 @@ def test_a_part_fails_soon_when_reuse_ended_with_no_selection(tmp_path):
         f"{RUNS}/artifacts?per_page=100",
     ]
     assert len(github.free) == 59
+
+
+def pull_request(tmp_path, messages):
+    """A pull request's commits on `origin`, after a base commit, and a shallow clone of its
+    head as the check's checkout is: `(clone, base, the commits' shas, the event file)`."""
+    origin, work = tmp_path / "origin", tmp_path / "work"
+    run = {"check": True, "capture_output": True, "text": True}
+    subprocess.run(["git", "init", "-q", "-b", "main", origin], **run)
+    who = ["-c", "user.name=t", "-c", "user.email=t@t"]
+    shas = []
+    for message in ["chore: base", *messages]:
+        subprocess.run(
+            ["git", *who, "commit", "-q", "--allow-empty", "-m", message], cwd=origin, **run
+        )
+        shas.append(subprocess.run(["git", "rev-parse", "HEAD"], cwd=origin, **run).stdout.strip())
+    subprocess.run(["git", "config", "uploadpack.allowAnySHA1InWant", "true"], cwd=origin, **run)
+    subprocess.run(["git", "clone", "-q", "--depth=1", f"file://{origin}", work], **run)
+    event = tmp_path / "event.json"
+    pull = {"title": "feat: a change", "body": "Why.", "base": {"sha": shas[0]}}
+    event.write_text(json.dumps({"pull_request": pull | {"head": {"sha": shas[-1]}}}))
+    return work, shas[0], shas[1:], event
+
+
+def test_the_trailer_check_reads_the_commits_with_git_and_makes_no_costed_call(tmp_path):
+    """The check of each commit for an AI co-author trailer reads the commits from `origin` with
+    the checkout's git, which spends none of the API's allowance, and not from GitHub's compare
+    API, which cost a call a page."""
+    work, base, shas, event = pull_request(tmp_path, ["feat: one", "fix: two"])
+    listed = [{"sha": sha, "commit": {"message": "feat"}} for sha in shas]
+    compare = ok({"total_commits": len(shas), "commits": listed})
+    github = GitHub({f"/repos/o/r/compare/{base}...{shas[-1]}?per_page=100&page=1": compare})
+    (step,) = [
+        s for s in steps(CHECK.read_text(), "reuse")[0] if s.get("name") == "no AI co-author trailer"
+    ]
+    try:
+        ran = subprocess.run(
+            [sys.executable, str(REPO / "scripts" / "no_ai_trailers.py")],
+            cwd=work,
+            capture_output=True,
+            text=True,
+            env={
+                **os.environ,
+                "PYTHONPATH": f"{REPO}/features/jmerge/src:{REPO}/features/jleak/src",
+                "GITHUB_EVENT_PATH": str(event),
+                "GITHUB_API_URL": github.url,
+                "GITHUB_REPOSITORY": "o/r",
+                "GITHUB_TOKEN": TOKEN,
+            },
+        )
+    finally:
+        github.close()
+    assert "no_ai_trailers.py" in step["run"]
+    assert (ran.returncode, ran.stdout.splitlines()[-1]) == (
+        0,
+        "no-ai-trailers: the title, the body and 2 commits carry none",
+    ), ran.stdout + ran.stderr
+    assert github.costed == []
