@@ -19,6 +19,7 @@ from test_jbus_rereview import keys, launched, out, recorded, scoped
 from testing.paths import REPO
 
 __all__ = ["launched"]
+READ_SET = ("features/jbus/src/jbus/",)
 
 HEAD = "c" * 40
 
