@@ -173,7 +173,7 @@ class T3:
         self.db = sqlite3.connect(root / "t3" / "userdata" / "statev2.sqlite")
         self.db.executescript(
             "create table orchestration_v2_projection_runs (run_id text primary key, "
-            "requested_at text, payload_json text, provider_instance_id text);"
+            "requested_at text, payload_json text, provider_instance_id text, status text);"
             "create table orchestration_v2_projection_turn_items (turn_item_id text primary key, "
             "thread_id text, run_id text, type text, status text, payload_json text);"
             "create table orchestration_v2_projection_threads ("
@@ -206,7 +206,7 @@ class T3:
         run = f"run{self.runs}"
         model = json.dumps({"modelSelection": {"model": "claude-opus-5-5"}})
         self.db.execute(
-            "insert into orchestration_v2_projection_runs values (?, ?, ?, ?)",
+            "insert into orchestration_v2_projection_runs values (?, ?, ?, ?, 'failed')",
             (run, iso(at), model, instance),
         )
         failure = {"startedAt": iso(at), "failure": {"class": "usage_limit", "resetAt": iso(reset)}}

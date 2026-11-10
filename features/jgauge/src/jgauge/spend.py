@@ -16,6 +16,7 @@ jbus's test of what the source imports as an import.
 
 from __future__ import annotations
 
+import bisect
 import contextlib
 import re
 import sqlite3
@@ -137,12 +138,14 @@ class Run:
 @dataclass(frozen=True)
 class Cap:
     """A usage-limit failure: its `limit` is five_hour, seven_day, or "" where the store does not
-    say."""
+    say. It `ends` at its reset, or at the start of the next run its instance completed after it,
+    whichever is first."""
 
     instance: str
     at: datetime
     reset: datetime
     limit: str
+    ends: datetime
 
 
 @dataclass(frozen=True)
@@ -206,12 +209,12 @@ def windows(runs: list[Run], caps: list[Cap]) -> list[Window]:
 
 def capped_spans(caps: list[Cap], instances: set[str]) -> list[tuple[datetime, datetime]]:
     """The spans in which every instance was capped: the intersection of each instance's union
-    of [failure, reset)."""
+    of [failure, end)."""
     if not instances:
         return []
     every: list[tuple[datetime, datetime]] | None = None
     for instance in sorted(instances):
-        own = _union([(c.at, c.reset) for c in caps if c.instance == instance and c.reset > c.at])
+        own = _union([(c.at, c.ends) for c in caps if c.instance == instance and c.ends > c.at])
         every = own if every is None else _intersect(every, own)
     return every or []
 
@@ -418,6 +421,11 @@ WHERE i.type = 'error' AND i.status = 'failed'
     AND json_extract(i.payload_json, '$.failure.resetAt') IS NOT NULL
 """
 
+COMPLETED = """
+SELECT provider_instance_id, coalesce(json_extract(payload_json, '$.startedAt'), requested_at)
+FROM orchestration_v2_projection_runs WHERE status = 'completed'
+"""
+
 INSTANCES = """
 SELECT DISTINCT provider_instance_id FROM orchestration_v2_projection_runs
 WHERE requested_at >= :week AND requested_at < :until
@@ -426,20 +434,30 @@ WHERE requested_at >= :week AND requested_at < :until
 
 
 def caps(store: Path, until: datetime) -> tuple[list[Cap], set[str]]:
-    """Every usage-limit cap, and the Claude instances that ran in the week before `until`."""
+    """Every usage-limit cap, each ended by its instance's next completed run, and the Claude
+    instances that ran in the week before `until`."""
     if not store.is_file():
         raise Refused(f"{store} is not T3 Code's store")
     week = {"week": _stamp(until - timedelta(days=7)), "until": _stamp(until)}
     try:
         with contextlib.closing(sqlite3.connect(f"file:{store}?mode=ro", uri=True)) as db:
             capped = db.execute(CAPS).fetchall()
+            completed = db.execute(COMPLETED).fetchall()
             instances = {name for (name,) in db.execute(INSTANCES, week)}
     except sqlite3.Error as error:
         raise Refused(f"{store} cannot be read: {error}") from None
-    found = [
-        Cap(instance, _at(at), _at(reset), native.split(":")[-2] if native else "")
-        for instance, at, reset, native in capped
-    ]
+    starts: dict[str, list[datetime]] = defaultdict(list)
+    for instance, start in completed:
+        starts[instance].append(_at(start))
+    for own in starts.values():
+        own.sort()
+    found = []
+    for instance, at, reset, native in capped:
+        failed, resets = _at(at), _at(reset)
+        own = starts[instance]
+        later = bisect.bisect_right(own, failed)
+        ends = min(resets, own[later]) if later < len(own) else resets
+        found.append(Cap(instance, failed, resets, native.split(":")[-2] if native else "", ends))
     return found, instances
 
 
