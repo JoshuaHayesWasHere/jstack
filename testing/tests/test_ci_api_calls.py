@@ -440,3 +440,57 @@ def test_the_lookup_of_what_failed_on_main_asks_again_only_what_changed(tmp_path
     assert len(newer) == 1 and "event=push" in newer[0]
     assert TODAY.strftime("%Y-%m-%d") in newer[0]
     assert len(newer) <= BUDGET
+
+
+def test_a_push_s_last_checked_commit_costs_one_call_and_reads_main_s_commits_with_git(tmp_path):
+    """A push run's base is the newest commit under its head whose push run ran: GitHub lists
+    the runs, one costed call, and the commits under the head come from a git fetch of
+    `origin`, with no trees, where a second call listed them."""
+    origin, work, bin = tmp_path / "origin", tmp_path / "work", tmp_path / "bin"
+    run = {"check": True, "capture_output": True, "text": True}
+    subprocess.run(["git", "init", "-q", "-b", "main", origin], **run)
+    for letter in "ABCD":
+        subprocess.run(
+            ["git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty"]
+            + ["-m", letter],
+            cwd=origin,
+            **run,
+        )
+    shas = subprocess.run(["git", "rev-list", "HEAD"], cwd=origin, **run).stdout.split()
+    subprocess.run(["git", "config", "uploadpack.allowAnySHA1InWant", "true"], cwd=origin, **run)
+    subprocess.run(["git", "clone", "-q", "--depth=2", f"file://{origin}", work], **run)
+    ran_on = [{"head_sha": shas[2], "conclusion": "failure"}]
+    commits = [{"sha": sha} for sha in shas]
+    github = GitHub(
+        {
+            "/repos/o/r/actions/workflows/check.yml/runs": lambda query: (
+                200,
+                json.dumps({"workflow_runs": ran_on}).encode(),
+            ),
+            "/repos/o/r/commits": lambda query: (200, json.dumps(commits).encode()),
+        }
+    )
+    (step,) = [s for s in steps(CHECK.read_text(), "reuse")[0] if s.get("name") == "last checked"]
+    bin.mkdir()
+    (bin / "gh").write_text(GH)
+    (bin / "gh").chmod(0o755)
+    out = tmp_path / "output"
+    env = {"PATH": f"{bin}:/usr/bin:/bin", "GITHUB_OUTPUT": str(out), "GITHUB_REPOSITORY": "o/r"}
+    env |= {"GH_TOKEN": TOKEN, "GITHUB_TOKEN": TOKEN, "GITHUB_API_URL": github.url}
+    try:
+        ran = subprocess.run(
+            [sys.executable, str(REPO / "scripts" / "green_tree.py"), "--last-checked", "check.yml"],
+            cwd=work,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+    finally:
+        github.close()
+    assert step["run"] == "python3 scripts/green_tree.py --last-checked check.yml"
+    assert ran.returncode == 0, ran.stderr
+    assert out.read_text() == f"base={shas[2]}\n", ran.stdout
+    assert [key.partition("?")[0] for key in github.costed] == [
+        "/repos/o/r/actions/workflows/check.yml/runs"
+    ]
