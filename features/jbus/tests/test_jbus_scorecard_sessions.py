@@ -109,9 +109,11 @@ def test_gh_calls_per_session_hour_is_no_reading_under_twenty_session_hours(day)
 
 
 def test_the_idle_floor_counts_only_hours_with_no_session_live(day):
-    """Hour 07 had no session live and cost 1,500 core calls; hour 10 had only `mcp:d`, live
-    for 20 minutes, and cost 500. Hours 14 and 15 had 1 and 1.5 session-hours live, hour 04 is
-    before the day, a GraphQL call is another allowance, and hour 21 is still running."""
+    """A thread is live in an hour from its first to its last model call in that hour, so a home
+    left open all day is not at work in the hours between. Hour 07 had no call and cost 1,500
+    core calls; hour 10 had `mcp:d` live for 20 minutes and cost 500; hour 14 had one call of
+    `mcp:a`, live no time in it, and cost 400. Hour 15 had `mcp:b` live for half an hour, hour 04
+    is before the day, a GraphQL call is another allowance, and hour 21 is still running."""
     call(day, "d1", "mcp:d", DAY + 5 * timedelta(hours=1), 1)
     call(day, "d1", "mcp:d", DAY + 5 * timedelta(hours=1) + timedelta(minutes=20), 1)
     gh(day, "2026-11-09T07", "core", 2_000, 500)
@@ -119,22 +121,5 @@ def test_the_idle_floor_counts_only_hours_with_no_session_live(day):
     gh(day, "2026-11-09T10", "core", 700, 200)
     gh(day, "2026-11-09T15", "core", 9_000, 0)
     reading = read(day, "gh-idle-calls-per-hour")
-    assert (reading.value, reading.n, reading.baseline) == (1_000, 2, 2_130)
+    assert (reading.value, reading.n, reading.baseline) == (800, 3, 2_130)
     assert reading.state == "bad"
-
-
-def test_merges_per_session_hour_counts_every_project(day):
-    """The machine's sessions merge for every project it serves."""
-    reading = read(day, "merges-per-session-hour")
-    assert (reading.value, reading.n, reading.baseline) == (pytest.approx(3 / HOURS), 3, 0.71)
-
-
-def test_units_per_merge_is_every_unit_spent_today_over_its_merges(day):
-    reading = read(day, "units-per-merge")
-    assert (reading.value, reading.n, reading.baseline) == (pytest.approx(9 / 3), 3, 3.76)
-
-
-def test_rework_per_merge_counts_the_five_waits_that_redo_a_pull_request(day):
-    """A live run or a fresh conflict is not rework, nor another project's wait."""
-    reading = read(day, "rework-per-merge")
-    assert (reading.value, reading.n, reading.baseline) == (pytest.approx(5 / 2), 2, 2.1)

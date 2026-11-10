@@ -60,7 +60,10 @@ A word recorded from your own T3 message is that message, and the message jbus c
 Its `caller` is the first function of the line's `caller`, the one before ` < `, and its `resource` is empty for a line that names none; it keeps no endpoint and no line.
 Each build adds the lines past its cursor to their rows and moves the cursor in one transaction, so a line is counted once.
 Where the file the cursor names has become the old one, the build reads the rest of it and then the new file; where it is neither, both are read from their start.
-The scorecard reads it as `gh-calls-per-hour` and `gh-allowance`.
+The scorecard reads it as `gh-calls-per-hour`, `gh-allowance`, `gh-calls-per-session-hour` and `gh-idle-calls-per-hour`.
+`gh-allowance` is the lower of the core and the graphql allowance left, whichever wall is nearer.
+`gh-idle-calls-per-hour` is the floor: the costed core calls (a 304 is not one) an hour, over today's whole hours with under half a live session-hour in them, a thread live in an hour from its first to its last model call in that hour, so a home left open all day is not at work in the hours it is quiet.
+`gh-calls-per-session-hour` reads nothing under 20 session-hours, where that floor is most of its numerator.
 
 No table holds the text of a message.
 A row keeps ids, times, counts and labels, and in place of each text, its length in a column that ends `_len`, such as `acts.words_len`.
