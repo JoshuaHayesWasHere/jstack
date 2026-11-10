@@ -111,7 +111,8 @@ def test_a_head_gets_one_reviewer_and_a_new_head_after_another_rebase_one_more(l
 
 def test_a_head_whose_result_names_its_scoped_reviewer_gets_no_other(launched):
     path = launched.home / "tasks/alpha.md"
-    path.write_text(path.read_text() + f"Scoped reviewer: mcp:reviewer, of {'c' * 40}\n")
+    named = f"Scoped reviewer: mcp:earlier\nScoped reviewer: mcp:reviewer, of {'c' * 40}\n"
+    path.write_text(path.read_text() + named)
     out(launched)
     launched.poll()
     launched.poll(NOW + timedelta(minutes=3))
