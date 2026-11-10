@@ -170,7 +170,7 @@ No bucket, `Act on` included, and no `(risk: <area>)` tag brings a warning or an
 An `Act on` finding is handled as above: fixed, or not fixed with a reason of its own.
 A `Consider` finding is declined by default: end it `Finding F<n>: not fixed, <the finding in a few words>, because consider: left for a follow-up`.
 One worth doing later is a row, queued as `$T/a-fault-outside.md` says, and any other is nothing.
-Fix one only when the fix is inside the lines the finding names, adds no test and touches no other file.
+Fix one only when the fix is inside the lines the finding names and touches no other file but the one test that fails without it: a fix that changes what the code does carries that test, and a fix that needs more is a row.
 A review from before the buckets is read by severity the same way: an `info` finding there is declined by default, `Finding: not fixed, <the finding in a few words>, because info: left for a follow-up`.
 A review whose findings are all declined pushes nothing, and the block below says `write Fixed: none needed`.
 The errors of a scoped review are handled the same way.

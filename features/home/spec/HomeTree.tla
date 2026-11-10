@@ -1,13 +1,16 @@
 ---- MODULE HomeTree ----
 \* A root home and two sibling child homes on one repo. Child a is short-lived: it does one
 \* feature and is retired, archived by its handoff, which starts no home after it and hands what it
-\* has out to the root. Child b is long-lived: a routine, a home with a declared rhythm.
+\* has out to the catch-all, `uncategorized`. Child b is long-lived: a routine, a home with a declared rhythm.
 \* Each child has one pull request, a crew thread that opens it, and two calls to Josh: a gate
 \* and an item that waits on him. A call waits in the outbox of jbus's one route to Josh, the
 \* root's home thread, until a post to it goes through. The home thread can fail and mend. jbus's
 \* word to Josh about a child's stall, its notice, is no call: it is an item of `jbus needs`,
 \* which Josh reads, and it goes through no home thread. Time is counted in the root's checks,
 \* one per jbus pass.
+\* The root home owns no row: what it once had out is the catch-all's, `uncategorized`, a home
+\* jbus keeps running. Until the catch-all's first start writes its home-id, the root's thread
+\* stands in for it.
 \*
 \* This module holds the variables, the start, and the rules. HomeTreeToday.tla extends it with
 \* the steps of today's code, which has each guard of the design. README.md says how to check it.
@@ -27,6 +30,9 @@ CONSTANT Modes
 CONSTANTS Made, Raised
 \* Whether, in this run, the home thread fails.
 CONSTANT MayFail
+\* Whether, in this run, the catch-all's thread moves only before the root makes a child: TRUE in
+\* the chart's scene alone, whose chart is too big to draw with it moving beside the children.
+CONSTANT CatchallFirst
 
 Kids == {"a", "b"}
 Kind == [k \in Kids |-> IF k = "a" THEN "feature" ELSE "routine"]
@@ -51,7 +57,7 @@ Up(n, top) == IF n < top THEN n + 1 ELSE top
 
 VARIABLES
     life,       \* each child: unmade, working, stuck (only the child knows), retired, or handed
-                \* (retired with work out, which is the root's from then on)
+                \* (retired with work out, which is the catch-all's from then on)
     work,       \* each child's crew and pull request: none, crew (running, no pull request
                 \* yet), open, ready (green and reviewed), again (it was ready and is not),
                 \* back (ready again, and it drops at most once), merged (its crew still on
@@ -70,8 +76,12 @@ VARIABLES
     seen,       \* each pull request: the tip of main each merger read before its merge
     blind,      \* whether a merge has landed over a tip its merger did not read
     lock,       \* the pull request whose merge holds the repo, or free
-    mode        \* who runs jmerge, fixed for a run
-vars == <<life, work, msg, quiet, watch, launches, up, broke, tip, seen, blind, lock, mode>>
+    mode,       \* who runs jmerge, fixed for a run
+    keeper,     \* the catch-all's own thread: root (it has none yet, and the root's thread stands
+                \* in), live, or gone (archived, or T3 Code does not know it)
+    starts      \* the starts of the catch-all jbus launched that may still write its home-id
+vars == <<life, work, msg, quiet, watch, launches, up, broke, tip, seen, blind, lock, mode,
+          keeper, starts>>
 
 TypeOK ==
     /\ life \in [Kids -> {"unmade", "working", "stuck", "retired", "handed"}]
@@ -86,6 +96,8 @@ TypeOK ==
     /\ blind \in BOOLEAN
     /\ lock \in {"free"} \cup Kids
     /\ mode \in {"jbus", "home"}
+    /\ keeper \in {"root", "live", "gone"}
+    /\ starts \in 0..2
 
 Init ==
     /\ life = [k \in Kids |-> "unmade"]
@@ -100,6 +112,8 @@ Init ==
     /\ blind = FALSE
     /\ lock = "free"
     /\ mode \in Modes
+    /\ keeper = "root"
+    /\ starts = 0
 
 Queued(m) == msg[m] = "home"
 Open(m) == msg[m] \in {"home", "told"}
@@ -111,7 +125,8 @@ WorkOut(k) == CrewOut(k) \/ \E c \in CallsOf(k) : Open(c)
 \* A child the root must watch: one with a crew or pull request out, or a routine, which always
 \* owes its next beat.
 \* A call waits on Josh and not on the child, so it is no reason to watch the child.
-\* What a handed child had out is the root's own, and the root is watched for it as for its own.
+\* What a handed child had out is the catch-all's, and the catch-all is watched for it as for its
+\* own.
 Watched(k) ==
     \/ life[k] \in {"working", "stuck"} /\ (Kind[k] = "routine" \/ CrewOut(k))
     \/ life[k] = "handed" /\ CrewOut(k)
@@ -135,7 +150,7 @@ SceneStill ==
 \* 2026-11-08) or the scouts' (home-tree review).
 
 \* No child retires leaving a call, gate, pull request or crew thread of its with no home: a child
-\* archived with one open hands it to the root.
+\* archived with one open hands it to the catch-all.
 RetireHandsOver ==
     \A k \in Kids : life[k] = "retired" =>
         /\ work[k] \in {"none", "done"}
@@ -146,9 +161,10 @@ RetireHandsOver ==
 CallsReachJosh == \A m \in Msgs : Queued(m) ~> msg[m] = "told"
 
 \* The root flags a child within K checks of observable quiet with a crew or pull request out,
-\* and a routine on a missed beat, from signals the child does not send. jbus watches the root
-\* home's own quiet by the same loop (children.watch), as one more home that never retires, so a
-\* feature child here stands for it: the root needs no state of its own in Kids.
+\* and a routine on a missed beat, from signals the child does not send. The root owns no row, so
+\* jbus does not watch it as a home (children.watched). The catch-all is watched by the same loop
+\* as one more home that never retires, with the root's thread nudged for it while the root stands
+\* in, so a feature child here stands for it: the catch-all needs no state of its own in Kids.
 StallFlagged == \A k \in Kids : (Watched(k) /\ quiet[k] >= Patience(k)) => watch[k] # "calm"
 
 \* "No home-stall alert goes to the root": a stall goes to no home thread, and a child jbus asks
@@ -170,6 +186,13 @@ OneMerger == \A k \in Kids : \A a \in Mergers : seen[k][a] # NoTip => a = "jbus"
 
 \* Nothing lands on main over a tip its merger did not read.
 NoBlindMerge == ~blind
+
+\* "Keep the catch-all home running": a catch-all with no live thread of its own, never started or
+\* gone, gets one (#1340).
+CatchallRuns == keeper # "live" ~> keeper = "live"
+\* jbus launches the catch-all at most once while a start it launched may still write its home-id
+\* (#1392).
+OneStart == starts <= 1
 
 \* A ready pull request eventually merges.
 ReadyMerges == \A k \in Kids : Ready(k) ~> work[k] = "merged"
