@@ -29,7 +29,7 @@ def kitchen(tmp_path, monkeypatch):
 
 
 def calls(kitchen, *spoken):
-    """Have jbus's telemetry store hold the home's main calls, each `(minutes after NOW, tokens)`."""
+    """Have jbus's telemetry store hold the home's main calls, each (minutes after NOW, tokens)."""
     store = telemetry.connect(kitchen.state_dir / telemetry.FILE)
     store.execute(
         "INSERT OR IGNORE INTO sessions (provider, session, thread, project, role, slug) "
@@ -147,3 +147,20 @@ def test_a_home_sent_compact_hears_its_wake_at_the_next_pass(kitchen):
     assert "notes.md" in woke["message"]
     told = json.loads((kitchen.state / "outbox.jsonl").read_text().splitlines()[-1])
     assert told["template"] == "wakes"
+
+
+def test_a_call_the_store_reads_late_from_before_the_compaction_sends_none_again(kitchen):
+    """The store is built by a chore that can trail a pass: a call made before the `/compact`
+    went, and read only after, is the same climb and not a new one."""
+    calls(kitchen, (0, 200_000))
+    kitchen.poll(NOW + 2 * MIN)
+    calls(kitchen, (1, 220_000))
+    kitchen.poll(NOW + 5 * MIN)
+    assert sent(kitchen) == [(kitchen.thread, key(kitchen, 0))]
+
+
+def test_the_last_call_of_a_thread_is_read_through_the_index_of_sessions_by_thread(kitchen):
+    store = telemetry.connect(kitchen.state_dir / telemetry.FILE)
+    plan = store.execute("EXPLAIN QUERY PLAN " + compact._LAST, ("mcp:x",)).fetchall()
+    store.close()
+    assert any("sessions_thread" in str(row[-1]) for row in plan)

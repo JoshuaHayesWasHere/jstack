@@ -30,7 +30,10 @@ SENDERS = {
     "reviewed.py": ("the crew of a reviewed pull request", ["tell"]),
     "rebase.py": ("the crew of a pull request to rebase, or that main is fixed", ["once"]),
     "pausedon.py": ("a paused crew whose rows have all landed, to carry on", ["tell"]),
-    "compact.py": ("the crew whose pull request opened, to compact its context", ["tell"]),
+    "compact.py": (
+        "the crew whose pull request opened, or a home at its ceiling, to compact its context",
+        ["tell", "tell_homes"],
+    ),
     "slotwait.py": ("a thread that waits on a test slot", ["tell", "tell_capped", "tell_ended"]),
     "failover.py": ("a thread moved to another provider", ["_go"]),
     "owed.py": ("the thread of an ask that stopped on a usage cap or an auth error", ["_settle"]),
