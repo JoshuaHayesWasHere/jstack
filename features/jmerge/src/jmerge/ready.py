@@ -1454,10 +1454,13 @@ def needs_the_user(
 class Judged:
     """The base's tip a pull request was judged over, and whether its files overlap what that
     base changed since its check started: such a one merges on the guards on its tree merged
-    over `tip`, and goes through the line where they fail or were stopped (`cli.Repo.over_main`)."""
+    over `tip`, and goes through the line where they fail or were stopped (`cli.Repo.over_main`).
+    `batch` marks a member of jmerge's batch, which merges once CI's check of the batch passed
+    (`jmerge.batch`), and not on its own."""
 
     tip: str = ""
     overlaps: bool = False
+    batch: bool = False
 
 
 MERGING = Reason("check", "another run of jmerge is merging into its base")

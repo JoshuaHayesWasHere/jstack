@@ -22,6 +22,7 @@ from jbriefs import home as home_rule
 from jbriefs import meets, parse, proved
 from jmerge import (
     backoff,
+    batch,
     bus,
     checks,
     claims,
@@ -181,6 +182,7 @@ class Repo:
         )
         self.spells = waits.Spells(state, asks)
         self.began: dict[int, datetime] = {}
+        self.batching: batch.Batching | None = None
         self.listed, self.was = home_rule.ids(state)
         self.mine = home or self.listed
 
@@ -781,7 +783,13 @@ class Repo:
             return ready.FRESH_CONFLICT, ready.Judged()
         if merged.returncode:
             return ready.UNMERGED.format(why=lines.said(merged)), ready.Judged()
-        if left is not None and not {*one.files, *left} & set(paths):
+        overlaps = left is None or bool({*one.files, *left} & set(paths))
+        if self.batching is not None and self.batching.takes(one, self.trunk, self.is_revert(one)):
+            first = self.batching.migrating(one, self.migrations)
+            if first:
+                return ready.MIGRATION_MERGING.format(number=first), ready.Judged()
+            return "", ready.Judged(tip, overlaps=overlaps, batch=True)
+        if not overlaps:
             return "", ready.Judged(tip)
         if not self.guards.command or self.is_revert(one) or self.guards.kept(one, tip):
             return self.base_moved(one, tip), ready.Judged()
@@ -1052,7 +1060,7 @@ class Repo:
         if one.draft:
             return Judgement(brief.stem, "wait", ready.HAND_DRAFT, note, None)
         short, judged = self.over_main(one, left)
-        short = short or self.guards.kept(one, judged.tip)
+        short = short or ("" if judged.batch else self.guards.kept(one, judged.tip))
         if short:
             return Judgement(brief.stem, "wait", short, note, None)
         note = f"{note}, {ready.KEPT}" if note else ""
@@ -1527,8 +1535,7 @@ class Repo:
             rebase, judged = again_judged.note, again_judged.judged
         else:
             return lines.waits("wait", number, one.url, ready.MERGING)
-        messages = self.messages(one)
-        if messages is None:
+        if self.messages(one) is None:
             return lines.waits("wait", number, one.url, ready.NO_MESSAGES)
         tip = judged.tip or _run(self.main, "git", "rev-parse", f"origin/{one.base}").stdout.strip()
         guarded, passed = self.guards.of(one, tip)
@@ -1536,6 +1543,17 @@ class Repo:
             guarded = self.base_moved(one, tip)
         if guarded:
             return lines.waits("wait", number, one.url, guarded)
+        return self.squash(one, slug, [rebase, passed])[0]
+
+    def squash(self, one: ready.PullRequest, slug: str, notes: list[str]) -> tuple[str, str]:
+        """Squash-merge `one` at its head, with the merge lock held, and pull the main checkout
+        after. Return the line of the merge, with `notes`, and its commit, or the wait and no
+        commit where GitHub refused it, its messages could not be read, or GitHub did not give
+        the merge commit."""
+        number = str(one.number)
+        messages = self.messages(one)
+        if messages is None:
+            return lines.waits("wait", number, one.url, ready.NO_MESSAGES), ""
         body = "\n\n".join(f"* {trailers.strip(message)}" for message in messages)
         self.began[one.number] = datetime.now(UTC)
         ran = _run(
@@ -1555,11 +1573,12 @@ class Repo:
             stdin=trailers.strip(body) + "\n",
         )
         if ran.returncode:
-            return lines.waits("wait", number, one.url, f"{ready.MERGE_FAILED}: {lines.said(ran)}")
+            why = f"{ready.MERGE_FAILED}: {lines.said(ran)}"
+            return lines.waits("wait", number, one.url, why), ""
         if self.line.get(one.base) == one.number:
             del self.line[one.base]
         word = self.word or self.base_merge.accepted(one.number)
-        notes = [note for note in (rebase, passed, word) if note]
+        notes = [note for note in (*notes, word) if note]
         asked = _run(
             self.main,
             "gh",
@@ -1590,7 +1609,157 @@ class Repo:
         kept = self.clear_up(one.branch, one.head)
         if kept:
             notes.append(f"kept: {kept}")
-        return lines.merged(number, slug, commit, one.title, notes, one.url)
+        merged = commit if commit != one.head else ""
+        return lines.merged(number, slug, commit, one.title, notes, one.url), merged
+
+    def tip_of(self, base: str) -> str:
+        """The base's tip on the origin, or nothing where git could not say."""
+        at = _run(self.main, "git", "ls-remote", "origin", f"refs/heads/{base}")
+        return "" if at.returncode else _first_word(at.stdout)
+
+    def start_batch(
+        self, pull: ready.PullRequest | None, default: str, listed: list[ready.PullRequest]
+    ) -> None:
+        """Read where the batch stands before this run judges anything (`batch.state_of`). A
+        failed batch's members go alone at the heads it held, and a pull request that would merge
+        alone waits while a batch is out (`batch.Batching.first`)."""
+        record = batch.Record.read(self.state)
+        heads = {str(one.number): one.head for one in listed}
+        record.failed = {n: head for n, head in record.failed.items() if heads.get(n) == head}
+        _run(self.main, "git", "fetch", "-q", "origin", default)
+        tip = self.tip_of(default)
+        kept, run = record.batch, None
+        if kept and pull and (kept.tip, kept.commit) == (tip, pull.head):
+            run = self.guards.checked(kept.tip, kept.tree)
+        state = batch.state_of(kept, pull, tip, run, datetime.now(UTC))
+        if state == batch.FAILED and kept is not None:
+            record.failed |= {str(member.number): member.head for member in kept.members}
+        if state in (batch.NONE, batch.FAILED):
+            record.batch = None
+        record.write()
+        self.batching = batch.Batching(record, state, run or "", pull)
+
+    def batched(self, default: str) -> list[str]:
+        """What this run does with the members it judged, once every other pull request was
+        judged: merge a proven batch, keep a pending one whose members all still stand at their
+        heads, and otherwise build a batch of them over today's tip."""
+        on = self.batching
+        assert on is not None
+        kept = on.record.batch
+        members = on.members
+        said: list[str] = []
+        if on.state == batch.PROVEN and kept is not None:
+            said = self.merge_batch(on, kept, default)
+            numbers = {member.number for member in kept.members}
+            members = [found for found in members if found[0].number not in numbers]
+        elif on.state == batch.PENDING and kept is not None:
+            judged = {batch.Member(one.number, one.head) for one, *_ in members}
+            if set(kept.members) <= judged:
+                return self.waiting(kept, default, members)
+        return said + self.build_batch(on, default, members)
+
+    def waiting(self, kept: batch.Batch, default: str, members: list[batch.Judged]) -> list[str]:
+        """The wait of each member while `kept` is checked: on its check where it holds it, and
+        for it where it does not."""
+        tip = kept.tip[: batch.SHA]
+        said = []
+        for one, *_ in members:
+            why = batch.IN_BATCH if kept.holds(one) else batch.AFTER
+            said.append(lines.waits("wait", one.number, one.url, why.format(base=default, tip=tip)))
+        return said
+
+    def merge_batch(self, on: batch.Batching, kept: batch.Batch, default: str) -> list[str]:
+        """Squash-merge each member of the proven batch at its own head, in its order, with the
+        merge lock held, each over the tip the one before it left, and stop at the first that
+        does not merge: one GitHub refused, one no longer judged a member at that head, or a tip
+        another hand moved. Each merge's line names the run that proved the batch, and each
+        member after the stop waits for the next batch. The batch is over after."""
+        judged = {one.number: (one, slug, note) for one, slug, note, _ in on.members}
+        passed = batch.PASSED.format(base=default, tip=kept.tip[: batch.SHA], run=on.run)
+        said: list[str] = []
+        stop: tuple[int, ready.Reason] | None = None
+        from jmerge.lock import MergeLock
+
+        lock = MergeLock(self.state)
+        try:
+            if not lock.take():
+                stop = (0, ready.MERGING)
+            expected = kept.tip
+            for member in kept.members:
+                found = judged.get(member.number)
+                if stop is None and (found is None or found[0].head != member.head):
+                    stop = (member.number, batch.STOPPED)
+                elif stop is None and self.tip_of(default) != expected:
+                    stop = (member.number, ready.MAIN_MOVED)
+                elif stop is None and found is not None:
+                    line, expected = self.squash(found[0], found[1], [found[2], passed])
+                    said.append(line)
+                    if not expected:
+                        stop = (member.number, batch.STOPPED)
+                    continue
+                if found is None or stop is None:
+                    continue
+                number, why = stop
+                text = why.format(base=default, tip=kept.tip[: batch.SHA], number=number)
+                said.append(lines.waits("wait", found[0].number, found[0].url, text))
+        finally:
+            lock.give()
+        on.record.batch = None
+        on.record.write()
+        return said
+
+    def build_batch(
+        self, on: batch.Batching, default: str, members: list[batch.Judged]
+    ) -> list[str]:
+        """Build the batch of `members` over today's tip, push it to `batch.BRANCH`, open its
+        draft pull request where GitHub lists none, and keep it. A batch that cannot be made
+        sends each member down the single path of today in this run, and says why first."""
+        on.record.batch = None
+        if not members:
+            on.record.write()
+            return []
+        fetched = _run(self.main, "git", "fetch", "-q", "origin", default)
+        tip = _run(self.main, "git", "rev-parse", f"origin/{default}").stdout.strip()
+        heads = [batch.Member(one.number, one.head) for one, *_ in members if self.has(one)]
+        made: batch.Built | str | None = f"{default} could not be fetched"
+        if not fetched.returncode and tip:
+            made = batch.build(self.main, default, tip, heads)
+        if made is None:
+            made = "no member merges cleanly over its tip"
+        why = made if isinstance(made, str) else batch.push(self.main, made.commit)
+        if not why and on.pull is None:
+            why = self.open_batch(default)
+        if why or isinstance(made, str):
+            on.record.write()
+            said = [batch.UNMADE.format(base=default, tip=tip[: batch.SHA], why=why)]
+            for one, slug, note, judged in members:
+                said.append(self.merge(one, slug, note, replace(judged, batch=False)))
+            return said
+        on.record.batch = batch.Batch(
+            tip, made.tree, made.commit, made.members, datetime.now(UTC).isoformat()
+        )
+        on.record.write()
+        return self.waiting(on.record.batch, default, members)
+
+    def open_batch(self, default: str) -> str:
+        """Open the batch's standing draft pull request, and say why where GitHub would not."""
+        ran = _run(
+            self.main,
+            "gh",
+            "pr",
+            "create",
+            "--draft",
+            "--base",
+            default,
+            "--head",
+            batch.BRANCH,
+            "--title",
+            batch.TITLE.format(base=default),
+            "--body",
+            batch.BODY.format(base=default),
+            *self.about,
+        )
+        return lines.said(ran) if ran.returncode else ""
 
 
 PROC = Path("/proc")
@@ -2158,6 +2327,9 @@ def _merging(
         listed = [with_browser(repo, one) for one in json.loads(asked.stdout)]
     except (ValueError, KeyError, TypeError, AttributeError):
         listed = None
+    batched = next((one for one in listed or () if one.branch == batch.BRANCH), None)
+    if listed is not None:
+        listed = [one for one in listed if one.branch != batch.BRANCH]
     default, silent = repo.default() if listed else ("", "")
     if asked.returncode or listed is None:
         silent = _why(main_checkout, asked)
@@ -2196,6 +2368,9 @@ def _merging(
             by, at = user.user, acting.said_at
         return repo.accept(found, default, by, at, say, check, acting, args.message)
 
+    if not check and (state / batch.SWITCH).exists() and default and not repo.main_state.red:
+        repo.start_batch(batched, default, listed)
+    on = repo.batching
     for one in repo.line_up(listed, default):
         found = repo.waits(one, default)
         if found.verb == "hold" and not check:
@@ -2205,8 +2380,16 @@ def _merging(
         elif check:
             notes = [found.note]
             say(lines.ready(one.number, one.head, one.branch, found.slug, notes))
+        elif on is not None and found.judged.batch:
+            on.members.append((one, found.slug, found.note, found.judged))
+        elif on is not None and on.record.batch and on.first and not repo.is_revert(one):
+            tip = on.record.batch.tip[: batch.SHA]
+            say(lines.waits("wait", one.number, one.url, batch.AFTER.format(base=default, tip=tip)))
         else:
             say(repo.merge(one, found.slug, found.note, found.judged))
+    if on is not None:
+        for line in repo.batched(default):
+            say(line)
     for line in repo.unopened(listed):
         say(line)
     return 0
@@ -2253,7 +2436,9 @@ def in_line(one: ready.PullRequest, found: Judgement) -> bool:
     check gives it up, unless the base's merge into it, its turn, is for that check."""
     if one.failed:
         return ready.code_of(found.why) in UPDATING_RED
-    return found.judged is not None or ready.code_of(found.why) in IN_LINE
+    if found.judged is not None:
+        return not found.judged.batch
+    return ready.code_of(found.why) in IN_LINE
 
 
 def with_browser(repo: Repo, listed: dict) -> ready.PullRequest:

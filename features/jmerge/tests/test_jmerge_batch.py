@@ -15,7 +15,7 @@ import pytest
 
 import test_home_merge as merge
 from jmerge import batch, green, ready, treeguards
-from test_jmerge_fresh import GH, LINES, Kitchen, asked, git, url
+from test_jmerge_fresh import GH, LINES, Kitchen, git, url
 from test_jmerge_order import DIRECTORY, queue_of, row
 from test_jmerge_revert_line import named
 
@@ -51,7 +51,7 @@ OURS = "ours\n" + LINES
 @pytest.fixture
 def kitchen(tmp_path):
     ran = tmp_path / "guards-ran"
-    files = {name: LINES for name in ("a.txt", "b.txt", "c.txt", "d.txt")}
+    files = dict.fromkeys(("a.txt", "b.txt", "c.txt", "d.txt"), LINES)
     made = Kitchen(tmp_path, {**files, "Makefile": MAKEFILE.format(ran=ran)})
     (made.home.stub / "gh").write_text(BATCH_GH)
     (made.home.state / treeguards.NAME).write_text("make -s guards\n")
@@ -244,13 +244,15 @@ def test_jmerge_never_judges_the_batch_pull_request(kitchen, on):
     assert [line for line in said if " 99 " in f"{line} "] == []
 
 
-def test_a_revert_stays_out_of_the_batch_and_goes_first_through_the_line(kitchen):
+def test_a_revert_stays_out_of_the_batch_and_merges_first_on_its_own_path(kitchen):
     jbus = queue_of(kitchen.home, []).parent
     kitchen.crew("one", 6, {"a.txt": OURS})
     kitchen.crew("revert-it", 9, {"b.txt": OURS})
     named(jbus, ("revert-it", url(9)))
-    tip = kitchen.on_main({"d.txt": "theirs\n"})
-    assert kitchen.run() == [asked(9, tip), in_batch(6, tip)]
+    kitchen.on_main({"d.txt": "theirs\n"})
+    first, second = kitchen.run()
+    assert first.startswith("merged 9 revert-it ")
+    assert second == in_batch(6, kitchen.tip())
     assert [one["number"] for one in record(kitchen)["members"]] == [6]
 
 
@@ -258,6 +260,10 @@ def test_a_second_migration_stays_out_of_the_batch(kitchen):
     queue_of(kitchen.home, [], DIRECTORY)
     kitchen.crew("one", 6, {"db/migrations/0005_one.up.sql": "select 1;\n"})
     kitchen.crew("two", 7, {"db/migrations/0006_two.up.sql": "select 2;\n"})
+    for pull in kitchen.pulls.values():
+        for one in pull["files"]:
+            one["changeType"] = "ADDED"
+    (kitchen.home.stub / "list.json").write_text(json.dumps(list(kitchen.pulls.values())))
     tip = kitchen.on_main({"d.txt": "theirs\n"})
     merging = ready.MIGRATION_MERGING.format(number=6)
     assert kitchen.run() == [f"wait 7 {url(7)}: {merging}", in_batch(6, tip)]
