@@ -307,6 +307,37 @@ def test_a_row_that_builds_on_an_open_pull_request_launches_stacked_on_its_branc
     assert rows(kitchen)["two"]["status"] != "queued"
 
 
+def read_only(text):
+    """A measure row: its brief opens no pull request, so it changes no code."""
+    return text.replace(
+        "Pull request: open one when done", "Pull request: none, a measure of the merged runs"
+    ).replace("Review: review", "Review: none")
+
+
+def test_a_row_that_opens_no_pull_request_launches_on_main_once_its_parent_merged(kitchen):
+    """Winnifred's mig-ci-after, 2026-11-10: a measure row that needs its parent's merged runs
+    waits while the parent's pull request is open, since a stack would give it nothing to read,
+    and launches on main, with no `Stacked on:` line, once the parent merged."""
+    kitchen.config(max_running=8)
+    assert queue_add(kitchen, "one")[0] == 0
+    assert go(kitchen, "one")[0] == 0
+    built = read_only(brief("two", "Builds on: one: the CI runs one changes\n"))
+    assert queue_add(kitchen, "two", "--depends", "one", text=built)[0] == 0
+    assert go(kitchen, "two")[0] == 0
+    kitchen.poll()
+    opened_on(kitchen, "one")
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert "crew: two" not in [given["title"] for given in kitchen.t3.launches]
+    assert rows(kitchen)["two"]["status"] == "queued"
+
+    kitchen.set("open.json", [])
+    kitchen.set("merged.json", [kitchen.merged("one", 10, "a" * 40)])
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert "crew: two" in [given["title"] for given in kitchen.t3.launches]
+    assert started_on(kitchen, "two") == "start"
+    assert not [line for line in head_of(kitchen, "two") if line.startswith("Stacked on:")]
+
+
 def test_a_row_whose_depends_have_two_open_pull_requests_waits_until_one_is_left(kitchen):
     """A stack sits on one branch: a row that builds on two rows whose pull requests are both
     open waits, and launches stacked on the one left open once the other has merged."""

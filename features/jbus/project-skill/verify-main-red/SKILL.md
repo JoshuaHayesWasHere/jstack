@@ -37,7 +37,7 @@ Rerun it when the diff touches any of these:
 - `features/jmerge/src/jmerge/mainjson.py` (`Record`, `record`, `SETTLED`, `of`, `read`, `typed`, `FIX`, `failures`);
 - `features/jmerge/src/jmerge/cli.py` (`Repo.again`, which reads `main_state`) and `features/jmerge/src/jmerge/rows.py` (`main`);
 - `features/jbus/src/jbus/culprits.py` (`kept_why`) where it reads `failed` for `jbus.reverts`;
-- `features/jbus/src/jbus/poll.py` where a pass runs `merge.merge` (`half.said = merge.merge(run)`) before the `after-expedite` slot, or the pass lock (`store.locked`, whose `fcntl.flock` is in `features/jsettings/src/jsettings/store.py`), and `features/jbus/src/jbus/merge.py`;
+- `features/jbus/src/jbus/poll.py` where a pass runs `tell` in the `after-expedite` slot, or the pass lock (`store.locked`, whose `fcntl.flock` is in `features/jsettings/src/jsettings/store.py`), and `features/jbus/src/jbus/merge.py`, where `merge.start` starts a pass's run of `jmerge` off the pass and `merge.keep` runs it, so a merge it makes lands at any point between and within passes;
 - `features/jbus/src/jbus/watch.py` `_check` and `_judged`, the answers a tip's check can have;
 - `write_json` in `features/jsettings/src/jsettings/store.py`: the model takes a read to see a whole record, which `os.replace` gives;
 - the "Main is not red" rule in `features/jmerge/docs/jmerge.md`;
@@ -131,7 +131,7 @@ Check every step against this table; a step no line backs is a modeling error, a
 | Step | Backed by |
 |---|---|
 | `pass` | one `tell` under the pass lock, `features/jbus/src/jbus/poll.py`, in the `after-expedite` slot, `features/jbus/src/jbus/mainmoved.py` |
-| `Mn lands: a merge` | a merge by `jmerge`, by hand or by `--accept`: no read of the record stops one, and a merge inside a pass comes before `tell` writes, `features/jbus/src/jbus/poll.py` |
+| `Mn lands: a merge` | a merge by `jmerge`: by hand, by `--accept`, by the merge tick, or by a pass's run, which `merge.start` starts off the pass and `merge.keep` runs. No read of the record stops one, and none waits for a pass, so a merge lands at any point between and within passes, `features/jbus/src/jbus/merge.py` |
 | `Mn's check settles: <answer>` | an answer `watch._check` gives, `features/jbus/src/jbus/watch.py`; `pending` is a check not ended |
 | `Mn's check is rerun and passes` | a rerun of a failed check on the same tip, which `main_check` asks again about (`again=tip in (main, stands)`), `features/jbus/src/jbus/mainmoved.py` |
 

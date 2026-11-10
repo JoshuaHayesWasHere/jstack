@@ -77,10 +77,10 @@ import jroles
 import jroles.mirror
 import jsettings
 from jbriefs.home import home_of
-from jbus import cleanup, crewtree, pausedon, queue, read_json, watch, write_json
+from jbus import cleanup, crewtree, outcome, pausedon, queue, read_json, watch, write_json
 from jbus.launches import record_path, records
 from jbus.launchhome import homed, unhomed
-from jbus.launchtext import RESUMED, fixes_main, launched_text, resumed
+from jbus.launchtext import RESUMED, fixes_main, launched_text, resumed, resumed_on
 from jbus.passes import Changed, Depends, Pass, Red, Rerun, Slot
 from jbus.t3 import Client, T3Dropped, T3Error, T3Refused
 from jbus.watch import TITLE, End, World, against, at_work, crew_threads, ended
@@ -427,10 +427,13 @@ class Turns:
 
     def _resume(self, row: queue.Row) -> pausedon.Cause | None:
         """Return the cause a left row launches again for (`pausedon.cleared`), or None. Its
-        thread is not listed unsettled (`pausedon.live`), is not at work, and was sent nothing this
-        pass, since a message starts the old thread's turn."""
+        thread is not listed unsettled (`pausedon.live`), is not archived, as `pausedon.tell`
+        carries no archived thread's row on, is not at work, and was sent nothing this pass, since
+        a message starts the old thread's turn."""
         run, world, slug = self.run, self.world, row["slug"]
         if row.get("status") != "left" or pausedon.live(world, slug) or not launched(run, slug):
+            return None
+        if slug in world.archived:
             return None
         old = world.thread(slug)
         if old and (
@@ -455,9 +458,11 @@ class Turns:
         stacked on an open row is yielded. A row waits on a slug until
         that slug has merged, or has ended `done` with no pull request, or until the one slug it
         still waits on has opened its pull request: it then launches stacked on that pull
-        request's branch (`World.stack_on`). Once the pass is `full`,
-        the method reads a row only for its reason, sends no gate for it, and adds the row to
-        `Pass.held`.
+        request's branch (`World.stack_on`). A row whose brief opens no pull request
+        (`outcome.pull`), a measure or a proof of its parent's merged runs, changes no code, so a
+        stack gives it nothing to read: it waits until that slug has merged. Once the pass is
+        `full`, the method reads a row only for its reason, sends no gate for it, and adds the
+        row to `Pass.held`.
 
         The pass read the table before it merged and asked T3 Code, and the home may have added
         and approved the brief again since. So a go that does not hold for the stored brief is
@@ -514,8 +519,11 @@ class Turns:
             met = merged | {
                 other for other in row.get("depends", []) if ended(run, world, other) == End("done")
             }
-            unmerged = [o for o in row.get("depends", []) if o not in met and cause is None]
-            on = world.stack_on(run, unmerged, brief)
+            if cause is None:
+                unmerged = [other for other in row.get("depends", []) if other not in met]
+                on = world.stack_on(run, unmerged, brief) if outcome.pull(brief) == "open" else None
+            else:
+                unmerged, on = [], resumed_on(run.home, slug)
             if unmerged and on is None:
                 run.reasons[slug] = Depends(tuple(unmerged))
                 continue
