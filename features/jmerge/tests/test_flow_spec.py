@@ -25,6 +25,9 @@ tools = importlib.import_module("statechart.tools")
 lib = importlib.import_module("statechart.lib")
 find_java = tools.find_java
 
+READ_SET = ("features/jmerge/spec/", "features/jbus/src/", "features/jmerge/src/")
+"""The flow specs, and the code their cites quote."""
+
 CITE = re.compile(r"(features/[\w./-]+\.py)\s*`([^`]+)`")
 """A cite of a flow spec: the path of the file it names and the code it quotes, with no line
 number."""
