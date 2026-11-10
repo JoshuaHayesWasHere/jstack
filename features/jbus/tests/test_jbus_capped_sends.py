@@ -10,6 +10,7 @@ from datetime import timedelta
 
 import pytest
 
+from crew_branches import pushed
 from jbus import children
 from jroles import ledger
 from test_jbus_chains import queue_add
@@ -108,6 +109,7 @@ def test_a_restack_message_waits_for_the_reset(kitchen):
     assert queue_add(kitchen, "two", "--depends", "one", text=built)[0] == 0
     assert go(kitchen, "two")[0] == 0
     kitchen.poll(NOW - timedelta(minutes=30))
+    pushed(kitchen, "one")
     kitchen.set("open.json", [kitchen.opened("one", 10)])
     kitchen.poll(NOW - timedelta(minutes=27))
     for thread in kitchen.t3.threads:

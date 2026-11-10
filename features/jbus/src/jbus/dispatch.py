@@ -44,6 +44,8 @@ request (`jmerge.mainjson`); this rule holds back launches only.
 
 A row whose queued brief names no child home is a gate and does not launch (`launchhome`).
 
+jbus makes each crew's worktree, with its settings file, and launches into it (`jbus.crewtree`).
+
 Each crew gets a scratch folder on disk, `~/.cache/jstack/scratch/<repo>/<slug>`
 (`JSTACK_SCRATCH_DIR` in place of `~/.cache/jstack/scratch`), made before its launch (`scratch`).
 `t3_thread_launch` takes no environment, so the session-start hook
@@ -72,7 +74,7 @@ from typing import Any
 import jroles
 import jroles.mirror
 from jbriefs.home import home_of
-from jbus import cleanup, queue, read_json, watch, write_json
+from jbus import cleanup, crewtree, queue, read_json, watch, write_json
 from jbus.launches import record_path, records
 from jbus.launchhome import homed, unhomed
 from jbus.passes import Changed, Depends, Pass, Red, Rerun, Slot
@@ -198,21 +200,14 @@ def stacked(brief: str, on: stacks.Stacked | None) -> str:
     return f"{first}\n{stacks.line(on)}\n{rest}"
 
 
-def arguments(
-    run: Pass, slug: str, brief: str, base: str, routed: pool.Route | None
-) -> dict[str, Any]:
+def arguments(run: Pass, slug: str, brief: str, routed: pool.Route | None) -> dict[str, Any]:
     """Return the arguments for `t3_thread_launch`: the home skill's crew launch with the
-    brief in it. The model selection is the one the role map's `crew` line gives for the
-    instance that `routed` chose."""
+    brief in it, into the worktree jbus made (`jbus.crewtree`). The model selection is the one
+    the role map's `crew` line gives for the instance that `routed` chose."""
     made: dict[str, Any] = {
         "projectId": run.project.project_id,
         "title": f"{TITLE}{slug}",
-        "workspaceStrategy": {
-            "type": "worktree",
-            "baseRef": base,
-            "branch": slug,
-            "startFromOrigin": True,
-        },
+        "workspaceStrategy": crewtree.strategy(run, slug),
         "message": f"/crew {slug}\n\n{brief}",
     }
     if run.config.runtime_mode:
@@ -260,9 +255,8 @@ def settle_lost(run: Pass, client: Client) -> None:
             write_thread(run, slug, matching[0])
             run.say(f"adopted {slug}: {matching[0]}")
         elif not matching and record.get("dropped"):
-            write_json(
-                path, {"key": record.get("key"), "state": "retry", "at": run.now.isoformat()}
-            )
+            retry = {"key": record.get("key"), "state": "retry", "sha": record.get("sha", "")}
+            write_json(path, {**retry, "at": run.now.isoformat()})
             run.say(f"relaunch {slug}: its launch dropped and made no thread: once more")
         else:
             run.gate(slug, f"launch reply lost, {len(matching)} matching threads", str(path))
@@ -552,12 +546,12 @@ class Turns:
             yield row, brief, on
 
     def live(self) -> list[Path]:
-        """Return the worktrees T3 Code makes for the project's rows still out, whose Claude
+        """Return the worktrees jbus makes for the project's rows still out, whose Claude
         scratch folders `cleanup.sweep` keeps."""
         names = {self.run.project.name, self.run.project.checkout.name}
         rows = queue.load(self.run.state)
         out = (row["slug"] for row in rows if row.get("status") in queue.LIVE)
-        return [cleanup.WORKTREES / name / slug for slug in out for name in names]
+        return [cleanup.worktrees() / name / slug for slug in out for name in names]
 
     def take(self) -> str:
         """Take one turn: launch the first row that may launch, and return how the turn
@@ -589,7 +583,11 @@ class Turns:
             if refs.returncode or remote.returncode:
                 run.gate(slug, f"the remote could not be asked for a branch {slug}")
                 continue
-            if refs.stdout.strip() or remote.stdout.strip():
+            sha = judgement.brief_sha(brief)
+            path = record_path(run, slug, sha)
+            before = read_json(path, {})
+            made = crewtree.kept(run, slug, before)
+            if (refs.stdout.strip() and not made) or remote.stdout.strip():
                 there = refs.stdout.strip() or f"refs/heads/{slug} on origin"
                 run.gate(slug, f"branch {slug} is there with no launch record", there)
                 continue
@@ -660,26 +658,23 @@ class Turns:
                 put := homed(launched_text(kept, green, on), brief)
             ):
                 target.write_text(put)
-            sha = judgement.brief_sha(brief)
-            path = record_path(run, slug, sha)
-            key = f"{run.project.name}/{slug}/{sha[:12]}"
-            retried = read_json(path, {}).get("state") == "retry"
-            intent = {"key": key, "state": "intent", "at": run.now.isoformat()}
-            write_json(path, {**intent, "retried": True} if retried else intent)
             scratch(run, slug).mkdir(parents=True, exist_ok=True)
+            base = on.branch if on else against(brief) or default
+            made, why = crewtree.make(run, slug, base, made)
+            if why:
+                if wrote:
+                    target.unlink()
+                run.gate(slug, "the crew's worktree could not be made", why)
+                continue
+            key = f"{run.project.name}/{slug}/{sha[:12]}"
+            retried = before.get("state") == "retry"
+            intent = {"key": key, "state": "intent", "at": run.now.isoformat(), "sha": made}
+            write_json(path, {**intent, "retried": True} if retried else intent)
             try:
-                reply = client.call(
-                    "t3_thread_launch",
-                    arguments(
-                        run,
-                        slug,
-                        text,
-                        on.branch if on else against(brief) or default,
-                        routed,
-                    ),
-                )
+                reply = client.call("t3_thread_launch", arguments(run, slug, text, routed))
             except T3Refused as error:
                 path.unlink()
+                crewtree.remove(run, slug)
                 if wrote:
                     target.unlink()
                 run.gate(slug, "T3 Code refused the launch", str(error))

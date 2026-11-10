@@ -13,6 +13,7 @@ from datetime import timedelta
 import pytest
 
 import jsettings
+from jbus import cleanup
 from jmerge import ready
 from jmerge import stacked as stacks
 from jmerge.cli import Repo
@@ -36,6 +37,10 @@ def commit(tree, name, text, message=""):
     return git(tree, "rev-parse", "HEAD")
 
 
+def crewtree_of(kitchen, slug):
+    return cleanup.worktrees() / kitchen.checkout.name / slug
+
+
 class Stack:
     """The git history of the stack, and what GitHub lists of it."""
 
@@ -47,8 +52,13 @@ class Stack:
         `rewritten`: its one commit `amended` to new content, or a second commit `reworded` to
         the same content or `changed` to new content. Where `one` `merges_main`, `two` is made
         in its crew's worktree from `one`'s head, `one` then takes a merge of a newer main, and
-        its branch is deleted once merged, on origin and here."""
+        its branch is deleted once merged, on origin and here. It first clears what the launches
+        made: the worktree and branch jbus made for each crew, and `one` on origin."""
         self.kitchen, tree = kitchen, kitchen.checkout
+        for slug in ("one", "two"):
+            git(tree, "worktree", "remove", "--force", str(crewtree_of(kitchen, slug)))
+            git(tree, "branch", "-q", "-D", slug)
+        git(tree, "push", "-q", "origin", "--delete", "one")
         self.start = git(tree, "rev-parse", "main")
         git(tree, "switch", "-q", "-c", "one")
         self.last = commit(tree, "one.txt", "one\n")

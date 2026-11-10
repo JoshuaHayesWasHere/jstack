@@ -3,6 +3,7 @@ no room once. It writes the thread it launched or adopted on the one `Thread:` l
 Like `test_jbus_kitchen.py`, the tests run the real pass against the fakes.
 """
 
+import json
 import os
 import re
 import subprocess
@@ -11,6 +12,8 @@ from pathlib import Path
 
 import pytest
 
+import jroles.mirror
+from crew_branches import git_said
 from jbriefs.home import home_of
 from jbriefs.parse import thread_of
 from jbus import children, cleanup, queue
@@ -356,3 +359,64 @@ def test_a_settled_crew_leaves_no_worktree_in_its_claude_scratchpad_but_one_in_u
     assert f"worktree {mine / 'base.Xy12/base'}\n" not in listed
     assert not (mine / "base.Xy12/base").exists() and not folder.exists()
     assert f"worktree {mine / 'busy'}\n" in listed and f"worktree {theirs / 'base'}\n" in listed
+
+
+def t3_tree(kitchen, slug):
+    """The path T3 Code gives the worktree of the branch `slug`: `<its home>/worktrees/<the
+    checkout's name>/<slug>`."""
+    return Path(os.environ["T3CODE_HOME"]) / "worktrees" / kitchen.checkout.name / slug
+
+
+def crew_trees(kitchen, slug):
+    """Each worktree git lists on the branch `slug`, and whether the branch is there."""
+    listed = git_said(kitchen, "worktree", "list", "--porcelain").split("\n\n")
+    trees = [one.splitlines()[0] for one in listed if f"branch refs/heads/{slug}" in one]
+    return trees, git_said(kitchen, "branch", "--list", "--format=%(refname)", slug)
+
+
+@pytest.mark.parametrize("lose", [None, "after", "before"], ids=["a reply", "lost", "dropped"])
+def test_a_crew_launches_into_the_one_worktree_jbus_made_with_its_settings_in_it(kitchen, lose):
+    """jbus makes the crew's worktree where T3 Code would, on the slug's branch off origin's
+    main, writes the crew's settings file and the `.gitignore` that keeps it out of git, and
+    launches into it with `existing_worktree` (`jbus.crewtree`). A second pass, a lost reply that
+    is adopted, and a dropped launch that is tried once more make no second worktree or branch."""
+    approved(kitchen, "alpha")
+    kitchen.t3.lose = lose
+    kitchen.poll()
+    kitchen.t3.lose = None
+    tree = t3_tree(kitchen, "alpha")
+    strategy = {"type": "existing_worktree", "worktreePath": str(tree), "branch": "alpha"}
+    assert kitchen.t3.launches[0]["workspaceStrategy"] == strategy
+    settings = jroles.mirror.crew_settings(jroles.mirror.Main.of(Path.home()))
+    assert json.loads((tree / ".claude" / "settings.json").read_text()) == settings
+    assert (tree / ".claude" / ".gitignore").read_text() == "*\n"
+    assert git_said(kitchen, "-C", str(tree), "status", "--porcelain") == ""
+    assert git_said(kitchen, "rev-parse", "alpha") == git_said(kitchen, "rev-parse", "origin/main")
+    for minutes in (3, 6):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    launches = kitchen.t3.launches
+    assert len(launches) == (2 if lose == "before" else 1)
+    assert [given["workspaceStrategy"] for given in launches] == [strategy] * len(launches)
+    assert crew_trees(kitchen, "alpha") == ([f"worktree {tree}"], "refs/heads/alpha")
+    assert where_the_findings_go(kitchen, "alpha") == "mcp:thread-1"
+    assert kitchen.lines("condition") == []
+
+
+def test_a_launch_t3_code_refuses_leaves_no_worktree_or_branch(kitchen):
+    approved(kitchen, "alpha")
+    kitchen.t3.refuse = "no"
+    kitchen.poll()
+    assert kitchen.lines("condition") == ["condition alpha: T3 Code refused the launch"]
+    assert crew_trees(kitchen, "alpha") == ([], "")
+    assert not t3_tree(kitchen, "alpha").exists()
+
+
+def test_a_base_origin_lacks_is_a_gate_with_no_launch_and_no_branch(kitchen):
+    """A row whose pull request goes against a branch origin does not have gets no worktree."""
+    stored = complete("alpha").replace(
+        "Pull request: open one when done", "Pull request: open one against release/x"
+    )
+    queued(kitchen, "alpha", stored)
+    kitchen.poll()
+    assert kitchen.lines("condition") == ["condition alpha: the crew's worktree could not be made"]
+    assert kitchen.t3.launches == [] and crew_trees(kitchen, "alpha") == ([], "")

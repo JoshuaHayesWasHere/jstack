@@ -11,7 +11,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import clock, prereview
+from jbus import cleanup, clock, prereview
 from jgauge import slot, waiters
 from jroles import ledger
 from repo_template import IDENTITY
@@ -30,11 +30,19 @@ def reviewers(kitchen):
     return [one for one in kitchen.t3.launches if one["title"].startswith("review: ")]
 
 
+def crew_tree(kitchen, slug):
+    """The worktree jbus made for the slug's crew, made here as jbus makes it where the test
+    launched no crew."""
+    tree = cleanup.worktrees() / kitchen.checkout.name / slug
+    if not tree.exists():
+        kitchen.git("worktree", "add", "-q", "-b", slug, str(tree), "main")
+    return tree
+
+
 def pushed_branch(kitchen, slug="alpha", push=True):
-    """The crew's worktree and branch, with one commit of a doc, pushed to origin unless told
-    not to. Returns the worktree and its head."""
-    tree = kitchen.root / "worktrees" / slug
-    kitchen.git("worktree", "add", "-q", "-b", slug, str(tree), "main")
+    """The crew's worktree and branch, as jbus made them for its launch, with one commit of a
+    doc, pushed to origin unless told not to. Returns the worktree and its head."""
+    tree = crew_tree(kitchen, slug)
     (tree / "docs").mkdir(exist_ok=True)
     (tree / "docs" / "notes.md").write_text("the task\n")
     kitchen.git("add", "docs/notes.md", cwd=tree)
@@ -434,8 +442,8 @@ def test_a_crew_stacked_on_a_row_that_squash_merged_is_reviewed_on_its_own_commi
     kitchen.git("add", "src/base.py", cwd=base)
     kitchen.git("commit", "-q", "-m", "feat: the base", cwd=base)
     last = head_of(kitchen, base)
-    tree = kitchen.root / "worktrees" / "alpha"
-    kitchen.git("worktree", "add", "-q", "-b", "alpha", str(tree), "base")
+    tree = crew_tree(kitchen, "alpha")
+    kitchen.git("reset", "-q", "--hard", "base", cwd=tree)
     (tree / "docs").mkdir(exist_ok=True)
     (tree / "docs" / "notes.md").write_text("the task\n")
     kitchen.git("add", "docs/notes.md", cwd=tree)

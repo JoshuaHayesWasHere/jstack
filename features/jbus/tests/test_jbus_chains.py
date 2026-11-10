@@ -13,6 +13,7 @@ from datetime import timedelta
 
 import pytest
 
+from crew_branches import pushed, started_on
 from jmerge import rows as jrows
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_queue import brief, go, rows
@@ -169,6 +170,7 @@ CHAIN = ("one", "two", "three", "four")
 
 
 def opened(kitchen, slugs):
+    pushed(kitchen, *slugs)
     kitchen.set("open.json", [kitchen.opened(slug, 10 + CHAIN.index(slug)) for slug in slugs])
 
 
@@ -211,7 +213,7 @@ def test_a_chain_only_about_merging_launches_at_once_and_merges_link_by_link(kit
         now += timedelta(minutes=3)
         kitchen.poll(now)
         five = [given for given in kitchen.t3.launches if given["title"] == "crew: five"]
-        assert [given["workspaceStrategy"]["baseRef"] for given in five] == ["one"]
+        assert len(five) == 1 and started_on(kitchen, "five") == "one"
         left = [slug for slug in CHAIN if slug not in order]
         assert [rows(kitchen)[slug]["status"] for slug in left] == ["pr"] * len(left)
         ready = mergeable(kitchen, left)
@@ -291,12 +293,13 @@ def test_a_row_that_builds_on_an_open_pull_request_launches_stacked_on_its_branc
     assert rows(kitchen)["two"]["status"] == "queued"
 
     pull = {**kitchen.opened("one", 10), "headRefName": "one-branch"}
+    pushed(kitchen, "one-branch")
     with (kitchen.home / "tasks" / "one.md").open("a") as one:
         one.write(f"\n## Result\nBranch: one-branch   Pull request: {pull['url']}\n")
     kitchen.set("open.json", [pull])
     kitchen.poll(NOW + timedelta(minutes=3))
     assert [given["title"] for given in kitchen.t3.launches] == ["crew: one", "crew: two"]
-    assert launch_of(kitchen, "two")["workspaceStrategy"]["baseRef"] == "one-branch"
+    assert started_on(kitchen, "two") == "one-branch"
     head = head_of(kitchen, "two")
     assert "Stacked on: one one-branch" in head
     assert not [line for line in head if line.startswith("Green main:")]
@@ -315,6 +318,7 @@ def test_a_row_whose_depends_have_two_open_pull_requests_waits_until_one_is_left
     assert queue_add(kitchen, "three", "--depends", "one,two", text=built)[0] == 0
     assert go(kitchen, "three")[0] == 0
     kitchen.poll()
+    pushed(kitchen, "one", "two")
     kitchen.set("open.json", [kitchen.opened("one", 10), kitchen.opened("two", 11)])
     kitchen.poll(NOW + timedelta(minutes=3))
     assert "crew: three" not in [given["title"] for given in kitchen.t3.launches]
@@ -322,13 +326,14 @@ def test_a_row_whose_depends_have_two_open_pull_requests_waits_until_one_is_left
     kitchen.set("open.json", [kitchen.opened("two", 11)])
     kitchen.set("merged.json", [kitchen.merged("one", 10, "a" * 40)])
     kitchen.poll(NOW + timedelta(minutes=6))
-    assert launch_of(kitchen, "three")["workspaceStrategy"]["baseRef"] == "two"
+    assert started_on(kitchen, "three") == "two"
     assert "Stacked on: two two" in head_of(kitchen, "three")
 
 
 def opened_on(kitchen, slug, **more):
     """Open `slug`'s pull request on the branch `<slug>-branch`, and write it in its Result."""
     pull = {**kitchen.opened(slug, 10), "headRefName": f"{slug}-branch", **more}
+    pushed(kitchen, f"{slug}-branch")
     with (kitchen.home / "tasks" / f"{slug}.md").open("a") as one:
         one.write(f"\n## Result\nBranch: {slug}-branch   Pull request: {pull['url']}\n")
     kitchen.set("open.json", [pull])
@@ -346,6 +351,7 @@ def test_a_row_that_builds_on_a_main_row_launches_on_its_branch_once_that_row_me
     pull request is open the row waits, and once it merged the row launches on its own branch
     with no `Stacked on:` line."""
     kitchen.config(max_running=8)
+    pushed(kitchen, "release/x")
     assert queue_add(kitchen, "one")[0] == 0
     assert go(kitchen, "one")[0] == 0
     built = on_branch(brief("two", "Builds on: one: the table one adds\n"))
@@ -359,13 +365,14 @@ def test_a_row_that_builds_on_a_main_row_launches_on_its_branch_once_that_row_me
     kitchen.set("open.json", [])
     kitchen.set("merged.json", [kitchen.merged("one", 10, "a" * 40)])
     kitchen.poll(NOW + timedelta(minutes=6))
-    assert launch_of(kitchen, "two")["workspaceStrategy"]["baseRef"] == "release/x"
+    assert started_on(kitchen, "two") == "release/x"
     head = head_of(kitchen, "two")
     assert not [line for line in head if line.startswith("Stacked on:")]
 
 
 def test_a_branch_row_that_builds_on_a_row_on_its_branch_launches_stacked_on_its_branch(kitchen):
     kitchen.config(max_running=8)
+    pushed(kitchen, "release/x")
     assert queue_add(kitchen, "one", text=on_branch(brief("one")))[0] == 0
     assert go(kitchen, "one")[0] == 0
     built = on_branch(brief("two", "Builds on: one: the table one adds\n"))
@@ -374,5 +381,5 @@ def test_a_branch_row_that_builds_on_a_row_on_its_branch_launches_stacked_on_its
     kitchen.poll()
     opened_on(kitchen, "one", baseRefName="release/x")
     kitchen.poll(NOW + timedelta(minutes=3))
-    assert launch_of(kitchen, "two")["workspaceStrategy"]["baseRef"] == "one-branch"
+    assert started_on(kitchen, "two") == "one-branch"
     assert "Stacked on: one one-branch" in head_of(kitchen, "two")

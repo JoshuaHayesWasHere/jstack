@@ -16,6 +16,7 @@ from datetime import timedelta
 
 import pytest
 
+import crew_branches
 import jbus.queue
 import jbus.waiting
 import jbus.wake
@@ -828,6 +829,7 @@ def test_a_red_main_launches_only_its_fix_and_a_stacked_row_and_the_rest_once_it
     assert [row["slug"] for row in main_red(kitchen)] == [fix]
     assert queue_add(kitchen, "one")[0] == 0
     pull = {**kitchen.opened("one", 10), "headRefName": "one-branch"}
+    crew_branches.pushed(kitchen, "one-branch")
     with (kitchen.home / "tasks" / "one.md").open("a") as one:
         one.write(f"\n## Result\nBranch: one-branch   Pull request: {pull['url']}\n")
     kitchen.set("open.json", [pull])
