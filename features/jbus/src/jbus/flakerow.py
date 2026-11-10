@@ -57,10 +57,7 @@ def flakes(lines: list[dict[str, Any]]) -> dict[str, list[Seen]]:
     for line in lines:
         if line.get("verdict") != str(mainmoved.Verdict.FLAKE):
             continue
-        try:
-            at = datetime.fromisoformat(str(line.get("at")))
-        except ValueError:
-            continue
+        at = datetime.fromisoformat(str(line["at"]))
         sha = str(line.get("sha") or "")
         for failed in line.get("failed") or []:
             seen.setdefault(test_of(str(failed)), {}).setdefault(sha, at)

@@ -90,3 +90,16 @@ def test_a_third_flake_files_no_second_row(kitchen):
     red(kitchen, "4", -DAY, [TEST])
     kitchen.poll(NOW + DAY)
     assert filed(kitchen) == []
+
+
+def test_a_row_the_queue_refused_is_filed_on_a_later_pass(kitchen):
+    """Nothing is kept of a row the queue refused, so the pass that finds the queue whole again
+    files it."""
+    red(kitchen, "1", 2 * DAY, [TEST])
+    red(kitchen, "2", DAY, [TEST])
+    (kitchen.state / "queue.json").write_text("not a table\n")
+    kitchen.poll()
+    assert any(SLUG in line for line in kitchen.lines("condition"))
+    (kitchen.state / "queue.json").write_text("[]\n")
+    kitchen.poll(NOW + timedelta(minutes=5))
+    assert filed(kitchen) == [SLUG]
