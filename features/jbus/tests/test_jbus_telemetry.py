@@ -522,14 +522,13 @@ def test_with_no_store_the_trim_keeps_every_event(machine):
 
 
 def test_no_table_and_no_byte_of_the_file_holds_the_text_of_a_message(machine):
-    """Each source's `row` is its table's allow-list, so a text of a record is kept as its length
-    and never as itself: `jbus.telemetry.records.events`, `jbus.telemetry.records.acts`,
-    `jbus.telemetry.records.items`, `jbus.telemetry.records.transitions`,
-    `jbus.telemetry.records.outbox`, `jbus.telemetry.records.ci_jobs`,
-    `jbus.telemetry.records.merges`, `jbus.telemetry.records.questions`,
-    `jbus.telemetry.records.queue`, `jbus.telemetry.records.merged`,
-    `jbus.telemetry.records.ci_prs`, `jbus.telemetry.records.reverts` and
-    `jbus.telemetry.records.merge_waits`."""
+    """No source keeps a text of a record, only its length: jbus.telemetry.records.events,
+    jbus.telemetry.records.acts, jbus.telemetry.records.items,
+    jbus.telemetry.records.transitions, jbus.telemetry.records.outbox,
+    jbus.telemetry.records.ci_jobs, jbus.telemetry.records.merges,
+    jbus.telemetry.records.questions, jbus.telemetry.records.queue,
+    jbus.telemetry.records.merged, jbus.telemetry.records.ci_prs,
+    jbus.telemetry.records.reverts, jbus.telemetry.records.merge_waits."""
     for place, project in enumerate(("alpha", "beta")):
         records(machine, project, NOW, f"{project}-one", 10 + place)
         snapshots(machine, project, [(f"{project}-one", 10 + place, NOW + timedelta(hours=1))])
@@ -1138,14 +1137,11 @@ def test_a_store_built_before_the_labels_gains_them_as_a_rebuild_has_them(machin
                 r"CREATE TABLE (?:IF NOT EXISTS )?(\w+)", migrations.MIGRATIONS[name]
             )
         )
-        dropped = re.findall(r"DROP TABLE (\w+);", later)
+        sql = "".join(migrations.MIGRATIONS[name] for name in rewound)
         added = "".join(
             f"ALTER TABLE {table} DROP COLUMN {column};"
-            for name in rewound
-            for table, column in re.findall(
-                r"ALTER TABLE (\w+) ADD COLUMN (\w+)", migrations.MIGRATIONS[name]
-            )
-            if table not in dropped
+            for table, column in re.findall(r"ALTER TABLE (\w+) ADD COLUMN (\w+)", sql)
+            if table not in re.findall(r"DROP TABLE (\w+);", later)
         )
         unrun = "".join(f"DELETE FROM migrations WHERE name = '{name}';" for name in rewound)
         store.executescript(f"{views}{later}{added}{unrun}")
