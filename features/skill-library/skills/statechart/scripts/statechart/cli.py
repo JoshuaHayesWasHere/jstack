@@ -5,6 +5,7 @@ import base64
 import contextlib
 import errno
 import json
+import math
 import os
 import re
 import shutil
@@ -847,19 +848,55 @@ def draw(now, map_file, work, out, title, other=None, uncited=None, comparing=Fa
     return {"files": files, "charts": charts}
 
 
+# A chart is drawn at twice its size, or smaller where a side would pass PNG_SIDE_LIMIT, so the
+# PNG opens in any viewer.
+PNG_SIDE_LIMIT = 16384
+PNG_SCALE = 2
+# Headless Chromium rasterizes a page in tiles within a memory budget, about 256 MB by default,
+# and leaves every tile past it blank: HomeTreeToday's chart drew whole up to 70 Mpx and lost
+# its right and lower parts at 85 Mpx and above. 4096 MB drew it whole at 281 Mpx, more than
+# the 268 Mpx of a PNG at PNG_SIDE_LIMIT on both sides. Chromium takes the memory as it draws.
+PNG_BROWSER = {"args": ["--force-gpu-mem-available-mb=4096"]}
+
+
+def mermaid(chart, out, *extra):
+    """Runs the pinned mermaid-cli on one chart: whether it drew `out`, and what it said."""
+    try:
+        r = subprocess.run(
+            ["npx", "-y", MERMAID_CLI, "-i", chart, "-o", out, *extra],
+            capture_output=True,
+            text=True,
+        )
+        return r.returncode == 0, r.stderr
+    except OSError as e:
+        return False, e.strerror or str(e)
+
+
+def png_scale(svg):
+    """The scale to draw a chart at, from its SVG: PNG_SCALE, or less where the chart's longer
+    side would pass PNG_SIDE_LIMIT. A chart whose size the SVG does not give keeps PNG_SCALE."""
+    box = re.search(r'viewBox="[-\d.e]+ [-\d.e]+ ([\d.e]+) ([\d.e]+)"', svg)
+    if not box:
+        return PNG_SCALE
+    # mermaid-cli clips to the chart's whole pixels, so its sides are rounded up before scaling.
+    side = max(math.ceil(float(box[1])), math.ceil(float(box[2]))) + 1
+    return min(PNG_SCALE, math.floor(PNG_SIDE_LIMIT / side * 1000) / 1000)
+
+
 def render(charts, shown):
     pngs = []
     for chart in charts:
         png = re.sub(r"\.mmd$", ".png", chart)
-        try:
-            r = subprocess.run(
-                ["npx", "-y", MERMAID_CLI, "-i", chart, "-o", png, "-s", "2"],
-                capture_output=True,
-                text=True,
-            )
-            ok, said = r.returncode == 0, r.stderr
-        except OSError as e:
-            ok, said = False, e.strerror or str(e)
+        with tempfile.TemporaryDirectory() as scratch:
+            svg = os.path.join(scratch, "chart.svg")
+            ok, said = mermaid(chart, svg)
+            if ok:
+                with open(svg, encoding="utf-8") as handle:
+                    scale = png_scale(handle.read())
+                browser = os.path.join(scratch, "browser.json")
+                with open(browser, "w", encoding="utf-8") as handle:
+                    json.dump(PNG_BROWSER, handle)
+                ok, said = mermaid(chart, png, "-s", f"{scale:g}", "-p", browser)
         if ok:
             pngs.append(png)
         else:
