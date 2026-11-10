@@ -40,7 +40,14 @@ export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.com
 export GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.com
 case "$1 $2" in
     "pr list")
-        if [ "$3" = "--base" ]; then echo "[]"; else cat "$STUB/list.json"; fi ;;
+        once=$(ls "$STUB/once" 2> /dev/null | head -n 1)
+        if [ "$3" = "--base" ]; then
+            echo "[]"
+        elif [ -n "$once" ]; then
+            cat "$STUB/once/$once" && rm "$STUB/once/$once"
+        else
+            cat "$STUB/list.json"
+        fi ;;
     "repo view") echo main ;;
     "api --paginate")
         number=${3#*/pulls/}

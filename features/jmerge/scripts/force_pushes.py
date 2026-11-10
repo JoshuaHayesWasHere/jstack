@@ -100,9 +100,9 @@ SPLITS = {
         "features/jbus/src/jbus/telemetry/migrations/",
         "features/jbus/src/jbus/telemetry/views/",
     ),
-    "tm-source-modules": (
+    "po-split-telemetry-sources": (
         "features/jbus/src/jbus/telemetry/records.py",
-        "features/jbus/src/jbus/telemetry/sources/",
+        "features/jbus/src/jbus/telemetry/records/",
         "features/jbus/docs/jbus/the-telemetry-store.md",
         "features/jbus/tests/test_jbus_telemetry.py",
     ),
