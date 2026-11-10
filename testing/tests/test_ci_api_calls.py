@@ -18,6 +18,7 @@ import sys
 import threading
 import zipfile
 from datetime import UTC, datetime, timedelta
+from functools import partial
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qsl, urlsplit
 
@@ -68,8 +69,7 @@ class GitHub:
                 key = f"{url.path}?{url.query}" if url.query else url.path
                 answer = github.answers.get(key)
                 if answer is None and url.path in github.answers:
-                    query = dict(parse_qsl(url.query))
-                    answer = lambda asked: github.answers[url.path](query)  # noqa: E731
+                    answer = partial(by_query, github.answers[url.path], dict(parse_qsl(url.query)))
                 if answer is None:
                     github.costed.append(key)
                     return self.reply(404, b'{"message": "Not Found"}')
@@ -94,6 +94,11 @@ class GitHub:
     def close(self):
         self.server.shutdown()
         self.server.server_close()
+
+
+def by_query(answer, query, asked):
+    """An answer of a path alone, which reads the query and not the times it was asked."""
+    return answer(query)
 
 
 def ok(body):
