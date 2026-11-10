@@ -1,6 +1,6 @@
 ## Result
 Status: done | not done | blocked | paused
-Paused on: <the slug of each row not yet merged that the task waits on, nothing else>   <this line only for a Result paused until other rows merge: jbus tells this thread to carry on once the last of them merged>
+Waits on: <the slug of each row not yet merged that the task waits on, nothing else>   <this line only for a paused Result that waits for other rows to merge: jbus tells this thread to carry on once the last of them merged>
 Done when: <each line, with holds or does not hold>
 Proof:
 - <a "Done when" line, in a few words>: <the command run and what it printed, or what was looked at>

@@ -41,7 +41,7 @@ awk '
 ```
 
 On `paused`, do what it says and nothing more, whatever the message was, the review's findings included: nothing is fixed, pushed, rebased or launched.
-The one exception is jbus's message that the rows on the last Result's `Paused on:` line landed: it ends the pause, and the round goes on as it says.
+The one exception is jbus's message that the rows on the last Result's `Waits on:` line landed: it ends the pause, and the round goes on as it says.
 Otherwise the user or the home says when the task goes on, and that round reads those lines, handles what they name, and ends the pause with a follow-up Result that has another status.
 On `not paused`, go by the message.
 jbus sends each of these once for a head:

@@ -1,9 +1,9 @@
 """`tell` tells a crew that paused on other rows to carry on, once, when the last of them landed.
 
 A crew whose task cannot go on until other rows merge writes its Result with `Status: paused` and
-one line naming those rows, `Paused on: <slug> <slug>` (the crew skill's Result template). Each
+one line naming those rows, `Waits on: <slug> <slug>` (the crew skill's Result template). Each
 pass reads the last Result of each queued row (`World.result`), and where it is paused and every
-row its `Paused on:` line names has landed, sends the row's crew one message to carry on, under the
+row its `Waits on:` line names has landed, sends the row's crew one message to carry on, under the
 key `paused-on|<slug>|<the rows, sorted>`, marked in `sent.json` once T3 Code took it. A row lands
 by the rule `dispatch` launches a depending row on (`watch.final`): its pull request merged, or it
 ended `done` with none. A line with a word that is no slug of the queue, a typo or a slug with
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 
 TEMPLATE = "paused-on"
 CARRY_ON = (
-    "jbus: {rows} landed, the rows the `Paused on:` line of your last Result names, so the "
+    "jbus: {rows} landed, the rows the `Waits on:` line of your last Result names, so the "
     "pause is over: carry on. Read `tasks/{slug}.md` and its last Result first, bring your "
     "branch onto origin/main, do what its `Left:` line names, and end with a follow-up Result "
     "that has another status. jbus says this once."
@@ -71,7 +71,7 @@ def tell(run: Pass, client: Client, world: World, rows: list[queue.Row]) -> None
             continue
         if went:
             run.box.mark(key)
-            run.say(f"told {slug}: {', '.join(named)} landed, the rows it paused on")
+            run.say(f"told {slug}: {', '.join(named)} landed, the rows it waits on")
 
 
 STEPS = (

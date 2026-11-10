@@ -1,4 +1,4 @@
-"""A crew that paused on rows not yet merged names them on its Result's `Paused on:` line, and jbus
+"""A crew that paused on rows not yet merged names them on its Result's `Waits on:` line, and jbus
 tells it to carry on, once, when the last of them merges (`jbus.pausedon`). No home is woken."""
 
 from datetime import timedelta
@@ -10,7 +10,7 @@ from test_jbus_queue import add
 
 PAUSED = (
     "\n## Result\nStatus: paused, at {head}\nDone when: the table: does not hold\n"
-    "Paused on: {rows}\nBranch: three   Pull request: none\nLeft: waits on {rows}\n"
+    "Waits on: {rows}\nBranch: three   Pull request: none\nLeft: waits on {rows}\n"
 )
 
 
@@ -64,7 +64,7 @@ def test_a_paused_crew_is_told_once_when_the_last_row_it_paused_on_merges(paused
 
     (told,) = carry_ons(paused)
     assert told["threadId"] == crew_of(paused, "three")
-    assert "one, two" in told["message"] and "Paused on:" in told["message"]
+    assert "one, two" in told["message"] and "Waits on:" in told["message"]
     assert "tasks/three.md" in told["message"]
     home_after = [given for given in sends(paused) if given["threadId"] == HOME]
     assert home_after == home_before
@@ -96,6 +96,6 @@ def test_a_carry_on_t3_code_refused_goes_on_a_later_pass(paused):
 
     paused.t3.refuse_send = False
     said = paused.poll(NOW + timedelta(minutes=3))
-    assert "told three: one, two landed, the rows it paused on" in said
+    assert "told three: one, two landed, the rows it waits on" in said
     keys = {given["clientRequestId"] for given in carry_ons(paused)}
     assert keys == {"paused-on|three|one|two"}

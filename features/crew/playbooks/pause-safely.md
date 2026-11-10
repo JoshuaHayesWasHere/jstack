@@ -32,7 +32,7 @@ Never done here, and who does it:
 - **Squashing or rewording the `wip:` commit.**
   `jmerge`, run by jbus, squash-merges, so it never reaches the default branch.
 - **Resuming.**
-  The user or the home says when, in this thread or with a new one on the same worktree, or jbus does, once every row on the Result's `Paused on:` line has merged.
+  The user or the home says when, in this thread or with a new one on the same worktree, or jbus does, once every row on the Result's `Waits on:` line has merged.
   The round that follows appends `## Result, follow-up`, as `skills/crew/SKILL.md` "End" says.
 
 **Hand over:** in the Result, to the home and to the thread that resumes: which "Done when" lines hold, what is on disk and at which commit, whether the check command passes there, and the first action on resume. This is a pause, not a final report.
