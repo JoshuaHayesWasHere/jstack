@@ -1,12 +1,13 @@
 """Merging is `jmerge`'s job and nobody else's: jbus runs the command and reads its lines.
 
-jbus is the only merger: it runs `jmerge` on each pass whatever the home's `home-thread` file
-says, with no `--home`, so the run judges the pull requests of every home of the repo, and a
-home's own run of `jmerge --home` merges nothing. Between passes the merge tick runs it too, a
-few seconds after a check ends (`tick`, `jbus.tick`). `jmerge` holds the repo's run lock for the
-whole of a run that may merge, so the pass, the tick and a hand run of the user's never run it
-together (`jmerge.lock`). The pass and the tick both run it with `--if-free`: a run that finds
-the lock held does nothing, and neither waits on another's run inside its own timeout.
+jbus is the only merger: each pass starts a run of `jmerge` whatever the home's `home-thread`
+file says, with no `--home`, so the run judges the pull requests of every home of the repo, and a
+home's own run of `jmerge --home` merges nothing. The pass does not wait for its run: the next
+pass reads what it printed (`merge`). Between passes the merge tick runs it too, a few seconds
+after a check ends (`tick`, `jbus.tick`). `jmerge` holds the repo's run lock for the whole of a
+run that may merge, so the pass's run, the tick and a hand run of the user's never run it together
+(`jmerge.lock`). The pass's run and the tick both run it with `--if-free`: a run that finds the
+lock held does nothing, and neither waits on another's run inside its own timeout.
 
 `parse`, which is `jmerge.lines.one`, reads each line `jmerge` prints about a pull request. `stall`
 and `watch` read the `Line` that `parse` returns, not the text, and `rebase` and `expedite` go by
@@ -33,9 +34,14 @@ jmerge never marks it ready.
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
+import os
 import re
 import subprocess
+import sys
+from datetime import datetime, timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from jbus import alert, outbox, restated, verbs, work
@@ -48,6 +54,7 @@ from jmerge import lock, ready
 from jmerge.judgement import step
 from jmerge.lines import Line as Line
 from jsettings import proc
+from jsettings.store import read_json, write_json
 
 if TYPE_CHECKING:
     from jbus.poll import Half
@@ -82,26 +89,175 @@ TOLD = (
 )
 
 
-def merge(run: Pass) -> Said:
-    """Run `jmerge --if-free`, send each line it prints about a pull request, and return the lines.
+RUNS = "jmerge-runs"
+"""The directory, in a project's state, of the pass's runs of `jmerge`: `GOING`, `STARTED`, the
+record of each run that ended and was not read (`ran-<at>.json`), and the last one read (`READ`)."""
+GOING = "going.lock"
+"""Held by a run's process (`keep`) from its start to its end, so a pass starts no second run.
+The kernel gives it back when the process dies."""
+STARTED = "started"
+"""Written by the pass that starts a run, with when, and removed by the run once its record is
+written: a stamp older than `STARTING` that the run's lock does not cover is a run that ended with
+no record. A younger one is a run that may not yet hold its lock, and is left to start."""
+STARTING = timedelta(minutes=1)
+"""How long a run's process has to take `GOING` from its start: a Python's start and an import of
+jbus, a second or two on a loaded machine."""
+READ = "read.json"
+CHILD_LOG = "child.log"
+"""What the run's process printed itself, outside the record: the one place a process that died
+before `keep` could write a record says why."""
+UNIT = "jbus-jmerge-{name}-{digest}"
+"""The transient unit of a run started from a pass that systemd runs (`start`). The digest of the
+state directory keeps a sandbox's runs apart from the machine's."""
+SYSTEMD = ("INVOCATION_ID", "JOURNAL_STREAM", "SYSTEMD_EXEC_PID", "MANAGERPID")
+"""The variables systemd sets for one unit, which the run's unit gets of its own."""
 
-    Every line is a quiet event, including a `hold` line. `waiting` lists each hold that is
-    the user's. The user learns of a hold when the hold joins that list: once for the pull request,
-    not once for each head. `expedite` deals first with a hold that a crew can lift.
+
+def merge(run: Pass) -> Said:
+    """Start a run of `jmerge --if-free` where none of the pass's runs is going, and return the
+    lines of each run that ended since a pass last read one, sending each line once.
+
+    The run is not the pass's to wait for: it may build a batch and run its guards for many
+    minutes, and the pass launches, tells and wakes in the meantime. It runs in a process of its
+    own (`start`), which keeps what `jmerge` printed in a record when it ends (`keep`), and the
+    first pass after reads the record once (`_records`): what `jmerge` said reaches each step a pass
+    late at most. A pass that finds no record returns no line, `failed`, as a busy run did: each
+    step keeps what it knew of the rows. `Said.at` is when the run ended, not when it was read.
+
+    A record is read as a run that ended in the pass was. Every line is a quiet event, including a
+    `hold` line. `waiting` lists each hold that is the user's. The user learns of a hold when the
+    hold joins that list: once for the pull request, not once for each head. `expedite` deals first
+    with a hold that a crew can lift.
 
     A run of the tick's or one by hand may hold the run lock. With `--if-free` the pass's run then
     does nothing and ends at once (`lock.BUSY`): it is no run, so it leaves the `jmerge` streak as
-    it was, and the next pass runs it again. Without it the pass would wait for the lock inside
-    `JMERGE_TIMEOUT` and count the other run's minutes as its own failure.
+    it was, and the next pass starts it again.
 
     When `jmerge` does not run, or holds the run lock past `JMERGE_TIMEOUT`, that counts as a
-    failure of the `jmerge` streak, and a run of `jmerge` ends the streak. A run that stopped after
-    printing a line also ends the streak, as such a run always did, and the pass says that `jmerge`
-    stopped. The `Said` that this function returns is then `failed`, so jbus keeps what it knew of
-    the rows that `jmerge` did not reach, as it does for a busy run.
+    failure of the `jmerge` streak, and a run of `jmerge` ends the streak. So does a run whose
+    process could not be started, or ended with no record. A run that stopped after printing a line
+    also ends the streak, as such a run always did, and the pass says that `jmerge` stopped. The
+    `Said` of that run is then `failed`, so jbus keeps what it knew of the rows that `jmerge` did
+    not reach, as it does for a busy run.
     """
-    ran = run.run(*RUN, timeout=JMERGE_TIMEOUT)
-    lines = _sent(run, ran)
+    where = runs(run)
+    where.mkdir(parents=True, exist_ok=True)
+    if not _going(where) and not _starting(where):
+        if (where / STARTED).exists():
+            (where / STARTED).unlink()
+            _unrun(run, f"its run ended with no record: {_last(where / CHILD_LOG)}")
+        (where / STARTED).write_text(restated.moment(verbs.clock()) + "\n")
+        if why := start(run):
+            (where / STARTED).unlink(missing_ok=True)
+            _unrun(run, why)
+    return _records(run, where)
+
+
+def runs(run: Pass) -> Path:
+    return run.state / RUNS
+
+
+def start(run: Pass) -> str:
+    """Start `keep` for the project in a process that outlives the pass, and return why it could
+    not start, or nothing.
+
+    A pass that systemd runs is a oneshot unit, and systemd ends every process left in it when the
+    pass ends, a new session or not: the run is then a transient unit of its own (`UNIT`), with the
+    pass's environment. A pass run by hand starts it in a session of its own.
+    """
+    where = runs(run)
+    child = (sys.executable, "-c", "import sys; from jbus import merge; merge.keep(*sys.argv[1:])")
+    child += (str(where), str(run.project.checkout))
+    if os.environ.get("INVOCATION_ID"):
+        name = re.sub(r"[^A-Za-z0-9_.-]", "-", run.project.name)
+        digest = hashlib.sha256(str(where.resolve()).encode()).hexdigest()[:8]
+        log = f"truncate:{where / CHILD_LOG}"
+        command = ["systemd-run", "--user", "--quiet", "--collect"]
+        command += [f"--unit={UNIT.format(name=name, digest=digest)}"]
+        command += [f"--working-directory={run.project.checkout}"]
+        command += [f"--property=StandardOutput={log}", f"--property=StandardError={log}"]
+        command += [f"--setenv={key}" for key in os.environ if key not in SYSTEMD]
+        ran = proc.run(*command, "--", *child)
+        return lines_of.said(ran) if ran.returncode else ""
+    try:
+        with open(where / CHILD_LOG, "w") as log:
+            subprocess.Popen(
+                child,
+                cwd=run.project.checkout,
+                stdin=subprocess.DEVNULL,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+    except OSError as error:
+        return f"{sys.executable} could not be run: {error.strerror}"
+    return ""
+
+
+def keep(where: str | Path, checkout: str | Path) -> None:
+    """Run `jmerge --if-free` in `checkout` as the process of one of the pass's runs, holding
+    `GOING` for the whole run, and keep what it printed as a record in `where`, written whole
+    before the lock is given back. A process that dies first leaves no record, and the next pass
+    counts it (`merge`)."""
+    where = Path(where)
+    with open(where / GOING, "a") as going:
+        fcntl.flock(going, fcntl.LOCK_EX)
+        ran = proc.run(*RUN, cwd=checkout, timeout=JMERGE_TIMEOUT)
+        at = restated.moment(verbs.clock())
+        record = {
+            "returncode": ran.returncode,
+            "stdout": ran.stdout,
+            "stderr": ran.stderr,
+            "timed_out": isinstance(ran, proc.TimedOut),
+            "at": at,
+        }
+        write_json(where / f"ran-{at}.json", record)
+        (where / STARTED).unlink(missing_ok=True)
+
+
+def _going(where: Path) -> bool:
+    """Whether a run's process holds `GOING`."""
+    with open(where / GOING, "a") as going:
+        try:
+            fcntl.flock(going, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return True
+    return False
+
+
+def _starting(where: Path) -> bool:
+    """Whether a pass started a run within `STARTING`, which may not yet hold `GOING`. A stamp
+    that does not parse is no start."""
+    try:
+        at = datetime.fromisoformat((where / STARTED).read_text().strip())
+    except (OSError, ValueError):
+        return False
+    return verbs.clock() - at < STARTING
+
+
+def _records(run: Pass, where: Path) -> Said:
+    """Read each record of a run that ended and was not read, oldest first, mark it read, and
+    return their lines: `failed` and `at` are the newest's. With none, return no line, `failed`,
+    at the end of the last run read."""
+    said = Said()
+    said.failed = True
+    for path in sorted(where.glob("ran-*.json")):
+        record = read_json(path, {})
+        os.replace(path, where / READ)
+        made = proc.TimedOut if record.get("timed_out") else subprocess.CompletedProcess
+        ran = made(RUN, record["returncode"], record["stdout"], record["stderr"])
+        lines = _judged(run, ran, record["at"])
+        said.extend(lines)
+        said.failed, said.at = lines.failed, lines.at
+    if not said.at:
+        said.at = str(read_json(where / READ, {}).get("at", ""))
+    return said
+
+
+def _judged(run: Pass, ran: subprocess.CompletedProcess[str], at: str) -> Said:
+    """Send each line of a run of `jmerge` that ended at `at`, count it on the `jmerge` streak,
+    and return its lines (`merge`)."""
+    lines = _sent(run, ran, at=at)
     name, streak = run.project.name, alert.jmerge(run.project.name)
     if ran.returncode == lock.BUSY:
         run.say(f"wait {name}: jmerge is busy: another run holds its run lock")
@@ -114,9 +270,20 @@ def merge(run: Pass) -> Said:
     if _NO_LIST.search(why := lines_of.said(ran)):
         run.condition(name, NO_LIST, why, key=f"protected {run.day}")
     else:
-        run.say(f"wait {name}: jmerge did not run ({why})")
-        _failed(run, why)
+        _unrun(run, why)
     return lines
+
+
+def _unrun(run: Pass, why: str) -> None:
+    """Say that `jmerge` did not run, and count it on the `jmerge` streak."""
+    run.say(f"wait {run.project.name}: jmerge did not run ({why})")
+    _failed(run, why)
+
+
+def _last(path: Path) -> str:
+    """The last line of `path`, or that it said nothing."""
+    said = path.read_text(errors="replace").strip().splitlines() if path.is_file() else []
+    return said[-1].strip() if said else "it said nothing"
 
 
 def _failed(run: Pass, why: str) -> None:
@@ -128,12 +295,15 @@ def _failed(run: Pass, why: str) -> None:
 
 
 def _sent(
-    run: Pass, ran: subprocess.CompletedProcess[str], read: dict[int, str] | None = None
+    run: Pass,
+    ran: subprocess.CompletedProcess[str],
+    read: dict[int, str] | None = None,
+    at: str = "",
 ) -> Said:
     """Send each line a run of `jmerge` printed about a pull request, once for its key, and
     return them. The run restates each line it judged, and logs as a quiet `work-drift` each one
     the merge tick restated otherwise (`restated.pulled`), with the heads the merge tick read
-    (`read`) where it ran it."""
+    (`read`) where it ran it. `at` is when the run ended, where that was before now."""
     lines = Said()
     for text in map(str.strip, ran.stdout.splitlines()):
         line = parse(text)
@@ -145,7 +315,7 @@ def _sent(
         if slug and (unfollowed := lines_of.unfollowed(text)):
             alert.deliver(run, f"alert: {run.project.name}: {unfollowed}")
     lines.failed = bool(ran.returncode)
-    lines.at = restated.moment(verbs.clock())
+    lines.at = at or restated.moment(verbs.clock())
     for key, what in restated.pulled(run.state, verdicts(lines), lines.at, read):
         run.box.send(key, "work-drift", f"work-drift {key}: {what}")
     return lines

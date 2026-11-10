@@ -90,6 +90,14 @@ So once it has its go, it is the next launch in that project.
 
 jbus reads a slug that starts `main-red-` as the fix of a red main, so do not give a brief of your own such a slug.
 
+## A test that flakes twice
+
+`mainmoved.tell` keeps why main went red in `main-reds.jsonl` beside the queue: one line a red tip, with the tests that failed there and its verdict, `change`, `flake` or `infra`.
+Where one test failed under the verdict `flake` at two commits no more than seven days apart, the later of them in the last seven days, the pass writes `tasks/flake-<name>.md`, where `<name>` is the test function's name, and queues it with no go as jbus's own row (`features/jbus/src/jbus/flakerow.py`).
+Its `Task:` names the test and both commits with when the pass judged them, and it asks for a fix of the test, `Size: S` and `Review: review`, in the shape of the fix's brief above, so a pass approves it by the follow-up rule.
+One flake files nothing: one timing miss in a week is noise.
+A test gets one row, ever: `flake-rows.json` beside the queue keeps each test filed, so a third flake, a pass run again, or a flake after its row merged files no other, and a removed row is not filed again.
+
 ## `main.json`
 
 The one record of a red main is `main.json` beside the queue.

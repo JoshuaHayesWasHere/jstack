@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 import jbus
-from jbriefs import chains
+from jbriefs import chains, meaning
 from jbriefs import parse as briefs
 from jbus import (
     acts,
@@ -267,9 +267,10 @@ def _warn(config: jbus.Config, project: jbus.Project, slug: str, text: str) -> N
     (`jbriefs.parse.warnings`), one `warning:` line each, and each door its commands walk through
     that no `Holds:` line names (`party.undeclared`), one `holds:` line each: the row holds for it
     all the same, and the line tells the home to write it. It warns as well of each `Where:` path
-    the brief shares with a queued row its `Builds on:` line names (`briefs.shared_where`), and of
+    the brief shares with a queued row its `Builds on:` line names (`briefs.shared_where`), of
     an `Asked:` line that names no file of the home's `asked/` or a `Task:` quote that file does not
-    hold (`_asked_warnings`)."""
+    hold (`_asked_warnings`), and, for a follow-up, of each live row that may hold its fault
+    (`_twins`)."""
     try:
         check = (config.home(project) / "fresh-check").read_text()
     except OSError:
@@ -288,6 +289,55 @@ def _warn(config: jbus.Config, project: jbus.Project, slug: str, text: str) -> N
                 "join the rows where they are one change, take the shared path out of one where "
                 f"{slug} has no need of {other}'s code, and leave it where it does"
             )
+    for line in _twins(config.state(project), slug, text):
+        print(f"warning: {line}")
+
+
+def _follows(text: str) -> bool:
+    """Whether a brief is a follow-up: it names a parent on a `Follows:` line, or its `Task:` or
+    `Decisions:` says the task it was `noticed in`."""
+    found = dict(briefs.fields(text))
+    noticed = " ".join(found.get("Task", []) + found.get("Decisions", []))
+    return "Follows" in found or "noticed in" in noticed
+
+
+def _code(text: str) -> set[str]:
+    """The code tokens of a brief's title and `Task:` (`meaning.tokens`' `EXACT` ones): each path,
+    name and code span they write, less a bare number."""
+    said = " ".join(
+        " ".join(lines) for label, lines in briefs.fields(text) if label in (briefs.TITLE, "Task")
+    )
+    exact = (token[1:] for token in meaning.tokens(said) if token.startswith(meaning.EXACT))
+    return {token for token in exact if any(c.isalpha() for c in token)}
+
+
+def _twins(state: Path, slug: str, text: str) -> list[str]:
+    """For a follow-up, a line for each other live row (`queue.LIVE`) whose brief shares a `Where:`
+    path (`briefs.shared_where`) and a code token of its title and `Task:` (`_code`) with it,
+    naming the row, its status and its pull request: the row may already hold the fault. It is a
+    warning and never a refusal, since a shared path and token are no proof of one fault."""
+    if not _follows(text):
+        return []
+    try:
+        rows = queue.load(state)
+    except queue.Unparsable:
+        return []
+    mine, found = _code(text), []
+    for row in sorted(rows, key=lambda row: row["slug"]):
+        other, status = row["slug"], row.get("status", "queued")
+        theirs = queue.brief(state, other) if other != slug and status in queue.LIVE else None
+        if theirs is None:
+            continue
+        paths, tokens = briefs.shared_where(text, theirs), sorted(mine & _code(theirs))
+        if paths and tokens:
+            shown = "held" if row.get("held") else status
+            pr = f"pull request {row['pr']}" if row.get("pr") else "no pull request"
+            found.append(
+                f"{slug} may be the fault {other} ({shown}, {pr}) holds: both name "
+                f"{', '.join(paths)} and {', '.join(tokens)}: drop this row where {other} "
+                "holds the fault"
+            )
+    return found
 
 
 _QUOTE = re.compile(r'"([^"\n]+)"|“([^”\n]+)”')

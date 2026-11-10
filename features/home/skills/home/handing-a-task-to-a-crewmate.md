@@ -20,7 +20,7 @@ The root home does step 1 and no other: it queues the brief by "Queueing a row i
 
    Its `Proves it:` line, under the "Done when" list, names what outside the agent shows the task is done: a test or a command, a metric, a dataset, an external judge or the user.
    `jbus queue add` queues no brief whose line names only the crew, the crewmate, the reviewer, the agent, the model or a review, or is empty.
-   A crewmate's desk check is the crew skill's touched check, `make check-fast BASE=<base> PART=touched`: the lint, the test files the branch adds or edits, and the repo-guards tests the selection names (`select_tests.py --part guards`).
+   A crewmate's desk check is the crew skill's touched check, `make check-fast BASE=<base> PART=touched`: the lint, the test files the branch adds or edits, and the cross-cutting tests the selection names, wherever they live (`select_tests.py --part cross`).
    The whole suite, `make check-fast BASE=origin/main` with no `PART=` or `make check`, is CI's check on the pull request, never a desk step a brief asks for: it holds a full test slot for about 9 minutes, and CI runs it again.
    Write the line to name the touched check and the test the task adds, as `Proves it: the touched check passes, with the test the task adds, <its test file>`.
    `jbus queue add` warns of a brief whose `Proves it:` or **Done when** runs the whole suite at the desk, and queues it all the same: a task about the suite itself may need the whole run.
@@ -73,6 +73,8 @@ The root home does step 1 and no other: it queues the brief by "Queueing a row i
    `jbus queue add` and `jbus queue check` print `warning: <slug> shares <paths> with <row>, which it builds on` for each `Where:` path the brief shares with a row its `Builds on:` line names.
    Where the two are one change, join the rows, and where the row has no need of the other's code, take the shared path out of one of them.
    Where it does need that code, leave it: the row is queued all the same and stays stacked.
+   For a follow-up, a brief with a `Follows:` line or with `noticed in` on its `Task:` or `Decisions:` line, `jbus queue add` and `jbus queue check` also print `warning: <slug> may be the fault <row> (<status>, <pull request>) holds: both name <paths> and <tokens>: drop this row where <row> holds the fault` for each other live row whose brief shares a `Where:` path and a code token of its title and `Task:` with it.
+   It is a warning, never a refusal or a hold: read that row's brief, and drop this row where that row already holds the fault, since a shared path and token are no proof of one fault.
    `jbus queue add` refuses a brief whose `Builds on:` line gives a plan layer as its reason, such as `launch-caps: its merged code, the base of layer 2`.
    `jbus queue add` refuses a `--depends` that the brief's `Builds on:` line does not name, and queues nothing: write the line, or make the order `--merge-after`.
    A `--merge-after` names a row that is already queued, so a chain is queued from its first link up.

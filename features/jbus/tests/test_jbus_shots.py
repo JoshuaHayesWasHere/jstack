@@ -14,7 +14,7 @@ from types import SimpleNamespace
 import pytest
 
 from jbriefs import home as homes
-from jbus import daywarnings, reverts, shots, watch
+from jbus import daywarnings, flakerow, reverts, shots, watch
 from jbus.ci import wrongcloses
 
 SOURCE = Path(reverts.__file__).parent
@@ -30,6 +30,15 @@ def _shots():
 def _fix():
     jobs = [("check", "https://example.test/job/2", ["features/jbus/tests/test_x.py::test_y"])]
     return watch.fix_brief("main-red-abc: a red", '"a red"', ["- it passes"], "it", "main", jobs)
+
+
+def _flake():
+    test = "features/jbus/tests/test_x.py::test_y"
+    pair = (
+        (datetime(2026, 11, 2, tzinfo=UTC), "a" * 40),
+        (datetime(2026, 11, 5, tzinfo=UTC), "b" * 40),
+    )
+    return flakerow.brief(flakerow.slug(test), test, pair)
 
 
 def _warnings():
@@ -52,6 +61,7 @@ def _labels():
 BUILT = {
     "shots": _shots,
     "fix": _fix,
+    "flake": _flake,
     "warnings": _warnings,
     "revert": _revert,
     "labels": _labels,
@@ -61,6 +71,7 @@ BUILT = {
 WRITERS = {
     "ci.wrongcloses._label": "labels",
     "daywarnings.keep": "warnings",
+    "flakerow.file": "flake",
     "reverts._mac_file": "fix",
     "watch._add_tip": "fix",
     "watch._file": "fix",

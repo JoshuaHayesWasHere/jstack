@@ -16,7 +16,7 @@ These are all of them, and the last column says on which state of that file each
 | `<slug>: gate`, then the gate's lines | a crewmate or a scout | it took a default on a question only the user can answer, carried on, and `jbus gate` could not take the gate: no `jbus`, or no project for the repo | both |
 | `jbus: this is <name>'s own word, said <time> and carried to this home by jbus.`, then the words | jbus | the user said it elsewhere and `jbus word` carried it: act on it as said here ("The user's word, carried by jbus") | both |
 
-One more comes from jbus, whatever `home-thread` holds: `jbus: <slug> ended with something left, and it is this home's to close.`, with the pull request and whether it merged, the `Left:` line whole, and each question the slug asked with its answer.
+One more comes from jbus, whatever `home-thread` holds, for a row with no commits on its branch: `jbus: <slug> ended with something left, and it is this home's to close.`, with the pull request and whether it merged, the `Left:` line whole, and each question the slug asked with its answer.
 Read the last Result of `$H/tasks/<slug>.md` and those answers, then end it one of three ways.
 Where something is still to do, write a brief for what is left with `Follows: <slug>` in its head, and queue it as a follow-up.
 Where the rest is already another row's, add `Follows: <slug>` to the head of that row's brief and queue it again with `jbus queue add`.
@@ -25,6 +25,12 @@ Then, or at once where nothing more is wanted or the rest is somebody's outside 
 The outcome is `carried by <slug>` for the follow-up or the row that carries the work on, `nothing to change, <why>` where the task found nothing to do, and `dropped, <why>` where the work is not wanted.
 Only those four end a row whose brief asks for a pull request: one with no `Outcome:` line stays left, since how it ended is what the store counts it by (`jbus.outcome`).
 Send the user nothing about it: a question only they can answer is a gate ("Gates"), and the row stays this home's while it is open: jbus tells no other home of it.
+
+A row whose branch has commits of its own gets `jbus: <slug> ended with something left on its branch, and it is this home's to see to.` in place of that message, and is not carried on under a new brief.
+jbus launches it again on its own slug, branch and worktree, with a `Resume:` line naming the cause, once for each cause that clears: the rows its paused Result's `Waits on:` line names have landed, a review with findings was written after its last Result, or its brief has a new go.
+Where it waits on one of those, leave it.
+Where it waits on rows its Result does not name, append `## Result, follow-up (<date>, <the reason>)` with `Status: paused`, `Waits on: <their slugs>`, `Branch: <slug>   Pull request: none` and `Left: <what is left>`; where its `Where:` or `Done when:` is too narrow, widen them in `$H/tasks/<slug>.md` and queue it again with `jbus queue add`: its new go launches it.
+Where nothing more is wanted, close it with the four lines above, `dropped, <why>` or `nothing to change, <why>`.
 
 Nothing is sent when a pull request opens, when a review is written or when its findings are handled.
 A reviewer's findings go into the brief, and jbus tells the crewmate of them only when `jmerge` says the crewmate owes a line.

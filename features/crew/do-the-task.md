@@ -1,10 +1,10 @@
 - Once every **Done when** line holds, with the work committed, run the check of the change, once.
   CI is the check of record: its check on the pull request runs every test the change selects, and it is the gate.
   The desk's check is the lint, the touched tests and the repo's guard tests, and never the whole suite or the selection.
-  In a repo whose pull request check selects its tests, jstack's `scripts/select_tests.py`, the touched tests are the test files the branch adds or edits since it left its base (`select_tests.py --part touched`), the guard tests are the files under `features/repo-guards/tests/` that the selection's guards name (`select_tests.py --part guards`) and that are not touched already, and the check is `make check-fast BASE=<base> PART=touched`, run in steps: the lint first, then each touched test file alone, then each guard test file alone, each step its own call of `jgauge test-slot --short`.
+  In a repo whose pull request check selects its tests, jstack's `scripts/select_tests.py`, the touched tests are the test files the branch adds or edits since it left its base (`select_tests.py --part touched`), the guard tests are the cross-cutting tests the selection names, wherever their files live (`select_tests.py --part cross`), that are not touched already, and the check is `make check-fast BASE=<base> PART=touched`, run in steps: the lint first, then each touched test file alone, then each guard test file alone, each step its own call of `jgauge test-slot --short`.
   A step the short lane stops at its time limit (exit 124) runs again alone in a full test slot, which has no time limit, so every step reaches a verdict however loaded the machine is.
   A 124 is never a pass and never a failure: it is no verdict.
-  The other cross-cutting tests, the catch-all and the tests the change reaches through imports, names and features are CI's to run: the desk does not run them.
+  The catch-all and the tests the change reaches through imports, names and features are CI's to run: the desk does not run them.
   The base is the branch the pull request goes on, as the block that opens it reads it from the brief: the branch of a `Stacked on:` line, and `origin/main` for a brief with none.
   A base branch that is gone, as one is once it merged, is `origin/main` too.
   In any other repo the check is the repo's check command, the first line of `$H/fresh-check` with its `jgauge test-slot --` left off (the block takes the slot itself), under a full test slot, and it is that command and no other, whatever command a brief's **Done when** names for it.
@@ -29,15 +29,15 @@
       elif ! touched=$(python3 scripts/select_tests.py --part touched "$base" HEAD); then
           echo "no check: scripts/select_tests.py could not name the touched tests"
           false
-      elif ! guards=$(python3 scripts/select_tests.py --part guards "$base" HEAD); then
+      elif ! guards=$(python3 scripts/select_tests.py --part cross "$base" HEAD); then
           echo "no check: scripts/select_tests.py could not name the guard tests"
           false
       else
-          guards=$(printf '%s\n' "$guards" | command grep '^features/repo-guards/tests/' | command grep -vxF -e "$touched")
+          guards=$(printf '%s\n' "$guards" | command grep -vxF -e "$touched")
           printf 'make check-fast BASE=%s PART=touched\n' "$base" > "$code.command"
           steps=$(git rev-parse --git-path crew-check-steps)
           [ "$(sed -n 1p "$steps" 2> /dev/null)" = "$head $base" ] || printf '%s %s\n' "$head" "$base" > "$steps"
-          echo "touched: $(printf '%s' "$touched" | command grep -c .) test files, then $(printf '%s' "$guards" | command grep -c .) guard tests of features/repo-guards/tests, each alone in the short lane after the lint; CI's check runs the rest of the selection"
+          echo "touched: $(printf '%s' "$touched" | command grep -c .) test files, then $(printf '%s' "$guards" | command grep -c .) cross-cutting guard tests, each alone in the short lane after the lint; CI's check runs the rest of the selection"
           ran=0
           for step in lint $touched $guards; do
               if command grep -qxF "passed $step" "$steps"; then
@@ -98,7 +98,7 @@
   A `no check:` line ends the block 1: nothing was checked, and it is no proof.
   The block adds `Checked: <the command> exit <its exit> at <the full head>` to the brief for a check that ran to its end on a committed head, which `jmerge` reads, and nobody writes that line by hand.
   It does so from the first head on, whether or not the brief has a Result yet, so the first head's check is on record too.
-  For a selected check the line reads `Checked: make check-fast BASE=<base> PART=touched exit <n> at <head>`, and the block prints each step as `<step>: exit <n> in <s> s, <lane> lane`, the step `lint`, a touched test file or a guard test file.
+  For a selected check the line reads `Checked: make check-fast BASE=<base> PART=touched exit <n> at <head>`, and the block prints each step as `<step>: exit <n> in <s> s, <lane> lane`, the step `lint`, a touched test file or a cross-cutting guard test file.
   The block's exit is the first step's failure where one failed, and it stops there; else 124 where a step reached no verdict even in a full slot; else 0.
   A step that passed at a committed head is kept in the worktree's `crew-check-steps` (`git rev-parse --git-path crew-check-steps`), and a run of the block at the same head and base skips it, so a wait for a slot, or a call cut at its time limit, never starts the check over.
   `jmerge` merges a pull request only once its last `Checked:` line says the desk's check (`PART=touched`, a `PART=guards` line of an earlier head, or another repo's `jgauge check`) exited 0 at its head, or at a head whose patch the head carries unchanged (`ready.short_on_checked`): a missing line, a failure, a 124 and a line of a head whose patch changed since each hold it, until this block runs again at the head.

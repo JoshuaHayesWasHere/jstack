@@ -33,6 +33,7 @@ def row(one: Row, zone: tzinfo | None) -> Row:
         "workers": _number(one.get("workers")),
         "tests": _count(one.get("tests")),
         "signs": _count(one.get("signs")),
+        "step": _text(one.get("step")),
     }
 
 
@@ -62,6 +63,7 @@ SOURCE = Source(
         "workers",
         "tests",
         "signs",
+        "step",
     ),
     row,
     at="created",

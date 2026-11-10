@@ -152,6 +152,7 @@ On the user's own word to merge, given in this thread, `jmerge --accept <number>
 
 A later round does not rewrite a Result: it appends `## Result, follow-up (<date>, <why>)` in the same shape, and step 2 is run again on it.
 jbus checks it: each pass compares the brief's sections with what it saw the pass before, and tells this thread, word for word, any line that went.
+A line that went from a review section is not told to this thread but asked of the reviewer on that section's seat: only a reviewer writes a review's lines, and its own correction stands.
 The single lines a wake adds (what woke you, `Reviewer:`, `Fixed:`, `Rerun:`, `Stale base:`, `Stuck:`, `Unrun:`, `Lock:`, `Comment:`) are not a round: they go into the last result there is.
 
 With a pull request open, the thread stays on it.

@@ -64,12 +64,22 @@ A tick asks GitHub whatever `jbus budget` says, since its 304s spend none of the
 GitHub pushes a check's end only to a webhook, which needs an endpoint GitHub can reach and a secret to sign with; jbus has none by design, so the 10 second poll was chosen and a webhook was not.
 The poll costs a start of `jbus tick` every 10 seconds, about 0.14 seconds of one core, only while a row's pull request is open or a check is going.
 It runs `jmerge --if-free`, which does nothing while another run of `jmerge` is under way, since `jmerge` holds its run lock for the whole of a run that may merge.
-What a tick misses, the next pass does: the pass runs `jmerge --if-free` too, so a pass that finds a tick's run under way does nothing, and the next one with the lock free runs it.
+What a tick misses, the next pass does: the pass starts `jmerge --if-free` too, so a pass's run that finds a tick's run under way does nothing, and the next pass starts it again.
+
 `jbus-merge.service` has no start limit (`StartLimitIntervalSec=0`): systemd's default refuses a unit started more than 5 times in 10 seconds; a 2 second timer sat at that edge, and the extra start a green move's reload brings pushed it over, so systemd refused the tick for seconds at a time.
 A 10 second timer alone stays under that limit, but the limit counts every start, a reload's and one by hand too, and a refused start leaves the service failed, so the setting stays: the tick gains nothing from a limit.
 On macOS the install drops the key (`jinstall.launchd.DROPPED`), since launchd has no start limit of that kind.
+
 `jbus-merge.service` logs at `notice` and above (`LogLevelMax=notice`), so its start and end every 10 seconds stay out of the journal, and its own lines, which are `notice`, stay in.
 On macOS its agent runs every 10 seconds too (`StartInterval`), whether or not a check is going: the pass starts and stops only a systemd timer.
+
+A pass starts its run of `jmerge` and does not wait for it (`jbus.merge.merge`): while the run builds a batch and runs its guards, the pass launches, tells and wakes as on any other pass.
+The run is a process of its own, which holds `going.lock` in `jmerge-runs/` of the project's state for the whole run, so a pass that finds it held starts no second one.
+When it ends it keeps what `jmerge` printed, whole, as a record there, and the first pass after reads the record once: what `jmerge` said of the rows reaches each step that reads it a pass late at most, and a pass that finds no record keeps what it knew of the rows, as when `jmerge` is busy.
+A pass that `jbus.service` runs starts the run as a transient unit of its own, `jbus-jmerge-<project>-<digest>`, since systemd stops every process a oneshot unit leaves when the pass ends; `systemctl --user status 'jbus-jmerge-*'` shows one under way.
+A pass run by hand starts it in a session of its own; either way, what the run's process prints itself goes to `jmerge-runs/child.log`.
+A run that ended with no record, as one that died before `jmerge` ended, counts as a failure of the `jmerge` streak, with the last line of that log.
+
 `work.json`, the state of each row that the view and T3 Code's sidebar draw, waits for neither timer.
 Each line says who holds its row (`who`) and the one thing the row waits on (`waits`).
 A row that ended with something left (`status: left`: a crewmate's Result that leaves something under `Left:`, a scout's Report that is not done, or a pull request that closed) waits on its home: jbus tells the home, which closes it, and the user is not asked.
@@ -108,7 +118,7 @@ So a thread's turn reaches `work.json` within milliseconds of T3 Code's event: `
 `jbus-follow.service` runs it on every machine, and while it does not run, as before the install starts it, the pass judges a thread's state as before.
 `systemctl --user status jbus-follow.service` says whether it runs, and `journalctl --user -u jbus-follow.service` shows the store it follows and each time it lost its stream; on macOS its log is `~/Library/Logs/jstack/jstack.jbus-follow.log`.
 The pass still judges every row from all it saw and writes the whole file.
-It keeps a pull request's step that a tick's run restated after the pass's own run of `jmerge` ended, since that run judged later; each run marks what it restated with the time it ended.
+It keeps a pull request's step that a tick's run restated after the pass's own run of `jmerge` ended, since that run judged later; each run marks what it restated with the time it ended, and a pass that reads its run late leaves alone a line a later run marked.
 It keeps a thread's state that the follower restated from an event after the pass began, since T3 Code may have answered the pass before that event; the follower marks each line with the time of its event.
 Where it finds a row's line otherwise than a writer should have left it, it corrects the line and logs a `work-drift` event, which is quiet and tells nobody: a go, or a pull request's step that `jmerge` restated, that the pass judges otherwise, a value that does not follow from the line's own facts, or a line missing or left over.
 While the follower has run on the machine (`follow.json` in jbus's state), a thread's state is such a line too, where the pass finds the thread under way, ended, settled or archived otherwise and the line's value changes: an event the follower missed, as while its stream was lost.

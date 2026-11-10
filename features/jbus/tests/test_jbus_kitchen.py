@@ -36,6 +36,7 @@ import jbus
 import jbus.passes
 import jbus.questions
 import jsettings
+import merge_in_pass
 import origin_tips
 import repo_template
 from jbriefs import meaning
@@ -785,6 +786,7 @@ class Kitchen:
             self.fakes[str(script)] = fake, text
         self.started = subprocess.run
         monkeypatch.setattr(subprocess, "run", self.run)
+        merge_in_pass.patch(monkeypatch)
         monkeypatch.setattr(verbs, "clock", lambda: NOW)
         for name, text in (
             ("open.json", "[]"),

@@ -1287,27 +1287,69 @@ def sections_of(brief: str) -> str:
     return "".join(line for line in lines if not line.startswith(IN_PLACE))
 
 
-def dropped(old: str, new: str) -> list[str]:
-    """The lines of `old` that `new` no longer has, blank ones aside, or none where `new` only
-    grew `old`."""
+REVIEW_CUT = (
+    "jbus: tasks/{slug}.md lost lines of the `## Review` section by seat #{seat} since the last "
+    "pass. These lines went, word for word:\n\n```\n{lines}\n```\n\nIs that cut your own "
+    "correction? Then nothing is asked of you: the section stands as you last left it. If you did "
+    "not make it, put the lines back as they were. The crew is not told: it never writes a "
+    "review's line."
+)
+_REVIEW = re.compile(r"## Review\b")
+_SEAT = re.compile(r"\s#(\d+)$")
+
+
+def _review_seats(lines: list[str]) -> list[str | None]:
+    """For each line of a brief's sections, the seat of the `## Review` section it stands in, the
+    `#<n>` of that section's `By:` line, `""` for a review with no seat, and None for a line of
+    any other section."""
+    seats: list[str | None] = []
+    seat: str | None = None
+    for at, line in enumerate(lines):
+        if line.startswith("## "):
+            seat = None
+            if _REVIEW.match(line):
+                by = next((one for one in lines[at + 1 :] if one.startswith(("By:", "## "))), "")
+                found = _SEAT.search(by) if by.startswith("By:") else None
+                seat = found[1] if found else ""
+        seats.append(seat)
+    return seats
+
+
+def dropped(old: str, new: str) -> list[tuple[str | None, str]]:
+    """The lines of `old` that `new` no longer has, blank ones aside, each with the seat of the
+    `## Review` section it stood in (`_review_seats`), or none where `new` only grew `old`."""
     if new.startswith(old):
         return []
     was, now = old.splitlines(), new.splitlines()
+    seats = _review_seats(was)
     return [
-        line
+        (seats[at], was[at])
         for tag, i1, i2, _, _ in SequenceMatcher(None, was, now, autojunk=False).get_opcodes()
         if tag in ("delete", "replace")
-        for line in was[i1:i2]
-        if line.strip()
+        for at in range(i1, i2)
+        if was[at].strip()
     ]
+
+
+def _reviewer_on(brief: str, seat: str) -> str:
+    """The thread of the brief's last `Reviewer: <thread> #<n>` line on this seat, or nothing."""
+    named = [
+        said
+        for said in below.reviewers(brief, "Reviewer")
+        if below.launched(said) and (found := _SEAT.search(said)) and found[1] == seat
+    ]
+    return "".join(named[-1].split()[:1]).rstrip(",") if named else ""
 
 
 def rewritten(run: Pass, client: Client, rows: list[dict[str, Any]] | None) -> None:
     """Tell a launched row's thread once when its brief lost lines it had on the pass before: a
     later round appends a `## Result, follow-up` and never rewrites a section (the crew skill's
-    "End"). A message the outbox holds keeps the old text, so a later pass sends it. A queue
-    that does not parse (`rows` None) leaves what was seen as it was. `jbus.outbox` reads this
-    module, so this one reads `outbox` at the call."""
+    "End"). A line that went from a `## Review` section is never the crew's, which writes no
+    review line: it is asked once of the reviewer thread on that section's seat, as its own
+    correction stands, and is a condition on the row where no `Reviewer:` line names that seat. A
+    message the outbox holds keeps the old text, so a later pass sends it. A queue that does not
+    parse (`rows` None) leaves what was seen as it was. `jbus.outbox` reads this module, so this
+    one reads `outbox` at the call."""
     from jbus import outbox
 
     if rows is None:
@@ -1323,32 +1365,54 @@ def rewritten(run: Pass, client: Client, rows: list[dict[str, Any]] | None) -> N
         )
         if not thread:
             continue
-        new = sections_of(task_brief(run, slug))
+        brief = task_brief(run, slug)
+        new = sections_of(brief)
         old = kept.get(slug)
         seen[slug] = new
-        lines = dropped(old, new) if old is not None else []
-        if old is None or not lines:
+        cut = dropped(old, new) if old is not None else []
+        if old is None or not cut:
             continue
-        key = f"rewritten|{slug}|{hashlib.sha256((old + new).encode()).hexdigest()[:16]}"
-        text = REWRITTEN.format(slug=slug, lines="\n".join(lines))
-        try:
-            went = outbox.send(
-                run,
-                client,
-                thread=thread,
-                row=slug,
-                key=key,
-                text=text,
-                template="rewritten",
-                needs="act",
-            )
-        except T3Error as error:
-            run.say(f"wait {slug}: its crew could not be told its brief lost lines ({error})")
-            went = False
-        if went:
-            many = "" if len(lines) == 1 else "s"
-            run.say(f"rewritten {slug}: told its crew the brief lost {len(lines)} line{many}")
-        else:
+        sha = hashlib.sha256((old + new).encode()).hexdigest()[:16]
+        groups: dict[str | None, list[str]] = {}
+        for seat, line in cut:
+            groups.setdefault(seat, []).append(line)
+        went = True
+        for seat, lines in groups.items():
+            said = "\n".join(lines)
+            if seat is None:
+                to, key = thread, f"rewritten|{slug}|{sha}"
+                template, who = "rewritten", "its crew"
+                text = REWRITTEN.format(slug=slug, lines=said)
+            else:
+                to = _reviewer_on(brief, seat) if seat else ""
+                key = f"rewritten-review|{slug}|#{seat}|{sha}"
+                template, who = "rewritten-review", f"its reviewer #{seat}"
+                text = REVIEW_CUT.format(slug=slug, seat=seat, lines=said)
+                if not to:
+                    what = f"its brief lost lines of its review by seat #{seat or '?'}"
+                    run.condition(slug, what, said, key=f"review cut {sha} #{seat}")
+                    continue
+            if outbox._last(run, key)[0] == "sent":
+                continue
+            try:
+                sent = outbox.send(
+                    run,
+                    client,
+                    thread=to,
+                    row=slug,
+                    key=key,
+                    text=text,
+                    template=template,
+                    needs="act",
+                )
+            except T3Error as error:
+                run.say(f"wait {slug}: {who} could not be told its brief lost lines ({error})")
+                sent = False
+            if sent:
+                lost = f"{len(lines)} line{'' if len(lines) == 1 else 's'}"
+                run.say(f"rewritten {slug}: told {who} the brief lost {lost}")
+            went = went and sent
+        if not went:
             seen[slug] = old
     if seen != kept:
         write_json(run.state / BRIEFS_SEEN, seen)

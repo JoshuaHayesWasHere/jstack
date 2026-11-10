@@ -143,6 +143,9 @@ A brief `add` queues can still get a `warning: <slug>'s <why>` line, from `add` 
 So does a `Done when:` that asks for a bare `make check` where the home's `fresh-check` names another check command.
 A brief whose `Where:` shares a path with a row its `Builds on:` line names gets `warning: <slug> shares <paths> with <other>, which it builds on: ...`.
 The rest of that line says to join the two rows where they are one change, and otherwise to take the shared path out of the one that has no need of the other's code.
+A follow-up, a brief with a `Follows:` line or with `noticed in` on its `Task:` or `Decisions:` line, gets `warning: <slug> may be the fault <row> (<status>, <pull request>) holds: both name <paths> and <tokens>: drop this row where <row> holds the fault` for each other live row whose brief shares a `Where:` path and a code token of its title and `Task:` with it.
+The line shows `held` as the status of a held row, and `no pull request` for a row that has none.
+It is a warning, never a refusal or a hold, since a shared path and token are no proof of one fault: the brief is queued all the same.
 
 `jbus queue check [<slug>] [--for <home>] < brief.md` runs the checks `add` runs, the `Home:` line and `--for` included, and writes nothing.
 It prints each fault on a line of its own and exits 1, or prints nothing and exits 0, with the warnings `add` would print under either.
