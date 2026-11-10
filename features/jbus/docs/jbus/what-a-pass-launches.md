@@ -158,12 +158,12 @@ A 150k ceiling replayed over that week's calls gives a mean of 101.3k, with 37 c
 It goes on the first pass where all of these hold:
 
 - the home's last call, in [the telemetry store](the-telemetry-store.md), sent 150k tokens or more: a home the store holds no call of gets none;
-- no `/compact` went for that call yet: the store keeps no call for a compaction itself, so a home stays at its last big call until it speaks again, and a key of the thread alone would compact a home once and never again;
-- the call is newer than the last `/compact` the home was sent: the store is built by a chore that can trail a pass, and a call it reads late from before the compaction is not a new climb;
+- no compact message went for that call yet: the store keeps no call for a compaction itself, so a home stays at its last big call until it speaks again, and a key of the thread alone would compact a home once and never again;
+- the call is newer than the last compact message the home was sent: the store is built by a chore that can trail a pass, and a call it reads late from before the compaction is not a new climb;
 - T3 Code says the home has no turn running or queued: a home is compacted between turns, never in the middle of one;
 - the outbox holds it under none of its rules: a home this pass already told something waits for the next pass.
 
-The step runs before `wakes.tell`, so a home sent `/compact` hears its wake on the next pass, when its compaction has ended, with nothing of the wake lost: the outbox holds a second message that needs `act` to a thread this pass told, and the items stay new to the home until a wake goes.
+The step runs before `wakes.tell`, so a home sent the compact message hears its wake on the next pass, when its compaction has ended, with nothing of the wake lost: the outbox holds a second message that needs `act` to a thread this pass told, and the items stay new to the home until a wake goes.
 A send T3 Code did not take writes no key, so the next pass sends it again; one T3 Code refused is marked and not sent again for that call.
 
 ## A scout
