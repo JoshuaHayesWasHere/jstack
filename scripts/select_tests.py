@@ -169,9 +169,12 @@ is `all`, `--part guards` still prints those guards, never `all`, and `--part re
 
 `select_tests.py --part touched <base> <head>` prints the test files the change itself adds or
 edits, each one the check runs, and never `all`: a change that selects every test still names
-its own. It needs no selection, so it is quick. They are the desk's check, with the lint (the
-crew's check block, features/crew/do-the-task.md, runs each file alone in the short lane), and
-CI's check runs the rest of the selection.
+its own. It needs no selection, so it is quick. `--part cross` prints the cross-cutting tests of
+the selection, wherever their files live, and no other: neither the catch-all nor a test the
+change reaches or edits. Of `all` it prints every cross-cutting test. The touched tests and the
+cross-cutting ones are the desk's check, with the lint (the crew's check block,
+features/crew/do-the-task.md, runs each file alone in the short lane), and CI's check runs the
+rest of the selection.
 
 `select_tests.py --within <list> <base> <head>` prints, of the test files a list names (a file,
 or a folder of tests that ends in `/`), the ones the change reaches on a Mac: the macOS job reads
@@ -1622,7 +1625,7 @@ def selection(changed, failed=(), edited=None):
     return sorted(chosen | added), {**why, "added": sorted(added)}
 
 
-DESK_PARTS = ("guards", "rest", "touched")
+DESK_PARTS = ("cross", "guards", "rest", "touched")
 
 
 def touched(changed):
@@ -1641,8 +1644,19 @@ def guards(changed, tests):
     return sorted(set(tests) & first)
 
 
+def cross(tests):
+    """Of a selection's `tests`, the cross-cutting ones, wherever their files live: the guards a
+    desk runs, each alone. A selection of `["all"]` gives them all the same."""
+    if tests == ["all"]:
+        return sorted(set(cross_cutting()) & collected())
+    return sorted(set(tests) & set(cross_cutting()))
+
+
 def desk_part(name, changed, tests):
-    """The `guards` or the `rest` of a selection's `tests`. The rest of `["all"]` is `["all"]`."""
+    """The `cross`, the `guards` or the `rest` of a selection's `tests`. The rest of `["all"]` is
+    `["all"]`."""
+    if name == "cross":
+        return cross(tests)
     if name == "guards":
         return guards(changed, tests)
     if tests == ["all"]:
@@ -2161,7 +2175,7 @@ def main(argv):
         sys.exit(
             "usage: select_tests.py [--within <list> [--strict] | [--pull-request] [--parts <n>]]"
             " <base> <head>\n"
-            "       select_tests.py --part guards|rest|touched <base> <head>\n"
+            "       select_tests.py --part cross|guards|rest|touched <base> <head>\n"
             "       select_tests.py --failed-on-main <days> <kept>"
         )
     diff = subprocess.run(

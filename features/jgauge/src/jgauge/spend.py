@@ -342,18 +342,39 @@ def role(title: str) -> tuple[str, str]:
 
 def day_lines(runs: list[Run], day: str) -> tuple[dict, list[dict]]:
     """A day's spend of `runs`, the runs that started on it: one line of its totals and its units
-    by kind, and one line for each role and slug. No line holds a title or a message, only the
-    slug of a thread jbus named."""
+    by kind, and one line for each role, slug, `trigger` and `reviewed`, with its `dollars` at
+    `PRICES`. `trigger` is what woke the runs (`Run.trigger`, "" for a run no jbus send woke), and
+    `reviewed` says a run of the same role and slug that `prereviewed` woke started before them
+    that day, so a reader tells the runs after a row's first prereview from those before it. No
+    line holds a title or a message, only the slug of a thread jbus named."""
+
+    def priced(run: Run) -> float:
+        t = run.tokens
+        plain = t.input - t.cached - t.written
+        return dollars(run.model, plain, t.written, t.cached, t.output) or 0.0
+
     by_kind: dict[str, float] = defaultdict(float)
     for run in runs:
         by_kind[kind(run)] += units(run)
     total = {"day": day, **_sums(runs), **{COLUMNS[k]: round(by_kind[k]) for k in KINDS}}
-    groups: dict[tuple[str, str], list[Run]] = defaultdict(list)
-    for run in runs:
-        groups[role(run.title)].append(run)
+    groups: dict[tuple[str, str, str, bool], list[Run]] = defaultdict(list)
+    seen: set[tuple[str, str]] = set()
+    for run in sorted(runs, key=lambda one: (one.start, one.ordinal)):
+        name, slug = role(run.title)
+        groups[name, slug, run.trigger, (name, slug) in seen].append(run)
+        if run.trigger == "prereviewed":
+            seen.add((name, slug))
     rows = [
-        {"day": day, "role": name, "slug": slug, **_sums(grouped)}
-        for (name, slug), grouped in sorted(groups.items())
+        {
+            "day": day,
+            "role": name,
+            "slug": slug,
+            "trigger": woke,
+            "reviewed": reviewed,
+            **_sums(grouped),
+            "dollars": round(sum(priced(run) for run in grouped), 4),
+        }
+        for (name, slug, woke, reviewed), grouped in sorted(groups.items())
     ]
     return total, rows
 
