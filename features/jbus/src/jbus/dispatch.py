@@ -80,7 +80,7 @@ from jbriefs.home import home_of
 from jbus import cleanup, crewtree, pausedon, queue, read_json, watch, write_json
 from jbus.launches import record_path, records
 from jbus.launchhome import homed, unhomed
-from jbus.launchtext import RESUMED, fixes_main, launched_text, resumed
+from jbus.launchtext import RESUMED, fixes_main, launched_text, resumed, resumed_on
 from jbus.passes import Changed, Depends, Pass, Red, Rerun, Slot
 from jbus.t3 import Client, T3Dropped, T3Error, T3Refused
 from jbus.watch import TITLE, End, World, against, at_work, crew_threads, ended
@@ -427,10 +427,13 @@ class Turns:
 
     def _resume(self, row: queue.Row) -> pausedon.Cause | None:
         """Return the cause a left row launches again for (`pausedon.cleared`), or None. Its
-        thread is not listed unsettled (`pausedon.live`), is not at work, and was sent nothing this
-        pass, since a message starts the old thread's turn."""
+        thread is not listed unsettled (`pausedon.live`), is not archived, as `pausedon.tell`
+        carries no archived thread's row on, is not at work, and was sent nothing this pass, since
+        a message starts the old thread's turn."""
         run, world, slug = self.run, self.world, row["slug"]
         if row.get("status") != "left" or pausedon.live(world, slug) or not launched(run, slug):
+            return None
+        if slug in world.archived:
             return None
         old = world.thread(slug)
         if old and (
@@ -514,8 +517,11 @@ class Turns:
             met = merged | {
                 other for other in row.get("depends", []) if ended(run, world, other) == End("done")
             }
-            unmerged = [o for o in row.get("depends", []) if o not in met and cause is None]
-            on = world.stack_on(run, unmerged, brief)
+            if cause is None:
+                unmerged = [other for other in row.get("depends", []) if other not in met]
+                on = world.stack_on(run, unmerged, brief)
+            else:
+                unmerged, on = [], resumed_on(run.home, slug)
             if unmerged and on is None:
                 run.reasons[slug] = Depends(tuple(unmerged))
                 continue

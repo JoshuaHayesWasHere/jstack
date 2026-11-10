@@ -62,6 +62,7 @@ A move to `removed` is the line the `remove` verb writes, and `derive` never jud
 A row left with work on its branch is launched again by jbus on its own slug, branch and worktree (`jbus.dispatch`), never carried on under a new slug.
 The thread before it ended, so the resume is a new thread in the old worktree (`jbus.crewtree.reopen`): the worktree still there as its crew left it, or one made from the branch, never with `-b`.
 Its brief gets a `Resume:` line above its first `## `, the line the home skill writes by hand, naming the cause it carries on from; its brief, its Result so far and its commits are what it starts from.
+A row that launched stacked keeps the `Stacked on:` line of its brief in `tasks/`, where `jbus.stack` keeps it current, and gets no `Green main:` (`jbus.launchtext.resumed_on`): the resume judges no depends again, so a base still open is still its base.
 It launches once a cause the row waited on clears, each read from the state (`jbus.pausedon.cleared`):
 
 | Cause | Read from | Once-key |
@@ -73,3 +74,4 @@ It launches once a cause the row waited on clears, each read from the state (`jb
 A gate's answer is no cause of a resume: `questions.carry` sends it to the thread on the brief's `Thread:` line, the old thread until a resume moves the line to the new one.
 The once-key goes into the resume's launch record as `cause`, so each cause launches the row once.
 A row whose thread is still listed and not settled is carried on in place instead (`jbus.pausedon.tell`), under the same key, and a row whose old thread this pass already sent a message is left for that thread's turn.
+A row whose thread T3 Code lists as archived is not launched again, as `jbus.pausedon.tell` carries no archived thread's row on: archiving a thread puts its row away.
