@@ -167,7 +167,7 @@ def test_a_send_t3_code_refused_is_not_sent_again_for_that_call(kitchen):
     assert any("T3 Code refused" in line for line in said)
     kitchen.t3.refuse_send = False
     kitchen.poll(NOW + 4 * MIN)
-    assert sent(kitchen) == []
+    assert sent(kitchen) == [(kitchen.thread, key(kitchen, 0))]
 
 
 def test_the_last_call_of_a_thread_is_read_through_the_index_of_sessions_by_thread(kitchen):
