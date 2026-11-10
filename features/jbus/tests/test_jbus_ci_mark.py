@@ -5,9 +5,9 @@ page once the pass before it kept every run, and every run of the pass's hours o
 from datetime import UTC, datetime, timedelta
 
 import jsettings
-from jsettings import store
 from jbus.ci import collect, ledger
 from jbus.ci.collect import Unavailable
+from jsettings import store
 
 REPO = "JoshuaHayesWasHere/jstack"
 NOW = datetime(2026, 10, 17, 22, 15, tzinfo=UTC)
