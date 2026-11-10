@@ -355,38 +355,57 @@ def test_an_added_branch_no_test_runs_fails_and_one_a_test_runs_passes(tmp_path)
     assert (tmp_path / "ran/own/stopped").exists(), "the run went on after every line had run"
 
 
-def test_a_line_only_another_modules_own_test_runs_counts_as_run(tmp_path):
+def test_the_desk_and_ci_give_the_same_answer_for_a_line_only_another_modules_test_runs(tmp_path):
+    """A line of `rows` that only `queue`'s own test runs, through `queue`'s code, is a fault
+    whether the check reads what CI's parts ran or runs the tests itself, as a desk does: that
+    test does not name `rows`, so its run of the line does not count either way."""
     repo = tmp_path / "repo"
     code = repo / "features/pkg/src/pkg"
     tests = repo / "features/pkg/tests"
     code.mkdir(parents=True)
     tests.mkdir(parents=True)
     (code / "__init__.py").write_text("")
-    (code / "proved.py").write_text("def proved(row):\n    return row == 'proved'\n")
-    (code / "ready.py").write_text("def ready(row):\n    return row == 'ready'\n")
-    (tests / "test_proved.py").write_text(
+    (code / "rows.py").write_text("def rows(row):\n    return row\n")
+    (code / "queue.py").write_text(
+        "from pkg import rows\n\n\ndef queue(row):\n    return rows.rows(row)\n"
+    )
+    (tests / "test_rows.py").write_text(
         "import sys\n"
         "sys.path.insert(0, 'features/pkg/src')\n"
-        "from pkg import proved, ready\n\n\n"
-        "def test_a_proved_row_is_ready():\n"
-        "    assert not proved.proved(None)\n"
-        "    assert not ready.ready(None)\n"
+        "from pkg import rows\n\n\n"
+        "def test_a_row():\n"
+        "    assert rows.rows(1) == 1\n"
+    )
+    (tests / "test_queue.py").write_text(
+        "import sys\n"
+        "sys.path.insert(0, 'features/pkg/src')\n"
+        "from pkg import queue\n\n\n"
+        "def test_a_queued_row():\n"
+        "    assert queue.queue(None) == 0\n"
+        "    assert queue.queue('held') == 'held'\n"
     )
     for args in (["init", "-q"], ["add", "."], ["commit", "-qm", "base"]):
         git("-c", "user.name=t", "-c", "user.email=t@t", *args, repo=repo)
     since = git("rev-parse", "HEAD", repo=repo)
-    (code / "proved.py").write_text(
-        "def proved(row):\n    if row is None:\n        return False\n    return row == 'proved'\n"
+    (code / "rows.py").write_text(
+        "def rows(row):\n    if row is None:\n        return 0\n    return row\n"
     )
-    (code / "ready.py").write_text(
-        "def ready(row):\n    if row is None:\n        return False\n    return row == 'ready'\n"
+    (code / "queue.py").write_text(
+        "from pkg import rows\n\n\n"
+        "def queue(row):\n    if row == 'held':\n        return row\n    return rows.rows(row)\n"
     )
     lines = added(since, repo)
     assert lines == {
-        "features/pkg/src/pkg/proved.py": {2, 3},
-        "features/pkg/src/pkg/ready.py": {2, 3},
+        "features/pkg/src/pkg/rows.py": {2, 3},
+        "features/pkg/src/pkg/queue.py": {5, 6},
     }
-    assert faults(lines, tmp_path / "unrun", repo) == []
+    fault = [
+        "features/pkg/src/pkg/rows.py:3 is a line this branch adds that no test runs: add a test "
+        "that runs it, among the tests that name its module (1 of them ran)",
+    ]
+    a_part(repo, since, tmp_path / "parts/1")
+    assert faults(lines, tmp_path / "ci", repo, tmp_path / "parts") == fault
+    assert faults(lines, tmp_path / "desk", repo) == fault
 
 
 def test_an_untested_line_is_listed_once_its_own_tests_end_not_another_modules(tmp_path):
