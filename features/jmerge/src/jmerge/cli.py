@@ -54,11 +54,13 @@ LIMIT = 100
 """The most open pull requests `gh pr list` is asked for, the cap jbus's own lists use. Left
 unsaid, `gh` gives 30."""
 DECIDING = (1, 2, 4, 8, 15, 30)
-"""The pauses, in seconds, after which an accept asks GitHub again while it has not decided
-whether the accepted pull request merges, 60 s in all; past them the accept judges what GitHub
-said last. GitHub works that out in the background after an ask, a while after the base moved.
-An accept that waited for the run lock behind jbus's merge run, whose merges moved main, read
-`ready.UNDECIDED` on its one ask and merged nothing: #1504 did on three runs on 2026-11-09."""
+"""The pauses, in seconds, after which an accept asks GitHub again while the one reason it
+would not merge is that GitHub has not decided whether the pull request merges
+(`ready.UNDECIDED`), 60 s in all; past them the accept says that reason. One that would not
+merge were GitHub to say it merges says why at once, since GitHub's answer would not change
+that. GitHub works it out a while after the base moved. An accept that waited for the run lock
+behind jbus's merge run, whose merges moved main, read `ready.UNDECIDED` on its one ask and
+merged nothing: #1504 did on three runs on 2026-11-09."""
 PACKAGE = Path(__file__).parent
 PROTECTED = PACKAGE / "protected.txt"
 REQUIRED_CHECKS = "required-checks"
@@ -538,6 +540,34 @@ class Repo:
             return ready.listed_in_full(one, every)
         except (ValueError, KeyError, TypeError, AttributeError):
             return one
+
+    def mergeable(self, one: ready.PullRequest) -> str:
+        """Whether `one` merges, as GitHub lists it now, asked again: empty where GitHub's list
+        cannot be read, or lists `one` at another head or not at all, since the accept lifted
+        the hold of the head it judged."""
+        asked = _run(
+            self.main,
+            "gh",
+            "pr",
+            "list",
+            "--state",
+            "open",
+            "--limit",
+            str(LIMIT),
+            "--json",
+            "number,headRefOid,mergeable",
+            *self.about,
+        )
+        try:
+            listed = json.loads(asked.stdout)
+        except ValueError:
+            return ""
+        same = (
+            pull
+            for pull in listed
+            if (pull["number"], pull["headRefOid"]) == (one.number, one.head)
+        )
+        return next((pull["mergeable"] for pull in same), "")
 
     def left(self, one: ready.PullRequest) -> tuple[str, ...] | None:
         """`gh pr list` lists a rename under its new path alone, and only the files endpoint
@@ -1285,6 +1315,19 @@ class Repo:
             safe = f"safe because {proven[0]} (proven at {at[:12]})"
         self.accepted = (one.number, one.head)
         found = self.waits(one, default)
+        for pause in DECIDING:
+            if found.judged is not None or ready.code_of(found.why) != ready.UNDECIDED.code:
+                break
+            beyond = self.waits(replace(one, mergeable="MERGEABLE"), default)
+            if beyond.judged is None:
+                found = beyond
+                break
+            time.sleep(pause)
+            decided = self.mergeable(one)
+            if not decided:
+                break
+            one = replace(one, mergeable=decided)
+            found = self.waits(one, default)
         if found.judged is None:
             say(lines.waits(found.verb, one.number, one.url, found.why))
             return 1
@@ -2098,32 +2141,23 @@ def _merging(
     if args.sweep:
         return Sweep(repo).run(say, check)
 
-    def ask() -> tuple[subprocess.CompletedProcess[str], list[ready.PullRequest] | None]:
-        asked = _run(
-            main_checkout,
-            "gh",
-            "pr",
-            "list",
-            "--state",
-            "open",
-            "--limit",
-            str(LIMIT),
-            "--json",
-            LIST,
-            *repo.about,
-        )
-        try:
-            return asked, [with_browser(repo, one) for one in json.loads(asked.stdout)]
-        except (ValueError, KeyError, TypeError, AttributeError):
-            return asked, None
-
-    asked, listed = ask()
-    if args.accept is not None and not args.check:
-        for pause in DECIDING:
-            if not undecided(listed, int(args.accept)):
-                break
-            time.sleep(pause)
-            asked, listed = ask()
+    asked = _run(
+        main_checkout,
+        "gh",
+        "pr",
+        "list",
+        "--state",
+        "open",
+        "--limit",
+        str(LIMIT),
+        "--json",
+        LIST,
+        *repo.about,
+    )
+    try:
+        listed = [with_browser(repo, one) for one in json.loads(asked.stdout)]
+    except (ValueError, KeyError, TypeError, AttributeError):
+        listed = None
     default, silent = repo.default() if listed else ("", "")
     if asked.returncode or listed is None:
         silent = _why(main_checkout, asked)
@@ -2220,12 +2254,6 @@ def in_line(one: ready.PullRequest, found: Judgement) -> bool:
     if one.failed:
         return ready.code_of(found.why) in UPDATING_RED
     return found.judged is not None or ready.code_of(found.why) in IN_LINE
-
-
-def undecided(listed: list[ready.PullRequest] | None, number: int) -> bool:
-    """Whether GitHub listed pull request `number` with no answer yet to whether it merges."""
-    found = next((one for one in listed or () if one.number == number), None)
-    return found is not None and found.mergeable not in ("MERGEABLE", "CONFLICTING")
 
 
 def with_browser(repo: Repo, listed: dict) -> ready.PullRequest:

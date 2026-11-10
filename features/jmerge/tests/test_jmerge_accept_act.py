@@ -483,12 +483,35 @@ def test_an_accept_that_is_ready_merges_once_github_decides_after_the_run_it_wai
     assert [call.split()[2] for call in kitchen.calls()] == ["7"]
 
 
-def test_an_accept_whose_list_github_garbles_waits_on_github_and_merges_nothing(kitchen):
-    """An accept that cannot read GitHub's list asks no more (`jmerge.cli.undecided`) and says
-    so, as a plain run does."""
+ASKED_AGAIN = "pr list --state open --limit 100 --json number,headRefOid,mergeable"
+"""The call of `jmerge.cli.Repo.mergeable`, an accept's ask of GitHub again."""
+
+
+def test_an_accept_short_of_more_than_githubs_answer_says_why_at_once(kitchen):
+    """An accept whose pull request GitHub lists as undecided, and that is short of something
+    the accept does not lift, says that reason at once: it asks GitHub nothing again, since the
+    answer would not merge it."""
     held(kitchen, "beta", 7, {"a.txt": "ours\n" + LINES}, mode="none")
+    (kitchen.home.state / "merge-off").touch()
+    kitchen.pulls["beta"]["mergeable"] = "UNKNOWN"
+    (kitchen.home.stub / "list.json").write_text(json.dumps(list(kitchen.pulls.values())))
+    out = accept(kitchen, 7)
+    assert kitchen.home.code == 1, (out, kitchen.home.stderr)
+    assert out == [f"wait 7 {url(7)}: {ready.MERGE_OFF}"], out
+    assert kitchen.calls(ASKED_AGAIN) == []
+    assert kitchen.calls() == []
+
+
+def test_an_accept_that_cannot_read_githubs_answer_again_says_it_has_not_decided(kitchen):
+    """An accept whose ask of GitHub again comes back unreadable asks no more and says GitHub
+    has not decided, merging nothing."""
+    held(kitchen, "beta", 7, {"a.txt": "ours\n" + LINES}, mode="none")
+    undecided = [{**pull, "mergeable": "UNKNOWN"} for pull in kitchen.pulls.values()]
+    (kitchen.home.stub / "once").mkdir()
+    (kitchen.home.stub / "once" / "1.json").write_text(json.dumps(undecided))
     (kitchen.home.stub / "list.json").write_text("not json\n")
     out = accept(kitchen, 7)
     assert kitchen.home.code == 1, (out, kitchen.home.stderr)
-    assert out == ["wait: could not ask GitHub: gh exited 0: its output was not JSON"], out
+    assert out == [f"wait 7 {url(7)}: {ready.UNDECIDED}"], out
+    assert len(kitchen.calls(ASKED_AGAIN)) == 1
     assert kitchen.calls() == []
