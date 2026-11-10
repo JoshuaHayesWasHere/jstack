@@ -10,7 +10,9 @@ from pathlib import Path
 
 import pytest
 
+import jbus
 from crew_branches import git_said
+from jbus import crewtree, passes
 from test_jbus_kitchen import NOW, approved
 
 GATE = "condition alpha: the crew's worktree could not be made"
@@ -92,3 +94,17 @@ def test_a_base_that_tracks_one_of_the_two_files_is_a_gate(kitchen, tracked):
     kitchen.poll()
     assert kitchen.t3.launches == [] and kitchen.lines("condition") == [GATE]
     assert branches(kitchen) == "" and not tree_of(kitchen).exists()
+
+
+@pytest.mark.parametrize(
+    ("where", "slug"),
+    [("alpha", "alpha"), ("alpha/features/jbus", "alpha"), ("scout+beta/notes", "beta"), ("", "")],
+)
+def test_a_directory_in_a_crews_or_scouts_worktree_names_its_slug(kitchen, where, slug):
+    run = passes.Pass(jbus.load(), jbus.load().project("demo"), NOW)
+    assert crewtree.holding(run, tree_of(kitchen, where)) == slug
+
+
+def test_a_directory_in_no_worktree_names_no_slug(kitchen):
+    run = passes.Pass(jbus.load(), jbus.load().project("demo"), NOW)
+    assert crewtree.holding(run, kitchen.checkout) == ""
