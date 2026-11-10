@@ -5,7 +5,7 @@ members in `batch.json`. CI's check of that pull request leaves the artifact of 
 (`green.checked`), and on it `jmerge` squash-merges each member at its own head, in merge order,
 with no guards run. A batch whose check failed sends each member down the single path of today.
 
-The tests run the `jmerge` command against a real origin and the fake `gh` of
+The tests run the `jmerge` command (`jmerge.cli`) against a real origin and the fake `gh` of
 `test_jmerge_fresh.Kitchen`, which also opens a pull request, refuses one merge by number, and
 answers the artifact and run lookups from files of the stub."""
 
