@@ -482,8 +482,8 @@ def fake_gh(stub, args, cwd):
     `workflows.json` the two nightlies, browser.yml and macos-nightly.yml; one that holds null is a
     repo GitHub gives no list for, an `object` of null. A run's jobs come from `run-jobs.json` by
     the run's id, and the call fails where that entry is null. A compare of two commits gives the
-    status of its head against its base from `compare.json` by `<base>...<head>`, or `ahead`, a head
-    that holds its base.
+    status of its head against its base from `compare.json` by `<base>...<head>`, else `behind`
+    where the kitchen's origin holds both and the base is no ancestor of the head, else `ahead`.
     """
     with open(stub / "gh.log", "a") as log:
         log.write(" ".join(args) + "\n")
@@ -555,10 +555,12 @@ def fake_gh(stub, args, cwd):
         tree = {"entries": entries} if files is not None else None
         said = json.dumps({"data": {"repository": {"object": tree}}})
     elif args[0] == "api" and "/compare/" in args[1]:
-        kept = stub / "compare.json"
-        said = (json.loads(kept.read_text()) if kept.exists() else {}).get(
-            args[1].split("/compare/")[1], {"status": "ahead"}
-        )
+        kept, pair = stub / "compare.json", args[1].split("/compare/")[1]
+        said = (json.loads(kept.read_text()) if kept.exists() else {}).get(pair)
+        if said is None:
+            how = ["git", "-C", str(stub.parent / "origin.git"), "merge-base", "--is-ancestor"]
+            ran = subprocess.run([*how, *pair.split("...")], capture_output=True).returncode
+            said = {"status": "behind" if ran == 1 else "ahead"}
         said = json.dumps(said)
     elif args[:2] == ["pr", "edit"]:
         if (stub / "gh-edit-refused").exists():
@@ -710,7 +712,7 @@ shell block of a skill, a `jbus` run as a command. It is the same function, alon
 
 SCRIPT = """\
 #!{python}
-import hashlib, json, sys, time
+import hashlib, json, subprocess, sys, time
 from pathlib import Path
 
 
@@ -1174,7 +1176,7 @@ def test_a_fake_uses_only_the_names_its_script_imports(fake):
         inner = [const for const in code.co_consts if inspect.iscode(const)]
         return set(code.co_names).union(*map(names, inner))
 
-    imported = {"hashlib", "json", "sys", "time", "Path"}
+    imported = {"hashlib", "json", "subprocess", "sys", "time", "Path"}
     assert all(f"import {name}" in SCRIPT or f", {name}" in SCRIPT for name in imported)
     assert names(fake.__code__) & set(globals()) <= imported
 

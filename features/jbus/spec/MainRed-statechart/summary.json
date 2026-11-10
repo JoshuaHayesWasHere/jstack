@@ -1,0 +1,36 @@
+{
+  "view": "customer",
+  "modelStates": 6145,
+  "modelTransitions": 14950,
+  "chartStates": 10,
+  "chartTransitions": 44,
+  "chartStatus": {
+    "works": 10,
+    "wrong": 0,
+    "fixed": 0
+  },
+  "chartGroups": [
+    {
+      "name": "Not red",
+      "color": "#d1f2eb",
+      "states": 6
+    },
+    {
+      "name": "Red, its fix on its way",
+      "color": "#fdebd0",
+      "states": 3
+    },
+    {
+      "name": "Red, nothing open yet",
+      "color": "#f9d6d5",
+      "states": 1
+    }
+  ],
+  "mixedGroups": [],
+  "regions": {
+    "drawn": false,
+    "why": "the regions do not combine into the flat chart, with 7 difference(s), such as transitions only in EXPECTED (a guard in the spec blocks them, or the spec renamed the step): Main red | a revert open --> Main green | a fix row out : jbus's pass sees main green and closes the revert"
+  },
+  "classes": [],
+  "codeLike": []
+}
