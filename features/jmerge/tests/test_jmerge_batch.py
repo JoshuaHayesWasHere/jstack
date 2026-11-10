@@ -692,12 +692,12 @@ def test_the_most_a_batch_takes_doubles_after_a_pass_and_halves_after_a_fail(kit
     assert ends(kitchen, 24, "late") == 24 == ends(kitchen, 24, "late")
     assert ends(kitchen, 24, "fail", narrowed=True) == 24
     assert ends(kitchen, 24, "prove", narrowed=True) == 24
-    assert [ends(kitchen, n, "fail") for n in (24, 12, 6, 3, 2)] == [12, 6, 3, 2, 2]
     refuses_batches(kitchen)
     three(kitchen)
     unmade, *_ = kitchen.run()
     assert unmade.startswith("batch: not made over main ")
-    assert most(kitchen) == 2
+    assert most(kitchen) == 24
+    assert [ends(kitchen, n, "fail") for n in (24, 12, 6, 3, 2)] == [12, 6, 3, 2, 2]
 
 
 def test_building_a_batch_says_its_size_and_the_most(kitchen):
