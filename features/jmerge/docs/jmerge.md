@@ -418,6 +418,51 @@ A tree that cannot be built waits with why, and a head that conflicts with the t
 A held pull request gives up its base's line ("Merges cleanly over today's main"), since it waits on its crew.
 A run drops the record of each pull request that is no longer open.
 
+## Batches
+
+Where the state has a `merge-batch` file, `jmerge` proves the pull requests main moved past together, on one check of CI, and merges them all on its pass (`features/jmerge/src/jmerge/batch.py`).
+A repo with no such file merges each one alone, as "Merges cleanly over today's main" and "The guards on the merged tree" say.
+A batch of any size costs one CI run and no guards, where the guards ran one tree at a time in the merge lock, 98 s each on 2026-11-09, and main's merge rate stopped at 24 an hour.
+
+**When a batch forms.**
+A member is a pull request into the default branch that is ready by every rule but two: main moved after its check started, and the guards on its merged tree.
+Its review, findings, Result lines, `Checked:` and `Proved:` lines, own required checks at its head, queue go, holds, protected paths and `merge-off` are all judged first, as for any merge, and a head that conflicts with today's main waits for its rebase.
+These stay out, and take the path of today:
+
+- a revert jbus opened for a red main, which still goes first;
+- a second pull request that adds a migration, which waits as `it adds a migration, and #<n>, which merges before it, is merging`, so the two merge in their order;
+- a pull request whose row merges after one not merged yet, which waits as `merges after` says;
+- one whose check ran over today's main, which merges on that check;
+- one accepted with `--accept`, and every pull request while `main.json` names main red.
+
+Once every pull request is judged, `jmerge` builds main's tip with each member merged in, in merge order, with `git merge-tree`, each one over the last as its squash will land it, and leaves out one that conflicts with a member before it.
+A batch holds 12 members at most (`batch.MOST`).
+It makes the last tree one commit whose parent is the tip, force-pushes it to its own branch `jmerge/batch`, and opens one draft pull request for it where GitHub lists none open.
+`batch.json` in the state directory keeps the tip, the tree, the commit, the members with their heads, and when it was pushed.
+Each member waits as `it is in jmerge's batch over <base> at <tip12>, whose check decides its merge`, with the code `merging`: jmerge's own work, which no crew can fix.
+
+**What proves it.**
+CI's check of the batch's pull request runs on GitHub's merge of its head over main, whose tree is the batch's tree, since the head holds the tip.
+A pass leaves the artifact `checked-tree-<tip tree>-<batch tree>` (`green.checked`), and a later run of the same two trees that reuses the pass finds the artifact the first one left.
+A run of `jmerge` that finds that artifact from a successful run of this repo, with main still at the batch's tip, takes the merge lock once and squash-merges each member at its own head (`--match-head-commit`), in the batch's order, with no guards run.
+Before each merge, main must be at the tip the merge before it left.
+Each merge's line says `CI's check passed jmerge's batch over <base> at <tip12> in <run url>, so no guards ran`.
+The merges stop at the first that does not land: GitHub refused it (`the merge failed`), it is no longer judged a member at that head, or another hand moved main.
+Each member after it waits as `jmerge's batch over <base> at <tip12> stopped at #<n>, which did not merge: the next batch takes it`.
+Where another run holds the merge lock, the batch stays proven for the next run.
+
+While a batch is out (checked, or proven and not merged yet), a pull request that would merge alone waits as `jmerge's batch over <base> at <tip12> is checked and merges first: a merge before it would undo that check`, and so does a member that came ready after the batch was built.
+A revert still merges first, and its merge ends the batch, which is built again over the new tip.
+A batch still checked whose tip moved, whose pull request GitHub no longer lists at its commit, or whose member is no longer judged one at its head, is built again in that run, over today's tip.
+The batch's pull request is `jmerge`'s own: it has no brief and no row, `jmerge` never judges it and never merges it, and it stays open from one batch to the next.
+Like the guards, the batch runs no browser tests: browser.yml skips a draft.
+
+**What a failed batch does.**
+A batch whose check failed, passed with no artifact found, or went 30 minutes from its push with no end (`batch.PENDING_MINUTES`), has failed.
+Each of its members then goes the single path of today, in that run, at the head the batch held: its merged tree's guards, or the line ("The guards on the merged tree"), and `batch.json` keeps those heads under `failed` until each one's head moves.
+A batch that cannot be made, whose push or pull request GitHub refused, sends its members down the same path in that run, after a line that starts `batch: not made`.
+Splitting a failed batch in halves to find the member that failed it is a later row (po-batch-split-halves).
+
 ## A failed check over a base that moved
 
 A pull request's check runs on its merge with the base as the base was then, and a rerun runs on that same merge.
