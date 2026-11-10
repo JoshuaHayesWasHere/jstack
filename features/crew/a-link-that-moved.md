@@ -2,13 +2,14 @@
 
 A link jbus stacked, a brief with a `Stacked on:` line in its head, is moved by jbus and not by the home.
 While its base is open jbus tells it nothing, and the link stays stacked on it until its base merged.
-Once its base merged jbus moves it itself or sends it the line once, naming the commit its base merged at once its pull request is based on the branch its base merged into.
+Once its base merged jbus moves it itself or sends it the line once, naming the commit its base merged at once its pull request is based on the branch its base merged into, and the commit this branch started from.
 Such a link sends the home nothing for a conflict: on jbus's message that it is in conflict, it runs the block below at once, with the branch its `Stacked on:` line names while that line names no commit, and otherwise with the commit jbus's last line named.
 
 jbus's line is the only reason a link is rebased, and the base is never this thread's to change.
-Run this on it, with the branch the line names in place of the words in angle brackets, or the commit when the line gives one.
+Run this on it, with the branch the line names in place of the words in angle brackets, or the commit when the line gives one: on jbus's message that its base merged, that is the commit the message names as `was`.
+Take the commit first: jmerge deletes a merged branch, so the base's branch is gone by the time jbus sends the line, and only the commit still says where this branch started.
 It moves the link's own commits onto the new base: the ones above the commit this branch started from.
-That commit is the tip of the branch it sat on, or, when that branch was itself moved since, the tip it had before, which git's log of the remote branch still has:
+That commit is the newest head of the base this branch holds, which jbus names; with no commit named, it is the tip of the branch it sat on, or, when that branch was itself moved since, the tip it had before, which git's log of the remote branch still has:
 
 ```sh
 B="$H/tasks/<slug>.md"

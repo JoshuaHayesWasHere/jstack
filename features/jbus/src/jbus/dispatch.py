@@ -700,6 +700,7 @@ class Turns:
                     "state": "launched",
                     "thread": reply["threadId"],
                     "at": run.now.isoformat(),
+                    "sha": made,
                 },
             )
             write_thread(run, slug, reply["threadId"])

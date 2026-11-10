@@ -33,11 +33,15 @@ has the line and has not moved yet, and whose base merged:
   the head under it, or while its worktree has work in it (uncommitted, unpushed or a rebase not
   finished); a rebase that conflicts, a push the lease refuses, or a base that was rewritten or
   that no reflog records, leaves the branch as it was.
-- For each of those, jbus tells the crew to move its own commits instead, from the base's last
-  head, under the key `restack|<slug>|<head 12>|<merge 12>`. Only once the link moved or that
-  message went does the line say `Stacked on: <slug> <branch> at <merge>`, so a message held for a
-  capped thread is sent on a later pass, and the crew hears of its stack once. `jmerge` then waits
-  until the link's head holds that commit (`ready.STACKED_UNMOVED`), and merges it as any other.
+- For each of those, jbus tells the crew to move its own commits instead, under the key
+  `restack|<slug>|<head 12>|<merge 12>`, from the commit its branch started from (`_started`):
+  the newest head of the base that the link holds, of the base's last head, the heads the reflogs
+  record, and the commit jbus cut the link's branch at, which its launch record keeps since the
+  base's branch, and its reflog with it, is gone once the base merged. Only once the link moved
+  or that message went does the line say `Stacked on: <slug> <branch> at <merge>`, so a message
+  held for a capped thread is sent on a later pass, and the crew hears of its stack once.
+  `jmerge` then waits until the link's head holds that commit (`ready.STACKED_UNMOVED`), and
+  merges it as any other.
 
 A row still before its pull request, its crew at its desk proof or waiting on the review jbus
 launches (`prereview`), is moved by `before_pull` once its base merged. It moves the line onto the
@@ -69,7 +73,8 @@ from typing import Any
 
 from jbriefs import below
 from jbriefs.home import thread_of
-from jbus import END_TURN, dispatch, mirror, rebase, review, verbs
+from jbus import END_TURN, dispatch, mirror, queue, rebase, review, verbs
+from jbus.launches import records
 from jbus.passes import Pass
 from jbus.prereview import pushed
 from jbus.t3 import Client
@@ -82,8 +87,9 @@ MOVED = (
     "jbus: {base} merged as {merge}, and your stacked pull request #{number} is now based on "
     "{onto}, so its block rebases onto origin/{onto}. "
     'In your own worktree, read "A link that moved" in the crew skill again, from the file, '
-    "and run its block with {was} as the branch it sat on. That commit is the head {base} merged "
-    "at. If the block prints `not found`, run it again with {branch}. " + END_TURN
+    "and run its block with {was} as `was`: the commit your branch started from, the newest "
+    "head of {base} it holds. Only if the block prints `not found`, run it again with {branch}. "
+    + END_TURN
 )
 
 
@@ -198,13 +204,14 @@ def _moved(
         run.say(line)
         _rewrite(run, slug, replace(stacked, branch=onto, at=merge))
         return
-    last = last or stacked.branch
+    was = _started(run, slug, stacked.branch, branch, head, onto, last) or last or stacked.branch
     message = (
         MOVED.replace("{base}", stacked.slug)
         .replace("{merge}", merge[:12])
+        .replace("{number}", str(number))
         .replace("{onto}", onto)
         .replace("{branch}", stacked.branch)
-        .replace("{was}", last)
+        .replace("{was}", was)
     )
     ask = rebase.Ask(
         KIND,
@@ -253,7 +260,7 @@ def _carry(
     if not run.run("git", "merge-base", "--is-ancestor", merge, head).returncode:
         return head
     if run.run("git", "merge-base", "--is-ancestor", last, head).returncode:
-        fork = _fork(run, base, branch, last, head, onto)
+        fork = _fork(run, slug, base, branch, last, head, onto)
         if not fork:
             return _left(run, slug, f"its head does not hold {last[:12]} here")
         last = fork
@@ -293,26 +300,44 @@ def _push(run: Pass, slug: str, branch: str, head: str, new: str, crew: Path | N
     return new
 
 
-def _fork(run: Pass, base: str, branch: str, last: str, head: str, onto: str) -> str:
-    """Where the link on `branch` left its `base` branch, when the base only grew after the link
-    was stacked on it: the fork of the base's `last` head and the link's `head`. The heads the base
-    had are read from this machine's record of them: the reflogs of its local and remote-tracking
-    branch, and the oldest entry of the reflog of the link's own `branch`, the base's head it was
-    made at, unless `origin/<onto>` holds that commit and so it is no head of the base. The base
-    only grew when one of them is under the link's head and every one under it is under `last`
-    too. Nothing when the base dropped a head the link holds, as an amend or a rebase does, or
-    when no record is left to say."""
+def _fork(run: Pass, slug: str, base: str, branch: str, last: str, head: str, onto: str) -> str:
+    """Where the link `slug` on `branch` left its `base` branch, when the base only grew after the
+    link was stacked on it: the fork of the base's `last` head and the link's `head`. The base only
+    grew when one of the heads it had (`_heads`) is under the link's head and every one under it
+    is under `last` too. Nothing when the base dropped a head the link holds, as an amend or a
+    rebase does, or when no record is left to say."""
+    under = [one for one in _heads(run, slug, base, branch, onto) if _holds(run, head, one)]
+    if not under or not all(_holds(run, last, one) for one in under):
+        return ""
+    return run.run("git", "merge-base", last, head).stdout.strip()
+
+
+def _started(run: Pass, slug: str, base: str, branch: str, head: str, onto: str, last: str) -> str:
+    """The commit the link `slug` on `branch` at `head` started from: the newest head its `base`
+    had that the link holds, of the base's `last` head and those `_heads` reads. Nothing when the
+    link holds none, or two that neither holds."""
+    known = {last} if last else set()
+    known |= _heads(run, slug, base, branch, onto)
+    under = [one for one in known if _holds(run, head, one)]
+    newest = [one for one in under if all(_holds(run, one, other) for other in under)]
+    return newest[0] if newest else ""
+
+
+def _heads(run: Pass, slug: str, base: str, branch: str, onto: str) -> set[str]:
+    """The heads the link `slug`'s `base` branch had, from this machine's record of them: the
+    reflogs of its local and remote-tracking branch, which are gone once the base's branch is
+    deleted, the commit jbus cut the link's own `branch` at, kept in its launch records, and the
+    oldest entry of that branch's reflog, the base's head it was made at. A commit `origin/<onto>`
+    holds is no head of the base: a launch or a branch made there."""
     heads: set[str] = set()
     for ref in (f"refs/heads/{base}", f"refs/remotes/origin/{base}"):
         said = run.run("git", "reflog", "show", "--format=%H", ref, "--")
         heads.update(said.stdout.split() if not said.returncode else ())
     said = run.run("git", "reflog", "show", "--format=%H", f"refs/heads/{branch}", "--")
     made = said.stdout.split()[-1:] if not said.returncode else []
-    heads.update(one for one in made if not _holds(run, f"origin/{onto}", one))
-    under = [one for one in heads if _holds(run, head, one)]
-    if not under or not all(_holds(run, last, one) for one in under):
-        return ""
-    return run.run("git", "merge-base", last, head).stdout.strip()
+    made += [str(one.get("sha") or "") for _, one in records(run, slug, queue.CREW)]
+    heads.update(one for one in made if one and not _holds(run, f"origin/{onto}", one))
+    return heads
 
 
 def _holds(run: Pass, head: str, commit: str) -> bool:
