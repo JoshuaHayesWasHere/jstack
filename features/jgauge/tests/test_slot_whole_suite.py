@@ -88,6 +88,11 @@ def test_a_thread_in_a_selecting_repo_runs_one_file_or_the_touched_check(repo, c
     assert (repo.top / "ran").exists()
 
 
+@pytest.mark.parametrize("command", [["echo", "ran"], ["sh", "-c", "make check"]], ids=" ".join)
+def test_a_command_that_is_no_make_or_pytest_is_no_whole_suite(repo, command):
+    assert whole.refusal(command, repo.top, {}) == ""
+
+
 def test_a_whole_suite_runs_with_no_thread_or_in_a_repo_that_selects_nothing(repo):
     assert repo("--", "make", "check").returncode == 0
     (repo.top / "ran").unlink()
