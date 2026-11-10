@@ -1448,6 +1448,23 @@ def short_on_github(one: PullRequest) -> str:
     return UNDECIDED
 
 
+STILL_TO_PASS = (NO_RUN, LIVE_RUN, NOT_PASSED)
+"""GitHub's waits on a required check that can still pass: no run at the head, a run not ended,
+and one that has not passed and has not failed."""
+
+
+def still_to_pass(one: PullRequest) -> str:
+    """The wait `short_on_github` gives where all GitHub holds against the pull request is a
+    required check that can still pass (`STILL_TO_PASS`), or nothing. A failed check or a conflict
+    is no such wait: the crew's push for it brings a new head and a new range-diff. A rebase that
+    changed the content is said beside this wait (`Repo.judged`), with it as the note, so the
+    scoped review runs while the check does and not after it."""
+    github = short_on_github(one)
+    if one.failed or one.mergeable == "CONFLICTING" or not any(code_of(github) == one.code for one in STILL_TO_PASS):
+        return ""
+    return github
+
+
 def patterns_of(text: str) -> tuple[str, ...]:
     lines = (line.strip() for line in text.splitlines())
     patterns = tuple(line for line in lines if line and not line.startswith("#"))
