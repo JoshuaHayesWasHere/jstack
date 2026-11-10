@@ -47,7 +47,8 @@ So ten pending pull requests cost a tick about one read's time, not ten, and eac
 So a head pushed after the pass read the pull request reaches the next tick, within 10 seconds, at no call of its own, and the tick stops reading a head that a newer push superseded.
 A row's pull request stays in it however long ago a verdict named its last head's end, so a push to it any time later reaches the next tick too, and while nothing changes at its head it costs a 304 a tick.
 A pull request is settled once neither the tick's read nor the pass has seen it change for 15 minutes (`SETTLED` in `jbus.tick`), and the tick asks about a settled one once a minute, not every 10 seconds, on whichever tick comes first a minute or more after its last ask.
-What wakes it is any change jbus sees: a read that GitHub answers 200, or a pass that sees its head pushed, its checks' rollup change (a check run queued, started or ended) or main's tip move. From the next tick on it is asked about every 10 seconds again, for another 15 minutes at least.
+What wakes it is any change jbus sees: a read that GitHub answers 200, or a pass that sees its head pushed, its checks' rollup change (a check run queued, started or ended) or main's tip move.
+From the next tick on it is asked about every 10 seconds again, for another 15 minutes at least.
 So a pull request whose checks end while it is settled still merges within a minute, with no pass between.
 On 2026-11-09, 60% of the tick's 304s asked about a head that had not changed for 15 minutes, so asking those once a minute brings the tick from about 310 304s an hour for each open pull request to about 0.4 × 330 + 0.6 × 60, near 170.
 A head's check suite the tick has not seen yet costs one more read, of the head's workflow runs, so the tick knows which workflow each job belongs to.
