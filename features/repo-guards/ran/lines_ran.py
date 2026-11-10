@@ -73,10 +73,9 @@ class Waiting:
                 saved = coverage.CoverageData(basename=str(file))
                 try:
                     saved.read()
+                    self.add(saved)
                 except Exception:
                     self.read.pop(file, None)
-                    continue
-                self.add(saved)
         for file in self.data.parent.glob("ran.*.json"):
             if file != self.mine and self.changed(file):
                 try:
