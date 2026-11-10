@@ -1,0 +1,261 @@
+From 5cb2d2a449cca39834f15a05761133ffb8c305da Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@gmail.com>
+Date: Mon, 9 Nov 2026 20:26:35 -0500
+Subject: [PATCH] fix(web): a jstack task held only on its own crew says crew
+ owes, not held
+
+jbus's held.json names who owns each hold it keeps: crew for a wait only the task's own crew
+clears, such as a Proved: line to rerun, and user for the rest. The tree drew every hold as
+held <age>, so four pull requests that waited on their crew read like waits on the user. The
+task now carries the hold's who, a crew-owned hold draws crew owes <age>, any other draws
+held <age> as before, and a row that asks you still says so first. jmerge's holds are the user's.
+---
+ apps/server/src/jstack/jbusWork.logic.test.ts | 18 +++++++
+ apps/server/src/jstack/jbusWork.logic.ts      | 11 ++--
+ .../sidebar/JstackTreeRows.browser.test.tsx   | 52 ++++++++++++++++++-
+ .../src/components/sidebar/JstackTreeRows.tsx |  2 +-
+ .../sidebar/jstackTree.logic.test.ts          |  2 +-
+ .../components/sidebar/jstackTree.logic.ts    | 14 +++--
+ packages/contracts/src/jbusWork.ts            |  4 +-
+ 7 files changed, 91 insertions(+), 12 deletions(-)
+
+diff --git a/apps/server/src/jstack/jbusWork.logic.test.ts b/apps/server/src/jstack/jbusWork.logic.test.ts
+index cf4b7945..afb0eff6 100644
+--- a/apps/server/src/jstack/jbusWork.logic.test.ts
++++ b/apps/server/src/jstack/jbusWork.logic.test.ts
+@@ -115,6 +115,24 @@ describe("buildRepoWork", () => {
+     );
+   });
+ 
++  it("carries who owns each hold jbus keeps in held.json, the user's where it names none", () => {
++    const since = "2026-10-29T14:00:00+00:00";
++    const held = {
++      a: { since, reason: "proved-missing", who: "crew", rows: ["on-crew"] },
++      b: { since, reason: "approve it again", who: "user", rows: ["on-user"] },
++      c: { since, reason: "older jbus", rows: ["unnamed"] },
++    };
++    const work = {
++      work: ["on-crew", "on-user", "unnamed"].map((slug) => row(slug, "review", "review")),
++    };
++    const result = buildRepoWork(files({ work, held }), NOW);
++    expect(result.tasks.map((task) => [task.slug, task.held?.who])).toEqual([
++      ["on-crew", "crew"],
++      ["on-user", "user"],
++      ["unnamed", "user"],
++    ]);
++  });
++
+   it("carries who holds each row's next move, so the tree says stalled only of a crew that owes it", () => {
+     const work = {
+       work: [
+diff --git a/apps/server/src/jstack/jbusWork.logic.ts b/apps/server/src/jstack/jbusWork.logic.ts
+index bde6068b..08ec50f3 100644
+--- a/apps/server/src/jstack/jbusWork.logic.ts
++++ b/apps/server/src/jstack/jbusWork.logic.ts
+@@ -114,7 +114,7 @@ interface Holds {
+  * The holds on a repo's rows. jmerge's are `hold` items of `waiting-on-user.json`, keyed `#<n>`,
+  * whose line is `hold <n> <url>: <reason>` (jmerge.lines.waits). jbus's are `held.json`, whose
+  * own `since` is when the hold began, which the `held` item of `waiting-on-user.json` lists only
+- * later, once it wakes the home.
++ * later, once it wakes the home, and whose `who` says who owns it. jmerge's are the user's.
+  */
+ const holdsOf = (files: Pick<JbusRepoFiles, "waiting" | "held">): Holds => {
+   const bySlug = new Map<string, JbusHeld>();
+@@ -127,13 +127,18 @@ const holdsOf = (files: Pick<JbusRepoFiles, "waiting" | "held">): Holds => {
+     const url = text(item.url);
+     const after = url === null ? -1 : line.indexOf(`${url}: `);
+     const reason = after < 0 ? line : line.slice(after + `${url}: `.length);
+-    byPull.set(key, { since, reason });
++    byPull.set(key, { since, reason, who: "user" });
+   }
+   for (const one of records(files.held)) {
+     const since = text(one.since);
+     if (since === null || !Array.isArray(one.rows)) continue;
++    const held: JbusHeld = {
++      since,
++      reason: text(one.reason) ?? "",
++      who: one.who === "crew" ? "crew" : "user",
++    };
+     for (const slug of one.rows) {
+-      if (typeof slug === "string") bySlug.set(slug, { since, reason: text(one.reason) ?? "" });
++      if (typeof slug === "string") bySlug.set(slug, held);
+     }
+   }
+   return { bySlug, byPull };
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+index d0649293..b914841b 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+@@ -631,6 +631,54 @@ describe("JstackTreeRowView a launched task held for your word", () => {
+   });
+ });
+ 
++/**
++ * What the polish home showed as `held 5m` for pull requests that waited only on their own crew to
++ * rerun a proof: a hold jbus says the crew owns, one the user owns, and one the user owns on a
++ * row that also asks a word.
++ */
++const OWNED_SINCE = "2026-10-29T11:55:00+00:00";
++const OWNED: JbusWorkSnapshot = {
++  ...ASKING,
++  tasks: [
++    {
++      ...crewTask("sb-proof", "sidebar"),
++      stage: "check",
++      held: { since: OWNED_SINCE, reason: "proved-missing", who: "crew" },
++    },
++    {
++      ...crewTask("sb-again", "sidebar"),
++      stage: "check",
++      held: { since: OWNED_SINCE, reason: "approve it again", who: "user" },
++    },
++    {
++      ...crewTask("sb-word", "sidebar"),
++      stage: "review",
++      waitsOn: "word",
++      waits: "your word",
++      held: { since: OWNED_SINCE, reason: "your word", who: "user" },
++    },
++  ],
++};
++
++describe("JstackTreeRowView held tags", () => {
++  it("says the crew owes a hold its crew owns, held of one the user owns, and asks you first", async () => {
++    await using screen = await render(<AskingTree spies={actions()} snapshot={OWNED} />, {
++      router: false,
++    });
++    const tagOf = (slug: string) => {
++      const row = screen.getByRole("button", { name: new RegExp(`^${slug} `) }).element();
++      return [...row.querySelectorAll(":scope > span:not(.sr-only)")]
++        .slice(1)
++        .map((span) => span.textContent)
++        .join(" ");
++    };
++    await expect.element(screen.getByRole("button", { name: /^sb-proof / })).toBeVisible();
++    expect(tagOf("sb-proof")).toBe("crew owes 5m");
++    expect(tagOf("sb-again")).toBe("held 5m");
++    expect(tagOf("sb-word")).toBe("asks you held 5m");
++  });
++});
++
+ describe("JstackTreeRowView idle homes", () => {
+   it("lists nothing an idle home merged, and opens the home by keyboard, from its menu and by mouse", async () => {
+     const spies = actions();
+@@ -727,7 +775,7 @@ const MARK_SNAPSHOT: JbusWorkSnapshot = {
+     {
+       ...crewTask("poc", "root"),
+       stage: "second",
+-      held: { since: "2026-10-29T11:00:00+00:00", reason: "draft" },
++      held: { since: "2026-10-29T11:00:00+00:00", reason: "draft", who: "user" },
+     },
+     scoutTask("look", "scouting"),
+     scoutTask("audit", "report in"),
+@@ -848,7 +896,7 @@ const SUMMARY_SNAPSHOT: JbusWorkSnapshot = {
+     {
+       ...crewTask("ops-backup", "ops"),
+       stage: "second",
+-      held: { since: "2026-10-29T09:00:00+00:00", reason: "draft" },
++      held: { since: "2026-10-29T09:00:00+00:00", reason: "draft", who: "user" },
+     },
+     { ...crewTask("ops-cron", "ops"), stage: "ready", threadId: null },
+     { ...crewTask("fl-stall", "flow"), stage: "findings", pullRequest: "#770" },
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+index 9eae0c0f..2ad519a0 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+@@ -848,7 +848,7 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+                             : "text-warning-foreground",
+                         )}
+                       >
+-                        {row.waited.kind} {row.waited.age}
++                        {row.waited.word} {row.waited.age}
+                       </span>
+                     )}
+                     <Mark mark={row.mark} />
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+index e3168e9f..b3d154a8 100644
+--- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
++++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+@@ -205,7 +205,7 @@ describe("buildJstackTree", () => {
+         who: "crew",
+         waits: "its crewmate",
+         pullRequest: "#1204",
+-        held: { since: "2026-11-07T18:17:03Z", reason: "it conflicts with its base" },
++        held: { since: "2026-11-07T18:17:03Z", reason: "it conflicts with its base", who: "user" },
+       }),
+     ];
+     const threads = [
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
+index 9a18a16f..491ae252 100644
+--- a/apps/web/src/components/sidebar/jstackTree.logic.ts
++++ b/apps/web/src/components/sidebar/jstackTree.logic.ts
+@@ -108,6 +108,11 @@ export type JstackMark =
+  */
+ export interface JstackWaited {
+   readonly kind: "quiet" | "stalled" | "held";
++  /**
++   * The tag's words, before the age: the kind, but `crew owes` for a hold jbus says only the
++   * task's own crew lifts, so it does not read as the user's move.
++   */
++  readonly word: string;
+   /** Such as `45m`. */
+   readonly age: string;
+   /** Why it is held; null for a quiet or stalled crew. */
+@@ -116,7 +121,7 @@ export interface JstackWaited {
+ 
+ /** A wait as words, such as `held 3h: draft`. */
+ export const waitedText = (waited: JstackWaited): string =>
+-  `${waited.kind} ${waited.age}${waited.reason === null ? "" : `: ${waited.reason}`}`;
++  `${waited.word} ${waited.age}${waited.reason === null ? "" : `: ${waited.reason}`}`;
+ 
+ export type JstackTreeRow =
+   | {
+@@ -382,7 +387,7 @@ const idleOf = (
+     const minutes = minutesSince(input.nowMs, thread.updatedAt);
+     return minutes < input.options.quietMinutes
+       ? null
+-      : { kind: "quiet", age: formatAge(minutes), reason: null };
++      : { kind: "quiet", word: "quiet", age: formatAge(minutes), reason: null };
+   }
+   const waits = task.kind === "crew" ? PULL_STAGES.has(task.stage) : task.scouting === "scouting";
+   if (
+@@ -396,15 +401,16 @@ const idleOf = (
+   const minutes = minutesSince(input.nowMs, thread.latestRun?.completedAt ?? thread.updatedAt);
+   return minutes < input.options.quietMinutes
+     ? null
+-    : { kind: "stalled", age: formatAge(minutes), reason: null };
++    : { kind: "stalled", word: "stalled", age: formatAge(minutes), reason: null };
+ };
+ 
+-/** How long jmerge or jbus has held a task, and why. */
++/** How long jmerge or jbus has held a task, why, and whether its crew owes the move. */
+ const heldOf = (input: JstackTreeInput, task: JbusTask): JstackWaited | null =>
+   task.held === null
+     ? null
+     : {
+         kind: "held",
++        word: task.held.who === "crew" ? "crew owes" : "held",
+         age: formatAge(minutesSince(input.nowMs, task.held.since)),
+         reason: task.held.reason === "" ? null : task.held.reason,
+       };
+diff --git a/packages/contracts/src/jbusWork.ts b/packages/contracts/src/jbusWork.ts
+index 4dc773c3..b02d7ce5 100644
+--- a/packages/contracts/src/jbusWork.ts
++++ b/packages/contracts/src/jbusWork.ts
+@@ -40,10 +40,12 @@ export const JbusHome = Schema.Struct({
+ });
+ export type JbusHome = typeof JbusHome.Type;
+ 
+-/** Why jmerge or jbus holds a task's pull request, and since when. */
++/** Why jmerge or jbus holds a task's pull request, since when, and whose move lifts it. */
+ export const JbusHeld = Schema.Struct({
+   since: IsoDateTime,
+   reason: Schema.String,
++  /** `crew` for a wait only the task's own crew clears (held.json's `who`), else `user`. */
++  who: Schema.Literals(["crew", "user"]),
+ });
+ export type JbusHeld = typeof JbusHeld.Type;
+ 
+-- 
+2.56.0
+
