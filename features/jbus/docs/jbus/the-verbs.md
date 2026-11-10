@@ -131,6 +131,7 @@ These verbs take no project of their own, and read none, every project, or the o
 - `jbus rules`
 - `jbus scorecard`
 - `jbus snapshot`
+- `jbus standing`
 - `jbus status`
 - `jbus steps`
 - `jbus telemetry`

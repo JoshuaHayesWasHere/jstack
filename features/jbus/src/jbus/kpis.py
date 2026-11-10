@@ -15,6 +15,12 @@ or the machine (`alert.MACHINE`).
   (`passes`). It alerts over 60, and only once the store holds a pass an hour old, so a whole hour
   is read.
 
+After the thresholds, each measure of the scorecard of tier `wake` that no other alert raises
+(`WAKES`, `jbus.telemetry.measures`) is read for each project, or once for the machine, and judged
+as a threshold is, under the key `score <name> <owner>`, with the day for a measure of window
+`day`: a reading that is `bad` is crossed, `ok` or `watch` is not, and `none` leaves its alert as
+it was. Its line says what the measure counts, its value and its line, and names no row.
+
 A red main has no threshold: jbus files a `main-red-*` row for every red tip
 (`jbus.watch.retro`), so an alert of it would say again what that row says. The KPI page still
 counts its minutes (`jbus.ci.daily`).
@@ -44,7 +50,7 @@ from datetime import UTC, date, datetime, time, timedelta
 
 import jbus
 from jbus import alert, boxes, telemetry, verbs
-from jbus.telemetry import schema, values
+from jbus.telemetry import measures, schema, values
 from jgauge import limits, spend
 
 Say = Callable[[str], None]
@@ -212,7 +218,8 @@ THRESHOLDS: tuple[Threshold, ...] = (
 
 
 def look(config: jbus.Config, now: datetime, say: Say) -> None:
-    """Read each threshold's count for each owner, and open or end its alert."""
+    """Read each threshold's count for each owner, and each wake measure's reading, and open or
+    end its alert."""
     where = telemetry.path(config)
     store = None
     if where.is_file():
@@ -221,27 +228,99 @@ def look(config: jbus.Config, now: datetime, say: Say) -> None:
         seen = Look(config, store, now)
         for threshold in THRESHOLDS:
             for owner, count in threshold.read(seen).items():
-                _judge(config, threshold, owner, count, seen, say)
+                whose = f" {owner}" if owner else ""
+                _judge(
+                    seen,
+                    threshold.key(owner, seen.day),
+                    owner,
+                    count > threshold.over,
+                    f"kpi {threshold.name}{whose}: {threshold.says(count, seen.day)}",
+                    threshold.limit,
+                    threshold.daily,
+                    say,
+                )
+        if store is not None:
+            for measure in WAKES:
+                for owner, reading in _readings(seen, store, measure):
+                    _score(seen, measure, owner, reading, say)
     finally:
         if store is not None:
             store.close()
 
 
-def _judge(
-    config: jbus.Config, threshold: Threshold, owner: str, count: float, seen: Look, say: Say
+WAKES: tuple[measures.Measure, ...] = tuple(
+    each for each in measures.MEASURES if each.tier == "wake" and not each.wired
+)
+"""The measures of the scorecard whose crossing wakes the user, and that no other alert raises."""
+
+
+def _readings(
+    seen: Look, store: sqlite3.Connection, measure: measures.Measure
+) -> list[tuple[str, measures.Reading]]:
+    """The measure's reading for each project, or once for the machine."""
+    user = seen.config.user
+    if isinstance(measure.source, measures.Sql) and measure.source.machine:
+        return [(alert.MACHINE, measures.read(store, measure, measures.MACHINE, seen.now, user))]
+    return [
+        (project.name, measures.read(store, measure, project.name, seen.now, user))
+        for project in seen.config.projects
+    ]
+
+
+def _figure(value: float, unit: str) -> str:
+    shown = f"{value:.3g}"
+    return f"{shown}{unit}" if unit in ("", "%") else f"{shown} {unit}"
+
+
+def _line(measure: measures.Measure) -> str:
+    """The measure's line in plain words."""
+    match measure.kind:
+        case measures.Zero():
+            return "and its line alerts on any above 0"
+        case measures.Limit(at, floor):
+            side = "over" if measure.better == "lower" else "under"
+            counted = f", read once {floor} are counted" if floor > 1 else ""
+            return f"{side} its line of {_figure(at, measure.unit)}{counted}"
+        case measures.Trend(by):
+            return f"more than {by:g}% worse than its mean of the seven days before"
+
+
+def _score(
+    seen: Look, measure: measures.Measure, owner: str, reading: measures.Reading, say: Say
 ) -> None:
-    key = threshold.key(owner, seen.day)
-    what = f"kpi {threshold.name}{f' {owner}' if owner else ''}: {threshold.says(count, seen.day)}"
+    daily = measure.window == "day"
+    whose = f" {owner}" if owner else ""
+    key = f"score {measure.name}{whose}" + (f" {seen.day.isoformat()}" if daily else "")
+    crossed = None if reading.state == "none" else reading.state == "bad"
+    value = "" if reading.value is None else f": {_figure(reading.value, measure.unit)}"
+    of = f" of {reading.n}" if isinstance(measure.kind, measures.Limit) and value else ""
+    what = f"score {measure.name}{whose}: {measure.says}{value}{of}"
+    _judge(seen, key, owner, crossed, what, _line(measure), daily, say)
+
+
+def _judge(
+    seen: Look,
+    key: str,
+    owner: str,
+    crossed: bool | None,
+    what: str,
+    limit: str,
+    daily: bool,
+    say: Say,
+) -> None:
+    """Open the alert of `key` once where it is crossed, and end it where it is not; where it
+    cannot be judged (`None`), leave it as it was."""
+    config = seen.config
     held = alert.streak(config.state_dir, key)
     shown = (lambda line: say(f"{owner}: {line}")) if owner else say
-    if count > threshold.over:
+    if crossed:
         if held is not None and held.alerted:
             return
-        line = f"alert: {what}, {threshold.limit}"
-        ends = seen.ends.isoformat() if threshold.daily else ""
+        line = f"alert: {what}, {limit}"
+        ends = seen.ends.isoformat() if daily else ""
         alert.raise_(config, key, line, owner=owner, now=seen.now, ends=ends)
         shown(line)
-    elif held is not None:
+    elif crossed is not None and held is not None:
         line = f"{alert.RECOVERED}: {what}"
         alert.end(config, key, line)
         shown(line)

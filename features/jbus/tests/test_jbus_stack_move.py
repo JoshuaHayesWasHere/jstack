@@ -7,6 +7,7 @@ origin: `one` (#10) was squashed into main, and `two` (#11) is one commit on `on
 A move that cannot be made mechanically (a conflict, a push the lease refuses, a crew worktree
 with work in it) leaves the branch as it was and tells the crew to move it, as before."""
 
+import json
 import subprocess
 from datetime import timedelta
 
@@ -180,7 +181,7 @@ def test_a_link_that_conflicts_with_main_gets_the_moved_send_and_its_branch_stay
     assert stack_conflict.origin("two") == stack_conflict.head
     (said,) = [given["message"] for given in asks(kitchen)]
     assert f"one merged as {stack_conflict.merge[:12]}" in said
-    assert f"with {stack_conflict.last} as the branch it sat on" in said
+    assert f"run its block with {stack_conflict.last} as `was`" in said
     assert head_line(kitchen) == stacks.Stacked("one", "main", stack_conflict.merge)
     assert not list((kitchen.checkout / ".git" / "worktrees").glob("*"))
 
@@ -320,10 +321,41 @@ def test_a_link_whose_base_was_rewritten_is_left_and_told_once_when_it_merged(
     assert any("jbus left its branch as it was (its head does not hold" in line for line in said)
     assert stack.origin("two") == stack.head
     (told,) = [given["message"] for given in asks(stacked)]
-    assert "one merged as" in told and f"with {stack.last} as the branch it sat on" in told
+    started = git(stacked.origin, "rev-parse", f"{stack.head}^")
+    assert started != stack.last
+    assert "one merged as" in told and f"run its block with {started} as `was`" in told
     assert head_line(stacked) == stacks.Stacked("one", "main", stack.merge)
     stacked.poll(NOW + timedelta(minutes=3))
     assert len(asks(stacked)) == 1
+
+
+def test_a_link_whose_rewritten_base_left_no_reflog_is_told_the_commit_it_was_launched_at(
+    stacked, monkeypatch
+):
+    """`one` was amended after `two` was cut from it, and its branch is gone here and on origin, as
+    jmerge leaves a merged branch, so no reflog of `one` is left. The commit jbus cut `two`'s
+    branch at, kept in `two`'s launch record, is the newest head of `one` that `two` holds: the
+    crew is told to move from it, and not from `one`'s last head, which `two` does not hold."""
+    signed(monkeypatch)
+    stack = Stack(stacked, rewritten="amended")
+    git(stacked.checkout, "update-ref", "-d", "refs/remotes/origin/one")
+    started = git(stacked.origin, "rev-parse", f"{stack.head}^")
+    (record,) = (stacked.state_dir / "launches" / "demo" / "two").glob("*.json")
+    assert json.loads(record.read_text())["state"] == "launched"
+    record.write_text(json.dumps({**json.loads(record.read_text()), "sha": started}))
+    stacked.poll(NOW)
+    assert stack.origin("two") == stack.head
+    (told,) = [given["message"] for given in asks(stacked)]
+    assert f"run its block with {started} as `was`" in told and "#11" in told
+
+
+def test_a_stacked_launch_keeps_the_commit_its_branch_was_cut_at(stacked):
+    """The launch record of `two` keeps the head of `one` jbus cut its branch at, past the launch,
+    so a pass can name it once `one` merged and its branch is gone."""
+    (record,) = (stacked.state_dir / "launches" / "demo" / "two").glob("*.json")
+    kept = json.loads(record.read_text())
+    assert kept["state"] == "launched"
+    assert kept["sha"] == git(stacked.checkout, "rev-parse", "refs/remotes/origin/one")
 
 
 def test_a_link_whose_base_left_no_record_is_left_and_told_once(stacked, monkeypatch):

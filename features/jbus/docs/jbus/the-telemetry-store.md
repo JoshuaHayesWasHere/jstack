@@ -19,6 +19,7 @@ The store has one table for each record file of each project, with a `project` c
 | `ci_jobs` | `ci.jsonl` | a job of a GitHub Actions run, for a project whose table says `ci_report = true` |
 | `merges` | the home's `merge.log` | a line `jmerge` logged: its verb, its pull request, a merge's slug and a wait's label |
 | `merge_waits` | the home's `merge-waits.jsonl` | a pull request `jmerge` merged: the second it was ready, the second its merge began, its `seconds` between, and the seconds each code held it (`blockers`), the longest of them `blocker` |
+| `open_waits` | the home's `merge-waits.json` | a ready pull request still open and its wait for `jmerge` at its `head`: `ready`, the `code` of its open segment since `seen`, and the seconds each code held its closed ones (`blockers`); the file's present state, so a pull request that leaves it leaves the table |
 | `questions` | `questions.json` | a gate and its answer |
 | `queue` | `queue.json` | a row of the queue, with its approval's times, `follows`, the parent a follow-up's go names, `queued_by_session`, the session that queued it (empty for a row jbus filed), and `approval_message`, the `<thread id>/<message id>` its go rests on (an entry's go, the user's message or pick; empty for any other go) |
 | `merged` | `merged.json` | a merged pull request of a row |
@@ -222,6 +223,7 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 | `capped_since` | the first `day` of `capped_reads` |
 | `capped_any_spells` | each read of `capped_reads`, the minutes it holds (`held`), and the `minutes` it holds one instance or more capped: up to the next read of either reader, or the last build for the last read, and never over 5 minutes, so a gap no reader saw counts as no time |
 | `weekly_capped_any` | each week's `reads`, the `minutes` one instance or more was capped, and their `share`, in percent, of the minutes the reads hold. `weekly_capped` counts only the minutes every instance was capped, when no launch can start, so it stays at 0 while one account is free and launches run on it: this is the time spent on fewer accounts |
+| `held_now` | each ready pull request of `open_waits` whose merge has not begun at its head (no line of `merge_waits`), with `held`, the seconds `row-held` has held it, its open segment counted up to the last build |
 | `jmerge_waits` | each pull request `jmerge` merged, from the second its required checks passed at the head it merged at to the second its merge began: `seconds`, `minutes`, `blocker` and `blockers`, by `jmerge`'s record (`how` is `jmerge`), else by its last passed `pull_request` job to GitHub's merge time (`how` is `checks`) |
 | `jmerge_blockers` | each code that held a recorded wait, and its `seconds` |
 | `weekly_jmerge_wait` | each week's waits for `jmerge`: `n`, and the `median` and `p85` of their minutes |
@@ -335,7 +337,8 @@ To measure a KPI that lacks an instrument, add the record and its weekly view as
 
 ## The KPI alerts
 
-Each pass, after the build, `jbus.kpis` reads each threshold as a count against its limit, never a burn rate:
+Each pass, after the build, `jbus.kpis` reads each threshold as a count against its limit, never a burn rate, and then each measure of the scorecard of tier `wake` that no other alert raises (no `wired`), for each project or once for the machine.
+A threshold's alert is under the key `kpi <name> <owner>`, a measure's under `score <name> <owner>`, each with the day for a daily count:
 
 | Alert | Count | Alerts | Owner |
 |---|---|---|---|
@@ -343,13 +346,65 @@ Each pass, after the build, `jbus.kpis` reads each threshold as a count against 
 | `capped` | the minutes today with every Claude instance capped, as `jgauge spend` counts them | over 30 | the machine |
 | `lost-asks` | the asks lost today: a typed message `ask_ledger` calls `unanswered`, counted on the day its wait ran out | on 1 | the project |
 | `pass-time` | the 90th percentile of the seconds of the passes of the last hour, once the store holds a pass an hour old | over 60 | the machine |
+| `held-ready-pr` | the hours the longest-held ready pull request now open has waited on its blocker `row-held` (`held_now`) | over 2 | the project |
+| `macos-on-prs` | the runs today of the macOS workflow on a pull request, which runs nightly only | on 1 | the project |
+| `failed-launches` | the share of the last hour's first launches that failed, once 5 launches are counted | over 20% | the project |
+
+A measure is crossed where its reading is `bad`, and a reading of `none` leaves its alert as it was.
+A new `wake` measure is a choice: a test holds the three, and the scorecard's other measures are shown, never raised.
 
 A red main has no alert: jbus files a `main-red-*` row for every red tip, so an alert would say again what that row says.
 
 An alert goes on jbus's one list of alerts, so the owner's home hears of it as it hears of any other.
 A crossing alerts once: a later pass that finds it still crossed sends nothing, whatever the count has become.
 A daily alert ends with its day, and a crossing the next day is a new alert.
-An alert whose count falls back under its limit ends with a `recovered` line.
+An alert whose count falls back under its limit, or a measure no longer `bad`, ends with a `recovered` line.
+
+## The scorecard
+
+`jbus --project <name> scorecard` reads each health measure of one project from the store, opened read only, and prints one line a measure: its state, group, name, value, unit, the count it is of, its baseline and its tier.
+`--json` prints a list instead, each item with `name`, `group`, `value`, `unit`, `n`, `baseline`, `state`, `tier`, `wired`, `audit` and `note`.
+It writes no page, raises no alert and changes nothing in the store.
+
+A KPI is a weekly value against a target for the vision; a measure is a reading of an hour, a day or a week so far against a baseline, to say whether jstack is healthy now.
+Each measure is a module of its own in `jbus.telemetry.measures`, `m<NN>_<slug>.py`, whose `MEASURE` is one `Measure` and holds no function:
+
+| Field | What it is |
+|---|---|
+| `name` | a slug, unique among the measures |
+| `group` | `flow`, `cost`, `quality`, `attention` or `machinery` |
+| `says`, `unit` | what it counts, and its value's unit |
+| `better` | `lower` or `higher` |
+| `source` | `Sql(query, machine)`, or `Lacks(needs)` where the store has no record for it yet |
+| `window` | `hour` (the last hour), `day` (the user's day so far), `week` (the user's week so far, from the midnight that begins its Sunday) or `now` |
+| `baseline`, `baseline_of` | the value it is judged against, or None, and where that value is from |
+| `kind` | `Zero()`, `Limit(at, floor)` or `Trend(by)` |
+| `tier` | `wake` where a crossing is to wake the user, `page` where it is only shown |
+| `wired` | the alert that already raises it, or empty, so nothing raises it twice |
+| `audit` | the ranks of the counters of the audit of 2026-11-09 it carries |
+
+A query is one SELECT that gives one row of `value` and `n`, how many the value is of.
+It takes only the named parameters `:project`, `:begins` and `:ends`: the window's bounds as UTC stamps, `begins` in it and `ends` not, so it filters on a stamp column such as `at`, never on `day`.
+A `machine` query reads the machine's rows, with `:project` the empty project.
+A weekly view is read at `week in (date(:begins), date(:begins, '+1 day'))`, the Sunday the window begins on in any zone.
+
+The three kinds say where a value is past its line:
+
+- `Zero()`: any value above 0, a count that should never happen.
+- `Limit(at, floor)`: a value beyond `at` in the worse direction, read only with `n` at least `floor`.
+- `Trend(by)`: a value worse than the mean of its own seven days before, each the same window that many days earlier, by more than `by` percent.
+
+A reading has one of four states:
+
+- `bad`: past the kind's line.
+- `watch`: worse than the baseline, not past the line.
+- `ok`: neither.
+- `none`: a `Lacks`, no baseline, no value, `n` under the floor, or a query that failed, whose error is its note.
+
+The first 41 are the rows of the scorecard scout's visual of 2026-11-09, in its order.
+Where it named a line the measure has it as written; where it named none, a `page` measure's `Limit` is 20% past its baseline in the worse direction.
+To add a measure, add a module with the next free `NN`; no list names it.
+To measure one that `Lacks` its record, add the record and its table as "Change the store" says, then give the measure a `Sql` in place of its `Lacks`.
 
 ## The scorecard
 
@@ -415,6 +470,7 @@ To measure one that `Lacks` its record, add the record and its table as "Change 
 
 Each pass runs a build after its launches and before any project's second half.
 A build reads only what is new: a log on from the offset the last build reached, and a snapshot only when it changed.
+A snapshot keeps the rows of records that have left its file, except `merge-waits.json`, whose rows the build makes match the file.
 A pass reads at most 16 MiB of new records and leaves the rest to the next pass.
 `jbus telemetry` reads everything that is new and prints what it added and how long it took.
 

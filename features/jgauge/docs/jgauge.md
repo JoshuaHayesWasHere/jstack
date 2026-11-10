@@ -44,7 +44,7 @@ The kinds are first crew run, reviews, fix rounds, jbus sends, homes, scouts and
 A crew's later run is a fix round or a jbus send by the key jbus put in the message it sent, and by that message's text where the key says nothing.
 A five-hour window ends at the reset that a five-hour usage-limit failure names, and otherwise starts at the first run outside any window.
 Last, for each day it prints the minutes in which every Claude instance that ran in the week was capped.
-An instance is capped from each usage-limit failure to the reset that failure names.
+An instance is capped from each usage-limit failure until the reset that failure names, or until the start of the next run it completed after the failure, whichever comes first: a run that completes shows the cap was over.
 
 ## Check for room before you start a thread
 
