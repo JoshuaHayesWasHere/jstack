@@ -699,6 +699,15 @@ class Repo:
         files = sorted({file for patch in texts for file in patch.splitlines()})
         return ready.Rebase(tuple(files), covered, head)
 
+    def pushed(self, reviewed: str, head: str) -> tuple[str, ...] | None:
+        """The files `head` changes since `reviewed`, or None where `head` does not descend
+        from `reviewed` or git cannot say."""
+        if _run(self.main, "git", "merge-base", "--is-ancestor", reviewed, head).returncode:
+            return None
+        names = ("git", "-c", "core.quotePath=false", "diff", "--no-renames", "--name-only")
+        listed = _text(self.main, *names, reviewed, head)
+        return None if listed is None else tuple(listed.splitlines())
+
     def left_main_elsewhere(self, base: str, under: str, head: str) -> bool:
         for _ in range(2):
             forks = [
@@ -1028,6 +1037,9 @@ class Repo:
             verdict = self.range_diff(reviewed, one.head, one.base, stacked)
             short = ready.short_on_content(verdict)
             note = ready.rebase_note(verdict)
+            kept = short and ready.push_note(reviewed, one.head, self.pushed(reviewed, one.head))
+            if kept:
+                short, note = "", kept
         if short:
             return Judgement(brief.stem, judgement.verb(short), short, note, None)
         short = (

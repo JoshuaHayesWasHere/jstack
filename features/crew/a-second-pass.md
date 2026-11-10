@@ -2,6 +2,7 @@
 
 A pull request gets one review round: the reviewer reviews once, you answer each finding once, and a fix you push for them gets no review.
 What stands behind the fix is the pull request's own checks, and `jmerge` merges it once they pass and every blocking finding has an answer that counts ("The review").
+A push on top of the reviewed head that changes only tests, docs or config keeps the review with no scoped round; one that changes any other file, or a rebase, is judged by the range-diff ("After a rebase" in `features/jmerge/docs/jmerge.md`).
 No pass rules on a decline either: a decline of a blocking finding counts on the reason it cites.
 
 The one later pass is a re-judgement of the brief.

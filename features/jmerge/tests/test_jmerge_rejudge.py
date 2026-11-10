@@ -409,9 +409,9 @@ def side(tmp_path):
     failed on a test main was red on, in a repo that requires check, borders and macos."""
     replay = Replay(tmp_path)
     (replay.kitchen.home.state / "required-checks").write_text(REQUIRED)
-    reviewed = replay.crew("one", 529, {"one.txt": "ours\n"}, check=PASSED_BEFORE)
+    reviewed = replay.crew("one", 529, {"one.py": "ours\n"}, check=PASSED_BEFORE)
     tree = replay.kitchen.tmp / "trees" / "one"
-    write(tree, {"one.txt": "ours, fixed\n"})
+    write(tree, {"one.py": "ours, fixed\n"})
     git(tree, "commit", "-q", "-am", "fix")
     git(tree, "push", "-q")
     head = git(tree, "rev-parse", "HEAD")

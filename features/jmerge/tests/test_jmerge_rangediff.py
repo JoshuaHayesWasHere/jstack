@@ -16,12 +16,13 @@ import test_jmerge_run as run
 from jbus import rebase as asks
 from jmerge import rangediff, ready
 
-FILE = "f.txt"
+FILE = "f.py"
 LINES = [f"line {number}" for number in range(1, 31)]
 LATER = {**merge.PASSED, "startedAt": f"{date.today().year + 1}-01-01T00:00:00Z"}
 
 
 def write(tree, edits, path=FILE):
+    (tree / path).parent.mkdir(parents=True, exist_ok=True)
     lines = (tree / path).read_text().splitlines() if (tree / path).exists() else list(LINES)
     for number, text in edits.items():
         lines[number - 1] = text
@@ -833,7 +834,7 @@ class CiFix:
     clean at one head. Then its crewmate pushed to it again for a failed check, and wrote no
     line about the push, or the `CI fix:` line that an older brief may have."""
 
-    def __init__(self, proven_merged, edits, files=(FILE,), line=""):
+    def __init__(self, proven_merged, edits, files=(FILE,), line="", path=FILE):
         self.proven_merged = proven_merged
         main, tree = proven_merged.home.main, proven_merged.tree
         commit(main, "the file", {})
@@ -843,7 +844,7 @@ class CiFix:
         self.before = commit(tree, "the task in the file", TASK)
         self.base = merge.git(main, "rev-parse", "HEAD")
         if edits:
-            self.head = commit(tree, "what the check asked for", edits)
+            self.head = commit(tree, "what the check asked for", edits, path)
         else:
             merge.git(tree, "commit", "-q", "--allow-empty", "-m", "run the check again")
             self.head = merge.git(tree, "rev-parse", "HEAD")
@@ -866,6 +867,12 @@ class CiFix:
         return (
             f"wait 7 {merge.URL}: the rebase changed the content after its review; "
             f"scoped review of git range-diff --no-color {self.ranges()}"
+        )
+
+    def kept(self):
+        return (
+            f"review kept: {self.before[:12]}..{self.head[:12]} changes only tests, docs or "
+            "config, every line kept"
         )
 
 
@@ -941,6 +948,67 @@ def test_a_ci_fix_after_a_rebase_is_compared_with_the_head_the_review_saw(proven
         f"wait 7 {merge.URL}: the rebase changed the content after its review; scoped review "
         f"of git range-diff --no-color {rebased.tip}..{rebased.head} {rebased.tip}..{pushed}"
     ]
+
+
+TEST = "tests/test_f.py"
+PUSHED = {"a test": TEST, "docs": "docs/f.md", "config": ".github/workflows/f.yml"}
+
+
+def proved(head, base, files):
+    """The `Proved:` line of a head that changes `TEST`, or none where it changes no test."""
+    if TEST not in files:
+        return ""
+    return f"Proved: {TEST} base exit 1 at {base}, head exit 0 at {head}\n"
+
+
+@pytest.mark.parametrize("path", PUSHED.values(), ids=PUSHED)
+def test_a_tests_only_push_on_the_reviewed_head_keeps_its_review(proven_merged, rules, path):
+    """A push for a check after a clean review, on top of the head the review saw, whose every
+    file is a test, docs or config: the review covers it as it covers a `Fixed:` head, and the
+    pull request waits only on its checks and its `Proved:` and `Checked:` lines."""
+    fix = CiFix(proven_merged, {15: "what the check asked for"}, files=(FILE, path), path=path)
+    fix.brief(run.proven("clean", fix.before), proved(fix.head, fix.base, (path,)))
+    assert run.jmerge(proven_merged, rules, "--check") == [
+        f"ready 7 {fix.head} alpha alpha, {fix.kept()}"
+    ]
+    (said,) = run.jmerge(proven_merged, rules)
+    commit_, _ = proven_merged.on_main()
+    assert said == merge.merged_line(commit_, fix.kept())
+
+
+def test_a_tests_only_push_still_waits_on_its_proved_line(proven_merged, rules):
+    fix = CiFix(proven_merged, {15: "what the check asked for"}, files=(FILE, TEST), path=TEST)
+    assert run.jmerge(proven_merged, rules) == [
+        f"wait 7 {merge.URL}: it changes {TEST}, and its Result has no Proved: line that "
+        "shows them fail at its base and pass at its head"
+    ]
+    assert run.merges(proven_merged) == []
+    fix.brief(run.proven("clean", fix.before), proved(fix.before, fix.base, (TEST,)))
+    (said,) = run.jmerge(proven_merged, rules)
+    assert said.startswith(f"wait 7 {merge.URL}: its Proved: line ")
+
+
+def test_a_tests_only_push_with_one_code_file_waits_for_a_scoped_review(proven_merged, rules):
+    fix = CiFix(proven_merged, {15: "what the check asked for"}, files=(FILE, TEST), path=TEST)
+    tree = proven_merged.tree
+    code = commit(tree, "and the code", {15: "the code"}, "g.py")
+    merge.git(tree, "push", "-q", "origin", "alpha")
+    proven_merged.home.open_pull_request(code, checks=(LATER,), files=[FILE, TEST, "g.py"])
+    fix.brief(run.proven("clean", fix.before), proved(code, fix.base, (TEST,)))
+    assert run.jmerge(proven_merged, rules) == [fix.waits().replace(fix.head, code)]
+    assert run.merges(proven_merged) == []
+
+
+def test_a_tests_only_push_after_a_rebase_waits_for_a_scoped_review(proven_merged, rules):
+    """The head does not descend from the head the review saw, so the range-diff judges it."""
+    rebased = Rebased(proven_merged, {28: "theirs 28"})
+    tree = proven_merged.tree
+    pushed = commit(tree, "what the check asked for", {15: "the test"}, TEST)
+    merge.git(tree, "push", "-q", "origin", "alpha")
+    proven_merged.home.open_pull_request(pushed, checks=(LATER,), files=[FILE, TEST])
+    rebased.brief(run.proven("clean", rebased.before), proved(pushed, rebased.tip, (TEST,)))
+    assert run.jmerge(proven_merged, rules) == [rebased.waits().replace(rebased.head, pushed)]
+    assert run.merges(proven_merged) == []
 
 
 def handled(rebased, review_of, head, line, answer="Finding: fixed, it is wrong\n"):

@@ -498,6 +498,12 @@ When a review of that head does not rule on a file's drops, the line is `hold <n
 The crewmate writes no line about it: `jmerge` compares the head the review covers with the pushed head by `git range-diff`.
 `jmerge` reads a `CI fix:` line as no line.
 
+A push on top of the head the review covers that changes only tests, docs or config keeps the review, as a `Fixed:` head does.
+`jmerge` asks git whether that head is an ancestor of the pushed head, and whether every file `git diff --name-only <covered> <head>` names is a test file (`proved.TEST_FILE`) or of a `proved.EXEMPT` kind, the same files a `tests only` `Proved:` line may change (`ready.first_code`).
+Where both hold, the range-diff's content change is no wait and no scoped round is asked for: the pull request waits only on its checks and its `Proved:` and `Checked:` lines at the pushed head.
+The `ready` and `merged` lines say `review kept: <covered12>..<head12> changes only tests, docs or config, every line kept`.
+A push that also changes one other file, and a head that does not descend from the covered one, as after a rebase, are judged by the range-diff as above.
+
 ## Protected paths
 
 `jmerge` reads one list from its own package directory, never from a pull request: `features/jmerge/src/jmerge/protected.txt`.

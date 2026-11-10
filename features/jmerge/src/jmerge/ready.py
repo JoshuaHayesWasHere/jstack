@@ -410,6 +410,7 @@ _OWN_LOST = "{count} of its own in {file}"
 _REFUSED = "{file}: {why}"
 _RULED = "{id}: {why}"
 _CARRIED = "review carried over: range-diff {old} {new} clean"
+_PUSH_KEPT = "review kept: {old}..{new} changes only tests, docs or config"
 
 
 @dataclass(frozen=True)
@@ -1003,15 +1004,7 @@ def short_on_proved(
         kinds = " and ".join(said.kinds)
         return PROVED_NOT_KIND.format(kinds=kinds, path=other) if other else ""
     if said.tests_only:
-        code = next(
-            (
-                path
-                for path in one.files
-                if not proved.TEST_FILE.search(path)
-                and not any(proved.of_kind(path, kind) for kind in proved.EXEMPT)
-            ),
-            "",
-        )
+        code = first_code(one.files)
         if code:
             return PROVED_UNREAD.format(fault=_PROVED_CODE.format(path=code))
     if said.fork:
@@ -1374,6 +1367,33 @@ def rebase_note(verdict: Verdict | None) -> str:
     if verdict is None or not verdict.clean:
         return ""
     return _CARRIED.format(old=_short(verdict.old), new=_short(verdict.new))
+
+
+def first_code(files: Collection[str]) -> str:
+    """The first of `files` that is neither a `proved.TEST_FILE` nor of a `proved.EXEMPT` kind,
+    or empty where every one is a test, docs or config and so changes no code. A `tests only`
+    `Proved:` line and a push the review covers (`push_note`) are judged by it alike."""
+    return next(
+        (
+            path
+            for path in files
+            if not proved.TEST_FILE.search(path)
+            and not any(proved.of_kind(path, kind) for kind in proved.EXEMPT)
+        ),
+        "",
+    )
+
+
+def push_note(reviewed: str, head: str, pushed: tuple[str, ...] | None) -> str:
+    """Why the review of `reviewed` covers `head`, or empty where it does not. `pushed` is the
+    files `git diff --name-only <reviewed> <head>` names, or None where `head` does not descend
+    from `reviewed`, which a rebase makes. A head pushed on top of the reviewed one whose every
+    file is a test, docs or config (`first_code`) is covered as a `Fixed:` head is: it waits
+    only on its checks and its `Proved:` and `Checked:` lines. Any other is left to the
+    range-diff, and a push that changes code still gets its scoped review."""
+    if pushed is None or first_code(pushed):
+        return ""
+    return _PUSH_KEPT.format(old=reviewed[:12], new=head[:12])
 
 
 def short_on_content(verdict: Verdict | None) -> str:
