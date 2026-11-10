@@ -917,9 +917,9 @@ def test_drift_is_what_a_writer_should_have_kept_right_and_not_what_the_pass_alo
 
 def test_an_act_leaves_a_line_it_cannot_read_as_it_is_and_an_asking_row_still_asking():
     unread = {"key": "alpha", "kind": "row", "value": "unapproved", "facts": "lost"}
-    assert work.restate(unread, work.Row.FREE) == unread
+    assert restated.restate(unread, work.Row.FREE) == unread
     half = {**unread, "facts": {"row": "unapproved", "thread": "none"}}
-    assert work.restate(half, work.Row.FREE) == half
+    assert restated.restate(half, work.Row.FREE) == half
     facts = work.Facts(
         work.Row.UNAPPROVED,
         work.Thread.NONE,
@@ -930,7 +930,7 @@ def test_an_act_leaves_a_line_it_cannot_read_as_it_is_and_an_asking_row_still_as
         work.Answered.BOTH,
     )
     asking = work.entry(work.judge(facts), key="alpha", kind="row", slug="alpha")
-    went = work.restate(asking, work.Row.FREE)
+    went = restated.restate(asking, work.Row.FREE)
     assert (went["value"], went["who"]) == ("asking", asking["who"])
     assert went["facts"]["row"] == "approved and free"
 

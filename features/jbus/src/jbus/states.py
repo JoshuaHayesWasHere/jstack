@@ -241,7 +241,7 @@ def _since(run: Pass, listed: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 continue
             facet = queue.standing(run.state, row, done)
             go = queue.unheld(run.state, row) if facet in work.UNHELD else None
-            one = work.restate(one, row=facet, go=go)
+            one = restated.restate(one, row=facet, go=go)
         kept.append(one)
     return kept
 
