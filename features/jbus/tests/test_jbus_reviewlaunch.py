@@ -15,8 +15,10 @@ import jbus
 from jbus import reviewlaunch
 from test_jbus_kitchen import NOW
 from test_jbus_prereview import proved_crew, reviewers
-from test_jbus_rereview import keys, launched, out, recorded, scoped  # noqa: F401
+from test_jbus_rereview import keys, launched, out, recorded, scoped
 from testing.paths import REPO
+
+__all__ = ["launched"]
 
 HEAD = "c" * 40
 
@@ -46,7 +48,7 @@ def test_a_head_with_a_review_asked_for_gets_no_first_reviewer(kitchen, how):
 
 
 @pytest.mark.parametrize("how", HOW)
-def test_a_head_with_a_review_asked_for_gets_no_scoped_reviewer(launched, how):  # noqa: F811
+def test_a_head_with_a_review_asked_for_gets_no_scoped_reviewer(launched, how):
     asked(launched, how, HEAD)
     out(launched)
     for minutes in (0, 3, 6):
@@ -55,7 +57,7 @@ def test_a_head_with_a_review_asked_for_gets_no_scoped_reviewer(launched, how): 
 
 
 def test_a_launch_is_claimed_before_it_is_asked_for_so_one_with_no_reply_is_not_made_again(
-    launched,  # noqa: F811
+    launched,
 ):
     out(launched)
     launched.t3.lose = "after"
@@ -66,7 +68,7 @@ def test_a_launch_is_claimed_before_it_is_asked_for_so_one_with_no_reply_is_not_
 
 
 def test_a_launch_t3_code_refuses_takes_its_claim_back_and_the_next_pass_launches(
-    launched,  # noqa: F811
+    launched,
 ):
     out(launched)
     launched.t3.refuse = "no more threads"

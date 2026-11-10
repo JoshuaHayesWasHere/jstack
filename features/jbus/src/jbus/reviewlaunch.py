@@ -40,6 +40,7 @@ from jbriefs import below
 from jbus import history, verbs
 from jbus.passes import Pass
 from jbus.watch import World, task_brief
+from jmerge import ready
 
 LAUNCHES = "review-launches.jsonl"
 SCOPED = "Scoped reviewer"
@@ -95,6 +96,12 @@ def has(run: Pass, slug: str, head: str) -> bool:
         return True
     sent = run.box.sent()
     return any(f"{kind}|{slug}|{short}" in sent for kind in _MARKED)
+
+
+def judged(run: Pass, slug: str, head: str) -> bool:
+    """Whether the last review the brief has written judged `head`: a reviewer asked for there
+    would read what that review read, so `expedite` asks a crew for none."""
+    return ready.said_of(task_brief(run, slug)).reviewed == head
 
 
 def _key(one: dict[str, Any]) -> Any:
