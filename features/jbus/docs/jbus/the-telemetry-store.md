@@ -16,7 +16,7 @@ The store has one table for each record file of each project, with a `project` c
 | `transitions` | `transitions.jsonl` | a row's move from one status to another |
 | `row_waits` | `waits.jsonl` | a change of a row's reason to wait, to a reason or to none: its `kind` (`hold`, `depends`, `red main`, `room`, `cap` or `none`) and `why_len`, never the reason's text |
 | `outbox` | `outbox.jsonl` | a message jbus sent or held |
-| `ci_jobs` | `ci.jsonl` | a job of a GitHub Actions run, for a project whose table says `ci_report = true` |
+| `ci_jobs` | `ci.jsonl` | a job of a GitHub Actions run, for a project whose table says `ci_report = true`: its `attempt`, its `conclusion`, and from v019 the `step` a failed job failed at (`jbus.ci.collect.failed_step`) |
 | `merges` | the home's `merge.log` | a line `jmerge` logged: its verb, its pull request, a merge's slug and a wait's label |
 | `merge_waits` | the home's `merge-waits.jsonl` | a pull request `jmerge` merged: the second it was ready, the second its merge began, its `seconds` between, and the seconds each code held it (`blockers`), the longest of them `blocker` |
 | `open_waits` | the home's `merge-waits.json` | a ready pull request still open and its wait for `jmerge` at its `head`: `ready`, the `code` of its open segment since `seen`, and the seconds each code held its closed ones (`blockers`); the file's present state, so a pull request that leaves it leaves the table |
@@ -28,7 +28,7 @@ The store has one table for each record file of each project, with a `project` c
 | `row_pulls` | `row-pulls.jsonl` | a pull request a row had, the first time a pass saw it open, and again merged |
 | `runs` | `runs.jsonl` | a completed attempt of a workflow run, of every project |
 | `spend_days` | `spend.jsonl` | a project's Claude spend of one local day (`spent_on`), in units, tokens and units by kind |
-| `spend_rows` | `spend-rows.jsonl` | a day's spend of one role and row, by the title jbus gave the thread |
+| `spend_rows` | `spend-rows.jsonl` | a day's spend of one role and row, by the title jbus gave the thread, and by what woke its runs: `trigger`, the send key (`""` for a run no jbus send woke), `reviewed`, whether the row's first prereview came before them that day, and their `dollars`; a line kept before these were holds none of them, so its trigger reads as unknown |
 | `word_sends` | `word-sends.json` | the thread a carried word went to and when, or that it still waits |
 | `main_reds` | `main-reds.jsonl` | a tip of main whose check `jbus.mainmoved.tell` judged `failed`, once: its `sha`, `pr`, the first pull request landed since the last green tip, the failed `step`, how many `tests` failed and the `verdict`, `change`, `flake` or `infra` (`mainmoved.Verdict`) |
 | `reverts` | `reverts.json` | a revert jbus opened for a red main, by its red tip: the culprit's `slug`, the revert's `branch` and its `pr` |
@@ -60,7 +60,10 @@ A word recorded from your own T3 message is that message, and the message jbus c
 Its `caller` is the first function of the line's `caller`, the one before ` < `, and its `resource` is empty for a line that names none; it keeps no endpoint and no line.
 Each build adds the lines past its cursor to their rows and moves the cursor in one transaction, so a line is counted once.
 Where the file the cursor names has become the old one, the build reads the rest of it and then the new file; where it is neither, both are read from their start.
-The scorecard reads it as `gh-calls-per-hour` and `gh-allowance`.
+The scorecard reads it as `gh-calls-per-hour`, `gh-allowance`, `gh-calls-per-session-hour` and `gh-idle-calls-per-hour`.
+`gh-allowance` is the lower of the core and the graphql allowance left, whichever wall is nearer.
+`gh-idle-calls-per-hour` is the floor: the costed core calls (a 304 is not one) an hour, over today's whole hours with under half a live session-hour in them, a thread live in an hour from its first to its last model call in that hour, so a home left open all day is not at work in the hours it is quiet.
+`gh-calls-per-session-hour` reads nothing under 20 session-hours, where that floor is most of its numerator.
 
 No table holds the text of a message.
 A row keeps ids, times, counts and labels, and in place of each text, its length in a column that ends `_len`, such as `acts.words_len`.
@@ -110,7 +113,7 @@ Six logs keep what jbus's snapshots overwrite, each written from what jbus alrea
   The pass that starts the file writes the `why` of each open row as it stands, so a row that already waited has a line before its reason next changes.
 - `runs.jsonl`: the pass's list of the repo's last 40 workflow runs, which it asks for already, adds each completed attempt once.
   An attempt that ends and is rerun between two passes is not seen.
-- `spend.jsonl` and `spend-rows.jsonl`: once a pass, a chore reads T3 Code's store for each local day that ended six hours ago and is not kept yet, and keeps one line for the day and one for each role and row.
+- `spend.jsonl` and `spend-rows.jsonl`: once a pass, a chore reads T3 Code's store for each local day that ended six hours ago and is not kept yet, and keeps one line for the day and one for each role, row, trigger and `reviewed` (`jgauge.spend.day_lines`).
   The first time, it keeps the last 30 days.
 
 A writer reads its log before it adds, and adds no line whose key the log holds, so each log only grows and holds each line once.
@@ -145,6 +148,10 @@ The spells an account was signed out have no record yet.
 | How did each pull request's review rounds go? | `SELECT project, slug, pr, round_number, meets, errors, warnings FROM review_rounds ORDER BY project, slug, round_number` |
 
 `spend_rows` is Claude's alone, by day, from T3 Code's count of each run; each call's tokens to its row and role, Codex's too, are in `call_rows` and `row_spend` ("Token usage" below).
+
+A crew line's class is what woke its runs, not what they did (`row_spend.CLASSES`): `prereview fix`, `wake` (a slot or stall clock's wake, before the first prereview or after it), `build` for any other run before the row's first prereview, a `lapse` resume and a word of the user's too, then `failed check`, `stale base` or `other`.
+A row with any crew line kept before the trigger was has no class, since its first prereview may be on such a line.
+`dollars-per-row` shows a part for each role, in dollars a row, which sum to its value, and one for each class of the crew's dollars: the class's share of the crew dollars `spend_rows` holds for the week's merged rows, times the crew's part, so the classes sum to the crew's.
 
 ## Token usage
 
@@ -207,7 +214,7 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 | `weekly_change_failure` | each week's S6: `failures`, `merged` and `rate` |
 | `brief_at_launch` | each launch of a row: the sha of the brief stored then, and how many versions came after |
 | `launch_waits` | each launched row's `seconds` from its go to its launch, one row for each kind of reason it waited for in `row_waits`: `hold`, `depends`, `red main`, `room`, `cap` or `none`, the time before the row's first line; the go is the earlier of its first approved item and its queue approval, and the launch its first move to `launched`; counted from the project's first line of `waits.jsonl`, so a row that launched before it has no row |
-| `run_attempts` | each run: its attempts, when and at which attempt it first failed, and how its last attempt ended |
+| `run_attempts` | each run: its attempts, when it was `created`, when and at which attempt it first failed, at which attempt it last failed (`last_fail_attempt`), and how its last attempt ended |
 | `carried_words` | each word a home carried: from `acts.jsonl`, with the thread it went to from `word-sends.json` |
 | `weekly_restore` | each week's S7: `spells`, `median`, `most`, `still_open` and `negative` |
 | `ask_ledger` | each message you typed or word you said, what it `asks`, and what it joined: a `row` or an `answer`, an act that cites the message by id (a word by its own id), else a `reply` in its thread within 120 minutes; with none, `waiting`, then `unanswered` |
@@ -285,7 +292,7 @@ What a message you typed is about is one label too, its `surface`, kept in `mess
 
 Each label but `needs` and `other` is a pattern of words, tried in the order of the table (`approval` reads a message's start, where an answer's word is, and `my pick` anywhere), over the first 400 characters with a mention in quotes or backticks and a link's target left out.
 A word of `acts` has no `surface`: an act keeps no text past its read.
-The measures `merge-asks` and `approval-reasks` read it; `merge` counts every message that names a pull request, a new piece of work as much as a complaint, and `approval` every approval typed in T3, a re-ask or not, and no word said through the bots' chat or the view.
+The measures `merge-asks` and `approval-reasks` read it, each as a day's rate: the count of the week so far over its days, against a seventh of its weekly baseline, so a Monday and a Saturday are judged alike; `merge` counts every message that names a pull request, a new piece of work as much as a complaint, and `approval` every approval typed in T3, a re-ask or not, and no word said through the bots' chat or the view.
 `sidebar-friction`, `status-asks`, `wrong-home` and `friction-by-surface`, the share of typed messages that are not `other`, lack it: on a held-out 100 of the audit of 2026-11-09, the label agreed with its hand label under 80% of the time, and each measure's `needs` gives by how much.
 `reply-corrections` and `visual-misses` lack it too: no pattern of the words tells a correction from a request.
 `asks.py` gives each pattern and what it misses.
@@ -373,58 +380,11 @@ An alert whose count falls back under its limit, or a measure no longer `bad`, e
 ## The scorecard
 
 `jbus --project <name> scorecard` reads each health measure of one project from the store, opened read only, and prints one line a measure: its state, group, name, value, unit, the count it is of, its baseline and its tier.
-`--json` prints a list instead, each item with `name`, `group`, `value`, `unit`, `n`, `baseline`, `state`, `tier`, `wired`, `audit` and `note`.
-It writes no page, raises no alert and changes nothing in the store.
-
-A KPI is a weekly value against a target for the vision; a measure is a reading of an hour, a day, the last 72 h or a week so far against a baseline, to say whether jstack is healthy now.
-Each measure is a module of its own in `jbus.telemetry.measures`, `m<NN>_<slug>.py`, whose `MEASURE` is one `Measure` and holds no function:
-
-| Field | What it is |
-|---|---|
-| `name` | a slug, unique among the measures |
-| `group` | `flow`, `cost`, `quality`, `attention` or `machinery` |
-| `says`, `unit` | what it counts, and its value's unit |
-| `better` | `lower` or `higher` |
-| `source` | `Sql(query, machine)`, or `Lacks(needs)` where the store has no record for it yet |
-| `window` | `hour` (the last hour), `day` (the user's day so far), `72h` (the last 72 h, which no midnight resets, so a count over it is its rate per 72 h, as `closed-unmerged` counts the pull requests closed with no merge where a row asked for one, no probe whose row asked for none and no revert of jbus's, against the 3 abandoned rows of the audit of 2026-11-09), `week` (the user's week so far, from the midnight that begins its Sunday) or `now` |
-| `baseline`, `baseline_of` | the value it is judged against, a `Week` or None, and where that value is from |
-| `kind` | `Zero()`, `Limit(at, floor)`, `Trend(by)` or `Over(by, floor)` |
-| `tier` | `wake` where a crossing is to wake the user, `page` where it is only shown |
-| `wired` | the alert that already raises it, or empty, so nothing raises it twice |
-| `audit` | the ranks of the counters of the audit of 2026-11-09 it carries |
-
-A query is one SELECT that gives one row of `value` and `n`, how many the value is of.
-It takes only the named parameters `:project`, `:begins` and `:ends`: the window's bounds as UTC stamps, `begins` in it and `ends` not, so it filters on a stamp column such as `at`, never on `day`.
-A `machine` query reads the machine's rows, with `:project` the empty project.
-A weekly view is read at `week in (date(:begins), date(:begins, '+1 day'))`, the Sunday the window begins on in any zone.
-
-A `Week(sunday)` baseline is the measure's own query read over the whole user's week of that Sunday, from its midnight to the next Sunday's, each time the measure is read, and the reading's `baseline` is that value.
-A change of what the query counts, such as a new share of a row's dollars or a new price, so moves the baseline with the value, where a number typed in once stays in the definition it was read under.
-
-The four kinds say where a value is past its line:
-
-- `Zero()`: any value above 0, a count that should never happen.
-- `Limit(at, floor)`: a value beyond `at` in the worse direction, read only with `n` at least `floor`.
-- `Trend(by)`: a value worse than the mean of its own seven days before, each the same window that many days earlier, by more than `by` percent.
-- `Over(by, floor)`: a value worse than the baseline by more than `by` percent, read only with `n` at least `floor`: the line of a `Week` baseline, which moves with it.
-
-A reading has one of four states:
-
-- `bad`: past the kind's line.
-- `watch`: worse than the baseline, not past the line.
-- `ok`: neither.
-- `none`: a `Lacks`, no baseline, no value, `n` under the floor, or a query that failed, whose error is its note.
-
-The first 41 are the rows of the scorecard scout's visual of 2026-11-09, in its order.
-Where it named a line the measure has it as written; where it named none, a `page` measure's `Limit` is 20% past its baseline in the worse direction.
-To add a measure, add a module with the next free `NN`; no list names it.
-To measure one that `Lacks` its record, add the record and its table as "Change the store" says, then give the measure a `Sql` in place of its `Lacks`.
-
-## The scorecard
-
-`jbus --project <name> scorecard` reads each health measure of one project from the store, opened read only, and prints one line a measure: its state, group, name, value, unit, the count it is of, its baseline and its tier.
 `--json` prints a list instead, each item with `name`, `group`, `value`, `unit`, `n`, `baseline`, `state`, `tier`, `wired`, `audit`, `note` and `each`.
-`each` lists the parts a measure's value is the worst of, each with its `label`, `value` and `line` (null where it has no line yet), as `units-vs-capped-line` lists each account's units an hour against its capped line; it is empty for every other measure, and the line and the page show the same parts after the value.
+`each` lists the parts of a measure's value, each with its `label`, `value` and `line` (null where it has no line yet): the parts the value is the worst of, as `units-vs-capped-line` lists each account's units an hour against its capped line, or the parts it is made of, as `change-failure` lists each red spell of the week and `pr-checks-failed` each class of failure; it is empty for every other measure, and the line and the page show the same parts after the value.
+`pr-checks-failed` counts each check run on a pull request once: one that failed at any attempt, or whose last attempt passed, so a run whose last attempt was cancelled is left out.
+Its parts are the share of the runs that failed for each class, read from the failed jobs of a run's last failed attempt: `runner fault` where none failed at a step of the change's own (`OWN` in `m17_pr_checks_failed.py`: a make target, `new lines` or a lint) and one failed at another, such as the trailer fetch; otherwise `flake` where a later attempt of the run, or a later run at the same head, passed; and `own defect` where none did.
+A failed run whose jobs name no step is in the value and in no part.
 `jbus scorecard --out <path>` writes the scorecard's page there in place of the lines, through a draft file renamed over it, and prints one line with the count of each state.
 It raises no alert and changes nothing in the store.
 
@@ -484,6 +444,13 @@ The first 41 are the rows of the scorecard scout's visual of 2026-11-09, in its 
 Where it named a line the measure has it as written; where it named none, a `page` measure's `Limit` is 20% past its baseline in the worse direction.
 To add a measure, add a module with the next free `NN`; no list names it.
 To measure one that `Lacks` its record, add the record and its table as "Change the store" says, then give the measure a `Sql` in place of its `Lacks`.
+
+Two measures read a home's context over the last 72 h, the window its baseline was read over, on a home's own calls: a call whose `agent` names a subagent of the home's session is the subagent's, and neither counts it.
+
+| Measure | What it reads | Baseline | Line |
+|---|---|---|---|
+| `home-context` | the mean context a home's own call sent, in thousands of tokens | 182, the audit of 2026-11-09 | 218.4, with 20 calls |
+| `home-context-peak` | the most context one home call sent, in thousands of tokens, which a mean does not show | 630, the week's largest call, read on 2026-11-10 | 200, with 1 call |
 
 ## How it stays current
 
