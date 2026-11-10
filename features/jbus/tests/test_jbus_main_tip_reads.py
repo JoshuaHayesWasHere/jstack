@@ -3,7 +3,7 @@ newest commits, which `watch.retro` and `jbus.reverts.macos` both read, and the 
 `.github/workflows/`, which `watch.watched` reads. Within one pass, a path GitHub already answered
 is not asked again, so `watch._judged` reads a commit's runs and check runs once. A commit that
 nothing judges, with no push run and no check run, is read for a quarter hour and then only as
-main's tip."""
+main's tip, and once it has been so for a day, once an hour."""
 
 import json
 from collections import Counter
