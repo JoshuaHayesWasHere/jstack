@@ -2,17 +2,19 @@
 
 T3 Code keeps every message of every thread in its own store (`boxes.store()`), and jbus reads
 it read only. A row here is one message, of the user or of the assistant: its id, its thread,
-who wrote it, when, and, of a user's message, its `kind` and what it `asks`
-(`jbus.telemetry.asks`). It keeps no text: as a user's message is read, `kind` and `asks` are
-worked out of its first few hundred characters, and only the labels and the text's length are
-kept. The view `ask_ledger` (`jbus.telemetry.views.ask_ledger`) joins each message the user typed
-to the row, the answer or the reply that followed it.
+who wrote it, when, and, of a user's message, its `kind`, what it `asks` and, of one the user
+typed (`kind` `text`), its `surface` (`jbus.telemetry.asks`). It keeps no text: as a user's
+message is read, `kind`, `asks` and `surface` are worked out of its first few hundred characters,
+and only the labels and the text's length are kept. The view `ask_ledger`
+(`jbus.telemetry.views.ask_ledger`) joins each message the user typed to the row, the answer or
+the reply that followed it.
 
 A word the user said where T3 Code has no message of theirs, through the bots' chat or the view,
 is a message too: `jbus word` keeps it as an act (`jbus.word`), and each build writes a row for
 each such act of the store's `acts`, keyed `word:<id>`, from the user, at the time it was said, in
 the thread jbus carried it to (`word_sends`), with `creation_source` `word:<the act's source>` and
-the `asks` the act was labelled with as it was read (`jbus.telemetry.records`).
+the `asks` the act was labelled with as it was read (`jbus.telemetry.records`), and no
+`surface`: an act keeps no text past its read, and no surface of it.
 A word recorded from the user's own T3 message (`t3-message`) is that message and no row of its
 own, and the message jbus carries a word in is written by T3 Code's agent, so neither is a second
 ask.
@@ -48,8 +50,8 @@ if TYPE_CHECKING:
     from jbus.telemetry import Built
 
 TABLE = "messages"
-RULES = 3
-"""The version of the rules of `kind` and `asks`: a change to either raises it, and the next
+RULES = 4
+"""The version of the rules of `kind`, `asks` and `surface`: a change to any raises it, and the next
 build reads every message again, so each row is labelled by the rules of today."""
 BATCH = 5000
 COLUMNS = values._columns(
@@ -63,6 +65,7 @@ COLUMNS = values._columns(
     "kind",
     "text_len",
     "asks",
+    "surface",
 )
 DROPPED = (
     "<task-notification>",
@@ -92,7 +95,7 @@ where m.rowid > ? order by m.rowid limit ?
 
 WORDS = f"""
 SELECT a.project, '{WORD}' || a.id, a.id, s.thread, 'user', coalesce(a.said_at, a.at), NULL,
-'user', '{WORD}' || coalesce(nullif(a.source, ''), 'unknown'), 'text', a.words_len, a.asks
+'user', '{WORD}' || coalesce(nullif(a.source, ''), 'unknown'), 'text', a.words_len, a.asks, NULL
 FROM acts a LEFT JOIN word_sends s ON s.project = a.project AND s.word = a.id
 WHERE a.verb = 'word' AND coalesce(a.source, '') <> 't3-message'
 """
@@ -187,6 +190,7 @@ def _t3(
                         sort,
                         length,
                         (asks.label(head) if sort == "text" else "other") if sort else None,
+                        asks.surface(head) if sort == "text" else None,
                         values.day(stamp, zone),
                     )
                 )
