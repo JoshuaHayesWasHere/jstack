@@ -265,6 +265,21 @@ def test_scope_prints_each_changed_file_the_where_does_not_cover(claims, scope):
     assert scope.run() == (["outside: docs/a.md", "outside: tests/test_a.py"], 0, "")
 
 
+@pytest.mark.parametrize(
+    ("doc", "outside"),
+    [
+        ("features/jbus/docs/jbus/the-queue.md", []),
+        ("features/jmerge/docs/jmerge.md", ["outside: features/jmerge/docs/jmerge.md"]),
+    ],
+)
+def test_scope_holds_the_docs_of_a_feature_whose_source_where_names_inside(
+    claims, scope, doc, outside
+):
+    claims.write("alpha", where="`features/jbus/src/jbus/queue.py`")
+    scope.branch("alpha", "features/jbus/src/jbus/queue.py", doc)
+    assert scope.run() == (outside, 0, "")
+
+
 def test_scope_goes_by_the_branch_the_last_result_names(claims, scope):
     claims.write("alpha", where="`src/`", result=result().replace("alpha", "other-name"))
     scope.branch("alpha", "src/a.py")
