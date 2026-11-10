@@ -7,7 +7,7 @@ jbus merges a scoped home's pull requests as it merges the root home's, and no h
 The homes of a repo do not plan each other's work, and they are quiet towards each other:
 
 - The root home sends a scoped home one kind of message: a decision that crosses scopes, one that changes what that home may plan or touch.
-  It is the user's word, carried with `jbus word --to "$P" --message '<thread id>/<message id>' --scope <scope>`, given again for each scope or once as `--scope every`, and never with `t3_thread_send`.
+  It is the user's word, carried with `jbus word --to "$P" --message '<thread id>/last' --scope <scope>` (the user's newest message there; an older one by its id), given again for each scope or once as `--scope every`, and never with `t3_thread_send`.
   jbus checks that the message is the user's own, keeps one record for each scope, says `held` for a scope that has it already, and wakes each home once on its next pass.
   The root writes no words of its own into it.
   A home with no `home-id` is not running: jbus keeps the word, and sends it on the pass after that home's next start.
@@ -79,7 +79,7 @@ slug='<slug>'
 child='<child>'
 priority='<n>'
 entry='<entry>'
-message='<thread id>/<message id>'
+message='<thread id>/last'
 case $kind in
 tasks) B="$H/tasks/$slug.md" ;;
 scouts) B="$H/scouts/$slug.md" ;;
@@ -102,7 +102,7 @@ if [ -z "$why" ]; then
     esac
     case $message in
     ?*/?*) ;;
-    *) why="$message is not the user's message as <thread id>/<message id>" ;;
+    *) why="$message is not the user's message as <thread id>/last or <thread id>/<message id>" ;;
     esac
 fi
 if [ -z "$why" ]; then

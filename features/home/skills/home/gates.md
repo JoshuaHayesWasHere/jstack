@@ -121,7 +121,7 @@ Ask it once, in plain words in this home's own thread, in a message that names i
 The user's plain reply to that ask is the answer: "drop it", "yes" or "keep it" need not name the question or the row, since jbus reads the last message this home wrote before the reply, and binds the reply to each open door that message named.
 So a door you do not want opened goes in a message of its own; a reply that names its item itself, as `q250`, `#250` or the row's slug, binds only to the items it names, wherever it was said.
 Turn the user's words into the verb yourself: never give them words to send, and never ask them to repeat an answer in exact words.
-Close it with `jbus answer <n> --default --message <thread id>/<message id>`, or `--differs` for an answer that is not the default, on that reply; a reply to a `may <slug> go?` ask opens the row with `jbus queue approve <slug> --message <thread id>/<message id>` the same way.
+Close it with `jbus answer <n> --default --message <thread id>/last`, or `--differs` for an answer that is not the default, on that reply; a reply to a `may <slug> go?` ask opens the row with `jbus queue approve <slug> --message <thread id>/last` the same way (`last`: their newest message there).
 Where they already sent that message, run the command on it yourself, and never ask them to send it again.
 When jbus refuses the reply (said before the ask, or to an ask that named another door), ask again about this one item alone, in plain words, and run the command on their next reply: never hand them a line to send.
 On a `may <slug> go?` question, `--differs` is the go, and jbus approves the row with it.

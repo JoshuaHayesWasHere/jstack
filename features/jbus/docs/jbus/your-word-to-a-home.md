@@ -12,6 +12,9 @@ jbus cannot read the bot's chat, so their evidence is `bot-chat` with `checked: 
 The evidence is checked as a bot's go is, by `party.chat`: `voice:` or any other source, and a chat with no address or no device, is refused with `refused: --evidence is bot-chat:<address>/<device> or t3-message:<thread>/<message>, not <given>`.
 `--words` goes only with `bot-chat` evidence, `--as user` is refused for it since jbus did not read the words, and so is `--scope`, which takes only your own message.
 `--evidence t3-message:<thread id>/<message id>` is the same as `--message`.
+`<thread id>/last` in place of `<thread id>/<message id>`, in `--message` or `--evidence` of any verb and in `jmerge --accept`, names your newest message in that thread: the newest that T3 Code's own store has as yours (a user message by `user`, not still streaming), which jbus then reads from T3 Code as it reads a message by its id, so a message an agent sent never passes.
+jbus turns `last` into the message's id before it keeps anything, so the record names that message and not whichever is newest later.
+A thread with no message of yours is refused, `refused: thread <thread id> has no message of the user's`.
 A bot-chat word never opens a door: a go on it for a row whose brief holds for one parks a gate for your own word in T3 Code ([Doors](the-queue.md#doors)).
 Your own plain reply in a home's thread opens every door the home's ask before it named, so one "yes" to an ask about two rows opens both.
 A bot-chat word's id hashes the project, the words, you and the address, and no time, so the bot sending the same message again later is the same word and is not sent twice.

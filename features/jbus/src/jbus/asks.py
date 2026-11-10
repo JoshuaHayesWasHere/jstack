@@ -442,7 +442,8 @@ def _table(table: argparse.ArgumentParser) -> None:
         "--message",
         metavar="THREAD/MESSAGE",
         help="the user's own message in T3 Code that gives the go for this brief: the row is "
-        "approved on it in the same write, as queue approve --message approves it",
+        "approved on it in the same write, as queue approve --message approves it"
+        "; THREAD/last is the user's newest message there",
     )
     approve = table_verbs.add_parser(
         "approve", help="record the go for the brief the user was shown", allow_abbrev=False
@@ -451,13 +452,16 @@ def _table(table: argparse.ArgumentParser) -> None:
     approve.add_argument("--word", metavar="ID", help="a word `jbus word` kept, by its id")
     approve.add_argument("--answer", metavar="NUMBER", help="the answer that closed a question")
     approve.add_argument(
-        "--message", metavar="THREAD/MESSAGE", help="the user's own message in T3 Code"
+        "--message",
+        metavar="THREAD/MESSAGE",
+        help="the user's own message in T3 Code; THREAD/last is the user's newest message there",
     )
     approve.add_argument(
         "--pick",
         metavar="THREAD/ITEM",
         help="the user's own answer to a question box in T3 Code, by its thread and its "
-        "user_input_request item: it approves the row a picked label names",
+        "user_input_request item: it approves the row a picked label names; THREAD/last is "
+        "the box answered last there",
     )
     approve.add_argument(
         "--rule",
@@ -490,7 +494,9 @@ def _table(table: argparse.ArgumentParser) -> None:
     )
     remove.add_argument("slug")
     remove.add_argument(
-        "--message", metavar="THREAD/MESSAGE", help="the user's own message in T3 Code"
+        "--message",
+        metavar="THREAD/MESSAGE",
+        help="the user's own message in T3 Code; THREAD/last is the user's newest message there",
     )
     remove.add_argument("--by", help="the user's name, with --at, for words that were typed")
     remove.add_argument("--at", help='"<YYYY-MM-DD HH:MM ZONE>", when the user said it')

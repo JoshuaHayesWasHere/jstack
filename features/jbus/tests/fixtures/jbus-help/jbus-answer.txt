@@ -13,7 +13,8 @@ options:
                         words it
   --message THREAD/MESSAGE
                         the user's own message in T3 Code, in place of --by,
-                        --at and the words
+                        --at and the words; THREAD/last is the user's newest
+                        message there
   --default             the answer is the default the thread took: nothing is
                         sent to it, or a go-ahead for a gate that holds
   --differs             the answer is not the default, so the next pass tells

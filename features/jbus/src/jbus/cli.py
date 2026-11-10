@@ -42,10 +42,34 @@ No model reads anything.
 
 from __future__ import annotations
 
+import argparse
+
 import jbus
 from jbus import verbs
 
 LISTED = verbs.listed(jbus.__path__)
+LAST = "/last"
+EVIDENCE = {"message": "t3-message:", "pick": "t3-pick:"}
+"""The options whose `<thread id>/last` names the user's newest message or answered question box,
+each with the prefix of the same ref as `--evidence`."""
+
+
+def _resolved(args: argparse.Namespace) -> None:
+    """Turn a `<thread id>/last` that `--message`, `--pick` or their `--evidence` names into the
+    id of the user's newest message or answered question box there, once, before any verb keeps
+    the ref (`t3.resolved`, `boxes.resolved`)."""
+    given = getattr(args, "evidence", None) or ""
+    named = {option: getattr(args, option, None) or "" for option in EVIDENCE}
+    if not given.endswith(LAST) and not any(ref.endswith(LAST) for ref in named.values()):
+        return
+    from jbus import boxes, t3
+
+    resolve = {"message": t3.resolved, "pick": boxes.resolved}
+    for option, prefix in EVIDENCE.items():
+        if named[option]:
+            setattr(args, option, resolve[option](named[option]))
+        if given.startswith(prefix):
+            args.evidence = prefix + resolve[option](given.removeprefix(prefix))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -64,6 +88,7 @@ def main(argv: list[str] | None = None) -> int:
     if extra:
         parser.error(f"unrecognized arguments: {' '.join(extra)}")
     try:
+        _resolved(args)
         return verb.run(args, jbus.load() if verb.config else None)
     except Exception as error:
         from jbus import t3

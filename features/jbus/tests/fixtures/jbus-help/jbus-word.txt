@@ -8,7 +8,8 @@ options:
   --all                 the home of every project
   --message THREAD/MESSAGE
                         the user's own message in T3 Code, which jbus reads
-                        for the words and the time
+                        for the words and the time; THREAD/last is the user's
+                        newest message there
   --evidence SOURCE:REF
                         the words the word rests on, in place of --message:
                         t3-message:<thread>/<message>, or bot-

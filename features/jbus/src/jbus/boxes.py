@@ -18,9 +18,7 @@ typed in place of a label is no pick: it is kept in the words, and approves noth
 from __future__ import annotations
 
 import json
-import os
 import re
-import sqlite3
 import urllib.parse
 from dataclasses import dataclass
 from datetime import UTC
@@ -29,11 +27,11 @@ from typing import Any
 
 import jsettings
 from jbus import Config, Refused, party, queue
-from jbus.t3 import Client, T3Error
+from jbus.t3 import LAST, Client, T3Error
+from jbus.threadview import opened, store
 
 KIND = "user_input_request"
 PREFIX = "turn-item:runtime-request:"
-STORE = Path("userdata") / "statev2.sqlite"
 MCP = "mcp:"
 _APP = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 _RESOLVED = """
@@ -45,10 +43,6 @@ and json_extract(e.payload_json, '$.id') = ?
 and json_extract(e.payload_json, '$.status') = 'resolved'
 order by e.sequence
 """
-
-
-def store() -> Path:
-    return Path(os.environ.get("T3CODE_HOME") or Path.home() / ".t3") / STORE
 
 
 @dataclass(frozen=True)
@@ -65,19 +59,14 @@ class Answered:
 def answered(where: Path, thread: str, request: str) -> Answered | None:
     """Return the request of the thread from the store at `where`, or None when the store has no
     such request. Raise `Refused` when the store cannot be read."""
-    if not where.is_file():
-        raise Refused(f"refused: T3 Code keeps no store at {where}")
-    try:
-        with sqlite3.connect(f"file:{where}?mode=ro", uri=True) as db:
-            found = db.execute(
-                "select status, resolved_at, payload_json"
-                " from orchestration_v2_projection_runtime_requests"
-                " where runtime_request_id = ? and thread_id = ?",
-                (request, thread),
-            ).fetchone()
-            commands = [one for (one,) in db.execute(_RESOLVED, (thread, request))]
-    except sqlite3.Error as error:
-        raise Refused(f"refused: T3 Code's store at {where} cannot be read ({error})") from None
+    with opened(where) as db:
+        found = db.execute(
+            "select status, resolved_at, payload_json"
+            " from orchestration_v2_projection_runtime_requests"
+            " where runtime_request_id = ? and thread_id = ?",
+            (request, thread),
+        ).fetchone()
+        commands = [one for (one,) in db.execute(_RESOLVED, (thread, request))]
     if found is None:
         return None
     status, resolved_at, payload = found
@@ -88,6 +77,33 @@ def answered(where: Path, thread: str, request: str) -> Answered | None:
     if not isinstance(answers, dict):
         answers = {}
     return Answered(str(status), str(resolved_at or ""), answers, tuple(map(str, commands)))
+
+
+def newest_answered(where: Path, thread: str) -> str | None:
+    """The id of the thread's request of a question box that T3 Code's store has as answered
+    last, or None where it has none."""
+    with opened(where) as db:
+        found = db.execute(
+            "select runtime_request_id from orchestration_v2_projection_runtime_requests"
+            " where thread_id = ? and kind = 'user_input' and status = 'resolved'"
+            " order by resolved_at desc, runtime_request_id desc limit 1",
+            (thread,),
+        ).fetchone()
+    return str(found[0]) if found else None
+
+
+def resolved(ref: str) -> str:
+    """The `--pick` `ref` with `<thread id>/last` turned into `<thread id>/<item id>` of the
+    question box of the thread that was answered last (`newest_answered`), whoever answered it:
+    `picked` still refuses one an agent answered. Any other ref is returned as it is. Raise
+    `Refused` where the thread has no answered box."""
+    thread, _, item = ref.partition("/")
+    if item != LAST or not thread:
+        return ref
+    newest = newest_answered(store(), thread)
+    if newest is None:
+        raise Refused(f"refused: thread {thread} has no answered question box")
+    return f"{thread}/{PREFIX}{urllib.parse.quote(newest, safe='')}"
 
 
 def by_user(commands: tuple[str, ...]) -> str:
@@ -151,6 +167,7 @@ def picked(config: Config, ref: str) -> queue.Said:
     It refuses an item that is not a question box, a box nobody answered yet, and a box that
     an agent, or anything but T3 Code's app, answered, each with the reason.
     """
+    ref = resolved(ref)
     thread, _, item = ref.partition("/")
     if not thread or not item.startswith(PREFIX):
         raise Refused(f'refused: --pick is "<thread id>/{PREFIX}<request>", not {ref}')

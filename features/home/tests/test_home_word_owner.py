@@ -40,7 +40,7 @@ def test_a_word_about_a_scoped_homes_report_is_shown_at_that_homes_start_alone(h
 
 def test_the_root_home_that_records_a_scoped_homes_word_forwards_it_there(home):
     home.kitchen.t3.says("mcp:sous", "m1", "drop sp-chart", title="Sous Chef")
-    ran = home.home(RECORDS, ROOT, **{"<thread id>/<message id>": "mcp:sous/m1"})
+    ran = home.home(RECORDS, ROOT, **{"<thread id>/last": "mcp:sous/m1"})
     assert ran.startswith(f"sent: demo, to the {SCOPE} home at {SCOPED}, word ")
     assert home.word(SCOPED).endswith(": drop sp-chart")
     assert home.word(ROOT) == NONE
