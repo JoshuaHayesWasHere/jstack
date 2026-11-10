@@ -564,6 +564,19 @@ If no line is lost, `git range-diff` between the head the review saw and the reb
   `jmerge` merges once a `## Review` names the rebased head.
   A range-diff that cannot run counts as a content change.
 
+The scoped review runs beside the check, not after it.
+While a required check has no run at the head, is running, or has not passed, `jmerge` still reads the range-diff, and says the content change in the check's place, with the check's wait as the judgement's note.
+jbus launches the scoped reviewer from that line, once for the head, as it does after the check.
+The pull request merges only once both the check passed and a `## Review` names the head, in either order: a review that comes in first leaves the check's wait, and a check that passes first leaves the content change.
+A failed check and a conflict are said before the content change, as before; a failed check that is all that holds the pull request is judged again as if it passed, and so says the content change too.
+Said after the check, the two ran one after the other: 148 of 635 merges from 2026-11-03 to 2026-11-10 waited on `content-changed`, 4.18 minutes at the median, after a check of 5.2.
+
+A review started beside the check is spent on a head whose check then fails.
+That cost was mostly paid already: of the 341 heads that waited on `content-changed` over that week, 84 then failed their check, and 65 of those already had a scoped review, launched once the failed check was judged again as passed.
+The crew's fix for the check is a new head, whose range-diff needs a scoped review of its own.
+
+`merge-waits.jsonl` (`features/jmerge/src/jmerge/waits.py`) counts a wait from the second the check passed, so its `content-changed` seconds are now only what the scoped review took beyond the check, not the whole review: read the code's seconds before this change and after it as two measures.
+
 The reviewed range leaves out the commits the rebased head's base already holds.
 A stacked link's range can start below the link under it, and so hold that link's squash merge on main, which pairs with nothing in the new range.
 `jmerge` starts the reviewed range at its fork from the new base instead, when git names one fork above the old start.

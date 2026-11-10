@@ -124,10 +124,12 @@ Verdict ==
     \* Its review: no round, findings not handled, a fix not reviewed, the brief not met
     \* (cli.py `short = self.lift(ready.short_of(text, one.head, heard, proven), lifted)`).
     IF ~reviewed THEN "no-review"
-    \* GitHub's waits (cli.py `short = short or ("" if undecided else github)`): the check not
-    \* ended (ready.py `return (CHECK_FAILED if failed else NOT_PASSED).format(check=one.waiting[0])`),
+    \* GitHub's waits (cli.py `short = short or ("" if undecided or beside else github)`): the
+    \* check not ended (ready.py `return (CHECK_FAILED if failed else NOT_PASSED).format(check=one.waiting[0])`),
     \* failed and not judged again, or a conflict with its base (ready.py
-    \* `if one.mergeable == "CONFLICTING":`). An undecided GitHub is said last.
+    \* `if one.mergeable == "CONFLICTING":`). An undecided GitHub is said last, and a check that
+    \* can still pass after the review's range-diff (cli.py
+    \* `short = short or self.row_first(brief.stem, beside)`), as `reviewed` already is here.
     ELSE IF ci = "none" THEN "not-passed"
     ELSE IF ci = "fail" /\ ~Rejudged THEN "check-failed"
     ELSE IF decided /\ clash THEN "conflicts"

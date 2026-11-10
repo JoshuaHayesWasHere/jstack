@@ -989,7 +989,12 @@ class Repo:
         merged, and `UNDECIDED` is said only where nothing before the merge itself is short:
         GitHub decides afresh each time main moves, and a wait its answer cannot change, said in
         its place, came and went with it. #1440 went `dropped`, `undecided`, `dropped` on
-        2026-11-09, and 57 of that evening's 107 `undecided` lines sat between two of one text."""
+        2026-11-09, and 57 of that evening's 107 `undecided` lines sat between two of one text.
+        A required check that can still pass (`ready.still_to_pass`) is said after the range-diff,
+        so a rebase that changed the content is said while the check runs, with the check's wait
+        as the note, and jbus launches its scoped review beside the check: said after it, the two
+        ran one after the other, 4.18 minutes at the median of 148 merges, 2026-11-03 to 11-10.
+        The range-diff then runs on each run while the check does."""
         brief = ready.brief_of(one.url, self.state / "tasks")
         if brief is None and not one.draft and self.accepted == (one.number, one.head):
             return self.unbriefed(one, default, red)
@@ -1040,7 +1045,8 @@ class Repo:
             lost = ready.answered(text, one.head)
         github = ready.short_on_github(one)
         undecided = github == ready.UNDECIDED
-        short = short or ("" if undecided else github)
+        beside = ready.still_to_pass(one)
+        short = short or ("" if undecided or beside else github)
         short = self.row_first(brief.stem, short)
         note = ""
         silent = ready.unexplained(lost, text, one.head)
@@ -1053,7 +1059,7 @@ class Repo:
             covered = self.kept_fix(brief.stem, one.base, under) or under
         reviewed = None if short or silent else covered
         verdict: rangediff.Verdict | None = None
-        if reviewed == "":
+        if reviewed == "" and not beside:
             short = ready.NO_HEAD
         elif reviewed:
             verdict = self.range_diff(reviewed, one.head, one.base, stacked)
@@ -1062,6 +1068,9 @@ class Repo:
             kept = short and ready.push_note(reviewed, one.head, self.pushed(reviewed, one.head))
             if kept:
                 short, note = "", kept
+            elif short and beside:
+                note = self.row_first(brief.stem, beside)
+        short = short or self.row_first(brief.stem, beside)
         if short:
             return Judgement(brief.stem, judgement.verb(short), short, note, None)
         short = (
@@ -2541,12 +2550,17 @@ for: GitHub's merge of the base into it, asked or due (`Repo.again`)."""
 
 def in_line(one: ready.PullRequest, found: Judgement) -> bool:
     """Whether the pull request at the head of the line keeps it after this judgement. A failed
-    check gives it up, unless the base's merge into it, its turn, is for that check."""
+    check gives it up, unless the base's merge into it, its turn, is for that check. A rebase
+    that changed the content, said while its check can still pass, keeps it as that check's wait
+    would: the wait is the judgement's note (`ready.still_to_pass`)."""
     if one.failed:
         return ready.code_of(found.why) in UPDATING_RED
     if found.judged is not None:
         return not found.judged.batch
-    return ready.code_of(found.why) in IN_LINE
+    code = ready.code_of(found.why)
+    if code == ready.CONTENT_CHANGED.code and found.note:
+        code = ready.code_of(found.note)
+    return code in IN_LINE
 
 
 def handed(path: str | None, stamp: str | None) -> tuple[list, str] | None:

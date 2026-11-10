@@ -622,7 +622,7 @@ SHORT = {
         CHECK_FAILED,
     ),
     "check has not finished": (
-        FIXED,
+        CHECKED_ALONE,
         {"head": PUSHED, "checks": (RUNNING, OTHER_PASSED)},
         NOT_PASSED,
     ),
@@ -632,22 +632,22 @@ SHORT = {
         NO_RUN,
     ),
     "check was skipped": (
-        FIXED,
+        CHECKED_ALONE,
         {"head": PUSHED, "checks": (SKIPPED, OTHER_PASSED)},
         NOT_PASSED,
     ),
     "check ended neutral": (
-        FIXED,
+        CHECKED_ALONE,
         {"head": PUSHED, "checks": (run("NEUTRAL"), OTHER_PASSED)},
         NOT_PASSED,
     ),
     "check passed once and failed in a later run": (
-        FIXED,
+        CHECKED_ALONE,
         {"head": PUSHED, "checks": (PASSED, FAILED)},
         NOT_PASSED,
     ),
     "check passed, and a run that started later was cancelled": (
-        FIXED,
+        CHECKED_ALONE,
         {"head": PUSHED, "checks": (PASSED_LATER, timed("CANCELLED", "01:30:00", "01:31:00"))},
         NOT_PASSED,
     ),
@@ -657,7 +657,7 @@ SHORT = {
         CHECK_FAILED,
     ),
     "check's one run was cancelled": (
-        FIXED,
+        CHECKED_ALONE,
         {"head": PUSHED, "checks": (CANCELLED_EARLY, OTHER_PASSED)},
         NOT_PASSED,
     ),
