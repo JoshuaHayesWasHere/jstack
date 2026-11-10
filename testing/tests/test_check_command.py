@@ -452,7 +452,7 @@ def test_928s_807_line_module_fails_the_desks_guard_part_with_neither_0_nor_124(
     neither 0 nor the lane's 124. The real selector picks the parts; the fake `uv` runs the size
     guard for real wherever a call names it, and a call that names a test the change reaches by
     import stands for the slow rest: it ends 124 at once, as the lane would stop it."""
-    records = "features/jbus/src/jbus/telemetry/records.py"
+    records = "features/jbus/src/jbus/telemetry/records/__init__.py"
     padding = "\n" * (807 - len((REPO / records).read_text().splitlines()))
     copy, path, asked = changed_copy(tmp_path, records, padding)
     guard = "features/repo-guards/tests/test_module_size.py"
