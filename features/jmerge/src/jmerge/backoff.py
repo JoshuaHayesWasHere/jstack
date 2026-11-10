@@ -30,6 +30,10 @@ from jsettings import budget, proc, store
 NAME = "github-wait.json"
 AT_LEAST = timedelta(minutes=1)
 """GitHub's wait for a refusal that names no time: "wait for at least one minute"."""
+GH = "gh"
+"""The program `Gate.run` holds to the wait. A global, not a literal in `Gate.run`:
+`jsettings.proc` logs a call under the first frame whose code holds the constant `"gh"`, and that
+is to be the function that built the command, not the gate it passes through."""
 WAITS = f"{budget.REFUSED}, so jmerge asks GitHub nothing until {{until}}"
 
 
@@ -114,7 +118,7 @@ class Gate:
         asked: then it fails with `WAITS` and nothing runs. `gh api rate_limit` is always run,
         since asking it spends nothing. A call GitHub refuses for its rate limit sets the wait,
         and gives what `gh` said, so its caller names the window as before (`asked.why`)."""
-        is_gh = bool(command) and Path(command[0]).name == "gh" and list(command) != budget.ASK
+        is_gh = bool(command) and Path(command[0]).name == GH and list(command) != budget.ASK
         if is_gh and (line := self.held()):
             return subprocess.CompletedProcess(command, 1, "", line)
         ran = proc.run(*command, cwd=cwd, timeout=timeout, stdin=stdin, env=env)

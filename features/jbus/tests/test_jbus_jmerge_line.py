@@ -38,13 +38,26 @@ def a_pass(tmp_path, printed, sent=None):
         now=NOW,
         config=SimpleNamespace(state_dir=tmp_path),
         user=jsettings.DEFAULTS,
-        project=SimpleNamespace(name="demo"),
+        project=SimpleNamespace(name="demo", checkout=tmp_path),
         say=sent.append,
         run=lambda *command, timeout=None: SimpleNamespace(
-            stdout="\n".join(printed) + "\n", returncode=0
+            stdout="\n".join(printed) + "\n", stderr="", returncode=0
         ),
         find=lambda slug, kind, line, text="", *, key="": sent.append((slug, kind, line, key)),
     )
+
+
+@pytest.fixture(autouse=True)
+def at_once(monkeypatch):
+    """The pass's run of `jmerge` ends before the pass reads what ended (`merge.start`), and
+    prints what the made-up pass's `run` gives."""
+
+    def start(run):
+        monkeypatch.setattr(merge.proc, "run", lambda *command, **how: run.run(*command))
+        merge.keep(merge.runs(run), run.project.checkout)
+        return ""
+
+    monkeypatch.setattr(merge, "start", start)
 
 
 def test_merge_sends_each_line_about_a_pull_request_and_gives_them_back(tmp_path):

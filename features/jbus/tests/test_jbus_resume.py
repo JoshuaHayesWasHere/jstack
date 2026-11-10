@@ -1,6 +1,9 @@
 """jbus tells a crew thread that ended with no Result to carry on. It queues one message for each
-ended run, at most two for a thread, and then a gate. Like `test_jbus_queue.py`, the tests run
-the real pass against the fakes."""
+ended run, at most two for a thread, and then a gate. A row left with work on its branch is
+launched again on its own slug, branch and worktree once a cause it waited on clears
+(`jbus.pausedon.cleared`), by `jbus.dispatch`, in the worktree `jbus.crewtree.reopen` gives it,
+with the `Resume:` line of `jbus.launchtext`. Like `test_jbus_queue.py`, the tests run the real
+pass against the fakes."""
 
 import os
 from datetime import timedelta
@@ -9,11 +12,12 @@ from pathlib import Path
 import pytest
 
 import jbus
-from jbus import threads
+from crew_branches import git_said
+from jbus import crewtree, leftover, threads
 from jgauge import holders, slot
-from test_jbus_kitchen import NOW, RESULT, TOKEN, asks, sends
+from test_jbus_kitchen import NOW, RESULT, TOKEN, Kitchen, asks, review, sends
 from test_jbus_leftover import home
-from test_jbus_queue import add, gates
+from test_jbus_queue import add, gates, go
 from testing.paths import skills
 
 THREAD = "mcp:thread-1"
@@ -313,4 +317,170 @@ def test_a_crew_told_of_its_merge_is_told_to_read_its_skill_file_too(kitchen):
     assert given["threadId"] == THREAD
     assert given["message"] == threads.MERGED.format(number=7, slug="alpha") + reads(
         "crew", home=kitchen.home
+    )
+
+
+PAUSED = (
+    "\n## Result\nStatus: paused, at {head}\nDone when: the table: does not hold\n"
+    "Waits on: `one`, `two`\nBranch: three   Pull request: none\nLeft: waits on one and two\n"
+)
+
+
+def tree_of(kitchen, slug):
+    return Path(os.environ["T3CODE_HOME"]) / "worktrees" / kitchen.checkout.name / slug
+
+
+def committed(kitchen, slug):
+    """Commit a file in the slug's worktree, the work its crew did, and return the commit."""
+    tree = tree_of(kitchen, slug)
+    (tree / "work.md").write_text("the crew's work\n")
+    git_said(kitchen, "-C", str(tree), "add", "work.md")
+    git_said(kitchen, "-C", str(tree), "commit", "-q", "-m", "the crew's work")
+    return git_said(kitchen, "-C", str(tree), "rev-parse", "HEAD")
+
+
+@pytest.fixture
+def left(tmp_path, monkeypatch):
+    """`one`, `two` and `three` launched, and `three`'s crew committed work and paused on `one`
+    and `two`, both open. Its thread ended and T3 Code settled it: the row is left."""
+    made = Kitchen(tmp_path, monkeypatch)
+    made.word()
+    made.config(max_running=8)
+    for slug in ("one", "two", "three"):
+        add(made, slug)
+    made.poll(NOW - timedelta(minutes=30))
+    assert len(made.t3.launches) == 3
+    for thread in made.t3.threads:
+        thread["status"] = "completed"
+    crew_of(made, "three")["settled"] = True
+    made.head = committed(made, "three")
+    path = made.home / "tasks" / "three.md"
+    path.write_text(path.read_text() + PAUSED.format(head=made.head[:12]))
+    made.set("open.json", [made.opened("one", 10), made.opened("two", 11)])
+    yield made
+    made.close()
+
+
+def crew_of(kitchen, slug):
+    return [t for t in kitchen.t3.threads if t["title"] == f"crew: {slug}"][-1]
+
+
+def landed(kitchen):
+    kitchen.set("open.json", [])
+    kitchen.set(
+        "merged.json",
+        [kitchen.merged("one", 10, "a" * 40), kitchen.merged("two", 11, "b" * 40)],
+    )
+
+
+def relaunches(kitchen):
+    return [given for given in kitchen.t3.launches[3:] if given["title"] == "crew: three"]
+
+
+def test_a_left_row_launches_again_on_its_own_branch_once_its_cause_clears(left):
+    left.poll(NOW - timedelta(minutes=20))
+    left.set("open.json", [left.opened("two", 11)])
+    left.set("merged.json", [left.merged("one", 10, "a" * 40)])
+    left.poll(NOW - timedelta(minutes=15))
+    assert relaunches(left) == []
+
+    landed(left)
+    left.poll(NOW)
+    (again,) = relaunches(left)
+    tree = tree_of(left, "three")
+    assert again["workspaceStrategy"] == {
+        "type": "existing_worktree",
+        "worktreePath": str(tree),
+        "branch": "three",
+    }
+    assert "\nResume: " in again["message"] and "one, two landed" in again["message"]
+    brief = (left.home / "tasks" / "three.md").read_text()
+    head = brief.split("\n## ", 1)[0]
+    assert "Resume: " in head and "one, two landed" in head
+    assert f"Thread: {crew_of(left, 'three')['threadId']}" in head
+    assert git_said(left, "-C", str(tree), "rev-parse", "HEAD") == left.head
+    assert not any(ask["clientRequestId"].startswith("paused-on|") for ask in asks(left))
+
+    crew_of(left, "three").update(status="completed", settled=True)
+    for minute in (3, 6):
+        left.poll(NOW + timedelta(minutes=minute))
+    assert len(relaunches(left)) == 1
+
+    path = left.home / "tasks" / "three.md"
+    wider = path.read_text().replace("Where: `src/three/`", "Where: `src/three/`, `src/more/`")
+    path.write_text(wider)
+    code, said = left.main(
+        "queue", "add", "three", "--priority", "1", stdin=wider.split("\n## ")[0] + "\n"
+    )
+    assert code == 0, said
+    assert go(left, "three")[0] == 0
+    left.poll(NOW + timedelta(minutes=9))
+    first, second = relaunches(left)
+    assert "approved again" in second["message"]
+    left.poll(NOW + timedelta(minutes=12))
+    assert len(relaunches(left)) == 2
+
+
+def test_a_resumed_row_gets_the_worktree_of_its_branch(left):
+    tree = tree_of(left, "three")
+    git_said(left, "worktree", "remove", "--force", str(tree))
+    assert not tree.exists()
+    left.poll(NOW - timedelta(minutes=20))
+    landed(left)
+    left.poll(NOW)
+    (again,) = relaunches(left)
+    assert again["workspaceStrategy"]["worktreePath"] == str(tree)
+    assert git_said(left, "-C", str(tree), "rev-parse", "--abbrev-ref", "HEAD") == "three"
+    assert git_said(left, "-C", str(tree), "rev-parse", "HEAD") == left.head
+    assert (tree / crewtree.SETTINGS).is_file()
+
+
+def test_the_leftover_message_offers_no_new_brief_for_a_branch_with_commits(left):
+    home(left)
+    left.poll(NOW - timedelta(minutes=20))
+    records = leftover.read(left.state)
+    said = records["three"].text
+    assert "write a brief for what is left" not in said
+    assert "carried by" not in said
+    assert "launches it again on its own slug, branch and worktree" in said
+    assert "the rows `one`, `two` landing" in said
+
+
+def test_a_crew_carried_on_in_place_is_not_launched_again_for_the_same_rows(left):
+    crew_of(left, "three")["settled"] = False
+    left.poll(NOW - timedelta(minutes=20))
+    landed(left)
+    left.poll(NOW)
+    (told,) = [ask for ask in asks(left) if ask["clientRequestId"].startswith("paused-on|")]
+    assert told["threadId"] == crew_of(left, "three")["threadId"]
+    crew_of(left, "three").update(status="running", settled=True)
+    left.poll(NOW + timedelta(minutes=3))
+    crew_of(left, "three").update(status="completed")
+    for minute in (6, 9):
+        left.poll(NOW + timedelta(minutes=minute))
+    assert relaunches(left) == []
+
+
+def test_a_review_with_findings_after_the_last_result_launches_it_again_once(left):
+    left.poll(NOW - timedelta(minutes=20))
+    path = left.home / "tasks" / "three.md"
+    path.write_text(path.read_text() + review())
+    left.poll(NOW)
+    (again,) = relaunches(left)
+    assert f"the findings of the review at {'c' * 12}" in again["message"]
+    crew_of(left, "three").update(status="completed", settled=True)
+    for minute in (3, 6):
+        left.poll(NOW + timedelta(minutes=minute))
+    assert len(relaunches(left)) == 1
+
+
+def test_a_brief_on_disk_its_go_does_not_hold_for_is_a_gate_and_no_launch(left):
+    path = left.home / "tasks" / "three.md"
+    path.write_text(path.read_text().replace("Where: `src/three/`", "Where: `src/other/`"))
+    left.poll(NOW - timedelta(minutes=20))
+    landed(left)
+    left.poll(NOW)
+    assert relaunches(left) == []
+    assert "condition three: tasks/three.md is not the brief its go holds for" in left.lines(
+        "condition"
     )

@@ -22,7 +22,7 @@ import jbus.waiting
 import jbus.wake
 import test_jbus_main_moved
 from jbus import conditional, questions, watch
-from jbus.dispatch import fixes_main
+from jbus.launchtext import fixes_main
 from jmerge import mainjson
 from jmerge import reverts as made
 from test_jbus_chains import queue_add
