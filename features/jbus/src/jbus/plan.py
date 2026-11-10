@@ -279,6 +279,41 @@ def holding(state: Path, home: Path, brief: str, entry: str) -> queue.Said | Non
     return None if why_not(made, text) else made.said()
 
 
+def filed_under(home: Path, state: Path, slug: str, text: str, entry: str) -> None:
+    """Refuse a row a home adds (`queue add --from`) outside an open entry of its plan, so that
+    each row the home files is approved by its entry's go (`holding`), asked of the user once for
+    the entry and never for the row. The row is filed under `entry`, or under its own slug where
+    `entry` is empty, as `queue.given_entry` reads it. The plan is the one of the home the brief
+    belongs to, and for the catch-all's the root's too, the plans `holding` reads.
+
+    A row already in the queue, a follow-up (a brief with a `Follows:` line, approved on its
+    parent's go), and a brief whose home has no plan pass: a repo `jbus plan` does not answer for
+    has none. A row jbus filed never comes here, since its filer calls `queue.add` itself."""
+    if queue.named_parent(slug, text) or queue.fresh(state, slug) is not None:
+        return
+    directory = homes.home_of(home, text)
+    places = [directory, *([home] if directory == homes.catchall(home) else [])]
+    plans = [place for place in places if (place / "plan.md").is_file()]
+    if not plans:
+        return
+    found = [one.slug for place in plans for one in entries((place / "plan.md").read_text())]
+    if (entry or slug) in found:
+        return
+    whose = " or ".join("root" if place == home else place.name for place in plans)
+    listed = ", ".join(dict.fromkeys(found)) or "none"
+    if entry:
+        raise Refused(
+            f"refused: --entry {entry} names no entry of the {whose} home's plan, whose open "
+            f"entries are: {listed}, and nothing is queued"
+        )
+    raise Refused(
+        f"refused: {slug} is filed under no entry of the {whose} home's plan: add it with "
+        f"--entry <entry> of an open entry ({listed}), or write its entry first, one heading and "
+        "its Done when: list, and ask the user for the entry's go once, recorded with jbus plan "
+        "go <entry> --message <thread>/<message>, and nothing is queued"
+    )
+
+
 def entry_go(state: Path, home: Path) -> queue.EntryGo:
     return lambda brief, entry: holding(state, home, brief, entry)
 

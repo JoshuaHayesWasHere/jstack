@@ -7,6 +7,10 @@ an edit of its brief too, while the go holds. The go stops holding when the head
 entry closes, or on `jbus plan stop`. A row whose brief names a case of `gates.md` on a `Holds:`
 line waits for the user under every setting.
 
+A home that adds a new row with `--from` files it under an entry of its plan: `jbus.asks` asks
+`jbus.plan.filed_under`, which refuses a row filed under no entry, or under one the plan does not
+have, unless the row is in the queue already, follows another, or is one jbus filed.
+
 Under `go = "silence"`, a home parks its pick for a row as a gate whose default is `approve`. The
 gate stays open for `go_quiet_minutes`, and its close by silence approves a row of size S or M with
 one pull request. The tests run the real commands and the real pass against the kitchen's fakes.
@@ -18,8 +22,9 @@ from datetime import datetime, timedelta
 import pytest
 
 import jbus
-from jbus import leftover, questions, queue, wakes
+from jbus import daywarnings, leftover, questions, queue, wakes
 from jmerge import judgement
+from test_jbus_day_warnings import CONSIDERED, DAY, ERROR, INFO, WARNING, filed, merged, reviewed
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_leftover import home
 from test_jbus_queue import brief, rows, widened
@@ -545,3 +550,74 @@ def crews(kitchen):
     """The title of each launch of a row's thread, leaving out the catch-all's home that the
     pass keeps running beside them."""
     return [one["title"] for one in kitchen.t3.launches if not one["title"].startswith("home: ")]
+
+
+def by_a_home(kitchen, slug, *more, text=None):
+    """Add the row as the catch-all home does (`--from ""`), whose briefs file under the root's
+    plan, the kitchen's `PLAN`."""
+    argv = ["queue", "add", slug, "--priority", "1", "--from", "", *more]
+    return kitchen.main(*argv, stdin=text or brief(slug))
+
+
+def none_queued(kitchen):
+    return not (kitchen.state / "queue.json").exists() or rows(kitchen) == {}
+
+
+def test_a_new_row_a_home_adds_with_no_entry_is_refused_and_says_how_to_file_it(kitchen):
+    code, said = by_a_home(kitchen, "zeta")
+    assert code == 1
+    assert said.strip() == (
+        "refused: zeta is filed under no entry of the root home's plan: add it with --entry "
+        "<entry> of an open entry (epic, other), or write its entry first, one heading and its "
+        "Done when: list, and ask the user for the entry's go once, recorded with jbus plan go "
+        "<entry> --message <thread>/<message>, and nothing is queued"
+    )
+    assert none_queued(kitchen)
+
+
+def test_an_entry_that_names_no_entry_of_the_homes_plan_is_refused_with_its_open_entries(kitchen):
+    code, said = by_a_home(kitchen, "zeta", "--entry", "closed-one")
+    assert code == 1
+    assert said.strip() == (
+        "refused: --entry closed-one names no entry of the root home's plan, whose open entries "
+        "are: epic, other, and nothing is queued"
+    )
+    assert none_queued(kitchen)
+
+
+def test_a_row_a_home_adds_under_an_entry_whose_go_holds_is_approved_in_the_same_write(kitchen):
+    queued(kitchen, "alpha")
+    assert plan_go(kitchen)[0] == 0
+    code, said = by_a_home(kitchen, "beta", "--entry", "epic")
+    assert code == 0, said
+    assert "approved beta" in said
+    assert rows(kitchen)["beta"]["approved"].startswith("your go for the plan entry epic, ")
+    assert basis(kitchen, "beta") == (queue.ENTRY, "epic")
+
+
+def test_a_row_in_the_queue_a_follow_up_and_an_entrys_own_slug_pass_with_no_entry(kitchen):
+    queued(kitchen, "alpha", entry=None)
+    assert by_a_home(kitchen, "alpha", text=widened("alpha"))[0] == 0
+    follow = brief("alpha-2", "Follows: alpha\n")
+    assert by_a_home(kitchen, "alpha-2", text=follow)[0] == 0
+    assert by_a_home(kitchen, "epic")[0] == 0
+    assert {"alpha", "alpha-2", "epic"} <= set(rows(kitchen))
+
+
+def test_a_home_with_no_plan_adds_a_row_with_no_entry_as_before(kitchen):
+    (kitchen.home / "plan.md").unlink()
+    code, said = by_a_home(kitchen, "zeta")
+    assert code == 0, said
+    assert "zeta" in rows(kitchen)
+
+
+def test_a_row_jbus_files_needs_no_entry(kitchen, monkeypatch):
+    """The day's warnings row is filed by the pass, with no entry, while the plan is there."""
+    (kitchen.home / "follow-rule").write_text("9\n")
+    monkeypatch.setattr(daywarnings, "SINCE", NOW - 30 * DAY)
+    reviewed(kitchen, "alpha", 7, (ERROR, WARNING, INFO), "Finding F2: fixed, the retry\n")
+    reviewed(kitchen, "beta", 8, (WARNING, CONSIDERED))
+    merged(kitchen, ("alpha", 7), ("beta", 8))
+    kitchen.poll()
+    kitchen.poll(NOW + DAY)
+    assert filed(kitchen) == ["warnings-2026-10-12"]

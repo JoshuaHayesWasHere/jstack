@@ -25,7 +25,8 @@ When in doubt between the two, any one of the durable column's conditions decide
    A scout that waits on another row's work has a `Builds on: <slug>: <what it uses>` line for each.
    Its `Out of bounds:` line also says: no loop of more than ten `gh` calls until `uv run --project "$T/../source" jbus budget --calls <n>` says `ok`, and none while it says `held`.
    GitHub's API allowance is one for jbus, `jmerge` and every thread, and a scout's fetch for each job once spent all of it and stalled every merge for an hour.
-2. Queue it: `jbus --project <project> queue add <slug> --priority <n> --entry <entry> [--depends <slug>,...] < scouts/<slug>.md`.
+2. Queue it, after the block that finds this home, which sets `ME`: `jbus --project <project> queue add <slug> --priority <n> --entry <entry> --from "$ME" [--depends <slug>,...] < scouts/<slug>.md`.
+   `--entry` is the entry the scout researches for, and is never left out: with `--from`, `add` refuses a new request that names no open entry of its home's plan, as it refuses a brief ("Handing a task to a crewmate", step 5).
    The root home queues it by "Queueing a row in a child" (`scoped-homes.md`) instead.
    A text with a `Request:` line and no `Task:` line is a request, so the row is a scout's, and `add` refuses one with a crewmate's line (`Size:`, `Pull request:`) or not in the template's shape.
    It is approved as any row is, the entry's go included, and waits on its `--depends` as any row does.

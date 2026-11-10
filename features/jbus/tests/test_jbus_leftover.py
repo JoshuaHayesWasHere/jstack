@@ -338,10 +338,13 @@ def test_a_child_made_before_its_thread_takes_its_row_and_is_told_once_its_home_
     for it at once: the row is the child's before its thread has written its `home-id`."""
     root = home(kitchen)
     (kitchen.home / "pages").mkdir()
-    (kitchen.home / "pages" / "plan.md").write_text("# demo, pages: plan\n")
+    (kitchen.home / "pages" / "plan.md").write_text(
+        "# demo, pages: plan\n\n## pages-epic: the pages\nDone when:\n- they read\n"
+    )
     text = brief("alpha").replace("Home: uncategorized\n", "Home: pages\n")
     argv = ["--project", "demo", "queue", "add", "alpha", "--priority", "1"]
-    code, said = kitchen.main(*argv, "--from", root["threadId"], "--for", "pages", stdin=text)
+    argv += ["--entry", "pages-epic", "--from", root["threadId"], "--for", "pages"]
+    code, said = kitchen.main(*argv, stdin=text)
     assert code == 0, said
     assert go(kitchen, "alpha")[0] == 0
     kitchen.t3.thread("alpha", "completed")

@@ -175,6 +175,19 @@ It also refuses a slug whose row merges after this one or depends on it, since n
 An `add` of a row that exists sets `--priority`, `--depends` and `--merge-after` anew and keeps the row's entry unless you give `--entry`.
 `--entry <the row's own slug>` makes the row its own entry again, and then it takes no entry from a parent it names.
 A follow-up with no `--entry` counts for its parent's entry in `jbus plan` ([The plan](the-plan.md)), and keeps it through a `rename` where a `Follows:` line names the parent.
+
+An `add` by a home, one with `--from`, needs an entry of the plan of the brief's home, so that the entry's go approves the row and you give the go once per entry ([The go of an entry](the-plan.md#the-go-of-an-entry)).
+The brief's home is the one its `Home:` line names, and a brief of `uncategorized` takes an entry of its own plan or of the root's.
+A row with no `--entry` is filed under its own slug, so it needs no `--entry` where its slug is an open entry of that plan.
+For a new row whose brief has no `Follows:` line, `add` refuses an entry the plan does not have, and queues nothing:
+
+```text
+refused: <slug> is filed under no entry of the <home> home's plan: add it with --entry <entry> of an open entry (<entries>), or write its entry first, one heading and its Done when: list, and ask the user for the entry's go once, recorded with jbus plan go <entry> --message <thread>/<message>, and nothing is queued
+refused: --entry <entry> names no entry of the <home> home's plan, whose open entries are: <entries>, and nothing is queued
+```
+
+The first line is for a row with no `--entry`, and the second for an `--entry` that names no open entry: an entry that closed is in `plan-done.md`, not the plan.
+Each of these passes as before: an `add` of a row already in the queue, a follow-up, a row jbus filed, an `add` with no `--from`, and an `add` for a home with no `plan.md`, which is every home of a repo `jbus plan` does not answer for.
 `jbus queue add <slug> --item <id>` links the row to the work item `--item` names ([Work items](work-items.md)).
 With no `--item`, a new row gets an item of its own, with source `cli`.
 `add` refuses an item that is not there, or that is another row's, and queues nothing.

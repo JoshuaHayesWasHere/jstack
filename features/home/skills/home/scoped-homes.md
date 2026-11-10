@@ -128,6 +128,7 @@ On `queued:`, the row is the child's: jbus's pass launches it, and the root send
 On `not queued:` nothing is queued: mend what the line names and run it again.
 On `no plan:` the repo is not on jbus: "On the bus" ("When a home starts") adds it.
 On `refused:`, mend the brief as the lines under it say, and run it again.
+`<entry>` is an entry of the child's plan, or of the root's plan for `uncategorized`, the plan whose go approves the row: `add` refuses an entry that plan does not have, and the line lists its open entries.
 
 **Moving a row** to another child home is the root home's: a row in `uncategorized`, the home of every row no scope claims, or in another child home goes to the scope whose work it is, at any status short of merged or done.
 In one call with the block at the top and the block that reads jbus, with the row's slug in place of `<slug>` and the scope's name in place of `<scope>`:

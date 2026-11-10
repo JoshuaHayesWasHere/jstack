@@ -22,6 +22,7 @@ from test_jbus_word import AT, thread
 ROOT, FLOW, NEXT, CREW, VIEW = thread("a"), thread("f"), thread("e"), thread("c"), thread("d")
 CHAT = thread("9")
 SCOPE, OTHER = "flow", "view"
+FLOW_PLAN = "# the flow plan\n\n## fl-epic: the flow\nDone when:\n- it flows\n"
 
 
 @pytest.fixture
@@ -29,7 +30,7 @@ def kitchen(tmp_path, monkeypatch):
     made = Kitchen(tmp_path, monkeypatch)
     (made.home / "home-id").write_text(f"{ROOT}\n")
     (made.home / SCOPE).mkdir()
-    (made.home / SCOPE / "plan.md").write_text("# the flow plan\n")
+    (made.home / SCOPE / "plan.md").write_text(FLOW_PLAN)
     (made.home / SCOPE / "home-id").write_text(f"{FLOW}\n")
     made.brief("fl-statechart", f"Home: {SCOPE}\n", kind="scouts")
     made.brief("fl-s1-stack", f"Home: {SCOPE}\n")
@@ -180,13 +181,14 @@ def test_a_home_queues_no_row_whose_brief_names_another_home(kitchen):
 
 
 def test_a_home_queues_its_own_rows_and_hands_another_homes_over_with_for(kitchen):
-    assert queues(kitchen, "fl-mine", SCOPE, "--from", FLOW)[0] == 0
+    assert queues(kitchen, "fl-mine", SCOPE, "--from", FLOW, "--entry", "fl-epic")[0] == 0
     assert queues(kitchen, "un-mine", "", "--from", "")[0] == 0
     code, out = queues(kitchen, "root-mine", "", "--from", ROOT)
     refused = "refused: the root home owns no row, and root-mine's"
     assert (code, out.startswith(refused)) == (1, True)
     assert queues(kitchen, "root-mine", "", "--from", ROOT, "--for", "uncategorized")[0] == 0
-    assert queues(kitchen, "fl-given", SCOPE, "--from", ROOT, "--for", SCOPE)[0] == 0
+    given = ("--from", ROOT, "--for", SCOPE, "--entry", "fl-epic")
+    assert queues(kitchen, "fl-given", SCOPE, *given)[0] == 0
     code, out = queues(kitchen, "fl-wrong", SCOPE, "--from", ROOT, "--for", "root")
     assert (
         code,
