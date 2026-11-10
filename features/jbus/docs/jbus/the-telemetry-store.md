@@ -28,7 +28,7 @@ The store has one table for each record file of each project, with a `project` c
 | `row_pulls` | `row-pulls.jsonl` | a pull request a row had, the first time a pass saw it open, and again merged |
 | `runs` | `runs.jsonl` | a completed attempt of a workflow run, of every project |
 | `spend_days` | `spend.jsonl` | a project's Claude spend of one local day (`spent_on`), in units, tokens and units by kind |
-| `spend_rows` | `spend-rows.jsonl` | a day's spend of one role and row, by the title jbus gave the thread |
+| `spend_rows` | `spend-rows.jsonl` | a day's spend of one role and row, by the title jbus gave the thread, and by what woke its runs: `trigger`, the send key (`""` for a run no jbus send woke), `reviewed`, whether the row's first prereview came before them that day, and their `dollars`; a line kept before these were holds none of them, so its trigger reads as unknown |
 | `word_sends` | `word-sends.json` | the thread a carried word went to and when, or that it still waits |
 | `main_reds` | `main-reds.jsonl` | a tip of main whose check `jbus.mainmoved.tell` judged `failed`, once: its `sha`, `pr`, the first pull request landed since the last green tip, the failed `step`, how many `tests` failed and the `verdict`, `change`, `flake` or `infra` (`mainmoved.Verdict`) |
 | `reverts` | `reverts.json` | a revert jbus opened for a red main, by its red tip: the culprit's `slug`, the revert's `branch` and its `pr` |
@@ -110,7 +110,7 @@ Six logs keep what jbus's snapshots overwrite, each written from what jbus alrea
   The pass that starts the file writes the `why` of each open row as it stands, so a row that already waited has a line before its reason next changes.
 - `runs.jsonl`: the pass's list of the repo's last 40 workflow runs, which it asks for already, adds each completed attempt once.
   An attempt that ends and is rerun between two passes is not seen.
-- `spend.jsonl` and `spend-rows.jsonl`: once a pass, a chore reads T3 Code's store for each local day that ended six hours ago and is not kept yet, and keeps one line for the day and one for each role and row.
+- `spend.jsonl` and `spend-rows.jsonl`: once a pass, a chore reads T3 Code's store for each local day that ended six hours ago and is not kept yet, and keeps one line for the day and one for each role, row, trigger and `reviewed` (`jgauge.spend.day_lines`).
   The first time, it keeps the last 30 days.
 
 A writer reads its log before it adds, and adds no line whose key the log holds, so each log only grows and holds each line once.
@@ -145,6 +145,10 @@ The spells an account was signed out have no record yet.
 | How did each pull request's review rounds go? | `SELECT project, slug, pr, round_number, meets, errors, warnings FROM review_rounds ORDER BY project, slug, round_number` |
 
 `spend_rows` is Claude's alone, by day, from T3 Code's count of each run; each call's tokens to its row and role, Codex's too, are in `call_rows` and `row_spend` ("Token usage" below).
+
+A crew line's class is what woke its runs, not what they did (`row_spend.CLASSES`): `prereview fix`, `wake` (a slot or stall clock's wake, before the first prereview or after it), `build` for any other run before the row's first prereview, a `lapse` resume and a word of the user's too, then `failed check`, `stale base` or `other`.
+A line kept before the trigger was has no class, and no dollars to give one.
+`dollars-per-row` shows a part for each role, in dollars a row, which sum to its value, and one for each class of the crew's dollars: the class's share of the crew dollars `spend_rows` holds for the week's merged rows, times the crew's part, so the classes sum to the crew's.
 
 ## Token usage
 

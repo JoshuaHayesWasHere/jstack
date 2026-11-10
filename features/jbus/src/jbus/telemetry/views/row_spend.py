@@ -57,3 +57,50 @@ SQL = (
     "FROM merged_rows l JOIN owned o ON o.project = l.project AND o.slug = l.slug "
     "GROUP BY l.project, l.slug, o.role, o.provider"
 )
+
+WAKE = ("slot-wake", "slot-end", "pool-wake", "clock")
+"""The send keys of a wake (`jbus.outbox.WAKES`): a wake is its own class, before the row's first
+prereview and after it."""
+CHECK = ("failed", "refailed")
+"""The send keys of a failed check of the row's pull request."""
+STALE = (
+    "rebase",
+    "restack",
+    "drops",
+    "proved-stale",
+    "proved-unnamed",
+    "merged-tree",
+    "mainmoved",
+    "conflict",
+    "rewritten",
+    "reload",
+    "restart",
+)
+"""The send keys of a stale base: main moved, a link moved, or a proof is of another tree."""
+
+
+def _keys(keys: tuple[str, ...]) -> str:
+    return ", ".join(f"'{key}'" for key in keys)
+
+
+CLASSES = (
+    "crew_lines AS (SELECT s.project, s.slug, s.spent_on, s.trigger AS woke, s.reviewed, "
+    "s.dollars FROM spend_rows s WHERE s.role = 'crew' AND s.slug IS NOT NULL "
+    "AND s.trigger IS NOT NULL), "
+    "first_prereview AS (SELECT project, slug, min(spent_on) AS spent_on FROM crew_lines "
+    "WHERE woke = 'prereviewed' GROUP BY project, slug), "
+    "crew_classes AS (SELECT c.project, c.slug, CASE "
+    "WHEN c.woke = 'prereviewed' THEN 'prereview fix' "
+    f"WHEN c.woke IN ({_keys(WAKE)}) THEN 'wake' "
+    "WHEN NOT (coalesce(c.reviewed, 0) OR coalesce(f.spent_on < c.spent_on, 0)) THEN 'build' "
+    f"WHEN c.woke IN ({_keys(CHECK)}) THEN 'failed check' "
+    f"WHEN c.woke IN ({_keys(STALE)}) THEN 'stale base' "
+    "ELSE 'other' END AS class, c.dollars FROM crew_lines c "
+    "LEFT JOIN first_prereview f ON f.project = c.project AND f.slug = c.slug)"
+)
+"""The CTEs that give each crew line of `spend_rows` its class, what woke its runs:
+`prereview fix`, `wake`, `build` for any other before the row's first prereview (a `lapse` resume
+too), then `failed check`, `stale base` or `other`. A line kept before the trigger was has no
+class, and no dollars to give one. A line is after the first prereview where its runs came after
+one that day (`reviewed`), or its day is after the first day a prereview woke the row's crew. A
+run the user or a harness notice woke has no send key, and is `build` or `other` by when it ran."""
