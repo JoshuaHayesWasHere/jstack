@@ -519,3 +519,14 @@ def test_each_of_the_machines_logs_is_read_as_the_machines_rows(machine):
         assert store.execute(
             "SELECT reader, instances, capped, ends_at IS NOT NULL FROM capped_reads"
         ).fetchall() == [("pass", 1, 1, 1)]
+
+
+def test_each_source_is_the_module_named_for_its_table():
+    """A source is a module of `jbus.telemetry.records` named for its table, so a new source is
+    a new file, and `SOURCES` holds one source of each module, in the order of their names."""
+    import pkgutil
+
+    from jbus.telemetry import records
+
+    modules = sorted(found.name for found in pkgutil.iter_modules(records.__path__))
+    assert [source.table for source in records.SOURCES] == modules
