@@ -5,8 +5,9 @@ and none of its subagents'."""
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-import jsettings
 import pytest
+
+import jsettings
 from jbus import telemetry
 from jbus.telemetry import measures, values
 
