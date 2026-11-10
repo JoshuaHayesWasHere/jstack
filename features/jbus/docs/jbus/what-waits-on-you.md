@@ -92,6 +92,9 @@ A refused go is left out too: most refusals are a sha that did not match, and th
 The project-wide list, with no `--home`, also holds every home's open asks: each `decision local <slug>` or `stop local <slug>` line still open in the `told` file of the project's root home and of each of its scopes, named with its home as `--home` prints it below.
 This is the list a thread outside a home and the root home read, so a scope's open ask is never behind its "nothing waits".
 A cleared ask and a `question` line are left out.
+A closed home, a scope whose plan is archived (`plan-archived.md`, no `plan.md`), keeps its open asks on this list and on the root home's `--home` list, since closing a home does not answer them.
+Each prints as `<project> <home> home (closed) decision local <slug>: ...`, with `answer: reply to the root home in your own words: the <home> home is closed`.
+It stays until a `cleared local <slug>` line ends it in the closed home's `told`: `printf 'cleared local <slug>: <why>\n' | jbus told <the closed home's directory>`, which you or the root home runs once the ask no longer waits.
 `jbus home status` counts these asks too, in its `elsewhere:` line of what waits in other projects.
 
 With nothing open it prints `nothing waits on <you> in any project`.
