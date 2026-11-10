@@ -14,10 +14,11 @@ Only a word jbus read from the user's own message in T3 Code stands: a word from
 or one whose time was typed, is refused, since a standing word approves rows nobody names.
 
 The word is an act (`jbus.acts`) whose verb is `standing`, whose subject is the home's scope, whose
-evidence is the word (its id as `ref`), and whose line says it stands or is withdrawn
-(`queue.STANDS`, `queue.WITHDRAWN`). The last such act of a scope is what the home holds
-(`queue.standing_words`). `--withdraw` with the same word ends it, and a second run of either
-changes nothing. `jbus needs` names each home's standing word while it holds.
+evidence is the word (its id as `ref`), and whose action's `pre` says it stands or is withdrawn
+(`queue.STAND`, `queue.WITHDRAW`); its line says the same to a person. The last such act of a
+scope is what the home holds (`queue.standing_words`). `--withdraw` with the same word ends it,
+and a second run of either changes nothing. `jbus needs` names each home's standing word while it
+holds.
 """
 
 from __future__ import annotations
@@ -55,9 +56,12 @@ def _standing(args: argparse.Namespace, config: Config) -> int:
         held = queue.standing_words(run.state).get(kept.home)
         holds = held is not None and held[0] == kept.id
         if args.withdraw:
-            line = (
-                f"{queue.WITHDRAWN} {project.name}, the {home} home's standing word {kept.id} "
-                "approves nothing more"
+            pre, line = (
+                queue.WITHDRAW,
+                (
+                    f"withdrawn: {project.name}, the {home} home's standing word {kept.id} "
+                    "approves nothing more"
+                ),
             )
             if not holds:
                 print(
@@ -65,14 +69,17 @@ def _standing(args: argparse.Namespace, config: Config) -> int:
                 )
                 return 1
         else:
-            line = (
-                f"{queue.STANDS} {project.name}, the {home} home approves its follow-ups that open "
-                f"no door on word {kept.id}"
+            pre, line = (
+                queue.STAND,
+                (
+                    f"standing: {project.name}, the {home} home approves its follow-ups that open "
+                    f"no door on word {kept.id}"
+                ),
             )
             if holds:
                 print(line)
                 return 0
-        acts.logged(run, who, party.Action(queue.STANDING, kept.home), said, "done", line)
+        acts.logged(run, who, party.Action(queue.STANDING, kept.home, pre), said, "done", line)
     print(line)
     return 0
 

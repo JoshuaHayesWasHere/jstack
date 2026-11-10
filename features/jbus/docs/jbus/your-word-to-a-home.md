@@ -85,7 +85,7 @@ When you tell a home once that the follow-ups it queues need no go of yours, as 
 The word is the one the home kept for your message, and it stands for the home it is for: a scope's word for that scope, and the root home's for every home of the project.
 The command prints `standing: <project>, the <home> home approves its follow-ups that open no door on word <id>`, and a second run changes nothing.
 
-From then, a follow-up of that home that the follow-up rule does not approve, such as one whose parent has no go, is approved on your word in the same `jbus queue add` that queued it, and never reaches your list.
+From then, a follow-up of that home that the follow-up rule refuses only because its parent has no go is approved on your word in the same `jbus queue add` that queued it, and never reaches your list.
 A follow-up here is a row whose brief names its parent on a `Follows:` line, and whose `Home:` line names the home.
 Its approved column says so: `your standing word <id> for follow-ups, <when you said it>, in <where>, follow-up of <parent>; run <time> by <party>; you did not speak of this row`.
 The page marks it `by rule standing word <id>`, and the digest counts it with the rows jbus approved by rule.
@@ -96,7 +96,8 @@ A standing word never approves:
 - a row with no `Follows:` line: new work waits for your go;
 - a row your own go approved before an edit voided it: you approve it again;
 - a held row: a hold is its party's;
-- a follow-up of another home, unless the word is the root home's.
+- a follow-up of another home, unless the word is the root home's;
+- a follow-up the rule refuses for any other reason: one that follows itself, a parent that is no row, one removed before it merged, or one whose brief changed after its go.
 
 Only a word jbus read from your own message in T3 Code stands.
 A word from the bot's chat, or one whose time was typed, is refused: `refused: word <id> is not the user's own message that jbus read in T3 Code, and only such a word stands for follow-ups`.
@@ -104,7 +105,7 @@ A home holds one standing word, and a later one takes its place.
 
 `jbus standing --to <project> --word <id> --withdraw` ends it, and prints `withdrawn: <project>, the <home> home's standing word <id> approves nothing more`; what it approved keeps its go.
 `jbus needs` names each home's standing word while it holds: `<project> <home> home standing word <id> for follow-ups that open no door: "<your words>"`.
-Making a word stand and withdrawing it are acts ([Who acts, and the acts log](the-queue.md#who-acts-and-the-acts-log)) whose verb is `standing` and whose subject is the home's scope.
+Making a word stand and withdrawing it are acts ([Who acts, and the acts log](the-queue.md#who-acts-and-the-acts-log)) whose verb is `standing`, whose subject is the home's scope, and whose `pre` is `stand` or `withdraw`.
 A go on a standing word is no act on the word, so it never keeps the home from approving other rows on that word with `--word <id>`.
 
 ## A waiver in plain words
