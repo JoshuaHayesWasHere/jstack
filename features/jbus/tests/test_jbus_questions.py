@@ -960,6 +960,19 @@ def test_a_moot_go_gate_of_a_removed_row_closes_as_no_row_to_go(kitchen):
     assert "question 1" not in needs(kitchen)
 
 
+def test_a_held_question_on_a_removed_row_is_moot_and_closes_as_no_row_to_go(kitchen):
+    moot_row(kitchen, "beta", "queued")
+    assert kitchen.main("gate", "beta", stdin=held())[0] == 0
+    code, said = kitchen.main("queue", "remove", "beta", "--by", "user", "--at", AT)
+    assert code == 0, said
+    kitchen.poll(later(10))
+    closed = records(kitchen)["records"][0]["answer"]
+    assert closed["closed_by"] == "cleared"
+    assert closed["words"] == "beta was removed, so there is no row to go"
+    assert listed(kitchen) == []
+    assert "question 1" not in needs(kitchen)
+
+
 @pytest.mark.parametrize("status", ["done", "pr", "left", "running"])
 def test_a_held_question_on_a_row_that_did_not_merge_is_not_moot_and_stays_open(kitchen, status):
     moot_row(kitchen, "alpha", status)

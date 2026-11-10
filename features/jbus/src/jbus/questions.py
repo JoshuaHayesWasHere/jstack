@@ -66,8 +66,9 @@ a question the user answered keeps the answer.
 
 A pass closes the same way a door question whose row has ended so that nothing is left to decide
 (`moot`). A question that holds, or a go gate, whose row merged closes with the words `kept the
-fail-safe: <slug> merged, and the door stayed shut`: the fail-safe is what ran. A go gate whose
-row was removed closes with `<slug> was removed, so there is no row to go`. A row that is `done`
+fail-safe: <slug> merged, and the door stayed shut`: the fail-safe is what ran. A question that
+holds, or a go gate, whose row was removed closes with `<slug> was removed, so there is no row to
+go`: a removed row never launches, so its door can never open. A row that is `done`
 with no merge, `left`, or still live closes nothing, since its door may still be taken up.
 
 A gate whose default is irreversible or slow to revert holds: its thread does not act, and the
@@ -824,10 +825,9 @@ closes it with."""
 
 def moot(run: Pass) -> None:
     """Close each door question that still waits, where its row's end leaves nothing to decide
-    (`MOOT`): one that holds or a go gate, on a row that merged, and a go gate whose row was
-    removed. On a merged row it closes only a question with no answer at all: one that silence
-    closed may have started its row, so its door did not stay shut. The close is `clear`'s, not
-    the user's word."""
+    (`MOOT`): one that holds or a go gate, on a row that merged or was removed. On a merged row
+    it closes only a question with no answer at all: one that silence closed may have started its
+    row, so its door did not stay shut. The close is `clear`'s, not the user's word."""
     if not path(run.state).exists():
         return
     try:
@@ -838,7 +838,7 @@ def moot(run: Pass) -> None:
     ends |= dict.fromkeys(queue.removed_slugs(run.state), "removed")
     for one in records:
         end = ends.get(one.slug)
-        door = go_gate(one) or (bool(one.holds) and end == "merged")
+        door = go_gate(one) or bool(one.holds)
         shut = one.answer is None if end == "merged" else _open(one)
         if shut and door and end in MOOT:
             clear(run, one.number, MOOT[end].format(slug=one.slug))
