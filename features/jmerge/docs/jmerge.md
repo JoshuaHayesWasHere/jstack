@@ -574,6 +574,15 @@ It writes an `accepted` line to `merge.log` that records who accepted and when, 
 The `merged` line of an accept carries the word it rests on as a note before its revert command, `accepted by <user> at <when>`, with ` on <thread id>/<message id>` where `--message` named your message.
 `jmerge --accept <number> --check` says what it would do.
 
+**An accept that does not merge.**
+An accept first judges the pull request as its `--check` does, with no run lock, and reads the party that accepts as the accept does.
+One that would not merge ends there, at once, and exits 1.
+It prints the line its `--check` prints: the `refused` line, or the `wait` or `hold` line of the reason it falls short of, such as `wait <number> <url>: the scoped review has not ruled on the drops in <paths>`.
+That run writes nothing to `merge.log` and records no act.
+Only an accept that would merge waits for the run lock, which jbus's merge run holds for as long as it runs, and is judged again once it holds the lock.
+When that run merged other pull requests, main moved, and the accept can then print `GitHub has not decided whether it merges` (`undecided`).
+Run it again a minute later, when GitHub has decided.
+
 **A pull request no brief names.**
 A dependabot bump, or a pull request opened by hand, has no brief, and a plain `jmerge` waits on it with `no brief has a Result that names it`.
 Your own message merges it, `--message`, as `--as user` or carried by a home; typed words, `--by` and `--at`, are refused.

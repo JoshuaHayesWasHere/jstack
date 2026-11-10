@@ -8,8 +8,10 @@ with a jbus config whose project is the kitchen's main checkout, and the fake T3
 `test_jbus_kitchen`, which gives jbus the user's own message.
 """
 
+import fcntl
 import json
 import sys
+import threading
 import time
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
@@ -19,7 +21,7 @@ import pytest
 import jsettings
 import test_home_merge as merge
 from jbus import acts, questions
-from jmerge import judgement, ready
+from jmerge import judgement, lock, ready
 from test_jbus_kitchen import T3, TOKEN, iso
 from test_jmerge_fresh import AFTER, LINES, Kitchen, git, url, write
 
@@ -404,4 +406,41 @@ def test_the_check_of_a_typed_accept_of_a_pull_request_with_no_brief_refuses_as_
         f"refused 9 {url(9)}: it is not held, it waits: no brief has a Result that names it: "
         + judgement.UNLIFTED[ready.NO_BRIEF.code]
     )
+    assert kitchen.calls() == []
+
+
+def test_an_accept_that_will_not_merge_says_why_at_once_and_not_after_the_run_it_waits_on(kitchen):
+    """An accept of a held pull request that is short of something the accept does not lift
+    says that, the reason its check gives, and ends without waiting for the run lock. On
+    2026-11-09 #1492 waited minutes behind jbus's merge run each time, which merged others and
+    moved main, so GitHub had not decided whether it merges when the accept read it, and the
+    accept printed that in place of the scoped review it was short of. Here a run holds the
+    lock, and when it gives the lock back GitHub has not decided."""
+    held(kitchen, "beta", 7, {"a.txt": "ours\n" + LINES}, mode="none")
+    (kitchen.home.state / "merge-off").touch()
+    checked = check(kitchen, 7)
+    assert kitchen.home.code == 1, (checked, kitchen.home.stderr)
+    assert checked[-1] == f"wait 7 {url(7)}: {ready.MERGE_OFF}", checked
+    run = (kitchen.home.state / lock.RUN).open("a")
+    fcntl.flock(run, fcntl.LOCK_EX)
+
+    def main_moved():
+        kitchen.pulls["beta"]["mergeable"] = "UNKNOWN"
+        (kitchen.home.stub / "list.json").write_text(json.dumps(list(kitchen.pulls.values())))
+        run.close()
+
+    ends = threading.Timer(3, main_moved)
+    ends.start()
+    began = time.monotonic()
+    try:
+        out = accept(kitchen, 7)
+    finally:
+        took = time.monotonic() - began
+        ends.cancel()
+        ends.join()
+        run.close()
+    assert out[-1] == checked[-1], out
+    assert ready.UNDECIDED not in "\n".join(out)
+    assert kitchen.home.code == 1, (out, kitchen.home.stderr)
+    assert took < 3, f"the accept waited {took:.1f} s for the run lock"
     assert kitchen.calls() == []

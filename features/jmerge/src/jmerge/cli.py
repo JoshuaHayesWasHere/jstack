@@ -2016,6 +2016,11 @@ def main(argv: list[str] | None = None) -> int:
     backoff.watch(state, keeps=not (args.check or args.claims or args.scope))
     if args.check or args.claims or args.scope or not state.is_dir():
         return _merging(args, user, main_checkout, state, said, typed)
+    if args.accept is not None:
+        first: list[str] = []
+        if _merging(args, user, main_checkout, state, said, typed, first.append):
+            print("\n".join(first), flush=True)
+            return 1
     with lock.running(state, wait=not args.if_free) as free:
         if not free:
             print(lock.BUSY_LINE.format(path=state / lock.RUN), flush=True)
@@ -2030,8 +2035,16 @@ def _merging(
     state: Path,
     said: bool,
     typed: bool,
+    look: Callable[[str], None] | None = None,
 ) -> int:
-    """The run itself, once `main` holds the run lock where the run may write."""
+    """The run itself, once `main` holds the run lock where the run may write. With `look`, the
+    first look of an accept, which takes no lock: the run of its check, with the party that
+    accepts read as the accept reads it, saying each line to `look`. An accept that would not
+    merge ends there, saying why. One that waited for the lock first sat behind jbus's merge
+    run for minutes, whose merges moved main, and then read that GitHub had not decided whether
+    it merges: #1492 said that four times on 2026-11-09 while its check said the scoped review
+    it was short of."""
+    check = args.check or look is not None
     if args.claims:
         return Repo(main_checkout, state, args.home, not args.home, user=user).claimed()
     if args.scope:
@@ -2043,16 +2056,19 @@ def _merging(
         args.home,
         not args.home,
         patterns(PROTECTED),
-        not args.check,
+        not check,
         user=user,
     )
 
     now = datetime.now().astimezone()
 
     def say(line: str) -> None:
+        if look is not None:
+            look(line)
+            return
         print(line, flush=True)
         said = lines.one(line)
-        if not args.check and state.is_dir():
+        if not check and state.is_dir():
             repo.timed(line)
             waits = str(said.number) if said and said.word in ("wait", "hold") else ""
             if not said and backoff.is_wait(line.removeprefix("wait: ")):
@@ -2074,7 +2090,7 @@ def _merging(
         return 1
 
     if args.sweep:
-        return Sweep(repo).run(say, args.check)
+        return Sweep(repo).run(say, check)
 
     asked = _run(
         main_checkout,
@@ -2107,7 +2123,7 @@ def _merging(
             f"listed: GitHub gave {LIMIT} open pull requests, the most jmerge asks for, so it"
             " judges those alone and keeps the records of every one"
         )
-    if not args.check and not full:
+    if not check and not full:
         repo.open_only(listed)
     repo.lined_up(listed)
 
@@ -2129,15 +2145,15 @@ def _merging(
         by, at = args.by, args.at
         if acting is not None and args.message:
             by, at = user.user, acting.said_at
-        return repo.accept(found, default, by, at, say, args.check, acting, args.message)
+        return repo.accept(found, default, by, at, say, check, acting, args.message)
 
     for one in repo.line_up(listed, default):
         found = repo.waits(one, default)
-        if found.verb == "hold" and not args.check:
+        if found.verb == "hold" and not check:
             repo.hold(one)
         if found.judged is None:
             say(lines.waits(found.verb, one.number, one.url, found.why))
-        elif args.check:
+        elif check:
             notes = [found.note]
             say(lines.ready(one.number, one.head, one.branch, found.slug, notes))
         else:
