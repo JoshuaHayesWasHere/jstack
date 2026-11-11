@@ -101,11 +101,11 @@ def test_each_cause_jbus_records_is_a_row_with_its_start_end_and_minutes(machine
 
 
 def test_a_wait_for_room_on_load_is_a_row_of_cause_load_and_a_wait_on_memory_is_other(machine):
-    """`jbus.dispatch` writes what `jgauge room` said after `waiting for room on the machine`, so
-    a wait on load is its own cause; another no of `jgauge room`, as memory, stays `other` with
-    its reason."""
-    load = "waiting for room on the machine: load 30.00 is at or over 85% of 12 cores"
-    memory = "waiting for room on the machine: 1.2 GB of memory available, under 2"
+    """`jbus.dispatch` writes the head of what `jgauge room` said after `waiting for room on the
+    machine`, so a wait on load is its own cause; another no of `jgauge room`, as memory, stays
+    `other` with its reason."""
+    load = "waiting for room on the machine: load is at or over 85% of 12 cores"
+    memory = "waiting for room on the machine: memory available under 2 GB"
     machine.append(
         "alpha",
         "waits.jsonl",
@@ -199,3 +199,21 @@ def test_a_relaunches_file_that_is_no_object_or_names_no_failed_start_adds_no_ro
     machine.write("alpha", "relaunches.json", ["uncategorized"])
     machine.write("beta", "relaunches.json", {"uncategorized": {"at": iso(minutes(0))}})
     assert rows(machine) == []
+
+
+def test_a_wait_on_load_written_with_its_reading_is_still_cause_load(machine):
+    """A jbus from before `jbus.roomwait` wrote the load's reading after `load`: that wait is on
+    load all the same, and a bare wait for room is `other`."""
+    load = "waiting for room on the machine: load 30.00 is at or over 85% of 12 cores"
+    bare = "waiting for room on the machine"
+    machine.append(
+        "alpha",
+        "waits.jsonl",
+        wait(minutes(0), "busy", load),
+        wait(minutes(4), "busy", bare),
+        wait(minutes(7), "busy", ""),
+    )
+    assert rows(machine) == [
+        ("alpha", "busy", "load", None, t(minutes(0)), t(minutes(4)), 4.0),
+        ("alpha", "busy", "other", bare, t(minutes(4)), t(minutes(7)), 3.0),
+    ]

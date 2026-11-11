@@ -13,7 +13,8 @@ Code resumes that thread, so each pass of `jbus poll` resumes it, in `wake`:
   nothing (`jgauge.slot`), so a short-lane waiter is one an older jgauge left: `wake` drops it
   with one line and wakes no one for it.
 - When the full lane has a slot free, `wake` wakes the oldest waiters on it, one for each free
-  slot that a woken waiter has not claimed already. A woken waiter claims its slot for
+  slot that a woken waiter has not claimed already (`jgauge.slot.spare`, the count every taker
+  of a full slot goes by too). A woken waiter claims its slot for
   `waiters.HOLDS`: jbus has told the waiter, and the waiter has not taken the slot yet.
 - A wake is one queued message (`jbus.outbox.send`), keyed by the wait, so a retry sends the same
   message. jbus records the wait as woken only after T3 Code took the message. So jbus wakes
@@ -135,8 +136,7 @@ def wake(run: Pass, client: Client) -> None:
         lanes[one.lane, one.slots].append(one)
     for (kind, slots), queue in sorted(lanes.items()):
         lane = slot.lane_of(kind, slots)
-        claimed = sum(waiters.holding(one, run.now) for one in queue)
-        room = slot.free(lane) - claimed
+        room = slot.spare(lane, queue, run.now)
         waiting = [one for one in queue if not one.woken]
         for one in waiting[: max(room, 0)]:
             tell(run, client, one)

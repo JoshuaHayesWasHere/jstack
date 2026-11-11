@@ -24,7 +24,9 @@ reader never sees half a list. A waiter is one wait:
 Registering is idempotent: a thread that registers again for a wait it still has, on the same
 lane and not yet woken, changes nothing but the command it will run. A thread that takes a slot
 leaves the file (`drop`). A woken wait claims a slot of its lane for `HOLDS` (`holding`), and
-another thread takes only a free slot that no such claim holds (`claims`).
+every other taker of the lane, with a thread or with none, takes only a free slot that no such
+claim holds (`claims`). It counts the claims and takes the slot under the waiters' lock
+(`locked`).
 
 A thread has one form of id, T3 Code's `mcp:<uuid>`, and `jsettings.thread_id` adds the prefix
 to an id given without it. A file written before this rule may hold two records for one thread. They
@@ -36,6 +38,8 @@ instead, with the older `since`. The next change writes the file in that form.
 from __future__ import annotations
 
 import secrets
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -146,14 +150,20 @@ def holding(waiter: Waiter, now: datetime) -> bool:
     return bool(waiter.woken) and now - jsettings.when(waiter.woken) <= HOLDS
 
 
-def claims(locks: Path, lane: str, but: str, now: datetime) -> int:
-    """How many slots of `lane` the woken waits of threads other than `but` still hold
-    (`holding`). A thread that takes a slot leaves these slots to them. When there is no
-    waiters file, the function counts none and creates no file."""
-    if not FILE.there(locks):
-        return 0
-    but = thread_id(but)
-    return sum(one.lane == lane and one.thread != but and holding(one, now) for one in read(locks))
+def claims(held: list[Waiter], lane: str, but: str, now: datetime) -> int:
+    """How many slots of `lane` the woken waits in `held` of threads other than `but` still hold
+    (`holding`). A thread that takes a slot leaves these slots to them."""
+    but = thread_id(but) if but else ""
+    return sum(one.lane == lane and one.thread != but and holding(one, now) for one in held)
+
+
+@contextmanager
+def locked(locks: Path) -> Iterator[list[Waiter]]:
+    """Every waiter, read under the waiters' lock, which is held until the block ends: no
+    wake is recorded and no slot is taken by another caller in between. A waiter that takes
+    its slot leaves the file with `drop` once the block has ended."""
+    with FILE.held(locks):
+        yield FILE.peek(locks)
 
 
 def lapsed(waiter: Waiter, now: datetime) -> bool:
