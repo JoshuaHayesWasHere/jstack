@@ -38,7 +38,9 @@ import re
 import subprocess
 from collections.abc import Collection
 from datetime import UTC, datetime, timedelta
+from enum import StrEnum
 from pathlib import Path
+from typing import NamedTuple
 
 from jmerge import backoff, ready
 from jsettings import store
@@ -52,6 +54,71 @@ ACCEPTED = "accepted"
 HELD = timedelta(minutes=20)
 """How long a pull request keeps the head of the line with the head GitHub took the update of:
 GitHub makes the new head within seconds, so one it did not make by then is not coming."""
+
+
+class Line(NamedTuple):
+    """The head of the line of `base`, held by a pull request: GitHub took a merge of the base
+    into it, or the user gave it the head, whose `word` it keeps (`BaseMerge.accept`). A pull
+    request that holds no line has none, so it has no word either. On its record in
+    `base-merges.json` it is `line`, `base` and `accepted`."""
+
+    base: str
+    word: str = ""
+
+
+class Move(StrEnum):
+    """What a move of `BaseMerge` does to the pull request's line (`after`)."""
+
+    STAY = "stay"
+    TAKE = "take"
+    ACCEPT = "accept"
+    DROP = "drop"
+
+
+MOVES: dict[str, frozenset[Move]] = {
+    "of": frozenset({Move.TAKE, Move.DROP}),
+    "keep": frozenset({Move.STAY}),
+    "release": frozenset({Move.DROP}),
+    "accept": frozenset({Move.ACCEPT}),
+    "keep_stuck": frozenset({Move.STAY}),
+    "restart": frozenset({Move.STAY}),
+    "reopen": frozenset({Move.STAY, Move.DROP}),
+    "open_only": frozenset({Move.STAY, Move.DROP}),
+}
+"""Each move of `BaseMerge` that keeps or drops a record, and what it may do to the line: `of`
+takes it where GitHub took the merge and drops it where GitHub refused, a new head or tip
+(`keep`) and a queued run (`keep_stuck`, `restart`) leave it as it was, `accept` gives it with
+the user's word, and `release`, a reopen (`reopen`) and a pull request no longer open
+(`open_only`, which drops the whole record) end it. A move of the head or the tip is never one
+that ends it."""
+
+
+def after(held: Line | None, move: Move, base: str = "", word: str = "") -> Line | None:
+    """The line once `move` is made: taking the line of the base it holds keeps the word."""
+    if move is Move.STAY:
+        return held
+    if move is Move.TAKE:
+        return Line(base, held.word if held and held.base == base else "")
+    if move is Move.ACCEPT:
+        return Line(base, word)
+    return None
+
+
+def line_of(record: object) -> Line | None:
+    """The line a record holds, or None: a word with no line holds none."""
+    if not isinstance(record, dict) or record.get("line") is not True:
+        return None
+    base, word = record.get("base"), record.get(ACCEPTED)
+    held = isinstance(base, str)
+    return Line(str(base), word if isinstance(word, str) else "") if held else None
+
+
+def _with(record: dict, line: Line | None, said: bool) -> dict:
+    """The record with `line` as its line: `said` writes `line` off where it holds none."""
+    rest = {key: value for key, value in record.items() if key not in ("line", ACCEPTED)}
+    if line is None:
+        return {**rest, "line": False} if said else rest
+    return {**rest, "line": True, "base": line.base, **({ACCEPTED: line.word} if line.word else {})}
 
 
 class BaseMerge:
@@ -96,12 +163,12 @@ class BaseMerge:
         values = {"base": one.base, "tip": tip[:SHA]}
         if not self.run:
             if line:
-                self.keep(one, tip, line=True, base=one.base)
+                self._keep(one, tip, {}, "of", Move.TAKE)
             return due.format(**values)
         why, answered = self.ask(one)
         said = ready.BASE_MERGE_REFUSED.format(**values, why=why) if why else asked.format(**values)
         if answered:
-            self.keep(one, tip, said=said, line=line and not why, base=one.base)
+            self._keep(one, tip, {"said": said}, "of", Move.TAKE if line and not why else Move.DROP)
         return said
 
     def holders(self, listed: Collection[ready.PullRequest]) -> dict[str, int]:
@@ -116,9 +183,10 @@ class BaseMerge:
         known, now, held = self.known(), datetime.now().astimezone(), {}
         for one in sorted(listed, key=lambda one: one.number):
             was = known.get(str(one.number))
-            if not isinstance(was, dict) or was.get("line") is not True:
+            line = line_of(was)
+            if not isinstance(was, dict) or line is None or line.base != one.base:
                 continue
-            if was.get("base") != one.base or one.base in held:
+            if one.base in held:
                 continue
             if was.get("head") == one.head and now - _at(was) >= HELD:
                 self.release(one.number)
@@ -132,26 +200,33 @@ class BaseMerge:
         it the line (`accept`) goes with the line."""
         was = self.known().get(str(number))
         if isinstance(was, dict) and (was.get("line") or ACCEPTED in was):
-            kept = {key: value for key, value in was.items() if key != ACCEPTED}
-            self.records = {**self.known(), str(number): {**kept, "line": False}}
-            if self.run:
-                store.write_json(self.path, self.records)
+            self._put(str(number), was, "release", Move.DROP)
 
-    def accept(self, number: int, word: str) -> None:
-        """Keep the user's word that gives the pull request the head of its base's line,
-        `accepted by <user> at <when> on <message>`, on its record until it merges or gives the
-        line up (`release`). Its merged line carries it (`cli.Repo.merge`)."""
-        was = self.known().get(str(number))
+    def accept(self, one: ready.PullRequest, word: str) -> None:
+        """Give the pull request the head of its base's line on the user's word,
+        `accepted by <user> at <when> on <message>`, kept on its record until it merges or gives
+        the line up (`release`). Its merged line carries it (`cli.Repo.merge`)."""
+        was = self.known().get(str(one.number))
         record = was if isinstance(was, dict) else {}
-        self.records = {**self.known(), str(number): {**record, ACCEPTED: word}}
-        if self.run:
-            store.write_json(self.path, self.records)
+        self._put(str(one.number), record, "accept", Move.ACCEPT, base=one.base, word=word)
 
     def accepted(self, number: int) -> str:
         """The user's word that gave the pull request the head of its line, or nothing."""
-        was = self.known().get(str(number))
-        word = was.get(ACCEPTED) if isinstance(was, dict) else None
-        return word if isinstance(word, str) else ""
+        line = line_of(self.known().get(str(number)))
+        return line.word if line else ""
+
+    def _put(
+        self, number: str, record: dict, by: str, move: Move, base: str = "", word: str = ""
+    ) -> None:
+        """Keep `record` for the pull request, with its line once `by` makes `move` (`MOVES`):
+        the one writer of a record's line."""
+        assert move in MOVES[by], f"{by} may not {move} the line"
+        was = self.known().get(number)
+        line = after(line_of(was), move, base, word)
+        said = move is Move.DROP or (isinstance(was, dict) and "line" in was)
+        self.records = {**self.known(), number: _with(record, line, said)}
+        if self.run:
+            store.write_json(self.path, self.records)
 
     def stuck(self, one: ready.PullRequest) -> dict:
         """What `jmerge` did about a run GitHub kept queued at the pull request's head
@@ -166,13 +241,16 @@ class BaseMerge:
         value of None drops its key."""
         self._keep_stuck(str(one.number), {**self.stuck(one), "head": one.head, **kept})
 
-    def _keep_stuck(self, number: str, stuck: dict, **record: object) -> None:
+    def _restarted(self, one: ready.PullRequest, **kept: object) -> None:
+        """`keep_stuck`, as a step of `restart`."""
+        self._keep_stuck(str(one.number), {**self.stuck(one), "head": one.head, **kept}, "restart")
+
+    def _keep_stuck(
+        self, number: str, stuck: dict, by: str = "keep_stuck", move: Move = Move.STAY
+    ) -> None:
         was = self.known().get(number)
         kept = {key: value for key, value in stuck.items() if value is not None}
-        whole = {**(was if isinstance(was, dict) else {}), **record, "stuck": kept}
-        self.records = {**self.known(), number: whole}
-        if self.run:
-            store.write_json(self.path, self.records)
+        self._put(number, {**(was if isinstance(was, dict) else {}), "stuck": kept}, by, move)
 
     def restart(self, one: ready.PullRequest, check: str, since: datetime) -> str:
         """Close and reopen the pull request, so GitHub starts a new run of each of its
@@ -185,16 +263,16 @@ class BaseMerge:
         the reopen failed."""
         now = datetime.now(UTC).isoformat()
         asked = self.stuck(one).get("asked") or now
-        self.keep_stuck(
+        self._restarted(
             one, since=since.isoformat(), asked=asked, reopen=True, url=one.url, check=check
         )
         closed = self.gh("pr", "close", str(one.number))
         if closed.returncode:
-            self.keep_stuck(one, reopen=None, why=_said(closed))
+            self._restarted(one, reopen=None, why=_said(closed))
             return _said(closed)
-        self.keep_stuck(one, closed=now)
+        self._restarted(one, closed=now)
         why = self.reopened(one.number)
-        self.keep_stuck(one, **({"why": why} if why else {"reopen": None, "took": now}))
+        self._restarted(one, **({"why": why} if why else {"reopen": None, "took": now}))
         return why
 
     def reopen(self, numbers: Collection[str]) -> None:
@@ -211,16 +289,18 @@ class BaseMerge:
                 continue
             if number in numbers:
                 took = stuck.get("took") or (now.isoformat() if stuck.get("closed") else None)
-                self._keep_stuck(number, {**stuck, "reopen": None, "unopened": None, "took": took})
+                kept = {**stuck, "reopen": None, "unopened": None, "took": took}
+                self._keep_stuck(number, kept, "reopen")
             elif stuck.get("unopened"):
                 continue
             elif late(stuck.get("asked"), now):
-                self._keep_stuck(number, {**stuck, "reopen": None, "unopened": True}, line=False)
+                kept = {**stuck, "reopen": None, "unopened": True}
+                self._keep_stuck(number, kept, "reopen", Move.DROP)
             elif why := self.reopened(number):
-                self._keep_stuck(number, {**stuck, "why": why})
+                self._keep_stuck(number, {**stuck, "why": why}, "reopen")
             else:
                 kept = {**stuck, "reopen": None, "took": now.isoformat()}
-                self._keep_stuck(number, kept, line=False)
+                self._keep_stuck(number, kept, "reopen", Move.DROP)
 
     def unopened(self, numbers: Collection[str]) -> list[tuple[str, dict]]:
         """The number and `stuck` record of each pull request not in `numbers`, the open ones,
@@ -268,16 +348,23 @@ class BaseMerge:
         return None
 
     def keep(self, one: ready.PullRequest, tip: str, **kept: object) -> None:
-        """Keep `kept` in the record of the head and tip, over what it held. The user's word that
-        gave it the line stays across a new head or tip, as the line does."""
-        now = datetime.now().astimezone()
+        """Keep `kept` in the record of the head and tip, over what it held. The line, with the
+        user's word that gave it, stays across a new head or tip (`MOVES`), and what was done
+        about a run GitHub kept queued (`stuck`) across a new tip at the same head: a move of
+        the base starts no run at the head, so its restart stays spent. A line kept keeps the
+        time it was taken, from which `holders` counts `HELD`."""
+        self._keep(one, tip, kept, "keep", Move.STAY)
+
+    def _keep(self, one: ready.PullRequest, tip: str, kept: dict, by: str, move: Move) -> None:
+        now = f"{datetime.now().astimezone():%Y-%m-%dT%H:%M:%S%z}"
         was = self.was(one, tip) or {}
-        if word := self.accepted(one.number):
-            was = {**was, ACCEPTED: word}
-        record = {**was, "head": one.head, "tip": tip, **kept, "at": f"{now:%Y-%m-%dT%H:%M:%S%z}"}
-        self.records = {**self.known(), str(one.number): record}
-        if self.run:
-            store.write_json(self.path, self.records)
+        if stuck := self.stuck(one):
+            was = {**was, "stuck": stuck}
+        held = self.known().get(str(one.number))
+        if move is Move.STAY and line_of(held) and isinstance(held, dict) and "at" in held:
+            now = held["at"]
+        record = {**was, "head": one.head, "tip": tip, **kept, "at": now}
+        self._put(str(one.number), record, by, move, base=one.base if move is Move.TAKE else "")
 
     def open_only(self, numbers: Collection[str]) -> None:
         """Drop the record of each pull request whose number is not in `numbers`, the open ones:

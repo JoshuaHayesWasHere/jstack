@@ -1455,7 +1455,7 @@ class Repo:
 
         def does() -> str:
             self.line[one.base] = one.number
-            self.base_merge.accept(one.number, accepted)
+            self.base_merge.accept(one, accepted)
             found = self.waits(one, default)
             if self.line.get(one.base) != one.number:
                 self.base_merge.release(one.number)
