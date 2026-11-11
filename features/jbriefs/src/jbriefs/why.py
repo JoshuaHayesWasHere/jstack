@@ -31,13 +31,10 @@ def fault(fields: Fields) -> str:
     """Why the brief's `Why:` line is at fault, as one line, or an empty string when it is not.
 
     It is at fault when each of its words, less `FILLER`, is a word of the title or of `Task:`:
-    it only says again what is asked. A line with no `Why:` is `parse._filled`'s to name.
+    it only says again what is asked. A missing or empty `Why:` is `parse._filled`'s to name.
     """
     held = list(fields)
-    why = next((lines for name, lines in held if name == "Why"), None)
-    if why is None:
-        return ""
-    said = _words(why)
+    said = _words(next((lines for name, lines in held if name == "Why"), []))
     asked = set().union(*(_words(lines) for name, lines in held if name in ("title", "Task")))
     if said and said <= asked:
         return (
