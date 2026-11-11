@@ -1,6 +1,6 @@
 """jbus's act-once steps as a TLA+ spec, `features/jbus/spec/TellOnce.tla`: each quote of the code
 it models stands once in its file, TLC finds today's code breaks NoTellTwice or NoTellLost on the
-six acts `TellOnce.cfg` names and holds them on the other seven, and each canary, a pass that
+seven acts `TellOnce.cfg` names and holds them on the other six, and each canary, a pass that
 writes its marks first or reads none, breaks its rule on every act. The TLC tests skip where no
 Java runs TLC."""
 
@@ -42,6 +42,7 @@ TODAY = {
     ("blocking", "NoTellTwice"),
     ("word", "NoTellTwice"),
     ("account", "NoTellTwice"),
+    ("reload", "NoTellTwice"),
 }
 """What TLC finds in today's code, as the comment of TellOnce.cfg keeps it: the act, the rule."""
 
@@ -126,9 +127,9 @@ def broken(out: str) -> set[tuple[str, str]]:
 
 
 @JAVA
-def test_today_s_code_breaks_the_rules_on_the_six_acts_the_config_names():
-    """TLC's verdict on TellOnce.cfg: the six acts its comment names break, each its one rule, and
-    the seven others hold both."""
+def test_today_s_code_breaks_the_rules_on_the_seven_acts_the_config_names():
+    """TLC's verdict on TellOnce.cfg: the seven acts its comment names break, each its one rule, and
+    the six others hold both."""
     assert broken(tlc("none")) == TODAY
     comment = (SPEC / "TellOnce.cfg").read_text()
     assert all(re.search(rf"\\\*\s+{act}\s+{rule}", comment) for act, rule in TODAY)

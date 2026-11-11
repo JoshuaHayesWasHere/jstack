@@ -111,7 +111,7 @@ Guard(c) ==
     [] c = "owed" -> {"box"}                \* jbus/owed.py `if ask.key in run.box.sent():`
     [] c = "expedite" -> {"box", "record"}  \* jbus/expedite.py `if due and (rebase.mark(row.kind, slug, head) in sent or seen):`
     [] c = "cancelled" -> {"box", "receiver"} \* jbus/cancelled.py `if f"cancelled|{slug}|{key}" in run.box.sent():`
-    [] c = "closed" -> {"record"}
+    [] c = "closed" -> {"record"}           \* jbus/project.py `if one.closed: return f"already closed: {name}`, the config's line jbus/project.py `backup = _set(config_path, name, CLOSED, day)` writes after closed.json, joined into it here
     [] c = "account" -> {"record"}          \* jbus/mainmoved.py `if unrun and not raised:`
     [] c = "revert" -> {"record"}           \* jbus/culprits.py `if not thread or key in run.box.sent():`
     [] c = "twice" -> {"hold"}              \* the row held, see Begin
@@ -124,9 +124,11 @@ Guard(c) ==
 Absorbs(c) == c /= "blocking"
 
 \* Whether a try after a pass that died can carry another key: the tip the question names
-\* (jbus/mainmoved.py `lines = DECISION.format(sha=unrun[:12], slug=ACCOUNT)`), and the home's
-\* thread the word goes to (jbus/word.py `key = f"{KIND}|{name}|{one.id}|{thread}"`).
-KeyMoves == {"account", "word"}
+\* (jbus/mainmoved.py `lines = DECISION.format(sha=unrun[:12], slug=ACCOUNT)`), the home's
+\* thread the word goes to (jbus/word.py `key = f"{KIND}|{name}|{one.id}|{thread}"`), and the
+\* commits a skill's notice names, each owed one and a merge kept since, marked one by one after
+\* the send (jbus/reload.py `key="|".join([TEMPLATE, *commits, at]),`).
+KeyMoves == {"account", "word", "reload"}
 
 \* The carrier's own file says the act is done: the pass that reads it does not start.
 Done(c) ==
