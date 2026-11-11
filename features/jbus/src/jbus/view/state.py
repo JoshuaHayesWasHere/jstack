@@ -1112,11 +1112,15 @@ def _acts(read: Read) -> list[dict[str, Any]]:
         act(
             when(one.get("at")),
             text(one.get("slug"), 80),
-            f"{one.get('slug')}: {one.get('from')} to {one.get('to')}"
-            if "to" in one
-            else f"{one.get('slug')}: go {one.get('go')}",
+            f"{one.get('slug')}: {one.get('from')} to {one.get('to')}",
         )
         for one in read.moves or []
+    ]
+    made += [
+        act(
+            when(one.get("at")), text(one.get("slug"), 80), f"{one.get('slug')}: go {one.get('go')}"
+        )
+        for one in read.goes
     ]
     made += [
         act(one["at"], one["slug"], one["line"])
@@ -1339,8 +1343,20 @@ class Read:
         return self.table_of_rows or []
 
     @cached_property
-    def moves(self) -> list[dict[str, Any]] | None:
+    def lines_of_moves(self) -> list[dict[str, Any]] | None:
         return self.records("transitions.jsonl")
+
+    @cached_property
+    def moves(self) -> list[dict[str, Any]] | None:
+        """Each change of a row's status in `transitions.jsonl`: a line with `go` and no `to`
+        moves the row's go (`queue._go`) and no status, so it is in `goes`."""
+        kept = self.lines_of_moves
+        return None if kept is None else [one for one in kept if "to" in one]
+
+    @cached_property
+    def goes(self) -> list[dict[str, Any]]:
+        """Each change of a row's go in `transitions.jsonl` (`queue._go`)."""
+        return [one for one in self.lines_of_moves or [] if "to" not in one]
 
     @cached_property
     def logged(self) -> list[dict[str, Any]] | None:
