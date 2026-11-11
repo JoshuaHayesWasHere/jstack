@@ -20,52 +20,86 @@
     try { localStorage.setItem("statechart-theme", root.dataset.theme); } catch (e) { /* none */ }
   });
 
-  // Pan and zoom, by moving each chart's viewBox.
+  // Pan and zoom. Each chart has a camera: the chart point at the frame's top left (x, y) and
+  // the frame's pixels to one chart unit (k). The viewBox follows from the camera and the
+  // frame's size, so a frame that changes size keeps its scale and never letterboxes.
+  // A state's label is 12.5 units, so READABLE keeps it at 11.5 px or more on a fit.
+  const READABLE = 0.92;
   function view(name) {
     if (views[name]) return views[name];
     const panel = document.querySelector(`.chart-panel[data-chart="${CSS.escape(name)}"]`);
     const svg = panel.querySelector("svg.chart");
+    svg.setAttribute("preserveAspectRatio", "xMinYMin meet");
     const v = { panel, svg, port: panel.querySelector(".viewport"), full: { x: -20, y: -20, w: +svg.dataset.w, h: +svg.dataset.h } };
-    v.box = { ...v.full };
+    v.cam = { x: v.full.x, y: v.full.y, k: 1 };
     views[name] = v;
     wire(v);
     return v;
   }
-  function apply(v) {
-    const b = v.box;
-    v.svg.setAttribute("viewBox", `${b.x} ${b.y} ${b.w} ${b.h}`);
+  function size(v) {
+    const r = v.port.getBoundingClientRect();
+    return { w: Math.max(1, r.width), h: Math.max(1, r.height), left: r.left, top: r.top };
   }
+  function apply(v) {
+    const p = size(v);
+    const c = v.cam;
+    v.svg.setAttribute("viewBox", `${c.x} ${c.y} ${p.w / c.k} ${p.h / c.k}`);
+  }
+  // Fitted: the chart's whole width across the frame, its top at the frame's top, and a tall
+  // chart running on down, to scroll. Where the whole width would make its labels too small
+  // to read, as on a phone, it opens at a readable size on its first start state instead.
   function fit(v) {
-    v.box = { ...v.full };
+    const p = size(v);
+    const k = Math.max(p.w / v.full.w, READABLE);
+    let x = v.full.x;
+    if (v.full.w * k > p.w) {
+      const start = v.svg.querySelector("circle.start");
+      const cx = start ? +start.getAttribute("cx") + offsetOf(v, start).x : v.full.x + v.full.w / 2;
+      x = Math.min(Math.max(cx - p.w / k / 2, v.full.x), v.full.x + v.full.w - p.w / k);
+    }
+    v.cam = { x, y: v.full.y, k };
+    v.fitted = true;
     apply(v);
   }
-  function scale(v) {
-    const r = v.port.getBoundingClientRect();
-    return Math.max(v.box.w / r.width, v.box.h / r.height);
+  function offsetOf(v, el) {
+    const m = v.svg.getScreenCTM().inverse().multiply(el.getScreenCTM());
+    return { x: m.e, y: m.f };
   }
   function zoomAt(v, factor, cx, cy) {
-    const r = v.port.getBoundingClientRect();
-    const s = scale(v);
-    const ox = v.box.x + (v.box.w - r.width * s) / 2;
-    const oy = v.box.y + (v.box.h - r.height * s) / 2;
-    const px = ox + (cx - r.left) * s;
-    const py = oy + (cy - r.top) * s;
-    const w = Math.min(v.full.w * 4, Math.max(120, v.box.w / factor));
-    const k = w / v.box.w;
-    v.box = { x: px - (px - v.box.x) * k, y: py - (py - v.box.y) * k, w, h: v.box.h * k };
+    const p = size(v);
+    const c = v.cam;
+    const least = Math.min(p.w / v.full.w, p.h / v.full.h) / 2;
+    const k = Math.min(4, Math.max(least, c.k * factor));
+    const px = c.x + (cx - p.left) / c.k;
+    const py = c.y + (cy - p.top) / c.k;
+    v.cam = { x: px - (cx - p.left) / k, y: py - (cy - p.top) / k, k };
+    v.fitted = false;
     apply(v);
+  }
+  function panBy(v, dx, dy) {
+    v.cam.x -= dx / v.cam.k;
+    v.cam.y -= dy / v.cam.k;
+    v.fitted = false;
+    apply(v);
+  }
+  // How far the chart can scroll down or up from here, in pixels, so a wheel at its end
+  // scrolls the page on.
+  function room(v, dy) {
+    const p = size(v);
+    const c = v.cam;
+    const top = v.full.y;
+    const bottom = v.full.y + v.full.h - p.h / c.k;
+    return dy > 0 ? (bottom - c.y) * c.k : (c.y - top) * c.k;
   }
   function centreOn(v, el) {
     const rect = el.querySelector("rect");
-    const g = el.closest(".region");
-    const t = g.transform.baseVal.consolidate();
-    const dx = t ? t.matrix.e : 0;
-    const x = +rect.getAttribute("x") + dx + 105;
-    const y = +rect.getAttribute("y") + +rect.getAttribute("height") / 2;
-    const r = v.port.getBoundingClientRect();
-    const w = Math.min(v.box.w, 1100);
-    const h = w * (r.height / Math.max(1, r.width));
-    v.box = { x: x - w / 2, y: y - h / 2, w, h };
+    const at = offsetOf(v, rect);
+    const x = at.x + +rect.getAttribute("x") + +rect.getAttribute("width") / 2;
+    const y = at.y + +rect.getAttribute("y") + +rect.getAttribute("height") / 2;
+    const p = size(v);
+    const k = Math.max(v.cam.k, READABLE);
+    v.cam = { x: x - p.w / k / 2, y: y - p.h / k / 2, k };
+    v.fitted = false;
     apply(v);
   }
   function wire(v) {
@@ -96,11 +130,8 @@
       if (!moved && Math.hypot(now.x - last.x, now.y - last.y) < 5) return;
       if (!moved) { v.port.setPointerCapture(e.pointerId); v.port.classList.add("dragging"); }
       moved = true;
-      const s = scale(v);
-      v.box.x -= (now.x - last.x) * s;
-      v.box.y -= (now.y - last.y) * s;
+      panBy(v, now.x - last.x, now.y - last.y);
       pts.set(e.pointerId, now);
-      apply(v);
     });
     const end = (e) => {
       pts.delete(e.pointerId);
@@ -109,9 +140,20 @@
     };
     v.port.addEventListener("pointerup", end);
     v.port.addEventListener("pointercancel", end);
+    // A wheel scrolls the chart, and the page once the chart is at its end; with ctrl, or a
+    // trackpad's pinch, which comes as one, it zooms.
     v.port.addEventListener("wheel", (e) => {
+      const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? size(v).h : 1;
+      if (e.ctrlKey) {
+        e.preventDefault();
+        zoomAt(v, Math.exp(-e.deltaY * unit * 0.0015), e.clientX, e.clientY);
+        return;
+      }
+      const dx = (e.shiftKey ? e.deltaY : e.deltaX) * unit;
+      const dy = e.shiftKey ? 0 : e.deltaY * unit;
+      if (!dx && room(v, dy) <= 0) return;
       e.preventDefault();
-      zoomAt(v, Math.exp(-e.deltaY * (e.deltaMode ? 0.05 : 0.0015)), e.clientX, e.clientY);
+      panBy(v, -dx, -Math.sign(dy) * Math.min(Math.abs(dy), Math.max(0, room(v, dy))));
     }, { passive: false });
     v.port.addEventListener("click", (e) => {
       if (moved) { moved = false; return; }
@@ -132,7 +174,7 @@
       const z = b.dataset.zoom;
       if (z === "fit") fit(v); else zoomAt(v, z === "in" ? 1.4 : 1 / 1.4, ...mid(v));
     }));
-    new ResizeObserver(() => apply(v)).observe(v.port);
+    new ResizeObserver(() => (v.fitted ? fit(v) : apply(v))).observe(v.port);
   }
   function mid(v) {
     const r = v.port.getBoundingClientRect();

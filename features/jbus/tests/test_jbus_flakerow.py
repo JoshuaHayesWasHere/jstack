@@ -31,9 +31,11 @@ def kitchen(tmp_path, monkeypatch):
     made.close()
 
 
-def red(kitchen, sha, ago, failed, verdict="flake"):
-    """Add the line `mainmoved.tell` writes for a red tip `sha`, judged `ago` before NOW."""
+def red(kitchen, sha, ago, failed, verdict="flake", after=None):
+    """Add the line `mainmoved.tell` writes for a red tip `sha`, judged `ago` before NOW, of the
+    spell since the green tip `after`, where one is given."""
     line = {
+        **({"after": after * 40} if after else {}),
         "at": (NOW - ago).isoformat(),
         "sha": sha * 40,
         "prs": [],
@@ -70,6 +72,18 @@ def test_a_test_that_flaked_twice_in_seven_days_gets_one_row(kitchen):
     assert f"\nDecisions: {queue.RED_DECIDED}" in brief
     made = rows(kitchen)[SLUG]["approval"]
     assert (made["basis"], made["ref"]) == (queue.RULE, queue.FOLLOW_REF)
+
+
+def test_two_flaked_tips_of_one_spell_are_one_flake(kitchen):
+    """The later tips of a spell take its first line's verdict (`mainmoved.red_line`): two of
+    them are one red main, not two."""
+    red(kitchen, "1", 3 * DAY, [TEST], after="0")
+    red(kitchen, "2", 3 * DAY - timedelta(minutes=15), [TEST], after="0")
+    kitchen.poll()
+    assert filed(kitchen) == []
+    red(kitchen, "4", DAY, [TEST], after="3")
+    kitchen.poll()
+    assert filed(kitchen) == [SLUG]
 
 
 def test_a_third_flake_files_no_second_row(kitchen):

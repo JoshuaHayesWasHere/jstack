@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 from datetime import tzinfo
 
+from jbus.telemetry import launch_failures
 from jbus.telemetry.values import Row, _length, _text, utc
 
 KINDS: tuple[tuple[str, re.Pattern[str]], ...] = tuple(
@@ -34,11 +35,15 @@ def kind(why: str) -> str:
 
 
 def row(one: Row, zone: tzinfo | None) -> Row:
-    """A line of `waits.jsonl` as its row of `row_waits`: the reason's kind and length, no text."""
+    """A line of `waits.jsonl` as its row of `row_waits`: the reason's kind and length, and its
+    launch cause (`jbus.telemetry.launch_failures`), with the text only of an `other` one."""
     why = one.get("why")
+    cause, reason = launch_failures.wait(why)
     return {
         "at": utc(one.get("at"), zone),
         "slug": _text(one.get("slug")),
         "kind": kind(why if isinstance(why, str) else ""),
         "why_len": _length(why),
+        "launch_cause": cause,
+        "launch_reason": reason,
     }

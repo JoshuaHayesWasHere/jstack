@@ -390,6 +390,9 @@ Two pull requests can each pass their check alone and break main together, as #9
 The clash shows on the tree of one merged over the other, so before it merges a pull request whose head does not hold the tip of its base, `jmerge` checks the tree of that head merged over the tip (`features/jmerge/src/jmerge/treeguards.py`).
 The command is the first line of the state's `merged-tree-guards` file that is not blank.
 jstack's is `make check-fast PART=guards`: the lint, the cross-cutting tests, the catch-all and the changed test files, 385 s in one run on 2026-11-04.
+They also run each test file of the selection that main changed or added since the pull request's merge base: the pull request's check ran over that merge base and never saw them.
+#1584's check ran over 49695e849, #1588 then added `test_jbus_telemetry_spells.py`, which #1584's change reaches and broke, and the guards on its tree merged over 2380b181d passed without it in 81 s, so main went red for 18.5 minutes (spell 41, 2026-11-10).
+Replayed on that merged tree, the guards hold 57 files instead of 50, the 7 main changed since the merge base, and take 144 s instead of 87 s at the desk: they fail on that test, as main's run did, and hold #1584.
 They never run the whole suite, even where the change selects every test, as a deleted fixture (#1103) or a change to `scripts/select_tests.py` (#1118) does: the whole suite took 9 to 10 minutes at the desk's load on 2026-11-05, past `LIMIT_SECONDS`, and CI's check of the pull request runs it.
 A repo with no such file runs no guards, and a pull request that overlaps none of main's changes merges on its existing check with nothing run on its merged tree, while one that overlaps goes through the line ("Merges cleanly over today's main").
 In a repo that names them, the guards run on the merged tree of one that overlaps as of one that does not, and a pass merges either.
@@ -402,7 +405,8 @@ The guards run only on a tree no green check covers.
    On 2026-11-06 to 11-08, 58 of 97 guard runs, 5318 of 9375 guard seconds, were over a tip CI's check at that head had already tested.
    A lookup that fails, or finds no such artifact, goes on to the guards.
 2. It makes the tree a local commit whose parents are the tip and the head, as GitHub's merge ref is, and pushes nothing.
-3. It checks the commit out at `merged-tree` in the state directory, runs the command there with `BASE` set to the tip, and removes the worktree.
+3. It checks the commit out at `merged-tree` in the state directory, runs the command there with `BASE` set to the tip and `MERGE_BASE` to the merge base of the head and the tip, and removes the worktree.
+   `make check-fast` hands `MERGE_BASE` to `scripts/select_tests.py --part guards --since <merge base>`, which adds the test files of the selection that main changed between the merge base and `BASE`; with no `MERGE_BASE` the guards are those of the pull request's change alone.
    A worktree that a stopped run left there is removed first.
    The command runs inside a full test slot, through `jgauge test-slot`, as every other suite on the machine does: it is a suite at `-n 6`, and outside a slot it would be one the slot count does not see.
    A `jmerge` that already holds a slot (`JGAUGE_TEST_SLOT` set) runs it in that one, since a second would wait on its own.

@@ -16,9 +16,10 @@ and `jbus.watch` still read the record, and each property below is about what th
   tests that failed at that tip. The harm when it breaks: `jbus.reverts` judges a red tip by another
   tip's tests, and a flake's revert or a culprit's escape is a wrong one.
 - **S4, each red judged once.** `main-reds.jsonl` (`mainmoved.REDS`) has a line for the red tip the
-  record names, with that tip's own tests, and no tip has two lines. The harm when it breaks: a
-  spell of main's red reads `unjudged` and counts as a change failure whatever caused it, or two
-  lines give one red two causes.
+  record names, with that tip's own tests, no tip has two lines with a verdict, and no spell two
+  closing lines (`mainmoved.closing_line`). The harm when it breaks: a spell of main's red reads
+  `unjudged` and counts as a change failure whatever caused it, or two lines give one red two
+  causes.
 
 The model has at most `TIPS` tips on main and at most `EVENTS` events. The first tip, M0, is green
 and is there from the start. `tell` tells no crew anything, so no open pull request changes what it
@@ -242,8 +243,12 @@ def s3(state: State, files: Files) -> bool:
 
 def s4(state: State, files: Files) -> bool:
     """Return whether S4 holds on the state that a pass leaves: the red tip the record names has
-    one line in the ledger, with its own tests, and no tip has two."""
-    lines = [json.loads(line) for line in state.reds.splitlines()]
+    one line in the ledger, with its own tests, and no tip has two, nor two closing lines."""
+    kept = [json.loads(line) for line in state.reds.splitlines()]
+    lines = [line for line in kept if "verdict" in line]
+    closed = [line["sha"] for line in kept if "cause" in line]
+    if len(closed) != len(set(closed)) or not set(closed) <= {line["sha"] for line in lines}:
+        return False
     shas = [line["sha"] for line in lines]
     broken = (json.loads(state.record) if state.record else {}).get("broken")
     if len(shas) != len(set(shas)):
