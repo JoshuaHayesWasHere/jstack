@@ -7,7 +7,7 @@ it, a gate with no default or one that names a door, a go gate whose silence sta
 whose brief has no go, a pull request `jmerge` holds for the user's word, a hold no crew
 clears that the user's word lifts (`jbus.clock.held`), a setup only the user
 can give, and an approved row that waits for room on a full /tmp after the pass removed what
-finished crews left there (`room`): its row's `why` says so, `waiting: /tmp at <n>% of its quota`,
+finished crews left there (`room`): its row's `why` says so, `waiting: /tmp is full: its quota`,
 from the first pass it waits. A hold of GitHub's budget at or under its floor is one item for
 the whole project once it has lasted over ten minutes (`budgethold.needed`), since no row
 launches until its reset. A row a home can clear by itself (a row at `gate`, a leftover its

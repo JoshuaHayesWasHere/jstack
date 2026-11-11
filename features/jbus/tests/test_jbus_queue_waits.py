@@ -1,11 +1,16 @@
 """`queue.derive` keeps each change of a row's reason to wait as one line of `waits.jsonl`, and a
 pass that leaves the reason as it was adds none. A row that waits behind a row with no room on the
-machine says so."""
+machine says so, and a wait on load or on a full /tmp keeps one reason while its reading moves."""
 
 import json
 from datetime import timedelta
 
+import pytest
+
+import test_jbus_cleanup
 from jbus import queue
+from test_jbus_cleanup import pad
+from test_jbus_cleanup import tmp as tmp
 from test_jbus_kitchen import NOW
 from test_jbus_queue import add, rows
 
@@ -78,4 +83,31 @@ def test_a_wait_for_room_keeps_its_reason_and_its_since_while_the_load_moves(kit
     kitchen.machine(load="31.00")
     kitchen.poll(NOW + timedelta(minutes=5))
     assert [line["why"] for line in lines(kitchen) if line["slug"] == "first"] == [LOAD]
+    assert rows(kitchen)["first"]["since"] == began
+
+
+@pytest.fixture
+def full(request, monkeypatch):
+    """The /tmp of `test_jbus_cleanup` with a 10 GiB quota, which `jgauge room` gives to a tenth
+    of a GB, so it can read 81% and 84% of it."""
+    monkeypatch.setattr(test_jbus_cleanup, "QUOTA_KIB", 10 * 1024 * 1024)
+    return request.getfixturevalue("tmp")
+
+
+def test_a_wait_for_a_full_tmp_keeps_its_reason_and_its_since_while_its_use_moves(kitchen, full):
+    """`jgauge room` reads /tmp at 81% of its quota on one pass and at 84% on the next: the row
+    waits on the same full /tmp all along, so `waits.jsonl` keeps the one line of the first pass,
+    `since` stays put, and the reason still names /tmp."""
+    (kitchen.root / "worktrees" / kitchen.checkout.name / "live").mkdir(parents=True)
+    blob = pad(full, kitchen, "live", 870_000) / "session" / "scratchpad" / "blob"
+    add(kitchen, "first")
+    said = kitchen.poll()
+    began = rows(kitchen)["first"]["since"]
+    blob.write_bytes(b"x" * 900_000)
+    said += kitchen.poll(NOW + timedelta(minutes=5))
+    assert kitchen.t3.launches == []
+    read = [line.split(" quota used")[0].split(" has ")[1] for line in said if "quota" in line]
+    assert read == ["8.1 of your 10.0 GB", "8.4 of your 10.0 GB"], said
+    why = [line["why"] for line in lines(kitchen) if line["slug"] == "first"]
+    assert why == [f"waiting: {full} is full: its quota"]
     assert rows(kitchen)["first"]["since"] == began
