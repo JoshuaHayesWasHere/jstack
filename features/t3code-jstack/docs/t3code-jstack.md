@@ -44,7 +44,7 @@ T3 Code's stable and prerelease builds share their data in `~/.t3`, so the move 
 
 ## The compaction ceiling
 
-The series leaves T3 Code's idle-compaction floor at upstream's 200,000 tokens: jbus owns a home's context, and sends an idle home `/compact` once its last call reaches `CEILING` in `features/jbus/src/jbus/compact.py`.
+The series leaves T3 Code's idle-compaction floor at upstream's 200,000 tokens: jbus owns a home's context, and asks an idle home to compact once its last call reaches `CEILING` in `features/jbus/src/jbus/compact.py`.
 
 ## Switch the tree
 
