@@ -9,7 +9,8 @@ import pytest
 
 import test_jbus_cleanup
 from jbus import queue
-from test_jbus_cleanup import pad, tmp  # noqa: F401  (`full`'s /tmp)
+from test_jbus_cleanup import pad
+from test_jbus_cleanup import tmp as tmp
 from test_jbus_kitchen import NOW
 from test_jbus_queue import add, rows
 
