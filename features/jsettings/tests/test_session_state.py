@@ -15,13 +15,14 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
-from jsettings.t3 import Session, T3Dropped
+from jsettings.t3 import Session, T3Dropped, T3Error
 
 
 class Server(ThreadingHTTPServer):
     def __init__(self):
         super().__init__(("127.0.0.1", 0), Handler)
         self.drops = 0
+        self.sessionless = False
         self.live: set[str] = set()
         self.seen: list[tuple[str, str | None]] = []
         self.ended: list[str | None] = []
@@ -61,8 +62,11 @@ class Handler(BaseHTTPRequestHandler):
                 self.close_connection = True
                 self.connection.close()
                 return None
-            session = f"session-{uuid.uuid4().hex[:8]}"
-            self.server.live.add(session)
+            if self.server.sessionless:
+                session = None
+            else:
+                session = f"session-{uuid.uuid4().hex[:8]}"
+                self.server.live.add(session)
         elif session not in self.server.live:
             return self.reply(400, b"Bad Request: No valid session ID provided", session)
         if "id" not in asked:
@@ -124,3 +128,11 @@ def test_a_call_after_close_opens_a_new_session(server, session):
     second = server.seen[-1][1]
     assert second in server.live and second != first
     assert [method for method, _ in server.seen].count("initialize") == 2
+
+
+def test_an_initialize_that_opened_no_session_sends_no_call_after_it(server, session):
+    server.sessionless = True
+    for _ in range(2):
+        with pytest.raises(T3Error, match="opened no session"):
+            call(session)
+    assert [method for method, _ in server.seen] == ["initialize", "initialize"]
