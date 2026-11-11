@@ -186,6 +186,8 @@ SEP = "\0"
 CODE_LIKE = re.compile(
     r"\b[a-z]{2,}[A-Z][a-z]|\b\w+_\w+\b|\b[A-Za-z_]\w*\(|\b[A-Z][a-z]+[A-Z][a-z]", re.ASCII
 )
+# Names written in two humps that are no code, which CODE_LIKE skips.
+PROPER_NAMES = re.compile(r"\bGitHub\b")
 
 
 class BadArgument(Exception):
@@ -1882,7 +1884,7 @@ def chart(args):
                 *(c["cause"] for c in classes if c["cause"]),
             ]
         )
-        if CODE_LIKE.search(t)
+        if CODE_LIKE.search(PROPER_NAMES.sub("", t))
     ]
 
     def second_of(c):
