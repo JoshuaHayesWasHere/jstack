@@ -68,7 +68,8 @@ def test_the_page_opens_on_a_map_of_every_chart_and_how_they_hand_off(tmp_path):
     }
     for name, thing in things.items():
         assert f'data-chart="{name}"' in flow and thing in flow, name
-    handoffs = re.findall(r"<li>(.*?)</li>", re.search(r'<ol class="handoffs">.*?</ol>', flow, re.S)[0])
+    listed = re.search(r'<ol class="handoffs">.*?</ol>', flow, re.S)[0]
+    handoffs = re.findall(r"<li>(.*?)</li>", listed)
     assert len(handoffs) >= 5
     for item in handoffs:
         ends = re.findall(r'class="go" data-chart="(\w+)"', item)
