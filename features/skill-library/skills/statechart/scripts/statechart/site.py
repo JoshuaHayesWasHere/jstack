@@ -886,20 +886,20 @@ def draw_boxes(regions, prefix, links, attrs, css, dots=True):
             )
         for s in region.states:
             mid = s.x + NODE_W / 2
-            parts.append(
+            box = [
                 f'<g class="{css}-box" {attrs(s)} tabindex="0" role="button">'
                 f'<rect x="{s.x:.1f}" y="{s.y:.1f}" width="{NODE_W}" height="{s.h:.1f}" rx="12"/>'
                 f'<text x="{mid:.1f}" y="{s.y + PAD_Y + LINE_H - 3:.1f}">'
-            )
+            ]
             for k, line in enumerate(s.lines):
-                parts.append(
+                box.append(
                     f'<tspan x="{mid:.1f}" dy="{0 if k == 0 else LINE_H}">{esc(line)}</tspan>'
                 )
-            parts.extend(
+            box.extend(
                 f'<tspan class="note" x="{mid:.1f}" dy="{LINE_H}">{esc(line)}</tspan>'
                 for line in s.notes
             )
-            parts.append("</text></g>")
+            parts.append("".join(box) + "</text></g>")
         parts.extend(labels)
         parts.append("</g>")
         offset += region.w
@@ -912,7 +912,7 @@ def draw_boxes(regions, prefix, links, attrs, css, dots=True):
         f' style="max-width:{span * 1.1:.0f}px;min-width:{span * 0.9:.0f}px"'
         f' role="img" aria-label="{esc(prefix)}"><defs><marker id="{arrow}" viewBox="0 0 10 10"'
         ' refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">'
-        '<path d="M0,0 L10,5 L0,10 z"/></marker></defs>' + "".join(parts) + "</svg>"
+        '<path d="M0,0 L10,5 L0,10 z"/></marker></defs>\n' + "\n".join(parts) + "\n</svg>"
     )
 
 
@@ -1000,7 +1000,7 @@ def flow_section(charts, flow):
         return f'id="flow-{esc(s.id)}" data-chart="{esc(s.id)}" aria-label="{esc(s.label)}"'
 
     map_svg = draw_boxes([region], "flow", [links], attrs, "flow", dots=False)
-    listed = f'<ol class="handoffs">{"".join(items)}</ol>' if items else ""
+    listed = '<ol class="handoffs">\n' + "\n".join(items) + "\n</ol>" if items else ""
     listed += uncovered_html(flow)
     return (
         '<section class="flow-panel" data-view="overview">'
@@ -1040,11 +1040,11 @@ def uncovered_html(flow):
     state of the code that no model has."""
     if not flow.uncharted and not flow.unmodeled:
         return ""
-    models = "".join(
+    models = "\n".join(
         f"<li><code>{esc(model)}</code>: {esc(why)}</li>"
         for model, why in sorted(flow.uncharted.items())
     )
-    states = "".join(
+    states = "\n".join(
         f"<li><strong>{esc(u['state'])}</strong> (<code>{esc(u['code'])}</code>):"
         f" {esc(u['why'])}</li>"
         for u in flow.unmodeled
@@ -1053,9 +1053,9 @@ def uncovered_html(flow):
         '<div class="uncovered"><h3>What no chart shows</h3>'
         "<p>Each chart shows what a user can tell apart within its model's bounds, which its tab"
         " names. These models have no chart:</p>"
-        f'<ul class="uncharted">{models}</ul>'
+        f'<ul class="uncharted">\n{models}\n</ul>'
         "<p>And this state of the code is in no model, so no chart shows it:</p>"
-        f'<ul class="unmodeled">{states}</ul></div>'
+        f'<ul class="unmodeled">\n{states}\n</ul></div>'
     )
 
 
