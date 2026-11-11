@@ -816,7 +816,8 @@ def test_the_names_part_prints_the_tests_that_name_a_changed_file_less_the_desks
     assert ran.returncode == 0, ran.stderr
     assert ran.stdout.splitlines() == steps
     printed = {
-        one for part in ("touched", "cross", "names")
+        one
+        for part in ("touched", "cross", "names")
         for one in repo.run("--part", part, repo.base, head).stdout.split()
     }
     named = {"testing/tests/test_doc.py", "testing/tests/test_one.py", "testing/tests/test_two.py"}
