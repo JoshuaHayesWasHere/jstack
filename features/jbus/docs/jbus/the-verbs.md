@@ -32,6 +32,7 @@ Each table is sorted by its verb, so that two pull requests that each add a verb
 | `jbus budget [--calls <n>] [--wait <seconds>] [--callers]` | Prints `ok` and ends 0 while GitHub's API budget, which jbus and every thread share, leaves more than its floor of 1,000 calls in each window after `--calls` more, and otherwise prints `held` and ends 75, asking again every 30 seconds for up to `--wait` seconds first, so that a skill's loop of `gh` calls waits or refuses where a pass of jbus asks GitHub nothing but its merges. With `--callers` it prints the `gh` calls of the last hour by caller, and how many of them failed, from the line `jsettings.proc` writes for each call to `gh-calls.jsonl` in jbus's state. |
 | `jbus ci [--days <n>] [--report \| --day] [--each]`, `jbus ci --notice <field=value>...` | Records the project's Actions jobs and pull requests of the last `--days` days, 14 by default, in `ci.jsonl` and `ci-prs.jsonl`, and prints the nine CI targets with how each was counted. `--report` also writes the week's report and alerts on a missed target. `--day` collects nothing and writes the day's report from the ledger, with one `gh run list` for main-red. `--each` runs the command for every project with `ci_report = true`, as `jbus-ci.service` does. `--notice` is for a CI job, and prints the annotation that gives the collector its telemetry. [Measure the CI](measure-the-ci.md) has the rest. |
 | `jbus clear [--scope <scope>]` | Clears a home's blockers and prints one line for each: a decision that waits on you, a fix to brief or one at work. [Decisions](decisions.md) has the rest. |
+| `jbus crew-threads` | Prints, a line each, every row of every project whose crew thread its carriers do not agree on: the brief's `Thread:` line, the newest launch record and the queue's `thread` column, with the crew `jbus.crewthread.crew` answers. A launch older than a hand resume's line is history and no disagreement. It prints `none: ...` where every row agrees, and writes nothing. |
 | `jbus decide <slug> --question <what> --reply <hint>` | Raises one decision for you by hand, such as a scope change, with a plain hint for your reply. |
 | `jbus digest --json [--since <time>]` | Prints what waits and what moved over every project, as one JSON object. `--json` is required, since JSON is the one form there is. `--since` sets the time it counts merges from, and is a day ago when you do not give it. |
 | `jbus events [--slug <slug>] [--since <time>]` | Prints the project's event log as JSON, one event a line, oldest first. `--slug` keeps the events of one slug, and `--since` keeps those sent at or after a time. |
@@ -118,6 +119,7 @@ These verbs take no project of their own, and read none, every project, or the o
 - `jbus bot`
 - `jbus brief`
 - `jbus budget`
+- `jbus crew-threads`
 - `jbus digest`
 - `jbus flow`
 - `jbus follow`
