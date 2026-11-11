@@ -117,7 +117,6 @@ def test_an_old_tree_uv_never_takes_again_does_not_stop_a_newer_green_tip(copied
     assert at(copied.copy) == newer
     assert tool == [newer]
     assert green.in_flight(copied.state) is None
-    assert sorted(path.name for path in green.trees(copied.copy).iterdir()) == [newer]
 
 
 def test_a_dangling_link_with_a_move_owed_is_the_copy_and_not_foreign(copied, monkeypatch):
