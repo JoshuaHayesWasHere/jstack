@@ -160,6 +160,17 @@ def scripts_run(mod, node):
                         yield module(path)
 
 
+@cache
+def step(mod, node):
+    """What a node's own code gives, read once a run since many tests share a helper: the
+    facilities it uses, and the module and node of each thing it reaches."""
+    reached = [mod.resolve(name) for name in names(node)]
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        reached += list(fixtures(mod, node))
+    reached += [(script, script.tree) for script in scripts_run(mod, node)]
+    return own_facilities(node), [one for one in reached if one is not None]
+
+
 def facilities(mod, node, seen=None):
     """The Linux-only facilities a test reaches: in its own code, and in what it reaches by
     name, across the test helpers of its folder."""
@@ -167,12 +178,9 @@ def facilities(mod, node, seen=None):
     if (mod.path, id(node)) in seen:
         return set()
     seen.add((mod.path, id(node)))
-    found = own_facilities(node)
-    reached = [mod.resolve(name) for name in names(node)]
-    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-        reached += list(fixtures(mod, node))
-    reached += [(script, script.tree) for script in scripts_run(mod, node)]
-    for one in filter(None, reached):
+    own, reached = step(mod, node)
+    found = set(own)
+    for one in reached:
         found |= facilities(*one, seen)
     return found
 
@@ -223,6 +231,7 @@ def unmarked(root):
     """Each test under `root` that reaches a Linux-only facility with no Linux-only mark, as
     `path::test: facility, ...`."""
     module.cache_clear()
+    step.cache_clear()
     found = []
     for folder in folders(root):
         for path in sorted(folder.rglob("test_*.py")):
