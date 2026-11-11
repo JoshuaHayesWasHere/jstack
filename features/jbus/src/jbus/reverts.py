@@ -48,9 +48,12 @@ brief `tasks/<branch>.md` that ties the pull request to its slug, with the culpr
 logs a routine event for its home's digest.
 `jbus.culprits.tell` tells the culprit's crew, from every pass until the message goes, so a capped
 thread or a T3 Code that gives no answer loses it to nothing. `opened` asks GitHub for the
-revert's branch first, so a pass that stopped between GitHub's answer and the record finds its
-revert and opens no second one, and the brief is written before the record, so a revert on record
-has a brief. `jmerge` merges the revert by the normal path, its checks green, with no review.
+revert's branch first, so a pass that stopped between GitHub's answer and the record opens no
+second one. `revert` names the revert in `OPENING` before GitHub opens it, and `known`, early in
+every pass, keeps each revert named there that has no record yet, whether main is red or green,
+so a revert a pass opened and then stopped is never left open with no record. The record is the
+last write (`_own`), after the brief and the line, so a revert on record has both. `jmerge`
+merges the revert by the normal path, its checks green, with no review.
 A revert is held by each check that leans on it (`holders`): the one that went red and opened it,
 and each that went red at the same commits and read it as its own since (`Keep.OPENED`, `lean`),
 as main's macOS run did on main's revert #1426 on 2026-11-09. `close` closes a revert jbus opened
@@ -93,7 +96,7 @@ from jbus.ci.ledger import JOBS, PULLS
 from jbus.ci.ledger import read as ledger
 from jbus.ci.numbers import Facts, flake_branches
 from jbus.passes import Pass
-from jbus.watch import World, brief_of, fix_brief, task_brief, tests_said, when
+from jbus.watch import World, brief_of, copy_brief, fix_brief, task_brief, tests_said, when
 from jmerge import mainjson
 from jmerge import reverts as kept
 
@@ -278,18 +281,30 @@ def brief(branch: str, red: Culprit, url: str, home: str, where: str = MAIN) -> 
 
 FIELDS = "url,headRefName,headRefOid"
 """What `revert` reads of a revert's pull request."""
+OPENING = "reverts-opening.json"
+"""The reverts a pass set out to open and `reverts.json` does not keep yet, by red tip: the
+culprit's slug and number, the revert's branch, what went red (`where`) and when (`at`). `revert`
+writes it before `gh pr revert` and drops it once the record is written, so a pass that stopped
+in between leaves its revert named here, and `known` keeps it on the next pass. It is how a pass
+tells a revert of its own from one a hand opened on the same branch, which `known` never keeps."""
 
 
-def opened(run: Pass, red: Culprit) -> dict[str, str]:
-    """The revert GitHub already has for `red`, by the branch it names `revert-<number>-<branch>`,
-    or nothing."""
-    branch = f"revert-{red.pull.get('number')}-{red.pull.get('headRefName')}"
+def branch_of(pull: dict[str, Any]) -> str:
+    """The branch GitHub gives the revert of `pull`: `revert-<number>-<branch>`."""
+    return f"revert-{pull.get('number')}-{pull.get('headRefName')}"
+
+
+def opened(run: Pass, branch: str) -> dict[str, str] | None:
+    """The open pull request GitHub has on the revert's `branch`, nothing where it has none, or
+    None where GitHub gave no answer."""
     asked = run.run("gh", "pr", "list", "--state", "open", "--head", branch, "--json", FIELDS)
     try:
-        found = json.loads(asked.stdout) if asked.returncode == 0 else []
+        found = json.loads(asked.stdout) if asked.returncode == 0 else None
     except ValueError:
-        found = []
-    return found[0] if found else {}
+        found = None
+    if not isinstance(found, list):
+        return None
+    return found[0] if found and isinstance(found[0], dict) else {}
 
 
 def home_of_revert(culprit: str) -> str:
@@ -300,11 +315,14 @@ def home_of_revert(culprit: str) -> str:
 
 
 def revert(run: Pass, red: Culprit, where: str = MAIN) -> bool:
-    """Open the revert of `red`, or take the one GitHub has, and keep it, which `jbus.culprits`
-    tells the culprit's crew. Return False where GitHub did not open it, so the caller files the
-    fix row instead. `where` is what went red: main's check, or its macOS run."""
-    said = opened(run, red)
+    """Open the revert of `red`, or take the one GitHub has, and keep it (`_own`), which
+    `jbus.culprits` tells the culprit's crew. Return False where GitHub did not open it, so the
+    caller files the fix row instead. `where` is what went red: main's check, or its macOS run.
+    The revert is named in `OPENING` before GitHub is asked to open it."""
+    branch = branch_of(red.pull)
+    said = opened(run, branch) or {}
     if not said:
+        _intend(run, red, branch, where)
         url = str(red.pull.get("url", ""))
         asked = run.run(
             "gh",
@@ -319,6 +337,7 @@ def revert(run: Pass, red: Culprit, where: str = MAIN) -> bool:
         lines = asked.stdout.strip().splitlines()
         made = lines[-1].strip() if asked.returncode == 0 and lines else ""
         if not made:
+            _drop_intent(run, red.red)
             why = (asked.stderr or "no answer").strip()
             run.condition(red.slug, f"its revert was not opened: {why}", key=f"revert {red.red}")
             return False
@@ -331,18 +350,76 @@ def revert(run: Pass, red: Culprit, where: str = MAIN) -> bool:
             line = f"its revert {made} opened, and GitHub does not say its branch yet"
             run.condition(red.slug, line, key=f"listed {red.red}")
             return True
-    branch, head, url = (said.get(key, "") for key in ("headRefName", "headRefOid", "url"))
+    _own(run, red, said, where)
+    return True
+
+
+def _own(run: Pass, red: Culprit, said: dict[str, Any], where: str) -> None:
+    """Keep the revert GitHub has open for `red`, as `said` describes it: its brief, then its line
+    in `events.jsonl`, then its record in `reverts.json`, which every later pass reads as the
+    revert being its own (`Keep.OPENED`), and last its name leaves `OPENING`. A pass that stops
+    before the record leaves the revert in `OPENING`, and the next one keeps it again: it writes
+    the brief again, and the line, sent by its key, is not sent twice. So a revert on record has
+    its brief and its line (`features/jbus/spec/MainFix.tla`, `RevertSaid`)."""
+    branch, head, url = (str(said.get(key, "")) for key in ("headRefName", "headRefOid", "url"))
     home = home_of_revert(task_brief(run, red.slug))
     tasks = run.home / "tasks"
     tasks.mkdir(parents=True, exist_ok=True)
     (tasks / f"{branch}.md").write_text(brief(branch, red, url, home, where))
+    line = f"revert {red.slug}: {where} red at {red.red[:12]}, jbus opened {url} to revert it"
+    if run.find(red.slug, "revert", line, key=f"opened {red.red}"):
+        run.say(line)
     made, held = kept.read(run.state), holders(run.state)
     made[red.red] = kept.Revert(red.red, red.slug, branch, head, url)
     _keep(run, made, {**held, red.red: {where}})
-    line = f"revert {red.slug}: {where} red at {red.red[:12]}, jbus opened {url} to revert it"
-    run.find(red.slug, "revert", line, key=f"opened {red.red}")
-    run.say(line)
-    return True
+    _drop_intent(run, red.red)
+
+
+def _intend(run: Pass, red: Culprit, branch: str, where: str) -> None:
+    """Name the revert of `red` in `OPENING`, before GitHub is asked to open it."""
+    intents = read_json(run.state / OPENING, {})
+    intents = intents if isinstance(intents, dict) else {}
+    one = {"slug": red.slug, "number": red.pull.get("number"), "branch": branch, "where": where}
+    write_json(run.state / OPENING, {**intents, red.red: {**one, "at": run.now.isoformat()}})
+
+
+def _drop_intent(run: Pass, red: str) -> None:
+    """Take the revert of the red tip `red` out of `OPENING`."""
+    intents = read_json(run.state / OPENING, {})
+    if isinstance(intents, dict) and red in intents:
+        write_json(run.state / OPENING, {key: one for key, one in intents.items() if key != red})
+
+
+def known(run: Pass, world: World) -> None:
+    """Keep each revert `OPENING` names that `reverts.json` does not, whether main is red or green
+    and whatever GitHub's compare says: a pass stopped after GitHub opened it and before its
+    record, and no later pass may judge main red again to find it (`features/jbus/spec/MainFix.tla`,
+    `RevertKnown`), while jmerge merges, and `close` closes, only a revert on record. The revert
+    is found on its branch among the open pull requests this pass read (`world.open`), and else
+    by asking GitHub for the branch. Its name is dropped where the record is there already, and
+    where GitHub answers that the branch has no open pull request once the name is older than
+    `READ_WAIT`, since GitHub may list a revert it just opened late; it stays while GitHub gives
+    no answer. A revert a hand opened on such a branch, with no name here, is never kept."""
+    intents = read_json(run.state / OPENING, {})
+    if not isinstance(intents, dict):
+        return
+    made = kept.read(run.state)
+    heads = {str(pull.get("headRefName", "")): pull for pull in world.open.values()}
+    for red, one in intents.items():
+        if red in made or not isinstance(one, dict) or not one.get("branch"):
+            _drop_intent(run, red)
+            continue
+        said = heads.get(str(one["branch"]))
+        if said is None:
+            said = opened(run, str(one["branch"]))
+        if said is None:
+            continue
+        if said.get("headRefName") and said.get("headRefOid") and said.get("url"):
+            where = str(one.get("where", MAIN))
+            culprit = Culprit(red, str(one.get("slug", "")), {"number": one.get("number")})
+            _own(run, culprit, said, where if where in CHECKS else MAIN)
+        elif not said and run.now - when(str(one.get("at") or run.now.isoformat())) > READ_WAIT:
+            _drop_intent(run, red)
 
 
 def holders(state: Path) -> dict[str, set[str]]:
@@ -634,18 +711,21 @@ def _mac_file(
         home="macos",
         follows=slug,
     )
-    (run.home / "tasks").mkdir(parents=True, exist_ok=True)
-    (run.home / "tasks" / f"{name}.md").write_text(text)
     try:
         queue.add(run.state, name, 0, [], text, user=run.user, ran_by=queue.PASS)
     except (Refused, queue.Unparsable) as refused:
         run.condition(name, f"its brief was not queued: {refused}")
+        copy_brief(run, name, text)
         return
+    copy_brief(run, name, text)
     line = f"retro {name}: main's macOS run failed at {sha[:12]}, {kept_why}"
     run.find(name, "retro", line, key=f"macos red {sha}", past=True)
 
 
 STEPS = (
+    verbs.Step(
+        "tellers", 36, "reverts.known", lambda half: known(half.run, half.seen.world), ("world",)
+    ),
     verbs.Step(
         "after-expedite",
         9,

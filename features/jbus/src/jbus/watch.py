@@ -1881,16 +1881,28 @@ def _add_tip(run: Pass, row: dict[str, Any], brief: str, sha: str, red: list[dic
     while at and not lines[at - 1].strip():
         at -= 1
     text = "\n".join([*lines[:at], line, *lines[at:]]) + "\n"
-    (run.home / "tasks").mkdir(parents=True, exist_ok=True)
-    (run.home / "tasks" / f"{name}.md").write_text(text)
     if not row.get("thread") and row.get("status") in queue.UNLAUNCHED:
         priority, depends = row.get("priority", 0), row.get("depends", [])
         try:
             queue.add(run.state, name, priority, depends, text, user=run.user, ran_by=queue.PASS)
         except (Refused, queue.Unparsable) as refused:
             run.condition(name, f"its brief did not take main's red tip {sha[:12]}: {refused}")
+    copy_brief(run, name, text)
     said = f"retro {name}: main is red again at {sha[:12]} as it is, and its row names the tip"
     run.find(name, "retro", said, key=f"same red {sha}", past=True)
+
+
+def copy_brief(run: Pass, name: str, text: str) -> None:
+    """Write the brief `text` of the row `name`, which a pass filed, to the home's `tasks/`, the
+    copy its crew reads. A pass writes it after `queue.add`, never before: the queue's row, with
+    the brief it keeps beside it, is what the next pass reads to know the red is filed, so a pass
+    that stops between the two leaves a row whose copy is not written yet, which `brief_of` reads
+    from the queue and its launch writes (`dispatch`), and never a brief with no row, which no
+    pass would queue again once it judged the red another way or the run stale
+    (`features/jbus/spec/MainFix.tla`, `FiledWhole`). A brief the queue refused is written too,
+    for the condition that names it."""
+    (run.home / "tasks").mkdir(parents=True, exist_ok=True)
+    (run.home / "tasks" / f"{name}.md").write_text(text)
 
 
 def _changed(run: Pass, red: list[dict]) -> list[str]:
@@ -1926,8 +1938,9 @@ def _file(run: Pass, slug: str, sha: str, red: list[dict], kept: str = "") -> No
     with more merges on top of it: `_file` files no row for it and adds the tip to that row's
     brief (`_add_tip`). Only a run known by its tests (`mainjson.failures`) is the same break:
     a job that names none, a lint or a timeout, may fail for another reason at each tip.
-    `_file` writes the brief whenever the queue has no row for it. So if a pass stopped before
-    it added the row, the next pass files the brief again. If the queue
+    `_file` queues the brief whenever the queue has no row for it, and then writes its copy to
+    `tasks/` (`copy_brief`), so a pass that stops between the two leaves the row, and one that
+    stops before the queue leaves nothing, for the next pass to judge afresh. If the queue
     refuses the brief, that is a condition. `kept` says why jbus reverted nothing (`_revert`),
     which its task names."""
     name = f"{mainjson.FIX}{sha[:12]}"
@@ -1983,13 +1996,12 @@ def _file(run: Pass, slug: str, sha: str, red: list[dict], kept: str = "") -> No
         nowhere="`.` (the whole repo: the merges since the last green changed files nobody listed)",
         follows=slug,
     )
-    (run.home / "tasks").mkdir(parents=True, exist_ok=True)
-    (run.home / "tasks" / f"{name}.md").write_text(text)
     try:
         top = min((row.get("priority", 0) for row in queue.load(run.state)), default=1) - 1
         queue.add(run.state, name, top, [], text, user=run.user, ran_by=queue.PASS)
     except (Refused, queue.Unparsable) as refused:
         run.condition(name, f"its brief was not queued: {refused}")
+    copy_brief(run, name, text)
 
 
 def _default_branch(run: Pass) -> str:
@@ -2189,13 +2201,13 @@ def drawn_apart(
 def _filed(run: Pass, nightly: Nightly, name: str, text: str, number: str, said: str) -> bool:
     """Write the brief `text` of the row `name` jbus files from the nightly's red run `number`,
     queue it, and say so in a retro line that ends `said`. False where the queue refused it."""
-    (run.home / "tasks").mkdir(parents=True, exist_ok=True)
-    (run.home / "tasks" / f"{name}.md").write_text(text)
     try:
         queue.add(run.state, name, 0, [], text, user=run.user, ran_by=queue.PASS)
-    except Refused as refused:
+    except (Refused, queue.Unparsable) as refused:
         run.condition(name, f"its brief was not queued: {refused}")
+        copy_brief(run, name, text)
         return False
+    copy_brief(run, name, text)
     line = f"retro {name}: {nightly.run} {number} failed on {said}"
     run.find(name, "retro", line, key=f"{nightly.file} {number} {name}", past=True)
     return True
