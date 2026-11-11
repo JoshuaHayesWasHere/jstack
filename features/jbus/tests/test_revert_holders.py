@@ -22,7 +22,17 @@ from jmerge import mainjson
 from jmerge import reverts as kept
 from test_jbus_kitchen import NOW
 from test_jbus_main_moved import move
-from test_jbus_reverts import DONE, LOG, MAC_FLOW, asked, mac_flow, mac_state, red_merges
+from test_jbus_reverts import (
+    DONE,
+    LOG,
+    MAC_FLOW,
+    asked,
+    mac_flow,
+    mac_rows,
+    mac_state,
+    red_merges,
+)
+from test_jbus_watch import main_red
 
 
 def both_red(kitchen):
@@ -166,3 +176,26 @@ def test_a_revert_main_closed_before_the_mac_judged_its_red_is_not_opened_again(
     assert mac_state(kitchen)["red"] == red
     assert list(kept.read(kitchen.state)) == [red]
     assert len(asked(kitchen, "pr revert")) == 1
+
+
+def test_a_revert_both_checks_lean_on_that_stalls_gets_each_check_s_row_and_no_second(kitchen):
+    """The revert main opened and the Mac leans on gets a failed check while both are still red
+    at its commit: it will not end either red by itself, so main files its fix row and the Mac its
+    `macos-red-` row, each naming the stalled revert, and neither opens a second revert."""
+    red = main_red_then_mac(kitchen)
+    made = kept.read(kitchen.state)[red]
+    pulls = json.loads((kitchen.stub / "open.json").read_text())
+    failed = [{"status": "COMPLETED", "conclusion": "FAILURE", "name": "check"}]
+    for pull in pulls:
+        if pull["url"] == made.pull:
+            pull["statusCheckRollup"] = failed
+    kitchen.set("open.json", pulls)
+    polls(kitchen, 30, 3)
+    (row,) = main_red(kitchen)
+    text = (kitchen.home / "tasks" / f"{row['slug']}.md").read_text()
+    assert f"its revert {made.pull} has a failed check" in text
+    (mac,) = mac_rows(kitchen)
+    text = (kitchen.home / "tasks" / f"{mac['slug']}.md").read_text()
+    assert f"its revert {made.pull} has a failed check" in text
+    assert len(asked(kitchen, "pr revert")) == 1
+    assert reverts.holders(kitchen.state) == {red: {reverts.MAIN, reverts.MAC}}
