@@ -10,14 +10,16 @@ from datetime import UTC, datetime, timedelta
 
 import jbus
 from test_jbus_clock import restarts
-from test_jbus_github import launched  # noqa: F401  (fixture)
+from test_jbus_github import launched
 from test_jbus_github import passes as run_at
 from test_jbus_kitchen import NOW, sends
 from test_jbus_queue import add
-from test_jbus_resume import crew_of, landed, left, relaunches  # noqa: F401  (fixture)
+from test_jbus_resume import crew_of, landed, left, relaunches
 from test_jbus_twice import A, red_at
 
 ALPHA = "mcp:thread-1"
+
+__all__ = ["launched", "left"]
 
 
 def resumed_by_hand(kitchen, slug="alpha"):
@@ -42,7 +44,7 @@ def works(kitchen, thread_id, minute):
     kitchen.t3.at_work.discard(thread_id)
 
 
-def test_a_crew_resumed_by_hand_is_restarted_on_its_new_thread_when_a_check_turns_red(launched):  # noqa: F811
+def test_a_crew_resumed_by_hand_is_restarted_on_its_new_thread_when_a_check_turns_red(launched):
     old, new = resumed_by_hand(launched)
     red_at(launched, A, "11")
     run_at(launched, 0)
@@ -52,7 +54,7 @@ def test_a_crew_resumed_by_hand_is_restarted_on_its_new_thread_when_a_check_turn
     assert old not in {one["threadId"] for one in sends(launched)}
 
 
-def test_a_crew_that_was_not_resumed_is_restarted_on_its_launched_thread(launched):  # noqa: F811
+def test_a_crew_that_was_not_resumed_is_restarted_on_its_launched_thread(launched):
     red_at(launched, A, "11")
     run_at(launched, 0)
     works(launched, ALPHA, 1)
@@ -82,14 +84,14 @@ def line(kitchen, slug):
     return re.findall(r"^Thread: (.*)$", brief, flags=re.M)
 
 
-def test_a_move_writes_the_brief_s_thread_line_and_the_queue_s_column_in_one_call(launched):  # noqa: F811
+def test_a_move_writes_the_brief_s_thread_line_and_the_queue_s_column_in_one_call(launched):
     crewthread().move(a_pass(launched), "alpha", "mcp:thread-9")
     assert line(launched, "alpha") == ["mcp:thread-9"]
     assert column(launched, "alpha") == "mcp:thread-9"
     assert crewthread().crew(a_pass(launched), "alpha") == "mcp:thread-9"
 
 
-def test_jbus_s_resume_of_a_left_row_names_its_new_thread_in_the_brief_and_the_queue(left):  # noqa: F811
+def test_jbus_s_resume_of_a_left_row_names_its_new_thread_in_the_brief_and_the_queue(left):
     left.poll(NOW - timedelta(minutes=20))
     landed(left)
     left.poll(NOW)
@@ -100,7 +102,7 @@ def test_jbus_s_resume_of_a_left_row_names_its_new_thread_in_the_brief_and_the_q
     assert crewthread().crew(a_pass(left), "three") == new
 
 
-def test_the_check_names_the_row_whose_carriers_disagree_and_not_the_clean_one(launched):  # noqa: F811
+def test_the_check_names_the_row_whose_carriers_disagree_and_not_the_clean_one(launched):
     add(launched, "beta")
     launched.poll(NOW - timedelta(minutes=20))
     assert column(launched, "beta") and line(launched, "beta") == [column(launched, "beta")]
@@ -112,7 +114,7 @@ def test_the_check_names_the_row_whose_carriers_disagree_and_not_the_clean_one(l
     assert launched.main("crew-threads")[1].splitlines() == [beta.line()]
 
 
-def test_a_pass_after_a_hand_resume_moves_the_queue_s_column_to_the_brief_s_thread(launched):  # noqa: F811
+def test_a_pass_after_a_hand_resume_moves_the_queue_s_column_to_the_brief_s_thread(launched):
     _, new = resumed_by_hand(launched)
     run_at(launched, 0)
     assert column(launched, "alpha") == new
@@ -120,7 +122,7 @@ def test_a_pass_after_a_hand_resume_moves_the_queue_s_column_to_the_brief_s_thre
     assert launched.main("crew-threads") == (0, "none: every row's carriers name one crew thread\n")
 
 
-def test_a_brief_left_behind_by_a_pass_that_died_after_a_launch_takes_the_newest_launch(launched):  # noqa: F811
+def test_a_brief_left_behind_by_a_pass_that_died_after_a_launch_takes_the_newest_launch(launched):
     """A pass that died between a resume's launch record and the brief's line left the line on an
     older launch's thread: the newest launch is the crew, and the next pass moves the line."""
     directory = launched.state_dir / "launches" / "demo" / "alpha"
