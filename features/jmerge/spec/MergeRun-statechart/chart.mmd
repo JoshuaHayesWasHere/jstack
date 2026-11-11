@@ -1,0 +1,271 @@
+---
+title: "jbus's pass starts a run of jmerge: does what it said reach you?"
+config:
+  markdownAutoWrap: false
+  state:
+    useMaxWidth: false
+---
+stateDiagram-v2
+  classDef plain fill:#f4f6f7,stroke:#566573,color:#1b2631
+  classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group0 fill:#d1f2eb,stroke:#697976,color:#1b2631
+  classDef group1 fill:#eaf2f8,stroke:#75797c,color:#1b2631
+  classDef group2 fill:#fdebd0,stroke:#7f7668,color:#1b2631
+  classDef group2Wrong fill:#fdebd0,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group3 fill:#fadbd8,stroke:#7d6e6c,color:#1b2631
+  classDef group3Wrong fill:#fadbd8,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  state "Legend" as legend {
+    state "Lines heard" as legendGroup0
+    state "Lines on their way" as legendGroup1
+    state "Told wrong" as legendGroup2
+    state "Lines lost" as legendGroup3
+    state "Breaks a rule" as legendWrong
+  }
+  class legendGroup0 group0
+  class legendGroup1 group1
+  class legendGroup2 group2
+  class legendGroup3 group3
+  class legendWrong plainWrong
+  state "At the same time" as regions {
+    [*] --> r0s2
+    state "A pass holds a record it<br/>has not sent" as r0s0
+    state "A pass removed a stale<br/>stamp and has not said why" as r0s1
+    state "Between passes" as r0s2
+    r0s0 --> r0s2 : the pass dies
+    r0s0 --> r0s2 : the pass sends the record's<br/>lines
+    r0s1 --> r0s2 : the pass dies
+    r0s1 --> r0s2 : the pass says the last run<br/>ended with no record
+    r0s2 --> r0s1 : a pass looks at the runs<br/>folder [when a run is out, a<br/>start stamp past a minute, a<br/>run was said to have left no<br/>record or a run is out, a<br/>start stamp past a minute, no<br/>record yet or no run out, a<br/>start stamp past a minute, a<br/>record waits for the next pass<br/>or no run out, a start stamp<br/>past a minute, a run was said<br/>to have left no record or no<br/>run out, a start stamp past a<br/>minute, a run's lines are lost<br/>or no run out, a start stamp<br/>past a minute, a run's lines<br/>are lost, the pass said a run<br/>left no record, though it did<br/>or no run out, a start stamp<br/>past a minute, every record<br/>written was sent or no run<br/>out, a start stamp past a<br/>minute, no record yet or no<br/>run out, a start stamp past a<br/>minute, the pass said a run<br/>left no record, though it did<br/>or no run out, a start stamp<br/>past a minute, the pass said a<br/>run left no record, though it<br/>did, a record waits for the<br/>next pass]
+    %% when r1s5, r1s10, r1s35, r1s36, r1s37, r1s38, r1s39, r1s41, r1s42, r1s43
+    r0s2 --> r0s0 : the pass takes the oldest<br/>unread record [when a run is<br/>out, a record waits for the<br/>next pass or a run is out, a<br/>start stamp past a minute, a<br/>record waits for the next pass<br/>or a run is out, a start stamp<br/>past a minute, the pass said a<br/>run left no record, though it<br/>did, a record waits for the<br/>next pass or a run is out, a<br/>start stamp under a minute<br/>old, a record waits for the<br/>next pass or a run is out, a<br/>start stamp under a minute<br/>old, the pass said a run left<br/>no record, though it did, a<br/>record waits for the next pass<br/>or a run is out, the pass said<br/>a run left no record, though<br/>it did, a record waits for the<br/>next pass or no run out, a<br/>record waits for the next pass<br/>or no run out, a start stamp<br/>past a minute, a record waits<br/>for the next pass or no run<br/>out, a start stamp past a<br/>minute, the pass said a run<br/>left no record, though it did,<br/>a record waits for the next<br/>pass or no run out, a start<br/>stamp under a minute old, a<br/>record waits for the next pass<br/>or no run out, a start stamp<br/>under a minute old, the pass<br/>said a run left no record,<br/>though it did, a record waits<br/>for the next pass or no run<br/>out, the pass said a run left<br/>no record, though it did, a<br/>record waits for the next<br/>pass]
+    %% when r1s0, r1s4, r1s12, r1s14, r1s22, r1s28, r1s30, r1s35, r1s43, r1s45, r1s53, r1s59
+    --
+    [*] --> r1s57
+    state "a run is out, a record<br/>waits for the next pass" as r1s0
+    state "a run is out, a run was<br/>said to have left no<br/>record" as r1s1
+    state "a run is out, a run's<br/>lines are lost" as r1s2
+    state "a run is out, a run's<br/>lines are lost, the pass<br/>said a run left no record,<br/>though it did" as r1s3
+    state "a run is out, a start<br/>stamp past a minute, a<br/>record waits for the next<br/>pass" as r1s4
+    state "a run is out, a start<br/>stamp past a minute, a run<br/>was said to have left no<br/>record" as r1s5
+    state "a run is out, a start<br/>stamp past a minute, a<br/>run's lines are lost" as r1s6
+    state "a run is out, a start<br/>stamp past a minute, a<br/>run's lines are lost, the<br/>pass said a run left no<br/>record, though it did" as r1s7
+    state "a run is out, a start<br/>stamp past a minute, every<br/>record written was sent" as r1s8
+    state "a run is out, a start<br/>stamp past a minute, its<br/>lines not yet sent" as r1s9
+    state "a run is out, a start<br/>stamp past a minute, no<br/>record yet" as r1s10
+    state "a run is out, a start<br/>stamp past a minute, the<br/>pass said a run left no<br/>record, though it did" as r1s11
+    state "a run is out, a start<br/>stamp past a minute, the<br/>pass said a run left no<br/>record, though it did, a<br/>record waits for the next<br/>pass" as r1s12
+    state "a run is out, a start<br/>stamp past a minute, the<br/>pass said a run left no<br/>record, though it did, its<br/>lines not yet sent" as r1s13
+    state "a run is out, a start<br/>stamp under a minute old,<br/>a record waits for the<br/>next pass" as r1s14
+    state "a run is out, a start<br/>stamp under a minute old,<br/>a run was said to have<br/>left no record" as r1s15
+    state "a run is out, a start<br/>stamp under a minute old,<br/>a run's lines are lost" as r1s16
+    state "a run is out, a start<br/>stamp under a minute old,<br/>a run's lines are lost,<br/>the pass said a run left<br/>no record, though it did" as r1s17
+    state "a run is out, a start<br/>stamp under a minute old,<br/>every record written was<br/>sent" as r1s18
+    state "a run is out, a start<br/>stamp under a minute old,<br/>its lines not yet sent" as r1s19
+    state "a run is out, a start<br/>stamp under a minute old,<br/>no record yet" as r1s20
+    state "a run is out, a start<br/>stamp under a minute old,<br/>the pass said a run left<br/>no record, though it did" as r1s21
+    state "a run is out, a start<br/>stamp under a minute old,<br/>the pass said a run left<br/>no record, though it did,<br/>a record waits for the<br/>next pass" as r1s22
+    state "a run is out, a start<br/>stamp under a minute old,<br/>the pass said a run left<br/>no record, though it did,<br/>its lines not yet sent" as r1s23
+    state "a run is out, every record<br/>written was sent" as r1s24
+    state "a run is out, its lines<br/>not yet sent" as r1s25
+    state "a run is out, no record<br/>yet" as r1s26
+    state "a run is out, the pass<br/>said a run left no record,<br/>though it did" as r1s27
+    state "a run is out, the pass<br/>said a run left no record,<br/>though it did, a record<br/>waits for the next pass" as r1s28
+    state "a run is out, the pass<br/>said a run left no record,<br/>though it did, its lines<br/>not yet sent" as r1s29
+    state "no run out, a record waits<br/>for the next pass" as r1s30
+    state "no run out, a run died and<br/>nobody is told" as r1s31
+    state "no run out, a run was said<br/>to have left no record" as r1s32
+    state "no run out, a run's lines<br/>are lost" as r1s33
+    state "no run out, a run's lines<br/>are lost, the pass said a<br/>run left no record, though<br/>it did" as r1s34
+    state "no run out, a start stamp<br/>past a minute, a record<br/>waits for the next pass" as r1s35
+    state "no run out, a start stamp<br/>past a minute, a run was<br/>said to have left no<br/>record" as r1s36
+    state "no run out, a start stamp<br/>past a minute, a run's<br/>lines are lost" as r1s37
+    state "no run out, a start stamp<br/>past a minute, a run's<br/>lines are lost, the pass<br/>said a run left no record,<br/>though it did" as r1s38
+    state "no run out, a start stamp<br/>past a minute, every<br/>record written was sent" as r1s39
+    state "no run out, a start stamp<br/>past a minute, its lines<br/>not yet sent" as r1s40
+    state "no run out, a start stamp<br/>past a minute, no record<br/>yet" as r1s41
+    state "no run out, a start stamp<br/>past a minute, the pass<br/>said a run left no record,<br/>though it did" as r1s42
+    state "no run out, a start stamp<br/>past a minute, the pass<br/>said a run left no record,<br/>though it did, a record<br/>waits for the next pass" as r1s43
+    state "no run out, a start stamp<br/>past a minute, the pass<br/>said a run left no record,<br/>though it did, its lines<br/>not yet sent" as r1s44
+    state "no run out, a start stamp<br/>under a minute old, a<br/>record waits for the next<br/>pass" as r1s45
+    state "no run out, a start stamp<br/>under a minute old, a run<br/>was said to have left no<br/>record" as r1s46
+    state "no run out, a start stamp<br/>under a minute old, a<br/>run's lines are lost" as r1s47
+    state "no run out, a start stamp<br/>under a minute old, a<br/>run's lines are lost, the<br/>pass said a run left no<br/>record, though it did" as r1s48
+    state "no run out, a start stamp<br/>under a minute old, every<br/>record written was sent" as r1s49
+    state "no run out, a start stamp<br/>under a minute old, its<br/>lines not yet sent" as r1s50
+    state "no run out, a start stamp<br/>under a minute old, no<br/>record yet" as r1s51
+    state "no run out, a start stamp<br/>under a minute old, the<br/>pass said a run left no<br/>record, though it did" as r1s52
+    state "no run out, a start stamp<br/>under a minute old, the<br/>pass said a run left no<br/>record, though it did, a<br/>record waits for the next<br/>pass" as r1s53
+    state "no run out, a start stamp<br/>under a minute old, the<br/>pass said a run left no<br/>record, though it did, its<br/>lines not yet sent" as r1s54
+    state "no run out, every record<br/>written was sent" as r1s55
+    state "no run out, its lines not<br/>yet sent" as r1s56
+    state "no run out, no record yet" as r1s57
+    state "no run out, the pass said<br/>a run left no record,<br/>though it did" as r1s58
+    state "no run out, the pass said<br/>a run left no record,<br/>though it did, a record<br/>waits for the next pass" as r1s59
+    state "no run out, the pass said<br/>a run left no record,<br/>though it did, its lines<br/>not yet sent" as r1s60
+    r1s0 --> r1s28 : the pass says the last run<br/>ended with no record [when A<br/>pass removed a stale stamp and<br/>has not said why]
+    %% when r0s1
+    r1s0 --> r1s25 : the pass takes the oldest<br/>unread record [when Between<br/>passes]
+    %% when r0s2
+    r1s1 --> r1s28 : the run writes its record
+    r1s4 --> r1s9 : the pass takes the oldest<br/>unread record
+    r1s4 --> r1s35 : the run's process dies
+    r1s5 --> r1s1 : a pass looks at the runs<br/>folder
+    r1s5 --> r1s12 : the run writes its record
+    r1s6 --> r1s37 : the run's process dies
+    r1s7 --> r1s38 : the run's process dies
+    r1s8 --> r1s39 : the run's process dies
+    r1s9 --> r1s6 : the pass dies
+    r1s9 --> r1s8 : the pass sends the record's<br/>lines
+    r1s9 --> r1s40 : the run's process dies
+    r1s10 --> r1s26 : a pass looks at the runs<br/>folder
+    r1s10 --> r1s4 : the run writes its record
+    r1s11 --> r1s42 : the run's process dies
+    r1s12 --> r1s13 : the pass takes the oldest<br/>unread record
+    r1s12 --> r1s43 : the run's process dies
+    r1s13 --> r1s7 : the pass dies
+    r1s13 --> r1s11 : the pass sends the record's<br/>lines
+    r1s13 --> r1s44 : the run's process dies
+    r1s14 --> r1s19 : the pass takes the oldest<br/>unread record
+    r1s14 --> r1s30 : the run removes the stamp and<br/>ends
+    r1s14 --> r1s45 : the run's process dies
+    r1s15 --> r1s5 : a minute goes by
+    r1s15 --> r1s22 : the run writes its record
+    r1s16 --> r1s33 : the run removes the stamp and<br/>ends
+    r1s16 --> r1s47 : the run's process dies
+    r1s17 --> r1s48 : the run's process dies
+    r1s18 --> r1s55 : the run removes the stamp and<br/>ends
+    r1s18 --> r1s49 : the run's process dies
+    r1s19 --> r1s16 : the pass dies
+    r1s19 --> r1s18 : the pass sends the record's<br/>lines
+    r1s19 --> r1s56 : the run removes the stamp and<br/>ends
+    r1s19 --> r1s50 : the run's process dies
+    r1s20 --> r1s10 : a minute goes by
+    r1s20 --> r1s14 : the run writes its record
+    r1s20 --> r1s51 : the run's process dies
+    r1s21 --> r1s52 : the run's process dies
+    r1s22 --> r1s23 : the pass takes the oldest<br/>unread record
+    r1s22 --> r1s53 : the run's process dies
+    r1s23 --> r1s17 : the pass dies
+    r1s23 --> r1s21 : the pass sends the record's<br/>lines
+    r1s23 --> r1s54 : the run's process dies
+    r1s25 --> r1s2 : the pass dies
+    r1s25 --> r1s24 : the pass sends the record's<br/>lines
+    r1s26 --> r1s1 : the pass says the last run<br/>ended with no record [when A<br/>pass removed a stale stamp and<br/>has not said why]
+    %% when r0s1
+    r1s26 --> r1s0 : the run writes its record
+    r1s28 --> r1s29 : the pass takes the oldest<br/>unread record [when Between<br/>passes]
+    %% when r0s2
+    r1s28 --> r1s59 : the run removes the stamp and<br/>ends
+    r1s29 --> r1s3 : the pass dies
+    r1s29 --> r1s27 : the pass sends the record's<br/>lines
+    r1s30 --> r1s59 : the pass says the last run<br/>ended with no record [when A<br/>pass removed a stale stamp and<br/>has not said why]
+    %% when r0s1
+    r1s30 --> r1s56 : the pass takes the oldest<br/>unread record [when Between<br/>passes]
+    %% when r0s2
+    r1s32 --> r1s46 : the pass writes the start<br/>stamp [when Between passes]
+    %% when r0s2
+    r1s33 --> r1s34 : the pass says the last run<br/>ended with no record [when A<br/>pass removed a stale stamp and<br/>has not said why]
+    %% when r0s1
+    r1s35 --> r1s30 : a pass looks at the runs<br/>folder
+    r1s35 --> r1s40 : the pass takes the oldest<br/>unread record
+    r1s36 --> r1s32 : a pass looks at the runs<br/>folder
+    r1s37 --> r1s33 : a pass looks at the runs<br/>folder
+    r1s38 --> r1s34 : a pass looks at the runs<br/>folder
+    r1s39 --> r1s55 : a pass looks at the runs<br/>folder
+    r1s40 --> r1s37 : the pass dies
+    r1s40 --> r1s39 : the pass sends the record's<br/>lines
+    r1s41 --> r1s57 : a pass looks at the runs<br/>folder
+    r1s42 --> r1s58 : a pass looks at the runs<br/>folder
+    r1s43 --> r1s59 : a pass looks at the runs<br/>folder
+    r1s43 --> r1s44 : the pass takes the oldest<br/>unread record
+    r1s44 --> r1s38 : the pass dies
+    r1s44 --> r1s42 : the pass sends the record's<br/>lines
+    r1s45 --> r1s50 : the pass takes the oldest<br/>unread record
+    r1s46 --> r1s36 : a minute goes by
+    r1s46 --> r1s15 : the pass starts a run of<br/>jmerge in the background
+    r1s50 --> r1s47 : the pass dies
+    r1s50 --> r1s49 : the pass sends the record's<br/>lines
+    r1s51 --> r1s41 : a minute goes by
+    r1s51 --> r1s20 : the pass starts a run of<br/>jmerge in the background
+    r1s53 --> r1s54 : the pass takes the oldest<br/>unread record
+    r1s54 --> r1s48 : the pass dies
+    r1s54 --> r1s52 : the pass sends the record's<br/>lines
+    r1s55 --> r1s58 : the pass says the last run<br/>ended with no record [when A<br/>pass removed a stale stamp and<br/>has not said why]
+    %% when r0s1
+    r1s56 --> r1s33 : the pass dies
+    r1s56 --> r1s55 : the pass sends the record's<br/>lines
+    r1s57 --> r1s31 : the pass dies [when A pass<br/>removed a stale stamp and has<br/>not said why]
+    %% when r0s1
+    r1s57 --> r1s32 : the pass says the last run<br/>ended with no record [when A<br/>pass removed a stale stamp and<br/>has not said why]
+    %% when r0s1
+    r1s57 --> r1s51 : the pass writes the start<br/>stamp [when Between passes]
+    %% when r0s2
+    r1s59 --> r1s60 : the pass takes the oldest<br/>unread record [when Between<br/>passes]
+    %% when r0s2
+    r1s60 --> r1s34 : the pass dies
+    r1s60 --> r1s58 : the pass sends the record's<br/>lines
+  }
+  class r0s0 plain
+  class r0s1 plain
+  class r0s2 plain
+  class r1s0 group1
+  class r1s1 group0
+  class r1s2 group3Wrong
+  class r1s3 group3Wrong
+  class r1s4 group1
+  class r1s5 group0
+  class r1s6 group3Wrong
+  class r1s7 group3Wrong
+  class r1s8 group0
+  class r1s9 group1
+  class r1s10 group0
+  class r1s11 group2Wrong
+  class r1s12 group2Wrong
+  class r1s13 group2Wrong
+  class r1s14 group1
+  class r1s15 group0
+  class r1s16 group3Wrong
+  class r1s17 group3Wrong
+  class r1s18 group0
+  class r1s19 group1
+  class r1s20 group0
+  class r1s21 group2Wrong
+  class r1s22 group2Wrong
+  class r1s23 group2Wrong
+  class r1s24 group0
+  class r1s25 group1
+  class r1s26 group0
+  class r1s27 group2Wrong
+  class r1s28 group2Wrong
+  class r1s29 group2Wrong
+  class r1s30 group1
+  class r1s31 group3Wrong
+  class r1s32 group0
+  class r1s33 group3Wrong
+  class r1s34 group3Wrong
+  class r1s35 group1
+  class r1s36 group0
+  class r1s37 group3Wrong
+  class r1s38 group3Wrong
+  class r1s39 group0
+  class r1s40 group1
+  class r1s41 group0
+  class r1s42 group2Wrong
+  class r1s43 group2Wrong
+  class r1s44 group2Wrong
+  class r1s45 group1
+  class r1s46 group0
+  class r1s47 group3Wrong
+  class r1s48 group3Wrong
+  class r1s49 group0
+  class r1s50 group1
+  class r1s51 group0
+  class r1s52 group2Wrong
+  class r1s53 group2Wrong
+  class r1s54 group2Wrong
+  class r1s55 group0
+  class r1s56 group1
+  class r1s57 group0
+  class r1s58 group2Wrong
+  class r1s59 group2Wrong
+  class r1s60 group2Wrong

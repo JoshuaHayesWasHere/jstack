@@ -1,0 +1,44 @@
+---
+title: "jbus's pass starts a run of jmerge: does what it said reach you?, bug 3"
+config:
+  markdownAutoWrap: false
+  state:
+    useMaxWidth: false
+---
+stateDiagram-v2
+  classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group0 fill:#d1f2eb,stroke:#697976,color:#1b2631
+  classDef group0Path fill:#d1f2eb,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group2 fill:#fdebd0,stroke:#7f7668,color:#1b2631
+  classDef group2Wrong fill:#fdebd0,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  state "Legend" as legend {
+    state "Lines heard" as legendGroup0
+    state "Told wrong" as legendGroup2
+    state "Breaks a rule" as legendWrong
+  }
+  class legendGroup0 group0
+  class legendGroup2 group2
+  class legendWrong plainWrong
+  state "Between passes" as g0 {
+    state "a run is out, a start<br/>stamp past a minute; no<br/>record yet" as s0
+    state "a run is out, a start<br/>stamp under a minute old;<br/>no record yet" as s1
+    state "a run is out; a run was<br/>said to have left no<br/>record" as s2
+    state "a run is out; the pass<br/>said a run left no record,<br/>though it did, a record<br/>waits for the next pass" as s3
+    state "no run out, a start stamp<br/>under a minute old; no<br/>record yet" as s4
+    state "no run out; no record yet" as s5
+  }
+  state "A pass removed a stale<br/>stamp and has not said<br/>why: a run is out; no<br/>record yet" as s6
+  [*] --> s5
+  s5 --> s4 : 1. the pass writes the start<br/>stamp
+  s4 --> s1 : 2. the pass starts a run of<br/>jmerge in the background
+  s1 --> s0 : 3. a minute goes by
+  s0 --> s6 : 4. a pass looks at the runs<br/>folder
+  s6 --> s2 : 5. the pass says the last run<br/>ended with no record
+  s2 --> s3 : 6. the run writes its record
+  class s6 group0Path
+  class s0 group0Path
+  class s1 group0Path
+  class s2 group0Path
+  class s3 group2Wrong
+  class s4 group0Path
+  class s5 group0Path

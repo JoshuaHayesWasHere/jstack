@@ -1,0 +1,93 @@
+{
+  "view": "customer",
+  "modelStates": 396,
+  "modelTransitions": 1478,
+  "chartStates": 64,
+  "chartTransitions": 95,
+  "chartStatus": {
+    "works": 33,
+    "fixed": 0,
+    "wrong": 31
+  },
+  "chartGroups": [
+    {
+      "name": "Lines heard",
+      "color": "#d1f2eb",
+      "states": 18
+    },
+    {
+      "name": "Lines on their way",
+      "color": "#eaf2f8",
+      "states": 12
+    },
+    {
+      "name": "Told wrong",
+      "color": "#fdebd0",
+      "states": 18
+    },
+    {
+      "name": "Lines lost",
+      "color": "#fadbd8",
+      "states": 13
+    }
+  ],
+  "mixedGroups": [],
+  "regions": {
+    "drawn": true,
+    "states": [
+      3,
+      61
+    ],
+    "transitions": 95,
+    "all": 147,
+    "flat": {
+      "states": 73,
+      "transitions": 165
+    }
+  },
+  "classes": [
+    {
+      "n": 1,
+      "end": "Between passes: a run is out, a start stamp under a minute old; a run's lines are lost",
+      "invariant": "RunHeard",
+      "rule": "Every run's lines are judged once: a run that wrote its record has its lines sent, or the record is still on disk for the next pass, or the pass holds it on its way to `_judged`.",
+      "cause": "the pass marked a record read and died before it sent its lines, so what jmerge said of those pull requests never reaches anyone",
+      "readerSteps": 5,
+      "modelSteps": 10,
+      "counterexamples": 14,
+      "fix": null
+    },
+    {
+      "n": 2,
+      "end": "Between passes: no run out; a run died and nobody is told",
+      "invariant": "DeathTold",
+      "rule": "A run that died before it wrote its record is told, or its stamp still stands to be told.",
+      "cause": "a run died before it wrote its record, and its stamp went before any pass said so",
+      "readerSteps": 6,
+      "modelSteps": 9,
+      "counterexamples": 21,
+      "fix": null
+    },
+    {
+      "n": 3,
+      "end": "Between passes: a run is out; the pass said a run left no record, though it did, a record waits for the next pass",
+      "invariant": "NoFalseNoRecord",
+      "rule": "The pass says a run ended with no record only of a run that wrote none.",
+      "cause": "the pass says a run ended with no record while that run wrote one, or is still starting",
+      "readerSteps": 6,
+      "modelSteps": 12,
+      "counterexamples": 12,
+      "fix": null
+    }
+  ],
+  "codeLike": [],
+  "drawnFrom": {
+    "command": "statechart from-spec MergeRun.tla --config MergeRun.chart.cfg --title 'jbus'\"'\"'s pass starts a run of jmerge: does what it said reach you?' --png",
+    "inputs": {
+      "MergeRun.chart.cfg": "2df6d16681ea7e46dbb822ad57591e8a70d010ea5a58b4beb8aeea3d048ea7fa",
+      "MergeRun.map.py": "3e52f8a7b80702f58d5945c0d6356326c7dddb7b1b0f3f5179529592e5c30dae",
+      "MergeRun.tla": "d7d381d33dad0efd03b6db17a26ed1aeb0d443a7d2925b6411bb719382fe9eb0"
+    },
+    "chart": "94a8a019828181e6a35b78fcff871560bf7f5ab4e182ab48119f4c885c0d556c"
+  }
+}
