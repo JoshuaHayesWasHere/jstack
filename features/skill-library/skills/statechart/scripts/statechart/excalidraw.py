@@ -742,6 +742,20 @@ def frame_element(frame, x, y, w, h):
     return base(frame["id"], "frame", x, y, w, h, None, name=frame["name"])
 
 
+def write(drawn, out):
+    """Writes the scene to `out` whole: a reader sees the old file or the new one."""
+    target = Path(out)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        "w", encoding="utf-8", dir=target.parent, delete=False, suffix=".tmp"
+    ) as f:
+        f.write(json.dumps(drawn, indent=2, ensure_ascii=False) + "\n")
+    mask = os.umask(0)
+    os.umask(mask)
+    os.chmod(f.name, 0o666 & ~mask)
+    os.replace(f.name, target)
+
+
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     if argv and argv[0] in ("-h", "--help"):
@@ -779,17 +793,8 @@ def main(argv=None):
     except ChartError as e:
         print(f"{chart_file}: {e}", file=sys.stderr)
         return 2
-    target = Path(out)
     try:
-        target.parent.mkdir(parents=True, exist_ok=True)
-        with tempfile.NamedTemporaryFile(
-            "w", encoding="utf-8", dir=target.parent, delete=False, suffix=".tmp"
-        ) as f:
-            f.write(json.dumps(drawn, indent=2, ensure_ascii=False) + "\n")
-        mask = os.umask(0)
-        os.umask(mask)
-        os.chmod(f.name, 0o666 & ~mask)
-        os.replace(f.name, target)
+        write(drawn, out)
     except OSError as e:
         print(f"cannot write {out}: {e.strerror}", file=sys.stderr)
         return 2

@@ -22,7 +22,7 @@ from testing.paths import REPO
 
 chart_site = importlib.import_module("statechart.site")
 
-READ_SET = ("features/*/spec/*-statechart/", "features/*/src/")
+READ_SET = ("features/*/spec/*-statechart/", "features/*/src/", "features/home/docs/charts/")
 
 CHARTS = sorted((REPO / "features").glob("*/spec/*-statechart/chart.mmd"))
 LEAF = re.compile(r'^\s*state "([^"]*)" as (\w+)\s*$', re.M)
@@ -38,8 +38,58 @@ def declared_states(chart):
     }
 
 
+FLOW = REPO / "features" / "home" / "docs" / "charts" / "flow.toml"
+
+
 def site(root, out, *extra):
     return node("statechart", ["site", "--out", str(out), "--root", str(root), *extra], root)
+
+
+def test_the_page_opens_on_a_map_of_the_six_charts_and_how_they_hand_off(tmp_path):
+    out = tmp_path / "index.html"
+    r = site(REPO, out, "--flow", str(FLOW))
+    assert r.returncode == 0, r.stderr
+    page = read(out)
+    first = re.search(r'<button class="tab"[^>]*>', page)[0]
+    assert 'data-view="overview"' in first and 'aria-selected="true"' in first
+    flow = re.search(r'<section class="flow-panel".*?</section>', page, re.S)[0]
+    things = {
+        "RowLife": "A row in the queue",
+        "ThreadLife": "A crew&#x27;s thread",
+        "PrVerdict": "A pull request at jmerge",
+        "FlowToday": "Two rows on their way to main",
+        "MainRed": "A red main",
+        "HomeTreeToday": "A tree of homes",
+    }
+    for name, thing in things.items():
+        assert f'data-chart="{name}"' in flow and thing in flow, name
+    handoffs = re.findall(r"<li>(.*?)</li>", flow)
+    assert len(handoffs) >= 5
+    for item in handoffs:
+        ends = re.findall(r'class="go" data-chart="(\w+)"', item)
+        assert len(ends) == 2 and ends[0] != ends[1], item
+    for name in things:
+        assert re.search(rf'<figure class="overview" data-chart="{name}">', page), name
+        assert page.index(f'data-chart="{name}" hidden>') < page.index(
+            f'<figure class="overview" data-chart="{name}">'
+        )
+
+
+def test_a_hand_off_to_a_group_a_chart_does_not_have_stops_the_page(tmp_path):
+    folder = lamp(tmp_path, "")
+    flow = tmp_path / "flow.toml"
+    write(flow, '[[chart]]\nname = "Lamp"\nthing = "A lamp"\n')
+    write(
+        folder / "chart.mmd", CHART.replace("  class off group0\n", LEGEND + "  class off group0\n")
+    )
+    assert site(tmp_path, tmp_path / "index.html", "--flow", str(flow)).returncode == 0
+    write(
+        flow,
+        read(flow) + '[[handoff]]\nfrom = "Lamp: Dark"\nto = "Lamp: Dark"\nsays = "x"\n',
+    )
+    r = site(tmp_path, tmp_path / "index.html", "--flow", str(flow))
+    assert r.returncode == 2
+    assert "the group 'Dark' of Lamp, which has no such group; its groups: Dark room" in r.stderr
 
 
 def test_the_page_holds_each_committed_chart_and_each_of_its_states(tmp_path):
@@ -181,6 +231,13 @@ stateDiagram-v2
 """
 
 
+LEGEND = """  state "Legend" as legend {
+    state "Dark room" as legendGroup0
+  }
+  class legendGroup0 group0
+"""
+
+
 def lamp(root, stories):
     folder = root / "features" / "lamp" / "spec" / "Lamp-statechart"
     folder.mkdir(parents=True)
@@ -240,21 +297,91 @@ PROBE = """<script>
     const px = Math.min(...labels.map(size));
     return { drawn: (right - left) / p.width, above: (top - p.top) / p.height, label: px };
   }
+  // Where a group's states sit once its overview box is tapped: the share of them whose
+  // centre is inside the frame, whether each is lit, and whether the frame is on the screen.
+  function group(panel, box) {
+    const p = port().getBoundingClientRect();
+    const ids = box.dataset.states.split(" ");
+    const els = ids.map((id) => panel.querySelector(`svg.chart .st[data-id="${CSS.escape(id)}"]`));
+    const inside = els.filter((el) => {
+      const r = el.getBoundingClientRect();
+      const x = r.left + r.width / 2, y = r.top + r.height / 2;
+      return x >= p.left && x <= p.right && y >= p.top && y <= p.bottom;
+    });
+    const stage = panel.querySelector(".stage").getBoundingClientRect();
+    return {
+      name: box.dataset.name, states: ids.length, found: els.filter(Boolean).length,
+      inside: inside.length, lit: els.filter((el) => el && el.classList.contains("near")).length,
+      boxLit: box.classList.contains("lit"),
+      onScreen: stage.top < innerHeight && stage.bottom > 0,
+    };
+  }
+  const selected = () => {
+    const t = document.querySelector('.tab[aria-selected="true"]');
+    return t ? t.dataset.chart || t.dataset.view : null;
+  };
   async function run() {
-    const out = { charts: {} };
-    for (const tab of document.querySelectorAll(".tab")) {
+    const flow = document.querySelector(".flow-panel");
+    const out = {
+      charts: {},
+      opens: selected(),
+      flowShown: !!flow && !flow.hidden && flow.getBoundingClientRect().height > 0,
+      flowBoxes: [...document.querySelectorAll(".flow-panel .flow-box")]
+        .map((b) => b.dataset.chart),
+      handoffs: document.querySelectorAll(".flow-panel .handoffs li").length,
+    };
+    for (const tab of document.querySelectorAll(".tab[data-chart]")) {
       tab.click();
       await frame();
       const panel = document.querySelector(".chart-panel:not([hidden])");
       const zoom = (z) => panel.querySelector(`[data-zoom="${z}"]`).click();
       const opened = look();
+      const fig = panel.querySelector(".overview");
+      const figRect = fig.getBoundingClientRect();
+      const ovLabels = [...fig.querySelectorAll(".ov-box text")];
+      const px = (t) => parseFloat(getComputedStyle(t).fontSize) * t.getScreenCTM().a;
+      const ovPx = Math.min(...ovLabels.map(px));
+      const overview = {
+        boxes: fig.querySelectorAll(".ov-box").length,
+        above: figRect.bottom <= panel.querySelector(".stage").getBoundingClientRect().top,
+        label: ovPx,
+        groups: [],
+      };
+      for (const box of fig.querySelectorAll(".ov-box")) {
+        box.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await frame();
+        overview.groups.push(group(panel, box));
+      }
+      scrollTo(0, 0);
+      zoom("fit"); await frame();
       zoom("in"); await frame();
       const inside = look().label;
       zoom("out"); zoom("out"); await frame();
       const outside = look().label;
       zoom("fit"); await frame();
-      out.charts[tab.dataset.chart] = { ...opened, zoomIn: inside, zoomOut: outside, fit: look() };
+      out.charts[tab.dataset.chart] = {
+        ...opened, zoomIn: inside, zoomOut: outside, fit: look(), overview,
+      };
     }
+    out.mapOpens = {};
+    for (const name of out.flowBoxes) {
+      document.querySelector('.tab[data-view="overview"]').click();
+      await frame();
+      const box = document.querySelector(`.flow-box[data-chart="${CSS.escape(name)}"]`);
+      box.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await frame();
+      out.mapOpens[name] = selected();
+    }
+    document.querySelector('.tab[data-view="overview"]').click();
+    await frame();
+    const go = document.querySelectorAll(".flow-panel .handoffs button.go")[1];
+    go.click();
+    await frame();
+    const lit = document.querySelector(".chart-panel:not([hidden]) .ov-box.lit");
+    out.handoffOpens = {
+      chart: selected(), wanted: go.dataset.chart,
+      box: lit && lit.dataset.box, wantedBox: go.dataset.box,
+    };
     const theme = document.querySelector(".theme");
     const glyph = () => {
       const shown = [...theme.querySelectorAll("svg")]
@@ -368,6 +495,32 @@ def test_each_chart_opens_fitted_to_the_frames_width_with_its_labels_readable(tm
         assert chart["zoomIn"] > chart["label"] > chart["zoomOut"], (name, chart)
         fit = chart["fit"]
         assert (fit["drawn"], fit["label"]) == (chart["drawn"], chart["label"]), (name, chart)
+
+
+@pytest.mark.browser
+@pytest.mark.parametrize("screen", [DESK, PHONE], ids=["desk", "phone"])
+def test_the_page_opens_on_the_map_and_each_overview_box_moves_its_chart_to_that_group(
+    tmp_path, screen
+):
+    said = probed(tmp_path, screen)
+    names = [c.parent.name.removesuffix("-statechart") for c in CHARTS]
+    assert said["opens"] == "overview" and said["flowShown"], said
+    assert sorted(said["flowBoxes"]) == sorted(names)
+    assert said["handoffs"] >= len(names) - 1
+    assert said["mapOpens"] == {name: name for name in names}
+    opens = said["handoffOpens"]
+    assert (opens["chart"], opens["box"]) == (opens["wanted"], opens["wantedBox"]), opens
+    for name, chart in said["charts"].items():
+        overview = chart["overview"]
+        assert 1 <= overview["boxes"] <= 10, (name, overview["boxes"])
+        assert overview["above"], name
+        if screen == DESK:
+            assert overview["label"] >= 11, (name, overview["label"])
+        assert len(overview["groups"]) == overview["boxes"]
+        for g in overview["groups"]:
+            assert g["found"] == g["lit"] == g["states"], (name, g)
+            assert g["boxLit"] and g["onScreen"], (name, g)
+            assert g["inside"] == g["states"], (name, g)
 
 
 @pytest.mark.browser

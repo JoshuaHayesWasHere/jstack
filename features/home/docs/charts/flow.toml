@@ -1,0 +1,82 @@
+# The map on the Overview tab of index.html, beside this file: one box per chart, in this order,
+# and one numbered arrow per hand-off, from a group of one chart to a group of another, as
+# ../flow.md tells a task's ten steps. A group is named as the chart's Legend names it, so
+# `statechart site` stops when a chart no longer has a group a hand-off names.
+# This file is written by hand; index.html is not: draw it again with
+#   statechart site --out features/home/docs/charts/index.html --flow features/home/docs/charts/flow.toml
+
+[[chart]]
+name = "RowLife"
+thing = "A row in the queue"
+question = "What happens to my row?"
+
+[[chart]]
+name = "ThreadLife"
+thing = "A crew's thread"
+
+[[chart]]
+name = "PrVerdict"
+thing = "A pull request at jmerge"
+
+[[chart]]
+name = "FlowToday"
+thing = "Two rows on their way to main"
+
+[[chart]]
+name = "MainRed"
+thing = "A red main"
+
+[[chart]]
+name = "HomeTreeToday"
+thing = "A tree of homes"
+question = "When a child home stalls or retires, does what it had out still reach you?"
+
+[[handoff]]
+from = "HomeTreeToday: No pull request yet"
+to = "RowLife: Not launched"
+says = "A home briefs a task, and it waits in the queue as a row."
+
+[[handoff]]
+from = "RowLife: Launched"
+to = "ThreadLife: Launching"
+says = "jbus launches the row: a crew thread starts on it."
+
+[[handoff]]
+from = "ThreadLife: Out"
+to = "PrVerdict: Waits on jmerge, GitHub or a check"
+says = "The crew opens its pull request, and jmerge judges it."
+
+[[handoff]]
+from = "PrVerdict: Merged"
+to = "RowLife: Final"
+says = "The pull request merges, and its row is done."
+
+[[handoff]]
+from = "PrVerdict: Merged"
+to = "ThreadLife: Put away"
+says = "jbus archives the crew's thread once its pull request merged."
+
+[[handoff]]
+from = "PrVerdict: Merged"
+to = "HomeTreeToday: Pull request merged"
+says = "The merge reaches the home that had the pull request out."
+
+[[handoff]]
+from = "RowLife: Not launched"
+to = "FlowToday: Main green, a row waits to launch"
+says = "With two rows in the queue, both flow to main at once."
+
+[[handoff]]
+from = "FlowToday: Main red, jbus reruns and judges it"
+to = "MainRed: Red, nothing open yet"
+says = "A merge turns main red, and jbus judges the red run."
+
+[[handoff]]
+from = "MainRed: Red, a fix row out"
+to = "RowLife: Not launched"
+says = "jbus files the fix as a row of the queue."
+
+[[handoff]]
+from = "MainRed: Not red"
+to = "FlowToday: Main green, a pull request still red from main's break"
+says = "Main is green again, and the pull requests it broke run their checks again."
