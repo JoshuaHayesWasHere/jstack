@@ -147,6 +147,20 @@ def test_merged_tree_guards_that_passed_are_not_run_again(tmp_path):
     assert not (tree.state / treeguards.TREE).exists()
 
 
+def test_merged_tree_guards_see_the_merge_base_of_the_head_and_the_tip(tmp_path):
+    """The guards get `MERGE_BASE`, the commit the pull request's check ran over, beside `BASE`,
+    so `make check-fast PART=guards` also runs the test files main changed since then, which that
+    check never saw (#1584 over #1588, spell 41)."""
+    tree = Tree(tmp_path)
+    merge_base = git(tree.main, "merge-base", tree.tip, tree.head)
+    guards = tree.guards(f'test "$BASE" = {tree.tip} && test "$MERGE_BASE" = {merge_base}')
+
+    said, note = guards.of(tree.one, tree.tip)
+
+    assert merge_base not in (tree.tip, tree.head)
+    assert said == "" and note.startswith(treeguards.PASSED.format(**values(tree), seconds="")[:-3])
+
+
 def test_merged_tree_of_a_head_that_conflicts_with_the_tip_waits_for_a_rebase(tmp_path):
     tree = Tree(tmp_path, ours="ours\n", theirs="theirs\n", path="a.txt")
     assert tree.guards("true").of(tree.one, tree.tip) == (ready.FRESH_CONFLICT, "")
