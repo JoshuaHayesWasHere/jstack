@@ -736,7 +736,8 @@ def page(charts, out_dir):
             f' <a href="{esc(png)}">chart.png</a></p>'
             f'<ul class="legend">{legend}</ul></header>'
             '<div class="stage"><div class="viewport" tabindex="0"'
-            f' aria-label="chart, drag or scroll to move, pinch or ctrl and scroll to zoom">{draw_chart(chart)}</div>'
+            ' aria-label="chart, drag or scroll to move, pinch or ctrl and scroll to zoom">'
+            f"{draw_chart(chart)}</div>"
             '<div class="zoom"><button data-zoom="in" aria-label="zoom in">+</button>'
             '<button data-zoom="out" aria-label="zoom out">&minus;</button>'
             '<button data-zoom="fit" aria-label="fit the chart">fit</button></div></div>'

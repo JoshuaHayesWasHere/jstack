@@ -161,7 +161,8 @@ PROBE = """<script>
     }
     const theme = document.querySelector(".theme");
     const glyph = () => {
-      const shown = [...theme.querySelectorAll("svg")].filter((g) => getComputedStyle(g).display !== "none");
+      const shown = [...theme.querySelectorAll("svg")]
+        .filter((g) => getComputedStyle(g).display !== "none");
       const r = shown.length === 1 ? shown[0].getBoundingClientRect() : { width: 0 };
       return { shown: shown.map((g) => g.dataset.glyph), size: r.width,
                theme: getComputedStyle(document.documentElement).getPropertyValue("--bg").trim() };
@@ -173,7 +174,9 @@ PROBE = """<script>
   }
   run().catch((e) => ({ error: String(e && e.stack || e) })).then((out) => {
     if (parent !== window) return parent.postMessage(JSON.stringify(out), "*");
-    const pre = document.createElement("pre"); pre.id = "probe"; pre.textContent = JSON.stringify(out);
+    const pre = document.createElement("pre");
+    pre.id = "probe";
+    pre.textContent = JSON.stringify(out);
     document.body.append(pre);
   });
 })();
