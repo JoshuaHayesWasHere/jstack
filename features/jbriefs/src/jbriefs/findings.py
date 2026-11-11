@@ -273,8 +273,10 @@ def running(text: str) -> bool:
     seats: set[int] = set()
     plain = scoped = 0
     for _, said, seat in sorted(events, key=lambda event: event[0]):
-        kind = said if numbered else {"Scoped reviewer": "Reviewer", "scoped": "section"}.get(
-            said, said
+        kind = (
+            said
+            if numbered
+            else {"Scoped reviewer": "Reviewer", "scoped": "section"}.get(said, said)
         )
         if kind == "Scoped reviewer":
             scoped += 1

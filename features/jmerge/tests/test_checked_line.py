@@ -35,6 +35,4 @@ def test_jbus_and_jmerge_read_the_same_checked_line_and_the_same_head():
 def test_a_brief_with_no_checked_line_in_its_shape_has_no_desk_head_and_no_binding():
     brief = BRIEF.replace(f"exit 0 at {BEFORE}", "exit 0")
     assert review.desk_head(brief) == ""
-    assert ready.short_on_checked(brief, BEFORE) == ready.CHECKED_MISSING.format(
-        head=BEFORE[:12]
-    )
+    assert ready.short_on_checked(brief, BEFORE) == ready.CHECKED_MISSING.format(head=BEFORE[:12])
