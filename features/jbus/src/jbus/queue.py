@@ -2910,6 +2910,17 @@ class Change:
     illegal: tuple[str, str] | None = None
 
 
+def moved_thread(state: Path, slug: str, thread: str, line: Callable[[], None]) -> None:
+    """Write `thread` in the slug's `thread` column, and run `line`, the write of its brief's
+    `Thread:` line, under the same lock, so a crew's new thread is in both at once
+    (`jbus.crewthread.move`)."""
+    with _changing(state) as rows:
+        line()
+        for row in rows:
+            if row["slug"] == slug:
+                row["thread"] = thread
+
+
 def derive(
     state: Path, facts: Callable[[Row], Row], stamp: str, at: str
 ) -> tuple[list[Row], list[Change]]:

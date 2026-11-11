@@ -39,7 +39,18 @@ from dataclasses import replace
 from typing import Any
 
 import jroles
-from jbus import crewtree, dispatch, queue, strays, t3, threads, verbs, watch, write_json
+from jbus import (
+    crewthread,
+    crewtree,
+    dispatch,
+    queue,
+    strays,
+    t3,
+    threads,
+    verbs,
+    watch,
+    write_json,
+)
 from jbus.passes import Changed, Depends
 from jbus.t3 import Client, T3Error, T3Refused
 from jmerge import judgement
@@ -79,7 +90,7 @@ def adopt(run: Any, client: Client, slug: str, path: Any, record: dict[str, Any]
         run.condition(slug, what, str(path), key=f"scout lost {record.get('at')}")
         return
     write_json(path, {**record, "state": "launched", "thread": matching[0], "adopted": True})
-    dispatch.write_thread(run, slug, matching[0], kind="scouts")
+    crewthread.move(run, slug, matching[0], kind="scouts")
     run.say(f"adopted scout {slug}: {matching[0]}")
 
 
@@ -197,7 +208,7 @@ def _launch(half: Any) -> None:
             run.say(f"launch scout {slug}: the reply named no thread: it is looked up next pass")
             continue
         write_json(path, {**launch, "state": "launched", "thread": thread})
-        dispatch.write_thread(run, slug, thread, kind="scouts")
+        crewthread.move(run, slug, thread, kind="scouts")
         on = f" on {choice.instance}, {choice.why}" if choice.why else ""
         run.say(f"launched scout {slug}: {thread}{on}")
 

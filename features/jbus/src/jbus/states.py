@@ -22,6 +22,7 @@ from jbus import (
     blockers,
     cancelled,
     clock,
+    crewthread,
     dispatch,
     history,
     leftover,
@@ -94,8 +95,10 @@ def derive(half: Half) -> None:
 
     def facts(row: queue.Row) -> queue.Row:
         slug = row["slug"]
-        launched = dispatch.launched(run, slug, queue.role(row))
-        found = watch.status(run, world, slug, states.of(row, launched), launched)
+        role = queue.role(row)
+        launched = dispatch.launched(run, slug, role)
+        crew = crewthread.crew(run, slug, role, kept=False)
+        found = watch.status(run, world, slug, states.of(row, launched), crew)
         said = cancelled.why(run, slug) if found["status"] == "pr" else ""
         if found["status"] == "pr" and work.over(row):
             reopened(run, row, found["pr"])

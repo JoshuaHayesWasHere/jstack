@@ -65,6 +65,7 @@ from jbus import (
     Refused,
     alert,
     cancelled,
+    crewthread,
     queue,
     read_json,
     rebase,
@@ -508,7 +509,7 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
     kept: dict[str, Any] = {}
     for slug, pull in world.open.items():
         row, head = table.get(slug), str(pull.get("headRefOid") or "")
-        if row is None or not head or not rebase.crew(run, slug):
+        if row is None or not head or not crewthread.tended(run, slug):
             continue
         if lifted(run, slug, row, pull, required):
             kept[slug] = {"heads": {}, "red": [], "shared": [], "infra": []}

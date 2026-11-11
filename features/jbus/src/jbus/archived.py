@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from jbus import dispatch, queue, read_json, write_json
+from jbus import crewthread, queue, read_json, write_json
 from jbus.passes import Pass
 from jbus.t3 import GONE, Client, T3Error, T3Refused
 from jbus.watch import World
@@ -39,7 +39,7 @@ def ask(run: Pass, client: Client, world: World, rows: list[queue.Row]) -> None:
     before = dict(kept)
     for row in rows:
         slug = row["slug"]
-        thread = dispatch.launched(run, slug) or row.get("thread") or ""
+        thread = crewthread.crew(run, slug) or row.get("thread") or ""
         if not thread or slug in run.removed or slug in world.threads or slug in world.settled:
             continue
         if thread not in kept:
