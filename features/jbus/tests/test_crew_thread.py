@@ -155,3 +155,19 @@ def test_a_pass_moves_no_line_of_a_launch_with_no_thread_or_no_brief_and_writes_
     crewthread().move(run, "gone", "mcp:gone")
     assert not (launched.home / "tasks" / "gone.md").exists()
     assert crewthread().crew(run, "gone") == ""
+
+
+def test_a_row_its_home_launched_with_no_line_has_the_thread_its_queue_column_names(launched):
+    """No launch record of jbus's and no `Thread:` line: the crew is the queue's column, and a
+    row with neither has no crew."""
+    add(launched, "beta")
+    (launched.home / "tasks" / "beta.md").write_text("# beta\n\n## Task\n")
+    run = a_pass(launched)
+    assert crewthread().crew(run, "beta") == ""
+    rows = json.loads((launched.state / "queue.json").read_text())
+    for row in rows:
+        if row["slug"] == "beta":
+            row["thread"] = "mcp:home-launched"
+    (launched.state / "queue.json").write_text(json.dumps(rows))
+    assert crewthread().crew(run, "beta") == "mcp:home-launched"
+    assert crewthread().crew(run, "beta", kept=False) == ""
