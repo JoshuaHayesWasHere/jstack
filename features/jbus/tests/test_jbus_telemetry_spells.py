@@ -354,3 +354,42 @@ def test_main_going_green_closes_the_spell_and_the_store_reads_its_cause(
     with contextlib.closing(machine.store()) as store:
         spells = store.execute("SELECT start_pr, end_sha, cause FROM main_spells").fetchall()
     assert spells == [(11, AGAIN, cause)]
+
+
+def test_a_store_from_before_the_cause_reads_it_after_its_next_build(machine):
+    """A store that read `main-reds.jsonl` to its end before
+    `jbus.telemetry.migrations.v022_main_reds_cause` reads it again, so a spell closed before the
+    store kept `cause` reads it."""
+    at = iso(NOW + timedelta(minutes=12))
+    machine.append(
+        "alpha",
+        mainmoved.REDS,
+        {
+            "at": at,
+            "sha": TESTED,
+            "after": GREEN,
+            "prs": [11],
+            "failed": [TEST],
+            "verdict": "change",
+        },
+        {"at": iso(NOW + timedelta(minutes=40)), "sha": TESTED, "green": AGAIN, "cause": "no fix"},
+    )
+    machine.append(
+        "alpha",
+        "ci.jsonl",
+        job(1, GREEN, 10, "success", NOW),
+        job(2, TESTED, 11, "failure", NOW + timedelta(minutes=10)),
+        job(4, AGAIN, 13, "success", NOW + timedelta(minutes=30)),
+    )
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        views = store.execute("SELECT name FROM sqlite_master WHERE type = 'view'").fetchall()
+        store.executescript(
+            "".join(f"DROP VIEW {name};\n" for (name,) in views)
+            + "ALTER TABLE main_reds DROP COLUMN cause;\n"
+            "DELETE FROM migrations WHERE name = 'v022_main_reds_cause';\n"
+        )
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        spells = store.execute("SELECT start_pr, cause FROM main_spells").fetchall()
+    assert spells == [(11, "flake")]
