@@ -95,7 +95,7 @@ Every path it prints starts from the root of jstack's source tree, which is the 
 | `base` | the branch of the head's `Stacked on:` line, or `none` |
 | `stacked` | that line, `<slug> <branch>` or `<slug> <branch> at <commit>`, `malformed` for a line in neither shape, or `none` |
 
-Each value comes from the one reader jbriefs, jmerge and jbus call (`below.pull`, `findings.running`, `jbriefs.stacked`, `jbriefs.status`), so the skills' blocks call it in place of an awk field of their own and act on the answer jbus acts on.
+Each value comes from the one reader jbriefs, jmerge and jbus call (`below.pull`, `reviewers.running`, `jbriefs.stacked`, `jbriefs.status`), so the skills' blocks call it in place of an awk field of their own and act on the answer jbus acts on.
 The `Checked:` line has its reader too, `jbriefs.checked`, which jmerge binds a merge to and jbus launches a review at.
 
 ## What an approval binds to

@@ -97,7 +97,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from jbriefs import below, findings
+from jbriefs import below, findings, reviewers
 from jbriefs.home import home_of, thread_of
 from jbus import (
     END_TURN,
@@ -503,7 +503,7 @@ def _waiting(run: Pass, world: World, said: dict[str, str]) -> list[tuple[str, i
             continue
         brief = task_brief(run, slug)
         result = mirror.last_result(brief)
-        if review.awaited(brief, result) and findings.launched(brief):
+        if review.awaited(brief, result) and reviewers.launched(brief):
             found.append((slug, 0, str(ready.NO_VERDICT), review.desk_head(brief)))
     return found
 

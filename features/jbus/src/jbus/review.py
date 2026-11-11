@@ -1,7 +1,7 @@
 """What a pull request's review waits on: the class of a wait `jmerge` gives (`class_of`),
 whether a crew waits on the review that comes before its pull request (`awaited`), and the two
 ranges of a scoped review (`ranges`). Whether a reviewer the crew launched has yet to write its
-`## Review` is `jbriefs.findings.running`, which the crew's blocks ask too.
+`## Review` is `jbriefs.reviewers.running`, which the crew's blocks ask too.
 
 `jbus.clock` keeps a clock for each class, `jbus.rebase` and `jbus.stack` wait on a review that is
 running, and the outbox holds a message to a crew whose review is running (`outbox.RULES`). This
@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
-from jbriefs import below, checked, findings
+from jbriefs import below, checked, findings, reviewers
 from jmerge import ready
 
 if TYPE_CHECKING:
@@ -74,7 +74,7 @@ def awaited(brief: str, result: str) -> bool:
     reviewer that wrote `Verdict: not run` again."""
     if not before_pull(result) or findings.mode_of(brief) == findings.NONE:
         return False
-    return not findings.launched(brief) or findings.launched(brief) > ran(brief)
+    return not reviewers.launched(brief) or reviewers.launched(brief) > ran(brief)
 
 
 _OWED = re.compile(r"^Scoped review: needed since ([0-9a-f]{40}),", re.M)

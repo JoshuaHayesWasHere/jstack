@@ -19,6 +19,7 @@ from jbriefs import (
     pick,
     propose,
     proved,
+    reviewers,
     shown,
     skills,
     stacked,
@@ -83,8 +84,8 @@ LINES = {
     "status": lambda text: status_line.of(below.last_result(text)).value,
     "pr": _pull,
     "reviewer": _reviewer,
-    "reviewed": lambda text: _yes(findings.reviewed(text)),
-    "reviewing": lambda text: _yes(findings.running(text)),
+    "reviewed": lambda text: _yes(reviewers.reviewed(text)),
+    "reviewing": lambda text: _yes(reviewers.running(text)),
     "base": lambda text: found.branch if (found := stacked.of(text)) else "none",
     "stacked": _stacked,
 }
@@ -97,7 +98,7 @@ LINES = {
 - `reviewer`: the thread of the first `Reviewer:` line below the first Result that names one,
   or `none`;
 - `reviewed`: `yes` where the results hold a `## Review` or a reviewer (`findings.reviewed`);
-- `reviewing`: `yes` where a reviewer launched has not written its section (`findings.running`);
+- `reviewing`: `yes` where a reviewer launched has not written its section (`reviewers.running`);
 - `base`: the branch of the head's `Stacked on:` line (`jbriefs.stacked`), or `none`;
 - `stacked`: that line as `<slug> <branch>` or `<slug> <branch> at <commit>`, `malformed` for a
   line in neither shape, or `none`."""

@@ -29,7 +29,7 @@ has the line and has not moved yet, and whose base merged:
   jbus moves nothing while the outbox holds the crew (`rebase.held`): its thread is at work, waits
   on a test slot, or waits on a review it launched that jmerge says is not written at the head.
   Such a link waits for a later pass, and its crew is told nothing. Nor does jbus move it while a
-  reviewer the crew launched has written no review (`findings.running`), since a move would change
+  reviewer the crew launched has written no review (`reviewers.running`), since a move would change
   the head under it, or while its worktree has work in it (uncommitted, unpushed or a rebase not
   finished); a rebase that conflicts, a push the lease refuses, or a base that was rewritten or
   that no reflog records, leaves the branch as it was.
@@ -71,7 +71,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-from jbriefs import below, findings
+from jbriefs import below, reviewers
 from jbriefs import stacked as stacks
 from jbus import END_TURN, crewthread, launchtext, mirror, queue, rebase, review, verbs
 from jbus.launches import records
@@ -244,7 +244,7 @@ def _carry(
     branch merged at, onto `origin/<onto>`, and push them over the head the pass read. `number` is
     its pull request's, or 0 before it has one. Return the head the branch is at now, or nothing
     when it was left as it was, with the reason said."""
-    if findings.running(task_brief(run, slug)):
+    if reviewers.running(task_brief(run, slug)):
         return _left(run, slug, "a reviewer it launched has written no review yet")
     crew = _worktree(run, branch)
     busy = _busy(run, crew, head) if crew else ""

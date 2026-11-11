@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from jbriefs import below, checked, findings, parse, stacked
+from jbriefs import below, checked, findings, parse, reviewers, stacked
 
 BRIEFS = Path(__file__).parent / "fixtures" / "result_lines"
 
@@ -72,7 +72,7 @@ def test_a_bare_review_seat_fills_its_seat_and_no_review_is_running():
     the crew's `^By: .* #[0-9]+$` did not, so its rebase waited for a review that was written."""
     text = brief("po-scout-model-doc")
     assert [one.seat for one in findings.triage(text).sections] == [1]
-    assert not findings.running(text)
+    assert not reviewers.running(text)
     assert line("reviewing", "po-scout-model-doc") == ["no"]
 
 
@@ -80,8 +80,8 @@ def test_a_reviewer_none_line_is_no_reviewer():
     """qw-lock-test-race's crew wrote `Reviewer: none, <why>`: the crew's block read it as the
     review it had had, and the launcher's as none."""
     text = brief("qw-lock-test-race")
-    assert findings.launched(text) == 0
-    assert not findings.reviewed(text)
+    assert reviewers.launched(text) == 0
+    assert not reviewers.reviewed(text)
     assert line("reviewer,reviewed", "qw-lock-test-race") == ["none\tno"]
 
 
