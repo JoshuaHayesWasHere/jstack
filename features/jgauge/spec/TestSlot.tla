@@ -32,9 +32,14 @@
 \* and written under a lock, and a command ends with the `jgauge test-slot` that holds its slot.
 \* The canaries "spare-outside-lock", "forget-unended", "orphan-command" and "no-ledger-lock"
 \* each put one of today's four faults back into the mode that passes.
-\* PidReuse lets another process take the pid of a holder's dead command.
+\* PidReuse lets another process take the pid of a holder's dead command. Mortal is the set of
+\* the processes that can be killed: TestSlot.cfg has every one, "bus" for jbus's slot pass,
+\* "writers" for the ledger's writers and "pool" for the pool's crew and jbus; the chart's
+\* config keeps fewer, so its state graph fits in a picture. Chart = TRUE, in the chart's config
+\* alone, draws the full room with no holders file (the crew's run records none, and jbus's pass
+\* there ends after slotwait.wake): the short room draws the holders.
 EXTENDS Naturals, FiniteSets
-CONSTANTS Fault, PidReuse, Rooms
+CONSTANTS Fault, PidReuse, Rooms, Mortal, Chart
 
 FullProcs == {"crew", "desk"}
 ShortProcs == {"short", "quick"}
@@ -184,7 +189,7 @@ TypeOK ==
   /\ child \in [Procs -> {"none", "alive", "dead"}]
   /\ reused \subseteq holders /\ missed \subseteq {"crew"} /\ lostEnd \subseteq Threaded
   /\ waitId \in {0, 1}
-  /\ lpc \in [Writers -> {"idle", "fetched", "read", "unlink"}]
+  /\ lpc \in [Writers -> {"idle", "fetched", "read", "unlink", "done"}]
   /\ local \in [Writers -> SUBSET Writers] /\ wrote \subseteq Writers
   /\ ledgerLock \in Writers \cup {"free"}
   /\ ppc \in {"off", "register", "registering", "drop", "dropping"}
@@ -223,6 +228,10 @@ Claims(but) == IF Holding /\ but /= "crew" THEN 1 ELSE 0
 \* while its end is not on record and a process has its pid.
 Running(p) == p \in holders /\ p \notin ended /\ (child[p] = "alive" \/ p \in reused)
 \* The steps of a call during which `jgauge test-slot` holds its slot.
+\* The processes whose run goes on the holders file: a call with --thread.
+OnFile == IF Chart THEN Threaded \ {"crew"} ELSE Threaded
+\* Where jbus's pass goes after slotwait.wake.
+AfterWake == IF Chart THEN "idle" ELSE "hread"
 Holds == {"drop", "dropping", "logtake", "spawn", "hold", "holding", "wait", "end", "ending",
           "logrelease", "close"}
 
@@ -365,7 +374,7 @@ Spawn(p) ==
   /\ InSlots
   /\ pc[p] = "spawn"
   /\ \/ /\ child' = [child EXCEPT ![p] = "alive"]
-        /\ pc' = [pc EXCEPT ![p] = IF p \in Threaded THEN "hold" ELSE "wait"]
+        /\ pc' = [pc EXCEPT ![p] = IF p \in OnFile THEN "hold" ELSE "wait"]
      \/ /\ UNCHANGED child /\ pc' = [pc EXCEPT ![p] = "logrelease"]
   /\ UNCHANGED <<full, short, line, waiters, woken, waitersLock, holders, ended, holdersLock,
                  slotlog, bus, reused, waitId, wsnap, hsnap, missed, lostEnd>>
@@ -408,7 +417,7 @@ Reuse(p) ==
 Ran(p) ==
   /\ InSlots
   /\ pc[p] = "wait" /\ child[p] = "dead"
-  /\ pc' = [pc EXCEPT ![p] = IF p \in Threaded THEN "end" ELSE "logrelease"]
+  /\ pc' = [pc EXCEPT ![p] = IF p \in OnFile THEN "end" ELSE "logrelease"]
   /\ UNCHANGED <<full, short, line, waiters, woken, waitersLock, holders, ended, holdersLock,
                  slotlog, bus, child, reused, waitId, wsnap, hsnap, missed, lostEnd>>
 
@@ -452,7 +461,7 @@ Close(p) ==
 \* None else 0,`), and nothing ends the command with it. The mode that passes ends it.
 Die(p) ==
   /\ InSlots
-  /\ pc[p] /= "off"
+  /\ p \in Mortal /\ pc[p] /= "off"
   /\ full' = [n \in FullSlots |-> IF full[n] = p THEN "free" ELSE full[n]]
   /\ short' = [n \in ShortSlots |-> IF short[n] = p THEN "free" ELSE short[n]]
   /\ line' = IF p = "short" /\ "live" \in line THEN (line \ {"live"}) \cup {"dead"} ELSE line
@@ -505,7 +514,7 @@ Forget ==
   /\ IF "crew" \in waiters /\ waitId = wsnap.id
        THEN waiters' = waiters \ {"crew"} /\ woken' = "none"
        ELSE UNCHANGED <<waiters, woken>>
-  /\ waitersLock' = "free" /\ bus' = "hread"
+  /\ waitersLock' = "free" /\ bus' = AfterWake
   /\ UNCHANGED <<BusFrame, holdersLock, waitId, wsnap, hsnap>>
 
 \* Today: jbus/slotwait.py `room = slot.spare(lane, queue, run.now)` counts the free slots now
@@ -517,7 +526,7 @@ Spare ==
   /\ InSlots
   /\ bus = "spare" /\ Has("spare-outside-lock")
   /\ LET spare == Cardinality(FreeFull) - (IF wsnap.in /\ wsnap.woken = "holds" THEN 1 ELSE 0) IN
-       bus' = IF spare > 0 /\ wsnap.in /\ wsnap.woken = "none" THEN "tell" ELSE "hread"
+       bus' = IF spare > 0 /\ wsnap.in /\ wsnap.woken = "none" THEN "tell" ELSE AfterWake
   /\ UNCHANGED <<BusFrame, waiters, woken, waitersLock, holdersLock, waitId, wsnap, hsnap>>
 
 SpareLock ==
@@ -533,7 +542,7 @@ SpareHeld ==
   /\ LET spare == Cardinality(FreeFull) - Claims("bus")
          wake == spare > 0 /\ "crew" \in waiters /\ woken = "none" IN
        /\ woken' = IF wake THEN "holds" ELSE woken
-       /\ bus' = IF wake THEN "tell" ELSE "hread"
+       /\ bus' = IF wake THEN "tell" ELSE AfterWake
   /\ waitersLock' = "free"
   /\ UNCHANGED <<BusFrame, waiters, holdersLock, waitId, wsnap, hsnap>>
 
@@ -543,8 +552,8 @@ SpareHeld ==
 Tell ==
   /\ InSlots
   /\ bus = "tell"
-  /\ \/ bus' = IF Has("spare-outside-lock") THEN "wake" ELSE "hread"
-     \/ bus' = "hread"
+  /\ \/ bus' = IF Has("spare-outside-lock") THEN "wake" ELSE AfterWake
+     \/ bus' = AfterWake
   /\ UNCHANGED <<BusFrame, waiters, woken, waitersLock, holdersLock, waitId, wsnap, hsnap>>
 
 WakeLock ==
@@ -558,7 +567,7 @@ Wake ==
   /\ InSlots
   /\ bus = "waking" /\ waitersLock = "bus"
   /\ woken' = IF "crew" \in waiters /\ waitId = wsnap.id /\ woken = "none" THEN "holds" ELSE woken
-  /\ waitersLock' = "free" /\ bus' = "hread"
+  /\ waitersLock' = "free" /\ bus' = AfterWake
   /\ UNCHANGED <<BusFrame, waiters, holdersLock, waitId, wsnap, hsnap>>
 
 \* jbus/slotwait.py `for one in holders.read(locks):`, under the lock and let go at once.
@@ -603,6 +612,7 @@ HForget ==
 \* jbus's pass dies: the kernel lets its locks go.
 BusDies ==
   /\ InSlots
+  /\ "bus" \in Mortal
   /\ bus /= "idle" /\ bus' = "idle"
   /\ waitersLock' = IF waitersLock = "bus" THEN "free" ELSE waitersLock
   /\ holdersLock' = IF holdersLock = "bus" THEN "free" ELSE holdersLock
@@ -649,13 +659,14 @@ Read(w) ==
   /\ UNCHANGED <<retry, spells, ledger, wrote>>
 
 \* jroles/ledger.py `merged = merge(parse(record.instance, before), [record])`, then the rename:
-\* the file is what this writer read, with its own record merged in.
+\* the file is what this writer read, with its own record merged in. The hook and jbus write
+\* once each, which is all a lost update needs; `jgauge limits` runs again on its timer.
 Write(w) ==
   /\ InLedger
   /\ lpc[w] = "read"
   /\ ledger' = local[w] \cup {w} /\ wrote' = wrote \cup {w}
   /\ ledgerLock' = IF ledgerLock = w THEN "free" ELSE ledgerLock
-  /\ lpc' = [lpc EXCEPT ![w] = IF w = "limits" THEN "unlink" ELSE "idle"]
+  /\ lpc' = [lpc EXCEPT ![w] = IF w = "limits" THEN "unlink" ELSE "done"]
   /\ UNCHANGED <<retry, spells, local>>
 
 \* jgauge/limits.py `if source == "endpoint":`, then the retry file goes.
@@ -673,7 +684,8 @@ Note ==
 \* A writer dies between its read and its write: it writes nothing, and its lock goes.
 WriterDies(w) ==
   /\ InLedger
-  /\ lpc[w] /= "idle" /\ lpc' = [lpc EXCEPT ![w] = "idle"]
+  /\ "writers" \in Mortal
+  /\ lpc[w] \notin {"idle", "done"} /\ lpc' = [lpc EXCEPT ![w] = "idle"]
   /\ ledgerLock' = IF ledgerLock = w THEN "free" ELSE ledgerLock
   /\ UNCHANGED <<retry, spells, ledger, local, wrote>>
 
@@ -705,10 +717,10 @@ PoolRegister ==
   /\ ppc = "registering" /\ poolLock = "crew"
   /\ IF pool /= {} /\ pool \cap due = {}
        THEN UNCHANGED <<pool, used, byThread>>
-       ELSE /\ WaitIds \ used /= {}
-            /\ \E i \in WaitIds \ used :
-                 pool' = {i} /\ used' = used \cup {i}
-            /\ byThread' = byThread \cup pool
+       ELSE IF WaitIds \ used = {}
+         THEN UNCHANGED <<pool, used, byThread>>  \* the model's bound: no third wait is made
+         ELSE /\ \E i \in WaitIds \ used : pool' = {i} /\ used' = used \cup {i}
+              /\ byThread' = byThread \cup pool
   /\ poolLock' = "free" /\ ppc' = "off"
   /\ UNCHANGED <<jpc, psnap, due, told>>
 
@@ -752,6 +764,7 @@ PoolForget ==
 
 PoolDies ==
   /\ InPool
+  /\ "pool" \in Mortal
   /\ \/ ppc \in {"register", "registering", "drop", "dropping"} /\ ppc' = "off" /\ UNCHANGED jpc
      \/ jpc /= "off" /\ jpc' = "off" /\ UNCHANGED ppc
   /\ poolLock' = IF (poolLock = "crew" /\ ppc' /= ppc) \/ (poolLock = "bus" /\ jpc' /= jpc)

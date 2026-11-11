@@ -1,0 +1,110 @@
+---
+title: "Who holds a test slot, who waits on one, and what the ledger keeps?"
+config:
+  markdownAutoWrap: false
+  state:
+    useMaxWidth: false
+---
+stateDiagram-v2
+  classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group0 fill:#d6eaf8,stroke:#6b757c,color:#1b2631
+  classDef group0Wrong fill:#d6eaf8,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group1 fill:#d1f2eb,stroke:#697976,color:#1b2631
+  classDef group1Wrong fill:#d1f2eb,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group2 fill:#fdebd0,stroke:#7f7668,color:#1b2631
+  classDef group2Wrong fill:#fdebd0,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group3 fill:#e8daef,stroke:#746d78,color:#1b2631
+  state "Legend" as legend {
+    state "Full lane" as legendGroup0
+    state "Short lane" as legendGroup1
+    state "Usage ledger" as legendGroup2
+    state "Review pool" as legendGroup3
+    state "Breaks a rule" as legendWrong
+  }
+  class legendGroup0 group0
+  class legendGroup1 group1
+  class legendGroup2 group2
+  class legendGroup3 group3
+  class legendWrong plainWrong
+  state "Full lane" as g0 {
+    state "the slot free" as s0
+    state "the slot free, the crew<br/>waits, not woken" as s1
+    state "the slot free, the crew<br/>waits, not woken, jbus<br/>sends a wake for a slot it<br/>counted free" as s2
+    state "the slot held by a desk's<br/>run" as s3
+    state "the slot held by a desk's<br/>run, the crew is woken,<br/>its claim holds" as s4
+    state "the slot held by a desk's<br/>run, the crew is woken,<br/>its claim holds, the woken<br/>crew found its slot taken" as s5
+    state "the slot held by a desk's<br/>run, the crew waits, not<br/>woken, jbus sends a wake<br/>for a slot it counted free" as s6
+  }
+  state "Review pool" as g1 {
+    state "no wait on file" as s7
+    state "no wait on file, the<br/>crew's second wait" as s8
+    state "the crew waits on file for<br/>the cap to end, the crew's<br/>second wait" as s9
+  }
+  state "Short lane" as g2 {
+    state "the slot free" as s10
+    state "the slot free, a crew's<br/>run's command running with<br/>no slot, the log has a<br/>take with no release" as s11
+    state "the slot free, the crew<br/>waits in the line" as s12
+    state "the slot held by a call<br/>with no thread, a crew's<br/>run's command running with<br/>no slot, the log has a<br/>take with no release" as s13
+    state "the slot held by a crew's<br/>run" as s14
+    state "the slot held by a crew's<br/>run, its run on file as<br/>running" as s15
+    state "the slot held by a crew's<br/>run, its run on file with<br/>no end, its command gone" as s16
+    state "the slot held by a crew's<br/>run, its run's end written<br/>after jbus forgot it" as s17
+  }
+  state "Usage ledger" as g3 {
+    state "the ledger keeps the<br/>records of jbus, the<br/>status line wrote and its<br/>record is gone, the last<br/>capped read is older than<br/>the ledger" as s18
+    state "the ledger keeps the<br/>records of no one" as s19
+    state "the ledger keeps the<br/>records of no one, the<br/>status line merges into<br/>the copy it read, of no<br/>one" as s20
+    state "the ledger keeps the<br/>records of no one, the<br/>status line merges into<br/>the copy it read, of no<br/>one, jbus merges into the<br/>copy it read, of no one" as s21
+    state "the ledger keeps the<br/>records of the status<br/>line, jbus merges into the<br/>copy it read, of no one,<br/>the last capped read is<br/>older than the ledger" as s22
+  }
+  [*] --> s0
+  [*] --> s7
+  [*] --> s10
+  [*] --> s19
+  s19 --> s20 : a writer reads the ledger
+  s10 --> s12 : the crew takes a place in the<br/>line
+  s20 --> s21 : a writer reads the ledger
+  s0 --> s3 : the call counts the slots to<br/>spare
+  s12 --> s14 : the first in the line looks<br/>for a slot
+  s21 --> s22 : a writer writes the ledger
+  s22 --> s18 : a writer writes the ledger
+  s14 --> s11 : the test-slot call is killed
+  s3 --> s0 : the slot is let go
+  s14 --> s15 : the run goes on the holders<br/>file
+  s11 --> s13 : a call with no thread takes a<br/>free slot
+  s15 --> s16 : the command ends
+  s7 --> s9 : the crew registers its wait
+  s9 --> s8 : the crew finds headroom and<br/>leaves
+  s0 --> s1 : the crew registers as a waiter<br/>and ends its turn
+  s16 --> s14 : the jbus pass forgets the runs<br/>that are over
+  s1 --> s2 : the jbus pass counts the slots<br/>to spare, with no lock
+  s14 --> s17 : the run's end goes on the<br/>holders file
+  s2 --> s6 : the call counts the slots to<br/>spare
+  s6 --> s4 : the jbus pass records the wake
+  s4 --> s5 : the call counts the slots to<br/>spare
+  s10 --> s10 : a call to test-slot starts
+  s0 --> s0 : a call to test-slot starts
+  s1 --> s1 : a call to test-slot starts
+  class s0 group0
+  class s1 group0
+  class s2 group0
+  class s3 group0
+  class s4 group0
+  class s5 group0Wrong
+  class s6 group0
+  class s7 group3
+  class s8 group3
+  class s9 group3
+  class s10 group1
+  class s11 group1
+  class s12 group1
+  class s13 group1Wrong
+  class s14 group1
+  class s15 group1
+  class s16 group1
+  class s17 group1Wrong
+  class s18 group2Wrong
+  class s19 group2
+  class s20 group2
+  class s21 group2
+  class s22 group2

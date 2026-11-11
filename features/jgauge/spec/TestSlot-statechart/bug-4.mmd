@@ -1,0 +1,44 @@
+---
+title: "Who holds a test slot, who waits on one, and what the ledger keeps?, bug 4"
+config:
+  markdownAutoWrap: false
+  state:
+    useMaxWidth: false
+---
+stateDiagram-v2
+  classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group0 fill:#d6eaf8,stroke:#6b757c,color:#1b2631
+  classDef group0Wrong fill:#d6eaf8,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group0Path fill:#d6eaf8,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  state "Legend" as legend {
+    state "Full lane" as legendGroup0
+    state "Breaks a rule" as legendWrong
+  }
+  class legendGroup0 group0
+  class legendWrong plainWrong
+  state "Full lane" as g0 {
+    state "the slot free" as s0
+    state "the slot free, the crew<br/>waits, not woken" as s1
+    state "the slot free, the crew<br/>waits, not woken, jbus<br/>sends a wake for a slot it<br/>counted free" as s2
+    state "the slot held by a desk's<br/>run" as s3
+    state "the slot held by a desk's<br/>run, the crew is woken,<br/>its claim holds" as s4
+    state "the slot held by a desk's<br/>run, the crew is woken,<br/>its claim holds, the woken<br/>crew found its slot taken" as s5
+    state "the slot held by a desk's<br/>run, the crew waits, not<br/>woken, jbus sends a wake<br/>for a slot it counted free" as s6
+  }
+  [*] --> s0
+  s0 --> s3 : 3. the call counts the slots<br/>to spare
+  s3 --> s0 : 4. the slot is let go
+  s0 --> s1 : 6. the crew registers as a<br/>waiter and ends its turn
+  s1 --> s2 : 8. the jbus pass counts the<br/>slots to spare, with no lock
+  s2 --> s6 : 9. the call counts the slots<br/>to spare
+  s6 --> s4 : 10. the jbus pass records the<br/>wake
+  s4 --> s5 : 11. the call counts the slots<br/>to spare
+  s0 --> s0 : 1, 2. a call to test-slot<br/>starts<br/>5. a call to test-slot starts
+  s1 --> s1 : 7. a call to test-slot starts
+  class s0 group0Path
+  class s1 group0Path
+  class s2 group0Path
+  class s3 group0Path
+  class s4 group0Path
+  class s5 group0Wrong
+  class s6 group0Path

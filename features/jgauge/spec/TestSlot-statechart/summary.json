@@ -1,0 +1,95 @@
+{
+  "view": "customer",
+  "modelStates": 104932,
+  "modelTransitions": 311951,
+  "chartStates": 23,
+  "chartTransitions": 24,
+  "chartStatus": {
+    "works": 19,
+    "wrong": 4,
+    "fixed": 0
+  },
+  "chartGroups": [
+    {
+      "name": "Full lane",
+      "color": "#d6eaf8",
+      "states": 7
+    },
+    {
+      "name": "Short lane",
+      "color": "#d1f2eb",
+      "states": 8
+    },
+    {
+      "name": "Usage ledger",
+      "color": "#fdebd0",
+      "states": 5
+    },
+    {
+      "name": "Review pool",
+      "color": "#e8daef",
+      "states": 3
+    }
+  ],
+  "mixedGroups": [],
+  "regions": {
+    "drawn": false,
+    "why": "727 region states are not fewer than the 725 flat states"
+  },
+  "classes": [
+    {
+      "n": 1,
+      "end": "Usage ledger: the ledger keeps the records of jbus, the status line wrote and its record is gone, the last capped read is older than the ledger",
+      "invariant": "LedgerNoLostUpdate",
+      "rule": "LedgerNoLostUpdate: no ledger write drops another's. Each record a writer merged in is still in the ledger, so a cap one writer recorded is never undone by another's older copy.",
+      "cause": "two writers read the ledger at once, and the second write put back the copy it read, without the first one's record",
+      "readerSteps": 4,
+      "modelSteps": 5,
+      "counterexamples": 776,
+      "fix": null
+    },
+    {
+      "n": 2,
+      "end": "Short lane: the slot held by a call with no thread, a crew's run's command running with no slot, the log has a take with no release",
+      "invariant": "OneCommandPerSlot",
+      "rule": "OneCommandPerSlot: a slot runs one command at a time. A command whose `jgauge test-slot` died runs on with its slot free, and the next take starts a second command beside it.",
+      "cause": "test-slot was killed and its command ran on, and the next call started a second command in the same slot",
+      "readerSteps": 6,
+      "modelSteps": 11,
+      "counterexamples": 30,
+      "fix": null
+    },
+    {
+      "n": 3,
+      "end": "Short lane: the slot held by a crew's run, its run's end written after jbus forgot it",
+      "invariant": "EndNotLost",
+      "rule": "EndNotLost: a run whose `jgauge test-slot` lives to its end has that end on file for jbus to tell its thread, so a thread that ended its turn on \"my run holds a slot\" is woken.",
+      "cause": "jbus forgot a run whose command had ended before test-slot wrote its end, so the end has no one to tell",
+      "readerSteps": 7,
+      "modelSteps": 17,
+      "counterexamples": 30,
+      "fix": null
+    },
+    {
+      "n": 4,
+      "end": "Full lane: the slot held by a desk's run, the crew is woken, its claim holds, the woken crew found its slot taken",
+      "invariant": "WokenGetsSlot",
+      "rule": "WokenGetsSlot: a woken waiter gets the slot or its claim lapses at HOLDS. A crew jbus woke, that runs its command again while the wake's claim holds, finds its slot free.",
+      "cause": "jbus counted the free slot outside the waiters' lock and recorded the wake after its message went, and a call with no thread took the slot in between",
+      "readerSteps": 11,
+      "modelSteps": 25,
+      "counterexamples": 300,
+      "fix": null
+    }
+  ],
+  "codeLike": [],
+  "drawnFrom": {
+    "command": "statechart from-spec TestSlot.tla --config TestSlot.chart.cfg --title 'Who holds a test slot, who waits on one, and what the ledger keeps?' --expect-broken LedgerNoLostUpdate,WokenGetsSlot,EndNotLost,OneCommandPerSlot --png",
+    "inputs": {
+      "TestSlot.chart.cfg": "0a99103c10aa617011860e3bba2117363fa561bd2b36bea2a9c9c93adf0e2a42",
+      "TestSlot.map.py": "3ed93466f35b0f839d7c15304d43e114c1b4628e27e240929596af11a21b5c07",
+      "TestSlot.tla": "b27e2fbe7a28b4a1c37421ccaf03ec08896966ec076645009a1702cd824e50e5"
+    },
+    "chart": "b2030e873fcb9f0e14d0a7d8dbba0d37cf81d2c31b5769e1d84a6c6417a057c9"
+  }
+}
