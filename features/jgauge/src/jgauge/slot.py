@@ -440,7 +440,13 @@ def run(command: list[str], lane: Lane, thread: str = "", wake: list[str] | None
             _signal(child, number, lane)
         if thread:
             mine = holders.hold(
-                lock.parent, thread, name(lane), child.pid, command, datetime.now(UTC)
+                lock.parent,
+                thread,
+                name(lane),
+                child.pid,
+                command,
+                datetime.now(UTC),
+                keeper=os.getpid(),
             )
         try:
             code = child.wait(timeout=lane.limit)
