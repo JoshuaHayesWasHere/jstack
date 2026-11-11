@@ -8,7 +8,7 @@ from jbus import queue
 from test_jbus_queue import add, rows
 
 STAMP, AT = "2026-11-09 16:00 ET", "2026-11-09T21:00:00+00:00"
-ROOM = "waiting for room on the machine"
+LOAD = "waiting for room on the machine: load 30.00 is at or over 200% of 12 cores"
 
 
 def lines(kitchen):
@@ -51,14 +51,15 @@ def test_the_pass_that_starts_the_log_writes_each_rows_reason_as_it_stands(kitch
     ]
 
 
-def test_each_row_behind_a_row_with_no_room_says_it_waits_for_room(kitchen):
+def test_each_row_behind_a_row_with_no_room_says_it_waits_for_room_and_names_the_load(kitchen):
     """The load is over the machine's limit, so `first` meets no room, and the three rows queued
-    behind it are read only for their reason, which is the room too, and is kept in the log."""
+    behind it are read only for their reason, which is the room too, and is kept in the log. The
+    reason names what `jgauge room` said, so the log tells a wait on load from one on memory."""
     for priority, slug in enumerate(("first", "second", "third", "fourth"), 1):
         add(kitchen, slug, priority=priority)
     kitchen.machine(load="30.00")
     kitchen.poll()
     assert kitchen.t3.launches == []
     waiting = {slug: row["why"] for slug, row in rows(kitchen).items()}
-    assert waiting == dict.fromkeys(("first", "second", "third", "fourth"), ROOM)
+    assert waiting == dict.fromkeys(("first", "second", "third", "fourth"), LOAD)
     assert {line["slug"]: line["why"] for line in lines(kitchen)} == waiting
