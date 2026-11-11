@@ -139,7 +139,7 @@ def test_the_command_waits_on_the_crew_then_on_the_review_and_merges_an_upheld_d
     brief(notes, was, head, ack)
     (said,) = notes.run()
     assert said.startswith(
-        f"wait 7 {url(7)}: the rebase changed the content after its review; scoped review of "
+        f"wait 7 {url(7)}: the scoped review has not ruled on the drops in n.txt; scoped review of "
     )
     scoped = merge.review("clean", head)
     brief(notes, was, head, ack + scoped.replace("Head:", "Drops: upheld n.txt\nHead:"))

@@ -415,6 +415,7 @@ _REFUSED = "{file}: {why}"
 _RULED = "{id}: {why}"
 _CARRIED = "review carried over: range-diff {old} {new} clean"
 _PUSH_KEPT = "review kept: {old}..{new} changes only tests, docs or config"
+_REBASE_KEPT = "review kept: {old} rebased as {new}, which its checks verify"
 
 
 @dataclass(frozen=True)
@@ -1407,7 +1408,7 @@ def rebase_note(verdict: Verdict | None) -> str:
 def first_code(files: Collection[str]) -> str:
     """The first of `files` that is neither a `proved.TEST_FILE` nor of a `proved.EXEMPT` kind,
     or empty where every one is a test, docs or config and so changes no code. A `tests only`
-    `Proved:` line and a push the review covers (`push_note`) are judged by it alike."""
+    `Proved:` line and a push the review covers (`kept_note`) are judged by it alike."""
     return next(
         (
             path
@@ -1419,14 +1420,18 @@ def first_code(files: Collection[str]) -> str:
     )
 
 
-def push_note(reviewed: str, head: str, pushed: tuple[str, ...] | None) -> str:
-    """Why the review of `reviewed` covers `head`, or empty where it does not. `pushed` is the
-    files `git diff --name-only <reviewed> <head>` names, or None where `head` does not descend
-    from `reviewed`, which a rebase makes. A head pushed on top of the reviewed one whose every
-    file is a test, docs or config (`first_code`) is covered as a `Fixed:` head is: it waits
-    only on its checks and its `Proved:` and `Checked:` lines. Any other is left to the
-    range-diff, and a push that changes code still gets its scoped review."""
-    if pushed is None or first_code(pushed):
+def kept_note(reviewed: str, head: str, verdict: Verdict) -> str:
+    """Why the review of `reviewed` covers `head`, whose patch is not the reviewed one, or empty
+    where it does not. A rebased head (`Verdict.rebased`) is covered whatever its patch differs
+    in: the checks verify a rebase. A head pushed on the reviewed one, over a merge of main or
+    not, is covered where its patch differs in tests, docs or config alone (`first_code`). Each
+    waits only on its checks and its `Proved:`, `Checked:` and `Dropped on rebase` lines. A head
+    whose patches git could not compare, or a push that changes code, gets its scoped review."""
+    if verdict.differ is None:
+        return ""
+    if verdict.rebased:
+        return _REBASE_KEPT.format(old=_short(verdict.old), new=_short(verdict.new))
+    if first_code(verdict.differ):
         return ""
     return _PUSH_KEPT.format(old=reviewed[:12], new=head[:12])
 

@@ -144,6 +144,33 @@ def test_a_squash_that_dropped_a_line_is_not_clean(tmp_path):
     )
 
 
+def test_patches_whose_files_git_quotes_are_not_compared_and_keep_no_review(branch):
+    """A push of a doc whose name has a `"` in it: git quotes the name in the diff's header, so
+    the file the patches differ in is not known, and no rule may keep the review over it."""
+    merge.git(branch.main, "checkout", "-q", "alpha")
+    branch.head = commit(branch.main, "a doc", {1: "a doc"}, 'say "hi".md')
+    merge.git(branch.main, "checkout", "-q", "main")
+    said = branch.verdict()
+    assert (said.clean, said.differ, said.rebased) == (False, None, False)
+    assert ready.kept_note(branch.reviewed, branch.head, said) == ""
+
+
+def test_a_merge_of_main_whose_resolution_changes_code_is_no_rebase(branch):
+    """It descends from the reviewed head and adds no commit of its own, but its patch differs in
+    code: that is the merge's change, which no review saw, and not a rebase's."""
+    branch.theirs({11: "theirs 11"})
+    merge.git(branch.main, "checkout", "-q", "alpha")
+    with pytest.raises(subprocess.CalledProcessError):
+        merge.git(branch.main, "merge", "-q", "--no-edit", "origin/main")
+    write(branch.main, {11: "the task 11, and theirs"})
+    merge.git(branch.main, "add", FILE)
+    merge.git(branch.main, "-c", "core.editor=true", "commit", "-q", "--no-edit")
+    branch.head = merge.git(branch.main, "rev-parse", "HEAD")
+    merge.git(branch.main, "checkout", "-q", "main")
+    said = branch.verdict()
+    assert (said.clean, said.rebased, said.differ) == (False, False, (FILE,))
+
+
 @pytest.mark.parametrize("moved", ["merge", "rebase"])
 def test_a_commit_of_mains_in_the_reviewed_range_that_the_new_head_holds_is_left_out(branch, moved):
     """#562: its reviewed range, from where it forked from the link under it, held that link's
@@ -379,29 +406,29 @@ class Rebased:
     clean at one head, and then its crewmate rebased it over a change to that file that main
     took after the review."""
 
-    def __init__(self, proven_merged, theirs, resolved=None, files=(FILE,)):
+    def __init__(self, proven_merged, theirs, resolved=None, files=(FILE,), path=FILE):
         self.proven_merged, self.files = proven_merged, files
         main, tree = proven_merged.home.main, proven_merged.tree
-        commit(main, "the file", {})
+        commit(main, "the file", {}, path)
         merge.git(main, "push", "-q", "origin", "main")
         merge.git(tree, "fetch", "-q", "origin")
         merge.git(tree, "rebase", "-q", "origin/main")
-        self.before = commit(tree, "the task in the file", TASK)
+        self.before = commit(tree, "the task in the file", TASK, path)
         merge.git(tree, "push", "-q", "--force", "origin", "alpha")
         merge.git(main, "fetch", "-q", "origin")
         merge.git(
             main, "update-ref", f"refs/jstack/pre-rebase/alpha/{self.before[:12]}", self.before
         )
         self.base = merge.git(main, "rev-parse", "HEAD")
-        self.tip = commit(main, "theirs", theirs)
+        self.tip = commit(main, "theirs", theirs, path)
         merge.git(main, "push", "-q", "origin", "main")
         merge.git(tree, "fetch", "-q", "origin")
         try:
             merge.git(tree, "-c", "core.editor=true", "rebase", "-q", "origin/main")
         except subprocess.CalledProcessError:
-            merge.git(tree, "checkout", "--theirs", FILE)
-            write(tree, resolved)
-            merge.git(tree, "add", FILE)
+            merge.git(tree, "checkout", "--theirs", path)
+            write(tree, resolved, path)
+            merge.git(tree, "add", path)
             merge.git(tree, "-c", "core.editor=true", "rebase", "--continue")
         merge.git(tree, "push", "-q", "--force", "origin", "alpha")
         self.head = merge.git(tree, "rev-parse", "HEAD")
@@ -428,6 +455,25 @@ class Rebased:
             f"scoped review of {self.command()}"
         )
 
+    def kept(self):
+        """The note of a rebase whose commits all pair with the reviewed ones: its checks
+        verify it, and the review of the head before it stands."""
+        return (
+            f"review kept: {self.base[:12]}..{self.before[:12]} rebased as "
+            f"{self.tip[:12]}..{self.head[:12]}, which its checks verify, every line kept"
+        )
+
+    def push_code(self):
+        """The crew pushes code on the rebased head, a commit no review saw, so the head waits
+        for a scoped review as a push of code does."""
+        tree = self.proven_merged.tree
+        self.head = commit(tree, "what the check asked for", {15: "what the check asked for"})
+        merge.git(tree, "push", "-q", "origin", "alpha")
+        self.proven_merged.home.open_pull_request(
+            self.head, checks=(LATER,), files=list(self.files)
+        )
+        return self
+
 
 BOTH = {11: "theirs 11\nthe task 11"}
 
@@ -445,8 +491,20 @@ def test_a_rebase_that_changed_no_content_carries_the_review_over_and_is_merged(
     assert proven_merged.log()[-1].endswith(said)
 
 
-def test_a_rebase_that_changed_the_content_waits_for_one_scoped_review(proven_merged, rules):
+def test_a_rebase_that_changed_the_code_keeps_its_review_and_is_merged(proven_merged, rules):
+    """Its conflict resolution changed an added line of code, and each commit pairs with a
+    reviewed one: the checks verify a rebase, so it gets no scoped review."""
     rebased = Rebased(proven_merged, {11: "theirs 11"}, BOTH)
+    assert run.jmerge(proven_merged, rules, "--check") == [
+        f"ready 7 {rebased.head} alpha alpha, {rebased.kept()}"
+    ]
+    (said,) = run.jmerge(proven_merged, rules)
+    commit_, _ = proven_merged.on_main()
+    assert said == merge.merged_line(commit_, rebased.kept())
+
+
+def test_a_rebase_with_code_pushed_on_it_waits_for_one_scoped_review(proven_merged, rules):
+    rebased = Rebased(proven_merged, {11: "theirs 11"}, BOTH).push_code()
     assert run.jmerge(proven_merged, rules) == [rebased.waits()]
     assert run.merges(proven_merged) == []
 
@@ -484,7 +542,9 @@ def test_a_second_rebase_is_compared_with_the_head_the_review_saw(proven_merged,
     rebased.before = first
     rebased.brief(merge.review("clean", reviewed))
     rebased.before = reviewed
-    assert run.jmerge(proven_merged, rules) == [rebased.waits()]
+    assert run.jmerge(proven_merged, rules, "--check") == [
+        f"ready 7 {rebased.head} alpha alpha, {rebased.kept()}"
+    ]
 
 
 def test_a_fixed_line_that_names_a_rebased_head_is_compared_from_the_head_kept_before_it(
@@ -492,8 +552,8 @@ def test_a_fixed_line_that_names_a_rebased_head_is_compared_from_the_head_kept_b
 ):
     """The crew's `Fixed:` line names the head a rebase made of its fix, and a later rebase
     replaced that head too. `jmerge` compares the head from the fix the crew kept before the
-    first rebase, as it does for a `Fixed:` line it reads from git, so the first rebase's change
-    to the content still waits for its scoped review once the second rebase is clean."""
+    first rebase, as it does for a `Fixed:` line it reads from git, so the review is kept over
+    both rebases from that fix."""
     rebased = Rebased(proven_merged, {11: "theirs 11"}, BOTH)
     first, tree, main = rebased.head, proven_merged.tree, proven_merged.home.main
     merge.git(main, "update-ref", f"refs/jstack/pre-rebase/alpha/{first[:12]}", first)
@@ -505,8 +565,9 @@ def test_a_fixed_line_that_names_a_rebased_head_is_compared_from_the_head_kept_b
     rebased.head = merge.git(tree, "rev-parse", "HEAD")
     proven_merged.home.open_pull_request(rebased.head, checks=(LATER,), files=[FILE])
     rebased.brief(merge.review("findings", rebased.base), FIXED.format(first))
-    assert run.jmerge(proven_merged, rules) == [rebased.waits()]
-    assert run.merges(proven_merged) == []
+    assert run.jmerge(proven_merged, rules, "--check") == [
+        f"ready 7 {rebased.head} alpha alpha, {rebased.kept()}"
+    ]
 
 
 @pytest.mark.parametrize(
@@ -527,7 +588,8 @@ def test_a_rebase_line_a_crew_wrote_is_judged_as_the_brief_with_no_line(proven_m
     without = run.jmerge(proven_merged, rules, "--check")
     told = line.format(before=rebased.before, head=rebased.head)
     rebased.brief(merge.review("clean", rebased.before), told)
-    assert run.jmerge(proven_merged, rules, "--check") == without == [rebased.waits()]
+    kept = f"ready 7 {rebased.head} alpha alpha, {rebased.kept()}"
+    assert run.jmerge(proven_merged, rules, "--check") == without == [kept]
 
 
 def test_a_review_that_names_no_head_has_nothing_to_compare_the_rebase_with(proven_merged, rules):
@@ -572,11 +634,21 @@ def test_a_rebased_head_no_line_names_is_merged_where_the_range_diff_is_clean(
 
 
 @pytest.mark.parametrize("case", UNSAID)
-def test_a_rebased_head_no_line_names_waits_where_the_rebase_changed_the_content(
+def test_a_rebased_head_no_line_names_keeps_its_review_where_the_rebase_changed_the_content(
     proven_merged, rules, case
 ):
     rebased = Rebased(proven_merged, {11: "theirs 11"}, BOTH)
     unsaid(rebased, case)
+    assert run.jmerge(proven_merged, rules, "--check") == [
+        f"ready 7 {rebased.head} alpha alpha, {rebased.kept()}"
+    ]
+
+
+@pytest.mark.parametrize("case", UNSAID)
+def test_a_rebased_head_with_code_pushed_on_it_asks_for_a_scoped_review(proven_merged, rules, case):
+    rebased = Rebased(proven_merged, {11: "theirs 11"}, BOTH)
+    unsaid(rebased, case)
+    rebased.push_code()
     assert run.jmerge(proven_merged, rules) == [rebased.waits()]
     assert run.merges(proven_merged) == []
     number, _, ask = asks.content(rebased.waits())
@@ -626,7 +698,8 @@ def test_the_lines_a_rebase_dropped_are_counted_from_the_commit_the_review_cover
     assert run.jmerge(proven_merged, rules) == [silent]
     ack = f"Dropped on rebase: {FILE}, 1 of main's, 0 of its own, at {rebased.head[:12]}: ours\n"
     unsaid(rebased, more=ack)
-    assert run.jmerge(proven_merged, rules) == [rebased.waits()]
+    (said,) = run.jmerge(proven_merged, rules)
+    assert said.startswith(f"wait 7 {merge.URL}: the scoped review has not ruled on the drops in")
     scoped = merge.review("clean", rebased.head)
     against = scoped.replace("Head:", f"Drops: not upheld {FILE}: main needs it\nHead:")
     unsaid(rebased, more=ack, then=against)
@@ -999,16 +1072,82 @@ def test_a_tests_only_push_with_one_code_file_waits_for_a_scoped_review(proven_m
     assert run.merges(proven_merged) == []
 
 
-def test_a_tests_only_push_after_a_rebase_waits_for_a_scoped_review(proven_merged, rules):
-    """The head does not descend from the head the review saw, so the range-diff judges it."""
+def test_a_tests_only_push_after_a_rebase_keeps_its_review(proven_merged, rules):
+    """The head does not descend from the head the review saw, and its patch differs from the
+    reviewed patch in the test alone: the review covers it, and it waits on its `Proved:` line."""
     rebased = Rebased(proven_merged, {28: "theirs 28"})
     tree = proven_merged.tree
     pushed = commit(tree, "what the check asked for", {15: "the test"}, TEST)
     merge.git(tree, "push", "-q", "origin", "alpha")
     proven_merged.home.open_pull_request(pushed, checks=(LATER,), files=[FILE, TEST])
+    (said,) = run.jmerge(proven_merged, rules)
+    assert said.startswith(f"wait 7 {merge.URL}: it changes {TEST}, and its Result has no Proved")
     rebased.brief(run.proven("clean", rebased.before), proved(pushed, rebased.tip, (TEST,)))
-    assert run.jmerge(proven_merged, rules) == [rebased.waits().replace(rebased.head, pushed)]
+    kept = f"review kept: {rebased.before[:12]}..{pushed[:12]} changes only tests, docs or config"
+    assert run.jmerge(proven_merged, rules, "--check") == [
+        f"ready 7 {pushed} alpha alpha, {kept}, every line kept"
+    ]
+
+
+def test_a_rebase_that_changed_a_test_still_waits_on_its_proved_line(proven_merged, rules):
+    rebased = Rebased(proven_merged, {11: "theirs 11"}, BOTH, files=(TEST,), path=TEST)
+    (said,) = run.jmerge(proven_merged, rules)
+    assert said.startswith(f"wait 7 {merge.URL}: it changes {TEST}, and its Result has no Proved")
+    rebased.brief(run.proven("clean", rebased.before), proved(rebased.head, rebased.tip, (TEST,)))
+    assert run.jmerge(proven_merged, rules, "--check") == [
+        f"ready 7 {rebased.head} alpha alpha, {rebased.kept()}"
+    ]
+
+
+def test_a_rebase_that_dropped_a_line_of_a_test_still_waits_on_its_dropped_line(
+    proven_merged, rules
+):
+    """The patch differs in the test alone, but a drop is the scoped review's to rule on."""
+    rebased = Rebased(proven_merged, {11: "theirs 11"}, {11: "the task 11"}, (TEST,), TEST)
+    proof = proved(rebased.head, rebased.tip, (TEST,))
+    rebased.brief(run.proven("clean", rebased.before), proof)
+    assert run.jmerge(proven_merged, rules) == [
+        f"wait 7 {merge.URL}: the rebase dropped 1 of main's lines in {TEST} "
+        f"with no Dropped on rebase line at {rebased.head[:12]}"
+    ]
     assert run.merges(proven_merged) == []
+    ack = f"Dropped on rebase: {TEST}, 1 of main's, 0 of its own, at {rebased.head[:12]}: ours\n"
+    rebased.brief(run.proven("clean", rebased.before), proof + ack)
+    (said,) = run.jmerge(proven_merged, rules)
+    assert said.startswith(
+        f"wait 7 {merge.URL}: the scoped review has not ruled on the drops in {TEST}; "
+    )
+    assert run.merges(proven_merged) == []
+
+
+@pytest.mark.parametrize("path", PUSHED.values(), ids=PUSHED)
+def test_a_tests_only_push_over_a_merge_of_main_keeps_its_review(proven_merged, rules, path):
+    """#1597 and five more: the crew merged main into the reviewed head, which brought main's
+    code with it, then pushed a test, docs or config: only that file is the push's."""
+    main, tree = proven_merged.home.main, proven_merged.tree
+    commit(main, "the file", {})
+    merge.git(main, "push", "-q", "origin", "main")
+    merge.git(tree, "fetch", "-q", "origin")
+    merge.git(tree, "rebase", "-q", "origin/main")
+    before = commit(tree, "the task in the file", TASK)
+    merge.git(tree, "push", "-q", "--force", "origin", "alpha")
+    commit(main, "theirs", {28: "theirs 28"})
+    commit(main, "theirs elsewhere", {1: "theirs 1"}, "g.py")
+    merge.git(main, "push", "-q", "origin", "main")
+    merge.git(tree, "fetch", "-q", "origin")
+    merge.git(tree, "merge", "-q", "--no-edit", "origin/main")
+    head = commit(tree, "what the check asked for", {15: "what the check asked for"}, path)
+    merge.git(tree, "push", "-q", "origin", "alpha")
+    tip = merge.git(main, "rev-parse", "HEAD")
+    proven_merged.home.open_pull_request(head, checks=(LATER,), files=[FILE, path])
+    more = proved(head, tip, (path,))
+    (proven_merged.home.tasks / "alpha.md").write_text(
+        merge.brief(run.proven("clean", before), more)
+    )
+    kept = f"review kept: {before[:12]}..{head[:12]} changes only tests, docs or config"
+    assert run.jmerge(proven_merged, rules, "--check") == [
+        f"ready 7 {head} alpha alpha, {kept}, every line kept"
+    ]
 
 
 def handled(rebased, review_of, head, line, answer="Finding: fixed, it is wrong\n"):
@@ -1143,11 +1282,11 @@ def test_a_review_whose_findings_are_all_declined_is_read_as_fixed_none_needed(
 def test_a_pull_request_github_has_not_decided_on_says_first_what_its_answer_cannot_change(
     proven_merged, rules
 ):
-    """A rebase changed its content after its review: that wait holds whatever GitHub says of
-    its mergeability. GitHub decides afresh each time main moves, and a run in that while said
-    `GitHub has not decided whether it merges` in its place: #1440 flapped `dropped`,
-    `undecided`, `dropped` on 2026-11-09."""
-    rebased = Rebased(proven_merged, {11: "theirs 11"}, BOTH)
+    """Code pushed on a rebase changed its content after its review: that wait holds whatever
+    GitHub says of its mergeability. GitHub decides afresh each time main moves, and a run in
+    that while said `GitHub has not decided whether it merges` in its place: #1440 flapped
+    `dropped`, `undecided`, `dropped` on 2026-11-09."""
+    rebased = Rebased(proven_merged, {11: "theirs 11"}, BOTH).push_code()
     assert run.jmerge(proven_merged, rules) == [rebased.waits()]
     proven_merged.home.open_pull_request(
         rebased.head, checks=(LATER,), files=[FILE], mergeable="UNKNOWN"
