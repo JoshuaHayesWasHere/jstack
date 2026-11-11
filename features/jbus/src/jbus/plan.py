@@ -372,9 +372,10 @@ def _cut(text: str, cap: int) -> str:
 
 
 def shown(text: str, rows: list[queue.Row], given: list[Go] | None = None) -> str:
-    """Return one line for each entry of the plan: its slug, its one line and its status, and
-    the entry's go where `given` has one, and after them a line for each entry whose stage is
-    unknown. It cuts each part short so that a plan of seventeen entries fits on one screen."""
+    """Return a line for each entry whose stage is unknown, first, so the home's start, which
+    cuts the listing at 12 lines, never cuts one. Then one line for each entry of the plan: its
+    slug, its one line and its status, and the entry's go where `given` has one. It cuts each part
+    short so that a plan of seventeen entries fits on one screen."""
     said, flags = [], []
     kept = {one.entry: one for one in given or []}
     for one in entries(text):
@@ -387,7 +388,7 @@ def shown(text: str, rows: list[queue.Row], given: list[Go] | None = None) -> st
                 f"{one.slug}: Stage {one.unknown} is no stage "
                 f"({', '.join(stage.value for stage in Stage)}), so it is never briefed\n"
             )
-    return "".join(said + flags)
+    return "".join(flags + said)
 
 
 def path(home: Path, scope: str | None) -> Path:

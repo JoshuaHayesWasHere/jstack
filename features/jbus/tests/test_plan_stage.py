@@ -61,3 +61,13 @@ def test_a_stage_outside_the_four_is_flagged_and_never_briefed(kitchen, said):
         f"next: Stage {word} is no stage (proposed, planned, parked, scouting), "
         "so it is never briefed"
     ]
+
+
+def test_the_flag_comes_first_so_the_homes_start_never_cuts_it(kitchen):
+    """The home's start prints `jbus plan` cut at 12 lines, so a flag after the entries of a long
+    plan would be the first line lost."""
+    known = "".join(f"\n## e{n}: entry {n}\nStage: planned\n" for n in range(13))
+    (kitchen.home / "plan.md").write_text(entry("queued") + known)
+    code, said = kitchen.main("plan")
+    assert code == 0, said
+    assert said.splitlines()[0].startswith("next: Stage queued is no stage")
