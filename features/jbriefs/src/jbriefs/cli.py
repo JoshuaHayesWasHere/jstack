@@ -108,13 +108,16 @@ def line_main(argv: list[str]) -> int:
         prog="jbriefs line",
         description="Print what the lines a crew, a reviewer and jbus write say of each brief, "
         "read as jbriefs, jmerge and jbus read them: one line for each brief, its values "
-        "joined by tabs and, for more than one brief, its path after them.",
+        "joined by tabs.",
     )
     parser.add_argument(
         "what",
         help=f"the lines to print, joined by commas, of: {', '.join(LINES)}",
     )
     parser.add_argument("briefs", nargs="+", type=Path, metavar="BRIEF")
+    parser.add_argument(
+        "--paths", action="store_true", help="print each brief's path after its values"
+    )
     args = parser.parse_args(argv)
     asked = args.what.split(",")
     unknown = [one for one in asked if one not in LINES]
@@ -129,7 +132,7 @@ def line_main(argv: list[str]) -> int:
             failed = 1
             continue
         said = [LINES[one](text) for one in asked]
-        print("\t".join(said + ([str(path)] if len(args.briefs) > 1 else [])))
+        print("\t".join(said + ([str(path)] if args.paths else [])))
     return failed
 
 

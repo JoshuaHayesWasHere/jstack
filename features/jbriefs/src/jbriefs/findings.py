@@ -252,7 +252,8 @@ def running(text: str) -> bool:
     for a scoped section, and an unnumbered line for any other section. A seat launched again
     after its section waits for a new one, and launched again before it waits for one. Once a
     `Reviewer:` line has a number, the unnumbered `Reviewer:` lines are a launch that the
-    numbered ones replaced (`Numbered`), and wait for nothing."""
+    numbered ones replaced (`Numbered`), and wait for nothing. In a brief with no numbered
+    `Reviewer:` line (`Legacy`) every line, a scoped one too, waits for any later section."""
     lines = text.splitlines()
     first = next((at for at, one in enumerate(lines) if one.startswith("## Result")), len(lines))
     events: list[tuple[int, str, int | None]] = []
@@ -271,7 +272,10 @@ def running(text: str) -> bool:
     )
     seats: set[int] = set()
     plain = scoped = 0
-    for _, kind, seat in sorted(events, key=lambda event: event[0]):
+    for _, said, seat in sorted(events, key=lambda event: event[0]):
+        kind = said if numbered else {"Scoped reviewer": "Reviewer", "scoped": "section"}.get(
+            said, said
+        )
         if kind == "Scoped reviewer":
             scoped += 1
         elif kind == "scoped":

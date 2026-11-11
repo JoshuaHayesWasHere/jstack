@@ -133,15 +133,17 @@ Its lines, in order: `Status:`, `Answers:`, `Findings:`, `Sources:`, `Ruled out:
 5. See whether this thread settles itself. Its work is the report, which is on disk, so nothing is lost with the thread. In one call with the block at the top and `S` set to the slug. It is the only check:
 
    ```sh
-   awk '
-       /^## Report/ {report = 1; done = 0}
-       report && $(1) == "Status:" {done = ($(2) == "done")}
-       END {
-           if (!report) print "stay: the request has no Report"
-           else if (!done) print "stay: the Report does not say Status: done"
-           else print "settle"
-       }' "$H/scouts/$S.md"
+   B="$H/scouts/$S.md"
+   if ! command grep -q '^## Report' "$B"; then
+       echo "stay: the request has no Report"
+   elif [ "$(uv run --project "$T/../source" jbriefs line status "$B")" != done ]; then
+       echo "stay: the Report does not say Status: done"
+   else
+       echo "settle"
+   fi
    ```
+
+   `jbriefs line status` reads the last Report's `Status:` line as jbus reads it: `done`, or `done` with a note after a space or a full stop, is done.
 
    On `settle`, settle this thread: the `t3-code` server's `t3_thread_organize` (if your harness defers it, load it first) with `{"action": "settle"}` and no `threadId`.
    It takes effect when the turn ends, so it is the last call, made only once the home is told.

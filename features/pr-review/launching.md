@@ -51,33 +51,29 @@ The things to look for under the fourth and fifth are adapted from pstack's revi
 The brief's reviewer, if a thread has already launched one and written it in the result:
 
 ```sh
-awk '/^## Result/ {result = 1} result && /^Reviewer:/ && $(2) !~ /^none/ {print $(2); exit}' "$H/tasks/<slug>.md"
+uv run --project "$T/../source" jbriefs line reviewer "$H/tasks/<slug>.md"
 ```
 
-It prints that reviewer's thread id, or nothing. A line that says `Reviewer: none`, which a crewmate with no launch tool writes, is no reviewer.
+It prints that reviewer's thread id, or `none`. A line that says `Reviewer: none`, which a crewmate with no launch tool writes, is no reviewer.
 
 1. Find the briefs that are **ready**. Run this with the block at the top, in a home with no slug with `*` for `<slug>`. It is the only check:
 
    ```sh
    PASS=first
-   asked=$(awk -v pass="$PASS" '
-       function count() {if (done && pr ~ /^http/ && (pass != "first" || !had)) n++}
-       FNR == 1 {if (NR > 1) count(); pr = ""; done = result = had = 0}
-       /^## Result/ {pr = ""; done = 0; result = 1}
-       result && /^Status: done/ {done = 1}
-       result && $(1) == "Branch:" {pr = $(NF)}
-       result && (/^## Review$/ || (/^Reviewer:/ && $(2) !~ /^none/)) {had = 1}
-       END {if (NR) count(); print n + 0}' "$H"/tasks/<slug>.md 2> /dev/null)
+   lines=$(uv run --project "$T/../source" jbriefs line status,pr,reviewed --paths "$H"/tasks/<slug>.md 2> /dev/null)
+   asked=$(printf '%s\n' "$lines" | awk -F '\t' -v pass="$PASS" '$(1) == "done" && $(2) ~ /^http/ && (pass != "first" || $(3) == "no") {n++} END {print n + 0}')
    if ! said=$(uv run --project "$T/../source" jbus budget --wait 540 --calls $((3 * ${asked:-0}))); then
        echo "$said: run this block again, in this turn"
        exit 75
    fi
    for B in "$H"/tasks/<slug>.md; do
        past= why=
-       pr=$(awk '/^## Result/ {pr = ""; done = 0; result = 1} result && /^Status: done/ {done = 1} result && $(1) == "Branch:" {pr = $(NF)} END {if (done) print pr}' "$B")
+       row=$(printf '%s\n' "$lines" | awk -F '\t' -v brief="$B" '$(4) == brief')
+       pr=
+       [ "$(printf '%s\n' "$row" | cut -f 1)" != done ] || pr=$(printf '%s\n' "$row" | cut -f 2)
        case $pr in
        http*)
-           if [ "$PASS" = first ] && awk '/^## Result/ {result = 1} result && (/^## Review$/ || (/^Reviewer:/ && $(2) !~ /^none/)) {had = 1} END {exit !had}' "$B"; then
+           if [ "$PASS" = first ] && [ "$(printf '%s\n' "$row" | cut -f 3)" = yes ]; then
                past="it has a review or a reviewer, and it is one pass per pull request"
            elif state=$(gh pr view "$pr" --json state | jq -r .state) && [ -z "$state" ]; then
                why="GitHub could not be asked for its pull request"

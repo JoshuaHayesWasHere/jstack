@@ -98,7 +98,8 @@ prove_fork() {
     echo "$line"
     if command grep -q '^## Result' "$B"; then printf '%s\n' "$line" >> "$B"; fi
 }
-on=$(awk '/^## / {exit} /^Stacked on:/ {print $(4); exit}' "$B" 2> /dev/null)
+on=$(uv run --project "$T/../source" jbriefs line base "$B" 2> /dev/null)
+[ "$on" != none ] || on=
 on=origin/${on:-main}
 git rev-parse -q --verify "$on^{commit}" > /dev/null || on=origin/main
 head=$(git rev-parse HEAD)

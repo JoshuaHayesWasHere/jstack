@@ -25,7 +25,14 @@ def brief(name):
 def line(what, *names):
     """What `jbriefs line` prints for the briefs, as a skill's block runs it."""
     ran = subprocess.run(
-        [sys.executable, "-m", "jbriefs", "line", what, *(str(BRIEFS / f"{n}.md") for n in names)],
+        [
+            sys.executable,
+            "-m",
+            "jbriefs",
+            "line",
+            what,
+            *(n if n.startswith("--") else str(BRIEFS / f"{n}.md") for n in names),
+        ],
         capture_output=True,
         text=True,
         check=True,
@@ -118,8 +125,9 @@ def test_the_status_is_the_last_results(name, said):
     assert line("status", name) == [said]
 
 
-def test_several_briefs_print_one_line_each_with_its_path():
-    said = line("status,pr", "sb-pin-focus-build", "qw-lock-test-race")
+def test_several_briefs_print_one_line_each_and_with_paths_its_path():
+    assert line("status", "sb-pin-focus-build", "qw-lock-test-race") == ["done", "done"]
+    said = line("status,pr", "sb-pin-focus-build", "qw-lock-test-race", "--paths")
     assert said == [
         "done\thttps://github.com/JoshuaHayesWasHere/jstack/pull/787\t"
         f"{BRIEFS / 'sb-pin-focus-build.md'}",

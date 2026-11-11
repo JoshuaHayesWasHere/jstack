@@ -133,18 +133,24 @@ On the user's own word to merge, given in this thread, `jmerge --accept <number>
 
    ```sh
    B="$H/tasks/<slug>.md"
-   awk '
-       /^## Result/ {pr = ""; paused = 0; after = 0; result = 1}
-       result && $(1) == "Status:" {paused = ($(2) ~ /^paused[,.:;]?$/)}
-       result && $(1) == "Branch:" {pr = $(NF); after = ($(0) ~ /Pull request: after the review$/)}
-       END {
-           if (pr == "") print "write the Result first: the last one has no Branch line"
-           else if (after) print "send nothing: the pull request opens after its review, which jbus launches: end your turn, and jbus tells this thread when it is written"
-           else if (pr ~ /^http/) print "send nothing: " pr " is open, and a home that merges hears of it once, when its checks have passed: go on with stay-on-the-pr.md"
-           else if (paused) print "tell the home: the task is paused and has not ended: go on with telling-the-home.md"
-           else print "tell the home: the task ends with no pull request: go on with telling-the-home.md, then no-pr-end.md"
-       }' "$B"
+   said=$(uv run --project "$T/../source" jbriefs line status,pr "$B")
+   status=$(printf '%s\n' "$said" | cut -f 1)
+   pr=$(printf '%s\n' "$said" | cut -f 2)
+   case $pr in
+   '' | missing) echo "write the Result first: the last one has no Branch line" ;;
+   'after the review') echo "send nothing: the pull request opens after its review, which jbus launches: end your turn, and jbus tells this thread when it is written" ;;
+   http*) echo "send nothing: $pr is open, and a home that merges hears of it once, when its checks have passed: go on with stay-on-the-pr.md" ;;
+   *)
+       if [ "$status" = paused ]; then
+           echo "tell the home: the task is paused and has not ended: go on with telling-the-home.md"
+       else
+           echo "tell the home: the task ends with no pull request: go on with telling-the-home.md, then no-pr-end.md"
+       fi
+       ;;
+   esac
    ```
+
+   `jbriefs line` reads the last Result's `Status:` and the pull request its `Branch:` line names as jbus reads them, an address with a note after it, `(merged)`, included.
 
    On `send nothing`, send the home nothing: the Result on disk is the record.
    On `tell the home`, send it at most five lines, as "Telling the home" says: the slug, the status, and what the Result says is left.

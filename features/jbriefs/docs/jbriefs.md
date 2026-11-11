@@ -80,6 +80,24 @@ These lines follow the role line:
 
 Every path it prints starts from the root of jstack's source tree, which is the checkout it runs from or the `share/jstack` folder of a release.
 
+## `jbriefs line`
+
+`jbriefs line <lines> <brief>...` prints what the lines a crew, a reviewer and jbus write into a brief say, one line for each brief, the values joined by tabs, and with `--paths` the brief's path after them.
+`<lines>` is one or more of these, joined by commas:
+
+| Line | Prints |
+|---|---|
+| `status` | the last Result's `Status:`, as jbus reads it: `done`, `not done`, `paused`, `blocked`, `open`, `answered`, `other` or `none`; in a scout's request, its last Report's |
+| `pr` | the pull request the last Result's `Branch:` line names: its address, a note after it such as `(merged)` left off, `after the review`, `none`, or `missing` for a Result with no `Branch:` line |
+| `reviewer` | the thread of the first `Reviewer:` line below the first Result that names one, or `none`: `Reviewer: none, <why>` is no reviewer |
+| `reviewed` | `yes` where the Results hold a `## Review` or a reviewer, else `no` |
+| `reviewing` | `yes` where a reviewer launched has written no section since its line, of its seat where it has one, else `no`: the rule jbus waits on before it moves a head |
+| `base` | the branch of the head's `Stacked on:` line, or `none` |
+| `stacked` | that line, `<slug> <branch>` or `<slug> <branch> at <commit>`, `malformed` for a line in neither shape, or `none` |
+
+Each value comes from the one reader jbriefs, jmerge and jbus call (`below.pull`, `findings.running`, `jbriefs.stacked`, `jbriefs.status`), so the skills' blocks call it in place of an awk field of their own and act on the answer jbus acts on.
+The `Checked:` line has its reader too, `jbriefs.checked`, which jmerge binds a merge to and jbus launches a review at.
+
 ## What an approval binds to
 
 The user's go applies to the brief's goal, scope and done-when: its title, `Task:`, `Done when:`, `Where:`, `Do not touch:` and `Size:`.

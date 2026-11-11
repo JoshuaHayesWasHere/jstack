@@ -6,18 +6,22 @@ It is the only check:
 
 ```sh
 B="$H/tasks/<slug>.md"
-why=$(awk '
-    /^## Result/ {done = left = paused = 0; pr = ""; result = 1}
-    result && $(1) == "Status:" {done = ($(2) == "done" || $(2) == "done."); paused = ($(2) ~ /^paused[,.:;]?$/)}
-    result && $(1) == "Left:" {left = (NF == 2 && $(2) == "none")}
-    result && $(1) == "Branch:" {pr = $(NF)}
-    END {
-        if (paused) print "the task is paused, the last Result says Status: paused"
-        else if (!done) print "the last Result does not say Status: done"
-        else if (!left) print "the last Result does not say Left: none"
-        else if (pr == "") print "the last Result has no Branch line"
-        else if (pr ~ /^http/) print "it has a pull request, and T3 Code settles this thread when that merges or closes"
-    }' "$B")
+said=$(uv run --project "$T/../source" jbriefs line status,pr "$B")
+status=$(printf '%s\n' "$said" | cut -f 1)
+pr=$(printf '%s\n' "$said" | cut -f 2)
+left=$(awk '/^## Result/ {left = 0; result = 1} result && $(1) == "Left:" {left = (NF == 2 && $(2) == "none")} END {print left + 0}' "$B")
+why=
+if [ "$status" = paused ]; then
+    why="the task is paused, the last Result says Status: paused"
+elif [ "$status" != done ]; then
+    why="the last Result does not say Status: done"
+elif [ "$left" != 1 ]; then
+    why="the last Result does not say Left: none"
+elif [ -z "$pr" ] || [ "$pr" = missing ]; then
+    why="the last Result has no Branch line"
+elif [ "${pr#http}" != "$pr" ]; then
+    why="it has a pull request, and T3 Code settles this thread when that merges or closes"
+fi
 if [ -n "$why" ]; then
     echo "stay: $why"
 elif ! dirty=$(git status --porcelain 2> /dev/null); then

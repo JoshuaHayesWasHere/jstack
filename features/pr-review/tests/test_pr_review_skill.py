@@ -1088,7 +1088,7 @@ def test_nothing_in_flight_prints_nothing(reviewer):
 )
 def test_a_brief_that_names_its_reviewer_is_found(reviewer, result, reviewer_thread):
     reviewer.brief.write_text(BRIEF + result)
-    assert reviewer.output("## Launching") == ([reviewer_thread] if reviewer_thread else [])
+    assert reviewer.output("## Launching") == [reviewer_thread or "none"]
 
 
 DONE = f"\n## Result\nStatus: done\nBranch: a-task   Pull request: {URL}\n"
