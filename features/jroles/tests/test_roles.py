@@ -571,3 +571,35 @@ def test_check_counts_no_disabled_instance_as_room(check):
 def test_check_says_so_when_it_cannot_read_the_map(check):
     code, said = check("crew: \n")
     assert code == 1 and said[0].startswith("bad line 1")
+
+
+def test_two_writers_that_interleave_on_one_file_keep_both_records(tmp_path, monkeypatch):
+    """`jgauge limits`, the status line and jbus each read an instance's file, merge their record
+    in and write the file back. Here a second writer starts while the first is between its read
+    and its rename, as TestSlot.tla's LedgerNoLostUpdate trace has it. The first writer's older
+    copy of the file must not drop the second one's cap."""
+    import threading
+    import time
+
+    base = tmp_path / "limits"
+    resets = int(time.time()) + 3600
+    used = ledger.Record("claudeAgent", "five_hour", 40, resets)
+    cap = ledger.Record("claudeAgent", "seven_day", 100, resets + 86400)
+    second = threading.Thread(target=ledger.write, args=(cap, base))
+    text = ledger._text
+
+    def read_then_let_the_second_writer_in(file):
+        found = text(file)
+        if second.ident is None:
+            second.start()
+            second.join(timeout=1)
+        return found
+
+    monkeypatch.setattr(ledger, "_text", read_then_let_the_second_writer_in)
+    ledger.write(used, base)
+    second.join(timeout=10)
+    assert not second.is_alive()
+    assert ledger.read(["claudeAgent"], base) == {
+        ("claudeAgent", "five_hour"): used,
+        ("claudeAgent", "seven_day"): cap,
+    }

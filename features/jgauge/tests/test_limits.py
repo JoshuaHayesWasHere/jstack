@@ -5,6 +5,7 @@ Every test runs the script."""
 
 import json
 import os
+import shutil
 import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -290,3 +291,31 @@ def test_a_reset_a_second_off_is_the_same_window_and_a_cap_on_it_stands(env):
     assert kept(env) == f"five_hour 100 {SOON + 1}\n"
     write(handed(five_hour=(12, LATER)), env)
     assert kept(env) == f"five_hour 12 {LATER}\n"
+
+
+def test_a_second_writer_between_the_read_and_the_rename_keeps_its_record(tmp_path, env):
+    """A second writer of the file, here another status line, starts while the script is between
+    its read and its rename, as TestSlot.tla's LedgerNoLostUpdate trace has it. The script's
+    older copy of the file must not drop the second writer's cap. The script's read stops for
+    the second writer, or for a second at most."""
+    soon, week = ahead()
+    stub = tmp_path / "stub"
+    (stub / "cat").write_text(
+        "#!/bin/sh\n"
+        f'{shutil.which("cat")} "$@"\n'
+        f'mkdir "{stub}/read" 2>/dev/null || exit 0\n'
+        f'i=0; while [ ! -e "{stub}/done" ] && [ $i -lt 10 ]; do sleep 0.1; i=$((i+1)); done\n'
+    )
+    (stub / "cat").chmod(0o755)
+
+    def second():
+        while not (stub / "read").exists():
+            time.sleep(0.01)
+        write(handed(seven_day=(100, week)), env)
+        (stub / "done").touch()
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        writers = [pool.submit(write, handed(five_hour=(40, soon)), env), pool.submit(second)]
+        for writer in writers:
+            writer.result(timeout=30)
+    assert kept(env) == f"five_hour 40 {soon}\nseven_day 100 {week}\n"
