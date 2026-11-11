@@ -104,17 +104,19 @@ def derive(half: Half) -> None:
             run.box.send(slug, ILLEGAL, f"{ILLEGAL} {slug}: {move[0]} to {move[1]}")
 
 
+REOPENED = (
+    "pull request {pull} opened after the row was {was}: it stays {was}, and jmerge holds {pull} "
+    "until you accept it (jmerge --accept) or close it"
+)
+
+
 def reopened(run: Pass, row: queue.Row, pull: str) -> None:
     """Ask the user about a pull request that opened under a row that is over (`work.over`). The
     row stays over (`queue.derive`), and jmerge holds the pull request (`jmerge.ready.ROW_OVER`)
     until the user accepts it (`jmerge --accept`) or closes it. The gate is asked once for each
     pull request."""
-    slug, was = row["slug"], row["status"]
-    what = (
-        f"pull request {pull} opened after the row was {was}: it stays {was}, and jmerge holds "
-        f"{pull} until you accept it (jmerge --accept) or close it"
-    )
-    run.gate(slug, what, key=f"over, then {pull}")
+    what = REOPENED.format(pull=pull, was=row["status"])
+    run.gate(row["slug"], what, key=f"over, then {pull}")
 
 
 def closed(run: Pass, slug: str) -> None:
