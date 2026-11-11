@@ -81,7 +81,9 @@ def test_each_carrier_of_the_ledger_has_a_variable_that_quotes_its_writer():
 def tlc(cfg: str, rules: list[str] | None = None, **constants: str) -> str:
     """TLC's output for the config `cfg` of the spec, with `constants` set over its own and,
     where `rules` is given, those invariants and TypeOK in place of its own, run in a copy of
-    the spec's folder, as the spec's README runs it."""
+    the spec's folder, as the spec's README runs it. TLC unpacks Naturals.tla and its kin into
+    java.io.tmpdir, /tmp by default, where one run can parse the copy another run is still
+    writing, so each run unpacks into that copy's folder."""
     text = (SPEC / cfg).read_text()
     for name, value in constants.items():
         text, count = re.subn(rf"(?m)^(\s*{name} = ).*$", rf"\g<1>{value}", text)
@@ -94,7 +96,8 @@ def tlc(cfg: str, rules: list[str] | None = None, **constants: str) -> str:
         work = Path(folder)
         shutil.copy(SPEC / "MergeRun.tla", work)
         (work / "run.cfg").write_text(text)
-        command = [found.java, "-XX:+UseParallelGC", "-Xmx1g", "-cp", found.jar, "tlc2.TLC"]
+        command = [found.java, "-XX:+UseParallelGC", "-Xmx1g", f"-Djava.io.tmpdir={work}"]
+        command += ["-cp", found.jar, "tlc2.TLC"]
         command += ["-workers", tools.workers(), "-metadir", str(work / "meta")]
         ran = subprocess.run(
             tools.in_test_slot([*command, "-config", "run.cfg", "MergeRun.tla"]),
