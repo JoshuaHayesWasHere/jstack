@@ -95,8 +95,8 @@ statechart runs it once for the overview and once for each bug chart.
                          the stories. Repeat it. The first file that has a sentence wins.
   --view NAME            customer (state labels, the default), developer (detail labels), or
                          layered (detail inside state).
-  --cover                Keep only the shortest path to each settled reader state, plus the
-                         counterexample paths.
+  --cover                Keep only the shortest path to each settled reader state, the
+                         counterexample paths, and one step out of each drawn state that has one.
   --highlight N          Draw bug N as a numbered path. Default 1. 0 draws none.
   --path-only            Draw only the highlighted path.
   --full-labels          Write each label on an edge in full, joined by " or ", and mark the chart
@@ -105,8 +105,9 @@ statechart runs it once for the overview and once for each bug chart.
   --flat                 Draw every state on its own, with no boxes.
   --regions              When every state reads "context: progress", draw two parallel regions,
                          context and progress, when they are smaller and proved. They draw the
-                         steps of the shortest way to each region state, of each bug path, and
-                         the nearest step with each label.
+                         steps of the shortest way to each region state, of each bug path, of
+                         the nearest step with each label, and one step out of each region state
+                         that has one.
                          Otherwise draw the chart the other flags ask for, and print why.
                          Customer view, --highlight 0, no --flat or --path-only.
   --proof FILE           With --regions, write the flat chart that the proof compares with.
@@ -216,6 +217,38 @@ def locale_key(s):
         primary.append((rank, c.lower()))
         tertiary.append(0 if c == c.lower() else 1)
     return (primary, tertiary)
+
+
+def distances_to(ends, ways):
+    """How many steps each state is from the nearest of `ends`, over `ways`, which maps a state to
+    the states it steps to. A state that reaches none of them is left out."""
+    into = {}
+    for source, targets in ways.items():
+        for target in targets:
+            into.setdefault(target, set()).add(source)
+    far = dict.fromkeys(ends, 0)
+    queue = list(ends)
+    for k in queue:
+        for source in into.get(k, ()):
+            if source not in far:
+                far[source] = far[k] + 1
+                queue.append(source)
+    return far
+
+
+def exit_of(out, near, drawn):
+    """The one step of `out` to draw where none is: one the model takes over one only the other
+    model takes, then one to a state already drawn, then the nearest to an end, then by label."""
+    return min(
+        out,
+        key=lambda e: (
+            bool(e.get("secondOnly")),
+            e["to"] not in drawn,
+            near.get(e["to"], math.inf),
+            locale_key(" or ".join(e["labels"])),
+            locale_key(e["to"]),
+        ),
+    )
 
 
 def parse_args(argv):
@@ -1024,6 +1057,28 @@ def chart(args):
                 continue
             source, target = eid.split(f"{SEP}{SEP}", 1)
             edges[eid] = {"from": source, "to": target, "labels": path_labels.get(eid, {})}
+
+        # A drawn state with a way out keeps one drawn, so only a final state reads as an end.
+        out = {}
+        for eid, e in edges.items():
+            if e["from"] != e["to"]:
+                out.setdefault(e["from"], []).append({**e, "id": eid})
+        ways = {k: {e["to"] for e in out.get(k, [])} for k in {**all_nodes, **out}}
+        near = distances_to([k for k, ts in ways.items() if not ts], ways)
+        drawn = dict.fromkeys(initial)
+        for eid in cover_edges:
+            drawn.update(dict.fromkeys((edges[eid]["from"], edges[eid]["to"])))
+        leaving = {edges[eid]["from"] for eid in cover_edges}
+        queue = list(drawn)
+        for k in queue:
+            if k in leaving or not out.get(k):
+                continue
+            e = exit_of(out[k], near, drawn)
+            cover_edges[e["id"]] = None
+            leaving.add(k)
+            if e["to"] not in drawn:
+                drawn[e["to"]] = None
+                queue.append(e["to"])
         return edges, path_numbers, cover_edges
 
     edges, path_numbers, cover_edges = chart_edges()
@@ -1462,6 +1517,44 @@ def chart(args):
             for s in path:
                 want(s)
 
+        # A region state with a way out keeps one drawn, so only a final state reads as an end.
+        final, near = [], []
+        for i in (0, 1):
+            ways = {r: set() for r in beside[i]}
+            for m in moves[i].values():
+                if m["from"] != m["to"]:
+                    ways[m["from"]].add(m["to"])
+            final.append({r for r, ts in ways.items() if not ts})
+            near.append(distances_to(final[i], ways))
+
+        def exits_missing():
+            """One whole flat step out of each region state the drawing leaves no way out of: one
+            that moves that region alone first, then one whose label leaves that state by one
+            move, then the nearest to a final state."""
+            for i in (0, 1):
+                for r in sorted(beside[i], key=locale_key):
+                    if r in final[i] or any(
+                        mid in keep[i] and m["from"] == r and m["to"] != r
+                        for mid, m in moves[i].items()
+                    ):
+                        continue
+
+                    def rank(s, i=i, r=r):
+                        alike = sum(
+                            1
+                            for m in moves[i].values()
+                            if m["from"] == r and m["label"] == s["label"]
+                        )
+                        return (
+                            s["from"][1 - i] != s["to"][1 - i],
+                            alike,
+                            near[i].get(s["to"][i], math.inf),
+                            locale_key(s["label"]),
+                            locale_key(bar(s["from"])),
+                        )
+
+                    yield min((s for s in steps if s["from"][i] == r and s["to"][i] != r), key=rank)
+
         def takes(x, label):
             return [
                 (i, mid)
@@ -1470,29 +1563,40 @@ def chart(args):
                 if m["from"] == x[i] and m["label"] == label and x[1 - i] in m["beside"]
             ]
 
-        while True:
-            scoped = draw(keep)
-            made = product_of(parse_mermaid(scoped["mermaid"])["regions"])
-            made_keys = {key(t["from"], t["label"], t["to"]) for t in made["transitions"]}
-            redo = [
-                *(
-                    (parts[t["from"]], t["label"])
-                    for t in made["transitions"]
-                    if t["from"] in parts and key(t["from"], t["label"], t["to"]) not in real
-                ),
-                *(
-                    (s["from"], s["label"])
-                    for s in wanted
-                    if bar(s["from"]) in made["states"]
-                    and key(bar(s["from"]), s["label"], bar(s["to"])) not in made_keys
-                ),
-            ]
-            before = len(keep[0]) + len(keep[1])
-            for x, label in redo:
-                for i, mid in takes(x, label):
-                    keep[i].add(mid)
-            if len(keep[0]) + len(keep[1]) == before:
-                break
+        def settle():
+            """The drawing of `keep`, with every move added back that its arrows need to make
+            only real steps and each wanted step, and the product its regions make."""
+            while True:
+                scoped = draw(keep)
+                made = product_of(parse_mermaid(scoped["mermaid"])["regions"])
+                made_keys = {key(t["from"], t["label"], t["to"]) for t in made["transitions"]}
+                redo = [
+                    *(
+                        (parts[t["from"]], t["label"])
+                        for t in made["transitions"]
+                        if t["from"] in parts and key(t["from"], t["label"], t["to"]) not in real
+                    ),
+                    *(
+                        (s["from"], s["label"])
+                        for s in wanted
+                        if bar(s["from"]) in made["states"]
+                        and key(bar(s["from"]), s["label"], bar(s["to"])) not in made_keys
+                    ),
+                ]
+                before = len(keep[0]) + len(keep[1])
+                for x, label in redo:
+                    for i, mid in takes(x, label):
+                        keep[i].add(mid)
+                if len(keep[0]) + len(keep[1]) == before:
+                    return scoped, made
+
+        scoped, made = settle()
+        missing = list(exits_missing())
+        while missing:
+            for s in missing:
+                want(s)
+            scoped, made = settle()
+            missing = list(exits_missing())
         sound = all(s in parts for s in made["states"]) and all(
             key(t["from"], t["label"], t["to"]) in real for t in made["transitions"]
         )
@@ -1505,6 +1609,7 @@ def chart(args):
             "transitions": scoped["count"],
             "all": every_arrow["count"],
             "flat": {"states": len(nodes), "transitions": len(steps)},
+            "final": sorted({r for f in final for r in f}, key=locale_key),
             "status": {
                 s: sum(sum(1 for x in m.values() if x == s) for m in region_status) for s in rank
             },
@@ -1806,6 +1911,24 @@ def chart(args):
         regions["states"][0] + regions["states"][1] if drew_regions else len(flat_states)
     )
     summary["chartTransitions"] = regions["transitions"] if drew_regions else len(transitions)
+    # Every arrow the chart could draw, and the states it draws that have no way out.
+    summary["allTransitions"] = (
+        regions["all"]
+        if drew_regions
+        else len({(e["from"], e["to"]) for e in edges.values() if e["from"] != e["to"]})
+    )
+    summary["final"] = (
+        regions["final"]
+        if drew_regions
+        else sorted(
+            (
+                show(k)
+                for k in flat_states
+                if not any(e["from"] == k and e["to"] != k for e in edges.values())
+            ),
+            key=locale_key,
+        )
+    )
     summary["chartStatus"] = (
         regions["status"]
         if drew_regions

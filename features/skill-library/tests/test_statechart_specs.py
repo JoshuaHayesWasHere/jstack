@@ -1006,6 +1006,16 @@ def test_from_spec_draws_parallel_regions_only_when_they_combine_back_into_tlcs_
     again = node("compare-charts", ["tlc/regions-all.mmd", "tlc/regions-proof.mmd"], proved["out"])
     assert again.stdout == "same\n", again.stderr
 
+    def leaving(mmd):
+        return {
+            (name, t["from"])
+            for name, region in parse_mermaid(mmd)["regions"].items()
+            for t in region["transitions"]
+            if t["from"] != t["to"]
+        }
+
+    assert leaving(proved["chart"]) == leaving(proved["every"])
+
     boxed = run("NoShownWhileClosed")
     assert boxed["every"] is None
     assert re.search(
