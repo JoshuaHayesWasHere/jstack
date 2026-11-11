@@ -8,7 +8,9 @@ read, in the words of the row statuses. No model types the status, and nothing h
 it down.
 
 An entry with no row has only what the home wrote of it: its `Stage:` line, which says where
-the planning is (`proposed`, `planned`, `parked` or `scouting`). A plan from before has
+the planning is, a `Stage`: `proposed`, `planned`, `parked` or `scouting`, read from the line's
+first word, and the rest of the line is a note. A first word outside the four is no stage:
+`jbus plan` flags it, and the entry is never briefed (`buildable`). A plan from before has
 `Status:` lines, which someone typed. jbus ignores such a line where the entry has rows,
 and shows it as typed where the entry has none.
 
@@ -39,6 +41,7 @@ its home is woken to brief it and queue its first row.
 from __future__ import annotations
 
 import argparse
+import enum
 import hashlib
 import os
 import re
@@ -56,19 +59,54 @@ from jbus import Config, Refused, locked, queue, read_json, t3, verbs, write_jso
 LINE, STATUS = 56, 60
 _ENTRY = re.compile(r"## (?P<slug>[A-Za-z0-9][A-Za-z0-9._-]*): (?P<line>.+)")
 _SCOPE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+_WORD = re.compile(r"[^\s,;:(]*")
+
+
+class Stage(enum.Enum):
+    """Where the planning of an entry with no row is. `buildable` says whether the entry is
+    briefed once its `Builds on:` has merged: a parked entry waits for the user, and a scouting
+    one for its scout."""
+
+    PROPOSED = "proposed"
+    PLANNED = "planned"
+    PARKED = "parked"
+    SCOUTING = "scouting"
+
+    @property
+    def buildable(self) -> bool:
+        return self in (Stage.PROPOSED, Stage.PLANNED)
 
 
 @dataclass(frozen=True)
 class Entry:
-    """An `Entry` is one `## <slug>: <one line>` section of a plan. `stage` is what its
-    `Stage:` line says, and `typed` is the whole `Status:` line of a plan from before. Either
-    may be empty. `builds_on` is each row or entry its `Builds on:` line names."""
+    """An `Entry` is one `## <slug>: <one line>` section of a plan. `said` is what its
+    `Stage:` line says, `stage` is the `Stage` its first word names, and `unknown` is that word
+    where it names none. An entry with no `Stage:` line has neither. `typed` is the whole
+    `Status:` line of a plan from before. `said` and `typed` may be empty. `builds_on` is each
+    row or entry its `Builds on:` line names."""
 
     slug: str
     line: str
-    stage: str
-    typed: str
+    said: str = ""
+    typed: str = ""
     builds_on: frozenset[str] = frozenset()
+    stage: Stage | None = None
+    unknown: str = ""
+
+    @property
+    def buildable(self) -> bool:
+        """Whether the entry's stage lets it be briefed. An entry with no `Stage:` line is, as
+        a plan from before has none, and one whose stage is unknown is not."""
+        return self.stage.buildable if self.stage else not self.unknown
+
+
+def staged(said: str) -> tuple[Stage | None, str]:
+    """Read a `Stage:` line's text: the `Stage` its first word names, or None and that word,
+    or the whole text where it starts with no word."""
+    word = _WORD.match(said)
+    first = word[0] if word else ""
+    known = next((one for one in Stage if one.value == first), None)
+    return known, "" if known else first or said
 
 
 def entries(text: str) -> list[Entry]:
@@ -84,12 +122,14 @@ def entries(text: str) -> list[Entry]:
             heading = _ENTRY.fullmatch(line.rstrip())
             inside = heading is not None
             if heading:
-                found.append(Entry(heading["slug"], heading["line"].strip(), "", ""))
+                found.append(Entry(heading["slug"], heading["line"].strip()))
                 bodies.append([])
         elif inside:
             bodies[-1].append(line)
-            if line.startswith("Stage:") and not found[-1].stage:
-                found[-1] = replace(found[-1], stage=line.removeprefix("Stage:").strip())
+            if line.startswith("Stage:") and not found[-1].said:
+                said = line.removeprefix("Stage:").strip()
+                stage, unknown = staged(said)
+                found[-1] = replace(found[-1], said=said, stage=stage, unknown=unknown)
             elif line.startswith("Status:") and not found[-1].typed:
                 found[-1] = replace(found[-1], typed=line.strip())
     return [
@@ -160,8 +200,8 @@ def status(entry: Entry, rows: list[queue.Row]) -> str:
     rows, it returns the entry's stage, or its typed line, or `no stage`.
     """
     if not rows:
-        if entry.stage:
-            return entry.stage
+        if entry.said:
+            return entry.said
         return f"(typed) {entry.typed}" if entry.typed else "no stage"
     counted = progress(rows)
     if counted.over == counted.total:
@@ -332,17 +372,23 @@ def _cut(text: str, cap: int) -> str:
 
 
 def shown(text: str, rows: list[queue.Row], given: list[Go] | None = None) -> str:
-    """Return one line for each entry of the plan: its slug, its one line and its status, and
-    the entry's go where `given` has one. It cuts each part short so that a plan of seventeen
-    entries fits on one screen."""
-    said = []
+    """Return a line for each entry whose stage is unknown, first, so the home's start, which
+    cuts the listing at 12 lines, never cuts one. Then one line for each entry of the plan: its
+    slug, its one line and its status, and the entry's go where `given` has one. It cuts each part
+    short so that a plan of seventeen entries fits on one screen."""
+    said, flags = [], []
     kept = {one.entry: one for one in given or []}
     for one in entries(text):
         counted = status(one, rows_of(one.slug, rows))
         go = _gone(kept.get(one.slug), text)
         go = f" | {go}" if go else ""
         said.append(f"{one.slug} | {_cut(one.line, LINE)} | {_cut(counted, STATUS)}{go}\n")
-    return "".join(said)
+        if one.unknown:
+            flags.append(
+                f"{one.slug}: Stage {one.unknown} is no stage "
+                f"({', '.join(stage.value for stage in Stage)}), so it is never briefed\n"
+            )
+    return "".join(flags + said)
 
 
 def path(home: Path, scope: str | None) -> Path:
@@ -548,9 +594,9 @@ def merged(slug: str, rows: list[queue.Row]) -> bool:
 def buildable(home: Path, rows: list[queue.Row]) -> list[Buildable]:
     """Return each entry of the root home's plan and of each scope's that is ready to brief: it
     has a `Builds on:` line whose rows or entries have all merged, no row of its own (a scout's
-    included), and a stage other than `parked` or `scouting` (a scout is out for it). Each is an
-    item of the one list that wakes the entry's home (`jbus.wakes`), and it leaves the list on the
-    entry's first row."""
+    included), and a stage that is `buildable`: not parked, scouting (a scout is out for it) or
+    unknown. Each is an item of the one list that wakes the entry's home (`jbus.wakes`), and it
+    leaves the list on the entry's first row."""
     found = []
     for directory in [home, *(scope for scope, _, _ in homes.scopes(home))]:
         try:
@@ -560,7 +606,7 @@ def buildable(home: Path, rows: list[queue.Row]) -> list[Buildable]:
         for one in entries(text):
             if (
                 one.builds_on
-                and one.stage not in ("parked", "scouting")
+                and one.buildable
                 and not rows_of(one.slug, rows)
                 and all(merged(other, rows) for other in one.builds_on)
             ):
