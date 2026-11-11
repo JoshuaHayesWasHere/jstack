@@ -1,7 +1,7 @@
-"""A rebase that changed the content is said while its required check can still pass, so jbus
-launches the scoped review beside the check and not after it. A failed check and a conflict
-are still said first, and the pull request merges only once both the check passed and the
-scoped review is in, whichever comes first.
+"""A rebase that changed the content, by code pushed on it, is said while its required check
+can still pass, so jbus launches the scoped review beside the check and not after it. A failed
+check and a conflict are still said first, and the pull request merges only once both the check
+passed and the scoped review is in, whichever comes first.
 
 The tests rebase a reviewed branch over a main that moved (`test_jmerge_rangediff.Rebased`)
 and run `jmerge` as `features/jmerge/tests/test_jmerge_run.py` runs it."""
@@ -26,8 +26,9 @@ STILL_TO_PASS = {
 
 
 def changed(proven_merged, checks, mergeable="MERGEABLE"):
-    """A rebase that changed the content after its review, at a head GitHub lists `checks` of."""
-    rebased = Rebased(proven_merged, {11: "theirs 11"}, BOTH)
+    """A rebase with code pushed on it that no review saw, at a head GitHub lists `checks` of. A
+    rebase alone keeps its review, so this is the head that waits on a scoped review."""
+    rebased = Rebased(proven_merged, {11: "theirs 11"}, BOTH).push_code()
     reopen(proven_merged, rebased, checks, mergeable)
     return rebased
 

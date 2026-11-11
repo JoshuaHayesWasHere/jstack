@@ -84,6 +84,7 @@ def test_the_full_run_of_the_check_command_holds_a_test_slot_and_ends_with_its_e
     assert sorted(path.name for path in locks.iterdir()) == [
         "test-slot-holders.json",
         "test-slot-holders.lock",
+        "test-slot-waiters.lock",
         "test-slot.1.lock",
     ]
 

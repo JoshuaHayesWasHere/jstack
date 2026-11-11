@@ -214,11 +214,11 @@ A launched thread holds off the next launch only while its start may still write
 
 A home that stalls is launched again too: a home quiet with work out is nudged twice, a patience apart, and a patience after the second nudge jbus launches `/home <scope>` on a fresh thread ([What waits on you](what-waits-on-you.md#a-home-that-stalls)).
 
-`~/.local/state/jbus/<project>/relaunches.json` keeps the last launch of each home: its thread, when, and why.
+`~/.local/state/jbus/<project>/relaunches.json` keeps the last launch of each home: its thread, when, and why, and the `stage` of its start: `intent` before T3 Code names its thread, `launched` once it does, `started` once the home's `home-id` names that thread, and `failed` when its run ended with no `home-id` and no launch has followed.
 jbus holds a home's next launch for `PATIENCE` (60 minutes), the time its start has to write its `home-id`, only while that start may still write it: its thread is at work, T3 Code does not list it yet, or the reply that names it was lost.
 A start whose run ended is over at once, and the next pass launches the home again.
 jbus reads what the run failed on: `not signed in` for a login lapse, a usage limit, which it writes to the ledger so the next launch goes to another instance or waits for the reset, or else the run's end.
 A second start in a row that fails on the cause the first failed on waits for that cause to clear (the instance it ran on signed in again, the limit's reset, or `PATIENCE` for any other cause) and says so once, a quiet `home-start` event in the digest.
-The home's entry keeps the failure and `says`, why a home has no `home-id` yet, such as `start failed: not signed in`.
+The home's entry keeps the failure and `says`, why a home has no `home-id` yet, such as `start failed: not signed in`, through the next launch, and drops both once the home starts, a scoped home as the catch-all.
 The T3 Code fork's sidebar shows such a home's `says` in place of `starting...`.
 No home launches while the dispatch is off or stopped.

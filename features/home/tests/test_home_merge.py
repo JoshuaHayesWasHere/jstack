@@ -1310,11 +1310,13 @@ def test_a_rebase_that_left_the_patch_as_it_was_carries_the_review_over(merged):
     assert rebased.says(None).startswith("merged 7 alpha ")
 
 
-def test_a_rebase_that_changed_the_content_waits_for_a_scoped_review(merged):
+def test_a_rebase_that_changed_the_content_keeps_its_review(merged):
+    """Its checks verify a rebase, so the review of the head before it stands."""
     rebased = Rebased(merged, "a.txt")
-    assert rebased.says(None, "--check") == scoped(merged, rebased)
-    assert rebased.says(None) == scoped(merged, rebased)
-    assert merged.tree.exists() and (merged.home.main / "a.txt").read_text() == "theirs\n"
+    said = rebased.says(None, "--check")
+    assert said.startswith(f"ready 7 {rebased.head} alpha alpha, review kept: "), said
+    assert said.endswith(", which its checks verify, every line kept"), said
+    assert rebased.says(None).startswith("merged 7 alpha ")
 
 
 def test_a_review_of_the_rebased_head_saw_what_the_rebase_changed(merged):

@@ -124,7 +124,7 @@ def test_ranges_git_cannot_compare_stop_the_pass(tmp_path):
 
 
 def test_a_scoped_review_at_the_rebased_head_makes_the_pull_request_ready(proven_merged, rules):
-    rebased = rebases.Rebased(proven_merged, {11: "theirs 11"}, rebases.BOTH)
+    rebased = rebases.Rebased(proven_merged, {11: "theirs 11"}, rebases.BOTH).push_code()
     (waits,) = jrun.jmerge(proven_merged, rules, "--check")
     assert waits == rebased.waits()
     _, slug, old, new = asked(7, waits.split("scoped review of ")[1]).groups()
