@@ -26,11 +26,12 @@ LEAF = re.compile(r'^\s*state "([^"]*)" as (\w+)\s*$', re.M)
 
 
 def declared_states(chart):
-    """Each state the chart declares, as `id: caption`, its legend left out."""
+    """Each state the chart declares, as `id: caption`, its legend left out: its groups and the
+    entry for a state that breaks a rule (`legendWrong`)."""
     return {
         state_id: re.sub(r"\s+", " ", re.sub(r"<br\s*/?>", " ", caption)).strip()
         for caption, state_id in LEAF.findall(read(chart))
-        if not state_id.startswith("legendGroup")
+        if not state_id.startswith("legend")
     }
 
 
