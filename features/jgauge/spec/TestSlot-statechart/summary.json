@@ -87,7 +87,7 @@
     "command": "statechart from-spec TestSlot.tla --config TestSlot.chart.cfg --title 'Who holds a test slot, who waits on one, and what the ledger keeps?' --expect-broken LedgerNoLostUpdate,WokenGetsSlot,EndNotLost,OneCommandPerSlot --png",
     "inputs": {
       "TestSlot.chart.cfg": "0a99103c10aa617011860e3bba2117363fa561bd2b36bea2a9c9c93adf0e2a42",
-      "TestSlot.map.py": "3ed93466f35b0f839d7c15304d43e114c1b4628e27e240929596af11a21b5c07",
+      "TestSlot.map.py": "ec66d90505b6117e6d3844379edadb3a46aa56013ae698c1aac440b3befa66f7",
       "TestSlot.tla": "b27e2fbe7a28b4a1c37421ccaf03ec08896966ec076645009a1702cd824e50e5"
     },
     "chart": "b2030e873fcb9f0e14d0a7d8dbba0d37cf81d2c31b5769e1d84a6c6417a057c9"

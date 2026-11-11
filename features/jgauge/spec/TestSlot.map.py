@@ -14,9 +14,9 @@
 #   are held only from one step of a process to its next. A label leaves them out: each is in the
 #   step that takes it ("waits for the waiters' lock").
 # - Where a process is inside its call (its pc) and where jbus's pass is (bus, jpc): only what
-#   they wrote shows, and a wake jbus sends for a slot it counted, and a ledger writer's copy
-#   it read and has not written yet, which the bugs turn on. A run that has taken its slot and not yet started its command shows as
-#   holding the slot.
+#   they wrote shows, and a wake jbus sends for a slot it counted, and a ledger writer's copy it
+#   read and has not written yet, which the bugs turn on. A run that has taken its slot and not
+#   yet started its command shows as holding the slot.
 # - slots.jsonl: a take with no release is shown only where it outlives the run (a crash between
 #   the take and the release), as "the log has a take with no release".
 # - The id of the crew's wait (waitId) and jbus's copies of what it read (wsnap, hsnap, psnap,
@@ -39,7 +39,12 @@ ROOMS = {
     "ledger": "Usage ledger",
     "pool": "Review pool",
 }
-WHO = {"crew": "a crew's run", "desk": "a desk's run", "short": "a crew's run", "quick": "a call with no thread"}
+WHO = {
+    "crew": "a crew's run",
+    "desk": "a desk's run",
+    "short": "a crew's run",
+    "quick": "a call with no thread",
+}
 WOKEN = {
     "none": "the crew waits, not woken",
     "holds": "the crew is woken, its claim holds",
@@ -113,9 +118,11 @@ def _names(writers):
 
 def _ledger(v):
     parts = [f"the ledger keeps the records of {_names(v['ledger'])}"]
-    reading = [w for w in sorted(v["lpc"]) if v["lpc"][w] == "read"]
-    for w in reading:
-        parts.append(f"{WRITER[w]} merges into the copy it read, of {_names(v['local'][w])}")
+    parts += [
+        f"{WRITER[w]} merges into the copy it read, of {_names(v['local'][w])}"
+        for w in sorted(v["lpc"])
+        if v["lpc"][w] == "read"
+    ]
     lost = sorted(set(v["wrote"]) - set(v["ledger"]))
     if lost:
         parts.append(f"{_names(lost)} wrote and its record is gone")
@@ -250,4 +257,3 @@ CAUSE = {
 
 def cause(v, facts, invariant):
     return CAUSE.get(invariant)
-
