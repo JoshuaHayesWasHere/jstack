@@ -2,7 +2,7 @@
 comment lines, the job's time bound in check.yml, the step files, the browser fixture's skip, a
 marker the config does not list, and the finder of a browser test with no marker, on files of
 their own. With them are the cases that collect the whole tree: the same id a second later, the
-browser tests' folder, and the marker on every module that opens a browser. Collection is the
+browser tests' places, and the marker on every module that opens a browser. Collection is the
 same on a Mac as on Linux, so they are not on `testing/macos-quick.txt` either: Linux runs them
 and the Mac does not. The cases that run the Makefile or a pytest's processes, as a desk on a Mac
 does, are `test_check_command.py`, which the Mac runs."""
@@ -26,6 +26,7 @@ from testing.paths import REPO
 __all__ = ["step_files"]
 
 PAGE = REPO / "features" / "jbus" / "tests" / "view" / "page"
+SITE = REPO / "features" / "skill-library" / "tests" / "test_statechart_site.py"
 
 
 def collected(*more):
@@ -49,14 +50,16 @@ def test_every_test_has_the_same_id_a_second_later():
     assert collected() == first and first
 
 
-def test_the_browser_tests_are_the_whole_of_one_folder_and_the_other_run_leaves_them_out():
+def test_the_browser_tests_are_two_known_places_and_the_other_run_leaves_them_out():
+    """The browser tests are those of `jbus view`'s page, in their folder, and the test that
+    opens the statechart site's page at a desk's and a phone's width."""
     with ThreadPoolExecutor() as pool:
         runs = pool.map(lambda more: collected(*more), [[], ["-m", "browser"], LEAVES_OUT])
         everything, marked, others = runs
     assert marked and others
     assert sorted(marked + others) == sorted(everything)
     assert {test.split("::")[0] for test in marked} == {
-        path.relative_to(REPO).as_posix() for path in PAGE.glob("test_*.py")
+        path.relative_to(REPO).as_posix() for path in [*PAGE.glob("test_*.py"), SITE]
     }
 
 
