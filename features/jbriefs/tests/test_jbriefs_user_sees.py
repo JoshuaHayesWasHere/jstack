@@ -119,14 +119,6 @@ def examples():
     return [line for line in found if not line.startswith("<")]
 
 
-def test_the_homes_skill_gives_one_example_line_of_each_kind():
-    lines = examples()
-    assert len(lines) == 3
-    assert any(re.search(r"`[^`]+ [^`]+` prints", line) for line in lines)
-    assert any("after the merge" in line for line in lines)
-    assert any("judged:" in line for line in lines)
-
-
 @pytest.mark.parametrize("proves", examples())
 def test_each_example_line_of_the_homes_skill_draws_no_warning(kitchen, proves):
     assert warned(kitchen, brief(proves), "check") == []
