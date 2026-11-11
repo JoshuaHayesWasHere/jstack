@@ -1,4 +1,5 @@
-"""The batch: the pull requests main moved past, proven together by CI's check of one tree.
+"""The batch: the pull requests main moved past, proven together on one tree, by one guards run
+for two to four of them, and by CI's check for five or more.
 
 Where the state has a `merge-batch` file (`SWITCH`), a pull request into the default branch that
 is ready by every rule but "main moved" and the guards on its merged tree is a member
@@ -8,8 +9,11 @@ keeps the tip, the tree, the commit and the members in `KEPT`. CI's check of tha
 runs on GitHub's merge of its head over main, whose tree is the batch's, since the head holds the
 tip, and leaves the artifact of the two trees (`green.checked`). On it, with the tip unmoved,
 `jmerge` squash-merges each member at its own head, in order, with no guards run
-(`cli.Repo.merge_batch`). A batch holds `LEAST` members at least: fewer judged in a run each go
-the single path of today in that run, which costs less than a batch's check. A batch that went
+(`cli.Repo.merge_batch`). CI's batch holds `LEAST` members at least. `GUARDS_LEAST` to
+`GUARDS_MOST` judged in a run are a guards batch (`GUARDS`): the same tree, built over the tip
+with the merge lock held, proven by one run of the guards in that run, and pushed nowhere; on a
+pass each member merges at its head, and on anything else each goes the single path in that run,
+its head under `failed`. One member alone goes the single path. A batch that went
 `PENDING_MINUTES` with no artifact found is built again whole over today's tip, once (`again`):
 a timeout is no evidence against a member. One whose check failed has the failed jobs of its
 workflow run started again, once (`Rerun`), for a flake or a runner fault is no evidence against
@@ -39,11 +43,25 @@ SWITCH = "merge-batch"
 START = 12
 """The most members a batch takes where `KEPT` keeps none: the scout's first cap, above which a
 failed batch costs too many members a round of their own (scouts/po-batched-merge-scout.md)."""
-LEAST = 3
-"""The fewest members a batch holds: fewer judged in a run each take the single path of that run.
-A batch's passed check took 209 s at the median, the guards on one merged tree about 98 s, so a
-batch pays from three members (the scout po-merge-slower). It is also the least `Record.most`
-halves to, so where the most is three, one member left out for a conflict leaves no batch."""
+LEAST = 5
+"""The fewest members CI's batch holds. A run that judges fewer shares one guards run among
+`GUARDS_LEAST` to `GUARDS_MOST` of them (`GUARDS`), or sends its one member down the single path.
+CI's check of a batch took 213 s at the median where the guards took 86 s, and it makes every
+other pull request wait while it runs (`batch-first`), so CI's batch is for the load the guards
+cannot carry: in a replay of the 161 merges of 2026-11-09 at four times their rate, CI's batch
+held the path's median at 6.01 min where a guards batch of every ready member gave 3.02 to 16.61
+by how a guards run grows with its members (the scout po-batch-why). It is also the least
+`Record.most` halves to, and a most kept under it is read as it."""
+GUARDS_LEAST = 2
+"""The fewest members a guards batch holds: one is the single path itself."""
+GUARDS_MOST = 4
+"""The most members a guards batch holds: where a guards run grows by half its time a member, a
+run of four already costs 2.5 runs, and more go to CI's batch (the scout po-batch-why)."""
+CI = "ci"
+"""The kind of batch CI's check proves: `LEAST` members or more, pushed to `BRANCH`."""
+GUARDS = "guards"
+"""The kind of batch one guards run proves in the run that judged it: `GUARDS_LEAST` to
+`GUARDS_MOST` members, built as CI's is and pushed nowhere (`cli.Repo.guards_batch`)."""
 MOST = 48
 """The most of `Record.most`, which doubles after a batch of that many proves and halves after one
 fails: at a failure share of 2.8% a member, 74% of batches of 48 fail (the scout
@@ -62,6 +80,12 @@ keeps. It is about no pull request, so jbus reads nothing of it."""
 UNMADE = "batch: not made over {base} at {tip} ({why}), so its members go alone"
 """The line of a batch that could not be built, pushed or opened: each member goes the single
 path of today in the same run. It is about no pull request, so jbus reads nothing of it."""
+GUARDED = "batch: guards on {size} members over {base} at {tip}, {outcome} in {seconds} s"
+"""The line of a guards batch, which merge.log keeps: its members, the tip, what the guards did
+(`treeguards.Tried`), and the whole seconds they took in their slot. It is about no pull request,
+so jbus reads nothing of it."""
+GUARDS_PASSED = "the guards passed on its batch of {size} over {base} at {tip} in {seconds} s"
+"""The note of each merge of a guards batch that passed, which names the batch's line."""
 PASSED = "CI's check passed jmerge's batch over {base} at {tip} in {run}, so no guards ran"
 TITLE = "jmerge: batch over {base}"
 BODY = (
@@ -357,6 +381,24 @@ Judged = tuple[ready.PullRequest, str, str, ready.Judged]
 """A member as this run judged it: the pull request, its slug, its note and its judgement."""
 
 
+def kind_of(size: int) -> str:
+    """The kind of batch `size` members take: CI's from `LEAST`, a guards batch from
+    `GUARDS_LEAST`, and none under it."""
+    if size >= LEAST:
+        return CI
+    return GUARDS if size >= GUARDS_LEAST else ""
+
+
+@dataclass(frozen=True)
+class Chosen:
+    """What a run does with the members it judged (`Batching.chosen`): the kind of batch (`CI`,
+    `GUARDS`, or none), the members it takes, and those that go the single path first."""
+
+    kind: str
+    taken: list[Judged]
+    alone: list[Judged]
+
+
 @dataclass
 class Batching:
     """One run's batching: the record, where the batch it holds stands (`state_of`), the run that
@@ -378,25 +420,26 @@ class Batching:
         failed = self.record.failed.get(str(one.number)) == one.head
         return not revert and bool(default) and one.base == default and not failed
 
-    def chosen(self, members: list[Judged]) -> tuple[list[Judged], list[Judged]]:
-        """The members the next batch takes, of those this run judged, and those that go alone,
-        each in merge order. A suspect not among `members` is one no more. The first half of the
-        suspects (`narrow`) is the batch where it holds `LEAST` or more, and the rest wait for
-        it; a smaller half sends every suspect alone (`Record.alone`), and the other members are
-        judged as where no suspect is left: a batch of all of them where they are `LEAST` or
-        more, and each alone otherwise."""
+    def chosen(self, members: list[Judged]) -> Chosen:
+        """The kind of the next batch, the members it takes, of those this run judged, and those
+        that go alone, each in merge order. A suspect not among `members` is one no more. The
+        first half of the suspects (`narrow`) is CI's batch where it holds `LEAST` or more, and
+        the rest wait for it; a smaller half sends every suspect alone (`Record.alone`), and the
+        other members are judged as where no suspect is left (`kind_of`): CI's batch of all of
+        them, a guards batch, or each alone."""
         judged = {Member(found[0].number, found[0].head): found for found in members}
         record = self.record
         record.suspects = tuple(one for one in record.suspects if one in judged)
         half = narrow(record.suspects)
         if len(half) >= LEAST:
-            return [judged[one] for one in half], []
+            return Chosen(CI, [judged[one] for one in half], [])
         suspects = record.suspects
         record.alone(suspects)
         rest = [found for one, found in judged.items() if one not in suspects]
-        if len(rest) < LEAST:
-            return [], members
-        return rest, [found for one, found in judged.items() if one in suspects]
+        kind = kind_of(len(rest))
+        if not kind:
+            return Chosen("", [], members)
+        return Chosen(kind, rest, [found for one, found in judged.items() if one in suspects])
 
     @property
     def first(self) -> bool:

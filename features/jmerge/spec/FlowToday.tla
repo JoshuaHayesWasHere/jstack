@@ -303,11 +303,12 @@ GiveUpLine ==
 \* from the members left, when one of the batch out is no longer a member at its head, as a held
 \* row or a new head makes it. Each member waits on the batch's check, and each pull request that
 \* would merge alone waits for it too (Alone). The most a batch takes (#1613) is 12 or more, and
-\* the model has two. Since #1642 a batch holds three at least (features/jmerge/src/jmerge/batch.py `LEAST = 3`):
-\* fewer judged in a run each merge alone, a failed batch narrows in halves only while a half holds
-\* three, and a smaller half sends each suspect alone when the next batch is chosen, not when the
-\* proven half merges. The model's batch of two stands for one of three or more, and its one
-\* suspect left, which BatchPasses sends alone, for a half under three.
+\* the model has two. CI's batch holds five at least (features/jmerge/src/jmerge/batch.py `LEAST = 5`):
+\* a failed batch narrows in halves only while a half holds five, and a smaller half sends each
+\* suspect alone when the next batch is chosen, not when the proven half merges. The model's batch
+\* of two stands for one of five or more, and its one suspect left, which BatchPasses sends alone,
+\* for a half under five. Two to four members judged in a run take one guards run on their tree and
+\* merge in that run, with no batch out, as the single path does; the model does not split them out.
 Narrow(s) == IF s = PRs THEN {"a"} ELSE s
 
 BuildBatch ==
@@ -316,7 +317,7 @@ BuildBatch ==
        \/ \E m \in batch : ~Member(m)       \* features/jmerge/src/jmerge/cli.py `if set(kept.members) <= judged:`
     /\ LET members == {p \in PRs : Member(p)}
            kept == suspects \cap members
-       IN /\ batch' = IF kept # {} THEN Narrow(kept) ELSE members   \* features/jmerge/src/jmerge/batch.py `half = narrow(record.suspects) if len(half) >= LEAST: return [judged[one] for one in half], []`
+       IN /\ batch' = IF kept # {} THEN Narrow(kept) ELSE members   \* features/jmerge/src/jmerge/batch.py `half = narrow(record.suspects) if len(half) >= LEAST: return Chosen(CI, [judged[one] for one in half], [])`
           /\ suspects' = kept
     /\ batch' # batch
     /\ UNCHANGED <<st, ci, missed, breaks, Main, outsideLeft, link, on, Machine, moved, Fix, Browser, Row,
@@ -333,7 +334,7 @@ BatchPasses ==
     /\ \A m \in batch : Member(m)           \* features/jmerge/src/jmerge/cli.py `if set(kept.members) <= judged:`
     /\ LET broke == {m \in batch : breaks[m]}
            left == suspects \ batch
-       IN /\ st' = [p \in PRs |-> IF p \in batch THEN "merged" ELSE st[p]]   \* features/jmerge/src/jmerge/cli.py `line, expected = self.squash(found[0], found[1], [found[2], passed])`
+       IN /\ st' = [p \in PRs |-> IF p \in batch THEN "merged" ELSE st[p]]   \* features/jmerge/src/jmerge/cli.py `line, expected = self.squash(found[0], found[1], [found[2], proof])`
           /\ missed' = [p \in PRs |-> missed[p] \/ p \in broke]
           /\ mainRed' = (broke # {})
           /\ redBy' = CASE broke = {} -> "none"

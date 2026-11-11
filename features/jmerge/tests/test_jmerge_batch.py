@@ -3,21 +3,24 @@ together: it builds main's tip with each of them merged in, force-pushes that co
 `jmerge/batch` branch under one standing draft pull request, and keeps the tip, the tree and the
 members in `batch.json`. CI's check of that pull request leaves the artifact of the two trees
 (`green.checked`), and on it `jmerge` squash-merges each member at its own head, in merge order,
-with no guards run. A batch holds three members at least (`batch.LEAST`): fewer judged in a run
-each take the single path of today, as does each suspect of a failed batch whose half would hold
-fewer, while a larger half is narrowed by the checks of the next batches.
+with no guards run. CI's batch holds five members at least (`batch.LEAST`), and each suspect of a
+failed batch whose half would hold fewer takes the single path, while a larger half is narrowed by
+the checks of the next batches. Two to four members judged in a run share one guards run on their
+tree in that run, pushed nowhere, and one takes the single path.
 
 The tests run the `jmerge` command (`jmerge.cli`) against a real origin and the fake `gh` of
 `test_jmerge_fresh.Kitchen`, which also opens a pull request, refuses one merge by number, and
 answers the artifact and run lookups from files of the stub."""
 
 import json
+import os
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
 import test_home_merge as merge
 import test_jmerge_fresh as fresh
+from jgauge import slot
 from jmerge import batch, green, ready, treeguards
 from jmerge.lock import MergeLock
 from test_jmerge_fresh import AFTER as LATER
@@ -98,8 +101,30 @@ def three(kitchen):
     return heads
 
 
+FIVE = (6, 7, 8, 9, 10)
+"""The members of `five`, in merge order."""
+
+
+def five(kitchen):
+    """Five ready pull requests, the fewest CI's batch takes, each on a file of its own, whose
+    checks main moved past."""
+    heads = [
+        kitchen.crew(slug, number, {name: OURS})
+        for slug, number, name in (
+            ("one", 6, "a.txt"),
+            ("two", 7, "b.txt"),
+            ("three", 8, "c.txt"),
+            ("four", 9, "e.txt"),
+            ("five", 10, "f.txt"),
+        )
+    ]
+    kitchen.on_main({"d.txt": "theirs\n"})
+    return heads
+
+
 def more(kitchen, *numbers):
-    """A ready pull request for each of `numbers`, each on a new file of its own, after `three`."""
+    """A ready pull request for each of `numbers`, each on a new file of its own, after `three`
+    or `five`."""
     return [kitchen.crew(f"pr{n}", n, {f"f{n}.txt": OURS}) for n in numbers]
 
 
@@ -174,20 +199,20 @@ def proven(kitchen):
     (kitchen.home.stub / "run-5").write_text(json.dumps(ran))
 
 
-def test_three_pull_requests_main_moved_past_are_built_into_one_batch_and_recorded(kitchen):
-    heads = three(kitchen)
+def test_five_pull_requests_main_moved_past_are_built_into_one_batch_and_recorded(kitchen):
+    heads = five(kitchen)
     tip = kitchen.tip()
-    assert kitchen.run() == [built(3, tip), *(in_batch(number, tip) for number in (6, 7, 8))]
+    assert kitchen.run() == [built(5, tip), *(in_batch(number, tip) for number in FIVE)]
     commit = git(kitchen.origin, "rev-parse", f"refs/heads/{batch.BRANCH}")
     assert git(kitchen.origin, "rev-list", "--parents", "-n", "1", commit).split() == [commit, tip]
-    for name in ("a.txt", "b.txt", "c.txt"):
+    for name in ("a.txt", "b.txt", "c.txt", "e.txt", "f.txt"):
         assert show(kitchen, commit, name) == OURS.strip()
     assert show(kitchen, commit, "d.txt") == "theirs"
     tree = git(kitchen.origin, "rev-parse", f"{commit}^{{tree}}")
     kept = record(kitchen)
     assert (kept["tip"], kept["tree"], kept["commit"]) == (tip, tree, commit)
     assert [(one["number"], one["head"]) for one in kept["members"]] == list(
-        zip((6, 7, 8), heads, strict=True)
+        zip(FIVE, heads, strict=True)
     )
     (created,) = (kitchen.home.stub / "created").read_text().splitlines()
     assert "--draft" in created and f"--head {batch.BRANCH}" in created
@@ -197,7 +222,7 @@ def test_three_pull_requests_main_moved_past_are_built_into_one_batch_and_record
 
 
 def test_a_batch_whose_check_passed_over_the_same_tip_merges_each_member_at_its_head(kitchen):
-    heads = three(kitchen)
+    heads = five(kitchen)
     tip = kitchen.tip()
     kitchen.run()
     proven(kitchen)
@@ -206,62 +231,60 @@ def test_a_batch_whose_check_passed_over_the_same_tip_merges_each_member_at_its_
         ["merged", "6", "one"],
         ["merged", "7", "two"],
         ["merged", "8", "three"],
+        ["merged", "9", "four"],
+        ["merged", "10", "five"],
     ]
     passed = batch.PASSED.format(base="main", tip=tip[:12], run=RUN)
     assert all(f", {passed}, " in line for line in said)
     merges = kitchen.calls()
-    assert [call.split()[2] for call in merges] == ["6", "7", "8"]
+    assert [call.split()[2] for call in merges] == [str(n) for n in FIVE]
     for call, head in zip(merges, heads, strict=True):
         assert f"--squash --match-head-commit {head} " in call
     assert runs(kitchen) == 0
-    for name in ("a.txt", "b.txt", "c.txt"):
+    for name in ("a.txt", "b.txt", "c.txt", "e.txt", "f.txt"):
         assert kitchen.at_main(name) == OURS.strip()
     assert kitchen.at_main("d.txt") == "theirs"
     assert record(kitchen).get("members") is None
     logged = (kitchen.home.state / "merge.log").read_text()
-    assert logged.count(passed) == 3
+    assert logged.count(passed) == 5
 
 
 def test_a_proven_batch_stops_at_the_first_merge_github_refuses(kitchen):
-    three(kitchen)
+    five(kitchen)
     tip = kitchen.tip()
     kitchen.run()
     proven(kitchen)
     (kitchen.home.stub / "refuse-7").write_text("")
-    first, second, third = kitchen.run()
+    first, second, *rest = kitchen.run()
     assert first.startswith("merged 6 one ")
     assert second.startswith(f"wait 7 {url(7)}: {ready.MERGE_FAILED}: GraphQL")
     stopped = ready.BATCH_STOPPED.format(base="main", tip=tip[:12], number=7)
-    assert third == f"wait 8 {url(8)}: {stopped}"
+    assert rest == [f"wait {n} {url(n)}: {stopped}" for n in (8, 9, 10)]
     assert [call.split()[2] for call in kitchen.calls()] == ["6", "7"]
     assert runs(kitchen) == 0
 
 
 def test_a_proven_batch_whose_merge_lock_another_run_holds_stays_proven_for_the_next_run(kitchen):
-    three(kitchen)
+    five(kitchen)
     kitchen.run()
     proven(kitchen)
     held = MergeLock(kitchen.home.state)
     assert held.take()
     try:
         merging = f"{ready.MERGING}"
-        assert kitchen.run() == [f"wait {n} {url(n)}: {merging}" for n in (6, 7, 8)]
+        assert kitchen.run() == [f"wait {n} {url(n)}: {merging}" for n in FIVE]
     finally:
         held.give()
     assert kitchen.calls() == []
-    assert [line.split()[:2] for line in kitchen.run()] == [
-        ["merged", "6"],
-        ["merged", "7"],
-        ["merged", "8"],
-    ]
+    assert [line.split()[:2] for line in kitchen.run()] == [["merged", str(n)] for n in FIVE]
 
 
 def test_a_batch_whose_tip_moved_merges_nothing_and_is_built_again_over_the_new_tip(kitchen):
-    three(kitchen)
+    five(kitchen)
     kitchen.run()
     proven(kitchen)
     moved = kitchen.on_main({"d.txt": "theirs again\n"})
-    assert kitchen.run() == [built(3, moved), *(in_batch(number, moved) for number in (6, 7, 8))]
+    assert kitchen.run() == [built(5, moved), *(in_batch(number, moved) for number in FIVE)]
     assert kitchen.calls() == []
     commit = git(kitchen.origin, "rev-parse", f"refs/heads/{batch.BRANCH}")
     assert record(kitchen)["tip"] == moved and record(kitchen)["commit"] == commit
@@ -277,103 +300,102 @@ def suspects(kitchen):
     return [one["number"] for one in record(kitchen).get("suspects", [])]
 
 
+TEN = (*FIVE, 11, 12, 13, 14, 15)
+"""The members of `five` and five more, a batch whose first half holds five."""
+
+
 def test_a_failed_batch_keeps_its_members_as_suspects_and_builds_the_first_half_of_them(kitchen):
-    """A failed batch of six runs no guards: its members are suspects, and the next batch is the
-    first half of them, three, over today's tip, on the same branch and pull request."""
-    heads = three(kitchen) + more(kitchen, 9, 10, 11)
+    """A failed batch of ten runs no guards: its members are suspects, and the next batch is the
+    first half of them, five, over today's tip, on the same branch and pull request."""
+    heads = five(kitchen) + more(kitchen, *TEN[5:])
     kitchen.run()
     listed(kitchen, (merge.FAILED,))
     tip = kitchen.tip()
     said = kitchen.run()
-    assert said == [built(3, tip), *(in_batch(n, tip) for n in (6, 7, 8))] + [
-        first(n, tip) for n in (9, 10, 11)
+    assert said == [built(5, tip), *(in_batch(n, tip) for n in FIVE)] + [
+        first(n, tip) for n in TEN[5:]
     ]
     assert kitchen.calls() == [] and runs(kitchen) == 0
     kept = record(kitchen)
     assert [(one["number"], one["head"]) for one in kept["members"]] == list(
-        zip((6, 7, 8), heads[:3], strict=True)
+        zip(FIVE, heads[:5], strict=True)
     )
     assert kept["tip"] == tip and kept["failed"] == {}
-    assert suspects(kitchen) == [6, 7, 8, 9, 10, 11]
+    assert suspects(kitchen) == list(TEN)
     commit = pushed(kitchen)
-    assert kept["commit"] == commit and show(kitchen, commit, "c.txt") == OURS.strip()
-    assert "f9.txt" not in git(kitchen.origin, "ls-tree", "--name-only", commit).split()
+    assert kept["commit"] == commit and show(kitchen, commit, "f.txt") == OURS.strip()
+    assert "f11.txt" not in git(kitchen.origin, "ls-tree", "--name-only", commit).split()
     assert len((kitchen.home.stub / "created").read_text().splitlines()) == 1
 
 
-def test_a_failed_batch_of_four_sends_each_member_down_the_single_path(kitchen):
-    """Its halves would hold two, under the three a batch holds, so each suspect merges on the
-    guards of its merged tree in that run, its head under `failed`, and no batch is pushed."""
-    heads = three(kitchen) + more(kitchen, 9)
+def test_a_failed_batch_of_five_sends_each_member_down_the_single_path(kitchen):
+    """Its first half would hold three, under the five CI's batch holds, so each suspect merges
+    on the guards of its own merged tree in that run, its head under `failed`, and no batch is
+    pushed: the suspects hold a failure, so they share no guards run either."""
+    heads = five(kitchen)
     kitchen.run()
-    assert [one["number"] for one in record(kitchen)["members"]] == [6, 7, 8, 9]
+    assert [one["number"] for one in record(kitchen)["members"]] == list(FIVE)
     commit = pushed(kitchen)
     listed(kitchen, (merge.FAILED,))
     said = kitchen.run()
-    assert [alone(line, n) for line, n in zip(said, (6, 7, 8, 9), strict=True)] == [True] * 4
-    assert runs(kitchen) == 4 and pushed(kitchen) == commit
-    assert record(kitchen)["failed"] == {
-        str(n): head for n, head in zip((6, 7, 8, 9), heads, strict=True)
-    }
+    assert [alone(line, n) for line, n in zip(said, FIVE, strict=True)] == [True] * 5
+    assert runs(kitchen) == 5 and pushed(kitchen) == commit
+    assert record(kitchen)["failed"] == {str(n): head for n, head in zip(FIVE, heads, strict=True)}
     assert suspects(kitchen) == [] and record(kitchen).get("members") is None
 
 
-def test_the_suspects_left_by_a_proven_half_under_three_go_alone_as_it_merges(kitchen):
-    """A failed batch of six narrows to its first half of three; that half proves and merges by
-    batch, and the three suspects left, whose half would hold two, merge alone in the same run."""
-    three(kitchen)
-    more(kitchen, 9, 10, 11)
+def test_the_suspects_left_by_a_proven_half_under_five_go_alone_as_it_merges(kitchen):
+    """A failed batch of ten narrows to its first half of five; that half proves and merges by
+    batch, and the five suspects left, whose half would hold three, merge alone in the same run."""
+    five(kitchen)
+    more(kitchen, *TEN[5:])
     kitchen.run()
     listed(kitchen, (merge.FAILED,))
     kitchen.run()
     commit = pushed(kitchen)
     proven(kitchen)
     said = kitchen.run()
-    assert [line.split()[:2] for line in said[:3]] == [["merged", n] for n in ("6", "7", "8")]
-    assert all("so no guards ran" in line for line in said[:3])
-    assert [alone(line, n) for line, n in zip(said[3:], (9, 10, 11), strict=True)] == [True] * 3
-    assert runs(kitchen) == 3 and pushed(kitchen) == commit
+    assert [line.split()[:2] for line in said[:5]] == [["merged", str(n)] for n in FIVE]
+    assert all("so no guards ran" in line for line in said[:5])
+    assert [alone(line, n) for line, n in zip(said[5:], TEN[5:], strict=True)] == [True] * 5
+    assert runs(kitchen) == 5 and pushed(kitchen) == commit
     assert suspects(kitchen) == [] and record(kitchen).get("members") is None
 
 
-@pytest.mark.parametrize("count", [1, 2])
-def test_fewer_than_three_members_merge_on_the_guards_with_no_batch(kitchen, count):
-    """A batch's check took 209 s at the median, the guards about 98 s, so one or two members
-    each take the single path in the run that judged them: no push to `jmerge/batch`, no batch
-    pull request, and no pull request waits for a batch."""
+def test_one_member_merges_on_the_guards_of_its_own_tree_with_no_batch(kitchen):
+    """One member is the single path itself: it merges on the guards of its merged tree in the
+    run that judged it, with no push to `jmerge/batch`, no batch pull request, and no line of a
+    guards batch."""
     kitchen.crew("one", 6, {"a.txt": OURS})
-    if count == 2:
-        kitchen.crew("two", 7, {"b.txt": OURS})
     kitchen.on_main({"d.txt": "theirs\n"})
     said = kitchen.run()
-    assert [alone(line, n) for line, n in zip(said, (6, 7), strict=False)] == [True] * count
-    assert len(said) == count and runs(kitchen) == count
+    assert len(said) == 1 and alone(said[0], 6) and runs(kitchen) == 1
     assert pushed(kitchen) is None and not (kitchen.home.stub / "created").exists()
     assert record(kitchen).get("members") is None and suspects(kitchen) == []
 
 
 def test_a_batch_still_checked_holds_its_members_and_the_rest_wait_for_it(kitchen):
-    three(kitchen)
+    five(kitchen)
     tip = kitchen.tip()
     kitchen.run()
     listed(kitchen, (merge.RUNNING,))
-    kitchen.crew("four", 9, {"e.txt": OURS})
-    kitchen.crew("five", 10, {"f.txt": OURS}, checks=(LATER,))
+    kitchen.crew("six", 11, {"g.txt": OURS})
+    kitchen.crew("seven", 12, {"h.txt": OURS}, checks=(LATER,))
     listed(kitchen, (merge.RUNNING,))
     after = ready.BATCH_FIRST.format(base="main", tip=tip[:12])
     assert kitchen.run() == [
-        f"wait 10 {url(10)}: {after}",
-        *(in_batch(number, tip) for number in (6, 7, 8)),
-        f"wait 9 {url(9)}: {after}",
+        f"wait 12 {url(12)}: {after}",
+        *(in_batch(number, tip) for number in FIVE),
+        f"wait 11 {url(11)}: {after}",
     ]
     assert kitchen.calls() == [] and runs(kitchen) == 0
 
 
-def test_a_batch_left_with_fewer_than_three_members_holds_no_pull_request_for_it(kitchen):
-    """#8's head moved while the batch was checked, so two of its members are judged: no batch
-    is built again, and #10, which would merge alone, merges in that run with #6 and #7 rather
-    than wait for a batch that is gone."""
-    three(kitchen)
+def test_a_batch_left_with_fewer_than_five_members_holds_no_pull_request_for_it(kitchen):
+    """#8's head moved while the batch was checked, so four of its members are judged: no CI
+    batch is built again, #12, which would merge alone, merges in that run rather than wait for
+    a batch that is gone, and the four share one guards run and merge after it."""
+    five(kitchen)
     kitchen.run()
     commit = pushed(kitchen)
     tree = kitchen.tmp / "trees" / "three"
@@ -381,23 +403,27 @@ def test_a_batch_left_with_fewer_than_three_members_holds_no_pull_request_for_it
     git(tree, "commit", "-qam", "late")
     git(tree, "push", "-q")
     kitchen.pulls["three"]["headRefOid"] = git(tree, "rev-parse", "HEAD")
-    kitchen.crew("five", 10, {"f.txt": OURS}, checks=(LATER,))
+    kitchen.crew("seven", 12, {"h.txt": OURS}, checks=(LATER,))
     listed(kitchen, (merge.RUNNING,), at=commit)
     said = kitchen.run()
     assert not [line for line in said if "merges first" in line]
+    tip = git(kitchen.origin, "rev-parse", "refs/heads/main~4")
     assert [line.split()[:2] for line in said] == [
         ["wait", "8"],
-        ["merged", "10"],
+        ["merged", "12"],
+        ["batch:", "guards"],
         ["merged", "6"],
         ["merged", "7"],
+        ["merged", "9"],
+        ["merged", "10"],
     ]
-    assert alone(said[2], 6) and alone(said[3], 7)
+    assert said[2].startswith(guards_batch(4, tip, "passed")) and runs(kitchen) == 1
     assert pushed(kitchen) == commit and record(kitchen).get("members") is None
 
 
 @pytest.mark.parametrize("on", [True, False], ids=["batching on", "batching off"])
 def test_jmerge_never_judges_the_batch_pull_request(kitchen, on):
-    three(kitchen)
+    five(kitchen)
     kitchen.run()
     if not on:
         (kitchen.home.state / batch.SWITCH).unlink()
@@ -408,21 +434,21 @@ def test_jmerge_never_judges_the_batch_pull_request(kitchen, on):
 
 def test_a_revert_stays_out_of_the_batch_and_merges_first_on_its_own_path(kitchen):
     jbus = queue_of(kitchen.home, []).parent
-    three(kitchen)
-    kitchen.crew("revert-it", 9, {"e.txt": OURS})
-    named(jbus, ("revert-it", url(9)))
+    five(kitchen)
+    kitchen.crew("revert-it", 11, {"g.txt": OURS})
+    named(jbus, ("revert-it", url(11)))
     first, *second = kitchen.run()
-    assert first.startswith("merged 9 revert-it ")
+    assert first.startswith("merged 11 revert-it ")
     tip = kitchen.tip()
-    assert second == [built(3, tip), *(in_batch(n, tip) for n in (6, 7, 8))]
-    assert [one["number"] for one in record(kitchen)["members"]] == [6, 7, 8]
+    assert second == [built(5, tip), *(in_batch(n, tip) for n in FIVE)]
+    assert [one["number"] for one in record(kitchen)["members"]] == list(FIVE)
 
 
 def test_a_second_migration_stays_out_of_the_batch(kitchen):
     queue_of(kitchen.home, [], DIRECTORY)
     kitchen.crew("one", 6, {"db/migrations/0005_one.up.sql": "select 1;\n"})
     kitchen.crew("two", 7, {"db/migrations/0006_two.up.sql": "select 2;\n"})
-    more(kitchen, 8, 9)
+    more(kitchen, 8, 9, 10, 11)
     for pull in kitchen.pulls.values():
         for one in pull["files"]:
             one["changeType"] = "ADDED"
@@ -431,22 +457,23 @@ def test_a_second_migration_stays_out_of_the_batch(kitchen):
     merging = ready.MIGRATION_MERGING.format(number=6)
     assert kitchen.run() == [
         f"wait 7 {url(7)}: {merging}",
-        built(3, tip),
-        *(in_batch(n, tip) for n in (6, 8, 9)),
+        built(5, tip),
+        *(in_batch(n, tip) for n in (6, 8, 9, 10, 11)),
     ]
-    assert [one["number"] for one in record(kitchen)["members"]] == [6, 8, 9]
+    assert [one["number"] for one in record(kitchen)["members"]] == [6, 8, 9, 10, 11]
 
 
 def test_a_pull_request_whose_merge_after_is_unmet_stays_out_of_the_batch(kitchen):
-    rows = [row(slug, pr=f"#{n}") for slug, n in (("one", 6), ("two", 7), ("three", 8))]
-    queue_of(kitchen.home, [*rows, row("pr9", pr="#9", merge_after=["one"])])
-    three(kitchen)
-    more(kitchen, 9)
+    slugs = ("one", "two", "three", "four", "five")
+    rows = [row(slug, pr=f"#{n}") for slug, n in zip(slugs, FIVE, strict=True)]
+    queue_of(kitchen.home, [*rows, row("pr11", pr="#11", merge_after=["one"])])
+    five(kitchen)
+    more(kitchen, 11)
     tip = kitchen.tip()
     first, *second = kitchen.run()
-    assert first.startswith(f"wait 9 {url(9)}: merges after one ")
-    assert second == [built(3, tip), *(in_batch(n, tip) for n in (6, 7, 8))]
-    assert [one["number"] for one in record(kitchen)["members"]] == [6, 7, 8]
+    assert first.startswith(f"wait 11 {url(11)}: merges after one ")
+    assert second == [built(5, tip), *(in_batch(n, tip) for n in FIVE)]
+    assert [one["number"] for one in record(kitchen)["members"]] == list(FIVE)
 
 
 def late(kitchen, checks):
@@ -471,31 +498,31 @@ def test_a_batch_that_timed_out_is_built_again_whole_and_merges_by_batch_once_pr
 ):
     """A timeout is no evidence against a member: the batch is built again whole over today's
     tip, keeps no suspects, and merges by batch on its pass."""
-    three(kitchen)
+    five(kitchen)
     kitchen.run()
     late(kitchen, checks)
     tip = kitchen.tip()
-    assert kitchen.run() == [built(3, tip), *(in_batch(number, tip) for number in (6, 7, 8))]
-    assert [one["number"] for one in record(kitchen)["members"]] == [6, 7, 8]
+    assert kitchen.run() == [built(5, tip), *(in_batch(number, tip) for number in FIVE)]
+    assert [one["number"] for one in record(kitchen)["members"]] == list(FIVE)
     assert suspects(kitchen) == [] and record(kitchen)["failed"] == {}
     proven(kitchen)
     said = kitchen.run()
-    assert [line.split()[:2] for line in said] == [["merged", n] for n in ("6", "7", "8")]
+    assert [line.split()[:2] for line in said] == [["merged", str(n)] for n in FIVE]
     assert all("so no guards ran" in line for line in said)
     assert runs(kitchen) == 0 and suspects(kitchen) == []
 
 
 @TIMED_OUT
-def test_a_batch_that_timed_out_twice_in_a_row_sends_its_three_members_alone(kitchen, checks):
-    """The second timeout fails the batch, and its half of three would hold two."""
-    three(kitchen)
+def test_a_batch_that_timed_out_twice_in_a_row_sends_its_five_members_alone(kitchen, checks):
+    """The second timeout fails the batch, and its half of five would hold three."""
+    five(kitchen)
     kitchen.run()
     late(kitchen, checks)
     kitchen.run()
     late(kitchen, checks)
     said = kitchen.run()
-    assert [alone(line, n) for line, n in zip(said, (6, 7, 8), strict=True)] == [True] * 3
-    assert runs(kitchen) == 3 and suspects(kitchen) == []
+    assert [alone(line, n) for line, n in zip(said, FIVE, strict=True)] == [True] * 5
+    assert runs(kitchen) == 5 and suspects(kitchen) == []
 
 
 def failed_in(job):
@@ -512,19 +539,19 @@ def test_a_failed_batch_reruns_its_failed_jobs_once_and_merges_by_batch_when_the
     """A flake is no evidence against a member: the failed jobs of the batch's run are started
     again once, the batch is pending while they run, from the rerun and not its push, and on
     their pass its members merge by the batch with no suspects kept."""
-    three(kitchen)
+    five(kitchen)
     tip = kitchen.tip()
     kitchen.run()
     late(kitchen, (failed_in(1),))
-    assert kitchen.run() == [in_batch(number, tip) for number in (6, 7, 8)]
+    assert kitchen.run() == [in_batch(number, tip) for number in FIVE]
     assert reruns(kitchen) == [["run", "rerun", "5", "--failed"]]
     listed(kitchen, (merge.RUNNING,))
-    assert kitchen.run() == [in_batch(number, tip) for number in (6, 7, 8)]
+    assert kitchen.run() == [in_batch(number, tip) for number in FIVE]
     assert reruns(kitchen) == [["run", "rerun", "5", "--failed"]]
     assert suspects(kitchen) == [] and record(kitchen)["again"] is False
     proven(kitchen)
     said = kitchen.run()
-    assert [line.split()[:2] for line in said] == [["merged", n] for n in ("6", "7", "8")]
+    assert [line.split()[:2] for line in said] == [["merged", str(n)] for n in FIVE]
     assert all("so no guards ran" in line for line in said)
     assert runs(kitchen) == 0 and suspects(kitchen) == [] and record(kitchen)["failed"] == {}
 
@@ -535,7 +562,7 @@ def test_a_batch_that_fails_again_after_its_rerun_fails_as_a_failed_check_does(k
     a failed check did before the rerun: its members are suspects and the next batch is the first
     half of them. A listing that still shows the first attempt's failed job is no second failure:
     the batch stays pending, and is not rerun again."""
-    three(kitchen)
+    five(kitchen)
     tip = kitchen.tip()
     kitchen.run()
     if case == "rerun refused":
@@ -543,17 +570,17 @@ def test_a_batch_that_fails_again_after_its_rerun_fails_as_a_failed_check_does(k
     listed(kitchen, (failed_in(1),))
     said = kitchen.run()
     if case != "rerun refused":
-        assert said == [in_batch(number, tip) for number in (6, 7, 8)]
+        assert said == [in_batch(number, tip) for number in FIVE]
         listed(kitchen, (failed_in(2 if case == "fails again" else 1),))
         said = kitchen.run()
     assert reruns(kitchen) == [["run", "rerun", "5", "--failed"]]
     if case == "first attempt still listed":
-        assert said == [in_batch(number, tip) for number in (6, 7, 8)]
+        assert said == [in_batch(number, tip) for number in FIVE]
         assert suspects(kitchen) == []
         assert runs(kitchen) == 0 and kitchen.calls() == []
     else:
-        assert [alone(line, n) for line, n in zip(said, (6, 7, 8), strict=True)] == [True] * 3
-        assert runs(kitchen) == 3 and suspects(kitchen) == []
+        assert [alone(line, n) for line, n in zip(said, FIVE, strict=True)] == [True] * 5
+        assert runs(kitchen) == 5 and suspects(kitchen) == []
 
 
 BORDERS_FAILED = {
@@ -568,22 +595,22 @@ def test_a_batch_is_judged_by_its_check_and_never_by_borders_on_its_own_diff(kit
     one whose members touch two features does: each member passed `borders` at its own head. The
     batch waits while `check` runs or passed with no artifact found, and merges once the artifact
     is found, with no rerun asked for. A failed `check` reruns its own run alone, once, and its
-    second failure sends each of the three members down the single path, as with no `borders`
+    second failure sends each of the five members down the single path, as with no `borders`
     failure beside it."""
     (kitchen.home.state / "required-checks").write_text("check\nborders\n")
-    heads = three(kitchen)
+    heads = five(kitchen)
     tip = kitchen.tip()
     kitchen.run()
-    waiting = [in_batch(number, tip) for number in (6, 7, 8)]
+    waiting = [in_batch(number, tip) for number in FIVE]
     if check == "failed":
         listed(kitchen, (BORDERS_FAILED, failed_in(1)))
         assert kitchen.run() == waiting
         assert reruns(kitchen) == [["run", "rerun", "5", "--failed"]]
         listed(kitchen, (BORDERS_FAILED, failed_in(2)))
         said = kitchen.run()
-        assert [alone(line, n) for line, n in zip(said, (6, 7, 8), strict=True)] == [True] * 3
+        assert [alone(line, n) for line, n in zip(said, FIVE, strict=True)] == [True] * 5
         assert reruns(kitchen) == [["run", "rerun", "5", "--failed"]]
-        assert record(kitchen)["failed"] == dict(zip(("6", "7", "8"), heads, strict=True))
+        assert record(kitchen)["failed"] == dict(zip(map(str, FIVE), heads, strict=True))
         assert suspects(kitchen) == []
         return
     listed(kitchen, (BORDERS_FAILED, merge.RUNNING if check == "running" else merge.PASSED))
@@ -592,34 +619,30 @@ def test_a_batch_is_judged_by_its_check_and_never_by_borders_on_its_own_diff(kit
     proven(kitchen)
     listed(kitchen, (BORDERS_FAILED, merge.PASSED))
     said = kitchen.run()
-    assert [line.split()[:2] for line in said] == [["merged", n] for n in ("6", "7", "8")]
+    assert [line.split()[:2] for line in said] == [["merged", str(n)] for n in FIVE]
     assert reruns(kitchen) == [] and suspects(kitchen) == [] and runs(kitchen) == 0
 
 
 def test_a_batch_that_passed_with_no_artifact_found_waits_and_merges_once_it_is_found(kitchen):
-    three(kitchen)
+    five(kitchen)
     tip = kitchen.tip()
     kitchen.run()
     listed(kitchen, (merge.PASSED,))
-    assert kitchen.run() == [in_batch(number, tip) for number in (6, 7, 8)]
+    assert kitchen.run() == [in_batch(number, tip) for number in FIVE]
     assert kitchen.calls() == [] and runs(kitchen) == 0
     assert record(kitchen)["failed"] == {}
     proven(kitchen)
     said = kitchen.run()
-    assert [line.split()[:2] for line in said] == [
-        ["merged", "6"],
-        ["merged", "7"],
-        ["merged", "8"],
-    ]
+    assert [line.split()[:2] for line in said] == [["merged", str(n)] for n in FIVE]
     assert runs(kitchen) == 0
 
 
 def test_a_member_that_conflicts_with_one_before_it_waits_for_the_batch(kitchen):
-    three(kitchen)
-    kitchen.crew("four", 9, {"a.txt": "theirs too\n" + LINES})
+    five(kitchen)
+    kitchen.crew("six", 11, {"a.txt": "theirs too\n" + LINES})
     tip = kitchen.tip()
-    assert kitchen.run() == [built(3, tip), *(in_batch(n, tip) for n in (6, 7, 8)), first(9, tip)]
-    assert [one["number"] for one in record(kitchen)["members"]] == [6, 7, 8]
+    assert kitchen.run() == [built(5, tip), *(in_batch(n, tip) for n in FIVE), first(11, tip)]
+    assert [one["number"] for one in record(kitchen)["members"]] == list(FIVE)
 
 
 def test_a_batch_holds_its_most_members_and_leaves_the_rest_out(kitchen):
@@ -648,36 +671,33 @@ def refuses_batches(kitchen):
 
 def test_a_batch_the_origin_refuses_sends_each_member_down_the_single_path(kitchen):
     refuses_batches(kitchen)
-    three(kitchen)
+    five(kitchen)
     tip = kitchen.tip()
     unmade, *said = kitchen.run()
     assert unmade.startswith(f"batch: not made over main at {tip[:12]} (")
-    assert [line.split()[:2] for line in said] == [
-        ["merged", "6"],
-        ["merged", "7"],
-        ["merged", "8"],
-    ]
-    assert runs(kitchen) == 3
+    assert [line.split()[:2] for line in said] == [["merged", str(n)] for n in FIVE]
+    assert runs(kitchen) == 5
 
 
-def test_a_batch_of_fewer_than_three_once_conflicts_are_left_out_sends_them_alone(kitchen):
-    """#8 and #9 clash with #6's line, so two of the four merge over the tip: no batch is pushed,
-    and each member goes down the single path, where #8 and #9 wait for their rebase."""
+def test_a_ci_batch_of_two_to_four_once_conflicts_are_left_out_is_a_guards_batch(kitchen):
+    """#8 and #9 clash with #6's line, so two of the five merge over the tip: no batch is pushed,
+    the two that merge share one guards run and merge on it, and the two left out go down the
+    single path after, where they wait for their rebase, their heads not under `failed`."""
     kitchen.crew("one", 6, {"a.txt": OURS})
     kitchen.crew("two", 7, {"b.txt": OURS})
     kitchen.crew("three", 8, {"a.txt": "theirs three\n" + LINES})
     kitchen.crew("four", 9, {"a.txt": "theirs four\n" + LINES})
-    tip = kitchen.on_main({"d.txt": "theirs\n"})[:12]
-    unmade, *said = kitchen.run()
-    why = f"2 merge over main at {tip}, and a batch holds 3 at least"
-    assert unmade == batch.UNMADE.format(base="main", tip=tip, why=why)
-    assert alone(said[0], 6) and alone(said[1], 7)
-    assert said[2:] == [f"wait 8 {url(8)}: {CONFLICT}", f"wait 9 {url(9)}: {CONFLICT}"]
-    assert pushed(kitchen) is None
+    kitchen.crew("five", 10, {"a.txt": "theirs five\n" + LINES})
+    tip = kitchen.on_main({"d.txt": "theirs\n"})
+    line, *said = kitchen.run()
+    assert line.startswith(guards_batch(2, tip, "passed"))
+    assert [one.split()[:2] for one in said[:2]] == [["merged", "6"], ["merged", "7"]]
+    assert said[2:] == [f"wait {n} {url(n)}: {CONFLICT}" for n in (8, 9, 10)]
+    assert pushed(kitchen) is None and runs(kitchen) == 1 and record(kitchen)["failed"] == {}
 
 
 def test_a_proven_batch_stops_at_a_member_no_longer_ready_at_its_head(kitchen):
-    three(kitchen)
+    five(kitchen)
     tip = kitchen.tip()
     kitchen.run()
     tree = kitchen.tmp / "trees" / "two"
@@ -686,24 +706,23 @@ def test_a_proven_batch_stops_at_a_member_no_longer_ready_at_its_head(kitchen):
     git(tree, "push", "-q")
     kitchen.pulls["two"]["headRefOid"] = git(tree, "rev-parse", "HEAD")
     proven(kitchen)
-    own, merged, stopped = kitchen.run()
+    own, merged, *stopped = kitchen.run()
     assert own.startswith(f"wait 7 {url(7)}: ")
     assert merged.startswith("merged 6 one ")
-    assert stopped == f"wait 8 {url(8)}: " + ready.BATCH_STOPPED.format(
-        base="main", tip=tip[:12], number=7
-    )
+    why = ready.BATCH_STOPPED.format(base="main", tip=tip[:12], number=7)
+    assert stopped == [f"wait {n} {url(n)}: {why}" for n in (8, 9, 10)]
     assert [call.split()[2] for call in kitchen.calls()] == ["6"]
 
 
 def test_a_proven_batch_stops_where_another_hand_moved_main_between_its_merges(kitchen):
-    three(kitchen)
+    five(kitchen)
     kitchen.run()
     proven(kitchen)
     (kitchen.home.stub / "also-6").write_text("")
     merged, *said = kitchen.run()
     assert merged.startswith("merged 6 one ")
     moved = ready.MAIN_MOVED.format(base="main")
-    assert said == [f"wait {n} {url(n)}: {moved}" for n in (7, 8)]
+    assert said == [f"wait {n} {url(n)}: {moved}" for n in FIVE[1:]]
     assert [call.split()[2] for call in kitchen.calls()] == ["6"]
 
 
@@ -755,7 +774,7 @@ def ends(kitchen, size, how, narrowed=False):
 
 def test_the_most_a_batch_takes_doubles_after_a_pass_and_halves_after_a_fail(kitchen):
     """The most starts at 12. A batch of that many doubles it when it proves, to 48 at most, and
-    halves it when it fails after its rerun, to 3 at least. A batch of fewer, a narrowed batch of
+    halves it when it fails after its rerun, to 5 at least. A batch of fewer, a narrowed batch of
     suspects, a timeout and a batch never made leave it, and a proven batch that waits for the
     merge lock across runs counts once."""
     assert batch.Record.read(kitchen.home.state).most == 12
@@ -769,21 +788,177 @@ def test_the_most_a_batch_takes_doubles_after_a_pass_and_halves_after_a_fail(kit
     assert ends(kitchen, 24, "fail", narrowed=True) == 24
     assert ends(kitchen, 24, "prove", narrowed=True) == 24
     refuses_batches(kitchen)
-    three(kitchen)
+    five(kitchen)
     unmade, *_ = kitchen.run()
     assert unmade.startswith("batch: not made over main ")
     assert most(kitchen) == 24
-    assert [ends(kitchen, n, "fail") for n in (24, 12, 6, 3)] == [12, 6, 3, 3]
+    assert [ends(kitchen, n, "fail") for n in (24, 12, 6, 5)] == [12, 6, 5, 5]
 
 
 def test_building_a_batch_says_its_size_and_the_most(kitchen):
     """The line is about no pull request, so jbus reads nothing of it, and merge.log keeps it. A
-    most kept under three is read as three, the fewest a batch holds."""
+    most kept under five is read as five, the fewest CI's batch holds."""
     (kitchen.home.state / batch.KEPT).write_text(json.dumps({"most": 2}))
-    three(kitchen)
-    more(kitchen, 9)
+    five(kitchen)
+    more(kitchen, 11)
     tip = kitchen.tip()
-    line = f"batch: built over main at {tip[:12]}, 3 of 3 members at most"
-    assert kitchen.run() == [line, *(in_batch(n, tip) for n in (6, 7, 8)), first(9, tip)]
+    line = f"batch: built over main at {tip[:12]}, 5 of 5 members at most"
+    assert kitchen.run() == [line, *(in_batch(n, tip) for n in FIVE), first(11, tip)]
     log = (kitchen.home.state / "merge.log").read_text().splitlines()
     assert sum(one.endswith(" " + line) for one in log) == 1
+
+
+def guards_batch(size, tip, outcome):
+    """The start of the line of a guards batch of `size` over main at `tip`, up to its seconds."""
+    return f"batch: guards on {size} members over main at {tip[:12]}, {outcome} in "
+
+
+def guards_lines(kitchen):
+    """The lines of merge.log that say what a guards batch did."""
+    log = kitchen.home.state / "merge.log"
+    said = log.read_text().splitlines() if log.exists() else []
+    return [one for one in said if " batch: guards on " in f" {one}"]
+
+
+@pytest.mark.parametrize("size", [2, 3, 4])
+def test_two_to_four_members_share_one_guards_run_on_their_tree_and_merge_in_that_run(
+    kitchen, size
+):
+    """Two to four members judged in one run cost one guards run, on main's tip with each merged
+    in, where each alone cost one each: on its pass each merges at its own head in that run, with
+    no push to `jmerge/batch`, no batch pull request, and no wait on a batch."""
+    names = ("a.txt", "b.txt", "c.txt", "e.txt")
+    heads = [
+        kitchen.crew(f"pr{n}", n, {name: OURS})
+        for n, name in zip(range(6, 6 + size), names[:size], strict=True)
+    ]
+    tip = kitchen.on_main({"d.txt": "theirs\n"})
+    said = kitchen.run()
+    line, *merged = said
+    assert line.startswith(guards_batch(size, tip, "passed"))
+    seconds = line.removeprefix(guards_batch(size, tip, "passed")).removesuffix(" s")
+    assert seconds.isdigit()
+    note = batch.GUARDS_PASSED.format(size=size, base="main", tip=tip[:12], seconds=seconds)
+    assert [one.split()[:2] for one in merged] == [["merged", str(n)] for n in range(6, 6 + size)]
+    assert all(f", {note}" in one for one in merged)
+    assert runs(kitchen) == 1
+    calls = kitchen.calls()
+    for call, head in zip(calls, heads, strict=True):
+        assert f"--squash --match-head-commit {head} " in call
+    for name in names[:size]:
+        assert kitchen.at_main(name) == OURS.strip()
+    assert pushed(kitchen) is None and not (kitchen.home.stub / "created").exists()
+    assert record(kitchen).get("members") is None and record(kitchen)["failed"] == {}
+    assert [one.endswith(f" {line}") for one in guards_lines(kitchen)] == [True]
+
+
+CLASH = "make -s guards && ! { grep -q ours a.txt && grep -q ours b.txt; }"
+"""Guards that pass on #6's tree and on #7's, and fail on a tree that holds both."""
+
+
+def test_guards_that_fail_on_the_batch_tree_send_each_member_down_the_single_path(kitchen):
+    """The batch of #6 and #7 fails its guards, so neither merges by it: each takes the single
+    path in that run, where #6 merges on its own tree and #7 fails on its tree over #6. Each head
+    is kept under `failed`, so #7 joins no batch at that head: the next run, with #8 ready too,
+    runs no guards batch, and #8, made over today's main, merges on its own check."""
+    (kitchen.home.state / treeguards.NAME).write_text(CLASH + "\n")
+    heads = [kitchen.crew(f"pr{n}", n, {name: OURS}) for n, name in ((6, "a.txt"), (7, "b.txt"))]
+    tip = kitchen.on_main({"d.txt": "theirs\n"})
+    line, first, second = kitchen.run()
+    assert line.startswith(guards_batch(2, tip, "failed"))
+    assert alone(first, 6)
+    assert second.startswith(f"wait 7 {url(7)}: merged over today's main at ")
+    assert runs(kitchen) == 3 and [call.split()[2] for call in kitchen.calls()] == ["6"]
+    assert record(kitchen)["failed"] == {"6": heads[0], "7": heads[1]}
+    del kitchen.pulls["pr6"]
+    kitchen.crew("pr8", 8, {"c.txt": OURS})
+    said = kitchen.run()
+    assert [one.split()[:2] for one in said] == [["wait", "7"], ["merged", "8"]]
+    assert len(guards_lines(kitchen)) == 1
+    assert record(kitchen)["failed"] == {"7": heads[1]}
+
+
+def test_two_members_of_which_one_merges_over_the_tip_each_take_the_single_path(kitchen):
+    """#7 clashes with #6's line, so one of the two merges over the tip: no guards batch runs,
+    #6 merges on the guards of its own tree, and #7 waits for its rebase, its head not under
+    `failed`."""
+    kitchen.crew("one", 6, {"a.txt": OURS})
+    kitchen.crew("two", 7, {"a.txt": "theirs two\n" + LINES})
+    kitchen.on_main({"d.txt": "theirs\n"})
+    first, second = kitchen.run()
+    assert alone(first, 6) and second == f"wait 7 {url(7)}: {CONFLICT}"
+    assert runs(kitchen) == 1 and guards_lines(kitchen) == [] and record(kitchen)["failed"] == {}
+
+
+@pytest.mark.parametrize("case", ["stopped", "no time", "unbuilt"])
+def test_the_guards_on_a_batch_tree_say_what_they_did_under_the_single_path_s_rules(
+    kitchen, monkeypatch, case
+):
+    """Guards stopped at their limit say so, and count toward the run's seconds; a run that spent
+    `RUN_SECONDS` starts none; and a commit no worktree can be made of runs none. Neither of the
+    last two is evidence against a member (`treeguards.UNRUN`)."""
+    monkeypatch.setattr(treeguards, "LIMIT_SECONDS", 1)
+    guards = treeguards.Guards(kitchen.home.main, kitchen.home.state, True, lambda path: {})
+    guards.command = "sleep 5"
+    tip = git(kitchen.home.main, "rev-parse", "HEAD")
+    if case == "no time":
+        guards.spent = treeguards.RUN_SECONDS
+    tried = guards.on_batch("0" * 40 if case == "unbuilt" else tip, tip, [tip])
+    if case == "stopped":
+        assert (tried.outcome, tried.seconds) == (treeguards.STOPPED, 1)
+        assert guards.spent >= 1
+    else:
+        assert tried.outcome in treeguards.UNRUN and tried.outcome.startswith(case[:2])
+        assert tried.why and guards.spent == (treeguards.RUN_SECONDS if case == "no time" else 0)
+    assert not (kitchen.home.state / treeguards.KEPT).exists()
+
+
+def test_guards_on_a_batch_tree_that_find_no_slot_run_no_more_in_that_run(
+    kitchen, tmp_path, monkeypatch
+):
+    """With every full slot taken past `SLOT_SECONDS`, the guards on a batch's tree do not start,
+    the wait counts toward the run's seconds, and a later batch of the run waits for none."""
+    monkeypatch.delenv(slot.HELD, raising=False)
+    monkeypatch.setenv("JGAUGE_LOCKS_DIR", str(tmp_path / "locks"))
+    monkeypatch.setenv("TEST_SLOTS", "1")
+    monkeypatch.setattr(treeguards, "SLOT_SECONDS", 1)
+    guards = treeguards.Guards(kitchen.home.main, kitchen.home.state, True, lambda path: {})
+    guards.command = "true"
+    tip = git(kitchen.home.main, "rev-parse", "HEAD")
+    held, _ = slot.take(slot.full(1))
+    try:
+        assert guards.on_batch(tip, tip, [tip]) == treeguards.Tried(treeguards.NO_SLOT, 1)
+    finally:
+        os.close(held)
+    assert guards.on_batch(tip, tip, [tip]) == treeguards.Tried(treeguards.NO_SLOT, 0)
+    assert guards.spent == 1
+
+
+def test_a_batch_tree_the_guards_cannot_run_on_is_not_made_and_its_members_go_alone(kitchen):
+    """A worktree of the batch's commit that cannot be made is no evidence against a member: the
+    run says `batch: not made` with why, and each member takes the single path, its head not under
+    `failed`."""
+    (kitchen.home.state / treeguards.TREE).write_text("in the way\n")
+    kitchen.crew("one", 6, {"a.txt": OURS})
+    kitchen.crew("two", 7, {"b.txt": OURS})
+    tip = kitchen.on_main({"d.txt": "theirs\n"})
+    unmade, *said = kitchen.run()
+    assert unmade.startswith(f"batch: not made over main at {tip[:12]} (")
+    assert [one.split()[:2] for one in said] == [["wait", "6"], ["wait", "7"]]
+    assert runs(kitchen) == 0 and record(kitchen)["failed"] == {}
+
+
+def test_the_guards_on_a_batch_tree_run_what_main_changed_since_the_oldest_member_s_check(kitchen):
+    """#6 left main before #7 did, so the guards on their tree get `MERGE_BASE` at #6's fork
+    point: they run every test file main changed since either member's check ran."""
+    seen = kitchen.tmp / "merge-bases"
+    command = f'make -s guards && echo "$MERGE_BASE" >> {seen}'
+    (kitchen.home.state / treeguards.NAME).write_text(command + "\n")
+    oldest = kitchen.tip()
+    kitchen.crew("one", 6, {"a.txt": OURS})
+    kitchen.on_main({"d.txt": "theirs\n"})
+    kitchen.crew("two", 7, {"b.txt": OURS})
+    tip = kitchen.on_main({"e.txt": "theirs\n"})
+    line, *merged = kitchen.run()
+    assert line.startswith(guards_batch(2, tip, "passed")) and len(merged) == 2
+    assert seen.read_text().split() == [oldest]
