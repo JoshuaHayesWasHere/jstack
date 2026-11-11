@@ -5,11 +5,11 @@
 \* die between any two writes (a timeout, a reboot, an OOM kill): the disk keeps what it wrote, and
 \* the next pass reads it again.
 \*
-\* One behavior follows one act (`on`), chosen at the start from `Carriers`: the acts write
+\* One behavior follows one act (on), chosen at the start from Carriers: the acts write
 \* different files and do not wait on each other, so TLC checks each alone and the states add up
 \* rather than multiply. The act's carriers, the ledger rows of machine TellOnce, are one variable
-\* each, below; the shared shape is `Code(c)`, the order in which act c's pass writes, `Guard(c)`,
-\* the marks it reads at its start, and `Absorbs(c)`, whether its receiver takes a repeat under
+\* each, below; the shared shape is Code(c), the order in which act c's pass writes, Guard(c),
+\* the marks it reads at its start, and Absorbs(c), whether its receiver takes a repeat under
 \* the same key as the same act. The clock's ladder and owed.json's two writers have actions of
 \* their own.
 \*
@@ -30,24 +30,24 @@ T3 == {"clock", "held", "word", "owed", "expedite", "revert", "reload"}
 VARIABLES
   \* -- the ledger's carriers, one variable each --
   clockPasses, \* A-092 clock.json, a wait's clock: jbus/clock.py `wait["passes"] = min(wait["passes"] + 1, PASSES)`
-  clockKind,   \* A-093 clock.json `kind`: jbus/clock.py `wait = {**wait, "kind": kind, "head": head, "thread": thread, "line": line}`, or "none" before the wait
-  clockRung,   \* A-094 clock.json `acted` and `home`: jbus/clock.py `wait |= {"acted": True, "passes": 0}` and jbus/clock.py `_home(run, slug, wait, brief) wait["home"] = True`
-  heldJson,    \* A-095 held.json, a hold's `woke`: jbus/clock.py `write_json(run.state / HELD_FILE, kept)`
+  clockKind,   \* A-093 clock.json kind: jbus/clock.py `wait = {**wait, "kind": kind, "head": head, "thread": thread, "line": line}`, or "none" before the wait
+  clockRung,   \* A-094 clock.json acted and home: jbus/clock.py `wait |= {"acted": True, "passes": 0}` and jbus/clock.py `_home(run, slug, wait, brief) wait["home"] = True`
+  heldJson,    \* A-095 held.json, a hold's woke: jbus/clock.py `write_json(run.state / HELD_FILE, kept)`
   blocking,    \* A-105 blocking/outbox.json, the body for the second target: jbus/wake.py `write_json(route.folder / "outbox.json", [*waiting, made], mode=0o600)` and jbus/wake.py `write_json(outbox, waiting[sent:], mode=0o600)`
   outboxLog,   \* A-107 outbox.jsonl, the lines of the act's key, up to 3: jbus/outbox.py `store.append_jsonl(run.state / FILE, [line])`
-  went,        \* A-108 outbox.jsonl `went` of the key's last line: jbus/outbox.py `_log(run, thread, row, key, template, needs, "sent", "")` and jbus/outbox.py `_log(run, thread, row, key, template, needs, "held", rule)`
+  went,        \* A-108 outbox.jsonl went of the key's last line: jbus/outbox.py `_log(run, thread, row, key, template, needs, "sent", "")` and jbus/outbox.py `_log(run, thread, row, key, template, needs, "held", rule)`
   items,       \* A-112 items.jsonl, the lines of the item, up to 2: jbus/item.py `store.append_jsonl(path(state), [made], mode=0o600, sort_keys=True)`
   itemState,   \* A-113 the item's State, the fold of its lines: jbus/item.py `items[line["item"]] = advance(items.get(line["item"]), line)`
-  itemVerb,    \* A-114 the `verb` of the item's last line: jbus/item.py `"verb": str(verb),`
+  itemVerb,    \* A-114 the verb of the item's last line: jbus/item.py `"verb": str(verb),`
   wordSends,   \* A-118 word-sends.json, what became of the word: jbus/word.py `sends[one.id] = {"thread": now.thread, "sent_at": now.sent_at, "waits": now.waits}`
   owedJson,    \* A-121 owed.json, the ask's record: jbus/owed.py `kept = {"asks": [asdict(one) for one in asks], "looked": looked}`
-  askState,    \* A-122 the ask's `state`: jbus/owed.py `run.box.mark(ask.key) ask.state, ask.closed = SENT, run.now.isoformat()`, and jbus/owed.py `ask.state, ask.closed, ask.tries = OWED, "", ask.tries + 1`
+  askState,    \* A-122 the ask's state: jbus/owed.py `run.box.mark(ask.key) ask.state, ask.closed = SENT, run.now.isoformat()`, and jbus/owed.py `ask.state, ask.closed, ask.tries = OWED, "", ask.tries + 1`
   expedite,    \* A-139 expedite.json, what a short pull request's crew was told: jbus/expedite.py `entry |= told if went == "told" else {"users": True} if went else {}`
   cancelled,   \* A-149 cancelled.json, a cancelled check run again: jbus/cancelled.py `kept[slug] = {"head": head, "why": ""}`
   closed,      \* A-162 closed.json, a project closed: jbus/project.py `jbus.write_json(path, record, mode=0o600)` then jbus/project.py `jbus.write_json(path, {**record, CLOSED: day}, mode=0o600)`
   account,     \* B-012 account.json, the number of the question about CI that starts no job, or 0: jbus/mainmoved.py `write_json(path, {"question": one.number})`
   revertMark,  \* B-024 sent.json's revert|slug|red12: jbus/culprits.py `key = rebase.mark("revert", one.slug, one.red[:12])`, written by jbus/rebase.py `run.box.mark(key) return SENT`
-  fails,       \* B-039 fails.json, the row's count and its `held_at`: jbus/stall.py `kept[slug]["held_at"] = run.now.isoformat()`
+  fails,       \* B-039 fails.json, the row's count and its held_at: jbus/stall.py `kept[slug]["held_at"] = run.now.isoformat()`
   reloadJson,  \* B-057 reload.json, the merges that changed a skill still owed: jbus/reload.py `write_json(run.state / FILE, left + added)`
   reloadLock,  \* B-058 reload.lock, who holds it: jbus/reload.py `with locked(run.state, LOCK): added = [`
   \* -- what the acts share --
@@ -56,13 +56,13 @@ VARIABLES
   due,         \* the act came due, once in a behavior
   pc,          \* where the pass is in Code(on), 0 between passes; 10-11 failover's carry-on, 20-22 the clock's stall
   seen,        \* what the pass's guard read at its start: a mark of the act is written
-  box,         \* sent.json, the act's key: jbus/wake.py `_write_sent(self.state / SENT, (*sent.keys, key))`
-  key,         \* which key the next try uses: the ask's `tries`, or the tip or thread a key names
+  box,         \* sent.json, the act's key: jbus/wake.py `if key not in sent.lookup: _write_sent(self.state / SENT, (*sent.keys, key))`
+  key,         \* which key the next try uses: the ask's tries, or the tip or thread a key names
   got,         \* the keys the receiver took, so it takes a repeat as the same act: jbus/outbox.py `asked = {"threadId": thread, "message": text, "mode": mode, "clientRequestId": key}`
   took,        \* how often the receiver took the act, up to 2
   again,       \* an act ran on a pass whose guard read its mark
   \* -- the marks of the acts that have actions of their own --
-  failed,      \* the ask's thread is failed and failover may carry it on (`carried`)
+  failed,      \* the ask's thread is failed and failover may carry it on (carried)
   fbox,        \* sent.json, failover's key: jbus/failover.py `run.box.mark(key) owed.taken(run, at)`
   stall,       \* sent.json, the clock's stall key: jbus/clock.py `run.find(slug, STALL, f"{line}; its crew's thread is {crew}", key=f"{CLOCK} {key}")`
   logged,      \* the stall's event line in the log, written after its key: jbus/wake.py `self._log(id=_id(made), **took, text=made["text"], owed=True)`
@@ -82,19 +82,19 @@ Cap(n, top) == IF n > top THEN top ELSE n
 \* "log" outbox.jsonl's line, "box" the key in sent.json, "record" the carrier's own file, and
 \* the rest are writes of one act only.
 Code(c) ==
-  CASE c = "clock" -> <<"act", "log", "box", "record">>     \* `_send`, `run.box.mark(key)`, then `write_json` at the end of `tick`
-    [] c = "held" -> <<"act", "log", "box", "record">>      \* `_send`, then held.json at the end of `held`
-    [] c = "blocking" -> <<"act", "record">>                \* `_post_blocking`, then outbox.json without the body
+  CASE c = "clock" -> <<"act", "log", "box", "record">>     \* _send, run.box.mark(key), then write_json at the end of tick
+    [] c = "held" -> <<"act", "log", "box", "record">>      \* _send, then held.json at the end of held
+    [] c = "blocking" -> <<"act", "record">>                \* _post_blocking, then outbox.json without the body
     [] c = "items" -> <<"act", "record">>                   \* the line, then items-next.json
-    [] c = "word" -> <<"act", "log", "record">>             \* `post`, then `_change`: no key in sent.json
-    [] c = "owed" -> <<"act", "log", "box", "record">>      \* `outbox.send`, `run.box.mark(ask.key)`, `_save`
-    [] c = "expedite" -> <<"act", "log", "box", "record">>  \* `rebase.once`, then expedite.json at the end of `tell`
-    [] c = "cancelled" -> <<"act", "box", "record">>        \* `gh run rerun`, `run.find`, then cancelled.json
-    [] c = "closed" -> <<"list", "act", "record">>          \* the record, the archives, then `closed`
-    [] c = "account" -> <<"act", "record">>                 \* `questions.park`, then account.json
-    [] c = "revert" -> <<"act", "log", "record">>           \* `rebase.once`: the send, then its key
-    [] c = "twice" -> <<"hold", "key", "act", "record">>    \* `queue.hold`, `run.gate`'s key, its event, then fails.json
-    [] c = "reload" -> <<"act", "log", "box", "lock", "record">> \* `_told`'s send and marks, then reload.json under the lock
+    [] c = "word" -> <<"act", "log", "record">>             \* post, then _change: no key in sent.json
+    [] c = "owed" -> <<"act", "log", "box", "record">>      \* outbox.send, run.box.mark(ask.key), _save
+    [] c = "expedite" -> <<"act", "log", "box", "record">>  \* rebase.once, then expedite.json at the end of tell
+    [] c = "cancelled" -> <<"act", "box", "record">>        \* gh run rerun, run.find, then cancelled.json
+    [] c = "closed" -> <<"list", "act", "record">>          \* the record, the archives, then closed
+    [] c = "account" -> <<"act", "record">>                 \* questions.park, then account.json
+    [] c = "revert" -> <<"act", "log", "record">>           \* rebase.once: the send, then its key
+    [] c = "twice" -> <<"hold", "key", "act", "record">>    \* queue.hold, run.gate's key, its event, then fails.json
+    [] c = "reload" -> <<"act", "log", "box", "lock", "record">> \* _told's send and marks, then reload.json under the lock
 
 IsMark(s) == s \in {"box", "lock", "record"}
 IsDeed(s) == ~IsMark(s)
@@ -118,7 +118,7 @@ Guard(c) ==
     [] c = "reload" -> {"box"}              \* jbus/reload.py `and f"{TEMPLATE}|{one['commit'][:12]}|{at}" not in run.box.sent()`
 
 \* Whether the receiver takes a repeat under a key it took as the same act: T3 Code's
-\* `clientRequestId`, the question's key in jbus/questions.py `key = mirror.gate_key(slug, asked)`,
+\* clientRequestId, the question's key in jbus/questions.py `key = mirror.gate_key(slug, asked)`,
 \* the item's move, GitHub's check that runs again, an archive, a key in sent.json. The second
 \* target's POST carries no key: jbus/wake.py `data=json.dumps(made).encode(),`
 Absorbs(c) == c /= "blocking"
@@ -162,7 +162,7 @@ Ready ==
 
 TypeOK ==
   /\ on \in Carriers /\ owed \in BOOLEAN /\ due \in BOOLEAN /\ seen \in BOOLEAN /\ box \in BOOLEAN
-  /\ pc \in 0..5 \cup {10, 11, 20, 21, 22} /\ key \in 0..1 /\ got \subseteq 0..2 /\ took \in 0..2
+  /\ pc \in 0..5 \cup {10, 11, 20, 21, 22} /\ key \in 0..1 /\ got \subseteq 0..3 /\ took \in 0..2
   /\ again \in BOOLEAN
   /\ clockPasses \in 0..Passes /\ clockKind \in Kinds \cup {"none"}
   /\ clockRung \in [acted : BOOLEAN, home : BOOLEAN]
@@ -192,7 +192,7 @@ Init ==
 ----
 \* What calls for the act comes to hold, and the carrier keeps what is owed where the code keeps
 \* it: a hold nobody works on (jbus/clock.py `hold = {"since": run.now.isoformat(), "woke": False} | was.get(key, {}) | group`),
-\* a body for the second target (`post`), an ask that stopped on a limit (jbus/owed.py `asks.append(ask)`),
+\* a body for the second target (post), an ask that stopped on a limit (jbus/owed.py `asks.append(ask)`),
 \* a short pull request counted (jbus/expedite.py `entry = {**seen, "passes": seen["passes"] + 1} if same else {"passes": 1}`),
 \* a second red head counted (jbus/stall.py `heads[head] = {"at": run.now.isoformat(), **_failure(found, names)}`),
 \* a merge that changed a skill, kept under the lock by the tick (jbus/reload.py `kept = owed(run, said) if kept != read_json(run.state / FILE, []):`),
@@ -250,7 +250,7 @@ Log ==
                  fails, reloadJson, reloadLock>>
   /\ UNCHANGED <<got, took, again, box, rowHeld, itemsNext>>
 
-\* The carrier's own file, at the end of its step. The clock writes `acted` and starts its count
+\* The carrier's own file, at the end of its step. The clock writes acted and starts its count
 \* again, the account keeps the number of the question for the tip of the key.
 Record ==
   /\ clockRung' = IF on = "clock" THEN [acted |-> TRUE, home |-> FALSE] ELSE clockRung
@@ -298,7 +298,7 @@ Step ==
   /\ pc' = IF pc = Len(Steps(on)) THEN 0 ELSE pc + 1
   /\ UNCHANGED <<on, due, owed, seen, key, failed, fbox, stall, logged>>
 
-\* The outbox holds a message at its act: one `held` line the first pass its rule holds the key,
+\* The outbox holds a message at its act: one held line the first pass its rule holds the key,
 \* the key stays unsent, and the pass ends there: jbus/outbox.py
 \* `if rule and _last(run, key) != ("held", rule):`. A word that waits says why:
 \* jbus/word.py `if waits != one.waits and _change(run, one, waits=waits):`
@@ -373,8 +373,8 @@ Rekind ==
                  reloadJson, reloadLock>>
   /\ UNCHANGED <<on, due, owed, pc, seen, key, failed, fbox, rowHeld, itemsNext>>
 
-\* `_home`'s `run.find`: jbus/wake.py `if key in sent.lookup: return False`, so a key that is
-\* there already logs nothing and the pass goes on to write `home`.
+\* _home's run.find: jbus/wake.py `if key in sent.lookup: return False`, so a key that is
+\* there already logs nothing and the pass goes on to write home.
 StallKey ==
   /\ on = "clock" /\ pc = 0 /\ owed /\ clockRung.acted /\ ~clockRung.home
   /\ clockPasses = Passes
@@ -398,10 +398,11 @@ StallHome ==
 ----
 \* owed.json's second writer: failover carries the failed thread on with the ask quoted below its
 \* own message (jbus/failover.py `text=message + owed.quoted(run, at),`), under its own key, marks
-\* that key, and then closes the ask (`owed.taken`). The receiver takes the ask under key 2.
+\* that key, and then closes the ask (owed.taken). The receiver takes the ask under failover's key
+\* of the try, key + 2: a move after the ask stopped again is a move of its own.
 Carry ==
   /\ on = "owed" /\ pc = 0 /\ owed /\ failed /\ askState = "owed"
-  /\ took' = (IF 2 \in got THEN took ELSE Cap(took + 1, 2)) /\ got' = got \cup {2}
+  /\ took' = (IF key + 2 \in got THEN took ELSE Cap(took + 1, 2)) /\ got' = got \cup {key + 2}
   /\ outboxLog' = Cap(outboxLog + 1, 3) /\ went' = "sent"
   /\ failed' = FALSE /\ pc' = 10
   /\ UNCHANGED <<clockPasses, clockKind, clockRung, heldJson, blocking, items, itemState, itemVerb,
@@ -434,7 +435,7 @@ StopsAgain ==
   /\ UNCHANGED <<on, due, owed, pc, seen, got, again>> /\ UNCHANGED <<fbox, stall, logged, rowHeld, itemsNext>>
 
 \* The user asked again, or the thread is settled, archived or gone: the ask is closed unsent.
-\* jbus/owed.py `ask.state, ask.closed = REPEATED, run.now.isoformat()` and the `ENDED` ones.
+\* jbus/owed.py `ask.state, ask.closed = REPEATED, run.now.isoformat()` and the ENDED ones.
 Closes ==
   /\ on = "owed" /\ pc = 0 /\ askState = "owed"
   /\ askState' \in {"repeated", "ended"} /\ owed' = FALSE
@@ -457,7 +458,7 @@ NoTellTwice == took <= 1 /\ ~again
 
 \* "jbus drops no tell": between passes, an act still owed whose mark is written was taken, so a
 \* mark with no act never stands; one with no mark the next pass does. The home's stall the
-\* clock's `home` says went is in the log.
+\* clock's home says went is in the log.
 NoTellLost ==
   /\ (pc = 0 /\ owed /\ (Marked \/ Done(on))) => took >= 1
   /\ clockRung.home => logged
