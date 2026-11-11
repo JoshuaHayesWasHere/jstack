@@ -147,6 +147,7 @@ RULES = [
         True,
     ),
     ("MergeRun.waits.cfg", {}, "WaitLoggedOnce", True),
+    ("MergeRun.waits.cfg", {"Fault": '"log-on-sweep"'}, "WaitLoggedOnce", False),
     ("MergeRun.waits.cfg", {}, "WaitKept", False),
     ("MergeRun.batch.cfg", {}, "BatchMergedOnce", True),
 ]

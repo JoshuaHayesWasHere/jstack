@@ -262,7 +262,7 @@ The parts share nothing but the run lock and a death, and all of them together w
 | `DeathTold`: a run that died with no record is told | `MergeRun.cfg` | breaks | the pass unlinks the stamp before `_unrun`, and dies between; or a run's process unlinks a later run's stamp |
 | `OneRunAtATime`: no two runs hold the repo | `MergeRun.cfg` | holds | `no-run-lock` breaks it: `going.lock` alone lets a run outlive its process |
 | `RestartReopens`: a pull request jmerge closed to restart is reopened or the user is told | `MergeRun.restart.cfg` | breaks | a close whose reply gh lost keeps a refusal that owes no reopen; and with no reply lost, a pass's list read before the tick closed it marks its reopen `took`; `fresh-list` holds it |
-| `WaitLoggedOnce` | `MergeRun.waits.cfg` | holds | the line is appended before the spell is dropped |
+| `WaitLoggedOnce`: a merged pull request's wait is logged once | `MergeRun.waits.cfg` | holds | `Spells.merged` runs only at the merge; `log-on-sweep` breaks it: a run that died between the append and the drop leaves a spell the sweep logs again |
 | `WaitKept`: a merged pull request's wait is logged | `MergeRun.waits.cfg` | breaks | jmerge dies between the squash and `Spells.merged`; a batch squashes every member before any is said |
 | `BatchMergedOnce` | `MergeRun.batch.cfg` | holds | a crash after the squashes leaves `state_of` none, since main moved |
 

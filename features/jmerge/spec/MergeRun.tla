@@ -24,8 +24,10 @@
 \* sends a record's lines before it replaces the record, the fix RunHeard asks for. Fault =
 \* "no-run-lock" is today's code with a pass's run that does not take the run lock: the canary of
 \* OneRunAtATime. Fault = "fresh-list" reads whether P is open from GitHub in the run, not from the
-\* list the pass handed it before the run started, the fix RestartReopens asks for. Each value
-\* other than "replace-first" changes that one thing of today's code.
+\* list the pass handed it before the run started, the fix RestartReopens asks for. Fault =
+\* "log-on-sweep" has `open_only` log the spell it drops of a merged W, the fix WaitKept might
+\* reach for: the canary of WaitLoggedOnce. Each value other than "replace-first" changes that one
+\* thing of today's code.
 \*
 \* ReplyLost is the world, not the code: GitHub took a close whose reply gh lost, so gh exited
 \* non-zero.
@@ -339,8 +341,9 @@ OpenOnly ==
            \/ stuck = "unopened" /\ ~Listed
         /\ UNCHANGED <<stuck, prOpen>>
   /\ spell' = IF wMerged THEN FALSE ELSE spell
+  /\ logged' = IF Fault = "log-on-sweep" /\ wMerged /\ spell THEN logged + 1 ELSE logged
   /\ jm' = "batch"
-  /\ UNCHANGED <<lock, seen, kind, ticks, childV, passV, batchV, logged, wMerged>>
+  /\ UNCHANGED <<lock, seen, kind, ticks, childV, passV, batchV, wMerged>>
 
 \* `batch.state_of`, but late, which is time: jmerge/batch.py `if batch is None or tip != batch.tip or pull is None or pull.head != batch.commit:`,
 \* jmerge/batch.py `return RERUN if rerunnable and len(batch.members) > 1 else FAILED`, and a failed
@@ -595,7 +598,9 @@ OneRunAtATime == Cardinality({r \in Runs : runs[r] = "jmerge"} \cup ({lock} \ {0
 \* its record owes the reopen, which each run tries again, or is `unopened`, which each run says
 \* (`Repo.unopened`) and jbus raises to the home.
 RestartReopens == ~prOpen => stuck \in {"owed", "closed", "unopened"}
-\* A merged pull request's wait is logged once at most.
+\* A merged pull request's wait is logged once at most. Today it holds since `Spells.merged` runs
+\* only at the merge, which comes once; a run that died between its append and its drop leaves a
+\* spell of a merged W, so a sweep that logged such a spell (Fault = "log-on-sweep") logs it twice.
 WaitLoggedOnce == logged <= 1
 \* A merged pull request's wait is logged, once the run that merged it is past the log.
 WaitKept == wMerged /\ jm /= "said" => logged = 1
