@@ -10,11 +10,15 @@ skip where no Java runs TLC."""
 import importlib
 import json
 import sys
+from datetime import timedelta
 
 import pytest
 
 from jbus import queue
-from test_jbus_queue import add
+from test_jbus_kitchen import NOW
+from test_jbus_queue import add, brief, go, rows
+from test_jbus_scout import add as ask
+from test_jbus_scout import reported, scout_thread
 from testing.paths import REPO
 
 SPEC = REPO / "features" / "jbus" / "spec"
@@ -92,3 +96,42 @@ def test_the_go_lines_the_verbs_write_replay_as_steps_of_the_model(kitchen, caps
     ]
     code, said = replay(log, capsys)
     assert (code, said) == (0, ["4 lines, 4 matched, 0 matched no step"])
+
+
+def test_a_crewmates_brief_over_a_scouts_done_row_writes_the_hand_over_and_replays_whole(
+    kitchen, jstack_config, capsys
+):
+    """The brief a scout delivers at its slug takes its done row over: the add writes the move
+    from `done` to `queued` as a line of its own, so the row's life replays as one chain of the
+    model's steps, the scout's run, the hand-over and the crewmate's launch, with no miss and no
+    break."""
+    kitchen.word()
+    kitchen.config(max_running=8)
+    ask(kitchen, "look")
+    go(kitchen, "look")
+    kitchen.poll()
+    reported(kitchen, "look")
+    scout_thread(kitchen, "look")["settled"] = True
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert rows(kitchen)["look"]["status"] == "done"
+    log = kitchen.state / "transitions.jsonl"
+    before = len(log.read_text().splitlines())
+
+    code, said = kitchen.main("queue", "add", "look", "--priority", "1", stdin=brief("look"))
+
+    assert code == 0, said
+    added = [json.loads(line) for line in log.read_text().splitlines()[before:]]
+    (handed,) = [line for line in added if "from" in line]
+    assert {key: handed[key] for key in ("slug", "from", "to", "handed")} == {
+        "slug": "look",
+        "from": "done",
+        "to": "queued",
+        "handed": True,
+    }
+    assert handed["by"] and handed["at"]
+    assert go(kitchen, "look")[0] == 0
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert rows(kitchen)["look"]["status"] == "launched"
+    lines = log.read_text().splitlines()
+    code, said = replay(log, capsys)
+    assert (code, said) == (0, [f"{len(lines)} lines, {len(lines)} matched, 0 matched no step"])

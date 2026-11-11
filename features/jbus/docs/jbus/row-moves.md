@@ -1,17 +1,20 @@
 # Row moves
 
-A row of the queue has one status, and no verb moves it.
+A row of the queue has one status, and no verb moves it but two, each with a line of its own: `remove`, and the add of a crewmate's brief over a scout's done row (below).
 Each pass works the status out again from what T3 Code and GitHub say (`work.status`), and `queue.derive` writes it.
 So the table of moves cannot drive a row, as the table of [work items](work-items.md) drives an item.
 It judges each move after the facts made it.
 
 `queue.MOVES` holds every move the work makes, with the change of facts that makes it.
-It is the status edges of TLC's state graph of `features/jbus/spec/RowLife.tla`: each move one step of the model makes, and no other.
+It is the status edges of TLC's state graph of `features/jbus/spec/RowLife.tla`: each move one step of the model makes but the hand-over's, and no other.
 `features/jbus/tests/test_rowlife_spec.py` fails when the table and the graph differ.
 Each move of a status is one line of `~/.local/state/jbus/<project>/transitions.jsonl`.
 A move the table does not hold gets `"legal": false` on its line, and the pass logs a quiet event, `illegal-move <slug>: <from> to <to>`.
 The pass writes the status all the same, since the status is what the facts say, but for a row that is over (`work.over`).
-A row at `merged` or `done` stays there whatever the facts say later (`work.kept`), but for `done` to `merged`, so `derive` writes no move out of either, `remove` refuses such a row, and every reader of the table (`queue.final`, `watch.final`, jmerge through `jmerge.bus.over`) reads a row over once and for good.
+A crewmate's row at `merged` or `done` stays there whatever the facts say later (`work.kept`), but for `done` to `merged`, so `derive` writes no move out of either, `remove` refuses such a row, and every reader of the table (`queue.final`, `watch.final`, jmerge through `jmerge.bus.over`) reads a row over once and for good.
+The one move out of `done` that is not to `merged` is a scout's: once a scout's Report says done, the crewmate's brief it delivered at its slug takes the row over (`queue._hand_over`).
+The add queues the row again as a crewmate's, with no go, and writes the move as one line `{slug, from: "done", to: "queued", by, at, handed: true}`.
+`queue.MOVES` leaves the move out, so a pass that writes it is still marked, and RowLife's `HandOver` takes only a scout's row.
 A pull request that opens under a row that is over keeps the row where it is: the pass opens a gate on it (`states.reopened`), and jmerge holds the pull request (`row-over`) until the user accepts it or closes it.
 The telemetry store keeps the mark as the column `legal` of `transitions`, 0 for a marked move and 1 for any other, so a count of `legal = 0` by day says what is left to fix.
 
@@ -26,7 +29,7 @@ uv run --project "../../../$S" statechart replay RowLife.tla --trace RowLife.tra
 
 It reads `RowLife.cfg` beside the spec, and `--since <iso>` counts only the lines from then on.
 
-`RowLife.trace.py` reads each line: a pass's line is a path of steps that are no verb's, a line with `by` (`remove`, `withdraw`) is one `Remove` step, and a line with `go` (`{slug, go, by, at}`, written by each approve, rule's go, hold, lift and void) is one step of the action that moves the go there.
+`RowLife.trace.py` reads each line: a pass's line is a path of steps that are no verb's, a line with `handed` is one `HandOver` step, any other line with `by` (`remove`, `withdraw`) is one `Remove` step, and a line with `go` (`{slug, go, by, at}`, written by each approve, rule's go, hold, lift and void) is one step of the action that moves the go there.
 `features/jbus/tests/test_rowlife_replay.py` replays a fixture of real lines.
 
 The table leaves out three kinds of move, each a fault the model has not:

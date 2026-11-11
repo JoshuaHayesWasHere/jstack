@@ -31,12 +31,20 @@ stateDiagram-v2
       state "No go" as r0s4
       r0s0 --> r0s4 : its go no longer holds, and it<br/>waits for yours [when gate (a<br/>question is open) or queued<br/>(no launch yet)]
       %% when r1s2, r1s7
+      r0s0 --> r0s4 : the crewmate's brief the scout<br/>delivered takes its done row<br/>over, with no go [when done (a<br/>clean Result from a thread<br/>that ended)]
+      %% when r1s0
       r0s0 --> r0s1 : you give the approved row<br/>other depends, and its line<br/>waits for a pass
       r0s0 --> r0s2 : you hold the approved row
       r0s0 --> r0s3 : you hold the row, keeping its<br/>go
+      r0s1 --> r0s4 : the crewmate's brief the scout<br/>delivered takes its done row<br/>over, with no go [when done (a<br/>clean Result from a thread<br/>that ended)]
+      %% when r1s0
       r0s1 --> r0s0 : the rows it depends on are<br/>over
       r0s1 --> r0s0 : you approve the approved row<br/>again
+      r0s2 --> r0s4 : the crewmate's brief the scout<br/>delivered takes its done row<br/>over, with no go [when done (a<br/>clean Result from a thread<br/>that ended)]
+      %% when r1s0
       r0s2 --> r0s0 : you approve the held row, and<br/>the hold ends
+      r0s3 --> r0s4 : the crewmate's brief the scout<br/>delivered takes its done row<br/>over, with no go [when done (a<br/>clean Result from a thread<br/>that ended)]
+      %% when r1s0
       r0s3 --> r0s0 : you approve the row over the<br/>hold that kept its go
       r0s3 --> r0s2 : you hold the held row again
       r0s3 --> r0s0 : you lift the hold, and its go<br/>comes back
@@ -59,6 +67,7 @@ stateDiagram-v2
       state "running (the thread at<br/>work, a Result or not, or<br/>its pull request opening)" as r1s9
       state "stale (the turn hung, or<br/>the thread ended, was<br/>settled or left T3 Code's<br/>list with nothing written)" as r1s10
       state "waiting (the thread asks<br/>you)" as r1s11
+      r1s0 --> r1s7 : the crewmate's brief the scout<br/>delivered takes its done row<br/>over, with no go
       r1s0 --> r1s5 : the pull request of a done row<br/>merges on the user's accept
       r1s1 --> r1s0 : a Result says done after the<br/>thread failed
       r1s1 --> r1s11 : the failed thread asks for an<br/>answer
