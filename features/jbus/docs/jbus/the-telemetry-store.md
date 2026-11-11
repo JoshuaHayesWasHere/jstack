@@ -150,8 +150,8 @@ The spells an account was signed out have no record yet.
 | `/tmp` | a row's reason `waiting: /tmp at <n>% of its <what>` | the wait's spell |
 | `no slot` | a row's reason `no slot`, `max_per_home is ...`, `max_per_project is ...`, `max_running is ...`, or a gate held back while every slot is taken | the wait's spell |
 | `no home-id` | a failed home start `relaunches.json` names (`home_starts`), whose run ended, failed or idle, with no `home-id`; one that failed signed out is `sign-in`, and one on a usage limit is `other` with the limit as `reason` | from when the start was launched to when the pass saw it end; a start written before `relaunches.json` kept `launched` has no start and no minutes |
-| `load` | a row's reason `waiting for room on the machine: load <n> is at or over ...`, where `jgauge room` said the load is over its share of the cores (`jbus.dispatch.ROOM`) | the wait's spell |
-| `other` | `waiting for room on the machine` with any other no of `jgauge room` but /tmp's after it, such as memory, or `no launch: ...` for capped instances, kept as `reason` | the wait's spell |
+| `load` | a row's reason `waiting for room on the machine: load is at or over <n>% of <c> cores`, where `jgauge room` said the load is over its share of the cores: the threshold and the cores, never the reading (`jbus.roomwait.reason`) | the wait's spell |
+| `other` | `waiting for room on the machine` with the head of any other no of `jgauge room` but /tmp's after it, such as `memory available under 2 GB`, or with none, or `no launch: ...` for capped instances, kept as `reason` | the wait's spell |
 
 A wait's spell runs from a row's first line of a cause in `waits.jsonl` to its next line of another cause or of none.
 The store reads each line's cause as it reads the line, and each build makes the table again from the store's own tables, so it outlives the daily trim, and a spell open at one build is closed by the build after it ends.
@@ -160,6 +160,7 @@ Migration `v021_launch_failures` drops the cursors of `events` and `row_waits`, 
 
 Every cause has a record jbus writes, so no row is guessed.
 A wait on load from before jbus named what `jgauge room` said has the bare reason `waiting for room on the machine`, which is `other`.
+A reason keeps what a row waits on and its limit, not the reading of the moment, so a wait on load stays one spell, with one `waits.jsonl` line and one `since`, while the load moves; one written between 2026-11-11 and this change has the reading after `load`, and is `load` too.
 
 Minutes and count by cause by hour, from the hour each began (its `end` where it has no start), since a time:
 
