@@ -30,6 +30,9 @@ Each ask is sent once. Its retry key, `ask|<thread>|<message>|<try>`, is in `sen
 Code's `clientRequestId`, so a crash between the send and the mark sends nothing twice. A record
 that went is `sent` and is never sent again, unless the turn it started stopped on the limit or the
 auth error too, since that turn ran nothing: then it is owed again, under the next try's key.
+The carry-on's key is on the record (`carry`) before the carry-on goes, so an ask whose carry-on
+went and whose pass died before `taken` goes under that key, as the carry-on T3 Code took already,
+and never under its own key as well.
 
 An ask the user repeated is not sent. It is closed as `repeated` when a later message of theirs in
 the thread says the same words or asks to go on (`RESUME`), and that message's turn completed. A
@@ -97,7 +100,8 @@ _CAP_RULE = "cap: until "
 @dataclass
 class Ask:
     """`Ask` is one record of `owed.json`. `position` is the ask's place in its thread's items, and
-    `state` is `owed`, `sent`, `repeated` or `ended`."""
+    `state` is `owed`, `sent`, `repeated` or `ended`. `carry` is the retry key of the carry-on
+    `jbus.failover` quotes the ask in, written before that carry-on goes (`carrying`)."""
 
     id: str
     thread: str
@@ -114,6 +118,7 @@ class Ask:
     state: str = OWED
     tries: int = 1
     closed: str = ""
+    carry: str = ""
 
     @property
     def key(self) -> str:
@@ -260,7 +265,7 @@ def _record(run: Pass, client: Client, thread: dict[str, Any], asks: list[Ask], 
     owes = False
     for ask in asks:
         if ask.thread == at and ask.state == SENT and any(ask.text in text for text in ours):
-            ask.state, ask.closed, ask.tries = OWED, "", ask.tries + 1
+            ask.state, ask.closed, ask.tries, ask.carry = OWED, "", ask.tries + 1, ""
             ask.cause, ask.line, ask.until, ask.stopped = stop.cause, stop.line, until, stopped
             ask.instance = instance
             owes = True
@@ -357,8 +362,10 @@ def _renewed(run: Pass, client: Client, ask: Ask) -> bool:
     )
 
 
-def _settle(run: Pass, client: Client, ask: Ask, carried: bool) -> None:
-    """Close the ask if nothing is owed any more, and otherwise send it if its account is free."""
+def _settle(run: Pass, client: Client, ask: Ask, carried: bool, asks: Sequence[Ask] = ()) -> None:
+    """Close the ask if nothing is owed any more, and otherwise send it if its account is free.
+    An ask a carry-on quoted (`carrying`) goes under the carry-on's key, with every ask that key
+    quoted: T3 Code takes it as the carry-on where that went, and as the asks where it did not."""
     try:
         thread, items, runs = _since(client, ask)
     except T3Refused as error:
@@ -376,26 +383,31 @@ def _settle(run: Pass, client: Client, ask: Ask, carried: bool) -> None:
         return
     if thread.get("snoozed") or (carried and thread.get("status") == "failed"):
         return
-    if ask.key in run.box.sent():
-        ask.state, ask.closed = SENT, run.now.isoformat()
+    key = ask.carry or ask.key
+    together = [one for one in asks if one.carry and one.carry == ask.carry and one.state == OWED]
+    if key in run.box.sent():
+        for one in [ask, *together]:
+            one.state, one.closed = SENT, run.now.isoformat()
         return
     if ask.cause == AUTH and not _renewed(run, client, ask):
         run.say(f"wait {ask.row}: its ask waits for {ask.instance} to be signed in again")
         return
+    quoted = [ask, *(one for one in together if one is not ask)]
     if outbox.send(
         run,
         client,
         thread=ask.thread,
         row=ask.row,
-        key=ask.key,
-        text=ask.message(),
+        key=key,
+        text="\n\n".join(one.message() for one in quoted),
         template=TEMPLATE,
         needs="act",
     ):
-        run.box.mark(ask.key)
-        ask.state, ask.closed = SENT, run.now.isoformat()
+        run.box.mark(key)
+        for one in quoted:
+            one.state, one.closed = SENT, run.now.isoformat()
         line = f"resent {ask.row}: its ask that stopped on a {ask.cause}"
-        run.find(ask.thread, "ask-resent", line, key=ask.key)
+        run.find(ask.thread, "ask-resent", line, key=key)
         run.say(line)
 
 
@@ -453,7 +465,7 @@ def sweep(
         if ask.state != OWED:
             continue
         try:
-            _settle(run, client, ask, ask.cause == LIMIT and ask.thread in carried)
+            _settle(run, client, ask, ask.cause == LIMIT and ask.thread in carried, asks)
         except T3Refused as error:
             what = "T3 Code refused an owed ask"
             run.gate(ask.thread, what, str(error), key=f"{what} {ask.key}")
@@ -470,6 +482,18 @@ def quoted(run: Pass, thread: str) -> str:
         for ask in load(run.state)
         if ask.thread == thread and ask.state == OWED
     )
+
+
+def carrying(run: Pass, thread: str, key: str) -> None:
+    """Write on each ask the thread owes the key of the carry-on that quotes it, before the
+    carry-on goes, so that a pass that dies after the carry-on and before `taken` leaves the ask
+    to go under that key, which T3 Code takes as the carry-on (`_settle`)."""
+    asks = load(run.state)
+    owes = [ask for ask in asks if ask.thread == thread and ask.state == OWED and ask.carry != key]
+    for ask in owes:
+        ask.carry = key
+    if owes:
+        _save(run.state, asks, _looked(run.state))
 
 
 def taken(run: Pass, thread: str) -> None:

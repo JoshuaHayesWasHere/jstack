@@ -14,19 +14,19 @@ from datetime import timedelta
 
 import pytest
 
-from jbus import mainmoved, outbox, questions, queue, relay, wake
+from jbus import Refused, mainmoved, outbox, questions, queue, relay, stall, wake, word
 from test_jbus_blocking import Second, hold, later, relayed
-from test_jbus_clock import N, NO_REVIEW, to
+from test_jbus_clock import NO_REVIEW, N, to
 from test_jbus_expedite import Short
 from test_jbus_failover import POOL
 from test_jbus_github import launched
 from test_jbus_github import passes as run_at
 from test_jbus_kitchen import NOW, RESULT, iso
 from test_jbus_leftover import home
+from test_jbus_main_moved import checks, tip
 from test_jbus_owed import AFTER, ASK, limit, said, stopped
 from test_jbus_queue import rows
 from test_jbus_red_main import asked, landed, no_job
-from test_jbus_main_moved import checks, tip
 from test_jbus_twice import A, B, pages, red_at
 from test_jbus_word import CHAT, REF, WORDS
 
@@ -70,6 +70,28 @@ def test_twice_pages_the_chef_once_when_the_pass_dies_after_it_held_the_row(laun
     assert rows(launched)["alpha"]["held"] is True
     (page,) = pages(launched)
     assert "aaaaaaaaaaaa" in page["text"] and "bbbbbbbbbbbb" in page["text"]
+
+
+def test_twice_pages_the_chef_once_the_row_can_be_held_when_its_hold_was_refused(
+    launched, monkeypatch
+):
+    """The page's key is kept before the hold, so a hold refused leaves the page owed, not lost: no
+    page while the row cannot be held, and one page once a later pass holds it."""
+    red_at(launched, A, "11")
+    run_at(launched, 0)
+    red_at(launched, B, "12")
+    real = stall.queue.hold
+
+    def busy(*args, **kwargs):
+        raise Refused("refused: the queue is busy")
+
+    monkeypatch.setattr(stall.queue, "hold", busy)
+    run_at(launched, 3)
+    assert pages(launched) == []
+    monkeypatch.setattr(stall.queue, "hold", real)
+    run_at(launched, 6, 9)
+    assert rows(launched)["alpha"]["held"] is True
+    assert len(pages(launched)) == 1
 
 
 @pytest.fixture
@@ -168,21 +190,86 @@ def test_the_second_target_takes_a_body_once_when_the_pass_dies_after_its_post(
     assert [one["kind"] for one in relayed_on(posts)].count("events") == 1
 
 
+def shows(thread, message):
+    """Show the message in a read of the thread, as T3 Code shows a message it took: the kitchen's
+    fake keeps what it took in `messages` and leaves a thread's items as the test set them."""
+    item = {"position": 1, "type": "user_message", "createdBy": "agent", "text": message}
+    thread.update(read_items=[item], itemCount=1)
+
+
 def test_a_word_goes_to_one_home_thread_when_the_pass_dies_after_it_went_and_the_home_moves(
     kitchen, monkeypatch
 ):
     """NoTellTwice: the word went, the run dies before `sent_at`, the home hands its thread on,
     and the next pass sends the word to the new thread too."""
     kitchen.t3.says(CHAT, "m-word", WORDS, updatedAt=iso(NOW - timedelta(minutes=5)), title="chat")
-    (kitchen.home / "home-id").write_text("home-1\n")
+    was = home(kitchen)
     dies_after(monkeypatch, outbox, "send", lambda went, *_, **sent: sent["template"] == "word")
     with pytest.raises(Died):
         kitchen.main("word", "--to", "demo", "--message", REF)
+    (word,) = taken(kitchen, "word|")
+    shows(was, word["message"])
     (kitchen.home / "home-id").write_text("home-2\n")
     kitchen.poll()
     kitchen.poll(NOW + timedelta(minutes=1))
+    assert taken(kitchen, "word|") == [word]
+    assert word["threadId"] == was["threadId"] and word["message"].endswith(WORDS)
+
+
+def test_a_word_goes_once_to_the_same_home_when_the_pass_dies_after_it_went(kitchen, monkeypatch):
+    """The word went, the run died before `sent_at`, and the home kept its thread: the next pass
+    sends it there again under the same key, which T3 Code takes as the word it has."""
+    kitchen.t3.says(CHAT, "m-word", WORDS, updatedAt=iso(NOW - timedelta(minutes=5)), title="chat")
+    was = home(kitchen)
+    dies_after(monkeypatch, outbox, "send", lambda went, *_, **sent: sent["template"] == "word")
+    with pytest.raises(Died):
+        kitchen.main("word", "--to", "demo", "--message", REF)
     (word,) = taken(kitchen, "word|")
-    assert word["message"].endswith(WORDS)
+    kitchen.poll()
+    assert taken(kitchen, "word|") == [word] and word["threadId"] == was["threadId"]
+
+
+def test_a_word_waits_while_its_thread_tried_gives_no_answer_after_the_home_moved(
+    kitchen, monkeypatch
+):
+    """Where T3 Code gives no answer to the read of the thread a word was tried to, nobody can say
+    whether it went: the word waits, and goes to no new home, until the read answers."""
+    kitchen.t3.says(CHAT, "m-word", WORDS, updatedAt=iso(NOW - timedelta(minutes=5)), title="chat")
+    was = home(kitchen)
+    dies_after(monkeypatch, outbox, "send", lambda went, *_, **sent: sent["template"] == "word")
+    with pytest.raises(Died):
+        kitchen.main("word", "--to", "demo", "--message", REF)
+    (word,) = taken(kitchen, "word|")
+    (kitchen.home / "home-id").write_text("home-2\n")
+    kitchen.t3.lose_read = True
+    kitchen.poll()
+    assert taken(kitchen, "word|") == [word]
+    kitchen.t3.lose_read = False
+    shows(was, word["message"])
+    kitchen.poll(NOW + timedelta(minutes=1))
+    assert taken(kitchen, "word|") == [word]
+
+
+@pytest.mark.parametrize("gone", [False, True], ids=["kept", "gone"])
+def test_a_word_tried_and_not_sent_goes_to_the_new_home_when_the_pass_dies_before_the_send(
+    kitchen, monkeypatch, gone
+):
+    """NoTellLost, the other side of the try the word keeps: the run dies after it kept the thread
+    it tries and before T3 Code took the word, the home hands its thread on, and the word goes to
+    the new thread, not to the home that handed off without it, whether T3 Code still has that
+    home's thread or not."""
+    kitchen.t3.says(CHAT, "m-word", WORDS, updatedAt=iso(NOW - timedelta(minutes=5)), title="chat")
+    was = home(kitchen)
+    dies_after(monkeypatch, word, "_try", lambda _, run, one, thread: bool(thread))
+    with pytest.raises(Died):
+        kitchen.main("word", "--to", "demo", "--message", REF)
+    assert taken(kitchen, "word|") == []
+    if gone:
+        kitchen.t3.threads.remove(was)
+    (kitchen.home / "home-id").write_text("home-2\n")
+    kitchen.poll()
+    (went,) = taken(kitchen, "word|")
+    assert went["threadId"] == "home-2" and went["message"].endswith(WORDS)
 
 
 def test_the_account_question_is_parked_once_when_the_pass_dies_before_account_json(

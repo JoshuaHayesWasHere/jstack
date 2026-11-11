@@ -494,8 +494,8 @@ def _go(
 ) -> None:
     """Put the thread on instance `to` of its pool, where it is not there yet, with its
     selection as it was, and queue its one carry-on under the retry key `key`, with the user's
-    ask that the failed run stopped on quoted below it (`owed.quoted`). Log and say `line` once
-    it went, and close that ask (`owed.taken`)."""
+    ask that the failed run stopped on quoted below it (`owed.quoted`), whose record names that key
+    first (`owed.carrying`). Log and say `line` once it went, and close that ask (`owed.taken`)."""
     at = str(thread["threadId"])
     selection, instances = chosen
     client.recipients = client.recipients | {at}
@@ -503,6 +503,7 @@ def _go(
         client.moves[at] = (selection, instances)
         moved = {**selection, "instanceId": to}
         client.call("t3_thread_configure", {"threadId": at, "modelSelection": moved})
+    owed.carrying(run, at, key)
     sent = outbox.send(
         run,
         client,

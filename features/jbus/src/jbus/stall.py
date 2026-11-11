@@ -51,8 +51,11 @@ mend it (#1720, 2026-11-11). Its crew is told to fix it as at any first failure.
 counted head, a push or a merge of main that failed nothing new,
 `twice` holds the row (`jbus queue hold`), keeping the go the hold takes, and pages the Chef once, a
 gate `check failed twice` that names the row, the pull request, both heads and the failed jobs at
-each. The outbox then sends the crew of a held row no rebase and no fix message (`outbox.FIXES`), so
-none goes out at a third head. The row's `why` says `check failed twice` while it is held. In the
+each. The page's key goes into `fails.json` (`paging`) before the hold, and `held_at` after the
+page, so a pass that dies between the hold and the page leaves the page owed: the next pass pages
+under the same key, which the log takes once (`_page`). The outbox then sends the crew of a held row
+no rebase and no fix message (`outbox.FIXES`), so none goes out at a third head. The row's `why`
+says `check failed twice` while it is held. In the
 pass that sees every required check passed at the head, `twice` lifts its own hold and puts back the
 go it took (`lifted`, `queue.lift`), where the row's brief is still the one that go was for; a row
 held again since, by anyone, or whose brief changed since, stays held until an approve. Either way
@@ -552,6 +555,11 @@ def lifted(
     return True
 
 
+PAGING = "paging"
+"""The key of `twice`'s page in `fails.json`, written before the hold, so that a pass that dies
+between the hold and the page leaves the page owed and not lost (`_page`)."""
+
+
 def _said(head: str, one: dict[str, Any]) -> str:
     jobs = ", ".join(one.get("jobs") or ()) or "no job GitHub gave"
     return f"{head[:12]}: {', '.join(one.get('checks') or ())} failed ({jobs})"
@@ -586,6 +594,9 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
         moved, last = list(one.get("moved") or ()), dict(one.get("last") or {})
         kept[slug] = {**one, "heads": heads, "red": on_red, "shared": flakes, "infra": infras}
         kept[slug]["moved"] = moved
+        if one.get(PAGING) and not one.get("held_at"):
+            _page(run, slug, row, pull, kept[slug])
+            continue
         if head in heads and not ready.waiting(pull.get("statusCheckRollup") or [], required):
             del heads[head]
             kept[slug]["last"] = {"head": head, "failed": []}
@@ -643,22 +654,36 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
         heads[head] = {"at": run.now.isoformat(), **_failure(found, names)}
         if len(heads) < 2:
             continue
+        kept[slug][PAGING] = f"{TWICE} {' '.join(failed[:12] for failed in heads)}"
+        write_json(path, {**was, **kept})
+        _page(run, slug, row, pull, kept[slug])
+    if kept != was:
+        write_json(path, kept)
+
+
+def _page(run: Pass, slug: str, row: queue.Row, pull: dict[str, Any], one: dict[str, Any]) -> None:
+    """Hold the row and page the Chef under the key `one[PAGING]`, which `fails.json` kept
+    before the hold, and mark the page done in `held_at`. A pass that died after the hold finds
+    the key and no `held_at`, and pages here again: `Box.send` takes a repeat of the key as the
+    page it logged, so the Chef is paged once, and never not at all."""
+    heads = one["heads"]
+    if row.get("held"):
+        said = f"held {slug}"
+    else:
         try:
             said = queue.hold(run.state, slug, keep=True)
         except Refused as error:
             run.say(f"wait {slug}: {TWICE}, and it could not be held ({error})")
-            continue
-        kept[slug]["held_at"] = run.now.isoformat()
-        number, url = pull["number"], pull.get("url", "")
-        at = "; ".join(_said(failed, heads[failed]) for failed in heads)
-        text = (
-            f"#{number} {url} of {slug} failed a required check at two heads: {at}. jbus {said}, "
-            "and sends its crew no rebase and no fix until every required check passes at a head, "
-            "which gives the row back its go, or the row is approved again."
-        )
-        run.gate(slug, TWICE, text, key=f"{TWICE} {' '.join(failed[:12] for failed in heads)}")
-    if kept != was:
-        write_json(path, kept)
+            return
+    number, url = pull["number"], pull.get("url", "")
+    at = "; ".join(_said(failed, heads[failed]) for failed in heads)
+    text = (
+        f"#{number} {url} of {slug} failed a required check at two heads: {at}. jbus {said}, "
+        "and sends its crew no rebase and no fix until every required check passes at a head, "
+        "which gives the row back its go, or the row is approved again."
+    )
+    run.gate(slug, TWICE, text, key=one[PAGING])
+    one["held_at"] = run.now.isoformat()
 
 
 def _twice(half: Half) -> None:
