@@ -217,3 +217,23 @@ def test_a_wait_on_load_written_with_its_reading_is_still_cause_load(machine):
         ("alpha", "busy", "load", None, t(minutes(0)), t(minutes(4)), 4.0),
         ("alpha", "busy", "other", bare, t(minutes(4)), t(minutes(7)), 3.0),
     ]
+
+
+def test_a_wait_on_a_full_tmp_is_cause_tmp_in_its_new_shape_and_in_the_one_with_its_share(machine):
+    """`jbus.cleanup.waiting` names /tmp and what it is full of; a jbus from before it wrote the
+    share of the moment as well. Both are a wait on /tmp, so a wait that went from one shape to
+    the other, as jbus was updated during it, is one spell."""
+    machine.append(
+        "alpha",
+        "waits.jsonl",
+        wait(minutes(0), "tmp", "waiting: /tmp at 81% of its quota"),
+        wait(minutes(3), "tmp", "waiting: /tmp is full: its quota"),
+        wait(minutes(7), "tmp", ""),
+        wait(minutes(10), "size", "waiting: /tmp is full: its size"),
+        wait(minutes(12), "size", "waiting: /tmp is full: its file slots"),
+        wait(minutes(15), "size", ""),
+    )
+    assert rows(machine) == [
+        ("alpha", "tmp", "/tmp", None, t(minutes(0)), t(minutes(7)), 7.0),
+        ("alpha", "size", "/tmp", None, t(minutes(10)), t(minutes(15)), 5.0),
+    ]

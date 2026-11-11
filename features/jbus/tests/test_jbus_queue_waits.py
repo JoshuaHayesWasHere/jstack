@@ -5,7 +5,11 @@ machine says so."""
 import json
 from datetime import timedelta
 
+import pytest
+
 from jbus import queue
+import test_jbus_cleanup
+from test_jbus_cleanup import pad, tmp  # noqa: F401  (`full`'s /tmp)
 from test_jbus_kitchen import NOW
 from test_jbus_queue import add, rows
 
@@ -78,4 +82,29 @@ def test_a_wait_for_room_keeps_its_reason_and_its_since_while_the_load_moves(kit
     kitchen.machine(load="31.00")
     kitchen.poll(NOW + timedelta(minutes=5))
     assert [line["why"] for line in lines(kitchen) if line["slug"] == "first"] == [LOAD]
+    assert rows(kitchen)["first"]["since"] == began
+
+
+@pytest.fixture
+def full(request, monkeypatch):
+    """The /tmp of `test_jbus_cleanup` with a 10 GiB quota, which `jgauge room` gives to a tenth
+    of a GB, so it can read 81% and 84% of it."""
+    monkeypatch.setattr(test_jbus_cleanup, "QUOTA_KIB", 10 * 1024 * 1024)
+    return request.getfixturevalue("tmp")
+
+
+def test_a_wait_for_a_full_tmp_keeps_its_reason_and_its_since_while_its_use_moves(kitchen, full):
+    """`jgauge room` reads /tmp at 81% of its quota on one pass and at 84% on the next: the row
+    waits on the same full /tmp all along, so `waits.jsonl` keeps the one line of the first pass,
+    `since` stays put, and the reason still names /tmp."""
+    (kitchen.root / "worktrees" / kitchen.checkout.name / "live").mkdir(parents=True)
+    blob = pad(full, kitchen, "live", 870_000) / "session" / "scratchpad" / "blob"
+    add(kitchen, "first")
+    kitchen.poll()
+    began = rows(kitchen)["first"]["since"]
+    blob.write_bytes(b"x" * 900_000)
+    kitchen.poll(NOW + timedelta(minutes=5))
+    assert kitchen.t3.launches == []
+    said = [line["why"] for line in lines(kitchen) if line["slug"] == "first"]
+    assert said == [f"waiting: {full} is full: its quota"]
     assert rows(kitchen)["first"]["since"] == began
