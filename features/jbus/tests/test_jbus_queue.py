@@ -357,25 +357,25 @@ def test_an_approve_in_a_batch_is_for_the_brief_added_earlier_in_the_same_batch(
 @pytest.mark.parametrize(
     "bad, says",
     [
-        ("hold nope\n", "line 20: the queue has no row nope"),
-        (f'approve alpha --by user --at "{AT}" --sha 0\n', f"line 20: {NO_BASIS}"),
-        ("approve alpha --sha 0\n", f"line 20: {NO_BASIS}"),
-        ("add gamma --priority 1\nhold alpha\n", "line 20: add gamma has no --- brief gamma"),
+        ("hold nope\n", "line 21: the queue has no row nope"),
+        (f'approve alpha --by user --at "{AT}" --sha 0\n', f"line 21: {NO_BASIS}"),
+        ("approve alpha --sha 0\n", f"line 21: {NO_BASIS}"),
+        ("add gamma --priority 1\nhold alpha\n", "line 21: add gamma has no --- brief gamma"),
         (
             "add gamma --priority 1\n--- brief gamma\nA brief.\n",
-            "line 20: gamma's brief has no --- end",
+            "line 21: gamma's brief has no --- end",
         ),
         (
             "add gamma --priority 1\n--- brief gamma\nA brief.\n--- brief delta\nmore\n--- end\n",
-            "line 20: gamma's brief has no --- end",
+            "line 21: gamma's brief has no --- end",
         ),
-        (adds("gamma", "--priority soon"), "line 20: --priority is an integer, not soon"),
-        (adds("gamma"), "line 20: add needs --priority"),
-        (adds("../up", "--priority 1"), "line 20: ../up is not a slug"),
-        ("hold alpha --status merged\n", "line 20: status is derived from T3 Code and GitHub"),
-        ("hold alpha --at now\n", "line 20: hold takes no --at"),
-        ("drop alpha\n", "line 20: drop is not add, approve, hold or remove"),
-        ('hold "alpha\n', "line 20: No closing quotation"),
+        (adds("gamma", "--priority soon"), "line 21: --priority is an integer, not soon"),
+        (adds("gamma"), "line 21: add needs --priority"),
+        (adds("../up", "--priority 1"), "line 21: ../up is not a slug"),
+        ("hold alpha --status merged\n", "line 21: status is derived from T3 Code and GitHub"),
+        ("hold alpha --at now\n", "line 21: hold takes no --at"),
+        ("drop alpha\n", "line 21: drop is not add, approve, hold or remove"),
+        ('hold "alpha\n', "line 21: No closing quotation"),
     ],
 )
 def test_a_batch_with_one_verb_that_cannot_be_done_writes_nothing(kitchen, bad, says):
