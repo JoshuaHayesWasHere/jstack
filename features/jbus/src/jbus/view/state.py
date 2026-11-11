@@ -188,7 +188,7 @@ SAYS = {
     "launching": "a thread was started and has not reported yet",
     "working": "the thread is working",
     "quiet": "its thread has written nothing for a while",
-    "opening": "its crewmate is opening the pull request its review was for",
+    "opening": "its work is written and its crewmate is opening the pull request",
     "hung": "its turn has written nothing, and may be hung",
     "waiting": "the thread waits on a request",
 }
