@@ -2,7 +2,8 @@
 Task: "<the request, in the user's words>"
 <A quote on `Task:` holds only words the user typed, as the `Asked:` file has them: the home's own words, such as which slice of the request this brief is, go outside the quotes.>
 Why: <why the change is wanted: the problem, the evidence that it happens (a run, a count, a log line or the user's own words), and what goes better once it lands>
-<`Why:` gives the reason, where `Task:` gives the request and `Done when:` the target: it never says either again, and `jbus queue add` refuses a brief with no `Why:` line, or one whose words are all words of its title and `Task:`. The crewmate makes a choice the brief leaves open in its light.>
+<`Why:` gives the reason, where `Task:` gives the request and `Done when:` the target: it never says either again, and `jbus queue add` refuses a brief with no `Why:` line, or one whose words are all words of its title and `Task:`.>
+<The crewmate makes a choice the brief leaves open in the light of `Why:`.>
 Done when:
 - <a check, ending (in `path/of/the/file`), the file it lands in, under Where, or (in none)>
 Proves it: <what outside the agent shows it holds: a test or a command, a metric, a dataset, an external judge or the user, never the crew's own review, and for a change to code, beside its test, what a user would see: a command of the product with what it prints, a measure read after the merge, or judged: and why>
