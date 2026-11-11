@@ -97,7 +97,9 @@ def test_each_carrier_is_a_variable_whose_comment_quotes_its_code():
 
 def tlc(rule, fault="none"):
     """TLC's output for PlanScope.cfg with `Fault = fault`, checking TypeOK and `rule` alone, as
-    statechart from-spec checks each rule, in a copy of the spec's folder."""
+    statechart from-spec checks each rule, in a copy of the spec's folder. TLC writes Naturals.tla
+    and its kin to java.io.tmpdir under fixed names, so that is the copy too: two runs sharing /tmp
+    read each other's half-written module and fail to parse."""
     found = tools.find_tlc()
     cfg = (SPEC / "PlanScope.cfg").read_text()
     assert 'Fault = "none"' in cfg
@@ -107,8 +109,6 @@ def tlc(rule, fault="none"):
         work = Path(folder)
         shutil.copy(SPEC / "PlanScope.tla", work)
         (work / "run.cfg").write_text(kept.replace('Fault = "none"', f'Fault = "{fault}"'))
-        # TLC writes Naturals.tla and its kin to java.io.tmpdir under fixed names, so two runs
-        # that share /tmp can read each other's half-written copy.
         command = [found.java, "-XX:+UseParallelGC", "-Xmx1g", f"-Djava.io.tmpdir={work}"]
         command += ["-cp", found.jar, "tlc2.TLC"]
         command += ["-workers", tools.workers(), "-metadir", str(work / "meta")]
