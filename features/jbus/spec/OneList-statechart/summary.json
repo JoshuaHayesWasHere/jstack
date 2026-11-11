@@ -1,0 +1,56 @@
+{
+  "view": "customer",
+  "modelStates": 344,
+  "modelTransitions": 964,
+  "chartStates": 70,
+  "chartTransitions": 66,
+  "chartStatus": {
+    "works": 70,
+    "fixed": 0,
+    "wrong": 0
+  },
+  "chartGroups": [
+    {
+      "name": "No gate yet",
+      "color": "#ffffff",
+      "states": 1
+    },
+    {
+      "name": "On your list",
+      "color": "#fdebd0",
+      "states": 27
+    },
+    {
+      "name": "Off your list",
+      "color": "#d1f2eb",
+      "states": 38
+    }
+  ],
+  "mixedGroups": [],
+  "regions": {
+    "drawn": true,
+    "states": [
+      4,
+      66
+    ],
+    "transitions": 66,
+    "all": 186,
+    "flat": {
+      "states": 172,
+      "transitions": 412
+    }
+  },
+  "classes": [],
+  "codeLike": [
+    "a pass that cannot ask GitHub"
+  ],
+  "drawnFrom": {
+    "command": "statechart from-spec OneList.tla --config OneList.chart.cfg --title 'Does a gate reach my list, and leave it once I answer?' --expect-broken AnsweredLeaves,ListIsTrue --png",
+    "inputs": {
+      "OneList.chart.cfg": "79fa85fe6d48fe0d32dcf0cce51557448ebe7fa677a0915c3a3279b445de647a",
+      "OneList.map.py": "9adb3df95ff87423a35abb8a607114f16fd216c38e3eab24f09d35d289a0f4c9",
+      "OneList.tla": "f338409dcef6c92574e72061d867c294816d13d69fd5ca934da2ce09376ad634"
+    },
+    "chart": "b526f684613c63627d65a83eede8db83337f432f1cc51e7c9331ca9291362bce"
+  }
+}
