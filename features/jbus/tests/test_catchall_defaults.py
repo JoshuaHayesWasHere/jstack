@@ -41,7 +41,7 @@ def _needs_of_a_slug_with_no_brief(root):
 
 
 def _watch_fix_brief(root):
-    text = watch.fix_brief("# x", "fix it", ["- it is green"], "it runs", "a run", [])
+    text = watch.fix_brief("# x", "fix it", "it is red", ["- it is green"], "it runs", "a run", [])
     return homes.home_of(root, text)
 
 

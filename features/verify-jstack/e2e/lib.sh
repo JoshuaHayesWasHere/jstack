@@ -123,7 +123,7 @@ gone() {
 
 # A brief that warns of nothing, so the transcript holds only what the commands did.
 brief() {
-  printf '# %s: a demo task\nTask: %s, a demo task\nDone when:\n- `judged: a demo`\nProves it: `judged: a demo`\nSize: S\nWhere: `src/%s/`\nDesign: none, a demo\nReview: none\nPlaybook: feature\nSkills: tdd\nPull request: none\nHome: uncategorized\n' "$1" "$1" "$1"
+  printf '# %s: a demo task\nTask: %s, a demo task\nWhy: the sandbox needs a row the queue takes\nDone when:\n- `judged: a demo`\nProves it: `judged: a demo`\nSize: S\nWhere: `src/%s/`\nDesign: none, a demo\nReview: none\nPlaybook: feature\nSkills: tdd\nPull request: none\nHome: uncategorized\n' "$1" "$1" "$1"
 }
 
 # On any exit, clean up each sandbox this script launched that is still there. The evidence stays.

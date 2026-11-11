@@ -1,5 +1,6 @@
 # macos-red-2026-10-12: the macOS suite failed on 2026-10-12
 Task: "the macOS nightly run 77 failed on 2026-10-12, 0 tests named" (jbus, from macos-nightly.yml)
+Why: macos-nightly.yml runs what a pull request's check does not, so its red is a fault already on main, which no other row fixes and every later run reports again
 Done when:
 - each failed test named under Read passes on macOS, in a manual run of macos-nightly.yml with `ref` set to the fix's branch
 - the Result names the cause: the merge that broke it, or a flake with its evidence

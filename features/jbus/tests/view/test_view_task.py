@@ -457,7 +457,9 @@ def leftovers(scene):
         said = f"## Result\nStatus: {status}\nLeft: {note}\n"
         (scene.home / "tasks" / f"{slug}.md").write_text(f"# {slug}\n\n{said}")
     result = f"## Result\nStatus: done\nLeft: {NOTE}\nBranch: {PULL.format(51)}\n"
-    (scene.home / "tasks" / "plum-jam.md").write_text(f"# plum-jam\nTask: jam\n\n{result}")
+    (scene.home / "tasks" / "plum-jam.md").write_text(
+        f"# plum-jam\nTask: jam\nWhy: a test needs a row the queue takes\n\n{result}"
+    )
     scene.waiting(
         [
             item("left", "left:plum-jam", f"left plum-jam: {cut}", slug="plum-jam"),

@@ -98,17 +98,20 @@ It prints ``refused: <slug>'s brief is <other>'s (<status>): rename by `jbus que
 A row that merged, failed or ended does not count, so a brief can be queued again once its first row is over.
 
 `add` checks the brief when a row is first queued, so you are never asked for a go on a brief that could not launch.
-The head must have the eight lines of `jbriefs.parse.REQUIRED`, `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:`, as `features/jbriefs/templates/brief.md` has them.
+The head must have the nine lines of `jbriefs.parse.REQUIRED`, `Task:`, `Why:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:`, as `features/jbriefs/templates/brief.md` has them.
 Each must be filled in, not left as the template's own text.
 A line is not filled in while it, or an item of a list under it, is still the template's `<...>`, bare or quoted.
 A `Pull request:` or `Review:` line that still offers its choices (`review | none`) is not filled in either.
-`add` then runs the fifteen checks of `jbriefs.parse.CHECKS` and the three of `jbus.queue.conduct`.
+`add` then runs the seventeen checks of `jbriefs.parse.CHECKS` and the three of `jbus.queue.conduct`.
 The three checks of `jbriefs.parse.WARNED`, that `Done when:` is runnable, that each `Done when:` item ends with the file it lands in, and that `Proves it:` runs, only warn.
-The other twelve and the three of `conduct` are these:
+The other fourteen and the three of `conduct` are these:
 
 - `Task:` is 2,000 characters or fewer.
+- `Why:` says something its title and `Task:` do not: a line whose words, less filler such as `because` and `the`, are all words of the two, or that has no word but filler, is refused (`jbriefs.why`).
+  `Why:` is the reason the change is wanted, the problem and its evidence, and the crewmate makes a choice the brief leaves open in its light.
 - `Design:` names a file, or says `none, <why>`.
 - `Proves it:` names something outside the agent.
+- No `Done when:` item, and no `Proves it:`, asks for a screenshot, a shot or a recording of the window as proof.
 - `Skills:` names at least one skill or principle, and only ones that exist: a brief with no line, or one that says `none`, is refused with a pointer to the home's table that picks one for each kind of task.
 - `Size:` is a t-shirt size.
 - `Where:` names at least one path under the repo.
@@ -444,8 +447,8 @@ A change to the title, the `Task`, `Done when`, `Where`, `Do not touch` or `Size
 It is deterministic and asks no model.
 
 The fingerprint reads six fields (`MEANING` in `features/jbriefs/src/jbriefs/meaning.py`): the title, `Task` (the goal), `Done when`, `Where`, `Do not touch` and `Size`.
-It leaves out every other (`NOT_MEANING`): `Skills`, `Decisions`, `Asked`, `Shown`, `Design`, `Proves it`, `Review`, `Playbook`, `Pull request`, `Holds`, `Builds on`, `Read`, `Instruments`, `Change`, `Rests on`, `Ruled out`, `Home` and `Thread`, a field the template does not name, and anything under a `## ` in the brief.
-These say how the work is done or who runs it, not what it is for.
+It leaves out every other (`NOT_MEANING`): `Why`, `Skills`, `Decisions`, `Asked`, `Shown`, `Design`, `Proves it`, `Review`, `Playbook`, `Pull request`, `Holds`, `Builds on`, `Read`, `Instruments`, `Change`, `Rests on`, `Ruled out`, `Home` and `Thread`, a field the template does not name, and anything under a `## ` in the brief.
+These say why the work is wanted, how it is done or who runs it, not what is built: a sharper reason or more evidence on `Why:` keeps the go.
 A field starts at a line `<Label>: ` of the head, and runs to the next one.
 The fingerprint normalises each field in these steps:
 
