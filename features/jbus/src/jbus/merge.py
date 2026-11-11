@@ -301,17 +301,22 @@ def _starting(where: Path) -> bool:
 
 
 def _records(run: Pass, where: Path) -> Said:
-    """Read each record of a run that ended and was not read, oldest first, mark it read, and
-    return their lines: `failed` and `at` are the newest's. With none, return no line, `failed`,
-    at the end of the last run read."""
+    """Read each record of a run that ended and was not read, oldest first, send its lines,
+    then mark it read, and return their lines: `failed` and `at` are the newest's. With none,
+    return no line, `failed`, at the end of the last run read.
+
+    A pass that dies before the mark leaves the record for the next pass, which reads it again:
+    each line is sent once for its key (`_sent`), and the run is counted on the `jmerge` streak
+    once for its `at` (`_judged`), so the run is heard once and counted once wherever the pass
+    died."""
     said = Said()
     said.failed = True
     for path in sorted(where.glob("ran-*.json")):
         record = read_json(path, {})
-        os.replace(path, where / READ)
         made = proc.TimedOut if record.get("timed_out") else subprocess.CompletedProcess
         ran = made(RUN, record["returncode"], record["stdout"], record["stderr"])
         lines = _judged(run, ran, record["at"])
+        os.replace(path, where / READ)
         said.extend(lines)
         said.failed, said.at = lines.failed, lines.at
     if not said.at:
@@ -320,8 +325,8 @@ def _records(run: Pass, where: Path) -> Said:
 
 
 def _judged(run: Pass, ran: subprocess.CompletedProcess[str], at: str) -> Said:
-    """Send each line of a run of `jmerge` that ended at `at`, count it on the `jmerge` streak,
-    and return its lines (`merge`)."""
+    """Send each line of a run of `jmerge` that ended at `at`, count it on the `jmerge` streak
+    once for `at`, and return its lines (`merge`)."""
     lines = _sent(run, ran, at=at)
     name, streak = run.project.name, alert.jmerge(run.project.name)
     if ran.returncode == lock.BUSY:
@@ -335,7 +340,7 @@ def _judged(run: Pass, ran: subprocess.CompletedProcess[str], at: str) -> Said:
     if _NO_LIST.search(why := lines_of.said(ran)):
         run.condition(name, NO_LIST, why, key=f"protected {run.day}")
     else:
-        _unrun(run, why)
+        _unrun(run, why, once=at)
     return lines
 
 
@@ -355,10 +360,11 @@ def handed(run: Pass) -> tuple[str, ...]:
     return ("--pulls", str(opened.path), "--pulls-at", opened.at)
 
 
-def _unrun(run: Pass, why: str) -> None:
-    """Say that `jmerge` did not run, and count it on the `jmerge` streak."""
+def _unrun(run: Pass, why: str, *, once: str = "") -> None:
+    """Say that `jmerge` did not run, and count it on the `jmerge` streak, once for `once` where
+    it names the run (`alert.failed`)."""
     run.say(f"wait {run.project.name}: jmerge did not run ({why})")
-    _failed(run, why)
+    _failed(run, why, once=once)
 
 
 def _last(path: Path) -> str:
@@ -367,12 +373,12 @@ def _last(path: Path) -> str:
     return said[-1].strip() if said else "it said nothing"
 
 
-def _failed(run: Pass, why: str) -> None:
-    """Count one failure of the project's `jmerge` streak, and raise its alert once it is due."""
+def _failed(run: Pass, why: str, *, once: str = "") -> None:
+    """Count one failure of the project's `jmerge` streak, once for `once` where it names the
+    run, and raise its alert once it is due."""
     streak = alert.jmerge(run.project.name)
-    alert.tell(
-        run, streak, alert.failed(run.config.state_dir, streak, why, now=run.now, user=run.user)
-    )
+    state = run.config.state_dir
+    alert.tell(run, streak, alert.failed(state, streak, why, now=run.now, user=run.user, once=once))
 
 
 def _sent(

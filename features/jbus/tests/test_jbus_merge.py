@@ -16,7 +16,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 import jsettings
-from jbus import alert, merge, verbs
+from jbus import alert, merge
 from jbus.view import state as view_state
 from jmerge import judgement, lock, ready
 from test_jbus_kitchen import DAY, NOW, PASS, QUARTER_PAST_FIVE
@@ -292,21 +292,16 @@ WAITS = "wait 7 https://example.test/pull/7: it has no review yet"
 
 def killed_then_passes(kitchen, where):
     """A pass that starts a run and dies `where` while it reads the run's record, then two
-    passes that read it, each run ending at its own pass's time as a real run does."""
-
-    def at(now):
-        kitchen.monkeypatch.setattr(verbs, "clock", lambda: now)
-        kitchen.poll(now)
-
+    passes that read it."""
     with pytest.MonkeyPatch.context() as killing:
         dies(killing, where)
         with pytest.raises(AssertionError):
-            at(NOW)
+            kitchen.poll(NOW)
     kitchen.set("jmerge.txt", "")
     (kitchen.stub / "jmerge-dies").unlink(missing_ok=True)
     kitchen.set("jmerge-busy", "")
-    at(NOW + PASS)
-    at(NOW + 2 * PASS)
+    kitchen.poll(NOW + PASS)
+    kitchen.poll(NOW + 2 * PASS)
 
 
 @pytest.mark.parametrize("where", KILLED)
