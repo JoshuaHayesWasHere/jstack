@@ -239,7 +239,7 @@ Merged(p) ==
 \* after it and the merged-tree guards pass at its head over the tip (item F). TLC takes either for a
 \* pull request main moved past, as what the guards miss of it is what its check missed.
 Merges(p) ==
-    /\ Clear(p)                             \* features/jmerge/src/jmerge/cli.py `found = repo.waits(one, default)`
+    /\ Clear(p)                             \* features/jmerge/src/jmerge/cli.py `found = repo.weighed(one, default, check)`
     \* A pass over a main that moved since it started counts, with no branch update and no rerun,
     \* where the merged-tree guards pass at its head over that tip (item F,
     \* features/jmerge/src/jmerge/cli.py `return "", ready.Judged(tip, overlaps=True)`). One that
@@ -268,7 +268,7 @@ Accept(p) ==
 \* of main's line, or the first to take a free one. Each other waits in line behind the holder, and
 \* GitHub is asked nothing for it until its turn (#1009). Its check at the new head decides.
 InLine(p) ==
-    /\ Ready(p)                             \* features/jmerge/src/jmerge/cli.py `found = repo.waits(one, default)`
+    /\ Ready(p)                             \* features/jmerge/src/jmerge/cli.py `found = repo.weighed(one, default, check)`
     /\ Alone(p)                             \* features/jmerge/src/jmerge/cli.py `elif on is not None and on.first and not repo.is_revert(one):`
     /\ moved[p]                             \* features/jmerge/src/jmerge/cli.py `if not self.guards.command or self.is_revert(one) or self.guards.kept(one, tip): return self.base_moved(one, tip), ready.Judged()`
     /\ line \in {"none", p}                 \* features/jmerge/src/jmerge/cli.py `if ahead != one.number: return ready.IN_LINE.format(number=ahead, base=one.base)`
