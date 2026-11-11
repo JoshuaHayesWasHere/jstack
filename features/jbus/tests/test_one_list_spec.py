@@ -67,13 +67,14 @@ def test_each_carrier_of_the_ledger_is_a_variable():
     assert [row for row in ROWS if f"\\* {row}," not in block] == []
 
 
-def tlc(world: str, fault: str, rules: list[str] | None = None) -> str:
-    """TLC's output for OneList.cfg with `World` and `Fault` set, and with only `rules` (each an
-    `INVARIANT <rule>` or `PROPERTY <rule>` line) where they are given, run in a copy of the spec's
-    folder with one worker, as the spec's README runs it."""
+def tlc(world: str, fault: str, rules: list[str] | None = None, mark: str = "count") -> str:
+    """TLC's output for OneList.cfg with `World`, `Fault` and `MarkBy` set, and with only `rules`
+    (each an `INVARIANT <rule>` or `PROPERTY <rule>` line) where they are given, run in a copy of
+    the spec's folder with one worker, as the spec's README runs it."""
     cfg = (SPEC / "OneList.cfg").read_text()
-    assert 'Fault = "none"' in cfg
+    assert 'Fault = "none"' in cfg and 'MarkBy = "count"' in cfg
     cfg = re.sub(r"World = .*", f"World = {world}", cfg).replace('"none"', f'"{fault}"')
+    cfg = cfg.replace('MarkBy = "count"', f'MarkBy = "{mark}"')
     if rules is not None:
         kept = [line for line in cfg.splitlines() if not line.startswith(("INVARIANT", "PROPERTY"))]
         cfg = "\n".join([*kept, "INVARIANT TypeOK", *rules, ""])
@@ -99,7 +100,7 @@ def test_today_s_code_breaks_read_once_as_the_cfg_says():
     """OneList.cfg as it is: TLC stops at ReadOnce, at the state count its comment keeps."""
     out = tlc(TODAY, "none")
     assert "Invariant ReadOnce is violated" in out, out[-4000:]
-    assert "1037 distinct states found" in out, out[-4000:]
+    assert "1083 distinct states found" in out, out[-4000:]
 
 
 @JAVA
@@ -134,10 +135,11 @@ def test_a_streak_no_raiser_clears_breaks_list_is_true():
 
 
 @JAVA
-def test_merge_seen_as_a_bare_count_breaks_read_once():
-    """The canary, `Fault = "mark-count"`: merge-seen as a count with no guard for a log shorter
-    than the mark. A count holds ReadOnce while merge.log only grows and breaks it once a hand
-    cuts it, with the guard (today) or without it."""
-    assert "No error has been found" in tlc("{}", "mark-count", ["INVARIANT ReadOnce"])
-    out = tlc('{"cuts"}', "mark-count", ["INVARIANT ReadOnce"])
+def test_merge_seen_as_a_count_breaks_read_once():
+    """The canary, `Fault = "mark-count"`: merge-seen marked by the last line it read holds
+    ReadOnce where a hand cuts merge.log, and the same mark taken as a count, as the code keeps
+    it, breaks it."""
+    held = tlc('{"cuts"}', "none", ["INVARIANT ReadOnce"], mark="line")
+    assert "No error has been found" in held, held[-4000:]
+    out = tlc('{"cuts"}', "mark-count", ["INVARIANT ReadOnce"], mark="line")
     assert "Invariant ReadOnce is violated" in out, out[-4000:]

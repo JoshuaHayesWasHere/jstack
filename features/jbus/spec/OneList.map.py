@@ -18,6 +18,10 @@
 #   other keys of the model are raised and ended whole.
 # - `signin`: the three lines `due` writes (a week out, N days left, expired) are one "due".
 # - `question`: an answer `jbus answer` writes and one closed from gates.md are one "answered".
+# - `hold`: the budget hold on the list is budget-hold.json on disk; `jbus needs` lists it only
+#   after `LISTED` and before its reset, and the file goes when a pass reads the budget held no
+#   more.
+# - `mark` under MarkBy = "line" is the last merge line read, a value no code writes.
 
 # Each kind of waiting-on-user.json, and the alerts and the hold, with the HomeTree `msg` it
 # refines (features/home/spec/HomeTree.tla): a call is `msg` none, waiting in the home thread

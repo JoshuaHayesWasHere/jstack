@@ -47,9 +47,9 @@
   "drawnFrom": {
     "command": "statechart from-spec OneList.tla --config OneList.chart.cfg --title 'Does a gate reach my list, and leave it once I answer?' --expect-broken AnsweredLeaves,ListIsTrue --png",
     "inputs": {
-      "OneList.chart.cfg": "79fa85fe6d48fe0d32dcf0cce51557448ebe7fa677a0915c3a3279b445de647a",
-      "OneList.map.py": "9adb3df95ff87423a35abb8a607114f16fd216c38e3eab24f09d35d289a0f4c9",
-      "OneList.tla": "f338409dcef6c92574e72061d867c294816d13d69fd5ca934da2ce09376ad634"
+      "OneList.chart.cfg": "81b1fcb32eacede5f4fcce24dccace37b37290d3758b954b7a2a60d718410b0e",
+      "OneList.map.py": "3e2d56d7cacff4bdd29ec52a0fbf39eadd2d119bd7a54ef67440eefa9f54e1d2",
+      "OneList.tla": "7e52bffa1443ab9c5dbbb2b26a85ecc6ec3bb4b6f328457bcaee1c248f796138"
     },
     "chart": "b526f684613c63627d65a83eede8db83337f432f1cc51e7c9331ca9291362bce"
   }

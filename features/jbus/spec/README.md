@@ -374,14 +374,15 @@ java -cp ~/.cache/jstack/tla2tools/1.7.4/tla2tools.jar tlc2.TLC -workers 1 -conf
 Run it in a copy of this folder.
 The rules:
 
-- `ListIsTrue`: an item is listed exactly while its cause holds, once the cause stays.
+- `ListIsTrue`: an item is listed exactly while its cause holds, once the cause stays: a cause that flips for ever asks nothing of the list. The cause is the model's word: the code lists a closed project's alert for the infra home, and the model says it has no cause.
 - `AnsweredLeaves`: once the user's answer, or the default by silence, settles a gate, gates.md gives the list no open gate of it and no question of it stays open.
 - `ReadOnce`: the merging block shows each merge line once, and merge-seen counts no line as read that it did not show, also after merge.log is cut.
 
-Today's code, in today's world, breaks `ReadOnce` at 1037 distinct states: a cut of merge.log leaves merge-seen counting a line no block showed.
+Today's code, in today's world, breaks `ReadOnce` at 1083 distinct states: a cut of merge.log leaves merge-seen counting a line no block showed.
 Each act alone breaks its rule: a closed project leaves its jmerge alert open forever (`ListIsTrue`, as `jmerge case-control` on disk), a cut breaks `ReadOnce`, and a gate asked by the home is asked again by the handoff under the catch-all's key, so answering one of its two questions leaves the other open (`AnsweredLeaves`, `ListIsTrue`).
 With no act, every rule holds.
-The canary `Fault = "stale-streak"`, a pass that leaves the stall alert from before, breaks `ListIsTrue` with no act; `Fault = "mark-count"`, merge-seen as a bare count with no guard for a shorter log, holds `ReadOnce` while merge.log only grows and breaks it once it is cut, as today's count does.
+`MarkBy = "line"`, a merge-seen that names the last line it read, which no code writes, holds `ReadOnce` also where merge.log is cut.
+The canary `Fault = "stale-streak"`, a pass that leaves the stall alert from before, breaks `ListIsTrue` with no act; `Fault = "mark-count"`, merge-seen as the code's count over that line mark, breaks `ReadOnce` where merge.log is cut.
 `features/jbus/tests/test_one_list_spec.py` finds each quote once and runs each of these.
 
 ### Draw the chart of a gate
@@ -404,4 +405,4 @@ Its rules are about whole behaviors, which the chart does not draw: TLC's traces
 - Time: the threshold's span (`LASTING`), a `once` alert's end, the budget hold's ten minutes before `jbus needs` lists it, and the sign-in's week.
 - A sign-in whose token file is gone: `remind` returns with the alert as it was.
 - `jbus home status` shows the merge lines past the mark without moving it, and is not counted as shown.
-- Two Results whose headings read the same: read-seen keys a heading by its text.
+- Two Results whose headings read the same: read-seen keys a heading by its text. No rule checks read-seen: the model keeps its first mark and the home's marks.

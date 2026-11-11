@@ -26,10 +26,13 @@
 \* happen, as they do today.
 \* Fault = "none" is the code. Fault = "stale-streak" is the canary of a streak no raiser clears:
 \* the pass does not retire the stall alert left from before. Fault = "mark-count" is the canary
-\* of merge-seen as a bare count: the skill's block without its guard for a log shorter than the
-\* mark.
+\* of merge-seen as a count: it marks by the code's count whatever MarkBy says.
+\* MarkBy is how merge-seen marks: "count", the code's line count, or "line", the last line read,
+\* which no code writes: the reference that shows ReadOnce can hold where a hand cuts merge.log.
 EXTENDS Naturals, Sequences, FiniteSets
-CONSTANTS World, Fault, Scenes, After, MaxLines
+CONSTANTS World, Fault, Scenes, After, MaxLines, MarkBy
+
+By == IF Fault = "mark-count" THEN "count" ELSE MarkBy  \* how merge-seen marks in this run
 
 Absent == MaxLines + 1                          \* no merge-seen file yet
 Keys == {"jmerge", "home-stall", "sign-in", "health"}
@@ -106,7 +109,8 @@ VARIABLES
   readseen,
   heads,     \* the Result headings the brief has, each one more Result appended
   \* C-079, merge-seen, the line count of merge.log this home has read:
-  \* home/merging-a-pull-request-that-is-ready.md `echo "$lines" > "$S"`, or Absent.
+  \* home/merging-a-pull-request-that-is-ready.md `echo "$lines" > "$S"`, or Absent. Under
+  \* MarkBy = "line", the last line read, 0 for none.
   mark,
   \* merge.log, the lines jmerge appended and a hand kept: jmerge/cli.py
   \* `with (state / "merge.log").open("a", encoding="utf-8") as log:`.
@@ -190,9 +194,9 @@ PassTake ==
 \* `if one.count < after or one.alerted or lasted < LASTING.get(key, timedelta(0)):`, and raises the
 \* alert once the count reaches After. Then the stall alerts from before go, jbus/children.py
 \* `if key.startswith(_stall(run, "")):`, which the canary "stale-streak" leaves.
-Streaked(ks) ==
+Streaked(ks, retires) ==
   LET c == IF count["jmerge"] < After THEN count["jmerge"] + 1 ELSE After
-      gone == IF Fault = "stale-streak" THEN {} ELSE {"home-stall"}
+      gone == IF Fault = "stale-streak" \/ ~retires THEN {} ELSE {"home-stall"}
   IN IF broke
      THEN /\ keys' = (ks \cup {"jmerge"}) \ gone
           /\ count' = [count EXCEPT !["jmerge"] = c, !["home-stall"] =
@@ -217,7 +221,7 @@ Closed(q) ==
 \* A pass that reads GitHub: the budget's hold follows it, and the kinds it rebuilds are listed.
 PassSee ==
   /\ lock = "pass" /\ lock' = "free"
-  /\ Streaked(keys)
+  /\ Streaked(keys, TRUE)
   /\ hold' = low
   /\ LET q == Closed(Silenced(question))
      IN /\ question' = q
@@ -227,10 +231,12 @@ PassSee ==
   /\ UNCHANGED world /\ UNCHANGED marks
 
 \* A pass that could not read GitHub keeps the hold, jbus/budgethold.py `if seen.left is None:`,
-\* and the kinds it cannot judge, jbus/waiting.py `found += had("row") + had("left")`.
+\* and the kinds it cannot judge, jbus/waiting.py `found += had("row") + had("left")`. Such a pass
+\* had no answer from T3 Code either, so the watch of the homes, which retires the stall alerts,
+\* returns at once, jbus/children.py `if threads is None:`. The two reads are one here.
 PassBlind ==
   /\ lock = "pass" /\ lock' = "free"
-  /\ Streaked(keys)
+  /\ Streaked(keys, FALSE)
   /\ LET q == Closed(Silenced(question))
      IN /\ question' = q
         /\ owed' = (owed /\ ~\E k \in QKeys : question[k] = "open" /\ q[k] = "default")
@@ -327,6 +333,10 @@ Handoff ==
 
 \* ---- The marks ----
 
+\* Under MarkBy = "line", where the line merge-seen names stands in merge.log, or 0 where it is
+\* not there: a cut keeps the last lines, so each line kept is newer than one cut away.
+At(m) == IF \E i \in 1..Len(log) : log[i] = m THEN CHOOSE i \in 1..Len(log) : log[i] = m ELSE 0
+
 \* jmerge appends a line to merge.log.
 Merged ==
   /\ scene = "marks" /\ next <= MaxLines
@@ -343,17 +353,20 @@ Cut ==
 
 \* The home's merging block: home/merging-a-pull-request-that-is-ready.md
 \* `'' | *[!0-9]*) seen=$lines ;;` where there is no mark, home/merging-a-pull-request-that-is-ready.md
-\* `if [ "$seen" -gt "$lines" ]; then seen=0; fi`, which the canary "mark-count" leaves out,
+\* `if [ "$seen" -gt "$lines" ]; then seen=0; fi`,
 \* home/merging-a-pull-request-that-is-ready.md `if [ "$lines" -gt "$seen" ]; then news "$seen" "$lines"; fi`,
 \* and the new count.
 Read ==
   /\ scene = "marks"
   /\ LET lines == Len(log)
          first == IF mark = Absent THEN lines ELSE mark
-         seen == IF Fault /= "mark-count" /\ first > lines THEN 0 ELSE first
-         news == IF lines > seen THEN {log[i] : i \in seen + 1..lines} ELSE {}
+         seen == IF first > lines THEN 0 ELSE first
+         after == IF mark = Absent THEN lines ELSE At(mark)
+         from == IF By = "count" THEN seen ELSE after
+         news == IF lines > from THEN {log[i] : i \in from + 1..lines} ELSE {}
      IN /\ shown' = [l \in Lines |-> IF l \in news /\ shown[l] < 2 THEN shown[l] + 1 ELSE shown[l]]
-        /\ mark' = lines
+        /\ mark' = IF By = "count" THEN lines
+                   ELSE IF lines > 0 THEN log[lines] ELSE IF mark = Absent THEN 0 ELSE mark
         /\ born' = IF mark = Absent THEN next - 1 ELSE born
   /\ UNCHANGED <<scene, closed, listed, lock, hold, readseen, heads, log, next>>
   /\ UNCHANGED world /\ UNCHANGED gate /\ UNCHANGED streaks
@@ -364,18 +377,24 @@ Result ==
   /\ UNCHANGED <<scene, closed, listed, lock, hold, readseen, mark, log, shown, next, born>>
   /\ UNCHANGED world /\ UNCHANGED gate /\ UNCHANGED streaks
 
-\* `jbus home status` with no read-seen marks every heading there is read and shows none; the
-\* home's block marks the heading it read.
+\* `jbus home status` with no read-seen marks the heading each brief has as read, and shows none.
+FirstMark ==
+  /\ scene = "marks" /\ readseen = <<>>
+  /\ readseen' = <<IF heads > 0 THEN {heads} ELSE {}>>
+  /\ UNCHANGED <<scene, closed, listed, lock, hold, heads, mark, log, shown, next, born>>
+  /\ UNCHANGED world /\ UNCHANGED gate /\ UNCHANGED streaks
+
+\* The home's block marks the heading it read.
 MarkRead ==
-  /\ scene = "marks" /\ heads > 0
-  /\ readseen' = IF readseen = <<>> THEN <<{heads}>> ELSE <<readseen[1] \cup {heads}>>
+  /\ scene = "marks" /\ readseen /= <<>> /\ heads > 0
+  /\ readseen' = <<readseen[1] \cup {heads}>>
   /\ UNCHANGED <<scene, closed, listed, lock, hold, heads, mark, log, shown, next, born>>
   /\ UNCHANGED world /\ UNCHANGED gate /\ UNCHANGED streaks
 
 Next ==
   \/ Flip \/ Close \/ PassTake \/ PassSee \/ PassBlind \/ LookTake \/ LookRead \/ LookBlind
   \/ Write \/ Pipe \/ Answer \/ Mark \/ Handoff
-  \/ Merged \/ Cut \/ Read \/ Result \/ MarkRead
+  \/ Merged \/ Cut \/ Read \/ Result \/ FirstMark \/ MarkRead
 
 \* jbus runs a pass of each open project and a look of the machine again and again, and each
 \* reads what it reads at last: one that cannot is no fault of the list's.
@@ -402,7 +421,10 @@ OnList(i) ==
     [] OTHER -> i \in alerted
 
 \* "An item is listed exactly while its cause holds": once a cause stays, the list comes to
-\* show it and keeps it, and once it stays gone, the list comes to drop it.
+\* show it and keeps it, and once it stays gone, the list comes to drop it. A cause that flips
+\* for ever asks nothing of the list. Cause is the model's word, not the code's: the code gives a
+\* closed project's alert to the infra home, and the model says a project that runs no jmerge
+\* owes no jmerge alert.
 ListIsTrue ==
   \A i \in Items :
     /\ <>[]Cause(i) => <>[]OnList(i)
@@ -417,7 +439,8 @@ AnsweredLeaves == (entry = "written" /\ ~owed) ~> []Left
 \* "A merge line is shown to a home once, also after merge.log is cut": the merging block shows
 \* each line at most once, and each line still in merge.log that merge-seen counts as read was
 \* shown. The lines merge.log had when the first mark was written are read by that mark.
-Counted(l) == \E i \in 1..Len(log) : i <= mark /\ log[i] = l
+Counted(l) ==
+  \E i \in 1..Len(log) : log[i] = l /\ i <= (IF By = "count" THEN mark ELSE At(mark))
 ReadOnce ==
   mark /= Absent =>
     \A l \in Lines : l > born => (shown[l] <= 1 /\ (Counted(l) => shown[l] = 1))
