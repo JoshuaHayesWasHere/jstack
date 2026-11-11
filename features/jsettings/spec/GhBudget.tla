@@ -53,9 +53,8 @@ VARIABLES
   began,    \* what `logged` read as the process's call started: "above", "low" (at or under
             \* the floor), "none" (no reading), the reading HeldWhenLow judges
   stale,    \* the lines older than WITHIN, which `_lowest` no longer reads
-  dropped,  \* the lines no file holds any more
   rotLock   \* the fix's lock over the check and the rename: None in today's code
-vars == <<kept, keepLock, gate, log, old, slots, left, pc, got, began, stale, dropped, rotLock>>
+vars == <<kept, keepLock, gate, log, old, slots, left, pc, got, began, stale, rotLock>>
 
 Lines == 0..Start
 Slots == 1..Cap
@@ -66,7 +65,7 @@ TypeOK ==
   /\ kept \in [left : Lines \cup {Nothing}, fresh : BOOLEAN]
   /\ keepLock \in Procs \cup {None} /\ rotLock \in Procs \cup {None}
   /\ gate \in [Procs -> {"unread", "free", "held"}]
-  /\ log \subseteq Lines /\ old \subseteq Lines /\ stale \subseteq Lines /\ dropped \subseteq Lines
+  /\ log \subseteq Lines /\ old \subseteq Lines /\ stale \subseteq Lines
   /\ slots \in [Slots -> Procs \cup {None}]
   /\ left \in Lines
   /\ pc \in [Procs -> Steps]
@@ -88,13 +87,13 @@ Said(reading) == IF reading = Nothing THEN "none" ELSE IF reading <= Floor THEN 
 Init ==
   /\ kept = [left |-> Nothing, fresh |-> FALSE] /\ keepLock = None /\ rotLock = None
   /\ gate = [p \in Procs |-> "unread"]
-  /\ log = {} /\ old = {} /\ stale = {} /\ dropped = {}
+  /\ log = {} /\ old = {} /\ stale = {}
   /\ slots = [s \in Slots |-> None]
   /\ left = Start
   /\ pc = [p \in Procs |-> "idle"]
   /\ got = [p \in Procs |-> Nothing] /\ began = [p \in Procs |-> "none"]
 
-files == <<kept, log, old, stale, dropped, left>>
+files == <<kept, log, old, stale, left>>
 
 \* A pass reads the budget: jbus/watch.py `left = allowance.logged(paths.jbus_state_dir(),
 \* asked=ask)`, which reads the files with no lock first: jsettings/budget.py `seen =
@@ -127,7 +126,7 @@ Relook(p) ==
             \/ /\ gate' = [gate EXCEPT ![p] = "held"] /\ pc' = [pc EXCEPT ![p] = "idle"]
                /\ UNCHANGED kept
   /\ keepLock' = None
-  /\ UNCHANGED <<slots, got, began, rotLock, log, old, stale, dropped, left>>
+  /\ UNCHANGED <<slots, got, began, rotLock, log, old, stale, left>>
 
 \* A free pass starts another `gh`: jsettings/proc.py `with _slot(state / SLOTS):`, which takes
 \* the first slot whose flock is free, or waits while all are held. The gate is not read again
@@ -154,7 +153,7 @@ Run(p) ==
   /\ left' = left - 1 /\ got' = [got EXCEPT ![p] = left - 1]
   /\ slots' = [s \in Slots |-> IF slots[s] = p THEN None ELSE slots[s]]
   /\ pc' = [pc EXCEPT ![p] = "logging"]
-  /\ UNCHANGED <<kept, keepLock, gate, log, old, stale, dropped, began, rotLock>>
+  /\ UNCHANGED <<kept, keepLock, gate, log, old, stale, began, rotLock>>
 
 \* The fix takes a lock before the size check, and today's code does not.
 LockRotate(p) ==
@@ -178,8 +177,8 @@ Check(p) ==
 Rotate(p) ==
   /\ pc[p] = "rotating"
   /\ IF log /= {}
-       THEN old' = log /\ log' = {} /\ dropped' = dropped \cup old
-       ELSE UNCHANGED <<old, log, dropped>>
+       THEN old' = log /\ log' = {}
+       ELSE UNCHANGED <<old, log>>
   /\ rotLock' = IF rotLock = p THEN None ELSE rotLock
   /\ pc' = [pc EXCEPT ![p] = "appending"]
   /\ UNCHANGED <<kept, keepLock, gate, slots, got, began, stale, left>>
@@ -189,13 +188,13 @@ Append(p) ==
   /\ pc[p] = "appending"
   /\ log' = log \cup {got[p]}
   /\ pc' = [pc EXCEPT ![p] = "free"]
-  /\ UNCHANGED <<kept, keepLock, gate, slots, got, began, old, stale, dropped, left, rotLock>>
+  /\ UNCHANGED <<kept, keepLock, gate, slots, got, began, old, stale, left, rotLock>>
 
 \* A minute passes: each line logged so far and the kept answer are older than WITHIN.
 Tick ==
   /\ (log \ stale /= {} \/ kept.fresh)
   /\ stale' = stale \cup log /\ kept' = [kept EXCEPT !.fresh = FALSE]
-  /\ UNCHANGED <<keepLock, gate, log, old, slots, left, pc, got, began, dropped, rotLock>>
+  /\ UNCHANGED <<keepLock, gate, log, old, slots, left, pc, got, began, rotLock>>
 
 Next ==
   \/ Tick

@@ -24,9 +24,6 @@ lib = importlib.import_module("statechart.lib")
 tools = importlib.import_module("statechart.tools")
 JAVA = pytest.mark.skipif(not tools.find_java(), reason="no Java to run TLC")
 
-READ_SET = ("features/jsettings/src/", "features/jbus/src/")
-"""The code GhBudget.tla quotes, each file as `<package>/<file>.py`."""
-
 QUOTE = re.compile(r"([\w./-]+\.py)((?:\s*(?:,|and)?\s*`[^`]+`)+)")
 """A cite by the code it quotes, with no line number: jsettings/proc.py `if path.stat()...`.
 Each quote after it joined by a comma or "and" is a quote of the same file."""
