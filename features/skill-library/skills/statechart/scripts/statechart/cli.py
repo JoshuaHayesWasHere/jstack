@@ -4,10 +4,12 @@ TLA+ spec."""
 import base64
 import contextlib
 import errno
+import hashlib
 import json
 import math
 import os
 import re
+import shlex
 import shutil
 import signal
 import subprocess
@@ -149,7 +151,10 @@ Output
   summary.json       The counts behind the chart. With --fixed or --against, uncited has the
                      conditions with no cite for each code model. With --against, second.listed
                      has what each config beside AGREED.tla expects, and each bug has the
-                     configs that list it.
+                     configs that list it. From from-spec, drawnFrom has the command that draws
+                     the chart again, run in the folder that holds the output folder, the sha256
+                     of each spec, config and mapping that the run read, by its path from that
+                     folder, and the sha256 of chart.mmd.
   tlc/               The config and the TLC output of each run. When the overview has regions,
                      from-spec also writes tlc/regions-all.mmd, the regions with every arrow, and
                      tlc/regions-proof.mmd, every state and step of TLC's graph in one region.
@@ -1141,26 +1146,31 @@ def warn_unchecked(now, other):
         )
 
 
-def listed_breaks(spec):
+def expectations(spec):
+    """The configs beside `spec` whose header names it as their module and has an expect line, by
+    file name, with what each expects."""
     directory = os.path.dirname(spec) or "."
     files = sorted(os.listdir(directory))
     modules = [f for f in files if f.endswith(".tla") and "_TTrace_" not in f]
     only = re.sub(r"\.tla$", "", modules[0]) if len(modules) == 1 else None
-    breaks = {}
-    headed = False
+    found = {}
     for f in (f for f in files if f.endswith(".cfg")):
         with open(os.path.join(directory, f), encoding="utf-8") as handle:
             cfg = handle.read()
         m = re.search(r"^\\\* module:[ \t]*(\w+)[ \t]*$", cfg, re.M | re.A)
         module = m.group(1) if m else only
         e = re.search(r"^\\\* expect:[ \t]*(\w+)[ \t]*$", cfg, re.M | re.A)
-        expect = e.group(1) if e else None
-        if module != re.sub(r"\.tla$", "", os.path.basename(spec)) or not expect:
-            continue
-        headed = True
-        if not re.match(r"^(pass|deadlock)$|^error", expect):
-            breaks[f] = expect
-    return {"spec": os.path.basename(spec), "breaks": breaks} if headed else None
+        if module == re.sub(r"\.tla$", "", os.path.basename(spec)) and e:
+            found[f] = e.group(1)
+    return found
+
+
+def listed_breaks(spec):
+    found = expectations(spec)
+    if not found:
+        return None
+    breaks = {f: e for f, e in found.items() if not re.match(r"^(pass|deadlock)$|^error", e)}
+    return {"spec": os.path.basename(spec), "breaks": breaks}
 
 
 def warn_unlisted(now, other):
@@ -1207,6 +1217,66 @@ def warn_uncited(models):
     return found_by_spec
 
 
+def local_modules(spec, seen=None):
+    """The modules beside `spec` that it extends or instantiates, and theirs in turn: TLC reads
+    them with it."""
+    seen = set() if seen is None else seen
+    text = without_comments(spec)
+    names = [
+        n
+        for m in re.finditer(r"\bEXTENDS\s+(\w+(?:\s*,\s*\w+)*)", text, re.A)
+        for n in re.split(r"\s*,\s*", m.group(1))
+    ]
+    names += re.findall(r"\bINSTANCE\s+(\w+)", text, re.A)
+    found = []
+    for n in names:
+        module = os.path.join(os.path.dirname(spec), f"{n}.tla")
+        if module not in seen and os.path.exists(module):
+            seen.add(module)
+            found += [module, *local_modules(module, seen)]
+    return found
+
+
+def sha256(file):
+    with open(file, "rb") as handle:
+        return hashlib.sha256(handle.read()).hexdigest()
+
+
+def drawn_from(given, flags, expected, out, inputs, files):
+    """What drew this chart: the command, and the sha256 of each file it read and of chart.mmd,
+    with each path taken from the folder that holds the output folder."""
+    base = os.path.dirname(os.path.abspath(out))
+
+    def path(f):
+        return os.path.relpath(os.path.abspath(f), base)
+
+    command = ["statechart", "from-spec", path(given)]
+    for name in ("config", "fixed", "fixed-config", "against", "against-config", "map"):
+        if flags.get(name):
+            command += [f"--{name}", path(flags[name])]
+    for name in ("label", "title"):
+        if flags.get(name) is not None:
+            command += [f"--{name}", flags[name]]
+    if expected:
+        command += ["--expect-broken", ",".join(expected)]
+    if flags.get("png"):
+        command.append("--png")
+    return {
+        "command": shlex.join(command),
+        "inputs": {path(f): sha256(f) for f in sorted(inputs, key=path)},
+        "chart": sha256(files["overview"]),
+    }
+
+
+def stamp(files, drawn):
+    with open(files["summary"], encoding="utf-8") as handle:
+        summary = json.load(handle)
+    with open(files["summary"], "w", encoding="utf-8") as handle:
+        handle.write(
+            json.dumps({**summary, "drawnFrom": drawn}, indent=2, ensure_ascii=False) + "\n"
+        )
+
+
 def from_spec(given, flags):
     expected = list(flags.pop("expect-broken"))
     name = re.sub(r"\.tla$", "", os.path.basename(given))
@@ -1217,6 +1287,13 @@ def from_spec(given, flags):
     second = second_model(given, other_cfg, flags)
     model = read_input(given, cfg, expected)
     out = out_dir(flags.get("out"), given, name)
+    snapshot(local_modules(given), inputs)
+    if second:
+        other_spec = second["model"]["spec"]
+        snapshot(local_modules(other_spec), inputs)
+        if second["role"] == "against":
+            beside = os.path.dirname(other_spec)
+            snapshot([os.path.join(beside, f) for f in expectations(other_spec)], inputs)
     if not os.path.exists(map_file):
         with open(map_file, "w", encoding="utf-8") as handle:
             handle.write(scaffold(name, given))
@@ -1244,6 +1321,7 @@ def from_spec(given, flags):
                 warn_unlisted(now, other)
             uncited = warn_uncited([now, other] if second["role"] == "fixed" else [now])
         drawn = draw(now, map_file, work, out, flags.get("title"), other=other, uncited=uncited)
+        stamp(drawn["files"], drawn_from(given, flags, expected, out, inputs, drawn["files"]))
         return finish(
             work, out, inputs, drawn, rules_as_expected(now, other, expected), flags.get("png")
         )

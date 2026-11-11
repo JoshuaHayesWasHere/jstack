@@ -46,5 +46,14 @@
     }
   },
   "classes": [],
-  "codeLike": []
+  "codeLike": [],
+  "drawnFrom": {
+    "command": "statechart from-spec PrVerdict.tla --config PrVerdict.chart.cfg --title 'Why isn'\"'\"'t my pull request merging?' --png",
+    "inputs": {
+      "PrVerdict.chart.cfg": "3d99a67bbc42e2e9290ddf0dd3061fbf7d82c47efd838e9c00aea0c88c1f6e8b",
+      "PrVerdict.map.py": "def1f19ca262ad088eba6713536176d979f4d68a245949bd747c066281ae21cc",
+      "PrVerdict.tla": "85a97895665415f7d66be4d9127c16817de6480480117cc9fe50af6e52277561"
+    },
+    "chart": "7bed2d33150c6688e5b7ac60b2887c1674fd729892a55404d3b3792e9187fa45"
+  }
 }

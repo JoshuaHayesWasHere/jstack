@@ -32,5 +32,14 @@
     "why": "the regions do not combine into the flat chart, with 7 difference(s), such as transitions only in EXPECTED (a guard in the spec blocks them, or the spec renamed the step): Main red | a revert open --> Main green | a fix row out : jbus's pass sees main green and closes the revert"
   },
   "classes": [],
-  "codeLike": []
+  "codeLike": [],
+  "drawnFrom": {
+    "command": "statechart from-spec MainRed.tla --config MainRed.chart.cfg --title 'Main went red: what fixes it?' --png",
+    "inputs": {
+      "MainRed.chart.cfg": "ff615e88f2c133dace314760bcfceaafcca56abc30a5e4b78ab189cb9079b185",
+      "MainRed.map.py": "7c627efe1a763557e42b87a2bc5dd1c559764dbf722d5789698d203d00016ddb",
+      "MainRed.tla": "f4bf335672bdac7880178373325e1104c472d5f135cdcd880f222b0105cc093d"
+    },
+    "chart": "ddf211700f1f201067d7f328010f6cfd00aada9fba05a8617e7bb9cb1a0b0bdf"
+  }
 }
