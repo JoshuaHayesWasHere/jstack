@@ -129,3 +129,74 @@ def test_a_seventeenth_gh_waits_while_sixteen_run_in_other_processes(gh, tmp_pat
     assert len(lines) == proc.GH_CAP + 1
     assert [line["caller"] for line in lines] == ["__main__.<module>"] * (proc.GH_CAP + 1)
     assert sum("waited" in line for line in lines) >= 1
+
+
+PAUSED = """\
+import os, sys, time
+from pathlib import Path
+from jsettings import proc
+
+proc.KEPT = 1000
+me, at, go = sys.argv[1], Path(os.environ["AT"]), Path(os.environ["GO"])
+rename = os.replace
+
+
+def paused(source, target):
+    if str(target).endswith(".old.jsonl"):
+        (at / me).touch()
+        while not (go / me).exists():
+            time.sleep(0.02)
+    rename(source, target)
+
+
+os.replace = paused
+proc.run("gh", "api", "rate_limit")
+"""
+
+
+def test_two_processes_that_both_find_the_log_full_keep_it_whole_in_the_old_log(gh, tmp_path):
+    """Process a finds the log past KEPT and stops at its rename; process b then logs too. b may
+    rename only once a's rename and line are done, and finds then a one-line log, which it keeps:
+    gh-calls.old.jsonl still holds the whole log a moved."""
+    at, go = tmp_path / "at", tmp_path / "go"
+    at.mkdir()
+    go.mkdir()
+    gh.mkdir(parents=True, exist_ok=True)
+    full = "".join(json.dumps({"remaining": n, "pad": "x" * 100}) + "\n" for n in range(20))
+    (gh / proc.CALLS).write_text(full)
+    env = {**os.environ, "AT": str(at), "GO": str(go)}
+
+    def start(name):
+        return subprocess.Popen([sys.executable, "-c", PAUSED, name], env=env)
+
+    def reached(name, seconds):
+        until = time.monotonic() + seconds
+        while not (at / name).exists() and time.monotonic() < until:
+            time.sleep(0.02)
+        return (at / name).exists()
+
+    a = start("a")
+    b = None
+    try:
+        assert reached("a", 30)
+        b = start("b")
+        reached("b", 3)
+        (go / "a").touch()
+        assert a.wait(30) == 0
+        (go / "b").touch()
+        assert b.wait(30) == 0
+    finally:
+        (go / "a").touch()
+        (go / "b").touch()
+        for one in (a, b):
+            if one:
+                one.wait(30)
+    assert (gh / "gh-calls.old.jsonl").read_text() == full
+    assert len(calls(gh)) == 2
+
+
+def test_a_log_whose_lock_cannot_be_taken_still_gets_its_line(gh):
+    gh.mkdir(parents=True, exist_ok=True)
+    (gh / f".{proc.CALLS}.lock").mkdir()
+    proc.run("gh", "api", "rate_limit")
+    assert len(calls(gh)) == 1
