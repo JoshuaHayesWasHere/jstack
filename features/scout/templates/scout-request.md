@@ -1,5 +1,6 @@
 # <slug>: <one line on what to find out>
 Request: "<what the user asked for, in their words>"
+Why: <why the answer is wanted: the problem, the evidence that it happens (a run, a count, a log line or the user's own words), and what goes better once it is known, never the `Request:` or the `Questions:` again>
 Questions:
 - <a question the report must answer, with where to start looking>
 Deliver:

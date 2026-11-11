@@ -43,7 +43,8 @@ project's home has started (a root `plan.md`): when the catch-all's `home-id` na
 one T3 Code has archived or does not know, and the thread jbus last launched for it is not at
 work, it makes `uncategorized/` with an empty plan where there is none and launches `/home
 uncategorized` in the project's own checkout. `relaunches.json` keeps the last launch of each home,
-its thread, when and why. `launch` holds a home's next launch for `PATIENCE`, the time its start has
+its thread, when and why, and the `stage` its start is at (`STAGES`), which `_stage` alone sets.
+`launch` holds a home's next launch for `PATIENCE`, the time its start has
 to write its `home-id`, only while that start may still write it: its thread is at work, T3 Code
 does not list it yet, or the reply that names it was lost. A start whose run ended, failed or idle
 with no `home-id` written, is over at once, and the next pass launches the home again. It reads
@@ -52,8 +53,11 @@ which it writes to the ledger so the next launch goes to another instance or wai
 or else the run's end. A second start in a row that fails on the cause the first failed on waits
 for that cause to clear: the instance it ran on signed in again (`jgauge.limits.renewed`), the
 limit's reset, or for any other cause `PATIENCE` after it. It says so once in the digest
-(`home-start`). The home's entry keeps the failure and `says`, why the home has no `home-id` yet,
-such as `start failed: not signed in`, until its home starts. The T3 Code fork's sidebar shows
+(`home-start`). The home's entry keeps the failure, with when the failed start was launched
+(`launched`), and `says`, why the home has no `home-id` yet, such as `start failed: not signed
+in`, until its home starts: each pass moves the start of every home, scoped or the catch-all,
+whose `home-id` names the thread jbus launched for it to `started` (`started`), which drops
+them. The T3 Code fork's sidebar shows
 such a home's `says` in place of `starting...`. A launch waits while the dispatch is off or
 stopped. The model is the one the role map's `home` line gives."""
 
@@ -96,8 +100,13 @@ from jroles import ledger, pool
 START = "home-start"
 EVENTS = {"home-stall": "quiet", "home-start": "quiet"}
 NOT_SIGNED_IN = "not signed in"
-STARTED = ("failed", "says")
-"""What a launch keeps of the failed starts before it, dropped once its home has started."""
+STAGES = ("intent", "launched", "started", "failed")
+"""The stages of a home's start in its `relaunches.json` entry: `intent`, a launch written before
+T3 Code is asked for its thread; `launched`, its thread named; `started`, the home's `home-id`
+names that thread; `failed`, its run ended with no `home-id` and no launch has followed yet."""
+FAILURE = ("failed", "says")
+"""What an entry keeps of the failed start before it, through the next launch, until its home
+starts."""
 WAS_FILE = "children.json"
 """The name `FILE` had before, moved on the first pass that finds it with no `FILE`."""
 PATIENCE = 60
@@ -422,12 +431,8 @@ def keep_alive(run: Pass, client: Client, threads: list[dict[str, Any]] | None) 
         return
     catchall = homes.catchall(run.home)
     now, was = homes.ids(catchall)
-    kept: dict[str, Any] = read_json(run.state / LAUNCHES, {})
-    ours = kept.get(catchall.name, {}).get("thread", "")
+    ours = read_json(run.state / LAUNCHES, {}).get(catchall.name, {}).get("thread", "")
     if now and now != was and live(run, client, now, threads) is not False:
-        if now == ours and "failed" in kept[catchall.name]:
-            kept[catchall.name] = {k: v for k, v in kept[catchall.name].items() if k not in STARTED}
-            write_json(run.state / LAUNCHES, kept)
         return
     if ours and ours != now and at_work([one for one in threads if one.get("id") == ours]):
         return
@@ -447,18 +452,14 @@ def launch(run: Pass, client: Client, name: str, why: str, threads: list[dict[st
     So the keep-alive and a stall launch a home at most once while a start runs, also when a reply
     was lost, and at once after a start that ended, unless it is the second in a row to fail on one
     cause that has not cleared (`_waits`)."""
-    path = run.state / LAUNCHES
-    kept: dict[str, Any] = read_json(path, {})
-    entry = kept.get(name, {})
+    entry = read_json(run.state / LAUNCHES, {}).get(name, {})
     if _going(run, entry, threads):
         return True
     failed = _failed(run, client, entry, threads)
     waits = _waits(run, failed)
     if failed:
         says = f"start failed: {failed['cause']}" + (f": waits for {waits}" if waits else "")
-        if failed != entry.get("failed") or says != entry.get("says"):
-            kept[name] = entry = {**entry, "failed": failed, "says": says}
-            write_json(path, kept)
+        _stage(run, name, "failed", failed=failed, says=says)
     if failed and waits:
         line = f"its start failed twice in a row: {failed['cause']}: it waits for {waits}"
         run.find(name, START, f"{START} {name}: {line}", key=f"{failed['thread']} waits")
@@ -498,19 +499,42 @@ def launch(run: Pass, client: Client, name: str, why: str, threads: list[dict[st
         asked["runtimeMode"] = run.config.runtime_mode
     if routed is not None:
         asked["modelSelection"] = routed.as_json()
-    kept[name] = {"at": run.now.isoformat(), "why": why}
-    if failed:
-        kept[name] |= {"failed": failed, "says": entry["says"]}
-    write_json(path, kept)
+    _stage(run, name, "intent", at=run.now.isoformat(), why=why)
     try:
         thread = (client.call("t3_thread_launch", asked) or {}).get("threadId") or ""
     except T3Error as error:
         run.say(f"launch home {name}: no reply ({error}): no launch again for {PATIENCE} min")
         return True
-    kept[name]["thread"] = thread
-    write_json(path, kept)
+    _stage(run, name, "launched", thread=thread)
     run.say(f"launched home {name}: {thread}, since {why}")
     return True
+
+
+def _stage(run: Pass, name: str, stage: str, **facts: Any) -> None:
+    """Move the start of the home `name` to `stage` (`STAGES`) in `relaunches.json`, with `facts`,
+    the one place an entry is written. `intent` begins a launch's entry afresh, with only the
+    failure of the start before it (`FAILURE`), and `started` drops that failure. A move that
+    changes nothing writes nothing."""
+    path = run.state / LAUNCHES
+    kept: dict[str, Any] = read_json(path, {})
+    entry = kept.get(name, {})
+    if stage == "intent":
+        entry = {key: entry[key] for key in FAILURE if key in entry}
+    elif stage == "started":
+        entry = {key: value for key, value in entry.items() if key not in FAILURE}
+    moved = {**entry, **facts, "stage": stage}
+    if moved != kept.get(name):
+        kept[name] = moved
+        write_json(path, kept)
+
+
+def started(run: Pass) -> None:
+    """Move to `started` the start of each home, scoped or the catch-all, whose `home-id` names
+    the thread jbus last launched for it: that start wrote it."""
+    for name, entry in read_json(run.state / LAUNCHES, {}).items():
+        ours = entry.get("thread")
+        if ours and entry.get("stage") != "started" and ours == homes.ids(run.home / name)[0]:
+            _stage(run, name, "started")
 
 
 def _going(run: Pass, entry: dict[str, Any], threads: list[dict[str, Any]]) -> bool:
@@ -527,13 +551,18 @@ def _going(run: Pass, entry: dict[str, Any], threads: list[dict[str, Any]]) -> b
 def _failed(
     run: Pass, client: Client, entry: dict[str, Any], threads: list[dict[str, Any]]
 ) -> dict[str, Any] | None:
-    """Return what the home's last failed start failed on, with how many starts in a row failed
-    on it, reading the last launch's run once it has ended. A cause it cannot read is the run's
-    end: failed, or idle with no `home-id`."""
+    """Return what the home's last failed start failed on, with when it was launched and how
+    many starts in a row failed on it, reading the last launch's run once it has ended. A cause
+    it cannot read is the run's end: failed, or idle with no `home-id`. `launched` is the
+    entry's `at` before the relaunch writes over it, so the store can count the start's
+    minutes. A start that `started` failed on nothing, and one already `failed` failed on what
+    its entry holds."""
     was = entry.get("failed")
+    if entry.get("stage") == "started":
+        return None
     thread = str(entry.get("thread", ""))
     listed = [one for one in threads if thread and one.get("id") == thread]
-    if not listed or (was and was.get("thread") == thread):
+    if not listed or entry.get("stage") == "failed":
         return was
     ended = "its run failed" if listed[0].get("status") == "failed" else "it ended with no home-id"
     found: dict[str, Any] = {"cause": ended, "at": run.now.isoformat()}
@@ -555,7 +584,7 @@ def _failed(
             "until": what.resets.isoformat(),
         }
     times = was["times"] + 1 if was and was.get("cause") == found["cause"] else 1
-    return {**found, "thread": thread, "times": times}
+    return {**found, "thread": thread, "launched": str(entry.get("at", "")), "times": times}
 
 
 def _waits(run: Pass, failed: dict[str, Any] | None) -> str:
@@ -580,6 +609,7 @@ def _waits(run: Pass, failed: dict[str, Any] | None) -> str:
 
 
 def _watch(half: Any) -> None:
+    started(half.run)
     keep_alive(half.run, half.client, half.out)
     watch(half.run, half.client, half.out)
 

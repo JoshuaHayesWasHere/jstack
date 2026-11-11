@@ -258,6 +258,7 @@ def test_no_record_is_its_own_reason_and_not_counted_as_unexplained():
         ("max_per_project is 3 in jstack", "", "slot cap"),
         ("a gate held back while every slot is taken: po-go-setting", "", "slot cap"),
         ("waiting for room on the machine", "", "no room"),
+        ("waiting for room on the machine: 1.2 GB of memory available, under 2", "", "no room"),
         ("waiting: /tmp at 81% of its quota", "", "no room"),
         ("no launch: load 30.1 is at or over 85% of 24 cores", "", "no room"),
     ],

@@ -3,12 +3,14 @@ pass that leaves the reason as it was adds none. A row that waits behind a row w
 machine says so."""
 
 import json
+from datetime import timedelta
 
 from jbus import queue
+from test_jbus_kitchen import NOW
 from test_jbus_queue import add, rows
 
 STAMP, AT = "2026-11-09 16:00 ET", "2026-11-09T21:00:00+00:00"
-ROOM = "waiting for room on the machine"
+LOAD = "waiting for room on the machine: load is at or over 200% of 12 cores"
 
 
 def lines(kitchen):
@@ -51,14 +53,29 @@ def test_the_pass_that_starts_the_log_writes_each_rows_reason_as_it_stands(kitch
     ]
 
 
-def test_each_row_behind_a_row_with_no_room_says_it_waits_for_room(kitchen):
+def test_each_row_behind_a_row_with_no_room_says_it_waits_for_room_and_names_the_load(kitchen):
     """The load is over the machine's limit, so `first` meets no room, and the three rows queued
-    behind it are read only for their reason, which is the room too, and is kept in the log."""
+    behind it are read only for their reason, which is the room too, and is kept in the log. The
+    reason names what `jgauge room` said, so the log tells a wait on load from one on memory,
+    with no reading: the reading moves from pass to pass, and the wait does not."""
     for priority, slug in enumerate(("first", "second", "third", "fourth"), 1):
         add(kitchen, slug, priority=priority)
     kitchen.machine(load="30.00")
     kitchen.poll()
     assert kitchen.t3.launches == []
     waiting = {slug: row["why"] for slug, row in rows(kitchen).items()}
-    assert waiting == dict.fromkeys(("first", "second", "third", "fourth"), ROOM)
+    assert waiting == dict.fromkeys(("first", "second", "third", "fourth"), LOAD)
     assert {line["slug"]: line["why"] for line in lines(kitchen)} == waiting
+
+
+def test_a_wait_for_room_keeps_its_reason_and_its_since_while_the_load_moves(kitchen):
+    """The load reads 30.00 on one pass and 31.00 on the next: the row waits on the same load
+    all along, so `waits.jsonl` keeps the one line of the first pass and `since` stays put."""
+    add(kitchen, "first")
+    kitchen.machine(load="30.00")
+    kitchen.poll()
+    began = rows(kitchen)["first"]["since"]
+    kitchen.machine(load="31.00")
+    kitchen.poll(NOW + timedelta(minutes=5))
+    assert [line["why"] for line in lines(kitchen) if line["slug"] == "first"] == [LOAD]
+    assert rows(kitchen)["first"]["since"] == began

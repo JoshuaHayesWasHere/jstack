@@ -1,5 +1,6 @@
 """Every brief jbus files itself names a child home on its `Home:` line, so no row it files starts
-under the root home, which owns no row.
+under the root home, which owns no row, and has no fault `jbus queue add` refuses, such as a
+missing `Why:` line, so that no row it files is refused unseen.
 
 `WRITERS` is the list of each function of `jbus` that queues a brief as a pass (`queue.add` with
 `ran_by=queue.PASS`), with the builder its brief comes from. A new writer that is not on it fails
@@ -14,7 +15,7 @@ from types import SimpleNamespace
 import pytest
 
 from jbriefs import home as homes
-from jbus import daywarnings, flakerow, reverts, shots, watch
+from jbus import daywarnings, flakerow, queue, reverts, shots, watch
 from jbus.ci import wrongcloses
 
 SOURCE = Path(reverts.__file__).parent
@@ -29,7 +30,15 @@ def _shots():
 
 def _fix():
     jobs = [("check", "https://example.test/job/2", ["features/jbus/tests/test_x.py::test_y"])]
-    return watch.fix_brief("main-red-abc: a red", '"a red"', ["- it passes"], "it", "main", jobs)
+    return watch.fix_brief(
+        "main-red-abc: a red",
+        '"a red"',
+        "main is red",
+        ["- it passes"],
+        "`make check` passes",
+        "main",
+        jobs,
+    )
 
 
 def _flake():
@@ -80,6 +89,15 @@ WRITERS = {
 """Each function that queues a brief as a pass, with the builder of that brief. `watch._filed`
 queues the nightly run's fix brief too, and `watch._add_tip` a fix brief already filed with a
 line added under `Read:`. `reverts.revert` writes its brief to `tasks/` and queues no row."""
+
+
+@pytest.mark.parametrize("kind", sorted(set(BUILT) - {"revert"}))
+def test_each_brief_jbus_queues_has_no_fault_queue_add_refuses(kind):
+    """A pass that files a row catches `add`'s refusal and only logs it, so a brief whose shape
+    falls behind the lint stops being filed with nobody told: the fix of a red main among them.
+    The revert's brief is written to `tasks/` with its Result and never queued."""
+    text = BUILT[kind]()
+    assert queue.faults(text, text.split(":", 1)[0].removeprefix("# ")) == []
 
 
 @pytest.mark.parametrize("kind", sorted(BUILT))

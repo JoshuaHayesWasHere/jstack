@@ -16,12 +16,17 @@ run's logs once for each red tip: `jbus.reverts` reads them to tell a flake from
 red.
 
 `tell` writes why main went red once for each tip it judges `failed`, as one line of
-`main-reds.jsonl` in the project's state: the tip, the pull requests landed since the last green
-tip, the step each failed part of the run failed at, the tests the run failed, and a `Verdict`,
-`change`, `flake` or `infra`. It is the one owner of main's red, so its readers take the cause from
-the ledger and keep no rule of their own: the store reads it for `main_spells.cause`, and
-`change-failure` counts only the spells a change caused. A tip whose logs could not be read gets
-its line on a later pass that judges it, and a tip with a line gets no second one.
+`main-reds.jsonl` in the project's state: the tip, the green tip it came `after`, the pull requests
+landed since, the step each failed part of the run failed at, the tests the run failed, and a
+`Verdict`, `change`, `flake` or `infra`. A later tip of the spell that fails only tests its first
+line names takes that line's verdict (`red_line`). When main goes green, `tell` writes one more
+line for the spell, at its first red tip: the green tip and the spell's `cause`, `fix: #<n>` or
+`no fix` (`closing_line`), since only the end of a spell tells a break from a flake. A fix is a fix
+row, a revert, or a pull request that changed the file of a test the spell failed. `tell` is the
+one owner of main's red, so its readers take the cause from the ledger and keep no rule of their
+own: the store reads it for `main_spells.cause`, and `change-failure` counts only the spells a
+change caused. A tip whose logs could not be read gets its line on a later pass that judges it,
+and a tip with a line gets no second one.
 
 `landed` lists each tip main went through since the last pass, and `tell` looks at them in
 order. A tip still counts when it failed or passed before any pass looked at it, even with a
@@ -90,11 +95,17 @@ UNJUDGED_EVERY = timedelta(hours=1)
 """How often `again` reads a commit unjudged for `UNJUDGED_OLD`, so that a run that comes late, as
 after check.yml is switched on again, is still judged."""
 REDS = "main-reds.jsonl"
-"""Why main went red: one line for each tip `tell` judged `failed`, as `red_line` writes it."""
+"""Why main went red: one line for each tip `tell` judged `failed`, as `red_line` writes it, and one
+for each spell that ended, as `closing_line` writes it."""
 TESTS, LINT = "test", "lint"
 """The last word of a failed step that ran the tests (`make test`, `make check: test`), and of one
 that linted the tree (`make lint`, `prose lint`, `make check: lint`), as `jbus.ci.collect.step`
 names a step: GitHub's name, with the make target that failed where the log names one."""
+REVERT = "revert-"
+"""How the branch of a revert starts, GitHub's `revert-<number>-<branch>` (`reverts.close`)."""
+NO_FIX = "no fix"
+"""The cause of a spell that went green with no fix row, no revert and no change to the file of a
+test it failed merged in it."""
 PULL = re.compile(r"\(#(\d+)\)$")
 """A squash merge's subject ends in its pull request's number."""
 UNCOLLECTED = re.compile(r"\bERROR collecting \S|\b\d+ errors? during collection\b")
@@ -243,9 +254,9 @@ def uncollected(run: Pass, sha: str) -> bool:
     )
 
 
-def pulls(run: Pass, tips: Sequence[str]) -> list[tuple[int, str]]:
-    """Return the pull request merged at each tip, with its branch, as `merged.json` keeps them,
-    else the number its commit's subject ends in, as GitHub lists main's commits."""
+def pulls(run: Pass, tips: Sequence[str]) -> list[tuple[int, str, str]]:
+    """Return the pull request merged at each tip, with its branch and the tip, as `merged.json`
+    keeps them, else the number its commit's subject ends in, as GitHub lists main's commits."""
     merged: dict[str, dict] = read_json(run.state / "merged.json", {})
     kept = {
         (one.get("mergeCommit") or {}).get("oid"): (one.get("number"), one.get("headRefName", ""))
@@ -264,24 +275,86 @@ def pulls(run: Pass, tips: Sequence[str]) -> list[tuple[int, str]]:
         if number is None and (named := PULL.search(subjects.get(tip, ""))):
             number = named[1]
         if number is not None:
-            found.append((int(number), str(branch or "")))
+            found.append((int(number), str(branch or ""), tip))
     return found
 
 
-def red_line(run: Pass, tip: str, green: str, failed: list[str]) -> dict:
-    """The line of `REDS` for a tip judged `failed`, with `green` the last green tip before it
-    and `failed` the tests that failed there."""
+def spell(lines: list[dict], green: str) -> list[dict]:
+    """The lines of `REDS` that judged a red tip of the spell since `green`, the last green tip,
+    the first first: each line `red_line` writes keeps the green tip it came `after`. A line from
+    before `after` was kept belongs to no spell."""
+    return [one for one in lines if "verdict" in one and "after" in one and one["after"] == green]
+
+
+def red_line(run: Pass, tip: str, green: str, failed: list[str], first: dict | None = None) -> dict:
+    """The line of `REDS` for a tip judged `failed`, with `green` the last green tip before it,
+    `failed` the tests that failed there and `first` the open spell's first line, if any.
+
+    A tip that fails only tests the first line names is the same break, or the same flake, with
+    merges on top of it, and takes that line's verdict: `reverts.flaky` would name its tests a
+    flake by then, since the pull requests checked over the red main fail them on their own
+    branches before `jbus ci` holds main's own red run, which makes their failure main's."""
     landed_ = pulls(run, landed(run, green, tip) if green else [tip])
-    flakes = reverts.flaky(run, landed_[0][1]) if landed_ and failed else frozenset[str]()
     steps = failed_steps(run, tip)
+    if first and failed and set(failed) <= set(first.get("failed") or []):
+        judged = str(first["verdict"])
+    else:
+        flakes = reverts.flaky(run, landed_[0][1]) if landed_ and failed else frozenset[str]()
+        judged = str(verdict(steps, failed, flakes, uncollected(run, tip)))
     return {
         "at": run.now.isoformat(),
         "sha": tip,
-        "prs": [number for number, _ in landed_],
+        "after": green,
+        "prs": [number for number, _, _ in landed_],
         "step": ", ".join(steps),
         "failed": failed,
-        "verdict": str(verdict(steps, failed, flakes, uncollected(run, tip))),
+        "verdict": judged,
     }
+
+
+def changed(run: Pass, tip: str) -> set[str]:
+    """Return the files the commit `tip` changed, as GitHub lists them, none where it gives no
+    answer."""
+    said = _api(run, f"repos/{{owner}}/{{repo}}/commits/{tip}")
+    files = said.get("files") if isinstance(said, dict) else None
+    return {str(one.get("filename")) for one in files or [] if isinstance(one, dict)}
+
+
+def closing_line(run: Pass, first: str, green: str, failed: Collection[str] = ()) -> dict:
+    """The line of `REDS` that closes the spell whose first red tip is `first` at `green`, the
+    tip whose check passed, with `failed` the tests the spell's red tips failed: the pull requests
+    merged after `first` up to `green`, and its `cause`. That is `fix: #<n>` where one of them is
+    a fix row (`mainjson.FIX`), a revert (`REVERT`), or a pull request that changed the file of a
+    test in `failed`, as an ordinary row that fixed the break does, the last such; `NO_FIX` where
+    none is. Only a merge that is neither a fix row nor a revert is asked for its files, one call
+    each, once a spell. A rerun that passed at `first` merged nothing: `NO_FIX`."""
+    merged = pulls(run, landed(run, first, green)) if green != first else []
+    files = {test.split("::")[0] for test in failed}
+    fixes = [
+        number
+        for number, branch, tip in merged
+        if branch.startswith((mainjson.FIX, REVERT)) or (files and files & changed(run, tip))
+    ]
+    return {
+        "at": run.now.isoformat(),
+        "sha": first,
+        "green": green,
+        "prs": [number for number, _, _ in merged],
+        "cause": f"fix: #{fixes[-1]}" if fixes else NO_FIX,
+    }
+
+
+def close(run: Pass, under: str, green: str) -> None:
+    """Append the closing line of the spell since `under` that `green` ends, once: none where
+    the spell has no line, or its first line has a closing line already."""
+    lines = ledger(run.state / REDS)
+    opened = spell(lines, under)
+    if not opened or any("cause" in one and one.get("sha") == opened[0]["sha"] for one in lines):
+        return
+    with open(run.state / REDS, "a") as handle:
+        failed = [test for one in opened for test in one.get("failed") or []]
+        line = closing_line(run, str(opened[0]["sha"]), green, list(dict.fromkeys(failed)))
+        handle.write(json.dumps(line) + "\n")
 
 
 def landed(run: Pass, last: str, main: str) -> list[str]:
@@ -353,6 +426,8 @@ def tell(run: Pass) -> None:
         )
     ):
         check = main_check(run, tip, again=tip in (main, stands), rerun=tip == main)
+        if check == "green" and tip != under:
+            close(run, under, tip)
         if check == "green":
             green, broken, waiting, unrun, under = tip, "", [], "", tip
         elif check == "failed":
@@ -361,8 +436,10 @@ def tell(run: Pass) -> None:
                 judged = {str(one.get("sha")) for one in ledger(run.state / REDS)}
             if tip not in judged and (read := failed_at(run, tip)) is not None:
                 tests[tip] = read
+                opened = spell(ledger(run.state / REDS), under)
+                line = red_line(run, tip, under, read, opened[0] if opened else None)
                 with open(run.state / REDS, "a") as handle:
-                    handle.write(json.dumps(red_line(run, tip, under, read)) + "\n")
+                    handle.write(json.dumps(line) + "\n")
         elif check == "pending":
             waiting.append(tip)
         elif check == NO_JOB:

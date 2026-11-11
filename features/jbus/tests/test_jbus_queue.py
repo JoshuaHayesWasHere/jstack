@@ -43,12 +43,20 @@ def kitchen(tmp_path, monkeypatch):
     made.close()
 
 
+MEASURE = "and a day after the merge the count of lost rows reads 0"
+"""What a user sees beside the fixture brief's test, a measure read after the merge, so a brief
+for the code under `src/` draws no warning of a test alone (`jbriefs.proof.user_sees`). It names
+no command in backticks and sits on a line of its own, so a test that rewrites `` `make check` ``
+as the agent's word, or takes the `Proves it: `make check`` line out, still means what it did."""
+
+
 def brief(slug, more=""):
     """Return a brief with every field that `queue add` asks for, and `more` under them."""
     return (
-        f'# {slug}: a task\nHome: uncategorized\nTask: "do {slug}"\nDone when:\n'
+        f'# {slug}: a task\nHome: uncategorized\nTask: "do {slug}"\n'
+        "Why: a test needs a row the queue takes\nDone when:\n"
         "- `make check` passes (in none)\n"
-        f"Proves it: `make check`\nSize: S\nWhere: `src/{slug}/`, a new test\n"
+        f"Proves it: `make check`\n  {MEASURE}\nSize: S\nWhere: `src/{slug}/`, a new test\n"
         'Design: none, a test\nDecisions: "review it once", the user\'s word in a test\n'
         "Pull request: open one when done\nReview: review\n"
         f"Playbook: feature\n{'' if 'Skills:' in more else 'Skills: tdd\n'}{more}"
@@ -349,25 +357,25 @@ def test_an_approve_in_a_batch_is_for_the_brief_added_earlier_in_the_same_batch(
 @pytest.mark.parametrize(
     "bad, says",
     [
-        ("hold nope\n", "line 19: the queue has no row nope"),
-        (f'approve alpha --by user --at "{AT}" --sha 0\n', f"line 19: {NO_BASIS}"),
-        ("approve alpha --sha 0\n", f"line 19: {NO_BASIS}"),
-        ("add gamma --priority 1\nhold alpha\n", "line 19: add gamma has no --- brief gamma"),
+        ("hold nope\n", "line 21: the queue has no row nope"),
+        (f'approve alpha --by user --at "{AT}" --sha 0\n', f"line 21: {NO_BASIS}"),
+        ("approve alpha --sha 0\n", f"line 21: {NO_BASIS}"),
+        ("add gamma --priority 1\nhold alpha\n", "line 21: add gamma has no --- brief gamma"),
         (
             "add gamma --priority 1\n--- brief gamma\nA brief.\n",
-            "line 19: gamma's brief has no --- end",
+            "line 21: gamma's brief has no --- end",
         ),
         (
             "add gamma --priority 1\n--- brief gamma\nA brief.\n--- brief delta\nmore\n--- end\n",
-            "line 19: gamma's brief has no --- end",
+            "line 21: gamma's brief has no --- end",
         ),
-        (adds("gamma", "--priority soon"), "line 19: --priority is an integer, not soon"),
-        (adds("gamma"), "line 19: add needs --priority"),
-        (adds("../up", "--priority 1"), "line 19: ../up is not a slug"),
-        ("hold alpha --status merged\n", "line 19: status is derived from T3 Code and GitHub"),
-        ("hold alpha --at now\n", "line 19: hold takes no --at"),
-        ("drop alpha\n", "line 19: drop is not add, approve, hold or remove"),
-        ('hold "alpha\n', "line 19: No closing quotation"),
+        (adds("gamma", "--priority soon"), "line 21: --priority is an integer, not soon"),
+        (adds("gamma"), "line 21: add needs --priority"),
+        (adds("../up", "--priority 1"), "line 21: ../up is not a slug"),
+        ("hold alpha --status merged\n", "line 21: status is derived from T3 Code and GitHub"),
+        ("hold alpha --at now\n", "line 21: hold takes no --at"),
+        ("drop alpha\n", "line 21: drop is not add, approve, hold or remove"),
+        ('hold "alpha\n', "line 21: No closing quotation"),
     ],
 )
 def test_a_batch_with_one_verb_that_cannot_be_done_writes_nothing(kitchen, bad, says):

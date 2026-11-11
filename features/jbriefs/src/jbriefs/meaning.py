@@ -3,12 +3,13 @@ decides whether a later brief still asks for the same thing.
 
 It is deterministic and asks no model. An approval binds to the goal, the scope and the
 done-when of a brief, and to nothing else: the fields of `MEANING` (the title, Task, Done
-when, Where, Do not touch and Size). Every other field says how the work is done or who
-runs it. Those are the fields of `NOT_MEANING`: Skills, Decisions, Asked, Shown, Holds, Design,
-Proves it, Review, Playbook, Pull request, Builds on, Read, Instruments, Change, Rests on, Ruled
-out, and `Home:` and `Thread:`, which say whom a brief is sent to. A field that the
-template does not name, and anything under a `## ` in the brief, count the same way. An edit to
-any of them keeps the go.
+when, Where, Do not touch and Size). Every other field says why the work is wanted, how it
+is done or who runs it: a sharper reason or more evidence on `Why:` changes nothing the user
+approved to be built. Those are the fields of `NOT_MEANING`: Why, Skills, Decisions, Asked,
+Shown, Holds, Design, Proves it, Review, Playbook, Pull request, Builds on, Read, Instruments,
+Change, Rests on, Ruled out, and `Home:` and `Thread:`, which say whom a brief is sent to. A
+field that the template does not name, and anything under a `## ` in the brief, count the same
+way. An edit to any of them keeps the go.
 
 Each field becomes lines, and each line becomes its tokens (`tokens`):
 
@@ -60,6 +61,7 @@ MEANING = (parse.TITLE, "Task", "Done when", "Where", "Do not touch", "Size")
 NOT_MEANING = (
     "Home",
     "Thread",
+    "Why",
     "Skills",
     "Decisions",
     "Asked",

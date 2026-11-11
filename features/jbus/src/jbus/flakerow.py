@@ -2,11 +2,12 @@
 
 `mainmoved.tell` writes a line to `main-reds.jsonl` for each red tip of main, with the tests that
 failed there and its verdict (`mainmoved.red_line`). This step reads that verdict and works out
-no flake rule of its own. Where one test is under `failed` in two lines of the verdict `flake`,
-at two commits no more than `WINDOW` apart, and the later of them within `WINDOW` of the pass, it
-writes `tasks/flake-<name>.md` and queues it with no go, as jbus's pass. The next pass approves it
-by the follow-up rule, since jbus filed it (`queue.filed`). One flake is noise: two timing flakes
-of one week were two different tests (the scout po-worse-change-failure's Report).
+no flake rule of its own. Where one test is under `failed` in lines of the verdict `flake` of two
+spells of a red main, each at its first such line, no more than `WINDOW` apart, and the later of
+them within `WINDOW` of the pass, it writes `tasks/flake-<name>.md` and queues it with no go, as
+jbus's pass. The next pass approves it by the follow-up rule, since jbus filed it (`queue.filed`).
+One flake is noise: two timing flakes of one week were two different tests (the scout
+po-worse-change-failure's Report).
 
 A test gets one row, ever. `flake-rows.json` in the project's state keeps each test it filed, with
 the row's slug, so a third flake, a pass run again, or a flake after the row merged files no
@@ -52,16 +53,19 @@ def slug(test: str) -> str:
 
 def flakes(lines: list[dict[str, Any]]) -> dict[str, list[Seen]]:
     """Return each test that failed under the verdict `flake`, with each red it failed at, the
-    oldest first and one a commit."""
-    seen: dict[str, dict[str, datetime]] = {}
+    oldest first and one a spell: the later tips of a spell take its first line's verdict
+    (`mainmoved.red_line`), so a spell is one flake however many tips it has. A line from before
+    the ledger kept the green tip a red came `after` is a spell of its own."""
+    seen: dict[str, dict[str, Seen]] = {}
     for line in lines:
         if line.get("verdict") != str(mainmoved.Verdict.FLAKE):
             continue
         at = datetime.fromisoformat(str(line["at"]))
         sha = str(line.get("sha") or "")
+        spell = f"after {line['after']}" if "after" in line else sha
         for failed in line.get("failed") or []:
-            seen.setdefault(test_of(str(failed)), {}).setdefault(sha, at)
-    return {test: sorted((at, sha) for sha, at in shas.items()) for test, shas in seen.items()}
+            seen.setdefault(test_of(str(failed)), {}).setdefault(spell, (at, sha))
+    return {test: sorted(spells.values()) for test, spells in seen.items()}
 
 
 def twice(seen: list[Seen], now: datetime) -> tuple[Seen, Seen] | None:
@@ -82,6 +86,8 @@ def brief(name: str, test: str, pair: tuple[Seen, Seen]) -> str:
         f"{name}: `{test}` flaked on main twice in seven days",
         f'"`{test}` failed as a flake on main at {reds_}" (jbus, the ledger of main\'s reds, '
         f"`{mainmoved.REDS}`)",
+        "a flake turns main red with no fault behind it, which holds every merge and sends a "
+        "crew after a cause that is not there, and two in seven days says it will again",
         [
             f"- `{test}` passes on main however its runs are timed or ordered, and the Result "
             "names what made it flake, with its evidence",

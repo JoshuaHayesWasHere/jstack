@@ -93,6 +93,7 @@ Another, `layered`, refuses a brief whose `Builds on:` line gives a plan layer a
 `features/jbriefs/src/jbriefs/standing.py` holds the two.
 The check of `Done when:` markers reads a brief's `Where:` by `jbriefs.parse.reach`: the paths it names and, for each one under `features/<f>/src/`, that feature's `docs/`, unless `Do not touch:` covers it, so a doc line the change makes wrong is fixed in the same pull request and queues no row.
 `jbriefs.parse.warnings` lists what `jbus queue add` and `jbus queue check` warn of and queue all the same, among them a `Done when:` list of 5 or more items (`jbriefs.crowded`), which tells the home to split the row and not to fold items into fewer lines.
+Another is a brief whose `Where:` names a file that is neither docs, config nor a test (`proved.of_kind`, `proved.TEST_FILE`) and whose `Proves it:` names a test alone (`jbriefs.proof.user_sees`, `proof.Proof.test_alone`): the warning ends when the line names, beside the test, a command of the product in backticks with what it prints, a measure read after the merge, or `judged: <why>` (`proof._SEEN`), and a change no user sees, such as a refactoring, keeps its test alone.
 A check added after a row got its go does not apply to that row, so it refuses neither the row's brief nor its launch.
 [What an approval is bound to](../../jbus/docs/jbus/the-queue.md#what-an-approval-is-bound-to) has the rules.
 

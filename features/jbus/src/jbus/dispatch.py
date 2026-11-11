@@ -77,7 +77,7 @@ import jroles
 import jroles.mirror
 import jsettings
 from jbriefs.home import home_of
-from jbus import cleanup, crewtree, outcome, pausedon, queue, read_json, watch, write_json
+from jbus import cleanup, crewtree, outcome, pausedon, queue, read_json, roomwait, watch, write_json
 from jbus.launches import record_path, records
 from jbus.launchhome import homed, unhomed
 from jbus.launchtext import RESUMED, fixes_main, launched_text, resumed, resumed_on
@@ -356,8 +356,6 @@ def no_room(run: Pass, slug: str, why: str, waited: dict[str, Any]) -> None:
 
 
 LAUNCHED, NOTHING, NO_ROOM = "launched", "nothing", "no room"
-ROOM = "waiting for room on the machine"
-"""A row's reason where `jgauge room` said no for all but /tmp, whose why `no_room` says."""
 UNKNOWN = "the crews out are not known"
 HELD = "a gate held back while every slot is taken"
 
@@ -638,7 +636,7 @@ class Turns:
                 run.find("", "note", f"note {name}: {note}", key=f"room {day}")
             if why:
                 no_room(run, slug, why, self.waited)
-                self.room = cleanup.waiting(why) or ROOM
+                self.room = cleanup.waiting(why) or roomwait.reason(why)
                 run.reasons[slug] = Slot(self.room)
                 return NO_ROOM
             again = queue.fresh(run.state, slug) or {}

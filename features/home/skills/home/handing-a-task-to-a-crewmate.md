@@ -17,12 +17,26 @@ The root home does step 1 and no other: it queues the brief by "Queueing a row i
    A brief that comes from no message of the user's, such as a fix jbus filed or a scout's finding, has no `Asked:` line.
    `jbus queue add` and `jbus queue check` warn of an `Asked:` path that is no file under `$H/asked/`, and of a `Task:` quote whose words the file does not hold, and queue the brief all the same: mend the line and add the brief again.
    An edit of the `Asked:` line keeps the go.
+   Its `Why:` line, right under `Task:`, says why the change is wanted: the problem, the evidence that it happens (a run, a count, a log line, or the user's words from the `Asked:` file, quoted as they typed them), and what goes better once it lands.
+   It never says `Task:` or **Done when** again: `Task:` is what is asked, **Done when** is when it is green, and `Why:` is the reason the crewmate makes a choice the brief leaves open by.
+   Where the user gave no reason, the home writes the one it took the request for, with its evidence, and never invents a count.
+   `jbus queue add` refuses a brief with no `Why:` line, or one whose words are all words of its title and `Task:`, and names the fault; a row queued before the line was asked for keeps its go and launches without one.
+   An edit of the `Why:` line keeps the go.
 
    Its `Proves it:` line, under the "Done when" list, names what outside the agent shows the task is done: a test or a command, a metric, a dataset, an external judge or the user.
    `jbus queue add` queues no brief whose line names only the crew, the crewmate, the reviewer, the agent, the model or a review, or is empty.
    A crewmate's desk check is the crew skill's touched check, `make check-fast BASE=<base> PART=touched`: the lint, the test files the branch adds or edits, and the cross-cutting tests the selection names, wherever they live (`select_tests.py --part cross`).
    The whole suite, `make check-fast BASE=origin/main` with no `PART=` or `make check`, is CI's check on the pull request, never a desk step a brief asks for: it holds a full test slot for about 9 minutes, and CI runs it again.
-   Write the line to name the touched check and the test the task adds, as `Proves it: the touched check passes, with the test the task adds, <its test file>`.
+   Write the line to name the touched check and the test the task adds, and, for a row whose `Where:` names code, what a user would see once it merges: a command of the product in backticks with what it prints, a measure read after the merge, or `judged: <why>` for what only a person can judge.
+   One line of each kind:
+
+   ```
+   Proves it: the touched check passes, with the test the task adds, `features/jbus/tests/test_jbus_hold.py`; and `jbus queue list` prints the held row with its reason.
+   Proves it: the touched check passes, with the test the task adds, `features/jbus/tests/test_jbus_pass.py`; and a day after the merge the `Instruments:` query counts no pass over 60 s.
+   Proves it: the touched check passes, with the test the task adds, `features/home/tests/test_home_reply.py`; and judged: the user finds the row's state in the first line of the home's next reply, which no command reads.
+   ```
+
+   `jbus queue add` and `jbus queue check` warn of a brief whose `Where:` names a file that is neither docs, config nor a test and whose `Proves it:` names a test alone, and queue it all the same: a change no user sees, such as a refactoring, keeps its test alone.
    `jbus queue add` warns of a brief whose `Proves it:` or **Done when** runs the whole suite at the desk, and queues it all the same: a task about the suite itself may need the whole run.
 
    Each **Done when** line ends with the file it lands in, the one its goal needs changed, as ``(in `<path>`)``, or `(in none)` where it changes no file.
@@ -50,7 +64,7 @@ The root home does step 1 and no other: it queues the brief by "Queueing a row i
    No reviewer runs a test step or a suite: the desk's one run of the check is the crewmate's, and CI's check on the pull request is the check of record.
 
    A brief is checked when it is queued, not when it launches.
-   `jbus queue add` refuses a brief that is short of anything a launch asks: a `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:` line, each filled in; a `Proves it:` line that names something outside the agent; a t-shirt size; a crewmate's playbook; a `Design:` line, written only where `/architect` wrote a design, that names that design; and a `Skills:` line that names at least one skill, whose every name is a skill of `skills/` or a principle of `principles/`.
+   `jbus queue add` refuses a brief that is short of anything a launch asks: a `Task:`, `Why:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:` line, each filled in; a `Proves it:` line that names something outside the agent; a t-shirt size; a crewmate's playbook; a `Design:` line, written only where `/architect` wrote a design, that names that design; and a `Skills:` line that names at least one skill, whose every name is a skill of `skills/` or a principle of `principles/`.
    It prints `refused: <slug>'s brief has <n> faults, and nothing is queued` and one line under it for each fault: mend the brief and add it again.
    Nothing is queued, so the user is never asked to approve a brief that cannot launch.
    It also refuses a brief that asks for a load on every core (`stress-ng --cpu 0`, `--cpu $(nproc)`) instead of a bounded one inside `jgauge test-slot`, and one whose `Done when:` asks for a screenshot, a shot or a recording as proof.

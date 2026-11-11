@@ -250,6 +250,8 @@ def brief(branch: str, red: Culprit, url: str, home: str, where: str = MAIN) -> 
             f'Task: "{where} check failed at {red.red[:12]}" after its one rerun, the first red '
             "since the last green, and no merge on top of it failed another test (jbus reverts its "
             "one clear culprit, Josh's pick of 2026-11-02)",
+            "Why: while main is red jmerge merges nothing, and taking the one clear culprit out "
+            "is the shortest way back to green, its own row fixing it again after",
             "Pull request: opened by jbus with `gh pr revert`",
             "Review: none needed, jmerge merges jbus's revert by the normal path (jmerge.reverts)",
             f"Home: {home}",
@@ -564,6 +566,8 @@ def _mac_file(
         + (f", after {slug} merged" if slug else ""),
         f'"macos.yml failed at {sha[:12]} on main after its one rerun, {tests_said(jobs)}" '
         f"(jbus, from macos.yml on main). jbus reverts nothing: {kept_why}",
+        "a Mac red holds no pull request, so nothing else brings macOS back to green, and each "
+        "user on a Mac meets the failure until this row fixes it",
         [
             "- each failed test named under Read passes on macOS: in macos.yml's run on the "
             "commit that merges the fix, or a manual run of macos-nightly.yml with `ref` set to "

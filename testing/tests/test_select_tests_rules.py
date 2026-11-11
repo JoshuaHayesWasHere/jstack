@@ -798,3 +798,46 @@ def test_on_a_pull_request_an_edit_to_a_private_helper_reaches_the_tests_of_what
         return set(why["imports"])
 
     assert near("def _watched(") == near("def tick(")
+
+
+SPELL_41 = (
+    [
+        "features/jbus/docs/jbus/the-units.md",
+        "features/jbus/src/jbus/conditional.py",
+        "features/jbus/src/jbus/tick.py",
+        "features/jbus/src/jbus/watch.py",
+        "features/jbus/tests/main_red_model.py",
+        "features/jbus/tests/test_jbus_conditional.py",
+        "features/jbus/tests/test_jbus_red_main.py",
+        "features/jbus/tests/test_jbus_reverts.py",
+        "features/jbus/tests/test_jbus_tick.py",
+        "features/verify-jstack/project-skill/scripts/fake-gh",
+    ],
+    [
+        "features/jbus/src/jbus/telemetry/views/main_spells.py",
+        "features/jbus/tests/main_red_model.py",
+        "features/jbus/tests/test_jbus_telemetry.py",
+        "features/jbus/tests/test_jbus_telemetry_spells.py",
+        "features/jmerge/docs/jmerge.md",
+    ],
+)
+
+
+def test_the_guards_on_a_merged_tree_run_the_tests_main_gained_since_the_merge_base():
+    """#1584's check ran at its head, over the merge base 49695e849, and main then gained
+    `test_jbus_telemetry_spells.py` (#1588), which #1584's change reaches and broke. The guards on
+    the tree merged over main passed without it, and main went red (spell 41). Given what main
+    changed since the merge base, the guards hold the test main gained; given nothing, they are
+    the cross-cutting tests, the catch-all and the head's own test files, as before."""
+    changed, moved = SPELL_41
+    tests, _ = select.selection(changed)
+    gained = "features/jbus/tests/test_jbus_telemetry_spells.py"
+    assert gained in tests
+
+    guards = select.desk_part("guards", changed, tests, moved)
+    rest = select.desk_part("rest", changed, tests, moved)
+
+    assert {gained, "features/jbus/tests/test_jbus_telemetry.py"} <= set(guards)
+    assert gained not in rest
+    assert gained not in select.desk_part("guards", changed, tests)
+    assert "features/jmerge/docs/jmerge.md" not in guards

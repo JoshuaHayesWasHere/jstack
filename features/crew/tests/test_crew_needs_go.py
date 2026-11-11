@@ -14,6 +14,7 @@ from test_jbus_queue import go
 BRIEF = """\
 # alpha: a task
 Task: "do it"
+Why: a test needs a row the queue takes
 Done when:
 - the thing is done
 Proves it: a test

@@ -289,6 +289,7 @@ def test_doctor_still_passes_after_a_recipe_edits_the_seed(sandbox):
 SCOUT_REQUEST = """\
 # alpha: what the demo repo's first commit holds
 Request: "find out what the demo repo's first commit holds"
+Why: the sandbox needs a request the queue takes
 Questions:
 - What does the first commit change? Start at `git log`.
 Deliver:

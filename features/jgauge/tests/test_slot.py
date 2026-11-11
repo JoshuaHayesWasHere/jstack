@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 import daemons
-from jgauge import holders, slot
+from jgauge import holders, slot, waiters
 from test_machine_sizes import fake_proc
 from test_room import BIN, STALE, holding, runs
 
@@ -232,7 +232,8 @@ def test_a_command_takes_the_first_slot_that_is_free(slots, args, env, held, tak
     ran = slots(*args, command=["echo", "ran"], **env)
     assert ran.communicate(timeout=5) == ("ran\n", "")
     assert sorted(path.name for path in slots.locks.iterdir()) == [
-        f"test-slot.{n}.lock" for n in range(1, takes + 1)
+        waiters.LOCK,
+        *(f"test-slot.{n}.lock" for n in range(1, takes + 1)),
     ]
 
 

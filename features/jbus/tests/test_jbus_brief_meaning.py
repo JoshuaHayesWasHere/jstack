@@ -19,6 +19,7 @@ APPROVED = """\
 # alpha: a brief whose go is kept
 Home: uncategorized
 Task: "make the queue check a brief"
+Why: a test needs a row the queue takes
 Done when:
 - `jbus queue add` refuses an incomplete brief, with one line per fault
 - an approval holds through a wording-only edit
@@ -39,6 +40,7 @@ REWORDED = """\
 # alpha: A brief whose go is kept.
 Home: flow
 Task: "Make the queue check a brief."
+Why: a test needs a row the queue takes
 Done when:
 - An approval holds through a wording-only edit.
 - `make check` exits 0 in 3 minutes, or less
@@ -229,7 +231,8 @@ def test_queue_add_refuses_a_brief_missing_a_field_and_queues_nothing(kitchen, l
 
 def test_queue_add_says_every_fault_one_line_each(kitchen):
     text = (
-        "# alpha: a brief\nTask: <the request>\nDone when:\nProves it: the crewmate reviews it\n"
+        "# alpha: a brief\nTask: <the request>\nWhy: a test needs a row the queue takes\n"
+        "Done when:\nProves it: the crewmate reviews it\n"
         "Size: medium\nWhere: `src/`\nPull request: open one when done\nReview: after\n"
         "Playbook: autopilot-full\nDesign: TBD\n"
     )
@@ -297,7 +300,7 @@ def test_a_batch_whose_add_has_a_faulty_brief_applies_nothing(kitchen):
     code, said = kitchen.main("queue", "apply", stdin=text)
     assert code == 1
     assert said.startswith(
-        "refused: line 2: beta's brief has 9 faults, and nothing is queued, and nothing in the "
+        "refused: line 2: beta's brief has 10 faults, and nothing is queued, and nothing in the "
         "batch was applied\n- brief has no Task: line\n"
     ), said
     assert (kitchen.state / "queue.json").read_text() == before

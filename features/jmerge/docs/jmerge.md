@@ -390,6 +390,9 @@ Two pull requests can each pass their check alone and break main together, as #9
 The clash shows on the tree of one merged over the other, so before it merges a pull request whose head does not hold the tip of its base, `jmerge` checks the tree of that head merged over the tip (`features/jmerge/src/jmerge/treeguards.py`).
 The command is the first line of the state's `merged-tree-guards` file that is not blank.
 jstack's is `make check-fast PART=guards`: the lint, the cross-cutting tests, the catch-all and the changed test files, 385 s in one run on 2026-11-04.
+They also run each test file of the selection that main changed or added since the pull request's merge base: the pull request's check ran over that merge base and never saw them.
+#1584's check ran over 49695e849, #1588 then added `test_jbus_telemetry_spells.py`, which #1584's change reaches and broke, and the guards on its tree merged over 2380b181d passed without it in 81 s, so main went red for 18.5 minutes (spell 41, 2026-11-10).
+Replayed on that merged tree, the guards hold 57 files instead of 50, the 7 main changed since the merge base, and take 144 s instead of 87 s at the desk: they fail on that test, as main's run did, and hold #1584.
 They never run the whole suite, even where the change selects every test, as a deleted fixture (#1103) or a change to `scripts/select_tests.py` (#1118) does: the whole suite took 9 to 10 minutes at the desk's load on 2026-11-05, past `LIMIT_SECONDS`, and CI's check of the pull request runs it.
 A repo with no such file runs no guards, and a pull request that overlaps none of main's changes merges on its existing check with nothing run on its merged tree, while one that overlaps goes through the line ("Merges cleanly over today's main").
 In a repo that names them, the guards run on the merged tree of one that overlaps as of one that does not, and a pass merges either.
@@ -402,7 +405,8 @@ The guards run only on a tree no green check covers.
    On 2026-11-06 to 11-08, 58 of 97 guard runs, 5318 of 9375 guard seconds, were over a tip CI's check at that head had already tested.
    A lookup that fails, or finds no such artifact, goes on to the guards.
 2. It makes the tree a local commit whose parents are the tip and the head, as GitHub's merge ref is, and pushes nothing.
-3. It checks the commit out at `merged-tree` in the state directory, runs the command there with `BASE` set to the tip, and removes the worktree.
+3. It checks the commit out at `merged-tree` in the state directory, runs the command there with `BASE` set to the tip and `MERGE_BASE` to the merge base of the head and the tip, and removes the worktree.
+   `make check-fast` hands `MERGE_BASE` to `scripts/select_tests.py --part guards --since <merge base>`, which adds the test files of the selection that main changed between the merge base and `BASE`; with no `MERGE_BASE` the guards are those of the pull request's change alone.
    A worktree that a stopped run left there is removed first.
    The command runs inside a full test slot, through `jgauge test-slot`, as every other suite on the machine does: it is a suite at `-n 6`, and outside a slot it would be one the slot count does not see.
    A `jmerge` that already holds a slot (`JGAUGE_TEST_SLOT` set) runs it in that one, since a second would wait on its own.
@@ -428,15 +432,48 @@ A run drops the record of each pull request that is no longer open.
 
 ## Batches
 
-Where the state has a `merge-batch` file, `jmerge` proves the pull requests main moved past together, on one check of CI, and merges them all on its pass (`features/jmerge/src/jmerge/batch.py`).
+Where the state has a `merge-batch` file, `jmerge` proves the pull requests main moved past together, on one tree, and merges them all on its pass (`features/jmerge/src/jmerge/batch.py`).
 A repo with no such file merges each one alone, as "Merges cleanly over today's main" and "The guards on the merged tree" say.
-A batch of any size costs one CI run and no guards, where the guards ran one tree at a time in the merge lock, 98 s each on 2026-11-09, and main's merge rate stopped at 24 an hour.
+How many members a run judges decides which proof their tree takes (`batch.kind_of`):
 
-**Three members at least.**
-A batch's passed check took 209 s at the median (p90 301 s), the guards on one merged tree about 98 s, so a batch costs the time of about two guards runs and pays from three members (`batch.LEAST`).
-Before this rule every member became a batch, also alone: 27 of 42 batches held one member, and each pull request that would merge alone waited `batch-first` behind it; the median wait was 3.46 min on the guards path (2026-11-06 to 2026-11-09) and 16.78 with the batch on (2026-11-10 12:09 to 16:00 EST, the scout po-merge-slower).
-So where a run judges fewer than three members, it builds no batch: each takes the single path of that run, at once, as in a repo with no `merge-batch` file (its own check where it ran over today's main, the artifact of its trees, or the guards on its merged tree), and no pull request waits `batch-first`.
-Three or more make a batch, which keeps main's rate above the guards' 24 an hour.
+| Members judged in a run | Proof | Where it runs | Waits it makes |
+|---|---|---|---|
+| one | the single path: its own check, the artifact of its trees, or the guards on its merged tree | this machine, in the run | none |
+| two to four (`batch.GUARDS_LEAST`, `batch.GUARDS_MOST`) | one run of the guards on main's tip with each merged in | this machine, in the run, with the merge lock held | none |
+| five or more (`batch.LEAST`) | CI's check of that tree, on `jmerge/batch` | GitHub, across runs | `in-batch` and `batch-first` |
+
+**Why each size takes its proof.**
+A batch must make no pull request wait for what the single path does not.
+CI's batch did: with the batch on from 2026-11-10 04:06 to 22:00 UTC (68 merges), `batch-first` held 184.9 min over 18 waits and `in-batch` 161.3 over 25, 5.1 min a merge, where the guards path's whole path part was 51 min for the same merges in replay (the scout po-batch-why).
+A lone member's CI check took 213 s at the median (n 19), where the guards took 86 s (n 314, merge.log), so a batch CI proves waits on a slower proof and holds every other pull request while it runs.
+A guards batch is the run the single path was about to make anyway, made once on the tree of every member ready in that run, with no timer to fill it: a wait is what the single path never has, and bors too takes what is ready when the last batch ends.
+In a replay of the push's 161 merges (2026-11-09 09:54 to 23:05 EST), the path part's median and p90 in minutes:
+
+| Load | guards one at a time | CI's batch from three | guards batch |
+|---|---|---|---|
+| as it came (12.3 an hour) | 1.40, 5.03 | 1.43, 4.45 | 1.35, 3.47 |
+| twice as fast (24.5 an hour) | 12.27, 46.43 | 4.26, 6.73 | 2.17, 3.79 (2.81, 6.87 if a guards run grows 25% a member) |
+| four times as fast (49 an hour) | not given | 6.01 (p90 8.26) | 3.02 to 16.61, by how a guards run grows with its members |
+
+At four times the load CI's batch wins unless a guards run does not grow with its members, so five or more keep CI's batch.
+A guards batch takes four at most: where a run grows by half its time a member, a run of four already costs 2.5 runs.
+How a guards run grows is not measured yet: each guards batch's line in merge.log, `batch: guards on <n> members ...`, gives it, and the cap of four rests on it.
+
+**A guards batch.**
+Once every pull request is judged, two to four members are built as CI's batch is (`batch.build`, below), with the merge lock held from the read of main's tip to the last merge, as the single path holds it for its guards (`cli.Repo.guards_batch`).
+The guards run once on that commit, under the rules of the single path's: in a full test slot, none once the run spent `treeguards.RUN_SECONDS`, none once a wait for a slot found none, and their seconds count toward the run's (`treeguards.Guards.on_batch`).
+Their `MERGE_BASE` is the merge base of main's tip and every member's head, the oldest commit a member's check ran over, so they run what main changed since any of those checks.
+The run says `batch: guards on <n> members over <base> at <tip12>, <passed|failed|stopped|no slot> in <s> s`, a line about no pull request, which merge.log keeps.
+On a pass each member merges at its own head, in order, as a proven CI batch's do (`cli.Repo.merge_members`), and its merged line says `the guards passed on its batch of <n> over <base> at <tip12> in <s> s`.
+Nothing is pushed to `jmerge/batch`, no batch pull request opens, `batch.json` keeps no batch, and no pull request waits `in-batch` or `batch-first`.
+Guards that fail, are stopped or find no slot merge none of them: `batch.json` keeps each member's head under `failed` (`batch.Record.alone`), so none joins a batch again at that head, and each takes the single path in that run, whose guards on its own tree name the failing test for its crew, while `treeguards.RUN_SECONDS` lasts.
+`merged-trees.json` keeps nothing of a guards batch: a member's record there is of its own tree, which the single path then runs, and a pass on the batch's tree is no proof of the member's tree alone.
+A member that does not merge over those before it is left out of the tree and takes the single path after the batch, its head not under `failed`; where fewer than two merge over the tip, each member takes the single path.
+Where the run spent its guards' time, or the guards' worktree could not be made, the run says `batch: not made` with why, and each member takes the single path with its head not under `failed`.
+Where another run holds the merge lock, or the repo names no guards, each member takes the single path, as it would alone.
+
+**CI's batch: five members at least.**
+A run that judges five or more, past the suspects of a failed batch, builds CI's batch (`batch.LEAST`), which holds every other pull request while its check runs, as the rest of this section says.
 
 **When a batch forms.**
 A member is a pull request into the default branch that is ready by every rule but two: main moved after its check started, and the guards on its merged tree.
@@ -450,12 +487,12 @@ These stay out, and take the path of today:
 - one accepted with `--accept`, and every pull request while `main.json` names main red.
 
 Once every pull request is judged, `jmerge` builds main's tip with each member merged in, in merge order, with `git merge-tree`, each one over the last as its squash will land it, and leaves out one that conflicts with a member before it.
-Where fewer than three are left in, it pushes nothing and sends every member down the single path, as a batch that cannot be made does.
+Where two to four are left in, they take a guards batch instead, and the members left out take the single path after it; where fewer than two are left in, it pushes nothing and sends every member down the single path, as a batch that cannot be made does.
 A batch holds the most that `batch.json` keeps (`most`, `batch.Record.most`) at most.
-The most starts at 12 (`batch.START`), doubles when a batch of that many proves, to 48 at most (`batch.MOST`), and halves when a batch of that many fails after its rerun, to 3 at least (`batch.LEAST`, which a most kept under it is read as).
+The most starts at 12 (`batch.START`), doubles when a batch of that many proves, to 48 at most (`batch.MOST`), and halves when a batch of that many fails after its rerun, to 5 at least (`batch.LEAST`, which a most kept under it is read as).
 A batch of fewer, a timeout, a batch that could not be made, and the first half of the suspects leave it: the half is sized by its suspects, not by the most.
 A batch proven again in a later run, while another run held the merge lock, is no longer of that many, so it doubles the most once.
-Setting `MOST` to 3 holds the most at 3; no setting holds it at 12 and still lets a batch of three form, since `batch.LEAST` is also the fewest a batch holds.
+Setting `MOST` to 5 holds the most at 5; no setting holds it at 12 and still lets CI's batch of five form, since `batch.LEAST` is also the fewest it holds.
 It makes the last tree one commit whose parent is the tip, force-pushes it to its own branch `jmerge/batch`, and opens one draft pull request for it where GitHub lists none open.
 `batch.json` in the state directory keeps the tip, the tree, the commit, the members with their heads, when it was pushed, the rerun of its failed check where one was started, whether it is the first half of the suspects, and the most.
 The run says `batch: built over <base> at <tip12>, <size> of <most> members at most`, a line about no pull request, which merge.log keeps.
@@ -479,6 +516,10 @@ A batch whose pull request fails `borders` is pending while `check` runs, and pr
 
 While a batch is out (checked, or proven and not merged yet), a pull request that would merge alone waits as `jmerge's batch over <base> at <tip12> is checked and merges first: a merge before it would undo that check`, with the code `batch-first`, and so does a member that came ready after the batch was built.
 `jmerge` decides that wait once every pull request is judged (`batch.Batching.held`): where a checked batch is not kept, since a member is no longer judged one at its head, the pull request merges alone in that run, before any batch is built again.
+The run that merges a proven batch says no such wait: once the batch's merges end it, each pull request held for it is judged again over the tip they left (`cli.Repo.after_batch`), and goes on in that run, in merge order, with each member that came ready after the batch was built.
+Main moved past its check with the batch's merges, so a held pull request still ready is a member now, and their count gives the path, as for any run: one takes the single path, two to four share one guards run, and five or more are CI's next batch.
+One that falls short over the new tip says why, as any pull request does, and one whose check ran over that tip merges on it.
+Only where another run holds the merge lock, so the batch stays proven, does each held pull request say its `batch-first` wait again, for the run that merges it.
 A revert still merges first, and its merge ends the batch, which is built again over the new tip.
 A batch still checked whose tip moved, whose pull request GitHub no longer lists at its commit, or whose member is no longer judged one at its head, is built again in that run, over today's tip.
 The batch's pull request is `jmerge`'s own: it has no brief and no row, `jmerge` never judges it and never merges it, and it stays open from one batch to the next.
@@ -495,16 +536,16 @@ One that went 30 minutes from its push, or from its rerun, with no artifact foun
 A timeout is no evidence against a member, as a GitHub or lookup outage times out every batch: a batch of two or more that timed out is built again whole (a half of the suspects as that same half), in that run, over today's tip, once (`again` in `batch.json`, `batch.Record.late`), and its pass merges every member by batch with no suspects kept.
 Only a second timeout in a row has failed it, so an outage costs one more check limit before the narrowing, and a batch that never gets an artifact still ends; a batch of one that timed out has failed.
 A failed batch of two or more runs no guards: `batch.json` keeps its members, in merge order, under `suspects` (`batch.Record.fail`).
-The next batch, built in that run over today's tip on the same branch and pull request, is the first half of them (the larger half where their count is odd, `batch.narrow`), but only while that half holds three or more (`batch.Batching.chosen`).
+The next batch, built in that run over today's tip on the same branch and pull request, is the first half of them (the larger half where their count is odd, `batch.narrow`), but only while that half holds five or more (`batch.Batching.chosen`).
 So CI's checks of halves find the member that failed it, where the guards of every member ran one at a time on this machine.
 A proven half merges as any batch does, and the next batch is the first half of the suspects that are left.
 A failed half becomes the suspects in turn, and a suspect of the batch before that is not in it is one no more.
 While suspects are kept, every other member waits as `batch-first`, and a suspect outside the half waits the same way.
-Where the half would hold fewer than three, as for a failed batch of three or four, or the one to four suspects a proven half leaves, every suspect goes down the single path in that run, in merge order: its merged tree's guards, which name the failing test for its crew, or the line ("The guards on the merged tree").
-`batch.json` keeps the head of each under `failed` until it moves (`batch.Record.alone`), so none joins a batch again at that head, and the other members are judged as where no suspect is left: a batch where three or more remain.
+Where the half would hold fewer than five, as for a failed batch of five to eight, or the one to eight suspects a proven half leaves, every suspect goes down the single path, and shares no guards run, since the suspects hold a failure in that run, in merge order: its merged tree's guards, which name the failing test for its crew, or the line ("The guards on the merged tree").
+`batch.json` keeps the head of each under `failed` until it moves (`batch.Record.alone`), so none joins a batch again at that head, and the other members are judged as where no suspect is left: CI's batch where five or more remain, a guards batch where two to four do.
 A failed batch of one, kept from before the rule of three, does the same with its member.
 A suspect whose head moved, that is no longer open, or that is no longer judged a member leaves the suspects.
-A batch that cannot be made, whose push or pull request GitHub refused, or that holds fewer than three once the members that conflict are left out, sends every member down the single path in that run, after a line that starts `batch: not made`, and keeps the suspects' heads under `failed`.
+A batch that cannot be made, whose push or pull request GitHub refused, or a half of the suspects that holds fewer than five once the members that conflict are left out, sends every member down the single path in that run, after a line that starts `batch: not made`, and keeps the suspects' heads under `failed`.
 
 ## A failed check over a base that moved
 

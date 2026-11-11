@@ -2,6 +2,7 @@
 CI's failed jobs name, each alone in the short lane, and never the whole suite."""
 
 import os
+import shutil
 import subprocess
 
 import test_room as room
@@ -20,6 +21,10 @@ case "$1 $2" in
     *) exec "$REAL_GH" "$@" ;;
 esac
 """
+POSIX_SED = """#!/bin/sh
+exec {sed} --posix "$@" 2> /dev/null
+"""
+"""GNU sed held to POSIX, as macOS's BSD sed is, so the block's sed is read on Linux as on a Mac."""
 MAKE = """#!/bin/sh
 echo "$* $JGAUGE_TEST_SLOT" >> "$STUB/make.log"
 case "$*" in *test_b.py*) exit 1 ;; esac
@@ -47,6 +52,10 @@ def files_block(tmp_path, selects=True, kept=""):
     for name, text in (("gh", GH), ("make", MAKE)):
         (shim / name).write_text(text)
         (shim / name).chmod(0o755)
+    sed = shutil.which("sed")
+    if "GNU" in subprocess.run([sed, "--version"], capture_output=True, text=True).stdout:
+        (shim / "sed").write_text(POSIX_SED.format(sed=sed))
+        (shim / "sed").chmod(0o755)
     room.uv(shim)
     (failed.stub / "log-5.txt").write_text(LOG)
     script = block("Stay on the pull request", "--log-failed").replace("<thread id>", "t1")
