@@ -106,7 +106,8 @@ def test_a_scoped_review_with_no_range_to_review_carries_its_crew_on_and_not_the
     short, kitchen
 ):
     """A scoped reviewer is named, but the brief names no head the fix is reviewed since, so there
-    is no range to send the reviewer: the wait is the crew's, on the thread `crewthread.crew` gives."""
+    is no range to send the reviewer: the wait is the crew's, on the thread `crewthread.crew`
+    gives."""
     reviewer = kitchen.t3.thread("alpha", "failed", title="review: alpha, scoped")
     short.out(NO_FIX_REVIEW, result=f"Scoped reviewer: {reviewer['threadId']}, of {short.head}\n")
     short.passes(N)
