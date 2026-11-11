@@ -73,7 +73,10 @@ def test_a_revert_on_record_has_its_line_whichever_write_its_pass_stopped_at(
             return real(path, *args, **kwargs)
 
         monkeypatch.setattr(module, "write_text", stop)
-        back = lambda: monkeypatch.setattr(module, "write_text", real)  # noqa: E731
+
+        def back():
+            monkeypatch.setattr(module, "write_text", real)
+
     else:
         back = dies(monkeypatch, module, name, after)
     died(kitchen)
