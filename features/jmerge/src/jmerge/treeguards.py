@@ -98,13 +98,11 @@ worktree could not be made. Neither is evidence against a member."""
 @dataclass(frozen=True)
 class Tried:
     """What the guards did on a batch's tree: `PASSES`, `FAILS`, `STOPPED`, `NO_SLOT`, or one of
-    `UNRUN` with why; the whole seconds they took in their slot, or waited for none; and what
-    they printed, which names the failing guard."""
+    `UNRUN` with why; and the whole seconds they took in their slot, or waited for none."""
 
     outcome: str
     seconds: int
     why: str = ""
-    said: str = ""
 
 
 def guard(said: str) -> str:
@@ -363,7 +361,7 @@ class Guards:
             return Tried(UNRUN[1], 0, ran)
         self.spent += ran.waited + ran.seconds
         outcome = STOPPED if ran.code is None else FAILS if ran.code else PASSES
-        return Tried(outcome, ran.seconds, said=ran.said)
+        return Tried(outcome, ran.seconds)
 
     def checked(self, tip: str, tree: str) -> str | None:
         """The address of a successful check of this repo that tested `tree` over `tip`, by the
