@@ -191,9 +191,6 @@ def verdict(repo: Path, reviewed: str, head: str, default: str, since: str = "")
             why = f"{how}, and the two diffs differ in {_named(first)}"
         else:
             why = f"the range-diff changes content: {line.strip()}"
-    except _Failed as error:
-        return Verdict(False, command, str(error), old, new)
-    try:
         patches = patches or _patches(repo, (base_old, reviewed), (base_new, head))
         differ = patches.files()
         rebased = (
@@ -201,8 +198,8 @@ def verdict(repo: Path, reviewed: str, head: str, default: str, since: str = "")
             and patches.before.keys() <= patches.after.keys()
             and _rebase(repo, (base_old, reviewed), (base_new, head))
         )
-    except _Failed:
-        differ, rebased = None, False
+    except _Failed as error:
+        return Verdict(False, command, str(error), old, new)
     return Verdict(False, command, why, old, new, differ, rebased)
 
 
@@ -213,10 +210,7 @@ def _named(header: str) -> str:
 def _rebase(repo: Path, old: tuple[str, str], new: tuple[str, str]) -> bool:
     """Whether the head is the reviewed commits written again: it does not descend from the
     reviewed head, and it has as many commits of its own, so that no commit was pushed on it."""
-    ran = proc.git(repo, "merge-base", "--is-ancestor", old[1], new[1], timeout=TIMEOUT)
-    if isinstance(ran, (proc.TimedOut, proc.Unrun)) or ran.returncode not in (0, 1):
-        raise _Failed("git merge-base could not say whether the head descends from the review")
-    if ran.returncode == 0:
+    if _git(repo, "merge-base", old[1], new[1]).strip() == old[1]:
         return False
     counts = {
         _git(repo, "rev-list", "--count", "--no-merges", f"{a}..{b}").strip() for a, b in (old, new)

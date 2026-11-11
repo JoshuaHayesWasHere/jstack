@@ -144,6 +144,22 @@ def test_a_squash_that_dropped_a_line_is_not_clean(tmp_path):
     )
 
 
+def test_a_merge_of_main_whose_resolution_changes_code_is_no_rebase(branch):
+    """It descends from the reviewed head and adds no commit of its own, but its patch differs in
+    code: that is the merge's change, which no review saw, and not a rebase's."""
+    branch.theirs({11: "theirs 11"})
+    merge.git(branch.main, "checkout", "-q", "alpha")
+    with pytest.raises(subprocess.CalledProcessError):
+        merge.git(branch.main, "merge", "-q", "--no-edit", "origin/main")
+    write(branch.main, {11: "the task 11, and theirs"})
+    merge.git(branch.main, "add", FILE)
+    merge.git(branch.main, "-c", "core.editor=true", "commit", "-q", "--no-edit")
+    branch.head = merge.git(branch.main, "rev-parse", "HEAD")
+    merge.git(branch.main, "checkout", "-q", "main")
+    said = branch.verdict()
+    assert (said.clean, said.rebased, said.differ) == (False, False, (FILE,))
+
+
 @pytest.mark.parametrize("moved", ["merge", "rebase"])
 def test_a_commit_of_mains_in_the_reviewed_range_that_the_new_head_holds_is_left_out(branch, moved):
     """#562: its reviewed range, from where it forked from the link under it, held that link's
