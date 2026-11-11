@@ -28,6 +28,7 @@ FOLDERS = {
     "rebase.py": "features/jbus/src/jbus",
     "expedite.py": "features/jbus/src/jbus",
     "outbox.py": "features/jbus/src/jbus",
+    "poll.py": "features/jbus/src/jbus",
     "stall.py": "features/jbus/src/jbus",
     "watch.py": "features/jbus/src/jbus",
 }
