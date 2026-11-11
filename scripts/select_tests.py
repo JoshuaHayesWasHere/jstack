@@ -165,7 +165,10 @@ sync`: `python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD`.
 cross-cutting tests, the catch-all and the changed test files. `--part rest` prints the rest of
 it, the files the rules reached through imports, names and features alone. Where the selection
 is `all`, `--part guards` still prints those guards, never `all`, and `--part rest` prints `all`.
-`jmerge` runs the guards on a pull request's tree merged over its base (`merged-tree-guards`).
+`jmerge` runs the guards on a pull request's tree merged over its base (`merged-tree-guards`),
+and gives `--since <merge-base>`, the merge base of the pull request's head with that base: the
+guards then also hold each test file of the selection that main changed or added between the
+merge base and `<base>`, which the pull request's own check, run over the merge base, never ran.
 
 `select_tests.py --part touched <base> <head>` prints the test files the change itself adds or
 edits, each one the check runs, and never `all`: a change that selects every test still names
@@ -1659,12 +1662,13 @@ def touched(changed):
     return sorted(set(changed) & collected())
 
 
-def guards(changed, tests):
+def guards(changed, tests, moved=()):
     """Of a selection's `tests`, the ones a desk runs first and must pass: the cross-cutting
-    tests, the catch-all and the changed test files. A selection of `["all"]` gives them all the
-    same, never the whole suite, which outran jmerge's 600 s on a merged tree: CI's check of the
-    pull request runs the rest."""
-    first = set(cross_cutting()) | unowned() | set(changed)
+    tests, the catch-all, the changed test files and the `moved` ones, the test files main changed
+    or added since the pull request's merge base, which its check, run over that merge base, never
+    saw. A selection of `["all"]` gives them all the same, never the whole suite, which outran
+    jmerge's 600 s on a merged tree: CI's check of the pull request runs the rest."""
+    first = set(cross_cutting()) | unowned() | set(changed) | set(moved)
     if tests == ["all"]:
         return sorted(first & collected())
     return sorted(set(tests) & first)
@@ -1678,16 +1682,16 @@ def cross(tests):
     return sorted(set(tests) & set(cross_cutting()))
 
 
-def desk_part(name, changed, tests):
-    """The `cross`, the `guards` or the `rest` of a selection's `tests`. The rest of `["all"]` is
-    `["all"]`."""
+def desk_part(name, changed, tests, moved=()):
+    """The `cross`, the `guards` or the `rest` of a selection's `tests`, the guards with the test
+    files main `moved` since the merge base. The rest of `["all"]` is `["all"]`."""
     if name == "cross":
         return cross(tests)
     if name == "guards":
-        return guards(changed, tests)
+        return guards(changed, tests, moved)
     if tests == ["all"]:
         return tests
-    return sorted(set(tests) - set(guards(changed, tests)))
+    return sorted(set(tests) - set(guards(changed, tests, moved)))
 
 
 def ask(path, gone=None, etag=None, **query):
@@ -2172,6 +2176,19 @@ def handed(tests, count):
     return parts
 
 
+def paths_between(base, head):
+    """The paths git's diff from `base` to `head` names, each rename a deletion and an add."""
+    diff = subprocess.run(
+        ["git", "diff", "--name-only", "--no-renames", base, head],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if diff.returncode:
+        sys.exit(f"select_tests.py: git diff failed: {diff.stderr.strip()}")
+    return diff.stdout.splitlines()
+
+
 def main(argv):
     if argv[:1] == ["--failed-on-main"] and len(argv) == 3:
         try:
@@ -2185,7 +2202,7 @@ def main(argv):
             failed = ["all"]
         print("\n".join(failed))
         return
-    listed = count = cut = None
+    listed = count = cut = since = None
     pull_request = argv[:1] == ["--pull-request"]
     argv = argv[1:] if pull_request else argv
     strict = argv[2:3] == ["--strict"] and argv[:1] == ["--within"] and len(argv) == 5
@@ -2195,24 +2212,19 @@ def main(argv):
         listed, argv = argv[1], argv[2:]
     elif argv[:1] == ["--parts"] and len(argv) == 4 and argv[1].isdigit() and int(argv[1]) > 0:
         count, argv = int(argv[1]), argv[2:]
-    elif argv[:1] == ["--part"] and len(argv) == 4 and argv[1] in DESK_PARTS:
+    elif argv[:1] == ["--part"] and len(argv) in (4, 6) and argv[1] in DESK_PARTS:
         cut, argv = argv[1], argv[2:]
+        if argv[:1] == ["--since"] and len(argv) == 4:
+            since, argv = argv[1], argv[2:]
     if len(argv) != 2 or pull_request and (listed or cut):
         sys.exit(
             "usage: select_tests.py [--within <list> [--strict] | [--pull-request] [--parts <n>]]"
             " <base> <head>\n"
-            "       select_tests.py --part cross|guards|rest|touched <base> <head>\n"
+            "       select_tests.py --part cross|guards|rest|touched [--since <merge-base>]"
+            " <base> <head>\n"
             "       select_tests.py --failed-on-main <days> <kept>"
         )
-    diff = subprocess.run(
-        ["git", "diff", "--name-only", "--no-renames", *argv],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-    )
-    if diff.returncode:
-        sys.exit(f"select_tests.py: git diff failed: {diff.stderr.strip()}")
-    changed = diff.stdout.splitlines()
+    changed = paths_between(*argv)
     if listed is not None:
         entries = (ROOT / listed).read_text().split()
         try:
@@ -2236,7 +2248,8 @@ def main(argv):
         print(f"select_tests.py: nothing can be read ({error}), so all", file=sys.stderr)
         tests, why = ["all"], {"forced-by": "unread"}
     if cut is not None:
-        print("\n".join(desk_part(cut, changed, tests)))
+        moved = () if since is None else paths_between(since, argv[0])
+        print("\n".join(desk_part(cut, changed, tests, moved)))
         return
     print("\n".join(tests))
     if os.environ.get("GITHUB_STEP_SUMMARY"):
