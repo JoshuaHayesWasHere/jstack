@@ -1,5 +1,6 @@
 """Why main went red at each tip `jbus.mainmoved.tell` judged `failed` (`main-reds.jsonl`), as the
-table was made, written out: a column added later is a migration of its own (`v022_main_reds_cause`)."""
+table was made, written out: a column added later is a migration of its own
+(`v022_main_reds_cause`)."""
 
 SQL = (
     "CREATE TABLE main_reds (project TEXT NOT NULL, key TEXT NOT NULL, at TEXT, sha TEXT, "

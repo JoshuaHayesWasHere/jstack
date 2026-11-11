@@ -4,9 +4,10 @@
 failed there and its verdict (`mainmoved.red_line`). This step reads that verdict and works out
 no flake rule of its own. Where one test is under `failed` in lines of the verdict `flake` of two
 spells of a red main, each at its first such line, no more than `WINDOW` apart, and the later of
-them within `WINDOW` of the pass, it writes `tasks/flake-<name>.md` and queues it with no go, as jbus's pass. The next pass approves it
-by the follow-up rule, since jbus filed it (`queue.filed`). One flake is noise: two timing flakes
-of one week were two different tests (the scout po-worse-change-failure's Report).
+them within `WINDOW` of the pass, it writes `tasks/flake-<name>.md` and queues it with no go, as
+jbus's pass. The next pass approves it by the follow-up rule, since jbus filed it (`queue.filed`).
+One flake is noise: two timing flakes of one week were two different tests (the scout
+po-worse-change-failure's Report).
 
 A test gets one row, ever. `flake-rows.json` in the project's state keeps each test it filed, with
 the row's slug, so a third flake, a pass run again, or a flake after the row merged files no
