@@ -152,10 +152,8 @@ def test_the_page_says_how_many_steps_a_chart_draws_of_how_many_it_could(tmp_pat
     folder = lamp(tmp_path / "a", "")
     write(folder / "summary.json", json.dumps({"chartTransitions": 2, "allTransitions": 5}))
     assert site(tmp_path / "a", tmp_path / "a.html").returncode == 0
-    assert (
-        "2 states, 2 of 5 steps drawn: the way into each state and a way out of each."
-        in read(tmp_path / "a.html")
-    )
+    said = "2 states, 2 of 5 steps drawn: the way into each state and a way out of each."
+    assert said in read(tmp_path / "a.html")
     lamp(tmp_path / "b", "")
     assert site(tmp_path / "b", tmp_path / "b.html").returncode == 0
     assert "2 states, 2 steps." in read(tmp_path / "b.html")
