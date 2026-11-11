@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 
 from crew_helpers import block
+from jbriefs import cli
 from test_home_thread import blocks
 from testing.paths import REPO
 
@@ -65,9 +66,17 @@ def test_no_awk_or_sed_program_reads_a_result_line_of_its_own():
     assert found == set(OTHER)
 
 
+CALL = re.compile(r"jbriefs line ([a-z,]+)")
+
+
 @pytest.mark.parametrize(("name", "call"), CALLERS.items())
-def test_each_block_the_scout_listed_calls_jbriefs_line(name, call):
-    assert call in (REPO / "features" / name).read_text()
+def test_each_block_the_scout_listed_calls_jbriefs_line_with_lines_it_reads(name, call, capsys):
+    text = (REPO / "features" / name).read_text()
+    assert call in text
+    for what in CALL.findall(text):
+        assert cli.main(["line", what, str(BRIEFS / "po-scout-model-doc.md")]) == 0, what
+        (said,) = capsys.readouterr().out.splitlines()
+        assert all(said.split("\t")), (what, said)
 
 
 def settle(tmp_path, status):
