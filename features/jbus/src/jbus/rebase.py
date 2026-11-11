@@ -16,9 +16,13 @@ head. jbus then parks a gate (`SECOND`) with the default that the pull request w
 no second rebase. jbus tells of a conflict with the base at every head, since nothing but a rebase
 resolves a conflict.
 
-`tell` also reads a second kind of `wait` line, about a rebase that changed what the patch says.
-`jmerge` keeps a review valid across a rebase whose range-diff changes no content, and waits on a
-rebase whose range-diff changes content. jbus then launches one scoped reviewer of that range-diff
+`tell` also reads a second kind of `wait` line, `content-changed`, about a new head that changed
+what the reviewed patch says. `jmerge` keeps the review over a rebase, whatever its range-diff
+changes, since the pull request's checks verify a rebase, and over a push whose patch differs in
+tests, docs or config alone (`jmerge.ready.kept_note`). It waits on a push whose patch changes
+code, a rebase with a commit pushed on it included, and on a head whose patches git cannot
+compare, with the same words for each: `the rebase changed the content after its review`. jbus
+then launches one scoped reviewer of that range-diff
 itself (`scope`), and asks the crew nothing: a thread titled `review: <slug>, scoped` in the crew's
 worktree, told `/pr-review run <slug> scoped <old> <new>`, with the arguments of a first review's
 launch (`prereview.arguments`), and a `Scoped reviewer: <thread>, of <head>` line added under the
