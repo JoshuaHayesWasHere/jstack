@@ -516,6 +516,10 @@ A batch whose pull request fails `borders` is pending while `check` runs, and pr
 
 While a batch is out (checked, or proven and not merged yet), a pull request that would merge alone waits as `jmerge's batch over <base> at <tip12> is checked and merges first: a merge before it would undo that check`, with the code `batch-first`, and so does a member that came ready after the batch was built.
 `jmerge` decides that wait once every pull request is judged (`batch.Batching.held`): where a checked batch is not kept, since a member is no longer judged one at its head, the pull request merges alone in that run, before any batch is built again.
+The run that merges a proven batch says no such wait: once the batch's merges end it, each pull request held for it is judged again over the tip they left (`cli.Repo.after_batch`), and goes on in that run, in merge order, with each member that came ready after the batch was built.
+Main moved past its check with the batch's merges, so a held pull request still ready is a member now, and their count gives the path, as for any run: one takes the single path, two to four share one guards run, and five or more are CI's next batch.
+One that falls short over the new tip says why, as any pull request does, and one whose check ran over that tip merges on it.
+Only where another run holds the merge lock, so the batch stays proven, does each held pull request say its `batch-first` wait again, for the run that merges it.
 A revert still merges first, and its merge ends the batch, which is built again over the new tip.
 A batch still checked whose tip moved, whose pull request GitHub no longer lists at its commit, or whose member is no longer judged one at its head, is built again in that run, over today's tip.
 The batch's pull request is `jmerge`'s own: it has no brief and no row, `jmerge` never judges it and never merges it, and it stays open from one batch to the next.
