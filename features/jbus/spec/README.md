@@ -49,7 +49,8 @@ Its `tlc/` folder holds TLC's output, which is not committed.
 - The facts behind a status, past the folds above (a Result that owes its pull request, each step of an open pull request): `test_jbus_queue_moves.py` walks every combination.
 - A restate between passes (`restated.restate`) that the next pass corrects, the `work-drift` event: here a fact's change and the pass that sees it are one step.
   So is a pass that heard from GitHub or T3 Code alone, which keeps the last value unconfirmed.
-- The faults the table leaves out, which a pass marks `"legal": false` in `transitions.jsonl` and writes all the same: a pull request that leaves GitHub's open list unmerged and unclosed, a thread, Result or pull request of a row with no launch record, and a `Branch:` line that loses the address of a closed pull request. So the model never makes `pr` to `done` either, a move of the table.
+- The faults the table leaves out, which a pass marks `"legal": false` in `transitions.jsonl` and writes all the same: a pull request that leaves GitHub's open list unmerged and unclosed, a thread, Result or pull request of a row with no launch record, and a `Branch:` line that loses the address of a closed pull request.
+  So the model never makes `pr` to `done` either, a move of the table.
 - The scout's row, which `work.scouting` reads, and a row's `merge_after`.
 
 ## A crew thread, as a TLA+ spec

@@ -16,7 +16,8 @@ The telemetry store keeps the mark as the column `legal` of `transitions`, 0 for
 The table holds every move a change of one fact makes, but for the faults below.
 `legal: false` marks only a fault, and the table leaves out four kinds:
 
-- A row that is over leaving `FINAL`, such as `done` to `pr` (a Result that says done before its pull request opens) or `merged` or `done` to `gate` (a question that hides a final row). The facts can still give these, and `derive` keeps the row final through them.
+- A row that is over leaving `FINAL`, such as `done` to `pr` (a Result that says done before its pull request opens) or `merged` or `done` to `gate` (a question that hides a final row).
+  The facts can still give these, and `derive` keeps the row final through them.
 - A pull request read in neither of GitHub's lists for one pass: `pr` to `running`, `launched`, `queued` or `failed`.
 - A row with a thread, a Result or a pull request and no launch record, or a launch record that goes: `queued` to any status but `launched`, `gate` and `removed`, and any status to `queued` but from `gate`.
 - `left` to `failed`: the `Branch:` line of the Result that named a closed pull request lost its address.
