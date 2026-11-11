@@ -60,7 +60,7 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 self.close_connection = True
                 self.connection.close()
-                return
+                return None
             session = f"session-{uuid.uuid4().hex[:8]}"
             self.server.live.add(session)
         elif session not in self.server.live:
