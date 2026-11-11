@@ -15,6 +15,8 @@
 # - owedJson: "kept" is joined into the ask's state, which says owed, sent, repeated or ended.
 # - reloadLock: the lock is named only while the pass holds it.
 # - account: the question's number is "the question for the tip" (1) or "for the newer tip" (2).
+# - pinned: the try's key written before the act is said in the act's own words, the carry-on's
+#   key on the ask included.
 reader_actions = []
 region_names = ["The act", "Where its tell stands"]
 
@@ -116,8 +118,11 @@ def _value(v):
 
 
 def marks(v):
-    """The marks besides the act's own file: sent.json's key, the row held, the stall's line."""
+    """The marks besides the act's own file: the try's key pinned, sent.json's key, the row held,
+    the stall's line."""
     said = []
+    if v["pinned"]:
+        said.append(PINNED[v["on"]])
     if v["box"]:
         said.append("sent.json has its key")
     if v["fbox"]:
@@ -125,18 +130,29 @@ def marks(v):
     if v["rowHeld"]:
         said.append("the row is held")
     if v["stall"]:
-        said.append("the stall's key is written" + ("" if v["logged"] else ", no stall in the log"))
+        said.append("the stall is logged with its key")
     if v["went"] == "held":
         said.append("the outbox held it")
-    if v["key"] == 1 and v["on"] in ("account", "word", "owed"):
+    if v["key"] == 1 and v["on"] in ("account", "word", "owed", "reload"):
         said.append(
             {
                 "account": "main's tip moved",
                 "word": "the home's thread changed",
                 "owed": "a second try",
+                "reload": "a merge was kept since",
             }[v["on"]]
         )
     return said
+
+
+PINNED = {
+    "twice": "fails.json keeps the page's key",
+    "word": "word-sends.json keeps the thread tried",
+    "account": "account.json keeps the tip",
+    "reload": "reload.json keeps the thread tried",
+    "owed": "owed.json keeps failover's key on the ask",
+}
+"""What the try's key, written before the act, is in each act that writes one."""
 
 
 def state(v, facts):
@@ -232,9 +248,9 @@ STEPS = {
     "Count": "a pass counts on its clock",
     "Nudged": "another step told the crew: the count starts again",
     "Rekind": "the wait is a new one",
-    "StallKey": "the pass writes the stall's key",
-    "StallLog": "the stall's line goes in the log",
+    "StallKey": "the pass logs the stall with its key",
     "StallHome": "the clock writes that its home was told",
+    "CarryPin": "the ask's record names failover's key",
     "Carry": "failover carries the thread on, the ask quoted",
     "CarryMark": "failover's key goes in sent.json",
     "Taken": "failover closes the ask",
@@ -249,7 +265,7 @@ DOES = {
     "record": "its own file says done",
     "list": "closed.json lists what to archive",
     "hold": "the row is held",
-    "key": "the page's key is written",
+    "pin": "the try's key is written first",
     "lock": "the pass takes reload.lock",
 }
 
@@ -268,7 +284,7 @@ def _did(name, before, after):
     return {
         "act": bool(changed & {"took", "got", "items"}),
         "log": "outboxLog" in changed and "took" not in changed,
-        "box": changed == {"box", "pc"} and before["on"] != "twice",
+        "box": bool(changed & {"box", "fbox"}) and changed <= {"box", "fbox", "pc"},
         "record": bool(
             changed
             & {
@@ -289,19 +305,15 @@ def _did(name, before, after):
         or (after["fails"] == "held_at" != before["fails"]),
         "list": after["closed"] == "listed" != before["closed"],
         "hold": "rowHeld" in changed,
-        "key": changed == {"box", "pc"} and before["on"] == "twice",
+        "pin": "pinned" in changed,
         "lock": after["reloadLock"] == "tell" != before["reloadLock"],
     }[name]
 
 
 def cause(v, facts, invariant):
-    """Why the state is bad, by the act: each act's break has its own code path."""
+    """Why the state is bad, by the rule it breaks: the code breaks neither, so only a canary or a
+    change that undoes a fix draws one."""
     return {
-        "twice": "the row is held, and the pass died before it paged the Chef",
-        "clock": "the stall's key is written, and the pass died before its line went in the log",
-        "owed": "failover's carry-on quoted the ask, and the pass died before it closed the ask",
-        "blocking": "the body went, and the pass died before the outbox dropped it",
-        "word": "the word went, the pass died before it wrote so, and the home's thread changed",
-        "account": "the question was parked, the pass died before account.json kept it, main moved",
-        "reload": "the notice went, the pass died before it marked the merges, a new merge came",
-    }.get(v["on"])
+        "NoTellTwice": "the receiver took it twice, or a pass did it again after reading its mark",
+        "NoTellLost": "its mark is written and the receiver never took it",
+    }.get(invariant)

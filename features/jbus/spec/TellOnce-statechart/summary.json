@@ -1,138 +1,56 @@
 {
   "view": "customer",
-  "modelStates": 1072,
-  "modelTransitions": 2784,
-  "chartStates": 103,
-  "chartTransitions": 131,
-  "allTransitions": 198,
-  "final": [
-    "A hold nobody works on",
-    "A merge that changed a skill",
-    "A revert's crew",
-    "A short pull request's crew",
-    "not told, sent.json says told",
-    "not told, sent.json says told, the outbox held it",
-    "The user's word",
-    "The wait clock",
-    "told once, expedite.json says told, sent.json has its key",
-    "told once, held.json says its home woke, sent.json has its key",
-    "told once, sent.json has its key",
-    "told once, sent.json says told",
-    "told once, sent.json says told, the outbox held it",
-    "told once, word-sends.json says sent",
-    "told once, word-sends.json says sent, the home's thread changed",
-    "told twice, sent.json has its key",
-    "told twice, word-sends.json says sent, the home's thread changed"
-  ],
+  "modelStates": 1489,
+  "modelTransitions": 3212,
+  "chartStates": 233,
+  "chartTransitions": 224,
   "chartStatus": {
-    "works": 88,
+    "works": 233,
     "fixed": 0,
-    "wrong": 15
+    "wrong": 0
   },
   "chartGroups": [
     {
-      "name": "Not told: nothing marked",
-      "color": "#fef5e7",
-      "states": 8
+      "name": "Nothing owed",
+      "color": "#ffffff",
+      "states": 40
     },
     {
-      "name": "Not told: a pass in its step or a mark written",
+      "name": "Owed",
       "color": "#fdebd0",
-      "states": 8
+      "states": 76
     },
     {
-      "name": "Not told: the outbox held it",
-      "color": "#fad7a0",
-      "states": 15
-    },
-    {
-      "name": "Told once: nothing marked",
-      "color": "#e8f8f5",
-      "states": 8
-    },
-    {
-      "name": "Told once: a pass in its step",
+      "name": "Told",
       "color": "#d1f2eb",
-      "states": 8
-    },
-    {
-      "name": "Told once: the outbox held it",
-      "color": "#a3e4d7",
-      "states": 14
-    },
-    {
-      "name": "Told once: sent.json has its key",
-      "color": "#d4efdf",
-      "states": 8
-    },
-    {
-      "name": "Told once: its file says done",
-      "color": "#a9dfbf",
-      "states": 14
-    },
-    {
-      "name": "Told twice",
-      "color": "#fadbd8",
-      "states": 14
+      "states": 103
     }
   ],
-  "mixedGroups": [],
+  "mixedGroups": [
+    "A revert's crew: told once, sent.json says told"
+  ],
   "regions": {
     "drawn": true,
     "states": [
-      6,
-      97
+      13,
+      220
     ],
-    "transitions": 131,
-    "all": 198,
+    "transitions": 224,
+    "all": 381,
     "flat": {
-      "states": 106,
-      "transitions": 204
+      "states": 246,
+      "transitions": 402
     }
   },
-  "classes": [
-    {
-      "n": 1,
-      "end": "A merge that changed a skill: told twice, reload.json owes it, a pass is in its step",
-      "invariant": "NoTellTwice",
-      "rule": "\"jbus tells no one twice\": the receiver takes each act once, a repeat after a pass that died being one it takes as the same, and no pass does an act again once its guard read the act's mark.",
-      "cause": "the notice went, the pass died before it marked the merges, a new merge came",
-      "readerSteps": 6,
-      "modelSteps": 8,
-      "counterexamples": 7,
-      "fix": null
-    },
-    {
-      "n": 2,
-      "end": "The user's word: told twice, the home's thread changed, a pass is in its step",
-      "invariant": "NoTellTwice",
-      "rule": "\"jbus tells no one twice\": the receiver takes each act once, a repeat after a pass that died being one it takes as the same, and no pass does an act again once its guard read the act's mark.",
-      "cause": "the word went, the pass died before it wrote so, and the home's thread changed",
-      "readerSteps": 7,
-      "modelSteps": 8,
-      "counterexamples": 9,
-      "fix": null
-    },
-    {
-      "n": 3,
-      "end": "The wait clock: told once, the clock says its home was told, sent.json has its key, the stall's key is written, no stall in the log",
-      "invariant": "NoTellLost",
-      "rule": "\"jbus drops no tell\": between passes, an act still owed whose mark is written was taken, so a mark with no act never stands; one with no mark the next pass does. The home's stall the clock's home says went is in the log.",
-      "cause": "the stall's key is written, and the pass died before its line went in the log",
-      "readerSteps": 10,
-      "modelSteps": 15,
-      "counterexamples": 24,
-      "fix": null
-    }
-  ],
+  "classes": [],
   "codeLike": [],
   "drawnFrom": {
-    "command": "statechart from-spec TellOnce.tla --config TellOnce.chart.cfg --title 'Does jbus tell a thread twice, or drop a tell, when a pass dies?' --expect-broken NoTellTwice,NoTellLost --png",
+    "command": "statechart from-spec TellOnce.tla --title 'Does jbus tell anyone twice, or drop a tell, when a pass dies?' --png",
     "inputs": {
-      "TellOnce.chart.cfg": "78c1a795ec882f3f814c6906a338bc587724d491c528721063ded07324e297f5",
-      "TellOnce.map.py": "e1de7b184bfce4d595baaa0f8ffda4b49c289a7feecabffe74794ccb01051ee7",
-      "TellOnce.tla": "41b23d8ea74289f120ee8a2915c393a38f69150b4d21609acbfb92a1fda743cc"
+      "TellOnce.cfg": "016e63d0f3504086d7224317337e5d864bebb469e81c13dd91c3558aaab1e952",
+      "TellOnce.map.py": "d7d05532a95aca1aa569bb00c39b9de301fb1bc25cabbf68cca97ef133668d42",
+      "TellOnce.tla": "f8c1e9a63bece406010434e7e9b450671e634250f44d6ec4945e4148f3266013"
     },
-    "chart": "dc47ecb5ff4a670380426511403e74116b2b0d737702ab15dddb528cc5dafbfb"
+    "chart": "1282340c090c7aafa510f2ca2121fc92f11b7960d96dace4e6e503699185dd4b"
   }
 }
