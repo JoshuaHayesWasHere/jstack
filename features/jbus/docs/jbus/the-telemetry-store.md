@@ -37,7 +37,7 @@ The store has one table for each record file of each project, with a `project` c
 | `stalls` | `stalls.jsonl` | a spell a running row's thread was quiet or hung: its line when a pass first saw it, and its line when a pass saw it end, with `until`, `minutes` and `became`; and the file's first line, `began`, when the first pass that ran `jbus.stall.spells` began the record |
 | `passes` | the machine's `passes.jsonl` | a pass of jbus: its start and its seconds, under the project `''`, and from v014 `step_times`, the `[wall, cpu]` seconds of each of its steps as JSON, and `children`, the CPU seconds of the child processes it waited on (`jbus.record`) |
 | `launch_arms` | the launch records, `launches/<project>/<slug>/<sha>.json` | a launched record's arm of one dial (`dial`, `arm`, `covered` 1), or for a launch from before records named their arm, one row with no dial or arm and `covered` 0 |
-| `launch_failures` | `events`, `transitions` and `row_waits`, made again by each build (`jbus.telemetry.launch_failures`) | a launch that failed or waited: its `slug`, `cause` (`sign-in`, `/tmp`, `no slot` or `other`), `reason` for `other`, `start`, `end` and `minutes`; an open wait has no `end` and no `minutes` |
+| `launch_failures` | `events`, `transitions` and `row_waits`, made again by each build (`jbus.telemetry.launch_failures`) | a launch that failed or waited: its `slug`, `cause` (`sign-in`, `/tmp`, `no slot`, `load`, `no home-id` or `other`), `reason` for `other`, `start`, `end` and `minutes`; an open wait has no `end` and no `minutes` |
 | `review_rounds` | `review-rounds.jsonl` | a settled review round of a row's pull request: its number, head, sections, `Meets the brief` verdict (`meets`, `met` of `done_when`) and its findings by severity (`errors`, `warnings`, `infos`, `others`, `dismissed`) |
 | `review_heads` | `review-launches.jsonl` | the head a reviewer thread was launched at, one row a thread, updated in place: its slug, `head`, `kind` (`first` or `scoped`) and `number`, its seat `#<n>`; the view `review_launches` gives it as each reviewer thread's head, and `duplicate-reviews` counts on it |
 | `capped_reads` | the machine's `capped.jsonl` | a read of which Claude instances the ledger has capped, by `jgauge limits` or the pass (`jgauge.limits.note`): its `reader`, how many `instances` and how many `capped`, and, where every one was, `ends_at`, the first reset |
@@ -150,14 +150,16 @@ The spells an account was signed out have no record yet.
 | `/tmp` | a row's reason `waiting: /tmp at <n>% of its <what>` | the wait's spell |
 | `no slot` | a row's reason `no slot`, `max_per_home is ...`, `max_per_project is ...`, `max_running is ...`, or a gate held back while every slot is taken | the wait's spell |
 | `no home-id` | a failed home start `relaunches.json` names (`home_starts`), whose run ended, failed or idle, with no `home-id`; one that failed signed out is `sign-in`, and one on a usage limit is `other` with the limit as `reason` | from when the start was launched to when the pass saw it end; a start written before `relaunches.json` kept `launched` has no start and no minutes |
-| `other` | `waiting for room on the machine`, every no of `jgauge room` but /tmp's, or `no launch: ...` for capped instances, kept as `reason` | the wait's spell |
+| `load` | a row's reason `waiting for room on the machine: load <n> is at or over ...`, where `jgauge room` said the load is over its share of the cores (`jbus.dispatch.waiting_for`) | the wait's spell |
+| `other` | `waiting for room on the machine` with any other no of `jgauge room` but /tmp's after it, such as memory, or `no launch: ...` for capped instances, kept as `reason` | the wait's spell |
 
 A wait's spell runs from a row's first line of a cause in `waits.jsonl` to its next line of another cause or of none.
 The store reads each line's cause as it reads the line, and each build makes the table again from the store's own tables, so it outlives the daily trim, and a spell open at one build is closed by the build after it ends.
 Migration `v021_launch_failures` drops the cursors of `events` and `row_waits`, so the first build after it reads each `events.jsonl` and `waits.jsonl` again and gives the lines it holds their cause; an event older than the 14 days `events.jsonl` keeps has none.
 `waits.jsonl` began on 2026-11-09 at 23:26 UTC, so a wait before then has no row.
 
-One cause has no record jbus writes, and no row is guessed for it: `load`, since `jbus.dispatch.ROOM` writes every no of `jgauge room` but /tmp's as one reason, `waiting for room on the machine`, which is `other`.
+Every cause has a record jbus writes, so no row is guessed.
+A wait on load from before jbus named what `jgauge room` said has the bare reason `waiting for room on the machine`, which is `other`.
 
 Minutes and count by cause by hour, from the hour each began (its `end` where it has no start), since a time:
 
