@@ -6,8 +6,8 @@
 \* The verdict as of main 21112eba8 (2026-11-10), and jbus's hold of a row whose check failed at two
 \* heads as of main 8644c5324 (2026-11-11). Each condition names the file that checks it and quotes
 \* the code there in backticks, with no line number: cli.py, ready.py, batch.py, rows.py and
-\* treeguards.py are features/jmerge/src/jmerge/; expedite.py, rebase.py, outbox.py, poll.py,
-\* stall.py and watch.py are features/jbus/src/jbus/.
+\* treeguards.py are features/jmerge/src/jmerge/; expedite.py, rebase.py, outbox.py, poll.py and
+\* stall.py are features/jbus/src/jbus/.
 \* test_pr_verdict_spec.py finds each quote once in its file.
 \*
 \* Drop names one hold to take out, or "none". With a hold out the rule must break:
@@ -273,10 +273,8 @@ CheckEnds ==
     /\ fails' = IF ~good /\ ~mainRed /\ ~held /\ fails < Limit THEN fails + 1 ELSE fails
     /\ UNCHANGED <<st, good, reviewed, asks, Main, ahead, batch, Setup, said, fresh, unheld, held>>
 
-\* At Limit, jbus holds the row and pages you, once (stall.py
-\* `said = queue.hold(run.state, slug, keep=True)`, stall.py `run.gate(slug, TWICE, text,`), and the
-\* row says so while it is held (watch.py
-\* `if row.get("held") and failed_twice(run, row["slug"]) and not asked:`).
+\* At Limit, jbus holds the row and pages you, once, with the gate `check failed twice` (stall.py
+\* `said = queue.hold(run.state, slug, keep=True)`, stall.py `run.gate(slug, TWICE, text,`).
 Twice ==
     /\ Open /\ fails = Limit /\ ~held /\ Kept("twice")
     /\ held' = TRUE
