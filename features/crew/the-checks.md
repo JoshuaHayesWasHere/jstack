@@ -43,7 +43,7 @@ else
         [.statusCheckRollup[]? | {one: ., key: (.name // .context), when: [(.startedAt | at), (.completedAt | at)]}]
         | group_by(.key) | map((max_by(.when).when) as $last | .[] | select(.when == $last) | .one)
         | [.[] | select(.status == "COMPLETED" and (.conclusion | IN("SUCCESS", "NEUTRAL", "SKIPPED") | not)) | run] | unique | .[]')
-    files=$(for run in $runs; do gh run view "$run" --log-failed; done | sed -n 's/.* \(FAILED\|ERROR\) \([^ :]*\.py\).*/\2/p' | sort -u)
+    files=$(for run in $runs; do gh run view "$run" --log-failed; done | sed -E -n 's/.* (FAILED|ERROR) ([^ :]*\.py).*/\2/p' | sort -u)
     kept=$(git rev-parse --git-path crew-failed-files)
     if [ -n "$files" ]; then
         { printf '%s\n' "$files"; cat "$kept" 2> /dev/null; } | sort -u > "$kept.new" && mv "$kept.new" "$kept"
