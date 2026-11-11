@@ -1,0 +1,52 @@
+---
+title: "Does the gh budget hold, and does the call log keep each full log?, bug 2"
+config:
+  markdownAutoWrap: false
+  state:
+    useMaxWidth: false
+---
+stateDiagram-v2
+  classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group0 fill:#d1f2eb,stroke:#697976,color:#1b2631
+  classDef group0Path fill:#d1f2eb,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group2 fill:#f9d6d5,stroke:#7d6b6b,color:#1b2631
+  classDef group2Wrong fill:#f9d6d5,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  state "Legend" as legend {
+    state "Budget kept" as legendGroup0
+    state "A whole log lost" as legendGroup2
+    state "Breaks a rule today" as legendWrong
+  }
+  class legendGroup0 group0
+  class legendGroup2 group2
+  class legendWrong plainWrong
+  state "The API budget above the<br/>floor" as g0 {
+    state "a call under way, no call<br/>log, no old log" as s0
+    state "a call under way, the call<br/>log has room, no old log" as s1
+    state "a call under way, the call<br/>log past its size, no old<br/>log" as s2
+    state "no call, no call log, no<br/>old log" as s3
+  }
+  state "The API budget spent" as g1 {
+    state "a call under way, no call<br/>log, a full log lost" as s4
+    state "a call under way, no call<br/>log, the old log keeps the<br/>last full log" as s5
+    state "a call under way, the call<br/>log has room, the old log<br/>keeps the last full log" as s6
+    state "a call under way, the call<br/>log past its size, no old<br/>log" as s7
+  }
+  state "The API budget at the<br/>floor: a call under way,<br/>the call log past its<br/>size, no old log" as s8
+  [*] --> s3
+  s3 --> s0 : 1. a pass starts a gh call in<br/>a free slot
+  s0 --> s1 : 2. the call's line goes in the<br/>log
+  s2 --> s8 : 4. the API answers the call<br/>and counts it
+  s1 --> s2 : 3. the call's line goes in the<br/>log
+  s8 --> s7 : 5. the API answers the call<br/>and counts it
+  s7 --> s5 : 6. the process renames the log<br/>to the old log
+  s5 --> s6 : 7. the call's line goes in the<br/>log
+  s6 --> s4 : 8. the process renames the log<br/>to the old log
+  class s0 group0Path
+  class s1 group0Path
+  class s2 group0Path
+  class s3 group0Path
+  class s8 group0Path
+  class s4 group2Wrong
+  class s5 group0Path
+  class s6 group0Path
+  class s7 group0Path
