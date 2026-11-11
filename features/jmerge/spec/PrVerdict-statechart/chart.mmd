@@ -64,13 +64,13 @@ stateDiagram-v2
       state "opened, not judged yet" as r1s16
       state "waits on its check" as r1s17
       state "waits on its review" as r1s18
-      r1s3 --> r1s4 : jbus holds its row: its check<br/>failed at two heads
+      r1s3 --> r1s4 : jbus holds its row: its check<br/>failed at three heads, or two<br/>that name no test
       r1s6 --> r1s13 : you accept it, and it merges
       r1s9 --> r1s13 : the batch's check passes, and<br/>jmerge merges it [when Main<br/>moved past its check]
       %% when r0s1
-      r1s11 --> r1s12 : jbus holds its row: its check<br/>failed at two heads
+      r1s11 --> r1s12 : jbus holds its row: its check<br/>failed at three heads, or two<br/>that name no test
       r1s12 --> r1s11 : you approve its row
-      r1s14 --> r1s15 : jbus holds its row: its check<br/>failed at two heads
+      r1s14 --> r1s15 : jbus holds its row: its check<br/>failed at three heads, or two<br/>that name no test
       r1s16 --> r1s9 : it joins jmerge's batch [when<br/>Main moved past its check]
       %% when r0s1
       r1s16 --> r1s18 : jmerge judges it

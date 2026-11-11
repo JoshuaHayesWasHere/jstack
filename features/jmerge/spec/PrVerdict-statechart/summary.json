@@ -1,7 +1,7 @@
 {
   "view": "customer",
-  "modelStates": 655106,
-  "modelTransitions": 3575470,
+  "modelStates": 787124,
+  "modelTransitions": 4191386,
   "chartStates": 22,
   "chartTransitions": 29,
   "chartStatus": {
@@ -51,9 +51,9 @@
     "command": "statechart from-spec PrVerdict.tla --config PrVerdict.chart.cfg --title 'Why isn'\"'\"'t my pull request merging?' --png",
     "inputs": {
       "PrVerdict.chart.cfg": "3d99a67bbc42e2e9290ddf0dd3061fbf7d82c47efd838e9c00aea0c88c1f6e8b",
-      "PrVerdict.map.py": "4cbe499fd286740df0075074bbedf29a981f88ef0deab8c358f69347650080d1",
-      "PrVerdict.tla": "6f8c411e4996a814b9bc088fef17ac9846779e47b095d46b525be9656cc68561"
+      "PrVerdict.map.py": "32fd7efd9a80ef59234d11ea4991820e4d9c4ffffcca65ebb4e68a4185a15337",
+      "PrVerdict.tla": "e1ba54e1240d1947fd2ef48a2fa3be33e80a3b3c91e9e3a9d0e4726e733aedac"
     },
-    "chart": "06680291fdad808e0f776a12ec6f5929ff60595aa88cfe34a8d5c29a8d517cb9"
+    "chart": "7d03e1ccc350c11661c69537169fc4e0207b50552db9e51ced1d02ffc977de90"
   }
 }

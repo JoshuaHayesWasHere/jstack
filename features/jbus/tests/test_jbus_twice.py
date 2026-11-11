@@ -1,8 +1,9 @@
-"""A row whose required check fails at two heads is held, and the Chef is paged once
-(`jbus.stall.twice`). Its crew is then told nothing more, at the second head or a third, until the
-row is approved again. A head whose check ran on a red main, the main that GitHub merged the head
-into as its failed job's log names it, is not counted, and one whose log GitHub does not give is
-judged again on a later pass.
+"""A row whose required check fails at a second head whose logs name failed tests tells its crew
+the tests and both heads, and is held, and the Chef paged once, at the third; a second head whose
+logs name no test holds it at once (`jbus.stall.twice`). A held row's crew is then told nothing
+more until the row is approved again. A head whose check ran on a red main, the main that GitHub
+merged the head into as its failed job's log names it, is not counted, and one whose log GitHub
+does not give is judged again on a later pass.
 
 The hold keeps the go it takes (`jbus.queue.hold`), and the pass that sees every required check
 passed at the head puts that go back (`jbus.queue.lift`), unless the row was held again since or
@@ -32,22 +33,25 @@ def checked(kitchen, **answers):
     path.write_text(json.dumps({**kept, **answers}))
 
 
-def merged(head, main):
-    """The lines of a job's log that say which merge of the head into main its check ran on."""
-    return (
-        f"2026-11-06T18:08:37.1689626Z HEAD is now at 10f4a11 Merge {head} into {main}\n"
+def merged(head, main, named=True):
+    """The lines of a job's log that say which merge of the head into main its check ran on, and,
+    where `named`, the failed test that it names."""
+    return f"2026-11-06T18:08:37.1689626Z HEAD is now at 10f4a11 Merge {head} into {main}\n" + (
         "2026-11-06T18:12:38.8704685Z FAILED features/x/test_x.py::test_x - AssertionError\n"
+        if named
+        else "2026-11-06T18:12:38.8704685Z ##[error]Process completed with exit code 2.\n"
     )
 
 
-def red_at(kitchen, head, job, main=GREEN):
+def red_at(kitchen, head, job, main=GREEN, named=True):
     """The pull request's check fails at `head`, in a job whose log says it ran on GitHub's merge
-    of the head into `main`, or names no merge where `main` is None."""
+    of the head into `main`, or names no merge where `main` is None, and names a failed test only
+    where `named`: two such heads that name none hold the row."""
     checked(kitchen, **{GREEN: "green", RED: "failed"})
     path = kitchen.stub / "logs.json"
     logs = json.loads(path.read_text()) if path.exists() else {}
     if main is not None:
-        kitchen.set("logs.json", {**logs, job: merged(head, main)})
+        kitchen.set("logs.json", {**logs, job: merged(head, main, named)})
     kitchen.set("open.json", [pull(kitchen, [failed(job)], head=head)])
 
 
@@ -57,35 +61,6 @@ def told(kitchen):
 
 def pages(kitchen):
     return [event for event in kitchen.events("condition") if "check failed twice" in event["line"]]
-
-
-def test_two_failed_heads_hold_the_row_and_page_the_chef_once_and_a_third_head_sends_nothing(
-    launched,
-):
-    red_at(launched, A, "11")
-    passes(launched, 0)
-    assert told(launched) == ["failed|alpha|aaaaaaaaaaaa"]
-    assert not rows(launched)["alpha"].get("held")
-
-    red_at(launched, B, "12")
-    passes(launched, 3, 6)
-    assert told(launched) == ["failed|alpha|aaaaaaaaaaaa"]
-    assert rows(launched)["alpha"]["held"] is True
-    assert rows(launched)["alpha"]["why"] == "check failed twice"
-    (page,) = pages(launched)
-    assert page["line"] == "condition alpha: check failed twice"
-    for named in (
-        "alpha",
-        "#7",
-        "aaaaaaaaaaaa: check failed (o/r job 11)",
-        "bbbbbbbbbbbb: check failed (o/r job 12)",
-    ):
-        assert named in page["text"]
-
-    red_at(launched, C, "13")
-    passes(launched, 9, 12)
-    assert told(launched) == ["failed|alpha|aaaaaaaaaaaa"]
-    assert len(pages(launched)) == 1
 
 
 def test_a_second_head_red_on_named_tests_tells_the_crew_the_names_and_a_third_holds_the_row(
@@ -130,15 +105,27 @@ def test_a_second_head_red_on_named_tests_tells_the_crew_the_names_and_a_third_h
 def test_a_second_head_whose_logs_name_no_test_holds_the_row_and_pages_the_chef(launched):
     """A second failed head whose failed jobs' logs name no failed test gives the crew nothing to
     mend by name: it is held and paged at once, as before #1691."""
-    for head, job, at in ((A, "11", (0,)), (B, "12", (3, 6))):
-        red_at(launched, head, job)
-        logs = json.loads((launched.stub / "logs.json").read_text())
-        launched.set("logs.json", {**logs, job: logs[job].split("FAILED")[0]})
-        passes(launched, *at)
+    red_at(launched, A, "11", named=False)
+    passes(launched, 0)
+    red_at(launched, B, "12", named=False)
+    passes(launched, 3, 6)
     assert told(launched) == ["failed|alpha|aaaaaaaaaaaa"]
     assert rows(launched)["alpha"]["held"] is True
+    assert rows(launched)["alpha"]["why"] == "check failed twice"
     (page,) = pages(launched)
-    assert "aaaaaaaaaaaa" in page["text"] and "bbbbbbbbbbbb" in page["text"]
+    assert page["line"] == "condition alpha: check failed twice"
+    for named in (
+        "alpha",
+        "two heads",
+        "aaaaaaaaaaaa: check failed (o/r job 11)",
+        "bbbbbbbbbbbb: check failed (o/r job 12)",
+    ):
+        assert named in page["text"], page["text"]
+
+    red_at(launched, C, "13", named=False)
+    passes(launched, 9, 12)
+    assert told(launched) == ["failed|alpha|aaaaaaaaaaaa"]
+    assert len(pages(launched)) == 1
 
 
 def test_a_failure_on_main_s_red_tip_is_not_counted(launched):
@@ -146,12 +133,12 @@ def test_a_failure_on_main_s_red_tip_is_not_counted(launched):
     passes(launched, 0)
     assert json.loads((launched.state / "fails.json").read_text())["alpha"]["red"] == [A]
 
-    red_at(launched, B, "12")
+    red_at(launched, B, "12", named=False)
     passes(launched, 3)
     assert not rows(launched)["alpha"].get("held")
     assert not pages(launched)
 
-    red_at(launched, C, "13")
+    red_at(launched, C, "13", named=False)
     passes(launched, 6)
     assert rows(launched)["alpha"]["held"] is True
     (page,) = pages(launched)
@@ -215,9 +202,9 @@ def test_twice_holds_no_row_for_the_1177_heads_whose_second_ran_on_main_s_red_ti
 
 
 def test_an_approve_lifts_the_hold_and_the_count_starts_again(launched):
-    red_at(launched, A, "11")
+    red_at(launched, A, "11", named=False)
     passes(launched, 0)
-    red_at(launched, B, "12")
+    red_at(launched, B, "12", named=False)
     passes(launched, 3)
     assert rows(launched)["alpha"]["held"] is True
 
@@ -226,12 +213,12 @@ def test_an_approve_lifts_the_hold_and_the_count_starts_again(launched):
     assert not rows(launched)["alpha"].get("held")
     assert "failed|alpha|bbbbbbbbbbbb" in told(launched)
 
-    red_at(launched, C, "13")
+    red_at(launched, C, "13", named=False)
     passes(launched, 9)
     assert "failed|alpha|cccccccccccc" not in told(launched)
     assert rows(launched)["alpha"]["held"] is True
     assert len(pages(launched)) == 2
-    red_at(launched, D, "14")
+    red_at(launched, D, "14", named=False)
     passes(launched, 12)
     assert "failed|alpha|dddddddddddd" not in told(launched)
 
@@ -286,23 +273,23 @@ def test_twice_counts_a_red_only_where_its_failed_tests_are_not_a_flake_of_two_o
     """2026-11-07: #1219 and #1220 were held for a clock-bound test that failed the same way on
     #1218, #1219 and #1220. A head whose failed tests all failed on two other branches in the
     window is a flake by `jbus ci`'s rule and is not counted; a test that failed on one other
-    branch alone, or on the row's own, is the pull request's red, and two of them hold it."""
+    branch alone, or on the row's own, is the pull request's red, and three of them hold it."""
     red_elsewhere(launched, branches)
-    red_at(launched, A, "11")
-    passes(launched, 0)
-    red_at(launched, B, "12")
-    passes(launched, 3, 6)
+    for head, job, minute in ((A, "11", 0), (B, "12", 3), (C, "13", 6)):
+        red_at(launched, head, job)
+        passes(launched, minute)
+    passes(launched, 9)
     assert bool(rows(launched)["alpha"].get("held")) is held
     assert len(pages(launched)) == int(held)
 
 
 def test_twice_counts_a_shared_red_whose_log_also_counts_an_error_it_names_no_test_of(launched):
     """The head's log names only `TEST`, a flake of two other branches, but its summary counts an
-    error no test id names, as a collection error is: what failed is not all shared, so two such
-    heads hold the row."""
+    error no test id names, as a collection error is: what failed is not all shared, so the second
+    such head tells the crew of it, and the third holds the row."""
     red_elsewhere(launched, ("beta", "gamma"))
     error = "ERROR features/x/test_y.py - ImportError\n= 1 failed, 1 error in 2.0s =\n"
-    for head, job, at in ((A, "11", (0,)), (B, "12", (3, 6))):
+    for head, job, at in ((A, "11", (0,)), (B, "12", (3,)), (C, "13", (6, 9))):
         red_at(launched, head, job)
         logs = json.loads((launched.stub / "logs.json").read_text())
         launched.set("logs.json", {**logs, job: logs[job] + error})
@@ -321,11 +308,12 @@ def green_at(kitchen, head, job="21"):
 
 
 def held_twice(kitchen):
-    """Fail the row's check at two heads, so that `twice` holds it, and return the go it had."""
+    """Fail the row's check at two heads whose logs name no test, so that `twice` holds it, and
+    return the go it had."""
     had = {column: rows(kitchen)["alpha"][column] for column in GO}
-    red_at(kitchen, A, "11")
+    red_at(kitchen, A, "11", named=False)
     passes(kitchen, 0)
-    red_at(kitchen, B, "12")
+    red_at(kitchen, B, "12", named=False)
     passes(kitchen, 3)
     assert rows(kitchen)["alpha"]["held"] is True
     assert not rows(kitchen)["alpha"]["approved"]

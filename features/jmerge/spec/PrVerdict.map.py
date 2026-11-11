@@ -89,7 +89,7 @@ STEPS = {
     "OtherMerges": "the one ahead in line merges",
     "Release": "the one ahead waits on its crew or user, and gives up the line",
     "Review": "its reviewer's round holds",
-    "Twice": "jbus holds its row: its check failed at two heads",
+    "Twice": "jbus holds its row: its check failed at three heads, or two that name no test",
 }
 
 

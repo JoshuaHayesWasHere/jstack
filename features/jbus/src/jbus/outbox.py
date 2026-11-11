@@ -26,9 +26,10 @@ of `RULES`, the one table of them, and a message of a template a rule names as t
 holds, whatever it needs. A new rule is a row of that table, and no sender checks it:
 
 - `held`: the row is held in the queue (`jbus queue hold`, or jbus's own at a check that failed
-  at two heads, `jbus.stall.twice`), so its crew gets no rebase, no fix message and no restart
-  of a failed check (`FIXES`) until it is approved again. It holds no other template: a held
-  row's crew still gets the user's answers, its review's findings and every other message;
+  at three heads, or at two where the second names no failed test, `jbus.stall.twice`), so its
+  crew gets no rebase, no fix message and no restart of a failed check (`FIXES`) until it is
+  approved again. It holds no other template: a held row's crew still gets the user's answers,
+  its review's findings and every other message;
 - `slot`: the thread waits on a test slot and is not woken yet (`jgauge.waiters`);
 - `review`: the thread is the row's crew, and the row's pull request waits on a review that a
   reviewer the crew launched has not written at its head, as jmerge's judge says

@@ -3,8 +3,8 @@
 \* Repo.judged in features/jmerge/src/jmerge/cli.py gives it, in its order, and through the run
 \* that acts on it: the merge, the guards on its tree merged over main's tip, the batch, and the
 \* line each base keeps for GitHub's merge of the base into a pull request (IN_LINE).
-\* The verdict as of main 21112eba8 (2026-11-10), and jbus's hold of a row whose check failed at two
-\* heads as of main 8644c5324 (2026-11-11). Each condition names the file that checks it and quotes
+\* The verdict as of main 21112eba8 (2026-11-10), and jbus's hold of a row whose check failed at three
+\* heads, or at two where the second names no failed test, as of st-stall-acts (2026-11-11). Each condition names the file that checks it and quotes
 \* the code there in backticks, with no line number: cli.py, ready.py, batch.py, rows.py and
 \* treeguards.py are features/jmerge/src/jmerge/; expedite.py, rebase.py, outbox.py, poll.py and
 \* stall.py are features/jbus/src/jbus/.
@@ -51,7 +51,7 @@ CrewWords == {"check-failed", "conflicts", "merged-tree-fails"}
 \* said: jmerge's last verdict. fresh: that verdict was given at this head.
 \* unheld: the holds still outstanding when it merged, not lifted by your word at its head.
 \* fails: the heads at which its check failed on a change of its own, as jbus counts them, up to
-\*   Limit, where jbus holds its row.
+\*   Limit, where jbus holds its row; a second head whose logs name no failed test counts to Limit.
 \* held: jbus held its row for a check that failed at Limit heads, keeping the go it took.
 VARIABLES st, good, ci, reviewed, asks, moved, overlap, clash, tipFails, guardsSaid, decided,
     mainRed, movesLeft, ahead, batch, guards, batchOn, said, fresh, unheld, fails, held
@@ -61,8 +61,11 @@ vars == <<st, good, ci, reviewed, asks, moved, overlap, clash, tipFails, guardsS
 Main == <<moved, overlap, clash, tipFails, guardsSaid, decided, mainRed, movesLeft>>
 Setup == <<guards, batchOn>>
 
-\* jbus holds a row at the second head at which its check failed (stall.py `if len(heads) < 2:`).
-Limit == 2
+\* jbus holds a row at the third head at which its check failed (stall.py `LIMIT = 3`), or at the
+\* second where its failed jobs' logs name no failed test (stall.py
+\* `return len(counted) >= LIMIT or (len(counted) == 2 and not counted[-1].get("tests"))`): at a
+\* second head that names failed tests the crew is told of them and fixes again.
+Limit == 3
 
 \* The holds for your word it carries, jbus's hold among them: a held row is "nogo" to jmerge.
 Asks == IF held THEN asks \cup {"nogo"} ELSE asks
@@ -270,10 +273,12 @@ Review ==
 CheckEnds ==
     /\ Open /\ ci = "none"
     /\ ci' = IF good /\ ~mainRed THEN "pass" ELSE "fail"
-    /\ fails' = IF ~good /\ ~mainRed /\ ~held /\ fails < Limit THEN fails + 1 ELSE fails
+    /\ fails' \in IF ~good /\ ~mainRed /\ ~held /\ fails < Limit
+                   THEN (IF fails = 1 THEN {2, Limit} ELSE {fails + 1}) ELSE {fails}
     /\ UNCHANGED <<st, good, reviewed, asks, Main, ahead, batch, Setup, said, fresh, unheld, held>>
 
-\* At Limit, jbus holds the row and pages you, once, with the gate `check failed twice` (stall.py
+\* At Limit, jbus holds the row and pages you, once, with the gate `check failed twice`, naming each
+\* counted head (stall.py
 \* `said = queue.hold(run.state, slug, keep=True)`, stall.py `run.gate(slug, TWICE, text,`).
 Twice ==
     /\ Open /\ fails = Limit /\ ~held /\ Kept("twice")

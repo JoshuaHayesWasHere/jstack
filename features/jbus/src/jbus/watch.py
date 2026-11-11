@@ -106,6 +106,9 @@ FAILS = "fails.json"
 """The heads at which each row's pull request failed a required check, kept by `jbus.stall.twice`,
 and whether jbus held the row for it."""
 TWICE = "check failed twice"
+LAST = "last"
+"""The key in a row's `fails.json` of its second counted failed head whose logs name failed tests:
+the head before the one that holds the row, whose message tells the crew of them (`named_last`)."""
 RERUN_WAIT = timedelta(minutes=30)
 """How long `_check` waits for GitHub to show the rerun it took before the run is failed."""
 NIGHTLY_RED = ("failure", "timed_out")
@@ -1175,19 +1178,33 @@ def unread(run: Pass, read: bool) -> str:
 
 
 def failed_twice(run: Pass, slug: str) -> bool:
-    """Say whether jbus held the row because its check failed at two heads (`jbus.stall.twice`)."""
+    """Say whether jbus held the row for the heads its check failed at (`jbus.stall.twice`)."""
     kept = read_json(run.state / FAILS, {})
     one = kept.get(slug) if isinstance(kept, dict) else None
     return isinstance(one, dict) and bool(one.get("held_at"))
 
 
+def named_last(run: Pass, slug: str, head: str) -> tuple[list[str], list[str]] | None:
+    """Return the row's counted failed heads and the failed tests that `head`'s logs name, where
+    `head` is the row's `LAST` (`jbus.stall.twice`), or None for any other head."""
+    kept = read_json(run.state / FAILS, {})
+    one = kept.get(slug) if isinstance(kept, dict) else None
+    if not isinstance(one, dict) or not head or one.get(LAST) != head:
+        return None
+    heads = one.get("heads") or {}
+    said = heads.get(head) if isinstance(heads, dict) else None
+    if not isinstance(said, dict) or not said.get("tests"):
+        return None
+    return [str(one) for one in heads], [str(test) for test in said["tests"]]
+
+
 def why(run: Pass, row: dict[str, Any], found: dict[str, str], waits: Waits, unread: str) -> str:
     """Return why a row waits, or nothing. `found` is its derived columns, as `status` gave them.
 
-    A held row whose check failed at two heads waits for `TWICE` (`jbus.stall.twice`). A row with
-    a pull request waits for what `jmerge` says of it, after the question this pass asked of it
-    (`Pass.asked`) where there is one, as in the pass that holds it for `TWICE`. A row that was not
-    launched waits for what `dispatch` recorded (`Pass.reasons`), or for its approval. Where
+    A held row whose check failed at its limit of heads waits for `TWICE` (`jbus.stall.twice`). A
+    row with a pull request waits for what `jmerge` says of it, after the question this pass asked
+    of it (`Pass.asked`) where there is one, as in the pass that holds it for `TWICE`. A row that
+    was not launched waits for what `dispatch` recorded (`Pass.reasons`), or for its approval. Where
     `dispatch` read no row, it recorded nothing, and an approved row waits for what is `unread`:
     dispatch that is off, or the stop file. A pass that is `UNREAD` says nothing of the row, so
     the row's stored reason stays, unless the row has got its approval since. The same holds for a
