@@ -644,7 +644,7 @@ def test_a_macos_red_on_main_never_makes_main_red_and_reverts_its_one_clear_culp
     assert list(made) == [red] and made[red].slug == "alpha"
     text = (kitchen.home / "tasks" / "revert-7-alpha.md").read_text()
     assert f"which turned main's macOS red at {red[:12]}" in text
-    assert mac_state(kitchen) | {"reverted": [red]} == mac_state(kitchen)
+    assert reverts.holders(kitchen.state) == {red: {reverts.MAC}}
     assert mac_rows(kitchen) == []
 
 

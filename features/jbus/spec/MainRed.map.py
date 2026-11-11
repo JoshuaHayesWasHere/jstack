@@ -8,15 +8,23 @@ def _rows(f):
     return list(_keyed(f).values())
 
 
+def _mac_red(v):
+    """Whether the Mac's newest settled run failed."""
+    settled = [one for one in v["mac"] if one != "pending"]
+    return bool(settled) and settled[-1] == "failed"
+
+
 def _main(v):
     tip = v["check"][-1]
     if v["rec"]["broken"]:
-        return "Main red"
-    if tip == "green":
-        return "Main green"
-    if tip in ("rerun", "failed"):
-        return "jbus reruns main's failed run"
-    return "Main's run going"
+        said = "Main red"
+    elif tip == "green":
+        said = "Main green"
+    elif tip in ("rerun", "failed"):
+        said = "jbus reruns main's failed run"
+    else:
+        said = "Main's run going"
+    return f"{said}, the Mac red" if _mac_red(v) else said
 
 
 def _answer(v):
@@ -37,7 +45,7 @@ def state(v, facts):
 
 
 def group(v, facts):
-    if not v["rec"]["broken"]:
+    if not v["rec"]["broken"] and not _mac_red(v):
         return "Not red"
     if _answer(v) == "nothing open to fix it":
         return "Red, nothing open yet"
@@ -59,6 +67,7 @@ STEPS = {
     "FixMerges": "the fix merges",
     "RevertMerges": "jmerge merges jbus's revert",
     "RevertStalls": "the revert's check fails, it conflicts, or someone closes it",
+    "MacEnds": "main's macOS run ends",
 }
 
 
@@ -73,6 +82,9 @@ def step(action, before, after):
         changed = [i for i, c in enumerate(after["check"]) if c != before["check"][i]]
         green = after["check"][changed[0]] == "green"
         return "jbus's rerun passes: a flake" if green else "jbus's rerun fails too"
+    if action == "MacEnds":
+        changed = [i for i, c in enumerate(after["mac"]) if c != before["mac"][i]]
+        return "the Mac passes" if after["mac"][changed[0]] == "green" else "the Mac fails"
     if action == "Pass":
         return _pass(before, after)
     return STEPS.get(action, action)
@@ -84,7 +96,9 @@ def _pass(before, after):
     if any(k not in was for k in now):
         return "jbus's pass reverts the one clear culprit"
     if any(one["st"] == "closed" and was[k]["st"] != "closed" for k, one in now.items()):
-        return "jbus's pass sees main green and closes the revert"
+        return "jbus's pass sees every check that holds the revert green and closes it"
+    if any(set(one["holders"]) > set(was[k]["holders"]) for k, one in now.items() if k in was):
+        return "jbus's pass: a red check leans on the revert already open"
     if any(f not in rows_was for f in rows_now):
         return "jbus's pass files main's fix row"
     if any(one["st"] == "withdrawn" != rows_was[f]["st"] for f, one in rows_now.items()):
@@ -104,6 +118,12 @@ def cause(v, facts, invariant):
             "main went green at a later commit and red again before a pass saw the green alone, "
             "so reverts.close, which waits for a green main, left the first revert open while "
             "culprits.judge opened a second for the new red"
+        )
+    if invariant == "NeverRevertedTwice":
+        return (
+            "main's check passed at the red commit while the Mac was still red there, so "
+            "reverts.close closed the revert and dropped its record, and the Mac opened a second "
+            "revert of the same commit"
         )
     return None
 

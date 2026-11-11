@@ -43,21 +43,27 @@ logs are taken as unreadable, `NOT_READ`, and it gets its row.
 
 `revert` acts on a clear culprit. `gh pr revert` makes the revert on GitHub, a new commit on a new
 branch, so jbus never pushes to main or force-pushes anything. It keeps the revert in
-`reverts.json` (`jmerge.reverts`), writes the brief `tasks/<branch>.md` that ties the pull request
-to its slug, with the culprit's home, and logs a routine event for its home's digest.
+`reverts.json` (`jmerge.reverts`), with the check that went red as its one holder, writes the
+brief `tasks/<branch>.md` that ties the pull request to its slug, with the culprit's home, and
+logs a routine event for its home's digest.
 `jbus.culprits.tell` tells the culprit's crew, from every pass until the message goes, so a capped
 thread or a T3 Code that gives no answer loses it to nothing. `opened` asks GitHub for the
 revert's branch first, so a pass that stopped between GitHub's answer and the record finds its
 revert and opens no second one, and the brief is written before the record, so a revert on record
 has a brief. `jmerge` merges the revert by the normal path, its checks green, with no review.
-`close` closes a revert jbus opened that is still open once main's check passes at a later tip
-without it, as when a fix row merged first, with a comment that names the green tip: it would
-only sit in conflict with main. Its record stays while its culprit's slug can still merge, so the
-row is still never reverted twice. `close` drops a record once main is green, the revert's pull
-request is no longer open, and its culprit's slug is over: no pull request of it is open, no
-thread of it is unsettled and its row, if the queue still has one, is final. A slug that is over
-merges nothing more, so its record holds nothing, and `TWICE` no longer files a fix row for a
-later red that is due a revert.
+A revert is held by each check that leans on it (`holders`): the one that went red and opened it,
+and each that went red at the same commits and read it as its own since (`Keep.OPENED`, `lean`),
+as main's macOS run did on main's revert #1426 on 2026-11-09. `close` closes a revert jbus opened
+that is still open once every holder passed at its red or a later commit, as when a fix row merged
+first, with a comment that names each green: it would only sit in conflict with main. Closing it
+on one holder's green while another is still red there closed #1426 under a red Mac, and the Mac
+then opened #1427 on the same branch. A closed revert keeps its record, so a check that goes red
+at its commits later leans on it and files a fix row, and the row is never reverted twice. `close`
+drops the record once main is green, the revert's pull request is no longer open, every check jbus
+judges main by here passed at or above its red, and its culprit's slug is over: no pull request
+of it is open, no thread of it is unsettled and its row, if the queue still has one, is final. A
+slug that is over merges nothing more, so its record holds nothing, and `TWICE` no longer files a
+fix row for a later red that is due a revert.
 
 `macos` judges main's Mac by the same rule. macos.yml's push runs share one group, as main's check
 does, so a run selects over every merge since the last Mac run that ran, and a commit whose run a
@@ -66,8 +72,8 @@ newer push displaced ends `cancelled`, neither green nor red. That run is never 
 one rerun (`watch.mac_check`), the newest red commit and every one since the last Mac green are a
 `Red`, with the Mac run's failed tests:
 `culprit`, `tested` and `covered` judge it, a clear culprit is reverted, and anything else files
-the row `macos-red-<commit>` under the home `macos`. Its revert is closed only once the Mac is
-green at a later commit (`MAC_MAIN`).
+the row `macos-red-<commit>` under the home `macos`. A revert the Mac opened or leans on holds on
+the Mac, so it is closed only once the Mac is green at a later commit (`MAC_MAIN`).
 """
 
 from __future__ import annotations
@@ -77,6 +83,7 @@ import json
 from collections.abc import Callable, Collection, Iterable, Sequence
 from dataclasses import dataclass
 from datetime import timedelta
+from pathlib import Path
 from typing import Any
 
 from jbriefs import below
@@ -105,8 +112,13 @@ MAC_CHECKS = "macos-checks.json"
 """The final answers of macos.yml's push runs, by commit (`watch.mac_check`)."""
 MAC_MAIN = "macos-main.json"
 """main's last Mac answer, as `macos` read it: `red`, the newest commit whose Mac run ended red,
-or empty once a newer one is green; `green`, the newest green one; `reverted`, each red jbus opened
-a revert of."""
+or empty once a newer one is green; `green`, the newest green one. A project with no Mac has no
+such file."""
+CHECKS = (MAIN, MAC)
+"""Every check that can hold a revert (`holders`)."""
+HOLDERS = "holders"
+"""The key in each record of `reverts.json` that names the checks holding its revert, each of
+`CHECKS`. jmerge reads the file's other keys alone (`jmerge.reverts.read`)."""
 MAC_FIX = "macos-red-"
 MAC_WALK = 20
 """How many of main's newest commits `macos` reads, newest first."""
@@ -324,17 +336,47 @@ def revert(run: Pass, red: Culprit, where: str = MAIN) -> bool:
     tasks = run.home / "tasks"
     tasks.mkdir(parents=True, exist_ok=True)
     (tasks / f"{branch}.md").write_text(brief(branch, red, url, home, where))
-    write_json(
-        run.state / kept.NAME,
-        {
-            **{r: kept.record(one) for r, one in kept.read(run.state).items()},
-            red.red: kept.record(kept.Revert(red.red, red.slug, branch, head, url)),
-        },
-    )
+    made, held = kept.read(run.state), holders(run.state)
+    made[red.red] = kept.Revert(red.red, red.slug, branch, head, url)
+    _keep(run, made, {**held, red.red: {where}})
     line = f"revert {red.slug}: {where} red at {red.red[:12]}, jbus opened {url} to revert it"
     run.find(red.slug, "revert", line, key=f"opened {red.red}")
     run.say(line)
     return True
+
+
+def holders(state: Path) -> dict[str, set[str]]:
+    """The checks that hold each revert jbus opened, by its red tip. A record that names none,
+    as one kept before holders were, is held by every check, so none closes it too early."""
+    raw = read_json(state / kept.NAME, {})
+    found = {}
+    for red in kept.read(state):
+        named = raw[red].get(HOLDERS)
+        checks = {one for one in named if one in CHECKS} if isinstance(named, list) else set()
+        found[red] = checks or set(CHECKS)
+    return found
+
+
+def _keep(run: Pass, made: dict[str, kept.Revert], held: dict[str, set[str]]) -> None:
+    """Write `made` to `reverts.json`, each revert with the checks `held` names as holding it."""
+    write_json(
+        run.state / kept.NAME,
+        {
+            red: {**kept.record(one), HOLDERS: sorted(held.get(red) or CHECKS)}
+            for red, one in made.items()
+        },
+    )
+
+
+def lean(run: Pass, since: Sequence[str], check: str) -> None:
+    """Make `check`, red over the commits `since`, newest first, one of the holders of the newest
+    revert jbus opened among them, which it reads as its own (`Keep.OPENED`), so `close` waits
+    for it too. Where it holds one of them already, it waits on that one alone."""
+    held = holders(run.state)
+    opened = [red for red in since if red in held]
+    if opened and not any(check in held[red] for red in opened):
+        held[opened[0]].add(check)
+        _keep(run, kept.read(run.state), held)
 
 
 def stuck(
@@ -362,63 +404,71 @@ def stuck(
 
 
 def close(run: Pass, world: World, rows: list[dict[str, Any]] | None) -> None:
-    """Close each revert jbus opened that is still open once main's check passed at a later tip
-    without it, with a comment that names that tip; a revert of a Mac red (`macos`) once main's
-    macOS run passed at a later commit too. `main.json` keeps the red tip until a later
-    tip is green, and a revert is opened only while it does, so once main is green its `green`
-    is the later tip. Main may also be red again at a newer tip by the time a pass sees that
-    green, and `culprits.judge` then opens the revert of the new red: a revert whose red is
-    `green` or older (`cleared`) is closed all the same, so one revert is open at a time
+    """Close each revert jbus opened that is still open once every check holding it (`holders`)
+    passed at its red or a later commit, with a comment that names each green. `main.json` keeps
+    the red tip until a later tip is green, and `MAC_MAIN` keeps the Mac's red until a later
+    commit is green, so a check red now has no green above the red; GitHub's compare orders a
+    green against the red (`cleared`). Main may also be red again at a newer tip by the time a
+    pass sees that green, and `culprits.judge` then opens the revert of the new red: a revert
+    whose red is `green` or older is closed all the same, so one revert is open at a time
     (`MainRed.tla`'s `OneRevertOpen`). A pull request GitHub would not close is a condition,
-    and the next pass tries again. While main is green, a revert no longer open whose
-    culprit's slug is over is dropped from the record (`over`); with no queue read (`rows` is
-    None) none is. A revert of a Mac red is neither closed nor dropped while the Mac is red,
-    nor while main is: `macos` may have opened it in this pass, after `world` was read."""
+    and the next pass tries again. A revert not in `world.open`, closed or opened in this pass
+    after `world` was read, is not closed. While main is green, a revert no longer open is
+    dropped from the record once every check jbus judges main by here passed at or above its red
+    and its culprit's slug is over (`over`); with no queue read (`rows` is None) none is."""
     main = mainjson.read(run.state)
     if not main.green:
         return
     mac = read_json(run.state / MAC_MAIN, {})
-    of_mac = set(mac.get("reverted", ()))
-    held = of_mac if mac.get("red") or not mac.get("green") else set()
+    greens = {MAIN: main.green}
+    if mac:
+        greens[MAC] = "" if mac.get("red") else str(mac.get("green", ""))
+    names = {MAIN: "main's check", MAC: "main's macOS run"}
+
+    def passed(red: str) -> dict[str, str]:
+        """Each check here, with the commit at or above `red` where it passed, or nothing."""
+        return {
+            check: green if green and cleared(run, red, green) else ""
+            for check, green in greens.items()
+        }
+
     urls = {str(pull.get("url", "")).rstrip("/") for pull in world.open.values()}
-    made = kept.read(run.state)
-    ended = [
-        red for red, one in made.items() if red not in held and one.pull.rstrip("/") not in urls
-    ]
+    made, held = kept.read(run.state), holders(run.state)
+    ended = [red for red, one in made.items() if one.pull.rstrip("/") not in urls]
     gone = [
         red
         for red in ended
-        if not main.red and rows is not None and over(made[red].slug, world, rows)
+        if not main.red
+        and rows is not None
+        and over(made[red].slug, world, rows)
+        and all(passed(red).values())
     ]
     if gone:
-        write_json(
-            run.state / kept.NAME,
-            {red: kept.record(one) for red, one in made.items() if red not in gone},
-        )
+        _keep(run, {red: one for red, one in made.items() if red not in gone}, held)
     for one in made.values():
-        if one.red in ended or one.red in held:
+        if one.red in ended:
             continue
-        if main.red and (one.red in of_mac or not cleared(run, one.red, main.green)):
+        green = passed(one.red)
+        holding = sorted(check for check in held[one.red] if check in green)
+        if not holding or not all(green[check] for check in holding):
             continue
-        green, where = main.green, "main's check"
-        if one.red in of_mac:
-            green, where = mac["green"], "main's macOS run"
+        said = " and ".join(f"{names[check]} passed at {green[check][:12]}" for check in holding)
         comment = (
-            f"jbus closes this: {where} passed at {green[:12]}, a later tip than the "
-            f"red {one.red[:12]} it reverts, so main passed without it."
+            f"jbus closes this: {said}, at or above the red {one.red[:12]} it reverts, so main "
+            "passed without it."
         )
         asked = run.run("gh", "pr", "close", one.pull, "--comment", comment)
         if asked.returncode != 0:
             why = (asked.stderr or "no answer").strip()
             run.condition(one.slug, f"its revert {one.pull} was not closed: {why}")
             continue
-        line = f"revert {one.slug}: {where} passed at {green[:12]}, jbus closed {one.pull}"
+        line = f"revert {one.slug}: {said}, jbus closed {one.pull}"
         run.find(one.slug, "revert", line, key=f"closed {one.red}")
         run.say(line)
 
 
 def cleared(run: Pass, red: str, green: str) -> bool:
-    """Whether main's check passed at `red` itself or at a later commit, `green`, as GitHub
+    """Whether a check passed at `red` itself or at a later commit, `green`, as GitHub
     compares them. Where GitHub does not say, it did not, and the next pass asks again."""
     return compared(run, red, green) in ("ahead", "identical")
 
@@ -447,9 +497,9 @@ def macos(run: Pass, world: World) -> None:
     nor a red. A red one, with every commit since the last Mac green that ran, is a `Red`: its one
     clear culprit is reverted (`revert`), as main's is, and otherwise it gets the fix row
     `macos-red-<commit>` under the home `macos`, which says why nothing was reverted. A revert
-    opened here is kept in `MAC_MAIN` as well, so `close` closes it only once the Mac is green at
-    a later commit. On a project's first pass, and for a red whose revert is open or whose failed
-    tests are not read yet, nothing is done.
+    opened here, or one this red reads as its own (`lean`), holds on the Mac, so `close` closes
+    it only once the Mac is green at a later commit. On a project's first pass, and for a red
+    whose failed tests are not read yet, nothing is done.
 
     A project whose default branch has no macos.yml has no Mac to judge, and `macos` asks GitHub
     nothing for it. It reads the file in the main checkout's `origin/<default branch>`, which
@@ -473,8 +523,7 @@ def macos(run: Pass, world: World) -> None:
     walked = commits[:MAC_WALK]
     place = next((n for n, c in enumerate(walked) if check(c) in ("green", "failed")), None)
     mac = read_json(run.state / MAC_MAIN, {})
-    made = kept.read(run.state)
-    mac["reverted"] = [red for red in mac.get("reverted", ()) if red in made]
+    mac.pop("reverted", None)
     if place is not None:
         tip = walked[place]["sha"]
         red = known[tip] == "failed"
@@ -493,7 +542,7 @@ def _mac_red(
     mac: dict[str, Any],
 ) -> dict[str, Any]:
     """Revert the one clear culprit of the Mac red at `commits[0]`, or file its row, and return
-    `mac` with the revert kept."""
+    `mac`. A revert the Mac reads as its own holds on the Mac (`lean`)."""
     since, under = [], ""
     for commit in commits:
         said = "failed" if not since else check(commit)
@@ -527,10 +576,11 @@ def _mac_red(
     why = ""
     if found == Keep.OPENED:
         opened = next(sha for sha, _ in since if sha in made)
+        lean(run, [sha for sha, _ in since], MAC)
         why = stuck(run, made[opened], watch.checks, opened != tip)
     elif isinstance(found, Culprit):
         if revert(run, found, MAC):
-            return {**mac, "reverted": sorted({*mac.get("reverted", ()), found.red})}
+            return mac
         why = "jbus could not open its revert"
     elif found not in QUIET:
         why = str(found)
