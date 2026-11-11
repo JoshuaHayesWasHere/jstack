@@ -150,7 +150,7 @@ The spells an account was signed out have no record yet.
 | `/tmp` | a row's reason `waiting: /tmp at <n>% of its <what>` | the wait's spell |
 | `no slot` | a row's reason `no slot`, `max_per_home is ...`, `max_per_project is ...`, `max_running is ...`, or a gate held back while every slot is taken | the wait's spell |
 | `no home-id` | a failed home start `relaunches.json` names (`home_starts`), whose run ended, failed or idle, with no `home-id`; one that failed signed out is `sign-in`, and one on a usage limit is `other` with the limit as `reason` | from when the start was launched to when the pass saw it end; a start written before `relaunches.json` kept `launched` has no start and no minutes |
-| `load` | a row's reason `waiting for room on the machine: load <n> is at or over ...`, where `jgauge room` said the load is over its share of the cores (`jbus.dispatch.waiting_for`) | the wait's spell |
+| `load` | a row's reason `waiting for room on the machine: load <n> is at or over ...`, where `jgauge room` said the load is over its share of the cores (`jbus.dispatch.ROOM`) | the wait's spell |
 | `other` | `waiting for room on the machine` with any other no of `jgauge room` but /tmp's after it, such as memory, or `no launch: ...` for capped instances, kept as `reason` | the wait's spell |
 
 A wait's spell runs from a row's first line of a cause in `waits.jsonl` to its next line of another cause or of none.

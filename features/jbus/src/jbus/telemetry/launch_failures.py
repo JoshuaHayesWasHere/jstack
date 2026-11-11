@@ -17,7 +17,7 @@ them, since the store keeps no reason's text:
   `sign-in`, and one that failed on a usage limit is `other` with the limit as `reason`. A start
   written before `relaunches.json` kept `launched` has no start and no minutes.
 - `load`: a row's reason `waiting for room on the machine: load <n> is at or over ...`, where
-  `jgauge room` said the load is over its share of the cores (`jbus.dispatch.waiting_for`).
+  `jgauge room` said the load is over its share of the cores (`jbus.dispatch.ROOM`).
 - `other`: any other reason that keeps a launch from starting, `waiting for room on the machine`
   with any other no of `jgauge room` but /tmp's after it (`jbus.dispatch.ROOM`; a jbus from before
   wrote it with none) or `no launch: ...` (every instance capped), kept as `reason`, the raw text
