@@ -420,8 +420,18 @@ def known(run: Pass, world: World) -> None:
             where = str(one.get("where", MAIN))
             culprit = Culprit(red, str(one.get("slug", "")), {"number": one.get("number")})
             _own(run, culprit, said, where if where in CHECKS else MAIN)
-        elif not said and run.now - when(str(one.get("at") or run.now.isoformat())) > READ_WAIT:
+        elif not said and _aged(run, one.get("at")):
             _drop_intent(run, red)
+
+
+def _aged(run: Pass, at: object) -> bool:
+    """Say whether the name written `at` is older than `READ_WAIT`: an `at` no pass could have
+    written, as from a hand's edit, reads as old, so a name GitHub has no revert for never
+    stops a pass or stays."""
+    try:
+        return run.now - when(str(at)) > READ_WAIT
+    except (TypeError, ValueError):
+        return True
 
 
 def holders(state: Path) -> dict[str, set[str]]:

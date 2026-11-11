@@ -200,3 +200,23 @@ def test_a_nightly_s_brief_has_its_row_when_its_pass_stopped_and_the_run_is_stal
     assert unfiled(kitchen, "browser-red-") == []
     rows = [row["slug"] for row in browser_red(kitchen)]
     assert rows == (["browser-red-2026-10-12"] if name == "copy_brief" else [])
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "{not json",
+        json.dumps(["a"]),
+        json.dumps({"f" * 40: "x", "e" * 40: {"branch": "b", "at": 3}}),
+    ],
+)
+def test_a_pass_reverts_main_over_a_names_file_no_pass_could_have_written(kitchen, text):
+    """An `OPENING` that does not parse, or names a revert with no branch or with a time no pass
+    writes, as from a hand's edit, stops no pass: the next one reverts main's culprit and says it,
+    and drops each name GitHub has no revert for."""
+    (red,) = red_merges(kitchen, ("alpha", 7, None))
+    (kitchen.state / reverts.OPENING).write_text(text)
+    kitchen.poll(NOW)
+    assert list(kept.read(kitchen.state)) == [red]
+    assert len(said(kitchen, "alpha")) == 1
+    assert json.loads((kitchen.state / reverts.OPENING).read_text()) == {}
