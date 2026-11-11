@@ -144,6 +144,17 @@ def test_a_squash_that_dropped_a_line_is_not_clean(tmp_path):
     )
 
 
+def test_patches_whose_files_git_quotes_are_not_compared_and_keep_no_review(branch):
+    """A push of a doc whose name has a `"` in it: git quotes the name in the diff's header, so
+    the file the patches differ in is not known, and no rule may keep the review over it."""
+    merge.git(branch.main, "checkout", "-q", "alpha")
+    branch.head = commit(branch.main, "a doc", {1: "a doc"}, 'say "hi".md')
+    merge.git(branch.main, "checkout", "-q", "main")
+    said = branch.verdict()
+    assert (said.clean, said.differ, said.rebased) == (False, None, False)
+    assert ready.kept_note(branch.reviewed, branch.head, said) == ""
+
+
 def test_a_merge_of_main_whose_resolution_changes_code_is_no_rebase(branch):
     """It descends from the reviewed head and adds no commit of its own, but its patch differs in
     code: that is the merge's change, which no review saw, and not a rebase's."""
