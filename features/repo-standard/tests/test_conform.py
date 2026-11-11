@@ -15,6 +15,7 @@ import json
 import os
 import re
 import runpy
+import shlex
 import shutil
 import subprocess
 import sys
@@ -1053,7 +1054,19 @@ def test_each_way_a_rule_is_broken_is_named(repo, capsys, change, said):
 
 
 def test_a_tag_lookup_that_hangs_is_a_note_and_fails_nothing(repo, tmp_path, capsys, monkeypatch):
-    monkeypatch.setattr(conform_module, "LIST_SECONDS", 0.001)
+    """The `git` first on PATH never answers `ls-remote`, so the lookup hangs however fast the
+    machine is, and the short limit only keeps the test quick."""
     upstream = tagged(tmp_path / "jstack", 1, 2)
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    stub = bin_dir / "git"
+    stub.write_text(
+        '#!/bin/sh\n[ "$1" = ls-remote ] && exec sleep 600\n'
+        f'exec {shlex.quote(shutil.which("git"))} "$@"\n'
+    )
+    stub.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setattr(conform_module, "LIST_SECONDS", 0.1)
     assert main(["conform", "--root", str(repo), "--upstream", str(upstream)]) == 0
-    assert "note: cannot list the standard's versions: git ls-remote" in capsys.readouterr().out
+    said = capsys.readouterr().out
+    assert f"note: cannot list the standard's versions: git ls-remote {upstream} took over" in said
