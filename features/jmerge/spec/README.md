@@ -179,7 +179,7 @@ The rule, `MergesOrWaitsOnYou`: "every open pull request merges or waits on the 
 It has two halves: a merge leaves no hold of yours outstanding but those your accept lifted at its head (`MergesOnlyOnYourWord`), and every open pull request, from its first state, goes on to merge or to wait on your word, so no path waits for ever on its crew, its reviewer, GitHub, a check or jmerge.
 It waits on your word where jmerge holds it for you, or where jbus held its row and paged you, which your approve lifts whatever jmerge says of it.
 The second half is a leads-to under weak fairness of every step that happens by itself, and not an invariant on settled states, since one canary's break is a loop with no settled state: a batch of one that fails, and takes the pull request again at the same head.
-Your word has no fairness, and other work moves main at most `Moves` times.
+Your word has no fairness, and other work moves main at most `Moves` times, once in `PrVerdict.cfg`: with two moves, today's run took over 600 s on CI, past the spec test's timeout, and every canary breaks with one.
 
 `pr_canaries.py` runs TLC on today's code and on ten canaries, each the code with one hold taken out (`Drop`):
 
@@ -192,17 +192,17 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --p
 At st-verdict-live's head it prints:
 
 ```text
-ok    today: MergesOrWaitsOnYou holds (1752492 distinct states found, 94.8 s)
-ok    canary go: MergesOrWaitsOnYou breaks (74433 distinct states found, 2.5 s)
-ok    canary touches: MergesOrWaitsOnYou breaks (74433 distinct states found, 2.4 s)
-ok    canary declines: MergesOrWaitsOnYou breaks (74433 distinct states found, 2.4 s)
-ok    canary mergeoff: MergesOrWaitsOnYou breaks (74433 distinct states found, 2.4 s)
-ok    canary head: MergesOrWaitsOnYou breaks (1466737 distinct states found, 47.2 s)
-ok    canary release: MergesOrWaitsOnYou breaks (1752474 distinct states found, 63.9 s)
-ok    canary rejudge: MergesOrWaitsOnYou breaks (1689252 distinct states found, 66.9 s)
-ok    canary again: MergesOrWaitsOnYou breaks (1638168 distinct states found, 66.7 s)
-ok    canary batch-failed: MergesOrWaitsOnYou breaks (1646079 distinct states found, 68.1 s)
-ok    canary twice: MergesOrWaitsOnYou breaks (1768921 distinct states found, 66.4 s)
+ok    today: MergesOrWaitsOnYou holds (655106 distinct states found, 27.1 s)
+ok    canary go: MergesOrWaitsOnYou breaks (58795 distinct states found, 2.2 s)
+ok    canary touches: MergesOrWaitsOnYou breaks (58784 distinct states found, 2.1 s)
+ok    canary declines: MergesOrWaitsOnYou breaks (58788 distinct states found, 2.1 s)
+ok    canary mergeoff: MergesOrWaitsOnYou breaks (58787 distinct states found, 2.1 s)
+ok    canary head: MergesOrWaitsOnYou breaks (577682 distinct states found, 17.4 s)
+ok    canary release: MergesOrWaitsOnYou breaks (655098 distinct states found, 21.1 s)
+ok    canary rejudge: MergesOrWaitsOnYou breaks (780300 distinct states found, 30.8 s)
+ok    canary again: MergesOrWaitsOnYou breaks (650098 distinct states found, 27.8 s)
+ok    canary batch-failed: MergesOrWaitsOnYou breaks (654332 distinct states found, 28.2 s)
+ok    canary twice: MergesOrWaitsOnYou breaks (687466 distinct states found, 27.4 s)
 every run says what it should
 ```
 
