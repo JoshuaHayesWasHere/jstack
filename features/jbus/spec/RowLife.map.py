@@ -1,6 +1,11 @@
 # Chart labels for RowLife: what you see of one row of the queue, in `jbus queue` and the sidebar.
 # Each status names what in features/jbus/src/jbus/work.py sets it (`work.status` and its `_THREAD`
 # table), and `removed` the verb that writes it. A row that is over keeps its status (`work.kept`).
+# The line's value in work.json (`value`) is not drawn: each status node joins the values that give
+# it, as work.status projects them (running: working, opening, launching; stale: hung, lost;
+# left: leftover, closed; queued: unapproved, behind, ready, lost; launched: lost, unknown), and
+# the value of a row that is over may say otherwise than its kept status, as a pull request that
+# opens on a done row shows `check`. The facts are joined too: a step names the one that changed.
 reader_actions = ["Grant", "Hold", "Lift", "Remove"]
 
 STATUS = {
@@ -21,6 +26,7 @@ STATUS = {
 GO = {
     "waiting": "No go",
     "approved": "Approved",
+    "behind": "Approved, behind a row it depends on",
     "held": "Held",
     "kept": "Held, its go kept",
 }
@@ -96,6 +102,9 @@ THREAD = {
     "none": "T3 Code lists no thread",
     "starting": "the thread starts",
     "atwork": "the thread works",
+    "hung": "the thread's turn hangs",
+    "settled": "T3 Code settles the thread",
+    "missing": "T3 Code no longer lists the thread",
     "waiting": "the thread asks for an answer",
     "failed": "the thread fails",
     "ended": "the thread ends",
@@ -134,6 +143,8 @@ def step(action, before, after):
     if action == "Remove":
         return f"you remove the row from {before['status']}"
     if action == "Grant":
+        if after["go"] == "behind":
+            return "you approve the row, behind a row it depends on"
         if before["go"] == "waiting":
             return "you approve the row, or a rule gives its go"
         if before["go"] == "kept":
@@ -141,6 +152,7 @@ def step(action, before, after):
         return "you approve the held row, and the hold ends"
     return {
         "Lift": "you lift the hold, and its go comes back",
+        "Ahead": "the rows it depends on are over",
         "Void": "its go no longer holds, and it waits for yours",
     }.get(action, action)
 

@@ -23,20 +23,23 @@ stateDiagram-v2
   class legendGroup3 group3
   state "At the same time" as regions {
     state "The go" as region0 {
-      [*] --> r0s3
+      [*] --> r0s4
       state "Approved" as r0s0
-      state "Held" as r0s1
-      state "Held, its go kept" as r0s2
-      state "No go" as r0s3
-      r0s0 --> r0s3 : its go no longer holds, and it<br/>waits for yours [when gate (a<br/>question is open) or queued<br/>(no thread yet)]
+      state "Approved, behind a row it<br/>depends on" as r0s1
+      state "Held" as r0s2
+      state "Held, its go kept" as r0s3
+      state "No go" as r0s4
+      r0s0 --> r0s4 : its go no longer holds, and it<br/>waits for yours [when gate (a<br/>question is open) or queued<br/>(no thread yet)]
       %% when r1s2, r1s7
-      r0s0 --> r0s1 : you hold the approved row
-      r0s0 --> r0s2 : you hold the row, keeping its<br/>go
-      r0s1 --> r0s0 : you approve the held row, and<br/>the hold ends
-      r0s2 --> r0s0 : you approve the row over the<br/>hold that kept its go
-      r0s2 --> r0s0 : you lift the hold, and its go<br/>comes back
-      r0s3 --> r0s0 : you approve the row, or a rule<br/>gives its go
-      r0s3 --> r0s1 : you hold the row
+      r0s0 --> r0s2 : you hold the approved row
+      r0s0 --> r0s3 : you hold the row, keeping its<br/>go
+      r0s1 --> r0s0 : the rows it depends on are<br/>over
+      r0s2 --> r0s0 : you approve the held row, and<br/>the hold ends
+      r0s3 --> r0s0 : you approve the row over the<br/>hold that kept its go
+      r0s3 --> r0s0 : you lift the hold, and its go<br/>comes back
+      r0s4 --> r0s1 : you approve the row, behind a<br/>row it depends on
+      r0s4 --> r0s0 : you approve the row, or a rule<br/>gives its go
+      r0s4 --> r0s2 : you hold the row
     }
     --
     state "The row's status" as region1 {
@@ -58,10 +61,6 @@ stateDiagram-v2
       r1s1 --> r1s4 : the failed thread leaves its<br/>work to its home
       r1s1 --> r1s9 : the failed thread works again
       r1s2 --> r1s11 : the question closes
-      r1s2 --> r1s1 : the question closes
-      r1s2 --> r1s9 : the question closes
-      r1s2 --> r1s10 : the question closes
-      r1s2 --> r1s4 : the question closes
       r1s2 --> r1s7 : the question closes, and the<br/>row's launch has no record
       r1s2 --> r1s3 : the question closes, and the<br/>row's launch has no thread yet
       r1s2 --> r1s6 : the question closes, and the<br/>row's pull request is open
@@ -69,10 +68,7 @@ stateDiagram-v2
       r1s2 --> r1s0 : the question closes, and the<br/>row's Result says done
       r1s3 --> r1s2 : jbus opens a question
       r1s3 --> r1s9 : T3 Code lists the thread at<br/>work
-      r1s3 --> r1s5 : the pull request merges
-      r1s3 --> r1s6 : the pull request opens
-      r1s3 --> r1s11 : the thread asks for an answer
-      r1s3 --> r1s10 : the thread ends
+      r1s3 --> r1s7 : T3 Code settles the thread
       r1s3 --> r1s0 : the thread ends with a clean<br/>Result before a pass sees it<br/>at work
       r1s3 --> r1s4 : the thread ends with work left<br/>before a pass sees it at work
       r1s3 --> r1s1 : the thread fails before a pass<br/>sees it at work
@@ -85,9 +81,18 @@ stateDiagram-v2
       r1s6 --> r1s2 : jbus opens a question on the<br/>row with its pull request open
       r1s6 --> r1s4 : the pull request closes<br/>unmerged
       r1s6 --> r1s8 : you remove the row from pr
-      r1s7 --> r1s3 : a launch record names a thread<br/>for the row [when Approved]
-      %% when r0s0
+      r1s7 --> r1s3 : a launch record names a thread<br/>for the row
       r1s7 --> r1s2 : jbus opens a question on the<br/>row
+      r1s7 --> r1s9 : the crew is on its way to its<br/>pull request after its review
+      r1s7 --> r1s0 : the crew writes a clean Result
+      r1s7 --> r1s4 : the crew writes a Result that<br/>leaves work
+      r1s7 --> r1s5 : the pull request merges
+      r1s7 --> r1s6 : the pull request opens
+      r1s7 --> r1s11 : the thread asks for an answer
+      r1s7 --> r1s10 : the thread ends
+      r1s7 --> r1s1 : the thread fails
+      r1s7 --> r1s9 : the thread works
+      r1s7 --> r1s10 : the thread's turn hangs
       r1s7 --> r1s8 : you remove the row from queued
       r1s9 --> r1s6 : a pull request opens
       r1s9 --> r1s3 : the crew opens nothing after<br/>its review
@@ -95,12 +100,11 @@ stateDiagram-v2
       r1s9 --> r1s4 : the Result leaves work, or the<br/>pull request closes
       r1s9 --> r1s11 : the thread asks for an answer<br/>to its request
       r1s9 --> r1s0 : the thread ends with a clean<br/>Result and no pull request
-      r1s9 --> r1s1 : the thread fails
       r1s9 --> r1s10 : the turn hangs, or the thread<br/>ends with nothing written
-      r1s10 --> r1s0 : the crew writes a clean Result
       r1s10 --> r1s4 : the thread stays quiet with<br/>nothing written, or writes a<br/>leftover
       r1s10 --> r1s9 : the thread works again
       r1s11 --> r1s3 : T3 Code lists no thread
+      r1s11 --> r1s3 : T3 Code no longer lists the<br/>thread
       r1s11 --> r1s9 : the request is answered and<br/>the thread works again
       r1s11 --> r1s4 : the thread ends after its<br/>request with work left
       r1s11 --> r1s1 : the thread fails while it<br/>waits
@@ -111,6 +115,7 @@ stateDiagram-v2
   class r0s1 plain
   class r0s2 plain
   class r0s3 plain
+  class r0s4 plain
   class r1s0 group2
   class r1s1 group1
   class r1s2 group0

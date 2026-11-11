@@ -62,7 +62,10 @@ VARIABLES
                 \* yet), open, ready (green and reviewed), again (it was ready and is not),
                 \* back (ready again, and it drops at most once), merged (its crew still on
                 \* it), done
-    msg,        \* each call: none, waiting in the home thread's outbox, or told to Josh
+    msg,        \* each call: none, waiting in the home thread's outbox, or told to Josh. A call
+                \* is a gate or an item of the one list (waiting-on-user.json); its other kinds
+                \* (approve, hold, held, github, install, config) wait on Josh alone, from no
+                \* child, so no rule of the tree reads them: they are the one list's machine.
     quiet,      \* each child: the checks since it last did something the root can see, while
                 \* it has a crew or pull request out or, for a routine, always; a nudge does
                 \* not reset it
@@ -76,12 +79,25 @@ VARIABLES
     seen,       \* each pull request: the tip of main each merger read before its merge
     blind,      \* whether a merge has landed over a tip its merger did not read
     lock,       \* the pull request whose merge holds the repo, or free
-    mode,       \* who runs jmerge, fixed for a run
+    mode,       \* who runs jmerge, fixed for a run. A home's run judges a pull request it
+                \* may not merge as `other-home` (jmerge/cli.py
+                \* `return Judgement(brief.stem, "wait", ready.OTHER_HOME, "", None)`), a wait
+                \* that changes nothing here: it is a merger that is not jbus taking no Read.
     keeper,     \* the catch-all's own thread: root (it has none yet, and the root's thread stands
                 \* in), live, or gone (archived, or T3 Code does not know it)
-    starts      \* the starts of the catch-all jbus launched that may still write its home-id
+    starts,     \* the starts of the catch-all jbus launched that may still write its home-id:
+                \* relaunches.json's stage `intent` or `launched` (jbus/children.py
+                \* `STAGES = ("intent", "launched", "started", "failed")`), which both count here
+    failed      \* the catch-all's last starts that failed, kept in relaunches.json from the stage
+                \* `failed` through the next launch until a start writes its home-id
+                \* (jbus/children.py `_stage(run, name, "failed", failed=failed, says=says)`,
+                \* with `says` the line made from it): none; once, the last start alone failed,
+                \* or failed on another cause than the one before (jbus/children.py
+                \* `times = was["times"] + 1 if was and was.get("cause") == found["cause"] else 1`);
+                \* waits, a second start in a row failed on one cause, which has not cleared
+                \* (jbus/children.py `waits = _waits(run, failed)`); cleared, that cause cleared
 vars == <<life, work, msg, quiet, watch, launches, up, broke, tip, seen, blind, lock, mode,
-          keeper, starts>>
+          keeper, starts, failed>>
 
 TypeOK ==
     /\ life \in [Kids -> {"unmade", "working", "stuck", "retired", "handed"}]
@@ -98,6 +114,7 @@ TypeOK ==
     /\ mode \in {"jbus", "home"}
     /\ keeper \in {"root", "live", "gone"}
     /\ starts \in 0..2
+    /\ failed \in {"none", "once", "waits", "cleared"}
 
 Init ==
     /\ life = [k \in Kids |-> "unmade"]
@@ -114,6 +131,7 @@ Init ==
     /\ mode \in Modes
     /\ keeper = "root"
     /\ starts = 0
+    /\ failed = "none"
 
 Queued(m) == msg[m] = "home"
 Open(m) == msg[m] \in {"home", "told"}
@@ -193,6 +211,10 @@ CatchallRuns == keeper # "live" ~> keeper = "live"
 \* jbus launches the catch-all at most once while a start it launched may still write its home-id
 \* (#1392).
 OneStart == starts <= 1
+
+\* A home whose start failed twice in a row on one cause is launched again only once that cause
+\* cleared (#1410): a sign-in that lapsed, a usage limit, and any other cause an hour on.
+WaitsForCause == failed = "waits" => starts = 0
 
 \* A ready pull request eventually merges.
 ReadyMerges == \A k \in Kids : Ready(k) ~> work[k] = "merged"
