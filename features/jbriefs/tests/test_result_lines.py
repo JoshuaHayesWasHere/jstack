@@ -7,13 +7,13 @@ Each brief here is a copy of a real one on which the Python and the skills' awk 
 answers (the st-implicit-pkgs scout, finding 1), with its thread ids and home path replaced and
 the private repo's brief cut to its lines (`fixtures/README.md`)."""
 
-import subprocess
-import sys
+import contextlib
+import io
 from pathlib import Path
 
 import pytest
 
-from jbriefs import below, checked, findings, parse, reviewers, stacked
+from jbriefs import below, checked, cli, findings, parse, reviewers, stacked
 
 BRIEFS = Path(__file__).parent / "fixtures" / "result_lines"
 
@@ -24,20 +24,10 @@ def brief(name):
 
 def line(what, *names):
     """What `jbriefs line` prints for the briefs, as a skill's block runs it."""
-    ran = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "jbriefs",
-            "line",
-            what,
-            *(n if n.startswith("--") else str(BRIEFS / f"{n}.md") for n in names),
-        ],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return ran.stdout.splitlines()
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        assert cli.main(["line", what, *(str(BRIEFS / f"{n}.md") for n in names)]) == 0
+    return out.getvalue().splitlines()
 
 
 def test_a_merged_note_after_the_address_still_names_the_pull_request():
@@ -139,3 +129,116 @@ def test_a_branch_line_with_no_pull_request_label_names_the_address_after_its_br
     pull = below.pull("Branch: x https://example.test/o/r/pull/986\n")
     assert (pull.url, pull.number) == ("https://example.test/o/r/pull/986", "986")
     assert below.pull("Branch: axe-workers (c42287d), no pull request yet\n").url == ""
+
+
+def test_a_line_jbriefs_line_does_not_know_and_a_brief_it_cannot_read(tmp_path, capsys):
+    with pytest.raises(SystemExit):
+        cli.main(["line", "status,colour", str(BRIEFS / "qw-lock-test-race.md")])
+    assert "no such line: colour" in capsys.readouterr().err
+    gone = tmp_path / "gone.md"
+    assert cli.main(["line", "pr", str(gone), str(BRIEFS / "qw-lock-test-race.md")]) == 1
+    said = capsys.readouterr()
+    assert said.out.splitlines() == ["https://github.com/example/private/pull/255"]
+    assert f"{gone} cannot be read" in said.err
+
+
+def test_a_brief_with_no_result_has_none_to_read():
+    assert below.last_result("# alpha: a task\nTask: do it\n") == ""
+    assert line("status,pr,reviewer,stacked", "qw-lock-test-race") == [
+        "done\thttps://github.com/example/private/pull/255\tnone\tnone"
+    ]
+
+
+def test_a_two_step_checked_line_reads_as_its_guards():
+    base, head = "b" * 40, "c" * 40
+    two = (
+        f"Checked: make check-fast BASE={base} PART=guards exit {{}} (took 9 s), then the "
+        "import-reached remainder, where exit 124 is the short lane's time limit and passes: "
+        f"make check-fast BASE={base} PART=rest exit {{}} at {head}"
+    )
+    guards = f"make check-fast BASE={base} PART=guards"
+    assert checked.read(two.format(0, 124)) == checked.Checked(guards, "0", head)
+    assert checked.read(two.format(0, 2)) == checked.Checked(guards, "2", head)
+    assert checked.read(two.format(1, 0)) == checked.Checked(guards, "1", head)
+
+
+SAW = "a" * 40
+RESULT = "# alpha\n\n## Result\nStatus: done\n"
+
+
+def section(by, scoped=False):
+    scope = "Scope: range-diff a..b c..d\n" if scoped else ""
+    return f"\n## Review\nBy: {by}\nVerdict: clean\n{scope}Head: {SAW}\n"
+
+
+SONNET = "claudeAgent claude-sonnet-5-5 high"
+SEATS = "Reviewer: mcp:a #1\nReviewer: mcp:b #2\n"
+
+
+@pytest.mark.parametrize(
+    ("brief", "running"),
+    [
+        (RESULT + "Reviewer: mcp:1\n", True),
+        (RESULT + "Reviewer: mcp:1\nScoped reviewer: mcp:3\n" + section("x") + section("y"), False),
+        (RESULT + "Reviewer: mcp:1\nSecond reviewer: mcp:2\n" + section("x"), True),
+        (RESULT + SEATS + section(f"{SONNET} #1"), True),
+        (RESULT + SEATS + section(f"{SONNET} #1") + section(f"{SONNET} #1"), True),
+        (RESULT + SEATS + section(f"{SONNET} #1") + section(f"{SONNET} #2"), False),
+        (
+            RESULT
+            + "Reviewer: mcp:x\n"
+            + SEATS
+            + section(f"{SONNET} #1")
+            + section(f"{SONNET} #2"),
+            False,
+        ),
+        (
+            RESULT
+            + SEATS
+            + section(f"{SONNET} #1")
+            + section(f"{SONNET} #2")
+            + f"Scoped reviewer: mcp:s, of {SAW}\n"
+            + section(f"{SONNET} #1"),
+            True,
+        ),
+        (
+            RESULT
+            + SEATS
+            + section(f"{SONNET} #1")
+            + section(f"{SONNET} #2")
+            + f"Scoped reviewer: mcp:s, of {SAW}\n"
+            + section(f"{SONNET} #1", scoped=True),
+            False,
+        ),
+        (
+            RESULT
+            + SEATS
+            + section(f"{SONNET} #1")
+            + section(f"{SONNET} #2")
+            + "Reviewer: mcp:c #1\n",
+            True,
+        ),
+        (
+            RESULT
+            + "Reviewer: mcp:1 #1\nSecond reviewer: mcp:2\n"
+            + section(f"{SONNET} #1")
+            + section("y"),
+            False,
+        ),
+    ],
+    ids=[
+        "launched and unwritten",
+        "a legacy scoped line waits for any section",
+        "two legacy lines and one section",
+        "a seat unwritten",
+        "a seat that wrote twice stands for no other",
+        "each seat wrote",
+        "an unnumbered launch the seats replaced waits for nothing",
+        "a scoped reviewer waits for a scoped section",
+        "a scoped section answers it",
+        "a seat launched again after its section waits for a new one",
+        "an unnumbered second reviewer takes a section of no seat",
+    ],
+)
+def test_a_review_runs_while_a_line_has_no_section_after_it(brief, running):
+    assert reviewers.running(brief) is running
