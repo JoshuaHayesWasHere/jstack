@@ -13,8 +13,10 @@ in it so far and the tests it has ended, writes that to a file of its own beside
 and reads the same from every other process: the other workers, and each process a test started
 that has ended and saved its data. Once every file waited on is decided, it writes the `stopped`
 file and stops the run, and pytest ends 2. It waits only for the lines coverage counts as
-statements, so a line a pragma excludes holds no run to its end. Lines seen here did run, so a
-stop never hides a line no test runs: the verdict is still the data the run folds once it ends.
+statements, so a line a pragma excludes holds no run to its end, and counts each line coverage
+recorded for the first line of its statement (`first_lines.py`), as the guard does. Lines seen
+here did run, so a stop never hides a line no test runs: the verdict is still the data the run
+folds once it ends.
 """
 
 import json
@@ -23,6 +25,7 @@ from pathlib import Path
 
 import coverage
 import pytest
+from first_lines import folded
 
 SAID = os.environ.get("NEW_LINES_RAN")
 
@@ -60,9 +63,14 @@ class Waiting:
             path = Path(name).resolve()
             if path in self.lines:
                 self.seen.setdefault(path, set()).update(
-                    number
-                    for number, contexts in data.contexts_by_lineno(name).items()
-                    if self.names[path] & set(contexts)
+                    folded(
+                        name,
+                        (
+                            number
+                            for number, contexts in data.contexts_by_lineno(name).items()
+                            if self.names[path] & set(contexts)
+                        ),
+                    )
                 )
 
     def others(self) -> None:
