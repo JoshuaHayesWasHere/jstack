@@ -109,9 +109,8 @@ def line_of(record: object) -> Line | None:
     if not isinstance(record, dict) or record.get("line") is not True:
         return None
     base, word = record.get("base"), record.get(ACCEPTED)
-    if not isinstance(base, str):
-        return None
-    return Line(base, word if isinstance(word, str) else "")
+    held = isinstance(base, str)
+    return Line(str(base), word if isinstance(word, str) else "") if held else None
 
 
 def _with(record: dict, line: Line | None, said: bool) -> dict:

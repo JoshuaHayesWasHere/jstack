@@ -8,6 +8,7 @@ waited on its check (st-implicit, finding 2, 2026-11-10).
 What `jmerge` did about a run GitHub kept queued (`stuck`) is about the pull request's head: a
 move of the tip alone starts no new run at that head, so it stays, and a new head ends it."""
 
+import json
 from datetime import UTC, datetime
 
 import pytest
@@ -79,3 +80,12 @@ def test_what_was_done_about_a_queued_run_ends_with_a_new_head(merges):
     merges.keep(moved, "1" * 40)
     assert merges.stuck(moved) == {}
     assert merges.known()["7"].get("stuck") is None
+
+
+def test_a_word_kept_with_no_line_before_this_gives_no_line(tmp_path):
+    record = {"head": "a" * 40, "tip": "1" * 40, "base": "main", "line": False, "accepted": WORD}
+    (tmp_path / rejudge.NAME).write_text(json.dumps({"7": record}))
+    merges = rejudge.BaseMerge(tmp_path, tmp_path, [], run=True)
+    merges.keep(pull(), "2" * 40, repeated={"check": []})
+    assert merges.accepted(7) == ""
+    assert "accepted" not in json.loads((tmp_path / rejudge.NAME).read_text())["7"]
