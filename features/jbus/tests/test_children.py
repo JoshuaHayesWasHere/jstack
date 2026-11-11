@@ -483,7 +483,8 @@ def says(kitchen):
 def test_a_start_that_failed_is_launched_again_on_the_next_pass(started, texts, cause):
     """A launch whose run ended, failed or idle with no `home-id` written, is over: the next
     pass launches the home again, with no wait for `PATIENCE`, and the sidebar names why the
-    last start failed instead of showing it as starting."""
+    last start failed instead of showing it as starting. `relaunches.json` keeps when the failed
+    start was launched, though the relaunch writes over the entry's own launch time."""
     kitchen = started
     kitchen.poll(NOW)
     thread = failed_at_once(kitchen, minutes(0), texts)
@@ -492,6 +493,10 @@ def test_a_start_that_failed_is_launched_again_on_the_next_pass(started, texts, 
     kitchen.poll(minutes(1))
     assert len(homes(kitchen)) == 2
     assert says(kitchen) == f"start failed: {cause}"
+    entry = json.loads((kitchen.state / "relaunches.json").read_text())["uncategorized"]
+    assert entry["failed"]["thread"] == thread["threadId"]
+    assert entry["failed"]["launched"] == NOW.isoformat()
+    assert entry["at"] == minutes(1).isoformat()
     assert not (kitchen.home / "uncategorized" / "home-id").exists()
 
 
