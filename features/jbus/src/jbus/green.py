@@ -25,7 +25,19 @@ here. Then it installs the tool again, as `install.sh` does: the editable instal
 the tree itself and not the link, so the tool runs the new tip only once it is installed from
 it. Where uv cannot install it, the link goes back to the tree the tool runs, the new tree goes,
 and the next pass tries again. The tree the link named before stays until the next move, for a
-command that still runs in it. Last, it puts each harness's layout again from the new tip
+command that still runs in it.
+
+The move's steps are not one write, so `green.json` keeps the step it owes (`MOVE`): written
+before the link moves, as `install`, then `relink` once uv installed the tool, and gone once
+the layouts are put. Each pass resumes an owed step (`_resume`) before it reads main.json, so a
+pass that dies with the link at the new tree and the tool at the old one, the units' 203/EXEC,
+is finished by the next pass, and a relink that is refused is asked again on each pass. Since a
+pass resumes first, it starts no new move while one owes its install; one that owes a relink is
+done by the newer move, and a move whose install fails goes back owing a relink of the tip it
+went back to.
+`features/jbus/spec/GreenMove.tla` checks the steps with a death between any two.
+
+After the install, the move puts each harness's layout again from the new tip
 (`jinstall.green.relink`), as `install.sh` would: the layouts link the copy's files one by one,
 so a file main added would otherwise reach no harness, and one it dropped would leave a link that
 dangles, until the next install. With each layout it puts the links under the harness's skills
@@ -109,11 +121,20 @@ BUILT = ("pyproject.toml", "uv.lock")
 
 FILE = "green.json"
 """The project's record of the copy: `refused`, the tip it would not import, `live`, the tip whose
-units the manager took every step of `jinstall.green.live` for, and the reload a move owes
-systemd: `at`, the tip whose units systemd must read, and `reload`, the unit files whose content
-changed since systemd read them, whose timers the reload restarts."""
+units the manager took every step of `jinstall.green.live` for, `move`, the move that still owes
+a step (`MOVE`), and the reload a move owes systemd: `at`, the tip whose units systemd must
+read, and `reload`, the unit files whose content changed since systemd read them, whose timers
+the reload restarts."""
 
 OWED = ("reload", "at")
+
+MOVE = "move"
+"""The key of `green.json` that keeps the move in flight: `to`, the tip it moves to, `from`, the
+tip whose tree the link named before it, and `owes`, the step it owes next (`STEPS_OWED`)."""
+
+STEPS_OWED = ("install", "relink")
+"""The steps a move owes, in order: point the link at the new tree and install the tool again
+from it, then remove the trees no command runs and put the harness layouts again."""
 
 NO_IMPORT = "the green copy does not import"
 MOVE_FAILED = "the green copy could not move"
@@ -317,13 +338,18 @@ def reload(run: Pass, copy: Path) -> None:
 
 
 def move(run: Pass, copy: Path | None = None) -> None:
-    """Move the green copy of the project's checkout to main's green tip, when there is such a
-    copy and the tip is newer than the one it holds, put the units of the tip it holds to work
-    once, then have systemd reload the units any move still owes it."""
+    """Resume the step a move of the green copy still owes, then move the copy to main's green
+    tip, when there is such a copy and the tip is newer than the one it holds, put the units of
+    the tip it holds to work once, then have systemd reload the units any move still owes it. A
+    link that names a tree that is gone is still the copy where the tree its move came from
+    says so."""
     copy = path() if copy is None else copy
     made_from = of(copy)
+    if made_from is None and (owed := _owed(run)) is not None:
+        made_from = of(trees(copy) / owed["from"])
     if made_from is None or made_from.resolve() != run.project.checkout.resolve():
         return
+    _resume(run, copy)
     _advance(run, copy)
     _live(run, copy)
     reload(run, copy)
@@ -349,7 +375,82 @@ def _live(run: Pass, copy: Path) -> None:
     write_json(run.state / FILE, {**read_json(run.state / FILE, {}), "live": held})
 
 
+def _owed(run: Pass) -> dict[str, str] | None:
+    """The move `green.json` keeps as owing a step, or None where no move owes one."""
+    owed = read_json(run.state / FILE, {}).get(MOVE)
+    kept = isinstance(owed, dict) and owed.get("owes") in STEPS_OWED
+    return owed if kept and all(isinstance(owed.get(key), str) for key in ("to", "from")) else None
+
+
+def _resume(run: Pass, copy: Path) -> None:
+    """Take up the step a move owes, as `green.json` keeps it, before the pass reads main.json: a
+    pass that died after it pointed the link, or a relink that was refused, is finished here. A
+    tree the move went to that is gone puts the link back on the one it came from."""
+    owed = _owed(run)
+    if owed is None:
+        return
+    tree, before = trees(copy) / owed["to"], trees(copy) / owed["from"]
+    if not tree.is_dir():
+        if before.is_dir():
+            _point(copy, before)
+        _back(run, owed["from"])
+        why = f"to {owed['to'][:12]}: its tree is gone, so it stays at {owed['from'][:12]}"
+        run.condition("green", MOVE_FAILED, why, key=owed["to"][:12])
+        return
+    _settle(run, copy, owed)
+
+
+def _settle(run: Pass, copy: Path, owed: Mapping[str, str]) -> None:
+    """Take the steps of a move from the one `owed` names: point the link at the new tree and
+    install the tool again from it (`install`), then remove the trees no command may run and put
+    the harness layouts again (`relink`). Each step writes the next one owed before it starts,
+    and the move is dropped from `green.json` only once the relink is taken, so a pass that dies
+    or is refused anywhere leaves the next one the step to take."""
+    green, held = owed["to"], owed["from"]
+    tree, before = trees(copy) / green, trees(copy) / held
+    installed = owed["owes"] == "install"
+    if installed:
+        _point(copy, tree)
+        if why := _reinstall(copy):
+            _point(copy, before)
+            _back(run, held)
+            shutil.rmtree(tree)
+            why = f"uv tool install at {green[:12]}: {why}"
+            run.condition("green", MOVE_FAILED, why, key=green[:12])
+            return
+        owed = {**owed, "owes": "relink"}
+        write_json(run.state / FILE, {**read_json(run.state / FILE, {}), MOVE: owed})
+    for old in trees(copy).iterdir():
+        if old.is_dir() and old.resolve() not in (before.resolve(), tree.resolve()):
+            shutil.rmtree(old)
+    from jinstall.green import relink
+
+    faults = relink(copy)
+    for why in faults:
+        run.condition("green", UNLINKED, f"at {green[:12]}: {why}", key=green[:12])
+    if not faults:
+        _drop(run)
+    if installed:
+        line = f"the commands now run from {green[:12]}, in place of {held[:12]}"
+        run.say(f"green {run.project.name}: {line}")
+
+
+def _back(run: Pass, held: str) -> None:
+    """Keep in `green.json` that the move went back to `held`, and so owes a relink of `held`:
+    the move it took over may have owed one that was never taken."""
+    record = read_json(run.state / FILE, {})
+    write_json(run.state / FILE, {**record, MOVE: {"to": held, "from": held, "owes": "relink"}})
+
+
+def _drop(run: Pass) -> None:
+    """Take the move out of `green.json`: it owes no step."""
+    record = read_json(run.state / FILE, {})
+    write_json(run.state / FILE, {key: value for key, value in record.items() if key != MOVE})
+
+
 def _advance(run: Pass, copy: Path) -> None:
+    """Move the copy to main's green tip. `_resume` ran first, so no move owes its install here,
+    and a move that owes a relink is taken over by this one, which relinks."""
     green = mainjson.read(run.state).green
     held = at(copy)
     record = read_json(run.state / FILE, {})
@@ -370,27 +471,11 @@ def _advance(run: Pass, copy: Path) -> None:
         return
     before = copy.resolve()
     changed = units(before, tree)
+    owes = {**record, MOVE: {"to": green, "from": before.name, "owes": "install"}}
     if (changed or linked(before)) and launchd.manager() == "systemd" and ours():
-        owed = sorted({*record.get("reload", []), *changed})
-        write_json(run.state / FILE, {**record, "reload": owed, "at": green})
-    _point(copy, tree)
-    if why := _reinstall(copy):
-        _point(copy, before)
-        write_json(run.state / FILE, record)
-        shutil.rmtree(tree)
-        why = f"uv tool install at {green[:12]}: {why}"
-        run.condition("green", MOVE_FAILED, why, key=green[:12])
-        return
-    for old in trees(copy).iterdir():
-        if old.is_dir() and old.resolve() not in (before, tree.resolve()):
-            shutil.rmtree(old)
-    from jinstall.green import relink
-
-    for why in relink(copy):
-        run.condition("green", UNLINKED, f"at {green[:12]}: {why}", key=green[:12])
-    run.say(
-        f"green {run.project.name}: the commands now run from {green[:12]}, in place of {held[:12]}"
-    )
+        owes |= {"reload": sorted({*record.get("reload", []), *changed}), "at": green}
+    write_json(run.state / FILE, owes)
+    _settle(run, copy, owes[MOVE])
 
 
 STEPS = (verbs.Step("close", 45, "green.move", lambda half: move(half.run), ()),)
