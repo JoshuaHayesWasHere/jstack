@@ -50,7 +50,7 @@ stateDiagram-v2
       state "pr (its pull request is<br/>open)" as r1s6
       state "queued (no thread yet)" as r1s7
       state "removed (queue.py<br/>`remove`, no pass sets it)" as r1s8
-      state "running (the thread at<br/>work, a Result or not)" as r1s9
+      state "running (the thread at<br/>work, a Result or not, or<br/>its pull request opening)" as r1s9
       state "stale (the thread ended<br/>with nothing written)" as r1s10
       state "waiting (the thread asks<br/>you)" as r1s11
       r1s0 --> r1s5 : the pull request of a done row<br/>merges on your accept
@@ -90,6 +90,7 @@ stateDiagram-v2
       r1s7 --> r1s2 : jbus opens a question on the<br/>row
       r1s7 --> r1s8 : you remove the row from queued
       r1s9 --> r1s6 : a pull request opens
+      r1s9 --> r1s3 : the crew opens nothing after<br/>its review
       r1s9 --> r1s5 : the pull request opens and<br/>merges between two passes
       r1s9 --> r1s4 : the Result leaves work, or the<br/>pull request closes
       r1s9 --> r1s11 : the thread asks for an answer<br/>to its request

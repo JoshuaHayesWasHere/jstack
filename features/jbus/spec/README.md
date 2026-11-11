@@ -3,7 +3,7 @@
 One row of jbus's queue, from `jbus queue add` to its end, in two regions at the same time.
 
 - The status, which no verb moves: each pass works it out again from the facts (`work.status`), and `queue.derive` writes it, but over a row that is over (`work.over`), whose status it keeps (`work.kept`).
-  The spec models the facts `work.status` reads, folded to what it tells apart: the thread (none, starting, at work, waiting, failed, ended), the Result (none, clean, leaving work), the pull request (none, open, merged, closed), a question, and the launch record.
+  The spec models the facts `work.status` reads, folded to what it tells apart: the thread (none, starting, at work, waiting, failed, ended), the Result (none, clean, leaving work), the pull request (none, opening, open, merged, closed), a question, and the launch record.
   Each step changes one fact, and the pass derives the status they give.
   `Moves` in `RowLife.tla` is `queue.MOVES`, move for move, and `features/jbus/tests/test_rowlife_spec.py` fails when the two differ.
   `removed` is the line the `remove` verb writes, and no pass judges it.
@@ -18,7 +18,7 @@ The rule is `FinalStays`: a row that is over stays over, so the queue, `watch.fi
 A `done` row may only become `merged`, and a `merged` one stays so.
 The facts can still leave a final row: a pull request opens after a `done`, or a question opens on a `merged` row.
 The rule holds because `queue.derive` keeps the status (`work.kept`), and so checks the code's derive and not only the table.
-`test_rowlife_spec.py` runs TLC on `RowLife.cfg`, where the rule holds over 1076 distinct states, and on a canary that takes `work.kept` out (`Fault = "no-latch"`), where it breaks.
+`test_rowlife_spec.py` runs TLC on `RowLife.cfg`, where the rule holds over 1316 distinct states, and on a canary that takes `work.kept` out (`Fault = "no-latch"`), where it breaks.
 Its TLC runs skip where no Java runs TLC.
 By hand, in a copy of this folder:
 
@@ -38,7 +38,7 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --p
 
 It writes `RowLife-statechart/`: `chart.mmd` and `chart.png`, `stories.md` and `summary.json`, labelled by `RowLife.map.py`.
 Each status on the chart says what in `work.py` sets it, and each step that moves the status is labelled by its row of `queue.MOVES`.
-The regions draw 58 of their 85 arrows: a step whose next status turns on a fact the chart does not show, such as a pull request that merges from a row at `gate`, is left out, and `tlc/regions-all.mmd` has every one.
+The regions draw 59 of their 86 arrows: a step whose next status turns on a fact the chart does not show, such as a pull request that merges from a row at `gate`, is left out, and `tlc/regions-all.mmd` has every one.
 Its `tlc/` folder holds TLC's output, which is not committed.
 
 ## What the model leaves out

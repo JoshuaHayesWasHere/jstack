@@ -16,6 +16,9 @@ one `State`. The facets are:
 - `Pull`: the work's pull request. For an open pull request, the facet is the step that jmerge's
   reason names (`jmerge.judgement.step`), or `other` for a reason that no rule names. A pull
   request stacked on another row's (`jmerge.ready.STACKED_ON`) is `stacked`, held by that row.
+  With no pull request open, merged or closed, the facet is `opening` while the crew is on its
+  way to the one its Result opens after its review (`leftover.reviewing`): the review is due or
+  running, or it is written and the crew is opening the pull request (`leftover.opening`).
 - `Question`: whether jbus has a gate open for the work this pass.
 - `Answered`: which of T3 Code and GitHub answered this pass.
 
@@ -95,6 +98,7 @@ class Written(StrEnum):
 
 class Pull(StrEnum):
     NONE = "none"
+    OPENING = "opening"
     MERGED = "merged"
     CLOSED = "closed"
     RESULT = "result"
@@ -320,6 +324,15 @@ PATTERNS = (
     ),
     Pattern("hold", "Needs you", "user", "your word", "hold", thread=STILL, pull=_set(Pull.HOLD)),
     Pattern(
+        "opening",
+        "Opening",
+        "crew",
+        "its crewmate to open its pull request",
+        "running",
+        thread=STILL,
+        pull=_set(Pull.OPENING),
+    ),
+    Pattern(
         "launching",
         "Launching",
         "crew",
@@ -471,12 +484,15 @@ def status(state: State) -> str:
     A row that is over comes first, then the pull request, then a gate, so a question holds back no
     row that is over and hides no pull request. A row whose pull request merged is `merged`, one the
     `done` pattern matches is `done`, and one whose pull request is open is `pr`, with a question
-    open or not. Any other row with a question open is `gate`. A thread in a status jbus does not
-    know, or a hung turn, makes the row `stale`. A thread that ended with nothing written makes the
-    row `stale` when it completed or was archived, and `failed` when it failed. The row is
-    `launched` while no thread is there for a launch, and `queued` once the thread was settled. A
-    thread off T3 Code's list counts only for a row with nothing written. `status` reads no clock: a
-    `stale` row with nothing written becomes `left` once its thread is quiet (`watch.unwritten`).
+    open or not. Any other row with a question open is `gate`. A row whose pull request is opening
+    (`Pull.OPENING`) is `running`, whatever its Result leaves, and never `left`. A thread in a
+    status jbus does not know, or a hung turn, makes the row `stale`. A thread that ended with
+    nothing written makes the row `stale` when it completed or was archived, and `failed` when it
+    failed. The row is `launched` while no thread is there for a launch, and `queued` once the
+    thread was settled. A thread off T3 Code's list counts only for a row with nothing written.
+    `status` reads no clock: a `stale` row with nothing written becomes `left` once its thread is
+    quiet (`watch.unwritten`).
+
     """
     facts, value = state.facts, state.value
     if facts.pull == Pull.MERGED:
@@ -488,6 +504,8 @@ def status(state: State) -> str:
         return "pr"
     if value == "asking":
         return "gate"
+    if value == "opening":
+        return "running"
     if value in ("leftover", "closed"):
         return "left"
     if facts.seen:
@@ -618,7 +636,8 @@ class Closer(StrEnum):
     - `user`: a gate of the user's holds the row, one `jbus needs` lists (`blockers.holding`);
     - `word`: a hold no crew clears holds the row for the user's accept (`jbus.clock.lifted`);
     - `review`: the row's last Result opens its pull request after a review that is not written
-      (`review.awaited`), so the row waits on that review, whatever its `Left:` line says;
+      (`review.awaited`), so the row waits on that review, whatever its `Left:` line says, and
+      its pull request is opening (`Pull.OPENING`) or its thread quiet;
     - `busy`: a thread is at work on what the row left (`leftover.json`);
     - `home`: anything else, and a row that ended with something left is its home's to close."""
 
@@ -630,7 +649,7 @@ class Closer(StrEnum):
 
 
 ENDED = ("leftover", "closed")
-REVIEWED = ("leftover", "quiet")
+REVIEWED = ("leftover", "opening", "quiet")
 
 
 def holder(
@@ -651,10 +670,12 @@ def holder(
     `waits`. A row that waits on its go says why in `why`: `go` is why its go does not hold, from
     the queue (`jbus.queue.unheld`). `pr` is its pull request, as the queue names it, and a pull
     request held for an accept keeps `jmerge`'s hold as its `why`. A row whose Result waits on its
-    review (`Closer.REVIEW`) and that ended or is quiet is held by its reviewer. A row that ended
-    with something left, or whose pull request closed, is its home's to close: jbus tells the home,
-    and the user is not asked (`jbus.leftover`). A thread at work on the leftover holds it instead
-    (`Closer.BUSY`).
+    review (`Closer.REVIEW`) and that ended, is quiet or is opening its pull request is held by its
+    reviewer; once the review is written, a row opening its pull request is its crew's. A row that
+    ended with something left, or whose pull request closed, is its home's to close: jbus tells the
+    home, and the user is not asked (`jbus.leftover`). A thread at work on the leftover holds it
+    instead (`Closer.BUSY`).
+
     `unhomed` is why no home has it yet (`leftover.his`): the row still waits on a home, and
     `waits` says why.
 

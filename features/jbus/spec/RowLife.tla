@@ -42,7 +42,9 @@ Threads == {"none", "starting", "atwork", "waiting", "failed", "ended"}
 \* "atwork" is `Thread.MOVING` or `Thread.QUIET` (work.py `AT_WORK`); "ended" a thread that
 \* completed, was settled or archived, or is missing; "failed" one that failed.
 Writtens == {"none", "clean", "leftover"}
-Pulls == {"none", "open", "merged", "closed"}
+Pulls == {"none", "opening", "open", "merged", "closed"}
+\* "opening" is `Pull.OPENING`: no pull request yet, and the crew is on its way to the one its
+\* Result opens after its review (leftover.py `def reviewing(run: Pass, world: World, slug: str) -> bool:`).
 
 VARIABLES status, go, thread, written, pull, question, launched
 vars == <<status, go, thread, written, pull, question, launched>>
@@ -64,6 +66,7 @@ StatusOf(t, w, p, q, l) ==
   ELSE IF p = "open" THEN "pr"                        \* work.py `if facts.pull in OPEN:`
   ELSE IF q THEN "gate"                               \* work.py `if value == "asking":`
   ELSE IF t = "waiting" THEN "waiting"                \* work.py `_THREAD = {`
+  ELSE IF p = "opening" THEN "running"                \* work.py `if value == "opening":`
   ELSE IF p = "closed" \/ (w = "leftover" /\ t \in {"atwork", "failed", "ended"})
     THEN "left"                                       \* work.py `if value in ("leftover", "closed"):`
   ELSE IF t = "atwork" THEN "running"                 \* work.py `_THREAD = {`
@@ -112,12 +115,15 @@ Write ==
   /\ UNCHANGED go
 
 \* GitHub lists the row's pull request: it opens, merges (also between two passes), or closes,
-\* and a closed one opens again.
+\* and a closed one opens again. Before it opens, the crew may be on its way to it after its
+\* review, and may open nothing.
 Pull ==
   /\ launched
   /\ \E p \in Pulls :
        /\ <<pull, p>> \in {<<"none", "open">>, <<"none", "merged">>, <<"open", "merged">>,
-                            <<"open", "closed">>, <<"closed", "open">>}
+                            <<"open", "closed">>, <<"closed", "open">>, <<"none", "opening">>,
+                            <<"opening", "none">>, <<"opening", "open">>,
+                            <<"opening", "merged">>}
        /\ Derive(thread, written, p, question, launched)
   /\ UNCHANGED go
 

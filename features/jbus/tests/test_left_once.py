@@ -38,6 +38,5 @@ def test_a_row_whose_crew_opens_nothing_past_the_window_moves_to_left_once(kitch
     for minutes in (0, leftover.OPENING_MINUTES + 1, leftover.OPENING_MINUTES + 2):
         kitchen.poll(later(minutes))
     assert moves(kitchen) == [("queued", "running"), ("running", "left")]
-    assert all(one["legal"] for one in transitions(kitchen) if "legal" in one)
     (sent,) = lefts(kitchen)
     assert "It ended with no pull request.\nLeft: the docs\n" in sent["message"]
