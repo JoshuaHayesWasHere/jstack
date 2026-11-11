@@ -9,15 +9,19 @@ stateDiagram-v2
   classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
   classDef group0 fill:#d1f2eb,stroke:#697976,color:#1b2631
   classDef group0Path fill:#d1f2eb,stroke:#1f3a93,stroke-width:4px,color:#1b2631
-  classDef group2 fill:#f9d6d5,stroke:#7d6b6b,color:#1b2631
-  classDef group2Wrong fill:#f9d6d5,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group1 fill:#d6eaf8,stroke:#6b757c,color:#1b2631
+  classDef group1Path fill:#d6eaf8,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group3 fill:#f9d6d5,stroke:#7d6b6b,color:#1b2631
+  classDef group3Wrong fill:#f9d6d5,stroke:#c0392b,stroke-width:4px,color:#7b241c
   state "Legend" as legend {
-    state "Budget kept" as legendGroup0
-    state "A whole log lost" as legendGroup2
+    state "Budget kept, above the floor" as legendGroup0
+    state "Budget kept, at the floor" as legendGroup1
+    state "A whole log lost" as legendGroup3
     state "Breaks a rule today" as legendWrong
   }
   class legendGroup0 group0
-  class legendGroup2 group2
+  class legendGroup1 group1
+  class legendGroup3 group3
   class legendWrong plainWrong
   state "The API budget above the<br/>floor" as g0 {
     state "a call under way, no call<br/>log, no old log" as s0
@@ -45,8 +49,8 @@ stateDiagram-v2
   class s1 group0Path
   class s2 group0Path
   class s3 group0Path
-  class s8 group0Path
-  class s4 group2Wrong
-  class s5 group0Path
-  class s6 group0Path
-  class s7 group0Path
+  class s8 group1Path
+  class s4 group3Wrong
+  class s5 group1Path
+  class s6 group1Path
+  class s7 group1Path

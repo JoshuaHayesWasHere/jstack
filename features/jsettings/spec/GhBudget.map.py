@@ -73,11 +73,12 @@ def group(v, facts):
         return "A whole log lost"
     if _low_call(v):
         return "A call under the floor"
-    return "Budget kept"
+    return "Budget kept, above the floor" if v["left"] > FLOOR else "Budget kept, at the floor"
 
 
 group_colors = {
-    "Budget kept": "#d1f2eb",
+    "Budget kept, above the floor": "#d1f2eb",
+    "Budget kept, at the floor": "#d6eaf8",
     "A call under the floor": "#fdebd0",
     "A whole log lost": "#f9d6d5",
 }

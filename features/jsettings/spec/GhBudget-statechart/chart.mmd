@@ -9,19 +9,22 @@ stateDiagram-v2
   classDef plain fill:#f4f6f7,stroke:#566573,color:#1b2631
   classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
   classDef group0 fill:#d1f2eb,stroke:#697976,color:#1b2631
-  classDef group1 fill:#fdebd0,stroke:#7f7668,color:#1b2631
-  classDef group1Wrong fill:#fdebd0,stroke:#c0392b,stroke-width:4px,color:#7b241c
-  classDef group2 fill:#f9d6d5,stroke:#7d6b6b,color:#1b2631
-  classDef group2Wrong fill:#f9d6d5,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group1 fill:#d6eaf8,stroke:#6b757c,color:#1b2631
+  classDef group2 fill:#fdebd0,stroke:#7f7668,color:#1b2631
+  classDef group2Wrong fill:#fdebd0,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group3 fill:#f9d6d5,stroke:#7d6b6b,color:#1b2631
+  classDef group3Wrong fill:#f9d6d5,stroke:#c0392b,stroke-width:4px,color:#7b241c
   state "Legend" as legend {
-    state "Budget kept" as legendGroup0
-    state "A call under the floor" as legendGroup1
-    state "A whole log lost" as legendGroup2
+    state "Budget kept, above the floor" as legendGroup0
+    state "Budget kept, at the floor" as legendGroup1
+    state "A call under the floor" as legendGroup2
+    state "A whole log lost" as legendGroup3
     state "Breaks a rule today" as legendWrong
   }
   class legendGroup0 group0
   class legendGroup1 group1
   class legendGroup2 group2
+  class legendGroup3 group3
   class legendWrong plainWrong
   state "At the same time" as regions {
     [*] --> r0s0
@@ -93,24 +96,24 @@ stateDiagram-v2
   class r0s0 group0
   class r0s1 plain
   class r0s2 plain
-  class r1s0 group1Wrong
-  class r1s1 group1Wrong
-  class r1s2 group1Wrong
-  class r1s3 group2Wrong
+  class r1s0 group2Wrong
+  class r1s1 group2Wrong
+  class r1s2 group2Wrong
+  class r1s3 group3Wrong
   class r1s4 group0
-  class r1s5 group0
-  class r1s6 group0
-  class r1s7 group0
-  class r1s8 group0
+  class r1s5 group1
+  class r1s6 plain
+  class r1s7 group1
+  class r1s8 plain
   class r1s9 group0
-  class r1s10 group2Wrong
+  class r1s10 group3Wrong
   class r1s11 group0
-  class r1s12 group0
-  class r1s13 group0
-  class r1s14 group0
+  class r1s12 group1
+  class r1s13 plain
+  class r1s14 group1
   class r1s15 group0
-  class r1s16 group2Wrong
+  class r1s16 group3Wrong
   class r1s17 group0
-  class r1s18 group0
-  class r1s19 group0
-  class r1s20 group0
+  class r1s18 group1
+  class r1s19 plain
+  class r1s20 group1

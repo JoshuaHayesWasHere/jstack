@@ -11,9 +11,14 @@
   },
   "chartGroups": [
     {
-      "name": "Budget kept",
+      "name": "Budget kept, above the floor",
       "color": "#d1f2eb",
-      "states": 16
+      "states": 6
+    },
+    {
+      "name": "Budget kept, at the floor",
+      "color": "#d6eaf8",
+      "states": 6
     },
     {
       "name": "A call under the floor",
@@ -69,9 +74,9 @@
     "command": "statechart from-spec GhBudget.tla --title 'Does the gh budget hold, and does the call log keep each full log?' --expect-broken NoLostGeneration,HeldWhenLow --png",
     "inputs": {
       "GhBudget.cfg": "27e4529d581c4f067f2bfd203fdb5373fd268708e56927d51b167aded4b43929",
-      "GhBudget.map.py": "52125cfbdcdc465208fd0c639563172583d3c64d719a78da7fa8cfc04f9be8df",
+      "GhBudget.map.py": "4abe3c0ee1570f4d42c3e022423877ee18b56db2acd755663c8255d27ed012e8",
       "GhBudget.tla": "b3deb91d803c94d1d2c0ab121309c8654284bb7fd0f2a639c145e3f957643da7"
     },
-    "chart": "48596e62683ce16cce38645bb1e083a33f071e5ff0116e8d9124cc8d22feb8bc"
+    "chart": "f4a780bb49985790d9a29b80b3b33cb670b3e07c0faca33c6479d59ea2dcbfee"
   }
 }
