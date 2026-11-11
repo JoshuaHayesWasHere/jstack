@@ -177,7 +177,7 @@ It models the verdict as of main 21112eba8 and jbus's hold as of main 8644c5324,
 
 The rule, `MergesOrWaitsOnYou`: "every open pull request merges or waits on the user's word".
 It has two halves: a merge leaves no hold of yours outstanding but those your accept lifted at its head (`MergesOnlyOnYourWord`), and every open pull request, from its first state, goes on to merge or to wait on your word, so no path waits for ever on its crew, its reviewer, GitHub, a check or jmerge.
-It waits on your word where jmerge holds it for you, or where its row is held or has no go, which only your approve lifts whatever jmerge says of it.
+It waits on your word where jmerge holds it for you, or where jbus held its row and paged you, which your approve lifts whatever jmerge says of it.
 The second half is a leads-to under weak fairness of every step that happens by itself, and not an invariant on settled states, since one canary's break is a loop with no settled state: a batch of one that fails, and takes the pull request again at the same head.
 Your word has no fairness, and other work moves main at most `Moves` times.
 
@@ -192,17 +192,17 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --p
 At st-verdict-live's head it prints:
 
 ```text
-ok    today: MergesOrWaitsOnYou holds (1095068 distinct states found, 49.7 s)
-ok    canary go: MergesOrWaitsOnYou breaks (71005 distinct states found, 2.3 s)
-ok    canary touches: MergesOrWaitsOnYou breaks (71005 distinct states found, 2.3 s)
-ok    canary declines: MergesOrWaitsOnYou breaks (71007 distinct states found, 2.4 s)
-ok    canary mergeoff: MergesOrWaitsOnYou breaks (71005 distinct states found, 2.4 s)
-ok    canary head: MergesOrWaitsOnYou breaks (911773 distinct states found, 31.2 s)
-ok    canary release: MergesOrWaitsOnYou breaks (1095050 distinct states found, 41.1 s)
-ok    canary rejudge: MergesOrWaitsOnYou breaks (1124454 distinct states found, 46.1 s)
-ok    canary again: MergesOrWaitsOnYou breaks (1077660 distinct states found, 42.6 s)
-ok    canary batch-failed: MergesOrWaitsOnYou breaks (1093530 distinct states found, 48.0 s)
-ok    canary twice: MergesOrWaitsOnYou breaks (1014050 distinct states found, 45.5 s)
+ok    today: MergesOrWaitsOnYou holds (1752492 distinct states found, 94.8 s)
+ok    canary go: MergesOrWaitsOnYou breaks (74433 distinct states found, 2.5 s)
+ok    canary touches: MergesOrWaitsOnYou breaks (74433 distinct states found, 2.4 s)
+ok    canary declines: MergesOrWaitsOnYou breaks (74433 distinct states found, 2.4 s)
+ok    canary mergeoff: MergesOrWaitsOnYou breaks (74433 distinct states found, 2.4 s)
+ok    canary head: MergesOrWaitsOnYou breaks (1466737 distinct states found, 47.2 s)
+ok    canary release: MergesOrWaitsOnYou breaks (1752474 distinct states found, 63.9 s)
+ok    canary rejudge: MergesOrWaitsOnYou breaks (1689252 distinct states found, 66.9 s)
+ok    canary again: MergesOrWaitsOnYou breaks (1638168 distinct states found, 66.7 s)
+ok    canary batch-failed: MergesOrWaitsOnYou breaks (1646079 distinct states found, 68.1 s)
+ok    canary twice: MergesOrWaitsOnYou breaks (1768921 distinct states found, 66.4 s)
 every run says what it should
 ```
 
@@ -214,9 +214,9 @@ The first run found a story the code does not have: a check that failed over a r
 jbus tells the crew of a conflict from GitHub's `CONFLICTING` whatever jmerge says (`features/jbus/src/jbus/rebase.py`), so the model's crew rebases on a conflict it is told of alone, and the rule holds.
 
 The first run of the widened rule found a pull request that merged past jbus's hold: the crew's fix went out before the hold, a third head passed and joined the batch, and the hold landed while the batch's check ran.
-The code has no such order: `stall.twice` (tellers, rank 90) holds the row in the pass that counts its second failed head, before `rebase.tell` (rank 100) tells the crew of it, so the model's crew gets no fix while a count at the limit waits for its hold.
-A row you held by hand whose check then fails is the one wait the verdict words as its crew's: jmerge says `check has failed` while the outbox holds the crew's fix until your approve.
-The rule counts it as a wait on your word, as it is; the chart draws it in "Waits on your word" as `held: its row is held`.
+The code has no such order: a pass runs its tellers, `stall.twice` among them, before the steps after expedite, where `rebase.github` tells the crew of the failed check, so the row is held in the pass that counts its second failed head before its crew hears of it, and the model's crew gets no fix while a count at the limit waits for its hold.
+jbus's hold is the one wait on you that jmerge words as its crew's: with the check failed, jmerge says `check has failed`, as GitHub's waits come before the row's go, while the outbox holds the crew's fix until your approve or a head whose check passes.
+The row says `check failed twice` and jbus pages you once; the chart draws the state in "Waits on your word" as `its check failed, and held: its check failed twice`.
 
 ## Draw the chart
 
@@ -229,8 +229,8 @@ W=$(mktemp -d) && cp features/jmerge/spec/PrVerdict.* "$W"
 ```
 
 Run it from the repo root, and copy the files of `$W/out`, but its `tlc/`, into `PrVerdict-statechart/`.
-`PrVerdict.chart.cfg` moves main once (437,714 model states, about two and a half minutes), and `PrVerdict.map.py` labels each state by main and what jmerge last said, and a held row by why it is held.
-The chart has 24 states and 31 steps, and no state breaks the rule.
+`PrVerdict.chart.cfg` moves main once (655,106 model states, about two minutes), and `PrVerdict.map.py` labels each state by main and what jmerge last said, and a row jbus held for its failed checks as held.
+The chart has 22 states and 29 steps, and no state breaks the rule.
 Then draw its Excalidraw file and the charts page again, from the repo root:
 
 ```sh
@@ -251,5 +251,5 @@ each with `UV_PROJECT_ENVIRONMENT` and `uv run --frozen --project "$S"` in front
   The model's batch is of one, and proves or fails on the tree merged over main.
 - A review round that says the brief is not met: one round holds.
 - A head jbus counts for nothing besides one over main's red: a flake shared with two other branches and an infra step's failure (`jbus.stall.shared`, `infra`).
-- A row with no go that is not held: `nogo` stands for both, and the model's outbox tells the crew of neither.
+- Your own hold of a row (`jbus queue hold`): `nogo` stands for it and for a row with no go, whose crew the outbox still tells, so the model's crew is told of both. With no hold of yours, `queue.lift`'s refusal of a row held again since is left out too.
 - Whose your accept is: the bus's doors and `--message` (`Repo.accept`).
