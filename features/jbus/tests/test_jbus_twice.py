@@ -70,7 +70,8 @@ def test_a_second_head_red_on_named_tests_tells_the_crew_the_names_and_a_third_h
     named, the change's own, and the row waited 22 minutes for an approve that carried no
     decision. At the second head the crew gets one message naming the tests and both heads, and
     nothing is held or paged; the third head holds the row and pages the user once, naming all
-    three heads and their jobs, and a green head lifts the hold by itself."""
+    three heads and their jobs, and a green head lifts the hold by itself. `jbus.stall.twice`
+    keeps the second head, and `jbus.watch.named_last` gives `jbus.rebase.github` its tests."""
     red_at(launched, A, "11")
     passes(launched, 0)
     red_at(launched, B, "12")
