@@ -64,7 +64,7 @@ def test_an_install_back_that_uv_refuses_too_is_asked_again_before_any_new_move(
     copied, monkeypatch
 ):
     """Where uv refuses the tree the move went back to as well, the tool may be gone: the install
-    of that tree stays owed, and each pass asks for it before it starts a move to main's tip."""
+    of that tree stays owed, and each pass asks for it before it tries main's tip again."""
     asked, broken = [], [True]
     new = land(copied, "success")
 
@@ -78,13 +78,45 @@ def test_an_install_back_that_uv_refuses_too_is_asked_again_before_any_new_move(
     assert at(copied.copy) == copied.first
 
     copied.poll()
-    assert asked == [new, copied.first, copied.first]
+    assert asked == [new, copied.first, copied.first, new, copied.first]
+    assert at(copied.copy) == copied.first
     assert sorted(path.name for path in green.trees(copied.copy).iterdir()) == [copied.first]
 
     broken[0] = False
     copied.poll()
-    assert asked == [new, copied.first, copied.first, copied.first, new]
+    assert asked[5:] == [copied.first, new]
     assert at(copied.copy) == new
+
+
+def test_an_old_tree_uv_never_takes_again_does_not_stop_a_newer_green_tip(copied, monkeypatch):
+    """A move went back to a tree whose install uv refuses for good, as with a lock that names a
+    wheel the index dropped, so its install stays owed. Main's next green tip, which uv takes,
+    replaces it on the next pass: the copy and the tool are at that tip, and no move is owed."""
+    tool, refused = [], {copied.first}
+    new = land(copied, "success")
+    refused.add(new)
+
+    def reinstall(copy):
+        name = copy.resolve().name
+        if name in refused:
+            return "error: Distribution not found at: https://files.example/gone.whl"
+        tool.append(name)
+        return ""
+
+    monkeypatch.setattr(green, "_reinstall", reinstall)
+    copied.poll()
+    assert at(copied.copy) == copied.first
+    assert green.in_flight(copied.state) == {
+        "to": copied.first,
+        "from": copied.first,
+        "owes": "install",
+    }
+
+    newer = land(copied, "success")
+    copied.poll()
+    assert at(copied.copy) == newer
+    assert tool == [newer]
+    assert green.in_flight(copied.state) is None
 
 
 def test_a_dangling_link_with_a_move_owed_is_the_copy_and_not_foreign(copied, monkeypatch):

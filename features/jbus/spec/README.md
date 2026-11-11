@@ -193,6 +193,7 @@ No state breaks a rule, so it draws no `bug-N` chart.
 A move grows the new tip's tree, writes the step it owes to `green.json` (`move`, `owes: install`), points the link, installs the tool again, writes `owes: relink`, removes the trees no command runs, and puts the harness layouts again (`jinstall.green.relink`), and only a relink that is taken drops `move`.
 Each pass resumes an owed step (`_resume`) before `_advance` reads main.json.
 An install uv refuses, which may have removed the tool first, sends the move back: it owes the install of the tree it came from, with the reload systemd was owed before it, points the link back, removes the new tree, and installs the tool and relinks from the tree it went back to.
+An install back that uv refuses too stays owed, and a newer green tip still starts a move that takes it over (`Advance`), so a tree uv never installs again does not hold the copy.
 Each step's comment quotes the code it stands for.
 
 ### Check the rules of the green move
@@ -204,7 +205,7 @@ java -cp ~/.cache/jstack/tla2tools/1.7.4/tla2tools.jar tlc2.TLC -deadlock -confi
 
 Run it in a copy of this folder, since TLC writes `states/` where it runs.
 `-deadlock` is there because a copy at main's last tip has no step left to take.
-Today's code holds every rule, over 10477 distinct states with MaxTip 3:
+Today's code holds every rule, over 15453 distinct states with MaxTip 3:
 
 - `ToolRunsCopy`: once no pass is in a move and none is owed, the tool runs the tree the link names, so a unit never starts on a tool the copy no longer holds.
 - `ToolTreeThere`: the tree the tool runs, where uv left one, is on disk.

@@ -49,13 +49,14 @@ MainGoesGreen ==
   /\ green < MaxTip /\ green' = green + 1
   /\ UNCHANGED <<link, tool, layouts, trees, pc, to, from, owed, gone, removed, reload, was>>
 
-\* `_advance`: `if (owed := in_flight(run.state)) is not None and owed["owes"] == "install":
-\* return`, `if not green or not held or green in (held, refused): return`, `_grow`, and
-\* `write_json(run.state / FILE, owes)` with `"owes": "install"` and `"was": was`, and with
-\* `"at": green` where the tip changed a unit or systemd links one into the tree it leaves,
-\* before `_settle` points the link.
+\* `_advance`, after `_resume`, which settles an owed install to a new tip or sends it back, so
+\* the install it may still owe is one back (to = from), which it takes over: `if not green or not
+\* held or green in (held, refused): return`, `_grow`, and `write_json(run.state / FILE, owes)`
+\* with `"owes": "install"` and `"was": was`, and with `"at": green` where the tip changed a unit
+\* or systemd links one into the tree it leaves, before `_settle` points the link.
 Advance ==
-  /\ pc = "idle" /\ owed \in {"none", "relink"} /\ green /= link
+  /\ pc = "idle" /\ (owed \in {"none", "relink"} \/ (owed = "install" /\ to = from))
+  /\ green /= link
   /\ trees' = trees \cup {green} /\ to' = green /\ from' = link
   /\ owed' = Kept("install") /\ pc' = "owed"
   /\ was' = reload /\ reload' \in {reload, green} /\ removed' = removed \ {green}

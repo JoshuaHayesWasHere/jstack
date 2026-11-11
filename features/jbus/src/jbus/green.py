@@ -32,10 +32,13 @@ before the link moves, as `install`, then `relink` once uv installed the tool, a
 the layouts are put. Each pass resumes an owed step (`_resume`) before it reads main.json, so a
 pass that dies with the link at the new tree and the tool at the old one, the units' 203/EXEC,
 is finished by the next pass, and a relink that is refused is asked again on each pass. Since a
-pass resumes first, it starts no new move while one owes its install; one that owes a relink is
-done by the newer move. A move whose install fails goes back (`_back`): it owes the install of the
-tip it went back to, points the link there and installs the tool again from it, since uv may have
-removed ~/.local/bin/jbus before it failed, then relinks. It puts back the reload systemd was owed
+pass resumes first, it starts no new move while one owes its install to a new tip; one that owes a
+relink is done by the newer move. A move whose install fails goes back (`_back`): it owes the
+install of the tip it went back to, points the link there and installs the tool again from it,
+since uv may have removed ~/.local/bin/jbus before it failed, then relinks. An install back that
+uv refuses too stays owed and is asked for first on each pass, and a newer green tip still moves
+the copy after it, so a tree uv never installs again, as with a lock that names a wheel the index
+dropped, holds the copy only until main has a tip uv takes. It puts back the reload systemd was owed
 before the move, so no reload runs for the tip it removed.
 `features/jbus/spec/GreenMove.tla` checks the steps with a death between any two.
 
@@ -472,11 +475,11 @@ def _drop(run: Pass) -> None:
 
 
 def _advance(run: Pass, copy: Path) -> None:
-    """Move the copy to main's green tip, unless a move still owes its install, as one that went
-    back and that uv refused again does: that install comes first. A move that owes a relink is
-    taken over by this one, which relinks."""
-    if (owed := in_flight(run.state)) is not None and owed["owes"] == "install":
-        return
+    """Move the copy to main's green tip. `_resume` ran first, so a move to a new tip owes nothing
+    here: it settled, or went back (`_back`). A move back whose install uv refused again stays
+    owed and is taken over by this one, so a tree uv never installs again does not hold the copy
+    once main has a tip uv takes. A move that owes a relink is taken over too, and this one
+    relinks."""
     green = mainjson.read(run.state).green
     held = at(copy)
     record = read_json(run.state / FILE, {})
