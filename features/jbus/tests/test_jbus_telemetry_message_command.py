@@ -14,6 +14,7 @@ TEXTS = {
     "m-skill-codex": "$principle-attack-the-premise the queue is too long",
     "m-tagged": "<command-message>sharpen</command-message>\n<command-name>/sharpen</command-name>",
     "m-builtin": "/compact keep the brief",
+    "m-nameless": "<command-message></command-message> and then words",
     "m-text": "why is the parser slow?",
 }
 
@@ -22,8 +23,8 @@ def test_each_typed_message_keeps_the_command_it_opens_with_and_whether_it_is_a_
     tmp_path, monkeypatch
 ):
     """A message that opens with a door keeps it as `door`, one that opens with a skill as
-    `skill`, whether typed as `/name` or `$name`; a text, an assistant's message and a word keep
-    none; and no byte of the store is a text."""
+    `skill`, whether typed as `/name` or `$name`; a command's tags that name none keep no command;
+    a text, an assistant's message and a word keep none; and no byte of the store is a text."""
     machine = Machine(tmp_path, monkeypatch)
     t3, home = T3(), "mcp:home-a"
     t3.thread(home, "alpha-id")
@@ -44,6 +45,7 @@ def test_each_typed_message_keeps_the_command_it_opens_with_and_whether_it_is_a_
         ("m-skill-codex", "command", "/principle-attack-the-premise", "skill"),
         ("m-tagged", "command", "/sharpen", "skill"),
         ("m-builtin", "command", "/compact", "builtin"),
+        ("m-nameless", "command", None, None),
         ("m-text", "text", None, None),
         ("r-door", None, None, None),
         ("word:w-said", "text", None, None),

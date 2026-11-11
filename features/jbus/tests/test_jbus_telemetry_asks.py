@@ -145,7 +145,8 @@ def test_the_store_keeps_the_surface_of_each_typed_message_and_no_word_of_it(mac
 
 def test_a_store_from_before_the_surfaces_gains_them_as_a_rebuild_has_them(machine):
     """A store built under the rules before `surface`, with no such column nor the later
-    `command`, runs `jbus.telemetry.migrations.v016_message_surface` and `v021_message_command`,
+    `command`, runs `jbus.telemetry.migrations.v016_message_surface` and
+    `jbus.telemetry.migrations.v021_message_command`,
     reads every message again and ends as a store built from nothing."""
     from jbus.telemetry import views
 
