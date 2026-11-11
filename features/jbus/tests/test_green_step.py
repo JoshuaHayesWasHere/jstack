@@ -7,6 +7,8 @@ never leaves the link at one tip and the tool or the layouts at another.
 The tests run the real pass against the kitchen's fakes, as `test_jbus_green.py` does, whose
 fixtures they use."""
 
+import shutil
+
 import pytest
 
 from jbus import green
@@ -74,3 +76,24 @@ def test_a_relink_that_is_refused_is_asked_again_by_the_next_pass(copied, monkey
 
     copied.poll()
     assert len(asked) == 2
+
+
+def test_a_move_whose_tree_is_gone_goes_back_and_moves_again(copied, monkeypatch, installs):
+    """A move that owes its install to a tree a hand removed leaves the link dangling: the pass
+    puts it back on the tree it came from, says so, and moves to main's green tip again."""
+
+    def killed(copy):
+        raise Died
+
+    monkeypatch.setattr(green, "_reinstall", killed)
+    new = land(copied, "success")
+    with pytest.raises(Died):
+        copied.poll()
+    tree = green.trees(copied.copy) / new
+    shutil.rmtree(tree)
+
+    monkeypatch.setattr(green, "_reinstall", lambda copy: installs.append(copy.resolve()) or "")
+    copied.poll()
+    assert gates(copied) == [f"condition green: {green.MOVE_FAILED}"]
+    assert at(copied.copy) == new
+    assert installs == [tree]

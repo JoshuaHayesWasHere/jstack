@@ -339,9 +339,13 @@ def reload(run: Pass, copy: Path) -> None:
 def move(run: Pass, copy: Path | None = None) -> None:
     """Resume the step a move of the green copy still owes, then move the copy to main's green
     tip, when there is such a copy and the tip is newer than the one it holds, put the units of
-    the tip it holds to work once, then have systemd reload the units any move still owes it."""
+    the tip it holds to work once, then have systemd reload the units any move still owes it. A
+    link that names a tree that is gone is still the copy where the tree its move came from
+    says so."""
     copy = path() if copy is None else copy
     made_from = of(copy)
+    if made_from is None and (owed := _owed(run)) is not None:
+        made_from = of(trees(copy) / owed["from"])
     if made_from is None or made_from.resolve() != run.project.checkout.resolve():
         return
     _resume(run, copy)
@@ -373,11 +377,8 @@ def _live(run: Pass, copy: Path) -> None:
 def _owed(run: Pass) -> dict[str, str] | None:
     """The move `green.json` keeps as owing a step, or None where no move owes one."""
     owed = read_json(run.state / FILE, {}).get(MOVE)
-    if not isinstance(owed, dict) or owed.get("owes") not in STEPS_OWED:
-        return None
-    if not all(isinstance(owed.get(key), str) and owed.get(key) for key in ("to", "from")):
-        return None
-    return owed
+    kept = isinstance(owed, dict) and owed.get("owes") in STEPS_OWED
+    return owed if kept and all(isinstance(owed.get(key), str) for key in ("to", "from")) else None
 
 
 def _resume(run: Pass, copy: Path) -> None:
