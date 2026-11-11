@@ -113,13 +113,22 @@ If the rerun fails too, `mainmoved.tell` writes the red tip to `main.json`, and 
 `judge` reverts the tip's one clear culprit (`jbus.reverts`) or files main's fix row (`watch._file`).
 A later merge turns main green: the revert, the fix, or a merge that happens to fix it.
 After that, `reverts.close` closes a revert that is still open, and `watch._withdraw` takes out a fix row that never launched.
+Main's macOS run judges each commit too (`reverts.macos`), earlier in the same pass.
+It reverts its own one clear culprit, or leans on the revert jbus opened at the same commits.
+Each revert keeps the checks that hold it, its `holders` in `reverts.json`, and `close` closes it only once each of them passed at its red or later.
 Each condition of a step names the file of the code that checks it and quotes that code in backticks, with no line number.
 `features/jbus/tests/test_main_red_spec.py` finds each quote once in its file and checks that every condition is cited.
 It also checks that the spec states each property `features/jbus/tests/main_red_model.py` walks over the real `tell`, and it runs TLC on both configs.
 
 ### The rules of main's red
 
-- `OneRevertOpen`: at most one of jbus's reverts is open at a time.
+- `NeverRevertedTwice`: jbus never opens a second revert of a commit.
+  On 2026-11-09 main's check passed at the red commit itself while the Mac was still red there.
+  `close` closed revert #1426 and then dropped its record, and the Mac, still red at that commit, opened #1427.
+  Now the Mac leans on the revert and holds it open, and the record goes only once every check jbus judges main by passed at or above its red.
+  The canary, `Fault = "opener-only"`, is the code before holders, where a revert is held by the check that opened it alone, and on `MainRed.chart.cfg` `NeverRevertedTwice` breaks.
+- `OneRevertOpen`: main's check waits on at most one of jbus's open reverts.
+  The Mac may wait on two, as on a revert it leaned on while its run under its red was pending, but a Mac red holds no pull request.
   Main can go green at a later commit and then red again before a pass sees the green on its own.
   In that pass `culprits.judge` reads only the commits since that green, and may open a revert for the new red.
   `reverts.close` then closes each revert whose red is the green or older, even though main's tip is red (`cleared`), so the first revert never waits for jmerge beside the second.
@@ -143,8 +152,10 @@ Run it from this folder, with the pinned jar copied in:
 cp ~/.cache/jstack/tla2tools/1.7.4/tla2tools.jar . && java -cp tla2tools.jar tlc2.TLC -config MainRed.cfg MainRed.tla; rm -rf tla2tools.jar states
 ```
 
-It exits 0: every rule holds over 113,042 distinct states (MaxTips 4), in about a minute on two workers.
-The test runs TLC on both configs, and on each rule of `BREAKS` alone, which is empty while the code breaks no rule.
+It exits 0: every rule holds over 140,012 distinct states (MaxTips 4), in about a minute on four workers.
+`MainRed.cfg` leaves the Mac out (`Mac = FALSE`): with it, four commits take TLC far too long.
+`MainRed.chart.cfg` has the Mac on up to three commits, where every rule holds over 112,491 distinct states.
+The test runs TLC on both configs, and on each rule of `BREAKS` alone, which is empty while the code breaks no rule, and the canary on `MainRed.chart.cfg`.
 
 ### Draw the chart of main's red
 
@@ -159,7 +170,8 @@ W=$(TMPDIR=$D mktemp -d) && cp features/jbus/spec/MainRed.* "$W"
 
 Run it from the repo root.
 Then copy the files of `$W/out` into `MainRed-statechart/`, all except `tlc/`.
-`MainRed.chart.cfg` has the same rules on up to three commits (6,145 states), and it draws 10 chart states and 44 steps.
+`MainRed.chart.cfg` has the same rules on up to three commits, with the Mac (112,491 states), and it draws 42 chart states and 265 steps.
+TLC runs once for each rule, so drawing it takes about half an hour.
 The four commits of `MainRed.cfg` draw too many states and steps for Mermaid to render as a PNG.
 No state breaks a rule, so it draws no `bug-N` chart.
 
@@ -168,9 +180,11 @@ No state breaks a rule, so it draws no `bug-N` chart.
 - A cancelled, batched or job-less run (`watch.BATCHED`, `NO_JOB`, `cancelled`, `refused`): none of them is red.
 - Logs `tell` cannot read, a project's first pass, a culprit's row removed from the queue, and a GitHub that does not say what main a culprit's check passed over, which waits as `UNREAD` until `READ_WAIT`.
   TLC's `skew` files the row at once.
-- `close` dropping the record of a revert whose culprit's slug is over (`over`), after which `OPENED` and `TWICE` no longer see it.
+- Whether a culprit's slug is over (`over`) before `close` drops its revert's record: the model drops it once every check passed above its red.
 - `main-reds.jsonl` keeps only the red tip of each pass, where `tell` writes a line for each failed commit it walks.
-- The Mac run (`reverts.macos`), the browser run, and the fix row's crew ending with no pull request.
+- The browser run, and the fix row's crew ending with no pull request.
+- Of the Mac (`reverts.macos`): its rerun, folded into its run; a Mac red at a revert, a fix or an outside push, which only files its row; the `macos-red-` rows; and a Mac culprit that `tested`, `covered` or `flaky` keeps from a revert.
+  The Mac's one clear culprit is always reverted.
 - Time: TLC chooses on each pass whether the red tip is older than `READ_WAIT` (`late`).
 
 ## The green move, as a TLA+ spec

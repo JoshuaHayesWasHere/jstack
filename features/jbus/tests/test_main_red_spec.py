@@ -41,7 +41,8 @@ AGREES = {
 
 BREAKS: set[str] = set()
 """The rules today's code breaks, none: `reverts.close` closes a revert whose red main passed
-at or above even where a newer tip is red, so `OneRevertOpen` holds."""
+at or above even where a newer tip is red, so `OneRevertOpen` holds, and waits for every check
+that holds it, so `NeverRevertedTwice` holds."""
 
 
 def quoted():
@@ -154,3 +155,18 @@ def test_today_s_code_holds_every_rule_but_the_ones_it_breaks(cfg):
     for rule in BREAKS:
         alone = tlc(found, without(text, set(rules(text)) - {rule, "TypeOK"}))
         assert verdict(alone) == rule, alone[-4000:]
+
+
+@pytest.mark.skipif(not tools.find_java(), reason="no Java to run TLC")
+@pytest.mark.timeout(600)
+def test_a_revert_held_by_its_opener_alone_is_opened_twice():
+    """The canary, the code before holders (`Fault = "opener-only"`): main closes its revert on
+    its own green at the red commit while the Mac still leans on it, the record goes, and the
+    Mac, red at that commit, opens a second revert, as #1427 did on 2026-11-09. With the Mac in
+    the model, `NeverRevertedTwice` alone breaks."""
+    text = (SPEC / "MainRed.chart.cfg").read_text()
+    assert "CONSTANT Mac = TRUE" in text
+    canary = text.replace('Fault = "none"', 'Fault = "opener-only"')
+    assert 'Fault = "opener-only"' in canary
+    alone = tlc(tools.find_tlc(), without(canary, set(rules(canary)) - {"NeverRevertedTwice"}))
+    assert verdict(alone) == "NeverRevertedTwice", alone[-4000:]

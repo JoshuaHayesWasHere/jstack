@@ -1,11 +1,11 @@
 {
   "view": "customer",
-  "modelStates": 6145,
-  "modelTransitions": 14950,
-  "chartStates": 10,
-  "chartTransitions": 44,
+  "modelStates": 112491,
+  "modelTransitions": 396698,
+  "chartStates": 42,
+  "chartTransitions": 265,
   "chartStatus": {
-    "works": 10,
+    "works": 42,
     "wrong": 0,
     "fixed": 0
   },
@@ -13,33 +13,33 @@
     {
       "name": "Not red",
       "color": "#d1f2eb",
-      "states": 6
+      "states": 12
     },
     {
       "name": "Red, its fix on its way",
       "color": "#fdebd0",
-      "states": 3
+      "states": 25
     },
     {
       "name": "Red, nothing open yet",
       "color": "#f9d6d5",
-      "states": 1
+      "states": 5
     }
   ],
   "mixedGroups": [],
   "regions": {
     "drawn": false,
-    "why": "the regions do not combine into the flat chart, with 7 difference(s), such as transitions only in EXPECTED (a guard in the spec blocks them, or the spec renamed the step): Main red | a revert open --> Main green | a fix row out : jbus's pass sees main green and closes the revert"
+    "why": "the regions do not combine into the flat chart, with 71 difference(s), such as transitions only in EXPECTED (a guard in the spec blocks them, or the spec renamed the step): Main red | a revert open --> Main green | a fix row out : jbus's pass sees every check that holds the revert green and closes it"
   },
   "classes": [],
   "codeLike": [],
   "drawnFrom": {
     "command": "statechart from-spec MainRed.tla --config MainRed.chart.cfg --title 'Main went red: what fixes it?' --png",
     "inputs": {
-      "MainRed.chart.cfg": "ff615e88f2c133dace314760bcfceaafcca56abc30a5e4b78ab189cb9079b185",
-      "MainRed.map.py": "7c627efe1a763557e42b87a2bc5dd1c559764dbf722d5789698d203d00016ddb",
-      "MainRed.tla": "f4bf335672bdac7880178373325e1104c472d5f135cdcd880f222b0105cc093d"
+      "MainRed.chart.cfg": "a94d54c1243c2f25ab3ce8b76c26819837e318519de4b2940f1cedd2efc0b412",
+      "MainRed.map.py": "7c2f8bf520c4180d2dabaee5574f8c51f5dfde7c08870557737ff8a916155be8",
+      "MainRed.tla": "a9c7118f92ba3c8f1e743ac8453a75fdf2706d995587bed0dd4d3f43a10d3711"
     },
-    "chart": "ddf211700f1f201067d7f328010f6cfd00aada9fba05a8617e7bb9cb1a0b0bdf"
+    "chart": "6f3fb47eb7e0c22992c47d446db638a2b4755b587d728599602443d7b20d9bca"
   }
 }
