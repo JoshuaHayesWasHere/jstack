@@ -16,6 +16,7 @@ SCOPED_HOMES = REPO / "features" / "home" / "skills" / "home" / "scoped-homes.md
 CASES = [
     ("Status: done", Status.DONE),
     ("Status: done (both ran the same cases)", Status.DONE),
+    ("Status: done.", Status.DONE),
     ("Status: open", Status.OPEN),
     ("Status: left", Status.OTHER),
     ("Status: who knows", Status.OTHER),

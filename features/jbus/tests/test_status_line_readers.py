@@ -6,7 +6,7 @@ from datetime import timedelta
 
 import pytest
 
-from jbus import homestatus, mirror, watch, work
+from jbus import homestatus, mirror, stale, watch, work
 from test_jbus_entry_go import PLAN
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_queue import go, rows
@@ -84,3 +84,8 @@ def test_a_home_marks_a_merged_result_done_with_a_note_read_without_showing_it(
 
     assert "tasks/noted.md: ## Result" not in said
     assert "tasks/mostly.md: ## Result" in said
+
+
+def test_a_result_that_says_done_with_a_full_stop_is_clean_to_stale():
+    assert stale._clean("## Result\nStatus: done.\nLeft: none.\n")
+    assert not stale._clean("## Result\nStatus: done, mostly\nLeft: none\n")
