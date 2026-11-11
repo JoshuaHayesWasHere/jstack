@@ -7,7 +7,8 @@ The next pass dropped the closed revert's record, its culprit's slug being over,
 at the same commit and finding no record, opened a second revert of the same row (#1427).
 
 `reverts.json` now keeps, beside each revert, the checks that lean on it (`holders`): the one that
-opened it, and each that later read it as its own. `close` closes it only once every holder is
+opened it, and each that later read it as its own, main's check in `jbus.culprits.judge` and the
+Mac in `reverts.macos`. `close` closes it only once every holder is
 green, and its record goes only once every check jbus judges main by has passed at or above its
 red, so the row is reverted once.
 
