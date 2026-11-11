@@ -206,5 +206,6 @@ The second canary, `Fault = "no-back"`, goes back as the code did before st-gree
 ### What the green-move model leaves out
 
 - uv's install and the write of `owes: relink` after it are one step: a pass that dies between them installs again, which is the same install, and the model does not let that second install fail.
-- A tip that does not import (`refused`) and the units a move puts to work (`live`): each has its own record, which the move does not change. Of the reload a move owes systemd it keeps only `at`, and whether systemd takes it.
+- A tip that does not import (`refused`) and the units a move puts to work (`live`): each has its own record, which the move does not change.
+- Of the reload a move owes systemd (`reload`, `at`), only `at` and whether systemd takes it.
 - A tree a move went to that is gone on resume, which only a hand can remove: `_resume` goes back (`_back`) as a failed install does.
