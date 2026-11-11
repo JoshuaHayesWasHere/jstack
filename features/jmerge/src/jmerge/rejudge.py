@@ -241,6 +241,10 @@ class BaseMerge:
         value of None drops its key."""
         self._keep_stuck(str(one.number), {**self.stuck(one), "head": one.head, **kept})
 
+    def _restarted(self, one: ready.PullRequest, **kept: object) -> None:
+        """`keep_stuck`, as a step of `restart`."""
+        self._keep_stuck(str(one.number), {**self.stuck(one), "head": one.head, **kept}, "restart")
+
     def _keep_stuck(
         self, number: str, stuck: dict, by: str = "keep_stuck", move: Move = Move.STAY
     ) -> None:
@@ -259,16 +263,16 @@ class BaseMerge:
         the reopen failed."""
         now = datetime.now(UTC).isoformat()
         asked = self.stuck(one).get("asked") or now
-        self.keep_stuck(
+        self._restarted(
             one, since=since.isoformat(), asked=asked, reopen=True, url=one.url, check=check
         )
         closed = self.gh("pr", "close", str(one.number))
         if closed.returncode:
-            self.keep_stuck(one, reopen=None, why=_said(closed))
+            self._restarted(one, reopen=None, why=_said(closed))
             return _said(closed)
-        self.keep_stuck(one, closed=now)
+        self._restarted(one, closed=now)
         why = self.reopened(one.number)
-        self.keep_stuck(one, **({"why": why} if why else {"reopen": None, "took": now}))
+        self._restarted(one, **({"why": why} if why else {"reopen": None, "took": now}))
         return why
 
     def reopen(self, numbers: Collection[str]) -> None:
@@ -347,15 +351,19 @@ class BaseMerge:
         """Keep `kept` in the record of the head and tip, over what it held. The line, with the
         user's word that gave it, stays across a new head or tip (`MOVES`), and what was done
         about a run GitHub kept queued (`stuck`) across a new tip at the same head: a move of
-        the base starts no run at the head, so its restart stays spent."""
+        the base starts no run at the head, so its restart stays spent. A line kept keeps the
+        time it was taken, from which `holders` counts `HELD`."""
         self._keep(one, tip, kept, "keep", Move.STAY)
 
     def _keep(self, one: ready.PullRequest, tip: str, kept: dict, by: str, move: Move) -> None:
-        now = datetime.now().astimezone()
+        now = f"{datetime.now().astimezone():%Y-%m-%dT%H:%M:%S%z}"
         was = self.was(one, tip) or {}
         if stuck := self.stuck(one):
             was = {**was, "stuck": stuck}
-        record = {**was, "head": one.head, "tip": tip, **kept, "at": f"{now:%Y-%m-%dT%H:%M:%S%z}"}
+        held = self.known().get(str(one.number))
+        if move is Move.STAY and line_of(held) and isinstance(held, dict) and "at" in held:
+            now = held["at"]
+        record = {**was, "head": one.head, "tip": tip, **kept, "at": now}
         self._put(str(one.number), record, by, move, base=one.base if move is Move.TAKE else "")
 
     def open_only(self, numbers: Collection[str]) -> None:
