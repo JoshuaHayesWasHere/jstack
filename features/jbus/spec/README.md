@@ -170,7 +170,8 @@ W=$(TMPDIR=$D mktemp -d) && cp features/jbus/spec/MainRed.* "$W"
 
 Run it from the repo root.
 Then copy the files of `$W/out` into `MainRed-statechart/`, all except `tlc/`.
-`MainRed.chart.cfg` has the same rules on up to three commits, with the Mac.
+`MainRed.chart.cfg` has the same rules on up to three commits, with the Mac (112,491 states), and it draws 42 chart states and 265 steps.
+TLC runs once for each rule, so drawing it takes about half an hour.
 The four commits of `MainRed.cfg` draw too many states and steps for Mermaid to render as a PNG.
 No state breaks a rule, so it draws no `bug-N` chart.
 
