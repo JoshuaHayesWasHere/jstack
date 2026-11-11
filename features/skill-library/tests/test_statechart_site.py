@@ -134,8 +134,9 @@ PROBE = """<script>
     const left = Math.max(p.left, Math.min(...boxes.map((b) => b.left)));
     const right = Math.min(p.right, Math.max(...boxes.map((b) => b.right)));
     const top = Math.min(...boxes.map((b) => b.top));
-    const label = svg.querySelector(".st text:not(.comp)");
-    const px = parseFloat(getComputedStyle(label).fontSize) * label.getScreenCTM().a;
+    const labels = [...svg.querySelectorAll(".st text:not(.comp)")];
+    const size = (t) => parseFloat(getComputedStyle(t).fontSize) * t.getScreenCTM().a;
+    const px = Math.min(...labels.map(size));
     return { drawn: (right - left) / p.width, above: (top - p.top) / p.height, label: px };
   }
   async function run() {
