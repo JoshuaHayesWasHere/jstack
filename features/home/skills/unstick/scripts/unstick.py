@@ -4,11 +4,12 @@
 # ///
 """Why each stalled row of jbus's queue has not moved, from jbus's own records, read-only.
 
-A row is open while its queue status is not merged or done. Its stage is that status, and its
-age is the time since the last transition into it (`transitions.jsonl`), or, for a row that has
-had none since it was added, since its queue `since` or `updated` stamp. A row is stalled when
-its age is past the 90th percentile of that stage's past spans in its project, or past `FLOOR`
-where the project has fewer than `SAMPLES` spans of the stage.
+A row is open while jbus's one rule of it (`jbus.work.over`) does not say it is over. Its stage is
+its queue status, and its age is the time since the last transition into it
+(`transitions.jsonl`), or, for a row that has had none since it was added, since its queue `since`
+or `updated` stamp. A row is stalled when its age is past the 90th percentile of that stage's past
+spans in its project, or past `FLOOR` where the project has fewer than `SAMPLES` spans of the
+stage.
 
 The cause is read, not guessed: the pass already judged each row (`work.json`, one `value` of
 `jbus.work.VALUES`), and two causes the pass does not judge come from beside it. A crew's thread
@@ -26,7 +27,8 @@ Each line ends in what to do, one of `KINDS`:
     unstick.py [--project <name>]... [--now <iso time>] [--all] [--json]
 
 `JBUS_STATE_DIR` and `JGAUGE_LOCKS_DIR` name jbus's state and the slots' lock files, as jbus
-and jgauge read them.
+and jgauge read them. The script runs with no dependencies, so it reads `over` from the jstack
+checkout it lives in: the skill links it from that tree, and jbus is one of its `features/*/src`.
 """
 
 import argparse
@@ -38,7 +40,10 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
-FINAL = ("merged", "done")
+JSTACK = Path(__file__).resolve().parents[5]
+sys.path[:0] = sorted(str(src) for src in JSTACK.glob("features/*/src"))
+from jbus.work import over  # noqa: E402
+
 SAMPLES = 5
 FLOOR = timedelta(minutes=60)
 TOLD_LATELY = timedelta(minutes=30)
@@ -294,7 +299,7 @@ def project_rows(state, project, now, every, waiters):
     }
     questions = read(folder / "questions.json", {})
     by_slug, spans = stages(lines(folder / "transitions.jsonl"))
-    rows = [row for row in queue if row.get("slug") and row.get("status") not in FINAL]
+    rows = [row for row in queue if row.get("slug") and not over(row)]
     events = {row["slug"]: [] for row in rows}
     for one in lines(folder / "events.jsonl"):
         if one.get("slug") in events:
