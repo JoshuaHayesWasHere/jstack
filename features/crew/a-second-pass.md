@@ -2,7 +2,8 @@
 
 A pull request gets one review round: the reviewer reviews once, you answer each finding once, and a fix you push for them gets no review.
 What stands behind the fix is the pull request's own checks, and `jmerge` merges it once they pass and every blocking finding has an answer that counts ("The review").
-No scoped round is run for a rebase, whatever its patch changes, since its checks verify it, nor for a push on the reviewed head, over a merge of main or not, that changes only tests, docs or config: each keeps the review, and waits only on its checks and its `Proved:`, `Checked:` and `Dropped on rebase` lines. A push that changes code, a rebase with a commit pushed on it, and a head whose patches git cannot compare get one scoped round ("After a rebase" in `features/jmerge/docs/jmerge.md`).
+No scoped round is run for a rebase, whatever its patch changes, since its checks verify it, nor for a push on the reviewed head, over a merge of main or not, that changes only tests, docs or config: each keeps the review, and waits only on its checks and its `Proved:`, `Checked:` and `Dropped on rebase` lines.
+A push that changes code, a rebase with a commit pushed on it, and a head whose patches git cannot compare get one scoped round ("After a rebase" in `features/jmerge/docs/jmerge.md`).
 No pass rules on a decline either: a decline of a blocking finding counts on the reason it cites.
 
 The one later pass is a re-judgement of the brief.
