@@ -60,16 +60,12 @@ def test_today_s_code_holds_every_rule():
 @pytest.mark.skipif(not tools.find_java(), reason="no Java to run TLC")
 @pytest.mark.parametrize(
     ("drop", "rule"),
-    [
-        # With the home's stall ladder out, a thread jbus holds can stop where nothing archives
-        # it and no line tells its home.
-        ("ladder", "ThreadEnds"),
-        # With the next pass's repair out, a pass that dies between the launch record and the
-        # brief's Thread: line leaves the brief naming no crew for good.
-        ("repair", "LineFollows"),
-    ],
+    [("ladder", "ThreadEnds"), ("repair", "LineFollows")],
 )
 def test_each_canary_breaks_the_rule_that_rests_on_it(drop, rule):
+    """With the home's stall ladder out, a thread jbus holds can stop where nothing archives it
+    and no line tells its home. With the next pass's repair out, a pass that dies between the
+    launch record and the brief's Thread: line leaves the brief naming no crew for good."""
     code, out = tlc(drop, rule)
     assert code != 0
     assert "Temporal properties were violated" in out, out[-4000:]

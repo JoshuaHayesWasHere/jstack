@@ -24,7 +24,8 @@ SPECS = {"RowLife.tla": 15, "ThreadLife.tla": 30, "GreenMove.tla": 8}
 """Each spec, and fewer quotes than it holds, so a regex that stops matching fails here."""
 
 HOME = "features/jbus/src/jbus/"
-"""Where a cite's bare file name points when the repo holds more than one of that name."""
+"""Where a cite's bare file name points when the repo holds more than one of that name: queue.py
+is jbus/queue.py, not the telemetry record of the same name."""
 
 QUOTE = re.compile(r"([\w./-]+\.(?:py|md))\s*`([^`]+)`")
 """A cite with the code it quotes: jbus/threads.py `CARRY_ONS = 2`."""
@@ -44,8 +45,6 @@ def quoted(spec):
     for path, quote in QUOTE.findall(flat):
         found = [one for one in files if one.endswith(f"/{path}")]
         if len(found) > 1:
-            # A bare name is jbus's own module, as queue.py is jbus/queue.py and not the
-            # telemetry record of the same name.
             found = [one for one in found if one == HOME + path]
         assert len(found) == 1, f"{spec}: {path} names {len(found)} files"
         lines = (REPO / found[0]).read_text().splitlines()
