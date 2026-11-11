@@ -176,7 +176,7 @@ def test_a_settled_thread_whose_result_is_written_shows_settled_and_done(kitchen
     )
     thread.update(status="running")
     kitchen.poll(NOW + timedelta(minutes=1))
-    assert (line(kitchen)["value"], line(kitchen)["facts"]["thread"]) == ("done", "moving")
+    assert (line(kitchen)["value"], line(kitchen)["facts"]["thread"]) == ("working", "moving")
     events.emit(thread["threadId"], "run.updated", "completed", NOW + timedelta(minutes=2))
     assert until(shows(kitchen, "done", "completed"))
     events.emit(thread["threadId"], "thread.settled", at=NOW + timedelta(minutes=3))

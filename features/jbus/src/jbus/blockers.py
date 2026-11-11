@@ -96,6 +96,7 @@ from jbus import (
     record,
     verbs,
     waiting,
+    work,
     write_json,
 )
 from jbus.passes import Pass
@@ -288,7 +289,7 @@ def _ended(run: Pass, row: queue.Row) -> datetime | None:
                 one = json.loads(line)
             except ValueError:
                 continue
-            if one.get("slug") == row["slug"] and one.get("to") in queue.FINAL:
+            if one.get("slug") == row["slug"] and one.get("to") in work.FINAL:
                 moved = _iso(one.get("at")) or moved
     return moved or _moment(row.get("updated", ""), run.user)
 
@@ -314,7 +315,7 @@ def pending(
     again, as the pass record keeps a check only for a row with an open pull request: a stuck or
     left row changes no column when a fix merges, so it is never pending."""
     last = rows.get(had[-1].get("slug", "")) if had else None
-    if last is None or blocker is None or last.get("status") not in queue.FINAL:
+    if last is None or blocker is None or not work.over(last):
         return ""
     if blocker.get("checks") != "failed":
         return ""
@@ -434,7 +435,7 @@ class _Ground:
             return open_now is None or one["key"] in open_now
         if kind == "hold":
             row = _pr_row(run, one.get("number"))
-            return row is None or row.get("status") not in queue.FINAL
+            return row is None or not work.over(row)
         return True
 
 
@@ -542,8 +543,7 @@ def _rows(run: Pass, home: Directory) -> list[str]:
     mine = [
         row
         for row in rows
-        if homes.home_of(home.root, texts[row["slug"]]) in home.works
-        and row.get("status") not in queue.FINAL
+        if homes.home_of(home.root, texts[row["slug"]]) in home.works and not work.over(row)
     ]
     open_fixes: dict[str, list[str]] = {}
     for row in mine:

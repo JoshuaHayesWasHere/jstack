@@ -473,15 +473,14 @@ def test_a_scout_row_in_work_json_is_queued_then_scouting_then_report_in(kitchen
     reported(kitchen, "look")
     kitchen.poll(NOW + timedelta(minutes=12))
     line = judged(kitchen, "look")
-    assert (line["scout"], line["value"], line["who"]) == ("report in", "done", "ok")
-    assert rows(kitchen)["look"]["status"] == "done"
+    assert (line["scout"], line["value"], line["who"]) == ("report in", "working", "scout")
+    assert rows(kitchen)["look"]["status"] == "running"
 
     scout_thread(kitchen, "look")["settled"] = True
     kitchen.poll(NOW + timedelta(minutes=15))
-    assert (judged(kitchen, "look")["scout"], rows(kitchen)["look"]["status"]) == (
-        "report in",
-        "done",
-    )
+    line = judged(kitchen, "look")
+    assert (line["scout"], line["value"], line["who"]) == ("report in", "done", "ok")
+    assert rows(kitchen)["look"]["status"] == "done"
 
 
 def test_a_scout_row_whose_followup_report_says_done_is_done_and_report_in(kitchen):
@@ -500,6 +499,7 @@ def test_a_scout_row_whose_followup_report_says_done_is_done_and_report_in(kitch
     )
 
     reported(kitchen, "look", heading="## Report, follow-up (2026-11-08, the bench is back)")
+    scout_thread(kitchen, "look")["status"] = "completed"
     kitchen.poll(NOW + timedelta(minutes=6))
     line = judged(kitchen, "look")
     assert (line["scout"], line["value"], line["who"]) == ("report in", "done", "ok")

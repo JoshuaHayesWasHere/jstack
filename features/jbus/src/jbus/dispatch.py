@@ -83,7 +83,7 @@ from jbus.launchhome import homed, unhomed
 from jbus.launchtext import RESUMED, fixes_main, launched_text, resumed, resumed_on
 from jbus.passes import Changed, Depends, Pass, Red, Rerun, Slot
 from jbus.t3 import Client, T3Dropped, T3Error, T3Refused
-from jbus.watch import TITLE, End, World, against, at_work, crew_threads, ended
+from jbus.watch import TITLE, World, against, at_work, crew_threads, ended
 from jmerge import judgement, mainjson
 from jmerge import stacked as stacks
 from jroles import ledger, pool
@@ -456,7 +456,7 @@ class Turns:
         it depends on, or waits for a red main to be green, the method adds the reason to
         `Pass.reasons`. While main is red, only a row that fixes main (`fixes_main`) or launches
         stacked on an open row is yielded. A row waits on a slug until
-        that slug has merged, or has ended `done` with no pull request, or until the one slug it
+        that slug is over (`watch.final`, which reads `work.over`), or until the one slug it
         still waits on has opened its pull request: it then launches stacked on that pull
         request's branch (`World.stack_on`). A row whose brief opens no pull request
         (`outcome.pull`), a measure or a proof of its parent's merged runs, changes no code, so a
@@ -516,9 +516,7 @@ class Turns:
                 else:
                     run.reasons[slug] = Slot(f"{HELD}: {unhome[0]}")
                 continue
-            met = merged | {
-                other for other in row.get("depends", []) if ended(run, world, other) == End("done")
-            }
+            met = merged | self.landed
             if cause is None:
                 unmerged = [other for other in row.get("depends", []) if other not in met]
                 on = world.stack_on(run, unmerged, brief) if outcome.pull(brief) == "open" else None

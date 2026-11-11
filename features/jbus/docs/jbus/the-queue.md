@@ -166,8 +166,9 @@ The line ends `, its go holds` or `, its go does not hold for it: approve it aga
 `--depends` is optional, and names the slugs that must end before this row launches, or, for the one slug left, open its pull request: the row then launches stacked on that pull request's branch ([What a pass launches](what-a-pass-launches.md)).
 A row whose brief opens no pull request, such as a measure or a proof row, is never stacked: it waits for that slug's merge.
 A depends is the only way to stack a row: `add` refuses a brief whose `Stacked on:` line names a row its `--depends` does not, and says to add the depends.
-A slug ends by a merge, or by a row that ended `done` with no pull request.
-Such a row's thread ended, and its last Result says `Status: done`, `Left: none` and a `Branch:` line that is not a URL, and, where its brief asks for a pull request, an `Outcome:` line that names how it ended: `carried by <slug>`, `nothing to change, <why>` or `dropped, <why>` (`jbus.outcome`, `watch.closes`).
+A slug ends by a merge, or by a row that ended `done` with no pull request: its row is over (`work.over`), and stays so.
+The row launches on the pass after the one that wrote its depend's `done`.
+Such a row's thread ended, and not merely wrote its Result while still at work, and its last Result says `Status: done`, `Left: none` and a `Branch:` line that is not a URL, and, where its brief asks for a pull request, an `Outcome:` line that names how it ended: `carried by <slug>`, `nothing to change, <why>` or `dropped, <why>` (`jbus.outcome`, `watch.closes`).
 `--merge-after` is optional too, and names the slugs whose pull requests merge before this row's.
 It gates the merge and not the launch, so the row launches and its crew works at once.
 `jmerge` leaves its pull request with `wait <number> <url>: merges after <slug> (#<n>), not merged yet` until every row it names is `merged` or `done`.

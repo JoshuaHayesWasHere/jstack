@@ -860,15 +860,16 @@ def unmet(run: Pass, world: World | None, row: dict[str, Any], final: frozenset[
 
 
 def final(run: Pass, world: World | None, rows: list[dict[str, Any]]) -> frozenset[str]:
-    """Return the slugs that no longer hold back a row that depends on them. Those are the
-    slugs that merged, or that ended `done` under the rule that `dispatch` uses to launch.
-    With no world, jbus takes them from the rows' own status."""
+    """Return the slugs that no longer hold back a row that depends on them: the rows that are
+    over (`queue.final`, by `work.over`), and with a world the slugs whose pull request merged and
+    the scouts whose Report says done (`reported`). A row that ends `done` is over once a pass
+    wrote it so (`queue.derive`), and stays so: a row behind it launches the pass after, never on
+    a Result that a thread still at work may yet follow with a pull request."""
+    over = queue.final(rows)
     if world is None:
-        return frozenset(row["slug"] for row in rows if row.get("status") in queue.FINAL)
+        return over
     merged = set(world.merged) - set(world.open)
-    crew = [row for row in rows if queue.role(row) == queue.CREW]
-    done = {row["slug"] for row in crew if ended(run, world, row["slug"]) == End("done")}
-    return frozenset(merged | done | reported(run, rows))
+    return frozenset(over | merged | reported(run, rows))
 
 
 def reported(run: Pass, rows: list[dict[str, Any]]) -> frozenset[str]:
@@ -1845,7 +1846,7 @@ def _open_reds(run: Pass) -> list[tuple[dict[str, Any], str]]:
         return []
     found = []
     for row in rows:
-        if not mainjson.fix_of(row["slug"]) or row.get("status") in queue.FINAL:
+        if not mainjson.fix_of(row["slug"]) or work.over(row):
             continue
         path = run.home / "tasks" / f"{row['slug']}.md"
         brief = path.read_text() if path.exists() else queue.brief(run.state, row["slug"]) or ""
@@ -2405,9 +2406,7 @@ def retro(run: Pass, world: World, rows: list[dict[str, Any]], check: Callable[[
         (s for s in world.merged if brief_of(run, s) and s not in run.gated),
         key=lambda s: world.merged[s]["mergedAt"],
     )
-    fixes = [
-        row for row in rows if mainjson.fix_of(row["slug"]) and row.get("status") not in queue.FINAL
-    ]
+    fixes = [row for row in rows if mainjson.fix_of(row["slug"]) and not work.over(row)]
     main = mainjson.read(run.state)
     if not slugs and not fixes and not main.red:
         return

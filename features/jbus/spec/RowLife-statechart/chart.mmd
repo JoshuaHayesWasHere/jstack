@@ -28,7 +28,7 @@ stateDiagram-v2
       state "Held" as r0s1
       state "Held, its go kept" as r0s2
       state "No go" as r0s3
-      r0s0 --> r0s3 : its go no longer holds, and it<br/>waits for yours [when gate<br/>(work.py:460, a question is<br/>open) or queued (work.py:491,<br/>no thread yet)]
+      r0s0 --> r0s3 : its go no longer holds, and it<br/>waits for yours [when gate (a<br/>question is open) or queued<br/>(no thread yet)]
       %% when r1s2, r1s7
       r0s0 --> r0s1 : you hold the approved row
       r0s0 --> r0s2 : you hold the row, keeping its<br/>go
@@ -41,27 +41,38 @@ stateDiagram-v2
     --
     state "The row's status" as region1 {
       [*] --> r1s7
-      state "done (work.py:456, the<br/>Result says done)" as r1s0
-      state "failed (work.py:498, the<br/>thread failed)" as r1s1
-      state "gate (work.py:460, a<br/>question is open)" as r1s2
-      state "launched (work.py:466, a<br/>launch with no thread yet)" as r1s3
-      state "left (work.py:462, the<br/>Result leaves work)" as r1s4
-      state "merged (work.py:453, its<br/>pull request merged)" as r1s5
-      state "pr (work.py:458, its pull<br/>request is open)" as r1s6
-      state "queued (work.py:491, no<br/>thread yet)" as r1s7
+      state "done (a clean Result from<br/>a thread that ended)" as r1s0
+      state "failed (the thread failed)" as r1s1
+      state "gate (a question is open)" as r1s2
+      state "launched (a launch with no<br/>thread yet)" as r1s3
+      state "left (the Result leaves<br/>work)" as r1s4
+      state "merged (its pull request<br/>merged)" as r1s5
+      state "pr (its pull request is<br/>open)" as r1s6
+      state "queued (no thread yet)" as r1s7
       state "removed (queue.py<br/>`remove`, no pass sets it)" as r1s8
-      state "running (work.py:493, the<br/>thread at work)" as r1s9
-      state "stale (work.py:464, a hung<br/>turn or nothing written)" as r1s10
-      state "waiting (work.py:496, the<br/>thread asks you)" as r1s11
+      state "running (the thread at<br/>work, a Result or not)" as r1s9
+      state "stale (the thread ended<br/>with nothing written)" as r1s10
+      state "waiting (the thread asks<br/>you)" as r1s11
+      r1s0 --> r1s5 : the pull request of a done row<br/>merges on your accept
       r1s1 --> r1s0 : a Result says done after the<br/>thread failed
       r1s1 --> r1s4 : the failed thread leaves its<br/>work to its home
       r1s1 --> r1s9 : the failed thread works again
+      r1s2 --> r1s11 : the question closes
+      r1s2 --> r1s1 : the question closes
+      r1s2 --> r1s9 : the question closes
+      r1s2 --> r1s10 : the question closes
+      r1s2 --> r1s4 : the question closes
       r1s2 --> r1s7 : the question closes, and the<br/>row's launch has no record
       r1s2 --> r1s3 : the question closes, and the<br/>row's launch has no thread yet
       r1s2 --> r1s6 : the question closes, and the<br/>row's pull request is open
       r1s2 --> r1s5 : the question closes, and the<br/>row's pull request merged
       r1s2 --> r1s0 : the question closes, and the<br/>row's Result says done
+      r1s3 --> r1s2 : jbus opens a question
       r1s3 --> r1s9 : T3 Code lists the thread at<br/>work
+      r1s3 --> r1s5 : the pull request merges
+      r1s3 --> r1s6 : the pull request opens
+      r1s3 --> r1s11 : the thread asks for an answer
+      r1s3 --> r1s10 : the thread ends
       r1s3 --> r1s0 : the thread ends with a clean<br/>Result before a pass sees it<br/>at work
       r1s3 --> r1s4 : the thread ends with work left<br/>before a pass sees it at work
       r1s3 --> r1s1 : the thread fails before a pass<br/>sees it at work
@@ -73,8 +84,6 @@ stateDiagram-v2
       r1s4 --> r1s8 : you remove the row from left
       r1s6 --> r1s2 : jbus opens a question on the<br/>row with its pull request open
       r1s6 --> r1s4 : the pull request closes<br/>unmerged
-      r1s6 --> r1s0 : the pull request leaves the<br/>open list, and the Result says<br/>done
-      r1s6 --> r1s5 : the pull request merges
       r1s6 --> r1s8 : you remove the row from pr
       r1s7 --> r1s3 : a launch record names a thread<br/>for the row [when Approved]
       %% when r0s0
@@ -87,11 +96,14 @@ stateDiagram-v2
       r1s9 --> r1s0 : the thread ends with a clean<br/>Result and no pull request
       r1s9 --> r1s1 : the thread fails
       r1s9 --> r1s10 : the turn hangs, or the thread<br/>ends with nothing written
+      r1s10 --> r1s0 : the crew writes a clean Result
       r1s10 --> r1s4 : the thread stays quiet with<br/>nothing written, or writes a<br/>leftover
       r1s10 --> r1s9 : the thread works again
+      r1s11 --> r1s3 : T3 Code lists no thread
       r1s11 --> r1s9 : the request is answered and<br/>the thread works again
       r1s11 --> r1s4 : the thread ends after its<br/>request with work left
       r1s11 --> r1s1 : the thread fails while it<br/>waits
+      r1s11 --> r1s3 : the thread starts
     }
   }
   class r0s0 plain

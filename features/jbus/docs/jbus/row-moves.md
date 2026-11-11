@@ -8,11 +8,14 @@ It judges each move after the facts made it.
 `queue.MOVES` holds every move the work makes, with the one change of facts that makes it.
 Each move of a status is one line of `~/.local/state/jbus/<project>/transitions.jsonl`.
 A move the table does not hold gets `"legal": false` on its line, and the pass logs a quiet event, `illegal-move <slug>: <from> to <to>`.
-The pass writes the status all the same: the status is what the facts say, and a row kept at `done` while its pull request is open would mislead jmerge.
+The pass writes the status all the same, since the status is what the facts say, but for a row that is over (`work.over`).
+A row at `merged` or `done` stays there whatever the facts say later (`work.kept`), but for `done` to `merged`, so `derive` writes no move out of either, and every reader of the table (`queue.final`, `watch.final`, jmerge through `jmerge.bus.over`) reads a row over once and for good.
+A pull request that opens under a row that is over keeps the row where it is: the pass opens a gate on it (`states.reopened`), and jmerge holds the pull request (`row-over`) until the user accepts it or closes it.
 The telemetry store keeps the mark as the column `legal` of `transitions`, 0 for a marked move and 1 for any other, so a count of `legal = 0` by day says what is left to fix.
 
 The table leaves out four faults: `done` to `pr` (a Result that says done before its pull request opens), `merged` or `done` to `gate` (a question that hides a final row), and `pr` to `running` (a pull request read in neither of GitHub's lists for one pass).
-A row that leaves `merged` or `done` reads as not final to jmerge and to `watch.final`, which hold `merge_after` and `depends` on it.
+The first three the facts can still give, and `derive` keeps the row final through them.
+A clean Result from a thread still at work is not `done` but `running` (`work.ENDED_THREAD`), since the thread may yet open the pull request it owes.
 A move to `removed` is the line the `remove` verb writes, and `derive` never judges one: the table names the removals the work was seen to make.
 `features/jbus/tests/test_jbus_queue_moves.py` names every other move a change of one fact can make, with why the table leaves it out, and checks this list against `queue.MOVES`.
 
@@ -56,6 +59,7 @@ A move to `removed` is the line the `remove` verb writes, and `derive` never jud
 | `pr` | `left` | the pull request closes unmerged |
 | `pr` | `done` | the pull request leaves the open list, and the Result says done and owes none |
 | `pr` | `removed` | the `remove` verb takes the row out |
+| `done` | `merged` | the pull request of a done row merges on the user's accept |
 
 ## The resume: `left` to `launched`
 

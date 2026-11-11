@@ -44,7 +44,7 @@ from __future__ import annotations
 
 import functools
 import itertools
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, replace
 from enum import StrEnum
 from pathlib import Path
@@ -211,7 +211,12 @@ def _set(*values: Any) -> frozenset[Any]:
 
 STILL = frozenset(Thread) - {Thread.HUNG, Thread.WAITING}
 THERE = STILL - {Thread.NONE, Thread.STARTING}
+AT_WORK = frozenset({Thread.MOVING, Thread.QUIET})
+ENDED_THREAD = THERE - AT_WORK
+"""The threads that ended their work: a clean Result is the row's end only from one of these, since
+a thread still at work may yet open the pull request it owes."""
 NOTHING = {"written": _set(Written.NONE), "pull": _set(Pull.NONE)}
+WORKING = {"written": _set(Written.NONE, Written.CLEAN), "pull": _set(Pull.NONE)}
 UNSTARTED = {"thread": _set(Thread.NONE), "launch": _set(Launch.NONE), "pull": _set(Pull.NONE)}
 AGAIN = "your word on what is left: jbus starts no second thread for it"
 
@@ -255,7 +260,7 @@ PATTERNS = (
         "ok",
         "nothing",
         "merged",
-        thread=THERE,
+        thread=ENDED_THREAD,
         written=_set(Written.CLEAN),
         pull=_set(Pull.NONE),
     ),
@@ -330,7 +335,7 @@ PATTERNS = (
         "its crewmate",
         "running",
         thread=_set(Thread.MOVING),
-        **NOTHING,
+        **WORKING,
     ),
     Pattern(
         "quiet",
@@ -339,7 +344,7 @@ PATTERNS = (
         "its thread to write again",
         "running",
         thread=_set(Thread.QUIET),
-        **NOTHING,
+        **WORKING,
     ),
     Pattern(
         "lost",
@@ -433,6 +438,31 @@ def every() -> Iterator[Facts]:
         Row, Thread, Launch, Written, Pull, Question, Answered
     ):
         yield Facts(row, thread, launch, written, pull, question, answered)
+
+
+FINAL = ("merged", "done")
+"""The statuses of a row that is over, in the order a count of them names them."""
+
+
+def over(row: Mapping[str, Any]) -> bool:
+    """Return whether a queue row is over: its status is final (`FINAL`). This is the one rule of
+    it, which the queue (`queue.final`, `queue.over`), the launches (`watch.final`) and jmerge
+    (`jmerge.bus.over`, through `jbus.port`) all read.
+
+    The facts make a row's status final once (`status`): its pull request merged, or the `done`
+    pattern, a clean Result from a thread that ended with no pull request. `queue.derive` writes
+    it, and once it is final keeps it so whatever the facts say later: `done` may become `merged`,
+    and no status leaves `FINAL`. So no reader sees a row over and then not, and a row that
+    launched or merged on one being over never sees it start again."""
+    return row.get("status") in FINAL
+
+
+def kept(was: str, now: str) -> str:
+    """Return the status `queue.derive` writes over `was` where the facts give `now`: `now`,
+    unless `was` is over (`over`) and `now` leaves `FINAL` or goes from `merged` back to `done`."""
+    if was not in FINAL or now == "merged":
+        return now
+    return was
 
 
 def status(state: State) -> str:

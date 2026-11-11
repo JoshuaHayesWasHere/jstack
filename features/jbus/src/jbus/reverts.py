@@ -81,7 +81,7 @@ from typing import Any
 
 from jbriefs import below
 from jbriefs import home as homes
-from jbus import Refused, queue, read_json, verbs, watch, write_json
+from jbus import Refused, queue, read_json, verbs, watch, work, write_json
 from jbus.ci.ledger import JOBS, PULLS
 from jbus.ci.ledger import read as ledger
 from jbus.ci.numbers import Facts, flake_branches
@@ -425,7 +425,7 @@ def over(slug: str, world: World, rows: list[dict[str, Any]]) -> bool:
     """Whether the culprit's slug can merge nothing more: no pull request of it is open, no
     thread of it is unsettled, and its row, if the queue has one, is final."""
     row = next((row for row in rows if row.get("slug") == slug), None)
-    final = row is None or row.get("status") in queue.FINAL
+    final = row is None or work.over(row)
     return final and slug not in world.open and not world.threads.get(slug)
 
 

@@ -28,7 +28,7 @@ import jbus
 import jsettings
 from jbriefs import meets
 from jbriefs.meets import Waiver
-from jbus import Refused, acts, party, queue, t3, waive
+from jbus import Refused, acts, party, queue, t3, waive, work
 from jbus.passes import Pass
 from jmerge import bus
 
@@ -68,6 +68,9 @@ def doors(brief: str, protected: bool) -> tuple[str, ...]:
 
 class Port:
     """`jmerge.bus.Bus`, from jbus's config, queue and acts."""
+
+    def over(self, row: bus.Row) -> bool:
+        return work.over(row)
 
     def place(self, checkout: Path) -> bus.Place | None:
         found = project(checkout)

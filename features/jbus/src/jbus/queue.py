@@ -235,18 +235,20 @@ MOVES: dict[tuple[str, str], str] = {
     ("pr", "left"): "the pull request closes unmerged",
     ("pr", "done"): "the pull request leaves the open list, and the Result says done and owes none",
     ("pr", "removed"): "the `remove` verb takes the row out",
+    ("done", "merged"): "the pull request of a done row merges on the user's accept",
 }
 """Every move of a row's status that the work makes, one entry each: from a status, to a status
 (or `removed`, the line `remove` writes), with the one change of facts that makes it. No verb
 moves a row: each pass works the status out again from the facts (`work.status`), so the table
 cannot drive a row as `item.MOVES` drives an item. It judges a move after the facts made it:
 `derive` marks each line of `transitions.jsonl` whose move it does not hold, and writes the
-status all the same, since the status is what the facts say. A final row that leaves `merged`
-or `done`, a Result that says done before its pull request opens, and a pull request read in
+status all the same, since the status is what the facts say, but for a row that is over: `derive`
+keeps it (`work.kept`), so no move leaves `merged` or `done` but `done` to `merged`. A final row
+that the facts would take out of `merged` or `done`, a Result that says done before its pull
+request opens, and a pull request read in
 neither of GitHub's lists for one pass are the faults the table leaves out. `derive` never
 judges a move to `removed`: those entries name the removals the work was seen to make.
 `features/jbus/docs/jbus/row-moves.md` lists it."""
-FINAL = judgement.FINAL
 UNLAUNCHED = ("queued", "gate")
 LIVE = (*UNLAUNCHED, "launched", "running", "waiting", "pr")
 WITHDRAWN_BY = "jbus"
@@ -820,9 +822,9 @@ def unheld(state: Path, row: Row) -> work.Go:
 
 
 def final(rows: list[Row]) -> frozenset[str]:
-    """Return the slugs whose own row's status is final (`FINAL`), as `jbus.watch.final` judges
-    with no world: a row that depends on one of them is not held back by it."""
-    return frozenset(row["slug"] for row in rows if row.get("status") in FINAL)
+    """Return the slugs whose row is over (`work.over`): a row that depends on one of them is not
+    held back by it."""
+    return frozenset(row["slug"] for row in rows if work.over(row))
 
 
 def standing(state: Path, row: Row, ended: frozenset[str]) -> work.Row:
@@ -832,9 +834,9 @@ def standing(state: Path, row: Row, ended: frozenset[str]) -> work.Row:
 
 
 def over(row: Row) -> bool:
-    """Return whether a row is finished and leaves nothing: merged or done, with no reason to
+    """Return whether a row is finished and leaves nothing: over (`work.over`), with no reason to
     wait."""
-    return row.get("status") in FINAL and not row.get("why")
+    return work.over(row) and not row.get("why")
 
 
 def entry(row: Row) -> str:
@@ -2917,6 +2919,8 @@ def derive(
     as it was. `since` moves only with `why`, and is empty when there is no reason. Neither
     of the two counts as a change of the table.
 
+    A row that is over keeps its status (`work.kept`): `derive` writes no move out of `FINAL`.
+
     Each status that changed becomes one line of `transitions.jsonl`: the slug, from, to,
     and `at`, and `"legal": false` when `MOVES` does not hold the move. Each `why` that changed,
     to a reason or to none, becomes one line of `waits.jsonl`: the slug, the new `why`, and `at`,
@@ -2934,6 +2938,7 @@ def derive(
         for row in rows:
             new = {**_blank(), **facts(row)}
             was, illegal = row.get("status", "queued"), None
+            new["status"] = work.kept(was, new["status"])
             if was != new["status"]:
                 line = {"slug": row["slug"], "from": was, "to": new["status"], "at": at}
                 if (was, new["status"]) not in MOVES:

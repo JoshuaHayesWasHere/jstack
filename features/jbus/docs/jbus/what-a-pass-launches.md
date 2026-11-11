@@ -185,7 +185,7 @@ jbus queue approve <slug> --word <id>
   `--depends` needs the request's `Builds on:` line to name the row, as a brief's does.
 - **The go** is a row's go: your word with `jbus queue approve`, or the go of the row's plan entry under `go = "entry"`.
   The follow-up rule approves no request.
-- **A pass** launches each request whose go holds and whose depends are over (merged, a crewmate's row ended `done`, or a scout's row whose Report says `Status: done`), once, as a thread titled `scout: <slug>` whose message is `/scout <slug>`.
+- **A pass** launches each request whose go holds and whose depends are over (merged, a crewmate's row that a pass wrote `done` (`work.over`), or a scout's row whose Report says `Status: done`), once, as a thread titled `scout: <slug>` whose message is `/scout <slug>`.
   Before the launch jbus makes the scout a worktree of its own (`jbus.crewtree.make_scout`): `git worktree add --detach` at origin's default branch, just fetched, at `$T3CODE_HOME/worktrees/<checkout>/scout+<slug>`, a name no slug can take, so it never meets a crew's worktree of the same slug.
   It has no branch, so the scout has nothing to commit and no pull request to open.
   jbus writes the two files of [A crew's worktree](#a-crews-worktree) in it, the skill listed in full being `scout`, and launches the thread into it with `existing_worktree`, so the scout's first request carries neither `Artifact` nor `AskUserQuestion`.

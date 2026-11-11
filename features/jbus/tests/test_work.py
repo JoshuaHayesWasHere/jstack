@@ -194,8 +194,8 @@ def test_a_result_written_under_a_live_thread(kitchen):
     kitchen.t3.thread("alpha", "running")
     kitchen.poll()
     line = judged(kitchen)
-    assert (line["value"], line["facts"]["thread"]) == ("done", "moving")
-    assert rows(kitchen)["alpha"]["status"] == "done"
+    assert (line["value"], line["facts"]["thread"]) == ("working", "moving")
+    assert rows(kitchen)["alpha"]["status"] == "running"
 
 
 def test_a_thread_settled_with_nothing_written_is_lost(kitchen):
@@ -546,7 +546,7 @@ def test_a_row_behind_one_whose_result_is_written_under_a_live_thread_waits_as_d
     kitchen.t3.thread("beta", "preparing")
     kitchen.t3.threads.pop()
     kitchen.poll()
-    assert rows(kitchen)["alpha"]["status"] == "done"
+    assert rows(kitchen)["alpha"]["status"] == "running"
     assert kitchen.t3.launches == []
     line = judged(kitchen, "beta")
     assert (line["value"], line["facts"]["row"]) == ("behind", "approved and behind")

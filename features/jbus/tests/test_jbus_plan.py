@@ -378,3 +378,12 @@ def test_a_follow_up_given_its_own_slug_as_entry_takes_none_from_its_parent(kitc
     assert plan(kitchen)[0] == (
         "epic | one path for each fact | 0 of 1 merged, 1 queued not approved"
     )
+
+
+@pytest.mark.parametrize(
+    ("statuses", "merged"),
+    [(("merged", "done"), True), (("done", "done"), False), (("merged", "running"), False)],
+)
+def test_an_entry_merged_once_every_row_is_over_and_one_merged(statuses, merged):
+    table = [{"slug": f"part-{n}", "entry": "entry", "status": s} for n, s in enumerate(statuses)]
+    assert plans.merged("entry", table) is merged

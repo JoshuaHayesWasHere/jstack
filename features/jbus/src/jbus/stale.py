@@ -51,7 +51,7 @@ from jbriefs import below
 from jbriefs import status as status_line
 from jbriefs.home import ids, scopes
 from jbriefs.status import Status
-from jbus import leftover, passes, questions, queue, read_json, verbs, write_json
+from jbus import leftover, passes, questions, queue, read_json, verbs, work, write_json
 from jbus.passes import Pass
 from jbus.t3 import GONE, Client, T3Error, T3Refused
 from jbus.told import FILE as WAKES
@@ -156,7 +156,7 @@ def briefs(
             why = "its row is removed"
         elif slug in over:
             why = f"its row is {status[slug]}"
-        elif status.get(slug) not in queue.FINAL:
+        elif status.get(slug) not in work.FINAL:
             number = named(result)[1] or pull.get(slug, "")
             if number.isdigit():
                 if open_ is None:
@@ -305,7 +305,7 @@ def worktrees(
     if pulled is None:
         found.unjudged.append("worktree: whether a pull request is open on its branch")
         return found
-    live = [row for row in rows if row.get("status") not in queue.FINAL]
+    live = [row for row in rows if not work.over(row)]
     names = {row["slug"] for row in live} | {row["branch"] for row in live if row.get("branch")}
     names |= {pull.get("headRefName", "") for pull in pulled}
     for tree in _worktrees(listed.stdout):
@@ -388,7 +388,7 @@ def told(
             elif slug:
                 if slug in removed:
                     why = f"its row {slug} is removed"
-                elif status.get(slug) in queue.FINAL:
+                elif status.get(slug) in work.FINAL:
                     why = f"its row {slug} is {status[slug]}"
             elif open_lines is None:
                 unjudged = True

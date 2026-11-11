@@ -281,6 +281,10 @@ NO_GO = Reason(
     "its queue row has no go: the user's go (jbus plan go <entry> --message <thread>/<message>), "
     "or the bot's, lets it merge",
 )
+ROW_OVER = Reason(
+    "hold",
+    "its queue row is {status}, and a row that is over waits for no merge: accept it to merge it",
+)
 MERGES_AFTER = Reason("check", "merges after {slug} ({open}), not merged yet")
 STACKED_ON = Reason(
     "stacked",

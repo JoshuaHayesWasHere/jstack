@@ -1,5 +1,6 @@
 """The row's life as a TLA+ spec, `features/jbus/spec/RowLife.tla`: its table of moves is
-`queue.MOVES`, move for move, and TLC finds that a row that merged or is done never leaves.
+`queue.MOVES`, move for move, and TLC finds that a row that merged or is done never leaves, as the
+facts `work.status` reads change and `queue.derive` keeps a final status (`work.kept`).
 The TLC runs skip where no Java runs TLC."""
 
 import importlib
@@ -67,12 +68,11 @@ def test_tlc_finds_that_merged_and_done_never_leave():
 
 
 @pytest.mark.skipif(not tools.find_java(), reason="no Java to run TLC")
-def test_a_move_out_of_done_breaks_the_rule():
-    """The canary: the spec with the fault `done` to `pr` added, a Result that says done before
-    its pull request opens, breaks `FinalStays`, so the rule holds by the table and not by
-    construction."""
-    cfg = (SPEC / "RowLife.cfg").read_text().replace('Fault = "none"', 'Fault = "done-pr"')
-    assert 'Fault = "done-pr"' in cfg
+def test_a_derive_that_writes_over_a_final_status_breaks_the_rule():
+    """The canary: the spec with `work.kept` taken out of derive (`Fault = "no-latch"`) breaks
+    `FinalStays`, so the facts can leave a final row, and the rule holds by the code's latch."""
+    cfg = (SPEC / "RowLife.cfg").read_text().replace('Fault = "none"', 'Fault = "no-latch"')
+    assert 'Fault = "no-latch"' in cfg
     ran = tlc(cfg)
     assert ran.returncode != 0
     assert "FinalStays is violated" in ran.stdout, ran.stdout[-4000:]

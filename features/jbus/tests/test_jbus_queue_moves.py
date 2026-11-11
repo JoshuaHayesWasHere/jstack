@@ -37,9 +37,8 @@ NO_PULL_YET = (
     "leftover: from any other status the pass missed the work that opened it"
 )
 SWAPPED = (
-    "both are final, but the Result and the pull request disagree: a pull request after a done "
-    "Result is the fault po-done-owes-pull fixes, and a merged one no list holds is read in "
-    "neither of GitHub's lists"
+    "both are final, and a merged row stays merged: a merged pull request no list holds is read "
+    "in neither of GitHub's lists"
 )
 MASKED = (
     "jbus asks its question of a row before its launch or on its pull request: a question "
@@ -55,7 +54,7 @@ NAMED = {
         merged="queued launched running waiting pr failed stale gate left",
         done="queued launched running waiting pr failed stale gate left",
     ),
-    **_pairs(SWAPPED, merged="done", done="merged"),
+    **_pairs(SWAPPED, merged="done"),
     **_pairs(PR_LOST, pr="failed launched queued running stale waiting"),
     **_pairs(
         NO_PULL_YET,
@@ -149,15 +148,15 @@ def _moved(kitchen, was, status, brief=""):
 
 
 def test_a_pass_marks_a_move_the_table_does_not_hold_and_still_writes_the_status(kitchen):
-    status, line = _moved(kitchen, "merged", "gate")
+    status, line = _moved(kitchen, "launched", "gate")
     assert status == "gate"
     assert {key: line[key] for key in ("slug", "from", "to", "legal")} == {
         "slug": "alpha",
-        "from": "merged",
+        "from": "launched",
         "to": "gate",
         "legal": False,
     }
-    assert kitchen.lines("illegal-move") == ["illegal-move alpha: merged to gate"]
+    assert kitchen.lines("illegal-move") == ["illegal-move alpha: launched to gate"]
 
 
 def test_a_pass_leaves_a_move_the_table_holds_unmarked(kitchen):

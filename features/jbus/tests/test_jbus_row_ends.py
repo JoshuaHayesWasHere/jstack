@@ -261,6 +261,9 @@ def test_a_row_that_depends_on_a_done_row_is_launched_and_on_a_left_row_waits(ki
     for slug in ("design", "sketch"):
         kitchen.t3.thread(slug, "completed", settled=True)
     kitchen.poll()
+    assert kitchen.t3.launches == []
+    assert column(kitchen, "design")[0] == "done"
+    kitchen.poll(NOW + timedelta(minutes=3))
     assert [launch["title"] for launch in kitchen.t3.launches] == ["crew: build"]
     assert column(kitchen, "paint") == ("queued", "", "depends on sketch")
 

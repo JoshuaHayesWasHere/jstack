@@ -1,20 +1,20 @@
 # Chart labels for RowLife: what you see of one row of the queue, in `jbus queue` and the sidebar.
-# Each status cites the line of features/jbus/src/jbus/work.py that sets it (`work.status` and its
-# `_THREAD` table), and `removed` the verb that writes it.
+# Each status names what in features/jbus/src/jbus/work.py sets it (`work.status` and its `_THREAD`
+# table), and `removed` the verb that writes it. A row that is over keeps its status (`work.kept`).
 reader_actions = ["Grant", "Hold", "Lift", "Remove"]
 
 STATUS = {
-    "queued": "queued (work.py:491, no thread yet)",
-    "launched": "launched (work.py:466, a launch with no thread yet)",
-    "running": "running (work.py:493, the thread at work)",
-    "waiting": "waiting (work.py:496, the thread asks you)",
-    "stale": "stale (work.py:464, a hung turn or nothing written)",
-    "failed": "failed (work.py:498, the thread failed)",
-    "gate": "gate (work.py:460, a question is open)",
-    "pr": "pr (work.py:458, its pull request is open)",
-    "left": "left (work.py:462, the Result leaves work)",
-    "done": "done (work.py:456, the Result says done)",
-    "merged": "merged (work.py:453, its pull request merged)",
+    "queued": "queued (no thread yet)",
+    "launched": "launched (a launch with no thread yet)",
+    "running": "running (the thread at work, a Result or not)",
+    "waiting": "waiting (the thread asks you)",
+    "stale": "stale (the thread ended with nothing written)",
+    "failed": "failed (the thread failed)",
+    "gate": "gate (a question is open)",
+    "pr": "pr (its pull request is open)",
+    "left": "left (the Result leaves work)",
+    "done": "done (a clean Result from a thread that ended)",
+    "merged": "merged (its pull request merged)",
     "removed": "removed (queue.py `remove`, no pass sets it)",
 }
 
@@ -88,13 +88,43 @@ MOVES = {
     ("pr", "gate"): "jbus opens a question on the row with its pull request open",
     ("pr", "left"): "the pull request closes unmerged",
     ("pr", "done"): "the pull request leaves the open list, and the Result says done",
-    ("done", "pr"): "a pull request opens after the Result said done",
+    ("done", "merged"): "the pull request of a done row merges on your accept",
+}
+
+# What a pass sees change, by the fact that changed, where the status stays.
+THREAD = {
+    "none": "T3 Code lists no thread",
+    "starting": "the thread starts",
+    "atwork": "the thread works",
+    "waiting": "the thread asks for an answer",
+    "failed": "the thread fails",
+    "ended": "the thread ends",
+}
+WRITTEN = {
+    "clean": "the crew writes a clean Result",
+    "leftover": "the crew writes a Result that leaves work",
+}
+PULL = {
+    "open": "the pull request opens",
+    "merged": "the pull request merges",
+    "closed": "the pull request closes unmerged",
 }
 
 
 def step(action, before, after):
-    if action in ("Launch", "Move"):
-        return MOVES.get((before["status"], after["status"]), action)
+    said = {
+        "Launch": "a launch record names a thread for the row",
+        "Thread": THREAD.get(after["thread"], action),
+        "Write": WRITTEN.get(after["written"], action),
+        "Pull": PULL.get(after["pull"], action),
+        "Ask": "jbus opens a question" if after["question"] else "the question closes",
+    }.get(action)
+    if said is not None:
+        if before["status"] != after["status"]:
+            return MOVES.get((before["status"], after["status"]), said)
+        if before["status"] in ("merged", "done"):
+            return f"{said}, and the row stays {before['status']}"
+        return said
     if action == "Hold":
         if after["go"] == "kept":
             return "you hold the row, keeping its go"
@@ -115,7 +145,7 @@ def step(action, before, after):
 
 def cause(v, facts, invariant):
     return {
-        "FinalStays": "a pass reads a final row's facts as another status",
+        "FinalStays": "a pass writes the status a final row's facts give over it",
     }.get(invariant)
 
 

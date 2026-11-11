@@ -580,7 +580,10 @@ UNTOLD = {
             ),
             ("merges-after carries-after stacked-on migration-merging migration-rebasing", _AHEAD),
             ("unmerged cannot-check", _CHECKOUT),
-            ("merge-off no-go row-held review-none touches renames-unsaid unlisted", _USERS),
+            (
+                "merge-off no-go row-held row-over review-none touches renames-unsaid unlisted",
+                _USERS,
+            ),
         )
         for code in codes.split()
     },
