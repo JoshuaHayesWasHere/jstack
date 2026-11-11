@@ -6,7 +6,7 @@ from datetime import timedelta
 
 import pytest
 
-from jbus import mirror, watch, work
+from jbus import homestatus, mirror, watch, work
 from test_jbus_entry_go import PLAN
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_queue import go, rows
@@ -60,3 +60,27 @@ def test_a_crews_result_that_says_done_with_a_note_leaves_nothing():
 def test_a_paused_result_with_a_note_waits_on_its_rows():
     result = "## Result\nStatus: paused (until a-b merges)\nWaits on: a-b\n"
     assert mirror.paused_on(result, {"a-b"}) == ("a-b",)
+
+
+def test_a_home_marks_a_merged_result_done_with_a_note_read_without_showing_it(
+    tmp_path, monkeypatch
+):
+    state = tmp_path / "demo"
+    (state / "tasks").mkdir(parents=True)
+    (state / "beta").mkdir()
+    (state / "beta" / "plan.md").write_text("# beta: plan\n")
+    (state / "beta" / "read-seen").write_text("")
+    for slug, status in (("noted", NOTED), ("mostly", "done, mostly")):
+        (state / "tasks" / f"{slug}.md").write_text(
+            f"# {slug}\nHome: beta\n\n## Result\nStatus: {status}\nLeft: none\n"
+        )
+    (state / "merge.log").write_text(
+        '2026-10-13 17:00 merged 1 noted abc "a title", revert: gh pr revert x\n'
+        '2026-10-13 17:01 merged 2 mostly abd "a title", revert: gh pr revert y\n'
+    )
+    monkeypatch.setattr(homestatus.paths, "repo_name", lambda: state.name)
+
+    said = homestatus.run(str(state / "beta"), installed=False, only_gates=False)
+
+    assert "tasks/noted.md: ## Result" not in said
+    assert "tasks/mostly.md: ## Result" in said
