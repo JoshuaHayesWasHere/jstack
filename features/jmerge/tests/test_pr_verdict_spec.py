@@ -95,6 +95,22 @@ def test_the_script_names_a_canary_for_each_drop_the_spec_reads():
     assert kept == set(canaries.CANARIES)
 
 
+def test_the_rule_reads_every_open_pull_request():
+    """The rule's leads-to starts from every open pull request, not from a ready one, so TLC fails
+    on any path that waits for ever on a crew, a check, GitHub or jmerge."""
+    text = (SPEC / "PrVerdict.tla").read_text()
+    rule = re.search(r"^MergesOrWaitsOnYou ==(.*?)(?=^\S|^====)", text, re.M | re.S)
+    assert rule is not None
+    assert re.search(r"\(Open ~> \(st = \"merged\" \\/ WaitsOnYou\)\)", rule.group(1))
+
+
+def test_a_canary_drops_jbus_s_limit_on_failed_heads():
+    """A crew's fix may fail again up to jbus's hold at two failed heads, and the canary that
+    drops that limit is one TLC must see break the rule."""
+    assert "twice" in canaries.CANARIES
+    assert ("canary twice", canaries.config("twice"), "breaks") in RUNS
+
+
 def test_the_script_by_hand_ends_0_when_every_run_says_what_it_should(tmp_path):
     """pr_canaries.py by hand prints a line for each run, with a java that says each is what it
     should be."""
