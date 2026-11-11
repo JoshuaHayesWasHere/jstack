@@ -10,9 +10,12 @@ jbus plan go <entry> --message <thread>/<message>
 jbus plan stop <entry>
 ```
 
-`jbus plan` prints one line for each entry of the root home's plan, and with `--scope` of that scoped home's: the slug, its one line and its status, as `<slug> | <one line> | <status>`. The one line is cut at 56 characters and the status at 60.
+`jbus plan` prints one line for each entry of the root home's plan, and with `--scope` of that scoped home's: the slug, its one line and its status, as `<slug> | <one line> | <status>`.
+The one line is cut at 56 characters and the status at 60.
 Above those lines it prints one for each entry whose `Stage:` line names no stage, `<slug>: Stage <word> is no stage (proposed, planned, parked, scouting), so it is never briefed`, first so that the home's start, which shows the listing cut at 12 lines, never cuts it.
-The stage is the line's first word, and the rest of the line is a note: `Stage: parked (waits on the vendor)` is parked. Such an entry is never briefed, its `Builds on:` merged or not. A row counts for the entry `add` was given as `--entry`, and for the entry of its own slug with none.
+The stage is the line's first word, and the rest of the line is a note: `Stage: parked (waits on the vendor)` is parked.
+An entry whose stage is unknown is never briefed, its `Builds on:` merged or not.
+A row counts for the entry `add` was given as `--entry`, and for the entry of its own slug with none.
 A follow-up with no `--entry`, a row that names its parent P on a `Follows: P` line, counts for P's entry instead, up a chain of follow-ups.
 jbus keeps that entry in the row's `parent_entry`, writes it on each `queue add` and on each pass, and `jbus queue show` prints it as `<entry> (its parent's)`.
 An entry a row takes from its parent counts in `jbus plan` and approves nothing: a go by entry reads only the `--entry` the home gave.
