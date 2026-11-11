@@ -47,10 +47,13 @@ Where the outcome is the fix's brief, the brief says which case holds.
 | `gh pr revert` fails on a clear culprit. | The fix's brief, which says jbus could not open its revert. |
 | The revert jbus opened is stuck: it closed unmerged, conflicts with main, has a failed check, or merged while main is still red. | The fix's brief, which names why the revert is stuck. |
 
-`close` closes a revert jbus opened that is still open once main's check passes at a later tip without it, as when the fix's row merged first.
-Its comment names that green tip.
-The record in `reverts.json` stays while the culprit's slug can still merge, so the row is still never reverted twice.
-Once main is green, the revert's pull request is no longer open, and the culprit's slug is over (no pull request of it open, no thread of it unsettled, and its row final or gone), the next pass drops the record.
+A revert is held by every check that leans on it, its `holders` in `reverts.json`: the check that went red and opened it, and each check red at the same commits that reads it as its own (`OPENED`), as main's macOS run does.
+`close` closes a revert jbus opened that is still open once every holder passed at its red or a later commit, as when the fix's row merged first.
+Its comment names each holder's green.
+A revert main's check passed above stays open while the Mac, which leans on it, is still red there: on 2026-11-09 closing #1426 under a red Mac let the Mac open #1427 on the same branch.
+The record in `reverts.json` stays while any check jbus judges main by has not passed at or above its red, or while the culprit's slug can still merge, so the row is never reverted twice.
+Once main is green, the revert's pull request is no longer open, every check (main's and, where the project has one, the Mac's) passed at or above its red, and the culprit's slug is over (no pull request of it open, no thread of it unsettled, and its row final or gone), the next pass drops the record.
+While the Mac stays red, the record stays too, and a later red that the culprit's slug names gets the fix's brief (`TWICE`), not a second revert.
 
 ## The fix's brief
 
