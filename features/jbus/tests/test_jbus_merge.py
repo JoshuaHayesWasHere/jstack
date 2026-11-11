@@ -6,6 +6,7 @@ the fakes.
 
 import ast
 import contextlib
+import os
 import string
 import sys
 from datetime import UTC, datetime, timedelta
@@ -15,7 +16,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 import jsettings
-from jbus import alert, merge
+from jbus import alert, merge, verbs
 from jbus.view import state as view_state
 from jmerge import judgement, lock, ready
 from test_jbus_kitchen import DAY, NOW, PASS, QUARTER_PAST_FIVE
@@ -255,6 +256,78 @@ def test_a_jmerge_that_held_the_lock_past_its_timeout_still_counts_and_alerts(lo
     assert any("jmerge did not run (" in line and "timed out" in line for line in printed)
     (alerted,) = locking.lines("alert")
     assert alerted.startswith("alert: jmerge demo failed 3 times in a row since ")
+
+
+class Died(Exception):
+    """The pass's process ending where the test kills it."""
+
+
+class _Dying:
+    """`os` as `jbus.merge` sees it, but for a `replace` that kills the pass."""
+
+    def __getattr__(self, name):
+        return getattr(os, name)
+
+    @staticmethod
+    def replace(*args):
+        raise Died
+
+
+def dies(monkeypatch, where):
+    """Kill the pass where it reads a run's record: `at the send` of the run's lines, or `before
+    the mark`, once they are sent and before the record is marked read."""
+    if where == "at the send":
+
+        def killed(*args, **kwargs):
+            raise Died
+
+        monkeypatch.setattr(merge, "_sent", killed)
+    else:
+        monkeypatch.setattr(merge, "os", _Dying())
+
+
+KILLED = ["at the send", "before the mark"]
+WAITS = "wait 7 https://example.test/pull/7: it has no review yet"
+
+
+def killed_then_passes(kitchen, where):
+    """A pass that starts a run and dies `where` while it reads the run's record, then two
+    passes that read it, each run ending at its own pass's time as a real run does."""
+
+    def at(now):
+        kitchen.monkeypatch.setattr(verbs, "clock", lambda: now)
+        kitchen.poll(now)
+
+    with pytest.MonkeyPatch.context() as killing:
+        dies(killing, where)
+        with pytest.raises(AssertionError):
+            at(NOW)
+    kitchen.set("jmerge.txt", "")
+    (kitchen.stub / "jmerge-dies").unlink(missing_ok=True)
+    kitchen.set("jmerge-busy", "")
+    at(NOW + PASS)
+    at(NOW + 2 * PASS)
+
+
+@pytest.mark.parametrize("where", KILLED)
+def test_a_pass_killed_while_it_reads_a_run_sends_the_run_s_lines_once(kitchen, where):
+    """A run's lines reach the user whichever step of the read the pass died at: a record is
+    marked read only once its lines are sent, and the next pass, which reads it again, sends
+    each line once."""
+    kitchen.quiet()
+    kitchen.set("jmerge.txt", WAITS + "\n")
+    killed_then_passes(kitchen, where)
+    assert kitchen.lines("jmerge") == [WAITS]
+
+
+@pytest.mark.parametrize("where", KILLED)
+def test_a_pass_killed_while_it_reads_a_failed_run_counts_the_run_once(kitchen, where):
+    """A run that failed is one failure of the `jmerge` streak whichever step of the read the
+    pass died at: the next pass reads its record again, and counts no run twice."""
+    kitchen.quiet()
+    kitchen.set("jmerge-dies", "jmerge: gh is not installed")
+    killed_then_passes(kitchen, where)
+    assert streak(kitchen)["count"] == 1
 
 
 STEPS = {name: reason.step for name, reason in ready.reasons().items()}
