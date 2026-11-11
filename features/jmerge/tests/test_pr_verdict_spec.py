@@ -30,7 +30,6 @@ FOLDERS = {
     "outbox.py": "features/jbus/src/jbus",
     "poll.py": "features/jbus/src/jbus",
     "stall.py": "features/jbus/src/jbus",
-    "watch.py": "features/jbus/src/jbus",
 }
 """Where a cited file lives, where it is not jmerge's (the spec's header says so too)."""
 
