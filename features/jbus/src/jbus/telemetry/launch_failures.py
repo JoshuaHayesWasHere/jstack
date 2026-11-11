@@ -16,12 +16,13 @@ them, since the store keeps no reason's text:
   (`jbus.children`), kept by its thread in `home_starts`. A start that failed signed out is
   `sign-in`, and one that failed on a usage limit is `other` with the limit as `reason`. A start
   written before `relaunches.json` kept `launched` has no start and no minutes.
-- `load`: a row's reason `waiting for room on the machine: load <n> is at or over ...`, where
-  `jgauge room` said the load is over its share of the cores (`jbus.dispatch.ROOM`).
+- `load`: a row's reason `waiting for room on the machine: load is at or over <n>% of <c> cores`,
+  where `jgauge room` said the load is over its share of the cores (`jbus.roomwait.reason`; a jbus
+  from before wrote the reading after `load`, which is read the same).
 - `other`: any other reason that keeps a launch from starting, `waiting for room on the machine`
-  with any other no of `jgauge room` but /tmp's after it (`jbus.dispatch.ROOM`; a jbus from before
-  wrote it with none) or `no launch: ...` (every instance capped), kept as `reason`, the raw text
-  jbus wrote.
+  with the head of any other no of `jgauge room` but /tmp's after it, or none
+  (`jbus.roomwait.reason`), or `no launch: ...` (every instance capped), kept as `reason`, the raw
+  text jbus wrote.
 
 A wait is a spell of a row's lines in `waits.jsonl` with one cause: it starts at the first and ends
 at the row's next line of another cause or of none; a spell with no such line yet is open, with no
@@ -41,7 +42,7 @@ from datetime import datetime, tzinfo
 from itertools import groupby
 
 from jbus.cleanup import WAITING
-from jbus.dispatch import ROOM
+from jbus.roomwait import ROOM
 from jbus.telemetry import values
 
 TABLE = "launch_failures"
@@ -66,7 +67,7 @@ CAUSES: tuple[tuple[str, re.Pattern[str]], ...] = (
             r"|a gate held back while every slot is taken: "
         ),
     ),
-    (LOAD, re.compile(rf"{re.escape(ROOM)}: load \S+ is at or over ")),
+    (LOAD, re.compile(rf"{re.escape(ROOM)}: load (\S+ )?is at or over ")),
     (OTHER, re.compile(rf"{re.escape(ROOM)}(: |$)|no launch: ")),
 )
 """The cause of each reason a row waits that keeps its launch from starting, the first that

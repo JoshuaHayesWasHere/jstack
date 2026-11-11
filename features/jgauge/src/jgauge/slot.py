@@ -18,11 +18,13 @@ A thread that cannot wait in a call long does not wait long. In the full lane,
 `jgauge test-slot --thread <id>` tries once. With every full slot taken, the call registers the
 thread as a waiter (`jgauge.waiters`), with the time the call came as its place, and exits with
 code 76. `jbus poll` sends the oldest waiter one message when a full slot is free. That wake
-claims the slot for the thread for `waiters.HOLDS`, and another thread with `--thread` takes a
-full slot only while the free slots outnumber the claims of other threads: with none to spare it
-registers as a waiter, as it does with every slot taken. The woken thread then runs its command
-again. That run takes the slot and takes the thread out of the waiters file, and with it its
-claim.
+claims the slot for the thread for `waiters.HOLDS`, and every other taker of a full slot takes
+one only while the free slots outnumber the claims of other threads (`spare`, the count jbus
+wakes waiters by too). It counts and takes under the waiters' lock. With none to spare, a thread
+with `--thread` registers as a waiter, as it does with every slot taken, and a caller with no
+thread, such as a desk's `make check` or `jmerge`'s guards, waits in its call. The woken thread
+then runs its command again. That run takes the slot and takes the thread out of the waiters
+file, and with it its claim.
 
 In the short lane the call waits for a slot in the call, for up to `SHORT_WAIT_SECONDS`, and
 registers nothing. The callers that wait take the slots freed in the order they came (`_line`),
@@ -175,17 +177,33 @@ def _first_free(locks: Path, lane: Lane) -> tuple[int, Path] | None:
     return None
 
 
-def _spare(locks: Path, lane: Lane, thread: str) -> tuple[tuple[int, Path] | None, bool]:
-    """A free slot that no woken waiter of another thread claims, taken, and whether any slot
-    was free at all. A thread that takes one is no longer a waiter."""
-    claimed = waiters.claims(locks, name(lane), thread, datetime.now(UTC))
-    held = _first_free(locks, lane)
-    if held is not None and 1 + free(lane) > claimed:
+def spare(lane: Lane, held: list[waiters.Waiter], now: datetime, but: str = "") -> int:
+    """How many free slots of the lane no woken wait in `held` of a thread other than `but`
+    claims. Below zero when more waits claim a slot than are free. `jbus` wakes this many
+    waiters, and a take finds a slot only while it is above zero."""
+    return free(lane) - waiters.claims(held, name(lane), but, now)
+
+
+def _claim(locks: Path, lane: Lane, thread: str) -> tuple[tuple[int, Path] | None, bool]:
+    """A free slot of the full lane that no woken waiter of another thread claims, taken, and
+    whether any slot was free at all. Every taker of the lane comes here, a caller with no
+    thread too, and counts and takes under the waiters' lock, so no wake and no other take
+    comes between the two. A thread that takes one is no longer a waiter."""
+    with waiters.locked(locks) as held:
+        room = spare(lane, held, datetime.now(UTC), thread)
+        got = _first_free(locks, lane) if room > 0 else None
+        any_free = room > 0 or free(lane) > 0
+    if got is not None and thread:
         waiters.drop(locks, thread)
-        return held, True
-    if held is not None:
-        os.close(held[0])
-    return None, held is not None
+    return got, any_free
+
+
+def _free_for(locks: Path, lane: Lane) -> tuple[int, Path] | None:
+    """A slot taken for a caller with no thread, or None: in the full lane only one no woken
+    waiter claims (`_claim`), and in the short lane, which has no waiters, any free one."""
+    if lane.limit is None:
+        return _claim(locks, lane, "")[0]
+    return _first_free(locks, lane)
 
 
 def _ahead(line: Path, ticket: str) -> bool:
@@ -258,9 +276,10 @@ def take(lane: Lane, thread: str = "", command: list[str] | None = None) -> tupl
     """Wait for a slot and take it, and give the held lock and its file. With a `thread`, the
     short lane waits in the call for up to its ceiling and, with no slot by then, says in one
     line to run the command again now and takes none. The full lane leaves the free slots that
-    woken waiters of other threads claim to them and waits for none: with no slot free for it,
-    it registers the thread as a waiter, says so in one line, and takes none. A thread that
-    takes a full slot is no longer a waiter."""
+    woken waiters of other threads claim to them, with a thread or with none (`_claim`). With a
+    thread it waits for none: with no slot free for it, it registers the thread as a waiter,
+    says so in one line, and takes none. A thread that takes a full slot is no longer a waiter.
+    With no thread, a call waits in the call until a slot is free for it."""
     locks = locks_dir()
     locks.mkdir(parents=True, exist_ok=True)
     if thread and lane.limit is not None:
@@ -275,7 +294,7 @@ def take(lane: Lane, thread: str = "", command: list[str] | None = None) -> tupl
         return held
     if thread:
         now = datetime.now(UTC)
-        held, any_free = _spare(locks, lane, thread)
+        held, any_free = _claim(locks, lane, thread)
         if held is not None:
             return held
         waiters.register(locks, thread, name(lane), lane.slots, command or [], now)
@@ -291,7 +310,7 @@ def take(lane: Lane, thread: str = "", command: list[str] | None = None) -> tupl
         )
         return None
     said = False
-    while (held := _first_free(locks, lane)) is None:
+    while (held := _free_for(locks, lane)) is None:
         if not said:
             print(f"test-slot: waiting for one of {lane.called}", file=sys.stderr, flush=True)
             said = True
