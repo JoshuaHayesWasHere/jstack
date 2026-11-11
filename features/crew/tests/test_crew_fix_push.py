@@ -116,7 +116,10 @@ found = crewpush.refused(sys.stdin.read().splitlines())
 print("\\n".join(found), file=sys.stderr)
 sys.exit(1 if found else 0)'
 """
-SELECTOR = "import sys\nassert sys.argv[1:3] in (['--part', 'touched'], ['--part', 'cross'])\n"
+SELECTOR = (
+    "import sys\n"
+    "assert sys.argv[1:3] in (['--part', 'touched'], ['--part', 'cross'], ['--part', 'names'])\n"
+)
 
 
 def checks(pr, tmp_path, red):

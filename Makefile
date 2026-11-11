@@ -107,7 +107,10 @@ select:
 # change adds or edits, and never the whole suite, even where the selection is `all`: CI's check
 # runs the rest of it. The crew's check block runs it in steps, the lint and then each file alone,
 # so each fits the short lane, and then, as steps of the same check, each cross-cutting test the
-# selection names, wherever its file lives (`--part cross`), alone too. `PART=guards`, the lint and
+# selection names, wherever its file lives (`--part cross`), alone too, and then each step of
+# `--part names`: the tests the pull request's check selects because they name or read a file the
+# change edits, a few files a step. `PART=names` runs those tests at once and no lint, as
+# `PART=rest` runs its own, and never the whole suite. `PART=guards`, the lint and
 # the guard tests, is what jmerge runs on a pull request's tree merged over its base, and it too
 # never runs the whole suite: where the selection is `all` its guards are the cross-cutting tests,
 # the catch-all and the changed test files, since the whole suite outran jmerge's 10 minutes on
@@ -127,7 +130,7 @@ check-fast:
 		[ -z "$$tests" ] || exec $(MAKE) --no-print-directory test TESTS="$$(echo $$tests)"; \
 		exit 0; \
 	fi; \
-	if [ '$(PART)' = rest ]; then \
+	if [ '$(PART)' = rest ] || [ '$(PART)' = names ]; then \
 		[ "$$tests" != all ] || exec $(MAKE) --no-print-directory test; \
 		[ -z "$$tests" ] || exec $(MAKE) --no-print-directory test TESTS="$$(echo $$tests)"; \
 		exit 0; \

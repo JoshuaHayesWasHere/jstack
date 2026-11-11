@@ -174,10 +174,22 @@ merge base and `<base>`, which the pull request's own check, run over the merge 
 edits, each one the check runs, and never `all`: a change that selects every test still names
 its own. It needs no selection, so it is quick. `--part cross` prints the cross-cutting tests of
 the selection, wherever their files live, and no other: neither the catch-all nor a test the
-change reaches or edits. Of `all` it prints every cross-cutting test. The touched tests and the
-cross-cutting ones are the desk's check, with the lint (the crew's check block,
-features/crew/do-the-task.md, runs each file alone in the short lane), and CI's check runs the
-rest of the selection.
+change reaches or edits. Of `all` it prints every cross-cutting test. `--part names` prints, of
+the selection a pull request's check makes (`--pull-request`), the test files it selects because
+they name or read a file the change edits (the `names` cause: a spelled path, a skill that
+includes it, a read set), less the ones `--part touched` and `--part cross` print, in steps of
+`STEP` seconds of test time at most by the file table, one step a line, its files space-separated.
+A path of `EVERY_RUN` names nothing there, so it reads the rest of the change. #1691 edited
+features/crew/no-pr-end.md, and its check failed twice on test_status_line_readers.py, which reads
+that file and which no part the desk ran printed. The touched tests, the cross-cutting ones and
+the names part are the desk's check, with the lint (the crew's check block,
+features/crew/do-the-task.md, runs each touched or cross-cutting file alone and each step of the
+names part in the short lane), and CI's check runs the rest of the selection: the tests the change
+reaches through imports and features, and the catch-all. Measured over main's last 20 merges on
+2026-11-11, by this tree's tests, the names part adds a median of 98 test files to a desk's check
+of 48 (6 to 256), 934 s of the file table's test time (26 to 3,371 s), which the short lane's 4
+workers share, in 20 steps (1 to 59). Most of it is read sets: an edit of one module of
+`features/jbus/src/` matches 96 tests' read sets.
 
 `select_tests.py --within <list> <base> <head>` prints, of the test files a list names (a file,
 or a folder of tests that ends in `/`), the ones the change reaches on a Mac: the macOS job reads
@@ -1654,7 +1666,38 @@ def selection(changed, failed=(), edited=None):
     return sorted(chosen | added), {**why, "added": sorted(added)}
 
 
-DESK_PARTS = ("cross", "guards", "rest", "touched")
+DESK_PARTS = ("cross", "guards", "names", "rest", "touched")
+STEP = 60
+
+
+def names_part(changed, edited):
+    """The steps of `--part names`: of the test files a pull request's check selects because
+    they name or read a path the change edits (`names`), the ones that neither `touched` nor the
+    cross-cutting tests hold, which the desk runs already. A path of `EVERY_RUN` makes the
+    selection `all` and names nothing here, so the rest of the change is read without it."""
+    _, why = ruled([one for one in changed if one not in EVERY_RUN], edited=edited)
+    named = set(why.get("names", ())) - set(touched(changed)) - set(cross_cutting())
+    return stepped(sorted(named))
+
+
+def stepped(files):
+    """`files`, in order, in steps of `STEP` seconds of test time at most by the file table, or
+    as `guessed` for a file it does not hold: a step fits the short lane on its workers and pays
+    pytest's start once. A file of more than `STEP` is a step of its own."""
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+    from testing import split
+
+    table = split.read_file_times(split.FILE_TIMES)
+    steps, held = [], STEP
+    for file in files:
+        seconds = (table.get(file) or guessed(file))[0]
+        if held + seconds > STEP:
+            steps.append([])
+            held = 0
+        steps[-1].append(file)
+        held += seconds
+    return steps
 
 
 def touched(changed):
@@ -2220,7 +2263,7 @@ def main(argv):
         sys.exit(
             "usage: select_tests.py [--within <list> [--strict] | [--pull-request] [--parts <n>]]"
             " <base> <head>\n"
-            "       select_tests.py --part cross|guards|rest|touched [--since <merge-base>]"
+            "       select_tests.py --part cross|guards|names|rest|touched [--since <merge-base>]"
             " <base> <head>\n"
             "       select_tests.py --failed-on-main <days> <kept>"
         )
@@ -2238,6 +2281,13 @@ def main(argv):
         return
     if cut == "touched":
         print("\n".join(touched(changed)))
+        return
+    if cut == "names":
+        try:
+            steps = names_part(changed, edits(*argv, changed))
+        except Unread as error:
+            sys.exit(f"select_tests.py: nothing can be read ({error}), so no names part")
+        print("\n".join(" ".join(step) for step in steps))
         return
     failed = os.environ.get(FAILED_ON_MAIN)
     failed = None if failed is None else failed.split()
