@@ -402,7 +402,7 @@ MeetsFix(p) ==
 Restack(p) ==
     /\ st[p] = "open"                       \* features/jbus/src/jbus/stack.py `world.open.items()`, open ones only
     /\ on[p] # "main"
-    /\ st[on[p]] = "merged"                 \* features/jbus/src/jbus/stack.py `merged = world.merged.get(stacked.slug) if not merged or not rebase.crew(run, slug):`, its base merged
+    /\ st[on[p]] = "merged"                 \* features/jbus/src/jbus/stack.py `merged = world.merged.get(stacked.slug) if not merged or not crewthread.tended(run, slug):`, its base merged
     /\ on' = [on EXCEPT ![p] = "main"]
     /\ \E reuse \in IF ci[p] = "pass" THEN BOOLEAN ELSE {FALSE} :   \* .github/workflows/check.yml `run: PYTHONPATH=features/jmerge/src python3 -m jmerge.reuse`
          /\ ci' = [ci EXCEPT ![p] = IF reuse THEN "pass" ELSE "none"]

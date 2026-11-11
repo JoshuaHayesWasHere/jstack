@@ -30,6 +30,7 @@ from jbriefs.status import Status
 from jbus import (
     END_TURN,
     cleanup,
+    crewthread,
     dispatch,
     mirror,
     outbox,
@@ -134,8 +135,8 @@ def _briefs(run: Pass, kind: str = "tasks") -> dict[str, str]:
 
 def link(run: Pass, client: Client, world: World) -> None:
     for slug, pull in world.open.items():
-        thread, key = dispatch.launched(run, slug), f"linked|{slug}|#{pull['number']}"
-        if not thread or not pull.get("url") or _done(run, key):
+        thread, key = crewthread.crew(run, slug), f"linked|{slug}|#{pull['number']}"
+        if not dispatch.launched(run, slug) or not pull.get("url") or _done(run, key):
             continue
         try:
             client.call("link_pull_request", {"threadId": thread, "url": pull["url"]})
@@ -616,7 +617,7 @@ def resume(run: Pass, client: Client, world: World) -> None:
             continue
         if not dispatch.launched(run, slug) or (result and not owes):
             continue
-        if thread_of(run.home, slug) != at or world.awaits(thread):
+        if crewthread.crew(run, slug) != at or world.awaits(thread):
             continue
         if owes and review.awaited(brief, result):
             continue
@@ -721,7 +722,7 @@ def merged(run: Pass, client: Client, world: World, rows: list[queue.Row]) -> No
             continue
         key = f"merged-left|{slug}|#{pull['number']}"
         listed = (world.thread(slug) or {}).get("threadId", "")
-        at = thread_of(run.home, slug) or dispatch.launched(run, slug) or listed
+        at = crewthread.crew(run, slug) or listed
         if not at or _done(run, key):
             continue
         message = resume_message(
@@ -748,7 +749,7 @@ def merged(run: Pass, client: Client, world: World, rows: list[queue.Row]) -> No
 
 
 def tie(run: Pass, client: Client, world: World) -> None:
-    dispatch.write_missing(run)
+    crewthread.repair(run)
     link(run, client, world)
     settle(run, client, world)
 

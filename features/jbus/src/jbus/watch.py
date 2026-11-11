@@ -1108,14 +1108,13 @@ def unwritten(run: Pass, world: World, thread: dict[str, Any] | None, state: wor
     return f"its thread {thread['status']} with nothing written"
 
 
-def status(
-    run: Pass, world: World, slug: str, state: work.State, launched: str = ""
-) -> dict[str, str]:
+def status(run: Pass, world: World, slug: str, state: work.State, crew: str = "") -> dict[str, str]:
     """Return a row's derived columns. The row's status is the projection of the row's state
     (`work.status`). `why` holds the reason that comes with the status itself: what a Result
     leaves.
 
-    `launched` is the thread id of the slug's launch record.
+    `crew` is the thread of the slug's crew (`jbus.crewthread.crew`), the `thread` column, or for
+    a row with none the one thread T3 Code lists for it.
     """
     found = world.thread(slug)
     pull = world.open.get(slug) or world.merged.get(slug)
@@ -1132,7 +1131,7 @@ def status(
         else:
             reason = closes(run, slug, brief_of(run, slug), result)
     return {
-        "thread": (found or {}).get("threadId") or launched,
+        "thread": crew or (found or {}).get("threadId", ""),
         "pr": f"#{pull['number']}" if pull else "",
         "checks": checks(pull) if pull is not None and slug in world.open else "",
         "status": word,

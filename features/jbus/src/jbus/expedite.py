@@ -113,8 +113,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from jbriefs import below, findings, skills
-from jbriefs.home import thread_of
-from jbus import END_TURN, dispatch, merge, outbox, read_json, rebase, verbs, write_json
+from jbus import END_TURN, crewthread, dispatch, merge, outbox, read_json, rebase, verbs, write_json
 from jbus.passes import Pass
 from jbus.review import ranges
 from jbus.stall import PASSES, REVIEWING
@@ -630,7 +629,7 @@ def _busy(run: Pass, client: Client, world: World, slug: str, row: Short) -> boo
 
 def _capped(run: Pass, client: Client, slug: str) -> bool:
     """Say whether the crew's instance is capped, so the outbox holds the message to it."""
-    return bool(outbox.capped(run, client, thread_of(run.home, slug)))
+    return bool(outbox.capped(run, client, crewthread.crew(run, slug)))
 
 
 def told(run: Pass, pulls: merge.Said) -> set[int]:
@@ -710,7 +709,7 @@ def tell(run: Pass, client: Client, world: World, pulls: merge.Said) -> set[int]
         if since and busy is False:
             entry["idle"] = entry.get("idle", 0) + 1
         if entry.get("idle", 0) >= PASSES or since >= REVIEWING:
-            thread = thread_of(run.home, slug) or "not known"
+            thread = crewthread.crew(run, slug) or "not known"
             work = ", with its crew or a reviewer at work" if busy else ""
             line = (
                 f"{STALL} {slug}: #{number} is as short as it was {since} passes after its "

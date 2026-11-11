@@ -72,8 +72,7 @@ from pathlib import Path
 from typing import Any
 
 from jbriefs import below
-from jbriefs.home import thread_of
-from jbus import END_TURN, launchtext, mirror, queue, rebase, review, verbs
+from jbus import END_TURN, crewthread, launchtext, mirror, queue, rebase, review, verbs
 from jbus.launches import records
 from jbus.passes import Pass
 from jbus.prereview import pushed
@@ -104,7 +103,7 @@ def move(run: Pass, client: Client, world: World) -> None:
         if not head or stacked is None or stacked.at or stacked.slug in world.open:
             continue
         merged = world.merged.get(stacked.slug)
-        if not merged or not rebase.crew(run, slug):
+        if not merged or not crewthread.tended(run, slug):
             continue
         onto = _onto(run, brief, merged)
         if onto:
@@ -122,7 +121,7 @@ def before_pull(run: Pass, world: World) -> None:
         if stacked is None or slug in world.open or slug in world.merged:
             continue
         merged = world.merged.get(stacked.slug) or {}
-        if not (merged.get("mergeCommit") or {}).get("oid") or not rebase.crew(run, slug):
+        if not (merged.get("mergeCommit") or {}).get("oid") or not crewthread.tended(run, slug):
             continue
         merge = str(merged["mergeCommit"]["oid"])
         onto = stacked.branch if stacked.at else _onto(run, brief, merged)
@@ -186,7 +185,7 @@ def _moved(
             why = said[-1] if said else f"gh exited {asked.returncode}"
             run.say(f"wait {slug}: #{number} could not be based on {onto}: {why}")
             return
-    thread = thread_of(run.home, slug)
+    thread = crewthread.crew(run, slug)
     if rebase.held(run, client, thread, slug, number, head, key, KIND):
         return
     last = str(merged.get("headRefOid") or "")

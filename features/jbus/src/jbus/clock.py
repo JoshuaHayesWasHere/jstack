@@ -101,6 +101,7 @@ from jbriefs import below, findings
 from jbriefs.home import home_of, thread_of
 from jbus import (
     END_TURN,
+    crewthread,
     dispatch,
     expedite,
     merge,
@@ -226,17 +227,17 @@ def _ask(run: Pass, slug: str, kind: str, reason: str, head: str, brief: str) ->
     """Return the thread a wait is on and the line jbus sends it: the reviewer's line, or nothing
     where the crew is the one to carry on."""
     if kind == "result":
-        return thread_of(run.home, slug), ""
+        return crewthread.crew(run, slug), ""
     named = reviewer(brief, kind, reason, head)
     if not named and kind == "review" and expedite.no_reviewer_by_rule(brief, head):
         return "", ""
     if not named:
-        return thread_of(run.home, slug), ""
+        return crewthread.crew(run, slug), ""
     if kind == "review":
         return named, expedite.AGAIN.format(slug=slug)
     found = review.ranges(run, slug, head, "fix" if matches(reason, FIXES) else "rebase", brief)
     if not found:
-        return thread_of(run.home, slug), ""
+        return crewthread.crew(run, slug), ""
     return named, expedite.SCOPED.format(slug=slug, old=found[0], new=found[1])
 
 
@@ -287,7 +288,7 @@ def _act(run: Pass, client: Client, slug: str, wait: dict[str, Any]) -> bool:
     number, reason, line = wait["number"], wait["reason"], wait["line"]
     key = f"{CLOCK}|{slug}|{wait['kind']} {wait['head'][:12]} {wait['thread']}"
     thread, did = wait["thread"], "relaunched its reviewer" if line else "carried its crew on"
-    crew = thread_of(run.home, slug)
+    crew = crewthread.crew(run, slug)
     if wait["kind"] == "scoped" and line and crew and rebase.worktree(client, thread) is None:
         there = rebase.where(client, crew)
         line = ROOTED.format(reviewer=thread, number=number, worktree=there, line=line)
@@ -319,7 +320,7 @@ def _home(run: Pass, slug: str, wait: dict[str, Any], brief: str) -> None:
     one list, which takes it to the brief's home, or to the user's band where that home has no
     thread (`jbus.view.state.owner`)."""
     did = wait.get("did") or ("relaunched its reviewer" if wait["line"] else "carried its crew on")
-    crew = thread_of(run.home, slug) or "not known"
+    crew = crewthread.crew(run, slug) or "not known"
     home = thread_of(home_of(run.home, brief))
     why = "it is its home's from here" if home else "it has no home to tell"
     key = f"{wait['kind']} {wait['head'][:12]} {wait['thread']}"
@@ -368,7 +369,7 @@ def tick(
         wait = {**wait, "kind": kind, "head": head, "thread": thread, "line": line}
         wait |= {"number": number, "reason": reason}
         kept[slug] = wait
-        busy = {live.get(thread), live.get(thread_of(run.home, slug))} & set(AT_WORK)
+        busy = {live.get(thread), live.get(crewthread.crew(run, slug))} & set(AT_WORK)
         if wait["home"] or busy or slug in reviewing:
             continue
         nudges = _nudges(run, slug, head)
@@ -421,8 +422,8 @@ def _checks(
     seen = {one["id"]: one for one in out}
     kept: dict[str, Any] = {}
     for slug, pull in sorted(world.open.items()):
-        crew, head = dispatch.launched(run, slug), str(pull.get("headRefOid") or "")
-        if not crew or slug in run.limited or slug in run.gated:
+        crew, head = crewthread.crew(run, slug), str(pull.get("headRefOid") or "")
+        if not dispatch.launched(run, slug) or slug in run.limited or slug in run.gated:
             continue
         jobs = _red(run, world, slug, pull)
         if not jobs or (queue.fresh(run.state, slug) or {}).get("held"):
