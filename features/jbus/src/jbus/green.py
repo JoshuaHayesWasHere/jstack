@@ -31,9 +31,10 @@ The move's steps are not one write, so `green.json` keeps the step it owes (`MOV
 before the link moves, as `install`, then `relink` once uv installed the tool, and gone once
 the layouts are put. Each pass resumes an owed step (`_resume`) before it reads main.json, so a
 pass that dies with the link at the new tree and the tool at the old one, the units' 203/EXEC,
-is finished by the next pass, and a relink that is refused is asked again on each pass. A pass
-starts no new move while one owes its install; one that owes a relink is done by the newer move,
-and a move whose install fails goes back owing a relink of the tip it went back to.
+is finished by the next pass, and a relink that is refused is asked again on each pass. Since a
+pass resumes first, it starts no new move while one owes its install; one that owes a relink is
+done by the newer move, and a move whose install fails goes back owing a relink of the tip it
+went back to.
 `features/jbus/spec/GreenMove.tla` checks the steps with a death between any two.
 
 After the install, the move puts each harness's layout again from the new tip
@@ -448,9 +449,8 @@ def _drop(run: Pass) -> None:
 
 
 def _advance(run: Pass, copy: Path) -> None:
-    owed = _owed(run)
-    if owed is not None and owed["owes"] != "relink":
-        return
+    """Move the copy to main's green tip. `_resume` ran first, so no move owes its install here,
+    and a move that owes a relink is taken over by this one, which relinks."""
     green = mainjson.read(run.state).green
     held = at(copy)
     record = read_json(run.state / FILE, {})

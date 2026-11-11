@@ -39,7 +39,7 @@ MainGoesGreen ==
   /\ green < MaxTip /\ green' = green + 1
   /\ UNCHANGED <<link, tool, layouts, trees, pc, to, from, owed, gone>>
 
-\* `_advance`: `if owed is not None and owed["owes"] != "relink": return`, then
+\* `_advance`, which runs after `_resume`, so no move owes its install then, and
 \* `if not green or not held or green in (held, refused): return`, `_grow`, and
 \* `write_json(run.state / FILE, owes)` with `"owes": "install"`, before `_settle` points the link.
 Advance ==
