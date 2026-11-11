@@ -22,6 +22,15 @@ SAID = {
 
 HOLDS = {"row-held", "declines", "touches", "merge-off"}
 CREW = {"no-review", "check-failed", "conflicts", "merged-tree-fails"}
+FIXES = {"check-failed", "conflicts", "merged-tree-fails"}
+LIMIT = 2
+
+
+def _held(v):
+    """Why a row whose crew jbus tells nothing is held: jbus's hold at LIMIT failed heads, or yours."""
+    if v["st"] != "open" or "nogo" not in v["asks"] or v["said"] not in FIXES:
+        return ""
+    return "its check failed twice" if v["fails"] == LIMIT else "its row is held"
 
 
 def _main(v):
@@ -33,7 +42,8 @@ def _main(v):
 
 
 def state(v, facts):
-    return f"{_main(v)}: {SAID[v['said']]}"
+    held = _held(v)
+    return f"{_main(v)}: {SAID[v['said']]}" + (f", and held: {held}" if held else "")
 
 
 region_names = ["Main", "What jmerge says"]
@@ -42,7 +52,7 @@ region_names = ["Main", "What jmerge says"]
 def group(v, facts):
     if v["st"] == "merged":
         return "Merged"
-    if v["said"] in HOLDS:
+    if v["said"] in HOLDS or _held(v):
         return "Waits on your word"
     if getattr(facts, "settled", False):
         return "Stuck"
@@ -72,6 +82,7 @@ STEPS = {
     "GuardsFail": "the guards fail on its tree over main",
     "JoinBatch": "it joins jmerge's batch",
     "Judge": "jmerge judges it",
+    "Lift": "its check passes, and jbus lifts its hold",
     "MainFixed": "jbus's revert or fix lands, and main is green",
     "MainMoves": "other work merges into main",
     "Merge": "jmerge merges it",
@@ -79,6 +90,7 @@ STEPS = {
     "OtherMerges": "the one ahead in line merges",
     "Release": "the one ahead waits on its crew or user, and gives up the line",
     "Review": "its reviewer's round holds",
+    "Twice": "jbus holds its row: its check failed at two heads",
 }
 
 
