@@ -118,12 +118,6 @@ def test_check_says_whether_the_written_page_is_the_one_the_charts_make(tmp_path
     assert stale.stdout == f"{out} is stale: run statechart site --out {out}\n"
 
 
-# The page in a headless browser. A probe, added to a copy of the page, opens each tab and
-# measures what the frame shows on load, then works the zoom, fit and theme buttons, and writes
-# what it found into the page, which the browser prints. The browser opens no window under 500
-# pixels wide, so the phone's page is a frame of 390 pixels inside a wider one, and the probe
-# in it posts what it found up to that page.
-
 BROWSER = os.environ.get("JSTACK_TEST_BROWSER", "")
 CHROMIUM = shutil.which(BROWSER) if BROWSER else shutil.which("chromium")
 DESK, PHONE = (1440, 900), (390, 844)
@@ -213,7 +207,12 @@ def browser_lock():
 
 
 def probed(tmp_path, screen):
-    """What the probe measured on the committed page at a window of this size."""
+    """What the probe measured on the committed page in a headless browser at a window of this
+    size. The probe, added to a copy of the page, opens each tab and measures what the frame
+    shows on load, then works the zoom, fit and theme buttons, and writes what it found into
+    the page, which the browser prints. The browser opens no window under 500 pixels wide, so
+    the phone's page is a frame of 390 pixels inside a wider one, and the probe in it posts
+    what it found up to that page."""
     if not CHROMIUM:
         if BROWSER or os.environ.get("GITHUB_ACTIONS") == "true":
             pytest.fail(f"no browser to open the page in: {BROWSER or 'no chromium on PATH'}")
