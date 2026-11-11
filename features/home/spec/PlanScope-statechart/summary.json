@@ -1,0 +1,88 @@
+{
+  "view": "customer",
+  "modelStates": 2097,
+  "modelTransitions": 6975,
+  "chartStates": 87,
+  "chartTransitions": 111,
+  "chartStatus": {
+    "works": 70,
+    "fixed": 0,
+    "wrong": 17
+  },
+  "chartGroups": [
+    {
+      "name": "Working",
+      "color": "#d6eaf8",
+      "states": 1
+    },
+    {
+      "name": "Archiving",
+      "color": "#fdebd0",
+      "states": 5
+    },
+    {
+      "name": "Archived",
+      "color": "#e5e8e8",
+      "states": 25
+    }
+  ],
+  "mixedGroups": [],
+  "regions": {
+    "drawn": true,
+    "states": [
+      10,
+      77
+    ],
+    "transitions": 111,
+    "all": 212,
+    "flat": {
+      "states": 465,
+      "transitions": 1380
+    }
+  },
+  "classes": [
+    {
+      "n": 1,
+      "end": "Scope s working: the entry in plan-done.md twice; no fix",
+      "invariant": "EntryOnce",
+      "rule": "An entry is in its plan or in plan-done.md, once, and in both only between the two writes of one close: no line is lost, and no close leaves a second copy. A close cut short is still between its two writes, as the disk shows it, until a close finishes it.",
+      "cause": "jbus plan close died between its append to plan-done.md and its rewrite of the plan, and the close run again appended the section a second time: plan.close reads plan-done.md only for the blank line before the section",
+      "readerSteps": 3,
+      "modelSteps": 4,
+      "counterexamples": 144,
+      "fix": null
+    },
+    {
+      "n": 2,
+      "end": "Scope s working: the entry proposed or planned; the fix counted in s, not where its home reads it",
+      "invariant": "FixCountedWhereRead",
+      "rule": "A counted fix is in the ledger admit reads for it, the one of its brief's home, once no move runs. (A rule this model adds to the brief's three: today's code breaks it.)",
+      "cause": "jbus queue move rewrote the fix's Home: line and died before blockers.rehome carried its try, which only a move run again carries",
+      "readerSteps": 3,
+      "modelSteps": 4,
+      "counterexamples": 126,
+      "fix": null
+    },
+    {
+      "n": 3,
+      "end": "Scope s's plan archived, its home-id still there: the entry proposed or planned (in plan-archived.md); the fix counted in s, not where its home reads it",
+      "invariant": "FixCountedWhereRead",
+      "rule": "A counted fix is in the ledger admit reads for it, the one of its brief's home, once no move runs. (A rule this model adds to the brief's three: today's code breaks it.)",
+      "cause": "the archive moved plan.md aside, so the fix's brief is the catch-all's, but no step moves blockers.json: the try stays in s's ledger, which admit no longer reads",
+      "readerSteps": 7,
+      "modelSteps": 8,
+      "counterexamples": 60,
+      "fix": null
+    }
+  ],
+  "codeLike": [],
+  "drawnFrom": {
+    "command": "statechart from-spec PlanScope.tla --config PlanScope.chart.cfg --title 'A plan entry and a scope'\"'\"'s retire: is any work lost?' --expect-broken EntryOnce,FixCountedWhereRead --png",
+    "inputs": {
+      "PlanScope.chart.cfg": "2744ef6bdc9ced241656af12fb68512eba2b60058d3e3cebabd44231ec3de5d6",
+      "PlanScope.map.py": "aeceb4a0e77f4b77b0f456fda6fd8fc42e1ac170c7d679df4ae31a5c699ec2c7",
+      "PlanScope.tla": "b32e5f72855f6246b815e153c2ab95a4be44bd80c082796938909e0050144fe5"
+    },
+    "chart": "0d21dc93aa90929ebe15e2e2bb385582ff91797921aaa20dbdcb022d008bd7b9"
+  }
+}

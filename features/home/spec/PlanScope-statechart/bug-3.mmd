@@ -1,0 +1,51 @@
+---
+title: "A plan entry and a scope's retire: is any work lost?, bug 3"
+config:
+  markdownAutoWrap: false
+  state:
+    useMaxWidth: false
+---
+stateDiagram-v2
+  classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group0 fill:#d6eaf8,stroke:#6b757c,color:#1b2631
+  classDef group0Path fill:#d6eaf8,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group1 fill:#fdebd0,stroke:#7f7668,color:#1b2631
+  classDef group1Path fill:#fdebd0,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group2 fill:#e5e8e8,stroke:#737474,color:#1b2631
+  classDef group2Wrong fill:#e5e8e8,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  state "Legend" as legend {
+    state "Working" as legendGroup0
+    state "Archiving" as legendGroup1
+    state "Archived" as legendGroup2
+    state "Breaks a rule today" as legendWrong
+  }
+  class legendGroup0 group0
+  class legendGroup1 group1
+  class legendGroup2 group2
+  class legendWrong plainWrong
+  state "Scope s archiving, its<br/>note and the older one in<br/>log/" as g0 {
+    state "the entry proposed or<br/>planned; no fix" as s0
+    state "the entry proposed or<br/>planned; the fix counted<br/>in s" as s1
+  }
+  state "Scope s archiving, its<br/>gate asked of the<br/>catch-all, gates.md still<br/>there: the entry proposed<br/>or planned; no fix" as s2
+  state "Scope s archiving, its<br/>gates asked of the<br/>catch-all, gates.md moved<br/>aside: the entry proposed<br/>or planned; no fix" as s3
+  state "Scope s archiving, its<br/>note kept in log/: the<br/>entry proposed or planned;<br/>no fix" as s4
+  state "Scope s archiving, its<br/>note written: the entry<br/>proposed or planned; no<br/>fix" as s5
+  state "Scope s working: the entry<br/>proposed or planned; no<br/>fix" as s6
+  state "Scope s's plan archived,<br/>its home-id still there:<br/>the entry proposed or<br/>planned (in<br/>plan-archived.md); the fix<br/>counted in s, not where<br/>its home reads it" as s7
+  [*] --> s6
+  s6 --> s5 : 1. you run /handoff: the home<br/>writes its note
+  s5 --> s2 : 2. the archive asks the<br/>scope's gate of the catch-all
+  s2 --> s3 : 3. the archive moves gates.md<br/>aside
+  s3 --> s4 : 4. the archive keeps the note<br/>in log/, with its Was home<br/>line
+  s4 --> s0 : 5. the archive moves the older<br/>handoff.md to log/
+  s0 --> s1 : 6. the home queues the fix,<br/>and jbus counts it
+  s1 --> s7 : 7. the archive moves plan.md<br/>to plan-archived.md
+  class s2 group1Path
+  class s3 group1Path
+  class s0 group1Path
+  class s1 group1Path
+  class s4 group1Path
+  class s5 group1Path
+  class s6 group0Path
+  class s7 group2Wrong
