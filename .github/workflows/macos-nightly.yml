@@ -32,11 +32,19 @@ env:
   UV_VERSION: "0.13.2"
 
 jobs:
-  # The whole suite took 51 minutes on macos-15 with its waits (run 40108766945): 90 leaves
-  # room for a slow runner, and the suite's own cap stops it first, so the summary still runs.
+  # The whole suite took 2907 to 4731 s on macos-15 by 2026-11-11, and one run outgrew the step's
+  # 80-minute cap, which killed pytest before it wrote its report (run 43050563617). So the suite
+  # runs as two shards, split by time (testing/shard.py), each a job of its own with its own
+  # failed tests step.
   macos:
+    name: macos ${{ matrix.shard }} of ${{ strategy.job-total }}
     runs-on: macos-15
     timeout-minutes: 90
+    strategy:
+      # Every shard runs to its end, so a red run names every failing test.
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -54,9 +62,18 @@ jobs:
         run: >-
           for tool in gh jq; do command -v "$tool" || brew install "$tool"; done &&
           { [ -x "$(brew --prefix)/bin/bash" ] || brew install bash; } && zsh --version
+      # pytest stops itself 52 minutes in, between tests, and writes its report, so the failed
+      # tests step names what failed before the stop. The 8 minutes left under the step's cap
+      # hold the lint before pytest, the test running at the stop (120 s at most, its own cap in
+      # pyproject.toml) and the report. Make takes SHARD and TESTS from the env, and keeps TESTS
+      # out of a recipe's env (the Makefile's `unexport TESTS`): a PYTEST_ADDOPTS would reach the
+      # pytest of each test that runs one, in a repo with no pytest-timeout to read it.
       - name: make check
         id: suite
-        timeout-minutes: 80
+        timeout-minutes: 60
+        env:
+          SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
+          TESTS: --session-timeout=3120
         run: make check JUNIT="$RUNNER_TEMP/junit.xml"
       - name: failed tests
         if: "!cancelled()"
