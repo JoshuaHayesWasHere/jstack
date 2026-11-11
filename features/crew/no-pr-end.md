@@ -8,7 +8,7 @@ It is the only check:
 B="$H/tasks/<slug>.md"
 why=$(awk '
     /^## Result/ {done = left = paused = 0; pr = ""; result = 1}
-    result && $(1) == "Status:" {done = (NF == 2 && $(2) == "done"); paused = ($(2) ~ /^paused[,.:;]?$/)}
+    result && $(1) == "Status:" {done = ($(2) == "done" || $(2) == "done."); paused = ($(2) ~ /^paused[,.:;]?$/)}
     result && $(1) == "Left:" {left = (NF == 2 && $(2) == "none")}
     result && $(1) == "Branch:" {pr = $(NF)}
     END {
