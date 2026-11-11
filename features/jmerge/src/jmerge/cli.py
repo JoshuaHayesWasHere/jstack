@@ -165,6 +165,7 @@ class Repo:
         self.fetched = False
         self.through: int | None = None
         self.order: list[int] = []
+        self.lined: list[int] = []
         self.line: dict[str, int] = {}
         self.rebasing: set[int] = set()
         self.numbers_on: dict[str, set[int]] = {}
@@ -241,7 +242,9 @@ class Repo:
         listed = sorted(listed, key=lambda one: one.number)
         first = [one for one in listed if self.is_revert(one)]
         rest = [one for one in listed if not self.is_revert(one)]
-        return first + self.migrations_in_order(rest)
+        lined = first + self.migrations_in_order(rest)
+        self.lined = [one.number for one in lined]
+        return lined
 
     def is_revert(self, one: ready.PullRequest) -> bool:
         """Whether `jmerge.reverts` names the pull request as a revert jbus opened."""
@@ -872,6 +875,14 @@ class Repo:
             return one.head
         verdict = self.range_diff(last, one.head, one.base, stacks.of(text))
         return last if verdict.clean else one.head
+
+    def weighed(self, one: ready.PullRequest, default: str, check: bool = False) -> Judgement:
+        """The judgement of `one` as a run of `jmerge` takes it (`waits`), with a hold for the user
+        kept in `holds.json` outside `--check`."""
+        found = self.waits(one, default)
+        if found.verb == "hold" and not check:
+            self.hold(one)
+        return found
 
     def waits(self, one: ready.PullRequest, default: str) -> Judgement:
         found = self.judge(one, default)
@@ -1715,25 +1726,53 @@ class Repo:
         """What this run does with the members it judged, once every other pull request was
         judged: merge a proven batch, keep a pending one whose members all still stand at their
         heads, and otherwise build the next over today's tip (`build_batch`). A pull request
-        held for the batch out (`batch.Batching.held`) waits for a proven one, and for a pending
-        one kept, and merges alone first where a pending one is built again."""
+        held for the batch out (`batch.Batching.held`) waits for a pending one kept, and merges
+        alone first where a pending one is built again. Where a proven one merges, each held is
+        judged again over the tip it left (`after_batch`) and goes on in this run with the
+        members left; it waits only where the batch stays proven, its merge lock held elsewhere."""
         on = self.batching
         assert on is not None
         kept = on.record.batch
         members = on.members
         said: list[str] = []
         if on.state == batch.PROVEN and kept is not None:
-            said = self.waiting(kept, default, on.held) + self.merge_batch(on, kept, default)
+            said = self.merge_batch(on, kept, default)
             numbers = {member.number for member in kept.members}
             members = [found for found in members if found[0].number not in numbers]
             if on.record.batch is not None:
-                return said + self.waiting(kept, default, members)
+                held = self.waiting(kept, default, on.held)
+                return held + said + self.waiting(kept, default, members)
+            again, members = self.after_batch(on.held, members, default)
+            said += again
         elif on.state == batch.PENDING and kept is not None:
             judged = {batch.Member(one.number, one.head) for one, *_ in members}
             if set(kept.members) <= judged:
                 return self.waiting(kept, default, on.held + members)
             said = [self.merge(one, slug, note, found) for one, slug, note, found in on.held]
         return said + self.build_batch(on, default, members)
+
+    def after_batch(
+        self, held: list[batch.Judged], members: list[batch.Judged], default: str
+    ) -> tuple[list[str], list[batch.Judged]]:
+        """Judge each pull request `held` for a batch that merged again, over the tip the batch
+        left, as this run judged every other (`weighed`), and give the lines of those that are not
+        ready, or merge alone as judged, and the members for the next batch: `members` with each
+        that is one now, in merge order. A held one was ready over the tip before the batch, so
+        the batch's merges make most of them members, which take the path their count gives."""
+        self.numbers_on.clear()
+        said: list[str] = []
+        joined = list(members)
+        for one, *_ in held:
+            found = self.weighed(one, default)
+            if found.judged is None:
+                said.append(lines.waits(found.verb, one.number, one.url, found.why))
+            elif found.judged.batch:
+                joined.append((one, found.slug, found.note, found.judged))
+            else:
+                said.append(self.merge(one, found.slug, found.note, found.judged))
+        place = {number: at for at, number in enumerate(self.lined)}
+        joined.sort(key=lambda found: place.get(found[0].number, len(place)))
+        return said, joined
 
     def waiting(self, kept: batch.Batch, default: str, members: list[batch.Judged]) -> list[str]:
         """The wait of each member while `kept` is checked: on its check where it holds it, and
@@ -2567,9 +2606,7 @@ def _merging(
         repo.start_batch(batched, default, listed)
     on = repo.batching
     for one in repo.line_up(listed, default):
-        found = repo.waits(one, default)
-        if found.verb == "hold" and not check:
-            repo.hold(one)
+        found = repo.weighed(one, default, check)
         if found.judged is None:
             say(lines.waits(found.verb, one.number, one.url, found.why))
         elif check:

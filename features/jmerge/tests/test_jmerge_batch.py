@@ -24,7 +24,7 @@ from jgauge import slot
 from jmerge import batch, green, ready, treeguards
 from jmerge.lock import MergeLock
 from test_jmerge_fresh import AFTER as LATER
-from test_jmerge_fresh import CONFLICT, GH, LINES, Kitchen, git, url
+from test_jmerge_fresh import CONFLICT, GH, LINES, Kitchen, git, url, write
 from test_jmerge_order import DIRECTORY, queue_of, row
 from test_jmerge_revert_line import named
 
@@ -105,9 +105,9 @@ FIVE = (6, 7, 8, 9, 10)
 """The members of `five`, in merge order."""
 
 
-def five(kitchen):
+def five(kitchen, at=None):
     """Five ready pull requests, the fewest CI's batch takes, each on a file of its own, whose
-    checks main moved past."""
+    checks main moved past, by a merge made now, or at `at`."""
     heads = [
         kitchen.crew(slug, number, {name: OURS})
         for slug, number, name in (
@@ -118,8 +118,22 @@ def five(kitchen):
             ("five", 10, "f.txt"),
         )
     ]
-    kitchen.on_main({"d.txt": "theirs\n"})
+    if at is None:
+        kitchen.on_main({"d.txt": "theirs\n"})
+        return heads
+    main = kitchen.home.main
+    git(main, "pull", "-q", "--ff-only")
+    write(main, {"d.txt": "theirs\n"})
+    git(main, "commit", "-qam", "by hand", at=at)
+    git(main, "push", "-q")
     return heads
+
+
+BY_HAND = "2010-01-01T00:00:00Z"
+"""When main moved past the checks of `five`, in the tests of a pull request held for the batch."""
+HELD = {**merge.PASSED, "startedAt": "2020-01-01T00:00:00Z"}
+"""A check that started after main moved at `BY_HAND`, and before the batch's merges, made now:
+its pull request would merge alone while the batch is out, and is a member once it merged."""
 
 
 def more(kitchen, *numbers):
@@ -265,18 +279,89 @@ def test_a_proven_batch_stops_at_the_first_merge_github_refuses(kitchen):
 
 
 def test_a_proven_batch_whose_merge_lock_another_run_holds_stays_proven_for_the_next_run(kitchen):
-    five(kitchen)
+    """#12, which would merge alone, came ready while the batch was checked: it waits for the batch
+    while another run holds the merge lock, and merges after it in the run that merges it."""
+    five(kitchen, BY_HAND)
+    tip = kitchen.tip()
     kitchen.run()
+    kitchen.crew("seven", 12, {"h.txt": OURS}, checks=(HELD,))
     proven(kitchen)
     held = MergeLock(kitchen.home.state)
     assert held.take()
     try:
         merging = f"{ready.MERGING}"
-        assert kitchen.run() == [f"wait {n} {url(n)}: {merging}" for n in FIVE]
+        assert kitchen.run() == [first(12, tip), *(f"wait {n} {url(n)}: {merging}" for n in FIVE)]
     finally:
         held.give()
     assert kitchen.calls() == []
-    assert [line.split()[:2] for line in kitchen.run()] == [["merged", str(n)] for n in FIVE]
+    said = kitchen.run()
+    assert [line.split()[:2] for line in said] == [["merged", str(n)] for n in (*FIVE, 12)]
+    assert alone(said[-1], 12)
+
+
+def test_a_pull_request_held_for_a_proven_batch_merges_alone_in_the_run_that_merges_it(kitchen):
+    """#12 would merge alone while the batch of five was checked, so it waited for it. The run
+    that merges the batch judges it again over the tip the batch left, and it merges there on
+    the guards of its own tree, with no wait on a batch that is gone."""
+    five(kitchen, BY_HAND)
+    kitchen.run()
+    kitchen.crew("seven", 12, {"h.txt": OURS}, checks=(HELD,))
+    proven(kitchen)
+    said = kitchen.run()
+    assert not [line for line in said if "merges first" in line]
+    assert [line.split()[:2] for line in said] == [["merged", str(n)] for n in (*FIVE, 12)]
+    assert alone(said[-1], 12) and runs(kitchen) == 1
+    assert kitchen.at_main("h.txt") == OURS.strip()
+    assert record(kitchen).get("members") is None
+
+
+def test_a_held_pull_request_and_a_late_member_share_a_guards_run_after_the_batch_merges(kitchen):
+    """#12 was held for the batch, and #11 came ready after it was built, a member it had no
+    room for: once the batch merges, the two are judged over the tip it left and share one
+    guards run on their tree in that run."""
+    five(kitchen, BY_HAND)
+    kitchen.run()
+    kitchen.crew("six", 11, {"g.txt": OURS})
+    kitchen.crew("seven", 12, {"h.txt": OURS}, checks=(HELD,))
+    proven(kitchen)
+    said = kitchen.run()
+    assert not [line for line in said if "merges first" in line]
+    tip = git(kitchen.origin, "rev-parse", "refs/heads/main~2")
+    assert [line.split()[:2] for line in said] == [
+        *(["merged", str(n)] for n in FIVE),
+        ["batch:", "guards"],
+        ["merged", "11"],
+        ["merged", "12"],
+    ]
+    assert said[5].startswith(guards_batch(2, tip, "passed")) and runs(kitchen) == 1
+
+
+def test_a_held_pull_request_that_conflicts_with_the_batch_says_so_once_it_merged(kitchen):
+    """#12 merged over the tip the batch was built on, and conflicts with #6 in it: once the batch
+    merges, #12 waits for its rebase, and no longer for the batch."""
+    five(kitchen, BY_HAND)
+    kitchen.run()
+    kitchen.crew("seven", 12, {"a.txt": "mine\n" + LINES}, checks=(HELD,))
+    proven(kitchen)
+    said = kitchen.run()
+    assert [line.split()[:2] for line in said[:5]] == [["merged", str(n)] for n in FIVE]
+    assert said[5:] == [f"wait 12 {url(12)}: {ready.FRESH_CONFLICT}"]
+
+
+def test_a_held_pull_request_whose_head_failed_a_batch_merges_alone_after_it(kitchen):
+    """#12's head was in a failed batch, so it joins none at that head: once the batch merges, it
+    merges alone, and #11, a member that came after the batch was built, does too, with no guards
+    run of the two."""
+    five(kitchen, BY_HAND)
+    kitchen.run()
+    kitchen.crew("six", 11, {"g.txt": OURS})
+    head = kitchen.crew("seven", 12, {"h.txt": OURS}, checks=(HELD,))
+    kept = record(kitchen)
+    (kitchen.home.state / batch.KEPT).write_text(json.dumps({**kept, "failed": {"12": head}}))
+    proven(kitchen)
+    said = kitchen.run()
+    assert [line.split()[:2] for line in said] == [["merged", str(n)] for n in (*FIVE, 12, 11)]
+    assert alone(said[5], 12) and alone(said[6], 11) and runs(kitchen) == 2
 
 
 def test_a_batch_whose_tip_moved_merges_nothing_and_is_built_again_over_the_new_tip(kitchen):
