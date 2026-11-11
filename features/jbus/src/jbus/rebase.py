@@ -205,8 +205,8 @@ def _waits(line: str) -> tuple[Line, str] | None:
 
 def content(line: str) -> tuple[int, str, Ask] | None:
     """Return the number of the pull request, the reason that `jmerge` gives, and the scoped review
-    that jbus launches. `content` reads a line that waits on a scoped review: of a rebase that
-    changed the content, or of drops the Result explains that no review has ruled on. The ask's
+    that jbus launches. `content` reads a line that waits on a scoped review: of a push that
+    changed code, or of drops the Result explains that no review has ruled on. The ask's
     message is the reviewer's, with the two ranges the reason's range-diff names, and its head is
     the head that range-diff ends on."""
     found = _waits(line)
@@ -248,7 +248,7 @@ def asks(line: str) -> tuple[int, str, Ask] | None:
 def tell(run: Pass, client: Client, world: World, lines: list[str]) -> None:
     """Send one message, once per head, to each crew whose pull request `jmerge` calls stale or
     short of lines nobody explained, and launch one scoped reviewer, once per head, of each pull
-    request whose rebase changed its content or whose drops no review ruled on."""
+    request whose push changed its code or whose drops no review ruled on."""
     for number, reason, ask in filter(None, map(asks, lines)):
         if ask.kind == "rereview":
             scope(run, client, world, number, reason, ask)
