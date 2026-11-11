@@ -195,105 +195,117 @@ STATUSES = (
     "left",
 )
 _QUESTION_CLOSED = "the question on the row closes, and the row's"
-_ASKED = "jbus opens a question on the row"
-_NEW_TURN = "the thread starts a new turn"
-_PULL_OPENS = "a pull request opens, or opens again"
-_PULL_MERGES = "the pull request opens and merges between two passes, or merges"
-_ENDS_UNWRITTEN = (
-    "the turn hangs, or the thread ends, is settled or leaves T3 Code's list with nothing written"
-)
+_UNNAMED = "the pull request closes unmerged with no address of it in the Result, and"
 MOVES: dict[tuple[str, str], str] = {
     ("queued", "launched"): "a launch record names a thread for the row",
-    ("queued", "gate"): _ASKED,
+    ("queued", "gate"): "jbus opens a question on the row",
     ("queued", "removed"): "the `remove` verb takes the row out",
     ("gate", "queued"): f"{_QUESTION_CLOSED} launch has no record",
-    ("gate", "launched"): f"{_QUESTION_CLOSED} launch has no thread yet",
+    ("gate", "launched"): f"{_QUESTION_CLOSED} thread is starting",
+    ("gate", "running"): f"{_QUESTION_CLOSED} thread is at work",
+    ("gate", "waiting"): f"{_QUESTION_CLOSED} thread asks for an answer",
+    ("gate", "failed"): f"{_QUESTION_CLOSED} thread failed",
+    ("gate", "stale"): f"{_QUESTION_CLOSED} thread ended, settled or left T3 Code's "
+    "list with nothing written",
+    ("gate", "left"): f"{_QUESTION_CLOSED} Result leaves work",
     ("gate", "pr"): f"{_QUESTION_CLOSED} pull request is open",
     ("gate", "done"): f"{_QUESTION_CLOSED} Result says done",
     ("gate", "merged"): f"{_QUESTION_CLOSED} pull request merged",
-    ("gate", "running"): f"{_QUESTION_CLOSED} thread is at work",
-    ("gate", "waiting"): f"{_QUESTION_CLOSED} thread asks for an answer",
-    ("gate", "failed"): f"{_QUESTION_CLOSED} thread failed with nothing written",
-    ("gate", "stale"): f"{_QUESTION_CLOSED} turn hung, or its thread ended or left T3 Code's list "
-    "with nothing written",
-    ("gate", "left"): f"{_QUESTION_CLOSED} Result leaves work, or its pull request closed",
+    ("gate", "removed"): "the `remove` verb takes the row out",
     ("launched", "running"): "T3 Code lists the thread at work",
+    ("launched", "waiting"): "the thread asks for an answer before a pass sees it at work",
     ("launched", "failed"): "the thread fails before a pass sees it at work",
+    ("launched", "stale"): "the thread ends, settles or leaves T3 Code's list with nothing "
+    "written before a pass sees it at work",
     ("launched", "left"): "the thread ends with work left before a pass sees it at work",
     ("launched", "done"): "the thread ends with a clean Result before a pass sees it at work",
-    ("launched", "waiting"): "the thread asks for an answer before a pass sees it at work",
-    ("launched", "stale"): f"{_ENDS_UNWRITTEN}, before a pass sees it at work",
     ("launched", "pr"): "a pull request opens before a pass sees the thread at work",
-    ("launched", "merged"): "a pull request opens and merges before a pass sees the thread at work",
-    ("launched", "gate"): _ASKED,
+    ("launched", "merged"): "the pull request opens and merges between two passes",
+    ("launched", "gate"): "jbus opens a question on the row",
+    ("launched", "removed"): "the `remove` verb takes the row out",
     ("failed", "running"): "the failed thread works again",
+    ("failed", "waiting"): "the failed thread asks for an answer",
+    ("failed", "stale"): "the failed thread ends, settles or leaves T3 Code's list "
+    "with nothing written",
+    ("failed", "launched"): "the thread starts a new turn",
     ("failed", "left"): "the failed thread leaves its work to its home",
     ("failed", "done"): "a Result says done after the thread failed",
-    ("failed", "launched"): _NEW_TURN,
-    ("failed", "waiting"): "the thread asks for an answer",
-    ("failed", "stale"): _ENDS_UNWRITTEN,
-    ("failed", "pr"): _PULL_OPENS,
-    ("failed", "merged"): _PULL_MERGES,
-    ("failed", "gate"): _ASKED,
+    ("failed", "pr"): "a pull request opens",
+    ("failed", "merged"): "the pull request opens and merges between two passes",
+    ("failed", "gate"): "jbus opens a question on the row",
+    ("failed", "removed"): "the `remove` verb takes the row out",
     ("running", "pr"): "a pull request opens",
     ("running", "left"): "the Result leaves work, or the pull request closes",
     ("running", "done"): "the thread ends with a clean Result and no pull request",
     ("running", "waiting"): "the thread asks for an answer to its request",
-    ("running", "stale"): _ENDS_UNWRITTEN,
+    ("running", "stale"): "the turn hangs, or the thread ends, settles or leaves T3 Code's "
+    "list with nothing written",
     ("running", "failed"): "the thread fails",
     ("running", "merged"): "the pull request opens and merges between two passes",
-    ("running", "launched"): _NEW_TURN,
-    ("running", "gate"): _ASKED,
+    ("running", "launched"): "the thread starts a new turn, or the crew opens nothing after "
+    "its review",
+    ("running", "gate"): "jbus opens a question on the row",
+    ("running", "removed"): "the `remove` verb takes the row out",
     ("waiting", "running"): "the request is answered and the thread works again",
     ("waiting", "left"): "the thread ends after its request with work left",
+    ("waiting", "done"): "the thread ends after its request with a clean Result",
+    ("waiting", "stale"): "the thread ends, settles or leaves T3 Code's list after its "
+    "request with nothing written",
     ("waiting", "failed"): "the thread fails while it waits",
-    ("waiting", "done"): "the thread ends with a clean Result after its request",
-    ("waiting", "stale"): f"{_ENDS_UNWRITTEN}, after its request",
-    ("waiting", "launched"): _NEW_TURN,
-    ("waiting", "pr"): _PULL_OPENS,
-    ("waiting", "merged"): _PULL_MERGES,
-    ("waiting", "gate"): _ASKED,
+    ("waiting", "launched"): "the thread starts a new turn",
+    ("waiting", "pr"): "a pull request opens",
+    ("waiting", "merged"): "the pull request opens and merges between two passes",
+    ("waiting", "gate"): "jbus opens a question on the row",
+    ("waiting", "removed"): "the `remove` verb takes the row out",
     ("stale", "running"): "the thread works again",
-    ("stale", "left"): "the thread stays quiet with nothing written for long enough, or "
-    "writes a leftover",
-    ("stale", "done"): "the thread ends with a clean Result",
-    ("stale", "failed"): "the thread fails",
+    ("stale", "left"): "the thread stays quiet with nothing written for long enough, or writes a "
+    "leftover",
+    ("stale", "done"): "a Result says done after the thread ended",
     ("stale", "waiting"): "the thread asks for an answer",
-    ("stale", "launched"): _NEW_TURN,
-    ("stale", "pr"): _PULL_OPENS,
-    ("stale", "merged"): _PULL_MERGES,
-    ("stale", "gate"): _ASKED,
+    ("stale", "failed"): "the thread fails",
+    ("stale", "launched"): "the thread starts a new turn",
+    ("stale", "pr"): "a pull request opens",
+    ("stale", "merged"): "the pull request opens and merges between two passes",
+    ("stale", "gate"): "jbus opens a question on the row",
+    ("stale", "removed"): "the `remove` verb takes the row out",
     ("left", "pr"): "a pull request opens for what was left",
-    ("left", "done"): "a follow-up Result says done",
+    ("left", "done"): "a follow-up Result says done, and names no closed pull request",
     ("left", "running"): "the thread works again on what was left",
     ("left", "waiting"): "the thread asks for an answer again",
     ("left", "launched"): "the row is launched again for what was left",
-    ("left", "stale"): "the turn hangs on what was left",
-    ("left", "merged"): "the pull request of a Result that leaves work merges",
-    ("left", "gate"): _ASKED,
+    ("left", "merged"): "the pull request opens and merges between two passes",
+    ("left", "gate"): "jbus opens a question on the row",
+    ("left", "failed"): "the Result no longer names the closed pull request, and the thread failed",
+    ("left", "stale"): "the turn hangs, or the Result no longer names the closed pull request",
     ("left", "removed"): "the `remove` verb takes the row out",
     ("pr", "merged"): "the pull request merges",
-    ("pr", "gate"): _ASKED,
+    ("pr", "gate"): "jbus opens a question on the row",
     ("pr", "left"): "the pull request closes unmerged",
-    ("pr", "done"): "the pull request leaves the open list, and the Result says done and owes none",
-    ("pr", "stale"): "the pull request closes unmerged while the turn hangs",
+    ("pr", "done"): "the pull request closes unmerged, and the clean Result names no address of it",
+    ("pr", "running"): f"{_UNNAMED} the thread works",
+    ("pr", "failed"): f"{_UNNAMED} the thread failed",
+    ("pr", "stale"): "the pull request closes unmerged while the turn hangs, or with no address "
+    "of it in the Result after the thread ended",
+    ("pr", "launched"): f"{_UNNAMED} T3 Code lists no thread",
     ("pr", "waiting"): "the pull request closes unmerged while the thread asks for an answer",
     ("pr", "removed"): "the `remove` verb takes the row out",
     ("done", "merged"): "the pull request of a done row merges on the user's accept",
 }
 """Every move of a row's status that the work makes, one entry each: from a status, to a status
-(or `removed`, the line `remove` writes), with the one change of facts that makes it. No verb
-moves a row: each pass works the status out again from the facts (`work.status`), so the table
+(or `removed`, the line `remove` and `withdraw` write), with the change of facts that makes it.
+The table is the status edges of TLC's graph of `features/jbus/spec/RowLife.tla`, the moves one
+step of the model makes, and `test_rowlife_spec.py` fails when the two differ. No verb moves a row
+but `remove`: each pass works the status out again from the facts (`work.status`), so the table
 cannot drive a row as `item.MOVES` drives an item. It judges a move after the facts made it:
 `derive` marks each line of `transitions.jsonl` whose move it does not hold, and writes the
 status all the same, since the status is what the facts say, but for a row that is over: `derive`
-keeps it (`work.kept`), so no move leaves `merged` or `done` but `done` to `merged`. The table
-holds every move a change of one fact makes but the faults, so `"legal": false` marks only a fault:
-a final row that the facts would take out of `merged` or `done`, a pull request read in neither of
-GitHub's lists for one pass, a thread, Result or pull request of a row with no launch record, and
-a `Branch:` line that loses the address of a closed pull request. `RowLife.tla` holds the table to
-`work.status` (`MovesKnown`). `derive` never judges a move to `removed`: those entries name the
-removals the work was seen to make. `features/jbus/docs/jbus/row-moves.md` lists it."""
+keeps it (`work.kept`), so no move leaves `merged` or `done` but `done` to `merged`, and `remove`
+refuses such a row. A thread that ends, settles or leaves T3 Code's list with nothing written
+makes a launched row `stale`, so no launched row goes back to `queued`. So a mark is a status
+the table does not know, or a change of the code the model has not taken in, and
+`statechart replay` with `RowLife.trace.py` names the line.
+`features/jbus/docs/jbus/row-moves.md` lists it."""
+
 UNLAUNCHED = ("queued", "gate")
 LIVE = (*UNLAUNCHED, "launched", "running", "waiting", "pr")
 WITHDRAWN_BY = "jbus"
@@ -1175,6 +1187,23 @@ class _Batch:
         return _row(self.rows, slug, self.gone)
 
 
+@contextmanager
+def _one_batch(state: Path) -> Iterator[_Batch | None]:
+    """Yield a batch over the queue's table, under its lock, or None where `removed.json` does
+    not parse. As the batch ends, its lines of `transitions.jsonl` are written before the table,
+    as `derive` writes its own."""
+    with _changing(state) as rows:
+        try:
+            gone = removed(state)
+        except Unparsable:
+            yield None
+            return
+        batch = _Batch(state, rows, gone, {}, [], {})
+        yield batch
+        if batch.moves:
+            store.append_jsonl(transitions_path(state), batch.moves)
+
+
 def _went(batch: _Batch, slug: str) -> Row | None:
     """Return the row of a removed slug as it was when it went: the copy in this batch, or
     else the copy in the last line of `transitions.jsonl` that removed it."""
@@ -1479,13 +1508,28 @@ def _followers(batch: _Batch) -> list[str]:
     return list(dict.fromkeys([*batch.queued, *waiting]))
 
 
-def _hold(row: Row, by: dict[str, Any] | None = None) -> None:
-    """Take the row's go back and hold it, by the party and at the time `by` names, if any."""
+def _go(batch: _Batch, row: Row, go: str, party: str) -> None:
+    """Log the row's go moving to `go`, by `party`, as a line `{slug, go, by, at}` of
+    `transitions.jsonl`, which the batch writes with its other lines, so `statechart replay`
+    walks the go of `features/jbus/spec/RowLife.tla` too (`RowLife.trace.py`)."""
+    batch.moves.append({"slug": row["slug"], "go": go, "by": party, "at": jsettings.stamp(clock())})
+
+
+def _hold(
+    batch: _Batch,
+    row: Row,
+    party: str,
+    by: dict[str, Any] | None = None,
+    took: dict[str, Any] | None = None,
+) -> None:
+    """Take the row's go back and hold it, by the party and at the time `by` names, if any, and
+    keep `took`, the go taken, where the hold keeps it (`TOOK`)."""
     row.update(approved="", brief_sha="", held=True)
     row.pop("approval", None)
     row.pop("hold", None)
     if by:
-        row["hold"] = by
+        row["hold"] = {**by, TOOK: took} if took else by
+    _go(batch, row, "kept" if took else "held", party)
 
 
 TOOK = "took"
@@ -1496,7 +1540,7 @@ GO_COLUMNS = ("approved", "approval", "brief_sha")
 """The columns of a row's go, which a hold takes."""
 
 
-def _lift(batch: _Batch, slug: str) -> str:
+def _lift(batch: _Batch, slug: str, party: str) -> str:
     """Put back the go a hold kept (`TOOK`) and end the hold, and return the line that says so.
     Refuse a row that is not held or whose hold kept no go, and one whose stored brief is not the
     one that go was for, by its sha: each stays held until it is approved again."""
@@ -1515,27 +1559,29 @@ def _lift(batch: _Batch, slug: str) -> str:
     row.update({column: took.get(column, "") for column in GO_COLUMNS if column != "approval"})
     if "approval" in took:
         row["approval"] = took["approval"]
+    _go(batch, row, "approved", party)
     return f"lifted {slug}'s hold, and its go is back: {approval(row)}"
 
 
 def _unfollow(
-    rows: list[Row], parent: str, hold: bool = True, by: dict[str, Any] | None = None
+    batch: _Batch, parent: str, party: str, hold: bool = True, by: dict[str, Any] | None = None
 ) -> list[str]:
     """Take the go back from each row that is still queued and was approved as a follow-up of
     `parent`, or of a row so held, down the chain, since its go depended on the parent's go,
     which is gone. Return their slugs. A row that was launched keeps its record, since nothing
     takes a launch back. With no `hold`, the rows wait with no hold, so the rule approves them
-    again once the parent has a go; with one, they are held by the party of `by`."""
+    again once the parent has a go; with one, they are held by the party of `by`. `party` is who
+    took the parent's go, for the line of each go taken (`_go`)."""
     held, gone = [], [parent]
     while gone:
         one = gone.pop()
-        for row in rows:
+        for row in batch.rows:
             made = record(row)
             if made and made.follows == one and row.get("status", "queued") == "queued":
-                _hold(row, by)
-                if not hold:
-                    row.pop("held", None)
-                    row.pop("hold", None)
+                if hold:
+                    _hold(batch, row, party, by)
+                else:
+                    _waits_again(batch, row, party)
                 held.append(row["slug"])
                 gone.append(row["slug"])
     return sorted(held)
@@ -1912,15 +1958,14 @@ def _do(
         by = {"ran_by": ran_by or runner(), "ran_at": _stamp(user)}
         row = batch.row(verb.slug)
         took = {column: row[column] for column in GO_COLUMNS if row.get(column)}
-        _hold(row, by)
-        if verb.keep and took.get("approved"):
-            row["hold"] = {**by, TOOK: took}
-        also = _unfollow(rows, verb.slug, by=by)
+        party = who(by["ran_by"])
+        _hold(batch, row, party, by, took if verb.keep and took.get("approved") else None)
+        also = _unfollow(batch, verb.slug, party, by=by)
         return f"held {verb.slug}; run {by['ran_at']} by {who(by['ran_by'])}" + (
             f", and {', '.join(also)} with it: {FOLLOWED}" if also else ""
         )
     if isinstance(verb, Lift):
-        return _lift(batch, verb.slug)
+        return _lift(batch, verb.slug, who(ran_by or runner()))
     if isinstance(verb, Add):
         if not _SLUG.fullmatch(verb.slug):
             raise Refused(f"refused: {verb.slug} is not a slug")
@@ -2003,7 +2048,7 @@ def _do(
             go = GO_HOLDS if holds else GO_VOID
             opened = [case for case in party.doors(verb.text) if case not in party.doors(was)]
             if holds and opened and _unlaunched(row):
-                _void(rows, row)
+                _void(batch, row, who(ran_by or runner()))
                 go = (
                     f", {verb.slug}{TAKEN}{', '.join(opened)}, which only the user's own word opens"
                 )
@@ -2063,6 +2108,8 @@ def _do(
         return _rename(batch, verb, asks)
     row = batch.row(verb.slug)
     _waited_on(rows, verb.slug)
+    if work.over(row):
+        raise Refused(f"refused: {verb.slug} is {row['status']}, and a row that is over stays")
     if asks is None:
         raise Refused("refused: remove was given nothing to ask what is out with")
     is_out = out[verb.slug]
@@ -2231,6 +2278,7 @@ def _grant(
     row.pop("hold", None)
     row.pop(CARRIED, None)
     row.update(approved=made.line(), approval=held(made), brief_sha=stored)
+    _go(batch, row, "approved", made.who())
     return f"approved {row['slug']}: brief {stored[:12]}, {made.line()}"
 
 
@@ -2289,12 +2337,19 @@ def _entered(
     return _grant(batch, row, text, ENTRY, given_entry(row), said, user, ran_by, ground=ground)
 
 
-def _void(rows: list[Row], row: Row) -> list[str]:
+def _void(batch: _Batch, row: Row, party: str) -> list[str]:
     """Take back the go of an unlaunched row with no hold, so that the user's go, or a new go of
     its entry, approves it again. Each follow-up of it is taken back the same way."""
+    _waits_again(batch, row, party)
+    return [row["slug"], *_unfollow(batch, row["slug"], party, hold=False)]
+
+
+def _waits_again(batch: _Batch, row: Row, party: str) -> None:
+    """Take back the row's go with no hold, so it waits for a go again."""
     row.update(approved="", brief_sha="")
-    row.pop("approval", None)
-    return [row["slug"], *_unfollow(rows, row["slug"], hold=False)]
+    for column in ("approval", "held", "hold"):
+        row.pop(column, None)
+    _go(batch, row, "waiting", party)
 
 
 def entered(state: Path, user: jsettings.Settings, entry_go: EntryGo) -> list[str]:
@@ -2304,12 +2359,10 @@ def entered(state: Path, user: jsettings.Settings, entry_go: EntryGo) -> list[st
     its go. Then each waiting row whose entry's go holds is approved (`_entered`). Return a line
     for each."""
     said: list[str] = []
-    with _changing(state) as rows:
-        try:
-            gone = removed(state)
-        except Unparsable:
+    with _one_batch(state) as batch:
+        if batch is None:
             return said
-        batch = _Batch(state, rows, gone, {}, [], {})
+        rows = batch.rows
         for row in sorted(rows, key=order):
             made, text = record(row), batch.brief(row["slug"])
             if not made or made.basis != ENTRY or not _unlaunched(row) or row.get("held"):
@@ -2318,7 +2371,7 @@ def entered(state: Path, user: jsettings.Settings, entry_go: EntryGo) -> list[st
             if not why and entry_go(text or "", given_entry(row)) is None:
                 why = f"the go of its plan entry {given_entry(row)} no longer holds"
             if why:
-                back = ", ".join(_void(rows, row))
+                back = ", ".join(_void(batch, row, who(PASS)))
                 said.append(f"{back} waits for the user's go: {why}")
         for row in sorted(rows, key=order):
             line = _entered(batch, row["slug"], user, entry_go, PASS)
@@ -2358,13 +2411,10 @@ def gone_ahead(
     `heard` is the user's answer that kept the default: it is the user's word, and approves the
     row under any setting. With no `heard`, silence closed the gate: the setting `go` is
     `silence`, and silence starts the row (`unsilenced`)."""
-    with _changing(state) as rows:
-        try:
-            gone = removed(state)
-        except Unparsable:
+    with _one_batch(state) as batch:
+        if batch is None:
             return ""
-        batch = _Batch(state, rows, gone, {}, [], {})
-        row = next((row for row in rows if row["slug"] == slug), None)
+        row = next((row for row in batch.rows if row["slug"] == slug), None)
         text = batch.brief(slug)
         if row is None or text is None or not _waits(row, text):
             return ""
@@ -2516,7 +2566,7 @@ def _take_out(batch: _Batch, row: Row, slug: str, by: str, at: str, why: str = "
     batch.gone[slug] = {"at": at, "by": by} | ({"why": why} if why else {})
     batch.briefs[slug] = None
     where = f"brief kept at {kept}" if kept else "it had no stored brief"
-    also = [] if was == "merged" else _unfollow(rows, slug)
+    also = [] if was == "merged" else _unfollow(batch, slug, by)
     more = f", and held {', '.join(also)}: {FOLLOWED}" if also else ""
     said = f"removed {slug}: was {was}, {at} by {by}, {where}{more}"
     return f"{said}: {why}" if why else said
@@ -2729,17 +2779,14 @@ def follow_ups(state: Path, user: jsettings.Settings) -> list[str]:
     it again. First it keeps each row's `parent_entry` (`_inherit`): a parent queued after its
     follow-up, or given an entry since, is taken in there."""
     said: list[str] = []
-    with _changing(state) as rows:
-        try:
-            gone = removed(state)
-        except Unparsable:
+    with _one_batch(state) as batch:
+        if batch is None:
             return said
-        batch = _Batch(state, rows, gone, {}, [], {})
         _inherit(batch)
         while True:
             lines = [
                 line
-                for row in sorted(rows, key=order)
+                for row in sorted(batch.rows, key=order)
                 if filed(row, batch.brief(row["slug"]) or "")
                 for line in [_by_rule(batch, row["slug"], user, PASS)]
                 if line.startswith("approved ")

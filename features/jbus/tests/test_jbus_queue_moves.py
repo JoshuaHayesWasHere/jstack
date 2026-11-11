@@ -29,8 +29,8 @@ FINAL = (
     "as not final"
 )
 PR_LOST = (
-    "an open pull request ends merged, closed (`left`) or with a Result that owes none (`done`): "
-    "any other status is a pull request the pass read in neither of GitHub's lists"
+    "an open pull request ends merged, closed or with a Result that owes none: a row with a pull "
+    "request is never queued but by a pull request the pass read in neither of GitHub's lists"
 )
 SWAPPED = (
     "both are final, and a merged row stays merged: a merged pull request no list holds is read "
@@ -40,10 +40,6 @@ NO_LAUNCH = (
     "a row has a thread, a Result or a pull request only once a launch record names it, and keeps "
     "the record: a pass that sees one with no record, or a record go, lost the launch record"
 )
-UNADDRESSED = (
-    "a closed pull request is read off the `Branch:` line of the Result, which keeps its address: "
-    "a line that loses it was written over"
-)
 
 NAMED = {
     **_pairs(
@@ -52,7 +48,7 @@ NAMED = {
         done="queued launched running waiting pr failed stale gate left",
     ),
     **_pairs(SWAPPED, merged="done"),
-    **_pairs(PR_LOST, pr="failed launched queued running"),
+    **_pairs(PR_LOST, pr="queued"),
     **_pairs(
         NO_LAUNCH,
         queued="running waiting stale failed done left pr merged",
@@ -63,11 +59,11 @@ NAMED = {
         failed="queued",
         left="queued",
     ),
-    **_pairs(UNADDRESSED, left="failed"),
 }
-"""Each move of status the walk makes that `queue.MOVES` does not hold, with why: each is a fault,
-which a pass marks. `RowLife.tla` makes none of them, since its row's facts change only after its
-launch and its pull request leaves no list but by merging or closing."""
+"""Each move of status the walk makes that `queue.MOVES` does not hold, with why: each leaves a
+final row, whose status `derive` keeps (`work.kept`), so no pass writes it, or is a fault, which a
+pass marks. `RowLife.tla` makes none of them, since its row's facts change only after its launch
+and its launch record stays."""
 
 
 def _walked() -> dict[tuple[str, str], str]:
@@ -102,7 +98,7 @@ def test_the_table_holds_the_legal_moves_and_none_of_the_faults():
     removals = {(was, "removed") for was in ("queued", "left", "pr")}
     assert {move for move in queue.MOVES if move[1] != "removed"} <= set(_walked())
     assert removals <= set(queue.MOVES)
-    faults = {("done", "pr"), ("merged", "gate"), ("done", "gate"), ("pr", "running")}
+    faults = {("done", "pr"), ("merged", "gate"), ("done", "gate")}
     assert faults & set(queue.MOVES) == set()
 
 
@@ -120,15 +116,17 @@ def _moved(kitchen, was, status, brief=""):
 
 
 def test_a_pass_marks_a_move_the_table_does_not_hold_and_still_writes_the_status(kitchen):
-    status, line = _moved(kitchen, "pr", "running")
+    """The move the table lacks here is from a status no table names, as a row written by hand
+    or by an older jbus has."""
+    status, line = _moved(kitchen, "parked", "running")
     assert status == "running"
     assert {key: line[key] for key in ("slug", "from", "to", "legal")} == {
         "slug": "alpha",
-        "from": "pr",
+        "from": "parked",
         "to": "running",
         "legal": False,
     }
-    assert kitchen.lines("illegal-move") == ["illegal-move alpha: pr to running"]
+    assert kitchen.lines("illegal-move") == ["illegal-move alpha: parked to running"]
 
 
 def test_a_pass_leaves_a_move_the_table_holds_unmarked(kitchen):

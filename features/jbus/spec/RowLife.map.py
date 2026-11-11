@@ -1,6 +1,7 @@
 # Chart labels for RowLife: what you see of one row of the queue, in `jbus queue` and the sidebar.
 # Each status names what in features/jbus/src/jbus/work.py sets it (`work.status` and its `_THREAD`
 # table), and `removed` the verb that writes it. A row that is over keeps its status (`work.kept`).
+# RowLife.trace.py, beside it, reads jbus's log of the row as the spec's steps.
 # The line's value in work.json (`value`) is not drawn: each status node joins the values that give
 # it, as work.status projects them (running: working, opening; stale: hung, lost, unknown;
 # left: leftover, closed; queued: unapproved, behind, ready; launched: launching), and
@@ -9,8 +10,8 @@
 reader_actions = ["Grant", "Depends", "Hold", "Lift", "Remove"]
 
 STATUS = {
-    "queued": "queued (no thread yet)",
-    "launched": "launched (a launch whose thread is starting)",
+    "queued": "queued (no thread yet, or its thread settled)",
+    "launched": "launched (a launch with no thread yet)",
     "running": "running (the thread at work, a Result or not, or its pull request opening)",
     "waiting": "waiting (the thread asks you)",
     "stale": (
@@ -130,8 +131,13 @@ def step(action, before, after):
     said = {
         "Launch": "a launch record names a thread for the row",
         "Thread": THREAD.get(after["thread"], action),
+        "Settle": "T3 Code settles the thread",
         "Write": WRITTEN.get(after["written"], action),
-        "Pull": PULL.get(after["pull"], action),
+        "Pull": (
+            "the Result no longer names the closed pull request"
+            if before["pull"] == "closed" and after["pull"] == "none"
+            else PULL.get(after["pull"], action)
+        ),
         "Ask": "jbus opens a question" if after["question"] else "the question closes",
     }.get(action)
     if said is not None:
@@ -143,6 +149,8 @@ def step(action, before, after):
     if action == "Hold":
         if after["go"] == "kept":
             return "you hold the row, keeping its go"
+        if before["go"] in ("held", "kept"):
+            return "you hold the held row again"
         return "you hold the approved row" if before["go"] == "approved" else "you hold the row"
     if action == "Remove":
         return f"you remove the row from {before['status']}"
@@ -153,6 +161,8 @@ def step(action, before, after):
             return "you approve the row, or a rule gives its go"
         if before["go"] == "kept":
             return "you approve the row over the hold that kept its go"
+        if before["go"] in ("approved", "behind"):
+            return "you approve the approved row again"
         return "you approve the held row, and the hold ends"
     return {
         "Lift": "you lift the hold, and its go comes back",
