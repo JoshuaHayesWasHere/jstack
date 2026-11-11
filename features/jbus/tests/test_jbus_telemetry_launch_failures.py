@@ -157,7 +157,13 @@ def test_each_failed_home_start_is_a_row_from_its_launch_to_its_failure(machine)
     machine.write(
         "alpha",
         "relaunches.json",
-        {"uncategorized": {"at": iso(minutes(25)), "why": "it has no thread", "thread": "t-1-again"}},
+        {
+            "uncategorized": {
+                "at": iso(minutes(25)),
+                "why": "it has no thread",
+                "thread": "t-1-again",
+            }
+        },
     )
     machine.write(
         "beta",
