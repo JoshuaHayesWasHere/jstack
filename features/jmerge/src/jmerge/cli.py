@@ -1899,7 +1899,7 @@ class Repo:
         size, at = len(made.members), tip[: batch.SHA]
         if size < batch.GUARDS_LEAST:
             return [], members
-        tried = self.guards.on_batch(made.commit, tip)
+        tried = self.guards.on_batch(made.commit, tip, [one.head for one in made.members])
         if tried.outcome in treeguards.UNRUN:
             return [batch.UNMADE.format(base=default, tip=at, why=tried.why)], members
         values = {"size": size, "base": default, "tip": at, "seconds": tried.seconds}

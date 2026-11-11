@@ -903,7 +903,7 @@ def test_the_guards_on_a_batch_tree_say_what_they_did_under_the_single_path_s_ru
     tip = git(kitchen.home.main, "rev-parse", "HEAD")
     if case == "no time":
         guards.spent = treeguards.RUN_SECONDS
-    tried = guards.on_batch("0" * 40 if case == "unbuilt" else tip, tip)
+    tried = guards.on_batch("0" * 40 if case == "unbuilt" else tip, tip, [tip])
     if case == "stopped":
         assert (tried.outcome, tried.seconds) == (treeguards.STOPPED, 1)
         assert guards.spent >= 1
@@ -927,10 +927,10 @@ def test_guards_on_a_batch_tree_that_find_no_slot_run_no_more_in_that_run(
     tip = git(kitchen.home.main, "rev-parse", "HEAD")
     held, _ = slot.take(slot.full(1))
     try:
-        assert guards.on_batch(tip, tip) == treeguards.Tried(treeguards.NO_SLOT, 1)
+        assert guards.on_batch(tip, tip, [tip]) == treeguards.Tried(treeguards.NO_SLOT, 1)
     finally:
         os.close(held)
-    assert guards.on_batch(tip, tip) == treeguards.Tried(treeguards.NO_SLOT, 0)
+    assert guards.on_batch(tip, tip, [tip]) == treeguards.Tried(treeguards.NO_SLOT, 0)
     assert guards.spent == 1
 
 
@@ -946,3 +946,19 @@ def test_a_batch_tree_the_guards_cannot_run_on_is_not_made_and_its_members_go_al
     assert unmade.startswith(f"batch: not made over main at {tip[:12]} (")
     assert [one.split()[:2] for one in said] == [["wait", "6"], ["wait", "7"]]
     assert runs(kitchen) == 0 and record(kitchen)["failed"] == {}
+
+
+def test_the_guards_on_a_batch_tree_run_what_main_changed_since_the_oldest_member_s_check(kitchen):
+    """#6 left main before #7 did, so the guards on their tree get `MERGE_BASE` at #6's fork
+    point: they run every test file main changed since either member's check ran."""
+    seen = kitchen.tmp / "merge-bases"
+    command = f'make -s guards && echo "$MERGE_BASE" >> {seen}'
+    (kitchen.home.state / treeguards.NAME).write_text(command + "\n")
+    oldest = kitchen.tip()
+    kitchen.crew("one", 6, {"a.txt": OURS})
+    kitchen.on_main({"d.txt": "theirs\n"})
+    kitchen.crew("two", 7, {"b.txt": OURS})
+    tip = kitchen.on_main({"e.txt": "theirs\n"})
+    line, *merged = kitchen.run()
+    assert line.startswith(guards_batch(2, tip, "passed")) and len(merged) == 2
+    assert seen.read_text().split() == [oldest]

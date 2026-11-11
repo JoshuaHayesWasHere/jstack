@@ -462,6 +462,7 @@ How a guards run grows is not measured yet: each guards batch's line in merge.lo
 **A guards batch.**
 Once every pull request is judged, two to four members are built as CI's batch is (`batch.build`, below), with the merge lock held from the read of main's tip to the last merge, as the single path holds it for its guards (`cli.Repo.guards_batch`).
 The guards run once on that commit, under the rules of the single path's: in a full test slot, none once the run spent `treeguards.RUN_SECONDS`, none once a wait for a slot found none, and their seconds count toward the run's (`treeguards.Guards.on_batch`).
+Their `MERGE_BASE` is the merge base of main's tip and every member's head, the oldest commit a member's check ran over, so they run what main changed since any of those checks.
 The run says `batch: guards on <n> members over <base> at <tip12>, <passed|failed|stopped|no slot> in <s> s`, a line about no pull request, which merge.log keeps.
 On a pass each member merges at its own head, in order, as a proven CI batch's do (`cli.Repo.merge_members`), and its merged line says `the guards passed on its batch of <n> over <base> at <tip12> in <s> s`.
 Nothing is pushed to `jmerge/batch`, no batch pull request opens, `batch.json` keeps no batch, and no pull request waits `in-batch` or `batch-first`.

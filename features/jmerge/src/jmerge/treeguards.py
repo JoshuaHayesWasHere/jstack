@@ -344,17 +344,21 @@ class Guards:
             return ready.MAIN_MOVED.format(base=one.base), ""
         return said, note
 
-    def on_batch(self, commit: str, tip: str) -> Tried:
+    def on_batch(self, commit: str, tip: str, heads: list[str]) -> Tried:
         """Run the guards once on a batch's `commit` over `tip`, under the rules of `of`: none
         once the run spent `RUN_SECONDS`, none after a wait for a slot found none, and the
-        seconds spent count toward the run's. Nothing is kept in `KEPT`: a member's record there
-        is of its own tree, which the single path runs where the batch did not pass, and the
+        seconds spent count toward the run's. Their `MERGE_BASE` is the merge base of the tip
+        and every member's head (`heads`), the oldest commit a member's check ran over, so they
+        run what main changed since any of those checks: an ancestor of the tip, it is its own
+        merge base with it in `in_tree`. Nothing is kept in `KEPT`: a member's record there is
+        of its own tree, which the single path runs where the batch did not pass, and the
         batch's pass is no proof of that tree."""
         if self.spent >= RUN_SECONDS:
             return Tried(UNRUN[0], 0, f"the run spent its {RUN_SECONDS} s of guards")
         if self.slotless:
             return Tried(NO_SLOT, 0)
-        ran = self.in_tree(commit, tip)
+        oldest = _git(self.main, "merge-base", "--octopus", tip, *heads).stdout.strip()
+        ran = self.in_tree(commit, tip, oldest or tip)
         if ran is None:
             self.slotless = True
             self.spent += SLOT_SECONDS
