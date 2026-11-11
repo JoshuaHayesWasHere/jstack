@@ -38,7 +38,7 @@ def rows(machine):
     with contextlib.closing(machine.store()) as store:
         return store.execute(
             'SELECT project, slug, cause, reason, start, "end", minutes FROM launch_failures '
-            "ORDER BY project, coalesce(start, \"end\"), slug"
+            'ORDER BY project, coalesce(start, "end"), slug'
         ).fetchall()
 
 
@@ -66,12 +66,16 @@ def test_each_cause_jbus_records_is_a_row_with_its_start_end_and_minutes(machine
         wait(minutes(46), "slot", "waiting for room on the machine"),
         wait(minutes(52), "slot", "depends on tmp"),
         wait(minutes(60), "out", "no launch: claudeAgent cannot sign in (Not logged in)"),
-        wait(minutes(61), "out", "no launch: claudeAgent is capped until 2026-10-28T17:00:00+00:00"),
+        wait(
+            minutes(61), "out", "no launch: claudeAgent is capped until 2026-10-28T17:00:00+00:00"
+        ),
         wait(minutes(40), "held", "depends on tmp"),
         wait(minutes(45), "held", ""),
     )
     machine.append(
-        "beta", "waits.jsonl", wait(minutes(70), "open", "max_running is 8"),
+        "beta",
+        "waits.jsonl",
+        wait(minutes(70), "open", "max_running is 8"),
     )
     capped = "no launch: claudeAgent is capped until 2026-10-28T17:00:00+00:00"
     assert rows(machine) == [
@@ -95,9 +99,9 @@ def test_each_cause_jbus_records_is_a_row_with_its_start_end_and_minutes(machine
 
 
 def test_a_spell_that_ends_after_a_build_is_closed_by_the_next_build(machine):
-    machine.append("alpha", "waits.jsonl", wait(minutes(0), "tmp", "waiting: /tmp at 90% of its quota"))
+    machine.append(
+        "alpha", "waits.jsonl", wait(minutes(0), "tmp", "waiting: /tmp at 90% of its quota")
+    )
     assert rows(machine) == [("alpha", "tmp", "/tmp", None, t(minutes(0)), None, None)]
     machine.append("alpha", "waits.jsonl", wait(minutes(12), "tmp", ""))
-    assert rows(machine) == [
-        ("alpha", "tmp", "/tmp", None, t(minutes(0)), t(minutes(12)), 12.0)
-    ]
+    assert rows(machine) == [("alpha", "tmp", "/tmp", None, t(minutes(0)), t(minutes(12)), 12.0)]

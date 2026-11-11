@@ -65,6 +65,7 @@ from jbus.telemetry import (
     ghcalls,
     kpis,
     labels,
+    launch_failures,
     launches,
     measures,
     messages,
@@ -369,6 +370,7 @@ def build(config: jbus.Config, where: Path | None = None, most: int | None = Non
         labels.read(connection, config, built)
         _tokens(config, connection, zone, most, built)
         built.rows[firstload.TABLE] += firstload.keep(connection, zone)
+        built.rows[launch_failures.TABLE] += launch_failures.keep(connection, zone)
         built.ms = round((time.monotonic() - began) * 1000)
         connection.execute(
             "INSERT INTO builds (at, ms, bytes, rows, left) VALUES (?, ?, ?, ?, ?)",
