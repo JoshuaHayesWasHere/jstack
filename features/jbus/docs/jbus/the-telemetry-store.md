@@ -301,13 +301,13 @@ The measures `merge-asks` and `approval-reasks` read it, each as a day's rate: t
 `reply-corrections` and `visual-misses` lack it too: no pattern of the words tells a correction from a request.
 `asks.py` gives each pattern and what it misses.
 
-A message of kind `command` keeps the command it opens with in `messages.command`, as `/name` however it was typed (`/scout`, Codex's `$scout`, or the tags T3 Code writes a command out as), and what that command is in `messages.command_kind`:
+A message of kind `command` keeps the command it opens with in `messages.command`, as a slash and its name however it was typed (`/scout`, Codex's `$scout`, or the tags T3 Code writes a command out as), and what that command is in `messages.command_kind`:
 
 | `command_kind` | The command is |
 |---|---|
 | `door` | one that opens or hands on one of jstack's threads: `/home`, `/crew`, `/scout`, `/pr-review`, `/handoff`, `/new-home`, `/nohome`, `/unstick` |
-| `builtin` | the harness's own, such as `/compact` or `/clear` |
-| `skill` | any other, such as `/ketchup` or `/principle-attack-the-premise` |
+| `builtin` | the harness's own, such as `/clear` |
+| `skill` | any other, such as `/ketchup` or `/sharpen` |
 
 Both are empty for any other kind, and for a word of `acts`.
 `messages.py` holds the two lists (`DOORS`, `BUILTINS`); a change to either raises `RULES`, so every message is labelled again.
