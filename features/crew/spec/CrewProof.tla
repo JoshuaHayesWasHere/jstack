@@ -260,7 +260,7 @@ Unchanged_check ==
                 sections, saw, meets, reviewer, out, kept, twice>>
 
 \* crew/do-the-task.md `clean=$(git status --porcelain)`, then the first line of crew-check-steps,
-\* and the failed files read once: crew/do-the-task.md `failed=$(cat "$kept" 2> /dev/null | while read -r one; do [ ! -f "$one" ] || echo "$one"; done | command grep -vxF -e "$touched" -e "$guards")`.
+\* and the failed files read once: crew/do-the-task.md `failed=$(cat "$kept" 2> /dev/null | while read -r one; do [ ! -f "$one" ] || echo "$one"; done | command grep -vxF -e "$touched" -e "$guards"`.
 CheckStart ==
     /\ pc = "idle" /\ repo = "jstack" /\ ~CheckHeld /\ pc' = "checking"
     /\ call' = [NoCall EXCEPT !.at = head, !.clean = ~dirty, !.ci = failed]
