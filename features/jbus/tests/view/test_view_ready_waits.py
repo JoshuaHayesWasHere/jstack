@@ -14,6 +14,10 @@ from view.scene import row, tasks
         ("a gate held back while every slot is taken: branch x is there", "a slot"),
         ("no slot", "a slot"),
         ("waiting for room on the machine", "room on the machine"),
+        (
+            "waiting for room on the machine: load 30.00 is at or over 85% of 12 cores",
+            "room on the machine",
+        ),
         ("waiting: /tmp at 91% of its quota", "room on the machine"),
         ("no launch: every instance is capped", "room on the machine"),
     ],

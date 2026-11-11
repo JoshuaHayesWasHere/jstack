@@ -431,6 +431,7 @@ def test_launch_waits_splits_a_rows_go_to_launch_by_the_kind_of_each_reason(mach
     assert kept[-1] == ("one", "none", 0)
     said = {
         dispatch.ROOM: "room",
+        f"{dispatch.ROOM}: load 30.00 is at or over 85% of 12 cores": "room",
         "no launch: claudeAgent is capped until 2026-11-09T22:00:00+00:00": "room",
         f"{dispatch.HELD}: a settled thread already has this slug": "hold",
         "max_running is 4 across all projects": "cap",

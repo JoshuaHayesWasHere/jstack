@@ -16,9 +16,12 @@ them, since the store keeps no reason's text:
   (`jbus.children`), kept by its thread in `home_starts`. A start that failed signed out is
   `sign-in`, and one that failed on a usage limit is `other` with the limit as `reason`. A start
   written before `relaunches.json` kept `launched` has no start and no minutes.
+- `load`: a row's reason `waiting for room on the machine: load <n> is at or over ...`, where
+  `jgauge room` said the load is over its share of the cores (`jbus.dispatch.ROOM`).
 - `other`: any other reason that keeps a launch from starting, `waiting for room on the machine`
-  (`jbus.dispatch.ROOM`, every no of `jgauge room` but /tmp's) or `no launch: ...` (every instance
-  capped), kept as `reason`, the raw text jbus wrote.
+  with any other no of `jgauge room` but /tmp's after it (`jbus.dispatch.ROOM`; a jbus from before
+  wrote it with none) or `no launch: ...` (every instance capped), kept as `reason`, the raw text
+  jbus wrote.
 
 A wait is a spell of a row's lines in `waits.jsonl` with one cause: it starts at the first and ends
 at the row's next line of another cause or of none; a spell with no such line yet is open, with no
@@ -27,8 +30,7 @@ end and no minutes, and the build after its end closes it. Each `events` line ke
 build makes the table again from the store's own tables, which keep their rows after jbus trims
 its files.
 
-The cause no record jbus writes names is not a row: a wait on load, which `jbus.dispatch.ROOM`
-writes as one reason with every other no of `jgauge room`.
+A wait on load from before `jbus.dispatch` named it is `other`, as its bare reason says no more.
 """
 
 from __future__ import annotations
@@ -39,13 +41,21 @@ from datetime import datetime, tzinfo
 from itertools import groupby
 
 from jbus.cleanup import WAITING
+from jbus.dispatch import ROOM
 from jbus.telemetry import values
 
 TABLE = "launch_failures"
 """One row for each launch failure or wait, made by `v021_launch_failures`: its `slug`, `cause`,
 `reason` for `other`, `start`, `end` and `minutes`, and `day`, the local date of its `start`, or of
 its `end` where it has no start."""
-SIGN_IN, TMP, NO_SLOT, NO_HOME_ID, OTHER = "sign-in", "/tmp", "no slot", "no home-id", "other"
+SIGN_IN, TMP, NO_SLOT, LOAD, NO_HOME_ID, OTHER = (
+    "sign-in",
+    "/tmp",
+    "no slot",
+    "load",
+    "no home-id",
+    "other",
+)
 CAUSES: tuple[tuple[str, re.Pattern[str]], ...] = (
     (SIGN_IN, re.compile(r"no launch: .*\bcannot sign in\b")),
     (TMP, WAITING),
@@ -56,7 +66,8 @@ CAUSES: tuple[tuple[str, re.Pattern[str]], ...] = (
             r"|a gate held back while every slot is taken: "
         ),
     ),
-    (OTHER, re.compile(r"waiting for room on the machine$|no launch: ")),
+    (LOAD, re.compile(rf"{re.escape(ROOM)}: load \S+ is at or over ")),
+    (OTHER, re.compile(rf"{re.escape(ROOM)}(: |$)|no launch: ")),
 )
 """The cause of each reason a row waits that keeps its launch from starting, the first that
 matches its start; a reason none matches is no launch wait."""
