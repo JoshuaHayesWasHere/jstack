@@ -190,20 +190,20 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --p
     python features/jmerge/spec/pr_canaries.py
 ```
 
-At st-verdict-live's head it prints:
+At st-stall-acts's head it prints:
 
 ```text
-ok    today: MergesOrWaitsOnYou holds (1752492 distinct states found, 94.8 s)
-ok    canary go: MergesOrWaitsOnYou breaks (74433 distinct states found, 2.5 s)
-ok    canary touches: MergesOrWaitsOnYou breaks (74433 distinct states found, 2.4 s)
-ok    canary declines: MergesOrWaitsOnYou breaks (74433 distinct states found, 2.4 s)
-ok    canary mergeoff: MergesOrWaitsOnYou breaks (74433 distinct states found, 2.4 s)
-ok    canary head: MergesOrWaitsOnYou breaks (1466737 distinct states found, 47.2 s)
-ok    canary release: MergesOrWaitsOnYou breaks (1752474 distinct states found, 63.9 s)
-ok    canary rejudge: MergesOrWaitsOnYou breaks (1689252 distinct states found, 66.9 s)
-ok    canary again: MergesOrWaitsOnYou breaks (1638168 distinct states found, 66.7 s)
-ok    canary batch-failed: MergesOrWaitsOnYou breaks (1646079 distinct states found, 68.1 s)
-ok    canary twice: MergesOrWaitsOnYou breaks (1768921 distinct states found, 66.4 s)
+ok    today: MergesOrWaitsOnYou holds (2234185 distinct states found, 126.4 s)
+ok    canary go: MergesOrWaitsOnYou breaks (74432 distinct states found, 2.7 s)
+ok    canary touches: MergesOrWaitsOnYou breaks (74435 distinct states found, 2.6 s)
+ok    canary declines: MergesOrWaitsOnYou breaks (74435 distinct states found, 2.5 s)
+ok    canary mergeoff: MergesOrWaitsOnYou breaks (74432 distinct states found, 2.6 s)
+ok    canary head: MergesOrWaitsOnYou breaks (1598730 distinct states found, 55.4 s)
+ok    canary release: MergesOrWaitsOnYou breaks (1892609 distinct states found, 66.2 s)
+ok    canary rejudge: MergesOrWaitsOnYou breaks (1747408 distinct states found, 66.8 s)
+ok    canary again: MergesOrWaitsOnYou breaks (1855854 distinct states found, 69.4 s)
+ok    canary batch-failed: MergesOrWaitsOnYou breaks (1858743 distinct states found, 68.3 s)
+ok    canary twice: MergesOrWaitsOnYou breaks (1850892 distinct states found, 66.9 s)
 every run says what it should
 ```
 

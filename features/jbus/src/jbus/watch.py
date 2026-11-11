@@ -1186,16 +1186,14 @@ def failed_twice(run: Pass, slug: str) -> bool:
 
 def named_last(run: Pass, slug: str, head: str) -> tuple[list[str], list[str]] | None:
     """Return the row's counted failed heads and the failed tests that `head`'s logs name, where
-    `head` is the row's `LAST` (`jbus.stall.twice`), or None for any other head."""
+    `head` is the row's `LAST` (`jbus.stall.twice`), which twice keeps only for a head whose logs
+    name some, or None for any other head."""
     kept = read_json(run.state / FAILS, {})
     one = kept.get(slug) if isinstance(kept, dict) else None
     if not isinstance(one, dict) or not head or one.get(LAST) != head:
         return None
-    heads = one.get("heads") or {}
-    said = heads.get(head) if isinstance(heads, dict) else None
-    if not isinstance(said, dict) or not said.get("tests"):
-        return None
-    return [str(one) for one in heads], [str(test) for test in said["tests"]]
+    heads = one["heads"]
+    return list(heads), list(heads[head]["tests"])
 
 
 def why(run: Pass, row: dict[str, Any], found: dict[str, str], waits: Waits, unread: str) -> str:
