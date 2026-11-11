@@ -35,8 +35,16 @@ TLC writes a `states/` folder where it runs, so run it in a copy of this folder.
 
 Today's code breaks both rules; `GhBudget.cfg`'s comment keeps the counts.
 
-1. **A whole log lost** (`NoLostGeneration`, 26 states). Two processes log a call each while the log is past its size, and both pass `if path.stat().st_size > KEPT:`. The first renames the log to `gh-calls.old.jsonl`, and a line starts a new log. The second renames that one-line log over the old log: the whole generation the first kept is in no file. Under a lock over the check and the rename, it holds over 225479 distinct states. The window is small (two `_log` calls at one moment, once per 16 MiB), but nothing rules it out.
-2. **A call at the floor** (`HeldWhenLow`, 18 states, the first TLC stops at). A pass reads the budget once, in `watch.look`, and makes every call of the pass on that reading. Its own calls and another pass's take the budget to the floor, and the pass goes on calling. A per-call gate would not close it either: the reading is the log, and the log has a call's `remaining` only once the call has ended.
+1. **A whole log lost** (`NoLostGeneration`, 26 states).
+   Two processes log a call each while the log is past its size, and both pass `if path.stat().st_size > KEPT:`.
+   The first renames the log to `gh-calls.old.jsonl`, and a line starts a new log.
+   The second renames that one-line log over the old log: the whole generation the first kept is in no file.
+   Under a lock over the check and the rename, it holds over 225479 distinct states.
+   The window is small (two `_log` calls at one moment, once per 16 MiB), but nothing rules it out.
+2. **A call at the floor** (`HeldWhenLow`, 18 states, the first TLC stops at).
+   A pass reads the budget once, in `watch.look`, and makes every call of the pass on that reading.
+   Its own calls and another pass's take the budget to the floor, and the pass goes on calling.
+   A per-call gate would not close it either: the reading is the log, and the log has a call's `remaining` only once the call has ended.
 
 The chart's stories (`GhBudget-statechart/stories.md`, `bug-1.png`, `bug-2.png`) tell both in the user's words.
 
@@ -58,7 +66,8 @@ The map's header names each join of values the code writes.
 
 ## What the model leaves out
 
-- One window stands for `core` and `graphql`; `held` reads the lower of the two. A window's reset, and the second count of one window GitHub keeps, are left out: the count only falls.
+- One window stands for `core` and `graphql`, and `held` reads the lower of the two.
+  A window's reset, and the second count of one window GitHub keeps, are left out: the count only falls.
 - Time is one step, `Tick`: a minute passes, and every line so far and the kept answer are older than `WITHIN`.
 - A line holds its `remaining` only; its other fields (`caller`, `endpoint`, `status`, `reset`, `http`, ...) are read by no rule.
 - `gh api rate_limit` goes through `proc.run` too, takes a slot and logs a line; the model asks it with neither.
