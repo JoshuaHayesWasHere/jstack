@@ -393,11 +393,12 @@ def stubbed(tmp_path, selector):
     return repo
 
 
-def touching(*files, cross=()):
-    """A selector that prints `files` for `--part touched` and `cross` for `--part cross`, and
-    fails on any other ask."""
+def touching(*files, cross=(), names=()):
+    """A selector that prints `files` for `--part touched`, `cross` for `--part cross` and
+    `names`, a step a line, for `--part names`, and fails on any other ask."""
+    parts = {"touched": list(files), "cross": list(cross), "names": list(names)}
     return (
-        f"import sys\nparts = {{'touched': {list(files)!r}, 'cross': {list(cross)!r}}}\n"
+        f"import sys\nparts = {parts!r}\n"
         "assert sys.argv[1] == '--part' and sys.argv[2] in parts, sys.argv\n"
         "print('\\n'.join(parts[sys.argv[2]]))\n"
     )

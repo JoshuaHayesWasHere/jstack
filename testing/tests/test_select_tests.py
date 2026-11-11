@@ -769,6 +769,7 @@ def test_the_names_part_of_an_edit_of_a_skill_file_prints_the_test_that_reads_it
     runs each test the pull request's check selects because it names a file the change edits."""
     files = {
         **FILES,
+        "testing/split.py": (REPO / "testing" / "split.py").read_text(),
         "features/crew/no-pr-end.md": (REPO / "features/crew/no-pr-end.md").read_text(),
         READER: (REPO / READER).read_text(),
     }
