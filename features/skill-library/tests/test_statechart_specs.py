@@ -772,7 +772,7 @@ TLC on SaveAgreed.tla with SaveCode.cfg:
   NoFalseSaved holds.
   TLC ran 3 times in N s.
 
-Chart: 4 states and 4 transitions from 10 model states.
+Chart: 4 states and 6 transitions from 10 model states.
 3 work, 1 breaks a rule, 0 only in the agreed chart.
 
 ## 1. Saved, draft
