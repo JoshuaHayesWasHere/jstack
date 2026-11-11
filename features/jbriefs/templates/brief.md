@@ -3,11 +3,12 @@ Task: "<the request, in the user's words>"
 <A quote on `Task:` holds only words the user typed, as the `Asked:` file has them: the home's own words, such as which slice of the request this brief is, go outside the quotes.>
 Done when:
 - <a check, ending (in `path/of/the/file`), the file it lands in, under Where, or (in none)>
-Proves it: <what outside the agent shows it holds: a test or a command, a metric, a dataset, an external judge or the user, never the crew's own review>
+Proves it: <what outside the agent shows it holds: a test or a command, a metric, a dataset, an external judge or the user, never the crew's own review, and for a change to code, beside its test, what a user would see: a command of the product with what it prints, a measure read after the merge, or judged: and why>
 Size: S | M | L
 Where: <files or areas it concerns>
 Do not touch: <what is out of bounds>
 <Each Done when item ends with (in `<path>`), the file the goal needs changed, or (in none) where it changes none: `jbus queue add` refuses a file outside `Where:` or under `Do not touch:`, where `Where:` also holds `features/<f>/docs/` for each `features/<f>/src/` path it names, unless `Do not touch:` covers it, so that goal goes to a follow-up brief with a `Follows: <slug>` line, and warns of an item with neither.>
+<A brief whose `Where:` names code and whose `Proves it:` names a test alone is queued with a warning: beside the test, name what a user would see, a command of the product with what it prints, a measure read after the merge, or `judged: <why>`.>
 Decisions: <any the user already made, in their words>
 Asked: $H/asked/<entry>.md
 <The line above names the file the home wrote once, when it took the request, with the user's messages of it word for word: every brief cut from that request names the same file.>

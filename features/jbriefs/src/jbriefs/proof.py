@@ -16,6 +16,45 @@ _NAMED = (
     ),
     ("an external judge", r"\b(external|outside|independent|blind) judge\b|\bthird[- ]party\b"),
 )
+_NO_COMMAND = re.compile(
+    r"\btests?/|\btest_\w+|\w+_test\b|\.test\.|\bpytest\b|\btest\b"
+    r"|\bmake (?!(sure|certain|it|this|that|a|an|the)\b)[\w-]+"
+    r"|^\s*(rg|grep|git grep)\b|^\s*\S+\s*$",
+    re.I,
+)
+"""A span in backticks that is no command of the product: one that runs a test (`_NAMED`'s test
+with `uv run` left out, which runs a product's command as often as a test, and with a runner's
+`test` word and a `.test.` file in), a search of the repo's own text, or a single word, which
+names a file or a value and runs nothing."""
+_SEEN = (
+    (
+        "a command of the product with what it prints",
+        (
+            r"^[^`]*?\b(prints?|shows?|reads?|reports?|answers?|says?|exits?)\b",
+            r"\b(prints?|shows?|reports?)( \w+)? (in|from|by)\s*$",
+        ),
+    ),
+    (
+        "a measure read after the merge",
+        (
+            r"\bafter (the|its) merge\b|\b(a|one|an) (whole |full )?(day|week|hour)s? (after|of)\b"
+            r"|\bafter (a|one|an) (whole |full )?(day|week|hour)\b"
+            r"|\b(first|next) (whole |full )?(day|week|hour)\b",
+            r"\d|\bat (most|least)\b|\b(metrics?|measured?|counts?|share|rate|query)\b"
+            r"|\b(grows?|falls?|reads?|prints?|shows?|reports?|Instruments)\b",
+        ),
+    ),
+    ("a person's call", (r"\bjudged:\s*\S",)),
+)
+"""What a user sees, beside a test, that shows a change to code is done, each with the patterns
+one clause of the `Proves it:` line holds all of (a clause is cut at `;` and at a period that ends
+a sentence, with its parentheses left out): a command of the product in backticks (none of
+`_NO_COMMAND`) with what it prints after it, or a verb of
+printing just before it (`shows in`); a time after the merge and a count or a measure read
+then; or `judged: <why>`, a person's call. A line that names a test and none of these proves the
+change by a test alone."""
+_CLAUSE = re.compile(r";|\.\s+(?=[A-Z`])|\.$")
+_PAREN = re.compile(r"\([^()]*\)")
 _JUDGED = re.compile(r"^judged:\s*(?P<why>.*)$", re.I)
 _RAN_NOTHING = (
     ("an external judge", "names CI, which runs nothing by itself", r"\bCI\b|\bgithub\b"),
@@ -91,6 +130,29 @@ class Proof:
         if self.fault == _SHOWN_FAULT:
             return f"brief's Proves it: line {self.fault} {_INSTEAD}"
         return f"brief's Proves it: line {self.fault} {_RUNS if self.was else _PROVES}"
+
+    @property
+    def test_alone(self) -> bool:
+        """Whether the line names a test, by its run or by the word, and nothing a user sees
+        beside it (`_SEEN`)."""
+        if "a test" not in (self.kind, self.was):
+            return False
+        return not any(_seen(clause) for clause in _CLAUSE.split(_PAREN.sub("", self.said)))
+
+
+def _seen(clause: str) -> bool:
+    """Whether one clause of a `Proves it:` line names what a user sees (`_SEEN`): a command's
+    two patterns are read after each command in backticks, up to the next one, and just before
+    it, and each other kind's patterns over the whole clause."""
+    (_, (after, before)), *rest = _SEEN
+    for span in _SPAN.finditer(clause):
+        if _NO_COMMAND.search(span[1]):
+            continue
+        if re.search(after, clause[span.end() :], re.I) or re.search(
+            before, clause[: span.start()], re.I
+        ):
+            return True
+    return any(all(re.search(one, clause, re.I) for one in patterns) for _, patterns in rest)
 
 
 def proof(said: str) -> Proof:
