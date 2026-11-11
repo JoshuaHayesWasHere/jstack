@@ -54,6 +54,13 @@ env:
   ZSH_POOL: http://archive.ubuntu.com/ubuntu/pool/main/z/zsh
   ZSH_DEBS: "56d160585b417af0cc04d7372f74a3b734609d7cc43ef8ea6e92bfdfc27f77c3 zsh-common_5.9-6ubuntu2_all.deb bd5cc8dd3a01a6db38c0a815d75202c356a9c7f378674ba7bed9bc86dcba8af0 zsh_5.9-6ubuntu2_amd64.deb"
 
+# Each step that uploads an artifact or restores or saves a cache stops after 3 minutes: GitHub's
+# artifact service answered part 8's upload of the new-lines record on #1691 with an HTML page
+# for 11 minutes, four tries of 2 minutes each, and `check` waited for it (job 130776916641,
+# 2026-11-11). Each such step takes a second or two on a good day. A cache step that stops goes on
+# (`continue-on-error`), as a miss, and costs the fetch or the cold run its comment names; an
+# upload that stops costs what its own comment names, and one with no `continue-on-error` fails
+# its job, as its failure always did (testing/tests/test_workflows.py).
 jobs:
   # Whether a passed check already checked the two trees this run checks: GitHub's merge of the
   # head over its base, and that base (`jmerge.reuse`). The pair fixes what the parts select and
@@ -124,6 +131,8 @@ jobs:
       # its allowance spent, prints `all` and passes, and `select` runs the whole suite.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: steps.reuse.outputs.reused != 'true'
+        continue-on-error: true
+        timeout-minutes: 3
         with:
           path: ~/.cache/jstack/failed-on-main.json
           key: failed-on-main-2-${{ github.run_id }}-${{ github.run_attempt }}
@@ -148,6 +157,8 @@ jobs:
       # its own.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: steps.reuse.outputs.reused != 'true'
+        continue-on-error: true
+        timeout-minutes: 3
         with:
           path: .git/select_tests.facts
           key: select-facts-${{ hashFiles('scripts/select_tests.py') }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -190,6 +201,7 @@ jobs:
           '$select + {tree: $tree, reused: $reused}' > "$RUNNER_TEMP/selection/selection.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: "!cancelled()"
+        timeout-minutes: 3
         with:
           name: selection-${{ github.run_attempt }}
           path: ${{ runner.temp }}/selection/selection.json
@@ -203,6 +215,7 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: "!cancelled() && steps.reuse.outputs.reused != 'true'"
         continue-on-error: true
+        timeout-minutes: 3
         with:
           name: selected-tests-${{ github.run_attempt }}
           path: ${{ runner.temp }}/selected-tests.txt
@@ -291,6 +304,8 @@ jobs:
       # the first fetches nothing from Ubuntu's pool, which on 2026-11-09 reset six parts'
       # fetches mid-transfer (curl exit 56, which `--retry` alone does not retry).
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        continue-on-error: true
+        timeout-minutes: 3
         with:
           path: ${{ runner.temp }}/zsh-debs
           key: zsh-debs-${{ env.ZSH_DEBS }}
@@ -304,6 +319,8 @@ jobs:
         id: tla2tools
         run: 'pin=$(sed -n -e "s/^TLA2TOOLS_VERSION = \"\(.*\)\"$/version=\1/p" -e "s/^TLA2TOOLS_SHA256 = \"\(.*\)\"$/sha256=\1/p" features/skill-library/skills/statechart/scripts/statechart/tools.py) && [ "$(printf "%s\n" "$pin" | wc -l)" -eq 2 ] && printf "%s\n" "$pin" | tee -a "$GITHUB_OUTPUT" || { echo "::error::tools.py pins no TLA2TOOLS_VERSION and TLA2TOOLS_SHA256 this step reads"; exit 1; }'
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        continue-on-error: true
+        timeout-minutes: 3
         with:
           path: ~/.cache/jstack/tla2tools/${{ steps.tla2tools.outputs.version }}/tla2tools.jar
           key: tla2tools-${{ steps.tla2tools.outputs.version }}-${{ steps.tla2tools.outputs.sha256 }}
@@ -317,6 +334,8 @@ jobs:
       # the hash of its own inputs. `tlc kept` and the save after the suite keep what it added.
       - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: tlc
+        continue-on-error: true
+        timeout-minutes: 3
         with:
           path: ~/.cache/jstack/tlc
           key: tlc-${{ hashFiles('features/home/spec/**', 'features/jbus/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
@@ -373,6 +392,8 @@ jobs:
         run: 'RUNS=$(LC_ALL=C ls "$HOME/.cache/jstack/tlc" 2> /dev/null) || exit 0; NAMES=$(printf "%s\n" "$RUNS" | sha256sum | cut -c1-16); [ -z "$RUNS" ] || [ "$NAMES" = "${RESTORED##*-}" ] || echo "key=$KEY$NAMES" >> "$GITHUB_OUTPUT"'
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: "!cancelled() && steps.kept.outputs.key != ''"
+        continue-on-error: true
+        timeout-minutes: 3
         with:
           path: ~/.cache/jstack/tlc
           key: ${{ steps.kept.outputs.key }}
@@ -381,6 +402,7 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: "!cancelled() && steps.suite.outcome != 'skipped'"
         continue-on-error: true
+        timeout-minutes: 3
         with:
           name: new-lines-${{ github.run_attempt }}-${{ matrix.shard }}
           path: ${{ runner.temp }}/new-lines
@@ -469,6 +491,7 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.checked.outcome == 'success'
         continue-on-error: true
+        timeout-minutes: 3
         with:
           name: ${{ needs.reuse.outputs.name }}
           path: ${{ runner.temp }}/checked-tree/${{ needs.reuse.outputs.name }}
@@ -494,6 +517,7 @@ jobs:
         id: upload
         if: steps.marker.outcome == 'success'
         continue-on-error: true
+        timeout-minutes: 3
         with:
           name: ${{ needs.reuse.outputs.tree }}
           path: ${{ runner.temp }}/green-tree/${{ needs.reuse.outputs.tree }}
@@ -515,6 +539,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        continue-on-error: true
+        timeout-minutes: 3
         with:
           path: .git/select_tests.facts
           key: select-facts-${{ hashFiles('scripts/select_tests.py') }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -582,6 +608,8 @@ jobs:
       # fetches mid-transfer (curl exit 56, which `--retry` alone does not retry).
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: steps.tree.outputs.marker != 'green'
+        continue-on-error: true
+        timeout-minutes: 3
         with:
           path: ${{ runner.temp }}/zsh-debs
           key: zsh-debs-${{ env.ZSH_DEBS }}
@@ -598,6 +626,8 @@ jobs:
         run: 'pin=$(sed -n -e "s/^TLA2TOOLS_VERSION = \"\(.*\)\"$/version=\1/p" -e "s/^TLA2TOOLS_SHA256 = \"\(.*\)\"$/sha256=\1/p" features/skill-library/skills/statechart/scripts/statechart/tools.py) && [ "$(printf "%s\n" "$pin" | wc -l)" -eq 2 ] && printf "%s\n" "$pin" | tee -a "$GITHUB_OUTPUT" || { echo "::error::tools.py pins no TLA2TOOLS_VERSION and TLA2TOOLS_SHA256 this step reads"; exit 1; }'
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: steps.tree.outputs.marker != 'green'
+        continue-on-error: true
+        timeout-minutes: 3
         with:
           path: ~/.cache/jstack/tla2tools/${{ steps.tla2tools.outputs.version }}/tla2tools.jar
           key: tla2tools-${{ steps.tla2tools.outputs.version }}-${{ steps.tla2tools.outputs.sha256 }}
@@ -609,6 +639,8 @@ jobs:
       - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: tlc
         if: steps.tree.outputs.marker != 'green'
+        continue-on-error: true
+        timeout-minutes: 3
         with:
           path: ~/.cache/jstack/tlc
           key: tlc-${{ hashFiles('features/home/spec/**', 'features/jbus/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
@@ -624,6 +656,7 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: "!cancelled() && steps.suite.outcome != 'skipped'"
         continue-on-error: true
+        timeout-minutes: 3
         with:
           name: tlc-${{ github.run_attempt }}-${{ matrix.shard }}
           path: ~/.cache/jstack/tlc
@@ -681,6 +714,7 @@ jobs:
       # latest attempt each. A part that failed keeps none.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.suite.outcome == 'success'
+        timeout-minutes: 3
         with:
           name: junit-${{ github.run_attempt }}-${{ matrix.shard }}
           path: ${{ runner.temp }}/junit.xml
@@ -721,6 +755,7 @@ jobs:
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: "!cancelled() && steps.kept.outputs.key != ''"
         continue-on-error: true
+        timeout-minutes: 3
         with:
           path: ~/.cache/jstack/tlc
           key: ${{ steps.kept.outputs.key }}
@@ -731,6 +766,8 @@ jobs:
           persist-credentials: false
           sparse-checkout: scripts
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        continue-on-error: true
+        timeout-minutes: 3
         with:
           path: ~/.cache/jstack/failed-on-main.json
           key: failed-on-main-2-${{ github.run_id }}-${{ github.run_attempt }}
@@ -753,6 +790,7 @@ jobs:
         id: upload
         if: steps.marker.outcome == 'success'
         continue-on-error: true
+        timeout-minutes: 3
         with:
           name: ${{ needs.full-shard.outputs.tree }}
           path: ${{ runner.temp }}/green-tree/${{ needs.full-shard.outputs.tree }}

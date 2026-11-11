@@ -38,7 +38,87 @@ def pytest_collection_modifyitems(items):
         json.dump(found, out)
 """
 
-LONG = {}
+BROWSER = (
+    "opens a real browser, under `make check-browser` alone: browser.py's PATIENCE for the "
+    "server, then LAUNCH and 5 s for each browse the module makes"
+)
+TLC = "model checks a spec with TLC, a Java run of minutes on a hosted runner"
+
+LONG = {
+    "features/crew/tests/test_crew_check_command.py::"
+    "test_a_branch_that_adds_a_line_no_test_runs_fails_the_desk_check": (
+        "runs the desk's whole check on a cloned repo, the new-lines guard and the tests it "
+        "runs under coverage among it"
+    ),
+    "features/home/tests/test_home_tree_spec.py::test_the_run_says_what_it_should": TLC,
+    "features/jbus/tests/test_main_red_spec.py::"
+    "test_a_revert_held_by_its_opener_alone_is_opened_twice": TLC,
+    "features/jbus/tests/test_main_red_spec.py::"
+    "test_today_s_code_holds_every_rule_but_the_ones_it_breaks": (
+        TLC + ", once with the rules the code breaks left out and once for each of those alone"
+    ),
+    "features/jmerge/tests/test_pr_verdict_spec.py::test_the_run_says_what_it_should": TLC,
+    "features/jmerge/tests/test_flow_spec.py::"
+    "test_today_and_the_design_hold_their_rules_and_each_canary_breaks_its_own": (
+        "every canary of the flow spec under TLC: about 650 s on a Linux runner and 1073 s on "
+        "a macOS one (2026-11-05)"
+    ),
+    "features/repo-guards/tests/test_new_lines_run.py::"
+    "test_every_line_this_branch_adds_to_a_feature_runs_in_a_test": (
+        "runs the tests that name each module the branch changed under coverage, once in "
+        "`check` after the parts"
+    ),
+    "features/skill-library/tests/test_statechart_runs.py::"
+    "test_a_run_of_the_worked_example_leaves_no_work_folder_unless_keep_work_keeps_it": (
+        "two from-spec runs of the worked example, each a TLC run"
+    ),
+    "features/skill-library/tests/test_statechart_runs.py::"
+    "test_runs_of_two_specs_that_overlap_on_one_output_folder_all_finish_with_one_runs_files": (
+        "from-spec runs of two specs side by side, one of them slowed on purpose, each a TLC run"
+    ),
+    "features/skill-library/tests/test_statechart_runs.py::"
+    "test_the_output_folder_model_keeps_every_rule_and_breaks_one_without_each_guard": (
+        "the output folder model under TLC whole and once without each guard: 75 s in part 8 "
+        "of #1691's check (job 130776916641)"
+    ),
+    "features/skill-library/tests/test_statechart_specs.py::"
+    "test_from_spec_against_compares_the_code_with_the_spec_and_expect_broken_sets_the_exit": (
+        "from-spec --against runs TLC on two specs and on their common part"
+    ),
+    **{
+        f"features/jbus/tests/view/page/test_view_page_{name}.py": BROWSER
+        for name in (
+            "banner",
+            "browser",
+            "budgets",
+            "days",
+            "gates",
+            "glance",
+            "homes",
+            "inbox",
+            "keys",
+            "look",
+            "map",
+            "matrix_homes",
+            "milestones",
+            "no_strip",
+            "one_stage",
+            "overview",
+            "panels",
+            "pipeline",
+            "queue",
+            "routes",
+            "shot",
+            "since",
+            "slow",
+            "task",
+            "throughput",
+            "triage",
+            "usage",
+            "walk",
+        )
+    },
+}
 
 
 def limits(tmp_path, *args):
