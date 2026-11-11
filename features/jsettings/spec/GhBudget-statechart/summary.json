@@ -13,7 +13,12 @@
     {
       "name": "Budget kept",
       "color": "#d1f2eb",
-      "states": 17
+      "states": 10
+    },
+    {
+      "name": "A pass held",
+      "color": "#d6eaf8",
+      "states": 5
     },
     {
       "name": "A call under the floor",
@@ -53,9 +58,9 @@
     "command": "statechart from-spec GhBudget.tla --title 'Does the gh budget hold, and does the call log keep each full log?' --expect-broken HeldWhenLow --png",
     "inputs": {
       "GhBudget.cfg": "6bd47c2b9a19c390e593849d4cc3a8932cda2bc0fc4cf66218a749ccd0d4a957",
-      "GhBudget.map.py": "52125cfbdcdc465208fd0c639563172583d3c64d719a78da7fa8cfc04f9be8df",
+      "GhBudget.map.py": "47f4cef236f0b159dc661b119414eb567ca8bd47162d6e03ab8eb71a342b5257",
       "GhBudget.tla": "8464181d4539d0832c19bbe949d7476240cef2208cb41ff5d98ff89eb17d825a"
     },
-    "chart": "1c6c1624f87e53e415ca3f52429ea32d88fc6eeb78d8f89f690135e1dcea24f9"
+    "chart": "d1475af2c0c1c1c38455edc1aaa75b398e832b72e93ef40a55cbd52201357676"
   }
 }
