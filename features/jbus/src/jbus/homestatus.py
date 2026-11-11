@@ -33,6 +33,8 @@ from pathlib import Path
 
 import jbus
 from jbriefs import home
+from jbriefs import status as status_line
+from jbriefs.status import Status
 from jbus import needs, plan, questions, queue, verbs
 from jsettings import paths
 
@@ -273,7 +275,7 @@ def _finished(brief: Path) -> bool:
             result = True
         words = line.split()
         if result and words[:1] == ["Status:"]:
-            done = words == ["Status:", "done"]
+            done = status_line.read(" ".join(words[1:])) is Status.DONE
         if result and words[:1] == ["Left:"]:
             left = words == ["Left:", "none"]
     return done and left

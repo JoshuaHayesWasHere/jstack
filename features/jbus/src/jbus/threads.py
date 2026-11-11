@@ -24,7 +24,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from jbriefs import findings, skills
+from jbriefs import status as status_line
 from jbriefs.home import home_of, thread_of
+from jbriefs.status import Status
 from jbus import (
     END_TURN,
     cleanup,
@@ -145,11 +147,9 @@ def link(run: Pass, client: Client, world: World) -> None:
 
 
 def _says_done(report: str) -> bool:
-    """Say whether a scout's Report says `Status: done`, on its last `Status:` line, as the scout
-    skill's own settle block reads it: the word after `Status:` is `done`, so `Status: done, but`
-    is not."""
-    said = [line.split()[1:2] for line in report.splitlines() if line.split()[:1] == ["Status:"]]
-    return bool(said) and said[-1] == ["done"]
+    """Say whether a scout's Report says `Status: done`, on its last `Status:` line, as
+    `jbriefs.status` reads it: `Status: done (a note)` is done, and `Status: done, but` is not."""
+    return status_line.last(report) is Status.DONE
 
 
 def over_scouts(run: Pass) -> set[str]:

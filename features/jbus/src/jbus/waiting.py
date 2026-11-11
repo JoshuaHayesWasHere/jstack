@@ -108,6 +108,8 @@ from typing import TYPE_CHECKING, Any
 
 import jsettings
 from jbriefs import below
+from jbriefs import status as status_line
+from jbriefs.status import Status
 from jbus import (
     alert,
     leftover,
@@ -261,7 +263,7 @@ def gates(
     keys = {one.key for one in held}
     found = []
     for file, number, asked, body, key in mirror.home_gates(home):
-        if not below.line(body, "Status:").startswith("open") or key in keys:
+        if status_line.of(body) is not Status.OPEN or key in keys:
             continue
         where = "" if file.parent == home else file.parent.name
         digest = hashlib.sha256(asked.encode()).hexdigest()[:8]

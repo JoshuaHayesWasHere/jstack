@@ -24,6 +24,8 @@ from typing import TYPE_CHECKING
 
 from jbriefs import below
 from jbriefs import parse as briefs
+from jbriefs import status as status_line
+from jbriefs.status import Status
 from jbus import queue, read_json, verbs, write_json
 
 if TYPE_CHECKING:
@@ -85,10 +87,8 @@ def paused_on(result: str, slugs: Collection[str]) -> tuple[str, ...]:
     """The rows a paused Result waits on: the words of its `Waits on:` line, sorted, where each
     is one of `slugs` (`jbus.pausedon`). Empty where a word is no slug of `slugs`, since a row
     dropped from the list would let the carry-on go before it merged, and for a Result whose
-    `Status:` is not `paused` as the crew skill's blocks read it: `paused`, `paused,` or `paused:`
-    and the rest of the line."""
-    status = (below.line(result, "Status:").split() or [""])[0].rstrip(",.:;")
-    if status != "paused":
+    `Status:` is not `paused` as `jbriefs.status` reads it."""
+    if status_line.of(result) is not Status.PAUSED:
         return ()
     words = {word for word in _WORDS.split(below.line(result, WAITS_ON)) if word}
     return tuple(sorted(words)) if words <= set(slugs) else ()
@@ -208,16 +208,16 @@ def _gates(
     found = []
     for number, asked, heading, body in gates(text):
         slug = asker(body)
-        status = below.line(body, "Status:")
+        status = status_line.of(body)
         whole = f"{heading}\n{body}"
         key, tag = gate_key(slug, asked), f"{slug} in {where}" if where else slug
-        if status.startswith("open"):
+        if status is Status.OPEN:
             if where and (held is None or key in held):
                 continue
             found.append((slug, "gate", f"gate {tag}: {asked}", whole, f"{where} {key}".lstrip()))
         elif held is None:
             continue
-        elif status.startswith("answered") and key not in held:
+        elif status is Status.ANSWERED and key not in held:
             line, done = f"gate {tag}: gate {number} answered", f"{where}#{number}".lstrip("#")
             found.append((slug, "gate answered", line, whole, f"answered {done}"))
     return found

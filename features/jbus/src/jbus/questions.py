@@ -148,7 +148,9 @@ from typing import Any
 import jbus
 import jsettings
 from jbriefs import below, findings, skills
+from jbriefs import status as status_line
 from jbriefs.home import thread_of
+from jbriefs.status import Status
 from jbus import (
     END_TURN,
     Config,
@@ -742,7 +744,7 @@ def closed_in_files(run: Pass) -> None:
     answered = {
         key: (below.line(body, "Status:"), file)
         for file, _, _, body, key in mirror.home_gates(run.home)
-        if below.line(body, "Status:").startswith("answered")
+        if status_line.of(body) is Status.ANSWERED
     }
     if not answered or not any(_open(one) for one in load(run.state)):
         return

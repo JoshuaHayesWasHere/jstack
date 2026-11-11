@@ -67,8 +67,9 @@ from typing import Any
 
 import jroles
 import jsettings
-from jbriefs import below
 from jbriefs import home as homes
+from jbriefs import status as status_line
+from jbriefs.status import Status
 from jbus import (
     Config,
     Refused,
@@ -170,7 +171,7 @@ def out(
     found += [
         f"out gate {number}: {asked}"
         for number, asked, _, body in mirror.gates(_read(scope / "gates.md"))
-        if below.line(body, "Status:").startswith("open")
+        if status_line.of(body) is Status.OPEN
     ]
     return found
 
