@@ -1,7 +1,9 @@
 """The store's `launch_failures`: one row for each launch that failed or waited, by its cause, built
 from the records jbus writes as it writes them: a `failover` line of `events.jsonl` that says an
 instance could not sign in, with the row's launch before it in `transitions.jsonl`, and the spells
-of a row's reason to wait in `waits.jsonl` that keep a launch from starting."""
+of a row's reason to wait in `waits.jsonl` that keep a launch from starting. The causes are
+`jbus.telemetry.launch_failures`'s, and the table is the one
+`jbus.telemetry.migrations.v021_launch_failures` makes."""
 
 import contextlib
 from datetime import timedelta
