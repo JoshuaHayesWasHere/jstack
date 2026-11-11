@@ -1324,14 +1324,6 @@ def asking(question="which one?", default="the first"):
 ASK = asking()
 
 
-MEASURE = "and a day after the merge the count of lost rows reads 0"
-"""What a user sees beside a fixture brief's test, a measure read after the merge, so a brief for
-the code under `src/` draws no warning of a test alone (`jbriefs.parse.user_sees`). It names no
-command in backticks, so a test that rewrites `` `make check` `` as the agent's word still has a
-line of the agent's word alone."""
-PROVES = f"`make check`, {MEASURE}"
-
-
 def complete(slug, more=""):
     """Return a brief with every field that `jbus queue add` asks for, and `more` under them:
     `Home: uncategorized`, the catch-all's, and `Skills: tdd`, unless `more` has its own: the root
@@ -1339,7 +1331,8 @@ def complete(slug, more=""):
     own = "".join(x for x in ("Home: uncategorized\n", "Skills: tdd\n") if x.split()[0] not in more)
     return (
         f'# {slug}: a task\nTask: "do {slug}"\nDone when:\n- `make check` passes (in none)\n'
-        f"Proves it: {PROVES}\nSize: S\nWhere: `src/{slug}/`\nDesign: none, a test\n"
+        "Proves it: `make check`, and a day after the merge the count of lost rows reads 0\n"
+        f"Size: S\nWhere: `src/{slug}/`\nDesign: none, a test\n"
         'Decisions: "review it once", the user\'s word in a test\n'
         f"Pull request: open one when done\nReview: review\nPlaybook: feature\n{own}{more}"
     )

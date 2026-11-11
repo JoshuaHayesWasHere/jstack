@@ -6,6 +6,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from jbriefs import proved
 from jbriefs.meets import done_when
 
 _NAMED = (
@@ -208,3 +209,34 @@ def shown(text: str) -> str:
         if _SHOWN.search(item):
             return f"brief's Done when {number} {_SHOWN_FAULT}: {item} {_INSTEAD}"
     return ""
+
+
+def code(path: str) -> bool:
+    """Whether a `Where:` path is code: neither docs nor config (`proved.of_kind`) nor a test
+    (`proved.TEST_FILE`), read both as a file and as a directory, since a `Where:` path has its
+    trailing `/` dropped. The whole repo, `.`, is code."""
+    if path == ".":
+        return True
+    return not any(
+        proved.TEST_FILE.search(one) or any(proved.of_kind(one, kind) for kind in proved.EXEMPT)
+        for one in (path, f"{path}/")
+    )
+
+
+def user_sees(where: tuple[str, ...], said: str) -> str:
+    """Why a brief for a change to code proves it by a test alone, as one line, from its `Where:`
+    paths and its `Proves it:` line. It is an empty string when it does not.
+
+    A brief whose `Where:` names a file of code (`code`) and whose `Proves it:` names a test and
+    nothing a user sees beside it (`Proof.test_alone`) shows that the code runs, and not what a
+    user meets once it merges. It is a warning and no fault: a change no user sees, such as a
+    refactoring, is proved by its test alone.
+    """
+    if not any(code(path) for path in where) or not proof(said).test_alone:
+        return ""
+    return (
+        "brief's Proves it: names a test alone for a change to code: beside the test, name what a "
+        "user would see, a command of the product in backticks with what it prints, a measure "
+        "read after the merge, or judged: <why> (a change no user sees, such as a refactoring, "
+        "may keep its test alone)"
+    )

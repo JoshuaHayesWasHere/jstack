@@ -10,12 +10,12 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from jbriefs import asks, below, findings, paths, proved, skills, standing
+from jbriefs import asks, below, findings, paths, skills, standing
 from jbriefs import status as status_line
 from jbriefs.crowded import crowded
 from jbriefs.meets import done_when
 from jbriefs.paths import covers, named
-from jbriefs.proof import Proof, proof, shown
+from jbriefs.proof import Proof, proof, shown, user_sees
 from jbriefs.runnable import runnable
 from jbriefs.status import Status
 from jsettings.brief import head as head
@@ -398,39 +398,6 @@ def desk_suite(text: str, fresh_check: str) -> str:
     )
 
 
-def _code(path: str) -> bool:
-    """Whether a `Where:` path is code: neither docs nor config (`proved.of_kind`) nor a test
-    (`proved.TEST_FILE`), read both as a file and as a directory, since `where` drops a trailing
-    `/`. The whole repo, `.`, is code."""
-    if path == ".":
-        return True
-    return not any(
-        proved.TEST_FILE.search(one) or any(proved.of_kind(one, kind) for kind in proved.EXEMPT)
-        for one in (path, f"{path}/")
-    )
-
-
-def user_sees(text: str) -> str:
-    """Why a brief for a change to code proves it by a test alone, as one line. It is an empty
-    string when it does not.
-
-    A brief whose `Where:` names a file of code (`_code`) and whose `Proves it:` names a test and
-    nothing a user sees beside it (`proof.Proof.test_alone`) shows that the code runs, and not
-    what a user meets once it merges. It is a warning and no fault: a change no user sees, such as
-    a refactoring, is proved by its test alone.
-    """
-    if not any(_code(path) for path in where(text)):
-        return ""
-    if not proof(_head_lines(text, "Proves it") or "").test_alone:
-        return ""
-    return (
-        "brief's Proves it: names a test alone for a change to code: beside the test, name what a "
-        "user would see, a command of the product in backticks with what it prints, a measure "
-        "read after the merge, or judged: <why> (a change no user sees, such as a refactoring, "
-        "may keep its test alone)"
-    )
-
-
 def _head_lines(text: str, label: str) -> str | None:
     """The head field `<label>`: its first line and the lines under it, joined by a space."""
     for name, lines in fields(text):
@@ -623,7 +590,7 @@ def warnings(text: str, fresh_check: str) -> list[str]:
     found = [
         check_asked(text, fresh_check),
         desk_suite(text, fresh_check),
-        user_sees(text),
+        user_sees(where(text), _head_lines(text, "Proves it") or ""),
         crowded(text),
         *(check(text) for check in WARNED),
     ]

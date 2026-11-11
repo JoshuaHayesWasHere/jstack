@@ -18,7 +18,6 @@ from jmerge import judgement
 from scoped import scope
 from test_jbus_kitchen import (
     GO,
-    MEASURE,
     NOW,
     PROJECT,
     QUARTER_PAST_FIVE,
@@ -51,6 +50,13 @@ def kitchen(tmp_path, monkeypatch):
     scope(made.home, "flow", "mcp:flow-home")
     yield made
     made.close()
+
+
+MEASURE = "and a day after the merge the count of lost rows reads 0"
+"""What a user sees beside the fixture brief's test, a measure read after the merge, so a brief
+for the code under `src/` draws no warning of a test alone (`jbriefs.proof.user_sees`). It names
+no command in backticks and sits on a line of its own, so a test that rewrites `` `make check` ``
+as the agent's word, or takes the `Proves it: `make check`` line out, still means what it did."""
 
 
 def brief(slug, more=""):
