@@ -247,7 +247,7 @@ def reviewing(run: Pass, client: Client, thread: str, row: str) -> bool:
     """Say whether the thread is the row's crew and its pull request waits on a review at its head
     that a reviewer the crew launched has not written: jmerge's judge (`ready.short_of`) says the
     review or a scoped review is not written, and the brief names a reviewer with no `## Review` yet
-    (`jbriefs.findings.running`). A row with no open pull request in what this pass saw waits on no review,
+    (`findings.running`). A row with no open pull request in what this pass saw waits on no review,
     and a home told of the row (`jbus.wakes`, of a stall of that very review) waits on none."""
     pull = run.world.open.get(row) if run.world else None
     head = (pull or {}).get("headRefOid", "")

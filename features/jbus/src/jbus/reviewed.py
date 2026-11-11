@@ -31,7 +31,7 @@ scoped and how many sections it has, the round's `Meets the brief` verdict (`yes
 section says yes, `no` where one says no, else `unread`, as `meets.parse` reads the line) with
 the least `met` of `done_when`, and the count of its findings by severity, and of those
 dismissed. It is written on the pass that sees the round settled: a later round has begun, or no
-reviewer the crew launched still owes its section (`jbriefs.findings.running`). A round is written once,
+reviewer the crew launched still owes its section (`findings.running`). A round is written once,
 by row and number, so a pass that reads it again writes nothing, and a round written to the
 brief after its line keeps the line it had. A row whose pull request the pass's world shows
 merged within `MERGED_WITHIN` has every round settled, since no section is still to come, so the

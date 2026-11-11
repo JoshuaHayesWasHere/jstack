@@ -29,7 +29,7 @@ has the line and has not moved yet, and whose base merged:
   jbus moves nothing while the outbox holds the crew (`rebase.held`): its thread is at work, waits
   on a test slot, or waits on a review it launched that jmerge says is not written at the head.
   Such a link waits for a later pass, and its crew is told nothing. Nor does jbus move it while a
-  reviewer the crew launched has written no review (`jbriefs.findings.running`), since a move would change
+  reviewer the crew launched has written no review (`findings.running`), since a move would change
   the head under it, or while its worktree has work in it (uncommitted, unpushed or a rebase not
   finished); a rebase that conflicts, a push the lease refuses, or a base that was rewritten or
   that no reflog records, leaves the branch as it was.

@@ -264,9 +264,11 @@ def running(text: str) -> bool:
             seat = int(found[1]) if found and kind != "Scoped reviewer" else None
             numbered = numbered or (kind == "Reviewer" and seat is not None)
             events.append((at, kind, seat))
-    for one in _sections(text):
-        if one.head:
-            events.append((one.line, "scoped" if one.scoped else "section", one.seat))
+    events.extend(
+        (one.line, "scoped" if one.scoped else "section", one.seat)
+        for one in _sections(text)
+        if one.head
+    )
     seats: set[int] = set()
     plain = scoped = 0
     for _, kind, seat in sorted(events, key=lambda event: event[0]):
