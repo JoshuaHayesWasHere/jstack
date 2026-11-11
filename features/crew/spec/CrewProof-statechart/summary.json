@@ -1,0 +1,66 @@
+{
+  "view": "customer",
+  "modelStates": 155185,
+  "modelTransitions": 380972,
+  "chartStates": 77,
+  "chartTransitions": 200,
+  "chartStatus": {
+    "works": 75,
+    "wrong": 2,
+    "fixed": 0
+  },
+  "chartGroups": [
+    {
+      "name": "At work",
+      "color": "#ffffff",
+      "states": 16
+    },
+    {
+      "name": "In review",
+      "color": "#e8daef",
+      "states": 3
+    },
+    {
+      "name": "Reviewed",
+      "color": "#d1f2eb",
+      "states": 34
+    },
+    {
+      "name": "Rebase",
+      "color": "#fdebd0",
+      "states": 23
+    }
+  ],
+  "mixedGroups": [
+    "Checked and proved at this head: the pull request is in conflict"
+  ],
+  "regions": {
+    "drawn": false,
+    "why": "\"Checked and proved at this head: a rebase record left behind\" is \"Breaks a rule\", and its two region states would show \"Works\""
+  },
+  "classes": [
+    {
+      "n": 1,
+      "end": "Checked at this head, not proved: a rebase record left behind",
+      "invariant": "RebaseRecorded",
+      "rule": null,
+      "cause": "a rebase record stays after its push",
+      "readerSteps": 14,
+      "modelSteps": 25,
+      "counterexamples": 5400,
+      "fix": null
+    }
+  ],
+  "codeLike": [
+    "GitHub says the pull request is in conflict"
+  ],
+  "drawnFrom": {
+    "command": "statechart from-spec CrewProof.tla --config CrewProof.chart.cfg --title 'Does the proof on the brief match the head, and does a rebase leave its record?' --expect-broken RebaseRecorded --png",
+    "inputs": {
+      "CrewProof.chart.cfg": "d5ead165c6c163545d1fe32b7bcf9b08685fdf27f9c37a75d18c16a756ca2b3c",
+      "CrewProof.map.py": "ecebc61816fe5b5b3fab3da295b9b17f98b2ebcafa437da7856b9313ba935ee8",
+      "CrewProof.tla": "3e2298589587230bd546919c9d29b4ea0ccd1f5dfc2b6dab7f352f62ccce34fb"
+    },
+    "chart": "0a34de03062afdd9b02a73e17a3e38796293e6a1e6f528ff9c9d02ff8f6f9eb3"
+  }
+}

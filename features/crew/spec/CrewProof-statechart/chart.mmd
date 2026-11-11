@@ -1,0 +1,398 @@
+---
+title: "Does the proof on the brief match the head, and does a rebase leave its record?"
+config:
+  markdownAutoWrap: false
+  state:
+    useMaxWidth: false
+---
+stateDiagram-v2
+  classDef plain fill:#f4f6f7,stroke:#566573,color:#1b2631
+  classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group0 fill:#ffffff,stroke:#808080,color:#1b2631
+  classDef group1 fill:#e8daef,stroke:#746d78,color:#1b2631
+  classDef group2 fill:#d1f2eb,stroke:#697976,color:#1b2631
+  classDef group3 fill:#fdebd0,stroke:#7f7668,color:#1b2631
+  classDef group3Wrong fill:#fdebd0,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  state "Legend" as legend {
+    state "At work" as legendGroup0
+    state "In review" as legendGroup1
+    state "Reviewed" as legendGroup2
+    state "Rebase" as legendGroup3
+    state "Breaks a rule" as legendWrong
+  }
+  class legendGroup0 group0
+  class legendGroup1 group1
+  class legendGroup2 group2
+  class legendGroup3 group3
+  class legendWrong plainWrong
+  state "Checked and proved at this<br/>head, edits not committed" as g0 {
+    state "a rebase record left<br/>behind" as s0
+    state "a scoped review is owed" as s1
+    state "rebasing" as s2
+    state "reviewed, a finding to<br/>answer" as s3
+    state "reviewed, no scoped review<br/>owed" as s4
+    state "reviewed, no scoped review<br/>owed, pushed" as s5
+    state "the Result is written, no<br/>review yet" as s6
+    state "the pull request is in<br/>conflict" as s7
+  }
+  state "Checked and proved at this<br/>head" as g1 {
+    state "a rebase record left<br/>behind" as s8
+    state "a scoped review is owed" as s9
+    state "a scoped review is owed,<br/>none could be launched,<br/>yours to decide" as s10
+    state "its scoped review is<br/>written" as s11
+    state "rebased, not pushed" as s12
+    state "rebased, not pushed, a<br/>dropped line has no line<br/>in the Result" as s13
+    state "rebasing" as s14
+    state "reviewed, a finding to<br/>answer" as s15
+    state "reviewed, no scoped review<br/>owed" as s16
+    state "reviewed, no scoped review<br/>owed, pushed" as s17
+    state "the Result is written, no<br/>review yet" as s18
+    state "the pull request is in<br/>conflict" as s19
+    state "the rebase is pushed, its<br/>record not removed yet" as s20
+    state "the review runs" as s21
+    state "the scoped review runs" as s22
+    state "the scoped review runs, a<br/>second reviewer for the<br/>same round" as s23
+  }
+  state "Checked at this head, not<br/>proved, edits not<br/>committed" as g2 {
+    state "at work, no Result" as s24
+    state "the Result is written, no<br/>review yet" as s25
+  }
+  state "Checked at this head, not<br/>proved" as g3 {
+    state "a rebase record left<br/>behind" as s26
+    state "a scoped review is owed" as s27
+    state "at work, no Result" as s28
+    state "rebased, not pushed" as s29
+    state "rebased, not pushed, a<br/>dropped line has no line<br/>in the Result" as s30
+    state "reviewed, a finding to<br/>answer" as s31
+    state "reviewed, no scoped review<br/>owed" as s32
+    state "reviewed, no scoped review<br/>owed, pushed" as s33
+    state "the Result is written, no<br/>review yet" as s34
+    state "the pull request is in<br/>conflict" as s35
+    state "the rebase is pushed, its<br/>record not removed yet" as s36
+  }
+  state "No check at this head" as g4 {
+    state "a rebase record left<br/>behind" as s37
+    state "a scoped review is owed" as s38
+    state "at work, no Result" as s39
+    state "rebased, not pushed" as s40
+    state "rebased, not pushed, a<br/>dropped line has no line<br/>in the Result" as s41
+    state "reviewed, a finding to<br/>answer" as s42
+    state "reviewed, no scoped review<br/>owed" as s43
+    state "the Result is written, no<br/>review yet" as s44
+    state "the pull request is in<br/>conflict" as s45
+  }
+  state "The check did not pass at<br/>this head" as g5 {
+    state "a rebase record left<br/>behind" as s46
+    state "a scoped review is owed" as s47
+    state "at work, no Result" as s48
+    state "rebased, not pushed" as s49
+    state "rebased, not pushed, a<br/>dropped line has no line<br/>in the Result" as s50
+    state "reviewed, a finding to<br/>answer" as s51
+    state "reviewed, no scoped review<br/>owed" as s52
+    state "the Result is written, no<br/>review yet" as s53
+    state "the pull request is in<br/>conflict" as s54
+  }
+  state "the check runs" as g6 {
+    state "a rebase record left<br/>behind" as s55
+    state "a scoped review is owed" as s56
+    state "at work, no Result" as s57
+    state "rebased, not pushed" as s58
+    state "rebased, not pushed, a<br/>dropped line has no line<br/>in the Result" as s59
+    state "reviewed, a finding to<br/>answer" as s60
+    state "reviewed, no scoped review<br/>owed" as s61
+    state "reviewed, no scoped review<br/>owed, pushed" as s62
+    state "the Result is written, no<br/>review yet" as s63
+    state "the pull request is in<br/>conflict" as s64
+  }
+  state "the proof runs" as g7 {
+    state "a rebase record left<br/>behind" as s65
+    state "a scoped review is owed" as s66
+    state "at work, no Result" as s67
+    state "rebased, not pushed" as s68
+    state "rebased, not pushed, a<br/>dropped line has no line<br/>in the Result" as s69
+    state "reviewed, a finding to<br/>answer" as s70
+    state "reviewed, no scoped review<br/>owed" as s71
+    state "reviewed, no scoped review<br/>owed, pushed" as s72
+    state "the Result is written, no<br/>review yet" as s73
+    state "the pull request is in<br/>conflict" as s74
+  }
+  state "No check at this head,<br/>edits not committed: at<br/>work, no Result" as s75
+  state "The check did not pass at<br/>this head, edits not<br/>committed: at work, no<br/>Result" as s76
+  [*] --> s39
+  s39 --> s75 : the crew edits
+  s39 --> s57 : the crew runs the check block
+  s75 --> s39 : the crew drops its edits or<br/>commits
+  s75 --> s57 : the crew runs the check block
+  s57 --> s39 : the block is killed or the<br/>check block ends
+  s57 --> s75 : the block is killed or the<br/>check block ends
+  s57 --> s48 : the block is killed or the<br/>check block ends or the check<br/>block writes its Checked line,<br/>exit 1
+  s48 --> s76 : the crew edits
+  s48 --> s57 : the crew runs the check block
+  s57 --> s28 : the check block writes its<br/>Checked line, exit 0
+  s76 --> s48 : the crew drops its edits
+  s76 --> s39 : the crew commits
+  s76 --> s57 : the crew runs the check block
+  s28 --> s24 : the crew edits
+  s28 --> s67 : the crew runs proved.sh
+  s28 --> s34 : the crew writes its Result
+  s57 --> s76 : the block is killed or the<br/>check block ends
+  s24 --> s28 : the crew drops its edits
+  s24 --> s39 : the crew commits
+  s24 --> s57 : the crew runs the check block
+  s67 --> s28 : the block is killed or<br/>proved.sh ends
+  s34 --> s25 : the crew edits
+  s34 --> s73 : the crew runs proved.sh
+  s57 --> s24 : the block is killed or the<br/>check block ends
+  s25 --> s34 : the crew drops its edits
+  s25 --> s44 : the crew commits
+  s25 --> s63 : the crew runs the check block
+  s73 --> s34 : the block is killed or<br/>proved.sh ends
+  s44 --> s63 : the crew runs the check block
+  s63 --> s25 : the block is killed or the<br/>check block ends
+  s63 --> s44 : the block is killed or the<br/>check block ends
+  s73 --> s18 : proved.sh writes its Proved<br/>line
+  s63 --> s53 : the block is killed or the<br/>check block ends or the check<br/>block writes its Checked line,<br/>exit 1
+  s18 --> s6 : the crew edits
+  s18 --> s21 : jbus launches the review
+  s53 --> s63 : the crew runs the check block
+  s6 --> s18 : the crew drops its edits
+  s6 --> s44 : the crew commits
+  s6 --> s63 : the crew runs the check block
+  s21 --> s16 : the reviewer writes its review
+  s21 --> s15 : the reviewer writes its review
+  s63 --> s34 : the check block writes its<br/>Checked line, exit 0
+  s63 --> s6 : the block is killed or the<br/>check block ends
+  s16 --> s4 : the crew edits
+  s16 --> s17 : the crew pushes
+  s15 --> s3 : the crew edits
+  s15 --> s16 : the crew answers the finding
+  s16 --> s9 : the second pass writes that a<br/>scoped review is needed
+  s4 --> s16 : the crew drops its edits
+  s4 --> s43 : the crew commits
+  s4 --> s61 : the crew runs the check block
+  s17 --> s5 : the crew edits
+  s17 --> s19 : GitHub says the pull request<br/>is in conflict
+  s3 --> s15 : the crew drops its edits
+  s3 --> s42 : the crew commits
+  s3 --> s60 : the crew runs the check block
+  s3 --> s4 : the crew answers the finding
+  s15 --> s17 : the crew answers the finding
+  s15 --> s19 : GitHub says the pull request<br/>is in conflict
+  s17 --> s9 : the second pass writes that a<br/>scoped review is needed
+  s9 --> s1 : the crew edits
+  s43 --> s61 : the crew runs the check block
+  s61 --> s4 : the block is killed or the<br/>check block ends
+  s5 --> s17 : the crew drops its edits
+  s5 --> s43 : the crew commits
+  s5 --> s62 : the crew runs the check block
+  s5 --> s7 : GitHub says the pull request<br/>is in conflict
+  s19 --> s7 : the crew edits
+  s19 --> s14 : the head is kept under<br/>pre-rebase
+  s42 --> s60 : the crew runs the check block
+  s42 --> s43 : the crew answers the finding
+  s60 --> s3 : the block is killed or the<br/>check block ends
+  s3 --> s5 : the crew answers the finding
+  s3 --> s7 : GitHub says the pull request<br/>is in conflict
+  s43 --> s38 : the second pass writes that a<br/>scoped review is needed
+  s9 --> s19 : GitHub says the pull request<br/>is in conflict
+  s1 --> s9 : the crew drops its edits
+  s1 --> s38 : the crew commits
+  s1 --> s56 : the crew runs the check block
+  s61 --> s43 : the block is killed or the<br/>check block ends
+  s62 --> s5 : the block is killed or the<br/>check block ends
+  s7 --> s19 : the crew drops its edits
+  s7 --> s45 : the crew commits
+  s7 --> s64 : the crew runs the check block
+  s7 --> s2 : the head is kept under<br/>pre-rebase
+  s14 --> s19 : the block is killed
+  s60 --> s42 : the block is killed or the<br/>check block ends
+  s38 --> s56 : the crew runs the check block
+  s1 --> s7 : GitHub says the pull request<br/>is in conflict
+  s56 --> s1 : the block is killed or the<br/>check block ends
+  s61 --> s52 : the block is killed or the<br/>check block ends or the check<br/>block writes its Checked line,<br/>exit 1
+  s45 --> s64 : the crew runs the check block
+  s64 --> s7 : the block is killed or the<br/>check block ends
+  s2 --> s7 : the block is killed or git<br/>rebases
+  s14 --> s8 : the block is killed
+  s14 --> s40 : git rebases
+  s14 --> s41 : git rebases
+  s60 --> s51 : the block is killed or the<br/>check block ends or the check<br/>block writes its Checked line,<br/>exit 1
+  s56 --> s38 : the block is killed or the<br/>check block ends
+  s52 --> s61 : the crew runs the check block
+  s64 --> s45 : the block is killed or the<br/>check block ends
+  s2 --> s0 : the block is killed
+  s8 --> s0 : the crew edits
+  s8 --> s14 : the head is kept under<br/>pre-rebase
+  s8 --> s20 : the rebase is pushed with its<br/>lease
+  s40 --> s58 : the crew runs the check block
+  s41 --> s59 : the crew runs the check block
+  s41 --> s40 : the crew writes Dropped on<br/>rebase
+  s51 --> s60 : the crew runs the check block
+  s51 --> s52 : the crew answers the finding
+  s52 --> s47 : the second pass writes that a<br/>scoped review is needed
+  s56 --> s47 : the block is killed or the<br/>check block ends or the check<br/>block writes its Checked line,<br/>exit 1
+  s61 --> s32 : the check block writes its<br/>Checked line, exit 0
+  s64 --> s54 : the block is killed or the<br/>check block ends or the check<br/>block writes its Checked line,<br/>exit 1
+  s0 --> s8 : the crew drops its edits
+  s0 --> s37 : the crew commits
+  s0 --> s55 : the crew runs the check block
+  s0 --> s2 : the head is kept under<br/>pre-rebase
+  s20 --> s8 : the block is killed
+  s20 --> s19 : the rebase record is removed
+  s58 --> s40 : the block is killed or the<br/>check block ends
+  s59 --> s41 : the block is killed or the<br/>check block ends
+  s60 --> s31 : the check block writes its<br/>Checked line, exit 0
+  s47 --> s56 : the crew runs the check block
+  s32 --> s71 : the crew runs proved.sh
+  s32 --> s33 : the crew pushes
+  s54 --> s64 : the crew runs the check block
+  s37 --> s55 : the crew runs the check block
+  s55 --> s0 : the block is killed or the<br/>check block ends
+  s58 --> s49 : the block is killed or the<br/>check block ends or the check<br/>block writes its Checked line,<br/>exit 1
+  s59 --> s50 : the block is killed or the<br/>check block ends or the check<br/>block writes its Checked line,<br/>exit 1
+  s31 --> s70 : the crew runs proved.sh
+  s31 --> s32 : the crew answers the finding
+  s32 --> s27 : the second pass writes that a<br/>scoped review is needed
+  s56 --> s27 : the check block writes its<br/>Checked line, exit 0
+  s71 --> s32 : the block is killed or<br/>proved.sh ends
+  s33 --> s72 : the crew runs proved.sh
+  s33 --> s35 : GitHub says the pull request<br/>is in conflict
+  s64 --> s35 : the check block writes its<br/>Checked line, exit 0
+  s55 --> s37 : the block is killed or the<br/>check block ends
+  s49 --> s58 : the crew runs the check block
+  s50 --> s59 : the crew runs the check block
+  s50 --> s49 : the crew writes Dropped on<br/>rebase
+  s70 --> s31 : the block is killed or<br/>proved.sh ends
+  s31 --> s33 : the crew answers the finding
+  s31 --> s35 : GitHub says the pull request<br/>is in conflict
+  s33 --> s27 : the second pass writes that a<br/>scoped review is needed
+  s27 --> s66 : the crew runs proved.sh
+  s72 --> s33 : the block is killed or<br/>proved.sh ends
+  s35 --> s74 : the crew runs proved.sh
+  s55 --> s46 : the block is killed or the<br/>check block ends or the check<br/>block writes its Checked line,<br/>exit 1
+  s58 --> s29 : the check block writes its<br/>Checked line, exit 0
+  s59 --> s30 : the check block writes its<br/>Checked line, exit 0
+  s27 --> s35 : GitHub says the pull request<br/>is in conflict
+  s66 --> s27 : the block is killed or<br/>proved.sh ends
+  s71 --> s16 : proved.sh writes its Proved<br/>line
+  s74 --> s35 : the block is killed or<br/>proved.sh ends
+  s46 --> s55 : the crew runs the check block
+  s29 --> s68 : the crew runs proved.sh
+  s29 --> s36 : the rebase is pushed with its<br/>lease
+  s30 --> s69 : the crew runs proved.sh
+  s30 --> s29 : the crew writes Dropped on<br/>rebase
+  s70 --> s15 : proved.sh writes its Proved<br/>line
+  s72 --> s17 : proved.sh writes its Proved<br/>line
+  s55 --> s26 : the check block writes its<br/>Checked line, exit 0
+  s68 --> s29 : the block is killed or<br/>proved.sh ends
+  s36 --> s26 : the block is killed
+  s36 --> s33 : the rebase record is removed
+  s69 --> s30 : the block is killed or<br/>proved.sh ends
+  s36 --> s31 : the rebase record is removed
+  s66 --> s9 : proved.sh writes its Proved<br/>line
+  s74 --> s19 : proved.sh writes its Proved<br/>line
+  s26 --> s65 : the crew runs proved.sh
+  s26 --> s36 : the rebase is pushed with its<br/>lease
+  s9 --> s22 : the crew launches the scoped<br/>reviewer
+  s9 --> s10 : no launch tool: the home is<br/>told
+  s36 --> s27 : the rebase record is removed
+  s65 --> s26 : the block is killed or<br/>proved.sh ends
+  s36 --> s35 : the rebase record is removed
+  s68 --> s12 : proved.sh writes its Proved<br/>line
+  s69 --> s13 : proved.sh writes its Proved<br/>line
+  s12 --> s20 : the rebase is pushed with its<br/>lease
+  s13 --> s12 : the crew writes Dropped on<br/>rebase
+  s10 --> s19 : GitHub says the pull request<br/>is in conflict
+  s22 --> s11 : the reviewer writes its review<br/>or the block is killed or the<br/>crew writes the Scoped<br/>reviewer line or the scoped<br/>review writes its review, the<br/>decline upheld or the scoped<br/>review writes its review, the<br/>decline not upheld
+  s22 --> s23 : the crew launches the scoped<br/>reviewer
+  s65 --> s8 : proved.sh writes its Proved<br/>line
+  s20 --> s17 : the rebase record is removed
+  s20 --> s15 : the rebase record is removed
+  s22 --> s19 : GitHub says the pull request<br/>is in conflict
+  s11 --> s9 : the second pass writes that a<br/>scoped review is needed
+  s11 --> s19 : GitHub says the pull request<br/>is in conflict
+  s23 --> s11 : the reviewer writes its review<br/>or the block is killed or the<br/>crew writes the Scoped<br/>reviewer line or the scoped<br/>review writes its review, the<br/>decline upheld or the scoped<br/>review writes its review, the<br/>decline not upheld
+  s11 --> s10 : the second pass writes that a<br/>scoped review is needed
+  s20 --> s9 : the rebase record is removed
+  s23 --> s19 : GitHub says the pull request<br/>is in conflict
+  s20 --> s10 : the rebase record is removed
+  s20 --> s22 : the rebase record is removed
+  s20 --> s11 : the rebase record is removed
+  s20 --> s23 : the rebase record is removed
+  class s0 group3
+  class s1 group2
+  class s2 group3
+  class s3 group2
+  class s4 group2
+  class s5 group2
+  class s6 group0
+  class s7 group2
+  class s8 group3Wrong
+  class s9 group2
+  class s10 group2
+  class s11 group2
+  class s12 group3
+  class s13 group3
+  class s14 group3
+  class s15 group2
+  class s16 group2
+  class s17 group2
+  class s18 group0
+  class s19 plain
+  class s20 group3
+  class s21 group1
+  class s22 group1
+  class s23 group1
+  class s24 group0
+  class s25 group0
+  class s26 group3Wrong
+  class s27 group2
+  class s28 group0
+  class s29 group3
+  class s30 group3
+  class s31 group2
+  class s32 group2
+  class s33 group2
+  class s34 group0
+  class s35 group2
+  class s36 group3
+  class s75 group0
+  class s37 group3
+  class s38 group2
+  class s39 group0
+  class s40 group3
+  class s41 group3
+  class s42 group2
+  class s43 group2
+  class s44 group0
+  class s45 group2
+  class s76 group0
+  class s46 group3
+  class s47 group2
+  class s48 group0
+  class s49 group3
+  class s50 group3
+  class s51 group2
+  class s52 group2
+  class s53 group0
+  class s54 group2
+  class s55 group3
+  class s56 group2
+  class s57 group0
+  class s58 group3
+  class s59 group3
+  class s60 group2
+  class s61 group2
+  class s62 group2
+  class s63 group0
+  class s64 group2
+  class s65 group3
+  class s66 group2
+  class s67 group0
+  class s68 group3
+  class s69 group3
+  class s70 group2
+  class s71 group2
+  class s72 group2
+  class s73 group0
+  class s74 group2
