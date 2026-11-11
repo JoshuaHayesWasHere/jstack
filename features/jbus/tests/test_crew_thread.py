@@ -134,3 +134,24 @@ def test_a_brief_left_behind_by_a_pass_that_died_after_a_launch_takes_the_newest
     run_at(launched, 2)
     assert line(launched, "alpha") == ["mcp:thread-7"]
     assert column(launched, "alpha") == "mcp:thread-7"
+
+
+def test_a_pass_moves_no_line_of_a_launch_with_no_thread_or_no_brief_and_writes_one_once(launched):
+    """`repair` passes over a launch whose reply was lost, which has no thread yet, and a row whose
+    brief is gone; a move to the thread a brief already names leaves the brief as it was, and a
+    move of a row with no brief still writes its queue column."""
+    launches = launched.state_dir / "launches" / "demo"
+    (launches / "lost").mkdir()
+    (launches / "lost" / "intent.json").write_text(json.dumps({"state": "intent", "at": "x"}))
+    (launches / "gone").mkdir()
+    (launches / "gone" / "made.json").write_text(json.dumps({"thread": "mcp:gone", "at": "x"}))
+    brief = launched.home / "tasks" / "alpha.md"
+    before = brief.read_text()
+    run = a_pass(launched)
+    crewthread().repair(run)
+    crewthread().move(run, "alpha", ALPHA)
+    assert brief.read_text() == before
+    assert not (launched.home / "tasks" / "gone.md").exists()
+    crewthread().move(run, "gone", "mcp:gone")
+    assert not (launched.home / "tasks" / "gone.md").exists()
+    assert crewthread().crew(run, "gone") == "mcp:gone"
