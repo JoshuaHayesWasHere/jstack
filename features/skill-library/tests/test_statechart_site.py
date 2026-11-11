@@ -59,6 +59,19 @@ def test_the_page_holds_each_committed_chart_and_each_of_its_states(tmp_path):
     assert r.stdout == f"wrote {out}: {len(CHARTS)} charts, {total} states\n"
 
 
+GROUP_MOST = 15
+
+
+@pytest.mark.parametrize("chart", CHARTS, ids=lambda chart: chart.parent.name)
+def test_each_charts_groups_hold_few_enough_states_to_find_one_and_none_is_mixed(chart):
+    """A reader finds a state by its group's color: a group of more than GROUP_MOST states says
+    little about where a state sits, and a mixed state is gray, in no group at all."""
+    summary = json.loads(read(chart.parent / "summary.json"))
+    big = [f"{g['name']} ({g['states']})" for g in summary["chartGroups"] if g["states"] > GROUP_MOST]
+    assert not big, f"{chart.parent.name} has groups over {GROUP_MOST} states: {', '.join(big)}"
+    assert summary["mixedGroups"] == [], f"{chart.parent.name} has mixed states"
+
+
 def test_the_page_fetches_nothing_when_it_is_viewed(tmp_path):
     out = tmp_path / "index.html"
     assert site(REPO, out).returncode == 0
