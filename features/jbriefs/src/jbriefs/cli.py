@@ -9,7 +9,21 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
-from jbriefs import findings, home, meets, page, parse, pick, propose, proved, shown, skills
+from jbriefs import (
+    below,
+    findings,
+    home,
+    meets,
+    page,
+    parse,
+    pick,
+    propose,
+    proved,
+    shown,
+    skills,
+    stacked,
+)
+from jbriefs import status as status_line
 from jsettings.paths import common_dir, jbus_state_dir
 
 
@@ -42,6 +56,81 @@ def pick_main(argv: list[str]) -> int:
     for line in pick.pick(job):
         print(line)
     return 0
+
+
+def _yes(said: bool) -> str:
+    return "yes" if said else "no"
+
+
+def _reviewer(text: str) -> str:
+    named = [one for one in below.reviewers(text, "Reviewer") if below.launched(one)]
+    return named[0].split()[0].rstrip(",") if named else "none"
+
+
+def _stacked(text: str) -> str:
+    found = stacked.of(text)
+    if found is not None:
+        return stacked.line(found).removeprefix(stacked.LINE).strip()
+    return "none" if stacked.said(text) is None else "malformed"
+
+
+def _pull(text: str) -> str:
+    found = below.pull(below.last_result(text))
+    return "missing" if found is None else found.shown()
+
+
+LINES = {
+    "status": lambda text: status_line.of(below.last_result(text)).value,
+    "pr": _pull,
+    "reviewer": _reviewer,
+    "reviewed": lambda text: _yes(findings.reviewed(text)),
+    "reviewing": lambda text: _yes(findings.running(text)),
+    "base": lambda text: found.branch if (found := stacked.of(text)) else "none",
+    "stacked": _stacked,
+}
+"""What `jbriefs line` prints of a brief, each through the line's one reader, and never empty:
+- `status`: the last Result's `Status:` as `jbriefs.status` reads it (`done`, `not done`,
+  `paused`, `blocked`, `open`, `answered`, `other`, or `none`), a scout's last Report's in a
+  request;
+- `pr`: the pull request the last Result's `Branch:` line names (`below.pull`): its address,
+  `after the review`, `none`, or `missing` where the Result has no `Branch:` line;
+- `reviewer`: the thread of the first `Reviewer:` line below the first Result that names one,
+  or `none`;
+- `reviewed`: `yes` where the results hold a `## Review` or a reviewer (`findings.reviewed`);
+- `reviewing`: `yes` where a reviewer launched has not written its section (`findings.running`);
+- `base`: the branch of the head's `Stacked on:` line (`jbriefs.stacked`), or `none`;
+- `stacked`: that line as `<slug> <branch>` or `<slug> <branch> at <commit>`, `malformed` for a
+  line in neither shape, or `none`."""
+
+
+def line_main(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="jbriefs line",
+        description="Print what the lines a crew, a reviewer and jbus write say of each brief, "
+        "read as jbriefs, jmerge and jbus read them: one line for each brief, its values "
+        "joined by tabs and, for more than one brief, its path after them.",
+    )
+    parser.add_argument(
+        "what",
+        help=f"the lines to print, joined by commas, of: {', '.join(LINES)}",
+    )
+    parser.add_argument("briefs", nargs="+", type=Path, metavar="BRIEF")
+    args = parser.parse_args(argv)
+    asked = args.what.split(",")
+    unknown = [one for one in asked if one not in LINES]
+    if unknown:
+        parser.error(f"no such line: {', '.join(unknown)}; the lines are {', '.join(LINES)}")
+    failed = 0
+    for path in args.briefs:
+        try:
+            text = path.expanduser().read_text(encoding="utf-8", errors="replace")
+        except OSError as error:
+            print(f"jbriefs: {path} cannot be read: {error.strerror}", file=sys.stderr)
+            failed = 1
+            continue
+        said = [LINES[one](text) for one in asked]
+        print("\t".join(said + ([str(path)] if len(args.briefs) > 1 else [])))
+    return failed
 
 
 def go_of(slug: str, brief: Path) -> str:
@@ -152,6 +241,8 @@ def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if argv[:1] == ["pick"]:
         return pick_main(argv[1:])
+    if argv[:1] == ["line"]:
+        return line_main(argv[1:])
     parser = argparse.ArgumentParser(
         prog="jbriefs",
         description="Write one page of every home's handoff, open plan entries, briefs and "
@@ -163,7 +254,8 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         default=home.homes_dir(),
         help="the directory that holds one home per repo (default: %(default)s); "
-        "`jbriefs pick <path | ->` picks the skills for a piece of work instead",
+        "`jbriefs pick <path | ->` picks the skills for a piece of work instead, and "
+        "`jbriefs line <lines> <brief>...` prints what a brief's Result lines say",
     )
     parser.add_argument("--out", type=Path, help="where to write the page (default: the cache)")
     parser.add_argument(

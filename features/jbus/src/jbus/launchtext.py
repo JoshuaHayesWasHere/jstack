@@ -10,8 +10,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from jbriefs import stacked as stacks
 from jmerge import mainjson
-from jmerge import stacked as stacks
 
 GREEN_MAIN = "Green main:"
 

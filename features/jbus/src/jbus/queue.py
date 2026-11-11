@@ -167,10 +167,10 @@ import jsettings
 from jbriefs import chains, findings, meaning, skills
 from jbriefs import home as homes
 from jbriefs import parse as briefs
+from jbriefs import stacked as stacks
 from jbriefs.home import thread_of
 from jbus import Refused, history, party, restated, verbs, work, write_json
 from jmerge import judgement
-from jmerge import stacked as stacks
 from jmerge.judgement import bound
 from jsettings import brief as brief_head
 from jsettings import store
@@ -1457,7 +1457,7 @@ def _builds_on(rows: list[Row], verb: Add) -> None:
 def _stacked_on(verb: Add) -> None:
     """Refuse a brief whose `Stacked on:` line names a row its depends does not. A stack is made
     by a depends alone: jbus launches the row stacked on that row's open pull request and writes
-    the line itself (`jmerge.stacked`), so a line the depends does not back is a hand stack, which
+    the line itself (`jbriefs.stacked`), so a line the depends does not back is a hand stack, which
     nothing takes the row off again."""
     words = (brief_head.head(verb.text, stacks.LINE) or "").split()
     base = words[0] if words else ""

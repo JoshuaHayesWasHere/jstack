@@ -230,6 +230,62 @@ def roster(text: str) -> Roster:
     return Numbered(seats) if seats else Legacy(len(named))
 
 
+def launched(text: str) -> int:
+    """How many reviewer lines of the brief's results name a reviewer that was launched: a
+    `Reviewer:`, `Second reviewer:` or `Scoped reviewer:` line that does not say `none`."""
+    said = (one for kind in below.REVIEWERS for one in below.reviewers(text, kind))
+    return sum(map(below.launched, said))
+
+
+def reviewed(text: str) -> bool:
+    """Whether the brief's results hold a review or a reviewer: a `## Review` section, or a
+    reviewer line that names one (`launched`). A `Reviewer: none, <why>` line is no reviewer,
+    and a `Reviewer:` line in the head is the home's guidance for one."""
+    return "## Review" in below.results(text) or launched(text) > 0
+
+
+def running(text: str) -> bool:
+    """Whether a reviewer launched on the brief has not written its section yet, so a rebase or
+    a move of its head would go from under it. Each reviewer line waits for a section with a
+    `Head:` line written after it: a numbered line (`#<n>`, a `Reviewer:` or a
+    `Second reviewer:`) for a section of its seat that is not scoped, a `Scoped reviewer:` line
+    for a scoped section, and an unnumbered line for any other section. A seat launched again
+    after its section waits for a new one, and launched again before it waits for one. Once a
+    `Reviewer:` line has a number, the unnumbered `Reviewer:` lines are a launch that the
+    numbered ones replaced (`Numbered`), and wait for nothing."""
+    lines = text.splitlines()
+    first = next((at for at, one in enumerate(lines) if one.startswith("## Result")), len(lines))
+    events: list[tuple[int, str, int | None]] = []
+    numbered = False
+    for at, line in enumerate(lines[first:], first):
+        kind, _, said = line.partition(": ")
+        if kind in below.REVIEWERS and below.launched(said.strip()):
+            found = _SEAT.search(said.rstrip())
+            seat = int(found[1]) if found and kind != "Scoped reviewer" else None
+            numbered = numbered or (kind == "Reviewer" and seat is not None)
+            events.append((at, kind, seat))
+    for one in _sections(text):
+        if one.head:
+            events.append((one.line, "scoped" if one.scoped else "section", one.seat))
+    seats: set[int] = set()
+    plain = scoped = 0
+    for _, kind, seat in sorted(events, key=lambda event: event[0]):
+        if kind == "Scoped reviewer":
+            scoped += 1
+        elif kind == "scoped":
+            scoped = max(0, scoped - 1)
+        elif kind == "section":
+            if seat in seats:
+                seats.discard(seat)
+            elif plain:
+                plain -= 1
+        elif seat is not None:
+            seats.add(seat)
+        elif not (kind == "Reviewer" and numbered):
+            plain += 1
+    return bool(seats or plain or scoped)
+
+
 @dataclass(frozen=True)
 class Answer:
     """The crew's answer to a finding: fixed, or not fixed because of `reason`."""

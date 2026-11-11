@@ -10,10 +10,10 @@ from datetime import UTC, datetime
 from fnmatch import fnmatchcase
 from pathlib import Path
 
-from jbriefs import findings, meets, proved, skills
+from jbriefs import below, checked, findings, meets, proved, skills
 from jbriefs.findings import CLEANUP, NONE, REVIEW
+from jbriefs.stacked import Stacked
 from jmerge.rangediff import Verdict
-from jmerge.stacked import Stacked
 from jsettings import Settings
 
 _COMMIT = re.compile(r"[0-9a-f]{40}")
@@ -688,8 +688,8 @@ def brief_of(url: str, tasks: Path) -> Path | None:
         except OSError:
             continue
         for line in lines:
-            fields = _fields(line)
-            if fields and fields[0] == "Branch:" and fields[-1] == url:
+            found = below.pull(line) if line.startswith("Branch:") else None
+            if found and found.url == url:
                 return task
     return None
 
@@ -800,9 +800,9 @@ def said_of(text: str) -> Said:
             said.fixed, fixed_at = fixed, at
         if line.startswith(("Second pass:", "Scoped review:")) and 0 <= first < at:
             said.decided = True
-        checked = _checked(line)
-        if checked:
-            said.checked[checked[2]] = checked[1]
+        ran = checked.read(line)
+        if ran:
+            said.checked[ran.head] = ran.exit
         if line.startswith("Scoped review:"):
             fields = _fields(line)
             said.owed = fields[2:3] == ["needed"] and fields[5:] != ["guarded"]
@@ -1070,15 +1070,6 @@ def proves(
     )
 
 
-_CHECK_LINE = re.compile(r"Checked: (.+) exit (\d+) at ([0-9a-f]{40})")
-_TWO_STEP = re.compile(
-    r"Checked: (make check-fast BASE=([0-9a-f]{40})(?: PYTEST=:)? PART=guards) exit (\d+) "
-    r"\(took \d+ s\), then the import-reached remainder, where exit 124 is the short lane's "
-    r"time limit and passes: make check-fast BASE=\2 PART=rest exit (\d+) at ([0-9a-f]{40})"
-)
-"""The two-step line the crew's check block once wrote: the guards in a full test slot, then the
-rest the change reaches in the short lane, whose 124 is that lane's time limit and passes, since
-CI's check runs the rest in full."""
 _DESK_CHECK = re.compile(
     r"make check-fast BASE=[0-9a-f]{40} PART=touched"
     r"|make check-fast BASE=[0-9a-f]{40}(?: PYTEST=:)? PART=guards|jgauge check"
@@ -1088,19 +1079,7 @@ runs them: the lint, the touched tests and the repo-guards tests of a repo whose
 tests (`PART=touched`, each step in the short lane and a step it stops again in a full slot, so
 its 124 is no verdict), the guards the block ran before 2026-11-05 (`PYTEST=:` where the selection
 was none or all, lint only), and another repo's check command (`jgauge check`). A line of the
-`PART=rest` alone is none of them; the two-step line reads as its guards (`_checked`)."""
-
-
-def _checked(line: str) -> tuple[str, str, str] | None:
-    """The command, exit and head of a `Checked:` line, or None. A two-step line (`_TWO_STEP`)
-    reads as its guards: their exit where it is not 0, and else 0 where the rest exited 0 or
-    the short lane's 124, the rest's exit where it is another."""
-    two = _TWO_STEP.fullmatch(line.strip())
-    if two:
-        guards, _, first, rest, at = two.groups()
-        return guards, rest if first == "0" and rest not in ("0", "124") else first, at
-    one = _CHECK_LINE.fullmatch(line.strip())
-    return (one[1], one[2], one[3]) if one else None
+`PART=rest` alone is none of them; the two-step line reads as its guards (`jbriefs.checked`)."""
 
 
 def short_on_checked(
@@ -1110,14 +1089,14 @@ def short_on_checked(
     The line binds where it names a desk's whole check (`_DESK_CHECK`) that exited 0 at `head`,
     or at a head whose patch `head` carries unchanged (`carries`, as `short_on_proved` reads
     it). Every exit but 0 holds, a time limit's 124 too: a check cut short reached no verdict.
-    A two-step line binds as its guards' step (`_checked`): the rest's 124 in the short lane
+    A two-step line binds as its guards' step (`jbriefs.checked`): the rest's 124 in the short lane
     holds nothing, and the guards' own exit other than 0 holds as it would alone.
     The crew's push block asks this before the first push, with no head carried, and `jmerge`
     before a merge."""
-    lines = [found for line in text.splitlines() if (found := _checked(line))]
-    if not lines:
+    found = checked.last(text)
+    if found is None:
         return CHECKED_MISSING.format(head=head[:12])
-    command, ran, at = lines[-1]
+    command, ran, at = found.command, found.exit, found.head
     if at != head and not carries(at):
         return CHECKED_STALE.format(at=at[:12], head=head[:12])
     if ran == "124":

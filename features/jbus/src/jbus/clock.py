@@ -503,7 +503,7 @@ def _waiting(run: Pass, world: World, said: dict[str, str]) -> list[tuple[str, i
             continue
         brief = task_brief(run, slug)
         result = mirror.last_result(brief)
-        if review.awaited(brief, result) and review.launched(brief):
+        if review.awaited(brief, result) and findings.launched(brief):
             found.append((slug, 0, str(ready.NO_VERDICT), review.desk_head(brief)))
     return found
 

@@ -77,6 +77,7 @@ from typing import Any
 import jroles
 import jroles.mirror
 import jsettings
+from jbriefs import stacked as stacks
 from jbriefs.home import home_of
 from jbus import (
     cleanup,
@@ -97,7 +98,6 @@ from jbus.passes import Changed, Depends, Pass, Red, Rerun, Slot
 from jbus.t3 import Client, T3Dropped, T3Error, T3Refused
 from jbus.watch import TITLE, World, against, at_work, crew_threads, ended
 from jmerge import judgement, mainjson
-from jmerge import stacked as stacks
 from jroles import ledger, pool
 
 

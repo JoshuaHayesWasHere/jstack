@@ -88,6 +88,7 @@ from urllib.parse import urlsplit
 
 import jroles
 from jbriefs import below
+from jbriefs import stacked as stacks
 from jbus import (
     END_TURN,
     cancelled,
@@ -113,7 +114,6 @@ from jbus.watch import (
 )
 from jmerge import lines as lines_of
 from jmerge import ready
-from jmerge import stacked as stacks
 from jmerge.checks import check_state, latest_of_each
 from jmerge.lines import Line
 from jroles import pool

@@ -61,6 +61,7 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 import jsettings
+from jbriefs import stacked as stacks
 from jbus import (
     Refused,
     alert,
@@ -84,7 +85,6 @@ from jbus.t3 import Client
 from jbus.wake import notify
 from jbus.watch import FAILS, TWICE, World, job_log, ran, task_brief
 from jmerge import judgement, ready
-from jmerge import stacked as stacks
 from jmerge.joblog import failed_in
 from jmerge.lines import READY
 from jsettings import store

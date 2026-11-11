@@ -31,8 +31,6 @@ _STATES = (Status.DONE, Status.NOT_DONE, Status.BLOCKED, Status.PAUSED)
 _ENTRY = re.compile(r"^## (?P<slug>[A-Za-z0-9][A-Za-z0-9._-]*): (?P<title>.+)$")
 _BRIEF_TITLE = re.compile(r"^# [^:\n]+: (?P<title>.+)$", re.MULTILINE)
 _RESULT = re.compile(r"^## (?P<heading>Result\b.*)$", re.MULTILINE)
-_PULL_REQUEST = re.compile(r"^(?:.*\s)?Pull request:[ \t]*(?P<named>.*)$", re.MULTILINE)
-_URL = re.compile(r"https?://[^\s)>\]`]+")
 _REPORTED = re.compile(r"^Playbook:[ \t]*(?P<said>.*)$", re.MULTILINE)
 _STEP = re.compile(r"(?P<number>\d+) (?:done|skip: (?P<skip>\S.*))")
 SIZES = ("S", "M", "L")
@@ -116,12 +114,12 @@ class Result:
 
     @property
     def pull_request(self) -> PullRequest | None:
-        found = _PULL_REQUEST.search(self.text)
-        named = found["named"].strip() if found else ""
-        if not named or named.lower().startswith("none"):
+        """The pull request the Result's `Branch:` line names (`below.pull`), or None where it
+        names none."""
+        found = below.pull(self.text)
+        if found is None or not found.said or found.said.lower().startswith("none"):
             return None
-        url = _URL.search(named)
-        return PullRequest(named, url[0].rstrip(".,;:*") if url else None)
+        return PullRequest(found.said, found.url or None)
 
     @property
     def playbook(self) -> Steps | None:
