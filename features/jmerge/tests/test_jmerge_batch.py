@@ -874,3 +874,38 @@ def test_guards_that_fail_on_the_batch_tree_send_each_member_down_the_single_pat
     assert [one.split()[:2] for one in said] == [["wait", "7"], ["merged", "8"]]
     assert len(guards_lines(kitchen)) == 1
     assert record(kitchen)["failed"] == {"7": heads[1]}
+
+
+def test_two_members_of_which_one_merges_over_the_tip_each_take_the_single_path(kitchen):
+    """#7 clashes with #6's line, so one of the two merges over the tip: no guards batch runs,
+    #6 merges on the guards of its own tree, and #7 waits for its rebase, its head not under
+    `failed`."""
+    kitchen.crew("one", 6, {"a.txt": OURS})
+    kitchen.crew("two", 7, {"a.txt": "theirs two\n" + LINES})
+    kitchen.on_main({"d.txt": "theirs\n"})
+    first, second = kitchen.run()
+    assert alone(first, 6) and second == f"wait 7 {url(7)}: {CONFLICT}"
+    assert runs(kitchen) == 1 and guards_lines(kitchen) == [] and record(kitchen)["failed"] == {}
+
+
+@pytest.mark.parametrize("case", ["stopped", "no time", "unbuilt"])
+def test_the_guards_on_a_batch_tree_say_what_they_did_under_the_single_path_s_rules(
+    kitchen, monkeypatch, case
+):
+    """Guards stopped at their limit say so, and count toward the run's seconds; a run that spent
+    `RUN_SECONDS` starts none; and a commit no worktree can be made of runs none. Neither of the
+    last two is evidence against a member (`treeguards.UNRUN`)."""
+    monkeypatch.setattr(treeguards, "LIMIT_SECONDS", 1)
+    guards = treeguards.Guards(kitchen.home.main, kitchen.home.state, True, lambda path: {})
+    guards.command = "sleep 5"
+    tip = git(kitchen.home.main, "rev-parse", "HEAD")
+    if case == "no time":
+        guards.spent = treeguards.RUN_SECONDS
+    tried = guards.on_batch("0" * 40 if case == "unbuilt" else tip, tip)
+    if case == "stopped":
+        assert (tried.outcome, tried.seconds) == (treeguards.STOPPED, 1)
+        assert guards.spent >= 1
+    else:
+        assert tried.outcome in treeguards.UNRUN and tried.outcome.startswith(case[:2])
+        assert tried.why and guards.spent == (treeguards.RUN_SECONDS if case == "no time" else 0)
+    assert not (kitchen.home.state / treeguards.KEPT).exists()
