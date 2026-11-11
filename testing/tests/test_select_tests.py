@@ -759,6 +759,70 @@ def test_the_cross_part_is_the_cross_cutting_tests_of_the_selection(tmp_path, ch
     assert ran.stdout.split() == [FAR, "testing/tests/test_tree.py"]
 
 
+READER = "features/jbus/tests/test_status_line_readers.py"
+
+
+def test_the_names_part_of_an_edit_of_a_skill_file_prints_the_test_that_reads_it(tmp_path):
+    """#1691 edited features/crew/no-pr-end.md, and its pull request's check failed twice on
+    test_status_line_readers.py, which reads that file and which neither `--part touched` nor
+    `--part cross` printed, so the desk never ran it. `--part names` prints it: the desk's check
+    runs each test the pull request's check selects because it names a file the change edits."""
+    files = {
+        **FILES,
+        "features/crew/no-pr-end.md": (REPO / "features/crew/no-pr-end.md").read_text(),
+        READER: (REPO / READER).read_text(),
+    }
+    repo = Repo(tmp_path, files=files)
+    head = repo.change(["features/crew/no-pr-end.md"])
+    ran = repo.run("--part", "names", repo.base, head)
+
+    assert ran.returncode == 0, ran.stderr
+    assert ran.stdout.split() == [READER]
+    assert READER in repo.run("--pull-request", repo.base, head).stdout.split()
+
+
+@pytest.mark.parametrize(
+    ("took", "steps"),
+    [
+        ({}, ["testing/tests/test_doc.py testing/tests/test_one.py"]),
+        (
+            {"testing/tests/test_doc.py::test_doc": 50, "testing/tests/test_one.py::test_one": 50},
+            ["testing/tests/test_doc.py", "testing/tests/test_one.py"],
+        ),
+    ],
+    ids=["quick files share a step", "files that fill a step each take one"],
+)
+def test_the_names_part_prints_the_tests_that_name_a_changed_file_less_the_desks_others(
+    tmp_path, took, steps
+):
+    """`--part names` prints, of the pull request's selection, the test files a change selects
+    because they name or read a file it edits, less the ones `--part touched` and `--part cross`
+    print: each file is one step of the desk's check. Not the tests a feature lists
+    (`test_glob.py`) or that import a changed module (`test_alpha.py`): CI runs them. It packs
+    the files, in order, into steps of `STEP` seconds of test time at most, one step a line, by
+    the file table, so a step fits the short lane and pays pytest's start once."""
+    files = {
+        **FILES,
+        "testing/split.py": (REPO / "testing" / "split.py").read_text(),
+        "testing/shard-file-times.tsv": timed(took),
+    }
+    repo = Repo(tmp_path, files=files)
+    head = repo.change(
+        ["docs/alpha.md", "skills/one/SKILL.md", "src/alpha/util.py", "testing/tests/test_two.py"]
+    )
+    ran = repo.run("--part", "names", repo.base, head)
+
+    assert ran.returncode == 0, ran.stderr
+    assert ran.stdout.splitlines() == steps
+    printed = {
+        one for part in ("touched", "cross", "names")
+        for one in repo.run("--part", part, repo.base, head).stdout.split()
+    }
+    named = {"testing/tests/test_doc.py", "testing/tests/test_one.py", "testing/tests/test_two.py"}
+    assert named <= printed
+    assert not printed & {"testing/tests/test_glob.py", "testing/tests/test_alpha.py"}
+
+
 TEE = """\
 # Tee
 
