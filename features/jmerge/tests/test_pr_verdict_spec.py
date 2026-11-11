@@ -27,6 +27,9 @@ QUOTE = re.compile(r"(\w+\.py)\s*`([^`]+)`")
 FOLDERS = {
     "rebase.py": "features/jbus/src/jbus",
     "expedite.py": "features/jbus/src/jbus",
+    "outbox.py": "features/jbus/src/jbus",
+    "stall.py": "features/jbus/src/jbus",
+    "watch.py": "features/jbus/src/jbus",
 }
 """Where a cited file lives, where it is not jmerge's (the spec's header says so too)."""
 

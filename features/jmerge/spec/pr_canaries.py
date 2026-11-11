@@ -27,7 +27,7 @@ RULE = "MergesOrWaitsOnYou"
 
 # Each hold the rule rests on, as the `Drop` that takes it out. The first five keep a merge to
 # your word: without one, a pull request merges past a hold of yours (the rule's safety half, its
-# `MergesOnlyOnYourWord`). The last four move a ready pull request on: without one, it waits for
+# `MergesOnlyOnYourWord`). The last five move an open pull request on: without one, it waits for
 # ever on nothing your word can lift (the rule's `~>`).
 CANARIES = {
     "go": "its queue row's go (rows.short: ROW_HELD, NO_GO)",
@@ -39,6 +39,7 @@ CANARIES = {
     "rejudge": "a check that failed is judged again as if it passed (Repo.judge, red_only)",
     "again": "GitHub merges a moved main into a pull request whose check failed (Repo.again)",
     "batch-failed": "a member of a failed batch of one goes alone at its head (Batching.takes)",
+    "twice": "a row whose check failed at two heads is held for you (jbus.stall.twice)",
 }
 
 
