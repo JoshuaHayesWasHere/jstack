@@ -21,6 +21,7 @@ nothing of.
 | names T | name no T, or T is the newest | T |
 | names T | an older one names T, the newest U | U, and the next pass moves the line |
 | none | none, and the queue's column names T | T, a crew its home launched with no line |
+| no brief or request at all | any | none: a row whose brief is gone has no crew to tell |
 
 Each write of a crew's new thread is `move`: the brief's line and the queue's column under the
 queue's lock, in one step. `repair`, at the start of each pass, moves a line the table's last row
@@ -89,7 +90,9 @@ def crew(run: Pass, slug: str, role: str = "", *, kept: bool = True) -> str:
     keeps the launch records of that role only, as `jbus.launches.records` does. A row whose home
     launched its crew and wrote no line has the thread its queue row names, the one the last pass
     listed; the pass that derives that column gives no `kept`, so it is never its own answer."""
-    line, _ = _line(run, slug)
+    line, there = _line(run, slug)
+    if not there:
+        return ""
     if found := _answer(line, _launches(run, slug, role)):
         return found
     row = (queue.fresh(run.state, slug) or {}) if kept else {}
