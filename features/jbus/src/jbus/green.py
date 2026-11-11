@@ -410,7 +410,7 @@ def _resume(run: Pass, copy: Path) -> None:
     _settle(run, copy, owed)
 
 
-def _settle(run: Pass, copy: Path, owed: Mapping[str, str]) -> None:
+def _settle(run: Pass, copy: Path, owed: Mapping) -> None:
     """Take the steps of a move from the one `owed` names: point the link at the new tree and
     install the tool again from it (`install`), then remove the trees no command may run and put
     the harness layouts again (`relink`). Each step writes the next one owed before it starts,
@@ -455,7 +455,8 @@ def _back(run: Pass, copy: Path, owed: Mapping) -> None:
     held = owed["from"]
     before = trees(copy) / held
     back = {"to": held, "from": held, "owes": "install"}
-    was = owed.get("was") if isinstance(owed.get("was"), dict) else {}
+    was = owed.get("was")
+    was = was if isinstance(was, dict) else {}
     record = read_json(run.state / FILE, {})
     kept = {key: value for key, value in record.items() if key not in OWED}
     write_json(run.state / FILE, {**kept, **was, MOVE: back})
