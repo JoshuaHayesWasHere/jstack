@@ -144,9 +144,9 @@ def test_the_store_keeps_the_surface_of_each_typed_message_and_no_word_of_it(mac
 
 
 def test_a_store_from_before_the_surfaces_gains_them_as_a_rebuild_has_them(machine):
-    """A store built under the rules before `surface`, with no such column, runs
-    `jbus.telemetry.migrations.v016_message_surface`, reads every message again and ends as a
-    store built from nothing."""
+    """A store built under the rules before `surface`, with no such column nor the later
+    `command`, runs `jbus.telemetry.migrations.v016_message_surface` and `v021_message_command`,
+    reads every message again and ends as a store built from nothing."""
     from jbus.telemetry import views
 
     t3, home = T3(), "mcp:home-a"
@@ -159,8 +159,11 @@ def test_a_store_from_before_the_surfaces_gains_them_as_a_rebuild_has_them(machi
         signed = store.execute("SELECT value FROM meta WHERE name = 'messages'").fetchone()[0]
         dropped = "".join(f"DROP VIEW {name};" for name, _ in reversed(views.VIEWS))
         store.executescript(
-            f"{dropped}ALTER TABLE messages DROP COLUMN surface;"
-            f"DELETE FROM {telemetry.RAN} WHERE name = 'v016_message_surface';"
+            f"{dropped}ALTER TABLE messages DROP COLUMN command_kind;"
+            "ALTER TABLE messages DROP COLUMN command;"
+            "ALTER TABLE messages DROP COLUMN surface;"
+            f"DELETE FROM {telemetry.RAN} WHERE name IN "
+            "('v016_message_surface', 'v021_message_command');"
         )
         store.execute(
             "UPDATE meta SET value = ? WHERE name = 'messages'",

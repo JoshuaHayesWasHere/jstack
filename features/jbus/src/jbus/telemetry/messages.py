@@ -3,18 +3,19 @@
 T3 Code keeps every message of every thread in its own store (`boxes.store()`), and jbus reads
 it read only. A row here is one message, of the user or of the assistant: its id, its thread,
 who wrote it, when, and, of a user's message, its `kind`, what it `asks` and, of one the user
-typed (`kind` `text`), its `surface` (`jbus.telemetry.asks`). It keeps no text: as a user's
-message is read, `kind`, `asks` and `surface` are worked out of its first few hundred characters,
-and only the labels and the text's length are kept. The view `ask_ledger`
-(`jbus.telemetry.views.ask_ledger`) joins each message the user typed to the row, the answer or
-the reply that followed it.
+typed (`kind` `text`), its `surface` (`jbus.telemetry.asks`), and, of one that opens with a
+command (`kind` `command`), that `command` and whether it is a door, a skill or a built-in
+(`command_kind`, by the function `command`). It keeps no text: as a user's message is read, each
+label is worked out of its first few hundred characters, and only the labels and the text's
+length are kept. The view `ask_ledger` (`jbus.telemetry.views.ask_ledger`) joins each message the
+user typed to the row, the answer or the reply that followed it.
 
 A word the user said where T3 Code has no message of theirs, through the bots' chat or the view,
 is a message too: `jbus word` keeps it as an act (`jbus.word`), and each build writes a row for
 each such act of the store's `acts`, keyed `word:<id>`, from the user, at the time it was said, in
 the thread jbus carried it to (`word_sends`), with `creation_source` `word:<the act's source>` and
 the `asks` the act was labelled with as it was read (`jbus.telemetry.records`), and no
-`surface`: an act keeps no text past its read, and no surface of it.
+`surface` and no `command`: an act keeps no text past its read, and no label of it but `asks`.
 A word recorded from the user's own T3 message (`t3-message`) is that message and no row of its
 own, and the message jbus carries a word in is written by T3 Code's agent, so neither is a second
 ask.
@@ -38,7 +39,7 @@ import json
 import re
 import sqlite3
 from collections.abc import Iterable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import jbus
 from jbus import boxes
@@ -50,9 +51,9 @@ if TYPE_CHECKING:
     from jbus.telemetry import Built
 
 TABLE = "messages"
-RULES = 4
-"""The version of the rules of `kind`, `asks` and `surface`: a change to any raises it, and the next
-build reads every message again, so each row is labelled by the rules of today."""
+RULES = 5
+"""The version of the rules of `kind`, `asks`, `surface` and `command`: a change to any raises it,
+and the next build reads every message again, so each row is labelled by the rules of today."""
 BATCH = 5000
 COLUMNS = values._columns(
     "id",
@@ -66,6 +67,8 @@ COLUMNS = values._columns(
     "text_len",
     "asks",
     "surface",
+    "command",
+    "command_kind",
 )
 DROPPED = (
     "<task-notification>",
@@ -82,6 +85,20 @@ DROPPED = (
 WORD = "word:"
 """The start of a word's key and of its `creation_source`, which ends with its act's source."""
 _COMMAND = re.compile(r"^[/$][a-z][\w:-]*")
+_TAGGED = re.compile(
+    r"<command-name>/?([a-z][\w:-]*)</command-name>|<command-message>([a-z][\w:-]*)"
+)
+"""The name of a command T3 Code's harness wrote out as tags, in place of its typed `/name`."""
+
+CommandKind = Literal["door", "skill", "builtin"]
+DOORS = frozenset(
+    ("home", "crew", "scout", "pr-review", "handoff", "new-home", "nohome", "unstick")
+)
+"""The commands that open one of jstack's threads, a home, a crew, a scout or a review, or hand
+one on: jbus launches each thread with one (`/crew <slug>`, `/scout <slug>`, `/home <name>`,
+`/pr-review run <slug>`), and the user types one to open or steer such a thread."""
+BUILTINS = frozenset(("compact", "clear", "model", "help", "resume", "cost", "init"))
+"""The harness's own commands, which are no skill of jstack's or anyone's."""
 _READ = """
 select m.rowid, m.message_id, m.thread_id, m.role, m.created_at, t.project_id,
 json_extract(m.payload_json, '$.createdBy'), json_extract(m.payload_json, '$.creationSource'),
@@ -95,7 +112,8 @@ where m.rowid > ? order by m.rowid limit ?
 
 WORDS = f"""
 SELECT a.project, '{WORD}' || a.id, a.id, s.thread, 'user', coalesce(a.said_at, a.at), NULL,
-'user', '{WORD}' || coalesce(nullif(a.source, ''), 'unknown'), 'text', a.words_len, a.asks, NULL
+'user', '{WORD}' || coalesce(nullif(a.source, ''), 'unknown'), 'text', a.words_len, a.asks, NULL,
+NULL, NULL
 FROM acts a LEFT JOIN word_sends s ON s.project = a.project AND s.word = a.id
 WHERE a.verb = 'word' AND coalesce(a.source, '') <> 't3-message'
 """
@@ -119,6 +137,21 @@ def kind(message_id: str, head: str | None) -> str:
     if _COMMAND.match(said) or "<command-message>" in said[:200]:
         return "command"
     return "text"
+
+
+def command(head: str | None) -> tuple[str, CommandKind] | None:
+    """The command a user's message opens with, as `/name` however it was typed (`/name`,
+    Codex's `$name`, or the tags T3 Code's harness writes a command out as), and what it is: a
+    `door` (`DOORS`), a harness's `builtin` (`BUILTINS`), else a `skill`. None where it opens with
+    no command, as `kind` reads it."""
+    said = " ".join((head or "").split()).lower()
+    typed = _COMMAND.match(said)
+    tagged = None if typed else _TAGGED.search(said[:200])
+    name = typed[0][1:] if typed else tagged and (tagged[1] or tagged[2])
+    if not name:
+        return None
+    sort: CommandKind = "door" if name in DOORS else "builtin" if name in BUILTINS else "skill"
+    return f"/{name}", sort
 
 
 def sign(projects: Iterable[jbus.Project]) -> str:
@@ -176,6 +209,7 @@ def _t3(
             for rowid, mid, thread, role, at, project_id, by, source, head, length, size in found:
                 stamp = values.utc(at)
                 sort = kind(mid, head) if role == "user" else None
+                opens = command(head) if sort == "command" else None
                 rows.append(
                     (
                         names.get(project_id) or project_id or "",
@@ -191,6 +225,7 @@ def _t3(
                         length,
                         (asks.label(head) if sort == "text" else "other") if sort else None,
                         asks.surface(head) if sort == "text" else None,
+                        *(opens or (None, None)),
                         values.day(stamp, zone),
                     )
                 )
