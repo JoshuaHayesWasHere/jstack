@@ -374,7 +374,8 @@ java -cp ~/.cache/jstack/tla2tools/1.7.4/tla2tools.jar tlc2.TLC -workers 1 -conf
 Run it in a copy of this folder.
 The rules:
 
-- `ListIsTrue`: an item is listed exactly while its cause holds, once the cause stays: a cause that flips for ever asks nothing of the list. The cause is the model's word: the code lists a closed project's alert for the infra home, and the model says it has no cause.
+- `ListIsTrue`: an item is listed exactly while its cause holds, once the cause stays, so a cause that flips for ever asks nothing of the list.
+  The cause is the model's word: the code lists a closed project's alert for the infra home, and the model says it has no cause.
 - `AnsweredLeaves`: once the user's answer, or the default by silence, settles a gate, gates.md gives the list no open gate of it and no question of it stays open.
 - `ReadOnce`: the merging block shows each merge line once, and merge-seen counts no line as read that it did not show, also after merge.log is cut.
 
@@ -405,4 +406,5 @@ Its rules are about whole behaviors, which the chart does not draw: TLC's traces
 - Time: the threshold's span (`LASTING`), a `once` alert's end, the budget hold's ten minutes before `jbus needs` lists it, and the sign-in's week.
 - A sign-in whose token file is gone: `remind` returns with the alert as it was.
 - `jbus home status` shows the merge lines past the mark without moving it, and is not counted as shown.
-- Two Results whose headings read the same: read-seen keys a heading by its text. No rule checks read-seen: the model keeps its first mark and the home's marks.
+- Two Results whose headings read the same: read-seen keys a heading by its text.
+  No rule checks read-seen: the model keeps its first mark and the home's marks.
