@@ -1,8 +1,8 @@
 """GitHub's API budget as a TLA+ spec, `features/jsettings/spec/GhBudget.tla`: each carrier and
 condition quotes the code that writes or checks it, and the quote stands once in its file; TLC
-finds that today's code breaks both rules of `GhBudget.cfg`, that the unlocked rotation breaks
-`NoLostGeneration`, and that a rotation under a lock keeps it. The TLC runs skip where no Java
-runs TLC."""
+finds that today's code, whose rotation holds a lock, keeps `NoLostGeneration` of `GhBudget.cfg`
+and breaks `HeldWhenLow`, and that the canary, the unlocked rotation, breaks `NoLostGeneration`.
+The TLC runs skip where no Java runs TLC."""
 
 import importlib
 import re
@@ -83,8 +83,8 @@ def tlc(cfg: str) -> subprocess.CompletedProcess:
 def only(rule: str, fault: str) -> str:
     """The spec's config with `Fault = fault`, checking only TypeOK, CappedRuns and `rule`."""
     kept = (SPEC / "GhBudget.cfg").read_text()
-    assert 'Fault = "unlocked-rotate"' in kept
-    kept = kept.replace('Fault = "unlocked-rotate"', f'Fault = "{fault}"')
+    assert 'Fault = "locked-rotate"' in kept
+    kept = kept.replace('Fault = "locked-rotate"', f'Fault = "{fault}"')
     lines = [line for line in kept.splitlines() if not line.startswith("INVARIANT")]
     return "\n".join([*lines, "INVARIANT TypeOK", "INVARIANT CappedRuns", f"INVARIANT {rule}", ""])
 
@@ -99,18 +99,18 @@ def test_tlc_finds_that_today_s_code_starts_a_call_at_the_floor():
 
 
 @JAVA
-def test_the_unlocked_rotation_of_today_s_code_loses_a_whole_log():
-    """The canary, `Fault = "unlocked-rotate"`, today's code: two processes both find the log
-    past KEPT, and the second renames a new log over the full one the first kept."""
+def test_the_unlocked_rotation_of_the_canary_loses_a_whole_log():
+    """The canary, `Fault = "unlocked-rotate"`, the code before the lock: two processes both find
+    the log past KEPT, and the second renames a new log over the full one the first kept."""
     ran = tlc(only("NoLostGeneration", "unlocked-rotate"))
     assert ran.returncode != 0
     assert "Invariant NoLostGeneration is violated" in ran.stdout, ran.stdout[-4000:]
 
 
 @JAVA
-def test_a_rotation_under_a_lock_keeps_each_whole_log():
-    """`Fault = "locked-rotate"`: one lock over the size check and the rename, and no rename
-    moves a log over the last full one."""
+def test_today_s_rotation_under_its_lock_keeps_each_whole_log():
+    """`GhBudget.cfg`'s `Fault = "locked-rotate"`, today's code: one lock over the size check and
+    the rename, and no rename moves a log over the last full one."""
     ran = tlc(only("NoLostGeneration", "locked-rotate"))
     assert ran.returncode == 0, ran.stdout[-4000:]
     assert "No error has been found" in ran.stdout

@@ -12,8 +12,9 @@
 \* `graphql`: `held` reads the lower of them. A minute passing (`Tick`) ages every line logged so
 \* far and the kept answer out of WITHIN.
 \*
-\* Fault = "unlocked-rotate" is today's code: the size check and the rename are two steps, with no
-\* lock. Fault = "locked-rotate" is the fix: one lock held over the check and the rename.
+\* Fault = "locked-rotate" is today's code: one lock, .gh-calls.jsonl.lock, held over the size
+\* check and the rename. Fault = "unlocked-rotate" is the code before it, the canary: the check and
+\* the rename are two steps, with no lock.
 EXTENDS Naturals, FiniteSets
 CONSTANTS
   Procs,  \* the processes that run `gh` through `proc.run`
@@ -54,7 +55,7 @@ VARIABLES
             \* the floor), "none" (no reading), the reading HeldWhenLow judges
   stale,    \* the lines older than WITHIN, which `_lowest` no longer reads
   dropped,  \* the lines no file holds any more
-  rotLock   \* the fix's lock over the check and the rename: None in today's code
+  rotLock   \* .gh-calls.jsonl.lock over the check and the rename: None in the canary
 vars == <<kept, keepLock, gate, log, old, slots, left, pc, got, began, stale, dropped, rotLock>>
 
 Lines == 0..Start
@@ -156,7 +157,9 @@ Run(p) ==
   /\ pc' = [pc EXCEPT ![p] = "logging"]
   /\ UNCHANGED <<kept, keepLock, gate, log, old, stale, dropped, began, rotLock>>
 
-\* The fix takes a lock before the size check, and today's code does not.
+\* Today's code takes the log's lock before the size check: jsettings/proc.py
+\* `fcntl.flock(held.enter_context(open(state / f".{CALLS}.lock", "a")), fcntl.LOCK_EX)`. The
+\* canary takes none.
 LockRotate(p) ==
   /\ pc[p] = "logging"
   /\ IF Fault = "locked-rotate"
