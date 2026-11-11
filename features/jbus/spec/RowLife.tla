@@ -23,8 +23,9 @@ CONSTANT Fault
 \* one `MOVES` lacks `"legal": false` and writing it all the same (queue.py
 \* `if (was, new["status"]) not in MOVES:`). `MovesKnown` holds that the table has every move a
 \* change of one fact makes here, so the mark is left for the faults the model has not: a pull
-\* request read in neither of GitHub's lists, and a thread or pull request of a row with no launch
-\* record (test_jbus_queue_moves.py names each). The status reads no clock: a `stale` row with nothing
+\* request read in neither of GitHub's lists, a thread or pull request of a row with no launch
+\* record, and a `Branch:` line that loses a closed pull request's address
+\* (test_jbus_queue_moves.py names each). The status reads no clock: a `stale` row with nothing
 \* written that stays quiet becomes `left` by `watch.unwritten`, a step this model leaves out (it
 \* reads the clock and the slot waits of World.awaits, which ThreadLife holds).
 Statuses == {"queued", "launched", "running", "waiting", "pr", "merged", "failed", "stale",

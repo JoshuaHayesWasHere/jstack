@@ -22,7 +22,9 @@ The table holds every move a change of one fact makes, but for the faults below.
 - `left` to `failed`: the `Branch:` line of the Result that named a closed pull request lost its address.
 
 A clean Result from a thread still at work is not `done` but `running` (`work.ENDED_THREAD`), since the thread may yet open the pull request it owes.
-A thread T3 Code settled with nothing written makes the row `stale`, as a thread that completed or was archived does (`work._THREAD`), so `watch.unwritten` sends it to its home once it stays quiet; the row never goes back to `queued`, which is the status of a row with no launch.
+A thread T3 Code settled with nothing written makes a launched row `stale`, as a thread that completed or was archived does (`work._THREAD`), so `watch.unwritten` sends it to its home once it stays quiet: a settled thread never sends a launched row back to `queued`, the status of a row with no launch.
+A settled thread of a row with no launch record is one of an earlier life of its slug, and the row stays `queued` while dispatch holds it.
+A thread that starts a new turn makes the row `launched` again, and so does one T3 Code lists no more; the second is a status nothing moves the row out of, though the move is the table's.
 A move to `removed` is the line the `remove` verb writes, and `derive` never judges one: the table names the removals the work was seen to make.
 `features/jbus/tests/test_jbus_queue_moves.py` names every move a change of one fact can make that the table leaves out, with the fault it is, and checks this list against `queue.MOVES`.
 `features/jbus/spec/RowLife.tla` holds the table to `work.status`: its rule `MovesKnown` says that each move of a status its row makes is in `Moves`, the table move for move.
