@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from statechart.lib import LEGEND_ID, ChartError, unwrap
-from statechart.overview import MOST, caption, overview_of, plural
+from statechart.overview import MOST, caption, groups_of, overview_of, plural
 
 CITE = re.compile(r"([\w./-]+\.(?:py|tla|md|sh|toml|json|js|ts))(?::(\d+)|\s+`([^`]+)`)", re.A)
 
@@ -301,7 +301,11 @@ def legend_of(root, classes, fills):
     for child in root["parts"][0]["children"]:
         if child["id"] == LEGEND_ID:
             return [
-                {"name": leaf["caption"], **_paint(fills, classes.get(leaf["id"], ""))}
+                {
+                    "name": leaf["caption"],
+                    "class": classes.get(leaf["id"], ""),
+                    **_paint(fills, classes.get(leaf["id"], "")),
+                }
                 for leaf in child["parts"][0]["children"]
             ]
     return []
@@ -813,7 +817,7 @@ def flow_section(charts, flow):
     first = flow.handoffs[0]["from"][0] if flow.handoffs else charts[0].name
     region = Region("", starts=[first if first in by_name else charts[0].name])
     for chart in charts:
-        groups = len(chart.legend)
+        groups = len(groups_of(chart))
         states = sum(len(r.states) for r in chart.regions)
         region.states.append(
             State(
@@ -836,7 +840,7 @@ def flow_section(charts, flow):
             ov = overview_of(chart)
             keys = [b.key for b in ov.boxes() if b.name == group and b.group]
             if not keys:
-                have = ", ".join(g["name"] for g in chart.legend)
+                have = ", ".join(groups_of(chart).values())
                 raise ChartError(
                     f"{flow.path}: hand-off {n} names the group {group!r} of {name}, which has"
                     f" no such group; its groups: {have}"

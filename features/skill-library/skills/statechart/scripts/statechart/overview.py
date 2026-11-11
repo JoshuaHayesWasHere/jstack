@@ -11,6 +11,7 @@ overview's counts add up to the chart's.
 from dataclasses import dataclass, field
 
 MOST = 10
+WRONG = "Wrong"
 
 
 @dataclass
@@ -44,18 +45,34 @@ class Overview:
         return [b for p in self.parts for b in p.boxes]
 
 
+def groups_of(chart):
+    """The chart's groups by their class, in the legend's order: the legend's other entries, such
+    as the one for a state that breaks a rule, name no group."""
+    return {
+        g["class"]: g["name"]
+        for g in chart.legend
+        if g["class"].startswith("group") and not g["class"].endswith(WRONG)
+    }
+
+
+def group_of(state, named):
+    """The group a state is in: a state that breaks a rule keeps its group's class, with WRONG
+    after it, and is still in that group."""
+    group = state.group.removesuffix(WRONG)
+    return group if group in named else ""
+
+
 def overview_of(chart):
     """The overview of a chart that `site.read_chart` read: groups in the legend's order, then the
     region's states in no group."""
-    named = {f"group{k}": g["name"] for k, g in enumerate(chart.legend)}
+    named = groups_of(chart)
     order = list(named)
     parts = []
     for r, region in enumerate(chart.regions):
         part = Part(region.name)
         by_group = {}
         for s in region.states:
-            group = s.group if s.group in named else ""
-            by_group.setdefault(group, []).append(s.id)
+            by_group.setdefault(group_of(s, named), []).append(s.id)
         for group in [*order, ""]:
             if group not in by_group:
                 continue
