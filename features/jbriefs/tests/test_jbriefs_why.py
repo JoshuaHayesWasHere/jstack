@@ -1,4 +1,5 @@
-"""A brief's `Why:` line: why the change is wanted, which `jbus queue add` asks of a new brief."""
+"""A brief's `Why:` line: why the change is wanted, which `jbus queue add` asks of a new brief,
+through `jbriefs.parse.faults` and its check `jbriefs.why`."""
 
 import pytest
 
