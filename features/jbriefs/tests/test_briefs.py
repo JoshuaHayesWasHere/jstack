@@ -324,7 +324,8 @@ def test_the_template_has_a_design_line_that_jbus_launches_only_once_it_is_fille
 
 
 HEAD = (
-    '# alpha: a task\nTask: "do alpha"\nDone when:\n- it is done\nProves it: `make check`\n'
+    '# alpha: a task\nTask: "do alpha"\nDone when:\n- it is done\nProves it: `make check`'
+    ", and a day after the merge the count of lost rows reads 0\n"
     "Size: S\nWhere: `src/alpha/`\nPull request: open one when done\nReview: twice\n"
 )
 CLEAN = HEAD + "Playbook: bug-fix\nSkills: tdd\n"

@@ -22,7 +22,16 @@ The root home does step 1 and no other: it queues the brief by "Queueing a row i
    `jbus queue add` queues no brief whose line names only the crew, the crewmate, the reviewer, the agent, the model or a review, or is empty.
    A crewmate's desk check is the crew skill's touched check, `make check-fast BASE=<base> PART=touched`: the lint, the test files the branch adds or edits, and the cross-cutting tests the selection names, wherever they live (`select_tests.py --part cross`).
    The whole suite, `make check-fast BASE=origin/main` with no `PART=` or `make check`, is CI's check on the pull request, never a desk step a brief asks for: it holds a full test slot for about 9 minutes, and CI runs it again.
-   Write the line to name the touched check and the test the task adds, as `Proves it: the touched check passes, with the test the task adds, <its test file>`.
+   Write the line to name the touched check and the test the task adds, and, for a row whose `Where:` names code, what a user would see once it merges: a command of the product in backticks with what it prints, a measure read after the merge, or `judged: <why>` for what only a person can judge.
+   One line of each kind:
+
+   ```
+   Proves it: the touched check passes, with the test the task adds, `features/jbus/tests/test_jbus_hold.py`; and `jbus queue list` prints the held row with its reason.
+   Proves it: the touched check passes, with the test the task adds, `features/jbus/tests/test_jbus_pass.py`; and a day after the merge the `Instruments:` query counts no pass over 60 s.
+   Proves it: the touched check passes, with the test the task adds, `features/home/tests/test_home_reply.py`; and judged: the user finds the row's state in the first line of the home's next reply, which no command reads.
+   ```
+
+   `jbus queue add` and `jbus queue check` warn of a brief whose `Where:` names a file that is neither docs, config nor a test and whose `Proves it:` names a test alone, and queue it all the same: a change no user sees, such as a refactoring, keeps its test alone.
    `jbus queue add` warns of a brief whose `Proves it:` or **Done when** runs the whole suite at the desk, and queues it all the same: a task about the suite itself may need the whole run.
 
    Each **Done when** line ends with the file it lands in, the one its goal needs changed, as ``(in `<path>`)``, or `(in none)` where it changes no file.

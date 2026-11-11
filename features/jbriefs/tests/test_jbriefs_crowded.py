@@ -10,7 +10,9 @@ from jbriefs import crowded, parse
 
 BRIEF = (
     '# alpha: a task\nTask: "do alpha"\nDone when:\n{items}'
-    "Proves it: `uv run pytest tests/test_alpha.py` passes\nSize: S\nWhere: `src/alpha/`\n"
+    "Proves it: `uv run pytest tests/test_alpha.py` passes"
+    ", and a day after the merge the count of lost rows reads 0\n"
+    "Size: S\nWhere: `src/alpha/`\n"
     "Pull request: open one when done\nReview: review\nPlaybook: feature\nSkills: tdd\n"
 )
 

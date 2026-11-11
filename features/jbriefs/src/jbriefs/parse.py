@@ -15,7 +15,7 @@ from jbriefs import status as status_line
 from jbriefs.crowded import crowded
 from jbriefs.meets import done_when
 from jbriefs.paths import covers, named
-from jbriefs.proof import Proof, proof, shown
+from jbriefs.proof import Proof, proof, shown, user_sees
 from jbriefs.runnable import runnable
 from jbriefs.status import Status
 from jsettings.brief import head as head
@@ -590,6 +590,7 @@ def warnings(text: str, fresh_check: str) -> list[str]:
     found = [
         check_asked(text, fresh_check),
         desk_suite(text, fresh_check),
+        user_sees(where(text), _head_lines(text, "Proves it") or ""),
         crowded(text),
         *(check(text) for check in WARNED),
     ]
