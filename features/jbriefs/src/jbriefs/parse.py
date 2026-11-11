@@ -11,11 +11,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from jbriefs import asks, below, findings, paths, skills, standing
+from jbriefs import status as status_line
 from jbriefs.crowded import crowded
 from jbriefs.meets import done_when
 from jbriefs.paths import covers, named
 from jbriefs.proof import Proof, proof, shown
 from jbriefs.runnable import runnable
+from jbriefs.status import Status
 from jsettings.brief import head as head
 
 NO_RESULT = "no result yet"
@@ -24,11 +26,11 @@ NOT_DONE = "not done"
 BLOCKED = "blocked"
 PAUSED = "paused"
 UNCLEAR = "unclear"
+_STATES = (Status.DONE, Status.NOT_DONE, Status.BLOCKED, Status.PAUSED)
 
 _ENTRY = re.compile(r"^## (?P<slug>[A-Za-z0-9][A-Za-z0-9._-]*): (?P<title>.+)$")
 _BRIEF_TITLE = re.compile(r"^# [^:\n]+: (?P<title>.+)$", re.MULTILINE)
 _RESULT = re.compile(r"^## (?P<heading>Result\b.*)$", re.MULTILINE)
-_STATUS = re.compile(r"^Status:[ \t]*(?P<status>.*)$", re.MULTILINE)
 _PULL_REQUEST = re.compile(r"^(?:.*\s)?Pull request:[ \t]*(?P<named>.*)$", re.MULTILINE)
 _URL = re.compile(r"https?://[^\s)>\]`]+")
 _REPORTED = re.compile(r"^Playbook:[ \t]*(?P<said>.*)$", re.MULTILINE)
@@ -109,12 +111,8 @@ class Result:
 
     @property
     def state(self) -> str:
-        found = _STATUS.search(self.text)
-        status = found["status"].lower() if found else ""
-        for state in (NOT_DONE, BLOCKED, PAUSED, DONE):
-            if status.startswith(state):
-                return state
-        return UNCLEAR
+        said = status_line.of(self.text)
+        return said.value if said in _STATES else UNCLEAR
 
     @property
     def pull_request(self) -> PullRequest | None:

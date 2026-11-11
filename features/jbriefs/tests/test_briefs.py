@@ -177,7 +177,8 @@ def test_each_state_is_read_from_the_status_line():
     def state(status):
         return parse.brief("alpha", BRIEF + RESULT.replace("Status: done", status)).state
 
-    assert state("Status: done, with one line to read closely") == parse.DONE
+    assert state("Status: done (one line to read closely)") == parse.DONE
+    assert state("Status: done, with one line to read closely") == parse.UNCLEAR
     assert state("Status: not done") == parse.NOT_DONE
     assert state("Status: blocked (needs a token)") == parse.BLOCKED
     assert state("Status: paused") == parse.PAUSED

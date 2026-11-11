@@ -48,7 +48,9 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 
 import jbus
 from jbriefs import below
+from jbriefs import status as status_line
 from jbriefs.home import ids, scopes
+from jbriefs.status import Status
 from jbus import leftover, passes, questions, queue, read_json, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import GONE, Client, T3Error, T3Refused
@@ -117,8 +119,8 @@ def _cut(text: str) -> str:
 
 def _clean(result: str) -> bool:
     """Whether a Result says `Status: done` with `Left: none`."""
-    said = (below.line(result, label).rstrip(".") for label in ("Status:", "Left:"))
-    return tuple(said) == ("done", "none")
+    left = below.line(result, "Left:").rstrip(".")
+    return status_line.of(result) is Status.DONE and left == "none"
 
 
 def _says(result: str) -> str:

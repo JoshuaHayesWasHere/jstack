@@ -282,7 +282,7 @@ if [ "${M:?run the block that finds this home first}" = "$H" ]; then
                 title = status = ""; done = 0
             }
             /^## / { entry(); title = substr($(0), 4); next }
-            /^Status:/ && title != "" && status == "" { status = $(0); if ($(2) ~ /^done([^a-z]|$)/) done = 1 }
+            /^Status:/ && title != "" && status == "" { status = $(0); if ($(2) == "done") done = 1 }
             END { entry(); if (!shown) print "none" }' "$plan"
         echo "=== scope $scope: queue rows"
         if [ -n "$why" ]; then

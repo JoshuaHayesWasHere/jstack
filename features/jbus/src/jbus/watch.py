@@ -46,7 +46,9 @@ from typing import Any
 import jsettings
 from jbriefs import below, findings
 from jbriefs import home as homes
+from jbriefs import status as status_line
 from jbriefs.home import thread_of
+from jbriefs.status import Status
 from jbus import (
     BATCH,
     Refused,
@@ -618,11 +620,11 @@ def _stale(run: Pass, world: World, slug: str, thread: dict[str, Any]) -> str:
 def left(result: str) -> str:
     """Return, in a few words, what a Result leaves undone. Return nothing when the Result says
     `Status: done` and `Left: none`."""
-    status, rest = below.line(result, "Status:"), below.line(result, "Left:")
+    said, rest = below.line(result, status_line.LABEL), below.line(result, "Left:")
     if rest and rest != "none":
         return f"left: {cut(rest, WORDS)}"
-    if status != "done":
-        return f"status: {cut(status, WORDS)}" if status else "its Result has no Status line"
+    if status_line.read(said) is not Status.DONE:
+        return f"status: {cut(said, WORDS)}" if said else "its Result has no Status line"
     return "" if rest else "its Result has no Left line"
 
 
@@ -682,7 +684,7 @@ def owes_pull(run: Pass, slug: str, brief: str, result: str) -> bool:
     once it was told. The rule is judged as a row moves to done: a row the table had at done when
     the pass began owes nothing (`Pass.done`)."""
     after = review.before_pull(result) and findings.mode_of(brief) != findings.NONE
-    awaits = below.line(result, "Status:") == "done" and review.awaited(brief, result)
+    awaits = status_line.of(result) is Status.DONE and review.awaited(brief, result)
     later = not result.startswith("## Result\n") and not after
     if not awaits and (later or unfinished(result)):
         return False
@@ -1005,10 +1007,10 @@ def owed(run: Pass, role: str, slug: str) -> work.Written:
         reports = [body for head, body in sections(text) if head.startswith("## Report")]
         if not reports:
             return work.Written.NONE
-        status = below.line(reports[-1], "Status:")
-        if not status:
+        said = status_line.of(reports[-1])
+        if said is Status.NONE:
             return work.Written.MALFORMED
-        return work.Written.CLEAN if status == "done" else work.Written.LEFTOVER
+        return work.Written.CLEAN if said is Status.DONE else work.Written.LEFTOVER
     if role == "reviewer":
         text = _read(run.home / "tasks" / f"{slug}.md")
         verdicts = [
