@@ -190,12 +190,20 @@ def test_tell_writes_why_main_went_red_once_and_the_store_reads_it_as_the_spells
     assert [{k: v for k, v in line.items() if k != "at"} for line in lines] == [
         {
             "sha": TESTED,
+            "after": GREEN,
             "prs": [11],
             "step": "make test",
             "failed": ["features/m/tests/test_m.py::test_one"],
             "verdict": "change",
         },
-        {"sha": LINTED, "prs": [11, 12], "step": "make lint", "failed": [], "verdict": "change"},
+        {
+            "sha": LINTED,
+            "after": GREEN,
+            "prs": [11, 12],
+            "step": "make lint",
+            "failed": [],
+            "verdict": "change",
+        },
     ]
     machine.append(
         "alpha",
