@@ -203,7 +203,7 @@ Stopped ==
 \* ---- the row's home: jbus/leftover.py and jbus/children.py
 
 \* A row whose Result leaves something, or whose thread completed or hung with nothing written, is
-\* left, and its home is told once (jbus/leftover.py `ended_now = row.get("status") in ("left", "merged") and not reviewing(run, world, slug)`).
+\* left, and its home is told once (jbus/leftover.py `ended_now = row.get("status") in ("left", "merged")`).
 \* The thread is at work on it no more (jbus/watch.py `if state.value not in ("lost", "hung") or state.facts.written != work.Written.NONE:`).
 Leftover ==
     /\ Holds /\ ~told

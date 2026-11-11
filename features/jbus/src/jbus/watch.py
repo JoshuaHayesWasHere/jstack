@@ -823,13 +823,15 @@ class Seen:
     """A `Seen` is what a pass saw besides the world: the threads out (`threads.out`), or None
     where T3 Code did not list them; the slugs whose launched thread is gone with nothing
     written (`gone`); what `jmerge` said of each open pull request by its number; the slugs
-    that are merged or done (`final`); and which sources answered."""
+    that are merged or done (`final`); which sources answered; and the slugs whose crew is on its
+    way to the pull request its Result opens after its review (`opening`, `leftover.reviewing`)."""
 
     out: list[dict[str, Any]] | None
     gone: frozenset[str]
     said: dict[str, str]
     final: frozenset[str]
     answered: work.Answered = work.Answered.BOTH
+    opening: frozenset[str] = frozenset()
 
     def live(self, thread: str) -> str:
         return next((one["live"] for one in self.out or [] if one["id"] == thread), "")
@@ -892,7 +894,9 @@ def facts(
     since jbus wakes it, so its row is running and nobody is told it ended. So is one whose Result
     still owes its pull request (`owes_pull`), which counts as nothing written: `threads.resume`
     tells it once. A clean Result of a row with no pull request open or merged that `closes` holds
-    open, since it names no `Outcome:` line, is a leftover."""
+    open, since it names no `Outcome:` line, is a leftover. A row with no pull request open,
+    merged or closed whose crew is on its way to the one it opens after its review
+    (`Seen.opening`) has its pull request `opening`, whatever its Result leaves."""
     slug = row["slug"]
     if queue.role(row) == queue.SCOUT:
         return _scouted(run, world, row, seen, launched, last)
@@ -918,6 +922,9 @@ def facts(
         elif slug not in seen.gone:
             said = work.Thread.STARTING
     number = str((world.open.get(slug) or {}).get("number", "")) if world else ""
+    pulled = pull(world, slug, result, seen.said.get(number, "")) if world else work.Pull.NONE
+    if pulled == work.Pull.NONE and slug in seen.opening:
+        pulled = work.Pull.OPENING
     wrote = work.Written.NONE if owes else written(result)
     unmerged = world is not None and slug not in world.open and slug not in world.merged
     if wrote == work.Written.CLEAN and unmerged and closes(run, slug, brief_of(run, slug), result):
@@ -928,7 +935,7 @@ def facts(
         seen="" if said else str((found or {}).get("status", "")),
         launch=work.Launch.LAUNCHED if launched else work.Launch.NONE,
         written=wrote,
-        pull=pull(world, slug, result, seen.said.get(number, "")) if world else work.Pull.NONE,
+        pull=pulled,
         question=work.Question.OPEN if slug in run.gated else work.Question.NONE,
         answered=answered,
         last=last,

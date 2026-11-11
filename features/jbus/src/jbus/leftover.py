@@ -1,13 +1,14 @@
 """A task that ended with something left goes to its home: jbus tells the home once, and the
 home closes it.
 
-A leftover is a row whose thread ended or whose pull request merged, and whose last Result
-has a `Left:` line that is not `none`. No thread is at work on it, no review before its pull
-request is due or running for it, and its crew is not opening the pull request that review was
-for (`ended`, `reviewing`). A row whose thread ended or hung with no Result at all is a leftover
-too, once its crew has had its carry-ons (`watch.unwritten`). For such a row, the `left` text
-states that reason, and the message says to carry the thread on, to remove the row, or to end it
-with a Result.
+A leftover is a row whose thread ended or whose pull request merged, and whose last Result has a
+`Left:` line that is not `none`, as its status says (`ended`). No thread is at work on it. A row
+whose review before its pull request is due or running, or whose crew is opening the pull request
+that review was for (`reviewing`), is never `left`: the pass judges its pull request `opening`
+(`work.Pull.OPENING`) and its row `running`. A row whose thread ended or hung with no Result at all
+is a leftover too, once its crew has had its carry-ons (`watch.unwritten`). For such a row, the
+`left` text states that reason, and the message says to carry the thread on, to remove the row, or
+to end it with a Result.
 
 A row whose branch has commits of its own (`watch.own`) is told neither way to a new brief:
 `RESUMES` says that jbus launches it again on its slug, branch and worktree once a cause it waits
@@ -202,7 +203,8 @@ def reviewing(run: Pass, world: World, slug: str) -> bool:
     """Say whether a row's crew is still on its way to the pull request it opens after its review.
     It waits on that review (`review.awaited`): jbus has its reviewers to launch or to hear from,
     then tells the crew (`jbus.prereview`). Or the review is written and the crew is opening its
-    pull request (`opening`). Such a row is still in flight, whatever its Result leaves."""
+    pull request (`opening`). Such a row is still in flight, whatever its Result leaves: the pass
+    judges its pull request `opening` (`work.Pull.OPENING`), so its status is never `left`."""
     brief = brief_of(run, slug)
     result = mirror.last_result(brief)
     return review.awaited(brief, result) or opening(run, world, slug, brief, result)
@@ -228,8 +230,8 @@ def opening(run: Pass, world: World, slug: str, brief: str, result: str) -> bool
 
 def ended(run: Pass, world: World, rows: list[queue.Row]) -> list[tuple[str, str]]:
     """Return the rows whose Result leaves something and that no thread is at work on, each
-    with its `why`. A row whose review before its pull request is due or running, or whose crew
-    is opening that pull request (`reviewing`), has not ended.
+    with its `why`, as the status says: a row `left`, or `merged` with a `why`. A row whose crew
+    is on its way to its pull request (`reviewing`) is never `left`.
 
     jbus counts a merged row's thread as at work by the thread's status alone. jbus settles
     the thread of a merge before it tells that thread, and a settled thread that picked the
@@ -241,8 +243,6 @@ def ended(run: Pass, world: World, rows: list[queue.Row]) -> list[tuple[str, str
         thread = world.thread(slug)
         told = bool(thread) and jsettings.thread_id(thread.get("threadId", "")) in run.told
         busy = told or at_work([thread] if thread else [], settled_too=True)
-        if row.get("status") == "left" and reviewing(run, world, slug):
-            continue
         if row.get("status") == "left" or (row.get("status") == "merged" and why and not busy):
             found.append((slug, why or ""))
     return found
@@ -361,7 +361,7 @@ def tell(
     kept: dict[str, Record] = {}
     for row in sorted(rows, key=queue.order):
         slug = row["slug"]
-        ended_now = row.get("status") in ("left", "merged") and not reviewing(run, world, slug)
+        ended_now = row.get("status") in ("left", "merged")
         if not (ended_now or slug in was) or slug in run.removed:
             continue
         brief = brief_of(run, slug)

@@ -53,6 +53,10 @@ def judged(half: Half) -> None:
     until that row is merged or ended `done`. `dispatch` uses the same rule to decide what to launch
     (`watch.final`).
 
+    A crew on its way to the pull request its Result opens after its review
+    (`leftover.reviewing`) has its pull request opening (`work.Pull.OPENING`), so the table never
+    moves its row to `left` while it is.
+
     When GitHub is silent and T3 Code answers, the steps that list the threads out did not run,
     since those steps need a world and the pass has none. This function then lists the threads out
     the way those steps do, and `stall.hung` reads the list. So the pass still judges whether each
@@ -71,7 +75,13 @@ def judged(half: Half) -> None:
             if row.get("status") == "pr" and number and number not in said:
                 said[number] = row.get("why", "")
     last = work.last(run.state)
-    seen = watch.Seen(half.out, half.gone, said, watch.final(run, world, rows), half.answered())
+    opening = frozenset(
+        row["slug"]
+        for row in rows
+        if world is not None and leftover.reviewing(run, world, row["slug"])
+    )
+    final = watch.final(run, world, rows)
+    seen = watch.Seen(half.out, half.gone, said, final, half.answered(), opening)
     half.states = watch.Judging(run, world, seen, last)
 
 

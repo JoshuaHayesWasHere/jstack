@@ -188,6 +188,7 @@ SAYS = {
     "launching": "a thread was started and has not reported yet",
     "working": "the thread is working",
     "quiet": "its thread has written nothing for a while",
+    "opening": "its work is written and its crewmate is opening the pull request",
     "hung": "its turn has written nothing, and may be hung",
     "waiting": "the thread waits on a request",
 }
@@ -218,6 +219,7 @@ RANK = {
     "unapproved": ASKS,
     "hold": ASKS,
     "quiet": WORKS,
+    "opening": WORKS,
     "launching": WORKS,
     "working": WORKS,
     "result": WORKS,
@@ -675,7 +677,7 @@ def _saying(row: queue.Row, line: dict[str, Any] | None, about: About) -> dict[s
     elif value == "ready":
         held = next((on for start, on in READY if why.startswith(start)), "")
         say, waits = (why, held) if held else ("nothing is in front of it", waits)
-    elif value in ("leftover", "quiet") and line.get("who") == "rev":
+    elif value in ("leftover", "opening", "quiet") and line.get("who") == "rev":
         say = AWAITS_REVIEW
     elif value in SAYS:
         say = why or SAYS[value]

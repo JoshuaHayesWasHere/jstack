@@ -74,10 +74,10 @@ def kept_why(run: Pass, tip: RedTip) -> str | None:
     if isinstance(found, reverts.Culprit):
         found = reverts.covered(found, one, (failed_of(sha) for sha, _ in since[:-1]))
     opened = next((sha for sha, _ in since if sha in made), "")
-    if found == reverts.Keep.OPENED and (
-        stuck := reverts.stuck(run, made[opened], checks, opened != tip.sha)
-    ):
-        return stuck
+    if found == reverts.Keep.OPENED:
+        reverts.lean(run, [sha for sha, _ in since], reverts.MAIN)
+        if stuck := reverts.stuck(run, made[opened], checks, opened != tip.sha):
+            return stuck
     if found in reverts.QUIET:
         return None
     if isinstance(found, reverts.Culprit):

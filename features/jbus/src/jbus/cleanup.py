@@ -46,13 +46,14 @@ RESUMES = ("--resume", "--session-id")
 """The arguments that name the session a Claude process runs, as `--resume=<id>` or `--resume
 <id>`: T3 Code runs a session in its checkout and names its folder by no path."""
 FULL = (
-    (re.compile(r"(\S+) has ([\d.]+) of your ([\d.]+) GB quota used"), "quota", 1.0),
-    (re.compile(r"(\S+) has ([\d.]+) GB used of ([\d.]+) GB, 80% of its size"), "size", 0.8),
-    (re.compile(r"(\S+) has (\d+) of (\d+) file slots used"), "file slots", 1.0),
+    (re.compile(r"(\S+) has [\d.]+ of your [\d.]+ GB quota used"), "quota"),
+    (re.compile(r"(\S+) has [\d.]+ GB used of [\d.]+ GB, 80% of its size"), "size"),
+    (re.compile(r"(\S+) has \d+ of \d+ file slots used"), "file slots"),
 )
-"""The lines `jgauge room` waits with for a full /tmp, each with what it is full of and the share of
-the whole that its second number is."""
-WAITING = re.compile(r"waiting: \S+ at \d+% of its (quota|size|file slots)$")
+"""The lines `jgauge room` waits with for a full /tmp, each with what it is full of."""
+WAITING = re.compile(r"waiting: \S+ (is full: its|at \d+% of its) (quota|size|file slots)$")
+"""A row's reason to wait on a full /tmp (`waiting`), or the one a jbus before it wrote, with the
+share of the moment, as `waiting: /tmp at 81% of its quota`."""
 
 
 def mangled(path: str | Path) -> str:
@@ -82,11 +83,14 @@ def scratchpad(worktree: str) -> Path:
 
 def waiting(why: str) -> str:
     """Return what a row waits on when `jgauge room` said `why` for a full /tmp, as `waiting: /tmp
-    at 81% of its quota`, or nothing for any other wait."""
-    for pattern, what, share in FULL:
-        if (found := pattern.match(why)) and float(found[3]) > 0:
-            used = round(100 * share * float(found[2]) / float(found[3]))
-            return f"waiting: {found[1]} at {used}% of its {what}"
+    is full: its quota`, or nothing for any other wait.
+
+    It names the place and what it is full of, never the share: `queue.derive` takes a new reason
+    for a new wait, so a wait on a /tmp that keeps filling stays one reason, one `waits.jsonl`
+    line and one `since`. The log line of the pass (`dispatch.no_room`) keeps the share."""
+    for pattern, what in FULL:
+        if found := pattern.match(why):
+            return f"waiting: {found[1]} is full: its {what}"
     return ""
 
 

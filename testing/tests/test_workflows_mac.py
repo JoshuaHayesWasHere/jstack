@@ -10,6 +10,7 @@ runs there as its setup: what the case tests is the step a Mac runs."""
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -192,6 +193,50 @@ def test_the_macos_nightly_names_each_failed_test_in_its_log_and_summary_after_a
         "::warning::macOS: no test report, the suite step ended failure\n",
         "macOS: no test report, the suite step ended failure\n",
     )
+
+
+def test_the_macos_nightly_runs_its_suite_as_two_shards_each_stopped_by_pytest_under_its_cap(
+    tmp_path,
+):
+    """Each shard's suite step runs `make check` as written, with a `make -n` in place of make,
+    so what it prints is the pytest line the Makefile builds from the step's env: its share of
+    the suite, `--shard K/2`, and a `--session-timeout` that stops pytest between tests and leaves
+    room under the step's cap for the lint before it, the test running at the stop and the
+    report. A suite the step's cap kills writes no report, and the failed tests step names
+    nothing; one pytest stops writes its report, and the step names every test that failed."""
+    text = NIGHTLY.read_text()
+    found, keys = steps(text, "macos")
+    (suite,) = [step for step in found if step.get("id") == "suite"]
+    assert "strategy" in keys
+    shards = re.search(r"^ {6}matrix:\n {8}shard: (\[.*\])$", text, re.M)
+    assert shards and json.loads(shards[1]) == [1, 2]
+    bin = tmp_path / "bin"
+    bin.mkdir()
+    (bin / "make").write_text(f'#!/bin/sh\nexec {shutil.which("make")} -n "$@"\n')
+    (bin / "make").chmod(0o755)
+    cap = int(suite["timeout-minutes"]) * 60
+    for shard in (1, 2):
+        env = {
+            name: value.replace("${{ matrix.shard }}", str(shard)).replace(
+                "${{ strategy.job-total }}", "2"
+            )
+            for name, value in suite["env"].items()
+        }
+        ran = subprocess.run(
+            ["bash", "-e", "-c", suite["run"]],
+            cwd=REPO,
+            env={"PATH": f"{bin}:/usr/bin:/bin", "RUNNER_TEMP": str(tmp_path)} | env,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        (pytest_line,) = [line for line in ran.stdout.splitlines() if " pytest " in line]
+        given = pytest_line.split()
+        assert f"--shard={shard}/2" in given
+        assert f"--junitxml={tmp_path}/junit.xml" in given
+        (stop,) = [arg for arg in given if arg.startswith("--session-timeout=")]
+        assert 0 < int(stop.partition("=")[2]) <= cap - 5 * 60
+    assert cap <= 60 * 60
 
 
 VERSION = tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["version"]

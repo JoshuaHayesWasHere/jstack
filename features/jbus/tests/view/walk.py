@@ -90,6 +90,7 @@ SURFACES = {
     ("value", "launching"): Surface(row=True, rank=WORKS),
     ("value", "working"): Surface(row=True, rank=WORKS),
     ("value", "quiet"): Surface(row=True, rank=WORKS),
+    ("value", "opening"): Surface(row=True, rank=WORKS),
     ("value", "lost"): Surface(row=True, rank=BROKEN),
     ("value", "unapproved"): Surface(needs=True, row=True, rank=ASKS),
     ("value", "behind"): Surface(row=True, rank=WAITS),

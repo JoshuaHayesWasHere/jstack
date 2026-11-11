@@ -4,12 +4,21 @@
 \* into main.json, `watch.retro` hands main's tip to `culprits.judge`, which reverts its one clear
 \* culprit or files main's fix row, and a later merge turns main green, after which `reverts.close`
 \* closes a revert still open and `watch._withdraw` takes out a fix row that never launched.
+\* Main's macOS run judges each commit too (`reverts.macos`), before `culprits.judge` in a pass: it
+\* reverts its own one clear culprit, or leans on the revert jbus opened for main at the same
+\* commits. Each revert keeps the checks that hold it, and closes only once each passed above it.
 \* Each condition of a step quotes the code that checks it, by its file and the code in backticks.
 \* features/jbus/tests/test_main_red_spec.py finds each quote once in its file.
 \* The model is bounded by MaxTips, the commits main may hold, the first of which is green.
 EXTENDS Naturals, Sequences, FiniteSets, TLC
 
-CONSTANT MaxTips
+CONSTANT MaxTips, Fault, Mac
+
+\* Mac FALSE leaves main's macOS run out: it passes at every commit, as on a project with no
+\* macos.yml, so TLC can follow main's check over more commits.
+
+\* Fault "none" is the code. The canary "opener-only" is the code before holders: a revert is held
+\* by the check that opened it alone, so main closes and drops a revert the Mac still leans on.
 
 \* Rows: the briefed pull requests that may merge, each once. "outside" is a push no brief owns,
 \* such as a merge by hand. A merge of a row may break a test; an outside push always does.
@@ -28,15 +37,20 @@ Makers == {"start", "outside", "revert", "fix"} \cup Rows
 \*   one and the tests that failed at the red tip.
 \* reds: main-reds.jsonl (mainmoved.REDS), one line for each red tip, in the order tell wrote them.
 \* merged: the rows and the outside push that have merged.
-\* reverts: jmerge.reverts' record, the revert jbus opened for each red commit: the row it reverts
-\*   and its pull request's state, "open", "stuck" (open, but its check failed or it conflicts),
-\*   "closed" or "merged".
+\* reverts: reverts.json, the revert jbus opened for each red commit: the row it reverts, its pull
+\*   request's state, "open", "stuck" (open, but its check failed or it conflicts), "closed" or
+\*   "merged", and its holders, the checks that lean on it (`reverts.holders`).
 \* fixes: main's fix rows (main-red-<sha>), by the red tip each was filed for: the tests it names,
 \*   and its row's state, "queued", "launched", "pr" (its crew put the fix in a pull request),
 \*   "merged" or "withdrawn".
 \* fresh: no step since the last pass. S1, S2 and S4 read the state a pass leaves.
-VARIABLES by, broken, check, rec, reds, merged, reverts, fixes, fresh
-vars == <<by, broken, check, rec, reds, merged, reverts, fixes, fresh>>
+\* mac[i]: main's macOS run at commit i, its one rerun folded in: "pending", then "failed" or
+\*   "green". The Mac sees breaks main's check does not, so either may end it at any commit.
+\* log: each commit jbus opened a revert of, in the order it opened them, main's or the Mac's.
+VARIABLES by, broken, check, rec, reds, merged, reverts, fixes, fresh, mac, log
+vars == <<by, broken, check, rec, reds, merged, reverts, fixes, fresh, mac, log>>
+
+Checks == {"main", "mac"}
 
 Tip == Len(by)
 Max(s) == CHOOSE x \in s : \A y \in s : y <= x
@@ -56,6 +70,9 @@ TypeOK ==
     /\ Range(reds) \subseteq 1..Tip
     /\ merged \subseteq Breaks
     /\ \A k \in DOMAIN reverts : reverts[k].st \in {"open", "stuck", "closed", "merged"}
+    /\ \A k \in DOMAIN reverts : reverts[k].holders \subseteq Checks /\ reverts[k].holders # {}
+    /\ \A i \in 1..Tip : mac[i] \in {"pending", "failed", "green"}
+    /\ Range(log) \subseteq 1..Tip
     /\ \A f \in DOMAIN fixes : fixes[f].st \in {"queued", "launched", "pr"} \cup FixDone
     /\ fresh \in BOOLEAN
 
@@ -69,6 +86,8 @@ Init ==
     /\ reverts = [k \in {} |-> {}]
     /\ fixes = [f \in {} |-> {}]
     /\ fresh = TRUE
+    /\ mac = <<"green">>
+    /\ log = <<>>
 
 \* A commit lands on main, with its push run's first attempt running.
 Lands(who, code) ==
@@ -76,6 +95,7 @@ Lands(who, code) ==
     /\ by' = Append(by, who)
     /\ broken' = Append(broken, code)
     /\ check' = Append(check, "pending")
+    /\ mac' = Append(mac, IF Mac THEN "pending" ELSE "green")
     /\ fresh' = FALSE
 
 \* A row's pull request merges, by jmerge, whose rule "Main is not red" holds none for a red main
@@ -86,14 +106,14 @@ Merge(r) ==
     /\ \E breaks \in BOOLEAN :
         Lands(r, IF breaks THEN broken[Tip] \cup {r} ELSE broken[Tip])
     /\ merged' = merged \cup {r}
-    /\ UNCHANGED <<rec, reds, reverts, fixes>>
+    /\ UNCHANGED <<rec, reds, reverts, fixes, log>>
 
 \* Something no brief owns lands and breaks main: a merge by hand, or a push.
 Outside ==
     /\ "outside" \notin merged
     /\ Lands("outside", broken[Tip] \cup {"outside"})
     /\ merged' = merged \cup {"outside"}
-    /\ UNCHANGED <<rec, reds, reverts, fixes>>
+    /\ UNCHANGED <<rec, reds, reverts, fixes, log>>
 
 \* How a run at commit i may end: failed where the code there is broken, and failed by a flake or
 \* green where it is not.
@@ -106,7 +126,7 @@ CheckEnds(i) ==
     /\ check[i] = "pending"
     /\ check' \in {[check EXCEPT ![i] = ends] : ends \in Ends(i, "failed1")}
     /\ fresh' = FALSE
-    /\ UNCHANGED <<by, broken, rec, reds, merged, reverts, fixes>>
+    /\ UNCHANGED <<by, broken, rec, reds, merged, reverts, fixes, mac, log>>
 
 \* jbus's one rerun of a failed run ends: jbus/watch.py `A run at a later attempt, rerun by jbus or by
 \* hand, is never rerun again: its failure is the commit's.` It fails again where the code is
@@ -116,7 +136,7 @@ RerunEnds(i) ==
     /\ check[i] = "rerun"
     /\ check' \in {[check EXCEPT ![i] = ends] : ends \in Ends(i, "failed")}
     /\ fresh' = FALSE
-    /\ UNCHANGED <<by, broken, rec, reds, merged, reverts, fixes>>
+    /\ UNCHANGED <<by, broken, rec, reds, merged, reverts, fixes, mac, log>>
 
 \* Someone reruns the red tip's failed run by hand, and it passes, as only a run that failed twice
 \* by chance can. tell asks the red tip again (jbus/mainmoved.py `check = main_check(run, tip,
@@ -128,7 +148,26 @@ HandRerun ==
     /\ broken[rec.broken] = {}                      \* jbus/mainmoved.py `if again and known.get(sha) in ("failed", NO_JOB):`
     /\ check' = [check EXCEPT ![rec.broken] = "green"]
     /\ fresh' = FALSE
-    /\ UNCHANGED <<by, broken, rec, reds, merged, reverts, fixes>>
+    /\ UNCHANGED <<by, broken, rec, reds, merged, reverts, fixes, mac, log>>
+
+\* main's macOS run at a commit ends, its one rerun with it (jbus/watch.py `if first and
+\* _rerun_failed(run, first, ask=True):`): at a row's merge it fails or passes, whatever main's
+\* check says there, and elsewhere it passes. A Mac red at a revert, a fix or an outside push only
+\* files its row, which the model does not keep.
+MacEnds(i) ==
+    /\ i <= Tip                                     \* jbus/reverts.py `walked = commits[:MAC_WALK]`
+    /\ mac[i] = "pending"                           \* jbus/watch.py `if runs is None or any(r.get("status") != "completed" for r in runs):`
+    /\ \E ends \in IF by[i] \in Rows THEN {"failed", "green"} ELSE {"green"} : mac' = [mac EXCEPT ![i] = ends]
+    /\ fresh' = FALSE
+    /\ UNCHANGED <<by, broken, check, rec, reds, merged, reverts, fixes, log>>
+
+\* `chk`, red over the commits `ks` that hold jbus's reverts, reads the newest of them as its own
+\* and becomes one of its holders, unless it holds one of them already (jbus/reverts.py `if
+\* opened and not any(check in held[red] for red in opened):`). Under the canary it never does.
+Lean(rv, ks, chk) ==
+    IF Fault = "opener-only" \/ \E k \in ks : chk \in rv[k].holders
+    THEN rv
+    ELSE [rv EXCEPT ![Max(ks)].holders = @ \cup {chk}]
 
 \* What culprits.judge does with main's red tip (`judge`, `kept_why` and reverts.culprit, tested and
 \* covered), where `seen` is each commit's check as this pass reads it and `green` the last green:
@@ -136,18 +175,18 @@ HandRerun ==
 \* (nothing yet). TLC takes each of the facts the model does not keep either way: `late`, the tip
 \* is older than READ_WAIT; `flaky`, jbus ci names each failed test a flake; `skew`, the culprit's
 \* head lacks the green under the red, or GitHub does not say; `opens`, GitHub opens the revert.
-Verdict(seen, green, late, flaky, skew, opens) ==
+Verdict(reverts_, seen, green, late, flaky, skew, opens) ==
     LET since == (green + 1)..Tip
         oldest == green + 1
-        opened == {k \in DOMAIN reverts : k \in since}
+        opened == {k \in DOMAIN reverts_ : k \in since}
         k == Max(opened)
     IN
     \* jbus/reverts.py `if any(sha in made for sha, _ in red.since): return Keep.OPENED`
     IF opened # {} THEN
         \* jbus/reverts.py `if said.get("state") == "CLOSED":`, `if said.get("state") == "MERGED" and
-        \* above:` and jbus/culprits.py `if found == reverts.Keep.OPENED and (`
-        IF \/ reverts[k].st \in {"stuck", "closed"}
-           \/ reverts[k].st = "merged" /\ k # Tip
+        \* above:` and jbus/culprits.py `if stuck := reverts.stuck(run, made[opened], checks, opened != tip.sha):`
+        IF \/ reverts_[k].st \in {"stuck", "closed"}
+           \/ reverts_[k].st = "merged" /\ k # Tip
         THEN "file" ELSE "quiet"
     \* jbus/reverts.py `if any(check == "pending" for _, check in red.since): return Keep.OVERLAP if
     \* red.age > READ_WAIT else Keep.UNREAD`
@@ -158,7 +197,7 @@ Verdict(seen, green, late, flaky, skew, opens) ==
     ELSE IF by[oldest] \in {"outside", "revert"} THEN "file"
     \* jbus/reverts.py `if red.slug in {one.slug for one in made.values()}: return Keep.TWICE`, where
     \* each fix row's slug is its own, so a fix's merge is never reverted twice by slug.
-    ELSE IF by[oldest] \in {reverts[j].row : j \in DOMAIN reverts} \ {"fix"} THEN "file"
+    ELSE IF by[oldest] \in {reverts_[j].row : j \in DOMAIN reverts_} \ {"fix"} THEN "file"
     \* jbus/reverts.py `if red.failed and all(test in flakes for test in red.failed):` and `return found
     \* if status in ("ahead", "identical") else Keep.SKEW`
     ELSE IF flaky \/ skew THEN "file"
@@ -176,8 +215,27 @@ Filed(t) ==
     THEN fixes
     ELSE fixes @@ (t :> [tests |-> Tests(t), st |-> "queued"])
 
-\* One jbus pass, under the pass lock, so nothing lands inside it: mainmoved.tell, watch.retro with
-\* _withdraw, culprits.judge and reverts.close, in that order (steps 10 to 13 of "after-expedite").
+\* What reverts.macos does with the Mac's newest settled commit `red`, when it failed, where
+\* `green` is the Mac's last green: "lean" on the revert jbus opened at its commits, "revert", or
+\* "file" its macos-red row, which the model does not keep. The Mac's one clear culprit is always
+\* reverted: a Mac red its `tested`, `covered` or `flaky` keeps from a revert files a row alone.
+MacVerdict(green, red) ==
+    LET since == (green + 1)..red
+        oldest == green + 1
+    IN
+    IF red = 0 THEN "quiet"
+    \* jbus/reverts.py `lean(run, [sha for sha, _ in since], MAC)`
+    ELSE IF \E k \in DOMAIN reverts : k \in since THEN "lean"
+    \* jbus/reverts.py `if len(red.since) > 1 and (not red.under or any(check != "failed" for _, check in red.since)):`
+    ELSE IF \E i \in since : mac[i] # "failed" THEN "file"
+    ELSE IF by[oldest] \notin Rows THEN "file"
+    ELSE IF by[oldest] \in {reverts[j].row : j \in DOMAIN reverts} THEN "file"
+    \* jbus/reverts.py `if revert(run, found, MAC):`
+    ELSE "revert"
+
+\* One jbus pass, under the pass lock, so nothing lands inside it: reverts.macos, mainmoved.tell,
+\* watch.retro with _withdraw, culprits.judge and reverts.close, in that order (steps 9 to 13 of
+\* "after-expedite").
 Pass ==
     \E late, flaky, skew, opens, refused \in BOOLEAN :
     LET \* jbus/watch.py `if bad and first and _rerun_failed(run, first, ask=rerun):`: tell reruns a
@@ -193,25 +251,57 @@ Pass ==
         red == IF failing = {} THEN 0 ELSE Max(failing)
         \* jbus/watch.py `elif sha == main.red: answer = "failed"`: retro hands over main's tip only
         \* where main.json names it red.
-        verdict == IF red = Tip THEN Verdict(seen, green, late, flaky, skew, opens) ELSE "quiet"
+        \* jbus/reverts.py `red = known[tip] == "failed"`: the Mac's newest settled commit, red or green.
+        macTip == Max({i \in 1..Tip : mac[i] # "pending"})
+        macGreen == Max({i \in 1..Tip : mac[i] = "green"})
+        macRed == IF mac[macTip] = "failed" THEN macTip ELSE 0
+        macSince == (macGreen + 1)..macRed
+        macVerdict == MacVerdict(macGreen, macRed)
+        macOldest == macGreen + 1
+        afterMac ==
+            IF macVerdict = "lean"
+            THEN Lean(reverts, {k \in DOMAIN reverts : k \in macSince}, "mac")
+            ELSE IF macVerdict = "revert"
+            THEN reverts @@ (macOldest :> [row |-> by[macOldest], st |-> "open", holders |-> {"mac"}])
+            ELSE reverts
+        verdict == IF red = Tip THEN Verdict(afterMac, seen, green, late, flaky, skew, opens) ELSE "quiet"
         oldest == green + 1
+        mainOpened == {k \in DOMAIN afterMac : k \in oldest..Tip}
+        \* jbus/culprits.py `reverts.lean(run, [sha for sha, _ in since], reverts.MAIN)`
+        judged ==
+            IF verdict = "revert"
+            THEN afterMac @@ (oldest :> [row |-> by[oldest], st |-> "open", holders |-> {"main"}])
+            ELSE IF red = Tip /\ mainOpened # {}
+            THEN Lean(afterMac, mainOpened, "main")
+            ELSE afterMac
+        \* Whether `check` passed at commit k or a later one: main's check at its last green, the
+        \* Mac at its own while its newest settled run is green (jbus/reverts.py `check: green if
+        \* green and cleared(run, red, green) else ""`).
+        Past(chk, k) == IF chk = "main" THEN k <= green ELSE macRed = 0 /\ k <= macGreen
+        \* close drops the record of a revert no longer open once every check jbus judges main by
+        \* passed above it, its culprit's row being over (jbus/reverts.py `and
+        \* all(passed(red).values())`); the canary waits for the opener alone.
+        dropped ==
+            {k \in DOMAIN judged :
+                /\ judged[k].st \in {"closed", "merged"}
+                /\ red = 0
+                /\ \A chk \in (IF Fault = "opener-only" THEN judged[k].holders ELSE Checks) : Past(chk, k)}
     IN
     /\ check' = seen
     /\ rec' = [broken |-> red, green |-> green, failed |-> IF red = 0 THEN {} ELSE Tests(red)]
     \* jbus/mainmoved.py `if tip not in judged and (read := failed_at(run, tip)) is not None:`
     /\ reds' = IF red # 0 /\ red \notin Range(reds) THEN Append(reds, red) ELSE reds
     \* close comes after judge, which acts only on a red tip, and closes each revert still open
-    \* whose red is the green or older: every one once main is green, and while a newer tip is
-    \* red, those at or under the green (jbus/reverts.py `if main.red and (one.red in of_mac or
-    \* not cleared(run, one.red, main.green)):`), never the one judge opened above it.
-    /\ LET judged == IF verdict = "revert"
-                     THEN reverts @@ (oldest :> [row |-> by[oldest], st |-> "open"])
-                     ELSE reverts
-       IN reverts' =
-            [k \in DOMAIN judged |->
-                IF judged[k].st \in {"open", "stuck"} /\ (red = 0 \/ k <= green)
-                THEN [judged[k] EXCEPT !.st = "closed"]
-                ELSE judged[k]]
+    \* once each of its holders passed at its red or later: main's check at a green at or above
+    \* it, even while a newer tip is red, and the Mac at a later green (jbus/reverts.py `if not
+    \* holding or not all(green[check] for check in holding):`), never the one opened in this pass.
+    /\ reverts' =
+        [k \in DOMAIN judged \ dropped |->
+            IF judged[k].st \in {"open", "stuck"} /\ \A chk \in judged[k].holders : Past(chk, k)
+            THEN [judged[k] EXCEPT !.st = "closed"]
+            ELSE judged[k]]
+    /\ log' = log \o (IF macVerdict = "revert" THEN <<macOldest>> ELSE <<>>)
+                   \o (IF verdict = "revert" THEN <<oldest>> ELSE <<>>)
     \* jbus/watch.py `if fixes and tip and main.green == tip:` and `if row.get("thread") or
     \* row.get("status") not in queue.UNLAUNCHED:`: a row filed for the tip itself is left, as
     \* is one that launched.
@@ -223,7 +313,7 @@ Pass ==
                 ELSE fixes[f]]
         ELSE fixes
     /\ fresh' = TRUE
-    /\ UNCHANGED <<by, broken, merged>>
+    /\ UNCHANGED <<by, broken, merged, mac>>
     \* A pass that finds nothing new changes nothing, and is no step.
     /\ ~fresh \/ <<check', rec', reds', reverts', fixes'>> # <<check, rec, reds, reverts, fixes>>
 
@@ -233,7 +323,7 @@ FixLaunches(f) ==
     /\ fixes[f].st = "queued"
     /\ fixes' = [fixes EXCEPT ![f].st = "launched"]
     /\ fresh' = FALSE
-    /\ UNCHANGED <<by, broken, check, rec, reds, merged, reverts>>
+    /\ UNCHANGED <<by, broken, check, rec, reds, merged, reverts, mac, log>>
 
 \* The fix row's crew puts the fix in a pull request (jbus/watch.py `- the fix is in a pull request of
 \* its own, or in another open pull request only where that`).
@@ -242,7 +332,7 @@ FixOpens(f) ==
     /\ fixes[f].st = "launched"
     /\ fixes' = [fixes EXCEPT ![f].st = "pr"]
     /\ fresh' = FALSE
-    /\ UNCHANGED <<by, broken, check, rec, reds, merged, reverts>>
+    /\ UNCHANGED <<by, broken, check, rec, reds, merged, reverts, mac, log>>
 
 \* The fix merges, and takes out the breaks behind the tests its row names.
 FixMerges(f) ==
@@ -250,7 +340,7 @@ FixMerges(f) ==
     /\ fixes[f].st = "pr"
     /\ Lands("fix", broken[Tip] \ fixes[f].tests)
     /\ fixes' = [fixes EXCEPT ![f].st = "merged"]
-    /\ UNCHANGED <<rec, reds, merged, reverts>>
+    /\ UNCHANGED <<rec, reds, merged, reverts, log>>
 
 \* jmerge merges jbus's revert by the normal path, with no review, and it takes its culprit's
 \* break out of main.
@@ -259,7 +349,7 @@ RevertMerges(k) ==
     /\ reverts[k].st = "open"
     /\ Lands("revert", broken[Tip] \ {reverts[k].row})
     /\ reverts' = [reverts EXCEPT ![k].st = "merged"]
-    /\ UNCHANGED <<rec, reds, merged, fixes>>
+    /\ UNCHANGED <<rec, reds, merged, fixes, log>>
 
 \* The revert stops on its way: its check fails or it conflicts with main ("stuck"), or someone
 \* closes it unmerged ("closed").
@@ -268,7 +358,7 @@ RevertStalls(k) ==
     /\ reverts[k].st = "open"
     /\ \E st \in {"stuck", "closed"} : reverts' = [reverts EXCEPT ![k].st = st]
     /\ fresh' = FALSE
-    /\ UNCHANGED <<by, broken, check, rec, reds, merged, fixes>>
+    /\ UNCHANGED <<by, broken, check, rec, reds, merged, fixes, mac, log>>
 
 \* Each step ranges over a constant set, so TLC names it after its action and not after Next.
 Next ==
@@ -277,6 +367,7 @@ Next ==
     \/ \E i \in 1..MaxTips : CheckEnds(i)
     \/ \E i \in 1..MaxTips : RerunEnds(i)
     \/ HandRerun
+    \/ \E i \in 1..MaxTips : MacEnds(i)
     \/ Pass
     \/ \E f \in 1..MaxTips : FixLaunches(f)
     \/ \E f \in 1..MaxTips : FixOpens(f)
@@ -286,8 +377,23 @@ Next ==
 
 Spec == Init /\ [][Next]_vars
 
-\* At most one revert of jbus's is open at a time.
-OneRevertOpen == Cardinality(OpenReverts) <= 1
+\* Whether check `chk` holds the revert of commit k and has not passed at k or above: main's
+\* check by main.json's green, the Mac by its newest settled run.
+Waits(chk, k) ==
+    LET macTip == Max({i \in 1..Tip : mac[i] # "pending"})
+        macGreen == Max({i \in 1..Tip : mac[i] = "green"})
+        past == IF chk = "main" THEN k <= rec.green ELSE mac[macTip] = "green" /\ k <= macGreen
+    IN chk \in reverts[k].holders /\ ~past
+
+\* Main's check waits on at most one of jbus's open reverts, so a red main never waits on two
+\* for jmerge. The Mac may wait on two, such as one it leaned on while its run under its red was
+\* pending, which `close` holds until the Mac is green at its newest run, but a Mac red holds no
+\* pull request.
+OneRevertOpen == Cardinality({k \in OpenReverts : Waits("main", k)}) <= 1
+
+\* One revert per red: jbus never opens a second revert of a commit, main's or the Mac's, as it
+\* opened #1427 on 2026-11-09 for the commit whose revert #1426 it had closed under a red Mac.
+NeverRevertedTwice == Len(log) = Cardinality(Range(log))
 
 \* A red whose code is broken ends only at a green tip a later merge made: no step of jbus's ends
 \* it, and only a run that failed twice by chance turns green at its own tip, by a rerun by hand.

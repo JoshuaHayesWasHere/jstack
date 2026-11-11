@@ -115,7 +115,7 @@ def test_a_row_that_still_waits_for_tmp_says_so_on_its_first_pass_and_on_jbus_ne
     kitchen.poll()
     assert kitchen.t3.launches == []
     assert live.exists()
-    cause = f"waiting: {tmp} at 80% of its quota"
+    cause = f"waiting: {tmp} is full: its quota"
     rows = {row["slug"]: row for row in json.loads((kitchen.state / "queue.json").read_text())}
     assert rows["alpha"]["why"] == cause
     monkeypatch.setattr(verbs, "clock", lambda: AFTER)

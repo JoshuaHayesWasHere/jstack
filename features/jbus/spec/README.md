@@ -3,7 +3,7 @@
 One row of jbus's queue, from `jbus queue add` to its end, in two regions at the same time.
 
 - The status, which no verb moves: each pass works it out again from the facts (`work.status`), and `queue.derive` writes it, but over a row that is over (`work.over`), whose status it keeps (`work.kept`).
-  The spec models the facts `work.status` reads, folded to what it tells apart: the thread (none, starting, at work, waiting, failed, ended), the Result (none, clean, leaving work), the pull request (none, open, merged, closed), a question, and the launch record.
+  The spec models the facts `work.status` reads, folded to what it tells apart: the thread (none, starting, at work, waiting, failed, ended), the Result (none, clean, leaving work), the pull request (none, opening, open, merged, closed), a question, and the launch record.
   Each step changes one fact, and the pass derives the status they give.
   `Moves` in `RowLife.tla` is `queue.MOVES`, move for move, and `features/jbus/tests/test_rowlife_spec.py` fails when the two differ.
   `removed` is the line the `remove` verb writes, and no pass judges it.
@@ -18,7 +18,7 @@ The rule is `FinalStays`: a row that is over stays over, so the queue, `watch.fi
 A `done` row may only become `merged`, and a `merged` one stays so.
 The facts can still leave a final row: a pull request opens after a `done`, or a question opens on a `merged` row.
 The rule holds because `queue.derive` keeps the status (`work.kept`), and so checks the code's derive and not only the table.
-`test_rowlife_spec.py` runs TLC on `RowLife.cfg`, where the rule holds over 1076 distinct states, and on a canary that takes `work.kept` out (`Fault = "no-latch"`), where it breaks.
+`test_rowlife_spec.py` runs TLC on `RowLife.cfg`, where the rule holds over 1316 distinct states, and on a canary that takes `work.kept` out (`Fault = "no-latch"`), where it breaks.
 Its TLC runs skip where no Java runs TLC.
 By hand, in a copy of this folder:
 
@@ -38,7 +38,7 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --p
 
 It writes `RowLife-statechart/`: `chart.mmd` and `chart.png`, `stories.md` and `summary.json`, labelled by `RowLife.map.py`.
 Each status on the chart says what in `work.py` sets it, and each step that moves the status is labelled by its row of `queue.MOVES`.
-The regions draw 58 of their 85 arrows: a step whose next status turns on a fact the chart does not show, such as a pull request that merges from a row at `gate`, is left out, and `tlc/regions-all.mmd` has every one.
+The regions draw 59 of their 86 arrows: a step whose next status turns on a fact the chart does not show, such as a pull request that merges from a row at `gate`, is left out, and `tlc/regions-all.mmd` has every one.
 Its `tlc/` folder holds TLC's output, which is not committed.
 
 ## What the model leaves out
@@ -113,13 +113,22 @@ If the rerun fails too, `mainmoved.tell` writes the red tip to `main.json`, and 
 `judge` reverts the tip's one clear culprit (`jbus.reverts`) or files main's fix row (`watch._file`).
 A later merge turns main green: the revert, the fix, or a merge that happens to fix it.
 After that, `reverts.close` closes a revert that is still open, and `watch._withdraw` takes out a fix row that never launched.
+Main's macOS run judges each commit too (`reverts.macos`), earlier in the same pass.
+It reverts its own one clear culprit, or leans on the revert jbus opened at the same commits.
+Each revert keeps the checks that hold it, its `holders` in `reverts.json`, and `close` closes it only once each of them passed at its red or later.
 Each condition of a step names the file of the code that checks it and quotes that code in backticks, with no line number.
 `features/jbus/tests/test_main_red_spec.py` finds each quote once in its file and checks that every condition is cited.
 It also checks that the spec states each property `features/jbus/tests/main_red_model.py` walks over the real `tell`, and it runs TLC on both configs.
 
 ### The rules of main's red
 
-- `OneRevertOpen`: at most one of jbus's reverts is open at a time.
+- `NeverRevertedTwice`: jbus never opens a second revert of a commit.
+  On 2026-11-09 main's check passed at the red commit itself while the Mac was still red there.
+  `close` closed revert #1426 and then dropped its record, and the Mac, still red at that commit, opened #1427.
+  Now the Mac leans on the revert and holds it open, and the record goes only once every check jbus judges main by passed at or above its red.
+  The canary, `Fault = "opener-only"`, is the code before holders, where a revert is held by the check that opened it alone, and on `MainRed.chart.cfg` `NeverRevertedTwice` breaks.
+- `OneRevertOpen`: main's check waits on at most one of jbus's open reverts.
+  The Mac may wait on two, as on a revert it leaned on while its run under its red was pending, but a Mac red holds no pull request.
   Main can go green at a later commit and then red again before a pass sees the green on its own.
   In that pass `culprits.judge` reads only the commits since that green, and may open a revert for the new red.
   `reverts.close` then closes each revert whose red is the green or older, even though main's tip is red (`cleared`), so the first revert never waits for jmerge beside the second.
@@ -143,8 +152,10 @@ Run it from this folder, with the pinned jar copied in:
 cp ~/.cache/jstack/tla2tools/1.7.4/tla2tools.jar . && java -cp tla2tools.jar tlc2.TLC -config MainRed.cfg MainRed.tla; rm -rf tla2tools.jar states
 ```
 
-It exits 0: every rule holds over 113,042 distinct states (MaxTips 4), in about a minute on two workers.
-The test runs TLC on both configs, and on each rule of `BREAKS` alone, which is empty while the code breaks no rule.
+It exits 0: every rule holds over 140,012 distinct states (MaxTips 4), in about a minute on four workers.
+`MainRed.cfg` leaves the Mac out (`Mac = FALSE`): with it, four commits take TLC far too long.
+`MainRed.chart.cfg` has the Mac on up to three commits, where every rule holds over 112,491 distinct states.
+The test runs TLC on both configs, and on each rule of `BREAKS` alone, which is empty while the code breaks no rule, and the canary on `MainRed.chart.cfg`.
 
 ### Draw the chart of main's red
 
@@ -159,7 +170,8 @@ W=$(TMPDIR=$D mktemp -d) && cp features/jbus/spec/MainRed.* "$W"
 
 Run it from the repo root.
 Then copy the files of `$W/out` into `MainRed-statechart/`, all except `tlc/`.
-`MainRed.chart.cfg` has the same rules on up to three commits (6,145 states), and it draws 10 chart states and 44 steps.
+`MainRed.chart.cfg` has the same rules on up to three commits, with the Mac (112,491 states), and it draws 42 chart states and 265 steps.
+TLC runs once for each rule, so drawing it takes about half an hour.
 The four commits of `MainRed.cfg` draw too many states and steps for Mermaid to render as a PNG.
 No state breaks a rule, so it draws no `bug-N` chart.
 
@@ -168,9 +180,11 @@ No state breaks a rule, so it draws no `bug-N` chart.
 - A cancelled, batched or job-less run (`watch.BATCHED`, `NO_JOB`, `cancelled`, `refused`): none of them is red.
 - Logs `tell` cannot read, a project's first pass, a culprit's row removed from the queue, and a GitHub that does not say what main a culprit's check passed over, which waits as `UNREAD` until `READ_WAIT`.
   TLC's `skew` files the row at once.
-- `close` dropping the record of a revert whose culprit's slug is over (`over`), after which `OPENED` and `TWICE` no longer see it.
+- Whether a culprit's slug is over (`over`) before `close` drops its revert's record: the model drops it once every check passed above its red.
 - `main-reds.jsonl` keeps only the red tip of each pass, where `tell` writes a line for each failed commit it walks.
-- The Mac run (`reverts.macos`), the browser run, and the fix row's crew ending with no pull request.
+- The browser run, and the fix row's crew ending with no pull request.
+- Of the Mac (`reverts.macos`): its rerun, folded into its run; a Mac red at a revert, a fix or an outside push, which only files its row; the `macos-red-` rows; and a Mac culprit that `tested`, `covered` or `flaky` keeps from a revert.
+  The Mac's one clear culprit is always reverted.
 - Time: TLC chooses on each pass whether the red tip is older than `READ_WAIT` (`late`).
 
 ## The green move, as a TLA+ spec
@@ -178,7 +192,8 @@ No state breaks a rule, so it draws no `bug-N` chart.
 `GreenMove.tla` follows one green copy (`jbus/green.py`) as passes move it to main's green tip, with a pass that can die between any two steps.
 A move grows the new tip's tree, writes the step it owes to `green.json` (`move`, `owes: install`), points the link, installs the tool again, writes `owes: relink`, removes the trees no command runs, and puts the harness layouts again (`jinstall.green.relink`), and only a relink that is taken drops `move`.
 Each pass resumes an owed step (`_resume`) before `_advance` reads main.json.
-An install uv refuses points the link back, and the move goes back owing a relink of that tree.
+An install uv refuses, which may have removed the tool first, sends the move back: it owes the install of the tree it came from, with the reload systemd was owed before it, points the link back, removes the new tree, and installs the tool and relinks from the tree it went back to.
+An install back that uv refuses too stays owed, and a newer green tip still starts a move that takes it over (`Advance`), so a tree uv never installs again does not hold the copy.
 Each step's comment quotes the code it stands for.
 
 ### Check the rules of the green move
@@ -190,18 +205,22 @@ java -cp ~/.cache/jstack/tla2tools/1.7.4/tla2tools.jar tlc2.TLC -deadlock -confi
 
 Run it in a copy of this folder, since TLC writes `states/` where it runs.
 `-deadlock` is there because a copy at main's last tip has no step left to take.
-Today's code holds every rule, over 1180 distinct states with MaxTip 3:
+Today's code holds every rule, over 15453 distinct states with MaxTip 3:
 
 - `ToolRunsCopy`: once no pass is in a move and none is owed, the tool runs the tree the link names, so a unit never starts on a tool the copy no longer holds.
-- `ToolTreeThere`: the tree the tool runs is on disk.
+- `ToolTreeThere`: the tree the tool runs, where uv left one, is on disk.
 - `LayoutsFollow`: once no pass is in a move and none is owed, the layouts were put from the tree the link names, also after a move whose install failed went back.
+- `NoReloadForRemoved`: `green.json` owes systemd no reload for a tip whose move went back, so none runs for a tip that never became the copy.
 
 The canary, `Fault = "no-owed"`, keeps no step in `green.json`, as the code did before st-green-step.
 `ToolRunsCopy` and `LayoutsFollow` each break in five states: main goes green, the move points the link, and the pass dies, the journal's 203/EXEC on `~/.local/bin/jbus`.
-`features/jbus/tests/test_green_move_spec.py` runs TLC on the config and on the canary for each of the two rules.
+The second canary, `Fault = "no-back"`, goes back as the code did before st-green-back: it owes a relink and no install of the tree it went back to, and keeps the reload it wrote for the tip it removed.
+`ToolRunsCopy` breaks when the failed install removed the tool, and `NoReloadForRemoved` breaks once the move goes back.
+`features/jbus/tests/test_green_move_spec.py` runs TLC on the config and on each canary for the two rules it breaks.
 
 ### What the green-move model leaves out
 
 - uv's install and the write of `owes: relink` after it are one step: a pass that dies between them installs again, which is the same install, and the model does not let that second install fail.
-- A tip that does not import (`refused`), the reload a move owes systemd (`reload`, `at`) and the units it puts to work (`live`): each has its own record, which the move does not change.
-- A tree a move went to that is gone on resume, which only a hand can remove: `_resume` points the link back and owes a relink, as a failed install does.
+- A tip that does not import (`refused`) and the units a move puts to work (`live`): each has its own record, which the move does not change.
+- Of the reload a move owes systemd (`reload`, `at`), only `at` and whether systemd takes it.
+- A tree a move went to that is gone on resume, which only a hand can remove: `_resume` goes back (`_back`) as a failed install does.

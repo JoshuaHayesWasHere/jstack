@@ -16,9 +16,13 @@ head. jbus then parks a gate (`SECOND`) with the default that the pull request w
 no second rebase. jbus tells of a conflict with the base at every head, since nothing but a rebase
 resolves a conflict.
 
-`tell` also reads a second kind of `wait` line, about a rebase that changed what the patch says.
-`jmerge` keeps a review valid across a rebase whose range-diff changes no content, and waits on a
-rebase whose range-diff changes content. jbus then launches one scoped reviewer of that range-diff
+`tell` also reads a second kind of `wait` line, `content-changed`, about a new head that changed
+what the reviewed patch says. `jmerge` keeps the review over a rebase, whatever its range-diff
+changes, since the pull request's checks verify a rebase, and over a push whose patch differs in
+tests, docs or config alone (`jmerge.ready.kept_note`). It waits on a push whose patch changes
+code, a rebase with a commit pushed on it included, and on a head whose patches git cannot
+compare, with the same words for each: `the rebase changed the content after its review`. jbus
+then launches one scoped reviewer of that range-diff
 itself (`scope`), and asks the crew nothing: a thread titled `review: <slug>, scoped` in the crew's
 worktree, told `/pr-review run <slug> scoped <old> <new>`, with the arguments of a first review's
 launch (`prereview.arguments`), and a `Scoped reviewer: <thread>, of <head>` line added under the
@@ -200,8 +204,8 @@ def _waits(line: str) -> tuple[Line, str] | None:
 
 def content(line: str) -> tuple[int, str, Ask] | None:
     """Return the number of the pull request, the reason that `jmerge` gives, and the scoped review
-    that jbus launches. `content` reads a line that waits on a scoped review: of a rebase that
-    changed the content, or of drops the Result explains that no review has ruled on. The ask's
+    that jbus launches. `content` reads a line that waits on a scoped review: of a push that
+    changed code, or of drops the Result explains that no review has ruled on. The ask's
     message is the reviewer's, with the two ranges the reason's range-diff names, and its head is
     the head that range-diff ends on."""
     found = _waits(line)
@@ -243,7 +247,7 @@ def asks(line: str) -> tuple[int, str, Ask] | None:
 def tell(run: Pass, client: Client, world: World, lines: list[str]) -> None:
     """Send one message, once per head, to each crew whose pull request `jmerge` calls stale or
     short of lines nobody explained, and launch one scoped reviewer, once per head, of each pull
-    request whose rebase changed its content or whose drops no review ruled on."""
+    request whose push changed its code or whose drops no review ruled on."""
     for number, reason, ask in filter(None, map(asks, lines)):
         if ask.kind == "rereview":
             scope(run, client, world, number, reason, ask)

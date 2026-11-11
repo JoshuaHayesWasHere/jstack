@@ -19,7 +19,7 @@ KINDS: tuple[tuple[str, re.Pattern[str]], ...] = tuple(
         ("depends", r"depends on "),
         ("red main", r"main is red"),
         ("cap", r"max_(per_home|per_project|running) is "),
-        ("room", r"waiting(: \S+ at \d+% of its | for room )|no launch: "),
+        ("room", r"waiting(: \S+ (is full: its|at \d+% of its) | for room )|no launch: "),
         (
             "hold",
             r"not approved$|brief changed after approval|a gate |check failed twice$"

@@ -45,6 +45,12 @@ def _project(machine: Machine, checkout: Path) -> jbus.Project | None:
     return next((one for one in config.projects if one.checkout.resolve() == here), None)
 
 
+def _state(machine: Machine) -> Path | None:
+    """The state of the jbus project whose checkout is the machine's, or None."""
+    project = None if machine.checkout is None else _project(machine, machine.checkout)
+    return None if project is None else jbus.load(_config_dir(machine)).state(project)
+
+
 def attach(machine: Machine) -> Machine:
     """The machine with its green copy, where jbus's config names its checkout as a project. A
     `jinstall` that runs from the copy itself, as uv's tool does, acts for the checkout the copy
@@ -62,10 +68,9 @@ def tip(machine: Machine) -> str:
     """The commit a new copy starts at: main's last green tip as jbus keeps it for the checkout's
     project, or else the commit the checkout holds, which jbus moves on from once main is green."""
     assert machine.checkout is not None
-    project = _project(machine, machine.checkout)
-    if project is not None:
+    if (state := _state(machine)) is not None:
         try:
-            if kept := mainjson.read(jbus.load(_config_dir(machine)).state(project)).green:
+            if kept := mainjson.read(state).green:
                 return kept
         except Exception:
             pass
@@ -162,7 +167,8 @@ class GreenCopy:
     """The green copy of the checkout, at `path`.
 
     due: the machine has a green copy (`attach`).
-    ok: `path` is a green copy of this checkout. The detail names the commit it holds.
+    ok: `path` is a green copy of this checkout. The detail names the commit it holds, or the
+      tip a move jbus keeps in flight goes to, where the link names a tree that is gone.
     missing: nothing is at `path`.
     foreign: `path` is something else, or the green copy of another checkout: the install
       neither writes over it nor removes it.
@@ -177,12 +183,15 @@ class GreenCopy:
     def probe(self, machine: Machine) -> Found:
         if not self.path.exists() and not self.path.is_symlink():
             return Found.missing("install.sh makes it at main's last green tip")
-        made_from = copies.of(self.path)
+        state = _state(machine)
+        made_from = copies.of(self.path) if state is None else copies.owner(self.path, state)
         if made_from is None:
             return Found.foreign(f"{self.path} is not a green copy")
         if machine.checkout is None or made_from.resolve() != machine.checkout.resolve():
             return Found.foreign(f"the green copy of {made_from}")
         held = copies.at(self.path)
+        if not held and state is not None and (owed := copies.in_flight(state)) is not None:
+            return Found.ok(f"mid-move to {owed['to'][:12]}, which the next jbus pass settles")
         return (
             Found.ok(f"at {held[:12]}, which each jbus pass moves to main's green tip")
             if held

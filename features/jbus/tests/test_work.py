@@ -64,8 +64,8 @@ def test_every_combination_of_the_facets_is_one_state_and_what_matches_none_is_u
             assert (again.value, again.confirmed, again.facts.last) == ("ready", False, "ready")
         unknown += state.value == "unknown"
         answered_unknown += state.value == "unknown" and state.confirmed
-    assert walked == 6 * 11 * 2 * 4 * 12 * 2 * 4 == 50_688
-    assert (unknown, answered_unknown) == (15_324, 444)
+    assert walked == 6 * 11 * 2 * 4 * 13 * 2 * 4 == 54_912
+    assert (unknown, answered_unknown) == (16_564, 444)
     assert time.monotonic() - began < 10
 
 
@@ -460,7 +460,7 @@ def test_who_holds_a_state_is_its_patterns_holder_but_for_a_leftover_and_a_threa
                     assert (held.who, held.lift) == ("user", work.Lift.ACCEPT)
                 elif work.lift(state) is not None:
                     assert (held.who, held.lift) == ("user", work.lift(state))
-                elif closer != work.Closer.REVIEW or state.value != "quiet":
+                elif closer != work.Closer.REVIEW or state.value not in work.REVIEWED:
                     assert held == work.Holder(state.who, state.waits, state.pattern.lane)
         for role in ("crew", "reviewer", "scout", "home", "other"):
             held = work.holder(state, role=role)
