@@ -251,5 +251,5 @@ each with `UV_PROJECT_ENVIRONMENT` and `uv run --frozen --project "$S"` in front
   The model's batch is of one, and proves or fails on the tree merged over main.
 - A review round that says the brief is not met: one round holds.
 - A head jbus counts for nothing besides one over main's red: a flake shared with two other branches and an infra step's failure (`jbus.stall.shared`, `infra`).
-- Your own hold of a row (`jbus queue hold`): `nogo` stands for it and for a row with no go, whose crew the outbox still tells, so the model's crew is told of both. With no hold of yours, `queue.lift`'s refusal of a row held again since is left out too.
+- Your own hold of a row (`jbus queue hold`): `nogo` stands for it and for a row with no go, whose crew the outbox still tells, so the model's crew is told of both, and with no hold of yours `queue.lift`'s refusal of a row held again since is left out too.
 - Whose your accept is: the bus's doors and `--message` (`Repo.accept`).
