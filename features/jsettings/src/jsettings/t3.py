@@ -14,9 +14,10 @@ import json
 import urllib.error
 import urllib.parse
 import urllib.request
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Final, Literal
 
 from jsettings import Refused
 from jsettings.store import read_json
@@ -67,9 +68,26 @@ def get_json(url: str, timeout: float = 8) -> dict[str, Any]:
         raise T3Error(f"{_at(url)} could not be read: {error}") from error
 
 
+@dataclass(frozen=True)
+class Open:
+    """The session the server opened, by its `mcp-session-id`."""
+
+    session: str
+
+
+FRESH: Final = "fresh"
+CLOSED: Final = "closed"
+State = Literal["fresh", "closed"] | Open
+
+
 class Session:
-    """One MCP session at `<server>/mcp`, with the bearer token kept at `token_path`. `_rpc`
-    sends one JSON-RPC call and gives its result, and `_open` starts the session once."""
+    """One MCP session at `<server>/mcp`, with the bearer token kept at `token_path`.
+
+    Its state is fresh, `Open` or closed, and only `Open` holds a session id. `_open` opens the
+    session unless it is open, and `_rpc` sends one call in it, opening it first. A fresh or
+    closed session sends nothing but an initialize, so an initialize that failed, or a `close`,
+    costs the next call one initialize and no more.
+    """
 
     def __init__(self, server: str, token_path: Path, *, timeout: float = 60) -> None:
         self.url = f"{server}/mcp"
@@ -78,10 +96,14 @@ class Session:
         if not self._bearer:
             raise Refused(f"refused: no token in {token_path}: run `jbus t3 login`")
         self._timeout = timeout
-        self._session: str | None = None
+        self._state: State = FRESH
         self._ids = 0
 
-    def _rpc(self, method: str, params: dict[str, Any] | None, *, notify: bool = False) -> Any:
+    def _send(
+        self, method: str, params: dict[str, Any] | None, session: str | None, *, notify: bool
+    ) -> tuple[Any, Any]:
+        """Post one JSON-RPC message, in `session` or, for an initialize, in none. Give the
+        reply's headers and its result."""
         self._ids += 1
         body: dict[str, Any] = {"jsonrpc": "2.0", "method": method}
         if params is not None:
@@ -93,13 +115,12 @@ class Session:
             "accept": "application/json, text/event-stream",
             "authorization": f"Bearer {self._bearer}",
         }
-        if self._session:
-            headers["mcp-session-id"] = self._session
+        if session is not None:
+            headers["mcp-session-id"] = session
             headers["mcp-protocol-version"] = PROTOCOL
         got, said = post(self.url, json.dumps(body).encode(), headers, self._timeout)
-        self._session = got.get("mcp-session-id") or self._session
         if notify:
-            return None
+            return got, None
         text = said.decode()
         if "text/event-stream" in (got.get("content-type") or ""):
             replies = [json.loads(line[5:]) for line in text.splitlines() if line[:5] == "data:"]
@@ -109,32 +130,41 @@ class Session:
             if isinstance(reply, dict) and reply.get("id") == body["id"]:
                 if "error" in reply:
                     raise T3Refused(f"{method}: {reply['error'].get('message', reply['error'])}")
-                return reply.get("result")
+                return got, reply.get("result")
         raise T3Error(f"{method}: the reply was lost")
 
-    def _open(self) -> None:
-        if self._session is None and self._ids == 0:
-            self._rpc(
-                "initialize",
-                {
-                    "protocolVersion": PROTOCOL,
-                    "capabilities": {},
-                    "clientInfo": {"name": "jbus", "version": "0.1.0"},
-                },
-            )
-            self._rpc("notifications/initialized", None, notify=True)
+    def _open(self) -> str:
+        """Give the open session's id, opening a new session first unless one is open."""
+        if isinstance(self._state, Open):
+            return self._state.session
+        hello = {
+            "protocolVersion": PROTOCOL,
+            "capabilities": {},
+            "clientInfo": {"name": "jbus", "version": "0.1.0"},
+        }
+        got, _ = self._send("initialize", hello, None, notify=False)
+        session = got.get("mcp-session-id")
+        if not session:
+            raise T3Error("initialize: the server opened no session")
+        self._send("notifications/initialized", None, session, notify=True)
+        self._state = Open(session)
+        return session
+
+    def _rpc(self, method: str, params: dict[str, Any] | None) -> Any:
+        """Send one call in the open session, opening it first, and give its result."""
+        return self._send(method, params, self._open(), notify=False)[1]
 
     def close(self) -> None:
         """End the session at the server, which otherwise keeps it. A session the server cannot
-        end now is left to it: `close` does not raise."""
-        if self._session is None:
+        end now is left to it: `close` does not raise. A later call opens a new session."""
+        state, self._state = self._state, CLOSED
+        if not isinstance(state, Open):
             return
         headers = {
             "authorization": f"Bearer {self._bearer}",
-            "mcp-session-id": self._session,
+            "mcp-session-id": state.session,
             "mcp-protocol-version": PROTOCOL,
         }
-        self._session = None
         request = urllib.request.Request(self.url, headers=headers, method="DELETE")
         with contextlib.suppress(OSError, ValueError):
             urllib.request.urlopen(request, timeout=self._timeout).close()
