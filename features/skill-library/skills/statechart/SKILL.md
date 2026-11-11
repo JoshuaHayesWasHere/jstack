@@ -87,7 +87,8 @@ A file and line, as in `\* pay.ts:120`, cites it too, but a quote needs no edit 
 ## Hand off
 
 Give the PM the PNG and the Mermaid source of each chart.
-For a reader who wants the shape before the states, add `statechart overview CHART.mmd`, the chart at the level of its groups: one box per group, each arrow counting the steps between two groups. `--out FILE.excalidraw` draws it for Excalidraw.
+For a reader who wants the shape before the states, add `statechart overview CHART.mmd`, the chart at the level of its groups: one box per group, each arrow counting the steps between two groups.
+`--out FILE.excalidraw` draws it for Excalidraw.
 Add one line per bug with the rule it breaks, its steps as the chart numbers them, whether it reproduced, and whether the open fix fixes it.
 With `--against`, also say whether the spec already lists it: in the configs that `stories.md` names, in the spec's notes on what the model leaves out, or not at all.
 Do not report that a rule holds while the command lists conditions with no file and quote or line.
