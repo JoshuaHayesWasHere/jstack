@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -22,6 +23,15 @@ class Verdict:
     why: str
     old: str = ""
     new: str = ""
+    differ: tuple[str, ...] | None = None
+    """The files in which the reviewed patch and the head's patch differ, line for line in
+    order, context and all, of a verdict that is not clean: empty where only the commits
+    differ, None where git could not compare the patches file by file."""
+    rebased: bool = False
+    """The head does not descend from the reviewed one, has as many commits of its own and
+    changes each file the reviewed patch changes, so whatever it changed is a rebase's and no
+    commit was pushed on it. A reviewed range that holds a stacked base's commits names files
+    the head's patch does not, and so is never read as a rebase."""
 
 
 class _Failed(Exception):
@@ -79,25 +89,63 @@ def content_change(said: str) -> tuple[str, bool]:
     return first, unpaired
 
 
-def _changes(diff: str) -> dict[str, Counter[str]]:
-    files: dict[str, Counter[str]] = {}
-    lines: Counter[str] = Counter()
+_FLAGS = (
+    "--no-color",
+    "--no-ext-diff",
+    "--no-textconv",
+    "--binary",
+    "--no-renames",
+    "--src-prefix=a/",
+    "--dst-prefix=b/",
+)
+
+
+def _path(header: str) -> str | None:
+    """The file a `diff --git a/<path> b/<path>` line names, which `--no-renames` makes the same
+    on both sides, or None where git quoted it."""
+    both = header.removeprefix("diff --git ")
+    path = both[2 : 2 + (len(both) - 5) // 2]
+    return path if both == f"a/{path} b/{path}" else None
+
+
+def _files(diff: str) -> dict[str, list[str]]:
+    """Each file's lines of `diff`, its hunks' line numbers left out, by its header."""
+    files: dict[str, list[str]] = {}
+    lines: list[str] = []
     for line in diff.splitlines():
         if line.startswith("diff --git "):
-            lines = files.setdefault(line, Counter())
-        elif not line.startswith((" ", "@@", "index ")):
-            lines[line] += 1
+            lines = files.setdefault(line, [])
+        elif not line.startswith(("@@", "index ")):
+            lines.append(line)
     return files
 
 
-def _same_changes(repo: Path, old: tuple[str, str], new: tuple[str, str]) -> str:
-    flags = ("--no-color", "--no-ext-diff", "--no-textconv", "--binary", "--no-renames")
-    before = _changes(_git(repo, "diff", *flags, *old))
-    after = _changes(_git(repo, "diff", *flags, *new))
-    for file in sorted({*before, *after}):
-        if before.get(file) != after.get(file):
-            return file.removeprefix("diff --git ")
-    return ""
+def _added_and_removed(lines: list[str]) -> Counter[str]:
+    return Counter(line for line in lines if not line.startswith(" "))
+
+
+@dataclass(frozen=True)
+class _Patches:
+    before: dict[str, list[str]]
+    after: dict[str, list[str]]
+
+    def differ(self, key: Callable[[list[str]], object] = list) -> list[str]:
+        both = sorted({*self.before, *self.after})
+        return [
+            one for one in both if key(self.before.get(one, [])) != key(self.after.get(one, []))
+        ]
+
+    def files(self) -> tuple[str, ...] | None:
+        """The files whose lines differ in order, context and all, so that a line moved within
+        a file counts as a change, or None where git quoted one of their names."""
+        paths = [_path(header) for header in self.differ()]
+        return None if None in paths else tuple(path for path in paths if path is not None)
+
+
+def _patches(repo: Path, old: tuple[str, str], new: tuple[str, str]) -> _Patches:
+    before = _files(_git(repo, "-c", "core.quotePath=false", "diff", *_FLAGS, *old))
+    after = _files(_git(repo, "-c", "core.quotePath=false", "diff", *_FLAGS, *new))
+    return _Patches(before, after)
 
 
 def _past_held(repo: Path, base_old: str, reviewed: str, base_new: str) -> str:
@@ -130,17 +178,47 @@ def verdict(repo: Path, reviewed: str, head: str, default: str, since: str = "")
         old, new = f"{base_old}..{reviewed}", f"{base_new}..{head}"
         command = f"git range-diff --no-color {old} {new}"
         line, unpaired = content_change(_git(repo, "range-diff", "--no-color", old, new))
+        patches = None
         if unpaired or not line:
-            file = _same_changes(repo, (base_old, reviewed), (base_new, head))
+            patches = _patches(repo, (base_old, reviewed), (base_new, head))
+            first = next(iter(patches.differ(_added_and_removed)), "")
             how = "the commits do not pair up" if unpaired else "the range-diff shows no content"
-            if file:
-                why = f"{how}, and the two diffs differ in {file}"
-                return Verdict(False, command, why, old, new)
-            if unpaired:
+            if not first and unpaired:
                 why = f"{how}, and the two diffs add and remove the same lines"
                 return Verdict(True, command, why, old, new)
+            if not first:
+                return Verdict(True, command, "the range-diff changes no content", old, new)
+            why = f"{how}, and the two diffs differ in {_named(first)}"
+        else:
+            why = f"the range-diff changes content: {line.strip()}"
     except _Failed as error:
         return Verdict(False, command, str(error), old, new)
-    if line:
-        return Verdict(False, command, f"the range-diff changes content: {line.strip()}", old, new)
-    return Verdict(True, command, "the range-diff changes no content", old, new)
+    try:
+        patches = patches or _patches(repo, (base_old, reviewed), (base_new, head))
+        differ = patches.files()
+        rebased = (
+            differ is not None
+            and patches.before.keys() <= patches.after.keys()
+            and _rebase(repo, (base_old, reviewed), (base_new, head))
+        )
+    except _Failed:
+        differ, rebased = None, False
+    return Verdict(False, command, why, old, new, differ, rebased)
+
+
+def _named(header: str) -> str:
+    return header.removeprefix("diff --git ")
+
+
+def _rebase(repo: Path, old: tuple[str, str], new: tuple[str, str]) -> bool:
+    """Whether the head is the reviewed commits written again: it does not descend from the
+    reviewed head, and it has as many commits of its own, so that no commit was pushed on it."""
+    ran = proc.git(repo, "merge-base", "--is-ancestor", old[1], new[1], timeout=TIMEOUT)
+    if isinstance(ran, (proc.TimedOut, proc.Unrun)) or ran.returncode not in (0, 1):
+        raise _Failed("git merge-base could not say whether the head descends from the review")
+    if ran.returncode == 0:
+        return False
+    counts = {
+        _git(repo, "rev-list", "--count", "--no-merges", f"{a}..{b}").strip() for a, b in (old, new)
+    }
+    return len(counts) == 1

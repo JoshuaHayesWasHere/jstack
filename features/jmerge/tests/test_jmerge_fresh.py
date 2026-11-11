@@ -493,7 +493,8 @@ def test_a_line_the_rebase_dropped_and_a_fix_put_back_is_kept(notes):
 
 def test_a_fix_pushed_after_the_rebase_is_not_a_line_the_rebase_dropped(notes):
     """The rebase kept a line, and a `Fixed:` commit took it out afterwards. That is the fix's
-    change, in the pull request's own diff, and not the rebase's."""
+    change, in the pull request's own diff, and not the rebase's. `n.txt` is docs, so the review
+    of the head before the rebase covers the head, which merges with no drop to answer for."""
     notes.crew("two", 7, {"n.txt": "one\ntwo\nthree\nours\n"})
     was = notes.pulls["two"]["headRefOid"]
     notes.rebase(
@@ -503,9 +504,8 @@ def test_a_fix_pushed_after_the_rebase_is_not_a_line_the_rebase_dropped(notes):
     )
     fix(notes, was, "one\ntwo\nthree\ntheirs\nours, as the review asked\n")
     (said,) = notes.run()
-    assert said.startswith(
-        f"wait 7 {url(7)}: the rebase changed the content after its review; scoped review of "
-    )
+    assert said.startswith("merged 7 two "), said
+    assert "review kept: " in said
 
 
 DIFF = "diff --git a/n b/n\n--- a/n\n+++ b/n\n@@ -1,0 +2 @@\n{}"

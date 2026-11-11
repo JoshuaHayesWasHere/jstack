@@ -146,8 +146,8 @@ def amended(tree):
 
 
 def one_more(tree):
-    (tree / "e.txt").write_text("a commit the rebase added\n")
-    merge.git(tree, "add", "e.txt")
+    (tree / "e.py").write_text("ADDED = 'a commit the rebase added, of code'\n")
+    merge.git(tree, "add", "e.py")
     merge.git(tree, "commit", "-q", "-m", "one more")
 
 
