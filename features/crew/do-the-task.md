@@ -221,11 +221,13 @@
       fi
       ;;
   *)
-      set -- $stacked
-      if [ "$3" = at ]; then
-          echo "base $2: the brief's Stacked on: line, moved onto $2 once $1 merged"
+      slug=${stacked%% *}
+      branch=${stacked#* }
+      branch=${branch%% *}
+      if [ "${stacked% at *}" != "$stacked" ]; then
+          echo "base $branch: the brief's Stacked on: line, moved onto $branch once $slug merged"
       else
-          echo "base $2: the brief's Stacked on: line, stacked on $1's pull request"
+          echo "base $branch: the brief's Stacked on: line, stacked on $slug's pull request"
       fi
       ;;
   esac
