@@ -17,6 +17,7 @@ When in doubt between the two, any one of the durable column's conditions decide
 **A durable scout** is a row of the queue, as a crewmate's task is:
 
 1. Write the request, `scouts/<slug>.md`, in the shape of `$T/scout-request.md`: read it first.
+   Its `Why:` line, under `Request:`, is written as a brief's is ("Handing a task to a crewmate", step 1), and the brief a scout delivers carries the same reason on its own `Why:` line.
    When the research is for a task to hand out, its "Deliver" list asks for the crewmate's brief.
    A request that measures jstack's own spend asks for the waste inside it, such as rework and needless load, and not for its upkeep weighed against what it saves: the user counts that as an investment while jbus is built (2026-11-02).
    Its `Playbook:` line is a row `a scout` runs whose kind of question this is, from what the block in "Handing a task to a crewmate" that prints a row for each playbook prints, or `none`.

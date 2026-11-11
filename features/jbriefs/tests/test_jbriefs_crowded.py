@@ -9,7 +9,9 @@ import pytest
 from jbriefs import crowded, parse
 
 BRIEF = (
-    '# alpha: a task\nTask: "do alpha"\nDone when:\n{items}'
+    '# alpha: a task\nTask: "do alpha"\n'
+    "Why: the crewmate needs a reason of its own to make its choices by\n"
+    "Done when:\n{items}"
     "Proves it: `uv run pytest tests/test_alpha.py` passes"
     ", and a day after the merge the count of lost rows reads 0\n"
     "Size: S\nWhere: `src/alpha/`\n"

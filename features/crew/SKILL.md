@@ -93,8 +93,11 @@ On the user's own word to merge, given in this thread, `jmerge --accept <number>
 - The brief is trusted.
   Read the files it names; where it names none, read only what the task needs.
   Do not check its findings again, and do not explore beyond it.
+- A brief's `Why:` line is part of the task: it says why the change is wanted, beside `Task:`, what is asked, and **Done when**, when it is green.
+  Make each choice the brief leaves open, and each `Decision:` line of the Result, in its light: the option that serves the reason it gives.
+  A brief queued before the line was asked for may have none: go by `Task:` and `Decisions:` alone.
 - A brief's `Asked:` line names the file that keeps the user's whole request, of which this brief is one slice.
-  Open it only before a choice that `Task:`, `Done when:` and `Decisions:` leave open, and before asking the home anything.
+  Open it only before a choice that `Task:`, `Why:`, `Done when:` and `Decisions:` leave open, and before asking the home anything.
 - Where the brief has a `Shown:` line, open each path on it with the Read tool before your first edit: it is a picture the user sent with the request.
   Where it says `gone`, or the Read finds no file, go on without it, and say so on the Result's `Left:` line.
 - When a scout wrote the brief, start from the files on its `Read:` line, measure with the commands on `Instruments:`, and change where `Change:` names.
