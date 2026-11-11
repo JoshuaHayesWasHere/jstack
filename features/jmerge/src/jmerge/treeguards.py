@@ -6,8 +6,10 @@ did on 2026-11-03 with two `v007_` migrations. The clash shows on their merged t
 merge, `jmerge` merges the head over the base's tip with `git merge-tree`, makes it a local
 commit whose parents are the tip and the head (as GitHub's merge ref is), pushes nothing, checks
 it out in a worktree of its own, and runs the command the state's `merged-tree-guards` file names
-there, with `BASE` set to the tip. jstack's names `make check-fast PART=guards`, the lint and the
-guard tests: the cross-cutting tests, the catch-all and the changed test files.
+there, with `BASE` set to the tip and `MERGE_BASE` to the merge base of the head and the tip.
+jstack's names `make check-fast PART=guards`, the lint and the guard tests: the cross-cutting
+tests, the catch-all, the changed test files, and the test files of the selection that main
+changed or added since the merge base, which the pull request's check, run over it, never saw.
 They run inside a full test slot (`run_guards`), and a run that finds none free for
 `SLOT_SECONDS` leaves the pull request to the next run.
 
@@ -65,10 +67,10 @@ _IDENTITY = ("-c", "user.name=jmerge", "-c", "user.email=jmerge@localhost")
 TAIL = 40
 """The lines of what failed or stopped guards printed that their record keeps."""
 PASSED_ON = ("HOME", "USER", "LOGNAME", "LANG", "PATH")
-"""The caller's variables the guards see, with their `BASE` and their slot's (`SLOT`): the
-machine's login, as a desk's shell and CI give it. jbus.service gives `jmerge` its unit's
-variables and systemd its own, and a guard test that reads one fails on the merged tree alone:
-`JBUS_TICK_TIMER` held #1283, and `INVOCATION_ID` failed #1159's check under a user unit."""
+"""The caller's variables the guards see, with their `BASE`, `MERGE_BASE` and their slot's
+(`SLOT`): the machine's login, as a desk's shell and CI give it. jbus.service gives `jmerge` its
+unit's variables and systemd its own, and a guard test that reads one fails on the merged tree
+alone: `JBUS_TICK_TIMER` held #1283, and `INVOCATION_ID` failed #1159's check under a user unit."""
 SLOT = (slot.HELD, "TMPDIR", "JGAUGE_LOCKS_DIR", "TEST_SLOTS", "TMPFS")
 """The variables of the test slot the guards run in: the one `jgauge test-slot` gives them, or
 the caller holds, and the machine's slots, which a suite the guards start takes from."""
@@ -320,7 +322,7 @@ class Guards:
         made = _git(
             self.main, *_IDENTITY, "commit-tree", tree[0], "-p", tip, "-p", one.head, "-m", message
         )
-        ran = self.in_tree(made.stdout.strip(), tip)
+        ran = self.in_tree(made.stdout.strip(), tip, one.head)
         if ran is None:
             self.slotless = True
             self.spent += SLOT_SECONDS
@@ -374,8 +376,10 @@ class Guards:
             return None
         return run
 
-    def in_tree(self, commit: str, tip: str) -> Ran | str | None:
-        """Run the guards in a worktree of `commit` at the state's `TREE`, and remove it after.
+    def in_tree(self, commit: str, tip: str, head: str) -> Ran | str | None:
+        """Run the guards in a worktree of `commit` at the state's `TREE`, and remove it after,
+        with `BASE` the tip and `MERGE_BASE` the merge base of `head` and the tip: the commit the
+        pull request's check ran over, so the guards also run what main changed since then.
         One a run that was stopped left behind is removed first. Return why the worktree could
         not be made or the guards not started, where they could not, and None where no full test
         slot came free for them (`run_guards`)."""
@@ -385,7 +389,9 @@ class Guards:
         if added.returncode:
             return _said(added)
         try:
-            return run_guards(self.command, path, {"BASE": tip}, LIMIT_SECONDS)
+            merge_base = _git(self.main, "merge-base", tip, head).stdout.strip()
+            env = {"BASE": tip, "MERGE_BASE": merge_base}
+            return run_guards(self.command, path, env, LIMIT_SECONDS)
         finally:
             self.clear(path)
 

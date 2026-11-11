@@ -3,7 +3,7 @@
 The store is `telemetry.sqlite` in jbus's state directory, in WAL mode, so a reader never waits
 on the build. It has one table for each record file of each project (`jbus.telemetry.records`):
 the jbus logs, the CI ledger, the home's `merge.log`, the records `jbus.history` and
-`jbus.spent` keep, six snapshots, the machine's log of its passes, each
+`jbus.spent` keep, the snapshots, the machine's log of its passes, each
 launch's arm (`jbus.telemetry.launches`), the messages of T3 Code's threads
 (`jbus.telemetry.messages`), the gate labels a scout writes each week
 (`jbus.telemetry.labels`), the gh calls of each hour from the machine's call log
@@ -65,6 +65,7 @@ from jbus.telemetry import (
     ghcalls,
     kpis,
     labels,
+    launch_failures,
     launches,
     measures,
     messages,
@@ -369,6 +370,7 @@ def build(config: jbus.Config, where: Path | None = None, most: int | None = Non
         labels.read(connection, config, built)
         _tokens(config, connection, zone, most, built)
         built.rows[firstload.TABLE] += firstload.keep(connection, zone)
+        built.rows[launch_failures.TABLE] += launch_failures.keep(connection, zone)
         built.ms = round((time.monotonic() - began) * 1000)
         connection.execute(
             "INSERT INTO builds (at, ms, bytes, rows, left) VALUES (?, ?, ?, ?, ?)",

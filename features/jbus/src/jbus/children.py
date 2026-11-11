@@ -52,7 +52,8 @@ which it writes to the ledger so the next launch goes to another instance or wai
 or else the run's end. A second start in a row that fails on the cause the first failed on waits
 for that cause to clear: the instance it ran on signed in again (`jgauge.limits.renewed`), the
 limit's reset, or for any other cause `PATIENCE` after it. It says so once in the digest
-(`home-start`). The home's entry keeps the failure and `says`, why the home has no `home-id` yet,
+(`home-start`). The home's entry keeps the failure, with when the failed start was launched
+(`launched`), and `says`, why the home has no `home-id` yet,
 such as `start failed: not signed in`, until its home starts. The T3 Code fork's sidebar shows
 such a home's `says` in place of `starting...`. A launch waits while the dispatch is off or
 stopped. The model is the one the role map's `home` line gives."""
@@ -527,9 +528,11 @@ def _going(run: Pass, entry: dict[str, Any], threads: list[dict[str, Any]]) -> b
 def _failed(
     run: Pass, client: Client, entry: dict[str, Any], threads: list[dict[str, Any]]
 ) -> dict[str, Any] | None:
-    """Return what the home's last failed start failed on, with how many starts in a row failed
-    on it, reading the last launch's run once it has ended. A cause it cannot read is the run's
-    end: failed, or idle with no `home-id`."""
+    """Return what the home's last failed start failed on, with when it was launched and how
+    many starts in a row failed on it, reading the last launch's run once it has ended. A cause
+    it cannot read is the run's end: failed, or idle with no `home-id`. `launched` is the
+    entry's `at` before the relaunch writes over it, so the store can count the start's
+    minutes."""
     was = entry.get("failed")
     thread = str(entry.get("thread", ""))
     listed = [one for one in threads if thread and one.get("id") == thread]
@@ -555,7 +558,7 @@ def _failed(
             "until": what.resets.isoformat(),
         }
     times = was["times"] + 1 if was and was.get("cause") == found["cause"] else 1
-    return {**found, "thread": thread, "times": times}
+    return {**found, "thread": thread, "launched": str(entry.get("at", "")), "times": times}
 
 
 def _waits(run: Pass, failed: dict[str, Any] | None) -> str:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import tzinfo
 
+from jbus.telemetry import launch_failures
 from jbus.telemetry.records import Source
 from jbus.telemetry.values import Row, _columns, _length, _text, utc
 
@@ -19,6 +20,7 @@ def row(one: Row, zone: tzinfo | None) -> Row:
         "subject": _text(one.get("subject")),
         "line_len": _length(one.get("line")),
         "text_len": _length(one.get("text")),
+        "launch_cause": launch_failures.event(one.get("event"), one.get("line")),
     }
 
 
@@ -26,6 +28,17 @@ SOURCE = Source(
     "events",
     "events.jsonl",
     "log",
-    _columns("at", "event", "slug", "loud", "item", "act", "subject", "line_len", "text_len"),
+    _columns(
+        "at",
+        "event",
+        "slug",
+        "loud",
+        "item",
+        "act",
+        "subject",
+        "line_len",
+        "text_len",
+        "launch_cause",
+    ),
     row,
 )
