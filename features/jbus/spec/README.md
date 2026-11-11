@@ -112,7 +112,8 @@ No state breaks a rule, so it draws no `bug-N` chart.
 - A thread made by a lost launch that the lookup does not find: that is a gate of yours, and jbus holds no thread for it.
 - A settled thread that a message wakes (a paused crew's carry-on is modeled only for a thread still out), a row removed from the queue, and the `MERGED` message to a crew whose Result leaves work for after the merge.
 - The folds `ThreadLife.tla` names beside each variable: the turns T3 Code reports that act as another (preparing, idle, interrupted, cancelled, unknown), the Results that read as a leftover (malformed, not done, blocked), and `leftover.json`'s `busy`, which the pass rewrites and no rule reads.
-- Reviewers, and failover to another instance. A scout's launch record is the crew's record with fewer fields (`rec`).
+- Reviewers, and failover to another instance.
+  A scout's launch record is the crew's record with fewer fields (`rec`).
 
 ## Main's red, as a TLA+ spec
 
