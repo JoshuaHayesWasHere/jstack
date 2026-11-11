@@ -42,6 +42,7 @@ def request(slug, more="", asked="find out what X does", title="what X does"):
     return (
         f"# {slug}: {title}\n"
         f'Request: "{asked}"\n'
+        "Why: a test needs a row the queue takes\n"
         "Questions:\n"
         "- What calls X? Start at `src/x.py`.\n"
         "Deliver:\n"
@@ -110,7 +111,11 @@ def test_a_request_with_a_crewmates_line_is_refused_and_names_the_line(kitchen, 
 
 
 def test_a_request_with_a_task_line_is_a_brief_and_is_refused_as_one(kitchen):
-    code, said = add(kitchen, "alpha", text=request("alpha", 'Task: "do alpha"\n'))
+    code, said = add(
+        kitchen,
+        "alpha",
+        text=request("alpha", 'Task: "do alpha"\nWhy: a test needs a row the queue takes\n'),
+    )
 
     assert code == 1
     assert said.startswith("refused: alpha's brief has")

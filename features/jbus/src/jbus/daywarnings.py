@@ -118,6 +118,8 @@ def brief(day: str, warnings: list[Kept]) -> str:
             "Task: each warning below is a finding of a review after the first, of a pull request "
             "that has merged: it held no merge and went to no crew, and this row fixes it, as the "
             "one follow-up row of the day.",
+            f"Why: {len(warnings)} warnings kept {span} stand in merged code that no crew reads "
+            "again, and one row a day fixes them together instead of a row for each",
             "Done when:",
             *lines,
             "- Each warning above is fixed, or the Result says why it stands, citing a path:line.",

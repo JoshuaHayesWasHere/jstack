@@ -115,7 +115,7 @@ for event in $events; do
           expect="moved mcp:sandbox-thread-1 to claudeAgent_claude_prime" ;;
         launch)
           echo '[]' > "$S/gh/open.json"; rm -f "$T/beta.md"; echo '[]' > "$S/t3/threads.json"
-          row='# alpha: a demo task\nTask: alpha, a demo task\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/alpha/`\nDesign: none, a demo\nReview: none\nPlaybook: feature\nSkills: tdd\nPull request: none\nHome: uncategorized\n'
+          row='# alpha: a demo task\nTask: alpha, a demo task\nWhy: the sandbox needs a row the queue takes\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/alpha/`\nDesign: none, a demo\nReview: none\nPlaybook: feature\nSkills: tdd\nPull request: none\nHome: uncategorized\n'
           printf "$row" | jbus queue add alpha --priority 1 > /dev/null
           printf "$row" | sed 's/alpha/gamma/g' | jbus queue add gamma --priority 2 > /dev/null
           printf '{"mcp:sandbox-chat": [{"itemId": "turn-item:message:m1", "messageId": "m1", "text": "go", "type": "user_message", "createdBy": "user", "updatedAt": "%s"}]}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$S/t3/messages.json"

@@ -93,6 +93,9 @@ def brief(
         [
             f"# {name}: the view's kept shots are redrawn over main on {day}",
             f'Task: "{run} {number} failed on {day}, {said(jobs)}" (jbus, from browser.yml)',
+            "Why: the kept shots are what browser.yml compares the view against, so until they "
+            "are redrawn every run fails on a look main already has, and a real break hides "
+            "among them",
             "Done when:",
             f"- the shots under `{KEPT}/` and their `browser.txt` are those of the run's "
             f"`{ARTIFACT}` artifact, which the browser that draws them drew over main: "

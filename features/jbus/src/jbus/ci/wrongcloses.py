@@ -107,6 +107,9 @@ def request(
             "for S8",
             'Request: "Yes, with labels by a scout" (Josh, 2026-11-02, on S8 in the weekly '
             f"report, {PARENT})",
+            "Why: S8, the share of closed gates whose chosen option did not stand, counts only a "
+            "week with labels, so the report has no number for this week until a scout writes "
+            "them",
             "Questions:",
             f"- By the codebook, `{CODEBOOK}` in the checkout, which outcome did each gate asked "
             f"from {user.stamp(start)} to {user.stamp(end)} have? jbus asked {len(keys)}: "

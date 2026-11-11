@@ -11,7 +11,9 @@ from jbriefs import parse
 def brief(playbook, more="", pull_request="Pull request: open one when done\n"):
     """Return a brief with every field that `queue add` asks for, `more` under them."""
     return (
-        '# alpha: a task\nTask: "find out why alpha spins"\nDone when:\n- the cause is named\n'
+        '# alpha: a task\nTask: "find out why alpha spins"\n'
+        "Why: the crewmate needs a reason of its own to make its choices by\n"
+        "Done when:\n- the cause is named\n"
         "Proves it: `make check`\nSize: S\nWhere: `src/alpha/`\n"
         f"Design: none, a read\n{pull_request}Review: twice\nPlaybook: {playbook}\n"
         f"Skills: tdd\n{READ}{more}"

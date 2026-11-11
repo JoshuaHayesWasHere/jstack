@@ -1,5 +1,6 @@
 # main-red-<sha12>: main's check failed at <sha12>, with no briefed merge in the day before it
 Task: "main check failed at <sha12>, 1 merges since the last green" (jbus, the retro of main's tip). jbus reverts nothing: it is no briefed merge's commit
+Why: while main's check is red jmerge merges no pull request, so every approved row waits on this fix, and each merge on a red main hides the next fault behind this one
 Done when:
 - each failed test named under Read passes on main, and the failed job passes at the commit that merges the fix
 - the Result names the cause: the merge that broke main, or a flake with its evidence

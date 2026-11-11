@@ -42,6 +42,7 @@ runner() {
     cat << EOF
 # $slug-${1}: runner ${1} of the arena $slug, made apart from runner ${2}
 Task: "Make the artifact below on this branch, apart: another thread makes the same thing, and neither sees the other."
+Why: an arena gets two shapes only from two writers who never see each other's work, so its graft can pick the better base and fold in the other's best, and one that peeks makes one shape twice
 $(indent "$prompt")
 Done when:
 - the artifact is committed on this branch and pushed to \`origin/$slug-${1}\`, and no pull request is opened
@@ -62,6 +63,7 @@ judge() {
     cat << EOF
 # $slug-judge: the judge of the arena $slug, read only
 Task: "Score the candidates of the arena $slug, $(words), against the rubric below, and recommend a base with its reasons. Commit nothing."
+Why: a judge that made neither candidate has no stake in either, so its verdict is a check on the graft row's own scores, which come from the thread that builds on one of them
 Rubric:
 $(indent "$rubric")
 Done when:
@@ -85,6 +87,7 @@ graft() {
     cat << EOF
 # $slug: the graft of the arena $slug, one artifact from its candidates
 Task: "Make one artifact from the candidates of the arena $slug, $(words): score each against the rubric first, then read the judge's verdict, pick a base, and graft the other's best into it by hand."
+Why: the user asked for an arena because the shape was open: two candidates made apart, scored before the judge is read, give one pull request built on the better shape, with what the other did better folded in
 $(indent "$prompt")
 Rubric:
 $(indent "$rubric")

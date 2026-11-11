@@ -1755,6 +1755,7 @@ def tests_said(jobs: list[tuple[str, str, Failed]]) -> str:
 def fix_brief(
     heading: str,
     task: str,
+    why: str,
     done: Sequence[str],
     proves: str,
     filed: str,
@@ -1769,13 +1770,13 @@ def fix_brief(
 ) -> str:
     """Return the brief for the fix of a red check that jbus files, in the shape of
     `features/jbriefs/templates/brief.md`: of a red main (`_file`) or a red nightly run
-    (`_nightly_red`). `jobs` is each failed job's name, URL and failed tests, which `Read` names
-    before the lines of `read`. `Where` names `files`, then the file of each failed test, less any
-    shared doc a fix brief may not claim (`queue.shared_doc`), or says
-    `nowhere` where there are none. `filed` is what jbus filed it from, and
-    `follows` the row whose work the fix is a follow-up of: a pass approves it on that row's go
-    (`queue.follow_ups`). Its `Home:` line is `home`, a scope's name, or `uncategorized`, so that
-    a home can queue it again as `jbus queue add` asks."""
+    (`_nightly_red`). `why` is its `Why:` line, what the red costs while it stands. `jobs` is each
+    failed job's name, URL and failed tests, which `Read` names before the lines of `read`. `Where`
+    names `files`, then the file of each failed test, less any shared doc a fix brief may not claim
+    (`queue.shared_doc`), or says `nowhere` where there are none. `filed` is what jbus filed it
+    from, and `follows` the row whose work the fix is a follow-up of: a pass approves it on that
+    row's go (`queue.follow_ups`). Its `Home:` line is `home`, a scope's name, or `uncategorized`,
+    so that a home can queue it again as `jbus queue add` asks."""
     tests = [test for _, _, failed in jobs for test in failed]
     where = [
         file
@@ -1786,6 +1787,7 @@ def fix_brief(
         [
             f"# {heading}",
             f"Task: {task}",
+            f"Why: {why}",
             "Done when:",
             *done,
             f"Proves it: {proves}",
@@ -1952,6 +1954,8 @@ def _file(run: Pass, slug: str, sha: str, red: list[dict], kept: str = "") -> No
         f'"main check failed at {sha[:12]}, {len(red)} merges since the last green" '
         + (f"(jbus, the retro of {slug})" if slug else "(jbus, the retro of main's tip)")
         + (f". jbus reverts nothing: {kept}" if kept else ""),
+        "while main's check is red jmerge merges no pull request, so every approved row waits on "
+        "this fix, and each merge on a red main hides the next fault behind this one",
         [
             "- each failed test named under Read passes on main, and the failed job passes at "
             "the commit that merges the fix",
@@ -2305,6 +2309,9 @@ def _nightly_red(run: Pass, nightly: Nightly, runs: list[dict[str, Any]] | None)
                     f"{name}: {nightly.failed} on {day}",
                     f'"{nightly.run} {number} failed on {day}, {tests_said(rest)}" '
                     f"(jbus, from {nightly.file})",
+                    f"{nightly.file} runs what a pull request's check does not, so its red is a "
+                    "fault already on main, which no other row fixes and every later run reports "
+                    "again",
                     [
                         f"- {nightly.done}",
                         "- the Result names the cause: the merge that broke it, or a flake with "

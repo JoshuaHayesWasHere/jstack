@@ -1,5 +1,6 @@
 # browser-red-2026-10-12: the browser tests failed on 2026-10-12
 Task: "the browser run 88 failed on 2026-10-12, 1 test named" (jbus, from browser.yml)
+Why: browser.yml runs what a pull request's check does not, so its red is a fault already on main, which no other row fixes and every later run reports again
 Done when:
 - each failed test named under Read passes under `make check-browser`
 - the Result names the cause: the merge that broke it, or a flake with its evidence

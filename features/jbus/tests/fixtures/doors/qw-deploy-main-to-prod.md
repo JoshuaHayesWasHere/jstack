@@ -1,6 +1,7 @@
 # qw-deploy-main-to-prod: deploy the changes landed on main (7a8fe2cab573) to prod, with a rollback target pinned and prod checked after
 Green main: 9ad3c16451be5f95ccf66301ff85138c025525a0
 Task: "deploy the changes that have landed so far to prod" (Josh, chat, Oct 30 2026 5:13 PM ET, word d3da00397861)
+Why: a test needs a row the queue takes
 Goal: Deploy main at 7a8fe2cab573 to Winnifred prod (stacks winnifred-prod and winnifred-frontend-prod) with the repo's own deploy scripts, following api/DEPLOYMENT.md: the rollback target is pinned first and prod is verified after. Nothing is deleted; no down migration runs on prod.
 Where: `infra/`, `api/DEPLOYMENT.md`, `db/migrations/`, `client/sync_frontend.sh`; no source change
 Do not touch: source code, .github/workflows/, the ruleset, PR #255 or any other open PR, dev's stacks, any prod data other than the additive migration named below, never `sam build && sam deploy` by hand

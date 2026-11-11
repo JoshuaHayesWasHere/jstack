@@ -14,7 +14,9 @@ from jbriefs import parse
 FIXTURE = Path(__file__).parent / "fixtures" / "ci2m-select-graph-cache.md"
 
 BRIEF = (
-    '# alpha: a task\nTask: "do alpha"\nDone when:\n- `make check` passes {marker}\n'
+    '# alpha: a task\nTask: "do alpha"\n'
+    "Why: the crewmate needs a reason of its own to make its choices by\n"
+    "Done when:\n- `make check` passes {marker}\n"
     "Proves it: `make check`"
     ", and a day after the merge the count of lost rows reads 0\n"
     "Size: S\nWhere: `src/alpha/`, `docs/alpha.md`\n"
@@ -90,7 +92,9 @@ def test_1177s_goals_outside_where_are_refused_with_the_follow_up_to_queue():
 
 
 FEATURE = (
-    '# beta: a task\nTask: "do beta"\nDone when:\n- the queue says so {marker}\n'
+    '# beta: a task\nTask: "do beta"\n'
+    "Why: the crewmate needs a reason of its own to make its choices by\n"
+    "Done when:\n- the queue says so {marker}\n"
     "Proves it: `make check`"
     ", and a day after the merge the count of lost rows reads 0\n"
     "Size: S\nWhere: `features/jbus/src/jbus/queue.py`, `docs/x.md`\n"

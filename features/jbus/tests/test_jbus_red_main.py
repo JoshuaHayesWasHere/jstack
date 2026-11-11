@@ -402,6 +402,7 @@ def test_a_brief_that_names_a_green_main_itself_is_sent_with_jbus_own_line(kitch
             [
                 "# beta: a task",
                 'Task: "do beta"',
+                "Why: a test needs a row the queue takes",
                 "Green main: " + "9" * 40,
                 "Done when:",
                 "- `make check` passes",
@@ -858,7 +859,9 @@ def test_a_red_main_launches_only_its_fix_and_a_stacked_row_and_the_rest_once_it
 
 def test_a_brief_whose_heading_says_it_fixes_main_is_a_fix_of_main():
     assert fixes_main("main-red-123456789abc", "# main-red-123456789abc: main check failed\n")
-    assert fixes_main("x", "# x: fix main's red test\nTask: t\n")
+    assert fixes_main(
+        "x", "# x: fix main's red test\nTask: t\nWhy: a test needs a row the queue takes\n"
+    )
     assert fixes_main("x", "# x: Fixes the red main\n")
     assert not fixes_main("x", "# x: add a page\nTask: fix main's red test\n")
     assert not fixes_main("x", "# x: fix the mainline parser\n")
