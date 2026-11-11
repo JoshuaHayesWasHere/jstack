@@ -475,13 +475,11 @@ def _drop(run: Pass) -> None:
 
 
 def _advance(run: Pass, copy: Path) -> None:
-    """Move the copy to main's green tip, unless a move to a new tip still owes its install. A move
-    that went back and whose install uv refused again, which `_resume` asked for first, is taken
-    over by this one, so a tree uv never installs again does not hold the copy once main has a
-    tip it takes. A move that owes a relink is taken over too, and this one relinks."""
-    owed = in_flight(run.state)
-    if owed is not None and owed["owes"] == "install" and owed["to"] != owed["from"]:
-        return
+    """Move the copy to main's green tip. `_resume` ran first, so a move to a new tip owes nothing
+    here: it settled, or went back (`_back`). A move back whose install uv refused again stays
+    owed and is taken over by this one, so a tree uv never installs again does not hold the copy
+    once main has a tip uv takes. A move that owes a relink is taken over too, and this one
+    relinks."""
     green = mainjson.read(run.state).green
     held = at(copy)
     record = read_json(run.state / FILE, {})
