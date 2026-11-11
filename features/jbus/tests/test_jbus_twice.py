@@ -88,6 +88,59 @@ def test_two_failed_heads_hold_the_row_and_page_the_chef_once_and_a_third_head_s
     assert len(pages(launched)) == 1
 
 
+def test_a_second_head_red_on_named_tests_tells_the_crew_the_names_and_a_third_holds_the_row(
+    launched,
+):
+    """#1691 (2026-11-11): both failed heads, bb377264e and ee3e51b61, failed on one test the logs
+    named, the change's own, and the row waited 22 minutes for an approve that carried no
+    decision. At the second head the crew gets one message naming the tests and both heads, and
+    nothing is held or paged; the third head holds the row and pages the user once, naming all
+    three heads and their jobs, and a green head lifts the hold by itself."""
+    red_at(launched, A, "11")
+    passes(launched, 0)
+    red_at(launched, B, "12")
+    passes(launched, 3, 6)
+    assert told(launched) == ["failed|alpha|aaaaaaaaaaaa", "failed|alpha|bbbbbbbbbbbb"]
+    second = sends(launched)[1]["message"]
+    for named in (TEST, "aaaaaaaaaaaa", "bbbbbbbbbbbb", "a third"):
+        assert named in second, second
+    assert not rows(launched)["alpha"].get("held")
+    assert not pages(launched)
+
+    red_at(launched, C, "13")
+    passes(launched, 9, 12)
+    assert told(launched) == ["failed|alpha|aaaaaaaaaaaa", "failed|alpha|bbbbbbbbbbbb"]
+    assert rows(launched)["alpha"]["held"] is True
+    assert rows(launched)["alpha"]["why"] == "check failed twice"
+    (page,) = pages(launched)
+    for named in (
+        "#7",
+        "three heads",
+        "aaaaaaaaaaaa: check failed (o/r job 11)",
+        "bbbbbbbbbbbb: check failed (o/r job 12)",
+        "cccccccccccc: check failed (o/r job 13)",
+    ):
+        assert named in page["text"], page["text"]
+
+    green_at(launched, D)
+    passes(launched, 15)
+    assert not rows(launched)["alpha"].get("held")
+
+
+def test_a_second_head_whose_logs_name_no_test_holds_the_row_and_pages_the_chef(launched):
+    """A second failed head whose failed jobs' logs name no failed test gives the crew nothing to
+    mend by name: it is held and paged at once, as before #1691."""
+    for head, job, at in ((A, "11", (0,)), (B, "12", (3, 6))):
+        red_at(launched, head, job)
+        logs = json.loads((launched.stub / "logs.json").read_text())
+        launched.set("logs.json", {**logs, job: logs[job].split("FAILED")[0]})
+        passes(launched, *at)
+    assert told(launched) == ["failed|alpha|aaaaaaaaaaaa"]
+    assert rows(launched)["alpha"]["held"] is True
+    (page,) = pages(launched)
+    assert "aaaaaaaaaaaa" in page["text"] and "bbbbbbbbbbbb" in page["text"]
+
+
 def test_a_failure_on_main_s_red_tip_is_not_counted(launched):
     red_at(launched, A, "11", main=RED)
     passes(launched, 0)
