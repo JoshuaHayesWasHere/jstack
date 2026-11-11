@@ -214,6 +214,9 @@ def test_plan_stop_says_which_rows_wait_again_and_plan_shows_the_stop(kitchen):
     said = stop(kitchen)
     assert said.startswith("stopped epic's go") and "alpha waits for the user's go" in said
     assert basis(kitchen, "alpha") == ()
+    log = (kitchen.state / "transitions.jsonl").read_text().splitlines()
+    gone = [json.loads(one) for one in log if '"go"' in one]
+    assert [(one["slug"], one["go"]) for one in gone][-1:] == [("alpha", "waiting")]
     (line,) = [one for one in kitchen.main("plan")[1].splitlines() if one.startswith("epic |")]
     assert "| go stopped " in line
     assert plan_go(kitchen, message="a-second-go")[0] == 0

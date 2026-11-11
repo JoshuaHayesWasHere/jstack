@@ -1093,7 +1093,7 @@ def _events(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def _acts(read: Read) -> list[dict[str, Any]]:
     """Every act the project's records keep, oldest first, each with its time, its line and
     the home it is of (`homes.Homes.of_key`), or None for an act of no home: each change of a
-    row's status in `transitions.jsonl`, each event of `events.jsonl`, a wake and a Result
+    row's status or its go in `transitions.jsonl`, each event of `events.jsonl`, a wake and a Result
     among them, but jbus's hourly heartbeat, which says only that jbus runs, and each line of
     `merge.log`, by the pull request it names, or the slug a merge names."""
     pulls = {text(row.get("pr")).removeprefix("#"): row["slug"] for row in read.rows}
@@ -1112,7 +1112,9 @@ def _acts(read: Read) -> list[dict[str, Any]]:
         act(
             when(one.get("at")),
             text(one.get("slug"), 80),
-            f"{one.get('slug')}: {one.get('from')} to {one.get('to')}",
+            f"{one.get('slug')}: {one.get('from')} to {one.get('to')}"
+            if "to" in one
+            else f"{one.get('slug')}: go {one.get('go')}",
         )
         for one in read.moves or []
     ]

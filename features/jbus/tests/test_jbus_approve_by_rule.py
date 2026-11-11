@@ -345,6 +345,8 @@ def test_a_parent_whose_brief_changed_after_its_go_is_not_followed(kitchen):
 
 
 def test_a_parent_removed_earlier_in_the_batch_is_followed_only_where_it_went_as_merged(kitchen):
+    """`remove` refuses a row that is over, so a parent that went as merged is one removed
+    before it did: its slug in `removed.json`, and its line of `transitions.jsonl`."""
     add(kitchen, "alpha")
     add(kitchen, "beta", approve=False)
     at = "2026-10-12 10:00 ET"
@@ -360,17 +362,20 @@ def test_a_parent_removed_earlier_in_the_batch_is_followed_only_where_it_went_as
         "row did not go as merged, and nothing in the batch was applied",
     )
     table = json.loads((kitchen.state / "queue.json").read_text())
-    for row in table:
-        row["status"] = "merged" if row["slug"] == "alpha" else row["status"]
-    jbus.write_json(kitchen.state / "queue.json", table)
+    (went,) = [row for row in table if row["slug"] == "alpha"]
+    jbus.write_json(kitchen.state / "queue.json", [row for row in table if row is not went])
+    jbus.write_json(kitchen.state / "removed.json", {"alpha": {"at": at, "by": "user"}})
+    line = {"slug": "alpha", "from": "merged", "to": "removed", "row": went | {"status": "merged"}}
+    (kitchen.state / "transitions.jsonl").write_text(json.dumps(line) + "\n")
     asks = queue.Asks(
         lambda _: "",
         lambda _: "",
         lambda _: None,
         lambda *_: queue.Said("", "", "", True),
     )
-    said = queue.apply(kitchen.state, text, jbus.load().user, asks)
-    assert said[1] == f"approved beta: brief {sha12(brief('beta'))}, {BY_RULE}"
+    approve = text.splitlines()[1]
+    said = queue.apply(kitchen.state, approve, jbus.load().user, asks)
+    assert said[0] == f"approved beta: brief {sha12(brief('beta'))}, {BY_RULE}"
     assert "alpha" not in rows(kitchen)
 
 

@@ -229,6 +229,11 @@ FROM_CHART_USAGE = (
 )
 
 
+REPLAY_USAGE = (
+    "statechart replay SPEC.tla [--config FILE] --trace FILE.py --log FILE.jsonl [--since ISO]"
+)
+
+
 def no_tlc(tmp_path):
     """pstack's TLA2TOOLS="" and JAVA="": no TLC set, none in an empty cache, and no download."""
     cache = tmp_path / "empty-cache"

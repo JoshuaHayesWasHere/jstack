@@ -14,6 +14,7 @@ from jbus import digest, leftover, queue, watch
 from jbus.view import state
 from test_jbus_kitchen import NOW, asks
 from test_jbus_queue import add, brief, rows
+from test_jbus_row_history import transitions
 
 PULL = "https://example.test/pull/9"
 
@@ -83,8 +84,7 @@ def test_a_thread_that_ended_done_with_nothing_left_and_no_pull_request_is_done(
         assert column(kitchen) == ("done", "", "")
         assert jbus.read_json(kitchen.state / "waiting-on-user.json", None) == []
     assert kitchen.t3.launches == [] and kitchen.lines("gate") == []
-    moves = (kitchen.state / "transitions.jsonl").read_text().splitlines()
-    assert [(json.loads(m)["from"], json.loads(m)["to"]) for m in moves] == [("queued", "done")]
+    assert [(m["from"], m["to"]) for m in transitions(kitchen)] == [("queued", "done")]
 
 
 def test_a_done_result_naming_no_pull_request_its_brief_asks_for_leaves_the_row_running(kitchen):
@@ -177,8 +177,7 @@ def test_a_done_row_whose_result_names_no_pull_request_its_brief_asks_for_is_not
     for minutes in (0, 3):
         kitchen.poll(NOW + timedelta(minutes=minutes))
         assert column(kitchen) == ("done", "", "")
-    moves = kitchen.state / "transitions.jsonl"
-    assert not moves.exists() or moves.read_text() == ""
+    assert transitions(kitchen) == []
     assert asks(kitchen) == []
 
 
@@ -485,8 +484,7 @@ def test_a_pull_request_opened_while_a_pass_runs_is_waited_on_and_never_left(kit
     kitchen.poll(NOW + timedelta(minutes=1))
     assert column(kitchen)[0] == "pr" and column(kitchen)[1] == "#9"
     assert listed(kitchen) == [] and kitchen.lines("stale") == []
-    moves = (kitchen.state / "transitions.jsonl").read_text().splitlines()
-    assert "left" not in {json.loads(m)["to"] for m in moves}
+    assert "left" not in {m["to"] for m in transitions(kitchen)}
 
 
 def test_a_pull_request_of_another_repository_with_the_same_number_claims_nothing(kitchen):

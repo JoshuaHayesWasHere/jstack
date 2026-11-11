@@ -1508,17 +1508,17 @@ def _followers(batch: _Batch) -> list[str]:
     return list(dict.fromkeys([*batch.queued, *waiting]))
 
 
-def _go(batch: _Batch, row: Row, go: str, party: str) -> None:
-    """Log the row's go moving to `go`, by `party`, as a line `{slug, go, by, at}` of
+def _go(batch: _Batch, row: Row, go: str, actor: str) -> None:
+    """Log the row's go moving to `go`, by `actor`, as a line `{slug, go, by, at}` of
     `transitions.jsonl`, which the batch writes with its other lines, so `statechart replay`
     walks the go of `features/jbus/spec/RowLife.tla` too (`RowLife.trace.py`)."""
-    batch.moves.append({"slug": row["slug"], "go": go, "by": party, "at": jsettings.stamp(clock())})
+    batch.moves.append({"slug": row["slug"], "go": go, "by": actor, "at": jsettings.stamp(clock())})
 
 
 def _hold(
     batch: _Batch,
     row: Row,
-    party: str,
+    actor: str,
     by: dict[str, Any] | None = None,
     took: dict[str, Any] | None = None,
 ) -> None:
@@ -1529,7 +1529,7 @@ def _hold(
     row.pop("hold", None)
     if by:
         row["hold"] = {**by, TOOK: took} if took else by
-    _go(batch, row, "kept" if took else "held", party)
+    _go(batch, row, "kept" if took else "held", actor)
 
 
 TOOK = "took"
@@ -1540,7 +1540,7 @@ GO_COLUMNS = ("approved", "approval", "brief_sha")
 """The columns of a row's go, which a hold takes."""
 
 
-def _lift(batch: _Batch, slug: str, party: str) -> str:
+def _lift(batch: _Batch, slug: str, actor: str) -> str:
     """Put back the go a hold kept (`TOOK`) and end the hold, and return the line that says so.
     Refuse a row that is not held or whose hold kept no go, and one whose stored brief is not the
     one that go was for, by its sha: each stays held until it is approved again."""
@@ -1559,18 +1559,18 @@ def _lift(batch: _Batch, slug: str, party: str) -> str:
     row.update({column: took.get(column, "") for column in GO_COLUMNS if column != "approval"})
     if "approval" in took:
         row["approval"] = took["approval"]
-    _go(batch, row, "approved", party)
+    _go(batch, row, "approved", actor)
     return f"lifted {slug}'s hold, and its go is back: {approval(row)}"
 
 
 def _unfollow(
-    batch: _Batch, parent: str, party: str, hold: bool = True, by: dict[str, Any] | None = None
+    batch: _Batch, parent: str, actor: str, hold: bool = True, by: dict[str, Any] | None = None
 ) -> list[str]:
     """Take the go back from each row that is still queued and was approved as a follow-up of
     `parent`, or of a row so held, down the chain, since its go depended on the parent's go,
     which is gone. Return their slugs. A row that was launched keeps its record, since nothing
     takes a launch back. With no `hold`, the rows wait with no hold, so the rule approves them
-    again once the parent has a go; with one, they are held by the party of `by`. `party` is who
+    again once the parent has a go; with one, they are held by the party of `by`. `actor` is who
     took the parent's go, for the line of each go taken (`_go`)."""
     held, gone = [], [parent]
     while gone:
@@ -1579,9 +1579,9 @@ def _unfollow(
             made = record(row)
             if made and made.follows == one and row.get("status", "queued") == "queued":
                 if hold:
-                    _hold(batch, row, party, by)
+                    _hold(batch, row, actor, by)
                 else:
-                    _waits_again(batch, row, party)
+                    _waits_again(batch, row, actor)
                 held.append(row["slug"])
                 gone.append(row["slug"])
     return sorted(held)
@@ -1958,9 +1958,9 @@ def _do(
         by = {"ran_by": ran_by or runner(), "ran_at": _stamp(user)}
         row = batch.row(verb.slug)
         took = {column: row[column] for column in GO_COLUMNS if row.get(column)}
-        party = who(by["ran_by"])
-        _hold(batch, row, party, by, took if verb.keep and took.get("approved") else None)
-        also = _unfollow(batch, verb.slug, party, by=by)
+        actor = who(by["ran_by"])
+        _hold(batch, row, actor, by, took if verb.keep and took.get("approved") else None)
+        also = _unfollow(batch, verb.slug, actor, by=by)
         return f"held {verb.slug}; run {by['ran_at']} by {who(by['ran_by'])}" + (
             f", and {', '.join(also)} with it: {FOLLOWED}" if also else ""
         )
@@ -2337,19 +2337,19 @@ def _entered(
     return _grant(batch, row, text, ENTRY, given_entry(row), said, user, ran_by, ground=ground)
 
 
-def _void(batch: _Batch, row: Row, party: str) -> list[str]:
+def _void(batch: _Batch, row: Row, actor: str) -> list[str]:
     """Take back the go of an unlaunched row with no hold, so that the user's go, or a new go of
     its entry, approves it again. Each follow-up of it is taken back the same way."""
-    _waits_again(batch, row, party)
-    return [row["slug"], *_unfollow(batch, row["slug"], party, hold=False)]
+    _waits_again(batch, row, actor)
+    return [row["slug"], *_unfollow(batch, row["slug"], actor, hold=False)]
 
 
-def _waits_again(batch: _Batch, row: Row, party: str) -> None:
+def _waits_again(batch: _Batch, row: Row, actor: str) -> None:
     """Take back the row's go with no hold, so it waits for a go again."""
     row.update(approved="", brief_sha="")
     for column in ("approval", "held", "hold"):
         row.pop(column, None)
-    _go(batch, row, "waiting", party)
+    _go(batch, row, "waiting", actor)
 
 
 def entered(state: Path, user: jsettings.Settings, entry_go: EntryGo) -> list[str]:
@@ -2693,7 +2693,8 @@ def _run(
         briefed.update(batch.briefs)
         if asks:
             for move in moves:
-                asks.told(move)
+                if move.get("to") == "removed":
+                    asks.told(move)
     return said
 
 

@@ -13,6 +13,8 @@ import sys
 
 import pytest
 
+from jbus import queue
+from test_jbus_queue import add
 from testing.paths import REPO
 
 SPEC = REPO / "features" / "jbus" / "spec"
@@ -71,3 +73,22 @@ def test_a_removal_of_a_done_row_matches_no_step(tmp_path, capsys):
         "MISS cleanup-jv-wait-reason done -> removed 2026-10-29T20:47:08+00:00",
     ]
     assert code == 1
+
+
+def test_the_go_lines_the_verbs_write_replay_as_steps_of_the_model(kitchen, capsys):
+    """An approve, a hold that keeps the go, a lift and a hold each write the row's go to
+    `transitions.jsonl`, and the replay reads each as the step of the model that moves it."""
+    add(kitchen, "alpha")
+    assert queue.hold(kitchen.state, "alpha", keep=True).startswith("held alpha")
+    assert queue.lift(kitchen.state, "alpha").startswith("lifted alpha")
+    assert kitchen.main("queue", "hold", "alpha")[0] == 0
+    log = kitchen.state / "transitions.jsonl"
+    lines = [json.loads(line) for line in log.read_text().splitlines()]
+    assert [(one["slug"], one["go"]) for one in lines] == [
+        ("alpha", "approved"),
+        ("alpha", "kept"),
+        ("alpha", "approved"),
+        ("alpha", "held"),
+    ]
+    code, said = replay(log, capsys)
+    assert (code, said) == (0, ["4 lines, 4 matched, 0 matched no step"])

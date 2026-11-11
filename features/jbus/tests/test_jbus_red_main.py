@@ -586,7 +586,7 @@ def withdrawn(state, name):
     """Return the line of `transitions.jsonl` that took the row out, or None."""
     log = state / "transitions.jsonl"
     moves = [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
-    return next((m for m in moves if m["slug"] == name and m["to"] == "removed"), None)
+    return next((m for m in moves if m["slug"] == name and m.get("to") == "removed"), None)
 
 
 def test_a_fix_row_waiting_for_its_go_is_withdrawn_once_main_is_green_at_a_later_commit(kitchen):

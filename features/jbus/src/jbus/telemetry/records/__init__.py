@@ -5,8 +5,9 @@ is one `Source`, and `SOURCES` holds them in the order of the modules' names, wh
 the tables' names (`jbus.telemetry.entries`). A source added is a module of its own, and its table
 is made by a migration of its own (`jbus.telemetry.migrations`), never by the first.
 
-A source's `row` is the table's allow-list. It turns one record into the row's columns, and it
-is the only way a record reaches the store. It keeps ids, times, counts and labels, and turns
+A source's `row` is the table's allow-list. It turns one record into the row's columns, or into
+None for a record of a log that is no row of its table, and it is the only way a record reaches
+the store. It keeps ids, times, counts and labels, and turns
 each text of a record into its length (`<name>_len`), so no table holds what a message said.
 
 A source is a `log` or a `snapshot`:
@@ -62,7 +63,7 @@ class Source:
     file: str
     kind: Literal["log", "snapshot"]
     columns: tuple[tuple[str, str], ...]
-    row: Callable[[Any, tzinfo | None], Row]
+    row: Callable[[Any, tzinfo | None], Row | None]
     at: str = "at"
     where: Literal["state", "home", "machine"] = "state"
     text: bool = False
