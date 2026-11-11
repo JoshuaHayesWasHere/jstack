@@ -16,6 +16,7 @@ from test_jbus_failover import NOT_LOGGED_IN, SESSION, failed_on, lapsed_on
 from test_jbus_kitchen import NOW
 from test_jbus_leftover import home
 from test_jbus_owed import signed_in
+from test_jbus_queue import add, brief
 
 SESSION_AT = NOW.replace(hour=3) + timedelta(days=1)
 """When SESSION's limit, 11pm New York on the kitchen's day, resets."""
@@ -44,9 +45,28 @@ def failed_at_once(kitchen, at, texts=(NOT_LOGGED_IN,)):
     return thread
 
 
-def says(kitchen):
-    """What the sidebar shows of the catch-all's start, from `relaunches.json`."""
-    return json.loads((kitchen.state / "relaunches.json").read_text())["uncategorized"].get("says")
+def entry(kitchen, name="uncategorized"):
+    """The home's entry in `relaunches.json`: its last launch and the stage of its start."""
+    return json.loads((kitchen.state / "relaunches.json").read_text())[name]
+
+
+def says(kitchen, name="uncategorized"):
+    """What the sidebar shows of the home's start, from `relaunches.json`."""
+    return entry(kitchen, name).get("says")
+
+
+def test_a_launch_whose_reply_is_lost_is_at_intent_and_its_reply_moves_it_to_launched(started):
+    """A launch is written before T3 Code is asked for its thread, so a reply that is lost
+    leaves the start at `intent`, with no thread; the next launch's reply names its thread."""
+    kitchen = started
+    kitchen.t3.lose = "after"
+    kitchen.poll(NOW)
+    assert entry(kitchen)["stage"] == "intent"
+    assert "thread" not in entry(kitchen)
+    kitchen.t3.lose = None
+    kitchen.poll(minutes(P + 10))
+    assert entry(kitchen)["stage"] == "launched"
+    assert entry(kitchen)["thread"] == launched(kitchen)["threadId"]
 
 
 @pytest.mark.parametrize(
@@ -66,10 +86,11 @@ def test_a_start_that_failed_is_launched_again_on_the_next_pass(started, texts, 
     kitchen.poll(minutes(1))
     assert len(homes(kitchen)) == 2
     assert says(kitchen) == f"start failed: {cause}"
-    entry = json.loads((kitchen.state / "relaunches.json").read_text())["uncategorized"]
-    assert entry["failed"]["thread"] == thread["threadId"]
-    assert entry["failed"]["launched"] == NOW.isoformat()
-    assert entry["at"] == minutes(1).isoformat()
+    last = entry(kitchen)
+    assert last["stage"] == "launched"
+    assert last["failed"]["thread"] == thread["threadId"]
+    assert last["failed"]["launched"] == NOW.isoformat()
+    assert last["at"] == minutes(1).isoformat()
     assert not (kitchen.home / "uncategorized" / "home-id").exists()
 
 
@@ -81,6 +102,7 @@ def test_a_start_still_running_is_not_launched_again_inside_its_patience(started
     for n in (1, 10, P - 1):
         kitchen.poll(minutes(n))
     assert len(homes(kitchen)) == 1
+    assert entry(kitchen)["stage"] == "launched"
     kitchen.t3.threads.remove(launched(kitchen))
     kitchen.poll(minutes(P - 1))
     assert len(homes(kitchen)) == 1
@@ -105,12 +127,14 @@ def test_two_starts_that_failed_on_one_cause_wait_for_it_to_clear(started):
     assert says(kitchen) == (
         "start failed: not signed in: waits for claudeAgent to be signed in again"
     )
+    assert entry(kitchen)["stage"] == "failed"
     (line,) = [e["line"] for e in kitchen.events(children.START)]
     assert "failed twice in a row: not signed in" in line
     signed_in(minutes(2 * P + 1))
     kitchen.poll(minutes(2 * P + 2))
     assert len(homes(kitchen)) == 3
     assert says(kitchen) == "start failed: not signed in"
+    assert entry(kitchen)["stage"] == "launched"
 
 
 def test_a_start_that_failed_and_is_unread_is_launched_again_and_its_start_clears_the_failure(
@@ -131,6 +155,8 @@ def test_a_start_that_failed_and_is_unread_is_launched_again_and_its_start_clear
     (kitchen.home / "uncategorized" / "home-id").write_text(launched(kitchen)["threadId"] + "\n")
     kitchen.poll(minutes(2))
     assert says(kitchen) is None
+    assert entry(kitchen)["stage"] == "started"
+    assert "failed" not in entry(kitchen)
     assert len(homes(kitchen)) == 2
 
 
@@ -147,6 +173,7 @@ def test_two_starts_that_failed_on_a_usage_limit_wait_for_its_reset(started):
         kitchen.poll(minutes(n))
     assert len(homes(kitchen)) == 2
     assert says(kitchen) == f"start failed: five_hour limit: waits for {SESSION_AT.isoformat()}"
+    assert entry(kitchen)["stage"] == "failed"
     kitchen.poll(SESSION_AT + timedelta(minutes=1))
     assert len(homes(kitchen)) == 3
 
@@ -164,5 +191,38 @@ def test_two_starts_that_failed_signed_out_wait_out_patience_when_no_instance_is
     for n in (2, P):
         kitchen.poll(minutes(n))
     assert len(homes(kitchen)) == 2
+    assert entry(kitchen)["stage"] == "failed"
     kitchen.poll(minutes(P + 2))
     assert len(homes(kitchen)) == 3
+
+
+def test_a_scoped_home_that_starts_after_a_failed_start_holds_no_failure(kitchen):
+    """A stall launches the scoped home `sc` again, and that start fails. Its next stall launches
+    it once more, past the failure, and that start writes its `home-id`: the entry is `started`
+    and keeps neither the failure nor the words the sidebar showed of it. The fake T3 Code stamps
+    a nudged thread with the wall clock, so the home thread's quiet is put back for the second
+    spell."""
+    home(kitchen)
+    found = home(kitchen, "sc", idle=timedelta(hours=6))
+    quiet = found["updatedAt"]
+    add(kitchen, "sc-alpha", text=brief("sc-alpha").replace("Home: uncategorized", "Home: sc"))
+    kitchen.poll(NOW)
+    (crew,) = [one for one in kitchen.t3.threads if one["title"] == "crew: sc-alpha"]
+    kitchen.t3.at_work.discard(crew["threadId"])
+    kitchen.forget()
+    for n in range(10, 3 * P + 1, 10):
+        kitchen.poll(minutes(n))
+    assert len(homes(kitchen)) == 1
+    failed_at_once(kitchen, minutes(3 * P))
+    crew["updatedAt"] = minutes(3 * P + 5).isoformat().replace("+00:00", "Z")
+    crew["items"] = 99
+    found["updatedAt"] = quiet
+    for n in range(3 * P + 10, 6 * P + 11, 10):
+        kitchen.poll(minutes(n))
+    assert len(homes(kitchen)) == 2
+    assert says(kitchen, "sc") == "start failed: not signed in"
+    (kitchen.home / "sc" / "home-id").write_text(launched(kitchen)["threadId"] + "\n")
+    kitchen.poll(minutes(6 * P + 20))
+    held = entry(kitchen, "sc")
+    assert "failed" not in held and "says" not in held
+    assert held["stage"] == "started"
