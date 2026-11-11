@@ -28,10 +28,12 @@
   },
   "modelStates": 973396,
   "modelTransitions": 5993744,
-  "chartStates": 69,
-  "chartTransitions": 68,
+  "chartStates": 71,
+  "chartTransitions": 96,
+  "allTransitions": 11304,
+  "final": [],
   "chartStatus": {
-    "works": 69,
+    "works": 71,
     "wrong": 0,
     "fixed": 0
   },
@@ -54,12 +56,12 @@
     {
       "name": "Both merged",
       "color": "#d1f2eb",
-      "states": 1
+      "states": 2
     },
     {
       "name": "Main green, a pull request still red from main's break",
       "color": "#fcf3cf",
-      "states": 5
+      "states": 6
     },
     {
       "name": "Main red, jbus reruns and judges it",
@@ -101,6 +103,6 @@
       "FlowToday.map.py": "4d5c34df093020c5ddd8281c500b544e4a5da037b138028deab40486844fe32c",
       "FlowToday.tla": "0a497d59cabb4fc2f0fcee50a6ba180a48d1c9bbe6a179fd3c5a1d69b3f4fa3a"
     },
-    "chart": "c89e992e3d05ee2d3a945e77b75b86a158762f15862209ed46647ca1a80eae60"
+    "chart": "df85461590f624c96038ecaa99f95b34eb8633a1651aae0ca7a9fe744d0d8494"
   }
 }

@@ -4,6 +4,11 @@
   "modelTransitions": 32122,
   "chartStates": 17,
   "chartTransitions": 63,
+  "allTransitions": 125,
+  "final": [
+    "merged (its pull request merged)",
+    "removed (queue.py `remove`, no pass sets it)"
+  ],
   "chartStatus": {
     "works": 17,
     "fixed": 0,
