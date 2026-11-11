@@ -206,6 +206,8 @@ The section "Protected paths" describes one more hold.
 - **Its queue row lets it merge.**
   Once each run, `jmerge` reads the `queue.json` of the jbus project that the current checkout belongs to (`features/jmerge/src/jmerge/rows.py`).
   It looks up the row whose slug is the brief's slug.
+  Whether a row is over, `merged` or `done`, jmerge asks jbus (`jmerge.bus.over`, which `jbus.work.over` answers), and a row once over stays so.
+  A pull request whose row is over is held as `its queue row is <status>, and a row that is over waits for no merge: accept it to merge it` (`row-over`): it opened after the row ended, jbus asks the user about it, and `--accept` lifts the hold.
   When `jbus queue hold` has withdrawn a row's approval, the pull request waits as `its queue row is held: approve it again to let it merge`.
   A hold stops a merge as it stops a launch, and `--accept` does not lift it.
   A row with no go waits as `its queue row has no go: the user's go (jbus plan go <entry> --message <thread>/<message>), or the bot's, lets it merge`, and a go given with `jbus plan go` or `jbus queue approve`, or the bot's over `POST /act`, lets it merge.

@@ -120,7 +120,7 @@ def patterns(path: Path) -> tuple[str, ...]:
         ) from None
 
 
-QUEUE_WAITS = frozenset({ready.ROW_HELD.code, ready.MERGES_AFTER.code})
+QUEUE_WAITS = frozenset({ready.ROW_HELD.code, ready.ROW_OVER.code, ready.MERGES_AFTER.code})
 """The codes of the queue's waits that GitHub's passing state does not replace
 (`Repo.row_first`)."""
 QUEUE_OUTRANKS = frozenset(

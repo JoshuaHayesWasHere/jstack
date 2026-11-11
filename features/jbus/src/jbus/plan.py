@@ -54,7 +54,7 @@ import jbus
 import jsettings
 from jbriefs import home as homes
 from jbriefs.chains import builds_on
-from jbus import Config, Refused, locked, queue, read_json, t3, verbs, write_json
+from jbus import Config, Refused, locked, queue, read_json, t3, verbs, work, write_json
 
 LINE, STATUS = 56, 60
 _ENTRY = re.compile(r"## (?P<slug>[A-Za-z0-9][A-Za-z0-9._-]*): (?P<line>.+)")
@@ -145,7 +145,7 @@ def rows_of(slug: str, rows: list[queue.Row]) -> list[queue.Row]:
 @dataclass(frozen=True)
 class Progress:
     """The count of some rows, in the parts `status` says. `finished` is each final status with
-    its count of the rows that are over, in the order of `queue.FINAL`. `pulls` is each open row
+    its count of the rows that are over, in the order of `work.FINAL`. `pulls` is each open row
     that has a pull request, as its number and its status, by number. `rest` is each other open
     row's word with its count, in the order of `queue.STATUSES`. Each row is in one part."""
 
@@ -175,12 +175,12 @@ def progress(rows: list[queue.Row]) -> Progress:
         word = row.get("status", "queued")
         if word == "queued" and not row.get("approved"):
             word = "queued not approved"
-        elif word in queue.FINAL:
+        elif word in work.FINAL:
             word = f"{word} and waiting"
         rest[word] += 1
     return Progress(
         len(rows),
-        tuple((name, finished[name]) for name in queue.FINAL if finished[name]),
+        tuple((name, finished[name]) for name in work.FINAL if finished[name]),
         tuple((row["pr"], row.get("status", "queued")) for row in pulls),
         tuple(
             (word, rest[word])
@@ -588,7 +588,7 @@ def merged(slug: str, rows: list[queue.Row]) -> bool:
     if named:
         return named[0].get("status") == "merged"
     mine = [row.get("status") for row in rows_of(slug, rows)]
-    return bool(mine) and all(word in queue.FINAL for word in mine) and "merged" in mine
+    return bool(mine) and all(word in work.FINAL for word in mine) and "merged" in mine
 
 
 def buildable(home: Path, rows: list[queue.Row]) -> list[Buildable]:

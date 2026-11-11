@@ -87,7 +87,9 @@ def derive(half: Half) -> None:
         launched = dispatch.launched(run, slug, queue.role(row))
         found = watch.status(run, world, slug, states.of(row, launched), launched)
         said = cancelled.why(run, slug) if found["status"] == "pr" else ""
-        if found["status"] == "done" != row.get("status"):
+        if found["status"] == "pr" and work.over(row):
+            reopened(run, row, found["pr"])
+        elif found["status"] == "done" and not work.over(row):
             closed(run, slug)
         return {**found, "why": said or watch.why(run, row, found, waits, unread)}
 
@@ -100,6 +102,19 @@ def derive(half: Half) -> None:
         if move := change.illegal:
             slug = change.row["slug"]
             run.box.send(slug, ILLEGAL, f"{ILLEGAL} {slug}: {move[0]} to {move[1]}")
+
+
+def reopened(run: Pass, row: queue.Row, pull: str) -> None:
+    """Ask the user about a pull request that opened under a row that is over (`work.over`). The
+    row stays over (`queue.derive`), and jmerge holds the pull request (`jmerge.ready.ROW_OVER`)
+    until the user accepts it (`jmerge --accept`) or closes it. The gate is asked once for each
+    pull request."""
+    slug, was = row["slug"], row["status"]
+    what = (
+        f"pull request {pull} opened after the row was {was}: it stays {was}, and jmerge holds "
+        f"{pull} until you accept it (jmerge --accept) or close it"
+    )
+    run.gate(slug, what, key=f"over, then {pull}")
 
 
 def closed(run: Pass, slug: str) -> None:

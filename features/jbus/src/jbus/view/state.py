@@ -753,7 +753,7 @@ def _tasks(
             }
             for one in row.get("depends", [])
         ]
-        holds = [one for one in row.get("depends", []) if status.get(one) not in queue.FINAL]
+        holds = [one for one in row.get("depends", []) if status.get(one) not in work.FINAL]
         blockers = sorted(map(text, holds), key=lambda one: one in through)
         watched = mine if isinstance(mine := seen.get(slug), dict) else {}
         has = _held(held[slug], now, user) if held and slug in held else None

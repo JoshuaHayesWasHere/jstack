@@ -25,9 +25,6 @@ from jmerge import ready
 
 Row = dict[str, Any]
 
-FINAL = ("merged", "done")
-"""The statuses of a row that is over."""
-
 SENT_TO = ("Home:", "Thread:", "Green main:", "Stacked on:")
 """The lines of a brief's head that a go does not cover: the first two name the threads that
 receive the brief, and a launch writes the other two."""

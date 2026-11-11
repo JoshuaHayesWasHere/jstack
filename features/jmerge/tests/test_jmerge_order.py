@@ -99,13 +99,13 @@ def test_a_pull_request_merges_after_the_one_its_row_names_and_not_before(two):
 
 
 @pytest.mark.parametrize("over", ["merged", "done"])
-def test_a_row_that_is_over_holds_nothing_back(two, over):
+def test_a_row_that_is_over_holds_nothing_back_and_its_own_pull_request_is_held(two, over):
     queue_of(
         two.home,
         [row("alpha", status=over, pr="#7"), row("beta", pr="#8", merge_after=["alpha"])],
     )
     assert merged_numbers(two.run("--check")) == []
-    assert [line.split()[0] for line in two.run("--check")] == ["ready", "ready"]
+    assert [line.split()[0] for line in two.run("--check")] == ["hold", "ready"]
 
 
 def test_a_pull_request_whose_row_is_held_is_not_merged(two):

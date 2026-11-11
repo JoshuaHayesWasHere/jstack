@@ -1,5 +1,6 @@
 """What `jmerge` asks of jbus, and nothing more: the project of a checkout (its state directory,
-its migrations and its generated files), the queue's rows and stored briefs there, and the act of
+its migrations and its generated files), the queue's rows and stored briefs there, whether a row is
+over, and the act of
 an accept. jmerge imports nothing of jbus: jbus fills this in (`jbus.port.Port`) and names it
 under the entry point group `GROUP`, which `found` reads.
 
@@ -64,6 +65,10 @@ class Bus(Protocol):
     def rows(self, state: Path) -> list[Row] | None:
         """The queue's rows, or None where its files are there and do not read."""
 
+    def over(self, row: Row) -> bool:
+        """Whether a row of the queue is over (`jbus.work.over`): jbus alone decides it, and a
+        row once over stays so."""
+
     def stored(self, state: Path, slug: str) -> str | None:
         """The brief of `slug` as jbus stores it, the text its go is judged against."""
 
@@ -108,6 +113,11 @@ def found() -> Bus:
 def place(checkout: Path) -> Place | None:
     """`Bus.place` of the bus there is."""
     return found().place(checkout)
+
+
+def over(row: Row) -> bool:
+    """`Bus.over` of the bus there is."""
+    return found().over(row)
 
 
 def quiet_place(checkout: Path) -> Place | None:

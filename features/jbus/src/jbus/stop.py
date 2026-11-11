@@ -58,7 +58,7 @@ from typing import TYPE_CHECKING, Any, TypedDict, Unpack
 
 from jbriefs import home as homes
 from jbriefs.home import thread_of
-from jbus import Config, Refused, locked, outbox, party, queue, verbs, write_json
+from jbus import Config, Refused, locked, outbox, party, queue, verbs, work, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
 
@@ -70,7 +70,7 @@ LOCK = "stops.lock"
 KIND = "stop"
 ANSWER = "stop-answer"
 OUTSIDE = "outside"
-ENDED = {**{status: status for status in queue.FINAL}, "removed": "removed"}
+ENDED = {**{status: status for status in work.FINAL}, "removed": "removed"}
 ASKS = (
     "jbus: the {scope} home is stopped at a one-way door, {holds}. Its row {row} is held by "
     "{held}, and it cannot clear that itself. What the root must clear: {what}\n\n"
@@ -214,7 +214,7 @@ def _open_row(run: Pass, slug: str) -> tuple[queue.Row, Path]:
     row, text = queue.current(run.state, slug)
     if row is None:
         raise Refused(f"refused: the queue has no row {slug}")
-    if row.get("status") in queue.FINAL:
+    if work.over(row):
         raise Refused(
             f"refused: {slug} is {row['status']}, so it holds nothing and nothing holds it"
         )

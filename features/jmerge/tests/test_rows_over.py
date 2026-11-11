@@ -7,8 +7,8 @@ are open on one reviewed head, and the queue is the project's `queue.json`."""
 import pytest
 
 from jmerge import ready
-from test_jmerge_order import BETA_URL, merged_numbers, queue_of, row, two
 from test_home_merge import URL
+from test_jmerge_order import BETA_URL, merged_numbers, queue_of, row, two
 
 __all__ = ["two"]
 

@@ -193,13 +193,9 @@ def ran_in(log: str, mark: str) -> Ran | None:
 
 
 def ordered(rows: list[Row] | None) -> set[str]:
-    """The slugs of the rows that are not over and name a row they merge after: the only rows
-    whose commits, carried by another pull request, can hold that one back."""
-    return {
-        row["slug"]
-        for row in rows or []
-        if row.get("status") not in judgement.FINAL and row.get("merge_after")
-    }
+    """The slugs of the rows that are not over (`bus.over`) and name a row they merge after: the
+    only rows whose commits, carried by another pull request, can hold that one back."""
+    return {row["slug"] for row in rows or [] if not bus.over(row) and row.get("merge_after")}
 
 
 def short(
@@ -214,28 +210,30 @@ def short(
     as jbus's launch asks (`judgement.has_go`). `carries` holds the open pull requests that a merge
     of this one may land, each as its slug, its number and whether its head could be read: one whose
     commits this head contains and its base does not. This one waits on their rows' `merge_after`
-    as on its own, and on one it could not read."""
+    as on its own, and on one it could not read. A row is over as jbus says (`bus.over`): a row
+    that is over holds back no pull request, and its own is held (`ROW_OVER`), since a row that
+    ended done or merged waits for no merge, and only the user's accept lets one merge under it."""
     if rows is None:
         return ready.QUEUE_UNREADABLE
     table = {row["slug"]: row for row in rows}
     row = table.get(slug, {})
-    if row.get("status") in judgement.FINAL:
-        return ""
+    if row and bus.over(row):
+        return ready.ROW_OVER.format(status=row["status"])
     if row.get("held"):
         return ready.ROW_HELD
     if row and not judgement.has_go(row, brief):
         return ready.NO_GO
     for other in row.get("merge_after", []):
         ahead = table.get(other)
-        if ahead is not None and ahead.get("status") not in judgement.FINAL:
+        if ahead is not None and not bus.over(ahead):
             return ready.MERGES_AFTER.format(slug=other, open=ahead.get("pr") or NO_PULL)
     for carried, number, read in carries:
         under = table.get(carried, {})
-        if under.get("status") in judgement.FINAL:
+        if under and bus.over(under):
             continue
         for other in under.get("merge_after", []):
             ahead = table.get(other)
-            if other == slug or ahead is None or ahead.get("status") in judgement.FINAL:
+            if other == slug or ahead is None or bus.over(ahead):
                 continue
             if not read:
                 return ready.CARRIES_UNKNOWN.format(carried=carried, number=number)
@@ -312,5 +310,5 @@ def browser_fixing(checkout: Path, rows: list[Row] | None) -> set[str]:
     (`BROWSER_SEEN`) is in `rows`, the queue, and is not over."""
     state = _state(checkout)
     seen = store.read_dict(state / BROWSER_SEEN) if isinstance(state, Path) else {}
-    fixing = {row["slug"] for row in rows or [] if row.get("status") not in judgement.FINAL}
+    fixing = {row["slug"] for row in rows or [] if not bus.over(row)}
     return {str(run) for run, slug in seen.items() if slug and slug in fixing}

@@ -438,7 +438,7 @@ def test_a_hand_edit_of_a_derived_column_is_rewritten_and_the_chefs_columns_are_
         for c in ("slug", "priority", "depends", "approved", "brief_sha")
     }
     table = list(rows(kitchen).values())
-    table[0].update(status="merged", thread="mcp:made-up", pr="#99", checks="passed")
+    table[0].update(status="pr", thread="mcp:made-up", pr="#99", checks="passed")
     (kitchen.state / "queue.json").write_text(json.dumps(table))
     kitchen.poll()
     row = rows(kitchen)["alpha"]

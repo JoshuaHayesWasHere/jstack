@@ -2,7 +2,9 @@
 
 One row of jbus's queue, from `jbus queue add` to its end, in two regions at the same time.
 
-- The status, which no verb moves: each pass works it out again from the facts (`work.status`), and `queue.derive` writes it.
+- The status, which no verb moves: each pass works it out again from the facts (`work.status`), and `queue.derive` writes it, but over a row that is over (`work.over`), whose status it keeps (`work.kept`).
+  The spec models the facts `work.status` reads, folded to what it tells apart: the thread (none, starting, at work, waiting, failed, ended), the Result (none, clean, leaving work), the pull request (none, open, merged, closed), a question, and the launch record.
+  Each step changes one fact, and the pass derives the status they give.
   `Moves` in `RowLife.tla` is `queue.MOVES`, move for move, and `features/jbus/tests/test_rowlife_spec.py` fails when the two differ.
   `removed` is the line the `remove` verb writes, and no pass judges it.
 - The go, which verbs and rules of `queue.py` move: an approve or a rule's go (`_grant`), a hold that may keep the go it took (`_hold`), a lift that puts a kept go back (`_lift`), and a go taken back from an unlaunched row (`_void`).
@@ -12,10 +14,18 @@ One row of jbus's queue, from `jbus queue add` to its end, in two regions at the
 
 ## Check the rule
 
-The rule is `FinalStays`: a row that merged or is done stays so, since jmerge and `watch.final` read a row that leaves as not final.
-The spec models the table each pass judges a move by, so the rule says the table holds no move out of `merged` or `done`.
-`test_rowlife_spec.py` runs TLC on `RowLife.cfg`, where the rule holds, and on a canary that adds the fault `done` to `pr` (`Fault = "done-pr"`), where it breaks.
+The rule is `FinalStays`: a row that is over stays over, so the queue, `watch.final` and jmerge, which all read `work.over`, never see a row over and then not.
+A `done` row may only become `merged`, and a `merged` one stays so.
+The facts can still leave a final row: a pull request opens after a `done`, or a question opens on a `merged` row.
+The rule holds because `queue.derive` keeps the status (`work.kept`), and so checks the code's derive and not only the table.
+`test_rowlife_spec.py` runs TLC on `RowLife.cfg`, where the rule holds over 1076 distinct states, and on a canary that takes `work.kept` out (`Fault = "no-latch"`), where it breaks.
 Its TLC runs skip where no Java runs TLC.
+By hand, in a copy of this folder:
+
+```sh
+cd features/jbus/spec
+java -cp ~/.cache/jstack/tla2tools/1.7.4/tla2tools.jar tlc2.TLC -config RowLife.cfg RowLife.tla
+```
 
 ## Draw the chart
 
@@ -27,13 +37,13 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --p
 ```
 
 It writes `RowLife-statechart/`: `chart.mmd` and `chart.png`, `stories.md` and `summary.json`, labelled by `RowLife.map.py`.
-Each status on the chart names the line of `work.py` that sets it.
-Each step has a label of its own, so the regions draw every one of TLC's 46 arrows.
+Each status on the chart says what in `work.py` sets it, and each step that moves the status is labelled by its row of `queue.MOVES`.
+The regions draw 58 of their 85 arrows: a step whose next status turns on a fact the chart does not show, such as a pull request that merges from a row at `gate`, is left out, and `tlc/regions-all.mmd` has every one.
 Its `tlc/` folder holds TLC's output, which is not committed.
 
 ## What the model leaves out
 
-- The facts behind a status (thread, launch, Result, pull request, question): `test_jbus_queue_moves.py` walks them.
+- The facts behind a status, past the folds above (a hung thread, a missing one, a Result that owes its pull request, each step of an open pull request): `test_jbus_queue_moves.py` walks every combination.
 - The moves a pass saw that the table leaves out: a pass marks each one `"legal": false` in `transitions.jsonl` and writes it all the same.
 - The scout's row, which `work.scouting` reads, and a row's `depends` and `merge_after`.
 
