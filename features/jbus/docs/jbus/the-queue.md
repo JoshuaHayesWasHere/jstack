@@ -107,7 +107,7 @@ The three checks of `jbriefs.parse.WARNED`, that `Done when:` is runnable, that 
 The other fourteen and the three of `conduct` are these:
 
 - `Task:` is 2,000 characters or fewer.
-- `Why:` says something its title and `Task:` do not: a line whose words, less filler such as `because` and `the`, are all words of the two is refused (`jbriefs.why`).
+- `Why:` says something its title and `Task:` do not: a line whose words, less filler such as `because` and `the`, are all words of the two, or that has no word but filler, is refused (`jbriefs.why`).
   `Why:` is the reason the change is wanted, the problem and its evidence, and the crewmate makes a choice the brief leaves open in its light.
 - `Design:` names a file, or says `none, <why>`.
 - `Proves it:` names something outside the agent.

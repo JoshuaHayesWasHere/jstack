@@ -51,7 +51,13 @@ def test_a_brief_with_no_why_is_refused_naming_the_line(why, fault):
 )
 def test_a_why_that_only_repeats_the_title_or_task_is_refused(why):
     (fault,) = _faults(why)
-    assert fault.startswith("brief's Why: line only repeats its title and Task:")
+    assert fault.startswith("brief's Why: line says nothing its title and Task: do not")
+
+
+@pytest.mark.parametrize("why", ["Why: we need it\n", "Why: for the user\n"])
+def test_a_why_of_filler_words_alone_is_refused(why):
+    (fault,) = _faults(why)
+    assert fault.startswith("brief's Why: line says nothing its title and Task: do not")
 
 
 def test_a_why_built_on_the_users_words_with_evidence_of_its_own_queues():

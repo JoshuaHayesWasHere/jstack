@@ -30,16 +30,17 @@ def _words(lines: list[str]) -> set[str]:
 def fault(fields: Fields) -> str:
     """Why the brief's `Why:` line is at fault, as one line, or an empty string when it is not.
 
-    It is at fault when each of its words, less `FILLER`, is a word of the title or of `Task:`:
-    it only says again what is asked. A missing or empty `Why:` is `parse._filled`'s to name.
+    It is at fault when each of its words, less `FILLER`, is a word of the title or of `Task:`, or
+    when it has no other word: it says again what is asked, or says nothing (`Why: we need it`).
+    A missing or empty `Why:` is `parse._filled`'s to name, which `parse.faults` reports first.
     """
     held = list(fields)
     said = _words(next((lines for name, lines in held if name == "Why"), []))
     asked = set().union(*(_words(lines) for name, lines in held if name in ("title", "Task")))
-    if said and said <= asked:
+    if said <= asked:
         return (
-            "brief's Why: line only repeats its title and Task: say why the change is wanted, "
-            "the problem, the evidence that it happens (a run, a count or the user's words) and "
-            "what goes better once it lands"
+            "brief's Why: line says nothing its title and Task: do not: say why the change is "
+            "wanted, the problem, the evidence that it happens (a run, a count or the user's "
+            "words) and what goes better once it lands"
         )
     return ""
