@@ -226,3 +226,23 @@ def test_a_scoped_home_that_starts_after_a_failed_start_holds_no_failure(kitchen
     held = entry(kitchen, "sc")
     assert "failed" not in held and "says" not in held
     assert held["stage"] == "started"
+
+
+def test_a_home_that_started_and_lost_its_thread_is_launched_again_with_no_failure(started):
+    """A start that wrote its `home-id` failed on nothing. When the home's `home-id` later names
+    a thread that is gone, the catch-all is launched again, and its entry does not read the
+    started thread's ended run as a failed start."""
+    kitchen = started
+    kitchen.poll(NOW)
+    thread = launched(kitchen)
+    (kitchen.home / "uncategorized" / "home-id").write_text(thread["threadId"] + "\n")
+    thread["status"] = "completed"
+    kitchen.t3.at_work.discard(thread["threadId"])
+    kitchen.poll(minutes(1))
+    assert entry(kitchen)["stage"] == "started"
+    (kitchen.home / "uncategorized" / "home-id").write_text("mcp:no-such-thread\n")
+    kitchen.poll(minutes(2))
+    assert len(homes(kitchen)) == 2
+    assert says(kitchen) is None
+    assert "failed" not in entry(kitchen)
+    assert entry(kitchen)["stage"] == "launched"
