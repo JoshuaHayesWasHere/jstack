@@ -10,11 +10,11 @@ The store has one table for each record file of each project, with a `project` c
 
 | Table | Source | One row is |
 |---|---|---|
-| `events` | `events.jsonl` | an event jbus logged, keyed by the id `jbus events` gives it |
+| `events` | `events.jsonl` | an event jbus logged, keyed by the id `jbus events` gives it, and from v021 its `launch_cause`, `sign-in` for a failover whose instance could not sign in |
 | `acts` | `acts.jsonl` | an act: a go, hold, word, answer, withdraw or remove |
 | `items` | `items.jsonl` | a work item's record |
 | `transitions` | `transitions.jsonl` | a row's move from one status to another |
-| `row_waits` | `waits.jsonl` | a change of a row's reason to wait, to a reason or to none: its `kind` (`hold`, `depends`, `red main`, `room`, `cap` or `none`) and `why_len`, never the reason's text |
+| `row_waits` | `waits.jsonl` | a change of a row's reason to wait, to a reason or to none: its `kind` (`hold`, `depends`, `red main`, `room`, `cap` or `none`) and `why_len`, and from v021 its `launch_cause` (`launch_failures`, below), with the reason's text as `launch_reason` only for a launch wait of cause `other`, which jbus wrote and the user did not |
 | `outbox` | `outbox.jsonl` | a message jbus sent or held |
 | `ci_jobs` | `ci.jsonl` | a job of a GitHub Actions run, for a project whose table says `ci_report = true`: its `attempt`, its `conclusion`, and from v019 the `step` a failed job failed at (`jbus.ci.collect.failed_step`) |
 | `merges` | the home's `merge.log` | a line `jmerge` logged: its verb, its pull request, a merge's slug and a wait's label |
@@ -36,6 +36,7 @@ The store has one table for each record file of each project, with a `project` c
 | `stalls` | `stalls.jsonl` | a spell a running row's thread was quiet or hung: its line when a pass first saw it, and its line when a pass saw it end, with `until`, `minutes` and `became`; and the file's first line, `began`, when the first pass that ran `jbus.stall.spells` began the record |
 | `passes` | the machine's `passes.jsonl` | a pass of jbus: its start and its seconds, under the project `''`, and from v014 `step_times`, the `[wall, cpu]` seconds of each of its steps as JSON, and `children`, the CPU seconds of the child processes it waited on (`jbus.record`) |
 | `launch_arms` | the launch records, `launches/<project>/<slug>/<sha>.json` | a launched record's arm of one dial (`dial`, `arm`, `covered` 1), or for a launch from before records named their arm, one row with no dial or arm and `covered` 0 |
+| `launch_failures` | `events`, `transitions` and `row_waits`, made again by each build (`jbus.telemetry.launch_failures`) | a launch that failed or waited: its `slug`, `cause` (`sign-in`, `/tmp`, `no slot` or `other`), `reason` for `other`, `start`, `end` and `minutes`; an open wait has no `end` and no `minutes` |
 | `review_rounds` | `review-rounds.jsonl` | a settled review round of a row's pull request: its number, head, sections, `Meets the brief` verdict (`meets`, `met` of `done_when`) and its findings by severity (`errors`, `warnings`, `infos`, `others`, `dismissed`) |
 | `review_heads` | `review-launches.jsonl` | the head a reviewer thread was launched at, one row a thread, updated in place: its slug, `head`, `kind` (`first` or `scoped`) and `number`, its seat `#<n>`; the view `review_launches` gives it as each reviewer thread's head, and `duplicate-reviews` counts on it |
 | `capped_reads` | the machine's `capped.jsonl` | a read of which Claude instances the ledger has capped, by `jgauge limits` or the pass (`jgauge.limits.note`): its `reader`, how many `instances` and how many `capped`, and, where every one was, `ends_at`, the first reset |
@@ -138,6 +139,40 @@ Each line keeps ids, times, counts and labels, and no text of a finding or a rev
 The spells an account was capped are `capped.jsonl`'s reads, which say which accounts each read found capped (`capped_reads`, below).
 The spells an account was signed out have no record yet.
 
+### Launch failures and waits
+
+`launch_failures` holds one row for each launch that failed or waited, by its cause, from records jbus already writes (`jbus.telemetry.launch_failures`):
+
+| Cause | Record | Start and end |
+|---|---|---|
+| `sign-in` | a `failover` line of `events.jsonl` whose instance could not sign in, or a row's reason `no launch: <instance> cannot sign in (...)` in `waits.jsonl` | from the row's last launch in `transitions.jsonl` to the failover, or the wait's spell; a failover of a row with no launch there, such as a scout's, has no start and no minutes |
+| `/tmp` | a row's reason `waiting: /tmp at <n>% of its <what>` | the wait's spell |
+| `no slot` | a row's reason `no slot`, `max_per_home is ...`, `max_per_project is ...`, `max_running is ...`, or a gate held back while every slot is taken | the wait's spell |
+| `other` | `waiting for room on the machine`, every no of `jgauge room` but /tmp's, or `no launch: ...` for capped instances, kept as `reason` | the wait's spell |
+
+A wait's spell runs from a row's first line of a cause in `waits.jsonl` to its next line of another cause or of none.
+The store reads each line's cause as it reads the line, and each build makes the table again from the store's own tables, so it outlives the daily trim, and a spell open at one build is closed by the build after it ends.
+Migration `v021_launch_failures` drops the cursors of `events` and `row_waits`, so the first build after it reads each `events.jsonl` and `waits.jsonl` again and gives the lines it holds their cause; an event older than the 14 days `events.jsonl` keeps has none.
+`waits.jsonl` began on 2026-11-09 at 23:26 UTC, so a wait before then has no row.
+
+Two causes have no record jbus writes, and no row is guessed for them:
+
+- `no home-id`, a home start that sat: `relaunches.json` keeps each home's last launch and what its last failed start failed on, but not when that start began, and the pass writes the launch that replaces it in the same pass.
+- `load`: `jbus.dispatch.ROOM` writes every no of `jgauge room` but /tmp's as one reason, `waiting for room on the machine`, which is `other`.
+
+Minutes and count by cause by hour, from the hour each began (its `end` where it has no start), since a time:
+
+```sql
+SELECT substr(coalesce(start, "end"), 1, 13) || 'Z' AS hour, cause,
+       count(*) AS n, round(coalesce(sum(minutes), 0), 1) AS minutes,
+       sum(minutes IS NULL) AS unmeasured
+FROM launch_failures
+WHERE coalesce(start, "end") >= :since
+GROUP BY hour, cause ORDER BY hour, cause;
+```
+
+With `sqlite3`, set `:since` first: `.parameter set :since '2026-11-08'`.
+
 ## Questions the records answer
 
 | Question | Query |
@@ -148,6 +183,7 @@ The spells an account was signed out have no record yet.
 | Which thread did each word a home carried go to, and when? | `SELECT project, word, kept_at, said_in, thread, sent_at, waiting FROM carried_words` |
 | What did each row spend, by role? | `SELECT spent_on, role, slug, units FROM spend_rows WHERE slug IS NOT NULL` |
 | What did each day spend? | `SELECT project, spent_on, units, runs FROM spend_days` |
+| How many launches failed or waited, and for how long, by cause? | `SELECT cause, count(*), round(sum(minutes), 1) FROM launch_failures GROUP BY cause`, and by hour as "Launch failures and waits" says |
 | Which arm did each row launch on? | `SELECT project, slug, role, dial, arm, at FROM launch_arms WHERE covered` |
 | How did each pull request's review rounds go? | `SELECT project, slug, pr, round_number, meets, errors, warnings FROM review_rounds ORDER BY project, slug, round_number` |
 
