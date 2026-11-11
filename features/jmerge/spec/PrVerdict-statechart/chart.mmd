@@ -28,76 +28,70 @@ stateDiagram-v2
       state "Main moved past its check" as r0s1
       state "Main red" as r0s2
       r0s0 --> r0s1 : other work merges into main<br/>[unless in jmerge's batch,<br/>whose check runs or in line<br/>behind the pull request ahead<br/>or merged]
-      %% when not r1s10, r1s11, r1s15
+      %% when not r1s9, r1s10, r1s13
       r0s0 --> r0s2 : other work merges into main<br/>[unless in jmerge's batch,<br/>whose check runs or in line<br/>behind the pull request ahead<br/>or merged]
-      %% when not r1s10, r1s11, r1s15
+      %% when not r1s9, r1s10, r1s13
       r0s0 --> r0s1 : the one ahead in line merges<br/>[unless GitHub merges main<br/>into it, for its failed check<br/>or GitHub merges main into it,<br/>for the guards or in jmerge's<br/>batch, whose check runs or in<br/>line behind the pull request<br/>ahead or merged]
-      %% when not r1s1, r1s2, r1s10, r1s11, r1s15
+      %% when not r1s1, r1s2, r1s9, r1s10, r1s13
       r0s0 --> r0s1 : you accept the one ahead, and<br/>it merges [unless GitHub<br/>merges main into it, for its<br/>failed check or GitHub merges<br/>main into it, for the guards<br/>or in jmerge's batch, whose<br/>check runs or in line behind<br/>the pull request ahead or<br/>merged]
-      %% when not r1s1, r1s2, r1s10, r1s11, r1s15
+      %% when not r1s1, r1s2, r1s9, r1s10, r1s13
       r0s1 --> r0s0 : GitHub merges main into it<br/>[when GitHub merges main into<br/>it, for its failed check or<br/>GitHub merges main into it,<br/>for the guards]
       %% when r1s1, r1s2
-      r0s1 --> r0s0 : its crew rebases and fixes it<br/>[unless conflicts with main,<br/>and held: its check failed<br/>twice or conflicts with main,<br/>and held: its row is held or<br/>its check failed, and held:<br/>its check failed twice or its<br/>check failed, and held: its<br/>row is held or merged or<br/>merged over main, it fails the<br/>guards, and held: its check<br/>failed twice]
-      %% when not r1s4, r1s5, r1s13, r1s14, r1s15, r1s17
+      r0s1 --> r0s0 : its crew rebases and fixes it<br/>[unless conflicts with main,<br/>and held: its check failed<br/>twice or its check failed, and<br/>held: its check failed twice<br/>or merged or merged over main,<br/>it fails the guards, and held:<br/>its check failed twice]
+      %% when not r1s4, r1s12, r1s13, r1s15
       r0s2 --> r0s1 : jbus's revert or fix lands,<br/>and main is green [unless<br/>merged]
-      %% when not r1s15
+      %% when not r1s13
     }
     --
     state "What jmerge says" as region1 {
-      [*] --> r1s18
+      [*] --> r1s16
       state "GitHub has not decided<br/>whether it merges" as r1s0
       state "GitHub merges main into<br/>it, for its failed check" as r1s1
       state "GitHub merges main into<br/>it, for the guards" as r1s2
       state "conflicts with main" as r1s3
       state "conflicts with main, and<br/>held: its check failed<br/>twice" as r1s4
-      state "conflicts with main, and<br/>held: its row is held" as r1s5
-      state "held: a drop or decline<br/>the review did not uphold" as r1s6
-      state "held: it touches a<br/>protected path" as r1s7
-      state "held: its row has no go" as r1s8
-      state "held: merging is off" as r1s9
-      state "in jmerge's batch, whose<br/>check runs" as r1s10
-      state "in line behind the pull<br/>request ahead" as r1s11
-      state "its check failed" as r1s12
-      state "its check failed, and<br/>held: its check failed<br/>twice" as r1s13
-      state "its check failed, and<br/>held: its row is held" as r1s14
-      state "merged" as r1s15
-      state "merged over main, it fails<br/>the guards" as r1s16
-      state "merged over main, it fails<br/>the guards, and held: its<br/>check failed twice" as r1s17
-      state "opened, not judged yet" as r1s18
-      state "waits on its check" as r1s19
-      state "waits on its review" as r1s20
+      state "held: a drop or decline<br/>the review did not uphold" as r1s5
+      state "held: it touches a<br/>protected path" as r1s6
+      state "held: its row has no go" as r1s7
+      state "held: merging is off" as r1s8
+      state "in jmerge's batch, whose<br/>check runs" as r1s9
+      state "in line behind the pull<br/>request ahead" as r1s10
+      state "its check failed" as r1s11
+      state "its check failed, and<br/>held: its check failed<br/>twice" as r1s12
+      state "merged" as r1s13
+      state "merged over main, it fails<br/>the guards" as r1s14
+      state "merged over main, it fails<br/>the guards, and held: its<br/>check failed twice" as r1s15
+      state "opened, not judged yet" as r1s16
+      state "waits on its check" as r1s17
+      state "waits on its review" as r1s18
       r1s3 --> r1s4 : jbus holds its row: its check<br/>failed at two heads
-      r1s7 --> r1s15 : you accept it, and it merges
-      r1s10 --> r1s15 : the batch's check passes, and<br/>jmerge merges it [when Main<br/>moved past its check]
+      r1s6 --> r1s13 : you accept it, and it merges
+      r1s9 --> r1s13 : the batch's check passes, and<br/>jmerge merges it [when Main<br/>moved past its check]
       %% when r0s1
-      r1s12 --> r1s13 : jbus holds its row: its check<br/>failed at two heads
-      r1s13 --> r1s12 : you approve its row
-      r1s16 --> r1s17 : jbus holds its row: its check<br/>failed at two heads
-      r1s18 --> r1s10 : it joins jmerge's batch [when<br/>Main moved past its check]
+      r1s11 --> r1s12 : jbus holds its row: its check<br/>failed at two heads
+      r1s12 --> r1s11 : you approve its row
+      r1s14 --> r1s15 : jbus holds its row: its check<br/>failed at two heads
+      r1s16 --> r1s9 : it joins jmerge's batch [when<br/>Main moved past its check]
       %% when r0s1
-      r1s18 --> r1s20 : jmerge judges it
-      r1s18 --> r1s19 : jmerge judges it
-      r1s18 --> r1s12 : jmerge judges it
-      r1s18 --> r1s8 : jmerge judges it
-      r1s18 --> r1s7 : jmerge judges it
-      r1s18 --> r1s6 : jmerge judges it
-      r1s18 --> r1s9 : jmerge judges it
-      r1s18 --> r1s14 : jmerge judges it [unless Main<br/>as its check saw it]
-      %% when not r0s0
-      r1s18 --> r1s0 : jmerge judges it
-      r1s18 --> r1s1 : jmerge judges it [when Main<br/>moved past its check]
+      r1s16 --> r1s18 : jmerge judges it
+      r1s16 --> r1s17 : jmerge judges it
+      r1s16 --> r1s11 : jmerge judges it
+      r1s16 --> r1s7 : jmerge judges it
+      r1s16 --> r1s6 : jmerge judges it
+      r1s16 --> r1s5 : jmerge judges it
+      r1s16 --> r1s8 : jmerge judges it
+      r1s16 --> r1s0 : jmerge judges it
+      r1s16 --> r1s1 : jmerge judges it [when Main<br/>moved past its check]
       %% when r0s1
-      r1s18 --> r1s11 : jmerge judges it [unless Main<br/>as its check saw it]
+      r1s16 --> r1s10 : jmerge judges it [unless Main<br/>as its check saw it]
       %% when not r0s0
-      r1s18 --> r1s2 : jmerge judges it [unless Main<br/>as its check saw it]
+      r1s16 --> r1s2 : jmerge judges it [unless Main<br/>as its check saw it]
       %% when not r0s0
-      r1s18 --> r1s3 : jmerge judges it [unless Main<br/>as its check saw it]
+      r1s16 --> r1s3 : jmerge judges it [unless Main<br/>as its check saw it]
       %% when not r0s0
-      r1s18 --> r1s5 : jmerge judges it [unless Main<br/>as its check saw it]
-      %% when not r0s0
-      r1s18 --> r1s13 : jmerge judges it
-      r1s18 --> r1s15 : jmerge merges it
-      r1s18 --> r1s16 : the guards fail on its tree<br/>over main [unless Main as its<br/>check saw it]
+      r1s16 --> r1s12 : jmerge judges it
+      r1s16 --> r1s13 : jmerge merges it
+      r1s16 --> r1s14 : the guards fail on its tree<br/>over main [unless Main as its<br/>check saw it]
       %% when not r0s0
     }
   }
@@ -113,15 +107,13 @@ stateDiagram-v2
   class r1s6 group1
   class r1s7 group1
   class r1s8 group1
-  class r1s9 group1
+  class r1s9 group3
   class r1s10 group3
-  class r1s11 group3
-  class r1s12 group2
-  class r1s13 group1
-  class r1s14 group1
-  class r1s15 group0
-  class r1s16 group2
-  class r1s17 group1
-  class r1s18 group3
-  class r1s19 group3
-  class r1s20 group2
+  class r1s11 group2
+  class r1s12 group1
+  class r1s13 group0
+  class r1s14 group2
+  class r1s15 group1
+  class r1s16 group3
+  class r1s17 group3
+  class r1s18 group2

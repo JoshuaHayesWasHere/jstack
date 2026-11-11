@@ -23,14 +23,13 @@ SAID = {
 HOLDS = {"row-held", "declines", "touches", "merge-off"}
 CREW = {"no-review", "check-failed", "conflicts", "merged-tree-fails"}
 FIXES = {"check-failed", "conflicts", "merged-tree-fails"}
-LIMIT = 2
 
 
 def _held(v):
-    """Why a row whose crew jbus tells nothing is held: jbus's hold at LIMIT failed heads, or yours."""
-    if v["st"] != "open" or "nogo" not in v["asks"] or v["said"] not in FIXES:
+    """Why a row whose crew jbus tells nothing is held, where jmerge says it waits on its crew."""
+    if v["st"] != "open" or not v["held"] or v["said"] not in FIXES:
         return ""
-    return "its check failed twice" if v["fails"] == LIMIT else "its row is held"
+    return "its check failed twice"
 
 
 def _main(v):

@@ -6,8 +6,8 @@
 \* The verdict as of main 21112eba8 (2026-11-10), and jbus's hold of a row whose check failed at two
 \* heads as of main 8644c5324 (2026-11-11). Each condition names the file that checks it and quotes
 \* the code there in backticks, with no line number: cli.py, ready.py, batch.py, rows.py and
-\* treeguards.py are features/jmerge/src/jmerge/; expedite.py, rebase.py, outbox.py, stall.py and
-\* watch.py are features/jbus/src/jbus/.
+\* treeguards.py are features/jmerge/src/jmerge/; expedite.py, rebase.py, outbox.py, poll.py,
+\* stall.py and watch.py are features/jbus/src/jbus/.
 \* test_pr_verdict_spec.py finds each quote once in its file.
 \*
 \* Drop names one hold to take out, or "none". With a hold out the rule must break:
@@ -52,10 +52,11 @@ CrewWords == {"check-failed", "conflicts", "merged-tree-fails"}
 \* unheld: the holds still outstanding when it merged, not lifted by your word at its head.
 \* fails: the heads at which its check failed on a change of its own, as jbus counts them, up to
 \*   Limit, where jbus holds its row.
+\* held: jbus held its row for a check that failed at Limit heads, keeping the go it took.
 VARIABLES st, good, ci, reviewed, asks, moved, overlap, clash, tipFails, guardsSaid, decided,
-    mainRed, movesLeft, ahead, batch, guards, batchOn, said, fresh, unheld, fails
+    mainRed, movesLeft, ahead, batch, guards, batchOn, said, fresh, unheld, fails, held
 vars == <<st, good, ci, reviewed, asks, moved, overlap, clash, tipFails, guardsSaid, decided,
-    mainRed, movesLeft, ahead, batch, guards, batchOn, said, fresh, unheld, fails>>
+    mainRed, movesLeft, ahead, batch, guards, batchOn, said, fresh, unheld, fails, held>>
 
 Main == <<moved, overlap, clash, tipFails, guardsSaid, decided, mainRed, movesLeft>>
 Setup == <<guards, batchOn>>
@@ -63,13 +64,8 @@ Setup == <<guards, batchOn>>
 \* jbus holds a row at the second head at which its check failed (stall.py `if len(heads) < 2:`).
 Limit == 2
 
-\* Its row is held, or has no go: only your approve lets it merge, and while it is held the outbox
-\* sends its crew no rebase and no fix (outbox.py `Rule("held", on_hold, frozenset(), FIXES),`).
-Held == "nogo" \in asks
-
-\* jbus held it for a check that failed at Limit heads: a held row is counted no further, so a
-\* count at Limit on a held row is that hold's.
-HeldTwice == Held /\ fails = Limit
+\* The holds for your word it carries, jbus's hold among them: a held row is "nogo" to jmerge.
+Asks == IF held THEN asks \cup {"nogo"} ELSE asks
 
 Init ==
     /\ st = "open"
@@ -90,6 +86,7 @@ Init ==
     /\ fresh = FALSE
     /\ unheld = {}
     /\ fails = 0
+    /\ held = FALSE
 
 \* ---- jmerge's verdict, in the order Repo.judged checks it
 
@@ -151,7 +148,7 @@ Verdict ==
     ELSE IF decided /\ clash THEN "conflicts"
     \* Its queue row's go (cli.py `rows.short(self.queue, brief.stem, brief=self.stored(brief.stem))`,
     \* rows.py `if row.get("held"):`, rows.py `if row and not judgement.has_go(row, brief):`).
-    ELSE IF "nogo" \in asks /\ Kept("go") THEN "row-held"
+    ELSE IF "nogo" \in Asks /\ Kept("go") THEN "row-held"
     \* A drop or a decline the review did not uphold (cli.py
     \* `kind, why = ready.drops(lost, text, one.head, user=self.user, command=command)`, cli.py
     \* `kind, why = ready.declines(text, user=self.user)`, cli.py
@@ -175,7 +172,7 @@ Verdict ==
 \* What your accept judges: every hold it lifts lifted, at the head it is given at
 \* (cli.py `return ready.codes() if self.accepted == (one.number, one.head) else frozenset()`).
 VerdictAccepted ==
-    LET a == asks \ Accepted IN
+    LET a == Asks \ Accepted IN
     IF ~reviewed THEN "no-review"
     ELSE IF ci = "none" THEN "not-passed"
     ELSE IF ci = "fail" /\ ~Rejudged THEN "check-failed"
@@ -197,7 +194,7 @@ Judge ==
     /\ Verdict \notin {"ready", "ready-batch"}
     /\ said # Verdict \/ ~fresh
     /\ said' = Verdict /\ fresh' = TRUE
-    /\ UNCHANGED <<st, good, ci, reviewed, asks, Main, ahead, batch, Setup, unheld, fails>>
+    /\ UNCHANGED <<st, good, ci, reviewed, asks, Main, ahead, batch, Setup, unheld, fails, held>>
 
 \* Merged alone (cli.py `say(repo.merge(one, found.slug, found.note, found.judged))`), on the guards
 \* over the tip where main moved past its check, which pass (cli.py
@@ -206,8 +203,8 @@ Merge ==
     /\ Open
     /\ Verdict = "ready"
     /\ ~(guards /\ moved /\ tipFails)
-    /\ st' = "merged" /\ unheld' = asks /\ said' = "merged"
-    /\ UNCHANGED <<good, ci, reviewed, asks, Main, ahead, batch, Setup, fresh, fails>>
+    /\ st' = "merged" /\ unheld' = Asks /\ said' = "merged"
+    /\ UNCHANGED <<good, ci, reviewed, asks, Main, ahead, batch, Setup, fresh, fails, held>>
 
 \* The guards fail on its tree over the tip (treeguards.py
 \* `said = ready.MERGED_TREE_FAILS.format(**values, guard=guard(ran.said))`): it waits for its
@@ -221,7 +218,7 @@ GuardsFail ==
     /\ said' = IF overlap THEN InTurn("base-moved-asked") ELSE "merged-tree-fails"
     /\ fresh' = TRUE
     /\ UNCHANGED <<st, good, ci, reviewed, asks, moved, overlap, clash, tipFails, decided,
-        mainRed, movesLeft, ahead, batch, Setup, unheld, fails>>
+        mainRed, movesLeft, ahead, batch, Setup, unheld, fails, held>>
 
 \* It joins the batch (cli.py `elif on is not None and found.judged.batch:`), and waits on its check.
 JoinBatch ==
@@ -229,29 +226,29 @@ JoinBatch ==
     /\ Verdict = "ready-batch"
     /\ batch # "pending"
     /\ batch' = "pending" /\ said' = "in-batch" /\ fresh' = TRUE
-    /\ UNCHANGED <<st, good, ci, reviewed, asks, Main, ahead, Setup, unheld, fails>>
+    /\ UNCHANGED <<st, good, ci, reviewed, asks, Main, ahead, Setup, unheld, fails, held>>
 
 \* CI's check of the batch passes, main's tip has not moved since it was built (cli.py
 \* `elif stop is None and self.tip_of(default) != expected:`), and jmerge merges it.
 BatchProves ==
     /\ Open
     /\ batch = "pending" /\ ~tipFails
-    /\ st' = "merged" /\ unheld' = asks /\ said' = "merged" /\ batch' = "none"
-    /\ UNCHANGED <<good, ci, reviewed, asks, Main, ahead, Setup, fresh, fails>>
+    /\ st' = "merged" /\ unheld' = Asks /\ said' = "merged" /\ batch' = "none"
+    /\ UNCHANGED <<good, ci, reviewed, asks, Main, ahead, Setup, fresh, fails, held>>
 
 \* CI's check of the batch of one fails: it goes the single path at this head.
 BatchFails ==
     /\ Open
     /\ batch = "pending" /\ tipFails
     /\ batch' = "failed"
-    /\ UNCHANGED <<st, good, ci, reviewed, asks, Main, ahead, Setup, said, fresh, unheld, fails>>
+    /\ UNCHANGED <<st, good, ci, reviewed, asks, Main, ahead, Setup, said, fresh, unheld, fails, held>>
 
 \* The line's holder waits on its crew or its user, so jmerge gives the line to the next (cli.py
 \* `if self.line.get(one.base) == one.number and not in_line(one, found):`).
 Release ==
     /\ ahead = "held" /\ Kept("release")
     /\ ahead' = "none"
-    /\ UNCHANGED <<st, good, ci, reviewed, asks, Main, batch, Setup, said, fresh, unheld, fails>>
+    /\ UNCHANGED <<st, good, ci, reviewed, asks, Main, batch, Setup, said, fresh, unheld, fails, held>>
 
 \* ---- the crew, the reviewer, GitHub and main
 
@@ -264,34 +261,34 @@ NewHead ==
 Review ==
     /\ Open /\ ~reviewed
     /\ reviewed' = TRUE
-    /\ UNCHANGED <<st, good, ci, asks, Main, ahead, batch, Setup, said, fresh, unheld, fails>>
+    /\ UNCHANGED <<st, good, ci, asks, Main, ahead, batch, Setup, said, fresh, unheld, fails, held>>
 
 \* Its check ends: it fails on a change of its own, or over a red main. jbus counts a head that
 \* failed on its own, and not one whose check ran on a red main (stall.py `if check == "failed":`),
-\* nor any while its row is held (stall.py
+\* nor any while jbus holds its row (stall.py
 \* `if row.get("held") or any(head in seen for seen in (heads, on_red, flakes, infras)):`).
 CheckEnds ==
     /\ Open /\ ci = "none"
     /\ ci' = IF good /\ ~mainRed THEN "pass" ELSE "fail"
-    /\ fails' = IF ~good /\ ~mainRed /\ ~Held /\ fails < Limit THEN fails + 1 ELSE fails
-    /\ UNCHANGED <<st, good, reviewed, asks, Main, ahead, batch, Setup, said, fresh, unheld>>
+    /\ fails' = IF ~good /\ ~mainRed /\ ~held /\ fails < Limit THEN fails + 1 ELSE fails
+    /\ UNCHANGED <<st, good, reviewed, asks, Main, ahead, batch, Setup, said, fresh, unheld, held>>
 
 \* At Limit, jbus holds the row and pages you, once (stall.py
 \* `said = queue.hold(run.state, slug, keep=True)`, stall.py `run.gate(slug, TWICE, text,`), and the
 \* row says so while it is held (watch.py
 \* `if row.get("held") and failed_twice(run, row["slug"]) and not asked:`).
 Twice ==
-    /\ Open /\ fails = Limit /\ ~Held /\ Kept("twice")
-    /\ asks' = asks \cup {"nogo"}
-    /\ UNCHANGED <<st, good, ci, reviewed, Main, ahead, batch, Setup, said, fresh, unheld, fails>>
+    /\ Open /\ fails = Limit /\ ~held /\ Kept("twice")
+    /\ held' = TRUE
+    /\ UNCHANGED <<st, good, ci, reviewed, asks, Main, ahead, batch, Setup, said, fresh, unheld, fails>>
 
 \* Its check passes at a head while jbus's hold stands: jbus lifts its own hold, puts back the go
 \* it took (stall.py `if ready.waiting(pull.get("statusCheckRollup") or [], required):`, stall.py
 \* `said = queue.lift(run.state, slug)`), and the count starts again.
 Lift ==
-    /\ Open /\ HeldTwice /\ ci = "pass"
-    /\ asks' = asks \ {"nogo"} /\ fails' = 0
-    /\ UNCHANGED <<st, good, ci, reviewed, Main, ahead, batch, Setup, said, fresh, unheld>>
+    /\ Open /\ held /\ ci = "pass"
+    /\ held' = FALSE /\ fails' = 0
+    /\ UNCHANGED <<st, good, ci, reviewed, asks, Main, ahead, batch, Setup, said, fresh, unheld>>
 
 \* jbus tells its crew of a conflict GitHub sees, whatever jmerge's verdict says (rebase.py
 \* `if pull.get("mergeable") == "CONFLICTING" and not told and not stacks.unmoved(brief):`), and
@@ -299,20 +296,22 @@ Lift ==
 \* `ready.CHECK_FAILED.code: "jbus.rebase tells the crew of the failed check, once per head",`,
 \* expedite.py `ready.MERGED_TREE_FAILS,`). The crew rebases onto main's tip and fixes its change,
 \* which needs a scoped review, and which may fail its check again. A check that failed only over
-\* main's red is no fault of its own, and the crew leaves it (features/crew/the-checks.md). A held
-\* row's crew is told nothing (Held), and jbus holds a row in the pass that counts its Limit-th
-\* failed head before it tells the crew of it: the tellers run by rank (stall.py
-\* `verbs.Step("tellers", 90, "stall.twice", _twice, ("world",)),`, and rebase.py `"rebase.tell",`
-\* at rank 100).
+\* main's red is no fault of its own, and the crew leaves it (features/crew/the-checks.md). While
+\* jbus holds its row the outbox sends its crew no rebase and no fix (outbox.py
+\* `Rule("held", on_hold, frozenset(), FIXES),`), and jbus holds a row in the pass that counts its
+\* Limit-th failed head before it tells the crew of it: twice is a teller (stall.py
+\* `verbs.Step("tellers", 90, "stall.twice", _twice, ("world",)),`), the failed check's message is
+\* rebase.py `"rebase.github",` after expedite, and a pass runs the tellers first (poll.py
+\* `steps(half, "tellers")`, poll.py `steps(half, "after-expedite")`).
 CrewFix ==
-    /\ Open /\ ~Held /\ (fails < Limit \/ ~Kept("twice"))
+    /\ Open /\ ~held /\ (fails < Limit \/ ~Kept("twice"))
     /\ \/ decided /\ clash
        \/ said = Verdict /\ fresh /\ said = "merged-tree-fails"
        \/ said = Verdict /\ fresh /\ said = "check-failed" /\ ~good
     /\ good' \in BOOLEAN /\ reviewed' = FALSE
     /\ moved' = FALSE /\ overlap' = FALSE /\ clash' = FALSE /\ tipFails' = FALSE
     /\ NewHead
-    /\ UNCHANGED <<st, asks, mainRed, movesLeft, ahead, Setup, said, unheld, fails>>
+    /\ UNCHANGED <<st, asks, mainRed, movesLeft, ahead, Setup, said, unheld, fails, held>>
 
 \* GitHub merges main into it, as jmerge asked: a merged tree that fails a test fails its check.
 GitHubMergesBase ==
@@ -321,13 +320,13 @@ GitHubMergesBase ==
     /\ good' = (good /\ ~tipFails)
     /\ moved' = FALSE /\ overlap' = FALSE /\ tipFails' = FALSE
     /\ NewHead
-    /\ UNCHANGED <<st, reviewed, asks, clash, mainRed, movesLeft, ahead, Setup, said, unheld, fails>>
+    /\ UNCHANGED <<st, reviewed, asks, clash, mainRed, movesLeft, ahead, Setup, said, unheld, fails, held>>
 
 GitHubDecides ==
     /\ Open /\ ~decided
     /\ decided' = TRUE
     /\ UNCHANGED <<st, good, ci, reviewed, asks, moved, overlap, clash, tipFails, guardsSaid,
-        mainRed, movesLeft, ahead, batch, Setup, said, fresh, unheld, fails>>
+        mainRed, movesLeft, ahead, batch, Setup, said, fresh, unheld, fails, held>>
 
 \* Main moves under it: a pull request's merge may touch its files, clash with it, break its tree
 \* merged over the tip, and turn main red. A batch whose tip moved stops.
@@ -344,7 +343,7 @@ MainMoves ==
     /\ Open /\ movesLeft > 0
     /\ movesLeft' = movesLeft - 1
     /\ MovesMain(TRUE)
-    /\ UNCHANGED <<st, good, ci, reviewed, asks, ahead, Setup, said, fresh, unheld, fails>>
+    /\ UNCHANGED <<st, good, ci, reviewed, asks, ahead, Setup, said, fresh, unheld, fails, held>>
 
 \* jbus's revert or main's fix row lands, and main is green.
 MainFixed ==
@@ -352,31 +351,31 @@ MainFixed ==
     /\ mainRed' = FALSE /\ moved' = TRUE /\ guardsSaid' = FALSE /\ decided' = FALSE
     /\ batch' = IF batch = "pending" THEN "none" ELSE batch
     /\ UNCHANGED <<st, good, ci, reviewed, asks, overlap, clash, tipFails, movesLeft, ahead,
-        Setup, said, fresh, unheld, fails>>
+        Setup, said, fresh, unheld, fails, held>>
 
 \* The pull request at the head of the line merges.
 OtherMerges ==
     /\ Open /\ ahead = "other"
     /\ ahead' = "none"
     /\ MovesMain(FALSE)
-    /\ UNCHANGED <<st, good, ci, reviewed, asks, movesLeft, Setup, said, fresh, unheld, fails>>
+    /\ UNCHANGED <<st, good, ci, reviewed, asks, movesLeft, Setup, said, fresh, unheld, fails, held>>
 
 \* ---- your word
 
-\* You approve its row (rows.py `if row and not judgement.has_go(row, brief):`), and where jbus
-\* held it for its failed checks, the count starts again (stall.py
-\* `if one.get("held_at") and not row.get("held"):`).
+\* You approve its row (rows.py `if row and not judgement.has_go(row, brief):`), as jmerge asks or
+\* as jbus's hold pages you, and where jbus held it, the count starts again (stall.py
+\* `if one.get("held_at") and not row.get("held"):`): held_at is set by that hold alone.
 Approve ==
-    /\ Open /\ Held
-    /\ asks' = asks \ {"nogo"}
-    /\ fails' = IF HeldTwice THEN 0 ELSE fails
+    /\ Open /\ (said = "row-held" \/ held)
+    /\ asks' = asks \ {"nogo"} /\ held' = FALSE
+    /\ fails' = IF held THEN 0 ELSE fails
     /\ UNCHANGED <<st, good, ci, reviewed, Main, ahead, batch, Setup, said, fresh, unheld>>
 
 \* You turn merging on again.
 MergeOn ==
     /\ Open /\ said = "merge-off"
     /\ asks' = asks \ {"mergeoff"}
-    /\ UNCHANGED <<st, good, ci, reviewed, Main, ahead, batch, Setup, said, fresh, unheld, fails>>
+    /\ UNCHANGED <<st, good, ci, reviewed, Main, ahead, batch, Setup, said, fresh, unheld, fails, held>>
 
 \* jmerge --accept, on a hold jmerge said at this head (cli.py
 \* `if not waived and not heard and was != one.head:`): every hold your accept lifts is lifted,
@@ -387,15 +386,15 @@ Accept ==
     /\ VerdictAccepted = "ready"
     /\ ~(guards /\ moved /\ tipFails)
     /\ st' = "merged" /\ said' = "merged"
-    /\ unheld' = IF fresh THEN asks \ Accepted ELSE asks
-    /\ UNCHANGED <<good, ci, reviewed, asks, Main, ahead, batch, Setup, fresh, fails>>
+    /\ unheld' = IF fresh THEN Asks \ Accepted ELSE Asks
+    /\ UNCHANGED <<good, ci, reviewed, asks, Main, ahead, batch, Setup, fresh, fails, held>>
 
 \* You accept the pull request that holds the line, and it merges.
 AcceptOther ==
     /\ Open /\ ahead = "held"
     /\ ahead' = "none"
     /\ MovesMain(FALSE)
-    /\ UNCHANGED <<st, good, ci, reviewed, asks, movesLeft, Setup, said, fresh, unheld, fails>>
+    /\ UNCHANGED <<st, good, ci, reviewed, asks, movesLeft, Setup, said, fresh, unheld, fails, held>>
 
 \* ---- the spec
 
@@ -428,11 +427,12 @@ TypeOK ==
     /\ ahead \in {"none", "other", "held"}
     /\ batch \in {"none", "pending", "failed"}
     /\ movesLeft \in 0..Moves
-    /\ fails \in 0..Limit
+    /\ fails \in 0..Limit /\ held \in BOOLEAN
+    /\ held => fails = Limit
 
-\* It waits on your word: jmerge holds it for you, or its row is held or has no go, which only
-\* your approve lifts, whatever jmerge says of it.
-WaitsOnYou == Open /\ (Verdict \in HoldWords \/ Held)
+\* It waits on your word: jmerge holds it for you, or jbus held its row and paged you, which your
+\* approve lifts, whatever jmerge says of it.
+WaitsOnYou == Open /\ (Verdict \in HoldWords \/ held)
 
 \* "Every open pull request merges or waits on the user's word."
 \* It merges with no hold of yours outstanding but those your word lifted at its head, and while

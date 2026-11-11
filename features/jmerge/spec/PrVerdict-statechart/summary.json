@@ -1,11 +1,11 @@
 {
   "view": "customer",
-  "modelStates": 437714,
-  "modelTransitions": 2468974,
-  "chartStates": 24,
-  "chartTransitions": 31,
+  "modelStates": 655106,
+  "modelTransitions": 3575470,
+  "chartStates": 22,
+  "chartTransitions": 29,
   "chartStatus": {
-    "works": 24,
+    "works": 22,
     "fixed": 0,
     "wrong": 0
   },
@@ -18,7 +18,7 @@
     {
       "name": "Waits on your word",
       "color": "#fdebd0",
-      "states": 9
+      "states": 7
     },
     {
       "name": "Waits on its crew",
@@ -36,13 +36,13 @@
     "drawn": true,
     "states": [
       3,
-      21
+      19
     ],
-    "transitions": 31,
-    "all": 236,
+    "transitions": 29,
+    "all": 226,
     "flat": {
-      "states": 61,
-      "transitions": 662
+      "states": 57,
+      "transitions": 640
     }
   },
   "classes": [],
@@ -51,9 +51,9 @@
     "command": "statechart from-spec PrVerdict.tla --config PrVerdict.chart.cfg --title 'Why isn'\"'\"'t my pull request merging?' --png",
     "inputs": {
       "PrVerdict.chart.cfg": "3d99a67bbc42e2e9290ddf0dd3061fbf7d82c47efd838e9c00aea0c88c1f6e8b",
-      "PrVerdict.map.py": "56419740a761e2fedb2b39ee356ee371bd25e49655a2227ace5189e475bc79d2",
-      "PrVerdict.tla": "dce801ab580f6f9b1b021e5cc02f417c999c1ce4007ff6556c9f82b3f8e1522f"
+      "PrVerdict.map.py": "4cbe499fd286740df0075074bbedf29a981f88ef0deab8c358f69347650080d1",
+      "PrVerdict.tla": "ca3713c40a818477e561b2fcd1938b9b3e1aa6e07cf53e6e4dfca7a5e6ff6041"
     },
-    "chart": "9015acf163f98471f84c04cf032193c77f99df8a9cae59c9e8851df4fddaf58c"
+    "chart": "06680291fdad808e0f776a12ec6f5929ff60595aa88cfe34a8d5c29a8d517cb9"
   }
 }
