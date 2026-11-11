@@ -310,7 +310,7 @@ def test_until_ends_every_window_at_its_time(tmp_path, records):
 def test_with_no_until_the_window_ends_now(tmp_path, records):
     said, _ = read_records(tmp_path, **records)
     until = datetime.fromisoformat(said["until"].replace("Z", "+00:00"))
-    assert NOW <= until <= datetime.now(UTC)
+    assert NOW.replace(microsecond=0) <= until <= datetime.now(UTC)
     assert said["events"]["merged"] == 1 and set(said["churn"]) == {"a", "b", "c", "home"}
 
 
