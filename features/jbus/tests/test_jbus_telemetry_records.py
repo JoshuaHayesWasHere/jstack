@@ -433,6 +433,8 @@ def test_launch_waits_splits_a_rows_go_to_launch_by_the_kind_of_each_reason(mach
         roomwait.ROOM: "room",
         f"{roomwait.ROOM}: load is at or over 85% of 12 cores": "room",
         "no launch: claudeAgent is capped until 2026-11-09T22:00:00+00:00": "room",
+        "waiting: /tmp is full: its quota": "room",
+        "waiting: /tmp at 81% of its quota": "room",
         f"{dispatch.HELD}: a settled thread already has this slug": "hold",
         "max_running is 4 across all projects": "cap",
         "max_per_project is 6 in jstack": "cap",
