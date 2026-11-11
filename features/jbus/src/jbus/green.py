@@ -33,8 +33,10 @@ the layouts are put. Each pass resumes an owed step (`_resume`) before it reads 
 pass that dies with the link at the new tree and the tool at the old one, the units' 203/EXEC,
 is finished by the next pass, and a relink that is refused is asked again on each pass. Since a
 pass resumes first, it starts no new move while one owes its install; one that owes a relink is
-done by the newer move, and a move whose install fails goes back owing a relink of the tip it
-went back to.
+done by the newer move. A move whose install fails goes back (`_back`): it owes the install of the
+tip it went back to, points the link there and installs the tool again from it, since uv may have
+removed ~/.local/bin/jbus before it failed, then relinks. It puts back the reload systemd was owed
+before the move, so no reload runs for the tip it removed.
 `features/jbus/spec/GreenMove.tla` checks the steps with a death between any two.
 
 After the install, the move puts each harness's layout again from the new tip
@@ -127,10 +129,12 @@ read, and `reload`, the unit files whose content changed since systemd read them
 the reload restarts."""
 
 OWED = ("reload", "at")
+"""The keys of `green.json` that keep the reload a move owes systemd."""
 
 MOVE = "move"
 """The key of `green.json` that keeps the move in flight: `to`, the tip it moves to, `from`, the
-tip whose tree the link named before it, and `owes`, the step it owes next (`STEPS_OWED`)."""
+tip whose tree the link named before it, `owes`, the step it owes next (`STEPS_OWED`), and
+`was`, the reload (`OWED`) systemd was owed before it, which a move that goes back puts back."""
 
 STEPS_OWED = ("install", "relink")
 """The steps a move owes, in order: point the link at the new tree and install the tool again
@@ -344,9 +348,7 @@ def move(run: Pass, copy: Path | None = None) -> None:
     link that names a tree that is gone is still the copy where the tree its move came from
     says so."""
     copy = path() if copy is None else copy
-    made_from = of(copy)
-    if made_from is None and (owed := _owed(run)) is not None:
-        made_from = of(trees(copy) / owed["from"])
+    made_from = owner(copy, run.state)
     if made_from is None or made_from.resolve() != run.project.checkout.resolve():
         return
     _resume(run, copy)
@@ -375,27 +377,35 @@ def _live(run: Pass, copy: Path) -> None:
     write_json(run.state / FILE, {**read_json(run.state / FILE, {}), "live": held})
 
 
-def _owed(run: Pass) -> dict[str, str] | None:
-    """The move `green.json` keeps as owing a step, or None where no move owes one."""
-    owed = read_json(run.state / FILE, {}).get(MOVE)
+def in_flight(state: Path) -> dict | None:
+    """The move the `green.json` in the project state `state` keeps as owing a step, or None
+    where no move owes one."""
+    owed = read_json(state / FILE, {}).get(MOVE)
     kept = isinstance(owed, dict) and owed.get("owes") in STEPS_OWED
     return owed if kept and all(isinstance(owed.get(key), str) for key in ("to", "from")) else None
+
+
+def owner(copy: Path, state: Path) -> Path | None:
+    """The checkout `copy` is the green copy of (`of`), or None. A link that names a tree that is
+    gone, which a move in flight can leave, is still the copy where the tree that move came from,
+    as `green.json` in the project state `state` keeps it, says so."""
+    made_from = of(copy)
+    if made_from is None and (owed := in_flight(state)) is not None:
+        made_from = of(trees(copy) / owed["from"])
+    return made_from
 
 
 def _resume(run: Pass, copy: Path) -> None:
     """Take up the step a move owes, as `green.json` keeps it, before the pass reads main.json: a
     pass that died after it pointed the link, or a relink that was refused, is finished here. A
     tree the move went to that is gone puts the link back on the one it came from."""
-    owed = _owed(run)
+    owed = in_flight(run.state)
     if owed is None:
         return
-    tree, before = trees(copy) / owed["to"], trees(copy) / owed["from"]
-    if not tree.is_dir():
-        if before.is_dir():
-            _point(copy, before)
-        _back(run, owed["from"])
+    if not (trees(copy) / owed["to"]).is_dir() and owed["to"] != owed["from"]:
         why = f"to {owed['to'][:12]}: its tree is gone, so it stays at {owed['from'][:12]}"
         run.condition("green", MOVE_FAILED, why, key=owed["to"][:12])
+        _back(run, copy, owed)
         return
     _settle(run, copy, owed)
 
@@ -412,11 +422,11 @@ def _settle(run: Pass, copy: Path, owed: Mapping[str, str]) -> None:
     if installed:
         _point(copy, tree)
         if why := _reinstall(copy):
-            _point(copy, before)
-            _back(run, held)
-            shutil.rmtree(tree)
-            why = f"uv tool install at {green[:12]}: {why}"
-            run.condition("green", MOVE_FAILED, why, key=green[:12])
+            run.condition(
+                "green", MOVE_FAILED, f"uv tool install at {green[:12]}: {why}", key=green[:12]
+            )
+            if green != held:
+                _back(run, copy, owed)
             return
         owed = {**owed, "owes": "relink"}
         write_json(run.state / FILE, {**read_json(run.state / FILE, {}), MOVE: owed})
@@ -430,16 +440,28 @@ def _settle(run: Pass, copy: Path, owed: Mapping[str, str]) -> None:
         run.condition("green", UNLINKED, f"at {green[:12]}: {why}", key=green[:12])
     if not faults:
         _drop(run)
-    if installed:
+    if installed and green != held:
         line = f"the commands now run from {green[:12]}, in place of {held[:12]}"
         run.say(f"green {run.project.name}: {line}")
 
 
-def _back(run: Pass, held: str) -> None:
-    """Keep in `green.json` that the move went back to `held`, and so owes a relink of `held`:
-    the move it took over may have owed one that was never taken."""
+def _back(run: Pass, copy: Path, owed: Mapping) -> None:
+    """Take the move `owed` back to the tip it came from: keep in `green.json` that it owes the
+    install of that tip, with the reload systemd was owed before the move in place of the one it
+    wrote for the tip it leaves, then point the link back, remove the tree it leaves, and settle
+    the move back: uv may have removed the tool before it failed, and the move it took over may
+    have owed a relink that was never taken. An install that fails there too stays owed, and each
+    pass asks for it again."""
+    held = owed["from"]
+    before = trees(copy) / held
+    back = {"to": held, "from": held, "owes": "install"}
+    was = owed.get("was") if isinstance(owed.get("was"), dict) else {}
     record = read_json(run.state / FILE, {})
-    write_json(run.state / FILE, {**record, MOVE: {"to": held, "from": held, "owes": "relink"}})
+    kept = {key: value for key, value in record.items() if key not in OWED}
+    write_json(run.state / FILE, {**kept, **was, MOVE: back})
+    _point(copy, before)
+    shutil.rmtree(trees(copy) / owed["to"], ignore_errors=True)
+    _settle(run, copy, back)
 
 
 def _drop(run: Pass) -> None:
@@ -449,8 +471,11 @@ def _drop(run: Pass) -> None:
 
 
 def _advance(run: Pass, copy: Path) -> None:
-    """Move the copy to main's green tip. `_resume` ran first, so no move owes its install here,
-    and a move that owes a relink is taken over by this one, which relinks."""
+    """Move the copy to main's green tip, unless a move still owes its install, as one that went
+    back and that uv refused again does: that install comes first. A move that owes a relink is
+    taken over by this one, which relinks."""
+    if (owed := in_flight(run.state)) is not None and owed["owes"] == "install":
+        return
     green = mainjson.read(run.state).green
     held = at(copy)
     record = read_json(run.state / FILE, {})
@@ -471,7 +496,8 @@ def _advance(run: Pass, copy: Path) -> None:
         return
     before = copy.resolve()
     changed = units(before, tree)
-    owes = {**record, MOVE: {"to": green, "from": before.name, "owes": "install"}}
+    was = {key: record[key] for key in OWED if key in record}
+    owes = {**record, MOVE: {"to": green, "from": before.name, "owes": "install", "was": was}}
     if (changed or linked(before)) and launchd.manager() == "systemd" and ours():
         owes |= {"reload": sorted({*record.get("reload", []), *changed}), "at": green}
     write_json(run.state / FILE, owes)

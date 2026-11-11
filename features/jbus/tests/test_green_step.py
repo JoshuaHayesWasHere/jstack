@@ -80,7 +80,8 @@ def test_a_relink_that_is_refused_is_asked_again_by_the_next_pass(copied, monkey
 
 def test_a_move_whose_tree_is_gone_goes_back_and_moves_again(copied, monkeypatch, installs):
     """A move that owes its install to a tree a hand removed leaves the link dangling: the pass
-    puts it back on the tree it came from, says so, and moves to main's green tip again."""
+    puts it back on the tree it came from, installs the tool from it again, says so, and moves to
+    main's green tip again."""
 
     def killed(copy):
         raise Died
@@ -96,4 +97,4 @@ def test_a_move_whose_tree_is_gone_goes_back_and_moves_again(copied, monkeypatch
     copied.poll()
     assert gates(copied) == [f"condition green: {green.MOVE_FAILED}"]
     assert at(copied.copy) == new
-    assert installs == [tree]
+    assert installs == [green.trees(copied.copy) / copied.first, tree]
