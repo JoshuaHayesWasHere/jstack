@@ -53,6 +53,9 @@ RAN = Path(__file__).parents[1] / "ran"
 SPEC = importlib.util.spec_from_file_location("new_lines_rounds", RAN / "new_lines_rounds.py")
 rounds = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(rounds)
+SPEC = importlib.util.spec_from_file_location("first_lines", RAN / "first_lines.py")
+first_lines = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(first_lines)
 
 
 def added(since: str, repo: Path = REPO) -> dict[str, set[int]]:
@@ -192,7 +195,8 @@ def unread(
     file its processes' data is folded into, `data`, and not the file of a process a test left
     running, which may hold half a write. A line that ran while no test did, as a module was
     imported at collection, counts once a test file that names its module ran in a part, since
-    that file would have run it."""
+    that file would have run it. Each line coverage recorded counts for the first line of its
+    statement (`features/repo-guards/ran/first_lines.py`), the line `statements` gives it."""
     ran = {name for one in parts.glob("*/tests.*") for name in one.read_text().split()}
     found = {path: set(numbers) for path, numbers in lines.items()}
     for one in parts.glob("*/data"):
@@ -202,11 +206,14 @@ def unread(
             for path in [path for path in found if name.endswith(f"/{path}")]:
                 namers = set(tests[path])
                 counted = namers | ({""} if namers & ran else set())
-                found[path] -= {
-                    number
-                    for number, contexts in data.contexts_by_lineno(name).items()
-                    if counted & set(contexts)
-                }
+                found[path] -= first_lines.folded(
+                    name,
+                    (
+                        number
+                        for number, contexts in data.contexts_by_lineno(name).items()
+                        if counted & set(contexts)
+                    ),
+                )
     return {path: numbers for path, numbers in found.items() if numbers}
 
 
