@@ -647,13 +647,16 @@ def test_a_holder_whose_command_is_gone_holds_its_slot_while_its_test_slot_lives
     assert one.keeper == os.getpid() and holders.running(one)
 
 
-def test_a_holder_whose_pid_another_process_took_is_not_counted(tmp_path):
-    """Once a dead command's pid is taken by another process, its run holds nothing: jbus forgets
-    it and tells its thread the run ended (TestSlot.tla's NoLostHolder with PidReuse)."""
+def test_a_holder_whose_pids_other_processes_took_is_not_counted(tmp_path):
+    """Once the pids of a dead command and of its dead `jgauge test-slot` are taken by other
+    processes, its run holds nothing: jbus forgets it and tells its thread the run ended
+    (TestSlot.tla's NoLostHolder with PidReuse). While either pid is still its own, the run holds."""
     holders.hold(tmp_path, THREAD, "full", os.getpid(), ["make", "check"], NOW)
     (one,) = holders.read(tmp_path)
     assert holders.running(one)
-    taken = replace(one, start=one.start + 1)
+    assert holders.running(replace(one, start=one.start + 1))
+    assert holders.running(replace(one, keeper_start=one.keeper_start + 1))
+    taken = replace(one, start=one.start + 1, keeper_start=one.keeper_start + 1)
     assert not holders.running(taken)
 
 
