@@ -60,6 +60,33 @@ def test_a_move_whose_install_fails_after_removing_the_tool_puts_it_back_and_owe
     assert gates(copied) == [f"condition green: {green.MOVE_FAILED}"]
 
 
+def test_an_install_back_that_uv_refuses_too_is_asked_again_before_any_new_move(
+    copied, monkeypatch
+):
+    """Where uv refuses the tree the move went back to as well, the tool may be gone: the install
+    of that tree stays owed, and each pass asks for it before it starts a move to main's tip."""
+    asked, broken = [], [True]
+    new = land(copied, "success")
+
+    def reinstall(copy):
+        asked.append(copy.resolve().name)
+        return "error: uv is broken" if broken[0] else ""
+
+    monkeypatch.setattr(green, "_reinstall", reinstall)
+    copied.poll()
+    assert asked == [new, copied.first]
+    assert at(copied.copy) == copied.first
+
+    copied.poll()
+    assert asked == [new, copied.first, copied.first]
+    assert sorted(path.name for path in green.trees(copied.copy).iterdir()) == [copied.first]
+
+    broken[0] = False
+    copied.poll()
+    assert asked == [new, copied.first, copied.first, copied.first, new]
+    assert at(copied.copy) == new
+
+
 def test_a_dangling_link_with_a_move_owed_is_the_copy_and_not_foreign(copied, monkeypatch):
     """A pass died after it pointed the link, and a hand removed the tree it pointed at: the
     link dangles until the next pass puts it back. jinstall reads it as the copy, through the
@@ -78,3 +105,4 @@ def test_a_dangling_link_with_a_move_owed_is_the_copy_and_not_foreign(copied, mo
     machine = replace(Machine.here(copied.checkout), green=copied.copy)
     found = GreenCopy(copied.copy).probe(machine)
     assert (found.state, found.replaceable) == (State.OK, True), found.detail
+    assert found.detail.startswith(f"mid-move to {new[:12]}"), found.detail

@@ -47,12 +47,8 @@ def _project(machine: Machine, checkout: Path) -> jbus.Project | None:
 
 def _state(machine: Machine) -> Path | None:
     """The state of the jbus project whose checkout is the machine's, or None."""
-    if machine.checkout is None or (project := _project(machine, machine.checkout)) is None:
-        return None
-    try:
-        return jbus.load(_config_dir(machine)).state(project)
-    except Exception:
-        return None
+    project = None if machine.checkout is None else _project(machine, machine.checkout)
+    return None if project is None else jbus.load(_config_dir(machine)).state(project)
 
 
 def attach(machine: Machine) -> Machine:
