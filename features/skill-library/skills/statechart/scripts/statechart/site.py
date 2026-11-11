@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from statechart.lib import LEGEND_ID, ChartError, unwrap
+from statechart.mapping import load_mapping
 from statechart.overview import MOST, caption, groups_of, overview_of, plural
 
 CITE = re.compile(r"([\w./-]+\.(?:py|tla|md|sh|toml|json|js|ts))(?::(\d+)|\s+`([^`]+)`)", re.A)
@@ -89,6 +90,23 @@ class Chart:
     fills: dict
     stories: str
     summary: dict
+    coverage: "Coverage | None" = None
+
+
+@dataclass
+class Coverage:
+    """What a chart covers of its model: the cfg it was drawn with, that cfg's own words on the
+    scene and its bounds (each a constant or a CONSTRAINT, with the spec's first sentence on a
+    CONSTRAINT), the model's and the chart's counts, and which of the steps it draws."""
+
+    cfg: str
+    scene: list
+    bounds: list
+    model: tuple
+    flat: tuple
+    regions: list
+    steps: tuple
+    covered: bool
 
 
 @dataclass
@@ -101,6 +119,8 @@ class Flow:
     things: dict = field(default_factory=dict)
     questions: dict = field(default_factory=dict)
     handoffs: list = field(default_factory=list)
+    uncharted: dict = field(default_factory=dict)
+    unmodeled: list = field(default_factory=list)
     path: Path | None = None
 
 
@@ -136,6 +156,14 @@ def load_flow(path):
                 "says": handoff["says"],
             }
         )
+    for model in data.get("uncharted", []):
+        if not isinstance(model.get("model"), str) or not isinstance(model.get("why"), str):
+            raise ChartError(f"{path}: each [[uncharted]] needs a model and a why")
+        flow.uncharted[model["model"]] = model["why"]
+    for found in data.get("unmodeled", []):
+        if not all(isinstance(found.get(k), str) for k in ("state", "code", "why")):
+            raise ChartError(f"{path}: each [[unmodeled]] needs a state, a code and a why")
+        flow.unmodeled.append(found)
     return flow
 
 
@@ -383,6 +411,116 @@ def _line_of(lines, word):
     return None
 
 
+# What a chart covers
+
+
+_SETS = re.compile(r"^\s*(?:CONSTANTS?\s+)?(\w+)\s*=\s*(.+?)\s*$", re.M)
+
+
+def _drawn_with(command, name, flag, suffix):
+    found = re.search(rf"{flag} (\S+)", command)
+    return found.group(1) if found else f"{name}{suffix}"
+
+
+def _sentence_above(spec_text, name):
+    """The first sentence of the comment block right above `name ==` in a spec."""
+    lines = spec_text.split("\n")
+    for k, line in enumerate(lines):
+        if re.match(rf"{re.escape(name)}\s*==", line):
+            block = []
+            for above in reversed(lines[:k]):
+                if not above.startswith("\\*"):
+                    break
+                block.insert(0, above[2:].strip())
+            first = " ".join(block).split(". ")[0].rstrip(".")
+            return f"{first}." if first else ""
+    return ""
+
+
+def coverage_of(folder, name, summary):
+    """What the chart in `folder` covers, read from the files its summary says drew it, or
+    None for a chart with no drawnFrom."""
+    drawn = summary.get("drawnFrom")
+    if not drawn:
+        return None
+    spec = folder.parent
+    cfg = _drawn_with(drawn["command"], name, "--config", ".cfg")
+    try:
+        text = (spec / cfg).read_text(encoding="utf-8")
+        spec_text = (spec / f"{name}.tla").read_text(encoding="utf-8")
+    except OSError as e:
+        raise ChartError(f"cannot read {e.filename}: {e.strerror}") from e
+    scene = []
+    for line in text.split("\n"):
+        if not line.startswith("\\*"):
+            break
+        said = line[2:].strip()
+        if not re.match(r"(module|expect):", said):
+            scene.append(said)
+    bounds = [(f"{k} = {v}", "") for k, v in _SETS.findall(text) if v != '"none"']
+    for cut in re.findall(r"^CONSTRAINT\s+(\w+)", text, re.M):
+        bounds.append((cut, _sentence_above(spec_text, cut)))
+    mapped = spec / _drawn_with(drawn["command"], name, "--map", ".map.py")
+    if not mapped.is_file():
+        raise ChartError(f"cannot read {mapped}: no such file")
+    regions = summary.get("regions", {})
+    flat = regions.get("flat", {}) if regions.get("drawn") else {}
+    return Coverage(
+        cfg=cfg,
+        scene=scene,
+        bounds=bounds,
+        model=(summary["modelStates"], summary["modelTransitions"]),
+        flat=(
+            flat.get("states", summary["chartStates"]),
+            flat.get("transitions", summary["chartTransitions"]),
+        ),
+        regions=regions.get("states", []) if regions.get("drawn") else [],
+        steps=(summary["chartTransitions"], regions.get("all") if regions.get("drawn") else None),
+        covered=bool(getattr(load_mapping(mapped), "reader_actions", None)),
+    )
+
+
+def coverage_html(cov):
+    """The lines a chart's header gives on what its model covers and what the chart draws."""
+    states, steps = cov.model
+    flat_states, flat_steps = cov.flat
+    each = max(1, round(states / flat_states))
+    bounds = "; ".join(
+        f"<code>{esc(code)}</code>{', ' + esc(said.rstrip('.')) if said else ''}"
+        for code, said in cov.bounds
+    )
+    joins = (
+        "The chart joins the model states a user cannot tell apart into one chart state, about"
+        f" {each:,} to a chart state: it shows what a user can tell apart within these bounds,"
+        " not every path of the code."
+    )
+    if cov.regions:
+        drawn = (
+            f"{sum(cov.regions):,} states and {cov.steps[0]:,} steps, in two regions of"
+            f" {cov.regions[0]:,} and {cov.regions[1]:,} states that move at once, which combine"
+            f" into {flat_states:,} states and {flat_steps:,} steps. {joins} The regions draw"
+            f" {cov.steps[0]:,} of their {cov.steps[1]:,} steps: the shortest way to each state,"
+            " each bug path, and the nearest step with each label."
+        )
+    else:
+        drawn = f"{flat_states:,} states and {flat_steps:,} steps. {joins}"
+    if cov.covered:
+        drawn += (
+            " It keeps only the states and steps on the shortest way to each state where the"
+            " model waits on you, and each bug path, so a state or step on no such way is not"
+            " drawn."
+        )
+    elif not cov.regions:
+        drawn += " It draws every step between two of its states."
+    scene = esc(" ".join(cov.scene)) or "the cfg says nothing of its scene."
+    return (
+        '<div class="coverage">'
+        f"<p><strong>Model:</strong> {states:,} states and {steps:,} steps, which TLC walked"
+        f" within <code>{esc(cov.cfg)}</code>: {scene} Bounds: {bounds or "none in the cfg"}.</p>"
+        f"<p><strong>Chart:</strong> {drawn}</p></div>"
+    )
+
+
 # Reading a chart's folder
 
 
@@ -464,6 +602,7 @@ def read_chart(path, root, index, flow):
     chart.folder = folder
     chart.stories = stories.read_text(encoding="utf-8") if stories.exists() else ""
     chart.summary = json.loads(summary.read_text(encoding="utf-8")) if summary.exists() else {}
+    chart.coverage = coverage_of(folder, name, chart.summary)
     return chart
 
 
@@ -860,6 +999,7 @@ def flow_section(charts, flow):
 
     map_svg = draw_boxes([region], "flow", [links], attrs, "flow", dots=False)
     listed = f'<ol class="handoffs">{"".join(items)}</ol>' if items else ""
+    listed += uncovered_html(flow)
     return (
         '<section class="flow-panel" data-view="overview">'
         '<header class="chart-head"><p class="feature">jstack &middot; overview</p>'
@@ -869,6 +1009,50 @@ def flow_section(charts, flow):
         " listed below: a group of one chart leads into a group of another.</p></header>"
         f'<div class="flow-map">{map_svg}</div>'
         f"{listed}</section>"
+    )
+
+
+def check_uncharted(root, charts, flow):
+    """Each model beside a feature's specs has a chart or a line in the flow file on why not,
+    and the flow file names no model that has a chart or is not there."""
+    if flow.path is None:
+        return
+    charted = {c.name for c in charts}
+    features = root / "features"
+    for path in sorted(features.glob("*/spec/*.tla")):
+        model = str(path.relative_to(features))
+        if path.stem not in charted and model not in flow.uncharted:
+            raise ChartError(
+                f"{path.relative_to(root)} has no chart and {flow.path} does not say why:"
+                f' draw one, or add [[uncharted]] model = "{model}" and why'
+            )
+    for model in flow.uncharted:
+        path = features / model
+        if Path(model).stem in charted or not path.is_file() or path.parent.name != "spec":
+            said = "has a chart" if Path(model).stem in charted else "is no features/*/spec/*.tla"
+            raise ChartError(f"{flow.path}: [[uncharted]] {model} {said}")
+
+
+def uncovered_html(flow):
+    """The Overview's list of what no chart shows: the models with no chart, and why, and the
+    state of the code that no model has."""
+    if not flow.uncharted and not flow.unmodeled:
+        return ""
+    models = "".join(
+        f"<li><code>{esc(model)}</code>: {esc(why)}</li>"
+        for model, why in sorted(flow.uncharted.items())
+    )
+    states = "".join(
+        f"<li><strong>{esc(u['state'])}</strong> (<code>{esc(u['code'])}</code>): {esc(u['why'])}</li>"
+        for u in flow.unmodeled
+    )
+    return (
+        '<div class="uncovered"><h3>What no chart shows</h3>'
+        "<p>Each chart shows what a user can tell apart within its model's bounds, which its tab"
+        " names. These models have no chart:</p>"
+        f'<ul class="uncharted">{models}</ul>'
+        "<p>And this state of the code is in no model, so no chart shows it:</p>"
+        f'<ul class="unmodeled">{states}</ul></div>'
     )
 
 
@@ -998,16 +1182,15 @@ def page(charts, out_dir, flow):
             if every and drawn < every
             else f"{count} states, {steps} steps."
         )
-        model = chart.summary.get("modelStates")
-        model_note = f" TLC walked {model} model states to draw it." if model else ""
+        covers = coverage_html(chart.coverage) if chart.coverage else ""
         panels.append(
             f'<section class="chart-panel" data-chart="{esc(chart.name)}" hidden>'
             '<header class="chart-head">'
             f'<p class="feature">{esc(chart.feature)} &middot; {esc(chart.name)}</p>'
             f"<h2>{esc(chart.question)}</h2>"
-            f'<p class="sub">{sizes}{at_once}{model_note}'
+            f'<p class="sub">{sizes}{at_once}'
             f' Spec: <a href="{esc(spec)}">README</a> &middot;'
-            f' <a href="{esc(png)}">chart.png</a></p></header>'
+            f' <a href="{esc(png)}">chart.png</a></p>{covers}</header>'
             f"{parts[chart.name]}"
             '<div class="stage"><div class="viewport" tabindex="0"'
             ' aria-label="chart, drag or scroll to move, pinch or ctrl and scroll to zoom">'
@@ -1068,6 +1251,7 @@ def render(root, out, flow=None):
     `out`."""
     flow = load_flow(flow)
     root, charts = read_all(root, flow)
+    check_uncharted(root, charts, flow)
     return page(charts, Path(out).resolve().parent, flow)
 
 
@@ -1075,6 +1259,7 @@ def build(root, out, flow=None):
     """Writes the page for every chart under `root` to `out`: the charts it drew."""
     flow = load_flow(flow)
     root, charts = read_all(root, flow)
+    check_uncharted(root, charts, flow)
     out = Path(out).resolve()
     out.parent.mkdir(parents=True, exist_ok=True)
     text = page(charts, out.parent, flow)
