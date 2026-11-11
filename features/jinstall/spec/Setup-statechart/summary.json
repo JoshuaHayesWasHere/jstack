@@ -1,0 +1,89 @@
+{
+  "view": "customer",
+  "modelStates": 189399,
+  "modelTransitions": 779444,
+  "chartStates": 58,
+  "chartTransitions": 65,
+  "chartStatus": {
+    "works": 33,
+    "fixed": 0,
+    "wrong": 25
+  },
+  "chartGroups": [
+    {
+      "name": "Leaves something behind",
+      "color": "#fdebd0",
+      "states": 6
+    }
+  ],
+  "mixedGroups": [],
+  "regions": {
+    "drawn": true,
+    "states": [
+      9,
+      49
+    ],
+    "transitions": 65,
+    "all": 157,
+    "flat": {
+      "states": 441,
+      "transitions": 2893
+    }
+  },
+  "classes": [
+    {
+      "n": 1,
+      "end": "Installing, uninstall leaves ~/.local/state/jstack behind: No expert yet",
+      "invariant": "UninstallComplete",
+      "rule": "Every path jstack made is recorded or not made: an uninstall leaves nothing behind.",
+      "cause": "the install makes jstack's state folder before a record names it",
+      "readerSteps": 2,
+      "modelSteps": 3,
+      "counterexamples": 1866,
+      "fix": null
+    },
+    {
+      "n": 2,
+      "end": "Nothing of jstack's on disk: Expert in thread 2 starting, two webhooks live",
+      "invariant": "OneWebhook",
+      "rule": "An expert has at most one live webhook, and once a start has ended, its record names it and the thread it posts into.",
+      "cause": "the new thread keeps no record of the webhook the last one made and never kept",
+      "readerSteps": 5,
+      "modelSteps": 10,
+      "counterexamples": 1218,
+      "fix": null
+    },
+    {
+      "n": 3,
+      "end": "Nothing of jstack's on disk: Expert in thread 1, its webhook kept, posting into thread 1, its address lost",
+      "invariant": "UrlNamesWebhook",
+      "rule": "Once a start has ended, the address kept is the kept webhook's.",
+      "cause": "the turn stopped before it kept the address, and nothing writes it again",
+      "readerSteps": 6,
+      "modelSteps": 9,
+      "counterexamples": 8526,
+      "fix": null
+    },
+    {
+      "n": 4,
+      "end": "Nothing of jstack's on disk: Expert in thread 1, a webhook no record names, its address lost",
+      "invariant": "OneWebhook",
+      "rule": "An expert has at most one live webhook, and once a start has ended, its record names it and the thread it posts into.",
+      "cause": "the turn stopped before it kept the webhook it made",
+      "readerSteps": 9,
+      "modelSteps": 13,
+      "counterexamples": 4872,
+      "fix": null
+    }
+  ],
+  "codeLike": [],
+  "drawnFrom": {
+    "command": "statechart from-spec Setup.tla --config Setup.chart.cfg --title 'Does an uninstall or an expert'\"'\"'s takeover leave anything behind?' --expect-broken UninstallComplete,OneWebhook,UrlNamesWebhook --png",
+    "inputs": {
+      "Setup.chart.cfg": "82184ec43abcd894a521d66e4615837a8661c1e90eee0806b14b6547a7565dfd",
+      "Setup.map.py": "e41f764191b06c70043f9b7fbcc2c83df250a82c1ecabee921d094b6d1a9616a",
+      "Setup.tla": "e49e965926089ead821164b59da3caf773903de04a1add2aeec077c244bc364b"
+    },
+    "chart": "8f9e88b77fed617499c3cf8dd8246de62bec3a4199a2728d73f14576cb9bcdf4"
+  }
+}
