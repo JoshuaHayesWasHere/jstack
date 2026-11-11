@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from jbriefs import asks, below, findings, paths, skills, standing
+from jbriefs import asks, below, findings, paths, skills, standing, why
 from jbriefs import status as status_line
 from jbriefs.crowded import crowded
 from jbriefs.meets import done_when
@@ -239,6 +239,7 @@ REST = "the rest"
 _LABEL = re.compile(r"(?P<label>[A-Z][A-Za-z]*(?:[ -][A-Za-z]+){0,3}):(?:[ \t]|$)")
 REQUIRED = (
     "Task",
+    "Why",
     "Done when",
     "Proves it",
     "Size",
@@ -605,6 +606,7 @@ def warnings(text: str, fresh_check: str) -> list[str]:
 
 CHECKS = (
     ("Task", tasked),
+    ("Why", lambda text: why.fault(fields(text))),
     ("Design", designed),
     ("Done when", runnable),
     ("Done when", unmarked),
@@ -634,11 +636,12 @@ def faults(text: str) -> list[str]:
     It checks that each field of `REQUIRED` but those of `_SAYS_MISSING` is filled in, then runs
     every check of each field (`CHECKS`), the first fault of a field the one it gives, but a check
     of `WARNED`, which only warns. The checks of `Size`, `Skills` and `Playbook` report a missing
-    line themselves, the last two with the home's table (`skills.TABLE`). A brief needs no
-    `Design:` line, as `none` would say, `Instruments:` only for the deeper work (`instrumented`),
-    and no `Builds on` or `Load` line. A brief with no fault is complete. This check runs when a
-    row is first queued and not again at a launch, so a brief that already has a go launches
-    without being checked again (`jbus.queue`).
+    line themselves, the last two with the home's table (`skills.TABLE`). `Why` is refused
+    missing as any field of `REQUIRED` is, and as a repeat of the title and `Task` (`why`). A
+    brief needs no `Design:` line, as `none` would say, `Instruments:` only for the deeper work
+    (`instrumented`), and no `Builds on` or `Load` line. A brief with no fault is complete. This
+    check runs when a row is first queued and not again at a launch, so a brief that already has
+    a go launches without being checked again (`jbus.queue`).
     """
     labels = dict.fromkeys((*REQUIRED, *(label for label, _ in CHECKS)))
     found = []

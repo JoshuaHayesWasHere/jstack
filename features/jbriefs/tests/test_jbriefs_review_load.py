@@ -11,6 +11,7 @@ def brief(review="Review: review\n", more=""):
     """Return a brief with every field that `queue add` asks for, and `more` under them."""
     return (
         '# alpha: a task\nTask: "do alpha"\nDone when:\n- it is done\n'
+        "Why: the crewmate needs a reason of its own to make its choices by\n"
         "Proves it: `make check`\nSize: S\nWhere: `src/alpha/`\n"
         "Design: none, a test\nPull request: open one when done\n"
         f"{review}Playbook: feature\nSkills: tdd\n{more}"

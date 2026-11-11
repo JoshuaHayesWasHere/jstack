@@ -64,6 +64,7 @@ else
             {
                 echo "# $S: how the feature $feature works from source, where \`$dir/features/$feature.md\` drifts from it, and one recipe to drive it live"
                 echo "Request: \"/maintain-verification-skill: keep \`$dir\` and its feature map honest\" (the user, typed in the home, $(date +%Y-%m-%d))"
+                echo "Why: agents drive the app by \`$dir\`, and its feature files drift as the code under them changes; a scout per feature reads the source first, so the live pass after it checks each drift against a cited line"
                 echo "Questions:"
                 echo "- How does the feature in \`$dir/features/$feature.md\` work, from source: its user-facing entry points, each with its \`path:line\`?"
                 echo "- Which statements of that file does the code no longer bear out, each with the statement and the \`path:line\` that contradicts it, or none?"
@@ -120,6 +121,7 @@ else
     {
         echo "# $run: drive every feature of \`$dir\` live, fix the drift the scouts proved, and ship at most one pull request"
         echo "Task: \"/maintain-verification-skill: keep \`$dir\` and its feature map honest\" (the user, typed in the home, $(date +%Y-%m-%d))"
+        echo "Why: a feature file that drifts from the code sends every agent that drives the app by it down a wrong path, and the scouts' reports name where each drifted, so one live pass can fix the map and prove it"
         echo "Done when:"
         echo "- \`$dir/features/README.md\` lists each feature file once, and every file it lists is there"
         echo "- every feature file has its scout's report or, for a gap, a source reading of your own, and every drift a report names is checked against the line it cites"

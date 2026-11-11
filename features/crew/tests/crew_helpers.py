@@ -40,6 +40,7 @@ def block(heading, about):
 BRIEF = """\
 # alpha: a task
 Task: "do it"
+Why: a test needs a row the queue takes
 Decisions:
 - A brief that only talks about `Review: none` or a `## Review` section still gets a review.
 Pull request: open one when done

@@ -9,6 +9,7 @@ from jbriefs import chains, parse
 BRIEF = """\
 # beta: the second task
 Task: "do the second task"
+Why: the crewmate needs a reason of its own to make its choices by
 Done when:
 - `make check` passes.
 Proves it: `make check` prints 0 failures
