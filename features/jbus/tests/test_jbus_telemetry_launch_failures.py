@@ -100,6 +100,25 @@ def test_each_cause_jbus_records_is_a_row_with_its_start_end_and_minutes(machine
     ]
 
 
+def test_a_wait_for_room_on_load_is_a_row_of_cause_load_and_a_wait_on_memory_is_other(machine):
+    """`jbus.dispatch` writes what `jgauge room` said after `waiting for room on the machine`, so
+    a wait on load is its own cause; another no of `jgauge room`, as memory, stays `other` with
+    its reason."""
+    load = "waiting for room on the machine: load 30.00 is at or over 85% of 12 cores"
+    memory = "waiting for room on the machine: 1.2 GB of memory available, under 2"
+    machine.append(
+        "alpha",
+        "waits.jsonl",
+        wait(minutes(0), "busy", load),
+        wait(minutes(4), "busy", memory),
+        wait(minutes(7), "busy", ""),
+    )
+    assert rows(machine) == [
+        ("alpha", "busy", "load", None, t(minutes(0)), t(minutes(4)), 4.0),
+        ("alpha", "busy", "other", memory, t(minutes(4)), t(minutes(7)), 3.0),
+    ]
+
+
 def test_a_spell_that_ends_after_a_build_is_closed_by_the_next_build(machine):
     machine.append(
         "alpha", "waits.jsonl", wait(minutes(0), "tmp", "waiting: /tmp at 90% of its quota")
