@@ -2,7 +2,7 @@
 
 A pull request gets one review round: the reviewer reviews once, you answer each finding once, and a fix you push for them gets no review.
 What stands behind the fix is the pull request's own checks, and `jmerge` merges it once they pass and every blocking finding has an answer that counts ("The review").
-A push on top of the reviewed head that changes only tests, docs or config keeps the review with no scoped round; one that changes any other file, or a rebase, is judged by the range-diff ("After a rebase" in `features/jmerge/docs/jmerge.md`).
+No scoped round is run for a rebase, whatever its patch changes, since its checks verify it, nor for a push on the reviewed head, over a merge of main or not, that changes only tests, docs or config: each keeps the review, and waits only on its checks and its `Proved:`, `Checked:` and `Dropped on rebase` lines. A push that changes code, a rebase with a commit pushed on it, and a head whose patches git cannot compare get one scoped round ("After a rebase" in `features/jmerge/docs/jmerge.md`).
 No pass rules on a decline either: a decline of a blocking finding counts on the reason it cites.
 
 The one later pass is a re-judgement of the brief.
@@ -117,4 +117,4 @@ A `Meets the brief: no` still waits for the scoped review that says `yes`, as th
 Where that review stays unwritten, jbus says so in a message here that begins `jbus: pull request #<n> waits on you`.
 
 A rebase waits for a review that is running, and for nothing else: the first block of "A conflict" does nothing while a reviewer this thread launched has not written its section, so the head does not move from under it.
-A rebase starts a review only as "A conflict" says: one scoped review, which jbus launches, where the rebase changed the content after its review.
+A rebase starts a review only as "A conflict" says: one scoped review, which jbus launches, where `jmerge` says the content changed after its review, which a rebase alone no longer does.
