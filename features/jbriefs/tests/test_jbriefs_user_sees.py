@@ -5,8 +5,9 @@ names a test alone, and queue it all the same.
 since the home's skill gave a test alone as the line to write. A test shows the code runs, not
 what a user meets once it merges, so the line names beside it a command of the product with what
 it prints, a measure read after the merge, or `judged: <why>`. A change no user sees keeps its
-test alone, so it is a warning and never a refusal. The tests run the real command against the
-kitchen (`features/jbus/tests/test_jbus_kitchen.py`).
+test alone, so it is a warning and never a refusal (`features/jbriefs/src/jbriefs/proof.py`,
+`user_sees`). The tests run the real command against the kitchen
+(`features/jbus/tests/test_jbus_kitchen.py`).
 """
 
 import json
@@ -86,6 +87,7 @@ def test_a_code_brief_proved_by_a_test_alone_is_warned_once_and_queued(
         (TEST, "`features/alpha/tests/`, `features/alpha/docs/a.md`"),
         ("judged: the user reads the new page and finds it plain", "`src/alpha/`"),
         (f"{TEST}; and `jbus queue list` prints the row as held", "`src/alpha/`"),
+        (f"{TEST}; and the row shows in `jbus needs` as the user's", "`src/alpha/`"),
         (f"{TEST}; and a day after the merge the query counts 0 lost rows", "`src/alpha/`"),
         (f"{TEST}; and judged: the home's reply reads plainer", "`src/alpha/`"),
     ],
