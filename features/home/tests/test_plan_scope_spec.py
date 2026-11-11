@@ -107,7 +107,10 @@ def tlc(rule, fault="none"):
         work = Path(folder)
         shutil.copy(SPEC / "PlanScope.tla", work)
         (work / "run.cfg").write_text(kept.replace('Fault = "none"', f'Fault = "{fault}"'))
-        command = [found.java, "-XX:+UseParallelGC", "-Xmx1g", "-cp", found.jar, "tlc2.TLC"]
+        # TLC writes Naturals.tla and its kin to java.io.tmpdir under fixed names, so two runs
+        # that share /tmp can read each other's half-written copy.
+        command = [found.java, "-XX:+UseParallelGC", "-Xmx1g", f"-Djava.io.tmpdir={work}"]
+        command += ["-cp", found.jar, "tlc2.TLC"]
         command += ["-workers", tools.workers(), "-metadir", str(work / "meta")]
         ran = subprocess.run(
             tools.in_test_slot([*command, "-config", "run.cfg", "PlanScope.tla"]),
