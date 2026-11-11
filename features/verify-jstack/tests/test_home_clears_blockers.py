@@ -99,6 +99,7 @@ def brief(slug, *head):
     lines = [
         f"# {slug}: a demo task",
         f"Task: {slug}, a demo task",
+        "Why: the sandbox needs a row the queue takes",
         "Done when:",
         "- the demo works",
         "Proves it: the demo's test",

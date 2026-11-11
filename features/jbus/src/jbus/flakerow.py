@@ -86,6 +86,8 @@ def brief(name: str, test: str, pair: tuple[Seen, Seen]) -> str:
         f"{name}: `{test}` flaked on main twice in seven days",
         f'"`{test}` failed as a flake on main at {reds_}" (jbus, the ledger of main\'s reds, '
         f"`{mainmoved.REDS}`)",
+        "a flake turns main red with no fault behind it, which holds every merge and sends a "
+        "crew after a cause that is not there, and two in seven days says it will again",
         [
             f"- `{test}` passes on main however its runs are timed or ordered, and the Result "
             "names what made it flake, with its evidence",

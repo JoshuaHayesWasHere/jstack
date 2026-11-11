@@ -53,7 +53,8 @@ as the agent's word, or takes the `Proves it: `make check`` line out, still mean
 def brief(slug, more=""):
     """Return a brief with every field that `queue add` asks for, and `more` under them."""
     return (
-        f'# {slug}: a task\nHome: uncategorized\nTask: "do {slug}"\nDone when:\n'
+        f'# {slug}: a task\nHome: uncategorized\nTask: "do {slug}"\n'
+        "Why: a test needs a row the queue takes\nDone when:\n"
         "- `make check` passes (in none)\n"
         f"Proves it: `make check`\n  {MEASURE}\nSize: S\nWhere: `src/{slug}/`, a new test\n"
         'Design: none, a test\nDecisions: "review it once", the user\'s word in a test\n'

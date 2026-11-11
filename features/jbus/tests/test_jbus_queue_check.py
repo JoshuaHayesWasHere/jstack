@@ -307,6 +307,7 @@ ENABLE = (
     "again. Fix: have `add` take back the link (and the wanted link) of a unit whose enable was "
     "refused, so the next call adds it again, and the same for `jinstall.agents.Agents.add` on "
     "launchd.\n"
+    "Why: the follower stays stopped while jbus asks it to start on every pass\n"
     "Done when:\n"
     "- after an enable systemd refuses, the next `add` links, enables and starts that unit again "
     "(in `features/jinstall/src/jinstall/kinds.py`)\n"

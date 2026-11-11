@@ -1330,7 +1330,8 @@ def complete(slug, more=""):
     home owns no row, and a pass launches none that names it."""
     own = "".join(x for x in ("Home: uncategorized\n", "Skills: tdd\n") if x.split()[0] not in more)
     return (
-        f'# {slug}: a task\nTask: "do {slug}"\nDone when:\n- `make check` passes (in none)\n'
+        f'# {slug}: a task\nTask: "do {slug}"\nWhy: a test needs a row the queue takes\n'
+        "Done when:\n- `make check` passes (in none)\n"
         "Proves it: `make check`, and a day after the merge the count of lost rows reads 0\n"
         f"Size: S\nWhere: `src/{slug}/`\nDesign: none, a test\n"
         'Decisions: "review it once", the user\'s word in a test\n'
