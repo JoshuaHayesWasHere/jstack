@@ -24,14 +24,15 @@
 \*
 \* Fault = "today" is the code as it is: slotwait.wake counts `spare` outside the waiters lock
 \* and records the wake after its send, slotwait.wake_ended forgets a holder with no end whose
-\* pid is gone while its `jgauge test-slot` still lives to write the end, a command lives on
-\* after the `jgauge test-slot` that held its slot died, and the ledger's writers read, merge
-\* and replace it with no lock. Fault = "none" is the mode that passes:
+\* pid is gone while its `jgauge test-slot` still lives to write the end, and the ledger's
+\* writers read, merge and replace it with no lock. A command ends with the `jgauge test-slot`
+\* that holds its slot today too. Fault = "none" is the mode that passes:
 \* the wake is counted and recorded under one hold of the waiters lock before the send, a holder
 \* with no end is forgotten only once its `jgauge test-slot` is gone too, and the ledger is read
 \* and written under a lock, and a command ends with the `jgauge test-slot` that holds its slot.
-\* The canaries "spare-outside-lock", "forget-unended", "orphan-command" and "no-ledger-lock"
-\* each put one of today's four faults back into the mode that passes.
+\* The canaries "spare-outside-lock", "forget-unended" and "no-ledger-lock" each put one of
+\* today's three faults back into the mode that passes, and "orphan-command" puts back the one
+\* that is closed: a command that lives on after its `jgauge test-slot` died.
 \* PidReuse lets another process take the pid of a holder's dead command. Mortal is the set of
 \* the processes that can be killed: TestSlot.cfg has every one, "bus" for jbus's slot pass,
 \* "writers" for the ledger's writers and "pool" for the pool's crew and jbus; the chart's
@@ -49,7 +50,7 @@ FullSlots == 1..1
 ShortSlots == 1..1
 Writers == {"limits", "hook", "jbus"}
 WaitIds == {1, 2}
-TodayFaults == {"spare-outside-lock", "forget-unended", "orphan-command", "no-ledger-lock"}
+TodayFaults == {"spare-outside-lock", "forget-unended", "no-ledger-lock"}
 Has(f) == Fault = f \/ (Fault = "today" /\ f \in TodayFaults)
 
 VARIABLES
@@ -456,9 +457,10 @@ Close(p) ==
                  child, reused, waitId, wsnap, hsnap, missed, lostEnd>>
 
 \* `jgauge test-slot` dies between two steps: the kernel lets its flocks go (its slot, its
-\* ticket's lock, a lock of the waiters or holders file). Today its command lives on: the flock
-\* is the holder's and not the command's (jgauge/slot.py `process_group=None if lane.limit is
-\* None else 0,`), and nothing ends the command with it. The mode that passes ends it.
+\* ticket's lock, a lock of the waiters or holders file). Its command ends with it: the flock is
+\* the holder's and not the command's, and a watchdog whose pipe ends with the holder kills the
+\* command and what it started (jgauge/children.py `end(int(said.split()[0]), sys.argv[1] ==
+\* "1")`). The canary "orphan-command" lets the command live on.
 Die(p) ==
   /\ InSlots
   /\ p \in Mortal /\ pc[p] /= "off"

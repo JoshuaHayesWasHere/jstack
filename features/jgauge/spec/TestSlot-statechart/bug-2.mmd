@@ -18,19 +18,23 @@ stateDiagram-v2
   class legendWrong plainWrong
   state "Short lane" as g0 {
     state "the slot free" as s0
-    state "the slot free, a crew's<br/>run's command running with<br/>no slot, the log has a<br/>take with no release" as s1
-    state "the slot free, the crew<br/>waits in the line" as s2
-    state "the slot held by a call<br/>with no thread, a crew's<br/>run's command running with<br/>no slot, the log has a<br/>take with no release" as s3
-    state "the slot held by a crew's<br/>run" as s4
+    state "the slot free, the crew<br/>waits in the line" as s1
+    state "the slot held by a crew's<br/>run" as s2
+    state "the slot held by a crew's<br/>run, its run on file as<br/>running" as s3
+    state "the slot held by a crew's<br/>run, its run on file with<br/>no end, its command gone" as s4
+    state "the slot held by a crew's<br/>run, its run's end written<br/>after jbus forgot it" as s5
   }
   [*] --> s0
-  s0 --> s2 : 3. the crew takes a place in<br/>the line
-  s2 --> s4 : 4. the first in the line looks<br/>for a slot
-  s4 --> s1 : 5. the test-slot call is<br/>killed
-  s1 --> s3 : 6. a call with no thread takes<br/>a free slot
-  s0 --> s0 : 1, 2. a call to test-slot<br/>starts
+  s0 --> s1 : 2. the crew takes a place in<br/>the line
+  s1 --> s2 : 3. the first in the line looks<br/>for a slot
+  s2 --> s3 : 4. the run goes on the holders<br/>file
+  s3 --> s4 : 5. the command ends
+  s4 --> s2 : 6. the jbus pass forgets the<br/>runs that are over
+  s2 --> s5 : 7. the run's end goes on the<br/>holders file
+  s0 --> s0 : 1. a call to test-slot starts
   class s0 group1Path
   class s1 group1Path
   class s2 group1Path
-  class s3 group1Wrong
+  class s3 group1Path
   class s4 group1Path
+  class s5 group1Wrong

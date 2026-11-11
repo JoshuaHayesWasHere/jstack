@@ -10,21 +10,7 @@ There are 776 ways to get here in the model. This is the shortest.
 3. A writer writes the ledger. Now: Usage ledger: the ledger keeps the records of the status line, jbus merges into the copy it read, of no one, the last capped read is older than the ledger
 4. A writer writes the ledger. Now: Usage ledger: the ledger keeps the records of jbus, the status line wrote and its record is gone, the last capped read is older than the ledger
 
-## 2. Short lane: the slot held by a call with no thread, a crew's run's command running with no slot, the log has a take with no release
-
-Rule broken: OneCommandPerSlot: a slot runs one command at a time. A command whose `jgauge test-slot` died runs on with its slot free, and the next take starts a second command beside it.
-Why: test-slot was killed and its command ran on, and the next call started a second command in the same slot.
-There are 30 ways to get here in the model. This is the shortest.
-
-0. Start: Short lane: the slot free
-1. A call to test-slot starts. Now: Short lane: the slot free
-2. A call to test-slot starts. Now: Short lane: the slot free
-3. The crew takes a place in the line. Now: Short lane: the slot free, the crew waits in the line
-4. The first in the line looks for a slot. Now: Short lane: the slot held by a crew's run
-5. The test-slot call is killed. Now: Short lane: the slot free, a crew's run's command running with no slot, the log has a take with no release
-6. A call with no thread takes a free slot. Now: Short lane: the slot held by a call with no thread, a crew's run's command running with no slot, the log has a take with no release
-
-## 3. Short lane: the slot held by a crew's run, its run's end written after jbus forgot it
+## 2. Short lane: the slot held by a crew's run, its run's end written after jbus forgot it
 
 Rule broken: EndNotLost: a run whose `jgauge test-slot` lives to its end has that end on file for jbus to tell its thread, so a thread that ended its turn on "my run holds a slot" is woken.
 Why: jbus forgot a run whose command had ended before test-slot wrote its end, so the end has no one to tell.
@@ -39,7 +25,7 @@ There are 30 ways to get here in the model. This is the shortest.
 6. The jbus pass forgets the runs that are over. Now: Short lane: the slot held by a crew's run
 7. The run's end goes on the holders file. Now: Short lane: the slot held by a crew's run, its run's end written after jbus forgot it
 
-## 4. Full lane: the slot held by a desk's run, the crew is woken, its claim holds, the woken crew found its slot taken
+## 3. Full lane: the slot held by a desk's run, the crew is woken, its claim holds, the woken crew found its slot taken
 
 Rule broken: WokenGetsSlot: a woken waiter gets the slot or its claim lapses at HOLDS. A crew jbus woke, that runs its command again while the wake's claim holds, finds its slot free.
 Why: jbus counted the free slot outside the waiters' lock and recorded the wake after its message went, and a call with no thread took the slot in between.

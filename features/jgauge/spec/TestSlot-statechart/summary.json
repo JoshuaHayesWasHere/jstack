@@ -1,12 +1,12 @@
 {
   "view": "customer",
-  "modelStates": 104932,
-  "modelTransitions": 311951,
-  "chartStates": 23,
-  "chartTransitions": 24,
+  "modelStates": 104116,
+  "modelTransitions": 309101,
+  "chartStates": 21,
+  "chartTransitions": 22,
   "chartStatus": {
-    "works": 19,
-    "wrong": 4,
+    "works": 18,
+    "wrong": 3,
     "fixed": 0
   },
   "chartGroups": [
@@ -18,7 +18,7 @@
     {
       "name": "Short lane",
       "color": "#d1f2eb",
-      "states": 8
+      "states": 6
     },
     {
       "name": "Usage ledger",
@@ -34,7 +34,7 @@
   "mixedGroups": [],
   "regions": {
     "drawn": false,
-    "why": "727 region states are not fewer than the 725 flat states"
+    "why": "721 region states are not fewer than the 719 flat states"
   },
   "classes": [
     {
@@ -50,17 +50,6 @@
     },
     {
       "n": 2,
-      "end": "Short lane: the slot held by a call with no thread, a crew's run's command running with no slot, the log has a take with no release",
-      "invariant": "OneCommandPerSlot",
-      "rule": "OneCommandPerSlot: a slot runs one command at a time. A command whose `jgauge test-slot` died runs on with its slot free, and the next take starts a second command beside it.",
-      "cause": "test-slot was killed and its command ran on, and the next call started a second command in the same slot",
-      "readerSteps": 6,
-      "modelSteps": 11,
-      "counterexamples": 30,
-      "fix": null
-    },
-    {
-      "n": 3,
       "end": "Short lane: the slot held by a crew's run, its run's end written after jbus forgot it",
       "invariant": "EndNotLost",
       "rule": "EndNotLost: a run whose `jgauge test-slot` lives to its end has that end on file for jbus to tell its thread, so a thread that ended its turn on \"my run holds a slot\" is woken.",
@@ -71,7 +60,7 @@
       "fix": null
     },
     {
-      "n": 4,
+      "n": 3,
       "end": "Full lane: the slot held by a desk's run, the crew is woken, its claim holds, the woken crew found its slot taken",
       "invariant": "WokenGetsSlot",
       "rule": "WokenGetsSlot: a woken waiter gets the slot or its claim lapses at HOLDS. A crew jbus woke, that runs its command again while the wake's claim holds, finds its slot free.",
@@ -84,12 +73,12 @@
   ],
   "codeLike": [],
   "drawnFrom": {
-    "command": "statechart from-spec TestSlot.tla --config TestSlot.chart.cfg --title 'Who holds a test slot, who waits on one, and what the ledger keeps?' --expect-broken LedgerNoLostUpdate,WokenGetsSlot,EndNotLost,OneCommandPerSlot --png",
+    "command": "statechart from-spec TestSlot.tla --config TestSlot.chart.cfg --title 'Who holds a test slot, who waits on one, and what the ledger keeps?' --expect-broken LedgerNoLostUpdate,WokenGetsSlot,EndNotLost --png",
     "inputs": {
-      "TestSlot.chart.cfg": "0a99103c10aa617011860e3bba2117363fa561bd2b36bea2a9c9c93adf0e2a42",
+      "TestSlot.chart.cfg": "3ff159a439518f9a7f4e451a979e922326a5cc2a58e81902efbd3c690ed7a504",
       "TestSlot.map.py": "ec66d90505b6117e6d3844379edadb3a46aa56013ae698c1aac440b3befa66f7",
-      "TestSlot.tla": "b27e2fbe7a28b4a1c37421ccaf03ec08896966ec076645009a1702cd824e50e5"
+      "TestSlot.tla": "06d112e35cd8ea7b01d46fc64a6a94a9b971b452e00778db8c4f804c87848045"
     },
-    "chart": "b2030e873fcb9f0e14d0a7d8dbba0d37cf81d2c31b5769e1d84a6c6417a057c9"
+    "chart": "1df7c73536b71866266719746fb782a197979aa3cb1bc71317dcb4f7917584b2"
   }
 }
