@@ -11,8 +11,12 @@ import pytest
 
 from jbus import green
 from jinstall import green as jinstall_green
-from test_jbus_green import at, checks, copied, installs, land, systemctl, tip  # noqa: F401
+from test_jbus_green import at, copied, installs, land, systemctl
 from test_jbus_queue import gates
+
+FIXTURES = (copied, installs, systemctl)
+"""The fixtures of `test_jbus_green.py` these tests take, which pytest finds in this module:
+the copy at main's first green tip, the installs a move made, and the systemctl it calls."""
 
 
 class Died(BaseException):
@@ -25,8 +29,9 @@ def test_a_move_killed_after_the_link_is_pointed_is_installed_by_the_next_pass(
     """The journal's 203/EXEC: a pass pointed the link at the new tip and died before it
     installed the tool again, so the link named the new tree and the tool the old one, and each
     later pass found the copy at green and did nothing more."""
+
     def killed(copy):
-        raise Died()
+        raise Died
 
     monkeypatch.setattr(green, "_reinstall", killed)
     new = land(copied, "success")
