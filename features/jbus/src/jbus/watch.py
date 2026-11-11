@@ -611,9 +611,8 @@ def _stale(run: Pass, world: World, slug: str, thread: dict[str, Any]) -> str:
         minutes = (run.now - when(thread["updatedAt"])).total_seconds() / 60
         if minutes >= WAITING_MINUTES:
             return f"stale {slug}: waiting on a request {int(minutes)} min"
-    elif status in (*ENDED, "completed") and not world.result(run, slug):
-        if not world.awaits(thread):
-            return f"stale {slug}: thread {status} with no Result"
+    elif status in (*ENDED, "completed") and not (world.result(run, slug) or world.awaits(thread)):
+        return f"stale {slug}: thread {status} with no Result"
     return ""
 
 
