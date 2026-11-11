@@ -90,10 +90,26 @@ So once it has its go, it is the next launch in that project.
 
 jbus reads a slug that starts `main-red-` as the fix of a red main, so do not give a brief of your own such a slug.
 
+## Why main went red
+
+`mainmoved.tell` keeps why main went red in `main-reds.jsonl` beside the queue, and writes it two ways (`features/jbus/src/jbus/mainmoved.py`).
+
+The verdict is written once for each red tip, when the pass first reads its failed tests: one line with the tip, the green tip it came `after`, the pull requests landed since, the step that failed, the tests that failed and the verdict, `change`, `flake` or `infra`.
+A red at the lint, or one whose tests pytest could not collect, is `change`; a red at another step, or at the tests with none named, is `infra`; a red whose every failed test `jbus ci` counts as a flake (`reverts.flaky`) is `flake`; any other is `change`.
+A later tip of the same spell, one with the same green tip under it, that fails only tests the spell's first line names takes that line's verdict and is not judged again.
+It is the same break with merges on top: by then the pull requests checked over the red main have failed its tests on their own branches, which `jbus ci` counts as a flake until main's own red run is in its ledger, so a second judgment reads `flake` for the break the first one read as `change`.
+A tip that fails another test is judged on its own.
+Two readers read the verdict: the flake row below, and the store's `main_spells.cause` for a spell that has not ended yet.
+
+The cause is written once for each spell, when main goes green: one line at the spell's first red tip, with the `green` tip that ended it, the pull requests merged in between and `cause`.
+`cause` is `fix: #<n>` where one of them is a fix row (`main-red-*`) or a revert (`revert-*`), the last such, and `no fix` where none is, as when a rerun passed on the red tip itself.
+One run cannot tell a load flake from a break, since both fail a test once; only the end of the spell can, so the cause is written then.
+Its reader is the store: `main_spells.cause` reads `no fix` as `flake`, a fix as `change` where the verdict was `flake`, and otherwise the verdict, so the change failure rate counts only the spells a change caused.
+A line written before the ledger kept `after` belongs to no spell: no later tip takes its verdict, and no closing line is written for it.
+
 ## A test that flakes twice
 
-`mainmoved.tell` keeps why main went red in `main-reds.jsonl` beside the queue: one line a red tip, with the tests that failed there and its verdict, `change`, `flake` or `infra`.
-Where one test failed under the verdict `flake` at two commits no more than seven days apart, the later of them in the last seven days, the pass writes `tasks/flake-<name>.md`, where `<name>` is the test function's name, and queues it with no go as jbus's own row (`features/jbus/src/jbus/flakerow.py`).
+Where one test failed under the verdict `flake` in two spells no more than seven days apart, each at its first line of that verdict, the later of them in the last seven days, the pass writes `tasks/flake-<name>.md`, where `<name>` is the test function's name, and queues it with no go as jbus's own row (`features/jbus/src/jbus/flakerow.py`).
 Its `Task:` names the test and both commits with when the pass judged them, and it asks for a fix of the test, `Size: S` and `Review: review`, in the shape of the fix's brief above, so a pass approves it by the follow-up rule.
 One flake files nothing: one timing miss in a week is noise.
 A test gets one row, ever: `flake-rows.json` beside the queue keeps each test filed, so a third flake, a pass run again, or a flake after its row merged files no other, and a removed row is not filed again.
