@@ -328,9 +328,7 @@ def _snapshot(connection, project: str, source: Source, file: Path, zone, built:
         return
     rows = []
     for record in found:
-        row = source.row(record, zone)
-        if row is None:
-            continue
+        row = source.row(record, zone) or {}
         natural = row.get(source.natural)
         if natural is not None:
             rows.append(_values(source, project, str(natural), row, zone))

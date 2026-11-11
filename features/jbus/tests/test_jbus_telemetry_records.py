@@ -507,8 +507,8 @@ def test_transitions_carry_whether_the_move_table_holds_the_move(machine):
 
 def test_a_line_that_moves_a_rows_go_is_no_change_of_its_status(machine):
     """`jbus.queue._go` writes a row's go to `transitions.jsonl`, and the table keeps only the
-    changes of status: a go line between two of them would cut the time a row spent in one, which
-    `hours-after-pr` sums."""
+    changes of status (`jbus.telemetry.records.transitions`): a go line between two of them would
+    cut the time a row spent in one, which `hours-after-pr` sums."""
     log, at = "transitions.jsonl", iso(NOW)
     machine.append("alpha", log, {"slug": "one", "from": "queued", "to": "launched", "at": at})
     machine.append("alpha", log, {"slug": "one", "go": "held", "by": "user", "at": at})

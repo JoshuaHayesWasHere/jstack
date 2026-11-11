@@ -426,6 +426,24 @@ def test_an_entry_a_follow_up_takes_from_its_parent_approves_nothing(kitchen):
     assert rows(kitchen)["beta"]["approval"]["follows"] == "alpha"
 
 
+def test_a_plan_stop_sends_a_follow_up_of_a_row_it_stops_back_to_waiting_too(kitchen):
+    """The follow-up's go rests on its parent's: when the stop takes the parent's go back, the
+    follow-up waits for a go again, and the log says so for each, a `waiting` go line."""
+    queued(kitchen, "alpha")
+    assert plan_go(kitchen)[0] == 0
+    queued(kitchen, "beta", entry="", text=brief("beta", "Follows: alpha\n"))
+    assert basis(kitchen, "beta") == (queue.RULE, queue.FOLLOW_REF)
+    said = stop(kitchen)
+    assert "alpha, beta waits for the user's go" in said
+    assert (basis(kitchen, "alpha"), basis(kitchen, "beta")) == ((), ())
+    log = (kitchen.state / "transitions.jsonl").read_text().splitlines()
+    gone = [json.loads(one) for one in log if '"go"' in one]
+    assert [(one["slug"], one["go"]) for one in gone][-2:] == [
+        ("alpha", "waiting"),
+        ("beta", "waiting"),
+    ]
+
+
 JVIEW_PLAN = """\
 # jview: plan
 

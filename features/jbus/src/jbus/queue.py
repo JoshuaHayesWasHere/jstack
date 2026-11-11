@@ -1188,17 +1188,12 @@ class _Batch:
 
 
 @contextmanager
-def _one_batch(state: Path) -> Iterator[_Batch | None]:
-    """Yield a batch over the queue's table, under its lock, or None where `removed.json` does
-    not parse. As the batch ends, its lines of `transitions.jsonl` are written before the table,
-    as `derive` writes its own."""
+def _one_batch(state: Path) -> Iterator[_Batch]:
+    """Yield a batch over the queue's table, under its lock, which `_changing` refuses where
+    `removed.json` does not parse. As the batch ends, its lines of `transitions.jsonl` are
+    written before the table, as `derive` writes its own."""
     with _changing(state) as rows:
-        try:
-            gone = removed(state)
-        except Unparsable:
-            yield None
-            return
-        batch = _Batch(state, rows, gone, {}, [], {})
+        batch = _Batch(state, rows, removed(state), {}, [], {})
         yield batch
         if batch.moves:
             store.append_jsonl(transitions_path(state), batch.moves)
@@ -2360,8 +2355,6 @@ def entered(state: Path, user: jsettings.Settings, entry_go: EntryGo) -> list[st
     for each."""
     said: list[str] = []
     with _one_batch(state) as batch:
-        if batch is None:
-            return said
         rows = batch.rows
         for row in sorted(rows, key=order):
             made, text = record(row), batch.brief(row["slug"])
@@ -2412,8 +2405,6 @@ def gone_ahead(
     row under any setting. With no `heard`, silence closed the gate: the setting `go` is
     `silence`, and silence starts the row (`unsilenced`)."""
     with _one_batch(state) as batch:
-        if batch is None:
-            return ""
         row = next((row for row in batch.rows if row["slug"] == slug), None)
         text = batch.brief(slug)
         if row is None or text is None or not _waits(row, text):
@@ -2781,8 +2772,6 @@ def follow_ups(state: Path, user: jsettings.Settings) -> list[str]:
     follow-up, or given an entry since, is taken in there."""
     said: list[str] = []
     with _one_batch(state) as batch:
-        if batch is None:
-            return said
         _inherit(batch)
         while True:
             lines = [
