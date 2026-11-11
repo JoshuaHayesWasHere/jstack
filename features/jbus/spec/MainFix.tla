@@ -212,7 +212,7 @@ Die ==
 \* one open on its branch among the pass's open pull requests, `said = heads.get(str(one["branch"]))`,
 \* is kept as revert keeps it, `_own(run, culprit, said, where if where in CHECKS else MAIN)`;
 \* one GitHub has none open for is dropped once its name is older than READ_WAIT,
-\* `elif not said and run.now - when(str(one.get("at") or run.now.isoformat())) > READ_WAIT:`,
+\* `elif not said and _aged(run, one.get("at")):`,
 \* and kept while GitHub gives no answer or the name is younger. The open pull requests are the
 \* pass's world, which every step needs, so a revert GitHub has open is always among them.
 Known ==
