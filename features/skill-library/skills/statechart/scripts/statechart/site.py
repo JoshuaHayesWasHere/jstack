@@ -458,8 +458,10 @@ def coverage_of(folder, name, summary):
         if not re.match(r"(module|expect):", said):
             scene.append(said)
     bounds = [(f"{k} = {v}", "") for k, v in _SETS.findall(text) if v != '"none"']
-    for cut in re.findall(r"^CONSTRAINT\s+(\w+)", text, re.M):
-        bounds.append((cut, _sentence_above(spec_text, cut)))
+    bounds.extend(
+        (cut, _sentence_above(spec_text, cut))
+        for cut in re.findall(r"^CONSTRAINT\s+(\w+)", text, re.M)
+    )
     mapped = spec / _drawn_with(drawn["command"], name, "--map", ".map.py")
     if not mapped.is_file():
         raise ChartError(f"cannot read {mapped}: no such file")
@@ -516,7 +518,7 @@ def coverage_html(cov):
     return (
         '<div class="coverage">'
         f"<p><strong>Model:</strong> {states:,} states and {steps:,} steps, which TLC walked"
-        f" within <code>{esc(cov.cfg)}</code>: {scene} Bounds: {bounds or "none in the cfg"}.</p>"
+        f" within <code>{esc(cov.cfg)}</code>: {scene} Bounds: {bounds or 'none in the cfg'}.</p>"
         f"<p><strong>Chart:</strong> {drawn}</p></div>"
     )
 
@@ -1043,7 +1045,8 @@ def uncovered_html(flow):
         for model, why in sorted(flow.uncharted.items())
     )
     states = "".join(
-        f"<li><strong>{esc(u['state'])}</strong> (<code>{esc(u['code'])}</code>): {esc(u['why'])}</li>"
+        f"<li><strong>{esc(u['state'])}</strong> (<code>{esc(u['code'])}</code>):"
+        f" {esc(u['why'])}</li>"
         for u in flow.unmodeled
     )
     return (
