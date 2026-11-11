@@ -494,17 +494,25 @@ def test_the_tool_runs_each_new_tip_once_it_moves_and_keeps_the_trees_it_may_run
 def test_a_tool_install_that_fails_puts_the_link_back_and_the_next_pass_tries_again(
     copied, monkeypatch, installs
 ):
-    monkeypatch.setattr(green, "_reinstall", lambda copy: "error: no wheel")
     new = land(copied, "success")
+
+    def reinstall(copy):
+        if copy.resolve().name == new:
+            return "error: no wheel"
+        installs.append(copy.resolve())
+        return ""
+
+    monkeypatch.setattr(green, "_reinstall", reinstall)
     said = copied.poll()
     assert at(copied.copy) == copied.first
     assert sorted(path.name for path in green.trees(copied.copy).iterdir()) == [copied.first]
     assert gates(copied) == [f"condition green: {green.MOVE_FAILED}"]
     assert not [line for line in said if line.startswith("green ")]
+    assert installs == [green.trees(copied.copy) / copied.first]
     monkeypatch.setattr(green, "_reinstall", lambda copy: installs.append(copy.resolve()) or "")
     copied.poll()
     assert at(copied.copy) == new
-    assert installs == [green.trees(copied.copy) / new]
+    assert installs == [green.trees(copied.copy) / name for name in (copied.first, new)]
 
 
 def test_a_copy_of_another_checkout_is_left_alone(kitchen, tmp_path):

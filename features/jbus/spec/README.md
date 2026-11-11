@@ -178,7 +178,7 @@ No state breaks a rule, so it draws no `bug-N` chart.
 `GreenMove.tla` follows one green copy (`jbus/green.py`) as passes move it to main's green tip, with a pass that can die between any two steps.
 A move grows the new tip's tree, writes the step it owes to `green.json` (`move`, `owes: install`), points the link, installs the tool again, writes `owes: relink`, removes the trees no command runs, and puts the harness layouts again (`jinstall.green.relink`), and only a relink that is taken drops `move`.
 Each pass resumes an owed step (`_resume`) before `_advance` reads main.json.
-An install uv refuses points the link back, and the move goes back owing a relink of that tree.
+An install uv refuses, which may have removed the tool first, sends the move back: it owes the install of the tree it came from, with the reload systemd was owed before it, points the link back, removes the new tree, and installs the tool and relinks from the tree it went back to.
 Each step's comment quotes the code it stands for.
 
 ### Check the rules of the green move
@@ -190,18 +190,22 @@ java -cp ~/.cache/jstack/tla2tools/1.7.4/tla2tools.jar tlc2.TLC -deadlock -confi
 
 Run it in a copy of this folder, since TLC writes `states/` where it runs.
 `-deadlock` is there because a copy at main's last tip has no step left to take.
-Today's code holds every rule, over 1180 distinct states with MaxTip 3:
+Today's code holds every rule, over 10477 distinct states with MaxTip 3:
 
 - `ToolRunsCopy`: once no pass is in a move and none is owed, the tool runs the tree the link names, so a unit never starts on a tool the copy no longer holds.
-- `ToolTreeThere`: the tree the tool runs is on disk.
+- `ToolTreeThere`: the tree the tool runs, where uv left one, is on disk.
 - `LayoutsFollow`: once no pass is in a move and none is owed, the layouts were put from the tree the link names, also after a move whose install failed went back.
+- `NoReloadForRemoved`: `green.json` owes systemd no reload for a tip whose move went back, so none runs for a tip that never became the copy.
 
 The canary, `Fault = "no-owed"`, keeps no step in `green.json`, as the code did before st-green-step.
 `ToolRunsCopy` and `LayoutsFollow` each break in five states: main goes green, the move points the link, and the pass dies, the journal's 203/EXEC on `~/.local/bin/jbus`.
-`features/jbus/tests/test_green_move_spec.py` runs TLC on the config and on the canary for each of the two rules.
+The second canary, `Fault = "no-back"`, goes back as the code did before st-green-back: it owes a relink and no install of the tree it went back to, and keeps the reload it wrote for the tip it removed.
+`ToolRunsCopy` breaks when the failed install removed the tool, and `NoReloadForRemoved` breaks once the move goes back.
+`features/jbus/tests/test_green_move_spec.py` runs TLC on the config and on each canary for the two rules it breaks.
 
 ### What the green-move model leaves out
 
 - uv's install and the write of `owes: relink` after it are one step: a pass that dies between them installs again, which is the same install, and the model does not let that second install fail.
-- A tip that does not import (`refused`), the reload a move owes systemd (`reload`, `at`) and the units it puts to work (`live`): each has its own record, which the move does not change.
-- A tree a move went to that is gone on resume, which only a hand can remove: `_resume` points the link back and owes a relink, as a failed install does.
+- A tip that does not import (`refused`) and the units a move puts to work (`live`): each has its own record, which the move does not change.
+- Of the reload a move owes systemd (`reload`, `at`), only `at` and whether systemd takes it.
+- A tree a move went to that is gone on resume, which only a hand can remove: `_resume` goes back (`_back`) as a failed install does.

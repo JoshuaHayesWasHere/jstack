@@ -1,6 +1,7 @@
 """The green move as a TLA+ spec, `features/jbus/spec/GreenMove.tla`: with a pass that can die
 between any two steps, TLC finds that the tool runs the tree the link names and the layouts follow
-it once no step is owed, and that a canary which keeps no owed step in green.json breaks both.
+it once no step is owed, that no reload is owed for a tip whose move went back, and that a canary
+which keeps no owed step in green.json, or goes back owing no install, breaks them.
 The TLC runs skip where no Java runs TLC."""
 
 import importlib
@@ -47,14 +48,30 @@ def test_tlc_finds_that_the_tool_and_the_layouts_follow_the_link():
     assert "No error has been found" in ran.stdout
 
 
+def canary(fault: str, rule: str) -> subprocess.CompletedProcess:
+    """TLC's run of the config with `Fault = fault`, checking only TypeOK and `rule`."""
+    kept = (SPEC / "GreenMove.cfg").read_text().replace('Fault = "none"', f'Fault = "{fault}"')
+    assert f'Fault = "{fault}"' in kept
+    lines = [line for line in kept.splitlines() if not line.startswith("INVARIANT")]
+    return tlc("\n".join([*lines, "INVARIANT TypeOK", f"INVARIANT {rule}", ""]))
+
+
 @JAVA
 @pytest.mark.parametrize("rule", ["ToolRunsCopy", "LayoutsFollow"])
 def test_a_move_that_keeps_no_owed_step_breaks_the_rule(rule):
     """The canary, `Fault = "no-owed"`: green.json keeps no step, as before st-green-step, and a
     pass that dies after it pointed the link leaves the tool and the layouts behind it."""
-    kept = (SPEC / "GreenMove.cfg").read_text().replace('Fault = "none"', 'Fault = "no-owed"')
-    assert 'Fault = "no-owed"' in kept
-    lines = [line for line in kept.splitlines() if not line.startswith("INVARIANT")]
-    ran = tlc("\n".join([*lines, "INVARIANT TypeOK", f"INVARIANT {rule}", ""]))
+    ran = canary("no-owed", rule)
+    assert ran.returncode != 0
+    assert f"Invariant {rule} is violated" in ran.stdout, ran.stdout[-4000:]
+
+
+@JAVA
+@pytest.mark.parametrize("rule", ["ToolRunsCopy", "NoReloadForRemoved"])
+def test_a_move_that_goes_back_owing_only_a_relink_breaks_the_rule(rule):
+    """The canary, `Fault = "no-back"`: a move whose install fails goes back as before
+    st-green-back, owing a relink and no install, with the reload it wrote for the tip it
+    removed, so the tool uv removed stays gone and systemd reloads for a tip that never was."""
+    ran = canary("no-back", rule)
     assert ran.returncode != 0
     assert f"Invariant {rule} is violated" in ran.stdout, ran.stdout[-4000:]
