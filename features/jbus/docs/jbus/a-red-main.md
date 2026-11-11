@@ -102,7 +102,9 @@ A tip that fails another test is judged on its own.
 Two readers read the verdict: the flake row below, and the store's `main_spells.cause` for a spell that has not ended yet.
 
 The cause is written once for each spell, when main goes green: one line at the spell's first red tip, with the `green` tip that ended it, the pull requests merged in between and `cause`.
-`cause` is `fix: #<n>` where one of them is a fix row (`main-red-*`) or a revert (`revert-*`), the last such, and `no fix` where none is, as when a rerun passed on the red tip itself.
+`cause` is `fix: #<n>` where one of them fixed the red, the last such, and `no fix` where none did, as when a rerun passed on the red tip itself.
+A pull request fixed the red where it is a fix row (`main-red-*`), a revert (`revert-*`), or any other pull request that changed the file of a test the spell failed at any of its red tips, as #1591, a crew row, changed `test_jbus_telemetry_spells.py` and ended spell 41.
+The pass asks GitHub for the files of each merge in the spell that is neither a fix row nor a revert, one call a merge (`repos/{owner}/{repo}/commits/<sha>`), once for the spell, as it writes the line.
 One run cannot tell a load flake from a break, since both fail a test once; only the end of the spell can, so the cause is written then.
 Its reader is the store: `main_spells.cause` reads `no fix` as `flake`, a fix as `change` where the verdict was `flake`, and otherwise the verdict, so the change failure rate counts only the spells a change caused.
 A line written before the ledger kept `after` belongs to no spell: no later tip takes its verdict, and no closing line is written for it.
