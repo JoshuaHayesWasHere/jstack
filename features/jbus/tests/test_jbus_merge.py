@@ -5,6 +5,7 @@ the fakes.
 """
 
 import ast
+import contextlib
 import string
 import sys
 from datetime import UTC, datetime, timedelta
@@ -651,3 +652,121 @@ def test_a_merge_the_tick_keeps_while_a_pass_tells_is_told_on_the_next_pass(kitc
     told = [one["message"] for one in sends(kitchen) if one["threadId"] == crew["threadId"]]
     assert len(told) == 2 and "#7 at abc1234def5" in told[0] and "#8 at fed4321cba9" in told[1]
     assert (kitchen.state / "reload.json").read_text().strip() == "[]"
+
+
+NO_RECORD = "wait demo: jmerge did not run (its run ended with no record: it said nothing)"
+
+
+class Died(BaseException):
+    """The pass's process dies here, as a timeout, a reboot or an OOM kill stops it."""
+
+
+def merge_at(kitchen, monkeypatch, at, said=None):
+    """Run the pass's `merge` step alone at `at`, adding what it says to `said`, and return
+    `said`."""
+    import jbus
+    from jbus import passes, verbs
+
+    monkeypatch.setattr(verbs, "clock", lambda: at)
+    config = jbus.load()
+    said = [] if said is None else said
+    merge.merge(passes.Pass(config, config.project("demo"), at, said.append))
+    return said
+
+
+def stamp(kitchen):
+    path = kitchen.state / merge.RUNS / merge.STARTED
+    return path.read_text() if path.exists() else None
+
+
+def deaths(kitchen):
+    """The lines of the log that tell of a run that ended with no record."""
+    return [one for one in kitchen.lines() if "ended with no record" in one]
+
+
+@pytest.mark.parametrize("dies", ["told", "unlinked"])
+def test_a_run_that_died_is_told_once_wherever_the_pass_dies_around_its_tell(
+    kitchen, monkeypatch, dies
+):
+    """A run that never took its lock died with no record. The pass that finds its stamp past
+    `STARTING` dies just after the log tells of it, or just after it removes the stamp. The
+    death is told once, by the dying pass or the one after, and the streak never counts it
+    twice."""
+    from jbus import wake
+
+    kitchen.quiet()
+    monkeypatch.setattr(merge, "start", lambda run: "")
+    merge_at(kitchen, monkeypatch, NOW)
+    late = NOW + merge.STARTING + timedelta(seconds=1)
+    send, unlink = wake.Box.send, type(kitchen.state).unlink
+
+    def told(box, slug, kind, line, *args, **kwargs):
+        went = send(box, slug, kind, line, *args, **kwargs)
+        if dies == "told" and "ended with no record" in line:
+            raise Died
+        return went
+
+    def unlinked(path, *args, **kwargs):
+        unlink(path, *args, **kwargs)
+        if dies == "unlinked" and path.name == merge.STARTED:
+            raise Died
+
+    with monkeypatch.context() as patched:
+        patched.setattr(wake.Box, "send", told)
+        patched.setattr(type(kitchen.state), "unlink", unlinked)
+        with contextlib.suppress(Died):
+            merge_at(kitchen, monkeypatch, late)
+    merge_at(kitchen, monkeypatch, late)
+    assert len(deaths(kitchen)) == 1
+    counted = alert.streaks(kitchen.state_dir).get(alert.jmerge("demo"), {})
+    assert counted.get("count", 0) <= 1
+
+
+def test_a_slow_run_whose_death_was_told_runs_nothing_and_leaves_the_next_runs_stamp(
+    kitchen, monkeypatch
+):
+    """Two runs back to back. Run A starts slower than `STARTING`, and the pass tells its death
+    and starts run B. A then takes its lock: its stamp is gone, so it runs nothing and keeps no
+    record, and B's stamp stands. B dies too, and its death is told on the next pass. Each death
+    is told once, and each of them truly left no record."""
+    kitchen.quiet()
+    (kitchen.stub / "jmerge.log").unlink()
+    stamps = []
+    monkeypatch.setattr(merge, "start", lambda run: stamps.append(stamp(kitchen)) or "")
+    merge_at(kitchen, monkeypatch, NOW)
+    late = NOW + merge.STARTING + timedelta(seconds=1)
+    said = merge_at(kitchen, monkeypatch, late)
+    first, second = stamps
+    assert first != second and stamp(kitchen) == second
+    kitchen.set("jmerge.txt", f"wait 7 {PULL}: it has no review yet\n")
+    merge.keep(kitchen.state / merge.RUNS, kitchen.checkout, stamp=first)
+    assert kitchen.log("jmerge") == [] and stamp(kitchen) == second
+    assert not list((kitchen.state / merge.RUNS).glob("ran-*.json"))
+    said += merge_at(kitchen, monkeypatch, late + merge.STARTING + timedelta(seconds=1))
+    assert said.count(NO_RECORD) == 2 and len(deaths(kitchen)) == 2
+    assert kitchen.lines("jmerge") == []
+
+
+def test_a_run_that_kept_its_record_and_died_before_its_stamp_went_is_no_death(
+    kitchen, monkeypatch
+):
+    """The run writes its record and dies before it removes its stamp. The next pass past
+    `STARTING` reads the record's line and says no run ended with no record."""
+    import merge_in_pass
+
+    kitchen.quiet()
+    line = f"wait 7 {PULL}: it has no review yet"
+    kitchen.set("jmerge.txt", f"{line}\n")
+
+    def dies_before_its_stamp_goes(run):
+        left = stamp(kitchen)
+        merge_in_pass.start(run)
+        (kitchen.state / merge.RUNS / merge.STARTED).write_text(left)
+        return ""
+
+    monkeypatch.setattr(merge, "start", dies_before_its_stamp_goes)
+    merge_at(kitchen, monkeypatch, NOW)
+    monkeypatch.setattr(merge, "start", lambda run: "")
+    said = merge_at(kitchen, monkeypatch, NOW + merge.STARTING + timedelta(seconds=1))
+    assert not [one for one in said if "jmerge did not run" in one] and deaths(kitchen) == []
+    assert kitchen.lines("jmerge") == [line]
