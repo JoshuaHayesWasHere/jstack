@@ -1,9 +1,14 @@
 ### A scoped pass
 
-A push or a rebase gives a reviewed pull request another head. `jmerge` compares the head the review saw with the new one by `git range-diff`. When no line the patch adds or removes changed, the review carries over and no reviewer is launched.
-A rebase keeps the review even when its content changed, a conflict someone resolved by hand included, since the pull request's checks verify a rebase: no scoped pass follows it. A rebase, to `jmerge`, is a head that does not descend from the reviewed one, has as many commits of its own, and changes every file the reviewed patch changes ("After a rebase" in `features/jmerge/docs/jmerge.md`).
+A push or a rebase gives a reviewed pull request another head.
+`jmerge` compares the head the review saw with the new one by `git range-diff`.
+When no line the patch adds or removes changed, the review carries over and no reviewer is launched.
+A rebase keeps the review even when its content changed, a conflict someone resolved by hand included, since the pull request's checks verify a rebase: no scoped pass follows it.
+A rebase, to `jmerge`, is a head that does not descend from the reviewed one, has as many commits of its own, and changes every file the reviewed patch changes ("After a rebase" in `features/jmerge/docs/jmerge.md`).
 A push on the reviewed head, over a merge of main or not, keeps the review too when its patch differs in tests, docs or config alone.
-A push whose patch changes code, a rebase with a commit pushed on it included, waits for one review of that change alone, and so does a head whose patches git cannot compare. jbus launches that review, and the message that starts this thread is `/pr-review run <slug> scoped <old range> <new range>`. Each range is `<base>..<head>` in full commits: the reviewed patch, then the new one.
+A push whose patch changes code, a rebase with a commit pushed on it included, waits for one review of that change alone, and so does a head whose patches git cannot compare.
+jbus launches that review, and the message that starts this thread is `/pr-review run <slug> scoped <old range> <new range>`.
+Each range is `<base>..<head>` in full commits: the reviewed patch, then the new one.
 A rebase alone gets a scoped pass in one case: it dropped lines, and the pass rules on the reasons its `Dropped on rebase:` lines give (step 4).
 
 A scoped pass is also the re-judgement a review's `Meets the brief: no` owes.
@@ -14,7 +19,9 @@ The crewmate launches it once the fixed head's checks have passed, when the bloc
 The message is the same one.
 Its ranges are the patch up to the head the last review saw, then the patch up to the fixed head, so the range-diff shows the fix as the commits on the new side alone.
 
-It is one pass per pushed, rebased or fixed head, and never a full review. It is not the second pass either: a brief that already has a `## Review` section is not refused for it, and in "Start" the check for a `## Review` section does not stop it. The rest of "Start" holds: the brief's `Review:` line, the pull request, the ground.
+It is one pass per pushed, rebased or fixed head, and never a full review.
+It is not the second pass either: a brief that already has a `## Review` section is not refused for it, and in "Start" the check for a `## Review` section does not stop it.
+The rest of "Start" holds: the brief's `Review:` line, the pull request, the ground.
 
 1. Run this in this worktree, with the two ranges of the message in place of the words in angle brackets:
 
@@ -83,4 +90,6 @@ It is one pass per pushed, rebased or fixed head, and never a full review. It is
    A pass over a head whose content changed carries the earlier round's line as it was, but for a line the changed content breaks.
    Then settle this thread as a first pass does.
 
-`jmerge` merges the new head once a `## Review` names it on its `Head:` line, with its findings handled as any review's. A later push or rebase is compared again, from this head. A fixed head is merged the same way.
+`jmerge` merges the new head once a `## Review` names it on its `Head:` line, with its findings handled as any review's.
+A later push or rebase is compared again, from this head.
+A fixed head is merged the same way.
