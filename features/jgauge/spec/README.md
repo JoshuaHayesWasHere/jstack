@@ -44,8 +44,10 @@ Each process writes only its own entry, under the file's lock, and jbus forgets 
 
 ## The rules
 
-- `WokenGetsSlot`: a woken waiter gets the slot, or its claim lapses at `HOLDS`. A crew that jbus woke, and that runs its command again while the claim holds, finds its slot free.
-- `NoLostHolder`: every holder ends, or its pid is dead and a reader treats it so. A run on file with no end, whose command is gone, is not running to `holders.running`.
+- `WokenGetsSlot`: a woken waiter gets the slot, or its claim lapses at `HOLDS`.
+  A crew that jbus woke, and that runs its command again while the claim holds, finds its slot free.
+- `NoLostHolder`: every holder ends, or its pid is dead and a reader treats it so.
+  A run on file with no end, whose command is gone, is not running to `holders.running`.
 - `EndNotLost`: a run whose `jgauge test-slot` lives to its end has that end on file for jbus to tell its thread.
 - `OneCommandPerSlot`: a slot runs one command at a time.
 - `LedgerNoLostUpdate`: no ledger write drops another's.
@@ -77,9 +79,18 @@ A cap that the hook or jbus wrote can be undone by `jgauge limits` that read the
 The other three faults break their rules in the canaries.
 `test_test_slot_spec.py` runs each canary and asserts the rule it breaks:
 
-- `spare-outside-lock`, `WokenGetsSlot`: a crew registers and ends its turn. jbus counts the free slot outside the lock and sends the wake. A desk's `make check` then takes the slot through `_claim`, which sees no claim yet. jbus records `woken`. The woken crew runs again with its claim holding, finds no slot, and registers again.
-- `forget-unended`, `EndNotLost`: a run's command ends. jbus reads the holders, finds no end and no pid, and forgets the run. `jgauge test-slot` then writes the end to an entry that is no longer there, and the thread that ended its turn on "my run holds a slot" is never told the run ended. The window is from the reap in `child.wait` to `holders.end`. jbus's loop makes T3 Code calls for the other holders between its read and its `running` check, which widens it.
-- `orphan-command`, `OneCommandPerSlot`: `jgauge test-slot` is killed with SIGKILL, and its command runs on with the slot free. The next call starts a second command in the same slot, and its `_temporary` empties the directory the first command still uses.
+- `spare-outside-lock`, `WokenGetsSlot`: a crew registers and ends its turn.
+  jbus counts the free slot outside the lock and sends the wake.
+  A desk's `make check` then takes the slot through `_claim`, which sees no claim yet.
+  jbus records `woken`.
+  The woken crew runs again with its claim holding, finds no slot, and registers again.
+- `forget-unended`, `EndNotLost`: a run's command ends.
+  jbus reads the holders, finds no end and no pid, and forgets the run.
+  `jgauge test-slot` then writes the end to an entry that is no longer there, and the thread that ended its turn on "my run holds a slot" is never told the run ended.
+  The window is from the reap in `child.wait` to `holders.end`.
+  jbus's loop makes T3 Code calls for the other holders between its read and its `running` check, which widens it.
+- `orphan-command`, `OneCommandPerSlot`: `jgauge test-slot` is killed with SIGKILL, and its command runs on with the slot free.
+  The next call starts a second command in the same slot, and its `_temporary` empties the directory the first command still uses.
 
 `Fault = "none"` holds every rule over 614,686 distinct states: 607,211 in the full lane's room, 4,938 in the short lane's, 1,690 in the ledger's and 847 in the pool's.
 
@@ -109,13 +120,26 @@ That is 104,932 model states, and it draws one numbered path for each of the fou
 
 ## What the model leaves out
 
-- One crew thread waits on the full lane. The claim count is per other thread, so a second waiter adds states and no new kind of step. The model has one full slot and one short slot.
-- A thread's next run starts once its last run's holder entry is gone and its command has ended. The file keeps two runs of one thread apart by id, and jbus forgets by id.
-- A `free()` probe outside the waiters lock, such as jbus's own `spare` today: it can make `_first_free` inside another caller's `_claim` find a slot locked for an instant. In today's code this is one more way for `WokenGetsSlot` to break.
-- Two jgauge versions that count a different number of slots. The machine's `test-slot.5.lock`, from an older count, is one of these.
-- A short call with no thread does not wait in the line. It takes a slot freed under the first caller in the line, and the model lets it, with no rule on the order of the short lane.
-- A crash between `Popen` and `holders.hold` leaves a command running with no holder entry. Its thread's own call returns when `jgauge test-slot` dies, so the model asks for no wake.
-- `wake_capped` sends to the waits it read, which jroles may have dropped since: a wake the thread no longer needs, which no rule forbids. The model leaves out jbus's `dead` checks. `PoolNoLostWait` would count a dead thread's wait as told.
-- The ledger: `merge` keeps the larger share of one window, which the model joins into "each merged record stays". It leaves out a window that resets, which replaces a line on purpose, and the endpoint's `EARLY` reading. Each writer's two windows are one write. The hook and jbus each write once, which is all a lost update needs.
-- The retry file and `capped.jsonl` have their writes modelled, with no rule of their own. The retry file has one writer, `jgauge limits`, run by its timer.
+- One crew thread waits on the full lane.
+  The claim count is per other thread, so a second waiter adds states and no new kind of step.
+  The model has one full slot and one short slot.
+- A thread's next run starts once its last run's holder entry is gone and its command has ended.
+  The file keeps two runs of one thread apart by id, and jbus forgets by id.
+- A `free()` probe outside the waiters lock, such as jbus's own `spare` today: it can make `_first_free` inside another caller's `_claim` find a slot locked for an instant.
+  In today's code this is one more way for `WokenGetsSlot` to break.
+- Two jgauge versions that count a different number of slots.
+  The machine's `test-slot.5.lock`, from an older count, is one of these.
+- A short call with no thread does not wait in the line.
+  It takes a slot freed under the first caller in the line, and the model lets it, with no rule on the order of the short lane.
+- A crash between `Popen` and `holders.hold` leaves a command running with no holder entry.
+  Its thread's own call returns when `jgauge test-slot` dies, so the model asks for no wake.
+- `wake_capped` sends to the waits it read, which jroles may have dropped since: a wake the thread no longer needs, which no rule forbids.
+  The model leaves out jbus's `dead` checks.
+  `PoolNoLostWait` would count a dead thread's wait as told.
+- The ledger: `merge` keeps the larger share of one window, which the model joins into "each merged record stays".
+  It leaves out a window that resets, which replaces a line on purpose, and the endpoint's `EARLY` reading.
+  Each writer's two windows are one write.
+  The hook and jbus each write once, which is all a lost update needs.
+- The retry file and `capped.jsonl` have their writes modelled, with no rule of their own.
+  The retry file has one writer, `jgauge limits`, run by its timer.
 - The slot's temporary directory, the sweep of `/tmp`, and the short lane's stop, which is one way the command ends.
