@@ -357,7 +357,17 @@ def no_room(run: Pass, slug: str, why: str, waited: dict[str, Any]) -> None:
 
 LAUNCHED, NOTHING, NO_ROOM = "launched", "nothing", "no room"
 ROOM = "waiting for room on the machine"
-"""A row's reason where `jgauge room` said no for all but /tmp, whose why `no_room` says."""
+"""The start of a row's reason where `jgauge room` said no for all but a full /tmp, which
+`cleanup.waiting` names: `waiting_for` gives the rest, what `jgauge room` said."""
+
+
+def waiting_for(why: str) -> str:
+    """Return a row's reason when `jgauge room` said `why` and /tmp is not full, as `waiting for
+    room on the machine: load 30.00 is at or over 85% of 12 cores`: every reader of the reason
+    reads it as room by `ROOM` at its start, and the store reads its cause from the rest."""
+    return f"{ROOM}: {why}"
+
+
 UNKNOWN = "the crews out are not known"
 HELD = "a gate held back while every slot is taken"
 
@@ -638,7 +648,7 @@ class Turns:
                 run.find("", "note", f"note {name}: {note}", key=f"room {day}")
             if why:
                 no_room(run, slug, why, self.waited)
-                self.room = cleanup.waiting(why) or ROOM
+                self.room = cleanup.waiting(why) or waiting_for(why)
                 run.reasons[slug] = Slot(self.room)
                 return NO_ROOM
             again = queue.fresh(run.state, slug) or {}
