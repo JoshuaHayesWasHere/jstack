@@ -418,7 +418,7 @@ HomeEdits(p) ==
     /\ editsLeft > 0
     /\ link = "depends"
     \* A merged row's go is read by nothing, and its brief is not edited.
-    /\ st[p] # "merged"                     \* features/jmerge/src/jmerge/rows.py `if row.get("status") in judgement.FINAL:`
+    /\ st[p] # "merged"                     \* features/jmerge/src/jmerge/rows.py `if row and bus.over(row):`
     /\ editsLeft' = editsLeft - 1
     /\ link' = "none"
     /\ go' = [go EXCEPT ![p] = FALSE]       \* features/jmerge/src/jmerge/rows.py `if row and not judgement.has_go(row, brief):`
@@ -575,7 +575,7 @@ Nightly ==
 
 \* jbus's pass approves the browser-red row by rule too: jbus filed it from a red run, with the
 \* same Decisions: line as main's fix row (#547). Its crew fixes main's view, and its row is over,
-\* so main's last run, still red until the next nightly, holds nobody (features/jmerge/src/jmerge/rows.py `fixing = {row["slug"] for row in rows or [] if row.get("status") not in judgement.FINAL}`).
+\* so main's last run, still red until the next nightly, holds nobody (features/jmerge/src/jmerge/rows.py `fixing = {row["slug"] for row in rows or [] if not bus.over(row)}`).
 FixBrowser ==
     /\ brHold                               \* features/jbus/src/jbus/queue.py `if not named and filed(row, text):`, its go by rule
     /\ ~full                                \* features/jbus/src/jbus/dispatch.py `def room(`, no room
@@ -594,7 +594,7 @@ Approve(p) ==
 \* You hold a row that is not merged (`jbus queue hold`), which takes its go back.
 HoldRow(p) ==
     \* A merged row's hold holds nothing.
-    /\ st[p] # "merged"                     \* features/jmerge/src/jmerge/rows.py `if row.get("status") in judgement.FINAL:`
+    /\ st[p] # "merged"                     \* features/jmerge/src/jmerge/rows.py `if row and bus.over(row):`
     /\ go[p]                                \* features/jbus/src/jbus/queue.py `took = {column: row[column] for column in GO_COLUMNS if row.get(column)} _hold(row, by)`, features/jbus/src/jbus/queue.py `row.update(approved="", brief_sha="", held=True)`
     /\ go' = [go EXCEPT ![p] = FALSE]
     /\ UNCHANGED <<st, ci, missed, breaks, Main, outsideLeft, link, on, Machine, moved,
