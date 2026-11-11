@@ -618,9 +618,7 @@ def test_a_rebased_head_no_line_names_keeps_its_review_where_the_rebase_changed_
 
 
 @pytest.mark.parametrize("case", UNSAID)
-def test_a_rebased_head_with_code_pushed_on_it_asks_for_a_scoped_review(
-    proven_merged, rules, case
-):
+def test_a_rebased_head_with_code_pushed_on_it_asks_for_a_scoped_review(proven_merged, rules, case):
     rebased = Rebased(proven_merged, {11: "theirs 11"}, BOTH)
     unsaid(rebased, case)
     rebased.push_code()
