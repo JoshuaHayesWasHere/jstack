@@ -127,7 +127,9 @@ def relaunch(failed_thread, cause, launched_at, failed_at, **more):
 def test_each_failed_home_start_is_a_row_from_its_launch_to_its_failure(machine):
     """`relaunches.json` names each home's last failed start, which jbus drops once the home
     starts: the store keeps a row for each failed start it saw, by its thread, so a start that
-    sat with no home-id counts with its minutes after its home has started."""
+    sat with no home-id counts with its minutes after its home has started. The store reads the
+    file through `jbus.telemetry.records.home_starts` into the table
+    `jbus.telemetry.migrations.v022_home_starts` makes."""
     machine.write(
         "alpha",
         "relaunches.json",
@@ -172,3 +174,9 @@ def test_each_failed_home_start_is_a_row_from_its_launch_to_its_failure(machine)
     )
     held.append(("beta", "uncategorized", "no home-id", None, t(minutes(10)), t(minutes(40)), 30.0))
     assert rows(machine) == sorted(held, key=lambda row: (row[0], row[4] or row[5], row[1]))
+
+
+def test_a_relaunches_file_that_is_no_object_or_names_no_failed_start_adds_no_row(machine):
+    machine.write("alpha", "relaunches.json", ["uncategorized"])
+    machine.write("beta", "relaunches.json", {"uncategorized": {"at": iso(minutes(0))}})
+    assert rows(machine) == []
