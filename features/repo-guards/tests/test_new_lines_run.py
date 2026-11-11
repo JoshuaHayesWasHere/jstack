@@ -334,6 +334,65 @@ def test_an_added_branch_no_test_runs_fails_and_one_a_test_runs_passes(tmp_path)
     assert (tmp_path / "ran/own/stopped").exists(), "the run went on after every line had run"
 
 
+def test_a_condition_ruff_wraps_onto_its_next_line_counts_as_run_where_a_test_runs_it(tmp_path):
+    """An `elif (` or `if (` whose condition ruff format puts on the next line holds no bytecode
+    of its own, so coverage records the condition's line where the statement ran. The statement
+    a test runs is not a fault, at a desk or from CI's parts; the one no test runs still is."""
+    repo = tmp_path / "repo"
+    code = repo / "features/pkg/src/pkg"
+    tests = repo / "features/pkg/tests"
+    code.mkdir(parents=True)
+    tests.mkdir(parents=True)
+    (code / "__init__.py").write_text("")
+    (code / "held.py").write_text("def held(row):\n    return row == 'held'\n")
+    (tests / "test_held.py").write_text(
+        "import sys\n"
+        "sys.path.insert(0, 'features/pkg/src')\n"
+        "from pkg import held\n\n\n"
+        "def test_a_held_row():\n"
+        "    assert held.held('held')\n"
+    )
+    for args in (["init", "-q"], ["add", "."], ["commit", "-qm", "base"]):
+        git("-c", "user.name=t", "-c", "user.email=t@t", *args, repo=repo)
+    since = git("rev-parse", "HEAD", repo=repo)
+    (code / "held.py").write_text(
+        "def held(row):\n"
+        "    if row is None:\n"
+        "        return False\n"
+        "    elif (\n"
+        "        row == 'gone'\n"
+        "    ):\n"
+        "        return False\n"
+        "    return row == 'held'\n"
+        "\n\n"
+        "def lost(row):\n"
+        "    if (\n"
+        "        row == 'lost'\n"
+        "    ):\n"
+        "        return True\n"
+        "    return False\n"
+    )
+    (tests / "test_held.py").write_text(
+        (tests / "test_held.py").read_text()
+        + "\n\ndef test_no_row():\n    assert not held.held(None)\n"
+        + "\n\ndef test_a_gone_row():\n    assert not held.held('gone')\n"
+    )
+    unrun = [
+        f"features/pkg/src/pkg/held.py:{number} is a line this branch adds that no test runs: add "
+        "a test that runs it, among the tests that name its module (1 of them ran)"
+        for number in (12, 15, 16)
+    ]
+    assert faults(added(since, repo), tmp_path / "desk", repo) == unrun
+    a_part(repo, since, tmp_path / "parts/1")
+    assert faults(added(since, repo), tmp_path / "check", repo, tmp_path / "parts") == unrun
+    (tests / "test_held.py").write_text(
+        (tests / "test_held.py").read_text()
+        + "\n\ndef test_a_lost_row():\n    assert held.lost('lost')\n"
+        + "\n\ndef test_a_found_row():\n    assert not held.lost('found')\n"
+    )
+    assert faults(added(since, repo), tmp_path / "ran", repo) == []
+
+
 def test_the_desk_and_ci_give_the_same_answer_for_a_line_only_another_modules_test_runs(tmp_path):
     """A line of `rows` that only `queue`'s own test runs, through `queue`'s code, is a fault
     whether the check reads what CI's parts ran or runs the tests itself, as a desk does: that
