@@ -6,12 +6,13 @@ files in a directory of the kitchen's own."""
 import fcntl
 import os
 import subprocess
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 
 import jbus
+from jbus import outbox
 from jgauge import holders, slot, waiters
 from jroles import waits
 from test_jbus_kitchen import NOW, iso, sends
@@ -82,6 +83,31 @@ def test_two_waiters_one_slot_frees_only_the_oldest_is_woken(kitchen, slots):
     assert line in said and kitchen.lines("slot-wake") == [line]
     by = {one.thread: one for one in waiters.read(slot.locks_dir())}
     assert by[older].woken and not by[younger].woken
+
+
+def test_a_taker_that_comes_between_the_count_and_the_send_finds_the_slot_claimed(
+    kitchen, slots, monkeypatch
+):
+    slots.hold("full", 2)
+    woken = waiter(kitchen, ago=9)
+    lane = LANES["full"]
+    took = []
+    sending = outbox.send
+
+    def taker_first(*args, **kwargs):
+        took.append(slot.take(lane, thread="mcp:taker", command=["uv", "run", "pytest"]))
+        return sending(*args, **kwargs)
+
+    monkeypatch.setattr(outbox, "send", taker_first)
+    kitchen.poll(datetime.now(UTC))
+    for got in took:
+        if got is not None:
+            os.close(got[0])
+    assert told(kitchen) == [woken] and took == [None]
+    monkeypatch.undo()
+    held = slot.take(lane, thread=woken, command=["uv", "run", "pytest"])
+    assert held is not None
+    os.close(held[0])
 
 
 def test_a_second_pass_wakes_no_one_twice(kitchen, slots):
