@@ -35,8 +35,8 @@ LINE_H = 15
 PAD_Y = 12
 GAP_X = 34
 GAP_Y = 70
-ROW_MAX = 7
-REGION_GAP = 90
+ROW_MAX = 4
+REGION_GAP = 60
 REGION_PAD = 36
 
 
@@ -80,6 +80,7 @@ class Region:
     starts: list = field(default_factory=list)
     w: float = 0
     h: float = 0
+    row_of: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -519,9 +520,10 @@ def edge_path(a, b, row_of, k, n, width):
     return f"M{sx:.1f},{y1:.1f} C{sx + out:.1f},{y1:.1f} {tx + out:.1f},{y2:.1f} {tx:.1f},{y2:.1f}"
 
 
-def draw_region(chart, r, offset):
+def draw_region(chart, r, offset, width):
     region = chart.regions[r]
-    row_of = layout(region)
+    row_of = region.row_of
+    shift = (width - region.w) / 2
     states = {s.id: s for s in region.states}
     arrow = f"url(#arrow-{esc(chart.name)})"
     pairs = {}
@@ -536,9 +538,10 @@ def draw_region(chart, r, offset):
     for source, target in pairs:
         fans.setdefault(down(source, target), []).append(source)
     parts = [
-        f'<g class="region" transform="translate({offset:.1f},0)">',
-        f'<rect class="region-box" x="0" y="0" width="{region.w:.1f}" height="{region.h:.1f}"'
+        f'<g class="region" transform="translate(0,{offset:.1f})">',
+        f'<rect class="region-box" x="0" y="0" width="{width:.1f}" height="{region.h:.1f}"'
         ' rx="18"/>',
+        f'<g transform="translate({shift:.1f},0)">',
     ]
     if region.name:
         parts.append(
@@ -589,17 +592,21 @@ def draw_region(chart, r, offset):
         for k, line in enumerate(s.lines):
             parts.append(f'<tspan x="{mid:.1f}" dy="{0 if k == 0 else LINE_H}">{esc(line)}</tspan>')
         parts.append("</text></g>")
-    parts.append("</g>")
+    parts.append("</g></g>")
     return "".join(parts)
 
 
 def draw_chart(chart):
-    pieces, offset, height = [], 0.0, 0.0
+    """The chart's regions one under another, each as wide as the widest, so a chart is about
+    one desk frame wide and grows down, where the frame scrolls."""
+    for region in chart.regions:
+        region.row_of = layout(region)
+    width = max(region.w for region in chart.regions)
+    pieces, offset = [], 0.0
     for r, region in enumerate(chart.regions):
-        pieces.append(draw_region(chart, r, offset))
-        offset += region.w + REGION_GAP
-        height = max(height, region.h)
-    width = offset - REGION_GAP
+        pieces.append(draw_region(chart, r, offset, width))
+        offset += region.h + REGION_GAP
+    height = offset - REGION_GAP
     return (
         f'<svg class="chart" viewBox="-20 -20 {width + 40:.1f} {height + 40:.1f}"'
         f' data-w="{width + 40:.1f}" data-h="{height + 40:.1f}" xmlns="http://www.w3.org/2000/svg"'
@@ -729,7 +736,7 @@ def page(charts, out_dir):
             f' <a href="{esc(png)}">chart.png</a></p>'
             f'<ul class="legend">{legend}</ul></header>'
             '<div class="stage"><div class="viewport" tabindex="0"'
-            f' aria-label="chart, drag to pan, wheel or pinch to zoom">{draw_chart(chart)}</div>'
+            f' aria-label="chart, drag or scroll to move, pinch or ctrl and scroll to zoom">{draw_chart(chart)}</div>'
             '<div class="zoom"><button data-zoom="in" aria-label="zoom in">+</button>'
             '<button data-zoom="out" aria-label="zoom out">&minus;</button>'
             '<button data-zoom="fit" aria-label="fit the chart">fit</button></div></div>'
