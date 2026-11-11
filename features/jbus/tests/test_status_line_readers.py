@@ -2,15 +2,22 @@
 as `jbriefs.status` reads it: a scout's row ends done, not left, and a crew's Result leaves
 nothing."""
 
+import re
+import subprocess
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
 
+from jbriefs.status import Status
 from jbus import homestatus, mirror, stale, watch, work
 from test_jbus_entry_go import PLAN
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_queue import go, rows
 from test_jbus_scout import add, judged, reported, scout_thread
+from test_status_line import CASES
+
+REPO = Path(__file__).resolve().parents[3]
 
 NOTED = "done (both ran the same cases)"
 
@@ -89,3 +96,28 @@ def test_a_home_marks_a_merged_result_done_with_a_note_read_without_showing_it(
 def test_a_result_that_says_done_with_a_full_stop_is_clean_to_stale():
     assert stale._clean("## Result\nStatus: done.\nLeft: none.\n")
     assert not stale._clean("## Result\nStatus: done, mostly\nLeft: none\n")
+
+
+NO_PR_END = REPO / "features" / "crew" / "no-pr-end.md"
+
+
+def no_pr_end_says(line: str, tmp_path: Path) -> str:
+    """Run the crew's no-pr-end awk on a Result with `line` as its Status line, and return the
+    reason it prints for the thread to stay, empty where the Result lets it settle."""
+    (program,) = re.findall(r"why=\$\(awk '\n(.*?)' \"\$B\"\)", NO_PR_END.read_text(), re.DOTALL)
+    brief = tmp_path / "brief.md"
+    brief.write_text(f"## Result\n{line}\nBranch: look   Pull request: none\nLeft: none\n")
+    ran = subprocess.run(["awk", program, str(brief)], capture_output=True, text=True, check=True)
+    return ran.stdout.strip()
+
+
+def test_the_crews_no_pr_end_awk_and_the_parser_agree_on_each_case(tmp_path):
+    said = {line: no_pr_end_says(line, tmp_path) for line, _ in CASES}
+    read = {
+        line: "" if value is Status.DONE else "paused" if value is Status.PAUSED else "not done"
+        for line, value in CASES
+    }
+    assert {
+        line: "" if not why else "paused" if "paused" in why else "not done"
+        for line, why in said.items()
+    } == read
