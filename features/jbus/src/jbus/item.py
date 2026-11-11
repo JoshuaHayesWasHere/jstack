@@ -166,6 +166,7 @@ AIM: dict[str, State | None] = {
     "launching": S.RUNNING,
     "working": S.RUNNING,
     "quiet": S.RUNNING,
+    "opening": S.RUNNING,
     "lost": S.RUNNING,
     "unapproved": S.HELD,
     "behind": S.QUEUED,

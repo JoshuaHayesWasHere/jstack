@@ -6,7 +6,7 @@ reader_actions = ["Grant", "Hold", "Lift", "Remove"]
 STATUS = {
     "queued": "queued (no thread yet)",
     "launched": "launched (a launch with no thread yet)",
-    "running": "running (the thread at work, a Result or not)",
+    "running": "running (the thread at work, a Result or not, or its pull request opening)",
     "waiting": "waiting (the thread asks you)",
     "stale": "stale (the thread ended with nothing written)",
     "failed": "failed (the thread failed)",
@@ -105,6 +105,8 @@ WRITTEN = {
     "leftover": "the crew writes a Result that leaves work",
 }
 PULL = {
+    "none": "the crew opens nothing after its review",
+    "opening": "the crew is on its way to its pull request after its review",
     "open": "the pull request opens",
     "merged": "the pull request merges",
     "closed": "the pull request closes unmerged",
