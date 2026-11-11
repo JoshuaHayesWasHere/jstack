@@ -5,7 +5,7 @@ names a test alone, and queue it all the same.
 since the home's skill gave a test alone as the line to write. A test shows the code runs, not
 what a user meets once it merges, so the line names beside it a command of the product with what
 it prints, a measure read after the merge, or `judged: <why>`. A change no user sees keeps its
-test alone, so it is a warning and never a refusal (`features/jbriefs/src/jbriefs/proof.py`,
+test alone, so it is a warning and never a refusal (`jbriefs.proof`,
 `user_sees`). The tests run the real command against the kitchen
 (`features/jbus/tests/test_jbus_kitchen.py`).
 """
