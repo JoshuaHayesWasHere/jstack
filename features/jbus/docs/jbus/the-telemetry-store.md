@@ -301,6 +301,27 @@ The measures `merge-asks` and `approval-reasks` read it, each as a day's rate: t
 `reply-corrections` and `visual-misses` lack it too: no pattern of the words tells a correction from a request.
 `asks.py` gives each pattern and what it misses.
 
+A message of kind `command` keeps the command it opens with in `messages.command`, as a slash and its name however it was typed (`/scout`, Codex's `$scout`, or the tags T3 Code writes a command out as), and what that command is in `messages.command_kind`:
+
+| `command_kind` | The command is |
+|---|---|
+| `door` | one that opens or hands on one of jstack's threads: `/home`, `/crew`, `/scout`, `/pr-review`, `/handoff`, `/new-home`, `/nohome`, `/unstick` |
+| `builtin` | the harness's own, such as `/clear` |
+| `skill` | any other, such as `/ketchup` or `/sharpen` |
+
+Both are empty for any other kind, and for a word of `acts`.
+`messages.py` holds the two lists (`DOORS`, `BUILTINS`); a change to either raises `RULES`, so every message is labelled again.
+The share of door commands among the messages you typed, by day:
+
+```sql
+SELECT day, count(*) AS typed, sum(command_kind = 'door') AS doors,
+       round(100.0 * sum(command_kind = 'door') / count(*), 1) AS door_pct
+FROM messages
+WHERE role = 'user' AND created_by = 'user' AND id NOT LIKE 'limit-resume:%' AND kind <> 'dropped'
+  AND day >= '2026-11-08'
+GROUP BY day ORDER BY day;
+```
+
 A lost ask is an `unanswered` message: no act cites it, and no reply came in its thread within the wait.
 The wait is counted to the last build, so a view read twice gives the same answer.
 A reply counts as an answer, so a message answered in words whose work never became a row is not lost here.
