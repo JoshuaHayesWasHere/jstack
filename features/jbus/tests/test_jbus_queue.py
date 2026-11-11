@@ -16,16 +16,7 @@ from crew_branches import pushed, started_on
 from jbus import cleanup, passes, poll, queue, wake
 from jmerge import judgement
 from scoped import scope
-from test_jbus_kitchen import (
-    GO,
-    NOW,
-    PROJECT,
-    QUARTER_PAST_FIVE,
-    RAN,
-    RESULT,
-    SAID,
-    Kitchen,
-)
+from test_jbus_kitchen import GO, NOW, PROJECT, QUARTER_PAST_FIVE, RAN, RESULT, SAID, Kitchen
 from test_machine_sizes import fake_proc
 
 AT = "2026-10-11 17:58 ET"

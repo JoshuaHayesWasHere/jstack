@@ -119,6 +119,10 @@ def examples():
     return [line for line in found if not line.startswith("<")]
 
 
-@pytest.mark.parametrize("proves", examples())
-def test_each_example_line_of_the_homes_skill_draws_no_warning(kitchen, proves):
-    assert warned(kitchen, brief(proves), "check") == []
+@pytest.mark.parametrize("kind", range(3), ids=["prints", "after the merge", "judged"])
+def test_each_example_line_of_the_homes_skill_draws_no_warning(kitchen, kind):
+    """The skill gives one line of each of the three kinds, so a skill that drops one fails here
+    and no parametrize over an empty list skips it."""
+    lines = examples()
+    assert len(lines) == 3, lines
+    assert warned(kitchen, brief(lines[kind]), "check") == []
