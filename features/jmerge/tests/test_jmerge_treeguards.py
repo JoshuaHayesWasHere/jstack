@@ -37,13 +37,33 @@ def test_merged_tree_guard_named_from_the_output():
     assert treeguards.guard("") == treeguards.UNNAMED
 
 
+def ending(end):
+    """Guards that end in 30 s by touching `end` from a process `sh` started, so a stop that kills
+    `sh` and not the processes it started still lets them reach that end."""
+    return f"(sleep 30; touch {end}) & wait"
+
+
+def stopped_before_their_end(ran, end):
+    """The guards were stopped at their limit and did not run to their end (`ending`). A count of
+    seconds would not tell: a runner that stalls `jmerge`'s process for 11 s holds back the stop,
+    and with it `Ran.seconds`, while the guards' `sleep 30` runs on (main's run 42910529419,
+    `Ran(code=None, seconds=12, ...)`). A stop that stops nothing waits for that end."""
+    assert ran.code is None, ran
+    assert not end.exists(), f"the guards ran to their end, not stopped at their limit: {ran}"
+
+
 def test_merged_tree_guards_that_run_past_their_time_are_stopped_with_their_children(tmp_path):
-    marker = tmp_path / "child"
-    command = f"sh -c 'sleep 3; touch {marker}' & sleep 30"
+    """The child is judged alive or not once the guards return, and not by a mark it leaves
+    later: a runner stalled past the child's own end would leave that mark before any stop."""
+    child = tmp_path / "child"
+    end = tmp_path / "end"
+    command = f"sh -c 'echo $$ > {child}; exec sleep 30' & {ending(end)}"
     ran = treeguards.run_guards(command, tmp_path, {}, timeout=1)
-    assert ran.code is None and ran.seconds < 10
-    time.sleep(3)
-    assert not marker.exists(), "the guards' child outlived the stop"
+    stopped_before_their_end(ran, end)
+    if child.exists():
+        pid = child.read_text().strip()
+        state = subprocess.run(["ps", "-o", "stat=", "-p", pid], capture_output=True, text=True)
+        assert state.stdout.strip()[:1] in ("", "Z"), "the guards' child outlived the stop"
 
 
 def test_guards_stopped_at_their_time_end_quietly_where_a_stopped_group_answers_eperm(
@@ -62,8 +82,9 @@ def test_guards_stopped_at_their_time_end_quietly_where_a_stopped_group_answers_
         kill(group, sig)
 
     monkeypatch.setattr(treeguards.os, "killpg", darwin)
-    ran = treeguards.run_guards("sleep 30", tmp_path, {}, timeout=1)
-    assert ran.code is None and ran.seconds < 10
+    end = tmp_path / "end"
+    ran = treeguards.run_guards(ending(end), tmp_path, {}, timeout=1)
+    stopped_before_their_end(ran, end)
 
 
 SCOUT = "features/verify-jstack/tests/test_verify_jstack.py::" + (
