@@ -16,7 +16,11 @@ It never rebases a link jbus stacked, a brief with a `Stacked on:` line in its h
 
 Every rebase goes on, a third after fixed and green and any after it included: a rebase gets no scoped review, since its checks verify it, as the end of this section says.
 
-It never rebases under a review that is running either. A reviewer launched from this thread has a line in the Result, `Reviewer:`, `Second reviewer:` or `Scoped reviewer:` with a thread id, and writes one `## Review` section with a `Head:` line. While one of those lines has no such section written after it, of its seat (`#<n>`) where it has one, and a scoped one for a `Scoped reviewer:` (`jbriefs line reviewing`, the rule jbus waits on too), the block prints `a review of <head> is running: rebase after its section is written` and does nothing: a rebase would move the head from under the reviewer, whose findings would then name lines of a head that is gone. Run the block again on the message that brings that review's findings.
+It never rebases under a review that is running either.
+A reviewer launched from this thread has a line in the Result, `Reviewer:`, `Second reviewer:` or `Scoped reviewer:` with a thread id, and writes one `## Review` section with a `Head:` line.
+While one of those lines has no such section written after it, of its seat (`#<n>`) where the line has one, the block prints `a review of <head> is running: rebase after its section is written` and does nothing: a rebase would move the head from under the reviewer, whose findings would then name lines of a head that is gone.
+`jbriefs line reviewing` reads it, by the rule jbus waits on before it moves a head (`jbriefs.findings.running`).
+Run the block again on the message that brings that review's findings.
 
 Before it rebases, the block keeps the head under `refs/jstack/pre-rebase/<slug>/<the head's first 12 characters>`. A worktree shares its refs with the main checkout, so `jmerge` always finds the commit before the rebase there, and `jmerge --sweep` deletes only branches and the gate's refs, so the ref outlives the branch. These refs are never pushed, and they are removed only by hand.
 

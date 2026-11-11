@@ -54,7 +54,8 @@ The brief's reviewer, if a thread has already launched one and written it in the
 uv run --project "$T/../source" jbriefs line reviewer "$H/tasks/<slug>.md"
 ```
 
-It prints that reviewer's thread id, or `none`. A line that says `Reviewer: none`, which a crewmate with no launch tool writes, is no reviewer.
+It prints that reviewer's thread id, or `none`.
+A line that says `Reviewer: none`, which a crewmate with no launch tool writes, is no reviewer.
 
 1. Find the briefs that are **ready**. Run this with the block at the top, in a home with no slug with `*` for `<slug>`. It is the only check:
 
