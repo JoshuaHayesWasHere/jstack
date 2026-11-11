@@ -107,3 +107,76 @@ def test_a_spell_that_ends_after_a_build_is_closed_by_the_next_build(machine):
     assert rows(machine) == [("alpha", "tmp", "/tmp", None, t(minutes(0)), None, None)]
     machine.append("alpha", "waits.jsonl", wait(minutes(12), "tmp", ""))
     assert rows(machine) == [("alpha", "tmp", "/tmp", None, t(minutes(0)), t(minutes(12)), 12.0)]
+
+
+def relaunch(failed_thread, cause, launched_at, failed_at, **more):
+    """A home's entry in `relaunches.json` as `jbus.children.launch` writes it: the relaunch
+    after a failed start, with that start's failure, its thread and when it was launched."""
+    failed = {"cause": cause, "at": iso(failed_at), "thread": failed_thread, "times": 1, **more}
+    if launched_at is not None:
+        failed["launched"] = iso(launched_at)
+    return {
+        "at": iso(failed_at),
+        "why": f"its last launch, thread {failed_thread}, is not at work and wrote no home-id",
+        "thread": f"{failed_thread}-again",
+        "failed": failed,
+        "says": f"start failed: {cause}",
+    }
+
+
+def test_each_failed_home_start_is_a_row_from_its_launch_to_its_failure(machine):
+    """`relaunches.json` names each home's last failed start, which jbus drops once the home
+    starts: the store keeps a row for each failed start it saw, by its thread, so a start that
+    sat with no home-id counts with its minutes after its home has started. The store reads the
+    file through `jbus.telemetry.records.home_starts` into the table
+    `jbus.telemetry.migrations.v022_home_starts` makes."""
+    machine.write(
+        "alpha",
+        "relaunches.json",
+        {
+            "uncategorized": relaunch("t-1", "it ended with no home-id", minutes(0), minutes(25)),
+            "polish": relaunch("t-2", "its run failed", minutes(5), minutes(6)),
+        },
+    )
+    until = iso(minutes(300))
+    machine.write(
+        "beta",
+        "relaunches.json",
+        {
+            "uncategorized": relaunch("t-3", "not signed in", minutes(1), minutes(3), on="x"),
+            "polish": relaunch("t-4", "5h limit", minutes(2), minutes(4), until=until),
+            "docs": relaunch("t-5", "it ended with no home-id", None, minutes(9)),
+        },
+    )
+    held = [
+        ("alpha", "uncategorized", "no home-id", None, t(minutes(0)), t(minutes(25)), 25.0),
+        ("alpha", "polish", "no home-id", None, t(minutes(5)), t(minutes(6)), 1.0),
+        ("beta", "uncategorized", "sign-in", None, t(minutes(1)), t(minutes(3)), 2.0),
+        ("beta", "polish", "other", "5h limit", t(minutes(2)), t(minutes(4)), 2.0),
+        ("beta", "docs", "no home-id", None, None, t(minutes(9)), None),
+    ]
+    assert rows(machine) == sorted(held, key=lambda row: (row[0], row[4] or row[5], row[1]))
+    machine.write(
+        "alpha",
+        "relaunches.json",
+        {
+            "uncategorized": {
+                "at": iso(minutes(25)),
+                "why": "it has no thread",
+                "thread": "t-1-again",
+            }
+        },
+    )
+    machine.write(
+        "beta",
+        "relaunches.json",
+        {"uncategorized": relaunch("t-6", "it ended with no home-id", minutes(10), minutes(40))},
+    )
+    held.append(("beta", "uncategorized", "no home-id", None, t(minutes(10)), t(minutes(40)), 30.0))
+    assert rows(machine) == sorted(held, key=lambda row: (row[0], row[4] or row[5], row[1]))
+
+
+def test_a_relaunches_file_that_is_no_object_or_names_no_failed_start_adds_no_row(machine):
+    machine.write("alpha", "relaunches.json", ["uncategorized"])
+    machine.write("beta", "relaunches.json", {"uncategorized": {"at": iso(minutes(0))}})
+    assert rows(machine) == []

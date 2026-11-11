@@ -3,7 +3,7 @@
 The store is `telemetry.sqlite` in jbus's state directory, in WAL mode, so a reader never waits
 on the build. It has one table for each record file of each project (`jbus.telemetry.records`):
 the jbus logs, the CI ledger, the home's `merge.log`, the records `jbus.history` and
-`jbus.spent` keep, six snapshots, the machine's log of its passes, each
+`jbus.spent` keep, the snapshots, the machine's log of its passes, each
 launch's arm (`jbus.telemetry.launches`), the messages of T3 Code's threads
 (`jbus.telemetry.messages`), the gate labels a scout writes each week
 (`jbus.telemetry.labels`), the gh calls of each hour from the machine's call log

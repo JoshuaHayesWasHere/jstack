@@ -23,6 +23,7 @@ The store has one table for each record file of each project, with a `project` c
 | `questions` | `questions.json` | a gate and its answer |
 | `queue` | `queue.json` | a row of the queue, with its approval's times, `follows`, the parent a follow-up's go names, `queued_by_session`, the session that queued it (empty for a row jbus filed), and `approval_message`, the `<thread id>/<message id>` its go rests on (an entry's go, the user's message or pick; empty for any other go) |
 | `merged` | `merged.json` | a merged pull request of a row |
+| `home_starts` | `relaunches.json` | from v022, a failed home start, by its thread: its `home`, the `cause` `jbus.children` read, when it was `launched` and when the pass saw it end (`at`), and how many starts in a row failed on that cause (`times`); kept after jbus drops it from the file once the home starts |
 | `ci_prs` | `ci-prs.jsonl` | a pull request the CI ledger keeps |
 | `brief_versions` | `brief-versions.jsonl` | a change of a stored brief's sha, or its removal (no sha), and the home's copy of a brief as a pass moves its row to `done`, with `pull`, what the version's `Pull request:` line asks: `open` for `open one`, `ask` for `ask first`, `none` for any other text, no line or a removal; and `outcome`, how its last Result ended a row with no merge (`jbus.outcome`): `carried`, `nothing to change` or `dropped`, null where it names none |
 | `row_pulls` | `row-pulls.jsonl` | a pull request a row had, the first time a pass saw it open, and again merged |
@@ -148,6 +149,7 @@ The spells an account was signed out have no record yet.
 | `sign-in` | a `failover` line of `events.jsonl` whose instance could not sign in, or a row's reason `no launch: <instance> cannot sign in (...)` in `waits.jsonl` | from the row's last launch in `transitions.jsonl` to the failover, or the wait's spell; a failover of a row with no launch there, such as a scout's, has no start and no minutes |
 | `/tmp` | a row's reason `waiting: /tmp at <n>% of its <what>` | the wait's spell |
 | `no slot` | a row's reason `no slot`, `max_per_home is ...`, `max_per_project is ...`, `max_running is ...`, or a gate held back while every slot is taken | the wait's spell |
+| `no home-id` | a failed home start `relaunches.json` names (`home_starts`), whose run ended, failed or idle, with no `home-id`; one that failed signed out is `sign-in`, and one on a usage limit is `other` with the limit as `reason` | from when the start was launched to when the pass saw it end; a start written before `relaunches.json` kept `launched` has no start and no minutes |
 | `other` | `waiting for room on the machine`, every no of `jgauge room` but /tmp's, or `no launch: ...` for capped instances, kept as `reason` | the wait's spell |
 
 A wait's spell runs from a row's first line of a cause in `waits.jsonl` to its next line of another cause or of none.
@@ -155,10 +157,7 @@ The store reads each line's cause as it reads the line, and each build makes the
 Migration `v021_launch_failures` drops the cursors of `events` and `row_waits`, so the first build after it reads each `events.jsonl` and `waits.jsonl` again and gives the lines it holds their cause; an event older than the 14 days `events.jsonl` keeps has none.
 `waits.jsonl` began on 2026-11-09 at 23:26 UTC, so a wait before then has no row.
 
-Two causes have no record jbus writes, and no row is guessed for them:
-
-- `no home-id`, a home start that sat: `relaunches.json` keeps each home's last launch and what its last failed start failed on, but not when that start began, and the pass writes the launch that replaces it in the same pass.
-- `load`: `jbus.dispatch.ROOM` writes every no of `jgauge room` but /tmp's as one reason, `waiting for room on the machine`, which is `other`.
+One cause has no record jbus writes, and no row is guessed for it: `load`, since `jbus.dispatch.ROOM` writes every no of `jgauge room` but /tmp's as one reason, `waiting for room on the machine`, which is `other`.
 
 Minutes and count by cause by hour, from the hour each began (its `end` where it has no start), since a time:
 
