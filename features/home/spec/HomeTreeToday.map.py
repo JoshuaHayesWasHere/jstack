@@ -49,8 +49,17 @@ KEEPER = {
 }
 
 
+# A start of the catch-all that failed, kept in relaunches.json until a start writes its home-id.
+FAILED = {
+    "none": "",
+    "once": ", its last start failed",
+    "waits": ", two starts in a row failed on one cause, and it waits for that to clear",
+    "cleared": ", two starts failed on a cause that has cleared",
+}
+
+
 def keeper(v):
-    return KEEPER[(v["keeper"], v["starts"] > 0)]
+    return KEEPER[(v["keeper"], v["starts"] > 0)] + FAILED[v["failed"]]
 
 
 # K and Rhythm of the chart's scene, in HomeTreeToday.cfg.
@@ -154,12 +163,15 @@ def step(action, before, after):
         "CatchallGoes": "you archive the catch-all's thread",
         "StartWrites": "the catch-all's start writes its home-id",
         "StartEnds": "the catch-all's start ends with no home-id",
+        "CauseClears": "the cause its starts failed on clears",
     }.get(action, action)
 
 
 def cause(v, facts, invariant):
     return {
         "RetireHandsOver": "a scope archived with work out leaves that work with no home",
+        "WaitsForCause": "jbus launches a home again while the cause its last two starts failed"
+        " on has not cleared",
         "CallsReachJosh": "a post to the home thread fails, and the call leaves its outbox"
         " all the same",
         "StallFlagged": "a hung thread is a quiet event, logged and sent to nobody",

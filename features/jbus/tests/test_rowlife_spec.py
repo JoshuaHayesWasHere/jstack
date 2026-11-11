@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from jbus import queue
+from jbus import queue, work
 from testing.paths import REPO
 
 SPEC = REPO / "features" / "jbus" / "spec"
@@ -43,6 +43,26 @@ def test_the_spec_has_each_status_of_the_queue():
     text = (SPEC / "RowLife.tla").read_text()
     (listed,) = re.findall(r"^Statuses ==\s*\{([^}]*)\}", text, re.M)
     assert set(re.findall(r'"(\w+)"', listed)) == {*queue.STATUSES, "removed"}
+
+
+JOINED = {
+    **dict.fromkeys(
+        ("result", "review", "findings", "second", "stacked", "rebase", "hold"), "check"
+    ),
+    "quiet": "working",
+}
+"""The values of work.json's line the spec joins, each to the value that stands for it, as the
+comment over its `Values` says: the steps of an open pull request, and a quiet thread at work."""
+
+
+def test_the_spec_has_each_value_of_work_json_or_names_its_join():
+    """The spec's `Values` are `work.VALUES` less the joined ones, so a value the code gains fails
+    here until the spec takes it in or names its join."""
+    text = (SPEC / "RowLife.tla").read_text()
+    (listed,) = re.findall(r"^Values ==\s*\{([^}]*)\}", text, re.M)
+    spec = set(re.findall(r'"(\w+)"', listed))
+    assert spec == set(work.VALUES) - set(JOINED)
+    assert set(JOINED.values()) <= spec
 
 
 def tlc(cfg: str) -> subprocess.CompletedProcess:

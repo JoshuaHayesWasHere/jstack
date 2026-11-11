@@ -32,14 +32,14 @@ PATIENCE = timedelta(hours=1)
 
 
 QUOTE = re.compile(r"([\w./-]+\.(?:py|md))\s*`([^`]+)`")
-"""A citation of HomeTreeToday.tla with the code it quotes, and no line number:
+"""A citation of HomeTreeToday.tla or HomeTree.tla with the code it quotes, and no line number:
 `jbus/children.py `beat = _rhythm(scope)``, so a line that only moves needs no edit."""
 
 
 def quoted():
-    """Each quote of HomeTreeToday.tla: its file as cited, the quote, the file's lines, and each
-    span of them that holds the quote."""
-    text = (SPEC / "HomeTreeToday.tla").read_text()
+    """Each quote of HomeTreeToday.tla and of HomeTree.tla, whose variables it shares: its file as
+    cited, the quote, the file's lines, and each span of them that holds the quote."""
+    text = "\n".join((SPEC / name).read_text() for name in ("HomeTreeToday.tla", "HomeTree.tla"))
     flat = re.sub(r"\s*\n\s*(?:\\\*)?\s*", " ", text)
     files = subprocess.run(
         ["git", "ls-files", "features"], cwd=REPO, capture_output=True, text=True, check=True

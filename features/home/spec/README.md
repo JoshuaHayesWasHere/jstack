@@ -7,7 +7,7 @@ The root owns no row: what a retired child had out is the catch-all's, `uncatego
 
 - `HomeTree.tla` holds the variables, the start, and the rules, each with its sentence.
 - `HomeTreeToday.tla` models today's code, and each of its conditions names the file that checks it and quotes the code, with no line number.
-  `test_home_tree_spec.py` finds the one place each quote stands, so a rebase that moves the lines leaves no cite to renumber.
+  `test_home_tree_spec.py` finds, in it and in `HomeTree.tla`, the one place each quote stands, so a rebase that moves the lines leaves no cite to renumber.
   It is the design too, since the code has each of the design's guards, and its constant `Drop` takes out one of them.
 - `canaries.py` runs TLC on all of it, and `HomeTreeToday.map.py` labels the chart.
 
@@ -51,8 +51,9 @@ The chart's scene, in `HomeTreeToday.cfg`, is child a alone with one call, a hom
 TLC 2.19 fails in a run of one worker with `-continue` once a rule breaks in some thousands of states, and the statechart command runs one worker, so the chart's scene is small.
 The home thread never fails in the chart's scene, and can fail in the scenes `a` and `b` of `canaries.py`.
 With it able to fail, the chart's scene has some three times the states, and Mermaid's PNG of it comes out mostly blank.
-So it is with the catch-all's thread moving beside child a: the chart has 240 states and not 76, and Mermaid draws only "Maximum text size in diagram exceeded".
+So it is with the catch-all's thread moving beside child a: the chart has 240 states and not 76 (86 now, with a failed start's mark), and Mermaid draws only "Maximum text size in diagram exceeded".
 In the chart's scene the catch-all's story comes first, its start, a start that ends with no `home-id`, its own thread, and you archiving it, and the children's after it.
+A start that ends with no `home-id` marks `relaunches.json`'s `failed` (`failed`): two in a row on one cause make the keep-alive wait until that cause clears (`WaitsForCause`, with the canary `waits`, which starts again while it waits), and a start that writes its `home-id` drops the mark.
 The chart draws only the rules that are invariants.
 A ready pull request that never merges (`ReadyMerges`) is a property, and today's code keeps it since pull request 357 let jbus merge a child's pull request, which the chart draws as a step of today's code.
 Stranding (`CallsReachJosh`) is a property too, and today's code keeps it: jbus has one route to Josh, the home thread, and a post to it that fails leaves the call in its outbox.
@@ -79,7 +80,7 @@ Each now holds by the guard the design names for it, and a test in `features/hom
 
 - A third child.
 - That a stalled handed child's launch on a fresh thread is a launch of the catch-all, which shares the keep-alive's record of its last launch.
-- A start of the catch-all that fails twice on one cause and waits for it to clear (`_waits`): the model's fairness says a start launched again and again writes its `home-id` in the end.
+- What a failed start's cause is and what it `says`: the model knows only whether the second failure had the first one's cause, and the world clears a cause in the end (`CauseClears`).
 - What one home leaves for another: a queued row `--for` that home, the user's word the root carries to a scope by `jbus word --scope`, and `jbus stop`, by which a scoped home reaches the root (#553, #567, #578).
 - A pull request that stops being ready a second time, and a push to main by anything but a merge.
 - The crew's own stalls, which the crew skill and jbus's waits cover.

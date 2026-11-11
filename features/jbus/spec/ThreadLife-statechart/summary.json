@@ -1,11 +1,11 @@
 {
   "view": "customer",
-  "modelStates": 2974,
-  "modelTransitions": 6875,
-  "chartStates": 49,
-  "chartTransitions": 75,
+  "modelStates": 45694,
+  "modelTransitions": 147225,
+  "chartStates": 58,
+  "chartTransitions": 88,
   "chartStatus": {
-    "works": 49,
+    "works": 58,
     "fixed": 0,
     "wrong": 0
   },
@@ -31,6 +31,11 @@
       "states": 1
     },
     {
+      "name": "Yours",
+      "color": "#fdebd0",
+      "states": 1
+    },
+    {
       "name": "Put away",
       "color": "#d1f2eb",
       "states": 7
@@ -40,14 +45,14 @@
   "regions": {
     "drawn": true,
     "states": [
-      6,
-      43
+      7,
+      51
     ],
-    "transitions": 75,
-    "all": 131,
+    "transitions": 88,
+    "all": 170,
     "flat": {
-      "states": 71,
-      "transitions": 220
+      "states": 123,
+      "transitions": 446
     }
   },
   "classes": [],
@@ -55,10 +60,10 @@
   "drawnFrom": {
     "command": "statechart from-spec ThreadLife.tla --title 'What does jbus do with a thread, launch to archive?' --png",
     "inputs": {
-      "ThreadLife.cfg": "3acca17c37aab2c3c1ceb045661dbbb8d1fb9e1fda2e55fd0af294f1ff5fd733",
-      "ThreadLife.map.py": "4b6deb54a9eba14caaffd7af4618d2e40b5c67c6fd7b046fd874455b27eb2e5c",
-      "ThreadLife.tla": "48f43274c8bb2a167eb213b34c71562671ba1ab8e718ea28f9706853b7a0e8b6"
+      "ThreadLife.cfg": "75b281350ae23c8ba7533f81a323b71b79462281ab56875327f13a90c55c3b2e",
+      "ThreadLife.map.py": "6772612119f94a2cb1279dcc9cf6cf4d17fb2527b21983f9624c2398da618ca1",
+      "ThreadLife.tla": "659a8f5c5f4a1d6d106537fd16c4c6d323e13507532352da4f7e020bffc20728"
     },
-    "chart": "f83a95a2e75d25caa099255af19795a76abcf726b783336be3f90461aa3cf0d6"
+    "chart": "52892e46c18c24984a28a6962f3b0c70662ce523bdd54f1772915e664af04841"
   }
 }

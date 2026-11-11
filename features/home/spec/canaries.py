@@ -41,6 +41,7 @@ INVARIANTS = [
     "NudgesBounded",
     "RelaunchOnce",
     "OneStart",
+    "WaitsForCause",
     "OneMerger",
     "NoBlindMerge",
 ]
@@ -63,6 +64,7 @@ CANARIES = {
     "drop-release": ("ReadyMerges", "siblings"),
     "keep-alive": ("CatchallRuns", "a"),
     "going": ("OneStart", "a"),
+    "waits": ("WaitsForCause", "a"),
 }
 
 # Today's code keeps every rule in every scene: the four it broke (RetireHandsOver, StallFlagged,
