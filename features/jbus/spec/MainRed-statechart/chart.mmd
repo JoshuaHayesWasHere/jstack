@@ -8,15 +8,21 @@ config:
 stateDiagram-v2
   classDef group0 fill:#d1f2eb,stroke:#697976,color:#1b2631
   classDef group1 fill:#fdebd0,stroke:#7f7668,color:#1b2631
-  classDef group2 fill:#f9d6d5,stroke:#7d6b6b,color:#1b2631
+  classDef group2 fill:#fcf3cf,stroke:#7e7a68,color:#1b2631
+  classDef group3 fill:#f5cba7,stroke:#7b6654,color:#1b2631
+  classDef group4 fill:#f9d6d5,stroke:#7d6b6b,color:#1b2631
   state "Legend" as legend {
     state "Not red" as legendGroup0
-    state "Red, its fix on its way" as legendGroup1
-    state "Red, nothing open yet" as legendGroup2
+    state "Red, a revert open" as legendGroup1
+    state "Red, a fix row out" as legendGroup2
+    state "Red, a revert open and a fix row out" as legendGroup3
+    state "Red, nothing open yet" as legendGroup4
   }
   class legendGroup0 group0
   class legendGroup1 group1
   class legendGroup2 group2
+  class legendGroup3 group3
+  class legendGroup4 group4
   state "Main green, the Mac red" as g0 {
     state "a fix row out" as s0
     state "a revert open" as s1
@@ -341,44 +347,44 @@ stateDiagram-v2
   s26 --> s15 : jbus's pass: a red check leans<br/>on the revert already open
   s37 --> s15 : jbus's pass: a red check leans<br/>on the revert already open
   s36 --> s15 : jbus's pass: a red check leans<br/>on the revert already open
-  class s0 group1
+  class s0 group2
   class s1 group1
-  class s2 group1
-  class s3 group2
+  class s2 group3
+  class s3 group4
   class s4 group1
-  class s5 group1
+  class s5 group3
   class s6 group0
   class s7 group0
   class s8 group0
   class s9 group0
-  class s10 group1
+  class s10 group2
   class s11 group1
-  class s12 group1
-  class s13 group2
+  class s12 group3
+  class s13 group4
   class s14 group1
-  class s15 group1
-  class s16 group1
+  class s15 group3
+  class s16 group2
   class s17 group1
-  class s18 group1
-  class s19 group2
+  class s18 group3
+  class s19 group4
   class s20 group1
-  class s21 group1
-  class s22 group1
+  class s21 group3
+  class s22 group2
   class s23 group1
-  class s24 group1
-  class s25 group2
+  class s24 group3
+  class s25 group4
   class s26 group1
-  class s27 group1
+  class s27 group3
   class s28 group0
   class s29 group0
   class s30 group0
   class s31 group0
-  class s32 group1
+  class s32 group2
   class s33 group1
-  class s34 group1
-  class s35 group2
+  class s34 group3
+  class s35 group4
   class s36 group1
-  class s37 group1
+  class s37 group3
   class s38 group0
   class s39 group0
   class s40 group0

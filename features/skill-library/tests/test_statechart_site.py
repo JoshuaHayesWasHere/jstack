@@ -59,6 +59,38 @@ def test_the_page_holds_each_committed_chart_and_each_of_its_states(tmp_path):
     assert r.stdout == f"wrote {out}: {len(CHARTS)} charts, {total} states\n"
 
 
+GROUP_MOST = 15
+
+
+REGROUP_IN = {"TellOnce-statechart": "st-tellonce-groups"}
+"""A chart still to be regrouped, with the queued row that regroups it: strict, so the entry
+goes once the chart passes."""
+
+
+@pytest.mark.parametrize(
+    "chart",
+    [
+        pytest.param(
+            chart,
+            marks=pytest.mark.xfail(strict=True, reason=f"regrouped in {REGROUP_IN[name]}")
+            if (name := chart.parent.name) in REGROUP_IN
+            else (),
+        )
+        for chart in CHARTS
+    ],
+    ids=lambda chart: chart.parent.name,
+)
+def test_each_charts_groups_hold_few_enough_states_to_find_one_and_none_is_mixed(chart):
+    """A reader finds a state by its group's color: a group of more than GROUP_MOST states says
+    little about where a state sits, and a mixed state is gray, in no group at all."""
+    summary = json.loads(read(chart.parent / "summary.json"))
+    big = [
+        f"{g['name']} ({g['states']})" for g in summary["chartGroups"] if g["states"] > GROUP_MOST
+    ]
+    assert not big, f"{chart.parent.name} has groups over {GROUP_MOST} states: {', '.join(big)}"
+    assert summary["mixedGroups"] == [], f"{chart.parent.name} has mixed states"
+
+
 def test_the_page_fetches_nothing_when_it_is_viewed(tmp_path):
     out = tmp_path / "index.html"
     assert site(REPO, out).returncode == 0

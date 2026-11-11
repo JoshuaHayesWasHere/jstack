@@ -11,14 +11,34 @@
   },
   "chartGroups": [
     {
-      "name": "Fine",
-      "color": "#d1f2eb",
-      "states": 43
+      "name": "No child yet",
+      "color": "#e8daef",
+      "states": 15
     },
     {
-      "name": "Stalled",
-      "color": "#fdebd0",
-      "states": 13
+      "name": "No pull request yet",
+      "color": "#eaf2f8",
+      "states": 10
+    },
+    {
+      "name": "Pull request open, not ready",
+      "color": "#d6eaf8",
+      "states": 12
+    },
+    {
+      "name": "Pull request ready",
+      "color": "#aed6f1",
+      "states": 6
+    },
+    {
+      "name": "Pull request ready again, after it dropped",
+      "color": "#f9e79f",
+      "states": 6
+    },
+    {
+      "name": "Pull request merged",
+      "color": "#d1f2eb",
+      "states": 7
     }
   ],
   "mixedGroups": [],
@@ -42,9 +62,9 @@
     "inputs": {
       "HomeTree.tla": "f91678dca5a7619d907226be714caf4aaea54680c549597e266942f11bd20118",
       "HomeTreeToday.cfg": "aa1101c985067b4d720c298b500f3ace082780dbda33318f5737326f396c902e",
-      "HomeTreeToday.map.py": "3185744a9ac3dfda74b0689065aae74610a5aff62dbb51ef435b8fb445b8aa57",
+      "HomeTreeToday.map.py": "12790bc0c2f647159abd9bc480f096a906cbee1aadc1cf80424e305d4a4ab374",
       "HomeTreeToday.tla": "0bd8e020ff28c0039bd48217443455b1547b7576252bad5106e43ac5303eb43f"
     },
-    "chart": "99169c53ef861eb4680afffa3a151126b92e877686817d280e768844793fdec9"
+    "chart": "5f1a63dabae63464210cc05a8b7cbe1c762c66c975cde9e7feaf09c88221781a"
   }
 }

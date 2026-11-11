@@ -97,19 +97,36 @@ def state(v, facts):
 region_names = ["The children", "What reaches you"]
 
 
-def group(v, facts):
-    if v["blind"] or any(len([a for a, t in v["seen"][k].items() if t != 9]) > 1 for k in made(v)):
-        return "Merging"
-    if any(v["life"][k] == "stuck" for k in made(v)):
-        return "Stalled"
-    return "Fine"
-
-
-group_colors = {
-    "Fine": "#d1f2eb",
-    "Stalled": "#fdebd0",
-    "Merging": "#e8daef",
+# The groups follow a child's pull request through the flow (features/home/docs/flow.md), and read
+# only the child's part of the label: a state with two children is in its less advanced one's.
+# "What reaches you" is drawn as a region beside the children, so its states are in no group: a
+# merge comes from a ready pull request and one ready again, so the merging states are in neither.
+PHASE = {
+    "none": "No pull request yet",
+    "crew": "No pull request yet",
+    "open": "Pull request open, not ready",
+    "again": "Pull request open, not ready",
+    "ready": "Pull request ready",
+    "back": "Pull request ready again, after it dropped",
+    "merged": "Pull request merged",
+    "done": "Pull request merged",
 }
+
+# Pale to deep blue as the pull request moves on, yellow once it dropped, green once it merged.
+group_colors = {
+    "No child yet": "#e8daef",
+    "No pull request yet": "#eaf2f8",
+    "Pull request open, not ready": "#d6eaf8",
+    "Pull request ready": "#aed6f1",
+    "Pull request ready again, after it dropped": "#f9e79f",
+    "Pull request merged": "#d1f2eb",
+}
+ORDER = list(group_colors)
+
+
+def group(v, facts):
+    phases = [PHASE[v["work"][k]] for k in made(v)]
+    return min(phases, key=ORDER.index) if phases else "No child yet"
 
 
 def kid(before, after):
