@@ -45,7 +45,7 @@ def site(root, out, *extra):
     return node("statechart", ["site", "--out", str(out), "--root", str(root), *extra], root)
 
 
-def test_the_page_opens_on_a_map_of_the_six_charts_and_how_they_hand_off(tmp_path):
+def test_the_page_opens_on_a_map_of_every_chart_and_how_they_hand_off(tmp_path):
     out = tmp_path / "index.html"
     r = site(REPO, out, "--flow", str(FLOW))
     assert r.returncode == 0, r.stderr
@@ -60,6 +60,7 @@ def test_the_page_opens_on_a_map_of_the_six_charts_and_how_they_hand_off(tmp_pat
         "FlowToday": "Two rows on their way to main",
         "MainRed": "A red main",
         "HomeTreeToday": "A tree of homes",
+        "TellOnce": "A thing jbus does once",
     }
     for name, thing in things.items():
         assert f'data-chart="{name}"' in flow and thing in flow, name
