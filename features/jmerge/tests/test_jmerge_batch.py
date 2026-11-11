@@ -13,12 +13,14 @@ The tests run the `jmerge` command (`jmerge.cli`) against a real origin and the 
 answers the artifact and run lookups from files of the stub."""
 
 import json
+import os
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
 import test_home_merge as merge
 import test_jmerge_fresh as fresh
+from jgauge import slot
 from jmerge import batch, green, ready, treeguards
 from jmerge.lock import MergeLock
 from test_jmerge_fresh import AFTER as LATER
@@ -909,3 +911,38 @@ def test_the_guards_on_a_batch_tree_say_what_they_did_under_the_single_path_s_ru
         assert tried.outcome in treeguards.UNRUN and tried.outcome.startswith(case[:2])
         assert tried.why and guards.spent == (treeguards.RUN_SECONDS if case == "no time" else 0)
     assert not (kitchen.home.state / treeguards.KEPT).exists()
+
+
+def test_guards_on_a_batch_tree_that_find_no_slot_run_no_more_in_that_run(
+    kitchen, tmp_path, monkeypatch
+):
+    """With every full slot taken past `SLOT_SECONDS`, the guards on a batch's tree do not start,
+    the wait counts toward the run's seconds, and a later batch of the run waits for none."""
+    monkeypatch.delenv(slot.HELD, raising=False)
+    monkeypatch.setenv("JGAUGE_LOCKS_DIR", str(tmp_path / "locks"))
+    monkeypatch.setenv("TEST_SLOTS", "1")
+    monkeypatch.setattr(treeguards, "SLOT_SECONDS", 1)
+    guards = treeguards.Guards(kitchen.home.main, kitchen.home.state, True, lambda path: {})
+    guards.command = "true"
+    tip = git(kitchen.home.main, "rev-parse", "HEAD")
+    held, _ = slot.take(slot.full(1))
+    try:
+        assert guards.on_batch(tip, tip) == treeguards.Tried(treeguards.NO_SLOT, 1)
+    finally:
+        os.close(held)
+    assert guards.on_batch(tip, tip) == treeguards.Tried(treeguards.NO_SLOT, 0)
+    assert guards.spent == 1
+
+
+def test_a_batch_tree_the_guards_cannot_run_on_is_not_made_and_its_members_go_alone(kitchen):
+    """A worktree of the batch's commit that cannot be made is no evidence against a member: the
+    run says `batch: not made` with why, and each member takes the single path, its head not under
+    `failed`."""
+    (kitchen.home.state / treeguards.TREE).write_text("in the way\n")
+    kitchen.crew("one", 6, {"a.txt": OURS})
+    kitchen.crew("two", 7, {"b.txt": OURS})
+    tip = kitchen.on_main({"d.txt": "theirs\n"})
+    unmade, *said = kitchen.run()
+    assert unmade.startswith(f"batch: not made over main at {tip[:12]} (")
+    assert [one.split()[:2] for one in said] == [["wait", "6"], ["wait", "7"]]
+    assert runs(kitchen) == 0 and record(kitchen)["failed"] == {}
