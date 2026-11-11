@@ -21,6 +21,7 @@ from test_home_thread import blocks
 from testing.paths import REPO
 
 SKILLS = ("crew", "pr-review", "scout")
+READ_SET = ("features/crew/", "features/pr-review/", "features/scout/")
 LINES = re.compile(r"Branch:|Pull request|Stacked on|Checked:|Status:|Reviewer|reviewer:|By:")
 PROGRAM = re.compile(r"\b(?:awk|sed)\b[^'\n]*'(.*?)'", re.S)
 OTHER = {
