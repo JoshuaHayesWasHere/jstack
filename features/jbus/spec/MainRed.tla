@@ -236,8 +236,11 @@ MacVerdict(green, red) ==
 \* One jbus pass, under the pass lock, so nothing lands inside it: reverts.macos, mainmoved.tell,
 \* watch.retro with _withdraw, culprits.judge and reverts.close, in that order (steps 9 to 13 of
 \* "after-expedite").
+\* TLC takes `refused` only where main's tip has a first attempt that failed, and judge's facts
+\* only through the verdicts they reach: a fact that changes nothing makes no second step to
+\* check again.
 Pass ==
-    \E late, flaky, skew, opens, refused \in BOOLEAN :
+    \E refused \in IF check[Tip] = "failed1" THEN BOOLEAN ELSE {FALSE} :
     LET \* jbus/watch.py `if bad and first and _rerun_failed(run, first, ask=rerun):`: tell reruns a
         \* failed first attempt only at main's tip, and an older one is failed at once, as is the
         \* tip where GitHub refuses the rerun or still shows its first attempt RERUN_WAIT after.
@@ -264,8 +267,14 @@ Pass ==
             ELSE IF macVerdict = "revert"
             THEN reverts @@ (macOldest :> [row |-> by[macOldest], st |-> "open", holders |-> {"mac"}])
             ELSE reverts
-        verdict == IF red = Tip THEN Verdict(afterMac, seen, green, late, flaky, skew, opens) ELSE "quiet"
-        oldest == green + 1
+        verdicts ==
+            IF red = Tip
+            THEN {Verdict(afterMac, seen, green, late, flaky, skew, opens) :
+                    late, flaky, skew, opens \in BOOLEAN}
+            ELSE {"quiet"}
+    IN
+    \E verdict \in verdicts :
+    LET oldest == green + 1
         mainOpened == {k \in DOMAIN afterMac : k \in oldest..Tip}
         \* jbus/culprits.py `reverts.lean(run, [sha for sha, _ in since], reverts.MAIN)`
         judged ==

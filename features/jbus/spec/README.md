@@ -162,7 +162,7 @@ Run it from this folder, with the pinned jar copied in:
 cp ~/.cache/jstack/tla2tools/1.7.4/tla2tools.jar . && java -cp tla2tools.jar tlc2.TLC -config MainRed.cfg MainRed.tla; rm -rf tla2tools.jar states
 ```
 
-It exits 0: every rule holds over 140,012 distinct states (MaxTips 4), in about a minute on four workers.
+It exits 0: every rule holds over 140,012 distinct states (MaxTips 4), in a few seconds.
 `MainRed.cfg` leaves the Mac out (`Mac = FALSE`): with it, four commits take TLC far too long.
 `MainRed.chart.cfg` has the Mac on up to three commits, where every rule holds over 112,491 distinct states.
 The test runs TLC on both configs, and on each rule of `BREAKS` alone, which is empty while the code breaks no rule, and the canary on `MainRed.chart.cfg`.
@@ -181,7 +181,7 @@ W=$(TMPDIR=$D mktemp -d) && cp features/jbus/spec/MainRed.* "$W"
 Run it from the repo root.
 Then copy the files of `$W/out` into `MainRed-statechart/`, all except `tlc/`.
 `MainRed.chart.cfg` has the same rules on up to three commits, with the Mac (112,491 states), and it draws 42 chart states and 265 steps.
-TLC runs once for each rule, so drawing it takes about half an hour.
+TLC runs once for each rule, so drawing it takes about two minutes.
 The four commits of `MainRed.cfg` draw too many states and steps for Mermaid to render as a PNG.
 No state breaks a rule, so it draws no `bug-N` chart.
 
