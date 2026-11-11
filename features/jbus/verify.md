@@ -103,7 +103,7 @@ Preconditions:
 
 - **Add the row.**
   Pipe a brief in.
-  Run `printf '# alpha: a demo task\nTask: alpha, a demo task\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/alpha/`\nDesign: none, a demo\nReview: none\nPlaybook: feature\nSkills: tdd\nPull request: none\nHome: uncategorized\n' | record queue-row jbus queue add alpha --priority 1`.
+  Run `printf '# alpha: a demo task\nTask: alpha, a demo task\nWhy: the journey needs a row to carry from add to launch\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/alpha/`\nDesign: none, a demo\nReview: none\nPlaybook: feature\nSkills: tdd\nPull request: none\nHome: uncategorized\n' | record queue-row jbus queue add alpha --priority 1`.
   The table has one row, `alpha`, priority 1, status `queued`, with `approved` and `brief_sha` empty.
 - **Try a derived column.** Run `record queue-row jbus queue add gamma --priority 2 --status launched`. It prints `refused: status is derived from T3 Code and GitHub, and no command writes it` and exits 2. No `gamma` row is added.
 - **Keep a word, and approve it.**
@@ -129,7 +129,7 @@ Preconditions:
 - No `jbus poll` has run in it.
 
 - **Write the request.**
-  Write a request in the shape of `features/scout/templates/scout-request.md` to `$VERIFY_JSTACK_SANDBOX/alpha.md`, with these lines: a first line `# alpha: <what to find out>`, a `Request:` line, a `Questions:` list, a `Deliver:` list, `Playbook: none`, `Out of bounds: read-only. <what it must not do>` and `Home: uncategorized`.
+  Write a request in the shape of `features/scout/templates/scout-request.md` to `$VERIFY_JSTACK_SANDBOX/alpha.md`, with these lines: a first line `# alpha: <what to find out>`, a `Request:` line, a `Why:` line that says why the answer is wanted, a `Questions:` list, a `Deliver:` list, `Playbook: none`, `Out of bounds: read-only. <what it must not do>` and `Home: uncategorized`.
 - **Add it.**
   Run `record scout-path jbus --project demo queue add alpha --priority 1 < "$VERIFY_JSTACK_SANDBOX/alpha.md"`.
   The table has one row, `alpha`, with `scout` in its `role` column and `approved` empty, and the request is in `$JBUS_STATE_DIR/demo/briefs/alpha.md`.
