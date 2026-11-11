@@ -487,9 +487,12 @@ def status(state: State) -> str:
     open or not. Any other row with a question open is `gate`. A row whose pull request is opening
     (`Pull.OPENING`) is `running`, whatever its Result leaves, and never `left`. A thread in a
     status jbus does not know, or a hung turn, makes the row `stale`. A thread that ended with
-    nothing written makes the row `stale` when it completed or was archived, and `failed` when it
-    failed. The row is `launched` while no thread is there for a launch, and `queued` once the
-    thread was settled. A thread off T3 Code's list counts only for a row with nothing written.
+    nothing written makes the row `stale` when it completed, was settled or was archived, and
+    `failed` when it failed, so a launched row never goes back to `queued`, the status of a row
+    with no launch. A settled thread of a row with no launch record is one of an earlier life of
+    its slug, and the row stays `queued`: dispatch holds it (`a settled thread already has this
+    slug`). The row is `launched` while no thread is there for a launch. A thread off T3 Code's
+    list counts only for a row with nothing written.
     `status` reads no clock: a `stale` row with nothing written becomes `left` once its thread is
     quiet (`watch.unwritten`).
 
@@ -512,6 +515,8 @@ def status(state: State) -> str:
         return "stale"
     if facts.thread in (Thread.NONE, Thread.MISSING) and facts.launch == Launch.LAUNCHED:
         return "launched"
+    if facts.thread == Thread.SETTLED and facts.launch == Launch.NONE:
+        return "queued"
     return _THREAD.get(facts.thread, "queued")
 
 
@@ -544,7 +549,7 @@ _THREAD = {
     Thread.WAITING: "waiting",
     Thread.COMPLETED: "stale",
     Thread.FAILED: "failed",
-    Thread.SETTLED: "queued",
+    Thread.SETTLED: "stale",
     Thread.ARCHIVED: "stale",
 }
 

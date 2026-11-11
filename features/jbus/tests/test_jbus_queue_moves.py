@@ -32,21 +32,18 @@ PR_LOST = (
     "an open pull request ends merged, closed (`left`) or with a Result that owes none (`done`): "
     "any other status is a pull request the pass read in neither of GitHub's lists"
 )
-NO_PULL_YET = (
-    "a pull request opens from a thread a pass saw at work, after a question or after a "
-    "leftover: from any other status the pass missed the work that opened it"
-)
 SWAPPED = (
     "both are final, and a merged row stays merged: a merged pull request no list holds is read "
     "in neither of GitHub's lists"
 )
-MASKED = (
-    "jbus asks its question of a row before its launch or on its pull request: a question "
-    "beside a thread at work, or closing onto one, was not seen in the window"
+NO_LAUNCH = (
+    "a row has a thread, a Result or a pull request only once a launch record names it, and keeps "
+    "the record: a pass that sees one with no record, or a record go, lost the launch record"
 )
-BACK = "a launched row does not go back to before its launch: jbus starts no second thread"
-SKIPPED = "a row is launched before its thread ends"
-UNSEEN = "the work moved between two states no pass of the window showed one after the other"
+UNADDRESSED = (
+    "a closed pull request is read off the `Branch:` line of the Result, which keeps its address: "
+    "a line that loses it was written over"
+)
 
 NAMED = {
     **_pairs(
@@ -55,47 +52,22 @@ NAMED = {
         done="queued launched running waiting pr failed stale gate left",
     ),
     **_pairs(SWAPPED, merged="done"),
-    **_pairs(PR_LOST, pr="failed launched queued running stale waiting"),
+    **_pairs(PR_LOST, pr="failed launched queued running"),
     **_pairs(
-        NO_PULL_YET,
-        queued="pr merged",
-        launched="pr merged",
-        waiting="pr merged",
-        stale="pr merged",
-        failed="pr merged",
-    ),
-    **_pairs(
-        MASKED,
-        launched="gate",
-        running="gate",
-        waiting="gate",
-        stale="gate",
-        failed="gate",
-        left="gate",
-        gate="failed running stale waiting",
-    ),
-    **_pairs(
-        BACK,
+        NO_LAUNCH,
+        queued="running waiting stale failed done left pr merged",
         launched="queued",
-        running="launched queued",
-        waiting="launched queued",
-        stale="launched queued",
-        failed="launched queued",
+        running="queued",
+        waiting="queued",
+        stale="queued",
+        failed="queued",
         left="queued",
     ),
-    **_pairs(SKIPPED, queued="running waiting stale failed done left"),
-    **_pairs(
-        UNSEEN,
-        launched="stale waiting",
-        waiting="done stale",
-        stale="done failed waiting",
-        failed="stale waiting",
-        left="failed stale merged",
-        gate="left",
-    ),
+    **_pairs(UNADDRESSED, left="failed"),
 }
-"""Each move of status the walk makes that `queue.MOVES` does not hold, with why: a pass marks
-it, and the count of marks says whether one of them belongs in the table."""
+"""Each move of status the walk makes that `queue.MOVES` does not hold, with why: each is a fault,
+which a pass marks. `RowLife.tla` makes none of them, since its row's facts change only after its
+launch and its pull request leaves no list but by merging or closing."""
 
 
 def _walked() -> dict[tuple[str, str], str]:
@@ -148,15 +120,15 @@ def _moved(kitchen, was, status, brief=""):
 
 
 def test_a_pass_marks_a_move_the_table_does_not_hold_and_still_writes_the_status(kitchen):
-    status, line = _moved(kitchen, "launched", "gate")
-    assert status == "gate"
+    status, line = _moved(kitchen, "pr", "running")
+    assert status == "running"
     assert {key: line[key] for key in ("slug", "from", "to", "legal")} == {
         "slug": "alpha",
-        "from": "launched",
-        "to": "gate",
+        "from": "pr",
+        "to": "running",
         "legal": False,
     }
-    assert kitchen.lines("illegal-move") == ["illegal-move alpha: launched to gate"]
+    assert kitchen.lines("illegal-move") == ["illegal-move alpha: pr to running"]
 
 
 def test_a_pass_leaves_a_move_the_table_holds_unmarked(kitchen):
