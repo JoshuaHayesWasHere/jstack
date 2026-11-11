@@ -318,7 +318,10 @@ def revert(run: Pass, red: Culprit, where: str = MAIN) -> bool:
     """Open the revert of `red`, or take the one GitHub has, and keep it (`_own`), which
     `jbus.culprits` tells the culprit's crew. Return False where GitHub did not open it, so the
     caller files the fix row instead. `where` is what went red: main's check, or its macOS run.
-    The revert is named in `OPENING` before GitHub is asked to open it."""
+    The revert is named in `OPENING` before GitHub is asked to open it. A refused revert keeps its
+    name, since GitHub also refuses a revert of a branch it already has open, as when `opened` got
+    no answer: on a later pass `known` keeps that revert, or drops the name once GitHub says the
+    branch has none open."""
     branch = branch_of(red.pull)
     said = opened(run, branch) or {}
     if not said:
@@ -337,7 +340,6 @@ def revert(run: Pass, red: Culprit, where: str = MAIN) -> bool:
         lines = asked.stdout.strip().splitlines()
         made = lines[-1].strip() if asked.returncode == 0 and lines else ""
         if not made:
-            _drop_intent(run, red.red)
             why = (asked.stderr or "no answer").strip()
             run.condition(red.slug, f"its revert was not opened: {why}", key=f"revert {red.red}")
             return False

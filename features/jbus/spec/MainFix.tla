@@ -1,12 +1,12 @@
 ---- MODULE MainFix ----
 \* How jbus files main's answer to a red, step by step over GitHub, the brief and the queue, and the
-\* nightly runs it has seen, as the code of main aa5469d97 (2026-11-11) writes them. MainRed.tla
-\* takes jbus.reverts.revert and watch._file as one step each; here each write is its own step,
-\* and a pass can die between any two of them (a timeout, a reboot, an OOM kill): the disk and
-\* GitHub keep what was written, and the next pass starts at the top.
-\* One pass, in the order of its steps: reverts.macos (9), culprits.judge (12), then
-\* watch.watch (40), which reads each nightly in the order watched gives, browser.yml,
-\* macos-nightly.yml, then each other scheduled workflow.
+\* nightly runs it has seen, as the code of st-main-fix-crash-gaps (2026-11-11) writes them.
+\* MainRed.tla takes jbus.reverts.revert and watch._file as one step each; here each write is its
+\* own step, and a pass can die between any two of them (a timeout, a reboot, an OOM kill): the
+\* disk and GitHub keep what was written, and the next pass starts at the top.
+\* One pass, in the order of its steps: reverts.known (tellers 36), watch.watch (tellers 40),
+\* which reads each nightly in the order watched gives, browser.yml, macos-nightly.yml, then each
+\* other scheduled workflow; then reverts.macos (after-expedite 9) and culprits.judge (12).
 \* One red: main's tip and its Mac go red at one merge, its culprit, and main stays red through
 \* later merges until a merge or a hand turns it green. A second red is MainRed.tla's.
 \* World names the faults of the world the model lets in, beyond the pass that dies:
@@ -15,8 +15,13 @@
 \*              whose culprit the next pass reverts;
 \*   "hand":    a hand turns main or its Mac green, by a rerun or a merge jmerge did not make;
 \*   "late":    a nightly's red run ends more than NIGHTLY_WINDOW (3 days) before a pass reads it.
-\* Fault = "none" is the code; Fault = "no-reopen-check" is the canary: opened does not ask
-\* GitHub for the revert's branch, so a revert opened by a pass that died is never recorded.
+\* Each step of a pass needs the open pull requests and merges of the pass's world, so a pass whose
+\* world GitHub does not give runs none of them, and writes nothing here.
+\* Fault = "none" is the code. Each other Fault is a canary, the code with one of its fixes taken
+\* back, which breaks the rule that fix keeps:
+\*   "keep-first":  the revert's record is written before its line (RevertSaid);
+\*   "no-known":    no pass keeps a revert its intent names (RevertKnown);
+\*   "brief-first": a fix or nightly brief is written before its queue row (FiledWhole).
 EXTENDS Naturals, Sequences
 CONSTANTS MaxTip, World, Fault, Watched
 
@@ -34,22 +39,30 @@ Runs(n) == 1..(IF n = "macos" THEN 2 ELSE 1)
 Kinds(n) == CASE n = "browser" -> {"red", "shots", "pr"}
               [] n = "macos" -> {"red", "passed", "pr"}
               [] n = "scheduled" -> {"red", "pr"}
-Last == 2 + Len(Nightlies)
-Check(p) == IF p = 1 THEN "mac" ELSE "main"
-Night(p) == Nightlies[p - 2]
+\* The steps of a pass: reverts.known, each nightly, the Mac, main.
+KnownP == 1
+NightPs == 2..(1 + Len(Nightlies))
+MacP == 2 + Len(Nightlies)
+MainP == 3 + Len(Nightlies)
+Last == MainP
+Judging == {MacP, MainP}
+Check(p) == IF p = MacP THEN "mac" ELSE "main"
+Night(p) == Nightlies[p - 1]
 
 VARIABLES
   \* B-023, the revert's brief tasks/revert-<n>-<branch>.md: jbus/reverts.py
   \* `(tasks / f"{branch}.md").write_text(brief(branch, red, url, home, where))`
   revertBrief,
-  \* B-028, main's fix brief tasks/main-red-<sha>.md and its queue row, by the red tip: "brief"
-  \* once the brief is written, "row" once the queue holds it, in jbus/watch.py
-  \* `(run.home / "tasks" / f"{name}.md").write_text(text) try: top =` then
-  \* `queue.add(run.state, name, top, [], text, user=run.user, ran_by=queue.PASS)`
+  \* B-028, main's fix brief tasks/main-red-<sha>.md and its queue row, by the red tip: "row" once
+  \* the queue holds it, in jbus/watch.py `top = min((row.get("priority", 0) for row in queue.load(run.state)), default=1) - 1`
+  \* and `queue.add(run.state, name, top, [], text, user=run.user, ran_by=queue.PASS)`, before
+  \* its copy in tasks/, `(run.home / "tasks" / f"{name}.md").write_text(text)`. "brief" is a copy
+  \* with no row, which only the canary "brief-first" writes.
   fix,
-  \* B-029, the Mac's fix row macos-red-<sha>, its brief then its unapproved row under the home
-  \* macos, by the Mac's red commit: jbus/reverts.py `(run.home / "tasks" / f"{name}.md").write_text(text)`
-  \* then `queue.add(run.state, name, 0, [], text, user=run.user, ran_by=queue.PASS)`
+  \* B-029, the Mac's fix row macos-red-<sha>, its unapproved row under the home macos then its
+  \* brief, by the Mac's red commit: jbus/reverts.py
+  \* `queue.add(run.state, name, 0, [], text, user=run.user, ran_by=queue.PASS)`, then its
+  \* copy in tasks/ by copy_brief
   macFix,
   \* B-030, browser-runs.json, what jbus keeps of each browser.yml run it has seen, by run;
   \* B-031, macos-nightly-runs.json, the same of macos-nightly.yml; B-032,
@@ -59,11 +72,16 @@ VARIABLES
   \* "unseen" is a run the file has no key for, "blank" the empty string, "row" the slug of the
   \* day's row, and "passed" GREEN.
   browserSeen, macosSeen, scheduledSeen,
-  \* The rows a nightly's red files, each its brief then its queue row, by jbus/watch.py
-  \* `(run.home / "tasks" / f"{name}.md").write_text(text) try: queue.add(run.state, name, 0, [],`:
+  \* The rows a nightly's red files, each its queue row then its brief, by jbus/watch.py
+  \* `try: queue.add(run.state, name, 0, [], text, user=run.user, ran_by=queue.PASS) except (Refused, queue.Unparsable) as refused:`:
   \* browser-red-<day>, shots-<day>, macos-red-<day> and red-<stem>-<day>, all of one day.
   rows,
   pull,     \* the revert on GitHub, "none", "open" or "merged" (gh pr revert)
+  \* reverts-opening.json names the revert a pass set out to open, before GitHub opens it:
+  \* jbus/reverts.py `write_json(run.state / OPENING, {**intents, red.red: {**one, "at": run.now.isoformat()}})`,
+  \* and drops it once it is on record:
+  \* `write_json(run.state / OPENING, {key: one for key, one in intents.items() if key != red})`
+  opening,
   record,   \* reverts.json keeps the revert: jbus/reverts.py `_keep(run, made, {**held, red.red: {where}})`
   said,     \* events.jsonl has its line: jbus/reverts.py `run.find(red.slug, "revert", line, key=f"opened {red.red}")`
   tip,      \* main's newest commit
@@ -72,14 +90,15 @@ VARIABLES
   episode,  \* "before" the red, or "red" from its merge on
   runs,     \* each nightly's runs, in order, by kind, "none" where it has not run yet
   late,     \* the red runs that ended more than NIGHTLY_WINDOW before a pass read them
-  phase,    \* the step of the pass: 0 between passes, 1 the Mac, 2 main, 3 to Last the nightlies
+  phase,    \* the step of the pass: 0 between passes, then KnownP, NightPs, MacP and MainP
   at,       \* where in that step the pass is
   k,        \* the nightly run the pass reads
   whole,    \* the last pass ran to its end
   before    \* a ghost: GitHub had the revert open when the pass started
-vars == <<revertBrief, fix, macFix, browserSeen, macosSeen, scheduledSeen, rows, pull, record,
-          said, tip, red, clear, episode, runs, late, phase, at, k, whole, before>>
-filed == <<revertBrief, fix, macFix, browserSeen, macosSeen, scheduledSeen, rows, pull, record, said>>
+vars == <<revertBrief, fix, macFix, browserSeen, macosSeen, scheduledSeen, rows, pull, opening,
+          record, said, tip, red, clear, episode, runs, late, phase, at, k, whole, before>>
+filed == <<revertBrief, fix, macFix, browserSeen, macosSeen, scheduledSeen, rows, pull, opening,
+           record, said>>
 world == <<tip, red, clear, episode, runs, late, before>>
 
 Fix(c) == IF c = "main" THEN fix ELSE macFix
@@ -87,7 +106,7 @@ SeenOf(n) == CASE n = "browser" -> browserSeen [] n = "macos" -> macosSeen [] n 
 Range(f) == {f[x] : x \in DOMAIN f}
 
 TypeOK ==
-  /\ revertBrief \in BOOLEAN /\ record \in BOOLEAN /\ said \in BOOLEAN
+  /\ revertBrief \in BOOLEAN /\ opening \in BOOLEAN /\ record \in BOOLEAN /\ said \in BOOLEAN
   /\ fix \in [Tips -> Filing] /\ macFix \in [Tips -> Filing]
   /\ browserSeen \in [Runs("browser") -> Seen] /\ macosSeen \in [Runs("macos") -> Seen]
   /\ scheduledSeen \in [Runs("scheduled") -> Seen]
@@ -96,11 +115,13 @@ TypeOK ==
   /\ tip \in Tips /\ red \in [Checks -> 0..MaxTip] /\ clear \in BOOLEAN
   /\ episode \in {"before", "red"}
   /\ \A i \in 1..Len(Nightlies) : runs[Nightlies[i]] \in [Runs(Nightlies[i]) -> Kinds(Nightlies[i]) \cup {"none"}]
-  /\ phase \in 0..Last /\ at \in {"judge", "revert", "found", "opened", "briefed", "kept", "file", "filed", "queued"}
+  /\ phase \in 0..Last
+  /\ at \in {"judge", "revert", "intent", "found", "opened", "briefed", "half", "kept", "file",
+             "filed", "copy", "queued"}
   /\ k \in 1..3 /\ whole \in BOOLEAN /\ before \in BOOLEAN
 
 Init ==
-  /\ revertBrief = FALSE /\ record = FALSE /\ said = FALSE
+  /\ revertBrief = FALSE /\ opening = FALSE /\ record = FALSE /\ said = FALSE
   /\ fix = [t \in Tips |-> "none"] /\ macFix = [t \in Tips |-> "none"]
   /\ browserSeen = [r \in Runs("browser") |-> "unseen"] /\ macosSeen = [r \in Runs("macos") |-> "unseen"]
   /\ scheduledSeen = [r \in Runs("scheduled") |-> "unseen"]
@@ -119,7 +140,7 @@ SetSeen(n, v) ==
   /\ scheduledSeen' = IF n = "scheduled" THEN [scheduledSeen EXCEPT ![k] = v] ELSE scheduledSeen
 
 Seens == <<browserSeen, macosSeen, scheduledSeen>>
-Reverting == <<revertBrief, pull, record, said>>
+Reverting == <<revertBrief, pull, opening, record, said>>
 
 \* The pass goes on to its next step, or ends.
 Onward ==
@@ -150,7 +171,7 @@ Merge ==
   /\ red' \in {r \in [Checks -> 0..MaxTip] : \A c \in Checks :
                  r[c] \in IF red[c] = 0 THEN {0} ELSE {0, tip + 1}}
   /\ UNCHANGED <<clear, episode, runs, late, phase, at, k, whole, before>>
-  /\ UNCHANGED <<revertBrief, fix, macFix, rows, record, said>> /\ UNCHANGED Seens
+  /\ UNCHANGED <<revertBrief, fix, macFix, rows, opening, record, said>> /\ UNCHANGED Seens
 
 \* A hand runs a red check again and it passes at the same commit.
 HandGreen ==
@@ -177,7 +198,7 @@ Ages ==
 \* ---- A pass ---------------------------------------------------------------------------------
 
 Start ==
-  /\ phase = 0 /\ phase' = 1 /\ at' = "judge" /\ k' = 1 /\ whole' = FALSE
+  /\ phase = 0 /\ phase' = KnownP /\ at' = "judge" /\ k' = 1 /\ whole' = FALSE
   /\ before' = (pull = "open")
   /\ UNCHANGED <<tip, red, clear, episode, runs, late>> /\ UNCHANGED filed
 
@@ -186,12 +207,33 @@ Die ==
   /\ phase # 0 /\ phase' = 0 /\ at' = "judge" /\ k' = 1 /\ whole' = FALSE
   /\ UNCHANGED world /\ UNCHANGED filed
 
-\* reverts.macos for the Mac (phase 1), culprits.judge for main (phase 2): a check that is
-\* green, or whose revert reverts.json keeps, gets nothing; a red with one clear culprit is
-\* reverted; any other red gets its fix row. With "refuses" in World, GitHub may not say whether
-\* the culprit's own check passed over the main it turned red, and the pass files the row.
+\* reverts.known keeps the revert reverts-opening.json names, whether main is red or green: one on
+\* record already is dropped, jbus/reverts.py `if red in made or not isinstance(one, dict) or not one.get("branch"):`;
+\* one open on its branch among the pass's open pull requests, `said = heads.get(str(one["branch"]))`,
+\* is kept as revert keeps it, `_own(run, culprit, said, where if where in CHECKS else MAIN)`;
+\* one GitHub has none open for is dropped once its name is older than READ_WAIT,
+\* `elif not said and run.now - when(str(one.get("at") or run.now.isoformat())) > READ_WAIT:`,
+\* and kept while GitHub gives no answer or the name is younger. The open pull requests are the
+\* pass's world, which every step needs, so a revert GitHub has open is always among them.
+Known ==
+  /\ phase = KnownP /\ at = "judge"
+  /\ \/ /\ ~opening \/ Fault = "no-known"
+        /\ Onward /\ UNCHANGED opening
+     \/ /\ opening /\ Fault # "no-known" /\ record
+        /\ opening' = FALSE /\ Onward
+     \/ /\ opening /\ Fault # "no-known" /\ ~record /\ pull = "open"
+        /\ at' = "found" /\ UNCHANGED <<phase, k, whole, opening>>
+     \/ /\ opening /\ Fault # "no-known" /\ ~record /\ pull # "open"
+        /\ opening' \in {FALSE, TRUE} /\ Onward
+  /\ UNCHANGED world
+  /\ UNCHANGED <<revertBrief, fix, macFix, rows, pull, record, said>> /\ UNCHANGED Seens
+
+\* reverts.macos for the Mac (MacP), culprits.judge for main (MainP): a check that is green, or
+\* whose revert reverts.json keeps, gets nothing; a red with one clear culprit is reverted; any
+\* other red gets its fix row. With "refuses" in World, GitHub may not say whether the culprit's
+\* own check passed over the main it turned red, and the pass files the row.
 Judge ==
-  /\ phase \in {1, 2} /\ at = "judge"
+  /\ phase \in Judging /\ at = "judge"
   /\ LET c == Check(phase) IN
      \/ /\ \/ red[c] = 0
            \* jbus/reverts.py `if any(sha in made for sha, _ in red.since):` with `if found == Keep.OPENED:`,
@@ -211,70 +253,107 @@ Judge ==
         /\ at' = "file" /\ UNCHANGED <<phase, k, whole>>
   /\ UNCHANGED world /\ UNCHANGED filed
 
-\* revert: jbus/reverts.py `said = opened(run, red)`, which asks GitHub for the open pull
-\* request of the revert's branch, jbus/reverts.py
+\* revert: jbus/reverts.py `said = opened(run, branch) or {}`, which asks GitHub for the open
+\* pull request of the revert's branch,
 \* `asked = run.run("gh", "pr", "list", "--state", "open", "--head", branch, "--json", FIELDS)`
-\* and `return found[0] if found else {}`. Where it has none, jbus/reverts.py `"revert", url,`
-\* opens it, and GitHub refuses a second revert of a branch it has open. A refused revert is a
-\* condition, jbus/reverts.py `run.condition(red.slug, f"its revert was not opened: {why}", key=f"revert {red.red}")`,
-\* and the red gets its fix row.
+\* and `return found[0] if found and isinstance(found[0], dict) else {}`. Where it has none, the
+\* pass names the revert in reverts-opening.json, `_intend(run, red, branch, where)`, then
+\* `"revert", url,` opens it.
 Open ==
-  /\ phase \in {1, 2} /\ at = "revert"
-  /\ \E found \in IF Fault # "no-reopen-check" /\ pull = "open"
+  /\ phase \in Judging /\ at = "revert"
+  /\ \E found \in IF pull = "open"
                     THEN IF "refuses" \in World THEN {TRUE, FALSE} ELSE {TRUE}
                     ELSE {FALSE} :
-       \/ /\ found /\ at' = "found" /\ UNCHANGED pull
-       \/ /\ ~found /\ pull = "none" /\ pull' = "open" /\ at' = "opened"
-       \/ /\ ~found /\ (pull # "none" \/ "refuses" \in World)
-          /\ at' = "file" /\ UNCHANGED pull
+       \/ /\ found /\ at' = "found" /\ UNCHANGED opening
+       \/ /\ ~found /\ opening' = TRUE /\ at' = "intent"
   /\ UNCHANGED <<phase, k, whole>> /\ UNCHANGED world
-  /\ UNCHANGED <<revertBrief, fix, macFix, rows, record, said>> /\ UNCHANGED Seens
+  /\ UNCHANGED <<revertBrief, fix, macFix, rows, pull, record, said>> /\ UNCHANGED Seens
 
-\* The revert's brief, of the revert opened found or the pass opened. Where GitHub does not say
-\* the branch of the revert the pass just opened, the pass goes on with no brief and no record,
-\* and the next pass finds it by its branch:
+\* GitHub opens the revert, and refuses a second revert of a branch it has open. A refused revert
+\* is a condition, jbus/reverts.py `run.condition(red.slug, f"its revert was not opened: {why}", key=f"revert {red.red}")`,
+\* and the red gets its fix row; its name stays in reverts-opening.json for reverts.known.
+GhRevert ==
+  /\ phase \in Judging /\ at = "intent"
+  /\ \/ /\ pull = "none" /\ pull' = "open" /\ at' = "opened"
+     \/ /\ pull # "none" \/ "refuses" \in World
+        /\ at' = "file" /\ UNCHANGED pull
+  /\ UNCHANGED <<phase, k, whole>> /\ UNCHANGED world
+  /\ UNCHANGED <<revertBrief, fix, macFix, rows, opening, record, said>> /\ UNCHANGED Seens
+
+\* The revert's brief, of the revert opened found, the pass opened, or reverts.known found. Where
+\* GitHub does not say the branch of the revert the pass just opened, the pass goes on with no
+\* brief and no record, its name kept in reverts-opening.json:
 \* jbus/reverts.py `if not (said.get("headRefName") and said.get("headRefOid")):`
 BriefRevert ==
-  /\ phase \in {1, 2} /\ at \in {"found", "opened"}
+  /\ phase \in Judging \cup {KnownP} /\ at \in {"found", "opened"}
   /\ \/ /\ revertBrief' = TRUE /\ at' = "briefed" /\ UNCHANGED <<phase, k, whole>>
      \/ /\ at = "opened" /\ "refuses" \in World /\ Onward /\ UNCHANGED revertBrief
   /\ UNCHANGED world
-  /\ UNCHANGED <<fix, macFix, rows, pull, record, said>> /\ UNCHANGED Seens
+  /\ UNCHANGED <<fix, macFix, rows, pull, opening, record, said>> /\ UNCHANGED Seens
 
-KeepRevert ==
-  /\ phase \in {1, 2} /\ at = "briefed"
-  /\ record' = TRUE /\ at' = "kept"
-  /\ UNCHANGED <<phase, k, whole>> /\ UNCHANGED world
-  /\ UNCHANGED <<revertBrief, fix, macFix, rows, pull, said>> /\ UNCHANGED Seens
+\* jbus/reverts.py _own: the line in events.jsonl, then the record, the last write that every
+\* later pass reads. The line is sent by its key, so a pass that writes it again sends nothing.
+\* The canary "keep-first" writes the record first, as the code before st-main-fix-crash-gaps did.
+SayOrKeep ==
+  /\ phase \in Judging \cup {KnownP} /\ at = "briefed"
+  /\ IF Fault = "keep-first"
+       THEN record' = TRUE /\ UNCHANGED said
+       ELSE said' = TRUE /\ UNCHANGED record
+  /\ at' = "half" /\ UNCHANGED <<phase, k, whole>> /\ UNCHANGED world
+  /\ UNCHANGED <<revertBrief, fix, macFix, rows, pull, opening>> /\ UNCHANGED Seens
 
-SayRevert ==
-  /\ phase \in {1, 2} /\ at = "kept"
-  /\ said' = TRUE /\ Onward /\ UNCHANGED world
-  /\ UNCHANGED <<revertBrief, fix, macFix, rows, pull, record>> /\ UNCHANGED Seens
+KeepOrSay ==
+  /\ phase \in Judging \cup {KnownP} /\ at = "half"
+  /\ IF Fault = "keep-first"
+       THEN said' = TRUE /\ UNCHANGED record
+       ELSE record' = TRUE /\ UNCHANGED said
+  /\ at' = "kept" /\ UNCHANGED <<phase, k, whole>> /\ UNCHANGED world
+  /\ UNCHANGED <<revertBrief, fix, macFix, rows, pull, opening>> /\ UNCHANGED Seens
+
+\* The revert's name leaves reverts-opening.json: jbus/reverts.py `_drop_intent(run, red.red)`
+ForgetIntent ==
+  /\ phase \in Judging \cup {KnownP} /\ at = "kept"
+  /\ opening' = FALSE /\ Onward /\ UNCHANGED world
+  /\ UNCHANGED <<revertBrief, fix, macFix, rows, pull, record, said>> /\ UNCHANGED Seens
 
 \* _file and _mac_file file nothing for a red whose row the queue holds: jbus/watch.py
 \* `if name in run.removed or queue.fresh(run.state, name) is not None:`, as jbus/reverts.py
 \* `if name in run.removed or queue.fresh(run.state, name) is not None:` does for the Mac; and
-\* otherwise write its brief, whether or not a brief is there.
+\* otherwise queue its row, then write its brief to tasks/ (copy_brief). The canary
+\* "brief-first" writes the brief first, as the code before st-main-fix-crash-gaps did.
 FileBrief ==
-  /\ phase \in {1, 2} /\ at = "file"
+  /\ phase \in Judging /\ at = "file"
   /\ LET c == Check(phase) IN
      \/ /\ Fix(c)[red[c]] = "row" /\ Onward /\ UNCHANGED <<fix, macFix>>
-     \/ /\ Fix(c)[red[c]] # "row" /\ SetFix(c, "brief")
-        /\ at' = "filed" /\ UNCHANGED <<phase, k, whole>>
+     \/ /\ Fix(c)[red[c]] # "row"
+        /\ IF Fault = "brief-first"
+             THEN SetFix(c, "brief") /\ at' = "filed"
+             ELSE SetFix(c, "row") /\ at' = "copy"
+        /\ UNCHANGED <<phase, k, whole>>
   /\ UNCHANGED world /\ UNCHANGED Reverting /\ UNCHANGED rows /\ UNCHANGED Seens
 
+\* The canary's queue.add, after its brief.
 QueueFix ==
-  /\ phase \in {1, 2} /\ at = "filed"
+  /\ phase \in Judging /\ at = "filed"
   /\ SetFix(Check(phase), "row") /\ Onward
   /\ UNCHANGED world /\ UNCHANGED Reverting /\ UNCHANGED rows /\ UNCHANGED Seens
 
-\* _nightly_red for one nightly (phases 3 to Last), one run at a time, oldest first: jbus/watch.py
+\* The brief's copy in tasks/, after its row: jbus/watch.py `def copy_brief(run: Pass, name: str, text: str) -> None:`.
+\* It changes nothing a pass reads: brief_of reads the queue's copy where tasks/ has none, and a
+\* launch writes it.
+CopyBrief ==
+  /\ phase # 0 /\ at = "copy"
+  /\ IF phase \in Judging
+       THEN Onward
+       ELSE at' = "queued" /\ UNCHANGED <<phase, k, whole>>
+  /\ UNCHANGED world /\ UNCHANGED filed
+
+\* _nightly_red for one nightly (NightPs), one run at a time, oldest first: jbus/watch.py
 \* `for one in sorted(runs, key=lambda r: r.get("created_at") or ""):`. What it keeps of a run
 \* that files nothing it writes at the loop's end; the model writes it at once, since the next
 \* pass reads the same runs and keeps the same.
 NightlyRead ==
-  /\ phase > 2 /\ at = "judge"
+  /\ phase \in NightPs /\ at = "judge"
   /\ LET n == Night(phase)
          kind == runs[n][k]
          seen == SeenOf(n)[k]
@@ -312,19 +391,22 @@ NightlyRead ==
            \/ /\ kind = "shots" /\ seen = "unseen" /\ <<n, k>> \notin late /\ ~taken
               /\ rows["shots"] = "row"
               /\ SetSeen(n, "blank") /\ UNCHANGED rows
-     \* Its row is free: _filed writes its brief. jbus/watch.py `if fixed and name in free:`, and
-     \* for the shots `if drawn and redrawn in free:`
+     \* Its row is free: _filed queues its row, then writes its brief. jbus/watch.py
+     \* `if fixed and name in free:`, and for the shots `if drawn and redrawn in free:`. The canary
+     \* "brief-first" writes the brief first.
      \/ /\ k <= Len(runs[n]) /\ kind \in {"red", "shots"} /\ seen = "unseen" /\ <<n, k>> \notin late
         /\ (n # "macos" \/ green)
         /\ LET row == IF kind = "shots" THEN "shots" ELSE n IN
            /\ rows[row] # "row"
-           /\ rows' = [rows EXCEPT ![row] = "brief"]
-        /\ at' = "filed" /\ UNCHANGED <<phase, k, whole>> /\ UNCHANGED Seens
+           /\ IF Fault = "brief-first"
+                THEN rows' = [rows EXCEPT ![row] = "brief"] /\ at' = "filed"
+                ELSE rows' = [rows EXCEPT ![row] = "row"] /\ at' = "copy"
+        /\ UNCHANGED <<phase, k, whole>> /\ UNCHANGED Seens
   /\ UNCHANGED world /\ UNCHANGED Reverting /\ UNCHANGED <<fix, macFix>>
 
-\* _filed queues the brief, before anything is written to seen.
+\* The canary's queue.add, after its brief.
 QueueNightly ==
-  /\ phase > 2 /\ at = "filed"
+  /\ phase \in NightPs /\ at = "filed"
   /\ LET row == IF runs[Night(phase)][k] = "shots" THEN "shots" ELSE Night(phase) IN
      rows' = [rows EXCEPT ![row] = "row"]
   /\ at' = "queued" /\ UNCHANGED <<phase, k, whole>>
@@ -333,13 +415,14 @@ QueueNightly ==
 \* jbus/watch.py `seen[number] = fixed write_json(run.state / nightly.seen, seen)`: the run
 \* is kept as its row, or blank where only its shots failed.
 SeeNightly ==
-  /\ phase > 2 /\ at = "queued"
+  /\ phase \in NightPs /\ at = "queued"
   /\ SetSeen(Night(phase), IF runs[Night(phase)][k] = "shots" THEN "blank" ELSE "row")
   /\ at' = "judge" /\ k' = k + 1 /\ UNCHANGED <<phase, whole>>
   /\ UNCHANGED world /\ UNCHANGED Reverting /\ UNCHANGED <<fix, macFix, rows>>
 
-Pass == Start \/ Die \/ Judge \/ Open \/ BriefRevert \/ KeepRevert \/ SayRevert \/ FileBrief
-        \/ QueueFix \/ NightlyRead \/ QueueNightly \/ SeeNightly
+Pass == Start \/ Die \/ Known \/ Judge \/ Open \/ GhRevert \/ BriefRevert \/ SayOrKeep
+        \/ KeepOrSay \/ ForgetIntent \/ FileBrief \/ QueueFix \/ CopyBrief \/ NightlyRead
+        \/ QueueNightly \/ SeeNightly
 Next == GoesRed \/ Merge \/ HandGreen \/ NightlyRuns \/ Ages \/ Pass
 Spec == Init /\ [][Next]_vars
 
@@ -347,18 +430,12 @@ Spec == Init /\ [][Next]_vars
 
 Settled == phase = 0 /\ whole
 
-\* "After any crash a red tip has a fix row and its brief, or neither, by the next pass": main's
-\* red tip and its Mac's each, and each red run of a nightly, also one that aged past
-\* NIGHTLY_WINDOW. A brief with no row is a fix no crew is launched for. A pass that runs to
-\* its end queues each brief it writes, so this holds at the end of every such pass, the next
-\* one after a crash among them.
+\* "After any crash, no fix or nightly brief stands without its row, by the next pass": main's
+\* fix brief and its Mac's at every tip, and each nightly's row, also of a run that aged past
+\* NIGHTLY_WINDOW. A brief with no row is a fix no crew is launched for, and no pass queues it
+\* once it judges the red another way or the run stale.
 FiledWhole ==
-  Settled =>
-    /\ \A c \in Checks : red[c] # 0 => Fix(c)[red[c]] \in {"none", "row"}
-    /\ \A i \in 1..Len(Nightlies) : \A r \in Runs(Nightlies[i]) :
-         LET n == Nightlies[i] IN
-         runs[n][r] \in {"red", "shots"} =>
-           rows[IF runs[n][r] = "shots" THEN "shots" ELSE n] \in {"none", "row"}
+  Settled => "brief" \notin Range(fix) \cup Range(macFix) \cup Range(rows)
 
 \* "An open revert on GitHub has its reverts.json record by the next pass": a revert GitHub had
 \* open when a pass started is kept once that pass has run to its end. jmerge merges, and
@@ -375,14 +452,15 @@ MainRedReverts == record
 MainRedFixes == {t \in Tips : fix[t] = "row"}
 
 \* Each step of MainFix is a step of MainRed's reverts and fixes, or leaves both as they are:
-\* a record is written once, of a revert GitHub has open, and only by the pass that judged the
-\* red; a fix row is added once, for main's red tip, by culprits.judge; neither is ever taken
-\* back (MainRed's close and _withdraw are out of this model).
+\* a record is written once, of a revert GitHub has open, by the pass that judged the red or by
+\* reverts.known; a fix row is added once, for main's red tip, by culprits.judge; neither is
+\* ever taken back (MainRed's close and _withdraw are out of this model).
 RefinesMainRed ==
   [][ \/ UNCHANGED <<MainRedReverts, MainRedFixes>>
-      \/ /\ ~MainRedReverts /\ MainRedReverts' /\ pull = "open" /\ phase \in {1, 2}
+      \/ /\ ~MainRedReverts /\ MainRedReverts' /\ pull = "open"
+         /\ phase \in Judging \cup {KnownP}
          /\ UNCHANGED MainRedFixes
       \/ /\ MainRedFixes' = MainRedFixes \cup {red["main"]} /\ red["main"] \notin MainRedFixes
-         /\ red["main"] # 0 /\ phase = 2 /\ UNCHANGED MainRedReverts
+         /\ red["main"] # 0 /\ phase = MainP /\ UNCHANGED MainRedReverts
     ]_<<MainRedReverts, MainRedFixes>>
 ====
