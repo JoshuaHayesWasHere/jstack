@@ -1,0 +1,139 @@
+{
+  "view": "customer",
+  "modelStates": 1676,
+  "modelTransitions": 3639,
+  "chartStates": 269,
+  "chartTransitions": 262,
+  "chartStatus": {
+    "works": 194,
+    "fixed": 0,
+    "wrong": 75
+  },
+  "chartGroups": [
+    {
+      "name": "Nothing owed",
+      "color": "#ffffff",
+      "states": 62
+    },
+    {
+      "name": "Owed",
+      "color": "#fdebd0",
+      "states": 52
+    },
+    {
+      "name": "Told",
+      "color": "#d1f2eb",
+      "states": 93
+    },
+    {
+      "name": "Told twice",
+      "color": "#f5b7b1",
+      "states": 48
+    }
+  ],
+  "mixedGroups": [
+    "A revert's crew: told once, sent.json says told"
+  ],
+  "regions": {
+    "drawn": true,
+    "states": [
+      13,
+      256
+    ],
+    "transitions": 262,
+    "all": 432,
+    "flat": {
+      "states": 287,
+      "transitions": 459
+    }
+  },
+  "classes": [
+    {
+      "n": 1,
+      "end": "A row red at two heads: not told, fails.json counts two heads, the row is held",
+      "invariant": "NoTellLost",
+      "rule": "\"jbus drops no tell\": between passes, an act still owed whose mark is written was taken, so a mark with no act never stands; one with no mark the next pass does. The home's stall the clock's home says went is in the log.",
+      "cause": "the row is held, and the pass died before it paged the Chef",
+      "readerSteps": 4,
+      "modelSteps": 5,
+      "counterexamples": 2,
+      "fix": null
+    },
+    {
+      "n": 2,
+      "end": "An ask owed after a limit: told twice, owed.json says owed, a pass is in its step",
+      "invariant": "NoTellTwice",
+      "rule": "\"jbus tells no one twice\": the receiver takes each act once, a repeat after a pass that died being one it takes as the same, and no pass does an act again once its guard read the act's mark.",
+      "cause": "failover's carry-on quoted the ask, and the pass died before it closed the ask",
+      "readerSteps": 5,
+      "modelSteps": 6,
+      "counterexamples": 12,
+      "fix": null
+    },
+    {
+      "n": 3,
+      "end": "The second target's body: told twice, the body waits in the outbox, a pass is in its step",
+      "invariant": "NoTellTwice",
+      "rule": "\"jbus tells no one twice\": the receiver takes each act once, a repeat after a pass that died being one it takes as the same, and no pass does an act again once its guard read the act's mark.",
+      "cause": "the body went, and the pass died before the outbox dropped it",
+      "readerSteps": 6,
+      "modelSteps": 7,
+      "counterexamples": 1,
+      "fix": null
+    },
+    {
+      "n": 4,
+      "end": "A merge that changed a skill: told twice, reload.json owes it, a pass is in its step",
+      "invariant": "NoTellTwice",
+      "rule": "\"jbus tells no one twice\": the receiver takes each act once, a repeat after a pass that died being one it takes as the same, and no pass does an act again once its guard read the act's mark.",
+      "cause": "the notice went, the pass died before it marked the merges, a new merge came",
+      "readerSteps": 6,
+      "modelSteps": 8,
+      "counterexamples": 7,
+      "fix": null
+    },
+    {
+      "n": 5,
+      "end": "CI that starts no job: told twice, main's tip moved, a pass is in its step",
+      "invariant": "NoTellTwice",
+      "rule": "\"jbus tells no one twice\": the receiver takes each act once, a repeat after a pass that died being one it takes as the same, and no pass does an act again once its guard read the act's mark.",
+      "cause": "the question was parked, the pass died before account.json kept it, main moved",
+      "readerSteps": 7,
+      "modelSteps": 8,
+      "counterexamples": 1,
+      "fix": null
+    },
+    {
+      "n": 6,
+      "end": "The user's word: told twice, the home's thread changed, a pass is in its step",
+      "invariant": "NoTellTwice",
+      "rule": "\"jbus tells no one twice\": the receiver takes each act once, a repeat after a pass that died being one it takes as the same, and no pass does an act again once its guard read the act's mark.",
+      "cause": "the word went, the pass died before it wrote so, and the home's thread changed",
+      "readerSteps": 7,
+      "modelSteps": 8,
+      "counterexamples": 9,
+      "fix": null
+    },
+    {
+      "n": 7,
+      "end": "The wait clock: told once, the clock says its home was told, sent.json has its key, the stall's key is written, no stall in the log",
+      "invariant": "NoTellLost",
+      "rule": "\"jbus drops no tell\": between passes, an act still owed whose mark is written was taken, so a mark with no act never stands; one with no mark the next pass does. The home's stall the clock's home says went is in the log.",
+      "cause": "the stall's key is written, and the pass died before its line went in the log",
+      "readerSteps": 10,
+      "modelSteps": 15,
+      "counterexamples": 24,
+      "fix": null
+    }
+  ],
+  "codeLike": [],
+  "drawnFrom": {
+    "command": "statechart from-spec TellOnce.tla --title 'Does jbus tell anyone twice, or drop a tell, when a pass dies?' --png",
+    "inputs": {
+      "TellOnce.cfg": "a1f5ac46d6d707a3fc90ad62319a92bc860a1be864dbaa97841bb1553d90eafa",
+      "TellOnce.map.py": "d9dda5257b8f6e81b68ff6bc7a0f4620107e0aa3b9400e7fe9f384a56b82a55d",
+      "TellOnce.tla": "41b23d8ea74289f120ee8a2915c393a38f69150b4d21609acbfb92a1fda743cc"
+    },
+    "chart": "1014431258ecc9224e0315a92493e87ce0c4aad3a23c97eb644441347f6a5d84"
+  }
+}
