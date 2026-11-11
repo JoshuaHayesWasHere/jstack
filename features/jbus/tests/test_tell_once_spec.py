@@ -31,10 +31,10 @@ QUOTE = re.compile(r"([\w./-]+\.(?:py|md))\s*`([^`]+)`")
 """A cite of TellOnce.tla with the code it quotes, and no line number:
 jbus/clock.py `wait |= {"acted": True, "passes": 0}`, so a line that only moves needs no edit."""
 
-ACTS = {
-    "clock", "held", "blocking", "items", "word", "owed", "expedite",
-    "cancelled", "closed", "account", "revert", "twice", "reload",
-}  # fmt: skip
+ACTS = set(
+    "clock held blocking items word owed expedite cancelled closed account revert twice"
+    " reload".split()
+)
 TODAY = {
     ("twice", "NoTellLost"),
     ("clock", "NoTellLost"),
