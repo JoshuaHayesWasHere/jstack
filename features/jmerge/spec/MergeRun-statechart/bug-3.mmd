@@ -9,15 +9,19 @@ stateDiagram-v2
   classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
   classDef group0 fill:#d1f2eb,stroke:#697976,color:#1b2631
   classDef group0Path fill:#d1f2eb,stroke:#1f3a93,stroke-width:4px,color:#1b2631
-  classDef group2 fill:#fdebd0,stroke:#7f7668,color:#1b2631
-  classDef group2Wrong fill:#fdebd0,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group1 fill:#a3e4d7,stroke:#52726c,color:#1b2631
+  classDef group1Path fill:#a3e4d7,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group4 fill:#f8c471,stroke:#7c6239,color:#1b2631
+  classDef group4Wrong fill:#f8c471,stroke:#c0392b,stroke-width:4px,color:#7b241c
   state "Legend" as legend {
-    state "Lines heard" as legendGroup0
-    state "Told wrong" as legendGroup2
+    state "Lines heard, no run out" as legendGroup0
+    state "Lines heard, a run is out" as legendGroup1
+    state "Told wrong, a run is out" as legendGroup4
     state "Breaks a rule" as legendWrong
   }
   class legendGroup0 group0
-  class legendGroup2 group2
+  class legendGroup1 group1
+  class legendGroup4 group4
   class legendWrong plainWrong
   state "Between passes" as g0 {
     state "a run is out, a start<br/>stamp past a minute; no<br/>record yet" as s0
@@ -35,10 +39,10 @@ stateDiagram-v2
   s0 --> s6 : 4. a pass looks at the runs<br/>folder
   s6 --> s2 : 5. the pass says the last run<br/>ended with no record
   s2 --> s3 : 6. the run writes its record
-  class s6 group0Path
-  class s0 group0Path
-  class s1 group0Path
-  class s2 group0Path
-  class s3 group2Wrong
+  class s6 group1Path
+  class s0 group1Path
+  class s1 group1Path
+  class s2 group1Path
+  class s3 group4Wrong
   class s4 group0Path
   class s5 group0Path

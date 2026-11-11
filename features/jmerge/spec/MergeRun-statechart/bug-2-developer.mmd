@@ -9,15 +9,19 @@ stateDiagram-v2
   classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
   classDef group0 fill:#d1f2eb,stroke:#697976,color:#1b2631
   classDef group0Path fill:#d1f2eb,stroke:#1f3a93,stroke-width:4px,color:#1b2631
-  classDef group3 fill:#fadbd8,stroke:#7d6e6c,color:#1b2631
-  classDef group3Wrong fill:#fadbd8,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group1 fill:#a3e4d7,stroke:#52726c,color:#1b2631
+  classDef group1Path fill:#a3e4d7,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group5 fill:#fadbd8,stroke:#7d6e6c,color:#1b2631
+  classDef group5Wrong fill:#fadbd8,stroke:#c0392b,stroke-width:4px,color:#7b241c
   state "Legend" as legend {
-    state "Lines heard" as legendGroup0
-    state "Lines lost" as legendGroup3
+    state "Lines heard, no run out" as legendGroup0
+    state "Lines heard, a run is out" as legendGroup1
+    state "Lines lost" as legendGroup5
     state "Breaks a rule" as legendWrong
   }
   class legendGroup0 group0
-  class legendGroup3 group3
+  class legendGroup1 group1
+  class legendGroup5 group5
   class legendWrong plainWrong
   state "run 1 died; no stamp;<br/>going.lock free; unread<br/>[]; no read.json; judged<br/>[0]; told []; pass idle;<br/>run lock free; P open, no<br/>restart record, handed<br/>open; batch none, read<br/>none out, CI none, rerun<br/>none, again False, most 12<br/>(START), suspects False,<br/>kind alone, branch none,<br/>draft False, main moved<br/>False, merged 0; W open,<br/>spell False, logged 0" as s0
   state "run 1 died; no stamp;<br/>going.lock free; unread<br/>[]; no read.json; judged<br/>[0]; told []; pass<br/>unlinked; run lock free; P<br/>open, no restart record,<br/>handed open; batch none,<br/>read none out, CI none,<br/>rerun none, again False,<br/>most 12 (START), suspects<br/>False, kind alone, branch<br/>none, draft False, main<br/>moved False, merged 0; W<br/>open, spell False, logged<br/>0" as s1
@@ -37,12 +41,12 @@ stateDiagram-v2
   s3 --> s2 : 6. a minute goes by<br/>[StampAges]
   s2 --> s1 : 7. a pass looks at the runs<br/>folder [PassStarts]
   s1 --> s0 : 8. the pass dies [PassDies]
-  class s0 group3Wrong
+  class s0 group5Wrong
   class s1 group0Path
   class s2 group0Path
   class s3 group0Path
   class s4 group0Path
   class s5 group0Path
   class s6 group0Path
-  class s7 group0Path
-  class s8 group0Path
+  class s7 group1Path
+  class s8 group1Path

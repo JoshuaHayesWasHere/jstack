@@ -9,15 +9,19 @@ stateDiagram-v2
   classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
   classDef group0 fill:#d1f2eb,stroke:#697976,color:#1b2631
   classDef group0Path fill:#d1f2eb,stroke:#1f3a93,stroke-width:4px,color:#1b2631
-  classDef group2 fill:#fdebd0,stroke:#7f7668,color:#1b2631
-  classDef group2Wrong fill:#fdebd0,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group1 fill:#a3e4d7,stroke:#52726c,color:#1b2631
+  classDef group1Path fill:#a3e4d7,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group4 fill:#f8c471,stroke:#7c6239,color:#1b2631
+  classDef group4Wrong fill:#f8c471,stroke:#c0392b,stroke-width:4px,color:#7b241c
   state "Legend" as legend {
-    state "Lines heard" as legendGroup0
-    state "Told wrong" as legendGroup2
+    state "Lines heard, no run out" as legendGroup0
+    state "Lines heard, a run is out" as legendGroup1
+    state "Told wrong, a run is out" as legendGroup4
     state "Breaks a rule" as legendWrong
   }
   class legendGroup0 group0
-  class legendGroup2 group2
+  class legendGroup1 group1
+  class legendGroup4 group4
   class legendWrong plainWrong
   state "A pass removed a stale<br/>stamp and has not said<br/>why: a run is out; no<br/>record yet" as g0 {
     state "run 1 spawned; no stamp;<br/>going.lock free; unread<br/>[]; no read.json; judged<br/>[0]; told []; pass<br/>unlinked; run lock free; P<br/>open, no restart record,<br/>handed open; batch none,<br/>read none out, CI none,<br/>rerun none, again False,<br/>most 12 (START), suspects<br/>False, kind alone, branch<br/>none, draft False, main<br/>moved False, merged 0; W<br/>open, spell False, logged<br/>0" as s0
@@ -57,15 +61,15 @@ stateDiagram-v2
   s5 --> s6 : 9. the run starts jmerge<br/>[RunsJmerge]
   s6 --> s4 : 10. jmerge ends or dies<br/>[Stops]
   s4 --> s8 : 11. the run writes its record<br/>[Keeps]
-  class s0 group0Path
-  class s1 group0Path
-  class s2 group0Path
-  class s3 group0Path
-  class s4 group0Path
-  class s5 group0Path
-  class s6 group0Path
-  class s7 group0Path
-  class s8 group2Wrong
+  class s0 group1Path
+  class s1 group1Path
+  class s2 group1Path
+  class s3 group1Path
+  class s4 group1Path
+  class s5 group1Path
+  class s6 group1Path
+  class s7 group1Path
+  class s8 group4Wrong
   class s9 group0Path
   class s10 group0Path
   class s11 group0Path

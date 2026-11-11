@@ -53,12 +53,16 @@ PASS = {
 }
 
 
+def out(v):
+    """Whether a run the pass started is still out, from its spawn up to its record written."""
+    return any(phase in ("spawned", "going", "jmerge", "done", "kept") for phase in v["runs"])
+
+
 def runs_out(v):
     """Whether a run is out, and the start stamp. Joined: which run, and the step its process is
     at, from up to its record written; `detail` keeps them apart."""
-    out = any(phase in ("spawned", "going", "jmerge", "done", "kept") for phase in v["runs"])
     stamp = v["started"]
-    said = "a run is out" if out else "no run out"
+    said = "a run is out" if out(v) else "no run out"
     if stamp["by"]:
         said += ", a start stamp " + ("past a minute" if stamp["old"] else "under a minute old")
     return said
@@ -70,20 +74,24 @@ def state(v, facts):
 
 
 def group(v, facts):
+    """The worst that became of the lines, and for the two outcomes a run can still change,
+    whether a run is out."""
     said = lines(v)
     if "lost" in said or "nobody is told" in said:
         return "Lines lost"
     if "no record, though" in said or "twice" in said:
-        return "Told wrong"
+        return "Told wrong, a run is out" if out(v) else "Told wrong, no run out"
     if "waits" in said or v["pc"] == "judging":
         return "Lines on their way"
-    return "Lines heard"
+    return "Lines heard, a run is out" if out(v) else "Lines heard, no run out"
 
 
 group_colors = {
-    "Lines heard": "#d1f2eb",
+    "Lines heard, no run out": "#d1f2eb",
+    "Lines heard, a run is out": "#a3e4d7",
     "Lines on their way": "#eaf2f8",
-    "Told wrong": "#fdebd0",
+    "Told wrong, no run out": "#fdebd0",
+    "Told wrong, a run is out": "#f8c471",
     "Lines lost": "#fadbd8",
 }
 

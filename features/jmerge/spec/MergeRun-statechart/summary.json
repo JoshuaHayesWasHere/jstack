@@ -11,9 +11,14 @@
   },
   "chartGroups": [
     {
-      "name": "Lines heard",
+      "name": "Lines heard, no run out",
       "color": "#d1f2eb",
-      "states": 18
+      "states": 9
+    },
+    {
+      "name": "Lines heard, a run is out",
+      "color": "#a3e4d7",
+      "states": 9
     },
     {
       "name": "Lines on their way",
@@ -21,9 +26,14 @@
       "states": 12
     },
     {
-      "name": "Told wrong",
+      "name": "Told wrong, no run out",
       "color": "#fdebd0",
-      "states": 18
+      "states": 9
+    },
+    {
+      "name": "Told wrong, a run is out",
+      "color": "#f8c471",
+      "states": 9
     },
     {
       "name": "Lines lost",
@@ -85,9 +95,9 @@
     "command": "statechart from-spec MergeRun.tla --config MergeRun.chart.cfg --title 'jbus'\"'\"'s pass starts a run of jmerge: does what it said reach you?' --png",
     "inputs": {
       "MergeRun.chart.cfg": "2df6d16681ea7e46dbb822ad57591e8a70d010ea5a58b4beb8aeea3d048ea7fa",
-      "MergeRun.map.py": "3e52f8a7b80702f58d5945c0d6356326c7dddb7b1b0f3f5179529592e5c30dae",
+      "MergeRun.map.py": "ccb90fca039a3a99b4067506d4acfd59ca0123db756996edab0ca4121c4c2974",
       "MergeRun.tla": "e415f32d5635e1a234c8a7d2bace22e2e8ea52b8218c5d8bfc991afdc3cc4fa1"
     },
-    "chart": "94a8a019828181e6a35b78fcff871560bf7f5ab4e182ab48119f4c885c0d556c"
+    "chart": "54fba73e931cd10dae841bb1999c161254ee0742eddc2b480ed1aef3a5b033b8"
   }
 }
