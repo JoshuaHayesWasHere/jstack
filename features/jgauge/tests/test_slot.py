@@ -5,6 +5,7 @@ import signal
 import subprocess
 import sys
 import time
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -644,6 +645,16 @@ def test_a_holder_whose_command_is_gone_holds_its_slot_while_its_test_slot_lives
     holders.hold(tmp_path, THREAD, "full", gone.pid, ["make", "check"], NOW)
     (one,) = holders.read(tmp_path)
     assert one.keeper == os.getpid() and holders.running(one)
+
+
+def test_a_holder_whose_pid_another_process_took_is_not_counted(tmp_path):
+    """Once a dead command's pid is taken by another process, its run holds nothing: jbus forgets
+    it and tells its thread the run ended (TestSlot.tla's NoLostHolder with PidReuse)."""
+    holders.hold(tmp_path, THREAD, "full", os.getpid(), ["make", "check"], NOW)
+    (one,) = holders.read(tmp_path)
+    assert holders.running(one)
+    taken = replace(one, start=one.start + 1)
+    assert not holders.running(taken)
 
 
 def slot_log(slots):
