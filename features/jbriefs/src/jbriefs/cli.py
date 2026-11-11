@@ -101,7 +101,8 @@ LINES = {
 - `reviewing`: `yes` where a reviewer launched has not written its section (`reviewers.running`);
 - `base`: the branch of the head's `Stacked on:` line (`jbriefs.stacked`), or `none`;
 - `stacked`: that line as `<slug> <branch>` or `<slug> <branch> at <commit>`, `malformed` for a
-  line in neither shape, or `none`."""
+  line in neither shape, or `none`.
+`path`, the brief's own path, may go with them, for a call over several briefs."""
 
 
 def line_main(argv: list[str]) -> int:
@@ -113,17 +114,15 @@ def line_main(argv: list[str]) -> int:
     )
     parser.add_argument(
         "what",
-        help=f"the lines to print, joined by commas, of: {', '.join(LINES)}",
+        help=f"the lines to print, joined by commas, of: {', '.join(LINES)}, and path, the "
+        "brief's own path",
     )
     parser.add_argument("briefs", nargs="+", type=Path, metavar="BRIEF")
-    parser.add_argument(
-        "--paths", action="store_true", help="print each brief's path after its values"
-    )
     args = parser.parse_args(argv)
     asked = args.what.split(",")
-    unknown = [one for one in asked if one not in LINES]
+    unknown = [one for one in asked if one not in LINES and one != "path"]
     if unknown:
-        parser.error(f"no such line: {', '.join(unknown)}; the lines are {', '.join(LINES)}")
+        parser.error(f"no such line: {', '.join(unknown)}; the lines are {', '.join(LINES)}, path")
     failed = 0
     for path in args.briefs:
         try:
@@ -132,8 +131,7 @@ def line_main(argv: list[str]) -> int:
             print(f"jbriefs: {path} cannot be read: {error.strerror}", file=sys.stderr)
             failed = 1
             continue
-        said = [LINES[one](text) for one in asked]
-        print("\t".join(said + ([str(path)] if args.paths else [])))
+        print("\t".join(str(path) if one == "path" else LINES[one](text) for one in asked))
     return failed
 
 

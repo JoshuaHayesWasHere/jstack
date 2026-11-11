@@ -61,7 +61,7 @@ A line that says `Reviewer: none`, which a crewmate with no launch tool writes, 
 
    ```sh
    PASS=first
-   lines=$(uv run --project "$T/../source" jbriefs line status,pr,reviewed --paths "$H"/tasks/<slug>.md 2> /dev/null)
+   lines=$(uv run --project "$T/../source" jbriefs line status,pr,reviewed,path "$H"/tasks/<slug>.md 2> /dev/null)
    asked=$(printf '%s\n' "$lines" | awk -F '\t' -v pass="$PASS" '$(1) == "done" && $(2) ~ /^http/ && (pass != "first" || $(3) == "no") {n++} END {print n + 0}')
    if ! said=$(uv run --project "$T/../source" jbus budget --wait 540 --calls $((3 * ${asked:-0}))); then
        echo "$said: run this block again, in this turn"

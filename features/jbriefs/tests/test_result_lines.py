@@ -125,9 +125,9 @@ def test_the_status_is_the_last_results(name, said):
     assert line("status", name) == [said]
 
 
-def test_several_briefs_print_one_line_each_and_with_paths_its_path():
+def test_several_briefs_print_one_line_each_and_with_path_its_path():
     assert line("status", "sb-pin-focus-build", "qw-lock-test-race") == ["done", "done"]
-    said = line("status,pr", "sb-pin-focus-build", "qw-lock-test-race", "--paths")
+    said = line("status,pr,path", "sb-pin-focus-build", "qw-lock-test-race")
     assert said == [
         "done\thttps://github.com/JoshuaHayesWasHere/jstack/pull/787\t"
         f"{BRIEFS / 'sb-pin-focus-build.md'}",

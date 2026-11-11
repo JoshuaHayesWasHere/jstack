@@ -82,7 +82,7 @@ Every path it prints starts from the root of jstack's source tree, which is the 
 
 ## `jbriefs line`
 
-`jbriefs line <lines> <brief>...` prints what the lines a crew, a reviewer and jbus write into a brief say, one line for each brief, the values joined by tabs, and with `--paths` the brief's path after them.
+`jbriefs line <lines> <brief>...` prints what the lines a crew, a reviewer and jbus write into a brief say, one line for each brief, the values joined by tabs.
 `<lines>` is one or more of these, joined by commas:
 
 | Line | Prints |
@@ -93,6 +93,7 @@ Every path it prints starts from the root of jstack's source tree, which is the 
 | `reviewed` | `yes` where the Results hold a `## Review` or a reviewer, else `no` |
 | `reviewing` | `yes` where a reviewer launched has written no section since its line, of its seat where it has one, else `no`: the rule jbus waits on before it moves a head |
 | `base` | the branch of the head's `Stacked on:` line, or `none` |
+| `path` | the brief's own path, for a call over several briefs |
 | `stacked` | that line, `<slug> <branch>` or `<slug> <branch> at <commit>`, `malformed` for a line in neither shape, or `none` |
 
 Each value comes from the one reader jbriefs, jmerge and jbus call (`below.pull`, `reviewers.running`, `jbriefs.stacked`, `jbriefs.status`), so the skills' blocks call it in place of an awk field of their own and act on the answer jbus acts on.

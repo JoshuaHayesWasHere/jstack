@@ -204,7 +204,7 @@ printf '%s\n' "$OPEN" | jq -r --argjson pr "$PR" '
   | (.files | map(.path) | map(select(IN($mine[])))) as $both
   | select($both | length > 0)
   | "pull request \(.number) (\(.title)): \($both | join(", "))"'
-lines=$(uv run --project "$T/../source" jbriefs line pr --paths "$H"/tasks/*.md 2> /dev/null)
+lines=$(uv run --project "$T/../source" jbriefs line pr,path "$H"/tasks/*.md 2> /dev/null)
 for other in "$H"/tasks/*.md; do
   [ "$other" = "$BRIEF" ] && continue
   if command grep -q '^## Result' "$other"; then
