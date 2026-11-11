@@ -141,7 +141,7 @@ def test_a_review_of_a_head_whose_content_changed_holds_until_the_head_is_review
 
 def test_a_docs_only_push_on_the_reviewed_head_keeps_its_review_and_merges(merged):
     """A push on top of the reviewed head that changes only docs is covered by that review:
-    `jmerge.cli.Repo.judged` takes `ready.push_note` over the range-diff's wait, and the merge
+    `jmerge.cli.Repo.judged` takes `ready.kept_note` over the range-diff's wait, and the merge
     line says why."""
     reviewed = merged.head
     (merged.tree / "a.txt").write_text("the task, its doc fixed after its review\n")

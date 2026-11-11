@@ -602,10 +602,25 @@ If no line is lost, `git range-diff` between the head the review saw and the reb
 
 - **A clean range-diff carries the review over.**
   The `ready` and `merged` lines say `review carried over: range-diff <old> <new> clean, every line kept`.
-- **A range-diff with a content change waits for one scoped review.**
+- **A rebase with a content change keeps the review, and its checks verify it.**
+  The `ready` and `merged` lines say `review kept: <old> rebased as <new>, which its checks verify, every line kept`.
+- **Any other content change waits for one scoped review**, unless it is a push that changes only tests, docs or config (below).
   The line is `the rebase changed the content after its review; scoped review of git range-diff --no-color <old> <new>`.
   `jmerge` merges once a `## Review` names the rebased head.
-  A range-diff that cannot run counts as a content change.
+  A range-diff that cannot run, or two patches git cannot compare file by file, count as a content change that waits.
+
+`jmerge` compares the two patches, each from its fork from main, file by file, every line in order with its context, and keeps the files whose lines differ (`rangediff.Verdict.differ`).
+A head is a rebase (`rangediff.Verdict.rebased`) where it does not descend from the head the review covers, has as many commits of its own as the reviewed range, and changes every file the reviewed patch changes.
+The patch may then differ in any file: the user's word of 2026-11-11 is that CI verifies a rebase, so a rebase gets no scoped round.
+A head with a commit more than the reviewed range, a rebase with a fix pushed on it, is no rebase: it is judged as a push.
+So is a reviewed range that holds a stacked base's commits, whose files the head's patch does not change.
+A rebased head still waits on its `Proved:` and `Checked:` lines at that head, and on a `Dropped on rebase` line where the rebase lost a line, as below.
+
+Of the 277 rounds that waited on `content-changed` for rows merged from 2026-11-04 to 2026-11-11, 149 would have run no scoped round under these rules: 49 rebases as `jmerge` reads them, and 100 pushes whose patch differs in tests, docs or config alone (76 on the reviewed head, 24 on a rebase).
+They cost $64.82 of the $129.03 of reviewer calls, and 1,237 minutes after the check with each wait capped at 60.
+Those 149 rounds made 3 of the 18 real findings: desk-guards-first #998 round 3 (a rewritten test lost an assert), macos-quick-split-heavy-files #1211 (three cases back on the Mac list) and rt-doc-checks #1291 (a doc line false against main's check.yml).
+The 64 other heads that do not descend from the reviewed one, with a commit more or fewer, or a file left out, and a change to code, still get their scoped round; those rounds made 10 of the 18, 7 of them of a fix pushed with the rebase.
+`uv run rounds.py && uv run replay.py <checkout>` in `~/.local/state/home/jstack/reports/po-rebase-round-worth/` gives the rounds by push or rebase and by what differs.
 
 The scoped review runs beside the check, not after it.
 While a required check has no run at the head, is running, or has not passed, `jmerge` still reads the range-diff, and says the content change in the check's place, with the check's wait as the judgement's note.
@@ -638,11 +653,11 @@ When a review of that head does not rule on a file's drops, the line is `hold <n
 The crewmate writes no line about it: `jmerge` compares the head the review covers with the pushed head by `git range-diff`.
 `jmerge` reads a `CI fix:` line as no line.
 
-A push on top of the head the review covers that changes only tests, docs or config keeps the review, as a `Fixed:` head does.
-`jmerge` asks git whether that head is an ancestor of the pushed head, and whether every file `git diff --name-only <covered> <head>` names is a test file (`proved.TEST_FILE`) or of a `proved.EXEMPT` kind, the same files a `tests only` `Proved:` line may change (`ready.first_code`).
-Where both hold, the range-diff's content change is no wait and no scoped round is asked for: the pull request waits only on its checks and its `Proved:` and `Checked:` lines at the pushed head.
+A push on top of the head the review covers that changes only tests, docs or config keeps the review, as a `Fixed:` head does, also where the crew merged main into the branch before or after it.
+`jmerge` takes the files in which the head's patch differs from the reviewed one, as above, so main's own files in the merge are no part of the push, and asks whether every one is a test file (`proved.TEST_FILE`) or of a `proved.EXEMPT` kind, the same files a `tests only` `Proved:` line may change (`ready.first_code`).
+Where that holds, the range-diff's content change is no wait and no scoped round is asked for: the pull request waits only on its checks and its `Proved:` and `Checked:` lines at the pushed head (`ready.kept_note`).
 The `ready` and `merged` lines say `review kept: <covered12>..<head12> changes only tests, docs or config, every line kept`.
-A push that also changes one other file, and a head that does not descend from the covered one, as after a rebase, are judged by the range-diff as above.
+A push whose patch differs in any other file waits for its scoped review.
 
 ## Protected paths
 
