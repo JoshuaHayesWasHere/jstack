@@ -47,7 +47,7 @@ from pathlib import Path
 from typing import Any
 
 import jroles
-from jbriefs import below, findings
+from jbriefs import below, findings, reviewers
 from jbriefs import proved as jproved
 from jbus import END_TURN, dispatch, mirror, outbox, rebase, review, reviewlaunch, verbs
 from jbus.passes import Pass
@@ -180,7 +180,7 @@ def launch(run: Pass, client: Client, world: World) -> None:
     module."""
     sent = run.box.sent()
     for slug, thread, brief, result in _rows(run, world):
-        if review.launched(brief) or review.reviewed(brief):
+        if reviewers.launched(brief) or review.reviewed(brief):
             continue
         branch = below.line(result, "Branch:").split()[0]
         head = pushed(run, branch)
@@ -274,7 +274,7 @@ def due(brief: str) -> tuple[str, tuple[str, ...], tuple[str, ...]] | None:
     by id, once every reviewer jbus launched has written a section that ran, as `jbus.reviewed`
     reads them; None before then. A `Verdict: not run` section is no review: the row still
     waits (`review.awaited`), and the clock asks its reviewer again."""
-    if not review.launched(brief) or review.launched(brief) > review.ran(brief):
+    if not reviewers.launched(brief) or reviewers.launched(brief) > review.ran(brief):
         return None
     triage = findings.triage(brief)
     ran = [one for one in triage.sections if one.ran and one.head]

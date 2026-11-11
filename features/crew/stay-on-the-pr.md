@@ -31,13 +31,11 @@ What wakes this thread is a message: from jbus, from the reviewer, from the home
 
 ```sh
 B="$H/tasks/<slug>.md"
-awk '
-    /^## Result/ {paused = 0; result = 1}
-    result && $(1) == "Status:" {paused = ($(2) ~ /^paused[,.:;]?$/)}
-    END {
-        if (paused) print "paused: add one line to the last Result saying what woke you, and end your turn"
-        else print "not paused: go on by what woke you"
-    }' "$B"
+if [ "$(uv run --project "$T/../source" jbriefs line status "$B")" = paused ]; then
+    echo "paused: add one line to the last Result saying what woke you, and end your turn"
+else
+    echo "not paused: go on by what woke you"
+fi
 ```
 
 On `paused`, do what it says and nothing more, whatever the message was, the review's findings included: nothing is fixed, pushed, rebased or launched.

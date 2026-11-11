@@ -18,7 +18,7 @@ import pytest
 
 import jbus
 from crew_branches import pushed
-from jmerge import stacked as stacks
+from jbriefs import stacked as stacks
 from test_jbus_chains import queue_add
 from test_jbus_kitchen import NOW, Kitchen, asks, sends_in_once
 from test_jbus_queue import brief, go

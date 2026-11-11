@@ -32,7 +32,12 @@ from testing.layouts import assembled
         ),
         (with_field("Review: none") + "Review: review\n", "none", False),
         (BRIEF + "Reviewer: mcp:1111-aaaa\n", "review", False),
-        (BRIEF + "Reviewer: none, no launch tool in this session\n", "review", False),
+        pytest.param(
+            BRIEF + "Reviewer: none, no launch tool in this session\n",
+            "review",
+            True,
+            id="a Reviewer: none line is no reviewer, as the launcher and jbus read it",
+        ),
         (BRIEF + "\n## Review\nVerdict: clean\n", "review", False),
         pytest.param(
             with_field("Reviewer: check that the ask is one question"),

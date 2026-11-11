@@ -24,7 +24,7 @@ none | cleanup) ;;
 esac
 if [ "$mode" = none ]; then
     echo "none: launch no reviewer, the brief asks for no review"
-elif awk '/^## Result/ {result = 1} result && /^(## Review$|Reviewer:)/ {had = 1} END {exit !had}' "$B"; then
+elif [ "$(uv run --project "$T/../source" jbriefs line reviewed "$B")" = yes ]; then
     echo "$mode: launch no reviewer, this pull request has had its one"
 else
     echo "$mode: launch a reviewer"
@@ -35,7 +35,7 @@ It prints the brief's mode, then what to do.
 The mode is the brief's `Review:` line, the first line that starts with it: `none`, `cleanup`, or `review` for anything else, an old `after` or `twice` included.
 A brief with no such line is `review`, and so is one whose line says more than `review`, as briefs from before the reviewer stopped running tests do.
 The same words inside the task's text or a result do not count.
-A `## Review` or `Reviewer:` line counts only at or after the first `## Result`: a `Reviewer:` line in the brief's head is the home's guidance for the reviewer, not a reviewer.
+A `## Review` or `Reviewer:` line counts only at or after the first `## Result`: a `Reviewer:` line in the brief's head is the home's guidance for the reviewer, not a reviewer, and `Reviewer: none, <why>` is no reviewer, as the launcher reads it (`jbriefs line reviewed`).
 
 - `none: launch no reviewer`: the home wrote that the task gets no review, so nothing waits: open the pull request at once, as "Do the task" says.
   Add the line `Reviewer: none, the brief says Review: none` to the Result, once, and tell the home, as "With no reviewer" below says: on a later message the line is already there.

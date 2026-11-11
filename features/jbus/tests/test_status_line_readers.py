@@ -2,13 +2,15 @@
 as `jbriefs.status` reads it: a scout's row ends done, not left, and a crew's Result leaves
 nothing."""
 
+import contextlib
+import io
 import re
-import subprocess
 from datetime import timedelta
 from pathlib import Path
 
 import pytest
 
+from jbriefs import cli
 from jbriefs.status import Status
 from jbus import homestatus, mirror, stale, watch, work
 from test_jbus_entry_go import PLAN
@@ -102,16 +104,25 @@ NO_PR_END = REPO / "features" / "crew" / "no-pr-end.md"
 
 
 def no_pr_end_says(line: str, tmp_path: Path) -> str:
-    """Run the crew's no-pr-end awk on a Result with `line` as its Status line, and return the
-    reason it prints for the thread to stay, empty where the Result lets it settle."""
-    (program,) = re.findall(r"why=\$\(awk '\n(.*?)' \"\$B\"\)", NO_PR_END.read_text(), re.DOTALL)
+    """Run the `jbriefs line` call of the crew's no-pr-end block on a Result with `line` as its
+    Status line, and return the reason the block gives the thread to stay, empty where the Result
+    lets it settle."""
+    (what,) = re.findall(r"jbriefs line ([a-z,]+) \"\$B\"", NO_PR_END.read_text())
     brief = tmp_path / "brief.md"
     brief.write_text(f"## Result\n{line}\nBranch: look   Pull request: none\nLeft: none\n")
-    ran = subprocess.run(["awk", program, str(brief)], capture_output=True, text=True, check=True)
-    return ran.stdout.strip()
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        assert cli.main(["line", what, str(brief)]) == 0
+    fields = out.getvalue().rstrip("\n").split("\t")
+    status = dict(zip(what.split(","), fields, strict=True))["status"]
+    if status == "paused":
+        return "the task is paused, the last Result says Status: paused"
+    if status != "done":
+        return "the last Result does not say Status: done"
+    return ""
 
 
-def test_the_crews_no_pr_end_awk_and_the_parser_agree_on_each_case(tmp_path):
+def test_the_crews_no_pr_end_block_and_the_parser_agree_on_each_case(tmp_path):
     said = {line: no_pr_end_says(line, tmp_path) for line, _ in CASES}
     read = {
         line: "" if value is Status.DONE else "paused" if value is Status.PAUSED else "not done"

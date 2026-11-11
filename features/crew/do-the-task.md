@@ -25,7 +25,8 @@
   code=$(mktemp "${TMPDIR:-/tmp}/code.XXXXXX")
   {
   if [ -f scripts/select_tests.py ]; then
-      on=$(awk '/^## / {exit} /^Stacked on:/ {print $(4); exit}' "$H/tasks/<slug>.md" 2> /dev/null)
+      on=$(uv run --project "$T/../source" jbriefs line base "$H/tasks/<slug>.md" 2> /dev/null)
+      [ "$on" != none ] || on=
       on=origin/${on:-main}
       git rev-parse -q --verify "$on^{commit}" > /dev/null || on=origin/main
       if ! base=$(git merge-base "$on" HEAD); then
@@ -208,18 +209,28 @@
 
   ```sh
   B="$H/tasks/<slug>.md"
-  stacked=$(awk '/^## / {exit} /^Stacked on:/ {print; exit}' "$B")
-  if [ -n "$stacked" ]; then
-      printf '%s\n' "$stacked" | awk '{
-          if (NF == 4) print "base " $(4) ": the brief\047s Stacked on: line, stacked on " $(3) "\047s pull request"
-          else if (NF == 6 && $(5) == "at") print "base " $(4) ": the brief\047s Stacked on: line, moved onto " $(4) " once " $(3) " merged"
-          else print "no base: the brief\047s Stacked on: line is not Stacked on: <slug> <branch>, and only jbus writes it"
-      }'
-  elif base=$(git symbolic-ref -q --short refs/remotes/origin/HEAD); then
-      echo "base ${base#origin/}: the default branch, the brief has no Stacked on: line"
-  else
-      echo "no base: the brief has no Stacked on: line, and the remote's default branch is not known here"
-  fi
+  stacked=$(uv run --project "$T/../source" jbriefs line stacked "$B")
+  case $stacked in
+  '') echo "no base: jbriefs could not read the brief's Stacked on: line" ;;
+  malformed) echo "no base: the brief's Stacked on: line is not Stacked on: <slug> <branch>, and only jbus writes it" ;;
+  none)
+      if base=$(git symbolic-ref -q --short refs/remotes/origin/HEAD); then
+          echo "base ${base#origin/}: the default branch, the brief has no Stacked on: line"
+      else
+          echo "no base: the brief has no Stacked on: line, and the remote's default branch is not known here"
+      fi
+      ;;
+  *)
+      slug=${stacked%% *}
+      branch=${stacked#* }
+      branch=${branch%% *}
+      if [ "${stacked% at *}" != "$stacked" ]; then
+          echo "base $branch: the brief's Stacked on: line, moved onto $branch once $slug merged"
+      else
+          echo "base $branch: the brief's Stacked on: line, stacked on $slug's pull request"
+      fi
+      ;;
+  esac
   ```
 
   On `base <branch>`, open the pull request with `--base <branch>`, and with the label this prints.

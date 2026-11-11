@@ -414,6 +414,11 @@ def _raised(text: str, section: int, by: str, head: str, dismissed: bool) -> Rai
     )
 
 
+def sections(text: str) -> list[Section]:
+    """Each `## Review` section of the brief, as `_sections` reads it, a replaced one included."""
+    return _sections(text)
+
+
 def _sections(text: str) -> list[Section]:
     """Each `## Review` section, parsed the way the crew's count and `jmerge` parse it. Its
     list runs from `Findings:` to `Dropped:` or the next heading. A line in the list that
