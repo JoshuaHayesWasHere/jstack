@@ -86,6 +86,27 @@ class Ran:
     waited: int = 0
 
 
+PASSES = "passed"
+FAILS = "failed"
+STOPPED = "stopped"
+NO_SLOT = "no slot"
+UNRUN = ("no time", "unbuilt")
+"""What `Guards.on_batch` says where it ran no guards: the run spent `RUN_SECONDS`, or the
+worktree could not be made. Neither is evidence against a member."""
+
+
+@dataclass(frozen=True)
+class Tried:
+    """What the guards did on a batch's tree: `PASSES`, `FAILS`, `STOPPED`, `NO_SLOT`, or one of
+    `UNRUN` with why; the whole seconds they took in their slot, or waited for none; and what
+    they printed, which names the failing guard."""
+
+    outcome: str
+    seconds: int
+    why: str = ""
+    said: str = ""
+
+
 def guard(said: str) -> str:
     """The guard that failed, as the output names it: the first test pytest calls FAILED, else
     the first target make stopped in (the innermost, as make prints it first), else the last
@@ -322,6 +343,27 @@ class Guards:
         if not said and at[:1] != [tip]:
             return ready.MAIN_MOVED.format(base=one.base), ""
         return said, note
+
+    def on_batch(self, commit: str, tip: str) -> Tried:
+        """Run the guards once on a batch's `commit` over `tip`, under the rules of `of`: none
+        once the run spent `RUN_SECONDS`, none after a wait for a slot found none, and the
+        seconds spent count toward the run's. Nothing is kept in `KEPT`: a member's record there
+        is of its own tree, which the single path runs where the batch did not pass, and the
+        batch's pass is no proof of that tree."""
+        if self.spent >= RUN_SECONDS:
+            return Tried(UNRUN[0], 0, f"the run spent its {RUN_SECONDS} s of guards")
+        if self.slotless:
+            return Tried(NO_SLOT, 0)
+        ran = self.in_tree(commit, tip)
+        if ran is None:
+            self.slotless = True
+            self.spent += SLOT_SECONDS
+            return Tried(NO_SLOT, SLOT_SECONDS)
+        if isinstance(ran, str):
+            return Tried(UNRUN[1], 0, ran)
+        self.spent += ran.waited + ran.seconds
+        outcome = STOPPED if ran.code is None else FAILS if ran.code else PASSES
+        return Tried(outcome, ran.seconds, said=ran.said)
 
     def checked(self, tip: str, tree: str) -> str | None:
         """The address of a successful check of this repo that tested `tree` over `tip`, by the
