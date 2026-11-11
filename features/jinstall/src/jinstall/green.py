@@ -189,11 +189,14 @@ class GreenCopy:
             return Found.foreign(f"{self.path} is not a green copy")
         if machine.checkout is None or made_from.resolve() != machine.checkout.resolve():
             return Found.foreign(f"the green copy of {made_from}")
-        if held := copies.at(self.path):
-            return Found.ok(f"at {held[:12]}, which each jbus pass moves to main's green tip")
-        if state is not None and (owed := copies.in_flight(state)) is not None:
+        held = copies.at(self.path)
+        if not held and state is not None and (owed := copies.in_flight(state)) is not None:
             return Found.ok(f"mid-move to {owed['to'][:12]}, which the next jbus pass settles")
-        return Found.old("it holds no commit")
+        return (
+            Found.ok(f"at {held[:12]}, which each jbus pass moves to main's green tip")
+            if held
+            else Found.old("it holds no commit")
+        )
 
     def put(self, machine: Machine) -> None:
         assert machine.checkout is not None
