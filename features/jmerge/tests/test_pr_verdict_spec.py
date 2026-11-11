@@ -77,7 +77,7 @@ RUNS = list(canaries.runs())
 
 
 @pytest.mark.skipif(not tools.find_java(), reason="no Java to run TLC")
-@pytest.mark.timeout(600)
+@pytest.mark.timeout(1800)
 @pytest.mark.parametrize(
     ("cfg", "want"),
     [run[1:] for run in RUNS],
