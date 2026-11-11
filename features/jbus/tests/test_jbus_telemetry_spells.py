@@ -132,6 +132,7 @@ class GitHub:
     world: Any = None
     logs: dict[int, str] = field(default_factory=lambda: LOGS)
     steps: dict[int, str] = field(default_factory=lambda: STEPS)
+    files: dict[str, list[str]] = field(default_factory=dict)
 
     def tip(self) -> str:
         return self.main
@@ -168,6 +169,10 @@ class GitHub:
             number = int(path.split("/")[-1])
             return Asked(
                 json.dumps({"steps": [{"name": self.steps[number], "conclusion": "failure"}]})
+            )
+        if (at := path.rpartition("/commits/")[2]) in self.files:
+            return Asked(
+                json.dumps({"sha": at, "files": [{"filename": f} for f in self.files[at]]})
             )
         if command[:2] == ("git", "symbolic-ref"):
             return Asked("origin/main\n")
@@ -311,19 +316,21 @@ def test_a_later_red_tip_that_fails_another_test_is_judged_on_its_own(machine, m
 
 
 @pytest.mark.parametrize(
-    ("branch", "closed", "cause"),
+    ("branch", "changed", "closed", "cause"),
     [
-        ("row-13", "no fix", "flake"),
-        (f"{mainjson.FIX}{TESTED[:12]}", "fix: #13", "change"),
-        ("revert-11-row-11", "fix: #13", "change"),
+        ("row-13", "features/m/src/m.py", "no fix", "flake"),
+        ("row-13", "features/m/tests/test_m.py", "fix: #13", "change"),
+        (f"{mainjson.FIX}{TESTED[:12]}", "features/m/src/m.py", "fix: #13", "change"),
+        ("revert-11-row-11", "features/m/src/m.py", "fix: #13", "change"),
     ],
 )
 def test_main_going_green_closes_the_spell_and_the_store_reads_its_cause(
-    machine, monkeypatch, branch, closed, cause
+    machine, monkeypatch, branch, changed, closed, cause
 ):
     """Only the end of a spell tells a break from a flake: a load flake and a break look the same
     in one run. A spell that went green with no fix and no revert merged was a flake, as jstack's
-    spells 44 and 45 were, though their first tip read `change`."""
+    spells 44 and 45 were, though their first tip read `change`. An ordinary row that changed the
+    file of a test the spell failed fixed it, as #1591 ended jstack's spell 41."""
     state = machine.state("alpha")
     red_spell(
         machine,
@@ -336,7 +343,7 @@ def test_main_going_green_closes_the_spell_and_the_store_reads_its_cause(
     pull = {"number": 13, "headRefName": branch, "mergeCommit": {"oid": AGAIN}}
     (state / "merged.json").write_text(json.dumps({**merged, branch: pull}))
     for _ in range(2):
-        mainmoved.tell(GitHub(state, main=AGAIN))
+        mainmoved.tell(GitHub(state, main=AGAIN, files={LINTED: [], AGAIN: [changed]}))
     lines = [json.loads(line) for line in (state / mainmoved.REDS).read_text().splitlines()]
     assert [line.get("verdict") for line in lines[:2]] == ["change", "change"]
     assert [{k: v for k, v in line.items() if k != "at"} for line in lines[2:]] == [

@@ -21,11 +21,12 @@ landed since, the step each failed part of the run failed at, the tests the run 
 `Verdict`, `change`, `flake` or `infra`. A later tip of the spell that fails only tests its first
 line names takes that line's verdict (`red_line`). When main goes green, `tell` writes one more
 line for the spell, at its first red tip: the green tip and the spell's `cause`, `fix: #<n>` or
-`no fix` (`closing_line`), since only the end of a spell tells a break from a flake. It is the one
-owner of main's red, so its readers take the cause from the ledger and keep no rule of their own:
-the store reads it for `main_spells.cause`, and `change-failure` counts only the spells a change
-caused. A tip whose logs could not be read gets its line on a later pass that judges it, and a tip
-with a line gets no second one.
+`no fix` (`closing_line`), since only the end of a spell tells a break from a flake. A fix is a fix
+row, a revert, or a pull request that changed the file of a test the spell failed. `tell` is the
+one owner of main's red, so its readers take the cause from the ledger and keep no rule of their
+own: the store reads it for `main_spells.cause`, and `change-failure` counts only the spells a
+change caused. A tip whose logs could not be read gets its line on a later pass that judges it,
+and a tip with a line gets no second one.
 
 `landed` lists each tip main went through since the last pass, and `tell` looks at them in
 order. A tip still counts when it failed or passed before any pass looked at it, even with a
@@ -103,7 +104,8 @@ names a step: GitHub's name, with the make target that failed where the log name
 REVERT = "revert-"
 """How the branch of a revert starts, GitHub's `revert-<number>-<branch>` (`reverts.close`)."""
 NO_FIX = "no fix"
-"""The cause of a spell that went green with no fix row and no revert merged in it."""
+"""The cause of a spell that went green with no fix row, no revert and no change to the file of a
+test it failed merged in it."""
 PULL = re.compile(r"\(#(\d+)\)$")
 """A squash merge's subject ends in its pull request's number."""
 UNCOLLECTED = re.compile(r"\bERROR collecting \S|\b\d+ errors? during collection\b")
@@ -252,9 +254,9 @@ def uncollected(run: Pass, sha: str) -> bool:
     )
 
 
-def pulls(run: Pass, tips: Sequence[str]) -> list[tuple[int, str]]:
-    """Return the pull request merged at each tip, with its branch, as `merged.json` keeps them,
-    else the number its commit's subject ends in, as GitHub lists main's commits."""
+def pulls(run: Pass, tips: Sequence[str]) -> list[tuple[int, str, str]]:
+    """Return the pull request merged at each tip, with its branch and the tip, as `merged.json`
+    keeps them, else the number its commit's subject ends in, as GitHub lists main's commits."""
     merged: dict[str, dict] = read_json(run.state / "merged.json", {})
     kept = {
         (one.get("mergeCommit") or {}).get("oid"): (one.get("number"), one.get("headRefName", ""))
@@ -273,7 +275,7 @@ def pulls(run: Pass, tips: Sequence[str]) -> list[tuple[int, str]]:
         if number is None and (named := PULL.search(subjects.get(tip, ""))):
             number = named[1]
         if number is not None:
-            found.append((int(number), str(branch or "")))
+            found.append((int(number), str(branch or ""), tip))
     return found
 
 
@@ -303,25 +305,41 @@ def red_line(run: Pass, tip: str, green: str, failed: list[str], first: dict | N
         "at": run.now.isoformat(),
         "sha": tip,
         "after": green,
-        "prs": [number for number, _ in landed_],
+        "prs": [number for number, _, _ in landed_],
         "step": ", ".join(steps),
         "failed": failed,
         "verdict": judged,
     }
 
 
-def closing_line(run: Pass, first: str, green: str) -> dict:
+def changed(run: Pass, tip: str) -> set[str]:
+    """Return the files the commit `tip` changed, as GitHub lists them, none where it gives no
+    answer."""
+    said = _api(run, f"repos/{{owner}}/{{repo}}/commits/{tip}")
+    files = said.get("files") if isinstance(said, dict) else None
+    return {str(one.get("filename")) for one in files or [] if isinstance(one, dict)}
+
+
+def closing_line(run: Pass, first: str, green: str, failed: Collection[str] = ()) -> dict:
     """The line of `REDS` that closes the spell whose first red tip is `first` at `green`, the
-    tip whose check passed: the pull requests merged after `first` up to `green`, and its `cause`,
-    `fix: #<n>` where one of them is a fix row (`mainjson.FIX`) or a revert (`REVERT`), the last
-    such, and `NO_FIX` where none is. A rerun that passed at `first` merged nothing: `NO_FIX`."""
+    tip whose check passed, with `failed` the tests the spell's red tips failed: the pull requests
+    merged after `first` up to `green`, and its `cause`. That is `fix: #<n>` where one of them is
+    a fix row (`mainjson.FIX`), a revert (`REVERT`), or a pull request that changed the file of a
+    test in `failed`, as an ordinary row that fixed the break does, the last such; `NO_FIX` where
+    none is. Only a merge that is neither a fix row nor a revert is asked for its files, one call
+    each, once a spell. A rerun that passed at `first` merged nothing: `NO_FIX`."""
     merged = pulls(run, landed(run, first, green)) if green != first else []
-    fixes = [n for n, branch in merged if branch.startswith((mainjson.FIX, REVERT))]
+    files = {test.split("::")[0] for test in failed}
+    fixes = [
+        number
+        for number, branch, tip in merged
+        if branch.startswith((mainjson.FIX, REVERT)) or (files and files & changed(run, tip))
+    ]
     return {
         "at": run.now.isoformat(),
         "sha": first,
         "green": green,
-        "prs": [number for number, _ in merged],
+        "prs": [number for number, _, _ in merged],
         "cause": f"fix: #{fixes[-1]}" if fixes else NO_FIX,
     }
 
@@ -334,7 +352,9 @@ def close(run: Pass, under: str, green: str) -> None:
     if not opened or any("cause" in one and one.get("sha") == opened[0]["sha"] for one in lines):
         return
     with open(run.state / REDS, "a") as handle:
-        handle.write(json.dumps(closing_line(run, str(opened[0]["sha"]), green)) + "\n")
+        failed = [test for one in opened for test in one.get("failed") or []]
+        line = closing_line(run, str(opened[0]["sha"]), green, list(dict.fromkeys(failed)))
+        handle.write(json.dumps(line) + "\n")
 
 
 def landed(run: Pass, last: str, main: str) -> list[str]:
