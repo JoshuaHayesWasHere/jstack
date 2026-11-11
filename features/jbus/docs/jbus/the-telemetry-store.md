@@ -147,7 +147,7 @@ The spells an account was signed out have no record yet.
 | Cause | Record | Start and end |
 |---|---|---|
 | `sign-in` | a `failover` line of `events.jsonl` whose instance could not sign in, or a row's reason `no launch: <instance> cannot sign in (...)` in `waits.jsonl` | from the row's last launch in `transitions.jsonl` to the failover, or the wait's spell; a failover of a row with no launch there, such as a scout's, has no start and no minutes |
-| `/tmp` | a row's reason `waiting: /tmp at <n>% of its <what>` | the wait's spell |
+| `/tmp` | a row's reason `waiting: /tmp is full: its <what>`, where `<what>` is its `quota`, `size` or `file slots`: the place and what it is full of, never the share, so one wait stays one reason while /tmp fills (`jbus.cleanup.waiting`); a jbus from before wrote `waiting: /tmp at <n>% of its <what>`, which is read the same | the wait's spell |
 | `no slot` | a row's reason `no slot`, `max_per_home is ...`, `max_per_project is ...`, `max_running is ...`, or a gate held back while every slot is taken | the wait's spell |
 | `no home-id` | a failed home start `relaunches.json` names (`home_starts`), whose run ended, failed or idle, with no `home-id`; one that failed signed out is `sign-in`, and one on a usage limit is `other` with the limit as `reason` | from when the start was launched to when the pass saw it end; a start written before `relaunches.json` kept `launched` has no start and no minutes |
 | `load` | a row's reason `waiting for room on the machine: load is at or over <n>% of <c> cores`, where `jgauge room` said the load is over its share of the cores: the threshold and the cores, never the reading (`jbus.roomwait.reason`) | the wait's spell |

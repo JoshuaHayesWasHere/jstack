@@ -260,6 +260,7 @@ def test_no_record_is_its_own_reason_and_not_counted_as_unexplained():
         ("waiting for room on the machine", "", "no room"),
         ("waiting for room on the machine: 1.2 GB of memory available, under 2", "", "no room"),
         ("waiting: /tmp at 81% of its quota", "", "no room"),
+        ("waiting: /tmp is full: its quota", "", "no room"),
         ("no launch: load 30.1 is at or over 85% of 24 cores", "", "no room"),
     ],
 )

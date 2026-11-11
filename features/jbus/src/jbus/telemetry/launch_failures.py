@@ -8,7 +8,8 @@ them, since the store keeps no reason's text:
   (`jbus.failover`), from the row's last launch before it in `transitions.jsonl` to the failover.
   A row with no launch there, such as a scout's, has no start and no minutes: none is guessed. A
   row's reason `no launch: <instance> cannot sign in (...)` is a sign-in wait.
-- `/tmp`: a row's reason `waiting: /tmp at <n>% of its <what>` (`jbus.cleanup.WAITING`).
+- `/tmp`: a row's reason `waiting: /tmp is full: its <what>`, or `waiting: /tmp at <n>% of its
+  <what>` as a jbus from before wrote it with the share of the moment (`jbus.cleanup.WAITING`).
 - `no slot`: a row's reason `no slot`, a cap of jbus's config (`max_per_home is ...`), or a gate
   held back while every slot is taken.
 - `no home-id`: a home start that sat and ended, failed or idle, with no `home-id` written, from

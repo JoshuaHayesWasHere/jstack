@@ -18,7 +18,7 @@ from view.scene import row, tasks
             "waiting for room on the machine: load 30.00 is at or over 85% of 12 cores",
             "room on the machine",
         ),
-        ("waiting: /tmp at 91% of its quota", "room on the machine"),
+        ("waiting: /tmp is full: its quota", "room on the machine"),
         ("no launch: every instance is capped", "room on the machine"),
     ],
 )

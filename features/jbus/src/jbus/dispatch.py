@@ -23,7 +23,7 @@ Before a launch, jbus runs `jgauge room` to check that the machine and the plan 
 the same check a home makes. A row with no room waits, and so does every row after it in the
 pass, in every project. Where /tmp is what is full, the pass first removes what finished crews
 left there (`jbus.cleanup.sweep`) and asks again. A row that still waits for /tmp says so from
-that first pass, `waiting: /tmp at <n>% of its quota`, as its `why` and on `jbus needs`.
+that first pass, `waiting: /tmp is full: its quota`, as its `why` and on `jbus needs`.
 
 jbus does not lint a brief here. `jbus queue add` runs the lints (`jbriefs.parse.faults`) when it
 first queues a row. A lint added after a row's approval does not make jbus refuse that row, whatever

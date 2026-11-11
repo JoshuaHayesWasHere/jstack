@@ -1,14 +1,14 @@
 """`queue.derive` keeps each change of a row's reason to wait as one line of `waits.jsonl`, and a
 pass that leaves the reason as it was adds none. A row that waits behind a row with no room on the
-machine says so."""
+machine says so, and a wait on load or on a full /tmp keeps one reason while its reading moves."""
 
 import json
 from datetime import timedelta
 
 import pytest
 
-from jbus import queue
 import test_jbus_cleanup
+from jbus import queue
 from test_jbus_cleanup import pad, tmp  # noqa: F401  (`full`'s /tmp)
 from test_jbus_kitchen import NOW
 from test_jbus_queue import add, rows
@@ -100,11 +100,13 @@ def test_a_wait_for_a_full_tmp_keeps_its_reason_and_its_since_while_its_use_move
     (kitchen.root / "worktrees" / kitchen.checkout.name / "live").mkdir(parents=True)
     blob = pad(full, kitchen, "live", 870_000) / "session" / "scratchpad" / "blob"
     add(kitchen, "first")
-    kitchen.poll()
+    said = kitchen.poll()
     began = rows(kitchen)["first"]["since"]
     blob.write_bytes(b"x" * 900_000)
-    kitchen.poll(NOW + timedelta(minutes=5))
+    said += kitchen.poll(NOW + timedelta(minutes=5))
     assert kitchen.t3.launches == []
-    said = [line["why"] for line in lines(kitchen) if line["slug"] == "first"]
-    assert said == [f"waiting: {full} is full: its quota"]
+    read = [line.split(" quota used")[0].split(" has ")[1] for line in said if "quota" in line]
+    assert read == ["8.1 of your 10.0 GB", "8.4 of your 10.0 GB"], said
+    why = [line["why"] for line in lines(kitchen) if line["slug"] == "first"]
+    assert why == [f"waiting: {full} is full: its quota"]
     assert rows(kitchen)["first"]["since"] == began
