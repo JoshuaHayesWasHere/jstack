@@ -122,7 +122,8 @@ def test_input_with_no_limits_leaves_the_file_as_it_was(env, stdin):
     before = (kept(env), os.stat(env["LIMITS"]).st_ino, os.stat(env["LIMITS"]).st_mtime_ns)
     write(stdin, env)
     assert (kept(env), os.stat(env["LIMITS"]).st_ino, os.stat(env["LIMITS"]).st_mtime_ns) == before
-    assert sorted(os.listdir(Path(env["LIMITS"]).parent)) == ["limits", "proc", "stub"]
+    beside = sorted(os.listdir(Path(env["LIMITS"]).parent))
+    assert beside == ["limits", "limits.lock", "proc", "stub"]
 
 
 @pytest.mark.parametrize("stdin", NOTHING_TO_KEEP)
@@ -176,17 +177,17 @@ def test_figures_already_in_the_file_do_not_write_it_again(env):
     assert (os.stat(env["LIMITS"]).st_ino, os.stat(env["LIMITS"]).st_mtime_ns) == before
 
 
-def test_a_run_ended_before_its_rename_leaves_nothing_beside_the_file(tmp_path, env):
+def test_a_run_ended_before_its_rename_leaves_only_the_lock_beside_the_file(tmp_path, env):
     write(handed(five_hour=(23.5, SOON), seven_day=(41.2, WEEK)), env)
     old = kept(env)
     (tmp_path / "stub" / "mv").write_text('#!/bin/sh\nkill -TERM "$PPID"\nexit 1\n')
     (tmp_path / "stub" / "mv").chmod(0o755)
     write(handed(five_hour=(60, LATER), seven_day=(41.2, WEEK)), env)
     assert kept(env) == old
-    assert sorted(os.listdir(tmp_path)) == ["limits", "proc", "stub"]
+    assert sorted(os.listdir(tmp_path)) == ["limits", "limits.lock", "proc", "stub"]
 
 
-def test_runs_that_overlap_leave_one_whole_file_and_nothing_beside_it(tmp_path, env):
+def test_runs_that_overlap_leave_one_whole_file_and_only_the_lock_beside_it(tmp_path, env):
     runs = [handed(five_hour=(n, SOON + n), seven_day=(n, WEEK + n)) for n in range(1, 25)]
     wholes = {
         f"five_hour {n} {SOON + n}\nseven_day {m} {WEEK + m}\n"
@@ -201,7 +202,7 @@ def test_runs_that_overlap_leave_one_whole_file_and_nothing_beside_it(tmp_path, 
         for writer in writers:
             writer.result()
     assert kept(env) in wholes
-    assert sorted(os.listdir(tmp_path)) == ["limits", "proc", "stub"]
+    assert sorted(os.listdir(tmp_path)) == ["limits", "limits.lock", "proc", "stub"]
 
 
 def test_a_path_it_cannot_write_to_breaks_nothing(tmp_path, env):
