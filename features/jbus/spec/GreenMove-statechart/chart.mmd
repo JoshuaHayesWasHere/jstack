@@ -82,7 +82,6 @@ stateDiagram-v2
   s14 --> s19 : the pass points the link at<br/>the tree it moves to
   s14 --> s1 : the pass dies: a timeout, a<br/>reboot or an OOM kill
   s21 --> s24 : the harness layouts are put<br/>from the linked tree
-  s25 --> s17 : a pass grows the new tip's<br/>tree and writes the install it<br/>owes
   s10 --> s7 : the pass removes the tree it<br/>went to
   s10 --> s2 : the pass dies: a timeout, a<br/>reboot or an OOM kill
   s1 --> s6 : the next pass takes up the<br/>owed install
@@ -91,8 +90,7 @@ stateDiagram-v2
   s0 --> s5 : the next pass takes up the<br/>owed install
   s13 --> s18 : the pass points the link at<br/>the tree it moves to
   s13 --> s0 : the pass dies: a timeout, a<br/>reboot or an OOM kill
-  s1 --> s16 : a pass grows the new tip's<br/>tree and writes the install it<br/>owes or the next pass takes up<br/>the owed install
-  s0 --> s15 : a pass grows the new tip's<br/>tree and writes the install it<br/>owes or the next pass takes up<br/>the owed install
+  s25 --> s17 : a pass grows the new tip's<br/>tree and writes the install it<br/>owes
   s7 --> s20 : the pass points the link at<br/>the tree it moves to
   s7 --> s2 : the pass dies: a timeout, a<br/>reboot or an OOM kill
   s2 --> s7 : the next pass takes up the<br/>owed install
@@ -100,16 +98,18 @@ stateDiagram-v2
   s6 --> s1 : the pass dies: a timeout, a<br/>reboot or an OOM kill
   s5 --> s18 : the pass points the link at<br/>the tree it moves to
   s5 --> s0 : the pass dies: a timeout, a<br/>reboot or an OOM kill
+  s0 --> s15 : a pass grows the new tip's<br/>tree and writes the install it<br/>owes or the next pass takes up<br/>the owed install
   s18 --> s22 : uv installs the tool from the<br/>linked tree
   s18 --> s11 : uv refuses the install
   s18 --> s0 : the pass dies: a timeout, a<br/>reboot or an OOM kill or uv<br/>refuses the install
-  s16 --> s19 : the pass points the link at<br/>the tree it moves to
-  s16 --> s1 : the pass dies: a timeout, a<br/>reboot or an OOM kill
-  s15 --> s18 : the pass points the link at<br/>the tree it moves to
-  s15 --> s0 : the pass dies: a timeout, a<br/>reboot or an OOM kill
+  s1 --> s16 : a pass grows the new tip's<br/>tree and writes the install it<br/>owes or the next pass takes up<br/>the owed install
   s20 --> s22 : uv installs the tool from the<br/>linked tree
   s20 --> s2 : uv refuses the install or the<br/>pass dies: a timeout, a reboot<br/>or an OOM kill
   s20 --> s0 : uv refuses the install and<br/>removed the tool first
+  s15 --> s18 : the pass points the link at<br/>the tree it moves to
+  s15 --> s0 : the pass dies: a timeout, a<br/>reboot or an OOM kill
+  s16 --> s19 : the pass points the link at<br/>the tree it moves to
+  s16 --> s1 : the pass dies: a timeout, a<br/>reboot or an OOM kill
   s4 --> s9 : the pass points the link back
   s9 --> s6 : the pass removes the tree it<br/>went to
   s9 --> s1 : the pass dies: a timeout, a<br/>reboot or an OOM kill
