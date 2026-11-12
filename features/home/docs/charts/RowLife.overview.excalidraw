@@ -147,8 +147,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "The go\n5 states, 10 steps inside",
-      "originalText": "The go\n5 states, 10 steps inside",
+      "text": "The go\n5 states, 11 steps inside",
+      "originalText": "The go\n5 states, 11 steps inside",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -254,7 +254,7 @@
     {
       "id": "state-*start1",
       "type": "ellipse",
-      "x": 752.69,
+      "x": 740.11,
       "y": 115.0,
       "width": 22,
       "height": 22,
@@ -292,7 +292,7 @@
     {
       "id": "state-r1group0",
       "type": "rectangle",
-      "x": 654.73,
+      "x": 633.36,
       "y": 205.0,
       "width": 262,
       "height": 64,
@@ -323,19 +323,19 @@
           "type": "arrow"
         },
         {
-          "id": "step3",
-          "type": "arrow"
-        },
-        {
-          "id": "step4",
-          "type": "arrow"
-        },
-        {
           "id": "step5",
           "type": "arrow"
         },
         {
+          "id": "step6",
+          "type": "arrow"
+        },
+        {
           "id": "step7",
+          "type": "arrow"
+        },
+        {
+          "id": "step8",
           "type": "arrow"
         }
       ],
@@ -352,7 +352,7 @@
     {
       "id": "state-r1group0-text",
       "type": "text",
-      "x": 670.53,
+      "x": 649.16,
       "y": 217.0,
       "width": 230.4,
       "height": 40.0,
@@ -388,7 +388,7 @@
     {
       "id": "state-r1group1",
       "type": "rectangle",
-      "x": 512.0,
+      "x": 644.9,
       "y": 346.5,
       "width": 272,
       "height": 64,
@@ -415,11 +415,11 @@
           "type": "text"
         },
         {
-          "id": "step2",
+          "id": "step3",
           "type": "arrow"
         },
         {
-          "id": "step3",
+          "id": "step4",
           "type": "arrow"
         },
         {
@@ -427,7 +427,7 @@
           "type": "arrow"
         },
         {
-          "id": "step6",
+          "id": "step8",
           "type": "arrow"
         }
       ],
@@ -444,7 +444,7 @@
     {
       "id": "state-r1group1-text",
       "type": "text",
-      "x": 528.0,
+      "x": 660.9,
       "y": 358.5,
       "width": 240.0,
       "height": 40.0,
@@ -480,7 +480,7 @@
     {
       "id": "state-r1group2",
       "type": "rectangle",
-      "x": 534.75,
+      "x": 512.0,
       "y": 488.0,
       "width": 253,
       "height": 64,
@@ -511,7 +511,11 @@
           "type": "arrow"
         },
         {
-          "id": "step4",
+          "id": "step3",
+          "type": "arrow"
+        },
+        {
+          "id": "step6",
           "type": "arrow"
         }
       ],
@@ -528,7 +532,7 @@
     {
       "id": "state-r1group2-text",
       "type": "text",
-      "x": 550.85,
+      "x": 528.1,
       "y": 500.0,
       "width": 220.8,
       "height": 40.0,
@@ -564,8 +568,8 @@
     {
       "id": "state-r1group3",
       "type": "rectangle",
-      "x": 823.75,
-      "y": 488.0,
+      "x": 738.36,
+      "y": 629.5,
       "width": 99,
       "height": 64,
       "angle": 0,
@@ -591,7 +595,11 @@
           "type": "text"
         },
         {
-          "id": "step6",
+          "id": "step2",
+          "type": "arrow"
+        },
+        {
+          "id": "step4",
           "type": "arrow"
         },
         {
@@ -612,8 +620,8 @@
     {
       "id": "state-r1group3-text",
       "type": "text",
-      "x": 839.65,
-      "y": 500.0,
+      "x": 754.26,
+      "y": 641.5,
       "width": 67.2,
       "height": 40.0,
       "angle": 0,
@@ -648,10 +656,10 @@
     {
       "id": "step1",
       "type": "arrow",
-      "x": 765.64,
-      "y": 136.82,
-      "width": 13.34,
-      "height": 68.18,
+      "x": 752.28,
+      "y": 136.94,
+      "width": 7.98,
+      "height": 68.06,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -679,12 +687,12 @@
           0.0
         ],
         [
-          6.17,
-          34.18
+          3.63,
+          34.06
         ],
         [
-          13.34,
-          68.18
+          7.98,
+          68.06
         ]
       ],
       "lastCommittedPoint": null,
@@ -714,9 +722,9 @@
     {
       "id": "step2",
       "type": "arrow",
-      "x": 644.92,
-      "y": 410.5,
-      "width": 10.99,
+      "x": 670.62,
+      "y": 552.0,
+      "width": 81.81,
       "height": 77.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -750,23 +758,23 @@
           0.0
         ],
         [
-          -3.73,
+          38.9,
           38.75
         ],
         [
-          7.26,
+          81.81,
           77.5
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1group1",
+        "elementId": "state-r1group2",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1group2",
+        "elementId": "state-r1group3",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -777,17 +785,17 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1group1",
-          "to": "r1group2"
+          "from": "r1group2",
+          "to": "r1group3"
         }
       }
     },
     {
       "id": "step2-label",
       "type": "text",
-      "x": 611.79,
-      "y": 440.5,
-      "width": 58.8,
+      "x": 684.32,
+      "y": 582.0,
+      "width": 50.4,
       "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -808,8 +816,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "7 steps",
-      "originalText": "7 steps",
+      "text": "1 step",
+      "originalText": "1 step",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -821,9 +829,9 @@
     {
       "id": "step3",
       "type": "arrow",
-      "x": 730.34,
-      "y": 269.0,
-      "width": 75.44,
+      "x": 747.16,
+      "y": 410.5,
+      "width": 77.99,
       "height": 77.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -857,23 +865,23 @@
           0.0
         ],
         [
-          -67.07,
+          -40.86,
           38.75
         ],
         [
-          -75.44,
+          -77.99,
           77.5
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1group0",
+        "elementId": "state-r1group1",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1group1",
+        "elementId": "state-r1group2",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -884,16 +892,16 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1group0",
-          "to": "r1group1"
+          "from": "r1group1",
+          "to": "r1group2"
         }
       }
     },
     {
       "id": "step3-label",
       "type": "text",
-      "x": 633.87,
-      "y": 299.0,
+      "x": 676.9,
+      "y": 440.5,
       "width": 58.8,
       "height": 17.5,
       "angle": 0,
@@ -915,8 +923,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "8 steps",
-      "originalText": "8 steps",
+      "text": "7 steps",
+      "originalText": "7 steps",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -928,9 +936,9 @@
     {
       "id": "step4",
       "type": "arrow",
-      "x": 816.66,
-      "y": 269.0,
-      "width": 162.12,
+      "x": 791.46,
+      "y": 410.5,
+      "width": 42.94,
       "height": 219.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -964,31 +972,31 @@
           0.0
         ],
         [
-          37.46,
+          12.79,
           38.75
         ],
         [
-          36.74,
+          42.94,
           109.5
         ],
         [
-          -87.43,
+          16.0,
           180.25
         ],
         [
-          -124.66,
+          5.27,
           219.0
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1group0",
+        "elementId": "state-r1group1",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1group2",
+        "elementId": "state-r1group3",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -999,16 +1007,16 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1group0",
-          "to": "r1group2"
+          "from": "r1group1",
+          "to": "r1group3"
         }
       }
     },
     {
       "id": "step4-label",
       "type": "text",
-      "x": 824.0,
-      "y": 369.75,
+      "x": 805.0,
+      "y": 511.25,
       "width": 58.8,
       "height": 17.5,
       "angle": 0,
@@ -1030,8 +1038,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "2 steps",
-      "originalText": "2 steps",
+      "text": "5 steps",
+      "originalText": "5 steps",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -1043,9 +1051,9 @@
     {
       "id": "step5",
       "type": "arrow",
-      "x": 701.4,
-      "y": 346.5,
-      "width": 75.44,
+      "x": 743.72,
+      "y": 269.0,
+      "width": 34.05,
       "height": 77.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -1079,23 +1087,23 @@
           0.0
         ],
         [
-          64.67,
-          -38.75
+          -24.99,
+          38.75
         ],
         [
-          75.44,
-          -77.5
+          9.06,
+          77.5
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1group1",
+        "elementId": "state-r1group0",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1group0",
+        "elementId": "state-r1group1",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -1106,15 +1114,15 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1group1",
-          "to": "r1group0"
+          "from": "r1group0",
+          "to": "r1group1"
         }
       }
     },
     {
       "id": "step5-label",
       "type": "text",
-      "x": 736.67,
+      "x": 689.32,
       "y": 299.0,
       "width": 58.8,
       "height": 17.5,
@@ -1137,8 +1145,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "2 steps",
-      "originalText": "2 steps",
+      "text": "8 steps",
+      "originalText": "8 steps",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -1150,10 +1158,10 @@
     {
       "id": "step6",
       "type": "arrow",
-      "x": 709.8,
-      "y": 410.5,
-      "width": 123.37,
-      "height": 77.5,
+      "x": 707.96,
+      "y": 269.0,
+      "width": 132.46,
+      "height": 219.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -1186,23 +1194,31 @@
           0.0
         ],
         [
-          74.84,
+          -68.29,
           38.75
         ],
         [
-          123.37,
-          77.5
+          -132.46,
+          109.5
+        ],
+        [
+          -104.36,
+          180.25
+        ],
+        [
+          -85.25,
+          219.0
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1group1",
+        "elementId": "state-r1group0",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1group3",
+        "elementId": "state-r1group2",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -1213,16 +1229,16 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1group1",
-          "to": "r1group3"
+          "from": "r1group0",
+          "to": "r1group2"
         }
       }
     },
     {
       "id": "step6-label",
       "type": "text",
-      "x": 755.24,
-      "y": 440.5,
+      "x": 546.1,
+      "y": 369.75,
       "width": 58.8,
       "height": 17.5,
       "angle": 0,
@@ -1257,10 +1273,10 @@
     {
       "id": "step7",
       "type": "arrow",
-      "x": 834.45,
+      "x": 826.71,
       "y": 269.0,
-      "width": 124.26,
-      "height": 219.0,
+      "width": 142.47,
+      "height": 360.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -1293,20 +1309,28 @@
           0.0
         ],
         [
-          59.0,
+          75.51,
           38.75
         ],
         [
-          124.26,
+          130.19,
           109.5
         ],
         [
-          79.49,
+          104.67,
           180.25
         ],
         [
-          57.2,
-          219.0
+          85.95,
+          251.0
+        ],
+        [
+          19.89,
+          321.75
+        ],
+        [
+          -12.28,
+          360.5
         ]
       ],
       "lastCommittedPoint": null,
@@ -1336,9 +1360,9 @@
     {
       "id": "step7-label",
       "type": "text",
-      "x": 933.51,
-      "y": 369.75,
-      "width": 50.4,
+      "x": 901.99,
+      "y": 440.5,
+      "width": 58.8,
       "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -1359,8 +1383,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "1 step",
-      "originalText": "1 step",
+      "text": "2 steps",
+      "originalText": "2 steps",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -1370,12 +1394,119 @@
       "lineHeight": 1.25
     },
     {
+      "id": "step8",
+      "type": "arrow",
+      "x": 799.28,
+      "y": 346.5,
+      "width": 31.31,
+      "height": 77.5,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-region1",
+      "roundness": {
+        "type": 2
+      },
+      "seed": 3576468074,
+      "version": 1,
+      "versionNonce": 53108633,
+      "isDeleted": false,
+      "boundElements": [
+        {
+          "id": "step8-label",
+          "type": "text"
+        }
+      ],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "points": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          22.25,
+          -38.75
+        ],
+        [
+          -9.06,
+          -77.5
+        ]
+      ],
+      "lastCommittedPoint": null,
+      "startBinding": {
+        "elementId": "state-r1group1",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "endBinding": {
+        "elementId": "state-r1group0",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "startArrowhead": null,
+      "endArrowhead": "arrow",
+      "elbowed": false,
+      "customData": {
+        "statechart": {
+          "kind": "step",
+          "from": "r1group1",
+          "to": "r1group0"
+        }
+      }
+    },
+    {
+      "id": "step8-label",
+      "type": "text",
+      "x": 792.12,
+      "y": 299.0,
+      "width": 58.8,
+      "height": 17.5,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-region1",
+      "roundness": null,
+      "seed": 2709172143,
+      "version": 1,
+      "versionNonce": 2787130459,
+      "isDeleted": false,
+      "boundElements": [],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "text": "2 steps",
+      "originalText": "2 steps",
+      "fontSize": 14,
+      "fontFamily": 6,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "step8",
+      "autoResize": true,
+      "lineHeight": 1.25
+    },
+    {
       "id": "frame-region1",
       "type": "frame",
       "x": 472.0,
       "y": 75.0,
-      "width": 556,
-      "height": 517,
+      "width": 533,
+      "height": 658,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",

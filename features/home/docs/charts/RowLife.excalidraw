@@ -374,7 +374,7 @@
     {
       "id": "state-*start0",
       "type": "ellipse",
-      "x": 1040.51,
+      "x": 1034.45,
       "y": 299.0,
       "width": 22,
       "height": 22,
@@ -412,8 +412,8 @@
     {
       "id": "state-r0s0",
       "type": "rectangle",
-      "x": 878.22,
-      "y": 697.0,
+      "x": 882.78,
+      "y": 714.5,
       "width": 109,
       "height": 44,
       "angle": 0,
@@ -467,7 +467,11 @@
           "type": "arrow"
         },
         {
-          "id": "step9",
+          "id": "step8",
+          "type": "arrow"
+        },
+        {
+          "id": "step10",
           "type": "arrow"
         }
       ],
@@ -484,8 +488,8 @@
     {
       "id": "state-r0s0-text",
       "type": "text",
-      "x": 894.32,
-      "y": 709.0,
+      "x": 898.88,
+      "y": 726.5,
       "width": 76.8,
       "height": 20.0,
       "angle": 0,
@@ -520,7 +524,7 @@
     {
       "id": "state-r0s1",
       "type": "rectangle",
-      "x": 914.72,
+      "x": 909.94,
       "y": 533.0,
       "width": 272,
       "height": 64,
@@ -547,11 +551,15 @@
           "type": "text"
         },
         {
-          "id": "step4",
+          "id": "step2",
           "type": "arrow"
         },
         {
-          "id": "step8",
+          "id": "step5",
+          "type": "arrow"
+        },
+        {
+          "id": "step9",
           "type": "arrow"
         }
       ],
@@ -568,7 +576,7 @@
     {
       "id": "state-r0s1-text",
       "type": "text",
-      "x": 930.72,
+      "x": 925.94,
       "y": 545.0,
       "width": 240.0,
       "height": 40.0,
@@ -604,8 +612,8 @@
     {
       "id": "state-r0s2",
       "type": "rectangle",
-      "x": 256.34,
-      "y": 836.0,
+      "x": 255.8,
+      "y": 853.5,
       "width": 70,
       "height": 44,
       "angle": 0,
@@ -631,15 +639,15 @@
           "type": "text"
         },
         {
-          "id": "step2",
+          "id": "step3",
           "type": "arrow"
         },
         {
-          "id": "step5",
+          "id": "step6",
           "type": "arrow"
         },
         {
-          "id": "step10",
+          "id": "step11",
           "type": "arrow"
         }
       ],
@@ -656,8 +664,8 @@
     {
       "id": "state-r0s2-text",
       "type": "text",
-      "x": 272.14,
-      "y": 848.0,
+      "x": 271.6,
+      "y": 865.5,
       "width": 38.4,
       "height": 20.0,
       "angle": 0,
@@ -692,8 +700,8 @@
     {
       "id": "state-r0s3",
       "type": "rectangle",
-      "x": 1023.91,
-      "y": 836.0,
+      "x": 1023.09,
+      "y": 853.5,
       "width": 195,
       "height": 44,
       "angle": 0,
@@ -719,15 +727,15 @@
           "type": "text"
         },
         {
-          "id": "step3",
-          "type": "arrow"
-        },
-        {
-          "id": "step6",
+          "id": "step4",
           "type": "arrow"
         },
         {
           "id": "step7",
+          "type": "arrow"
+        },
+        {
+          "id": "step8",
           "type": "arrow"
         }
       ],
@@ -744,8 +752,8 @@
     {
       "id": "state-r0s3-text",
       "type": "text",
-      "x": 1039.81,
-      "y": 848.0,
+      "x": 1038.99,
+      "y": 865.5,
       "width": 163.2,
       "height": 20.0,
       "angle": 0,
@@ -780,7 +788,7 @@
     {
       "id": "state-r0s4",
       "type": "rectangle",
-      "x": 974.59,
+      "x": 972.6,
       "y": 389.0,
       "width": 80,
       "height": 44,
@@ -815,15 +823,15 @@
           "type": "arrow"
         },
         {
-          "id": "step8",
-          "type": "arrow"
-        },
-        {
           "id": "step9",
           "type": "arrow"
         },
         {
           "id": "step10",
+          "type": "arrow"
+        },
+        {
+          "id": "step11",
           "type": "arrow"
         }
       ],
@@ -840,7 +848,7 @@
     {
       "id": "state-r0s4-text",
       "type": "text",
-      "x": 990.59,
+      "x": 988.6,
       "y": 401.0,
       "width": 48.0,
       "height": 20.0,
@@ -876,10 +884,10 @@
     {
       "id": "step0",
       "type": "arrow",
-      "x": 1049.42,
-      "y": 320.8,
-      "width": 23.75,
-      "height": 68.2,
+      "x": 1043.67,
+      "y": 320.85,
+      "width": 21.07,
+      "height": 68.15,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -907,12 +915,12 @@
           0.0
         ],
         [
-          -6.62,
-          34.2
+          -5.6,
+          34.15
         ],
         [
-          -23.75,
-          68.2
+          -21.07,
+          68.15
         ]
       ],
       "lastCommittedPoint": null,
@@ -942,10 +950,10 @@
     {
       "id": "step1",
       "type": "arrow",
-      "x": 910.51,
-      "y": 697.0,
-      "width": 226.93,
-      "height": 264.0,
+      "x": 882.78,
+      "y": 715.82,
+      "width": 241.68,
+      "height": 282.82,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -978,20 +986,20 @@
           0.0
         ],
         [
-          -47.94,
-          -47.5
+          -151.71,
+          -57.57
         ],
         [
-          -161.8,
-          -132.0
+          -138.85,
+          -150.82
         ],
         [
-          -18.97,
-          -216.5
+          3.95,
+          -235.32
         ],
         [
-          65.13,
-          -264.0
+          89.97,
+          -282.82
         ]
       ],
       "lastCommittedPoint": null,
@@ -1021,7 +1029,7 @@
     {
       "id": "step1-label",
       "type": "text",
-      "x": 622.72,
+      "x": 617.94,
       "y": 530.0,
       "width": 252.0,
       "height": 70.0,
@@ -1057,10 +1065,10 @@
     {
       "id": "step2",
       "type": "arrow",
-      "x": 878.22,
-      "y": 724.8,
-      "width": 598.61,
-      "height": 111.2,
+      "x": 920.13,
+      "y": 714.5,
+      "width": 111.43,
+      "height": 117.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -1093,12 +1101,12 @@
           0.0
         ],
         [
-          -598.61,
-          63.7
+          -43.85,
+          -56.25
         ],
         [
-          -590.6,
-          111.2
+          67.58,
+          -117.5
         ]
       ],
       "lastCommittedPoint": null,
@@ -1109,7 +1117,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r0s2",
+        "elementId": "state-r0s1",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -1121,17 +1129,17 @@
         "statechart": {
           "kind": "step",
           "from": "r0s0",
-          "to": "r0s2"
+          "to": "r0s1"
         }
       }
     },
     {
       "id": "step2-label",
       "type": "text",
-      "x": 174.61,
-      "y": 779.75,
-      "width": 210.0,
-      "height": 17.5,
+      "x": 762.88,
+      "y": 632.0,
+      "width": 226.8,
+      "height": 52.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -1151,8 +1159,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "you hold the approved row",
-      "originalText": "you hold the approved row",
+      "text": "you give the approved row\nother depends, and its line\nwaits for a pass",
+      "originalText": "you give the approved row\nother depends, and its line\nwaits for a pass",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -1164,10 +1172,10 @@
     {
       "id": "step3",
       "type": "arrow",
-      "x": 902.74,
-      "y": 741.0,
-      "width": 193.69,
-      "height": 95.0,
+      "x": 882.78,
+      "y": 742.25,
+      "width": 603.99,
+      "height": 111.25,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -1200,12 +1208,12 @@
           0.0
         ],
         [
-          -64.73,
-          47.5
+          -603.99,
+          63.75
         ],
         [
-          128.96,
-          95.0
+          -595.79,
+          111.25
         ]
       ],
       "lastCommittedPoint": null,
@@ -1216,7 +1224,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r0s3",
+        "elementId": "state-r0s2",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -1228,17 +1236,17 @@
         "statechart": {
           "kind": "step",
           "from": "r0s0",
-          "to": "r0s3"
+          "to": "r0s2"
         }
       }
     },
     {
       "id": "step3-label",
       "type": "text",
-      "x": 716.21,
-      "y": 771.0,
-      "width": 243.6,
-      "height": 35.0,
+      "x": 173.79,
+      "y": 797.25,
+      "width": 210.0,
+      "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -1258,8 +1266,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "you hold the row, keeping its\ngo",
-      "originalText": "you hold the row, keeping its\ngo",
+      "text": "you hold the approved row",
+      "originalText": "you hold the approved row",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -1271,10 +1279,10 @@
     {
       "id": "step4",
       "type": "arrow",
-      "x": 1036.23,
-      "y": 597.0,
-      "width": 78.27,
-      "height": 100.0,
+      "x": 905.6,
+      "y": 758.5,
+      "width": 193.69,
+      "height": 95.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -1307,23 +1315,23 @@
           0.0
         ],
         [
-          -23.76,
-          52.5
+          -68.41,
+          47.5
         ],
         [
-          -78.27,
-          100.0
+          125.28,
+          95.0
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r0s1",
+        "elementId": "state-r0s0",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r0s0",
+        "elementId": "state-r0s3",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -1334,17 +1342,17 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r0s1",
-          "to": "r0s0"
+          "from": "r0s0",
+          "to": "r0s3"
         }
       }
     },
     {
       "id": "step4-label",
       "type": "text",
-      "x": 903.27,
-      "y": 632.0,
-      "width": 218.4,
+      "x": 715.39,
+      "y": 788.5,
+      "width": 243.6,
       "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -1365,8 +1373,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the rows it depends on are\nover",
-      "originalText": "the rows it depends on are\nover",
+      "text": "you hold the row, keeping its\ngo",
+      "originalText": "you hold the row, keeping its\ngo",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -1378,10 +1386,10 @@
     {
       "id": "step5",
       "type": "arrow",
-      "x": 326.34,
-      "y": 848.61,
-      "width": 551.88,
-      "height": 119.7,
+      "x": 1079.2,
+      "y": 597.0,
+      "width": 151.09,
+      "height": 118.76,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -1414,17 +1422,17 @@
           0.0
         ],
         [
-          224.07,
-          -60.11
+          63.67,
+          61.25
         ],
         [
-          551.88,
-          -119.7
+          -87.42,
+          118.76
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r0s2",
+        "elementId": "state-r0s1",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -1441,7 +1449,7 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r0s2",
+          "from": "r0s1",
           "to": "r0s0"
         }
       }
@@ -1449,9 +1457,9 @@
     {
       "id": "step5-label",
       "type": "text",
-      "x": 428.61,
-      "y": 771.0,
-      "width": 243.6,
+      "x": 1033.68,
+      "y": 640.75,
+      "width": 218.4,
       "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -1472,8 +1480,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "you approve the held row, and\nthe hold ends",
-      "originalText": "you approve the held row, and\nthe hold ends",
+      "text": "the rows it depends on are\nover",
+      "originalText": "the rows it depends on are\nover",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -1485,10 +1493,10 @@
     {
       "id": "step6",
       "type": "arrow",
-      "x": 1121.41,
-      "y": 836.0,
-      "width": 134.19,
-      "height": 96.93,
+      "x": 325.8,
+      "y": 866.1,
+      "width": 556.99,
+      "height": 119.83,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -1521,17 +1529,17 @@
           0.0
         ],
         [
-          0.0,
-          -47.5
+          223.8,
+          -60.1
         ],
         [
-          -134.19,
-          -96.93
+          556.99,
+          -119.83
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r0s3",
+        "elementId": "state-r0s2",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -1548,7 +1556,7 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r0s3",
+          "from": "r0s2",
           "to": "r0s0"
         }
       }
@@ -1556,9 +1564,9 @@
     {
       "id": "step6-label",
       "type": "text",
-      "x": 1003.81,
-      "y": 771.0,
-      "width": 235.2,
+      "x": 427.79,
+      "y": 788.5,
+      "width": 243.6,
       "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -1579,8 +1587,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "you approve the row over the\nhold that kept its go",
-      "originalText": "you approve the row over the\nhold that kept its go",
+      "text": "you approve the held row, and\nthe hold ends",
+      "originalText": "you approve the held row, and\nthe hold ends",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -1592,10 +1600,10 @@
     {
       "id": "step7",
       "type": "arrow",
-      "x": 1211.11,
-      "y": 836.0,
-      "width": 417.59,
-      "height": 108.98,
+      "x": 1120.59,
+      "y": 853.5,
+      "width": 128.81,
+      "height": 96.34,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -1628,12 +1636,12 @@
           0.0
         ],
         [
-          193.69,
+          0.0,
           -47.5
         ],
         [
-          -223.9,
-          -108.98
+          -128.81,
+          -96.34
         ]
       ],
       "lastCommittedPoint": null,
@@ -1663,9 +1671,9 @@
     {
       "id": "step7-label",
       "type": "text",
-      "x": 1283.01,
-      "y": 771.0,
-      "width": 243.6,
+      "x": 1002.99,
+      "y": 788.5,
+      "width": 235.2,
       "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -1686,8 +1694,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "you lift the hold, and its go\ncomes back",
-      "originalText": "you lift the hold, and its go\ncomes back",
+      "text": "you approve the row over the\nhold that kept its go",
+      "originalText": "you approve the row over the\nhold that kept its go",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -1699,10 +1707,10 @@
     {
       "id": "step8",
       "type": "arrow",
-      "x": 1022.94,
-      "y": 433.0,
-      "width": 24.08,
-      "height": 100.0,
+      "x": 1210.3,
+      "y": 853.5,
+      "width": 412.21,
+      "height": 108.88,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -1735,23 +1743,23 @@
           0.0
         ],
         [
-          18.01,
-          47.5
+          193.69,
+          -47.5
         ],
         [
-          24.08,
-          100.0
+          -218.52,
+          -108.88
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r0s4",
+        "elementId": "state-r0s3",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r0s1",
+        "elementId": "state-r0s0",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -1762,16 +1770,16 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r0s4",
-          "to": "r0s1"
+          "from": "r0s3",
+          "to": "r0s0"
         }
       }
     },
     {
       "id": "step8-label",
       "type": "text",
-      "x": 919.15,
-      "y": 463.0,
+      "x": 1282.19,
+      "y": 788.5,
       "width": 243.6,
       "height": 35.0,
       "angle": 0,
@@ -1793,8 +1801,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "you approve the row, behind a\nrow it depends on",
-      "originalText": "you approve the row, behind a\nrow it depends on",
+      "text": "you lift the hold, and its go\ncomes back",
+      "originalText": "you lift the hold, and its go\ncomes back",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -1806,10 +1814,10 @@
     {
       "id": "step9",
       "type": "arrow",
-      "x": 1054.59,
-      "y": 425.47,
-      "width": 365.5,
-      "height": 277.27,
+      "x": 1020.05,
+      "y": 433.0,
+      "width": 22.18,
+      "height": 100.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -1842,20 +1850,12 @@
           0.0
         ],
         [
-          152.15,
-          55.03
+          16.09,
+          47.5
         ],
         [
-          298.12,
-          139.53
-        ],
-        [
-          111.07,
-          224.03
-        ],
-        [
-          -67.38,
-          277.27
+          22.18,
+          100.0
         ]
       ],
       "lastCommittedPoint": null,
@@ -1866,7 +1866,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r0s0",
+        "elementId": "state-r0s1",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -1878,16 +1878,16 @@
         "statechart": {
           "kind": "step",
           "from": "r0s4",
-          "to": "r0s0"
+          "to": "r0s1"
         }
       }
     },
     {
       "id": "step9-label",
       "type": "text",
-      "x": 1226.72,
-      "y": 547.5,
-      "width": 252.0,
+      "x": 914.34,
+      "y": 463.0,
+      "width": 243.6,
       "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -1908,8 +1908,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "you approve the row, or a rule\ngives its go",
-      "originalText": "you approve the row, or a rule\ngives its go",
+      "text": "you approve the row, behind a\nrow it depends on",
+      "originalText": "you approve the row, behind a\nrow it depends on",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -1921,10 +1921,10 @@
     {
       "id": "step10",
       "type": "arrow",
-      "x": 974.59,
-      "y": 423.45,
-      "width": 930.59,
-      "height": 424.71,
+      "x": 1052.6,
+      "y": 425.68,
+      "width": 356.16,
+      "height": 298.93,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -1957,28 +1957,143 @@
           0.0
         ],
         [
-          -183.27,
-          57.05
+          149.34,
+          54.82
         ],
         [
-          -438.64,
-          141.55
+          295.34,
+          139.32
         ],
         [
-          -559.12,
-          226.05
+          243.48,
+          232.57
         ],
         [
-          -722.3,
-          295.55
+          -60.82,
+          298.93
+        ]
+      ],
+      "lastCommittedPoint": null,
+      "startBinding": {
+        "elementId": "state-r0s4",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "endBinding": {
+        "elementId": "state-r0s0",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "startArrowhead": null,
+      "endArrowhead": "arrow",
+      "elbowed": false,
+      "customData": {
+        "statechart": {
+          "kind": "step",
+          "from": "r0s4",
+          "to": "r0s0"
+        }
+      }
+    },
+    {
+      "id": "step10-label",
+      "type": "text",
+      "x": 1221.94,
+      "y": 547.5,
+      "width": 252.0,
+      "height": 35.0,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-region0",
+      "roundness": null,
+      "seed": 858062679,
+      "version": 1,
+      "versionNonce": 2998369515,
+      "isDeleted": false,
+      "boundElements": [],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "text": "you approve the row, or a rule\ngives its go",
+      "originalText": "you approve the row, or a rule\ngives its go",
+      "fontSize": 14,
+      "fontFamily": 6,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "step10",
+      "autoResize": true,
+      "lineHeight": 1.25
+    },
+    {
+      "id": "step11",
+      "type": "arrow",
+      "x": 972.6,
+      "y": 424.6,
+      "width": 928.6,
+      "height": 441.04,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-region0",
+      "roundness": {
+        "type": 2
+      },
+      "seed": 4289523754,
+      "version": 1,
+      "versionNonce": 922944725,
+      "isDeleted": false,
+      "boundElements": [
+        {
+          "id": "step11-label",
+          "type": "text"
+        }
+      ],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "points": [
+        [
+          0.0,
+          0.0
         ],
         [
-          -930.59,
-          365.05
+          -164.4,
+          55.9
         ],
         [
-          -718.26,
-          424.71
+          -397.84,
+          140.4
+        ],
+        [
+          -536.16,
+          233.65
+        ],
+        [
+          -712.49,
+          311.9
+        ],
+        [
+          -928.6,
+          381.4
+        ],
+        [
+          -716.8,
+          441.04
         ]
       ],
       "lastCommittedPoint": null,
@@ -2006,10 +2121,10 @@
       }
     },
     {
-      "id": "step10-label",
+      "id": "step11-label",
       "type": "text",
-      "x": 348.28,
-      "y": 640.75,
+      "x": 369.24,
+      "y": 649.5,
       "width": 134.4,
       "height": 17.5,
       "angle": 0,
@@ -2023,9 +2138,9 @@
       "groupIds": [],
       "frameId": "frame-region0",
       "roundness": null,
-      "seed": 858062679,
+      "seed": 2505307363,
       "version": 1,
-      "versionNonce": 2998369515,
+      "versionNonce": 1864476014,
       "isDeleted": false,
       "boundElements": [],
       "updated": 1,
@@ -2037,7 +2152,7 @@
       "fontFamily": 6,
       "textAlign": "center",
       "verticalAlign": "middle",
-      "containerId": "step10",
+      "containerId": "step11",
       "autoResize": true,
       "lineHeight": 1.25
     },
@@ -2046,8 +2161,8 @@
       "type": "frame",
       "x": 0.0,
       "y": 259.0,
-      "width": 1571,
-      "height": 661,
+      "width": 1570,
+      "height": 678,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -2072,7 +2187,7 @@
     {
       "id": "state-*start1",
       "type": "ellipse",
-      "x": 3281.86,
+      "x": 3455.47,
       "y": 299.0,
       "width": 22,
       "height": 22,
@@ -2093,7 +2208,7 @@
       "isDeleted": false,
       "boundElements": [
         {
-          "id": "step11",
+          "id": "step12",
           "type": "arrow"
         }
       ],
@@ -2110,8 +2225,8 @@
     {
       "id": "state-r1s0",
       "type": "rectangle",
-      "x": 2604.73,
-      "y": 1708.5,
+      "x": 3349.01,
+      "y": 1574.5,
       "width": 272,
       "height": 64,
       "angle": 0,
@@ -2137,31 +2252,35 @@
           "type": "text"
         },
         {
-          "id": "step12",
-          "type": "arrow"
-        },
-        {
           "id": "step13",
           "type": "arrow"
         },
         {
-          "id": "step25",
+          "id": "step14",
           "type": "arrow"
         },
         {
-          "id": "step35",
+          "id": "step15",
           "type": "arrow"
         },
         {
-          "id": "step39",
+          "id": "step28",
           "type": "arrow"
         },
         {
-          "id": "step56",
+          "id": "step37",
+          "type": "arrow"
+        },
+        {
+          "id": "step42",
           "type": "arrow"
         },
         {
           "id": "step58",
+          "type": "arrow"
+        },
+        {
+          "id": "step62",
           "type": "arrow"
         }
       ],
@@ -2178,8 +2297,8 @@
     {
       "id": "state-r1s0-text",
       "type": "text",
-      "x": 2620.73,
-      "y": 1720.5,
+      "x": 3365.01,
+      "y": 1586.5,
       "width": 240.0,
       "height": 40.0,
       "angle": 0,
@@ -2214,8 +2333,8 @@
     {
       "id": "state-r1s1",
       "type": "rectangle",
-      "x": 3023.76,
-      "y": 1048.75,
+      "x": 4042.34,
+      "y": 1246.5,
       "width": 282,
       "height": 44,
       "angle": 0,
@@ -2241,15 +2360,15 @@
           "type": "text"
         },
         {
-          "id": "step13",
-          "type": "arrow"
-        },
-        {
-          "id": "step14",
-          "type": "arrow"
-        },
-        {
           "id": "step15",
+          "type": "arrow"
+        },
+        {
+          "id": "step16",
+          "type": "arrow"
+        },
+        {
+          "id": "step17",
           "type": "arrow"
         },
         {
@@ -2257,7 +2376,11 @@
           "type": "arrow"
         },
         {
-          "id": "step37",
+          "id": "step20",
+          "type": "arrow"
+        },
+        {
+          "id": "step39",
           "type": "arrow"
         },
         {
@@ -2265,7 +2388,7 @@
           "type": "arrow"
         },
         {
-          "id": "step65",
+          "id": "step70",
           "type": "arrow"
         }
       ],
@@ -2282,8 +2405,8 @@
     {
       "id": "state-r1s1-text",
       "type": "text",
-      "x": 3039.96,
-      "y": 1060.75,
+      "x": 4058.54,
+      "y": 1258.5,
       "width": 249.6,
       "height": 20.0,
       "angle": 0,
@@ -2318,7 +2441,7 @@
     {
       "id": "state-r1s2",
       "type": "rectangle",
-      "x": 3730.47,
+      "x": 3302.75,
       "y": 722.0,
       "width": 272,
       "height": 44,
@@ -2343,18 +2466,6 @@
         {
           "id": "state-r1s2-text",
           "type": "text"
-        },
-        {
-          "id": "step16",
-          "type": "arrow"
-        },
-        {
-          "id": "step17",
-          "type": "arrow"
-        },
-        {
-          "id": "step18",
-          "type": "arrow"
         },
         {
           "id": "step19",
@@ -2389,11 +2500,27 @@
           "type": "arrow"
         },
         {
-          "id": "step45",
+          "id": "step27",
           "type": "arrow"
         },
         {
-          "id": "step49",
+          "id": "step28",
+          "type": "arrow"
+        },
+        {
+          "id": "step29",
+          "type": "arrow"
+        },
+        {
+          "id": "step30",
+          "type": "arrow"
+        },
+        {
+          "id": "step48",
+          "type": "arrow"
+        },
+        {
+          "id": "step51",
           "type": "arrow"
         }
       ],
@@ -2410,7 +2537,7 @@
     {
       "id": "state-r1s2-text",
       "type": "text",
-      "x": 3746.47,
+      "x": 3318.75,
       "y": 734.0,
       "width": 240.0,
       "height": 20.0,
@@ -2446,9 +2573,9 @@
     {
       "id": "state-r1s3",
       "type": "rectangle",
-      "x": 3868.92,
+      "x": 4058.32,
       "y": 563.0,
-      "width": 262,
+      "width": 282,
       "height": 64,
       "angle": 0,
       "strokeColor": "#6b757c",
@@ -2473,23 +2600,7 @@
           "type": "text"
         },
         {
-          "id": "step22",
-          "type": "arrow"
-        },
-        {
-          "id": "step26",
-          "type": "arrow"
-        },
-        {
-          "id": "step27",
-          "type": "arrow"
-        },
-        {
-          "id": "step28",
-          "type": "arrow"
-        },
-        {
-          "id": "step29",
+          "id": "step25",
           "type": "arrow"
         },
         {
@@ -2529,19 +2640,39 @@
           "type": "arrow"
         },
         {
+          "id": "step39",
+          "type": "arrow"
+        },
+        {
+          "id": "step40",
+          "type": "arrow"
+        },
+        {
           "id": "step41",
           "type": "arrow"
         },
         {
-          "id": "step48",
+          "id": "step44",
           "type": "arrow"
         },
         {
-          "id": "step52",
+          "id": "step50",
           "type": "arrow"
         },
         {
-          "id": "step60",
+          "id": "step54",
+          "type": "arrow"
+        },
+        {
+          "id": "step66",
+          "type": "arrow"
+        },
+        {
+          "id": "step67",
+          "type": "arrow"
+        },
+        {
+          "id": "step71",
           "type": "arrow"
         }
       ],
@@ -2558,9 +2689,9 @@
     {
       "id": "state-r1s3-text",
       "type": "text",
-      "x": 3884.72,
+      "x": 4074.52,
       "y": 575.0,
-      "width": 230.4,
+      "width": 249.6,
       "height": 40.0,
       "angle": 0,
       "strokeColor": "#1b2631",
@@ -2581,8 +2712,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "launched (a launch whose\nthread is starting)",
-      "originalText": "launched (a launch whose\nthread is starting)",
+      "text": "launched (a launch with no\nthread yet)",
+      "originalText": "launched (a launch with no\nthread yet)",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -2594,8 +2725,8 @@
     {
       "id": "state-r1s4",
       "type": "rectangle",
-      "x": 3300.21,
-      "y": 1211.5,
+      "x": 3864.21,
+      "y": 1433.0,
       "width": 253,
       "height": 64,
       "angle": 0,
@@ -2621,27 +2752,15 @@
           "type": "text"
         },
         {
-          "id": "step14",
+          "id": "step16",
           "type": "arrow"
         },
         {
-          "id": "step20",
+          "id": "step23",
           "type": "arrow"
         },
         {
-          "id": "step36",
-          "type": "arrow"
-        },
-        {
-          "id": "step39",
-          "type": "arrow"
-        },
-        {
-          "id": "step40",
-          "type": "arrow"
-        },
-        {
-          "id": "step41",
+          "id": "step38",
           "type": "arrow"
         },
         {
@@ -2657,19 +2776,31 @@
           "type": "arrow"
         },
         {
+          "id": "step45",
+          "type": "arrow"
+        },
+        {
           "id": "step46",
           "type": "arrow"
         },
         {
-          "id": "step54",
+          "id": "step47",
           "type": "arrow"
         },
         {
-          "id": "step61",
+          "id": "step49",
           "type": "arrow"
         },
         {
-          "id": "step64",
+          "id": "step56",
+          "type": "arrow"
+        },
+        {
+          "id": "step63",
+          "type": "arrow"
+        },
+        {
+          "id": "step69",
           "type": "arrow"
         }
       ],
@@ -2686,8 +2817,8 @@
     {
       "id": "state-r1s4-text",
       "type": "text",
-      "x": 3316.31,
-      "y": 1223.5,
+      "x": 3880.31,
+      "y": 1445.0,
       "width": 220.8,
       "height": 40.0,
       "angle": 0,
@@ -2722,8 +2853,8 @@
     {
       "id": "state-r1s5",
       "type": "rectangle",
-      "x": 2812.1,
-      "y": 1867.5,
+      "x": 2816.02,
+      "y": 1733.5,
       "width": 262,
       "height": 64,
       "angle": 0,
@@ -2749,19 +2880,19 @@
           "type": "text"
         },
         {
-          "id": "step12",
+          "id": "step13",
           "type": "arrow"
         },
         {
-          "id": "step24",
+          "id": "step27",
           "type": "arrow"
         },
         {
-          "id": "step31",
+          "id": "step33",
           "type": "arrow"
         },
         {
-          "id": "step53",
+          "id": "step55",
           "type": "arrow"
         }
       ],
@@ -2778,8 +2909,8 @@
     {
       "id": "state-r1s5-text",
       "type": "text",
-      "x": 2827.9,
-      "y": 1879.5,
+      "x": 2831.82,
+      "y": 1745.5,
       "width": 230.4,
       "height": 40.0,
       "angle": 0,
@@ -2814,8 +2945,8 @@
     {
       "id": "state-r1s6",
       "type": "rectangle",
-      "x": 3581.3,
-      "y": 1708.5,
+      "x": 2863.34,
+      "y": 1236.5,
       "width": 253,
       "height": 64,
       "angle": 0,
@@ -2841,31 +2972,27 @@
           "type": "text"
         },
         {
-          "id": "step23",
+          "id": "step26",
           "type": "arrow"
         },
         {
-          "id": "step32",
+          "id": "step34",
           "type": "arrow"
         },
         {
-          "id": "step40",
+          "id": "step43",
           "type": "arrow"
         },
         {
-          "id": "step45",
+          "id": "step48",
           "type": "arrow"
         },
         {
-          "id": "step46",
+          "id": "step49",
           "type": "arrow"
         },
         {
-          "id": "step47",
-          "type": "arrow"
-        },
-        {
-          "id": "step51",
+          "id": "step53",
           "type": "arrow"
         }
       ],
@@ -2882,8 +3009,8 @@
     {
       "id": "state-r1s6-text",
       "type": "text",
-      "x": 3597.4,
-      "y": 1720.5,
+      "x": 2879.44,
+      "y": 1248.5,
       "width": 220.8,
       "height": 40.0,
       "angle": 0,
@@ -2918,7 +3045,7 @@
     {
       "id": "state-r1s7",
       "type": "rectangle",
-      "x": 3414.96,
+      "x": 3541.75,
       "y": 389.0,
       "width": 243,
       "height": 44,
@@ -2945,23 +3072,23 @@
           "type": "text"
         },
         {
-          "id": "step11",
+          "id": "step12",
           "type": "arrow"
         },
         {
-          "id": "step21",
-          "type": "arrow"
-        },
-        {
-          "id": "step48",
-          "type": "arrow"
-        },
-        {
-          "id": "step49",
+          "id": "step24",
           "type": "arrow"
         },
         {
           "id": "step50",
+          "type": "arrow"
+        },
+        {
+          "id": "step51",
+          "type": "arrow"
+        },
+        {
+          "id": "step52",
           "type": "arrow"
         }
       ],
@@ -2978,7 +3105,7 @@
     {
       "id": "state-r1s7-text",
       "type": "text",
-      "x": 3430.86,
+      "x": 3557.65,
       "y": 401.0,
       "width": 211.2,
       "height": 20.0,
@@ -3014,8 +3141,8 @@
     {
       "id": "state-r1s8",
       "type": "rectangle",
-      "x": 3747.44,
-      "y": 1867.5,
+      "x": 3991.05,
+      "y": 1733.5,
       "width": 282,
       "height": 64,
       "angle": 0,
@@ -3041,7 +3168,19 @@
           "type": "text"
         },
         {
-          "id": "step44",
+          "id": "step14",
+          "type": "arrow"
+        },
+        {
+          "id": "step18",
+          "type": "arrow"
+        },
+        {
+          "id": "step29",
+          "type": "arrow"
+        },
+        {
+          "id": "step41",
           "type": "arrow"
         },
         {
@@ -3049,7 +3188,15 @@
           "type": "arrow"
         },
         {
-          "id": "step50",
+          "id": "step52",
+          "type": "arrow"
+        },
+        {
+          "id": "step61",
+          "type": "arrow"
+        },
+        {
+          "id": "step65",
           "type": "arrow"
         }
       ],
@@ -3066,8 +3213,8 @@
     {
       "id": "state-r1s8-text",
       "type": "text",
-      "x": 3763.64,
-      "y": 1879.5,
+      "x": 4007.25,
+      "y": 1745.5,
       "width": 249.6,
       "height": 40.0,
       "angle": 0,
@@ -3102,8 +3249,8 @@
     {
       "id": "state-r1s9",
       "type": "rectangle",
-      "x": 3081.88,
-      "y": 1529.5,
+      "x": 3398.27,
+      "y": 1020.0,
       "width": 272,
       "height": 84,
       "angle": 0,
@@ -3129,27 +3276,19 @@
           "type": "text"
         },
         {
-          "id": "step15",
+          "id": "step17",
           "type": "arrow"
         },
         {
-          "id": "step19",
+          "id": "step21",
           "type": "arrow"
         },
         {
-          "id": "step28",
+          "id": "step31",
           "type": "arrow"
         },
         {
-          "id": "step43",
-          "type": "arrow"
-        },
-        {
-          "id": "step51",
-          "type": "arrow"
-        },
-        {
-          "id": "step52",
+          "id": "step46",
           "type": "arrow"
         },
         {
@@ -3173,11 +3312,27 @@
           "type": "arrow"
         },
         {
-          "id": "step62",
+          "id": "step58",
           "type": "arrow"
         },
         {
-          "id": "step63",
+          "id": "step59",
+          "type": "arrow"
+        },
+        {
+          "id": "step60",
+          "type": "arrow"
+        },
+        {
+          "id": "step61",
+          "type": "arrow"
+        },
+        {
+          "id": "step64",
+          "type": "arrow"
+        },
+        {
+          "id": "step68",
           "type": "arrow"
         }
       ],
@@ -3194,8 +3349,8 @@
     {
       "id": "state-r1s9-text",
       "type": "text",
-      "x": 3097.88,
-      "y": 1541.5,
+      "x": 3414.27,
+      "y": 1032.0,
       "width": 240.0,
       "height": 60.0,
       "angle": 0,
@@ -3230,9 +3385,9 @@
     {
       "id": "state-r1s10",
       "type": "rectangle",
-      "x": 3419.5,
-      "y": 861.0,
-      "width": 282,
+      "x": 3448.34,
+      "y": 1216.5,
+      "width": 262,
       "height": 104,
       "angle": 0,
       "strokeColor": "#6b757c",
@@ -3257,39 +3412,19 @@
           "type": "text"
         },
         {
-          "id": "step16",
+          "id": "step22",
           "type": "arrow"
         },
         {
-          "id": "step27",
+          "id": "step32",
           "type": "arrow"
         },
         {
-          "id": "step29",
+          "id": "step36",
           "type": "arrow"
         },
         {
-          "id": "step30",
-          "type": "arrow"
-        },
-        {
-          "id": "step34",
-          "type": "arrow"
-        },
-        {
-          "id": "step38",
-          "type": "arrow"
-        },
-        {
-          "id": "step57",
-          "type": "arrow"
-        },
-        {
-          "id": "step58",
-          "type": "arrow"
-        },
-        {
-          "id": "step59",
+          "id": "step40",
           "type": "arrow"
         },
         {
@@ -3297,11 +3432,19 @@
           "type": "arrow"
         },
         {
-          "id": "step61",
+          "id": "step62",
           "type": "arrow"
         },
         {
-          "id": "step62",
+          "id": "step63",
+          "type": "arrow"
+        },
+        {
+          "id": "step64",
+          "type": "arrow"
+        },
+        {
+          "id": "step65",
           "type": "arrow"
         }
       ],
@@ -3318,9 +3461,9 @@
     {
       "id": "state-r1s10-text",
       "type": "text",
-      "x": 3435.7,
-      "y": 873.0,
-      "width": 249.6,
+      "x": 3464.14,
+      "y": 1228.5,
+      "width": 230.4,
       "height": 80.0,
       "angle": 0,
       "strokeColor": "#1b2631",
@@ -3341,8 +3484,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "stale (the turn hung, or\nthe thread ended, was\nsettled or left T3 Code's\nlist with nothing written)",
-      "originalText": "stale (the turn hung, or\nthe thread ended, was\nsettled or left T3 Code's\nlist with nothing written)",
+      "text": "stale (the turn hung, or\nthe thread ended or was\nsettled with nothing\nwritten)",
+      "originalText": "stale (the turn hung, or\nthe thread ended or was\nsettled with nothing\nwritten)",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -3354,8 +3497,8 @@
     {
       "id": "state-r1s11",
       "type": "rectangle",
-      "x": 2972.34,
-      "y": 1370.5,
+      "x": 4423.93,
+      "y": 861.0,
       "width": 262,
       "height": 64,
       "angle": 0,
@@ -3381,31 +3524,43 @@
           "type": "text"
         },
         {
-          "id": "step17",
+          "id": "step19",
           "type": "arrow"
         },
         {
-          "id": "step33",
+          "id": "step35",
           "type": "arrow"
         },
         {
-          "id": "step42",
+          "id": "step45",
           "type": "arrow"
         },
         {
-          "id": "step55",
+          "id": "step57",
           "type": "arrow"
         },
         {
-          "id": "step63",
+          "id": "step66",
           "type": "arrow"
         },
         {
-          "id": "step64",
+          "id": "step67",
           "type": "arrow"
         },
         {
-          "id": "step65",
+          "id": "step68",
+          "type": "arrow"
+        },
+        {
+          "id": "step69",
+          "type": "arrow"
+        },
+        {
+          "id": "step70",
+          "type": "arrow"
+        },
+        {
+          "id": "step71",
           "type": "arrow"
         }
       ],
@@ -3422,8 +3577,8 @@
     {
       "id": "state-r1s11-text",
       "type": "text",
-      "x": 2988.14,
-      "y": 1382.5,
+      "x": 4439.73,
+      "y": 873.0,
       "width": 230.4,
       "height": 40.0,
       "angle": 0,
@@ -3456,12 +3611,12 @@
       "lineHeight": 1.25
     },
     {
-      "id": "step11",
+      "id": "step12",
       "type": "arrow",
-      "x": 3302.57,
-      "y": 315.17,
-      "width": 171.4,
-      "height": 73.83,
+      "x": 3475.56,
+      "y": 316.21,
+      "width": 136.26,
+      "height": 72.79,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -3475,9 +3630,9 @@
       "roundness": {
         "type": 2
       },
-      "seed": 4289523754,
+      "seed": 1722130832,
       "version": 1,
-      "versionNonce": 922944725,
+      "versionNonce": 116072008,
       "isDeleted": false,
       "boundElements": [],
       "updated": 1,
@@ -3489,12 +3644,12 @@
           0.0
         ],
         [
-          74.82,
-          39.83
+          56.77,
+          38.79
         ],
         [
-          171.4,
-          73.83
+          136.26,
+          72.79
         ]
       ],
       "lastCommittedPoint": null,
@@ -3522,119 +3677,12 @@
       }
     },
     {
-      "id": "step12",
-      "type": "arrow",
-      "x": 2797.74,
-      "y": 1772.5,
-      "width": 120.91,
-      "height": 95.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-region1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 1722130832,
-      "version": 1,
-      "versionNonce": 116072008,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step12-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          84.62,
-          47.5
-        ],
-        [
-          120.91,
-          95.0
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1s0",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1s5",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1s0",
-          "to": "r1s5"
-        }
-      }
-    },
-    {
-      "id": "step12-label",
-      "type": "text",
-      "x": 2756.35,
-      "y": 1802.5,
-      "width": 252.0,
-      "height": 35.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-region1",
-      "roundness": null,
-      "seed": 2763779710,
-      "version": 1,
-      "versionNonce": 3538667936,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "the pull request of a done row\nmerges on your accept",
-      "originalText": "the pull request of a done row\nmerges on your accept",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step12",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
       "id": "step13",
       "type": "arrow",
-      "x": 3037.62,
-      "y": 1092.75,
-      "width": 918.99,
-      "height": 615.75,
+      "x": 3380.7,
+      "y": 1638.5,
+      "width": 321.44,
+      "height": 95.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -3667,47 +3715,23 @@
           0.0
         ],
         [
-          -361.2,
-          62.5
+          -154.85,
+          47.5
         ],
         [
-          -627.45,
-          150.75
-        ],
-        [
-          -918.99,
-          230.25
-        ],
-        [
-          -779.9,
-          309.75
-        ],
-        [
-          -678.43,
-          389.25
-        ],
-        [
-          -533.6,
-          478.75
-        ],
-        [
-          -402.82,
-          568.25
-        ],
-        [
-          -339.53,
-          615.75
+          -321.44,
+          95.0
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s1",
+        "elementId": "state-r1s0",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s0",
+        "elementId": "state-r1s5",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -3718,17 +3742,17 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s1",
-          "to": "r1s0"
+          "from": "r1s0",
+          "to": "r1s5"
         }
       }
     },
     {
       "id": "step13-label",
       "type": "text",
-      "x": 2140.12,
-      "y": 1385.0,
-      "width": 235.2,
+      "x": 3099.85,
+      "y": 1668.5,
+      "width": 252.0,
       "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -3749,8 +3773,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "a Result says done after the\nthread failed",
-      "originalText": "a Result says done after the\nthread failed",
+      "text": "the pull request of a done row\nmerges on your accept",
+      "originalText": "the pull request of a done row\nmerges on your accept",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -3762,10 +3786,10 @@
     {
       "id": "step14",
       "type": "arrow",
-      "x": 3237.22,
-      "y": 1092.75,
-      "width": 205.85,
-      "height": 118.75,
+      "x": 3621.01,
+      "y": 1628.56,
+      "width": 447.9,
+      "height": 104.94,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -3798,23 +3822,23 @@
           0.0
         ],
         [
-          205.85,
-          62.5
+          354.19,
+          57.44
         ],
         [
-          195.42,
-          118.75
+          447.9,
+          104.94
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s1",
+        "elementId": "state-r1s0",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s4",
+        "elementId": "state-r1s8",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -3825,18 +3849,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s1",
-          "to": "r1s4"
+          "from": "r1s0",
+          "to": "r1s8"
         }
       }
     },
     {
       "id": "step14-label",
       "type": "text",
-      "x": 3325.47,
-      "y": 1137.75,
+      "x": 3857.6,
+      "y": 1677.25,
       "width": 235.2,
-      "height": 35.0,
+      "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -3856,8 +3880,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the failed thread leaves its\nwork to its home",
-      "originalText": "the failed thread leaves its\nwork to its home",
+      "text": "you remove the row from done",
+      "originalText": "you remove the row from done",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -3869,10 +3893,10 @@
     {
       "id": "step15",
       "type": "arrow",
-      "x": 3123.71,
-      "y": 1092.75,
-      "width": 439.1,
-      "height": 443.38,
+      "x": 4042.34,
+      "y": 1284.37,
+      "width": 820.64,
+      "height": 290.13,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -3905,28 +3929,20 @@
           0.0
         ],
         [
-          -116.63,
-          62.5
+          -820.64,
+          92.38
         ],
         [
-          -439.1,
-          150.75
+          -586.15,
+          180.63
         ],
         [
-          -304.21,
-          230.25
+          -358.91,
+          251.38
         ],
         [
-          -304.19,
-          309.75
-        ],
-        [
-          -249.96,
-          389.25
-        ],
-        [
-          -41.83,
-          443.38
+          -467.58,
+          290.13
         ]
       ],
       "lastCommittedPoint": null,
@@ -3937,7 +3953,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s9",
+        "elementId": "state-r1s0",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -3949,17 +3965,17 @@
         "statechart": {
           "kind": "step",
           "from": "r1s1",
-          "to": "r1s9"
+          "to": "r1s0"
         }
       }
     },
     {
       "id": "step15-label",
       "type": "text",
-      "x": 2697.69,
-      "y": 1314.25,
-      "width": 243.6,
-      "height": 17.5,
+      "x": 3338.59,
+      "y": 1447.5,
+      "width": 235.2,
+      "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -3979,8 +3995,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the failed thread works again",
-      "originalText": "the failed thread works again",
+      "text": "a Result says done after the\nthread failed",
+      "originalText": "a Result says done after the\nthread failed",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -3992,10 +4008,10 @@
     {
       "id": "step16",
       "type": "arrow",
-      "x": 3761.08,
-      "y": 766.0,
-      "width": 227.55,
-      "height": 95.0,
+      "x": 4196.34,
+      "y": 1290.5,
+      "width": 163.55,
+      "height": 142.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -4028,23 +4044,23 @@
           0.0
         ],
         [
-          -227.55,
-          47.5
+          50.96,
+          86.25
         ],
         [
-          -214.68,
-          95.0
+          -112.59,
+          142.5
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s2",
+        "elementId": "state-r1s1",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s10",
+        "elementId": "state-r1s4",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -4055,18 +4071,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s2",
-          "to": "r1s10"
+          "from": "r1s1",
+          "to": "r1s4"
         }
       }
     },
     {
       "id": "step16-label",
       "type": "text",
-      "x": 3453.73,
-      "y": 804.75,
-      "width": 159.6,
-      "height": 17.5,
+      "x": 4129.7,
+      "y": 1359.25,
+      "width": 235.2,
+      "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -4086,8 +4102,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the question closes",
-      "originalText": "the question closes",
+      "text": "the failed thread leaves its\nwork to its home",
+      "originalText": "the failed thread leaves its\nwork to its home",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -4099,10 +4115,10 @@
     {
       "id": "step17",
       "type": "arrow",
-      "x": 3899.45,
-      "y": 766.0,
-      "width": 933.36,
-      "height": 604.5,
+      "x": 4112.44,
+      "y": 1246.5,
+      "width": 449.83,
+      "height": 142.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -4135,47 +4151,23 @@
           0.0
         ],
         [
-          71.2,
-          47.5
+          -277.96,
+          -86.25
         ],
         [
-          -157.95,
-          147.0
-        ],
-        [
-          -514.37,
-          237.75
-        ],
-        [
-          -447.89,
-          304.75
-        ],
-        [
-          -650.43,
-          389.25
-        ],
-        [
-          -647.24,
-          477.5
-        ],
-        [
-          -862.16,
-          557.0
-        ],
-        [
-          -822.69,
-          604.5
+          -449.83,
+          -142.5
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s2",
+        "elementId": "state-r1s1",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s11",
+        "elementId": "state-r1s9",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -4186,17 +4178,17 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s2",
-          "to": "r1s11"
+          "from": "r1s1",
+          "to": "r1s9"
         }
       }
     },
     {
       "id": "step17-label",
       "type": "text",
-      "x": 3371.76,
-      "y": 1062.0,
-      "width": 159.6,
+      "x": 3712.67,
+      "y": 1151.5,
+      "width": 243.6,
       "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -4217,8 +4209,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the question closes",
-      "originalText": "the question closes",
+      "text": "the failed thread works again",
+      "originalText": "the failed thread works again",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -4230,10 +4222,10 @@
     {
       "id": "step18",
       "type": "arrow",
-      "x": 3730.47,
-      "y": 765.54,
-      "width": 640.49,
-      "height": 283.21,
+      "x": 4306.43,
+      "y": 1290.5,
+      "width": 592.94,
+      "height": 443.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -4266,31 +4258,39 @@
           0.0
         ],
         [
-          -302.74,
-          47.96
+          482.59,
+          86.25
         ],
         [
-          -495.83,
-          147.46
+          320.18,
+          174.5
         ],
         [
-          -640.49,
-          238.21
+          172.8,
+          245.25
         ],
         [
-          -590.27,
-          283.21
+          67.13,
+          316.0
+        ],
+        [
+          -15.29,
+          395.5
+        ],
+        [
+          -110.35,
+          443.0
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s2",
+        "elementId": "state-r1s1",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s1",
+        "elementId": "state-r1s8",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -4301,17 +4301,17 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s2",
-          "to": "r1s1"
+          "from": "r1s1",
+          "to": "r1s8"
         }
       }
     },
     {
       "id": "step18-label",
       "type": "text",
-      "x": 3154.84,
-      "y": 904.25,
-      "width": 159.6,
+      "x": 4353.23,
+      "y": 1527.0,
+      "width": 252.0,
       "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -4332,8 +4332,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the question closes",
-      "originalText": "the question closes",
+      "text": "you remove the row from failed",
+      "originalText": "you remove the row from failed",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -4345,10 +4345,10 @@
     {
       "id": "step19",
       "type": "arrow",
-      "x": 3730.47,
-      "y": 756.42,
-      "width": 1126.76,
-      "height": 782.19,
+      "x": 3574.75,
+      "y": 756.79,
+      "width": 849.18,
+      "height": 108.61,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -4381,44 +4381,12 @@
           0.0
         ],
         [
-          -624.74,
-          57.08
+          602.83,
+          56.71
         ],
         [
-          -659.13,
-          156.58
-        ],
-        [
-          -692.49,
-          247.33
-        ],
-        [
-          -728.71,
-          314.33
-        ],
-        [
-          -847.19,
-          398.83
-        ],
-        [
-          -1126.76,
-          487.08
-        ],
-        [
-          -1058.78,
-          566.58
-        ],
-        [
-          -967.41,
-          646.08
-        ],
-        [
-          -882.73,
-          725.58
-        ],
-        [
-          -648.59,
-          782.19
+          849.18,
+          108.61
         ]
       ],
       "lastCommittedPoint": null,
@@ -4429,7 +4397,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s9",
+        "elementId": "state-r1s11",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -4441,15 +4409,15 @@
         "statechart": {
           "kind": "step",
           "from": "r1s2",
-          "to": "r1s9"
+          "to": "r1s11"
         }
       }
     },
     {
       "id": "step19-label",
       "type": "text",
-      "x": 2803.48,
-      "y": 1146.5,
+      "x": 4097.79,
+      "y": 804.75,
       "width": 159.6,
       "height": 17.5,
       "angle": 0,
@@ -4484,10 +4452,10 @@
     {
       "id": "step20",
       "type": "arrow",
-      "x": 3915.91,
-      "y": 766.0,
-      "width": 516.75,
-      "height": 445.5,
+      "x": 3574.75,
+      "y": 758.93,
+      "width": 874.22,
+      "height": 487.57,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -4520,28 +4488,28 @@
           0.0
         ],
         [
-          106.74,
-          47.5
+          497.03,
+          54.57
         ],
         [
-          -117.41,
-          147.0
+          815.6,
+          134.07
         ],
         [
-          -137.43,
-          237.75
+          874.22,
+          213.57
         ],
         [
-          -266.21,
-          304.75
+          515.34,
+          303.07
         ],
         [
-          -270.81,
-          389.25
+          111.92,
+          401.32
         ],
         [
-          -410.01,
-          445.5
+          507.65,
+          487.57
         ]
       ],
       "lastCommittedPoint": null,
@@ -4552,7 +4520,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s4",
+        "elementId": "state-r1s1",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -4564,15 +4532,15 @@
         "statechart": {
           "kind": "step",
           "from": "r1s2",
-          "to": "r1s4"
+          "to": "r1s1"
         }
       }
     },
     {
       "id": "step20-label",
       "type": "text",
-      "x": 3698.68,
-      "y": 995.0,
+      "x": 4369.17,
+      "y": 963.75,
       "width": 159.6,
       "height": 17.5,
       "angle": 0,
@@ -4607,10 +4575,10 @@
     {
       "id": "step21",
       "type": "arrow",
-      "x": 3790.9,
-      "y": 722.0,
-      "width": 389.46,
-      "height": 289.0,
+      "x": 3432.93,
+      "y": 766.0,
+      "width": 197.87,
+      "height": 254.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -4643,20 +4611,20 @@
           0.0
         ],
         [
-          -163.16,
-          -47.5
+          -12.57,
+          47.5
         ],
         [
-          -389.46,
-          -127.0
+          185.3,
+          127.0
         ],
         [
-          -352.87,
-          -224.0
+          77.66,
+          206.5
         ],
         [
-          -279.33,
-          -289.0
+          90.23,
+          254.0
         ]
       ],
       "lastCommittedPoint": null,
@@ -4667,7 +4635,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s7",
+        "elementId": "state-r1s9",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -4679,17 +4647,17 @@
         "statechart": {
           "kind": "step",
           "from": "r1s2",
-          "to": "r1s7"
+          "to": "r1s9"
         }
       }
     },
     {
       "id": "step21-label",
       "type": "text",
-      "x": 3283.85,
-      "y": 577.5,
-      "width": 235.2,
-      "height": 35.0,
+      "x": 3538.43,
+      "y": 884.25,
+      "width": 159.6,
+      "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -4709,8 +4677,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the question closes, and the\nrow's launch has no record",
-      "originalText": "the question closes, and the\nrow's launch has no record",
+      "text": "the question closes",
+      "originalText": "the question closes",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -4722,10 +4690,10 @@
     {
       "id": "step22",
       "type": "arrow",
-      "x": 3847.25,
-      "y": 722.0,
-      "width": 116.01,
-      "height": 95.0,
+      "x": 3399.58,
+      "y": 766.0,
+      "width": 408.07,
+      "height": 476.19,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -4758,12 +4726,28 @@
           0.0
         ],
         [
-          -41.5,
-          -47.5
+          -84.58,
+          47.5
         ],
         [
-          74.51,
-          -95.0
+          -149.55,
+          127.0
+        ],
+        [
+          -38.79,
+          206.5
+        ],
+        [
+          -176.77,
+          296.0
+        ],
+        [
+          -359.31,
+          394.25
+        ],
+        [
+          48.76,
+          476.19
         ]
       ],
       "lastCommittedPoint": null,
@@ -4774,7 +4758,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s3",
+        "elementId": "state-r1s10",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -4786,17 +4770,17 @@
         "statechart": {
           "kind": "step",
           "from": "r1s2",
-          "to": "r1s3"
+          "to": "r1s10"
         }
       }
     },
     {
       "id": "step22-label",
       "type": "text",
-      "x": 3679.74,
-      "y": 657.0,
-      "width": 252.0,
-      "height": 35.0,
+      "x": 3280.99,
+      "y": 963.75,
+      "width": 159.6,
+      "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -4816,8 +4800,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the question closes, and the\nrow's launch has no thread yet",
-      "originalText": "the question closes, and the\nrow's launch has no thread yet",
+      "text": "the question closes",
+      "originalText": "the question closes",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -4829,10 +4813,10 @@
     {
       "id": "step23",
       "type": "arrow",
-      "x": 4002.47,
-      "y": 761.28,
-      "width": 1027.05,
-      "height": 947.22,
+      "x": 3345.87,
+      "y": 766.0,
+      "width": 1230.43,
+      "height": 683.98,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -4865,52 +4849,36 @@
           0.0
         ],
         [
-          411.04,
-          52.22
+          -200.55,
+          47.5
         ],
         [
-          500.64,
-          151.72
+          -503.65,
+          127.0
         ],
         [
-          467.41,
-          242.47
+          -712.09,
+          206.5
         ],
         [
-          420.17,
-          309.47
+          -677.07,
+          296.0
         ],
         [
-          320.26,
-          393.97
+          -647.59,
+          394.25
         ],
         [
-          200.34,
-          482.22
+          -504.53,
+          502.5
         ],
         [
-          -65.31,
-          561.72
+          -98.17,
+          610.75
         ],
         [
-          -16.97,
-          641.22
-        ],
-        [
-          -336.94,
-          720.72
-        ],
-        [
-          -434.66,
-          810.22
-        ],
-        [
-          -526.41,
-          899.72
-        ],
-        [
-          -387.95,
-          947.22
+          518.34,
+          683.98
         ]
       ],
       "lastCommittedPoint": null,
@@ -4921,7 +4889,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s6",
+        "elementId": "state-r1s4",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -4933,17 +4901,17 @@
         "statechart": {
           "kind": "step",
           "from": "r1s2",
-          "to": "r1s6"
+          "to": "r1s4"
         }
       }
     },
     {
       "id": "step23-label",
       "type": "text",
-      "x": 4085.21,
-      "y": 1226.0,
-      "width": 235.2,
-      "height": 35.0,
+      "x": 2589.0,
+      "y": 1053.25,
+      "width": 159.6,
+      "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -4963,8 +4931,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the question closes, and the\nrow's pull request is open",
-      "originalText": "the question closes, and the\nrow's pull request is open",
+      "text": "the question closes",
+      "originalText": "the question closes",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -4976,10 +4944,10 @@
     {
       "id": "step24",
       "type": "arrow",
-      "x": 3730.47,
-      "y": 754.77,
-      "width": 1877.87,
-      "height": 1112.73,
+      "x": 3468.14,
+      "y": 722.0,
+      "width": 227.58,
+      "height": 289.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -5012,60 +4980,20 @@
           0.0
         ],
         [
-          -741.45,
-          58.73
+          63.46,
+          -47.5
         ],
         [
-          -924.89,
-          158.23
+          -73.77,
+          -127.0
         ],
         [
-          -1117.34,
-          248.98
+          31.81,
+          -224.0
         ],
         [
-          -1329.11,
-          315.98
-        ],
-        [
-          -1562.79,
-          400.48
-        ],
-        [
-          -1714.8,
-          488.73
-        ],
-        [
-          -1877.87,
-          568.23
-        ],
-        [
-          -1716.73,
-          647.73
-        ],
-        [
-          -1548.49,
-          727.23
-        ],
-        [
-          -1400.43,
-          816.73
-        ],
-        [
-          -1268.25,
-          906.23
-        ],
-        [
-          -1147.74,
-          985.73
-        ],
-        [
-          -1000.12,
-          1065.23
-        ],
-        [
-          -873.0,
-          1112.73
+          153.81,
+          -289.0
         ]
       ],
       "lastCommittedPoint": null,
@@ -5076,7 +5004,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s5",
+        "elementId": "state-r1s7",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -5088,15 +5016,15 @@
         "statechart": {
           "kind": "step",
           "from": "r1s2",
-          "to": "r1s5"
+          "to": "r1s7"
         }
       }
     },
     {
       "id": "step24-label",
       "type": "text",
-      "x": 1735.0,
-      "y": 1305.5,
+      "x": 3276.78,
+      "y": 577.5,
       "width": 235.2,
       "height": 35.0,
       "angle": 0,
@@ -5118,8 +5046,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the question closes, and the\nrow's pull request merged",
-      "originalText": "the question closes, and the\nrow's pull request merged",
+      "text": "the question closes, and the\nrow's launch has no record",
+      "originalText": "the question closes, and the\nrow's launch has no record",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -5131,10 +5059,10 @@
     {
       "id": "step25",
       "type": "arrow",
-      "x": 3730.47,
-      "y": 755.45,
-      "width": 1690.27,
-      "height": 953.05,
+      "x": 3524.49,
+      "y": 722.0,
+      "width": 533.83,
+      "height": 104.11,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -5167,52 +5095,12 @@
           0.0
         ],
         [
-          -689.45,
-          58.05
+          185.11,
+          -47.5
         ],
         [
-          -836.89,
-          157.55
-        ],
-        [
-          -989.02,
-          248.3
-        ],
-        [
-          -1156.6,
-          315.3
-        ],
-        [
-          -1257.59,
-          399.8
-        ],
-        [
-          -1481.9,
-          488.05
-        ],
-        [
-          -1690.27,
-          567.55
-        ],
-        [
-          -1616.35,
-          647.05
-        ],
-        [
-          -1435.32,
-          726.55
-        ],
-        [
-          -1271.47,
-          816.05
-        ],
-        [
-          -1121.68,
-          905.55
-        ],
-        [
-          -1042.85,
-          953.05
+          533.83,
+          -104.11
         ]
       ],
       "lastCommittedPoint": null,
@@ -5223,7 +5111,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s0",
+        "elementId": "state-r1s3",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -5235,16 +5123,16 @@
         "statechart": {
           "kind": "step",
           "from": "r1s2",
-          "to": "r1s0"
+          "to": "r1s3"
         }
       }
     },
     {
       "id": "step25-label",
       "type": "text",
-      "x": 2130.97,
-      "y": 1226.0,
-      "width": 235.2,
+      "x": 3583.6,
+      "y": 657.0,
+      "width": 252.0,
       "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -5265,8 +5153,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the question closes, and the\nrow's Result says done",
-      "originalText": "the question closes, and the\nrow's Result says done",
+      "text": "the question closes, and the\nrow's launch has no thread yet",
+      "originalText": "the question closes, and the\nrow's launch has no thread yet",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -5278,10 +5166,10 @@
     {
       "id": "step26",
       "type": "arrow",
-      "x": 4025.69,
-      "y": 627.0,
-      "width": 134.96,
-      "height": 95.0,
+      "x": 3354.1,
+      "y": 766.0,
+      "width": 629.82,
+      "height": 470.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -5314,23 +5202,39 @@
           0.0
         ],
         [
-          38.25,
+          -182.78,
           47.5
         ],
         [
-          -96.71,
-          95.0
+          -456.48,
+          127.0
+        ],
+        [
+          -576.72,
+          206.5
+        ],
+        [
+          -561.5,
+          296.0
+        ],
+        [
+          -629.82,
+          394.25
+        ],
+        [
+          -442.76,
+          470.5
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s3",
+        "elementId": "state-r1s2",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s2",
+        "elementId": "state-r1s6",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -5341,18 +5245,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s3",
-          "to": "r1s2"
+          "from": "r1s2",
+          "to": "r1s6"
         }
       }
     },
     {
       "id": "step26-label",
       "type": "text",
-      "x": 3975.74,
-      "y": 665.75,
-      "width": 176.4,
-      "height": 17.5,
+      "x": 2659.78,
+      "y": 955.0,
+      "width": 235.2,
+      "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -5372,8 +5276,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "jbus opens a question",
-      "originalText": "jbus opens a question",
+      "text": "the question closes, and the\nrow's pull request is open",
+      "originalText": "the question closes, and the\nrow's pull request is open",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -5385,10 +5289,10 @@
     {
       "id": "step27",
       "type": "arrow",
-      "x": 3868.92,
-      "y": 613.79,
-      "width": 808.25,
-      "height": 247.21,
+      "x": 3321.18,
+      "y": 766.0,
+      "width": 1349.98,
+      "height": 967.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -5421,31 +5325,63 @@
           0.0
         ],
         [
-          -423.32,
-          60.71
+          -253.86,
+          47.5
         ],
         [
-          -808.25,
-          130.21
+          -580.61,
+          127.0
         ],
         [
-          -211.59,
-          199.71
+          -859.74,
+          206.5
         ],
         [
-          -257.81,
-          247.21
+          -1083.21,
+          296.0
+        ],
+        [
+          -1349.98,
+          394.25
+        ],
+        [
+          -1213.57,
+          502.5
+        ],
+        [
+          -1082.65,
+          610.75
+        ],
+        [
+          -917.27,
+          699.0
+        ],
+        [
+          -741.69,
+          769.75
+        ],
+        [
+          -593.19,
+          840.5
+        ],
+        [
+          -468.13,
+          920.0
+        ],
+        [
+          -411.98,
+          967.5
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s3",
+        "elementId": "state-r1s2",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s10",
+        "elementId": "state-r1s5",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -5456,18 +5392,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s3",
-          "to": "r1s10"
+          "from": "r1s2",
+          "to": "r1s5"
         }
       }
     },
     {
       "id": "step27-label",
       "type": "text",
-      "x": 2964.07,
-      "y": 735.25,
-      "width": 193.2,
-      "height": 17.5,
+      "x": 1990.01,
+      "y": 1251.0,
+      "width": 235.2,
+      "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -5487,8 +5423,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "T3 Code lists no thread",
-      "originalText": "T3 Code lists no thread",
+      "text": "the question closes, and the\nrow's pull request merged",
+      "originalText": "the question closes, and the\nrow's pull request merged",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -5500,10 +5436,10 @@
     {
       "id": "step28",
       "type": "arrow",
-      "x": 3868.92,
-      "y": 611.38,
-      "width": 1311.16,
-      "height": 929.39,
+      "x": 3337.64,
+      "y": 766.0,
+      "width": 852.28,
+      "height": 813.36,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -5536,63 +5472,55 @@
           0.0
         ],
         [
-          -504.63,
-          63.12
+          -218.32,
+          47.5
         ],
         [
-          -1049.85,
-          132.62
+          -527.16,
+          127.0
         ],
         [
-          -801.9,
-          202.12
+          -752.8,
+          206.5
         ],
         [
-          -828.9,
-          301.62
+          -780.87,
+          296.0
         ],
         [
-          -856.94,
-          392.37
+          -826.96,
+          394.25
         ],
         [
-          -1024.56,
-          459.37
+          -751.19,
+          502.5
         ],
         [
-          -1091.44,
-          543.87
+          -840.9,
+          610.75
         ],
         [
-          -1311.16,
-          632.12
+          -521.19,
+          699.0
         ],
         [
-          -1223.22,
-          711.62
+          -207.17,
+          769.75
         ],
         [
-          -1131.85,
-          791.12
-        ],
-        [
-          -1047.17,
-          870.62
-        ],
-        [
-          -787.04,
-          929.39
+          11.38,
+          813.36
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s3",
+        "elementId": "state-r1s2",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s9",
+        "elementId": "state-r1s0",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -5603,17 +5531,17 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s3",
-          "to": "r1s9"
+          "from": "r1s2",
+          "to": "r1s0"
         }
       }
     },
     {
       "id": "step28-label",
       "type": "text",
-      "x": 2730.96,
-      "y": 1053.25,
-      "width": 226.8,
+      "x": 2393.07,
+      "y": 1142.75,
+      "width": 235.2,
       "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -5634,8 +5562,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "T3 Code lists the thread at\nwork",
-      "originalText": "T3 Code lists the thread at\nwork",
+      "text": "the question closes, and the\nrow's Result says done",
+      "originalText": "the question closes, and the\nrow's Result says done",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -5647,10 +5575,10 @@
     {
       "id": "step29",
       "type": "arrow",
-      "x": 3868.92,
-      "y": 616.8,
-      "width": 554.25,
-      "height": 244.2,
+      "x": 3329.41,
+      "y": 766.0,
+      "width": 1623.97,
+      "height": 975.04,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -5683,31 +5611,63 @@
           0.0
         ],
         [
-          -346.82,
-          57.7
+          -236.09,
+          47.5
         ],
         [
-          -554.25,
-          127.2
+          -548.43,
+          127.0
         ],
         [
-          -135.09,
-          196.7
+          -784.58,
+          206.5
         ],
         [
-          -217.83,
-          244.2
+          -851.18,
+          296.0
+        ],
+        [
+          -962.33,
+          394.25
+        ],
+        [
+          -904.56,
+          502.5
+        ],
+        [
+          -908.79,
+          610.75
+        ],
+        [
+          -604.0,
+          699.0
+        ],
+        [
+          -304.8,
+          769.75
+        ],
+        [
+          -2.39,
+          840.5
+        ],
+        [
+          344.38,
+          920.0
+        ],
+        [
+          661.64,
+          975.04
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s3",
+        "elementId": "state-r1s2",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s10",
+        "elementId": "state-r1s8",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -5718,18 +5678,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s3",
-          "to": "r1s10"
+          "from": "r1s2",
+          "to": "r1s8"
         }
       }
     },
     {
       "id": "step29-label",
       "type": "text",
-      "x": 3201.27,
-      "y": 726.5,
-      "width": 226.8,
-      "height": 35.0,
+      "x": 2307.24,
+      "y": 1259.75,
+      "width": 235.2,
+      "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -5749,8 +5709,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "T3 Code no longer lists the\nthread",
-      "originalText": "T3 Code no longer lists the\nthread",
+      "text": "you remove the row from gate",
+      "originalText": "you remove the row from gate",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -5762,10 +5722,10 @@
     {
       "id": "step30",
       "type": "arrow",
-      "x": 3868.92,
-      "y": 621.16,
-      "width": 287.65,
-      "height": 239.84,
+      "x": 4106.13,
+      "y": 627.0,
+      "width": 531.37,
+      "height": 99.13,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -5798,20 +5758,12 @@
           0.0
         ],
         [
-          -267.17,
-          53.34
+          -138.33,
+          47.5
         ],
         [
-          -287.65,
-          122.84
-        ],
-        [
-          -55.44,
-          192.34
-        ],
-        [
-          -176.21,
-          239.84
+          -531.37,
+          99.13
         ]
       ],
       "lastCommittedPoint": null,
@@ -5822,7 +5774,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s10",
+        "elementId": "state-r1s2",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -5834,16 +5786,16 @@
         "statechart": {
           "kind": "step",
           "from": "r1s3",
-          "to": "r1s10"
+          "to": "r1s2"
         }
       }
     },
     {
       "id": "step30-label",
       "type": "text",
-      "x": 3472.07,
-      "y": 735.25,
-      "width": 218.4,
+      "x": 3879.6,
+      "y": 665.75,
+      "width": 176.4,
       "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -5864,8 +5816,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "T3 Code settles the thread",
-      "originalText": "T3 Code settles the thread",
+      "text": "jbus opens a question",
+      "originalText": "jbus opens a question",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -5877,10 +5829,10 @@
     {
       "id": "step31",
       "type": "arrow",
-      "x": 4130.92,
-      "y": 617.46,
-      "width": 1803.4,
-      "height": 1250.04,
+      "x": 4181.85,
+      "y": 627.0,
+      "width": 646.09,
+      "height": 393.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -5913,68 +5865,28 @@
           0.0
         ],
         [
-          332.7,
-          57.04
+          -25.93,
+          47.5
         ],
         [
-          680.95,
-          126.54
+          -427.64,
+          117.0
         ],
         [
-          256.59,
-          196.04
+          -598.66,
+          186.5
         ],
         [
-          340.58,
-          295.54
+          -439.81,
+          266.0
         ],
         [
-          290.38,
-          386.29
+          -644.4,
+          345.5
         ],
         [
-          226.1,
-          453.29
-        ],
-        [
-          29.91,
-          537.79
-        ],
-        [
-          -186.31,
-          626.04
-        ],
-        [
-          -219.75,
-          705.54
-        ],
-        [
-          -171.41,
-          785.04
-        ],
-        [
-          -491.99,
-          864.54
-        ],
-        [
-          -646.49,
-          954.04
-        ],
-        [
-          -801.04,
-          1043.54
-        ],
-        [
-          -889.6,
-          1123.04
-        ],
-        [
-          -1025.42,
-          1202.54
-        ],
-        [
-          -1122.45,
-          1250.04
+          -646.09,
+          393.0
         ]
       ],
       "lastCommittedPoint": null,
@@ -5985,7 +5897,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s5",
+        "elementId": "state-r1s9",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -5997,17 +5909,17 @@
         "statechart": {
           "kind": "step",
           "from": "r1s3",
-          "to": "r1s5"
+          "to": "r1s9"
         }
       }
     },
     {
       "id": "step31-label",
       "type": "text",
-      "x": 3848.01,
-      "y": 1234.75,
-      "width": 193.2,
-      "height": 17.5,
+      "x": 3469.79,
+      "y": 796.0,
+      "width": 226.8,
+      "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -6027,8 +5939,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the pull request merges",
-      "originalText": "the pull request merges",
+      "text": "T3 Code lists the thread at\nwork",
+      "originalText": "T3 Code lists the thread at\nwork",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -6040,10 +5952,10 @@
     {
       "id": "step32",
       "type": "arrow",
-      "x": 4130.92,
-      "y": 615.44,
-      "width": 1159.52,
-      "height": 1093.06,
+      "x": 4169.8,
+      "y": 627.0,
+      "width": 1103.53,
+      "height": 613.86,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -6076,60 +5988,36 @@
           0.0
         ],
         [
-          378.57,
-          59.06
+          -43.81,
+          47.5
         ],
         [
-          816.97,
-          128.56
+          -483.28,
+          117.0
         ],
         [
-          718.05,
-          198.06
+          -775.44,
+          186.5
         ],
         [
-          657.88,
-          297.56
+          -784.57,
+          266.0
         ],
         [
-          620.44,
-          388.31
+          -685.21,
+          345.5
         ],
         [
-          588.68,
-          455.31
+          -872.1,
+          435.0
         ],
         [
-          548.43,
-          539.81
+          -1103.53,
+          533.25
         ],
         [
-          529.49,
-          628.06
-        ],
-        [
-          11.26,
-          707.56
-        ],
-        [
-          102.04,
-          787.06
-        ],
-        [
-          113.66,
-          866.56
-        ],
-        [
-          -89.5,
-          956.06
-        ],
-        [
-          -222.97,
-          1045.56
-        ],
-        [
-          -342.55,
-          1093.06
+          -721.47,
+          613.86
         ]
       ],
       "lastCommittedPoint": null,
@@ -6140,7 +6028,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s6",
+        "elementId": "state-r1s10",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -6152,16 +6040,16 @@
         "statechart": {
           "kind": "step",
           "from": "r1s3",
-          "to": "r1s6"
+          "to": "r1s10"
         }
       }
     },
     {
       "id": "step32-label",
       "type": "text",
-      "x": 4586.95,
-      "y": 1146.5,
-      "width": 184.8,
+      "x": 3276.03,
+      "y": 884.25,
+      "width": 218.4,
       "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -6182,8 +6070,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the pull request opens",
-      "originalText": "the pull request opens",
+      "text": "T3 Code settles the thread",
+      "originalText": "T3 Code settles the thread",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -6195,10 +6083,10 @@
     {
       "id": "step33",
       "type": "arrow",
-      "x": 4130.92,
-      "y": 623.95,
-      "width": 1402.13,
-      "height": 757.78,
+      "x": 4058.32,
+      "y": 611.16,
+      "width": 2227.72,
+      "height": 1122.34,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -6231,44 +6119,60 @@
           0.0
         ],
         [
-          228.7,
-          50.55
+          -552.72,
+          63.34
         ],
         [
-          505.55,
-          120.05
+          -822.9,
+          132.84
         ],
         [
-          -134.27,
-          189.55
+          -1087.06,
+          202.34
         ],
         [
-          -363.42,
-          289.05
+          -1367.02,
+          281.84
         ],
         [
-          -598.04,
-          379.8
+          -1645.9,
+          361.34
         ],
         [
-          -555.56,
-          446.8
+          -1915.16,
+          450.84
         ],
         [
-          -831.45,
-          531.3
+          -2227.72,
+          549.09
         ],
         [
-          -852.71,
-          619.55
+          -2094.31,
+          657.34
         ],
         [
-          -526.02,
-          699.05
+          -1877.57,
+          765.59
         ],
         [
-          -896.58,
-          757.78
+          -1689.94,
+          853.84
+        ],
+        [
+          -1511.19,
+          924.59
+        ],
+        [
+          -1359.51,
+          995.34
+        ],
+        [
+          -1231.27,
+          1074.84
+        ],
+        [
+          -1159.59,
+          1122.34
         ]
       ],
       "lastCommittedPoint": null,
@@ -6279,7 +6183,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s11",
+        "elementId": "state-r1s5",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -6291,16 +6195,16 @@
         "statechart": {
           "kind": "step",
           "from": "r1s3",
-          "to": "r1s11"
+          "to": "r1s5"
         }
       }
     },
     {
       "id": "step33-label",
       "type": "text",
-      "x": 3411.08,
-      "y": 995.0,
-      "width": 243.6,
+      "x": 1734.0,
+      "y": 1151.5,
+      "width": 193.2,
       "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -6321,8 +6225,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the thread asks for an answer",
-      "originalText": "the thread asks for an answer",
+      "text": "the pull request merges",
+      "originalText": "the pull request merges",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -6334,10 +6238,10 @@
     {
       "id": "step34",
       "type": "arrow",
-      "x": 4078.9,
+      "x": 4159.34,
       "y": 627.0,
-      "width": 494.64,
-      "height": 243.76,
+      "width": 1383.07,
+      "height": 609.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -6370,20 +6274,36 @@
           0.0
         ],
         [
-          117.24,
+          -59.34,
           47.5
         ],
         [
-          26.57,
+          -518.65,
           117.0
         ],
         [
-          -186.25,
+          -870.33,
           186.5
         ],
         [
-          -377.4,
-          243.76
+          -1045.7,
+          266.0
+        ],
+        [
+          -924.36,
+          345.5
+        ],
+        [
+          -1131.44,
+          435.0
+        ],
+        [
+          -1383.07,
+          533.25
+        ],
+        [
+          -1232.63,
+          609.5
         ]
       ],
       "lastCommittedPoint": null,
@@ -6394,7 +6314,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s10",
+        "elementId": "state-r1s6",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -6406,16 +6326,16 @@
         "statechart": {
           "kind": "step",
           "from": "r1s3",
-          "to": "r1s10"
+          "to": "r1s6"
         }
       }
     },
     {
       "id": "step34-label",
       "type": "text",
-      "x": 4042.47,
-      "y": 735.25,
-      "width": 126.0,
+      "x": 3021.23,
+      "y": 884.25,
+      "width": 184.8,
       "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -6436,8 +6356,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the thread ends",
-      "originalText": "the thread ends",
+      "text": "the pull request opens",
+      "originalText": "the pull request opens",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -6449,10 +6369,10 @@
     {
       "id": "step35",
       "type": "arrow",
-      "x": 3868.92,
-      "y": 610.74,
-      "width": 1854.72,
-      "height": 1097.76,
+      "x": 4238.34,
+      "y": 627.0,
+      "width": 387.46,
+      "height": 234.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -6485,60 +6405,20 @@
           0.0
         ],
         [
-          -530.63,
-          63.76
+          57.92,
+          47.5
         ],
         [
-          -1082.35,
-          133.26
+          -130.51,
+          117.0
         ],
         [
-          -853.9,
-          202.76
+          168.42,
+          186.5
         ],
         [
-          -1014.83,
-          302.26
-        ],
-        [
-          -1180.53,
-          393.01
-        ],
-        [
-          -1361.71,
-          460.01
-        ],
-        [
-          -1557.64,
-          544.51
-        ],
-        [
-          -1763.95,
-          632.76
-        ],
-        [
-          -1854.72,
-          712.26
-        ],
-        [
-          -1780.79,
-          791.76
-        ],
-        [
-          -1599.76,
-          871.26
-        ],
-        [
-          -1435.92,
-          960.76
-        ],
-        [
-          -1286.12,
-          1050.26
-        ],
-        [
-          -1191.76,
-          1097.76
+          256.95,
+          234.0
         ]
       ],
       "lastCommittedPoint": null,
@@ -6549,7 +6429,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s0",
+        "elementId": "state-r1s11",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -6561,17 +6441,17 @@
         "statechart": {
           "kind": "step",
           "from": "r1s3",
-          "to": "r1s0"
+          "to": "r1s11"
         }
       }
     },
     {
       "id": "step35-label",
       "type": "text",
-      "x": 2193.68,
-      "y": 1129.0,
-      "width": 235.2,
-      "height": 52.5,
+      "x": 3986.03,
+      "y": 735.25,
+      "width": 243.6,
+      "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -6591,8 +6471,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the thread ends with a clean\nResult before a pass sees it\nat work",
-      "originalText": "the thread ends with a clean\nResult before a pass sees it\nat work",
+      "text": "the thread asks for an answer",
+      "originalText": "the thread asks for an answer",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -6604,9 +6484,9 @@
     {
       "id": "step36",
       "type": "arrow",
-      "x": 4130.92,
-      "y": 622.0,
-      "width": 1164.33,
+      "x": 4204.73,
+      "y": 627.0,
+      "width": 670.74,
       "height": 589.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -6640,35 +6520,35 @@
           0.0
         ],
         [
-          254.7,
-          52.5
+          8.03,
+          47.5
         ],
         [
-          574.05,
-          122.0
+          -301.16,
+          117.0
         ],
         [
-          62.85,
-          191.5
+          -184.94,
+          186.5
         ],
         [
-          -171.46,
-          291.0
+          -158.58,
+          266.0
         ],
         [
-          -183.71,
-          381.75
+          59.44,
+          345.5
         ],
         [
-          -176.02,
-          448.75
+          -246.03,
+          435.0
         ],
         [
-          -390.01,
+          -596.06,
           533.25
         ],
         [
-          -590.28,
+          -611.3,
           589.5
         ]
       ],
@@ -6680,7 +6560,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s4",
+        "elementId": "state-r1s10",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -6692,17 +6572,17 @@
         "statechart": {
           "kind": "step",
           "from": "r1s3",
-          "to": "r1s4"
+          "to": "r1s10"
         }
       }
     },
     {
       "id": "step36-label",
       "type": "text",
-      "x": 3833.46,
-      "y": 895.5,
-      "width": 252.0,
-      "height": 35.0,
+      "x": 3983.15,
+      "y": 884.25,
+      "width": 126.0,
+      "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -6722,8 +6602,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the thread ends with work left\nbefore a pass sees it at work",
-      "originalText": "the thread ends with work left\nbefore a pass sees it at work",
+      "text": "the thread ends",
+      "originalText": "the thread ends",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -6735,10 +6615,10 @@
     {
       "id": "step37",
       "type": "arrow",
-      "x": 3868.92,
-      "y": 612.08,
-      "width": 983.27,
-      "height": 436.67,
+      "x": 4340.32,
+      "y": 620.65,
+      "width": 1705.02,
+      "height": 959.22,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -6771,28 +6651,52 @@
           0.0
         ],
         [
-          -478.63,
-          62.42
+          296.05,
+          53.85
         ],
         [
-          -983.27,
-          131.92
+          757.8,
+          123.35
         ],
         [
-          -611.19,
-          201.42
+          853.66,
+          192.85
         ],
         [
-          -740.07,
-          300.92
+          936.29,
+          272.35
         ],
         [
-          -804.94,
-          391.67
+          985.72,
+          351.85
         ],
         [
-          -737.25,
-          436.67
+          783.06,
+          441.35
+        ],
+        [
+          483.96,
+          539.6
+        ],
+        [
+          341.59,
+          647.85
+        ],
+        [
+          172.58,
+          756.1
+        ],
+        [
+          -158.04,
+          844.35
+        ],
+        [
+          -494.0,
+          915.1
+        ],
+        [
+          -719.3,
+          959.22
         ]
       ],
       "lastCommittedPoint": null,
@@ -6803,7 +6707,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s1",
+        "elementId": "state-r1s0",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -6815,17 +6719,17 @@
         "statechart": {
           "kind": "step",
           "from": "r1s3",
-          "to": "r1s1"
+          "to": "r1s0"
         }
       }
     },
     {
       "id": "step37-label",
       "type": "text",
-      "x": 3131.73,
-      "y": 796.0,
-      "width": 252.0,
-      "height": 35.0,
+      "x": 5005.78,
+      "y": 1035.75,
+      "width": 235.2,
+      "height": 52.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -6845,8 +6749,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the thread fails before a pass\nsees it at work",
-      "originalText": "the thread fails before a pass\nsees it at work",
+      "text": "the thread ends with a clean\nResult before a pass sees it\nat work",
+      "originalText": "the thread ends with a clean\nResult before a pass sees it\nat work",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -6858,10 +6762,10 @@
     {
       "id": "step38",
       "type": "arrow",
-      "x": 4104.62,
-      "y": 627.0,
-      "width": 607.57,
-      "height": 246.83,
+      "x": 4340.32,
+      "y": 624.11,
+      "width": 935.31,
+      "height": 817.15,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -6894,20 +6798,44 @@
           0.0
         ],
         [
-          155.42,
-          47.5
+          244.05,
+          50.39
         ],
         [
-          204.45,
-          117.0
+          682.14,
+          119.89
         ],
         [
-          -185.98,
-          186.5
+          704.8,
+          189.39
         ],
         [
-          -403.12,
-          246.83
+          712.2,
+          268.89
+        ],
+        [
+          544.92,
+          348.39
+        ],
+        [
+          510.71,
+          437.89
+        ],
+        [
+          431.96,
+          536.14
+        ],
+        [
+          289.59,
+          644.39
+        ],
+        [
+          120.58,
+          752.64
+        ],
+        [
+          -223.11,
+          817.15
         ]
       ],
       "lastCommittedPoint": null,
@@ -6918,7 +6846,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s10",
+        "elementId": "state-r1s4",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -6930,17 +6858,17 @@
         "statechart": {
           "kind": "step",
           "from": "r1s3",
-          "to": "r1s10"
+          "to": "r1s4"
         }
       }
     },
     {
       "id": "step38-label",
       "type": "text",
-      "x": 4212.47,
-      "y": 735.25,
-      "width": 193.2,
-      "height": 17.5,
+      "x": 4759.24,
+      "y": 955.0,
+      "width": 252.0,
+      "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -6960,8 +6888,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the thread's turn hangs",
-      "originalText": "the thread's turn hangs",
+      "text": "the thread ends with work left\nbefore a pass sees it at work",
+      "originalText": "the thread ends with work left\nbefore a pass sees it at work",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -6973,10 +6901,10 @@
     {
       "id": "step39",
       "type": "arrow",
-      "x": 3300.21,
-      "y": 1255.96,
-      "width": 732.68,
-      "height": 452.54,
+      "x": 4340.32,
+      "y": 626.22,
+      "width": 788.2,
+      "height": 620.28,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -7009,39 +6937,47 @@
           0.0
         ],
         [
-          -680.51,
-          67.04
+          218.05,
+          48.28
         ],
         [
-          -698.05,
-          146.54
+          635.56,
+          117.78
         ],
         [
-          -732.68,
-          226.04
+          596.51,
+          187.28
         ],
         [
-          -661.34,
-          315.54
+          542.2,
+          266.78
         ],
         [
-          -604.04,
-          405.04
+          332.3,
+          346.28
         ],
         [
-          -577.42,
-          452.54
+          175.76,
+          435.78
+        ],
+        [
+          -135.64,
+          534.03
+        ],
+        [
+          -152.64,
+          620.28
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s4",
+        "elementId": "state-r1s3",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s0",
+        "elementId": "state-r1s1",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -7052,18 +6988,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s4",
-          "to": "r1s0"
+          "from": "r1s3",
+          "to": "r1s1"
         }
       }
     },
     {
       "id": "step39-label",
       "type": "text",
-      "x": 2449.93,
-      "y": 1473.25,
-      "width": 235.2,
-      "height": 17.5,
+      "x": 4756.51,
+      "y": 875.5,
+      "width": 252.0,
+      "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -7083,8 +7019,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "a follow-up Result says done",
-      "originalText": "a follow-up Result says done",
+      "text": "the thread fails before a pass\nsees it at work",
+      "originalText": "the thread fails before a pass\nsees it at work",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -7096,10 +7032,10 @@
     {
       "id": "step40",
       "type": "arrow",
-      "x": 3553.21,
-      "y": 1260.31,
-      "width": 523.73,
-      "height": 448.19,
+      "x": 4215.19,
+      "y": 627.0,
+      "width": 734.99,
+      "height": 589.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -7132,39 +7068,47 @@
           0.0
         ],
         [
-          471.88,
-          62.69
+          23.57,
+          47.5
         ],
         [
-          523.73,
-          142.19
+          -285.62,
+          117.0
         ],
         [
-          288.37,
-          221.69
+          -169.41,
+          186.5
         ],
         [
-          277.44,
-          311.19
+          34.56,
+          266.0
         ],
         [
-          276.05,
-          400.69
+          125.72,
+          345.5
         ],
         [
-          203.48,
-          448.19
+          -205.13,
+          435.0
+        ],
+        [
+          -580.52,
+          533.25
+        ],
+        [
+          -609.27,
+          589.5
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s4",
+        "elementId": "state-r1s3",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s6",
+        "elementId": "state-r1s10",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -7175,18 +7119,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s4",
-          "to": "r1s6"
+          "from": "r1s3",
+          "to": "r1s10"
         }
       }
     },
     {
       "id": "step40-label",
       "type": "text",
-      "x": 3719.78,
-      "y": 1464.5,
-      "width": 243.6,
-      "height": 35.0,
+      "x": 4153.15,
+      "y": 884.25,
+      "width": 193.2,
+      "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -7206,8 +7150,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "a pull request opens for what\nwas left",
-      "originalText": "a pull request opens for what\nwas left",
+      "text": "the thread's turn hangs",
+      "originalText": "the thread's turn hangs",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -7219,10 +7163,10 @@
     {
       "id": "step41",
       "type": "arrow",
-      "x": 3550.06,
-      "y": 1211.5,
-      "width": 1198.06,
-      "height": 591.2,
+      "x": 4340.32,
+      "y": 619.21,
+      "width": 1263.02,
+      "height": 1114.29,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -7255,47 +7199,71 @@
           0.0
         ],
         [
-          216.84,
-          -56.25
+          322.05,
+          55.29
         ],
         [
-          430.84,
-          -140.75
+          790.82,
+          124.79
         ],
         [
-          423.14,
-          -207.75
+          911.65,
+          194.29
         ],
         [
-          692.8,
-          -298.5
+          1023.69,
+          273.79
         ],
         [
-          738.35,
-          -398.0
+          1105.86,
+          353.29
         ],
         [
-          1198.06,
-          -467.5
+          1130.45,
+          442.79
         ],
         [
-          861.55,
-          -537.0
+          1142.88,
+          541.04
         ],
         [
-          580.85,
-          -591.2
+          1007.93,
+          649.29
+        ],
+        [
+          851.09,
+          757.54
+        ],
+        [
+          628.49,
+          845.79
+        ],
+        [
+          398.53,
+          916.54
+        ],
+        [
+          192.84,
+          987.29
+        ],
+        [
+          10.67,
+          1066.79
+        ],
+        [
+          -120.14,
+          1114.29
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s4",
+        "elementId": "state-r1s3",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s3",
+        "elementId": "state-r1s8",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -7306,17 +7274,17 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s4",
-          "to": "r1s3"
+          "from": "r1s3",
+          "to": "r1s8"
         }
       }
     },
     {
       "id": "step41-label",
       "type": "text",
-      "x": 4129.46,
-      "y": 895.5,
-      "width": 226.8,
+      "x": 5386.59,
+      "y": 1142.75,
+      "width": 193.2,
       "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -7337,8 +7305,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "jbus launches the row again\nfor what was left",
-      "originalText": "jbus launches the row again\nfor what was left",
+      "text": "you remove the row from\nlaunched",
+      "originalText": "you remove the row from\nlaunched",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -7350,10 +7318,10 @@
     {
       "id": "step42",
       "type": "arrow",
-      "x": 3329.45,
-      "y": 1275.5,
-      "width": 193.21,
-      "height": 95.0,
+      "x": 3864.21,
+      "y": 1484.09,
+      "width": 362.54,
+      "height": 90.41,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -7386,12 +7354,12 @@
           0.0
         ],
         [
-          -144.36,
-          47.5
+          -342.38,
+          51.66
         ],
         [
-          -193.21,
-          95.0
+          -362.54,
+          90.41
         ]
       ],
       "lastCommittedPoint": null,
@@ -7402,7 +7370,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s11",
+        "elementId": "state-r1s0",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -7414,17 +7382,17 @@
         "statechart": {
           "kind": "step",
           "from": "r1s4",
-          "to": "r1s11"
+          "to": "r1s0"
         }
       }
     },
     {
       "id": "step42-label",
       "type": "text",
-      "x": 3063.29,
-      "y": 1305.5,
-      "width": 243.6,
-      "height": 35.0,
+      "x": 3404.23,
+      "y": 1527.0,
+      "width": 235.2,
+      "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -7444,8 +7412,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the thread asks for an answer\nagain",
-      "originalText": "the thread asks for an answer\nagain",
+      "text": "a follow-up Result says done",
+      "originalText": "a follow-up Result says done",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -7457,10 +7425,10 @@
     {
       "id": "step43",
       "type": "arrow",
-      "x": 3552.57,
-      "y": 1275.5,
-      "width": 393.82,
-      "height": 254.0,
+      "x": 3864.21,
+      "y": 1446.24,
+      "width": 754.45,
+      "height": 145.74,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -7493,20 +7461,12 @@
           0.0
         ],
         [
-          186.82,
-          47.5
+          -468.71,
+          -69.49
         ],
         [
-          -111.06,
-          127.0
-        ],
-        [
-          -62.58,
-          206.5
-        ],
-        [
-          -207.0,
-          254.0
+          -754.45,
+          -145.74
         ]
       ],
       "lastCommittedPoint": null,
@@ -7517,7 +7477,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s9",
+        "elementId": "state-r1s6",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -7529,16 +7489,16 @@
         "statechart": {
           "kind": "step",
           "from": "r1s4",
-          "to": "r1s9"
+          "to": "r1s6"
         }
       }
     },
     {
       "id": "step43-label",
       "type": "text",
-      "x": 3315.51,
-      "y": 1385.0,
-      "width": 252.0,
+      "x": 3273.7,
+      "y": 1359.25,
+      "width": 243.6,
       "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -7559,8 +7519,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the thread works again on what\nwas left",
-      "originalText": "the thread works again on what\nwas left",
+      "text": "a pull request opens for what\nwas left",
+      "originalText": "a pull request opens for what\nwas left",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -7572,10 +7532,10 @@
     {
       "id": "step44",
       "type": "arrow",
-      "x": 3553.21,
-      "y": 1257.06,
-      "width": 748.73,
-      "height": 610.44,
+      "x": 4117.21,
+      "y": 1442.5,
+      "width": 1051.43,
+      "height": 820.23,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -7608,36 +7568,44 @@
           0.0
         ],
         [
-          614.97,
-          65.94
+          369.69,
+          -65.75
         ],
         [
-          713.59,
-          145.44
+          538.7,
+          -174.0
         ],
         [
-          748.73,
-          224.94
+          681.07,
+          -282.25
         ],
         [
-          631.81,
-          314.44
+          862.57,
+          -380.5
         ],
         [
-          515.72,
-          403.94
+          1051.43,
+          -470.0
         ],
         [
-          430.86,
-          483.44
+          1041.75,
+          -549.5
         ],
         [
-          375.72,
-          562.94
+          998.86,
+          -629.0
         ],
         [
-          351.53,
-          610.44
+          942.21,
+          -698.5
+        ],
+        [
+          493.16,
+          -768.0
+        ],
+        [
+          223.11,
+          -820.23
         ]
       ],
       "lastCommittedPoint": null,
@@ -7648,7 +7616,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s8",
+        "elementId": "state-r1s3",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -7660,17 +7628,17 @@
         "statechart": {
           "kind": "step",
           "from": "r1s4",
-          "to": "r1s8"
+          "to": "r1s3"
         }
       }
     },
     {
       "id": "step44-label",
       "type": "text",
-      "x": 4067.42,
-      "y": 1562.75,
-      "width": 235.2,
-      "height": 17.5,
+      "x": 5055.24,
+      "y": 955.0,
+      "width": 226.8,
+      "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -7690,8 +7658,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "you remove the row from left",
-      "originalText": "you remove the row from left",
+      "text": "jbus launches the row again\nfor what was left",
+      "originalText": "jbus launches the row again\nfor what was left",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -7703,10 +7671,10 @@
     {
       "id": "step45",
       "type": "arrow",
-      "x": 3624.99,
-      "y": 1708.5,
-      "width": 1041.09,
-      "height": 948.01,
+      "x": 4117.21,
+      "y": 1438.3,
+      "width": 581.41,
+      "height": 513.3,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -7739,63 +7707,39 @@
           0.0
         ],
         [
-          -122.93,
-          -47.5
+          291.69,
+          -61.55
         ],
         [
-          -30.05,
-          -137.0
+          334.45,
+          -169.8
         ],
         [
-          68.79,
-          -226.5
+          235.27,
+          -278.05
         ],
         [
-          395.5,
-          -306.0
+          455.32,
+          -376.3
         ],
         [
-          374.1,
-          -385.5
+          581.41,
+          -465.8
         ],
         [
-          865.42,
-          -465.0
-        ],
-        [
-          901.43,
-          -553.25
-        ],
-        [
-          917.43,
-          -637.75
-        ],
-        [
-          918.16,
-          -704.75
-        ],
-        [
-          913.84,
-          -795.5
-        ],
-        [
-          814.52,
-          -895.0
-        ],
-        [
-          377.48,
-          -948.01
+          495.56,
+          -513.3
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s6",
+        "elementId": "state-r1s4",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s2",
+        "elementId": "state-r1s11",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -7806,17 +7750,17 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s6",
-          "to": "r1s2"
+          "from": "r1s4",
+          "to": "r1s11"
         }
       }
     },
     {
       "id": "step45-label",
       "type": "text",
-      "x": 4364.41,
-      "y": 1226.0,
-      "width": 252.0,
+      "x": 4230.67,
+      "y": 1142.75,
+      "width": 243.6,
       "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -7837,8 +7781,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "jbus opens a question on the\nrow with its pull request open",
-      "originalText": "jbus opens a question on the\nrow with its pull request open",
+      "text": "the thread asks for an answer\nagain",
+      "originalText": "the thread asks for an answer\nagain",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -7850,10 +7794,10 @@
     {
       "id": "step46",
       "type": "arrow",
-      "x": 3777.61,
-      "y": 1708.5,
-      "width": 610.95,
-      "height": 449.11,
+      "x": 3921.01,
+      "y": 1433.0,
+      "width": 906.74,
+      "height": 345.3,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -7886,39 +7830,31 @@
           0.0
         ],
         [
-          103.62,
-          -47.5
+          -122.51,
+          -56.25
         ],
         [
-          208.98,
-          -137.0
+          -638.67,
+          -164.5
         ],
         [
-          326.37,
-          -226.5
+          -906.74,
+          -272.75
         ],
         [
-          386.54,
-          -306.0
-        ],
-        [
-          281.94,
-          -385.5
-        ],
-        [
-          -224.41,
-          -449.11
+          -522.74,
+          -345.3
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s6",
+        "elementId": "state-r1s4",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s4",
+        "elementId": "state-r1s9",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -7929,17 +7865,17 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s6",
-          "to": "r1s4"
+          "from": "r1s4",
+          "to": "r1s9"
         }
       }
     },
     {
       "id": "step46-label",
       "type": "text",
-      "x": 4007.38,
-      "y": 1464.5,
-      "width": 193.2,
+      "x": 3156.34,
+      "y": 1251.0,
+      "width": 252.0,
       "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -7960,8 +7896,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the pull request closes\nunmerged",
-      "originalText": "the pull request closes\nunmerged",
+      "text": "the thread works again on what\nwas left",
+      "originalText": "the thread works again on what\nwas left",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -7973,10 +7909,10 @@
     {
       "id": "step47",
       "type": "arrow",
-      "x": 3735.14,
-      "y": 1772.5,
-      "width": 107.93,
-      "height": 95.0,
+      "x": 4069.52,
+      "y": 1497.0,
+      "width": 162.2,
+      "height": 236.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -8009,17 +7945,25 @@
           0.0
         ],
         [
-          40.58,
-          47.5
+          95.44,
+          38.75
         ],
         [
-          107.93,
-          95.0
+          118.37,
+          109.5
+        ],
+        [
+          162.2,
+          189.0
+        ],
+        [
+          102.65,
+          236.5
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s6",
+        "elementId": "state-r1s4",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -8036,7 +7980,7 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s6",
+          "from": "r1s4",
           "to": "r1s8"
         }
       }
@@ -8044,9 +7988,9 @@
     {
       "id": "step47-label",
       "type": "text",
-      "x": 3666.53,
-      "y": 1811.25,
-      "width": 218.4,
+      "x": 4070.3,
+      "y": 1597.75,
+      "width": 235.2,
       "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -8067,8 +8011,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "you remove the row from pr",
-      "originalText": "you remove the row from pr",
+      "text": "you remove the row from left",
+      "originalText": "you remove the row from left",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -8080,10 +8024,10 @@
     {
       "id": "step48",
       "type": "arrow",
-      "x": 3580.17,
-      "y": 433.0,
-      "width": 323.88,
-      "height": 130.0,
+      "x": 2919.02,
+      "y": 1236.5,
+      "width": 612.06,
+      "height": 470.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -8116,23 +8060,39 @@
           0.0
         ],
         [
-          129.14,
-          65.0
+          -168.75,
+          -76.25
         ],
         [
-          323.88,
-          130.0
+          10.88,
+          -174.5
+        ],
+        [
+          145.96,
+          -264.0
+        ],
+        [
+          69.99,
+          -343.5
+        ],
+        [
+          278.3,
+          -423.0
+        ],
+        [
+          443.31,
+          -470.5
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s7",
+        "elementId": "state-r1s6",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s3",
+        "elementId": "state-r1s2",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -8143,18 +8103,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s7",
-          "to": "r1s3"
+          "from": "r1s6",
+          "to": "r1s2"
         }
       }
     },
     {
       "id": "step48-label",
       "type": "text",
-      "x": 3583.31,
-      "y": 463.0,
+      "x": 2938.98,
+      "y": 955.0,
       "width": 252.0,
-      "height": 70.0,
+      "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -8174,8 +8134,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "a launch record names a thread\nfor the row [when Approved or\nApproved, behind a row it\ndepends on]",
-      "originalText": "a launch record names a thread\nfor the row [when Approved or\nApproved, behind a row it\ndepends on]",
+      "text": "jbus opens a question on the\nrow with its pull request open",
+      "originalText": "jbus opens a question on the\nrow with its pull request open",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -8187,10 +8147,10 @@
     {
       "id": "step49",
       "type": "arrow",
-      "x": 3540.57,
-      "y": 433.0,
-      "width": 258.56,
-      "height": 289.0,
+      "x": 3116.34,
+      "y": 1289.0,
+      "width": 753.69,
+      "height": 144.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -8223,31 +8183,23 @@
           0.0
         ],
         [
-          12.14,
-          65.0
+          541.56,
+          87.75
         ],
         [
-          140.08,
-          162.0
-        ],
-        [
-          113.18,
-          241.5
-        ],
-        [
-          258.56,
-          289.0
+          753.69,
+          144.0
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s7",
+        "elementId": "state-r1s6",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s2",
+        "elementId": "state-r1s4",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -8258,17 +8210,17 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s7",
-          "to": "r1s2"
+          "from": "r1s6",
+          "to": "r1s4"
         }
       }
     },
     {
       "id": "step49-label",
       "type": "text",
-      "x": 3563.05,
-      "y": 577.5,
-      "width": 235.2,
+      "x": 3561.3,
+      "y": 1359.25,
+      "width": 193.2,
       "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -8289,8 +8241,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "jbus opens a question on the\nrow",
-      "originalText": "jbus opens a question on the\nrow",
+      "text": "the pull request closes\nunmerged",
+      "originalText": "the pull request closes\nunmerged",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -8302,10 +8254,10 @@
     {
       "id": "step50",
       "type": "arrow",
-      "x": 3623.16,
+      "x": 3713.71,
       "y": 433.0,
-      "width": 1377.23,
-      "height": 1434.5,
+      "width": 374.59,
+      "height": 130.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -8338,76 +8290,12 @@
           0.0
         ],
         [
-          256.15,
+          149.09,
           65.0
         ],
         [
-          602.52,
-          162.0
-        ],
-        [
-          968.16,
-          241.5
-        ],
-        [
-          1377.23,
-          311.0
-        ],
-        [
-          1309.01,
-          380.5
-        ],
-        [
-          1287.49,
-          480.0
-        ],
-        [
-          1294.84,
-          570.75
-        ],
-        [
-          1310.96,
-          637.75
-        ],
-        [
-          1318.59,
-          722.25
-        ],
-        [
-          1266.64,
-          810.5
-        ],
-        [
-          1129.33,
-          890.0
-        ],
-        [
-          987.46,
-          969.5
-        ],
-        [
-          849.85,
-          1049.0
-        ],
-        [
-          723.46,
-          1138.5
-        ],
-        [
-          563.96,
-          1228.0
-        ],
-        [
-          435.86,
-          1307.5
-        ],
-        [
-          337.5,
-          1387.0
-        ],
-        [
-          294.35,
-          1434.5
+          374.59,
+          130.0
         ]
       ],
       "lastCommittedPoint": null,
@@ -8418,7 +8306,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s8",
+        "elementId": "state-r1s3",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -8430,17 +8318,17 @@
         "statechart": {
           "kind": "step",
           "from": "r1s7",
-          "to": "r1s8"
+          "to": "r1s3"
         }
       }
     },
     {
       "id": "step50-label",
       "type": "text",
-      "x": 4815.75,
-      "y": 1146.5,
+      "x": 3736.8,
+      "y": 463.0,
       "width": 252.0,
-      "height": 17.5,
+      "height": 70.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -8460,8 +8348,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "you remove the row from queued",
-      "originalText": "you remove the row from queued",
+      "text": "a launch record names a thread\nfor the row [when Approved or\nApproved, behind a row it\ndepends on]",
+      "originalText": "a launch record names a thread\nfor the row [when Approved or\nApproved, behind a row it\ndepends on]",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -8473,10 +8361,10 @@
     {
       "id": "step51",
       "type": "arrow",
-      "x": 3353.88,
-      "y": 1602.38,
-      "width": 315.39,
-      "height": 106.12,
+      "x": 3657.26,
+      "y": 433.0,
+      "width": 197.2,
+      "height": 289.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -8509,23 +8397,31 @@
           0.0
         ],
         [
-          258.18,
-          58.62
+          -17.7,
+          65.0
         ],
         [
-          315.39,
-          106.12
+          16.32,
+          162.0
+        ],
+        [
+          -99.66,
+          241.5
+        ],
+        [
+          -180.88,
+          289.0
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s9",
+        "elementId": "state-r1s7",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s6",
+        "elementId": "state-r1s2",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -8536,18 +8432,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s9",
-          "to": "r1s6"
+          "from": "r1s7",
+          "to": "r1s2"
         }
       }
     },
     {
       "id": "step51-label",
       "type": "text",
-      "x": 3528.06,
-      "y": 1652.25,
-      "width": 168.0,
-      "height": 17.5,
+      "x": 3555.98,
+      "y": 577.5,
+      "width": 235.2,
+      "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -8567,8 +8463,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "a pull request opens",
-      "originalText": "a pull request opens",
+      "text": "jbus opens a question on the\nrow",
+      "originalText": "jbus opens a question on the\nrow",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -8580,10 +8476,10 @@
     {
       "id": "step52",
       "type": "arrow",
-      "x": 3353.88,
-      "y": 1540.69,
-      "width": 1430.59,
-      "height": 921.89,
+      "x": 3756.7,
+      "y": 433.0,
+      "width": 1867.1,
+      "height": 1300.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -8616,63 +8512,79 @@
           0.0
         ],
         [
-          259.05,
-          -58.69
+          276.1,
+          65.0
         ],
         [
-          579.63,
-          -138.19
+          623.62,
+          162.0
         ],
         [
-          531.29,
-          -217.69
+          1008.49,
+          241.5
         ],
         [
-          468.13,
-          -297.19
+          1427.51,
+          311.0
         ],
         [
-          664.84,
-          -385.44
+          1557.17,
+          380.5
         ],
         [
-          841.54,
-          -469.94
+          1686.11,
+          460.0
         ],
         [
-          963.13,
-          -536.94
+          1794.36,
+          539.5
         ],
         [
-          1070.65,
-          -627.69
+          1866.07,
+          629.0
         ],
         [
-          1002.04,
-          -727.19
+          1867.1,
+          727.25
         ],
         [
-          1430.59,
-          -796.69
+          1683.79,
+          835.5
         ],
         [
-          1083.74,
-          -866.19
+          1478.6,
+          943.75
         ],
         [
-          777.04,
-          -921.89
+          1243.47,
+          1032.0
+        ],
+        [
+          1011.7,
+          1102.75
+        ],
+        [
+          804.24,
+          1173.5
+        ],
+        [
+          620.29,
+          1253.0
+        ],
+        [
+          473.94,
+          1300.5
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s9",
+        "elementId": "state-r1s7",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s3",
+        "elementId": "state-r1s8",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -8683,18 +8595,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s9",
-          "to": "r1s3"
+          "from": "r1s7",
+          "to": "r1s8"
         }
       }
     },
     {
       "id": "step52-label",
       "type": "text",
-      "x": 4077.82,
+      "x": 5496.77,
       "y": 1053.25,
-      "width": 235.2,
-      "height": 35.0,
+      "width": 252.0,
+      "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -8714,8 +8626,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the crew opens nothing after\nits review",
-      "originalText": "the crew opens nothing after\nits review",
+      "text": "you remove the row from queued",
+      "originalText": "you remove the row from queued",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -8727,10 +8639,10 @@
     {
       "id": "step53",
       "type": "arrow",
-      "x": 3188.52,
-      "y": 1613.5,
-      "width": 200.7,
-      "height": 254.0,
+      "x": 3398.27,
+      "y": 1082.62,
+      "width": 512.0,
+      "height": 153.88,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -8763,20 +8675,12 @@
           0.0
         ],
         [
-          -33.21,
-          47.5
+          -512.0,
+          77.63
         ],
         [
-          -100.4,
-          127.0
-        ],
-        [
-          -134.32,
-          206.5
-        ],
-        [
-          -200.7,
-          254.0
+          -439.05,
+          153.88
         ]
       ],
       "lastCommittedPoint": null,
@@ -8787,7 +8691,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s5",
+        "elementId": "state-r1s6",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -8799,17 +8703,17 @@
         "statechart": {
           "kind": "step",
           "from": "r1s9",
-          "to": "r1s5"
+          "to": "r1s6"
         }
       }
     },
     {
       "id": "step53-label",
       "type": "text",
-      "x": 2978.92,
-      "y": 1723.0,
-      "width": 218.4,
-      "height": 35.0,
+      "x": 2802.27,
+      "y": 1151.5,
+      "width": 168.0,
+      "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -8829,8 +8733,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the pull request opens and\nmerges between two passes",
-      "originalText": "the pull request opens and\nmerges between two passes",
+      "text": "a pull request opens",
+      "originalText": "a pull request opens",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -8842,10 +8746,10 @@
     {
       "id": "step54",
       "type": "arrow",
-      "x": 3353.88,
-      "y": 1536.02,
-      "width": 472.51,
-      "height": 267.36,
+      "x": 3552.5,
+      "y": 1020.0,
+      "width": 641.76,
+      "height": 393.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -8878,20 +8782,28 @@
           0.0
         ],
         [
-          207.05,
-          -54.02
+          20.61,
+          -47.5
         ],
         [
-          383.63,
-          -133.52
+          280.2,
+          -127.0
         ],
         [
-          472.51,
-          -213.02
+          305.69,
+          -206.5
         ],
         [
-          199.33,
-          -267.36
+          291.17,
+          -276.0
+        ],
+        [
+          634.26,
+          -345.5
+        ],
+        [
+          641.76,
+          -393.0
         ]
       ],
       "lastCommittedPoint": null,
@@ -8902,7 +8814,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s4",
+        "elementId": "state-r1s3",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -8914,16 +8826,16 @@
         "statechart": {
           "kind": "step",
           "from": "r1s9",
-          "to": "r1s4"
+          "to": "r1s3"
         }
       }
     },
     {
       "id": "step54-label",
       "type": "text",
-      "x": 3611.51,
-      "y": 1385.0,
-      "width": 252.0,
+      "x": 3740.59,
+      "y": 796.0,
+      "width": 235.2,
       "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -8944,8 +8856,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the Result leaves work, or the\npull request closes",
-      "originalText": "the Result leaves work, or the\npull request closes",
+      "text": "the crew opens nothing after\nits review",
+      "originalText": "the crew opens nothing after\nits review",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -8957,10 +8869,10 @@
     {
       "id": "step55",
       "type": "arrow",
-      "x": 3137.94,
-      "y": 1529.5,
-      "width": 90.4,
-      "height": 95.0,
+      "x": 3398.27,
+      "y": 1073.2,
+      "width": 1117.03,
+      "height": 660.3,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -8993,12 +8905,36 @@
           0.0
         ],
         [
-          -90.4,
-          -47.5
+          -1057.2,
+          87.05
         ],
         [
-          -57.06,
-          -95.0
+          -1117.03,
+          195.3
+        ],
+        [
+          -1069.54,
+          303.55
+        ],
+        [
+          -859.17,
+          391.8
+        ],
+        [
+          -718.97,
+          462.55
+        ],
+        [
+          -605.82,
+          533.3
+        ],
+        [
+          -516.12,
+          612.8
+        ],
+        [
+          -477.36,
+          660.3
         ]
       ],
       "lastCommittedPoint": null,
@@ -9009,7 +8945,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s11",
+        "elementId": "state-r1s5",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -9021,16 +8957,16 @@
         "statechart": {
           "kind": "step",
           "from": "r1s9",
-          "to": "r1s11"
+          "to": "r1s5"
         }
       }
     },
     {
       "id": "step55-label",
       "type": "text",
-      "x": 2925.74,
-      "y": 1464.5,
-      "width": 243.6,
+      "x": 2429.91,
+      "y": 1447.5,
+      "width": 218.4,
       "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -9051,8 +8987,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the thread asks for an answer\nto its request",
-      "originalText": "the thread asks for an answer\nto its request",
+      "text": "the pull request opens and\nmerges between two passes",
+      "originalText": "the pull request opens and\nmerges between two passes",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -9064,10 +9000,10 @@
     {
       "id": "step56",
       "type": "arrow",
-      "x": 3108.66,
-      "y": 1613.5,
-      "width": 269.55,
-      "height": 95.0,
+      "x": 3588.31,
+      "y": 1104.0,
+      "width": 515.39,
+      "height": 329.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -9100,12 +9036,20 @@
           0.0
         ],
         [
-          -123.52,
-          47.5
+          72.37,
+          56.25
         ],
         [
-          -269.55,
-          95.0
+          288.03,
+          164.5
+        ],
+        [
+          515.39,
+          272.75
+        ],
+        [
+          443.37,
+          329.0
         ]
       ],
       "lastCommittedPoint": null,
@@ -9116,7 +9060,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s0",
+        "elementId": "state-r1s4",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -9128,16 +9072,16 @@
         "statechart": {
           "kind": "step",
           "from": "r1s9",
-          "to": "r1s0"
+          "to": "r1s4"
         }
       }
     },
     {
       "id": "step56-label",
       "type": "text",
-      "x": 2867.54,
-      "y": 1643.5,
-      "width": 235.2,
+      "x": 3750.34,
+      "y": 1251.0,
+      "width": 252.0,
       "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -9158,8 +9102,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the thread ends with a clean\nResult and no pull request",
-      "originalText": "the thread ends with a clean\nResult and no pull request",
+      "text": "the Result leaves work, or the\npull request closes",
+      "originalText": "the Result leaves work, or the\npull request closes",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -9171,10 +9115,10 @@
     {
       "id": "step57",
       "type": "arrow",
-      "x": 3081.88,
-      "y": 1533.24,
-      "width": 587.09,
-      "height": 569.01,
+      "x": 3670.27,
+      "y": 1020.5,
+      "width": 753.66,
+      "height": 113.18,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -9207,36 +9151,12 @@
           0.0
         ],
         [
-          -182.14,
-          -51.24
+          157.3,
+          -48.0
         ],
         [
-          -201.41,
-          -130.74
-        ],
-        [
-          -96.59,
-          -210.24
-        ],
-        [
-          -249.47,
-          -289.74
-        ],
-        [
-          12.93,
-          -377.99
-        ],
-        [
-          263.88,
-          -462.49
-        ],
-        [
-          228.85,
-          -529.49
-        ],
-        [
-          337.62,
-          -569.01
+          753.66,
+          -113.18
         ]
       ],
       "lastCommittedPoint": null,
@@ -9247,7 +9167,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s10",
+        "elementId": "state-r1s11",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -9259,17 +9179,17 @@
         "statechart": {
           "kind": "step",
           "from": "r1s9",
-          "to": "r1s10"
+          "to": "r1s11"
         }
       }
     },
     {
       "id": "step57-label",
       "type": "text",
-      "x": 2710.61,
-      "y": 1217.25,
+      "x": 3705.77,
+      "y": 955.0,
       "width": 243.6,
-      "height": 52.5,
+      "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -9289,8 +9209,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the turn hangs, or the thread\nends or is settled with\nnothing written",
-      "originalText": "the turn hangs, or the thread\nends or is settled with\nnothing written",
+      "text": "the thread asks for an answer\nto its request",
+      "originalText": "the thread asks for an answer\nto its request",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -9302,10 +9222,10 @@
     {
       "id": "step58",
       "type": "arrow",
-      "x": 3419.5,
-      "y": 935.27,
-      "width": 1148.87,
-      "height": 773.23,
+      "x": 3398.27,
+      "y": 1077.5,
+      "width": 757.94,
+      "height": 498.85,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -9338,49 +9258,33 @@
           0.0
         ],
         [
-          -433.52,
-          68.48
+          -726.0,
+          82.75
         ],
         [
-          -714.54,
-          135.48
+          -722.53,
+          191.0
         ],
         [
-          -717.08,
-          219.98
+          -757.94,
+          299.25
         ],
         [
-          -983.33,
-          308.23
+          -492.34,
+          387.5
         ],
         [
-          -1148.87,
-          387.73
+          -232.44,
+          458.25
         ],
         [
-          -1000.18,
-          467.23
-        ],
-        [
-          -995.57,
-          546.73
-        ],
-        [
-          -870.11,
-          636.23
-        ],
-        [
-          -758.71,
-          725.73
-        ],
-        [
-          -710.94,
-          773.23
+          -49.26,
+          498.85
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s10",
+        "elementId": "state-r1s9",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -9397,7 +9301,7 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s10",
+          "from": "r1s9",
           "to": "r1s0"
         }
       }
@@ -9405,10 +9309,10 @@
     {
       "id": "step58-label",
       "type": "text",
-      "x": 2144.63,
-      "y": 1314.25,
-      "width": 252.0,
-      "height": 17.5,
+      "x": 2522.74,
+      "y": 1359.25,
+      "width": 235.2,
+      "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -9428,8 +9332,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the crew writes a clean Result",
-      "originalText": "the crew writes a clean Result",
+      "text": "the thread ends with a clean\nResult and no pull request",
+      "originalText": "the thread ends with a clean\nResult and no pull request",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -9441,10 +9345,10 @@
     {
       "id": "step59",
       "type": "arrow",
-      "x": 3419.5,
-      "y": 948.45,
-      "width": 243.32,
-      "height": 100.3,
+      "x": 3670.27,
+      "y": 1087.06,
+      "width": 489.52,
+      "height": 159.44,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -9477,17 +9381,17 @@
           0.0
         ],
         [
-          -219.97,
-          55.3
+          397.2,
+          73.19
         ],
         [
-          -243.32,
-          100.3
+          489.52,
+          159.44
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s10",
+        "elementId": "state-r1s9",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -9504,7 +9408,7 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s10",
+          "from": "r1s9",
           "to": "r1s1"
         }
       }
@@ -9512,8 +9416,8 @@
     {
       "id": "step59-label",
       "type": "text",
-      "x": 3132.33,
-      "y": 995.0,
+      "x": 4000.27,
+      "y": 1151.5,
       "width": 134.4,
       "height": 17.5,
       "angle": 0,
@@ -9548,10 +9452,10 @@
     {
       "id": "step60",
       "type": "arrow",
-      "x": 3701.5,
-      "y": 876.48,
-      "width": 819.57,
-      "height": 249.54,
+      "x": 3398.27,
+      "y": 1103.73,
+      "width": 234.26,
+      "height": 125.95,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -9584,31 +9488,23 @@
           0.0
         ],
         [
-          243.15,
-          -62.98
+          -184.2,
+          56.52
         ],
         [
-          819.57,
-          -132.48
-        ],
-        [
-          624.54,
-          -201.98
-        ],
-        [
-          429.42,
-          -249.54
+          50.06,
+          125.95
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s10",
+        "elementId": "state-r1s9",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s3",
+        "elementId": "state-r1s10",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -9619,18 +9515,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s10",
-          "to": "r1s3"
+          "from": "r1s9",
+          "to": "r1s10"
         }
       }
     },
     {
       "id": "step60-label",
       "type": "text",
-      "x": 4449.67,
-      "y": 735.25,
-      "width": 142.8,
-      "height": 17.5,
+      "x": 3092.27,
+      "y": 1134.0,
+      "width": 243.6,
+      "height": 52.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -9650,8 +9546,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the thread starts",
-      "originalText": "the thread starts",
+      "text": "the turn hangs, or the thread\nends or is settled with\nnothing written",
+      "originalText": "the turn hangs, or the thread\nends or is settled with\nnothing written",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -9663,10 +9559,10 @@
     {
       "id": "step61",
       "type": "arrow",
-      "x": 3701.5,
-      "y": 950.44,
-      "width": 378.65,
-      "height": 261.06,
+      "x": 3670.27,
+      "y": 1072.15,
+      "width": 1375.75,
+      "height": 661.35,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -9699,31 +9595,47 @@
           0.0
         ],
         [
-          200.78,
-          53.31
+          1180.0,
+          88.1
         ],
         [
-          91.8,
-          120.31
+          1289.07,
+          196.35
         ],
         [
-          -7.5,
-          204.81
+          1375.75,
+          304.6
         ],
         [
-          -177.87,
-          261.06
+          1157.94,
+          392.85
+        ],
+        [
+          978.96,
+          463.6
+        ],
+        [
+          805.08,
+          534.35
+        ],
+        [
+          654.71,
+          613.85
+        ],
+        [
+          539.43,
+          661.35
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s10",
+        "elementId": "state-r1s9",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s4",
+        "elementId": "state-r1s8",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -9734,18 +9646,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s10",
-          "to": "r1s4"
+          "from": "r1s9",
+          "to": "r1s8"
         }
       }
     },
     {
       "id": "step61-label",
       "type": "text",
-      "x": 3675.7,
-      "y": 1044.5,
-      "width": 235.2,
-      "height": 52.5,
+      "x": 4731.61,
+      "y": 1447.5,
+      "width": 193.2,
+      "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -9765,8 +9677,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the thread stays quiet with\nnothing written, or writes a\nleftover",
-      "originalText": "the thread stays quiet with\nnothing written, or writes a\nleftover",
+      "text": "you remove the row from\nrunning",
+      "originalText": "you remove the row from\nrunning",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -9778,10 +9690,10 @@
     {
       "id": "step62",
       "type": "arrow",
-      "x": 3701.5,
-      "y": 942.17,
-      "width": 671.12,
-      "height": 596.35,
+      "x": 3448.34,
+      "y": 1291.72,
+      "width": 479.74,
+      "height": 282.78,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -9814,36 +9726,20 @@
           0.0
         ],
         [
-          297.71,
-          61.58
+          -479.74,
+          85.03
         ],
         [
-          323.5,
-          128.58
+          -347.44,
+          173.28
         ],
         [
-          163.81,
-          213.08
+          -220.76,
+          244.03
         ],
         [
-          -15.89,
-          301.33
-        ],
-        [
-          157.67,
-          380.83
-        ],
-        [
-          206.01,
-          460.33
-        ],
-        [
-          -114.58,
-          539.83
-        ],
-        [
-          -347.62,
-          596.35
+          -79.76,
+          282.78
         ]
       ],
       "lastCommittedPoint": null,
@@ -9854,7 +9750,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s9",
+        "elementId": "state-r1s0",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -9866,16 +9762,16 @@
         "statechart": {
           "kind": "step",
           "from": "r1s10",
-          "to": "r1s9"
+          "to": "r1s0"
         }
       }
     },
     {
       "id": "step62-label",
       "type": "text",
-      "x": 3593.21,
-      "y": 1234.75,
-      "width": 184.8,
+      "x": 2974.89,
+      "y": 1456.25,
+      "width": 252.0,
       "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -9896,8 +9792,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the thread works again",
-      "originalText": "the thread works again",
+      "text": "the crew writes a clean Result",
+      "originalText": "the crew writes a clean Result",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -9909,10 +9805,10 @@
     {
       "id": "step63",
       "type": "arrow",
-      "x": 3193.26,
-      "y": 1434.5,
-      "width": 133.48,
-      "height": 95.0,
+      "x": 3710.34,
+      "y": 1307.59,
+      "width": 262.74,
+      "height": 125.41,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -9945,23 +9841,23 @@
           0.0
         ],
         [
-          133.48,
-          47.5
+          231.76,
+          69.16
         ],
         [
-          75.7,
-          95.0
+          262.74,
+          125.41
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s11",
+        "elementId": "state-r1s10",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s9",
+        "elementId": "state-r1s4",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -9972,18 +9868,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s11",
-          "to": "r1s9"
+          "from": "r1s10",
+          "to": "r1s4"
         }
       }
     },
     {
       "id": "step63-label",
       "type": "text",
-      "x": 3213.34,
-      "y": 1464.5,
-      "width": 226.8,
-      "height": 35.0,
+      "x": 3824.5,
+      "y": 1350.5,
+      "width": 235.2,
+      "height": 52.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -10003,8 +9899,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the request is answered and\nthe thread works again",
-      "originalText": "the request is answered and\nthe thread works again",
+      "text": "the thread stays quiet with\nnothing written, or writes a\nleftover",
+      "originalText": "the thread stays quiet with\nnothing written, or writes a\nleftover",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -10016,10 +9912,10 @@
     {
       "id": "step64",
       "type": "arrow",
-      "x": 3234.34,
-      "y": 1372.96,
-      "width": 221.55,
-      "height": 97.46,
+      "x": 3527.91,
+      "y": 1216.5,
+      "width": 55.63,
+      "height": 112.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -10052,23 +9948,23 @@
           0.0
         ],
         [
-          221.55,
-          -49.96
+          -55.63,
+          -56.25
         ],
         [
-          204.11,
-          -97.46
+          -20.14,
+          -112.5
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s11",
+        "elementId": "state-r1s10",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s4",
+        "elementId": "state-r1s9",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -10079,18 +9975,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s11",
-          "to": "r1s4"
+          "from": "r1s10",
+          "to": "r1s9"
         }
       }
     },
     {
       "id": "step64-label",
       "type": "text",
-      "x": 3350.89,
-      "y": 1305.5,
-      "width": 210.0,
-      "height": 35.0,
+      "x": 3379.87,
+      "y": 1151.5,
+      "width": 184.8,
+      "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -10110,8 +10006,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the thread ends after its\nrequest with work left",
-      "originalText": "the thread ends after its\nrequest with work left",
+      "text": "the thread works again",
+      "originalText": "the thread works again",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -10123,10 +10019,10 @@
     {
       "id": "step65",
       "type": "arrow",
-      "x": 3066.29,
-      "y": 1370.5,
-      "width": 143.66,
-      "height": 277.75,
+      "x": 3710.34,
+      "y": 1283.28,
+      "width": 828.56,
+      "height": 450.22,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -10159,20 +10055,603 @@
           0.0
         ],
         [
-          -55.0,
+          828.56,
+          93.47
+        ],
+        [
+          559.13,
+          181.72
+        ],
+        [
+          288.83,
+          252.47
+        ],
+        [
+          195.93,
+          323.22
+        ],
+        [
+          121.26,
+          402.72
+        ],
+        [
+          300.78,
+          450.22
+        ]
+      ],
+      "lastCommittedPoint": null,
+      "startBinding": {
+        "elementId": "state-r1s10",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "endBinding": {
+        "elementId": "state-r1s8",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "startArrowhead": null,
+      "endArrowhead": "arrow",
+      "elbowed": false,
+      "customData": {
+        "statechart": {
+          "kind": "step",
+          "from": "r1s10",
+          "to": "r1s8"
+        }
+      }
+    },
+    {
+      "id": "step65-label",
+      "type": "text",
+      "x": 3877.37,
+      "y": 1527.0,
+      "width": 243.6,
+      "height": 17.5,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-region1",
+      "roundness": null,
+      "seed": 1809439209,
+      "version": 1,
+      "versionNonce": 3394594104,
+      "isDeleted": false,
+      "boundElements": [],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "text": "you remove the row from stale",
+      "originalText": "you remove the row from stale",
+      "fontSize": 14,
+      "fontFamily": 6,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "step65",
+      "autoResize": true,
+      "lineHeight": 1.25
+    },
+    {
+      "id": "step66",
+      "type": "arrow",
+      "x": 4526.93,
+      "y": 861.0,
+      "width": 256.95,
+      "height": 234.0,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-region1",
+      "roundness": {
+        "type": 2
+      },
+      "seed": 780792654,
+      "version": 1,
+      "versionNonce": 4167119682,
+      "isDeleted": false,
+      "boundElements": [
+        {
+          "id": "step66-label",
+          "type": "text"
+        }
+      ],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "points": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          -41.57,
           -47.5
         ],
         [
-          36.92,
-          -127.0
+          -156.7,
+          -117.0
         ],
         [
-          60.78,
-          -215.25
+          -152.07,
+          -186.5
         ],
         [
-          88.66,
-          -277.75
+          -256.95,
+          -234.0
+        ]
+      ],
+      "lastCommittedPoint": null,
+      "startBinding": {
+        "elementId": "state-r1s11",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "endBinding": {
+        "elementId": "state-r1s3",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "startArrowhead": null,
+      "endArrowhead": "arrow",
+      "elbowed": false,
+      "customData": {
+        "statechart": {
+          "kind": "step",
+          "from": "r1s11",
+          "to": "r1s3"
+        }
+      }
+    },
+    {
+      "id": "step66-label",
+      "type": "text",
+      "x": 4273.63,
+      "y": 735.25,
+      "width": 193.2,
+      "height": 17.5,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-region1",
+      "roundness": null,
+      "seed": 1513210740,
+      "version": 1,
+      "versionNonce": 2006911478,
+      "isDeleted": false,
+      "boundElements": [],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "text": "T3 Code lists no thread",
+      "originalText": "T3 Code lists no thread",
+      "fontSize": 14,
+      "fontFamily": 6,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "step66",
+      "autoResize": true,
+      "lineHeight": 1.25
+    },
+    {
+      "id": "step67",
+      "type": "arrow",
+      "x": 4572.08,
+      "y": 861.0,
+      "width": 323.46,
+      "height": 234.0,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-region1",
+      "roundness": {
+        "type": 2
+      },
+      "seed": 1502528472,
+      "version": 1,
+      "versionNonce": 1578514678,
+      "isDeleted": false,
+      "boundElements": [
+        {
+          "id": "step67-label",
+          "type": "text"
+        }
+      ],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "points": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          25.45,
+          -47.5
+        ],
+        [
+          52.15,
+          -117.0
+        ],
+        [
+          -120.72,
+          -186.5
+        ],
+        [
+          -271.31,
+          -234.0
+        ]
+      ],
+      "lastCommittedPoint": null,
+      "startBinding": {
+        "elementId": "state-r1s11",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "endBinding": {
+        "elementId": "state-r1s3",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "startArrowhead": null,
+      "endArrowhead": "arrow",
+      "elbowed": false,
+      "customData": {
+        "statechart": {
+          "kind": "step",
+          "from": "r1s11",
+          "to": "r1s3"
+        }
+      }
+    },
+    {
+      "id": "step67-label",
+      "type": "text",
+      "x": 4510.83,
+      "y": 726.5,
+      "width": 226.8,
+      "height": 35.0,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-region1",
+      "roundness": null,
+      "seed": 4232497344,
+      "version": 1,
+      "versionNonce": 2852769907,
+      "isDeleted": false,
+      "boundElements": [],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "text": "T3 Code no longer lists the\nthread",
+      "originalText": "T3 Code no longer lists the\nthread",
+      "fontSize": 14,
+      "fontFamily": 6,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "step67",
+      "autoResize": true,
+      "lineHeight": 1.25
+    },
+    {
+      "id": "step68",
+      "type": "arrow",
+      "x": 4423.93,
+      "y": 916.24,
+      "width": 753.66,
+      "height": 124.5,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-region1",
+      "roundness": {
+        "type": 2
+      },
+      "seed": 3375488585,
+      "version": 1,
+      "versionNonce": 2824751135,
+      "isDeleted": false,
+      "boundElements": [
+        {
+          "id": "step68-label",
+          "type": "text"
+        }
+      ],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "points": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          -317.16,
+          56.26
+        ],
+        [
+          -753.66,
+          124.5
+        ]
+      ],
+      "lastCommittedPoint": null,
+      "startBinding": {
+        "elementId": "state-r1s11",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "endBinding": {
+        "elementId": "state-r1s9",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "startArrowhead": null,
+      "endArrowhead": "arrow",
+      "elbowed": false,
+      "customData": {
+        "statechart": {
+          "kind": "step",
+          "from": "r1s11",
+          "to": "r1s9"
+        }
+      }
+    },
+    {
+      "id": "step68-label",
+      "type": "text",
+      "x": 3993.37,
+      "y": 955.0,
+      "width": 226.8,
+      "height": 35.0,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-region1",
+      "roundness": null,
+      "seed": 168736809,
+      "version": 1,
+      "versionNonce": 2373518662,
+      "isDeleted": false,
+      "boundElements": [],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "text": "the request is answered and\nthe thread works again",
+      "originalText": "the request is answered and\nthe thread works again",
+      "fontSize": 14,
+      "fontFamily": 6,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "step68",
+      "autoResize": true,
+      "lineHeight": 1.25
+    },
+    {
+      "id": "step69",
+      "type": "arrow",
+      "x": 4626.7,
+      "y": 925.0,
+      "width": 616.03,
+      "height": 514.87,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-region1",
+      "roundness": {
+        "type": 2
+      },
+      "seed": 3191271135,
+      "version": 1,
+      "versionNonce": 237585323,
+      "isDeleted": false,
+      "boundElements": [
+        {
+          "id": "step69-label",
+          "type": "text"
+        }
+      ],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "points": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          106.53,
+          47.5
+        ],
+        [
+          73.83,
+          137.0
+        ],
+        [
+          -3.43,
+          235.25
+        ],
+        [
+          -84.3,
+          343.5
+        ],
+        [
+          -191.81,
+          451.75
+        ],
+        [
+          -509.5,
+          514.87
+        ]
+      ],
+      "lastCommittedPoint": null,
+      "startBinding": {
+        "elementId": "state-r1s11",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "endBinding": {
+        "elementId": "state-r1s4",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "startArrowhead": null,
+      "endArrowhead": "arrow",
+      "elbowed": false,
+      "customData": {
+        "statechart": {
+          "kind": "step",
+          "from": "r1s11",
+          "to": "r1s4"
+        }
+      }
+    },
+    {
+      "id": "step69-label",
+      "type": "text",
+      "x": 4518.27,
+      "y": 1142.75,
+      "width": 210.0,
+      "height": 35.0,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-region1",
+      "roundness": null,
+      "seed": 2893656989,
+      "version": 1,
+      "versionNonce": 1357896899,
+      "isDeleted": false,
+      "boundElements": [],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "text": "the thread ends after its\nrequest with work left",
+      "originalText": "the thread ends after its\nrequest with work left",
+      "fontSize": 14,
+      "fontFamily": 6,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "step69",
+      "autoResize": true,
+      "lineHeight": 1.25
+    },
+    {
+      "id": "step70",
+      "type": "arrow",
+      "x": 4581.63,
+      "y": 925.0,
+      "width": 442.58,
+      "height": 321.5,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-region1",
+      "roundness": {
+        "type": 2
+      },
+      "seed": 3740362554,
+      "version": 1,
+      "versionNonce": 1461389030,
+      "isDeleted": false,
+      "boundElements": [
+        {
+          "id": "step70-label",
+          "type": "text"
+        }
+      ],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "points": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          39.62,
+          47.5
+        ],
+        [
+          -214.55,
+          137.0
+        ],
+        [
+          -402.96,
+          235.25
+        ],
+        [
+          -399.24,
+          321.5
         ]
       ],
       "lastCommittedPoint": null,
@@ -10200,10 +10679,10 @@
       }
     },
     {
-      "id": "step65-label",
+      "id": "step70-label",
       "type": "text",
-      "x": 2998.21,
-      "y": 1226.0,
+      "x": 4262.08,
+      "y": 1044.5,
       "width": 210.0,
       "height": 35.0,
       "angle": 0,
@@ -10217,9 +10696,9 @@
       "groupIds": [],
       "frameId": "frame-region1",
       "roundness": null,
-      "seed": 1809439209,
+      "seed": 4115396304,
       "version": 1,
-      "versionNonce": 3394594104,
+      "versionNonce": 1249195869,
       "isDeleted": false,
       "boundElements": [],
       "updated": 1,
@@ -10231,17 +10710,132 @@
       "fontFamily": 6,
       "textAlign": "center",
       "verticalAlign": "middle",
-      "containerId": "step65",
+      "containerId": "step70",
+      "autoResize": true,
+      "lineHeight": 1.25
+    },
+    {
+      "id": "step71",
+      "type": "arrow",
+      "x": 4618.13,
+      "y": 861.0,
+      "width": 524.0,
+      "height": 234.0,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-region1",
+      "roundness": {
+        "type": 2
+      },
+      "seed": 2851493804,
+      "version": 1,
+      "versionNonce": 4050390354,
+      "isDeleted": false,
+      "boundElements": [
+        {
+          "id": "step71-label",
+          "type": "text"
+        }
+      ],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "points": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          93.8,
+          -47.5
+        ],
+        [
+          234.9,
+          -117.0
+        ],
+        [
+          -96.57,
+          -186.5
+        ],
+        [
+          -289.1,
+          -234.0
+        ]
+      ],
+      "lastCommittedPoint": null,
+      "startBinding": {
+        "elementId": "state-r1s11",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "endBinding": {
+        "elementId": "state-r1s3",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "startArrowhead": null,
+      "endArrowhead": "arrow",
+      "elbowed": false,
+      "customData": {
+        "statechart": {
+          "kind": "step",
+          "from": "r1s11",
+          "to": "r1s3"
+        }
+      }
+    },
+    {
+      "id": "step71-label",
+      "type": "text",
+      "x": 4781.63,
+      "y": 735.25,
+      "width": 142.8,
+      "height": 17.5,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-region1",
+      "roundness": null,
+      "seed": 1396505956,
+      "version": 1,
+      "versionNonce": 2548297432,
+      "isDeleted": false,
+      "boundElements": [],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "text": "the thread starts",
+      "originalText": "the thread starts",
+      "fontSize": 14,
+      "fontFamily": 6,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "step71",
       "autoResize": true,
       "lineHeight": 1.25
     },
     {
       "id": "frame-region1",
       "type": "frame",
-      "x": 1691.0,
+      "x": 1690.0,
       "y": 259.0,
-      "width": 3421,
-      "height": 1712,
+      "width": 4103,
+      "height": 1578,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
