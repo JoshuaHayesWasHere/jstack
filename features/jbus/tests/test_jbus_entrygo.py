@@ -4,6 +4,8 @@ does not (`entrygo.entered`), and a go gate closed on its default approves its r
 may start it (`entrygo.gone_ahead`). Like `test_jbus_queue.py`, the tests run the real queue
 against the kitchen's fakes, and read what each row holds afterwards."""
 
+import pytest
+
 import jsettings
 from jbus import entrygo, queue
 from jmerge import judgement
@@ -69,3 +71,29 @@ def test_a_go_gate_closed_on_its_default_approves_its_row_only_where_silence_may
     assert said.startswith(f"approved beta: brief {sha12(brief('beta'))}, ")
     assert (row["approval"]["basis"], row["approval"]["ref"]) == (queue.ANSWER, "4")
     assert row["approval"]["words"] == "start it"
+
+
+def test_neither_pass_touches_a_table_whose_removed_rows_it_cannot_read_or_a_row_with_its_go(
+    kitchen,
+):
+    """Where `removed.json` does not parse, the entry pass and a closed gate refuse, and approve
+    nothing and give nothing back, since a row removed for good may be among the rows they would
+    change. A gate that closes on a row that already has its go, or on a slug the queue does not
+    hold, says nothing and leaves the table as it was."""
+    code, said = kitchen.main(
+        "queue", "add", "alpha", "--priority", "1", "--entry", "epic", stdin=brief("alpha")
+    )
+    assert code == 0, said
+    add(kitchen, "beta")
+    before = rows(kitchen)
+    silence = jsettings.Settings(go=jsettings.SILENCE)
+    queue.removed_path(kitchen.state).write_text("not json")
+    with pytest.raises(queue.Refused, match="removed.json does not parse"):
+        entrygo.entered(kitchen.state, jsettings.Settings(), entry_go(True))
+    with pytest.raises(queue.Refused, match="removed.json does not parse"):
+        entrygo.gone_ahead(kitchen.state, "alpha", 3, AT, silence, None)
+    assert rows(kitchen) == before
+    queue.removed_path(kitchen.state).unlink()
+    assert entrygo.gone_ahead(kitchen.state, "beta", 4, AT, silence, None) == ""
+    assert entrygo.gone_ahead(kitchen.state, "gamma", 5, AT, silence, None) == ""
+    assert rows(kitchen) == before
