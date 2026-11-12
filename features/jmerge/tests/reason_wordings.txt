@@ -100,3 +100,4 @@ MAIN_BROWSER_RED	its browser run failed at {head}, as main's did at {sha}
 BROWSER_RED	its browser run failed at {head}
 RULE_BREAKS	its tests {tests} fail on open pull requests merged with it, {breaks}: carry the fix (an exemption or a changed rule), or name each on a Breaks: line of its Result, and jbus tells their crews when it merges
 RULE_UNRUN	its tests {tests} have run on {ran} of the {open} open pull requests merged with it: the next run goes on
+USER_JUDGED	the user judges it: waits for the user's word
