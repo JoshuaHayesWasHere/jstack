@@ -57,6 +57,16 @@ LONG = {
     "test_today_s_code_holds_every_rule_but_the_ones_it_breaks": (
         TLC + ", once with the rules the code breaks left out and once for each of those alone"
     ),
+    **{
+        f"features/jgauge/tests/test_test_slot_spec.py::{name}": TLC
+        for name in (
+            "test_a_dead_holder_whose_pid_is_taken_reads_as_running",
+            "test_a_killed_test_slot_takes_its_command_with_it_today",
+            "test_each_of_today_s_faults_breaks_its_rule",
+            "test_the_mode_that_passes_holds_every_rule",
+            "test_today_s_code_loses_a_ledger_write",
+        )
+    },
     "features/jmerge/tests/test_pr_verdict_spec.py::test_the_run_says_what_it_should": TLC,
     "features/jmerge/tests/test_flow_spec.py::"
     "test_today_and_the_design_hold_their_rules_and_each_canary_breaks_its_own": (
@@ -80,16 +90,6 @@ LONG = {
     "test_the_output_folder_model_keeps_every_rule_and_breaks_one_without_each_guard": (
         "the output folder model under TLC whole and once without each guard: 75 s in part 8 "
         "of #1691's check (job 130776916641)"
-    ),
-    "features/skill-library/tests/test_statechart_venv.py::"
-    "test_a_removed_second_checkout_leaves_the_first_checkouts_redraw_working": (
-        "a uv sync of two checkouts into one venv, then a from-spec run, a TLC run, for each "
-        "redraw command the skill and the spec READMEs state"
-    ),
-    "features/skill-library/tests/test_statechart_venv.py::"
-    "test_a_redraw_whose_jgauge_cannot_import_prints_the_re_sync_that_mends_it": (
-        "a uv sync of the venv, a redraw that fails, the re-sync it prints, and a from-spec "
-        "run, a TLC run"
     ),
     "features/skill-library/tests/test_statechart_specs.py::"
     "test_from_spec_against_compares_the_code_with_the_spec_and_expect_broken_sets_the_exit": (
