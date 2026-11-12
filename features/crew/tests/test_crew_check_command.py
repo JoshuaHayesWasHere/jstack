@@ -57,6 +57,7 @@ def checked(tmp_path, command, limit=60, heading="Do the task", then=None, tools
         env={
             **os.environ,
             "HOME": str(home),
+            "JGAUGE_LOCKS_DIR": str(home / ".local" / "state" / "locks"),
             "TEST_SLOTS": "3",
             "PATH": f"{stub}:{room.BIN}:{tools or os.environ['PATH']}",
             "T": str(assembled() / "templates"),
@@ -204,6 +205,7 @@ def slot_script(text, home):
         env={
             **os.environ,
             "HOME": str(home),
+            "JGAUGE_LOCKS_DIR": str(home / ".local" / "state" / "locks"),
             "TEST_SLOTS": "3",
             "PATH": f"{home.parent / 'stub'}:{room.BIN}:{os.environ['PATH']}",
             "T": str(assembled() / "templates"),
@@ -286,6 +288,7 @@ def test_a_targeted_run_takes_the_short_lane_and_never_waits_on_a_full_suite(tmp
             env={
                 **os.environ,
                 "HOME": str(home),
+                "JGAUGE_LOCKS_DIR": str(home / ".local" / "state" / "locks"),
                 "PATH": f"{stub}:{room.BIN}:{os.environ['PATH']}",
                 "T": str(assembled() / "templates"),
             },
