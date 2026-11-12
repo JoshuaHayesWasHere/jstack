@@ -14,7 +14,7 @@ The root owns no row: what a retired child had out is the catch-all's, `uncatego
 ## Check the rules
 
 ```sh
-python3 features/home/spec/canaries.py
+uv run python features/home/spec/canaries.py
 ```
 
 Run it from the repo root.

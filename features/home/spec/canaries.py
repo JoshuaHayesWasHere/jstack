@@ -2,7 +2,7 @@
 canary (today's code with one guard taken out) breaks the rule that rests on that guard. Run it
 from the repo root:
 
-    python3 features/home/spec/canaries.py
+    uv run python features/home/spec/canaries.py
 
 It prints one line for each run and ends 0 when every run says what it should. TLC comes from the
 statechart skill's pinned tla2tools.jar, downloaded to the cache on the first run, and Java from

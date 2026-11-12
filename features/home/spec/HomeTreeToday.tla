@@ -1,5 +1,5 @@
 ---- MODULE HomeTreeToday ----
-\* Today's code, as of main 21112eba8 (2026-11-10): the branch hometree-rules gave main 64859143
+\* Today's code, last read against it at 228c1436c (2026-11-11): the branch hometree-rules gave main 64859143
 \* the four guards of the design, and its cites follow the code since. A child home is a scoped home (home/scoped-homes.md), the root is the repo's root
 \* home, and jbus's pass is the root's check. Each condition of a step names the file that
 \* checks it, and quotes the code there in backticks, with no line number: jbus/ is features/jbus/src/jbus/,
@@ -74,14 +74,19 @@ CrewEnds(k) ==
     /\ UNCHANGED <<keeper, starts, failed, launches, life, msg, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
 \* A gate or an item for Josh is an open item of the one list, raised once: its key is in sent.json
 \* from then on, so it is never raised again (jbus/wake.py `return False
-\* _write_sent(self.state / SENT, (*sent.keys, key))`). A new call is a change in what the child has out, so its spell
-\* ends.
+\* _write_sent(self.state / SENT, (*sent.keys, key))`). A call is no change in what the child has
+\* out, since the watch leaves calls out of the spell's signature (jbus/children.py
+\* `if not line.startswith(USERS)`): it is a write of the child's home thread, which ends the spell
+\* only before the root nudged it.
 RaiseCall(c) ==
+    LET k == OwnerOf[c] IN
     /\ c \in Raised
-    /\ life[OwnerOf[c]] = "working"     \* jbus/mirror.py `for file in gate_files(home):`
-    /\ msg[c] = "none" /\ msg' = Set(Calmed(OwnerOf[c], msg), c, "home")     \* jbus/wakes.py `new = pick(items, seen, thread)`
-    /\ quiet' = Set(quiet, OwnerOf[c], 0) /\ watch' = Set(watch, OwnerOf[c], "calm")
-    /\ UNCHANGED <<keeper, starts, failed, launches, life, work, up, broke, tip, seen, blind, lock, mode>>
+    /\ life[k] = "working"     \* jbus/mirror.py `for file in gate_files(home):`
+    /\ msg[c] = "none"     \* jbus/wakes.py `new = pick(items, seen, thread)`
+    /\ IF watch[k] = "calm"     \* jbus/children.py `or (one.get("id") == thread and step == "calm")`
+       THEN quiet' = Set(quiet, k, 0) /\ msg' = Set(Calmed(k, msg), c, "home")
+       ELSE quiet' = quiet /\ msg' = Set(msg, c, "home")
+    /\ UNCHANGED <<keeper, starts, failed, launches, life, work, watch, up, broke, tip, seen, blind, lock, mode>>
 \* The child does something jbus can see: a write of one of its threads, a commit, a push.
 Activity(k) ==
     /\ life[k] = "working"     \* jbus/live.py `if facts.silent < QUIET_MINUTES:`
