@@ -6,9 +6,10 @@ The replay: #1702 merged at 01:16Z on 2026-11-12 with
 `test_each_state_but_a_final_one_shows_an_arrow_out_that_says_who_takes_it`, and #1711, #1712,
 #1713 and #1716, each open with a new statechart whose drawing has a state with no arrow out,
 went red on it within the half hour. Here each is a pull request of the same shape, against a
-real origin and the fake `gh` of `test_jmerge_fresh.Kitchen`, run through the `jmerge` command:
-the rule is a pytest file over each chart's `summary.json`, and the four add a chart with a
-waiting state and no way out of it, as their models did."""
+real origin and the fake `gh` of `test_jmerge_fresh.Kitchen`, run through the `jmerge` command
+(`jmerge.cli`, whose judging asks the preflight last): the rule is a pytest file over each
+chart's `summary.json`, and the four add a chart with a waiting state and no way out of it, as
+their models did."""
 
 import json
 import sys
