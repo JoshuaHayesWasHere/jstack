@@ -50,7 +50,7 @@
   "classes": [],
   "codeLike": [],
   "drawnFrom": {
-    "command": "statechart from-spec MainFix.tla --config MainFix.chart.cfg --title 'Main went red: what has jbus filed when a pass dies?' --png",
+    "command": "statechart from-spec MainFix.tla --config MainFix.chart.cfg --title 'Main went red: what has jbus filed when a pass dies?'",
     "inputs": {
       "MainFix.chart.cfg": "e66af407597e529064e137a9d3e1d0bddf4be5145bb84ed6cedcb3fd1f4f7f56",
       "MainFix.map.py": "371f57b39d0109fe43245af8b1f632d98dc44156dbc63c9f49607bdf48b9bfa2",
