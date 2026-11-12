@@ -65,8 +65,6 @@ def flakes(lines: list[dict[str, Any]]) -> dict[str, list[Seen]]:
         if "verdict" not in first or "after" not in first or first.get("sha") not in unfixed:
             continue
         opened = mainmoved.spell(lines, str(first["after"]))
-        if opened[0] is not first:
-            continue
         red = (datetime.fromisoformat(str(first["at"])), str(first["sha"]))
         tests = {test_of(str(failed)) for one in opened for failed in one.get("failed") or []}
         for test in tests:
