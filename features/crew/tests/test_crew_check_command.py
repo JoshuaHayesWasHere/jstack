@@ -9,6 +9,7 @@ import shlex
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
@@ -480,9 +481,11 @@ def test_a_change_runs_the_lint_each_touched_test_and_each_test_that_reads_it_in
         test.write("\n# A line the test adds.\n")
     git(repo, "commit", "-qam", "a change to an expert doc and a crew test")
     brief = a_brief(tmp_path)
-    said, code, ran, base = selected(tmp_path, repo)
-    guards = guarded(repo, base)
-    steps = named(repo, base)
+    base = git(repo, "merge-base", "origin/main", "HEAD")
+    with ThreadPoolExecutor() as pool:
+        guarding, naming = pool.submit(guarded, repo, base), pool.submit(named, repo, base)
+        said, code, ran, _ = selected(tmp_path, repo)
+    guards, steps = guarding.result(), naming.result()
     reads = [one for step in steps for one in step]
     assert len(ran) <= 60, (
         f"the block ran {len(ran)} steps, each a real short-lane call: past 60 the test nears "
