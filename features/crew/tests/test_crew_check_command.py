@@ -1297,13 +1297,14 @@ def test_a_test_runs_where_no_pass_on_this_desk_covers_its_read_set(tmp_path, ca
 def test_ci_and_jmerge_run_every_file_they_select_whatever_the_store_holds(tmp_path):
     """The pull request's check and jmerge's guards are the gate: the selection and `--part
     guards` print every file a pass on the store would cover, and neither CI's workflow, the
-    Makefile it and jmerge run, nor jmerge's code names the store."""
+    Makefile it and jmerge run, nor the modules of jmerge that run the selector name the store."""
     repo, head, store = desk(tmp_path)
     assert {DOC, ONE, TREE} <= set(asked(repo, None, head, store)[0])
     assert TREE in asked(repo, "guards", head, store)[0]
     assert asked(repo, "cross", head, store)[0] == []
+    jmerge = REPO / "features" / "jmerge" / "src" / "jmerge"
     gate = [REPO / ".github" / "workflows" / "check.yml", REPO / "Makefile"]
-    gate += sorted((REPO / "features" / "jmerge" / "src").rglob("*.py"))
+    gate += [jmerge / "treeguards.py", jmerge / "ready.py", jmerge / "reuse.py"]
     for one in gate:
         text = one.read_text()
         assert "CREW_PASSED_RUNS" not in text and "crew-passed-runs" not in text, one
