@@ -602,6 +602,8 @@ def test_a_line_that_names_only_tests_a_moved_pull_request_no_longer_changes_cou
     earlier = "e" * 40
     text = result(proved(head=earlier))
     assert ready.short_on_proved(text, one("Makefile")) == ""
+    assert not ready.proves(text, one("Makefile"))
+    assert ready.proves(text, one("Makefile", TEST), lambda at: at == earlier)
     assert ready.short_on_proved(text, one("Makefile", TEST)) == ready.PROVED_STALE.format(
         at=earlier[:12], head=HEAD[:12]
     )

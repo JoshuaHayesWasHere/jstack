@@ -1071,6 +1071,28 @@ def changed_code(
     )
 
 
+def _unproved(one: PullRequest) -> tuple[str, ...]:
+    """The files that need a `Proved:` line: the tests the pull request changes, and the fork
+    patches it adds or changes."""
+    gone = set(one.removed)
+    fork = tuple(
+        path
+        for path in one.files
+        if path not in gone and proved.FORK_FILE.search(path) and path.endswith(".patch")
+    )
+    return (*changed_tests(one), *fork)
+
+
+def _line(text: str, one: PullRequest) -> proved.Proved | None:
+    """The brief's last `Proved:` line as it counts for the pull request: none where it has none,
+    and none where it names tests and the pull request changes no test and no fork patch, as a
+    moved link's line of a head that still carried the link below it does."""
+    said = proved.proved(text)
+    if said is not None and said.tests and not said.fault and not _unproved(one):
+        return None
+    return said
+
+
 def short_on_proved(
     text: str,
     one: PullRequest,
@@ -1107,15 +1129,9 @@ def short_on_proved(
     as a stacked link's head that carried the link below it, before jbus moved it onto main, and
     no line the proof block writes binds the head that is left."""
     tests = changed_tests(one)
-    gone = set(one.removed)
-    fork = [
-        path
-        for path in one.files
-        if path not in gone and proved.FORK_FILE.search(path) and path.endswith(".patch")
-    ]
-    unproved = (*tests, *fork)
-    said = proved.proved(text)
-    if said is None or (not unproved and said.tests and not said.fault):
+    said = _line(text, one)
+    if said is None:
+        unproved = _unproved(one)
         return PROVED_MISSING.format(tests=", ".join(unproved)) if unproved else ""
     if said.fault:
         return PROVED_UNREAD.format(fault=said.fault)
@@ -1160,8 +1176,9 @@ def proves(
     fork_tests: Callable[[str], bool] = lambda path: False,
 ) -> bool:
     """Whether the brief has a `Proved:` line and it holds at the pull request's head
-    (`short_on_proved`): a fix whose line holds merges with no scoped review of it."""
-    return proved.proved(text) is not None and not short_on_proved(
+    (`short_on_proved`): a fix whose line holds merges with no scoped review of it. A line that
+    counts as none for it (`_line`) proves nothing of the fix."""
+    return _line(text, one) is not None and not short_on_proved(
         text, one, carries, prose, fork_tests
     )
 
