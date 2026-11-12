@@ -268,163 +268,11 @@
       "lineHeight": 1.25
     },
     {
-      "id": "state-legend-legendGroup3",
-      "type": "rectangle",
-      "x": 878,
-      "y": 115.0,
-      "width": 128,
-      "height": 44,
-      "angle": 0,
-      "strokeColor": "#7d6e6c",
-      "backgroundColor": "#fadbd8",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-legend",
-      "roundness": {
-        "type": 3
-      },
-      "seed": 3708512677,
-      "version": 1,
-      "versionNonce": 4018558091,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "state-legend-legendGroup3-text",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "customData": {
-        "statechart": {
-          "kind": "legend",
-          "id": "legend-legendGroup3"
-        }
-      }
-    },
-    {
-      "id": "state-legend-legendGroup3-text",
-      "type": "text",
-      "x": 894.0,
-      "y": 127.0,
-      "width": 96.0,
-      "height": 20.0,
-      "angle": 0,
-      "strokeColor": "#1b2631",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-legend",
-      "roundness": null,
-      "seed": 597072047,
-      "version": 1,
-      "versionNonce": 3409537443,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "Lines lost",
-      "originalText": "Lines lost",
-      "fontSize": 16,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "state-legend-legendGroup3",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "state-legend-legendWrong",
-      "type": "rectangle",
-      "x": 1042,
-      "y": 115.0,
-      "width": 157,
-      "height": 44,
-      "angle": 0,
-      "strokeColor": "#c0392b",
-      "backgroundColor": "#f4f6f7",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-legend",
-      "roundness": {
-        "type": 3
-      },
-      "seed": 1132119461,
-      "version": 1,
-      "versionNonce": 2120184863,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "state-legend-legendWrong-text",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "customData": {
-        "statechart": {
-          "kind": "legend",
-          "id": "legend-legendWrong"
-        }
-      }
-    },
-    {
-      "id": "state-legend-legendWrong-text",
-      "type": "text",
-      "x": 1058.1,
-      "y": 127.0,
-      "width": 124.8,
-      "height": 20.0,
-      "angle": 0,
-      "strokeColor": "#7b241c",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-legend",
-      "roundness": null,
-      "seed": 2665126881,
-      "version": 1,
-      "versionNonce": 2777674409,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "Breaks a rule",
-      "originalText": "Breaks a rule",
-      "fontSize": 16,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "state-legend-legendWrong",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
       "id": "frame-legend",
       "type": "frame",
       "x": 0,
       "y": 75.0,
-      "width": 1239,
+      "width": 882,
       "height": 124,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -450,7 +298,7 @@
     {
       "id": "state-*start0",
       "type": "ellipse",
-      "x": 346.29,
+      "x": 232.79,
       "y": 299.0,
       "width": 22,
       "height": 22,
@@ -488,13 +336,13 @@
     {
       "id": "state-r0s0",
       "type": "rectangle",
-      "x": 161.89,
-      "y": 765.5,
-      "width": 262,
-      "height": 64,
+      "x": 40.0,
+      "y": 703.0,
+      "width": 282,
+      "height": 84,
       "angle": 0,
-      "strokeColor": "#75797c",
-      "backgroundColor": "#eaf2f8",
+      "strokeColor": "#566573",
+      "backgroundColor": "#f4f6f7",
       "fillStyle": "solid",
       "strokeWidth": 1,
       "strokeStyle": "solid",
@@ -523,7 +371,7 @@
           "type": "arrow"
         },
         {
-          "id": "step6",
+          "id": "step4",
           "type": "arrow"
         }
       ],
@@ -540,10 +388,10 @@
     {
       "id": "state-r0s0-text",
       "type": "text",
-      "x": 177.69,
-      "y": 777.5,
-      "width": 230.4,
-      "height": 40.0,
+      "x": 56.2,
+      "y": 715.0,
+      "width": 249.6,
+      "height": 60.0,
       "angle": 0,
       "strokeColor": "#1b2631",
       "backgroundColor": "transparent",
@@ -563,8 +411,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "A pass holds a record it\nhas not sent",
-      "originalText": "A pass holds a record it\nhas not sent",
+      "text": "A pass moved a stale stamp\naside and has not told of\nits run",
+      "originalText": "A pass moved a stale stamp\naside and has not told of\nits run",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -576,8 +424,8 @@
     {
       "id": "state-r0s1",
       "type": "rectangle",
-      "x": 741.63,
-      "y": 755.5,
+      "x": 169.12,
+      "y": 882.0,
       "width": 282,
       "height": 84,
       "angle": 0,
@@ -603,11 +451,11 @@
           "type": "text"
         },
         {
-          "id": "step3",
+          "id": "step2",
           "type": "arrow"
         },
         {
-          "id": "step5",
+          "id": "step3",
           "type": "arrow"
         }
       ],
@@ -624,8 +472,8 @@
     {
       "id": "state-r0s1-text",
       "type": "text",
-      "x": 757.83,
-      "y": 767.5,
+      "x": 185.32,
+      "y": 894.0,
       "width": 249.6,
       "height": 60.0,
       "angle": 0,
@@ -647,8 +495,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "A pass moved a stale stamp\naside and has not told of\nits run",
-      "originalText": "A pass moved a stale stamp\naside and has not told of\nits run",
+      "text": "A pass told of a run that\nleft no record and has not\ncleared it",
+      "originalText": "A pass told of a run that\nleft no record and has not\ncleared it",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -660,10 +508,10 @@
     {
       "id": "state-r0s2",
       "type": "rectangle",
-      "x": 548.44,
-      "y": 934.5,
-      "width": 282,
-      "height": 84,
+      "x": 200.56,
+      "y": 389.0,
+      "width": 166,
+      "height": 44,
       "angle": 0,
       "strokeColor": "#566573",
       "backgroundColor": "#f4f6f7",
@@ -687,6 +535,14 @@
           "type": "text"
         },
         {
+          "id": "step0",
+          "type": "arrow"
+        },
+        {
+          "id": "step1",
+          "type": "arrow"
+        },
+        {
           "id": "step3",
           "type": "arrow"
         },
@@ -708,10 +564,10 @@
     {
       "id": "state-r0s2-text",
       "type": "text",
-      "x": 564.64,
-      "y": 946.5,
-      "width": 249.6,
-      "height": 60.0,
+      "x": 216.36,
+      "y": 401.0,
+      "width": 134.4,
+      "height": 20.0,
       "angle": 0,
       "strokeColor": "#1b2631",
       "backgroundColor": "transparent",
@@ -731,8 +587,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "A pass told of a run that\nleft no record and has not\ncleared it",
-      "originalText": "A pass told of a run that\nleft no record and has not\ncleared it",
+      "text": "Between passes",
+      "originalText": "Between passes",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -742,112 +598,12 @@
       "lineHeight": 1.25
     },
     {
-      "id": "state-r0s3",
-      "type": "rectangle",
-      "x": 391.81,
-      "y": 389.0,
-      "width": 166,
-      "height": 44,
-      "angle": 0,
-      "strokeColor": "#566573",
-      "backgroundColor": "#f4f6f7",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions0",
-      "roundness": {
-        "type": 3
-      },
-      "seed": 1747592145,
-      "version": 1,
-      "versionNonce": 3060641556,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "state-r0s3-text",
-          "type": "text"
-        },
-        {
-          "id": "step0",
-          "type": "arrow"
-        },
-        {
-          "id": "step1",
-          "type": "arrow"
-        },
-        {
-          "id": "step2",
-          "type": "arrow"
-        },
-        {
-          "id": "step4",
-          "type": "arrow"
-        },
-        {
-          "id": "step5",
-          "type": "arrow"
-        },
-        {
-          "id": "step6",
-          "type": "arrow"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "customData": {
-        "statechart": {
-          "kind": "state",
-          "id": "r0s3"
-        }
-      }
-    },
-    {
-      "id": "state-r0s3-text",
-      "type": "text",
-      "x": 407.61,
-      "y": 401.0,
-      "width": 134.4,
-      "height": 20.0,
-      "angle": 0,
-      "strokeColor": "#1b2631",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions0",
-      "roundness": null,
-      "seed": 2068844755,
-      "version": 1,
-      "versionNonce": 130453912,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "Between passes",
-      "originalText": "Between passes",
-      "fontSize": 16,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "state-r0s3",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
       "id": "step0",
       "type": "arrow",
-      "x": 364.29,
-      "y": 318.49,
-      "width": 78.92,
-      "height": 70.51,
+      "x": 246.89,
+      "y": 320.56,
+      "width": 26.23,
+      "height": 68.44,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -875,12 +631,12 @@
           0.0
         ],
         [
-          30.08,
-          36.51
+          10.1,
+          34.44
         ],
         [
-          78.92,
-          70.51
+          26.23,
+          68.44
         ]
       ],
       "lastCommittedPoint": null,
@@ -891,7 +647,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r0s3",
+        "elementId": "state-r0s2",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -903,17 +659,17 @@
         "statechart": {
           "kind": "step",
           "from": "*start0",
-          "to": "r0s3"
+          "to": "r0s2"
         }
       }
     },
     {
       "id": "step1",
       "type": "arrow",
-      "x": 262.3,
-      "y": 765.5,
-      "width": 331.04,
-      "height": 332.5,
+      "x": 161.69,
+      "y": 703.0,
+      "width": 158.18,
+      "height": 270.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -946,12 +702,12 @@
           0.0
         ],
         [
-          -163.7,
-          -171.25
+          -62.08,
+          -135.0
         ],
         [
-          167.34,
-          -332.5
+          96.1,
+          -270.0
         ]
       ],
       "lastCommittedPoint": null,
@@ -962,7 +718,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r0s3",
+        "elementId": "state-r0s2",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -974,15 +730,15 @@
         "statechart": {
           "kind": "step",
           "from": "r0s0",
-          "to": "r0s3"
+          "to": "r0s2"
         }
       }
     },
     {
       "id": "step1-label",
       "type": "text",
-      "x": 44.0,
-      "y": 585.5,
+      "x": 45.0,
+      "y": 559.25,
       "width": 109.2,
       "height": 17.5,
       "angle": 0,
@@ -1017,10 +773,10 @@
     {
       "id": "step2",
       "type": "arrow",
-      "x": 295.68,
-      "y": 765.5,
-      "width": 159.41,
-      "height": 332.5,
+      "x": 205.65,
+      "y": 787.0,
+      "width": 68.53,
+      "height": 95.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -1053,12 +809,12 @@
           0.0
         ],
         [
-          14.92,
-          -171.25
+          27.87,
+          47.5
         ],
         [
-          159.41,
-          -332.5
+          68.53,
+          95.0
         ]
       ],
       "lastCommittedPoint": null,
@@ -1069,7 +825,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r0s3",
+        "elementId": "state-r0s1",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -1081,16 +837,16 @@
         "statechart": {
           "kind": "step",
           "from": "r0s0",
-          "to": "r0s3"
+          "to": "r0s1"
         }
       }
     },
     {
       "id": "step2-label",
       "type": "text",
-      "x": 197.2,
-      "y": 576.75,
-      "width": 226.8,
+      "x": 124.32,
+      "y": 817.0,
+      "width": 218.4,
       "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -1111,8 +867,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the pass sends the record's\nlines",
-      "originalText": "the pass sends the record's\nlines",
+      "text": "the pass says the last run\nended with no record",
+      "originalText": "the pass says the last run\nended with no record",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -1124,10 +880,10 @@
     {
       "id": "step3",
       "type": "arrow",
-      "x": 825.53,
-      "y": 839.5,
-      "width": 102.53,
-      "height": 95.0,
+      "x": 346.06,
+      "y": 882.0,
+      "width": 181.12,
+      "height": 449.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -1160,12 +916,20 @@
           0.0
         ],
         [
-          -64.58,
-          47.5
+          40.65,
+          -47.5
         ],
         [
-          -102.53,
-          95.0
+          120.94,
+          -137.0
+        ],
+        [
+          148.14,
+          -314.0
+        ],
+        [
+          -32.98,
+          -449.0
         ]
       ],
       "lastCommittedPoint": null,
@@ -1195,9 +959,9 @@
     {
       "id": "step3-label",
       "type": "text",
-      "x": 651.74,
-      "y": 869.5,
-      "width": 218.4,
+      "x": 362.0,
+      "y": 727.5,
+      "width": 210.0,
       "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -1218,8 +982,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the pass says the last run\nended with no record",
-      "originalText": "the pass says the last run\nended with no record",
+      "text": "the pass clears the stale\nstamp it told of",
+      "originalText": "the pass clears the stale\nstamp it told of",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -1231,10 +995,10 @@
     {
       "id": "step4",
       "type": "arrow",
-      "x": 655.89,
-      "y": 934.5,
-      "width": 254.48,
-      "height": 501.5,
+      "x": 289.26,
+      "y": 433.0,
+      "width": 109.22,
+      "height": 270.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -1267,20 +1031,12 @@
           0.0
         ],
         [
-          -37.95,
-          -47.5
+          34.94,
+          135.0
         ],
         [
-          -59.26,
-          -137.0
-        ],
-        [
-          108.11,
-          -340.25
-        ],
-        [
-          -146.37,
-          -501.5
+          -74.28,
+          270.0
         ]
       ],
       "lastCommittedPoint": null,
@@ -1291,7 +1047,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r0s3",
+        "elementId": "state-r0s0",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -1303,17 +1059,17 @@
         "statechart": {
           "kind": "step",
           "from": "r0s2",
-          "to": "r0s3"
+          "to": "r0s0"
         }
       }
     },
     {
       "id": "step4-label",
       "type": "text",
-      "x": 491.63,
-      "y": 780.0,
-      "width": 210.0,
-      "height": 35.0,
+      "x": 198.2,
+      "y": 463.0,
+      "width": 252.0,
+      "height": 210.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -1333,8 +1089,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the pass clears the stale\nstamp it told of",
-      "originalText": "the pass clears the stale\nstamp it told of",
+      "text": "a pass looks at the runs\nfolder [when a run is out, a\nrun was said to have left no\nrecord or a run is out, a\nstart stamp past a minute, no\nrecord yet or a run is out, no\nrecord yet or no run out, a\nrun was said to have left no\nrecord or no run out, a start\nstamp past a minute, no record\nyet or no run out, no record\nyet]",
+      "originalText": "a pass looks at the runs\nfolder [when a run is out, a\nrun was said to have left no\nrecord or a run is out, a\nstart stamp past a minute, no\nrecord yet or a run is out, no\nrecord yet or no run out, a\nrun was said to have left no\nrecord or no run out, a start\nstamp past a minute, no record\nyet or no run out, no record\nyet]",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -1344,226 +1100,12 @@
       "lineHeight": 1.25
     },
     {
-      "id": "step5",
-      "type": "arrow",
-      "x": 527.77,
-      "y": 433.0,
-      "width": 388.23,
-      "height": 322.5,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions0",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 2879254231,
-      "version": 1,
-      "versionNonce": 1660763737,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step5-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          388.23,
-          161.25
-        ],
-        [
-          361.75,
-          322.5
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r0s3",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r0s1",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r0s3",
-          "to": "r0s1"
-        }
-      }
-    },
-    {
-      "id": "step5-label",
-      "type": "text",
-      "x": 790.0,
-      "y": 489.25,
-      "width": 252.0,
-      "height": 210.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions0",
-      "roundness": null,
-      "seed": 3232616047,
-      "version": 1,
-      "versionNonce": 3775683621,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "a pass looks at the runs\nfolder [when a run is out, a\nrun was said to have left no\nrecord or a run is out, a\nstart stamp past a minute, no\nrecord yet or a run is out, no\nrecord yet or no run out, a\nrun was said to have left no\nrecord or no run out, a start\nstamp past a minute, no record\nyet or no run out, no record\nyet]",
-      "originalText": "a pass looks at the runs\nfolder [when a run is out, a\nrun was said to have left no\nrecord or a run is out, a\nstart stamp past a minute, no\nrecord yet or a run is out, no\nrecord yet or no run out, a\nrun was said to have left no\nrecord or no run out, a start\nstamp past a minute, no record\nyet or no run out, no record\nyet]",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step5",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step6",
-      "type": "arrow",
-      "x": 489.12,
-      "y": 433.0,
-      "width": 253.7,
-      "height": 332.5,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions0",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 848609133,
-      "version": 1,
-      "versionNonce": 1393894596,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step6-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          104.88,
-          161.25
-        ],
-        [
-          -148.82,
-          332.5
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r0s3",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r0s0",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r0s3",
-          "to": "r0s0"
-        }
-      }
-    },
-    {
-      "id": "step6-label",
-      "type": "text",
-      "x": 468.0,
-      "y": 463.0,
-      "width": 252.0,
-      "height": 262.5,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions0",
-      "roundness": null,
-      "seed": 4047885554,
-      "version": 1,
-      "versionNonce": 1556492523,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "the pass takes the oldest\nunread record [when a run is\nout, a start stamp past a\nminute, a record waits for the\nnext pass or a run is out, a\nstart stamp under a minute\nold, a record waits for the\nnext pass or no run out, a\nrecord waits for the next pass\nor no run out, a start stamp\npast a minute, a record waits\nfor the next pass or no run\nout, a start stamp under a\nminute old, a record waits for\nthe next pass]",
-      "originalText": "the pass takes the oldest\nunread record [when a run is\nout, a start stamp past a\nminute, a record waits for the\nnext pass or a run is out, a\nstart stamp under a minute\nold, a record waits for the\nnext pass or no run out, a\nrecord waits for the next pass\nor no run out, a start stamp\npast a minute, a record waits\nfor the next pass or no run\nout, a start stamp under a\nminute old, a record waits for\nthe next pass]",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step6",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
       "id": "frame-regions0",
       "type": "frame",
       "x": 0.0,
       "y": 259.0,
-      "width": 1086,
-      "height": 800,
+      "width": 616,
+      "height": 747,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -1588,7 +1130,7 @@
     {
       "id": "state-*start1",
       "type": "ellipse",
-      "x": 2012.39,
+      "x": 1235.31,
       "y": 299.0,
       "width": 22,
       "height": 22,
@@ -1609,7 +1151,7 @@
       "isDeleted": false,
       "boundElements": [
         {
-          "id": "step7",
+          "id": "step5",
           "type": "arrow"
         }
       ],
@@ -1626,8 +1168,8 @@
     {
       "id": "state-r1s0",
       "type": "rectangle",
-      "x": 1525.75,
-      "y": 1311.5,
+      "x": 889.4,
+      "y": 1301.5,
       "width": 253,
       "height": 84,
       "angle": 0,
@@ -1653,11 +1195,11 @@
           "type": "text"
         },
         {
-          "id": "step8",
+          "id": "step6",
           "type": "arrow"
         },
         {
-          "id": "step32",
+          "id": "step19",
           "type": "arrow"
         }
       ],
@@ -1674,8 +1216,8 @@
     {
       "id": "state-r1s0-text",
       "type": "text",
-      "x": 1541.85,
-      "y": 1323.5,
+      "x": 905.5,
+      "y": 1313.5,
       "width": 220.8,
       "height": 60.0,
       "angle": 0,
@@ -1710,7 +1252,7 @@
     {
       "id": "state-r1s1",
       "type": "rectangle",
-      "x": 2531.97,
+      "x": 1388.45,
       "y": 1067.5,
       "width": 272,
       "height": 104,
@@ -1737,15 +1279,15 @@
           "type": "text"
         },
         {
-          "id": "step9",
+          "id": "step7",
           "type": "arrow"
         },
         {
-          "id": "step10",
+          "id": "step8",
           "type": "arrow"
         },
         {
-          "id": "step17",
+          "id": "step11",
           "type": "arrow"
         }
       ],
@@ -1762,7 +1304,7 @@
     {
       "id": "state-r1s1-text",
       "type": "text",
-      "x": 2547.97,
+      "x": 1404.45,
       "y": 1079.5,
       "width": 240.0,
       "height": 80.0,
@@ -1798,13 +1340,13 @@
     {
       "id": "state-r1s2",
       "type": "rectangle",
-      "x": 1799.85,
-      "y": 1500.5,
-      "width": 243,
+      "x": 1230.94,
+      "y": 1301.5,
+      "width": 282,
       "height": 84,
       "angle": 0,
-      "strokeColor": "#c0392b",
-      "backgroundColor": "#fadbd8",
+      "strokeColor": "#52726c",
+      "backgroundColor": "#a3e4d7",
       "fillStyle": "solid",
       "strokeWidth": 1,
       "strokeStyle": "solid",
@@ -1825,11 +1367,11 @@
           "type": "text"
         },
         {
-          "id": "step11",
+          "id": "step7",
           "type": "arrow"
         },
         {
-          "id": "step13",
+          "id": "step9",
           "type": "arrow"
         }
       ],
@@ -1846,12 +1388,12 @@
     {
       "id": "state-r1s2-text",
       "type": "text",
-      "x": 1815.75,
-      "y": 1512.5,
-      "width": 211.2,
+      "x": 1247.14,
+      "y": 1313.5,
+      "width": 249.6,
       "height": 60.0,
       "angle": 0,
-      "strokeColor": "#7b241c",
+      "strokeColor": "#1b2631",
       "backgroundColor": "transparent",
       "fillStyle": "solid",
       "strokeWidth": 1,
@@ -1869,8 +1411,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "a run is out, a start\nstamp past a minute, a\nrun's lines are lost",
-      "originalText": "a run is out, a start\nstamp past a minute, a\nrun's lines are lost",
+      "text": "a run is out, a start\nstamp past a minute, every\nrecord written was sent",
+      "originalText": "a run is out, a start\nstamp past a minute, every\nrecord written was sent",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -1882,9 +1424,9 @@
     {
       "id": "state-r1s3",
       "type": "rectangle",
-      "x": 2972.7,
-      "y": 1500.5,
-      "width": 282,
+      "x": 1363.01,
+      "y": 878.5,
+      "width": 253,
       "height": 84,
       "angle": 0,
       "strokeColor": "#52726c",
@@ -1909,11 +1451,15 @@
           "type": "text"
         },
         {
-          "id": "step12",
+          "id": "step10",
           "type": "arrow"
         },
         {
-          "id": "step14",
+          "id": "step11",
+          "type": "arrow"
+        },
+        {
+          "id": "step16",
           "type": "arrow"
         }
       ],
@@ -1930,9 +1476,9 @@
     {
       "id": "state-r1s3-text",
       "type": "text",
-      "x": 2988.9,
-      "y": 1512.5,
-      "width": 249.6,
+      "x": 1379.11,
+      "y": 890.5,
+      "width": 220.8,
       "height": 60.0,
       "angle": 0,
       "strokeColor": "#1b2631",
@@ -1953,8 +1499,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "a run is out, a start\nstamp past a minute, every\nrecord written was sent",
-      "originalText": "a run is out, a start\nstamp past a minute, every\nrecord written was sent",
+      "text": "a run is out, a start\nstamp past a minute, no\nrecord yet",
+      "originalText": "a run is out, a start\nstamp past a minute, no\nrecord yet",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -1966,10 +1512,10 @@
     {
       "id": "state-r1s4",
       "type": "rectangle",
-      "x": 2198.9,
-      "y": 1311.5,
-      "width": 262,
-      "height": 84,
+      "x": 1840.61,
+      "y": 868.5,
+      "width": 272,
+      "height": 104,
       "angle": 0,
       "strokeColor": "#75797c",
       "backgroundColor": "#eaf2f8",
@@ -1993,7 +1539,7 @@
           "type": "text"
         },
         {
-          "id": "step9",
+          "id": "step12",
           "type": "arrow"
         },
         {
@@ -2005,7 +1551,7 @@
           "type": "arrow"
         },
         {
-          "id": "step15",
+          "id": "step17",
           "type": "arrow"
         }
       ],
@@ -2022,10 +1568,10 @@
     {
       "id": "state-r1s4-text",
       "type": "text",
-      "x": 2214.7,
-      "y": 1323.5,
-      "width": 230.4,
-      "height": 60.0,
+      "x": 1856.61,
+      "y": 880.5,
+      "width": 240.0,
+      "height": 80.0,
       "angle": 0,
       "strokeColor": "#1b2631",
       "backgroundColor": "transparent",
@@ -2045,8 +1591,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "a run is out, a start\nstamp past a minute, its\nlines not yet sent",
-      "originalText": "a run is out, a start\nstamp past a minute, its\nlines not yet sent",
+      "text": "a run is out, a start\nstamp under a minute old,\na record waits for the\nnext pass",
+      "originalText": "a run is out, a start\nstamp under a minute old,\na record waits for the\nnext pass",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -2058,10 +1604,10 @@
     {
       "id": "state-r1s5",
       "type": "rectangle",
-      "x": 2237.2,
-      "y": 878.5,
-      "width": 253,
-      "height": 84,
+      "x": 2227.63,
+      "y": 1067.5,
+      "width": 272,
+      "height": 104,
       "angle": 0,
       "strokeColor": "#52726c",
       "backgroundColor": "#a3e4d7",
@@ -2085,15 +1631,11 @@
           "type": "text"
         },
         {
-          "id": "step16",
+          "id": "step12",
           "type": "arrow"
         },
         {
-          "id": "step17",
-          "type": "arrow"
-        },
-        {
-          "id": "step29",
+          "id": "step15",
           "type": "arrow"
         }
       ],
@@ -2110,10 +1652,10 @@
     {
       "id": "state-r1s5-text",
       "type": "text",
-      "x": 2253.3,
-      "y": 890.5,
-      "width": 220.8,
-      "height": 60.0,
+      "x": 2243.63,
+      "y": 1079.5,
+      "width": 240.0,
+      "height": 80.0,
       "angle": 0,
       "strokeColor": "#1b2631",
       "backgroundColor": "transparent",
@@ -2133,8 +1675,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "a run is out, a start\nstamp past a minute, no\nrecord yet",
-      "originalText": "a run is out, a start\nstamp past a minute, no\nrecord yet",
+      "text": "a run is out, a start\nstamp under a minute old,\nevery record written was\nsent",
+      "originalText": "a run is out, a start\nstamp under a minute old,\nevery record written was\nsent",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -2146,13 +1688,13 @@
     {
       "id": "state-r1s6",
       "type": "rectangle",
-      "x": 2946.41,
-      "y": 868.5,
+      "x": 1486.09,
+      "y": 707.0,
       "width": 272,
-      "height": 104,
+      "height": 84,
       "angle": 0,
-      "strokeColor": "#75797c",
-      "backgroundColor": "#eaf2f8",
+      "strokeColor": "#52726c",
+      "backgroundColor": "#a3e4d7",
       "fillStyle": "solid",
       "strokeWidth": 1,
       "strokeStyle": "solid",
@@ -2173,19 +1715,19 @@
           "type": "text"
         },
         {
+          "id": "step16",
+          "type": "arrow"
+        },
+        {
+          "id": "step17",
+          "type": "arrow"
+        },
+        {
           "id": "step18",
           "type": "arrow"
         },
         {
-          "id": "step19",
-          "type": "arrow"
-        },
-        {
-          "id": "step20",
-          "type": "arrow"
-        },
-        {
-          "id": "step30",
+          "id": "step29",
           "type": "arrow"
         }
       ],
@@ -2202,10 +1744,10 @@
     {
       "id": "state-r1s6-text",
       "type": "text",
-      "x": 2962.41,
-      "y": 880.5,
+      "x": 1502.09,
+      "y": 719.0,
       "width": 240.0,
-      "height": 80.0,
+      "height": 60.0,
       "angle": 0,
       "strokeColor": "#1b2631",
       "backgroundColor": "transparent",
@@ -2225,8 +1767,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "a run is out, a start\nstamp under a minute old,\na record waits for the\nnext pass",
-      "originalText": "a run is out, a start\nstamp under a minute old,\na record waits for the\nnext pass",
+      "text": "a run is out, a start\nstamp under a minute old,\nno record yet",
+      "originalText": "a run is out, a start\nstamp under a minute old,\nno record yet",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -2238,13 +1780,13 @@
     {
       "id": "state-r1s7",
       "type": "rectangle",
-      "x": 2496.9,
-      "y": 1311.5,
-      "width": 272,
-      "height": 84,
+      "x": 946.12,
+      "y": 1087.5,
+      "width": 253,
+      "height": 64,
       "angle": 0,
-      "strokeColor": "#c0392b",
-      "backgroundColor": "#fadbd8",
+      "strokeColor": "#52726c",
+      "backgroundColor": "#a3e4d7",
       "fillStyle": "solid",
       "strokeWidth": 1,
       "strokeStyle": "solid",
@@ -2265,15 +1807,15 @@
           "type": "text"
         },
         {
-          "id": "step21",
+          "id": "step10",
           "type": "arrow"
         },
         {
-          "id": "step22",
+          "id": "step19",
           "type": "arrow"
         },
         {
-          "id": "step25",
+          "id": "step20",
           "type": "arrow"
         }
       ],
@@ -2290,12 +1832,12 @@
     {
       "id": "state-r1s7-text",
       "type": "text",
-      "x": 2512.9,
-      "y": 1323.5,
-      "width": 240.0,
-      "height": 60.0,
+      "x": 962.22,
+      "y": 1099.5,
+      "width": 220.8,
+      "height": 40.0,
       "angle": 0,
-      "strokeColor": "#7b241c",
+      "strokeColor": "#1b2631",
       "backgroundColor": "transparent",
       "fillStyle": "solid",
       "strokeWidth": 1,
@@ -2313,8 +1855,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "a run is out, a start\nstamp under a minute old,\na run's lines are lost",
-      "originalText": "a run is out, a start\nstamp under a minute old,\na run's lines are lost",
+      "text": "a run is out, no record\nyet",
+      "originalText": "a run is out, no record\nyet",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -2326,13 +1868,13 @@
     {
       "id": "state-r1s8",
       "type": "rectangle",
-      "x": 3632.14,
-      "y": 1301.5,
-      "width": 272,
-      "height": 104,
+      "x": 1590.51,
+      "y": 1490.5,
+      "width": 282,
+      "height": 64,
       "angle": 0,
-      "strokeColor": "#52726c",
-      "backgroundColor": "#a3e4d7",
+      "strokeColor": "#75797c",
+      "backgroundColor": "#eaf2f8",
       "fillStyle": "solid",
       "strokeWidth": 1,
       "strokeStyle": "solid",
@@ -2353,15 +1895,15 @@
           "type": "text"
         },
         {
+          "id": "step13",
+          "type": "arrow"
+        },
+        {
+          "id": "step21",
+          "type": "arrow"
+        },
+        {
           "id": "step23",
-          "type": "arrow"
-        },
-        {
-          "id": "step24",
-          "type": "arrow"
-        },
-        {
-          "id": "step26",
           "type": "arrow"
         }
       ],
@@ -2378,10 +1920,10 @@
     {
       "id": "state-r1s8-text",
       "type": "text",
-      "x": 3648.14,
-      "y": 1313.5,
-      "width": 240.0,
-      "height": 80.0,
+      "x": 1606.71,
+      "y": 1502.5,
+      "width": 249.6,
+      "height": 40.0,
       "angle": 0,
       "strokeColor": "#1b2631",
       "backgroundColor": "transparent",
@@ -2401,8 +1943,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "a run is out, a start\nstamp under a minute old,\nevery record written was\nsent",
-      "originalText": "a run is out, a start\nstamp under a minute old,\nevery record written was\nsent",
+      "text": "no run out, a record waits\nfor the next pass",
+      "originalText": "no run out, a record waits\nfor the next pass",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -2414,13 +1956,13 @@
     {
       "id": "state-r1s9",
       "type": "rectangle",
-      "x": 3191.05,
-      "y": 1077.5,
-      "width": 272,
-      "height": 84,
+      "x": 956.14,
+      "y": 1490.5,
+      "width": 282,
+      "height": 64,
       "angle": 0,
-      "strokeColor": "#75797c",
-      "backgroundColor": "#eaf2f8",
+      "strokeColor": "#697976",
+      "backgroundColor": "#d1f2eb",
       "fillStyle": "solid",
       "strokeWidth": 1,
       "strokeStyle": "solid",
@@ -2441,23 +1983,11 @@
           "type": "text"
         },
         {
-          "id": "step18",
+          "id": "step6",
           "type": "arrow"
         },
         {
-          "id": "step25",
-          "type": "arrow"
-        },
-        {
-          "id": "step26",
-          "type": "arrow"
-        },
-        {
-          "id": "step27",
-          "type": "arrow"
-        },
-        {
-          "id": "step28",
+          "id": "step30",
           "type": "arrow"
         }
       ],
@@ -2474,10 +2004,10 @@
     {
       "id": "state-r1s9-text",
       "type": "text",
-      "x": 3207.05,
-      "y": 1089.5,
-      "width": 240.0,
-      "height": 60.0,
+      "x": 972.34,
+      "y": 1502.5,
+      "width": 249.6,
+      "height": 40.0,
       "angle": 0,
       "strokeColor": "#1b2631",
       "backgroundColor": "transparent",
@@ -2497,8 +2027,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "a run is out, a start\nstamp under a minute old,\nits lines not yet sent",
-      "originalText": "a run is out, a start\nstamp under a minute old,\nits lines not yet sent",
+      "text": "no run out, a run was said\nto have left no record",
+      "originalText": "no run out, a run was said\nto have left no record",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -2510,13 +2040,13 @@
     {
       "id": "state-r1s10",
       "type": "rectangle",
-      "x": 2283.0,
-      "y": 707.0,
+      "x": 1568.89,
+      "y": 1301.5,
       "width": 272,
       "height": 84,
       "angle": 0,
-      "strokeColor": "#52726c",
-      "backgroundColor": "#a3e4d7",
+      "strokeColor": "#75797c",
+      "backgroundColor": "#eaf2f8",
       "fillStyle": "solid",
       "strokeWidth": 1,
       "strokeStyle": "solid",
@@ -2537,19 +2067,15 @@
           "type": "text"
         },
         {
-          "id": "step29",
+          "id": "step8",
           "type": "arrow"
         },
         {
-          "id": "step30",
+          "id": "step22",
           "type": "arrow"
         },
         {
-          "id": "step31",
-          "type": "arrow"
-        },
-        {
-          "id": "step47",
+          "id": "step23",
           "type": "arrow"
         }
       ],
@@ -2566,8 +2092,8 @@
     {
       "id": "state-r1s10-text",
       "type": "text",
-      "x": 2299.0,
-      "y": 719.0,
+      "x": 1584.89,
+      "y": 1313.5,
       "width": 240.0,
       "height": 60.0,
       "angle": 0,
@@ -2589,8 +2115,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "a run is out, a start\nstamp under a minute old,\nno record yet",
-      "originalText": "a run is out, a start\nstamp under a minute old,\nno record yet",
+      "text": "no run out, a start stamp\npast a minute, a record\nwaits for the next pass",
+      "originalText": "no run out, a start stamp\npast a minute, a record\nwaits for the next pass",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -2602,13 +2128,13 @@
     {
       "id": "state-r1s11",
       "type": "rectangle",
-      "x": 1892.9,
-      "y": 1087.5,
-      "width": 253,
-      "height": 64,
+      "x": 1918.48,
+      "y": 1480.5,
+      "width": 272,
+      "height": 84,
       "angle": 0,
-      "strokeColor": "#52726c",
-      "backgroundColor": "#a3e4d7",
+      "strokeColor": "#697976",
+      "backgroundColor": "#d1f2eb",
       "fillStyle": "solid",
       "strokeWidth": 1,
       "strokeStyle": "solid",
@@ -2629,11 +2155,15 @@
           "type": "text"
         },
         {
-          "id": "step16",
+          "id": "step22",
           "type": "arrow"
         },
         {
-          "id": "step32",
+          "id": "step24",
+          "type": "arrow"
+        },
+        {
+          "id": "step27",
           "type": "arrow"
         }
       ],
@@ -2650,10 +2180,10 @@
     {
       "id": "state-r1s11-text",
       "type": "text",
-      "x": 1909.0,
-      "y": 1099.5,
-      "width": 220.8,
-      "height": 40.0,
+      "x": 1934.48,
+      "y": 1492.5,
+      "width": 240.0,
+      "height": 60.0,
       "angle": 0,
       "strokeColor": "#1b2631",
       "backgroundColor": "transparent",
@@ -2673,8 +2203,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "a run is out, no record\nyet",
-      "originalText": "a run is out, no record\nyet",
+      "text": "no run out, a start stamp\npast a minute, every\nrecord written was sent",
+      "originalText": "no run out, a start stamp\npast a minute, every\nrecord written was sent",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -2686,13 +2216,13 @@
     {
       "id": "state-r1s12",
       "type": "rectangle",
-      "x": 3659.12,
-      "y": 1510.5,
-      "width": 282,
-      "height": 64,
+      "x": 1098.0,
+      "y": 707.0,
+      "width": 272,
+      "height": 84,
       "angle": 0,
-      "strokeColor": "#75797c",
-      "backgroundColor": "#eaf2f8",
+      "strokeColor": "#697976",
+      "backgroundColor": "#d1f2eb",
       "fillStyle": "solid",
       "strokeWidth": 1,
       "strokeStyle": "solid",
@@ -2713,15 +2243,11 @@
           "type": "text"
         },
         {
-          "id": "step19",
+          "id": "step25",
           "type": "arrow"
         },
         {
-          "id": "step33",
-          "type": "arrow"
-        },
-        {
-          "id": "step34",
+          "id": "step28",
           "type": "arrow"
         }
       ],
@@ -2738,10 +2264,10 @@
     {
       "id": "state-r1s12-text",
       "type": "text",
-      "x": 3675.32,
-      "y": 1522.5,
-      "width": 249.6,
-      "height": 40.0,
+      "x": 1114.0,
+      "y": 719.0,
+      "width": 240.0,
+      "height": 60.0,
       "angle": 0,
       "strokeColor": "#1b2631",
       "backgroundColor": "transparent",
@@ -2761,8 +2287,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "no run out, a record waits\nfor the next pass",
-      "originalText": "no run out, a record waits\nfor the next pass",
+      "text": "no run out, a start stamp\npast a minute, no record\nyet",
+      "originalText": "no run out, a start stamp\npast a minute, no record\nyet",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -2774,13 +2300,13 @@
     {
       "id": "state-r1s13",
       "type": "rectangle",
-      "x": 1246.0,
-      "y": 1510.5,
-      "width": 282,
-      "height": 64,
+      "x": 1919.63,
+      "y": 1067.5,
+      "width": 272,
+      "height": 104,
       "angle": 0,
-      "strokeColor": "#697976",
-      "backgroundColor": "#d1f2eb",
+      "strokeColor": "#75797c",
+      "backgroundColor": "#eaf2f8",
       "fillStyle": "solid",
       "strokeWidth": 1,
       "strokeStyle": "solid",
@@ -2801,11 +2327,11 @@
           "type": "text"
         },
         {
-          "id": "step8",
+          "id": "step14",
           "type": "arrow"
         },
         {
-          "id": "step50",
+          "id": "step26",
           "type": "arrow"
         }
       ],
@@ -2822,10 +2348,10 @@
     {
       "id": "state-r1s13-text",
       "type": "text",
-      "x": 1262.2,
-      "y": 1522.5,
-      "width": 249.6,
-      "height": 40.0,
+      "x": 1935.63,
+      "y": 1079.5,
+      "width": 240.0,
+      "height": 80.0,
       "angle": 0,
       "strokeColor": "#1b2631",
       "backgroundColor": "transparent",
@@ -2845,8 +2371,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "no run out, a run was said\nto have left no record",
-      "originalText": "no run out, a run was said\nto have left no record",
+      "text": "no run out, a start stamp\nunder a minute old, a\nrecord waits for the next\npass",
+      "originalText": "no run out, a start stamp\nunder a minute old, a\nrecord waits for the next\npass",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -2858,13 +2384,13 @@
     {
       "id": "state-r1s14",
       "type": "rectangle",
-      "x": 2622.72,
-      "y": 1858.5,
+      "x": 2051.56,
+      "y": 1301.5,
       "width": 272,
-      "height": 64,
+      "height": 84,
       "angle": 0,
-      "strokeColor": "#c0392b",
-      "backgroundColor": "#fadbd8",
+      "strokeColor": "#697976",
+      "backgroundColor": "#d1f2eb",
       "fillStyle": "solid",
       "strokeWidth": 1,
       "strokeStyle": "solid",
@@ -2885,15 +2411,11 @@
           "type": "text"
         },
         {
-          "id": "step21",
+          "id": "step26",
           "type": "arrow"
         },
         {
-          "id": "step36",
-          "type": "arrow"
-        },
-        {
-          "id": "step48",
+          "id": "step27",
           "type": "arrow"
         }
       ],
@@ -2910,12 +2432,12 @@
     {
       "id": "state-r1s14-text",
       "type": "text",
-      "x": 2638.72,
-      "y": 1870.5,
+      "x": 2067.56,
+      "y": 1313.5,
       "width": 240.0,
-      "height": 40.0,
+      "height": 60.0,
       "angle": 0,
-      "strokeColor": "#7b241c",
+      "strokeColor": "#1b2631",
       "backgroundColor": "transparent",
       "fillStyle": "solid",
       "strokeWidth": 1,
@@ -2933,8 +2455,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "no run out, a run's lines\nare lost",
-      "originalText": "no run out, a run's lines\nare lost",
+      "text": "no run out, a start stamp\nunder a minute old, every\nrecord written was sent",
+      "originalText": "no run out, a start stamp\nunder a minute old, every\nrecord written was sent",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -2946,13 +2468,13 @@
     {
       "id": "state-r1s15",
       "type": "rectangle",
-      "x": 3174.13,
-      "y": 1311.5,
+      "x": 1330.46,
+      "y": 528.0,
       "width": 272,
       "height": 84,
       "angle": 0,
-      "strokeColor": "#75797c",
-      "backgroundColor": "#eaf2f8",
+      "strokeColor": "#697976",
+      "backgroundColor": "#d1f2eb",
       "fillStyle": "solid",
       "strokeWidth": 1,
       "strokeStyle": "solid",
@@ -2973,15 +2495,19 @@
           "type": "text"
         },
         {
-          "id": "step10",
+          "id": "step18",
           "type": "arrow"
         },
         {
-          "id": "step34",
+          "id": "step28",
           "type": "arrow"
         },
         {
-          "id": "step35",
+          "id": "step29",
+          "type": "arrow"
+        },
+        {
+          "id": "step31",
           "type": "arrow"
         }
       ],
@@ -2998,8 +2524,8 @@
     {
       "id": "state-r1s15-text",
       "type": "text",
-      "x": 3190.13,
-      "y": 1323.5,
+      "x": 1346.46,
+      "y": 540.0,
       "width": 240.0,
       "height": 60.0,
       "angle": 0,
@@ -3021,8 +2547,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "no run out, a start stamp\npast a minute, a record\nwaits for the next pass",
-      "originalText": "no run out, a start stamp\npast a minute, a record\nwaits for the next pass",
+      "text": "no run out, a start stamp\nunder a minute old, no\nrecord yet",
+      "originalText": "no run out, a start stamp\nunder a minute old, no\nrecord yet",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -3034,13 +2560,13 @@
     {
       "id": "state-r1s16",
       "type": "rectangle",
-      "x": 2165.02,
-      "y": 1679.5,
-      "width": 272,
-      "height": 84,
+      "x": 1702.92,
+      "y": 1659.5,
+      "width": 262,
+      "height": 64,
       "angle": 0,
-      "strokeColor": "#c0392b",
-      "backgroundColor": "#fadbd8",
+      "strokeColor": "#697976",
+      "backgroundColor": "#d1f2eb",
       "fillStyle": "solid",
       "strokeWidth": 1,
       "strokeStyle": "solid",
@@ -3061,19 +2587,19 @@
           "type": "text"
         },
         {
-          "id": "step11",
+          "id": "step9",
           "type": "arrow"
         },
         {
-          "id": "step36",
+          "id": "step15",
           "type": "arrow"
         },
         {
-          "id": "step38",
+          "id": "step21",
           "type": "arrow"
         },
         {
-          "id": "step42",
+          "id": "step24",
           "type": "arrow"
         }
       ],
@@ -3090,12 +2616,12 @@
     {
       "id": "state-r1s16-text",
       "type": "text",
-      "x": 2181.02,
-      "y": 1691.5,
-      "width": 240.0,
-      "height": 60.0,
+      "x": 1718.72,
+      "y": 1671.5,
+      "width": 230.4,
+      "height": 40.0,
       "angle": 0,
-      "strokeColor": "#7b241c",
+      "strokeColor": "#1b2631",
       "backgroundColor": "transparent",
       "fillStyle": "solid",
       "strokeWidth": 1,
@@ -3113,8 +2639,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "no run out, a start stamp\npast a minute, a run's\nlines are lost",
-      "originalText": "no run out, a start stamp\npast a minute, a run's\nlines are lost",
+      "text": "no run out, every record\nwritten was sent",
+      "originalText": "no run out, every record\nwritten was sent",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -3126,10 +2652,10 @@
     {
       "id": "state-r1s17",
       "type": "rectangle",
-      "x": 3083.95,
-      "y": 1679.5,
+      "x": 1091.01,
+      "y": 389.0,
       "width": 272,
-      "height": 84,
+      "height": 44,
       "angle": 0,
       "strokeColor": "#697976",
       "backgroundColor": "#d1f2eb",
@@ -3153,19 +2679,23 @@
           "type": "text"
         },
         {
-          "id": "step12",
+          "id": "step5",
           "type": "arrow"
         },
         {
-          "id": "step37",
+          "id": "step20",
           "type": "arrow"
         },
         {
-          "id": "step39",
+          "id": "step25",
           "type": "arrow"
         },
         {
-          "id": "step43",
+          "id": "step30",
+          "type": "arrow"
+        },
+        {
+          "id": "step31",
           "type": "arrow"
         }
       ],
@@ -3182,10 +2712,10 @@
     {
       "id": "state-r1s17-text",
       "type": "text",
-      "x": 3099.95,
-      "y": 1691.5,
+      "x": 1107.01,
+      "y": 401.0,
       "width": 240.0,
-      "height": 60.0,
+      "height": 20.0,
       "angle": 0,
       "strokeColor": "#1b2631",
       "backgroundColor": "transparent",
@@ -3205,8 +2735,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "no run out, a start stamp\npast a minute, every\nrecord written was sent",
-      "originalText": "no run out, a start stamp\npast a minute, every\nrecord written was sent",
+      "text": "no run out, no record yet",
+      "originalText": "no run out, no record yet",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -3216,15 +2746,15 @@
       "lineHeight": 1.25
     },
     {
-      "id": "state-r1s18",
-      "type": "rectangle",
-      "x": 2475.78,
-      "y": 1500.5,
-      "width": 272,
-      "height": 84,
+      "id": "step5",
+      "type": "arrow",
+      "x": 1245.21,
+      "y": 320.94,
+      "width": 12.4,
+      "height": 68.06,
       "angle": 0,
-      "strokeColor": "#75797c",
-      "backgroundColor": "#eaf2f8",
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
       "fillStyle": "solid",
       "strokeWidth": 1,
       "strokeStyle": "solid",
@@ -3233,53 +2763,134 @@
       "groupIds": [],
       "frameId": "frame-regions1",
       "roundness": {
-        "type": 3
+        "type": 2
       },
-      "seed": 2167839381,
+      "seed": 2879254231,
       "version": 1,
-      "versionNonce": 2207223299,
+      "versionNonce": 1660763737,
+      "isDeleted": false,
+      "boundElements": [],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "points": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          -3.44,
+          34.06
+        ],
+        [
+          -12.4,
+          68.06
+        ]
+      ],
+      "lastCommittedPoint": null,
+      "startBinding": {
+        "elementId": "state-*start1",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "endBinding": {
+        "elementId": "state-r1s17",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "startArrowhead": null,
+      "endArrowhead": "arrow",
+      "elbowed": false,
+      "customData": {
+        "statechart": {
+          "kind": "step",
+          "from": "*start1",
+          "to": "r1s17"
+        }
+      }
+    },
+    {
+      "id": "step6",
+      "type": "arrow",
+      "x": 1014.67,
+      "y": 1385.5,
+      "width": 53.88,
+      "height": 105.0,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-regions1",
+      "roundness": {
+        "type": 2
+      },
+      "seed": 848609133,
+      "version": 1,
+      "versionNonce": 1393894596,
       "isDeleted": false,
       "boundElements": [
         {
-          "id": "state-r1s18-text",
+          "id": "step6-label",
           "type": "text"
-        },
-        {
-          "id": "step15",
-          "type": "arrow"
-        },
-        {
-          "id": "step35",
-          "type": "arrow"
-        },
-        {
-          "id": "step38",
-          "type": "arrow"
-        },
-        {
-          "id": "step39",
-          "type": "arrow"
         }
       ],
       "updated": 1,
       "link": null,
       "locked": false,
+      "points": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          -1.39,
+          47.5
+        ],
+        [
+          52.49,
+          105.0
+        ]
+      ],
+      "lastCommittedPoint": null,
+      "startBinding": {
+        "elementId": "state-r1s0",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "endBinding": {
+        "elementId": "state-r1s9",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "startArrowhead": null,
+      "endArrowhead": "arrow",
+      "elbowed": false,
       "customData": {
         "statechart": {
-          "kind": "state",
-          "id": "r1s18"
+          "kind": "step",
+          "from": "r1s0",
+          "to": "r1s9"
         }
       }
     },
     {
-      "id": "state-r1s18-text",
+      "id": "step6-label",
       "type": "text",
-      "x": 2491.78,
-      "y": 1512.5,
-      "width": 240.0,
-      "height": 60.0,
+      "x": 887.29,
+      "y": 1415.5,
+      "width": 252.0,
+      "height": 35.0,
       "angle": 0,
-      "strokeColor": "#1b2631",
+      "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
       "fillStyle": "solid",
       "strokeWidth": 1,
@@ -3289,831 +2900,31 @@
       "groupIds": [],
       "frameId": "frame-regions1",
       "roundness": null,
-      "seed": 752483835,
+      "seed": 4047885554,
       "version": 1,
-      "versionNonce": 3319780393,
+      "versionNonce": 1556492523,
       "isDeleted": false,
       "boundElements": [],
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "no run out, a start stamp\npast a minute, its lines\nnot yet sent",
-      "originalText": "no run out, a start stamp\npast a minute, its lines\nnot yet sent",
-      "fontSize": 16,
+      "text": "the run takes going.lock [when\nBetween passes]",
+      "originalText": "the run takes going.lock [when\nBetween passes]",
+      "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
       "verticalAlign": "middle",
-      "containerId": "state-r1s18",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "state-r1s19",
-      "type": "rectangle",
-      "x": 1772.04,
-      "y": 707.0,
-      "width": 272,
-      "height": 84,
-      "angle": 0,
-      "strokeColor": "#697976",
-      "backgroundColor": "#d1f2eb",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 3
-      },
-      "seed": 4130449923,
-      "version": 1,
-      "versionNonce": 637044151,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "state-r1s19-text",
-          "type": "text"
-        },
-        {
-          "id": "step40",
-          "type": "arrow"
-        },
-        {
-          "id": "step46",
-          "type": "arrow"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "customData": {
-        "statechart": {
-          "kind": "state",
-          "id": "r1s19"
-        }
-      }
-    },
-    {
-      "id": "state-r1s19-text",
-      "type": "text",
-      "x": 1788.04,
-      "y": 719.0,
-      "width": 240.0,
-      "height": 60.0,
-      "angle": 0,
-      "strokeColor": "#1b2631",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 3884265054,
-      "version": 1,
-      "versionNonce": 1585092678,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "no run out, a start stamp\npast a minute, no record\nyet",
-      "originalText": "no run out, a start stamp\npast a minute, no record\nyet",
-      "fontSize": 16,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "state-r1s19",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "state-r1s20",
-      "type": "rectangle",
-      "x": 2839.97,
-      "y": 1067.5,
-      "width": 272,
-      "height": 104,
-      "angle": 0,
-      "strokeColor": "#75797c",
-      "backgroundColor": "#eaf2f8",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 3
-      },
-      "seed": 2764063076,
-      "version": 1,
-      "versionNonce": 1055901575,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "state-r1s20-text",
-          "type": "text"
-        },
-        {
-          "id": "step20",
-          "type": "arrow"
-        },
-        {
-          "id": "step41",
-          "type": "arrow"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "customData": {
-        "statechart": {
-          "kind": "state",
-          "id": "r1s20"
-        }
-      }
-    },
-    {
-      "id": "state-r1s20-text",
-      "type": "text",
-      "x": 2855.97,
-      "y": 1079.5,
-      "width": 240.0,
-      "height": 80.0,
-      "angle": 0,
-      "strokeColor": "#1b2631",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 4049757451,
-      "version": 1,
-      "versionNonce": 2115620377,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "no run out, a start stamp\nunder a minute old, a\nrecord waits for the next\npass",
-      "originalText": "no run out, a start stamp\nunder a minute old, a\nrecord waits for the next\npass",
-      "fontSize": 16,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "state-r1s20",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "state-r1s21",
-      "type": "rectangle",
-      "x": 2145.52,
-      "y": 1500.5,
-      "width": 272,
-      "height": 84,
-      "angle": 0,
-      "strokeColor": "#c0392b",
-      "backgroundColor": "#fadbd8",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 3
-      },
-      "seed": 3553063410,
-      "version": 1,
-      "versionNonce": 2560150579,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "state-r1s21-text",
-          "type": "text"
-        },
-        {
-          "id": "step22",
-          "type": "arrow"
-        },
-        {
-          "id": "step42",
-          "type": "arrow"
-        },
-        {
-          "id": "step44",
-          "type": "arrow"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "customData": {
-        "statechart": {
-          "kind": "state",
-          "id": "r1s21"
-        }
-      }
-    },
-    {
-      "id": "state-r1s21-text",
-      "type": "text",
-      "x": 2161.52,
-      "y": 1512.5,
-      "width": 240.0,
-      "height": 60.0,
-      "angle": 0,
-      "strokeColor": "#7b241c",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 977188526,
-      "version": 1,
-      "versionNonce": 3854336630,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "no run out, a start stamp\nunder a minute old, a\nrun's lines are lost",
-      "originalText": "no run out, a start stamp\nunder a minute old, a\nrun's lines are lost",
-      "fontSize": 16,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "state-r1s21",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "state-r1s22",
-      "type": "rectangle",
-      "x": 3290.7,
-      "y": 1500.5,
-      "width": 272,
-      "height": 84,
-      "angle": 0,
-      "strokeColor": "#697976",
-      "backgroundColor": "#d1f2eb",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 3
-      },
-      "seed": 1255022664,
-      "version": 1,
-      "versionNonce": 2842744494,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "state-r1s22-text",
-          "type": "text"
-        },
-        {
-          "id": "step24",
-          "type": "arrow"
-        },
-        {
-          "id": "step43",
-          "type": "arrow"
-        },
-        {
-          "id": "step45",
-          "type": "arrow"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "customData": {
-        "statechart": {
-          "kind": "state",
-          "id": "r1s22"
-        }
-      }
-    },
-    {
-      "id": "state-r1s22-text",
-      "type": "text",
-      "x": 3306.7,
-      "y": 1512.5,
-      "width": 240.0,
-      "height": 60.0,
-      "angle": 0,
-      "strokeColor": "#1b2631",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 3165307904,
-      "version": 1,
-      "versionNonce": 2451722374,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "no run out, a start stamp\nunder a minute old, every\nrecord written was sent",
-      "originalText": "no run out, a start stamp\nunder a minute old, every\nrecord written was sent",
-      "fontSize": 16,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "state-r1s22",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "state-r1s23",
-      "type": "rectangle",
-      "x": 2819.78,
-      "y": 1311.5,
-      "width": 272,
-      "height": 84,
-      "angle": 0,
-      "strokeColor": "#75797c",
-      "backgroundColor": "#eaf2f8",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 3
-      },
-      "seed": 1036587230,
-      "version": 1,
-      "versionNonce": 252173594,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "state-r1s23-text",
-          "type": "text"
-        },
-        {
-          "id": "step28",
-          "type": "arrow"
-        },
-        {
-          "id": "step41",
-          "type": "arrow"
-        },
-        {
-          "id": "step44",
-          "type": "arrow"
-        },
-        {
-          "id": "step45",
-          "type": "arrow"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "customData": {
-        "statechart": {
-          "kind": "state",
-          "id": "r1s23"
-        }
-      }
-    },
-    {
-      "id": "state-r1s23-text",
-      "type": "text",
-      "x": 2835.78,
-      "y": 1323.5,
-      "width": 240.0,
-      "height": 60.0,
-      "angle": 0,
-      "strokeColor": "#1b2631",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 2012616613,
-      "version": 1,
-      "versionNonce": 159849705,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "no run out, a start stamp\nunder a minute old, its\nlines not yet sent",
-      "originalText": "no run out, a start stamp\nunder a minute old, its\nlines not yet sent",
-      "fontSize": 16,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "state-r1s23",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "state-r1s24",
-      "type": "rectangle",
-      "x": 2055.07,
-      "y": 528.0,
-      "width": 272,
-      "height": 84,
-      "angle": 0,
-      "strokeColor": "#697976",
-      "backgroundColor": "#d1f2eb",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 3
-      },
-      "seed": 2746058109,
-      "version": 1,
-      "versionNonce": 3399541652,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "state-r1s24-text",
-          "type": "text"
-        },
-        {
-          "id": "step31",
-          "type": "arrow"
-        },
-        {
-          "id": "step46",
-          "type": "arrow"
-        },
-        {
-          "id": "step47",
-          "type": "arrow"
-        },
-        {
-          "id": "step51",
-          "type": "arrow"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "customData": {
-        "statechart": {
-          "kind": "state",
-          "id": "r1s24"
-        }
-      }
-    },
-    {
-      "id": "state-r1s24-text",
-      "type": "text",
-      "x": 2071.07,
-      "y": 540.0,
-      "width": 240.0,
-      "height": 60.0,
-      "angle": 0,
-      "strokeColor": "#1b2631",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 1794320157,
-      "version": 1,
-      "versionNonce": 2099246438,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "no run out, a start stamp\nunder a minute old, no\nrecord yet",
-      "originalText": "no run out, a start stamp\nunder a minute old, no\nrecord yet",
-      "fontSize": 16,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "state-r1s24",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "state-r1s25",
-      "type": "rectangle",
-      "x": 3400.48,
-      "y": 1858.5,
-      "width": 262,
-      "height": 64,
-      "angle": 0,
-      "strokeColor": "#697976",
-      "backgroundColor": "#d1f2eb",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 3
-      },
-      "seed": 3567957483,
-      "version": 1,
-      "versionNonce": 1826088992,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "state-r1s25-text",
-          "type": "text"
-        },
-        {
-          "id": "step23",
-          "type": "arrow"
-        },
-        {
-          "id": "step37",
-          "type": "arrow"
-        },
-        {
-          "id": "step49",
-          "type": "arrow"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "customData": {
-        "statechart": {
-          "kind": "state",
-          "id": "r1s25"
-        }
-      }
-    },
-    {
-      "id": "state-r1s25-text",
-      "type": "text",
-      "x": 3416.28,
-      "y": 1870.5,
-      "width": 230.4,
-      "height": 40.0,
-      "angle": 0,
-      "strokeColor": "#1b2631",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 2712663224,
-      "version": 1,
-      "versionNonce": 3870996745,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "no run out, every record\nwritten was sent",
-      "originalText": "no run out, every record\nwritten was sent",
-      "fontSize": 16,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "state-r1s25",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "state-r1s26",
-      "type": "rectangle",
-      "x": 3391.95,
-      "y": 1689.5,
-      "width": 272,
-      "height": 64,
-      "angle": 0,
-      "strokeColor": "#75797c",
-      "backgroundColor": "#eaf2f8",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 3
-      },
-      "seed": 1302586449,
-      "version": 1,
-      "versionNonce": 1564471997,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "state-r1s26-text",
-          "type": "text"
-        },
-        {
-          "id": "step27",
-          "type": "arrow"
-        },
-        {
-          "id": "step33",
-          "type": "arrow"
-        },
-        {
-          "id": "step48",
-          "type": "arrow"
-        },
-        {
-          "id": "step49",
-          "type": "arrow"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "customData": {
-        "statechart": {
-          "kind": "state",
-          "id": "r1s26"
-        }
-      }
-    },
-    {
-      "id": "state-r1s26-text",
-      "type": "text",
-      "x": 3407.95,
-      "y": 1701.5,
-      "width": 240.0,
-      "height": 40.0,
-      "angle": 0,
-      "strokeColor": "#1b2631",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 658212374,
-      "version": 1,
-      "versionNonce": 2435083257,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "no run out, its lines not\nyet sent",
-      "originalText": "no run out, its lines not\nyet sent",
-      "fontSize": 16,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "state-r1s26",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "state-r1s27",
-      "type": "rectangle",
-      "x": 1858.8,
-      "y": 389.0,
-      "width": 272,
-      "height": 44,
-      "angle": 0,
-      "strokeColor": "#697976",
-      "backgroundColor": "#d1f2eb",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 3
-      },
-      "seed": 983880903,
-      "version": 1,
-      "versionNonce": 4215863561,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "state-r1s27-text",
-          "type": "text"
-        },
-        {
-          "id": "step7",
-          "type": "arrow"
-        },
-        {
-          "id": "step40",
-          "type": "arrow"
-        },
-        {
-          "id": "step50",
-          "type": "arrow"
-        },
-        {
-          "id": "step51",
-          "type": "arrow"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "customData": {
-        "statechart": {
-          "kind": "state",
-          "id": "r1s27"
-        }
-      }
-    },
-    {
-      "id": "state-r1s27-text",
-      "type": "text",
-      "x": 1874.8,
-      "y": 401.0,
-      "width": 240.0,
-      "height": 20.0,
-      "angle": 0,
-      "strokeColor": "#1b2631",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 3966195123,
-      "version": 1,
-      "versionNonce": 176236438,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "no run out, no record yet",
-      "originalText": "no run out, no record yet",
-      "fontSize": 16,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "state-r1s27",
+      "containerId": "step6",
       "autoResize": true,
       "lineHeight": 1.25
     },
     {
       "id": "step7",
       "type": "arrow",
-      "x": 2021.18,
-      "y": 320.78,
-      "width": 18.78,
-      "height": 68.22,
+      "x": 1460.01,
+      "y": 1171.5,
+      "width": 85.12,
+      "height": 130.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -4131,7 +2942,12 @@
       "version": 1,
       "versionNonce": 4116852592,
       "isDeleted": false,
-      "boundElements": [],
+      "boundElements": [
+        {
+          "id": "step7-label",
+          "type": "text"
+        }
+      ],
       "updated": 1,
       "link": null,
       "locked": false,
@@ -4141,23 +2957,23 @@
           0.0
         ],
         [
-          -7.03,
-          34.22
+          -80.55,
+          65.0
         ],
         [
-          -18.78,
-          68.22
+          -85.12,
+          130.0
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-*start1",
+        "elementId": "state-r1s1",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s27",
+        "elementId": "state-r1s2",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -4168,18 +2984,54 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "*start1",
-          "to": "r1s27"
+          "from": "r1s1",
+          "to": "r1s2"
         }
       }
     },
     {
+      "id": "step7-label",
+      "type": "text",
+      "x": 1253.46,
+      "y": 1227.75,
+      "width": 252.0,
+      "height": 17.5,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-regions1",
+      "roundness": null,
+      "seed": 1462951750,
+      "version": 1,
+      "versionNonce": 2169563502,
+      "isDeleted": false,
+      "boundElements": [],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "text": "the pass marks the record read",
+      "originalText": "the pass marks the record read",
+      "fontSize": 14,
+      "fontFamily": 6,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "step7",
+      "autoResize": true,
+      "lineHeight": 1.25
+    },
+    {
       "id": "step8",
       "type": "arrow",
-      "x": 1572.37,
-      "y": 1395.5,
-      "width": 158.19,
-      "height": 115.0,
+      "x": 1576.63,
+      "y": 1171.5,
+      "width": 103.52,
+      "height": 130.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -4212,23 +3064,23 @@
           0.0
         ],
         [
-          -109.37,
-          57.5
+          65.23,
+          65.0
         ],
         [
-          -158.19,
-          115.0
+          103.52,
+          130.0
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s0",
+        "elementId": "state-r1s1",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s13",
+        "elementId": "state-r1s10",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -4239,18 +3091,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s0",
-          "to": "r1s13"
+          "from": "r1s1",
+          "to": "r1s10"
         }
       }
     },
     {
       "id": "step8-label",
       "type": "text",
-      "x": 1337.0,
-      "y": 1435.5,
-      "width": 252.0,
-      "height": 35.0,
+      "x": 1549.46,
+      "y": 1227.75,
+      "width": 184.8,
+      "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -4270,8 +3122,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the run takes going.lock [when\nBetween passes]",
-      "originalText": "the run takes going.lock [when\nBetween passes]",
+      "text": "the run's process dies",
+      "originalText": "the run's process dies",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -4283,10 +3135,10 @@
     {
       "id": "step9",
       "type": "arrow",
-      "x": 2531.97,
-      "y": 1163.38,
-      "width": 226.59,
-      "height": 148.12,
+      "x": 1383.29,
+      "y": 1385.5,
+      "width": 329.33,
+      "height": 274.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -4319,23 +3171,31 @@
           0.0
         ],
         [
-          -226.59,
-          73.12
+          12.84,
+          47.5
         ],
         [
-          -210.87,
-          148.12
+          45.42,
+          137.0
+        ],
+        [
+          149.28,
+          226.5
+        ],
+        [
+          329.33,
+          274.0
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s1",
+        "elementId": "state-r1s2",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s4",
+        "elementId": "state-r1s16",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -4346,17 +3206,17 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s1",
-          "to": "r1s4"
+          "from": "r1s2",
+          "to": "r1s16"
         }
       }
     },
     {
       "id": "step9-label",
       "type": "text",
-      "x": 2200.39,
-      "y": 1219.0,
-      "width": 210.0,
+      "x": 1306.91,
+      "y": 1505.0,
+      "width": 243.6,
       "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -4377,8 +3237,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the pass takes the oldest\nunread record",
-      "originalText": "the pass takes the oldest\nunread record",
+      "text": "the run removes its own stamp\nand ends",
+      "originalText": "the run removes its own stamp\nand ends",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -4390,10 +3250,10 @@
     {
       "id": "step10",
       "type": "arrow",
-      "x": 2803.97,
-      "y": 1143.85,
-      "width": 517.53,
-      "height": 167.65,
+      "x": 1363.51,
+      "y": 962.5,
+      "width": 252.81,
+      "height": 125.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -4426,23 +3286,23 @@
           0.0
         ],
         [
-          517.53,
-          92.65
+          -172.5,
+          57.5
         ],
         [
-          510.24,
-          167.65
+          -252.81,
+          125.0
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s1",
+        "elementId": "state-r1s3",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s15",
+        "elementId": "state-r1s7",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -4453,18 +3313,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s1",
-          "to": "r1s15"
+          "from": "r1s3",
+          "to": "r1s7"
         }
       }
     },
     {
       "id": "step10-label",
       "type": "text",
-      "x": 3229.11,
-      "y": 1227.75,
-      "width": 184.8,
-      "height": 17.5,
+      "x": 1090.21,
+      "y": 1002.5,
+      "width": 201.6,
+      "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -4484,8 +3344,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the run's process dies",
-      "originalText": "the run's process dies",
+      "text": "a pass looks at the runs\nfolder",
+      "originalText": "a pass looks at the runs\nfolder",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -4497,10 +3357,10 @@
     {
       "id": "step11",
       "type": "arrow",
-      "x": 1962.83,
-      "y": 1584.5,
-      "width": 202.19,
-      "height": 95.21,
+      "x": 1509.98,
+      "y": 962.5,
+      "width": 28.02,
+      "height": 105.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -4533,23 +3393,23 @@
           0.0
         ],
         [
-          46.91,
-          47.5
+          28.02,
+          57.5
         ],
         [
-          202.19,
-          95.21
+          21.56,
+          105.0
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s2",
+        "elementId": "state-r1s3",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s16",
+        "elementId": "state-r1s1",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -4560,17 +3420,17 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s2",
-          "to": "r1s16"
+          "from": "r1s3",
+          "to": "r1s1"
         }
       }
     },
     {
       "id": "step11-label",
       "type": "text",
-      "x": 1917.34,
-      "y": 1623.25,
-      "width": 184.8,
+      "x": 1433.0,
+      "y": 1011.25,
+      "width": 210.0,
       "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -4591,8 +3451,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the run's process dies",
-      "originalText": "the run's process dies",
+      "text": "the run writes its record",
+      "originalText": "the run writes its record",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -4604,10 +3464,10 @@
     {
       "id": "step12",
       "type": "arrow",
-      "x": 3171.49,
-      "y": 1584.5,
-      "width": 65.35,
-      "height": 95.0,
+      "x": 2112.61,
+      "y": 971.42,
+      "width": 187.64,
+      "height": 96.08,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -4640,23 +3500,23 @@
           0.0
         ],
         [
-          65.35,
-          47.5
+          129.75,
+          48.58
         ],
         [
-          56.39,
-          95.0
+          187.64,
+          96.08
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s3",
+        "elementId": "state-r1s4",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s17",
+        "elementId": "state-r1s5",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -4667,17 +3527,17 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s3",
-          "to": "r1s17"
+          "from": "r1s4",
+          "to": "r1s5"
         }
       }
     },
     {
       "id": "step12-label",
       "type": "text",
-      "x": 3144.44,
-      "y": 1623.25,
-      "width": 184.8,
+      "x": 2116.36,
+      "y": 1011.25,
+      "width": 252.0,
       "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -4698,8 +3558,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the run's process dies",
-      "originalText": "the run's process dies",
+      "text": "the pass marks the record read",
+      "originalText": "the pass marks the record read",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -4711,10 +3571,10 @@
     {
       "id": "step13",
       "type": "arrow",
-      "x": 2198.9,
-      "y": 1380.85,
-      "width": 345.53,
-      "height": 119.65,
+      "x": 1916.48,
+      "y": 972.5,
+      "width": 160.94,
+      "height": 518.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -4747,12 +3607,28 @@
           0.0
         ],
         [
-          -345.53,
-          72.15
+          -54.92,
+          47.5
         ],
         [
-          -309.45,
-          119.65
+          -42.41,
+          147.0
+        ],
+        [
+          -16.42,
+          264.0
+        ],
+        [
+          -35.59,
+          371.0
+        ],
+        [
+          -117.75,
+          460.5
+        ],
+        [
+          -160.94,
+          518.0
         ]
       ],
       "lastCommittedPoint": null,
@@ -4763,7 +3639,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s2",
+        "elementId": "state-r1s8",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -4775,17 +3651,17 @@
         "statechart": {
           "kind": "step",
           "from": "r1s4",
-          "to": "r1s2"
+          "to": "r1s8"
         }
       }
     },
     {
       "id": "step13-label",
       "type": "text",
-      "x": 1798.77,
-      "y": 1444.25,
-      "width": 109.2,
-      "height": 17.5,
+      "x": 1778.26,
+      "y": 1219.0,
+      "width": 243.6,
+      "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -4805,8 +3681,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the pass dies",
-      "originalText": "the pass dies",
+      "text": "the run removes its own stamp\nand ends",
+      "originalText": "the run removes its own stamp\nand ends",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -4818,10 +3694,10 @@
     {
       "id": "step14",
       "type": "arrow",
-      "x": 2460.9,
-      "y": 1372.19,
-      "width": 612.19,
-      "height": 128.31,
+      "x": 1978.36,
+      "y": 972.5,
+      "width": 37.72,
+      "height": 95.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -4854,12 +3730,12 @@
           0.0
         ],
         [
-          566.25,
-          80.81
+          1.6,
+          47.5
         ],
         [
-          612.19,
-          128.31
+          37.72,
+          95.0
         ]
       ],
       "lastCommittedPoint": null,
@@ -4870,7 +3746,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s3",
+        "elementId": "state-r1s13",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -4882,17 +3758,17 @@
         "statechart": {
           "kind": "step",
           "from": "r1s4",
-          "to": "r1s3"
+          "to": "r1s13"
         }
       }
     },
     {
       "id": "step14-label",
       "type": "text",
-      "x": 2913.75,
-      "y": 1435.5,
-      "width": 226.8,
-      "height": 35.0,
+      "x": 1887.56,
+      "y": 1011.25,
+      "width": 184.8,
+      "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -4912,8 +3788,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the pass sends the record's\nlines",
-      "originalText": "the pass sends the record's\nlines",
+      "text": "the run's process dies",
+      "originalText": "the run's process dies",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -4925,10 +3801,10 @@
     {
       "id": "step15",
       "type": "arrow",
-      "x": 2400.58,
-      "y": 1395.5,
-      "width": 157.5,
-      "height": 105.0,
+      "x": 2384.36,
+      "y": 1171.5,
+      "width": 462.94,
+      "height": 488.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -4961,23 +3837,39 @@
           0.0
         ],
         [
-          96.77,
-          57.5
+          25.92,
+          65.0
         ],
         [
-          157.5,
-          105.0
+          28.91,
+          172.0
+        ],
+        [
+          36.57,
+          261.5
+        ],
+        [
+          -108.54,
+          351.0
+        ],
+        [
+          -242.2,
+          440.5
+        ],
+        [
+          -426.37,
+          488.0
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s4",
+        "elementId": "state-r1s5",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s18",
+        "elementId": "state-r1s16",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -4988,18 +3880,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s4",
-          "to": "r1s18"
+          "from": "r1s5",
+          "to": "r1s16"
         }
       }
     },
     {
       "id": "step15-label",
       "type": "text",
-      "x": 2404.95,
-      "y": 1444.25,
-      "width": 184.8,
-      "height": 17.5,
+      "x": 2299.14,
+      "y": 1415.5,
+      "width": 243.6,
+      "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -5019,8 +3911,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the run's process dies",
-      "originalText": "the run's process dies",
+      "text": "the run removes its own stamp\nand ends",
+      "originalText": "the run removes its own stamp\nand ends",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -5032,10 +3924,10 @@
     {
       "id": "step16",
       "type": "arrow",
-      "x": 2292.01,
-      "y": 962.5,
-      "width": 216.51,
-      "height": 125.0,
+      "x": 1591.18,
+      "y": 791.0,
+      "width": 67.82,
+      "height": 87.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -5068,23 +3960,23 @@
           0.0
         ],
         [
-          -98.15,
-          57.5
+          -28.52,
+          38.75
         ],
         [
-          -216.51,
-          125.0
+          -67.82,
+          87.5
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s5",
+        "elementId": "state-r1s6",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s11",
+        "elementId": "state-r1s3",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -5095,18 +3987,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s5",
-          "to": "r1s11"
+          "from": "r1s6",
+          "to": "r1s3"
         }
       }
     },
     {
       "id": "step16-label",
       "type": "text",
-      "x": 2093.07,
-      "y": 1002.5,
-      "width": 201.6,
-      "height": 35.0,
+      "x": 1495.45,
+      "y": 821.0,
+      "width": 134.4,
+      "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -5126,8 +4018,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "a pass looks at the runs\nfolder",
-      "originalText": "a pass looks at the runs\nfolder",
+      "text": "a minute goes by",
+      "originalText": "a minute goes by",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -5139,10 +4031,10 @@
     {
       "id": "step17",
       "type": "arrow",
-      "x": 2428.33,
-      "y": 962.5,
-      "width": 160.64,
-      "height": 105.0,
+      "x": 1715.55,
+      "y": 791.0,
+      "width": 160.88,
+      "height": 77.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -5175,23 +4067,23 @@
           0.0
         ],
         [
-          88.47,
-          57.5
+          86.22,
+          38.75
         ],
         [
-          160.64,
-          105.0
+          160.88,
+          77.5
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s5",
+        "elementId": "state-r1s6",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s1",
+        "elementId": "state-r1s4",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -5202,16 +4094,16 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s5",
-          "to": "r1s1"
+          "from": "r1s6",
+          "to": "r1s4"
         }
       }
     },
     {
       "id": "step17-label",
       "type": "text",
-      "x": 2411.8,
-      "y": 1011.25,
+      "x": 1696.77,
+      "y": 821.0,
       "width": 210.0,
       "height": 17.5,
       "angle": 0,
@@ -5246,10 +4138,10 @@
     {
       "id": "step18",
       "type": "arrow",
-      "x": 3163.91,
-      "y": 972.5,
-      "width": 125.7,
-      "height": 105.0,
+      "x": 1534.48,
+      "y": 707.0,
+      "width": 99.08,
+      "height": 95.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -5282,12 +4174,12 @@
           0.0
         ],
         [
-          74.45,
-          47.5
+          -99.08,
+          -47.5
         ],
         [
-          125.7,
-          105.0
+          -82.6,
+          -95.0
         ]
       ],
       "lastCommittedPoint": null,
@@ -5298,7 +4190,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s9",
+        "elementId": "state-r1s15",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -5310,17 +4202,17 @@
         "statechart": {
           "kind": "step",
           "from": "r1s6",
-          "to": "r1s9"
+          "to": "r1s15"
         }
       }
     },
     {
       "id": "step18-label",
       "type": "text",
-      "x": 3133.36,
-      "y": 1002.5,
-      "width": 210.0,
-      "height": 35.0,
+      "x": 1343.0,
+      "y": 650.75,
+      "width": 184.8,
+      "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -5340,8 +4232,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the pass takes the oldest\nunread record",
-      "originalText": "the pass takes the oldest\nunread record",
+      "text": "the run's process dies",
+      "originalText": "the run's process dies",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -5353,10 +4245,10 @@
     {
       "id": "step19",
       "type": "arrow",
-      "x": 3218.41,
-      "y": 964.87,
-      "width": 753.34,
-      "height": 545.63,
+      "x": 1057.53,
+      "y": 1151.5,
+      "width": 41.03,
+      "height": 150.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -5389,39 +4281,23 @@
           0.0
         ],
         [
-          168.95,
-          55.13
+          -40.1,
+          85.0
         ],
         [
-          407.38,
-          154.63
-        ],
-        [
-          639.7,
-          271.63
-        ],
-        [
-          725.73,
-          388.63
-        ],
-        [
-          753.34,
-          488.13
-        ],
-        [
-          643.08,
-          545.63
+          -41.03,
+          150.0
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s6",
+        "elementId": "state-r1s7",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s12",
+        "elementId": "state-r1s0",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -5432,18 +4308,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s6",
-          "to": "r1s12"
+          "from": "r1s7",
+          "to": "r1s0"
         }
       }
     },
     {
       "id": "step19-label",
       "type": "text",
-      "x": 3736.31,
-      "y": 1219.0,
-      "width": 243.6,
-      "height": 35.0,
+      "x": 891.43,
+      "y": 1201.5,
+      "width": 252.0,
+      "height": 70.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -5463,8 +4339,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the run removes its own stamp\nand ends",
-      "originalText": "the run removes its own stamp\nand ends",
+      "text": "the pass says the last run\nended with no record [when A\npass moved a stale stamp aside\nand has not told of its run]",
+      "originalText": "the pass says the last run\nended with no record [when A\npass moved a stale stamp aside\nand has not told of its run]",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -5476,10 +4352,10 @@
     {
       "id": "step20",
       "type": "arrow",
-      "x": 3037.75,
-      "y": 972.5,
-      "width": 50.81,
-      "height": 95.0,
+      "x": 1049.63,
+      "y": 1087.5,
+      "width": 289.82,
+      "height": 654.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -5512,23 +4388,47 @@
           0.0
         ],
         [
-          -40.79,
-          47.5
+          -48.51,
+          -67.5
         ],
         [
-          -50.81,
-          95.0
+          -66.08,
+          -167.0
+        ],
+        [
+          -97.81,
+          -257.75
+        ],
+        [
+          -143.63,
+          -338.5
+        ],
+        [
+          -82.22,
+          -428.0
+        ],
+        [
+          -22.36,
+          -517.5
+        ],
+        [
+          78.85,
+          -607.0
+        ],
+        [
+          146.19,
+          -654.5
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s6",
+        "elementId": "state-r1s7",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s20",
+        "elementId": "state-r1s17",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -5539,18 +4439,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s6",
-          "to": "r1s20"
+          "from": "r1s7",
+          "to": "r1s17"
         }
       }
     },
     {
       "id": "step20-label",
       "type": "text",
-      "x": 2904.56,
-      "y": 1011.25,
-      "width": 184.8,
-      "height": 17.5,
+      "x": 780.0,
+      "y": 731.5,
+      "width": 252.0,
+      "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -5570,8 +4470,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the run's process dies",
-      "originalText": "the run's process dies",
+      "text": "the run takes going.lock [when\nBetween passes]",
+      "originalText": "the run takes going.lock [when\nBetween passes]",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -5583,10 +4483,10 @@
     {
       "id": "step21",
       "type": "arrow",
-      "x": 2740.48,
-      "y": 1395.5,
-      "width": 204.58,
-      "height": 463.0,
+      "x": 1714.72,
+      "y": 1554.5,
+      "width": 89.24,
+      "height": 105.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -5619,39 +4519,23 @@
           0.0
         ],
         [
-          147.28,
+          -30.16,
           57.5
         ],
         [
-          47.31,
-          147.0
-        ],
-        [
-          -32.64,
-          236.5
-        ],
-        [
-          -57.3,
-          326.0
-        ],
-        [
-          -39.72,
-          415.5
-        ],
-        [
-          -5.09,
-          463.0
+          59.08,
+          105.0
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s7",
+        "elementId": "state-r1s8",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s14",
+        "elementId": "state-r1s16",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -5662,18 +4546,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s7",
-          "to": "r1s14"
+          "from": "r1s8",
+          "to": "r1s16"
         }
       }
     },
     {
       "id": "step21-label",
       "type": "text",
-      "x": 2586.04,
-      "y": 1614.5,
-      "width": 243.6,
-      "height": 35.0,
+      "x": 1558.57,
+      "y": 1603.25,
+      "width": 252.0,
+      "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -5693,8 +4577,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the run removes its own stamp\nand ends",
-      "originalText": "the run removes its own stamp\nand ends",
+      "text": "the pass marks the record read",
+      "originalText": "the pass marks the record read",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -5706,10 +4590,10 @@
     {
       "id": "step22",
       "type": "arrow",
-      "x": 2496.9,
-      "y": 1379.65,
-      "width": 381.55,
-      "height": 120.85,
+      "x": 1820.26,
+      "y": 1385.5,
+      "width": 185.53,
+      "height": 95.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -5742,23 +4626,23 @@
           0.0
         ],
         [
-          -381.55,
-          73.35
+          130.48,
+          47.5
         ],
         [
-          -293.36,
-          120.85
+          185.53,
+          95.0
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s7",
+        "elementId": "state-r1s10",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s21",
+        "elementId": "state-r1s11",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -5769,17 +4653,17 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s7",
-          "to": "r1s21"
+          "from": "r1s10",
+          "to": "r1s11"
         }
       }
     },
     {
       "id": "step22-label",
       "type": "text",
-      "x": 2022.95,
-      "y": 1444.25,
-      "width": 184.8,
+      "x": 1824.74,
+      "y": 1424.25,
+      "width": 252.0,
       "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -5800,8 +4684,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the run's process dies",
-      "originalText": "the run's process dies",
+      "text": "the pass marks the record read",
+      "originalText": "the pass marks the record read",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -5813,10 +4697,10 @@
     {
       "id": "step23",
       "type": "arrow",
-      "x": 3904.14,
-      "y": 1379.66,
-      "width": 672.87,
-      "height": 478.84,
+      "x": 1671.13,
+      "y": 1385.5,
+      "width": 63.33,
+      "height": 105.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -5849,39 +4733,23 @@
           0.0
         ],
         [
-          381.21,
-          73.34
+          -38.19,
+          47.5
         ],
         [
-          243.09,
-          162.84
-        ],
-        [
-          132.0,
-          252.34
-        ],
-        [
-          -42.05,
-          341.84
-        ],
-        [
-          -171.44,
-          431.34
-        ],
-        [
-          -291.66,
-          478.84
+          25.14,
+          105.0
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s8",
+        "elementId": "state-r1s10",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s25",
+        "elementId": "state-r1s8",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -5892,16 +4760,16 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s8",
-          "to": "r1s25"
+          "from": "r1s10",
+          "to": "r1s8"
         }
       }
     },
     {
       "id": "step23-label",
       "type": "text",
-      "x": 3914.35,
-      "y": 1614.5,
+      "x": 1511.14,
+      "y": 1415.5,
       "width": 243.6,
       "height": 35.0,
       "angle": 0,
@@ -5923,8 +4791,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the run removes its own stamp\nand ends",
-      "originalText": "the run removes its own stamp\nand ends",
+      "text": "the pass removes the stamp of\na run that kept its record",
+      "originalText": "the pass removes the stamp of\na run that kept its record",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -5936,9 +4804,9 @@
     {
       "id": "step24",
       "type": "arrow",
-      "x": 3652.97,
-      "y": 1405.5,
-      "width": 169.46,
+      "x": 2017.82,
+      "y": 1564.5,
+      "width": 126.57,
       "height": 95.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -5972,23 +4840,23 @@
           0.0
         ],
         [
-          -105.21,
+          -41.45,
           47.5
         ],
         [
-          -169.46,
+          -126.57,
           95.0
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s8",
+        "elementId": "state-r1s11",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s22",
+        "elementId": "state-r1s16",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -5999,18 +4867,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s8",
-          "to": "r1s22"
+          "from": "r1s11",
+          "to": "r1s16"
         }
       }
     },
     {
       "id": "step24-label",
       "type": "text",
-      "x": 3455.35,
-      "y": 1444.25,
-      "width": 184.8,
-      "height": 17.5,
+      "x": 1854.57,
+      "y": 1594.5,
+      "width": 243.6,
+      "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -6030,8 +4898,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the run's process dies",
-      "originalText": "the run's process dies",
+      "text": "the pass removes the stamp of\na run that kept its record",
+      "originalText": "the pass removes the stamp of\na run that kept its record",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -6043,10 +4911,10 @@
     {
       "id": "step25",
       "type": "arrow",
-      "x": 3191.05,
-      "y": 1142.92,
-      "width": 552.84,
-      "height": 168.58,
+      "x": 1178.63,
+      "y": 707.0,
+      "width": 106.65,
+      "height": 274.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -6079,23 +4947,31 @@
           0.0
         ],
         [
-          -543.34,
-          93.58
+          -62.62,
+          -47.5
         ],
         [
-          -552.84,
-          168.58
+          11.03,
+          -137.0
+        ],
+        [
+          34.65,
+          -226.5
+        ],
+        [
+          44.03,
+          -274.0
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s9",
+        "elementId": "state-r1s12",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s7",
+        "elementId": "state-r1s17",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -6106,18 +4982,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s9",
-          "to": "r1s7"
+          "from": "r1s12",
+          "to": "r1s17"
         }
       }
     },
     {
       "id": "step25-label",
       "type": "text",
-      "x": 2593.11,
-      "y": 1227.75,
-      "width": 109.2,
-      "height": 17.5,
+      "x": 1088.86,
+      "y": 552.5,
+      "width": 201.6,
+      "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -6137,8 +5013,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the pass dies",
-      "originalText": "the pass dies",
+      "text": "a pass looks at the runs\nfolder",
+      "originalText": "a pass looks at the runs\nfolder",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -6150,10 +5026,10 @@
     {
       "id": "step26",
       "type": "arrow",
-      "x": 3417.46,
-      "y": 1161.5,
-      "width": 266.58,
-      "height": 140.0,
+      "x": 2116.17,
+      "y": 1171.5,
+      "width": 75.69,
+      "height": 130.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -6186,23 +5062,23 @@
           0.0
         ],
         [
-          161.45,
-          75.0
+          75.69,
+          65.0
         ],
         [
-          266.58,
-          140.0
+          73.07,
+          130.0
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s9",
+        "elementId": "state-r1s13",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s8",
+        "elementId": "state-r1s14",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -6213,18 +5089,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s9",
-          "to": "r1s8"
+          "from": "r1s13",
+          "to": "r1s14"
         }
       }
     },
     {
       "id": "step26-label",
       "type": "text",
-      "x": 3465.51,
-      "y": 1219.0,
-      "width": 226.8,
-      "height": 35.0,
+      "x": 2065.86,
+      "y": 1227.75,
+      "width": 252.0,
+      "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -6244,8 +5120,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the pass sends the record's\nlines",
-      "originalText": "the pass sends the record's\nlines",
+      "text": "the pass marks the record read",
+      "originalText": "the pass marks the record read",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -6257,10 +5133,10 @@
     {
       "id": "step27",
       "type": "arrow",
-      "x": 3463.05,
-      "y": 1142.33,
-      "width": 656.5,
-      "height": 547.17,
+      "x": 2187.74,
+      "y": 1385.5,
+      "width": 70.83,
+      "height": 95.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -6293,39 +5169,23 @@
           0.0
         ],
         [
-          560.86,
-          94.17
+          0.2,
+          47.5
         ],
         [
-          605.83,
-          211.17
-        ],
-        [
-          656.5,
-          310.67
-        ],
-        [
-          518.07,
-          400.17
-        ],
-        [
-          375.59,
-          489.67
-        ],
-        [
-          175.98,
-          547.17
+          -70.63,
+          95.0
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s9",
+        "elementId": "state-r1s14",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s26",
+        "elementId": "state-r1s11",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -6336,18 +5196,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s9",
-          "to": "r1s26"
+          "from": "r1s14",
+          "to": "r1s11"
         }
       }
     },
     {
       "id": "step27-label",
       "type": "text",
-      "x": 3997.75,
-      "y": 1435.5,
-      "width": 243.6,
-      "height": 35.0,
+      "x": 2120.74,
+      "y": 1424.25,
+      "width": 134.4,
+      "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -6367,8 +5227,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the run removes its own stamp\nand ends",
-      "originalText": "the run removes its own stamp\nand ends",
+      "text": "a minute goes by",
+      "originalText": "a minute goes by",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -6380,10 +5240,10 @@
     {
       "id": "step28",
       "type": "arrow",
-      "x": 3242.93,
-      "y": 1161.5,
-      "width": 238.0,
-      "height": 150.0,
+      "x": 1356.34,
+      "y": 612.0,
+      "width": 124.54,
+      "height": 95.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -6416,23 +5276,23 @@
           0.0
         ],
         [
-          -150.22,
-          75.0
+          -124.54,
+          47.5
         ],
         [
-          -238.0,
-          150.0
+          -123.37,
+          95.0
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s9",
+        "elementId": "state-r1s15",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s23",
+        "elementId": "state-r1s12",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -6443,17 +5303,17 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s9",
-          "to": "r1s23"
+          "from": "r1s15",
+          "to": "r1s12"
         }
       }
     },
     {
       "id": "step28-label",
       "type": "text",
-      "x": 3000.31,
-      "y": 1227.75,
-      "width": 184.8,
+      "x": 1164.6,
+      "y": 650.75,
+      "width": 134.4,
       "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -6474,8 +5334,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the run's process dies",
-      "originalText": "the run's process dies",
+      "text": "a minute goes by",
+      "originalText": "a minute goes by",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -6487,10 +5347,10 @@
     {
       "id": "step29",
       "type": "arrow",
-      "x": 2402.06,
-      "y": 791.0,
-      "width": 27.84,
-      "height": 87.5,
+      "x": 1563.2,
+      "y": 612.0,
+      "width": 109.4,
+      "height": 95.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -6523,23 +5383,23 @@
           0.0
         ],
         [
-          -15.63,
-          38.75
+          109.4,
+          47.5
         ],
         [
-          -27.84,
-          87.5
+          82.6,
+          95.0
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s10",
+        "elementId": "state-r1s15",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s5",
+        "elementId": "state-r1s6",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -6550,18 +5410,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s10",
-          "to": "r1s5"
+          "from": "r1s15",
+          "to": "r1s6"
         }
       }
     },
     {
       "id": "step29-label",
       "type": "text",
-      "x": 2319.24,
-      "y": 821.0,
-      "width": 134.4,
-      "height": 17.5,
+      "x": 1571.8,
+      "y": 642.0,
+      "width": 201.6,
+      "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -6581,8 +5441,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "a minute goes by",
-      "originalText": "a minute goes by",
+      "text": "the pass starts a run of\njmerge in the background",
+      "originalText": "the pass starts a run of\njmerge in the background",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -6594,10 +5454,10 @@
     {
       "id": "step30",
       "type": "arrow",
-      "x": 2555.0,
-      "y": 783.23,
-      "width": 391.41,
-      "height": 101.24,
+      "x": 1204.05,
+      "y": 433.0,
+      "width": 304.0,
+      "height": 1057.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -6630,23 +5490,63 @@
           0.0
         ],
         [
-          184.79,
-          46.52
+          -49.57,
+          47.5
         ],
         [
-          391.41,
-          101.24
+          -141.19,
+          137.0
+        ],
+        [
+          -172.24,
+          226.5
+        ],
+        [
+          -128.05,
+          316.0
+        ],
+        [
+          -60.69,
+          396.75
+        ],
+        [
+          -7.04,
+          487.5
+        ],
+        [
+          131.76,
+          587.0
+        ],
+        [
+          65.24,
+          686.5
+        ],
+        [
+          -9.07,
+          803.5
+        ],
+        [
+          -14.37,
+          910.5
+        ],
+        [
+          -20.76,
+          1000.0
+        ],
+        [
+          -76.1,
+          1057.5
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s10",
+        "elementId": "state-r1s17",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s6",
+        "elementId": "state-r1s9",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -6657,18 +5557,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s10",
-          "to": "r1s6"
+          "from": "r1s17",
+          "to": "r1s9"
         }
       }
     },
     {
       "id": "step30-label",
       "type": "text",
-      "x": 2634.79,
-      "y": 821.0,
-      "width": 210.0,
-      "height": 17.5,
+      "x": 1071.01,
+      "y": 885.5,
+      "width": 252.0,
+      "height": 70.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -6688,8 +5588,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the run writes its record",
-      "originalText": "the run writes its record",
+      "text": "the pass says the last run\nended with no record [when A\npass moved a stale stamp aside\nand has not told of its run]",
+      "originalText": "the pass says the last run\nended with no record [when A\npass moved a stale stamp aside\nand has not told of its run]",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -6701,9 +5601,9 @@
     {
       "id": "step31",
       "type": "arrow",
-      "x": 2305.86,
-      "y": 707.0,
-      "width": 127.96,
+      "x": 1266.79,
+      "y": 433.0,
+      "width": 146.28,
       "height": 95.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -6737,23 +5637,23 @@
           0.0
         ],
         [
-          -127.96,
-          -47.5
+          85.89,
+          47.5
         ],
         [
-          -120.97,
-          -95.0
+          146.28,
+          95.0
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1s10",
+        "elementId": "state-r1s17",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1s24",
+        "elementId": "state-r1s15",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -6764,18 +5664,18 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1s10",
-          "to": "r1s24"
+          "from": "r1s17",
+          "to": "r1s15"
         }
       }
     },
     {
       "id": "step31-label",
       "type": "text",
-      "x": 2085.51,
-      "y": 650.75,
-      "width": 184.8,
-      "height": 17.5,
+      "x": 1239.27,
+      "y": 463.0,
+      "width": 226.8,
+      "height": 35.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -6795,8 +5695,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "the run's process dies",
-      "originalText": "the run's process dies",
+      "text": "the pass writes the start\nstamp [when Between passes]",
+      "originalText": "the pass writes the start\nstamp [when Between passes]",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -6806,2200 +5706,12 @@
       "lineHeight": 1.25
     },
     {
-      "id": "step32",
-      "type": "arrow",
-      "x": 1969.85,
-      "y": 1151.5,
-      "width": 250.83,
-      "height": 160.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 1418969874,
-      "version": 1,
-      "versionNonce": 1154357557,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step32-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          -131.6,
-          85.0
-        ],
-        [
-          -250.83,
-          160.0
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1s11",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1s0",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1s11",
-          "to": "r1s0"
-        }
-      }
-    },
-    {
-      "id": "step32-label",
-      "type": "text",
-      "x": 1712.25,
-      "y": 1201.5,
-      "width": 252.0,
-      "height": 70.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 3869174019,
-      "version": 1,
-      "versionNonce": 864357645,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "the pass says the last run\nended with no record [when A\npass moved a stale stamp aside\nand has not told of its run]",
-      "originalText": "the pass says the last run\nended with no record [when A\npass moved a stale stamp aside\nand has not told of its run]",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step32",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step33",
-      "type": "arrow",
-      "x": 3760.62,
-      "y": 1574.5,
-      "width": 174.86,
-      "height": 115.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 596964228,
-      "version": 1,
-      "versionNonce": 3803779713,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step33-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          -70.98,
-          57.5
-        ],
-        [
-          -174.86,
-          115.0
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1s12",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1s26",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1s12",
-          "to": "r1s26"
-        }
-      }
-    },
-    {
-      "id": "step33-label",
-      "type": "text",
-      "x": 3584.64,
-      "y": 1614.5,
-      "width": 210.0,
-      "height": 35.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 1089069751,
-      "version": 1,
-      "versionNonce": 3994277000,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "the pass takes the oldest\nunread record",
-      "originalText": "the pass takes the oldest\nunread record",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step33",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step34",
-      "type": "arrow",
-      "x": 3446.13,
-      "y": 1380.79,
-      "width": 359.82,
-      "height": 129.71,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 3186648615,
-      "version": 1,
-      "versionNonce": 656288783,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step34-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          359.82,
-          72.21
-        ],
-        [
-          356.07,
-          129.71
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1s15",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1s12",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1s15",
-          "to": "r1s12"
-        }
-      }
-    },
-    {
-      "id": "step34-label",
-      "type": "text",
-      "x": 3684.15,
-      "y": 1435.5,
-      "width": 243.6,
-      "height": 35.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 2236537913,
-      "version": 1,
-      "versionNonce": 2472596176,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "the pass removes the stamp of\na run that kept its record",
-      "originalText": "the pass removes the stamp of\na run that kept its record",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step34",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step35",
-      "type": "arrow",
-      "x": 3174.13,
-      "y": 1377.18,
-      "width": 502.77,
-      "height": 123.32,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 3405207217,
-      "version": 1,
-      "versionNonce": 2171152315,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step35-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          -435.38,
-          75.82
-        ],
-        [
-          -502.77,
-          123.32
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1s15",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1s18",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1s15",
-          "to": "r1s18"
-        }
-      }
-    },
-    {
-      "id": "step35-label",
-      "type": "text",
-      "x": 2633.75,
-      "y": 1435.5,
-      "width": 210.0,
-      "height": 35.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 590993293,
-      "version": 1,
-      "versionNonce": 1324747605,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "the pass takes the oldest\nunread record",
-      "originalText": "the pass takes the oldest\nunread record",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step35",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step36",
-      "type": "arrow",
-      "x": 2398.94,
-      "y": 1763.5,
-      "width": 259.54,
-      "height": 95.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 1409156875,
-      "version": 1,
-      "versionNonce": 2961259814,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step36-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          110.74,
-          47.5
-        ],
-        [
-          259.54,
-          95.0
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1s16",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1s14",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1s16",
-          "to": "r1s14"
-        }
-      }
-    },
-    {
-      "id": "step36-label",
-      "type": "text",
-      "x": 2387.89,
-      "y": 1793.5,
-      "width": 243.6,
-      "height": 35.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 315739408,
-      "version": 1,
-      "versionNonce": 4080822171,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "the pass removes the stamp of\na run that kept its record",
-      "originalText": "the pass removes the stamp of\na run that kept its record",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step36",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step37",
-      "type": "arrow",
-      "x": 3253.42,
-      "y": 1763.5,
-      "width": 181.38,
-      "height": 95.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 620312477,
-      "version": 1,
-      "versionNonce": 385234578,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step37-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          37.85,
-          47.5
-        ],
-        [
-          181.38,
-          95.0
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1s17",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1s25",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1s17",
-          "to": "r1s25"
-        }
-      }
-    },
-    {
-      "id": "step37-label",
-      "type": "text",
-      "x": 3169.47,
-      "y": 1793.5,
-      "width": 243.6,
-      "height": 35.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 3030828708,
-      "version": 1,
-      "versionNonce": 782941726,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "the pass removes the stamp of\na run that kept its record",
-      "originalText": "the pass removes the stamp of\na run that kept its record",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step37",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step38",
-      "type": "arrow",
-      "x": 2475.78,
-      "y": 1578.95,
-      "width": 197.94,
-      "height": 100.55,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 3024497164,
-      "version": 1,
-      "versionNonce": 3770566267,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step38-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          -197.94,
-          53.05
-        ],
-        [
-          -185.64,
-          100.55
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1s18",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1s16",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1s18",
-          "to": "r1s16"
-        }
-      }
-    },
-    {
-      "id": "step38-label",
-      "type": "text",
-      "x": 2223.24,
-      "y": 1623.25,
-      "width": 109.2,
-      "height": 17.5,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 1122940493,
-      "version": 1,
-      "versionNonce": 165309227,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "the pass dies",
-      "originalText": "the pass dies",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step38",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step39",
-      "type": "arrow",
-      "x": 2747.78,
-      "y": 1574.94,
-      "width": 362.86,
-      "height": 104.56,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 3275823770,
-      "version": 1,
-      "versionNonce": 1187597775,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step39-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          239.25,
-          57.06
-        ],
-        [
-          362.86,
-          104.56
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1s18",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1s17",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1s18",
-          "to": "r1s17"
-        }
-      }
-    },
-    {
-      "id": "step39-label",
-      "type": "text",
-      "x": 2873.64,
-      "y": 1614.5,
-      "width": 226.8,
-      "height": 35.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 3835280889,
-      "version": 1,
-      "versionNonce": 3561796270,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "the pass sends the record's\nlines",
-      "originalText": "the pass sends the record's\nlines",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step39",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step40",
-      "type": "arrow",
-      "x": 1874.91,
-      "y": 707.0,
-      "width": 144.87,
-      "height": 274.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 4124849401,
-      "version": 1,
-      "versionNonce": 3650355461,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step40-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          -37.48,
-          -47.5
-        ],
-        [
-          39.36,
-          -137.0
-        ],
-        [
-          80.41,
-          -226.5
-        ],
-        [
-          107.39,
-          -274.0
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1s19",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1s27",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1s19",
-          "to": "r1s27"
-        }
-      }
-    },
-    {
-      "id": "step40-label",
-      "type": "text",
-      "x": 1813.47,
-      "y": 552.5,
-      "width": 201.6,
-      "height": 35.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 2076504371,
-      "version": 1,
-      "versionNonce": 907285126,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "a pass looks at the runs\nfolder",
-      "originalText": "a pass looks at the runs\nfolder",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step40",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step41",
-      "type": "arrow",
-      "x": 2920.57,
-      "y": 1171.5,
-      "width": 69.26,
-      "height": 140.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 2195391599,
-      "version": 1,
-      "versionNonce": 2145585841,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step41-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          -69.26,
-          65.0
-        ],
-        [
-          -2.29,
-          140.0
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1s20",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1s23",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1s20",
-          "to": "r1s23"
-        }
-      }
-    },
-    {
-      "id": "step41-label",
-      "type": "text",
-      "x": 2746.31,
-      "y": 1219.0,
-      "width": 210.0,
-      "height": 35.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 3719559815,
-      "version": 1,
-      "versionNonce": 3951217411,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "the pass takes the oldest\nunread record",
-      "originalText": "the pass takes the oldest\nunread record",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step41",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step42",
-      "type": "arrow",
-      "x": 2357.6,
-      "y": 1584.5,
-      "width": 86.04,
-      "height": 95.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 466769365,
-      "version": 1,
-      "versionNonce": 1309347884,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step42-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          86.04,
-          47.5
-        ],
-        [
-          10.35,
-          95.0
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1s21",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1s16",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1s21",
-          "to": "r1s16"
-        }
-      }
-    },
-    {
-      "id": "step42-label",
-      "type": "text",
-      "x": 2376.44,
-      "y": 1623.25,
-      "width": 134.4,
-      "height": 17.5,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 3965444122,
-      "version": 1,
-      "versionNonce": 1447602125,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "a minute goes by",
-      "originalText": "a minute goes by",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step42",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step43",
-      "type": "arrow",
-      "x": 3433.15,
-      "y": 1584.5,
-      "width": 117.02,
-      "height": 95.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 1825924419,
-      "version": 1,
-      "versionNonce": 3900447640,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step43-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          7.29,
-          47.5
-        ],
-        [
-          -109.73,
-          95.0
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1s22",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1s17",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1s22",
-          "to": "r1s17"
-        }
-      }
-    },
-    {
-      "id": "step43-label",
-      "type": "text",
-      "x": 3373.24,
-      "y": 1623.25,
-      "width": 134.4,
-      "height": 17.5,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 1244457902,
-      "version": 1,
-      "versionNonce": 2346614344,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "a minute goes by",
-      "originalText": "a minute goes by",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step43",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step44",
-      "type": "arrow",
-      "x": 2819.78,
-      "y": 1374.34,
-      "width": 526.61,
-      "height": 126.16,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 4071747808,
-      "version": 1,
-      "versionNonce": 769336598,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step44-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          -513.42,
-          78.66
-        ],
-        [
-          -526.61,
-          126.16
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1s23",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1s21",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1s23",
-          "to": "r1s21"
-        }
-      }
-    },
-    {
-      "id": "step44-label",
-      "type": "text",
-      "x": 2251.75,
-      "y": 1444.25,
-      "width": 109.2,
-      "height": 17.5,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 2408305952,
-      "version": 1,
-      "versionNonce": 4138563600,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "the pass dies",
-      "originalText": "the pass dies",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step44",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step45",
-      "type": "arrow",
-      "x": 3091.78,
-      "y": 1393.05,
-      "width": 274.51,
-      "height": 107.45,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 2243346550,
-      "version": 1,
-      "versionNonce": 2343317154,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step45-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          206.18,
-          59.95
-        ],
-        [
-          274.51,
-          107.45
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1s23",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1s22",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1s23",
-          "to": "r1s22"
-        }
-      }
-    },
-    {
-      "id": "step45-label",
-      "type": "text",
-      "x": 3184.55,
-      "y": 1435.5,
-      "width": 226.8,
-      "height": 35.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 704437908,
-      "version": 1,
-      "versionNonce": 725328277,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "the pass sends the record's\nlines",
-      "originalText": "the pass sends the record's\nlines",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step45",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step46",
-      "type": "arrow",
-      "x": 2079.46,
-      "y": 612.0,
-      "width": 150.21,
-      "height": 95.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 482316748,
-      "version": 1,
-      "versionNonce": 3125031999,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step46-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          -126.23,
-          47.5
-        ],
-        [
-          -150.21,
-          95.0
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1s24",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1s19",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1s24",
-          "to": "r1s19"
-        }
-      }
-    },
-    {
-      "id": "step46-label",
-      "type": "text",
-      "x": 1886.03,
-      "y": 650.75,
-      "width": 134.4,
-      "height": 17.5,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 404014089,
-      "version": 1,
-      "versionNonce": 2532429147,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "a minute goes by",
-      "originalText": "a minute goes by",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step46",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step47",
-      "type": "arrow",
-      "x": 2296.21,
-      "y": 612.0,
-      "width": 120.97,
-      "height": 95.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 1807262042,
-      "version": 1,
-      "versionNonce": 473120651,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step47-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          118.9,
-          47.5
-        ],
-        [
-          120.97,
-          95.0
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1s24",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1s10",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1s24",
-          "to": "r1s10"
-        }
-      }
-    },
-    {
-      "id": "step47-label",
-      "type": "text",
-      "x": 2314.31,
-      "y": 642.0,
-      "width": 201.6,
-      "height": 35.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 3194212285,
-      "version": 1,
-      "versionNonce": 1265046750,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "the pass starts a run of\njmerge in the background",
-      "originalText": "the pass starts a run of\njmerge in the background",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step47",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step48",
-      "type": "arrow",
-      "x": 3391.95,
-      "y": 1747.83,
-      "width": 509.66,
-      "height": 110.67,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 4211588299,
-      "version": 1,
-      "versionNonce": 3933949794,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step48-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          -326.24,
-          63.17
-        ],
-        [
-          -509.66,
-          110.67
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1s26",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1s14",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1s26",
-          "to": "r1s14"
-        }
-      }
-    },
-    {
-      "id": "step48-label",
-      "type": "text",
-      "x": 3011.11,
-      "y": 1802.25,
-      "width": 109.2,
-      "height": 17.5,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 1210826580,
-      "version": 1,
-      "versionNonce": 1813496299,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "the pass dies",
-      "originalText": "the pass dies",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step48",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step49",
-      "type": "arrow",
-      "x": 3543.15,
-      "y": 1753.5,
-      "width": 27.32,
-      "height": 105.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 2348846173,
-      "version": 1,
-      "versionNonce": 1275872470,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step49-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          27.32,
-          57.5
-        ],
-        [
-          4.02,
-          105.0
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1s26",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1s25",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1s26",
-          "to": "r1s25"
-        }
-      }
-    },
-    {
-      "id": "step49-label",
-      "type": "text",
-      "x": 3457.07,
-      "y": 1793.5,
-      "width": 226.8,
-      "height": 35.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 3999053024,
-      "version": 1,
-      "versionNonce": 2978027630,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "the pass sends the record's\nlines",
-      "originalText": "the pass sends the record's\nlines",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step49",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step50",
-      "type": "arrow",
-      "x": 1962.39,
-      "y": 433.0,
-      "width": 651.39,
-      "height": 1077.5,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 3972466104,
-      "version": 1,
-      "versionNonce": 356385179,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step50-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          -69.97,
-          47.5
-        ],
-        [
-          -174.92,
-          137.0
-        ],
-        [
-          -209.16,
-          226.5
-        ],
-        [
-          -212.35,
-          316.0
-        ],
-        [
-          -201.53,
-          396.75
-        ],
-        [
-          -210.87,
-          487.5
-        ],
-        [
-          -248.0,
-          587.0
-        ],
-        [
-          -316.75,
-          686.5
-        ],
-        [
-          -414.53,
-          803.5
-        ],
-        [
-          -531.33,
-          920.5
-        ],
-        [
-          -651.39,
-          1020.0
-        ],
-        [
-          -602.56,
-          1077.5
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1s27",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1s13",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1s27",
-          "to": "r1s13"
-        }
-      }
-    },
-    {
-      "id": "step50-label",
-      "type": "text",
-      "x": 1625.52,
-      "y": 885.5,
-      "width": 252.0,
-      "height": 70.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 3077501357,
-      "version": 1,
-      "versionNonce": 2870735856,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "the pass says the last run\nended with no record [when A\npass moved a stale stamp aside\nand has not told of its run]",
-      "originalText": "the pass says the last run\nended with no record [when A\npass moved a stale stamp aside\nand has not told of its run]",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step50",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step51",
-      "type": "arrow",
-      "x": 2026.43,
-      "y": 433.0,
-      "width": 119.43,
-      "height": 95.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 2613065006,
-      "version": 1,
-      "versionNonce": 3007908399,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step51-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          68.29,
-          47.5
-        ],
-        [
-          119.43,
-          95.0
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1s27",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1s24",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1s27",
-          "to": "r1s24"
-        }
-      }
-    },
-    {
-      "id": "step51-label",
-      "type": "text",
-      "x": 1981.32,
-      "y": 463.0,
-      "width": 226.8,
-      "height": 35.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-regions1",
-      "roundness": null,
-      "seed": 286915097,
-      "version": 1,
-      "versionNonce": 1988962933,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "the pass writes the start\nstamp [when Between passes]",
-      "originalText": "the pass writes the start\nstamp [when Between passes]",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step51",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
       "id": "frame-regions1",
       "type": "frame",
-      "x": 1206.0,
+      "x": 736.0,
       "y": 259.0,
-      "width": 3123,
-      "height": 1704,
+      "width": 1851,
+      "height": 1504,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",

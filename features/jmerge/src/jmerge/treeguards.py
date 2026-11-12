@@ -63,7 +63,7 @@ UNNAMED = "its guards"
 SHA = 12
 PASSED = "the guards passed on its tree merged over {base} at {tip} in {seconds} s"
 CHECKED = "CI's check passed its tree merged over {base} at {tip} in {run}, so no guards ran"
-_IDENTITY = ("-c", "user.name=jmerge", "-c", "user.email=jmerge@localhost")
+IDENTITY = ("-c", "user.name=jmerge", "-c", "user.email=jmerge@localhost")
 TAIL = 40
 """The lines of what failed or stopped guards printed that their record keeps."""
 PASSED_ON = ("HOME", "USER", "LOGNAME", "LANG", "PATH")
@@ -218,10 +218,11 @@ def _stop(group: int) -> None:
         os.killpg(group, signal.SIGKILL)
 
 
-def command_of(state: Path) -> str:
-    """The first line of the state's `merged-tree-guards` that is not blank, or nothing."""
+def command_of(state: Path, name: str = NAME) -> str:
+    """The first line of the state's file `name`, `merged-tree-guards` unless named, that is not
+    blank, or nothing."""
     try:
-        text = (state / NAME).read_text(encoding="utf-8")
+        text = (state / name).read_text(encoding="utf-8")
     except OSError:
         return ""
     return next((line.strip() for line in text.splitlines() if line.strip()), "")
@@ -320,7 +321,7 @@ class Guards:
             return ready.MERGED_TREE_NO_SLOT.format(**values, seconds=SLOT_SECONDS), ""
         message = f"jmerge: #{one.number} merged over {one.base} at {tip[:SHA]}"
         made = _git(
-            self.main, *_IDENTITY, "commit-tree", tree[0], "-p", tip, "-p", one.head, "-m", message
+            self.main, *IDENTITY, "commit-tree", tree[0], "-p", tip, "-p", one.head, "-m", message
         )
         ran = self.in_tree(made.stdout.strip(), tip, one.head)
         if ran is None:

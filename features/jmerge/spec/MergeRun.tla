@@ -2,8 +2,8 @@
 \* One run of `jmerge` that jbus's pass starts, as the code of main aa5469d97 takes it, with a crash
 \* at each step. jbus's pass (`jbus.merge.merge`) starts a detached process (`keep`), which holds
 \* going.lock, runs `jmerge --if-free` and writes what it printed to ran-<at>.json; the next pass
-\* reads each record (`_records`): it replaces ran-<at>.json with read.json, then sends its lines
-\* (`_judged`). Inside, `jmerge` holds the repo's run lock (`jmerge.lock.running`) and goes in the
+\* reads each record (`_records`): it sends its lines (`_judged`), then replaces ran-<at>.json
+\* with read.json. Inside, `jmerge` holds the repo's run lock (`jmerge.lock.running`) and goes in the
 \* order of `jmerge.cli`: it settles the restarts a run left owed and drops the records of closed
 \* pull requests (`Repo.open_only`), reads where its batch stands (`Repo.start_batch`), judges
 \* each pull request, which may restart one whose run GitHub left queued (`Repo.unstuck`) or merge
@@ -20,17 +20,22 @@
 \* stands for CI's batch of five or more over the members it took. The pass starts MaxRuns runs,
 \* and the tick MaxTicks.
 \*
-\* Fault = "replace-first" is today's code: `os.replace` before `_judged`. Fault = "judge-first"
-\* sends a record's lines before it replaces the record, the fix RunHeard asks for. Fault =
-\* "no-run-lock" is today's code with a pass's run that does not take the run lock: the canary of
-\* OneRunAtATime. Fault = "fresh-list" reads whether P is open from GitHub in the run, not from the
-\* list the pass handed it before the run started, the fix RestartReopens asks for. Fault =
-\* "log-on-sweep" has `open_only` log the spell it drops of a merged W, the fix WaitKept might
-\* reach for: the canary of WaitLoggedOnce. Fault = "unlink-first" is the start stamp as the code
-\* of aa5469d97 kept it: the pass removes a stale stamp before it tells of the run, holds no lock
-\* while it does, and tells of a run whose record stands, and a run removes whatever stamp stands
-\* and runs with no look at it: the canary of DeathTold and NoFalseNoRecord. Each value other than
-\* "replace-first" changes that one thing of today's code.
+\* Fault = "judge-first" is today's code: `_judged` before `os.replace`, and the jmerge streak
+\* counts a run once for its record's `at`, so a pass that dies between the two and reads the
+\* record again counts nothing more. Fault = "replace-first" is the code before it, `os.replace`
+\* before `_judged`: the canary of RunHeard. Fault = "unkeyed" judges first with no key on the
+\* streak: the canary of StreakOnce. Fault = "tell-clears" keys the streak, and a count with no key
+\* (`_unrun` of a run with no record) clears the key: the canary of the key kept by such a count.
+\* Fault = "no-run-lock" is today's code with a pass's run that
+\* does not take the run lock: the canary of OneRunAtATime. Fault = "fresh-list" reads whether P
+\* is open from GitHub in the run, not from the list the pass handed it before the run started,
+\* the fix RestartReopens asks for. Fault = "log-on-sweep" has `open_only` log the spell it drops
+\* of a merged W, the fix WaitKept might reach for: the canary of WaitLoggedOnce. Fault =
+\* "unlink-first" is the start stamp as the code of aa5469d97 kept it: the pass removes a stale
+\* stamp before it tells of the run, holds no lock while it does, and tells of a run whose record
+\* stands, and a run removes whatever stamp stands and runs with no look at it: the canary of
+\* DeathTold and NoFalseNoRecord. Each value other than "judge-first" changes that one thing of
+\* today's code.
 \*
 \* ReplyLost is the world, not the code: GitHub took a close whose reply gh lost, so gh exited
 \* non-zero.
@@ -39,7 +44,7 @@
 \* it does not follow is a step the run skips. The parts share nothing but the run lock and a
 \* death, so each config follows the parts its rules read, and TLC's state space stays a product
 \* it can walk.
-EXTENDS Naturals, FiniteSets
+EXTENDS Naturals, FiniteSets, Sequences
 CONSTANTS MaxRuns, MaxTicks, Fault, Inside, ReplyLost
 
 Runs == 1..MaxRuns
@@ -48,6 +53,7 @@ Holders == {0} \cup Runs \cup {Tick}
 PassG == MaxRuns + 2     \* the pass, as the holder of going.lock while it judges the stamp
 Old == Fault = "unlink-first"
 Min(s) == CHOOSE x \in s : \A y \in s : x <= y
+Range(q) == {q[i] : i \in DOMAIN q}
 \* `most`, by level: 1 is LEAST (5), 2 is START (12), 3 is MOST (48); a halve and a double move it
 \* one level, which keeps what `_full` reads: whether a batch holds as many as the most.
 Levels == 1..3
@@ -67,7 +73,9 @@ VARIABLES
   \* while it judges the stamp, or 0.
   \* jbus/merge.py `fcntl.flock(going, fcntl.LOCK_EX) if _stamp(where) != stamp:`
   going,
-  \* B-062, jmerge-runs/ran-<at>.json: the runs whose record is written and not yet read.
+  \* B-062, jmerge-runs/ran-<at>.json: the runs whose record is written and not yet read, oldest
+  \* `at` first. `at` is when the run wrote its record, so a run that took going.lock late is
+  \* read after one started later.
   \* jbus/merge.py `write_json(where / f"ran-{at}.json", record)`
   ran,
   \* B-063, jmerge-runs/read.json: the run whose record the pass read last, or 0.
@@ -122,16 +130,21 @@ VARIABLES
   \* whose stamp it moved to jmerge-runs/died and is to tell of (`blamed`, a file that outlives
   \* the pass; with Fault = "unlink-first" the run it unlinked the stamp of, in memory), the run
   \* it is starting (`child`), each
-  \* run's count of `_judged` calls (`judged`), the runs it said ended with no record (`told`),
+  \* run's count on the jmerge streak (`judged`), the runs it said ended with no record (`told`),
   \* and the open/closed state of P in the list it hands `jmerge` (`handed`, `--pulls`).
   pc, reading, blamed, child, judged, told, handed,
+  \* streaks.json `jmerge` `once`: the run whose record's `at` the streak last counted, or 0. A
+  \* count with no key keeps it.
+  \* jbus/alert.py `if not once or one.once != once:`
+  once,
   \* History: the runs that wrote a record.
   recorded
 
 vars == <<runs, started, going, ran, read, stuck, prOpen, again, most, kind, branch, draft,
           spell, logged, batch, rerunKept, suspects, ci, tipMoved, merges, wMerged,
-          lock, jm, seen, ticks, pc, reading, blamed, child, judged, told, handed, recorded>>
-passV == <<pc, reading, blamed, child, judged, told, read, handed>>
+          lock, jm, seen, ticks, pc, reading, blamed, child, judged, told, handed, once,
+          recorded>>
+passV == <<pc, reading, blamed, child, judged, told, read, handed, once>>
 childV == <<runs, started, going, ran, recorded>>
 runV == <<lock, jm, seen, kind, ticks>>
 restartV == <<stuck, prOpen>>
@@ -147,7 +160,7 @@ Steps == {"idle", "open", "batch", "rerun-ask", "restart", "closing", "closed", 
 TypeOK ==
   /\ runs \in [Runs -> Phases]
   /\ started \in [by : {0} \cup Runs, old : BOOLEAN]
-  /\ going \in {0} \cup Runs \cup {PassG} /\ ran \subseteq Runs /\ read \in {0} \cup Runs
+  /\ going \in {0} \cup Runs \cup {PassG} /\ ran \in Seq(Runs) /\ read \in {0} \cup Runs
   /\ stuck \in {"none", "owed", "closed", "took", "refused", "unopened"} /\ prOpen \in BOOLEAN
   /\ again \in BOOLEAN /\ most \in Levels /\ kind \in {"", "guards", "ci"}
   /\ branch \in {"none", "batch", "other"} /\ draft \in BOOLEAN
@@ -160,10 +173,11 @@ TypeOK ==
             "reading", "judging", "replacing"}
   /\ reading \in {0} \cup Runs /\ blamed \in {0} \cup Runs /\ child \in {0} \cup Runs
   /\ judged \in [Runs -> 0..2] /\ told \subseteq Runs /\ handed \in BOOLEAN
+  /\ once \in {0} \cup Runs
   /\ recorded \subseteq Runs
 
 Init ==
-  /\ runs = [r \in Runs |-> "none"] /\ started = NoStamp /\ going = 0 /\ ran = {} /\ read = 0
+  /\ runs = [r \in Runs |-> "none"] /\ started = NoStamp /\ going = 0 /\ ran = <<>> /\ read = 0
   /\ stuck = "none" /\ prOpen = TRUE
   /\ again = FALSE /\ most = 2 /\ kind = "" /\ branch = "none" /\ draft = FALSE
   /\ spell = FALSE /\ logged = 0 /\ wMerged = FALSE
@@ -171,7 +185,7 @@ Init ==
   /\ tipMoved = FALSE /\ merges = 0
   /\ lock = 0 /\ jm = "idle" /\ seen = "none" /\ ticks = 0
   /\ pc = "idle" /\ reading = 0 /\ blamed = 0 /\ child = 0
-  /\ judged = [r \in Runs |-> 0] /\ told = {} /\ handed = TRUE /\ recorded = {}
+  /\ judged = [r \in Runs |-> 0] /\ told = {} /\ handed = TRUE /\ once = 0 /\ recorded = {}
 
 ----
 \* The pass (`jbus.merge.merge`).
@@ -198,19 +212,22 @@ PassStarts ==
                       /\ UNCHANGED <<started, blamed>>
                ELSE IF Old
                  THEN started' = NoStamp /\ blamed' = started.by /\ pc' = "unlinked"
-               ELSE IF started.by \in ran \/ read = started.by
+               ELSE IF started.by \in Range(ran) \/ read = started.by
                  THEN pc' = "unstamping" /\ UNCHANGED <<started, blamed>>
                ELSE started' = NoStamp /\ blamed' = started.by /\ pc' = "telling"
        ELSE pc' = "reading" /\ UNCHANGED <<started, blamed, going>>
-  /\ UNCHANGED <<runs, ran, recorded, reading, child, judged, told, read, handed>>
+  /\ UNCHANGED <<runs, ran, recorded, reading, child, judged, told, read, handed, once>>
   /\ UNCHANGED <<runV, restartV, batchV, waitV>>
 
 \* jbus/merge.py `_told(run, died, f"its run ended with no record: {_last(where / CHILD_LOG)}")`,
 \* once for the stamp: jbus/merge.py `if run.box.send("", "no-record", line, key=f"no-record|{stamp}"):`,
 \* so a tell again after a pass died is the same tell, as `told` is a set. Then the died file goes.
-\* With Fault = "unlink-first" the stamp went first (`unlinked`) and the pass tells after.
+\* With Fault = "unlink-first" the stamp went first (`unlinked`) and the pass tells after. The
+\* first tell counts the run on the jmerge streak with no key,
+\* jbus/merge.py `key=f"no-record|{stamp}"): _unrun(run, why)`, which keeps the key the streak holds; with Fault = "tell-clears" it clears it.
 PassTells ==
   /\ pc \in {"telling", "unlinked"} /\ told' = told \cup {blamed}
+  /\ once' = IF Fault = "tell-clears" /\ blamed \notin told THEN 0 ELSE once
   /\ IF pc = "telling"
        THEN pc' = "unmarking" /\ UNCHANGED blamed
        ELSE pc' = "stamping" /\ blamed' = 0
@@ -219,13 +236,13 @@ PassTells ==
 \* jbus/merge.py `(where / DIED).unlink()`, once the run is told of.
 PassUnmarks ==
   /\ pc = "unmarking" /\ blamed' = 0 /\ pc' = "stamping"
-  /\ UNCHANGED <<childV, reading, child, judged, told, read, handed, runV, restartV, batchV, waitV>>
+  /\ UNCHANGED <<childV, reading, child, judged, told, read, handed, runV, restartV, batchV, waitV, once>>
 
 \* jbus/merge.py `_unstamp(where, stale)`, the stamp of a run that kept its record: the pass holds
 \* going.lock, so it is the stamp it judged.
 PassUnstamps ==
   /\ pc = "unstamping" /\ started' = NoStamp /\ pc' = "stamping"
-  /\ UNCHANGED <<runs, going, ran, recorded, reading, blamed, child, judged, told, read, handed>>
+  /\ UNCHANGED <<runs, going, ran, recorded, reading, blamed, child, judged, told, read, handed, once>>
   /\ UNCHANGED <<runV, restartV, batchV, waitV>>
 
 \* jbus/merge.py `(where / STARTED).write_text(stamp + "\n")`, a stamp of the run's own, and then
@@ -239,7 +256,7 @@ PassStamps ==
          THEN pc' = "reading" /\ UNCHANGED <<started, child>>
          ELSE /\ started' = [by |-> Min(free), old |-> FALSE] /\ child' = Min(free)
               /\ pc' = "spawning"
-  /\ UNCHANGED <<runs, ran, recorded, reading, blamed, judged, told, read, handed>>
+  /\ UNCHANGED <<runs, ran, recorded, reading, blamed, judged, told, read, handed, once>>
   /\ UNCHANGED <<runV, restartV, batchV, waitV>>
 
 \* `start`: jbus/merge.py `child += handed(run)`, the pass's list of the open pull requests, read
@@ -248,40 +265,54 @@ PassStamps ==
 PassSpawns ==
   /\ pc = "spawning" /\ runs' = [runs EXCEPT ![child] = "spawned"] /\ handed' = prOpen
   /\ pc' = "reading" /\ child' = 0
-  /\ UNCHANGED <<started, going, ran, recorded, reading, blamed, judged, told, read>>
+  /\ UNCHANGED <<started, going, ran, recorded, reading, blamed, judged, told, read, once>>
   /\ UNCHANGED <<runV, restartV, batchV, waitV>>
 
 \* `_records`, oldest first: jbus/merge.py `for path in sorted(where.glob("ran-*.json")):`, then
-\* jbus/merge.py `os.replace(path, where / READ)` and jbus/merge.py `lines = _judged(run, ran, record["at"])`.
-\* Today the replace comes first; with Fault = "judge-first" the lines are sent first.
+\* jbus/merge.py `lines = _judged(run, ran, record["at"])` and jbus/merge.py `os.replace(path, where / READ)`.
+\* Today the lines are sent first, and `_judged` counts a failed run on the streak under its
+\* record's `at`: jbus/merge.py `_unrun(run, why, once=at)`, which the streak counts once,
+\* jbus/alert.py `if not once or one.once != once:`. A run that ended well ends the streak
+\* (`alert.ok`), which a second call does again. With Fault = "replace-first" the replace comes
+\* first and nothing keys the streak, and with Fault = "unkeyed" the lines come first and nothing
+\* keys the streak.
+Keyed == Fault \notin {"replace-first", "unkeyed"}
+\* `alert.failed` for run r: counted unless the key names r, and the key is r after where the
+\* count has one; a count with no key keeps the key it found:
+\* jbus/alert.py `one.count, one.why, one.once = one.count + 1, why, once or one.once`.
+Counts(r) ==
+  IF Keyed /\ once = r
+    THEN UNCHANGED <<judged, once>>
+    ELSE /\ judged' = [judged EXCEPT ![r] = IF @ < 2 THEN @ + 1 ELSE 2]
+         /\ once' = IF Keyed THEN r ELSE once
 PassReads ==
   /\ pc = "reading"
-  /\ IF ran = {}
-       THEN pc' = "idle" /\ UNCHANGED <<ran, read, reading, judged>>
-       ELSE LET r == Min(ran) IN
+  /\ IF ran = <<>>
+       THEN pc' = "idle" /\ UNCHANGED <<ran, read, reading, judged, once>>
+       ELSE LET r == Head(ran) IN
             /\ reading' = r
-            /\ IF Fault = "judge-first"
-                 THEN judged' = [judged EXCEPT ![r] = IF @ < 2 THEN @ + 1 ELSE 2]
-                      /\ pc' = "replacing"
-                      /\ UNCHANGED <<ran, read>>
-                 ELSE ran' = ran \ {r} /\ read' = r /\ pc' = "judging" /\ UNCHANGED judged
+            /\ IF Fault /= "replace-first"
+                 THEN Counts(r) /\ pc' = "replacing" /\ UNCHANGED <<ran, read>>
+                 ELSE ran' = Tail(ran) /\ read' = r /\ pc' = "judging"
+                      /\ UNCHANGED <<judged, once>>
   /\ UNCHANGED <<runs, started, going, recorded, blamed, child, told, handed>>
   /\ UNCHANGED <<runV, restartV, batchV, waitV>>
 
 \* `_judged`: jbus/merge.py `lines = _sent(run, ran, at=at)` sends each line once by its key,
 \* jbus/merge.py `run.find(slug or f"#{line.number}", "jmerge", text, key=f"{line.number} {text}")`,
-\* and counts the run on the jmerge streak, which no key guards:
+\* and counts the run on the jmerge streak:
 \* jbus/merge.py `alert.tell(run, streak, alert.ok(run.config.state_dir, streak, user=run.user))`.
+\* With Fault = "replace-first", the read of a record already replaced.
 PassJudges ==
-  /\ pc = "judging" /\ judged' = [judged EXCEPT ![reading] = IF @ < 2 THEN @ + 1 ELSE 2]
+  /\ pc = "judging" /\ Counts(reading)
   /\ reading' = 0 /\ pc' = "reading"
   /\ UNCHANGED <<childV, blamed, child, told, read, handed, runV, restartV, batchV, waitV>>
 
-\* With Fault = "judge-first": the replace after the lines were sent.
+\* Today: the replace after the lines were sent.
 PassReplaces ==
-  /\ pc = "replacing" /\ ran' = ran \ {reading} /\ read' = reading
+  /\ pc = "replacing" /\ ran' = Tail(ran) /\ read' = reading
   /\ reading' = 0 /\ pc' = "reading"
-  /\ UNCHANGED <<runs, started, going, recorded, blamed, child, judged, told, handed>>
+  /\ UNCHANGED <<runs, started, going, recorded, blamed, child, judged, told, handed, once>>
   /\ UNCHANGED <<runV, restartV, batchV, waitV>>
 
 \* The pass dies between two of its steps, and the kernel gives going.lock back; the next pass
@@ -292,7 +323,7 @@ PassDies ==
   /\ blamed' = IF Old THEN 0 ELSE blamed
   /\ going' = IF going = PassG THEN 0 ELSE going
   /\ runs' = IF pc = "spawning" THEN [runs EXCEPT ![child] = "died"] ELSE runs
-  /\ UNCHANGED <<started, ran, recorded, judged, told, read, handed>>
+  /\ UNCHANGED <<started, ran, recorded, judged, told, read, handed, once>>
   /\ UNCHANGED <<runV, restartV, batchV, waitV>>
 
 ----
@@ -330,9 +361,10 @@ EntrantEnds(r) ==
   /\ UNCHANGED <<started, going, ran, recorded, passV, runV, restartV, batchV, waitV>>
 
 \* jbus/merge.py `write_json(where / f"ran-{at}.json", record)`, whether jmerge ended, timed out
-\* or was busy.
+\* or was busy, named for when it is written: jbus/merge.py `at = restated.moment(verbs.clock())`.
+\* It is the newest `at`, so it goes last in the pass's order.
 Keeps(r) ==
-  /\ runs[r] = "done" /\ ran' = ran \cup {r} /\ recorded' = recorded \cup {r}
+  /\ runs[r] = "done" /\ ran' = Append(ran, r) /\ recorded' = recorded \cup {r}
   /\ runs' = [runs EXCEPT ![r] = "kept"]
   /\ UNCHANGED <<started, going, passV, runV, restartV, batchV, waitV>>
 
@@ -644,7 +676,7 @@ Spec == Init /\ [][Next]_vars
 \* Every run's lines are judged once: a run that wrote its record has its lines sent, or the
 \* record is still on disk for the next pass, or the pass holds it on its way to `_judged`.
 RunHeard ==
-  \A r \in recorded : r \in ran \/ judged[r] >= 1 \/ (pc = "judging" /\ reading = r)
+  \A r \in recorded : r \in Range(ran) \/ judged[r] >= 1 \/ (pc = "judging" /\ reading = r)
 \* The jmerge streak counts each run once.
 StreakOnce == \A r \in Runs : judged[r] <= 1
 \* The pass says a run ended with no record only of a run that wrote none.

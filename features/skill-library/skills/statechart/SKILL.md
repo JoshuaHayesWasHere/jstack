@@ -26,6 +26,7 @@ Start with `statechart --help`, which gives the commands and how to read a chart
 TLC's `tla2tools.jar` is pinned in `scripts/statechart/tools.py` and is downloaded to `~/.cache/jstack/tla2tools/` on the first run, checked against its sha256; set `TLA2TOOLS` to use another copy.
 `--png` renders with Mermaid's `@mermaid-js/mermaid-cli` through `npx`, at the version pinned in the same file, so it needs Node.
 The mapping that labels a model is a Python file, `SPEC.map.py`, and `scripts/model/` has a worked one: `OutputFolder.tla` models the command's own output folder, and `OutputFolder.map.py` labels it.
+The project skill in `features/skill-library/project-skill/verify-output-folder/` names the code that model covers, how to check it, and the commit it was last read against.
 Work in a scratch folder outside the repo.
 The command writes its files next to its input.
 
@@ -93,5 +94,8 @@ Add one line per bug with the rule it breaks, its steps as the chart numbers the
 With `--against`, also say whether the spec already lists it: in the configs that `stories.md` names, in the spec's notes on what the model leaves out, or not at all.
 Do not report that a rule holds while the command lists conditions with no file and quote or line.
 Take every count you quote from `summary.json`.
+Say what the chart covers: the bounds of the cfg it was drawn with, the model's counts beside the chart's, and that a chart state joins the model states the user cannot tell apart, so the chart is not every path of the code.
+`statechart site` writes these lines on each chart's tab, and with `--flow` it lists the models with no chart and the state no model has, from the flow file's `[[uncharted]]` and `[[unmodeled]]`.
+It stops on a model under a feature's `spec/` that has neither a chart nor an `[[uncharted]]` line.
 Attach `stories.md` and the command that regenerates everything.
 Say what the model leaves out.

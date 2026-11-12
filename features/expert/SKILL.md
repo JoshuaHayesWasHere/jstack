@@ -44,7 +44,7 @@ Each template there is the one copy of its text: read it when a step names it, n
 | `$E/corrections.md` | The user's corrections, in their words. | The user, never this thread |
 | `$E/unknowns.md` | What could not be answered: the study list. | Any thread |
 | `$E/home-id` | This thread's id, one line. | This thread |
-| `$E/webhook`, `$E/webhook.url` | The webhook's id and the thread its runs post into, and its address, which stays the same from thread to thread. | This thread |
+| `$E/webhook`, `$E/webhook.url` | The webhook's id and the thread its runs post into, and its address, which stays the same from thread to thread. `webhook.url` is empty when T3 Code gave no address, and missing when the address was lost. | This thread |
 
 The rules every expert follows are this skill and its playbooks, and no file in the folder adds to them.
 

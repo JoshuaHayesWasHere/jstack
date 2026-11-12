@@ -8,10 +8,14 @@ them. The boxes hold every state of the chart and the arrows and boxes every ste
 overview's counts add up to the chart's.
 """
 
+import re
 from dataclasses import dataclass, field
 
 MOST = 10
-WRONG = "Wrong"
+GROUP = re.compile(r"(group\d+)(?:Wrong|Fixed|Path)?")
+"""A state's class in a grouped chart: its group's, with the border it is drawn with after it, as
+`tlc_to_chart` writes it (`class_for`): `Wrong` for one that breaks a rule, `Fixed` for one fixed
+in the open pull request, `Path` for one on a bug path."""
 
 
 @dataclass
@@ -48,18 +52,14 @@ class Overview:
 def groups_of(chart):
     """The chart's groups by their class, in the legend's order: the legend's other entries, such
     as the one for a state that breaks a rule, name no group."""
-    return {
-        g["class"]: g["name"]
-        for g in chart.legend
-        if g["class"].startswith("group") and not g["class"].endswith(WRONG)
-    }
+    return {g["class"]: g["name"] for g in chart.legend if re.fullmatch(r"group\d+", g["class"])}
 
 
 def group_of(state, named):
-    """The group a state is in: a state that breaks a rule keeps its group's class, with WRONG
-    after it, and is still in that group."""
-    group = state.group.removesuffix(WRONG)
-    return group if group in named else ""
+    """The group a state is in: a state drawn with a border keeps its group's class, with the
+    border after it (`GROUP`), and is still in that group."""
+    found = GROUP.fullmatch(state.group)
+    return found[1] if found and found[1] in named else ""
 
 
 def overview_of(chart):

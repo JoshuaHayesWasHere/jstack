@@ -135,6 +135,35 @@ def line_main(argv: list[str]) -> int:
     return failed
 
 
+def not_run_main(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="jbriefs not-run",
+        description="Append to the brief the `## Review` of a reviewer that stopped before its "
+        "review, with `Verdict: not run` and its head, so the brief no longer waits on that "
+        "reviewer (`jbriefs line reviewing` says no); write nothing where the brief already ends "
+        "in that section.",
+    )
+    parser.add_argument("brief", type=Path, metavar="BRIEF")
+    parser.add_argument("head", help="the head the review was to be of")
+    parser.add_argument("why", help="the section's Why: line, why it stopped")
+    parser.add_argument("by", help="the reviewer's By: line, as Start printed it, or empty")
+    parser.add_argument("scope", help="on a scoped pass, its Scope: line, whole, else empty")
+    args = parser.parse_args(argv)
+    brief = args.brief.expanduser()
+    if not brief.is_file():
+        print(f"no section: there is no brief at {brief}")
+        return 1
+    text = brief.read_text(encoding="utf-8", errors="replace")
+    section = reviewers.not_run(text, args.head, args.why, args.by, args.scope)
+    if not section:
+        print(f"no section: the brief already ends in a review of {args.head} that was not run")
+        return 0
+    with brief.open("a", encoding="utf-8") as out:
+        out.write(section)
+    print(f"written: ## Review with Verdict: not run, in {brief}")
+    return 0
+
+
 def go_of(slug: str, brief: Path) -> str:
     """Why a proposal for the brief would void a go, or an empty string where it voids none.
 
@@ -245,6 +274,8 @@ def main(argv: list[str] | None = None) -> int:
         return pick_main(argv[1:])
     if argv[:1] == ["line"]:
         return line_main(argv[1:])
+    if argv[:1] == ["not-run"]:
+        return not_run_main(argv[1:])
     parser = argparse.ArgumentParser(
         prog="jbriefs",
         description="Write one page of every home's handoff, open plan entries, briefs and "
@@ -257,7 +288,8 @@ def main(argv: list[str] | None = None) -> int:
         default=home.homes_dir(),
         help="the directory that holds one home per repo (default: %(default)s); "
         "`jbriefs pick <path | ->` picks the skills for a piece of work instead, and "
-        "`jbriefs line <lines> <brief>...` prints what a brief's Result lines say",
+        "`jbriefs line <lines> <brief>...` prints what a brief's Result lines say, and "
+        "`jbriefs not-run <brief> <head> <why> <by> <scope>` writes a stopped reviewer's section",
     )
     parser.add_argument("--out", type=Path, help="where to write the page (default: the cache)")
     parser.add_argument(

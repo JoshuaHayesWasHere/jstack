@@ -1,15 +1,15 @@
 {
   "view": "customer",
-  "modelStates": 189399,
-  "modelTransitions": 779444,
-  "chartStates": 58,
-  "chartTransitions": 92,
-  "allTransitions": 157,
+  "modelStates": 119973,
+  "modelTransitions": 488738,
+  "chartStates": 28,
+  "chartTransitions": 46,
+  "allTransitions": 81,
   "final": [],
   "chartStatus": {
-    "works": 33,
+    "works": 21,
     "fixed": 0,
-    "wrong": 25
+    "wrong": 7
   },
   "chartGroups": [
     {
@@ -23,13 +23,13 @@
     "drawn": true,
     "states": [
       9,
-      49
+      19
     ],
-    "transitions": 92,
-    "all": 157,
+    "transitions": 46,
+    "all": 81,
     "flat": {
-      "states": 441,
-      "transitions": 2893
+      "states": 171,
+      "transitions": 1099
     }
   },
   "classes": [
@@ -41,51 +41,18 @@
       "cause": "the install makes jstack's state folder before a record names it",
       "readerSteps": 2,
       "modelSteps": 3,
-      "counterexamples": 1866,
-      "fix": null
-    },
-    {
-      "n": 2,
-      "end": "Nothing of jstack's on disk: Expert in thread 2 starting, two webhooks live",
-      "invariant": "OneWebhook",
-      "rule": "An expert has at most one live webhook, and once a start has ended, its record names it and the thread it posts into.",
-      "cause": "the new thread keeps no record of the webhook the last one made and never kept",
-      "readerSteps": 5,
-      "modelSteps": 10,
-      "counterexamples": 1218,
-      "fix": null
-    },
-    {
-      "n": 3,
-      "end": "Nothing of jstack's on disk: Expert in thread 1, its webhook kept, posting into thread 1, its address lost",
-      "invariant": "UrlNamesWebhook",
-      "rule": "Once a start has ended, the address kept is the kept webhook's.",
-      "cause": "the turn stopped before it kept the address, and nothing writes it again",
-      "readerSteps": 6,
-      "modelSteps": 9,
-      "counterexamples": 8526,
-      "fix": null
-    },
-    {
-      "n": 4,
-      "end": "Nothing of jstack's on disk: Expert in thread 1, a webhook no record names, its address lost",
-      "invariant": "OneWebhook",
-      "rule": "An expert has at most one live webhook, and once a start has ended, its record names it and the thread it posts into.",
-      "cause": "the turn stopped before it kept the webhook it made",
-      "readerSteps": 9,
-      "modelSteps": 13,
-      "counterexamples": 4872,
+      "counterexamples": 1182,
       "fix": null
     }
   ],
   "codeLike": [],
   "drawnFrom": {
-    "command": "statechart from-spec Setup.tla --config Setup.chart.cfg --title 'Does an uninstall or an expert'\"'\"'s takeover leave anything behind?' --expect-broken UninstallComplete,OneWebhook,UrlNamesWebhook --png",
+    "command": "statechart from-spec Setup.tla --config Setup.chart.cfg --title 'Does an uninstall or an expert'\"'\"'s takeover leave anything behind?' --expect-broken UninstallComplete --png",
     "inputs": {
       "Setup.chart.cfg": "82184ec43abcd894a521d66e4615837a8661c1e90eee0806b14b6547a7565dfd",
-      "Setup.map.py": "e41f764191b06c70043f9b7fbcc2c83df250a82c1ecabee921d094b6d1a9616a",
-      "Setup.tla": "e49e965926089ead821164b59da3caf773903de04a1add2aeec077c244bc364b"
+      "Setup.map.py": "713601688508f5a973312960f3598b5475b8b0aa7c5f6e3d9277cc4a71510e33",
+      "Setup.tla": "bd8769d018ff26cbc0420a6a7e3158aca47efa46dba53a2d8ef7e859821aad08"
     },
-    "chart": "44a571a1a92697a8a923eee8ba4fb2c561f49584a47204b727b531df74541c54"
+    "chart": "c255b15902a39db51f8ee20f2f6d0ead20aae26b6819c20cac7cb6f5a96e1f67"
   }
 }

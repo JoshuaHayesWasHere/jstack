@@ -1,10 +1,10 @@
 {
   "view": "customer",
-  "modelStates": 155185,
-  "modelTransitions": 380972,
+  "modelStates": 129129,
+  "modelTransitions": 321344,
   "chartStates": 77,
-  "chartTransitions": 200,
-  "allTransitions": 200,
+  "chartTransitions": 197,
+  "allTransitions": 197,
   "final": [],
   "chartStatus": {
     "works": 75,
@@ -15,7 +15,7 @@
     {
       "name": "At work",
       "color": "#ffffff",
-      "states": 8
+      "states": 9
     },
     {
       "name": "Result written",
@@ -25,7 +25,7 @@
     {
       "name": "In review",
       "color": "#e8daef",
-      "states": 3
+      "states": 2
     },
     {
       "name": "A finding to answer",
@@ -77,7 +77,7 @@
       "cause": "a rebase record stays after its push",
       "readerSteps": 14,
       "modelSteps": 25,
-      "counterexamples": 5400,
+      "counterexamples": 3384,
       "fix": null
     }
   ],
@@ -86,9 +86,9 @@
     "command": "statechart from-spec CrewProof.tla --config CrewProof.chart.cfg --title 'Does the proof on the brief match the head, and does a rebase leave its record?' --expect-broken RebaseRecorded --png",
     "inputs": {
       "CrewProof.chart.cfg": "d5ead165c6c163545d1fe32b7bcf9b08685fdf27f9c37a75d18c16a756ca2b3c",
-      "CrewProof.map.py": "402110a1693ea15a978a0203fa1e8b9c5c2a0abc5afcae4a2897e95ddeb451ed",
-      "CrewProof.tla": "ed20270731797067e522d26901233e41c42c57417009f6c4e4cd01d851ad99ca"
+      "CrewProof.map.py": "50b476e74dd0a358d287e91b4628a04d045a99e5584f30dd681640513958eb51",
+      "CrewProof.tla": "367c59a28a8960b5f904f7925bb39ea5caee7174c52f7ee1202e29c959a133a8"
     },
-    "chart": "3952b7ac66bbcde4264c37a93bcc905e398bdc85e1fd86d268328470aa2f4870"
+    "chart": "6a978f350ddd0e9791985694934ffae798c6fd991e6c92f0e3247304a02cdc1a"
   }
 }

@@ -10,33 +10,34 @@ With the backup ref and the lease, a rebase never loses what was on the branch.
 
 The key of the message is `rebase|<slug>|<head 12>`. T3 Code uses the key to retry, and jbus writes
 the key in `sent.json` as a mark of the send. So a pass that got no answer tries again, and jbus
-never tells the same head twice. For main moving or for a failure, jbus tells a pull request to
-rebase only once. A crew may rebase and then find its pull request stale or failing again at a new
-head. jbus then parks a gate (`SECOND`) with the default that the pull request waits, and asks for
-no second rebase. jbus tells of a conflict with the base at every head, since nothing but a rebase
-resolves a conflict.
+tells a head once for each reason, save a conflict, which `retell` tells again at a new main. For
+main moving or for a failure, jbus tells a pull request to rebase only once. A crew may rebase and
+then find its pull request stale or failing again at a new head. jbus then parks a gate (`SECOND`)
+with the default that the pull request waits, and asks for no second rebase. jbus tells of a
+conflict with the base at every head, since nothing but a rebase resolves a conflict.
 
 `tell` also reads a second kind of `wait` line, `content-changed`, about a new head that changed
 what the reviewed patch says. `jmerge` keeps the review over a rebase, whatever its range-diff
 changes, since the pull request's checks verify a rebase, and over a push whose patch differs in
-tests, docs or config alone (`jmerge.ready.kept_note`). It waits on a push whose patch changes
-code, a rebase with a commit pushed on it included, and on a head whose patches git cannot
-compare, with the same words for each: `the rebase changed the content after its review`. jbus
-then launches one scoped reviewer of that range-diff
-itself (`scope`), and asks the crew nothing: a thread titled `review: <slug>, scoped` in the crew's
-worktree, told `/pr-review run <slug> scoped <old> <new>`, with the arguments of a first review's
-launch (`prereview.arguments`), and a `Scoped reviewer: <thread>, of <head>` line added under the
-Result (`prereview._record`), with the head recorded (`jbus.reviewlaunch`). A head that has a
-review asked for (`reviewlaunch.has`) gets none, and the head is claimed (`reviewlaunch.claim`)
-before the launch, since a launch has no retry key: a pass that crashes after it launches no second
-reviewer of the head. A launch waits while the crew is at work, since the reviewer reads the crew's
-worktree, and while GitHub has the pull request at another head. A pass that finds the review pool
-capped or no worktree for the crew launches nothing and claims nothing, one that finds T3 Code
-refusing the launch takes its claim back (`reviewlaunch.release`), so the next pass tries again,
-and each is a gate once for the head. A launch that got no reply keeps its claim, since it may have
-made the thread, and is a condition once, as `prereview`'s is. The
-crew hears of the scoped review once it is written, from `jbus.reviewed`, with its findings by id,
-as of any review round, and hears nothing of one that is clean.
+tests, docs or config alone (`jmerge.ready.kept_note`). It waits on a push whose patch changes code,
+a rebase with a commit pushed on it included, and on a head whose patches git cannot compare, with
+the same words for each: `the rebase changed the content after its review`. jbus then launches one
+scoped reviewer of that range-diff itself (`scope`), and asks the crew nothing: a thread titled
+`review: <slug>, scoped` in the crew's worktree, told `/pr-review run <slug> scoped <old> <new>`,
+with the arguments of a first review's launch (`prereview.arguments`), and a `Scoped reviewer:
+<thread>, of <head>` line added under the Result (`prereview._record`), with the head recorded
+(`jbus.reviewlaunch`). A head that has a review asked for (`reviewlaunch.has`) gets none, and the
+head is claimed (`reviewlaunch.claim`) before the launch, since a launch has no retry key: a pass
+that crashes after it launches no second reviewer of the head. A launch waits while the crew is at
+work, since the reviewer reads the crew's worktree, while GitHub has the pull request at another
+head, and while that worktree is at another commit or has changes not committed (`off_head`), on
+which the reviewer would stop with no review. A pass that finds the review pool capped or no
+worktree for the crew launches nothing and claims nothing, one that finds T3 Code refusing the
+launch takes its claim back (`reviewlaunch.release`), so the next pass tries again, and each is a
+gate once for the head. A launch that got no reply keeps its claim, since it may have made the
+thread, and is a condition once, as `prereview`'s is. The crew hears of the scoped review once it is
+written, from `jbus.reviewed`, with its findings by id, as of any review round, and hears nothing of
+one that is clean.
 
 The third kind of `wait` line is about a rebase that dropped lines nobody explained. `jmerge` waits
 on such a rebase, and jbus tells the crew once per head, under the key `drops|<slug>|<head 12>`. The
@@ -76,6 +77,14 @@ has written the review, `github` sends the rebase message instead, whatever `jme
 `github` does not wait for `jmerge` here, because a red check hides the conflict from the line
 that `jmerge` prints.
 
+A head still in conflict after its message is told again once for each tip of main it was not told
+at, under `rebase|<slug>|<head 12>|<main 12>`, or `conflict|...` before its review (`retell`): a
+crew that refused the message while its review ran, or held on its home's word, keeps its head,
+and the merge it waited for may be what lets its rebase through (#1710, 2026-11-11). The first
+message writes the key of its kind at the tip it went at, so the next one waits for main to move.
+A conflict told before the review stays out of `rebase|<slug>|`, so it is not the one rebase that
+a stale main at a later head would otherwise be refused after.
+
 No message comes when every check passed: the review came before the pull request opened
 (`jbus.prereview`), so a green pull request owes its crew no line."""
 
@@ -87,7 +96,7 @@ from dataclasses import dataclass, replace
 from urllib.parse import urlsplit
 
 import jroles
-from jbriefs import below
+from jbriefs import below, reviewers
 from jbriefs import stacked as stacks
 from jbus import (
     END_TURN,
@@ -275,6 +284,8 @@ def scope(run: Pass, client: Client, world: World, number: int, reason: str, ask
     if not tree:
         run.gate(slug, NO_TREE, f"#{number}: {thread}", key=f"{NO_TREE} {head[:12]}")
         return
+    if off_head(run, slug, number, tree, head):
+        return
     try:
         routes = list(pool.routes("review", run.now, dispatch.cannot_sign_in(run, client)))
     except jroles.Refused as error:
@@ -308,6 +319,23 @@ def scope(run: Pass, client: Client, world: World, number: int, reason: str, ask
     run.say(line)
 
 
+def off_head(run: Pass, slug: str, number: int, tree: str, head: str) -> bool:
+    """Say whether the crew's worktree, which a scoped reviewer reads, is at a commit other than
+    `head` or has changes not committed, the two things on which pr-review's scoped pass stops
+    with no review. A tree git cannot read is not known to be off the head: T3 Code refuses a
+    launch into a worktree that is not there, and that is a gate (`LAUNCH_REFUSED`)."""
+    at = run.run("git", "-C", tree, "rev-parse", "HEAD")
+    changed = run.run("git", "-C", tree, "status", "--porcelain")
+    if at.returncode != 0 or changed.returncode != 0:
+        return False
+    now = at.stdout.strip()
+    if now == head and not changed.stdout.strip():
+        return False
+    off = f"is at {now[:12]}, not {head[:12]}" if now != head else "has changes not committed"
+    run.say(f"wait {slug}: #{number}'s scoped review waits, the crew's worktree {tree} {off}")
+    return True
+
+
 def github(run: Pass, client: Client, world: World) -> None:
     """For each crew, send one message of each kind, once per head, when GitHub says the crew's pull
     request is red, or in conflict with its base."""
@@ -334,13 +362,35 @@ def github(run: Pass, client: Client, world: World) -> None:
             elif deliver(run, client, world, number, red.reason, ask):
                 run.box.mark(told)
         told = rebased or mark("conflict", slug, head) in sent
+        if review.reviewed(brief):
+            ask = Ask("rebase", "told the crew", "told to rebase", MESSAGE, head[:12], True)
+        else:
+            ask = _asked("conflict", CONFLICTED, head)
         if pull.get("mergeable") == "CONFLICTING" and not told and not stacks.unmoved(brief):
-            reason = "it conflicts with its base"
-            if review.reviewed(brief):
-                ask = Ask("rebase", "told the crew", "told to rebase", MESSAGE, head[:12], True)
-            else:
-                ask = _asked("conflict", CONFLICTED, head)
-            deliver(run, client, world, number, reason, ask)
+            deliver(run, client, world, number, ready.CONFLICTS, ask)
+        elif pull.get("mergeable") == "CONFLICTING" and not stacks.unmoved(brief):
+            retell(run, client, world, (slug, head, number), brief, ask)
+
+
+def retell(
+    run: Pass, client: Client, world: World, pull: tuple[str, str, int], brief: str, ask: Ask
+) -> None:
+    """Tell the crew of a pull request still in conflict at a head it was told of once more, at a
+    tip of main it was not told at, under the key of its kind and that tip: `rebase|<slug>|<head
+    12>|<main 12>` after its review, `conflict|<slug>|<head 12>|<main 12>` before it, since only a
+    `rebase|<slug>|` key counts as the one rebase that `post` allows a stale main. The tip the
+    first message went at (`deliver`) is told under either kind no more. A crew whose reviewer has
+    not written (`reviewers.running`) is not told: it is not to rebase from under its review. The
+    outbox holds the message while the crew is at work, and a pass after its turn sends it."""
+    slug, head, number = pull
+    tip = run.tip()
+    if not tip or reviewers.running(brief):
+        return
+    sent = run.box.sent()
+    if any(mark(kind, slug, head, tip[:12]) in sent for kind in ("rebase", "conflict")):
+        return
+    again = replace(ask, did=f"told the crew again, main at {tip[:12]}", event=True)
+    post(run, client, world, number, ready.CONFLICTS, again, window=tip[:12])
 
 
 def worktree(client: Client, thread: str) -> str | None:
@@ -464,8 +514,13 @@ def ran_and_failed(run: Pass, world: World, pull: dict) -> Red:
 
 def deliver(run: Pass, client: Client, world: World, number: int, reason: str, ask: Ask) -> bool:
     """Send the crew of a pull request one message, once per head, and write an event of the ask's
-    kind that says so. Say whether the message went."""
-    return bool(post(run, client, world, number, reason, replace(ask, event=True)))
+    kind that says so. Say whether the message went. A rebase or conflict message that went also
+    writes the key of its kind at main's tip (`retell`), so the crew is told again only once main
+    moves."""
+    went = post(run, client, world, number, reason, replace(ask, event=True))
+    if went and ask.kind in ("rebase", "conflict") and (tip := run.tip()):
+        run.box.mark(mark(ask.kind, went[0], went[1], tip[:12]))
+    return bool(went)
 
 
 def mark(kind: str, slug: str, head: str, window: str = "") -> str:
@@ -564,7 +619,7 @@ def post(
     if "{worktree}" in message:
         message = message.replace("{worktree}", where(client, thread))
     line = f"{ask.kind} {slug}: {ask.did} (#{number}, {head[:12]})"
-    told = (line, head[:12]) if ask.event else None
+    told = (line, key.removeprefix(f"{ask.kind}|{slug}|")) if ask.event else None
     if once(run, client, ask, key, thread, slug, message, at=head[:12], told=told) != SENT:
         return None
     return slug, head, message

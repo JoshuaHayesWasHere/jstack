@@ -51,9 +51,14 @@ scoped() {
     elif ! old=$(git merge-base "$base" "$saw" 2> /dev/null); then
         echo "scoped: the head the review saw, $saw, is not a commit here, so its range cannot be given"
     else
-        again=
-        if [ "$stopped" != - ]; then again=" in place of the one that stopped at $stopped"; fi
-        echo "scoped: launch the scoped reviewer$again, with /pr-review run <slug> scoped $old..$saw $from..$head"
+        said="/pr-review run <slug> scoped $old..$saw $from..$head"
+        if [ "$(cat "$(git rev-parse --git-path crew-scoped-launch)" 2> /dev/null)" = "$head" ]; then
+            echo "scoped: a launch of the scoped reviewer for this head began and wrote no Scoped reviewer: line: find its thread, \`review: <slug>, scoped\` with the message $said, before you launch one"
+        else
+            again=
+            if [ "$stopped" != - ]; then again=" in place of the one that stopped at $stopped"; fi
+            echo "scoped: launch the scoped reviewer$again, with $said"
+        fi
     fi
 }
 read -r meets met count judged << EOF
@@ -94,10 +99,16 @@ The only other way out is the user's `Waived:` line ("The review").
   The desk proof is the brief's last `Checked:` line exiting 0 at the fixed head and its `Proved:` line run there, as "Do the task" writes both after the fix; run no block of "The review": its second block counts the first reviewer and would say to launch none.
   Where both hold at the fixed head, launch one reviewer now, by the launch block of "The review" with `scoped` and the message the line gives, whole.
   Where the check block failed there, fix and push with the block of "The review" that pushes a fix first, then run this block again: it gives the ranges of the head there is then.
+  Right before the `t3_thread_launch` call, once the launch block has printed its `launch:` line, mark the launch in this worktree's git dir, `git rev-parse HEAD > "$(git rev-parse --git-path crew-scoped-launch)"`: a run of this block killed between the launch and the line below then leaves the mark, and the next run finds the reviewer it launched instead of launching a second one for the same head.
   After the launch, add the line `Scoped reviewer: <threadId>, of <the head the message's second range ends at, in full>` to the Result, under the `Scoped review:` line, send the home nothing, and go on as "Stay on the pull request" says.
   Where the line says `in place of the one that stopped at <head>`, a reviewer launched for that head wrote no section, because the head moved under it: put the new line in place of that reviewer's line and do not add under it, also where a message from jbus says to add it, since "A conflict" counts every reviewer line against the sections written and would wait for the stopped one for good.
   If the session has no `t3_thread_launch`, write `Scoped reviewer: none, no launch tool in this session, of <that head>` and send the thread that hears of a pull request ("Telling the home") one line, once: `<slug>: <pull request url> at <full head commit> is fixed, and its scoped review could not be launched (no launch tool in this session): it waits for the user's word`.
   Its `jroles review` runs with `--thread <thread id>`, and on exit 75 this thread makes no launch and ends its turn with the one line "The review" gives for a capped pool, whatever the "Launching" section says: jbus wakes it once the cap has ended.
+- `scoped: a launch of the scoped reviewer for this head began and wrote no Scoped reviewer: line`: the mark names this head, so a launch may have made a reviewer whose line was never written.
+  Look before you launch: `t3_thread_list` with `titleContains: "review: <slug>, scoped"`, and `t3_thread_read` on each it gives, newest first, for the one whose first message is the message the line gives, whole.
+  Where one is there, launch none: add its `Scoped reviewer: <threadId>, of <head>` line as the launch would have, in place of a stopped reviewer's line where the launch was in place of one, and go on as for `the scoped reviewer is launched`.
+  Where none is, the launch never happened: launch now, as for `scoped: launch the scoped reviewer`, with the mark left as it is.
+  The mark counts for the head it names and no other, so a mark left at an earlier head holds back no launch at this one.
 - `scoped: no scoped reviewer could be launched for this head`: the `Scoped reviewer: none` line is there and the home has been told. Nothing more to do: the pull request waits for the user's word.
 - `scoped: the scoped reviewer is launched`: nothing to do.
   Its findings come as a message in this thread, and the message comes after its `## Review` is written.

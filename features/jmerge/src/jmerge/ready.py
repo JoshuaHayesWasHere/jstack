@@ -437,6 +437,22 @@ MERGED_TREE_NO_SLOT = Reason(
     "every full test slot stayed taken for {seconds} s, so the guards did not start on its tree "
     "merged over {base} at {tip}: the next run tries again",
 )
+RULE_BREAKS = Reason(
+    "result",
+    "its tests {tests} fail on open pull requests merged with it, {breaks}: carry the fix (an "
+    "exemption or a changed rule), or name each on a Breaks: line of its Result, and jbus tells "
+    "their crews when it merges",
+)
+"""The wait on a pull request that adds or tightens a test that another open pull request, merged
+with it, fails (`jmerge.preflight`): its crew fixes the rule or names the pull requests it
+breaks, so no crew finds the red alone after it lands (#1702 on 2026-11-12)."""
+RULE_UNRUN = Reason(
+    "check",
+    "its tests {tests} have run on {ran} of the {open} open pull requests merged with it: the "
+    "next run goes on",
+)
+"""The wait while the rule preflight has not yet run on every open pull request once: a wait on
+the runner that ends by itself (`jmerge.preflight.RUN_SECONDS`)."""
 _MAINS_LOST = "{count} of main's lines in {file}"
 _OWN_LOST = "{count} of its own in {file}"
 _REFUSED = "{file}: {why}"

@@ -2,18 +2,17 @@
   "view": "customer",
   "modelStates": 191,
   "modelTransitions": 639,
-  "chartStates": 32,
-  "chartTransitions": 50,
-  "allTransitions": 67,
+  "chartStates": 21,
+  "chartTransitions": 30,
+  "allTransitions": 41,
   "final": [
     "no run out, a run was said to have left no record",
-    "no run out, a run's lines are lost",
     "no run out, every record written was sent"
   ],
   "chartStatus": {
-    "works": 27,
+    "works": 21,
     "fixed": 0,
-    "wrong": 5
+    "wrong": 0
   },
   "chartGroups": [
     {
@@ -29,11 +28,6 @@
     {
       "name": "Lines on their way",
       "color": "#eaf2f8",
-      "states": 11
-    },
-    {
-      "name": "Lines lost",
-      "color": "#fadbd8",
       "states": 5
     }
   ],
@@ -41,37 +35,25 @@
   "regions": {
     "drawn": true,
     "states": [
-      4,
-      28
+      3,
+      18
     ],
-    "transitions": 50,
-    "all": 67,
+    "transitions": 30,
+    "all": 41,
     "flat": {
-      "states": 34,
-      "transitions": 76
+      "states": 24,
+      "transitions": 53
     }
   },
-  "classes": [
-    {
-      "n": 1,
-      "end": "Between passes: a run is out, a start stamp under a minute old; a run's lines are lost",
-      "invariant": "RunHeard",
-      "rule": "Every run's lines are judged once: a run that wrote its record has its lines sent, or the record is still on disk for the next pass, or the pass holds it on its way to `_judged`.",
-      "cause": "the pass marked a record read and died before it sent its lines, so what jmerge said of those pull requests never reaches anyone",
-      "readerSteps": 5,
-      "modelSteps": 10,
-      "counterexamples": 6,
-      "fix": null
-    }
-  ],
+  "classes": [],
   "codeLike": [],
   "drawnFrom": {
     "command": "statechart from-spec MergeRun.tla --config MergeRun.chart.cfg --title 'jbus'\"'\"'s pass starts a run of jmerge: does what it said reach you?' --png",
     "inputs": {
-      "MergeRun.chart.cfg": "1efbb7086e6d552d866afc77f12fa38e519682f33a4584bbc5d333d01c24126b",
+      "MergeRun.chart.cfg": "59ec03eb848e7e60eb9f1cc056f9968800ab9d2bbfa398823999fad6398e9143",
       "MergeRun.map.py": "4b3998c92e55eec0c5f07a6ec28c70b3b21f506feba8357de19cccd6fd31eb08",
-      "MergeRun.tla": "29357cbfaf2c85c93329b68e614755d98121157e7328ad8dfe24c280a4fe39f0"
+      "MergeRun.tla": "e8298f329217b8085796afaabb3cbe17de4a656738454e4fd92c6d208b15673c"
     },
-    "chart": "6b34249ff309c0ff6e99a3fbaa291749132964e89b7074f3fdba7505450d17dc"
+    "chart": "c33cbb1c35488a72729498acedd7685b2effa0a6fe5390a4431e2e4ee476bf28"
   }
 }
