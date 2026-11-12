@@ -114,18 +114,30 @@ stateDiagram-v2
     state "Status: open in gates.md,<br/>not on your list, you owe<br/>an answer" as r1s64
     state "Status: open in gates.md,<br/>on your list, you owe an<br/>answer" as r1s65
     r1s0 --> r1s64 : the home writes a gate
+    r1s2 --> r1s1 : a pass
     r1s3 --> r1s7 : a pass
     r1s4 --> r1s6 : a pass
+    r1s5 --> r1s7 : a pass
+    r1s6 --> r1s2 : you answer the question
+    r1s7 --> r1s1 : you answer the question
+    r1s9 --> r1s8 : a pass
     r1s10 --> r1s1 : the home hands off, moving<br/>gates.md aside
     r1s11 --> r1s2 : the home hands off, moving<br/>gates.md aside
     r1s12 --> r1s3 : the home hands off, moving<br/>gates.md aside
     r1s13 --> r1s15 : a pass
     r1s13 --> r1s4 : the home hands off, moving<br/>gates.md aside
     r1s14 --> r1s5 : the home hands off, moving<br/>gates.md aside
+    r1s15 --> r1s6 : the home hands off, moving<br/>gates.md aside
+    r1s16 --> r1s10 : a pass
     r1s17 --> r1s8 : the home hands off, moving<br/>gates.md aside
     r1s18 --> r1s9 : the home hands off, moving<br/>gates.md aside
+    r1s20 --> r1s19 : a pass
     r1s21 --> r1s25 : a pass
     r1s22 --> r1s24 : a pass
+    r1s23 --> r1s25 : a pass
+    r1s24 --> r1s20 : you answer the question
+    r1s25 --> r1s19 : you answer the question
+    r1s27 --> r1s26 : a pass
     r1s28 --> r1s19 : the home hands off, moving<br/>gates.md aside
     r1s29 --> r1s20 : the home hands off, moving<br/>gates.md aside
     r1s30 --> r1s34 : a pass
@@ -133,17 +145,26 @@ stateDiagram-v2
     r1s31 --> r1s33 : a pass
     r1s31 --> r1s22 : the home hands off, moving<br/>gates.md aside
     r1s32 --> r1s23 : the home hands off, moving<br/>gates.md aside
+    r1s33 --> r1s24 : the home hands off, moving<br/>gates.md aside
+    r1s34 --> r1s25 : the home hands off, moving<br/>gates.md aside
     r1s35 --> r1s26 : the home hands off, moving<br/>gates.md aside
     r1s36 --> r1s27 : the home hands off, moving<br/>gates.md aside
+    r1s38 --> r1s37 : a pass
     r1s39 --> r1s41 : a pass [when A gate, asked by<br/>the home]
     %% when r0s3
     r1s39 --> r1s37 : you answer the question
     r1s40 --> r1s38 : you answer the question
+    r1s41 --> r1s37 : you answer the question
+    r1s43 --> r1s42 : a pass
     r1s44 --> r1s46 : a pass [when A gate, asked by<br/>the home]
     %% when r0s3
     r1s44 --> r1s42 : you answer the question
     r1s45 --> r1s43 : you answer the question
+    r1s46 --> r1s42 : you answer the question
+    r1s48 --> r1s47 : a pass
     r1s49 --> r1s55 : a pass [when A gate, asked by<br/>the home]
+    %% when r0s3
+    r1s50 --> r1s55 : a pass [when A gate, asked by<br/>the home]
     %% when r0s3
     r1s51 --> r1s57 : a pass [when A gate, asked by<br/>the home]
     %% when r0s3
@@ -153,6 +174,10 @@ stateDiagram-v2
     %% when r0s0
     r1s53 --> r1s47 : you answer the question
     r1s54 --> r1s48 : you answer the question
+    r1s55 --> r1s42 : you answer the question
+    r1s56 --> r1s57 : a pass
+    r1s57 --> r1s46 : you answer the question
+    r1s58 --> r1s47 : you answer the question
     r1s59 --> r1s44 : the home hands off, moving<br/>gates.md aside [when A gate<br/>that holds, asked by the home<br/>or A gate, asked by the home]
     %% when r0s2, r0s3
     r1s59 --> r1s10 : the home writes its answer on<br/>the Status line
