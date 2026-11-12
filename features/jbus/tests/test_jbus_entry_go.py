@@ -715,6 +715,19 @@ def test_the_root_gives_no_go_from_another_home_with_no_word_or_over_a_door(
     assert basis(kitchen, "beta") == ()
 
 
+def test_the_root_gives_no_go_to_an_entry_with_no_row(kitchen):
+    """Only the user's own go is kept before an entry has a row: the root's door check reads the
+    entry's rows, and an entry with none has nothing for it to read."""
+    goes_word(kitchen)
+    code, said = root_go(kitchen)
+    assert (code, said.strip()) == (
+        1,
+        "refused: epic has no queue row: queue its first row, a scout's if it needs design "
+        "(--depends for what it waits on), then give the go",
+    )
+    assert not (kitchen.state / "goes.json").exists()
+
+
 def test_a_withdrawn_goes_word_ends_the_roots_go_and_its_unlaunched_rows_wait(kitchen):
     word, _ = goes_word(kitchen)
     queued(kitchen, "alpha")
