@@ -55,7 +55,8 @@ A change to one pull request's verdict alone is `verify-pr-verdict`'s too.
 uv run pytest features/jmerge/tests/test_flow_spec.py -q
 ```
 
-TLC walks some 7M states, so it takes some minutes (about 650 s on a Linux runner, 1800 s timeout), and skips where no Java runs TLC. A run that ends in seconds took TLC's verdict from the statechart tools' cache (`tools.kept`), keyed by the spec, cfg and jar, and the runner script does the same: the verdict is the one TLC gives, and no change to the code alone can turn it, which is why the record above, and not a pass, says whether the model still describes the code.
+TLC walks some 7M states, so it takes some minutes (about 650 s on a Linux runner, 1800 s timeout), and skips where no Java runs TLC.
+A run that ends in seconds took TLC's verdict from the statechart tools' cache (`tools.kept`), keyed by the spec, cfg and jar, and the runner script does the same: the verdict is the one TLC gives, and no change to the code alone can turn it, which is why the record above, and not a pass, says whether the model still describes the code.
 `flow_canaries.py` runs the same runs and prints one line each; its command is in `features/jmerge/spec/README.md`, "Check the rules", from the repo root.
 
 - **Bounds:** two pull requests, one outside break, one brief edit, at most one review round that says the brief is not met, `Gap = "turn"`; 7,024,508 distinct states at st-flow's head.
@@ -80,11 +81,11 @@ When every step is backed, it is a bug: tell it as the rows' story (launch, chec
 
 The rules most likely still hold; `/maintain-formal-verification-skill` fixes these.
 
-- **The batch steps no longer match the code (#1642, #1668).** `LEAST = 5`, and a guards batch is 2 to 4 (`GUARDS_LEAST` to `GUARDS_MOST`): with two pull requests the code runs one guards batch inside the same jmerge run (`guards_batch`), where both merge or both go alone in that run.
+- **The batch steps no longer match the code (#1642, #1668):** `LEAST = 5`, and a guards batch is 2 to 4 (`GUARDS_LEAST` to `GUARDS_MOST`): with two pull requests the code runs one guards batch inside the same jmerge run (`guards_batch`), where both merge or both go alone in that run.
   The model's `BuildBatch`, `BatchPasses` and `BatchFails` describe a CI batch out across runs and a narrowed batch of one, which can no longer form: a half under five sends every suspect alone (`Batching.chosen`).
   The README's "leaves out" does not say so.
-- **`Alone` waits where the code merges (#1670).** When a pending batch is rebuilt, `Repo.batched` first merges the held pull requests, and after a proven batch `Repo.after_batch` merges them in the same run; the model keeps them waiting while a batch is out.
-- **`HoldRow` and `HomeEdits` cite a line whose meaning changed (#1657).** `if row and bus.over(row):` now returns `ROW_OVER`, a hold on the pull request; the model's rows end only by merging, so it never reaches it.
-- **Older gaps.** A pull request whose guards fail with no overlap with main's change does not go to the line as `InLine` says: it waits on the guards' record for its crew (`judged`, `self.guards.kept`).
+- **`Alone` waits where the code merges (#1670):** when a pending batch is rebuilt, `Repo.batched` first merges the held pull requests, and after a proven batch `Repo.after_batch` merges them in the same run; the model keeps them waiting while a batch is out.
+- **`HoldRow` and `HomeEdits` cite a line whose meaning changed (#1657):** `if row and bus.over(row):` now returns `ROW_OVER`, a hold on the pull request; the model's rows end only by merging, so it never reaches it.
+- **Older gaps:** a pull request whose guards fail with no overlap with main's change does not go to the line as `InLine` says: it waits on the guards' record for its crew (`judged`, `self.guards.kept`).
   `Repo.again`'s `repeats` (no rejudge after two runs fail the same test) is in neither the model nor the README's "leaves out".
-- **Stale prose.** The spec and the README say "as of 21112eba8"; #1644, #1647, #1657, #1668, #1670 and #1681 changed code it cites since.
+- **Stale prose:** the spec and the README say "as of 21112eba8"; #1644, #1647, #1657, #1668, #1670 and #1681 changed code it cites since.

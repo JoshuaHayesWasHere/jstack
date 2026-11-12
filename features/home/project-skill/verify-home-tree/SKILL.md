@@ -11,11 +11,17 @@ So this model is the promise, and a change here changes what every run checks.
 
 The rules, each with its harm:
 
-- **`RetireHandsOver`:** what a retired child had out is the catch-all's (`uncategorized`). Broken, a crew's work is left with no home.
-- **`StallFlagged`, `NudgesBounded`, `AsksAfterRelaunch`, `StallOnNeeds`, `RelaunchOnce`:** a quiet child with work out is nudged, nudged once more, launched again once, and then put on `jbus needs`, never on a home thread. Broken, a stalled child stays stalled unseen, or you are nudged for ever.
-- **`CallsReachJosh`:** a call reaches you, also after the home thread failed. Broken, a question to you is stranded.
-- **`OneMerger`:** jbus is the only merger. **`NoBlindMerge`:** a run of jmerge holds the merge lock from its read of main's tip to its merge. Broken, two merges race on one tip.
-- **`ReadyMerges`:** a ready pull request merges. **`CatchallRuns`**, **`OneStart`**, **`WaitsForCause`:** the catch-all's home runs, starts once at a time, and waits after two failed starts on one cause.
+- **`RetireHandsOver`:** what a retired child had out is the catch-all's (`uncategorized`).
+  Broken, a crew's work is left with no home.
+- **`StallFlagged`, `NudgesBounded`, `AsksAfterRelaunch`, `StallOnNeeds`, `RelaunchOnce`:** a quiet child with work out is nudged, nudged once more, launched again once, and then put on `jbus needs`, never on a home thread.
+  Broken, a stalled child stays stalled unseen, or you are nudged for ever.
+- **`CallsReachJosh`:** a call reaches you, also after the home thread failed.
+  Broken, a question to you is stranded.
+- **`OneMerger`:** jbus is the only merger.
+  **`NoBlindMerge`:** a run of jmerge holds the merge lock from its read of main's tip to its merge.
+  Broken, two merges race on one tip.
+- **`ReadyMerges`:** a ready pull request merges.
+  **`CatchallRuns`**, **`OneStart`**, **`WaitsForCause`:** the catch-all's home runs, starts once at a time, and waits after two failed starts on one cause.
 
 ## The record
 

@@ -63,8 +63,8 @@ When every step is backed, it is a bug: tell it as the row's moves in the code's
 
 Neither breaks the rule as modeled; `/maintain-formal-verification-skill` fixes them.
 
-- **Remove's guard.** The model lets Remove happen only from `queued`, `left` and `pr`, through `Moves`.
+- **Remove's guard:** the model lets Remove happen only from `queued`, `left` and `pr`, through `Moves`.
   The code's remove (`queue._do`) refuses only a row whose thread is at work, whose pull request is open or merged, whose launch is under way, or that others depend on, and `_take_out` then removes a row of any other status, `done` included; `withdraw` also removes a `gate` row.
   A removed `done` row would break `FinalStays` if modeled, and the README's "leaves out" names neither path.
-- **Restate between approved values.** The model's `Restated` recomputes the value on every change of the go; `restated.restate` keeps an approved facet beside another approved one, so `behind` to `ready` waits for the next pass.
+- **Restate between approved values:** the model's `Restated` recomputes the value on every change of the go; `restated.restate` keeps an approved facet beside another approved one, so `behind` to `ready` waits for the next pass.
   It moves `value` only, never the status.

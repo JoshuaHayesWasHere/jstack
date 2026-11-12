@@ -42,7 +42,8 @@ Rerun it when the diff touches a file of the record, adds or reorders a hold or 
 uv run pytest features/jmerge/tests/test_pr_verdict_spec.py -q
 ```
 
-It runs TLC on today's code and the nine canaries, in a few minutes, and skips where no Java runs TLC. A run that ends in seconds took TLC's verdict from the statechart tools' cache (`tools.kept`), keyed by the spec, cfg and jar, and the runner script does the same: the verdict is the one TLC gives, and no change to the code alone can turn it, which is why the record above, and not a pass, says whether the model still describes the code.
+It runs TLC on today's code and the nine canaries, in a few minutes, and skips where no Java runs TLC.
+A run that ends in seconds took TLC's verdict from the statechart tools' cache (`tools.kept`), keyed by the spec, cfg and jar, and the runner script does the same: the verdict is the one TLC gives, and no change to the code alone can turn it, which is why the record above, and not a pass, says whether the model still describes the code.
 `pr_canaries.py` prints one line a run; its command is in `features/jmerge/spec/README.md`, "Why a pull request is not merging".
 
 - **Bounds:** `Moves = 2` (other work moves main at most twice), `Drop = "none"`, 599,971 distinct states; the chart's cfg moves main once (263,292 states).
@@ -66,7 +67,7 @@ When every step is backed, it is a bug: tell it as what jmerge said of the pull 
 
 `/maintain-formal-verification-skill` fixes these.
 
-- **The batch of one no longer exists (#1642, #1668).** One member has `kind_of(1) == ""`, so `Batching.chosen` sends it alone and it merges on the single path in the same run.
+- **The batch of one no longer exists (#1642, #1668):** one member has `kind_of(1) == ""`, so `Batching.chosen` sends it alone and it merges on the single path in the same run.
   The model's `JoinBatch`, `BatchProves` and `BatchFails` cannot happen for one pull request, its "ready-batch" verdict forbids the direct merge the code does, and the `batch-failed` canary's loop now needs a failed guards batch or a suspect half.
-- **`ROW_OVER` (#1657) is missing.** `rows.short` holds the pull request of a row that is over without merging; it is not in `Holds` and not in the README's "leaves out".
-- **Stale prose.** The spec says "as of 21112eba8"; #1644 edited the spec since.
+- **`ROW_OVER` (#1657) is missing:** `rows.short` holds the pull request of a row that is over without merging; it is not in `Holds` and not in the README's "leaves out".
+- **Stale prose:** the spec says "as of 21112eba8"; #1644 edited the spec since.

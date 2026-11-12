@@ -78,10 +78,10 @@ It prints `6 passed` in seconds, and skips where no Java runs TLC; TLC's verdict
 
 `/maintain-formal-verification-skill` fixes it; the walk of `main_red_model.py` holds.
 
-- **`MainRed.tla` has no closing lines.** Since 46210ec44 and db90d454e, `mainmoved.tell` appends a closing line (`close`, `closing_line`) with its `cause` to `main-reds.jsonl` when main goes green, keyed by the spell's first red tip.
+- **`MainRed.tla` has no closing lines:** since 46210ec44 and db90d454e, `mainmoved.tell` appends a closing line (`close`, `closing_line`) with its `cause` to `main-reds.jsonl` when main goes green, keyed by the spell's first red tip.
   The model's `reds` has no such line and the README's "leaves out" does not name it, so `EachRedJudgedOnce` ("names no tip twice") is false of the real file, where the first tip has its red line and its closing line.
   `main_red_model.py`'s S4 counts only the lines that carry a verdict and checks for at most one closing line a spell, so the TLA+ S4 is weaker than the S4 it claims to match.
-- **The base commit in the spec's prose is stale.** The README and the spec say "main 21112eba8", and the spec already has holders and `lean` from f82908cda (#1689), which came later.
+- **The base commit in the spec's prose is stale:** the README and the spec say "main 21112eba8", and the spec already has holders and `lean` from f82908cda (#1689), which came later.
 - A pending Mac commit inside the Mac's red range is `UNREAD` (quiet) in the code and "file" in the model; neither reverts, and the model keeps no Mac row.
 
 ## Does a change touch it

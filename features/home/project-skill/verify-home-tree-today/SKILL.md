@@ -73,9 +73,9 @@ When every step is backed, it is a bug: tell it as the homes' story (a call, a n
 
 All three are older than the spec's last change; `/maintain-formal-verification-skill` fixes them.
 
-- **`RaiseCall` calms the spell; the code does not.** The model sets `quiet` and `watch` back to calm on a new call.
+- **`RaiseCall` calms the spell; the code does not:** the model sets `quiet` and `watch` back to calm on a new call.
   In `children.watch`, calls (`USERS`) are left out of the lines that make the spell's signature (since #613), so a new call does not reset a nudged spell; the model is more lenient than the code.
-- **One route to you, the root's home thread, is not literal.** `wakes.need_items` sends a child's gate to that child's own home thread, a one-way door to the root, and nothing for approve, stalled, install and self-asked gates; the model's single `up` flag hides a failure of another thread.
-- **A failed nudge or launch is not modeled.** When `_send` meets a `T3Error`, or `launch` returns false (dispatch off, no model for the role, a wait on a cause), `_act` returns nothing and the step stays where it is, also `calm` past patience, which `StallFlagged` forbids.
+- **One route to you, the root's home thread, is not literal:** `wakes.need_items` sends a child's gate to that child's own home thread, a one-way door to the root, and nothing for approve, stalled, install and self-asked gates; the model's single `up` flag hides a failure of another thread.
+- **A failed nudge or launch is not modeled:** when `_send` meets a `T3Error`, or `launch` returns false (dispatch off, no model for the role, a wait on a cause), `_act` returns nothing and the step stays where it is, also `calm` past patience, which `StallFlagged` forbids.
 - The code's unstated assumptions: `live()` giving None counts as a live thread; a home with no `home-id` is skipped; an owed plan entry counts as work out, and the model has no state for it.
 - `features/home/spec/README.md` gives `python3 features/home/spec/canaries.py`; run it with `uv run python` as above.

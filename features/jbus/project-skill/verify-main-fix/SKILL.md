@@ -71,6 +71,6 @@ A new break, past `FINDINGS`, is a bug: tell it as the writes, the crash, and th
 
 Neither breaks a rule as modeled, since the variables they touch do not overlap; `/maintain-formal-verification-skill` fixes them.
 
-- **The pass order.** The model and the README say a pass judges the Mac (step 9), then main (12), then reads each nightly (40).
+- **The pass order:** the model and the README say a pass judges the Mac (step 9), then main (12), then reads each nightly (40).
   In `poll.py`, `watch.watch` (rank 40) is in the `tellers` slot, which runs before `after-expedite`, so the nightlies are read first; and step 40 needs a client, so a pass with no T3 Code sign-in reads no nightly at all.
-- **The shots row is not the browser's alone.** `drawn_apart` runs on every nightly, and a `shots-<day>` row is free to any of them; the model lets "shots" happen only on the browser run.
+- **The shots row is not the browser's alone:** `drawn_apart` runs on every nightly, and a `shots-<day>` row is free to any of them; the model lets "shots" happen only on the browser run.

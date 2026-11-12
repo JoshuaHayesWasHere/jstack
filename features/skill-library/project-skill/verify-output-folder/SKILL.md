@@ -10,9 +10,12 @@ It is also the statechart skill's worked example, labelled by `OutputFolder.map.
 
 The rules, each with its harm:
 
-- **`ChartsOneSpec`:** a published chart was drawn from one version of the spec. Broken, a chart mixes two versions.
-- **`KeepsYourFiles`:** a folder with files not the command's own (your notes) is never removed or replaced. Broken, your files are lost.
-- **`NeverLosesChart`:** a failed swap puts the old chart back. Broken, the folder is left with no chart.
+- **`ChartsOneSpec`:** a published chart was drawn from one version of the spec.
+  Broken, a chart mixes two versions.
+- **`KeepsYourFiles`:** a folder with files not the command's own (your notes) is never removed or replaced.
+  Broken, your files are lost.
+- **`NeverLosesChart`:** a failed swap puts the old chart back.
+  Broken, the folder is left with no chart.
 - **`ExitTwoLeavesFolder`:** a run that exits 2 left the output folder as it found it.
 - **`OverlapNeverRefuses`:** an overlapping run never makes the other refuse.
 
@@ -59,6 +62,6 @@ When every step is the command's, it is a bug: tell it as the two runs' steps an
 
 `/maintain-formal-verification-skill` fixes these; the model was last changed in 337107667 (#293).
 
-- **`ExitTwoLeavesFolder` is not true of the code.** `finish` returns 2 after `publish` has written the folder when `--png` renders fewer PNGs than charts; the model has no `--png` and no exit after publishing.
+- **`ExitTwoLeavesFolder` is not true of the code:** `finish` returns 2 after `publish` has written the folder when `--png` renders fewer PNGs than charts; the model has no `--png` and no exit after publishing.
 - **Behaviors the model lacks:** exit 1 when the rules are not as expected, with the folder still published; `moved`'s copy fallback for `ENOSYS`, `EXDEV` and `EISDIR`, which is not atomic; a rename onto an empty folder succeeding; a missing map file, which writes one and exits 2; the work folder left after a SIGKILL.
-- **Snapshots moved.** #679 added `in_work_folder`, #1649 added the `drawnFrom` stamp in the work folder, and the snapshot now also covers local modules and expectations, taken after `out_dir`, later than the model's `Start`.
+- **Snapshots moved:** #679 added `in_work_folder`, #1649 added the `drawnFrom` stamp in the work folder, and the snapshot now also covers local modules and expectations, taken after `out_dir`, later than the model's `Start`.

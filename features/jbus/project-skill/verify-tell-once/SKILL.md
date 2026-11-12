@@ -84,4 +84,4 @@ A new break on an act that held is a bug: tell it as the act, the write the pass
 
 `/maintain-formal-verification-skill` fixes it.
 
-- **`clock.held`'s lift is not modeled.** A hold that lifts sets `woke` and only finds the run again, sending nothing to T3 Code; the model has no such branch, and the README's "leaves out" does not name it.
+- **`clock.held`'s lift is not modeled:** a hold that lifts sets `woke` and only finds the run again, sending nothing to T3 Code; the model has no such branch, and the README's "leaves out" does not name it.
