@@ -13,19 +13,19 @@ stateDiagram-v2
   classDef group1Path fill:#a3e4d7,stroke:#1f3a93,stroke-width:4px,color:#1b2631
   classDef group2 fill:#eaf2f8,stroke:#75797c,color:#1b2631
   classDef group2Path fill:#eaf2f8,stroke:#1f3a93,stroke-width:4px,color:#1b2631
-  classDef group5 fill:#fadbd8,stroke:#7d6e6c,color:#1b2631
-  classDef group5Wrong fill:#fadbd8,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group3 fill:#fadbd8,stroke:#7d6e6c,color:#1b2631
+  classDef group3Wrong fill:#fadbd8,stroke:#c0392b,stroke-width:4px,color:#7b241c
   state "Legend" as legend {
     state "Lines heard, no run out" as legendGroup0
     state "Lines heard, a run is out" as legendGroup1
     state "Lines on their way" as legendGroup2
-    state "Lines lost" as legendGroup5
+    state "Lines lost" as legendGroup3
     state "Breaks a rule" as legendWrong
   }
   class legendGroup0 group0
   class legendGroup1 group1
   class legendGroup2 group2
-  class legendGroup5 group5
+  class legendGroup3 group3
   class legendWrong plainWrong
   state "Between passes" as g0 {
     state "a run is out, a start<br/>stamp under a minute old;<br/>a record waits for the<br/>next pass" as s0
@@ -43,7 +43,7 @@ stateDiagram-v2
   s5 --> s1 : 5. the pass dies
   class s5 group2Path
   class s0 group2Path
-  class s1 group5Wrong
+  class s1 group3Wrong
   class s2 group1Path
   class s3 group0Path
   class s4 group0Path
