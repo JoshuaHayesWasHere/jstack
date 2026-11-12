@@ -26,8 +26,9 @@ command ends. While the run holds its slot the thread is at work (`watch.owned_w
 run has ended, `wake_ended` sends the thread one message in mode queue that names the command and
 its exit code, keyed by the thread and the run's start, so one run wakes once. It sends none to a
 thread whose turn that started the run was still going when the run ended, which got the end
-itself (`_got_end`), and none yet to a thread at work. A run that ended with no wake owed, or
-whose command and `jgauge test-slot` are both gone with no end recorded, leaves the file. A run
+itself (`_got_end`), and none yet to a thread at work. A pass reads a thread once for all its
+ended runs, and again only after it sent the thread a message. A run that ended with no wake
+owed, or whose command and `jgauge test-slot` are both gone with no end recorded, leaves the file. A run
 whose command is gone while its `jgauge test-slot` lives stays: that process has yet to record
 the end (`holders.running`).
 
@@ -243,22 +244,27 @@ def wake_ended(run: Pass, client: Client) -> None:
     locks = slot.locks_dir()
     if not holders.FILE.there(locks):
         return
-    over = set()
+    over, reads = set(), {}
     for one in holders.read(locks):
-        told = one.ended and tell_ended(run, client, one)
+        told = one.ended and tell_ended(run, client, one, reads)
         if told or (not one.ended and not holders.running(one)):
             over.add(one.id)
     if over:
         holders.forget(locks, over)
 
 
-def tell_ended(run: Pass, client: Client, one: Holder) -> bool:
+def tell_ended(run: Pass, client: Client, one: Holder, reads: dict[str, Any]) -> bool:
     """Send the thread the end of its run, where it is owed, and say whether the run is over: the
     message went, or the thread is gone or ended, or its own turn got the end, so that it is owed
-    none."""
+    none.
+
+    `reads` keeps this pass's read of each thread, so a thread with several ended runs is read
+    once, until a message is sent to it."""
     try:
-        asked = {"threadId": one.thread, "limit": 1, "runLimit": RUNS}
-        read = client.call("t3_thread_read", asked)
+        if one.thread not in reads:
+            asked = {"threadId": one.thread, "limit": 1, "runLimit": RUNS}
+            reads[one.thread] = client.call("t3_thread_read", asked)
+        read = reads[one.thread]
     except T3Refused as error:
         if GONE.search(str(error)):
             run.say(f"wait {one.thread}: its run under a slot is dropped, its thread is gone")
@@ -276,6 +282,7 @@ def tell_ended(run: Pass, client: Client, one: Holder) -> bool:
     if at_work([thread]):
         return False
     command = shlex.join(one.command)
+    reads.pop(one.thread)
     try:
         went = outbox.send(
             run,

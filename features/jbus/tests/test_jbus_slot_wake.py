@@ -362,7 +362,7 @@ def test_an_ended_run_whose_wake_was_lost_is_sent_again_with_the_same_key(kitche
 
 def test_slot_wakes_run_once_a_pass(kitchen, slots):
     """The waiters and holders files belong to the machine, so a pass over three projects reads
-    each waiter's and each ended run's thread once, not once for each project (pass-slotwait-once,
+    each waiter's thread and each thread with ended runs once, not once for each project and run (pass-slotwait-once,
     2026-11-12: five project halves read them one after another, up to 12 s a pass), and still
     wakes each one as a pass over one project does."""
     kitchen.second("b")
@@ -370,6 +370,10 @@ def test_slot_wakes_run_once_a_pass(kitchen, slots):
     slots.hold("full")
     first, second = waiter(kitchen, ago=9), waiter(kitchen, ago=3)
     busy, run = ended_run(kitchen, "running", wrote=1, turns=[turn(21, 15), turn(1)])
+    again = holders.hold(
+        slot.locks_dir(), busy, "full", os.getpid(), ["make", "check"], NOW - 9 * MIN
+    )
+    holders.end(slot.locks_dir(), again.id, 0, NOW - 3 * MIN)
     pooled = kitchen.t3.thread("waiter", "completed", idle=timedelta(minutes=2))["threadId"]
     waits.register(waits.where(), pooled, "review", NOW + 20 * MIN, NOW)
 
@@ -388,4 +392,6 @@ def test_slot_wakes_run_once_a_pass(kitchen, slots):
     keys = sorted(given["clientRequestId"].split("|")[:2] for given in sends(kitchen))
     assert keys == [["slot-end", busy], ["slot-wake", first]]
     kitchen.poll(NOW + 2 * MIN)
-    assert len(sends(kitchen)) == 2 and holders.read(slot.locks_dir()) == []
+    ends = [given["clientRequestId"] for given in sends(kitchen)][1:]
+    assert ends == [f"slot-end|{busy}|{run.since}", f"slot-end|{busy}|{again.since}"]
+    assert holders.read(slot.locks_dir()) == []
