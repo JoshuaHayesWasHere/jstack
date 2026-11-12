@@ -11,7 +11,6 @@ stateDiagram-v2
   classDef group0Wrong fill:#d6eaf8,stroke:#c0392b,stroke-width:4px,color:#7b241c
   classDef group1 fill:#d1f2eb,stroke:#697976,color:#1b2631
   classDef group2 fill:#fdebd0,stroke:#7f7668,color:#1b2631
-  classDef group2Wrong fill:#fdebd0,stroke:#c0392b,stroke-width:4px,color:#7b241c
   classDef group3 fill:#e8daef,stroke:#746d78,color:#1b2631
   state "Legend" as legend {
     state "Full lane" as legendGroup0
@@ -46,16 +45,14 @@ stateDiagram-v2
     state "the slot held by a call<br/>with no thread" as s13
   }
   state "Usage ledger" as g3 {
-    state "the ledger keeps the<br/>records of jbus and jgauge<br/>limits, jgauge limits<br/>merges into the copy it<br/>read, of jbus and jgauge<br/>limits, the status line<br/>wrote and its record is<br/>gone" as s14
-    state "the ledger keeps the<br/>records of jbus and jgauge<br/>limits, the status line<br/>wrote and its record is<br/>gone" as s15
-    state "the ledger keeps the<br/>records of jbus and jgauge<br/>limits, the status line<br/>wrote and its record is<br/>gone, the last capped read<br/>is older than the ledger" as s16
-    state "the ledger keeps the<br/>records of jbus, jgauge<br/>limits merges into the<br/>copy it read, of jbus, the<br/>status line wrote and its<br/>record is gone" as s17
-    state "the ledger keeps the<br/>records of jbus, the<br/>status line wrote and its<br/>record is gone" as s18
-    state "the ledger keeps the<br/>records of jbus, the<br/>status line wrote and its<br/>record is gone, the last<br/>capped read is older than<br/>the ledger" as s19
+    state "the ledger keeps the<br/>records of jbus" as s14
+    state "the ledger keeps the<br/>records of jbus and jgauge<br/>limits" as s15
+    state "the ledger keeps the<br/>records of jbus and jgauge<br/>limits, jgauge limits<br/>merges into the copy it<br/>read, of jbus and jgauge<br/>limits" as s16
+    state "the ledger keeps the<br/>records of jbus and jgauge<br/>limits, the last capped<br/>read is older than the<br/>ledger" as s17
+    state "the ledger keeps the<br/>records of jbus, jgauge<br/>limits merges into the<br/>copy it read, of jbus" as s18
+    state "the ledger keeps the<br/>records of jbus, the last<br/>capped read is older than<br/>the ledger" as s19
     state "the ledger keeps the<br/>records of no one" as s20
-    state "the ledger keeps the<br/>records of no one, the<br/>status line merges into<br/>the copy it read, of no<br/>one" as s21
-    state "the ledger keeps the<br/>records of no one, the<br/>status line merges into<br/>the copy it read, of no<br/>one, jbus merges into the<br/>copy it read, of no one" as s22
-    state "the ledger keeps the<br/>records of the status<br/>line, jbus merges into the<br/>copy it read, of no one,<br/>the last capped read is<br/>older than the ledger" as s23
+    state "the ledger keeps the<br/>records of no one, jbus<br/>merges into the copy it<br/>read, of no one" as s21
   }
   [*] --> s0
   [*] --> s9
@@ -63,21 +60,19 @@ stateDiagram-v2
   [*] --> s20
   s20 --> s21 : a writer reads the ledger
   s12 --> s13 : a call with no thread takes a<br/>free slot
-  s21 --> s22 : a writer reads the ledger
+  s21 --> s19 : a writer writes the ledger
   s0 --> s3 : the call counts the slots to<br/>spare
-  s22 --> s23 : a writer writes the ledger
-  s23 --> s19 : a writer writes the ledger
-  s19 --> s18 : a capped read is noted
+  s19 --> s14 : a capped read is noted
+  s14 --> s18 : a writer reads the ledger
   s13 --> s12 : the slot is let go
+  s17 --> s15 : a capped read is noted
+  s18 --> s17 : a writer writes the ledger
   s3 --> s0 : the slot is let go
-  s18 --> s17 : a writer reads the ledger
-  s16 --> s15 : a capped read is noted
-  s17 --> s16 : a writer writes the ledger
+  s15 --> s16 : a writer reads the ledger
   s9 --> s11 : the crew registers its wait
+  s16 --> s15 : a writer writes the ledger
   s11 --> s10 : the crew finds headroom and<br/>leaves
-  s15 --> s14 : a writer reads the ledger
   s0 --> s1 : the crew registers as a waiter<br/>and ends its turn
-  s14 --> s15 : a writer writes the ledger
   s1 --> s2 : the jbus pass counts the slots<br/>to spare, with no lock
   s2 --> s6 : the call counts the slots to<br/>spare
   s6 --> s4 : the jbus pass records the wake
@@ -101,13 +96,11 @@ stateDiagram-v2
   class s11 group3
   class s12 group1
   class s13 group1
-  class s14 group2Wrong
-  class s15 group2Wrong
-  class s16 group2Wrong
-  class s17 group2Wrong
-  class s18 group2Wrong
-  class s19 group2Wrong
+  class s14 group2
+  class s15 group2
+  class s16 group2
+  class s17 group2
+  class s18 group2
+  class s19 group2
   class s20 group2
   class s21 group2
-  class s22 group2
-  class s23 group2

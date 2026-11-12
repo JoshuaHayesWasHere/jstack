@@ -1,8 +1,8 @@
 """The test slots' TLA+ spec, `features/jgauge/spec/TestSlot.tla`: each carrier of the machine
 room is a VARIABLE that cites the code that writes it, each quote of code stands once in its file,
-and TLC finds what the README says: today's code loses a ledger write, the mode that passes holds
-every rule, and each canary, one of today's faults put back, breaks its own rule. The TLC tests
-skip where no Java runs TLC."""
+and TLC finds what the README says: today's code misses a woken crew's slot, the mode that passes
+holds every rule, and each canary, a fault put back, breaks its own rule. The TLC tests skip where
+no Java runs TLC."""
 
 import importlib
 import re
@@ -124,14 +124,18 @@ TLC = pytest.mark.timeout(600)
 
 @JAVA
 @TLC
-def test_today_s_code_loses_a_ledger_write():
-    """TestSlot.cfg is today's code, and TLC's first finding is the one its comment keeps: two
-    writers read the ledger, and the second write drops the first one's record."""
+def test_today_s_code_misses_a_woken_crew_s_slot():
+    """TestSlot.cfg is today's code, and TLC's first finding is the one its comment keeps: jbus
+    counts the slot spare outside the waiters lock, a desk takes it before the wake is recorded,
+    and the crew jbus woke finds no slot."""
     code, out = tlc("today", workers="1")
     assert code != 0
-    assert "Invariant LedgerNoLostUpdate is violated" in out, out[-4000:]
+    assert "Invariant WokenGetsSlot is violated" in out, out[-4000:]
     steps = re.findall(r"^State \d+: <(\w+)", out, re.M)
-    assert steps == ["Initial", "Read", "Read", "Write", "Write"], out[-4000:]
+    taken = "Start Start ClaimLock ClaimCount ClaimLock ClaimCount Die"
+    waits = "Start WaitersLock Register Start BusStart WakeRead"
+    woken = "ClaimLock Spare ClaimCount Tell WakeLock Wake ClaimLock ClaimCount"
+    assert steps == ["Initial", *taken.split(), *waits.split(), *woken.split()], out[-4000:]
 
 
 @JAVA
@@ -170,7 +174,7 @@ def test_each_of_today_s_faults_breaks_its_rule(fault, rule):
 def test_a_killed_test_slot_takes_its_command_with_it_today(fault, code):
     """Today's code holds OneCommandPerSlot where a killed `jgauge test-slot` leaves the slot
     free, and the canary that lets its command live on breaks it there. The short lane's room
-    alone, since the whole of today's mode is 932,880 states."""
+    alone, since the whole of today's mode is 927,474 states."""
     ended, out = tlc(fault, ["OneCommandPerSlot"], room="short")
     assert ended == code, out[-4000:]
     assert ("Invariant OneCommandPerSlot is violated" in out) == bool(code), out[-4000:]
@@ -186,3 +190,15 @@ def test_a_run_s_end_is_kept_for_jbus_to_tell_today(fault, code):
     ended, out = tlc(fault, ["EndNotLost"], room="short")
     assert ended == code, out[-4000:]
     assert ("Invariant EndNotLost is violated" in out) == bool(code), out[-4000:]
+
+
+@JAVA
+@TLC
+@pytest.mark.parametrize(("fault", "code"), [("today", 0), ("no-ledger-lock", 12)])
+def test_each_ledger_writer_s_record_is_kept_today(fault, code):
+    """Today's ledger writers each hold <ledger>.lock from their read to their rename, so no
+    write drops another's record, and the canary that reads and renames with no lock breaks
+    LedgerNoLostUpdate. The ledger's room alone, which has every writer."""
+    ended, out = tlc(fault, ["LedgerNoLostUpdate"], room="ledger")
+    assert ended == code, out[-4000:]
+    assert ("Invariant LedgerNoLostUpdate is violated" in out) == bool(code), out[-4000:]

@@ -23,16 +23,17 @@
 \* by id, so the "full" and "short" rooms each check their own entries.
 \*
 \* Fault = "today" is the code as it is: slotwait.wake counts `spare` outside the waiters lock
-\* and records the wake after its send, and the ledger's writers read, merge and replace it with
-\* no lock. A holder with no end is forgotten only once its `jgauge test-slot` is gone too, a
-\* command ends with the `jgauge test-slot` that holds its slot, and a pid another process took
-\* reads as gone. Fault = "none" is the mode that passes: the wake is counted and recorded under
-\* one hold of the waiters lock before the send, and the ledger is read and written under a lock.
-\* The canaries "spare-outside-lock" and "no-ledger-lock" each put one of today's two faults
-\* back into the mode that passes, and "forget-unended", "orphan-command" and "pid-alone" put
-\* back the ones that are closed: a holder with no end forgotten while its `jgauge test-slot`
-\* lives to write the end, a command that lives on after its `jgauge test-slot` died, and a
-\* holder judged running by its pid alone, with no check that the pid is still its command's.
+\* and records the wake after its send. A holder with no end is forgotten only once its
+\* `jgauge test-slot` is gone too, a command ends with the `jgauge test-slot` that holds its
+\* slot, a pid another process took reads as gone, and the ledger's writers read, merge and
+\* replace it under one lock. Fault = "none" is the mode that passes: the wake is counted and
+\* recorded under one hold of the waiters lock before the send.
+\* The canary "spare-outside-lock" puts today's one fault back into the mode that passes, and
+\* "forget-unended", "orphan-command", "pid-alone" and "no-ledger-lock" put back the ones that
+\* are closed: a holder with no end forgotten while its `jgauge test-slot` lives to write the
+\* end, a command that lives on after its `jgauge test-slot` died, a holder judged running by
+\* its pid alone, with no check that the pid is still its command's, and a ledger writer that
+\* reads and replaces the file with no lock.
 \* PidReuse lets another process take the pid of a holder's dead command. Mortal is the set of
 \* the processes that can be killed: TestSlot.cfg has every one, "bus" for jbus's slot pass,
 \* "writers" for the ledger's writers and "pool" for the pool's crew and jbus; the chart's
@@ -50,7 +51,7 @@ FullSlots == 1..1
 ShortSlots == 1..1
 Writers == {"limits", "hook", "jbus"}
 WaitIds == {1, 2}
-TodayFaults == {"spare-outside-lock", "no-ledger-lock"}
+TodayFaults == {"spare-outside-lock"}
 Has(f) == Fault = f \/ (Fault = "today" /\ f \in TodayFaults)
 
 VARIABLES
@@ -143,7 +144,7 @@ VARIABLES
   lpc,      \* where each ledger writer is
   local,    \* each ledger writer's copy of the ledger, read before it merges
   wrote,    \* the writers whose write of the ledger has ended
-  ledgerLock, \* the lock the mode that passes takes around a ledger write: the code has none
+  ledgerLock, \* who holds <ledger>.lock from its read to its write, or "free"
   ppc,      \* where the crew that waits on the pool is
   jpc,      \* where jbus's slotwait.wake_capped is
   psnap,    \* the due wait jbus read, or 0
@@ -657,7 +658,10 @@ Fetch ==
 
 \* jroles/ledger.py `before = _text(file)`, and
 \* jgauge/hooks/limits.sh `kept=$(cat "$LIMITS" 2>/dev/null)`:
-\* each writer reads the whole file, with no lock today.
+\* each writer reads the whole file under <ledger>.lock, which it holds to its rename:
+\* jroles/ledger.py `fcntl.flock(held, fcntl.LOCK_EX)` and
+\* jgauge/hooks/limits.sh `perl -MFcntl=:flock -e 'open(my $l, ">&=9") or exit 1; flock($l,
+\* LOCK_EX) or exit 1'`.
 Read(w) ==
   /\ InLedger
   /\ lpc[w] = IF w = "limits" THEN "fetched" ELSE "idle"
