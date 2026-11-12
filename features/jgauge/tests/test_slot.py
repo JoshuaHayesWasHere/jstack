@@ -630,6 +630,14 @@ def test_a_run_with_no_thread_is_nobodys_holder(slots):
     assert held(slots) == []
 
 
+@pytest.fixture(params=["proc", "no proc"])
+def machine(request, monkeypatch, tmp_path):
+    """Linux, whose processes are in /proc, and a machine with no /proc, as macOS is."""
+    if request.param == "no proc":
+        monkeypatch.setattr(holders, "PROC", tmp_path / "no-proc")
+
+
+@pytest.mark.usefixtures("machine")
 def test_a_holder_whose_pid_is_gone_is_not_counted(tmp_path):
     gone = subprocess.Popen(["true"])
     gone.wait()
@@ -638,6 +646,7 @@ def test_a_holder_whose_pid_is_gone_is_not_counted(tmp_path):
     assert not holders.running(one) and holders.holding(tmp_path) == []
 
 
+@pytest.mark.usefixtures("machine")
 def test_a_holder_whose_command_is_gone_holds_its_slot_while_its_test_slot_lives(tmp_path):
     """Once its command ends, `jgauge test-slot`, here this process, has yet to record the end."""
     gone = subprocess.Popen(["true"])
@@ -647,6 +656,7 @@ def test_a_holder_whose_command_is_gone_holds_its_slot_while_its_test_slot_lives
     assert one.keeper == os.getpid() and holders.running(one)
 
 
+@pytest.mark.usefixtures("machine")
 def test_a_holder_whose_pids_other_processes_took_is_not_counted(tmp_path):
     """Once the pids of a dead command and of its dead `jgauge test-slot` are taken by other
     processes, its run holds nothing: jbus forgets it and tells its thread the run ended
@@ -660,6 +670,7 @@ def test_a_holder_whose_pids_other_processes_took_is_not_counted(tmp_path):
     assert not holders.running(taken)
 
 
+@pytest.mark.usefixtures("machine")
 def test_a_holder_recorded_with_no_start_time_is_judged_by_its_pid_alone(tmp_path):
     """A record written before holders kept a start time or a `keeper` still counts while its pid
     lives, so a run that holds a slot across the upgrade is not forgotten."""

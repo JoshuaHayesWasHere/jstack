@@ -41,6 +41,7 @@ from jsettings import thread_id
 
 NAME = "test-slot-holders.json"
 LOCK = "test-slot-holders.lock"
+PROC = Path("/proc")
 
 
 @dataclass(frozen=True)
@@ -65,7 +66,7 @@ def started(pid: int) -> int | None:
     if pid <= 0:
         return None
     try:
-        stat = Path(f"/proc/{pid}/stat").read_text()
+        stat = (PROC / str(pid) / "stat").read_text()
     except (FileNotFoundError, ProcessLookupError):
         return None
     return int(stat.rpartition(")")[2].split()[19])
