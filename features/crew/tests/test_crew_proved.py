@@ -796,6 +796,8 @@ FIXED_TS = "export const add = (a: number, b: number) => a + b;\n"
 EXPECTS_FIX = "// expects: src/calc.ts a + b\nimport { add } from './calc';\n"
 SPEC_EXPECTS_FIX = "// expects: src/calc.ts a + b\nimport { test } from '@playwright/test';\n"
 PLAYWRIGHT_CONFIG = "export default { testDir: 'tests' };\n"
+VITEST_PACKAGE = '{"name": "calc", "devDependencies": {"vitest": "*"}}\n'
+"""A package whose tests run on Vitest, as it names it."""
 
 
 def node(repo, playwright=False, package=True):
@@ -808,7 +810,7 @@ def node(repo, playwright=False, package=True):
     (stub / "npm").chmod(0o755)
     files = {"src/calc.ts": BUGGY_TS, ".gitignore": "__pycache__/\nnode_modules/\n"}
     if package:
-        files |= {"package.json": '{"name": "calc"}\n', "package-lock.json": "{}\n"}
+        files |= {"package.json": VITEST_PACKAGE, "package-lock.json": "{}\n"}
     if playwright:
         files["playwright.config.ts"] = PLAYWRIGHT_CONFIG
     commit(repo, files)
@@ -913,7 +915,7 @@ def test_a_base_with_no_package_json_counts_its_tests_failed_there(repo):
     head = commit(
         repo,
         {
-            "package.json": '{"name": "calc"}\n',
+            "package.json": VITEST_PACKAGE,
             "package-lock.json": "{}\n",
             "src/calc.ts": FIXED_TS,
             "src/calc.test.ts": EXPECTS_FIX,
