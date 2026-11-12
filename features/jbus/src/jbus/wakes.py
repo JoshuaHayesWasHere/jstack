@@ -382,7 +382,7 @@ def alert_items(run: Pass) -> list[Item]:
     to = catchall_of(run)
     return [
         Item(key=f"alert|{one.key}", to=to, line=one.line)
-        for one in alert.open_items(run.config.state_dir, run.now)
+        for one in alert.open_items(run.config, run.now)
         if run.config.owner(one.owner) == run.project
     ]
 

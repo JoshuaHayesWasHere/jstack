@@ -50,7 +50,7 @@ def logged(side, kind):
 
 def machine(kitchen, now):
     """The keys of the open alerts of the machine's."""
-    open_ = alerts.open_items(kitchen.state_dir, now)
+    open_ = alerts.open_items(jbus.load(), now)
     return [one.key for one in open_ if one.owner == alerts.MACHINE]
 
 
