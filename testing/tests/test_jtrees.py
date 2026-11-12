@@ -284,6 +284,7 @@ def declare(root, feature, folder, like=None):
 def test_each_project_skill_a_feature_declares_is_in_skills_json_by_its_frontmatter_name():
     listed = json.loads((REPO / "skills.json").read_text())["projectSkills"]
     assert listed == [
+        {"name": "verify-crew-proof", "path": "features/crew/project-skill/verify-crew-proof"},
         {"name": "verify-flow-design", "path": "features/jmerge/project-skill/verify-flow-design"},
         {"name": "verify-flow-today", "path": "features/jmerge/project-skill/verify-flow-today"},
         {"name": "verify-green-move", "path": "features/jbus/project-skill/verify-green-move"},
@@ -295,6 +296,7 @@ def test_each_project_skill_a_feature_declares_is_in_skills_json_by_its_frontmat
         {"name": "verify-jstack", "path": "features/verify-jstack/project-skill"},
         {"name": "verify-main-fix", "path": "features/jbus/project-skill/verify-main-fix"},
         {"name": "verify-main-red", "path": "features/jbus/project-skill/verify-main-red"},
+        {"name": "verify-merge-run", "path": "features/jmerge/project-skill/verify-merge-run"},
         {
             "name": "verify-output-folder",
             "path": "features/skill-library/project-skill/verify-output-folder",

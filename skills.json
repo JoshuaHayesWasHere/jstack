@@ -1001,6 +1001,10 @@
   ],
   "projectSkills": [
     {
+      "name": "verify-crew-proof",
+      "path": "features/crew/project-skill/verify-crew-proof"
+    },
+    {
       "name": "verify-flow-design",
       "path": "features/jmerge/project-skill/verify-flow-design"
     },
@@ -1031,6 +1035,10 @@
     {
       "name": "verify-main-red",
       "path": "features/jbus/project-skill/verify-main-red"
+    },
+    {
+      "name": "verify-merge-run",
+      "path": "features/jmerge/project-skill/verify-merge-run"
     },
     {
       "name": "verify-output-folder",

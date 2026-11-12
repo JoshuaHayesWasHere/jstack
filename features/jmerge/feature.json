@@ -11,6 +11,7 @@
   "projectSkills": [
     "project-skill/verify-flow-design",
     "project-skill/verify-flow-today",
+    "project-skill/verify-merge-run",
     "project-skill/verify-pr-verdict"
   ],
   "docs": [

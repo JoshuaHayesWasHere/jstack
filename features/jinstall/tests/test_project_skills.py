@@ -27,6 +27,7 @@ def line_for(said, link):
 
 DECLARED = {
     "verify-jstack": "features/verify-jstack/project-skill",
+    "verify-crew-proof": "features/crew/project-skill/verify-crew-proof",
     "verify-flow-design": "features/jmerge/project-skill/verify-flow-design",
     "verify-flow-today": "features/jmerge/project-skill/verify-flow-today",
     "verify-green-move": "features/jbus/project-skill/verify-green-move",
@@ -34,6 +35,7 @@ DECLARED = {
     "verify-home-tree-today": "features/home/project-skill/verify-home-tree-today",
     "verify-main-fix": "features/jbus/project-skill/verify-main-fix",
     "verify-main-red": "features/jbus/project-skill/verify-main-red",
+    "verify-merge-run": "features/jmerge/project-skill/verify-merge-run",
     "verify-output-folder": "features/skill-library/project-skill/verify-output-folder",
     "verify-pr-verdict": "features/jmerge/project-skill/verify-pr-verdict",
     "verify-row-life": "features/jbus/project-skill/verify-row-life",
