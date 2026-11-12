@@ -408,7 +408,8 @@ def close(plan: Path, slug: str, rows: list[queue.Row]) -> str:
     The section is the heading and every line up to the next `## ` heading. `close` refuses
     while a row of the entry is not over. It appends the section to `plan-done.md` before it
     rewrites the plan, so a move that stops between the two leaves the section in both files
-    and loses no line.
+    and loses no line. Run again after such a stop, it finds `plan-done.md` already ending with
+    the section and only rewrites the plan, so the entry is closed once.
     """
     lines = plan.read_text().splitlines(keepends=True)
     start = next((at for at, line in enumerate(lines) if line.startswith(f"## {slug}: ")), None)
@@ -422,9 +423,10 @@ def close(plan: Path, slug: str, rows: list[queue.Row]) -> str:
     section = "".join(lines[start:end])
     done = plan.with_name("plan-done.md")
     was = done.read_text() if done.is_file() else ""
-    gap = "" if not was or was.endswith("\n\n") else "\n" if was.endswith("\n") else "\n\n"
-    with open(done, "a") as kept:
-        kept.write(gap + section)
+    if was != section and not was.endswith(f"\n{section}"):
+        gap = "" if not was or was.endswith("\n\n") else "\n" if was.endswith("\n") else "\n\n"
+        with open(done, "a") as kept:
+            kept.write(gap + section)
     new = plan.with_name(f"{plan.name}.new")
     new.write_text("".join(lines[:start] + (lines[end:] if end is not None else [])))
     os.replace(new, plan)

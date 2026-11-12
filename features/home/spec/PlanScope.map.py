@@ -179,8 +179,10 @@ STEPS = {
 def step(action, before, after):
     if action == "MoveRead" and after["mpc"] == "idle":
         return "the move finds nothing left to carry"
-    if action == "CloseAppend" and before["done"] >= 1:
+    if action == "CloseAppend" and after["done"] > before["done"] >= 1:
         return "the home closes it again: plan close appends it a second time"
+    if action == "CloseAppend" and before["done"] >= 1:
+        return "the home closes it again: plan close finds it in plan-done.md and appends nothing"
     if action == "Admit":
         added = [t for t in _set(after["admitted"]) if t not in _set(before["admitted"])]
         if added == ["f2"]:
@@ -192,8 +194,8 @@ def cause(v, facts, invariant):
     if invariant == "EntryOnce":
         return (
             "jbus plan close died between its append to plan-done.md and its rewrite of the plan, "
-            "and the close run again appended the section a second time: plan.close reads "
-            "plan-done.md only for the blank line before the section"
+            "and the close run again appended the section a second time, as only the close-twice "
+            "canary does: today's plan.close skips the append where plan-done.md ends with it"
         )
     if invariant == "FixCountedWhereRead":
         if v["plan"] == "archived":
