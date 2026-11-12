@@ -11,7 +11,11 @@
 \* A process or a turn can stop between any two steps: the disk keeps what it wrote. The flocks
 \* go with the process that held them.
 \* Fault = "none" is the code. Fault = "note-after" is the canary: make_dirs makes a directory
-\* first and records it after, so a stop between the two leaves a path the record lacks.
+\* first and records it after, so a stop between the two leaves a path the record lacks. The
+\* expert's canaries each put back one fault of the text before expert-webhook-survives-a-stop:
+\* "purge-own" deletes only the strays bound to this thread, "record-first" writes the record
+\* before the address and keeps a webhook whose address file is missing, and "no-mend" keeps a
+\* record that names another thread than the one its webhook posts into.
 \* Parts are the parts the run models, so a config can check or draw one part alone.
 EXTENDS Naturals, Sequences, FiniteSets
 CONSTANTS Fault, MaxId, Parts
@@ -49,13 +53,14 @@ VARIABLES
   \* expert/when-an-expert-starts.md `printf '%s\n' "$ME" > "$E/home-id"`
   homeId,
   \* D-137, $E/webhook, `<id> <by>`: the webhook kept and the thread it posts into, id 0 where
-  \* no file is. A take-over writes it, expert/when-an-expert-starts.md
-  \* `printf '%s %s\n' "$id" "$ME" > "$E/webhook" echo "taken:`, and so does a create,
-  \* expert/when-an-expert-starts.md
-  \* `printf '%s %s\n' "$id" "$ME" > "$E/webhook" uv run --project`
+  \* no file is. A take-over writes it before its call, expert/when-an-expert-starts.md
+  \* `printf '%s %s\n' "$id" "$ME" > "$E/webhook" echo "take`, and a create after its address,
+  \* expert/when-an-expert-starts.md `printf '%s %s\n' "$id" "$ME" > "$E/webhook" if [ -n`
   webhook,
   \* D-138, $E/webhook.url: the id of the webhook whose address it holds, or 0 where no file is.
-  \* expert/when-an-expert-starts.md `(umask 077 && printf '%s\n' "$url" > "$E/webhook.url")`
+  \* An empty file, where T3 Code gave no address, counts as that webhook's: the model's creates
+  \* all return one. expert/when-an-expert-starts.md
+  \* `(umask 077 && printf '%s\n' "$url" > "$E/webhook.url"); else : > "$E/webhook.url"; fi`
   url,
   disk,      \* the paths of Paths that jstack made and are on disk
   fresh,     \* whether the levels above the record's folder were missing before the install
@@ -68,13 +73,14 @@ VARIABLES
   nextId,    \* the id T3 Code gives the next webhook it makes
   epc,       \* where the expert thread's start is (`when-an-expert-starts`), or "idle", "stopped"
   me,        \* the thread whose turn runs the start
-  got        \* the id the create call returned, held only in the turn
+  got,       \* the id the create call returned, held only in the turn
+  pick       \* the id the block said to delete, held only in the turn
 
 vars == <<created, repos, seeded, alone, bak, mirrorLock, homeId, webhook, url, disk, fresh,
-          op, step, pend, entry, mpc, tasks, nextId, epc, me, got>>
+          op, step, pend, entry, mpc, tasks, nextId, epc, me, got, pick>>
 install == <<created, repos, seeded, alone, disk, fresh, op, step, pend>>
 mirror == <<bak, mirrorLock, entry, mpc>>
-expert == <<homeId, webhook, url, tasks, nextId, epc, me, got>>
+expert == <<homeId, webhook, url, tasks, nextId, epc, me, got, pick>>
 
 Ids == 1..MaxId
 NoHook == [id |-> 0, by |-> None]
@@ -88,16 +94,16 @@ TypeOK ==
   /\ homeId \in Threads \cup {None}
   /\ webhook \in [id : 0..MaxId, by : Threads \cup {None}] /\ url \in 0..MaxId
   /\ tasks \subseteq [id : Ids, to : Threads] /\ nextId \in 1..MaxId + 1
-  /\ epc \in {"idle", "stopped", "named", "take", "taking", "deleting", "create", "purged",
-              "made", "keptId", "forgot"}
-  /\ me \in Threads \cup {None} /\ got \in 0..MaxId
+  /\ epc \in {"idle", "stopped", "look", "lost", "delete", "create", "made", "keptUrl",
+              "keptId", "bind", "take", "mend"}
+  /\ me \in Threads \cup {None} /\ got \in 0..MaxId /\ pick \in 0..MaxId
 
 Init ==
   /\ created = {} /\ repos = FALSE /\ seeded = FALSE /\ alone = "free"
   /\ disk = {} /\ fresh \in BOOLEAN /\ op = None /\ step = 0 /\ pend = {}
   /\ bak = FALSE /\ mirrorLock = "free" /\ entry = "own" /\ mpc = "idle"
   /\ homeId = None /\ webhook = NoHook /\ url = 0 /\ tasks = {} /\ nextId = 1
-  /\ epc = "idle" /\ me = None /\ got = 0
+  /\ epc = "idle" /\ me = None /\ got = 0 /\ pick = 0
 
 ----
 \* The install. Each operation is its steps in the code's order. "note1" and "note2" are
@@ -226,97 +232,105 @@ MirrorDies ==
 
 ----
 \* An expert's start, steps 3 and 4 of expert/when-an-expert-starts.md, in thread `t`. A turn
-\* can stop between any two calls (`TurnStops`).
+\* can stop between any two calls or writes (`TurnStops`).
 ExpertStart(t) ==
   /\ "expert" \in Parts
   /\ epc \in {"idle", "stopped"}
-  /\ homeId' = t /\ me' = t /\ epc' = "named" /\ got' = 0
+  /\ homeId' = t /\ me' = t /\ epc' = "look" /\ got' = 0 /\ pick' = 0
   /\ UNCHANGED <<webhook, url, tasks, nextId>> /\ UNCHANGED install /\ UNCHANGED mirror
 
-\* Step 4's first block reads the record: expert/when-an-expert-starts.md
-\* `echo "create: no webhook is kept for $N"`, expert/when-an-expert-starts.md
-\* `echo "keep: webhook $id posts into this thread"`, else expert/when-an-expert-starts.md
-\* `echo "take: webhook $id posts into ${by:-another thread}, not this one: take it over"`
-SeeWebhook ==
-  /\ epc = "named"
-  /\ epc' = CASE webhook.id = 0 -> "create"
-              [] webhook.by = me -> "idle"
-              [] OTHER -> "take"
+\* Step 4: `list_scheduled_tasks`, then the block that compares its reply with the record, run
+\* again after each call until it says `keep`. Every live task here has this expert's title.
+Kept == {k \in tasks : k.id = webhook.id}
+Strays == {k \in tasks : k.id /= webhook.id /\ (Fault = "purge-own" => k.to = me)}
+\* A task the record does not keep, whatever thread it posts into: expert/when-an-expert-starts.md
+\* `if $stray then "delete \($stray.scheduledTaskId)"`. None that it keeps:
+\* expert/when-an-expert-starts.md `elif $kept == null then "create"`. One that it keeps, with
+\* its address lost: expert/when-an-expert-starts.md `if [ ! -e "$E/webhook.url" ]; then`; that
+\* posts into another thread: expert/when-an-expert-starts.md `elif [ "$next" != keep ]; then`;
+\* that posts here, with a record that names another thread: expert/when-an-expert-starts.md
+\* `printf '%s %s\n' "$id" "$ME" > "$E/webhook" echo "keep:`; and one the record names, here.
+Look ==
+  /\ epc = "look"
+  /\ IF Strays /= {}
+       THEN \E k \in Strays : pick' = k.id /\ epc' = "delete"
+     ELSE IF Kept = {}
+       THEN epc' = "create" /\ UNCHANGED pick
+     ELSE \E k \in Kept :
+       /\ UNCHANGED pick
+       /\ epc' = CASE url = 0 /\ Fault /= "record-first" -> "lost"
+                   [] k.to /= me -> "bind"
+                   [] webhook.by /= me /\ Fault /= "no-mend" -> "mend"
+                   [] OTHER -> "idle"
   /\ UNCHANGED <<homeId, webhook, url, tasks, nextId, me, got>>
   /\ UNCHANGED install /\ UNCHANGED mirror
+
+\* The webhook kept with no address file is deleted, and the next look creates one.
+Lost ==
+  /\ epc = "lost"
+  /\ pick' = webhook.id /\ epc' = "delete"
+  /\ UNCHANGED <<homeId, webhook, url, tasks, nextId, me, got>>
+  /\ UNCHANGED install /\ UNCHANGED mirror
+
+\* `delete_scheduled_task`; one that is gone is done all the same.
+Delete ==
+  /\ epc = "delete"
+  /\ tasks' = {k \in tasks : k.id /= pick} /\ epc' = "look"
+  /\ UNCHANGED <<homeId, webhook, url, nextId, me, got, pick>> /\ UNCHANGED install
+  /\ UNCHANGED mirror
+
+\* `schedule_task` makes a webhook that posts into this thread, and returns its id and address
+\* in the reply, which only the turn holds.
+Create ==
+  /\ epc = "create" /\ nextId <= MaxId
+  /\ tasks' = tasks \cup {[id |-> nextId, to |-> me]} /\ got' = nextId
+  /\ nextId' = nextId + 1 /\ epc' = "made"
+  /\ UNCHANGED <<homeId, webhook, url, me, pick>> /\ UNCHANGED install /\ UNCHANGED mirror
+
+\* The block after the create writes the address first and then the record, as D-137 and D-138
+\* quote, two writes a turn can stop between.
+KeepUrl ==
+  /\ \/ epc = "made" /\ Fault /= "record-first" /\ epc' = "keptUrl"
+     \/ epc = "keptId" /\ epc' = "look"
+  /\ url' = got
+  /\ UNCHANGED <<homeId, webhook, tasks, nextId, me, got, pick>> /\ UNCHANGED install
+  /\ UNCHANGED mirror
+
+KeepId ==
+  /\ \/ epc = "keptUrl" /\ epc' = "look"
+     \/ epc = "made" /\ Fault = "record-first" /\ epc' = "keptId"
+  /\ webhook' = [id |-> got, by |-> me]
+  /\ UNCHANGED <<homeId, url, tasks, nextId, me, got, pick>> /\ UNCHANGED install
+  /\ UNCHANGED mirror
+
+\* Before a take-over, the block writes this thread into the record: expert/when-an-expert-starts.md
+\* `printf '%s %s\n' "$id" "$ME" > "$E/webhook" echo "take`
+Bind ==
+  /\ epc = "bind"
+  /\ webhook' = [webhook EXCEPT !.by = me] /\ epc' = "take"
+  /\ UNCHANGED <<homeId, url, tasks, nextId, me, got, pick>> /\ UNCHANGED install
+  /\ UNCHANGED mirror
 
 \* `update_scheduled_task` with `"bindToCurrentThread": true` rebinds the task where it is
 \* there, and is refused where it is gone.
 TakeOver ==
   /\ epc = "take"
   /\ tasks' = {IF k.id = webhook.id THEN [k EXCEPT !.to = me] ELSE k : k \in tasks}
-  /\ epc' = "taking"
-  /\ UNCHANGED <<homeId, webhook, url, nextId, me, got>> /\ UNCHANGED install
+  /\ epc' = "look"
+  /\ UNCHANGED <<homeId, webhook, url, nextId, me, got, pick>> /\ UNCHANGED install
   /\ UNCHANGED mirror
 
-\* `list_scheduled_tasks` says it posts here: the record names this thread.
-Taken ==
-  /\ epc = "taking" /\ [id |-> webhook.id, to |-> me] \in tasks
+\* The webhook posts here and the record names another thread: the block writes this one.
+Mend ==
+  /\ epc = "mend"
   /\ webhook' = [webhook EXCEPT !.by = me] /\ epc' = "idle"
-  /\ UNCHANGED <<homeId, url, tasks, nextId, me, got>> /\ UNCHANGED install /\ UNCHANGED mirror
-
-\* It does not, expert/when-an-expert-starts.md
-\* `echo "not taken: webhook $id posts into $now, not this thread: delete it, then create"`
-NotTaken ==
-  /\ epc = "taking" /\ [id |-> webhook.id, to |-> me] \notin tasks
-  /\ epc' = "deleting"
-  /\ UNCHANGED <<homeId, webhook, url, tasks, nextId, me, got>> /\ UNCHANGED install
+  /\ UNCHANGED <<homeId, url, tasks, nextId, me, got, pick>> /\ UNCHANGED install
   /\ UNCHANGED mirror
 
-\* `delete_scheduled_task` of the recorded id; one that is gone is done all the same.
-DeleteOld ==
-  /\ epc = "deleting"
-  /\ tasks' = {k \in tasks : k.id /= webhook.id} /\ epc' = "create"
-  /\ UNCHANGED <<homeId, webhook, url, nextId, me, got>> /\ UNCHANGED install
-  /\ UNCHANGED mirror
-
-\* Before a create, a task bound to this thread is a webhook whose id was never kept: delete it.
-\* expert/when-an-expert-starts.md
-\* `is this thread is a webhook whose id was never kept`
-Purge ==
-  /\ epc = "create"
-  /\ tasks' = {k \in tasks : k.to /= me} /\ epc' = "purged"
-  /\ UNCHANGED <<homeId, webhook, url, nextId, me, got>> /\ UNCHANGED install
-  /\ UNCHANGED mirror
-
-\* `schedule_task` makes a webhook that posts into this thread, and returns its id and address
-\* in the reply, which only the turn holds.
-Create ==
-  /\ epc = "purged" /\ nextId <= MaxId
-  /\ tasks' = tasks \cup {[id |-> nextId, to |-> me]} /\ got' = nextId
-  /\ nextId' = nextId + 1 /\ epc' = "made"
-  /\ UNCHANGED <<homeId, webhook, url, me>> /\ UNCHANGED install /\ UNCHANGED mirror
-
-\* The block after the create writes the record, expert/when-an-expert-starts.md
-\* `if [ -z "$ME" ] || [ -z "$id" ] || [ -z "$ok" ]; then`, and then the address, three writes a
-\* turn can stop between.
-KeepId ==
-  /\ epc = "made"
-  /\ webhook' = [id |-> got, by |-> me] /\ epc' = "keptId"
-  /\ UNCHANGED <<homeId, url, tasks, nextId, me, got>> /\ UNCHANGED install /\ UNCHANGED mirror
-
-\* expert/when-an-expert-starts.md `jbus forget "$E/webhook.url" > /dev/null`
-ForgetUrl ==
-  /\ epc = "keptId"
-  /\ url' = 0 /\ epc' = "forgot"
-  /\ UNCHANGED <<homeId, webhook, tasks, nextId, me, got>> /\ UNCHANGED install
-  /\ UNCHANGED mirror
-
-KeepUrl ==
-  /\ epc = "forgot"
-  /\ url' = got /\ epc' = "idle"
-  /\ UNCHANGED <<homeId, webhook, tasks, nextId, me, got>> /\ UNCHANGED install
-  /\ UNCHANGED mirror
-
-\* The turn stops between two calls: what it wrote stays, the reply it held is gone.
+\* The turn stops between two calls or writes: what it wrote stays, the reply it held is gone.
 TurnStops ==
   /\ epc \notin {"idle", "stopped"}
-  /\ epc' = "stopped" /\ got' = 0
+  /\ epc' = "stopped" /\ got' = 0 /\ pick' = 0
   /\ UNCHANGED <<homeId, webhook, url, tasks, nextId, me>> /\ UNCHANGED install
   /\ UNCHANGED mirror
 
@@ -326,8 +340,8 @@ Next ==
   \/ NoteMkdir \/ NoteWrite \/ WriteRecord \/ Make \/ InstallDies \/ Uninstall
   \/ MirrorBegin \/ Rename \/ Link \/ MirrorDies
   \/ \E t \in Threads : ExpertStart(t)
-  \/ SeeWebhook \/ TakeOver \/ Taken \/ NotTaken \/ DeleteOld \/ Purge \/ Create
-  \/ KeepId \/ ForgetUrl \/ KeepUrl \/ TurnStops
+  \/ Look \/ Lost \/ Delete \/ Create \/ KeepUrl \/ KeepId \/ Bind \/ TakeOver
+  \/ Mend \/ TurnStops
 Spec == Init /\ [][Next]_vars
 
 \* Every path jstack made is recorded or not made: an uninstall leaves nothing behind.

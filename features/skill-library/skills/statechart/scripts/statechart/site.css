@@ -76,6 +76,13 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap:
 .chart-head h2 { margin: 2px 0 4px; font-size: 1.25rem; }
 .feature { margin: 0; color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; }
 .sub { margin: 0 0 8px; color: var(--muted); font-size: 0.88rem; }
+.coverage { margin: 0 0 10px; padding: 8px 12px; border-left: 3px solid var(--line); font-size: 0.86rem; max-width: 92ch; }
+.coverage p { margin: 0 0 4px; }
+.uncovered { margin: 18px 0 0; font-size: 0.9rem; max-width: 92ch; }
+.uncovered h3 { margin: 0 0 6px; font-size: 1.05rem; }
+.uncovered p { margin: 6px 0; color: var(--muted); }
+.uncovered ul { margin: 0 0 8px; padding-left: 1.2rem; }
+.uncovered li { margin: 3px 0; }
 
 .overview, .flow-map { margin: 0 0 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); padding: 10px 12px 6px; overflow-x: auto; }
 .overview figcaption { color: var(--muted); font-size: 0.82rem; margin: 0 0 4px; }

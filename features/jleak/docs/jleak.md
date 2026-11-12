@@ -101,6 +101,7 @@ It refuses a head the brief's last `Checked:` line does not bind:
 crew-push: refused: its brief has no Checked: line: ...: run the check block of "Do the task" at 1a2b3c4d5e6f, then push again
 ```
 
+A last line of the guards and the lint, `make check-fast BASE=<sha> PART=guards`, which a crew writes after it repairs a conflict, binds only a head whose one change over the head of the last line of the desk's whole check is the base it sits on, a merge of the base or a rebase onto it (`crewpush.only_the_base`); any other head is refused with that reason ("The checks" in `features/crew/the-checks.md`).
 A push from the main checkout, as jbus's restack of a link is, a deletion, and a branch with no such brief push as before.
 
 Once `jleak` passes, the hook runs `features/jleak/hooks/pre-push-lint.sh`, which runs `make lint` in the work tree git pushes from.

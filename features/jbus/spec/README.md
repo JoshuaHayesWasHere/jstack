@@ -35,7 +35,7 @@ java -cp ~/.cache/jstack/tla2tools/1.7.4/tla2tools.jar tlc2.TLC -config RowLife.
 ```sh
 S=features/skill-library/skills/statechart/scripts
 cd features/jbus/spec
-UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "../../../$S" \
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
     statechart from-spec RowLife.tla --title "A row's life" --png
 ```
 
@@ -96,7 +96,7 @@ The ladder also carries a crew that jbus told once to open the pull request its 
 ```sh
 S=../../skill-library/skills/statechart/scripts
 cd features/jbus/spec
-UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     statechart from-spec ThreadLife.tla --title "What does jbus do with a thread, launch to archive?" --png
 ```
 
@@ -174,7 +174,7 @@ The test runs TLC on both configs, and on each rule of `BREAKS` alone, which is 
 S=$PWD/features/skill-library/skills/statechart/scripts
 D=$HOME/.cache/jstack/tlc-tmp && mkdir -p "$D"
 W=$(TMPDIR=$D mktemp -d) && cp features/jbus/spec/MainRed.* "$W"
-(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     statechart from-spec MainRed.tla --config MainRed.chart.cfg \
     --title "Main went red: what fixes it?" --out out --png)
 ```
@@ -236,6 +236,21 @@ The canary `Fault = "stamp-refused"` stamps `live` over units the manager refuse
 `CopyOwned` has no canary: in the model the link always names a tree that is there, and a tree a hand removed takes the fallback.
 `features/jbus/tests/test_green_move_spec.py` runs TLC on the config and on each canary for the rules it breaks.
 
+### Draw the chart of the green move
+
+```sh
+S=$PWD/features/skill-library/skills/statechart/scripts
+D=$HOME/.cache/jstack/tlc-tmp && mkdir -p "$D"
+W=$(TMPDIR=$D mktemp -d) && cp features/jbus/spec/GreenMove.* "$W"
+(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
+    statechart from-spec GreenMove.tla --title "Does the green copy reach main's green tip?" --out out --png)
+```
+
+Run it from the repo root, then copy the files of `$W/out` into `GreenMove-statechart/`, all except `tlc/`.
+`GreenMove.cfg` turns off TLC's deadlock check, as `-deadlock` does above, since a copy at main's last tip has no step left.
+`GreenMove.map.py` labels each state with the step of the move the pass is at and what a command you run meets: the tool the link names, another tree, or none.
+It draws 26 chart states and 60 steps from 11,614 model states, every step between two of them, in a few seconds.
+
 ### What the green-move model leaves out
 
 - uv's install and the write of `owes: relink` after it are one step: a pass that dies between them installs again, which is the same install, and the model does not let that second install fail.
@@ -277,7 +292,7 @@ In today's code the half of `NoTellTwice` that says no act runs after its mark w
 ```sh
 S=features/skill-library/skills/statechart/scripts
 cd features/jbus/spec
-UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "../../../$S" \
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
     statechart from-spec TellOnce.tla --title "Does jbus tell anyone twice, or drop a tell, when a pass dies?" --png
 ```
 
@@ -338,7 +353,7 @@ The comment in `MainFix.cfg` keeps the breaks TLC finds past that config, each w
 S=$PWD/features/skill-library/skills/statechart/scripts
 D=$HOME/.cache/jstack/tlc-tmp && mkdir -p "$D"
 W=$(TMPDIR=$D mktemp -d) && cp features/jbus/spec/MainFix.* "$W"
-(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     statechart from-spec MainFix.tla --config MainFix.chart.cfg --expect-broken FiledWhole,RevertKnown,RevertSaid \
     --title "Main went red: what has jbus filed when a pass dies?" --out out --png)
 ```
@@ -393,7 +408,7 @@ The canary `Fault = "stale-streak"`, a pass that leaves the stall alert from bef
 ```sh
 S=features/skill-library/skills/statechart/scripts
 cd features/jbus/spec
-UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "../../../$S" \
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
     statechart from-spec OneList.tla --config OneList.chart.cfg --expect-broken AnsweredLeaves,ListIsTrue \
     --title "Does a gate reach my list, and leave it once I answer?" --png
 ```

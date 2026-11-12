@@ -480,7 +480,7 @@ def run_tlc(tools, spec, cfg, base, dump=None, workers="1", first_only=False):
     if held is not command and r.returncode != 0 and not r.stdout:
         raise CannotFinish(
             f"cannot run TLC: {held[0]} test-slot exited {r.returncode} before TLC printed a"
-            f" line:\n{r.stderr.strip()}"
+            f" line:\n{r.stderr.strip()}{resync_hint(held[0])}"
         )
     stdout = f"{FIRST_ONLY}{r.stdout}" if first_only else r.stdout
     with open(f"{base}.out", "w", encoding="utf-8") as handle:
@@ -490,6 +490,22 @@ def run_tlc(tools, spec, cfg, base, dump=None, workers="1", first_only=False):
         return {"stdout": stdout, "warning": warning, "firstOnly": first_only}
     except ChartError as e:
         raise TlcStopped(str(e)) from e
+
+
+def resync_hint(wrapper):
+    """The command that clears a `jgauge` this command's own venv holds and its lock does not:
+    a shim another checkout's project left there, by a sync that inherited the venv, whose
+    package went with that checkout. An exact sync removes it. A wrapper from elsewhere on PATH
+    gets no hint, since no sync of this venv mends it."""
+    bin_dir = os.path.join(sys.prefix, "bin")
+    if os.path.dirname(os.path.abspath(wrapper)) != bin_dir:
+        return ""
+    project = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return (
+        "\nThis venv holds a jgauge its lock does not; re-sync it with:\n"
+        f"UV_PROJECT_ENVIRONMENT={shlex.quote(sys.prefix)} uv sync --frozen"
+        f" --project {shlex.quote(project)} --reinstall-package jgauge"
+    )
 
 
 def without_comments(spec):

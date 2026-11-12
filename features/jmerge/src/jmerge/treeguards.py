@@ -63,7 +63,7 @@ UNNAMED = "its guards"
 SHA = 12
 PASSED = "the guards passed on its tree merged over {base} at {tip} in {seconds} s"
 CHECKED = "CI's check passed its tree merged over {base} at {tip} in {run}, so no guards ran"
-_IDENTITY = ("-c", "user.name=jmerge", "-c", "user.email=jmerge@localhost")
+IDENTITY = ("-c", "user.name=jmerge", "-c", "user.email=jmerge@localhost")
 TAIL = 40
 """The lines of what failed or stopped guards printed that their record keeps."""
 PASSED_ON = ("HOME", "USER", "LOGNAME", "LANG", "PATH")
@@ -128,7 +128,7 @@ def run_guards(command: str, cwd: Path, env: dict[str, str], timeout: float) -> 
     The session also ends with this process, however it ends: `_TIED` reads a pipe only this
     process writes to, and stops the session at its end. jbus kills `jmerge` alone at its
     `JMERGE_TIMEOUT`, and the guards would otherwise run on beside the next `jmerge`. The
-    worktree such a stop leaves is the next run's to clear (`Guards.in_tree`).
+    worktree such a stop leaves is the next run's to clear (`run_in_tree`).
 
     The guards are a suite at `-n 6`, so they take a slot as every other suite on the machine
     does: through `jgauge test-slot`, or the caller's own where it holds one already
@@ -218,16 +218,17 @@ def _stop(group: int) -> None:
         os.killpg(group, signal.SIGKILL)
 
 
-def command_of(state: Path) -> str:
-    """The first line of the state's `merged-tree-guards` that is not blank, or nothing."""
+def command_of(state: Path, name: str = NAME) -> str:
+    """The first line of the state's file `name`, `merged-tree-guards` unless named, that is not
+    blank, or nothing."""
     try:
-        text = (state / NAME).read_text(encoding="utf-8")
+        text = (state / name).read_text(encoding="utf-8")
     except OSError:
         return ""
     return next((line.strip() for line in text.splitlines() if line.strip()), "")
 
 
-def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
+def git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
 
 
@@ -236,27 +237,72 @@ def _said(ran: subprocess.CompletedProcess[str]) -> str:
     return lines[-1] if lines else f"git exited {ran.returncode}"
 
 
-class Guards:
-    """The guards of one `jmerge` run, and the record of what they said of each pull request's
-    head over a tip (`KEPT`). `run` is False for `--check`, which runs no guards and keeps
-    nothing, but reads what a run kept. `ask` answers a GitHub API path of this repo, as
-    `green.green_run` asks it."""
+def run_in_tree(
+    main: Path, path: Path, commit: str, command: str, env: dict[str, str], timeout: float
+) -> Ran | str | None:
+    """Run `command` in a detached worktree of `commit` at `path`, and remove it after, with `env`
+    over what `run_guards` passes on. One a run that was stopped left behind is removed first.
+    Return why the worktree could not be made or the command not started, where they could not,
+    and None where no full test slot came free for it (`run_guards`)."""
+    clear(main, path)
+    added = git(main, "worktree", "add", "--detach", "-q", str(path), commit)
+    if added.returncode:
+        return _said(added)
+    try:
+        return run_guards(command, path, env, timeout)
+    finally:
+        clear(main, path)
 
-    def __init__(self, main: Path, state: Path, run: bool, ask: green.Ask) -> None:
-        self.main = main
-        self.state = state
-        self.ask = ask
-        self.path = state / KEPT
-        self.run = run
-        self.command = command_of(state)
-        self.spent = 0
-        self.slotless = False
+
+def clear(main: Path, path: Path) -> None:
+    git(main, "worktree", "remove", "--force", str(path))
+    shutil.rmtree(path, ignore_errors=True)
+    git(main, "worktree", "prune")
+
+
+class Kept:
+    """What a run kept of each open pull request in the state's json at `path`, by its number,
+    written there only where `write` is True."""
+
+    def __init__(self, path: Path, write: bool) -> None:
+        self.path = path
+        self.write = write
         self.records: dict | None = None
 
     def known(self) -> dict:
         if self.records is None:
             self.records = store.read_dict(self.path)
         return self.records
+
+    def put(self, number: int, record: dict) -> None:
+        self.records = {**self.known(), str(number): record}
+        if self.write:
+            store.write_json(self.path, self.records)
+
+    def open_only(self, numbers: set[str] | dict[str, str]) -> None:
+        """Drop the record of each pull request that is no longer open."""
+        known = self.known()
+        kept = {number: was for number, was in known.items() if number in numbers}
+        if kept != known:
+            self.records = kept
+            if self.write:
+                store.write_json(self.path, kept)
+
+
+class Guards(Kept):
+    """The guards of one `jmerge` run, and the record of what they said of each pull request's
+    head over a tip (`KEPT`). `run` is False for `--check`, which runs no guards and keeps
+    nothing, but reads what a run kept. `ask` answers a GitHub API path of this repo, as
+    `green.green_run` asks it."""
+
+    def __init__(self, main: Path, state: Path, run: bool, ask: green.Ask) -> None:
+        super().__init__(state / KEPT, run)
+        self.main = main
+        self.state = state
+        self.ask = ask
+        self.command = command_of(state)
+        self.spent = 0
+        self.slotless = False
 
     def was(self, one: ready.PullRequest, tip: str) -> dict | None:
         was = self.known().get(str(one.number))
@@ -279,18 +325,7 @@ class Guards:
         if tail:
             record["tail"] = tail
         record["at"] = f"{now:%Y-%m-%dT%H:%M:%S%z}"
-        self.records = {**self.known(), str(one.number): record}
-        if self.run:
-            store.write_json(self.path, self.records)
-
-    def open_only(self, numbers: set[str] | dict[str, str]) -> None:
-        """Drop the record of each pull request that is no longer open."""
-        known = self.known()
-        kept = {number: was for number, was in known.items() if number in numbers}
-        if kept != known:
-            self.records = kept
-            if self.run:
-                store.write_json(self.path, kept)
+        self.put(one.number, record)
 
     def of(self, one: ready.PullRequest, tip: str) -> tuple[str, str]:
         """Why the pull request waits on the guards on its head merged over `tip`, or nothing, and
@@ -298,13 +333,13 @@ class Guards:
         past `tip` pass a tree that is no longer the one to merge: it waits for the next run."""
         if not self.command or not tip:
             return "", ""
-        if not _git(self.main, "merge-base", "--is-ancestor", tip, one.head).returncode:
+        if not git(self.main, "merge-base", "--is-ancestor", tip, one.head).returncode:
             return "", ""
         was = self.was(one, tip)
         if was is not None:
             return str(was.get("said") or ""), str(was.get("note") or "")
         values = {"base": one.base, "tip": tip[:SHA]}
-        merged = _git(self.main, "merge-tree", "--write-tree", tip, one.head)
+        merged = git(self.main, "merge-tree", "--write-tree", tip, one.head)
         tree = merged.stdout.split()[:1]
         if merged.returncode == 1 and tree:
             return ready.FRESH_CONFLICT, ""
@@ -319,8 +354,8 @@ class Guards:
         if self.slotless:
             return ready.MERGED_TREE_NO_SLOT.format(**values, seconds=SLOT_SECONDS), ""
         message = f"jmerge: #{one.number} merged over {one.base} at {tip[:SHA]}"
-        made = _git(
-            self.main, *_IDENTITY, "commit-tree", tree[0], "-p", tip, "-p", one.head, "-m", message
+        made = git(
+            self.main, *IDENTITY, "commit-tree", tree[0], "-p", tip, "-p", one.head, "-m", message
         )
         ran = self.in_tree(made.stdout.strip(), tip, one.head)
         if ran is None:
@@ -339,7 +374,7 @@ class Guards:
             note = PASSED.format(**values, seconds=ran.seconds)
         tail = "\n".join(ran.said.rstrip().splitlines()[-TAIL:]) if said else ""
         self.keep(one, tip, said, note, tail)
-        at = _git(self.main, "ls-remote", "origin", f"refs/heads/{one.base}").stdout.split()
+        at = git(self.main, "ls-remote", "origin", f"refs/heads/{one.base}").stdout.split()
         if not said and at[:1] != [tip]:
             return ready.MAIN_MOVED.format(base=one.base), ""
         return said, note
@@ -357,7 +392,7 @@ class Guards:
             return Tried(UNRUN[0], 0, f"the run spent its {RUN_SECONDS} s of guards")
         if self.slotless:
             return Tried(NO_SLOT, 0)
-        oldest = _git(self.main, "merge-base", "--octopus", tip, *heads).stdout.strip()
+        oldest = git(self.main, "merge-base", "--octopus", tip, *heads).stdout.strip()
         ran = self.in_tree(commit, tip, oldest or tip)
         if ran is None:
             self.slotless = True
@@ -373,7 +408,7 @@ class Guards:
         """The address of a successful check of this repo that tested `tree` over `tip`, by the
         artifact it left for the two trees, or None. A lookup that fails finds none, and the
         guards run."""
-        base = _git(self.main, "rev-parse", f"{tip}^{{tree}}").stdout.strip()
+        base = git(self.main, "rev-parse", f"{tip}^{{tree}}").stdout.strip()
         try:
             run, _ = green.green_run(self.ask, green.checked(base, tree))
         except Exception:
@@ -381,26 +416,9 @@ class Guards:
         return run
 
     def in_tree(self, commit: str, tip: str, head: str) -> Ran | str | None:
-        """Run the guards in a worktree of `commit` at the state's `TREE`, and remove it after,
-        with `BASE` the tip and `MERGE_BASE` the merge base of `head` and the tip: the commit the
-        pull request's check ran over, so the guards also run what main changed since then.
-        One a run that was stopped left behind is removed first. Return why the worktree could
-        not be made or the guards not started, where they could not, and None where no full test
-        slot came free for them (`run_guards`)."""
-        path = self.state / TREE
-        self.clear(path)
-        added = _git(self.main, "worktree", "add", "--detach", "-q", str(path), commit)
-        if added.returncode:
-            return _said(added)
-        try:
-            merge_base = _git(self.main, "merge-base", tip, head).stdout.strip()
-            env = {"BASE": tip, "MERGE_BASE": merge_base}
-            return run_guards(self.command, path, env, LIMIT_SECONDS)
-        finally:
-            self.clear(path)
-
-    def clear(self, path: Path) -> None:
-        _git(self.main, "worktree", "remove", "--force", str(path))
-        if path.exists():
-            shutil.rmtree(path, ignore_errors=True)
-        _git(self.main, "worktree", "prune")
+        """Run the guards on `commit` at the state's `TREE` (`run_in_tree`), with `BASE` the tip
+        and `MERGE_BASE` the merge base of `head` and the tip: the commit the pull request's
+        check ran over, so the guards also run what main changed since then."""
+        merge_base = git(self.main, "merge-base", tip, head).stdout.strip()
+        env = {"BASE": tip, "MERGE_BASE": merge_base}
+        return run_in_tree(self.main, self.state / TREE, commit, self.command, env, LIMIT_SECONDS)

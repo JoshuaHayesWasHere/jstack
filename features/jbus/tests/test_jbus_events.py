@@ -209,6 +209,7 @@ TABLE = {
     "decision": "user",
     "failover": "quiet",
     "rollover": "quiet",
+    "rule-breaks": "quiet",
     "waiting-on-user": "quiet",
     "condition": "quiet",
     "clock": "quiet",

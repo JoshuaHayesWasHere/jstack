@@ -98,3 +98,5 @@ BATCH_FIRST	jmerge's batch over {base} at {tip} is checked and merges first: a m
 BATCH_STOPPED	jmerge's batch over {base} at {tip} stopped at #{number}, which did not merge: the next batch takes it
 MAIN_BROWSER_RED	its browser run failed at {head}, as main's did at {sha}
 BROWSER_RED	its browser run failed at {head}
+RULE_BREAKS	its tests {tests} fail on open pull requests merged with it, {breaks}: carry the fix (an exemption or a changed rule), or name each on a Breaks: line of its Result, and jbus tells their crews when it merges
+RULE_UNRUN	its tests {tests} have run on {ran} of the {open} open pull requests merged with it: the next run goes on

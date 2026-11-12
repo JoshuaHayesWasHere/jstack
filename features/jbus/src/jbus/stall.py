@@ -5,6 +5,9 @@ A root is one thing only the user can do, and it has a key:
 
 - `#<n>`: hand-merge, with `jmerge --accept`, a green and reviewed pull request that `jmerge` holds.
   The line names the one safety fact that the review proved at the head;
+- `held:<slug>`: pick up a red pull request whose row `twice` held, that `jmerge` says has failed
+  its check, and that no thread is at work on: no crew is told of a held row, so only the user
+  moves it;
 - `re-approve:<slug>`: approve again a brief that changed after their go;
 - `approve:<slug>`: approve a row that an approved row depends on;
 - `config:<project>`: sign in to T3 Code.
@@ -12,7 +15,8 @@ A root is one thing only the user can do, and it has a key:
 `walk` starts at every approved row that was not launched and follows its `depends` links
 (`Pass.reasons`, which `dispatch` records). A stacked link (`jbus.stack`) launched before its
 base merged, and its own merge still waits on its base's: `walk` starts at it too, and follows it
-to its base. It stops at a root or at progress: a thread, a pull
+to its base. It starts too at a row `twice` held whose pull request is red and that no thread
+works on (`held:<slug>`). It stops at a root or at progress: a thread, a pull
 request on which `jmerge` waits, a slot, or a gate that the Chef already has. `tell` sends one
 `waiting-on-user` event for each root, and sends that event again each hour while the root is still
 open. `tell` also rewrites `stall.json`, which records when jbus first saw each root and when jbus
@@ -86,6 +90,7 @@ from jbus import (
     reverts,
     verbs,
     waiting,
+    watch,
     write_json,
 )
 from jbus.ci import collect
@@ -97,7 +102,7 @@ from jbus.record import PASSES as PASS_LOG
 from jbus.redlog import failed_step, failures, named
 from jbus.t3 import Client
 from jbus.wake import notify
-from jbus.watch import FAILS, TOLD, TWICE, World, _api, job_log, ran, task_brief
+from jbus.watch import FAILS, TOLD, TWICE, World, _api, at_work, job_log, ran, task_brief
 from jmerge import judgement, ready
 from jmerge.joblog import failed_in
 from jmerge.lines import READY
@@ -152,9 +157,26 @@ def walk(run: Pass, world: World, rows: list[queue.Row], pulls: list[str]) -> Ro
     name = run.project.name
     user = run.user
     table = {row["slug"]: row for row in rows}
-    said = (line for line in map(parse, pulls) if line and line.word == "hold" and line.reason)
-    holds = {line.number: (line.name, line.reason) for line in said}
+    lines = [line for line in map(parse, pulls) if line and line.reason]
+    holds = {line.number: (line.name, line.reason) for line in lines if line.word == "hold"}
     merges: dict[int, str] = {}
+    failing = {
+        line.number: line.reason
+        for line in lines
+        if (line.code or ready.code_of(line.reason)) == ready.CHECK_FAILED.code
+    }
+
+    def red(slug: str, pull: dict[str, Any]) -> str:
+        """The root of a red pull request `twice` held its row for, that no thread works on, or
+        nothing: no crew is told of it while the row is held, so only the user moves it."""
+        number, row = pull["number"], table.get(slug, {})
+        held = row.get("held") and watch.failed_twice(run, slug)
+        if number not in failing or at_work(world.threads.get(slug, [])) or not held:
+            return ""
+        return (
+            f"pick up #{number} {pull.get('url', '')}: {failing[number]}, {slug} is held by "
+            f"{TWICE} and no thread is at work on it"
+        )
 
     def on_base(slug: str) -> str:
         """The row a stacked link still sits on, or nothing: its merge waits on that row's."""
@@ -170,6 +192,9 @@ def walk(run: Pass, world: World, rows: list[queue.Row], pulls: list[str]) -> Ro
         if pull:
             number = pull["number"]
             if number not in holds:
+                stuck = red(slug, pull)
+                if stuck:
+                    return {f"held:{slug}": stuck}
                 return roots(on, seen) if on else {}
             if number not in merges:
                 merges[number] = hand_merge(run, number, *holds[number])
@@ -197,7 +222,8 @@ def walk(run: Pass, world: World, rows: list[queue.Row], pulls: list[str]) -> Ro
 
     found: Roots = {}
     for row in sorted(rows, key=queue.order):
-        if row["slug"] in run.reasons or on_base(row["slug"]):
+        pull = world.open.get(row["slug"])
+        if row["slug"] in run.reasons or on_base(row["slug"]) or pull and red(row["slug"], pull):
             for key, action in roots(row["slug"], set()).items():
                 found.setdefault(key, (action, []))[1].append(row["slug"])
     return found
@@ -611,10 +637,9 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
         if not holds(heads):
             if len(heads) > 1:
                 kept[slug][TOLD] = head
-                tests = ", ".join(heads[head]["tests"])
                 run.say(
                     f"failed {slug}: #{pull['number']} at {head[:12]}, its second failed head, "
-                    f"failed on {tests}: its crew is told of them, and a third holds it"
+                    f"failed on {', '.join(heads[head]['tests'])}: crew told, a third holds"
                 )
             continue
         try:

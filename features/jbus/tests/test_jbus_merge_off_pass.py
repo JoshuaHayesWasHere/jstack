@@ -6,6 +6,7 @@ the kitchen's `jmerge` runs as a command on PATH, sleeping as long as `jmerge-sl
 
 import json
 import re
+import subprocess
 import sys
 import time
 from datetime import UTC, datetime, timedelta
@@ -31,6 +32,7 @@ def off(kitchen, monkeypatch):
     kitchen.quiet()
     (kitchen.stub / "jmerge.log").unlink(missing_ok=True)
     monkeypatch.setattr(merge, "start", start)
+    monkeypatch.setattr(merge, "subprocess", subprocess)
     monkeypatch.delenv("INVOCATION_ID", raising=False)
     kitchen.set("jmerge.txt", f"{LINE}\n")
     yield kitchen

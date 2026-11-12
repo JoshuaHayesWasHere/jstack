@@ -37,7 +37,7 @@ The home wrote it on 2026-10-23 to test the premise behind "nothing moves", and 
 
 ```sh
 S=features/skill-library/skills/statechart/scripts
-UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     python features/jmerge/spec/flow_canaries.py
 ```
 
@@ -109,7 +109,7 @@ A full machine stops no judgement of main's red, so both hold `MergeRedsMainOnly
 S=$PWD/features/skill-library/skills/statechart/scripts
 D=$HOME/.cache/jstack/tlc-tmp && mkdir -p "$D"
 W=$(TMPDIR=$D mktemp -d) && cp features/jmerge/spec/FlowToday.* features/jmerge/spec/FlowDesign.* "$W"
-(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     statechart from-spec FlowToday.tla --config FlowToday.chart.cfg --against FlowDesign.tla --label "the design" \
     --title "Does work keep flowing?" --out out --png)
 ```
@@ -186,7 +186,7 @@ Your word has no fairness, and other work moves main at most `Moves` times, once
 
 ```sh
 S=features/skill-library/skills/statechart/scripts
-UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     python features/jmerge/spec/pr_canaries.py
 ```
 
@@ -224,7 +224,7 @@ The row says `check failed twice` and jbus pages you once; the chart draws the s
 ```sh
 S=$PWD/features/skill-library/skills/statechart/scripts
 W=$(mktemp -d) && cp features/jmerge/spec/PrVerdict.* "$W"
-(cd "$W" && UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+(cd "$W" && UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     statechart from-spec PrVerdict.tla --config PrVerdict.chart.cfg \
     --title "Why isn't my pull request merging?" --out out --png)
 ```
@@ -268,7 +268,7 @@ The batch's state is `batch.state_of`'s six values, with the three PrVerdict.bat
 
 The constant `Inside` names the parts of jmerge's run a config follows (restart, batch, waits).
 The parts share nothing but the run lock and a death, and all of them together with two pass runs is past 58M states, so each config follows the parts its rules read.
-`Fault = "judge-first"` is today's code; each other value changes one thing of it: `replace-first` replaces the record before it sends the lines, `unkeyed` sends them first with no key on the streak, `fresh-list` reads whether a pull request is open from GitHub in the run, `no-run-lock` is the canary of `OneRunAtATime`, and `unlink-first` is the start stamp as it was before the stamp named its run, the canary of `NoFalseNoRecord` and `DeathTold`.
+`Fault = "judge-first"` is today's code; each other value changes one thing of it: `replace-first` replaces the record before it sends the lines, `unkeyed` sends them first with no key on the streak, `tell-clears` keys the streak but clears the key on a count with no key (`_unrun` of a run with no record), `fresh-list` reads whether a pull request is open from GitHub in the run, `no-run-lock` is the canary of `OneRunAtATime`, and `unlink-first` is the start stamp as it was before the stamp named its run, the canary of `NoFalseNoRecord` and `DeathTold`.
 `ReplyLost` is the world: GitHub took a close whose reply gh lost.
 
 ## The rules of the run, and today's verdicts
@@ -276,7 +276,7 @@ The parts share nothing but the run lock and a death, and all of them together w
 | Rule | Config | Today | Notes |
 |---|---|---|---|
 | `RunHeard`: every run's lines are judged once | `MergeRun.cfg` | holds | the lines are sent before the replace; `replace-first` breaks it: the pass replaces the record, then dies before `_judged` |
-| `StreakOnce`: the jmerge streak counts each run once | `MergeRun.cfg` | holds | the streak counts a run once for its record's `at`; `unkeyed` breaks it: a pass that dies after `_judged` and before the replace counts the run twice |
+| `StreakOnce`: the jmerge streak counts each run once | `MergeRun.cfg` | holds | the streak counts a run once for its record's `at`; `unkeyed` breaks it: a pass that dies after `_judged` and before the replace counts the run twice; so does `tell-clears`, where the pass that reads the record again first tells of a run with no record |
 | `NoFalseNoRecord`: "ended with no record" only of a run with none | `MergeRun.cfg` | holds | a record that names the stamp is no death, and a run slower than STARTING finds its stamp moved aside and runs nothing; `unlink-first` breaks it |
 | `DeathTold`: a run that died with no record is told | `MergeRun.cfg` | holds | the pass moves the stamp to `died` before it tells, and removes `died` after, and a run removes only its own stamp; `unlink-first` breaks it |
 | `OneRunAtATime`: no two runs hold the repo | `MergeRun.cfg` | holds | `no-run-lock` breaks it: `going.lock` alone lets a run outlive its process |
@@ -298,7 +298,7 @@ Each config's comment keeps TLC's verdict and the trace it prints.
 ```sh
 S=$PWD/features/skill-library/skills/statechart/scripts
 W=$(mktemp -d) && cp features/jmerge/spec/MergeRun.* "$W"
-(cd "$W" && UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+(cd "$W" && UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     statechart from-spec MergeRun.tla --config MergeRun.chart.cfg \
     --title "jbus's pass starts a run of jmerge: does what it said reach you?" --out out --png)
 ```

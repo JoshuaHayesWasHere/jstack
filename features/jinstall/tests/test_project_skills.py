@@ -15,12 +15,36 @@ import pytest
 
 from jinstall.__main__ import install as run_install
 from jinstall.machine import Machine
-from test_install import REPO, Ran, User, checkout_under, line_for, worktree
+from test_install import REPO, Ran, User, checkout_under, worktree
 
 ROOTS = (".claude/skills", ".cursor/skills")
+
+
+def line_for(said, link):
+    """The lines that name `link` itself, not a skill whose name only starts with its name."""
+    return [line for line in said if link in line.split()]
+
+
 DECLARED = {
     "verify-jstack": "features/verify-jstack/project-skill",
+    "verify-crew-proof": "features/crew/project-skill/verify-crew-proof",
+    "verify-flow-design": "features/jmerge/project-skill/verify-flow-design",
+    "verify-flow-today": "features/jmerge/project-skill/verify-flow-today",
+    "verify-gh-budget": "features/jsettings/project-skill/verify-gh-budget",
+    "verify-green-move": "features/jbus/project-skill/verify-green-move",
+    "verify-home-tree": "features/home/project-skill/verify-home-tree",
+    "verify-home-tree-today": "features/home/project-skill/verify-home-tree-today",
+    "verify-main-fix": "features/jbus/project-skill/verify-main-fix",
     "verify-main-red": "features/jbus/project-skill/verify-main-red",
+    "verify-merge-run": "features/jmerge/project-skill/verify-merge-run",
+    "verify-one-list": "features/jbus/project-skill/verify-one-list",
+    "verify-output-folder": "features/skill-library/project-skill/verify-output-folder",
+    "verify-pr-verdict": "features/jmerge/project-skill/verify-pr-verdict",
+    "verify-row-life": "features/jbus/project-skill/verify-row-life",
+    "verify-setup": "features/jinstall/project-skill/verify-setup",
+    "verify-tell-once": "features/jbus/project-skill/verify-tell-once",
+    "verify-test-slot": "features/jgauge/project-skill/verify-test-slot",
+    "verify-thread-life": "features/jbus/project-skill/verify-thread-life",
 }
 
 
@@ -85,7 +109,10 @@ def test_a_skill_that_is_no_longer_declared_is_unlinked_by_the_next_run(user):
         [f"ok hard {link} -> unlinked"] for link in gone
     ]
     assert links(checkout) == {
-        f"{root}/verify-jstack": str(checkout / DECLARED["verify-jstack"]) for root in ROOTS
+        f"{root}/{name}": str(checkout / path)
+        for root in ROOTS
+        for name, path in DECLARED.items()
+        if name != "verify-main-red"
     }
 
 

@@ -63,6 +63,8 @@ crew's own proof or check clears (`Short.spells`, `TELLS`). `TABLE` holds every 
 - `rereview`, drops no scoped review ruled on or a rebase that changed the content: launch the one
   scoped reviewer over the reason's range-diff. It is `jbus.rebase`'s kind, so a head is told once,
   and it tells where a scoped reviewer of the head the Result names ended with no review;
+- `rule-breaks`, its new tests fail on open pull requests merged with it: carry the fix, or name
+  each on a `Breaks:` line (`rulebreaks.FIX`), told on the first pass as a `proved-` row is;
 - `fresh-conflict`, `merged-tree`, `base` and `not-upheld`: rebase with "A conflict" run with
   `stale` (and fix the guards that fail for `merged-tree`), retarget to the default branch, or
   put back a drop the review did not uphold, else tell the home.
@@ -116,6 +118,7 @@ from jbriefs import below, findings, skills
 from jbus import END_TURN, crewthread, dispatch, merge, outbox, read_json, rebase, verbs, write_json
 from jbus.passes import Pass
 from jbus.review import ranges
+from jbus.rulebreaks import FIX as BREAKS_FIX
 from jbus.stall import PASSES, REVIEWING
 from jbus.t3 import Client, T3Error
 from jbus.watch import World, at_work, task_brief
@@ -208,7 +211,7 @@ class Short:
     def spells(self) -> tuple[int, int] | None:
         """Return the passes before the first message and the messages per head (`TELLS`) of a
         row only the crew's own proof or check clears, or None for any other row."""
-        return (1, TELLS) if self.kind.startswith(("proved-", "checked-")) else None
+        return (1, TELLS) if self.kind.startswith(("proved-", "checked-", "rule-")) else None
 
 
 def no_reviewer_by_rule(brief: str, head: str) -> bool:
@@ -529,6 +532,7 @@ TABLE = (
         'with what merged since your check. Rebase with the crew skill\'s "A conflict" block, run '
         "with `stale`, run the check command, fix what fails, and push with the block's push.",
     ),
+    Short("rule-breaks", "wait", ready.RULE_BREAKS, BREAKS_FIX),
     Short(
         "base",
         "wait",
@@ -574,7 +578,7 @@ UNTOLD = {
                 "base-merge-due base-merge-refused base-moved-asked base-moved-due in-line "
                 "queued-restarted queued-unopened queued-unclosed queued-gave-up "
                 "queued-unrestarted merged-tree-unended merged-tree-unbuilt merged-tree-no-time "
-                "merged-tree-no-slot",
+                "merged-tree-no-slot rule-unrun",
                 _RUNNER,
             ),
             ("merges-after carries-after stacked-on migration-merging migration-rebasing", _AHEAD),

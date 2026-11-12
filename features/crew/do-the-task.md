@@ -314,7 +314,7 @@
   ```
 
   It fetches the base each time, so it reads main as it is now and not as the worktree last saw it, and asks `git merge-tree` what GitHub's merge would: exit 0 is a head that merges cleanly, exit 1 a conflict.
-  On a conflict it starts the rebase of "A conflict", with its record and its `refs/jstack/pre-rebase` ref, so the rest is that section's: resolve the files with `jmerge --remake` for the generated ones, prove no line was lost, run the check block at the new head, and push with its lease.
+  On a conflict it starts the rebase of "A conflict", with its record and its `refs/jstack/pre-rebase` ref, so the rest is that section's: resolve the files with `jmerge --remake` for the generated ones, prove no line was lost, check the new head with the guard tests and the lint, and push with its lease.
   Then run this again: main may have moved once more while you rebased, and the pull request opens on the first run that prints `open it`.
   A link of a stack opens at once, since jbus moves it once its base merged ("A link that moved").
   So does a link jbus already moved onto main, whose `Stacked on:` line ends `at <merge>`, until its head holds that merge: until then its branch holds its base's commits too, and a rebase onto main would replay them, as "A conflict" says, so the block reads the line by the same rule that section does.
