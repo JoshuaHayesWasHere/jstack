@@ -27,6 +27,9 @@ QUOTE = re.compile(r"(\w+\.py)\s*`([^`]+)`")
 FOLDERS = {
     "rebase.py": "features/jbus/src/jbus",
     "expedite.py": "features/jbus/src/jbus",
+    "outbox.py": "features/jbus/src/jbus",
+    "poll.py": "features/jbus/src/jbus",
+    "stall.py": "features/jbus/src/jbus",
 }
 """Where a cited file lives, where it is not jmerge's (the spec's header says so too)."""
 
@@ -92,6 +95,22 @@ def test_the_script_names_a_canary_for_each_drop_the_spec_reads():
     assert kept == set(canaries.CANARIES)
 
 
+def test_the_rule_reads_every_open_pull_request():
+    """The rule's leads-to starts from every open pull request, not from a ready one, so TLC fails
+    on any path that waits for ever on a crew, a check, GitHub or jmerge."""
+    text = (SPEC / "PrVerdict.tla").read_text()
+    rule = re.search(r"^MergesOrWaitsOnYou ==(.*?)(?=^\S|^====)", text, re.M | re.S)
+    assert rule is not None
+    assert re.search(r"\(Open ~> \(st = \"merged\" \\/ WaitsOnYou\)\)", rule.group(1))
+
+
+def test_a_canary_drops_jbus_s_limit_on_failed_heads():
+    """A crew's fix may fail again up to jbus's hold at two failed heads, and the canary that
+    drops that limit is one TLC must see break the rule."""
+    assert "twice" in canaries.CANARIES
+    assert ("canary twice", canaries.config("twice"), "breaks") in RUNS
+
+
 def test_the_script_by_hand_ends_0_when_every_run_says_what_it_should(tmp_path):
     """pr_canaries.py by hand prints a line for each run, with a java that says each is what it
     should be."""
@@ -125,8 +144,9 @@ def test_the_script_by_hand_ends_0_when_every_run_says_what_it_should(tmp_path):
 
 def test_each_waiting_verdict_shows_the_step_that_ends_its_wait_on_the_chart():
     """A verdict jmerge says waits on someone: its check, its reviewer, its crew, GitHub, the one
-    ahead, main's fix or you. The chart draws that one's step out of it, back to jmerge's next
-    judgment or to merged, so no verdict reads as a stall."""
+    ahead, main's fix or you, and a row jbus held at two failed heads, which waits on you. The
+    chart draws that one's step out of it, back to jmerge's next judgment or to merged, so no
+    verdict reads as a stall."""
     words = importlib.import_module("statechart.mapping").load_mapping(SPEC / "PrVerdict.map.py")
     run = {words.STEPS[a] for a in words.RUN} | {words.STEPS["BatchProves"]}
     owners = {*words.STEPS.values(), "its check passes", "its check fails"} - run
@@ -134,7 +154,7 @@ def test_each_waiting_verdict_shows_the_step_that_ends_its_wait_on_the_chart():
     chart = (SPEC / "PrVerdict-statechart" / "chart.mmd").read_text()
     says = lib.parse_mermaid(chart)["regions"]["What jmerge says"]
     waits = sorted(set(says["states"]) - {judged, merged})
-    assert len(waits) == len(words.SAID) - 2
+    assert set(waits) == set(words.SAID.values()) - {judged, merged} | {words.HELD}
     unended = [
         verdict
         for verdict in waits
