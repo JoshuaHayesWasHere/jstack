@@ -10,22 +10,18 @@ stateDiagram-v2
   classDef group0 fill:#ffffff,stroke:#808080,color:#1b2631
   classDef group1 fill:#fdebd0,stroke:#7f7668,color:#1b2631
   classDef group2 fill:#fad7a0,stroke:#7d6c50,color:#1b2631
-  classDef group3 fill:#f5b7b1,stroke:#7b5c59,color:#1b2631
-  classDef group4 fill:#fdedec,stroke:#7f7776,color:#1b2631
-  classDef group5 fill:#d1f2eb,stroke:#697976,color:#1b2631
-  classDef group6 fill:#a3e4d7,stroke:#52726c,color:#1b2631
-  classDef group7 fill:#d6eaf8,stroke:#6b757c,color:#1b2631
-  classDef group8 fill:#aed6f1,stroke:#576b79,color:#1b2631
+  classDef group3 fill:#d1f2eb,stroke:#697976,color:#1b2631
+  classDef group4 fill:#a3e4d7,stroke:#52726c,color:#1b2631
+  classDef group5 fill:#d6eaf8,stroke:#6b757c,color:#1b2631
+  classDef group6 fill:#aed6f1,stroke:#576b79,color:#1b2631
   state "Legend" as legend {
     state "No gate yet" as legendGroup0
     state "Open in gates.md" as legendGroup1
     state "Open, moved aside" as legendGroup2
-    state "Open, asked again by the catch-all" as legendGroup3
-    state "Open, asked twice" as legendGroup4
-    state "Answered in gates.md" as legendGroup5
-    state "Answered, moved aside" as legendGroup6
-    state "Done in gates.md" as legendGroup7
-    state "Done, moved aside" as legendGroup8
+    state "Answered in gates.md" as legendGroup3
+    state "Answered, moved aside" as legendGroup4
+    state "Done in gates.md" as legendGroup5
+    state "Done, moved aside" as legendGroup6
   }
   class legendGroup0 group0
   class legendGroup1 group1
@@ -34,8 +30,6 @@ stateDiagram-v2
   class legendGroup4 group4
   class legendGroup5 group5
   class legendGroup6 group6
-  class legendGroup7 group7
-  class legendGroup8 group8
   state "At the same time" as regions {
     [*] --> r0s0
     [*] --> r0s3
@@ -84,36 +78,19 @@ stateDiagram-v2
     state "Status: done in gates.md,<br/>its question closed by<br/>silence with its default,<br/>not on your list, settled" as r1s34
     state "Status: done in gates.md,<br/>not on your list, settled" as r1s35
     state "Status: done in gates.md,<br/>on your list, settled" as r1s36
-    state "Status: open in<br/>gates-moved.md, asked<br/>again as the catch-all's<br/>answered, not on your<br/>list, settled" as r1s37
-    state "Status: open in<br/>gates-moved.md, asked<br/>again as the catch-all's<br/>answered, on your list,<br/>settled" as r1s38
-    state "Status: open in<br/>gates-moved.md, asked<br/>again as the catch-all's<br/>asked, waiting for you,<br/>not on your list, you owe<br/>an answer" as r1s39
-    state "Status: open in<br/>gates-moved.md, asked<br/>again as the catch-all's<br/>asked, waiting for you, on<br/>your list, you owe an<br/>answer" as r1s40
-    state "Status: open in<br/>gates-moved.md, asked<br/>again as the catch-all's<br/>closed by silence with its<br/>default, not on your list,<br/>settled" as r1s41
-    state "Status: open in<br/>gates-moved.md, its<br/>question answered, asked<br/>again as the catch-all's<br/>answered, not on your<br/>list, settled" as r1s42
-    state "Status: open in<br/>gates-moved.md, its<br/>question answered, asked<br/>again as the catch-all's<br/>answered, on your list,<br/>settled" as r1s43
-    state "Status: open in<br/>gates-moved.md, its<br/>question answered, asked<br/>again as the catch-all's<br/>asked, waiting for you,<br/>not on your list, settled" as r1s44
-    state "Status: open in<br/>gates-moved.md, its<br/>question answered, asked<br/>again as the catch-all's<br/>asked, waiting for you, on<br/>your list, settled" as r1s45
-    state "Status: open in<br/>gates-moved.md, its<br/>question answered, asked<br/>again as the catch-all's<br/>closed by silence with its<br/>default, not on your list,<br/>settled" as r1s46
-    state "Status: open in<br/>gates-moved.md, its<br/>question answered, not on<br/>your list, settled" as r1s47
-    state "Status: open in<br/>gates-moved.md, its<br/>question answered, on your<br/>list, settled" as r1s48
-    state "Status: open in<br/>gates-moved.md, its<br/>question asked, waiting<br/>for you, asked again as<br/>the catch-all's answered,<br/>not on your list, settled" as r1s49
-    state "Status: open in<br/>gates-moved.md, its<br/>question asked, waiting<br/>for you, asked again as<br/>the catch-all's answered,<br/>on your list, settled" as r1s50
-    state "Status: open in<br/>gates-moved.md, its<br/>question asked, waiting<br/>for you, asked again as<br/>the catch-all's asked,<br/>waiting for you, not on<br/>your list, you owe an<br/>answer" as r1s51
-    state "Status: open in<br/>gates-moved.md, its<br/>question asked, waiting<br/>for you, asked again as<br/>the catch-all's asked,<br/>waiting for you, on your<br/>list, you owe an answer" as r1s52
-    state "Status: open in<br/>gates-moved.md, its<br/>question asked, waiting<br/>for you, not on your list,<br/>you owe an answer" as r1s53
-    state "Status: open in<br/>gates-moved.md, its<br/>question asked, waiting<br/>for you, on your list, you<br/>owe an answer" as r1s54
-    state "Status: open in<br/>gates-moved.md, its<br/>question closed by silence<br/>with its default, asked<br/>again as the catch-all's<br/>answered, not on your<br/>list, settled" as r1s55
-    state "Status: open in<br/>gates-moved.md, its<br/>question closed by silence<br/>with its default, asked<br/>again as the catch-all's<br/>asked, waiting for you,<br/>not on your list, settled" as r1s56
-    state "Status: open in<br/>gates-moved.md, its<br/>question closed by silence<br/>with its default, asked<br/>again as the catch-all's<br/>closed by silence with its<br/>default, not on your list,<br/>settled" as r1s57
-    state "Status: open in<br/>gates-moved.md, its<br/>question closed by silence<br/>with its default, not on<br/>your list, settled" as r1s58
-    state "Status: open in gates.md,<br/>its question answered, not<br/>on your list, settled" as r1s59
-    state "Status: open in gates.md,<br/>its question answered, on<br/>your list, settled" as r1s60
-    state "Status: open in gates.md,<br/>its question asked,<br/>waiting for you, not on<br/>your list, you owe an<br/>answer" as r1s61
-    state "Status: open in gates.md,<br/>its question asked,<br/>waiting for you, on your<br/>list, you owe an answer" as r1s62
-    state "Status: open in gates.md,<br/>its question closed by<br/>silence with its default,<br/>not on your list, settled" as r1s63
-    state "Status: open in gates.md,<br/>not on your list, you owe<br/>an answer" as r1s64
-    state "Status: open in gates.md,<br/>on your list, you owe an<br/>answer" as r1s65
-    r1s0 --> r1s64 : the home writes a gate
+    state "Status: open in<br/>gates-moved.md, its<br/>question answered, not on<br/>your list, settled" as r1s37
+    state "Status: open in<br/>gates-moved.md, its<br/>question answered, on your<br/>list, settled" as r1s38
+    state "Status: open in<br/>gates-moved.md, its<br/>question asked, waiting<br/>for you, not on your list,<br/>you owe an answer" as r1s39
+    state "Status: open in<br/>gates-moved.md, its<br/>question asked, waiting<br/>for you, on your list, you<br/>owe an answer" as r1s40
+    state "Status: open in<br/>gates-moved.md, its<br/>question closed by silence<br/>with its default, not on<br/>your list, settled" as r1s41
+    state "Status: open in gates.md,<br/>its question answered, not<br/>on your list, settled" as r1s42
+    state "Status: open in gates.md,<br/>its question answered, on<br/>your list, settled" as r1s43
+    state "Status: open in gates.md,<br/>its question asked,<br/>waiting for you, not on<br/>your list, you owe an<br/>answer" as r1s44
+    state "Status: open in gates.md,<br/>its question asked,<br/>waiting for you, on your<br/>list, you owe an answer" as r1s45
+    state "Status: open in gates.md,<br/>its question closed by<br/>silence with its default,<br/>not on your list, settled" as r1s46
+    state "Status: open in gates.md,<br/>not on your list, you owe<br/>an answer" as r1s47
+    state "Status: open in gates.md,<br/>on your list, you owe an<br/>answer" as r1s48
+    r1s0 --> r1s47 : the home writes a gate
     r1s2 --> r1s1 : a pass
     r1s3 --> r1s7 : a pass
     r1s4 --> r1s6 : a pass
@@ -150,149 +127,93 @@ stateDiagram-v2
     r1s35 --> r1s26 : the home hands off, moving<br/>gates.md aside
     r1s36 --> r1s27 : the home hands off, moving<br/>gates.md aside
     r1s38 --> r1s37 : a pass
-    r1s39 --> r1s41 : a pass [when A gate, asked by<br/>the home]
-    %% when r0s3
+    r1s39 --> r1s41 : a pass [when A gate or A gate,<br/>asked by the home]
+    %% when r0s0, r0s3
     r1s39 --> r1s37 : you answer the question
     r1s40 --> r1s38 : you answer the question
     r1s41 --> r1s37 : you answer the question
-    r1s43 --> r1s42 : a pass
-    r1s44 --> r1s46 : a pass [when A gate, asked by<br/>the home]
-    %% when r0s3
+    r1s42 --> r1s10 : the home writes its answer on<br/>the Status line
+    r1s42 --> r1s28 : the home writes its answer on<br/>the Status line
+    r1s43 --> r1s11 : the home writes its answer on<br/>the Status line
+    r1s43 --> r1s29 : the home writes its answer on<br/>the Status line
+    r1s44 --> r1s46 : a pass [when A gate or A gate,<br/>asked by the home]
+    %% when r0s0, r0s3
+    r1s44 --> r1s12 : the home writes its answer on<br/>the Status line [when A gate<br/>or A gate, asked by the home]
+    %% when r0s0, r0s3
+    r1s44 --> r1s30 : the home writes its answer on<br/>the Status line [when A gate<br/>or A gate, asked by the home]
+    %% when r0s0, r0s3
+    r1s44 --> r1s13 : the home writes its answer on<br/>the Status line [when A gate<br/>that holds or A gate that<br/>holds, asked by the home]
+    %% when r0s1, r0s2
+    r1s44 --> r1s31 : the home writes its answer on<br/>the Status line [when A gate<br/>that holds or A gate that<br/>holds, asked by the home]
+    %% when r0s1, r0s2
     r1s44 --> r1s42 : you answer the question
+    r1s45 --> r1s14 : the home writes its answer on<br/>the Status line [when A gate<br/>or A gate, asked by the home]
+    %% when r0s0, r0s3
+    r1s45 --> r1s32 : the home writes its answer on<br/>the Status line [when A gate<br/>or A gate, asked by the home]
+    %% when r0s0, r0s3
     r1s45 --> r1s43 : you answer the question
-    r1s46 --> r1s42 : you answer the question
-    r1s48 --> r1s47 : a pass
-    r1s49 --> r1s55 : a pass [when A gate, asked by<br/>the home]
-    %% when r0s3
-    r1s50 --> r1s55 : a pass [when A gate, asked by<br/>the home]
-    %% when r0s3
-    r1s51 --> r1s57 : a pass [when A gate, asked by<br/>the home]
-    %% when r0s3
-    r1s51 --> r1s49 : you answer the question
-    r1s52 --> r1s50 : you answer the question
-    r1s53 --> r1s58 : a pass [when A gate]
-    %% when r0s0
-    r1s53 --> r1s47 : you answer the question
-    r1s54 --> r1s48 : you answer the question
-    r1s55 --> r1s42 : you answer the question
-    r1s56 --> r1s57 : a pass
-    r1s57 --> r1s46 : you answer the question
-    r1s58 --> r1s47 : you answer the question
-    r1s59 --> r1s44 : the home hands off, moving<br/>gates.md aside [when A gate<br/>that holds, asked by the home<br/>or A gate, asked by the home]
-    %% when r0s2, r0s3
-    r1s59 --> r1s10 : the home writes its answer on<br/>the Status line
-    r1s59 --> r1s28 : the home writes its answer on<br/>the Status line
-    r1s60 --> r1s45 : the home hands off, moving<br/>gates.md aside [when A gate<br/>that holds, asked by the home<br/>or A gate, asked by the home]
-    %% when r0s2, r0s3
-    r1s60 --> r1s11 : the home writes its answer on<br/>the Status line
-    r1s60 --> r1s29 : the home writes its answer on<br/>the Status line
-    r1s61 --> r1s63 : a pass [when A gate or A gate,<br/>asked by the home]
-    %% when r0s0, r0s3
-    r1s61 --> r1s51 : the home hands off, moving<br/>gates.md aside [when A gate<br/>that holds, asked by the home<br/>or A gate, asked by the home]
-    %% when r0s2, r0s3
-    r1s61 --> r1s12 : the home writes its answer on<br/>the Status line [when A gate<br/>or A gate, asked by the home]
-    %% when r0s0, r0s3
-    r1s61 --> r1s30 : the home writes its answer on<br/>the Status line [when A gate<br/>or A gate, asked by the home]
-    %% when r0s0, r0s3
-    r1s61 --> r1s13 : the home writes its answer on<br/>the Status line [when A gate<br/>that holds or A gate that<br/>holds, asked by the home]
-    %% when r0s1, r0s2
-    r1s61 --> r1s31 : the home writes its answer on<br/>the Status line [when A gate<br/>that holds or A gate that<br/>holds, asked by the home]
-    %% when r0s1, r0s2
-    r1s61 --> r1s59 : you answer the question
-    r1s62 --> r1s52 : the home hands off, moving<br/>gates.md aside [when A gate<br/>that holds, asked by the home<br/>or A gate, asked by the home]
-    %% when r0s2, r0s3
-    r1s62 --> r1s14 : the home writes its answer on<br/>the Status line [when A gate<br/>or A gate, asked by the home]
-    %% when r0s0, r0s3
-    r1s62 --> r1s32 : the home writes its answer on<br/>the Status line [when A gate<br/>or A gate, asked by the home]
-    %% when r0s0, r0s3
-    r1s62 --> r1s60 : you answer the question
-    r1s63 --> r1s56 : the home hands off, moving<br/>gates.md aside [when A gate,<br/>asked by the home]
-    %% when r0s3
-    r1s63 --> r1s16 : the home writes its answer on<br/>the Status line
-    r1s64 --> r1s65 : a pass
-    r1s64 --> r1s65 : a pass that cannot ask GitHub
-    r1s64 --> r1s61 : the asking thread pipes the<br/>gate to jbus
-    r1s64 --> r1s53 : the home hands off, moving<br/>gates.md aside [when A gate or<br/>A gate that holds]
-    %% when r0s0, r0s1
-    r1s64 --> r1s39 : the home hands off, moving<br/>gates.md aside [when A gate<br/>that holds, asked by the home<br/>or A gate, asked by the home]
-    %% when r0s2, r0s3
-    r1s64 --> r1s17 : the home writes its answer on<br/>the Status line
-    r1s64 --> r1s35 : the home writes its answer on<br/>the Status line
-    r1s65 --> r1s62 : the asking thread pipes the<br/>gate to jbus
-    r1s65 --> r1s54 : the home hands off, moving<br/>gates.md aside [when A gate or<br/>A gate that holds]
-    %% when r0s0, r0s1
-    r1s65 --> r1s40 : the home hands off, moving<br/>gates.md aside [when A gate<br/>that holds, asked by the home<br/>or A gate, asked by the home]
-    %% when r0s2, r0s3
-    r1s65 --> r1s18 : the home writes its answer on<br/>the Status line
-    r1s65 --> r1s36 : the home writes its answer on<br/>the Status line
+    r1s46 --> r1s16 : the home writes its answer on<br/>the Status line
+    r1s47 --> r1s48 : a pass
+    r1s47 --> r1s48 : a pass that cannot ask GitHub
+    r1s47 --> r1s44 : the asking thread pipes the<br/>gate to jbus
+    r1s47 --> r1s39 : the home hands off, moving<br/>gates.md aside
+    r1s47 --> r1s17 : the home writes its answer on<br/>the Status line
+    r1s47 --> r1s35 : the home writes its answer on<br/>the Status line
+    r1s48 --> r1s45 : the asking thread pipes the<br/>gate to jbus
+    r1s48 --> r1s40 : the home hands off, moving<br/>gates.md aside
+    r1s48 --> r1s18 : the home writes its answer on<br/>the Status line
+    r1s48 --> r1s36 : the home writes its answer on<br/>the Status line
   }
   class r0s0 plain
   class r0s1 plain
   class r0s2 plain
   class r0s3 plain
   class r1s0 group0
-  class r1s1 group6
-  class r1s2 group6
-  class r1s3 group6
-  class r1s4 group6
-  class r1s5 group6
-  class r1s6 group6
-  class r1s7 group6
-  class r1s8 group6
-  class r1s9 group6
-  class r1s10 group5
-  class r1s11 group5
-  class r1s12 group5
-  class r1s13 group5
-  class r1s14 group5
-  class r1s15 group5
-  class r1s16 group5
-  class r1s17 group5
-  class r1s18 group5
-  class r1s19 group8
-  class r1s20 group8
-  class r1s21 group8
-  class r1s22 group8
-  class r1s23 group8
-  class r1s24 group8
-  class r1s25 group8
-  class r1s26 group8
-  class r1s27 group8
-  class r1s28 group7
-  class r1s29 group7
-  class r1s30 group7
-  class r1s31 group7
-  class r1s32 group7
-  class r1s33 group7
-  class r1s34 group7
-  class r1s35 group7
-  class r1s36 group7
-  class r1s37 group3
-  class r1s38 group3
-  class r1s39 group3
-  class r1s40 group3
-  class r1s41 group3
-  class r1s42 group4
-  class r1s43 group4
-  class r1s44 group4
-  class r1s45 group4
-  class r1s46 group4
-  class r1s47 group2
-  class r1s48 group2
-  class r1s49 group4
-  class r1s50 group4
-  class r1s51 group4
-  class r1s52 group4
-  class r1s53 group2
-  class r1s54 group2
-  class r1s55 group4
-  class r1s56 group4
-  class r1s57 group4
-  class r1s58 group2
-  class r1s59 group1
-  class r1s60 group1
-  class r1s61 group1
-  class r1s62 group1
-  class r1s63 group1
-  class r1s64 group1
-  class r1s65 group1
+  class r1s1 group4
+  class r1s2 group4
+  class r1s3 group4
+  class r1s4 group4
+  class r1s5 group4
+  class r1s6 group4
+  class r1s7 group4
+  class r1s8 group4
+  class r1s9 group4
+  class r1s10 group3
+  class r1s11 group3
+  class r1s12 group3
+  class r1s13 group3
+  class r1s14 group3
+  class r1s15 group3
+  class r1s16 group3
+  class r1s17 group3
+  class r1s18 group3
+  class r1s19 group6
+  class r1s20 group6
+  class r1s21 group6
+  class r1s22 group6
+  class r1s23 group6
+  class r1s24 group6
+  class r1s25 group6
+  class r1s26 group6
+  class r1s27 group6
+  class r1s28 group5
+  class r1s29 group5
+  class r1s30 group5
+  class r1s31 group5
+  class r1s32 group5
+  class r1s33 group5
+  class r1s34 group5
+  class r1s35 group5
+  class r1s36 group5
+  class r1s37 group2
+  class r1s38 group2
+  class r1s39 group2
+  class r1s40 group2
+  class r1s41 group2
+  class r1s42 group1
+  class r1s43 group1
+  class r1s44 group1
+  class r1s45 group1
+  class r1s46 group1
+  class r1s47 group1
+  class r1s48 group1

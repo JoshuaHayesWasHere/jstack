@@ -10,21 +10,21 @@ paths: "features/jbus/spec/OneList.tla, features/jbus/src/jbus/__init__.py, feat
 The gates scene is one gate: the home writes it in gates.md, a thread pipes it to `jbus gate`, a pass closes its question by silence or by the home's Status line, the user answers, and the handoff moves gates.md aside.
 The alerts scene is the streaks of streaks.json (jmerge's, a home's stall from before, the sign-in, a full disk), the budget hold and the kinds a pass rebuilds into waiting-on-user.json, with a pass and `jbus alarm` taking the lock in turn.
 The marks scene is merge.log with merge-seen, and a brief's Result headings with read-seen.
-`World` picks the acts outside the code a run lets happen ("closes", "cuts", "by-home"), `Fault` adds a canary, and `MarkBy` picks how merge-seen marks.
+`World` picks the acts outside the code a run lets happen ("closes", "cuts", "by-home"), and `Fault` adds a canary.
 
 The rules, each with its harm, and today's verdict:
 
-- **`ListIsTrue`** (breaks): an item is on the list exactly while its cause holds, once the cause stays.
-  Broken by "closes", a closed project's jmerge alert stays open for ever, and by "by-home", a question stays open after you answered its twin.
-- **`AnsweredLeaves`** (breaks): once your answer or the default by silence settles a gate, no open gate or question of it stays.
-  Broken by "by-home", the handoff asks the home's gate again under the catch-all's key.
-- **`ReadOnce`** (breaks): the merging block shows each merge line once, and merge-seen counts no line it did not show.
-  Broken by "cuts", a cut of merge.log leaves merge-seen counting a line no block showed.
+- **`ListIsTrue`** (holds): an item is on the list exactly while its cause holds, once the cause stays.
+  A closed project's jmerge alert stays open, but the list leaves it out; the canaries "closed-listed" and "ask-again" break it.
+- **`AnsweredLeaves`** (holds): once your answer or the default by silence settles a gate, no open gate or question of it stays.
+  The handoff pipes a gate the home asked under the key it was asked under; the canary "ask-again", which asks it again under the catch-all's key, breaks it.
+- **`ReadOnce`** (holds): the merging block shows each merge line once, and merge-seen marks no line read that it did not show.
+  merge-seen names the last line read, so a cut of merge.log moves no line from unread to read; the canary "mark-count", a count of lines, breaks it.
 
 ## The record
 
 Model: `features/jbus/spec/OneList.tla`
-Sync: `2fb4e2587489ad3fbebf71561ac648801edb710f`
+Sync: `dcac50745f4548a3e56322132684f37d93d0eb12`
 Covers:
 - `features/jbus/src/jbus/__init__.py`: `load`
 - `features/jbus/src/jbus/questions.py`: `ask`, `silent`, `closed_in_files`, `Question`, `Answer`, `STEPS`
@@ -36,10 +36,10 @@ Covers:
 - `features/jbus/src/jbus/health.py`: `disks`, `watch`
 - `features/jbus/src/jbus/signin.py`: `remind`
 - `features/jbus/src/jbus/budgethold.py`: `hold`
-- `features/jbus/src/jbus/homestatus.py`: `_to_read`
+- `features/jbus/src/jbus/homestatus.py`: `_to_read`, `_read_to`
 - `features/jmerge/src/jmerge/cli.py`: `_merging`
 - `features/home/templates/gates.md`: `Status`
-- `features/home/skills/handoff/SKILL.md`: `gates-moved.md`, `home-uncategorized`
+- `features/home/skills/handoff/SKILL.md`: `gates-moved.md`, `home-$scope`
 - `features/home/skills/home/when-a-home-starts.md`: `read-seen`
 - `features/home/skills/home/merging-a-pull-request-that-is-ready.md`: `seen`, `news`
 
@@ -49,8 +49,9 @@ At the sync commit, main's tip when this branch took main in, the model was read
 `budgethold.hold` keeps the hold when the budget was not read, unlinks it when not held and writes it when held, as `PassSee` and `PassBlind` say.
 `signin.remind` raises the sign-in alert while a line is due and retires it once none is, and `health.watch` opens and closes the disk incident, as `SignIn` and `LookRead` say.
 `homestatus._to_read` marks every heading read on the first call and shows none, as `FirstMark` says.
-The merging block takes the line count as the mark where there is none, resets a mark past the count to 0, shows the lines past it and writes the count, as `Read` says.
-No covered file changed between the model's commit (9e45ddde1, #1708) and the sync, and `features/jbus/tests/test_one_list_spec.py` passed there.
+The merging block starts at the log's end where there is no mark, reads a line mark as the last place it is found, and none read where the cut took it, shows the lines past it and writes the last line, as `Read` says; `homestatus._read_to` reads the mark the same way.
+The handoff pipes a gate asked by the home, by no one or by `home-$scope` under `home-$scope`, as `Handoff` says.
+st-one-list-home-marks changed the merging block, the handoff and the model together on the sync commit, and `features/jbus/tests/test_one_list_spec.py` passed with them.
 `features/repo-guards/tests/test_model_sync.py` fails when a file or name above is gone.
 Move `Sync:` forward only after you read every change to these files since it against the model, as `/maintain-formal-verification-skill` says, and never because the check passes.
 
@@ -65,11 +66,11 @@ The test also fails when a quote of the spec no longer stands once in its file: 
 uv run pytest features/jbus/tests/test_one_list_spec.py -q
 ```
 
-It finds each quote of the spec once, checks each ledger row is a variable, and runs TLC on today's world, each act alone, no act, `MarkBy = "line"` and each canary, in under a minute; the TLC runs skip where no Java runs TLC.
+It finds each quote of the spec once, checks each ledger row is a variable, and runs TLC on today's world, each act alone and each canary, in under a minute; the TLC runs skip where no Java runs TLC.
 The bare TLC command and the rules are in `features/jbus/spec/README.md`, "The one list, as a TLA+ spec"; run TLC in a copy of the folder, since it writes `states/` where it runs.
 
-- **Bounds:** `After = 2`, `MaxLines = 2`, two Result headings; `OneList.cfg` with all three acts stops at `ReadOnce` at 1083 distinct states, and `OneList.chart.cfg` draws the gates scene alone.
-- **The faults:** `stale-streak` is the canary that breaks `ListIsTrue` with no act; `mark-count` is the canary that breaks `ReadOnce` under `MarkBy = "line"` where merge.log is cut.
+- **Bounds:** `After = 2`, `MaxLines = 2`, two Result headings; `OneList.cfg` with all three acts holds every rule, and `OneList.chart.cfg` draws the gates scene alone.
+- **The faults:** `stale-streak` breaks `ListIsTrue` with no act; `closed-listed` breaks `ListIsTrue` where a project closes; `mark-count` breaks `ReadOnce` where merge.log is cut; `ask-again` breaks `AnsweredLeaves` and `ListIsTrue` where a gate is the home's.
 - **Assumptions:** no time (the `LASTING` span, a `once` alert's end, the hold's ten minutes, the sign-in's week); the nine kinds other than `gate` are one item; jmerge's streak stands for every key of a project; the rest is in the README's "What the one-list model leaves out".
 
 ## A real bug or a modeling error

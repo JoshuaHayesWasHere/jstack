@@ -37,13 +37,13 @@ news() {
 }
 lines=$(command grep -c '' "$L" 2> /dev/null)
 lines=${lines:-0}
-seen=$(cat "$S" 2> /dev/null)
+seen=$(cat "$S" 2> /dev/null) || seen=$lines
 case $seen in
-'' | *[!0-9]*) seen=$lines ;;
+*[!0-9]*) seen=$(command grep -snxF "$seen" "$L" | tail -n 1 | cut -d: -f1) ;;
 esac
-if [ "$seen" -gt "$lines" ]; then seen=0; fi
+seen=${seen:-0}
 if [ "$lines" -gt "$seen" ]; then news "$seen" "$lines"; fi
-echo "$lines" > "$S"
+head -n "$lines" "$L" 2> /dev/null | tail -n 1 > "$S"
 if open=$(gh pr list --repo "$(git remote get-url origin)" --state open --limit 200 --json number,url --jq '.[] | "\(.number) \(.url)"'); then
     printf '%s\n' "$open" | while read -r n url; do
         if [ -z "$n" ]; then continue; fi
@@ -59,7 +59,7 @@ fi
 
 It runs no `jmerge`: jbus runs it on each pass, and this home's part is to read what jbus did.
 The block prints what a run of `jmerge` would, from what jbus's runs left on disk.
-First the `merged` lines jbus's `jmerge` appended to `$H/merge.log` since this home last read it, without their date: how far it read is kept in `$M/merge-seen`, a home with no mark starts at the end of the log, so an old merge is never news, and a log shorter than the mark is read from its start.
+First the `merged` lines jbus's `jmerge` appended to `$H/merge.log` since this home last read it, without their date: `$M/merge-seen` keeps the last line read, so a cut loses none, and a home with no mark starts at the log's end.
 Then, for each pull request GitHub lists as open, the last `wait` or `hold` line `jmerge` said of it (`$H/merge.log.last`): that is read anew on every run and no mark is kept for it, so a `hold` is never lost between this block and the one that tells it, a pull request that has waited for long still has its line when the user asks for status, and one that is merged or closed has none.
 An open pull request `jmerge` has no line for yet is `wait <number> <url>: jbus has said nothing of it yet`.
 They are the lines of the table below, and are relayed as a run's own are.

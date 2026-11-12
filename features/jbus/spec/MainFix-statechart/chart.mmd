@@ -6,101 +6,208 @@ config:
     useMaxWidth: false
 ---
 stateDiagram-v2
-  classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef plain fill:#f4f6f7,stroke:#566573,color:#1b2631
   classDef group0 fill:#d1f2eb,stroke:#697976,color:#1b2631
-  classDef group0Wrong fill:#d1f2eb,stroke:#c0392b,stroke-width:4px,color:#7b241c
   classDef group1 fill:#d6eaf8,stroke:#6b757c,color:#1b2631
   classDef group2 fill:#fdebd0,stroke:#7f7668,color:#1b2631
   state "Legend" as legend {
     state "Between passes" as legendGroup0
     state "In a pass" as legendGroup1
     state "After a pass died" as legendGroup2
-    state "Wrong today" as legendWrong
   }
   class legendGroup0 group0
   class legendGroup1 group1
   class legendGroup2 group2
-  class legendWrong plainWrong
-  state "Main red, between passes" as g0 {
-    state "a revert open on GitHub,<br/>not on record; main: its<br/>fix row queued" as s0
-    state "no revert; main: no fix<br/>brief" as s1
+  state "At the same time" as regions {
+    state "Main and jbus's pass" as region0 {
+      [*] --> r0s4
+      state "Main and main's Mac red,<br/>after a pass that died" as r0s0
+      state "Main and main's Mac red,<br/>between passes" as r0s1
+      state "Main and main's Mac red,<br/>jbus in a pass" as r0s2
+      state "Main green, after a pass<br/>that died" as r0s3
+      state "Main green, between passes" as r0s4
+      state "Main green, jbus in a pass" as r0s5
+      state "Main red, after a pass<br/>that died" as r0s6
+      state "Main red, between passes" as r0s7
+      state "Main red, jbus in a pass" as r0s8
+      state "Main red, then green<br/>again, after a pass that<br/>died" as r0s9
+      state "Main red, then green<br/>again, between passes" as r0s10
+      state "Main red, then green<br/>again, jbus in a pass" as r0s11
+      state "Main's Mac red, after a<br/>pass that died" as r0s12
+      state "Main's Mac red, between<br/>passes" as r0s13
+      state "Main's Mac red, jbus in a<br/>pass" as r0s14
+      r0s0 --> r0s9 : a pull request merges, a fix<br/>row's or one you merge, and<br/>main and main's Mac turns<br/>green [when no revert, main:<br/>its fix row queued, main's<br/>Mac: its fix row queued or no<br/>revert, main: no fix row,<br/>main's Mac: its fix row<br/>queued]
+      %% when r1s13, r1s15
+      r0s0 --> r0s9 : jmerge merges the revert, and<br/>main and main's Mac turns<br/>green [when a revert on<br/>record, main: no fix row,<br/>main's Mac: no fix row]
+      %% when r1s2
+      r0s1 --> r0s2 : a pass starts
+      r0s1 --> r0s10 : a pull request merges, a fix<br/>row's or one you merge, and<br/>main and main's Mac turns<br/>green [when no revert, main:<br/>its fix row queued, main's<br/>Mac: its fix row queued]
+      %% when r1s13
+      r0s1 --> r0s10 : jmerge merges the revert, and<br/>main and main's Mac turns<br/>green [when a revert on<br/>record, main: no fix row,<br/>main's Mac: no fix row]
+      %% when r1s2
+      r0s2 --> r0s1 : jbus finds main red, and its<br/>revert on record [when a<br/>revert on record, main: no fix<br/>row, main's Mac: no fix row or<br/>the revert merged, main: no<br/>fix row, main's Mac: no fix<br/>row]
+      %% when r1s2, r1s23
+      r0s2 --> r0s1 : jbus writes the brief's copy<br/>to tasks/ [when no revert,<br/>main: its fix row queued,<br/>main's Mac: its fix row<br/>queued]
+      %% when r1s13
+      r0s2 --> r0s0 : the pass dies
+      r0s2 --> r0s1 : the queue already holds the<br/>fix row [when no revert, main:<br/>its fix row queued, main's<br/>Mac: its fix row queued]
+      %% when r1s13
+      r0s3 --> r0s0 : a merge turns main and main's<br/>Mac red
+      r0s3 --> r0s6 : a merge turns main red
+      r0s3 --> r0s12 : a merge turns main's Mac red
+      r0s4 --> r0s1 : a merge turns main and main's<br/>Mac red
+      r0s4 --> r0s7 : a merge turns main red
+      r0s4 --> r0s13 : a merge turns main's Mac red
+      r0s4 --> r0s5 : a pass starts
+      r0s5 --> r0s4 : jbus finds main green
+      r0s5 --> r0s3 : the pass dies
+      r0s6 --> r0s9 : a pull request merges, a fix<br/>row's or one you merge, and<br/>main turns green [when no<br/>revert, main: its fix row<br/>queued]
+      %% when r1s12
+      r0s6 --> r0s9 : jmerge merges the revert, and<br/>main turns green [when a<br/>revert on record, main: no fix<br/>row]
+      %% when r1s1
+      r0s7 --> r0s8 : a pass starts
+      r0s7 --> r0s10 : jmerge merges the revert, and<br/>main turns green [when a<br/>revert on record, main: no fix<br/>row]
+      %% when r1s1
+      r0s8 --> r0s7 : jbus drops the revert's name<br/>from reverts-opening.json<br/>[when a revert on record,<br/>main: no fix row]
+      %% when r1s1
+      r0s8 --> r0s6 : the pass dies
+      r0s9 --> r0s11 : a pass starts
+      r0s10 --> r0s11 : a pass starts
+      r0s11 --> r0s10 : jbus finds main green
+      r0s12 --> r0s9 : a pull request merges, a fix<br/>row's or one you merge, and<br/>main's Mac turns green [when<br/>no revert, main's Mac: its fix<br/>row queued]
+      %% when r1s10
+      r0s12 --> r0s9 : jmerge merges the revert, and<br/>main's Mac turns green [when a<br/>revert on record, main's Mac:<br/>no fix row]
+      %% when r1s0
+      r0s13 --> r0s14 : a pass starts
+      r0s14 --> r0s12 : the pass dies
+    }
+    --
+    state "What jbus has filed" as region1 {
+      [*] --> r1s9
+      state "a revert on record, main's<br/>Mac: no fix row" as r1s0
+      state "a revert on record, main:<br/>no fix row" as r1s1
+      state "a revert on record, main:<br/>no fix row, main's Mac: no<br/>fix row" as r1s2
+      state "a revert open on GitHub,<br/>its brief written, named<br/>in reverts-opening.json,<br/>not on record, main's Mac:<br/>no fix row" as r1s3
+      state "a revert open on GitHub,<br/>its brief written, named<br/>in reverts-opening.json,<br/>not on record, main: no<br/>fix row" as r1s4
+      state "a revert open on GitHub,<br/>its brief written, named<br/>in reverts-opening.json,<br/>not on record, main: no<br/>fix row, main's Mac: no<br/>fix row" as r1s5
+      state "a revert open on GitHub,<br/>named in<br/>reverts-opening.json, not<br/>on record, main's Mac: no<br/>fix row" as r1s6
+      state "a revert open on GitHub,<br/>named in<br/>reverts-opening.json, not<br/>on record, main: no fix<br/>row" as r1s7
+      state "a revert open on GitHub,<br/>named in<br/>reverts-opening.json, not<br/>on record, main: no fix<br/>row, main's Mac: no fix<br/>row" as r1s8
+      state "no revert" as r1s9
+      state "no revert, main's Mac: its<br/>fix row queued" as r1s10
+      state "no revert, main's Mac: no<br/>fix row" as r1s11
+      state "no revert, main: its fix<br/>row queued" as r1s12
+      state "no revert, main: its fix<br/>row queued, main's Mac:<br/>its fix row queued" as r1s13
+      state "no revert, main: no fix<br/>row" as r1s14
+      state "no revert, main: no fix<br/>row, main's Mac: its fix<br/>row queued" as r1s15
+      state "no revert, main: no fix<br/>row, main's Mac: no fix<br/>row" as r1s16
+      state "no revert, one named in<br/>reverts-opening.json,<br/>main's Mac: no fix row" as r1s17
+      state "no revert, one named in<br/>reverts-opening.json,<br/>main: no fix row" as r1s18
+      state "no revert, one named in<br/>reverts-opening.json,<br/>main: no fix row, main's<br/>Mac: no fix row" as r1s19
+      state "the revert merged" as r1s20
+      state "the revert merged, main's<br/>Mac: no fix row" as r1s21
+      state "the revert merged, main:<br/>no fix row" as r1s22
+      state "the revert merged, main:<br/>no fix row, main's Mac: no<br/>fix row" as r1s23
+      r1s0 --> r1s21 : jmerge merges the revert, and<br/>main stays red [unless Main's<br/>Mac red, jbus in a pass]
+      %% when not r0s14
+      r1s0 --> r1s20 : jmerge merges the revert, and<br/>main's Mac turns green [unless<br/>Main's Mac red, jbus in a<br/>pass]
+      %% when not r0s14
+      r1s1 --> r1s22 : jmerge merges the revert, and<br/>main stays red [unless Main<br/>red, jbus in a pass]
+      %% when not r0s8
+      r1s1 --> r1s20 : jmerge merges the revert, and<br/>main turns green [unless Main<br/>red, jbus in a pass]
+      %% when not r0s8
+      r1s2 --> r1s20 : jmerge merges the revert, and<br/>main and main's Mac turns<br/>green [unless Main and main's<br/>Mac red, jbus in a pass]
+      %% when not r0s2
+      r1s2 --> r1s23 : jmerge merges the revert, and<br/>main stays red [unless Main<br/>and main's Mac red, jbus in a<br/>pass]
+      %% when not r0s2
+      r1s3 --> r1s0 : jbus records the revert in<br/>reverts.json [when Main's Mac<br/>red, jbus in a pass]
+      %% when r0s14
+      r1s4 --> r1s1 : jbus records the revert in<br/>reverts.json [when Main red,<br/>jbus in a pass]
+      %% when r0s8
+      r1s5 --> r1s2 : jbus records the revert in<br/>reverts.json [when Main and<br/>main's Mac red, jbus in a<br/>pass]
+      %% when r0s2
+      r1s6 --> r1s3 : jbus writes the revert's brief<br/>[when Main's Mac red, jbus in<br/>a pass]
+      %% when r0s14
+      r1s7 --> r1s4 : jbus writes the revert's brief<br/>[when Main red, jbus in a<br/>pass]
+      %% when r0s8
+      r1s8 --> r1s5 : jbus writes the revert's brief<br/>[when Main and main's Mac red,<br/>jbus in a pass]
+      %% when r0s2
+      r1s9 --> r1s16 : a merge turns main and main's<br/>Mac red [when Main green,<br/>after a pass that died or Main<br/>green, between passes]
+      %% when r0s3, r0s4
+      r1s9 --> r1s14 : a merge turns main red [when<br/>Main green, after a pass that<br/>died or Main green, between<br/>passes]
+      %% when r0s3, r0s4
+      r1s9 --> r1s11 : a merge turns main's Mac red<br/>[when Main green, after a pass<br/>that died or Main green,<br/>between passes]
+      %% when r0s3, r0s4
+      r1s10 --> r1s9 : a pull request merges, a fix<br/>row's or one you merge, and<br/>main's Mac turns green [unless<br/>Main's Mac red, jbus in a<br/>pass]
+      %% when not r0s14
+      r1s11 --> r1s17 : jbus names the revert in<br/>reverts-opening.json [when<br/>Main's Mac red, jbus in a<br/>pass]
+      %% when r0s14
+      r1s11 --> r1s10 : jbus queues the fix row [when<br/>Main's Mac red, jbus in a<br/>pass]
+      %% when r0s14
+      r1s12 --> r1s9 : a pull request merges, a fix<br/>row's or one you merge, and<br/>main turns green [unless Main<br/>red, jbus in a pass]
+      %% when not r0s8
+      r1s13 --> r1s9 : a pull request merges, a fix<br/>row's or one you merge, and<br/>main and main's Mac turns<br/>green [unless Main and main's<br/>Mac red, jbus in a pass]
+      %% when not r0s2
+      r1s14 --> r1s18 : jbus names the revert in<br/>reverts-opening.json [when<br/>Main red, jbus in a pass]
+      %% when r0s8
+      r1s14 --> r1s12 : jbus queues the fix row [when<br/>Main red, jbus in a pass]
+      %% when r0s8
+      r1s15 --> r1s9 : a pull request merges, a fix<br/>row's or one you merge, and<br/>main and main's Mac turns<br/>green [when Main and main's<br/>Mac red, after a pass that<br/>died]
+      %% when r0s0
+      r1s15 --> r1s16 : a pull request merges, a fix<br/>row's or one you merge, and<br/>main stays red [when Main and<br/>main's Mac red, after a pass<br/>that died]
+      %% when r0s0
+      r1s15 --> r1s13 : jbus queues the fix row [when<br/>Main and main's Mac red, jbus<br/>in a pass]
+      %% when r0s2
+      r1s16 --> r1s19 : jbus names the revert in<br/>reverts-opening.json [when<br/>Main and main's Mac red, jbus<br/>in a pass]
+      %% when r0s2
+      r1s16 --> r1s15 : jbus queues the fix row [when<br/>Main and main's Mac red, jbus<br/>in a pass]
+      %% when r0s2
+      r1s17 --> r1s6 : jbus opens the revert on<br/>GitHub [when Main's Mac red,<br/>jbus in a pass]
+      %% when r0s14
+      r1s18 --> r1s7 : jbus opens the revert on<br/>GitHub [when Main red, jbus in<br/>a pass]
+      %% when r0s8
+      r1s19 --> r1s16 : jbus forgets a revert GitHub<br/>has not opened, or one on<br/>record [when Main and main's<br/>Mac red, jbus in a pass]
+      %% when r0s2
+      r1s19 --> r1s8 : jbus opens the revert on<br/>GitHub [when Main and main's<br/>Mac red, jbus in a pass]
+      %% when r0s2
+    }
   }
-  state "Main red, jbus in a pass" as g1 {
-    state "a revert open on GitHub,<br/>not on record; main: a fix<br/>brief with no row" as s2
-    state "a revert open on GitHub,<br/>not on record; main: no<br/>fix brief" as s3
-    state "no revert; main: no fix<br/>brief" as s4
-  }
-  state "Main's Mac red, after a<br/>pass that died" as g2 {
-    state "a revert on record, never<br/>said; main's Mac: no fix<br/>brief" as s5
-    state "a revert open on GitHub,<br/>not on record; main's Mac:<br/>no fix brief" as s6
-    state "no revert; main's Mac: a<br/>fix brief with no row" as s7
-  }
-  state "Main's Mac red, between<br/>passes" as g3 {
-    state "a revert on record, never<br/>said; main's Mac: no fix<br/>brief" as s8
-    state "a revert open on GitHub,<br/>not on record; main's Mac:<br/>a fix brief with no row" as s9
-    state "no revert; main's Mac: no<br/>fix brief" as s10
-  }
-  state "Main's Mac red, jbus in a<br/>pass" as g4 {
-    state "a revert on record, never<br/>said; main's Mac: no fix<br/>brief" as s11
-    state "a revert open on GitHub,<br/>its brief written, not on<br/>record; main's Mac: no fix<br/>brief" as s12
-    state "a revert open on GitHub,<br/>not on record; main's Mac:<br/>a fix brief with no row" as s13
-    state "a revert open on GitHub,<br/>not on record; main's Mac:<br/>no fix brief" as s14
-    state "no revert; main's Mac: a<br/>fix brief with no row" as s15
-    state "no revert; main's Mac: no<br/>fix brief" as s16
-  }
-  state "Main green, between<br/>passes: no revert" as s17
-  state "Main red, after a pass<br/>that died: a revert open<br/>on GitHub, not on record;<br/>main: no fix brief" as s18
-  state "Main red, then green<br/>again, after a pass that<br/>died: a revert open on<br/>GitHub, not on record" as s19
-  state "Main red, then green<br/>again, between passes: a<br/>revert open on GitHub, not<br/>on record" as s20
-  state "Main red, then green<br/>again, jbus in a pass: a<br/>revert open on GitHub, not<br/>on record" as s21
-  [*] --> s17
-  s17 --> s1 : a merge turns main red
-  s17 --> s10 : a merge turns main's Mac red
-  s1 --> s4 : a pass starts
-  s10 --> s16 : a pass starts
-  s16 --> s15 : jbus writes the fix brief
-  s16 --> s14 : jbus opens the revert on<br/>GitHub
-  s15 --> s7 : the pass dies
-  s4 --> s3 : jbus opens the revert on<br/>GitHub
-  s14 --> s6 : the pass dies
-  s14 --> s12 : jbus writes the revert's brief
-  s7 --> s15 : a pass starts
-  s3 --> s18 : the pass dies
-  s6 --> s19 : you run a red check again, and<br/>it passes or a pull request<br/>merges, a fix row's or one you<br/>merge, and main's Mac turns<br/>green
-  s12 --> s11 : jbus records the revert in<br/>reverts.json
-  s18 --> s3 : a pass starts
-  s19 --> s21 : a pass starts
-  s11 --> s5 : the pass dies
-  s20 --> s21 : a pass starts
-  s5 --> s11 : a pass starts
-  s15 --> s13 : jbus opens the revert on<br/>GitHub
-  s21 --> s20 : jbus finds main green
-  s3 --> s2 : jbus writes the fix brief
-  s11 --> s8 : jbus finds main green
-  s13 --> s9 : jbus finds main green
-  s0 --> s20 : you run a red check again, and<br/>it passes or a pull request<br/>merges, a fix row's or one you<br/>merge, and main turns green
-  s2 --> s0 : jbus queues the fix row
-  s8 --> s11 : a pass starts
-  s9 --> s13 : a pass starts
-  class s17 group0
-  class s18 group2
-  class s0 group0Wrong
-  class s1 group0
-  class s2 group1
-  class s3 group1
-  class s4 group1
-  class s19 group2
-  class s20 group0Wrong
-  class s21 group1
-  class s5 group2
-  class s6 group2
-  class s7 group2
-  class s8 group0Wrong
-  class s9 group0Wrong
-  class s10 group0
-  class s11 group1
-  class s12 group1
-  class s13 group1
-  class s14 group1
-  class s15 group1
-  class s16 group1
+  class r0s0 group2
+  class r0s1 group0
+  class r0s2 group1
+  class r0s3 group2
+  class r0s4 group0
+  class r0s5 group1
+  class r0s6 group2
+  class r0s7 group0
+  class r0s8 group1
+  class r0s9 group2
+  class r0s10 group0
+  class r0s11 group1
+  class r0s12 group2
+  class r0s13 group0
+  class r0s14 group1
+  class r1s0 plain
+  class r1s1 plain
+  class r1s2 plain
+  class r1s3 plain
+  class r1s4 plain
+  class r1s5 plain
+  class r1s6 plain
+  class r1s7 plain
+  class r1s8 plain
+  class r1s9 plain
+  class r1s10 plain
+  class r1s11 plain
+  class r1s12 plain
+  class r1s13 plain
+  class r1s14 plain
+  class r1s15 plain
+  class r1s16 plain
+  class r1s17 plain
+  class r1s18 plain
+  class r1s19 plain
+  class r1s20 plain
+  class r1s21 plain
+  class r1s22 plain
+  class r1s23 plain

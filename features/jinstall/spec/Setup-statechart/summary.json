@@ -1,58 +1,46 @@
 {
   "view": "customer",
-  "modelStates": 119973,
-  "modelTransitions": 488738,
-  "chartStates": 28,
-  "chartTransitions": 46,
-  "allTransitions": 81,
+  "modelStates": 82346,
+  "modelTransitions": 336188,
+  "chartStates": 22,
+  "chartTransitions": 37,
+  "allTransitions": 56,
   "final": [],
   "chartStatus": {
-    "works": 21,
+    "works": 22,
     "fixed": 0,
-    "wrong": 7
+    "wrong": 0
   },
   "chartGroups": [
     {
-      "name": "Leaves something behind",
-      "color": "#fdebd0",
-      "states": 6
+      "name": "Installed",
+      "color": "#d5f5e3",
+      "states": 1
     }
   ],
   "mixedGroups": [],
   "regions": {
     "drawn": true,
     "states": [
-      9,
+      3,
       19
     ],
-    "transitions": 46,
-    "all": 81,
+    "transitions": 37,
+    "all": 56,
     "flat": {
-      "states": 171,
-      "transitions": 1099
+      "states": 57,
+      "transitions": 360
     }
   },
-  "classes": [
-    {
-      "n": 1,
-      "end": "Installing, uninstall leaves ~/.local/state/jstack behind: No expert yet",
-      "invariant": "UninstallComplete",
-      "rule": "Every path jstack made is recorded or not made: an uninstall leaves nothing behind.",
-      "cause": "the install makes jstack's state folder before a record names it",
-      "readerSteps": 2,
-      "modelSteps": 3,
-      "counterexamples": 1182,
-      "fix": null
-    }
-  ],
+  "classes": [],
   "codeLike": [],
   "drawnFrom": {
-    "command": "statechart from-spec Setup.tla --config Setup.chart.cfg --title 'Does an uninstall or an expert'\"'\"'s takeover leave anything behind?' --expect-broken UninstallComplete --png",
+    "command": "statechart from-spec Setup.tla --config Setup.chart.cfg --title 'Does an uninstall or an expert'\"'\"'s takeover leave anything behind?'",
     "inputs": {
       "Setup.chart.cfg": "82184ec43abcd894a521d66e4615837a8661c1e90eee0806b14b6547a7565dfd",
-      "Setup.map.py": "713601688508f5a973312960f3598b5475b8b0aa7c5f6e3d9277cc4a71510e33",
-      "Setup.tla": "bd8769d018ff26cbc0420a6a7e3158aca47efa46dba53a2d8ef7e859821aad08"
+      "Setup.map.py": "1bab336da5c080a588e5549845a9071ab62868f9de25cf0046734f5ad818b457",
+      "Setup.tla": "960af2a253312c6208a5fdcfa60bde3717d75488cae7413a5ce4a500c37fa5e9"
     },
-    "chart": "c255b15902a39db51f8ee20f2f6d0ead20aae26b6819c20cac7cb6f5a96e1f67"
+    "chart": "9cfbe34be91fa0f621d361279083471997f379a156258705580df5b9d6e0a7ee"
   }
 }

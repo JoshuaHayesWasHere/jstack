@@ -1,26 +1,31 @@
 {
   "view": "customer",
-  "modelStates": 11175,
-  "modelTransitions": 24651,
-  "chartStates": 22,
-  "chartTransitions": 28,
-  "allTransitions": 2618,
-  "final": [],
+  "modelStates": 329,
+  "modelTransitions": 622,
+  "chartStates": 39,
+  "chartTransitions": 62,
+  "allTransitions": 93,
+  "final": [
+    "the revert merged",
+    "the revert merged, main's Mac: no fix row",
+    "the revert merged, main: no fix row",
+    "the revert merged, main: no fix row, main's Mac: no fix row"
+  ],
   "chartStatus": {
-    "works": 18,
-    "wrong": 4,
-    "fixed": 0
+    "works": 39,
+    "fixed": 0,
+    "wrong": 0
   },
   "chartGroups": [
     {
       "name": "Between passes",
       "color": "#d1f2eb",
-      "states": 7
+      "states": 5
     },
     {
       "name": "In a pass",
       "color": "#d6eaf8",
-      "states": 10
+      "states": 5
     },
     {
       "name": "After a pass died",
@@ -30,63 +35,27 @@
   ],
   "mixedGroups": [],
   "regions": {
-    "drawn": false,
-    "why": "\"Main and main's Mac red, between passes: a revert on record, never said; main: a fix brief with no row; an old main fix brief with no row; main's Mac: a fix brief with no row\" is \"Wrong today\", and its two region states would show \"Works today\""
-  },
-  "classes": [
-    {
-      "n": 1,
-      "end": "Main red, then green again, between passes: a revert open on GitHub, not on record",
-      "invariant": "RevertKnown",
-      "rule": "\"An open revert on GitHub has its reverts.json record by the next pass\": a revert GitHub had open when a pass started is kept once that pass has run to its end. jmerge merges, and reverts.close closes, only a revert reverts.json keeps, so one it does not keep stays open.",
-      "cause": "main turned green before a pass recorded the revert, so none judges it again",
-      "readerSteps": 7,
-      "modelSteps": 10,
-      "counterexamples": 164,
-      "fix": null
-    },
-    {
-      "n": 2,
-      "end": "Main's Mac red, between passes: a revert open on GitHub, not on record; main's Mac: a fix brief with no row",
-      "invariant": "FiledWhole",
-      "rule": "\"After any crash a red tip has a fix row and its brief, or neither, by the next pass\": main's red tip and its Mac's each, and each red run of a nightly, also one that aged past NIGHTLY_WINDOW. A brief with no row is a fix no crew is launched for. A pass that runs to its end queues each brief it writes, so this holds at the end of every such pass, the next one after a crash among them.",
-      "cause": "the pass died after the fix brief, and the next pass reverted in place of filing",
-      "readerSteps": 7,
-      "modelSteps": 11,
-      "counterexamples": 260,
-      "fix": null
-    },
-    {
-      "n": 3,
-      "end": "Main red, between passes: a revert open on GitHub, not on record; main: its fix row queued",
-      "invariant": "RevertKnown",
-      "rule": "\"An open revert on GitHub has its reverts.json record by the next pass\": a revert GitHub had open when a pass started is kept once that pass has run to its end. jmerge merges, and reverts.close closes, only a revert reverts.json keeps, so one it does not keep stays open.",
-      "cause": "GitHub did not answer, and the pass filed a row in place of recording the revert",
-      "readerSteps": 7,
-      "modelSteps": 12,
-      "counterexamples": 132,
-      "fix": null
-    },
-    {
-      "n": 4,
-      "end": "Main's Mac red, between passes: a revert on record, never said; main's Mac: no fix brief",
-      "invariant": "RevertSaid",
-      "rule": "jbus says each revert it opened: a revert reverts.json keeps has its line in events.jsonl.",
-      "cause": "the pass died after it recorded the revert, and no later pass says it",
-      "readerSteps": 8,
-      "modelSteps": 11,
-      "counterexamples": 364,
-      "fix": null
+    "drawn": true,
+    "states": [
+      15,
+      24
+    ],
+    "transitions": 62,
+    "all": 93,
+    "flat": {
+      "states": 65,
+      "transitions": 141
     }
-  ],
+  },
+  "classes": [],
   "codeLike": [],
   "drawnFrom": {
-    "command": "statechart from-spec MainFix.tla --config MainFix.chart.cfg --title 'Main went red: what has jbus filed when a pass dies?' --expect-broken FiledWhole,RevertKnown,RevertSaid --png",
+    "command": "statechart from-spec MainFix.tla --config MainFix.chart.cfg --title 'Main went red: what has jbus filed when a pass dies?'",
     "inputs": {
-      "MainFix.chart.cfg": "1dbf33a81bed5125a58faf0b39efaac2bf08dbf353732e4f9b14bc7296a174d0",
-      "MainFix.map.py": "3c77ffe4ea11a5c6a0428e7cc5777c06afced3e15267bd9fd59916431f462ba3",
-      "MainFix.tla": "f98e65162942ac27f4a30afa814add5106aac05ee2c578a25a2268aa6269949a"
+      "MainFix.chart.cfg": "e66af407597e529064e137a9d3e1d0bddf4be5145bb84ed6cedcb3fd1f4f7f56",
+      "MainFix.map.py": "371f57b39d0109fe43245af8b1f632d98dc44156dbc63c9f49607bdf48b9bfa2",
+      "MainFix.tla": "7ca5758039c781906485ad801d9884274fb72f1c82c50428b88fadcf8ea9deaa"
     },
-    "chart": "567720db3f540d82141da14699e0de70b3d47860d135e522f29f496155b7c2bf"
+    "chart": "b7af77bf8084d32d211b77a59bd142d48b31e5771b874920b3e9dd8f7021db87"
   }
 }

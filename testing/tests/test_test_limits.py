@@ -81,6 +81,16 @@ LONG = {
         "the output folder model under TLC whole and once without each guard: 75 s in part 8 "
         "of #1691's check (job 130776916641)"
     ),
+    "features/skill-library/tests/test_statechart_venv.py::"
+    "test_a_removed_second_checkout_leaves_the_first_checkouts_redraw_working": (
+        "a uv sync of two checkouts into one venv, then a from-spec run, a TLC run, for each "
+        "redraw command the skill and the spec READMEs state"
+    ),
+    "features/skill-library/tests/test_statechart_venv.py::"
+    "test_a_redraw_whose_jgauge_cannot_import_prints_the_re_sync_that_mends_it": (
+        "a uv sync of the venv, a redraw that fails, the re-sync it prints, and a from-spec "
+        "run, a TLC run"
+    ),
     "features/skill-library/tests/test_statechart_specs.py::"
     "test_from_spec_against_compares_the_code_with_the_spec_and_expect_broken_sets_the_exit": (
         "from-spec --against runs TLC on two specs and on their common part"
