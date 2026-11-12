@@ -1,0 +1,143 @@
+---
+title: "Does the green copy reach main's green tip?"
+config:
+  markdownAutoWrap: false
+  state:
+    useMaxWidth: false
+---
+stateDiagram-v2
+  classDef group0 fill:#d1f2eb,stroke:#697976,color:#1b2631
+  classDef group1 fill:#d6eaf8,stroke:#6b757c,color:#1b2631
+  classDef group2 fill:#fdebd0,stroke:#7f7668,color:#1b2631
+  classDef group3 fill:#f9d6d5,stroke:#7d6b6b,color:#1b2631
+  state "Legend" as legend {
+    state "Settled" as legendGroup0
+    state "Moving to the new tip" as legendGroup1
+    state "Going back after uv refused" as legendGroup2
+    state "A step owed after a pass died" as legendGroup3
+  }
+  class legendGroup0 group0
+  class legendGroup1 group1
+  class legendGroup2 group2
+  class legendGroup3 group3
+  state "A pass died, green.json<br/>owes the install" as g0 {
+    state "no tool, so jbus does not<br/>start" as s0
+    state "the tool runs another tree<br/>than the link" as s1
+    state "the tool runs the linked<br/>tree" as s2
+  }
+  state "Going back" as g1 {
+    state "green.json owes the<br/>install of the tree it<br/>came from, no tool, so<br/>jbus does not start" as s3
+    state "green.json owes the<br/>install of the tree it<br/>came from, the tool runs<br/>another tree than the link" as s4
+    state "the link back, the tool to<br/>install again, no tool, so<br/>jbus does not start" as s5
+    state "the link back, the tool to<br/>install again, the tool<br/>runs another tree than the<br/>link" as s6
+    state "the link back, the tool to<br/>install again, the tool<br/>runs the linked tree" as s7
+    state "the link points back, the<br/>new tree to remove, no<br/>tool, so jbus does not<br/>start" as s8
+    state "the link points back, the<br/>new tree to remove, the<br/>tool runs another tree<br/>than the link" as s9
+    state "the link points back, the<br/>new tree to remove, the<br/>tool runs the linked tree" as s10
+    state "uv refused the install, no<br/>tool, so jbus does not<br/>start" as s11
+    state "uv refused the install,<br/>the tool runs another tree<br/>than the link" as s12
+  }
+  state "Moving" as g2 {
+    state "green.json owes the<br/>install, the link on the<br/>new tree, no tool, so jbus<br/>does not start" as s13
+    state "green.json owes the<br/>install, the link on the<br/>new tree, the tool runs<br/>another tree than the link" as s14
+    state "green.json owes the<br/>install, the link on the<br/>old tree, no tool, so jbus<br/>does not start" as s15
+    state "green.json owes the<br/>install, the link on the<br/>old tree, the tool runs<br/>another tree than the link" as s16
+    state "green.json owes the<br/>install, the link on the<br/>old tree, the tool runs<br/>the linked tree" as s17
+    state "the link on the new tree,<br/>uv installs, no tool, so<br/>jbus does not start" as s18
+    state "the link on the new tree,<br/>uv installs, the tool runs<br/>another tree than the link" as s19
+    state "the link on the new tree,<br/>uv installs, the tool runs<br/>the linked tree" as s20
+    state "the old trees removed, the<br/>layouts to put, the tool<br/>runs the linked tree" as s21
+    state "the tool installed, the<br/>old trees still on disk,<br/>the tool runs the linked<br/>tree" as s22
+  }
+  state "Settled" as g3 {
+    state "at main's green tip, the<br/>tool runs the linked tree" as s23
+    state "main's green tip is newer,<br/>the tool runs the linked<br/>tree" as s24
+  }
+  state "A pass died, green.json<br/>owes the relink: the tool<br/>runs the linked tree" as s25
+  [*] --> s23
+  s23 --> s24 : main goes green at a newer tip
+  s24 --> s17 : a pass grows the new tip's<br/>tree and writes the install it<br/>owes
+  s17 --> s19 : the pass points the link at<br/>the tree it moves to
+  s17 --> s2 : the pass dies: a timeout, a<br/>reboot or an OOM kill
+  s19 --> s22 : uv installs the tool from the<br/>linked tree
+  s19 --> s12 : uv refuses the install
+  s19 --> s11 : uv refuses the install and<br/>removed the tool first
+  s19 --> s1 : the pass dies: a timeout, a<br/>reboot or an OOM kill or uv<br/>refuses the install
+  s2 --> s17 : a pass grows the new tip's<br/>tree and writes the install it<br/>owes or the next pass takes up<br/>the owed install
+  s22 --> s21 : the pass removes the trees no<br/>command runs
+  s22 --> s25 : the pass dies: a timeout, a<br/>reboot or an OOM kill
+  s12 --> s4 : the pass goes back, owing the<br/>install of the tree it came<br/>from
+  s12 --> s1 : the pass dies: a timeout, a<br/>reboot or an OOM kill
+  s11 --> s3 : the pass goes back, owing the<br/>install of the tree it came<br/>from
+  s11 --> s0 : the pass dies: a timeout, a<br/>reboot or an OOM kill
+  s1 --> s14 : the next pass takes up the<br/>owed install
+  s21 --> s23 : the harness layouts are put<br/>from the linked tree
+  s21 --> s25 : the relink is refused, and<br/>stays owed or the pass dies: a<br/>timeout, a reboot or an OOM<br/>kill
+  s25 --> s22 : the next pass takes up the<br/>owed relink
+  s4 --> s10 : the pass points the link back
+  s4 --> s1 : the pass dies: a timeout, a<br/>reboot or an OOM kill
+  s3 --> s8 : the pass points the link back
+  s3 --> s0 : the pass dies: a timeout, a<br/>reboot or an OOM kill
+  s0 --> s13 : the next pass takes up the<br/>owed install
+  s14 --> s19 : the pass points the link at<br/>the tree it moves to
+  s14 --> s1 : the pass dies: a timeout, a<br/>reboot or an OOM kill
+  s21 --> s24 : the harness layouts are put<br/>from the linked tree
+  s10 --> s7 : the pass removes the tree it<br/>went to
+  s10 --> s2 : the pass dies: a timeout, a<br/>reboot or an OOM kill
+  s1 --> s6 : the next pass takes up the<br/>owed install
+  s8 --> s5 : the pass removes the tree it<br/>went to
+  s8 --> s0 : the pass dies: a timeout, a<br/>reboot or an OOM kill
+  s0 --> s5 : the next pass takes up the<br/>owed install
+  s13 --> s18 : the pass points the link at<br/>the tree it moves to
+  s13 --> s0 : the pass dies: a timeout, a<br/>reboot or an OOM kill
+  s25 --> s17 : a pass grows the new tip's<br/>tree and writes the install it<br/>owes
+  s7 --> s20 : the pass points the link at<br/>the tree it moves to
+  s7 --> s2 : the pass dies: a timeout, a<br/>reboot or an OOM kill
+  s2 --> s7 : the next pass takes up the<br/>owed install
+  s6 --> s20 : the pass points the link at<br/>the tree it moves to
+  s6 --> s1 : the pass dies: a timeout, a<br/>reboot or an OOM kill
+  s5 --> s18 : the pass points the link at<br/>the tree it moves to
+  s5 --> s0 : the pass dies: a timeout, a<br/>reboot or an OOM kill
+  s0 --> s15 : a pass grows the new tip's<br/>tree and writes the install it<br/>owes or the next pass takes up<br/>the owed install
+  s18 --> s22 : uv installs the tool from the<br/>linked tree
+  s18 --> s11 : uv refuses the install
+  s18 --> s0 : the pass dies: a timeout, a<br/>reboot or an OOM kill or uv<br/>refuses the install
+  s1 --> s16 : a pass grows the new tip's<br/>tree and writes the install it<br/>owes or the next pass takes up<br/>the owed install
+  s20 --> s22 : uv installs the tool from the<br/>linked tree
+  s20 --> s2 : uv refuses the install or the<br/>pass dies: a timeout, a reboot<br/>or an OOM kill
+  s20 --> s0 : uv refuses the install and<br/>removed the tool first
+  s15 --> s18 : the pass points the link at<br/>the tree it moves to
+  s15 --> s0 : the pass dies: a timeout, a<br/>reboot or an OOM kill
+  s16 --> s19 : the pass points the link at<br/>the tree it moves to
+  s16 --> s1 : the pass dies: a timeout, a<br/>reboot or an OOM kill
+  s4 --> s9 : the pass points the link back
+  s9 --> s6 : the pass removes the tree it<br/>went to
+  s9 --> s1 : the pass dies: a timeout, a<br/>reboot or an OOM kill
+  s6 --> s19 : the pass points the link at<br/>the tree it moves to
+  s19 --> s0 : uv refuses the install and<br/>removed the tool first
+  class s0 group3
+  class s1 group3
+  class s2 group3
+  class s25 group3
+  class s3 group2
+  class s4 group2
+  class s5 group2
+  class s6 group2
+  class s7 group2
+  class s8 group2
+  class s9 group2
+  class s10 group2
+  class s11 group2
+  class s12 group2
+  class s13 group1
+  class s14 group1
+  class s15 group1
+  class s16 group1
+  class s17 group1
+  class s18 group1
+  class s19 group1
+  class s20 group1
+  class s21 group1
+  class s22 group1
+  class s23 group0
+  class s24 group0

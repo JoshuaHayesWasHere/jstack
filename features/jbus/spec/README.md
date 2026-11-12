@@ -237,6 +237,21 @@ The canary `Fault = "stamp-refused"` stamps `live` over units the manager refuse
 `CopyOwned` has no canary: in the model the link always names a tree that is there, and a tree a hand removed takes the fallback.
 `features/jbus/tests/test_green_move_spec.py` runs TLC on the config and on each canary for the rules it breaks.
 
+### Draw the chart of the green move
+
+```sh
+S=$PWD/features/skill-library/skills/statechart/scripts
+D=$HOME/.cache/jstack/tlc-tmp && mkdir -p "$D"
+W=$(TMPDIR=$D mktemp -d) && cp features/jbus/spec/GreenMove.* "$W"
+(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+    statechart from-spec GreenMove.tla --title "Does the green copy reach main's green tip?" --out out)
+```
+
+Run it from the repo root, then copy the files of `$W/out` into `GreenMove-statechart/`, all except `tlc/`.
+`GreenMove.cfg` turns off TLC's deadlock check, as `-deadlock` does above, since a copy at main's last tip has no step left.
+`GreenMove.map.py` labels each state with the step of the move the pass is at and what a command you run meets: the tool the link names, another tree, or none.
+It draws 26 chart states and 60 steps from 11,614 model states, every step between two of them, in a few seconds.
+
 ### What the green-move model leaves out
 
 - uv's install and the write of `owes: relink` after it are one step: a pass that dies between them installs again, which is the same install, and the model does not let that second install fail.
