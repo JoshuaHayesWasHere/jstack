@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 
 from test_home_thread import named
+from test_workflows import CHECK, steps, worked
 from testing.paths import REPO, skills, sources
 
 SCRIPT = REPO / "scripts" / "select_tests.py"
@@ -766,12 +767,13 @@ def test_strict_darwin_reaches_the_importers_of_an_edit_inside_clis_darwin_branc
 TICK = "features/jbus/src/jbus/tick.py"
 
 
-def test_on_a_pull_request_an_edit_deep_in_jbus_selects_its_own_tests_and_not_the_jbus_suite():
-    """A pull request's check reaches through imports only the tests near a change: an edit to
-    `tick.tick` selects the tests that import `jbus.tick` and those that import a module that
-    calls `tick.tick`, with the tests near a module that reads every jbus module through
-    `jbus.__path__`. The wide rule selects nearly every test of jbus, which reach `tick` through
-    `jbus.cli` and the modules it imports, and main's full run still runs them."""
+def test_by_the_narrow_reach_an_edit_deep_in_jbus_selects_its_own_tests_and_not_the_jbus_suite():
+    """The narrow reach (`--part names`) reaches through imports only the tests near a change:
+    an edit to `tick.tick` selects the tests that import `jbus.tick` and those that import a
+    module that calls `tick.tick`, with the tests near a module that reads every jbus module
+    through `jbus.__path__`. The wide rule selects nearly every test of jbus, which reach `tick`
+    through `jbus.cli` and the modules it imports, and a pull request's check runs them, as
+    main's does."""
     text = (REPO / TICK).read_text()
     line = next(at for at, one in enumerate(text.splitlines(), 1) if one.startswith("def tick("))
     wide, _ = select.selection([TICK])
@@ -786,7 +788,7 @@ def test_on_a_pull_request_an_edit_deep_in_jbus_selects_its_own_tests_and_not_th
     assert len(suite & set(near)) * 2 < len(suite)
 
 
-def test_on_a_pull_request_an_edit_to_a_private_helper_reaches_the_tests_of_what_calls_it():
+def test_by_the_narrow_reach_an_edit_to_a_private_helper_reaches_the_tests_of_what_calls_it():
     """An edit to `tick._watched`, which `tick.tick` calls, selects through imports what an edit to
     `tick.tick` selects: a module that calls `tick.tick` carries the change on, as it does when
     the edit is in `tick.tick` itself."""
@@ -841,3 +843,80 @@ def test_the_guards_on_a_merged_tree_run_the_tests_main_gained_since_the_merge_b
     assert gained not in rest
     assert gained not in select.desk_part("guards", changed, tests)
     assert "features/jmerge/docs/jmerge.md" not in guards
+
+
+SPELLS = {
+    "#1584": (SPELL_41[0], "features/jbus/tests/test_jbus_telemetry_spells.py"),
+    "#1600": (
+        [
+            "features/jbus/docs/jbus/a-red-main.md",
+            "features/jbus/src/jbus/flakerow.py",
+            "features/jbus/tests/test_jbus_flakerow.py",
+            "features/jbus/tests/test_jbus_steps.py",
+        ],
+        "features/jbus/tests/test_jbus_shots.py",
+    ),
+    "#1620": (
+        [
+            "features/jbus/docs/jbus/the-units.md",
+            "features/jbus/src/jbus/merge.py",
+            "features/jbus/src/jbus/pulls.py",
+            "features/jbus/src/jbus/watch.py",
+            "features/jbus/tests/kitchen_wakes.py",
+            "features/jbus/tests/merge_in_pass.py",
+            "features/jbus/tests/test_jbus_kitchen.py",
+            "features/jbus/tests/test_jbus_pulls.py",
+            "features/jbus/tests/test_jbus_red_main.py",
+            "features/jbus/tests/test_jbus_remarks.py",
+            "features/jmerge/docs/jmerge.md",
+            "features/jmerge/src/jmerge/cli.py",
+            "features/jmerge/tests/test_jmerge_one_run.py",
+        ],
+        "features/verify-jstack/tests/test_home_clears_blockers.py",
+    ),
+    "#1675": (
+        [
+            "features/jbus/src/jbus/slotwait.py",
+            "features/jgauge/src/jgauge/slot.py",
+            "features/jgauge/src/jgauge/waiters.py",
+            "features/jgauge/tests/test_slot.py",
+            "features/jgauge/tests/test_slot_claim.py",
+        ],
+        "features/crew/tests/test_crew_check_command.py",
+    ),
+}
+
+
+def checked(changed, event):
+    """What the check's step `select` selects for `changed` on `event`: the words it runs, with
+    each variable that `event` decides worked out. A `--pull-request` among them reaches through
+    imports only the tests near the change, here with every line of each changed path touched,
+    the most that rule reaches."""
+    found, _ = steps(CHECK.read_text(), "reuse")
+    step = next(one for one in found if one.get("id") == "select")
+    words = []
+    for word in step["run"].split():
+        value = step["env"].get(word.removeprefix("$"), "") if word.startswith("$") else ""
+        if "github.event_name" in value:
+            expression = value.removeprefix("${{ ").removesuffix(" }}")
+            words += worked(expression, {"github.event_name": event}).split()
+        else:
+            words.append(word)
+    tests, _ = select.selection(changed, edited={} if "--pull-request" in words else None)
+    return tests
+
+
+@pytest.mark.parametrize(("changed", "failed"), SPELLS.values(), ids=SPELLS.keys())
+def test_the_check_that_proves_a_merge_selects_the_test_main_failed_on_after_it(changed, failed):
+    """Four merges of 2026-11-10 and 11 each opened a red spell of main on a test their pull
+    request's check never ran, while main's push over the same diff selected and failed it
+    (`main_spells` 41, 42, 43 and 46). A red main holds every merge behind it. The check of a pull
+    request, jmerge's batch among them, selects what a push to main selects, so it runs that test
+    before the merge. Replayed on this tree, which moved since, by the paths alone, the narrower
+    rule a pull request's check had still leaves out the tests of #1620 and #1675, and for each
+    of the four leaves out tests main's push runs. #1584's test was also one main gained after
+    its check ran, which its guards now hold (the test above)."""
+    on_pull_request = checked(changed, "pull_request")
+
+    assert failed in on_pull_request
+    assert set(checked(changed, "push")) <= set(on_pull_request)

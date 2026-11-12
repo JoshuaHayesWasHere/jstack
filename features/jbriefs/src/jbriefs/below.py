@@ -1,12 +1,19 @@
 """Read what sits below a brief's head: its labelled lines, its last section of a heading, and
-the lines a crew, a reviewer and jbus add as it runs, the reviewer lines and the gate headings.
-A brief's head and its sections are `jbriefs.parse`'s."""
+the lines a crew, a reviewer and jbus add as it runs, the reviewer lines, the pull request a
+Result names and the gate headings. A brief's head and its sections are `jbriefs.parse`'s.
+
+Each of these lines has its one reader here or beside it (`jbriefs.status`, `jbriefs.stacked`,
+`jbriefs.checked`, the seats of `jbriefs.findings`): jbriefs, jmerge and jbus call it, and the
+skills' shell blocks call it through `jbriefs line`, so no block reads a field of its own."""
 
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 
 _GATE = re.compile(r"^## Gate (\S+?):\s*(.*)$")
+_URL = re.compile(r"https?://[^\s)>\]`]+")
+_NUMBER = re.compile(r"/pull/(\d+)/?$")
 
 
 def line(text: str, label: str) -> str:
@@ -24,6 +31,62 @@ def last(text: str, heading: str) -> list[str] | None:
     lines = text.splitlines()
     starts = [at for at, one in enumerate(lines) if one.startswith(heading)]
     return lines[starts[-1] + 1 :] if starts else None
+
+
+def last_result(text: str) -> str:
+    """The brief's last `## Result` section, its heading included, to the next `## ` heading,
+    or an empty string for a brief with none. A scout's request has a `## Report` in its
+    place, read the same way."""
+    lines = text.splitlines()
+    starts = [at for at, one in enumerate(lines) if one.startswith(("## Result", "## Report"))]
+    if not starts:
+        return ""
+    rest = lines[starts[-1] + 1 :]
+    end = next((at for at, one in enumerate(rest) if one.startswith("## ")), len(rest))
+    return "\n".join([lines[starts[-1]], *rest[:end]]) + "\n"
+
+
+AFTER = "after the review"
+"""What a Result's `Branch:` line says of a pull request that opens once its review is written."""
+
+
+@dataclass(frozen=True)
+class Pull:
+    """What a Result's `Branch:` line, `Branch: <branch>   Pull request: <said>`, says of its
+    pull request: `said`, the words after `Pull request:`, and `url`, the first address in them.
+    The address may have a note after it, `(merged)`. Words that start `none`, and words with
+    no address, `after the review` or `pending`, name none, and `url` is empty."""
+
+    said: str
+    url: str = ""
+
+    @property
+    def number(self) -> str:
+        found = _NUMBER.search(self.url)
+        return found[1] if found else ""
+
+    @property
+    def after(self) -> bool:
+        return self.said == AFTER
+
+    def shown(self) -> str:
+        """The pull request as `jbriefs line pr` prints it: its address, `after the review`, or
+        `none`."""
+        return self.url or (AFTER if self.after else "none")
+
+
+def pull(result: str) -> Pull | None:
+    """What the first `Branch:` line of a Result says of its pull request, or None for a Result
+    with no such line. Only that line names it: a `Done when:` or a `Proof:` line may say
+    `Pull request:` of anything. A line with no `Pull request:` on it, `Branch: <branch> <url>`,
+    says the words after its branch."""
+    found = next((one for one in result.splitlines() if one.startswith("Branch:")), None)
+    if found is None:
+        return None
+    before, label, said = found.removeprefix("Branch:").partition("Pull request:")
+    said = said.strip() if label else " ".join(before.split()[1:])
+    url = _URL.search(said) if not said.lower().startswith("none") else None
+    return Pull(said, url[0].rstrip(".,;:*") if url else "")
 
 
 REVIEWERS = ("Reviewer", "Second reviewer", "Scoped reviewer")

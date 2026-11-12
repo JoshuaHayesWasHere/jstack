@@ -28,7 +28,7 @@ tools = importlib.import_module("statechart.tools")
 # thread may fail, and whether the catch-all's thread moves only before the root makes a child.
 # Two siblings that both raise calls are too many states for one run. The catch-all's thread
 # shares nothing with what the siblings share, so their scene keeps it out of their steps, and
-# the scenes a and b check it beside every step of a child.
+# the runs of every invariant in the scenes a and b check it beside every step of a child.
 SCENES = {
     "a": ('{"a"}', '{"a1", "a2"}', "TRUE", "FALSE"),
     "b": ('{"b"}', '{"b1", "b2"}', "TRUE", "FALSE"),
@@ -41,11 +41,19 @@ INVARIANTS = [
     "NudgesBounded",
     "RelaunchOnce",
     "OneStart",
+    "WaitsForCause",
     "OneMerger",
     "NoBlindMerge",
 ]
 PROPERTIES = ["CallsReachJosh", "AsksAfterRelaunch", "ReadyMerges", "CatchallRuns"]
 RULES = INVARIANTS + PROPERTIES
+
+# The properties today's code is checked on in each scene. Of the properties, only ReadyMerges reads
+# what the siblings share, main and the merge lock: they raise no call, and their notices never
+# wait on the home thread (StallOnNeeds, on the whole model), one pass works out each child's
+# watch from that child alone, and the catch-all shares nothing with either. So the scenes a and
+# b check the other three for each child, and the siblings check ReadyMerges.
+SCENE_PROPERTIES = {"a": PROPERTIES, "b": PROPERTIES, "siblings": ["ReadyMerges"]}
 
 # Each guard, the rule that rests on it, and the scene that shows it.
 CANARIES = {
@@ -63,13 +71,14 @@ CANARIES = {
     "drop-release": ("ReadyMerges", "siblings"),
     "keep-alive": ("CatchallRuns", "a"),
     "going": ("OneStart", "a"),
+    "waits": ("WaitsForCause", "a"),
 }
 
 # Today's code keeps every rule in every scene: the four it broke (RetireHandsOver, StallFlagged,
 # OneMerger and NoBlindMerge) since the branch hometree-rules gave it the design's guards,
 # ReadyMerges since pull request 357, and CallsReachJosh since jbus has one route to Josh, the
-# home thread, whose failed post leaves the call in its outbox. Each scene runs with both modes,
-# so the merge switch is shown to play no part.
+# home thread, whose failed post leaves the call in its outbox. The run of every invariant in each
+# scene has both modes, so the merge switch is shown to play no part.
 TODAY_MODES = '{"jbus", "home"}'
 
 
@@ -80,13 +89,30 @@ TODAY_MODES = '{"jbus", "home"}'
 # outside the scene moves (SceneStill in HomeTree.tla), so the scene alone misses no step.
 SCENE_ALONE = ["    Kids <- Made", "    Calls <- Raised", "    Notices <- SceneNotices"]
 
+# A run of a property also has one mode, and the catch-all's thread moving only before the root
+# makes a child. No step reads `mode`, so a second mode is a copy of the graph. The catch-all's
+# steps change only keeper, starts and failed, which no step of a child reads, and no other
+# property reads, so a behaviour with both interleaved is one of each, and the catch-all's fair
+# behaviours are all there before the root makes a child. The run of every invariant still has
+# both modes and the catch-all beside every step of a child. In scene a, CallsReachJosh, whose
+# three messages TLC carries as three branches on each state, went from 398,880 states and 90 s
+# on a desk, past 600 s on a CI runner, to 13,338 states and 4 s.
+PROPERTY_MODES = '{"jbus"}'
+
+# K is a feature child's patience, which only the watch reads. A pull request once ready merges by
+# steps that read nothing the watch writes, so ReadyMerges is checked with K at 1, which halves
+# the siblings' states: 140,054 and 29 s on a desk to 78,998 and 16 s.
+READY_K = 1
+
 
 def config(scene, rules, modes, drop="none"):
     made, raised, may_fail, first = SCENES[scene]
     alone = any(rule in PROPERTIES for rule in rules)
+    if alone:
+        modes, first = PROPERTY_MODES, "TRUE"
     lines = [
         "CONSTANTS",
-        "    K = 2",
+        f"    K = {READY_K if rules == ['ReadyMerges'] else 2}",
         "    Rhythm = 1",
         f"    Modes = {modes}",
         f"    Made = {made}",
@@ -186,8 +212,8 @@ def runs():
     for guard, (rule, scene) in CANARIES.items():
         cfg = config(scene, [rule], '{"jbus"}', guard)
         yield f"canary {guard}, scene {scene}: {rule}", "HomeTreeToday", cfg, rule, "breaks"
-    for scene in SCENES:
-        for name, rules in [("every invariant", INVARIANTS), *((p, [p]) for p in PROPERTIES)]:
+    for scene, properties in SCENE_PROPERTIES.items():
+        for name, rules in [("every invariant", INVARIANTS), *((p, [p]) for p in properties)]:
             cfg = config(scene, rules, TODAY_MODES)
             yield f"today, scene {scene}: {name}", "HomeTreeToday", cfg, None, "holds"
 

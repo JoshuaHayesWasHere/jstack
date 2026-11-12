@@ -14,9 +14,9 @@ from datetime import timedelta
 import pytest
 
 import jsettings
+from jbriefs import stacked as stacks
 from jbus import cleanup
 from jmerge import ready
-from jmerge import stacked as stacks
 from jmerge.cli import Repo
 from repo_template import IDENTITY
 from test_jbus_kitchen import NOW, asks

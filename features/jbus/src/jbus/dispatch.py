@@ -7,9 +7,10 @@ with no thread id means the reply was lost. jbus settles such an intent by looki
 It calls again only for a launch whose connection dropped (ECONNRESET, `T3Dropped`) and whose
 lookup finds no thread, and only once (`settle_lost`).
 
-Once a launch has its thread, `write_thread` puts `Thread: <id>` in the head of
-`tasks/<slug>.md`. It is the one line jbus ever writes in a brief after the launch. When a
-pass stopped before it wrote the line, the next pass writes it (`write_missing`).
+Once a launch has its thread, `crewthread.move` puts `Thread: <id>` in the head of
+`tasks/<slug>.md` and in the queue row's `thread` column, in one step. It is the one line jbus ever
+writes in a brief after the launch. When a pass stopped before it wrote the line, the next pass
+writes it (`crewthread.repair`).
 
 `max_running` is one cap for the whole machine. `dispatch` gets the slots that all the
 projects together leave free, and hands them out in turns, one launch a turn (`Turns`). Two
@@ -76,8 +77,21 @@ from typing import Any
 import jroles
 import jroles.mirror
 import jsettings
+from jbriefs import stacked as stacks
 from jbriefs.home import home_of
-from jbus import cleanup, crewtree, outcome, pausedon, queue, read_json, roomwait, watch, write_json
+from jbus import (
+    cleanup,
+    crewthread,
+    crewtree,
+    outcome,
+    pausedon,
+    queue,
+    read_json,
+    roomwait,
+    watch,
+    work,
+    write_json,
+)
 from jbus.launches import record_path, records
 from jbus.launchhome import homed, unhomed
 from jbus.launchtext import RESUMED, fixes_main, launched_text, resumed, resumed_on
@@ -85,75 +99,22 @@ from jbus.passes import Changed, Depends, Pass, Red, Rerun, Slot
 from jbus.t3 import Client, T3Dropped, T3Error, T3Refused
 from jbus.watch import TITLE, World, against, at_work, crew_threads, ended
 from jmerge import judgement, mainjson
-from jmerge import stacked as stacks
 from jroles import ledger, pool
 
 
 def launched(run: Pass, slug: str, role: str = queue.CREW) -> str:
     """Return the thread id of the slug's launch of `role`, or nothing if it has none. A scout's
     row taken over by the crewmate's brief it delivered keeps the scout's record beside the
-    crewmate's."""
-    found = newest(records(run, slug, role))
+    crewmate's. It says whether and on what jbus launched the row; the thread of the row's crew is
+    `crewthread.crew`, which a hand resume moves."""
+    found = crewthread.newest(records(run, slug, role))
     return next((r["thread"] for _, r in reversed(found) if r.get("thread")), "")
-
-
-def newest(found: list[tuple[Path, dict[str, Any]]]) -> list[tuple[Path, dict[str, Any]]]:
-    """Return the launch records in the order they were made: a resume's name sorts anywhere."""
-    return sorted(found, key=lambda one: str(one[1].get("at") or ""))
 
 
 def scratch(run: Pass, slug: str) -> Path:
     """Return the scratch folder of the slug's crew, which is its thread's `TMPDIR`."""
     root = os.environ.get("JSTACK_SCRATCH_DIR") or Path.home() / ".cache" / "jstack" / "scratch"
     return Path(root) / run.project.checkout.name / slug
-
-
-def write_thread(
-    run: Pass, slug: str, thread: str, *, replace: bool = True, kind: str = "tasks"
-) -> None:
-    """Put `Thread: <id>` in the head of `tasks/<slug>.md`, as the home skill's step 3 does, or
-    of `scouts/<slug>.md` with `kind` `scouts`.
-
-    The line replaces an earlier `Thread:` line, so a brief never has two. Where the brief has
-    none, the line goes above the first `## `, so it is above any Result that a fast crewmate
-    has already written. Without `replace`, the function leaves a brief that already has a
-    `Thread:` line as it is, whatever thread that line names.
-    """
-    path, line = run.home / kind / f"{slug}.md", f"Thread: {thread}"
-    try:
-        lines = path.read_text().splitlines()
-    except (OSError, ValueError):
-        return
-    if line in lines:
-        return
-    was = next((at for at, one in enumerate(lines) if one.startswith("Thread:")), None)
-    if was is not None and not replace:
-        return
-    if was is not None:
-        lines[was] = line
-    else:
-        head = next((at for at, one in enumerate(lines) if one.startswith("## ")), len(lines))
-        lines.insert(head, line)
-    temporary = path.with_name(path.name + ".thread")
-    temporary.write_text("\n".join(lines) + "\n")
-    os.replace(temporary, path)
-
-
-def write_missing(run: Pass) -> None:
-    """Write the `Thread:` line into each brief whose launch has a thread but whose brief
-    never got the line.
-
-    The line is missing when a pass ended between writing the launch record and writing the line.
-    The function does not change a `Thread:` line that a brief already has, whatever thread that
-    line names. The function runs before anything reads the briefs for their thread, so the pass
-    that repairs a line also sends to the thread that the line names.
-    """
-    directory = run.config.state_dir / "launches" / run.project.name
-    for slug in sorted(path.name for path in directory.glob("*") if path.is_dir()):
-        found = [r for _, r in reversed(newest(records(run, slug))) if r.get("thread")]
-        if found:
-            kind = "scouts" if found[0].get("role") == queue.SCOUT else "tasks"
-            write_thread(run, slug, found[0]["thread"], replace=False, kind=kind)
 
 
 def arguments(run: Pass, slug: str, brief: str, routed: pool.Route | None) -> dict[str, Any]:
@@ -208,7 +169,7 @@ def settle_lost(run: Pass, client: Client) -> None:
             write_json(
                 path, {**record, "state": "launched", "thread": matching[0], "adopted": True}
             )
-            write_thread(run, slug, matching[0])
+            crewthread.move(run, slug, matching[0])
             run.say(f"adopted {slug}: {matching[0]}")
         elif not matching and record.get("dropped"):
             retry = {"key": record.get("key"), "state": "retry", "sha": record.get("sha", "")}
@@ -403,8 +364,8 @@ def caps(run: Pass, slugs: tuple[str, ...]) -> Caps:
 
 @dataclass
 class Turns:
-    """A `Turns` holds one project's rows in a pass, lowest priority first, and its turns at the
-    free slots.
+    """A `Turns` holds one project's rows in a pass, in the order they launch (`queue.order`, with
+    the priority each inherits, `lift`), and its turns at the free slots.
 
     `left` holds the rows not read yet. The pass reads each row once. On a later turn it does
     not judge a skipped row again, and it sends no gate twice.
@@ -422,6 +383,7 @@ class Turns:
     checked: dict[str, bool] = field(default_factory=dict)
     slugs: set[str] = field(default_factory=set)
     landed: frozenset[str] = frozenset()
+    lift: dict[str, int] = field(default_factory=dict)
 
     def _resume(self, row: queue.Row) -> pausedon.Cause | None:
         """Return the cause a left row launches again for (`pausedon.cleared`), or None. Its
@@ -696,7 +658,7 @@ class Turns:
                 run.gated.add(slug)
                 return LAUNCHED
             write_json(path, {**intent, "state": "launched", "thread": reply["threadId"]})
-            write_thread(run, slug, reply["threadId"])
+            crewthread.move(run, slug, reply["threadId"])
             where = f" on {choice.instance}, {choice.why}" if choice.why else ""
             where += f", stacked on {on.slug}'s branch {on.branch}" if on else ""
             where += f", resumed on its branch: {cause.says}" if cause else ""
@@ -718,7 +680,7 @@ class Turns:
         waits = list(self.capped)
         waits += [row for row, *_ in itertools.islice(self._ready(full=False), 1)]
         waits += [row for row, *_ in self._ready(full=True)]
-        waits.sort(key=queue.order)
+        waits.sort(key=lambda row: queue.order(row, self.lift))
         for row in waits:
             brief = queue.brief(self.run.state, row["slug"]) or ""
             why = self.caps.full(home_of(self.run.home, brief)) or cap
@@ -736,10 +698,20 @@ def turns(
     (`watch.Look.out`). A scout's row is launched by `jbus.scouts`, and a row that depends on it
     may launch once its Report says it is done (`watch.reported`)."""
     settle_lost(run, client)
-    crew = sorted((row for row in rows if queue.role(row) == queue.CREW), key=queue.order)
-    made = Turns(run, client, world, crew, caps(run, out))
+    slugs = {row["slug"] for row in rows}
+    waits = {
+        row["slug"]: pausedon.waits_on(run, world, row["slug"], slugs)
+        for row in rows
+        if row.get("status") not in queue.UNLAUNCHED
+        and not work.over(row)
+        and row["slug"] not in world.archived
+    }
+    lift = queue.lifted(rows, waits)
+    crew = [row for row in rows if queue.role(row) == queue.CREW]
+    crew.sort(key=lambda row: queue.order(row, lift))
+    made = Turns(run, client, world, crew, caps(run, out), lift=lift)
     made.reported = watch.reported(run, rows)
-    made.slugs = {row["slug"] for row in rows}
+    made.slugs = slugs
     made.landed = watch.final(run, world, rows)
     return made
 

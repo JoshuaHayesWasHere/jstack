@@ -1,14 +1,22 @@
 # Chart labels for RowLife: what you see of one row of the queue, in `jbus queue` and the sidebar.
 # Each status names what in features/jbus/src/jbus/work.py sets it (`work.status` and its `_THREAD`
 # table), and `removed` the verb that writes it. A row that is over keeps its status (`work.kept`).
+# The line's value in work.json (`value`) is not drawn: each status node joins the values that give
+# it, as work.status projects them (running: working, opening; stale: hung, lost, unknown;
+# left: leftover, closed; queued: unapproved, behind, ready; launched: launching), and
+# the value of a row that is over may say otherwise than its kept status, as a pull request that
+# opens on a done row shows `check`. The facts are joined too: a step names the one that changed.
 reader_actions = ["Grant", "Hold", "Lift", "Remove"]
 
 STATUS = {
     "queued": "queued (no thread yet)",
-    "launched": "launched (a launch with no thread yet)",
+    "launched": "launched (a launch whose thread is starting)",
     "running": "running (the thread at work, a Result or not, or its pull request opening)",
     "waiting": "waiting (the thread asks you)",
-    "stale": "stale (the thread ended with nothing written)",
+    "stale": (
+        "stale (the turn hung, or the thread ended, was settled or left T3 Code's list with "
+        "nothing written)"
+    ),
     "failed": "failed (the thread failed)",
     "gate": "gate (a question is open)",
     "pr": "pr (its pull request is open)",
@@ -21,6 +29,7 @@ STATUS = {
 GO = {
     "waiting": "No go",
     "approved": "Approved",
+    "behind": "Approved, behind a row it depends on",
     "held": "Held",
     "kept": "Held, its go kept",
 }
@@ -50,7 +59,8 @@ group_colors = {
     "Removed": "#e5e8e8",
 }
 
-# queue.MOVES, the change of facts that makes each move, in the words of the table.
+# queue.MOVES, the change of facts that makes each move, in the words of the table. A move not
+# named here is labelled by the fact that changed, as `step` says it.
 QUESTION_CLOSED = "the question closes, and the row's"
 MOVES = {
     ("queued", "launched"): "a launch record names a thread for the row",
@@ -71,7 +81,7 @@ MOVES = {
     ("running", "left"): "the Result leaves work, or the pull request closes",
     ("running", "done"): "the thread ends with a clean Result and no pull request",
     ("running", "waiting"): "the thread asks for an answer to its request",
-    ("running", "stale"): "the turn hangs, or the thread ends with nothing written",
+    ("running", "stale"): "the turn hangs, or the thread ends or is settled with nothing written",
     ("running", "failed"): "the thread fails",
     ("running", "merged"): "the pull request opens and merges between two passes",
     ("waiting", "running"): "the request is answered and the thread works again",
@@ -96,6 +106,9 @@ THREAD = {
     "none": "T3 Code lists no thread",
     "starting": "the thread starts",
     "atwork": "the thread works",
+    "hung": "the thread's turn hangs",
+    "settled": "T3 Code settles the thread",
+    "missing": "T3 Code no longer lists the thread",
     "waiting": "the thread asks for an answer",
     "failed": "the thread fails",
     "ended": "the thread ends",
@@ -134,6 +147,8 @@ def step(action, before, after):
     if action == "Remove":
         return f"you remove the row from {before['status']}"
     if action == "Grant":
+        if after["go"] == "behind":
+            return "you approve the row, behind a row it depends on"
         if before["go"] == "waiting":
             return "you approve the row, or a rule gives its go"
         if before["go"] == "kept":
@@ -141,6 +156,7 @@ def step(action, before, after):
         return "you approve the held row, and the hold ends"
     return {
         "Lift": "you lift the hold, and its go comes back",
+        "Ahead": "the rows it depends on are over",
         "Void": "its go no longer holds, and it waits for yours",
     }.get(action, action)
 

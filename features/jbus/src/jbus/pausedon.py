@@ -31,7 +31,7 @@ nobody: the thread was put away. The causes, each read from the state, are a tab
   to compare, and is no cause.
 
 A gate's answer is not one: `questions.carry` sends it to the thread on the brief's `Thread:`
-line, which a resume moves to the new thread (`dispatch.write_thread`).
+line, which a resume moves to the new thread (`crewthread.move`).
 
 Each cause is acted on once (`spent`): a resume writes its key into its launch record as `cause`
 (`jbus.launches`), and the live carry-on marks its own key in `sent.json`. The `waits` key of a

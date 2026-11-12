@@ -16,7 +16,11 @@ It never rebases a link jbus stacked, a brief with a `Stacked on:` line in its h
 
 Every rebase goes on, a third after fixed and green and any after it included: a rebase gets no scoped review, since its checks verify it, as the end of this section says.
 
-It never rebases under a review that is running either. A reviewer launched from this thread has a line in the Result, `Reviewer:`, `Second reviewer:` or `Scoped reviewer:` with a thread id, and writes one `## Review` section with a `Head:` line. While the brief has more of those lines than of those sections, the block prints `a review of <head> is running: rebase after its section is written` and does nothing: a rebase would move the head from under the reviewer, whose findings would then name lines of a head that is gone. Run the block again on the message that brings that review's findings.
+It never rebases under a review that is running either.
+A reviewer launched from this thread has a line in the Result, `Reviewer:`, `Second reviewer:` or `Scoped reviewer:` with a thread id, and writes one `## Review` section with a `Head:` line.
+While one of those lines has no such section written after it, of its seat (`#<n>`) where the line has one, the block prints `a review of <head> is running: rebase after its section is written` and does nothing: a rebase would move the head from under the reviewer, whose findings would then name lines of a head that is gone.
+`jbriefs line reviewing` reads it, by the rule jbus waits on before it moves a head (`jbriefs.reviewers.running`).
+Run the block again on the message that brings that review's findings.
 
 Before it rebases, the block keeps the head under `refs/jstack/pre-rebase/<slug>/<the head's first 12 characters>`. A worktree shares its refs with the main checkout, so `jmerge` always finds the commit before the rebase there, and `jmerge --sweep` deletes only branches and the gate's refs, so the ref outlives the branch. These refs are never pushed, and they are removed only by hand.
 
@@ -25,35 +29,14 @@ B="$H/tasks/<slug>.md"
 G=$(git rev-parse --git-dir)
 why='<conflict or stale>'
 reviewing() {
-    awk '
-        /^## / {result = 1; review = ($(0) == "## Review"); seat = ""; scope = 0}
-        review && /^By: .* #[0-9]+$/ {seat = $(NF)}
-        review && /^Scope:/ {scope = 1}
-        review && /^Head:/ {
-            written++
-            if (seat != "" && scope) scoped++
-            else if (seat != "") {numbered++; wrote[seat] = 1}
-            review = 0
-        }
-        result && /^(Reviewer|Second reviewer|Scoped reviewer): / && !/^[A-Za-z ]+: none/ {
-            if ($(1) == "Reviewer:" && $(NF) ~ /^#[0-9]+$/) seats[$(NF)] = 1
-            else if ($(1) == "Reviewer:") old++
-            else if ($(1) == "Scoped") asked++
-            else more++
-        }
-        END {
-            n = filled = 0
-            for (one in seats) {n++; if (one in wrote) filled++}
-            if (n) exit !(filled < n || asked > scoped || more > numbered - filled)
-            exit !(old + asked + more > written)
-        }' "$B" 2> /dev/null
+    [ "$(uv run --project "$T/../source" jbriefs line reviewing "$B" 2> /dev/null)" = yes ]
 }
 if [ -d "$G/rebase-merge" ] || [ -d "$G/rebase-apply" ]; then
     echo "the rebase is not finished: resolve these, then git rebase --continue"
     git diff --name-only --diff-filter=U
 elif reviewing; then
     echo "a review of $(git rev-parse HEAD) is running: rebase after its section is written"
-elif on=$(awk '/^## / {exit} /^Stacked on:/ {print (NF == 6 && $(5) == "at") ? $(6) : "-"; exit}' "$B" 2> /dev/null) && [ -n "$on" ] && { [ "$on" = - ] || ! git merge-base --is-ancestor "$on" HEAD 2> /dev/null; }; then
+elif stacked=$(uv run --project "$T/../source" jbriefs line stacked "$B" 2> /dev/null) && [ "$stacked" != none ] && { [ "${stacked% at *}" = "$stacked" ] || ! git merge-base --is-ancestor "${stacked##* }" HEAD 2> /dev/null; }; then
     echo "a link of a stack: no rebase here, jbus stacked it and says when it moves"
 elif ! view=$(gh pr view --json mergeable,baseRefName,headRefOid); then
     echo "could not ask GitHub: no rebase"

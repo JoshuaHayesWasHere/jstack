@@ -186,7 +186,9 @@
     return view(current).svg.querySelector(`.st[data-id="${CSS.escape(id)}"]`);
   }
   function clear() {
+    if (!current) return;
     const v = view(current);
+    v.panel.querySelectorAll(".ov-box.lit").forEach((b) => b.classList.remove("lit"));
     v.svg.classList.remove("focus");
     v.svg.querySelectorAll(".near, .picked, .in").forEach((n) => n.classList.remove("near", "picked", "in"));
     detail.classList.remove("open");
@@ -278,27 +280,102 @@
   });
   detail.querySelector(".close").addEventListener("click", clear);
 
-  // Picking a chart.
+  // Picking a chart, or the overview of them all.
+  const OVERVIEW = "Overview";
+  const flowPanel = document.querySelector(".flow-panel");
   function show(name, stateId) {
-    if (!DATA[name]) name = Object.keys(DATA)[0];
-    current = name;
+    if (!DATA[name]) name = OVERVIEW;
+    current = name === OVERVIEW ? null : name;
     document.querySelectorAll(".tab").forEach((t) => {
-      t.setAttribute("aria-selected", String(t.dataset.chart === name));
-      if (t.dataset.chart === name) t.parentElement.scrollLeft = t.offsetLeft - t.parentElement.offsetLeft - 14;
+      const mine = (t.dataset.chart || OVERVIEW) === name;
+      t.setAttribute("aria-selected", String(mine));
+      if (mine) t.parentElement.scrollLeft = t.offsetLeft - t.parentElement.offsetLeft - 14;
     });
+    flowPanel.hidden = name !== OVERVIEW;
     document.querySelectorAll(".chart-panel").forEach((p) => { p.hidden = p.dataset.chart !== name; });
-    const v = view(name);
-    fit(v);
-    body.innerHTML = '<p class="quiet">Tap a state or an arrow to read it in full: the code line it cites, the steps into it and the steps out of it.</p>';
+    body.innerHTML = name === OVERVIEW
+      ? '<p class="quiet">Tap a chart on the map to open it, or a group in the list of hand-offs to open its chart at that group.</p>'
+      : '<p class="quiet">Tap a box of the overview to move the chart to its group, or a state or an arrow to read it in full: the code line it cites, the steps into it and the steps out of it.</p>';
     detail.classList.remove("open");
+    if (name === OVERVIEW) {
+      history.replaceState(null, "", location.pathname + location.search);
+      return;
+    }
+    fit(view(name));
     find();
     if (stateId) pick(stateId, true);
     else history.replaceState(null, "", `#${encodeURIComponent(name)}`);
   }
-  document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => show(t.dataset.chart)));
+  document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => show(t.dataset.chart || OVERVIEW)));
+
+  // A box of a chart's overview is a group: a tap moves the chart to the group's states, all of
+  // them in the frame, and lights them and the steps between them. Where they lie far apart the
+  // labels get small; the detail lists the states, and a tap on one there centres it readable.
+  function fitTo(v, els) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const el of els) {
+      const rect = el.querySelector("rect");
+      const at = offsetOf(v, rect);
+      const x = at.x + +rect.getAttribute("x");
+      const y = at.y + +rect.getAttribute("y");
+      x0 = Math.min(x0, x); y0 = Math.min(y0, y);
+      x1 = Math.max(x1, x + +rect.getAttribute("width")); y1 = Math.max(y1, y + +rect.getAttribute("height"));
+    }
+    const pad = 30;
+    const p = size(v);
+    const k = Math.min(2, p.w / (x1 - x0 + 2 * pad), p.h / (y1 - y0 + 2 * pad));
+    v.cam = { x: (x0 + x1) / 2 - p.w / k / 2, y: (y0 + y1) / 2 - p.h / k / 2, k };
+    v.fitted = false;
+    apply(v);
+  }
+  function openGroup(box) {
+    const v = view(current);
+    const ids = box.dataset.states.split(" ");
+    const els = ids.map(stateEl).filter(Boolean);
+    clear();
+    v.panel.querySelectorAll(".ov-box").forEach((b) => b.classList.toggle("lit", b === box));
+    v.svg.classList.add("focus");
+    els.forEach((el) => el.classList.add("near"));
+    const inside = new Set(ids);
+    v.svg.querySelectorAll(".edge").forEach((p) => {
+      if (inside.has(p.dataset.from) && inside.has(p.dataset.to)) p.classList.add("near");
+    });
+    fitTo(v, els);
+    body.innerHTML =
+      `<p class="kicker">a group of ${ids.length} state${ids.length === 1 ? "" : "s"}</p>` +
+      `<h3>${esc(box.dataset.name)}</h3><ul>` +
+      ids.map((id) => `<li><button class="step" data-go="${esc(id)}"><span class="to">${esc(named(id))}</span></button></li>`).join("") +
+      "</ul>";
+    detail.classList.add("open");
+    v.panel.querySelector(".stage").scrollIntoView({ block: "nearest" });
+  }
+  document.querySelectorAll(".chart-panel .overview").forEach((fig) => {
+    const go = (e) => {
+      const box = e.target.closest(".ov-box");
+      if (box) openGroup(box);
+    };
+    fig.addEventListener("click", go);
+    fig.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(e); } });
+  });
+  // The map: a chart's box opens its chart, and a group named in a hand-off opens its chart at
+  // that group.
+  flowPanel.addEventListener("click", (e) => {
+    const box = e.target.closest(".flow-box");
+    if (box) return show(box.dataset.chart);
+    const go = e.target.closest("button.go");
+    if (!go) return;
+    show(go.dataset.chart);
+    const target = view(go.dataset.chart).panel.querySelector(`.ov-box[data-box="${CSS.escape(go.dataset.box)}"]`);
+    if (target) openGroup(target);
+  });
+  flowPanel.addEventListener("keydown", (e) => {
+    const box = e.target.closest(".flow-box");
+    if (box && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); show(box.dataset.chart); }
+  });
 
   // Finding a state by its words.
   function find() {
+    if (!current) return null;
     const q = search.value.trim().toLowerCase();
     const v = view(current);
     let first = null;

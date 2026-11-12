@@ -1,10 +1,13 @@
 - Once every **Done when** line holds, with the work committed, run the check of the change, once.
   CI is the check of record: its check on the pull request runs every test the change selects, and it is the gate.
-  The desk's check is the lint, the touched tests and the repo's guard tests, and never the whole suite or the selection.
-  In a repo whose pull request check selects its tests, jstack's `scripts/select_tests.py`, the touched tests are the test files the branch adds or edits since it left its base (`select_tests.py --part touched`), the guard tests are the cross-cutting tests the selection names, wherever their files live (`select_tests.py --part cross`), that are not touched already, and the check is `make check-fast BASE=<base> PART=touched`, run in steps: the lint first, then each touched test file alone, then each guard test file alone, each step its own call of `jgauge test-slot --short`.
+  The desk's check is the lint, the touched tests, the repo's guard tests and the tests that read the change, and never the whole suite or the selection.
+  In a repo whose pull request check selects its tests, jstack's `scripts/select_tests.py`, the touched tests are the test files the branch adds or edits since it left its base (`select_tests.py --part touched`), the guard tests are the cross-cutting tests the selection names, wherever their files live (`select_tests.py --part cross`), that are not touched already, and the tests that read the change are the ones the pull request's check selects because they name or read a file the branch edits, a skill that includes it or a read set that matches it, and that neither of the others holds (`select_tests.py --part names`, a few files a line, as many as fit 60 s of test time).
+  The check is `make check-fast BASE=<base> PART=touched`, run in steps: the lint first, then each touched test file alone, then each guard test file alone, then each test file CI failed on (below), then each line of the names part, each step its own call of `jgauge test-slot --short`.
+  So a test that reads an edited skill file, as test_status_line_readers.py reads features/crew/no-pr-end.md, fails at the desk and not first on the pull request, as it failed twice on #1691.
+  Over main's last 20 merges the names part added a median of 98 test files to the desk's 48 (6 to 256), in 20 steps (1 to 59), so a check takes several calls of the block more often than before.
   A step the short lane stops at its time limit (exit 124) runs again alone in a full test slot, which has no time limit, so every step reaches a verdict however loaded the machine is.
   A 124 is never a pass and never a failure: it is no verdict.
-  The catch-all and the tests the change reaches through imports, names and features are CI's to run: the desk does not run them.
+  The catch-all and the tests the change reaches through imports and features are CI's to run: the desk does not run them.
   The base is the branch the pull request goes on, as the block that opens it reads it from the brief: the branch of a `Stacked on:` line, and `origin/main` for a brief with none.
   A base branch that is gone, as one is once it merged, is `origin/main` too.
   In any other repo the check is the repo's check command, the first line of `$H/fresh-check` with its `jgauge test-slot --` left off (the block takes the slot itself), under a full test slot, and it is that command and no other, whatever command a brief's **Done when** names for it.
@@ -22,7 +25,8 @@
   code=$(mktemp "${TMPDIR:-/tmp}/code.XXXXXX")
   {
   if [ -f scripts/select_tests.py ]; then
-      on=$(awk '/^## / {exit} /^Stacked on:/ {print $(4); exit}' "$H/tasks/<slug>.md" 2> /dev/null)
+      on=$(uv run --project "$T/../source" jbriefs line base "$H/tasks/<slug>.md" 2> /dev/null)
+      [ "$on" != none ] || on=
       on=origin/${on:-main}
       git rev-parse -q --verify "$on^{commit}" > /dev/null || on=origin/main
       if ! base=$(git merge-base "$on" HEAD); then
@@ -34,18 +38,21 @@
       elif ! guards=$(python3 scripts/select_tests.py --part cross "$base" HEAD); then
           echo "no check: scripts/select_tests.py could not name the guard tests"
           false
+      elif ! names=$(python3 scripts/select_tests.py --part names "$base" HEAD); then
+          echo "no check: scripts/select_tests.py could not name the tests that read the change"
+          false
       else
           guards=$(printf '%s\n' "$guards" | command grep -vxF -e "$touched")
           kept=$(git rev-parse --git-path crew-failed-files)
-          failed=$(cat "$kept" 2> /dev/null | while read -r one; do [ ! -f "$one" ] || echo "$one"; done | command grep -vxF -e "$touched" -e "$guards")
+          failed=$(cat "$kept" 2> /dev/null | while read -r one; do [ ! -f "$one" ] || echo "$one"; done | command grep -vxF -e "$touched" -e "$guards" -e "$(printf '%s\n' $names)")
           printf 'make check-fast BASE=%s PART=touched\n' "$base" > "$code.command"
           steps=$(git rev-parse --git-path crew-check-steps)
           [ "$(sed -n 1p "$steps" 2> /dev/null)" = "$head $base" ] || printf '%s %s\n' "$head" "$base" > "$steps"
-          echo "touched: $(printf '%s' "$touched" | command grep -c .) test files, then $(printf '%s' "$guards" | command grep -c .) cross-cutting guard tests, then $(printf '%s' "$failed" | command grep -c .) test files CI failed on, each alone in the short lane after the lint; CI's check runs the rest of the selection"
+          echo "touched: $(printf '%s' "$touched" | command grep -c .) test files, then $(printf '%s' "$guards" | command grep -c .) cross-cutting guard tests, then $(printf '%s' "$failed" | command grep -c .) test files CI failed on, each alone in the short lane after the lint, then $(printf '%s\n' $names | command grep -c .) test files that read the change in $(printf '%s' "$names" | command grep -c .) steps; CI's check runs the rest of the selection"
           ran=0
           ceiling=${JGAUGE_SHORT_WAIT_SECONDS:-300}
           left=
-          for step in lint $touched $guards $failed; do
+          for step in lint $touched $guards $failed $(printf '%s\n' "$names" | tr ' ' ,); do
               if command grep -qxF "passed $step" "$steps"; then
                   [ -n "$left" ] || echo "$step: passed at this head already"
                   continue
@@ -61,7 +68,7 @@
               if [ "$step" = lint ]; then
                   set -- make check-fast BASE="$base" PYTEST=: PART=touched
               else
-                  set -- make test TESTS="$step" BASE="$base"
+                  set -- make test TESTS="$(printf '%s' "$step" | tr , ' ')" BASE="$base"
               fi
               started=$(date +%s)
               lane=short
@@ -75,7 +82,15 @@
               fi
               echo "$step: exit $said in $(($(date +%s) - started)) s, $lane lane"
               case $said in
-              0) [ -n "$clean" ] || echo "passed $step" >> "$steps" ;;
+              0)
+                  if [ -z "$clean" ] && [ -z "$(git status --porcelain)" ] && [ "$(git rev-parse HEAD)" = "$head" ]; then
+                      echo "passed $step" >> "$steps"
+                  elif [ -z "$clean" ]; then
+                      echo "$step: passed over work that $head does not have, so it is not kept"
+                      ran=76
+                      break
+                  fi
+                  ;;
               76)
                   ran=76
                   break
@@ -122,11 +137,13 @@
   A `no check:` line ends the block 1: nothing was checked, and it is no proof.
   The block adds `Checked: <the command> exit <its exit> at <the full head>` to the brief for a check that ran to its end on a committed head, which `jmerge` reads, and nobody writes that line by hand.
   It does so from the first head on, whether or not the brief has a Result yet, so the first head's check is on record too.
-  For a selected check the line reads `Checked: make check-fast BASE=<base> PART=touched exit <n> at <head>`, and the block prints each step as `<step>: exit <n> in <s> s, <lane> lane`, the step `lint`, a touched test file, a cross-cutting guard test file or a test file CI failed on.
+  For a selected check the line reads `Checked: make check-fast BASE=<base> PART=touched exit <n> at <head>`, and the block prints each step as `<step>: exit <n> in <s> s, <lane> lane`, the step `lint`, a touched test file, a cross-cutting guard test file, a test file CI failed on, or a line of the names part, its files joined by commas.
   The block's exit is the first step's failure where one failed, and it stops there; else 76 where steps are left or a lane had no slot; else 124 where a step reached no verdict even in a full slot; else 0.
   The steps after the guards are the test files CI failed on that the block of "The failed files" kept in the worktree's `crew-failed-files` and that are in the worktree, so a fix head's `Checked:` line says exit 0 only once they pass there.
   A name leaves that list once its step passed at a committed head.
   A step that passed at a committed head is kept in the worktree's `crew-check-steps` (`git rev-parse --git-path crew-check-steps`), and a run of the block at the same head and base skips it, so a wait for a slot, or a call cut at its time limit, never starts the check over.
+  A step is kept only where the worktree was clean when the block began and is still clean at that head when the step ends: a call moved to the background lets the crew edit while a step runs, and a step that passed over such an edit is no pass at the head.
+  The block prints `<step>: passed over work that <head> does not have, so it is not kept`, starts no further step, and ends 76 with no `Checked:` line and no `running:` line: commit or drop the work first, then run the block again.
   `jmerge` merges a pull request only once its last `Checked:` line says the desk's check (`PART=touched`, a `PART=guards` line of an earlier head, or another repo's `jgauge check`) exited 0 at its head, or at a head whose patch the head carries unchanged (`ready.short_on_checked`): a missing line, a failure, a 124 and a line of a head whose patch changed since each hold it, until this block runs again at the head.
   Give the call a time limit of 10 minutes (`timeout: 600000` in Claude Code), and never send it to the background: a call that outlives 10 minutes is moved to the background, and each step's end then wakes the thread.
   So the block counts the time since it began and starts no step with less than `reserve` (120 s, the short lane's limit) left of its `budget` (540 s).
@@ -156,17 +173,17 @@
   Claude Code holds a command that has `rm` in it, in a trap or an inner shell too, for an approval, even in full access ("This shell -c script runs rm and could not be checked"), and no crew can give its own: on 2026-11-07 five crews stalled for hours on the trap that removed the copy.
   Run the script as the block does, never its steps pasted into a call.
   Give the call a time limit of 10 minutes (`timeout: 600000` in Claude Code), and never send it to the background: a side that falls back to a full slot can take minutes on a busy machine.
-  The head's tests run at the head, then laid over a copy of the base's files with a venv of its own, so the base run imports the base's code and not the head's.
+  The head's tests run in a copy of the head the block began at, then laid over a copy of the base's files, each copy with a venv of its own, so the base run imports the base's code and not the head's, and an edit or a commit made in the worktree while the call runs reaches neither run.
   The head run and the base run share the one short slot the block gets, since a side that gave its slot back would find every slot taken on a busy machine when it asked again; a side the short lane stops at its limit (exit 124) runs again alone in a full slot, which has none, as a step of the check block does, and the block ends 76 only where it gets no slot.
   Each runs on pytest's workers where the tree's venv has pytest-xdist, on one process where it has not: the short lane's count (`SHORT_WORKERS` in `jgauge.sizes`) in a short slot, and a quarter of the processors, at least two, in a full one, never `-n auto`, which takes every processor beside the other slots' runs.
-  The copy is a clone of this repo in a temp directory, checked out at the base and sharing this repo's objects, not a git worktree: it is a repository of its own, so a test that runs git there reads the base, and it leaves `git worktree list` here as it was, whether the tests pass, fail or the call is cut off.
+  Each copy is a clone of this repo in a temp directory, checked out at its commit and sharing this repo's objects, not a git worktree: it is a repository of its own, so a test that runs git there reads that commit, and it leaves `git worktree list` here as it was, whether the tests pass, fail or the call is cut off.
   The block needs no `git worktree remove`, which the door hook refuses as a deletion of data (`deletes data`), refusing the whole call with it.
-  The script removes its copy when it exits, after a pass, a failure, a slot's 124 or a TERM that stops the call alike (a trap on `EXIT`), so no copy is left in the temp directory; a call killed outright, with KILL, leaves its copy there, as other scratch is left.
-  Where no copy can be made, as when the thread's `TMPDIR` is gone, it prints `no proof: no copy of the base could be made in <the directory>`, ends 1, and leaves the worktree on its branch.
+  The script removes both copies when it exits, after a pass, a failure, a slot's 124 or a TERM that stops the call alike (a trap on `EXIT`), so no copy is left in the temp directory; a call killed outright, with KILL, leaves its copies there, as other scratch is left.
+  Where a copy cannot be made, as when the thread's `TMPDIR` is gone, it prints `no proof: no copy of the base could be made in <the directory>` or `no proof: no copy of the head could be made in <the directory>`, ends 1, and leaves the worktree on its branch: run the block again with `TMPDIR` on a directory that exists (`TMPDIR=/tmp bash "$T/proved.sh" ...`).
   The files laid over it are the tests and what they lean on: every changed file under a `tests/` or `test/` directory, each `test_*.py` or `*_test.py`, and each `conftest.py`.
   A branch whose every changed file, a deleted one too, is such a file or of a kind `jbriefs.proved.EXEMPT` names (docs, config, listed below) changes no code: the base's code is the head's own, so its tests pass there as well and a base run proves nothing.
   A test made faster, split or cleaned up is such a branch, and so is a removal of tests with the doc that named them.
-  For it the block prints `tests only:`, makes no copy, runs the tests at the head alone, and prints `Proved: <tests> head exit <n> at <head>, tests only`; its `exempt` pattern matches the files `EXEMPT` covers.
+  For it the block prints `tests only:`, makes no copy of the base, runs the tests in the head's copy alone, and prints `Proved: <tests> head exit <n> at <head>, tests only`; its `exempt` pattern matches the files `EXEMPT` covers.
   `jmerge` takes that line only where every file the pull request changes is such a file, or of a kind `jbriefs.proved.EXEMPT` names (docs, config), and the head exit is 0 (`jbriefs.proved.TEST_FILE`): a change to code still needs its base run to fail.
   At the base a test that cannot import what the change adds counts as failed, not as a collection error (`--continue-on-collection-errors`).
   A slot run that ends 76 got no slot, as in "test slots": after a short-lane 76 run the block again at once, and after a full-lane 76 end the turn and wait for jbus's message.
@@ -174,6 +191,7 @@
   A side that ends 124 in the short lane prints `<side>: stopped at the short lane's limit, no verdict: it runs again alone in a full slot`, and the `Proved:` line is of the full slot's run; one that ends 124 there too reached no verdict, the run after it does not start, and the block prints `no proof: the slot's run ended 124`: run it again.
   It proves the change where the base run exits 1 and the head run exits 0, and only then: an exit 2, 4 or 5 at the base (an error, a usage fault, no test collected) or a 124 proves nothing.
   On anything else, fix the tests until they fail without the change, commit, and run it again.
+  A commit made, or an edit left in the worktree, while the call runs ends it with no `Proved:` line and exit 1, on `no proof: the head or the worktree moved while it ran: HEAD <head> is now <commit>` or `no proof: the head or the worktree moved while it ran: the worktree has changes: <files>`: commit the edit or drop it, then run the block again at the head as it is now.
   The `Proved:` line it prints goes, as printed, on the Result between `Proof:` and `Branch:`; once the brief has a Result, the block appends it itself.
   The line is of the head it ran at: a rebase or a merge of the base keeps it, and a push that changes the patch, a fix for a finding among them, runs the block again; the last `Proved:` line is the one `jmerge` reads.
   `jmerge` waits on a pull request that changes tests and whose Result has no `Proved:` line, one that does not name each test file it changes, one with a base exit other than 1 or a head exit other than 0, a `tests only` line, which has no base exit, where the pull request changes a file that is no test, docs or config, or one of a head whose patch the pull request's head no longer carries unchanged (`ready.short_on_proved`).
@@ -202,18 +220,28 @@
 
   ```sh
   B="$H/tasks/<slug>.md"
-  stacked=$(awk '/^## / {exit} /^Stacked on:/ {print; exit}' "$B")
-  if [ -n "$stacked" ]; then
-      printf '%s\n' "$stacked" | awk '{
-          if (NF == 4) print "base " $(4) ": the brief\047s Stacked on: line, stacked on " $(3) "\047s pull request"
-          else if (NF == 6 && $(5) == "at") print "base " $(4) ": the brief\047s Stacked on: line, moved onto " $(4) " once " $(3) " merged"
-          else print "no base: the brief\047s Stacked on: line is not Stacked on: <slug> <branch>, and only jbus writes it"
-      }'
-  elif base=$(git symbolic-ref -q --short refs/remotes/origin/HEAD); then
-      echo "base ${base#origin/}: the default branch, the brief has no Stacked on: line"
-  else
-      echo "no base: the brief has no Stacked on: line, and the remote's default branch is not known here"
-  fi
+  stacked=$(uv run --project "$T/../source" jbriefs line stacked "$B")
+  case $stacked in
+  '') echo "no base: jbriefs could not read the brief's Stacked on: line" ;;
+  malformed) echo "no base: the brief's Stacked on: line is not Stacked on: <slug> <branch>, and only jbus writes it" ;;
+  none)
+      if base=$(git symbolic-ref -q --short refs/remotes/origin/HEAD); then
+          echo "base ${base#origin/}: the default branch, the brief has no Stacked on: line"
+      else
+          echo "no base: the brief has no Stacked on: line, and the remote's default branch is not known here"
+      fi
+      ;;
+  *)
+      slug=${stacked%% *}
+      branch=${stacked#* }
+      branch=${branch%% *}
+      if [ "${stacked% at *}" != "$stacked" ]; then
+          echo "base $branch: the brief's Stacked on: line, moved onto $branch once $slug merged"
+      else
+          echo "base $branch: the brief's Stacked on: line, stacked on $slug's pull request"
+      fi
+      ;;
+  esac
   ```
 
   On `base <branch>`, open the pull request with `--base <branch>`, and with the label this prints.
@@ -236,6 +264,60 @@
 
   On `label cross-cutting`, open it with `--label cross-cutting` too.
   A pull request already open whose diff a later push makes touch two features gets it with `gh pr edit --add-label cross-cutting`, and the borders check reruns when it is labelled.
+  The pull request opens only on a head that merges cleanly into today's base: one opened on a base hours old is in conflict the moment it opens, and then waits on a rebase that races the next merge, as #1725 did, opened three hours behind main.
+  Run this in this worktree right before you open it, with the block at the top and `<branch>` the base it printed, and open it only where it prints `open it`:
+
+  ```sh
+  G=$(git rev-parse --git-dir)
+  B="$H/tasks/<slug>.md"
+  base='<branch>'
+  branch=$(git branch --show-current)
+  if [ -d "$G/rebase-merge" ] || [ -d "$G/rebase-apply" ]; then
+      echo "the rebase stopped: resolve these as A conflict says, then git rebase --continue"
+      git diff --name-only --diff-filter=U
+  elif [ -f "$G/crew-before-rebase" ]; then
+      echo "a rebase is not pushed yet: prove it and push it as A conflict says, then run this again"
+  elif stacked=$(uv run --project "$T/../source" jbriefs line stacked "$B" 2> /dev/null) && [ "$stacked" != none ] && { [ "${stacked% at *}" = "$stacked" ] || ! git merge-base --is-ancestor "${stacked##* }" HEAD 2> /dev/null; }; then
+      echo "open it: a link of a stack, jbus moves it onto its base's merge"
+  elif [ "origin/$base" != "$(git symbolic-ref -q --short refs/remotes/origin/HEAD)" ]; then
+      echo "open it: $base is the base of a link, and jbus moves a link"
+  elif ! git fetch -q origin "$base"; then
+      echo "not opened: could not fetch origin/$base"
+  else
+      tip=$(git rev-parse --short=12 "origin/$base")
+      said=$(git merge-tree --write-tree --name-only "origin/$base" HEAD)
+      merged=$?
+      files=$(printf '%s\n' "$said" | sed -n '2,/^$/p' | sed '/^$/d' | paste -sd' ' -)
+      pushed=$(git ls-remote origin "refs/heads/$branch" | cut -f 1)
+      if [ "$merged" -eq 0 ]; then
+          echo "open it: $(git rev-parse --short=12 HEAD) merges cleanly into origin/$base at $tip"
+      elif [ "$merged" -ne 1 ]; then
+          echo "not opened: git merge-tree could not merge origin/$base with the head"
+      elif [ -z "$pushed" ]; then
+          echo "not opened: origin has no $branch, so a rebase has no lease: push it with the first push block, then run this again"
+      elif ! git update-ref "refs/jstack/pre-rebase/<slug>/$(git rev-parse --short=12 HEAD)" HEAD; then
+          echo "not opened: could not keep the head under refs/jstack/pre-rebase, so no rebase"
+      else
+          echo "not opened: the head conflicts with origin/$base at $tip in $files: rebasing onto it first"
+          echo "$(git rev-parse HEAD) $base $pushed" > "$G/crew-before-rebase"
+          if out=$(git rebase -q "origin/$base" 2>&1); then
+              echo "rebased onto origin/$base: prove it and push it as A conflict says, then run this again"
+          elif [ -d "$G/rebase-merge" ] || [ -d "$G/rebase-apply" ]; then
+              echo "the rebase stopped: resolve these as A conflict says, then git rebase --continue"
+              git diff --name-only --diff-filter=U
+          else
+              uv run --project "$T/../source" jbus forget "$G/crew-before-rebase" > /dev/null
+              echo "the rebase did not start: $out"
+          fi
+      fi
+  fi
+  ```
+
+  It fetches the base each time, so it reads main as it is now and not as the worktree last saw it, and asks `git merge-tree` what GitHub's merge would: exit 0 is a head that merges cleanly, exit 1 a conflict.
+  On a conflict it starts the rebase of "A conflict", with its record and its `refs/jstack/pre-rebase` ref, so the rest is that section's: resolve the files with `jmerge --remake` for the generated ones, prove no line was lost, run the check block at the new head, and push with its lease.
+  Then run this again: main may have moved once more while you rebased, and the pull request opens on the first run that prints `open it`.
+  A link of a stack opens at once, since jbus moves it once its base merged ("A link that moved").
+  So does a link jbus already moved onto main, whose `Stacked on:` line ends `at <merge>`, until its head holds that merge: until then its branch holds its base's commits too, and a rebase onto main would replay them, as "A conflict" says, so the block reads the line by the same rule that section does.
   The first push of the branch is this block's, run in this worktree with the block at the top and the brief's slug in place of the words in angle brackets, before the pull request opens:
 
   ```sh

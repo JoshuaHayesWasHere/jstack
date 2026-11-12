@@ -141,6 +141,26 @@ def test_a_holder_killed_with_sigkill_frees_its_slot(slots):
     assert after.communicate(timeout=5) == ("ran\n", "")
 
 
+def gone(pid):
+    """No process has the pid, or only a zombie that waits for its parent to reap it."""
+    state = subprocess.run(["ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True)
+    return state.stdout.strip()[:1] in ("", "Z")
+
+
+@pytest.mark.parametrize("lane", [["--slots", "1"], ["--short"]])
+def test_a_holder_killed_with_sigkill_takes_its_command_with_it(slots, lane):
+    """The slot is free once its holder dies, so a command that lived on would share its slot,
+    and its temporary directory, with the next one. The command here is a grandchild of the
+    holder, as `uv run pytest` starts pytest."""
+    under = f'({RUNS_UNTIL_RELEASED}) & echo $! > "$D/pid.$1"; wait'
+    holder = slots(*lane, command=["sh", "-c", under, "sh", "a"])
+    assert slots.waits(lambda: slots.started() == ["a"])
+    pid = int((slots.state / "pid.a").read_text())
+    holder.send_signal(signal.SIGKILL)
+    assert holder.wait(timeout=5) == -signal.SIGKILL
+    assert slots.waits(lambda: gone(pid))
+
+
 def test_what_a_command_leaves_running_holds_no_slot(slots):
     left = f"({RUNS_UNTIL_RELEASED}) > /dev/null 2>&1 &"
     assert slots("--slots", "1", command=["sh", "-c", left, "sh", "a"]).wait(timeout=5) == 0

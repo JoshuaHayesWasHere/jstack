@@ -1,6 +1,6 @@
 ## Result
 Status: done | not done | blocked | paused
-Waits on: <the slug of each row not yet merged that the task waits on, nothing else>   <this line only for a paused Result that waits for other rows to merge: jbus tells this thread to carry on once the last of them merged, or, once this thread has ended, launches a new one on this branch and worktree>
+Waits on: <each merge the task waits on and that has not landed: a row by its slug, a pull request with no row by #<n>, nothing else>   <this line for a Result of any status that waits on a merge, a paused task's or one with a pull request open that waits to rebase, never prose on another line, which the brief lint refuses: jbus tells this thread to carry on once all of it merged, or, once this thread has ended, launches a new one on this branch and worktree>
 Done when: <each line, with holds or does not hold>
 Proof:
 - <a "Done when" line, in a few words>: <the command run and what it printed, or what was looked at>

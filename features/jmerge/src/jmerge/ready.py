@@ -10,10 +10,10 @@ from datetime import UTC, datetime
 from fnmatch import fnmatchcase
 from pathlib import Path
 
-from jbriefs import findings, meets, proved, skills
+from jbriefs import below, checked, findings, meets, proved, skills
 from jbriefs.findings import CLEANUP, NONE, REVIEW
+from jbriefs.stacked import Stacked
 from jmerge.rangediff import Verdict
-from jmerge.stacked import Stacked
 from jsettings import Settings
 
 _COMMIT = re.compile(r"[0-9a-f]{40}")
@@ -33,15 +33,19 @@ class Reason(str):
     puts the pull request on, and its code. The code is the fixed name a `wait` or `hold` line
     carries beside the text (`lines.waits`), the constant's name in kebab case, so a reader
     tells one reason from another without reading the text. `format` keeps the step and the
-    code, so a filled-in reason still says which one it is."""
+    code, so a filled-in reason still says which one it is. `earlier` holds each text the reason
+    had before it was reworded: a line `jmerge` wrote in it is still the reason's, so its code
+    and step outlive the rewording (tests/reason_wordings.txt keeps every wording)."""
 
     step: str
     code: str = ""
+    earlier: tuple[str, ...] = ()
 
-    def __new__(cls, step: str, text: str, code: str = "") -> Reason:
+    def __new__(cls, step: str, text: str, code: str = "", earlier: tuple[str, ...] = ()) -> Reason:
         made = super().__new__(cls, text)
         made.step = step
         made.code = code
+        made.earlier = earlier
         return made
 
     def format(self, *args: object, **kwargs: object) -> Reason:
@@ -52,10 +56,12 @@ class Reason(str):
         """The reason's text as a pattern, each field a value. It is made once for each reason:
         the view reads a step of every line of the logs, and making it on each read held each
         of its answers for seconds."""
-        return "".join(
-            re.escape(literal) + (_VALUE if name is not None else "")
-            for literal, name, _, _ in string.Formatter().parse(self)
-        )
+        return _pattern(self)
+
+    @functools.cached_property
+    def patterns(self) -> tuple[str, ...]:
+        """The pattern of the reason's text, then of each of its `earlier` texts."""
+        return (self.pattern, *(_pattern(text) for text in self.earlier))
 
     def fields(self, text: str) -> dict[str, str] | None:
         """The value of each field of the reason in `text`, a reason it made, or None for text
@@ -70,6 +76,13 @@ class Reason(str):
         )
         names = [name for _, name, _, _ in parts if name is not None]
         return dict(zip(names, found.groups(), strict=True)) if found else None
+
+
+def _pattern(text: str) -> str:
+    return "".join(
+        re.escape(literal) + (_VALUE if name is not None else "")
+        for literal, name, _, _ in string.Formatter().parse(text)
+    )
 
 
 def reasons() -> dict[str, Reason]:
@@ -92,12 +105,15 @@ def rules() -> tuple[tuple[str, str, str], ...]:
     """The `(code, step, pattern)` of each reason `jmerge` writes, in the order `code_of` tries
     them: `ELSEWHERE` first, then each `Reason` in the order this module declares it, those whose
     text starts with a field (`<check> has failed`) after the rest. Each pattern matches from the
-    start of the reason. `ELSEWHERE` comes first so that the plain text of a reason no `Reason`
+    start of the reason, and a reason has one for its text and one for each `earlier` text.
+    `ELSEWHERE` comes first so that the plain text of a reason no `Reason`
     made is on its own step, and a field comes last since it matches the start of any text: a
     refused merge whose error says `the required check has failed` is `BASE_MERGE_REFUSED`'s,
     not `CHECK_FAILED`'s."""
     named = sorted(reasons().values(), key=lambda one: one.pattern.startswith(_VALUE))
-    return ELSEWHERE + tuple((one.code, one.step, "^" + one.pattern) for one in named)
+    return ELSEWHERE + tuple(
+        (one.code, one.step, "^" + pattern) for one in named for pattern in one.patterns
+    )
 
 
 def code_of(why: str) -> str:
@@ -170,31 +186,43 @@ PROVED_STALE = Reason(
 )
 _RUN_THE_BLOCK = (
     "the crew's check block (features/crew/do-the-task.md), which runs `make check-fast "
+    "PART=touched`, the lint, the touched tests, the cross-cutting tests and the tests that read "
+    "the change, and writes its line (a `PART=guards` line of an earlier head binds too)"
+)
+_RAN_THE_BLOCK = (
+    "the crew's check block (features/crew/do-the-task.md), which runs `make check-fast "
     "PART=touched`, the lint, the touched tests and the repo-guards tests, and writes its line "
     "(a `PART=guards` line of an earlier head binds too)"
 )
-CHECKED_MISSING = Reason(
-    "result", f"its brief has no Checked: line: {_RUN_THE_BLOCK}, runs at {{head}} and writes it"
+"""`_RUN_THE_BLOCK` in its words from before #1715, which the lines of the five reasons below
+written before it carry."""
+
+
+def _checked(text: str) -> Reason:
+    """A reason on the result step whose `<block>` names the crew's check block: in today's
+    words, and in the words from before #1715 as its earlier text."""
+    return Reason(
+        "result",
+        text.replace("<block>", _RUN_THE_BLOCK),
+        earlier=(text.replace("<block>", _RAN_THE_BLOCK),),
+    )
+
+
+CHECKED_MISSING = _checked("its brief has no Checked: line: <block>, runs at {head} and writes it")
+CHECKED_STALE = _checked(
+    "its last Checked: line is of {at}, and its patch changed after it: <block>, runs again at "
+    "{head}"
 )
-CHECKED_STALE = Reason(
-    "result",
-    f"its last Checked: line is of {{at}}, and its patch changed after it: {_RUN_THE_BLOCK}, "
-    "runs again at {head}",
+CHECKED_CUT = _checked(
+    "its last Checked: line ends 124 at {at}, a time limit, which is no pass: <block>, runs "
+    "again at {head}"
 )
-CHECKED_CUT = Reason(
-    "result",
-    "its last Checked: line ends 124 at {at}, a time limit, which is no pass: "
-    f"{_RUN_THE_BLOCK}, runs again at {{head}}",
+CHECKED_FAILED = _checked(
+    "its last Checked: line ends {exit} at {at}, a failure: fix it, and <block>, runs again at "
+    "{head}"
 )
-CHECKED_FAILED = Reason(
-    "result",
-    f"its last Checked: line ends {{exit}} at {{at}}, a failure: fix it, and {_RUN_THE_BLOCK}, "
-    "runs again at {head}",
-)
-CHECKED_PART = Reason(
-    "result",
-    f"its last Checked: line names {{command}}, not the desk's check: {_RUN_THE_BLOCK}, runs "
-    "at {head}",
+CHECKED_PART = _checked(
+    "its last Checked: line names {command}, not the desk's check: <block>, runs at {head}"
 )
 NO_VERDICT = Reason("review", "its review has no verdict")
 NO_FIXED = Reason("findings", "its findings are not handled: the Result has no Fixed line")
@@ -688,8 +716,8 @@ def brief_of(url: str, tasks: Path) -> Path | None:
         except OSError:
             continue
         for line in lines:
-            fields = _fields(line)
-            if fields and fields[0] == "Branch:" and fields[-1] == url:
+            found = below.pull(line) if line.startswith("Branch:") else None
+            if found and found.url == url:
                 return task
     return None
 
@@ -800,9 +828,9 @@ def said_of(text: str) -> Said:
             said.fixed, fixed_at = fixed, at
         if line.startswith(("Second pass:", "Scoped review:")) and 0 <= first < at:
             said.decided = True
-        checked = _checked(line)
-        if checked:
-            said.checked[checked[2]] = checked[1]
+        ran = checked.read(line)
+        if ran:
+            said.checked[ran.head] = ran.exit
         if line.startswith("Scoped review:"):
             fields = _fields(line)
             said.owed = fields[2:3] == ["needed"] and fields[5:] != ["guarded"]
@@ -1070,37 +1098,17 @@ def proves(
     )
 
 
-_CHECK_LINE = re.compile(r"Checked: (.+) exit (\d+) at ([0-9a-f]{40})")
-_TWO_STEP = re.compile(
-    r"Checked: (make check-fast BASE=([0-9a-f]{40})(?: PYTEST=:)? PART=guards) exit (\d+) "
-    r"\(took \d+ s\), then the import-reached remainder, where exit 124 is the short lane's "
-    r"time limit and passes: make check-fast BASE=\2 PART=rest exit (\d+) at ([0-9a-f]{40})"
-)
-"""The two-step line the crew's check block once wrote: the guards in a full test slot, then the
-rest the change reaches in the short lane, whose 124 is that lane's time limit and passes, since
-CI's check runs the rest in full."""
 _DESK_CHECK = re.compile(
     r"make check-fast BASE=[0-9a-f]{40} PART=touched"
     r"|make check-fast BASE=[0-9a-f]{40}(?: PYTEST=:)? PART=guards|jgauge check"
 )
-"""The commands of a `Checked:` line that are a desk's whole check, as the crew's check block
-runs them: the lint, the touched tests and the repo-guards tests of a repo whose check selects its
-tests (`PART=touched`, each step in the short lane and a step it stops again in a full slot, so
-its 124 is no verdict), the guards the block ran before 2026-11-05 (`PYTEST=:` where the selection
-was none or all, lint only), and another repo's check command (`jgauge check`). A line of the
-`PART=rest` alone is none of them; the two-step line reads as its guards (`_checked`)."""
-
-
-def _checked(line: str) -> tuple[str, str, str] | None:
-    """The command, exit and head of a `Checked:` line, or None. A two-step line (`_TWO_STEP`)
-    reads as its guards: their exit where it is not 0, and else 0 where the rest exited 0 or
-    the short lane's 124, the rest's exit where it is another."""
-    two = _TWO_STEP.fullmatch(line.strip())
-    if two:
-        guards, _, first, rest, at = two.groups()
-        return guards, rest if first == "0" and rest not in ("0", "124") else first, at
-    one = _CHECK_LINE.fullmatch(line.strip())
-    return (one[1], one[2], one[3]) if one else None
+"""The commands of a `Checked:` line that are a desk's whole check, as the crew's check block runs
+them: the lint, the touched tests, the cross-cutting tests and the tests that read the change of
+a repo whose check selects its tests (`PART=touched`, each step in the short lane and a step it
+stops again in a full slot, so its 124 is no verdict), the guards the block ran before 2026-11-05
+(`PYTEST=:` where the selection was none or all, lint only), and another repo's check command
+(`jgauge check`). A line of the `PART=rest` alone is none of them; the two-step line reads as its
+guards (`jbriefs.checked`)."""
 
 
 def short_on_checked(
@@ -1110,14 +1118,14 @@ def short_on_checked(
     The line binds where it names a desk's whole check (`_DESK_CHECK`) that exited 0 at `head`,
     or at a head whose patch `head` carries unchanged (`carries`, as `short_on_proved` reads
     it). Every exit but 0 holds, a time limit's 124 too: a check cut short reached no verdict.
-    A two-step line binds as its guards' step (`_checked`): the rest's 124 in the short lane
+    A two-step line binds as its guards' step (`jbriefs.checked`): the rest's 124 in the short lane
     holds nothing, and the guards' own exit other than 0 holds as it would alone.
     The crew's push block asks this before the first push, with no head carried, and `jmerge`
     before a merge."""
-    lines = [found for line in text.splitlines() if (found := _checked(line))]
-    if not lines:
+    found = checked.last(text)
+    if found is None:
         return CHECKED_MISSING.format(head=head[:12])
-    command, ran, at = lines[-1]
+    command, ran, at = found.command, found.exit, found.head
     if at != head and not carries(at):
         return CHECKED_STALE.format(at=at[:12], head=head[:12])
     if ran == "124":
@@ -1443,8 +1451,13 @@ def short_on_content(verdict: Verdict | None) -> str:
 
 
 def short_on_github(one: PullRequest) -> str:
+    """What GitHub holds against the pull request, or nothing. GitHub runs no check on a pull
+    request that conflicts with its base, so a required check with no run at a conflicting head
+    is said as the conflict that keeps it from running (`CONFLICTS`): #1694 and every other open
+    statechart pull request read `check has no run` while each was CONFLICTING."""
     if one.waiting and one.waiting[0] in one.unrun:
-        return NO_RUN.format(check=one.waiting[0], head=one.head[:12])
+        unrun = NO_RUN.format(check=one.waiting[0], head=one.head[:12])
+        return CONFLICTS if one.mergeable == "CONFLICTING" else unrun
     if one.waiting and (state := dict(one.live).get(one.waiting[0])):
         return LIVE_RUN.format(check=one.waiting[0], head=one.head[:12], state=state)
     if one.waiting:

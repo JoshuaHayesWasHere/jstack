@@ -1,7 +1,9 @@
 """The green move as a TLA+ spec, `features/jbus/spec/GreenMove.tla`: with a pass that can die
 between any two steps, TLC finds that the tool runs the tree the link names and the layouts follow
-it once no step is owed, that no reload is owed for a tip whose move went back, and that a canary
-which keeps no owed step in green.json, or goes back owing no install, breaks them.
+it once no step is owed, that no reload is owed for a tip whose move went back, that the copy never
+runs a tip that does not import, and that `live` names only a tip whose units the manager took.
+Each canary breaks the rule that rests on its guard: one that keeps no owed step in green.json,
+goes back owing no install, moves with no import, or stamps `live` over a refusal.
 The TLC runs skip where no Java runs TLC."""
 
 import importlib
@@ -23,14 +25,18 @@ JAVA = pytest.mark.skipif(not tools.find_java(), reason="no Java to run TLC")
 
 
 def tlc(cfg: str) -> subprocess.CompletedProcess:
-    """TLC's run of GreenMove.tla with the config `cfg`, in a copy of the spec's folder. A copy
-    at main's last tip has no step left to take, so TLC is not asked to find deadlocks."""
+    """TLC's run of GreenMove.tla with the config `cfg`, in a copy of the spec's folder. A copy at
+    main's last tip has no step left to take, so TLC is not asked to find deadlocks. Java's tmpdir
+    is the run's own too: TLC writes Naturals.tla and the other standard modules there under fixed
+    names, and a run that shares /tmp can parse one while another rewrites it."""
     found = tools.find_tlc()
     with tempfile.TemporaryDirectory(prefix="greenmove-") as folder:
         work = Path(folder)
+        (work / "tmp").mkdir()
         shutil.copy(SPEC / "GreenMove.tla", work)
         (work / "run.cfg").write_text(cfg)
-        command = [found.java, "-Xmx512m", "-cp", found.jar, "tlc2.TLC", "-workers", "1"]
+        command = [found.java, f"-Djava.io.tmpdir={work / 'tmp'}"]
+        command += ["-Xmx512m", "-cp", found.jar, "tlc2.TLC", "-workers", "1"]
         command += ["-deadlock", "-metadir", str(work / "meta"), "-config", "run.cfg"]
         return subprocess.run(
             tools.in_test_slot([*command, "GreenMove.tla"]),
@@ -75,3 +81,21 @@ def test_a_move_that_goes_back_owing_only_a_relink_breaks_the_rule(rule):
     ran = canary("no-back", rule)
     assert ran.returncode != 0
     assert f"Invariant {rule} is violated" in ran.stdout, ran.stdout[-4000:]
+
+
+@JAVA
+def test_a_move_that_does_not_import_the_tip_first_breaks_the_rule():
+    """The canary, `Fault = "no-import"`: `_advance` points the link at a tip whose commands do
+    not import, so the copy runs a main that breaks the commands that would revert it."""
+    ran = canary("no-import", "CopyImports")
+    assert ran.returncode != 0
+    assert "Invariant CopyImports is violated" in ran.stdout, ran.stdout[-4000:]
+
+
+@JAVA
+def test_a_stamp_over_a_refused_unit_breaks_the_rule():
+    """The canary, `Fault = "stamp-refused"`: `_live` stamps `live` where the manager refused a
+    step, so no later pass asks for the units of that tip again."""
+    ran = canary("stamp-refused", "StampTrue")
+    assert ran.returncode != 0
+    assert "Invariant StampTrue is violated" in ran.stdout, ran.stdout[-4000:]

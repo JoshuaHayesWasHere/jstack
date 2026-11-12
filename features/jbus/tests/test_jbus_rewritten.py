@@ -37,7 +37,7 @@ def written(kitchen):
 
 def test_a_brief_that_only_grows_tells_its_crew_nothing(written, kitchen):
     """The head above the first `## ` is the home's and jbus's, which write lines into it in
-    place (`watch._add_tip`, `dispatch.write_thread`), and the crew skill sets a `Fixed:` line to
+    place (`watch._add_tip`, `crewthread.move`), and the crew skill sets a `Fixed:` line to
     its new head in place, so only the rest of the sections must grow."""
     written.write_text(written.read_text() + "Fixed: " + "a" * 40 + "\n")
     kitchen.poll(NOW - timedelta(minutes=15))

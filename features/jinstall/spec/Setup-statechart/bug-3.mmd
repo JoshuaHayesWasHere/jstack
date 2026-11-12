@@ -1,0 +1,35 @@
+---
+title: "Does an uninstall or an expert's takeover leave anything behind?, bug 3"
+config:
+  markdownAutoWrap: false
+  state:
+    useMaxWidth: false
+---
+stateDiagram-v2
+  classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef plainPath fill:#f4f6f7,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  state "Legend" as legend {
+    state "Wrong today" as legendWrong
+  }
+  class legendWrong plainWrong
+  state "Nothing of jstack's on<br/>disk" as g0 {
+    state "Expert in thread 1<br/>starting, a webhook no<br/>record names" as s0
+    state "Expert in thread 1<br/>starting, its webhook<br/>kept, posting into thread<br/>1, its address not kept<br/>yet" as s1
+    state "Expert in thread 1<br/>starting, no webhook" as s2
+    state "Expert in thread 1, its<br/>webhook kept, posting into<br/>thread 1, its address lost" as s3
+    state "Expert in thread 1, its<br/>webhook kept, posting into<br/>thread 1, its address<br/>lost, its turn stopped" as s4
+    state "No expert yet" as s5
+  }
+  [*] --> s5
+  s5 --> s2 : 1. you start the expert in<br/>thread 1
+  s2 --> s0 : 2. T3 Code makes a webhook<br/>into this thread
+  s0 --> s1 : 3. it keeps the new webhook
+  s1 --> s4 : 4. the turn stops
+  s4 --> s1 : 5. you start the expert in<br/>thread 1
+  s1 --> s3 : 6. it finds its own webhook<br/>kept
+  class s0 plainPath
+  class s1 plainPath
+  class s2 plainPath
+  class s3 plainWrong
+  class s4 plainPath
+  class s5 plainPath

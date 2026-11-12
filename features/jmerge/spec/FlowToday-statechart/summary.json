@@ -28,53 +28,63 @@
   },
   "modelStates": 973396,
   "modelTransitions": 5993744,
-  "chartStates": 69,
-  "chartTransitions": 68,
+  "chartStates": 71,
+  "chartTransitions": 96,
+  "allTransitions": 11304,
+  "final": [],
   "chartStatus": {
-    "works": 69,
+    "works": 71,
     "wrong": 0,
     "fixed": 0
   },
   "chartGroups": [
     {
-      "name": "Done",
-      "color": "#d1f2eb",
-      "states": 1
+      "name": "Main green, a row waits to launch",
+      "color": "#eaf2f8",
+      "states": 12
     },
     {
-      "name": "Moving",
-      "color": "#e8eef9",
-      "states": 42
+      "name": "Main green, a check runs",
+      "color": "#d6eaf8",
+      "states": 7
+    },
+    {
+      "name": "Main green, both past their checks, at the merge",
+      "color": "#aed6f1",
+      "states": 10
+    },
+    {
+      "name": "Both merged",
+      "color": "#d1f2eb",
+      "states": 2
+    },
+    {
+      "name": "Main green, a pull request still red from main's break",
+      "color": "#fcf3cf",
+      "states": 6
+    },
+    {
+      "name": "Main red, jbus reruns and judges it",
+      "color": "#fdebd0",
+      "states": 7
+    },
+    {
+      "name": "Main red, its fix row filed",
+      "color": "#f8c471",
+      "states": 10
+    },
+    {
+      "name": "Main red, its fix waits for its check",
+      "color": "#f5cba7",
+      "states": 5
+    },
+    {
+      "name": "Main red, its fix waits to merge",
+      "color": "#f5b7b1",
+      "states": 12
     }
   ],
-  "mixedGroups": [
-    "Main green: 1 its row held, 1 merged",
-    "Main green: 1 its row held, 1 passed, its row held",
-    "Main green: 1 its row held, 1 passed, merges after the other",
-    "Main green: 1 its row held, 1 passed, waiting on your word",
-    "Main green: 1 its row held, 1 waiting to launch",
-    "Main green: 1 merged, 1 passed, its row held",
-    "Main green: 1 merged, 1 passed, waiting on your word",
-    "Main green: 1 passed, its row held, 1 passed, merges after the other",
-    "Main green: 1 passed, its row held, 1 passed, stacked on the other",
-    "Main green: 1 passed, its row held, 1 passed, waiting on your word",
-    "Main green: 1 passed, its row held, 1 red only from main's break",
-    "Main green: 1 passed, merges after the other, 1 passed, waiting on your word",
-    "Main green: 1 passed, stacked on the other, 1 passed, waiting on your word",
-    "Main green: 1 passed, waiting on your word, 1 red only from main's break",
-    "Main green: 2 its row held",
-    "Main green: 2 passed, its row held",
-    "Main green: 2 passed, waiting on your word",
-    "Main red from a merge: 1 merged, 1 passed, holds main's fix, waiting to merge",
-    "Main red from merges: 1 merged, 1 passed, holds main's fix, waiting to merge",
-    "Main red from outside: 1 its row held, 1 passed, holds main's fix, waiting to merge",
-    "Main red from outside: 1 merged, 1 passed, holds main's fix, waiting to merge",
-    "Main red from outside: 1 passed, holds main's fix, waiting to merge, 1 passed, its row held",
-    "Main red from outside: 1 passed, holds main's fix, waiting to merge, 1 passed, merges after the other",
-    "Main red from outside: 1 passed, holds main's fix, waiting to merge, 1 passed, stacked on the other",
-    "Main red from outside: 1 passed, holds main's fix, waiting to merge, 1 passed, waiting on your word",
-    "Main red from outside: 1 passed, holds main's fix, waiting to merge, 1 red only from main's break"
-  ],
+  "mixedGroups": [],
   "regions": {
     "drawn": false,
     "why": "the regions do not combine into the flat chart, with 5939 difference(s), such as states only in EXPECTED (no path from the start reaches them in the spec, or the spec renamed them): Main green | 1 holds main's fix, red from its own break, 1 merged"
@@ -90,9 +100,9 @@
       "FlowDesign.cfg": "b6967b1301d5fe88460ce5c0488881755fddc904654f6098018ff516ccc0f870",
       "FlowDesign.tla": "5d313ef072f071f86f9a319bd317941b0593fa52b7588e2e82350162e809c1a8",
       "FlowToday.chart.cfg": "0c2e0c0bb2b62bac048928b2f9420a1d3fb06f49d91efabba997f5c73694c9b6",
-      "FlowToday.map.py": "a746f326d97f871e519d34c3d0b05ffe2f267c4ddef5014dd72c515c604a87e4",
-      "FlowToday.tla": "ff9571fe90c6a7932f59973d24a8d9b8b0177817ed9345b3941adebea9a2f396"
+      "FlowToday.map.py": "4d5c34df093020c5ddd8281c500b544e4a5da037b138028deab40486844fe32c",
+      "FlowToday.tla": "0a497d59cabb4fc2f0fcee50a6ba180a48d1c9bbe6a179fd3c5a1d69b3f4fa3a"
     },
-    "chart": "8017614fdd4e67b96a29b793d50752e32ad11718421fb08147ce416c807a0311"
+    "chart": "df85461590f624c96038ecaa99f95b34eb8633a1651aae0ca7a9fe744d0d8494"
   }
 }

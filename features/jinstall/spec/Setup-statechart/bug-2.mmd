@@ -1,0 +1,34 @@
+---
+title: "Does an uninstall or an expert's takeover leave anything behind?, bug 2"
+config:
+  markdownAutoWrap: false
+  state:
+    useMaxWidth: false
+---
+stateDiagram-v2
+  classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef plainPath fill:#f4f6f7,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  state "Legend" as legend {
+    state "Wrong today" as legendWrong
+  }
+  class legendWrong plainWrong
+  state "Nothing of jstack's on<br/>disk" as g0 {
+    state "Expert in thread 1<br/>starting, a webhook no<br/>record names" as s0
+    state "Expert in thread 1<br/>starting, no webhook" as s1
+    state "Expert in thread 1, a<br/>webhook no record names,<br/>its turn stopped" as s2
+    state "Expert in thread 2<br/>starting, a webhook no<br/>record names" as s3
+    state "Expert in thread 2<br/>starting, two webhooks<br/>live" as s4
+    state "No expert yet" as s5
+  }
+  [*] --> s5
+  s5 --> s1 : 1. you start the expert in<br/>thread 1
+  s1 --> s0 : 2. T3 Code makes a webhook<br/>into this thread
+  s0 --> s2 : 3. the turn stops
+  s2 --> s3 : 4. you start the expert in<br/>thread 2
+  s3 --> s4 : 5. T3 Code makes a webhook<br/>into this thread
+  class s0 plainPath
+  class s1 plainPath
+  class s2 plainPath
+  class s3 plainPath
+  class s4 plainWrong
+  class s5 plainPath

@@ -174,13 +174,13 @@ Then the run acts on the verdict: it merges, the guards fail on its tree over ma
 A crew's fix may fail its check again, and jbus counts each head at which the check failed on a change of its own: at the third it holds the row and pages you (`jbus.stall.twice`, `check failed twice`), and the outbox tells a held row's crew nothing until your approve, or a check that passes at a head, lifts the hold.
 At the second it holds the row too where the failed jobs' logs name no failed test; where they name some, the crew is told of them and fixes once more, so the model's count jumps from one to the limit, or steps to two, as the second head's logs name no test or some (st-stall-acts).
 Each condition quotes its code with no line number, and `features/jmerge/tests/test_pr_verdict_spec.py` finds each quote once in its file.
-It models the verdict as of main 21112eba8 and jbus's hold as of st-stall-acts, and came in with st-pr, the pull request chart of the scout st-map; st-verdict-live widened its rule to every open pull request.
+It models the verdict as of main 21112eba8 and jbus's hold as of main 8644c5324 and st-stall-acts, and came in with st-pr, the pull request chart of the scout st-map; st-verdict-live widened its rule to every open pull request.
 
 The rule, `MergesOrWaitsOnYou`: "every open pull request merges or waits on the user's word".
 It has two halves: a merge leaves no hold of yours outstanding but those your accept lifted at its head (`MergesOnlyOnYourWord`), and every open pull request, from its first state, goes on to merge or to wait on your word, so no path waits for ever on its crew, its reviewer, GitHub, a check or jmerge.
 It waits on your word where jmerge holds it for you, or where jbus held its row and paged you, which your approve lifts whatever jmerge says of it.
 The second half is a leads-to under weak fairness of every step that happens by itself, and not an invariant on settled states, since one canary's break is a loop with no settled state: a batch of one that fails, and takes the pull request again at the same head.
-Your word has no fairness, and other work moves main at most `Moves` times.
+Your word has no fairness, and other work moves main at most `Moves` times, once in `PrVerdict.cfg`: with two moves, today's run took over 600 s on CI, past the spec test's timeout, and every canary breaks with one.
 
 `pr_canaries.py` runs TLC on today's code and on ten canaries, each the code with one hold taken out (`Drop`):
 
@@ -193,17 +193,17 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --p
 At st-stall-acts's head it prints:
 
 ```text
-ok    today: MergesOrWaitsOnYou holds (2234185 distinct states found, 126.4 s)
-ok    canary go: MergesOrWaitsOnYou breaks (74432 distinct states found, 2.7 s)
-ok    canary touches: MergesOrWaitsOnYou breaks (74435 distinct states found, 2.6 s)
-ok    canary declines: MergesOrWaitsOnYou breaks (74435 distinct states found, 2.5 s)
-ok    canary mergeoff: MergesOrWaitsOnYou breaks (74432 distinct states found, 2.6 s)
-ok    canary head: MergesOrWaitsOnYou breaks (1598730 distinct states found, 55.4 s)
-ok    canary release: MergesOrWaitsOnYou breaks (1892609 distinct states found, 66.2 s)
-ok    canary rejudge: MergesOrWaitsOnYou breaks (1747408 distinct states found, 66.8 s)
-ok    canary again: MergesOrWaitsOnYou breaks (1855854 distinct states found, 69.4 s)
-ok    canary batch-failed: MergesOrWaitsOnYou breaks (1858743 distinct states found, 68.3 s)
-ok    canary twice: MergesOrWaitsOnYou breaks (1850892 distinct states found, 66.9 s)
+ok    today: MergesOrWaitsOnYou holds (787124 distinct states found, 41.2 s)
+ok    canary go: MergesOrWaitsOnYou breaks (58787 distinct states found, 2.3 s)
+ok    canary touches: MergesOrWaitsOnYou breaks (58797 distinct states found, 2.4 s)
+ok    canary declines: MergesOrWaitsOnYou breaks (58793 distinct states found, 2.4 s)
+ok    canary mergeoff: MergesOrWaitsOnYou breaks (58785 distinct states found, 2.1 s)
+ok    canary head: MergesOrWaitsOnYou breaks (623091 distinct states found, 23.6 s)
+ok    canary release: MergesOrWaitsOnYou breaks (787112 distinct states found, 31.1 s)
+ok    canary rejudge: MergesOrWaitsOnYou breaks (1082944 distinct states found, 51.5 s)
+ok    canary again: MergesOrWaitsOnYou breaks (780708 distinct states found, 44.2 s)
+ok    canary batch-failed: MergesOrWaitsOnYou breaks (786059 distinct states found, 44.4 s)
+ok    canary twice: MergesOrWaitsOnYou breaks (819484 distinct states found, 42.8 s)
 every run says what it should
 ```
 
@@ -217,7 +217,7 @@ jbus tells the crew of a conflict from GitHub's `CONFLICTING` whatever jmerge sa
 The first run of the widened rule found a pull request that merged past jbus's hold: the crew's fix went out before the hold, a third head passed and joined the batch, and the hold landed while the batch's check ran.
 The code has no such order: a pass runs its tellers, `stall.twice` among them, before the steps after expedite, where `rebase.github` tells the crew of the failed check, so the row is held in the pass that counts its last failed head before its crew hears of it, and the model's crew gets no fix while a count at the limit waits for its hold.
 jbus's hold is the one wait on you that jmerge words as its crew's: with the check failed, jmerge says `check has failed`, as GitHub's waits come before the row's go, while the outbox holds the crew's fix until your approve or a head whose check passes.
-The row says `check failed twice` and jbus pages you once; the chart draws the state in "Waits on your word" as `its check failed, and held: its check failed twice`.
+The row says `check failed twice` and jbus pages you once; the chart draws the state in "Waits on your word" as `held: its check failed twice`, whatever jmerge last said, with your approve as its way out.
 
 ## Draw the chart
 
@@ -230,8 +230,8 @@ W=$(mktemp -d) && cp features/jmerge/spec/PrVerdict.* "$W"
 ```
 
 Run it from the repo root, and copy the files of `$W/out`, but its `tlc/`, into `PrVerdict-statechart/`.
-`PrVerdict.chart.cfg` moves main once (787,124 model states since st-stall-acts, about two minutes), and `PrVerdict.map.py` labels each state by main and what jmerge last said, and a row jbus held for its failed checks as held.
-The chart has 22 states and 29 steps, and no state breaks the rule.
+`PrVerdict.chart.cfg` moves main once (787,124 model states since st-stall-acts, about two and a half minutes), and `PrVerdict.map.py` labels each state by main and what jmerge last said, and a row jbus held for its failed checks as held.
+The chart has 20 states and draws 54 of its 142 steps, at least one way out of each state but merged, and no state breaks the rule.
 Then draw its Excalidraw file and the charts page again, from the repo root:
 
 ```sh
@@ -254,3 +254,64 @@ each with `UV_PROJECT_ENVIRONMENT` and `uv run --frozen --project "$S"` in front
 - A head jbus counts for nothing besides one over main's red: a flake shared with two other branches and an infra step's failure (`jbus.stall.shared`, `infra`).
 - Your own hold of a row (`jbus queue hold`): `nogo` stands for it and for a row with no go, whose crew the outbox still tells, so the model's crew is told of both, and with no hold of yours `queue.lift`'s refusal of a row held again since is left out too.
 - Whose your accept is: the bus's doors and `--message` (`Repo.accept`).
+
+# A run of jmerge the pass started: MergeRun.tla
+
+`MergeRun.tla` follows one run of `jmerge` that jbus's pass starts, as the code of main aa5469d97 takes it, with a death at each step.
+The pass (`jbus.merge.merge`) writes a start stamp and starts a detached process (`keep`), which holds `going.lock`, runs `jmerge --if-free` and writes what it printed to `ran-<at>.json`.
+The next pass reads each record: it sends its lines (`_judged`), counting the run on the jmerge streak once for the record's `at`, then replaces `ran-<at>.json` with `read.json`.
+Inside, `jmerge` holds the repo's run lock and goes in the order of `jmerge.cli`: `Repo.open_only` settles the restarts a run left owed, `Repo.start_batch` reads where the batch stands, the judge loop restarts a pull request whose run GitHub left queued (`Repo.unstuck`) or merges one and closes its wait spell, and `Repo.batched` merges a proven batch or builds the next.
+The merge tick runs `jmerge --if-free` too.
+Each carrier of the st-state-ledger ledger's MergeRun rows (B-059 to B-063, C-023, C-029, C-031, C-033, C-043, C-044) has its variable, whose comment quotes the code that writes it.
+The batch's state is `batch.state_of`'s six values, with the three PrVerdict.batch lacks: proven, late and rerun.
+`features/jmerge/tests/test_merge_run_spec.py` finds each quote once in its file, checks each carrier has its variable, and runs TLC on each config and on each rule alone.
+
+The constant `Inside` names the parts of jmerge's run a config follows (restart, batch, waits).
+The parts share nothing but the run lock and a death, and all of them together with two pass runs is past 58M states, so each config follows the parts its rules read.
+`Fault = "judge-first"` is today's code; each other value changes one thing of it: `replace-first` replaces the record before it sends the lines, `unkeyed` sends them first with no key on the streak, `fresh-list` reads whether a pull request is open from GitHub in the run, `no-run-lock` is the canary of `OneRunAtATime`, and `unlink-first` is the start stamp as it was before the stamp named its run, the canary of `NoFalseNoRecord` and `DeathTold`.
+`ReplyLost` is the world: GitHub took a close whose reply gh lost.
+
+## The rules of the run, and today's verdicts
+
+| Rule | Config | Today | Notes |
+|---|---|---|---|
+| `RunHeard`: every run's lines are judged once | `MergeRun.cfg` | holds | the lines are sent before the replace; `replace-first` breaks it: the pass replaces the record, then dies before `_judged` |
+| `StreakOnce`: the jmerge streak counts each run once | `MergeRun.cfg` | holds | the streak counts a run once for its record's `at`; `unkeyed` breaks it: a pass that dies after `_judged` and before the replace counts the run twice |
+| `NoFalseNoRecord`: "ended with no record" only of a run with none | `MergeRun.cfg` | holds | a record that names the stamp is no death, and a run slower than STARTING finds its stamp moved aside and runs nothing; `unlink-first` breaks it |
+| `DeathTold`: a run that died with no record is told | `MergeRun.cfg` | holds | the pass moves the stamp to `died` before it tells, and removes `died` after, and a run removes only its own stamp; `unlink-first` breaks it |
+| `OneRunAtATime`: no two runs hold the repo | `MergeRun.cfg` | holds | `no-run-lock` breaks it: `going.lock` alone lets a run outlive its process |
+| `RestartReopens`: a pull request jmerge closed to restart is reopened or the user is told | `MergeRun.restart.cfg` | breaks | a close whose reply gh lost keeps a refusal that owes no reopen; and with no reply lost, a pass's list read before the tick closed it marks its reopen `took`; `fresh-list` holds it |
+| `WaitLoggedOnce`: a merged pull request's wait is logged once | `MergeRun.waits.cfg` | holds | `Spells.merged` runs only at the merge; `log-on-sweep` breaks it: a run that died between the append and the drop leaves a spell the sweep logs again |
+| `WaitKept`: a merged pull request's wait is logged | `MergeRun.waits.cfg` | breaks | jmerge dies between the squash and `Spells.merged`; a batch squashes every member before any is said |
+| `BatchMergedOnce` | `MergeRun.batch.cfg` | holds | a crash after the squashes leaves `state_of` none, since main moved |
+
+```sh
+cd features/jmerge/spec
+java -cp ~/.cache/jstack/tla2tools/1.7.4/tla2tools.jar tlc2.TLC -config MergeRun.cfg MergeRun.tla
+```
+
+Run it in a copy of this folder, since TLC writes `states/` where it runs.
+Each config's comment keeps TLC's verdict and the trace it prints.
+
+## Draw the chart of the run
+
+```sh
+S=$PWD/features/skill-library/skills/statechart/scripts
+W=$(mktemp -d) && cp features/jmerge/spec/MergeRun.* "$W"
+(cd "$W" && UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+    statechart from-spec MergeRun.tla --config MergeRun.chart.cfg \
+    --title "jbus's pass starts a run of jmerge: does what it said reach you?" --out out --png)
+```
+
+Run it from the repo root, and copy the files of `$W/out`, but its `tlc/`, into `MergeRun-statechart/`.
+`MergeRun.chart.cfg` has one pass run and no tick (191 model states), labelled by `MergeRun.map.py`: 21 chart states and 30 of its 41 steps, and no bug path: RunHeard, NoFalseNoRecord and DeathTold hold on it.
+The two-run stories are `MergeRun.cfg`'s, which the test checks.
+
+## What MergeRun leaves out
+
+- The run's own lines and what jbus does with them: a record is heard or not, and `Said.failed` is not modelled.
+- A start that fails (`start` returns why), `child.log`, the systemd unit against a session of its own past whether jmerge outlives its process, and a stamp that does not parse.
+- Time, past STARTING, RESTART_MINUTES and PENDING_MINUTES: TLC chooses when each has gone by.
+- Of the restart: the queued run itself, `gave_up`, the line it holds, and a user who reopens by hand.
+- Of the batch: its members one by one, a guards batch's run, the merge lock another run holds, the main-red and switch-off skips, a failed job with no run to rerun, and `failed` heads; `most` is three levels, 5, 12 and 48, which keep what `_full` reads.
+- Two pull requests stand for every other: P, restarted, and W, merged alone.

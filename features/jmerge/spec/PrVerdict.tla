@@ -3,8 +3,9 @@
 \* Repo.judged in features/jmerge/src/jmerge/cli.py gives it, in its order, and through the run
 \* that acts on it: the merge, the guards on its tree merged over main's tip, the batch, and the
 \* line each base keeps for GitHub's merge of the base into a pull request (IN_LINE).
-\* The verdict as of main 21112eba8 (2026-11-10), and jbus's hold of a row whose check failed at three
-\* heads, or at two where the second names no failed test, as of st-stall-acts (2026-11-11). Each condition names the file that checks it and quotes
+\* The verdict as of main 21112eba8 (2026-11-10), and jbus's hold of a row whose check failed at two
+\* heads as of main 8644c5324 (2026-11-11), moved to three heads, or two where the second names no
+\* failed test, as of st-stall-acts (2026-11-11). Each condition names the file that checks it and quotes
 \* the code there in backticks, with no line number: cli.py, ready.py, batch.py, rows.py and
 \* treeguards.py are features/jmerge/src/jmerge/; expedite.py, rebase.py, outbox.py, poll.py and
 \* stall.py are features/jbus/src/jbus/.

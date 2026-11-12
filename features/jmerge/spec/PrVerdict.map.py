@@ -2,7 +2,7 @@
 reader_actions = ["Approve", "MergeOn", "Accept", "AcceptOther"]
 
 SAID = {
-    "none": "opened, not judged yet",
+    "none": "jmerge judges it next",
     "merged": "merged",
     "no-review": "waits on its review",
     "not-passed": "waits on its check",
@@ -25,11 +25,27 @@ CREW = {"no-review", "check-failed", "conflicts", "merged-tree-fails"}
 FIXES = {"check-failed", "conflicts", "merged-tree-fails"}
 
 
+HELD = "held: its check failed twice"
+"""A row jbus held at its limit of failed heads, whatever jmerge last said of it: only your approve
+or a head whose check passes lifts it."""
+
+
 def _held(v):
-    """Why a row whose crew jbus tells nothing is held, where jmerge says it waits on its crew."""
-    if v["st"] != "open" or not v["held"] or v["said"] not in FIXES:
-        return ""
-    return "its check failed twice"
+    return v["st"] == "open" and v["held"] and v["said"] in FIXES
+
+
+# The steps of jmerge's run. Once one can be taken, the verdict jmerge last said no longer holds:
+# what it waited on came (the check ended, the review landed, the crew pushed, GitHub merged main
+# in, you approved), and jmerge judges it next. A batch whose check runs still holds it.
+RUN = {"Judge", "Merge", "GuardsFail", "JoinBatch"}
+
+
+def _lifted(v, facts):
+    return v["said"] not in ("none", "merged") and v["batch"] != "pending" and facts.enabled & RUN
+
+
+def _said(v, facts):
+    return "none" if _lifted(v, facts) else v["said"]
 
 
 def _main(v):
@@ -41,8 +57,7 @@ def _main(v):
 
 
 def state(v, facts):
-    held = _held(v)
-    return f"{_main(v)}: {SAID[v['said']]}" + (f", and held: {held}" if held else "")
+    return f"{_main(v)}: {HELD if _held(v) else SAID[_said(v, facts)]}"
 
 
 region_names = ["Main", "What jmerge says"]
@@ -51,11 +66,12 @@ region_names = ["Main", "What jmerge says"]
 def group(v, facts):
     if v["st"] == "merged":
         return "Merged"
-    if v["said"] in HOLDS or _held(v):
+    said = _said(v, facts)
+    if said in HOLDS or _held(v):
         return "Waits on your word"
     if getattr(facts, "settled", False):
         return "Stuck"
-    if v["said"] in CREW:
+    if said in CREW:
         return "Waits on its crew"
     return "Waits on jmerge, GitHub or a check"
 

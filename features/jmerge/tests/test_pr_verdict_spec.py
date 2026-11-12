@@ -140,3 +140,27 @@ def test_the_script_by_hand_ends_0_when_every_run_says_what_it_should(tmp_path):
     lines = ran.stdout.splitlines()
     assert lines[-1] == "every run says what it should"
     assert len(lines) == len(RUNS) + 1
+
+
+def test_each_waiting_verdict_shows_the_step_that_ends_its_wait_on_the_chart():
+    """A verdict jmerge says waits on someone: its check, its reviewer, its crew, GitHub, the one
+    ahead, main's fix or you, and a row jbus held at two failed heads, which waits on you. The
+    chart draws that one's step out of it, back to jmerge's next judgment or to merged, so no
+    verdict reads as a stall."""
+    words = importlib.import_module("statechart.mapping").load_mapping(SPEC / "PrVerdict.map.py")
+    run = {words.STEPS[a] for a in words.RUN} | {words.STEPS["BatchProves"]}
+    owners = {*words.STEPS.values(), "its check passes", "its check fails"} - run
+    judged, merged = words.SAID["none"], words.SAID["merged"]
+    chart = (SPEC / "PrVerdict-statechart" / "chart.mmd").read_text()
+    says = lib.parse_mermaid(chart)["regions"]["What jmerge says"]
+    waits = sorted(set(says["states"]) - {judged, merged})
+    assert set(waits) == set(words.SAID.values()) - {judged, merged} | {words.HELD}
+    unended = [
+        verdict
+        for verdict in waits
+        if not any(
+            t["from"] == verdict and t["label"] in owners and t["to"] in (judged, merged)
+            for t in says["transitions"]
+        )
+    ]
+    assert not unended, f"no step of its owner is drawn out of: {unended}"

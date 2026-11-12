@@ -76,9 +76,26 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap:
 .chart-head h2 { margin: 2px 0 4px; font-size: 1.25rem; }
 .feature { margin: 0; color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; }
 .sub { margin: 0 0 8px; color: var(--muted); font-size: 0.88rem; }
-.legend { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 10px; padding: 0; font-size: 0.85rem; }
-.legend li { display: flex; align-items: center; gap: 6px; }
-.swatch { width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--stroke); background: color-mix(in srgb, var(--fill) var(--mix), var(--panel)); }
+
+.overview, .flow-map { margin: 0 0 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); padding: 10px 12px 6px; overflow-x: auto; }
+.overview figcaption { color: var(--muted); font-size: 0.82rem; margin: 0 0 4px; }
+svg.ov, svg.flow { display: block; width: 100%; height: auto; margin: 0 auto; user-select: none; }
+.ov-box, .flow-box { cursor: pointer; outline: none; }
+.ov-box rect { fill: color-mix(in srgb, var(--fill) var(--mix), var(--panel)); stroke: var(--stroke); stroke-width: 1.4; }
+.flow-box rect { fill: var(--bg); stroke: var(--accent); stroke-width: 1.4; }
+.ov-box text, .flow-box text { fill: var(--node-ink); font-size: 13px; font-weight: 650; text-anchor: middle; pointer-events: none; }
+.flow-box text { fill: var(--ink); }
+.ov-box .note, .flow-box .note { font-weight: 400; font-size: 12px; fill: var(--muted); }
+.ov-box:hover rect, .ov-box:focus-visible rect, .flow-box:hover rect, .flow-box:focus-visible rect { stroke: var(--accent); stroke-width: 2.6; }
+.ov-box.lit rect { stroke: var(--accent); stroke-width: 3.2; }
+.ov-edge, .flow-edge { fill: none; stroke: var(--edge); stroke-width: 1.6; }
+.ov-count rect, .flow-count rect { fill: var(--panel); stroke: var(--line); }
+.ov-count text, .flow-count text { fill: var(--muted); font-size: 12px; text-anchor: middle; }
+.flow-count text { fill: var(--accent); font-weight: 650; }
+.handoffs { margin: 0; padding: 0 0 0 1.6em; display: flex; flex-direction: column; gap: 8px; font-size: 0.92rem; }
+.handoffs .go { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 2px 8px; }
+.handoffs .go:hover { border-color: var(--accent); }
+.handoffs .says { display: block; color: var(--muted); font-size: 0.86rem; margin-top: 2px; }
 
 .stage { position: relative; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); overflow: hidden; height: min(72vh, 900px); }
 .viewport { width: 100%; height: 100%; touch-action: none; cursor: grab; outline: none; }

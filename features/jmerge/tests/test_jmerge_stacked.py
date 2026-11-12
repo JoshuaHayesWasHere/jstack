@@ -12,8 +12,8 @@ import json
 import pytest
 
 import test_home_merge as merge
+from jbriefs import stacked as stacks
 from jmerge import ready
-from jmerge import stacked as stacks
 from test_jmerge_carried import brief_of, built_on, listing, rows
 from test_jmerge_order import queue_of
 

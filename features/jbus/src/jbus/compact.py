@@ -50,9 +50,8 @@ from datetime import datetime
 
 import jsettings
 from jbriefs import parse
-from jbus import outbox, roles, t3, telemetry, verbs
+from jbus import crewthread, outbox, roles, t3, telemetry, verbs
 from jbus.passes import Pass
-from jbus.rebase import crew
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import World, at_work, task_brief
 
@@ -138,7 +137,7 @@ def tell(run: Pass, client: Client, world: World) -> None:
     for slug, pull in world.open.items():
         if key(slug) in sent:
             continue
-        thread = crew(run, slug)
+        thread = crewthread.crew(run, slug) if crewthread.tended(run, slug) else ""
         named = parse.brief(slug, task_brief(run, slug)).pull_request
         url = str(pull.get("url") or "").rstrip("/")
         if not thread or not named or not url or (named.url or "").rstrip("/") != url:

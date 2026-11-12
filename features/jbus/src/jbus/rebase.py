@@ -91,14 +91,14 @@ from urllib.parse import urlsplit
 
 import jroles
 from jbriefs import below
-from jbriefs.home import thread_of
+from jbriefs import stacked as stacks
 from jbus import (
     END_TURN,
     cancelled,
+    crewthread,
     dispatch,
     outbox,
     prereview,
-    queue,
     review,
     reviewlaunch,
     verbs,
@@ -118,7 +118,6 @@ from jbus.watch import (
 )
 from jmerge import lines as lines_of
 from jmerge import ready
-from jmerge import stacked as stacks
 from jmerge.checks import check_state, latest_of_each
 from jmerge.lines import Line
 from jroles import pool
@@ -273,12 +272,12 @@ def scope(run: Pass, client: Client, world: World, number: int, reason: str, ask
     module. Nothing is launched where the Result already names a scoped reviewer of the head."""
     slug = next((slug for slug, pull in world.open.items() if pull["number"] == number), "")
     head = world.open[slug].get("headRefOid", "") if slug else ""
-    if not head or head != ask.head or not crew(run, slug):
+    if not head or head != ask.head or not crewthread.tended(run, slug):
         return
     named = below.reviewers(task_brief(run, slug), "Scoped reviewer", head)
     if named or reviewlaunch.has(run, slug, head):
         return
-    thread = thread_of(run.home, slug)
+    thread = crewthread.crew(run, slug)
     if not thread:
         run.gate(slug, NO_THREAD, f"#{number}: {reason}", key=f"{NO_THREAD} {head[:12]}")
         return
@@ -327,7 +326,7 @@ def github(run: Pass, client: Client, world: World) -> None:
     sent = run.box.sent()
     for slug, pull in world.open.items():
         head, number = pull.get("headRefOid", ""), pull["number"]
-        if not head or not crew(run, slug):
+        if not head or not crewthread.tended(run, slug):
             continue
         brief = task_brief(run, slug)
         rebased = mark("rebase", slug, head) in sent
@@ -384,17 +383,6 @@ def where(client: Client, thread: str) -> str:
     """Name the crew's worktree, by its path where T3 Code gives it."""
     path = worktree(client, thread)
     return f"your worktree, `{path}`" if path else "your own worktree"
-
-
-def crew(run: Pass, slug: str) -> str:
-    """Return the thread of the slug's crew: the one jbus launched, or for a row whose home
-    launched its crew itself, the thread its queue row names. Return nothing for a slug with no
-    crew of either kind."""
-    launched = dispatch.launched(run, slug)
-    if launched:
-        return launched
-    row = queue.fresh(run.state, slug) or {}
-    return str(row.get("thread") or "")
 
 
 def _asked(kind: str, message: str, head: str) -> Ask:
@@ -569,7 +557,7 @@ def post(
     slug = next((slug for slug, pull in world.open.items() if pull["number"] == number), "")
     head = world.open[slug].get("headRefOid", "") if slug else ""
     key = mark(ask.kind, slug, head, window)
-    if not head or not crew(run, slug):
+    if not head or not crewthread.tended(run, slug):
         return None
     sent = run.box.sent()
     if key in sent:
@@ -580,7 +568,7 @@ def post(
     if ask.kind == "rebase" and again and ready.code_of(reason) != ready.CONFLICTS.code:
         run.gate(slug, SECOND, f"#{number}: {reason}", key=f"{SECOND} {head[:12]}")
         return None
-    thread = thread_of(run.home, slug)
+    thread = crewthread.crew(run, slug)
     if not thread:
         run.gate(slug, ask.no_thread, f"#{number}: {reason}", key=f"{ask.no_thread} {head[:12]}")
         return None

@@ -20,6 +20,7 @@ from typing import Literal, NamedTuple
 import jsettings
 from jbriefs import home as home_rule
 from jbriefs import meets, parse, proved
+from jbriefs import stacked as stacks
 from jmerge import (
     backoff,
     batch,
@@ -43,7 +44,6 @@ from jmerge import (
     waits,
 )
 from jmerge import reverts as reverting
-from jmerge import stacked as stacks
 from jmerge.asked import why as asked_why
 from jmerge.joblog import failed_in
 from jsettings import paths, proc, store

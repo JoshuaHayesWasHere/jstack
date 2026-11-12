@@ -393,11 +393,12 @@ def stubbed(tmp_path, selector):
     return repo
 
 
-def touching(*files, cross=()):
-    """A selector that prints `files` for `--part touched` and `cross` for `--part cross`, and
-    fails on any other ask."""
+def touching(*files, cross=(), names=()):
+    """A selector that prints `files` for `--part touched`, `cross` for `--part cross` and
+    `names`, a step a line, for `--part names`, and fails on any other ask."""
+    parts = {"touched": list(files), "cross": list(cross), "names": list(names)}
     return (
-        f"import sys\nparts = {{'touched': {list(files)!r}, 'cross': {list(cross)!r}}}\n"
+        f"import sys\nparts = {parts!r}\n"
         "assert sys.argv[1] == '--part' and sys.argv[2] in parts, sys.argv\n"
         "print('\\n'.join(parts[sys.argv[2]]))\n"
     )
@@ -440,12 +441,29 @@ def guarded(repo, base, touched=()):
     return [one for one in printed if one not in touched]
 
 
-def test_a_change_runs_the_lint_and_each_touched_test_alone_in_the_short_lane(tmp_path):
-    """In jstack, the desk's check is the lint, the test files the change touches and the
-    repo's guard tests, each its own call of the short lane, and never the selection: CI's check
-    is the check of record and runs the rest. The real selector names the touched tests: a test
-    file the branch edits, and not the crew tests the edited doc reaches. The guard tests are the
-    cross-cutting tests of the selection, and not the catch-all."""
+def named(repo, base):
+    """The steps of the names part the real selector prints for the branch, each a list of its
+    files: the tests the pull request's check selects because they read a file the branch edits."""
+    printed = subprocess.run(
+        [sys.executable, "scripts/select_tests.py", "--part", "names", base, "HEAD"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.splitlines()
+    return [line.split() for line in printed]
+
+
+def test_a_change_runs_the_lint_each_touched_test_and_each_test_that_reads_it_in_the_short_lane(
+    tmp_path,
+):
+    """In jstack, the desk's check is the lint, the test files the change touches, the repo's
+    guard tests and the tests that read the change, each step its own call of the short lane,
+    and never the selection: CI's check is the check of record and runs the rest. The real
+    selector names the touched tests: a test file the branch edits. The guard tests are the
+    cross-cutting tests of the selection, and not the catch-all. The crew tests that read the
+    edited doc run last, a few files a step, as #1691's check would have run
+    test_status_line_readers.py at the desk."""
     repo = cloned(tmp_path)
     with (repo / "features" / "crew" / "the-checks.md").open("a") as page:
         page.write("\nA line the test adds.\n")
@@ -456,19 +474,65 @@ def test_a_change_runs_the_lint_and_each_touched_test_alone_in_the_short_lane(tm
     brief = a_brief(tmp_path)
     said, code, ran, base = selected(tmp_path, repo)
     guards = guarded(repo, base)
+    steps = named(repo, base)
+    reads = [one for step in steps for one in step]
     assert "features/repo-guards/tests/test_new_lines_run.py" in guards
-    assert said[0].startswith(
+    assert "features/crew/tests/test_crew_checks.py" in reads
+    assert not set(reads) & {mine, *guards}
+    assert said[0] == (
         f"touched: 1 test files, then {len(guards)} cross-cutting guard tests, "
-        "then 0 test files CI failed on, each alone in the short lane"
+        "then 0 test files CI failed on, each alone in the short lane after the lint, "
+        f"then {len(reads)} test files that read the change in {len(steps)} steps; "
+        "CI's check runs the rest of the selection"
     ), said
     assert re.fullmatch(r"lint: exit 0 in \d+ s, short lane", said[1]), said
     assert re.fullmatch(rf"{mine}: exit 0 in \d+ s, short lane", said[2]), said
-    assert ran == [lint(base), alone(mine, base), *(alone(one, base) for one in guards)]
+    assert re.fullmatch(rf"{','.join(steps[-1])}: exit 0 in \d+ s, short lane", said[-1]), said
+    assert ran == [
+        lint(base),
+        alone(mine, base),
+        *(alone(one, base) for one in guards),
+        *(alone(" ".join(step), base) for step in steps),
+    ]
     assert code == 0
     head = git(repo, "rev-parse", "HEAD")
     assert brief.read_text().endswith(
         f"Checked: make check-fast BASE={base} PART=touched exit 0 at {head}\n"
     )
+
+
+def test_a_step_of_the_tests_that_read_the_change_runs_its_files_at_once_after_the_others(
+    tmp_path,
+):
+    """Each line the names part prints is one step, after the guards and the files CI failed on:
+    one `make test` of all its files in the short lane. A failed step fails the check, and a run
+    again at the same head runs only that step."""
+    g = "features/repo-guards/tests/test_g.py"
+    steps = ("tests/test_m.py tests/test_n.py", "tests/test_o.py")
+    repo = stubbed(tmp_path, touching("tests/test_a.py", cross=(g,), names=steps))
+    brief = a_brief(tmp_path)
+    said, code, ran, base = selected(tmp_path, repo, exits={"*test_o.py*": 1})
+    head = git(repo, "rev-parse", "HEAD")
+    assert said[0].endswith(
+        "then 3 test files that read the change in 2 steps; "
+        "CI's check runs the rest of the selection"
+    ), said
+    assert ran == [
+        lint(base),
+        alone("tests/test_a.py", base),
+        alone(g, base),
+        alone("tests/test_m.py tests/test_n.py", base),
+        alone("tests/test_o.py", base),
+    ]
+    assert re.search(
+        r"^tests/test_m.py,tests/test_n.py: exit 0 in \d+ s, short lane$", "\n".join(said), re.M
+    ), said
+    assert code == 1
+    assert brief.read_text().endswith(
+        f"Checked: make check-fast BASE={base} PART=touched exit 1 at {head}\n"
+    )
+    said, code, ran, base = selected(tmp_path, repo)
+    assert (ran, code) == ([alone("tests/test_o.py", base)], 0)
 
 
 def test_a_step_the_short_lane_stops_runs_again_alone_in_a_full_slot_and_passes(tmp_path):
@@ -542,6 +606,39 @@ def test_a_failed_step_ends_the_check_and_a_run_again_skips_what_passed_at_the_h
     git(repo, "commit", "-qam", "a new head")
     said, code, ran, base = selected(tmp_path, repo)
     assert [one.split()[0] for one in ran] == ["check-fast", "test", "test", "test"]
+
+
+def test_a_step_that_passed_over_work_the_head_lacks_is_not_kept_and_writes_no_checked_line(
+    tmp_path,
+):
+    """CrewProof.tla's trace CheckStart MovedToBackground Edit CheckStep Undo CheckStep AllRan
+    CheckEnd: the call goes to the background, the crew edits while a step runs, the step passes
+    over the edit, the crew drops it, and the block must not keep that step as passed at the head
+    or write `Checked: ... exit 0` for files the head never had."""
+    repo = stubbed(tmp_path, touching("tests/test_a.py", "tests/test_b.py"))
+    brief = a_brief(tmp_path)
+    stub, edit = tmp_path / "stub", repo / "edit.txt"
+    stub.mkdir()
+    room.uv(stub)
+    lanes(stub, tmp_path / "home" / ".local" / "state" / "locks", tmp_path / "make.log")
+    (stub / "make").rename(stub / "make.real")
+    (stub / "make").write_text(
+        "#!/bin/sh\n"
+        f'case "$*" in *test_a.py*) echo an edit > {edit} ;; *test_b.py*) rm -f {edit} ;; esac\n'
+        f'exec {stub / "make.real"} "$@"\n'
+    )
+    (stub / "make").chmod(0o755)
+    said, code, _ = checked(tmp_path, "echo the full lane")
+    steps = (repo / ".git" / "crew-check-steps").read_text().splitlines()
+    assert re.search(r"^tests/test_a.py: exit 0 in \d+ s, short lane$", "\n".join(said), re.M), said
+    assert "passed lint" in steps
+    assert "passed tests/test_a.py" not in steps
+    head = git(repo, "rev-parse", "HEAD")
+    moved = f"tests/test_a.py: passed over work that {head} does not have, so it is not kept"
+    assert said[-1] == moved, said
+    assert not [one for one in said if one.startswith("running:")], said
+    assert code == 76, said
+    assert "Checked:" not in brief.read_text()
 
 
 def test_the_guard_tests_run_after_the_touched_ones_and_a_failed_one_fails_the_check(tmp_path):

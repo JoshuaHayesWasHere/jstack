@@ -29,7 +29,7 @@ has the line and has not moved yet, and whose base merged:
   jbus moves nothing while the outbox holds the crew (`rebase.held`): its thread is at work, waits
   on a test slot, or waits on a review it launched that jmerge says is not written at the head.
   Such a link waits for a later pass, and its crew is told nothing. Nor does jbus move it while a
-  reviewer the crew launched has written no review (`review.reviewing`), since a move would change
+  reviewer the crew launched has written no review (`reviewers.running`), since a move would change
   the head under it, or while its worktree has work in it (uncommitted, unpushed or a rebase not
   finished); a rebase that conflicts, a push the lease refuses, or a base that was rewritten or
   that no reflog records, leaves the branch as it was.
@@ -71,15 +71,14 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-from jbriefs import below
-from jbriefs.home import thread_of
-from jbus import END_TURN, launchtext, mirror, queue, rebase, review, verbs
+from jbriefs import below, reviewers
+from jbriefs import stacked as stacks
+from jbus import END_TURN, crewthread, launchtext, mirror, queue, rebase, review, verbs
 from jbus.launches import records
 from jbus.passes import Pass
 from jbus.prereview import pushed
 from jbus.t3 import Client
 from jbus.watch import World, against, at_work, task_brief
-from jmerge import stacked as stacks
 
 EVENTS = {"restack": "quiet"}
 KIND = "restack"
@@ -104,7 +103,7 @@ def move(run: Pass, client: Client, world: World) -> None:
         if not head or stacked is None or stacked.at or stacked.slug in world.open:
             continue
         merged = world.merged.get(stacked.slug)
-        if not merged or not rebase.crew(run, slug):
+        if not merged or not crewthread.tended(run, slug):
             continue
         onto = _onto(run, brief, merged)
         if onto:
@@ -122,7 +121,7 @@ def before_pull(run: Pass, world: World) -> None:
         if stacked is None or slug in world.open or slug in world.merged:
             continue
         merged = world.merged.get(stacked.slug) or {}
-        if not (merged.get("mergeCommit") or {}).get("oid") or not rebase.crew(run, slug):
+        if not (merged.get("mergeCommit") or {}).get("oid") or not crewthread.tended(run, slug):
             continue
         merge = str(merged["mergeCommit"]["oid"])
         onto = stacked.branch if stacked.at else _onto(run, brief, merged)
@@ -186,7 +185,7 @@ def _moved(
             why = said[-1] if said else f"gh exited {asked.returncode}"
             run.say(f"wait {slug}: #{number} could not be based on {onto}: {why}")
             return
-    thread = thread_of(run.home, slug)
+    thread = crewthread.crew(run, slug)
     if rebase.held(run, client, thread, slug, number, head, key, KIND):
         return
     last = str(merged.get("headRefOid") or "")
@@ -245,7 +244,7 @@ def _carry(
     branch merged at, onto `origin/<onto>`, and push them over the head the pass read. `number` is
     its pull request's, or 0 before it has one. Return the head the branch is at now, or nothing
     when it was left as it was, with the reason said."""
-    if review.reviewing(task_brief(run, slug)):
+    if reviewers.running(task_brief(run, slug)):
         return _left(run, slug, "a reviewer it launched has written no review yet")
     crew = _worktree(run, branch)
     busy = _busy(run, crew, head) if crew else ""
@@ -363,16 +362,31 @@ def _worktree(run: Pass, branch: str) -> Path | None:
 
 def _busy(run: Pass, tree: Path, head: str) -> str:
     """What in the crew's worktree a move would lose or disturb, or nothing: a head other than
-    the pushed one, a change not committed, or a rebase of its own not finished."""
+    the pushed one, `head`, origin's, a change not committed, or a rebase of its own not finished.
+    A crew's `crew-before-rebase` record whose rebase moved its head off the one it names as before
+    the rebase, to the head origin's branch is at, is a rebase whose push landed and whose crew
+    stopped before it forgot the record: it is forgotten here, and holds nothing."""
     at = run.run("git", "-C", str(tree), "rev-parse", "HEAD").stdout.strip()
     if at != head:
         return f"is at {at[:12] or 'no commit'}, not at {head[:12]}"
     if run.run("git", "-C", str(tree), "status", "--porcelain").stdout.strip():
         return "has changes not committed"
     gitdir = run.run("git", "-C", str(tree), "rev-parse", "--absolute-git-dir").stdout.strip()
-    for left in ("rebase-merge", "rebase-apply", "crew-before-rebase"):
-        if not gitdir or (Path(gitdir) / left).exists():
-            return "has a rebase of its own not finished"
+    unfinished = "has a rebase of its own not finished"
+    if not gitdir or any(
+        (Path(gitdir) / left).exists() for left in ("rebase-merge", "rebase-apply")
+    ):
+        return unfinished
+    record = Path(gitdir) / "crew-before-rebase"
+    try:
+        before = record.read_text().split()[:1]
+    except FileNotFoundError:
+        return ""
+    except OSError:
+        return unfinished
+    if before in ([], [at]):
+        return unfinished
+    record.unlink(missing_ok=True)
     return ""
 
 

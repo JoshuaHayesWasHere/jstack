@@ -105,24 +105,57 @@ def state(v, facts):
 region_names = ["Main and the machine", "The two pull requests"]
 
 
+# The groups follow the flow's phases (features/home/docs/flow.md) and read only the strings the
+# label is made of, so every model state behind one label is in the same group. On a green main a
+# state is in the phase of its least advanced pull request; on a red one, in what is mending main.
+PHASE = {"merged": 3, "its row held": 0, "waiting to launch": 0}
+
+
+def _phase(kind):
+    if kind in PHASE:
+        return PHASE[kind]
+    return 1 if kind.startswith("waiting for a check") else 2
+
+
+GREEN = [
+    "Main green, a row waits to launch",
+    "Main green, a check runs",
+    "Main green, both past their checks, at the merge",
+    "Both merged",
+]
+
+
 def group(v, facts):
-    if all(v["st"][p] == "merged" for p in ("a", "b")) and not v["mainRed"] and not v["full"]:
-        return "Done"
-    if getattr(facts, "settled", False):
-        red = v["mainRed"] or ("brHold" in v and v["brHold"])
-        open_ = [p for p in ("a", "b") if v["st"][p] != "merged"]
-        yours = any(not v["go"][p] or v["needs"][p] for p in open_) if "go" in v else True
-        if red and not v["full"] and yours:
-            return "Waits on you"
-        return "Stuck"
-    return "Moving"
+    where = _main(v)
+    kinds = [_kind(v, p) for p in ("a", "b")]
+    if not where.startswith("Main red"):
+        if "red only from main's break" in kinds:
+            return "Main green, a pull request still red from main's break"
+        return GREEN[min(_phase(k) for k in kinds)]
+    if "rerun and judged" in where:
+        return "Main red, jbus reruns and judges it"
+    if "fix row filed" in where:
+        return "Main red, its fix row filed"
+    fix = [k for k in kinds if "holds main's fix" in k]
+    if fix and fix[0].startswith("waiting for a check"):
+        return "Main red, its fix waits for its check"
+    if fix:
+        return "Main red, its fix waits to merge"
+    return "Main red, a revert or nothing open"
 
 
+# Cool for a green main, from pale to deep as the pair moves on; warm for a red one.
 group_colors = {
-    "Done": "#d1f2eb",
-    "Moving": "#e8eef9",
-    "Waits on you": "#fdebd0",
-    "Stuck": "#f9d6d5",
+    "Main green, a row waits to launch": "#eaf2f8",
+    "Main green, a check runs": "#d6eaf8",
+    "Main green, both past their checks, at the merge": "#aed6f1",
+    "Both merged": "#d1f2eb",
+    "Main green, a pull request still red from main's break": "#fcf3cf",
+    "Main red, jbus reruns and judges it": "#fdebd0",
+    "Main red, its fix row filed": "#f8c471",
+    "Main red, its fix waits for its check": "#f5cba7",
+    "Main red, its fix waits to merge": "#f5b7b1",
+    "Main red, a revert or nothing open": "#f6e0ef",
 }
 
 STEPS = {

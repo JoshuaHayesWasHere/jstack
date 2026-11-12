@@ -225,7 +225,7 @@ def test_a_launch_record_with_no_thread_is_lost(kitchen):
     kitchen.t3.threads.clear()
     kitchen.poll(NOW + timedelta(minutes=3))
     assert said(kitchen) == ("lost", True)
-    assert rows(kitchen)["alpha"]["status"] == "launched"
+    assert rows(kitchen)["alpha"]["status"] == "left"
 
 
 def test_a_pull_request_closed_unmerged_is_closed(kitchen):

@@ -18,7 +18,7 @@ import pytest
 
 import jbus
 from crew_branches import pushed
-from jmerge import stacked as stacks
+from jbriefs import stacked as stacks
 from test_jbus_chains import queue_add
 from test_jbus_kitchen import NOW, Kitchen, asks, sends_in_once
 from test_jbus_queue import brief, go
@@ -280,3 +280,39 @@ def test_a_restack_before_the_pull_request_whose_brief_cannot_be_written_says_so
     assert [line for line in said if line.startswith(wait)] != []
     assert [line for line in said if line.startswith("restack two: moved")] == []
     assert head_line(stacked) == stacks.Stacked("one", "one")
+
+
+@pytest.mark.parametrize("left", ["landed", "not moved", "stopped", "unreadable"])
+def test_a_crew_killed_after_its_rebase_landed_leaves_a_record_that_holds_no_link(
+    stacked, monkeypatch, left
+):
+    """The crew's push block pushed its rebased head and the crew was killed before
+    `jbus forget`, so `crew-before-rebase` is left in its worktree's git dir. Origin's branch is at
+    that rebased head, so the rebase is done: jbus forgets the record and moves the link. A record
+    whose rebase has not moved the head yet, at the head it names as before the rebase, a rebase
+    git has stopped in, and a record that cannot be read, are a rebase not finished, and hold the
+    link."""
+    from test_jbus_stack_move import Stack, git, signed
+
+    signed(monkeypatch)
+    stack = Stack(stacked)
+    tree = stacked.root / "two-tree"
+    git(stacked.checkout, "worktree", "add", "-q", str(tree), stack.head, "-b", "two")
+    gitdir = stacked.root / git(tree, "rev-parse", "--absolute-git-dir")
+    record = gitdir / "crew-before-rebase"
+    before = stack.head if left == "not moved" else git(tree, "rev-parse", f"{stack.head}^")
+    if left == "unreadable":
+        record.mkdir()
+    else:
+        record.write_text(f"{before} one {before}\n")
+    if left == "stopped":
+        (gitdir / "rebase-merge").mkdir()
+    said = stacked.poll(NOW)
+    if left == "landed":
+        moved = stack.origin("two")
+        assert git(stacked.origin, "rev-parse", f"{moved}^") == stack.merge
+        assert git(tree, "rev-parse", "HEAD") == moved
+        assert not record.exists() and asks(stacked) == []
+    else:
+        assert stack.origin("two") == stack.head and record.exists()
+        assert any("has a rebase of its own not finished" in line for line in said), said

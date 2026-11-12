@@ -8,9 +8,14 @@ sends, and F2 and F3, each a tip that no pass saw. The tests that walk every ord
 where those faults came up. The skill that reruns this is
 `features/jbus/project-skill/verify-main-red/SKILL.md`."""
 
+import re
+from pathlib import Path
+
 import pytest
 
 from main_red_model import Options, walk
+
+SKILL = Path(__file__).parents[1] / "project-skill" / "verify-main-red" / "SKILL.md"
 
 EVERY = Options()
 ONE_AT_A_TIME = Options(one_at_a_time=True)
@@ -64,3 +69,25 @@ def test_s4_each_red_tip_has_one_line_in_the_ledger_one_at_a_time():
 
 def test_s4_each_red_tip_has_one_line_in_the_ledger_in_every_order():
     holds(EVERY, "S4")
+
+
+def test_the_skill_states_the_counts_the_walk_walks():
+    """verify-main-red says different counts after a pure move mean the move changed behavior, so
+    a count it states that the walk no longer walks reads a clean move as a behavior change."""
+    text = SKILL.read_text()
+    run_it = text.split("\n## Run it\n", 1)[1].split("\n## ", 1)[0]
+
+    def number(pattern):
+        found = re.search(pattern, run_it)
+        assert found, f'{SKILL}\'s "Run it" section has no line matching {pattern!r}'
+        return int(found[1].replace(",", ""))
+
+    every = walk(EVERY).states
+    one = walk(ONE_AT_A_TIME).states
+    stated = {
+        "the widest world": number(r"\(([\d,]+) states in the widest world\)"),
+        "every order": number(r"every order walks ([\d,]+) states"),
+        "one tip at a time": number(r"one tip at a time walks ([\d,]+)"),
+    }
+    walked = {"the widest world": max(every, one), "every order": every, "one tip at a time": one}
+    assert stated == walked, f"{SKILL} states counts the walk does not walk"

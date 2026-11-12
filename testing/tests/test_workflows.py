@@ -25,7 +25,8 @@ the red jbus reverts, and no merge waits on it.
 The workflow `macos-nightly`: the whole suite on macOS, nightly at 04:00 ET, an hour after the
 browser run, and by hand, over the branch its `ref` names, `main` unless a manual run
 names another. It runs on no pull request and no push, and no merge waits on it.
-Each job has a cap that a hung run meets.
+Each job has a cap that a hung run meets, and each step that uploads an artifact or restores or
+saves a cache has one of 3 minutes or less.
 Each context main's ruleset requires (`features/repo-guards/main-ruleset.json`) is the id of a
 job in a workflow that runs on every pull request into main, with no `paths:` or `branches:`
 filter, and the job skips only by its own `if:`, so no required check stays "Expected".
@@ -588,6 +589,58 @@ def test_every_job_has_a_cap_that_stops_a_hung_run():
         for job in jobs(path.read_text())
     }
     assert caps == CAPS
+
+
+TRANSFERS = ("actions/upload-artifact@", "actions/cache@", "actions/cache/")
+STEP_CAP = 3
+
+
+def uncapped(text, path="check.yml"):
+    """Each step of each job that uploads an artifact or restores or saves a cache and has no
+    `timeout-minutes` of STEP_CAP or less, named by its workflow, job, place and action."""
+    named = []
+    for job in jobs(text):
+        for at, step in enumerate(steps(text, job)[0], 1):
+            uses = str(step.get("uses", ""))
+            if not uses.startswith(TRANSFERS):
+                continue
+            limit = str(step.get("timeout-minutes", ""))
+            if not (limit.isdigit() and 0 < int(limit) <= STEP_CAP):
+                what = step.get("name") or step.get("with", {}).get("name") or step.get("id")
+                named.append(f"{path} {job} step {at} {uses.partition('@')[0]} ({what})")
+    return named
+
+
+def test_every_upload_and_cache_step_has_a_limit_of_minutes_so_a_slow_one_ends():
+    """An upload or a cache that GitHub's service answers slowly ran until the job's cap: part 8
+    of #1691's check spent 11 minutes in its upload of the new-lines record, four attempts that
+    each waited 2 minutes for an HTML answer (job 130776916641, 2026-11-11), and the required
+    `check` waited on it. Each such step stops within STEP_CAP minutes, so a slow one costs
+    what its comment says a failed one costs."""
+    text = (
+        "jobs:\n  part:\n    steps:\n      - uses: actions/cache/restore@1 # v1\n"
+        "        id: tlc\n      - uses: actions/upload-artifact@2 # v2\n"
+        "        timeout-minutes: 9\n        with:\n          name: lines\n"
+        "      - uses: actions/cache/save@1 # v1\n        timeout-minutes: 3\n"
+    )
+    assert uncapped(text) == [
+        "check.yml part step 1 actions/cache/restore (tlc)",
+        "check.yml part step 2 actions/upload-artifact (lines)",
+    ]
+    found = [
+        step
+        for path in sorted(WORKFLOWS.glob("*.yml"))
+        for job in jobs(path.read_text())
+        for step in steps(path.read_text(), job)[0]
+        if str(step.get("uses", "")).startswith(TRANSFERS)
+    ]
+    assert len(found) > 20
+    named = [
+        one
+        for path in sorted(WORKFLOWS.glob("*.yml"))
+        for one in uncapped(path.read_text(), path.name)
+    ]
+    assert named == []
 
 
 UNLESS_GREEN = "steps.tree.outputs.marker != 'green'"
@@ -1158,8 +1211,8 @@ def test_the_fast_check_selects_in_reuse_and_lints_beside_it_and_runs_neither_in
     no `uv sync` and no collection, so no job of its own stands between it and the parts. The
     lint is a job of its own beside it, which waits on nothing and nothing waits on but `check`.
     The parts run neither the selection nor the lint. A push to main asks for no reuse and
-    selects over main's last checked commit, `BASE`, which `last checked` gives, by the wide
-    rule; a pull request over `HEAD^1`, with `--pull-request` (`REACH`)."""
+    selects over main's last checked commit, `BASE`, which `last checked` gives; a pull request
+    over `HEAD^1`, by the same rule."""
     found, _ = steps(CHECK.read_text(), "reuse")
     named = [step.get("uses", step.get("name")).partition("@")[0] for step in found]
     assert named == [
@@ -1178,14 +1231,7 @@ def test_the_fast_check_selects_in_reuse_and_lints_beside_it_and_runs_neither_in
     ]
     look, base, tree, select = found[1], found[2], found[5], found[7]
     assert tree["run"] == 'echo "name=green-tree-$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"'
-    assert select["run"] == 'python3 scripts/select_tests.py $REACH --parts 8 "$BASE" HEAD'
-    reach = select["env"]["REACH"].removeprefix("${{ ").removesuffix(" }}")
-    assert [worked(reach, {"github.event_name": e}) for e in EVENTS] == [
-        "--pull-request",
-        "",
-        "",
-        "",
-    ]
+    assert select["run"] == 'python3 scripts/select_tests.py --parts 8 "$BASE" HEAD'
     assert [e for e in EVENTS if worked(look["if"], {"github.event_name": e})] == ["pull_request"]
     assert [e for e in EVENTS if worked(base["if"], {"github.event_name": e})] == ["push"]
     assert base["run"] == "python3 scripts/green_tree.py --last-checked check.yml"
@@ -1198,7 +1244,6 @@ def test_the_fast_check_selects_in_reuse_and_lints_beside_it_and_runs_neither_in
         "FAILED_ON_MAIN": "${{ steps.failed.outputs.tests }}",
         "SELECTED": "${{ runner.temp }}/selected-tests.txt",
         "BASE": "${{ steps.base.outputs.base || 'HEAD^1' }}",
-        "REACH": "${{ github.event_name == 'pull_request' && '--pull-request' || '' }}",
     }
     outputs = job_section("reuse", "outputs")
     assert {

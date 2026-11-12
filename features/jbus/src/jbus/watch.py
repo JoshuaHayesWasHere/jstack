@@ -46,6 +46,7 @@ from typing import Any
 import jsettings
 from jbriefs import below, findings
 from jbriefs import home as homes
+from jbriefs import stacked as stacks
 from jbriefs import status as status_line
 from jbriefs.home import thread_of
 from jbriefs.status import Status
@@ -71,11 +72,9 @@ from jbus.passes import Changed, Depends, Pass, Red, Rerun, Slot, side_by_side
 from jbus.pulls import OPEN
 from jbus.pulls import read as read_open
 from jbus.t3 import Client, T3Error
-from jbus.wake import cut
 from jgauge import holders, slot, waiters
 from jmerge import checks as reading
 from jmerge import judgement, mainjson
-from jmerge import stacked as stacks
 from jmerge.asked import Silent
 from jmerge.asked import why as asked_why
 from jmerge.checks import NOT_RED
@@ -106,7 +105,7 @@ FAILS = "fails.json"
 """The heads at which each row's pull request failed a required check, kept by `jbus.stall.twice`,
 and whether jbus held the row for it."""
 TWICE = "check failed twice"
-LAST = "last"
+TOLD = "told"
 """The key in a row's `fails.json` of its second counted failed head whose logs name failed tests:
 the head before the one that holds the row, whose message tells the crew of them (`named_last`)."""
 RERUN_WAIT = timedelta(minutes=30)
@@ -129,8 +128,6 @@ GATED = "a gate the Chef has"
 OFF, STOP, UNREAD = "dispatch is off", "the stop file is there", "not read in this pass"
 AFTER_MERGE = "after the merge"
 UNRESOLVED = "Could not resolve to a"
-WORDS = 100
-_PULL = re.compile(r"^(https?://\S+/pull/(\d+))/?$")
 _AGAINST = re.compile(r"^Pull request:[ \t]*open one against (?P<branch>[^\s,;:()`]+)", re.M)
 
 
@@ -316,17 +313,16 @@ def _named(run: Pass, url: str) -> list[dict[str, Any]]:
 
 
 def named(result: str) -> tuple[str, str]:
-    """Return the address and number of the pull request at the end of a Result's `Branch:`
-    line."""
-    words = below.line(result, "Branch:").split()
-    found = _PULL.match(words[-1]) if words else None
-    return (found[1], found[2]) if found else ("", "")
+    """Return the address and number of the pull request a Result's `Branch:` line names
+    (`jbriefs.below.pull`), a note after it such as `(merged)` included, or two empty strings."""
+    found = below.pull(result)
+    return (found.url.rstrip("/"), found.number) if found and found.number else ("", "")
 
 
 def tied(run: Pass) -> dict[str, str]:
     """Return the slug of each pull request that a brief names, by its address.
 
-    A brief names a pull request with a `Branch:` line that ends on its address, in any of
+    A brief names a pull request with a `Branch:` line that names its address, in any of
     its Results. The first brief with such a line gives the slug, as it does for `jmerge`.
     """
     found: dict[str, str] = {}
@@ -614,28 +610,29 @@ def _stale(run: Pass, world: World, slug: str, thread: dict[str, Any]) -> str:
         minutes = (run.now - when(thread["updatedAt"])).total_seconds() / 60
         if minutes >= WAITING_MINUTES:
             return f"stale {slug}: waiting on a request {int(minutes)} min"
-    elif status in (*ENDED, "completed") and not world.result(run, slug):
-        if not world.awaits(thread):
-            return f"stale {slug}: thread {status} with no Result"
+    elif status in (*ENDED, "completed") and not (world.result(run, slug) or world.awaits(thread)):
+        return f"stale {slug}: thread {status} with no Result"
     return ""
 
 
 def left(result: str) -> str:
-    """Return, in a few words, what a Result leaves undone. Return nothing when the Result says
-    `Status: done` and `Left: none`."""
+    """Return what a Result leaves undone, its `Left:` or `Status:` line whole: the row keeps it
+    as its `why`, and only a view shortens it. Return nothing when the Result says `Status: done`
+    and `Left: none`."""
     said, rest = below.line(result, status_line.LABEL), below.line(result, "Left:")
     if rest and rest != "none":
-        return f"left: {cut(rest, WORDS)}"
+        return f"left: {rest}"
     if status_line.read(said) is not Status.DONE:
-        return f"status: {cut(said, WORDS)}" if said else "its Result has no Status line"
+        return f"status: {said}" if said else "its Result has no Status line"
     return "" if rest else "its Result has no Left line"
 
 
 def unfinished(result: str) -> str:
     """Return what keeps a Result with no merge from ending its task, or nothing.
 
-    The answer is what the Result leaves, or a `Branch:` line that is missing or that ends on
-    an address. An address there means a pull request that is neither open nor merged. `closes`
+    The answer is what the Result leaves, or a `Branch:` line that is missing or that names an
+    address (`jbriefs.below.pull`). An address there means a pull request that is neither open
+    nor merged. `closes`
     adds to it what the close of a row owes, and is the one rule for a task that ended with no
     pull request.
     """
@@ -644,8 +641,8 @@ def unfinished(result: str) -> str:
         return short
     if not words:
         return "its Result has no Branch line"
-    if words[-1].startswith("http"):
-        number = named(result)[1]
+    if (found := below.pull(result)) and found.url:
+        number = found.number
         return f"pull request{f' #{number}' if number else ''} is not open and not merged"
     return ""
 
@@ -780,15 +777,15 @@ def written(result: str) -> work.Written:
 
 def pull(world: World, slug: str, result: str, said: str) -> work.Pull:
     """Return the slug's pull request as the facet `Pull` has it. `said` is what `jmerge`
-    last said of an open one (`jmerge.judgement.step`). A `Branch:` line that ends on an address,
-    with neither an open nor a merged pull request under the slug, means that pull request
-    closed."""
+    last said of an open one (`jmerge.judgement.step`). A `Branch:` line that names an address
+    (`jbriefs.below.pull`), with neither an open nor a merged pull request under the slug, means
+    that pull request closed."""
     if slug in world.open:
         return work.Pull(judgement.step(said) or work.Pull.OTHER)
     if slug in world.merged:
         return work.Pull.MERGED
-    words = below.line(result, "Branch:").split()
-    return work.Pull.CLOSED if words and words[-1].startswith("http") else work.Pull.NONE
+    found = below.pull(result)
+    return work.Pull.CLOSED if found and found.url else work.Pull.NONE
 
 
 def thread(found: dict[str, Any] | None, live: str) -> work.Thread | None:
@@ -1118,14 +1115,13 @@ def unwritten(run: Pass, world: World, thread: dict[str, Any] | None, state: wor
     return f"its thread {thread['status']} with nothing written"
 
 
-def status(
-    run: Pass, world: World, slug: str, state: work.State, launched: str = ""
-) -> dict[str, str]:
+def status(run: Pass, world: World, slug: str, state: work.State, crew: str = "") -> dict[str, str]:
     """Return a row's derived columns. The row's status is the projection of the row's state
     (`work.status`). `why` holds the reason that comes with the status itself: what a Result
     leaves.
 
-    `launched` is the thread id of the slug's launch record.
+    `crew` is the thread of the slug's crew (`jbus.crewthread.crew`), the `thread` column, or for
+    a row with none the one thread T3 Code lists for it.
     """
     found = world.thread(slug)
     pull = world.open.get(slug) or world.merged.get(slug)
@@ -1142,7 +1138,7 @@ def status(
         else:
             reason = closes(run, slug, brief_of(run, slug), result)
     return {
-        "thread": (found or {}).get("threadId") or launched,
+        "thread": crew or (found or {}).get("threadId", ""),
         "pr": f"#{pull['number']}" if pull else "",
         "checks": checks(pull) if pull is not None and slug in world.open else "",
         "status": word,
@@ -1186,11 +1182,11 @@ def failed_twice(run: Pass, slug: str) -> bool:
 
 def named_last(run: Pass, slug: str, head: str) -> tuple[list[str], list[str]] | None:
     """Return the row's counted failed heads and the failed tests that `head`'s logs name, where
-    `head` is the row's `LAST` (`jbus.stall.twice`), which twice keeps only for a head whose logs
+    `head` is the row's `TOLD` (`jbus.stall.twice`), which twice keeps only for a head whose logs
     name some, or None for any other head."""
     kept = read_json(run.state / FAILS, {})
     one = kept.get(slug) if isinstance(kept, dict) else None
-    if not isinstance(one, dict) or not head or one.get(LAST) != head:
+    if not isinstance(one, dict) or not head or one.get(TOLD) != head:
         return None
     heads = one["heads"]
     return list(heads), list(heads[head]["tests"])

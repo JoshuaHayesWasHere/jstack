@@ -4,7 +4,12 @@
 # Strings, numbers, and booleans keep their kind.
 # Sequences, tuples, and sets become lists, indexed from 0. Records and functions become dicts.
 # One crew thread of jbus/spec/ThreadLife.tla. Variables: rec, lost, dropped, retried, gated,
-# made, turn, result, carry, owed, told, held, put, scratch.
+# made, line, turn, result, carry, owed, woken, told, why, busy, held, put, scratch.
+# Three are joined, not drawn: `line`, the brief's `Thread:` line, which a pass that died after
+# the record leaves to the next pass's repair; `busy`, which leftover.json rewrites each pass with
+# whether the turn writes, as the label already says; and `woken`, the paused crew's one carry-on,
+# whose turn the label shows. A state differs from its join in none of what jbus does next that
+# the chart draws.
 # Each function may take fewer arguments than it is given, and gets only the first ones.
 # The actions the reader takes. facts.settled is True when only these are enabled, and the overview
 # keeps the shortest path to each settled state, plus every bug path.
@@ -17,14 +22,17 @@ TURN = {
     "quiet": "its turn is quiet",
     "hung": "its turn is hung",
     "waiting": "its turn waits on a request",
+    "slot": "its turn waits on a test slot",
     "completed": "its turn completed",
     "failed": "its turn failed",
+    "rolledback": "its turn was rolled back",
 }
 RESULT = {
     "pr": "its pull request open",
     "merged": "its pull request merged or closed",
     "done": "a Result that ends it",
     "left": "a Result that leaves something",
+    "paused": "a Result paused on other rows",
 }
 
 
@@ -48,7 +56,7 @@ def where(v):
     carry = f", {v['carry']} of 2 carry-ons sent" if v["carry"] else ""
     owed = ", told once to open it" if v["owed"] else ""
     if v["result"] == "owes":
-        turn = "ended" if v["turn"] in ("completed", "failed") else TURN[v["turn"]]
+        turn = "ended" if v["turn"] in ("completed", "failed", "rolledback") else TURN[v["turn"]]
         return f"a Result that owes its pull request{owed}, {turn}"
     if v["result"] != "none":
         return RESULT[v["result"]]
@@ -68,6 +76,8 @@ def state(v, facts):
         return f"Put away: settled, {held}, {scratch}"
     if v["told"]:
         return f"Its home's: {where(v)}"
+    if v["why"]:
+        return f"Yours, its home has no thread: {where(v)}"
     return f"Out: {where(v)}"
 
 
@@ -76,7 +86,9 @@ def group(v, facts):
         return "Gated" if v["gated"] else "Launching"
     if v["put"] != "open":
         return "Put away"
-    return "Its home's" if v["told"] else "Out"
+    if v["told"]:
+        return "Its home's"
+    return "Yours" if v["why"] else "Out"
 
 
 group_colors = {
@@ -84,6 +96,7 @@ group_colors = {
     "Gated": "#fdebd0",
     "Out": "#ffffff",
     "Its home's": "#e8daef",
+    "Yours": "#fdebd0",
     "Put away": "#d1f2eb",
 }
 
@@ -95,6 +108,8 @@ STEPS = {
     "Answered": "you answer its request",
     "Archive": "jbus archives the thread",
     "Asks": "the crew asks you something",
+    "AwaitsSlot": "the turn ends waiting on a test slot",
+    "Busy": "jbus notes whether a thread is at work on it",
     "CarryOn": "jbus tells the crew to carry on",
     "Clear": "jbus clears its scratch",
     "Ends": "the turn ends",
@@ -109,15 +124,20 @@ STEPS = {
     "Quiets": "10 min with nothing written",
     "Refused": "T3 Code refuses the launch: a gate",
     "Releases": "the work held closes",
+    "Repair": "the next pass writes the brief's Thread: line",
     "Retry": "no thread, the connection dropped: launch once more",
     "Settle": "jbus settles the thread, its work held",
     "Shuts": "the pull request merges or closes",
+    "SlotWakes": "jbus wakes it: a test slot is free",
     "Stopped": "jbus tells the home the crew stopped after two carry-ons",
+    "Unpaused": "the rows it waits on land: jbus tells the crew to carry on",
     "Writes": "the turn writes again",
 }
 
 
 def step(action, before, after):
+    if action == "Leftover" and not after["told"]:
+        return "the row is left, and its home has no thread: it is yours"
     return STEPS.get(action, action)
 
 

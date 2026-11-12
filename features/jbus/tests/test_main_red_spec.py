@@ -39,6 +39,13 @@ AGREES = {
 }
 """Each property `main_red_model.py` walks, and the rule of MainRed.tla that says it."""
 
+MOST_GENERATED = 900_000
+"""The most states a TLC run of a config may generate, so each test ends in under 200 s on CI's
+slowest runner: on 2026-11-11 a test of this file whose run generated at least 2,874,771 states
+took over 600 s in CI's check on #1681, at most 4.8k states a second, and 200 s of that is about
+958k. A step that takes facts that change nothing, each as a successor TLC checks again,
+multiplies this count and not the distinct states."""
+
 BREAKS: set[str] = set()
 """The rules today's code breaks, none: `reverts.close` closes a revert whose red main passed
 at or above even where a newer tip is red, so `OneRevertOpen` holds, and waits for every check
@@ -135,6 +142,11 @@ def verdict(out):
     return "breaks a property" if "Temporal properties were violated" in out else "error"
 
 
+def generated(out):
+    """The count of states TLC generated, distinct or not, from its last line that says it."""
+    return int(re.findall(r"^([\d,]+) states generated", out, re.M)[-1].replace(",", ""))
+
+
 def without(cfg, names):
     """The config with the rules `names` taken out."""
     lines = cfg.splitlines(keepends=True)
@@ -146,12 +158,13 @@ def without(cfg, names):
 @pytest.mark.parametrize("cfg", ["MainRed.cfg", "MainRed.chart.cfg"])
 def test_today_s_code_holds_every_rule_but_the_ones_it_breaks(cfg):
     """TLC on today's code: with the rules it breaks left out, every other rule of the config
-    holds, the property that red ends only by a merge among them; and each of those alone
-    breaks."""
+    holds, the property that red ends only by a merge among them, in at most MOST_GENERATED
+    states; and each of those alone breaks."""
     text = (SPEC / cfg).read_text()
     found = tools.find_tlc()
     held = tlc(found, without(text, BREAKS))
     assert verdict(held) == "holds", held[-4000:]
+    assert generated(held) <= MOST_GENERATED, held[-4000:]
     for rule in BREAKS:
         alone = tlc(found, without(text, set(rules(text)) - {rule, "TypeOK"}))
         assert verdict(alone) == rule, alone[-4000:]

@@ -96,7 +96,8 @@ New prose is one sentence per line, and an old line the pull request did not tou
    ```sh
    B="$H/tasks/<slug>.md"
    branch=$(git branch --show-current)
-   on=$(awk '/^## / {exit} /^Stacked on:/ {print $(4); exit}' "$B")
+   on=$(uv run --project "$T/../source" jbriefs line base "$B")
+   [ "$on" != none ] || on=
    [ -n "$on" ] || on=$(git symbolic-ref -q --short refs/remotes/origin/HEAD | sed 's|^origin/||')
    on=${on:-main}
    if [ -z "$branch" ] || ! git fetch -q origin "$branch" "$on"; then
@@ -203,9 +204,12 @@ printf '%s\n' "$OPEN" | jq -r --argjson pr "$PR" '
   | (.files | map(.path) | map(select(IN($mine[])))) as $both
   | select($both | length > 0)
   | "pull request \(.number) (\(.title)): \($both | join(", "))"'
+lines=$(uv run --project "$T/../source" jbriefs line pr,path "$H"/tasks/*.md 2> /dev/null)
 for other in "$H"/tasks/*.md; do
   [ "$other" = "$BRIEF" ] && continue
-  awk '/^## Result/ {r = 1; after = 0} r && /^Branch:.*Pull request: after the review$/ {after = 1} END {exit !(r && !after)}' "$other" && continue
+  if command grep -q '^## Result' "$other"; then
+    printf '%s\n' "$lines" | command grep -qxF "$(printf 'after the review\t%s' "$other")" || continue
+  fi
   where=$(sed -n 's/^Where: //p' "$other" | command grep -o '`[^`]*`' | tr -d '`' | tr '\n' ' ')
   both=$(printf '%s\n' "$PR" | jq -r '.files[].path' | awk -v where="$where" '
     BEGIN { n = split(where, w, " "); for (i = 1; i <= n; i++) sub(/\/$/, "", w[i]) }

@@ -4,7 +4,9 @@ default branch, the commit of that branch that merged it.
 
 jbus writes the line at the launch, `Stacked on: <slug> <its branch>`, and again once the row
 merged, `Stacked on: <slug> <default branch> at <commit>` (`jbus.stack`). `jmerge` waits on it
-(`ready.STACKED_ON`, `ready.STACKED_UNMOVED`), and the crew skill's blocks read it in sh."""
+(`ready.STACKED_ON`, `ready.STACKED_UNMOVED`), and the crew and pr-review skills' blocks read it
+through `jbriefs line base` and `jbriefs line stacked`. A line in neither shape, such as
+`Stacked on: main at <commit>`, is no stack."""
 
 from __future__ import annotations
 
@@ -24,10 +26,17 @@ class Stacked:
     at: str = ""
 
 
+def said(text: str) -> str | None:
+    """What the `Stacked on:` line in the head of a brief, above its first `## `, says, or None
+    for a head with no such line."""
+    return brief_head.head(text, LINE)
+
+
 def of(text: str) -> Stacked | None:
-    """The `Stacked on:` line in the head of a brief, above its first `## `, or None."""
-    said = brief_head.head(text, LINE)
-    words = said.split() if said is not None else []
+    """The `Stacked on:` line in the head of a brief, or None for a head with none and for a
+    line in neither of its shapes."""
+    found = said(text)
+    words = found.split() if found is not None else []
     if len(words) == 2:
         return Stacked(*words)
     if len(words) == 4 and words[2] == "at" and _COMMIT.fullmatch(words[3]):

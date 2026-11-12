@@ -102,6 +102,20 @@ def test_a_scoped_review_that_never_comes_sends_its_reviewer_the_scoped_line_aga
     assert len(to(kitchen, desk)) == 1 and len(to(kitchen, reviewer)) == 1
 
 
+def test_a_scoped_review_with_no_range_to_review_carries_its_crew_on_and_not_the_reviewer(
+    short, kitchen
+):
+    """A scoped reviewer is named, but the brief names no head the fix is reviewed since, so there
+    is no range to send the reviewer: the wait is the crew's, on the thread `crewthread.crew`
+    gives."""
+    reviewer = kitchen.t3.thread("alpha", "failed", title="review: alpha, scoped")
+    short.out(NO_FIX_REVIEW, result=f"Scoped reviewer: {reviewer['threadId']}, of {short.head}\n")
+    short.passes(N)
+    assert to(kitchen, reviewer) == []
+    crew = [one for one in sends(kitchen) if one["clientRequestId"].startswith("clock|alpha|")]
+    assert [one["threadId"] for one in crew] == ["mcp:thread-1"]
+
+
 def test_a_crew_that_stopped_before_its_result_named_the_pull_request_is_carried_on_once(
     short, kitchen
 ):

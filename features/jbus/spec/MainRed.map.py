@@ -44,17 +44,25 @@ def state(v, facts):
     return f"{_main(v)}: {_answer(v)}"
 
 
+# A red main is grouped by what jbus has open to fix it, read from the label's own words.
 def group(v, facts):
     if not v["rec"]["broken"] and not _mac_red(v):
         return "Not red"
-    if _answer(v) == "nothing open to fix it":
+    answer = _answer(v)
+    if answer == "nothing open to fix it":
         return "Red, nothing open yet"
-    return "Red, its fix on its way"
+    if "revert" not in answer:
+        return "Red, a fix row out"
+    if "fix row" not in answer:
+        return "Red, a revert open"
+    return "Red, a revert open and a fix row out"
 
 
 group_colors = {
     "Not red": "#d1f2eb",
-    "Red, its fix on its way": "#fdebd0",
+    "Red, a revert open": "#fdebd0",
+    "Red, a fix row out": "#fcf3cf",
+    "Red, a revert open and a fix row out": "#f5cba7",
     "Red, nothing open yet": "#f9d6d5",
 }
 
