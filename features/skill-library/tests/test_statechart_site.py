@@ -188,18 +188,51 @@ def ways_out(chart):
         yield {named[i]: labels for i, labels in out.items()}
 
 
+def stalls(chart):
+    """What the chart draws that reads as a stall: a state with no arrow out that summary.json
+    does not name final, or an arrow with no label. A summary.json with no `final` was written by
+    a from-spec that drew no way out of a state the model can leave, so the fault is the drawing,
+    and the one fix is to draw it again."""
+    summary = json.loads(read(chart.parent / "summary.json"))
+    name = chart.parent.name
+    final = set(summary.get("final", ()))
+    out = []
+    for region in ways_out(chart):
+        dead = sorted(s for s, labels in region.items() if not labels and s not in final)
+        if dead:
+            out.append(f"{name} draws no way out of: {'; '.join(dead)}")
+        bare = sorted(s for s, labels in region.items() if any(not label for label in labels))
+        if bare:
+            out.append(f"{name} has an arrow with no label out of: {bare}")
+    return out
+
+
 @pytest.mark.parametrize("chart", CHARTS, ids=lambda chart: chart.parent.name)
 def test_each_state_but_a_final_one_shows_an_arrow_out_that_says_who_takes_it(chart):
     """A state drawn with no arrow out reads as a stall. Each state the model can leave shows one
     way out, labelled, and only a state with no way out in the model, which summary.json names
-    final, ends a path."""
-    summary = json.loads(read(chart.parent / "summary.json"))
-    final = set(summary.get("final", ()))
-    for region in ways_out(chart):
-        dead = sorted(s for s, labels in region.items() if not labels and s not in final)
-        assert not dead, f"{chart.parent.name} draws no way out of: {'; '.join(dead)}"
-        bare = sorted(s for s, labels in region.items() if any(not label for label in labels))
-        assert not bare, f"{chart.parent.name} has an arrow with no label out of: {bare}"
+    final, ends a path. A state where a rule broke is no exception: from-spec draws from the whole
+    model, so a bug state the model can leave shows its way out, and one it cannot is final."""
+    assert not stalls(chart), "\n".join(stalls(chart))
+
+
+def test_a_chart_drawn_before_each_state_kept_a_way_out_is_told_to_draw_it_again(tmp_path):
+    """The model PRs drawn before from-spec kept a way out of each state (#1702) failed here
+    naming their bug states, and each crew hand-patched its chart; drawing it again was the fix.
+    A dead state the model can leave still fails, and one summary.json names final passes."""
+    folder = lamp(tmp_path, "")
+    write(folder / "chart.mmd", CHART.replace("  on --> off : you flip it back\n", ""))
+    drawn = {"command": "statechart from-spec Lamp.tla --expect-broken NeverDark"}
+    write(folder / "summary.json", json.dumps({"drawnFrom": drawn}))
+    assert stalls(folder / "chart.mmd") == [
+        "Lamp-statechart/summary.json names no final state, so an older from-spec drew it, one"
+        " that drew no way out of a state the model can leave: draw it again, in"
+        f" features/lamp/spec, with {drawn['command']}"
+    ]
+    write(folder / "summary.json", json.dumps({"final": [], "drawnFrom": drawn}))
+    assert stalls(folder / "chart.mmd") == ["Lamp-statechart draws no way out of: On"]
+    write(folder / "summary.json", json.dumps({"final": ["On"], "drawnFrom": drawn}))
+    assert stalls(folder / "chart.mmd") == []
 
 
 def test_the_page_says_how_many_steps_a_chart_draws_of_how_many_it_could(tmp_path):
