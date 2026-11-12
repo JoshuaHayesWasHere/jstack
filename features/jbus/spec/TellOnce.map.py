@@ -169,6 +169,9 @@ DONE = {
 """Whether the act's own file says it is done, as `Done(c)` in TellOnce.tla reads it."""
 
 
+BEGUN = "Not told: a pass in its step or a mark written"
+
+
 def group(v, facts):
     """Where the tell stands, by what the state's label shows: the hue is how many times the
     receiver took it, and the shade where it is short of done. The overview draws a box for each
@@ -187,13 +190,13 @@ def group(v, facts):
     if told == "Told twice":
         return told
     if DONE[v["on"]](v):
-        return f"{told}: its file says done" if v["took"] else "Not told: a pass in its step or a mark written"
+        return f"{told}: its file says done" if v["took"] else BEGUN
     if v["box"] or v["rowHeld"]:
-        return f"{told}: sent.json has its key" if v["took"] else "Not told: a pass in its step or a mark written"
+        return f"{told}: sent.json has its key" if v["took"] else BEGUN
     if v["went"] == "held":
         return f"{told}: the outbox held it"
     if v["pc"]:
-        return "Not told: a pass in its step or a mark written" if not v["took"] else f"{told}: a pass in its step"
+        return BEGUN if not v["took"] else f"{told}: a pass in its step"
     return f"{told}: nothing marked"
 
 
