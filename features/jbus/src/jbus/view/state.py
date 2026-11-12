@@ -1093,7 +1093,7 @@ def _events(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def _acts(read: Read) -> list[dict[str, Any]]:
     """Every act the project's records keep, oldest first, each with its time, its line and
     the home it is of (`homes.Homes.of_key`), or None for an act of no home: each change of a
-    row's status in `transitions.jsonl`, each event of `events.jsonl`, a wake and a Result
+    row's status or its go in `transitions.jsonl`, each event of `events.jsonl`, a wake and a Result
     among them, but jbus's hourly heartbeat, which says only that jbus runs, and each line of
     `merge.log`, by the pull request it names, or the slug a merge names."""
     pulls = {text(row.get("pr")).removeprefix("#"): row["slug"] for row in read.rows}
@@ -1115,6 +1115,12 @@ def _acts(read: Read) -> list[dict[str, Any]]:
             f"{one.get('slug')}: {one.get('from')} to {one.get('to')}",
         )
         for one in read.moves or []
+    ]
+    made += [
+        act(
+            when(one.get("at")), text(one.get("slug"), 80), f"{one.get('slug')}: go {one.get('go')}"
+        )
+        for one in read.goes
     ]
     made += [
         act(one["at"], one["slug"], one["line"])
@@ -1337,8 +1343,20 @@ class Read:
         return self.table_of_rows or []
 
     @cached_property
-    def moves(self) -> list[dict[str, Any]] | None:
+    def lines_of_moves(self) -> list[dict[str, Any]] | None:
         return self.records("transitions.jsonl")
+
+    @cached_property
+    def moves(self) -> list[dict[str, Any]] | None:
+        """Each change of a row's status in `transitions.jsonl`: a line with `go` and no `to`
+        moves the row's go (`queue._go`) and no status, so it is in `goes`."""
+        kept = self.lines_of_moves
+        return None if kept is None else [one for one in kept if "to" in one]
+
+    @cached_property
+    def goes(self) -> list[dict[str, Any]]:
+        """Each change of a row's go in `transitions.jsonl` (`queue._go`)."""
+        return [one for one in self.lines_of_moves or [] if "to" not in one]
 
     @cached_property
     def logged(self) -> list[dict[str, Any]] | None:

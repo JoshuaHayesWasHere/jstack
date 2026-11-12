@@ -101,6 +101,18 @@ def test_a_stall_stands_until_its_row_moves_or_leaves(tmp_path, monkeypatch):
     assert ("stall", "oat-spoon") not in found(stack(scene))
 
 
+def test_a_go_line_after_a_stall_is_no_move_of_its_row(tmp_path, monkeypatch):
+    """A hold or an approve writes the row's go to `transitions.jsonl` (`queue._go`), with no
+    status: the row has not moved, so its stall still stands."""
+    scene = Scene(tmp_path, monkeypatch)
+    troubled(scene)
+    scene.lines(
+        "transitions.jsonl",
+        [{"slug": "oat-spoon", "go": "held", "by": "user", "at": iso(ago(minutes=2))}],
+    )
+    assert ("stall", "oat-spoon") in found(stack(scene))
+
+
 def test_a_crew_that_acted_or_left_the_hold_to_the_user_is_not_idle(tmp_path, monkeypatch):
     """An entry nobody was told of, or whose hold is the user's, is no idle pull request: the
     first is not late yet, and the second is a need."""

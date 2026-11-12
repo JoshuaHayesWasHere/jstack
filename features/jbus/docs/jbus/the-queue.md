@@ -535,6 +535,7 @@ jbus moves its stored copy of the brief to `removed/<slug>.<sha12>.md` in the sa
 | Its thread is at work. | `refused: <slug> is out: its thread <id> is <status>` |
 | Its pull request is open. | `refused: <slug> is out: its pull request #<n> is open` |
 | Its pull request merged. | `refused: <slug> merged as #<n>, and a merged row stays` |
+| It is `done` or `merged` (`work.over`). | `refused: <slug> is <status>, and a row that is over stays` |
 | A launch of it has no answer from T3 Code yet. | `refused: <slug> is out: its launch has no answer yet (<the launch record>)` |
 | The slug is no row. | `refused: the queue has no row <slug>` |
 

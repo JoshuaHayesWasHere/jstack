@@ -505,6 +505,21 @@ def test_transitions_carry_whether_the_move_table_holds_the_move(machine):
     assert rows == [("one", "pr", "merged", 1), ("two", "merged", "gate", 0)]
 
 
+def test_a_line_that_moves_a_rows_go_is_no_change_of_its_status(machine):
+    """`jbus.queue._go` writes a row's go to `transitions.jsonl`, and the table keeps only the
+    changes of status (`jbus.telemetry.records.transitions`): a go line between two of them would
+    cut the time a row spent in one, which `hours-after-pr` sums."""
+    log, at = "transitions.jsonl", iso(NOW)
+    machine.append("alpha", log, {"slug": "one", "from": "queued", "to": "launched", "at": at})
+    machine.append("alpha", log, {"slug": "one", "go": "held", "by": "user", "at": at})
+    machine.append("alpha", log, {"slug": "one", "from": "launched", "to": "pr", "at": at})
+    machine.build()
+    query = "SELECT slug, from_status, to_status FROM transitions ORDER BY from_status"
+    with contextlib.closing(machine.store()) as store:
+        rows = store.execute(query).fetchall()
+    assert rows == [("one", "launched", "pr"), ("one", "queued", "launched")]
+
+
 def test_a_store_from_before_health_readings_gains_the_table_and_reads_the_machines_log(machine):
     """A store migrated up to `jbus.telemetry.migrations.v016_health_readings` gains its table,
     and `jbus.telemetry.machine` reads each line of the machine's `health.jsonl` as the

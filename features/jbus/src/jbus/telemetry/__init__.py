@@ -287,11 +287,14 @@ def _log(connection, project: str, source: Source, file: Path, zone, built: Buil
             canon = json.dumps(record, sort_keys=True)
             if source.beside is not None:
                 record = source.beside(record, file.parent)
+        made = source.row(record, zone)
+        if made is None:
+            continue
         if canon not in counts:
             counts[canon] = 0 if start == 0 else _seen(connection, source.table, project, canon)
         key = values.key(canon, counts[canon])
         counts[canon] += 1
-        rows.append(_values(source, project, key, source.row(record, zone), zone))
+        rows.append(_values(source, project, key, made, zone))
     connection.execute("BEGIN")
     before = connection.total_changes
     connection.executemany(_insert(source), rows)
@@ -325,7 +328,7 @@ def _snapshot(connection, project: str, source: Source, file: Path, zone, built:
         return
     rows = []
     for record in found:
-        row = source.row(record, zone)
+        row = source.row(record, zone) or {}
         natural = row.get(source.natural)
         if natural is not None:
             rows.append(_values(source, project, str(natural), row, zone))

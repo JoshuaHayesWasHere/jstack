@@ -15,6 +15,7 @@ from statechart_support import (
     FROM_CHART_USAGE,
     FROM_SPEC_USAGE,
     LAMP,
+    REPLAY_USAGE,
     SWITCH_LAMP,
     ChartError,
     edges,
@@ -812,6 +813,7 @@ def test_statechart_names_the_chart_it_refuses_and_the_argument_it_does_not_know
     assert bare.stderr == (
         f"Usage: {FROM_SPEC_USAGE}\n"
         f"       {FROM_CHART_USAGE}\n"
+        f"       {REPLAY_USAGE}\n"
         "Run statechart --help for the flags, the output, and the exit codes.\n"
     )
 

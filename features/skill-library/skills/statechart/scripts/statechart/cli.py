@@ -18,7 +18,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from statechart import excalidraw
+from statechart import excalidraw, replay
 from statechart.lib import (
     BROKEN_PROPERTY,
     FIRST_ONLY,
@@ -45,6 +45,7 @@ USAGE = {
         "statechart from-chart CHART.mmd [--module NAME] [--expect-broken RULE]... [--title TEXT]"
         " [--out DIR] [--png] [--keep-work]"
     ),
+    "replay": replay.USAGE,
 }
 
 
@@ -252,7 +253,7 @@ Exit codes
      changed input stops the run before that."""
 
 HELP = {
-    "": f"""{usage([*USAGE.values(), "statechart [from-spec|from-chart] --help"])}
+    "": f"""{usage([*USAGE.values(), "statechart [from-spec|from-chart|replay] --help"])}
 
 Draws a Mermaid statechart of what an app's user sees, from TLC's state graph of a TLA+ spec. The
 help calls that user the reader.
@@ -1713,6 +1714,8 @@ def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     if argv[:1] == ["excalidraw"]:
         return excalidraw.main(argv[1:])
+    if argv[:1] == ["replay"]:
+        return replay.main(argv[1:])
     try:
         if argv and argv[0] == "site":
             return site_main(argv[1:])

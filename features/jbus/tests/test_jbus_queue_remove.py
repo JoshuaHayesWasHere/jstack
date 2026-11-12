@@ -219,6 +219,7 @@ def test_a_removed_rows_thread_that_failed_is_not_told_to_carry_on(kitchen):
         ("running", "refused: alpha is out: its thread mcp:thread-1 is running"),
         ("open", "refused: alpha is out: its pull request #9 is open"),
         ("merged", "refused: alpha merged as #9, and a merged row stays"),
+        ("done", "refused: alpha is done, and a row that is over stays"),
         ("none", "refused: the queue has no row nope"),
         ("other", acts.REMOVE_BY.format(user="user", by="Chef")),
         ("when", 'refused: --at is "<YYYY-MM-DD HH:MM ET>"'),
@@ -242,6 +243,10 @@ def test_a_row_that_is_out_merged_or_waited_on_is_refused_and_nothing_changes(ki
         kitchen.set("open.json", [kitchen.opened("alpha", 9)])
     elif scene == "merged":
         kitchen.set("merged.json", [kitchen.merged("alpha", 9, "a" * 40)])
+    elif scene == "done":
+        table = rows(kitchen)
+        table["alpha"].update(status="done")
+        jbus.write_json(kitchen.state / "queue.json", list(table.values()))
     elif scene == "none":
         slug = "nope"
     elif scene == "other":

@@ -36,6 +36,8 @@ def records(folder):
     with (state / "transitions.jsonl").open("w") as file:
         for slug, to, at in moves:
             file.write(json.dumps({"slug": slug, "to": to, "at": at}) + "\n")
+        go = {"slug": "b", "go": "held", "by": "user", "at": "2026-10-28T16:00:00+00:00"}
+        file.write(json.dumps(go) + "\n")
     with (state / "events.jsonl").open("w") as file:
         for at in ("2026-10-26T01:00:00+00:00", "2026-11-03T01:00:00+00:00"):
             file.write(json.dumps({"at": at, "event": "queue", "slug": "b", "line": "x"}) + "\n")
@@ -84,7 +86,7 @@ def test_the_dataset_step_prints_the_same_counts_twice_and_reads_nothing_past_th
     assert said[-1] == "rerunnable: the same counts twice"
     data = home / ".local" / "state" / "home" / "demo" / "reports" / "retro-2026-10-25-data"
     found = {name: count for count, name in (line.split(None, 1) for line in said[:-1])}
-    assert found["transitions.jsonl"] == "5"
+    assert found["transitions.jsonl"] == "6"
     assert found["rows.jsonl"] == "2"
     assert found["events.jsonl"] == "1"
     assert found["messages.jsonl"] == "2"
@@ -92,6 +94,8 @@ def test_the_dataset_step_prints_the_same_counts_twice_and_reads_nothing_past_th
     rows = [json.loads(line) for line in (data / "rows.jsonl").read_text().splitlines()]
     weeks = {row["slug"]: row["week"] for row in rows}
     assert weeks == {"a": "base", "b": "window"}
+    assert {row["slug"]: row["last_status"] for row in rows} == {"a": "merged", "b": "pr"}
+    assert not [key for row in rows for key in row if key.endswith("None")]
 
 
 def freeze(*args):

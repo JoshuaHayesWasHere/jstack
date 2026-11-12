@@ -1,6 +1,7 @@
 # Chart labels for RowLife: what you see of one row of the queue, in `jbus queue` and the sidebar.
 # Each status names what in features/jbus/src/jbus/work.py sets it (`work.status` and its `_THREAD`
 # table), and `removed` the verb that writes it. A row that is over keeps its status (`work.kept`).
+# RowLife.trace.py, beside it, reads jbus's log of the row as the spec's steps.
 # The line's value in work.json (`value`) is not drawn: each status node joins the values that give
 # it, as work.status projects them (running: working, opening; stale: hung, lost, unknown;
 # left: leftover, closed; queued: unapproved, behind, ready; launched: launching), and
@@ -9,7 +10,7 @@
 reader_actions = ["Grant", "Depends", "Hold", "Lift", "Remove"]
 
 STATUS = {
-    "queued": "queued (no thread yet)",
+    "queued": "queued (no launch yet)",
     "launched": "launched (a launch whose thread is starting)",
     "running": "running (the thread at work, a Result or not, or its pull request opening)",
     "waiting": "waiting (the thread asks you)",
@@ -62,21 +63,38 @@ group_colors = {
 # queue.MOVES, the change of facts that makes each move, in the words of the table. A move not
 # named here is labelled by the fact that changed, as `step` says it.
 QUESTION_CLOSED = "the question closes, and the row's"
+UNNAMED = "the pull request closes unmerged with no address of it in the Result, and"
 MOVES = {
     ("queued", "launched"): "a launch record names a thread for the row",
     ("queued", "gate"): "jbus opens a question on the row",
     ("gate", "queued"): f"{QUESTION_CLOSED} launch has no record",
     ("gate", "launched"): f"{QUESTION_CLOSED} launch has no thread yet",
+    ("gate", "running"): f"{QUESTION_CLOSED} thread is at work",
+    ("gate", "waiting"): f"{QUESTION_CLOSED} thread asks for an answer",
+    ("gate", "failed"): f"{QUESTION_CLOSED} thread failed",
+    ("gate", "stale"): f"{QUESTION_CLOSED} thread ended with nothing written",
+    ("gate", "left"): f"{QUESTION_CLOSED} Result leaves work",
     ("gate", "pr"): f"{QUESTION_CLOSED} pull request is open",
     ("gate", "done"): f"{QUESTION_CLOSED} Result says done",
     ("gate", "merged"): f"{QUESTION_CLOSED} pull request merged",
     ("launched", "running"): "T3 Code lists the thread at work",
+    ("launched", "waiting"): "the thread asks for an answer before a pass sees it at work",
     ("launched", "failed"): "the thread fails before a pass sees it at work",
+    ("launched", "stale"): "the thread ends with nothing written before a pass sees it at work",
     ("launched", "left"): "the thread ends with work left before a pass sees it at work",
     ("launched", "done"): "the thread ends with a clean Result before a pass sees it at work",
+    ("launched", "pr"): "a pull request opens before a pass sees the thread at work",
+    ("launched", "merged"): "the pull request opens and merges between two passes",
+    ("launched", "gate"): "jbus opens a question on the row",
     ("failed", "running"): "the failed thread works again",
+    ("failed", "waiting"): "the failed thread asks for an answer",
+    ("failed", "stale"): "the failed thread ends with nothing written",
+    ("failed", "launched"): "T3 Code no longer lists the thread, and its launch stands",
     ("failed", "left"): "the failed thread leaves its work to its home",
     ("failed", "done"): "a Result says done after the thread failed",
+    ("failed", "pr"): "a pull request opens",
+    ("failed", "merged"): "the pull request opens and merges between two passes",
+    ("failed", "gate"): "jbus opens a question on the row",
     ("running", "pr"): "a pull request opens",
     ("running", "left"): "the Result leaves work, or the pull request closes",
     ("running", "done"): "the thread ends with a clean Result and no pull request",
@@ -84,21 +102,48 @@ MOVES = {
     ("running", "stale"): "the turn hangs, or the thread ends or is settled with nothing written",
     ("running", "failed"): "the thread fails",
     ("running", "merged"): "the pull request opens and merges between two passes",
+    ("running", "launched"): "T3 Code no longer lists the thread, and its launch stands, or the "
+    "crew opens nothing after its review",
+    ("running", "gate"): "jbus opens a question on the row",
     ("waiting", "running"): "the request is answered and the thread works again",
     ("waiting", "left"): "the thread ends after its request with work left",
+    ("waiting", "done"): "the thread ends after its request with a clean Result",
+    ("waiting", "stale"): "the thread ends after its request with nothing written",
     ("waiting", "failed"): "the thread fails while it waits",
+    ("waiting", "launched"): "T3 Code no longer lists the thread, and its launch stands",
+    ("waiting", "pr"): "a pull request opens",
+    ("waiting", "merged"): "the pull request opens and merges between two passes",
+    ("waiting", "gate"): "jbus opens a question on the row",
     ("stale", "running"): "the thread works again",
-    ("stale", "left"): "the thread stays quiet with nothing written, or writes a leftover",
+    ("stale", "left"): "the thread stays quiet with nothing written for long enough, or writes a "
+    "leftover",
+    ("stale", "done"): "a Result says done after the thread ended",
+    ("stale", "waiting"): "the thread asks for an answer",
+    ("stale", "failed"): "the thread fails",
+    ("stale", "launched"): "T3 Code no longer lists the thread, and its launch stands",
+    ("stale", "pr"): "a pull request opens",
+    ("stale", "merged"): "the pull request opens and merges between two passes",
+    ("stale", "gate"): "jbus opens a question on the row",
     ("left", "pr"): "a pull request opens for what was left",
-    ("left", "done"): "a follow-up Result says done",
+    ("left", "done"): "a follow-up Result says done, and names no closed pull request",
     ("left", "running"): "the thread works again on what was left",
     ("left", "waiting"): "the thread asks for an answer again",
-    ("left", "launched"): "jbus launches the row again for what was left",
+    ("left", "launched"): "the row is launched again for what was left",
+    ("left", "merged"): "the pull request opens and merges between two passes",
+    ("left", "gate"): "jbus opens a question on the row",
+    ("left", "failed"): "the Result no longer names the closed pull request, and the thread failed",
+    ("left", "stale"): "the turn hangs, or the Result no longer names the closed pull request",
     ("pr", "merged"): "the pull request merges",
-    ("pr", "gate"): "jbus opens a question on the row with its pull request open",
+    ("pr", "gate"): "jbus opens a question on the row",
     ("pr", "left"): "the pull request closes unmerged",
-    ("pr", "done"): "the pull request leaves the open list, and the Result says done",
-    ("done", "merged"): "the pull request of a done row merges on your accept",
+    ("pr", "done"): "the pull request closes unmerged, and the clean Result names no address of it",
+    ("pr", "running"): f"{UNNAMED} the thread works",
+    ("pr", "failed"): f"{UNNAMED} the thread failed",
+    ("pr", "stale"): "the pull request closes unmerged while the turn hangs, or with no address "
+    "of it in the Result after the thread ended",
+    ("pr", "launched"): f"{UNNAMED} T3 Code lists no thread",
+    ("pr", "waiting"): "the pull request closes unmerged while the thread asks for an answer",
+    ("done", "merged"): "the pull request of a done row merges on the user's accept",
 }
 
 # What a pass sees change, by the fact that changed, where the status stays.
@@ -131,7 +176,11 @@ def step(action, before, after):
         "Launch": "a launch record names a thread for the row",
         "Thread": THREAD.get(after["thread"], action),
         "Write": WRITTEN.get(after["written"], action),
-        "Pull": PULL.get(after["pull"], action),
+        "Pull": (
+            "the Result no longer names the closed pull request"
+            if before["pull"] == "closed" and after["pull"] == "none"
+            else PULL.get(after["pull"], action)
+        ),
         "Ask": "jbus opens a question" if after["question"] else "the question closes",
     }.get(action)
     if said is not None:
@@ -143,6 +192,8 @@ def step(action, before, after):
     if action == "Hold":
         if after["go"] == "kept":
             return "you hold the row, keeping its go"
+        if before["go"] in ("held", "kept"):
+            return "you hold the held row again"
         return "you hold the approved row" if before["go"] == "approved" else "you hold the row"
     if action == "Remove":
         return f"you remove the row from {before['status']}"
@@ -153,6 +204,8 @@ def step(action, before, after):
             return "you approve the row, or a rule gives its go"
         if before["go"] == "kept":
             return "you approve the row over the hold that kept its go"
+        if before["go"] in ("approved", "behind"):
+            return "you approve the approved row again"
         return "you approve the held row, and the hold ends"
     return {
         "Lift": "you lift the hold, and its go comes back",

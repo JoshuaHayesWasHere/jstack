@@ -121,7 +121,8 @@ def jbus(state, window):
         for table, source in JBUS_TABLES.items():
             for one in lines(folder / source):
                 moment = when(one.get("at"))
-                if table == "transitions.jsonl" and moment and moment < window.end:
+                # A line with `go` and no `to` moves a row's go (`queue._go`), not its status.
+                if table == "transitions.jsonl" and "to" in one and moment and moment < window.end:
                     moves.setdefault((project, one.get("slug") or ""), []).append(one)
                 if not window.week(moment):
                     continue

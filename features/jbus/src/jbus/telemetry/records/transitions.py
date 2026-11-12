@@ -1,4 +1,5 @@
-"""`transitions.jsonl`, each change of a row's status."""
+"""`transitions.jsonl`, each change of a row's status. A line that moves a row's go
+(`jbus.queue._go`) names no status, and is no row of the table."""
 
 from __future__ import annotations
 
@@ -8,7 +9,9 @@ from jbus.telemetry.records import Source
 from jbus.telemetry.values import Row, _columns, _length, _text, utc
 
 
-def row(one: Row, zone: tzinfo | None) -> Row:
+def row(one: Row, zone: tzinfo | None) -> Row | None:
+    if "to" not in one:
+        return None
     return {
         "at": utc(one.get("at"), zone),
         "slug": _text(one.get("slug")),

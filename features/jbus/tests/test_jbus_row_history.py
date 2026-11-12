@@ -21,8 +21,10 @@ NO_REVIEW = "wait 8 https://example.test/pull/8: it has no review yet\n"
 
 
 def transitions(kitchen):
+    """The lines of `transitions.jsonl` that move a row's status: each but a go's (`queue._go`)."""
     path = kitchen.state / "transitions.jsonl"
-    return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
+    lines = path.read_text().splitlines() if path.exists() else []
+    return [one for one in map(json.loads, lines) if "to" in one]
 
 
 def waits(kitchen):

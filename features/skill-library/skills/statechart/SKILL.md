@@ -92,6 +92,14 @@ A file and line, as in `\* pay.ts:120`, cites it too, but a quote needs no edit 
 3. Add the real code's guards and variables to the spec that `from-chart` wrote, and run `from-chart` again.
    For each difference it prints, ask the PM whether the code is wrong or the chart needs a correction.
 
+## Replay a run's log
+
+When the code writes a log of each step it takes, `statechart replay SPEC.tla --trace SPEC.trace.py --log FILE.jsonl` checks that a real run took only steps the model allows.
+It runs TLC once for the spec's state graph, walks each unit's lines over it, and prints `<n> lines, <m> matched, <k> matched no step` with one `MISS` line per line no step makes, exiting 1 on a miss.
+The trace file says how a line reads: its unit, the variables it shows before and after, and, for a line a verb writes, the actions that make it.
+`statechart replay --help` gives the contract, and `features/jbus/spec/RowLife.trace.py` is a worked one.
+A miss is a code path the model lacks: change the model or the code until the log replays, and never the trace file alone.
+
 ## Hand off
 
 Give the PM the PNG and the Mermaid source of each chart.

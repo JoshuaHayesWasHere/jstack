@@ -4,14 +4,15 @@
 \* writes (queue.py `new["status"] = work.kept(was, new["status"])`), and its go, beside it.
 \* No verb moves the status: a pass sees one fact change and writes the status the facts give,
 \* unless the row is over (work.py `def over(row: Mapping[str, Any]) -> bool:`): then it keeps
-\* it. `Moves` is the table each pass judges a move by, queue.py `MOVES: dict[tuple[str, str],
-\* str] = {`, move for move, and test_rowlife_spec.py fails when the two differ. The go is moved
-\* by verbs and rules of queue.py, each its own action. Beside the status, each pass writes the
-\* row's line of work.json, whose value is the pattern the facts match (work.py
-\* `def judge(facts: Facts) -> State:`), which the sidebar and `jbus queue` show and from which
-\* `status` projects the status. Each cite names its file, under features/jbus/src/jbus/, and
-\* quotes the code in backticks with no line number: features/jbus/tests/test_spec_quotes.py finds
-\* each quote once in today's code.
+\* it. Each status edge of this spec's state graph is a move of queue.py `MOVES: dict[tuple[str,
+\* str], str] = {`, and test_rowlife_spec.py fails when the two differ. The go is moved by verbs
+\* and rules of queue.py, each its own action. `statechart replay` walks jbus's
+\* `transitions.jsonl` over the graph (RowLife.trace.py), and fails on a line no step makes.
+\* Beside the status, each pass writes the row's line of work.json, whose value is the pattern
+\* the facts match (work.py `def judge(facts: Facts) -> State:`), which the sidebar and
+\* `jbus queue` show and from which `status` projects the status. Each cite names its file, under
+\* features/jbus/src/jbus/, and quotes the code in backticks with no line number:
+\* features/jbus/tests/test_spec_quotes.py finds each quote once in today's code.
 EXTENDS Naturals
 
 CONSTANT Fault
@@ -21,10 +22,9 @@ CONSTANT Fault
 
 \* Each pass writes the status the facts give and appends the move to transitions.jsonl, marking
 \* one `MOVES` lacks `"legal": false` and writing it all the same (queue.py
-\* `if (was, new["status"]) not in MOVES:`). `MovesKnown` holds that the table has every move a
-\* change of one fact makes here, so the mark is left for the faults the model has not: a pull
-\* request read in neither of GitHub's lists, a thread or pull request of a row with no launch
-\* record, and a `Branch:` line that loses a closed pull request's address
+\* `if (was, new["status"]) not in MOVES:`). The table holds every status edge of this spec's
+\* graph, so the mark is left for the faults the model has not: a pull request read in neither of
+\* GitHub's lists, and a thread or pull request of a row with no launch record
 \* (test_jbus_queue_moves.py names each). The status reads no clock: a `stale` row with nothing
 \* written that stays quiet becomes `left` by `watch.unwritten`, a step this model leaves out (it
 \* reads the clock and the slot waits of World.awaits, which ThreadLife holds).
@@ -41,35 +41,6 @@ Final == {"merged", "done"}
 \* are the user's words to jbus and jmerge, each its own record, and no step here; `answer` is
 \* a Grant by a rule, and `withdraw` a Remove.
 Gos == {"waiting", "approved", "behind", "held", "kept"}
-
-Moves ==
-  {
-    <<"queued", "launched">>, <<"queued", "gate">>, <<"queued", "removed">>,
-    <<"gate", "queued">>, <<"gate", "launched">>, <<"gate", "pr">>, <<"gate", "done">>,
-    <<"gate", "merged">>, <<"gate", "running">>, <<"gate", "waiting">>, <<"gate", "failed">>,
-    <<"gate", "stale">>, <<"gate", "left">>,
-    <<"launched", "running">>, <<"launched", "failed">>, <<"launched", "left">>,
-    <<"launched", "done">>, <<"launched", "waiting">>, <<"launched", "stale">>,
-    <<"launched", "pr">>, <<"launched", "merged">>, <<"launched", "gate">>,
-    <<"failed", "running">>, <<"failed", "left">>, <<"failed", "done">>, <<"failed", "launched">>,
-    <<"failed", "waiting">>, <<"failed", "stale">>, <<"failed", "pr">>, <<"failed", "merged">>,
-    <<"failed", "gate">>,
-    <<"running", "pr">>, <<"running", "left">>, <<"running", "done">>, <<"running", "waiting">>,
-    <<"running", "stale">>, <<"running", "failed">>, <<"running", "merged">>,
-    <<"running", "launched">>, <<"running", "gate">>,
-    <<"waiting", "running">>, <<"waiting", "left">>, <<"waiting", "failed">>,
-    <<"waiting", "done">>, <<"waiting", "stale">>, <<"waiting", "launched">>, <<"waiting", "pr">>,
-    <<"waiting", "merged">>, <<"waiting", "gate">>,
-    <<"stale", "running">>, <<"stale", "left">>, <<"stale", "done">>, <<"stale", "failed">>,
-    <<"stale", "waiting">>, <<"stale", "launched">>, <<"stale", "pr">>, <<"stale", "merged">>,
-    <<"stale", "gate">>,
-    <<"left", "pr">>, <<"left", "done">>, <<"left", "running">>, <<"left", "waiting">>,
-    <<"left", "launched">>, <<"left", "stale">>, <<"left", "merged">>, <<"left", "gate">>,
-    <<"left", "removed">>,
-    <<"pr", "merged">>, <<"pr", "gate">>, <<"pr", "left">>, <<"pr", "done">>, <<"pr", "stale">>,
-    <<"pr", "waiting">>, <<"pr", "removed">>,
-    <<"done", "merged">>
-  }
 
 \* The facts, as the facets of work.py `class Facts:` have them, each folded to what `status`
 \* tells apart.
@@ -233,13 +204,17 @@ Write ==
   /\ UNCHANGED go
 
 \* GitHub lists the row's pull request: it opens, merges (also between two passes), or closes,
-\* and a closed one opens again. Before it opens, the crew may be on its way to it after its
-\* review, and may open nothing.
+\* and a closed one opens again. A pull request in neither of GitHub's lists is closed only while
+\* the Result's `Branch:` line names its address, and none otherwise (watch.py
+\* `return work.Pull.CLOSED if found and found.url else work.Pull.NONE`): one that closes may read
+\* as none at once, and a closed one as none once the Result is written again without it. Before
+\* it opens, the crew may be on its way to it after its review, and may open nothing.
 Pull ==
   /\ launched
   /\ \E p \in Pulls :
        /\ <<pull, p>> \in {<<"none", "open">>, <<"none", "merged">>, <<"open", "merged">>,
-                            <<"open", "closed">>, <<"closed", "open">>, <<"none", "opening">>,
+                            <<"open", "closed">>, <<"open", "none">>, <<"closed", "open">>,
+                            <<"closed", "none">>, <<"none", "opening">>,
                             <<"opening", "none">>, <<"opening", "open">>,
                             <<"opening", "merged">>}
        /\ Derive(thread, written, p, question, launched)
@@ -250,20 +225,13 @@ Ask ==
   /\ Derive(thread, written, pull, ~question, launched)
   /\ UNCHANGED go
 
-\* The `remove` verb takes the row out for good and writes the line `removed`, and no pass judges
-\* it again (queue.py `rows.remove(row)`). `Moves` names the removals the work was seen to make
-\* and guards none (queue.py `MOVES: dict[tuple[str, str], str] = {`): remove asks T3 Code and
-\* GitHub, and refuses only a thread at work (asks.py `if working:`), an open pull request
-\* (asks.py `("open", "{slug} is out: its pull request #{number} is open"),`) or a merged one
-\* (asks.py `("merged", "{slug} merged as #{number}, and a merged row stays"),`), so a `done` row
-\* goes too. A thread at work is a T3 status of watch.py `LIVE = (*STARTING, "running", "waiting")`:
-\* "starting", "atwork", "waiting", and "hung", a turn at work that has stopped moving.
-\* `withdraw` removes only a row that never launched (queue.py `def _launching(`), one of these.
-\* A launch under way with no answer yet is no step here: the launch is one step.
+\* The `remove` verb writes the line `removed`, and the pass never judges it. It refuses a row
+\* that is over. Its other refusals, a thread at work, an open or merged pull request, a launch
+\* just now, read T3 Code and GitHub as they are at the verb, which the facts a pass last saw
+\* need not be (asks.py `def out(slug: str) -> str:`), so the spec does not guard on them.
 Remove ==
-  /\ status # "removed"
-  /\ thread \notin {"starting", "atwork", "waiting", "hung"}
-  /\ pull \notin {"open", "merged"}
+  /\ status \notin Final \cup {"removed"}
+     \* queue.py `{verb.slug} is {row['status']}, and a row that is over stays`
   /\ status' = "removed" /\ value' = "removed"  \* work.py `row=_set(Row.REMOVED)`
   /\ UNCHANGED <<go, facts>>
 
@@ -275,9 +243,9 @@ Pass ==
 \* The go region.
 
 \* An approve, or a go by a rule (the entry's go, an answer, silence): every go jbus records.
-\* It ends a hold too. A row it depends on that is not over holds it back.
+\* It ends a hold too, and approves a row that has a go again. A row it depends on that is not
+\* over holds it back.
 Grant ==
-  /\ go \notin {"approved", "behind"}
   /\ go' \in {"approved", "behind"}  \* queue.py `def _grant(`
   /\ Restated(go')
   /\ UNCHANGED <<status, facts>>
@@ -298,11 +266,12 @@ Ahead ==
   /\ Restated(go')
   /\ UNCHANGED <<status, facts>>
 
-\* `jbus queue hold` takes the go back, and with `keep` keeps the go it took.
+\* `jbus queue hold` takes the go back, and with `keep` keeps the go it took. A held row may be
+\* held again, and keeps no go then.
 Hold ==
-  /\ go \in {"waiting", "approved", "behind"}
+  \* queue.py `kept = verb.keep and took.get("approved")`
   /\ \/ go' = "held"
-     \/ go \in {"approved", "behind"} /\ go' = "kept"  \* queue.py `if verb.keep and took.get("approved"):`
+     \/ go \in {"approved", "behind"} /\ go' = "kept"
   /\ Restated(go')
   /\ UNCHANGED <<status, facts>>
 
@@ -328,18 +297,8 @@ Next == Launch \/ Thread \/ Write \/ Pull \/ Ask \/ Remove \/ Pass \/ Grant \/ D
 Spec == Init /\ [][Next]_vars
 
 \* A row that is over stays over: once `merged` or `done`, every reader of `work.over` (the queue,
-\* `watch.final`, jmerge) reads it over for good, and a `done` row may only become `merged`, or
-\* leave the queue for good by `remove` (queue.py `rows.remove(row)`), after which no pass reads
-\* it. A merged row is never removed.
+\* `watch.final`, jmerge) reads it over for good, and a `done` row may only become `merged`.
 FinalStays ==
-  [][ /\ (status \in Final => status' \in Final \cup {"removed"})
-      /\ (status = "merged" => status' = "merged")
-      /\ (status = "removed" => status' = "removed") ]_vars
-
-\* Each move of the status is one of the table's, so a pass marks `"legal": false` only a fault:
-\* the table is the code's own status function's, move for move. A removal is the `remove` verb's,
-\* which `derive` never judges (queue.py "`derive` never judges a move to `removed`"), so it is
-\* none of them.
-MovesKnown ==
-  [][status' \notin {status, "removed"} => <<status, status'>> \in Moves]_vars
+  [][ /\ (status \in Final => status' \in Final)
+      /\ (status = "merged" => status' = "merged") ]_vars
 ====

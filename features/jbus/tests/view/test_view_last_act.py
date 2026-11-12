@@ -134,3 +134,18 @@ def test_a_heartbeat_is_no_act_and_an_act_of_no_home_is_the_projects_alone(zoned
         max(one["last"]["at"] for one in project["homes"] if one["last"])
         == "2026-10-26T12:59:52+00:00"
     )
+
+
+def test_a_line_that_moves_a_rows_go_is_an_act_that_says_the_go(zoned, tmp_path):
+    """`queue._go` writes a hold to `transitions.jsonl` as `{slug, go, by, at}`, with no status
+    to move from or to: the act says the go the row has now."""
+    moves = (tmp_path / "state" / "demo" / "transitions.jsonl").open("a")
+    held = {"slug": "ux-look-pr", "go": "held", "by": "user", "at": "2026-10-26T12:59:58+00:00"}
+    moves.write(json.dumps(held) + "\n")
+    moves.close()
+    (project,) = zoned.json("/stack.json")["projects"]
+    assert project["last"] == {
+        "at": "2026-10-26T12:59:58+00:00",
+        "home": "jview",
+        "what": "ux-look-pr: go held",
+    }

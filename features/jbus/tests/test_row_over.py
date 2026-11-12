@@ -21,7 +21,7 @@ LATER = NOW + timedelta(minutes=3)
 def moves(kitchen):
     path = kitchen.state / "transitions.jsonl"
     lines = path.read_text().splitlines() if path.exists() else []
-    return [(one["from"], one["to"]) for one in map(json.loads, lines)]
+    return [(one["from"], one["to"]) for one in map(json.loads, lines) if "from" in one]
 
 
 def test_a_clean_result_from_a_thread_still_at_work_is_not_over_for_the_queue_or_the_watcher(

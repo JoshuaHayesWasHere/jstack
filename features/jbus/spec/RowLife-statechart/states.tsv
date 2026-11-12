@@ -1,61 +1,61 @@
 state	group	status	start	chart	states in RowLife.cfg	within in RowLife.cfg
-Approved, behind a row it depends on: done (a clean Result from a thread that ended)	Final	works		r0s1 r1s0	144	1656
+Approved, behind a row it depends on: done (a clean Result from a thread that ended)	Final	works		r0s1 r1s0	144	1728
 Approved, behind a row it depends on: failed (the thread failed)	Launched	works		r0s1 r1s1	1	0
-Approved, behind a row it depends on: gate (a question is open)	Not launched	works		r0s1 r1s2	78	738
+Approved, behind a row it depends on: gate (a question is open)	Not launched	works		r0s1 r1s2	78	761
 Approved, behind a row it depends on: launched (a launch whose thread is starting)	Launched	works		r0s1 r1s3	3	4
-Approved, behind a row it depends on: left (the Result leaves work)	Launched	works		r0s1 r1s4	25	166
+Approved, behind a row it depends on: left (the Result leaves work)	Launched	works		r0s1 r1s4	25	170
 Approved, behind a row it depends on: merged (its pull request merged)	Final	works		r0s1 r1s5	54	558
 Approved, behind a row it depends on: pr (its pull request is open)	Launched	works		r0s1 r1s6	54	558
-Approved, behind a row it depends on: queued (no thread yet)	Not launched	works		r0s1 r1s7	2	1
-Approved, behind a row it depends on: removed (queue.py `remove`, no pass sets it)	Removed	works		r0s1 r1s8	92	0
+Approved, behind a row it depends on: queued (no launch yet)	Not launched	works		r0s1 r1s7	2	2
+Approved, behind a row it depends on: removed (queue.py `remove`, no pass sets it)	Removed	works		r0s1 r1s8	210	0
 Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	Launched	works		r0s1 r1s9	24	164
-Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Launched	works		r0s1 r1s10	15	46
-Approved, behind a row it depends on: waiting (the thread asks you)	Launched	works		r0s1 r1s11	9	18
-Approved: done (a clean Result from a thread that ended)	Final	works		r0s0 r1s0	144	1656
+Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Launched	works		r0s1 r1s10	15	49
+Approved, behind a row it depends on: waiting (the thread asks you)	Launched	works		r0s1 r1s11	9	21
+Approved: done (a clean Result from a thread that ended)	Final	works		r0s0 r1s0	144	1728
 Approved: failed (the thread failed)	Launched	works		r0s0 r1s1	1	0
-Approved: gate (a question is open)	Not launched	works		r0s0 r1s2	78	738
+Approved: gate (a question is open)	Not launched	works		r0s0 r1s2	78	761
 Approved: launched (a launch whose thread is starting)	Launched	works		r0s0 r1s3	3	4
-Approved: left (the Result leaves work)	Launched	works		r0s0 r1s4	25	166
+Approved: left (the Result leaves work)	Launched	works		r0s0 r1s4	25	170
 Approved: merged (its pull request merged)	Final	works		r0s0 r1s5	54	558
 Approved: pr (its pull request is open)	Launched	works		r0s0 r1s6	54	558
-Approved: queued (no thread yet)	Not launched	works		r0s0 r1s7	2	1
-Approved: removed (queue.py `remove`, no pass sets it)	Removed	works		r0s0 r1s8	92	0
+Approved: queued (no launch yet)	Not launched	works		r0s0 r1s7	2	2
+Approved: removed (queue.py `remove`, no pass sets it)	Removed	works		r0s0 r1s8	210	0
 Approved: running (the thread at work, a Result or not, or its pull request opening)	Launched	works		r0s0 r1s9	24	164
-Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Launched	works		r0s0 r1s10	15	46
-Approved: waiting (the thread asks you)	Launched	works		r0s0 r1s11	9	18
-Held, its go kept: done (a clean Result from a thread that ended)	Final	works		r0s3 r1s0	144	1656
+Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Launched	works		r0s0 r1s10	15	49
+Approved: waiting (the thread asks you)	Launched	works		r0s0 r1s11	9	21
+Held, its go kept: done (a clean Result from a thread that ended)	Final	works		r0s3 r1s0	144	1728
 Held, its go kept: failed (the thread failed)	Launched	works		r0s3 r1s1	1	0
-Held, its go kept: gate (a question is open)	Not launched	works		r0s3 r1s2	78	738
+Held, its go kept: gate (a question is open)	Not launched	works		r0s3 r1s2	78	761
 Held, its go kept: launched (a launch whose thread is starting)	Launched	works		r0s3 r1s3	3	4
-Held, its go kept: left (the Result leaves work)	Launched	works		r0s3 r1s4	25	166
+Held, its go kept: left (the Result leaves work)	Launched	works		r0s3 r1s4	25	170
 Held, its go kept: merged (its pull request merged)	Final	works		r0s3 r1s5	54	558
 Held, its go kept: pr (its pull request is open)	Launched	works		r0s3 r1s6	54	558
-Held, its go kept: queued (no thread yet)	Not launched	works		r0s3 r1s7	1	0
-Held, its go kept: removed (queue.py `remove`, no pass sets it)	Removed	works		r0s3 r1s8	92	0
+Held, its go kept: queued (no launch yet)	Not launched	works		r0s3 r1s7	1	0
+Held, its go kept: removed (queue.py `remove`, no pass sets it)	Removed	works		r0s3 r1s8	210	0
 Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	Launched	works		r0s3 r1s9	24	164
-Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Launched	works		r0s3 r1s10	15	46
-Held, its go kept: waiting (the thread asks you)	Launched	works		r0s3 r1s11	9	18
-Held: done (a clean Result from a thread that ended)	Final	works		r0s2 r1s0	144	1656
+Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Launched	works		r0s3 r1s10	15	49
+Held, its go kept: waiting (the thread asks you)	Launched	works		r0s3 r1s11	9	21
+Held: done (a clean Result from a thread that ended)	Final	works		r0s2 r1s0	144	1728
 Held: failed (the thread failed)	Launched	works		r0s2 r1s1	1	0
-Held: gate (a question is open)	Not launched	works		r0s2 r1s2	78	738
+Held: gate (a question is open)	Not launched	works		r0s2 r1s2	78	761
 Held: launched (a launch whose thread is starting)	Launched	works		r0s2 r1s3	3	4
-Held: left (the Result leaves work)	Launched	works		r0s2 r1s4	25	166
+Held: left (the Result leaves work)	Launched	works		r0s2 r1s4	25	170
 Held: merged (its pull request merged)	Final	works		r0s2 r1s5	54	558
 Held: pr (its pull request is open)	Launched	works		r0s2 r1s6	54	558
-Held: queued (no thread yet)	Not launched	works		r0s2 r1s7	1	0
-Held: removed (queue.py `remove`, no pass sets it)	Removed	works		r0s2 r1s8	92	0
+Held: queued (no launch yet)	Not launched	works		r0s2 r1s7	1	0
+Held: removed (queue.py `remove`, no pass sets it)	Removed	works		r0s2 r1s8	210	0
 Held: running (the thread at work, a Result or not, or its pull request opening)	Launched	works		r0s2 r1s9	24	164
-Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Launched	works		r0s2 r1s10	15	46
-Held: waiting (the thread asks you)	Launched	works		r0s2 r1s11	9	18
-No go: done (a clean Result from a thread that ended)	Final	works		r0s4 r1s0	144	1656
+Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Launched	works		r0s2 r1s10	15	49
+Held: waiting (the thread asks you)	Launched	works		r0s2 r1s11	9	21
+No go: done (a clean Result from a thread that ended)	Final	works		r0s4 r1s0	144	1728
 No go: failed (the thread failed)	Launched	works		r0s4 r1s1	1	0
-No go: gate (a question is open)	Not launched	works		r0s4 r1s2	78	738
+No go: gate (a question is open)	Not launched	works		r0s4 r1s2	78	761
 No go: launched (a launch whose thread is starting)	Launched	works		r0s4 r1s3	3	4
-No go: left (the Result leaves work)	Launched	works		r0s4 r1s4	25	166
+No go: left (the Result leaves work)	Launched	works		r0s4 r1s4	25	170
 No go: merged (its pull request merged)	Final	works		r0s4 r1s5	54	558
 No go: pr (its pull request is open)	Launched	works		r0s4 r1s6	54	558
-No go: queued (no thread yet)	Not launched	works	yes	r0s4 r1s7	1	0
-No go: removed (queue.py `remove`, no pass sets it)	Removed	works		r0s4 r1s8	92	0
+No go: queued (no launch yet)	Not launched	works	yes	r0s4 r1s7	1	0
+No go: removed (queue.py `remove`, no pass sets it)	Removed	works		r0s4 r1s8	210	0
 No go: running (the thread at work, a Result or not, or its pull request opening)	Launched	works		r0s4 r1s9	24	164
-No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Launched	works		r0s4 r1s10	15	46
-No go: waiting (the thread asks you)	Launched	works		r0s4 r1s11	9	18
+No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Launched	works		r0s4 r1s10	15	49
+No go: waiting (the thread asks you)	Launched	works		r0s4 r1s11	9	21
