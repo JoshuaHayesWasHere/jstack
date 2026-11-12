@@ -20,7 +20,7 @@ thing = "A pull request at jmerge"
 
 [[chart]]
 name = "FlowToday"
-thing = "Two rows on their way to main"
+thing = "A pair of rows on their way to main"
 
 [[chart]]
 name = "MainRed"
@@ -70,7 +70,7 @@ says = "The merge reaches the home that had the pull request out."
 [[handoff]]
 from = "RowLife: Not launched"
 to = "FlowToday: Main green, a row waits to launch"
-says = "With two rows in the queue, both flow to main at once."
+says = "With a second row in the queue, both flow to main at once."
 
 [[handoff]]
 from = "FlowToday: Main red, jbus reruns and judges it"

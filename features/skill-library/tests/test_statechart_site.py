@@ -57,7 +57,7 @@ def test_the_page_opens_on_a_map_of_every_chart_and_how_they_hand_off(tmp_path):
         "RowLife": "A row in the queue",
         "ThreadLife": "A crew&#x27;s thread",
         "PrVerdict": "A pull request at jmerge",
-        "FlowToday": "Two rows on their way to main",
+        "FlowToday": "A pair of rows on their way to main",
         "MainRed": "A red main",
         "HomeTreeToday": "A tree of homes",
         "TellOnce": "A thing jbus does once",
