@@ -1,5 +1,7 @@
+import json
 import os
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -36,6 +38,7 @@ def repo(tmp_path):
     env = {
         **os.environ,
         "HOME": str(home),
+        "JGAUGE_LOCKS_DIR": str(tmp_path / "locks"),
         "PATH": f"{bin_}:{os.environ['PATH']}",
         "PROC": str(fake_proc(tmp_path / "proc", 24, 62)),
         "TMPFS": str(tmp_path),
@@ -100,3 +103,17 @@ def test_a_whole_suite_runs_with_no_thread_or_in_a_repo_that_selects_nothing(rep
     assert whole.refusal(["make", "check"], repo.top / "tests", {}) == ""
     assert repo("--thread", "t1", "--", "make", "check").returncode == 0
     assert (repo.top / "ran").exists()
+
+
+def test_a_run_of_the_repo_leaves_no_holder_in_the_lock_dir_of_the_pytest_run(repo):
+    """A holder left in the pytest run's lock dir is owed a wake that a later test's jbus pass
+    tries to tell (lab-replay-holder-leak): the repo's runs keep their slots to its own machine."""
+    holders = Path(os.environ["JGAUGE_LOCKS_DIR"]) / "test-slot-holders.json"
+
+    def ids():
+        return {h["id"] for h in json.loads(holders.read_text())} if holders.exists() else set()
+
+    before = ids()
+    ran = repo("--short", "--thread", "t1", "--", "make", "test", "TESTS=tests/test_one.py")
+    assert ran.returncode == 0, ran.stderr
+    assert ids() == before
