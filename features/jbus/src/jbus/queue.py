@@ -1510,21 +1510,14 @@ def _go(batch: _Batch, row: Row, go: str, actor: str) -> None:
     batch.moves.append({"slug": row["slug"], "go": go, "by": actor, "at": jsettings.stamp(clock())})
 
 
-def _hold(
-    batch: _Batch,
-    row: Row,
-    actor: str,
-    by: dict[str, Any] | None = None,
-    took: dict[str, Any] | None = None,
-) -> None:
-    """Take the row's go back and hold it, by the party and at the time `by` names, if any, and
-    keep `took`, the go taken, where the hold keeps it (`TOOK`)."""
+def _hold(row: Row, by: dict[str, Any] | None = None) -> None:
+    """Take the row's go back and hold it, by the party and at the time `by` names, if any. The
+    caller logs the go line (`_go`), `held`, or `kept` where the hold keeps the go (`TOOK`)."""
     row.update(approved="", brief_sha="", held=True)
     row.pop("approval", None)
     row.pop("hold", None)
     if by:
-        row["hold"] = {**by, TOOK: took} if took else by
-    _go(batch, row, "kept" if took else "held", actor)
+        row["hold"] = by
 
 
 TOOK = "took"
@@ -1574,7 +1567,8 @@ def _unfollow(
             made = record(row)
             if made and made.follows == one and row.get("status", "queued") == "queued":
                 if hold:
-                    _hold(batch, row, actor, by)
+                    _hold(row, by)
+                    _go(batch, row, "held", actor)
                 else:
                     _waits_again(batch, row, actor)
                 held.append(row["slug"])
@@ -1953,8 +1947,12 @@ def _do(
         by = {"ran_by": ran_by or runner(), "ran_at": _stamp(user)}
         row = batch.row(verb.slug)
         took = {column: row[column] for column in GO_COLUMNS if row.get(column)}
+        _hold(row, by)
+        kept = verb.keep and took.get("approved")
+        if kept:
+            row["hold"] = {**by, TOOK: took}
         actor = who(by["ran_by"])
-        _hold(batch, row, actor, by, took if verb.keep and took.get("approved") else None)
+        _go(batch, row, "kept" if kept else "held", actor)
         also = _unfollow(batch, verb.slug, actor, by=by)
         return f"held {verb.slug}; run {by['ran_at']} by {who(by['ran_by'])}" + (
             f", and {', '.join(also)} with it: {FOLLOWED}" if also else ""
