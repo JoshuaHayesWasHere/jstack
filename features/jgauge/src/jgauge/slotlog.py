@@ -19,9 +19,31 @@ A row is one JSON object:
 - on a take, `waited`, the seconds the call waited for the slot, and `repo`, the name of the
   directory that holds the git repository `cwd` is in, its main checkout's for a worktree, or
   nothing outside one;
-- on a release, `code`, the command's exit code, `hold`, the seconds the slot was held, and
-  `cpu_user` and `cpu_system`, the CPU seconds the command and every process it waited for used,
-  in user and in system mode. A process the command left running when it ended is not counted.
+- on a release, `code`, the command's exit code, `hold`, the seconds the slot was held,
+  `cpu_user` and `cpu_system`, the CPU seconds every process of the take used, in user and in
+  system mode, and `left`, how many of them still ran when the row was written.
+
+The CPU is the take's whole tree, a process the command started and never waited for included:
+a test's browser that outlives its runner, or a detached daemon. `getrusage(RUSAGE_CHILDREN)`
+saw only the processes the command waited for, and on 2026-11-12 it put robotica's slots at
+0.18 cores where they used about 3.4. So a take makes a cgroup of its own, `jgauge-take-<id>`,
+under the holder's, and moves the holder into it before the command starts: everything the
+command starts is born there, and stays there whoever its parent becomes. The release waits up to
+`DRAIN_SECONDS` for every process but the holder to end, reads the cgroup's `cpu.stat`, moves the
+holder back and removes the cgroup. That CPU includes the holder's own from the take on, and its
+watchdog's, a few hundredths of a second. The drain is short, since the slot is held through it: a
+process the command left running holds the slot no more than that. One still running then keeps
+the cgroup, is counted only up to the release, and shows in `left`; the next take beside it
+removes the cgroup once it is empty. The holder's cgroup is an agent's scope, which systemd
+delegates to the user, so the take's cgroup also counts toward the scope and the slices above it,
+as before.
+
+Where the take can have no cgroup of its own (cgroup v1, a cgroup the user cannot write, macOS),
+the CPU is what the command's waited-for tree used, as `getrusage` says, plus what each process
+carrying the take's id in `JGAUGE_TEST_SLOT_TAKE` whose parent is outside the take used, read
+from `/proc` every `SAMPLE_SECONDS` and through the drain. A process whose parent left it, and
+that ends between two reads, is counted to its last read, and on macOS, with no `/proc`, not at
+all.
 
 A row is one `write` with `O_APPEND`, under the lock on the log's directory that `jgauge sample`
 also takes. Once the first row is over 30 days old, the writer keeps the last 29 days, as the
@@ -40,6 +62,7 @@ sees every holder, and a low one says some holder takes slots this log does not 
 
 from __future__ import annotations
 
+import contextlib
 import fcntl
 import json
 import os
@@ -48,6 +71,8 @@ import resource
 import secrets
 import statistics
 import subprocess
+import threading
+import time
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -57,6 +82,13 @@ from jgauge import sample
 
 KEEP_DAYS = 30
 PRUNED_TO_DAYS = 29
+CGROUPS = Path("/sys/fs/cgroup")
+PROCS = Path("/proc")
+DRAIN_SECONDS = 2.0
+LOOK_SECONDS = 0.05
+SAMPLE_SECONDS = 0.5
+TAKE = "JGAUGE_TEST_SLOT_TAKE"
+PREFIX = "jgauge-take-"
 WAKE = re.compile(r"^slot-wake: woke \S+, a (\w+) slot is free for `[^`]*`, after (\d+) min")
 
 
@@ -115,6 +147,127 @@ def _append(log: Path, row: dict) -> None:
         os.close(folder)
 
 
+class _Cgroup:
+    """The take's own cgroup, which the holder is in from the take to the release."""
+
+    def __init__(self, home: Path, own: Path) -> None:
+        self.home, self.own = home, own
+
+    @classmethod
+    def make(cls, key: str) -> _Cgroup | None:
+        """Make the take's cgroup under the holder's and move the holder into it, or None where
+        the holder is not in a cgroup v2 one it may write."""
+        try:
+            lines = (PROCS / "self" / "cgroup").read_text().splitlines()
+        except OSError:
+            return None
+        if len(lines) != 1 or not lines[0].startswith("0::/"):
+            return None
+        home = CGROUPS / lines[0][4:].strip("/")
+        if not (home / "cgroup.procs").is_file():
+            return None
+        for stale in home.glob(f"{PREFIX}*"):
+            with contextlib.suppress(OSError):
+                stale.rmdir()
+        own = home / f"{PREFIX}{key}"
+        try:
+            own.mkdir()
+        except OSError:
+            return None
+        try:
+            (own / "cgroup.procs").write_text(str(os.getpid()))
+        except OSError:
+            with contextlib.suppress(OSError):
+                own.rmdir()
+            return None
+        return cls(home, own)
+
+    def _others(self) -> int:
+        try:
+            listed = (self.own / "cgroup.procs").read_text().split()
+        except OSError:
+            return 0
+        return sum(pid != str(os.getpid()) for pid in listed)
+
+    def end(self) -> tuple[float, float, int]:
+        deadline = time.monotonic() + DRAIN_SECONDS
+        while self._others() and time.monotonic() < deadline:
+            time.sleep(LOOK_SECONDS)
+        left = self._others()
+        stat = dict.fromkeys(("user_usec", "system_usec"), 0)
+        with contextlib.suppress(OSError, ValueError):
+            for line in (self.own / "cpu.stat").read_text().splitlines():
+                key, value = line.split()
+                if key in stat:
+                    stat[key] = int(value)
+        with contextlib.suppress(OSError):
+            (self.home / "cgroup.procs").write_text(str(os.getpid()))
+        with contextlib.suppress(OSError):
+            self.own.rmdir()
+        return stat["user_usec"] / 1e6, stat["system_usec"] / 1e6, left
+
+
+class _Carriers:
+    """The take's CPU where it has no cgroup: the waited-for tree's by `getrusage`, and that of
+    each process carrying the take whose parent is outside it, from `/proc`."""
+
+    def __init__(self, key: str) -> None:
+        self.key = f"{TAKE}={key}".encode()
+        os.environ[TAKE] = key
+        self.used = resource.getrusage(resource.RUSAGE_CHILDREN)
+        self.tick = os.sysconf("SC_CLK_TCK") if hasattr(os, "sysconf") else 100
+        self.left: dict[tuple[int, str], tuple[float, float]] = {}
+        self.stop = threading.Event()
+        self.sampler = threading.Thread(target=self._sample_until_stopped, daemon=True)
+        self.sampler.start()
+
+    def _carriers(self) -> dict[int, list[str]]:
+        """Each live process that carries the take, by pid, with its `stat` fields from the
+        state on."""
+        found: dict[int, list[str]] = {}
+        try:
+            listed = [one.name for one in os.scandir(PROCS) if one.name.isdecimal()]
+        except OSError:
+            return found
+        for pid in listed:
+            with contextlib.suppress(OSError, IndexError):
+                environ = b"\0" + (PROCS / pid / "environ").read_bytes()
+                if b"\0" + self.key + b"\0" not in environ + b"\0":
+                    continue
+                found[int(pid)] = (PROCS / pid / "stat").read_text().rsplit(")", 1)[1].split()
+        return found
+
+    def _sample(self) -> int:
+        """Record the CPU of each carrier whose parent is outside the take, and say how many
+        carriers the holder did not start itself."""
+        carriers = self._carriers()
+        mine = os.getpid()
+        for pid, fields in carriers.items():
+            parent = int(fields[1])
+            if parent == mine or parent in carriers:
+                continue
+            user = (int(fields[11]) + int(fields[13])) / self.tick
+            system = (int(fields[12]) + int(fields[14])) / self.tick
+            self.left[(pid, fields[19])] = (user, system)
+        return sum(int(fields[1]) != mine for fields in carriers.values())
+
+    def _sample_until_stopped(self) -> None:
+        while not self.stop.wait(SAMPLE_SECONDS):
+            self._sample()
+
+    def end(self) -> tuple[float, float, int]:
+        self.stop.set()
+        self.sampler.join()
+        deadline = time.monotonic() + DRAIN_SECONDS
+        while (left := self._sample()) and time.monotonic() < deadline:
+            time.sleep(LOOK_SECONDS)
+        os.environ.pop(TAKE, None)
+        used = resource.getrusage(resource.RUSAGE_CHILDREN)
+        user = used.ru_utime - self.used.ru_utime + sum(one[0] for one in self.left.values())
+        system = used.ru_stime - self.used.ru_stime + sum(one[1] for one in self.left.values())
+        return user, system, left
+
+
 @dataclass(frozen=True)
 class Taken:
     """A slot taken, as its take row says, to pass to `release`."""
@@ -122,7 +275,7 @@ class Taken:
     log: Path
     at: datetime
     fields: dict
-    used: resource.struct_rusage
+    tree: _Cgroup | _Carriers
 
 
 def _repo(cwd: str) -> str:
@@ -163,15 +316,15 @@ def take(
     }
     row = {"at": _stamp(now), "event": "take", **fields, "waited": round(waited, 3)}
     _append(log, {**row, "repo": _repo(cwd)})
-    return Taken(log, now, fields, resource.getrusage(resource.RUSAGE_CHILDREN))
+    return Taken(log, now, fields, _Cgroup.make(fields["id"]) or _Carriers(fields["id"]))
 
 
 def release(taken: Taken, code: int) -> None:
-    """Write the release row. The CPU is what this process's children that ended and were waited
-    for used since the take, which is the command's alone: the sweep runs after the release."""
+    """Write the release row, with the CPU of every process of the take, once they have ended or
+    `DRAIN_SECONDS` have gone by: the sweep runs after the release, and is not counted."""
+    user, system, left = taken.tree.end()
     now = datetime.now(UTC)
     held = (now - taken.at).total_seconds()
-    used = resource.getrusage(resource.RUSAGE_CHILDREN)
     _append(
         taken.log,
         {
@@ -180,8 +333,9 @@ def release(taken: Taken, code: int) -> None:
             **taken.fields,
             "code": code,
             "hold": round(held, 3),
-            "cpu_user": round(used.ru_utime - taken.used.ru_utime, 3),
-            "cpu_system": round(used.ru_stime - taken.used.ru_stime, 3),
+            "cpu_user": round(user, 3),
+            "cpu_system": round(system, 3),
+            "left": left,
         },
     )
 

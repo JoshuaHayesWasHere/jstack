@@ -46,6 +46,7 @@ def test_the_log_keeps_the_last_29_days_once_its_first_row_is_over_30_days_old(t
         "hold": release["hold"],
         "cpu_user": release["cpu_user"],
         "cpu_system": release["cpu_system"],
+        "left": 0,
     }
     assert 0 <= release["hold"] < 5
 
