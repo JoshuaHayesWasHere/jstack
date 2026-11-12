@@ -556,8 +556,8 @@ SpareLock ==
 
 \* Today: count and record the wake under the lock, as `_claim` counts and takes.
 \* jbus/slotwait.py `room = slot.spare(lane, held, now)`, inside the one change of
-\* jgauge/waiters.py `chosen = set(pick(held))`. The copy keeps the id of the wait it woke, which a lost send
-\* gives back.
+\* jgauge/waiters.py `chosen = set(pick(held))`. The copy keeps the id of the wait it woke,
+\* which a lost send gives back.
 SpareHeld ==
   /\ InSlots
   /\ bus = "sparing" /\ waitersLock = "bus"
