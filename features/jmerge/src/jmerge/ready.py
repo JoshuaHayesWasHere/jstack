@@ -1034,12 +1034,14 @@ def short_of(
     return short or short_on_meets(text, heard)
 
 
-_TEST = re.compile(r"(?:test_[^/]*|[^/]*_test)\.py")
+_TEST = re.compile(r"(?:test_[^/]*|[^/]*_test)\.py|[^/]+\.(?:test|spec)\.[cm]?[jt]sx?")
 
 
 def changed_tests(one: PullRequest) -> tuple[str, ...]:
-    """The test files the pull request adds or changes: each `test_*.py` or `*_test.py` it lists
-    and does not delete."""
+    """The test files the pull request adds or changes: each `test_*.py` or `*_test.py`, and
+    each `*.test.*` or `*.spec.*` of JavaScript or TypeScript (`.js`, `.ts`, `.jsx`, `.tsx`, and
+    their `.mjs`, `.cjs`, `.mts` and `.cts` kin), it lists and does not delete. A Node repo's
+    pull request is held to the same proof as a Python one's."""
     gone = set(one.removed)
     return tuple(
         path for path in one.files if path not in gone and _TEST.fullmatch(path.rsplit("/", 1)[-1])
