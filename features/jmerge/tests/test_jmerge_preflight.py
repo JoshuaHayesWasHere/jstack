@@ -63,10 +63,9 @@ class Repo:
 
     @staticmethod
     def of(number, head, files):
-        return ready.PullRequest(
-            number, f"https://example.test/pull/{number}", f"#{number}", f"pr{number}", head,
-            "main", "MERGEABLE", (), files, False, 1,
-        )  # fmt: skip
+        url = f"https://example.test/pull/{number}"
+        named = (number, url, f"#{number}", f"pr{number}", head, "main", "MERGEABLE")
+        return ready.PullRequest(*named, (), files, False, 1)
 
     def preflight(self, check=False):
         return preflight.Preflight(self.main, self.state, check)
