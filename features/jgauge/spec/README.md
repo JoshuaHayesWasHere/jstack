@@ -93,6 +93,10 @@ The other fault, and the three the code has closed, break their rules in the can
 - `orphan-command`, `OneCommandPerSlot`: `jgauge test-slot` is killed with SIGKILL, and its command runs on with the slot free.
   The next call starts a second command in the same slot, and its `_temporary` empties the directory the first command still uses.
   Today's code holds `OneCommandPerSlot` over all TODAYCOUNT distinct states of its mode, and the test checks it in the short lane's room alone.
+- `pid-alone`, `NoLostHolder`: a short call with `--thread` takes its slot, starts its command and records the run in the holders file.
+  The command dies, and another process takes its pid before the end is on record.
+  A reader that asks only whether some process has the pid counts the run as running, so jbus never forgets it and never tells its thread the run ended.
+  Today's `holders.running` also asks that the pid have the start time the run recorded, so the reused pid reads as gone, and asks the same of its `jgauge test-slot`'s pid, `keeper`.
 
 `Fault = "none"` holds every rule over 672,971 distinct states: 664,208 in the full lane's room, 6,226 in the short lane's, 1,690 in the ledger's and 847 in the pool's.
 

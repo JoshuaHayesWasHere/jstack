@@ -660,6 +660,14 @@ def test_a_holder_whose_pids_other_processes_took_is_not_counted(tmp_path):
     assert not holders.running(taken)
 
 
+def test_a_holder_recorded_with_no_start_time_is_judged_by_its_pid_alone(tmp_path):
+    """A record written before holders kept a start time or a `keeper` still counts while its pid
+    lives, so a run that holds a slot across the upgrade is not forgotten."""
+    holders.hold(tmp_path, THREAD, "full", os.getpid(), ["make", "check"], NOW)
+    (one,) = holders.read(tmp_path)
+    assert holders.running(replace(one, start=None, keeper=0, keeper_start=None))
+
+
 def slot_log(slots):
     path = Path(slots.env["HOME"]) / ".local" / "state" / "jgauge" / "slots.jsonl"
     return [json.loads(line) for line in path.read_text().splitlines()]
