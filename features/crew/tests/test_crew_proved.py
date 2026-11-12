@@ -30,6 +30,7 @@ import pytest
 from crew_helpers import block, git
 from jbriefs import proved
 from jgauge import sizes
+from jmerge import ready
 from test_blocks_command_grep import UGREP
 from test_portable_shell import bsd_tools
 from testing.layouts import assembled
@@ -83,7 +84,10 @@ case " $* " in
     fi
     if [ -n "$SLOW" ]; then sleep "$SLOW"; fi
     case $PWD in
-    "$TMPDIR"/base.*) if [ -n "$BASE_SLOW" ]; then sleep "$BASE_SLOW"; fi ;;
+    "$TMPDIR"/base.*)
+        if [ -n "$BASE_SLOW" ]; then sleep "$BASE_SLOW"; fi
+        if [ -n "$LAID" ]; then git status --porcelain --untracked-files=all | cut -c 4- > "$LAID"; fi
+        ;;
     *) if [ -n "$DURING" ]; then (cd "$WORKTREE" && bash -c "$DURING"); fi ;;
     esac
     shift 2
@@ -106,7 +110,8 @@ exit 64
 the short lane stops one at its limit, and a full one at `FULL_LIMIT` seconds; each pytest run
 takes `SLOW` seconds more, and one in the copy of the base `BASE_SLOW` seconds more, `NO_XDIST`
 stands for a repo whose venv has no pytest-xdist, and with `SLOTS` set only that many test-slot
-calls get a slot, and every one after them finds every slot taken, exit 76. `DURING` is a
+calls get a slot, and every one after them finds every slot taken, exit 76. With `LAID` set, a
+pytest run in the copy of the base writes there the files that differ from the base's commit. `DURING` is a
 command the head side's pytest run starts with, and `AFTER` one it ends with, both in the
 crew's worktree `WORKTREE`, as a crew's edit, commit or dropped edit while the proof call sits
 in the background."""
@@ -706,3 +711,239 @@ def test_a_branch_that_changes_two_forks_packaging_is_not_proved(repo):
     assert "features/other/packaging" in said
     assert "Proved:" not in said
     assert line is None
+
+
+NODE_RUNNER = """#!/bin/bash
+# vitest run --reporter=default --reporter=json --outputFile.json=<path> <files>, or
+# playwright test --reporter=list,json <files> with PLAYWRIGHT_JSON_OUTPUT_NAME
+runner=$(basename "$0")
+shift
+files=
+report=$PLAYWRIGHT_JSON_OUTPUT_NAME
+for one in "$@"; do
+    case $one in
+    --outputFile.json=*) report=${one#*=} ;;
+    -*) ;;
+    *) files="$files $one" ;;
+    esac
+done
+echo "$runner CI=$CI in $PWD:$files" >> "$TMPDIR/node-runs"
+passed=0
+failed=0
+for file in $files; do
+    want=$(sed -n 's|^// expects: ||p' "$file")
+    if [ -z "$want" ] || grep -qF "${want#* }" "${want%% *}" 2> /dev/null; then
+        passed=$((passed + 1))
+    else
+        failed=$((failed + 1))
+    fi
+done
+case $PWD in "$TMPDIR"/base.*) if [ -n "$BASE_ERROR" ]; then passed=0 failed=0; fi ;; esac
+if [ "$runner" = vitest ]; then
+    status=passed
+    [ "$failed" = 0 ] || status=failed
+    printf '{"numPassedTests": %s, "numFailedTests": %s, "testResults": [{"status": "%s"}]}\\n' \\
+        "$passed" "$failed" "$status" > "$report"
+else
+    printf '{"stats": {"expected": %s, "unexpected": %s}, "errors": []}\\n' \\
+        "$passed" "$failed" > "$report"
+fi
+echo "$passed passed, $failed failed"
+case $PWD in "$TMPDIR"/base.*) if [ -n "$BASE_ERROR" ]; then exit 1; fi ;; esac
+[ "$failed" = 0 ]
+"""
+"""Vitest or Playwright as `node_modules/.bin` holds them, with the JSON report each writes: a
+test file passes where its `// expects: <path> <text>` line, if it has one, finds the text in
+that file. With `BASE_ERROR` set, a run in the copy of the base ends 1 with no test run, as a
+Playwright web server that will not start or a Vitest that finds no file does."""
+NPM = """#!/bin/bash
+echo "npm $1 in $PWD" >> "$TMPDIR/npm-args"
+mkdir -p node_modules/.bin
+for runner in vitest playwright; do
+    cp "$NODE_RUNNER" "node_modules/.bin/$runner"
+    chmod +x "node_modules/.bin/$runner"
+done
+"""
+"""`npm ci` or `npm install`, which puts the runners in the tree's `node_modules/.bin`."""
+BUGGY_TS = "export const add = (a: number, b: number) => a - b;\n"
+FIXED_TS = "export const add = (a: number, b: number) => a + b;\n"
+EXPECTS_FIX = "// expects: src/calc.ts a + b\nimport { add } from './calc';\n"
+SPEC_EXPECTS_FIX = "// expects: src/calc.ts a + b\nimport { test } from '@playwright/test';\n"
+PLAYWRIGHT_CONFIG = "export default { testDir: 'tests' };\n"
+
+
+def node(repo, playwright=False, package=True):
+    """The repo made a Node one at a new `origin/main`: a buggy `src/calc.ts`, with a
+    `package.json` and its lockfile where `package`, and a `playwright.config.ts` where
+    `playwright`, and an `npm` on PATH that installs the stub runners."""
+    stub = repo.parent / "stub"
+    (stub / "node-runner").write_text(NODE_RUNNER)
+    (stub / "npm").write_text(NPM)
+    (stub / "npm").chmod(0o755)
+    files = {"src/calc.ts": BUGGY_TS, ".gitignore": "__pycache__/\nnode_modules/\n"}
+    if package:
+        files |= {"package.json": '{"name": "calc"}\n', "package-lock.json": "{}\n"}
+    if playwright:
+        files["playwright.config.ts"] = PLAYWRIGHT_CONFIG
+    commit(repo, files)
+    git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    return git(repo, "rev-parse", "HEAD")
+
+
+def node_proof(repo, **more):
+    return proof(repo, NODE_RUNNER=str(repo.parent / "stub" / "node-runner"), **more)
+
+
+def node_runs(repo):
+    return (repo.parent / "node-runs").read_text().splitlines()
+
+
+def pull(files, head):
+    return ready.PullRequest(
+        number=1,
+        url="https://github.com/o/r/pull/1",
+        title="",
+        branch="a-task",
+        head=head,
+        base="main",
+        mergeable="MERGEABLE",
+        waiting=(),
+        files=tuple(files),
+        renamed=False,
+        changed=len(files),
+    )
+
+
+def test_a_vitest_file_that_fails_without_the_fix_is_proved_and_jmerge_takes_its_line(repo):
+    """robotica's pull requests change `*.test.ts` and `*.spec.ts` files, and the block found only
+    `test_*.py` files: it printed "no test changed ... (no kind: index.html)" and could write no
+    line. A `*.test.ts` runs on the repo's own Vitest at the head and over the base, each copy
+    installed from its lockfile."""
+    base = node(repo)
+    head = commit(repo, {"src/calc.ts": FIXED_TS, "src/calc.test.ts": EXPECTS_FIX})
+    said, line = node_proof(repo)
+    assert "head exit 0: vitest: 1 passed, 0 failed" in said
+    assert "base exit 1: vitest: 0 passed, 1 failed" in said
+    assert line == proved.Proved(("src/calc.test.ts",), 1, base, 0, head)
+    runs = node_runs(repo)
+    assert [run.split(" in ")[0] for run in runs] == ["vitest CI=1", "vitest CI=1"]
+    assert all(run.endswith(": src/calc.test.ts") for run in runs)
+    installs = (repo.parent / "npm-args").read_text().splitlines()
+    assert [one.split(" in ")[0] for one in installs] == ["npm ci", "npm ci"]
+    text = (repo.parent / "home" / "tasks" / "a-task.md").read_text()
+    assert ready.short_on_proved(text, pull(["src/calc.ts", "src/calc.test.ts"], head)) == ""
+
+
+def test_a_playwright_spec_with_its_helper_is_proved_on_playwright(repo):
+    """A `*.spec.ts` in a repo with a `playwright.config.ts` is a Playwright test, run with
+    `CI=1` so a dev server already on its port is not taken for the change's; a helper under
+    `tests/` is laid over the base with it and not run."""
+    base = node(repo, playwright=True)
+    head = commit(
+        repo,
+        {
+            "src/calc.ts": FIXED_TS,
+            "tests/loop.spec.ts": SPEC_EXPECTS_FIX,
+            "tests/helpers.ts": "export const at = 1;\n",
+        },
+    )
+    said, line = node_proof(repo)
+    assert "head exit 0: playwright: 1 passed, 0 failed" in said
+    assert "base exit 1: playwright: 0 passed, 1 failed" in said
+    assert line == proved.Proved(("tests/loop.spec.ts",), 1, base, 0, head)
+    runs = node_runs(repo)
+    assert [run.split(" in ")[0] for run in runs] == ["playwright CI=1", "playwright CI=1"]
+    assert all(run.endswith(": tests/loop.spec.ts") for run in runs)
+
+
+def test_a_spec_file_with_no_playwright_config_runs_on_vitest(repo):
+    node(repo)
+    commit(repo, {"src/calc.ts": FIXED_TS, "src/calc.spec.ts": EXPECTS_FIX})
+    said, line = node_proof(repo)
+    assert "head exit 0: vitest: 1 passed, 0 failed" in said
+    assert (line.tests, line.base_exit, line.head_exit) == (("src/calc.spec.ts",), 1, 0)
+
+
+def test_a_runner_that_fails_with_no_test_failed_is_no_base_exit_1(repo):
+    """Vitest that finds no file, and Playwright whose web server will not start or whose spec is
+    outside its `testDir`, exit 1 as a failed test does, and jmerge takes a base exit 1 as the
+    proof: the block reads each runner's JSON report and writes 1 only where a test failed."""
+    node(repo, playwright=True)
+    commit(repo, {"src/calc.ts": FIXED_TS, "tests/loop.spec.ts": SPEC_EXPECTS_FIX})
+    said, line = node_proof(repo, BASE_ERROR="1")
+    assert "base exit 2: playwright: 0 passed, 0 failed" in said
+    assert (line.base_exit, line.head_exit) == (2, 0)
+
+
+def test_a_base_with_no_package_json_counts_its_tests_failed_there(repo):
+    """A Node repo's first pull request has a base with no `package.json`: its tests have
+    nothing of the project to run on there, so the base side runs nothing, says so, and counts
+    them failed, and the line is the base and head line jmerge reads."""
+    base = git(repo, "rev-parse", "HEAD")
+    stub = repo.parent / "stub"
+    (stub / "node-runner").write_text(NODE_RUNNER)
+    (stub / "npm").write_text(NPM)
+    (stub / "npm").chmod(0o755)
+    head = commit(
+        repo,
+        {
+            "package.json": '{"name": "calc"}\n',
+            "package-lock.json": "{}\n",
+            "src/calc.ts": FIXED_TS,
+            "src/calc.test.ts": EXPECTS_FIX,
+        },
+    )
+    said, line = node_proof(repo)
+    assert "base exit 1: vitest: no package.json at the base, so its tests have" in said
+    assert line == proved.Proved(("src/calc.test.ts",), 1, base, 0, head)
+    assert len(node_runs(repo)) == 1
+
+
+def test_a_branch_of_node_tests_and_config_alone_runs_them_at_the_head_alone(repo):
+    node(repo)
+    head = commit(repo, {"src/calc.test.ts": "import { add } from './calc';\n"})
+    said, line = node_proof(repo)
+    assert "tests only: every file the branch changes is a test" in said
+    assert line == proved.Proved(("src/calc.test.ts",), head_exit=0, head=head, tests_only=True)
+
+
+TEST_FILES = (
+    "tests/test_a.py",
+    "pkg/b_test.py",
+    "test/test_c.py",
+    "conftest.py",
+    "tests/conftest.py",
+    "tests/helpers.py",
+    "tests/helpers.ts",
+    "tests/data.json",
+    "src/a.test.ts",
+    "src/b.spec.tsx",
+    "lib/c.test.js",
+    "lib/d.spec.jsx",
+    "lib/e.test.mts",
+    "src/__snapshots__/a.test.ts.snap",
+    "src/__tests__/util.ts",
+)
+"""Paths that are tests or what they lean on, by `jbriefs.proved.TEST_FILE`."""
+OTHER_FILES = ("src/testing.ts", "latest.py", "src/contest.py", "src/spec.ts", "src/test.ts")
+"""Paths of code whose names come near a test's."""
+
+
+def test_proved_sh_runs_or_lays_over_the_base_each_path_test_file_matches_and_no_other(repo):
+    """jmerge reads what a test is from `jbriefs.proved.TEST_FILE`, and the block from its own
+    patterns: they agree where each path the one matches the other runs, or lays over the base
+    as what a test leans on, and the block touches no path TEST_FILE does not match."""
+    node(repo, playwright=True)
+    tests = {
+        path: "def test_ok():\n    pass\n" if re.search(r"(^|/)test_[^/]*\.py$|_test\.py$", path) else ""
+        for path in TEST_FILES
+    }
+    commit(repo, {**tests, **{path: "" for path in OTHER_FILES}, "calc.py": FIXED})
+    laid = repo.parent / "laid"
+    said, line = node_proof(repo, LAID=str(laid))
+    assert line is not None and line.head_exit == 0, said
+    ran = set(line.tests)
+    over = {path for path in laid.read_text().split() if not path.startswith(".proof")}
+    for path in (*TEST_FILES, *OTHER_FILES):
+        assert bool(proved.TEST_FILE.search(path)) == (path in ran | over), path
+    assert ran <= over
