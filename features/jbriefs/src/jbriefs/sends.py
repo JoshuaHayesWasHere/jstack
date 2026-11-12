@@ -1,16 +1,17 @@
 """Whether an agent's own `t3_thread_send` may go, read by `features/home/hooks/agent-sends.sh`.
 
 jbus carries every message between a repo's homes, and every review notice, through its outbox:
-`jbus stop` from a scope to the root, `jbus word --scope` and `jbus stop answer` from the root to a
-scope, and the notice jbus sends a crew once its review is written. A fault one thread finds in
-another home's work is no message at all: it is a row of the queue, `jbus queue add`
-(`templates/a-fault-outside.md`). A send of the agent's own skips the outbox's rules, so it is
-refused when the sender is a home or a reviewer of the repo and the thread is one of the repo's
-homes, now or before a handoff, or the crew on a brief's `Thread:` line. A home's send to another
-repo's home is refused too: jbus carries each repo's events to that repo's home alone. A home's send
-to a crew of its own briefs is a steer, and it goes, and so is the root's to a crew of the
-catch-all's while it stands in for it (`jbriefs.home.works`). So does any send to a scout, a
-reviewer's to another repo's thread, and any send by a thread that is no home and no reviewer.
+`jbus stop` from a scope to the root, `jbus tell` (the root's own message), `jbus word --scope` (the
+user's word) and `jbus stop answer` from the root to a scope, and the notice jbus sends a crew once
+its review is written. A fault one thread finds in another home's work is no message at all: it is a
+row of the queue, `jbus queue add` (`templates/a-fault-outside.md`). A send of the agent's own skips
+the outbox's rules, so it is refused when the sender is a home or a reviewer of the repo and the
+thread is one of the repo's homes, now or before a handoff, or the crew on a brief's `Thread:` line.
+A home's send to another repo's home is refused too: jbus carries each repo's events to that repo's
+home alone. A home's send to a crew of its own briefs is a steer, and it goes, and so is the root's
+to a crew of the catch-all's while it stands in for it (`jbriefs.home.works`). So does any send to a
+scout, a reviewer's to another repo's thread, and any send by a thread that is no home and no
+reviewer.
 
 The sender's thread is the one T3 Code's store runs this Claude session in. A session the store
 does not know, a store that cannot be read, or a repo with no homes' state is let through: what
@@ -119,9 +120,10 @@ def _channel(sender: Home, to: Home) -> str:
         )
     if sender.name == "root":
         return (
-            f"the user's word goes to {to.name} by `jbus word --to <project> --message"
-            f" <thread>/<message> --scope {to.name}`, and the answer to its stop by"
-            f" `jbus stop answer {to.name} <row> <answer>`"
+            f'the root\'s own message goes to {to.name} by `jbus tell {to.name} "<text>" --from'
+            f" <this home's id>`, signed as the root's, the user's word by `jbus word --to"
+            f" <project> --message <thread>/<message> --scope {to.name}`, and the answer to its"
+            f" stop by `jbus stop answer {to.name} <row> <answer>`"
         )
     return _row(to.name)
 
