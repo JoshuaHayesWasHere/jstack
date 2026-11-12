@@ -125,6 +125,17 @@ states, and has 694,283 now."""
 
 @JAVA
 @TLC
+def test_today_s_wake_is_counted_and_recorded_under_the_waiters_lock():
+    """slotwait.wake counts the free slot and records the wake in one hold of the waiters lock,
+    before its send, so today's code holds WokenGetsSlot in the full lane's room, where the
+    canary spare-outside-lock breaks it."""
+    code, out = tlc("today", ["WokenGetsSlot"], room="full")
+    assert code == 0, out[-4000:]
+    assert "Model checking completed. No error has been found." in out
+
+
+@JAVA
+@TLC
 def test_the_mode_that_passes_holds_every_rule():
     code, out = tlc("none")
     assert code == 0, out[-4000:]
