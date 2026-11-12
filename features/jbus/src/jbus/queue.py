@@ -2345,32 +2345,6 @@ def _waits_again(batch: _Batch, row: Row, actor: str) -> None:
     _go(batch, row, "waiting", actor)
 
 
-def entered(state: Path, user: jsettings.Settings, entry_go: EntryGo) -> list[str]:
-    """Keep the entry rule on the table, as jbus's pass does on each pass and `jbus plan` does at
-    a go or a stop. An unlaunched row whose go is its entry's goes back to waiting for the user
-    when that go no longer holds or its brief now names a case of `gates.md`: a launched row keeps
-    its go. Then each waiting row whose entry's go holds is approved (`_entered`). Return a line
-    for each."""
-    said: list[str] = []
-    with _one_batch(state) as batch:
-        rows = batch.rows
-        for row in sorted(rows, key=order):
-            made, text = record(row), batch.brief(row["slug"])
-            if not made or made.basis != ENTRY or not _unlaunched(row) or row.get("held"):
-                continue
-            why = case(text) if text is not None else "its brief is gone"
-            if not why and entry_go(text or "", given_entry(row)) is None:
-                why = f"the go of its plan entry {given_entry(row)} no longer holds"
-            if why:
-                back = ", ".join(_void(batch, row, who(PASS)))
-                said.append(f"{back} waits for the user's go: {why}")
-        for row in sorted(rows, key=order):
-            line = _entered(batch, row["slug"], user, entry_go, PASS)
-            if line:
-                said.append(line)
-    return said
-
-
 def one_pull_request(text: str) -> bool:
     """Return whether the brief asks for one pull request: it has no `Stack:` line, and its
     `Pull request:` line does not say none."""
@@ -2391,31 +2365,6 @@ def unsilenced(text: str) -> str:
     if not one_pull_request(text):
         return "its brief does not ask for one pull request"
     return ""
-
-
-def gone_ahead(
-    state: Path, slug: str, number: int, at: str, user: jsettings.Settings, heard: Said | None
-) -> str:
-    """Approve the row that a gate with the default `approve` asked about, once the gate closed on
-    that default, and return the line that says so, or why the row still waits.
-
-    `heard` is the user's answer that kept the default: it is the user's word, and approves the
-    row under any setting. With no `heard`, silence closed the gate: the setting `go` is
-    `silence`, and silence starts the row (`unsilenced`)."""
-    with _one_batch(state) as batch:
-        row = next((row for row in batch.rows if row["slug"] == slug), None)
-        text = batch.brief(slug)
-        if row is None or text is None or not _waits(row, text):
-            return ""
-        if heard is not None:
-            return _grant(batch, row, text, ANSWER, str(number), heard, user, None)
-        why = unsilenced(text)
-        if user.go != jsettings.SILENCE:
-            why = f"the setting go is {user.go}, not {jsettings.SILENCE}"
-        if why:
-            return f"{slug} waits for the user's go after question {number}: {why}"
-        rests = Said("default", at, "", True, str(number))
-        return _grant(batch, row, text, ANSWER, str(number), rests, user, PASS, "", "silence")
 
 
 def _unlaunched(row: Row) -> bool:

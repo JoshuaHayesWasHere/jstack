@@ -54,7 +54,7 @@ A go gate is one whose default is `approve` (`queue.GO_DEFAULT`) and whose slug 
 queue that waits for its go: a home's own pick for a new row, parked under the setting
 `go = "silence"`. Nothing acts on its default until it closes, so it waits for an answer for the
 setting's `go_quiet_minutes` and shows on the list of what waits on the user meanwhile. Its close
-by silence approves the row where `queue.gone_ahead` lets it: basis `answer`, `closed_by`
+by silence approves the row where `entrygo.gone_ahead` lets it: basis `answer`, `closed_by`
 `silence`. An answer of the user's closes it by `jbus answer`: one that keeps the default is the
 user's go for the row and approves it under any setting, and one that differs approves nothing.
 
@@ -155,6 +155,7 @@ from jbus import (
     END_TURN,
     Config,
     Refused,
+    entrygo,
     f1trial,
     locked,
     mirror,
@@ -666,7 +667,7 @@ def answer(
     that holds, is `jbus.acts`'s to say, before it calls this.
 
     An answer that keeps the default of a go gate is the user's go for its row: the row is
-    approved on it (`queue.gone_ahead`), and the line says so.
+    approved on it (`entrygo.gone_ahead`), and the line says so.
 
     `keeps` says the answer is the default. Only the person who heard the answer knows
     whether it keeps the default, because words such as "yes" do not say it.
@@ -694,7 +695,7 @@ def answer(
     if not (keeps and go_gate(closed)):
         return closed, ""
     said = queue.Said(given.words, given.at, given.said_in, given.checked, given.ref)
-    return closed, queue.gone_ahead(state, closed.slug, number, given.at, user, said)
+    return closed, entrygo.gone_ahead(state, closed.slug, number, given.at, user, said)
 
 
 def question(state: Path, number: int) -> Question | None:
@@ -809,7 +810,7 @@ def silent(run: Pass) -> None:
             run.find(one.slug, NOTE, line, key=f"silence {one.number}")
             run.say(line)
             if one.slug in goes and go_gate(one):
-                went = queue.gone_ahead(
+                went = entrygo.gone_ahead(
                     run.state, one.slug, one.number, run.user.stamp(run.now), run.user, None
                 )
                 if went:
