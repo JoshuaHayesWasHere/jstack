@@ -248,7 +248,7 @@ W=$(TMPDIR=$D mktemp -d) && cp features/jbus/spec/GreenMove.* "$W"
 Run it from the repo root, then copy the files of `$W/out` into `GreenMove-statechart/`, all except `tlc/`.
 `GreenMove.cfg` turns off TLC's deadlock check, as `-deadlock` does above, since a copy at main's last tip has no step left.
 `GreenMove.map.py` labels each state with the step of the move the pass is at and what a command you run meets: the tool the link names, another tree, or none.
-It draws 26 chart states and 60 steps from 15,453 model states, every step between two of them, in a few seconds.
+It draws 26 chart states and 60 steps from 11,614 model states, every step between two of them, in a few seconds.
 
 ### What the green-move model leaves out
 
