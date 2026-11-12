@@ -8,14 +8,15 @@ runs from `check-runs.json` and its statuses from `statuses.json`."""
 
 import json
 import subprocess
+import threading
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
 import jbus
-from jbus import merge, passes, pulls, t3, watch
+from jbus import conditional, merge, passes, pulls, t3, watch
 from jmerge.cli import LIST
-from jsettings import budget
+from jsettings import budget, proc
 from test_jbus_kitchen import NOW, Kitchen, rate_limit
 
 HEAD, NEXT = "c" * 40, "d" * 40
@@ -265,3 +266,37 @@ def test_a_pass_probes_once(kitchen, monkeypatch):
         assert seen.world is not None and sorted(seen.world.open) == ["row-7", "row-8"]
         assert handed == budget_known
         assert len(probes(kitchen, ran)) - before == 6, probes(kitchen, ran)[before:]
+
+
+def test_probe_reads_heads_at_once(kitchen, monkeypatch):
+    """The probe asks for every open head's check runs and statuses at once, at most
+    `proc.GH_CAP` at a time, and says of them what one read after another says: a pass over
+    many open pull requests then waits a few reads, not two a head."""
+    shas = [f"{number:040x}" for number in range(1, 13)]
+    kitchen.set("open.json", [opened(kitchen, number, sha) for number, sha in enumerate(shas, 1)])
+    kitchen.set("check-runs.json", {sha: [{**RUN, "id": n}] for n, sha in enumerate(shas)})
+    kitchen.set("statuses.json", {shas[3]: [{"context": "ci/other", "state": "pending"}]})
+    reads, cap = 2 * len(shas), proc.GH_CAP
+    ask, room = conditional.ask, threading.Condition()
+    flight, peak, silent = [0], [0], set()
+
+    def counted(run, path, etag=""):
+        with room:
+            flight[0] += 1
+            peak[0] = max(peak[0], flight[0])
+            room.notify_all()
+            room.wait_for(lambda: flight[0] >= min(proc.GH_CAP, reads), timeout=0.2)
+        try:
+            return None if path in silent else ask(run, path, etag)
+        finally:
+            with room:
+                flight[0] -= 1
+
+    monkeypatch.setattr(conditional, "ask", counted)
+    together = pulls.probe(a_pass())
+    assert peak[0] == min(cap, reads) and together.seen is not None
+    monkeypatch.setattr(proc, "GH_CAP", 1)
+    assert pulls.probe(a_pass(1)) == together
+    monkeypatch.setattr(proc, "GH_CAP", cap)
+    silent.add(pulls.STATUS % shas[7])
+    assert pulls.probe(a_pass(2)).seen is None
