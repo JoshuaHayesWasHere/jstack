@@ -103,10 +103,17 @@ group_colors = {
 }
 
 
+def watched(v):
+    """The nightlies the pass reads, in its order: phases 1 to their count, then the Mac, then
+    main."""
+    return [n for n in ("browser", "macos", "scheduled") if n in v["runs"]]
+
+
 def judged(before, after):
-    check = CHECKS["mac" if before["phase"] == 1 else "main"]
+    on = "mac" if before["phase"] == len(watched(before)) + 1 else "main"
+    check = CHECKS[on]
     if after["phase"] != before["phase"] or after["at"] == "judge":
-        if not before["red"]["mac" if before["phase"] == 1 else "main"]:
+        if not before["red"][on]:
             return f"jbus finds {check} green"
         return f"jbus finds {check} red, and its revert on record"
     if after["at"] == "revert":
@@ -115,8 +122,8 @@ def judged(before, after):
 
 
 def nightly(before, after):
-    names = [n for n in ("browser", "macos", "scheduled") if n in before["runs"]]
-    n = names[before["phase"] - 3] if before["phase"] - 3 < len(names) else ""
+    names = watched(before)
+    n = names[before["phase"] - 1] if before["phase"] <= len(names) else ""
     if after["at"] == "filed":
         row = [r for r in after["rows"] if after["rows"][r] != before["rows"][r]][0]
         return f"jbus writes the brief of {NIGHTLY[row]}"
@@ -154,7 +161,7 @@ def step(action, before, after):
     if action == "Ages":
         return "a red nightly run ages past three days"
     if action == "Start":
-        return "a pass starts"
+        return "a pass starts" if after["sight"] else "a pass with no world starts, and judges main alone"
     if action == "Die":
         return "the pass dies"
     if action == "Judge":
