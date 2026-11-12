@@ -7,8 +7,8 @@
 # `crew-proof-sides`, and a run at the same head and base runs only the side still owed. A test is
 # a `test_*.py` or `*_test.py`, run on pytest, which leaves out the tests marked `browser`, as
 # `make check` and CI do, or a `*.test.*` or `*.spec.*` of JavaScript or TypeScript, run from the
-# directory of the nearest package.json above it on that package's own Vitest, or Playwright for a
-# `*.spec.*` where that package has a `playwright.config.*`.
+# directory of the nearest package.json above it on that package's own Vitest, or for a `*.spec.*`
+# on Playwright, from the directory of the nearest `playwright.config.*` at or above that package.
 # features/crew/do-the-task.md says what it proves and how.
 # A crew runs it by its path, `bash "$T/proved.sh" <brief> <thread id>`, from its worktree: the
 # command it sends then holds no `rm`, which Claude Code stops to ask about, even in full access.
@@ -303,14 +303,29 @@ elif [ -z "$tests" ]; then
 else
     pytests=$(printf '%s\n' "$tests" | command grep -E "$py_test" | paste -sd ' ' -)
     # Each Node test runs from its package's directory, on that package's own install and config,
-    # and a `*.spec.*` runs on Playwright where its package has a `playwright.config.*`.
+    # and a `*.spec.*` runs on Playwright where its package, or a directory above it, has a
+    # `playwright.config.*`: then from the directory of that config, as Playwright's `testDir` is.
     vitests=
     specs=
     while read -r file; do
         [ -n "$file" ] || continue
         pkg=$(package_of "$file")
-        if [ "$pkg" = . ]; then rel=$file path=; else rel=${file#"$pkg"/} path=$pkg; fi
-        if [[ $file =~ \.spec\.[^/]*$ ]] && git ls-tree --name-only "$head:$path" | command grep -qE '^playwright\.config\.[cm]?[jt]s$'; then
+        runner=vitests
+        if [[ $file =~ \.spec\.[^/]*$ ]]; then
+            dir=$pkg
+            while :; do
+                if [ "$dir" = . ]; then path=; else path=$dir; fi
+                if git ls-tree --name-only "$head:$path" | command grep -qE '^playwright\.config\.[cm]?[jt]s$'; then
+                    pkg=$dir
+                    runner=specs
+                    break
+                fi
+                [ "$dir" != . ] || break
+                dir=$(dirname "$dir")
+            done
+        fi
+        if [ "$pkg" = . ]; then rel=$file; else rel=${file#"$pkg"/}; fi
+        if [ "$runner" = specs ]; then
             specs="$specs$pkg"$'\t'"$rel"$'\n'
         else
             vitests="$vitests$pkg"$'\t'"$rel"$'\n'
