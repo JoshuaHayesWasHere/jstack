@@ -676,7 +676,7 @@ def merge_at(kitchen, monkeypatch, at, said=None):
 
 def stamp(kitchen):
     path = kitchen.state / merge.RUNS / merge.STARTED
-    return path.read_text() if path.exists() else None
+    return path.read_text().strip() if path.exists() else None
 
 
 def deaths(kitchen):
@@ -684,21 +684,24 @@ def deaths(kitchen):
     return [one for one in kitchen.lines() if "ended with no record" in one]
 
 
-@pytest.mark.parametrize("dies", ["told", "unlinked"])
+@pytest.mark.parametrize("dies", ["moved", "told", "unlinked"])
 def test_a_run_that_died_is_told_once_wherever_the_pass_dies_around_its_tell(
     kitchen, monkeypatch, dies
 ):
-    """A run that never took its lock died with no record. The pass that finds its stamp past
-    `STARTING` dies just after the log tells of it, or just after it removes the stamp. The
-    death is told once, by the dying pass or the one after, and the streak never counts it
-    twice."""
+    """A run that has not taken its lock past `STARTING` is told dead. The pass that finds its
+    stamp dies just after it moves the stamp aside, just after the log tells of the run, or just
+    after it removes a stamp. The run, slower still, then takes its lock and runs nothing, so
+    the tell was true. The death is told once, by the dying pass or the one after, and the
+    streak never counts it twice."""
     from jbus import wake
 
     kitchen.quiet()
-    monkeypatch.setattr(merge, "start", lambda run: "")
+    (kitchen.stub / "jmerge.log").unlink()
+    stamps = []
+    monkeypatch.setattr(merge, "start", lambda run: stamps.append(stamp(kitchen)) or "")
     merge_at(kitchen, monkeypatch, NOW)
     late = NOW + merge.STARTING + timedelta(seconds=1)
-    send, unlink = wake.Box.send, type(kitchen.state).unlink
+    send, unlink, replace = wake.Box.send, type(kitchen.state).unlink, merge.os.replace
 
     def told(box, slug, kind, line, *args, **kwargs):
         went = send(box, slug, kind, line, *args, **kwargs)
@@ -708,14 +711,22 @@ def test_a_run_that_died_is_told_once_wherever_the_pass_dies_around_its_tell(
 
     def unlinked(path, *args, **kwargs):
         unlink(path, *args, **kwargs)
-        if dies == "unlinked" and path.name == merge.STARTED:
+        if dies == "unlinked" and path.name in (merge.STARTED, getattr(merge, "DIED", "")):
+            raise Died
+
+    def moved(source, target):
+        replace(source, target)
+        if dies == "moved" and Path(target).name == getattr(merge, "DIED", ""):
             raise Died
 
     with monkeypatch.context() as patched:
         patched.setattr(wake.Box, "send", told)
         patched.setattr(type(kitchen.state), "unlink", unlinked)
+        patched.setattr(merge.os, "replace", moved)
         with contextlib.suppress(Died):
             merge_at(kitchen, monkeypatch, late)
+    merge.keep(kitchen.state / merge.RUNS, kitchen.checkout, stamp=stamps[0])
+    assert kitchen.log("jmerge") == []
     merge_at(kitchen, monkeypatch, late)
     assert len(deaths(kitchen)) == 1
     counted = alert.streaks(kitchen.state_dir).get(alert.jmerge("demo"), {})
