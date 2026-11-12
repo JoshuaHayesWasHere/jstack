@@ -39,6 +39,7 @@ DECLARED = {
     "verify-merge-run": "features/jmerge/project-skill/verify-merge-run",
     "verify-one-list": "features/jbus/project-skill/verify-one-list",
     "verify-output-folder": "features/skill-library/project-skill/verify-output-folder",
+    "verify-plan-scope": "features/home/project-skill/verify-plan-scope",
     "verify-pr-verdict": "features/jmerge/project-skill/verify-pr-verdict",
     "verify-row-life": "features/jbus/project-skill/verify-row-life",
     "verify-setup": "features/jinstall/project-skill/verify-setup",
