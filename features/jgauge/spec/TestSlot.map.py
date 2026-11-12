@@ -92,6 +92,8 @@ def _full(v):
         parts.append(WOKEN[v["woken"]])
     if v["bus"] in ("tell", "wake", "waking"):
         parts.append("jbus sends a wake for a slot it counted free")
+    if v["bus"] in ("unwake", "unwaking"):
+        parts.append("jbus gives back the claim of a wake that did not go")
     if v["missed"]:
         parts.append("the woken crew found its slot taken")
     parts += [_holder(v, "crew"), _log(v, ["crew", "desk"])]
@@ -205,6 +207,8 @@ STEPS = {
     "Tell": "the jbus pass sends the wake",
     "WakeLock": "the jbus pass takes the waiters' lock to record the wake",
     "Wake": "the jbus pass records the wake",
+    "UnwakeLock": "the jbus pass takes the waiters' lock to give the claim back",
+    "Unwake": "the jbus pass gives back the claim of a wake that did not go",
     "EndedRead": "the jbus pass reads the holders",
     "Judge": "the jbus pass judges which runs are over",
     "HForgetLock": "the jbus pass takes the holders' lock",

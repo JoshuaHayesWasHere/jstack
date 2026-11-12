@@ -239,12 +239,10 @@ def tell(run: Pass, client: Client, one: Waiter) -> None:
             waiters.forget(slot.locks_dir(), {one.id})
             return
         run.say(f"wait {one.thread}: it could not be told a slot is free ({error})")
-        waiters.unwake(slot.locks_dir(), one)
-        return
+        went = False
     except T3Error as error:
         run.say(f"wait {one.thread}: it could not be told a slot is free ({error})")
-        waiters.unwake(slot.locks_dir(), one)
-        return
+        went = False
     if not went:
         waiters.unwake(slot.locks_dir(), one)
         return

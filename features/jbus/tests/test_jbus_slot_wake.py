@@ -104,7 +104,7 @@ def test_a_taker_that_comes_between_the_count_and_the_send_finds_the_slot_claime
         if got is not None:
             os.close(got[0])
     assert told(kitchen) == [woken] and took == [None]
-    monkeypatch.undo()
+    monkeypatch.setattr(outbox, "send", sending)
     held = slot.take(lane, thread=woken, command=["uv", "run", "pytest"])
     assert held is not None
     os.close(held[0])
