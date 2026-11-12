@@ -331,13 +331,14 @@ def test_a_home_thread_whose_last_wake_failed_has_each_root_in_the_journal_each_
 def test_a_red_pull_request_held_twice_with_no_crew_at_work_is_told_to_its_home_each_hour(
     launched,
 ):
-    """Alpha's #7 failed its required check at two heads, so jbus held the row (`check failed
-    twice`), and jmerge says `check has failed`. Alpha's crew ended its turn and nothing else
-    works on it: the red pull request is a root its home hears of at once and again each hour."""
+    """Alpha's #7 failed its required check at two heads whose logs name no failed test, so jbus
+    held the row (`check failed twice`), and jmerge says `check has failed`. Alpha's crew ended its
+    turn and nothing else works on it: the red pull request is a root its home hears of at once and
+    again each hour."""
     launched.set("jmerge.txt", "wait 7 https://example.test/pull/7: check has failed\n")
-    red_at(launched, A, "11")
+    red_at(launched, A, "11", named=False)
     passes(launched, 0)
-    red_at(launched, B, "12")
+    red_at(launched, B, "12", named=False)
     passes(launched, 3)
     assert rows(launched)["alpha"]["held"] is True
     assert launched.t3.threads[0]["status"] == "completed"
@@ -358,11 +359,11 @@ def test_a_red_pull_request_held_twice_with_no_crew_at_work_is_told_to_its_home_
 def test_a_red_pull_request_is_no_root_where_the_user_held_it_or_a_crew_works_on_it(launched, why):
     """A hold the user made is theirs, and a crew at work is progress: neither is reminded."""
     launched.set("jmerge.txt", "wait 7 https://example.test/pull/7: check has failed\n")
-    red_at(launched, A, "11")
+    red_at(launched, A, "11", named=False)
     if why == "the user held the row":
         assert launched.main("queue", "hold", "alpha")[0] == 0
     passes(launched, 0)
-    red_at(launched, B, "12")
+    red_at(launched, B, "12", named=False)
     if why == "its crew is at work":
         launched.t3.threads[0]["status"] = "running"
     passes(launched, 3, 30, 64)
