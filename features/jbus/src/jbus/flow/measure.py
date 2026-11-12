@@ -6,7 +6,9 @@ to the window. `row_spans` cuts that time into spans, each of one class (`CLASSE
 what the row did or waited on: the class of its status, and for a row with a pull request, of
 why it waits as the table or `jmerge` said it last. A span with no record before it is
 `no record`. A span in which the event log says the row's account was capped, or its thread
-waited for a test slot, takes that class instead of `crew at work`.
+waited for a test slot, takes that class instead of `crew at work`. A span between a home's
+`act` line that held the row and the next that approved it again is `owner: held`, whatever
+the row's table said in it: the home holds the row, so nothing else it waits on moves it.
 
 A class is `working` (the crew at work, or its checks running) or waiting. `unexplained` is
 the waiting the records give no reason for: a row that waits with no why. `no record` is time
@@ -30,6 +32,7 @@ from datetime import datetime, timedelta
 
 from jbus.flow.records import (
     Cap,
+    Held,
     Line,
     Mark,
     Project,
@@ -89,6 +92,7 @@ STATUS = {
     "gate": "owner: gate",
 }
 OVER = ("merged", "done", "removed")
+HELD = "owner: held"
 GAP = timedelta(minutes=5)
 PASS = timedelta(minutes=1)
 
@@ -186,6 +190,7 @@ def row_spans(
     marks = [one for one in project.marks if one.slug == slug]
     spans = _cut(_changes(seen, said, marks), start, end, _opened(project, slug, seen, approved))
     spans = _overlay(spans, _carved(project, slug, seen))
+    spans = _overlay(spans, _held(project, slug, end), under=None)
     depends = next((one.depends for one in reversed(seen) if one.depends), ())
     done = merged if merged and merged <= until else None
     return Row(project.name, slug, approved, done, spans, depends)
@@ -278,12 +283,33 @@ def _carved(project: Project, slug: str, seen: list[Sighting]) -> list[Span]:
     return carved
 
 
-def _overlay(spans: list[Span], carved: list[Span]) -> tuple[Span, ...]:
-    """Lay each carved span over the spans of `crew at work` it overlaps."""
+def _held(project: Project, slug: str, end: datetime) -> list[Span]:
+    """Return each span from a home's `held` line of the row to its next `approved` line."""
+    found: list[Span] = []
+    opened: Held | None = None
+    for one in sorted((one for one in project.held if one.slug == slug), key=lambda m: m.at):
+        if one.held and opened is None:
+            opened = one
+        elif not one.held and opened is not None:
+            found.append(Span(opened.at, one.at, HELD, opened.source))
+            opened = None
+    if opened is not None and opened.at < end:
+        found.append(Span(opened.at, end, HELD, opened.source))
+    return found
+
+
+def _overlay(
+    spans: list[Span] | tuple[Span, ...],
+    carved: list[Span],
+    under: tuple[str, ...] | None = ("crew at work",),
+) -> tuple[Span, ...]:
+    """Lay each carved span over the spans it overlaps whose class is `under`, or over every
+    span where `under` is None, and join the pieces of one carved span that meet."""
     for cut in sorted(carved, key=lambda one: one.start):
         made = []
         for one in spans:
-            if one.what != "crew at work" or cut.end <= one.start or cut.start >= one.end:
+            kept = under is not None and one.what not in under
+            if kept or cut.end <= one.start or cut.start >= one.end:
                 made.append(one)
                 continue
             middle = Span(max(one.start, cut.start), min(one.end, cut.end), cut.what, cut.source)
@@ -295,7 +321,14 @@ def _overlay(spans: list[Span], carved: list[Span]) -> tuple[Span, ...]:
             if middle.end < one.end:
                 made.append(Span(middle.end, one.end, one.what, one.source))
         spans = made
-    return tuple(spans)
+    joined: list[Span] = []
+    for one in spans:
+        last = joined[-1] if joined else None
+        if last and (last.end, last.what, last.source) == (one.start, one.what, one.source):
+            joined[-1] = Span(last.start, one.end, one.what, one.source)
+        else:
+            joined.append(one)
+    return tuple(joined)
 
 
 def rows(
@@ -343,7 +376,9 @@ def pareto(found: Iterable[Row]) -> list[dict]:
 
 def lead_times(found: Iterable[Row], spans: bool = False) -> dict:
     """Return the approved-to-merged times of the rows that merged in the window, and with
-    `spans` each row's spans, each with the record that opened it."""
+    `spans` each row's spans, each with the record that opened it, and under `open` each row not
+    merged in the window with its spans."""
+    found = list(found)
     done = [one for one in found if one.merged is not None and one.approved is not None]
     whole = [(one.merged - one.approved).total_seconds() / 3600 for one in done]  # type: ignore[operator]
     return {
@@ -366,6 +401,25 @@ def lead_times(found: Iterable[Row], spans: bool = False) -> dict:
             | ({"spans": [_span(span) for span in one.spans]} if spans else {})
             for one in sorted(done, key=lambda row: row.hours(), reverse=True)
         ],
+    } | ({"open": [_open(one) for one in _longest(found, done)]} if spans else {})
+
+
+def _longest(found: list[Row], done: list[Row]) -> list[Row]:
+    merged = {(one.project, one.slug) for one in done}
+    left = [one for one in found if (one.project, one.slug) not in merged]
+    return sorted(left, key=Row.hours, reverse=True)
+
+
+def _open(row: Row) -> dict:
+    """A row with time in the window that did not merge in it, with its spans."""
+    return {
+        "project": row.project,
+        "slug": row.slug,
+        "working_hours": round(row.hours(True), 1),
+        "waiting_hours": round(row.hours(False), 1),
+        "top_wait": _top(row)[0],
+        "top_wait_hours": round(_top(row)[1], 1),
+        "spans": [_span(span) for span in row.spans],
     }
 
 
@@ -541,8 +595,21 @@ def _room_why(said: str) -> str:
     return "other"
 
 
-def caps(projects: Iterable[Project], lines: list[Line], since: datetime, until: datetime) -> dict:
-    """Return how long each account was capped, and how many rows a cap held."""
+def caps(
+    projects: Iterable[Project],
+    lines: list[Line],
+    since: datetime,
+    until: datetime,
+    spells: Iterable[Cap] = (),
+) -> dict:
+    """Return how long each account was capped, how many rows a cap held and for how long, and
+    how many threads jbus rolled over to another account.
+
+    An account's hours are the union of its spells in the machine's `capped.jsonl` (`spells`)
+    and the full-pool `stall` lines of the event logs and the journal. A row a cap held is one a
+    `stall` line names, or one whose message the outbox held for a cap (`CapHold`), each in the
+    window; `row_hours_held` sums the outbox's holds. A rollover is a `rollover` event."""
+    projects = list(projects)
     every: list[Cap] = [one for project in projects for one in project.caps]
     for line in lines:
         found = re.match(r"^capped (\S+): (\S+) is capped until (\S+)", line.text)
@@ -552,16 +619,32 @@ def caps(projects: Iterable[Project], lines: list[Line], since: datetime, until:
                 every.append(Cap(line.at, end, found[1], (found[2],)))
     by: defaultdict[str, list[tuple[datetime, datetime]]] = defaultdict(list)
     slugs = set()
-    for cap in every:
+    for cap in [*every, *spells]:
         start, end = max(cap.at, since), min(cap.until, until)
         if end > start:
-            slugs.add(cap.slug)
+            if cap.slug:
+                slugs.add(cap.slug)
             for account in cap.accounts:
                 by[account].append((start, end))
+    held = []
+    for hold in (one for project in projects for one in project.cap_holds):
+        start, end = max(hold.at, since), min(hold.until, until)
+        if end > start:
+            slugs.add(hold.slug)
+            held.append((start, end))
     whole = union(span for each in by.values() for span in each)
+    rolled = Counter(
+        project.name
+        for project in projects
+        for one in project.rollovers
+        if since <= one.at <= until
+    )
     return {
         "hours_any": _hours(whole),
         "rows_held": len(slugs),
+        "row_hours_held": _hours(held),
+        "rollovers": sum(rolled.values()),
+        "rollovers_by_project": dict(rolled.most_common()),
         "by_account": {name: _hours(union(each)) for name, each in sorted(by.items())},
     }
 
