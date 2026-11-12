@@ -457,6 +457,8 @@ def test_slot_wakes_run_once_a_pass(kitchen, slots):
     keys = sorted(given["clientRequestId"].split("|")[:2] for given in sends(kitchen))
     assert keys == [["slot-end", busy], ["slot-wake", first]]
     kitchen.poll(NOW + 2 * MIN)
-    ends = [given["clientRequestId"] for given in sends(kitchen)][1:]
+    sent = [given["clientRequestId"] for given in sends(kitchen)]
+    ends = [key for key in sent if key.startswith("slot-end|")]
     assert ends == [f"slot-end|{busy}|{run.since}", f"slot-end|{busy}|{again.since}"]
+    assert heard(kitchen) == [first]
     assert holders.read(slot.locks_dir()) == []
