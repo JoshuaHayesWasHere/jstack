@@ -170,7 +170,7 @@ def test_a_leftover_its_home_has_is_not_on_the_users_list_and_the_view_says_who_
     merged(kitchen, left=NOTE)
     for _ in range(2):
         kitchen.poll()
-    assert column(kitchen) == ("merged", "#9", "left: " + NOTE[:95] + "[cut]")
+    assert column(kitchen) == ("merged", "#9", "left: " + NOTE)
     assert jbus.read_json(kitchen.state / "waiting-on-user.json", None) == []
     assert stalls(kitchen) == []
     built = state(kitchen)

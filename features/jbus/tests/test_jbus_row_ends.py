@@ -205,7 +205,7 @@ def test_a_row_launched_from_a_brief_that_holds_a_result_is_launched_not_done(ki
         (result("the user's sign-off on the sketch"), "left: the user's sign-off on the sketch"),
         (result(status="blocked"), "status: blocked"),
         (result(status="paused, at abc123"), "status: paused, at abc123"),
-        (result("x" * 200), "left: " + "x" * 95 + "[cut]"),
+        (result("x" * 200), "left: " + "x" * 200),
         (result(pull=PULL), "pull request #9 is not open and not merged"),
         (result(pull=PULL + "/files"), "pull request is not open and not merged"),
         ("\n## Result\nStatus: done\nLeft: none\n", "its Result has no Branch line"),

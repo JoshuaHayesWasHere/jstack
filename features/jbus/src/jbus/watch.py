@@ -72,7 +72,6 @@ from jbus.passes import Changed, Depends, Pass, Red, Rerun, Slot, side_by_side
 from jbus.pulls import OPEN
 from jbus.pulls import read as read_open
 from jbus.t3 import Client, T3Error
-from jbus.wake import cut
 from jgauge import holders, slot, waiters
 from jmerge import checks as reading
 from jmerge import judgement, mainjson
@@ -126,7 +125,6 @@ GATED = "a gate the Chef has"
 OFF, STOP, UNREAD = "dispatch is off", "the stop file is there", "not read in this pass"
 AFTER_MERGE = "after the merge"
 UNRESOLVED = "Could not resolve to a"
-WORDS = 100
 _AGAINST = re.compile(r"^Pull request:[ \t]*open one against (?P<branch>[^\s,;:()`]+)", re.M)
 
 
@@ -615,13 +613,14 @@ def _stale(run: Pass, world: World, slug: str, thread: dict[str, Any]) -> str:
 
 
 def left(result: str) -> str:
-    """Return, in a few words, what a Result leaves undone. Return nothing when the Result says
-    `Status: done` and `Left: none`."""
+    """Return what a Result leaves undone, its `Left:` or `Status:` line whole: the row keeps it
+    as its `why`, and only a view shortens it. Return nothing when the Result says `Status: done`
+    and `Left: none`."""
     said, rest = below.line(result, status_line.LABEL), below.line(result, "Left:")
     if rest and rest != "none":
-        return f"left: {cut(rest, WORDS)}"
+        return f"left: {rest}"
     if status_line.read(said) is not Status.DONE:
-        return f"status: {cut(said, WORDS)}" if said else "its Result has no Status line"
+        return f"status: {said}" if said else "its Result has no Status line"
     return "" if rest else "its Result has no Left line"
 
 
