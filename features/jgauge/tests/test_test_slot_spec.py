@@ -170,10 +170,22 @@ def test_each_of_today_s_faults_breaks_its_rule(fault, rule):
 def test_a_killed_test_slot_takes_its_command_with_it_today(fault, code):
     """Today's code holds OneCommandPerSlot where a killed `jgauge test-slot` leaves the slot
     free, and the canary that lets its command live on breaks it there. The short lane's room
-    alone, since the whole of today's mode is 1.45 million states."""
+    alone, since the whole of today's mode is 831,692 states."""
     ended, out = tlc(fault, ["OneCommandPerSlot"], room="short")
     assert ended == code, out[-4000:]
     assert ("Invariant OneCommandPerSlot is violated" in out) == bool(code), out[-4000:]
+
+
+@JAVA
+@TLC
+@pytest.mark.parametrize(("fault", "code"), [("today", 0), ("forget-unended", 12)])
+def test_a_run_s_end_is_kept_for_jbus_to_tell_today(fault, code):
+    """Today's code forgets a run with no end only once its `jgauge test-slot` is gone too, so
+    the end it writes is on file for jbus to tell its thread, and the canary that forgets the run
+    while its test-slot lives breaks EndNotLost. The short lane's room alone, which has both."""
+    ended, out = tlc(fault, ["EndNotLost"], room="short")
+    assert ended == code, out[-4000:]
+    assert ("Invariant EndNotLost is violated" in out) == bool(code), out[-4000:]
 
 
 @JAVA
