@@ -273,7 +273,9 @@ def test_a_webhook_is_created_once_and_a_second_start_finds_nothing_to_do(scene)
 def test_the_next_thread_takes_the_webhook_over_at_the_address_it_had(scene):
     scene.starts(OTHER)
     (said,) = scene.looks(THREAD)
-    assert said == f"take {TASK}-1: webhook {TASK}-1 posts into {OTHER}, not this thread: take it over"
+    assert (
+        said == f"take {TASK}-1: webhook {TASK}-1 posts into {OTHER}, not this thread: take it over"
+    )
     assert scene.sees_to_the_webhook(THREAD) == ["take", "keep"]
     assert scene.kept() == ([f"{TASK}-1", THREAD], [[f"{TASK}-1", THREAD]])
     assert (scene.folder / "webhook.url").read_text() == f"{ADDRESS}\n"
