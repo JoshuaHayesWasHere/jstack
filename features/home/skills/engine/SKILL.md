@@ -42,7 +42,8 @@ On `not a root home:` or `no home:`, say that one line and stop.
      Run `gh run list --status failure --limit 30 --json databaseId,headBranch,name`, then `gh run view <id> --log-failed` on the runs of other branches.
      The same test failed elsewhere: it is a flake, so rerun the job with `gh run rerun <id> --failed`.
      It failed only on this branch: the failure is the branch's own, and a rerun only fails again.
-     Its crew fixes it, since jbus tells a crew that its pull request is red. Where the crew has stalled, tell its child home.
+     Its crew fixes it, since jbus tells a crew that its pull request is red.
+     Where the crew has stalled, tell its child home.
    - A cause you cannot find from the queue, jbus and `gh`: send a scout by the home skill's "Sending a scout".
      The scout's request is a file under `$H/scouts/`, so it outlives this thread.
    - A stall whose cause you also found on an earlier pass: queue a row in the self-heal child (in jstack `self-heal`, and `uncategorized` in a repo with no such child) by the root's "Queue a row in a child".
