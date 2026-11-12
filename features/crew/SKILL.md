@@ -155,10 +155,7 @@ On the user's own word to merge, given in this thread, `jmerge --accept <number>
    On `send nothing`, send the home nothing: the Result on disk is the record.
    On `tell the home`, send it at most five lines, as "Telling the home" says: the slug, the status, and what the Result says is left.
    For a paused task the status is `paused`, with the commit the work is at.
-   A task that waits for other work to merge, paused or with its pull request open and a rebase put off, names it on the Result's `Waits on:` line, one line for all of it: a row by its slug, a pull request with no row by its number, `#1717`.
-   jbus tells this thread to carry on once the last of them has merged, whatever the branch's head, so the home is asked for no nudge.
-   Write the wait on that line, not in prose: `jbus queue check` and `jbus brief set|append` refuse a `Status:`, `Steers:` or `Left:` line that says "after #1717 merges" or "once <slug> merged" where `Waits on:` does not name it, since a sentence wakes nobody.
-   Once it has landed, a Result you write after it names it on no `Waits on:` line.
+   Work it waits on to merge goes on the Result's `Waits on:` line, never in prose (the brief lint refuses "after #1717 merges"): a row by slug, a pull request with no row by `#<n>`, at any status. jbus tells this thread to carry on once all of it merged, so the home is asked for no nudge.
 3. Say the same thing in this thread in at most five lines.
 
 A later round does not rewrite a Result: it appends `## Result, follow-up (<date>, <why>)` in the same shape, and step 2 is run again on it.
