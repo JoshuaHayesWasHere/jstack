@@ -111,7 +111,11 @@ def _count(run: Pass) -> frozenset[str]:
     ledger = read_json(run.state / LEDGER, {})
     mine: dict[str, Any] = ledger if isinstance(ledger, dict) else {}
     kept = mine.get("conflicts")
-    known: dict[str, dict[str, Any]] = kept if isinstance(kept, dict) else {}
+    known: dict[str, dict[str, Any]] = {
+        key: one
+        for key, one in (kept.items() if isinstance(kept, dict) else ())
+        if isinstance(one, dict) and _files(one.get("files"))
+    }
     place = mine.get("log")
     asked = 0
     for end, record in _lines(run.state / wake.LOG, place):
@@ -192,6 +196,11 @@ def _lines(log: Path, kept: Any) -> Iterator[tuple[dict[str, int], dict[str, Any
                 {"inode": stat.st_ino, "offset": offset},
                 (record if isinstance(record, dict) else None),
             )
+
+
+def _files(files: Any) -> bool:
+    """Whether a ledger entry's `files` is a list of paths, as `conflicted` writes it."""
+    return isinstance(files, list) and all(isinstance(file, str) for file in files)
 
 
 def _at(record: Mapping[str, Any]) -> datetime | None:

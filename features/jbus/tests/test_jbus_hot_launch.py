@@ -240,10 +240,18 @@ def test_a_head_that_merges_cleanly_or_that_git_cannot_read_counts_no_conflict(k
     assert launched(kitchen) == ["alpha", "beta"]
 
 
-def test_a_ledger_and_log_lines_that_are_not_records_are_passed_over(kitchen):
+@pytest.mark.parametrize(
+    "ledger",
+    [
+        [],
+        {"conflicts": {"a/b": "not a record", "c/d": {"at": "x", "files": "src/hot.py"}}},
+        {"conflicts": {"e/f": {"files": [["src/hot.py"]]}}},
+    ],
+)
+def test_a_ledger_and_log_lines_that_are_not_records_are_passed_over(kitchen, ledger):
     """The hot list is a help, never a gate: what it cannot read gives fewer hot files, not a
     failed pass."""
-    (kitchen.state / hotfiles.LEDGER).write_text("[]")
+    (kitchen.state / hotfiles.LEDGER).write_text(json.dumps(ledger))
     log = kitchen.state / wake.LOG
     stray = {"event": "rebase", "at": "never", "text": f"refs/jstack/pre-rebase/x/a {'a' * 40}"}
     with log.open("a") as file:
