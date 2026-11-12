@@ -902,6 +902,65 @@ def test_a_stacked_link_selects_only_its_own_change_from_the_branch_it_is_stacke
     assert (ran, code) == ([lint(base)], 0)
 
 
+MAIN_SELECTOR = """import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+parts = {"touched": ["tests/test_a.py"], "cross": [], "names": ["tests/test_b.py"]}
+if sys.argv[2] == "names":
+    parts["names"][0] += " " + (ROOT / "reads.txt").read_text().strip()
+print("\\n".join(parts[sys.argv[2]]))
+"""
+
+
+def test_a_link_whose_own_selector_is_behind_mains_names_its_tests_with_mains(tmp_path):
+    """A link stacked on a branch that left main before `--part names` has a selector that
+    lacks it. The block names the tests with `origin/main`'s selector, run over the link's own
+    tree, so the three lists come out and the check runs to a `Checked:` line."""
+    older = touching("tests/test_a.py").replace(", 'names': []", "")
+    assert "names" not in older
+    repo = stubbed(tmp_path, older)
+    git(repo, "update-ref", "refs/remotes/origin/below", "HEAD")
+    git(repo, "checkout", "-q", "-b", "main-moved")
+    (repo / "scripts" / "select_tests.py").write_text(MAIN_SELECTOR)
+    git(repo, "commit", "-qam", "main's selector")
+    git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    git(repo, "checkout", "-q", "-")
+    (repo / "reads.txt").write_text("tests/test_c.py\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "this link")
+    brief = a_brief(tmp_path)
+    brief.write_text("# a-task: a link\nStacked on: below below\n")
+    said, code, ran, base = selected(tmp_path, repo, on="origin/below")
+    head = git(repo, "rev-parse", "HEAD")
+    assert base == git(repo, "rev-parse", "HEAD~1")
+    assert (ran, code) == (
+        [
+            lint(base),
+            alone("tests/test_a.py", base),
+            f"test TESTS=tests/test_b.py tests/test_c.py BASE={base} short=held full=free",
+        ],
+        0,
+    ), said
+    assert brief.read_text().endswith(
+        f"Checked: make check-fast BASE={base} PART=touched exit 0 at {head}\n"
+    )
+
+
+def test_with_no_selector_on_origin_main_the_block_says_so_and_runs_the_branchs(tmp_path):
+    repo = stubbed(tmp_path, touching("tests/test_a.py"))
+    empty = git(repo, "hash-object", "-t", "tree", "-w", "/dev/null")
+    git(repo, "update-ref", "refs/remotes/origin/main", git(repo, "commit-tree", "-m", "0", empty))
+    git(repo, "update-ref", "refs/remotes/origin/below", "HEAD~1")
+    brief = a_brief(tmp_path)
+    brief.write_text("# a-task: a link\nStacked on: below below\n")
+    said, code, ran, base = selected(tmp_path, repo, on="origin/below")
+    assert said[0] == (
+        "origin/main has no scripts/select_tests.py: the branch's own names the tests"
+    ), said
+    assert (ran, code) == ([lint(base), alone("tests/test_a.py", base)], 0)
+
+
 def test_a_link_whose_base_branch_is_gone_selects_from_origin_main(tmp_path):
     """A link's base branch is deleted once it merges, before jbus rewrites the brief's
     `Stacked on:` line, and the link is then checked from `origin/main`, which holds it."""
