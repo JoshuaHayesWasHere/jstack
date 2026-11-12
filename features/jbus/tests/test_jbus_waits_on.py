@@ -23,6 +23,7 @@ from test_jbus_queue import add, brief
 SLUG = "st-code-conforms"
 HEAD = "ba66f41642f6" + "0" * 28
 MERGED_AT = datetime(2026, 11, 12, 0, 44, 47, tzinfo=UTC)
+TIP, MERGE = "1" * 40, "a" * 40
 STEERS = (
     "Steers: the charts home: the index page is no longer committed after #1717; on the rebase "
     "after #1717 merges drop it with `git rm`. #1717 was open when this came."
@@ -54,9 +55,9 @@ def merged_1717(kitchen):
 
 @pytest.fixture
 def conforms(tmp_path, monkeypatch):
-    """st-code-conforms launched, its pull request #1718 open at HEAD and conflicting, its rebase
-    key at HEAD already marked sent, and its Result done with `Waits on: #1717` under the
-    11-11 Steers line, while #1717, a pull request no row names, is open. Its turn has ended."""
+    """st-code-conforms launched, its pull request #1718 open at HEAD and conflicting, told of the
+    conflict at HEAD with main at TIP, and its Result done with `Waits on: #1717` under the 11-11
+    Steers line, while #1717, a pull request no row names, is open. Its turn has ended."""
     kitchen = Kitchen(tmp_path, monkeypatch)
     kitchen.word()
     add(kitchen, SLUG)
@@ -67,7 +68,9 @@ def conforms(tmp_path, monkeypatch):
     path = kitchen.home / "tasks" / f"{SLUG}.md"
     path.write_text(path.read_text() + RESULT + f"{STEERS}\nWaits on: #1717\n")
     sent = jbus.read_json(kitchen.state / "sent.json", [])
-    (kitchen.state / "sent.json").write_text(json.dumps([*sent, f"rebase|{SLUG}|{HEAD[:12]}"]))
+    told = [f"rebase|{SLUG}|{HEAD[:12]}", f"conflict|{SLUG}|{HEAD[:12]}|{TIP[:12]}"]
+    (kitchen.state / "sent.json").write_text(json.dumps([*sent, *told]))
+    kitchen.set("commits.json", [kitchen.commit(TIP)])
     kitchen.set("open.json", [open_1718(kitchen), kitchen.opened("st-site-untracked", 1717)])
     yield kitchen
     kitchen.close()
@@ -76,6 +79,7 @@ def conforms(tmp_path, monkeypatch):
 def merge_1717(kitchen, old=False):
     kitchen.set("open.json", [open_1718(kitchen)])
     kitchen.set("merged.json", [{**merged_1717(kitchen), "old": old}])
+    kitchen.set("commits.json", [kitchen.commit(MERGE), kitchen.commit(TIP)])
 
 
 def test_the_replay_of_1717_tells_the_crew_once_on_the_pass_after_the_merge(conforms):
@@ -91,7 +95,8 @@ def test_the_replay_of_1717_tells_the_crew_once_on_the_pass_after_the_merge(conf
     assert told["threadId"] == thread["threadId"]
     assert told["clientRequestId"].startswith(f"waits|{SLUG}|#1717|")
     assert "#1717 landed" in told["message"] and f"tasks/{SLUG}.md" in told["message"]
-    assert [one["clientRequestId"].split("|")[0] for one in asks(conforms)] == ["waits"]
+    retold = [one["clientRequestId"] for one in asks(conforms) if one is not told]
+    assert retold == [f"conflict|{SLUG}|{HEAD[:12]}|{MERGE[:12]}"]
 
 
 def test_a_crew_at_work_when_the_merge_lands_is_told_on_its_first_idle_pass(conforms):
