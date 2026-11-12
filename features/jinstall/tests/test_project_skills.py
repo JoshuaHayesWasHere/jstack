@@ -41,6 +41,7 @@ DECLARED = {
     "verify-output-folder": "features/skill-library/project-skill/verify-output-folder",
     "verify-pr-verdict": "features/jmerge/project-skill/verify-pr-verdict",
     "verify-row-life": "features/jbus/project-skill/verify-row-life",
+    "verify-setup": "features/jinstall/project-skill/verify-setup",
     "verify-tell-once": "features/jbus/project-skill/verify-tell-once",
     "verify-test-slot": "features/jgauge/project-skill/verify-test-slot",
     "verify-thread-life": "features/jbus/project-skill/verify-thread-life",

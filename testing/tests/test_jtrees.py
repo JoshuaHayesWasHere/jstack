@@ -305,6 +305,7 @@ def test_each_project_skill_a_feature_declares_is_in_skills_json_by_its_frontmat
         },
         {"name": "verify-pr-verdict", "path": "features/jmerge/project-skill/verify-pr-verdict"},
         {"name": "verify-row-life", "path": "features/jbus/project-skill/verify-row-life"},
+        {"name": "verify-setup", "path": "features/jinstall/project-skill/verify-setup"},
         {"name": "verify-tell-once", "path": "features/jbus/project-skill/verify-tell-once"},
         {"name": "verify-test-slot", "path": "features/jgauge/project-skill/verify-test-slot"},
         {"name": "verify-thread-life", "path": "features/jbus/project-skill/verify-thread-life"},

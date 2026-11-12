@@ -1061,6 +1061,10 @@
       "path": "features/jbus/project-skill/verify-row-life"
     },
     {
+      "name": "verify-setup",
+      "path": "features/jinstall/project-skill/verify-setup"
+    },
+    {
       "name": "verify-tell-once",
       "path": "features/jbus/project-skill/verify-tell-once"
     },
