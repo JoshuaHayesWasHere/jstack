@@ -103,16 +103,18 @@ class Lanes:
 
 def graph(spec, cfg, tools):
     """TLC's state graph of `spec` under the config file `cfg`: {"nodes", "edges", "loops"} as
-    `lib.parse_dot` reads it. TLC dumps it into a folder of its own, removed after, whatever
-    happens: a dump runs to hundreds of megabytes."""
+    `lib.parse_dot` reads it. TLC runs in a test slot on the workers `tools.workers()` names, and
+    dumps it into a folder of its own, removed after, whatever happens: a dump runs to hundreds
+    of megabytes."""
     from statechart.cli import run_tlc
+    from statechart.tools import workers
 
     work = tempfile.mkdtemp(prefix="statechart-lanes-")
     try:
         base = os.path.join(work, Path(cfg).stem)
         dump = os.path.join(work, "graph")
         text = Path(cfg).read_text(encoding="utf-8")
-        run_tlc(tools, str(spec), text, base, dump=dump, workers="auto")
+        run_tlc(tools, str(spec), text, base, dump=dump, workers=workers())
         with open(f"{dump}.dot", encoding="utf-8") as handle:
             return parse_dot(handle.read())
     finally:
