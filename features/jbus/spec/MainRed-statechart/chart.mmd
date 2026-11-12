@@ -87,8 +87,8 @@ stateDiagram-v2
   s31 --> s25 : the Mac fails
   s9 --> s3 : the Mac fails
   s31 --> s41 : jbus's pass reruns main's<br/>failed run once or jbus's pass
-  s31 --> s16 : jbus's pass files main's fix<br/>row or jbus's pass: a red<br/>check leans on the revert<br/>already open
   s31 --> s17 : jbus's pass reverts the one<br/>clear culprit
+  s31 --> s16 : jbus's pass files main's fix<br/>row or jbus's pass: a red<br/>check leans on the revert<br/>already open
   s25 --> s3 : main's run passes
   s25 --> s23 : jbus's pass reverts the one<br/>clear culprit
   s31 --> s19 : jbus's pass reads main red or<br/>reruns main's failed run once
@@ -100,10 +100,10 @@ stateDiagram-v2
   s41 --> s31 : a row's pull request merges or<br/>a row's pull request merges<br/>and breaks a test or something<br/>outside breaks main
   s41 --> s9 : jbus's rerun passes: a flake
   s41 --> s35 : the Mac fails
-  s16 --> s10 : the Mac fails
-  s16 --> s18 : jbus's pass reverts the one<br/>clear culprit
   s17 --> s11 : the Mac fails
   s17 --> s19 : the revert's check fails, it<br/>conflicts, or someone closes<br/>it or jbus's pass sees every<br/>check that holds the revert<br/>green and closes it or jmerge<br/>merges jbus's revert
+  s16 --> s10 : the Mac fails
+  s16 --> s18 : jbus's pass reverts the one<br/>clear culprit
   s23 --> s1 : main's run passes
   s23 --> s25 : the revert's check fails, it<br/>conflicts, or someone closes<br/>it or jmerge merges jbus's<br/>revert
   s25 --> s13 : jbus's pass reads main red or<br/>reruns main's failed run once
@@ -121,21 +121,21 @@ stateDiagram-v2
   s33 --> s25 : jmerge merges jbus's revert
   s33 --> s35 : the revert's check fails, it<br/>conflicts, or someone closes<br/>it
   s11 --> s13 : the revert's check fails, it<br/>conflicts, or someone closes<br/>it or jmerge merges jbus's<br/>revert
-  s41 --> s16 : jbus's pass files main's fix<br/>row or jbus's pass: a red<br/>check leans on the revert<br/>already open
   s41 --> s17 : jbus's pass reverts the one<br/>clear culprit
+  s41 --> s16 : jbus's pass files main's fix<br/>row or jbus's pass: a red<br/>check leans on the revert<br/>already open
   s35 --> s25 : a row's pull request merges or<br/>a row's pull request merges<br/>and breaks a test or something<br/>outside breaks main
   s35 --> s3 : jbus's rerun passes: a flake
   s35 --> s33 : jbus's pass reverts the one<br/>clear culprit
+  s17 --> s9 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
+  s17 --> s18 : jbus's pass files main's fix<br/>row or jbus's pass: a red<br/>check leans on the revert<br/>already open
   s16 --> s6 : jbus's pass reads main green<br/>or sees main green and<br/>withdraws the fix row
   s10 --> s12 : jbus's pass reverts the one<br/>clear culprit
   s18 --> s12 : the Mac fails
   s18 --> s16 : the revert's check fails, it<br/>conflicts, or someone closes<br/>it or jbus's pass sees every<br/>check that holds the revert<br/>green and closes it or jmerge<br/>merges jbus's revert
-  s17 --> s9 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
-  s17 --> s18 : jbus's pass files main's fix<br/>row or jbus's pass: a red<br/>check leans on the revert<br/>already open
   s23 --> s33 : jbus's pass reruns main's<br/>failed run once or jbus's pass
   s23 --> s11 : jbus's pass: a red check leans<br/>on the revert already open or<br/>jbus's pass reads main red or<br/>jbus's pass reruns main's<br/>failed run once
-  s25 --> s12 : jbus's pass reverts the one<br/>clear culprit
   s25 --> s14 : jbus's pass reverts the one<br/>clear culprit
+  s25 --> s12 : jbus's pass reverts the one<br/>clear culprit
   s11 --> s17 : the Mac passes
   s19 --> s9 : jbus's pass reads main green
   s19 --> s17 : jbus's pass reverts the one<br/>clear culprit
@@ -154,6 +154,7 @@ stateDiagram-v2
   s11 --> s1 : jbus's pass reads main green<br/>or jbus's pass: a red check<br/>leans on the revert already<br/>open or jbus's pass reverts<br/>the one clear culprit
   s11 --> s12 : jbus's pass files main's fix<br/>row or jbus's pass: a red<br/>check leans on the revert<br/>already open
   s35 --> s11 : jbus's pass reverts the one<br/>clear culprit
+  s17 --> s31 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
   s16 --> s9 : jbus's pass sees main green<br/>and withdraws the fix row
   s16 --> s28 : jbus's pass reads main green
   s10 --> s2 : jbus's pass reverts the one<br/>clear culprit
@@ -162,14 +163,13 @@ stateDiagram-v2
   s12 --> s10 : the revert's check fails, it<br/>conflicts, or someone closes<br/>it or jbus's pass sees every<br/>check that holds the revert<br/>green and closes it or jmerge<br/>merges jbus's revert
   s18 --> s6 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
   s16 --> s19 : the fix merges
-  s17 --> s31 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
   s23 --> s12 : jbus's pass: a red check leans<br/>on the revert already open or<br/>jbus's pass files main's fix<br/>row
-  s12 --> s18 : the Mac passes
-  s12 --> s15 : jbus's pass reverts the one<br/>clear culprit
   s14 --> s20 : the Mac passes
   s14 --> s11 : the revert's check fails, it<br/>conflicts, or someone closes<br/>it or jbus's pass sees every<br/>check that holds the revert<br/>green and closes it
-  s10 --> s15 : jbus's pass reverts the one<br/>clear culprit
+  s12 --> s18 : the Mac passes
+  s12 --> s15 : jbus's pass reverts the one<br/>clear culprit
   s11 --> s14 : jbus's pass reverts the one<br/>clear culprit
+  s10 --> s15 : jbus's pass reverts the one<br/>clear culprit
   s23 --> s14 : jbus's pass reverts the one<br/>clear culprit
   s19 --> s41 : jbus's pass reads main green<br/>or reruns main's failed run<br/>once
   s11 --> s23 : jbus's pass reads main green<br/>or jbus's pass: a red check<br/>leans on the revert already<br/>open or jbus's pass reverts<br/>the one clear culprit
@@ -183,12 +183,14 @@ stateDiagram-v2
   s35 --> s13 : jbus's pass reads main red
   s35 --> s10 : jbus's pass: a red check leans<br/>on the revert already open or<br/>jbus's pass files main's fix<br/>row
   s10 --> s0 : jbus's pass reads main green<br/>or jbus's pass: a red check<br/>leans on the revert already<br/>open or jbus's pass sees main<br/>green and withdraws the fix<br/>row
-  s13 --> s12 : jbus's pass reverts the one<br/>clear culprit
   s13 --> s14 : jbus's pass reverts the one<br/>clear culprit
+  s13 --> s12 : jbus's pass reverts the one<br/>clear culprit
   s29 --> s19 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
   s29 --> s41 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
   s29 --> s17 : jbus's pass: a red check leans<br/>on the revert already open or<br/>jbus's pass reverts the one<br/>clear culprit
   s33 --> s12 : jbus's pass: a red check leans<br/>on the revert already open or<br/>jbus's pass files main's fix<br/>row
+  s17 --> s41 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
+  s17 --> s16 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
   s10 --> s1 : jbus's pass reverts the one<br/>clear culprit
   s10 --> s3 : jbus's pass sees main green<br/>and withdraws the fix row or<br/>jbus's pass: a red check leans<br/>on the revert already open
   s16 --> s38 : jbus's pass reruns main's<br/>failed run once or reads main<br/>green
@@ -206,16 +208,14 @@ stateDiagram-v2
   s18 --> s9 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
   s18 --> s28 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
   s18 --> s17 : the fix merges
-  s17 --> s41 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
-  s17 --> s16 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
   s33 --> s14 : jbus's pass reverts the one<br/>clear culprit
-  s15 --> s21 : the Mac passes
-  s15 --> s12 : the revert's check fails, it<br/>conflicts, or someone closes<br/>it or jbus's pass sees every<br/>check that holds the revert<br/>green and closes it
   s14 --> s1 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
   s20 --> s17 : the revert's check fails, it<br/>conflicts, or someone closes<br/>it or jbus's pass sees every<br/>check that holds the revert<br/>green and closes it
   s14 --> s15 : jbus's pass files main's fix<br/>row or jbus's pass: a red<br/>check leans on the revert<br/>already open
-  s35 --> s12 : jbus's pass reverts the one<br/>clear culprit
+  s15 --> s21 : the Mac passes
+  s15 --> s12 : the revert's check fails, it<br/>conflicts, or someone closes<br/>it or jbus's pass sees every<br/>check that holds the revert<br/>green and closes it
   s35 --> s14 : jbus's pass reverts the one<br/>clear culprit
+  s35 --> s12 : jbus's pass reverts the one<br/>clear culprit
   s11 --> s15 : jbus's pass reverts the one<br/>clear culprit
   s29 --> s16 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
   s11 --> s33 : jbus's pass reads main green<br/>or jbus's pass reruns main's<br/>failed run once or jbus's<br/>pass: a red check leans on the<br/>revert already open or jbus's<br/>pass reverts the one clear<br/>culprit
@@ -236,8 +236,8 @@ stateDiagram-v2
   s22 --> s0 : main's run passes
   s6 --> s9 : jbus's pass sees main green<br/>and withdraws the fix row
   s28 --> s38 : jbus's pass reruns main's<br/>failed run once
-  s28 --> s16 : jbus's pass files main's fix<br/>row or reads main red
   s28 --> s18 : jbus's pass reverts the one<br/>clear culprit
+  s28 --> s16 : jbus's pass files main's fix<br/>row or reads main red
   s22 --> s28 : the Mac passes
   s22 --> s24 : jbus's pass reverts the one<br/>clear culprit
   s12 --> s1 : jbus's pass sees main green<br/>and withdraws the fix row or<br/>jbus's pass: a red check leans<br/>on the revert already open or<br/>jbus's pass reverts the one<br/>clear culprit
@@ -246,62 +246,48 @@ stateDiagram-v2
   s12 --> s11 : the fix merges
   s18 --> s38 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
   s39 --> s16 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
-  s15 --> s2 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
-  s21 --> s18 : the revert's check fails, it<br/>conflicts, or someone closes<br/>it or jbus's pass sees every<br/>check that holds the revert<br/>green and closes it
   s20 --> s9 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
   s11 --> s3 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
   s20 --> s18 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
+  s15 --> s2 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
+  s21 --> s18 : the revert's check fails, it<br/>conflicts, or someone closes<br/>it or jbus's pass sees every<br/>check that holds the revert<br/>green and closes it
   s39 --> s18 : jbus's pass: a red check leans<br/>on the revert already open
   s8 --> s6 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it or the revert's<br/>check fails, it conflicts, or<br/>someone closes it
   s14 --> s23 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
+  s1 --> s4 : jbus's pass reverts the one<br/>clear culprit
+  s23 --> s26 : jbus's pass reverts the one<br/>clear culprit
+  s11 --> s4 : jbus's pass reverts the one<br/>clear culprit
+  s11 --> s26 : jbus's pass reverts the one<br/>clear culprit
   s34 --> s2 : jbus's rerun passes: a flake
   s34 --> s40 : the Mac passes
   s34 --> s32 : the revert's check fails, it<br/>conflicts, or someone closes<br/>it
   s32 --> s0 : jbus's rerun passes: a flake
-  s38 --> s16 : jbus's pass files main's fix<br/>row or reads main red
   s38 --> s18 : jbus's pass reverts the one<br/>clear culprit
+  s38 --> s16 : jbus's pass files main's fix<br/>row or reads main red
   s32 --> s38 : the Mac passes
   s32 --> s34 : jbus's pass reverts the one<br/>clear culprit
   s12 --> s34 : jbus's pass reads main green<br/>or jbus's pass reruns main's<br/>failed run once or jbus's<br/>pass: a red check leans on the<br/>revert already open or jbus's<br/>pass reverts the one clear<br/>culprit
   s2 --> s1 : jbus's pass sees main green<br/>and withdraws the fix row
   s24 --> s34 : jbus's pass reruns main's<br/>failed run once
-  s24 --> s12 : jbus's pass: a red check leans<br/>on the revert already open or<br/>jbus's pass files main's fix<br/>row or jbus's pass reads main<br/>red
   s24 --> s15 : jbus's pass reverts the one<br/>clear culprit
+  s24 --> s12 : jbus's pass: a red check leans<br/>on the revert already open or<br/>jbus's pass files main's fix<br/>row or jbus's pass reads main<br/>red
   s30 --> s8 : main's run passes
   s30 --> s28 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it or the revert's<br/>check fails, it conflicts, or<br/>someone closes it
   s0 --> s3 : jbus's pass sees main green<br/>and withdraws the fix row or<br/>jbus's pass: a red check leans<br/>on the revert already open
   s22 --> s32 : jbus's pass reruns main's<br/>failed run once or jbus's<br/>pass: a red check leans on the<br/>revert already open
-  s22 --> s10 : jbus's pass: a red check leans<br/>on the revert already open or<br/>jbus's pass reads main red or<br/>jbus's pass files main's fix<br/>row
   s22 --> s12 : jbus's pass reverts the one<br/>clear culprit
+  s22 --> s10 : jbus's pass: a red check leans<br/>on the revert already open or<br/>jbus's pass reads main red or<br/>jbus's pass files main's fix<br/>row
   s0 --> s1 : jbus's pass reverts the one<br/>clear culprit
   s22 --> s34 : jbus's pass reverts the one<br/>clear culprit
   s22 --> s15 : jbus's pass reverts the one<br/>clear culprit
   s2 --> s23 : the fix merges
   s0 --> s25 : the fix merges
-  s1 --> s4 : jbus's pass reverts the one<br/>clear culprit
-  s23 --> s26 : jbus's pass reverts the one<br/>clear culprit
-  s11 --> s4 : jbus's pass reverts the one<br/>clear culprit
-  s11 --> s26 : jbus's pass reverts the one<br/>clear culprit
   s21 --> s6 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
   s12 --> s0 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
-  s15 --> s1 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
-  s15 --> s24 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
   s14 --> s33 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
   s11 --> s25 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
-  s34 --> s12 : jbus's pass: a red check leans<br/>on the revert already open or<br/>jbus's pass files main's fix<br/>row or jbus's pass reads main<br/>red
-  s34 --> s15 : jbus's pass reverts the one<br/>clear culprit
-  s40 --> s8 : jbus's rerun passes: a flake
-  s40 --> s38 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it or the revert's<br/>check fails, it conflicts, or<br/>someone closes it
-  s32 --> s10 : jbus's pass: a red check leans<br/>on the revert already open or<br/>jbus's pass reads main red or<br/>jbus's pass files main's fix<br/>row
-  s32 --> s12 : jbus's pass reverts the one<br/>clear culprit
-  s32 --> s15 : jbus's pass reverts the one<br/>clear culprit
-  s8 --> s9 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
-  s30 --> s38 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
-  s30 --> s16 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
-  s30 --> s18 : jbus's pass reverts the one<br/>clear culprit
-  s24 --> s27 : jbus's pass reverts the one<br/>clear culprit
-  s12 --> s4 : jbus's pass reverts the one<br/>clear culprit
-  s12 --> s27 : jbus's pass reverts the one<br/>clear culprit
+  s15 --> s1 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
+  s15 --> s24 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
   s4 --> s1 : the revert's check fails, it<br/>conflicts, or someone closes<br/>it
   s33 --> s36 : jbus's pass reverts the one<br/>clear culprit
   s11 --> s36 : jbus's pass reverts the one<br/>clear culprit
@@ -310,16 +296,35 @@ stateDiagram-v2
   s26 --> s23 : the revert's check fails, it<br/>conflicts, or someone closes<br/>it
   s14 --> s4 : jbus's pass reads main green<br/>or jbus's pass: a red check<br/>leans on the revert already<br/>open
   s14 --> s26 : jbus's pass reads main green
-  s2 --> s5 : jbus's pass reverts the one<br/>clear culprit
+  s34 --> s15 : jbus's pass reverts the one<br/>clear culprit
+  s34 --> s12 : jbus's pass: a red check leans<br/>on the revert already open or<br/>jbus's pass files main's fix<br/>row or jbus's pass reads main<br/>red
+  s40 --> s8 : jbus's rerun passes: a flake
+  s40 --> s38 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it or the revert's<br/>check fails, it conflicts, or<br/>someone closes it
+  s32 --> s12 : jbus's pass reverts the one<br/>clear culprit
+  s32 --> s10 : jbus's pass: a red check leans<br/>on the revert already open or<br/>jbus's pass reads main red or<br/>jbus's pass files main's fix<br/>row
+  s32 --> s15 : jbus's pass reverts the one<br/>clear culprit
+  s8 --> s9 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
+  s30 --> s38 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
+  s30 --> s18 : jbus's pass reverts the one<br/>clear culprit
+  s30 --> s16 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
+  s24 --> s27 : jbus's pass reverts the one<br/>clear culprit
+  s12 --> s4 : jbus's pass reverts the one<br/>clear culprit
+  s12 --> s27 : jbus's pass reverts the one<br/>clear culprit
   s12 --> s5 : jbus's pass reverts the one<br/>clear culprit
-  s15 --> s34 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
-  s12 --> s3 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
-  s12 --> s22 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
+  s2 --> s5 : jbus's pass reverts the one<br/>clear culprit
   s11 --> s35 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
   s14 --> s12 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
   s11 --> s10 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
-  s40 --> s16 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
+  s15 --> s34 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
+  s12 --> s3 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
+  s12 --> s22 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
+  s36 --> s4 : jbus's rerun passes: a flake
+  s36 --> s33 : the revert's check fails, it<br/>conflicts, or someone closes<br/>it
+  s14 --> s36 : jbus's pass reads main green<br/>or reruns main's failed run<br/>once
+  s26 --> s36 : jbus's pass reruns main's<br/>failed run once
+  s26 --> s14 : jbus's pass: a red check leans<br/>on the revert already open
   s40 --> s18 : jbus's pass reverts the one<br/>clear culprit
+  s40 --> s16 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
   s21 --> s9 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
   s34 --> s37 : jbus's pass reverts the one<br/>clear culprit
   s12 --> s37 : jbus's pass reverts the one<br/>clear culprit
@@ -329,24 +334,19 @@ stateDiagram-v2
   s27 --> s24 : the revert's check fails, it<br/>conflicts, or someone closes<br/>it
   s15 --> s4 : jbus's pass sees main green<br/>and withdraws the fix row or<br/>jbus's pass: a red check leans<br/>on the revert already open
   s15 --> s27 : jbus's pass reads main green
-  s36 --> s4 : jbus's rerun passes: a flake
-  s36 --> s33 : the revert's check fails, it<br/>conflicts, or someone closes<br/>it
-  s14 --> s36 : jbus's pass reads main green<br/>or reruns main's failed run<br/>once
-  s26 --> s36 : jbus's pass reruns main's<br/>failed run once
-  s26 --> s14 : jbus's pass: a red check leans<br/>on the revert already open
   s5 --> s2 : the revert's check fails, it<br/>conflicts, or someone closes<br/>it
   s15 --> s5 : jbus's pass reads main green<br/>or jbus's pass: a red check<br/>leans on the revert already<br/>open
   s12 --> s32 : jbus's pass sees every check<br/>that holds the revert green<br/>and closes it
+  s36 --> s14 : jbus's pass: a red check leans<br/>on the revert already open
+  s26 --> s15 : jbus's pass: a red check leans<br/>on the revert already open
   s37 --> s5 : jbus's rerun passes: a flake
   s37 --> s34 : the revert's check fails, it<br/>conflicts, or someone closes<br/>it
   s15 --> s37 : jbus's pass reads main green<br/>or reruns main's failed run<br/>once
   s5 --> s4 : jbus's pass sees main green<br/>and withdraws the fix row
   s27 --> s37 : jbus's pass reruns main's<br/>failed run once
   s27 --> s15 : jbus's pass: a red check leans<br/>on the revert already open
-  s36 --> s14 : jbus's pass: a red check leans<br/>on the revert already open
-  s26 --> s15 : jbus's pass: a red check leans<br/>on the revert already open
-  s37 --> s15 : jbus's pass: a red check leans<br/>on the revert already open
   s36 --> s15 : jbus's pass: a red check leans<br/>on the revert already open
+  s37 --> s15 : jbus's pass: a red check leans<br/>on the revert already open
   class s0 group2
   class s1 group1
   class s2 group3
