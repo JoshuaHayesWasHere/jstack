@@ -151,6 +151,7 @@ def test_each_waiting_verdict_shows_the_step_that_ends_its_wait_on_the_chart():
     run = {words.STEPS[a] for a in words.RUN} | {words.STEPS["BatchProves"]}
     owners = {*words.STEPS.values(), "its check passes", "its check fails"} - run
     judged, merged = words.SAID["none"], words.SAID["merged"]
+    batch_check = (words.SAID["in-batch"], words.STEPS["BatchProves"])
     chart = (SPEC / "PrVerdict-statechart" / "chart.mmd").read_text()
     says = lib.parse_mermaid(chart)["regions"]["What jmerge says"]
     waits = sorted(set(says["states"]) - {judged, merged})
@@ -159,7 +160,9 @@ def test_each_waiting_verdict_shows_the_step_that_ends_its_wait_on_the_chart():
         verdict
         for verdict in waits
         if not any(
-            t["from"] == verdict and t["label"] in owners and t["to"] in (judged, merged)
+            t["from"] == verdict
+            and (t["label"] in owners or (verdict, t["label"]) == batch_check)
+            and t["to"] in (judged, merged)
             for t in says["transitions"]
         )
     ]

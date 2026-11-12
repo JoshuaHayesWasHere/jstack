@@ -146,6 +146,10 @@ Verdict ==
     \* `if one.mergeable == "CONFLICTING":`). An undecided GitHub is said last, and a check that
     \* can still pass after the review's range-diff (cli.py
     \* `short = short or self.row_first(brief.stem, beside)`), as `reviewed` already is here.
+    \* GitHub runs no check on a pull request that conflicts with its base, so a check not ended
+    \* at a conflicting head is one with no run, said as the conflict (#1721, ready.py
+    \* `return CONFLICTS if one.mergeable == "CONFLICTING" else unrun`).
+    ELSE IF ci = "none" /\ decided /\ clash THEN "conflicts"
     ELSE IF ci = "none" THEN "not-passed"
     ELSE IF ci = "fail" /\ ~Rejudged THEN "check-failed"
     ELSE IF decided /\ clash THEN "conflicts"
@@ -179,6 +183,7 @@ Verdict ==
 VerdictAccepted ==
     LET a == Asks \ Accepted IN
     IF ~reviewed THEN "no-review"
+    ELSE IF ci = "none" /\ decided /\ clash THEN "conflicts"
     ELSE IF ci = "none" THEN "not-passed"
     ELSE IF ci = "fail" /\ ~Rejudged THEN "check-failed"
     ELSE IF decided /\ clash THEN "conflicts"
