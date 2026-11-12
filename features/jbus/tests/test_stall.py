@@ -352,3 +352,19 @@ def test_a_red_pull_request_held_twice_with_no_crew_at_work_is_told_to_its_home_
         "held by check failed twice and no thread is at work on it · unblocks alpha · since "
         "11:03 ET"
     )
+
+
+@pytest.mark.parametrize("why", ["the user held the row", "its crew is at work"])
+def test_a_red_pull_request_is_no_root_where_the_user_held_it_or_a_crew_works_on_it(launched, why):
+    """A hold the user made is theirs, and a crew at work is progress: neither is reminded."""
+    launched.set("jmerge.txt", "wait 7 https://example.test/pull/7: check has failed\n")
+    red_at(launched, A, "11")
+    if why == "the user held the row":
+        assert launched.main("queue", "hold", "alpha")[0] == 0
+    passes(launched, 0)
+    red_at(launched, B, "12")
+    if why == "its crew is at work":
+        launched.t3.threads[0]["status"] = "running"
+    passes(launched, 3, 30, 64)
+    assert rows(launched)["alpha"]["held"] is True
+    assert launched.events("waiting-on-user") == []
