@@ -31,14 +31,14 @@ THREAD = "mcp:thread-one"
 OTHER = "mcp:thread-two"
 TASK = "scheduled-task:1c2d3e4f-0000-4000-8000-000000000000"
 ADDRESS = "https://relay.example/hooks/a-token-nobody-may-see"
+TITLE = f"expert: {NAME}, asks"
 READ_AT_START = ["CHARTER.md", "sources.md", "notes/INDEX.md", "corrections.md"]
 NO_EXPERT = "no expert: ~/.local/state/home has no folder _{} with a CHARTER.md."
 MARKERS = {
     "top": "T=$(realpath",
     "read": "read: $f",
     "id": 'printf \'%s\\n\' "$ME" > "$E/home-id"',
-    "webhook": "create: no webhook",
-    "taken": "taken: webhook",
+    "webhook": "create: no live webhook",
     "keep": "url='<webhookUrl>'",
     "playbook": "jbus playbook expert",
     "gate": "THE_GATE_ENDS_HERE",
@@ -94,6 +94,8 @@ class Scene:
         self.bin = wiring.uv(tmp_path / "bin")
         self.elsewhere = tmp_path / "elsewhere"
         self.elsewhere.mkdir()
+        self.live = {}
+        self.made = 0
 
     def run(self, which, name=NAME, **filled):
         """Run the block at the top and then the block `which`, with the placeholders filled,
@@ -129,29 +131,63 @@ class Scene:
             self.run("id", threadId=thread)
         return self.run("playbook", threadId=thread, playbook=playbook)
 
-    def taken(self, thread, posts_into, **filled):
-        """What the block says after the call that takes the webhook over. The test gives the
-        block a reply of `list_scheduled_tasks`. When `posts_into` is set, the reply lists the
-        webhook whose id the expert's folder keeps, and that webhook posts into `posts_into`.
-        When `posts_into` is empty, the reply lists no webhook."""
-        id = (self.folder / "webhook").read_text().split()[0]
-        tasks = [{"scheduledTaskId": id, "boundThreadId": posts_into, "webhookUrl": ADDRESS}]
-        reply = json.dumps({"tasks": tasks if posts_into else []})
-        asked = {"threadId": thread, "the reply of list_scheduled_tasks": reply, **filled}
-        return self.run("taken", **asked)
+    def looks(self, thread, refused="", reply=None):
+        """What the block of step 4 prints, given the tasks of T3 Code as `list_scheduled_tasks`
+        lists them, beside a task of another skill, which the block leaves alone."""
+        other = {"scheduledTaskId": "a-home-task", "title": "jbus events: a home"}
+        tasks = [{**other, "boundThreadId": thread}, *self.live.values()]
+        asked = {
+            "threadId": thread,
+            "the reply of list_scheduled_tasks": reply or json.dumps({"tasks": tasks}),
+            "the ids a call was refused for": refused,
+        }
+        return self.run("webhook", **asked)
 
-    def starts(self, thread=THREAD):
-        """Run the blocks of an expert's start in the skill's order, and keep what a `create`
-        returns."""
+    def creates(self, thread):
+        """`schedule_task` called from `thread`: T3 Code makes a webhook that posts into it."""
+        self.made += 1
+        id = f"{TASK}-{self.made}"
+        self.live[id] = {"scheduledTaskId": id, "title": TITLE, "boundThreadId": thread}
+        return id
+
+    def does(self, thread, said, url=ADDRESS):
+        """Make the call that the block's line names, from `thread`, and after a create run
+        the block that keeps what it returned."""
+        word, _, rest = said.partition(" ")
+        if word == "delete":
+            self.live.pop(rest.split(": ")[0], None)
+        elif word == "take":
+            self.live[rest.split(": ")[0]]["boundThreadId"] = thread
+        elif word == "create:":
+            made = self.creates(thread)
+            self.run("keep", threadId=thread, scheduledTaskId=made, webhookUrl=url)
+        else:
+            raise AssertionError(said)
+
+    def sees_to_the_webhook(self, thread=THREAD, url=ADDRESS):
+        """Step 4: the block and the call it names, again until it says `keep`. The first
+        word of each line it printed."""
+        words = []
+        while len(words) < 6:
+            (said,) = self.looks(thread)
+            words.append(said.split(" ")[0].rstrip(":"))
+            if words[-1] == "keep":
+                return words
+            self.does(thread, said, url)
+        raise AssertionError(words)
+
+    def starts(self, thread=THREAD, url=ADDRESS):
+        """Run the blocks of an expert's start in the skill's order. The first word step 4
+        said."""
         self.run("read")
         self.run("id", threadId=thread)
-        (said,) = self.run("webhook", threadId=thread)
-        if said.startswith("take:"):
-            self.taken(thread, thread)
-        elif not said.startswith("keep:"):
-            task = f"{TASK}-{thread[-4:]}"
-            self.run("keep", threadId=thread, scheduledTaskId=task, webhookUrl=ADDRESS)
-        return said.split(":")[0]
+        return self.sees_to_the_webhook(thread, url)[0]
+
+    def kept(self):
+        """The record of the webhook, and what T3 Code has live."""
+        return (self.folder / "webhook").read_text().split(), [
+            [task["scheduledTaskId"], task["boundThreadId"]] for task in self.live.values()
+        ]
 
 
 @pytest.fixture
@@ -211,64 +247,107 @@ def test_a_fresh_thread_takes_the_place_of_the_one_before_and_says_whose(scene):
 def test_an_id_that_is_not_filled_in_is_not_written(scene, thread):
     before = scene.files()
     assert scene.run("id", threadId=thread)[0].startswith("not written:")
-    assert scene.run("webhook", threadId=thread)[0].startswith("not filled in:")
+    assert scene.looks(thread)[0].startswith("not filled in:")
     assert scene.files() == before
 
 
-def test_a_webhook_is_created_once_kept_by_its_thread_and_taken_over_by_the_next(scene):
-    assert scene.run("webhook", threadId=THREAD) == [f"create: no webhook is kept for {NAME}"]
-    said = scene.run("keep", threadId=THREAD, scheduledTaskId=TASK, webhookUrl=ADDRESS)
-    assert said == [f"kept: webhook {TASK}, and its address in {scene.folder}/webhook.url"]
-    assert (scene.folder / "webhook").read_text() == f"{TASK} {THREAD}\n"
-    assert scene.run("webhook", threadId=THREAD) == [f"keep: webhook {TASK} posts into this thread"]
-    assert scene.run("webhook", threadId=OTHER) == [
-        f"take: webhook {TASK} posts into {THREAD}, not this one: take it over"
-    ]
+@pytest.mark.parametrize("reply", ["{}", '{"tasks": 1}', "not json", '{"tasks": []} {"tasks": []}'])
+def test_a_reply_that_is_not_the_whole_list_is_not_read_and_nothing_is_written(scene, reply):
+    scene.starts()
     before = scene.files()
-    assert scene.taken(OTHER, THREAD) == [
-        f"not taken: webhook {TASK} posts into {THREAD}, not this thread: delete it, then create"
-    ]
-    assert scene.taken(OTHER, None) == [
-        f"not taken: webhook {TASK} posts into no thread, not this thread: delete it, then create"
-    ]
-    assert scene.taken(OTHER, OTHER, **{"the reply of list_scheduled_tasks": "{}"}) == [
-        "not written: put the whole reply of list_scheduled_tasks in place of the placeholder"
+    assert scene.looks(THREAD, reply=reply) == [
+        "not read: put the whole reply of list_scheduled_tasks in place of the placeholder"
     ]
     assert scene.files() == before
-    said = scene.taken(OTHER, OTHER)
-    assert said == [f"taken: webhook {TASK} posts into this thread, at the address it had"]
-    assert ADDRESS not in "\n".join(said)
-    assert (scene.folder / "webhook").read_text() == f"{TASK} {OTHER}\n"
+
+
+def test_a_webhook_is_created_once_and_a_second_start_finds_nothing_to_do(scene):
+    assert scene.sees_to_the_webhook() == ["create", "keep"]
+    assert scene.kept() == ([f"{TASK}-1", THREAD], [[f"{TASK}-1", THREAD]])
     assert (scene.folder / "webhook.url").read_text() == f"{ADDRESS}\n"
-    assert scene.run("webhook", threadId=OTHER) == [f"keep: webhook {TASK} posts into this thread"]
+    once = scene.files()
+    assert scene.looks(THREAD) == [f"keep: webhook {TASK}-1 posts into this thread"]
+    assert scene.files() == once
 
 
-@pytest.mark.parametrize("thread", ["<threadId>", "", "two words", THREAD])
-def test_a_webhook_is_not_taken_with_no_id_filled_in_or_none_kept(scene, thread):
-    if thread != THREAD:
-        scene.starts(OTHER)
-    before = scene.files()
-    reply = json.dumps({"tasks": []})
-    said = scene.run("taken", threadId=thread, **{"the reply of list_scheduled_tasks": reply})
-    assert said[0].startswith("not written:")
-    assert scene.files() == before
+def test_the_next_thread_takes_the_webhook_over_at_the_address_it_had(scene):
+    scene.starts(OTHER)
+    (said,) = scene.looks(THREAD)
+    assert said == f"take {TASK}-1: webhook {TASK}-1 posts into {OTHER}, not this thread: take it over"
+    assert scene.sees_to_the_webhook(THREAD) == ["take", "keep"]
+    assert scene.kept() == ([f"{TASK}-1", THREAD], [[f"{TASK}-1", THREAD]])
+    assert (scene.folder / "webhook.url").read_text() == f"{ADDRESS}\n"
+
+
+def test_a_create_whose_turn_stopped_before_it_kept_the_id_is_deleted_by_the_next_thread(scene):
+    """The model's first fault: the webhook thread 1 made and never kept is bound to thread 1,
+    and the start in thread 2 deletes it before it creates its own."""
+    scene.run("id", threadId=OTHER)
+    assert scene.looks(OTHER)[0].startswith("create:")
+    scene.creates(OTHER)
+    scene.run("id", threadId=THREAD)
+    assert scene.sees_to_the_webhook(THREAD) == ["delete", "create", "keep"]
+    assert scene.kept() == ([f"{TASK}-2", THREAD], [[f"{TASK}-2", THREAD]])
+
+
+def test_a_webhook_kept_with_its_address_lost_is_made_again(scene):
+    """The model's second fault, as the text before this one left it: the record was written
+    and the turn stopped before the address. The start deletes that webhook and makes one whose
+    address it keeps."""
+    scene.starts()
+    (scene.folder / "webhook.url").unlink()
+    (said,) = scene.looks(THREAD)
+    assert said.startswith(f"delete {TASK}-1: the address of webhook {TASK}-1 is lost")
+    assert scene.sees_to_the_webhook(THREAD) == ["delete", "create", "keep"]
+    assert scene.kept() == ([f"{TASK}-2", THREAD], [[f"{TASK}-2", THREAD]])
+    assert (scene.folder / "webhook.url").read_text() == f"{ADDRESS}\n"
+
+
+@pytest.mark.parametrize("called", [False, True])
+def test_a_takeover_whose_turn_stopped_leaves_a_record_the_next_start_mends(scene, called):
+    """The model's third fault: a takeover stops between its record and its call, or after
+    both. Whichever thread starts next, the record ends naming the thread the webhook posts
+    into."""
+    scene.starts(OTHER)
+    (said,) = scene.looks(THREAD)
+    assert said.startswith("take ")
+    assert scene.kept()[0] == [f"{TASK}-1", THREAD]
+    if called:
+        scene.does(THREAD, said)
+    assert scene.sees_to_the_webhook(OTHER) == (["take", "keep"] if called else ["keep"])
+    assert scene.kept() == ([f"{TASK}-1", OTHER], [[f"{TASK}-1", OTHER]])
+
+
+def test_a_webhook_with_no_address_is_kept_and_said_and_kept_again_on_the_next_start(scene):
+    scene.run("id", threadId=THREAD)
+    made = scene.creates(THREAD)
+    (said,) = scene.run("keep", threadId=THREAD, scheduledTaskId=made, webhookUrl="")
+    assert said.startswith(f"kept: webhook {made}, with no address:")
+    assert (scene.folder / "webhook.url").read_text() == ""
+    assert scene.sees_to_the_webhook(THREAD) == ["keep"]
+
+
+def test_a_takeover_that_is_refused_is_followed_by_a_create_and_the_old_webhook_goes(scene):
+    scene.starts(OTHER)
+    (said,) = scene.looks(THREAD)
+    (said,) = scene.looks(THREAD, refused=f"{TASK}-1")
+    assert said.startswith("create:")
+    assert not (scene.folder / "webhook.url").exists()
+    scene.does(THREAD, said)
+    assert scene.sees_to_the_webhook(THREAD) == ["delete", "keep"]
+    assert scene.kept() == ([f"{TASK}-2", THREAD], [[f"{TASK}-2", THREAD]])
 
 
 def test_the_webhooks_address_is_kept_for_the_user_alone_and_never_printed(scene):
     said = scene.run("keep", threadId=THREAD, scheduledTaskId=TASK, webhookUrl=ADDRESS)
+    assert said == [f"kept: webhook {TASK}, and its address in {scene.folder}/webhook.url"]
     kept = scene.folder / "webhook.url"
     assert kept.read_text() == f"{ADDRESS}\n"
     assert stat.S_IMODE(kept.stat().st_mode) == 0o600
-    assert ADDRESS not in "\n".join(said)
     assert ADDRESS not in (scene.folder / "webhook").read_text()
-
-
-def test_a_webhook_with_no_address_is_kept_and_said_and_an_old_address_goes(scene):
-    scene.run("keep", threadId=OTHER, scheduledTaskId="old", webhookUrl=ADDRESS)
-    (said,) = scene.run("keep", threadId=THREAD, scheduledTaskId=TASK, webhookUrl="")
-    assert said.startswith(f"kept: webhook {TASK}, with no address:")
-    assert not (scene.folder / "webhook.url").exists()
-    assert (scene.folder / "webhook").read_text() == f"{TASK} {THREAD}\n"
+    scene.live[TASK] = {"scheduledTaskId": TASK, "title": TITLE, "boundThreadId": OTHER}
+    for thread in (OTHER, THREAD):
+        assert ADDRESS not in "\n".join(scene.looks(thread))
 
 
 @pytest.mark.parametrize(
@@ -288,7 +367,7 @@ def test_what_a_create_returned_is_not_kept_until_it_is_filled_in(scene, filled)
     said = scene.run("keep", **{"threadId": THREAD, **filled})
     assert said[0].startswith("not written:")
     assert scene.files() == before
-    assert scene.run("webhook", threadId=THREAD)[0].startswith("keep:")
+    assert scene.looks(THREAD)[0].startswith("keep:")
 
 
 def test_a_second_start_of_one_thread_changes_nothing(scene):
@@ -303,8 +382,8 @@ def test_a_fresh_thread_started_on_the_folder_ends_in_the_same_state(scene, tmp_
     assert scene.starts(THREAD) == "take"
     alone = Scene(tmp_path / "alone")
     assert alone.starts(THREAD) == "create"
-    key = f".local/state/home/_{NAME}/webhook"
-    assert scene.files() == {**alone.files(), key: f"{TASK}-{OTHER[-4:]} {THREAD}\n"}
+    assert scene.files() == alone.files()
+    assert scene.kept() == alone.kept()
 
 
 def made(tmp_path, playbooks):
