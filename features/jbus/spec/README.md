@@ -376,15 +376,16 @@ Run it in a copy of this folder.
 The rules:
 
 - `ListIsTrue`: an item is listed exactly while its cause holds, once the cause stays, so a cause that flips for ever asks nothing of the list.
-  The cause is the model's word: the code lists a closed project's alert for the infra home, and the model says it has no cause.
+  A project that runs no jmerge owes no jmerge alert, so the list leaves out each alert about a closed project (`jbus.alert.open_items`).
 - `AnsweredLeaves`: once the user's answer, or the default by silence, settles a gate, gates.md gives the list no open gate of it and no question of it stays open.
 - `ReadOnce`: the merging block shows each merge line once, and merge-seen counts no line as read that it did not show, also after merge.log is cut.
 
 Today's code, in today's world, breaks `ReadOnce` at 1083 distinct states: a cut of merge.log leaves merge-seen counting a line no block showed.
-Each act alone breaks its rule: a closed project leaves its jmerge alert open forever (`ListIsTrue`, as `jmerge case-control` on disk), a cut breaks `ReadOnce`, and a gate asked by the home is asked again by the handoff under the catch-all's key, so answering one of its two questions leaves the other open (`AnsweredLeaves`, `ListIsTrue`).
+A closed project's jmerge alert stays open in streaks.json, as `jmerge case-control` on disk, but the list leaves it out, so a close holds `ListIsTrue`.
+Each other act alone breaks its rule: a cut breaks `ReadOnce`, and a gate asked by the home is asked again by the handoff under the catch-all's key, so answering one of its two questions leaves the other open (`AnsweredLeaves`, `ListIsTrue`).
 With no act, every rule holds.
 `MarkBy = "line"`, a merge-seen that names the last line it read, which no code writes, holds `ReadOnce` also where merge.log is cut.
-The canary `Fault = "stale-streak"`, a pass that leaves the stall alert from before, breaks `ListIsTrue` with no act; `Fault = "mark-count"`, merge-seen as the code's count over that line mark, breaks `ReadOnce` where merge.log is cut.
+The canary `Fault = "stale-streak"`, a pass that leaves the stall alert from before, breaks `ListIsTrue` with no act; `Fault = "closed-listed"`, a list that keeps a closed project's alerts, as the code did before, breaks `ListIsTrue` where a project closes; `Fault = "mark-count"`, merge-seen as the code's count over that line mark, breaks `ReadOnce` where merge.log is cut.
 `features/jbus/tests/test_one_list_spec.py` finds each quote once and runs each of these.
 
 ### Draw the chart of a gate
