@@ -1,6 +1,6 @@
 ---
 name: verify-thread-life
-description: Rerun TLC on ThreadLife.tla, the model of one crew thread from jbus's launch record to its archive or its home told, and read what it finds. Use on any change to the launch in `jbus/dispatch.py` (`Turns.take`, `settle_lost`), `jbus/crewthread.py`, `threads.resume`, `_stopped` or `settle`, the liveness of `jbus/live.py`, `leftover.tell`, or the stall ladder of `jbus/children.py`.
+description: Check ThreadLife.tla, a crew thread from launch to archive; use when changing the launch, crewthread, threads.resume or settle, live, leftover or the stall ladder.
 ---
 
 # verify-thread-life

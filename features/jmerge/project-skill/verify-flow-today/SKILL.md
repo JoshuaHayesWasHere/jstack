@@ -1,6 +1,6 @@
 ---
 name: verify-flow-today
-description: Rerun TLC on FlowToday.tla, the model of today's merge flow (two rows, their checks, reviews and merges, jmerge's batch and line, main going red and its fix, a machine a crew can leave full), and read what it finds. Use on any change to how jmerge judges, batches, lines up or merges a pull request (`jmerge/cli.py` `Repo`, `batch.py`, `ready.py`, `rows.py`, `rejudge.py`), to jbus's launch room, stray sweep, fix row or revert, or to `scripts/select_tests.py`'s selection.
+description: Check FlowToday.tla, today's merge flow; use when changing how jmerge judges, batches, lines up or merges, or jbus's room, sweep or fix row.
 ---
 
 # verify-flow-today

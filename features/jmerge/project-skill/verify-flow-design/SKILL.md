@@ -1,6 +1,6 @@
 ---
 name: verify-flow-design
-description: Rerun TLC on FlowDesign.tla, the merge flow's design with its three guards (the cross-cutting check, rejudging a red pull request, sweeping a crew's leftover processes), and on its canaries in features/jmerge/spec/canary/, each the design with one guard out. Use on any change to the guard a rule rests on: `scripts/select_tests.py`'s selection, `jmerge.cli.Repo.again` and `in_turn`, `ready.red_only`, `rejudge.BaseMerge`, `jbus.strays.stop`, or the launch room in `jbus/dispatch.py`.
+description: Check FlowDesign.tla and its canaries, the merge flow's design; use when changing the guard a rule rests on: test selection, rejudge, or the stray sweep.
 ---
 
 # verify-flow-design

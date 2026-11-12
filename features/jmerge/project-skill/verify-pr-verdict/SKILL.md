@@ -1,6 +1,6 @@
 ---
 name: verify-pr-verdict
-description: Rerun TLC on PrVerdict.tla, the model of one pull request through jmerge's verdict in the order `Repo.judged` checks it, and on its nine canaries, and read what it finds. Use on any change to `jmerge/cli.py`'s `Repo.judged`, `judge`, `again`, `in_turn`, `over_main`, `merge_holding`, `accept` or `lift`, to a hold or wait of `ready.py` or `rows.short`, to the batch's `Batching.takes`, or to how jbus tells a crew of a conflict.
+description: Check PrVerdict.tla, one pull request through jmerge's verdict; use when changing Repo.judged, a hold or wait, or what --accept lifts.
 ---
 
 # verify-pr-verdict

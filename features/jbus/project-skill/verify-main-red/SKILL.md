@@ -1,6 +1,6 @@
 ---
 name: verify-main-red
-description: Rerun the two checks of main's red: the exhaustive walk of main.json's red-main contract, the record `jbus.mainmoved.tell` writes and `jmerge.mainjson` reads, and TLC on MainRed.tla, the model of what jbus does when main goes red (its rerun, `culprits.judge`, `jbus.reverts`' revert, lean and close, main's fix row, the Mac's judge). Use on any change to mainmoved, mainjson, `jbus.reverts`, `culprits.judge`, `watch._check`, `watch.retro`, `watch._file` or `_withdraw`, `jmerge.cli.Repo.again`, the pass order in `jbus.poll`, or the "Main is not red" rule in features/jmerge/docs/jmerge.md, and on any move of the modules it names.
+description: Check main's red: the walk of main.json's contract and MainRed.tla; use when changing mainmoved, mainjson, jbus.reverts, culprits, watch's red steps or Repo.again.
 ---
 
 # verify-main-red

@@ -1,6 +1,6 @@
 ---
 name: verify-home-tree
-description: Check HomeTree.tla, the variables, start and rules of a root home with two child homes on one repo (a retired child hands over what it had out, a quiet child is flagged, a call reaches you, one merger, no blind merge), against the code that keeps each rule. Use on any change to a rule's sentence in HomeTree.tla, or to the code a rule rests on: the handoff skill, `jbus/children.py`'s stall ladder and keep-alive, `jbus/merge.py`, `jmerge --home`, `jmerge/lock.py`.
+description: Check HomeTree.tla, the home tree's rules; use when changing a rule or the code it rests on.
 ---
 
 # verify-home-tree

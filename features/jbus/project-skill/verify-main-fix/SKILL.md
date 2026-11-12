@@ -1,6 +1,6 @@
 ---
 name: verify-main-fix
-description: Rerun TLC on MainFix.tla, the model of how jbus files main's revert, main's fix row, the Mac's fix row and each nightly's row write by write when a pass dies between two writes, and read what it finds. Use on any change to `reverts.revert`, `opened`, `_mac_file`, `macos`, `watch._file`, `watch._nightly_red` or `_filed`, the runs files the nightlies keep, or the slot order of `jbus/poll.py` that runs them.
+description: Check MainFix.tla, main's revert and fix rows filed write by write; use when changing reverts.revert, watch._file or _nightly_red, or the pass order.
 ---
 
 # verify-main-fix

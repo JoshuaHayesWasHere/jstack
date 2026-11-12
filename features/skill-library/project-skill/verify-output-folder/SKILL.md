@@ -1,6 +1,6 @@
 ---
 name: verify-output-folder
-description: Rerun TLC on OutputFolder.tla, the model of the statechart command's own output folder when two runs overlap or one is stopped, and read what it finds. Use on any change to how `statechart from-spec` snapshots its input, refuses a folder, publishes its output, swaps or restores a folder, or stops TLC (`publish`, `moved`, `put_back`, `unchanged`, `refuse_foreign`, `finish`, `in_work_folder`, `stop_group` in the statechart scripts' `cli.py`).
+description: Check OutputFolder.tla, the statechart command's output folder; use when changing how from-spec publishes, swaps, refuses or stops.
 ---
 
 # verify-output-folder

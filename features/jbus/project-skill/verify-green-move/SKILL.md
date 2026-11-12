@@ -1,6 +1,6 @@
 ---
 name: verify-green-move
-description: Rerun TLC on GreenMove.tla, the model of jbus moving its green copy to main's green tip with a pass that can die between any two steps, and read what it finds. Use on any change to `jbus/green.py` (`move`, `_resume`, `_advance`, `_settle`, `_back`, the `green.json` it writes), `jinstall.green.relink` or `live`, or how `mainjson.read` gives the green tip.
+description: Check GreenMove.tla, jbus moving its green copy; use when changing jbus/green.py or jinstall's relink.
 ---
 
 # verify-green-move

@@ -1,6 +1,6 @@
 ---
 name: verify-row-life
-description: Rerun TLC on RowLife.tla, the model of one jbus queue row's status and go, and read what it finds. Use on any change to `work.status`, `work.kept`, `work.over`, `work.PATTERNS`, `queue.MOVES`, `queue.derive` or the go verbs of `jbus/queue.py`, `restated.restate`, or the launch's go and depends guards in `jbus/dispatch.py`.
+description: Check RowLife.tla, a queue row's status and go; use when changing work.status, queue.MOVES, queue.derive or the go verbs.
 ---
 
 # verify-row-life

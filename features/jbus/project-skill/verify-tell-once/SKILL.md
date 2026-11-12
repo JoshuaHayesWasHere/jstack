@@ -1,6 +1,6 @@
 ---
 name: verify-tell-once
-description: Rerun TLC on TellOnce.tla, the model of jbus's act-once steps when a pass dies between two writes, and read what it finds. Use on any change to how a pass sends a message, posts a body, reruns a check, parks a question, holds a row, appends a line or archives threads and marks that it did: `jbus/wake.py` `Box`, `jbus/clock.py`, `stall.twice`, `owed.taken`, `word.post`, `rebase.once`, `reload.tell`, `cancelled.rerun`, `project.close`, `mainmoved.account`, `questions.park`, `culprits.tell`, `expedite.tell`, `item.write`, `queue.hold`.
+description: Check TellOnce.tla, jbus's act-once marks when a pass dies; use when changing how a pass sends, posts or acts once and marks it.
 ---
 
 # verify-tell-once

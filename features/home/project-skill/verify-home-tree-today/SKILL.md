@@ -1,6 +1,6 @@
 ---
 name: verify-home-tree-today
-description: Rerun TLC on HomeTreeToday.tla, the model of today's code for a root home and two child homes on one repo (the stall ladder, the keep-alive, the one merger and its lock, the hand-over when a child retires), in each scene of canaries.py and each canary, and read what it finds. Use on any change to `jbus/children.py` (`watch`, `_act`, `keep_alive`, `launch`), `jbus/wakes.py`'s delivery to a home thread, `jbus/merge.py`'s run of jmerge, `jmerge --home`, `jmerge/lock.py`, `jbriefs.home.stands_in`, or the handoff skill's block.
+description: Check HomeTreeToday.tla, today's code for the root and child homes; use when changing jbus/children.py, wakes, the merge run or lock, or the handoff block.
 ---
 
 # verify-home-tree-today
