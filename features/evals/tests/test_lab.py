@@ -11,10 +11,12 @@ import random
 import sqlite3
 import subprocess
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import pytest
 
 from jbus import telemetry
+from jgauge import holders
 from testing.paths import REPO
 
 READ_SET = (
@@ -208,8 +210,9 @@ def shared(tmp_path_factory):
 
 @pytest.fixture(scope="session")
 def machine(shared):
-    """A home with a live store, a sitecustomize that logs every path opened, and a `claude` that
-    says if anything called it."""
+    """A home with a live store, a sitecustomize that logs every path opened, a `claude` that
+    says if anything called it, and slot locks and jbus dirs of the lab's own: the run's, which
+    the tests beside it write, never reach the replay's jbus pass."""
     root = shared
     home = root / "home"
     store = home / ".local/state/jbus/telemetry.sqlite"
@@ -218,6 +221,11 @@ def machine(shared):
     called = root / "claude-called"
     limits = root / "limits"
     temporary = root / "tmp"
+    own = {
+        "JGAUGE_LOCKS_DIR": root / "locks",
+        "JBUS_STATE_DIR": root / "jbus-state",
+        "JBUS_CONFIG_DIR": root / "jbus-config",
+    }
     with once(root / "machine.lock"):
         if not limits.exists():
             store.unlink(missing_ok=True)
@@ -228,6 +236,8 @@ def machine(shared):
             (bin_dir / "claude").write_text(f'#!/bin/sh\necho "$@" >> "{called}"\nexit 1\n')
             (bin_dir / "claude").chmod(0o755)
             temporary.mkdir(exist_ok=True)
+            for path in own.values():
+                path.mkdir(exist_ok=True)
             limits.write_text("seven_day 41 1793563200\n")
     env = {k: v for k, v in os.environ.items() if not k.startswith("VERIFY_JSTACK_")}
     env |= {
@@ -238,6 +248,7 @@ def machine(shared):
         "PYTHONPATH": str(hook),
         "LAB_OPEN_LOG": str(root / "opened.log"),
     }
+    env |= {name: str(path) for name, path in own.items()}
     return {
         "root": root,
         "home": home,
@@ -465,6 +476,25 @@ def test_the_replay_json_holds_no_disk_use_the_machine_reports(machine, tmp_path
         assert "used (" in (out / "replay.txt").read_text()
         said.append((out / "replay.json").read_text())
     assert said[0] == said[1]
+
+
+def test_the_replay_tells_no_thread_of_a_run_another_test_left_in_the_runs_lock_dir(
+    machine, tmp_path
+):
+    """A test beside the lab can leave the run of a thread `mcp:t1` ended in the run's lock dir,
+    owed a wake. The replay's jbus pass reads the slots of the lab's own root, so it tries to tell
+    no thread of it, and its JSON is the same with that holder there."""
+    locks = Path(os.environ["JGAUGE_LOCKS_DIR"])
+    left = holders.hold(locks, "t1", "short", os.getpid(), ["pytest"], datetime.now())
+    try:
+        holders.end(locks, left.id, 0, datetime.now())
+        out = tmp_path / "out"
+        ran = lab(machine, "--out", out, "--stages", "replay")
+        assert ran.returncode == 0, ran.stdout + ran.stderr
+        said = (out / "replay.json").read_text() + (out / "replay.txt").read_text()
+        assert "mcp:t1" not in said
+    finally:
+        holders.forget(locks, {left.id})
 
 
 def test_an_out_directory_that_holds_files_is_refused_before_the_store_is_read(machine, tmp_path):
