@@ -136,6 +136,18 @@ def test_today_s_wake_is_counted_and_recorded_under_the_waiters_lock():
 
 @JAVA
 @TLC
+def test_today_s_wake_that_a_dead_pass_recorded_is_told_on_a_later_pass():
+    """jbus records the wake before its send, so a pass that dies between the two leaves a crew
+    whose claim holds and that no one told. slotwait.wake sends each such wake again on each pass,
+    under its key, so today's code holds WokenIsTold in the full lane's room, at every point a
+    pass can die."""
+    code, out = tlc("today", ["WokenIsTold"], room="full")
+    assert code == 0, out[-4000:]
+    assert "Model checking completed. No error has been found." in out
+
+
+@JAVA
+@TLC
 def test_the_mode_that_passes_holds_every_rule():
     code, out = tlc("none")
     assert code == 0, out[-4000:]

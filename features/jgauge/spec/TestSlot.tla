@@ -142,6 +142,8 @@ VARIABLES
   hsnap,    \* the holders jbus read, and their ends: [in, ended]
   missed,   \* the crews that ran again while their wake's claim held, and found no slot
   lostEnd,  \* the runs whose end their holder wrote after jbus forgot them
+  heard,    \* of the crew's wait: told, a send of its wake that T3 Code took, and tried, a send
+            \* of it that this pass of jbus made, whether or not it went
   lpc,      \* where each ledger writer is
   local,    \* each ledger writer's copy of the ledger, read before it merges
   wrote,    \* the writers whose write of the ledger has ended
@@ -157,10 +159,10 @@ VARIABLES
 carriers == <<full, short, line, waiters, woken, waitersLock, holders, ended, holdersLock,
               slotlog, retry, spells, ledger, pool, poolLock>>
 slotVars == <<full, short, line, waiters, woken, waitersLock, holders, ended, holdersLock,
-              slotlog, pc, bus, child, reused, waitId, wsnap, hsnap, missed, lostEnd>>
+              slotlog, pc, bus, child, reused, waitId, wsnap, hsnap, missed, lostEnd, heard>>
 ledgerVars == <<retry, spells, ledger, lpc, local, wrote, ledgerLock>>
 poolVars == <<pool, poolLock, ppc, jpc, psnap, due, used, told, byThread>>
-vars == <<carriers, room, pc, bus, child, reused, waitId, wsnap, hsnap, missed, lostEnd,
+vars == <<carriers, room, pc, bus, child, reused, waitId, wsnap, hsnap, missed, lostEnd, heard,
           lpc, local, wrote, ledgerLock, ppc, jpc, psnap, due, used, told, byThread>>
 
 \* Each step runs in its room and leaves the other rooms as they are.
@@ -192,6 +194,7 @@ TypeOK ==
   /\ child \in [Procs -> {"none", "alive", "dead"}]
   /\ reused \subseteq holders /\ missed \subseteq {"crew"} /\ lostEnd \subseteq Threaded
   /\ waitId \in {0, 1}
+  /\ heard \in [told : BOOLEAN, tried : BOOLEAN]
   /\ lpc \in [Writers -> {"idle", "fetched", "read", "unlink", "done"}]
   /\ local \in [Writers -> SUBSET Writers] /\ wrote \subseteq Writers
   /\ ledgerLock \in Writers \cup {"free"}
@@ -211,7 +214,7 @@ Init ==
   /\ pc = [p \in Procs |-> "off"] /\ bus = "idle" /\ child = [p \in Procs |-> "none"]
   /\ reused = {} /\ waitId = 0
   /\ wsnap = [in |-> FALSE, woken |-> "none", id |-> 0] /\ hsnap = [in |-> {}, ended |-> {}]
-  /\ missed = {} /\ lostEnd = {}
+  /\ missed = {} /\ lostEnd = {} /\ heard = [told |-> FALSE, tried |-> FALSE]
   /\ lpc = [w \in Writers |-> "idle"] /\ local = [w \in Writers |-> {}] /\ wrote = {}
   /\ ledgerLock = "free"
   /\ ppc = "off" /\ jpc = "off" /\ psnap = 0 /\ due = {} /\ used = {} /\ told = {}
@@ -257,7 +260,7 @@ Start(p) ==
                                 [] p = "short" -> "enter"
                                 [] OTHER -> "poll"]
   /\ UNCHANGED <<full, short, line, waiters, woken, waitersLock, holders, ended, holdersLock,
-                 slotlog, bus, child, reused, waitId, wsnap, hsnap, missed, lostEnd>>
+                 slotlog, bus, child, reused, waitId, wsnap, hsnap, missed, lostEnd, heard>>
 
 \* `_claim` takes the waiters lock: jgauge/slot.py `with waiters.locked(locks) as held:`
 ClaimLock(p) ==
@@ -265,7 +268,7 @@ ClaimLock(p) ==
   /\ pc[p] = "lock" /\ waitersLock = "free"
   /\ waitersLock' = p /\ pc' = [pc EXCEPT ![p] = "count"]
   /\ UNCHANGED <<full, short, line, waiters, woken, holders, ended, holdersLock, slotlog, bus,
-                 child, reused, waitId, wsnap, hsnap, missed, lostEnd>>
+                 child, reused, waitId, wsnap, hsnap, missed, lostEnd, heard>>
 
 \* `_claim` counts and takes under the lock, and lets it go: jgauge/slot.py
 \* `room = spare(lane, held, datetime.now(UTC), thread)`, and jgauge/slot.py
@@ -287,7 +290,7 @@ ClaimCount(p) ==
        /\ missed' = IF p = "crew" /\ Holding /\ spare <= 0 THEN missed \cup {p} ELSE missed
   /\ waitersLock' = "free"
   /\ UNCHANGED <<short, line, waiters, woken, holders, ended, holdersLock, slotlog, bus, child,
-                 reused, waitId, wsnap, hsnap, lostEnd>>
+                 reused, waitId, wsnap, hsnap, lostEnd, heard>>
 
 \* Each change of the waiters file takes its lock, then writes and lets it go.
 WaitersLock(p, from, to) ==
@@ -295,7 +298,7 @@ WaitersLock(p, from, to) ==
   /\ pc[p] = from /\ waitersLock = "free"
   /\ waitersLock' = p /\ pc' = [pc EXCEPT ![p] = to]
   /\ UNCHANGED <<full, short, line, waiters, woken, holders, ended, holdersLock, slotlog, bus,
-                 child, reused, waitId, wsnap, hsnap, missed, lostEnd>>
+                 child, reused, waitId, wsnap, hsnap, missed, lostEnd, heard>>
 
 RegisterLock == WaitersLock("crew", "register", "registering")
 
@@ -306,8 +309,9 @@ Register ==
   /\ pc["crew"] = "registering" /\ waitersLock = "crew"
   /\ waiters' = waiters \cup {"crew"}
   /\ IF "crew" \in waiters /\ woken = "none"
-       THEN UNCHANGED <<woken, waitId>>
-       ELSE woken' = "none" /\ waitId' = 1 - waitId
+       THEN UNCHANGED <<woken, waitId, heard>>
+       ELSE /\ woken' = "none" /\ waitId' = 1 - waitId
+            /\ heard' = [told |-> FALSE, tried |-> FALSE]
   /\ waitersLock' = "free" /\ pc' = [pc EXCEPT !["crew"] = "off"]
   /\ UNCHANGED <<full, short, line, holders, ended, holdersLock, slotlog, bus, child, reused,
                  wsnap, hsnap, missed, lostEnd>>
@@ -322,7 +326,7 @@ Drop ==
   /\ waiters' = waiters \ {"crew"} /\ woken' = "none"
   /\ waitersLock' = "free" /\ pc' = [pc EXCEPT !["crew"] = "logtake"]
   /\ UNCHANGED <<full, short, line, holders, ended, holdersLock, slotlog, bus, child, reused,
-                 waitId, wsnap, hsnap, missed, lostEnd>>
+                 waitId, wsnap, hsnap, missed, lostEnd, heard>>
 
 \* ---- The short lane: a crew with --thread waits in the line; a call with no thread polls ----
 
@@ -332,7 +336,7 @@ Enter ==
   /\ pc["short"] = "enter"
   /\ line' = line \cup {"live"} /\ pc' = [pc EXCEPT !["short"] = "first"]
   /\ UNCHANGED <<full, short, waiters, woken, waitersLock, holders, ended, holdersLock, slotlog,
-                 bus, child, reused, waitId, wsnap, hsnap, missed, lostEnd>>
+                 bus, child, reused, waitId, wsnap, hsnap, missed, lostEnd, heard>>
 
 \* `_ahead` unlinks a ticket ahead whose lock no one holds, and the first caller takes a free
 \* slot and leaves the line: jgauge/slot.py `if first() and (held := _first_free(locks, lane))
@@ -346,7 +350,7 @@ First ==
         /\ \E n \in FreeShort : short' = [short EXCEPT ![n] = "short"]
         /\ line' = line \ {"live"} /\ pc' = [pc EXCEPT !["short"] = "logtake"]
   /\ UNCHANGED <<full, waiters, woken, waitersLock, holders, ended, holdersLock, slotlog, bus,
-                 child, reused, waitId, wsnap, hsnap, missed, lostEnd>>
+                 child, reused, waitId, wsnap, hsnap, missed, lostEnd, heard>>
 
 \* At the ceiling the call takes none and leaves the line: jgauge/slot.py
 \* `if time.monotonic() >= until:`, and it ends 76.
@@ -355,7 +359,7 @@ GiveUp ==
   /\ pc["short"] = "first"
   /\ line' = line \ {"live"} /\ pc' = [pc EXCEPT !["short"] = "off"]
   /\ UNCHANGED <<full, short, waiters, woken, waitersLock, holders, ended, holdersLock, slotlog,
-                 bus, child, reused, waitId, wsnap, hsnap, missed, lostEnd>>
+                 bus, child, reused, waitId, wsnap, hsnap, missed, lostEnd, heard>>
 
 \* A short call with no thread has no place in the line: jgauge/slot.py
 \* `return _first_free(locks, lane)`, again until a slot is free.
@@ -365,7 +369,7 @@ Poll ==
   /\ \E n \in FreeShort : short' = [short EXCEPT ![n] = "quick"]
   /\ pc' = [pc EXCEPT !["quick"] = "logtake"]
   /\ UNCHANGED <<full, line, waiters, woken, waitersLock, holders, ended, holdersLock, slotlog,
-                 bus, child, reused, waitId, wsnap, hsnap, missed, lostEnd>>
+                 bus, child, reused, waitId, wsnap, hsnap, missed, lostEnd, heard>>
 
 \* ---- The run under a slot, in both lanes: `run` in jgauge/slot.py ----
 
@@ -375,7 +379,7 @@ LogTake(p) ==
   /\ pc[p] = "logtake" /\ slotlog' = [slotlog EXCEPT ![p] = "take"]
   /\ pc' = [pc EXCEPT ![p] = "spawn"]
   /\ UNCHANGED <<full, short, line, waiters, woken, waitersLock, holders, ended, holdersLock, bus,
-                 child, reused, waitId, wsnap, hsnap, missed, lostEnd>>
+                 child, reused, waitId, wsnap, hsnap, missed, lostEnd, heard>>
 
 \* jgauge/slot.py `child = subprocess.Popen(`, or a command that cannot start:
 \* jgauge/slot.py `code = 126 if isinstance(error, PermissionError) else 127`
@@ -386,14 +390,14 @@ Spawn(p) ==
         /\ pc' = [pc EXCEPT ![p] = IF p \in OnFile THEN "hold" ELSE "wait"]
      \/ /\ UNCHANGED child /\ pc' = [pc EXCEPT ![p] = "logrelease"]
   /\ UNCHANGED <<full, short, line, waiters, woken, waitersLock, holders, ended, holdersLock,
-                 slotlog, bus, reused, waitId, wsnap, hsnap, missed, lostEnd>>
+                 slotlog, bus, reused, waitId, wsnap, hsnap, missed, lostEnd, heard>>
 
 HoldersLock(p, from, to) ==
   /\ InSlots
   /\ pc[p] = from /\ holdersLock = "free"
   /\ holdersLock' = p /\ pc' = [pc EXCEPT ![p] = to]
   /\ UNCHANGED <<full, short, line, waiters, woken, waitersLock, holders, ended, slotlog, bus,
-                 child, reused, waitId, wsnap, hsnap, missed, lostEnd>>
+                 child, reused, waitId, wsnap, hsnap, missed, lostEnd, heard>>
 
 HoldLock(p) == HoldersLock(p, "hold", "holding")
 
@@ -404,7 +408,7 @@ Hold(p) ==
   /\ holders' = holders \cup {p} /\ ended' = ended \ {p}
   /\ holdersLock' = "free" /\ pc' = [pc EXCEPT ![p] = "wait"]
   /\ UNCHANGED <<full, short, line, waiters, woken, waitersLock, slotlog, bus, child, reused,
-                 waitId, wsnap, hsnap, missed, lostEnd>>
+                 waitId, wsnap, hsnap, missed, lostEnd, heard>>
 
 \* The command ends on its own, or the short lane's stop ends it (`_stop`), whether or not the
 \* `jgauge test-slot` that started it still lives.
@@ -412,7 +416,7 @@ ChildEnds(p) ==
   /\ InSlots
   /\ child[p] = "alive" /\ child' = [child EXCEPT ![p] = "dead"]
   /\ UNCHANGED <<full, short, line, waiters, woken, waitersLock, holders, ended, holdersLock,
-                 slotlog, pc, bus, reused, waitId, wsnap, hsnap, missed, lostEnd>>
+                 slotlog, pc, bus, reused, waitId, wsnap, hsnap, missed, lostEnd, heard>>
 
 \* Another process takes the pid of a holder's dead command, where PidReuse allows it.
 Reuse(p) ==
@@ -420,7 +424,7 @@ Reuse(p) ==
   /\ PidReuse /\ child[p] = "dead" /\ p \in holders \ ended /\ p \notin reused
   /\ reused' = reused \cup {p}
   /\ UNCHANGED <<full, short, line, waiters, woken, waitersLock, holders, ended, holdersLock,
-                 slotlog, pc, bus, child, waitId, wsnap, hsnap, missed, lostEnd>>
+                 slotlog, pc, bus, child, waitId, wsnap, hsnap, missed, lostEnd, heard>>
 
 \* jgauge/slot.py `code = child.wait(timeout=lane.limit)` returns.
 Ran(p) ==
@@ -428,7 +432,7 @@ Ran(p) ==
   /\ pc[p] = "wait" /\ child[p] = "dead"
   /\ pc' = [pc EXCEPT ![p] = IF p \in OnFile THEN "end" ELSE "logrelease"]
   /\ UNCHANGED <<full, short, line, waiters, woken, waitersLock, holders, ended, holdersLock,
-                 slotlog, bus, child, reused, waitId, wsnap, hsnap, missed, lostEnd>>
+                 slotlog, bus, child, reused, waitId, wsnap, hsnap, missed, lostEnd, heard>>
 
 EndLock(p) == HoldersLock(p, "end", "ending")
 
@@ -443,7 +447,7 @@ End(p) ==
   /\ lostEnd' = IF p \in holders THEN lostEnd ELSE lostEnd \cup {p}
   /\ holdersLock' = "free" /\ pc' = [pc EXCEPT ![p] = "logrelease"]
   /\ UNCHANGED <<full, short, line, waiters, woken, waitersLock, holders, slotlog, bus, child,
-                 reused, waitId, wsnap, hsnap, missed>>
+                 reused, waitId, wsnap, hsnap, missed, heard>>
 
 \* jgauge/slot.py `slotlog.release(logged, 1 if code is None else code)`, before the lock goes.
 LogRelease(p) ==
@@ -452,7 +456,7 @@ LogRelease(p) ==
   /\ slotlog' = [slotlog EXCEPT ![p] = IF slotlog[p] = "take" THEN "release" ELSE slotlog[p]]
   /\ pc' = [pc EXCEPT ![p] = "close"]
   /\ UNCHANGED <<full, short, line, waiters, woken, waitersLock, holders, ended, holdersLock,
-                 bus, child, reused, waitId, wsnap, hsnap, missed, lostEnd>>
+                 bus, child, reused, waitId, wsnap, hsnap, missed, lostEnd, heard>>
 
 \* jgauge/slot.py `os.close(held) _sweep()` lets the slot go.
 Close(p) ==
@@ -462,7 +466,7 @@ Close(p) ==
   /\ short' = [n \in ShortSlots |-> IF short[n] = p THEN "free" ELSE short[n]]
   /\ pc' = [pc EXCEPT ![p] = "off"]
   /\ UNCHANGED <<line, waiters, woken, waitersLock, holders, ended, holdersLock, slotlog, bus,
-                 child, reused, waitId, wsnap, hsnap, missed, lostEnd>>
+                 child, reused, waitId, wsnap, hsnap, missed, lostEnd, heard>>
 
 \* `jgauge test-slot` dies between two steps: the kernel lets its flocks go (its slot, its
 \* ticket's lock, a lock of the waiters or holders file). Its command ends with it: the flock is
@@ -480,7 +484,7 @@ Die(p) ==
   /\ child' = IF Has("orphan-command") THEN child ELSE [child EXCEPT ![p] = "dead"]
   /\ pc' = [pc EXCEPT ![p] = "off"]
   /\ UNCHANGED <<waiters, woken, holders, ended, slotlog, bus, reused, waitId, wsnap, hsnap,
-                 missed, lostEnd>>
+                 missed, lostEnd, heard>>
 
 \* A wake's claim ages: HOLDS, then FORGOTTEN, pass.
 \* jgauge/waiters.py `HOLDS = timedelta(minutes=10)`
@@ -490,17 +494,19 @@ Tick ==
   /\ woken \in {"holds", "past"}
   /\ woken' = IF woken = "holds" THEN "past" ELSE "lapsed"
   /\ UNCHANGED <<full, short, line, waiters, waitersLock, holders, ended, holdersLock, slotlog,
-                 pc, bus, child, reused, waitId, wsnap, hsnap, missed, lostEnd>>
+                 pc, bus, child, reused, waitId, wsnap, hsnap, missed, lostEnd, heard>>
 
 \* ---- jbus's pass: slotwait.wake, then slotwait.wake_ended ----
 
-BusFrame == <<full, short, line, holders, ended, slotlog, pc, child, reused, missed, lostEnd>>
+BusBase == <<full, short, line, holders, ended, slotlog, pc, child, reused, missed, lostEnd>>
+BusFrame == <<BusBase, heard>>
 
 \* A pass starts with slotwait.wake in the full room; the short lane has no waiters.
 BusStart ==
   /\ InSlots
   /\ bus = "idle" /\ bus' = IF room = "full" THEN "read" ELSE "hread"
-  /\ UNCHANGED <<BusFrame, waiters, woken, waitersLock, holdersLock, waitId, wsnap, hsnap>>
+  /\ heard' = [heard EXCEPT !.tried = FALSE]
+  /\ UNCHANGED <<BusBase, waiters, woken, waitersLock, holdersLock, waitId, wsnap, hsnap>>
 
 \* jbus/slotwait.py `held = waiters.read(locks)`, under the lock and let go at once.
 WakeRead ==
@@ -566,9 +572,12 @@ SpareHeld ==
 Tell ==
   /\ InSlots
   /\ bus = "tell"
-  /\ \/ bus' = IF Has("spare-outside-lock") THEN "wake" ELSE AfterWake
-     \/ bus' = IF Has("spare-outside-lock") THEN AfterWake ELSE "unwake"
-  /\ UNCHANGED <<BusFrame, waiters, woken, waitersLock, holdersLock, waitId, wsnap, hsnap>>
+  /\ LET mine == "crew" \in waiters /\ waitId = wsnap.id IN
+       \/ /\ bus' = IF Has("spare-outside-lock") THEN "wake" ELSE AfterWake
+          /\ heard' = IF mine THEN [told |-> TRUE, tried |-> TRUE] ELSE heard
+       \/ /\ bus' = IF Has("spare-outside-lock") THEN AfterWake ELSE "unwake"
+          /\ heard' = IF mine THEN [heard EXCEPT !.tried = TRUE] ELSE heard
+  /\ UNCHANGED <<BusBase, waiters, woken, waitersLock, holdersLock, waitId, wsnap, hsnap>>
 
 UnwakeLock ==
   /\ InSlots
@@ -636,7 +645,7 @@ HForget ==
   /\ holders' = holders \ hsnap.in /\ ended' = ended \ hsnap.in /\ reused' = reused \ hsnap.in
   /\ holdersLock' = "free" /\ bus' = "idle"
   /\ UNCHANGED <<full, short, line, slotlog, pc, child, missed, lostEnd, waiters, woken,
-                 waitersLock, waitId, wsnap, hsnap>>
+                 waitersLock, waitId, wsnap, hsnap, heard>>
 
 \* jbus's pass dies: the kernel lets its locks go.
 BusDies ==
@@ -816,6 +825,15 @@ Spec == Init /\ [][Next]_vars
 \* WokenGetsSlot: a woken waiter gets the slot or its claim lapses at HOLDS. A crew jbus woke,
 \* that runs its command again while the wake's claim holds, finds its slot free.
 WokenGetsSlot == missed = {}
+
+\* WokenIsTold: a crew whose wake's claim holds is told, or jbus tries to tell it on each pass.
+\* Once a pass of jbus is past slotwait.wake, a woken crew whose claim holds was told by an
+\* earlier pass or was sent its wake by this one, so a pass that died between the record and
+\* the send leaves no crew that ended its turn on "jbus will wake this thread" untold.
+WokenIsTold ==
+  (room = "full" /\ bus \in {"hread", "judge", "hforget", "hforgetting"}
+                 /\ "crew" \in waiters /\ woken = "holds")
+    => heard.told \/ heard.tried
 
 \* NoLostHolder: every holder ends or its pid is dead and a reader treats it so. A run on file
 \* with no end, whose command is gone, is not running to a reader (`holders.running`), so jbus

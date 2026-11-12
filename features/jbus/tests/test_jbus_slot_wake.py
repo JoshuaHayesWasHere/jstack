@@ -241,6 +241,37 @@ def test_a_lost_send_is_tried_again_with_the_same_key(kitchen, slots, how):
     assert waiters.read(slot.locks_dir())[0].woken
 
 
+class Killed(BaseException):
+    """jbus's pass ends at once, as a kill ends it: nothing after it runs."""
+
+
+def test_a_wake_recorded_by_a_pass_that_died_before_its_send_is_sent_by_the_next(
+    kitchen, slots, monkeypatch
+):
+    """The pass records the wake under the waiters lock, then dies before its send. The wake's
+    claim holds, so no pass wakes the wait anew: the next pass sends the recorded wake, under the
+    same key, and the crew that ended its turn on "jbus will wake this thread" is told."""
+    slots.hold("full")
+    thread = waiter(kitchen, ago=3)
+    slots.free("full")
+    sending = outbox.send
+
+    def killed(*args, **kwargs):
+        raise Killed
+
+    monkeypatch.setattr(outbox, "send", killed)
+    with pytest.raises(Killed):
+        kitchen.poll()
+    (recorded,) = waiters.read(slot.locks_dir())
+    assert recorded.woken and sends(kitchen) == []
+    monkeypatch.setattr(outbox, "send", sending)
+    kitchen.poll(NOW + timedelta(minutes=1))
+    (given,) = sends(kitchen)
+    assert given["threadId"] == thread
+    assert given["clientRequestId"] == f"slot-wake|{thread}|{recorded.id}"
+    assert waiters.read(slot.locks_dir()) == [recorded]
+
+
 def test_no_waiters_is_a_pass_that_sends_nothing(kitchen):
     kitchen.poll()
     assert sends(kitchen) == [] and kitchen.lines("slot-wake") == []
