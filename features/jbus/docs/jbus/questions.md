@@ -66,6 +66,12 @@ The record keeps the case as `holds` and the fail-safe as `fail_safe`, and the l
 Each question's line on the list says which it is: `Its default is acted on already, and stands unless you stop it.`, or `It holds (<case>) for your answer, with its fail-safe: <fail-safe>.`
 `jbus gate` refuses with `not sent:` a `Holds:` line with no filled `Fail-safe:` line, a case not in the table, two `Holds:` lines, and a `Fail-safe:` line with no `Holds:` line.
 
+One gate holds for something that is no case of the table: a scoped home's decision or go that the root passed to you with `jbus stop pass`.
+jbus parks it itself, on the home's own slug `home-<scope>`, with `holds` set to `the root passed it to you` and the fail-safe `nothing is done on it until you answer`, so its line on the list says `It holds (the root passed it to you) for your answer`.
+Its default is the root's recommendation, where the root gave one, and only your own word, read in T3 Code, answers it, as for a door.
+jbus carries your answer to that home, and closes the gate as `cleared` when the row or the plan entry it was on ends first.
+No thread's `jbus gate` can give such a `Holds:` line.
+
 A door question closes itself when its row ends so that nothing is left to decide.
 A gate that holds, or a go gate, whose row merged is closed by the next pass with the words `kept the fail-safe: <slug> merged, and the door stayed shut`: the fail-safe is what ran.
 A gate that holds, or a go gate, whose row was removed is closed with `<slug> was removed, so there is no row to go`: a removed row never launches, so its door can never open.
