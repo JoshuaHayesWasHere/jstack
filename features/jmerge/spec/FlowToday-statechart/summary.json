@@ -27,13 +27,11 @@
     ]
   },
   "modelStates": 973396,
-  "modelTransitions": 5993744,
-  "chartStates": 71,
-  "chartTransitions": 96,
-  "allTransitions": 11304,
-  "final": [],
+  "modelTransitions": 5994052,
+  "chartStates": 69,
+  "chartTransitions": 68,
   "chartStatus": {
-    "works": 71,
+    "works": 69,
     "wrong": 0,
     "fixed": 0
   },
@@ -56,12 +54,12 @@
     {
       "name": "Both merged",
       "color": "#d1f2eb",
-      "states": 2
+      "states": 1
     },
     {
       "name": "Main green, a pull request still red from main's break",
       "color": "#fcf3cf",
-      "states": 6
+      "states": 5
     },
     {
       "name": "Main red, jbus reruns and judges it",
@@ -98,11 +96,11 @@
     "command": "statechart from-spec FlowToday.tla --config FlowToday.chart.cfg --against FlowDesign.tla --label 'the design' --title 'Does work keep flowing?' --png",
     "inputs": {
       "FlowDesign.cfg": "b6967b1301d5fe88460ce5c0488881755fddc904654f6098018ff516ccc0f870",
-      "FlowDesign.tla": "5d313ef072f071f86f9a319bd317941b0593fa52b7588e2e82350162e809c1a8",
+      "FlowDesign.tla": "506a27a11c63dbb35d984eb4bc0977f09452afa5e6443a7f6bcb3c55fb8fbc40",
       "FlowToday.chart.cfg": "0c2e0c0bb2b62bac048928b2f9420a1d3fb06f49d91efabba997f5c73694c9b6",
       "FlowToday.map.py": "4d5c34df093020c5ddd8281c500b544e4a5da037b138028deab40486844fe32c",
-      "FlowToday.tla": "0a497d59cabb4fc2f0fcee50a6ba180a48d1c9bbe6a179fd3c5a1d69b3f4fa3a"
+      "FlowToday.tla": "98344ac1108f965d9b8de00c0a37a72b935950bbf6089a6e7adfeee0bb5481ad"
     },
-    "chart": "df85461590f624c96038ecaa99f95b34eb8633a1651aae0ca7a9fe744d0d8494"
+    "chart": "c89e992e3d05ee2d3a945e77b75b86a158762f15862209ed46647ca1a80eae60"
   }
 }
