@@ -35,6 +35,7 @@ import os
 import shutil
 import sys
 import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -174,6 +175,23 @@ def jbus_dirs_of_the_run(tmp_path_factory):
     with pytest.MonkeyPatch.context() as run:
         for name in JBUS_DIRS:
             run.setenv(name, str(tmp_path_factory.mktemp(f"run-{name.lower()}")))
+        yield
+
+
+@pytest.fixture(scope="session", autouse=True)
+def jgauge_locks_of_the_run(tmp_path_factory):
+    """Point `JGAUGE_LOCKS_DIR` at the run's own lock files, so a test that sets none, or calls
+    `monkeypatch.undo()`, takes and waits for the run's test slots, never the machine's
+    (`jgauge.slot.locks_dir` refuses those). In ts-slotwait-spare such an undo, then a
+    `slot.take`, wrote fake threads into the machine's waiters file. `JGAUGE_RUN_LOCKS_DIR` names
+    the run's dir and `JGAUGE_MACHINE_LOCKS_DIR` the one the run started with, so a TLC run a
+    test starts outside a slot still takes a machine's slot (`statechart.tools.in_test_slot`)."""
+    machine = os.environ.get("JGAUGE_LOCKS_DIR") or str(Path.home() / ".local" / "state" / "locks")
+    own = str(tmp_path_factory.mktemp("run-jgauge_locks_dir"))
+    with pytest.MonkeyPatch.context() as run:
+        run.setenv("JGAUGE_LOCKS_DIR", own)
+        run.setenv("JGAUGE_RUN_LOCKS_DIR", own)
+        run.setenv("JGAUGE_MACHINE_LOCKS_DIR", machine)
         yield
 
 

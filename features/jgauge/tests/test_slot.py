@@ -33,7 +33,7 @@ def slots(tmp_path):
     tmpfs.mkdir()
     proc = fake_proc(tmp_path / "proc", 24, 62)
     env = {**os.environ, "HOME": str(home), "D": str(state), "PROC": str(proc), "TMPFS": str(tmpfs)}
-    for name in ("TEST_SLOTS", "XDG_CONFIG_HOME", "JGAUGE_TEST_SLOT"):
+    for name in ("TEST_SLOTS", "XDG_CONFIG_HOME", "JGAUGE_TEST_SLOT", "JGAUGE_LOCKS_DIR"):
         env.pop(name, None)
     going, taken = [], []
 
@@ -297,7 +297,9 @@ def test_a_short_job_past_its_limit_is_stopped_and_says_so(slots, tmp_path):
         "import sys; from jgauge import cli, slot; slot.SHORT_LIMIT_SECONDS = 0.5;"
         " sys.exit(cli.main(sys.argv[1:]))"
     )
-    env = {**os.environ, "HOME": str(tmp_path / "home"), "D": str(tmp_path)}
+    home = tmp_path / "home"
+    env = {**os.environ, "HOME": str(home), "D": str(tmp_path)}
+    env["JGAUGE_LOCKS_DIR"] = str(home / ".local" / "state" / "locks")
     began = time.monotonic()
     ran = subprocess.run(
         [sys.executable, "-c", limited, "test-slot", "--short", "--"]
@@ -339,7 +341,9 @@ def test_a_short_job_stopped_at_its_limit_takes_what_it_started_with_it(tmp_path
         " slot.STOP_GRACE_SECONDS = 0.5; sys.exit(cli.main(sys.argv[1:]))"
     )
     started = 'sh -c "trap \\"\\" TERM; echo \\$\\$ > \\"$D/pid\\"; exec sleep 30" & wait'
-    env = {**os.environ, "HOME": str(tmp_path / "home"), "D": str(tmp_path)}
+    home = tmp_path / "home"
+    env = {**os.environ, "HOME": str(home), "D": str(tmp_path)}
+    env["JGAUGE_LOCKS_DIR"] = str(home / ".local" / "state" / "locks")
     ran = subprocess.run(
         [sys.executable, "-c", limited, "test-slot", "--short", "--", "sh", "-c", started],
         env=env,
@@ -391,7 +395,9 @@ def test_a_short_job_whose_group_is_left_with_a_zombie_still_stops_and_says_so(t
         "import sys; from jgauge import cli, slot; slot.SHORT_LIMIT_SECONDS = 0.5;"
         " sys.exit(cli.main(sys.argv[1:]))"
     )
-    env = {**os.environ, "HOME": str(tmp_path / "home"), "D": str(tmp_path)}
+    home = tmp_path / "home"
+    env = {**os.environ, "HOME": str(home), "D": str(tmp_path)}
+    env["JGAUGE_LOCKS_DIR"] = str(home / ".local" / "state" / "locks")
     try:
         ran = subprocess.run(
             [sys.executable, "-c", limited, "test-slot", "--short", "--"]

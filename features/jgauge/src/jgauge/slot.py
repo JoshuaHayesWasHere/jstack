@@ -85,6 +85,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from jgauge import children, holders, sizes, slotlog, waiters
+from jsettings import paths
 
 SHORT_LIMIT_SECONDS = 120.0
 SHORT_WAIT_SECONDS = 300.0
@@ -133,7 +134,10 @@ def count(asked: str | None) -> int:
 
 
 def locks_dir() -> Path:
-    return Path(os.environ.get("JGAUGE_LOCKS_DIR") or Path.home() / ".local" / "state" / "locks")
+    """`JGAUGE_LOCKS_DIR`, else `~/.local/state/locks`. While a test runs it refuses the
+    machine's own (`jsettings.paths.RealDir`), as jbus's dirs do: a test's take or wait never
+    lands on the machine's slots or its waiters file."""
+    return paths._own("JGAUGE_LOCKS_DIR", ".local/state/locks")
 
 
 def name(lane: Lane) -> str:
