@@ -47,11 +47,11 @@ def models(root: Path) -> list[str]:
 
 def project_skills(root: Path) -> list[Path]:
     """The SKILL.md of each project skill a feature names."""
-    found = []
-    for manifest in sorted(root.glob("features/*/feature.json")):
-        for folder in json.loads(manifest.read_text(encoding="utf-8")).get("projectSkills", []):
-            found.append(manifest.parent / folder / "SKILL.md")
-    return found
+    return [
+        manifest.parent / folder / "SKILL.md"
+        for manifest in sorted(root.glob("features/*/feature.json"))
+        for folder in json.loads(manifest.read_text(encoding="utf-8")).get("projectSkills", [])
+    ]
 
 
 def covered(text: str) -> list[tuple[str, list[str]]]:
@@ -108,9 +108,11 @@ def problems(root: Path) -> list[str]:
             continue
         where = skill.parent.relative_to(root)
         named.update(mine)
-        for model in mine:
-            if not (root / model).is_file():
-                said.append(f"{where}: names {model}, which is gone")
+        said.extend(
+            f"{where}: names {model}, which is gone"
+            for model in mine
+            if not (root / model).is_file()
+        )
         if not SYNC.search(text):
             said.append(f"{where}: no `Sync:` line with the full sha its model was confirmed at")
         files = covered(text)
@@ -121,12 +123,16 @@ def problems(root: Path) -> list[str]:
             if not source.is_file():
                 said.append(f"{where}: covers {path}, which is gone")
                 continue
-            for name in names:
-                if not has(source, name):
-                    said.append(f"{where}: covers `{name}` in {path}, which no longer has it")
-    for model in models(root):
-        if model not in named:
-            said.append(f"{model}: no verify skill names it on a `Model:` line")
+            said.extend(
+                f"{where}: covers `{name}` in {path}, which no longer has it"
+                for name in names
+                if not has(source, name)
+            )
+    said.extend(
+        f"{model}: no verify skill names it on a `Model:` line"
+        for model in models(root)
+        if model not in named
+    )
     return said
 
 
