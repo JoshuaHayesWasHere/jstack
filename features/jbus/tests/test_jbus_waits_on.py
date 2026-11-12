@@ -9,6 +9,7 @@ ba66f41642f6, was told to rebase at that head, and was steered to put the rebase
 a pull request with no row, merged. #1717 merged at 2026-11-12T00:44:47Z; the head never moved,
 so the once-per-head rebase key was spent, and nothing told the crew again."""
 
+import hashlib
 import json
 from datetime import UTC, datetime, timedelta
 
@@ -121,6 +122,24 @@ def test_a_wake_line_added_to_the_result_tells_nothing_again_and_a_new_result_do
     )
     conforms.poll(MERGED_AT + timedelta(minutes=7))
     assert len(carry_ons(conforms)) == 2
+
+
+@pytest.mark.parametrize("by", ["sent", "launch"])
+def test_a_crew_told_under_the_old_paused_on_key_is_not_told_again(conforms, by):
+    """A carry-on sent, or a launch made, before the line read numbers stays spent."""
+    old = f"paused-on|{SLUG}|#1717"
+    if by == "sent":
+        sent = jbus.read_json(conforms.state / "sent.json", [])
+        (conforms.state / "sent.json").write_text(json.dumps([*sent, old]))
+    else:
+        text = (conforms.home / "tasks" / f"{SLUG}.md").read_text()
+        said = hashlib.sha256(mirror.last_result(text).encode()).hexdigest()[:8]
+        launched = conforms.state_dir / "launches" / "demo" / SLUG / "zzzzzzzzzzzz.json"
+        launched.write_text(json.dumps({"cause": f"{old}|{said}"}))
+    merge_1717(conforms)
+    for minute in (1, 4):
+        conforms.poll(MERGED_AT + timedelta(minutes=minute))
+    assert carry_ons(conforms) == []
 
 
 def test_a_merge_older_than_githubs_list_is_asked_for_once_by_its_number(conforms):

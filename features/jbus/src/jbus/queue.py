@@ -935,9 +935,9 @@ def order(row: Row, lift: Mapping[str, int] | None = None) -> tuple[int, str, st
 
 def lifted(rows: Iterable[Row], waits: Mapping[str, Iterable[str]]) -> dict[str, int]:
     """Return the priority each row inherits from the rows that wait on it: the best (lowest) of
-    theirs, down any chain of waits, for `order`. A row waits on each row that its paused Result's
-    `Waits on:` line names (`waits`, which the caller reads from the last Result of each row whose
-    thread is not archived), and, once launched, on each row its `depends` names, since its crew
+    theirs, down any chain of waits, for `order`. A row waits on each row that its last Result's
+    `Waits on:` line names, at any status (`waits`, which the caller reads from the last Result of
+    each row whose thread is not archived), and, once launched, on each row its `depends` names, since its crew
     is out on that row's work. A row that is over waits on nothing. So a row that others are held
     for launches at the best priority among them, and not behind rows they would wait behind."""
     rows = list(rows)
