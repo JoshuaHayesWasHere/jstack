@@ -608,6 +608,35 @@ def test_a_failed_step_ends_the_check_and_a_run_again_skips_what_passed_at_the_h
     assert [one.split()[0] for one in ran] == ["check-fast", "test", "test", "test"]
 
 
+def test_a_step_that_passed_over_work_the_head_lacks_is_not_kept_and_writes_no_checked_line(
+    tmp_path,
+):
+    """CrewProof.tla's trace CheckStart MovedToBackground Edit CheckStep Undo CheckStep AllRan
+    CheckEnd: the call goes to the background, the crew edits while a step runs, the step passes
+    over the edit, the crew drops it, and the block must not keep that step as passed at the head
+    or write `Checked: ... exit 0` for files the head never had."""
+    repo = stubbed(tmp_path, touching("tests/test_a.py", "tests/test_b.py"))
+    brief = a_brief(tmp_path)
+    stub, edit = tmp_path / "stub", repo / "edit.txt"
+    stub.mkdir()
+    room.uv(stub)
+    lanes(stub, tmp_path / "home" / ".local" / "state" / "locks", tmp_path / "make.log")
+    (stub / "make").rename(stub / "make.real")
+    (stub / "make").write_text(
+        "#!/bin/sh\n"
+        f'case "$*" in *test_a.py*) echo an edit > {edit} ;; *test_b.py*) rm -f {edit} ;; esac\n'
+        f'exec {stub / "make.real"} "$@"\n'
+    )
+    (stub / "make").chmod(0o755)
+    said, code, _ = checked(tmp_path, "echo the full lane")
+    steps = (repo / ".git" / "crew-check-steps").read_text().splitlines()
+    assert re.search(r"^tests/test_a.py: exit 0 in \d+ s, short lane$", "\n".join(said), re.M), said
+    assert "passed lint" in steps
+    assert "passed tests/test_a.py" not in steps
+    assert code == 76, said
+    assert "Checked:" not in brief.read_text()
+
+
 def test_the_guard_tests_run_after_the_touched_ones_and_a_failed_one_fails_the_check(tmp_path):
     """After the touched tests the block runs each cross-cutting test the selector names, alone.
     A guard the change touches runs once, as a touched test. A failed guard is the check's exit,
