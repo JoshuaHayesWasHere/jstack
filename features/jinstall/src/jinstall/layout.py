@@ -56,7 +56,7 @@ PLUGIN = "plugin.json"
 SHOWN = 1
 NOT_THE_SKILL = frozenset(
     {"feature.json", "verify.md", "src", "tests", "docs", "evals", "templates", "hooks", "units"}
-    | {"skills", "playbooks", "__pycache__"}
+    | {"skills", "playbooks", "spec", "__pycache__"}
 )
 HEADER = (
     "<!-- assembled by jstack's install from {source}; do not edit: an install rewrites it -->\n"
@@ -143,8 +143,9 @@ def hidden(source: Path) -> list[str]:
 
 def _skill_files(source: Path, skill: PurePosixPath) -> Iterator[PurePosixPath]:
     """Every file of the skill folder `skill`, as source paths, except what `NOT_THE_SKILL`
-    names. `NOT_THE_SKILL` names a feature's other parts and its playbooks, which the layout
-    puts in playbooks/."""
+    names. `NOT_THE_SKILL` names a feature's other parts, among them its TLA+ model in spec/,
+    which is the repo's and no agent's instructions, and its playbooks, which the layout puts in
+    playbooks/."""
     for path in sorted((source / skill).rglob("*")):
         parts = path.relative_to(source / skill).parts
         if parts[0] in NOT_THE_SKILL or any(p.startswith(".") or p == "__pycache__" for p in parts):
