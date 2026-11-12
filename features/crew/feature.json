@@ -5,6 +5,17 @@
   "hidden": [
     "crew"
   ],
+  "hooks": [
+    {
+      "event": "PreToolUse",
+      "matcher": "Bash",
+      "script": "hooks/check-foreground.sh",
+      "harnesses": [
+        "claude-code"
+      ],
+      "refuses": true
+    }
+  ],
   "projectSkills": [
     "project-skill/verify-crew-proof"
   ]
