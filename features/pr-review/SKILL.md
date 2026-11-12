@@ -101,20 +101,44 @@ New prose is one sentence per line, and an old line the pull request did not tou
    [ -n "$on" ] || on=$(git symbolic-ref -q --short refs/remotes/origin/HEAD | sed 's|^origin/||')
    on=${on:-main}
    if [ -z "$branch" ] || ! git fetch -q origin "$branch" "$on"; then
-       echo "stop: could not fetch origin's $branch and $on"
+       echo "stop: could not fetch origin's $branch and $on, this worktree is at $(git rev-parse HEAD)"
    elif [ -n "$(git status --porcelain)" ] || [ "$(git rev-parse HEAD)" != "$(git rev-parse "origin/$branch")" ]; then
-       echo "stop: this worktree is not at origin's $branch with nothing uncommitted"
+       echo "stop: this worktree is not at origin's $branch, $(git rev-parse "origin/$branch"), with nothing uncommitted"
    else
        echo "head $(git rev-parse HEAD) base $(git merge-base "origin/$on" HEAD) on $on"
    fi
    ```
 
-   On `stop`, say what it printed and end: no review, no section.
+   On `stop`, say what it printed, write the section "A stop" says, and end: no review.
    Otherwise keep the head and the base it printed: the head is the head under review, and wherever this skill reads the diff it is `git diff --no-color <the base> <the head>`.
    The diff is read in step 3 of "The review".
    Open a file only to judge a finding, or to find and prove the safety fact.
 3. Read the brief's last Result: its `Checked:` and `Proved:` lines name the head under review, or a head whose patch it carries, since jbus launched this review on them.
 4. Say in two lines what is about to be reviewed, then start.
+
+### A stop
+
+A reviewer that Start's step 1 let begin and that stops all the same, on step 2 of Start or on step 1 of "A scoped pass", writes a `## Review` that says so, whatever that step says of "no section".
+Its launch put a reviewer line under the Result, so jbus and the crew read the brief as reviewing (`jbriefs line reviewing`) until a section with a `Head:` line follows it, and the crew rebases nothing while it reads so: a stop with no section holds the pull request until somebody notices.
+Run this with the block at the top, with the head the review was to be of, the `stop` line the step printed and the `By:` line Start printed in place of the words in angle brackets.
+The head is, on step 2 of Start, the commit its `stop` line names, and on step 1 of "A scoped pass", the end of the message's new range.
+For a scoped pass, `scope` is `Scope: range-diff <old range> <new range>`, with the message's two ranges, and for any other pass it is left empty:
+
+```sh
+B="$H/tasks/<slug>.md"
+head='<the head the review was to be of>'
+said='<the stop line the step printed>'
+by='<the By: line Start printed>'
+scope=''
+case $by in "<"*) by= ;; esac
+case $scope in "<"*) scope= ;; esac
+uv run --project "$T/../source" jbriefs not-run "$B" "$head" "the reviewer stopped before its review: $said" "$by" "$scope"
+```
+
+A `stop` of step 2 that could not fetch names this worktree's commit, since it could ask origin for none, and writes its section at that commit all the same.
+The section is the one "No room" writes, read the same way: `jmerge` merges nothing on it, its `Head:` line lets the crew rebase, and jbus's stall clock asks this reviewer again.
+Sent a second time for the same head, it writes no second section.
+Then say what the step and the block printed, and end without settling.
 
 ### The review
 
@@ -138,21 +162,7 @@ It sends nobody anything.
    scope=''
    case $by in "<"*) by= ;; esac
    case $scope in "<"*) scope= ;; esac
-   [ -f "$B" ] || { echo "no section: there is no brief at $B"; exit 1; }
-   if awk -v kept="$kept" -v by="$by" '/^## / {last = $(0); verdict = head = mine = ""} /^Verdict:/ {verdict = $(0)} /^Head:/ {head = $(2)} /^By: / {mine = $(0)} END {exit !(last == "## Review" && verdict == "Verdict: not run" && head == kept && mine == by)}' "$B"; then
-       echo "no section: the brief already ends in a review of $kept that was not run"
-       exit 0
-   fi
-   {
-       [ -z "$(tail -c1 "$B")" ] || echo
-       printf '\n## Review\n'
-       if [ -n "$by" ]; then printf '%s\n' "$by"; fi
-       printf 'Verdict: not run\n'
-       if [ -n "$scope" ]; then printf '%s\n' "$scope"; fi
-       printf 'Why: the run block was sent six times and never went on, and its last answer was "%s"\n' "$why"
-       printf 'Head: %s   Unchanged by the review: not checked, no review ran\n' "$kept"
-       printf 'Sent to: not sent, no review ran\n'
-   } >> "$B" && echo "written: ## Review with Verdict: not run, in $B"
+   uv run --project "$T/../source" jbriefs not-run "$B" "$kept" "the run block was sent six times and never went on, and its last answer was \"$why\"" "$by" "$scope"
    ```
 
    The section is not a review: `jmerge` reads it as a review with no verdict and merges nothing on it.
