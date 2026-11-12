@@ -250,7 +250,7 @@ The batch's state is `batch.state_of`'s six values, with the three PrVerdict.bat
 
 The constant `Inside` names the parts of jmerge's run a config follows (restart, batch, waits).
 The parts share nothing but the run lock and a death, and all of them together with two pass runs is past 58M states, so each config follows the parts its rules read.
-`Fault = "replace-first"` is today's code; each other value changes one thing of it: `judge-first` sends the lines before the replace, `fresh-list` reads whether a pull request is open from GitHub in the run, and `no-run-lock` is the canary of `OneRunAtATime`.
+`Fault = "replace-first"` is today's code; each other value changes one thing of it: `judge-first` sends the lines before the replace, `fresh-list` reads whether a pull request is open from GitHub in the run, `no-run-lock` is the canary of `OneRunAtATime`, and `unlink-first` is the start stamp as it was before the stamp named its run, the canary of `NoFalseNoRecord` and `DeathTold`.
 `ReplyLost` is the world: GitHub took a close whose reply gh lost.
 
 ## The rules of the run, and today's verdicts
@@ -259,8 +259,8 @@ The parts share nothing but the run lock and a death, and all of them together w
 |---|---|---|---|
 | `RunHeard`: every run's lines are judged once | `MergeRun.cfg` | breaks | the pass replaces the record, then dies before `_judged`; `judge-first` holds it |
 | `StreakOnce`: the jmerge streak counts each run once | `MergeRun.cfg` | holds | `judge-first` breaks it: a pass that dies after `_judged` and before the replace counts the run twice, since `_sent` keys each line but nothing keys the streak |
-| `NoFalseNoRecord`: "ended with no record" only of a run with none | `MergeRun.cfg` | breaks | a run slower than STARTING to take `going.lock`, or one that dies between its record and the stamp's unlink |
-| `DeathTold`: a run that died with no record is told | `MergeRun.cfg` | breaks | the pass unlinks the stamp before `_unrun`, and dies between; or a run's process unlinks a later run's stamp |
+| `NoFalseNoRecord`: "ended with no record" only of a run with none | `MergeRun.cfg` | holds | a record that names the stamp is no death, and a run slower than STARTING finds its stamp moved aside and runs nothing; `unlink-first` breaks it |
+| `DeathTold`: a run that died with no record is told | `MergeRun.cfg` | holds | the pass moves the stamp to `died` before it tells, and removes `died` after, and a run removes only its own stamp; `unlink-first` breaks it |
 | `OneRunAtATime`: no two runs hold the repo | `MergeRun.cfg` | holds | `no-run-lock` breaks it: `going.lock` alone lets a run outlive its process |
 | `RestartReopens`: a pull request jmerge closed to restart is reopened or the user is told | `MergeRun.restart.cfg` | breaks | a close whose reply gh lost keeps a refusal that owes no reopen; and with no reply lost, a pass's list read before the tick closed it marks its reopen `took`; `fresh-list` holds it |
 | `WaitLoggedOnce`: a merged pull request's wait is logged once | `MergeRun.waits.cfg` | holds | `Spells.merged` runs only at the merge; `log-on-sweep` breaks it: a run that died between the append and the drop leaves a spell the sweep logs again |
@@ -286,8 +286,8 @@ W=$(mktemp -d) && cp features/jmerge/spec/MergeRun.* "$W"
 ```
 
 Run it from the repo root, and copy the files of `$W/out`, but its `tlc/`, into `MergeRun-statechart/`.
-`MergeRun.chart.cfg` has one pass run and no tick (396 model states), labelled by `MergeRun.map.py`: 64 chart states and 103 of its 147 steps, each state but the three final ones with a way out, and three bug paths, for RunHeard, NoFalseNoRecord and DeathTold.
-With two runs TLC printed 2.27M lines of states that break DeathTold and failed inside itself, so the two-run stories are `MergeRun.cfg`'s, which the test checks.
+`MergeRun.chart.cfg` has one pass run and no tick (191 model states), labelled by `MergeRun.map.py`: 32 chart states and 50 of its 67 steps, and one bug path, for RunHeard; NoFalseNoRecord and DeathTold hold on it.
+The two-run stories are `MergeRun.cfg`'s, which the test checks.
 
 ## What MergeRun leaves out
 

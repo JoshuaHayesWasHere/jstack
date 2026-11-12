@@ -26,8 +26,11 @@
 \* OneRunAtATime. Fault = "fresh-list" reads whether P is open from GitHub in the run, not from the
 \* list the pass handed it before the run started, the fix RestartReopens asks for. Fault =
 \* "log-on-sweep" has `open_only` log the spell it drops of a merged W, the fix WaitKept might
-\* reach for: the canary of WaitLoggedOnce. Each value other than "replace-first" changes that one
-\* thing of today's code.
+\* reach for: the canary of WaitLoggedOnce. Fault = "unlink-first" is the start stamp as the code
+\* of aa5469d97 kept it: the pass removes a stale stamp before it tells of the run, holds no lock
+\* while it does, and tells of a run whose record stands, and a run removes whatever stamp stands
+\* and runs with no look at it: the canary of DeathTold and NoFalseNoRecord. Each value other than
+\* "replace-first" changes that one thing of today's code.
 \*
 \* ReplyLost is the world, not the code: GitHub took a close whose reply gh lost, so gh exited
 \* non-zero.
@@ -42,6 +45,8 @@ CONSTANTS MaxRuns, MaxTicks, Fault, Inside, ReplyLost
 Runs == 1..MaxRuns
 Tick == MaxRuns + 1      \* the merge tick's run of `jmerge`, or one by hand
 Holders == {0} \cup Runs \cup {Tick}
+PassG == MaxRuns + 2     \* the pass, as the holder of going.lock while it judges the stamp
+Old == Fault = "unlink-first"
 Min(s) == CHOOSE x \in s : \A y \in s : x <= y
 \* `most`, by level: 1 is LEAST (5), 2 is START (12), 3 is MOST (48); a halve and a double move it
 \* one level, which keeps what `_full` reads: whether a batch holds as many as the most.
@@ -55,11 +60,12 @@ VARIABLES
   \* jbus/merge.py `where.mkdir(parents=True, exist_ok=True)`
   runs,
   \* B-060, jmerge-runs/started: the stamp a pass writes when it starts a run, and which run's
-  \* pass wrote it (`by`, 0 for none); `old` once STARTING went by. The code keeps a time only.
-  \* jbus/merge.py `(where / STARTED).write_text(restated.moment(verbs.clock()) + "\n")`
+  \* pass wrote it (`by`, 0 for none); `old` once STARTING went by. The code keeps a time and a
+  \* token that names the run: jbus/merge.py `(where / STARTED).write_text(stamp + "\n")`
   started,
-  \* B-061, jmerge-runs/going.lock: the run whose process holds the flock, or 0.
-  \* jbus/merge.py `fcntl.flock(going, fcntl.LOCK_EX)`
+  \* B-061, jmerge-runs/going.lock: the run whose process holds the flock, the pass (PassG)
+  \* while it judges the stamp, or 0.
+  \* jbus/merge.py `fcntl.flock(going, fcntl.LOCK_EX) if _stamp(where) != stamp:`
   going,
   \* B-062, jmerge-runs/ran-<at>.json: the runs whose record is written and not yet read.
   \* jbus/merge.py `write_json(where / f"ran-{at}.json", record)`
@@ -113,7 +119,9 @@ VARIABLES
   \* the batch's state it read (`seen`), both in memory; and how many runs the tick made.
   lock, jm, seen, ticks,
   \* The pass: where it is (`pc`), the run whose record it holds in memory (`reading`), the run
-  \* whose stamp it unlinked and is to tell of (`blamed`), the run it is starting (`child`), each
+  \* whose stamp it moved to jmerge-runs/died and is to tell of (`blamed`, a file that outlives
+  \* the pass; with Fault = "unlink-first" the run it unlinked the stamp of, in memory), the run
+  \* it is starting (`child`), each
   \* run's count of `_judged` calls (`judged`), the runs it said ended with no record (`told`),
   \* and the open/closed state of P in the list it hands `jmerge` (`handed`, `--pulls`).
   pc, reading, blamed, child, judged, told, handed,
@@ -139,7 +147,7 @@ Steps == {"idle", "open", "batch", "rerun-ask", "restart", "closing", "closed", 
 TypeOK ==
   /\ runs \in [Runs -> Phases]
   /\ started \in [by : {0} \cup Runs, old : BOOLEAN]
-  /\ going \in {0} \cup Runs /\ ran \subseteq Runs /\ read \in {0} \cup Runs
+  /\ going \in {0} \cup Runs \cup {PassG} /\ ran \subseteq Runs /\ read \in {0} \cup Runs
   /\ stuck \in {"none", "owed", "closed", "took", "refused", "unopened"} /\ prOpen \in BOOLEAN
   /\ again \in BOOLEAN /\ most \in Levels /\ kind \in {"", "guards", "ci"}
   /\ branch \in {"none", "batch", "other"} /\ draft \in BOOLEAN
@@ -148,7 +156,8 @@ TypeOK ==
   /\ ci \in {"none", "running", "passed", "failed", "rerunning", "failed-again"}
   /\ tipMoved \in BOOLEAN /\ merges \in 0..2
   /\ lock \in Holders /\ jm \in Steps /\ seen \in BatchStates /\ ticks \in 0..MaxTicks
-  /\ pc \in {"idle", "unlinked", "stamping", "spawning", "reading", "judging", "replacing"}
+  /\ pc \in {"idle", "telling", "unlinked", "unmarking", "unstamping", "stamping", "spawning",
+            "reading", "judging", "replacing"}
   /\ reading \in {0} \cup Runs /\ blamed \in {0} \cup Runs /\ child \in {0} \cup Runs
   /\ judged \in [Runs -> 0..2] /\ told \subseteq Runs /\ handed \in BOOLEAN
   /\ recorded \subseteq Runs
@@ -167,39 +176,75 @@ Init ==
 ----
 \* The pass (`jbus.merge.merge`).
 
-\* jbus/merge.py `if not _going(where) and not _starting(where):`, where `_starting` is a stamp
-\* younger than STARTING: jbus/merge.py `return verbs.clock() - at < STARTING`. A stamp that
-\* stands then is a run that ended with no record: jbus/merge.py `if (where / STARTED).exists():`,
-\* and the pass unlinks it first.
+\* `_stamped`: the pass takes going.lock without waiting,
+\* jbus/merge.py `fcntl.flock(going, fcntl.LOCK_EX | fcntl.LOCK_NB)`, and leaves a stamp younger
+\* than STARTING: jbus/merge.py `if _starting(where):`, where jbus/merge.py
+\* `return verbs.clock() - at < STARTING`. A stamp that stands then is judged:
+\* jbus/merge.py `if stale := _stamp(where):`. A record that names it, read or not, is a run that
+\* died after it kept its record, which is no death:
+\* jbus/merge.py `return any(read_json(path, {}).get("stamp") == stamp for path in kept)`, here
+\* the run in `ran` or `read`. Any other stamp is moved aside, in one step, to the died file
+\* (`blamed`), which no run starts from and the next pass tells of where this one dies:
+\* jbus/merge.py `os.replace(where / STARTED, where / DIED)`, then
+\* jbus/merge.py `if (where / DIED).exists():`. With Fault = "unlink-first" the pass holds no
+\* lock, removes the stamp first, keeps the run to tell of in memory, and tells of whatever run
+\* wrote the stamp.
 PassStarts ==
   /\ pc = "idle"
   /\ IF going = 0 /\ ~(started.by /= 0 /\ ~started.old)
-       THEN IF started.by /= 0
-              THEN started' = NoStamp /\ blamed' = started.by /\ pc' = "unlinked"
-              ELSE pc' = "stamping" /\ UNCHANGED <<started, blamed>>
-       ELSE pc' = "reading" /\ UNCHANGED <<started, blamed>>
-  /\ UNCHANGED <<runs, going, ran, recorded, reading, child, judged, told, read, handed>>
+       THEN /\ going' = IF Old THEN going ELSE PassG
+            /\ IF started.by = 0
+                 THEN /\ pc' = (IF blamed = 0 THEN "stamping" ELSE "telling")
+                      /\ UNCHANGED <<started, blamed>>
+               ELSE IF Old
+                 THEN started' = NoStamp /\ blamed' = started.by /\ pc' = "unlinked"
+               ELSE IF started.by \in ran \/ read = started.by
+                 THEN pc' = "unstamping" /\ UNCHANGED <<started, blamed>>
+               ELSE started' = NoStamp /\ blamed' = started.by /\ pc' = "telling"
+       ELSE pc' = "reading" /\ UNCHANGED <<started, blamed, going>>
+  /\ UNCHANGED <<runs, ran, recorded, reading, child, judged, told, read, handed>>
   /\ UNCHANGED <<runV, restartV, batchV, waitV>>
 
-\* jbus/merge.py `_unrun(run, f"its run ended with no record: {_last(where / CHILD_LOG)}")`
+\* jbus/merge.py `_told(run, died, f"its run ended with no record: {_last(where / CHILD_LOG)}")`,
+\* once for the stamp: jbus/merge.py `if run.box.send("", "no-record", line, key=f"no-record|{stamp}"):`,
+\* so a tell again after a pass died is the same tell, as `told` is a set. Then the died file goes.
+\* With Fault = "unlink-first" the stamp went first (`unlinked`) and the pass tells after.
 PassTells ==
-  /\ pc = "unlinked" /\ told' = told \cup {blamed} /\ blamed' = 0 /\ pc' = "stamping"
+  /\ pc \in {"telling", "unlinked"} /\ told' = told \cup {blamed}
+  /\ IF pc = "telling"
+       THEN pc' = "unmarking" /\ UNCHANGED blamed
+       ELSE pc' = "stamping" /\ blamed' = 0
   /\ UNCHANGED <<childV, reading, child, judged, read, handed, runV, restartV, batchV, waitV>>
 
-\* jbus/merge.py `(where / STARTED).write_text(restated.moment(verbs.clock()) + "\n")`. The model
-\* starts MaxRuns runs, and a pass after the last only reads.
+\* jbus/merge.py `(where / DIED).unlink()`, once the run is told of.
+PassUnmarks ==
+  /\ pc = "unmarking" /\ blamed' = 0 /\ pc' = "stamping"
+  /\ UNCHANGED <<childV, reading, child, judged, told, read, handed, runV, restartV, batchV, waitV>>
+
+\* jbus/merge.py `_unstamp(where, stale)`, the stamp of a run that kept its record: the pass holds
+\* going.lock, so it is the stamp it judged.
+PassUnstamps ==
+  /\ pc = "unstamping" /\ started' = NoStamp /\ pc' = "stamping"
+  /\ UNCHANGED <<runs, going, ran, recorded, reading, blamed, child, judged, told, read, handed>>
+  /\ UNCHANGED <<runV, restartV, batchV, waitV>>
+
+\* jbus/merge.py `(where / STARTED).write_text(stamp + "\n")`, a stamp of the run's own, and then
+\* going.lock goes back, since the run takes it itself. The model starts MaxRuns runs, and a pass
+\* after the last only reads.
 PassStamps ==
   /\ pc = "stamping"
+  /\ going' = IF going = PassG THEN 0 ELSE going
   /\ LET free == {r \in Runs : runs[r] = "none"} IN
        IF free = {}
          THEN pc' = "reading" /\ UNCHANGED <<started, child>>
          ELSE /\ started' = [by |-> Min(free), old |-> FALSE] /\ child' = Min(free)
               /\ pc' = "spawning"
-  /\ UNCHANGED <<runs, going, ran, recorded, reading, blamed, judged, told, read, handed>>
+  /\ UNCHANGED <<runs, ran, recorded, reading, blamed, judged, told, read, handed>>
   /\ UNCHANGED <<runV, restartV, batchV, waitV>>
 
-\* `start`: jbus/merge.py `child += (str(where), str(run.project.checkout), *handed(run))`, the
-\* pass's list of the open pull requests, read now and run later.
+\* `start`: jbus/merge.py `child += handed(run)`, the pass's list of the open pull requests, read
+\* now and run later, beside the stamp that names the run:
+\* jbus/merge.py `child = (sys.executable, "-c", code, _stamp(where), str(where), str(run.project.checkout))`
 PassSpawns ==
   /\ pc = "spawning" /\ runs' = [runs EXCEPT ![child] = "spawned"] /\ handed' = prOpen
   /\ pc' = "reading" /\ child' = 0
@@ -239,18 +284,30 @@ PassReplaces ==
   /\ UNCHANGED <<runs, started, going, recorded, blamed, child, judged, told, handed>>
   /\ UNCHANGED <<runV, restartV, batchV, waitV>>
 
-\* The pass dies between two of its steps; the next pass starts at `merge`'s top.
+\* The pass dies between two of its steps, and the kernel gives going.lock back; the next pass
+\* starts at `merge`'s top. A run stamped and not yet spawned never starts: it died with no
+\* record, and its stamp, a token of its own, is never written again.
 PassDies ==
-  /\ pc /= "idle" /\ pc' = "idle" /\ reading' = 0 /\ blamed' = 0 /\ child' = 0
-  /\ UNCHANGED <<childV, judged, told, read, handed, runV, restartV, batchV, waitV>>
+  /\ pc /= "idle" /\ pc' = "idle" /\ reading' = 0 /\ child' = 0
+  /\ blamed' = IF Old THEN 0 ELSE blamed
+  /\ going' = IF going = PassG THEN 0 ELSE going
+  /\ runs' = IF pc = "spawning" THEN [runs EXCEPT ![child] = "died"] ELSE runs
+  /\ UNCHANGED <<started, ran, recorded, judged, told, read, handed>>
+  /\ UNCHANGED <<runV, restartV, batchV, waitV>>
 
 ----
 \* The run's detached process (`keep`).
 
-\* jbus/merge.py `fcntl.flock(going, fcntl.LOCK_EX)`, which waits while another holds it.
+\* The run takes going.lock, which waits while another holds it, and looks at the stamp:
+\* jbus/merge.py `fcntl.flock(going, fcntl.LOCK_EX) if _stamp(where) != stamp:`. A run whose stamp
+\* is gone was told dead, a run that started slower than STARTING: it runs nothing, keeps no
+\* record, and ends, which gives going.lock back. With Fault = "unlink-first" it runs whatever
+\* stamp stands.
 TakesGoing(r) ==
   /\ runs[r] = "spawned" /\ going = 0
-  /\ going' = r /\ runs' = [runs EXCEPT ![r] = "going"]
+  /\ IF Old \/ started.by = r
+       THEN going' = r /\ runs' = [runs EXCEPT ![r] = "going"]
+       ELSE runs' = [runs EXCEPT ![r] = "ended"] /\ UNCHANGED going
   /\ UNCHANGED <<started, ran, recorded, passV, runV, restartV, batchV, waitV>>
 
 \* jbus/merge.py `ran = proc.run(*RUN, *more, cwd=checkout, timeout=JMERGE_TIMEOUT)`, with
@@ -279,10 +336,14 @@ Keeps(r) ==
   /\ runs' = [runs EXCEPT ![r] = "kept"]
   /\ UNCHANGED <<started, going, passV, runV, restartV, batchV, waitV>>
 
-\* After the record, jbus/merge.py `record) (where / STARTED).unlink(missing_ok=True)`, whichever
-\* pass wrote the stamp, and the process ends, which gives going.lock back.
+\* After the record, jbus/merge.py `write_json(where / f"ran-{at}.json", record) _unstamp(where, stamp)`,
+\* which removes the stamp only where it is the run's own:
+\* jbus/merge.py `if _stamp(where) == stamp: (where / STARTED).unlink(missing_ok=True)`. The
+\* process ends, which gives going.lock back. With Fault = "unlink-first" the run removes whatever
+\* stamp stands.
 Unstamps(r) ==
-  /\ runs[r] = "kept" /\ started' = NoStamp /\ going' = 0
+  /\ runs[r] = "kept" /\ going' = 0
+  /\ started' = IF Old \/ started.by = r THEN NoStamp ELSE started
   /\ runs' = [runs EXCEPT ![r] = "ended"]
   /\ UNCHANGED <<ran, recorded, passV, runV, restartV, batchV, waitV>>
 
@@ -566,7 +627,7 @@ CIEnds ==
   /\ UNCHANGED <<childV, passV, runV, restartV, waitV>>
 
 Next ==
-  \/ PassStarts \/ PassTells \/ PassStamps \/ PassSpawns \/ PassReads \/ PassJudges
+  \/ PassStarts \/ PassTells \/ PassUnmarks \/ PassUnstamps \/ PassStamps \/ PassSpawns \/ PassReads \/ PassJudges
   \/ PassReplaces \/ PassDies
   \/ \E r \in Runs : TakesGoing(r) \/ RunsJmerge(r) \/ EntrantEnds(r) \/ Keeps(r)
                      \/ Unstamps(r) \/ ChildDies(r)
@@ -588,10 +649,11 @@ RunHeard ==
 StreakOnce == \A r \in Runs : judged[r] <= 1
 \* The pass says a run ended with no record only of a run that wrote none.
 NoFalseNoRecord == told \cap recorded = {}
-\* A run that died before it wrote its record is told, or its stamp still stands to be told.
+\* A run that died before it wrote its record is told, or its stamp still stands, as the stamp or
+\* the died file, to be told.
 DeathTold ==
   \A r \in Runs : runs[r] = "died" /\ r \notin recorded =>
-    r \in told \/ started.by = r \/ (pc = "unlinked" /\ blamed = r)
+    r \in told \/ started.by = r \/ blamed = r
 \* No two runs hold the repo: one run of `jmerge` at a time, the pass's, the tick's or one by hand.
 OneRunAtATime == Cardinality({r \in Runs : runs[r] = "jmerge"} \cup ({lock} \ {0})) <= 1
 \* A pull request jmerge closed to restart is reopened or the user is told: while it is closed,

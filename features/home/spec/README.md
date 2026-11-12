@@ -19,7 +19,7 @@ python3 features/home/spec/canaries.py
 
 Run it from the repo root.
 It checks that each canary, today's code with one guard taken out, breaks the rule that rests on that guard, so no rule holds by construction.
-It checks that each rule holds in today's code in each scene, with the merge switch either way.
+It checks that each rule holds in today's code in each scene, and each invariant with the merge switch either way.
 It prints one line for each run and ends 0 when every run says what it should.
 TLC is the statechart skill's pinned `tla2tools.jar`, and Java is `JAVA` or a `java` on `PATH`.
 `features/home/tests/test_home_tree_spec.py` runs it, and skips where no Java runs TLC.
@@ -28,12 +28,15 @@ Two siblings that both raise calls are too many states for one run of TLC, so ea
 The scene `a` is child a alone with both its calls and a home thread that can fail, and `b` is child b alone in the same way.
 The scene `siblings` is both children, with no calls of their own and a home thread that never fails.
 One call never waits on another, and what the siblings share is main, the merge lock and the home thread, so the siblings' scene checks what they share.
-In the siblings' scene the rules on calls hold with little to check, since only the root's notices are calls there and the home thread never fails: the scenes `a` and `b` check those rules.
-The catch-all's thread shares nothing with what the siblings share, so in their scene it moves only before the root makes a child (`CatchallFirst`), and the scenes `a` and `b` check it beside every step of a child.
+Of the properties, only `ReadyMerges` reads what the siblings share, so their scene checks it and every invariant: they raise no call and their notices never wait on the home thread, one pass works out each child's watch from that child alone, and the scenes `a` and `b` check the other properties for each child.
+The catch-all's thread shares nothing with what the siblings share, so in their scene it moves only before the root makes a child (`CatchallFirst`), and the runs of every invariant in the scenes `a` and `b` check it beside every step of a child: a run of a property has it move first in every scene, as below.
 The failed route, `RouteFails` and `RouteMends`, steps only where `MayFail` is `TRUE`, which is the scenes `a` and `b` of `canaries.py` and not `HomeTreeToday.cfg`.
 The canary `keep-on-fail` breaks `CallsReachJosh` in scene `a` only after a post to the home thread fails, so it shows the failed route steps there.
 The run of every invariant checks `SceneStill` on the whole model: no child, call or notice outside the scene ever leaves its start.
 So a run of a property gives TLC the scene alone (`Kids <- Made` in its config), and it finds the same states without a branch and the fairness of each message that never moves.
+A run of a property also has one mode and the catch-all's thread moving first: no step reads `mode`, so a second mode copies the graph, and the catch-all's steps change only what no step of a child and no other property reads.
+`ReadyMerges` is checked with `K` at 1: `K` is a feature child's patience, which only the watch reads, and a ready pull request merges by steps that read nothing the watch writes.
+So each run of a property ends in seconds with no cache: TLC carries each branch of a property on every state, and scene `a`'s `CallsReachJosh`, with three, went from 398,880 states and past 600 s on a CI runner to 13,338.
 
 ## Draw the chart
 
