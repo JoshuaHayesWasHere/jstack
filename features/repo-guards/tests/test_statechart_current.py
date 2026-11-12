@@ -24,7 +24,7 @@ import pytest
 
 from testing.paths import REPO
 
-READ_SET = ("features/*/spec/", "features/home/docs/charts/", ".gitignore")
+READ_SET = ("features/*/spec/", ".gitignore")
 CHARTS = sorted(REPO.glob("features/*/spec/*-statechart"))
 
 
