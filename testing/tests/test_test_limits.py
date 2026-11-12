@@ -63,7 +63,6 @@ LONG = {
     **{
         f"features/jgauge/tests/test_test_slot_spec.py::{name}": TLC
         for name in (
-            "test_a_dead_holder_whose_pid_is_taken_reads_as_running",
             "test_a_killed_test_slot_takes_its_command_with_it_today",
             "test_a_run_s_end_is_kept_for_jbus_to_tell_today",
             "test_each_of_today_s_faults_breaks_its_rule",

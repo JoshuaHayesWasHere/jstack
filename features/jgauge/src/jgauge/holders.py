@@ -13,11 +13,14 @@ waiters' file is (`jsettings.LockedList`). A holder is one run:
 
 - `thread`, `lane` and `command` say whose run it is and what it runs;
 - `pid` is the command's process, and `keeper` the process of the `jgauge test-slot` that holds
-  the slot and records the end. A run with no end recorded holds its slot while either lives:
-  once the command is gone its `jgauge test-slot` has yet to record the end. A run whose two
-  processes are gone with no end recorded, since its `jgauge test-slot` was killed with no chance
-  to record it, holds nothing (`running`). A record an older jgauge wrote has no `keeper`, 0, and
-  goes by its command alone;
+  the slot and records the end. `start` and `keeper_start` are their start times, in clock ticks
+  since boot, from `/proc/<pid>/stat`. A run with no end recorded holds its slot while either
+  lives: once the command is gone its `jgauge test-slot` has yet to record the end. A process
+  lives while its pid is there with the start time the run recorded, so another process that took
+  the pid since is not it. A run whose two processes are gone with no end recorded, since its
+  `jgauge test-slot` was killed with no chance to record it, holds nothing (`running`). A record
+  an older jgauge wrote has no `keeper`, 0, and goes by its command alone, and one with no start
+  time goes by its pid alone;
 - `since` is when the command started, and `id` names the run;
 - `ended` is when the command ended, or nothing while it runs, and `code` its exit code.
 
@@ -51,6 +54,21 @@ class Holder:
     ended: str = ""
     code: int | None = None
     keeper: int = 0
+    start: int | None = None
+    keeper_start: int | None = None
+
+
+def started(pid: int) -> int | None:
+    """When process `pid` started, in clock ticks since boot, or nothing when no process has it.
+    The 22nd field of `/proc/<pid>/stat`, counted after the command's name, which can hold spaces
+    and parentheses."""
+    if pid <= 0:
+        return None
+    try:
+        stat = Path(f"/proc/{pid}/stat").read_text()
+    except (FileNotFoundError, ProcessLookupError):
+        return None
+    return int(stat.rpartition(")")[2].split()[19])
 
 
 def _fields(one: dict[str, Any]) -> dict[str, Any]:
@@ -79,7 +97,9 @@ def hold(
     keeper: int | None = None,
 ) -> Holder:
     """Record that `thread`'s command, process `pid`, started under a slot of `lane` that the
-    `jgauge test-slot` of process `keeper` holds, this process unless the caller names another."""
+    `jgauge test-slot` of process `keeper` holds, this process unless the caller names another.
+    The caller has not reaped `pid` yet, so no other process can have taken it."""
+    keeper = os.getpid() if keeper is None else keeper
     run = Holder(
         thread_id(thread),
         lane,
@@ -87,7 +107,9 @@ def hold(
         tuple(command),
         jsettings.stamp(now, z=True),
         secrets.token_hex(6),
-        keeper=os.getpid() if keeper is None else keeper,
+        keeper=keeper,
+        start=started(pid),
+        keeper_start=started(keeper),
     )
     FILE.change(locks, lambda held: [*held, run])
     return run
@@ -113,20 +135,14 @@ def forget(locks: Path, ids: set[str]) -> None:
 
 def running(one: Holder) -> bool:
     """Whether the run still holds its slot: its end is not recorded, and its command or the
-    `jgauge test-slot` that records the end is there."""
-    return not one.ended and (_alive(one.pid) or _alive(one.keeper))
+    `jgauge test-slot` that records the end is there, the process that started when the run did
+    and not another that took its pid since."""
+    return not one.ended and (_alive(one.pid, one.start) or _alive(one.keeper, one.keeper_start))
 
 
-def _alive(pid: int) -> bool:
-    if pid <= 0:
-        return False
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    return True
+def _alive(pid: int, start: int | None) -> bool:
+    now = started(pid)
+    return now is not None and (start is None or now == start)
 
 
 def holding(locks: Path) -> list[Holder]:

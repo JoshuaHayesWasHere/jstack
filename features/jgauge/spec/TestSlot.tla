@@ -24,14 +24,15 @@
 \*
 \* Fault = "today" is the code as it is: slotwait.wake counts `spare` outside the waiters lock
 \* and records the wake after its send, and the ledger's writers read, merge and replace it with
-\* no lock. A holder with no end is forgotten only once its `jgauge test-slot` is gone too, and a
-\* command ends with the `jgauge test-slot` that holds its slot. Fault = "none" is the mode that
-\* passes: the wake is counted and recorded under one hold of the waiters lock before the send,
-\* and the ledger is read and written under a lock.
+\* no lock. A holder with no end is forgotten only once its `jgauge test-slot` is gone too, a
+\* command ends with the `jgauge test-slot` that holds its slot, and a pid another process took
+\* reads as gone. Fault = "none" is the mode that passes: the wake is counted and recorded under
+\* one hold of the waiters lock before the send, and the ledger is read and written under a lock.
 \* The canaries "spare-outside-lock" and "no-ledger-lock" each put one of today's two faults
-\* back into the mode that passes, and "forget-unended" and "orphan-command" put back the ones
-\* that are closed: a holder with no end forgotten while its `jgauge test-slot` lives to write
-\* the end, and a command that lives on after its `jgauge test-slot` died.
+\* back into the mode that passes, and "forget-unended", "orphan-command" and "pid-alone" put
+\* back the ones that are closed: a holder with no end forgotten while its `jgauge test-slot`
+\* lives to write the end, a command that lives on after its `jgauge test-slot` died, and a
+\* holder judged running by its pid alone, with no check that the pid is still its command's.
 \* PidReuse lets another process take the pid of a holder's dead command. Mortal is the set of
 \* the processes that can be killed: TestSlot.cfg has every one, "bus" for jbus's slot pass,
 \* "writers" for the ledger's writers and "pool" for the pool's crew and jbus; the chart's
@@ -224,11 +225,15 @@ Holding == "crew" \in waiters /\ woken = "holds"
 \* jgauge/waiters.py `return sum(one.lane == lane and one.thread != but and holding(one, now)
 \* for one in held)`
 Claims(but) == IF Holding /\ but /= "crew" THEN 1 ELSE 0
-\* jgauge/holders.py `return not one.ended and (_alive(one.pid) or _alive(one.keeper))` and
-\* jgauge/holders.py `os.kill(pid, 0)`: a holder runs while its end is not on record and a
-\* process has its command's pid, or its `jgauge test-slot`'s. Running is the command's half,
-\* which NoLostHolder judges; the `jgauge test-slot`'s half is Over's `pc[p] = "off"`.
-Running(p) == p \in holders /\ p \notin ended /\ (child[p] = "alive" \/ p \in reused)
+\* jgauge/holders.py `_alive(one.pid, one.start) or _alive(one.keeper, one.keeper_start)` and
+\* jgauge/holders.py `now == start`: a holder runs while its end is not on record and its
+\* command's pid, or its `jgauge test-slot`'s, has the start time its run recorded, so a pid
+\* another process took reads as gone. Running is the command's half, which NoLostHolder judges;
+\* the `jgauge test-slot`'s half is Over's `pc[p] = "off"`. The canary "pid-alone" asks only
+\* whether some process has the command's pid, as the code did before, and a reused pid reads as
+\* running.
+PidRuns(p) == child[p] = "alive" \/ (Has("pid-alone") /\ p \in reused)
+Running(p) == p \in holders /\ p \notin ended /\ PidRuns(p)
 \* The steps of a call during which `jgauge test-slot` holds its slot.
 \* The processes whose run goes on the holders file: a call with --thread.
 OnFile == IF Chart THEN Threaded \ {"crew"} ELSE Threaded
@@ -587,7 +592,7 @@ EndedRead ==
 \* The canary "forget-unended" lets it go while its `jgauge test-slot` still lives to write the end.
 Over == {p \in hsnap.in :
            \/ p \in hsnap.ended
-           \/ /\ p \notin hsnap.ended /\ child[p] /= "alive" /\ p \notin reused
+           \/ /\ p \notin hsnap.ended /\ ~PidRuns(p)
               /\ (Has("forget-unended") \/ pc[p] = "off")}
 
 Judge ==

@@ -70,7 +70,7 @@
     "inputs": {
       "TestSlot.chart.cfg": "3ff159a439518f9a7f4e451a979e922326a5cc2a58e81902efbd3c690ed7a504",
       "TestSlot.map.py": "ec66d90505b6117e6d3844379edadb3a46aa56013ae698c1aac440b3befa66f7",
-      "TestSlot.tla": "da64bba58cb458d31e084adb60b2fc199c7f9a4e1a7552a1c33623968fb8bfe0"
+      "TestSlot.tla": "18b0f79cdaf95843321b8b062bcdeb2f62982b6f2ace5fff2f5571aeb4ff5ed0"
     },
     "chart": "59c91b0504c81f1e8579ae559bb43c366609f768dfb831594394c489c7c66653"
   }
