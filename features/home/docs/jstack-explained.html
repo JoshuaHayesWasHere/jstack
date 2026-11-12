@@ -420,7 +420,7 @@
 <div class="map">
 <div class="tile"><b>Run the pipeline</b><div class="names">
 <!-- built: skill links, Run the pipeline -->
-<a href="#skill-home">home</a><a href="#skill-root">root</a><a href="#skill-crew">crew</a><a href="#skill-scout">scout</a><a href="#skill-pr-review">pr-review</a><a href="#skill-expert">expert</a><a href="#skill-handoff">handoff</a><a href="#skill-nohome">nohome</a><a href="#skill-new-home">new-home</a><a href="#skill-poteto-help">poteto-help</a><a href="#skill-setup-pstack">setup-pstack</a><a href="#skill-make-bot-ui">make-bot-ui</a>
+<a href="#skill-engine">engine</a><a href="#skill-home">home</a><a href="#skill-root">root</a><a href="#skill-crew">crew</a><a href="#skill-scout">scout</a><a href="#skill-pr-review">pr-review</a><a href="#skill-expert">expert</a><a href="#skill-handoff">handoff</a><a href="#skill-nohome">nohome</a><a href="#skill-new-home">new-home</a><a href="#skill-poteto-help">poteto-help</a><a href="#skill-setup-pstack">setup-pstack</a><a href="#skill-make-bot-ui">make-bot-ui</a>
 <!-- built: end -->
 </div></div>
 <div class="tile"><b>Settle the shape before code</b><div class="names">
@@ -456,6 +456,7 @@
 </div>
 <div class="group"><h3>Run the pipeline <small>Five make a thread a role: <code>home</code>, <code>crew</code>, <code>scout</code>, the reviewer of <code>pr-review</code>, and <code>expert</code>. Each is the full text of what that thread does. The others close a home, set one up or switch it off, answer a help question, set up the machine, and make a bot's page.</small></h3><div class="cards">
 <!-- built: skill cards, Run the pipeline -->
+<article class="card" id="skill-engine"><h4>/engine</h4><p>Runs one engine pass in a root home: it reads the queue, what waits on the operator and the open pull requests, clears what stalls where a fix is reversible, and ends in a verdict, Quiet, Moving or Call.</p><p class="when">Reach for it as the root's scheduled task, or to run one pass by hand.</p><div class="who"><span class="chip op">the operator</span><span class="chip cmd">/engine</span></div></article>
 <article class="card" id="skill-home"><h4>/home</h4><p>Makes this thread the repo's home. It reads what jbus holds, plans with the operator, writes each brief and launches its crewmate. It does none of the work.</p><p class="when">Reach for it when you start or continue work in a repo.</p><div class="who"><span class="chip op">the operator</span><span class="chip cmd">the start hook</span></div></article>
 <article class="card" id="skill-root"><h4>/root</h4><p>The root home's own steps: it supplies every child home its rows, gives an entry's go on the user's standing word, tells and answers its children through jbus, and judges each waiver. It builds nothing.</p><p class="when">It loads by itself when /home starts the root home.</p><div class="who"><span class="chip cmd">/home</span></div></article>
 <article class="card" id="skill-crew"><h4>/crew</h4><p>Makes a thread a crewmate. It does the one task of one brief in its own worktree, opens the pull request, writes its Result into the brief and stays on the pull request.</p><p class="when">Reach for it when a brief is written and approved. It is typed as <code>/crew &lt;slug&gt;</code>.</p><div class="who"><span class="chip model">a home</span><span class="chip cmd">jbus</span></div></article>
