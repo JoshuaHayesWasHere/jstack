@@ -17,7 +17,7 @@ The rules, each with its harm:
 - **`NoTellLost`:** between passes, an act still owed whose mark is written was taken.
   Broken, a tell is marked done and nobody ever got it.
 
-Today's code breaks them on seven acts, recorded as findings: `stall.twice`'s page and the clock's stall are lost (`NoTellLost`); failover's ask, the second target's body, a word, the account question and a skill's notice can go twice (`NoTellTwice`).
+Today's code breaks them on eight acts, recorded as findings: `stall.twice`'s page, the clock's stall and the finding of a hold only the user's accept lifts (`heldlift`) are lost (`NoTellLost`); failover's ask, the second target's body, a word, the account question and a skill's notice can go twice (`NoTellTwice`).
 `TellOnce.cfg`'s comment keeps each trace, and the test checks that each still breaks.
 The other six acts (held, items, expedite, cancelled, closed, revert) hold both.
 
@@ -46,7 +46,6 @@ Covers:
 
 At the sync commit `Code(c)` and `Guard(c)` were read against the code of every act, and each write order and guard matched.
 For the three read last: items appends its line, then `items-next.json`, guarded by the fold's `proposed already` (`item._put`); word posts, then `_change` writes `sent_at`, guarded by `if one.sent_at` (`word.deliver`); expedite sends, logs and marks through `rebase.once`, then writes `expedite.json` at the end of `tell`, guarded by the mark or `told`.
-The only change to these files since the model's main (aa5469d97) was 23f42940f, which moved imports and changed no act.
 `features/repo-guards/tests/test_model_sync.py` fails when a file or name above is gone.
 Move `Sync:` forward only after you read every change to these files since it against the model, as `/maintain-formal-verification-skill` says, and never because the check passes.
 
@@ -62,9 +61,9 @@ uv run pytest features/jbus/tests/test_tell_once_spec.py -q
 ```
 
 It prints `6 passed` in about five seconds, and skips where no Java runs TLC.
-The bare TLC command, with `-continue` so it reports all seven breaks and not only the first, is in `features/jbus/spec/README.md`, "Check the rules of act once"; run it in a copy of the folder.
+The bare TLC command, with `-continue` so it reports all eight breaks and not only the first, is in `features/jbus/spec/README.md`, "Check the rules of act once"; run it in a copy of the folder.
 
-- **Bounds:** the 13 acts of `Carriers`, `Passes = 2`, `Fault = "none"`, 1676 distinct states; one behavior follows one act, so the acts' states add up and do not multiply.
+- **Bounds:** the 14 acts of `Carriers`, `Passes = 2`, `Fault = "none"`, 1694 distinct states; one behavior follows one act, so the acts' states add up and do not multiply.
 - **The canaries:** `Fault = "mark-first"` writes the marks before the act and breaks `NoTellLost` on every act; `Fault = "no-mark"` reads no mark and breaks `NoTellTwice` on every act.
 - **Assumptions:** safety only, so an act a guard keeps from running for ever passes; a clock wait never returns to a kind it had; `Box.send` writing a finding's key before its line is modeled for the clock's stall and `stall.twice` only.
   The rest is in the README's "What the act-once model leaves out".
@@ -78,12 +77,15 @@ A new break on an act that held is a bug: tell it as the act, the write the pass
 
 ## Change the model when the code changes on purpose
 
-- A fix for one of the seven: the test's expected breaks fail until the cfg's comment and the test's list drop it.
+- A fix for one of the eight: the test's expected breaks fail until the cfg's comment and the test's list drop it.
 - A new act: add it to `Carriers` with its `Code`, `Guard` and `Absorbs` rows and a variable for each carrier it writes, quoted.
 - Show a changed rule failing on a scratch break first (swap two writes of one act in your own worktree, uncommitted, see the trace, `git restore` the file).
 
-## Drift at the sync commit
+## The last upkeep
 
-`/maintain-formal-verification-skill` fixes it.
+`/maintain-formal-verification-skill` ran at the sync commit (st-model-upkeep-run) and fixed one drift in the model:
 
-- **`clock.held`'s lift is not modeled:** a hold that lifts sets `woke` and only finds the run again, sending nothing to T3 Code; the model has no such branch, and the README's "leaves out" does not name it.
+- **`clock.held`'s lift branch** was not modeled: a hold only the user's accept lifts sets `woke`, logs a finding through `run.find` and sends nothing to T3 Code.
+  It is the act `heldlift`, `<<"key", "act", "record">>`, guarded by `woke` and the finding's key.
+  TLC finds it breaks `NoTellLost` (bug-8): `Box.send` writes the key, the pass dies before the event line, and the next pass finds the key, logs nothing and writes `woke`, so the user is never told the hold is theirs.
+  That is the clock's stall's cause, `Box.send`'s key-first write, which st-fix-tell-once (#1725) fixes in `wake.py`; once it merges, `heldlift` should hold and leave `TODAY`.
