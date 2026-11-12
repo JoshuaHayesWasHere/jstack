@@ -1,7 +1,8 @@
 """A pass does not launch a row while another row that names the same hot file runs or has its
 pull request open. A file is hot once the `rebase` events of the last 7 days put it in 3 or more
-conflicts with main. Like `test_jbus_queue.py`, the tests run the real pass against a faked T3
-Code server, `gh` and `jmerge`, over a real git checkout in which each conflict is made."""
+conflicts with main (`jbus.hotfiles`). Like `test_jbus_queue.py`, the tests run the real pass
+against a faked T3 Code server, `gh` and `jmerge`, over a real git checkout in which each conflict
+is made."""
 
 import os
 import subprocess
@@ -204,3 +205,20 @@ def test_a_glob_that_matches_the_hot_file_names_it(kitchen):
 
     assert launched(kitchen) == ["alpha"]
     assert rows(kitchen)["beta"]["why"] == WAITS
+
+
+def test_a_held_row_waits_on_the_user_where_the_row_it_waits_on_does(kitchen):
+    """The row out holds a pull request only the user may merge: that root unblocks the held row
+    too (`jbus.stall`)."""
+    conflicts(kitchen, HOT, 3)
+    queue_two(kitchen)
+    kitchen.poll()
+    crew(kitchen, "alpha", "completed")
+    kitchen.set("open.json", [kitchen.opened("alpha", 7)])
+    kitchen.set("jmerge.txt", "hold 7 https://example.test/pull/7: needs user\n")
+
+    kitchen.poll(NOW + timedelta(minutes=3))
+
+    (event,) = kitchen.events("waiting-on-user")
+    assert event["slug"] == "#7"
+    assert kitchen.lines("waiting-on-user")[0].endswith("unblocks beta · since 11:03 ET")
