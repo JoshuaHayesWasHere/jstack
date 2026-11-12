@@ -71,7 +71,7 @@ uv run pytest features/jgauge/tests/test_test_slot_spec.py -q
 It finds each quote of the spec once in its file, checks that each ledger row (D-048 to D-074) is a VARIABLE that cites its writer, and runs TLC on today's mode, the mode that passes and each canary, in under a minute; the TLC tests skip where no Java runs TLC.
 The bare TLC command, the table of faults and the trace are in `features/jgauge/spec/TestSlot.md`, "Check the rules"; run TLC in a copy of the folder, since it writes `states/` where it runs.
 
-- **Bounds:** one full slot, one short slot, one crew thread waiting on the full lane; `TestSlot.cfg` (`Fault = "today"`, `PidReuse = TRUE`, every process `Mortal`) holds every rule over 694,283 distinct states, and is the mode that passes, `Fault = "none"`.
+- **Bounds:** one full slot, one short slot, one crew thread waiting on the full lane; `TestSlot.cfg` (`Fault = "today"`, `PidReuse = TRUE`, every process `Mortal`) holds every rule over 1,357,013 distinct states, and is the mode that passes, `Fault = "none"`.
 - **The faults:** none today; `spare-outside-lock`, which breaks `WokenGetsSlot`, `no-resend`, which breaks `WokenIsTold`, `forget-unended`, which breaks `EndNotLost`, `orphan-command`, which breaks `OneCommandPerSlot`, `pid-alone`, which breaks `NoLostHolder`, and `no-ledger-lock`, which breaks `LedgerNoLostUpdate`, are faults the code has closed.
 - **Assumptions:** the rest is in the README's "What the model leaves out": no `free()` probe outside the waiters lock, one jgauge slot count, no order of the short lane for a call with no thread, no crash between `Popen` and `holders.hold`, no `dead` checks in jbus, and a ledger merge joined into "each merged record stays".
 

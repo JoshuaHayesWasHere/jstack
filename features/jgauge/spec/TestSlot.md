@@ -68,7 +68,7 @@ Run it in a copy of this folder, since TLC writes `states/` where it runs.
 
 ### The verdict: today's code holds every rule
 
-TLC's verdict on `TestSlot.cfg` is `Model checking completed. No error has been found.`, over 694,283 distinct states: 685,520 in the full lane's room, 6,226 in the short lane's, 1,690 in the ledger's and 847 in the pool's.
+TLC's verdict on `TestSlot.cfg` is `Model checking completed. No error has been found.`, over 1,357,013 distinct states: 1,348,250 in the full lane's room, 6,226 in the short lane's, 1,690 in the ledger's and 847 in the pool's.
 Today's code is the mode that passes, `Fault = "none"`.
 
 The six faults the code has closed break their rules in the canaries.
@@ -92,7 +92,7 @@ The six faults the code has closed break their rules in the canaries.
   jbus's loop makes T3 Code calls for the other holders between its read and its `running` check, which widens it.
 - `orphan-command`, `OneCommandPerSlot`: `jgauge test-slot` is killed with SIGKILL, and its command runs on with the slot free.
   The next call starts a second command in the same slot, and its `_temporary` empties the directory the first command still uses.
-  Today's code holds `OneCommandPerSlot` over all 694,283 distinct states of its mode, and the test checks it in the short lane's room alone.
+  Today's code holds `OneCommandPerSlot` over all 1,357,013 distinct states of its mode, and the test checks it in the short lane's room alone.
 - `pid-alone`, `NoLostHolder`: a short call with `--thread` takes its slot, starts its command and records the run in the holders file.
   The command dies, and another process takes its pid before the end is on record.
   A reader that asks only whether some process has the pid counts the run as running, so jbus never forgets it and never tells its thread the run ended.
@@ -118,10 +118,10 @@ W=$(mktemp -d) && cp features/jgauge/spec/TestSlot.tla features/jgauge/spec/Test
 
 Run it from the repo root.
 Then copy the files of `$W/TestSlot-statechart` into `TestSlot-statechart/`, all except `tlc/`.
-`TestSlot.cfg` has 694,283 states in today's mode, the mode that passes, more than the chart's state graph can hold.
+`TestSlot.cfg` has 1,357,013 states in today's mode, the mode that passes, more than the chart's state graph can hold.
 So the chart is drawn from `TestSlot.chart.cfg`: today's code, where only the short lane's crew can be killed, and the full room keeps no holders file (`Chart = TRUE`), which the short room draws.
-That is 85,439 model states, and it draws no numbered path, since today's code breaks no rule.
-`--also-config TestSlot.cfg` runs today's mode of the whole machine once more for the tables alone: its 694,283 states add 100 states and 732 arrows, and `states.tsv` and `arrows.tsv` list all 258 states and 1,151 arrows, between them or, for each loop the chart draws, within one, each with its action and its count of model steps in each run.
+That is 129,918 model states, and it draws no numbered path, since today's code breaks no rule.
+`--also-config TestSlot.cfg` runs today's mode of the whole machine once more for the tables alone: its 1,357,013 states add 142 states and 1,040 arrows, and `states.tsv` and `arrows.tsv` list all 318 states and 1,522 arrows, between them or, for each loop the chart draws, within one, each with its action and its count of model steps in each run.
 `TestSlot.map.py` labels each state by what the machine's files say, and names each join of values in its header.
 
 ## What the model leaves out

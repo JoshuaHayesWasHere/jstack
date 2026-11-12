@@ -120,7 +120,7 @@ def tlc(
 JAVA = pytest.mark.skipif(not tools.find_java(), reason="no Java to run TLC")
 TLC = pytest.mark.timeout(600)
 """A TLC run comes near the 120 s bound on CI: the mode that passes took 86 s at 614,686
-states, and has 694,283 now."""
+states, and has 1,357,013 now."""
 
 
 def test_today_s_wake_is_counted_and_recorded_under_the_waiters_lock():
@@ -184,7 +184,7 @@ def test_each_of_today_s_faults_breaks_its_rule(fault, rule):
 def test_a_killed_test_slot_takes_its_command_with_it_today(fault, code):
     """Today's code holds OneCommandPerSlot where a killed `jgauge test-slot` leaves the slot
     free, and the canary that lets its command live on breaks it there. The short lane's room
-    alone, since the whole of today's mode is 694,283 states."""
+    alone, since the whole of today's mode is 1,357,013 states."""
     ended, out = tlc(fault, ["OneCommandPerSlot"], room="short")
     assert ended == code, out[-4000:]
     assert ("Invariant OneCommandPerSlot is violated" in out) == bool(code), out[-4000:]
