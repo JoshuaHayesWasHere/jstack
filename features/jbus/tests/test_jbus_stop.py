@@ -320,7 +320,7 @@ def test_a_stop_into_a_capped_root_waits_for_the_reset(kitchen):
     cap("claudeAgent", resets=datetime.now(UTC) + timedelta(hours=1))
     kitchen.t3.thread("root", threadId=ROOT)
     code, said = stops(kitchen, "fl-mine", "--on", "fix-root")
-    assert (code, said.endswith("sent to nobody yet, its thread is capped\n")) == (0, True), said
+    assert (code, said.endswith(f"sent to nobody yet, {stop.HELD}\n")) == (0, True), said
     assert sent(kitchen) == []
 
 
