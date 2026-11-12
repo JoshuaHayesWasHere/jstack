@@ -30,6 +30,10 @@
       "refuses": true
     }
   ],
+  "projectSkills": [
+    "project-skill/verify-home-tree",
+    "project-skill/verify-home-tree-today"
+  ],
   "docs": [
     "docs/state.md",
     "docs/flow.md",

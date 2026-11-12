@@ -13,5 +13,8 @@
   },
   "docs": [
     "docs/jinstall.md"
+  ],
+  "projectSkills": [
+    "project-skill/verify-setup"
   ]
 }

@@ -52,7 +52,13 @@
     }
   ],
   "projectSkills": [
-    "project-skill/verify-main-red"
+    "project-skill/verify-green-move",
+    "project-skill/verify-main-fix",
+    "project-skill/verify-main-red",
+    "project-skill/verify-one-list",
+    "project-skill/verify-row-life",
+    "project-skill/verify-tell-once",
+    "project-skill/verify-thread-life"
   ],
   "docs": [
     "docs/jbus.md",

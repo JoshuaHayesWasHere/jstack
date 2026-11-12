@@ -26,6 +26,7 @@ Start with `statechart --help`, which gives the commands and how to read a chart
 TLC's `tla2tools.jar` is pinned in `scripts/statechart/tools.py` and is downloaded to `~/.cache/jstack/tla2tools/` on the first run, checked against its sha256; set `TLA2TOOLS` to use another copy.
 `--png` renders with Mermaid's `@mermaid-js/mermaid-cli` through `npx`, at the version pinned in the same file, so it needs Node.
 The mapping that labels a model is a Python file, `SPEC.map.py`, and `scripts/model/` has a worked one: `OutputFolder.tla` models the command's own output folder, and `OutputFolder.map.py` labels it.
+The project skill in `features/skill-library/project-skill/verify-output-folder/` names the code that model covers, how to check it, and the commit it was last read against.
 Work in a scratch folder outside the repo.
 The command writes its files next to its input.
 
