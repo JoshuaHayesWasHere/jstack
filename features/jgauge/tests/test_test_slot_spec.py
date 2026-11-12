@@ -123,15 +123,15 @@ TLC = pytest.mark.timeout(600)
 states, and has 694,283 now."""
 
 
-@JAVA
-@TLC
 def test_today_s_wake_is_counted_and_recorded_under_the_waiters_lock():
     """slotwait.wake counts the free slot and records the wake in one hold of the waiters lock,
-    before its send, so today's code holds WokenGetsSlot in the full lane's room, where the
-    canary spare-outside-lock breaks it."""
-    code, out = tlc("today", ["WokenGetsSlot"], room="full")
-    assert code == 0, out[-4000:]
-    assert "Model checking completed. No error has been found." in out
+    before its send, so today's code puts no fault back: `TodayFaults` is empty, and today's
+    mode is the mode that passes, whose one TLC run holds WokenGetsSlot over the whole machine
+    while the canary spare-outside-lock breaks it. A second TLC run of the same states, in
+    today's name, would hold a hosted runner's cores for 100 s more and check nothing new."""
+    spec = (SPEC / "TestSlot.tla").read_text()
+    assert re.search(r"^TodayFaults == \{\}$", spec, re.M)
+    assert 'Has(f) == Fault = f \\/ (Fault = "today" /\\ f \\in TodayFaults)' in spec
 
 
 @JAVA
