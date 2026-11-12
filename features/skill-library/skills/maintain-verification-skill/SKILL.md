@@ -142,7 +142,7 @@ else
         echo "- the Result says the outcome, \`clean\`, \`changed\` or \`blocked\`, with every feature and how it was covered: \`clean\` and \`blocked\` open no pull request, \`changed\` opens one"
         echo "Proves it: the live pass, with each feature's evidence listed after the final cleanup, and the existing CI check on the pull request, green, when there is one"
         echo "Size: M"
-        echo "Where: \`$dir/\`, and the feature files \`$map\` lists"
+        echo "Where: \`$dir/\`, and the feature files \`$map\` lists: $(awk 'FNR == 1 && match($(0), /where `[^`]*`/) { print substr($(0), RSTART + 6, RLENGTH - 6) }' "$H/scouts/$run"-*.md | paste -sd , - | sed 's/,/, /g')"
         echo "Do not touch: product code, and anything outside \`$dir/\` but the feature files"
         echo "Decisions: none"
         echo "Skills: blast-radius, prove-it-works"
