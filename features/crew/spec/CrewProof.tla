@@ -94,7 +94,7 @@ VARIABLES
     failed,
     \* D-129: $G/crew-check-steps, its first line the head (and base) and the steps passed there:
     \* crew/do-the-task.md `[ "$(sed -n 1p "$steps" 2> /dev/null)" = "$head $base" ] || printf '%s %s\n' "$head" "$base" > "$steps"`
-    \* and crew/do-the-task.md `0) [ -n "$clean" ] || echo "passed $step" >> "$steps" ;;`.
+    \* and crew/do-the-task.md `echo "passed $step" >> "$steps"`.
     steps,
     \* D-130: $G/crew-proof-sides, its first line the head (and base) and the sides that exited 0:
     \* crew/templates/proved.sh `[ "$(sed -n 1p "$passed" 2> /dev/null)" = "$head $base" ] || printf '%s %s\n' "$head" "$base" > "$passed"`
@@ -276,7 +276,10 @@ Todo ==
     IN SelectSeq(all, LAMBDA s: s \notin steps.passed \cup call.done)
 
 \* One step under a slot. 0 passes, and is kept where the worktree was clean when the block
-\* began: crew/do-the-task.md `0) [ -n "$clean" ] || echo "passed $step" >> "$steps" ;;`.
+\* began and is still clean at its head when the step ends:
+\* crew/do-the-task.md `if [ -z "$clean" ] && [ -z "$(git status --porcelain)" ] && [ "$(git rev-parse HEAD)" = "$head" ]; then`.
+\* A pass over work the head does not have (moved) is not kept, and the steps stop as with steps
+\* left, so the exit is 76: crew/do-the-task.md `echo "$step: passed over work that $head does not have, so it is not kept"`.
 \* Any other exit stops the steps with no line that says 0: 1 here stands for a failure, a 124
 \* (crew/do-the-task.md `124) ran=124 ;;`), which goes on to the next step but leaves the exit
 \* 124, and a 76 for no slot. The step runs on the worktree as it is at that moment.
@@ -284,12 +287,12 @@ CheckStep ==
     /\ pc = "checking" /\ Len(Todo) > 0
     /\ LET s == Head(Todo) IN
        \E e \in {0, 1}:
-         /\ steps' = IF e = 0 /\ call.clean
-                       THEN [steps EXCEPT !.passed = @ \cup {s}] ELSE steps
-         /\ runs' = IF e = 0 /\ call.clean /\ Tree /= steps.at
-                      THEN [runs EXCEPT !.steps = TRUE] ELSE runs
-         /\ call' = [call EXCEPT !.done = @ \cup {s}, !.ran = e]
-         /\ pc' = IF e = 1 THEN "checkEnd" ELSE "checking"
+         LET keep == e = 0 /\ call.clean /\ ~dirty /\ head = call.at
+             moved == e = 0 /\ call.clean /\ ~keep
+         IN /\ steps' = IF keep THEN [steps EXCEPT !.passed = @ \cup {s}] ELSE steps
+            /\ runs' = IF keep /\ Tree /= steps.at THEN [runs EXCEPT !.steps = TRUE] ELSE runs
+            /\ call' = [call EXCEPT !.done = @ \cup {s}, !.ran = e, !.left = @ \/ moved]
+            /\ pc' = IF e = 1 \/ moved THEN "checkEnd" ELSE "checking"
     /\ UNCHANGED <<checked, failed, bg>> /\ Unchanged_check
 
 \* No step starts with less than the reserve left of the budget: the rest are left.

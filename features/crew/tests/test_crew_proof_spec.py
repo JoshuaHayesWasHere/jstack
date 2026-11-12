@@ -1,9 +1,10 @@
 """A crew's proof, review round and rebase as a TLA+ spec, `features/crew/spec/CrewProof.tla`:
 each quote of the code it models stands once in its file, each carrier of the ledger is a
-variable, and TLC gives the verdicts `CrewProof.cfg` keeps in its comments: today's code breaks
-ProofAtHead with the trace the cfg names, each rule alone breaks or holds as the cfg says, and
-the canary `Fault = "line-before-run"` breaks ProofAtHead where today's code, with no call moved
-to the background, holds it. The TLC runs skip where no Java runs TLC."""
+variable, and TLC gives the verdicts `CrewProof.cfg` keeps in its comments: today's code holds
+ProofAtHead and breaks RebaseRecorded with the trace the cfg names, each rule alone breaks or
+holds as the cfg says, and the canary `Fault = "line-before-run"` breaks ProofAtHead where
+today's code, with no call moved to the background, holds it. The TLC runs skip where no Java
+runs TLC."""
 
 import importlib
 import re
@@ -124,16 +125,17 @@ def alone(rules: list[str], background: bool = True, fault: str = "none") -> str
 
 
 @JAVA
-def test_tlc_breaks_proof_at_head_on_todays_code_with_the_trace_the_cfg_keeps():
+def test_tlc_breaks_the_rebase_record_on_todays_code_with_the_trace_the_cfg_keeps():
     ran = tlc((SPEC / "CrewProof.cfg").read_text())
     assert ran.returncode != 0
-    assert "Invariant ProofAtHead is violated" in ran.stdout, ran.stdout[-4000:]
+    assert "Invariant ProofAtHead is violated" not in ran.stdout, ran.stdout[-4000:]
+    assert "Invariant RebaseRecorded is violated" in ran.stdout, ran.stdout[-4000:]
     assert trace(ran.stdout) == kept("trace:")
     assert re.search(r"[\d,]+ distinct states found", ran.stdout)
 
 
 @JAVA
-@pytest.mark.parametrize("rule", ["CheckedAtHead", "RecordGoes", "OneScopedReviewer"])
+@pytest.mark.parametrize("rule", ["RecordGoes", "OneScopedReviewer"])
 def test_each_rule_the_code_breaks_breaks_with_the_trace_the_cfg_keeps(rule):
     ran = tlc(alone([rule]))
     assert f"Invariant {rule} is violated" in ran.stdout, ran.stdout[-4000:]
@@ -143,6 +145,17 @@ def test_each_rule_the_code_breaks_breaks_with_the_trace_the_cfg_keeps(rule):
 def states(out: str) -> str:
     (found,) = re.findall(r"([\d,]+) distinct states found, 0 states left", out)
     return found.replace(",", "")
+
+
+@JAVA
+def test_a_check_step_kept_only_at_its_clean_head_holds_checked_at_head_in_the_background():
+    """A call moved to the background lets the crew edit while a check step runs: the step is
+    kept as passed only where the worktree is still clean at the block's head when it ends, and
+    a step that passed over an edit ends the block 76 with no `Checked:` line."""
+    ran = tlc(alone(["CheckedAtHead"]))
+    assert ran.returncode == 0, ran.stdout[-4000:]
+    assert "No error has been found" in ran.stdout
+    assert f"{states(ran.stdout)} distinct states" == kept("holds CheckedAtHead:")
 
 
 @JAVA
