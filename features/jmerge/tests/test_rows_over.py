@@ -61,7 +61,8 @@ def accepted(kitchen):
 @pytest.mark.parametrize("over", ["done", "merged"])
 def test_the_users_accept_merges_the_pull_request_of_a_row_that_is_over_at_its_head(kitchen, over):
     """`ROW_OVER` says to accept it to merge it, and the accept merges it: the re-judge of the
-    accept lifts it at the head it was given at, as it lifts each hold of its kind."""
+    accept lifts it at the head it was given at, as it lifts each hold of its kind
+    (`jmerge.cli.Repo.judged`)."""
     head = over_and_held(kitchen, over)
     out = accepted(kitchen)
     assert kitchen.home.code == 0, (out, kitchen.home.stderr)
@@ -72,7 +73,8 @@ def test_the_users_accept_merges_the_pull_request_of_a_row_that_is_over_at_its_h
 
 
 def test_the_accept_of_a_row_that_is_over_lifts_no_other_wait_of_the_queue(kitchen):
-    """The accept lifts `ROW_OVER` alone: the row still merges after the rows it names."""
+    """The accept lifts `ROW_OVER` alone: the row still merges after the rows it names, since the
+    judge reads it as the row of an open pull request (`jmerge.cli.Repo.queue_of`)."""
     over_and_held(kitchen, "done", row("gamma", status="running"), merge_after=["gamma"])
     out = accepted(kitchen)
     assert kitchen.home.code == 1, kitchen.home.stderr
