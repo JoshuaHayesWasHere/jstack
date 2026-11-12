@@ -87,6 +87,7 @@ def step(action, before, after):
         "Supersede": f"run {r} finds another run's folder in place and deletes the old folder",
         "KeepAside": f"run {r} keeps the folder with your notes aside and says where",
         "Clean": f"run {r} deletes the old folder and finishes",
+        "RenderFails": f"run {r} cannot render a chart with --png",
         "Edit": "you edit the spec",
         "Note": "you save notes in the folder",
         "Stop": f"you stop run {r} with Ctrl-C",
