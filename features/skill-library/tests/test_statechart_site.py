@@ -241,19 +241,21 @@ def browser_lock():
 
 
 def probed(tmp_path, screen):
-    """What the probe measured on the committed page in a headless browser at a window of this
-    size. The probe, added to a copy of the page, opens each tab and measures what the frame
-    shows on load, then works the zoom, fit and theme buttons, and writes what it found into
-    the page, which the browser prints. The browser opens no window under 500 pixels wide, so
-    the phone's page is a frame of 390 pixels inside a wider one, and the probe in it posts
-    what it found up to that page."""
+    """What the probe measured, in a headless browser at a window of this size, on the page that
+    `statechart site` builds from the committed charts. The probe, added to a copy of the page,
+    opens each tab and measures what the frame shows on load, then works the zoom, fit and theme
+    buttons, and writes what it found into the page, which the browser prints. The browser opens
+    no window under 500 pixels wide, so the phone's page is a frame of 390 pixels inside a wider
+    one, and the probe in it posts what it found up to that page."""
     if not CHROMIUM:
         if BROWSER or os.environ.get("GITHUB_ACTIONS") == "true":
             pytest.fail(f"no browser to open the page in: {BROWSER or 'no chromium on PATH'}")
         pytest.skip("no chromium on PATH to open the page in")
     folder = tmp_path / f"{screen[0]}"
     folder.mkdir()
-    page = read(REPO / "features" / "home" / "docs" / "charts" / "index.html")
+    built = site(REPO, folder / "index.html")
+    assert built.returncode == 0, built.stderr
+    page = read(folder / "index.html")
     write(folder / "probed.html", page.replace("</body>", PROBE + "</body>"))
     target, window = folder / "probed.html", screen
     if screen[0] < 500:
