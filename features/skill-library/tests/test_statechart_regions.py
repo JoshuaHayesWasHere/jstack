@@ -1,8 +1,9 @@
 """Reference lanes (`statechart site --lanes`): MainRed's and RowLife's mappings name their lanes,
 and the lanes module draws a chart's graph with every step on one arrow, table cell or row, no
 two lines crossing and no label on a line. The full graphs are drawn and checked only by
-`make charts`, never here: these tests run on a lamp of a few states, with no TLC and no browser,
-and on a state folder written in the test, never the real one."""
+`make charts`, never here: these tests run on a lamp (off, on and broken, a bulb change inside
+"broken", and a wall switch in a lane of its own), with no TLC and no browser, and on a state
+folder written in the test, never the real one."""
 
 import importlib
 import json
@@ -11,21 +12,20 @@ from types import SimpleNamespace
 
 import pytest
 
-import statechart_support  # noqa: F401  (puts the port's package on the path)
+from statechart_support import ChartError
 from testing.paths import REPO
 
 L = importlib.import_module("statechart.lanes")
-ChartError = importlib.import_module("statechart.lib").ChartError
 load_mapping = importlib.import_module("statechart.mapping").load_mapping
 
 SPEC = REPO / "features" / "jbus" / "spec"
 
 
 def test_mainred_names_four_lanes_with_one_box_for_a_red_with_a_newer_run():
+    """A red whose newest commit's run is going is the merged box, not a box of its own."""
     m = load_mapping(SPEC / "MainRed.map.py")
     assert list(m.lanes) == ["main", "rev", "fix", "mac"]
     assert list(m.lanes["main"]["boxes"]) == ["green", "running", "rerun", "red", "red_newer"]
-    # A red whose newest commit's run is going is the merged box, not a box of its own.
     red_tip = {"check": ["failed", "pending"], "rec": {"broken": 1, "green": 0}}
     assert m.main_box(red_tip) == "red_newer"
     assert m.main_box({"check": ["failed"], "rec": {"broken": 1, "green": 0}}) == "red"
@@ -76,9 +76,6 @@ def test_a_count_is_only_on_what_a_log_records(tmp_path):
         ("main", "running", "rerun", "pass"): 1,
         ("main", "rerun", "green", "rerun_passes"): 1,
     }
-
-
-# A lamp: off, on and broken, a wall switch in a lane of its own, and a bulb change inside "broken".
 
 
 LAMP = SimpleNamespace(
@@ -167,6 +164,7 @@ def drawn(steps):
 
 
 def test_every_step_of_the_lamp_has_one_place_and_every_place_a_step():
+    """The one move a log records carries its count, on the wide and the narrow drawing."""
     page, _ = drawn(STEPS)
     found = L.coverage(page, "Lamp", L.project(lanes(), [("Lamp.cfg", graph(*STEPS))]))
     assert (found["steps"], found["steps_without_place"], found["places_without_step"]) == (
@@ -174,14 +172,12 @@ def test_every_step_of_the_lamp_has_one_place_and_every_place_a_step():
         0,
         [],
     )
-    # The one move a log records carries its count, on the wide and the narrow drawing; no other.
     assert re.findall(r">seen [\d,]+</tspan>", page) == [">seen 3</tspan>"] * 2
 
 
 def test_coverage_fails_on_a_step_with_no_arrow():
     page, _ = drawn([s for s in STEPS if s[2] != "Burn"])
     found = L.coverage(page, "Lamp", L.project(lanes(), [("Lamp.cfg", graph(*STEPS))]))
-    # The burn is on no arc of either drawing.
     assert found["steps_without_place"] == 2
 
 
@@ -208,11 +204,11 @@ def test_the_lamp_is_drawn_with_no_crossing_and_no_label_on_a_line_or_a_label():
 
 
 def test_the_geometry_check_sees_a_crossing_and_a_label_on_a_line():
+    """The first arc's horizontal runs through the second's sides, its label onto that line."""
     _, drawings = drawn(STEPS)
     d = drawings[0]
     _, _, it, _, _ = d.lanes[0]
     a, b = it["arcs"][0], it["arcs"][1]
-    # Run the first arc's horizontal through the second's sides, and its label onto that line.
     y = (b["points"][0][1] + b["points"][1][1]) / 2
     x0, x1 = (
         min(b["points"][0][0], b["points"][2][0]) - 30,
