@@ -1423,8 +1423,13 @@ def short_on_content(verdict: Verdict | None) -> str:
 
 
 def short_on_github(one: PullRequest) -> str:
+    """What GitHub holds against the pull request, or nothing. GitHub runs no check on a pull
+    request that conflicts with its base, so a required check with no run at a conflicting head
+    is said as the conflict that keeps it from running (`CONFLICTS`): #1694 and every other open
+    statechart pull request read `check has no run` while each was CONFLICTING."""
     if one.waiting and one.waiting[0] in one.unrun:
-        return NO_RUN.format(check=one.waiting[0], head=one.head[:12])
+        unrun = NO_RUN.format(check=one.waiting[0], head=one.head[:12])
+        return CONFLICTS if one.mergeable == "CONFLICTING" else unrun
     if one.waiting and (state := dict(one.live).get(one.waiting[0])):
         return LIVE_RUN.format(check=one.waiting[0], head=one.head[:12], state=state)
     if one.waiting:

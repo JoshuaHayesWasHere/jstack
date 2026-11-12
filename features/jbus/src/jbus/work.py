@@ -180,7 +180,9 @@ class Facts:
 @dataclass(frozen=True)
 class Pattern:
     """A `Pattern` is one value, the facts that make it, and what it means. A facet the pattern does
-    not name may be anything. `lane` is the step of the view's line where the view draws it."""
+    not name may be anything. `lane` is the step of the view's line where the view draws it.
+    `apart` names facts the pattern's facets allow but leaves to another pattern: facts in which
+    every facet it names holds one of its values."""
 
     value: str
     name: str
@@ -193,8 +195,11 @@ class Pattern:
     written: frozenset[Written] = frozenset(Written)
     pull: frozenset[Pull] = frozenset(Pull)
     question: frozenset[Question] = frozenset({Question.NONE})
+    apart: tuple[tuple[str, frozenset[Any]], ...] = ()
 
     def matches(self, facts: Facts) -> bool:
+        if self.apart and all(getattr(facts, name) in among for name, among in self.apart):
+            return False
         return all(getattr(facts, name) in getattr(self, name, FACETS[name]) for name in FACETS)
 
     @functools.cached_property
@@ -220,7 +225,10 @@ ENDED_THREAD = THERE - AT_WORK
 """The threads that ended their work: a clean Result is the row's end only from one of these, since
 a thread still at work may yet open the pull request it owes."""
 NOTHING = {"written": _set(Written.NONE), "pull": _set(Pull.NONE)}
-WORKING = {"written": _set(Written.NONE, Written.CLEAN), "pull": _set(Pull.NONE)}
+WORKING = {"written": frozenset(Written), "pull": _set(Pull.NONE)}
+"""A thread at work with no pull request is at work whatever its last Result says: a Result that
+leaves work is the row's leftover only once the thread ended, and a crew carried on after it
+(`jbus.pausedon.tell`) works on what it left."""
 UNSTARTED = {"thread": _set(Thread.NONE), "launch": _set(Launch.NONE), "pull": _set(Pull.NONE)}
 AGAIN = "your word on what is left: jbus starts no second thread for it"
 
@@ -257,6 +265,7 @@ PATTERNS = (
         thread=THERE,
         written=_set(Written.LEFTOVER, Written.MALFORMED),
         pull=_set(Pull.NONE, Pull.MERGED),
+        apart=(("thread", AT_WORK), ("pull", _set(Pull.NONE))),
     ),
     Pattern(
         "done",
