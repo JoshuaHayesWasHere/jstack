@@ -12,6 +12,7 @@ import pytest
 
 from jbus import telemetry
 from jbus.telemetry import measures
+from jbus.telemetry.records import transitions
 from test_jbus_scorecard import USER, calls, measure, stamp
 
 MONDAY = datetime(2026, 11, 9, 21, 20, tzinfo=UTC)
@@ -102,3 +103,27 @@ def test_no_sunday_resets_a_72_hour_count(store, name, now):
     SEEDS[name](store, "row-73h", now - timedelta(hours=73))
     reading = measures.read(store, measure(name), "jstack", now, USER)
     assert reading.value == pytest.approx(worth(store, name, ["row-71h"]))
+
+
+def moved(store, slug: str, line: dict, at: datetime) -> None:
+    """A line of `transitions.jsonl` at `at`, written to the store as its record reads it."""
+    row = transitions.row({"slug": slug, "at": stamp(at), **line}, UTC)
+    names = ", ".join(row)
+    store.execute(
+        f"insert into transitions (project, key, {names}, day)"
+        f" values ('jstack', ?, {', '.join('?' * len(row))}, ?)",
+        (slug, *row.values(), at.date().isoformat()),
+    )
+
+
+def test_a_scouts_row_handed_to_its_crewmate_is_no_backward_move(store):
+    """RowLife's `HandOver` is the one move out of `done` it allows, and `jbus.queue._hand_over`
+    marks its line `"handed": true`: `backward-moves` leaves that line out, and still counts a
+    `done` to `removed`, a `done` to `queued` with no mark and a move out of `merged`."""
+    at = MONDAY - timedelta(hours=2)
+    moved(store, "handed", {"from": "done", "to": "queued", "handed": True}, at)
+    moved(store, "removed", {"from": "done", "to": "removed"}, at)
+    moved(store, "requeued", {"from": "done", "to": "queued"}, at)
+    moved(store, "unmerged", {"from": "merged", "to": "launched"}, at)
+    reading = measures.read(store, measure("backward-moves"), "jstack", MONDAY, USER)
+    assert reading.value == 3
