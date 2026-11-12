@@ -1,19 +1,8 @@
-## 1. Scope s working: the entry in plan-done.md twice; no fix
-
-Rule broken: An entry is in its plan or in plan-done.md, once, and in both only between the two writes of one close: no line is lost, and no close leaves a second copy. A close cut short is still between its two writes, as the disk shows it, until a close finishes it.
-Why: jbus plan close died between its append to plan-done.md and its rewrite of the plan, and the close run again appended the section a second time: plan.close reads plan-done.md only for the blank line before the section.
-There are 176 ways to get here in the model. This is the shortest.
-
-0. Start: Scope s working: the entry proposed or planned; no fix
-1. The home closes the entry: plan close appends it to plan-done.md. Now: Scope s working: the entry in its plan and in plan-done.md, the close at work; no fix
-2. The close dies between its two writes. Now: Scope s working: the entry in its plan and in plan-done.md, its close cut short; no fix
-3. The home closes it again: plan close appends it a second time. Now: Scope s working: the entry in plan-done.md twice; no fix
-
-## 2. Scope s working: the entry proposed or planned; the fix counted in s, not where its home reads it
+## 1. Scope s working: the entry proposed or planned; the fix counted in s, not where its home reads it
 
 Rule broken: A counted fix is in the ledger admit reads for it, the one of its brief's home, once no move runs. (A rule this model adds to the brief's three: today's code breaks it.)
 Why: jbus queue move rewrote the fix's Home: line and died before blockers.rehome carried its try, which only a move run again carries.
-There are 147 ways to get here in the model. This is the shortest.
+There are 84 ways to get here in the model. This is the shortest.
 
 0. Start: Scope s working: the entry proposed or planned; no fix
 1. The home queues the fix, and jbus counts it. Now: Scope s working: the entry proposed or planned; the fix counted in s

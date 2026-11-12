@@ -109,7 +109,7 @@ java -cp ~/.cache/jstack/tla2tools/1.7.4/tla2tools.jar tlc2.TLC -config PlanScop
 ```
 
 Run it in a copy of this folder.
-TLC stops at the first rule that breaks, so the test checks each rule of `PlanScope.cfg` in a run of its own, as `statechart from-spec` does, over STATES distinct states.
+TLC stops at the first rule that breaks, so the test checks each rule of `PlanScope.cfg` in a run of its own, as `statechart from-spec` does, over 850500 distinct states.
 
 - `RetireWhole`, a retired scope's work has a home, holds: the archive asks the gate of the catch-all and moves `gates.md` aside before it moves `plan.md`, and once `plan.md` is gone every brief that named s, by name or by its thread's id, is the catch-all's (`jbriefs/home.py`).
 - `FixCountedOnce`, a fix is counted once across a move, holds: a move holds both locks from its read to its second write, and so does a retire to its last, and run again each carries each try once, by its sha.
@@ -130,7 +130,7 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --e
 ```
 
 It writes `PlanScope-statechart/`, labelled by `PlanScope.map.py`, in two regions: the scope, and its entry and fix.
-`PlanScope.chart.cfg` is the chart's scene: one start (each line of the entry as the template writes it), one fix with both head lines, no fix that fails and no run of `jbus clear`, CHARTSTATES states where the whole model's are too many to draw.
+`PlanScope.chart.cfg` is the chart's scene: one start (each line of the entry as the template writes it), one fix with both head lines, no fix that fails and no run of `jbus clear`, 1443 states where the whole model's are too many to draw.
 Its one bug story is the one broken rule: the move cut before its carry.
 
 ### What the model leaves out
