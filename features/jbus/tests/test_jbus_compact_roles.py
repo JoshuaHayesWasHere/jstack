@@ -1,8 +1,9 @@
-"""A crew's context has a ceiling of 180k and a scout's of 330k: once such a thread's last call sent
-its ceiling or more and its turn has ended, jbus sends its thread `/compact`, once for that call, so
-a crew or a scout that waits between turns (on a review, a check or an answer) is not woken with its
-whole context. A thread under its ceiling, one at work, one T3 Code archived and one of another
-role get none, and a crew compacted at its pull request is not compacted again for the same call.
+"""A crew's context has a ceiling of 180k and a scout's of 330k: once such a thread's last call
+sent its ceiling or more and its turn has ended, `jbus.compact` sends its thread `/compact`, once
+for that call, so a crew or a scout that waits between turns (on a review, a check or an answer) is
+not woken with its whole context. A thread under its ceiling, one at work, one T3 Code archived and
+one of another role get none, and a crew compacted at its pull request is not compacted again for
+the same call.
 
 The tests run the real pass against the fakes, as `test_jbus_compact_home.py` does."""
 
@@ -11,7 +12,7 @@ from datetime import timedelta
 import pytest
 
 from jbus import telemetry
-from test_jbus_kitchen import NOW, Kitchen
+from test_jbus_kitchen import NOW, PROJECT, Kitchen
 from test_jbus_queue import add
 
 MIN = timedelta(minutes=1)
@@ -151,3 +152,24 @@ def test_a_crew_compacted_at_its_pull_request_is_not_compacted_again_for_that_ca
         ("mcp:thread-1", "compact|alpha"),
         ("mcp:thread-1", f"compact|crew|mcp:thread-1|{stamp(5)}"),
     ]
+
+
+def test_a_list_t3_code_did_not_give_sends_none_and_the_next_pass_sends_it(kitchen):
+    at = thread(kitchen, "scout: probe")
+    calls(kitchen, at, (0, 400_000))
+
+    def scouts_unanswered():
+        asked = kitchen.t3.calls[-1][1]
+        if asked.get("titleContains") == "scout: ":
+            kitchen.t3.down.add(PROJECT)
+        else:
+            kitchen.t3.down.discard(PROJECT)
+
+    kitchen.t3.on_list = scouts_unanswered
+    said = kitchen.poll(NOW + MIN)
+    assert sent(kitchen) == []
+    assert any("did not list its scout threads" in line for line in said)
+    kitchen.t3.on_list = None
+    kitchen.t3.down.discard(PROJECT)
+    kitchen.poll(NOW + 4 * MIN)
+    assert sent(kitchen) == [(at, f"compact|scout|{at}|{stamp(0)}")]

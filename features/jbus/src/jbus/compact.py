@@ -154,10 +154,7 @@ def compacted(run: Pass, thread: str) -> datetime | None:
     for line in text.splitlines():
         if f'"template": "{TEMPLATE}"' not in line or '"went": "sent"' not in line:
             continue
-        try:
-            one = json.loads(line)
-        except ValueError:
-            continue
+        one = json.loads(line)
         if jsettings.thread_id(str(one.get("thread") or "")) == want and one.get("at"):
             found.append(str(one["at"]))
     return _when(found[-1]) if found else None
