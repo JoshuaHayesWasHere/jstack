@@ -342,15 +342,13 @@ def github(run: Pass, client: Client, world: World) -> None:
             elif deliver(run, client, world, number, red.reason, ask):
                 run.box.mark(told)
         told = rebased or mark("conflict", slug, head) in sent
-        if pull.get("mergeable") != "CONFLICTING" or stacks.unmoved(brief):
-            continue
         if review.reviewed(brief):
             ask = Ask("rebase", "told the crew", "told to rebase", MESSAGE, head[:12], True)
         else:
             ask = _asked("conflict", CONFLICTED, head)
-        if not told:
+        if pull.get("mergeable") == "CONFLICTING" and not told and not stacks.unmoved(brief):
             deliver(run, client, world, number, ready.CONFLICTS, ask)
-        else:
+        elif pull.get("mergeable") == "CONFLICTING" and not stacks.unmoved(brief):
             retell(run, client, world, (slug, head, number), brief, ask)
 
 
