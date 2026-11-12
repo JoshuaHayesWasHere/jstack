@@ -1549,6 +1549,25 @@ def _stacked_on(verb: Add) -> None:
         )
 
 
+def stack_on(state: Path, slug: str, base: str) -> bool:
+    """Add `base` to the depends of the launched row `slug`, which jbus stacks on `base`'s open
+    pull request (`jbus.stack.adopt`), and return whether the row has it now. This is jbus's own
+    write, not a home's add: the row's crew built on `base`'s branch, which is what a depends
+    stands for, so no `Builds on:` line is asked for (`_builds_on`), and the `Stacked on:` line
+    jbus writes next is backed by it (`_stacked_on`). A row not launched, or no longer in the
+    table, is left as it is."""
+    with _changing(state) as rows:
+        for row in rows:
+            if row["slug"] != slug:
+                continue
+            if row.get("status", "queued") in UNLAUNCHED:
+                return False
+            if base not in row.setdefault("depends", []):
+                row["depends"].append(base)
+            return True
+    return False
+
+
 def _merge_after(batch: _Batch, verb: Add) -> None:
     """Refuse an order that jmerge could not keep. There are three such orders. In the first, a row
     merges after itself. In the second, a row merges after a slug that was removed or that has no

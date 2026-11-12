@@ -12,6 +12,7 @@ While the base is open, its crew is told nothing, however the base's head moves.
 
 The tests run the real pass against the kitchen's fakes of T3 Code and GitHub."""
 
+import json
 from datetime import timedelta
 
 import pytest
@@ -19,6 +20,8 @@ import pytest
 import jbus
 from crew_branches import pushed
 from jbriefs import stacked as stacks
+from jbus import queue
+from jmerge import mainjson
 from test_jbus_chains import queue_add
 from test_jbus_kitchen import NOW, Kitchen, asks, sends_in_once
 from test_jbus_queue import brief, go
@@ -316,3 +319,144 @@ def test_a_crew_killed_after_its_rebase_landed_leaves_a_record_that_holds_no_lin
     else:
         assert stack.origin("two") == stack.head and record.exists()
         assert any("has a rebase of its own not finished" in line for line in said), said
+
+
+BASE_ROW, HELD_ROW = "st-code-conforms", "st-hand-over-line"
+
+
+class Held:
+    """st-hand-over-line, replayed: `st-code-conforms` (#10) is open on its branch, and
+    `st-hand-over-line`, filed from it with no depends, launched on main. Its crew found the code
+    it needs only on the base's branch, built two commits on its head in its own worktree, pushed
+    nothing, and paused with `Waits on: st-code-conforms`. Each thread's turn has ended."""
+
+    def __init__(self, kitchen, monkeypatch, waits=BASE_ROW, against=""):
+        from test_jbus_stack_move import commit, crewtree_of, git, signed
+
+        signed(monkeypatch)
+        self.kitchen, self.git = kitchen, git
+        kitchen.word()
+        kitchen.config(max_running=8)
+        assert queue_add(kitchen, BASE_ROW)[0] == 0 and go(kitchen, BASE_ROW)[0] == 0
+        text = brief(HELD_ROW)
+        if against:
+            text = text.replace("open one when done", f"open one against {against} when done")
+        assert queue_add(kitchen, HELD_ROW, text=text)[0] == 0 and go(kitchen, HELD_ROW)[0] == 0
+        assert queue_add(kitchen, "other")[0] == 0
+        if against:
+            pushed(kitchen, against)
+        green = git(kitchen.checkout, "rev-parse", "main")
+        kept = mainjson.record(main=green, at=NOW.isoformat(), check="green", green=green)
+        (kitchen.state / mainjson.NAME).write_text(json.dumps(kept))
+        passes(kitchen, -30, -27)
+        titles = [one["title"] for one in kitchen.t3.launches]
+        assert titles == [f"crew: {BASE_ROW}", f"crew: {HELD_ROW}"]
+        base, row = crewtree_of(kitchen, BASE_ROW), crewtree_of(kitchen, HELD_ROW)
+        self.base_head = commit(base, "conforms.txt", "conforms\n")
+        git(base, "push", "-q", "origin", BASE_ROW)
+        git(row, "fetch", "-q", "origin", BASE_ROW)
+        git(row, "reset", "-q", "--hard", self.base_head)
+        commit(row, "hand.txt", "hand over\n")
+        self.head = commit(row, "line.txt", "the line\n")
+        self.tree = row
+        self.path = kitchen.home / "tasks" / f"{HELD_ROW}.md"
+        self.path.write_text(
+            self.path.read_text() + "\n## Result\nStatus: paused\nDone when: all hold\n"
+            f"Branch: {HELD_ROW}   Pull request: none\nWaits on: {waits}\n"
+            f"Left: the commits are local, nothing is pushed, by design, until {BASE_ROW} "
+            "merges\n"
+        )
+        self.opened(self.base_head)
+        for thread in kitchen.t3.threads:
+            thread["status"] = "completed"
+
+    def opened(self, head):
+        self.kitchen.set("open.json", [{**self.kitchen.opened(BASE_ROW, 10), "headRefOid": head}])
+
+    def head_line(self):
+        return stacks.of(self.path.read_text())
+
+    def green(self):
+        head = self.path.read_text().split("\n## ", 1)[0]
+        return [line for line in head.splitlines() if line.startswith("Green main:")]
+
+    def depends(self):
+        (row,) = [one for one in queue.load(self.kitchen.state) if one["slug"] == HELD_ROW]
+        return row.get("depends", [])
+
+    def told(self):
+        return [one for one in asks(self.kitchen) if one["clientRequestId"].startswith("stacked|")]
+
+
+@pytest.fixture
+def held(tmp_path, monkeypatch):
+    kitchen = Kitchen(tmp_path, monkeypatch)
+    yield Held(kitchen, monkeypatch)
+    kitchen.close()
+
+
+def test_a_paused_row_built_on_an_open_rows_branch_is_stacked_on_its_pull_request(held):
+    """One pass stacks it: the depends, the `Stacked on:` line in place of `Green main:`, and one
+    message telling its crew to check on that base, push, and end for the review. A second pass
+    sends nothing. Once the base merges, the row's pushed commits are moved onto main as for a
+    link jbus launched stacked."""
+    kitchen = held.kitchen
+    assert held.green() != [] and held.head_line() is None
+    said = kitchen.poll(NOW)
+    assert held.head_line() == stacks.Stacked(BASE_ROW, BASE_ROW)
+    assert held.green() == []
+    assert held.depends() == [BASE_ROW]
+    (told,) = held.told()
+    assert told["clientRequestId"] == f"stacked|{HELD_ROW}|{BASE_ROW}|{held.base_head[:12]}"
+    assert "push" in told["message"] and f"Stacked on: {BASE_ROW} {BASE_ROW}" in told["message"]
+    assert any(line.startswith(f"stack {HELD_ROW}: stacked on {BASE_ROW}") for line in said), said
+
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert len(held.told()) == 1
+
+    git = held.git
+    git(held.tree, "push", "-q", "origin", HELD_ROW)
+    held.path.write_text(
+        held.path.read_text() + "\n## Result, follow-up (2026-11-12, stacked)\nStatus: done\n"
+        f"Branch: {HELD_ROW}   Pull request: after the review\nLeft: none\n"
+    )
+    tree = kitchen.checkout
+    git(tree, "fetch", "-q", "origin", "main")
+    git(tree, "switch", "-q", "--detach", "origin/main")
+    git(tree, "checkout", "-q", held.base_head, "--", "conforms.txt")
+    git(tree, "commit", "-q", "-m", f"{BASE_ROW} (#10)")
+    merge = git(tree, "rev-parse", "HEAD")
+    git(tree, "push", "-q", "origin", f"{merge}:refs/heads/main")
+    git(tree, "switch", "-q", "main")
+    kitchen.set("open.json", [])
+    done = {**kitchen.merged(BASE_ROW, 10, merge), "headRefOid": held.base_head}
+    kitchen.set("merged.json", [{**done, "baseRefName": "main"}])
+    kitchen.poll(NOW + timedelta(minutes=6))
+    moved = git(kitchen.origin, "rev-parse", HELD_ROW)
+    assert git(kitchen.origin, "rev-parse", f"{moved}~2") == merge
+    assert git(kitchen.origin, "diff", "--name-only", merge, moved).split() == [
+        "hand.txt",
+        "line.txt",
+    ]
+    assert held.head_line() == stacks.Stacked(BASE_ROW, "main", merge)
+    assert len(held.told()) == 1
+
+
+@pytest.mark.parametrize("left", ["no pull request", "two slugs", "not held", "other branch"])
+def test_a_paused_row_with_nothing_pushed_to_stack_on_is_left_as_it_is(tmp_path, monkeypatch, left):
+    """A base with no open pull request (its branch never pushed), a wait on two rows, a branch
+    that does not hold the base's head, or a row that goes on another branch than its base: the
+    row stays paused on main, its depends as they were, and its crew is told nothing."""
+    kitchen = Kitchen(tmp_path, monkeypatch)
+    try:
+        waits = f"{BASE_ROW} other" if left == "two slugs" else BASE_ROW
+        held = Held(kitchen, monkeypatch, waits, "release/x" if left == "other branch" else "")
+        if left == "no pull request":
+            kitchen.set("open.json", [])
+        if left == "not held":
+            held.opened("e" * 40)
+        kitchen.poll(NOW)
+        assert held.head_line() is None and held.green() != []
+        assert held.depends() == [] and held.told() == []
+    finally:
+        kitchen.close()
