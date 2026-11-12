@@ -22,8 +22,9 @@ VARIABLES
   \* A-168, the kind of the line `jbus clear` last printed for the blocker b: "none" before a
   \* run, "fix", "wait" or "decision". It lives in no file: it is what the home read. Written by
   \* jbus/blockers.py `said.append(f"wait {key}: {', '.join(at_work)} is at work on it")`, by
-  \* jbus/blockers.py `said.append(f"decision {key}: {what}, raised, it waits on {run.user.user}")`
-  \* and by jbus/blockers.py `f'fix {key}: {FIXED[kind]}, brief a fix whose head has "Fix of: {key}" and '`.
+  \* jbus/blockers.py `said.append(f"wait {key}: {merged}, and {slug} has not been judged since")`,
+  \* by jbus/blockers.py `said.append(f"decision {key}: {what}, raised, it waits on {run.user.user}")`
+  \* and by jbus/blockers.py `f'fix {key}: {what}, brief a fix whose head has "Fix of: {key}" and '`.
   \* `decision question <n>` is a gate's, which this model leaves out.
   clear,
   \* C-065, the entry's `Stage:` line in plan.md, written by the home by hand from
