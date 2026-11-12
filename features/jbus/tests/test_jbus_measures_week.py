@@ -6,11 +6,14 @@ a change caused. A `Week` baseline is read by the same query as the value, so bo
 comparison are of one definition.
 """
 
-from datetime import date
+import sqlite3
+from datetime import UTC, date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 
-from jbus.telemetry import measures
+import jsettings
+from jbus.telemetry import measures, values
 
 NAMED = measures.Week(date(2026, 11, 1))
 """The week #1583 pinned the baselines to, and not a rolling last week."""
@@ -58,3 +61,65 @@ def test_no_literal_baseline_says_last_week():
     ]
 
     assert stale == []
+
+
+THE_WEEK = datetime(2026, 11, 3, 12, tzinfo=UTC)
+NOW = datetime(2026, 11, 10, 15, tzinfo=UTC)
+USER = jsettings.Settings(zone=ZoneInfo("America/New_York"))
+COUNT = "select sum(v), count(*) from t where project = :project and at >= :begins and at < :ends"
+NOTE = "select count(*) || ' left out' from t where project = :project and at < :begins"
+
+
+def noted(note: str) -> measures.Measure:
+    """A measure judged against the named week whose source also gives a note."""
+    return measures.Measure(
+        name="noted",
+        group="flow",
+        says="",
+        unit="",
+        better="lower",
+        source=measures.Sql(COUNT, note=note),
+        window="72h",
+        baseline=NAMED,
+        baseline_of="",
+        kind=measures.Over(20),
+        tier="wake",
+    )
+
+
+@pytest.fixture
+def store():
+    """Rows of 2 and 3 in the named week, and one of 10 two hours before `NOW`."""
+    connection = sqlite3.connect(":memory:")
+    connection.execute("create table t (project text, at text, v real)")
+    for at, v in (
+        (THE_WEEK, 2),
+        (THE_WEEK + timedelta(hours=1), 3),
+        (NOW - timedelta(hours=2), 10),
+    ):
+        connection.execute("insert into t values ('jstack', ?, ?)", (at.strftime(values.STAMP), v))
+    yield connection
+    connection.close()
+
+
+def test_a_week_baseline_and_a_note_are_read_together(store):
+    """A reading carries the named week's value as its baseline and what the source's note says,
+    side by side, and it is no failure."""
+    reading = measures.read(store, noted(NOTE), "jstack", NOW, USER)
+
+    assert (reading.value, reading.n, reading.baseline) == (10, 1, 5)
+    assert (reading.note, reading.failed, reading.state) == ("2 left out", False, "bad")
+
+
+def test_a_note_whose_query_fails_fails_the_reading_of_a_week_baseline(store):
+    """A failing note query makes the whole reading `none` and failed, with no baseline: a week
+    is read by the query, so none stands where the query failed."""
+    reading = measures.read(store, noted("select nothing from nowhere"), "jstack", NOW, USER)
+
+    assert (reading.value, reading.baseline, reading.state, reading.failed) == (
+        None,
+        None,
+        "none",
+        True,
+    )
+    assert reading.note.startswith("OperationalError: ")
