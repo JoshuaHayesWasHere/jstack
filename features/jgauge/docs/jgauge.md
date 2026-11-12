@@ -262,6 +262,7 @@ The CPU is the take's whole tree, a process the command started and never waited
 The take makes a cgroup of its own under the holder's, `jgauge-take-<id>`, and moves the holder into it before the command starts, so everything the command starts is born there; the release waits up to 2 s (`DRAIN_SECONDS`) for every process but the holder to end, then reads the cgroup's `cpu.stat`.
 The count includes the holder's own CPU from the take on and its watchdog's, a few hundredths of a second.
 A process still running after the drain is counted up to the release only, and shows in `left`.
+A release whose cgroup cannot be read (removed under it) writes its row with no `cpu_user`, `cpu_system` or `left`, and the run ends with the command's exit code all the same.
 Where the take can have no cgroup of its own (cgroup v1, a cgroup the user cannot write, macOS), the CPU is what the command's waited-for tree used plus that of each process carrying the take's id in `JGAUGE_TEST_SLOT_TAKE` whose parent is outside the take, read from `/proc`.
 Until 2026-11-12 the CPU was `getrusage` of the processes the command waited for alone, which put robotica's slots at 0.18 cores where they used about 3.4.
 

@@ -250,3 +250,19 @@ def test_with_no_cgroup_a_release_counts_a_detached_child_that_carries_the_take(
 
     _take, release = rows(log)
     assert release["cpu_user"] + release["cpu_system"] >= 0.25 - 2 / os.sysconf("SC_CLK_TCK")
+
+
+def test_a_release_whose_cgroup_cannot_be_read_writes_its_row_with_no_cpu(tmp_path, monkeypatch):
+    """A take's cgroup gone under it (here, one with no `cpu.stat`) costs the row its CPU, and
+    the release still writes the row and returns, so the run keeps its exit code."""
+    cgroups = tmp_path / "cgroups"
+    (line,) = (slotlog.PROCS / "self" / "cgroup").read_text().splitlines()
+    (cgroups / line.removeprefix("0::/").strip("/")).mkdir(parents=True)
+    monkeypatch.setattr(slotlog, "CGROUPS", cgroups)
+    log = slotlog.path(tmp_path / "locks")
+
+    slotlog.release(slotlog.take(log, "short", 1, 3, "", ["sh"], 0), 3)
+
+    _take, release = rows(log)
+    assert release["code"] == 3
+    assert "cpu_user" not in release and "left" not in release

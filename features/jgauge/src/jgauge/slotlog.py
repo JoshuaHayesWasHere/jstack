@@ -182,23 +182,27 @@ class _Cgroup:
         return sum(pid != str(os.getpid()) for pid in listed)
 
     def end(self) -> tuple[float, float, int]:
-        deadline = time.monotonic() + DRAIN_SECONDS
-        while self._others() and time.monotonic() < deadline:
-            time.sleep(LOOK_SECONDS)
-        left = self._others()
-        stat = dict.fromkeys(("user_usec", "system_usec"), "0")
-        stat |= {
-            key: value
-            for key, _, value in (
-                line.partition(" ") for line in (self.own / "cpu.stat").read_text().splitlines()
-            )
-            if key in stat
-        }
-        with contextlib.suppress(OSError):
-            (self.home / "cgroup.procs").write_text(str(os.getpid()))
-        with contextlib.suppress(OSError):
-            self.own.rmdir()
-        return int(stat["user_usec"]) / 1e6, int(stat["system_usec"]) / 1e6, left
+        """The take's CPU and how many of its processes are left, raising OSError or ValueError
+        where the cgroup cannot be read; the holder goes back to its own cgroup either way."""
+        try:
+            deadline = time.monotonic() + DRAIN_SECONDS
+            while self._others() and time.monotonic() < deadline:
+                time.sleep(LOOK_SECONDS)
+            left = self._others()
+            stat = dict.fromkeys(("user_usec", "system_usec"), "0")
+            stat |= {
+                key: value
+                for key, _, value in (
+                    line.partition(" ") for line in (self.own / "cpu.stat").read_text().splitlines()
+                )
+                if key in stat
+            }
+            return int(stat["user_usec"]) / 1e6, int(stat["system_usec"]) / 1e6, left
+        finally:
+            with contextlib.suppress(OSError):
+                (self.home / "cgroup.procs").write_text(str(os.getpid()))
+            with contextlib.suppress(OSError):
+                self.own.rmdir()
 
 
 class _Carriers:
@@ -314,8 +318,14 @@ def take(
 
 def release(taken: Taken, code: int) -> None:
     """Write the release row, with the CPU of every process of the take, once they have ended or
-    `DRAIN_SECONDS` have gone by: the sweep runs after the release, and is not counted."""
-    user, system, left = taken.tree.end()
+    `DRAIN_SECONDS` have gone by: the sweep runs after the release, and is not counted. A take
+    whose CPU cannot be read writes its row with no CPU and no `left`, and stops no run."""
+    try:
+        user, system, left = taken.tree.end()
+    except (OSError, ValueError):
+        cpu = {}
+    else:
+        cpu = {"cpu_user": round(user, 3), "cpu_system": round(system, 3), "left": left}
     now = datetime.now(UTC)
     held = (now - taken.at).total_seconds()
     _append(
@@ -326,9 +336,7 @@ def release(taken: Taken, code: int) -> None:
             **taken.fields,
             "code": code,
             "hold": round(held, 3),
-            "cpu_user": round(user, 3),
-            "cpu_system": round(system, 3),
-            "left": left,
+            **cpu,
         },
     )
 
