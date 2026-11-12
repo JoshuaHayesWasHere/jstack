@@ -217,7 +217,8 @@ LEAVES_A_SPIN = '(setsid "$1" -c "$2" &)'
 def test_a_release_counts_a_detached_child_that_burns_after_the_command_exits(tmp_path):
     """The command's shell starts a Python in a session of its own and exits at once, so no
     process the holder waits for ever reaps it. The Python then spins until it has used 0.25 s
-    of CPU, and that quarter second is the take's: the release row says so. It idles a moment
+    of CPU, and that quarter second is the take's: the release row says so, to the two clock
+    ticks `/proc` loses to rounding where the machine gives the take no cgroup. It idles a moment
     before it ends, so a release that reads the CPU of what still runs sees all of it."""
     env = {**os.environ, "JGAUGE_LOCKS_DIR": str(tmp_path / "locks"), "TMPFS": str(tmp_path)}
     env.pop("JGAUGE_TEST_SLOT", None)
@@ -232,7 +233,7 @@ def test_a_release_counts_a_detached_child_that_burns_after_the_command_exits(tm
 
     assert ran.returncode == 0, ran.stderr
     _take, release = rows(slotlog.path(tmp_path / "locks"))
-    assert release["cpu_user"] + release["cpu_system"] >= 0.25
+    assert release["cpu_user"] + release["cpu_system"] >= 0.25 - 2 / os.sysconf("SC_CLK_TCK")
 
 
 def test_with_no_cgroup_a_release_counts_a_detached_child_that_carries_the_take(
