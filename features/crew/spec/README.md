@@ -47,7 +47,7 @@ The test runs TLC on the cfg, on each rule alone, on `CheckedAtHead` in the back
 S=$PWD/features/skill-library/skills/statechart/scripts
 D=$HOME/.cache/jstack/tlc-tmp && mkdir -p "$D"
 W=$(mktemp -d "${TMPDIR:-/tmp}/crewproof.XXXXXX") && cp features/crew/spec/CrewProof.* "$W"
-(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     statechart from-spec CrewProof.tla --config CrewProof.chart.cfg --expect-broken RebaseRecorded \
     --title "Does the proof on the brief match the head, and does a rebase leave its record?" --out out --png)
 ```

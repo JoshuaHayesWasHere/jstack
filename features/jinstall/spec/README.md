@@ -103,7 +103,7 @@ The expert's canaries above put each fault back.
 ```sh
 S=../../skill-library/skills/statechart/scripts
 cd features/jinstall/spec
-UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     statechart from-spec Setup.tla --config Setup.chart.cfg \
     --expect-broken UninstallComplete \
     --title "Does an uninstall or an expert's takeover leave anything behind?" --png

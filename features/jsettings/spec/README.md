@@ -56,7 +56,7 @@ Read off the model, not checked by TLC: `budget._lowest` reads only `gh-calls.js
 ```sh
 S=features/skill-library/skills/statechart/scripts
 cd features/jsettings/spec
-UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "../../../$S" \
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
     statechart from-spec GhBudget.tla --expect-broken HeldWhenLow \
     --title "Does the gh budget hold, and does the call log keep each full log?" --png
 ```
