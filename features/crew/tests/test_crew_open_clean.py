@@ -68,11 +68,11 @@ class Replay:
         git(other, "push", "-q", "origin", "HEAD:main")
         self.landed = git(other, "rev-parse", "HEAD")
 
-    def run(self, heading, about):
+    def run(self, heading, about, brief="# st-fix-tell-once\n"):
         script = block(heading, about).replace("<slug>", "st-fix-tell-once")
         script = script.replace("'<branch>'", "'main'")
         (self.tmp_path / "tasks").mkdir(exist_ok=True)
-        (self.tmp_path / "tasks" / "st-fix-tell-once.md").write_text("# st-fix-tell-once\n")
+        (self.tmp_path / "tasks" / "st-fix-tell-once.md").write_text(brief)
         ran = subprocess.run(
             ["sh", "-c", script],
             capture_output=True,
@@ -88,8 +88,8 @@ class Replay:
         )
         return ran.stdout.splitlines()
 
-    def before_it_opens(self):
-        return self.run("Do the task", "merge-tree")
+    def before_it_opens(self, brief="# st-fix-tell-once\n"):
+        return self.run("Do the task", "merge-tree", brief)
 
     def mergeable(self):
         """What GitHub's `mergeable` would say of the head on origin against origin's main."""
@@ -177,3 +177,17 @@ def test_a_head_that_merges_cleanly_over_a_moved_main_opens_with_no_rebase(tmp_p
     assert git(replay.work, "rev-parse", "HEAD") == replay.pushed
     assert not os.path.exists(os.path.join(replay.git_dir, "crew-before-rebase"))
     assert replay.mergeable() == "MERGEABLE"
+
+
+def test_a_link_jbus_moved_onto_main_opens_with_no_rebase_until_its_head_holds_the_merge(tmp_path):
+    """A link whose `Stacked on:` line says its base merged, as jbus writes it once it moved the
+    link onto main, still holds its base's commits until jbus carries the merge into its head: a
+    rebase onto main here would replay them, which "A conflict" refuses a link for."""
+    replay = Replay(tmp_path)
+    brief = f"# st-fix-tell-once\nStacked on: under under at {replay.landed}\n"
+    assert replay.before_it_opens(brief) == [
+        "open it: a link of a stack, jbus moves it onto its base's merge"
+    ]
+    assert git(replay.work, "rev-parse", "HEAD") == replay.pushed
+    assert not os.path.exists(os.path.join(replay.git_dir, "crew-before-rebase"))
+    assert git(replay.work, "for-each-ref", "refs/jstack") == ""

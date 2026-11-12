@@ -258,6 +258,7 @@
 
   ```sh
   G=$(git rev-parse --git-dir)
+  B="$H/tasks/<slug>.md"
   base='<branch>'
   branch=$(git branch --show-current)
   if [ -d "$G/rebase-merge" ] || [ -d "$G/rebase-apply" ]; then
@@ -265,6 +266,8 @@
       git diff --name-only --diff-filter=U
   elif [ -f "$G/crew-before-rebase" ]; then
       echo "a rebase is not pushed yet: prove it and push it as A conflict says, then run this again"
+  elif stacked=$(uv run --project "$T/../source" jbriefs line stacked "$B" 2> /dev/null) && [ "$stacked" != none ] && { [ "${stacked% at *}" = "$stacked" ] || ! git merge-base --is-ancestor "${stacked##* }" HEAD 2> /dev/null; }; then
+      echo "open it: a link of a stack, jbus moves it onto its base's merge"
   elif [ "origin/$base" != "$(git symbolic-ref -q --short refs/remotes/origin/HEAD)" ]; then
       echo "open it: $base is the base of a link, and jbus moves a link"
   elif ! git fetch -q origin "$base"; then
@@ -303,6 +306,7 @@
   On a conflict it starts the rebase of "A conflict", with its record and its `refs/jstack/pre-rebase` ref, so the rest is that section's: resolve the files with `jmerge --remake` for the generated ones, prove no line was lost, run the check block at the new head, and push with its lease.
   Then run this again: main may have moved once more while you rebased, and the pull request opens on the first run that prints `open it`.
   A link of a stack opens at once, since jbus moves it once its base merged ("A link that moved").
+  So does a link jbus already moved onto main, whose `Stacked on:` line ends `at <merge>`, until its head holds that merge: until then its branch holds its base's commits too, and a rebase onto main would replay them, as "A conflict" says, so the block reads the line by the same rule that section does.
   The first push of the branch is this block's, run in this worktree with the block at the top and the brief's slug in place of the words in angle brackets, before the pull request opens:
 
   ```sh
