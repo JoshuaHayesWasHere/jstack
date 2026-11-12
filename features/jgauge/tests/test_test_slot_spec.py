@@ -121,9 +121,12 @@ def tlc(
 
 
 JAVA = pytest.mark.skipif(not tools.find_java(), reason="no Java to run TLC")
+TLC = pytest.mark.timeout(600)
+"""A TLC run comes near the 120 s bound on CI: the mode that passes, 614,686 states, took 86 s."""
 
 
 @JAVA
+@TLC
 def test_today_s_code_loses_a_ledger_write():
     """TestSlot.cfg is today's code, and TLC's first finding is the one its comment keeps: two
     writers read the ledger, and the second write drops the first one's record."""
@@ -135,6 +138,7 @@ def test_today_s_code_loses_a_ledger_write():
 
 
 @JAVA
+@TLC
 def test_the_mode_that_passes_holds_every_rule():
     code, out = tlc("none")
     assert code == 0, out[-4000:]
@@ -142,6 +146,7 @@ def test_the_mode_that_passes_holds_every_rule():
 
 
 @JAVA
+@TLC
 @pytest.mark.parametrize(
     ("fault", "rule"),
     [
@@ -160,6 +165,7 @@ def test_each_of_today_s_faults_breaks_its_rule(fault, rule):
 
 
 @JAVA
+@TLC
 @pytest.mark.parametrize(("fault", "code"), [("today", 0), ("orphan-command", 12)])
 def test_a_killed_test_slot_takes_its_command_with_it_today(fault, code):
     """Today's code holds OneCommandPerSlot where a killed `jgauge test-slot` leaves the slot
@@ -171,6 +177,7 @@ def test_a_killed_test_slot_takes_its_command_with_it_today(fault, code):
 
 
 @JAVA
+@TLC
 def test_a_dead_holder_whose_pid_is_taken_reads_as_running():
     """`holders.running` asks only whether some process has the pid: once another process takes
     a dead command's pid, a reader counts the holder as running, and NoLostHolder breaks."""

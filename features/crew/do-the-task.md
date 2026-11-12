@@ -2,6 +2,8 @@
   CI is the check of record: its check on the pull request runs every test the change selects, and it is the gate.
   The desk's check is the lint, the touched tests, the repo's guard tests and the tests that read the change, and never the whole suite or the selection.
   In a repo whose pull request check selects its tests, jstack's `scripts/select_tests.py`, the touched tests are the test files the branch adds or edits since it left its base (`select_tests.py --part touched`), the guard tests are the cross-cutting tests the selection names, wherever their files live (`select_tests.py --part cross`), that are not touched already, and the tests that read the change are the ones the pull request's check selects because they name or read a file the branch edits, a skill that includes it or a read set that matches it, and that neither of the others holds (`select_tests.py --part names`, a few files a line, as many as fit 60 s of test time).
+  The block asks `origin/main`'s `scripts/select_tests.py` for the three lists, a copy of it run over the branch's own tree, so a branch stacked on a base that left main before a part existed still gets them, and is not held for want of a `Checked:` line.
+  Where `origin/main` has no such file the block says so and asks the branch's own.
   The check is `make check-fast BASE=<base> PART=touched`, run in steps: the lint first, then each touched test file alone, then each guard test file alone, then each test file CI failed on (below), then each line of the names part, each step its own call of `jgauge test-slot --short`.
   So a test that reads an edited skill file, as test_status_line_readers.py reads features/crew/no-pr-end.md, fails at the desk and not first on the pull request, as it failed twice on #1691.
   Over main's last 20 merges the names part added a median of 98 test files to the desk's 48 (6 to 256), in 20 steps (1 to 59), so a check takes several calls of the block more often than before.
@@ -29,16 +31,29 @@
       [ "$on" != none ] || on=
       on=origin/${on:-main}
       git rev-parse -q --verify "$on^{commit}" > /dev/null || on=origin/main
+      selector=$code.selector
+      if ! git show origin/main:scripts/select_tests.py > "$selector" 2> /dev/null; then
+          echo "origin/main has no scripts/select_tests.py: the branch's own names the tests"
+          selector=scripts/select_tests.py
+      fi
+      selects() {
+          python3 -c 'import os, sys
+  main = sys.modules["__main__"]
+  path = sys.argv.pop(1)
+  sys.argv[0] = main.__file__ = os.path.abspath("scripts/select_tests.py")
+  sys.path[0] = os.path.dirname(sys.argv[0])
+  exec(compile(open(path).read(), sys.argv[0], "exec"), vars(main))' "$selector" "$@"
+      }
       if ! base=$(git merge-base "$on" HEAD); then
           echo "no check: the branch shares no commit with $on"
           false
-      elif ! touched=$(python3 scripts/select_tests.py --part touched "$base" HEAD); then
+      elif ! touched=$(selects --part touched "$base" HEAD); then
           echo "no check: scripts/select_tests.py could not name the touched tests"
           false
-      elif ! guards=$(python3 scripts/select_tests.py --part cross "$base" HEAD); then
+      elif ! guards=$(selects --part cross "$base" HEAD); then
           echo "no check: scripts/select_tests.py could not name the guard tests"
           false
-      elif ! names=$(python3 scripts/select_tests.py --part names "$base" HEAD); then
+      elif ! names=$(selects --part names "$base" HEAD); then
           echo "no check: scripts/select_tests.py could not name the tests that read the change"
           false
       else

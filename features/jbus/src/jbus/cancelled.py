@@ -24,6 +24,19 @@ blocker the home's `jbus clear` asks a fix for.
 
 Only the head's own runs count. A check run whose job GitHub says ran on another commit belongs to
 a head that a newer push displaced, and `rerun` neither runs it again nor tells anyone of it.
+
+A required run GitHub queued and never started is this module's too (`unqueue`), on every open
+row's pull request and not only on the one `jmerge` has at the head of its line. Where the
+roll-up lists no run of a required check, or lists one queued for `ready.QUEUED_MINUTES`, it reads
+the head's workflow runs and their jobs: GitHub lists no check of a run that has no jobs, so the
+roll-up alone misses it (#1695, 2026-11-11). Each run `ready.stuck_runs` finds is cancelled where
+it has not ended and run again, `gh run rerun <run>`, once for the head: the act is marked
+`queued|<slug>|<head12>` in the outbox, with one quiet `queued` line. GitHub ends a cancel after it
+answers and refuses to run again a run it has not ended, so a rerun it refused is asked again on
+each pass, and the cancel too while the run has not ended, for `ready.RESTART_MINUTES` from the
+first try; then it is given up, under the same mark, with GitHub's refusal on its line. A run
+GitHub queues again at that head is not restarted again: it is logged once, and the wait is the
+home's.
 """
 
 from __future__ import annotations
@@ -36,17 +49,24 @@ from urllib.parse import urlsplit
 
 from jbus import read_json, verbs, write_json
 from jbus.passes import Pass
-from jbus.watch import NEVER, World, job, job_log
+from jbus.watch import NEVER, World, _api, _runs_of, job, job_log
 from jmerge import ready
 from jmerge.checks import check_state, latest_of_each
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from jbus.poll import Half
 
-EVENTS = {"cancelled": "quiet"}
+EVENTS = {"cancelled": "quiet", "queued": "quiet"}
 STALL = "stall"
 STOPPED = ("CANCELLED", "TIMED_OUT")
 FILE = "cancelled.json"
+QUEUED = "queued"
+QUEUED_FILE = "queued.json"
+"""Each slug's restart of its head's queued runs (`unqueue`): `head`, `asked` when it was first
+tried, `runs` the attempt of each run it restarts by its id, `owed` the runs whose rerun has not
+taken, `said` the line's start and `why` GitHub's last refusal."""
 _JOB = re.compile(r"^/([^/]+/[^/]+)/actions/runs/(\d+)/job/(\d+)$")
 _TIMEOUT = re.compile(r"exceeded the maximum execution time of (\d+) minutes")
 
@@ -251,10 +271,171 @@ def _cause(run: Pass, repo: str, at: str, check: dict) -> str:
     return "its timeout" if check.get("conclusion") == "TIMED_OUT" else ""
 
 
+def unqueue(run: Pass, world: World, slugs: set[str]) -> None:
+    """Cancel and run again, once for the head, each required run GitHub queued at an open row's
+    pull request and started nothing of for `ready.QUEUED_MINUTES`, and log once a run it queues
+    again there after that."""
+    was: dict[str, dict] = read_json(run.state / QUEUED_FILE, {})
+    kept: dict[str, dict] = {}
+    names = required(run)
+    for slug, pull in world.open.items():
+        head = pull.get("headRefOid", "")
+        if slug not in slugs or not head:
+            continue
+        mine = was.get(slug) if (was.get(slug) or {}).get("head") == head else None
+        if mine is not None:
+            kept[slug] = mine
+        if not (mine and mine.get("owed")) and not _queued(pull, names, run.now):
+            continue
+        listed = _api(run, _runs_of(head)) or {}
+        runs = [one for one in listed.get("workflow_runs") or [] if one.get("id")]
+        key = f"{QUEUED}|{slug}|{head[:12]}"
+        if run.box.has(key):
+            _again(run, slug, pull, mine or {}, _stuck(run, runs, names))
+            continue
+        if mine is None:
+            stuck = _stuck(run, runs, names)
+            if not stuck:
+                continue
+            mine = _asked(run, pull, stuck)
+            kept[slug] = mine
+            write_json(run.state / QUEUED_FILE, {**was, **kept})
+
+        def keep(record: dict, slug: str = slug) -> None:
+            kept[slug] = record
+            write_json(run.state / QUEUED_FILE, {**was, **kept})
+
+        kept[slug] = _restart(run, slug, pull, mine, {str(one["id"]): one for one in runs}, keep)
+    if kept != was:
+        write_json(run.state / QUEUED_FILE, kept)
+
+
+def _queued(pull: dict, names: tuple[str, ...], now: datetime) -> bool:
+    """Whether the roll-up leaves the head's runs to be read: it lists no run of a required check,
+    or lists one GitHub queued `ready.QUEUED_MINUTES` ago and started none of."""
+    rollup = pull.get("statusCheckRollup") or []
+    if any(not ready.latest(rollup, name) for name in names):
+        return True
+    bound = ready.QUEUED_MINUTES * 60
+    return any((now - since).total_seconds() >= bound for _, since in ready.queued(rollup, names))
+
+
+def _stuck(run: Pass, runs: list[dict], names: tuple[str, ...]) -> tuple[ready.StuckRun, ...]:
+    """The required runs `ready.stuck_runs` finds at the head, with the jobs of each latest
+    required run that has not passed, as GitHub gives them."""
+    jobs: dict[str, list[dict]] = {}
+    for name in names:
+        mine = [one for one in runs if one.get("name") == name]
+        last = max(mine, key=lambda one: int(one["id"]), default=None)
+        if last is None or last.get("conclusion") == "success":
+            continue
+        path = f"repos/{{owner}}/{{repo}}/actions/runs/{last['id']}/jobs?per_page=100"
+        given = _api(run, path)
+        if isinstance(given, dict):
+            jobs[str(last["id"])] = list(given.get("jobs") or [])
+    return ready.stuck_runs(runs, jobs, names, run.now)
+
+
+def _asked(run: Pass, pull: dict, stuck: tuple[ready.StuckRun, ...]) -> dict:
+    """The record of a restart of `stuck`, kept before GitHub is asked anything, so a pass that
+    stops between two asks leaves the next one the runs still owed."""
+    minutes = int((run.now - min(one.since for one in stuck)).total_seconds() // 60)
+    said = (
+        f"GitHub queued #{pull['number']}'s {_runs(stuck)} at {pull['headRefOid'][:12]} "
+        f"{minutes} minutes ago and started no job"
+    )
+    return {
+        "head": pull["headRefOid"],
+        "asked": run.now.isoformat(),
+        "runs": {str(one.run): one.attempt for one in stuck},
+        "owed": [str(one.run) for one in stuck],
+        "cancels": any(not one.ended for one in stuck),
+        "said": said,
+    }
+
+
+def _restart(
+    run: Pass,
+    slug: str,
+    pull: dict,
+    mine: dict,
+    runs: dict[str, dict],
+    keep: Callable[[dict], None],
+) -> dict:
+    """Ask GitHub for each rerun still owed, with a cancel first of a run that has not ended, and
+    mark the head's restart done once none is owed, or given up `ready.RESTART_MINUTES` after its
+    first try. Return the record as it then stands. Each rerun GitHub takes is kept at once with
+    `keep`, so a pass stopped before the next ask leaves the next pass only the runs still owed,
+    and never the new attempt of one it ran again."""
+    head, it = pull["headRefOid"], "them" if len(mine["runs"]) > 1 else "it"
+    key = head[:12]
+    if (run.now - datetime.fromisoformat(mine["asked"])).total_seconds() >= (
+        ready.RESTART_MINUTES * 60
+    ):
+        line = (
+            f"{QUEUED} {slug}: {mine['said']}, and did not run {it} again in "
+            f"{ready.RESTART_MINUTES} minutes of tries: {mine.get('why') or 'no reason given'}"
+        )
+        if run.find(slug, QUEUED, line, key=key):
+            run.say(line)
+        return {**mine, "owed": []}
+    owed, left = [], list(mine["owed"])
+    why = mine.get("why", "")
+    for number in mine["owed"]:
+        if (runs.get(number) or {}).get("status", "completed") != "completed":
+            run.run("gh", "run", "cancel", number)
+        asked = run.run("gh", "run", "rerun", number)
+        left.remove(number)
+        if asked.returncode:
+            owed.append(number)
+            why = (asked.stderr.strip().splitlines() or ["no reason given"])[0]
+        else:
+            keep({**mine, "owed": owed + left})
+    if owed:
+        return {**mine, "owed": owed, "why": why}
+    done = f"cancelled {it} and ran {it} again" if mine.get("cancels") else f"ran {it} again"
+    line = f"{QUEUED} {slug}: {mine['said']}: {done}"
+    if run.find(slug, QUEUED, line, key=key):
+        run.say(line)
+    return {**mine, "owed": []}
+
+
+def _again(run: Pass, slug: str, pull: dict, mine: dict, stuck: tuple[ready.StuckRun, ...]) -> None:
+    """Log once a run GitHub queued at the head again after its restart: jbus restarts no run
+    twice at a head, and the wait is the home's."""
+    restarted = mine.get("runs") or {}
+    again = [one for one in stuck if one.attempt > int(restarted.get(str(one.run), 0))]
+    if not again:
+        return
+    it = "them" if len(again) > 1 else "it"
+    line = (
+        f"{QUEUED} {slug}: GitHub queued #{pull['number']}'s {_runs(tuple(again))} at "
+        f"{pull['headRefOid'][:12]} again after jbus ran {it} again, and started no job in "
+        f"{ready.QUEUED_MINUTES} minutes: jbus restarts no run twice at a head"
+    )
+    if run.find(slug, QUEUED, line, key=f"{pull['headRefOid'][:12]} again"):
+        run.say(line)
+
+
+def _runs(stuck: tuple[ready.StuckRun, ...]) -> str:
+    names = [one.check for one in stuck]
+    named = names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+    return f"{named} run" + ("s" if len(names) > 1 else "")
+
+
 def _rerun(half: Half) -> None:
     world = half.seen.world
     if world is not None:
         rerun(half.run, world, {row["slug"] for row in half.rows or []})
 
 
-STEPS = (verbs.Step("after-expedite", 25, "cancelled.rerun", _rerun, ("world",)),)
+def _unqueue(half: Half) -> None:
+    world = half.seen.world
+    if world is not None:
+        unqueue(half.run, world, {row["slug"] for row in half.rows or []})
+
+
+STEPS = (
+    verbs.Step("after-expedite", 25, "cancelled.rerun", _rerun, ("world",)),
+    verbs.Step("after-expedite", 26, "cancelled.unqueue", _unqueue, ("world",)),
+)

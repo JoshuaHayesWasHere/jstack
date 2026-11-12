@@ -32,6 +32,12 @@ events back, and `jbus events` and the view read them from that list. `Box.recor
 for what jbus keeps and never sends, such as the user's word to a home (`jbus.word`). jbus never
 reads the log to decide what to send or what counts as sent. A line jbus cannot write waits in
 `unlogged.json` until jbus can write its next line.
+
+A keyed event's line and its key in `sent.json` are one write: the line goes into
+`unlogged.json` first, with its key beside it, and the key into `sent.json` before the line into
+the log. A pass that dies anywhere in between leaves a line the next write logs and a key `send`
+reads as sent, and never a key with no line or a line sent again (`Box.send`,
+`features/jbus/spec/TellOnce.tla`).
 """
 
 from __future__ import annotations
@@ -41,6 +47,7 @@ import contextlib
 import hashlib
 import json
 import os
+import secrets
 import shutil
 import subprocess
 import urllib.error
@@ -67,6 +74,9 @@ SNAPSHOT_AT = (17, 15)
 PRUNE_AFTER = timedelta(days=7)
 LOG = "events.jsonl"
 UNLOGGED = "unlogged.json"
+MARKS, SIZE = "marks", "size"
+"""The fields of a line in `unlogged.json` that hold its key of `sent.json` and the size of the log
+when the line was kept there, the place its append starts (`Box._log`)."""
 LOG_KEEP = timedelta(days=14)
 FOUND_AGAIN = (
     "merged",
@@ -282,12 +292,11 @@ class Box:
         made = event(self.project.name, slug, kind, line, text, cap, loud)
         with locked(self.state, LOCK):
             if key is not None:
-                sent = _sent(self.state / SENT)
-                if key in sent.lookup:
+                self._flush(read_json(self.state / UNLOGGED, []), [], owed=True)
+                if key in _sent(self.state / SENT).lookup:
                     return False
-                _write_sent(self.state / SENT, (*sent.keys, key))
             took = {"event": kind, "slug": slug, "loud": made["loud"], "line": line}
-            self._log(id=_id(made), **took, text=made["text"], owed=True)
+            self._log(id=_id(made), **took, text=made["text"], owed=True, mark=key or "")
         return True
 
     def record(self, kind: str, line: str, text: str = "", **more: Any) -> None:
@@ -296,20 +305,50 @@ class Box:
             record = {"event": kind, "slug": "", "loud": "quiet", "line": line}
             self._log(owed=True, **record, text=cut(text), **more)
 
-    def _log(self, owed: bool = False, **record: Any) -> None:
+    def _log(self, owed: bool = False, mark: str = "", **record: Any) -> None:
         """Add one line to the log, which only the log's owner reads. The caller holds the lock.
 
         jbus leaves out a line that it cannot write, and the pass goes on without it. A line that
         is `owed` waits in `unlogged.json`, and jbus writes it before the next line that it can
         write.
+
+        With `mark`, a key of `sent.json`, the line waits in `unlogged.json` with its key and the
+        log's size before anything else is written, so the line and its key are one write
+        (`_flush`).
         """
         record = {"at": _at(self.clock()), **record}
         waiting = read_json(self.state / UNLOGGED, [])
+        if not mark:
+            self._flush(waiting, [record], owed)
+            return
+        size = _size(self.state / LOG)
+        waiting = [{**one, SIZE: size} for one in [*waiting, {**record, MARKS: mark}]]
+        write_json(self.state / UNLOGGED, waiting, mode=0o600)
+        self._flush(waiting, [], owed)
+
+    def _flush(
+        self, waiting: list[dict[str, Any]], fresh: list[dict[str, Any]], owed: bool
+    ) -> None:
+        """Write the lines of `unlogged.json`, then `fresh`, into the log. The keys the waiting
+        lines carry go into `sent.json` first, so a key is sent once its line is owed. Lines a pass
+        appended before it died, with `unlogged.json` not yet removed, stand in the log at the size
+        it had when they were kept, and are not appended again: every append and the prune
+        (`forget`) write the waiting lines first, so nothing else is written there. The caller
+        holds the lock."""
+        marks = [str(one[MARKS]) for one in waiting if one.get(MARKS)]
+        sent = _sent(self.state / SENT)
+        new = tuple(dict.fromkeys(one for one in marks if one not in sent.lookup))
+        if new:
+            _write_sent(self.state / SENT, (*sent.keys, *new))
+        lines = [{k: v for k, v in one.items() if k not in (MARKS, SIZE)} for one in waiting]
+        if lines and SIZE in waiting[0] and _landed(self.state / LOG, waiting[0][SIZE], lines):
+            lines = []
         try:
-            store.append_jsonl(self.state / LOG, [*waiting, record], mode=0o600, sort_keys=True)
+            if lines or fresh:
+                store.append_jsonl(self.state / LOG, [*lines, *fresh], mode=0o600, sort_keys=True)
         except OSError:
-            if owed:
-                write_json(self.state / UNLOGGED, [*waiting, record], mode=0o600)
+            if owed and fresh:
+                write_json(self.state / UNLOGGED, [*waiting, *fresh], mode=0o600)
             return
         if waiting:
             (self.state / UNLOGGED).unlink(missing_ok=True)
@@ -324,6 +363,7 @@ class Box:
         bytes, which the telemetry store holds (`jbus.telemetry.copied`). A line past them stays,
         however old, until the store has read it."""
         with locked(self.state, LOCK):
+            self._flush(read_json(self.state / UNLOGGED, []), [], owed=True)
             path = self.state / LOG
             try:
                 lines = path.read_bytes().splitlines(keepends=True)
@@ -422,11 +462,15 @@ class Box:
             shutil.rmtree(self.state / folder, ignore_errors=True)
 
     def post(self, made: dict[str, Any]) -> None:
-        """Queue one whole body for the second target. A refresh replaces a refresh that
-        still waits. With no second target, `post` queues nothing."""
+        """Queue one whole body for the second target, under an `id` of its own, drawn when it is
+        queued: the relay sends a body on once ever under its own id (`jbus.relay.event_id`), so a
+        POST that went and is posted again, after a pass died or heard no answer in time, is taken
+        as the same body, and the same alert queued again later is a new one. A refresh replaces a
+        refresh that still waits. With no second target, `post` queues nothing."""
         route = self.blocking
         if route is None:
             return
+        made = {**made, "id": secrets.token_hex(8)}
         with locked(self.state, LOCK):
             waiting = read_json(route.folder / "outbox.json", [])
             if made["kind"] == "refresh":
@@ -476,6 +520,24 @@ class Box:
         if why:
             went(why)
         return sent
+
+
+def _size(path: Path) -> int:
+    try:
+        return path.stat().st_size
+    except OSError:
+        return 0
+
+
+def _landed(path: Path, at: int, lines: list[dict[str, Any]]) -> bool:
+    """Say whether the log holds these lines at byte `at`, as `store.append_jsonl` writes them."""
+    text = "".join(json.dumps(one, sort_keys=True) + "\n" for one in lines).encode()
+    try:
+        with open(path, "rb") as file:
+            file.seek(at)
+            return file.read(len(text)) == text
+    except OSError:
+        return False
 
 
 def _record(line: bytes | str) -> dict[str, Any] | None:

@@ -18,9 +18,9 @@ Each condition quotes its code with no line number.
 ## The record
 
 Model: `features/jmerge/spec/PrVerdict.tla`
-Sync: `2fb4e2587489ad3fbebf71561ac648801edb710f`
+Sync: `631810e72260b58b69859e1eb0ce964b832d8722`
 Covers:
-- `features/jmerge/src/jmerge/cli.py`: `Repo.judged`, `Repo.judge`, `Repo.again`, `Repo.in_turn`, `Repo.over_main`, `Repo.merge_holding`, `Repo.merge_members`, `Repo.lifted`, `Repo.lift`, `Repo.accept`, `Repo.waits`, `_merging`
+- `features/jmerge/src/jmerge/cli.py`: `Repo.judged`, `Repo.judge`, `Repo.again`, `Repo.in_turn`, `Repo.over_main`, `Repo.merge_holding`, `Repo.merge_members`, `Repo.lifted`, `Repo.lift`, `Repo.queue_of`, `Repo.accept`, `Repo.waits`, `_merging`
 - `features/jmerge/src/jmerge/ready.py`: `red_only`, `short_on_github`, `still_to_pass`, `ROW_HELD`, `NO_GO`, `ROW_OVER`, `TOUCHES`
 - `features/jmerge/src/jmerge/rows.py`: `short`
 - `features/jmerge/src/jmerge/batch.py`: `Batching.takes`, `Batching.chosen`, `kind_of`
@@ -47,7 +47,7 @@ It runs TLC on today's code and the eleven canaries, in a few minutes, and skips
 A run that ends in seconds took TLC's verdict from the statechart tools' cache (`tools.kept`), keyed by the spec, cfg and jar, and the runner script does the same: the verdict is the one TLC gives, and no change to the code alone can turn it, which is why the record above, and not a pass, says whether the model still describes the code.
 `pr_canaries.py` prints one line a run; its command is in `features/jmerge/spec/README.md`, "Why a pull request is not merging".
 
-- **Bounds:** `Moves = 1` (other work moves main at most once), `Drop = "none"`, 1,280,274 distinct states, as many as the chart's cfg, which also moves main once.
+- **Bounds:** `Moves = 1` (other work moves main at most once), `Drop = "none"`, 1,280,794 distinct states, as many as the chart's cfg, which also moves main once.
 - **The canaries:** `over`, `go`, `touches`, `declines`, `mergeoff` and `head` break the first half (a merge past a hold of yours); `release`, `rejudge`, `again`, `batch-failed` and `twice` break the second (it waits for ever).
 - **Assumptions:** one pull request into main, no stack, no browser run, no migrations, no `merge_after`; `CONFLICTS` stands for both kinds of conflict; each step is atomic; one fix makes the change good, and one review round holds; your word has no fairness, nor has a run that judges no other batch member (`Alone`).
   The rest is in the README's "What PrVerdict leaves out".
@@ -77,7 +77,7 @@ Every run says what it should (`uv run pytest features/jmerge/tests/test_pr_verd
 **A bug, reported and not fixed here:** the `ROW_OVER` hold says "accept it to merge it", and `jmerge --accept` refuses with the same hold.
 A rule that each hold you are asked about has a word that moves it (`HoldLiftable`, scratch only) breaks in four states: the row is over from the start, the review holds, the check ends, and jmerge says `row-over`; no word of yours is enabled.
 The real commands do the same on a kitchen with a row `done` and its pull request open: `jmerge` holds 6 with `ROW_OVER`, and `jmerge --accept 6` exits 1 with the same line.
-It came with 5e3275596 (#1657), and the queued row jm-row-over-accept fixes it; once it lands, take `over` out of `VerdictAccepted`'s keep.
+It came with 5e3275596 (#1657), and #1796 fixed it (see the end of this section).
 
 The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: #1721 drifted the model: GitHub runs no check on a pull request that conflicts with its base, so `short_on_github` now says `it conflicts with its base` for a required check with no run at a conflicting head, which `Verdict` and `VerdictAccepted` now say for a check not ended at a decided clash, where they said `not-passed`.
 Main's #1702 test that each waiting verdict draws its owner's step now takes the batch's check passing as "in jmerge's batch"'s owner, since a run may take a lone member alone while its batch is pending (`Repo.batched` builds again where a kept member was not judged) and the chart's one "the batch's check fails" arrow leaves from "in line".
@@ -87,3 +87,9 @@ st-model-sync then merged main again, to `2fb4e2587`, and the row was rebased on
 
 st-model-sync then merged into main as #1734, and the row's own commits moved onto main at `cf26d3e5f`, where #1697 had widened the rule to every open pull request and added jbus's hold of a row whose check failed at two heads (`Twice`, `Lift`, the canary `twice`).
 That hold stands beside this row's `over` hold and `Alone`, which merges with every hold left outstanding as `Merge` does (`unheld' = Asks`), and every run says what it should.
+
+The row then merged main at `631810e72`, and the upkeep diffed the covered code from `2fb4e2587`.
+#1796 fixed the `ROW_OVER` accept: `Repo.judged` lifts `ROW_OVER` at the accepted head and reads the row as an open pull request's (`Repo.queue_of`), so `over` joined `Accepted` and `VerdictAccepted` checks it among the holds your accept lifts.
+#1768 added the rule preflight after `Repo.over_main` and the guards (`RULE_UNRUN`, `RULE_BREAKS`), which waits on other open pull requests and their crews; the model has one pull request, and the README's "What PrVerdict leaves out" names it.
+#1788's `stuck_runs` restarts a queued run, which the model already leaves out.
+Every run says what it should, so the sync commit moved there.

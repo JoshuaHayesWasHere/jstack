@@ -19,16 +19,16 @@ CONSTANT Moves          \* how many times other work moves main under the pull r
 Kept(g) == Drop # g
 
 \* The holds for your word a pull request may carry, each asked of you and lifted only by you.
-\*   "over":     its queue row is over, done or merged, with the pull request open: the hold says
-\*               your accept lifts it, and today none does (Repo.judged passes no queue wait
-\*               through Repo.lift).
+\*   "over":     its queue row is over, done or merged, with the pull request open: your accept
+\*               lifts it at its head (cli.py `self.lift(over, lifted & {ready.ROW_OVER.code})`),
+\*               and no other wait of the queue.
 \*   "nogo":     its queue row has no go, or is held: you approve it (jbus queue approve).
 \*   "touches":  it touches a protected path: your accept lifts it at its head.
 \*   "declines": its rebase dropped lines, or its crew declined a finding, the review did not
 \*               uphold: your accept lifts it at its head.
 \*   "mergeoff": the repo's merge-off switch is on: you turn merging on again.
 Holds == {"over", "nogo", "touches", "declines", "mergeoff"}
-Accepted == {"touches", "declines"}
+Accepted == {"over", "touches", "declines"}
 
 \* The verdicts that wait on your word (verb `hold`), and those on the crew.
 HoldWords == {"row-over", "row-held", "declines", "touches", "merge-off"}
@@ -180,7 +180,9 @@ Verdict ==
 
 \* What your accept judges: every hold it lifts lifted, at the head it is given at
 \* (cli.py `return ready.codes() if self.accepted == (one.number, one.head) else frozenset()`).
-\* A queue wait is not passed through Repo.lift, so a row that is over still holds it.
+\* Of the queue's waits only the row that is over is lifted: its row is read as an open pull
+\* request's (cli.py `return [{**row, "status": "pr"} if row.get("slug") == slug else row for row in self.queue]`),
+\* so its go and its hold still hold it.
 VerdictAccepted ==
     LET a == Asks \ Accepted IN
     IF ~reviewed THEN "no-review"
@@ -188,7 +190,7 @@ VerdictAccepted ==
     ELSE IF ci = "none" THEN "not-passed"
     ELSE IF ci = "fail" /\ ~Rejudged THEN "check-failed"
     ELSE IF decided /\ clash THEN "conflicts"
-    ELSE IF "over" \in asks /\ Kept("over") THEN "row-over"
+    ELSE IF "over" \in a /\ Kept("over") THEN "row-over"
     ELSE IF "nogo" \in a /\ Kept("go") THEN "row-held"
     ELSE IF ci = "fail" THEN Again
     ELSE IF ~decided THEN "undecided"

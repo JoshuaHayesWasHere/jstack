@@ -17,14 +17,14 @@ The rules, each with its harm:
 - **`NoTellLost`:** between passes, an act still owed whose mark is written was taken.
   Broken, a tell is marked done and nobody ever got it.
 
-Today's code breaks them on eight acts, recorded as findings: `stall.twice`'s page, the clock's stall and the finding of a hold only the user's accept lifts (`heldlift`) are lost (`NoTellLost`); failover's ask, the second target's body, a word, the account question and a skill's notice can go twice (`NoTellTwice`).
-`TellOnce.cfg`'s comment keeps each trace, and the test checks that each still breaks.
-The other six acts (held, items, expedite, cancelled, closed, revert) hold both.
+Today's code holds both on all fourteen acts.
+st-fix-tell-once (#1725) closed the eight it broke: `stall.twice`'s page, the clock's stall and the finding of a hold only the user's accept lifts (`heldlift`) were lost (`NoTellLost`); failover's ask, the second target's body, a word, the account question and a skill's notice could go twice (`NoTellTwice`).
+`TellOnce.cfg`'s comment names each fix, and the test checks that no act breaks.
 
 ## The record
 
 Model: `features/jbus/spec/TellOnce.tla`
-Sync: `2fb4e2587489ad3fbebf71561ac648801edb710f`
+Sync: `631810e72260b58b69859e1eb0ce964b832d8722`
 Covers:
 - `features/jbus/src/jbus/wake.py`: `Box.send`, `Box.mark`, `Box.flush_blocking`, `_post_blocking`
 - `features/jbus/src/jbus/clock.py`: `tick`, `_send`, `_act`, `_home`, `held`, `HELD_FILE`
@@ -61,11 +61,11 @@ uv run pytest features/jbus/tests/test_tell_once_spec.py -q
 ```
 
 It prints `6 passed` in about five seconds, and skips where no Java runs TLC.
-The bare TLC command, with `-continue` so it reports all eight breaks and not only the first, is in `features/jbus/spec/README.md`, "Check the rules of act once"; run it in a copy of the folder.
+The bare TLC command, with `-continue` so a break reports every act it breaks on and not only the first, is in `features/jbus/spec/README.md`, "Check the rules of act once"; run it in a copy of the folder.
 
-- **Bounds:** the 14 acts of `Carriers`, `Passes = 2`, `Fault = "none"`, 1694 distinct states; one behavior follows one act, so the acts' states add up and do not multiply.
+- **Bounds:** the 14 acts of `Carriers`, `Passes = 2`, `Fault = "none"`, 1496 distinct states; one behavior follows one act, so the acts' states add up and do not multiply.
 - **The canaries:** `Fault = "mark-first"` writes the marks before the act and breaks `NoTellLost` on every act; `Fault = "no-mark"` reads no mark and breaks `NoTellTwice` on every act.
-- **Assumptions:** safety only, so an act a guard keeps from running for ever passes; a clock wait never returns to a kind it had; `Box.send` writing a finding's key before its line is modeled for the clock's stall and `stall.twice` only.
+- **Assumptions:** safety only, so an act a guard keeps from running for ever passes; a clock wait never returns to a kind it had; `Box.send` keeping a finding's line with its key in `unlogged.json` is modeled for the clock's stall, `heldlift` and `stall.twice` only.
   The rest is in the README's "What the act-once model leaves out".
 
 ## A real bug or a modeling error
@@ -77,7 +77,7 @@ A new break on an act that held is a bug: tell it as the act, the write the pass
 
 ## Change the model when the code changes on purpose
 
-- A fix for one of the eight: the test's expected breaks fail until the cfg's comment and the test's list drop it.
+- A change that breaks an act: the test fails on `TODAY`; a break the code means to keep goes in the cfg's comment and the test's `TODAY`.
 - A new act: add it to `Carriers` with its `Code`, `Guard` and `Absorbs` rows and a variable for each carrier it writes, quoted.
 - Show a changed rule failing on a scratch break first (swap two writes of one act in your own worktree, uncommitted, see the trace, `git restore` the file).
 
@@ -93,3 +93,14 @@ A new break on an act that held is a bug: tell it as the act, the write the pass
 The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: `queue.py` changed in #1726, in `order` and the new `lifted`, not in `hold`, so the sync commit moved there.
 
 st-model-sync then merged main again, to `2fb4e2587`, and the row was rebased onto it; the upkeep diffed the covered code from `8f4c21b6f`: `clock.py` changed in #1736: a thread at work on a code no crew clears (`aged.BOUNDS`) no longer keeps a hold from waking its home, which decides when `held` wakes and not how it tells; this model has no thread at work on a hold, so the sync commit moved there.
+
+st-model-sync then merged main to `631810e72`, which carried st-fix-tell-once (#1725): it rewrote the model with the code, and `heldlift` holds as forecast, so `TODAY` is empty.
+The upkeep diffed the covered code from `2fb4e2587` to it.
+Every change but #1725's and #1788's leaves the acts' write orders as modeled: #1752's `rebase.retell` tells again through `rebase.once` under a key of the main tip, like `revert`, and #1777's `waits` carry-on is marked in `sent.json` once T3 Code took it, like `owed`.
+
+## Drift at the sync commit
+
+`/maintain-formal-verification-skill` fixes it.
+
+- **`cancelled.unqueue` (#1788) is not modeled:** it keeps `queued.json`'s record before it asks GitHub anything, runs each stuck run again with `gh run rerun`, keeps the record after each rerun GitHub takes, and logs once through `run.find` under `queued|<slug>|<head12>`.
+  A pass that dies between a rerun and its keep runs that run again; GitHub refuses a rerun of a run it has not ended, which absorbs the repeat only while the new attempt runs.

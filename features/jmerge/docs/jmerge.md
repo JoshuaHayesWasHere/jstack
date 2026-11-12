@@ -209,6 +209,7 @@ The section "Protected paths" describes one more hold.
   It looks up the row whose slug is the brief's slug.
   Whether a row is over, `merged` or `done`, jmerge asks jbus (`jmerge.bus.over`, which `jbus.work.over` answers), and a row once over stays so.
   A pull request whose row is over is held as `its queue row is <status>, and a row that is over waits for no merge: accept it to merge it` (`row-over`): it opened after the row ended, jbus asks the user about it, and `--accept` lifts the hold.
+  It lifts that hold alone: the row's go, its hold, and the rows it merges after or its head carries still hold the pull request (`Repo.queue_of`).
   When `jbus queue hold` has withdrawn a row's approval, the pull request waits as `its queue row is held: approve it again to let it merge`.
   A hold stops a merge as it stops a launch, and `--accept` does not lift it.
   A row with no go waits as `its queue row has no go: the user's go (jbus plan go <entry> --message <thread>/<message>), or the bot's, lets it merge`, and a go given with `jbus plan go` or `jbus queue approve`, or the bot's over `POST /act`, lets it merge.
@@ -389,6 +390,8 @@ Once a restart took, the pull request keeps the line for `ready.RESTART_MINUTES`
 Where GitHub then lists no newer run, or the newer one is queued for `ready.QUEUED_MINUTES` too, the pull request gives up the line and waits with `GitHub queued its <check> run at <head> again after jmerge closed and reopened it, and started none in 30 minutes: it gave the head of the line to the next pull request` while that run stays queued.
 No runner is at work on `QUEUED_GAVE_UP`, `QUEUED_UNRESTARTED` or `QUEUED_UNREOPENED`, so jbus's `clock.held` raises each to the home as a hold, even for a pull request that GitHub no longer lists open.
 A run that started is never restarted, however long it runs.
+That restart is the head of the line's only: jbus restarts a required run GitHub queued for `ready.QUEUED_MINUTES` on every open row's pull request, once for the head, by a cancel and a rerun (`jbus.cancelled.unqueue`), and finds the run with `ready.stuck_runs` from the head's workflow runs and their jobs, since the roll-up lists no check of a run with no jobs and `jmerge` then says the check has no run.
+jbus's step runs after `jmerge` in a pass, so a run `jmerge` restarted is a new one that jbus does not touch, and a run jbus restarted is a new attempt that `jmerge` counts its 30 minutes from.
 A pull request whose check ran over today's main, that overlaps none of main's changes since it, or that overlaps them and merges on its guards, is not in the line: it merges as before, while others wait.
 A revert jbus opened for a red main, one that `reverts.json` names (`jmerge.reverts`), comes first in merge order, and takes its base's line from a pull request that holds it and is no revert.
 That pull request then waits `in line behind` the revert, and its record in `base-merges.json` stays, with `line` off, so its update is not asked again at the same head and tip.

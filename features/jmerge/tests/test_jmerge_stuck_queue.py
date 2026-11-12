@@ -267,3 +267,26 @@ def test_queued_falls_back_on_the_jobs_of_the_workflow_where_the_check_is_not_li
     assert ready.queued(shards) == ()
     ended = [{**one, "status": "COMPLETED"} for one in shards]
     assert ready.queued(ended) == ()
+
+
+def _run(number, name, status="queued", minutes=31):
+    """A workflow run as GitHub's REST `actions/runs` gives it, its attempt begun `minutes` ago."""
+    return {"id": number, "name": name, "status": status, "run_started_at": _ago(minutes)}
+
+
+def test_stuck_runs_reads_a_run_queued_with_no_jobs_and_a_queued_check_job_of_an_ended_run():
+    """The roll-up lists no check of a run with no jobs (#1695, 2026-11-11), and a run that ended
+    can list its `check` job queued (#1691): each is stuck once queued for `QUEUED_MINUTES`."""
+    now = datetime.now(UTC)
+    runs = [_run(1, "check", "completed"), _run(2, "check"), _run(3, "borders"), _run(4, "macos")]
+    jobs = {"2": [], "3": [{"name": "borders", "status": "in_progress"}]}
+    assert ready.stuck_runs(runs, jobs, MACOS, now) == (
+        ready.StuckRun(2, "check", _at(31), 1, False),
+    )
+    ended = [{**_run(5, "check", "completed"), "run_attempt": 2}]
+    queued = {"name": "check", "status": "queued", "created_at": _ago(30)}
+    shard = {"name": "check 1 of 8", "status": "completed", "created_at": _ago(40)}
+    assert ready.stuck_runs(ended, {"5": [shard, queued]}, MACOS, now) == (
+        ready.StuckRun(5, "check", _at(30), 2, True),
+    )
+    assert ready.stuck_runs([_run(6, "check", minutes=29)], {"6": []}, MACOS, now) == ()

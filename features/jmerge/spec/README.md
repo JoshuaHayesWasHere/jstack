@@ -155,7 +155,7 @@ The design starts with both pull requests open, so a story, when the chart has o
 - An accepted pull request whose guards failed over a moved main, which goes through the line, and an accept that takes the line: the model's accept merges at once.
 - Whether a pull request's files overlap main's change: the model's guards failure always takes the line (`InLine`), where one with no overlap waits on its crew instead (`MERGED_TREE_FAILS`, `Repo.judged`'s `self.guards.kept`), as a `CrewFix` would.
 - `Repo.again`'s `repeats`, no rejudge once two runs failed the same test, which saves only a CI round.
-- A row that is over with its pull request open, which jmerge holds (`ROW_OVER`, #1657): the model's rows end only by merging.
+- A row that is over with its pull request open, which jmerge holds until your accept (`ROW_OVER`, #1657, #1796): the model's rows end only by merging.
 - A pull request that conflicts with main's tip and waits for its rebase, a stacked base's own line, and the line's restarts of a queued run.
 - jmerge's run lock and the merge tick: the model's jmerge is one run at a time, and only what its run said waits for a pass to read it.
 
@@ -197,18 +197,18 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --e
 At st-model-upkeep-run's head it prints, with each run's time left out:
 
 ```text
-ok    today: MergesOrWaitsOnYou holds (1280274 distinct states found)
-ok    canary over: MergesOrWaitsOnYou breaks (115957 distinct states found)
-ok    canary go: MergesOrWaitsOnYou breaks (117445 distinct states found)
-ok    canary touches: MergesOrWaitsOnYou breaks (115876 distinct states found)
-ok    canary declines: MergesOrWaitsOnYou breaks (115927 distinct states found)
-ok    canary mergeoff: MergesOrWaitsOnYou breaks (115953 distinct states found)
-ok    canary head: MergesOrWaitsOnYou breaks (1170146 distinct states found)
-ok    canary release: MergesOrWaitsOnYou breaks (1280262 distinct states found)
-ok    canary rejudge: MergesOrWaitsOnYou breaks (1536444 distinct states found)
-ok    canary again: MergesOrWaitsOnYou breaks (1275170 distinct states found)
-ok    canary batch-failed: MergesOrWaitsOnYou breaks (1279674 distinct states found)
-ok    canary twice: MergesOrWaitsOnYou breaks (1327890 distinct states found)
+ok    today: MergesOrWaitsOnYou holds (1280794 distinct states found)
+ok    canary over: MergesOrWaitsOnYou breaks (115925 distinct states found)
+ok    canary go: MergesOrWaitsOnYou breaks (117476 distinct states found)
+ok    canary touches: MergesOrWaitsOnYou breaks (115919 distinct states found)
+ok    canary declines: MergesOrWaitsOnYou breaks (115947 distinct states found)
+ok    canary mergeoff: MergesOrWaitsOnYou breaks (115957 distinct states found)
+ok    canary head: MergesOrWaitsOnYou breaks (1166082 distinct states found)
+ok    canary release: MergesOrWaitsOnYou breaks (1280782 distinct states found)
+ok    canary rejudge: MergesOrWaitsOnYou breaks (1369410 distinct states found)
+ok    canary again: MergesOrWaitsOnYou breaks (1275690 distinct states found)
+ok    canary batch-failed: MergesOrWaitsOnYou breaks (1280194 distinct states found)
+ok    canary twice: MergesOrWaitsOnYou breaks (1328546 distinct states found)
 every run says what it should
 ```
 
@@ -224,9 +224,9 @@ The code has no such order: a pass runs its tellers, `stall.twice` among them, b
 jbus's hold is the one wait on you that jmerge words as its crew's: with the check failed, jmerge says `check has failed`, as GitHub's waits come before the row's go, while the outbox holds the crew's fix until your approve or a head whose check passes.
 The row says `check failed twice` and jbus pages you once; the chart draws the state in "Waits on your word" as `held: its check failed twice`, whatever jmerge last said, with your approve as its way out.
 
-The hold of a row that is over (`ROW_OVER`, #1657) says "accept it to merge it", and no accept lifts it: `Repo.judged` passes `rows.short`'s wait through no `Repo.lift`, so `jmerge --accept` judges it again and says the same hold.
-The model has it so (`VerdictAccepted`), and the rule holds, since a hold is a wait on you; but no word of yours ends it.
-A rule that each hold you are asked about has a word that moves it breaks in four states, the row over from the start; the queued row jm-row-over-accept is its fix.
+The hold of a row that is over (`ROW_OVER`, #1657) says "accept it to merge it".
+st-model-upkeep-run found that no accept lifted it, since `Repo.judged` passed `rows.short`'s wait through no `Repo.lift`, so a rule that each hold you are asked about has a word that moves it broke in four states, the row over from the start.
+#1796 fixed it: your accept at the head lifts `ROW_OVER` and no other wait of the queue (`Repo.queue_of` reads the row as an open pull request's), so its go and its hold still hold it, and `over` is one of `Accepted`.
 
 ## Draw the chart
 
@@ -239,7 +239,7 @@ W=$(mktemp -d) && cp features/jmerge/spec/PrVerdict.* "$W"
 ```
 
 Run it from the repo root, and copy the files of `$W/out`, but its `tlc/`, into `PrVerdict-statechart/`.
-`PrVerdict.chart.cfg` moves main once (1,280,274 model states), and `PrVerdict.map.py` labels each state by main and what jmerge last said, and a row jbus held for its failed checks as held.
+`PrVerdict.chart.cfg` moves main once (1,280,794 model states), and `PrVerdict.map.py` labels each state by main and what jmerge last said, and a row jbus held for its failed checks as held.
 The chart has 21 states and draws 56 of its 174 steps, at least one way out of each state but merged, and no state breaks the rule.
 Then draw its Excalidraw file and the charts page again, from the repo root:
 
@@ -253,6 +253,7 @@ each with `UV_PROJECT_ENVIRONMENT` and `uv run --frozen --project "$S"` in front
 ## What PrVerdict leaves out
 
 - A stacked link, a base other than main, another home's pull request, one no brief names, and a draft opened by hand.
+- The rule preflight (#1768): a pull request that adds or tightens a test waits until those tests have run on every other open pull request merged with it (`RULE_UNRUN`), and on its crew where one fails (`RULE_BREAKS`); the model has one pull request, so no other for a rule to break.
 - The browser run, migrations, `merge_after`, and `row_first`'s order among GitHub's waits.
 - A required check with no run at its head (`NO_RUN`) apart from a conflicting one's, the restart of a queued run, and `repeats`, which only saves a CI round.
   GitHub runs no check on a pull request that conflicts with its base, so a check not ended at a decided clash is one with no run, said as the conflict (#1721); the model has no run started before the clash.
@@ -261,7 +262,7 @@ each with `UV_PROJECT_ENVIRONMENT` and `uv run --frozen --project "$S"` in front
 - The other members of a batch: whether a run judges any is the world's (`Alone` has no fairness), and a batch with them is one step out and one back, its kind (guards or CI's), its timeout, its rerun, its narrowing to suspects and `BATCH_FIRST` left out.
   It proves or fails on the pull request's tree merged over main.
 - A review round that says the brief is not met: one round holds.
-- A head jbus counts for nothing besides one over main's red: a flake shared with two other branches and an infra step's failure (`jbus.stall.shared`, `infra`).
+- A head jbus counts for nothing besides one over main's red: a flake shared with two other branches and an infra step's failure (`jbus.redhead.shared`, `infra`).
 - Your own hold of a row (`jbus queue hold`): `nogo` stands for it and for a row with no go, whose crew the outbox still tells, so the model's crew is told of both, and with no hold of yours `queue.lift`'s refusal of a row held again since is left out too.
 - Whose your accept is: the bus's doors and `--message` (`Repo.accept`).
 

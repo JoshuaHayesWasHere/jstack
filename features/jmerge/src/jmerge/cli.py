@@ -1012,6 +1012,8 @@ class Repo:
         self.trunk = default
         self.lifts = []
         lifted = self.lifted(one)
+        over = rows.short(self.queue, brief.stem, brief=self.stored(brief.stem))
+        self.lift(over, lifted & {ready.ROW_OVER.code})
         stacked = stacks.of(text)
         short = self.lift(ready.held(one, default, stacked, self.bases), lifted)
         short = short or self.on_stack(one, default, stacked)
@@ -1079,8 +1081,13 @@ class Repo:
         if short:
             return Judgement(brief.stem, judgement.verb(short), short, note, None)
         short = (
-            rows.short(self.queue, brief.stem, brief=self.stored(brief.stem))
-            or rows.short(self.queue, brief.stem, self.carries(one), brief=self.stored(brief.stem))
+            rows.short(self.queue_of(brief.stem), brief.stem, brief=self.stored(brief.stem))
+            or rows.short(
+                self.queue_of(brief.stem),
+                brief.stem,
+                self.carries(one),
+                brief=self.stored(brief.stem),
+            )
             or self.red(one, default, brief.stem)
             or self.short_on_migrations(one, one.base)
         )
@@ -1154,8 +1161,19 @@ class Repo:
         check waits), are work for the crew, and keep their place."""
         if not isinstance(short, ready.Reason) or short.code not in QUEUE_OUTRANKS:
             return short
-        queued = rows.short(self.queue, slug, brief=self.stored(slug))
+        queued = rows.short(self.queue_of(slug), slug, brief=self.stored(slug))
         return queued if ready.code_of(queued) in QUEUE_WAITS else short
+
+    def queue_of(self, slug: str) -> list[dict] | None:
+        """The queue as the judge of the pull request of `slug` reads it: the row of `slug` read
+        as the row of an open pull request (`pr`), not as one that is over, where the user's
+        accept lifted its `ROW_OVER` at its head (`self.lifts`). Its go, its hold, the rows it
+        merges after and the rows its head carries still hold it, since the accept lifts none of
+        them."""
+        over = any(ready.code_of(why) == ready.ROW_OVER.code for why in self.lifts)
+        if self.queue is None or not over:
+            return self.queue
+        return [{**row, "status": "pr"} if row.get("slug") == slug else row for row in self.queue]
 
     def unbriefed(self, one: ready.PullRequest, default: str, red: str) -> Judgement:
         """The judgement of a pull request no brief names, which the user's own message accepts

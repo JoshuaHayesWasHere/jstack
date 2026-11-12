@@ -73,8 +73,8 @@ CrewEnds(k) ==
     /\ work[k] = "merged" /\ work' = Set(work, k, "done")
     /\ UNCHANGED <<keeper, starts, failed, launches, life, msg, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
 \* A gate or an item for Josh is an open item of the one list, raised once: its key is in sent.json
-\* from then on, so it is never raised again (jbus/wake.py `return False
-\* _write_sent(self.state / SENT, (*sent.keys, key))`). A call is no change in what the child has
+\* from then on, so it is never raised again (jbus/wake.py
+\* `_write_sent(self.state / SENT, (*sent.keys, *new))`). A call is no change in what the child has
 \* out, since the watch leaves calls out of the spell's signature (jbus/children.py
 \* `if not line.startswith(USERS)`): it is a write of the child's home thread, which ends the spell
 \* only before the root nudged it.
