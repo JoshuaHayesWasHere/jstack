@@ -7,27 +7,38 @@ config:
 ---
 stateDiagram-v2
   classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
-  classDef plainPath fill:#f4f6f7,stroke:#1f3a93,stroke-width:4px,color:#1b2631
   classDef group0 fill:#ffffff,stroke:#808080,color:#1b2631
   classDef group0Path fill:#ffffff,stroke:#1f3a93,stroke-width:4px,color:#1b2631
-  classDef group1 fill:#e8daef,stroke:#746d78,color:#1b2631
-  classDef group1Path fill:#e8daef,stroke:#1f3a93,stroke-width:4px,color:#1b2631
-  classDef group2 fill:#d1f2eb,stroke:#697976,color:#1b2631
-  classDef group2Path fill:#d1f2eb,stroke:#1f3a93,stroke-width:4px,color:#1b2631
-  classDef group3 fill:#fdebd0,stroke:#7f7668,color:#1b2631
-  classDef group3Wrong fill:#fdebd0,stroke:#c0392b,stroke-width:4px,color:#7b241c
-  classDef group3Path fill:#fdebd0,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group1 fill:#eaf2f8,stroke:#75797c,color:#1b2631
+  classDef group1Path fill:#eaf2f8,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group2 fill:#e8daef,stroke:#746d78,color:#1b2631
+  classDef group2Path fill:#e8daef,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group3 fill:#fadbd8,stroke:#7d6e6c,color:#1b2631
+  classDef group3Path fill:#fadbd8,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group6 fill:#fef9e7,stroke:#7f7d74,color:#1b2631
+  classDef group6Path fill:#fef9e7,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group7 fill:#fdebd0,stroke:#7f7668,color:#1b2631
+  classDef group7Path fill:#fdebd0,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group9 fill:#e5e8e8,stroke:#737474,color:#1b2631
+  classDef group9Wrong fill:#e5e8e8,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group9Path fill:#e5e8e8,stroke:#1f3a93,stroke-width:4px,color:#1b2631
   state "Legend" as legend {
     state "At work" as legendGroup0
-    state "In review" as legendGroup1
-    state "Reviewed" as legendGroup2
-    state "Rebase" as legendGroup3
+    state "Result written" as legendGroup1
+    state "In review" as legendGroup2
+    state "A finding to answer" as legendGroup3
+    state "In conflict" as legendGroup6
+    state "Rebasing" as legendGroup7
+    state "The rebase record" as legendGroup9
     state "Breaks a rule" as legendWrong
   }
   class legendGroup0 group0
   class legendGroup1 group1
   class legendGroup2 group2
   class legendGroup3 group3
+  class legendGroup6 group6
+  class legendGroup7 group7
+  class legendGroup9 group9
   class legendWrong plainWrong
   state "Checked and proved at this<br/>head" as g0 {
     state "rebasing" as s0
@@ -67,18 +78,18 @@ stateDiagram-v2
   s13 --> s7 : 12. the check block writes its<br/>Checked line, exit 0
   s7 --> s9 : 13. the rebase is pushed with<br/>its lease
   s9 --> s5 : 14. the block is killed
-  class s0 group3Path
-  class s1 group2Path
-  class s2 group0Path
-  class s3 plainPath
-  class s4 group1Path
-  class s5 group3Wrong
+  class s0 group7Path
+  class s1 group3Path
+  class s2 group1Path
+  class s3 group6Path
+  class s4 group2Path
+  class s5 group9Wrong
   class s6 group0Path
-  class s7 group3Path
-  class s8 group0Path
-  class s9 group3Path
+  class s7 group7Path
+  class s8 group1Path
+  class s9 group9Path
   class s10 group0Path
-  class s11 group3Path
+  class s11 group7Path
   class s12 group0Path
-  class s13 group3Path
-  class s14 group0Path
+  class s13 group7Path
+  class s14 group1Path

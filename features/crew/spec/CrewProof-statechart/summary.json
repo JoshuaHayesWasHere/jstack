@@ -13,7 +13,12 @@
     {
       "name": "At work",
       "color": "#ffffff",
-      "states": 16
+      "states": 8
+    },
+    {
+      "name": "Result written",
+      "color": "#eaf2f8",
+      "states": 8
     },
     {
       "name": "In review",
@@ -21,19 +26,42 @@
       "states": 3
     },
     {
-      "name": "Reviewed",
-      "color": "#d1f2eb",
-      "states": 34
+      "name": "A finding to answer",
+      "color": "#fadbd8",
+      "states": 7
     },
     {
-      "name": "Rebase",
+      "name": "A scoped review owed",
+      "color": "#f5eef8",
+      "states": 9
+    },
+    {
+      "name": "Nothing owed",
+      "color": "#d1f2eb",
+      "states": 12
+    },
+    {
+      "name": "In conflict",
+      "color": "#fef9e7",
+      "states": 7
+    },
+    {
+      "name": "Rebasing",
       "color": "#fdebd0",
-      "states": 23
+      "states": 8
+    },
+    {
+      "name": "A drop not written",
+      "color": "#f6ddcc",
+      "states": 6
+    },
+    {
+      "name": "The rebase record",
+      "color": "#e5e8e8",
+      "states": 9
     }
   ],
-  "mixedGroups": [
-    "Checked and proved at this head: the pull request is in conflict"
-  ],
+  "mixedGroups": [],
   "regions": {
     "drawn": false,
     "why": "\"Checked and proved at this head: a rebase record left behind\" is \"Breaks a rule\", and its two region states would show \"Works\""
@@ -58,9 +86,9 @@
     "command": "statechart from-spec CrewProof.tla --config CrewProof.chart.cfg --title 'Does the proof on the brief match the head, and does a rebase leave its record?' --expect-broken RebaseRecorded --png",
     "inputs": {
       "CrewProof.chart.cfg": "d5ead165c6c163545d1fe32b7bcf9b08685fdf27f9c37a75d18c16a756ca2b3c",
-      "CrewProof.map.py": "ecebc61816fe5b5b3fab3da295b9b17f98b2ebcafa437da7856b9313ba935ee8",
-      "CrewProof.tla": "dacbf1cf1090619a6f8c5f6c9293cbe4ee546290d023e6f11b3e66119a07f060"
+      "CrewProof.map.py": "402110a1693ea15a978a0203fa1e8b9c5c2a0abc5afcae4a2897e95ddeb451ed",
+      "CrewProof.tla": "fa5028148ce540ec8ea072280ec34cbd0eba9167e191cc90ee4a6bfae1954e8e"
     },
-    "chart": "0a34de03062afdd9b02a73e17a3e38796293e6a1e6f528ff9c9d02ff8f6f9eb3"
+    "chart": "3952b7ac66bbcde4264c37a93bcc905e398bdc85e1fd86d268328470aa2f4870"
   }
 }

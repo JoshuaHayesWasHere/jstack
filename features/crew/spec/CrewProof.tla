@@ -198,8 +198,9 @@ FindingState ==
       [] declines = "upheld" -> "upheld"
       [] OTHER -> "overruled"
 
-\* A review is running as "A conflict" counts it: a reviewer line with no section of its own
-\* (crew/a-conflict.md `if (n) exit !(filled < n || asked > scoped || more > numbered - filled)`).
+\* A review is running as "A conflict" counts it, by jbriefs.reviewers.running: a reviewer line
+\* with no section of its own (crew/a-conflict.md
+\* `[ "$(uv run --project "$T/../source" jbriefs line reviewing "$B" 2> /dev/null)" = yes ]`).
 \* The first reviewer's `Reviewer:` line is there while it is at work.
 Reviewing ==
     \/ out = "first"

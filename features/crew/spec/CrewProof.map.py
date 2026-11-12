@@ -104,20 +104,45 @@ region_names = ["The proof at the head", "The review and the rebase"]
 
 
 def group(v, facts):
-    if v["pc"] in ("kept", "recorded", "pushed") or v["rebased"] or v["before"]["at"] != 0:
-        return "Rebase"
-    if v["out"] != "none" or v["pc"] == "launching":
-        return "In review"
-    if v["sections"]:
-        return "Reviewed"
+    """The phase of the round, read off the same words the state's label ends with, so a drawn
+    state is never in two groups, and no group holds more than 15 of them."""
+    words = round_(v)
+    for start, name in PHASES:
+        if words.startswith(start):
+            return name
     return "At work"
 
 
+PHASES = [
+    ("at work", "At work"),
+    ("the Result is written", "Result written"),
+    ("the review runs", "In review"),
+    ("the scoped review runs", "In review"),
+    ("reviewed, a finding", "A finding to answer"),
+    ("a scoped review is owed", "A scoped review owed"),
+    ("its scoped review is written", "A scoped review owed"),
+    ("reviewed, no scoped review owed", "Nothing owed"),
+    ("the pull request is in conflict", "In conflict"),
+    ("rebased, not pushed, a dropped", "A drop not written"),
+    ("rebased, not pushed", "Rebasing"),
+    ("rebasing", "Rebasing"),
+    ("the rebase is pushed", "The rebase record"),
+    ("a rebase record left behind", "The rebase record"),
+]
+"""Each start of the round's words and its group: the first that matches wins, so a longer
+start comes before a shorter one it begins with."""
+
 group_colors = {
     "At work": "#ffffff",
+    "Result written": "#eaf2f8",
     "In review": "#e8daef",
-    "Reviewed": "#d1f2eb",
-    "Rebase": "#fdebd0",
+    "A finding to answer": "#fadbd8",
+    "A scoped review owed": "#f5eef8",
+    "Nothing owed": "#d1f2eb",
+    "In conflict": "#fef9e7",
+    "Rebasing": "#fdebd0",
+    "A drop not written": "#f6ddcc",
+    "The rebase record": "#e5e8e8",
 }
 
 # The label for one step. A step that leaves the reader in the same state is not drawn,

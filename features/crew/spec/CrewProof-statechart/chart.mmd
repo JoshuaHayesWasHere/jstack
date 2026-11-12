@@ -6,24 +6,41 @@ config:
     useMaxWidth: false
 ---
 stateDiagram-v2
-  classDef plain fill:#f4f6f7,stroke:#566573,color:#1b2631
   classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
   classDef group0 fill:#ffffff,stroke:#808080,color:#1b2631
-  classDef group1 fill:#e8daef,stroke:#746d78,color:#1b2631
-  classDef group2 fill:#d1f2eb,stroke:#697976,color:#1b2631
-  classDef group3 fill:#fdebd0,stroke:#7f7668,color:#1b2631
-  classDef group3Wrong fill:#fdebd0,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group1 fill:#eaf2f8,stroke:#75797c,color:#1b2631
+  classDef group2 fill:#e8daef,stroke:#746d78,color:#1b2631
+  classDef group3 fill:#fadbd8,stroke:#7d6e6c,color:#1b2631
+  classDef group4 fill:#f5eef8,stroke:#7b777c,color:#1b2631
+  classDef group5 fill:#d1f2eb,stroke:#697976,color:#1b2631
+  classDef group6 fill:#fef9e7,stroke:#7f7d74,color:#1b2631
+  classDef group7 fill:#fdebd0,stroke:#7f7668,color:#1b2631
+  classDef group8 fill:#f6ddcc,stroke:#7b6f66,color:#1b2631
+  classDef group9 fill:#e5e8e8,stroke:#737474,color:#1b2631
+  classDef group9Wrong fill:#e5e8e8,stroke:#c0392b,stroke-width:4px,color:#7b241c
   state "Legend" as legend {
     state "At work" as legendGroup0
-    state "In review" as legendGroup1
-    state "Reviewed" as legendGroup2
-    state "Rebase" as legendGroup3
+    state "Result written" as legendGroup1
+    state "In review" as legendGroup2
+    state "A finding to answer" as legendGroup3
+    state "A scoped review owed" as legendGroup4
+    state "Nothing owed" as legendGroup5
+    state "In conflict" as legendGroup6
+    state "Rebasing" as legendGroup7
+    state "A drop not written" as legendGroup8
+    state "The rebase record" as legendGroup9
     state "Breaks a rule" as legendWrong
   }
   class legendGroup0 group0
   class legendGroup1 group1
   class legendGroup2 group2
   class legendGroup3 group3
+  class legendGroup4 group4
+  class legendGroup5 group5
+  class legendGroup6 group6
+  class legendGroup7 group7
+  class legendGroup8 group8
+  class legendGroup9 group9
   class legendWrong plainWrong
   state "Checked and proved at this<br/>head, edits not committed" as g0 {
     state "a rebase record left<br/>behind" as s0
@@ -319,80 +336,80 @@ stateDiagram-v2
   s20 --> s22 : the rebase record is removed
   s20 --> s11 : the rebase record is removed
   s20 --> s23 : the rebase record is removed
-  class s0 group3
-  class s1 group2
-  class s2 group3
-  class s3 group2
-  class s4 group2
-  class s5 group2
-  class s6 group0
-  class s7 group2
-  class s8 group3Wrong
-  class s9 group2
-  class s10 group2
-  class s11 group2
-  class s12 group3
-  class s13 group3
-  class s14 group3
-  class s15 group2
-  class s16 group2
-  class s17 group2
-  class s18 group0
-  class s19 plain
-  class s20 group3
-  class s21 group1
-  class s22 group1
-  class s23 group1
+  class s0 group9
+  class s1 group4
+  class s2 group7
+  class s3 group3
+  class s4 group5
+  class s5 group5
+  class s6 group1
+  class s7 group6
+  class s8 group9Wrong
+  class s9 group4
+  class s10 group4
+  class s11 group4
+  class s12 group7
+  class s13 group8
+  class s14 group7
+  class s15 group3
+  class s16 group5
+  class s17 group5
+  class s18 group1
+  class s19 group6
+  class s20 group9
+  class s21 group2
+  class s22 group2
+  class s23 group2
   class s24 group0
-  class s25 group0
-  class s26 group3Wrong
-  class s27 group2
+  class s25 group1
+  class s26 group9Wrong
+  class s27 group4
   class s28 group0
-  class s29 group3
-  class s30 group3
-  class s31 group2
-  class s32 group2
-  class s33 group2
-  class s34 group0
-  class s35 group2
-  class s36 group3
+  class s29 group7
+  class s30 group8
+  class s31 group3
+  class s32 group5
+  class s33 group5
+  class s34 group1
+  class s35 group6
+  class s36 group9
   class s75 group0
-  class s37 group3
-  class s38 group2
+  class s37 group9
+  class s38 group4
   class s39 group0
-  class s40 group3
-  class s41 group3
-  class s42 group2
-  class s43 group2
-  class s44 group0
-  class s45 group2
+  class s40 group7
+  class s41 group8
+  class s42 group3
+  class s43 group5
+  class s44 group1
+  class s45 group6
   class s76 group0
-  class s46 group3
-  class s47 group2
+  class s46 group9
+  class s47 group4
   class s48 group0
-  class s49 group3
-  class s50 group3
-  class s51 group2
-  class s52 group2
-  class s53 group0
-  class s54 group2
-  class s55 group3
-  class s56 group2
+  class s49 group7
+  class s50 group8
+  class s51 group3
+  class s52 group5
+  class s53 group1
+  class s54 group6
+  class s55 group9
+  class s56 group4
   class s57 group0
-  class s58 group3
-  class s59 group3
-  class s60 group2
-  class s61 group2
-  class s62 group2
-  class s63 group0
-  class s64 group2
-  class s65 group3
-  class s66 group2
+  class s58 group7
+  class s59 group8
+  class s60 group3
+  class s61 group5
+  class s62 group5
+  class s63 group1
+  class s64 group6
+  class s65 group9
+  class s66 group4
   class s67 group0
-  class s68 group3
-  class s69 group3
-  class s70 group2
-  class s71 group2
-  class s72 group2
-  class s73 group0
-  class s74 group2
+  class s68 group7
+  class s69 group8
+  class s70 group3
+  class s71 group5
+  class s72 group5
+  class s73 group1
+  class s74 group6
