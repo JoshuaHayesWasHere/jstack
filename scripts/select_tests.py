@@ -186,6 +186,19 @@ of 48 (6 to 256), 934 s of the file table's test time (26 to 3,371 s), which the
 workers share, in 20 steps (1 to 59). Most of it is read sets: an edit of one module of
 `features/jbus/src/` matches 96 tests' read sets.
 
+With `$CREW_PASSED_RUNS` naming the desk's store of runs, `--part cross` and `--part names` leave
+out each file a run that passed on this desk covers (`reused`). The store, which only the crew's
+check block keeps and hands over, holds a line `passed <file> <head>` or `failed <file> <head>`
+for each file a step passed or failed on. A file is left out where its last line passed, at a
+head this checkout holds, and the diff from that head to `<head>` selects it by none of the rules
+above, the wide reach and the cross-cutting list among them: the blobs of its read set are the
+ones it passed on. A cross-cutting test reads the whole tree, so only the same tree leaves it
+out. A worktree with work not committed leaves out nothing. Each file left out gets a line on
+stderr: `<file>: skipped, its read set is as it was when it passed on this desk at <head>`. CI's
+check and jmerge's run never set it, and every other part ignores it, so they run each file they
+select. On 2026-11-12 61% of jstack's short-lane CPU, 431k of 710k CPU-s, went to a file a
+worktree had run before.
+
 `select_tests.py --within <list> <base> <head>` prints, of the test files a list names (a file,
 or a folder of tests that ends in `/`), the ones the change reaches on a Mac: the macOS job reads
 `testing/macos-quick.txt` so. It selects by the same rules but for two. An import reaches a test
@@ -1665,14 +1678,15 @@ DESK_PARTS = ("cross", "guards", "names", "rest", "touched")
 STEP = 60
 
 
-def names_part(changed, edited):
+def names_part(changed, edited, head="HEAD"):
     """The steps of `--part names`: of the test files the narrow reach selects because
     they name or read a path the change edits (`names`), the ones that neither `touched` nor the
-    cross-cutting tests hold, which the desk runs already. A path of `EVERY_RUN` makes the
-    selection `all` and names nothing here, so the rest of the change is read without it."""
+    cross-cutting tests hold, which the desk runs already, and that no run passed on this desk
+    covers at `head` (`reused`). A path of `EVERY_RUN` makes the selection `all` and names
+    nothing here, so the rest of the change is read without it."""
     _, why = ruled([one for one in changed if one not in EVERY_RUN], edited=edited)
     named = set(why.get("names", ())) - set(touched(changed)) - set(cross_cutting())
-    return stepped(sorted(named))
+    return stepped(reused(sorted(named), head))
 
 
 def stepped(files):
@@ -1730,6 +1744,93 @@ def desk_part(name, changed, tests, moved=()):
     if tests == ["all"]:
         return tests
     return sorted(set(tests) - set(guards(changed, tests, moved)))
+
+
+PASSED_RUNS = "CREW_PASSED_RUNS"
+HEADS = 8
+
+
+def git_says(*args):
+    """What git prints for `args` in this checkout, or `None` where it fails."""
+    ran = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True)
+    return None if ran.returncode else ran.stdout
+
+
+def runs_kept(store):
+    """The store of runs on this desk, `<passed|failed> <file> <head>` a line, oldest first: for
+    each file, its last outcome and the heads it passed at, newest first."""
+    last, heads = {}, {}
+    try:
+        lines = Path(store).read_text().splitlines()
+    except OSError:
+        return last, heads
+    for line in lines:
+        words = line.split()
+        if len(words) != 3 or words[0] not in ("passed", "failed"):
+            continue
+        outcome, file, head = words
+        last[file] = outcome
+        if outcome == "passed":
+            heads.setdefault(file, []).insert(0, head)
+    return last, heads
+
+
+def unchanged_since(at, head):
+    """The test files whose read set, the paths a change to which selects them by the pull
+    request's own rules (`ruled`, the wide reach with the cross-cutting tests), holds the same
+    blobs at `at` as at `head`: none where `at` is no commit this checkout holds, or where the
+    diff between them selects `all`. A cross-cutting test reads the whole tree, so only a tree
+    the same as `at`'s leaves it unchanged."""
+    if git_says("cat-file", "-e", f"{at}^{{commit}}") is None:
+        return set()
+    changed = git_says("diff", "--name-only", "--no-renames", at, head)
+    if changed is None:
+        return set()
+    changed = changed.splitlines()
+    every = collected() | set(cross_cutting())
+    if not changed:
+        return every
+    try:
+        tests, _ = ruled(changed)
+    except Unread:
+        return set()
+    if tests == ["all"]:
+        return set()
+    return every - set(tests) - set(changed)
+
+
+def reused(files, head):
+    """`files` less the ones a run that passed on this desk covers, with a line on stderr for each
+    one it leaves out naming the head it passed at. The store is the file `$CREW_PASSED_RUNS`
+    names, which only the crew's check block sets: CI's check and jmerge's run never do, and
+    every other part ignores it. A file whose last run failed, one that passed only at heads this
+    checkout does not hold, and every file of a worktree with work not committed run."""
+    store = os.environ.get(PASSED_RUNS)
+    if not store or not files:
+        return files
+    last, heads = runs_kept(store)
+    if not any(last.get(one) == "passed" for one in files):
+        return files
+    if git_says("status", "--porcelain") != "":
+        print(
+            "select_tests.py: the worktree holds work not committed, so no passed run is reused",
+            file=sys.stderr,
+        )
+        return files
+    left = [one for one in files if last.get(one) == "passed"]
+    tried, kept = {}, set()
+    for one in left:
+        for at in heads[one]:
+            if at not in tried:
+                if len(tried) == HEADS:
+                    break
+                tried[at] = unchanged_since(at, head)
+            if one in tried[at]:
+                kept.add(one)
+                said = "its read set is as it was when it passed on this desk at"
+                print(f"{one}: skipped, {said} {at}", file=sys.stderr)
+                break
+    return [one for one in files if one not in kept]
 
 
 def ask(path, gone=None, etag=None, **query):
@@ -2277,7 +2378,7 @@ def main(argv):
         return
     if cut == "names":
         try:
-            steps = names_part(changed, edits(*argv, changed))
+            steps = names_part(changed, edits(*argv, changed), argv[1])
         except Unread as error:
             sys.exit(f"select_tests.py: nothing can be read ({error}), so no names part")
         print("\n".join(" ".join(step) for step in steps))
@@ -2291,7 +2392,8 @@ def main(argv):
         tests, why = ["all"], {"forced-by": "unread"}
     if cut is not None:
         moved = () if since is None else paths_between(since, argv[0])
-        print("\n".join(desk_part(cut, changed, tests, moved)))
+        part = desk_part(cut, changed, tests, moved)
+        print("\n".join(reused(part, argv[1]) if cut == "cross" else part))
         return
     print("\n".join(tests))
     if os.environ.get("GITHUB_STEP_SUMMARY"):
