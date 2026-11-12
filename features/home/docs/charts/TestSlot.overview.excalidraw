@@ -1,0 +1,710 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "statechart excalidraw",
+  "elements": [
+    {
+      "id": "title",
+      "type": "text",
+      "x": 0,
+      "y": 0,
+      "width": 1293.6,
+      "height": 35.0,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": null,
+      "roundness": null,
+      "seed": 724990059,
+      "version": 1,
+      "versionNonce": 720157283,
+      "isDeleted": false,
+      "boundElements": [],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "text": "Overview: Who holds a test slot, who waits on one, and what the ledger keeps?",
+      "originalText": "Overview: Who holds a test slot, who waits on one, and what the ledger keeps?",
+      "fontSize": 28,
+      "fontFamily": 6,
+      "textAlign": "left",
+      "verticalAlign": "top",
+      "containerId": null,
+      "autoResize": true,
+      "lineHeight": 1.25
+    },
+    {
+      "id": "state-*start0",
+      "type": "ellipse",
+      "x": 624.19,
+      "y": 115.0,
+      "width": 22,
+      "height": 22,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "#1e1e1e",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-chart",
+      "roundness": null,
+      "seed": 1714801793,
+      "version": 1,
+      "versionNonce": 310615342,
+      "isDeleted": false,
+      "boundElements": [
+        {
+          "id": "step0",
+          "type": "arrow"
+        },
+        {
+          "id": "step1",
+          "type": "arrow"
+        },
+        {
+          "id": "step2",
+          "type": "arrow"
+        },
+        {
+          "id": "step3",
+          "type": "arrow"
+        }
+      ],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "customData": {
+        "statechart": {
+          "kind": "start",
+          "id": "*start0"
+        }
+      }
+    },
+    {
+      "id": "state-r0group0",
+      "type": "rectangle",
+      "x": 40.0,
+      "y": 205.0,
+      "width": 272,
+      "height": 64,
+      "angle": 0,
+      "strokeColor": "#6b757c",
+      "backgroundColor": "#d6eaf8",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-chart",
+      "roundness": {
+        "type": 3
+      },
+      "seed": 1827203547,
+      "version": 1,
+      "versionNonce": 1864299097,
+      "isDeleted": false,
+      "boundElements": [
+        {
+          "id": "state-r0group0-text",
+          "type": "text"
+        },
+        {
+          "id": "step0",
+          "type": "arrow"
+        }
+      ],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "customData": {
+        "statechart": {
+          "kind": "state",
+          "id": "r0group0"
+        }
+      }
+    },
+    {
+      "id": "state-r0group0-text",
+      "type": "text",
+      "x": 56.0,
+      "y": 217.0,
+      "width": 240.0,
+      "height": 40.0,
+      "angle": 0,
+      "strokeColor": "#1b2631",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-chart",
+      "roundness": null,
+      "seed": 3730276666,
+      "version": 1,
+      "versionNonce": 2559537728,
+      "isDeleted": false,
+      "boundElements": [],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "text": "Full lane\n9 states, 12 steps inside",
+      "originalText": "Full lane\n9 states, 12 steps inside",
+      "fontSize": 16,
+      "fontFamily": 6,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "state-r0group0",
+      "autoResize": true,
+      "lineHeight": 1.25
+    },
+    {
+      "id": "state-r0group1",
+      "type": "rectangle",
+      "x": 348.0,
+      "y": 205.0,
+      "width": 262,
+      "height": 64,
+      "angle": 0,
+      "strokeColor": "#697976",
+      "backgroundColor": "#d1f2eb",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-chart",
+      "roundness": {
+        "type": 3
+      },
+      "seed": 468703565,
+      "version": 1,
+      "versionNonce": 3379165677,
+      "isDeleted": false,
+      "boundElements": [
+        {
+          "id": "state-r0group1-text",
+          "type": "text"
+        },
+        {
+          "id": "step1",
+          "type": "arrow"
+        }
+      ],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "customData": {
+        "statechart": {
+          "kind": "state",
+          "id": "r0group1"
+        }
+      }
+    },
+    {
+      "id": "state-r0group1-text",
+      "type": "text",
+      "x": 363.8,
+      "y": 217.0,
+      "width": 230.4,
+      "height": 40.0,
+      "angle": 0,
+      "strokeColor": "#1b2631",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-chart",
+      "roundness": null,
+      "seed": 353063583,
+      "version": 1,
+      "versionNonce": 53100079,
+      "isDeleted": false,
+      "boundElements": [],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "text": "Short lane\n6 states, 8 steps inside",
+      "originalText": "Short lane\n6 states, 8 steps inside",
+      "fontSize": 16,
+      "fontFamily": 6,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "state-r0group1",
+      "autoResize": true,
+      "lineHeight": 1.25
+    },
+    {
+      "id": "state-r0group2",
+      "type": "rectangle",
+      "x": 646.0,
+      "y": 205.0,
+      "width": 282,
+      "height": 64,
+      "angle": 0,
+      "strokeColor": "#7f7668",
+      "backgroundColor": "#fdebd0",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-chart",
+      "roundness": {
+        "type": 3
+      },
+      "seed": 2196146423,
+      "version": 1,
+      "versionNonce": 4169261936,
+      "isDeleted": false,
+      "boundElements": [
+        {
+          "id": "state-r0group2-text",
+          "type": "text"
+        },
+        {
+          "id": "step2",
+          "type": "arrow"
+        }
+      ],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "customData": {
+        "statechart": {
+          "kind": "state",
+          "id": "r0group2"
+        }
+      }
+    },
+    {
+      "id": "state-r0group2-text",
+      "type": "text",
+      "x": 662.2,
+      "y": 217.0,
+      "width": 249.6,
+      "height": 40.0,
+      "angle": 0,
+      "strokeColor": "#1b2631",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-chart",
+      "roundness": null,
+      "seed": 2476679217,
+      "version": 1,
+      "versionNonce": 1958014175,
+      "isDeleted": false,
+      "boundElements": [],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "text": "Usage ledger\n10 states, 10 steps inside",
+      "originalText": "Usage ledger\n10 states, 10 steps inside",
+      "fontSize": 16,
+      "fontFamily": 6,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "state-r0group2",
+      "autoResize": true,
+      "lineHeight": 1.25
+    },
+    {
+      "id": "state-r0group3",
+      "type": "rectangle",
+      "x": 964.0,
+      "y": 205.0,
+      "width": 262,
+      "height": 64,
+      "angle": 0,
+      "strokeColor": "#746d78",
+      "backgroundColor": "#e8daef",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-chart",
+      "roundness": {
+        "type": 3
+      },
+      "seed": 4125210721,
+      "version": 1,
+      "versionNonce": 1593239748,
+      "isDeleted": false,
+      "boundElements": [
+        {
+          "id": "state-r0group3-text",
+          "type": "text"
+        },
+        {
+          "id": "step3",
+          "type": "arrow"
+        }
+      ],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "customData": {
+        "statechart": {
+          "kind": "state",
+          "id": "r0group3"
+        }
+      }
+    },
+    {
+      "id": "state-r0group3-text",
+      "type": "text",
+      "x": 979.8,
+      "y": 217.0,
+      "width": 230.4,
+      "height": 40.0,
+      "angle": 0,
+      "strokeColor": "#1b2631",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-chart",
+      "roundness": null,
+      "seed": 1489236884,
+      "version": 1,
+      "versionNonce": 4010909872,
+      "isDeleted": false,
+      "boundElements": [],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "text": "Review pool\n3 states, 2 steps inside",
+      "originalText": "Review pool\n3 states, 2 steps inside",
+      "fontSize": 16,
+      "fontFamily": 6,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "state-r0group3",
+      "autoResize": true,
+      "lineHeight": 1.25
+    },
+    {
+      "id": "step0",
+      "type": "arrow",
+      "x": 624.39,
+      "y": 128.12,
+      "width": 337.0,
+      "height": 76.88,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-chart",
+      "roundness": {
+        "type": 2
+      },
+      "seed": 3690404440,
+      "version": 1,
+      "versionNonce": 818221566,
+      "isDeleted": false,
+      "boundElements": [],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "points": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          -218.64,
+          42.88
+        ],
+        [
+          -337.0,
+          76.88
+        ]
+      ],
+      "lastCommittedPoint": null,
+      "startBinding": {
+        "elementId": "state-*start0",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "endBinding": {
+        "elementId": "state-r0group0",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "startArrowhead": null,
+      "endArrowhead": "arrow",
+      "elbowed": false,
+      "customData": {
+        "statechart": {
+          "kind": "step",
+          "from": "*start0",
+          "to": "r0group0"
+        }
+      }
+    },
+    {
+      "id": "step1",
+      "type": "arrow",
+      "x": 625.66,
+      "y": 131.5,
+      "width": 108.72,
+      "height": 73.5,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-chart",
+      "roundness": {
+        "type": 2
+      },
+      "seed": 2901420750,
+      "version": 1,
+      "versionNonce": 2528254538,
+      "isDeleted": false,
+      "boundElements": [],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "points": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          -68.41,
+          39.5
+        ],
+        [
+          -108.72,
+          73.5
+        ]
+      ],
+      "lastCommittedPoint": null,
+      "startBinding": {
+        "elementId": "state-*start0",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "endBinding": {
+        "elementId": "state-r0group1",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "startArrowhead": null,
+      "endArrowhead": "arrow",
+      "elbowed": false,
+      "customData": {
+        "statechart": {
+          "kind": "step",
+          "from": "*start0",
+          "to": "r0group1"
+        }
+      }
+    },
+    {
+      "id": "step2",
+      "type": "arrow",
+      "x": 644.65,
+      "y": 131.6,
+      "width": 105.62,
+      "height": 73.4,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-chart",
+      "roundness": {
+        "type": 2
+      },
+      "seed": 905542516,
+      "version": 1,
+      "versionNonce": 2807693527,
+      "isDeleted": false,
+      "boundElements": [],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "points": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          66.6,
+          39.4
+        ],
+        [
+          105.62,
+          73.4
+        ]
+      ],
+      "lastCommittedPoint": null,
+      "startBinding": {
+        "elementId": "state-*start0",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "endBinding": {
+        "elementId": "state-r0group2",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "startArrowhead": null,
+      "endArrowhead": "arrow",
+      "elbowed": false,
+      "customData": {
+        "statechart": {
+          "kind": "step",
+          "from": "*start0",
+          "to": "r0group2"
+        }
+      }
+    },
+    {
+      "id": "step3",
+      "type": "arrow",
+      "x": 645.98,
+      "y": 128.11,
+      "width": 337.62,
+      "height": 76.89,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-chart",
+      "roundness": {
+        "type": 2
+      },
+      "seed": 1123961826,
+      "version": 1,
+      "versionNonce": 19729251,
+      "isDeleted": false,
+      "boundElements": [],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "points": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          219.27,
+          42.89
+        ],
+        [
+          337.62,
+          76.89
+        ]
+      ],
+      "lastCommittedPoint": null,
+      "startBinding": {
+        "elementId": "state-*start0",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "endBinding": {
+        "elementId": "state-r0group3",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "startArrowhead": null,
+      "endArrowhead": "arrow",
+      "elbowed": false,
+      "customData": {
+        "statechart": {
+          "kind": "step",
+          "from": "*start0",
+          "to": "r0group3"
+        }
+      }
+    },
+    {
+      "id": "frame-chart",
+      "type": "frame",
+      "x": 0.0,
+      "y": 75.0,
+      "width": 1266,
+      "height": 234,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": null,
+      "roundness": null,
+      "seed": 1617178658,
+      "version": 1,
+      "versionNonce": 2012436295,
+      "isDeleted": false,
+      "boundElements": [],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "name": "Overview: Who holds a test slot, who waits on one, and what the ledger keeps?"
+    }
+  ],
+  "appState": {
+    "viewBackgroundColor": "#ffffff",
+    "gridSize": null
+  },
+  "files": {}
+}
