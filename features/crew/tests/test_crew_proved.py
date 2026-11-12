@@ -86,7 +86,9 @@ case " $* " in
     case $PWD in
     "$TMPDIR"/base.*)
         if [ -n "$BASE_SLOW" ]; then sleep "$BASE_SLOW"; fi
-        if [ -n "$LAID" ]; then git status --porcelain --untracked-files=all | cut -c 4- > "$LAID"; fi
+        if [ -n "$LAID" ]; then
+            git status --porcelain --untracked-files=all | cut -c 4- > "$LAID"
+        fi
         ;;
     *) if [ -n "$DURING" ]; then (cd "$WORKTREE" && bash -c "$DURING"); fi ;;
     esac
@@ -111,10 +113,10 @@ the short lane stops one at its limit, and a full one at `FULL_LIMIT` seconds; e
 takes `SLOW` seconds more, and one in the copy of the base `BASE_SLOW` seconds more, `NO_XDIST`
 stands for a repo whose venv has no pytest-xdist, and with `SLOTS` set only that many test-slot
 calls get a slot, and every one after them finds every slot taken, exit 76. With `LAID` set, a
-pytest run in the copy of the base writes there the files that differ from the base's commit. `DURING` is a
-command the head side's pytest run starts with, and `AFTER` one it ends with, both in the
-crew's worktree `WORKTREE`, as a crew's edit, commit or dropped edit while the proof call sits
-in the background."""
+pytest run in the copy of the base writes there the files that differ from the base's commit.
+`DURING` is a command the head side's pytest run starts with, and `AFTER` one it ends with, both
+in the crew's worktree `WORKTREE`, as a crew's edit, commit or dropped edit while the proof call
+sits in the background."""
 BSD_WC = """#!/bin/sh
 REAL "$@" | awk '{ $1 = sprintf("%8s", $1); print }'
 """
@@ -742,7 +744,8 @@ case $PWD in "$TMPDIR"/base.*) if [ -n "$BASE_ERROR" ]; then passed=0 failed=0; 
 if [ "$runner" = vitest ]; then
     status=passed
     [ "$failed" = 0 ] || status=failed
-    printf '{"numPassedTests": %s, "numFailedTests": %s, "testResults": [{"status": "%s", "assertionResults": [{}]}]}\\n' \\
+    result='{"status": "%s", "assertionResults": [{}]}'
+    printf '{"numPassedTests": %s, "numFailedTests": %s, "testResults": ['"$result"']}\\n' \\
         "$passed" "$failed" "$status" > "$report"
 else
     printf '{"stats": {"expected": %s, "unexpected": %s}, "errors": []}\\n' \\
@@ -934,11 +937,10 @@ def test_proved_sh_runs_or_lays_over_the_base_each_path_test_file_matches_and_no
     patterns: they agree where each path the one matches the other runs, or lays over the base
     as what a test leans on, and the block touches no path TEST_FILE does not match."""
     node(repo, playwright=True)
-    tests = {
-        path: "def test_ok():\n    pass\n" if re.search(r"(^|/)test_[^/]*\.py$|_test\.py$", path) else ""
-        for path in TEST_FILES
-    }
-    commit(repo, {**tests, **{path: "" for path in OTHER_FILES}, "calc.py": FIXED})
+    passes = "def test_ok():\n    pass\n"
+    pytests = re.compile(r"(^|/)test_[^/]*\.py$|_test\.py$")
+    tests = {path: passes if pytests.search(path) else "" for path in TEST_FILES}
+    commit(repo, {**tests, **dict.fromkeys(OTHER_FILES, ""), "calc.py": FIXED})
     laid = repo.parent / "laid"
     said, line = node_proof(repo, LAID=str(laid))
     assert line is not None and line.head_exit == 0, said
