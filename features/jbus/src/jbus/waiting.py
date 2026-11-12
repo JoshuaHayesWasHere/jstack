@@ -623,7 +623,7 @@ def _alarms(run: Pass) -> list[Item]:
     """Return the open alerts whose owner is this project (`jbus.alert`). Leave out the second
     target's own streak, since jbus would post it to the same target that fails."""
     found = []
-    for one in alert.open_items(run.config.state_dir, run.now):
+    for one in alert.open_items(run.config, run.now):
         if one.key == alert.blocking(run.project.name):
             continue
         if run.config.owner(one.owner) != run.project:

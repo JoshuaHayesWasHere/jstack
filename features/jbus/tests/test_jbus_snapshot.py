@@ -337,7 +337,7 @@ def test_a_snapshot_its_timeout_killed_is_raised_once_for_the_machine_by_the_nex
     assert item["alerted"] and item["owner"] == ""
     assert item["line"].startswith("alert: snapshot failed 1 times in a row since 11:00 ET: ")
     assert snapshot.FAILED in item["line"]
-    assert [one.key for one in alert.open_items(kitchen.state_dir, NOW)] == ["snapshot"]
+    assert [one.key for one in alert.open_items(jbus.load(), NOW)] == ["snapshot"]
     assert kitchen.log("notify") == [f"jbus | {item['line']}"]
     kitchen.poll()
     killed(kitchen, tree)

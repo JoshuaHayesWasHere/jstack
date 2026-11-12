@@ -44,7 +44,7 @@ def later(minutes):
 
 def open_lines(kitchen, now=NOW):
     """The line of each open alert, by key."""
-    return {one.key: one.line for one in alert.open_items(kitchen.state_dir, now)}
+    return {one.key: one.line for one in alert.open_items(jbus.load(), now)}
 
 
 @pytest.fixture

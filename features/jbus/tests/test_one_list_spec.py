@@ -115,7 +115,6 @@ def test_with_no_outside_act_every_rule_holds():
 @pytest.mark.parametrize(
     ("act", "rule", "said"),
     [
-        ("closes", "PROPERTY ListIsTrue", BROKEN),
         ("cuts", "INVARIANT ReadOnce", "Invariant ReadOnce is violated"),
         ("by-home", "PROPERTY AnsweredLeaves", BROKEN),
         ("by-home", "PROPERTY ListIsTrue", BROKEN),
@@ -124,6 +123,18 @@ def test_with_no_outside_act_every_rule_holds():
 def test_each_outside_act_breaks_the_rule_of_its_finding(act, rule, said):
     out = tlc(f'{{"{act}"}}', "none", [rule])
     assert said in out, out[-4000:]
+
+
+@JAVA
+def test_a_closed_projects_alert_leaves_the_list_and_a_list_that_keeps_it_breaks_list_is_true():
+    """The project closes with its jmerge alert open, or the stall alert from before, and no pass
+    of it runs again: the list leaves the alert out, so ListIsTrue holds. The canary,
+    `Fault = "closed-listed"`, is the code before: the list keeps the alert, which no home can
+    clear, and TLC breaks the rule."""
+    held = tlc('{"closes"}', "none", ["PROPERTY ListIsTrue"])
+    assert "Model checking completed. No error has been found." in held, held[-4000:]
+    out = tlc('{"closes"}', "closed-listed", ["PROPERTY ListIsTrue"])
+    assert BROKEN in out, out[-4000:]
 
 
 @JAVA
