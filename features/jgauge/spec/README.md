@@ -25,10 +25,10 @@ Each process writes only its own entry, under the file's lock, and jbus forgets 
 
 `Fault` says which code TLC checks:
 
-- `"today"`: the code as it is, with two faults (`TestSlot.cfg`).
+- `"today"`: the code as it is, with one fault (`TestSlot.cfg`).
 - `"none"`: the mode that passes, where each fault is closed.
-- `"spare-outside-lock"`, `"no-ledger-lock"`: canaries, each one of today's faults put back into the mode that passes.
-- `"forget-unended"`, `"orphan-command"`, `"pid-alone"`: canaries, each one that puts back a fault the code has closed.
+- `"spare-outside-lock"`: a canary, today's fault put back into the mode that passes.
+- `"forget-unended"`, `"orphan-command"`, `"pid-alone"`, `"no-ledger-lock"`: canaries, each one that puts back a fault the code has closed.
 
 | Fault | Today | The mode that passes | Rule it breaks |
 |---|---|---|---|
@@ -36,7 +36,7 @@ Each process writes only its own entry, under the file's lock, and jbus forgets 
 | `forget-unended` | closed: a holder records `keeper`, the pid of its `jgauge test-slot`, and `holders.running` counts a run with no `ended` as running while its command or its `jgauge test-slot` lives, so `wake_ended` keeps it until the end is written | forget such a run only once its `jgauge test-slot` is gone too | `EndNotLost` |
 | `orphan-command` | closed: a killed `jgauge test-slot` takes its command with it, since a watchdog, `jgauge.children`, kills the command and what it started once the holder's pipe ends | the command ends with its holder | `OneCommandPerSlot` |
 | `pid-alone` | closed: `holders.running` counts a run as running only while its pid has the start time the run recorded, from `/proc/<pid>/stat` | a pid another process took reads as gone | `NoLostHolder` |
-| `no-ledger-lock` | each writer reads the ledger, merges its record, and renames the file into place, with no lock | read, merge and write under one lock | `LedgerNoLostUpdate` |
+| `no-ledger-lock` | closed: each writer holds `<ledger>.lock`, an flock beside the file, from its read to its rename (`ledger.write`, and a perl `flock` of fd 9 in `hooks/limits.sh`, since macOS has no `flock` command) | read, merge and write under one lock | `LedgerNoLostUpdate` |
 
 `PidReuse` lets another process take a dead command's pid.
 `TestSlot.cfg` sets it `TRUE`: `holders.running` checks the pid's start time, so `NoLostHolder` holds, and the canary `pid-alone` breaks it.
@@ -64,27 +64,24 @@ java -cp ~/.cache/jstack/tla2tools/1.7.4/tla2tools.jar tlc2.TLC -config TestSlot
 
 Run it in a copy of this folder, since TLC writes `states/` where it runs.
 
-### The finding: today's code loses a ledger write
+### The finding: today's code misses a woken crew's slot
 
-TLC's verdict on `TestSlot.cfg` is `Invariant LedgerNoLostUpdate is violated`, after 186 distinct states on one worker.
-It is the shortest trace of today's two faults, and the `.cfg` keeps it:
+TLC's verdict on `TestSlot.cfg` is `Invariant WokenGetsSlot is violated`, after 18,126 distinct states on one worker.
+It is the shortest trace of today's one fault, and the `.cfg` keeps it:
 
-1. The ledger is empty.
-2. `Read`: one writer, say the status-line hook, reads the ledger (`kept=$(cat "$LIMITS" 2>/dev/null)`).
-3. `Read`: a second writer, say jbus on a turn that ended on a cap, reads it too (`before = _text(file)`).
-4. `Write`: the first writer renames into place its record merged into what it read.
-5. `Write`: the second writer renames into place its own record merged into its older copy, and the first writer's record is gone.
+1. The full slot is free.
+2. `Start` to `ClaimCount`: a desk's `make check` takes the slot, and the crew finds it taken.
+3. `Die`: the desk's run is killed, and the slot is free again.
+4. `Start` to `Register`: the desk starts again, and the crew registers as a waiter, ends its turn, and starts again.
+5. `BusStart`, `WakeRead`: jbus's pass reads the waiters, the crew among them.
+6. `ClaimLock`, `Spare`, `ClaimCount`: jbus counts the slot spare outside the waiters lock, and the desk takes it through `_claim`, which sees no claim yet.
+7. `Tell`, `WakeLock`, `Wake`: jbus sends the wake, and only then records `woken`.
+8. `ClaimLock`, `ClaimCount`: the woken crew runs again with its claim holding, finds no slot, and registers again.
 
-A cap that the hook or jbus wrote can be undone by `jgauge limits` that read the file before it, or the other way round, until the next reading writes it again.
-
-The other fault, and the three the code has closed, break their rules in the canaries.
+The four faults the code has closed break their rules in the canaries.
 `test_test_slot_spec.py` runs each canary and asserts the rule it breaks:
 
-- `spare-outside-lock`, `WokenGetsSlot`: a crew registers and ends its turn.
-  jbus counts the free slot outside the lock and sends the wake.
-  A desk's `make check` then takes the slot through `_claim`, which sees no claim yet.
-  jbus records `woken`.
-  The woken crew runs again with its claim holding, finds no slot, and registers again.
+- `spare-outside-lock`, `WokenGetsSlot`: the finding above, in the mode that passes.
 - `forget-unended`, `EndNotLost`: a run's command ends.
   jbus reads the holders, finds no end and no pid, and forgets the run.
   `jgauge test-slot` then writes the end to an entry that is no longer there, and the thread that ended its turn on "my run holds a slot" is never told the run ended.
@@ -92,11 +89,15 @@ The other fault, and the three the code has closed, break their rules in the can
   jbus's loop makes T3 Code calls for the other holders between its read and its `running` check, which widens it.
 - `orphan-command`, `OneCommandPerSlot`: `jgauge test-slot` is killed with SIGKILL, and its command runs on with the slot free.
   The next call starts a second command in the same slot, and its `_temporary` empties the directory the first command still uses.
-  Today's code holds `OneCommandPerSlot` over all 932,880 distinct states of its mode, and the test checks it in the short lane's room alone.
+  Today's code holds `OneCommandPerSlot` over all 927,474 distinct states of its mode, and the test checks it in the short lane's room alone.
 - `pid-alone`, `NoLostHolder`: a short call with `--thread` takes its slot, starts its command and records the run in the holders file.
   The command dies, and another process takes its pid before the end is on record.
   A reader that asks only whether some process has the pid counts the run as running, so jbus never forgets it and never tells its thread the run ended.
   Today's `holders.running` also asks that the pid have the start time the run recorded, so the reused pid reads as gone, and asks the same of its `jgauge test-slot`'s pid, `keeper`.
+- `no-ledger-lock`, `LedgerNoLostUpdate`: two writers read the ledger with no lock, say the status-line hook (`kept=$(cat "$LIMITS" 2>/dev/null)`) and jbus on a turn that ended on a cap (`before = _text(file)`).
+  Each renames into place its own record merged into what it read, and the second one's older copy drops the first one's record.
+  A cap the hook or jbus wrote read as free until the next reading wrote it again.
+  Today's code holds `LedgerNoLostUpdate`, and the test checks it in the ledger's room alone.
 
 `Fault = "none"` holds every rule over 672,971 distinct states: 664,208 in the full lane's room, 6,226 in the short lane's, 1,690 in the ledger's and 847 in the pool's.
 
@@ -111,16 +112,16 @@ S=$PWD/features/skill-library/skills/statechart/scripts
 W=$(mktemp -d) && cp features/jgauge/spec/TestSlot.tla features/jgauge/spec/TestSlot.chart.cfg features/jgauge/spec/TestSlot.map.py "$W"
 (cd "$W" && UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     statechart from-spec TestSlot.tla --config TestSlot.chart.cfg \
-    --expect-broken LedgerNoLostUpdate --expect-broken WokenGetsSlot \
+    --expect-broken WokenGetsSlot \
     --title "Who holds a test slot, who waits on one, and what the ledger keeps?" \
     --out TestSlot-statechart)
 ```
 
 Run it from the repo root.
 Then copy the files of `$W/TestSlot-statechart` into `TestSlot-statechart/`, all except `tlc/`.
-`TestSlot.cfg` has 672,971 states in the mode that passes and 932,880 in today's mode, more than the chart's state graph can hold.
+`TestSlot.cfg` has 672,971 states in the mode that passes and 927,474 in today's mode, more than the chart's state graph can hold.
 So the chart is drawn from `TestSlot.chart.cfg`: today's code, where only the short lane's crew can be killed, and the full room keeps no holders file (`Chart = TRUE`), which the short room draws.
-That is 101,086 model states, and it draws one numbered path for each of the two bugs.
+That is 96,720 model states, and it draws one numbered path for the one bug.
 `TestSlot.map.py` labels each state by what the machine's files say, and names each join of values in its header.
 
 ## What the model leaves out

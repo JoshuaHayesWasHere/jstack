@@ -65,9 +65,10 @@ LONG = {
         for name in (
             "test_a_killed_test_slot_takes_its_command_with_it_today",
             "test_a_run_s_end_is_kept_for_jbus_to_tell_today",
+            "test_each_ledger_writer_s_record_is_kept_today",
             "test_each_of_today_s_faults_breaks_its_rule",
             "test_the_mode_that_passes_holds_every_rule",
-            "test_today_s_code_loses_a_ledger_write",
+            "test_today_s_code_misses_a_woken_crew_s_slot",
         )
     },
     "features/jmerge/tests/test_pr_verdict_spec.py::test_the_run_says_what_it_should": TLC,

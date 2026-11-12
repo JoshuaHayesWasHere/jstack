@@ -1,16 +1,16 @@
 {
   "view": "customer",
-  "modelStates": 101086,
-  "modelTransitions": 298590,
-  "chartStates": 24,
-  "chartTransitions": 26,
-  "allTransitions": 1928,
+  "modelStates": 96720,
+  "modelTransitions": 288233,
+  "chartStates": 22,
+  "chartTransitions": 24,
+  "allTransitions": 389,
   "final": [
     "Review pool: no wait on file, the crew's second wait"
   ],
   "chartStatus": {
-    "works": 15,
-    "wrong": 9,
+    "works": 19,
+    "wrong": 3,
     "fixed": 0
   },
   "chartGroups": [
@@ -27,7 +27,7 @@
     {
       "name": "Usage ledger",
       "color": "#fdebd0",
-      "states": 10
+      "states": 8
     },
     {
       "name": "Review pool",
@@ -38,22 +38,11 @@
   "mixedGroups": [],
   "regions": {
     "drawn": false,
-    "why": "708 region states are not fewer than the 706 flat states"
+    "why": "160 region states are not fewer than the 158 flat states"
   },
   "classes": [
     {
       "n": 1,
-      "end": "Usage ledger: the ledger keeps the records of jbus, the status line wrote and its record is gone, the last capped read is older than the ledger",
-      "invariant": "LedgerNoLostUpdate",
-      "rule": "LedgerNoLostUpdate: no ledger write drops another's. Each record a writer merged in is still in the ledger, so a cap one writer recorded is never undone by another's older copy.",
-      "cause": "two writers read the ledger at once, and the second write put back the copy it read, without the first one's record",
-      "readerSteps": 4,
-      "modelSteps": 5,
-      "counterexamples": 776,
-      "fix": null
-    },
-    {
-      "n": 2,
       "end": "Full lane: the slot held by a desk's run, the crew is woken, its claim holds, the woken crew found its slot taken",
       "invariant": "WokenGetsSlot",
       "rule": "WokenGetsSlot: a woken waiter gets the slot or its claim lapses at HOLDS. A crew jbus woke, that runs its command again while the wake's claim holds, finds its slot free.",
@@ -66,12 +55,12 @@
   ],
   "codeLike": [],
   "drawnFrom": {
-    "command": "statechart from-spec TestSlot.tla --config TestSlot.chart.cfg --title 'Who holds a test slot, who waits on one, and what the ledger keeps?' --expect-broken LedgerNoLostUpdate,WokenGetsSlot",
+    "command": "statechart from-spec TestSlot.tla --config TestSlot.chart.cfg --title 'Who holds a test slot, who waits on one, and what the ledger keeps?' --expect-broken WokenGetsSlot",
     "inputs": {
-      "TestSlot.chart.cfg": "3ff159a439518f9a7f4e451a979e922326a5cc2a58e81902efbd3c690ed7a504",
+      "TestSlot.chart.cfg": "eb416ae8adc8dad951dde3f3b1e82c87aaa56c07d2c1da0c296eaf5c3ffdbc1d",
       "TestSlot.map.py": "ec66d90505b6117e6d3844379edadb3a46aa56013ae698c1aac440b3befa66f7",
-      "TestSlot.tla": "18b0f79cdaf95843321b8b062bcdeb2f62982b6f2ace5fff2f5571aeb4ff5ed0"
+      "TestSlot.tla": "72147aa6024bd7862ac3fa526bf3ae4e910e5964b2f6ab181cb6ac63ae32f531"
     },
-    "chart": "59c91b0504c81f1e8579ae559bb43c366609f768dfb831594394c489c7c66653"
+    "chart": "13e813262d418dd7ca9677c8522355a8eb66598708fdfe307740bf05aca51f03"
   }
 }

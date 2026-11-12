@@ -19,6 +19,11 @@ Three writers keep the files, and `room.sh` and `jroles` read them:
 - `jbus` writes when T3 Code ended a turn on a usage limit. It writes 100 until the reset that
   the failure message names (`cap_of`).
 
+Each writer reads an instance's file, merges its record in, and renames a whole new file into
+place, holding the lock file `<file>.lock` beside it (`lock_of`, an flock) from the read to the
+rename. Without it, a writer that read before another's rename renamed its older copy over the
+other's record, and a cap the status line or jbus wrote read as free until the next reading.
+
 `merge` is the one rule every writer follows. For one instance and one window, `merge` treats
 two resets less than `SAME` apart as one window, and keeps the larger share and the later
 reset. Otherwise it keeps the record with the later reset. A writer floors its reset to the
@@ -47,6 +52,7 @@ launches go to another instance before this one reaches the cap.
 
 from __future__ import annotations
 
+import fcntl
 import os
 import re
 import urllib.parse
@@ -166,18 +172,26 @@ def write(record: Record, base: Path | None = None, *, read: bool = False) -> bo
     into place. Return True when the file changed. `read` says the record is the usage endpoint's
     own answer, which at `EARLY` or less replaces the window's line (the module's docstring)."""
     file = file_of(record.instance, base)
-    before = _text(file)
-    merged = merge(parse(record.instance, before), [record])
-    if read and record.used <= EARLY:
-        merged[record.instance, record.window] = record
-    text = "".join(f"{merged[key].line()}\n" for key in sorted(merged))
-    if text == before:
-        return False
     file.parent.mkdir(parents=True, exist_ok=True)
-    temporary = file.with_name(f"{file.name}.{os.getpid()}")
-    temporary.write_text(text)
-    os.replace(temporary, file)
-    return True
+    with lock_of(file).open("a") as held:
+        fcntl.flock(held, fcntl.LOCK_EX)
+        before = _text(file)
+        merged = merge(parse(record.instance, before), [record])
+        if read and record.used <= EARLY:
+            merged[record.instance, record.window] = record
+        text = "".join(f"{merged[key].line()}\n" for key in sorted(merged))
+        if text == before:
+            return False
+        temporary = file.with_name(f"{file.name}.{os.getpid()}")
+        temporary.write_text(text)
+        os.replace(temporary, file)
+        return True
+
+
+def lock_of(file: Path) -> Path:
+    """The lock file beside an instance's file. Each writer holds it from its read to its rename,
+    so no writer renames an older copy over another's record (the module's docstring)."""
+    return file.with_name(f"{file.name}.lock")
 
 
 def capped_until(
