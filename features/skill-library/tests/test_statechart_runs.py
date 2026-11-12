@@ -744,6 +744,58 @@ def test_a_run_that_tlc_stops_on_an_error_names_tlcs_output_and_writes_no_output
     assert not (tmp_path / "Pay-statechart").exists()
 
 
+def test_a_run_whose_tlc_does_not_finish_says_so_in_a_sentence_of_its_own(tmp_path):
+    """a run whose TLC output stops before TLC says it finished names the file to read in a
+    sentence that ends before the one saying the command removed it"""
+    write_slow_pay(tmp_path, 0)
+    write(tmp_path / "tla2tools.jar", "")
+    write(tmp_path / "java", "#!/bin/sh\necho 'TLC2 Version 2.19'\n", 0o755)
+    tmp = own_tmp(tmp_path, "tmp")
+    env = {
+        "JAVA": str(tmp_path / "java"),
+        "TLA2TOOLS": str(tmp_path / "tla2tools.jar"),
+        "JGAUGE_TEST_SLOT": "",
+        "TMPDIR": str(tmp),
+    }
+    r = node("statechart", ["from-spec", "Pay.tla"], tmp_path, env)
+    assert r.returncode == 2
+    assert re.fullmatch(
+        r"\S+\/tlc\/Pay\.out: TLC did not finish, so its counterexamples are not all there; read"
+        r" the file\. The command removed this run's files: pass --keep-work to keep them\.\n",
+        r.stderr,
+    ), r.stderr
+    assert left_work(tmp) == []
+
+
+def test_a_jgauge_on_path_that_cannot_run_is_named_and_not_taken_for_tlc(tmp_path):
+    """a `jgauge` first on PATH that dies before TLC prints a line, as a venv's shim does once
+    the package behind it is gone, makes from-spec say it cannot run TLC, naming the wrapper and
+    what it printed, and not that TLC did not finish"""
+    write_slow_pay(tmp_path, 0)
+    write(tmp_path / "tla2tools.jar", "")
+    bin_dir = own_tmp(tmp_path, "bin")
+    traceback = (
+        "Traceback (most recent call last):\n"
+        f'  File "{bin_dir}/jgauge", line 4, in <module>\n'
+        "    from jgauge.cli import main\n"
+        "ModuleNotFoundError: No module named 'jgauge'"
+    )
+    write(bin_dir / "jgauge", f"#!/bin/sh\ncat >&2 <<'EOF'\n{traceback}\nEOF\nexit 1\n", 0o755)
+    env = {
+        "JAVA": str(tmp_path / "no-java"),
+        "TLA2TOOLS": str(tmp_path / "tla2tools.jar"),
+        "JGAUGE_TEST_SLOT": "",
+        "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
+    }
+    r = node("statechart", ["from-spec", "Pay.tla"], tmp_path, env)
+    assert r.returncode == 2
+    assert r.stderr == (
+        f"cannot run TLC: {bin_dir}/jgauge test-slot exited 1 before TLC printed a line:\n"
+        f"{traceback}\n"
+    ), r.stderr
+    assert not (tmp_path / "Pay-statechart").exists()
+
+
 @needs_tlc
 @pytest.mark.timeout(600)
 def test_a_run_of_the_worked_example_leaves_no_work_folder_unless_keep_work_keeps_it(tmp_path):

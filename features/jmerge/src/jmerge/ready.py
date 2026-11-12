@@ -33,15 +33,19 @@ class Reason(str):
     puts the pull request on, and its code. The code is the fixed name a `wait` or `hold` line
     carries beside the text (`lines.waits`), the constant's name in kebab case, so a reader
     tells one reason from another without reading the text. `format` keeps the step and the
-    code, so a filled-in reason still says which one it is."""
+    code, so a filled-in reason still says which one it is. `earlier` holds each text the reason
+    had before it was reworded: a line `jmerge` wrote in it is still the reason's, so its code
+    and step outlive the rewording (tests/reason_wordings.txt keeps every wording)."""
 
     step: str
     code: str = ""
+    earlier: tuple[str, ...] = ()
 
-    def __new__(cls, step: str, text: str, code: str = "") -> Reason:
+    def __new__(cls, step: str, text: str, code: str = "", earlier: tuple[str, ...] = ()) -> Reason:
         made = super().__new__(cls, text)
         made.step = step
         made.code = code
+        made.earlier = earlier
         return made
 
     def format(self, *args: object, **kwargs: object) -> Reason:
@@ -52,10 +56,12 @@ class Reason(str):
         """The reason's text as a pattern, each field a value. It is made once for each reason:
         the view reads a step of every line of the logs, and making it on each read held each
         of its answers for seconds."""
-        return "".join(
-            re.escape(literal) + (_VALUE if name is not None else "")
-            for literal, name, _, _ in string.Formatter().parse(self)
-        )
+        return _pattern(self)
+
+    @functools.cached_property
+    def patterns(self) -> tuple[str, ...]:
+        """The pattern of the reason's text, then of each of its `earlier` texts."""
+        return (self.pattern, *(_pattern(text) for text in self.earlier))
 
     def fields(self, text: str) -> dict[str, str] | None:
         """The value of each field of the reason in `text`, a reason it made, or None for text
@@ -70,6 +76,13 @@ class Reason(str):
         )
         names = [name for _, name, _, _ in parts if name is not None]
         return dict(zip(names, found.groups(), strict=True)) if found else None
+
+
+def _pattern(text: str) -> str:
+    return "".join(
+        re.escape(literal) + (_VALUE if name is not None else "")
+        for literal, name, _, _ in string.Formatter().parse(text)
+    )
 
 
 def reasons() -> dict[str, Reason]:
@@ -92,12 +105,15 @@ def rules() -> tuple[tuple[str, str, str], ...]:
     """The `(code, step, pattern)` of each reason `jmerge` writes, in the order `code_of` tries
     them: `ELSEWHERE` first, then each `Reason` in the order this module declares it, those whose
     text starts with a field (`<check> has failed`) after the rest. Each pattern matches from the
-    start of the reason. `ELSEWHERE` comes first so that the plain text of a reason no `Reason`
+    start of the reason, and a reason has one for its text and one for each `earlier` text.
+    `ELSEWHERE` comes first so that the plain text of a reason no `Reason`
     made is on its own step, and a field comes last since it matches the start of any text: a
     refused merge whose error says `the required check has failed` is `BASE_MERGE_REFUSED`'s,
     not `CHECK_FAILED`'s."""
     named = sorted(reasons().values(), key=lambda one: one.pattern.startswith(_VALUE))
-    return ELSEWHERE + tuple((one.code, one.step, "^" + one.pattern) for one in named)
+    return ELSEWHERE + tuple(
+        (one.code, one.step, "^" + pattern) for one in named for pattern in one.patterns
+    )
 
 
 def code_of(why: str) -> str:
@@ -170,31 +186,43 @@ PROVED_STALE = Reason(
 )
 _RUN_THE_BLOCK = (
     "the crew's check block (features/crew/do-the-task.md), which runs `make check-fast "
+    "PART=touched`, the lint, the touched tests, the cross-cutting tests and the tests that read "
+    "the change, and writes its line (a `PART=guards` line of an earlier head binds too)"
+)
+_RAN_THE_BLOCK = (
+    "the crew's check block (features/crew/do-the-task.md), which runs `make check-fast "
     "PART=touched`, the lint, the touched tests and the repo-guards tests, and writes its line "
     "(a `PART=guards` line of an earlier head binds too)"
 )
-CHECKED_MISSING = Reason(
-    "result", f"its brief has no Checked: line: {_RUN_THE_BLOCK}, runs at {{head}} and writes it"
+"""`_RUN_THE_BLOCK` in its words from before #1715, which the lines of the five reasons below
+written before it carry."""
+
+
+def _checked(text: str) -> Reason:
+    """A reason on the result step whose `<block>` names the crew's check block: in today's
+    words, and in the words from before #1715 as its earlier text."""
+    return Reason(
+        "result",
+        text.replace("<block>", _RUN_THE_BLOCK),
+        earlier=(text.replace("<block>", _RAN_THE_BLOCK),),
+    )
+
+
+CHECKED_MISSING = _checked("its brief has no Checked: line: <block>, runs at {head} and writes it")
+CHECKED_STALE = _checked(
+    "its last Checked: line is of {at}, and its patch changed after it: <block>, runs again at "
+    "{head}"
 )
-CHECKED_STALE = Reason(
-    "result",
-    f"its last Checked: line is of {{at}}, and its patch changed after it: {_RUN_THE_BLOCK}, "
-    "runs again at {head}",
+CHECKED_CUT = _checked(
+    "its last Checked: line ends 124 at {at}, a time limit, which is no pass: <block>, runs "
+    "again at {head}"
 )
-CHECKED_CUT = Reason(
-    "result",
-    "its last Checked: line ends 124 at {at}, a time limit, which is no pass: "
-    f"{_RUN_THE_BLOCK}, runs again at {{head}}",
+CHECKED_FAILED = _checked(
+    "its last Checked: line ends {exit} at {at}, a failure: fix it, and <block>, runs again at "
+    "{head}"
 )
-CHECKED_FAILED = Reason(
-    "result",
-    f"its last Checked: line ends {{exit}} at {{at}}, a failure: fix it, and {_RUN_THE_BLOCK}, "
-    "runs again at {head}",
-)
-CHECKED_PART = Reason(
-    "result",
-    f"its last Checked: line names {{command}}, not the desk's check: {_RUN_THE_BLOCK}, runs "
-    "at {head}",
+CHECKED_PART = _checked(
+    "its last Checked: line names {command}, not the desk's check: <block>, runs at {head}"
 )
 NO_VERDICT = Reason("review", "its review has no verdict")
 NO_FIXED = Reason("findings", "its findings are not handled: the Result has no Fixed line")
@@ -409,6 +437,22 @@ MERGED_TREE_NO_SLOT = Reason(
     "every full test slot stayed taken for {seconds} s, so the guards did not start on its tree "
     "merged over {base} at {tip}: the next run tries again",
 )
+RULE_BREAKS = Reason(
+    "result",
+    "its tests {tests} fail on open pull requests merged with it, {breaks}: carry the fix (an "
+    "exemption or a changed rule), or name each on a Breaks: line of its Result, and jbus tells "
+    "their crews when it merges",
+)
+"""The wait on a pull request that adds or tightens a test that another open pull request, merged
+with it, fails (`jmerge.preflight`): its crew fixes the rule or names the pull requests it
+breaks, so no crew finds the red alone after it lands (#1702 on 2026-11-12)."""
+RULE_UNRUN = Reason(
+    "check",
+    "its tests {tests} have run on {ran} of the {open} open pull requests merged with it: the "
+    "next run goes on",
+)
+"""The wait while the rule preflight has not yet run on every open pull request once: a wait on
+the runner that ends by itself (`jmerge.preflight.RUN_SECONDS`)."""
 _MAINS_LOST = "{count} of main's lines in {file}"
 _OWN_LOST = "{count} of its own in {file}"
 _REFUSED = "{file}: {why}"
@@ -1121,12 +1165,13 @@ _DESK_CHECK = re.compile(
     r"make check-fast BASE=[0-9a-f]{40} PART=touched"
     r"|make check-fast BASE=[0-9a-f]{40}(?: PYTEST=:)? PART=guards|jgauge check"
 )
-"""The commands of a `Checked:` line that are a desk's whole check, as the crew's check block
-runs them: the lint, the touched tests and the repo-guards tests of a repo whose check selects its
-tests (`PART=touched`, each step in the short lane and a step it stops again in a full slot, so
-its 124 is no verdict), the guards the block ran before 2026-11-05 (`PYTEST=:` where the selection
-was none or all, lint only), and another repo's check command (`jgauge check`). A line of the
-`PART=rest` alone is none of them; the two-step line reads as its guards (`jbriefs.checked`)."""
+"""The commands of a `Checked:` line that are a desk's whole check, as the crew's check block runs
+them: the lint, the touched tests, the cross-cutting tests and the tests that read the change of
+a repo whose check selects its tests (`PART=touched`, each step in the short lane and a step it
+stops again in a full slot, so its 124 is no verdict), the guards the block ran before 2026-11-05
+(`PYTEST=:` where the selection was none or all, lint only), and another repo's check command
+(`jgauge check`). A line of the `PART=rest` alone is none of them; the two-step line reads as its
+guards (`jbriefs.checked`)."""
 
 
 def short_on_checked(
@@ -1469,8 +1514,13 @@ def short_on_content(verdict: Verdict | None) -> str:
 
 
 def short_on_github(one: PullRequest) -> str:
+    """What GitHub holds against the pull request, or nothing. GitHub runs no check on a pull
+    request that conflicts with its base, so a required check with no run at a conflicting head
+    is said as the conflict that keeps it from running (`CONFLICTS`): #1694 and every other open
+    statechart pull request read `check has no run` while each was CONFLICTING."""
     if one.waiting and one.waiting[0] in one.unrun:
-        return NO_RUN.format(check=one.waiting[0], head=one.head[:12])
+        unrun = NO_RUN.format(check=one.waiting[0], head=one.head[:12])
+        return CONFLICTS if one.mergeable == "CONFLICTING" else unrun
     if one.waiting and (state := dict(one.live).get(one.waiting[0])):
         return LIVE_RUN.format(check=one.waiting[0], head=one.head[:12], state=state)
     if one.waiting:

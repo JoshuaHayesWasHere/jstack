@@ -20,12 +20,18 @@ The scripts call this user the reader, as in `reader_actions` and reader steps.
 
 The scripts are a uv project in `scripts/` beside this file, a port of pstack's Node scripts to Python.
 Set `S=$(dirname "$(realpath ~/.claude/skills/statechart/SKILL.md)")/scripts`, the `scripts/` folder beside the real file and not beside the install's link to it, so that nothing is written into the installed layout.
-Run each command as `UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" statechart <command>`: the environment lives in the cache, and `--frozen` keeps `uv.lock` as it is.
+Run each command as `UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" statechart <command>`: the environment lives in the cache, and `--frozen` keeps `uv.lock` as it is, and `--exact` removes from it what another checkout's sync left there, such as a `jgauge` whose checkout is gone.
 Start with `statechart --help`, which gives the commands and how to read a chart.
 `uv run` brings Java through the pinned `jdk4py` package, so nothing is installed by hand; jdk4py has no wheel for musl Linux, such as Alpine, so set `JAVA` to a java binary there.
 TLC's `tla2tools.jar` is pinned in `scripts/statechart/tools.py` and is downloaded to `~/.cache/jstack/tla2tools/` on the first run, checked against its sha256; set `TLA2TOOLS` to use another copy.
 `--png` renders with Mermaid's `@mermaid-js/mermaid-cli` through `npx`, at the version pinned in the same file, so it needs Node.
+In jstack a chart folder commits only `chart.mmd`, any `bug-N.mmd`, `stories.md` and `summary.json`: git cannot merge a drawing, and every chart change rewrites one.
+`make charts` runs `statechart site --lanes`, which draws from those the charts page and a PNG and Excalidraw scenes of each chart and its overview beside it, in a folder git ignores, and prints the page's path.
+Run it when you want to look at them; no hook or check runs it.
+A mapping that names `lanes` draws its chart as reference lanes instead: one row of boxes per thing that moves on its own, every step of TLC's graph on one arrow, table cell or row, no two lines crossing and no words on a line; `scripts/statechart/lanes.py` says what such a mapping holds, and `features/jbus/spec/MainRed.map.py` has a worked one.
+For those charts it runs TLC and prints the coverage and layout counts, and `statechart lanes-check` then measures the layout in a headless browser; every count should be 0.
 The mapping that labels a model is a Python file, `SPEC.map.py`, and `scripts/model/` has a worked one: `OutputFolder.tla` models the command's own output folder, and `OutputFolder.map.py` labels it.
+The project skill in `features/skill-library/project-skill/verify-output-folder/` names the code that model covers, how to check it, and the commit it was last read against.
 Work in a scratch folder outside the repo.
 The command writes its files next to its input.
 
@@ -61,7 +67,7 @@ A file and line, as in `\* pay.ts:120`, cites it too, but a quote needs no edit 
    To color the states by what the PM cares about, such as "Toast shown", return that group from `group`.
    The legend names the groups, and states that break a rule still get a red border.
 4. If there is an open fix, model it from the code and pass that model as `--fixed`.
-5. Render each chart with `--png` and look at every PNG.
+5. Render each chart with `--png`, or in jstack with `make charts`, and look at every PNG.
    Check that each numbered path reads in order.
    If a label reads like code, fix `state` or `step` and run the command again.
 6. Replay each bug's story against the real code, as a test or a live repro, one step per model action.
@@ -87,9 +93,14 @@ A file and line, as in `\* pay.ts:120`, cites it too, but a quote needs no edit 
 ## Hand off
 
 Give the PM the PNG and the Mermaid source of each chart.
+For a reader who wants the shape before the states, add `statechart overview CHART.mmd`, the chart at the level of its groups: one box per group, each arrow counting the steps between two groups.
+`--out FILE.excalidraw` draws it for Excalidraw.
 Add one line per bug with the rule it breaks, its steps as the chart numbers them, whether it reproduced, and whether the open fix fixes it.
 With `--against`, also say whether the spec already lists it: in the configs that `stories.md` names, in the spec's notes on what the model leaves out, or not at all.
 Do not report that a rule holds while the command lists conditions with no file and quote or line.
 Take every count you quote from `summary.json`.
+Say what the chart covers: the bounds of the cfg it was drawn with, the model's counts beside the chart's, and that a chart state joins the model states the user cannot tell apart, so the chart is not every path of the code.
+`statechart site` writes these lines on each chart's tab, and with `--flow` it lists the models with no chart and the state no model has, from the flow file's `[[uncharted]]` and `[[unmodeled]]`.
+It stops on a model under a feature's `spec/` that has neither a chart nor an `[[uncharted]]` line.
 Attach `stories.md` and the command that regenerates everything.
 Say what the model leaves out.

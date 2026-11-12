@@ -68,9 +68,9 @@ LASTING = {PASS: timedelta(minutes=2)}
 
 @dataclass
 class Streak:
-    """One streak, under its key, with `why` the cause of its last failure. Once `alerted` it is an
-    open item: `line` is what it says, and `owner` whose it is. `ends` is when a line raised once
-    leaves the list by itself."""
+    """One streak, under its key, with `why` the cause of its last failure and `once` the name
+    it was counted under, if any (`failed`). Once `alerted` it is an open item: `line` is what it
+    says, and `owner` whose it is. `ends` is when a line raised once leaves the list by itself."""
 
     key: str
     count: int
@@ -80,6 +80,7 @@ class Streak:
     line: str = ""
     ends: str = ""
     why: str = ""
+    once: str = ""
 
 
 def home(project: str, thread: str = "") -> str:
@@ -131,14 +132,20 @@ def failed(
     *,
     now: datetime | None = None,
     user: jsettings.Settings,
+    once: str = "",
 ) -> str | None:
     """Count one failure. From the count `after` on, once the streak's failures span the key's
-    `LASTING`, return the alert line on each call until the streak alerted (`raise_`)."""
+    `LASTING`, return the alert line on each call until the streak alerted (`raise_`).
+
+    A failure named by `once`, such as the end of a run whose record a pass reads again after it
+    died, is counted once: a call with the name the streak last counted counts nothing, and
+    returns what the counted call returned."""
     now = now or datetime.now(UTC)
     with locked(state, LOCK):
         one = streak(state, key) or Streak(key, 0, now.isoformat(), False)
-        one.count, one.why = one.count + 1, why
-        _keep(state, key, one)
+        if not once or one.once != once:
+            one.count, one.why, one.once = one.count + 1, why, once or one.once
+            _keep(state, key, one)
     lasted = now - datetime.fromisoformat(one.since)
     if one.count < after or one.alerted or lasted < LASTING.get(key, timedelta(0)):
         return None
@@ -200,14 +207,24 @@ def _log(config: jbus.Config, owner: str, kind: str, line: str) -> None:
         wake.Box(config.state(project), project).send("", kind, line)
 
 
-def open_items(state: Path, now: datetime) -> list[Streak]:
-    """Every alert that is open now, the items of the one list."""
-    found = [Streak(**one) for one in streaks(state).values()]
+def open_items(config: jbus.Config, now: datetime) -> list[Streak]:
+    """Every alert that is open now, the items of the one list. An alert about a closed project
+    is not one: no pass of it runs to end the alert, so no home could clear it. Its streak stays
+    in `streaks.json`, and `jbus project open` lists it again while its cause holds."""
+    found = [Streak(**one) for one in streaks(config.state_dir).values()]
     return [
         one
         for one in found
-        if one.alerted and (not one.ends or datetime.fromisoformat(one.ends) > now)
+        if one.alerted
+        and (not one.ends or datetime.fromisoformat(one.ends) > now)
+        and not any(_about(one, project.name) for project in config.closed)
     ]
+
+
+def _about(one: Streak, project: str) -> bool:
+    """Say whether the streak is about the project: the project owns it, or it is under a key of
+    the project's that the machine owns, or that a record from before owners were kept has."""
+    return one.owner == project or one.key in (home(project), blocking(project), jmerge(project))
 
 
 def opened(config: jbus.Config, key: str, line: str, *, now: datetime) -> str | None:

@@ -40,8 +40,8 @@ KEEP = timedelta(days=7)
 """How far back the list goes. A visit longer ago than that counts from `from`."""
 EVENT = dict.fromkeys(("kind", "subj", "project", "at", "open"))
 SHAPE = {"since": {"from": None, "events": [EVENT]}}
-STUCK = ("stall", "idle")
-"""The kinds of `state.wrongs` that are a row that does not move: the map flags the same two."""
+STUCK = ("stall", "idle", "aged")
+"""The kinds of `state.wrongs` that are a row that does not move: the map flags the same three."""
 
 
 def _asked(read: Read) -> list[questions.Question] | None:

@@ -927,7 +927,7 @@ def test_a_key_with_a_thread_is_never_launched_again(kitchen):
         kitchen.poll(NOW + timedelta(minutes=minutes))
     assert len(kitchen.t3.launches) == 1
     assert (rows(kitchen)["alpha"]["status"], rows(kitchen)["alpha"]["thread"]) == (
-        "launched",
+        "left",
         "mcp:thread-1",
     )
 

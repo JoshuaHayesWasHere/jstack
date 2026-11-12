@@ -16,11 +16,16 @@ EXTENDS Naturals
 
 CONSTANT Fault
 \* "none" is the code. A canary takes a guard of the code out:
-\* "no-latch", derive writes the facts' status over a final one, as it did before work.kept.
+\* "no-latch", derive writes the facts' status over a final one, as it did before work.kept;
+\* "settled-queued", `status` gives a settled thread's row `queued`, as `_THREAD` did before.
 
 \* Each pass writes the status the facts give and appends the move to transitions.jsonl, marking
 \* one `MOVES` lacks `"legal": false` and writing it all the same (queue.py
-\* `MOVES: dict[tuple[str, str], str] = {`). The status reads no clock: a `stale` row with nothing
+\* `if (was, new["status"]) not in MOVES:`). `MovesKnown` holds that the table has every move a
+\* change of one fact makes here, so the mark is left for the faults the model has not: a pull
+\* request read in neither of GitHub's lists, a thread or pull request of a row with no launch
+\* record, and a `Branch:` line that loses a closed pull request's address
+\* (test_jbus_queue_moves.py names each). The status reads no clock: a `stale` row with nothing
 \* written that stays quiet becomes `left` by `watch.unwritten`, a step this model leaves out (it
 \* reads the clock and the slot waits of World.awaits, which ThreadLife holds).
 Statuses == {"queued", "launched", "running", "waiting", "pr", "merged", "failed", "stale",
@@ -41,17 +46,28 @@ Moves ==
   {
     <<"queued", "launched">>, <<"queued", "gate">>, <<"queued", "removed">>,
     <<"gate", "queued">>, <<"gate", "launched">>, <<"gate", "pr">>, <<"gate", "done">>,
-    <<"gate", "merged">>,
+    <<"gate", "merged">>, <<"gate", "running">>, <<"gate", "waiting">>, <<"gate", "failed">>,
+    <<"gate", "stale">>, <<"gate", "left">>,
     <<"launched", "running">>, <<"launched", "failed">>, <<"launched", "left">>,
-    <<"launched", "done">>,
-    <<"failed", "running">>, <<"failed", "left">>, <<"failed", "done">>,
+    <<"launched", "done">>, <<"launched", "waiting">>, <<"launched", "stale">>,
+    <<"launched", "pr">>, <<"launched", "merged">>, <<"launched", "gate">>,
+    <<"failed", "running">>, <<"failed", "left">>, <<"failed", "done">>, <<"failed", "launched">>,
+    <<"failed", "waiting">>, <<"failed", "stale">>, <<"failed", "pr">>, <<"failed", "merged">>,
+    <<"failed", "gate">>,
     <<"running", "pr">>, <<"running", "left">>, <<"running", "done">>, <<"running", "waiting">>,
     <<"running", "stale">>, <<"running", "failed">>, <<"running", "merged">>,
+    <<"running", "launched">>, <<"running", "gate">>,
     <<"waiting", "running">>, <<"waiting", "left">>, <<"waiting", "failed">>,
-    <<"stale", "running">>, <<"stale", "left">>,
+    <<"waiting", "done">>, <<"waiting", "stale">>, <<"waiting", "launched">>, <<"waiting", "pr">>,
+    <<"waiting", "merged">>, <<"waiting", "gate">>,
+    <<"stale", "running">>, <<"stale", "left">>, <<"stale", "done">>, <<"stale", "failed">>,
+    <<"stale", "waiting">>, <<"stale", "launched">>, <<"stale", "pr">>, <<"stale", "merged">>,
+    <<"stale", "gate">>,
     <<"left", "pr">>, <<"left", "done">>, <<"left", "running">>, <<"left", "waiting">>,
-    <<"left", "launched">>, <<"left", "removed">>,
-    <<"pr", "merged">>, <<"pr", "gate">>, <<"pr", "left">>, <<"pr", "done">>, <<"pr", "removed">>,
+    <<"left", "launched">>, <<"left", "stale">>, <<"left", "merged">>, <<"left", "gate">>,
+    <<"left", "removed">>,
+    <<"pr", "merged">>, <<"pr", "gate">>, <<"pr", "left">>, <<"pr", "done">>, <<"pr", "stale">>,
+    <<"pr", "waiting">>, <<"pr", "removed">>,
     <<"done", "merged">>
   }
 
@@ -139,10 +155,13 @@ ValueOf(g, t, w, p, q, l) ==
   ELSE IF Unstarted(t, p, l) /\ g = "approved" THEN "ready"
   ELSE "unknown"
 
-\* `_THREAD`, the status of a thread where the value gives none (work.py `_THREAD = {`); a missing
-\* thread is in no row of it (work.py `return _THREAD.get(facts.thread, "queued")`).
+\* `_THREAD`, the status of a thread where the value gives none (work.py `_THREAD = {`), for a
+\* launched row (work.py `return _THREAD[facts.thread]`). A thread that is gone, missing or
+\* settled makes a launched row `stale`, as an ended one does, so `watch.unwritten` sends it home;
+\* the model settles no thread of a row with no launch.
 ThreadStatus(t) ==
-  CASE t \in {"none", "settled", "missing"} -> "queued"
+  CASE t \in {"none", "missing"} -> "stale"
+    [] t = "settled" -> IF Fault = "settled-queued" THEN "queued" ELSE "stale"
     [] t = "starting" -> "launched"
     [] t = "atwork" -> "running"
     [] t \in {"hung", "ended"} -> "stale"
@@ -158,7 +177,7 @@ StatusOf(v, t, w, p, q, l) ==
   ELSE IF v = "asking" THEN "gate"                    \* work.py `if value == "asking":`
   ELSE IF v = "opening" THEN "running"                \* work.py `if value == "opening":`
   ELSE IF v \in {"leftover", "closed"} THEN "left"    \* work.py `if value in ("leftover", "closed"):`
-  ELSE IF t \in {"none", "missing"} /\ l THEN "launched" \* work.py `if facts.thread in (Thread.NONE, Thread.MISSING) and facts.launch == Launch.LAUNCHED:`
+  ELSE IF ~l /\ t \in {"none", "settled", "missing"} THEN "queued" \* work.py `if unlaunched and facts.thread in (Thread.NONE, Thread.SETTLED, Thread.MISSING):`
   ELSE ThreadStatus(t)
 
 \* The status derive writes over `was` (work.py `def kept(was: str, now: str) -> str:`).
@@ -190,11 +209,12 @@ Init ==
 
 \* A launch record names a thread for the row: jbus launches only an approved row, and a held
 \* row has no `approved`. A row behind one it depends on launches only stacked on that row's open
-\* pull request.
+\* pull request. Its thread is starting until T3 Code lists it: a pass reads which launched
+\* threads are gone before it launches (`watch.gone`), so a thread it just launched is not.
 Launch ==
   /\ ~launched /\ status = "queued"
   /\ go \in {"approved", "behind"}  \* dispatch.py `if not row.get("approved"):`, dispatch.py `if unmerged and on is None:`
-  /\ Derive(thread, written, pull, question, TRUE)
+  /\ Derive("starting", written, pull, question, TRUE)  \* watch.py `elif slug not in seen.gone:`
   /\ UNCHANGED go
 
 \* T3 Code says something new of the row's thread.
@@ -283,4 +303,9 @@ Spec == Init /\ [][Next]_vars
 FinalStays ==
   [][ /\ (status \in Final => status' \in Final)
       /\ (status = "merged" => status' = "merged") ]_vars
+
+\* Each move of the status is one of the table's, so a pass marks `"legal": false` only a fault:
+\* the table is the code's own status function's, move for move.
+MovesKnown ==
+  [][status' # status => <<status, status'>> \in Moves]_vars
 ====

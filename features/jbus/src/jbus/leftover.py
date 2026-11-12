@@ -147,9 +147,10 @@ RESUMES = (
     "last Result, or a new go for its brief.\n\n"
     "Read the last Result of `tasks/{slug}.md` and the answers above, then do one of three:\n"
     "- it waits on one of those: leave it, and write no new brief for it;\n"
-    "- it waits on rows that must land first and its Result does not name them: append a "
+    "- it waits on work that must land first and its Result does not name it: append a "
     "section `## Result, follow-up (<date>, <the reason>)` to `tasks/{slug}.md` with "
-    "`Status: paused`, `Waits on: <their slugs>`, `Branch: {slug}   Pull request: none` and "
+    "`Status: paused`, `Waits on: <each row's slug, or #<n> for a pull request>`, "
+    "`Branch: {slug}   Pull request: none` and "
     "`Left: <what is left>`; where its `Where:` or `Done when:` is too narrow, widen them in "
     "`tasks/{slug}.md`, queue it again with `jbus queue add`, and its new go launches it;\n"
     "- nothing more is wanted, or the rest is somebody's outside the queue: close it, appending "
@@ -288,11 +289,7 @@ def message(run: Pass, world: World, slug: str, brief: str, why: str = "") -> st
     if slug not in world.merged and own(run, slug):
         slugs = {row["slug"] for row in queue.load(run.state)}
         named = pausedon.waits_on(run, world, slug, slugs)
-        waits = (
-            f"the rows `{'`, `'.join(named)}` landing, the rows its `Waits on:` names, "
-            if named
-            else ""
-        )
+        waits = f"`{'`, `'.join(named)}` landing, what its `Waits on:` names, " if named else ""
         return RESUMES.format(
             slug=slug,
             user=run.user.user,

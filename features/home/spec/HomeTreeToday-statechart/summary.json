@@ -3,7 +3,13 @@
   "modelStates": 1692,
   "modelTransitions": 7406,
   "chartStates": 86,
-  "chartTransitions": 170,
+  "chartTransitions": 173,
+  "allTransitions": 360,
+  "final": [
+    "Child a handed to the catch-all",
+    "Child a retired",
+    "Child a retired, pull request merged"
+  ],
   "chartStatus": {
     "works": 86,
     "fixed": 0,
@@ -48,7 +54,7 @@
       56,
       30
     ],
-    "transitions": 170,
+    "transitions": 173,
     "all": 360,
     "flat": {
       "states": 386,
@@ -65,6 +71,6 @@
       "HomeTreeToday.map.py": "12790bc0c2f647159abd9bc480f096a906cbee1aadc1cf80424e305d4a4ab374",
       "HomeTreeToday.tla": "0bd8e020ff28c0039bd48217443455b1547b7576252bad5106e43ac5303eb43f"
     },
-    "chart": "5f1a63dabae63464210cc05a8b7cbe1c762c66c975cde9e7feaf09c88221781a"
+    "chart": "6a7afa35732c9434d1504d4781d638196eef7c69270767c795e98b99b3ac6a22"
   }
 }

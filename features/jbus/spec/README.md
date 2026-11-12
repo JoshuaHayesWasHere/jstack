@@ -20,7 +20,8 @@ The rule is `FinalStays`: a row that is over stays over, so the queue, `watch.fi
 A `done` row may only become `merged`, and a `merged` one stays so.
 The facts can still leave a final row: a pull request opens after a `done`, or a question opens on a `merged` row.
 The rule holds because `queue.derive` keeps the status (`work.kept`), and so checks the code's derive and not only the table.
-`test_rowlife_spec.py` runs TLC on `RowLife.cfg`, where the rule holds over 2450 distinct states, and on a canary that takes `work.kept` out (`Fault = "no-latch"`), where it breaks.
+The second rule is `MovesKnown`: each move of the status is in `Moves`, so the table is the one `work.status` makes, and a pass marks `"legal": false` only on a fault the model leaves out (a pull request read in neither of GitHub's lists, a row with no launch record, a `Branch:` line that loses the address of a closed pull request), each of which `test_jbus_queue_moves.py` names.
+`test_rowlife_spec.py` runs TLC on `RowLife.cfg`, where both rules hold over 2445 distinct states, on a canary that takes `work.kept` out (`Fault = "no-latch"`), where `FinalStays` breaks, and on one that gives a settled thread's row `queued` again (`Fault = "settled-queued"`), where `MovesKnown` breaks.
 Its TLC runs skip where no Java runs TLC.
 By hand, in a copy of this folder:
 
@@ -34,13 +35,14 @@ java -cp ~/.cache/jstack/tla2tools/1.7.4/tla2tools.jar tlc2.TLC -config RowLife.
 ```sh
 S=features/skill-library/skills/statechart/scripts
 cd features/jbus/spec
-UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "../../../$S" \
-    statechart from-spec RowLife.tla --title "A row's life" --png
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
+    statechart from-spec RowLife.tla --title "A row's life"
 ```
 
-It writes `RowLife-statechart/`: `chart.mmd` and `chart.png`, `stories.md` and `summary.json`, labelled by `RowLife.map.py`.
+It writes `RowLife-statechart/`: `chart.mmd`, `stories.md` and `summary.json`, labelled by `RowLife.map.py`.
+No chart's PNG or Excalidraw scenes, nor the charts page, is committed: `make charts`, at the repo's root, draws them from each committed `chart.mmd` into a folder git ignores, and prints the page's path.
 Each status on the chart says what in `work.py` sets it, and each step that moves the status is labelled by its row of `queue.MOVES`.
-The regions draw 63 of their 125 arrows: a step whose next status turns on a fact the chart does not show, such as a pull request that merges from a row at `gate`, is left out, and `tlc/regions-all.mmd` has every one.
+The regions draw 64 of their 111 arrows: a step whose next status turns on a fact the chart does not show, such as a pull request that merges from a row at `gate`, is left out, and `tlc/regions-all.mmd` has every one.
 Its `tlc/` folder holds TLC's output, which is not committed.
 
 ## What the model leaves out
@@ -48,8 +50,8 @@ Its `tlc/` folder holds TLC's output, which is not committed.
 - The facts behind a status, past the folds above (a Result that owes its pull request, each step of an open pull request): `test_jbus_queue_moves.py` walks every combination.
 - A restate between passes (`restated.restate`) that the next pass corrects, the `work-drift` event: here a fact's change and the pass that sees it are one step.
   So is a pass that heard from GitHub or T3 Code alone, which keeps the last value unconfirmed.
-- The moves a pass saw that the table leaves out: a pass marks each one `"legal": false` in `transitions.jsonl` and writes it all the same.
-  The model makes 49 moves the table lacks, most of them a launched row whose thread T3 Code settled going back to `queued` (`work._THREAD`), the `queued` to `done`, `running` and `pr` moves seen marked illegal on disk.
+- The faults the table leaves out, which a pass marks `"legal": false` in `transitions.jsonl` and writes all the same: a pull request that leaves GitHub's open list unmerged and unclosed, a thread, Result or pull request of a row with no launch record, and a `Branch:` line that loses the address of a closed pull request.
+  So the model never makes `pr` to `done` either, a move of the table.
 - The scout's row, which `work.scouting` reads, and a row's `merge_after`.
 
 ## A crew thread, as a TLA+ spec
@@ -95,11 +97,11 @@ The ladder also carries a crew that jbus told once to open the pull request its 
 ```sh
 S=../../skill-library/skills/statechart/scripts
 cd features/jbus/spec
-UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
-    statechart from-spec ThreadLife.tla --title "What does jbus do with a thread, launch to archive?" --png
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
+    statechart from-spec ThreadLife.tla --title "What does jbus do with a thread, launch to archive?"
 ```
 
-It writes `ThreadLife-statechart/`: `chart.mmd` and `chart.png`, `stories.md` and `summary.json`, with labels from `ThreadLife.map.py`.
+It writes `ThreadLife-statechart/`: `chart.mmd`, `stories.md` and `summary.json`, with labels from `ThreadLife.map.py`.
 Its `tlc/` folder holds TLC's output, which is not committed.
 The chart has two regions: who has the thread (launching, gated, out, its home's, put away), and where it stands.
 No state breaks a rule, so it draws no `bug-N` chart.
@@ -173,9 +175,9 @@ The test runs TLC on both configs, and on each rule of `BREAKS` alone, which is 
 S=$PWD/features/skill-library/skills/statechart/scripts
 D=$HOME/.cache/jstack/tlc-tmp && mkdir -p "$D"
 W=$(TMPDIR=$D mktemp -d) && cp features/jbus/spec/MainRed.* "$W"
-(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     statechart from-spec MainRed.tla --config MainRed.chart.cfg \
-    --title "Main went red: what fixes it?" --out out --png)
+    --title "Main went red: what fixes it?" --out out)
 ```
 
 Run it from the repo root.
@@ -235,6 +237,21 @@ The canary `Fault = "stamp-refused"` stamps `live` over units the manager refuse
 `CopyOwned` has no canary: in the model the link always names a tree that is there, and a tree a hand removed takes the fallback.
 `features/jbus/tests/test_green_move_spec.py` runs TLC on the config and on each canary for the rules it breaks.
 
+### Draw the chart of the green move
+
+```sh
+S=$PWD/features/skill-library/skills/statechart/scripts
+D=$HOME/.cache/jstack/tlc-tmp && mkdir -p "$D"
+W=$(TMPDIR=$D mktemp -d) && cp features/jbus/spec/GreenMove.* "$W"
+(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
+    statechart from-spec GreenMove.tla --title "Does the green copy reach main's green tip?" --out out)
+```
+
+Run it from the repo root, then copy the files of `$W/out` into `GreenMove-statechart/`, all except `tlc/`.
+`GreenMove.cfg` turns off TLC's deadlock check, as `-deadlock` does above, since a copy at main's last tip has no step left.
+`GreenMove.map.py` labels each state with the step of the move the pass is at and what a command you run meets: the tool the link names, another tree, or none.
+It draws 26 chart states and 60 steps from 11,614 model states, every step between two of them, in a few seconds.
+
 ### What the green-move model leaves out
 
 - uv's install and the write of `owes: relink` after it are one step: a pass that dies between them installs again, which is the same install, and the model does not let that second install fail.
@@ -271,16 +288,31 @@ Without `-continue` TLC stops at the first, stall.twice's, at depth 5.
 The canary `Fault = "mark-first"` writes the marks before the act and breaks `NoTellLost` on every act; `Fault = "no-mark"` reads no mark and breaks `NoTellTwice` on every act.
 In today's code the half of `NoTellTwice` that says no act runs after its mark was read holds by the guard's shape; the receiver's count is the half that checks the code.
 
-### Draw the act-once chart
+### Draw the act-once charts
+
+The thirteen acts are three charts, so each chart's overview fits in ten boxes with at most 15 states to a group.
+`TellOnce.chart.cfg` draws the six acts that tell a thread through `t3_thread_send`, `TellOnceOther.chart.cfg` the six that do not, and `TellOnceOwed.chart.cfg` the ask owed after a limit, which alone has as many states as the twelve; `TellOnce.cfg` still checks all thirteen.
+Since one behavior follows one act, the three charts together draw every path.
 
 ```sh
 S=features/skill-library/skills/statechart/scripts
 cd features/jbus/spec
-UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "../../../$S" \
-    statechart from-spec TellOnce.tla --title "Does jbus tell anyone twice, or drop a tell, when a pass dies?" --png
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
+    statechart from-spec TellOnce.tla --config TellOnce.chart.cfg \
+    --title "Does jbus tell a thread twice, or drop a tell, when a pass dies?" \
+    --expect-broken NoTellTwice,NoTellLost
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
+    statechart from-spec TellOnce.tla --config TellOnceOther.chart.cfg --out TellOnceOther-statechart \
+    --title "Does jbus act twice, or drop an act, outside a thread when a pass dies?" \
+    --expect-broken NoTellTwice,NoTellLost
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
+    statechart from-spec TellOnce.tla --config TellOnceOwed.chart.cfg --out TellOnceOwed-statechart \
+    --title "Does jbus send an ask owed after a limit twice when a pass dies?" \
+    --expect-broken NoTellTwice
 ```
 
-It writes `TellOnce-statechart/`, labelled by `TellOnce.map.py`, with one `bug-N` chart for each act that breaks a rule.
+They write `TellOnce-statechart/`, `TellOnceOther-statechart/` and `TellOnceOwed-statechart/`, labelled by `TellOnce.map.py`, with one `bug-N` chart for each act that breaks a rule.
+A state's color says where its tell stands: orange not told, green told once, red told twice, each shade a step short of done that its label names, such as a mark written or the outbox holding it; the ask's chart splits by whether owed.json still owes the ask and by its try.
 
 ### What the act-once model leaves out
 
@@ -337,9 +369,9 @@ The comment in `MainFix.cfg` keeps the breaks TLC finds past that config, each w
 S=$PWD/features/skill-library/skills/statechart/scripts
 D=$HOME/.cache/jstack/tlc-tmp && mkdir -p "$D"
 W=$(TMPDIR=$D mktemp -d) && cp features/jbus/spec/MainFix.* "$W"
-(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     statechart from-spec MainFix.tla --config MainFix.chart.cfg --expect-broken FiledWhole,RevertKnown,RevertSaid \
-    --title "Main went red: what has jbus filed when a pass dies?" --out out --png)
+    --title "Main went red: what has jbus filed when a pass dies?" --out out)
 ```
 
 Run it from the repo root, then copy the files of `$W/out` into `MainFix-statechart/`, all except `tlc/`.
@@ -355,3 +387,57 @@ Each of its three broken rules draws a `bug-N` chart, and `stories.md` tells eac
 - A queue that refuses a brief (`Refused`): the brief stays with no row, and the home is told of it as a condition.
 - A project's first pass, a run whose jobs or logs GitHub has not given yet (`NIGHTLY_GRACE`), a red run whose failures are both shots and more, and a row removed from the queue.
 - What `_nightly_red` keeps of a run that files nothing, which it writes at the loop's end: the model writes it at once, since the next pass reads the same runs and keeps the same.
+
+## The one list, as a TLA+ spec
+
+`OneList.tla` models what waits on the user and the marks of what a home has read, at main aa5469d97 (2026-11-11): a gate in gates.md and in questions.json, gates-moved.md, the kinds of waiting-on-user.json, the streaks of streaks.json under streaks.lock, the disk's reading, the sign-in line, budget-hold.json, read-seen, and merge-seen with merge.log.
+Each ledger row of the machine OneList (st-state-ledger) is a variable whose comment names the row and quotes the code that writes it.
+The parts share only the project's passes and the lock, so Init picks the scene a behavior moves (alerts, gates or marks), and the others stay at their start.
+`World` is the set of acts outside the code a run lets happen: a project that closes, a hand that cuts merge.log, and a gate asked by the home.
+`OneList.map.py` labels the states and maps each kind of the list to the HomeTree `msg` it refines.
+
+### Check the rules of the one list
+
+```sh
+cd features/jbus/spec
+java -cp ~/.cache/jstack/tla2tools/1.7.4/tla2tools.jar tlc2.TLC -workers 1 -config OneList.cfg OneList.tla
+```
+
+Run it in a copy of this folder.
+The rules:
+
+- `ListIsTrue`: an item is listed exactly while its cause holds, once the cause stays, so a cause that flips for ever asks nothing of the list.
+  A project that runs no jmerge owes no jmerge alert, so the list leaves out each alert about a closed project (`jbus.alert.open_items`).
+- `AnsweredLeaves`: once the user's answer, or the default by silence, settles a gate, gates.md gives the list no open gate of it and no question of it stays open.
+- `ReadOnce`: the merging block shows each merge line once, and merge-seen counts no line as read that it did not show, also after merge.log is cut.
+
+Today's code, in today's world, breaks `ReadOnce` at 1083 distinct states: a cut of merge.log leaves merge-seen counting a line no block showed.
+A closed project's jmerge alert stays open in streaks.json, as `jmerge case-control` on disk, but the list leaves it out, so a close holds `ListIsTrue`.
+Each other act alone breaks its rule: a cut breaks `ReadOnce`, and a gate asked by the home is asked again by the handoff under the catch-all's key, so answering one of its two questions leaves the other open (`AnsweredLeaves`, `ListIsTrue`).
+With no act, every rule holds.
+`MarkBy = "line"`, a merge-seen that names the last line it read, which no code writes, holds `ReadOnce` also where merge.log is cut.
+The canary `Fault = "stale-streak"`, a pass that leaves the stall alert from before, breaks `ListIsTrue` with no act; `Fault = "closed-listed"`, a list that keeps a closed project's alerts, as the code did before, breaks `ListIsTrue` where a project closes; `Fault = "mark-count"`, merge-seen as the code's count over that line mark, breaks `ReadOnce` where merge.log is cut.
+`features/jbus/tests/test_one_list_spec.py` finds each quote once and runs each of these.
+
+### Draw the chart of a gate
+
+```sh
+S=features/skill-library/skills/statechart/scripts
+cd features/jbus/spec
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
+    statechart from-spec OneList.tla --config OneList.chart.cfg --expect-broken AnsweredLeaves,ListIsTrue \
+    --title "Does a gate reach my list, and leave it once I answer?"
+```
+
+`OneList.chart.cfg` draws the gates scene alone: the other scenes have too many states to draw.
+Its rules are about whole behaviors, which the chart does not draw: TLC's traces are in `OneList-statechart/tlc/`, which is not committed.
+
+### What the one-list model leaves out
+
+- The nine kinds of waiting-on-user.json other than `gate` are one item, each rebuilt by a pass from its source; their own lives are RowLife's and the other models'.
+- jmerge's streak stands for every key of a project, and the stall key for the keys nothing raises any more; the pass's `pass` and `stale` streaks, `home thread`, `blocking`, `pool-held`, `t3-tool` and `once` keys are not modelled.
+- Time: the threshold's span (`LASTING`), a `once` alert's end, the budget hold's ten minutes before `jbus needs` lists it, and the sign-in's week.
+- A sign-in whose token file is gone: `remind` returns with the alert as it was.
+- `jbus home status` shows the merge lines past the mark without moving it, and is not counted as shown.
+- Two Results whose headings read the same: read-seen keys a heading by its text.
+  No rule checks read-seen: the model keeps its first mark and the home's marks.

@@ -11,6 +11,10 @@
 #   logs/<id>    the log of the job whose id is <id>, which is not found when the file is not
 #   rate-limit.json  what `gh api rate_limit` gives, GitHub's API budget: a full one when it is not
 #   runs.json    the repo's workflow runs, as `gh api .../actions/runs` gives them: none when it is
+#                not. `gh run cancel <id>` marks run <id> of it completed and cancelled, and
+#                `gh run rerun <id>` (with or without `--failed`) queued again, at its next
+#                attempt; a run it does not hold is not found, exit 1
+#   jobs/<id>.json  what `gh api .../actions/runs/<id>/jobs` gives for run <id>: no job when it is
 #                not
 # With `-i` an answer of `gh api` has its status and an ETag first, and with
 # `-H 'If-None-Match: <that ETag>'` it is a 304 and nothing more, exit 1, as gh's.
@@ -43,6 +47,10 @@ api() {
   'repos/{owner}/{repo}') echo '{"name": "demo", "owner": {"login": "sandbox-owner"}}' ;;
   */issues/*/comments* | */pulls/*/comments* | */pulls/*/reviews*) echo '[]' ;;
   */actions/runs\?*) cat "$G/runs.json" 2>/dev/null || echo '{"workflow_runs": []}' ;;
+  */actions/runs/*/jobs | */actions/runs/*/jobs\?*)
+    run=${2#*/actions/runs/}
+    cat "$G/jobs/${run%%/*}.json" 2>/dev/null || echo '{"total_count": 0, "jobs": []}'
+    ;;
   */pulls\?state=open*)
     jq -c 'map({number, html_url: .url, title, draft: false, head: {ref: .headRefName, sha: .headRefOid}}
       + {base: {ref: .baseRefName}, updated_at: tojson})' "$G/open.json"
@@ -90,6 +98,24 @@ case "$1 $2" in
     mv "$G/open.json.new" "$G/open.json"
   ;;
 "repo view") echo main ;;
+"run cancel" | "run rerun")
+  verb=$2
+  shift 2
+  for id; do
+    case $id in -*) ;; *) break ;; esac
+  done
+  if ! jq -e --arg id "$id" 'any(.workflow_runs[]; (.id | tostring) == $id)' "$G/runs.json" >/dev/null 2>&1; then
+    echo "could not find any workflow run with ID $id" >&2
+    exit 1
+  fi
+  if [ "$verb" = cancel ]; then
+    now='.status = "completed" | .conclusion = "cancelled"'
+  else
+    now='.status = "queued" | .conclusion = null | .run_attempt = (.run_attempt // 1) + 1'
+  fi
+  jq --arg id "$id" ".workflow_runs |= map(if (.id | tostring) == \$id then $now else . end)" \
+    "$G/runs.json" >"$G/runs.json.new" && mv "$G/runs.json.new" "$G/runs.json"
+  ;;
 "api --paginate") ;;
 api\ *)
   case " $* " in

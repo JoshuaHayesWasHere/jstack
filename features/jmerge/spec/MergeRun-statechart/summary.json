@@ -1,0 +1,59 @@
+{
+  "view": "customer",
+  "modelStates": 191,
+  "modelTransitions": 639,
+  "chartStates": 21,
+  "chartTransitions": 30,
+  "allTransitions": 41,
+  "final": [
+    "no run out, a run was said to have left no record",
+    "no run out, every record written was sent"
+  ],
+  "chartStatus": {
+    "works": 21,
+    "fixed": 0,
+    "wrong": 0
+  },
+  "chartGroups": [
+    {
+      "name": "Lines heard, no run out",
+      "color": "#d1f2eb",
+      "states": 7
+    },
+    {
+      "name": "Lines heard, a run is out",
+      "color": "#a3e4d7",
+      "states": 6
+    },
+    {
+      "name": "Lines on their way",
+      "color": "#eaf2f8",
+      "states": 5
+    }
+  ],
+  "mixedGroups": [],
+  "regions": {
+    "drawn": true,
+    "states": [
+      3,
+      18
+    ],
+    "transitions": 30,
+    "all": 41,
+    "flat": {
+      "states": 24,
+      "transitions": 53
+    }
+  },
+  "classes": [],
+  "codeLike": [],
+  "drawnFrom": {
+    "command": "statechart from-spec MergeRun.tla --config MergeRun.chart.cfg --title 'jbus'\"'\"'s pass starts a run of jmerge: does what it said reach you?' --png",
+    "inputs": {
+      "MergeRun.chart.cfg": "59ec03eb848e7e60eb9f1cc056f9968800ab9d2bbfa398823999fad6398e9143",
+      "MergeRun.map.py": "4b3998c92e55eec0c5f07a6ec28c70b3b21f506feba8357de19cccd6fd31eb08",
+      "MergeRun.tla": "e8298f329217b8085796afaabb3cbe17de4a656738454e4fd92c6d208b15673c"
+    },
+    "chart": "c33cbb1c35488a72729498acedd7685b2effa0a6fe5390a4431e2e4ee476bf28"
+  }
+}

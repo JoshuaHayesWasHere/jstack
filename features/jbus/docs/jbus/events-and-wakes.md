@@ -109,6 +109,7 @@ It is in the log, which `jbus events` prints and the view shows.
 - `jmerge`
 - `merged`
 - `move`
+- `no-record`
 - `note`
 - `pack`
 - `pool-wake`
@@ -130,6 +131,7 @@ It is in the log, which `jbus events` prints and the view shows.
 - `review`
 - `reviewed`
 - `rollover`
+- `rule-breaks`
 - `slot-end`
 - `slot-wake`
 - `snapshot`

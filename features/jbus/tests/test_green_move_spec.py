@@ -25,14 +25,18 @@ JAVA = pytest.mark.skipif(not tools.find_java(), reason="no Java to run TLC")
 
 
 def tlc(cfg: str) -> subprocess.CompletedProcess:
-    """TLC's run of GreenMove.tla with the config `cfg`, in a copy of the spec's folder. A copy
-    at main's last tip has no step left to take, so TLC is not asked to find deadlocks."""
+    """TLC's run of GreenMove.tla with the config `cfg`, in a copy of the spec's folder. A copy at
+    main's last tip has no step left to take, so TLC is not asked to find deadlocks. Java's tmpdir
+    is the run's own too: TLC writes Naturals.tla and the other standard modules there under fixed
+    names, and a run that shares /tmp can parse one while another rewrites it."""
     found = tools.find_tlc()
     with tempfile.TemporaryDirectory(prefix="greenmove-") as folder:
         work = Path(folder)
+        (work / "tmp").mkdir()
         shutil.copy(SPEC / "GreenMove.tla", work)
         (work / "run.cfg").write_text(cfg)
-        command = [found.java, "-Xmx512m", "-cp", found.jar, "tlc2.TLC", "-workers", "1"]
+        command = [found.java, f"-Djava.io.tmpdir={work / 'tmp'}"]
+        command += ["-Xmx512m", "-cp", found.jar, "tlc2.TLC", "-workers", "1"]
         command += ["-deadlock", "-metadir", str(work / "meta"), "-config", "run.cfg"]
         return subprocess.run(
             tools.in_test_slot([*command, "GreenMove.tla"]),

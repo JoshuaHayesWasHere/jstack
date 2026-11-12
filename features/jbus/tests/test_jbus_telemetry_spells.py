@@ -318,10 +318,14 @@ def test_a_later_red_tip_that_fails_another_test_is_judged_on_its_own(machine, m
 @pytest.mark.parametrize(
     ("branch", "changed", "closed", "cause"),
     [
-        ("row-13", "features/m/src/m.py", "no fix", "flake"),
+        ("row-13", "features/n/src/n.py", "no fix", "flake"),
+        ("row-13", "features/m/tests/test_two.py", "no fix", "flake"),
+        ("row-13", "features/m/docs/m.md", "no fix", "flake"),
+        ("row-13", "features/m/README.md", "no fix", "flake"),
         ("row-13", "features/m/tests/test_m.py", "fix: #13", "change"),
-        (f"{mainjson.FIX}{TESTED[:12]}", "features/m/src/m.py", "fix: #13", "change"),
-        ("revert-11-row-11", "features/m/src/m.py", "fix: #13", "change"),
+        ("row-13", "features/m/scripts/fake-gh", "fix: #13", "change"),
+        (f"{mainjson.FIX}{TESTED[:12]}", "features/n/src/n.py", "fix: #13", "change"),
+        ("revert-11-row-11", "features/n/src/n.py", "fix: #13", "change"),
     ],
 )
 def test_main_going_green_closes_the_spell_and_the_store_reads_its_cause(
@@ -329,8 +333,10 @@ def test_main_going_green_closes_the_spell_and_the_store_reads_its_cause(
 ):
     """Only the end of a spell tells a break from a flake: a load flake and a break look the same
     in one run. A spell that went green with no fix and no revert merged was a flake, as jstack's
-    spells 44 and 45 were, though their first tip read `change`. An ordinary row that changed the
-    file of a test the spell failed fixed it, as #1591 ended jstack's spell 41."""
+    spells 44 and 45 were, though their first tip read `change`, and so was one ended by a merge
+    of another feature, or of another test file or a doc of the failed test's feature. An ordinary
+    row that changed the file of a test the spell failed fixed it, as #1591 ended jstack's spell
+    41, and so did one that changed its feature's own code, as #1628's `fake-gh` ended spell 43."""
     state = machine.state("alpha")
     red_spell(
         machine,
@@ -361,6 +367,63 @@ def test_main_going_green_closes_the_spell_and_the_store_reads_its_cause(
     with contextlib.closing(machine.store()) as store:
         spells = store.execute("SELECT start_pr, end_sha, cause FROM main_spells").fetchall()
     assert spells == [(11, AGAIN, cause)]
+
+
+def test_a_spell_whose_merges_files_could_not_be_read_is_closed_by_a_later_pass(
+    machine, monkeypatch
+):
+    """GitHub gives no answer for the files of #13, the row that fixed the test, at the pass that
+    finds main green: that pass writes no closing line, since `no fix` there would read a break as
+    a flake, and `flakerow` would file a flake row for it. A later pass that reads them, with
+    main still at the green tip, closes the spell with `fix: #13`, once."""
+    state = machine.state("alpha")
+    red_spell(
+        machine,
+        state,
+        monkeypatch,
+        {GREEN: "green", TESTED: "failed", LINTED: "failed", AGAIN: "green"},
+    )
+    mainmoved.tell(GitHub(state))
+    merged = json.loads((state / "merged.json").read_text())
+    pull = {"number": 13, "headRefName": "row-13", "mergeCommit": {"oid": AGAIN}}
+    (state / "merged.json").write_text(json.dumps({**merged, "row-13": pull}))
+    mainmoved.tell(GitHub(state, main=AGAIN, files={LINTED: []}))
+    lines = [json.loads(line) for line in (state / mainmoved.REDS).read_text().splitlines()]
+    assert [line.get("cause") for line in lines] == [None, None]
+    for _ in range(2):
+        files = {LINTED: [], AGAIN: ["features/m/tests/test_m.py"]}
+        mainmoved.tell(GitHub(state, main=AGAIN, files=files))
+    lines = [json.loads(line) for line in (state / mainmoved.REDS).read_text().splitlines()]
+    assert [{k: v for k, v in line.items() if k != "at"} for line in lines[2:]] == [
+        {"sha": TESTED, "green": AGAIN, "prs": [12, 13], "cause": "fix: #13"}
+    ]
+
+
+def test_a_spell_left_unclosed_is_closed_after_the_next_spell_opened(machine, monkeypatch):
+    """GitHub gives no answer for #13's files at the green pass, and main goes red again past
+    AGAIN before a pass reads them: the new spell's first line keeps AGAIN as its `after`, which
+    is the green tip `main.json` keeps. The older spell still closes at AGAIN, the `after` of the
+    spell that followed it, with `fix: #13`."""
+    state = machine.state("alpha")
+    red_spell(
+        machine,
+        state,
+        monkeypatch,
+        {GREEN: "green", TESTED: "failed", LINTED: "failed", AGAIN: "green"},
+    )
+    mainmoved.tell(GitHub(state))
+    merged = json.loads((state / "merged.json").read_text())
+    pull = {"number": 13, "headRefName": "row-13", "mergeCommit": {"oid": AGAIN}}
+    (state / "merged.json").write_text(json.dumps({**merged, "row-13": pull}))
+    mainmoved.tell(GitHub(state, main=AGAIN, files={LINTED: []}))
+    later = {"sha": "e" * 40, "after": AGAIN, "prs": [14], "failed": [], "verdict": "change"}
+    machine.append("alpha", mainmoved.REDS, {"at": iso(NOW), **later})
+    files = {LINTED: [], AGAIN: ["features/m/tests/test_m.py"]}
+    mainmoved.tell(GitHub(state, main=AGAIN, files=files))
+    lines = [json.loads(line) for line in (state / mainmoved.REDS).read_text().splitlines()]
+    assert [{k: v for k, v in line.items() if k != "at"} for line in lines if "cause" in line] == [
+        {"sha": TESTED, "green": AGAIN, "prs": [12, 13], "cause": "fix: #13"}
+    ]
 
 
 def test_a_store_from_before_the_cause_reads_it_after_its_next_build(machine):

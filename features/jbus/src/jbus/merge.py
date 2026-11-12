@@ -38,6 +38,7 @@ import fcntl
 import hashlib
 import os
 import re
+import secrets
 import subprocess
 import sys
 from datetime import datetime, timedelta
@@ -60,7 +61,7 @@ from jsettings.store import read_json, write_json
 if TYPE_CHECKING:
     from jbus.poll import Half
 
-EVENTS = {"jmerge": "quiet", "sweep": "quiet", "unplaced": "quiet"}
+EVENTS = {"jmerge": "quiet", "sweep": "quiet", "unplaced": "quiet", "no-record": "quiet"}
 _NO_LIST = re.compile(
     r"jmerge: .*(protected|ci-paths)\.txt "
     r"(cannot be read|has a pattern that cannot be read)"
@@ -93,15 +94,24 @@ TOLD = (
 
 
 RUNS = "jmerge-runs"
-"""The directory, in a project's state, of the pass's runs of `jmerge`: `GOING`, `STARTED`, the
-record of each run that ended and was not read (`ran-<at>.json`), and the last one read (`READ`)."""
+"""The directory, in a project's state, of the pass's runs of `jmerge`: `GOING`, `STARTED`,
+`DIED`, the record of each run that ended and was not read (`ran-<at>.json`), and the last one
+read (`READ`)."""
 GOING = "going.lock"
 """Held by a run's process (`keep`) from its start to its end, so a pass starts no second run.
 The kernel gives it back when the process dies."""
 STARTED = "started"
-"""Written by the pass that starts a run, with when, and removed by the run once its record is
-written: a stamp older than `STARTING` that the run's lock does not cover is a run that ended with
-no record. A younger one is a run that may not yet hold its lock, and is left to start."""
+"""Written by the pass that starts a run, with when and a name of the run's own, and removed by
+that run once its record, which names it too, is written. A run removes no stamp but its own, and
+one that takes `GOING` to find another stamp, or none, was told dead and runs nothing (`keep`).
+A stamp older than `STARTING` with `GOING` free is a run that ended with no record, unless a
+record names it: it is moved to `DIED` and told of. A younger one is a run that may not yet hold
+its lock, and is left to start.
+Each step on the stamp holds `GOING`, so a pass and a run never change it at one moment."""
+DIED = "died"
+"""The stamp of a run told dead, moved aside from `STARTED` under `GOING` so its run, should it
+start after all, finds no stamp and runs nothing, and kept until the pass has told of the run,
+so a pass that dies first leaves it for the next (`_stamped`)."""
 STARTING = timedelta(minutes=1)
 """How long a run's process has to take `GOING` from its start: a Python's start and an import of
 jbus, a second or two on a loaded machine."""
@@ -142,18 +152,44 @@ def merge(run: Pass) -> Said:
     also ends the streak, as such a run always did, and the pass says that `jmerge` stopped. The
     `Said` of that run is then `failed`, so jbus keeps what it knew of the rows that `jmerge` did
     not reach, as it does for a busy run.
+
+    A run that ended with no record is told before its stamp goes, once for its stamp
+    (`_told`), so a pass that dies between the two leaves the stamp for the next to tell.
     """
     where = runs(run)
     where.mkdir(parents=True, exist_ok=True)
-    if not _going(where) and not _starting(where):
-        if (where / STARTED).exists():
-            (where / STARTED).unlink()
-            _unrun(run, f"its run ended with no record: {_last(where / CHILD_LOG)}")
-        (where / STARTED).write_text(restated.moment(verbs.clock()) + "\n")
-        if why := start(run):
-            (where / STARTED).unlink(missing_ok=True)
-            _unrun(run, why)
+    if (stamp := _stamped(run, where)) and (why := start(run)):
+        with open(where / GOING, "a") as going:
+            fcntl.flock(going, fcntl.LOCK_EX)
+            _unstamp(where, stamp)
+        _unrun(run, why)
     return _records(run, where)
+
+
+def _stamped(run: Pass, where: Path) -> str:
+    """Holding `GOING`, move a stale stamp whose run kept no record to `DIED`, tell of that run
+    and remove `DIED`, then write the stamp of the run to start, and return it. Return nothing
+    where a run holds `GOING` or a stamp younger than `STARTING` stands: its run is going, or may
+    yet start. The run is started once `GOING` is given back, since it takes `GOING` itself."""
+    with open(where / GOING, "a") as going:
+        try:
+            fcntl.flock(going, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return ""
+        if _starting(where):
+            return ""
+        if stale := _stamp(where):
+            if _kept(where, stale):
+                _unstamp(where, stale)
+            else:
+                os.replace(where / STARTED, where / DIED)
+        if (where / DIED).exists():
+            died = (where / DIED).read_text().strip()
+            _told(run, died, f"its run ended with no record: {_last(where / CHILD_LOG)}")
+            (where / DIED).unlink()
+        stamp = f"{restated.moment(verbs.clock())} {secrets.token_hex(6)}"
+        (where / STARTED).write_text(stamp + "\n")
+        return stamp
 
 
 def runs(run: Pass) -> Path:
@@ -161,16 +197,18 @@ def runs(run: Pass) -> Path:
 
 
 def start(run: Pass) -> str:
-    """Start `keep` for the project in a process that outlives the pass, with the pass's list for
-    `jmerge` (`handed`), and return why it could not start, or nothing.
+    """Start `keep` for the project in a process that outlives the pass, with the stamp that
+    stands, which `merge` wrote for it, and the pass's list for `jmerge` (`handed`), and return
+    why it could not start, or nothing.
 
     A pass that systemd runs is a oneshot unit, and systemd ends every process left in it when the
     pass ends, a new session or not: the run is then a transient unit of its own (`UNIT`), with the
     pass's environment. A pass run by hand starts it in a session of its own.
     """
     where = runs(run)
-    child = (sys.executable, "-c", "import sys; from jbus import merge; merge.keep(*sys.argv[1:])")
-    child += (str(where), str(run.project.checkout), *handed(run))
+    code = "import sys; from jbus import merge; merge.keep(*sys.argv[2:], stamp=sys.argv[1])"
+    child = (sys.executable, "-c", code, _stamp(where), str(where), str(run.project.checkout))
+    child += handed(run)
     if os.environ.get("INVOCATION_ID"):
         name = re.sub(r"[^A-Za-z0-9_.-]", "-", run.project.name)
         digest = hashlib.sha256(str(where.resolve()).encode()).hexdigest()[:8]
@@ -197,14 +235,18 @@ def start(run: Pass) -> str:
     return ""
 
 
-def keep(where: str | Path, checkout: str | Path, *more: str) -> None:
-    """Run `jmerge --if-free`, with `more` (`handed`), in `checkout` as the process of one of the
-    pass's runs, holding `GOING` for the whole run, and keep what it printed as a record in
-    `where`, written whole before the lock is given back. A process that dies first leaves no
-    record, and the next pass counts it (`merge`)."""
+def keep(where: str | Path, checkout: str | Path, *more: str, stamp: str = "") -> None:
+    """Run `jmerge --if-free`, with `more` (`handed`), in `checkout` as the process of the
+    pass's run whose stamp is `stamp` (`STARTED`), holding `GOING` for the whole run, and keep
+    what it printed as a record in `where` that names the stamp, written whole before the lock is
+    given back. A process that dies first leaves no record, and the next pass counts it (`merge`).
+    A run that takes `GOING` to find its stamp gone was told dead: it runs nothing and keeps no
+    record."""
     where = Path(where)
     with open(where / GOING, "a") as going:
         fcntl.flock(going, fcntl.LOCK_EX)
+        if _stamp(where) != stamp:
+            return
         ran = proc.run(*RUN, *more, cwd=checkout, timeout=JMERGE_TIMEOUT)
         at = restated.moment(verbs.clock())
         record = {
@@ -213,43 +255,68 @@ def keep(where: str | Path, checkout: str | Path, *more: str) -> None:
             "stderr": ran.stderr,
             "timed_out": isinstance(ran, proc.TimedOut),
             "at": at,
+            "stamp": stamp,
         }
         write_json(where / f"ran-{at}.json", record)
+        _unstamp(where, stamp)
+
+
+def _stamp(where: Path) -> str:
+    """The stamp that stands, or nothing."""
+    try:
+        return (where / STARTED).read_text().strip()
+    except FileNotFoundError:
+        return ""
+
+
+def _unstamp(where: Path, stamp: str) -> None:
+    """Remove the stamp where it is `stamp`, and leave any other. The caller holds `GOING`."""
+    if _stamp(where) == stamp:
         (where / STARTED).unlink(missing_ok=True)
 
 
-def _going(where: Path) -> bool:
-    """Whether a run's process holds `GOING`."""
-    with open(where / GOING, "a") as going:
-        try:
-            fcntl.flock(going, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            return True
-    return False
+def _kept(where: Path, stamp: str) -> bool:
+    """Whether a record names `stamp`: one not yet read, or the last one read. A run that kept
+    its record and died before its stamp went is no death, and its record is the newest."""
+    kept = [*where.glob("ran-*.json"), where / READ]
+    return any(read_json(path, {}).get("stamp") == stamp for path in kept)
+
+
+def _told(run: Pass, stamp: str, why: str) -> None:
+    """Tell of the run of `stamp` that ended with no record, once for the stamp: the log keeps
+    the line by the stamp's key, and a pass that died after it tells nothing more."""
+    line = f"no-record {run.project.name}: jmerge did not run ({why})"
+    if run.box.send("", "no-record", line, key=f"no-record|{stamp}"):
+        _unrun(run, why)
 
 
 def _starting(where: Path) -> bool:
     """Whether a pass started a run within `STARTING`, which may not yet hold `GOING`. A stamp
     that does not parse is no start."""
     try:
-        at = datetime.fromisoformat((where / STARTED).read_text().strip())
-    except (OSError, ValueError):
+        at = datetime.fromisoformat(_stamp(where).partition(" ")[0])
+    except ValueError:
         return False
     return verbs.clock() - at < STARTING
 
 
 def _records(run: Pass, where: Path) -> Said:
-    """Read each record of a run that ended and was not read, oldest first, mark it read, and
-    return their lines: `failed` and `at` are the newest's. With none, return no line, `failed`,
-    at the end of the last run read."""
+    """Read each record of a run that ended and was not read, oldest first, send its lines,
+    then mark it read, and return their lines: `failed` and `at` are the newest's. With none,
+    return no line, `failed`, at the end of the last run read.
+
+    A pass that dies before the mark leaves the record for the next pass, which reads it again:
+    each line is sent once for its key (`_sent`), and the run is counted on the `jmerge` streak
+    once for its `at` (`_judged`), so the run is heard once and counted once wherever the pass
+    died."""
     said = Said()
     said.failed = True
     for path in sorted(where.glob("ran-*.json")):
         record = read_json(path, {})
-        os.replace(path, where / READ)
         made = proc.TimedOut if record.get("timed_out") else subprocess.CompletedProcess
         ran = made(RUN, record["returncode"], record["stdout"], record["stderr"])
         lines = _judged(run, ran, record["at"])
+        os.replace(path, where / READ)
         said.extend(lines)
         said.failed, said.at = lines.failed, lines.at
     if not said.at:
@@ -258,8 +325,8 @@ def _records(run: Pass, where: Path) -> Said:
 
 
 def _judged(run: Pass, ran: subprocess.CompletedProcess[str], at: str) -> Said:
-    """Send each line of a run of `jmerge` that ended at `at`, count it on the `jmerge` streak,
-    and return its lines (`merge`)."""
+    """Send each line of a run of `jmerge` that ended at `at`, count it on the `jmerge` streak
+    once for `at`, and return its lines (`merge`)."""
     lines = _sent(run, ran, at=at)
     name, streak = run.project.name, alert.jmerge(run.project.name)
     if ran.returncode == lock.BUSY:
@@ -273,7 +340,7 @@ def _judged(run: Pass, ran: subprocess.CompletedProcess[str], at: str) -> Said:
     if _NO_LIST.search(why := lines_of.said(ran)):
         run.condition(name, NO_LIST, why, key=f"protected {run.day}")
     else:
-        _unrun(run, why)
+        _unrun(run, why, once=at)
     return lines
 
 
@@ -293,10 +360,11 @@ def handed(run: Pass) -> tuple[str, ...]:
     return ("--pulls", str(opened.path), "--pulls-at", opened.at)
 
 
-def _unrun(run: Pass, why: str) -> None:
-    """Say that `jmerge` did not run, and count it on the `jmerge` streak."""
+def _unrun(run: Pass, why: str, *, once: str = "") -> None:
+    """Say that `jmerge` did not run, and count it on the `jmerge` streak, once for `once` where
+    it names the run (`alert.failed`)."""
     run.say(f"wait {run.project.name}: jmerge did not run ({why})")
-    _failed(run, why)
+    _failed(run, why, once=once)
 
 
 def _last(path: Path) -> str:
@@ -305,12 +373,12 @@ def _last(path: Path) -> str:
     return said[-1].strip() if said else "it said nothing"
 
 
-def _failed(run: Pass, why: str) -> None:
-    """Count one failure of the project's `jmerge` streak, and raise its alert once it is due."""
+def _failed(run: Pass, why: str, *, once: str = "") -> None:
+    """Count one failure of the project's `jmerge` streak, once for `once` where it names the
+    run, and raise its alert once it is due."""
     streak = alert.jmerge(run.project.name)
-    alert.tell(
-        run, streak, alert.failed(run.config.state_dir, streak, why, now=run.now, user=run.user)
-    )
+    state = run.config.state_dir
+    alert.tell(run, streak, alert.failed(state, streak, why, now=run.now, user=run.user, once=once))
 
 
 def _sent(

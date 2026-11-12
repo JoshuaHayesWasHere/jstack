@@ -102,6 +102,7 @@ ORDER = [
     "tellers 70 threads.merged (client, world)",
     "tellers 72 pausedon.tell (client, world)",
     "tellers 75 reload.tell (client)",
+    "tellers 76 rulebreaks.tell",
     "tellers 80 threads.out and stall.hung (client, world)",
     "tellers 90 stall.twice (world)",
     "tellers 100 rebase.tell (client, world)",
@@ -190,7 +191,6 @@ BEFORE = {
             ("review", "review alpha: findings"),
             ("rebase", "rebase alpha: told the crew (#7, <head>)"),
             ("queue", "queue demo: the table changed"),
-            ("illegal-move", "illegal-move alpha: launched to pr"),
         ],
     ),
     "t3 down": (

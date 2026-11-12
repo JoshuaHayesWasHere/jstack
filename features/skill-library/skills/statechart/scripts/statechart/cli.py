@@ -16,6 +16,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from pathlib import Path
 
 from statechart import excalidraw
 from statechart.lib import (
@@ -167,9 +168,9 @@ Reading a chart
   the contexts on one side, the progress on the other, both at the same time. It does so only when
   that has fewer states, and when the regions combine back into exactly every state and step of
   TLC's graph. Otherwise it puts the states of one context in a box named context, and prints why.
-  Regions draw only the arrows of the shortest way to each state, of each bug path, and of the
-  nearest step with each label. The script checks that these arrows make no step that TLC's graph
-  does not have.
+  Regions draw only the arrows of the shortest way to each state, of each bug path, of the
+  nearest step with each label, and one way out of each state that has one, so only a final state
+  ends a path. The script checks that these arrows make no step that TLC's graph does not have.
   An arrow from a box's border leaves from every state in the box.
   In regions, a step leaves every region that has it. "[when A]" or "[unless A]" says which states
   of the other region the step needs. A loop says the region may also stay.
@@ -463,8 +464,9 @@ def run_tlc(tools, spec, cfg, base, dump=None, workers="1", first_only=False):
         os.path.abspath(f"{base}.cfg"),
         os.path.basename(spec),
     ]
+    held = in_test_slot(command)
     try:
-        r = run_in_own_group(in_test_slot(command), os.path.dirname(os.path.abspath(spec)))
+        r = run_in_own_group(held, os.path.dirname(os.path.abspath(spec)))
     except OSError as e:
         raise CannotFinish(f"cannot run TLC: {e.strerror or e}") from e
     finally:
@@ -473,6 +475,14 @@ def run_tlc(tools, spec, cfg, base, dump=None, workers="1", first_only=False):
     could_not_start = re.search(rf"^test-slot: {re.escape(tools.java)}: (.*)$", r.stderr, re.M)
     if r.returncode in (126, 127) and could_not_start:
         raise CannotFinish(f"cannot run TLC: {could_not_start[1]}")
+    # TLC prints its version before anything else, so a slot that ends in a fault with nothing on
+    # stdout never ran TLC to its first line: a jgauge that cannot run, such as a venv's shim
+    # whose package is gone. Its own words say why, where TLC's empty output would not.
+    if held is not command and r.returncode != 0 and not r.stdout:
+        raise CannotFinish(
+            f"cannot run TLC: {held[0]} test-slot exited {r.returncode} before TLC printed a"
+            f" line:\n{r.stderr.strip()}{resync_hint(held[0])}"
+        )
     stdout = f"{FIRST_ONLY}{r.stdout}" if first_only else r.stdout
     with open(f"{base}.out", "w", encoding="utf-8") as handle:
         handle.write(stdout)
@@ -481,6 +491,22 @@ def run_tlc(tools, spec, cfg, base, dump=None, workers="1", first_only=False):
         return {"stdout": stdout, "warning": warning, "firstOnly": first_only}
     except ChartError as e:
         raise TlcStopped(str(e)) from e
+
+
+def resync_hint(wrapper):
+    """The command that clears a `jgauge` this command's own venv holds and its lock does not:
+    a shim another checkout's project left there, by a sync that inherited the venv, whose
+    package went with that checkout. An exact sync removes it. A wrapper from elsewhere on PATH
+    gets no hint, since no sync of this venv mends it."""
+    bin_dir = os.path.join(sys.prefix, "bin")
+    if os.path.dirname(os.path.abspath(wrapper)) != bin_dir:
+        return ""
+    project = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return (
+        "\nThis venv holds a jgauge its lock does not; re-sync it with:\n"
+        f"UV_PROJECT_ENVIRONMENT={shlex.quote(sys.prefix)} uv sync --frozen"
+        f" --project {shlex.quote(project)} --reinstall-package jgauge"
+    )
 
 
 def without_comments(spec):
@@ -889,20 +915,27 @@ def png_scale(svg):
     return min(PNG_SCALE, math.floor(PNG_SIDE_LIMIT / side * 1000) / 1000)
 
 
+def draw_png(chart, png):
+    """Draws one chart to `png` with the pinned mermaid-cli, first to an SVG that sizes it:
+    whether it drew it, and what mermaid-cli said."""
+    with tempfile.TemporaryDirectory() as scratch:
+        svg = os.path.join(scratch, "chart.svg")
+        ok, said = mermaid(chart, svg)
+        if not ok:
+            return ok, said
+        with open(svg, encoding="utf-8") as handle:
+            scale = png_scale(handle.read())
+        browser = os.path.join(scratch, "browser.json")
+        with open(browser, "w", encoding="utf-8") as handle:
+            json.dump(PNG_BROWSER, handle)
+        return mermaid(chart, png, "-s", f"{scale:g}", "-p", browser)
+
+
 def render(charts, shown):
     pngs = []
     for chart in charts:
         png = re.sub(r"\.mmd$", ".png", chart)
-        with tempfile.TemporaryDirectory() as scratch:
-            svg = os.path.join(scratch, "chart.svg")
-            ok, said = mermaid(chart, svg)
-            if ok:
-                with open(svg, encoding="utf-8") as handle:
-                    scale = png_scale(handle.read())
-                browser = os.path.join(scratch, "browser.json")
-                with open(browser, "w", encoding="utf-8") as handle:
-                    json.dump(PNG_BROWSER, handle)
-                ok, said = mermaid(chart, png, "-s", f"{scale:g}", "-p", browser)
+        ok, said = draw_png(chart, png)
         if ok:
             pngs.append(png)
         else:
@@ -1367,62 +1400,195 @@ def from_chart(given, flags):
     return in_work_folder(body, flags.get("keep-work"))
 
 
-SITE = """Usage: statechart site --out FILE [--root DIR] [--check]
+SITE = """Usage: statechart site --out FILE [--root DIR] [--flow MAP.toml] [--lanes]
 
-Writes one self-contained HTML page that explores every features/*/spec/*-statechart/chart.mmd
-under DIR, with the stories.md and summary.json beside each: pick a chart, pan and zoom it, tap a
-state for its whole label, the code line it cites and its steps in and out. The page fetches
-nothing when it is viewed.
+Draws every features/*/spec/*-statechart/chart.mmd under DIR, from the chart.mmd, stories.md and
+summary.json committed there, and runs no TLC unless --lanes asks. It writes, in FILE's folder:
+  FILE          One self-contained HTML page that explores every chart. It opens on an Overview
+                tab, and each chart's tab shows the chart's overview (statechart overview --help)
+                above the chart itself: a tap on an overview's box moves the chart to that group's
+                states. Pan and zoom the chart, and tap a state for its whole label, the code line
+                it cites and its steps in and out. The page fetches nothing when it is viewed.
+  NAME.png, NAME-bug-N.png
+                Each chart and each bug-N.mmd beside it as a PNG, drawn with npx
+                {MERMAID_CLI}, so it needs Node.
+  NAME.excalidraw, NAME.overview.excalidraw
+                Each chart and its overview as an Excalidraw scene, as statechart excalidraw and
+                statechart overview --out draw them.
 
   --out FILE   Where the page goes.
   --root DIR   The repo whose charts it draws. Default: the git repo of the current folder.
-  --check      Writes nothing, and exits 1 when FILE is not the page the charts make now.
+  --flow MAP.toml
+               The map the Overview tab draws: one box per chart, in the order of its [[chart]]
+               tables, each with the chart's name, the thing it charts and, for a chart whose
+               title asks no question, its question; and one numbered arrow per [[handoff]], with
+               from = "Chart: Group", to = "Chart: Group" and the words it says. The command
+               stops when a hand-off names a chart or a group that is not there. Default: the
+               flow.toml beside FILE, where there is one. Without one, the tab draws the charts
+               in the order of their paths, with no hand-offs.
+  --lanes      Draw each chart whose mapping names `lanes` as reference lanes instead: one row of
+               boxes per lane, every step of TLC's graph on one arrow, table cell or row, and no
+               two lines crossing. It runs TLC on the spec beside the chart, with each config
+               the mapping's `lane_configs` names, and the mapping's `seen()` puts real counts on
+               the arrows its logs record. It then prints, for each such chart, the steps with
+               no single place on the page and the places with no step, and the crossings and
+               labels on lines, labels or boxes of each drawing, with label sizes estimated;
+               `statechart lanes-check FILE` measures those in a browser.
 
-Exit codes: 0 written (or current, with --check), 1 stale, 2 a chart it cannot read or a wrong
-argument."""
+Exit codes: 0 all written, 1 a lanes count above 0, 2 a chart or map it cannot read, a
+hand-off to a group that is not there, a PNG it cannot draw, or a wrong argument. A PNG it
+cannot draw leaves the page and the other files written."""
 
 
 def site_main(argv):
-    from statechart import site
+    from statechart import overview, site
 
     flags = {}
     i = 0
     while i < len(argv):
         a = argv[i]
         if a in ("-h", "--help"):
-            print(SITE)
+            print(SITE.format(MERMAID_CLI=MERMAID_CLI))
             return 0
-        if a == "--check":
-            flags["check"] = True
-        elif a in ("--out", "--root"):
+        if a in ("--out", "--root", "--flow"):
             if i + 1 == len(argv):
                 raise CannotFinish(f"{a} needs a value. Run statechart site --help for the flags.")
             i += 1
             flags[a[2:]] = argv[i]
+        elif a == "--lanes":
+            flags["lanes"] = True
         else:
             raise CannotFinish(f"unknown argument {a}. Run statechart site --help for the flags.")
         i += 1
     if "out" not in flags:
         raise CannotFinish(SITE.split("\n", 1)[0])
     root = flags.get("root") or site.repo_root(os.getcwd())
+    beside = os.path.join(os.path.dirname(flags["out"]), "flow.toml")
+    if "flow" not in flags and os.path.isfile(beside):
+        flags["flow"] = beside
     try:
-        if flags.get("check"):
-            fresh = site.render(root, flags["out"])
-            try:
-                with open(flags["out"], encoding="utf-8") as handle:
-                    now = handle.read()
-            except OSError:
-                now = None
-            if now != fresh:
-                print(f"{flags['out']} is stale: run statechart site --out {flags['out']}")
-                return 1
-            print(f"{flags['out']} is current")
-            return 0
-        charts = site.build(root, flags["out"])
+        tools = find_tools() if flags.get("lanes") else None
+        charts = site.build(root, flags["out"], flags.get("flow"), tools)
+        folder = Path(flags["out"]).resolve().parent
+        for chart in charts:
+            text = (chart.folder / "chart.mmd").read_text(encoding="utf-8")
+            excalidraw.write(excalidraw.scene(text), folder / f"{chart.name}.excalidraw")
+            groups = overview.mermaid(overview.overview_of(site.read_text(text, chart.name)))
+            excalidraw.write(excalidraw.scene(groups), folder / f"{chart.name}.overview.excalidraw")
     except ChartError as e:
         raise CannotFinish(str(e)) from e
     states = sum(len(r.states) for c in charts for r in c.regions)
     print(f"wrote {flags['out']}: {len(charts)} charts, {states} states")
+    off = sum(lanes_report(c) for c in charts if c.lanes)
+    pictures = [
+        (mmd, folder / f"{chart.name}{'' if mmd.stem == 'chart' else '-' + mmd.stem}.png")
+        for chart in charts
+        for mmd in [chart.folder / "chart.mmd", *sorted(chart.folder.glob("bug-*.mmd"))]
+    ]
+    drawn = 0
+    for mmd, png in pictures:
+        ok, said = draw_png(str(mmd), str(png))
+        if ok:
+            drawn += 1
+        else:
+            print(f"could not draw {png.name}: {said.strip()}", file=sys.stderr)
+    print(f"wrote {drawn} PNGs and {2 * len(charts)} Excalidraw scenes beside it")
+    return 2 if drawn != len(pictures) else 1 if off else 0
+
+
+def lanes_report(chart):
+    """Prints what the lanes check found on one chart drawn as lanes, and returns how many
+    faults it found."""
+    lanes = chart.lanes
+    totals = ", ".join(
+        f"{cfg}: {n:,} states, {s:,} steps" for cfg, (n, s) in lanes.projection.totals.items()
+    )
+    cov = lanes.coverage
+    print(f"{chart.name} lanes, from {totals}")
+    print(
+        f"  coverage: {cov['steps']:,} steps, {cov['steps_without_place']} with no single place on"
+        f" the page, {len(cov['places_without_step'])} arcs, cells or rows with no step"
+    )
+    off = cov["steps_without_place"] + len(cov["places_without_step"])
+    for name, found in lanes.faults.items():
+        counts = ", ".join(f"{len(v)} {k.replace('_', ' ')}" for k, v in found.items())
+        print(f"  layout, {name}, label sizes estimated: {counts}")
+        off += sum(len(v) for v in found.values())
+    for line in [
+        *cov["examples"],
+        *(x for f in lanes.faults.values() for v in f.values() for x in v),
+    ][:8]:
+        print(f"    {line}")
+    return off
+
+
+OVERVIEW = """Usage: statechart overview CHART.mmd [--out FILE.excalidraw]
+
+Draws the chart at the level of its groups, the groups its mapping's group() made and its Legend
+names: each region gives one box per group that has states in it, and one box for its states in no
+group. An arrow joins two boxes when a step of the chart leads from a state of one to a state of the
+other, and says how many steps do. A box says how many states it holds, and how many steps lead
+between two of them. The boxes hold every state of the chart, and the arrows and boxes every step.
+An overview of more than {MOST} boxes is no overview: the command warns, and the chart needs fewer
+groups.
+
+Without --out it prints the overview as a Mermaid stateDiagram-v2. With --out it writes it as an
+Excalidraw scene, laid out as statechart excalidraw lays out a chart; the same chart always writes
+the same bytes.
+
+Exit codes: 0 drawn, 2 a chart it cannot read, a file it cannot write, or a wrong argument."""
+
+
+def overview_main(argv):
+    from statechart import site
+    from statechart.overview import MOST, mermaid, overview_of
+
+    chart_file = out = None
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a in ("-h", "--help"):
+            print(OVERVIEW.replace("{MOST}", str(MOST)))
+            return 0
+        if a == "--out":
+            if i + 1 == len(argv):
+                raise CannotFinish("--out needs a value. Run statechart overview --help.")
+            out = argv[i + 1]
+            i += 2
+            continue
+        if a.startswith("-") or chart_file is not None:
+            raise CannotFinish(f"unknown argument {a}. Run statechart overview --help.")
+        chart_file = a
+        i += 1
+    if chart_file is None:
+        raise CannotFinish(OVERVIEW.split("\n", 1)[0])
+    try:
+        with open(chart_file, encoding="utf-8") as handle:
+            text = handle.read()
+    except OSError as e:
+        raise CannotFinish(f"cannot read {chart_file}: {e.strerror}") from e
+    name = os.path.basename(os.path.dirname(os.path.abspath(chart_file))).removesuffix(
+        "-statechart"
+    )
+    try:
+        ov = overview_of(site.read_text(text, name))
+        drawn = mermaid(ov)
+        if out is not None:
+            excalidraw.write(excalidraw.scene(drawn), out)
+    except ChartError as e:
+        raise CannotFinish(f"{chart_file}: {e}") from e
+    except OSError as e:
+        raise CannotFinish(f"cannot write {out}: {e.strerror}") from e
+    boxes = len(ov.boxes())
+    if boxes > MOST:
+        print(
+            f"warning: {boxes} boxes, more than {MOST}: the chart needs fewer groups",
+            file=sys.stderr,
+        )
+    if out is None:
+        print(drawn, end="")
+    else:
+        print(f"wrote {out}: {boxes} boxes")
     return 0
 
 
@@ -1433,6 +1599,12 @@ def main(argv=None):
     try:
         if argv and argv[0] == "site":
             return site_main(argv[1:])
+        if argv and argv[0] == "overview":
+            return overview_main(argv[1:])
+        if argv and argv[0] == "lanes-check":
+            from statechart import lanes_check
+
+            return lanes_check.main(argv[1:])
         parsed = parse_args(argv)
         if "help" in parsed:
             print(parsed["help"])

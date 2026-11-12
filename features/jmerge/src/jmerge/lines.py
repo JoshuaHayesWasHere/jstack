@@ -175,6 +175,24 @@ def skills_of(text: str) -> tuple[str, ...]:
     return tuple(found[1].split()) if found else ()
 
 
+BREAKS = "its tests {tests} fail on {numbers} merged with it, whose crews jbus tells"
+_BREAKS = re.compile(r"its tests (\S+(?: \S+)*?) fail on ((?:#\d+ ?)+) merged with it(?=, )")
+
+
+def rule_breaks(tests: Sequence[str], numbers: Sequence[int]) -> str:
+    """The note of a merge whose tests fail on the open pull requests named, merged with it, which
+    its Result's `Breaks:` line named (`jmerge.preflight`): jbus tells each one's crew."""
+    return BREAKS.format(tests=" ".join(tests), numbers=" ".join(f"#{n}" for n in numbers))
+
+
+def breaks_of(text: str) -> tuple[tuple[str, ...], tuple[int, ...]]:
+    """The tests and the pull requests the `rule_breaks` note of a `merged` line names, or none."""
+    found = _BREAKS.search(text)
+    if not found:
+        return (), ()
+    return tuple(found[1].split()), tuple(int(n) for n in re.findall(r"#(\d+)", found[2]))
+
+
 def unfollowed(text: str) -> str:
     """The `not_reinstalled`, `not_installed` and `not_pulled` notes of a `merged` line, or an
     empty string when the line has none of them."""

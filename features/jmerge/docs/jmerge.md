@@ -186,7 +186,7 @@ The section "Protected paths" describes one more hold.
   One that changes only test files, and files of a kind `jbriefs.proved.EXEMPT` names (docs, config), needs only the run at its head, its `tests only` line: a removal of tests with the edit to the doc that named them is one.
   A `tests only` line on one that changes any other file holds it, and one that changes no test needs no line.
   One that adds or changes a fork's patch (a `.patch` under a feature's `packaging/` folder, `jbriefs.proved.FORK_FILE`) needs a line all the same, since its tests are inside the patch, and one that only edits the `PKGBUILD` or deletes a patch needs none: where every file it changes is a fork file, docs or config, its `fork patches` line names the fork's test files, with their run ending 1 over the base's series and 0 over the head's, and the same line on one that changes any other file holds it (`jbriefs.proved.outside_fork`).
-  The last `Checked:` line names the desk's whole check, `make check-fast BASE=<sha> PART=touched` (the lint, the touched tests and the repo-guards tests), `make check-fast BASE=<sha> PART=guards` (the desk's check before 2026-11-05) or `jgauge check`, ending 0 at the head, or at a head whose patch the head carries unchanged.
+  The last `Checked:` line names the desk's whole check, `make check-fast BASE=<sha> PART=touched` (the lint, the touched tests, the cross-cutting tests and the tests that read the change), `make check-fast BASE=<sha> PART=guards` (the desk's check before 2026-11-05) or `jgauge check`, ending 0 at the head, or at a head whose patch the head carries unchanged.
   An exit of 124 is a time limit, and holds the pull request like any other exit but 0.
   On the two-step line the crew's check block once wrote, only the guards' step counts.
   Each line it waits with is a `Reason` in `features/jmerge/src/jmerge/ready.py`, from `SKILLS_UNRUN` to `CHECKED_PART`.
@@ -200,6 +200,7 @@ The section "Protected paths" describes one more hold.
   A check that the repo's workflows never run then blocks no merge.
   A pull request waits with `<check> has failed` for the first required check that has not passed where its latest run failed, with `<check> has not passed` where it has not, and with `it conflicts with its base` for a conflict.
   Where GitHub lists no run of that check at the head, the line is `<check> has no run at <head12>` instead: no runner is at work on it, as for a workflow that reached the base after the head's checks ran.
+  GitHub runs no check on a pull request that conflicts with its base, so where it says `CONFLICTING` and the check has no run at the head, the line is `it conflicts with its base`: the conflict is what keeps the check from running, and the crew's rebase is what starts it.
   Where GitHub has not yet decided whether the pull request merges, `GitHub has not decided whether it merges` (`undecided`) is said last, after every reason that does not wait on GitHub: a review, a rebase that changed the content or dropped a line, a go, a scoped ruling, a queue row, a hold and a draft each say their own line first, since GitHub's answer would not change them (`Repo.judged`).
   GitHub decides afresh each time main moves, and #1440 went `dropped`, `undecided`, `dropped` while its rebase's drop stood.
   A held queue row, or one that merges after a row not merged yet, comes before `<check> has failed`, `<check> has not passed` and a running check, and a check with no run at the head comes before it ("Its queue row lets it merge").
@@ -262,6 +263,22 @@ The section "Protected paths" describes one more hold.
 - **Its check ran over today's main.**
   See "Merges cleanly over today's main".
 - **Its rebase kept every line.** See "After a rebase".
+- **The tests it adds or tightens pass on every open pull request merged with it.**
+  #1702 merged at 01:16Z on 2026-11-12 with a new rule, and within the half hour #1711, #1712, #1713 and #1716 went red on it, each crew left to find the red alone.
+  So once a pull request has no other reason to wait, and its change adds or edits a test file (`test_*.py`, the repo's guard tests among them), `jmerge` runs those tests on the tree of its head merged with the head of each other open pull request a brief names (`features/jmerge/src/jmerge/preflight.py`).
+  The command is the first line of the state's `rule-preflight` file that is not blank, with `RULES` set to the test files: jstack's is `make test TESTS="$RULES"`.
+  A repo with no such file runs no preflight.
+  The tests run first on its head alone: where they fail there, this machine does not run them as CI did, and nothing is held.
+  A pull request that fails them merged with it holds it with `its tests <tests> fail on open pull requests merged with it, #<n> (<test>), ...: carry the fix (an exemption or a changed rule), or name each on a Breaks: line of its Result, and jbus tells their crews when it merges` (`rule-breaks`, on the `result` step), and jbus tells its crew so on the first pass.
+  The hold lifts in one of two ways.
+  Its crew pushes the fix, a changed rule or an exemption, and the tests pass on every open pull request merged with the new head.
+  Or its crew adds a line `Breaks: #<n> #<n> ...` to its Result that names each failing pull request: it then merges with the note `its tests <tests> fail on #<n> ... merged with it, whose crews jbus tells`, and jbus tells each named pull request's crew in the pass that reads that `merged` line (`jbus.rulebreaks`).
+  A pull request that fails starts holding it again until it is named, as does a new one that opens and fails.
+  A failure holds nothing where the other pull request fails the tests it has at its own head too (that red is its own, and its check shows its crew), nor does a tree that conflicts, cannot be built or runs past 60 s: that crew rebases once the rule lands, and the guards on the merged tree stand behind it.
+  A pull request stacked on it, or one it carries, runs nothing: its own check runs the rule.
+  `rule-trees.json` keeps each result until either head moves, but a run stopped at its limit or one whose tree or slot would not start runs again on the next run with time left, and a result at another pull request's older head counts until its new head is run, so a crew's push holds no rule.
+  The runs of one `jmerge` run spend at most 90 s, apart from the guards' time, each inside a full test slot; while a pull request has not been run once, the rule waits with `its tests <tests> have run on <k> of the <n> open pull requests merged with it: the next run goes on` (`rule-unrun`), which ends by itself.
+  `--check` runs the preflight too, in a worktree of its own, so its `wait` line names the pull requests a rule breaks.
 - **The repo's merge is on.**
   While `~/.local/state/home/<repo>/merge-off` exists, `jmerge` merges nothing.
   A pull request that would have merged waits with `auto-merge is off for this repo`.

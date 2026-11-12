@@ -1,0 +1,216 @@
+# The map on the Overview tab of index.html, beside this file: one box per chart, in this order,
+# and one numbered arrow per hand-off, from a group of one chart to a group of another, as
+# ../flow.md tells a task's ten steps. A group is named as the chart's Legend names it, so
+# `statechart site` stops when a chart no longer has a group a hand-off names. Each model of a
+# features/*/spec/ folder with no chart is an [[uncharted]], by its path under features/, with
+# why, and `statechart site` stops on a model that is neither. [[unmodeled]] is state of the
+# code that no model has.
+# This file is written by hand and committed. `make charts` draws index.html, and a PNG and
+# Excalidraw scenes of each chart, beside it, none of them committed, and the page reads this file
+# as the flow.toml beside it.
+
+[[chart]]
+name = "RowLife"
+thing = "A row in the queue"
+question = "What happens to my row?"
+
+[[chart]]
+name = "ThreadLife"
+thing = "A crew's thread"
+
+[[chart]]
+name = "PrVerdict"
+thing = "A pull request at jmerge"
+
+[[chart]]
+name = "MergeRun"
+thing = "A run of jmerge a pass starts"
+
+[[chart]]
+name = "FlowToday"
+thing = "A pair of rows on their way to main"
+
+[[chart]]
+name = "MainRed"
+thing = "A red main"
+
+[[chart]]
+name = "HomeTreeToday"
+thing = "A tree of homes"
+question = "When a child home stalls or retires, does what it had out still reach you?"
+
+# jbus acts once on each step above (a message, a body, a rerun, a line): TellOnce draws the acts
+# that tell a thread, TellOnceOther the others, and TellOnceOwed the ask owed after a limit, each
+# entered by a hand-off from the step that starts its acts.
+[[chart]]
+name = "TellOnce"
+thing = "A thing jbus does once"
+
+[[chart]]
+name = "TellOnceOther"
+thing = "A thing jbus does once outside a thread"
+
+[[chart]]
+name = "TellOnceOwed"
+thing = "An ask jbus owes after a limit"
+
+[[chart]]
+name = "MainFix"
+thing = "The fix and revert jbus files"
+
+[[chart]]
+name = "CrewProof"
+thing = "A crew's proof on its brief"
+
+[[chart]]
+name = "TestSlot"
+thing = "A test slot and its waiters"
+
+[[chart]]
+name = "GreenMove"
+thing = "The green copy of jstack"
+
+[[chart]]
+name = "Setup"
+thing = "What install.sh makes"
+
+[[chart]]
+name = "GhBudget"
+thing = "GitHub's API budget"
+
+[[chart]]
+name = "OneList"
+thing = "A gate on your list"
+
+[[handoff]]
+from = "HomeTreeToday: No pull request yet"
+to = "RowLife: Not launched"
+says = "A home briefs a task, and it waits in the queue as a row."
+
+[[handoff]]
+from = "RowLife: Launched"
+to = "ThreadLife: Launching"
+says = "jbus launches the row: a crew thread starts on it."
+
+[[handoff]]
+from = "ThreadLife: Out"
+to = "PrVerdict: Waits on jmerge, GitHub or a check"
+says = "The crew opens its pull request, and jmerge judges it."
+
+[[handoff]]
+from = "PrVerdict: Merged"
+to = "RowLife: Final"
+says = "The pull request merges, and its row is done."
+
+[[handoff]]
+from = "PrVerdict: Merged"
+to = "ThreadLife: Put away"
+says = "jbus archives the crew's thread once its pull request merged."
+
+[[handoff]]
+from = "PrVerdict: Merged"
+to = "HomeTreeToday: Pull request merged"
+says = "The merge reaches the home that had the pull request out."
+
+[[handoff]]
+from = "RowLife: Not launched"
+to = "FlowToday: Main green, a row waits to launch"
+says = "With a second row in the queue, both flow to main at once."
+
+[[handoff]]
+from = "FlowToday: Main red, jbus reruns and judges it"
+to = "MainRed: Red, nothing open yet"
+says = "A merge turns main red, and jbus judges the red run."
+
+[[handoff]]
+from = "MainRed: Red, a fix row out"
+to = "RowLife: Not launched"
+says = "jbus files the fix as a row of the queue."
+
+[[handoff]]
+from = "MainRed: Not red"
+to = "FlowToday: Main green, a pull request still red from main's break"
+says = "Main is green again, and the pull requests it broke run their checks again."
+
+[[handoff]]
+from = "MainRed: Red, nothing open yet"
+to = "MainFix: In a pass"
+says = "jbus files the fix row and the revert in a pass, one write at a time."
+
+[[handoff]]
+from = "CrewProof: Nothing owed"
+to = "PrVerdict: Waits on jmerge, GitHub or a check"
+says = "With its proof on the brief and nothing owed, the pull request waits on jmerge."
+
+[[handoff]]
+from = "PrVerdict: Merged"
+to = "GreenMove: Settled"
+says = "The merge goes green on main, and a pass moves the green copy to it."
+
+[[handoff]]
+from = "PrVerdict: Waits on jmerge, GitHub or a check"
+to = "MergeRun: Lines heard, a run is out"
+says = "jbus's pass starts a run of jmerge in the background, and the run judges the pull request."
+
+[[handoff]]
+from = "MergeRun: Lines heard, a run is out"
+to = "PrVerdict: Merged"
+says = "The run merges the pull request, and the next pass sends you the lines it wrote."
+
+[[handoff]]
+from = "CrewProof: At work"
+to = "TestSlot: Full lane"
+says = "The crew runs its tests in a test slot, and waits for jbus's wake where none is free."
+
+[[handoff]]
+from = "CrewProof: In review"
+to = "TestSlot: Review pool"
+says = "Where the review pool is capped, the crew waits, and jbus wakes it once the pool frees."
+
+[[handoff]]
+from = "Setup: Leaves something behind"
+to = "GreenMove: Settled"
+says = "install.sh makes the green copy and puts its units to work, and jbus's passes move it from there. Today such an install leaves its state folders out of the record uninstall reads."
+
+[[handoff]]
+from = "GhBudget: A pass held"
+to = "RowLife: Not launched"
+says = "With GitHub's budget at its floor, the pass asks GitHub nothing more: it launches no row, and each approved row says why."
+
+[[handoff]]
+from = "HomeTreeToday: No pull request yet"
+to = "OneList: Open in gates.md"
+says = "A home acts on its default at a gate and writes it in its gates.md, and the gate reaches your list."
+
+[[handoff]]
+from = "ThreadLife: Out"
+to = "TellOnce: Not told: nothing marked"
+says = "jbus tells the crew's thread what waits on it, once, through the outbox."
+
+[[handoff]]
+from = "PrVerdict: Waits on jmerge, GitHub or a check"
+to = "TellOnceOther: Not told: nothing marked"
+says = "While the pull request waits, jbus posts a body, runs a check again or appends a line, once."
+
+[[handoff]]
+from = "ThreadLife: Out"
+to = "TellOnceOwed: Not told: the ask owed or not yet due"
+says = "The crew's turn stops on a usage limit, and jbus owes it an ask to carry on."
+
+[[uncharted]]
+model = "home/spec/HomeTree.tla"
+why = "the variables, start and rules that HomeTreeToday extends with the code's steps; HomeTreeToday's chart draws them."
+
+[[uncharted]]
+model = "jmerge/spec/FlowDesign.tla"
+why = "the design FlowToday is checked against; FlowToday's chart draws it, where the two differ, as \"in the design\" steps."
+
+[[unmodeled]]
+state = "The MCP session with T3 Code"
+code = "jsettings/t3.py `Session`"
+why = "its bearer token, which runs out, and a call refused, dropped or timed out. ThreadLife takes a launch reply as lost or not, and no model follows the session or its token."
+
+[[unmodeled]]
+state = "A plan entry's stage"
+code = "jbus/plan.py `staged`"
+why = "proposed, planned, parked or scouting, before the entry has a row. RowLife starts at jbus queue add, so an entry with no brief yet is in no model."

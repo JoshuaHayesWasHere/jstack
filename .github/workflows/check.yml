@@ -172,10 +172,11 @@ jobs:
       # `all`, and writes the selection's list to `SELECTED` and the summary: each file it
       # selected, the causes that selected it and the part that runs it. It collects nothing and
       # needs no pytest, so it runs in the runner's python3 before any `uv sync`. A pull
-      # request passes `--pull-request` (`REACH`): an import reaches only the tests near the
-      # change, the tests that import a changed module and those that import a module that
-      # names a name the diff touched. A push to main keeps the wide rule, and the nightly full
-      # suite catches what either leaves out.
+      # request, jmerge's batch among them, selects by the rule a push to main does, over its
+      # own diff: a test main's run would select for a merge runs before the merge. A narrower
+      # rule for pull requests left out the test main then failed on in 3 of main's 6 red spells
+      # of 2026-11-10 and 11 (#1600, #1620, #1675: 123, 346 and 319 files against 363, 401 and
+      # 425), and each spell held every merge behind it.
       - name: select
         id: select
         if: steps.reuse.outputs.reused != 'true'
@@ -183,8 +184,7 @@ jobs:
           FAILED_ON_MAIN: ${{ steps.failed.outputs.tests }}
           SELECTED: ${{ runner.temp }}/selected-tests.txt
           BASE: ${{ steps.base.outputs.base || 'HEAD^1' }}
-          REACH: ${{ github.event_name == 'pull_request' && '--pull-request' || '' }}
-        run: python3 scripts/select_tests.py $REACH --parts 8 "$BASE" HEAD
+        run: python3 scripts/select_tests.py --parts 8 "$BASE" HEAD
       # What the parts read of this job, its selection and whether it reused a pass, as one
       # artifact the moment the selection is made: the parts start with this job and set up
       # while it runs, and wait for this file, not for the job's end (`check-shard`). It is
@@ -338,9 +338,9 @@ jobs:
         timeout-minutes: 3
         with:
           path: ~/.cache/jstack/tlc
-          key: tlc-${{ hashFiles('features/home/spec/**', 'features/jbus/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
+          key: tlc-${{ hashFiles('features/*/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
           restore-keys: |
-            tlc-${{ hashFiles('features/home/spec/**', 'features/jbus/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
+            tlc-${{ hashFiles('features/*/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
             tlc-
       # The selection `reuse` uploads as `selection-<attempt>`, waited for here with the part's
       # setup done, and given as this step's outputs: `reused`, `tree`, `selection`, `files`,
@@ -643,9 +643,9 @@ jobs:
         timeout-minutes: 3
         with:
           path: ~/.cache/jstack/tlc
-          key: tlc-${{ hashFiles('features/home/spec/**', 'features/jbus/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
+          key: tlc-${{ hashFiles('features/*/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
           restore-keys: |
-            tlc-${{ hashFiles('features/home/spec/**', 'features/jbus/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
+            tlc-${{ hashFiles('features/*/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
             tlc-
       - name: make check
         id: suite

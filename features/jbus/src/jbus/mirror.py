@@ -81,17 +81,47 @@ def last_result(text: str) -> str:
 
 WAITS_ON = "Waits on:"
 _WORDS = re.compile(r"[\s,;`]+")
+PULL = re.compile(r"#[1-9][0-9]*")
+"""A pull request a `Waits on:` line names by its number, `#1717`."""
 
 
-def paused_on(result: str, slugs: Collection[str]) -> tuple[str, ...]:
-    """The rows a paused Result waits on: the words of its `Waits on:` line, sorted, where each
-    is one of `slugs` (`jbus.pausedon`). Empty where a word is no slug of `slugs`, since a row
-    dropped from the list would let the carry-on go before it merged, and for a Result whose
-    `Status:` is not `paused` as `jbriefs.status` reads it."""
-    if status_line.of(result) is not Status.PAUSED:
-        return ()
+def waits_on(result: str, slugs: Collection[str]) -> tuple[str, ...]:
+    """What a Result waits on, at any status: the words of its `Waits on:` line, sorted, where
+    each is one of `slugs` or a pull request's number, `#<n>` (`PULL`). A slug lands when its row
+    is over or its pull request merged, and a number when GitHub says that pull request merged
+    (`jbus.watch.final`), so `jbus.pausedon` tells the crew to carry on once all of them did.
+    Empty where a word is neither, since a wait dropped from the list would let the carry-on go
+    before it merged."""
     words = {word for word in _WORDS.split(below.line(result, WAITS_ON)) if word}
-    return tuple(sorted(words)) if words <= set(slugs) else ()
+    known = all(word in slugs or PULL.fullmatch(word) for word in words)
+    return tuple(sorted(words)) if known else ()
+
+
+_LINTED = ("Status:", "Steers:", "Left:")
+_AFTER = re.compile(r"\b(?:after|once)\b(?P<between>(?:\W+\S+?){1,6}?)\W+merge[sd]\b", re.I)
+_NAMED = re.compile(r"#[1-9][0-9]*\b|\b[a-z0-9]+(?:-[a-z0-9]+)+\b")
+
+
+def unwritten(result: str) -> list[str]:
+    """The faults of a Result that waits on a merge in prose alone: each `Status:`, `Steers:` or
+    `Left:` line that says "after <#n or slug> merges" or "once ... merged" (a few words may sit
+    between) and names a pull request or a slug its `Waits on:` line does not. Only that line is
+    read by jbus, so a wait written in a sentence wakes nobody when it lands (`jbus.pausedon`).
+    The brief lint (`jbus.queue.conduct`) and `jbus brief set --result|append` refuse it."""
+    listed = {word for word in _WORDS.split(below.line(result, WAITS_ON)) if word}
+    found = []
+    for line in result.splitlines():
+        if not line.startswith(_LINTED):
+            continue
+        named = {name for said in _AFTER.finditer(line) for name in _NAMED.findall(said["between"])}
+        missing = sorted(named - listed)
+        if missing:
+            found.append(
+                f"the Result's {line.split(':', 1)[0]}: line waits on {', '.join(missing)} "
+                "merging in prose: name each on the Result's `Waits on:` line, which jbus reads "
+                "and wakes the crew on once it merged, or reword the line"
+            )
+    return found
 
 
 def delivered(text: str) -> bool:

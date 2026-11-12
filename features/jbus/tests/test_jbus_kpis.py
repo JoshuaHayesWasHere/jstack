@@ -76,7 +76,7 @@ class Machine:
 
     def alerts(self, now=NOW):
         """The open alerts a home hears of, each line."""
-        return sorted(one.line for one in alert.open_items(self.state_dir, now))
+        return sorted(one.line for one in alert.open_items(jbus.load(), now))
 
     def logged(self, project):
         path = self.state_dir / project / "events.jsonl"

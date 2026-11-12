@@ -25,9 +25,11 @@ tools = importlib.import_module("statechart.tools")
 
 
 def tlc(drop, rule=None):
-    """TLC's output for ThreadLife.cfg with `Drop` set to `drop`, run in a copy of the spec, as
-    the spec's README runs it. With `rule`, the cfg checks that property alone, so a canary
-    breaks its own rule and no other."""
+    """TLC's output for ThreadLife.cfg with `Drop` set to `drop`, run in a copy of the spec, as the
+    spec's README runs it. With `rule`, the cfg checks that property alone, so a canary breaks its
+    own rule and no other. Java's tmpdir is the run's own too: TLC writes Naturals.tla and the other
+    standard modules there under fixed names, and a run that shares /tmp can parse one while another
+    rewrites it."""
     found = tools.find_tlc()
     cfg = (SPEC / "ThreadLife.cfg").read_text()
     assert 'Drop = "none"' in cfg
@@ -37,9 +39,11 @@ def tlc(drop, rule=None):
         cfg = "\n".join([*kept, f"PROPERTY {rule}", ""])
     with tempfile.TemporaryDirectory(prefix="thread-life-") as folder:
         work = Path(folder)
+        (work / "tmp").mkdir()
         shutil.copy(SPEC / "ThreadLife.tla", work)
         (work / "ThreadLife.cfg").write_text(cfg.replace('"none"', f'"{drop}"'))
-        command = [found.java, "-XX:+UseParallelGC", "-cp", found.jar, "tlc2.TLC"]
+        command = [found.java, f"-Djava.io.tmpdir={work / 'tmp'}"]
+        command += ["-XX:+UseParallelGC", "-cp", found.jar, "tlc2.TLC"]
         command += ["-workers", tools.workers(), "-metadir", str(work / "meta")]
         ran = subprocess.run(
             tools.in_test_slot([*command, "-config", "ThreadLife.cfg", "ThreadLife.tla"]),

@@ -41,7 +41,9 @@ The rest of "Start" holds: the brief's `Review:` line, the pull request, the gro
    fi
    ```
 
-   On `stop`, say what it printed and end: no review, no section, and the thread is not settled. A head that moved is a rebase or a push made after jbus asked, and jbus asks again for the new head. Otherwise it prints the section's `Scope:` and `Head:` lines, whole, and under them the range-diff.
+   On `stop`, say what it printed, write the section "A stop" says, and end: no review, and the thread is not settled.
+   A head that moved is a rebase or a push made after jbus asked, and jbus asks again for the new head.
+   Otherwise it prints the section's `Scope:` and `Head:` lines, whole, and under them the range-diff.
 2. Review only what the range-diff shows as changed. Under a pair of commits marked `!`, that is each line with two signs, `-+`, `--`, `++` or `+-`: a line the patch adds or removes on one side alone. A commit on one side alone, marked `<` or `>`, is read whole against the commits of the other side. A pair marked `=` is not read, and neither is a line that only moved: a context line, a hunk header, the metadata, the commit message.
 3. Give those lines the review of "The review", its six steps in order, with three things changed in the block of its steps 1 and 2.
    The first line of the `SCOPE` text reads "Review only what this range-diff shows a push, a rebase or a fix changed in a patch that was reviewed before it: the lines with two signs, and a commit on one side alone.

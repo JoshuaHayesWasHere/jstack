@@ -220,7 +220,13 @@ A pull request that no row names is judged as any other.
 ### A check that failed twice
 
 jbus holds a row itself when its pull request fails a required check at two heads (`jbus.stall.twice`).
-Each head counts once, a push or GitHub's merge of main alike, and a required check is one the home's `required-checks` names.
+Each head counts once, and a required check is one the home's `required-checks` names.
+A head that is only a merge of main into the head jbus saw before it, a merge commit whose first parent is that head and whose second is on the main its check ran on, as `git merge main` and GitHub's update-branch make, is not counted when it fails something that head did not.
+A failure there is a failed test's id, or a lint rule and the path it names, such as `a-cap-on-size-only-shrinks` on `work.py`.
+Main moved under it: a test main added since, or two diffs that each pass a size cap and together cross it, failed it, not the row's own work.
+Counting it would hold the row, and a held row's crewmate gets no fix message, so no green head would come and the hold would stay until an approve (#1720, 2026-11-11).
+Such a head is kept under `moved`, its crew is told to fix it as at any first failure, and the pass says `main moved under it, not counted`.
+A merge of main that fails nothing new counts as any head does: the red was already the row's.
 A head whose check ran on main's red tip, the `broken` tip of `main.json`, is not counted: main failed there, not the row.
 A head whose failed tests each failed on two other branches in `jbus ci`'s window, its flake rule (`jbus.reverts.flaky`), is not counted either: the red is shared, not the row's.
 Nor is a head at which each failed job failed at an infra step, one whose log shows a download or network failure (a `curl` error, an HTTP 5xx, a host that did not resolve, a connection reset or timed out, an artifact download that failed) and names no failed test and no make target, such as a package's download: that step ran nothing of the row's.
@@ -236,7 +242,8 @@ jbus lifts the hold itself in the pass that sees every required check passed at 
 It does so only where the row's brief is still the one that go was for, by its sha, and the hold is still its own: a row held again since, by anyone, or whose brief changed since, stays held.
 Such a row is lifted as any hold is, with `jbus queue approve`.
 Either way, the count then starts again from none.
-The heads are kept in `fails.json` in the project's state, the counted ones apart from those of a red main, a shared flake and an infra step.
+A head green on a rerun leaves the count: once every required check passes at a counted head, such as after its failed job is rerun at that same head, jbus drops it from the count, held row or not, so the row's next failed head counts as its first (#1708, 2026-11-11).
+The heads are kept in `fails.json` in the project's state, the counted ones apart from those of a red main, a shared flake, an infra step and a move of main, with the last head jbus saw settle and what failed there.
 
 An approval is for the brief as jbus stores it at that moment, and the row keeps that brief's sha256 as `brief_sha`.
 An `add` that changes the brief after the go prints `its go holds` when the new text means the same, and `its go does not hold for it: approve it again` when it does not ([What an approval is bound to](#what-an-approval-is-bound-to)).

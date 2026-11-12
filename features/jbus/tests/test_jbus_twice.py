@@ -6,7 +6,8 @@ judged again on a later pass.
 
 The hold keeps the go it takes (`jbus.queue.hold`), and the pass that sees every required check
 passed at the head puts that go back (`jbus.queue.lift`), unless the row was held again since or
-its brief changed. A head that failed only at an infra step is not counted either.
+its brief changed. A head that failed only at an infra step is not counted either, nor a merge of
+main that failed something the head before it did not.
 
 Like `test_jbus_github.py`, the tests run the real pass against the fakes."""
 
@@ -492,3 +493,140 @@ def test_a_trailer_step_is_no_infra_where_a_tolerated_step_before_it_failed_on_a
     assert (list(kept["heads"]), kept.get("infra", [])) == ([A, B], [])
     assert rows(launched)["alpha"]["held"] is True
     assert len(pages(launched)) == 1
+
+
+GREEN_1720 = "03141ec1a67d" + "0" * 28
+FIRST_1720, SECOND_1720 = ("c68d82f3425f" + "1" * 28, "580af5ac466e" + "2" * 28)
+CAP = (
+    "2026-11-12T03:10:00.0000000Z error a-cap-on-size-only-shrinks: features/jbus/src/jbus/"
+    "work.py: has 802 lines, over 800: split it\n"
+)
+OVERVIEW = (
+    "2026-11-12T03:40:00.0000000Z FAILED features/statechart/tests/test_statechart_overview.py"
+    "::test_statechart_overview - AssertionError\n"
+)
+
+
+def made(kitchen, head, *parents):
+    """GitHub's answer for the commit `head`: its parents, the first of them the branch's head
+    before it, where `head` is a merge of main."""
+    path = kitchen.stub / "commit-made.json"
+    kept = json.loads(path.read_text()) if path.exists() else {}
+    kitchen.set("commit-made.json", {**kept, head: {"parents": [{"sha": p} for p in parents]}})
+
+
+def failing(kitchen, head, job, log):
+    """The pull request's check fails at `head`, in a job whose log is `log`, on GREEN."""
+    red_at(kitchen, head, job)
+    logs = json.loads((kitchen.stub / "logs.json").read_text())
+    merge = f"2026-11-12T03:00:00.0000000Z HEAD is now at 10f4a11 Merge {head} into {GREEN}\n"
+    kitchen.set("logs.json", {**logs, job: merge + log})
+
+
+def test_twice_holds_no_row_for_the_1720_heads_each_a_merge_of_main_that_brought_a_new_failure(
+    launched,
+):
+    """#1720 (2026-11-11): 03141ec passed. c68d82, a merge of main, failed the size cap on
+    work.py, which the pull request's +5 and #1724's +9 crossed together. 580af5, another merge of
+    main, failed that cap and #1698's new overview test. Main moved under each, so neither is
+    counted: both are kept under `moved`, the crew is told each to fix, and nothing is held."""
+    green_at(launched, GREEN_1720)
+    passes(launched, 0)
+    made(launched, FIRST_1720, GREEN_1720, "e" * 40)
+    failing(launched, FIRST_1720, "130937656772", CAP)
+    said = launched.poll(NOW + timedelta(minutes=3))
+    made(launched, SECOND_1720, FIRST_1720, "f" * 40)
+    failing(launched, SECOND_1720, "130941258618", CAP + OVERVIEW)
+    said += launched.poll(NOW + timedelta(minutes=6)) + launched.poll(NOW + timedelta(minutes=9))
+    kept = fails(launched)
+    assert (kept["heads"], kept["moved"]) == ({}, [FIRST_1720, SECOND_1720])
+    assert not rows(launched)["alpha"].get("held")
+    assert not pages(launched)
+    assert {f"failed|alpha|{FIRST_1720[:12]}", f"failed|alpha|{SECOND_1720[:12]}"} <= set(
+        told(launched)
+    )
+    moved = [line for line in said if "main moved under it" in line]
+    assert [line.split(" at ")[1][:12] for line in moved] == [FIRST_1720[:12], SECOND_1720[:12]]
+    assert "failed a-cap-on-size-only-shrinks features/jbus/src/jbus/work.py, which" in moved[0]
+    assert all(line.endswith("main moved under it, not counted") for line in moved)
+
+
+def test_twice_holds_a_row_whose_own_commits_fail_at_two_heads_beside_a_merge_of_main(launched):
+    """A crew commit that fails is counted. A merge of main after it that fails nothing new is
+    counted too, and holds the row: main's move brought no failure, so the red is the row's."""
+    green_at(launched, GREEN_1720)
+    passes(launched, 0)
+    made(launched, A, GREEN_1720)
+    failing(launched, A, "11", OVERVIEW)
+    passes(launched, 3)
+    made(launched, B, A, "e" * 40)
+    failing(launched, B, "12", OVERVIEW)
+    passes(launched, 6, 9)
+    kept = fails(launched)
+    assert (list(kept["heads"]), kept.get("moved", [])) == ([A, B], [])
+    assert rows(launched)["alpha"]["held"] is True
+    assert told(launched) == ["failed|alpha|aaaaaaaaaaaa"]
+    assert len(pages(launched)) == 1
+
+
+def test_twice_holds_a_row_whose_crew_commits_fail_at_two_heads(launched):
+    """Two heads the crew made, each failing, hold the row, even where the second failure is new."""
+    made(launched, A, GREEN_1720)
+    failing(launched, A, "11", CAP)
+    passes(launched, 0)
+    made(launched, B, A)
+    failing(launched, B, "12", CAP + OVERVIEW)
+    passes(launched, 3, 6)
+    assert list(fails(launched)["heads"]) == [A, B]
+    assert rows(launched)["alpha"]["held"] is True
+    assert len(pages(launched)) == 1
+
+
+def test_twice_holds_a_row_whose_merges_bring_in_a_branch_that_is_not_on_main(launched):
+    """A merge whose second parent is not on the main its check ran on is a merge of another
+    branch, not of main: main did not move under it, so each head that fails is counted."""
+    green_at(launched, GREEN_1720)
+    passes(launched, 0)
+    launched.set(
+        "compare.json",
+        {
+            f"{'e' * 40}...{GREEN}": {"status": "diverged"},
+            f"{'f' * 40}...{GREEN}": {"status": "behind"},
+        },
+    )
+    made(launched, FIRST_1720, GREEN_1720, "e" * 40)
+    failing(launched, FIRST_1720, "130937656772", CAP)
+    passes(launched, 3)
+    made(launched, SECOND_1720, FIRST_1720, "f" * 40)
+    failing(launched, SECOND_1720, "130941258618", CAP + OVERVIEW)
+    passes(launched, 6, 9)
+    kept = fails(launched)
+    assert (set(kept["heads"]), kept.get("moved", [])) == ({FIRST_1720, SECOND_1720}, [])
+    assert rows(launched)["alpha"]["held"] is True
+    assert len(pages(launched)) == 1
+
+
+def test_a_counted_head_green_on_a_rerun_leaves_the_count_as_1708_s_183801_did(launched):
+    """#1708 (2026-11-11): 183801fb1e1d failed `borders` in run 43133375334 and passed it on rerun
+    43134853007 at the same head, yet stayed counted, so 8288b1b565ca's failure, a test #1702 added
+    to main, made two and held the row. A head green at every required check leaves the count."""
+    first, second = ("183801fb1e1d" + "0" * 28, "8288b1b565ca" + "0" * 28)
+    (launched.home / "required-checks").write_text("check\nborders\n")
+    checked(launched, **{GREEN: "green"})
+    passed = {**failed("31"), "conclusion": "SUCCESS"}
+    launched.set("logs.json", {"32": merged(first, GREEN), "33": merged(second, GREEN)})
+    launched.set("open.json", [pull(launched, [passed, failed("32", "borders")], head=first)])
+    passes(launched, 0)
+    assert list(fails(launched)["heads"]) == [first]
+
+    rerun = {**failed("34", "borders"), "conclusion": "SUCCESS"}
+    launched.set("open.json", [pull(launched, [passed, rerun], head=first)])
+    passes(launched, 3)
+    assert fails(launched)["heads"] == {}
+    assert fails(launched)["last"] == {"head": first, "failed": []}
+
+    launched.set("open.json", [pull(launched, [failed("33"), rerun], head=second)])
+    passes(launched, 6)
+    assert list(fails(launched)["heads"]) == [second]
+    assert not rows(launched)["alpha"].get("held")
+    assert not pages(launched)

@@ -5,6 +5,9 @@ A root is one thing only the user can do, and it has a key:
 
 - `#<n>`: hand-merge, with `jmerge --accept`, a green and reviewed pull request that `jmerge` holds.
   The line names the one safety fact that the review proved at the head;
+- `held:<slug>`: pick up a red pull request whose row `twice` held, that `jmerge` says has failed
+  its check, and that no thread is at work on: no crew is told of a held row, so only the user
+  moves it;
 - `re-approve:<slug>`: approve again a brief that changed after their go;
 - `approve:<slug>`: approve a row that an approved row depends on;
 - `config:<project>`: sign in to T3 Code.
@@ -12,7 +15,8 @@ A root is one thing only the user can do, and it has a key:
 `walk` starts at every approved row that was not launched and follows its `depends` links
 (`Pass.reasons`, which `dispatch` records). A stacked link (`jbus.stack`) launched before its
 base merged, and its own merge still waits on its base's: `walk` starts at it too, and follows it
-to its base. It stops at a root or at progress: a thread, a pull
+to its base. It starts too at a row `twice` held whose pull request is red and that no thread
+works on (`held:<slug>`). It stops at a root or at progress: a thread, a pull
 request on which `jmerge` waits, a slot, or a gate that the Chef already has. `tell` sends one
 `waiting-on-user` event for each root, and sends that event again each hour while the root is still
 open. `tell` also rewrites `stall.json`, which records when jbus first saw each root and when jbus
@@ -38,8 +42,13 @@ make target and shows a download or network failure (`infra`, `FETCH`), such as 
 download, is kept apart too and counted for nothing: that step ran nothing of the row's
 (2026-11-09). A lint step, which also runs no test and no make target, shows no fetch failure and
 counts. Each sign is searched in the own part of the log of the step that failed the job, the
-last one to fail (`failed_step`), not the whole log. At the second head, a push or a merge of
-main alike,
+last one to fail (`failed_step`), not the whole log. A head that is only a merge of main into the
+head seen before it (`merge_of_main`), as `git merge main` and GitHub's update-branch make one, is
+kept apart too, under `moved`, and counted for nothing, where it fails something that head did not
+(`failures`: a failed test's id, or a lint rule and its path): main moved under it, as when two
+diffs that each pass a size cap cross it together, and a held crew would get no fix message to
+mend it (#1720, 2026-11-11). Its crew is told to fix it as at any first failure. At the second
+counted head, a push or a merge of main that failed nothing new,
 `twice` holds the row (`jbus queue hold`), keeping the go the hold takes, and pages the Chef once, a
 gate `check failed twice` that names the row, the pull request, both heads and the failed jobs at
 each. The outbox then sends the crew of a held row no rebase and no fix message (`outbox.FIXES`), so
@@ -47,7 +56,9 @@ none goes out at a third head. The row's `why` says `check failed twice` while i
 pass that sees every required check passed at the head, `twice` lifts its own hold and puts back the
 go it took (`lifted`, `queue.lift`), where the row's brief is still the one that go was for; a row
 held again since, by anyone, or whose brief changed since, stays held until an approve. Either way
-the count starts again from none.
+the count starts again from none. A counted head, of a held row or not, whose every required check
+then passes at that same head, as on a rerun, leaves the count: its red was not the row's to keep
+(#1708, 2026-11-11).
 
 `hung` also keeps `stalls.jsonl`, how long each running row's thread was quiet or hung (`spells`):
 the stall minutes the telemetry store reads (`jbus.telemetry.views.weekly_stall`).
@@ -73,6 +84,7 @@ from jbus import (
     reverts,
     verbs,
     waiting,
+    watch,
     write_json,
 )
 from jbus.ci import collect
@@ -83,9 +95,9 @@ from jbus.passes import Changed, Depends, Pass
 from jbus.record import PASSES as PASS_LOG
 from jbus.t3 import Client
 from jbus.wake import notify
-from jbus.watch import FAILS, TWICE, World, job_log, ran, task_brief
+from jbus.watch import FAILS, TWICE, World, _api, at_work, job_log, ran, task_brief
 from jmerge import judgement, ready
-from jmerge.joblog import failed_in
+from jmerge.joblog import failed_in, plain
 from jmerge.lines import READY
 from jsettings import store
 
@@ -138,9 +150,26 @@ def walk(run: Pass, world: World, rows: list[queue.Row], pulls: list[str]) -> Ro
     name = run.project.name
     user = run.user
     table = {row["slug"]: row for row in rows}
-    said = (line for line in map(parse, pulls) if line and line.word == "hold" and line.reason)
-    holds = {line.number: (line.name, line.reason) for line in said}
+    lines = [line for line in map(parse, pulls) if line and line.reason]
+    holds = {line.number: (line.name, line.reason) for line in lines if line.word == "hold"}
     merges: dict[int, str] = {}
+    failing = {
+        line.number: line.reason
+        for line in lines
+        if (line.code or ready.code_of(line.reason)) == ready.CHECK_FAILED.code
+    }
+
+    def red(slug: str, pull: dict[str, Any]) -> str:
+        """The root of a red pull request `twice` held its row for, that no thread works on, or
+        nothing: no crew is told of it while the row is held, so only the user moves it."""
+        number, row = pull["number"], table.get(slug, {})
+        held = row.get("held") and watch.failed_twice(run, slug)
+        if number not in failing or at_work(world.threads.get(slug, [])) or not held:
+            return ""
+        return (
+            f"pick up #{number} {pull.get('url', '')}: {failing[number]}, {slug} is held by "
+            f"{TWICE} and no thread is at work on it"
+        )
 
     def on_base(slug: str) -> str:
         """The row a stacked link still sits on, or nothing: its merge waits on that row's."""
@@ -156,6 +185,9 @@ def walk(run: Pass, world: World, rows: list[queue.Row], pulls: list[str]) -> Ro
         if pull:
             number = pull["number"]
             if number not in holds:
+                stuck = red(slug, pull)
+                if stuck:
+                    return {f"held:{slug}": stuck}
                 return roots(on, seen) if on else {}
             if number not in merges:
                 merges[number] = hand_merge(run, number, *holds[number])
@@ -183,7 +215,8 @@ def walk(run: Pass, world: World, rows: list[queue.Row], pulls: list[str]) -> Ro
 
     found: Roots = {}
     for row in sorted(rows, key=queue.order):
-        if row["slug"] in run.reasons or on_base(row["slug"]):
+        pull = world.open.get(row["slug"])
+        if row["slug"] in run.reasons or on_base(row["slug"]) or pull and red(row["slug"], pull):
             for key, action in roots(row["slug"], set()).items():
                 found.setdefault(key, (action, []))[1].append(row["slug"])
     return found
@@ -469,6 +502,35 @@ def infra(run: Pass, world: World, red: rebase.Red) -> list[str]:
     return steps
 
 
+LINT = re.compile(r"(?m)\berror ([a-z0-9][a-z0-9-]*): ([^\s:]+)")
+"""`repo-standard conform`'s line for an error of a rule: the rule's id and the path it names."""
+
+
+def failures(run: Pass, red: rebase.Red) -> set[str]:
+    """Return what failed at a head: each failed test's id and each lint rule with its path that
+    the failed jobs' logs name, or the failed checks' names where the logs name neither."""
+    found: set[str] = set()
+    for repo, job in red.jobs:
+        log = plain(job_log(run, repo, job) or "")
+        found.update(failed_in(log).tests)
+        found.update(f"{rule} {path}" for rule, path in LINT.findall(log))
+    return found or {f"check {name}" for name in red.names}
+
+
+def merge_of_main(run: Pass, head: str, before: str, main: str) -> bool:
+    """Say whether `head` is a merge of main into `before`, the head seen before it, as a crew's
+    `git merge main` and GitHub's update-branch make one: a merge commit whose first parent is
+    `before` and whose second is on `main`, the main its check ran on."""
+    said = _api(run, f"repos/{{owner}}/{{repo}}/commits/{head}")
+    given = said.get("parents") if isinstance(said, dict) else None
+    parents = [str(one.get("sha")) for one in given or [] if isinstance(one, dict)]
+    if len(parents) != 2 or not before or parents[0] != before:
+        return False
+    compared = _api(run, f"repos/{{owner}}/{{repo}}/compare/{parents[1]}...{main}")
+    status = compared.get("status") if isinstance(compared, dict) else None
+    return status in ("ahead", "identical")
+
+
 def lifted(
     run: Pass, slug: str, row: queue.Row, pull: dict[str, Any], required: tuple[str, ...]
 ) -> bool:
@@ -499,9 +561,10 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
     """Count, for each row's open pull request, the heads at which a required check failed, and
     hold the row and page the Chef once at the second (`TWICE`). A head whose check ran on a red
     main is not counted, nor one whose failed tests are each a flake of two other branches, nor
-    one that failed only at an infra step (`infra`). A held row is counted no further; its own
-    hold is lifted once every required check passes at its head (`lifted`), and once its hold is
-    lifted, by that or an approve, its count starts again."""
+    one that failed only at an infra step (`infra`), nor a merge of main that brought a new
+    failure (`merge_of_main`). A held row is counted no further; its own hold is lifted once
+    every required check passes at its head (`lifted`), and once its hold is lifted, by that or
+    an approve, its count starts again."""
     path = run.state / FAILS
     was: dict[str, Any] = read_json(path, {})
     table = {row["slug"]: row for row in rows}
@@ -512,25 +575,39 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
         if row is None or not head or not crewthread.tended(run, slug):
             continue
         if lifted(run, slug, row, pull, required):
-            kept[slug] = {"heads": {}, "red": [], "shared": [], "infra": []}
+            kept[slug] = {"heads": {}, "red": [], "shared": [], "infra": [], "moved": []}
+            kept[slug]["last"] = {"head": head, "failed": []}
             continue
         one = dict(was.get(slug) or {})
         if one.get("held_at") and not row.get("held"):
             one = {}
         heads, on_red = dict(one.get("heads") or {}), list(one.get("red") or ())
         flakes, infras = list(one.get("shared") or ()), list(one.get("infra") or ())
+        moved, last = list(one.get("moved") or ()), dict(one.get("last") or {})
         kept[slug] = {**one, "heads": heads, "red": on_red, "shared": flakes, "infra": infras}
+        kept[slug]["moved"] = moved
+        if head in heads and not ready.waiting(pull.get("statusCheckRollup") or [], required):
+            del heads[head]
+            kept[slug]["last"] = {"head": head, "failed": []}
+            run.say(f"uncounted {slug}: every required check passed at {head[:12]} on a rerun")
+            continue
         if row.get("held") or any(head in seen for seen in (heads, on_red, flakes, infras)):
+            continue
+        if head in moved:
             continue
         found = rebase.ran_and_failed(run, world, pull)
         names = [name for name in found.names if name in required]
         if not names:
+            if not ready.waiting(pull.get("statusCheckRollup") or [], required):
+                kept[slug]["last"] = {"head": head, "failed": []}
             continue
         main = tested(run, head, found)
         check = main_check(run, main) if main else ""
         if main is None or check == "pending":
             run.say(f"wait {slug}: not yet known which main {head[:12]} was checked on, or if red")
             continue
+        failed = failures(run, found)
+        kept[slug]["last"] = {"head": head, "failed": sorted(failed)}
         if check == "failed":
             on_red.append(head)
             run.say(
@@ -551,6 +628,16 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
                 f"failed {slug}: #{pull['number']} at {head[:12]} failed only at "
                 f"{', '.join(dict.fromkeys(steps))}, a step that failed to fetch and ran no test, "
                 "not counted"
+            )
+            continue
+        before = str(last.get("head") or "")
+        new = sorted(failed - set(last.get("failed") or ()))
+        if main and new and merge_of_main(run, head, before, main):
+            moved.append(head)
+            run.say(
+                f"failed {slug}: #{pull['number']} at {head[:12]}, a merge of main into "
+                f"{before[:12]}, failed {', '.join(new)}, which {before[:12]} did not: main moved "
+                "under it, not counted"
             )
             continue
         heads[head] = {"at": run.now.isoformat(), **_failure(found, names)}

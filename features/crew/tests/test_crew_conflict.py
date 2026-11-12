@@ -5,8 +5,11 @@ import subprocess
 
 import pytest
 
+import test_crew_fix_push as fix_push
 import test_home_merge as merge
+import test_room as room
 from crew_helpers import BRIEF, HAD, PullRequest, asked, block, covers, git
+from testing.layouts import assembled
 
 ANSWERS = [
     ("MERGEABLE", "no conflict: no rebase"),
@@ -194,3 +197,58 @@ def test_a_third_rebase_after_fixed_and_green_is_pushed_and_its_change_is_review
         BRIEF + f"Finding: fixed, it is wrong\nFixed: {before}\n" + merge.review("findings", saw)
     )
     assert covers(tmp_path / "main", judged, pr.head()) == (before, clean)
+
+
+def test_a_conflict_is_pushed_after_the_guards_and_the_lint_while_a_slow_test_fails(
+    tmp_path, monkeypatch
+):
+    """#1729 merged main five times, and each time its 30 minute check ended with main moved
+    and the pull request in conflict again. The fixture's conflict stands in for a main that
+    moves faster than that check runs: a slow test the change reaches fails, and still the
+    rebase is pushed on the guards and the lint, and CI checks the rest at the pushed head."""
+    pr = PullRequest(tmp_path, "CONFLICTING", "shared.txt")
+    (pr.work / "scripts").mkdir()
+    (pr.work / "scripts" / "select_tests.py").write_text("")
+    git(pr.work, "add", "scripts")
+    pr.commit(pr.work, "test_slow.py", "", "a slow test the change reaches")
+    git(pr.work, "push", "-q", "origin", "a-task")
+    asked(pr, "CONFLICTING")
+    checked = pr.head()
+    brief = fix_push.hooked(pr, tmp_path, monkeypatch, fix_push.full(checked))
+    stub = tmp_path / "check-stub"
+    stub.mkdir()
+    room.uv(stub)
+    (stub / "make").write_text('#!/bin/sh\ncase "$*" in *PART=guards*) exit 0 ;; esac\nexit 1\n')
+    (stub / "make").chmod(0o755)
+    state = tmp_path / "state"
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("TEST_SLOTS", "3")
+
+    said = pr.run("mergeable", state).splitlines()
+    assert said[0] == "the rebase stopped: resolve these, then git rebase --continue"
+    (pr.work / "shared.txt").write_text("theirs\nthe task\n")
+    git(pr.work, "add", "shared.txt")
+    git(pr.work, "-c", "core.editor=true", "rebase", "--continue")
+    (kept,) = pr.run("no rebase to look through", state).splitlines()
+    assert kept.startswith("Kept: every line, in ")
+
+    script = block("Stay on the pull request", "PART=guards")
+    script = script.replace("<slug>", "a-task").replace("<thread id>", "mcp:thread-1")
+    lines = subprocess.run(
+        ["sh", "-c", script],
+        capture_output=True,
+        text=True,
+        cwd=pr.work,
+        env={
+            **os.environ,
+            "PATH": f"{stub}:{room.BIN}:{os.environ['PATH']}",
+            "T": str(assembled() / "templates"),
+            "H": str(state),
+        },
+    ).stdout.splitlines()
+    assert lines[-1] == f"checked: the guards and the lint passed at {pr.head()}"
+    assert brief.read_text().endswith(fix_push.light(pr.head(), pr.landed))
+    assert pr.run("--force-with-lease", state).splitlines() == [
+        f"pushed {pr.head()} over {checked}"
+    ]
+    assert git(pr.work, "rev-parse", "origin/a-task") == pr.head()

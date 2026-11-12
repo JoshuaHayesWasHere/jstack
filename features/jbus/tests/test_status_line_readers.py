@@ -2,15 +2,15 @@
 as `jbriefs.status` reads it: a scout's row ends done, not left, and a crew's Result leaves
 nothing."""
 
-import contextlib
-import io
+import os
 import re
+import subprocess
+import sys
 from datetime import timedelta
 from pathlib import Path
 
 import pytest
 
-from jbriefs import cli
 from jbriefs.status import Status
 from jbus import homestatus, mirror, stale, watch, work
 from test_jbus_entry_go import PLAN
@@ -68,7 +68,7 @@ def test_a_crews_result_that_says_done_with_a_note_leaves_nothing():
 
 def test_a_paused_result_with_a_note_waits_on_its_rows():
     result = "## Result\nStatus: paused (until a-b merges)\nWaits on: a-b\n"
-    assert mirror.paused_on(result, {"a-b"}) == ("a-b",)
+    assert mirror.waits_on(result, {"a-b"}) == ("a-b",)
 
 
 def test_a_home_marks_a_merged_result_done_with_a_note_read_without_showing_it(
@@ -103,32 +103,52 @@ def test_a_result_that_says_done_with_a_full_stop_is_clean_to_stale():
 NO_PR_END = REPO / "features" / "crew" / "no-pr-end.md"
 
 
+UV = """\
+#!{python}
+import sys
+from jbriefs import cli
+
+sys.exit(cli.main(sys.argv[sys.argv.index("jbriefs") + 1 :]))
+"""
+"""A `uv` that runs the `jbriefs` the block names, as this environment has it."""
+
+
 def no_pr_end_says(line: str, tmp_path: Path) -> str:
-    """Run the `jbriefs line` call of the crew's no-pr-end block on a Result with `line` as its
-    Status line, and return the reason the block gives the thread to stay, empty where the Result
-    lets it settle."""
-    (what,) = re.findall(r"jbriefs line ([a-z,]+) \"\$B\"", NO_PR_END.read_text())
-    brief = tmp_path / "brief.md"
-    brief.write_text(f"## Result\n{line}\nBranch: look   Pull request: none\nLeft: none\n")
-    out = io.StringIO()
-    with contextlib.redirect_stdout(out):
-        assert cli.main(["line", what, str(brief)]) == 0
-    fields = out.getvalue().rstrip("\n").split("\t")
-    status = dict(zip(what.split(","), fields, strict=True))["status"]
-    if status == "paused":
-        return "the task is paused, the last Result says Status: paused"
-    if status != "done":
-        return "the last Result does not say Status: done"
-    return ""
+    """Run the crew's no-pr-end block, as the doc writes it, on a brief whose Result has `line` as
+    its Status line and leaves nothing, and return the one line it prints."""
+    (block,) = re.findall(r"```sh\n(.*?)```", NO_PR_END.read_text(), re.S)
+    (tmp_path / "tasks").mkdir(exist_ok=True)
+    (tmp_path / "tasks" / "<slug>.md").write_text(
+        f"## Result\n{line}\nBranch: look   Pull request: none\nLeft: none\n"
+    )
+    stub = tmp_path / "bin"
+    stub.mkdir(exist_ok=True)
+    (stub / "uv").write_text(UV.format(python=sys.executable))
+    (stub / "uv").chmod(0o755)
+    env = {**os.environ, "H": str(tmp_path), "T": str(tmp_path), "GIT_DIR": str(tmp_path / "no")}
+    env["PATH"] = f"{stub}{os.pathsep}{env['PATH']}"
+    ran = subprocess.run(
+        ["bash", "-c", block], cwd=tmp_path, env=env, capture_output=True, text=True, check=True
+    )
+    return ran.stdout.strip()
 
 
 def test_the_crews_no_pr_end_block_and_the_parser_agree_on_each_case(tmp_path):
+    """The block keeps a paused Result and one that is not done, each for its own reason, and
+    lets a done one past its Status line, where the parser reads each the same way."""
     said = {line: no_pr_end_says(line, tmp_path) for line, _ in CASES}
     read = {
-        line: "" if value is Status.DONE else "paused" if value is Status.PAUSED else "not done"
+        line: "done" if value is Status.DONE else "paused" if value is Status.PAUSED else "not done"
         for line, value in CASES
     }
     assert {
-        line: "" if not why else "paused" if "paused" in why else "not done"
-        for line, why in said.items()
+        line: "paused"
+        if out == "stay: the task is paused, the last Result says Status: paused"
+        else "not done"
+        if out == "stay: the last Result does not say Status: done"
+        else "done"
+        for line, out in said.items()
     } == read
+    assert {out for line, out in said.items() if read[line] == "done"} == {
+        "stay: git status could not be run here"
+    }

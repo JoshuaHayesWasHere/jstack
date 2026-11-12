@@ -2,7 +2,7 @@
 reader_actions = ["Approve", "MergeOn", "Accept", "AcceptOther"]
 
 SAID = {
-    "none": "opened, not judged yet",
+    "none": "jmerge judges it next",
     "merged": "merged",
     "no-review": "waits on its review",
     "not-passed": "waits on its check",
@@ -22,6 +22,30 @@ SAID = {
 
 HOLDS = {"row-held", "declines", "touches", "merge-off"}
 CREW = {"no-review", "check-failed", "conflicts", "merged-tree-fails"}
+FIXES = {"check-failed", "conflicts", "merged-tree-fails"}
+
+
+HELD = "held: its check failed twice"
+"""A row jbus held at two failed heads, whatever jmerge last said of it: only your approve or a
+head whose check passes lifts it."""
+
+
+def _held(v):
+    return v["st"] == "open" and v["held"] and v["said"] in FIXES
+
+
+# The steps of jmerge's run. Once one can be taken, the verdict jmerge last said no longer holds:
+# what it waited on came (the check ended, the review landed, the crew pushed, GitHub merged main
+# in, you approved), and jmerge judges it next. A batch whose check runs still holds it.
+RUN = {"Judge", "Merge", "GuardsFail", "JoinBatch"}
+
+
+def _lifted(v, facts):
+    return v["said"] not in ("none", "merged") and v["batch"] != "pending" and facts.enabled & RUN
+
+
+def _said(v, facts):
+    return "none" if _lifted(v, facts) else v["said"]
 
 
 def _main(v):
@@ -33,7 +57,7 @@ def _main(v):
 
 
 def state(v, facts):
-    return f"{_main(v)}: {SAID[v['said']]}"
+    return f"{_main(v)}: {HELD if _held(v) else SAID[_said(v, facts)]}"
 
 
 region_names = ["Main", "What jmerge says"]
@@ -42,11 +66,12 @@ region_names = ["Main", "What jmerge says"]
 def group(v, facts):
     if v["st"] == "merged":
         return "Merged"
-    if v["said"] in HOLDS:
+    said = _said(v, facts)
+    if said in HOLDS or _held(v):
         return "Waits on your word"
     if getattr(facts, "settled", False):
         return "Stuck"
-    if v["said"] in CREW:
+    if said in CREW:
         return "Waits on its crew"
     return "Waits on jmerge, GitHub or a check"
 
@@ -72,6 +97,7 @@ STEPS = {
     "GuardsFail": "the guards fail on its tree over main",
     "JoinBatch": "it joins jmerge's batch",
     "Judge": "jmerge judges it",
+    "Lift": "its check passes, and jbus lifts its hold",
     "MainFixed": "jbus's revert or fix lands, and main is green",
     "MainMoves": "other work merges into main",
     "Merge": "jmerge merges it",
@@ -79,6 +105,7 @@ STEPS = {
     "OtherMerges": "the one ahead in line merges",
     "Release": "the one ahead waits on its crew or user, and gives up the line",
     "Review": "its reviewer's round holds",
+    "Twice": "jbus holds its row: its check failed at two heads",
 }
 
 

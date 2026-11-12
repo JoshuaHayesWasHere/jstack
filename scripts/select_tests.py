@@ -23,8 +23,15 @@ counts for each module that names the function that holds it, through its import
 that re-exports it, or a star import. A call with a string also imports the module the string
 names.
 
-`select_tests.py --pull-request [--parts <n>] <base> <head>` selects as a pull request's check does,
-and the check's job `reuse` passes it. There an import reaches only the tests near the change. A
+A pull request's check, jmerge's batch among them, selects by the same rule as main's run over what
+moved since its last checked commit, a desk's `make check-fast` and `make select`: a test main's
+run would select for a merge runs before the merge. A narrower reach, below, left out the test main
+then failed on in 3 of main's 6 red spells of 2026-11-10 and 11 (#1600, #1620, #1675: 123, 346 and
+319 files against the wide rule's 363, 401 and 425), and each spell held every merge behind it
+(testing/tests/test_select_tests_rules.py replays them).
+
+The narrow reach serves only `--part names` (below), the desk's share of the tests that read a
+change. There an import reaches only the tests near the change. A
 changed module that is not the tests' own reaches the test files that import it, and the test files
 that import a module that imports it and names, through its imports, a top-level name whose code the
 diff touched (`names_touched`): a function or a class that holds a touched line, a name a touched
@@ -37,20 +44,8 @@ reached too. A module that walks a package's `__path__` (below) reads the change
 test imports that walker itself or through such modules (`nearby`). Where the diff touched other
 code that runs on import, such as an `if`, every module that imports the changed one carries it on.
 A test that spells the name of a package, which runs the package in a process, is not reached so.
-Every other rule selects as below. So a change escapes the check where it breaks a test only through
-a module of a `src/` that names no name the change touched (a chain of two such modules or more, or
-a table of verbs that names no function of the module), or only through a package the test runs in a
-process. A module that names only a public name whose private helper the change touched is no such
-module: that public name counts as touched. Without `--pull-request` the script keeps the wide rule,
-as main's run over what moved since its last checked commit, a desk's `make check-fast` and `make
-select` run it: main's run and the nightly full suite catch what a pull request leaves out. Measured
-with this script over main's last 60 merges on 2026-11-09 (go-speed's `why.py` and `why_pr.py`), the
-selections of 300 files or more fell from 32 to 7, none of them through imports or a walk, and 3 of
-the 7 select `all` for a path every run rests on. The median of the selections that are not `all`
-fell from 300 files to 102 (100 before a name that reads a touched name of its module counted as
-touched, which added 228 files over 14 of the 60), and 34 of the 60 hold 50 to 149 files. Of the 12
-test files that failed main's full run in the 7 days before and that their merge's wide selection
-held, it holds all 12 (`replay.py`).
+Every other rule selects as below. A module that names only a public name whose private helper the
+change touched counts as naming a touched name.
 
 A test may hold a string that is the name of a package of a `src/`. The script counts such a
 test as running that package in a process of its own, so the test imports every module of the
@@ -175,7 +170,7 @@ edits, each one the check runs, and never `all`: a change that selects every tes
 its own. It needs no selection, so it is quick. `--part cross` prints the cross-cutting tests of
 the selection, wherever their files live, and no other: neither the catch-all nor a test the
 change reaches or edits. Of `all` it prints every cross-cutting test. `--part names` prints, of
-the selection a pull request's check makes (`--pull-request`), the test files it selects because
+the selection by the narrow reach (above), the test files it selects because
 they name or read a file the change edits (the `names` cause: a spelled path, a skill that
 includes it, a read set), less the ones `--part touched` and `--part cross` print, in steps of
 `STEP` seconds of test time at most by the file table, one step a line, its files space-separated.
@@ -865,8 +860,8 @@ def sources():
 def edges(runs=True):
     """Each module, with the modules it imports. A test may spell the name of a package in a `src/`
     folder. The script then counts the test as running that package in a process of its own, and so
-    as importing every module of the package, unless `runs` is false: the pull request's reach
-    (`near`) follows no such run.
+    as importing every module of the package, unless `runs` is false: the narrow reach (`near`)
+    follows no such run.
 
     A module that imports by name imports every module under its directory, but only when that code
     runs. So the module itself imports them when it imports by name on import, or when it is a
@@ -996,10 +991,10 @@ def test_files(names):
 
 
 def near(name, edit):
-    """The test files a change to module `name` reaches through imports on a pull request's
-    check, `edit` the two sides of its diff (`edits`), or `None` where all of it counts as
-    changed. They are the tests that import the module, and the tests that import a module that
-    carries the change on: one that imports it and names a name the change touched
+    """The test files a change to module `name` reaches through imports by the narrow reach
+    (`--part names`), `edit` the two sides of its diff (`edits`), or `None` where all of it
+    counts as changed. They are the tests that import the module, and the tests that import a
+    module that carries the change on: one that imports it and names a name the change touched
     (`names_touched`), as `jbus.poll` names `tick.once`, or a module of the tests that is no
     test file, such as a helper or a `conftest.py`, which counts as the test's own code and
     carries on whatever it imports. A test that asks for a plugin's fixture that uses a module
@@ -1238,7 +1233,7 @@ def read_sets(near=False):
     """Each test file, with the patterns of its read set and of the read sets of the modules of
     the tests it imports, and the folders of the packages it or any module it imports walks
     (`walked`). With `near` a walk counts only in a module the test imports itself or through
-    modules of the tests (`nearby`), as a pull request's check reaches through imports."""
+    modules of the tests (`nearby`), as the narrow reach does through imports."""
     found = {}
     for name, path in modules().items():
         if not TEST.fullmatch(path):
@@ -1576,7 +1571,7 @@ def ruled(changed, follows=everywhere, cross=True, strict=False, edited=None):
     such a path too, and a feature's paths reach none of its tests. Only `EVERY_RUN` forces
     `all`, and so does a module that does not parse (`Unread`), which `facts` reads first. With
     `edited`, the sides of each changed path (`edits`), a change to a module that is not the
-    tests' own reaches through imports only the tests `near` it: a pull request's check."""
+    tests' own reaches through imports only the tests `near` it: the narrow reach."""
     ready()
     facts()
     for path in changed:
@@ -1653,7 +1648,7 @@ def selection(changed, failed=(), edited=None):
     rules select, the test files no rule owns (`catch-all`), and the `failed` test files that
     the check runs. `why["added"]` lists the failed ones nothing else selected. A `failed` of
     `all`, from a lookup GitHub refused for a spent allowance, selects the whole suite. With
-    `edited`, imports reach as on a pull request's check (`ruled`)."""
+    `edited`, imports reach by the narrow reach (`ruled`)."""
     tests, why = ruled(changed, edited=edited)
     if "all" in failed and tests != ["all"]:
         return ["all"], {"forced-by": "failed-on-main"}
@@ -1671,7 +1666,7 @@ STEP = 60
 
 
 def names_part(changed, edited):
-    """The steps of `--part names`: of the test files a pull request's check selects because
+    """The steps of `--part names`: of the test files the narrow reach selects because
     they name or read a path the change edits (`names`), the ones that neither `touched` nor the
     cross-cutting tests hold, which the desk runs already. A path of `EVERY_RUN` makes the
     selection `all` and names nothing here, so the rest of the change is read without it."""
@@ -2246,8 +2241,6 @@ def main(argv):
         print("\n".join(failed))
         return
     listed = count = cut = since = None
-    pull_request = argv[:1] == ["--pull-request"]
-    argv = argv[1:] if pull_request else argv
     strict = argv[2:3] == ["--strict"] and argv[:1] == ["--within"] and len(argv) == 5
     if strict:
         argv = argv[:2] + argv[3:]
@@ -2259,9 +2252,9 @@ def main(argv):
         cut, argv = argv[1], argv[2:]
         if argv[:1] == ["--since"] and len(argv) == 4:
             since, argv = argv[1], argv[2:]
-    if len(argv) != 2 or pull_request and (listed or cut):
+    if len(argv) != 2:
         sys.exit(
-            "usage: select_tests.py [--within <list> [--strict] | [--pull-request] [--parts <n>]]"
+            "usage: select_tests.py [--within <list> [--strict] | --parts <n>]"
             " <base> <head>\n"
             "       select_tests.py --part cross|guards|names|rest|touched [--since <merge-base>]"
             " <base> <head>\n"
@@ -2292,8 +2285,7 @@ def main(argv):
     failed = os.environ.get(FAILED_ON_MAIN)
     failed = None if failed is None else failed.split()
     try:
-        edited = edits(*argv, changed) if pull_request else None
-        tests, why = selection(changed, failed or (), edited)
+        tests, why = selection(changed, failed or ())
     except Unread as error:
         print(f"select_tests.py: nothing can be read ({error}), so all", file=sys.stderr)
         tests, why = ["all"], {"forced-by": "unread"}
