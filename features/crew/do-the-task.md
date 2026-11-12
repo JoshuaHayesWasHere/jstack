@@ -68,7 +68,7 @@
           [ "$(sed -n 1p "$steps" 2> /dev/null)" = "$head $base" ] || printf '%s %s\n' "$head" "$base" > "$steps"
           times=$(git rev-parse --path-format=absolute --git-common-dir)/crew-check-times
           plan() {
-              printf '%s\n' "$1" | awk -v steps="$steps" -v times="$times" -v most=60 '
+              awk -v steps="$steps" -v times="$times" -v most=60 '
                   BEGIN {
                       while ((getline line < times) > 0) { split(line, word, " "); took[word[1]] = word[2] }
                       while ((getline line < steps) > 0) if (line ~ /^passed /) passed[substr(line, 8)] = 1
@@ -89,7 +89,10 @@
                   }
                   END { if (held != "") print held }'
           }
-          todo=$(command grep -qxF 'passed lint' "$steps" || echo lint; plan "$touched"; plan "$guards"; plan "$failed"; plan "$names")
+          todo=$(
+              command grep -qxF 'passed lint' "$steps" || echo lint
+              for kind in "$touched" "$guards" "$failed" "$names"; do printf '%s\n' "$kind" | plan; done
+          )
           echo "touched: $(printf '%s' "$touched" | command grep -c .) test files, then $(printf '%s' "$guards" | command grep -c .) cross-cutting guard tests, then $(printf '%s' "$failed" | command grep -c .) test files CI failed on, then $(printf '%s\n' $names | command grep -c .) test files that read the change, in $(printf '%s' "$todo" | command grep -cvx -e lint -e '') steps of the short lane after the lint; CI's check runs the rest of the selection"
           for one in lint $touched $guards $failed $names; do
               ! command grep -qxF "passed $one" "$steps" || echo "$one: passed at this head already"
