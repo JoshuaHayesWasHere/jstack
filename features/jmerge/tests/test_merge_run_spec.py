@@ -2,8 +2,8 @@
 models stands once in its file, each carrier of the ledger has its variable, and TLC gives each
 rule the verdict its config keeps: today's code, which sends a record's lines before it
 replaces the record and counts the run once for its `at`, holds RunHeard and StreakOnce, the
-replace first breaks RunHeard, and the lines first with no key break StreakOnce. The TLC runs
-skip where no Java runs TLC."""
+replace first breaks RunHeard, and the lines first with no key, or a key that a count with no
+key clears, break StreakOnce. The TLC runs skip where no Java runs TLC."""
 
 import importlib
 import re
@@ -142,6 +142,7 @@ RULES = [
     ("MergeRun.cfg", {"Fault": '"replace-first"'}, "RunHeard", False),
     ("MergeRun.cfg", {"Fault": '"unkeyed"'}, "RunHeard", True),
     ("MergeRun.cfg", {"Fault": '"unkeyed"'}, "StreakOnce", False),
+    ("MergeRun.cfg", {"Fault": '"tell-clears"'}, "StreakOnce", False),
     ("MergeRun.cfg", {"Fault": '"no-run-lock"'}, "OneRunAtATime", False),
     ("MergeRun.restart.cfg", {}, "RestartReopens", False),
     ("MergeRun.restart.cfg", {"ReplyLost": "FALSE"}, "RestartReopens", False),
