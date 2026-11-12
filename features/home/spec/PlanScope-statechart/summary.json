@@ -3,7 +3,9 @@
   "modelStates": 2097,
   "modelTransitions": 6975,
   "chartStates": 87,
-  "chartTransitions": 111,
+  "chartTransitions": 131,
+  "allTransitions": 212,
+  "final": [],
   "chartStatus": {
     "works": 70,
     "fixed": 0,
@@ -21,9 +23,19 @@
       "states": 5
     },
     {
-      "name": "Archived",
+      "name": "Archived, still clearing",
+      "color": "#fadbd8",
+      "states": 2
+    },
+    {
+      "name": "Retired",
       "color": "#e5e8e8",
-      "states": 25
+      "states": 1
+    },
+    {
+      "name": "Handed to the catch-all",
+      "color": "#d5f5e3",
+      "states": 1
     }
   ],
   "mixedGroups": [],
@@ -33,7 +45,7 @@
       10,
       77
     ],
-    "transitions": 111,
+    "transitions": 131,
     "all": 212,
     "flat": {
       "states": 465,
@@ -80,9 +92,9 @@
     "command": "statechart from-spec PlanScope.tla --config PlanScope.chart.cfg --title 'A plan entry and a scope'\"'\"'s retire: is any work lost?' --expect-broken EntryOnce,FixCountedWhereRead --png",
     "inputs": {
       "PlanScope.chart.cfg": "2744ef6bdc9ced241656af12fb68512eba2b60058d3e3cebabd44231ec3de5d6",
-      "PlanScope.map.py": "aeceb4a0e77f4b77b0f456fda6fd8fc42e1ac170c7d679df4ae31a5c699ec2c7",
+      "PlanScope.map.py": "9cef1306b458a2a634e6ebb840fecedb4e618f901aff78bceb63694accbd5441",
       "PlanScope.tla": "b32e5f72855f6246b815e153c2ab95a4be44bd80c082796938909e0050144fe5"
     },
-    "chart": "0d21dc93aa90929ebe15e2e2bb385582ff91797921aaa20dbdcb022d008bd7b9"
+    "chart": "42bcf0d5e815e07e75cc153bfbf9fbe3490b465bde53b21aaff27508d1d4ae13"
   }
 }

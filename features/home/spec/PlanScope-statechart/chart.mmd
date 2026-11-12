@@ -10,17 +10,22 @@ stateDiagram-v2
   classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
   classDef group0 fill:#d6eaf8,stroke:#6b757c,color:#1b2631
   classDef group1 fill:#fdebd0,stroke:#7f7668,color:#1b2631
-  classDef group2 fill:#e5e8e8,stroke:#737474,color:#1b2631
-  classDef group2Wrong fill:#e5e8e8,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group2 fill:#fadbd8,stroke:#7d6e6c,color:#1b2631
+  classDef group3 fill:#e5e8e8,stroke:#737474,color:#1b2631
+  classDef group4 fill:#d5f5e3,stroke:#6b7b72,color:#1b2631
   state "Legend" as legend {
     state "Working" as legendGroup0
     state "Archiving" as legendGroup1
-    state "Archived" as legendGroup2
+    state "Archived, still clearing" as legendGroup2
+    state "Retired" as legendGroup3
+    state "Handed to the catch-all" as legendGroup4
     state "Breaks a rule today" as legendWrong
   }
   class legendGroup0 group0
   class legendGroup1 group1
   class legendGroup2 group2
+  class legendGroup3 group3
+  class legendGroup4 group4
   class legendWrong plainWrong
   state "At the same time" as regions {
     state "The scope" as region0 {
@@ -49,6 +54,8 @@ stateDiagram-v2
       %% when not r1s16, r1s17, r1s18, r1s19, r1s20, r1s21, r1s22, r1s23
       r0s5 --> r0s1 : the archive asks the scope's<br/>gate of the catch-all [unless<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, no fix or the entry in<br/>its plan and in plan-done.md,<br/>the close at work, the fix<br/>counted in s or the entry in<br/>its plan and in plan-done.md,<br/>the close at work, the fix<br/>counted in s and the catch-all<br/>or the entry in its plan and<br/>in plan-done.md, the close at<br/>work, the fix counted in s and<br/>the catch-all, the move at<br/>work or the entry in its plan<br/>and in plan-done.md, the close<br/>at work, the fix counted in s,<br/>not where its home reads it or<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s,<br/>not where its home reads it,<br/>the move at work or the entry<br/>in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in the<br/>catch-all or the entry in its<br/>plan and in plan-done.md, the<br/>close at work, the fix counted<br/>in the catch-all, the move at<br/>work]
       %% when not r1s16, r1s17, r1s18, r1s19, r1s20, r1s21, r1s22, r1s23
+      r0s6 --> r0s7 : the entry's rows end [when the<br/>entry closed, no fix or the<br/>entry in its plan and in<br/>plan-done.md, its close cut<br/>short, no fix or the entry in<br/>plan-done.md twice, no fix or<br/>the entry's row out (in<br/>plan-archived.md), no fix]
+      %% when r1s0, r1s8, r1s24, r1s47
       r0s7 --> r0s6 : the home queues the fix, and<br/>jbus counts it
       r0s8 --> r0s5 : you run /handoff: the home<br/>writes its note [unless the<br/>entry in its plan and in<br/>plan-done.md, the close at<br/>work, no fix or the entry in<br/>its plan and in plan-done.md,<br/>the close at work, the fix<br/>counted in s or the entry in<br/>its plan and in plan-done.md,<br/>the close at work, the fix<br/>counted in s and the catch-all<br/>or the entry in its plan and<br/>in plan-done.md, the close at<br/>work, the fix counted in s and<br/>the catch-all, the move at<br/>work or the entry in its plan<br/>and in plan-done.md, the close<br/>at work, the fix counted in s,<br/>not where its home reads it or<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s,<br/>not where its home reads it,<br/>the move at work or the entry<br/>in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in the<br/>catch-all or the entry in its<br/>plan and in plan-done.md, the<br/>close at work, the fix counted<br/>in the catch-all, the move at<br/>work]
       %% when not r1s16, r1s17, r1s18, r1s19, r1s20, r1s21, r1s22, r1s23
@@ -141,11 +148,14 @@ stateDiagram-v2
       r1s1 --> r1s4 : the archive moves plan.md to<br/>plan-archived.md [when Scope s<br/>archiving, its note and the<br/>older one in log/]
       %% when r0s3
       r1s1 --> r1s5 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s2 --> r1s3 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
       r1s3 --> r1s2 : the move dies
       r1s3 --> r1s6 : the move writes s's ledger,<br/>and unlocks
+      r1s4 --> r1s5 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
       r1s5 --> r1s4 : the move dies
       r1s5 --> r1s3 : the move writes the<br/>catch-all's ledger
       r1s6 --> r1s7 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s7 --> r1s6 : the move dies
       r1s8 --> r1s24 : the home closes it again: plan<br/>close appends it a second time<br/>[unless Scope s archived, its<br/>note not yet cleared or Scope<br/>s handed to the catch-all or<br/>Scope s retired or Scope s's<br/>plan archived, its home-id<br/>still there]
       %% when not r0s0, r0s6, r0s7, r0s9
       r1s8 --> r1s9 : the home queues the fix, and<br/>jbus counts it [unless Scope s<br/>archived, its note not yet<br/>cleared or Scope s handed to<br/>the catch-all or Scope s<br/>retired or Scope s's plan<br/>archived, its home-id still<br/>there]
@@ -155,20 +165,29 @@ stateDiagram-v2
       r1s9 --> r1s12 : the archive moves plan.md to<br/>plan-archived.md [when Scope s<br/>archiving, its note and the<br/>older one in log/]
       %% when r0s3
       r1s9 --> r1s13 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s10 --> r1s26 : the home closes it again: plan<br/>close appends it a second time<br/>[unless Scope s archived, its<br/>note not yet cleared or Scope<br/>s handed to the catch-all or<br/>Scope s's plan archived, its<br/>home-id still there]
+      %% when not r0s0, r0s6, r0s9
       r1s11 --> r1s10 : the move dies
       r1s11 --> r1s14 : the move writes s's ledger,<br/>and unlocks
+      r1s12 --> r1s28 : the home closes it again: plan<br/>close appends it a second time<br/>[unless Scope s archived, its<br/>note not yet cleared or Scope<br/>s handed to the catch-all or<br/>Scope s's plan archived, its<br/>home-id still there]
+      %% when not r0s0, r0s6, r0s9
       r1s13 --> r1s12 : the move dies
       r1s13 --> r1s11 : the move writes the<br/>catch-all's ledger
       r1s14 --> r1s15 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s15 --> r1s31 : the home closes it again: plan<br/>close appends it a second time<br/>[unless Scope s archived, its<br/>note not yet cleared or Scope<br/>s handed to the catch-all or<br/>Scope s's plan archived, its<br/>home-id still there]
+      %% when not r0s0, r0s6, r0s9
       r1s16 --> r1s8 : the close dies between its two<br/>writes
       r1s16 --> r1s0 : the close takes it out of the<br/>plan
       r1s16 --> r1s17 : the home queues the fix, and<br/>jbus counts it
       r1s17 --> r1s21 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s18 --> r1s10 : the close dies between its two<br/>writes
       r1s19 --> r1s18 : the move dies
       r1s19 --> r1s22 : the move writes s's ledger,<br/>and unlocks
+      r1s20 --> r1s12 : the close dies between its two<br/>writes
       r1s21 --> r1s20 : the move dies
       r1s21 --> r1s19 : the move writes the<br/>catch-all's ledger
       r1s22 --> r1s23 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s23 --> r1s15 : the close dies between its two<br/>writes
       r1s24 --> r1s25 : the home queues the fix, and<br/>jbus counts it [unless Scope s<br/>archived, its note not yet<br/>cleared or Scope s handed to<br/>the catch-all or Scope s<br/>retired or Scope s's plan<br/>archived, its home-id still<br/>there]
       %% when not r0s0, r0s6, r0s7, r0s9
       r1s24 --> r1s30 : the home queues the fix, and<br/>jbus counts it [when Scope s<br/>archived, its note not yet<br/>cleared or Scope s handed to<br/>the catch-all or Scope s<br/>retired or Scope s's plan<br/>archived, its home-id still<br/>there]
@@ -176,16 +195,21 @@ stateDiagram-v2
       r1s25 --> r1s28 : the archive moves plan.md to<br/>plan-archived.md [when Scope s<br/>archiving, its note and the<br/>older one in log/]
       %% when r0s3
       r1s25 --> r1s29 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s26 --> r1s27 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
       r1s27 --> r1s26 : the move dies
       r1s27 --> r1s30 : the move writes s's ledger,<br/>and unlocks
+      r1s28 --> r1s29 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
       r1s29 --> r1s28 : the move dies
       r1s29 --> r1s27 : the move writes the<br/>catch-all's ledger
       r1s30 --> r1s31 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s31 --> r1s30 : the move dies
       r1s32 --> r1s37 : the home queues the fix, and<br/>jbus counts it
+      r1s33 --> r1s34 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
       r1s34 --> r1s33 : the move dies
       r1s35 --> r1s36 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
       r1s36 --> r1s34 : the move writes the<br/>catch-all's ledger
       r1s37 --> r1s38 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s38 --> r1s37 : the move dies
       r1s39 --> r1s32 : the archive moves plan.md to<br/>plan-archived.md [when Scope s<br/>archiving, its note and the<br/>older one in log/]
       %% when r0s3
       r1s39 --> r1s54 : the home briefs the entry and<br/>queues its row
@@ -212,11 +236,14 @@ stateDiagram-v2
       r1s46 --> r1s38 : the archive moves plan.md to<br/>plan-archived.md [when Scope s<br/>archiving, its note and the<br/>older one in log/]
       %% when r0s3
       r1s46 --> r1s45 : the move finds nothing left to<br/>carry
+      r1s47 --> r1s62 : the entry's rows end
       r1s47 --> r1s52 : the home queues the fix, and<br/>jbus counts it
+      r1s48 --> r1s63 : the entry's rows end
       r1s49 --> r1s48 : the move dies
       r1s50 --> r1s51 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
       r1s51 --> r1s49 : the move writes the<br/>catch-all's ledger
       r1s52 --> r1s53 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s53 --> r1s68 : the entry's rows end
       r1s54 --> r1s47 : the archive moves plan.md to<br/>plan-archived.md [when Scope s<br/>archiving, its note and the<br/>older one in log/]
       %% when r0s3
       r1s54 --> r1s69 : the entry's rows end
@@ -242,10 +269,12 @@ stateDiagram-v2
       r1s61 --> r1s53 : the archive moves plan.md to<br/>plan-archived.md [when Scope s<br/>archiving, its note and the<br/>older one in log/]
       %% when r0s3
       r1s62 --> r1s67 : the home queues the fix, and<br/>jbus counts it
+      r1s63 --> r1s64 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
       r1s64 --> r1s63 : the move dies
       r1s65 --> r1s66 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
       r1s66 --> r1s64 : the move writes the<br/>catch-all's ledger
       r1s67 --> r1s68 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s68 --> r1s67 : the move dies
       r1s69 --> r1s62 : the archive moves plan.md to<br/>plan-archived.md [when Scope s<br/>archiving, its note and the<br/>older one in log/]
       %% when r0s3
       r1s69 --> r1s70 : the home queues the fix, and<br/>jbus counts it
@@ -277,8 +306,8 @@ stateDiagram-v2
   class r0s3 group1
   class r0s4 group1
   class r0s5 group1
-  class r0s6 group2
-  class r0s7 group2
+  class r0s6 group4
+  class r0s7 group3
   class r0s8 group0
   class r0s9 group2
   class r1s0 plain
@@ -313,13 +342,13 @@ stateDiagram-v2
   class r1s29 plainWrong
   class r1s30 plainWrong
   class r1s31 plainWrong
-  class r1s32 group2
-  class r1s33 group2
-  class r1s34 group2
-  class r1s35 group2Wrong
-  class r1s36 group2
-  class r1s37 group2
-  class r1s38 group2
+  class r1s32 plain
+  class r1s33 plain
+  class r1s34 plain
+  class r1s35 plainWrong
+  class r1s36 plain
+  class r1s37 plain
+  class r1s38 plain
   class r1s39 plain
   class r1s40 plain
   class r1s41 plain
@@ -328,13 +357,13 @@ stateDiagram-v2
   class r1s44 plain
   class r1s45 plain
   class r1s46 plain
-  class r1s47 group2
-  class r1s48 group2
-  class r1s49 group2
-  class r1s50 group2Wrong
-  class r1s51 group2
-  class r1s52 group2
-  class r1s53 group2
+  class r1s47 plain
+  class r1s48 plain
+  class r1s49 plain
+  class r1s50 plainWrong
+  class r1s51 plain
+  class r1s52 plain
+  class r1s53 plain
   class r1s54 plain
   class r1s55 plain
   class r1s56 plain
@@ -343,13 +372,13 @@ stateDiagram-v2
   class r1s59 plain
   class r1s60 plain
   class r1s61 plain
-  class r1s62 group2
-  class r1s63 group2
-  class r1s64 group2
-  class r1s65 group2Wrong
-  class r1s66 group2
-  class r1s67 group2
-  class r1s68 group2
+  class r1s62 plain
+  class r1s63 plain
+  class r1s64 plain
+  class r1s65 plainWrong
+  class r1s66 plain
+  class r1s67 plain
+  class r1s68 plain
   class r1s69 plain
   class r1s70 plain
   class r1s71 plain

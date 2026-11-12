@@ -132,13 +132,21 @@ region_names = ["The scope", "Its entry and fix"]
 
 def group(v, facts):
     if v["plan"] == "archived":
-        return "Archived"
+        if v["homeId"] == "me" or v["next"] == "written":
+            return "Archived, still clearing"
+        return "Handed to the catch-all" if _out(v) else "Retired"
     if v["next"] == "written":
         return "Archiving"
     return "Working"
 
 
-group_colors = {"Working": "#d6eaf8", "Archiving": "#fdebd0", "Archived": "#e5e8e8"}
+group_colors = {
+    "Working": "#d6eaf8",
+    "Archiving": "#fdebd0",
+    "Archived, still clearing": "#fadbd8",
+    "Retired": "#e5e8e8",
+    "Handed to the catch-all": "#d5f5e3",
+}
 
 STEPS = {
     "Restage": "the home writes Stage: planned",
