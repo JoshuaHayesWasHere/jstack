@@ -73,9 +73,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import textwrap
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -105,6 +107,7 @@ from jbus import (
 from jbus.passes import Pass
 from jmerge import judgement
 from jsettings import brief as brief_head
+from jsettings.paths import homes_dir
 
 if TYPE_CHECKING:
     from jbus.poll import Half
@@ -180,9 +183,8 @@ def admit(config: Config, project: Project, slug: str, text: str) -> Callable[[]
             "exact check that ends the work (such as `check` passing on the fix's head): "
             "nothing is queued"
         )
-    directory = homes.home_of(config.home(project), text)
     sha = judgement.brief_sha(text)
-    with locked(directory, LOCK):
+    with _home_locked(config.home(project), text) as directory:
         kept = ledger(directory)
         found = kept.get(key)
         had = found if isinstance(found, list) else []
@@ -206,6 +208,21 @@ def admit(config: Config, project: Project, slug: str, text: str) -> Callable[[]
     raise Refused(
         f"refused: {said}: raised to {config.user.user} as a decision, and {slug} is not queued"
     )
+
+
+@contextmanager
+def _home_locked(home: Path, text: str) -> Iterator[Path]:
+    """Hold the lock of the brief's home, and give its directory as read under that lock: a
+    retire (`retire`) archives a scope under the scope's lock, so a brief that named the scope
+    before it took the lock is the catch-all's once it has it, and its try goes there."""
+    directory = homes.home_of(home, text)
+    while True:
+        with locked(directory, LOCK):
+            now = homes.home_of(home, text)
+            if now == directory:
+                yield directory
+                return
+        directory = now
 
 
 def _release(directory: Path, key: str, sha: str = "", slug: str = "") -> None:
@@ -248,6 +265,55 @@ def rehome(home: Path, slug: str, text: str) -> None:
                 del old[key]
             write_json(to / LEDGER, new)
             write_json(was / LEDGER, old)
+
+
+def retire(scope: Path) -> list[str]:
+    """Archive a scoped home's plan, `plan.md` to `plan-archived.md`, and carry each try its
+    `blockers.json` counts to the catch-all's ledger, which admit and `jbus clear` read for every
+    brief that named the scope once its plan is archived. It holds both homes' locks from its read
+    to its last write, so no admit counts a fix in the scope between the carry and the archive.
+    It writes the catch-all's ledger, then archives the plan, then empties the scope's ledger,
+    each from what the two ledgers hold: run again after it was cut short anywhere, it carries
+    what is left, and each try once, by its sha. Return a line for each key it carried."""
+    to = homes.catchall(scope.parent)
+    said = []
+    with locked(min(scope, to), LOCK), locked(max(scope, to), LOCK):
+        old, gathered = ledger(scope), ledger(to)
+        for key, going in old.items():
+            held = {one.get("sha") for one in gathered.get(key, [])}
+            fresh = [one for one in going if one.get("sha") not in held]
+            gathered[key] = [*gathered.get(key, []), *fresh]
+            said.append(f"{key}: {_count(len(gathered[key]), 'fix')} counted in {to.name}")
+        if old:
+            write_json(to / LEDGER, gathered)
+        if (scope / "plan.md").exists():
+            os.replace(scope / "plan.md", scope / "plan-archived.md")
+        if old:
+            write_json(scope / LEDGER, {})
+    return said
+
+
+def _retires(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("scope", help="the directory of the scoped home that retires")
+
+
+def _retire(args: argparse.Namespace, _: Config) -> int:
+    """`jbus retire <scope dir>`: the handoff's archive of a scoped home (`retire`)."""
+    given = Path(args.scope)
+    scope = Path(os.path.realpath(given))
+    root = Path(os.path.realpath(homes_dir()))
+    why = ""
+    if scope.parent.parent != root or not scope.is_dir():
+        why = f"{given} is no directory of a home under {root}"
+    elif scope.name in (homes.UNCATEGORIZED, *homes.SHARED) or scope.name.startswith("_"):
+        why = f"{given} is no scoped home, and only a scoped home retires"
+    elif not (scope / "plan.md").exists() and not (scope / "plan-archived.md").exists():
+        why = f"{given} has no plan.md, so it is no scoped home"
+    if why:
+        raise Refused(f"refused: {why}: nothing is moved")
+    said = retire(scope)
+    print("\n".join([*said, f"archived: {scope / 'plan-archived.md'}"]))
+    return 0
 
 
 def forgo(run: Pass, move: dict[str, Any]) -> None:
@@ -657,6 +723,13 @@ def _decides(parser: argparse.ArgumentParser) -> None:
 VERBS = (
     verbs.Verb("clear", "clear this home's blockers, and say what is left", _clears, _clear),
     verbs.Verb("decide", "raise a decision for the user, as a scope change", _decides, _decide),
+    verbs.Verb(
+        "retire",
+        "archive a scoped home's plan, and carry its fixes' tries to the catch-all's ledger",
+        _retires,
+        _retire,
+        config=False,
+    ),
 )
 
 STEPS = (verbs.Step("close", 25, "blockers.raise_listed", _raise),)

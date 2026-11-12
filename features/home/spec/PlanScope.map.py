@@ -120,6 +120,8 @@ def fix(v):
         said.append("a fix's check failed")
     if v["mpc"] != "idle":
         said.append("the move at work")
+    if v["rpc"] != "idle":
+        said.append("jbus retire at work")
     return ("; " + ", ".join(said) if said else "; no fix") + CLEAR[v["clear"]]
 
 
@@ -161,7 +163,11 @@ STEPS = {
     "RenameGates": "the archive moves gates.md aside",
     "KeepNote": "the archive keeps the note in log/, with its Was home line",
     "MoveOlder": "the archive moves the older handoff.md to log/",
-    "ArchivePlan": "the archive moves plan.md to plan-archived.md",
+    "RetireLock": "the archive runs jbus retire, which locks both ledgers",
+    "RetireCarry": "jbus retire counts s's fixes in the catch-all's ledger",
+    "ArchivePlan": "jbus retire moves plan.md to plan-archived.md",
+    "RetireEmpty": "jbus retire empties s's ledger, and unlocks",
+    "RetireDies": "jbus retire dies",
     "ForgetId": "the archive removes home-id",
     "ForgetNote": "the archive clears the note",
     "AddGreen": "the home adds the fix's When green line",
@@ -198,11 +204,6 @@ def cause(v, facts, invariant):
             "canary does: today's plan.close skips the append where plan-done.md ends with it"
         )
     if invariant == "FixCountedWhereRead":
-        if v["plan"] == "archived":
-            return (
-                "the archive moved plan.md aside, so the fix's brief is the catch-all's, but no "
-                "step moves blockers.json: the try stays in s's ledger, which admit no longer reads"
-            )
         return (
             "jbus queue move rewrote the fix's Home: line and died before blockers.rehome "
             "carried its try, which only a move run again carries"

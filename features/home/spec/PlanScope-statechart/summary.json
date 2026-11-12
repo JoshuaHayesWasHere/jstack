@@ -1,15 +1,13 @@
 {
   "view": "customer",
-  "modelStates": 1215,
-  "modelTransitions": 4131,
-  "chartStates": 79,
-  "chartTransitions": 119,
-  "allTransitions": 199,
-  "final": [],
+  "modelStates": 2508,
+  "modelTransitions": 8960,
+  "chartStates": 152,
+  "chartTransitions": 163,
   "chartStatus": {
-    "works": 70,
+    "works": 124,
     "fixed": 0,
-    "wrong": 9
+    "wrong": 28
   },
   "chartGroups": [
     {
@@ -20,22 +18,12 @@
     {
       "name": "Archiving",
       "color": "#fdebd0",
-      "states": 5
+      "states": 41
     },
     {
-      "name": "Archived, still clearing",
-      "color": "#fadbd8",
-      "states": 2
-    },
-    {
-      "name": "Retired",
+      "name": "Archived",
       "color": "#e5e8e8",
-      "states": 1
-    },
-    {
-      "name": "Handed to the catch-all",
-      "color": "#d5f5e3",
-      "states": 1
+      "states": 34
     }
   ],
   "mixedGroups": [],
@@ -43,47 +31,47 @@
     "drawn": true,
     "states": [
       10,
-      69
+      142
     ],
-    "transitions": 119,
-    "all": 199,
+    "transitions": 163,
+    "all": 512,
     "flat": {
-      "states": 395,
-      "transitions": 1219
+      "states": 501,
+      "transitions": 1623
     }
   },
   "classes": [
     {
       "n": 1,
+      "end": "Scope s working: the entry in plan-done.md twice; no fix",
+      "invariant": "EntryOnce",
+      "rule": "An entry is in its plan or in plan-done.md, once, and in both only between the two writes of one close: no line is lost, and no close leaves a second copy. A close cut short is still between its two writes, as the disk shows it, until a close finishes it.",
+      "cause": "jbus plan close died between its append to plan-done.md and its rewrite of the plan, and the close run again appended the section a second time: plan.close reads plan-done.md only for the blank line before the section",
+      "readerSteps": 3,
+      "modelSteps": 4,
+      "counterexamples": 176,
+      "fix": null
+    },
+    {
+      "n": 2,
       "end": "Scope s working: the entry proposed or planned; the fix counted in s, not where its home reads it",
       "invariant": "FixCountedWhereRead",
       "rule": "A counted fix is in the ledger admit reads for it, the one of its brief's home, once no move runs. (A rule this model adds to the brief's three: today's code breaks it.)",
       "cause": "jbus queue move rewrote the fix's Home: line and died before blockers.rehome carried its try, which only a move run again carries",
       "readerSteps": 3,
       "modelSteps": 4,
-      "counterexamples": 72,
-      "fix": null
-    },
-    {
-      "n": 2,
-      "end": "Scope s's plan archived, its home-id still there: the entry proposed or planned (in plan-archived.md); the fix counted in s, not where its home reads it",
-      "invariant": "FixCountedWhereRead",
-      "rule": "A counted fix is in the ledger admit reads for it, the one of its brief's home, once no move runs. (A rule this model adds to the brief's three: today's code breaks it.)",
-      "cause": "the archive moved plan.md aside, so the fix's brief is the catch-all's, but no step moves blockers.json: the try stays in s's ledger, which admit no longer reads",
-      "readerSteps": 7,
-      "modelSteps": 8,
-      "counterexamples": 36,
+      "counterexamples": 147,
       "fix": null
     }
   ],
   "codeLike": [],
   "drawnFrom": {
-    "command": "statechart from-spec PlanScope.tla --config PlanScope.chart.cfg --title 'A plan entry and a scope'\"'\"'s retire: is any work lost?' --expect-broken FixCountedWhereRead",
+    "command": "statechart from-spec PlanScope.tla --config PlanScope.chart.cfg --expect-broken EntryOnce,FixCountedWhereRead --png",
     "inputs": {
-      "PlanScope.chart.cfg": "8a811a11d7b1332da55b3ee92f42995ceef21da92b7919fec08b3314069ef380",
-      "PlanScope.map.py": "e99abd7fde0acc9d92bac3360156fff62ed061fce6e53ff65888a50beb545411",
-      "PlanScope.tla": "4fd62773f00d9f861b651cdd24e6650cc5d2a08a6462d3e88151d487ffac76c4"
+      "PlanScope.chart.cfg": "5819da9ca6bc600a4ddc648e577fc8b9496a32ac3d25bdfa732d92d8ed1f6d74",
+      "PlanScope.map.py": "a24605d2357bf58241280b738ed567c6042ad83f91b47484d4148a57327c0aa6",
+      "PlanScope.tla": "199c8c0854d1feeaa574fb370c91ec079e229a4b96353b010683b1444fcd3c1e"
     },
-    "chart": "b92f44406275ac45041a1a12ff85c8c251b63dadbc0767c09d42706d465d3655"
+    "chart": "2c8ba30b8ee69b6694d294d3575c28dfae14de4f97d1d74211e52d3c2daa9383"
   }
 }

@@ -8,7 +8,9 @@
 \* fixes of it. A process can die between any two writes: the disk keeps what was written.
 \* Fault = "none" is today's code. Fault = "close-twice" is the canary of a close that appends
 \* again after a close cut short; Fault = "move-one-lock" is the canary of a move that takes only
-\* the lock of the home it carries to.
+\* the lock of the home it carries to; Fault = "retire-no-carry" is the retire before
+\* `jbus retire`, which archived the plan and left the scope's blockers.json behind; and
+\* Fault = "carry-then-unlock" is a retire that lets the locks go between its carry and its archive.
 \* Each condition cites the file that checks it and quotes its code, with no line number:
 \* features/home/tests/test_plan_scope_spec.py finds the one place each quote stands.
 EXTENDS Naturals, FiniteSets
@@ -57,12 +59,16 @@ VARIABLES
   \* handoff/SKILL.md `if [ -f "$note" ]; then uv run --project "$T/../source" jbus forget "$note" > /dev/null; fi`.
   next,
   \* C-081, each home's blockers.json: the fixes counted for the key check:b, written by
-  \* jbus/blockers.py `kept[key] = [*had, {"slug": slug, "sha": sha, "at": at}]` (admit) and by
-  \* jbus/blockers.py `write_json(to / LEDGER, new)` then jbus/blockers.py `write_json(was / LEDGER, old)` (rehome).
+  \* jbus/blockers.py `kept[key] = [*had, {"slug": slug, "sha": sha, "at": at}]` (admit), by
+  \* jbus/blockers.py `write_json(to / LEDGER, new)` then jbus/blockers.py `write_json(was / LEDGER, old)` (rehome),
+  \* and by jbus/blockers.py `gathered[key] = [*gathered.get(key, []), *fresh]` then
+  \* jbus/blockers.py `write_json(scope / LEDGER, {})` (retire).
   ledger,
   \* C-082, each home's blockers.lock, held across a move's read and its two writes, taken by
-  \* jbus/blockers.py `with locked(min(was, to), LOCK), locked(max(was, to), LOCK):`. An admit
-  \* takes it for one step of its own, so only the move's hold is kept here.
+  \* jbus/blockers.py `with locked(min(was, to), LOCK), locked(max(was, to), LOCK):`, and across
+  \* a retire's read, its carry, its archive and its last write, taken by
+  \* jbus/blockers.py `with locked(min(scope, to), LOCK), locked(max(scope, to), LOCK):`. An admit
+  \* takes it for one step of its own, so only the move's and the retire's holds are kept here.
   lock,
   \* C-095, each brief's `Home:` head line: "s", "u", or "id", the legacy thread id of s's home
   \* (146 real briefs name one). The home writes it, which
@@ -86,14 +92,15 @@ VARIABLES
   fixRow,     \* each fix's queue row: "none", "queued" (at work) or "failed" (its check failed)
   admitted,   \* the fixes admit counted and nothing took back: what the ledgers must keep
   mpc,        \* a run of `jbus queue move f1 u`: "idle", "named", "read", "wrote"
+  rpc,        \* a run of `jbus retire` on s: "idle", "locked", "carried", "archived"
   seenTo,     \* what the move read of the ledger it carries to
   seenWas     \* what the move read of the ledger it carries from
 
 vars == <<clear, stage, typed, buildsOn, done, handoff, next, ledger, lock, home, fixOf,
           inPlan, rows, cpc, plan, homeId, gates, gatesFile, logged, fixRow, admitted, mpc,
-          seenTo, seenWas>>
+          seenTo, seenWas, rpc>>
 entry == <<stage, typed, buildsOn, done, inPlan, rows, cpc>>
-scope == <<handoff, next, plan, homeId, gates, gatesFile, logged>>
+scope == <<handoff, next, plan, homeId, gates, gatesFile, logged, rpc>>
 fix == <<clear, ledger, lock, home, fixOf, fixRow, admitted, mpc, seenTo, seenWas>>
 
 \* The home a brief is, as jbriefs/home.py reads it. A scope is a directory with a plan.md,
@@ -133,6 +140,7 @@ TypeOK ==
   /\ home \in [Briefs -> {"s", "u", "id"}] /\ fixOf \in [Fixes -> {"fix", "no-green"}]
   /\ fixRow \in [Fixes -> {"none", "queued", "failed"}] /\ admitted \subseteq Fixes
   /\ mpc \in {"idle", "named", "read", "wrote"}
+  /\ rpc \in {"idle", "locked", "carried", "archived"}
   /\ seenTo \subseteq Fixes /\ seenWas \subseteq Fixes
 
 Init ==
@@ -147,7 +155,7 @@ Init ==
   /\ home = [x \in Briefs |-> IF x = "b" THEN "id" ELSE "s"]
   /\ fixOf \in [Fixes -> {"fix", "no-green"}]
   /\ fixRow = [t \in Fixes |-> "none"] /\ admitted = {}
-  /\ mpc = "idle" /\ seenTo = {} /\ seenWas = {}
+  /\ mpc = "idle" /\ seenTo = {} /\ seenWas = {} /\ rpc = "idle"
 
 ----
 \* The plan entry.
@@ -211,7 +219,7 @@ Retiring == cpc = "idle"
 WriteNote ==
   /\ Retiring /\ next = "none" /\ homeId = "me" /\ plan = "plan"
   /\ next' = "written"
-  /\ UNCHANGED <<handoff, plan, homeId, gates, gatesFile, logged>> /\ UNCHANGED entry /\ UNCHANGED fix
+  /\ UNCHANGED <<handoff, plan, homeId, gates, gatesFile, logged, rpc>> /\ UNCHANGED entry /\ UNCHANGED fix
 
 \* The archive runs while this thread is the home, handoff/SKILL.md
 \* `if ! this_home "$ME" > /dev/null; then`, and its note was not kept yet,
@@ -221,46 +229,91 @@ HandGates ==
   /\ Retiring /\ next = "written" /\ homeId = "me" /\ logged = "none"
   /\ gatesFile = "gates" /\ gates = "file"
   /\ gates' = "jbus"
-  /\ UNCHANGED <<handoff, next, plan, homeId, gatesFile, logged>> /\ UNCHANGED entry /\ UNCHANGED fix
+  /\ UNCHANGED <<handoff, next, plan, homeId, gatesFile, logged, rpc>> /\ UNCHANGED entry /\ UNCHANGED fix
 
 \* handoff/SKILL.md `if ! mv "$M/gates.md" "$M/gates-moved.md"; then`
 RenameGates ==
   /\ Retiring /\ next = "written" /\ homeId = "me" /\ logged = "none"
   /\ gatesFile = "gates" /\ gates = "jbus"
   /\ gatesFile' = "moved"
-  /\ UNCHANGED <<handoff, next, plan, homeId, gates, logged>> /\ UNCHANGED entry /\ UNCHANGED fix
+  /\ UNCHANGED <<handoff, next, plan, homeId, gates, logged, rpc>> /\ UNCHANGED entry /\ UNCHANGED fix
 
 \* It keeps the note in log/, ending in its `Was home:` line, after
 \* handoff/SKILL.md `printf '\nArchived: %s, and no home was started after this one.\n' "$(date +%F)"`.
 KeepNote ==
   /\ Retiring /\ next = "written" /\ homeId = "me" /\ logged = "none" /\ gatesFile = "moved"
   /\ logged' = "kept"
-  /\ UNCHANGED <<handoff, next, plan, homeId, gates, gatesFile>> /\ UNCHANGED entry /\ UNCHANGED fix
+  /\ UNCHANGED <<handoff, next, plan, homeId, gates, gatesFile, rpc>> /\ UNCHANGED entry /\ UNCHANGED fix
 
 \* It moves the older handoff.md beside the note (handoff, above).
 MoveOlder ==
   /\ Retiring /\ logged = "kept" /\ handoff = "older"
   /\ handoff' = "none"
-  /\ UNCHANGED <<next, plan, homeId, gates, gatesFile, logged>> /\ UNCHANGED entry /\ UNCHANGED fix
+  /\ UNCHANGED <<next, plan, homeId, gates, gatesFile, logged, rpc>> /\ UNCHANGED entry /\ UNCHANGED fix
 
-\* handoff/SKILL.md `! { [ -z "$scope" ] || [ ! -f "$M/plan.md" ] || mv "$M/plan.md" "$M/plan-archived.md"; } ||`
+\* Then handoff/SKILL.md `! { [ -z "$scope" ] || uv run --project "$T/../source" jbus retire "$M" > /dev/null; } ||`,
+\* which takes both homes' locks and holds them to its last write. It runs again on a plan
+\* already archived, so a retire cut short carries what is left.
+RetireHolds ==
+  rpc /= "idle" /\ ~(Fault = "carry-then-unlock" /\ rpc \in {"carried", "archived"})
+Unlocked == IF RetireHolds THEN [h \in Homes |-> FALSE] ELSE lock
+retireKeeps == <<clear, home, fixOf, fixRow, admitted, mpc, seenTo, seenWas>>
+archiveKeeps == <<handoff, next, homeId, gates, gatesFile, logged>>
+
+RetireLock ==
+  /\ Retiring /\ logged = "kept" /\ handoff = "none" /\ homeId = "me" /\ rpc = "idle"
+  /\ \A h \in Homes : ~lock[h]
+  /\ lock' = [h \in Homes |-> TRUE] /\ rpc' = "locked"
+  /\ UNCHANGED <<ledger, plan>> /\ UNCHANGED retireKeeps /\ UNCHANGED archiveKeeps
+  /\ UNCHANGED entry
+
+\* Its first write: the catch-all's ledger with each try of s's that it lacks, by its sha.
+\* The canary carry-then-unlock lets the locks go here.
+RetireCarry ==
+  /\ rpc = "locked"
+  /\ ledger' = IF Fault = "retire-no-carry" THEN ledger
+               ELSE [ledger EXCEPT !["u"] = @ \cup ledger["s"]]
+  /\ lock' = IF Fault = "carry-then-unlock" THEN [h \in Homes |-> FALSE] ELSE lock
+  /\ rpc' = "carried"
+  /\ UNCHANGED plan /\ UNCHANGED retireKeeps /\ UNCHANGED archiveKeeps /\ UNCHANGED entry
+
+\* Its archive: jbus/blockers.py `os.replace(scope / "plan.md", scope / "plan-archived.md")`,
+\* where plan.md is still there.
 ArchivePlan ==
-  /\ Retiring /\ logged = "kept" /\ handoff = "none" /\ plan = "plan"
-  /\ plan' = "archived"
-  /\ UNCHANGED <<handoff, next, homeId, gates, gatesFile, logged>> /\ UNCHANGED entry /\ UNCHANGED fix
+  /\ rpc = "carried"
+  /\ plan' = "archived" /\ rpc' = "archived"
+  /\ UNCHANGED <<ledger, lock>> /\ UNCHANGED retireKeeps /\ UNCHANGED archiveKeeps
+  /\ UNCHANGED entry
+
+\* Its last write: s's ledger without what it carried, which under its locks is all of it.
+\* Then the locks go.
+RetireEmpty ==
+  /\ rpc = "archived"
+  /\ ledger' = IF Fault = "retire-no-carry" THEN ledger ELSE [ledger EXCEPT !["s"] = {}]
+  /\ lock' = Unlocked /\ rpc' = "idle"
+  /\ UNCHANGED plan /\ UNCHANGED retireKeeps /\ UNCHANGED archiveKeeps /\ UNCHANGED entry
+
+\* The retire dies: its locks go with the process, and the disk keeps what it wrote.
+RetireDies ==
+  /\ rpc /= "idle"
+  /\ lock' = Unlocked /\ rpc' = "idle"
+  /\ UNCHANGED <<ledger, plan>> /\ UNCHANGED retireKeeps /\ UNCHANGED archiveKeeps
+  /\ UNCHANGED entry
 
 \* handoff/SKILL.md `! uv run --project "$T/../source" jbus forget "$M/home-id" > /dev/null; then`
+\* It runs once `jbus retire` ended well: the plan is archived and s's ledger is empty.
 ForgetId ==
   /\ Retiring /\ logged = "kept" /\ handoff = "none" /\ plan = "archived" /\ homeId = "me"
+  /\ rpc = "idle" /\ (ledger["s"] = {} \/ Fault = "retire-no-carry")
   /\ homeId' = "none"
-  /\ UNCHANGED <<handoff, next, plan, gates, gatesFile, logged>> /\ UNCHANGED entry /\ UNCHANGED fix
+  /\ UNCHANGED <<handoff, next, plan, gates, gatesFile, logged, rpc>> /\ UNCHANGED entry /\ UNCHANGED fix
 
 \* Last, the note (next, above), on the first run or on one again, which finds the note in log/
 \* by its `Was home:` line.
 ForgetNote ==
   /\ Retiring /\ homeId = "none" /\ next = "written"
   /\ next' = "none"
-  /\ UNCHANGED <<handoff, plan, homeId, gates, gatesFile, logged>> /\ UNCHANGED entry /\ UNCHANGED fix
+  /\ UNCHANGED <<handoff, plan, homeId, gates, gatesFile, logged, rpc>> /\ UNCHANGED entry /\ UNCHANGED fix
 
 ----
 \* The blocker's fixes.
@@ -272,9 +325,8 @@ AddGreen(t) ==
   /\ UNCHANGED <<clear, ledger, lock, home, fixRow, admitted, mpc, seenTo, seenWas>>
   /\ UNCHANGED entry /\ UNCHANGED scope
 
-\* `jbus queue add` of a fix, through admit: in the ledger of its brief's home,
-\* jbus/blockers.py `directory = homes.home_of(config.home(project), text)`, under that home's
-\* lock for this one step, below the cap, jbus/blockers.py `if len(had) < config.user.retry_cap:`.
+\* `jbus queue add` of a fix, through admit: in the ledger of its brief's home, read again under
+\* that home's lock, jbus/blockers.py `now = homes.home_of(home, text)`, so one step here, below the cap, jbus/blockers.py `if len(had) < config.user.retry_cap:`.
 \* At the cap it is refused and raised: no ledger changes. A brief counted before, by its sha,
 \* is no new try, jbus/blockers.py `if any(one.get("sha") == sha for one in had):`.
 Admit(t) ==
@@ -348,16 +400,19 @@ MoveWriteWas ==
   /\ UNCHANGED <<clear, home, fixOf, fixRow, admitted>>
   /\ UNCHANGED entry /\ UNCHANGED scope
 
-\* The move dies: its locks go with the process, and the disk keeps what it wrote.
+\* The move dies: the locks it holds, from its read on, go with the process, and the disk keeps
+\* what it wrote.
 MoveDies ==
   /\ mpc /= "idle"
-  /\ lock' = [h \in Homes |-> FALSE] /\ mpc' = "idle" /\ seenTo' = {} /\ seenWas' = {}
+  /\ lock' = IF mpc \in {"read", "wrote"} THEN [h \in Homes |-> FALSE] ELSE lock
+  /\ mpc' = "idle" /\ seenTo' = {} /\ seenWas' = {}
   /\ UNCHANGED <<clear, ledger, home, fixOf, fixRow, admitted>>
   /\ UNCHANGED entry /\ UNCHANGED scope
 
 Next ==
   \/ Restage \/ BuiltOnMerges \/ BriefEntry \/ RowsEnd \/ CloseAppend \/ CloseRewrite \/ CloseDies
-  \/ WriteNote \/ HandGates \/ RenameGates \/ KeepNote \/ MoveOlder \/ ArchivePlan \/ ForgetId
+  \/ WriteNote \/ HandGates \/ RenameGates \/ KeepNote \/ MoveOlder
+  \/ RetireLock \/ RetireCarry \/ ArchivePlan \/ RetireEmpty \/ RetireDies \/ ForgetId
   \/ ForgetNote
   \/ \E t \in Fixes : AddGreen(t) \/ Admit(t) \/ FixFails(t)
   \/ Clear \/ MoveName \/ MoveRead \/ MoveWriteTo \/ MoveWriteWas \/ MoveDies
@@ -381,11 +436,12 @@ RetireWhole ==
     /\ \A x \in Briefs : HomeOf(x) = "u"
 
 \* A blocker's fix is counted once across a move: each fix admit counted is in one ledger, and in
-\* two only between the two writes of a move that carries it, the second not yet made.
+\* two only between the two writes of a move that carries it, or of the retire of s, which the
+\* archive runs again while s's home-id stands, the second not yet made.
 FixCountedOnce ==
   \A t \in admitted :
     \/ Count(t) = 1
-    \/ Count(t) = 2 /\ t = "f1" /\ t \in ledger[HomeOf(t)]
+    \/ Count(t) = 2 /\ t \in ledger[HomeOf(t)] /\ (t = "f1" \/ homeId = "me")
 
 \* A counted fix is in the ledger admit reads for it, the one of its brief's home, once no move
 \* runs. (A rule this model adds to the brief's three: today's code breaks it.)

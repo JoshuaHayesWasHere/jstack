@@ -8,7 +8,9 @@ import pytest
 
 from jbriefs import home as homes
 from jbus import blockers
-from test_jbus_queue import add, brief, kitchen  # noqa: F401
+from scoped import scope
+from test_jbus_kitchen import Kitchen
+from test_jbus_queue import add, brief
 
 FIX = "Fix of: check:beta\nWhen green: `check` passes on the fix's head\n"
 
@@ -22,13 +24,30 @@ def retire(kitchen, scope="flow"):
 
 
 def queue_fix(kitchen, slug):
-    return kitchen.main("--project", "demo", "queue", "add", slug, "--priority", "1", stdin=fix(
-        slug, "uncategorized"
-    ))
+    return kitchen.main(
+        "--project",
+        "demo",
+        "queue",
+        "add",
+        slug,
+        "--priority",
+        "1",
+        stdin=fix(slug, "uncategorized"),
+    )
 
 
 def slugs(directory):
     return [one["slug"] for one in blockers.tries(directory, "check:beta")]
+
+
+@pytest.fixture
+def kitchen(tmp_path, monkeypatch):
+    """The demo project, the user's word given, and the flow scope's home."""
+    made = Kitchen(tmp_path, monkeypatch)
+    made.word()
+    scope(made.home, "flow", "mcp:flow-home")
+    yield made
+    made.close()
 
 
 @pytest.fixture
@@ -41,12 +60,13 @@ def capped(kitchen):
 
 
 def test_a_retired_scope_s_fixes_count_against_the_cap_in_the_catch_all(capped):
+    plan = (capped.home / "flow" / "plan.md").read_text()
     code, said = retire(capped)
     assert code == 0, said
     assert slugs(homes.catchall(capped.home)) == ["alpha", "bravo"]
     assert slugs(capped.home / "flow") == []
     assert not (capped.home / "flow" / "plan.md").exists()
-    assert (capped.home / "flow" / "plan-archived.md").read_text() == "# a plan\n"
+    assert (capped.home / "flow" / "plan-archived.md").read_text() == plan
     code, said = queue_fix(capped, "charlie")
     assert code != 0
     assert "check:beta had 2 fixes (alpha, bravo), the retry cap" in said
