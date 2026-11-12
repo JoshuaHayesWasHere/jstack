@@ -451,7 +451,8 @@ def test_a_scout_row_in_work_json_is_queued_then_scouting_then_report_in(kitchen
     """The tree reads a scout row's `scout` from `work.json`: queued until it launches, scouting
     while its thread works or its Report does not say done, and report in once its Report says
     `Status: done`. A Report that does not say done is the row's leftover only once its thread
-    ended: while the thread works, the scout is at work. The row's other fields, which jview and the digest read, say what they did."""
+    ended: while the thread works, the scout is at work. The row's other fields, which jview and
+    the digest read, say what they did."""
     add(kitchen, "look")
     kitchen.poll()
     line = judged(kitchen, "look")
