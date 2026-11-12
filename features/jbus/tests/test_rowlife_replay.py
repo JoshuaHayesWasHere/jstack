@@ -2,10 +2,10 @@
 `features/jbus/spec/RowLife.tla`, read by `RowLife.trace.py`, so a status step that no action of the
 model makes fails here.
 
-The fixture is 138 lines of jstack's own log: the rows of the four misses of the spec before
+The fixture is 132 lines of jstack's own log: the rows of the four misses of the spec before
 st-code-conforms (pm-scaffold-reuse and pm-film-test-in-check removed while running, st-main and
-ci-flow-close-cite done after their pull request closed), po-sc-raise queued again when its thread
-settled, and 20 rows that ran clean. The TLC runs skip where no Java runs TLC."""
+ci-flow-close-cite done after their pull request closed), and 20 rows that ran clean. The TLC runs
+skip where no Java runs TLC."""
 
 import importlib
 import json
@@ -46,7 +46,7 @@ def replay(log, capsys):
 
 def test_every_real_line_of_the_fixture_is_a_step_of_the_model(capsys):
     code, said = replay(FIXTURE, capsys)
-    assert said == ["138 lines, 138 matched, 0 matched no step"]
+    assert said == ["132 lines, 132 matched, 0 matched no step"]
     assert code == 0
 
 

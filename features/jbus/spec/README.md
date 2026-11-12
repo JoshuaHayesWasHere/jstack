@@ -58,7 +58,7 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --e
 It writes `RowLife-statechart/`: `chart.mmd`, `stories.md` and `summary.json`, labelled by `RowLife.map.py`.
 No chart's PNG or Excalidraw scenes, nor the charts page, is committed: `make charts`, at the repo's root, draws them from each committed `chart.mmd` into a folder git ignores, and prints the page's path.
 Each status on the chart says what in `work.py` sets it, and each step that moves the status is labelled by its row of `queue.MOVES`.
-The regions draw 90 of their 119 arrows: a step whose next status turns on a fact the chart does not show, such as a pull request that merges from a row at `gate`, is left out, and `tlc/regions-all.mmd` has every one.
+The regions draw 79 of their 104 arrows: a step whose next status turns on a fact the chart does not show, such as a pull request that merges from a row at `gate`, is left out, and `tlc/regions-all.mmd` has every one.
 Its `tlc/` folder holds TLC's output, which is not committed.
 
 ## What the model leaves out
@@ -66,7 +66,8 @@ Its `tlc/` folder holds TLC's output, which is not committed.
 - The facts behind a status, past the folds above (a Result that owes its pull request, each step of an open pull request): `test_jbus_queue_moves.py` walks every combination.
 - A restate between passes (`restated.restate`) that the next pass corrects, the `work-drift` event: here a fact's change and the pass that sees it are one step, but for the depends an `add` changes (`Depends`).
   So is a pass that heard from GitHub or T3 Code alone, which keeps the last value unconfirmed.
-- The faults the table leaves out: a pull request read in neither of GitHub's lists while the row has one, and a thread, Result or pull request of a row with no launch record. A pass marks each one `"legal": false` in `transitions.jsonl` and writes it all the same, and `statechart replay` names it.
+- The faults the table leaves out: a pull request read in neither of GitHub's lists while the row has one, and a thread, Result or pull request of a row with no launch record.
+  A pass marks each one `"legal": false` in `transitions.jsonl` and writes it all the same, and `statechart replay` names it.
 - The live guards of `remove`: a thread at work, an open or merged pull request, a launch with no answer yet, which read T3 Code and GitHub at that moment.
 - The scout's row, which `work.scouting` reads, and a row's `merge_after`.
 - A launch under way with no answer yet, which `remove` also refuses (`launched` in `asks._asks`): the launch is one step.

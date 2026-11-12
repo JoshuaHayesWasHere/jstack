@@ -10,8 +10,8 @@
 reader_actions = ["Grant", "Depends", "Hold", "Lift", "Remove"]
 
 STATUS = {
-    "queued": "queued (no thread yet, or its thread settled)",
-    "launched": "launched (a launch with no thread yet)",
+    "queued": "queued (no launch yet)",
+    "launched": "launched (a launch whose thread is starting)",
     "running": "running (the thread at work, a Result or not, or its pull request opening)",
     "waiting": "waiting (the thread asks you)",
     "stale": (
@@ -67,17 +67,6 @@ UNNAMED = "the pull request closes unmerged with no address of it in the Result,
 MOVES = {
     ("queued", "launched"): "a launch record names a thread for the row",
     ("queued", "gate"): "jbus opens a question on the row",
-    ("queued", "running"): "the thread T3 Code settled, whose launch stands, works again",
-    ("queued", "waiting"): "the thread T3 Code settled, whose launch stands, asks for an answer",
-    ("queued", "failed"): "the thread T3 Code settled, whose launch stands, fails",
-    ("queued", "stale"): "the thread T3 Code settled, whose launch stands, ends with nothing "
-    "written, or its turn hangs",
-    ("queued", "left"): "the thread T3 Code settled, whose launch stands, writes a Result that "
-    "leaves work",
-    ("queued", "done"): "the thread T3 Code settled, whose launch stands, writes a clean Result",
-    ("queued", "pr"): "the thread T3 Code settled, whose launch stands, opens a pull request",
-    ("queued", "merged"): "the thread T3 Code settled, whose launch stands, opens a pull request "
-    "that merges between two passes",
     ("gate", "queued"): f"{QUESTION_CLOSED} launch has no record",
     ("gate", "launched"): f"{QUESTION_CLOSED} launch has no thread yet",
     ("gate", "running"): f"{QUESTION_CLOSED} thread is at work",
@@ -97,7 +86,6 @@ MOVES = {
     ("launched", "pr"): "a pull request opens before a pass sees the thread at work",
     ("launched", "merged"): "the pull request opens and merges between two passes",
     ("launched", "gate"): "jbus opens a question on the row",
-    ("launched", "queued"): "T3 Code settles the thread, and the row may launch anew",
     ("failed", "running"): "the failed thread works again",
     ("failed", "waiting"): "the failed thread asks for an answer",
     ("failed", "stale"): "the failed thread ends with nothing written",
@@ -107,7 +95,6 @@ MOVES = {
     ("failed", "pr"): "a pull request opens",
     ("failed", "merged"): "the pull request opens and merges between two passes",
     ("failed", "gate"): "jbus opens a question on the row",
-    ("failed", "queued"): "T3 Code settles the thread, and the row may launch anew",
     ("running", "pr"): "a pull request opens",
     ("running", "left"): "the Result leaves work, or the pull request closes",
     ("running", "done"): "the thread ends with a clean Result and no pull request",
@@ -118,7 +105,6 @@ MOVES = {
     ("running", "launched"): "T3 Code no longer lists the thread, and its launch stands, or the "
     "crew opens nothing after its review",
     ("running", "gate"): "jbus opens a question on the row",
-    ("running", "queued"): "T3 Code settles the thread, and the row may launch anew",
     ("waiting", "running"): "the request is answered and the thread works again",
     ("waiting", "left"): "the thread ends after its request with work left",
     ("waiting", "done"): "the thread ends after its request with a clean Result",
@@ -128,7 +114,6 @@ MOVES = {
     ("waiting", "pr"): "a pull request opens",
     ("waiting", "merged"): "the pull request opens and merges between two passes",
     ("waiting", "gate"): "jbus opens a question on the row",
-    ("waiting", "queued"): "T3 Code settles the thread, and the row may launch anew",
     ("stale", "running"): "the thread works again",
     ("stale", "left"): "the thread stays quiet with nothing written for long enough, or writes a "
     "leftover",
@@ -139,7 +124,6 @@ MOVES = {
     ("stale", "pr"): "a pull request opens",
     ("stale", "merged"): "the pull request opens and merges between two passes",
     ("stale", "gate"): "jbus opens a question on the row",
-    ("stale", "queued"): "T3 Code settles the thread, and the row may launch anew",
     ("left", "pr"): "a pull request opens for what was left",
     ("left", "done"): "a follow-up Result says done, and names no closed pull request",
     ("left", "running"): "the thread works again on what was left",
@@ -147,8 +131,6 @@ MOVES = {
     ("left", "launched"): "the row is launched again for what was left",
     ("left", "merged"): "the pull request opens and merges between two passes",
     ("left", "gate"): "jbus opens a question on the row",
-    ("left", "queued"): "the Result no longer names the closed pull request, and the thread "
-    "settled",
     ("left", "failed"): "the Result no longer names the closed pull request, and the thread failed",
     ("left", "stale"): "the turn hangs, or the Result no longer names the closed pull request",
     ("pr", "merged"): "the pull request merges",
@@ -160,7 +142,6 @@ MOVES = {
     ("pr", "stale"): "the pull request closes unmerged while the turn hangs, or with no address "
     "of it in the Result after the thread ended",
     ("pr", "launched"): f"{UNNAMED} T3 Code lists no thread",
-    ("pr", "queued"): f"{UNNAMED} the thread settled",
     ("pr", "waiting"): "the pull request closes unmerged while the thread asks for an answer",
     ("done", "merged"): "the pull request of a done row merges on the user's accept",
 }

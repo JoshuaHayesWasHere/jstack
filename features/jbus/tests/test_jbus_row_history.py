@@ -58,8 +58,8 @@ def test_two_passes_keep_why_a_row_waits_since_when_and_each_change_of_status(ki
     }
     first_at = "2026-10-12T15:00:00+00:00"
     assert transitions(kitchen) == [
-        {"slug": "alpha", "from": "queued", "to": "pr", "at": first_at},
-        {"slug": "beta", "from": "queued", "to": "running", "at": first_at},
+        {"slug": "alpha", "from": "queued", "to": "pr", "at": first_at, "legal": False},
+        {"slug": "beta", "from": "queued", "to": "running", "at": first_at, "legal": False},
         {"slug": "beta", "from": "running", "to": "pr", "at": "2026-10-12T15:03:00+00:00"},
     ]
     shown = kitchen.main("queue", "show")[1].splitlines()

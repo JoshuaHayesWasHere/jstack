@@ -10,7 +10,7 @@ paths: "features/jbus/spec/RowLife.tla, features/jbus/src/jbus/work.py, features
 
 - **The rule, `FinalStays`:** a row that is over stays over; a `done` row may only become `merged`, and a `merged` one stays so.
 - **The harm if it breaks:** the queue, `watch.final` and jmerge all read `work.over`, so a row seen over and then not is launched, merged or judged again.
-- **The second rule, `MovesKnown`:** each move of the status is one of `queue.MOVES`, so a pass marks `"legal": false` only a fault.
+- **The table:** `queue.MOVES` is each change of status one step of TLC's graph of the spec makes, so a pass marks `"legal": false` only a fault.
 
 It holds because `queue.derive` keeps the status of a row that is over (`work.kept`), so the check is of the code's derive and not only of the table.
 
@@ -38,7 +38,7 @@ Move `Sync:` forward only after you read every change to these files since it ag
 ## Does a change touch it
 
 Rerun it when the diff touches a file of the record, a new writer of a row's status or go, or `docs/jbus/row-moves.md`.
-`features/jbus/tests/test_rowlife_spec.py` also fails when `queue.MOVES` and the spec's `Moves` differ, or when `work.VALUES` gains a value the spec neither has nor names as joined.
+`features/jbus/tests/test_rowlife_spec.py` also fails when `queue.MOVES` and the status edges of TLC's graph differ, or when `work.VALUES` gains a value the spec neither has nor names as joined.
 
 ## Run it
 
@@ -49,8 +49,8 @@ uv run pytest features/jbus/tests/test_rowlife_spec.py -q
 It runs TLC in a copy of the spec folder and prints `6 passed` in a few seconds; it skips where no Java runs TLC.
 The bare TLC command is in `features/jbus/spec/RowLife.md`, "Check the rule"; run it in a copy of the folder, since TLC writes `states/` where it runs.
 
-- **Bounds:** one row, `Fault = "none"`, 2502 distinct states, `TypeOK`, `FinalStays` and `MovesKnown`.
-- **The canaries:** `Fault = "no-latch"` takes `work.kept` out, and `FinalStays` breaks (`test_a_derive_that_writes_over_a_final_status_breaks_the_rule`); `Fault = "settled-queued"` gives a settled thread's row `queued` again, and `MovesKnown` breaks.
+- **Bounds:** one row, `Fault = "none"`, 3092 distinct states, `TypeOK` and `FinalStays`.
+- **The canaries:** `Fault = "no-latch"` takes `work.kept` out, and `FinalStays` breaks (`test_a_derive_that_writes_over_a_final_status_breaks_the_rule`); `Fault = "settled-queued"` gives a settled thread's row `queued` again, and its graph has status edges `queue.MOVES` lacks.
 - **Assumptions:** a fact's change and the pass that sees it are one step (no restate drift between passes, no one-source pass); the facts are folded (an open pull request's eight steps are `check`, `quiet` is `working`); no clock, so `watch.unwritten`'s stale to left is out; no scout row and no `merge_after`.
   The rest is in the README's "What the model leaves out".
 
@@ -64,7 +64,7 @@ When every step is backed, it is a bug: tell it as the row's moves in the code's
 ## Change the model when the code changes on purpose
 
 - A new status or value: add it to `ValueOf` and `StatusOf` in the order of `work.PATTERNS`, then rerun.
-- A new move in `queue.MOVES`: the test fails until `Moves` in the spec has it.
+- A new move in `queue.MOVES`: the test fails until the spec's graph makes it.
 - A new writer of the status: model it as a step, or say in the README why it moves nothing.
 - Show a changed rule failing on a scratch break before you trust a pass: take the guard out in your own worktree, uncommitted, see the trace, `git restore` the file.
 
@@ -87,3 +87,9 @@ With this row's `Remove`, which follows `asks.out`, `MovesKnown` broke at once (
 The sync commit moved there.
 
 st-model-sync then merged into main as #1734, and the row's own commits moved onto main at `cf26d3e5f`, where #1759 had moved the sync to `d3f642c80` with the model: its `stale` launch and `settled-queued` canary stand beside this row's `Remove`, `ValueOf` and `MovesKnown`, and both rules hold with each canary breaking its rule.
+
+st-code-conforms then took main in at `74f067be2`.
+There `queue.MOVES` is the graph's status edges, so `Moves` and `MovesKnown` are gone, and `remove` refuses a row that is over (queue.py `{verb.slug} is {row['status']}, and a row that is over stays`).
+So `Remove` guards on `status \notin Final \cup {"removed"}` alone, and `FinalStays` is again `status \in Final => status' \in Final`.
+`remove`'s other refusals, a thread at work, an open or merged pull request, a launch with no answer yet, read T3 Code and GitHub at the verb, not the facts a pass last saw, so the spec leaves them out (RowLife.md's "What the model leaves out"), and the graph keeps each removal a replayed log can show.
+`Depends`, `Pass` and #1724's `ValueOf` stand, and `FinalStays` holds over 3092 distinct states with each canary breaking its check.
