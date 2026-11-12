@@ -238,7 +238,7 @@ def test_a_goes_word_stands_for_the_root_and_approves_no_follow_up(kitchen):
     assert queue.standing_words(kitchen.state, queue.GOES) == {}
 
 
-def test_an_unchecked_a_bot_chat_or_another_homes_word_gives_the_root_no_goes(kitchen):
+def test_an_unchecked_a_bot_chat_or_another_threads_word_gives_the_root_no_goes(kitchen):
     kitchen.word()
     assert stand(kitchen, "--word", "said-by-user", "--covers", "goes") == (
         1,
@@ -252,9 +252,12 @@ def test_an_unchecked_a_bot_chat_or_another_homes_word_gives_the_root_no_goes(ki
         1,
         standing.NOT_OWN.format(id=chat),
     )
-    polished = said_in_polish(kitchen, GOES)
-    assert stand(kitchen, "--word", polished, "--covers", "goes") == (
-        1,
-        f"refused: word {polished} is the polish home's, and only the root's word stands for goes",
-    )
+    (kitchen.home / "home-id").write_text(f"{ROOT}\n")
+    for thread in (POLISH, "mcp:crew-alpha"):
+        said = said_in_polish(kitchen, GOES, thread=thread)
+        assert stand(kitchen, "--word", said, "--covers", "goes") == (
+            1,
+            f"refused: word {said} was not said in the root's thread, and only a word said there "
+            "stands for goes",
+        )
     assert queue.standing_words(kitchen.state, queue.GOES) == {}

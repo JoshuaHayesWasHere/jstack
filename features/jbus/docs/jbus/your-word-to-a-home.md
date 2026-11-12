@@ -128,6 +128,8 @@ A home holds one standing word, and a later one takes its place.
 
 `jbus standing --to <project> --word <id> --withdraw` ends it, and prints `withdrawn: <project>, the <home> home's standing word <id> approves nothing more`; what it approved keeps its go.
 `jbus needs` names each home's standing word while it holds: `<project> <home> home standing word <id> for follow-ups that open no door: "<your words>"`.
+Making a word stand and withdrawing it are acts ([Who acts, and the acts log](the-queue.md#who-acts-and-the-acts-log)) whose verb is `standing`, whose subject is the home's scope, and whose `pre` is `stand` or `withdraw`.
+A go on a standing word is no act on the word, so it never keeps the home from approving other rows on that word with `--word <id>`.
 
 ## A standing word for goes
 
@@ -136,12 +138,11 @@ It prints `standing: <project>, the root gives a plan entry its go on word <id>`
 The root then gives each entry its go with `jbus plan go <entry> --standing --from <root id>` ([The root's go of an entry](the-plan.md#the-roots-go-of-an-entry)), and no longer asks you for one.
 It is not a word for follow-ups: a word stands for one of the two, and `--covers follow-ups` is the default.
 
-Only a word jbus read from your own message in T3 Code, said in the root's thread, stands for goes.
-A word from the bot's chat, or one whose time was typed, is refused as above, and a word of a scoped home is `refused: word <id> is the <home> home's, and only the root's word stands for goes`.
+Only a word jbus read from your own message in T3 Code, said in the root's own thread, stands for goes.
+A word from the bot's chat, or one whose time was typed, is refused as above, and a word said in any other thread, a scoped home's or a crewmate's, is `refused: word <id> was not said in the root's thread, and only a word said there stands for goes`.
+Its acts are those of a word for follow-ups, with the subject `goes:` in place of the home's scope, so a jbus that knows only follow-ups never reads it as one.
 `jbus standing --to <project> --word <id> --covers goes --withdraw` ends it, and prints `withdrawn: <project>, the root's standing word <id> for goes gives no more go`.
 Each go the root gave on it then ends, and the rows of those entries that have not launched wait for you again.
-Making a word stand and withdrawing it are acts ([Who acts, and the acts log](the-queue.md#who-acts-and-the-acts-log)) whose verb is `standing`, whose subject is the home's scope, and whose `pre` is `stand` or `withdraw`.
-A go on a standing word is no act on the word, so it never keeps the home from approving other rows on that word with `--word <id>`.
 
 ## A waiver in plain words
 

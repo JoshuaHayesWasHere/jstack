@@ -310,11 +310,12 @@ The row's `approval` field records the approval:
 
 | Field | What it holds |
 | --- | --- |
-| `basis`, `ref` | `word`, `answer`, `message`, `pick` or `bot-chat`, and the id, the number or the reference. `page` is the basis of a go from a page's send: no verb gives it, and such a go holds. By rule: `rule`, with `follow-up` or a rule's number as `ref`. On a home's standing word: `standing`, with the word's id as `ref`. |
+| `basis`, `ref` | `word`, `answer`, `message`, `pick` or `bot-chat`, and the id, the number or the reference. `page` is the basis of a go from a page's send: no verb gives it, and such a go holds. By rule: `rule`, with `follow-up` or a rule's number as `ref`. On a home's standing word: `standing`, with the word's id as `ref`. On a plan entry's go: `entry`, with the entry's slug as `ref`. |
 | `words`, `said_at`, `said_in` | Your words, when you said them, and the title of the thread you said them in, where jbus knows it. By rule: the follow-up rule's words and the line of the parent's go, or the line of the red run for a fix jbus filed, and the other two are empty, since you said nothing of the row. On a standing word: your words of that word, when and where you said them. |
 | `checked` | `true` when jbus read the words and the time from T3 Code, `false` for words it did not read itself: a typed answer, a word given on the page of `jbus view`, or a word whose text was typed and not read from T3 Code. For a row approved by rule it is `true`, since jbus read the rule itself. |
 | `follows` | By rule or on a standing word only: the slug of the parent row. |
-| `ground` | By rule only, for a fix jbus filed from a red check, which names no parent: the words that name the red run, which the line says in place of the parent (above). |
+| `ground` | By rule, for a fix jbus filed from a red check, which names no parent: the words that name the red run, which the line says in place of the parent (above). On the root's go of a plan entry: `standing word <id>`, the root's standing word for goes it gave the go on (below). |
+| `message` | On a plan entry's go only: your message the go rests on, `<thread id>/<message id>`, which for the root's go is your message of its standing word. |
 | `ran_by`, `ran_at` | The session that ran the command (`CLAUDE_CODE_SESSION_ID`) with its directory, and the time by the clock. No option gives either. |
 | `brief_sha` | The sha256 of the brief jbus stored at the go: what pins the go to one text. |
 | `meaning`, `scope` | The brief's meaning fingerprint at the go, and the sha256 of it. The go holds for any brief that means the same (below). |

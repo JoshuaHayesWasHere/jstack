@@ -22,8 +22,10 @@ holds.
 
 `--covers goes` makes the root home's word its standing word for goes instead: the root gives a
 plan entry its go on it (`jbus plan go <entry> --standing --from <root id>`, `jbus.plan`), where
-it would otherwise ask the user for one. Only a word of the root's stands for goes. Its act's
-subject is `goes:` (`queue.standing_subject`), and its withdrawal ends each go the root gave on it.
+it would otherwise ask the user for one. Only a word said in the root's own thread stands for
+goes: a word said in a thread that is no home's is the root home's too, and stands for none. Its
+act's subject is `goes:` (`queue.standing_subject`), and its withdrawal ends each go the root gave
+on it.
 """
 
 from __future__ import annotations
@@ -31,6 +33,7 @@ from __future__ import annotations
 import argparse
 from datetime import UTC, datetime
 
+from jbriefs.home import thread_of
 from jbus import Config, Refused, acts, locked, party, queue, verbs, word
 from jbus.passes import Pass
 
@@ -54,10 +57,11 @@ def _standing(args: argparse.Namespace, config: Config) -> int:
         raise Refused(f"refused: {acts.path(run.state)} has no word {args.word}")
     if not kept.checked or not kept.ref or kept.said_in.startswith(queue.BOT_CHAT):
         raise Refused(NOT_OWN.format(id=kept.id))
-    if args.covers == queue.GOES and kept.home:
+    root = thread_of(run.home)
+    if args.covers == queue.GOES and (not root or kept.ref.partition("/")[0] != root):
         raise Refused(
-            f"refused: word {kept.id} is the {kept.home} home's, and only the root's word stands "
-            "for goes"
+            f"refused: word {kept.id} was not said in the root's thread, and only a word said "
+            "there stands for goes"
         )
     home = name(kept.home)
     said = party.Evidence("typed", kept.id, kept.words, kept.at, kept.said_in, True)
