@@ -5,7 +5,8 @@ and jmerge merged #1828 on 2026-11-12 on its green checks and clean review alone
 user asked for was lost without a word.
 
 The hold is lifted by the user's own message, which jbus reads and checks (`--accept --message`),
-or by a `Waived:` line for the judged clause whose word jbus checked. A `judged:` clause that
+or by a `Waived:` line for the judged clause whose word jbus checked; a home's accept on typed
+words is refused (`jmerge.cli.Repo.accept`). A `judged:` clause that
 names no user, a reviewer or a measure, holds nothing.
 
 The tests run the command against a real origin and a fake `gh`, with the kitchen of
