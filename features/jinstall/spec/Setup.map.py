@@ -27,8 +27,9 @@ PATH = {
     "dir": "a folder it made",
     "seed": "a seeded config",
     "hook": "a repo's hook",
+    "stage": "a half-made state folder",
 }
-ORDER = ["above", "state", "dir", "seed", "hook"]
+ORDER = ["above", "state", "dir", "seed", "hook", "stage"]
 
 
 def covered(v, path):
@@ -37,6 +38,7 @@ def covered(v, path):
         or (path == "state" and len(v["created"]) > 0)
         or (path == "seed" and v["seeded"])
         or (path == "hook" and v["repos"])
+        or path == "stage"
     )
 
 
@@ -107,10 +109,14 @@ region_names = ["What an uninstall would leave", "The expert's webhook"]
 
 
 def group(v, facts):
-    return "Leaves something behind" if left(v) else None
+    if left(v):
+        return "Leaves something behind"
+    if v["op"] == "none" and v["disk"]:
+        return "Installed"
+    return None
 
 
-group_colors = {"Leaves something behind": "#fdebd0"}
+group_colors = {"Leaves something behind": "#fdebd0", "Installed": "#d5f5e3"}
 
 MAKES = {
     "dir": "the install makes a folder",

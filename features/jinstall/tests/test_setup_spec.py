@@ -1,11 +1,11 @@
 """The setup records as a TLA+ spec, `features/jinstall/spec/Setup.tla`: each quote of the code it
 models stands once in its file, each carrier of the ledger is a variable, and TLC's verdicts on
-today's code and on the canaries are the ones the spec's README keeps. Today's code holds the
-mirror, records each path the install makes for its own use, and holds OneWebhook and
-UrlNamesWebhook however an expert's turn stops, and it breaks UninstallComplete through the
-record's own folder. The install's canary, which makes a folder before it records it, breaks
-UninstallComplete through the folder, and each expert canary breaks the rule its fault broke.
-The TLC runs skip where no Java runs TLC."""
+today's code and on the canaries are the ones the spec's README keeps. Today's code holds every
+rule: the mirror, each path the install makes for its own use, UninstallComplete, since `_note`
+makes the record's folder and the levels above it only with a record that names them, and
+OneWebhook and UrlNamesWebhook however an expert's turn stops. The install's canary, which makes
+a folder before it records it, breaks UninstallComplete through the folder, and each expert
+canary breaks the rule its fault broke. The TLC runs skip where no Java runs TLC."""
 
 import importlib
 import re
@@ -44,8 +44,8 @@ CARRIERS = ("D-078", "D-092", "D-093", "D-094", "D-095", "D-136", "D-137", "D-13
 RULES = {
     "MirrorKept": ("mirror", None),
     "MadePathsRecorded": ("install", None),
-    "RecordLevelsRecorded": ("install", "NoteMkdir"),
-    "UninstallComplete": ("install", "NoteMkdir"),
+    "RecordLevelsRecorded": ("install", None),
+    "UninstallComplete": ("install", None),
     "OneWebhook": ("expert", None),
     "UrlNamesWebhook": ("expert", None),
 }
@@ -136,12 +136,11 @@ def alone(rule: str, part: str, fault: str = "none") -> subprocess.CompletedProc
 
 
 @JAVA
-def test_tlc_on_setup_cfg_finds_the_record_folder_made_before_its_record():
-    """Setup.cfg, today's code on all three parts: the trace its comment keeps."""
+def test_tlc_on_setup_cfg_finds_no_broken_rule():
+    """Setup.cfg, today's code on all three parts: TLC checks every state and breaks no rule."""
     ran = tlc((SPEC / "Setup.cfg").read_text())
-    assert "distinct states found" in ran.stdout, ran.stdout[-4000:]
-    assert "Invariant UninstallComplete is violated" in ran.stdout, ran.stdout[-4000:]
-    assert re.findall(r"^State \d+: <(\w+)", ran.stdout, re.M) == ["Initial", "Begin", "NoteMkdir"]
+    assert ran.returncode == 0, ran.stdout[-4000:]
+    assert "No error has been found" in ran.stdout, ran.stdout[-4000:]
 
 
 @JAVA
