@@ -8,6 +8,7 @@ SAID = {
     "not-passed": "waits on its check",
     "check-failed": "its check failed",
     "conflicts": "conflicts with main",
+    "row-over": "held: its row is over, and no accept lifts it",
     "row-held": "held: its row has no go",
     "declines": "held: a drop or decline the review did not uphold",
     "touches": "held: it touches a protected path",
@@ -20,7 +21,7 @@ SAID = {
     "in-batch": "in jmerge's batch, whose check runs",
 }
 
-HOLDS = {"row-held", "declines", "touches", "merge-off"}
+HOLDS = {"row-over", "row-held", "declines", "touches", "merge-off"}
 CREW = {"no-review", "check-failed", "conflicts", "merged-tree-fails"}
 FIXES = {"check-failed", "conflicts", "merged-tree-fails"}
 
@@ -95,7 +96,7 @@ STEPS = {
     "GitHubDecides": "GitHub decides it merges cleanly or not",
     "GitHubMergesBase": "GitHub merges main into it",
     "GuardsFail": "the guards fail on its tree over main",
-    "JoinBatch": "it joins jmerge's batch",
+    "JoinBatch": "it joins a batch with other pull requests",
     "Judge": "jmerge judges it",
     "Lift": "its check passes, and jbus lifts its hold",
     "MainFixed": "jbus's revert or fix lands, and main is green",
@@ -117,6 +118,9 @@ def step(action, before, after):
     if action == "NewHead":
         crew = before["reviewed"] and not after["reviewed"]
         return STEPS["CrewFix"] if crew else STEPS["GitHubMergesBase"]
+    if action == "Alone":
+        merged = after["st"] == "merged"
+        return "judged alone, jmerge merges it" if merged else "judged alone, the guards fail"
     if action == "CheckEnds":
         return "its check passes" if after["ci"] == "pass" else "its check fails"
     return STEPS.get(action, action)
