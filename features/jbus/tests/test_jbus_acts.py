@@ -567,6 +567,22 @@ def test_the_bots_answer_that_keeps_a_go_gates_default_is_a_go_and_a_door_still_
     assert questions.question(kitchen.state, numbers["door"]).answer is None
 
 
+def test_the_users_answer_that_differs_from_a_parked_go_gates_default_is_the_go(kitchen, route):
+    """The gate a bot go parks on a door asks "may <slug> go?", whose default is that the row
+    waits (`acts._may_go`), so the user's own answer that differs from it is their go: it
+    approves the row on that answer, basis `answer`, and nothing else is sent."""
+    add(kitchen, "alpha", approve=False, text=brief("alpha", HOLDS))
+    status, said = bot_go(route, kitchen, "alpha")
+    assert (status, said["act"]["outcome"]) == (200, "gated"), said
+    number = said["act"]["gate"]
+    now(kitchen, "yes, rewrite alpha")
+    code, said = kitchen.main("--as", "user", "answer", str(number), "--differs", "--message", REF)
+    assert code == 0, said
+    assert f"nothing is sent, and approved alpha: brief {sha12(stored(kitchen, 'alpha'))}" in said
+    made = rows(kitchen)["alpha"]["approval"]
+    assert (made["basis"], made["ref"], made["checked"]) == ("answer", str(number), True)
+
+
 def test_an_agents_session_cannot_make_the_bots_key(kitchen, route):
     kept = (kitchen.state_dir / acts.KEY).read_text()
     assert kitchen.main("bot", "key") == (1, f"{acts.BOT_KEY_SESSION}\n")
