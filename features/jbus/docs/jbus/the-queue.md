@@ -186,7 +186,8 @@ An `add` of a row that exists sets `--priority`, `--depends` and `--merge-after`
 `--entry <the row's own slug>` makes the row its own entry again, and then it takes no entry from a parent it names.
 A follow-up with no `--entry` counts for its parent's entry in `jbus plan` ([The plan](the-plan.md)), and keeps it through a `rename` where a `Follows:` line names the parent.
 
-An `add` by a home, one with `--from`, needs an entry of the plan of the brief's home, so that the entry's go approves the row and you give the go once per entry ([The go of an entry](the-plan.md#the-go-of-an-entry)).
+An `add` by a home, one with `--from`, needs an entry of the plan of the brief's home, so that the entry's go approves the row ([The go of an entry](the-plan.md#the-go-of-an-entry)).
+An entry gets its go once: from the root home, on the user's standing word for goes, or from the user, for an entry with a row that holds a gate and for a new goal.
 The brief's home is the one its `Home:` line names, and a brief of `uncategorized` takes an entry of its own plan or of the root's.
 A row with no `--entry` is filed under its own slug, so it needs no `--entry` where its slug is an open entry of that plan.
 For a new row whose brief has no `Follows:` line, `add` refuses an entry the plan does not have, and queues nothing:
