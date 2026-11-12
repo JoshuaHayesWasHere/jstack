@@ -767,12 +767,13 @@ def test_strict_darwin_reaches_the_importers_of_an_edit_inside_clis_darwin_branc
 TICK = "features/jbus/src/jbus/tick.py"
 
 
-def test_on_a_pull_request_an_edit_deep_in_jbus_selects_its_own_tests_and_not_the_jbus_suite():
-    """A pull request's check reaches through imports only the tests near a change: an edit to
-    `tick.tick` selects the tests that import `jbus.tick` and those that import a module that
-    calls `tick.tick`, with the tests near a module that reads every jbus module through
-    `jbus.__path__`. The wide rule selects nearly every test of jbus, which reach `tick` through
-    `jbus.cli` and the modules it imports, and main's full run still runs them."""
+def test_by_the_narrow_reach_an_edit_deep_in_jbus_selects_its_own_tests_and_not_the_jbus_suite():
+    """The narrow reach (`--part names`) reaches through imports only the tests near a change:
+    an edit to `tick.tick` selects the tests that import `jbus.tick` and those that import a
+    module that calls `tick.tick`, with the tests near a module that reads every jbus module
+    through `jbus.__path__`. The wide rule selects nearly every test of jbus, which reach `tick`
+    through `jbus.cli` and the modules it imports, and a pull request's check runs them, as
+    main's does."""
     text = (REPO / TICK).read_text()
     line = next(at for at, one in enumerate(text.splitlines(), 1) if one.startswith("def tick("))
     wide, _ = select.selection([TICK])
@@ -787,7 +788,7 @@ def test_on_a_pull_request_an_edit_deep_in_jbus_selects_its_own_tests_and_not_th
     assert len(suite & set(near)) * 2 < len(suite)
 
 
-def test_on_a_pull_request_an_edit_to_a_private_helper_reaches_the_tests_of_what_calls_it():
+def test_by_the_narrow_reach_an_edit_to_a_private_helper_reaches_the_tests_of_what_calls_it():
     """An edit to `tick._watched`, which `tick.tick` calls, selects through imports what an edit to
     `tick.tick` selects: a module that calls `tick.tick` carries the change on, as it does when
     the edit is in `tick.tick` itself."""
