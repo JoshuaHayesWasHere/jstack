@@ -263,11 +263,12 @@ Unpaused ==
 \* ---- jbus's pass: jbus/threads.py `def resume(run: Pass, client: Client, world: World) -> None:`
 
 \* jbus tells a thread jbus holds, whose turn failed with no Result, to carry on, at most CarryOns
-\* times. A thread whose pull request is open or merged, or that is settled, gets none.
+\* times. A thread whose pull request is open or merged, or that is settled, gets none. Whether
+\* its home was told the row is its own is no guard: a thread left after a hung turn that later
+\* fails with no Result is still carried on.
 ResumeGuard ==
     /\ Holds /\ result \notin {"pr", "merged"}     \* jbus/threads.py `if len(live) > 1 or slug in run.gated or slug in world.open or slug in world.merged:`
     /\ put = "open"     \* jbus/threads.py `if not over or not ended or thread.get("settled") or thread.get("snoozed"):`
-    /\ ~told
 CarryOn ==
     /\ ResumeGuard
     /\ turn = "failed" /\ result = "none"     \* jbus/threads.py `over = not at_work([thread]) if owes else status in ENDED`
