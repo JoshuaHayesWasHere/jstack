@@ -418,12 +418,10 @@ The rules:
 - `AnsweredLeaves`: once the user's answer, or the default by silence, settles a gate, gates.md gives the list no open gate of it and no question of it stays open.
 - `ReadOnce`: the merging block shows each merge line once, and merge-seen counts no line as read that it did not show, also after merge.log is cut.
 
-Today's code, in today's world, breaks `ReadOnce` at 1083 distinct states: a cut of merge.log leaves merge-seen counting a line no block showed.
+Today's code, in today's world, holds every rule.
 A closed project's jmerge alert stays open in streaks.json, as `jmerge case-control` on disk, but the list leaves it out, so a close holds `ListIsTrue`.
-Each other act alone breaks its rule: a cut breaks `ReadOnce`, and a gate asked by the home is asked again by the handoff under the catch-all's key, so answering one of its two questions leaves the other open (`AnsweredLeaves`, `ListIsTrue`).
-With no act, every rule holds.
-`MarkBy = "line"`, a merge-seen that names the last line it read, which no code writes, holds `ReadOnce` also where merge.log is cut.
-The canary `Fault = "stale-streak"`, a pass that leaves the stall alert from before, breaks `ListIsTrue` with no act; `Fault = "closed-listed"`, a list that keeps a closed project's alerts, as the code did before, breaks `ListIsTrue` where a project closes; `Fault = "mark-count"`, merge-seen as the code's count over that line mark, breaks `ReadOnce` where merge.log is cut.
+Since st-one-list-home-marks, merge-seen names the last line of merge.log the merging block read, so a cut moves no line from unread to read (`ReadOnce`), and the handoff pipes a gate the home asked under the key it was asked under, so jbus asks it nothing again (`AnsweredLeaves`, `ListIsTrue`).
+The canary `Fault = "stale-streak"`, a pass that leaves the stall alert from before, breaks `ListIsTrue` with no act; `Fault = "closed-listed"`, a list that keeps a closed project's alerts, as the code did before, breaks `ListIsTrue` where a project closes; `Fault = "mark-count"`, merge-seen as a count of lines, as it was, breaks `ReadOnce` where merge.log is cut; and `Fault = "ask-again"`, the handoff that piped the home's gate under the catch-all's key, as it did, breaks `AnsweredLeaves` and `ListIsTrue` where a gate is the home's.
 `features/jbus/tests/test_one_list_spec.py` finds each quote once and runs each of these.
 
 ### Draw the chart of a gate
@@ -432,7 +430,7 @@ The canary `Fault = "stale-streak"`, a pass that leaves the stall alert from bef
 S=features/skill-library/skills/statechart/scripts
 cd features/jbus/spec
 UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
-    statechart from-spec OneList.tla --config OneList.chart.cfg --expect-broken AnsweredLeaves,ListIsTrue \
+    statechart from-spec OneList.tla --config OneList.chart.cfg \
     --title "Does a gate reach my list, and leave it once I answer?"
 ```
 

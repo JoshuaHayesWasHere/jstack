@@ -1,7 +1,7 @@
 """The one list as a TLA+ spec, `features/jbus/spec/OneList.tla`: each quote of the code it models
 stands once in its file, each carrier of the ledger is a variable, and TLC finds today's code as
-`OneList.cfg` says. With no outside act, every rule holds; each act alone breaks the rule its
-finding names; and each canary breaks its rule. The TLC runs skip where no Java runs TLC."""
+`OneList.cfg` says: every rule holds, also with each outside act alone, and each canary breaks its
+rule. The TLC runs skip where no Java runs TLC."""
 
 import importlib
 import re
@@ -67,16 +67,15 @@ def test_each_carrier_of_the_ledger_is_a_variable():
     assert [row for row in ROWS if f"\\* {row}," not in block] == []
 
 
-def tlc(world: str, fault: str, rules: list[str] | None = None, mark: str = "count") -> str:
-    """TLC's output for OneList.cfg with `World`, `Fault` and `MarkBy` set, and with only `rules`
-    (each an `INVARIANT <rule>` or `PROPERTY <rule>` line) where they are given, run in a copy of
-    the spec's folder with one worker, as the spec's README runs it. Java's tmpdir is the run's own
+def tlc(world: str, fault: str, rules: list[str] | None = None) -> str:
+    """TLC's output for OneList.cfg with `World` and `Fault` set, and with only `rules` (each an
+    `INVARIANT <rule>` or `PROPERTY <rule>` line) where they are given, run in a copy of the
+    spec's folder with one worker, as the spec's README runs it. Java's tmpdir is the run's own
     too: TLC writes Naturals.tla and the other standard modules there under fixed names, and a run
     that shares /tmp can parse one while another rewrites it."""
     cfg = (SPEC / "OneList.cfg").read_text()
-    assert 'Fault = "none"' in cfg and 'MarkBy = "count"' in cfg
+    assert 'Fault = "none"' in cfg
     cfg = re.sub(r"World = .*", f"World = {world}", cfg).replace('"none"', f'"{fault}"')
-    cfg = cfg.replace('MarkBy = "count"', f'MarkBy = "{mark}"')
     if rules is not None:
         kept = [line for line in cfg.splitlines() if not line.startswith(("INVARIANT", "PROPERTY"))]
         cfg = "\n".join([*kept, "INVARIANT TypeOK", *rules, ""])
@@ -97,36 +96,31 @@ def tlc(world: str, fault: str, rules: list[str] | None = None, mark: str = "cou
 
 TODAY = '{"closes", "cuts", "by-home"}'
 BROKEN = "Temporal properties were violated"
+HELD = "Model checking completed. No error has been found."
 
 
 @JAVA
-def test_today_s_code_breaks_read_once_as_the_cfg_says():
-    """OneList.cfg as it is: TLC stops at ReadOnce, at the state count its comment keeps."""
+def test_today_s_code_holds_every_rule_as_the_cfg_says():
+    """OneList.cfg as it is: a project closes, a hand cuts merge.log and a gate is the home's, and
+    TLC finds every rule held."""
     out = tlc(TODAY, "none")
-    assert "Invariant ReadOnce is violated" in out, out[-4000:]
-    assert "1083 distinct states found" in out, out[-4000:]
-
-
-@JAVA
-def test_with_no_outside_act_every_rule_holds():
-    """No project closes, no hand cuts merge.log, and no gate is the home's: today's code holds
-    each rule, so each break below is the act's and not the model's."""
-    out = tlc("{}", "none")
-    assert "Model checking completed. No error has been found." in out, out[-4000:]
+    assert HELD in out, out[-4000:]
 
 
 @JAVA
 @pytest.mark.parametrize(
-    ("act", "rule", "said"),
+    ("act", "rule"),
     [
-        ("cuts", "INVARIANT ReadOnce", "Invariant ReadOnce is violated"),
-        ("by-home", "PROPERTY AnsweredLeaves", BROKEN),
-        ("by-home", "PROPERTY ListIsTrue", BROKEN),
+        ("cuts", "INVARIANT ReadOnce"),
+        ("by-home", "PROPERTY AnsweredLeaves"),
+        ("by-home", "PROPERTY ListIsTrue"),
     ],
 )
-def test_each_outside_act_breaks_the_rule_of_its_finding(act, rule, said):
+def test_the_marks_and_the_handoff_hold_their_rules_in_the_world_that_broke_them(act, rule):
+    """A hand cuts merge.log and merge-seen, the last line read, still marks no unshown line read;
+    a gate the home asked is piped by the handoff under its own key and is asked once."""
     out = tlc(f'{{"{act}"}}', "none", [rule])
-    assert said in out, out[-4000:]
+    assert HELD in out, out[-4000:]
 
 
 @JAVA
@@ -136,7 +130,7 @@ def test_a_closed_projects_alert_leaves_the_list_and_a_list_that_keeps_it_breaks
     `Fault = "closed-listed"`, is the code before: the list keeps the alert, which no home can
     clear, and TLC breaks the rule."""
     held = tlc('{"closes"}', "none", ["PROPERTY ListIsTrue"])
-    assert "Model checking completed. No error has been found." in held, held[-4000:]
+    assert HELD in held, held[-4000:]
     out = tlc('{"closes"}', "closed-listed", ["PROPERTY ListIsTrue"])
     assert BROKEN in out, out[-4000:]
 
@@ -151,10 +145,17 @@ def test_a_streak_no_raiser_clears_breaks_list_is_true():
 
 @JAVA
 def test_merge_seen_as_a_count_breaks_read_once():
-    """The canary, `Fault = "mark-count"`: merge-seen marked by the last line it read holds
-    ReadOnce where a hand cuts merge.log, and the same mark taken as a count, as the code keeps
-    it, breaks it."""
-    held = tlc('{"cuts"}', "none", ["INVARIANT ReadOnce"], mark="line")
-    assert "No error has been found" in held, held[-4000:]
-    out = tlc('{"cuts"}', "mark-count", ["INVARIANT ReadOnce"], mark="line")
+    """The canary, `Fault = "mark-count"`: merge-seen as a count of lines, as the merging block
+    kept it before, breaks ReadOnce where a hand cuts merge.log."""
+    out = tlc('{"cuts"}', "mark-count", ["INVARIANT ReadOnce"])
     assert "Invariant ReadOnce is violated" in out, out[-4000:]
+
+
+@JAVA
+@pytest.mark.parametrize("rule", ["PROPERTY AnsweredLeaves", "PROPERTY ListIsTrue"])
+def test_a_home_gate_asked_again_as_the_catch_alls_breaks_answered_leaves(rule):
+    """The canary, `Fault = "ask-again"`: the handoff pipes a gate the home asked under the
+    catch-all's key, as it did before, so one gate is two questions and answering one leaves the
+    other open on the list."""
+    out = tlc('{"by-home"}', "ask-again", [rule])
+    assert BROKEN in out, out[-4000:]

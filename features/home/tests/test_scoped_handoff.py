@@ -310,14 +310,18 @@ def jbus_takes_gates(homes, monkeypatch, gate_code=0):
     return log
 
 
-def test_an_open_gate_of_an_archived_scope_becomes_a_question_of_uncategorized(homes, monkeypatch):
+def test_an_open_gate_the_scope_asked_is_handed_to_jbus_under_the_scopes_own_slug(
+    homes, monkeypatch
+):
+    """The key the home asked it under, so a gate jbus holds is not asked again (`AnsweredLeaves`
+    of `features/jbus/spec/OneList.tla`)."""
     log = jbus_takes_gates(homes, monkeypatch)
     (homes.scope_dir / "gates.md").write_text(GATE)
     _, said = homes.archives(SCOPED, homes.scope_dir)
     assert said[0] == ARCHIVED_SCOPE
-    assert "- gate 3 of gates.md is the uncategorized home's, queued: question 9" in said
+    assert "- gate 3 of gates.md is this home's own question, queued: question 9" in said
     assert log.read_text() == (
-        "slug: home-uncategorized\n## Gate 3: tea or coffee?\nStatus: open\nDefault: tea\n"
+        f"slug: home-{SCOPE}\n## Gate 3: tea or coffee?\nStatus: open\nDefault: tea\n"
         "Asked by: home\nUndo: pour it\n\n"
     )
     assert not (homes.scope_dir / "gates.md").exists()
