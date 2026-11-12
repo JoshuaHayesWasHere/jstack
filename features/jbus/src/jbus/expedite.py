@@ -63,9 +63,8 @@ crew's own proof or check clears (`Short.spells`, `TELLS`). `TABLE` holds every 
 - `rereview`, drops no scoped review ruled on or a rebase that changed the content: launch the one
   scoped reviewer over the reason's range-diff. It is `jbus.rebase`'s kind, so a head is told once,
   and it tells where a scoped reviewer of the head the Result names ended with no review;
-- `rule-breaks`, the tests the pull request adds or tightens fail on open pull requests merged
-  with it (`jmerge.preflight`): carry the fix, or name each on a `Breaks:` line of the Result,
-  told on the first pass as a `proved-` row is, since every pass it waits holds a rule back;
+- `rule-breaks`, its new tests fail on open pull requests merged with it: carry the fix, or name
+  each on a `Breaks:` line (`rulebreaks.FIX`), told on the first pass as a `proved-` row is;
 - `fresh-conflict`, `merged-tree`, `base` and `not-upheld`: rebase with "A conflict" run with
   `stale` (and fix the guards that fail for `merged-tree`), retarget to the default branch, or
   put back a drop the review did not uphold, else tell the home.
@@ -119,6 +118,7 @@ from jbriefs import below, findings, skills
 from jbus import END_TURN, crewthread, dispatch, merge, outbox, read_json, rebase, verbs, write_json
 from jbus.passes import Pass
 from jbus.review import ranges
+from jbus.rulebreaks import FIX as BREAKS_FIX
 from jbus.stall import PASSES, REVIEWING
 from jbus.t3 import Client, T3Error
 from jbus.watch import World, at_work, task_brief
@@ -532,17 +532,7 @@ TABLE = (
         'with what merged since your check. Rebase with the crew skill\'s "A conflict" block, run '
         "with `stale`, run the check command, fix what fails, and push with the block's push.",
     ),
-    Short(
-        "rule-breaks",
-        "wait",
-        ready.RULE_BREAKS,
-        "Your pull request adds or tightens the tests the reason names, and each open pull "
-        "request it names fails them merged with yours, each at the test in brackets. Where the "
-        "rule is wrong for them, carry the fix: change the rule or add an exemption, run the "
-        "check, commit and push. Where they must change, add one line to the last Result, "
-        "`Breaks: #<n> #<n> ...`, naming each, and push nothing for it: once every one is named "
-        "your pull request merges, and jbus tells each one's crew what broke it.",
-    ),
+    Short("rule-breaks", "wait", ready.RULE_BREAKS, BREAKS_FIX),
     Short(
         "base",
         "wait",

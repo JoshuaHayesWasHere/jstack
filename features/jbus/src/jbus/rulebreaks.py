@@ -36,6 +36,16 @@ FILE = "rule-breaks.json"
 LOCK = "rule-breaks.lock"
 KIND = "rule-breaks"
 EVENTS = {"rule-breaks": "quiet"}
+FIX = (
+    "Your pull request adds or tightens the tests the reason names, and each open pull "
+    "request it names fails them merged with yours, each at the test in brackets. Where the "
+    "rule is wrong for them, carry the fix: change the rule or add an exemption, run the "
+    "check, commit and push. Where they must change, add one line to the last Result, "
+    "`Breaks: #<n> #<n> ...`, naming each, and push nothing for it: once every one is named "
+    "your pull request merges, and jbus tells each one's crew what broke it."
+)
+"""What `jbus.expedite` tells the crew of a pull request `jmerge` holds for the tests it adds or
+tightens (`ready.RULE_BREAKS`), on the first pass that sees it."""
 TOLD = (
     "jbus: pull request #{merged} merged at {commit} with tests your pull request #{number} fails "
     "merged with it: {tests}. Its crew named yours rather than change the rule, so the change is "
