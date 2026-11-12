@@ -123,9 +123,12 @@ MADE = {
     "repo": "it puts the repo's hook",
 }
 SEEN = {
-    "create": "it finds no webhook kept",
+    "delete": "it finds a webhook no record keeps",
+    "create": "it finds no live webhook kept",
+    "lost": "it finds the kept webhook's address lost",
+    "bind": "it finds the webhook kept posts into another thread",
+    "mend": "it finds the record names another thread",
     "idle": "it finds its own webhook kept",
-    "take": "it finds the webhook kept posts into another thread",
 }
 
 
@@ -144,16 +147,15 @@ def step(action, before, after):
         "Link": "it links the entry to ~/.claude's",
         "MirrorDies": "jroles mirror is killed",
         "ExpertStart": f"you start the expert in {THREAD.get(after['me'], 'a thread')}",
-        "SeeWebhook": SEEN.get(after["epc"], "it reads the webhook kept"),
-        "TakeOver": "it binds the webhook to this thread",
-        "Taken": "the webhook posts here, and it keeps that",
-        "NotTaken": "the webhook does not post here",
-        "DeleteOld": "it deletes the webhook kept",
-        "Purge": "it deletes this thread's webhooks no record names",
+        "Look": SEEN.get(after["epc"], "it lists the webhooks"),
+        "Lost": "it sets out to delete that webhook",
+        "Delete": "it deletes the webhook",
         "Create": "T3 Code makes a webhook into this thread",
-        "KeepId": "it keeps the new webhook",
-        "ForgetUrl": "it removes the old address",
         "KeepUrl": "it keeps the new address",
+        "KeepId": "it keeps the new webhook",
+        "Bind": "it writes this thread into the record",
+        "TakeOver": "it binds the webhook to this thread",
+        "Mend": "it writes this thread into the record",
         "TurnStops": "the turn stops",
     }.get(action, action)
 
@@ -163,12 +165,6 @@ def cause(v, facts, invariant):
         return "the install makes jstack's state folder before a record names it"
     if invariant == "MadePathsRecorded":
         return "the install makes a folder before it records it"
-    if invariant == "OneWebhook":
-        if len(v["tasks"]) > 1:
-            return "the new thread keeps no record of the webhook the last one made and never kept"
-        return "the turn stopped before it kept the webhook it made"
-    if invariant == "UrlNamesWebhook":
-        return "the turn stopped before it kept the address, and nothing writes it again"
     return None
 
 

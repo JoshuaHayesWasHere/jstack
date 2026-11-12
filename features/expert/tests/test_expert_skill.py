@@ -332,7 +332,6 @@ def test_a_takeover_that_is_refused_is_followed_by_a_create_and_the_old_webhook_
     (said,) = scene.looks(THREAD)
     (said,) = scene.looks(THREAD, refused=f"{TASK}-1")
     assert said.startswith("create:")
-    assert not (scene.folder / "webhook.url").exists()
     scene.does(THREAD, said)
     assert scene.sees_to_the_webhook(THREAD) == ["delete", "keep"]
     assert scene.kept() == ([f"{TASK}-2", THREAD], [[f"{TASK}-2", THREAD]])

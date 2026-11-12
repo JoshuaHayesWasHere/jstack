@@ -1,11 +1,11 @@
 """The setup records as a TLA+ spec, `features/jinstall/spec/Setup.tla`: each quote of the code it
 models stands once in its file, each carrier of the ledger is a variable, and TLC's verdicts on
-today's code and on the canary are the ones the spec's README keeps. Today's code holds the
-mirror and records each path the install makes for its own use, and breaks UninstallComplete
-through the record's own folder, and OneWebhook and UrlNamesWebhook through a turn that stops
-between a call and the write that keeps what it returned. The canary, which makes a folder
-before it records it, breaks UninstallComplete through the folder. The TLC runs skip where no
-Java runs TLC."""
+today's code and on the canaries are the ones the spec's README keeps. Today's code holds the
+mirror, records each path the install makes for its own use, and holds OneWebhook and
+UrlNamesWebhook however an expert's turn stops, and it breaks UninstallComplete through the
+record's own folder. The install's canary, which makes a folder before it records it, breaks
+UninstallComplete through the folder, and each expert canary breaks the rule its fault broke.
+The TLC runs skip where no Java runs TLC."""
 
 import importlib
 import re
@@ -46,12 +46,21 @@ RULES = {
     "MadePathsRecorded": ("install", None),
     "RecordLevelsRecorded": ("install", "NoteMkdir"),
     "UninstallComplete": ("install", "NoteMkdir"),
-    "OneWebhook": ("expert", "Create"),
-    "UrlNamesWebhook": ("expert", "SeeWebhook"),
+    "OneWebhook": ("expert", None),
+    "UrlNamesWebhook": ("expert", None),
 }
 """Each rule of Setup.tla, the part whose variables it reads, and the step at which today's code
 breaks it, or None where it holds. The parts change apart, so a rule checked on its own part
-alone has the verdict it has on all three."""
+alone has the verdict it has on all three. The expert's rules hold since step 4 of
+expert/when-an-expert-starts.md compares its record with T3 Code's tasks on each start."""
+
+EXPERT_FAULTS = {
+    "purge-own": ("OneWebhook", "Create"),
+    "record-first": ("UrlNamesWebhook", "Look"),
+    "no-mend": ("OneWebhook", "Look"),
+}
+"""Each canary of the expert's part, the rule it breaks and the step at which it breaks it: each
+puts back one fault of the text before, so a rule that holds is shown to catch it."""
 
 
 def quoted():
@@ -157,3 +166,15 @@ def test_a_folder_made_before_its_record_breaks_the_rule(rule):
     ran = alone(rule, "install", "note-after")
     assert f"Invariant {rule} is violated" in ran.stdout, ran.stdout[-4000:]
     assert last_step(ran.stdout) == "Make"
+
+
+@JAVA
+@pytest.mark.parametrize("fault", sorted(EXPERT_FAULTS))
+def test_each_fault_of_the_expert_text_before_breaks_its_rule(fault):
+    """A turn that stops between a call and its write: the purge of this thread's strays alone
+    leaves two webhooks, the record before the address loses it, and a record kept as it is
+    names a thread its webhook no longer posts into."""
+    rule, breaks_at = EXPERT_FAULTS[fault]
+    ran = alone(rule, "expert", fault)
+    assert f"Invariant {rule} is violated" in ran.stdout, ran.stdout[-4000:]
+    assert last_step(ran.stdout) == breaks_at
