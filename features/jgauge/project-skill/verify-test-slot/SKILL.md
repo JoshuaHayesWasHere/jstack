@@ -17,7 +17,7 @@ The rules, each with its harm, and today's verdict:
   Broken, a cap the hook or jbus wrote is undone by a writer that read the file before it.
 - **`WokenGetsSlot`** (breaks, canary `spare-outside-lock`): a woken waiter gets its slot, or its claim lapses at `HOLDS`.
   Broken, a crew jbus woke finds its slot taken and registers again.
-- **`EndNotLost`** (holds since ts-forget-unended, canary `forget-unended`): a run whose `jgauge test-slot` lives to its end has that end on file for jbus to tell.
+- **`EndNotLost`** (holds since #1794, canary `forget-unended`): a run whose `jgauge test-slot` lives to its end has that end on file for jbus to tell.
 - **`OneCommandPerSlot`** (holds since #1719, canary `orphan-command`): a slot runs one command at a time.
 - **`NoLostHolder`** (holds with `PidReuse = FALSE`): every holder ends, or its pid is dead.
   With `PidReuse = TRUE` it breaks in every mode, a gap the model names and does not close.
@@ -27,7 +27,7 @@ The rules, each with its harm, and today's verdict:
 ## The record
 
 Model: `features/jgauge/spec/TestSlot.tla`
-Sync: `2fb4e2587489ad3fbebf71561ac648801edb710f`
+Sync: `29d4705bd64215ec418c951f96e4a75f23f37e4e`
 Covers:
 - `features/jgauge/src/jgauge/slot.py`: `run`, `take`, `free`, `spare`, `_claim`, `_first_free`, `_free_for`, `_ahead`, `_line`, `_wait_in_call`, `_sweep`
 - `features/jgauge/src/jgauge/waiters.py`: `register`, `drop`, `forget`, `woken`, `holding`, `claims`, `lapsed`, `HOLDS`, `FORGOTTEN`
@@ -50,7 +50,7 @@ At the sync commit, main's tip when this branch took main in, the model was read
 `slotwait.wake_ended` forgets a run with no `ended` once `holders.running` says it is over, and `holders.running` counts such a run as running while `_alive` finds its command's `pid` or its `keeper`, the pid of its `jgauge test-slot`, so the run stays until that process writes the end, which is why `forget-unended` is a canary of a fault the code has closed; a record with no `keeper` (0, from an older jgauge) goes by its command alone.
 `ledger.write` reads the file with `_text`, merges, and renames into place with `os.replace` under no lock, as `hooks/limits.sh` does with `cat` and `mv -f`, which is `no-ledger-lock` and the trace of `LedgerNoLostUpdate`.
 `slot.run` arms `children.Watch` before `Popen`, so a killed `jgauge test-slot` takes its command with it, which is why `orphan-command` is a canary of a fault the code has closed.
-Since the last sync (2fb4e2587) the covered files changed only in ts-forget-unended: `holders.Holder` gained `keeper`, `holders.hold` records it, `holders.running` reads it through `_alive`, and `slot.run` passes its own pid; the spec's `Over` and `TodayFaults` moved with it, and the rest of the steps read as before.
+Since the last sync (2fb4e2587) three commits changed covered files. #1794 gave `holders.Holder` its `keeper`, which `holders.hold` records, `holders.running` reads through `_alive`, and `slot.run` passes as its own pid; the spec's `Over` and `TodayFaults` moved with it. #1800 has `slot.locks_dir` refuse the machine's own folder while a test runs, and #1725 has `failover._go` write its retry key first, `owed.carrying`; neither alters a step of the model.
 `features/repo-guards/tests/test_model_sync.py` fails when a file or name above is gone.
 Move `Sync:` forward only after you read every change to these files since it against the model, as `/maintain-formal-verification-skill` says, and never because the check passes.
 
